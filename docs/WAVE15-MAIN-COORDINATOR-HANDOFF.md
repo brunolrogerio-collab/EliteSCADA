@@ -147,35 +147,58 @@ Do not start FND-04 or release FC0-A.
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
 
 **ORDER_STATE: ACTIVE**  
-**DEV_MODE: IMPLEMENT_PHASE_B_CI_BUILD_CORRECTION**  
-**Mission:** FND-03 Lifecycle/Fencing Phase B — fix exact CI build blocker only
+**DEV_MODE: IMPLEMENT_PHASE_B_TEST_FIXTURE_CORRECTION**  
+**Mission:** FND-03 Lifecycle/Fencing Phase B — fix the exact Demo recovery test fixture only
 
 ### Exact candidate / PR
 
+- product base: `20b934f23d8798ffb65cca203b62f8b5c3d8f111`
 - PR: #333
 - branch: `work/w15-fnd-03-runtime-authority-reevaluation-v1`
-- current head: `abb1e497c66a8f0888d6cde83331c51623c18979`
-- tree: `bf32caf2d58d0497322a21bbfa6416152bedfc83`
+- current head: `5ebf533132b217085ff74db8f26ddb16cf95da88`
+- tree: `3946849ebf7ff60a018fbf42fd7b779eb18ddfab`
 - target: `wave15/corrections-integration`
-- natural CI: EliteSCADA CI #1552 / run `35369719457`
+- natural CI: EliteSCADA CI #1553 / run `35394388702`
 
-### CI diagnosis
+The prior CS0649 correction is accepted:
+- exactly one commit from `abb1e497...`;
+- exactly one test file changed;
+- zero production/workflow changes;
+- Backend build now succeeds.
 
-Web job `105680552212` — SUCCESS.
+### CI #1553 diagnosis
 
-Backend job `105680551953` — FAILURE during **Build**, before any tests executed.
+- Web `105759791089` — SUCCESS.
+- Backend `105759791284` — Build SUCCESS, Test FAILURE.
+- Chromium `105760270078` — SKIPPED because Backend failed.
+- Scada.Drivers.Tests: **669/670 PASS**.
 
-Exact blocker:
+Sole failure:
 
-`tests/Scada.Drivers.Tests/PersistedRuntimeRecoveryServiceTests.cs(482,22): error CS0649`
+`PersistedRuntimeRecoveryServiceTests.Recovery_DemoWithAuthorityAnchor_UsesNormalPathAndPreservesRemainingWindow`
 
-Field:
+at line 279:
 
-`PersistedRuntimeRecoveryServiceTests.RecordingTimeProvider._timestamp`
+`Assert.True(result.Recovered)`
 
-is declared but never assigned; warnings are treated as errors.
+Main independently traced the failure through the canonical Runtime implementation.
 
-This is a test-helper compile defect only. No production defect is established by #1552.
+The test currently builds:
+
+`CreateSimplePackage(0)`
+
+which contains:
+- zero TAGs;
+- zero DataSources;
+- therefore zero active Runtime sources.
+
+`EngineeringRuntimeCoordinator.BuildCandidate` intentionally rejects such a package with:
+
+`RUNTIME_NO_ACTIVE_SOURCES`
+
+So the test fixture cannot produce a successful persisted Runtime recovery even when the Phase B Demo-anchor behavior is correct.
+
+This is a **test fixture defect**, not evidence of a Phase B production defect.
 
 ### Exact correction — ONE TEST FILE ONLY
 
@@ -183,16 +206,37 @@ Authorized file:
 
 `tests/Scada.Drivers.Tests/PersistedRuntimeRecoveryServiceTests.cs`
 
-Required correction:
-- eliminate CS0649 without changing Phase B production behavior or weakening any assertion;
-- the helper does not need advancing monotonic time for its current recovery test, so the smallest acceptable solution is to remove the unused backing field and return a deterministic constant timestamp (for example `GetTimestamp() => 0`), or explicitly initialize the field if the DEV can prove equivalent semantics;
-- preserve the fixed UTC clock and captured timer due-time behavior used by the Demo recovery test.
+Required:
+
+1. keep the failing acceptance test semantically about **Demo persisted recovery with durable authority anchor**;
+2. replace the zero-source package in that test with the smallest deterministic Runtime-valid package;
+3. use **Server Memory**, not a network/protocol driver:
+   - one TAG;
+   - Source bound to a local memory DataSource;
+   - DataSource driver `InternalMemoryRuntimePlanner.ServerMemoryDriverKey`;
+   - no sockets, no external server, no wall-clock dependency;
+4. one TAG is well below the Demo tag ceiling and must not alter the entitlement meaning of the test;
+5. preserve all existing assertions proving:
+   - `result.Recovered == true`;
+   - active revision restored;
+   - `DemoStartedAtUtc == durable anchor`;
+   - `DemoExpiresAtUtc == anchor + LicensingPolicy.DemoMaxContinuousRun`;
+   - only remaining Demo time is scheduled;
+   - Engineering Lock is restored only after successful recovery.
+
+A local helper in this same test file is allowed if needed. Follow the repository's existing Server Memory fixture pattern:
+- TAG `Source: "memory.server"`;
+- DataSource key `"memory.server"`;
+- driver `InternalMemoryRuntimePlanner.ServerMemoryDriverKey`.
+
+Do not alter production to make a zero-source Runtime activatable. `RUNTIME_NO_ACTIVE_SOURCES` is valid existing product behavior.
 
 ### Guards
 
-- exactly one file may change versus `abb1e497...`;
+- exactly one file may change versus `5ebf533132b217085ff74db8f26ddb16cf95da88`;
 - zero production changes;
 - zero workflow changes;
+- preserve prior CS0649 correction;
 - no test deletion/skip/assertion weakening;
 - no rebase/retarget;
 - PR #333 remains the same PR;
@@ -202,21 +246,22 @@ Required correction:
 
 ### Validation
 
-1. push one bounded test-only correction commit to the existing branch;
+1. push one bounded test-fixture correction commit to the existing branch;
 2. let PR #333 trigger a **new natural CI** on the new exact head;
-3. do not rerun #1552 unchanged;
+3. do not rerun #1553 unchanged;
 4. tests remain PENDING until Main validates the new exact-head run.
 
 ### Return
 
 Publish exactly one new top-level #301 comment beginning:
 
-`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE B CI-BUILD CORRECTION HANDOFF`
+`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE B TEST-FIXTURE CORRECTION HANDOFF`
 
 Include:
-- old head `abb1e497...` -> new head/tree;
-- exact changed file;
-- exact CS0649 correction;
+- old head `5ebf5331...` -> new head/tree;
+- exact single changed file;
+- exact Runtime-valid Server Memory fixture used;
+- confirmation all prior Demo-anchor/timer/Engineering-Lock assertions remain;
 - confirmation zero production/workflow changes;
 - PR #333 unchanged;
 - new natural CI run ID if exposed;
@@ -225,7 +270,7 @@ Include:
 
 Verify the comment live, report numeric ID, then **STOP**.
 
-Main owns new-head review, CI diagnosis, merge decision and post-merge gate.
+Main owns new-head review, exact-head CI diagnosis, merge decision and post-merge gate.
 
 CODEX remains WAIT.
 FND-04 DEV/AUD remain WAIT.

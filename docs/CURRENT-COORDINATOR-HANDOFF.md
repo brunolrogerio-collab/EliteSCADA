@@ -17,7 +17,7 @@
 - FND-03 Runtime Admission — VERIFIED/FROZEN.
 - FND-03 Shared Runtime Seat Accounting — VERIFIED/FROZEN.
 - FND-03 License Lifecycle/Fencing Phase A — **VERIFIED/FROZEN**.
-- FND-03 License Lifecycle/Fencing Phase B — **CI-BUILD CORRECTION ACTIVE / NOT INTEGRATED**.
+- FND-03 License Lifecycle/Fencing Phase B — **TEST-FIXTURE CORRECTION ACTIVE / NOT INTEGRATED**.
 - FND-03 global — ACTIVE / NOT FROZEN.
 - FND-04 — QUEUED / CONTRACT DEFINED / WAIT.
 - FC0-A — BLOCKED.
@@ -41,7 +41,7 @@ Coordination/documentation commits after this SHA do not change the product chec
 ## Current FND-03 DEV order
 
 `ORDER_STATE: ACTIVE`  
-`DEV_MODE: IMPLEMENT_PHASE_B_CI_BUILD_CORRECTION`
+`DEV_MODE: IMPLEMENT_PHASE_B_TEST_FIXTURE_CORRECTION`
 
 Mission:
 
@@ -87,3 +87,10 @@ No PR or Actions yet. Main reviews the exact Phase B head first.
 ## Latest Phase B CI diagnosis
 
 PR #333 exact head `abb1e497c66a8f0888d6cde83331c51623c18979` entered CI #1552 / run `35369719457`. Web passed. Backend failed at build with a single test-helper warnings-as-error blocker: `PersistedRuntimeRecoveryServiceTests.RecordingTimeProvider._timestamp` is never assigned (CS0649). DEV is ordered to make a one-test-file correction only; no production change is authorized.
+
+
+## Latest CI #1553 diagnosis
+
+Exact Phase B head `5ebf533132b217085ff74db8f26ddb16cf95da88` builds successfully. Scada.Drivers.Tests is 669/670 PASS. The sole failure is a fixture defect in `Recovery_DemoWithAuthorityAnchor_UsesNormalPathAndPreservesRemainingWindow`: `CreateSimplePackage(0)` has no active Runtime source and canonical Runtime correctly returns `RUNTIME_NO_ACTIVE_SOURCES`.
+
+DEV is ordered to change only `PersistedRuntimeRecoveryServiceTests.cs`, replacing that zero-source fixture with one deterministic Server Memory TAG/DataSource. Zero production/workflow changes.

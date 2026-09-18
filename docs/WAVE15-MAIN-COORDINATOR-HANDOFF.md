@@ -146,13 +146,11 @@ Do not start FND-04 or release FC0-A.
 
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
 
-**ORDER_STATE: WAIT**  
-**DEV_MODE: WAIT_CI**  
-**Mission:** FND-03 Lifecycle/Fencing Phase A — Main owns exact-head CI gate
+**ORDER_STATE: ACTIVE**  
+**DEV_MODE: MERGE_PHASE_A_ON_GREEN**  
+**Mission:** FND-03 Lifecycle/Fencing Phase A — merge exact reviewed candidate only after exact-head CI #1550 is fully green
 
-DEV has completed the ordered deterministic-test correction.
-
-Exact candidate now frozen for CI review:
+### Exact authority
 
 - product base: `a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
 - PR: #332
@@ -160,44 +158,71 @@ Exact candidate now frozen for CI review:
 - candidate head: `a07568ea072bf6a095f800dc5443b76b6a6d3a94`
 - tree: `5033bf5fa255326a8cadb4a9f5e057989c3b17a5`
 - target: `wave15/corrections-integration`
+- exact-head CI: EliteSCADA CI #1550 / run `35298261163`
 - determinism handoff: #301 comment `5724035858`
-- natural EliteSCADA CI: #1550 / run `35298261163`
 
-Main independently confirmed:
+Main has independently confirmed:
+- candidate correction delta is exactly one test file;
+- zero production/workflow changes after the reviewed Phase A candidate;
+- deterministic invalid-family candidate test PASS on exact head;
+- PostgreSQL migration/transition/fence/two-store proofs execute and PASS;
+- Scada.Drivers.Tests 656/656 PASS;
+- Runtime smoke PASS;
+- integration branch delta from product checkpoint remains coordination/documentation only;
+- PR has no review threads and is mergeable when GitHub reports it so.
 
-- `1adf8fca... -> a07568ea...` is exactly one commit;
-- exactly one file changed:
-  `tests/Scada.Drivers.Tests/ProductLicenseCandidateVerificationTests.cs`;
-- zero production/workflow changes;
-- deterministic midpoint signature mutation replaced unsafe tail-character tamper;
-- no review threads.
+### Binding merge order
 
-CI #1550 current evidence:
+On next `SIGA`:
 
-- Backend job `105455213597` — SUCCESS;
-- Web job `105455213817` — SUCCESS;
-- Chromium job `105455521880` — RUNNING at latest readback.
+1. reread this CURRENT ORDER live;
+2. revalidate PR #332 head is still exactly `a07568ea072bf6a095f800dc5443b76b6a6d3a94`;
+3. revalidate target remains `wave15/corrections-integration`;
+4. revalidate integration changes since product checkpoint are still documentation/coordination only;
+5. read CI #1550 / run `35298261163`.
 
-Backend log evidence on exact head:
-
-- `VerifyCandidate_InvalidFamilies_DoNotMutateInstalledLicense` — PASS (~1 s);
-- PostgreSQL migration/transition/fence/two-store tests execute with non-trivial durations and PASS;
-- Shared Runtime PostgreSQL regressions execute and PASS;
-- Scada.Drivers.Tests — 656/656 PASS;
-- Runtime smoke — PASS.
-
-### DEV order
-
-While this order is `WAIT`:
-
-- make no code/test/branch/PR changes;
-- do not rerun CI;
-- do not merge;
+If **Backend, Web and Chromium are all SUCCESS** on the exact candidate head:
+- merge PR #332 into `wave15/corrections-integration`;
+- do not rebase, retarget, amend, squash-away evidence or change candidate first;
+- capture exact merge SHA, parents, tree and new integration HEAD;
+- do not run post-merge CI manually;
 - do not start Phase B/C;
-- do not start FND-04 / FC0-A;
-- on `SIGA`, reread this file, confirm `WAIT_CI`, and stop.
+- publish exactly one new top-level #301 comment beginning:
 
-Main owns the remaining Chromium result, PR promotion decision, any diagnosed rerun if needed, and any later merge/Phase B order.
+`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A MERGE HANDOFF`
+
+Include:
+- PR #332;
+- candidate head/tree;
+- merge SHA/parents/tree;
+- new integration HEAD;
+- exact CI #1550 run/jobs that authorized merge;
+- confirmation no candidate mutation/rebase/retarget occurred;
+- confirmation no Phase B/C entered.
+
+Verify comment live, report numeric ID, then **STOP**.
+
+If Chromium is still running/pending:
+- do not merge;
+- return `WAIT-CI-1550`;
+- make no repository mutation.
+
+If any required CI job is red/cancelled:
+- do not merge;
+- return `BLOCKED-CI-1550` with exact failing job;
+- make no product/test mutation until Main diagnoses.
+
+### Ownership after merge
+
+Main Coordinator owns:
+- exact merge-SHA verification;
+- post-merge CI operation/diagnosis;
+- Phase A INTEGRATED -> VERIFIED/FROZEN promotion;
+- Phase B architecture/work package and activation.
+
+CODEX remains WAIT.
+FND-04 DEV/AUD remain WAIT.
+FC0-A remains BLOCKED.
 
 
 ---

@@ -16,94 +16,64 @@
 - FND-03 machine-license v2 + hardening — VERIFIED/FROZEN.
 - FND-03 Runtime Admission — VERIFIED/FROZEN.
 - FND-03 Shared Runtime Seat Accounting — VERIFIED/FROZEN.
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A CI GATE RUNNING / NOT INTEGRATED**.
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **PHASE A INTEGRATED / POST-MERGE CI #1551 RUNNING / NOT YET VERIFIED**.
 - FND-03 global — ACTIVE / NOT FROZEN.
 - FND-04 — QUEUED / CONTRACT DEFINED / WAIT.
 - FC0-A — BLOCKED.
 
-## Verified product checkpoint
+## Current product checkpoint
 
-`wave15/corrections-integration@a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
+PR #332 merged into `wave15/corrections-integration`.
 
-tree `eed22a377fea2778d3e78143d706e4de0ef9ce38`.
+Exact merge/product checkpoint:
 
-PR #331 is MERGED and exact post-merge CI #1546 / run `35269829080` is green.
+`20b934f23d8798ffb65cca203b62f8b5c3d8f111`
 
-Coordination/documentation commits after that SHA do not create a new product checkpoint. Live compare confirmed only `LAST CHANGE.md`, `docs/CURRENT-COORDINATOR-HANDOFF.md` and `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` changed since the product checkpoint.
+tree:
+
+`4e227fdde1d8475c23852e142c51946c7a2e1859`
+
+parents:
+- `a3555b3422e0f86ee89d21588e550a33931e71b2`
+- `a07568ea072bf6a095f800dc5443b76b6a6d3a94`
+
+Later coordination/documentation commits do not change the product checkpoint.
+
+## Exact post-merge CI gate
+
+EliteSCADA CI #1551 / run `35341475101`, event `push`, exact head SHA `20b934f23d8798ffb65cca203b62f8b5c3d8f111`.
+
+Latest observed jobs:
+- Backend `105588126265` — SUCCESS.
+- Web `105588126462` — SUCCESS.
+- Chromium `105588538108` — RUNNING.
+
+Phase A cannot become VERIFIED/FROZEN until all required exact-merge jobs are green.
 
 ## Current execution lanes
+
+### FND-03 DEV
+
+`ORDER_STATE: WAIT`  
+`DEV_MODE: WAIT_POST_MERGE_CI`
+
+No mutation while Main owns the gate.
 
 ### CODEX
 
 `ORDER_STATE: WAIT`.
 
-Codex is reserve. No implementation/commit/PR/CI is authorized until Main explicitly activates a bounded task.
+Codex remains reserve.
 
-### FND-03 DEV
+### FND-04
 
-`ORDER_STATE: ACTIVE`  
-`DEV_MODE: WAIT_CI`
+DEV/AUD remain WAIT.
 
-Architecture amendment #301 comment `5722165708` was independently reviewed by Main and is frozen for implementation.
+## Next Main action
 
-Work branch:
+1. validate Chromium `105588538108`;
+2. if green, promote Phase A to VERIFIED/FROZEN;
+3. activate the next bounded Phase B work package from exact product checkpoint `20b934f2...`;
+4. keep CODEX reserve unless a material blocker justifies it;
+5. keep FND-04 WAIT and FC0-A blocked until explicitly released.
 
-`work/w15-fnd-03-license-lifecycle-fencing-v1`
-
-must be created from exact product base:
-
-`a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
-
-Phase A only:
-
-1. canonical non-mutating `VerifyCandidate`;
-2. AuthorityRevision / durable transition-state foundation + PostgreSQL migration / in-memory parity / bulk-fence primitives;
-3. admission/validate/heartbeat/terminate epoch enforcement using `ExpectedAuthorityRevision`.
-
-Do not yet implement local Runtime re-evaluation, Demo recovery, lifecycle orchestrator, licensing mutation API/audit cutover, FND-04 or FC0-A.
-
-Corrected Phase A head `509d794e92fd5e6333663020738d2713c73a7e9f` / tree `ebb607695815197d419d28dd463c47bd0e702284` was independently re-reviewed by Main. CA1/CA2 are closed at source/test-definition level.
-
-DEV is authorized only to open the Phase A PR from the exact candidate to `wave15/corrections-integration`, without changing candidate/rebase/retarget/merge.
-
-Required return in #301:
-
-`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A PR HANDOFF`
-
-Natural PR CI is owned by Main. Execution evidence remains PENDING until CI.
-
-## FND-04
-
-FND-04 DEV and AUD remain `WAIT`.
-
-## Retomada obrigatória
-
-1. Read canonical handoff in full.
-2. Revalidate product checkpoint and integration HEAD.
-3. Review latest Phase A DEV handoff/head if present.
-4. Main decides Phase B only after independent Phase A review.
-5. Keep Codex WAIT unless a bounded blocker/correction justifies it.
-6. Keep FND-04 WAIT and FC0-A blocked.
-
-`Hora: HH:MM` in America/Sao_Paulo.
-
-
-## Latest Main finding
-
-PR #332 CI #1547 exposed a test-environment evidence gap: canonical CI provides `ELITESCADA_TEST_POSTGRES`, but FND-03 PostgreSQL tests were reading legacy `ELITESCADA_C25_POSTGRES` and returning early. A tests-only correction is active; old CI #1547 cannot prove PostgreSQL acceptance.
-
-## Latest Main diagnosis
-
-PR #332 exact head `1adf8fca1547d8aa76c6f4ab65265d56e0d8518f` ran CI #1549. PostgreSQL FND-03 tests now genuinely execute and PASS. Backend red is isolated to one nondeterministic test construction in `ProductLicenseCandidateVerificationTests`: tail Base64Url mutation can decode to identical signature bytes. DEV is ordered to change that single test file only; no product change is authorized.
-
-## Latest gate
-
-PR #332 is frozen at `a07568ea072bf6a095f800dc5443b76b6a6d3a94` / tree `5033bf5fa255326a8cadb4a9f5e057989c3b17a5`. CI #1550 has Backend+Web SUCCESS and Chromium still running at latest readback. DEV is WAIT_CI; Main owns the gate.
-
-## CI #1550 controlled rerun
-
-Original Chromium job `105455521880` failed only in the historical C04 Preview case (`previewCandidate == null`, 623/624 passed), outside the FND-03 candidate delta. Main diagnosed before rerun and triggered one controlled Chromium rerun on unchanged head `a07568ea072bf6a095f800dc5443b76b6a6d3a94`.
-
-Controlled rerun Chromium job: `105460986304`.
-
-Merge of PR #332 is binding-authorized only if this rerun succeeds and required dependency jobs remain green. No second blind rerun is authorized.

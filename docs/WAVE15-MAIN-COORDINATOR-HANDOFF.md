@@ -146,9 +146,9 @@ Do not start FND-04 or release FC0-A.
 
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
 
-**ORDER_STATE: ACTIVE**  
-**DEV_MODE: MERGE_PHASE_A_ON_GREEN**  
-**Mission:** FND-03 Lifecycle/Fencing Phase A — merge exact reviewed candidate only after exact-head CI #1550 is fully green
+**ORDER_STATE: WAIT**  
+**DEV_MODE: WAIT_MAIN_MERGE_GATE**  
+**Mission:** FND-03 Lifecycle/Fencing Phase A — Main owns exact-head CI rerun and merge gate
 
 ### Exact authority
 
@@ -173,46 +173,21 @@ Main has independently confirmed:
 - integration branch delta from product checkpoint remains coordination/documentation only;
 - PR has no review threads and is mergeable when GitHub reports it so.
 
-### Binding merge order
+### Main merge ownership
 
-On next `SIGA`:
+DEV must make no further repository mutation while this order is WAIT.
 
-1. reread this CURRENT ORDER live;
-2. revalidate PR #332 head is still exactly `a07568ea072bf6a095f800dc5443b76b6a6d3a94`;
-3. revalidate target remains `wave15/corrections-integration`;
-4. revalidate integration changes since product checkpoint are still documentation/coordination only;
-5. read CI #1550 / run `35298261163`.
+Main Coordinator is the owner of the remaining gate:
 
-If Backend/Web remain SUCCESS and **controlled rerun Chromium job `105460986304` is SUCCESS** on the exact candidate head:
-- merge PR #332 into `wave15/corrections-integration`;
-- do not rebase, retarget, amend, squash-away evidence or change candidate first;
-- capture exact merge SHA, parents, tree and new integration HEAD;
-- do not run post-merge CI manually;
-- do not start Phase B/C;
-- publish exactly one new top-level #301 comment beginning:
+1. validate controlled rerun Chromium job `105460986304` on exact candidate `a07568ea072bf6a095f800dc5443b76b6a6d3a94`;
+2. if rerun Chromium + required dependency jobs are SUCCESS, Main may execute the already binding-authorized merge of PR #332 into `wave15/corrections-integration` directly;
+3. Main captures merge SHA/parents/tree/new integration HEAD;
+4. Main validates/operates post-merge CI on the exact merge SHA;
+5. only after post-merge green may Main promote Phase A to VERIFIED/FROZEN and activate the next bounded phase.
 
-`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A MERGE HANDOFF`
+If rerun is red/cancelled, Main diagnoses; no blind second rerun and no product/test mutation without a new binding order.
 
-Include:
-- PR #332;
-- candidate head/tree;
-- merge SHA/parents/tree;
-- new integration HEAD;
-- exact CI #1550 run/jobs that authorized merge;
-- confirmation no candidate mutation/rebase/retarget occurred;
-- confirmation no Phase B/C entered.
-
-Verify comment live, report numeric ID, then **STOP**.
-
-If controlled rerun Chromium `105460986304` is still queued/running:
-- do not merge;
-- return `WAIT-CI-1550-RERUN`;
-- make no repository mutation.
-
-If controlled rerun Chromium `105460986304` is red/cancelled, or any newly rerun required dependency job is red/cancelled:
-- do not merge;
-- return `BLOCKED-CI-1550-RERUN` with exact failing job;
-- make no product/test mutation until Main diagnoses.
+On DEV `SIGA` while WAIT, reread this file and stop.
 
 ### Ownership after merge
 

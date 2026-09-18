@@ -1,103 +1,69 @@
 # LAST CHANGE — EliteSCADA
 
-**Date:** 2026-09-17 BRT  
-**Operational state:** **WAVE 15 ACTIVE / FND-03 SHARED SEAT ACCOUNTING VERIFIED+FROZEN / LIFECYCLE+FENCING ARCHITECTURE FROZEN / PHASE A CI GATE RUNNING / CODEX WAIT / FND-04 WAIT / FC0-A BLOCKED**
+**Date:** 2026-09-18 BRT  
+**Operational state:** **WAVE 15 ACTIVE / FND-03 LIFECYCLE PHASE A INTEGRATED / POST-MERGE CI #1551 RUNNING / NOT YET VERIFIED / CODEX WAIT / FND-04 WAIT / FC0-A BLOCKED**
 
 > GitHub live is the official memory.
 >
 > Canonical operational handoff: `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`.
 
-## Latest verified product checkpoint
+## Latest integrated product checkpoint
 
-`wave15/corrections-integration@a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
+PR #332 — FND-03 License Lifecycle / Runtime Authority Fencing Phase A — merged.
 
-tree `eed22a377fea2778d3e78143d706e4de0ef9ce38`.
+Exact product merge:
 
-This is PR #331 — FND-03 Shared Runtime Seat Accounting — merged and VERIFIED/FROZEN by exact post-merge CI #1546 / run `35269829080`.
+`20b934f23d8798ffb65cca203b62f8b5c3d8f111`
 
-Later coordination-only documentation commits do not change the product checkpoint.
+tree:
 
-## Foundation state
+`4e227fdde1d8475c23852e142c51946c7a2e1859`
 
-- FND-01 — VERIFIED/FROZEN
-- FND-02 incl. AUTH-04 — VERIFIED/FROZEN
-- FND-08 — VERIFIED/FROZEN
-- FND-03 durable Runtime Session Lease v1 — VERIFIED/FROZEN
-- FND-03 machine-license v2 + hardening — VERIFIED/FROZEN
-- FND-03 Runtime Admission — VERIFIED/FROZEN
-- FND-03 Shared Runtime Seat Accounting — VERIFIED/FROZEN
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **ARCHITECTURE FROZEN / PHASE A CI GATE RUNNING / NOT INTEGRATED**
-- FND-03 global — ACTIVE / NOT FROZEN
-- FND-04 — WAIT
-- FC0-A — BLOCKED
+merge parents:
+- integration coordination head `a3555b3422e0f86ee89d21588e550a33931e71b2`
+- reviewed Phase A candidate `a07568ea072bf6a095f800dc5443b76b6a6d3a94`
 
-## Current execution strategy
+The candidate was merged only after exact-head CI #1550 had Backend/Web green and the single controlled Chromium rerun `105460986304` green.
 
-CODEX remains `WAIT` to preserve scarce quota.
+## Phase A content
 
-FND-03 DEV is `ACTIVE / IMPLEMENT_PHASE_A_TEST_DETERMINISM_CORRECTION`.
+Integrated Phase A includes:
+- canonical non-mutating `VerifyCandidate`;
+- Runtime AuthorityRevision / durable transition state;
+- PostgreSQL migration `023_runtime_session_authority_fencing_v1`;
+- lease AuthorityRevision stamping;
+- ExpectedAuthorityRevision capacity binding;
+- pending/stale fail-closed admission/use checks;
+- bulk lease fencing with exactly-once Generation mutation;
+- deterministic PostgreSQL concurrency/migration/fence evidence;
+- corrected canonical PostgreSQL CI environment wiring.
 
-Main reviewed and froze architecture amendment #301 comment `5722165708`. The first implementation phase is deliberately bounded to:
+## Post-merge gate
 
-1. canonical `LicenseVerificationResult VerifyCandidate(string licenseCode)` with no installed-state mutation;
-2. `AuthorityRevision` + durable `transition_pending` state, PostgreSQL migration `023_runtime_session_authority_fencing_v1`, in-memory parity and bulk-fence primitives;
-3. admission/use epoch enforcement with `ExpectedAuthorityRevision`, pending/stale fail-closed checks and deterministic concurrency proof.
+EliteSCADA CI #1551 / run `35341475101` is a `push` run on exact merge SHA `20b934f23d8798ffb65cca203b62f8b5c3d8f111`.
 
-Exact product base:
+Latest observed:
+- Backend `105588126265` — SUCCESS;
+- Web `105588126462` — SUCCESS;
+- Chromium `105588538108` — RUNNING.
 
-`a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
+Until Chromium is green:
+- Phase A = INTEGRATED;
+- not VERIFIED/FROZEN;
+- FND-03 DEV = WAIT;
+- Phase B = not active.
 
-Work branch:
+## Next bounded phase after green
 
-`work/w15-fnd-03-license-lifecycle-fencing-v1`
+Main has already source-mapped Phase B around:
+- `ProductLicensedRuntimeCoordinator`;
+- `PersistedRuntimeRecoveryService`;
+- local Runtime re-evaluation after authority change;
+- durable Demo authority-change anchor and remaining-duration semantics;
+- fail-closed persisted Runtime recovery while transition is pending / when Demo lacks a durable anchor.
 
-Target:
+A new clean Phase B branch should start from exact product checkpoint `20b934f23d8798ffb65cca203b62f8b5c3d8f111`.
 
-`wave15/corrections-integration`
-
-Corrected Phase A candidate `509d794e92fd5e6333663020738d2713c73a7e9f` / tree `ebb607695815197d419d28dd463c47bd0e702284` was re-reviewed by Main. CA1/CA2 are closed at source/test-definition level. DEV may now open the exact Phase A PR only; natural PR CI will be owned and evaluated by Main.
-
-## Frozen architecture guards
-
-- one canonical `FileProductLicenseService` authority;
-- canonical `LicenseVerificationResult`;
-- invalid replacement true no-op;
-- short PostgreSQL advisory transactions only;
-- durable fail-closed transition marker;
-- `AuthorityRevision` global fencing epoch, `Generation` per-lease CAS;
-- stale capacity cannot reserve after authority revision change;
-- transition completion must prove no active stale-revision lease remains;
-- Demo recovery cannot reset the bounded allowance;
-- machine-license mutation requires EngineeringModify but not current Application Engineering Lock;
-- no secrets/license/session/lifecycle state in `.escadapkg`;
-- same-installation machine authority only for shared-ledger multi-process support; cross-machine HA remains out of scope.
-
-## Next gate
-
-Wait for:
-
-`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE A PR HANDOFF`
-
-Then Main independently reviews exact Phase A head/tests and either:
-- orders corrections,
-- activates Phase B,
-- or uses Codex only for a material blocker/critical correction.
-
-FND-04 stays WAIT. FC0-A stays blocked.
-
-
-## Latest CI evidence correction
-
-PR #332 run #1547 showed backend/web green, but the FND-03 PostgreSQL tests were wired to legacy `ELITESCADA_C25_POSTGRES` while canonical CI injects `ELITESCADA_TEST_POSTGRES`. Their PostgreSQL bodies therefore remained unproven. Main ordered a tests-only env correction on the same PR; no unchanged rerun is accepted as closure.
-
-## Latest CI #1549 diagnosis
-
-The prior PostgreSQL environment evidence gap is closed: FND-03 PostgreSQL tests genuinely executed and passed. The only backend failure is a nondeterministic candidate-tamper test that mutates the final Base64Url signature character, which can preserve decoded bytes via padding-bit equivalence. Main ordered a one-test-file deterministic tamper correction on PR #332.
-
-## Latest exact-head gate
-
-PR #332 candidate `a07568ea072bf6a095f800dc5443b76b6a6d3a94` is frozen. CI #1550 backend and web are green; Chromium remained in progress at latest readback. Backend exact-head logs prove deterministic license candidate coverage and real PostgreSQL FND-03 execution PASS.
-
-## CI #1550 controlled rerun
-
-Original Chromium `105455521880` failed only on historical C04 Preview (`previewCandidate == null`, 623/624 passed). Main diagnosed the unrelated failure and used standing CI authority for one controlled rerun on the unchanged exact candidate. Rerun Chromium job: `105460986304`. PR #332 may integrate only if this rerun and required dependency jobs are green.
+CODEX remains reserve.
+FND-04 remains WAIT.
+FC0-A remains blocked.

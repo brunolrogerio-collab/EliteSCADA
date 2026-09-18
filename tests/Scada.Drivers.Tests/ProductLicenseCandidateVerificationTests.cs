@@ -68,7 +68,9 @@ public sealed class ProductLicenseCandidateVerificationTests
             var wrongMachineCode = CreateV2(wrongMachine, "test-key", trustedPrivateKey, DateTimeOffset.UtcNow.AddHours(1));
             var wrongKeyCode = CreateV2(machine, "test-key", wrongPrivateKey, DateTimeOffset.UtcNow.AddHours(1));
             var expiredCode = CreateV2(machine, "test-key", trustedPrivateKey, DateTimeOffset.UtcNow.AddMinutes(-1));
-            var tamperedCode = installed[..^1] + (installed[^1] == 'A' ? "B" : "A");
+            var tamperedParts = installed.Split('.');
+            tamperedParts[2] = MutateBase64Url(tamperedParts[2]);
+            var tamperedCode = string.Join('.', tamperedParts);
 
             foreach (var candidate in new[] { "not-a-license", tamperedCode, wrongKeyCode, wrongMachineCode, expiredCode })
             {
@@ -82,6 +84,14 @@ public sealed class ProductLicenseCandidateVerificationTests
         {
             Directory.Delete(directory, recursive: true);
         }
+    }
+
+    private static string MutateBase64Url(string value)
+    {
+        var chars = value.ToCharArray();
+        var index = chars.Length / 2;
+        chars[index] = chars[index] == 'A' ? 'B' : 'A';
+        return new string(chars);
     }
 
     private static string CreateV2(

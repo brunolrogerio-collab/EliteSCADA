@@ -17,7 +17,7 @@
 - FND-03 Runtime Admission — VERIFIED/FROZEN.
 - FND-03 Shared Runtime Seat Accounting — VERIFIED/FROZEN.
 - FND-03 License Lifecycle/Fencing Phase A — **VERIFIED/FROZEN**.
-- FND-03 License Lifecycle/Fencing Phase B — **ACTIVE / NOT INTEGRATED**.
+- FND-03 License Lifecycle/Fencing Phase B — **CI-BUILD CORRECTION ACTIVE / NOT INTEGRATED**.
 - FND-03 global — ACTIVE / NOT FROZEN.
 - FND-04 — QUEUED / CONTRACT DEFINED / WAIT.
 - FC0-A — BLOCKED.
@@ -41,7 +41,7 @@ Coordination/documentation commits after this SHA do not change the product chec
 ## Current FND-03 DEV order
 
 `ORDER_STATE: ACTIVE`  
-`DEV_MODE: IMPLEMENT_PHASE_B`
+`DEV_MODE: IMPLEMENT_PHASE_B_CI_BUILD_CORRECTION`
 
 Mission:
 
@@ -82,3 +82,8 @@ No PR or Actions yet. Main reviews the exact Phase B head first.
 3. Review latest Phase B DEV handoff/head if present.
 4. Main decides correction or PR/CI gate.
 5. Keep CODEX reserve unless a material blocker justifies it.
+
+
+## Latest Phase B CI diagnosis
+
+PR #333 exact head `abb1e497c66a8f0888d6cde83331c51623c18979` entered CI #1552 / run `35369719457`. Web passed. Backend failed at build with a single test-helper warnings-as-error blocker: `PersistedRuntimeRecoveryServiceTests.RecordingTimeProvider._timestamp` is never assigned (CS0649). DEV is ordered to make a one-test-file correction only; no production change is authorized.

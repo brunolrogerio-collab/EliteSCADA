@@ -119,7 +119,7 @@ O integration HEAD pode estar à frente por commits de coordenação; isso não 
 - FND-03 machine-license v2 + hardening — **VERIFIED/FROZEN**
 - FND-03 Runtime Admission — **VERIFIED/FROZEN**
 - FND-03 Shared Runtime Seat Accounting — **VERIFIED/FROZEN**
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **PHASE A VERIFIED/FROZEN / PHASE B PR #333 CI RUNNING / NOT INTEGRATED**
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **PHASE A VERIFIED/FROZEN / PHASE B CI-BUILD CORRECTION ACTIVE / NOT INTEGRATED**
 - FND-03 global — **ACTIVE / NOT FROZEN**
 - FND-04 Script TAG Reference Resolution — **QUEUED / CONTRACT DEFINED / NOT ACTIVE / NOT FROZEN**
 - FC0-A — **BLOCKED**
@@ -146,53 +146,86 @@ Do not start FND-04 or release FC0-A.
 
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
 
-**ORDER_STATE: WAIT**  
-**DEV_MODE: WAIT_PHASE_B_CI**  
-**Mission:** FND-03 Lifecycle/Fencing Phase B — Main owns exact-head PR/CI gate
+**ORDER_STATE: ACTIVE**  
+**DEV_MODE: IMPLEMENT_PHASE_B_CI_BUILD_CORRECTION**  
+**Mission:** FND-03 Lifecycle/Fencing Phase B — fix exact CI build blocker only
 
-Phase B implementation handoff accepted for execution review:
+### Exact candidate / PR
 
-- handoff: #301 comment `5731707506`
-- product base: `20b934f23d8798ffb65cca203b62f8b5c3d8f111`
-- branch: `work/w15-fnd-03-runtime-authority-reevaluation-v1`
-- exact candidate head: `abb1e497c66a8f0888d6cde83331c51623c18979`
-- candidate tree: `bf32caf2d58d0497322a21bbfa6416152bedfc83`
-- commits: 3
-- changed files: exactly 5
 - PR: #333
+- branch: `work/w15-fnd-03-runtime-authority-reevaluation-v1`
+- current head: `abb1e497c66a8f0888d6cde83331c51623c18979`
+- tree: `bf32caf2d58d0497322a21bbfa6416152bedfc83`
 - target: `wave15/corrections-integration`
-- natural EliteSCADA CI: #1552 / run `35369719457`
+- natural CI: EliteSCADA CI #1552 / run `35369719457`
 
-Main independently confirmed before PR:
-- branch is exactly 3 commits ahead of the Phase A product checkpoint;
-- no product/infra base divergence exists; integration delta since checkpoint is coordination/documentation only;
-- Phase A authority epoch / lease Generation / expected-revision contracts are untouched;
-- no second authority store/registry/license parser/clock/entitlement evaluator was introduced;
-- B1 active Runtime re-evaluation is serialized by the existing activation gate;
-- B2 durable Demo timing uses semantic UTC anchor + current-process monotonic elapsed;
-- B3 persisted recovery reads canonical license + the existing Runtime authority store and fails closed for pending/Invalid/Demo-without-anchor;
-- denied recovery does not replace Engineering Lock state;
-- startup initializes the existing Runtime authority store before persisted recovery;
-- no Phase C/FND-04/FC0-A scope entered;
-- PR #333 has no review threads at gate entry.
+### CI diagnosis
 
-### DEV order
+Web job `105680552212` — SUCCESS.
 
-While this order is WAIT:
+Backend job `105680551953` — FAILURE during **Build**, before any tests executed.
 
-- make no code/test/branch/PR mutation;
-- do not rerun CI;
-- do not merge;
-- do not start Phase C;
-- on `SIGA`, reread this file and stop.
+Exact blocker:
 
-Main owns:
-- CI #1552 diagnosis on exact head `abb1e497...`;
-- verification that the new Phase B tests actually execute;
-- any bounded correction order if red;
-- merge decision only after exact-head green;
-- post-merge CI;
-- Phase B VERIFIED/FROZEN promotion and Phase C activation.
+`tests/Scada.Drivers.Tests/PersistedRuntimeRecoveryServiceTests.cs(482,22): error CS0649`
+
+Field:
+
+`PersistedRuntimeRecoveryServiceTests.RecordingTimeProvider._timestamp`
+
+is declared but never assigned; warnings are treated as errors.
+
+This is a test-helper compile defect only. No production defect is established by #1552.
+
+### Exact correction — ONE TEST FILE ONLY
+
+Authorized file:
+
+`tests/Scada.Drivers.Tests/PersistedRuntimeRecoveryServiceTests.cs`
+
+Required correction:
+- eliminate CS0649 without changing Phase B production behavior or weakening any assertion;
+- the helper does not need advancing monotonic time for its current recovery test, so the smallest acceptable solution is to remove the unused backing field and return a deterministic constant timestamp (for example `GetTimestamp() => 0`), or explicitly initialize the field if the DEV can prove equivalent semantics;
+- preserve the fixed UTC clock and captured timer due-time behavior used by the Demo recovery test.
+
+### Guards
+
+- exactly one file may change versus `abb1e497...`;
+- zero production changes;
+- zero workflow changes;
+- no test deletion/skip/assertion weakening;
+- no rebase/retarget;
+- PR #333 remains the same PR;
+- no Phase C/FND-04/FC0-A;
+- no merge;
+- no `main`.
+
+### Validation
+
+1. push one bounded test-only correction commit to the existing branch;
+2. let PR #333 trigger a **new natural CI** on the new exact head;
+3. do not rerun #1552 unchanged;
+4. tests remain PENDING until Main validates the new exact-head run.
+
+### Return
+
+Publish exactly one new top-level #301 comment beginning:
+
+`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE B CI-BUILD CORRECTION HANDOFF`
+
+Include:
+- old head `abb1e497...` -> new head/tree;
+- exact changed file;
+- exact CS0649 correction;
+- confirmation zero production/workflow changes;
+- PR #333 unchanged;
+- new natural CI run ID if exposed;
+- tests PENDING until Main review;
+- confirmation no Phase C entered.
+
+Verify the comment live, report numeric ID, then **STOP**.
+
+Main owns new-head review, CI diagnosis, merge decision and post-merge gate.
 
 CODEX remains WAIT.
 FND-04 DEV/AUD remain WAIT.

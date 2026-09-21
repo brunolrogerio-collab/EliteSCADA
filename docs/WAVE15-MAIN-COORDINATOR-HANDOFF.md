@@ -146,131 +146,54 @@ Do not start FND-04 or release FC0-A.
 
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
 
-**ORDER_STATE: ACTIVE**  
-**DEV_MODE: IMPLEMENT_PHASE_B_TEST_FIXTURE_CORRECTION**  
-**Mission:** FND-03 Lifecycle/Fencing Phase B — fix the exact Demo recovery test fixture only
+**ORDER_STATE: WAIT**  
+**DEV_MODE: WAIT_POST_MERGE_CI**  
+**Mission:** FND-03 Lifecycle/Fencing Phase B — integrated; Main owns exact merge-SHA verification
 
-### Exact candidate / PR
+### Integrated exact state
 
-- product base: `20b934f23d8798ffb65cca203b62f8b5c3d8f111`
-- PR: #333
-- branch: `work/w15-fnd-03-runtime-authority-reevaluation-v1`
-- current head: `5ebf533132b217085ff74db8f26ddb16cf95da88`
-- tree: `3946849ebf7ff60a018fbf42fd7b779eb18ddfab`
-- target: `wave15/corrections-integration`
-- natural CI: EliteSCADA CI #1553 / run `35394388702`
+PR #333 is merged.
 
-The prior CS0649 correction is accepted:
-- exactly one commit from `abb1e497...`;
-- exactly one test file changed;
-- zero production/workflow changes;
-- Backend build now succeeds.
+- Phase A verified product base: `20b934f23d8798ffb65cca203b62f8b5c3d8f111`
+- reviewed Phase B candidate head: `29c5911318c06f6d07578dd4b97b908f66e3c773`
+- candidate tree: `8e890abab8de005ab4f8e09899e9a208ef3f8073`
+- exact-head PR CI: EliteSCADA CI #1554 / run `35663835807`
+  - Backend `106545006714` — SUCCESS
+  - Web `106545007263` — SUCCESS
+  - Chromium `106545462890` — SUCCESS
+- merge SHA / product checkpoint: `4647dd741551c97306217ac9893d3378b070f43b`
+- merge tree: `d7eb7d3f57269e71ed5984c82e701a059be56bfb`
+- exact post-merge CI: EliteSCADA CI #1555 / run `35665138086`
 
-### CI #1553 diagnosis
+Main independently confirmed before merge:
+- final correction is exactly one test-file commit;
+- no production/workflow change in that correction;
+- integration delta since the Phase A product checkpoint was coordination/documentation only;
+- all required Phase B focused tests execute and PASS on the exact candidate;
+- PR #333 remained mergeable and had no review threads.
 
-- Web `105759791089` — SUCCESS.
-- Backend `105759791284` — Build SUCCESS, Test FAILURE.
-- Chromium `105760270078` — SKIPPED because Backend failed.
-- Scada.Drivers.Tests: **669/670 PASS**.
+### State discipline
 
-Sole failure:
+Phase B is now **INTEGRATED**, not yet VERIFIED/FROZEN.
 
-`PersistedRuntimeRecoveryServiceTests.Recovery_DemoWithAuthorityAnchor_UsesNormalPathAndPreservesRemainingWindow`
+The remaining gate is exact merge-SHA CI #1555 on `4647dd741551c97306217ac9893d3378b070f43b`.
 
-at line 279:
+Main owns:
+- Backend/Web/Chromium post-merge evidence;
+- diagnosis before any rerun;
+- Phase B VERIFIED/FROZEN promotion;
+- activation of Phase C only after exact merge-SHA green.
 
-`Assert.True(result.Recovered)`
+### DEV order
 
-Main independently traced the failure through the canonical Runtime implementation.
+While this order is WAIT:
 
-The test currently builds:
-
-`CreateSimplePackage(0)`
-
-which contains:
-- zero TAGs;
-- zero DataSources;
-- therefore zero active Runtime sources.
-
-`EngineeringRuntimeCoordinator.BuildCandidate` intentionally rejects such a package with:
-
-`RUNTIME_NO_ACTIVE_SOURCES`
-
-So the test fixture cannot produce a successful persisted Runtime recovery even when the Phase B Demo-anchor behavior is correct.
-
-This is a **test fixture defect**, not evidence of a Phase B production defect.
-
-### Exact correction — ONE TEST FILE ONLY
-
-Authorized file:
-
-`tests/Scada.Drivers.Tests/PersistedRuntimeRecoveryServiceTests.cs`
-
-Required:
-
-1. keep the failing acceptance test semantically about **Demo persisted recovery with durable authority anchor**;
-2. replace the zero-source package in that test with the smallest deterministic Runtime-valid package;
-3. use **Server Memory**, not a network/protocol driver:
-   - one TAG;
-   - Source bound to a local memory DataSource;
-   - DataSource driver `InternalMemoryRuntimePlanner.ServerMemoryDriverKey`;
-   - no sockets, no external server, no wall-clock dependency;
-4. one TAG is well below the Demo tag ceiling and must not alter the entitlement meaning of the test;
-5. preserve all existing assertions proving:
-   - `result.Recovered == true`;
-   - active revision restored;
-   - `DemoStartedAtUtc == durable anchor`;
-   - `DemoExpiresAtUtc == anchor + LicensingPolicy.DemoMaxContinuousRun`;
-   - only remaining Demo time is scheduled;
-   - Engineering Lock is restored only after successful recovery.
-
-A local helper in this same test file is allowed if needed. Follow the repository's existing Server Memory fixture pattern:
-- TAG `Source: "memory.server"`;
-- DataSource key `"memory.server"`;
-- driver `InternalMemoryRuntimePlanner.ServerMemoryDriverKey`.
-
-Do not alter production to make a zero-source Runtime activatable. `RUNTIME_NO_ACTIVE_SOURCES` is valid existing product behavior.
-
-### Guards
-
-- exactly one file may change versus `5ebf533132b217085ff74db8f26ddb16cf95da88`;
-- zero production changes;
-- zero workflow changes;
-- preserve prior CS0649 correction;
-- no test deletion/skip/assertion weakening;
-- no rebase/retarget;
-- PR #333 remains the same PR;
-- no Phase C/FND-04/FC0-A;
-- no merge;
-- no `main`.
-
-### Validation
-
-1. push one bounded test-fixture correction commit to the existing branch;
-2. let PR #333 trigger a **new natural CI** on the new exact head;
-3. do not rerun #1553 unchanged;
-4. tests remain PENDING until Main validates the new exact-head run.
-
-### Return
-
-Publish exactly one new top-level #301 comment beginning:
-
-`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE B TEST-FIXTURE CORRECTION HANDOFF`
-
-Include:
-- old head `5ebf5331...` -> new head/tree;
-- exact single changed file;
-- exact Runtime-valid Server Memory fixture used;
-- confirmation all prior Demo-anchor/timer/Engineering-Lock assertions remain;
-- confirmation zero production/workflow changes;
-- PR #333 unchanged;
-- new natural CI run ID if exposed;
-- tests PENDING until Main review;
-- confirmation no Phase C entered.
-
-Verify the comment live, report numeric ID, then **STOP**.
-
-Main owns new-head review, exact-head CI diagnosis, merge decision and post-merge gate.
+- make no code/test/branch/PR changes;
+- do not rerun CI;
+- do not merge anything else;
+- do not start Phase C;
+- do not start FND-04 / FC0-A;
+- on `SIGA`, reread this file, confirm `WAIT_POST_MERGE_CI`, and stop.
 
 CODEX remains WAIT.
 FND-04 DEV/AUD remain WAIT.

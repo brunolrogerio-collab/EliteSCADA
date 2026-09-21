@@ -1,10 +1,14 @@
+using Scada.Api.Licensing;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Core.Abstractions;
+using Scada.Core.Product.Licensing;
+using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
+using Scada.Security.Authorization;
 
 namespace Scada.Api.Persistence;
 
@@ -28,10 +32,19 @@ public sealed class PersistedRuntimeRecoveryService(
     IEngineeringProjectPersistenceService persistence,
     IEngineeringExchangeService exchange,
     IEngineeringRuntimeCoordinator runtime,
+    IProductLicenseService licensing,
+    IRuntimeSessionLeaseStore authorityStore,
     IScadaEventBus? eventBus = null,
     IConfiguration? configuration = null,
     GatewayEngineeringRuntimeCoordinator? operationalEvents = null) : IPersistedRuntimeRecoveryService
 {
+    public const string RecoveryDeniedIssueCode = "PERSISTED_RUNTIME_RECOVERY_DENIED";
+    public const string TransitionPendingDiagnostic =
+        "Persisted Runtime recovery is denied while a product authority transition is pending.";
+    public const string InvalidLicenseDiagnostic =
+        "Persisted Runtime recovery is denied because the installed product license is invalid.";
+    public const string DemoAnchorMissingDiagnostic =
+        "Persisted Runtime recovery is denied because Demo authority has no durable start anchor.";
     public async Task<PersistedRuntimeRecoveryResult> RecoverAsync(
         string projectKey,
         CancellationToken cancellationToken = default)
@@ -59,6 +72,34 @@ public sealed class PersistedRuntimeRecoveryService(
                 activation.ActiveRevision,
                 false,
                 null);
+        }
+
+        var authority = await authorityStore.GetAuthorityStateAsync(cancellationToken);
+        var verification = licensing.CurrentVerification;
+
+        if (authority.TransitionPending)
+        {
+            return RecoveryDenied(
+                snapshot,
+                activation.ActiveRevision,
+                TransitionPendingDiagnostic);
+        }
+
+        if (verification.State == LicenseState.Invalid)
+        {
+            return RecoveryDenied(
+                snapshot,
+                activation.ActiveRevision,
+                InvalidLicenseDiagnostic);
+        }
+
+        if (verification.State == LicenseState.Demo &&
+            !authority.DemoStartedAtUtc.HasValue)
+        {
+            return RecoveryDenied(
+                snapshot,
+                activation.ActiveRevision,
+                DemoAnchorMissingDiagnostic);
         }
 
         var package = ParseAndValidate(snapshot);
@@ -102,6 +143,27 @@ public sealed class PersistedRuntimeRecoveryService(
             true,
             result);
     }
+
+    private static PersistedRuntimeRecoveryResult RecoveryDenied(
+        EngineeringProjectSnapshot snapshot,
+        long persistedActiveRevision,
+        string diagnostic) =>
+        new(
+            snapshot.ProjectKey,
+            persistedActiveRevision,
+            Found: true,
+            Runtime: new RuntimeActivationResult(
+                snapshot.ProjectKey,
+                snapshot.Revision,
+                Activated: false,
+                Array.Empty<EngineeringDriverIssue>(),
+                new[]
+                {
+                    new RuntimeActivationIssue(
+                        RecoveryDeniedIssueCode,
+                        diagnostic,
+                        IsError: true)
+                }));
 
     private EngineeringPackage ParseAndValidate(EngineeringProjectSnapshot snapshot)
     {

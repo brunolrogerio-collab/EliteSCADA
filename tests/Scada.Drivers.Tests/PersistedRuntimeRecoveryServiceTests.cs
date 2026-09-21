@@ -239,7 +239,7 @@ public sealed class PersistedRuntimeRecoveryServiceTests
         var anchor = now.AddHours(-1);
         var time = new RecordingTimeProvider(now);
         var persistedLock = new EngineeringLockSecretService().Configure("persisted-demo-lock", locked: true);
-        var package = CreateSimplePackage(0) with { EngineeringLock = persistedLock };
+        var package = CreateServerMemoryPackage() with { EngineeringLock = persistedLock };
         var snapshot = CreateSnapshot(1, package);
         var store = new RecoveryStore(snapshot, snapshot);
 
@@ -356,6 +356,31 @@ public sealed class PersistedRuntimeRecoveryServiceTests
 
         Assert.Equal(DriverState.Stopped, simulation.Status.State);
         Assert.Empty(fallback.Registry.Snapshot());
+    }
+
+    private static EngineeringPackage CreateServerMemoryPackage()
+    {
+        var tag = new TagEngineeringDto(
+            Guid.NewGuid(),
+            "Demo Recovery Value",
+            "Plant.DemoRecovery.Value",
+            TagDataType.Double,
+            Source: "memory.server");
+
+        return new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            new[] { tag },
+            Array.Empty<AlarmEngineeringDto>(),
+            new[]
+            {
+                new DataSourceEngineeringDto(
+                    null,
+                    "memory.server",
+                    "Server Memory",
+                    InternalMemoryRuntimePlanner.ServerMemoryDriverKey)
+            });
     }
 
     private static EngineeringPackage CreateSimplePackage(int tagCount) =>

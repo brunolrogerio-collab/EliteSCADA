@@ -18,7 +18,7 @@
 - FND-03 Shared Runtime Seat Accounting — VERIFIED/FROZEN.
 - FND-03 License Lifecycle/Fencing Phase A — VERIFIED/FROZEN.
 - FND-03 License Lifecycle/Fencing Phase B — VERIFIED/FROZEN.
-- FND-03 Phase C — NOT_STARTED.
+- FND-03 Phase C — ACTIVE / CODEX / NOT INTEGRATED.
 - FND-03 global — ACTIVE / NOT FROZEN.
 - FND-04 — QUEUED / CONTRACT DEFINED / WAIT.
 - FC0-A — BLOCKED.
@@ -56,13 +56,16 @@ Coordination/documentation HEAD may be ahead of the product checkpoint. Do not t
 ### FND-03 DEV
 
 `ORDER_STATE: WAIT`  
-`DEV_MODE: WAIT_PHASE_C_SUCCESSOR`
+`DEV_MODE: WAIT_CODEX_PHASE_C`
 
-No Phase C branch or implementation is authorized yet.
+Phase C implementation is assigned exclusively to CODEX; DEV remains idle to prevent dual implementation.
 
 ### CODEX
 
-WAIT / reserve.
+`ORDER_STATE: ACTIVE`  
+`ORDER_ID: FND03-PHASE-C-LIFECYCLE-ORCH-01`
+
+Branch: `work/w15-fnd-03-license-lifecycle-orchestrator-v1`, created from exact product checkpoint `4647dd741...`. Target: `wave15/corrections-integration`. No merge authorized.
 
 ### FND-04 DEV/AUD
 
@@ -72,15 +75,16 @@ WAIT.
 
 BLOCKED.
 
-## Successor Main — first actions
+## Current Main decision
 
-1. Read `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` in full.
-2. Reconstruct GitHub live independently.
-3. Revalidate product checkpoint `4647dd741...` versus current integration HEAD.
-4. Read #301 architecture amendment comment `5722165708`.
-5. Review PR #333 and CI #1554/#1555 as frozen Phase B evidence.
-6. Define the next **bounded Phase C work package** from live evidence.
-7. Persist the Phase C order in the canonical handoff, read it back live, then activate the relevant DEV lane.
-8. Keep Codex reserve unless a material blocker justifies it.
+Live reconstruction completed.
 
-Do not ask the Product Owner to reconstruct project state.
+- product checkpoint remains `4647dd741551c97306217ac9893d3378b070f43b`;
+- the pre-order integration delta from that checkpoint was documentation-only;
+- #301 comment `5722165708`, PR #332 and PR #333 were revalidated as the frozen Phase A/B architecture/evidence;
+- Phase C is now activated to CODEX as the bounded lifecycle mutation orchestrator + restart reconciliation + licensing authorization/audit cutover package;
+- FND-03 DEV remains WAIT;
+- FND-04 DEV/AUD remain WAIT;
+- FC0-A remains BLOCKED.
+
+Do not ask the Product Owner to carry agent messages. The canonical handoff is the primary order channel.

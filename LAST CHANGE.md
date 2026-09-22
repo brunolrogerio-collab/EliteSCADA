@@ -1,7 +1,7 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-22 BRT  
-**Operational state:** **WAVE 15 ACTIVE / FND-03 PHASE A VERIFIED+FROZEN / PHASE B VERIFIED+FROZEN / PHASE C NOT_STARTED / COORDINATOR SUCCESSION READY / CODEX WAIT / FND-04 WAIT / FC0-A BLOCKED**
+**Operational state:** **WAVE 15 ACTIVE / FND-03 PHASE A VERIFIED+FROZEN / PHASE B VERIFIED+FROZEN / PHASE C ACTIVE IN CODEX / FND-03 DEV WAIT / FND-04 WAIT / FC0-A BLOCKED**
 
 > GitHub live is the official memory.
 >
@@ -39,18 +39,42 @@ Exact post-merge CI:
 
 Therefore FND-03 Lifecycle/Fencing Phase B is VERIFIED/FROZEN.
 
-## Successor boundary
+## Current active work
 
-Phase C is NOT_STARTED.
+FND-03 Phase C is **ACTIVE** under CODEX.
 
-No DEV/Codex/AUD is authorized to start Phase C until the successor Main reconstructs GitHub live, reads the frozen architecture evidence, defines the bounded work package and persists the new CURRENT ORDER in the canonical handoff.
+Order:
+
+`FND03-PHASE-C-LIFECYCLE-ORCH-01`
+
+Exact product base:
+
+`4647dd741551c97306217ac9893d3378b070f43b`
+
+tree:
+
+`d7eb7d3f57269e71ed5984c82e701a059be56bfb`
+
+Work branch:
+
+`work/w15-fnd-03-license-lifecycle-orchestrator-v1`
+
+Target:
+
+`wave15/corrections-integration`
+
+Bounded scope:
+- ProductLicenseLifecycleCoordinator install/replace/remove orchestration;
+- conservative pending-transition restart reconciliation;
+- startup ordering before persisted Runtime recovery;
+- EngineeringModify licensing mutation cutover;
+- safe product-license audit;
+- deterministic fault/concurrency acceptance.
 
 Current lanes:
-- FND-03 DEV — WAIT_PHASE_C_SUCCESSOR.
-- CODEX — WAIT.
-- FND-04 DEV/AUD — WAIT.
+- CODEX — ACTIVE / Phase C implementation;
+- FND-03 DEV — WAIT_CODEX_PHASE_C;
+- FND-04 DEV/AUD — WAIT;
 - FC0-A — BLOCKED.
 
-## Next Main objective
-
-Reconstruct live state and define Phase C for FND-03, expected to consume the frozen Phase A/B foundation for lifecycle mutation orchestration, crash/restart reconciliation and licensing endpoint authorization/audit cutover. Exact scope must be revalidated from GitHub live before activation.
+No merge is authorized. Main owns candidate review, CI decision, integration order and post-merge verification.

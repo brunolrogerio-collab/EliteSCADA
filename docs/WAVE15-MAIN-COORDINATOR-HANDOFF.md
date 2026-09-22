@@ -8,7 +8,7 @@
 >
 > **GitHub live é a autoridade final.** Se este documento divergir do repositório/PRs/Actions live, o Main reconstrói o estado e corrige este arquivo antes de emitir nova ordem.
 
-**Status date:** 2026-09-17 BRT  
+**Status date:** 2026-09-22 BRT  
 **Wave:** 15 — complete product delivery  
 **Integration branch:** `wave15/corrections-integration`  
 **Main Coordinator:** único emissor das ordens abaixo
@@ -95,20 +95,19 @@ State machine:
 
 ### PRODUCT CHECKPOINT atual
 
-Shared Runtime Seat Accounting está integrado e verificado.
+FND-03 License Lifecycle/Fencing Phase A e Phase B estão integradas e verificadas.
 
-- product checkpoint / merge SHA: `a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
-- tree: `eed22a377fea2778d3e78143d706e4de0ef9ce38`
-- parents:
-  - `11a0f32736def27fbbafb8b718abc428bba62056`
-  - `6789a989c85e7210c167945665f4ab6c8cef53a0`
-- PR #331: MERGED
-- post-merge EliteSCADA CI #1546 / run `35269829080` on exact `a7067ac9...`:
-  - Backend `105366045111` — **SUCCESS**
-  - Web `105366045298` — **SUCCESS**
-  - Chromium `105366583742` — **SUCCESS**
+- product checkpoint / PR #333 merge SHA: `4647dd741551c97306217ac9893d3378b070f43b`
+- tree: `d7eb7d3f57269e71ed5984c82e701a059be56bfb`
+- reviewed Phase B candidate: `29c5911318c06f6d07578dd4b97b908f66e3c773`
+- candidate tree: `8e890abab8de005ab4f8e09899e9a208ef3f8073`
+- exact PR CI #1554 / run `35663835807`: Backend/Web/Chromium **SUCCESS**
+- exact post-merge CI #1555 / run `35665138086` on `4647dd741...`:
+  - Web `106549082646` — **SUCCESS**
+  - Backend `106549082897` — **SUCCESS**
+  - Chromium `106549531824` — **SUCCESS**
 
-O integration HEAD pode estar à frente por commits de coordenação; isso não altera o product checkpoint.
+Antes desta ordem, o coordination HEAD era `8debd70b7c0e0e432b7deca29f5b31070a73e837`; o compare desde o product checkpoint mostrava quatro commits à frente e alterações somente em `LAST CHANGE.md`, `docs/CURRENT-COORDINATOR-HANDOFF.md` e `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`. O commit documental desta própria ordem pode avançar novamente o coordination HEAD sem criar novo product base.
 
 ### Foundation
 
@@ -119,7 +118,7 @@ O integration HEAD pode estar à frente por commits de coordenação; isso não 
 - FND-03 machine-license v2 + hardening — **VERIFIED/FROZEN**
 - FND-03 Runtime Admission — **VERIFIED/FROZEN**
 - FND-03 Shared Runtime Seat Accounting — **VERIFIED/FROZEN**
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **PHASE A VERIFIED/FROZEN / PHASE B CI-BUILD CORRECTION ACTIVE / NOT INTEGRATED**
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **PHASE A VERIFIED/FROZEN / PHASE B VERIFIED/FROZEN / PHASE C ACTIVE / NOT INTEGRATED**
 - FND-03 global — **ACTIVE / NOT FROZEN**
 - FND-04 Script TAG Reference Resolution — **QUEUED / CONTRACT DEFINED / NOT ACTIVE / NOT FROZEN**
 - FC0-A — **BLOCKED**
@@ -128,84 +127,149 @@ O integration HEAD pode estar à frente por commits de coordenação; isso não 
 
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
-**ORDER_STATE: WAIT**  
-**Mission:** FND-03 Lifecycle/Fencing — CODEX reserve
+**ORDER_STATE: ACTIVE**  
+**ORDER_ID: FND03-PHASE-C-LIFECYCLE-ORCH-01**  
+**CODEX_MODE: IMPLEMENT_BOUNDED**  
+**Mission:** FND-03 License Lifecycle/Fencing Phase C — lifecycle mutation orchestrator + restart reconciliation + licensing endpoint authorization/audit cutover
 
-CODEX makes **no mutation** now. On `SIGA`, reler este arquivo, confirmar `WAIT`, não implementar/commit/PR/CI e aguardar ordem bounded futura.
+### Exact base / branch / target
 
-Exact product contract remains:
+- exact product base: `4647dd741551c97306217ac9893d3378b070f43b`
+- product tree: `d7eb7d3f57269e71ed5984c82e701a059be56bfb`
+- work branch: `work/w15-fnd-03-license-lifecycle-orchestrator-v1`
+- branch was created by Main directly from the exact product base above
+- target: `wave15/corrections-integration`
+- parent/product ledger: #301
+- dependency/checkpoint ledger: #305
+- installation consumer contract: #304
+- binding architecture: #301 comment `5722165708`
+- frozen implementation evidence: PR #332 Phase A + PR #333 Phase B
 
-- product base `a7067ac99f9f88fcd17f740b915d8c4f57c556fc`
-- tree `eed22a377fea2778d3e78143d706e4de0ef9ce38`
-- reserved future work branch `work/w15-fnd-03-license-lifecycle-fencing-v1`
-- target `wave15/corrections-integration`
+On every `SIGA`, CODEX must first re-read this file live and compare the current integration HEAD against the exact product base. Coordination/documentation-only delta is allowed; any uncoordinated product/infra delta means `STOP / BLOCKED-BASE-DIVERGENCE`.
 
-Do not start FND-04 or release FC0-A.
+### Frozen prerequisites — consume, do not redesign
 
+Phase A is frozen:
+- canonical `VerifyCandidate` seam on `IProductLicenseService`;
+- `RuntimeAuthorityState` / transition APIs;
+- `AuthorityRevision` fencing epoch;
+- pending/revision enforcement in admission/validate/heartbeat/terminate;
+- PostgreSQL migration/state primitives and in-memory mirror.
+
+Phase B is frozen:
+- `ReevaluateForAuthorityChangeAsync`;
+- allowed Runtime retention / denied Runtime stop;
+- durable Demo authority-change anchor;
+- remaining-duration Demo semantics;
+- persisted Runtime recovery denial while transition is pending;
+- persisted Demo recovery only with durable anchor.
+
+Do not reopen these contracts unless a deterministic Phase C test proves a real defect. If that happens, STOP and return `BLOCKED-FROZEN-CONTRACT` evidence before modifying the frozen contract.
+
+### Authorized Phase C scope
+
+1. **Lifecycle orchestrator**
+   - add one API-host `ProductLicenseLifecycleCoordinator` (or naming-equivalent single authority);
+   - implement bounded install/replace and remove operations;
+   - invalid/tampered/wrong-machine/expired/malformed candidate is a true no-op before transition;
+   - after Begin transition, canonical file mutation remains outside DB transactions;
+   - file mutation failure aborts the pending transition without revision bump/fence/Runtime disruption;
+   - successful authority change commits the next revision, re-evaluates local Runtime, fences all pre-change remote leases, then completes pending state before success returns.
+
+2. **Crash/restart reconciliation**
+   - implement the binding W1-W6 conservative reconciliation from #301 comment `5722165708`;
+   - canonical `CurrentVerification` remains license truth;
+   - if exact post-file authority-change timestamp was not persisted, use the durable transition start as the conservative no-later-than anchor required by the frozen design;
+   - repeated reconciliation must be idempotent;
+   - pending must remain fail-closed if reconciliation cannot complete.
+
+3. **Startup ordering**
+   - register the lifecycle service/reconciler through normal DI;
+   - execute pending lifecycle reconciliation only after Runtime Session Lease store initialization and before persisted Engineering Runtime recovery, so a persisted Runtime cannot recover under unresolved authority state;
+   - do not create a second startup authority path.
+
+4. **Licensing mutation route cutover**
+   - `GET /api/licensing/status` and `GET /api/licensing/request` retain the current read boundary;
+   - install/replace/remove must use `ApiAuthorizationService.CheckWorkspace(..., SecurityCapability.EngineeringModify)`;
+   - machine-license mutation must not depend on Application Engineering Lock;
+   - routes call only the lifecycle orchestrator, not `FileProductLicenseService` directly.
+
+5. **Audit**
+   - reuse `ApiAuditService` / `AuditEvent`;
+   - add stable bounded actions for product-license install/replace/remove;
+   - audit allowed, denied and failed operations with safe metadata only: operation/result code, previous/new LicenseState, previous/new AuthorityRevision, authorityChangedAtUtc, fenced lease count, local Runtime outcome;
+   - never audit raw license code/ESLIC payload, signing material, credentials/tokens or arbitrary exception text that could echo them.
+
+6. **Deterministic proof**
+   - cover acceptance items 3-6, 8-10, 13-18 in section 3 below;
+   - include fault windows: pending committed before file I/O; file failure/abort; crash after file commit before revision; crash after revision before Runtime re-evaluation; Runtime re-evaluation failure; crash before/after bulk fence; repeat reconciliation; concurrent admission/heartbeat/terminate vs transition;
+   - preserve existing ESLIC2 + Shared Seat Accounting regressions and `.escadapkg` exclusion.
+
+### Forbidden scope
+
+- no License Generator UI;
+- no full #304 Application/Authority detach UX;
+- no Authority A->B switching implementation;
+- no Historian switching/reset;
+- no EliteGO UI;
+- no cross-machine HA election/fencing/convergence;
+- no FND-04;
+- no broad ESLIC1 cleanup;
+- no workflow weakening;
+- no direct write to `wave15/corrections-integration` or `main`;
+- no merge.
+
+### Delivery / PR gate
+
+CODEX may implement, commit, run focused tests and open a PR from the assigned branch to `wave15/corrections-integration`. Natural PR CI is allowed.
+
+Return exactly:
+
+`CODEX -> MAIN COORDINATOR — FND-03 LIFECYCLE PHASE C HANDOFF`
+
+with:
+- exact base SHA/tree;
+- exact head SHA/tree;
+- changed files and scope statement;
+- acceptance matrix `PASS | FAIL | PENDING`;
+- focused tests actually executed;
+- PR number/state/base/head;
+- exact CI run/jobs if available;
+- explicit non-actions;
+- blockers/risks.
+
+Do not merge. Main independently reviews the candidate and CI before any integration order.
+
+FND-03 DEV remains WAIT to avoid dual implementation.
+FND-04 DEV/AUD remain WAIT.
+FC0-A remains BLOCKED.
 ---
 
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
 
 **ORDER_STATE: WAIT**  
-**DEV_MODE: WAIT_PHASE_C_SUCCESSOR**  
-**Mission:** FND-03 License Lifecycle/Fencing — Phase B verified/frozen; successor Main owns Phase C activation
+**DEV_MODE: WAIT_CODEX_PHASE_C**  
+**Mission:** FND-03 License Lifecycle/Fencing — Phase C assigned exclusively to CODEX
 
-### Stable product checkpoint
-
-Phase A and Phase B are **VERIFIED/FROZEN**.
-
-Exact latest product checkpoint:
+Phase A and Phase B remain **VERIFIED/FROZEN** at product checkpoint:
 
 - PR #333 merge SHA: `4647dd741551c97306217ac9893d3378b070f43b`
 - merge tree: `d7eb7d3f57269e71ed5984c82e701a059be56bfb`
-- reviewed Phase B candidate: `29c5911318c06f6d07578dd4b97b908f66e3c773`
-- candidate tree: `8e890abab8de005ab4f8e09899e9a208ef3f8073`
-- exact PR CI #1554 / run `35663835807` — Backend/Web/Chromium SUCCESS
-- exact post-merge CI #1555 / run `35665138086` on merge SHA:
-  - Web `106549082646` — SUCCESS
-  - Backend `106549082897` — SUCCESS
-  - Chromium `106549531824` — SUCCESS
+- exact post-merge CI #1555 / run `35665138086` — Web/Backend/Chromium SUCCESS
 
-Phase B is now frozen:
-- active Runtime authority re-evaluation;
-- allowed Runtime retention / denied Runtime stop;
-- durable Demo authority-change anchor;
-- remaining-duration Demo semantics without restart reset;
-- persisted Runtime recovery fail-closed during pending authority transition;
-- persisted Demo recovery only with durable anchor;
-- focused regression/test-fixture corrections validated.
-
-### Successor boundary
-
-**Phase C is NOT_STARTED. No implementation order exists yet.**
-
-The successor Main Coordinator must reconstruct GitHub live and then define the bounded Phase C work package from the frozen architecture evidence, including the lifecycle mutation orchestrator / restart reconciliation / endpoint authorization+audit cutover, without reopening frozen Phase A/B contracts unless live evidence proves a defect.
-
-Do not infer Phase C details from chat memory alone. Re-read:
-- this canonical handoff in full;
-- #301 architecture amendment comment `5722165708`;
-- latest #301 Phase B merge/verification comments;
-- PR #333 and CI #1554/#1555;
-- `docs/CURRENT-COORDINATOR-HANDOFF.md`;
-- `LAST CHANGE.md`;
-- `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`.
-
-### DEV order
+The active Phase C work package is owned by CODEX under `FND03-PHASE-C-LIFECYCLE-ORCH-01`.
 
 While this order is WAIT:
 
 - make no code/test/branch/PR changes;
-- do not create a Phase C branch;
+- do not implement or review Phase C unless Main later assigns a bounded correction/review;
 - do not rerun CI;
 - do not merge anything;
 - do not start FND-04 / FC0-A;
-- on `SIGA`, reread this file, confirm `WAIT_PHASE_C_SUCCESSOR`, and stop.
+- on `SIGA`, reread this file, confirm `WAIT_CODEX_PHASE_C`, and stop.
 
-CODEX remains WAIT.
 FND-04 DEV/AUD remain WAIT.
 FC0-A remains BLOCKED.
-
-
 ---
 
 ## 3. FND-03 ACCEPTANCE BINDING

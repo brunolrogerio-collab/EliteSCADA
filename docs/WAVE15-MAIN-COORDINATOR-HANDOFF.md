@@ -118,7 +118,7 @@ Antes desta ordem, o coordination HEAD era `8debd70b7c0e0e432b7deca29f5b31070a73
 - FND-03 machine-license v2 + hardening — **VERIFIED/FROZEN**
 - FND-03 Runtime Admission — **VERIFIED/FROZEN**
 - FND-03 Shared Runtime Seat Accounting — **VERIFIED/FROZEN**
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **PHASE A VERIFIED/FROZEN / PHASE B VERIFIED/FROZEN / PHASE C ACTIVE / NOT INTEGRATED**
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **PHASE A+B BASELINE VERIFIED / BOUNDED PHASE A DEFECT AMENDMENT AUTHORIZED / PHASE C ACTIVE / NOT INTEGRATED**
 - FND-03 global — **ACTIVE / NOT FROZEN**
 - FND-04 Script TAG Reference Resolution — **QUEUED / CONTRACT DEFINED / NOT ACTIVE / NOT FROZEN**
 - FC0-A — **BLOCKED**
@@ -128,7 +128,7 @@ Antes desta ordem, o coordination HEAD era `8debd70b7c0e0e432b7deca29f5b31070a73
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
 **ORDER_STATE: ACTIVE**  
-**ORDER_ID: FND03-PHASE-C-LIFECYCLE-ORCH-01**  
+**ORDER_ID: FND03-PHASE-C-LIFECYCLE-ORCH-02**  
 **CODEX_MODE: IMPLEMENT_BOUNDED**  
 **Mission:** FND-03 License Lifecycle/Fencing Phase C — lifecycle mutation orchestrator + restart reconciliation + licensing endpoint authorization/audit cutover
 
@@ -147,24 +147,57 @@ Antes desta ordem, o coordination HEAD era `8debd70b7c0e0e432b7deca29f5b31070a73
 
 On every `SIGA`, CODEX must first re-read this file live and compare the current integration HEAD against the exact product base. Coordination/documentation-only delta is allowed; any uncoordinated product/infra delta means `STOP / BLOCKED-BASE-DIVERGENCE`.
 
-### Frozen prerequisites — consume, do not redesign
+### Phase A/B prerequisite status + bounded defect amendment
 
-Phase A is frozen:
-- canonical `VerifyCandidate` seam on `IProductLicenseService`;
-- `RuntimeAuthorityState` / transition APIs;
-- `AuthorityRevision` fencing epoch;
-- pending/revision enforcement in admission/validate/heartbeat/terminate;
-- PostgreSQL migration/state primitives and in-memory mirror.
+Phase A and Phase B remain the accepted baseline, but CODEX has proven a deterministic Phase A persistence defect in #301 comment `5782179278`, and the Product Owner explicitly authorized the minimal A/B correction in #301 comment `5782200627`.
 
-Phase B is frozen:
-- `ReevaluateForAuthorityChangeAsync`;
-- allowed Runtime retention / denied Runtime stop;
-- durable Demo authority-change anchor;
-- remaining-duration Demo semantics;
-- persisted Runtime recovery denial while transition is pending;
-- persisted Demo recovery only with durable anchor.
+Main independently revalidated the defect on the exact product checkpoint:
 
-Do not reopen these contracts unless a deterministic Phase C test proves a real defect. If that happens, STOP and return `BLOCKED-FROZEN-CONTRACT` evidence before modifying the frozen contract.
+- `RuntimeAuthorityState.AuthorityChangedAtUtc` survives completion as last-change metadata;
+- `BeginAuthorityTransitionAsync` starts a new pending transition without persisting that transition's base authority revision;
+- therefore a second pending transition before file mutation can still expose the prior transition's `AuthorityChangedAtUtc`;
+- timestamp presence cannot safely distinguish W1/W3 (revision not advanced for the current transition) from W4-W6 (revision already advanced);
+- this can cause reconciliation to skip the required authority revision bump/fence and leave a lease from the old revision usable.
+
+This is a real fail-closed/fencing defect, not a Phase C implementation preference.
+
+#### Authorized minimal Phase A contract amendment
+
+CODEX is explicitly authorized to make only the following frozen-contract delta required to close this defect:
+
+1. Extend `RuntimeAuthorityState` with nullable server-owned `TransitionBaseAuthorityRevision` (or naming-equivalent).
+2. In-memory store:
+   - add the matching private field;
+   - `BeginAuthorityTransitionAsync` records the current `AuthorityRevision` as the transition base;
+   - `AbortAuthorityTransitionAsync` and `CompleteAuthorityTransitionAsync` clear it;
+   - `CommitAuthorityChangeAsync` requires the stored transition base to match the expected base and advances exactly `base -> base + 1`; the transition base remains until completion.
+3. PostgreSQL store:
+   - add nullable `transition_base_authority_revision bigint` to the existing singleton state using a new additive migration key `024_runtime_session_authority_transition_base_v1`;
+   - Main confirmed that the current checkpoint's PostgreSQL migration keys stop at `023_runtime_session_authority_fencing_v1`; `024` is free;
+   - new Begin writes the current revision into this field;
+   - Abort/Complete clear it;
+   - Commit validates the stored base and current revision before advancing exactly once;
+   - `LoadAuthorityStateForUpdateAsync` returns it.
+4. New transitions must always persist the base revision. A legacy/incoherent pending row with no transition base must **fail closed** during reconciliation; do not guess phase from `AuthorityChangedAtUtc`.
+5. `AuthorityChangedAtUtc` remains last committed authority-change metadata and must never again be used alone as proof that the *current* pending transition already committed its revision.
+6. Add/update only the integrity checks required for the new field. Do not rewrite migration `023`; use the additive `024` path.
+
+#### Binding reconciliation rule after the amendment
+
+For a pending transition with durable base `R`:
+
+- current `AuthorityRevision == R`: treat as the conservative W1/W3 family. Re-read canonical `CurrentVerification`, use the durable transition start as the conservative no-later-than authority-change anchor when an exact post-file timestamp is unavailable, then advance exactly to `R+1`, re-evaluate Runtime, fence pre-change leases and complete.
+- current `AuthorityRevision == R+1`: treat as W4-W6. **Do not bump again**; re-evaluate Runtime idempotently as required, fence stale leases and complete.
+- missing base, current revision below `R`, above `R+1`, transition-id mismatch or any incoherent combination: fail closed with deterministic evidence; do not clear pending automatically.
+
+Mandatory regression:
+- complete transition 1 to revision 2;
+- admit a revision-2 lease;
+- begin transition 2 and simulate crash before file mutation/revision commit;
+- reconciliation must finish at revision 3 and invalidate the revision-2 lease.
+Also prove the complementary post-commit path does not double-bump to revision 4.
+
+Phase B semantic behavior remains frozen. CODEX may make constructor/signature/test adaptations caused by the added state field. A Phase B semantic change is authorized only when directly necessary to close this same deterministic reconciliation defect and must be called out separately in the handoff. No unrelated reopening is allowed.
 
 ### Authorized Phase C scope
 
@@ -257,7 +290,7 @@ Phase A and Phase B remain **VERIFIED/FROZEN** at product checkpoint:
 - merge tree: `d7eb7d3f57269e71ed5984c82e701a059be56bfb`
 - exact post-merge CI #1555 / run `35665138086` — Web/Backend/Chromium SUCCESS
 
-The active Phase C work package is owned by CODEX under `FND03-PHASE-C-LIFECYCLE-ORCH-01`.
+The active Phase C work package is owned by CODEX under `FND03-PHASE-C-LIFECYCLE-ORCH-02`.
 
 While this order is WAIT:
 

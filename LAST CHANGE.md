@@ -1,7 +1,7 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-22 BRT  
-**Operational state:** **WAVE 15 ACTIVE / FND-03 PHASE A VERIFIED+FROZEN / PHASE B VERIFIED+FROZEN / PHASE C ACTIVE IN CODEX / FND-03 DEV WAIT / FND-04 WAIT / FC0-A BLOCKED**
+**Operational state:** **WAVE 15 ACTIVE / FND-03 A+B BASELINE VERIFIED / PHASE A TRANSITION-BASE DEFECT AMENDMENT AUTHORIZED / PHASE C ACTIVE IN CODEX / FND-03 DEV WAIT / FND-04 WAIT / FC0-A BLOCKED**
 
 > GitHub live is the official memory.
 >
@@ -45,7 +45,7 @@ FND-03 Phase C is **ACTIVE** under CODEX.
 
 Order:
 
-`FND03-PHASE-C-LIFECYCLE-ORCH-01`
+`FND03-PHASE-C-LIFECYCLE-ORCH-02`
 
 Exact product base:
 
@@ -64,6 +64,7 @@ Target:
 `wave15/corrections-integration`
 
 Bounded scope:
+- minimal Phase A transition-state amendment: durable per-transition base authority revision in memory + PostgreSQL additive migration `024_runtime_session_authority_transition_base_v1`, with fail-closed reconciliation for missing/incoherent base;
 - ProductLicenseLifecycleCoordinator install/replace/remove orchestration;
 - conservative pending-transition restart reconciliation;
 - startup ordering before persisted Runtime recovery;
@@ -77,4 +78,4 @@ Current lanes:
 - FND-04 DEV/AUD — WAIT;
 - FC0-A — BLOCKED.
 
-No merge is authorized. Main owns candidate review, CI decision, integration order and post-merge verification.
+No merge is authorized. The prior BLOCKED-FROZEN-CONTRACT is superseded by the bounded amendment order. Main owns candidate review, CI decision, integration order and post-merge verification.

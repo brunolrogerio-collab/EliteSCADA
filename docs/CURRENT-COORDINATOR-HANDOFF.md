@@ -16,9 +16,9 @@
 - FND-03 machine-license v2 + hardening — VERIFIED/FROZEN.
 - FND-03 Runtime Admission — VERIFIED/FROZEN.
 - FND-03 Shared Runtime Seat Accounting — VERIFIED/FROZEN.
-- FND-03 License Lifecycle/Fencing Phase A — VERIFIED/FROZEN.
-- FND-03 License Lifecycle/Fencing Phase B — VERIFIED/FROZEN.
-- FND-03 Phase C — ACTIVE / CODEX / NOT INTEGRATED.
+- FND-03 License Lifecycle/Fencing Phase A — BASELINE VERIFIED; bounded transition-base defect amendment AUTHORIZED.
+- FND-03 License Lifecycle/Fencing Phase B — BASELINE VERIFIED; semantic behavior remains frozen unless directly required by the same defect.
+- FND-03 Phase C — ACTIVE / CODEX / CONTRACT AMENDMENT AUTHORIZED / NOT INTEGRATED.
 - FND-03 global — ACTIVE / NOT FROZEN.
 - FND-04 — QUEUED / CONTRACT DEFINED / WAIT.
 - FC0-A — BLOCKED.
@@ -63,7 +63,7 @@ Phase C implementation is assigned exclusively to CODEX; DEV remains idle to pre
 ### CODEX
 
 `ORDER_STATE: ACTIVE`  
-`ORDER_ID: FND03-PHASE-C-LIFECYCLE-ORCH-01`
+`ORDER_ID: FND03-PHASE-C-LIFECYCLE-ORCH-02`
 
 Branch: `work/w15-fnd-03-license-lifecycle-orchestrator-v1`, created from exact product checkpoint `4647dd741...`. Target: `wave15/corrections-integration`. No merge authorized.
 
@@ -82,7 +82,7 @@ Live reconstruction completed.
 - product checkpoint remains `4647dd741551c97306217ac9893d3378b070f43b`;
 - the pre-order integration delta from that checkpoint was documentation-only;
 - #301 comment `5722165708`, PR #332 and PR #333 were revalidated as the frozen Phase A/B architecture/evidence;
-- Phase C is now activated to CODEX as the bounded lifecycle mutation orchestrator + restart reconciliation + licensing authorization/audit cutover package;
+- Phase C remains active in CODEX; Main independently confirmed the second-transition reconciliation defect from #301 comment `5782179278` and authorized the minimal transition-base persistence amendment under Product Owner authorization #301 comment `5782200627`;
 - FND-03 DEV remains WAIT;
 - FND-04 DEV/AUD remain WAIT;
 - FC0-A remains BLOCKED.

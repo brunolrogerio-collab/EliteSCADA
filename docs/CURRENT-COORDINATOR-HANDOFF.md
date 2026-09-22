@@ -1,12 +1,12 @@
 # Current Coordinator Handoff — Wave 15
 
-> **PONTE CURTA da coordenação corrente.**
+> **PONTE CURTA DA SUCESSÃO ATUAL.**
 >
-> Handoff operacional vivo/canônico: `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`.
+> Handoff operacional canônico: `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`.
 >
-> GitHub live é a autoridade final. Esta ponte não substitui a ordem canônica.
+> GitHub live é a autoridade final.
 
-## Estado rápido
+## Estado estável para troca de coordenador
 
 - Wave 15 — ACTIVE.
 - FND-01 — VERIFIED/FROZEN.
@@ -16,81 +16,71 @@
 - FND-03 machine-license v2 + hardening — VERIFIED/FROZEN.
 - FND-03 Runtime Admission — VERIFIED/FROZEN.
 - FND-03 Shared Runtime Seat Accounting — VERIFIED/FROZEN.
-- FND-03 License Lifecycle/Fencing Phase A — **VERIFIED/FROZEN**.
-- FND-03 License Lifecycle/Fencing Phase B — **TEST-FIXTURE CORRECTION ACTIVE / NOT INTEGRATED**.
+- FND-03 License Lifecycle/Fencing Phase A — VERIFIED/FROZEN.
+- FND-03 License Lifecycle/Fencing Phase B — VERIFIED/FROZEN.
+- FND-03 Phase C — NOT_STARTED.
 - FND-03 global — ACTIVE / NOT FROZEN.
 - FND-04 — QUEUED / CONTRACT DEFINED / WAIT.
 - FC0-A — BLOCKED.
 
-## Verified product checkpoint
+## Latest verified product checkpoint
 
-`20b934f23d8798ffb65cca203b62f8b5c3d8f111`
+PR #333 merge:
 
-tree `4e227fdde1d8475c23852e142c51946c7a2e1859`.
+`4647dd741551c97306217ac9893d3378b070f43b`
 
-This is PR #332 merged into `wave15/corrections-integration`.
+tree:
 
-Exact post-merge CI:
-- EliteSCADA CI #1551 / run `35341475101`
-- Backend `105588126265` — SUCCESS
-- Web `105588126462` — SUCCESS
-- Chromium `105588538108` — SUCCESS
+`d7eb7d3f57269e71ed5984c82e701a059be56bfb`
 
-Coordination/documentation commits after this SHA do not change the product checkpoint.
+Reviewed Phase B candidate:
 
-## Current FND-03 DEV order
+`29c5911318c06f6d07578dd4b97b908f66e3c773`
 
-`ORDER_STATE: ACTIVE`  
-`DEV_MODE: IMPLEMENT_PHASE_B_TEST_FIXTURE_CORRECTION`
+tree:
 
-Mission:
+`8e890abab8de005ab4f8e09899e9a208ef3f8073`
 
-**Active Runtime Re-evaluation + Durable Demo Recovery v1**
+Exact CI evidence:
 
-New work branch:
+- PR CI #1554 / run `35663835807` — Backend/Web/Chromium SUCCESS.
+- Post-merge CI #1555 / run `35665138086` on `4647dd741...`:
+  - Web `106549082646` — SUCCESS
+  - Backend `106549082897` — SUCCESS
+  - Chromium `106549531824` — SUCCESS
 
-`work/w15-fnd-03-runtime-authority-reevaluation-v1`
+Coordination/documentation HEAD may be ahead of the product checkpoint. Do not treat doc-only commits as a new product base.
 
-must be created from exact product base:
+## Current agent state
 
-`20b934f23d8798ffb65cca203b62f8b5c3d8f111`
+### FND-03 DEV
 
-Phase B is bounded to:
-1. `ProductLicensedRuntimeCoordinator.ReevaluateForAuthorityChangeAsync`;
-2. durable Demo semantic start / remaining-duration behavior;
-3. persisted Runtime recovery fail-closed for transition pending and Demo without durable anchor;
-4. deterministic focused tests.
+`ORDER_STATE: WAIT`  
+`DEV_MODE: WAIT_PHASE_C_SUCCESSOR`
 
-Do not implement Phase C lifecycle mutation orchestration/API/audit yet.
+No Phase C branch or implementation is authorized yet.
 
-Required return in #301:
+### CODEX
 
-`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE B HANDOFF`
+WAIT / reserve.
 
-No PR or Actions yet. Main reviews the exact Phase B head first.
+### FND-04 DEV/AUD
 
-## Other lanes
+WAIT.
 
-- CODEX — WAIT / reserve.
-- FND-04 DEV/AUD — WAIT.
-- FC0-A — BLOCKED.
+### FC0-A
 
-## Retomada obrigatória
+BLOCKED.
 
-1. Read canonical handoff in full.
-2. Revalidate product checkpoint and integration HEAD.
-3. Review latest Phase B DEV handoff/head if present.
-4. Main decides correction or PR/CI gate.
-5. Keep CODEX reserve unless a material blocker justifies it.
+## Successor Main — first actions
 
+1. Read `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` in full.
+2. Reconstruct GitHub live independently.
+3. Revalidate product checkpoint `4647dd741...` versus current integration HEAD.
+4. Read #301 architecture amendment comment `5722165708`.
+5. Review PR #333 and CI #1554/#1555 as frozen Phase B evidence.
+6. Define the next **bounded Phase C work package** from live evidence.
+7. Persist the Phase C order in the canonical handoff, read it back live, then activate the relevant DEV lane.
+8. Keep Codex reserve unless a material blocker justifies it.
 
-## Latest Phase B CI diagnosis
-
-PR #333 exact head `abb1e497c66a8f0888d6cde83331c51623c18979` entered CI #1552 / run `35369719457`. Web passed. Backend failed at build with a single test-helper warnings-as-error blocker: `PersistedRuntimeRecoveryServiceTests.RecordingTimeProvider._timestamp` is never assigned (CS0649). DEV is ordered to make a one-test-file correction only; no production change is authorized.
-
-
-## Latest CI #1553 diagnosis
-
-Exact Phase B head `5ebf533132b217085ff74db8f26ddb16cf95da88` builds successfully. Scada.Drivers.Tests is 669/670 PASS. The sole failure is a fixture defect in `Recovery_DemoWithAuthorityAnchor_UsesNormalPathAndPreservesRemainingWindow`: `CreateSimplePackage(0)` has no active Runtime source and canonical Runtime correctly returns `RUNTIME_NO_ACTIVE_SOURCES`.
-
-DEV is ordered to change only `PersistedRuntimeRecoveryServiceTests.cs`, replacing that zero-source fixture with one deterministic Server Memory TAG/DataSource. Zero production/workflow changes.
+Do not ask the Product Owner to reconstruct project state.

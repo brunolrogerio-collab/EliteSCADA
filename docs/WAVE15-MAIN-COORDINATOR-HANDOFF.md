@@ -128,154 +128,100 @@ Antes desta ordem, o coordination HEAD era `8debd70b7c0e0e432b7deca29f5b31070a73
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
 **ORDER_STATE: ACTIVE**  
-**ORDER_ID: FND03-PHASE-C-LIFECYCLE-ORCH-02**  
-**CODEX_MODE: IMPLEMENT_BOUNDED**  
-**Mission:** FND-03 License Lifecycle/Fencing Phase C — lifecycle mutation orchestrator + restart reconciliation + licensing endpoint authorization/audit cutover
+**ORDER_ID: FND03-PHASE-C-ACCEPTANCE-CLOSE-03**  
+**CODEX_MODE: TEST_ONLY_CORRECTION**  
+**Mission:** FND-03 Phase C acceptance close — item 7 direct proof + C04 Chromium fixture stabilization
 
-### Exact base / branch / target
+### Reviewed candidate
+
+Main independently revalidated the Phase C handoff and exact live candidate:
 
 - exact product base: `4647dd741551c97306217ac9893d3378b070f43b`
 - product tree: `d7eb7d3f57269e71ed5984c82e701a059be56bfb`
-- work branch: `work/w15-fnd-03-license-lifecycle-orchestrator-v1`
-- branch was created by Main directly from the exact product base above
-- target: `wave15/corrections-integration`
-- parent/product ledger: #301
-- dependency/checkpoint ledger: #305
-- installation consumer contract: #304
-- binding architecture: #301 comment `5722165708`
-- frozen implementation evidence: PR #332 Phase A + PR #333 Phase B
+- current work branch: `work/w15-fnd-03-license-lifecycle-orchestrator-v1`
+- reviewed candidate head: `73ce093e5049d5a24a335b95f8eacba1a4e8134a`
+- reviewed candidate tree: `97be69a42b7d6c595cc92984d99745b3278c5652`
+- PR #334: OPEN / mergeable / target `wave15/corrections-integration`
+- exact CI #1556 / run `35772693936`:
+  - Backend `106898020808` — SUCCESS
+  - Web `106898021060` — SUCCESS
+  - Chromium `106898606046` — FAILURE
 
-On every `SIGA`, CODEX must first re-read this file live and compare the current integration HEAD against the exact product base. Coordination/documentation-only delta is allowed; any uncoordinated product/infra delta means `STOP / BLOCKED-BASE-DIVERGENCE`.
+Main review of the production candidate found the authorized Phase C scope present in exactly the reported 10 files, including the bounded Phase A transition-base amendment, lifecycle orchestrator, startup reconciliation ordering, EngineeringModify mutation cutover and safe audit. No web product code or workflow changed.
 
-### Phase A/B prerequisite status + bounded defect amendment
+### CI #1556 diagnosis
 
-Phase A and Phase B remain the accepted baseline, but CODEX has proven a deterministic Phase A persistence defect in #301 comment `5782179278`, and the Product Owner explicitly authorized the minimal A/B correction in #301 comment `5782200627`.
+The sole Chromium failure is:
 
-Main independently revalidated the defect on the exact product checkpoint:
+`web/scada-web/tests-e2e/c04-tag-source-browser.spec.ts:62`
 
-- `RuntimeAuthorityState.AuthorityChangedAtUtc` survives completion as last-change metadata;
-- `BeginAuthorityTransitionAsync` starts a new pending transition without persisting that transition's base authority revision;
-- therefore a second pending transition before file mutation can still expose the prior transition's `AuthorityChangedAtUtc`;
-- timestamp presence cannot safely distinguish W1/W3 (revision not advanced for the current transition) from W4-W6 (revision already advanced);
-- this can cause reconciliation to skip the required authority revision bump/fence and leave a lease from the old revision usable.
+The exact C04 test file has identical blob SHA on product base and candidate:
 
-This is a real fail-closed/fencing defect, not a Phase C implementation preference.
+`44ad21a1f512b76a02a285b48111c4335c1eec2b`
 
-#### Authorized minimal Phase A contract amendment
+The failure occurs because the test asserts mutable `previewCandidate` immediately after a UI message becomes visible; the route callback that assigns `previewCandidate` is not itself awaited. Local exact-head reproduction of this C04 scenario passed, while CI failed the same assertion on the initial Playwright attempt and retry. This is sufficient evidence for a bounded test-fixture race hypothesis, but not for weakening/removing the regression.
 
-CODEX is explicitly authorized to make only the following frozen-contract delta required to close this defect:
+**Do not rerun CI #1556 unchanged.** The next natural CI must run on a new exact test-only head.
 
-1. Extend `RuntimeAuthorityState` with nullable server-owned `TransitionBaseAuthorityRevision` (or naming-equivalent).
-2. In-memory store:
-   - add the matching private field;
-   - `BeginAuthorityTransitionAsync` records the current `AuthorityRevision` as the transition base;
-   - `AbortAuthorityTransitionAsync` and `CompleteAuthorityTransitionAsync` clear it;
-   - `CommitAuthorityChangeAsync` requires the stored transition base to match the expected base and advances exactly `base -> base + 1`; the transition base remains until completion.
-3. PostgreSQL store:
-   - add nullable `transition_base_authority_revision bigint` to the existing singleton state using a new additive migration key `024_runtime_session_authority_transition_base_v1`;
-   - Main confirmed that the current checkpoint's PostgreSQL migration keys stop at `023_runtime_session_authority_fencing_v1`; `024` is free;
-   - new Begin writes the current revision into this field;
-   - Abort/Complete clear it;
-   - Commit validates the stored base and current revision before advancing exactly once;
-   - `LoadAuthorityStateForUpdateAsync` returns it.
-4. New transitions must always persist the base revision. A legacy/incoherent pending row with no transition base must **fail closed** during reconciliation; do not guess phase from `AuthorityChangedAtUtc`.
-5. `AuthorityChangedAtUtc` remains last committed authority-change metadata and must never again be used alone as proof that the *current* pending transition already committed its revision.
-6. Add/update only the integrity checks required for the new field. Do not rewrite migration `023`; use the additive `024` path.
+### Authorized correction — tests only
 
-#### Binding reconciliation rule after the amendment
+No production/source/workflow changes are authorized.
 
-For a pending transition with durable base `R`:
+1. **Close acceptance item 7 with direct deterministic proof**
+   - add a direct test proving Application/project package and Authority/System Recovery operations cannot silently mutate/remove the machine license;
+   - the proof must exercise or enforce the actual architectural boundary, not merely restate a comment;
+   - acceptable implementation is a behavioral sentinel/fake-license proof around representative existing operations, or a deterministic architecture/source dependency guard that fails if non-licensing product code gains license mutation authority;
+   - the test must specifically protect against unauthorized calls to `InstallLicense` / `RemoveLicense` outside the canonical licensing lifecycle boundary;
+   - do not change production code to make the test pass.
+   - if the new test exposes a real product dependency/defect, STOP and return `BLOCKED-ACCEPTANCE-07` evidence before any product correction.
 
-- current `AuthorityRevision == R`: treat as the conservative W1/W3 family. Re-read canonical `CurrentVerification`, use the durable transition start as the conservative no-later-than authority-change anchor when an exact post-file timestamp is unavailable, then advance exactly to `R+1`, re-evaluate Runtime, fence pre-change leases and complete.
-- current `AuthorityRevision == R+1`: treat as W4-W6. **Do not bump again**; re-evaluate Runtime idempotently as required, fence stale leases and complete.
-- missing base, current revision below `R`, above `R+1`, transition-id mismatch or any incoherent combination: fail closed with deterministic evidence; do not clear pending automatically.
+2. **Stabilize the unchanged C04 Playwright fixture**
+   - only `web/scada-web/tests-e2e/c04-tag-source-browser.spec.ts` may change on the web side;
+   - preserve every semantic assertion about stable Data Source identity;
+   - explicitly await/capture the `/api/engineering/import/json/preview` request (for example with `page.waitForRequest` or equivalent) instead of relying on the unrelated UI-message timing;
+   - do not skip, weaken, delete or broaden timeouts to mask the race;
+   - no application/frontend production code change.
 
-Mandatory regression:
-- complete transition 1 to revision 2;
-- admit a revision-2 lease;
-- begin transition 2 and simulate crash before file mutation/revision commit;
-- reconciliation must finish at revision 3 and invalidate the revision-2 lease.
-Also prove the complementary post-commit path does not double-bump to revision 4.
+### Allowed files
 
-Phase B semantic behavior remains frozen. CODEX may make constructor/signature/test adaptations caused by the added state field. A Phase B semantic change is authorized only when directly necessary to close this same deterministic reconciliation defect and must be called out separately in the handoff. No unrelated reopening is allowed.
+- test files under `tests/Scada.Drivers.Tests/` only as required for acceptance #7;
+- `web/scada-web/tests-e2e/c04-tag-source-browser.spec.ts`.
 
-### Authorized Phase C scope
+No `src/**`, workflow, package-lock, config, documentation or other product change is authorized by this order.
 
-1. **Lifecycle orchestrator**
-   - add one API-host `ProductLicenseLifecycleCoordinator` (or naming-equivalent single authority);
-   - implement bounded install/replace and remove operations;
-   - invalid/tampered/wrong-machine/expired/malformed candidate is a true no-op before transition;
-   - after Begin transition, canonical file mutation remains outside DB transactions;
-   - file mutation failure aborts the pending transition without revision bump/fence/Runtime disruption;
-   - successful authority change commits the next revision, re-evaluates local Runtime, fences all pre-change remote leases, then completes pending state before success returns.
+### Required validation
 
-2. **Crash/restart reconciliation**
-   - implement the binding W1-W6 conservative reconciliation from #301 comment `5722165708`;
-   - canonical `CurrentVerification` remains license truth;
-   - if exact post-file authority-change timestamp was not persisted, use the durable transition start as the conservative no-later-than anchor required by the frozen design;
-   - repeated reconciliation must be idempotent;
-   - pending must remain fail-closed if reconciliation cannot complete.
+Before handoff:
 
-3. **Startup ordering**
-   - register the lifecycle service/reconciler through normal DI;
-   - execute pending lifecycle reconciliation only after Runtime Session Lease store initialization and before persisted Engineering Runtime recovery, so a persisted Runtime cannot recover under unresolved authority state;
-   - do not create a second startup authority path.
-
-4. **Licensing mutation route cutover**
-   - `GET /api/licensing/status` and `GET /api/licensing/request` retain the current read boundary;
-   - install/replace/remove must use `ApiAuthorizationService.CheckWorkspace(..., SecurityCapability.EngineeringModify)`;
-   - machine-license mutation must not depend on Application Engineering Lock;
-   - routes call only the lifecycle orchestrator, not `FileProductLicenseService` directly.
-
-5. **Audit**
-   - reuse `ApiAuditService` / `AuditEvent`;
-   - add stable bounded actions for product-license install/replace/remove;
-   - audit allowed, denied and failed operations with safe metadata only: operation/result code, previous/new LicenseState, previous/new AuthorityRevision, authorityChangedAtUtc, fenced lease count, local Runtime outcome;
-   - never audit raw license code/ESLIC payload, signing material, credentials/tokens or arbitrary exception text that could echo them.
-
-6. **Deterministic proof**
-   - cover acceptance items 3-6, 8-10, 13-18 in section 3 below;
-   - include fault windows: pending committed before file I/O; file failure/abort; crash after file commit before revision; crash after revision before Runtime re-evaluation; Runtime re-evaluation failure; crash before/after bulk fence; repeat reconciliation; concurrent admission/heartbeat/terminate vs transition;
-   - preserve existing ESLIC2 + Shared Seat Accounting regressions and `.escadapkg` exclusion.
-
-### Forbidden scope
-
-- no License Generator UI;
-- no full #304 Application/Authority detach UX;
-- no Authority A->B switching implementation;
-- no Historian switching/reset;
-- no EliteGO UI;
-- no cross-machine HA election/fencing/convergence;
-- no FND-04;
-- no broad ESLIC1 cleanup;
-- no workflow weakening;
-- no direct write to `wave15/corrections-integration` or `main`;
-- no merge.
-
-### Delivery / PR gate
-
-CODEX may implement, commit, run focused tests and open a PR from the assigned branch to `wave15/corrections-integration`. Natural PR CI is allowed.
+- execute the new acceptance #7 proof;
+- execute the focused C04 Chromium test;
+- execute the relevant Phase C focused .NET tests;
+- push the tests-only correction to the same branch / PR #334;
+- allow natural CI on the new exact head;
+- do not manually rerun #1556;
+- do not merge.
 
 Return exactly:
 
-`CODEX -> MAIN COORDINATOR — FND-03 LIFECYCLE PHASE C HANDOFF`
+`CODEX -> MAIN COORDINATOR — FND-03 PHASE C ACCEPTANCE-CLOSE HANDOFF`
 
 with:
-- exact base SHA/tree;
-- exact head SHA/tree;
-- changed files and scope statement;
-- acceptance matrix `PASS | FAIL | PENDING`;
-- focused tests actually executed;
-- PR number/state/base/head;
-- exact CI run/jobs if available;
-- explicit non-actions;
-- blockers/risks.
+- old head `73ce093e...` -> new exact head/tree;
+- exact changed files;
+- proof that production/workflow delta is zero;
+- acceptance #7 result;
+- C04 focused result;
+- Phase C focused results;
+- PR #334 exact state/base/head;
+- new natural CI run/jobs/status;
+- explicit non-actions.
 
-Do not merge. Main independently reviews the candidate and CI before any integration order.
-
-FND-03 DEV remains WAIT to avoid dual implementation.
-FND-04 DEV/AUD remain WAIT.
-FC0-A remains BLOCKED.
+Until Main verifies the new exact head:
+- Phase C remains ACTIVE / NOT VERIFIED;
+- FND-03 global remains ACTIVE / NOT FROZEN;
+- FND-03 DEV WAIT;
+- FND-04 DEV/AUD WAIT;
+- FC0-A BLOCKED.
 ---
 
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER

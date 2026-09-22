@@ -63,9 +63,9 @@ Phase C implementation is assigned exclusively to CODEX; DEV remains idle to pre
 ### CODEX
 
 `ORDER_STATE: ACTIVE`  
-`ORDER_ID: FND03-PHASE-C-LIFECYCLE-ORCH-02`
+`ORDER_ID: FND03-PHASE-C-ACCEPTANCE-CLOSE-03`
 
-Branch: `work/w15-fnd-03-license-lifecycle-orchestrator-v1`, created from exact product checkpoint `4647dd741...`. Target: `wave15/corrections-integration`. No merge authorized.
+Branch: `work/w15-fnd-03-license-lifecycle-orchestrator-v1`. Reviewed candidate `73ce093e...` is PR #334. Main ordered tests-only acceptance close: direct item #7 proof plus C04 request-wait fixture stabilization. No production change or merge authorized.
 
 ### FND-04 DEV/AUD
 

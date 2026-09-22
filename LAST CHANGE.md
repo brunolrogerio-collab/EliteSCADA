@@ -45,7 +45,7 @@ FND-03 Phase C is **ACTIVE** under CODEX.
 
 Order:
 
-`FND03-PHASE-C-LIFECYCLE-ORCH-02`
+`FND03-PHASE-C-ACCEPTANCE-CLOSE-03`
 
 Exact product base:
 
@@ -63,7 +63,19 @@ Target:
 
 `wave15/corrections-integration`
 
-Bounded scope:
+Current reviewed candidate:
+- PR #334 head `73ce093e5049d5a24a335b95f8eacba1a4e8134a`, tree `97be69a42b7d6c595cc92984d99745b3278c5652`;
+- Backend/Web CI #1556 SUCCESS;
+- Chromium CI #1556 FAILED only in unchanged C04 request-capture timing;
+- acceptance #7 remains PENDING.
+
+Active correction is tests-only:
+- direct acceptance #7 proof that project/package/Authority operations cannot mutate machine license outside the canonical lifecycle;
+- stabilize C04 by explicitly awaiting/capturing the preview request while preserving all semantic assertions;
+- no production/workflow change;
+- no rerun of unchanged CI #1556.
+
+Original Phase C product scope remains:
 - minimal Phase A transition-state amendment: durable per-transition base authority revision in memory + PostgreSQL additive migration `024_runtime_session_authority_transition_base_v1`, with fail-closed reconciliation for missing/incoherent base;
 - ProductLicenseLifecycleCoordinator install/replace/remove orchestration;
 - conservative pending-transition restart reconciliation;

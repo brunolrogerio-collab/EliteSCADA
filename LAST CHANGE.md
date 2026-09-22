@@ -1,7 +1,7 @@
 # LAST CHANGE — EliteSCADA
 
-**Date:** 2026-09-18 BRT  
-**Operational state:** **WAVE 15 ACTIVE / FND-03 LIFECYCLE PHASE A VERIFIED+FROZEN / PHASE B CI-BUILD CORRECTION ACTIVE / CODEX WAIT / FND-04 WAIT / FC0-A BLOCKED**
+**Date:** 2026-09-22 BRT  
+**Operational state:** **WAVE 15 ACTIVE / FND-03 PHASE A VERIFIED+FROZEN / PHASE B VERIFIED+FROZEN / PHASE C NOT_STARTED / COORDINATOR SUCCESSION READY / CODEX WAIT / FND-04 WAIT / FC0-A BLOCKED**
 
 > GitHub live is the official memory.
 >
@@ -9,88 +9,48 @@
 
 ## Latest verified product checkpoint
 
-PR #332 — FND-03 License Lifecycle / Runtime Authority Fencing Phase A — merged and verified.
+PR #333 merged:
 
-Exact product checkpoint:
-
-`20b934f23d8798ffb65cca203b62f8b5c3d8f111`
+`4647dd741551c97306217ac9893d3378b070f43b`
 
 tree:
 
-`4e227fdde1d8475c23852e142c51946c7a2e1859`
+`d7eb7d3f57269e71ed5984c82e701a059be56bfb`
+
+Reviewed Phase B candidate:
+
+`29c5911318c06f6d07578dd4b97b908f66e3c773`
+
+candidate tree:
+
+`8e890abab8de005ab4f8e09899e9a208ef3f8073`
+
+## Verification
+
+Exact PR CI:
+- EliteSCADA CI #1554 / run `35663835807` — Backend/Web/Chromium SUCCESS.
 
 Exact post-merge CI:
-- EliteSCADA CI #1551 / run `35341475101`
-- Backend `105588126265` — SUCCESS
-- Web `105588126462` — SUCCESS
-- Chromium `105588538108` — SUCCESS
+- EliteSCADA CI #1555 / run `35665138086`
+- head SHA `4647dd741551c97306217ac9893d3378b070f43b`
+- Web `106549082646` — SUCCESS
+- Backend `106549082897` — SUCCESS
+- Chromium `106549531824` — SUCCESS
 
-Phase A is now VERIFIED/FROZEN.
+Therefore FND-03 Lifecycle/Fencing Phase B is VERIFIED/FROZEN.
 
-## Current active work
+## Successor boundary
 
-FND-03 Phase B is ACTIVE.
+Phase C is NOT_STARTED.
 
-Mission:
+No DEV/Codex/AUD is authorized to start Phase C until the successor Main reconstructs GitHub live, reads the frozen architecture evidence, defines the bounded work package and persists the new CURRENT ORDER in the canonical handoff.
 
-**Active Runtime Re-evaluation + Durable Demo Recovery v1**
-
-Exact base:
-
-`20b934f23d8798ffb65cca203b62f8b5c3d8f111`
-
-Branch:
-
-`work/w15-fnd-03-runtime-authority-reevaluation-v1`
-
-Target:
-
-`wave15/corrections-integration`
-
-Scope:
-- active Runtime re-evaluation after authority change;
-- retain allowed Runtime / stop denied Runtime;
-- durable Demo authority-change anchor;
-- remaining-duration scheduling without restart reset;
-- persisted Runtime recovery fail-closed while authority transition is pending;
-- persisted Demo recovery only with durable anchor;
-- focused deterministic tests.
-
-Explicitly not active yet:
-- ProductLicenseLifecycleCoordinator;
-- install/replace/remove mutation orchestration;
-- EngineeringModify/audit endpoint cutover;
-- full crash-window reconciliation;
-- FND-04;
-- FC0-A.
-
-## Lane state
-
-- FND-03 DEV — ACTIVE / IMPLEMENT_PHASE_B_TEST_FIXTURE_CORRECTION.
-- CODEX — WAIT / reserve.
+Current lanes:
+- FND-03 DEV — WAIT_PHASE_C_SUCCESSOR.
+- CODEX — WAIT.
 - FND-04 DEV/AUD — WAIT.
 - FC0-A — BLOCKED.
 
-## Next gate
+## Next Main objective
 
-Wait for:
-
-`FND-03 DEV -> MAIN COORDINATOR — LICENSE LIFECYCLE PHASE B HANDOFF`
-
-Then Main independently reviews the exact Phase B candidate, tests and scope before any PR/CI authorization.
-
-
-## Phase B CI #1552 diagnosis
-
-PR #333 exact head `abb1e497c66a8f0888d6cde83331c51623c18979`: Web SUCCESS; Backend build failed before tests on `CS0649` in the new recovery test helper because `RecordingTimeProvider._timestamp` is never assigned. Main ordered a single-test-file compile correction. No production/workflow change and no unchanged rerun are authorized.
-
-
-## Latest Phase B CI correction
-
-EliteSCADA CI #1553 / run `35394388702` on `5ebf533132b217085ff74db8f26ddb16cf95da88`:
-- Web SUCCESS;
-- Backend build SUCCESS;
-- Drivers 669/670 PASS;
-- sole failure is the Demo recovery fixture using a zero-source package rejected by canonical Runtime as `RUNTIME_NO_ACTIVE_SOURCES`.
-
-Main ordered a single-test-file Server Memory fixture correction on PR #333. Production Phase B remains unchanged pending the next exact-head CI.
+Reconstruct live state and define Phase C for FND-03, expected to consume the frozen Phase A/B foundation for lifecycle mutation orchestration, crash/restart reconciliation and licensing endpoint authorization/audit cutover. Exact scope must be revalidated from GitHub live before activation.

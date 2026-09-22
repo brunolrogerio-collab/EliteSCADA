@@ -97,6 +97,7 @@ builder.AddProductLicensedRuntimeCoordinator();
 builder.Services.AddSingleton<IEngineeringExchangeService, EngineeringExchangeService>();
 builder.Services.AddSingleton<IProjectPackageService, ProjectPackageService>();
 builder.AddConfiguredRuntimeSessionLeaseStore();
+builder.Services.AddSingleton<ProductLicenseLifecycleCoordinator>();
 builder.Services.AddSingleton<ApiAuthorizationService>(sp =>
     new ApiAuthorizationService(
         sp,
@@ -132,6 +133,7 @@ var app = builder.Build();
 _ = app.Services.GetRequiredService<IHistorian>();
 await app.InitializeServerMemoryRetentionAsync();
 await app.InitializeRuntimeSessionLeaseStoreAsync();
+await app.Services.GetRequiredService<ProductLicenseLifecycleCoordinator>().ReconcilePendingAsync();
 await app.InitializeEngineeringPersistenceAsync();
 await app.InitializeAuditAsync();
 var localIdentityRuntime = app.Services.GetRequiredService<LocalIdentityRuntimeOptions>();

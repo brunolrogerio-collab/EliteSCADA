@@ -43,6 +43,13 @@ public interface IProductRuntimeStatusProvider
     ProductRuntimeEntitlementStatus GetProductRuntimeStatus();
 }
 
+public interface IProductRuntimeAuthorityReevaluator
+{
+    Task<ProductRuntimeAuthorityReevaluationResult> ReevaluateForAuthorityChangeAsync(
+        DateTimeOffset authorityChangedAtUtc,
+        CancellationToken cancellationToken = default);
+}
+
 /// <summary>
 /// Product-owned runtime boundary. Entitlement is evaluated before the existing
 /// transactional runtime coordinator is entered, so a denied Run never stages,
@@ -53,7 +60,8 @@ public interface IProductRuntimeStatusProvider
 public sealed class ProductLicensedRuntimeCoordinator :
     IEngineeringRuntimeCoordinator,
     IGatewayRuntimeDiagnosticsProvider,
-    IProductRuntimeStatusProvider
+    IProductRuntimeStatusProvider,
+    IProductRuntimeAuthorityReevaluator
 {
     public const string EntitlementDeniedIssueCode = "PRODUCT_RUN_ENTITLEMENT_DENIED";
     public const string DemoExpiredDiagnostic = "Demo Run session expired after its continuous runtime allowance.";
@@ -754,6 +762,8 @@ public static class ProductLicensedRuntimeConfiguration
         builder.Services.AddSingleton<IGatewayRuntimeDiagnosticsProvider>(sp =>
             sp.GetRequiredService<ProductLicensedRuntimeCoordinator>());
         builder.Services.AddSingleton<IProductRuntimeStatusProvider>(sp =>
+            sp.GetRequiredService<ProductLicensedRuntimeCoordinator>());
+        builder.Services.AddSingleton<IProductRuntimeAuthorityReevaluator>(sp =>
             sp.GetRequiredService<ProductLicensedRuntimeCoordinator>());
     }
 }

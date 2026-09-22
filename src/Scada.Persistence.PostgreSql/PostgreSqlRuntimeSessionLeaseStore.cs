@@ -57,6 +57,7 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
                 transition_id uuid NULL,
                 transition_kind text NULL,
                 transition_started_at_utc timestamptz NULL,
+                transition_base_authority_revision bigint NULL CHECK (transition_base_authority_revision > 0),
                 authority_changed_at_utc timestamptz NULL,
                 demo_started_at_utc timestamptz NULL,
                 CHECK (
@@ -68,6 +69,22 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
             ON CONFLICT (singleton_id) DO NOTHING;
             ALTER TABLE elitescada.runtime_session_leases
                 ADD COLUMN IF NOT EXISTS authority_revision bigint NOT NULL DEFAULT 1 CHECK (authority_revision > 0);
+            ALTER TABLE elitescada.runtime_session_authority_state
+                ADD COLUMN IF NOT EXISTS transition_base_authority_revision bigint NULL;
+            DO $migration$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'runtime_authority_transition_base_coherent'
+                      AND conrelid = 'elitescada.runtime_session_authority_state'::regclass)
+                THEN
+                    ALTER TABLE elitescada.runtime_session_authority_state
+                        ADD CONSTRAINT runtime_authority_transition_base_coherent CHECK (
+                            (transition_pending AND transition_base_authority_revision IS NOT NULL AND transition_base_authority_revision > 0)
+                            OR (NOT transition_pending AND transition_base_authority_revision IS NULL)) NOT VALID;
+                END IF;
+            END
+            $migration$;
             CREATE UNIQUE INDEX IF NOT EXISTS ux_runtime_session_leases_active_logical_identity
                 ON elitescada.runtime_session_leases (subject_id, client_instance_id)
                 WHERE is_active;
@@ -82,6 +99,9 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
             ON CONFLICT (migration_key) DO NOTHING;
             INSERT INTO elitescada.schema_migrations (migration_key)
             VALUES ('023_runtime_session_authority_fencing_v1')
+            ON CONFLICT (migration_key) DO NOTHING;
+            INSERT INTO elitescada.schema_migrations (migration_key)
+            VALUES ('024_runtime_session_authority_transition_base_v1')
             ON CONFLICT (migration_key) DO NOTHING;
             """;
 
@@ -132,7 +152,8 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
                 SET transition_pending = true,
                     transition_id = @transition_id,
                     transition_kind = @transition_kind,
-                    transition_started_at_utc = @started_at
+                    transition_started_at_utc = @started_at,
+                    transition_base_authority_revision = @authority_revision
                 WHERE singleton_id = 1 AND NOT transition_pending AND authority_revision = @authority_revision;
                 """;
             await using var command = new NpgsqlCommand(sql, connection, transaction);
@@ -168,10 +189,12 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
                 SET transition_pending = false,
                     transition_id = NULL,
                     transition_kind = NULL,
-                    transition_started_at_utc = NULL
+                    transition_started_at_utc = NULL,
+                    transition_base_authority_revision = NULL
                 WHERE singleton_id = 1
                   AND transition_pending
                   AND transition_id = @transition_id
+                  AND transition_base_authority_revision = @authority_revision
                   AND authority_revision = @authority_revision;
                 """;
             await using var command = new NpgsqlCommand(sql, connection, transaction);
@@ -209,6 +232,7 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
                 WHERE singleton_id = 1
                   AND transition_pending
                   AND transition_id = @transition_id
+                  AND transition_base_authority_revision = @expected_revision
                   AND authority_revision = @expected_revision;
                 """;
             await using var command = new NpgsqlCommand(sql, connection, transaction);
@@ -292,15 +316,18 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
                 SET transition_pending = false,
                     transition_id = NULL,
                     transition_kind = NULL,
-                    transition_started_at_utc = NULL
+                    transition_started_at_utc = NULL,
+                    transition_base_authority_revision = NULL
                 WHERE singleton_id = 1
                   AND transition_pending
                   AND transition_id = @transition_id
+                  AND transition_base_authority_revision = @transition_base_revision
                   AND authority_revision = @authority_revision;
                 """;
             await using var complete = new NpgsqlCommand(completeSql, connection, transaction);
             complete.Parameters.AddWithValue("transition_id", transitionId);
             complete.Parameters.AddWithValue("authority_revision", NpgsqlDbType.Bigint, authorityRevision);
+            complete.Parameters.AddWithValue("transition_base_revision", NpgsqlDbType.Bigint, checked(authorityRevision - 1));
             if (await complete.ExecuteNonQueryAsync(cancellationToken) != 1)
                 throw new InvalidOperationException("Runtime authority transition changed before completion.");
             await transaction.CommitAsync(cancellationToken);
@@ -664,7 +691,8 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
     {
         const string sql = """
             SELECT authority_revision, transition_pending, transition_id, transition_kind,
-                   transition_started_at_utc, authority_changed_at_utc, demo_started_at_utc
+                   transition_started_at_utc, transition_base_authority_revision,
+                   authority_changed_at_utc, demo_started_at_utc
             FROM elitescada.runtime_session_authority_state
             WHERE singleton_id = 1
             FOR UPDATE;
@@ -679,8 +707,9 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
             reader.IsDBNull(2) ? null : reader.GetGuid(2),
             reader.IsDBNull(3) ? null : reader.GetString(3),
             reader.IsDBNull(4) ? null : reader.GetFieldValue<DateTimeOffset>(4),
-            reader.IsDBNull(5) ? null : reader.GetFieldValue<DateTimeOffset>(5),
+            reader.IsDBNull(5) ? null : reader.GetInt64(5),
             reader.IsDBNull(6) ? null : reader.GetFieldValue<DateTimeOffset>(6),
+            reader.IsDBNull(7) ? null : reader.GetFieldValue<DateTimeOffset>(7),
             SupportsDurableRecovery: true);
     }
 
@@ -691,7 +720,9 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
     {
         if (!state.TransitionPending ||
             state.TransitionId != transitionId ||
-            state.AuthorityRevision != authorityRevision)
+            state.TransitionBaseAuthorityRevision is not { } transitionBase ||
+            state.AuthorityRevision != authorityRevision ||
+            authorityRevision != checked(transitionBase + 1))
         {
             throw new InvalidOperationException("Runtime authority transition does not match the pending transition.");
         }

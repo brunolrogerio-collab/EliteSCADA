@@ -147,53 +147,59 @@ Do not start FND-04 or release FC0-A.
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
 
 **ORDER_STATE: WAIT**  
-**DEV_MODE: WAIT_POST_MERGE_CI**  
-**Mission:** FND-03 Lifecycle/Fencing Phase B — integrated; Main owns exact merge-SHA verification
+**DEV_MODE: WAIT_PHASE_C_SUCCESSOR**  
+**Mission:** FND-03 License Lifecycle/Fencing — Phase B verified/frozen; successor Main owns Phase C activation
 
-### Integrated exact state
+### Stable product checkpoint
 
-PR #333 is merged.
+Phase A and Phase B are **VERIFIED/FROZEN**.
 
-- Phase A verified product base: `20b934f23d8798ffb65cca203b62f8b5c3d8f111`
-- reviewed Phase B candidate head: `29c5911318c06f6d07578dd4b97b908f66e3c773`
-- candidate tree: `8e890abab8de005ab4f8e09899e9a208ef3f8073`
-- exact-head PR CI: EliteSCADA CI #1554 / run `35663835807`
-  - Backend `106545006714` — SUCCESS
-  - Web `106545007263` — SUCCESS
-  - Chromium `106545462890` — SUCCESS
-- merge SHA / product checkpoint: `4647dd741551c97306217ac9893d3378b070f43b`
+Exact latest product checkpoint:
+
+- PR #333 merge SHA: `4647dd741551c97306217ac9893d3378b070f43b`
 - merge tree: `d7eb7d3f57269e71ed5984c82e701a059be56bfb`
-- exact post-merge CI: EliteSCADA CI #1555 / run `35665138086`
+- reviewed Phase B candidate: `29c5911318c06f6d07578dd4b97b908f66e3c773`
+- candidate tree: `8e890abab8de005ab4f8e09899e9a208ef3f8073`
+- exact PR CI #1554 / run `35663835807` — Backend/Web/Chromium SUCCESS
+- exact post-merge CI #1555 / run `35665138086` on merge SHA:
+  - Web `106549082646` — SUCCESS
+  - Backend `106549082897` — SUCCESS
+  - Chromium `106549531824` — SUCCESS
 
-Main independently confirmed before merge:
-- final correction is exactly one test-file commit;
-- no production/workflow change in that correction;
-- integration delta since the Phase A product checkpoint was coordination/documentation only;
-- all required Phase B focused tests execute and PASS on the exact candidate;
-- PR #333 remained mergeable and had no review threads.
+Phase B is now frozen:
+- active Runtime authority re-evaluation;
+- allowed Runtime retention / denied Runtime stop;
+- durable Demo authority-change anchor;
+- remaining-duration Demo semantics without restart reset;
+- persisted Runtime recovery fail-closed during pending authority transition;
+- persisted Demo recovery only with durable anchor;
+- focused regression/test-fixture corrections validated.
 
-### State discipline
+### Successor boundary
 
-Phase B is now **INTEGRATED**, not yet VERIFIED/FROZEN.
+**Phase C is NOT_STARTED. No implementation order exists yet.**
 
-The remaining gate is exact merge-SHA CI #1555 on `4647dd741551c97306217ac9893d3378b070f43b`.
+The successor Main Coordinator must reconstruct GitHub live and then define the bounded Phase C work package from the frozen architecture evidence, including the lifecycle mutation orchestrator / restart reconciliation / endpoint authorization+audit cutover, without reopening frozen Phase A/B contracts unless live evidence proves a defect.
 
-Main owns:
-- Backend/Web/Chromium post-merge evidence;
-- diagnosis before any rerun;
-- Phase B VERIFIED/FROZEN promotion;
-- activation of Phase C only after exact merge-SHA green.
+Do not infer Phase C details from chat memory alone. Re-read:
+- this canonical handoff in full;
+- #301 architecture amendment comment `5722165708`;
+- latest #301 Phase B merge/verification comments;
+- PR #333 and CI #1554/#1555;
+- `docs/CURRENT-COORDINATOR-HANDOFF.md`;
+- `LAST CHANGE.md`;
+- `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`.
 
 ### DEV order
 
 While this order is WAIT:
 
 - make no code/test/branch/PR changes;
+- do not create a Phase C branch;
 - do not rerun CI;
-- do not merge anything else;
-- do not start Phase C;
+- do not merge anything;
 - do not start FND-04 / FC0-A;
-- on `SIGA`, reread this file, confirm `WAIT_POST_MERGE_CI`, and stop.
+- on `SIGA`, reread this file, confirm `WAIT_PHASE_C_SUCCESSOR`, and stop.
 
 CODEX remains WAIT.
 FND-04 DEV/AUD remain WAIT.

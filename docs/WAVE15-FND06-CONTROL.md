@@ -4,9 +4,9 @@
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`MAIN_ORDER_REV: 0002`
+`MAIN_ORDER_REV: 0003`
 
-`STATE: ACTIVE / FND06-CODEX-VISUAL-STABILITY-V1`
+`STATE: ACTIVE / FND06-CODEX-VISUAL-STABILITY-V2`
 
 `PRODUCT_BASE_CANDIDATE: 6c810647c9773a19b212d9c33694780141786ac7`
 
@@ -92,7 +92,14 @@ Historical live audit reproduced deterministic Screen/Popup selection failure fo
 - `value`;
 - `dynamo`.
 
-The current seed still contains those types and also `status`.
+The exact accepted product base also persists `status` in `src/Scada.Api/Runtime/EngineeringWorkspace.cs` (the seeded pump Popup `fault` element), alongside `tank`, `value` and `dynamo`.
+
+Main classification is now frozen:
+- `tank`, `value`, `dynamo` and `status` are **known persisted legacy identifiers** that must be handled by the centralized compatibility boundary;
+- `status` is **not** a current canonical built-in: the live `BUILTIN_VISUAL_OBJECT_TYPES` registry contains only the current `core.*` identifiers and has no bare `status`;
+- do **not** guess that bare `status` means `instrument.status`, `core.valueDisplay`, or any other canonical built-in;
+- until an explicit lossless migration is proven, preserve its authored id/key/bindings/properties and expose a bounded compatibility schema/model plus actionable diagnostic;
+- arbitrary unknown identifiers remain outside this known-legacy set and fail closed/contained.
 
 Modern strict consumers such as Property Inspector call the canonical built-in schema registry directly and return `not registered` for unsupported legacy type keys.
 
@@ -104,6 +111,15 @@ Required rule:
 - where a known legacy type cannot be losslessly mapped to a canonical built-in, expose an explicit compatibility schema/model with contained diagnostics rather than crashing;
 - truly unknown identifiers remain fail-closed and must not be silently accepted;
 - compatibility must be shared by Screen and Popup selection/property paths.
+
+
+### 3.6 Wave 15 validation-profile correction
+
+The active T1 router vocabulary is repository-authoritative. For FND-06 the correct declaration is:
+
+`VALIDATION_PROFILE: UI_EDITOR, RUNTIME_RENDERER`
+
+The former prepared names `VISUAL_ENGINEERING, RUNTIME_VISUAL` are not valid router profiles and must not be used in the PR body or manual validation evidence.
 
 ## 4. Frozen FND-06 contract
 
@@ -124,7 +140,7 @@ Required rule:
 ### 4.3 Legacy compatibility
 
 1. Centralize known legacy type compatibility before strict registry consumers.
-2. Initial mandatory historical fixtures: `tank`, `value`, `dynamo`; inspect `status` because it remains in the live seed and either classify it as known compatibility or prove why it is intentionally unsupported.
+2. Initial mandatory known-legacy fixtures: `tank`, `value`, `dynamo`, `status`. Bare `status` is explicitly classified as a known persisted seed identifier, not a canonical built-in and not an inferred alias.
 3. Preserve object IDs, keys, bindings, Dynamo identity/equipment path and authored properties during compatibility projection.
 4. Arbitrary unknown type e.g. `vendor.unknown-x` remains rejected/contained.
 5. Do not broaden the canonical built-in registry merely to make tests pass.
@@ -155,7 +171,7 @@ A candidate is acceptable only if all are deterministic:
 4. historical `tank` Screen object selection is contained/compatible, not SPA-fatal;
 5. historical `value` Screen/Popup selection is contained/compatible;
 6. historical `dynamo` selection preserves Dynamo identity/parameters/equipment path;
-7. live-seed `status` behavior is explicitly classified and tested;
+7. live-seed `status` is handled as known legacy compatibility without guessed built-in aliasing, preserving authored identity/bindings/properties and containing diagnostics;
 8. truly unknown type is rejected with contained actionable diagnostic and Engineering remains mounted;
 9. malformed property on one selected object cannot blank Engineering;
 10. malformed binding/destination cannot blank Engineering;
@@ -196,7 +212,7 @@ Forbidden without new Main order:
 
 ## 7. CURRENT EXECUTOR ORDER
 
-`ORDER_ID: FND06-CODEX-VISUAL-STABILITY-V1`
+`ORDER_ID: FND06-CODEX-VISUAL-STABILITY-V2`
 
 `ORDER_STATE: ACTIVE`
 
@@ -210,7 +226,7 @@ Forbidden without new Main order:
 
 `TARGET_BRANCH: wave15/corrections-integration`
 
-`VALIDATION_PROFILE: VISUAL_ENGINEERING, RUNTIME_VISUAL`
+`VALIDATION_PROFILE: UI_EDITOR, RUNTIME_RENDERER`
 
 Mission: implement only the FND-06 Foundation gaps from sections 3–6. Do not implement the full #303 DEV-EDITOR single-canvas UX.
 
@@ -224,8 +240,9 @@ Against exact base `6c810647...`, create discriminating test-only RED evidence f
    - Property Inspector path must demonstrate the current strict-registry compatibility gap without crashing the entire test harness.
 
 2. **known legacy Popup failure**
-   - persisted Popup object with type `value` (and `status` classification fixture);
-   - selection/inspector must expose the current compatibility gap.
+   - persisted Popup objects with type `value` and live-seed type `status`;
+   - selection/inspector must expose the current compatibility gap;
+   - RED must prove `status` is currently rejected by the strict built-in schema path while its object remains recoverable as known legacy evidence.
 
 3. **truly unknown negative**
    - `vendor.unknown-x` remains unsupported/contained; the RED/GREEN design must never turn arbitrary unknowns into accepted built-ins.
@@ -241,8 +258,8 @@ Against exact base `6c810647...`, create discriminating test-only RED evidence f
 
 A. Centralized legacy compatibility:
 - introduce/reuse one compatibility adapter before strict visual-schema consumers;
-- mandatory historical fixtures: `tank`, `value`, `dynamo`;
-- explicitly classify live-seed `status`;
+- mandatory known-legacy fixtures: `tank`, `value`, `dynamo`, `status`;
+- treat bare `status` as compatibility-only unless a lossless canonical migration is separately proven; never infer an alias merely from the name;
 - preserve stable id/key/bindings/properties and Dynamo metadata;
 - do not guess a lossy canonical mapping. If no lossless built-in mapping exists, use a bounded compatibility schema/model with actionable diagnostic;
 - truly unknown type remains fail-closed/contained;

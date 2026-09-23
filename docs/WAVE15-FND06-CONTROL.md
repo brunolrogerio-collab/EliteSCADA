@@ -4,9 +4,9 @@
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`MAIN_ORDER_REV: 0001`
+`MAIN_ORDER_REV: 0002`
 
-`STATE: WAIT_FND04_POST_MERGE_GATE / SOURCE_AUDIT_COMPLETE / ACTIVATION_PREPARED`
+`STATE: ACTIVE / FND06-CODEX-VISUAL-STABILITY-V1`
 
 `PRODUCT_BASE_CANDIDATE: 6c810647c9773a19b212d9c33694780141786ac7`
 
@@ -14,7 +14,7 @@
 
 `COORDINATION_BASE: f7da7694ec68222c40559fb77df2e2cb99d15557`
 
-`FND04_POST_MERGE_CI: 35913456486 / PENDING_CHROMIUM_AT_CREATION`
+`FND04_POST_MERGE_CI: 35913456486 / SUCCESS`
 
 ## 1. Purpose
 
@@ -194,23 +194,121 @@ Forbidden without new Main order:
 - broad DEV-EDITOR single-canvas UX implementation;
 - EliteGO implementation.
 
-## 7. Prepared executor order
+## 7. CURRENT EXECUTOR ORDER
 
 `ORDER_ID: FND06-CODEX-VISUAL-STABILITY-V1`
 
-`ORDER_STATE: WAIT_FND04_POST_MERGE_GATE`
+`ORDER_STATE: ACTIVE`
 
-When Main flips this order to ACTIVE, executor must:
-1. revalidate exact assigned base and branch divergence;
-2. prove the historical strict-consumer legacy failure with test-only RED before changing product;
-3. implement the smallest centralized compatibility/selection correction;
-4. add the missing Popup projection/navigation persistence and authority-change regressions;
-5. prove Working-design vs Active authority separation;
-6. preserve all current canonical editor/Runtime behavior;
-7. open one isolated PR targeting `wave15/corrections-integration`;
-8. return exact head/tree/files/tests/natural CI/non-actions.
+`EXECUTOR_MODE: BOUNDED_FOUNDATION_IMPLEMENTATION`
 
-Until ACTIVE: **no FND-06 product mutation**.
+`EXACT_PRODUCT_BASE_SHA: 6c810647c9773a19b212d9c33694780141786ac7`
+
+`EXACT_PRODUCT_BASE_TREE: 1221ff55963052be4e924dd644efbaa65763f546`
+
+`WORK_BRANCH: work/w15-fnd-06-visual-stability-foundation`
+
+`TARGET_BRANCH: wave15/corrections-integration`
+
+`VALIDATION_PROFILE: VISUAL_ENGINEERING, RUNTIME_VISUAL`
+
+Mission: implement only the FND-06 Foundation gaps from sections 3–6. Do not implement the full #303 DEV-EDITOR single-canvas UX.
+
+### Mandatory RED before production
+
+Against exact base `6c810647...`, create discriminating test-only RED evidence for at minimum:
+
+1. **known legacy strict-consumer failure**
+   - persisted Screen object with type `tank`;
+   - select via canvas/outliner;
+   - Property Inspector path must demonstrate the current strict-registry compatibility gap without crashing the entire test harness.
+
+2. **known legacy Popup failure**
+   - persisted Popup object with type `value` (and `status` classification fixture);
+   - selection/inspector must expose the current compatibility gap.
+
+3. **truly unknown negative**
+   - `vendor.unknown-x` remains unsupported/contained; the RED/GREEN design must never turn arbitrary unknowns into accepted built-ins.
+
+4. **Popup navigation persistence gap**
+   - open Popup;
+   - inject retryable Runtime projection failure;
+   - recover same `projectKey/revision/activatedAtUtc`;
+   - assert popup stack remains open.
+   If current exact base already passes, record GREEN-existing evidence instead of manufacturing a failure.
+
+### Required implementation behavior
+
+A. Centralized legacy compatibility:
+- introduce/reuse one compatibility adapter before strict visual-schema consumers;
+- mandatory historical fixtures: `tank`, `value`, `dynamo`;
+- explicitly classify live-seed `status`;
+- preserve stable id/key/bindings/properties and Dynamo metadata;
+- do not guess a lossy canonical mapping. If no lossless built-in mapping exists, use a bounded compatibility schema/model with actionable diagnostic;
+- truly unknown type remains fail-closed/contained;
+- no second visual schema registry.
+
+B. Selection stability:
+- Screen + Popup canvas/outliner selection stays mounted for canonical and known-compatible legacy objects;
+- malformed property/binding/destination is contained to inspector/object diagnostics;
+- no whole Engineering SPA blank/poison.
+
+C. Runtime navigation:
+- preserve selected Screen and open Popup stack across retryable projection failure/recovery under unchanged Active identity;
+- reset deliberately when project/revision/activated identity truly changes;
+- non-retryable invalid Active authority remains visible failure.
+
+D. Renderer/authority:
+- preserve `CanonicalVisualRenderer` as sole artwork renderer;
+- Working/draft design rendering remains non-authoritative;
+- Active Runtime remains `/api/runtime/application` authority;
+- no design action may publish/activate/write process values merely by rendering.
+
+### Allowed production surface
+
+Minimum necessary files under:
+- `web/scada-web/src/visual-runtime/**`;
+- `web/scada-web/src/engineering/visual-editor/**`;
+- `web/scada-web/src/runtime/application/RuntimeApplicationMount.tsx`;
+- `web/scada-web/src/runtime/visual-navigation/**`.
+
+Focused tests under:
+- `web/scada-web/tests-e2e/**`;
+- backend visual compatibility tests only if persistence/import normalization requires a narrowly proven server-side boundary.
+
+### Forbidden
+
+No changes without Main re-order to:
+- Security/Authority;
+- Licensing;
+- Driver/Historian semantics;
+- database schema/migrations;
+- Working/Published/Active lifecycle authority;
+- workflow/CI infrastructure;
+- Script Engineering/FND-04 contract;
+- full single-canvas DEV-EDITOR UX;
+- EliteGO.
+
+### Acceptance return
+
+Return exactly:
+
+`FND-06 CODEX EXECUTOR -> MAIN COORDINATOR — CANDIDATE HANDOFF`
+
+Include:
+- exact base -> head/tree;
+- exact changed files;
+- RED evidence;
+- legacy compatibility classification table for `tank | value | dynamo | status | unknown`;
+- Screen + Popup selection matrix;
+- projection/navigation matrix;
+- renderer/Working-vs-Active proof;
+- local tests/builds;
+- natural Wave 15 T1 run/jobs on exact head;
+- scope/non-actions;
+- any residual requiring downstream DEV-EDITOR rather than Foundation.
+
+No self-merge and no freeze authority.
 
 ## 8. FC0-A effect
 

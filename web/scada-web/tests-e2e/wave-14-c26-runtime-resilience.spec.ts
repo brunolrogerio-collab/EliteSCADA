@@ -175,6 +175,34 @@ test('C26 Runtime preserves the open Popup stack across one transient projection
   await expect(navigator.locator('[data-popup-count="1"]')).toBeVisible();
 });
 
+test('C26 Runtime deliberately resets Screen and Popup navigation when Active identity changes', async ({ page }) => {
+  await installRuntimeShellContract(page);
+
+  let changedActiveResponses = 0;
+  let changeActive = false;
+  const nextProjection = {
+    ...runtimeProjection,
+    revision: 27,
+    activatedAtUtc: '2026-09-07T18:30:00Z'
+  };
+  await page.route('**/api/runtime/application', route => {
+    if (changeActive) changedActiveResponses++;
+    return route.fulfill({ json: changeActive ? nextProjection : runtimeProjection });
+  });
+
+  await page.goto('/');
+  const navigator = page.getByTestId('runtime-visual-navigator');
+  await page.getByRole('button', { name: 'Abrir popup' }).click();
+  await page.getByRole('button', { name: 'Abrir secundária' }).click();
+  await expect(navigator).toHaveAttribute('data-active-screen-key', 'secondary');
+  await expect(navigator.locator('[data-popup-count="1"]')).toBeVisible();
+
+  changeActive = true;
+  await expect.poll(() => changedActiveResponses, { timeout: 5_000 }).toBeGreaterThan(0);
+  await expect(navigator).toHaveAttribute('data-active-screen-key', 'home');
+  await expect(navigator.locator('[data-popup-count="0"]')).toBeVisible();
+});
+
 test('C26 Runtime preserves the selected Screen across the real transient proxy HTTP 500 signature and recovery', async ({ page }) => {
   await installRuntimeShellContract(page);
 

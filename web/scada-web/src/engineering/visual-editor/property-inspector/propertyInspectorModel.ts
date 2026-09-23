@@ -5,6 +5,7 @@ import type {
 } from '../../types';
 import {
   getVisualSchemaForEngineering,
+  isKnownLegacyVisualType,
   type VisualObjectPropertySchema,
   type VisualPropertyDefinition,
   type VisualPropertyValidationFailure
@@ -26,6 +27,7 @@ export type PropertyInspectorModel = Readonly<{
   objectIds: readonly string[];
   objectTypes: readonly string[];
   rows: readonly PropertyInspectorRow[];
+  diagnostic?: string;
   error?: string;
 }>;
 
@@ -123,8 +125,16 @@ export function buildPropertyInspectorModel(
   return {
     objectIds: Object.freeze(objectIds),
     objectTypes: Object.freeze(objectTypes),
-    rows: Object.freeze(rows)
+    rows: Object.freeze(rows),
+    diagnostic: legacyCompatibilityDiagnostic(objectTypes)
   };
+}
+
+function legacyCompatibilityDiagnostic(objectTypes: readonly string[]): string | undefined {
+  const legacyTypes = [...new Set(objectTypes.filter(isKnownLegacyVisualType))];
+  if (legacyTypes.length === 0) return undefined;
+
+  return `Compatibility mode for persisted legacy type${legacyTypes.length === 1 ? '' : 's'}: ${legacyTypes.join(', ')}. No canonical alias is inferred; edit only shared surface properties and preserve legacy-specific authored data before migration.`;
 }
 
 export function buildPropertyInspectorSetIntent(

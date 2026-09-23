@@ -130,6 +130,8 @@ export function PropertyInspector({
         <span>{selectedElements.length === 1 ? selectedElements[0].key : text.selected(selectedElements.length)}</span>
       </header>
 
+      {model.diagnostic ? <p className="property-inspector__diagnostic" role="status">{model.diagnostic}</p> : null}
+
       {groupedRows.map(([category, rows]) => (
         <section className="property-inspector__group" key={category}>
           <h3>{text.category[category] ?? category}</h3>

@@ -116,6 +116,8 @@ test('RED: known persisted legacy visual types stay selectable while arbitrary u
     ]);
     expect(model.error).toBeUndefined();
     expect(model.objectIds).toEqual([`legacy-${type}`]);
+    expect(model.diagnostic).toMatch(new RegExp(`persisted legacy type: ${type}`));
+    expect(model.diagnostic).toMatch(/No canonical alias is inferred/);
   }
 
   expect(buildPropertyInspectorModel([

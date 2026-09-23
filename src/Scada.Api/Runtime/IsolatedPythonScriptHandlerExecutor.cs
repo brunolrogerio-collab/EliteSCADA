@@ -203,9 +203,10 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
     {
         var kinds = new Dictionary<Guid, string>();
         var referencesByTagId = new Dictionary<Guid, string>();
-        // The deterministic Python subset mirrors the canonical ordinal
-        // case-insensitive TAG-reference semantics when resolving its writes.
-        var tagIdsByReference = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+        // Readable Python tokens are exact declared binding text. The host
+        // separately proves each persisted binding through the canonical TAG
+        // registry before sandbox execution.
+        var tagIdsByReference = new Dictionary<string, Guid>(StringComparer.Ordinal);
         foreach (var dependency in script.Dependencies)
         {
             if (!dependency.Kind.Equals("Tag", StringComparison.OrdinalIgnoreCase) &&

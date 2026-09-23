@@ -166,7 +166,7 @@ test('Client Visual denies an undeclared readable TAG reference before it can re
   expect(writes).toEqual([]);
 });
 
-test('Client Visual accepts case-equivalent readable paths but still writes only the persisted stable TAG ID', async () => {
+test('Client Visual requires the exact declared readable source token after outer trim', async () => {
   const expectedTagId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
   const persistedReference = 'Plant.Área.Nível';
   const sourceReference = 'plant.área.nível';
@@ -181,47 +181,29 @@ test('Client Visual accepts case-equivalent readable paths but still writes only
     tagWriter: async (reference, value) => { writes.push({ reference, value }); }
   });
 
-  await provider.readTag(sourceReference);
-  await provider.writeTag!(sourceReference, 42);
+  await expect(provider.readTag(sourceReference)).rejects.toThrow('not declared');
+  await expect(provider.writeTag!(sourceReference, 42)).rejects.toThrow('not declared');
 
-  expect(reads).toEqual([persistedReference, persistedReference]);
-  expect(writes).toEqual([{ reference: expectedTagId, value: 42 }]);
+  expect(reads).toEqual([]);
+  expect(writes).toEqual([]);
 });
 
-test('Client Visual readable-reference lookup matches the canonical ordinal case matrix', async () => {
+test('review RED: Client Visual treats a Unicode case variant as undeclared source text', async () => {
   const expectedTagId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
-  const cases = [
-    ['Plant.K', 'plant.k', true],
-    ['Plant.Área.Nível', 'plant.área.nível', true],
-    ['Plant.K', 'Plant.k', false],
-    ['Plant.ſ', 'Plant.s', false],
-    ['Plant.I', 'Plant.i', true],
-    ['Plant.İ', 'Plant.i', false],
-    ['Plant.I', 'Plant.ı', false],
-    ['Plant.Σ', 'Plant.σ', true],
-    ['Plant.Σ', 'Plant.ς', true],
-    ['Plant.É', 'Plant.E\u0301', false],
-    ['Plant.A', 'Plant.B', false]
-  ] as const;
-
-  for (const [declaredReference, sourceReference, equivalent] of cases) {
-    const reads: string[] = [];
-    const provider = createClientVisualPythonCapabilityProvider({
-      tagDependencies: [readableTagDependency(declaredReference, expectedTagId)],
-      tagReader: async reference => {
-        reads.push(reference);
-        return runtimeTagDetail(expectedTagId, declaredReference);
-      }
-    });
-
-    if (equivalent) {
-      await expect(provider.readTag(sourceReference)).resolves.toMatchObject({ id: expectedTagId });
-      expect(reads).toEqual([declaredReference]);
-    } else {
-      await expect(provider.readTag(sourceReference)).rejects.toThrow('not declared');
-      expect(reads).toEqual([]);
+  const reads: string[] = [];
+  const provider = createClientVisualPythonCapabilityProvider({
+    tagDependencies: [readableTagDependency('Plant.Σ', expectedTagId)],
+    tagReader: async reference => {
+      reads.push(reference);
+      return runtimeTagDetail(expectedTagId, 'plant.σ');
     }
-  }
+  });
+
+  await expect(provider.readTag('Plant.ς')).rejects.toThrow('not declared');
+  expect(reads).toEqual([]);
+
+  await expect(provider.readTag('  Plant.Σ  ')).resolves.toMatchObject({ id: expectedTagId });
+  expect(reads).toEqual(['Plant.Σ']);
 });
 
 test('Engineering preview can explicitly remove process TAG-write authority while preserving the same sandbox bridge contract', async () => {

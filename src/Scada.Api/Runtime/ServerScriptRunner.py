@@ -1,6 +1,7 @@
 import ast
 import json
 import sys
+import uuid
 
 MAX_STEPS = 10000
 MAX_EVENT_CONTEXT_ENTRIES = 128
@@ -16,22 +17,6 @@ class ScriptError(Exception):
 class ReturnSignal(Exception):
     def __init__(self, value):
         self.value = value
-
-
-def _ordinal_ignore_case_equals(left, right):
-    left = str(left).strip()
-    right = str(right).strip()
-    if len(left) != len(right):
-        return False
-
-    # Match StringComparer.OrdinalIgnoreCase: an ASCII code point never equals
-    # a non-ASCII compatibility character solely through case mapping.
-    if any((ord(a) <= 0x7F) != (ord(b) <= 0x7F) for a, b in zip(left, right)):
-        return False
-
-    # This is Unicode case comparison only; it intentionally does not normalize
-    # composed/decomposed forms, separators, punctuation, or path segments.
-    return left.upper() == right.upper()
 
 
 class SafeInterpreter:
@@ -331,19 +316,32 @@ class SafeInterpreter:
         return key, args[1]
 
     def _require_server_memory_capability(self, key):
-        if not any(
-            _ordinal_ignore_case_equals(key, declared)
-            for declared in self.server_memory_tag_ids
-        ):
+        if key not in self.server_memory_tag_ids:
             raise ScriptError(
                 "Server Memory API requires an explicit ServerMemoryTag dependency."
             )
 
     def _resolve_declared_tag_key(self, reference):
-        matches = [
-            declared for declared in self.values
-            if _ordinal_ignore_case_equals(reference, declared)
-        ]
+        token = str(reference).strip()
+        if token in self.values:
+            return token
+
+        # A readable binding is source text, so it is exact after trim. Legacy
+        # GUID-only dependencies keep their existing case-insensitive identity
+        # syntax without becoming a readable-path comparison authority.
+        try:
+            parsed = uuid.UUID(token)
+        except (AttributeError, ValueError):
+            raise ScriptError("TAG is not an active declared dependency.")
+
+        canonical = str(parsed)
+        matches = []
+        for declared in self.values:
+            try:
+                if str(uuid.UUID(declared)) == canonical:
+                    matches.append(declared)
+            except (AttributeError, ValueError):
+                continue
         if len(matches) != 1:
             raise ScriptError("TAG is not an active declared dependency.")
         return matches[0]

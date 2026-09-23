@@ -87,7 +87,7 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
     }
 
     [Fact]
-    public async Task ServerScript_CaseVariantReadableTagReference_ResolvesTheDeclaredStableDependency()
+    public async Task ServerScript_CaseVariantReadableTagReference_IsUndeclaredBeforeRuntimeAccess()
     {
         var eventBus = new InMemoryScadaEventBus();
         var tagId = Guid.NewGuid();
@@ -95,19 +95,23 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
         var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, Configuration());
 
         Assert.True((await manager.ActivateRuntimeAsync(
-            "case-readable-tag",
+            "case-readable-tag-rejected",
             1,
             TimerPackage(tagId, initialValue: 0, revisionMarker: "case-readable", readableReference: true, caseVariantReference: true))).Activated);
 
-        await WaitUntilAsync(
-            () => runtime.TryGetCurrent(tagId, out var current) && Convert.ToInt32(current!.Value) >= 1,
+        await WaitUntilAsync(() =>
+                manager.Snapshot().Scripts.Single().Diagnostics.LastSanitizedError?.Contains(
+                    "not an active declared dependency",
+                    StringComparison.Ordinal) == true,
             TimeSpan.FromSeconds(3));
 
+        Assert.True(runtime.TryGetCurrent(tagId, out var current));
+        Assert.Equal(0, Convert.ToInt32(current!.Value));
         await manager.DisposeAsync();
     }
 
     [Fact]
-    public async Task ServerScript_OrdinalCaseVariantReadableTagReference_ResolvesTheDeclaredStableDependency()
+    public async Task ServerScript_UnicodeCaseVariantReadableTagReference_IsUndeclaredBeforeRuntimeAccess()
     {
         var eventBus = new InMemoryScadaEventBus();
         var tagId = Guid.NewGuid();
@@ -115,20 +119,24 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
         var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, Configuration());
 
         Assert.True((await manager.ActivateRuntimeAsync(
-            "ordinal-readable-tag",
+            "unicode-readable-tag-rejected",
             1,
             TimerPackage(
                 tagId,
                 initialValue: 0,
-                revisionMarker: "ordinal-readable",
+                revisionMarker: "unicode-readable-rejected",
                 readableReference: true,
                 readableBindingReference: "Simulation.Σ",
                 readableSourceReference: "Simulation.ς"))).Activated);
 
-        await WaitUntilAsync(
-            () => runtime.TryGetCurrent(tagId, out var current) && Convert.ToInt32(current!.Value) >= 1,
+        await WaitUntilAsync(() =>
+                manager.Snapshot().Scripts.Single().Diagnostics.LastSanitizedError?.Contains(
+                    "not an active declared dependency",
+                    StringComparison.Ordinal) == true,
             TimeSpan.FromSeconds(3));
 
+        Assert.True(runtime.TryGetCurrent(tagId, out var current));
+        Assert.Equal(0, Convert.ToInt32(current!.Value));
         await manager.DisposeAsync();
     }
 

@@ -154,9 +154,9 @@ function createDeclaredTagResolver(
     resolve(reference: string): DeclaredTagReference {
       const trimmed = reference.trim();
       const declared = references.filter(candidate =>
-        ordinalIgnoreCaseEquals(candidate.readReference, trimmed));
+        candidate.readReference === trimmed);
       if (!trimmed ||
-          rejected.some(candidate => ordinalIgnoreCaseEquals(candidate, trimmed)) ||
+          rejected.some(candidate => candidate === trimmed) ||
           declared.length !== 1) {
         throw new Error(`TAG reference '${reference}' is not declared by this Client Visual Script.`);
       }
@@ -172,39 +172,19 @@ function addDeclaredReference(
   declared: DeclaredTagReference
 ): void {
   const existing = references.find(candidate =>
-    ordinalIgnoreCaseEquals(candidate.readReference, reference));
+    candidate.readReference === reference);
   if (existing && existing.expectedTagId !== declared.expectedTagId) {
     for (let index = references.length - 1; index >= 0; index -= 1) {
-      if (ordinalIgnoreCaseEquals(references[index].readReference, reference)) {
+      if (references[index].readReference === reference) {
         references.splice(index, 1);
       }
     }
     rejected.push(reference);
     return;
   }
-  if (!rejected.some(candidate => ordinalIgnoreCaseEquals(candidate, reference)) && !existing) {
+  if (!rejected.some(candidate => candidate === reference) && !existing) {
     references.push(declared);
   }
-}
-
-function ordinalIgnoreCaseEquals(left: string, right: string): boolean {
-  const normalizedLeft = left.trim();
-  const normalizedRight = right.trim();
-  if (normalizedLeft.length !== normalizedRight.length) return false;
-
-  // StringComparer.OrdinalIgnoreCase never treats an ASCII code unit and a
-  // non-ASCII code unit as equal. This excludes Unicode compatibility aliases
-  // such as Kelvin-sign / K and long-s / S without adding path aliases.
-  for (let index = 0; index < normalizedLeft.length; index += 1) {
-    if ((normalizedLeft.charCodeAt(index) <= 0x7f) !==
-        (normalizedRight.charCodeAt(index) <= 0x7f)) {
-      return false;
-    }
-  }
-
-  // The remaining comparison is an ordinal Unicode case mapping, not a locale
-  // selection or Unicode normalization. Visible spelling remains untouched.
-  return normalizedLeft.toUpperCase() === normalizedRight.toUpperCase();
 }
 
 function verifyExpectedTagIdentity(
@@ -221,5 +201,7 @@ function isGuid(value: string): boolean {
 }
 
 function sameGuid(left: string, right: string): boolean {
-  return left.toLocaleLowerCase('en-US') === right.toLocaleLowerCase('en-US');
+  // Both inputs have already passed the ASCII GUID grammar; this is identity
+  // syntax compatibility, not readable TAG-path comparison.
+  return left.toLowerCase() === right.toLowerCase();
 }

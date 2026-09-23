@@ -52,7 +52,7 @@ Work branch:
 
 Control commit:
 
-`65ac0551c17f1794e5a0411897c85327880e12f8`
+`4981794478447de020499e473b6401173e294a7e`
 
 PR #336 candidate `21e2ab69a71844d56acf1b7913dc67097697f6ae` reached green T1 but is not integration-ready. Main review found Client Visual expected-TagId enforcement missing, a sixth resolver state outside the frozen contract, and incomplete direct acceptance/RED evidence. CODEX is correcting the same PR inside the existing FND-04 allowlists; no merge is authorized.
 

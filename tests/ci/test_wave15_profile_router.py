@@ -10,8 +10,8 @@ SPEC.loader.exec_module(router)
 
 
 class Wave15ProfileRouterTests(unittest.TestCase):
-    def classify(self, paths, body="VALIDATION_PROFILE: DOCS_I18N_HELP", override=""):
-        return router.classify(paths, body, override)
+    def classify(self, paths, body="VALIDATION_PROFILE: DOCS_I18N_HELP", override="", mode="pr"):
+        return router.classify(paths, body, override, mode)
 
     def test_docs_only_has_no_backend_browser_or_driver_job(self):
         result = self.classify(["docs/guide.md"])
@@ -61,6 +61,18 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         with self.assertRaises(router.ProfileError):
             self.classify(["src/Scada.Api/Program.cs"], "")
 
+    def test_dispatch_uses_inferred_runtime_profile_without_override(self):
+        result = self.classify(["src/Scada.Api/Runtime/RuntimeSessionAdmission.cs"], "", mode="dispatch")
+        self.assertIn("RUNTIME_RENDERER", result["effective_profiles"])
+
+    def test_dispatch_without_inference_or_override_fails(self):
+        with self.assertRaises(router.ProfileError):
+            self.classify(["src/Scada.Api/UnclassifiedThing.cs"], "", mode="dispatch")
+
+    def test_dispatch_override_unions_with_inferred_risk(self):
+        result = self.classify(["src/Scada.Drivers/Driver.cs"], "", "UI_EDITOR", "dispatch")
+        self.assertEqual(result["effective_profiles"], ["UI_EDITOR", "DRIVER_PROTOCOL"])
+
     def test_declared_and_inferred_are_deterministic_union(self):
         result = self.classify(["src/Scada.Security/Auth.cs"], "VALIDATION_PROFILE: UI_EDITOR")
         self.assertEqual(result["effective_profiles"], ["AUTHORITY_CORE", "UI_EDITOR"])
@@ -83,6 +95,20 @@ class Wave15ProfileRouterTests(unittest.TestCase):
             with self.subTest(path=path):
                 result = self.classify([path], "VALIDATION_PROFILE: DOCS_I18N_HELP")
                 self.assertIn("SCRIPT_RUNTIME", result["effective_profiles"])
+                self.assertTrue(result["run_dotnet"])
+                self.assertTrue(result["run_web"])
+                self.assertTrue(result["run_e2e"])
+
+    def test_generic_api_runtime_paths_require_runtime_renderer(self):
+        paths = [
+            "src/Scada.Api/Runtime/RuntimeSessionAdmission.cs",
+            "src/Scada.Api/Runtime/DistributedRuntimeFoundationApi.cs",
+            "src/Scada.Api/Runtime/RuntimeSessionWebSocketAdmission.cs",
+        ]
+        for path in paths:
+            with self.subTest(path=path):
+                result = self.classify([path], "VALIDATION_PROFILE: DOCS_I18N_HELP")
+                self.assertIn("RUNTIME_RENDERER", result["effective_profiles"])
                 self.assertTrue(result["run_dotnet"])
                 self.assertTrue(result["run_web"])
                 self.assertTrue(result["run_e2e"])
@@ -128,6 +154,8 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         self.assertIn("refs/heads/wave15/corrections-integration", workflow)
         self.assertIn('git merge-base "$target_base" "$PR_HEAD_SHA"', workflow)
         self.assertNotIn('git diff --name-only "${GITHUB_SHA}^" "$GITHUB_SHA"', workflow)
+        self.assertIn('router_mode=\'dispatch\'', workflow)
+        self.assertIn('--mode "$router_mode"', workflow)
 
 
 if __name__ == "__main__":

@@ -38,7 +38,7 @@ PATH_RULES = (
         "src/scada.engineering/", "script-engineering", "python-editor", "python-script", "tag-reference",
         "web/scada-web/src/engineering/scripts/",
     )),
-    ("RUNTIME_RENDERER", ("visual-runtime", "renderer", "src/scada.runtime/", "web/scada-web/src/runtime/")),
+    ("RUNTIME_RENDERER", ("visual-runtime", "renderer", "src/scada.runtime/", "src/scada.api/runtime/", "web/scada-web/src/runtime/")),
     ("UI_EDITOR", ("web/scada-web/src/engineering/", "visual-editor", "screen-editor")),
     ("AUTHORITY_UX", ("web/scada-web/src/security/", "effective-capabilities", "user-administration", "security.spec")),
     ("LICENSING_UX", ("web/scada-web/src/licensing/", "license-generator", "licensing")),
@@ -109,13 +109,17 @@ def is_coordination_only(paths: list[str]) -> bool:
     return bool(paths) and all(path.replace("\\", "/") in COORDINATION_ONLY for path in paths)
 
 
-def classify(paths: list[str], pr_body: str, override: str = "") -> dict[str, object]:
+def classify(paths: list[str], pr_body: str, override: str = "", mode: str = "pr") -> dict[str, object]:
+    if mode not in {"pr", "dispatch"}:
+        raise ProfileError(f"unknown router mode: {mode}")
     declared = declared_profiles(pr_body)
     manual = parse_profiles(override, "manual override") if override.strip() else set()
     exempt = is_coordination_only(paths)
-    if not declared and not manual and not exempt:
-        raise ProfileError("missing required PR declaration: VALIDATION_PROFILE: <profile[,profile]>")
     inferred = infer_profiles(paths)
+    if mode == "pr" and not declared and not exempt:
+        raise ProfileError("missing required PR declaration: VALIDATION_PROFILE: <profile[,profile]>")
+    if mode == "dispatch" and not manual and not inferred and not exempt:
+        raise ProfileError("manual dispatch needs an inferred profile or an explicit override")
     effective = declared | manual | inferred
     if not effective and not exempt:
         raise ProfileError("no effective validation profile could be resolved")
@@ -159,13 +163,14 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--changed-files", required=True, type=Path)
     parser.add_argument("--pr-body-file", type=Path)
     parser.add_argument("--manual-override", default="")
+    parser.add_argument("--mode", choices=("pr", "dispatch"), default="pr")
     parser.add_argument("--github-output", default=os.environ.get("GITHUB_OUTPUT", ""))
     parser.add_argument("--summary-file", type=Path)
     args = parser.parse_args(argv)
     paths = [line.strip() for line in args.changed_files.read_text(encoding="utf-8").splitlines() if line.strip()]
     body = args.pr_body_file.read_text(encoding="utf-8") if args.pr_body_file else ""
     try:
-        result = classify(paths, body, args.manual_override)
+        result = classify(paths, body, args.manual_override, args.mode)
     except ProfileError as error:
         print(f"profile-router: {error}", file=sys.stderr)
         return 2

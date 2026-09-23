@@ -49,9 +49,11 @@ jobs:
           printf '%s' "$PR_BODY" > /tmp/pr-body.txt
           if [ -n "$PR_BASE_SHA" ]; then
             target_base="$PR_BASE_SHA"
+            router_mode='pr'
           else
             git fetch --no-tags origin '+refs/heads/wave15/corrections-integration:refs/remotes/origin/wave15/corrections-integration'
             target_base='origin/wave15/corrections-integration'
+            router_mode='dispatch'
           fi
           comparison_base="$(git merge-base "$target_base" "$PR_HEAD_SHA")"
           git diff --name-only "$comparison_base" "$PR_HEAD_SHA" > /tmp/changed-files.txt
@@ -59,6 +61,7 @@ jobs:
             --changed-files /tmp/changed-files.txt \
             --pr-body-file /tmp/pr-body.txt \
             --manual-override "$PROFILE_OVERRIDE" \
+            --mode "$router_mode" \
             --github-output "$GITHUB_OUTPUT" \
             --summary-file /tmp/profile-summary.md
           cat /tmp/profile-summary.md >> "$GITHUB_STEP_SUMMARY"

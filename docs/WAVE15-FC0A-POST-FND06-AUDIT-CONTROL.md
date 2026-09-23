@@ -7,6 +7,8 @@
 
 `AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
+`AUDIT_REV: 0002`
+
 `STATE: PREPARED / WAIT_FND06_VERIFIED_FROZEN`
 
 `MODE: READ_ONLY_CROSS_WAVE_FOUNDATION_AUDIT`
@@ -97,6 +99,41 @@ Also read the canonical Wave 14 diagnostic closure/acceptance documents referenc
 - `coord/w15-fnd07-control:docs/WAVE15-FND07-CONTROL.md`;
 - `docs/ELITESCADA-DISTRIBUTED-RUNTIME-HA-ROADMAP.md`;
 - C25 distributed-runtime/System Recovery architecture where relevant.
+
+## 3A. PR #337 pre-freeze evidence incorporated into this gate
+
+Live candidate reviewed by Main:
+
+- PR: `#337`
+- base: `6c810647c9773a19b212d9c33694780141786ac7`
+- candidate: `923543705378016090e7067b35954795a9591a57`
+- tree: `5657cee7169a4e77370d416add4efcf07184d7c0`
+- changed files: 9, all inside the FND-06 visual/editor/runtime allowlist
+- natural Wave 15 T1: `35931139983` — SUCCESS
+- profile: `UI_EDITOR, RUNTIME_RENDERER`
+- PR state at this audit revision: OPEN / not frozen.
+
+Main accepts this candidate as evidence for:
+- one centralized Engineering compatibility boundary for known persisted legacy `tank | value | dynamo | status`;
+- no guessed canonical alias for bare `status`;
+- arbitrary unknown `vendor.unknown-x` remains fail-closed/contained;
+- Inspector/Binding/Dynamic model paths consume the same compatibility boundary;
+- Runtime retains selected Screen/open Popup across retryable same-identity projection failure;
+- genuine Active identity change deliberately resets Screen/Popup navigation;
+- `CanonicalVisualRenderer` remains the visual artwork authority;
+- no Security/Authority/Licensing/Driver/Historian/lifecycle/schema contract change was introduced by PR #337.
+
+Main does **not** yet accept PR #337 as FND-06 freeze evidence because the original Wave 14 A7 defect was a mounted Screen/Popup selection crash. The active closeout order requires mounted browser proof before merge/freeze:
+
+`FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`
+
+Therefore this gate currently distinguishes:
+
+- **contract status:** no breaking FND-06 contract change identified in PR #337;
+- **evidence status:** incomplete until mounted A7 closeout + exact post-merge CI;
+- **release status:** HOLD.
+
+The final audit must replace this candidate snapshot with the exact merged/frozen FND-06 SHA/tree and post-merge CI evidence.
 
 ## 4. Mandatory Wave14 -> Wave15 closure matrix
 
@@ -267,6 +304,48 @@ Current prepared design is expected to be **COMPOSITIONAL / COMPATIBLE**, becaus
 If exact source audit shows neutral bootstrap requires changing the meaning of a frozen lifecycle, Authority or licensing contract:
 `BLOCKED-CONTRACT -> FOUNDATION DELTA BEFORE FC0-A DEV RELEASE`.
 
+## 7A. FC0-A DEV contract-risk matrix after PR #337
+
+This is a **pre-freeze risk assessment**, not release approval.
+
+| Lane | Frozen contracts consumed | PR #337 impact | FND-05/FND-07 future impact | Current contract risk | Release condition |
+| --- | --- | --- | --- | --- | --- |
+| DEV-EDITOR | FND-06 renderer/public model, known-legacy compatibility, Working-vs-Active separation | Directly affected in its future ownership surface, but PR #337 is Foundation-compatible and intentionally precedes DEV-EDITOR | FND-05 may add topology/status surfaces only; FND-07 may touch shared shell later, neither may redefine renderer/lifecycle | **LOW / GUARDED** — remaining issue is mounted A7 evidence, not a known contract break | FND-06 mounted closeout + merge + post-merge green + audit confirms DEV-EDITOR consumes, does not bypass, `getVisualSchemaForEngineering`/frozen compatibility boundary |
+| DEV-SCRIPT-ENGINEERING | FND-04 readable source-binding/stable TagId contract | No product overlap in PR #337 | FND-05 may fence whether a node may execute side effects, but may not alter Script TAG resolution/source membership; FND-07 detach may fence Runtime but not authoring contract | **NONE IDENTIFIED / GUARDED** | Audit verifies FND-05 execution fencing wraps existing Server Script authority and FND-07 does not alter FND-04 semantics |
+| DEV-AUTHORITY-UX | FND-02/AUTH-04 capability/scope/effective-permission contract | No overlap in PR #337 | FND-07 must orchestrate existing Authority replace/session invalidation without redefining evaluator semantics | **NONE IDENTIFIED / GUARDED** | FND-07 stays compositional; any change to capability/scope meaning or populated-install security = BLOCKED-CONTRACT |
+| DEV-LICENSING-UX | FND-03 license v2, transactional install/replace/remove, Runtime Session Lease/shared quota semantics | No overlap in PR #337 | FND-07 reuses existing licensing lifecycle. FND-05 may need redundancy readiness/entitlement data | **LOW BUT MATERIAL RESIDUAL** — no current breaking change, but FND-05 redundancy entitlement is not yet a consolidated product contract in current code | Any HA redundancy entitlement must be **additive/backward-compatible** to frozen FND-03 schema/semantics. If FND-05 requires reinterpreting signed license fields, seat classes, quota meaning, machine binding or transaction semantics, block FC0-A and perform Foundation delta first |
+
+### Risk interpretation
+
+- `NONE IDENTIFIED / GUARDED` means no live design/code evidence currently requires a contract change; the audit still verifies the guard.
+- `LOW / GUARDED` means integration/evidence/shared-surface risk exists, but no semantic contract break is currently identified.
+- `LOW BUT MATERIAL RESIDUAL` means a future Foundation detail could become a contract issue unless constrained before activation.
+
+### Explicit mitigation for DEV-EDITOR
+
+Once FND-06 freezes, DEV-EDITOR must:
+- consume the centralized known-legacy compatibility boundary introduced by FND-06;
+- not revert selection-dependent consumers to direct strict built-in lookup for known persisted legacy types;
+- not create another visual schema registry;
+- preserve arbitrary-unknown fail-closed behavior;
+- treat full single-primary-canvas UX as downstream composition over the frozen renderer/compatibility contract.
+
+### Explicit mitigation for DEV-LICENSING-UX / FND-05
+
+FND-05 may add:
+- optional/additive topology/fencing/readiness data;
+- an additive redundancy-entitlement/readiness surface **only if** old FND-03 license v2 consumers remain semantically valid.
+
+FND-05 may not:
+- change the meaning of existing signed license fields;
+- reinterpret Interactive/ViewOnly/session-class quota semantics;
+- move licensing authority into HA clients/nodes;
+- make a formerly valid FND-03 license invalid solely because a new non-required field is absent;
+- require DEV-LICENSING-UX to rewrite its existing frozen license lifecycle contract.
+
+If those constraints cannot be met:
+`FND-05 -> BLOCKED-CONTRACT -> FOUNDATION DELTA BEFORE FC0-A RELEASE`.
+
 ### Preliminary compatibility hypothesis — must be revalidated on exact post-FND06 SHA
 
 | Future Foundation | Preliminary classification | Reason | Breaking-change trigger |
@@ -310,7 +389,7 @@ PASS requires:
 - all Wave 14 confirmed findings mapped;
 - all uncertain findings bounded with explicit future owner/gate;
 - no contradiction among frozen Wave 15 contracts;
-- FND-05 compatibility = additive/non-breaking;
+- FND-05 compatibility = additive/non-breaking, including additive/backward-compatible redundancy entitlement/readiness semantics;
 - FND-07 compatibility = compositional/non-breaking;
 - exact checkpoint SHA/tree + CI recorded;
 - residual ledger explicit;

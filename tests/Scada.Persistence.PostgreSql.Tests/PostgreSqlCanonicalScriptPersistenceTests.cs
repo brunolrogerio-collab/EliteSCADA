@@ -16,8 +16,9 @@ public sealed class PostgreSqlCanonicalScriptPersistenceTests
 
         var projectKey = $"script-v10-{Guid.NewGuid():N}";
         var scriptId = Guid.NewGuid();
-        var firstJson = CanonicalPackage(scriptId, "value = 1", enabled: true);
-        var secondJson = CanonicalPackage(scriptId, "value = 2", enabled: false);
+        var tagId = Guid.NewGuid();
+        var firstJson = CanonicalPackage(scriptId, tagId, "value = 1", enabled: true);
+        var secondJson = CanonicalPackage(scriptId, tagId, "value = 2", enabled: false);
 
         var first = await store.SaveAsync(
             projectKey,
@@ -45,12 +46,12 @@ public sealed class PostgreSqlCanonicalScriptPersistenceTests
         Assert.Equal(10, storedSecond!.EngineeringSchemaVersion);
         Assert.Equal(second.Revision, latest!.Revision);
 
-        AssertScript(storedFirst.EngineeringJson, scriptId, "value = 1", enabled: true);
-        AssertScript(storedSecond.EngineeringJson, scriptId, "value = 2", enabled: false);
-        AssertScript(latest.EngineeringJson, scriptId, "value = 2", enabled: false);
+        AssertScript(storedFirst.EngineeringJson, scriptId, tagId, "value = 1", enabled: true);
+        AssertScript(storedSecond.EngineeringJson, scriptId, tagId, "value = 2", enabled: false);
+        AssertScript(latest.EngineeringJson, scriptId, tagId, "value = 2", enabled: false);
     }
 
-    private static void AssertScript(string json, Guid scriptId, string source, bool enabled)
+    private static void AssertScript(string json, Guid scriptId, Guid tagId, string source, bool enabled)
     {
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
@@ -67,9 +68,16 @@ public sealed class PostgreSqlCanonicalScriptPersistenceTests
         Assert.Equal("ClientVisual", script.GetProperty("scope").GetString());
         Assert.Equal("python", script.GetProperty("language").GetString());
         Assert.Equal("3", script.GetProperty("languageVersion").GetString());
+        var dependency = script.GetProperty("dependencies")[0];
+        Assert.Equal("Tag", dependency.GetProperty("kind").GetString());
+        Assert.Equal(tagId, dependency.GetProperty("stableReference").GetGuid());
+        var binding = dependency.GetProperty("tagBinding");
+        Assert.Equal(1, binding.GetProperty("version").GetInt32());
+        Assert.Equal("Plant.Process.LevelPct", binding.GetProperty("reference").GetString());
+        Assert.Equal(tagId, binding.GetProperty("expected").GetProperty("tagId").GetGuid());
     }
 
-    private static string CanonicalPackage(Guid scriptId, string source, bool enabled) => $$"""
+    private static string CanonicalPackage(Guid scriptId, Guid tagId, string source, bool enabled) => $$"""
         {
           "schema": "scada.engineering",
           "schemaVersion": 10,
@@ -96,7 +104,17 @@ public sealed class PostgreSqlCanonicalScriptPersistenceTests
               "language": "python",
               "languageVersion": "3",
               "entryPoints": [],
-              "dependencies": [],
+              "dependencies": [
+                {
+                  "kind": "Tag",
+                  "stableReference": "{{tagId:D}}",
+                  "tagBinding": {
+                    "version": 1,
+                    "reference": "Plant.Process.LevelPct",
+                    "expected": { "tagId": "{{tagId:D}}" }
+                  }
+                }
+              ],
               "metadata": {}
             }
           ],

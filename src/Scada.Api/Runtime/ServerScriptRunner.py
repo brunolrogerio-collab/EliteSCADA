@@ -1,6 +1,7 @@
 import ast
 import json
 import sys
+import uuid
 
 MAX_STEPS = 10000
 MAX_EVENT_CONTEXT_ENTRIES = 128
@@ -22,9 +23,9 @@ class SafeInterpreter:
     def __init__(self, source, values, event, server_memory_tag_ids):
         self.tree = ast.parse(source, mode="exec")
         self._validate_module()
-        self.values = {str(key).lower(): value for key, value in values.items()}
+        self.values = {str(key): value for key, value in values.items()}
         self.server_memory_tag_ids = {
-            str(key).lower() for key in (server_memory_tag_ids or [])
+            str(key) for key in (server_memory_tag_ids or [])
         }
         self.event = event or {}
         self.writes = []
@@ -224,9 +225,7 @@ class SafeInterpreter:
                 raise ScriptError(
                     "Qualified Server Memory publish requires stable TAG ID, value and canonical quality."
                 )
-            key = str(args[0]).lower()
-            if key not in self.values:
-                raise ScriptError("TAG is not an active declared dependency.")
+            key = self._require_tag_argument([args[0]], "Qualified Server Memory publish")
             self._require_server_memory_capability(key)
             quality = args[2]
             if not isinstance(quality, str):
@@ -307,18 +306,13 @@ class SafeInterpreter:
 
     def _require_tag_argument(self, args, operation):
         if len(args) != 1:
-            raise ScriptError(f"{operation} requires one stable TAG ID.")
-        key = str(args[0]).lower()
-        if key not in self.values:
-            raise ScriptError("TAG is not an active declared dependency.")
-        return key
+            raise ScriptError(f"{operation} requires one declared TAG reference.")
+        return self._resolve_declared_tag_key(str(args[0]))
 
     def _require_write_arguments(self, args, operation):
         if len(args) != 2:
-            raise ScriptError(f"{operation} requires stable TAG ID and value.")
-        key = str(args[0]).lower()
-        if key not in self.values:
-            raise ScriptError("TAG is not an active declared dependency.")
+            raise ScriptError(f"{operation} requires a declared TAG reference and value.")
+        key = self._resolve_declared_tag_key(str(args[0]))
         return key, args[1]
 
     def _require_server_memory_capability(self, key):
@@ -326,6 +320,31 @@ class SafeInterpreter:
             raise ScriptError(
                 "Server Memory API requires an explicit ServerMemoryTag dependency."
             )
+
+    def _resolve_declared_tag_key(self, reference):
+        token = str(reference).strip()
+        if token in self.values:
+            return token
+
+        # A readable binding is source text, so it is exact after trim. Legacy
+        # GUID-only dependencies keep their existing case-insensitive identity
+        # syntax without becoming a readable-path comparison authority.
+        try:
+            parsed = uuid.UUID(token)
+        except (AttributeError, ValueError):
+            raise ScriptError("TAG is not an active declared dependency.")
+
+        canonical = str(parsed)
+        matches = []
+        for declared in self.values:
+            try:
+                if str(uuid.UUID(declared)) == canonical:
+                    matches.append(declared)
+            except (AttributeError, ValueError):
+                continue
+        if len(matches) != 1:
+            raise ScriptError("TAG is not an active declared dependency.")
+        return matches[0]
 
     @staticmethod
     def apply_binary(operator, left, right):

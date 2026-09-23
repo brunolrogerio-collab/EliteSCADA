@@ -122,22 +122,31 @@ const clientMemorySources: ClientMemorySourceDefinition[] = [
   }
 ];
 
-test('Script Assistant consumes stable TAG identity and Source GUID metadata without generating free-text TAG references', () => {
+test('Script Assistant keeps stable TAG identity separate from its readable canonical reference', () => {
   const catalog = buildScriptAssistantCatalog(engineeringPackage, clientMemorySources);
   const writable = catalog.tags.find(tag => tag.id === writableTagId)!;
   const readOnly = catalog.tags.find(tag => tag.id === readOnlyTagId)!;
 
-  expect(writable.canonicalReference).toBe(writableTagId);
+  expect(writable.canonicalReference).toBe('Plant.Tank.Level');
   expect(writable.dataSourceId).toBe(dataSourceId);
   expect(writable.sourceIdentityStatus).toBe('stable');
   expect(writable.driver).toBe('OpcUa');
-  expect(writable.snippets.find(snippet => snippet.kind === 'tag-read')?.code).toContain(writableTagId);
-  expect(writable.snippets.find(snippet => snippet.kind === 'tag-read')?.code).not.toContain('Plant.Tank.Level');
+  expect(writable.snippets.find(snippet => snippet.kind === 'tag-read')?.code).not.toContain(writableTagId);
+  expect(writable.snippets.find(snippet => snippet.kind === 'tag-read')?.code).toContain('Plant.Tank.Level');
   expect(writable.snippets.find(snippet => snippet.kind === 'tag-write')).toMatchObject({ enabled: true });
   expect(readOnly.snippets.find(snippet => snippet.kind === 'tag-write')).toMatchObject({
     enabled: false,
     reason: 'TAG is read-only.'
   });
+});
+
+test('RED-1: Script Assistant generates readable canonical TAG paths instead of GUID literals', () => {
+  const catalog = buildScriptAssistantCatalog(engineeringPackage, clientMemorySources);
+  const writable = catalog.tags.find(tag => tag.id === writableTagId)!;
+  const code = writable.snippets.find(snippet => snippet.kind === 'tag-read')!.code;
+
+  expect(code).toContain('Plant.Tank.Level');
+  expect(code).not.toContain(writableTagId);
 });
 
 test('visual object browser exposes only canonical schema properties and keeps Dynamo internals encapsulated', () => {

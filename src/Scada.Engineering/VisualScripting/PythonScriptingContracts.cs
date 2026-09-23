@@ -31,7 +31,13 @@ public sealed record PythonScriptEntryPoint(
 
 public sealed record PythonScriptDependency(
     string Kind,
-    string StableReference);
+    string StableReference,
+    PythonScriptTagReferenceBinding? TagBinding = null);
+
+public sealed record PythonScriptTagReferenceBinding(
+    int Version,
+    string Reference,
+    TagValueReference Expected);
 
 public sealed class PythonScriptDefinition
 {

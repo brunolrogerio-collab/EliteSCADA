@@ -62,6 +62,108 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
     }
 
     [Fact]
+    public async Task RED_3_ServerScript_ReadableTagReference_ResolvesDeclaredStableDependency()
+    {
+        var eventBus = new InMemoryScadaEventBus();
+        var tagId = Guid.NewGuid();
+        await using var runtime = CreateRuntime(eventBus);
+        var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, Configuration());
+
+        Assert.True((await manager.ActivateRuntimeAsync(
+            "readable-tag-red",
+            1,
+            TimerPackage(tagId, initialValue: 0, revisionMarker: "readable", readableReference: true))).Activated);
+
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(3);
+        while ((!runtime.TryGetCurrent(tagId, out var current) || Convert.ToInt32(current!.Value) < 1) &&
+               DateTimeOffset.UtcNow < deadline)
+            await Task.Delay(20);
+
+        Assert.True(
+            runtime.TryGetCurrent(tagId, out var final) && Convert.ToInt32(final!.Value) >= 1,
+            manager.Snapshot().Scripts.Single().Diagnostics.LastSanitizedError);
+
+        await manager.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ServerScript_CaseVariantReadableTagReference_IsUndeclaredBeforeRuntimeAccess()
+    {
+        var eventBus = new InMemoryScadaEventBus();
+        var tagId = Guid.NewGuid();
+        await using var runtime = CreateRuntime(eventBus);
+        var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, Configuration());
+
+        Assert.True((await manager.ActivateRuntimeAsync(
+            "case-readable-tag-rejected",
+            1,
+            TimerPackage(tagId, initialValue: 0, revisionMarker: "case-readable", readableReference: true, caseVariantReference: true))).Activated);
+
+        await WaitUntilAsync(() =>
+                manager.Snapshot().Scripts.Single().Diagnostics.LastSanitizedError?.Contains(
+                    "not an active declared dependency",
+                    StringComparison.Ordinal) == true,
+            TimeSpan.FromSeconds(3));
+
+        Assert.True(runtime.TryGetCurrent(tagId, out var current));
+        Assert.Equal(0, Convert.ToInt32(current!.Value));
+        await manager.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ServerScript_UnicodeCaseVariantReadableTagReference_IsUndeclaredBeforeRuntimeAccess()
+    {
+        var eventBus = new InMemoryScadaEventBus();
+        var tagId = Guid.NewGuid();
+        await using var runtime = CreateRuntime(eventBus);
+        var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, Configuration());
+
+        Assert.True((await manager.ActivateRuntimeAsync(
+            "unicode-readable-tag-rejected",
+            1,
+            TimerPackage(
+                tagId,
+                initialValue: 0,
+                revisionMarker: "unicode-readable-rejected",
+                readableReference: true,
+                readableBindingReference: "Simulation.Σ",
+                readableSourceReference: "Simulation.ς"))).Activated);
+
+        await WaitUntilAsync(() =>
+                manager.Snapshot().Scripts.Single().Diagnostics.LastSanitizedError?.Contains(
+                    "not an active declared dependency",
+                    StringComparison.Ordinal) == true,
+            TimeSpan.FromSeconds(3));
+
+        Assert.True(runtime.TryGetCurrent(tagId, out var current));
+        Assert.Equal(0, Convert.ToInt32(current!.Value));
+        await manager.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ServerScript_MultipleReadableTagReferencesResolveOnlyTheirDeclaredStableDependencies()
+    {
+        var eventBus = new InMemoryScadaEventBus();
+        var stateId = Guid.NewGuid();
+        var incrementId = Guid.NewGuid();
+        await using var runtime = CreateRuntime(eventBus);
+        var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, Configuration());
+
+        Assert.True((await manager.ActivateRuntimeAsync(
+            "multi-readable-tag",
+            1,
+            MultiReadableTimerPackage(stateId, incrementId))).Activated);
+
+        await WaitUntilAsync(
+            () => runtime.TryGetCurrent(stateId, out var state) && Convert.ToInt32(state!.Value) >= 2,
+            TimeSpan.FromSeconds(4));
+
+        Assert.True(runtime.TryGetCurrent(incrementId, out var increment));
+        Assert.Equal(2, Convert.ToInt32(increment!.Value));
+        await manager.DisposeAsync();
+    }
+
+    [Fact]
     public async Task RevisionBoundAccess_RejectsObsoleteGenerationWithSameStableTagId()
     {
         var eventBus = new InMemoryScadaEventBus();
@@ -192,10 +294,24 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
     private static EngineeringPackage TimerPackage(
         Guid tagId,
         int initialValue,
-        string revisionMarker)
+        string revisionMarker,
+        bool readableReference = false,
+        bool caseVariantReference = false,
+        string? readableBindingReference = null,
+        string? readableSourceReference = null)
     {
         var tagReference = tagId.ToString("D");
-        var source = $"""
+        var visibleTagReference = readableBindingReference ?? "Simulation.ProcessState";
+        var readableTagReference = readableSourceReference ?? (caseVariantReference
+            ? "simulation.processstate"
+            : visibleTagReference);
+        var source = readableReference
+            ? $"""
+def timer(event):
+    current = read_tag("{readableTagReference}")
+    write_tag("{readableTagReference}", current + 1)
+"""
+            : $"""
 def initialize(event):
     write_server_memory("{tagReference}", 1)
 
@@ -212,18 +328,24 @@ def timer(event):
             entryPoints: new[]
             {
                 new ScriptEngineeringEntryPoint(
-                    ScriptEngineeringEventKind.Initialize,
-                    "initialize"),
-                new ScriptEngineeringEntryPoint(
                     ScriptEngineeringEventKind.Timer,
                     "timer",
                     TimerIntervalMs: 100)
-            },
+            }.Concat(readableReference
+                ? Array.Empty<ScriptEngineeringEntryPoint>()
+                : new[] { new ScriptEngineeringEntryPoint(ScriptEngineeringEventKind.Initialize, "initialize") })
+             .ToArray(),
             dependencies: new[]
             {
                 new ScriptEngineeringDependency(
                     ScriptEngineeringDependencyKind.ServerMemoryTag,
-                    tagReference)
+                    tagReference,
+                    readableReference
+                        ? new ScriptTagReferenceBinding(
+                            1,
+                            visibleTagReference,
+                            new TagValueReference(tagId))
+                        : null)
             });
 
         return new EngineeringPackage(
@@ -235,7 +357,7 @@ def timer(event):
                 ServerMemoryTag(
                     tagId,
                     "ProcessState",
-                    "Simulation.ProcessState",
+                    visibleTagReference,
                     initialValue,
                     historian: true)
             },
@@ -245,13 +367,54 @@ def timer(event):
                     null,
                     "Process state high",
                     tagId,
-                    "Simulation.ProcessState",
+                    visibleTagReference,
                     AlarmType.High,
                     AlarmPriority.High,
                     Setpoint: 1.5)
             },
             ServerMemoryDataSource(),
             Scripts: new[] { script });
+    }
+
+    private static EngineeringPackage MultiReadableTimerPackage(Guid stateId, Guid incrementId)
+    {
+        const string statePath = "Simulation.ProcessState";
+        const string incrementPath = "Simulation.ProcessIncrement";
+        var script = new ScriptEngineeringDefinition(
+            Guid.NewGuid(),
+            "Scripts.Process.MultiReadable",
+            "Multi Readable Process",
+            ScriptEngineeringScope.Server,
+            $$"""
+def timer(event):
+    state = read_tag("{{statePath}}")
+    increment = read_tag("{{incrementPath}}")
+    write_tag("{{statePath}}", state + increment)
+""",
+            entryPoints: [new ScriptEngineeringEntryPoint(ScriptEngineeringEventKind.Timer, "timer", TimerIntervalMs: 100)],
+            dependencies:
+            [
+                new ScriptEngineeringDependency(
+                    ScriptEngineeringDependencyKind.ServerMemoryTag,
+                    stateId.ToString("D"),
+                    new ScriptTagReferenceBinding(1, statePath, new TagValueReference(stateId))),
+                new ScriptEngineeringDependency(
+                    ScriptEngineeringDependencyKind.ServerMemoryTag,
+                    incrementId.ToString("D"),
+                    new ScriptTagReferenceBinding(1, incrementPath, new TagValueReference(incrementId)))
+            ]);
+
+        return new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            [
+                ServerMemoryTag(stateId, "ProcessState", statePath, 0, historian: false),
+                ServerMemoryTag(incrementId, "ProcessIncrement", incrementPath, 2, historian: false)
+            ],
+            Array.Empty<AlarmEngineeringDto>(),
+            ServerMemoryDataSource(),
+            Scripts: [script]);
     }
 
     private static EngineeringPackage MemoryPackage(Guid tagId, int initialValue) =>

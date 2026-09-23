@@ -77,7 +77,13 @@ public static class ScriptEngineeringAdapters
 
         return new PythonScriptDependency(
             ToRuntimeDependencyKind(dependency.Kind),
-            dependency.StableReference);
+            dependency.StableReference,
+            dependency.TagBinding is null
+                ? null
+                : new PythonScriptTagReferenceBinding(
+                    dependency.TagBinding.Version,
+                    dependency.TagBinding.Reference,
+                    dependency.TagBinding.Expected));
     }
 
     public static VisualScriptHandlerReference ToVisualHandler(

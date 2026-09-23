@@ -31,6 +31,23 @@ public sealed record ScriptEngineeringReferenceResolution(
     public bool IsResolved => Target is not null && DiagnosticCode is null;
 }
 
+public enum ScriptTagReferenceResolutionState
+{
+    Found,
+    NotFound,
+    Ambiguous,
+    Stale,
+    IdentityDrift
+}
+
+public sealed record ScriptTagReferenceResolution(
+    ScriptTagReferenceResolutionState State,
+    ScriptEngineeringReferenceTarget? ExpectedTarget = null,
+    ScriptEngineeringReferenceTarget? VisibleTarget = null)
+{
+    public bool IsResolved => State == ScriptTagReferenceResolutionState.Found;
+}
+
 /// <summary>
 /// Builds and resolves stable Script dependency references without exposing
 /// concrete drivers, source-provider instances or runtime infrastructure.
@@ -179,6 +196,77 @@ public sealed class ScriptEngineeringReferenceResolver
         }
 
         return Resolve(dependency.Kind, dependency.StableReference);
+    }
+
+    /// <summary>
+    /// Resolves an optional readable TAG binding without granting the path any
+    /// authority. The stable dependency and expected TagValueReference remain
+    /// the authoritative identity.
+    /// </summary>
+    public ScriptTagReferenceResolution ResolveTagBinding(ScriptEngineeringDependency dependency)
+    {
+        ArgumentNullException.ThrowIfNull(dependency);
+        if (!TryValidateTagBinding(dependency, out var diagnostic))
+            throw new ArgumentException(diagnostic, nameof(dependency));
+
+        var binding = dependency.TagBinding!;
+
+        var expected = Resolve(dependency.Kind, dependency.StableReference).Target;
+        var visible = References
+            .Where(target => target.Kind == dependency.Kind &&
+                string.Equals(target.EntityPath, binding.Reference.Trim(), StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        if (visible.Length > 1)
+            return new ScriptTagReferenceResolution(ScriptTagReferenceResolutionState.Ambiguous, expected);
+
+        if (visible.Length == 1)
+        {
+            return visible[0].EntityId == binding.Expected.TagId
+                ? new ScriptTagReferenceResolution(ScriptTagReferenceResolutionState.Found, expected, visible[0])
+                : new ScriptTagReferenceResolution(ScriptTagReferenceResolutionState.IdentityDrift, expected, visible[0]);
+        }
+
+        return expected is null
+            ? new ScriptTagReferenceResolution(ScriptTagReferenceResolutionState.NotFound)
+            : new ScriptTagReferenceResolution(ScriptTagReferenceResolutionState.Stale, expected);
+    }
+
+    /// <summary>
+    /// Keeps malformed persisted bindings out of the public resolution-state
+    /// model. Resolution describes only catalog outcomes; malformed contract
+    /// data is a validation diagnostic.
+    /// </summary>
+    public static bool TryValidateTagBinding(ScriptEngineeringDependency dependency, out string diagnostic)
+    {
+        ArgumentNullException.ThrowIfNull(dependency);
+        var binding = dependency.TagBinding;
+        if (binding is null)
+        {
+            diagnostic = "Readable TAG binding is required.";
+            return false;
+        }
+
+        if (binding.Version != 1 || string.IsNullOrWhiteSpace(binding.Reference))
+        {
+            diagnostic = "Readable TAG binding must use version 1 and a non-empty visible reference.";
+            return false;
+        }
+
+        if (binding.Expected is null || binding.Expected.TagId == Guid.Empty)
+        {
+            diagnostic = "Readable TAG binding must carry an expected stable TAG identity.";
+            return false;
+        }
+
+        if (!Guid.TryParse(dependency.StableReference, out var stableId) || stableId != binding.Expected.TagId)
+        {
+            diagnostic = "Readable TAG binding expected identity must match the declared stable dependency.";
+            return false;
+        }
+
+        diagnostic = string.Empty;
+        return true;
     }
 
     public static bool IsAllowedForScope(

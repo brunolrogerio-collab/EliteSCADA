@@ -7,6 +7,148 @@ namespace Scada.Core.Tests;
 public sealed class ScriptEngineeringReferenceResolverTests
 {
     [Fact]
+    public void ResolveTagBinding_SeparatesFoundIdentityDriftStaleAndNotFound()
+    {
+        var expectedId = Guid.Parse("10000000-0000-0000-0000-0000000000a1");
+        var reusedPathId = Guid.Parse("10000000-0000-0000-0000-0000000000a2");
+        var resolver = ScriptEngineeringReferenceResolver.Create(
+            [
+                new TagEngineeringDto(expectedId, "Old Level", "Plant.Old.Level", TagDataType.Double, "plc"),
+                new TagEngineeringDto(reusedPathId, "Level", "Plant.Level", TagDataType.Double, "plc")
+            ],
+            [new DataSourceEngineeringDto(Guid.NewGuid(), "plc", "PLC", "modbus.tcp")]);
+
+        ScriptEngineeringDependency Dependency(string reference, Guid id) => new(
+            ScriptEngineeringDependencyKind.Tag,
+            id.ToString("D"),
+            new ScriptTagReferenceBinding(1, reference, new TagValueReference(id)));
+
+        Assert.Equal(
+            ScriptTagReferenceResolutionState.Found,
+            resolver.ResolveTagBinding(Dependency("Plant.Level", reusedPathId)).State);
+        Assert.Equal(
+            ScriptTagReferenceResolutionState.IdentityDrift,
+            resolver.ResolveTagBinding(Dependency("Plant.Level", expectedId)).State);
+        Assert.Equal(
+            ScriptTagReferenceResolutionState.Stale,
+            resolver.ResolveTagBinding(Dependency("Plant.Missing", expectedId)).State);
+        Assert.Equal(
+            ScriptTagReferenceResolutionState.NotFound,
+            resolver.ResolveTagBinding(Dependency("Plant.Missing", Guid.NewGuid())).State);
+    }
+
+    [Fact]
+    public void ResolveTagBinding_ReturnsAmbiguousForMultipleVisibleTagsAndKeepsExactlyFivePublicStates()
+    {
+        var firstId = Guid.Parse("10000000-0000-0000-0000-0000000000b1");
+        var secondId = Guid.Parse("10000000-0000-0000-0000-0000000000b2");
+        var resolver = ScriptEngineeringReferenceResolver.Create(
+            [
+                new TagEngineeringDto(firstId, "First", "Plant.Shared.Level", TagDataType.Double, "plc"),
+                new TagEngineeringDto(secondId, "Second", "plant.shared.level", TagDataType.Double, "plc")
+            ],
+            [new DataSourceEngineeringDto(Guid.NewGuid(), "plc", "PLC", "modbus.tcp")]);
+        var dependency = new ScriptEngineeringDependency(
+            ScriptEngineeringDependencyKind.Tag,
+            firstId.ToString("D"),
+            new ScriptTagReferenceBinding(1, "Plant.Shared.Level", new TagValueReference(firstId)));
+
+        Assert.Equal(ScriptTagReferenceResolutionState.Ambiguous, resolver.ResolveTagBinding(dependency).State);
+        Assert.Equal(
+            ["Found", "NotFound", "Ambiguous", "Stale", "IdentityDrift"],
+            Enum.GetNames<ScriptTagReferenceResolutionState>());
+    }
+
+    [Fact]
+    public void ResolveTagBinding_TreatsCaseOnlyVisiblePathChangesAsTheSameCanonicalTag()
+    {
+        var processId = Guid.Parse("10000000-0000-0000-0000-0000000000d1");
+        var unicodeId = Guid.Parse("10000000-0000-0000-0000-0000000000d2");
+        var resolver = ScriptEngineeringReferenceResolver.Create(
+            [
+                new TagEngineeringDto(processId, "Level", "plant.process.levelpct", TagDataType.Double, "plc"),
+                new TagEngineeringDto(unicodeId, "Nível", "plant.área.nível", TagDataType.Double, "plc")
+            ],
+            [new DataSourceEngineeringDto(Guid.NewGuid(), "plc", "PLC", "modbus.tcp")]);
+
+        var processBinding = new ScriptEngineeringDependency(
+            ScriptEngineeringDependencyKind.Tag,
+            processId.ToString("D"),
+            new ScriptTagReferenceBinding(1, "Plant.Process.LevelPct", new TagValueReference(processId)));
+        var unicodeBinding = new ScriptEngineeringDependency(
+            ScriptEngineeringDependencyKind.Tag,
+            unicodeId.ToString("D"),
+            new ScriptTagReferenceBinding(1, "Plant.Área.Nível", new TagValueReference(unicodeId)));
+
+        Assert.Equal(ScriptTagReferenceResolutionState.Found, resolver.ResolveTagBinding(processBinding).State);
+        Assert.Equal(ScriptTagReferenceResolutionState.Found, resolver.ResolveTagBinding(unicodeBinding).State);
+    }
+
+    [Fact]
+    public void ResolveTagBinding_MatchesTheCanonicalOrdinalCaseSentinelMatrix()
+    {
+        var cases = new (string Declared, string Current, bool Equivalent)[]
+        {
+            ("Plant.K", "plant.k", true),
+            ("Plant.Área.Nível", "plant.área.nível", true),
+            ("Plant.K", "Plant.k", false),
+            ("Plant.ſ", "Plant.s", false),
+            ("Plant.I", "Plant.i", true),
+            ("Plant.İ", "Plant.i", false),
+            ("Plant.I", "Plant.ı", false),
+            ("Plant.Σ", "Plant.σ", true),
+            ("Plant.Σ", "Plant.ς", true),
+            ("Plant.É", "Plant.E\u0301", false),
+            ("Plant.A", "Plant.B", false)
+        };
+
+        foreach (var (declared, current, equivalent) in cases)
+        {
+            var tagId = Guid.NewGuid();
+            var resolver = ScriptEngineeringReferenceResolver.Create(
+                [new TagEngineeringDto(tagId, "Level", current, TagDataType.Double, "plc")],
+                [new DataSourceEngineeringDto(Guid.NewGuid(), "plc", "PLC", "modbus.tcp")]);
+            var dependency = new ScriptEngineeringDependency(
+                ScriptEngineeringDependencyKind.Tag,
+                tagId.ToString("D"),
+                new ScriptTagReferenceBinding(1, declared, new TagValueReference(tagId)));
+
+            Assert.Equal(equivalent, StringComparer.OrdinalIgnoreCase.Equals(declared, current));
+            Assert.Equal(
+                equivalent ? ScriptTagReferenceResolutionState.Found : ScriptTagReferenceResolutionState.Stale,
+                resolver.ResolveTagBinding(dependency).State);
+        }
+    }
+
+    [Fact]
+    public void Validation_ReportsMalformedReadableBindingAsDiagnosticInsteadOfResolutionState()
+    {
+        var tagId = Guid.Parse("10000000-0000-0000-0000-0000000000c1");
+        var resolver = ScriptEngineeringReferenceResolver.Create(
+            [new TagEngineeringDto(tagId, "Level", "Plant.Level", TagDataType.Double, "plc")],
+            [new DataSourceEngineeringDto(Guid.NewGuid(), "plc", "PLC", "modbus.tcp")]);
+        var script = new ScriptEngineeringDefinition(
+            Guid.NewGuid(),
+            "scripts/client/invalid-readable-tag",
+            "Invalid readable TAG",
+            ScriptEngineeringScope.ClientVisual,
+            "value = 1",
+            dependencies:
+            [new ScriptEngineeringDependency(
+                ScriptEngineeringDependencyKind.Tag,
+                tagId.ToString("D"),
+                new ScriptTagReferenceBinding(2, "Plant.Level", new TagValueReference(tagId)))]);
+
+        var validation = new ScriptEngineeringValidator().Validate(
+            new ScriptEngineeringModel([script]),
+            resolver.ToValidationCatalog(),
+            resolver);
+
+        Assert.Contains(validation.Issues, issue => issue.Code == "SCRIPT_TAG_BINDING_INVALID");
+        Assert.Throws<ArgumentException>(() => resolver.ResolveTagBinding(script.Dependencies.Single()));
+    }
+
+    [Fact]
     public void Create_ClassifiesSharedClientMemoryServerMemoryAndVisualReferencesDeterministically()
     {
         var processTagId = Guid.Parse("10000000-0000-0000-0000-000000000001");

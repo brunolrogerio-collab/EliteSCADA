@@ -42,7 +42,17 @@ public sealed record ScriptEngineeringEntryPoint(
 
 public sealed record ScriptEngineeringDependency(
     ScriptEngineeringDependencyKind Kind,
-    string StableReference);
+    string StableReference,
+    ScriptTagReferenceBinding? TagBinding = null);
+
+/// <summary>
+/// Keeps a human-readable TAG path as authoring text while preserving the
+/// canonical TAG identity that gives the reference its runtime authority.
+/// </summary>
+public sealed record ScriptTagReferenceBinding(
+    int Version,
+    string Reference,
+    TagValueReference Expected);
 
 public sealed class ScriptEngineeringDefinition
 {

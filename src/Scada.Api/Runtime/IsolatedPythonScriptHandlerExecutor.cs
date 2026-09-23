@@ -29,21 +29,28 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
         if (script.Scope != PythonScriptScope.Server)
             throw new ScriptExecutionDiagnosticException("Only Server scripts may execute in the server runtime host.");
 
-        var allowedTags = ResolveAllowedTags(script);
+        var allowed = ResolveAllowedTags(script);
         var snapshots = await host.ReadDependenciesAsync(
                 projectKey,
                 revision,
-                allowedTags,
+                allowed.Kinds,
                 lease.CancellationToken)
             .ConfigureAwait(false);
 
+        foreach (var binding in allowed.ReferencesByTagId)
+            host.VerifyTagReference(binding.Key, binding.Value);
+
         var values = snapshots.ToDictionary(
-            pair => pair.Key.ToString("D"),
+            pair => allowed.ReferencesByTagId.TryGetValue(pair.Key, out var reference)
+                ? reference
+                : pair.Key.ToString("D"),
             pair => pair.Value.Value,
             StringComparer.Ordinal);
-        var serverMemoryTags = allowedTags
+        var serverMemoryTags = allowed.Kinds
             .Where(pair => pair.Value.Equals("ServerMemoryTag", StringComparison.OrdinalIgnoreCase))
-            .Select(pair => pair.Key.ToString("D"))
+            .Select(pair => allowed.ReferencesByTagId.TryGetValue(pair.Key, out var reference)
+                ? reference
+                : pair.Key.ToString("D"))
             .ToArray();
 
         var request = new PythonExecutionRequest(
@@ -125,8 +132,8 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
         foreach (var write in response.Writes ?? Array.Empty<PythonWriteRequest>())
         {
             lease.CancellationToken.ThrowIfCancellationRequested();
-            if (!Guid.TryParse(write.TagId, out var tagId) ||
-                !allowedTags.TryGetValue(tagId, out var dependencyKind) ||
+            if (!allowed.TagIdsByReference.TryGetValue(write.TagId, out var tagId) ||
+                !allowed.Kinds.TryGetValue(tagId, out var dependencyKind) ||
                 !snapshots.TryGetValue(tagId, out var snapshot))
             {
                 throw new ScriptExecutionDiagnosticException(
@@ -192,9 +199,14 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
         }
     }
 
-    private static Dictionary<Guid, string> ResolveAllowedTags(PythonScriptDefinition script)
+    private static AllowedTagDependencies ResolveAllowedTags(PythonScriptDefinition script)
     {
-        var result = new Dictionary<Guid, string>();
+        var kinds = new Dictionary<Guid, string>();
+        var referencesByTagId = new Dictionary<Guid, string>();
+        // Readable Python tokens are exact declared binding text. The host
+        // separately proves each persisted binding through the canonical TAG
+        // registry before sandbox execution.
+        var tagIdsByReference = new Dictionary<string, Guid>(StringComparer.Ordinal);
         foreach (var dependency in script.Dependencies)
         {
             if (!dependency.Kind.Equals("Tag", StringComparison.OrdinalIgnoreCase) &&
@@ -209,10 +221,38 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
                     "Server Script contains an invalid stable TAG dependency.");
             }
 
-            result[tagId] = dependency.Kind;
+            kinds[tagId] = dependency.Kind;
+            tagIdsByReference[tagId.ToString("D")] = tagId;
+
+            if (dependency.TagBinding is null)
+                continue;
+
+            var binding = dependency.TagBinding;
+            if (binding.Version != 1 || string.IsNullOrWhiteSpace(binding.Reference) ||
+                binding.Expected is null || binding.Expected.TagId != tagId)
+            {
+                throw new ScriptExecutionDiagnosticException(
+                    "Server Script contains an invalid readable TAG reference binding.");
+            }
+
+            var reference = binding.Reference.Trim();
+            if (referencesByTagId.TryGetValue(tagId, out var priorReference) &&
+                !string.Equals(priorReference, reference, StringComparison.Ordinal))
+            {
+                throw new ScriptExecutionDiagnosticException(
+                    "Server Script declares conflicting readable references for one stable TAG dependency.");
+            }
+            if (tagIdsByReference.TryGetValue(reference, out var priorTagId) && priorTagId != tagId)
+            {
+                throw new ScriptExecutionDiagnosticException(
+                    "Server Script declares one readable TAG reference for more than one stable TAG dependency.");
+            }
+
+            referencesByTagId[tagId] = reference;
+            tagIdsByReference[reference] = tagId;
         }
 
-        return result;
+        return new AllowedTagDependencies(kinds, referencesByTagId, tagIdsByReference);
     }
 
     private static object? ConvertValue(JsonElement value, TagDataType dataType) => dataType switch
@@ -257,6 +297,11 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
         PythonEventPayload Event,
         IReadOnlyDictionary<string, object?> Values,
         IReadOnlyCollection<string> ServerMemoryTagIds);
+
+    private sealed record AllowedTagDependencies(
+        IReadOnlyDictionary<Guid, string> Kinds,
+        IReadOnlyDictionary<Guid, string> ReferencesByTagId,
+        IReadOnlyDictionary<string, Guid> TagIdsByReference);
 
     private sealed record PythonEventPayload(
         string Kind,

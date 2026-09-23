@@ -12,6 +12,10 @@ A change must not be merged to `main` with a red or incomplete required EliteSCA
 
 As of 2026-09-01, GitHub branch protection / required status checks are not configured on `main`. Therefore this requirement is a Coordinator/Development Lead operational rule until repository protection is explicitly enabled. Documentation must not claim GitHub technically blocks a merge that violates this rule.
 
+For Wave 15, `wave15-pr.yml` is the leaf-PR T1 gate for `wave15/corrections-integration`. Every non-exempt PR declares `VALIDATION_PROFILE: ...` in its body using the versioned vocabulary in `CI-USAGE-POLICY.md`. Changed-path inference is a conservative floor; effective profiles are the union of declared/manual profiles and inferred risks. Coordination-only documentation named by the router policy is the sole declaration exemption.
+
+`dotnet-ci.yml` remains the broad universal gate for `main` pull requests and broad push validation on `wave15/corrections-integration`. Specialized heavy workflows remain risk-sensitive, manually invoked or checkpoint gates; T1 never claims a Driver/Interop lab PASS merely because it inferred a Driver profile. No test or coverage reduction is authorized by this routing policy.
+
 ## 2. Preview Licensing CI
 
 `Preview Licensing CI` is specialized product validation, not a universal PR pipeline and not a duplicate of the complete Core/Drivers suites.

@@ -15,7 +15,7 @@ on:
       - 'web/scada-web/**'
       - '.github/workflows/dotnet-ci.yml'
   pull_request:
-    branches: [ main, wave15/corrections-integration ]
+    branches: [ main ]
 
 permissions:
   contents: read

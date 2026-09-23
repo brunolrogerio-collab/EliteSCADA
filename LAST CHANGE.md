@@ -1,80 +1,72 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-23 BRT  
-**Operational state:** **WAVE 15 ACTIVE / FND-03 VERIFIED+FROZEN / INFRA-CI-01A VERIFIED+FROZEN / FND-04 ACTIVE IN SAME CODEX / FND-06 NOT STARTED / FC0-A BLOCKED**
+**Operational state:** **WAVE 15 ACTIVE / FND-04 VERIFIED+FROZEN / FND-06 ACTIVE / FC0-A BLOCKED ONLY ON FND-06**
 
 ## Latest verified product checkpoint
 
-FND-03 product checkpoint remains:
+Exact frozen Foundation product checkpoint:
 
-`a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
-
-tree:
-
-`e48c8b9918f4d3a5ae4dee1df6211393c95b6513`
-
-## INFRA-CI-01A closed
-
-PR #335 merged:
-
-`9f62ad56e3fed5574bab1fa25fc8b64f9e4ae981`
+`6c810647c9773a19b212d9c33694780141786ac7`
 
 tree:
 
-`1e19a38803e319a418f476d236dfb24fd38d377e`
+`1221ff55963052be4e924dd644efbaa65763f546`
 
-Evidence:
-- candidate T1 run #4 / `35864183668` — SUCCESS;
-- broad post-merge CI #1560 / `35864708583` — SUCCESS;
-- Web `107193247522` — SUCCESS;
-- Backend `107193247822` — SUCCESS;
-- Chromium `107193893312` — SUCCESS.
+This checkpoint includes FND-03, INFRA-CI-01A and FND-04. Exact FND-04 post-merge EliteSCADA CI #1562 / run `35913456486` completed SUCCESS:
+- Web `107358858133` — SUCCESS;
+- Backend build/test/smoke `107358858405` — SUCCESS;
+- Chromium E2E `107359503423` — SUCCESS.
 
-Therefore `INFRA-CI-01A = VERIFIED/FROZEN`.
-
-The broad universal gate remains intact for integrated pushes/main PRs; Wave 15 leaf PRs now use profile-aware T1 routing.
+FND-04 is **VERIFIED/FROZEN**. Its downstream Script TAG reference contract may be consumed but not redefined.
 
 ## Current active work
 
-FND-04 is now actively assigned to the same functional CODEX runtime that finished INFRA-CI-01A.
+FND-06 is the only active FC0-A blocker.
 
-Order:
+- order: `FND06-CODEX-VISUAL-STABILITY-V1`
+- exact product base: `6c810647c9773a19b212d9c33694780141786ac7`
+- work branch: `work/w15-fnd-06-visual-stability-foundation`
+- dedicated control: `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
+- active control commit: `15def327cc61b367d14dbf674c6ebb4e8ea6e8ef`
+- work branch remains untouched at the exact base and no candidate/PR exists yet.
 
-`FND04-CODEX-WAIT-AUD-05`
+The frozen FND-06 plan covers centralized known-legacy visual compatibility, Screen/Popup selection stability, canonical renderer/public-model authority, Runtime navigation persistence and Working-vs-Active separation. Full single-canvas WYSIWYG remains downstream DEV-EDITOR scope.
 
-Exact product base:
+## FC0-A preparation
 
-`a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
+FC0-A remains **BLOCKED only on FND-06 VERIFIED/FROZEN**.
 
-Work branch:
+Prepared downstream release file:
+`coord/w15-fnd06-control:docs/WAVE15-FC0-A-RELEASE-PREP.md`
 
-`work/w15-fnd-04-script-tag-reference-resolution`
+Latest prep commit:
+`f9531e6318176c546d77843ec791ced2f8202795`
 
-Control commit:
+Reserved, not-yet-active orders:
+- `DEV-EDITOR-FC0A-01`
+- `DEV-SCRIPT-ENGINEERING-FC0A-01`
+- `DEV-AUTHORITY-UX-FC0A-01`
+- `DEV-LICENSING-UX-FC0A-01`
 
-`4981794478447de020499e473b6401173e294a7e`
+No downstream product branch is created before Main records the final exact FC0-A SHA/tree.
 
-PR #336 candidate `21e2ab69a71844d56acf1b7913dc67097697f6ae` reached green T1 but is not integration-ready. Main review found Client Visual expected-TagId enforcement missing, a sixth resolver state outside the frozen contract, and incomplete direct acceptance/RED evidence. CODEX is correcting the same PR inside the existing FND-04 allowlists; no merge is authorized.
+## Later Foundation preparation
 
-Normal FND-04 DEV remains BLOCKED_ENV / WATCH_ONLY. AUD remains ACTIVE / READ_ONLY_REVIEW.
+Read-only/source-audit preparation was completed without product mutation:
 
-## Remaining FC0-A blockers
+- FND-05 HA authority control:
+  - branch `coord/w15-fnd05-control`
+  - file `docs/WAVE15-FND05-CONTROL.md`
+  - prep commit `66d0f0e53a9842c719cfe28ef40da3b7fbdd1f6f`
+  - state `PREPARED / NOT ACTIVE`
+- FND-07 installation detach control:
+  - branch `coord/w15-fnd07-control`
+  - file `docs/WAVE15-FND07-CONTROL.md`
+  - prep commit `760e1cb57a1bdb1e146a6326bd55f713c7790add`
+  - state `PREPARED / NOT ACTIVE`
 
-- FND-04 — ACTIVE.
-- FND-06 — NOT STARTED.
-
-INFRA-CI-01A is no longer a blocker.
-
-
-## FND-04 corrected candidate under audit
-
-- candidate: `8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
-- tree: `393938536ee524d2bd7c713ed9f791679fd6c2cb`
-- PR #336 natural T1 `35895957135` — SUCCESS
-- Main preliminary review: prior known blockers closed
-- CODEX: `WAIT_AUD / NO_MUTATION`
-- AUD: `FND04-AUD-CANDIDATE-0005 / ACTIVE / READ_ONLY_REVIEW`
-- no integration/freeze yet
+Neither later Foundation is authorized to mutate product while FND-06 owns the sequential high-risk Foundation executor.
 
 ## Foundation current Main gate
 

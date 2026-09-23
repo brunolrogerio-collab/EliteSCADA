@@ -4,9 +4,13 @@
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`MAIN_ORDER_REV: 0003`
+`MAIN_ORDER_REV: 0004`
 
 `STATE: ACTIVE / FND06-CODEX-VISUAL-STABILITY-V2`
+
+`EXECUTOR_LANE: SAME SEQUENTIAL CODEX EXECUTOR USED IN PRIOR FOUNDATION WORK INCLUDING FND-04`
+
+`PREVIOUS_CONTROL_ROUTE: coord/w15-fnd04-dev-aud-control:docs/WAVE15-FND04-DEV-AUD-CONTROL.md -> ROUTE-SEQUENTIAL-CODEX-TO-FND06-12`
 
 `PRODUCT_BASE_CANDIDATE: 6c810647c9773a19b212d9c33694780141786ac7`
 
@@ -36,7 +40,7 @@ When that gate is green, Main may:
 1. declare FND-04 VERIFIED/FROZEN;
 2. revalidate integration divergence above the exact product checkpoint;
 3. change this control to ACTIVE on the exact accepted base;
-4. assign the bounded FND-06 implementation to the same sequential CODEX lane.
+4. assign the bounded FND-06 implementation to the **same sequential CODEX lane/chat that executed prior Foundation stages including FND-04**. This lane is active; FND-04's frozen state must not be interpreted as executor WAIT.
 
 No downstream DEV may infer activation from this prepared document alone.
 
@@ -228,6 +232,10 @@ Forbidden without new Main order:
 
 `VALIDATION_PROFILE: UI_EDITOR, RUNTIME_RENDERER`
 
+`EXECUTOR_IDENTITY: SAME_SEQUENTIAL_CODEX_FROM_PRIOR_FOUNDATION/FND-04`
+
+`ROUTED_FROM_FND04_CONTROL_REV: 0016 / ROUTE-SEQUENTIAL-CODEX-TO-FND06-12`
+
 Mission: implement only the FND-06 Foundation gaps from sections 3–6. Do not implement the full #303 DEV-EDITOR single-canvas UX.
 
 ### Mandatory RED before production
@@ -327,14 +335,40 @@ Include:
 
 No self-merge and no freeze authority.
 
-## 8. FC0-A effect
+## 8. FC0-A effect — FND-06 is necessary but no longer sufficient
 
-FND-06 completion plus FND-04 freeze clears the remaining visual/script Foundation blockers for FC0-A.
+FND-06 completion plus FND-04 freeze clears the remaining implementation prerequisite, but **does not by itself close/release FC0-A**.
 
-Main must then record an exact integration checkpoint and explicitly release only the eligible downstream lanes whose other dependencies are frozen:
+After FND-06 is integrated, exact post-merge validation is green and Main marks FND-06 VERIFIED/FROZEN, Main must activate and complete:
+
+`FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
+
+Prepared audit control:
+
+`coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-CONTROL.md`
+
+The audit must correlate:
+- Wave 15 product premises and roadmap;
+- `docs/WAVE15-CORRECTION-BACKLOG-FINAL.md`;
+- final Wave 14 diagnostic/PO audit comments and handoffs, including #286 comments `5628159172`, `5628311338`, `5628760255`, `5634503355`;
+- all frozen Foundation contracts FND-01/02/03/04/06/08 + INFRA-CI-01A;
+- exact integrated product behavior/evidence after FND-06;
+- remaining product gaps/residuals/deferred items;
+- prepared FND-05 and FND-07 contracts and their impact on contracts consumed by FC0-A DEVs.
+
+FC0-A release is allowed only if the audit concludes:
+1. no unresolved P0/P1 Foundation blocker required before the four DEV lanes;
+2. Wave 14 findings are mapped to CLOSED / DOWNSTREAM-DEV / DEFERRED-WITH-EVIDENCE / BLOCKED;
+3. FND-05 and FND-07 can proceed **without breaking or redefining** frozen contracts consumed by the four FC0-A DEVs;
+4. any additive future contract is isolated and does not invalidate the exact FC0-A base;
+5. exact audit checkpoint SHA/tree and residual ledger are recorded.
+
+If FND-05 or FND-07 would require a breaking Foundation-contract change, audit result is `BLOCKED-CONTRACT`; the Foundation delta must happen **before** FC0-A DEV release.
+
+Only after audit `ACCEPTABLE / FC0A_RELEASE_APPROVED` may Main record the exact FC0-A integration checkpoint and activate:
 - DEV-EDITOR;
 - DEV-SCRIPT-ENGINEERING;
 - DEV-AUTHORITY-UX;
 - DEV-LICENSING-UX.
 
-EliteGO, Installation UX and HA downstream remain subject to their additional FND-05/FND-07 dependencies.
+At that same approved checkpoint, FND-05 and FND-07 may also be activated in parallel with the four FC0-A DEV lanes, subject to their own isolated branches/orders. EliteGO, Installation UX and HA downstream remain blocked until their respective FND-05/FND-07 contracts freeze.

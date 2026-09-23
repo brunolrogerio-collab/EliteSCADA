@@ -4,9 +4,9 @@
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`MAIN_ORDER_REV: 0004`
+`MAIN_ORDER_REV: 0005`
 
-`STATE: ACTIVE / FND06-CODEX-VISUAL-STABILITY-V2`
+`STATE: ACTIVE / FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`
 
 `EXECUTOR_LANE: SAME SEQUENTIAL CODEX EXECUTOR USED IN PRIOR FOUNDATION WORK INCLUDING FND-04`
 
@@ -216,15 +216,19 @@ Forbidden without new Main order:
 
 ## 7. CURRENT EXECUTOR ORDER
 
-`ORDER_ID: FND06-CODEX-VISUAL-STABILITY-V2`
+`ORDER_ID: FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`
 
 `ORDER_STATE: ACTIVE`
 
-`EXECUTOR_MODE: BOUNDED_FOUNDATION_IMPLEMENTATION`
+`EXECUTOR_MODE: BOUNDED_TEST_EVIDENCE_AND_MINIMAL_FIX_IF_NEEDED`
 
 `EXACT_PRODUCT_BASE_SHA: 6c810647c9773a19b212d9c33694780141786ac7`
 
-`EXACT_PRODUCT_BASE_TREE: 1221ff55963052be4e924dd644efbaa65763f546`
+`CURRENT_CANDIDATE_SHA: 923543705378016090e7067b35954795a9591a57`
+
+`CURRENT_CANDIDATE_TREE: 5657cee7169a4e77370d416add4efcf07184d7c0`
+
+`PR: #337`
 
 `WORK_BRANCH: work/w15-fnd-06-visual-stability-foundation`
 
@@ -234,106 +238,80 @@ Forbidden without new Main order:
 
 `EXECUTOR_IDENTITY: SAME_SEQUENTIAL_CODEX_FROM_PRIOR_FOUNDATION/FND-04`
 
-`ROUTED_FROM_FND04_CONTROL_REV: 0016 / ROUTE-SEQUENTIAL-CODEX-TO-FND06-12`
+Main review disposition on `92354370...`:
 
-Mission: implement only the FND-06 Foundation gaps from sections 3–6. Do not implement the full #303 DEV-EDITOR single-canvas UX.
+- architecture/scope: acceptable;
+- centralized known-legacy compatibility: acceptable;
+- arbitrary unknown fail-closed: acceptable;
+- Runtime Popup persistence + Active-identity reset evidence: acceptable;
+- natural T1 `35931139983`: SUCCESS;
+- **candidate is NOT merge-approved yet** because the original Wave 14 A7 acceptance requires mounted Screen + Popup selection regression, while the changed legacy selection evidence is currently model-level.
 
-### Mandatory RED before production
+### Mandatory closeout evidence
 
-Against exact base `6c810647...`, create discriminating test-only RED evidence for at minimum:
+Against exact current candidate `923543705378016090e7067b35954795a9591a57`, add mounted browser regression that proves the original A7 failure surface is actually closed.
 
-1. **known legacy strict-consumer failure**
-   - persisted Screen object with type `tank`;
-   - select via canvas/outliner;
-   - Property Inspector path must demonstrate the current strict-registry compatibility gap without crashing the entire test harness.
+Required matrix:
 
-2. **known legacy Popup failure**
-   - persisted Popup objects with type `value` and live-seed type `status`;
-   - selection/inspector must expose the current compatibility gap;
-   - RED must prove `status` is currently rejected by the strict built-in schema path while its object remains recoverable as known legacy evidence.
+1. **Mounted Screen editor**
+   - load a Screen containing persisted legacy `tank`, `value`, `dynamo`, and `status` fixtures (one test may cover multiple objects);
+   - select each object through the real mounted editor path (canvas and/or outliner; cover both interaction routes across the matrix);
+   - assert Engineering SPA remains mounted;
+   - assert Property Inspector remains mounted and shows the bounded compatibility diagnostic;
+   - assert Binding/Dynamic dependent panels do not throw/poison the page where they are part of the selected-state composition;
+   - perform one safe shared-surface property edit on at least one known-legacy object and prove authored legacy-specific fields remain preserved.
 
-3. **truly unknown negative**
-   - `vendor.unknown-x` remains unsupported/contained; the RED/GREEN design must never turn arbitrary unknowns into accepted built-ins.
+2. **Mounted Popup editor**
+   - same requirement for representative persisted legacy objects, including at minimum `value` and live-seed `status`;
+   - select via the real mounted Popup editor path;
+   - assert SPA/editor continuity and contained compatibility diagnostic.
 
-4. **Popup navigation persistence gap**
-   - open Popup;
-   - inject retryable Runtime projection failure;
-   - recover same `projectKey/revision/activatedAtUtc`;
-   - assert popup stack remains open.
-   If current exact base already passes, record GREEN-existing evidence instead of manufacturing a failure.
+3. **Unknown negative**
+   - mounted or nearest truthful selected-state path for `vendor.unknown-x` remains contained/fail-closed;
+   - it must not become accepted as a known legacy/built-in merely because compatibility exists.
 
-### Required implementation behavior
+4. **No regression of existing candidate evidence**
+   - existing model-level compatibility tests remain green;
+   - Popup retry/recovery remains green;
+   - Active identity reset remains green;
+   - Web build remains green.
 
-A. Centralized legacy compatibility:
-- introduce/reuse one compatibility adapter before strict visual-schema consumers;
-- mandatory known-legacy fixtures: `tank`, `value`, `dynamo`, `status`;
-- treat bare `status` as compatibility-only unless a lossless canonical migration is separately proven; never infer an alias merely from the name;
-- preserve stable id/key/bindings/properties and Dynamo metadata;
-- do not guess a lossy canonical mapping. If no lossless built-in mapping exists, use a bounded compatibility schema/model with actionable diagnostic;
-- truly unknown type remains fail-closed/contained;
-- no second visual schema registry.
+### RED requirement
 
-B. Selection stability:
-- Screen + Popup canvas/outliner selection stays mounted for canonical and known-compatible legacy objects;
-- malformed property/binding/destination is contained to inspector/object diagnostics;
-- no whole Engineering SPA blank/poison.
+Do not manufacture RED if the current candidate already passes mounted A7 scenarios. Record:
+- `GREEN_EXISTING_ON_92354370` if mounted tests pass without product change; or
+- a discriminating mounted RED if a remaining selected-state component still fails, then make only the minimal allowlisted correction.
 
-C. Runtime navigation:
-- preserve selected Screen and open Popup stack across retryable projection failure/recovery under unchanged Active identity;
-- reset deliberately when project/revision/activated identity truly changes;
-- non-retryable invalid Active authority remains visible failure.
+### Scope
 
-D. Renderer/authority:
-- preserve `CanonicalVisualRenderer` as sole artwork renderer;
-- Working/draft design rendering remains non-authoritative;
-- Active Runtime remains `/api/runtime/application` authority;
-- no design action may publish/activate/write process values merely by rendering.
+Preferred change is tests only under `web/scada-web/tests-e2e/**`.
 
-### Allowed production surface
-
-Minimum necessary files under:
+If a remaining mounted defect is exposed, production fix stays inside the existing FND-06 allowlist:
 - `web/scada-web/src/visual-runtime/**`;
 - `web/scada-web/src/engineering/visual-editor/**`;
-- `web/scada-web/src/runtime/application/RuntimeApplicationMount.tsx`;
-- `web/scada-web/src/runtime/visual-navigation/**`.
+- Runtime application/navigation only if directly causal.
 
-Focused tests under:
-- `web/scada-web/tests-e2e/**`;
-- backend visual compatibility tests only if persistence/import normalization requires a narrowly proven server-side boundary.
+No architecture expansion. No single-canvas DEV-EDITOR work. No Security/Authority/Licensing/Driver/Historian/lifecycle/schema/workflow changes.
 
-### Forbidden
-
-No changes without Main re-order to:
-- Security/Authority;
-- Licensing;
-- Driver/Historian semantics;
-- database schema/migrations;
-- Working/Published/Active lifecycle authority;
-- workflow/CI infrastructure;
-- Script Engineering/FND-04 contract;
-- full single-canvas DEV-EDITOR UX;
-- EliteGO.
-
-### Acceptance return
+### Return
 
 Return exactly:
 
-`FND-06 CODEX EXECUTOR -> MAIN COORDINATOR — CANDIDATE HANDOFF`
+`FND-06 CODEX EXECUTOR -> MAIN COORDINATOR — MOUNTED LEGACY CLOSEOUT HANDOFF`
 
 Include:
-- exact base -> head/tree;
+- `92354370...` -> final exact head/tree;
+- whether production changed;
 - exact changed files;
-- RED evidence;
-- legacy compatibility classification table for `tank | value | dynamo | status | unknown`;
-- Screen + Popup selection matrix;
-- projection/navigation matrix;
-- renderer/Working-vs-Active proof;
-- local tests/builds;
-- natural Wave 15 T1 run/jobs on exact head;
-- scope/non-actions;
-- any residual requiring downstream DEV-EDITOR rather than Foundation.
+- mounted Screen matrix;
+- mounted Popup matrix;
+- unknown negative;
+- preservation of legacy-specific authored data;
+- local commands/results;
+- fresh natural T1 if head changes;
+- explicit non-actions.
 
-No self-merge and no freeze authority.
+No self-merge/freeze authority.
 
 ## 8. FC0-A effect — FND-06 is necessary but no longer sufficient
 

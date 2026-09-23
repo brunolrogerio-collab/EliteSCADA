@@ -134,25 +134,27 @@ Coordination/documentation commits after this checkpoint do not create a new pro
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
 **ORDER_STATE: ACTIVE**  
-**ORDER_ID: FND04-CODEX-ORDINAL-PARITY-07**  
-**CODEX_MODE: BOUNDED_CORRECTION_OR_PROOF**  
-**Mission:** prove/correct exact TAG-path case-equality parity with canonical `.NET StringComparer.OrdinalIgnoreCase`
+**ORDER_ID: FND04-CODEX-SOURCE-BINDING-SEPARATION-08**  
+**CODEX_MODE: BOUNDED_CORRECTION**  
+**Mission:** remove cross-language TAG-path comparer clones and separate registry binding proof from exact Script declaration membership
 
-Held Main-review head:
-- previous AUD-rejected head: `8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
-- case-close head: `139330bcdf758928171f82fb9f4a0984f0aa3455`
-- tree: `9bdddad56edec63989a13f7510614fca6cfa8782`
-- natural T1 `35900689584` — SUCCESS.
+Rejected Main-review candidate:
+- head `5c77eb418b83af57ccd1812c9c21fd44919b2ca0`
+- tree `181c6296c35fbb9dd6486d3ef6a318ff0b97dc70`
+- natural T1 `35907518317` — SUCCESS, but not sufficient for acceptance.
 
-The original AUD case/canonicalization defect is fixed for ordinary tested examples, but Main is holding this head because Client Visual uses `toLocaleLowerCase('en-US')` while the canonical TAG registry uses `.NET StringComparer.OrdinalIgnoreCase`. TAG paths are not restricted to ASCII, so exact Unicode equality parity must be demonstrated rather than inferred.
+Main review disposition:
+- persisted `TagBinding.Reference` -> current TAG path remains governed only by canonical backend registry semantics (`.NET OrdinalIgnoreCase`);
+- Python source argument -> declared binding is exact token membership after trim;
+- Client Visual and Server Script must not implement their own Unicode/case-fold clone of the registry comparer;
+- after exact source declaration match, runtime still proves the persisted binding through canonical registry/protected read and expected TagId;
+- stable TagId remains the only write identity.
 
-Detailed active order is in:
-- branch `coord/w15-fnd04-dev-aud-control`
+Detailed executable order:
+- control branch `coord/w15-fnd04-dev-aud-control`
 - file `docs/WAVE15-FND04-DEV-AUD-CONTROL.md`
-- control commit `3af74c83c20b3e6a49a65f3e7bf43acbd3ca92e3`
-- order `FND04-CODEX-ORDINAL-PARITY-07`.
-
-CODEX must run the discriminating sentinel matrix against the canonical registry and cross-surface Script behavior, then either prove no product change is needed or make only the bounded allowlisted correction. Do not change registry semantics, restrict paths to ASCII, normalize Unicode forms, or introduce another path authority.
+- control commit `8b2cbf4ebe55ede494d7ad3ed9c4809911b741e0`
+- order `FND04-CODEX-SOURCE-BINDING-SEPARATION-08`.
 
 No merge/freeze authority.
 ---
@@ -218,12 +220,16 @@ Normal DEV may revalidate live state and later review evidence only.
 ## 5. MAIN COORDINATOR -> FND-04 AUD — CURRENT ORDER
 
 **ORDER_STATE: WAIT_NEW_IMMUTABLE_CANDIDATE**  
-**ORDER_ID: FND04-AUD-WAIT-ORDINAL-PARITY-0007**  
+**ORDER_ID: FND04-AUD-WAIT-SOURCE-BINDING-0008**  
 **Default mode:** `READ_ONLY_REVIEW`
 
-Do not audit `139330bcdf758928171f82fb9f4a0984f0aa3455` yet. Main review requires exact parity proof/correction between Client Visual readable-reference comparison and the canonical registry's `.NET StringComparer.OrdinalIgnoreCase` semantics.
+Do not audit `5c77eb418b83af57ccd1812c9c21fd44919b2ca0`. Main rejected the cross-language comparer approach before AUD because it creates a second TAG-path comparison authority.
 
-Wait for Main to publish the next immutable head/tree after CODEX completes `FND04-CODEX-ORDINAL-PARITY-07`. Then re-audit the bounded case/canonicalization correction plus prior PASS regressions.
+CODEX now owns the bounded correction separating:
+- canonical backend registry proof of persisted binding path (`OrdinalIgnoreCase`);
+- exact source-token membership in the persisted Script declaration.
+
+Wait for Main to publish a new immutable SHA/tree, then independently re-audit the original case/canonicalization defect, this separation rule, and all prior PASS regressions.
 
 No test/product mutation and no merge.
 ---

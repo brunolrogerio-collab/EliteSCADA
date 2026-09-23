@@ -40,7 +40,7 @@ Control:
 `coord/w15-fnd04-dev-aud-control:docs/WAVE15-FND04-DEV-AUD-CONTROL.md`
 
 Control commit:
-`65ac0551c17f1794e5a0411897c85327880e12f8`
+`4981794478447de020499e473b6401173e294a7e`
 
 Plan:
 `FND04-TAGREF-V1`

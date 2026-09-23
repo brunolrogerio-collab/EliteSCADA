@@ -4,9 +4,9 @@
 
 `CONTROL_BRANCH: coord/w15-fnd05-control`
 
-`MAIN_ORDER_REV: 0001`
+`MAIN_ORDER_REV: 0002`
 
-`STATE: PREPARED / NOT ACTIVE`
+`STATE: PREPARED / NOT ACTIVE / BLOCKED_ON_POST_FND06_AUDIT`
 
 `PREPARED_ORDER_ID: FND05-CODEX-HA-AUTHORITY-V1`
 
@@ -51,6 +51,31 @@ Current repository evidence shows:
 10. Topology/session/fencing state remains outside `.escadapkg`.
 11. Machine-bound license + redundancy entitlement stays authoritative per node; failover cannot increase entitlement.
 12. Ambiguous/split-brain authority fails closed.
+
+## 3A. Compatibility promise to FC0-A frozen contracts
+
+FND-05 is permitted to activate only after:
+- FND-06 VERIFIED/FROZEN; and
+- `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01` returns `ACCEPTABLE / FC0A_RELEASE_APPROVED`.
+
+The prepared FND-05 design is **additive**, not a license/session/Script/renderer redesign.
+
+Must preserve frozen downstream-consumed semantics:
+- FND-03 logical Runtime Session Lease identity, `ClientInstanceId`, requested/granted class, Authority ceiling, shared Web+EliteGO quota semantics, generation/authority invalidation and transactional machine-license lifecycle;
+- existing `ServerNode` / `ClusterId` lease hooks may be used/extended for HA continuity but their addition must remain backward-compatible;
+- FND-04 readable Script TAG binding/resolution semantics remain unchanged; HA may gate whether this node may execute industrial side effects, but must not replace the TAG resolver/source-binding contract;
+- FND-06 canonical renderer/public visual model and Working-vs-Active visual authority remain unchanged.
+
+Allowed FND-05 additions include:
+- Cluster/Node/topology state;
+- effective-Active/fencing/epoch authority;
+- lease replication/continuity around the frozen logical lease model;
+- additive authenticated topology/freshness surfaces.
+
+If implementation requires changing the meaning of a frozen FND-03/FND-04/FND-06 contract consumed by FC0-A DEVs, stop:
+`FND-05 -> BLOCKED-CONTRACT -> MAIN`.
+
+No such breaking change is currently identified by the prepared source audit; final approval belongs to the mandatory post-FND06 audit.
 
 ## 4. Prepared first implementation slice
 
@@ -103,7 +128,7 @@ No client-side election, Driver-owned HA, topology in `.escadapkg`, socket-count
 
 ## 7. Activation dependency
 
-Do not activate while another sequential high-risk Foundation CODEX order is active unless Main explicitly assigns a separate isolated executor.
+Do not activate before the mandatory post-FND06 FC0-A Foundation Closure Audit passes. Do not activate while another sequential high-risk Foundation CODEX order is active unless Main explicitly assigns a separate isolated executor.
 
 Current intended sequencing:
 - FND-06 active now;

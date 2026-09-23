@@ -21,14 +21,14 @@
 
 FND-06 is **ACTIVE / NOT INTEGRATED** and is the only remaining FC0-A blocker.
 
-- order: `FND06-CODEX-VISUAL-STABILITY-V1`
+- order: `FND06-CODEX-VISUAL-STABILITY-V2`
 - exact product base: `6c810647c9773a19b212d9c33694780141786ac7`
 - base tree: `1221ff55963052be4e924dd644efbaa65763f546`
 - work branch: `work/w15-fnd-06-visual-stability-foundation`
 - target: `wave15/corrections-integration`
 - control branch/file: `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
-- active control commit: `15def327cc61b367d14dbf674c6ebb4e8ea6e8ef`
-- validation profile: `VISUAL_ENGINEERING, RUNTIME_VISUAL`
+- active control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`
+- validation profile: `UI_EDITOR, RUNTIME_RENDERER`
 
 Latest revalidation: work branch is still identical to the exact product base; no FND-06 PR/candidate/handoff exists yet.
 
@@ -92,3 +92,12 @@ Neither later Foundation is authorized to mutate product while FND-06 owns the s
 - no Product Owner message relay between agents; agents read GitHub live control/ledger.
 
 Primary ledger: Issue #305.
+
+
+## FND-06 corrected execution metadata
+
+- active order: `FND06-CODEX-VISUAL-STABILITY-V2`
+- validation profile: `UI_EDITOR, RUNTIME_RENDERER`
+- known legacy set: `tank | value | dynamo | status`
+- `status` is compatibility-only unless a lossless migration is separately proven; no alias guessing
+- control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`

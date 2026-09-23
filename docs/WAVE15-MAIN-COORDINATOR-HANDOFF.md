@@ -128,161 +128,137 @@ Antes desta ordem, o coordination HEAD era `8debd70b7c0e0e432b7deca29f5b31070a73
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
 **ORDER_STATE: ACTIVE**  
-**ORDER_ID: FND03-PHASE-C-IDEMPOTENT-REMOVE-CLOSE-04**  
-**CODEX_MODE: BOUNDED_PRODUCT_CORRECTION**  
-**Mission:** close the already-Demo remove loophole + strengthen acceptance #7 boundary proof
+**ORDER_ID: FND03-PHASE-C-AUTONOMOUS-CLOSE-05**  
+**CODEX_MODE: BOUNDED_AUTONOMOUS_CLOSE_LOOP**  
+**Mission:** finish FND-03 Phase C to an exact-head green candidate with fewer Main round-trips
 
-### Exact reviewed state
-
-Main independently reviewed the exact Phase C candidate and CI:
+### Starting point
 
 - exact product base: `4647dd741551c97306217ac9893d3378b070f43b`
 - work branch: `work/w15-fnd-03-license-lifecycle-orchestrator-v1`
-- reviewed head before this correction: `40f0001f969930f227861ef2f11d79e3bd9f2931`
-- reviewed tree: `b2f4c83690731723d225c47d371740de2f6c265c`
-- PR #334: OPEN / mergeable / target `wave15/corrections-integration`
-- exact natural CI #1557 / run `35810903479` on `40f0001f...`:
-  - Web `107022021198` — SUCCESS
-  - Backend `107022021316` — SUCCESS
-  - Chromium `107022392473` — SUCCESS
-- integration HEAD before this order: `de2ac0f1a179d2a20f6acc9351643eff6694d02f`; compare from product base is documentation-only.
+- current reviewed work head at order issuance: `40f0001f969930f227861ef2f11d79e3bd9f2931`
+- PR #334 -> `wave15/corrections-integration`
+- integration advances since product base remain coordination/documentation-only
+- ORDER-04 remove-idempotency defect and RED proof remain binding
+- C04 stabilization already accepted and must not be weakened
 
-The candidate is **not approved for integration** because Main found one deterministic lifecycle defect and one proof gap after the green CI.
+### Delegated autonomy
 
-### Defect A — repeated remove while already Demo resets authority/Demo window
+CODEX no longer needs a new Main order for each small corrective iteration inside this Phase C candidate.
 
-Binding architecture #301 comment `5722165708` explicitly states:
+CODEX may independently repeat this loop until it reaches a clean exact-head handoff:
 
-> If CurrentVerification is already Demo because the machine license file is absent, remove may be treated as idempotent no-op with no revision bump.
+`diagnose -> edit -> focused tests -> commit/push -> inspect natural CI -> diagnose again`
 
-Current candidate `ProductLicenseLifecycleCoordinator.RemoveAsync` unconditionally calls `ChangeAsync("remove", ...)`. Therefore, when the machine is already Demo/no-license, repeated DELETE can:
-- Begin a new authority transition;
-- increment `AuthorityRevision`;
-- write a fresh `DemoStartedAtUtc`;
-- re-evaluate Runtime and fence leases even though license authority did not change.
+Within that loop CODEX may:
 
-That creates an avoidable Demo-window reset path and contradicts the binding architecture. Green CI #1557 does not cover this case.
+1. implement the ORDER-04 already-Demo idempotent-remove correction;
+2. add, strengthen or refactor deterministic Phase C tests needed to prove the existing acceptance matrix;
+3. fix a newly exposed defect **without waiting for Main** when all of the following are true:
+   - the defect is directly causal to Phase C behavior already authorized in #301;
+   - the correction does not redefine a frozen public/shared contract;
+   - no new database schema/migration, entitlement model, authorization model, Runtime Session contract or HA/Authority architecture is required;
+   - the correction stays within the existing Phase C functional boundary;
+4. modify existing Phase C production files already touched by PR #334 when directly necessary to close such a causal defect;
+5. add or modify relevant tests under `tests/Scada.Drivers.Tests/`;
+6. keep the accepted C04 fixture correction and, only if a fresh CI proves another deterministic fixture defect in that same test, correct that test without waiting for Main, preserving all semantic assertions;
+7. inspect PR CI and workflow-job evidence directly;
+8. push multiple bounded corrective commits to the same branch/PR;
+9. update the PR body/comments with accurate current evidence;
+10. stop only after producing an exact-head candidate with all Phase C acceptance items non-PENDING and natural CI green, or after hitting a hard stop below.
 
-### Authorized product correction
+### ORDER-04 requirements remain mandatory
 
-Only `src/Scada.Api/Licensing/ProductLicenseLifecycleCoordinator.cs` may change in production.
+The repeated-remove regression must use a mutable/steppable clock with real `T1 > T0`.
 
-Required semantics:
+It must prove on the corrected code:
+- first Valid -> Demo remove at T0 establishes revision R+1 and Demo anchor T0;
+- second remove at distinct T1 is idempotent;
+- exact `AuthorityRevision` preserved;
+- exact `DemoStartedAtUtc` preserved at T0;
+- exact `AuthorityChangedAtUtc` preserved at T0;
+- no second file mutation;
+- no second Runtime reevaluation;
+- no fence/epoch change;
+- a lease admitted after the first remove remains valid;
+- pending transition remains fail-closed;
+- Invalid -> remove remains a real authority change.
 
-1. `RemoveAsync` must inspect canonical `CurrentVerification`.
-2. If current state is **Demo because the license is absent** and Runtime authority state is coherent/non-pending:
-   - return a successful idempotent result;
-   - stable reason code such as `already-demo`;
-   - no `BeginAuthorityTransitionAsync`;
-   - no license-file mutation;
-   - no authority revision bump;
-   - no Runtime re-evaluation;
-   - no remote lease fence;
-   - preserve existing `AuthorityChangedAtUtc` / `DemoStartedAtUtc` exactly.
-3. If current state is Demo but `TransitionPending == true`, remain fail-closed:
-   - do not return idempotent success;
-   - do not clear pending;
-   - throw/return the existing deterministic transition-incomplete path so startup/lifecycle reconciliation remains authoritative.
-4. If current state is **Invalid**, remove remains a real authority change: delete invalid installed file, advance revision, enter Demo, re-evaluate/fence.
-5. Valid -> remove semantics remain unchanged.
+The same regression must be demonstrably RED against old head `40f0001f...`; the existing Main audit in #301 comment `5788352467` is acceptable RED evidence if the implemented test shape matches it.
 
-Do not alter the frozen Phase A/B contracts for this correction.
+The acceptance #7 guard must detect both invocation and method-group references to `InstallLicense` / `RemoveLicense`.
 
-### Mandatory deterministic tests
+### CI autonomy
 
-Update `tests/Scada.Drivers.Tests/ProductLicenseLifecycleCoordinatorTests.cs`:
+For each new head, prefer the natural PR CI.
 
-- perform a real Valid -> Demo removal at T0;
-- call remove again while already Demo at T1 > T0;
-- assert second operation succeeds idempotently;
-- assert `AuthorityRevision` unchanged;
-- assert `DemoStartedAtUtc` remains exactly T0, not T1;
-- assert no extra Runtime re-evaluation and no extra fencing/lease epoch transition.
+If CI fails:
 
-#### Independent Main test-audit guard
+- if failure is in changed Phase C code/tests or has a direct causal path to them, CODEX may diagnose, correct, push, and let a new CI run without asking Main;
+- if failure is an unchanged unrelated test and evidence supports nondeterministic infrastructure/fixture behavior, CODEX may rerun the **single failed job once** without asking Main;
+- if that one rerun fails again, do not loop reruns; diagnose and either fix a proven fixture defect within the allowed Phase C/test boundary or STOP with evidence;
+- never weaken/skip tests, increase timeouts merely to mask failure, or change workflow gates to obtain green.
 
-The existing fixture's `FixedTimeProvider` always returns the same `Now`; reusing it for both removals would make a broken implementation capable of passing the Demo-anchor assertion accidentally. Therefore the ORDER-04 regression is accepted only if it proves real clock separation.
+### Files / scope freedom
 
-Required shape:
+The prior exact 3-file limit is relaxed.
 
-1. Use a mutable/steppable `TimeProvider` (or two otherwise provably distinct timestamps) with exact `T1 > T0`; do **not** use the existing constant `FixedTimeProvider` unchanged for this regression.
-2. Start from `LicenseState.Valid`; execute the first remove at T0 and capture the complete post-first-remove authority state before advancing time.
-3. Assert after the first remove:
-   - `AuthorityRevision == R+1`;
-   - `DemoStartedAtUtc == T0`;
-   - `AuthorityChangedAtUtc == T0`;
-   - `TransitionPending == false`.
-4. Admit/capture a post-first-remove lease at revision `R+1` or otherwise instrument the store so the second call can prove no fence/epoch mutation.
-5. Advance the clock to a distinct T1, preferably by at least one minute, and execute the second remove.
-6. Assert after the second remove, by direct equality against the captured state:
-   - `AuthorityRevision == stateAfterFirst.AuthorityRevision`;
-   - `DemoStartedAtUtc == stateAfterFirst.DemoStartedAtUtc == T0`;
-   - `AuthorityChangedAtUtc == stateAfterFirst.AuthorityChangedAtUtc == T0`;
-   - `TransitionPending == false`;
-   - the second result reports the same previous/current revision and `ReasonCode == "already-demo"` (or the exact stable equivalent chosen by implementation);
-   - `FencedLeaseCount == 0`;
-   - no additional Runtime reevaluation call occurred;
-   - no additional `RemoveLicense` file-mutation call occurred;
-   - any post-first-remove lease remains valid under the unchanged revision.
-7. The test must fail against the currently reviewed head `40f0001f...` semantics; a test that would also pass the old unconditional `ChangeAsync("remove", ...)` implementation is not sufficient evidence.
+CODEX may edit:
+- any production file already changed by PR #334 **only when directly causal to closing Phase C acceptance**;
+- relevant `tests/Scada.Drivers.Tests/**`;
+- the already accepted `web/scada-web/tests-e2e/c04-tag-source-browser.spec.ts` only for a proven same-test fixture defect.
 
-Also prove:
-- already-Demo + pending transition does not bypass fail-closed pending state and preserves the exact pending transition metadata;
-- Invalid -> remove still performs a real transition to Demo with revision advance and fresh Demo anchor.
+CODEX must not modify:
+- unrelated product areas;
+- `.github/workflows/**`;
+- licensing schema/signing/trust model beyond the already frozen design;
+- Runtime Session public contract or persistence schema/migrations beyond the already authorized migration 024;
+- HA, FND-04, FND-05+, #304 UX, License Generator UI, EliteGO, Historian switching;
+- canonical coordinator documents;
+- `main` or `wave15/corrections-integration` directly.
 
-### Proof gap B — acceptance #7 guard misses method-group references
+### Hard-stop conditions — Main required
 
-Current test `ProductLicenseMutationBoundaryTests` searches only patterns equivalent to `.InstallLicense(...)` / `.RemoveLicense(...)`.
+STOP and return evidence if any correction would require:
 
-The canonical lifecycle uses `licensing.RemoveLicense` as an `Action` method-group without `()`, so the current guard does **not** actually detect the one authorized RemoveLicense reference it claims to protect.
+- a new migration/schema beyond existing authorized 024;
+- changing a frozen shared/public contract;
+- reopening Phase A/B semantics outside a defect directly necessary for Phase C correctness;
+- modifying authorization/capability semantics rather than consuming `EngineeringModify`;
+- weakening fencing/fail-closed behavior;
+- changing workflow gates;
+- touching another FND lane;
+- resolving a product decision not already fixed by #301 architecture.
 
-Strengthen only `tests/Scada.Drivers.Tests/ProductLicenseMutationBoundaryTests.cs` so it detects member references to both:
-- `.InstallLicense`
-- `.RemoveLicense`
+Use prefix:
 
-whether invoked directly or passed as method groups. The exact allowlist must contain only the canonical lifecycle coordinator references. A new production reference anywhere else must fail the test.
+`CODEX -> MAIN COORDINATOR — BLOCKED-AUTONOMY-BOUNDARY`
 
-### Allowed files
+### Merge boundary
 
-Exactly:
-- `src/Scada.Api/Licensing/ProductLicenseLifecycleCoordinator.cs`
-- `tests/Scada.Drivers.Tests/ProductLicenseLifecycleCoordinatorTests.cs`
-- `tests/Scada.Drivers.Tests/ProductLicenseMutationBoundaryTests.cs`
+CODEX still has **no merge authority**.
 
-No web change is needed; C04 stabilization at `40f0001f...` is accepted and remains untouched.
-No workflow/config/package-lock/docs change.
-No merge.
+Even after exact-head CI is fully green, CODEX must not merge PR #334 or write directly to integration/main.
 
-### Required validation
+When the candidate is complete, return exactly:
 
-Before handoff:
-- focused lifecycle tests including the three mandatory remove cases;
-- strengthened acceptance #7 boundary test;
-- relevant Phase C focused .NET suite;
-- `git diff --check`;
-- push to the same branch / PR #334;
-- allow a **new natural CI on the new exact head**;
-- do not rerun #1557 unchanged.
+`CODEX -> MAIN COORDINATOR — FND-03 PHASE C FINAL CANDIDATE HANDOFF`
 
-Return exactly:
-
-`CODEX -> MAIN COORDINATOR — FND-03 PHASE C IDEMPOTENT-REMOVE CLOSE HANDOFF`
-
-with:
-- old head `40f0001f...` -> new exact head/tree;
-- exact 3-file-or-smaller diff;
-- deterministic proof of no Demo-anchor/revision reset on repeated remove;
-- pending-state fail-closed proof;
-- Invalid -> Demo proof;
-- strengthened #7 result;
-- focused tests;
-- PR #334 state/base/head;
-- new natural CI run/jobs/status;
+including:
+- exact base/head/tree;
+- complete changed-file list;
+- final acceptance matrix with no silent PENDING;
+- ORDER-04 RED/GREEN evidence;
+- focused test evidence;
+- exact natural CI run/jobs;
+- PR state/base/head;
+- any rerun used and why;
 - explicit non-actions.
 
-Until Main verifies the new candidate:
-- Phase C remains ACTIVE / NOT VERIFIED / NOT INTEGRATED;
-- FND-03 global remains ACTIVE / NOT FROZEN;
+Main then performs one final independent integration review rather than micromanaging intermediate iterations.
+
+Until that final review:
+- FND-03 remains ACTIVE / NOT FROZEN;
 - FND-03 DEV WAIT;
 - FND-04 DEV/AUD WAIT;
 - FC0-A BLOCKED.

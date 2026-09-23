@@ -146,7 +146,8 @@ export class ClientVisualEventDispatcher {
       source: script.source,
       handlerNames: [...new Set(script.entryPoints.map(entryPoint => entryPoint.handlerName).filter(Boolean))],
       capabilityProvider: createClientVisualPythonCapabilityProvider({
-        visualPropertyProvider: visualProvider
+        visualPropertyProvider: visualProvider,
+        tagDependencies: script.dependencies
       })
     });
 

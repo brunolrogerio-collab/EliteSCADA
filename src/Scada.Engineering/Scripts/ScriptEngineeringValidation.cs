@@ -384,6 +384,12 @@ public sealed class ScriptEngineeringValidator
 
             if (dependency.TagBinding is not null && referenceResolver is not null)
             {
+                if (!ScriptEngineeringReferenceResolver.TryValidateTagBinding(dependency, out var bindingDiagnostic))
+                {
+                    Add("SCRIPT_TAG_BINDING_INVALID", bindingDiagnostic);
+                    continue;
+                }
+
                 var resolution = referenceResolver.ResolveTagBinding(dependency);
                 if (!resolution.IsResolved)
                 {

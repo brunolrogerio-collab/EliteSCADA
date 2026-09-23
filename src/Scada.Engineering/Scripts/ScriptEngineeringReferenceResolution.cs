@@ -34,11 +34,10 @@ public sealed record ScriptEngineeringReferenceResolution(
 public enum ScriptTagReferenceResolutionState
 {
     Found,
-    IdentityDrift,
-    Stale,
     NotFound,
     Ambiguous,
-    Invalid
+    Stale,
+    IdentityDrift
 }
 
 public sealed record ScriptTagReferenceResolution(
@@ -207,13 +206,10 @@ public sealed class ScriptEngineeringReferenceResolver
     public ScriptTagReferenceResolution ResolveTagBinding(ScriptEngineeringDependency dependency)
     {
         ArgumentNullException.ThrowIfNull(dependency);
-        var binding = dependency.TagBinding;
-        if (binding is null || binding.Version != 1 || string.IsNullOrWhiteSpace(binding.Reference) ||
-            binding.Expected is null || binding.Expected.TagId == Guid.Empty ||
-            !Guid.TryParse(dependency.StableReference, out var stableId) || stableId != binding.Expected.TagId)
-        {
-            return new ScriptTagReferenceResolution(ScriptTagReferenceResolutionState.Invalid);
-        }
+        if (!TryValidateTagBinding(dependency, out var diagnostic))
+            throw new ArgumentException(diagnostic, nameof(dependency));
+
+        var binding = dependency.TagBinding!;
 
         var expected = Resolve(dependency.Kind, dependency.StableReference).Target;
         var visible = References
@@ -234,6 +230,43 @@ public sealed class ScriptEngineeringReferenceResolver
         return expected is null
             ? new ScriptTagReferenceResolution(ScriptTagReferenceResolutionState.NotFound)
             : new ScriptTagReferenceResolution(ScriptTagReferenceResolutionState.Stale, expected);
+    }
+
+    /// <summary>
+    /// Keeps malformed persisted bindings out of the public resolution-state
+    /// model. Resolution describes only catalog outcomes; malformed contract
+    /// data is a validation diagnostic.
+    /// </summary>
+    public static bool TryValidateTagBinding(ScriptEngineeringDependency dependency, out string diagnostic)
+    {
+        ArgumentNullException.ThrowIfNull(dependency);
+        var binding = dependency.TagBinding;
+        if (binding is null)
+        {
+            diagnostic = "Readable TAG binding is required.";
+            return false;
+        }
+
+        if (binding.Version != 1 || string.IsNullOrWhiteSpace(binding.Reference))
+        {
+            diagnostic = "Readable TAG binding must use version 1 and a non-empty visible reference.";
+            return false;
+        }
+
+        if (binding.Expected is null || binding.Expected.TagId == Guid.Empty)
+        {
+            diagnostic = "Readable TAG binding must carry an expected stable TAG identity.";
+            return false;
+        }
+
+        if (!Guid.TryParse(dependency.StableReference, out var stableId) || stableId != binding.Expected.TagId)
+        {
+            diagnostic = "Readable TAG binding expected identity must match the declared stable dependency.";
+            return false;
+        }
+
+        diagnostic = string.Empty;
+        return true;
     }
 
     public static bool IsAllowedForScope(

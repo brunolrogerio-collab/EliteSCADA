@@ -87,6 +87,29 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
     }
 
     [Fact]
+    public async Task ServerScript_MultipleReadableTagReferencesResolveOnlyTheirDeclaredStableDependencies()
+    {
+        var eventBus = new InMemoryScadaEventBus();
+        var stateId = Guid.NewGuid();
+        var incrementId = Guid.NewGuid();
+        await using var runtime = CreateRuntime(eventBus);
+        var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, Configuration());
+
+        Assert.True((await manager.ActivateRuntimeAsync(
+            "multi-readable-tag",
+            1,
+            MultiReadableTimerPackage(stateId, incrementId))).Activated);
+
+        await WaitUntilAsync(
+            () => runtime.TryGetCurrent(stateId, out var state) && Convert.ToInt32(state!.Value) >= 2,
+            TimeSpan.FromSeconds(4));
+
+        Assert.True(runtime.TryGetCurrent(incrementId, out var increment));
+        Assert.Equal(2, Convert.ToInt32(increment!.Value));
+        await manager.DisposeAsync();
+    }
+
+    [Fact]
     public async Task RevisionBoundAccess_RejectsObsoleteGenerationWithSameStableTagId()
     {
         var eventBus = new InMemoryScadaEventBus();
@@ -290,6 +313,47 @@ def timer(event):
             },
             ServerMemoryDataSource(),
             Scripts: new[] { script });
+    }
+
+    private static EngineeringPackage MultiReadableTimerPackage(Guid stateId, Guid incrementId)
+    {
+        const string statePath = "Simulation.ProcessState";
+        const string incrementPath = "Simulation.ProcessIncrement";
+        var script = new ScriptEngineeringDefinition(
+            Guid.NewGuid(),
+            "Scripts.Process.MultiReadable",
+            "Multi Readable Process",
+            ScriptEngineeringScope.Server,
+            $$"""
+def timer(event):
+    state = read_tag("{{statePath}}")
+    increment = read_tag("{{incrementPath}}")
+    write_tag("{{statePath}}", state + increment)
+""",
+            entryPoints: [new ScriptEngineeringEntryPoint(ScriptEngineeringEventKind.Timer, "timer", TimerIntervalMs: 100)],
+            dependencies:
+            [
+                new ScriptEngineeringDependency(
+                    ScriptEngineeringDependencyKind.ServerMemoryTag,
+                    stateId.ToString("D"),
+                    new ScriptTagReferenceBinding(1, statePath, new TagValueReference(stateId))),
+                new ScriptEngineeringDependency(
+                    ScriptEngineeringDependencyKind.ServerMemoryTag,
+                    incrementId.ToString("D"),
+                    new ScriptTagReferenceBinding(1, incrementPath, new TagValueReference(incrementId)))
+            ]);
+
+        return new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            [
+                ServerMemoryTag(stateId, "ProcessState", statePath, 0, historian: false),
+                ServerMemoryTag(incrementId, "ProcessIncrement", incrementPath, 2, historian: false)
+            ],
+            Array.Empty<AlarmEngineeringDto>(),
+            ServerMemoryDataSource(),
+            Scripts: [script]);
     }
 
     private static EngineeringPackage MemoryPackage(Guid tagId, int initialValue) =>

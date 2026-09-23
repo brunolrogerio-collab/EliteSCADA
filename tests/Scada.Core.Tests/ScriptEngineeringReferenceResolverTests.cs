@@ -38,6 +38,56 @@ public sealed class ScriptEngineeringReferenceResolverTests
     }
 
     [Fact]
+    public void ResolveTagBinding_ReturnsAmbiguousForMultipleVisibleTagsAndKeepsExactlyFivePublicStates()
+    {
+        var firstId = Guid.Parse("10000000-0000-0000-0000-0000000000b1");
+        var secondId = Guid.Parse("10000000-0000-0000-0000-0000000000b2");
+        var resolver = ScriptEngineeringReferenceResolver.Create(
+            [
+                new TagEngineeringDto(firstId, "First", "Plant.Shared.Level", TagDataType.Double, "plc"),
+                new TagEngineeringDto(secondId, "Second", "Plant.Shared.Level", TagDataType.Double, "plc")
+            ],
+            [new DataSourceEngineeringDto(Guid.NewGuid(), "plc", "PLC", "modbus.tcp")]);
+        var dependency = new ScriptEngineeringDependency(
+            ScriptEngineeringDependencyKind.Tag,
+            firstId.ToString("D"),
+            new ScriptTagReferenceBinding(1, "Plant.Shared.Level", new TagValueReference(firstId)));
+
+        Assert.Equal(ScriptTagReferenceResolutionState.Ambiguous, resolver.ResolveTagBinding(dependency).State);
+        Assert.Equal(
+            ["Found", "NotFound", "Ambiguous", "Stale", "IdentityDrift"],
+            Enum.GetNames<ScriptTagReferenceResolutionState>());
+    }
+
+    [Fact]
+    public void Validation_ReportsMalformedReadableBindingAsDiagnosticInsteadOfResolutionState()
+    {
+        var tagId = Guid.Parse("10000000-0000-0000-0000-0000000000c1");
+        var resolver = ScriptEngineeringReferenceResolver.Create(
+            [new TagEngineeringDto(tagId, "Level", "Plant.Level", TagDataType.Double, "plc")],
+            [new DataSourceEngineeringDto(Guid.NewGuid(), "plc", "PLC", "modbus.tcp")]);
+        var script = new ScriptEngineeringDefinition(
+            Guid.NewGuid(),
+            "scripts/client/invalid-readable-tag",
+            "Invalid readable TAG",
+            ScriptEngineeringScope.ClientVisual,
+            "value = 1",
+            dependencies:
+            [new ScriptEngineeringDependency(
+                ScriptEngineeringDependencyKind.Tag,
+                tagId.ToString("D"),
+                new ScriptTagReferenceBinding(2, "Plant.Level", new TagValueReference(tagId)))]);
+
+        var validation = new ScriptEngineeringValidator().Validate(
+            new ScriptEngineeringModel([script]),
+            resolver.ToValidationCatalog(),
+            resolver);
+
+        Assert.Contains(validation.Issues, issue => issue.Code == "SCRIPT_TAG_BINDING_INVALID");
+        Assert.Throws<ArgumentException>(() => resolver.ResolveTagBinding(script.Dependencies.Single()));
+    }
+
+    [Fact]
     public void Create_ClassifiesSharedClientMemoryServerMemoryAndVisualReferencesDeterministically()
     {
         var processTagId = Guid.Parse("10000000-0000-0000-0000-000000000001");

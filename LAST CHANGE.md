@@ -100,3 +100,27 @@ Control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`.
 The prepared downstream release package now includes a Main-owned parallel-file collision map. Primary ownership is separated across Editor (`engineering/visual-editor/**`), Script Engineering (`engineering/scripts/**` + `python-editor/**`), Authority UX (`UserAdministration*`) and Licensing UX (`web/licensing/**` + `Scada.LicenseGenerator/**`). Shared shell/router/types/i18n/CI files are Main-coordinated hotspots, not free-for-all lane ownership.
 
 Latest FC0-A prep commit: `dfae2377f0c6802da726650697040181c7b0f453`.
+
+
+## Coordinator correction — shared CODEX routing and FC0-A audit
+
+A stale FND-04 CODEX `WAIT` order could cause the reused sequential CODEX chat to stop even though FND-06 was active.
+
+Main corrected this at the source:
+- FND-04 control rev 0016: `ROUTE-SEQUENTIAL-CODEX-TO-FND06-12`
+- commit: `cf19a9b0ce7efbf25d3d85acc2076a8c48148a9d`
+- same sequential CODEX chat/lane is explicitly the FND-06 executor
+- FND-06 control rev 0004: `FND06-CODEX-VISUAL-STABILITY-V2`
+- commit: `1a1488388fd67bf89380879b07437e1460170f18`
+
+FC0-A sequencing was also tightened:
+- FND-06 freeze no longer releases FC0-A directly;
+- mandatory gate: `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`;
+- audit control created at `coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-CONTROL.md`, commit `0689a53b6cdcb569dd6c65a8326009dfcf2da9de`;
+- FC0-A release prep updated at `fee82e7dd8eed8cd237e067317fedbe48d64cb97`;
+- FND-05 control rev 0002 / `b995435594f9031a33df5674a0207016405a41d7`;
+- FND-07 control rev 0002 / `503a89d2985db64c1d6666e40d1de06251027687`.
+
+After FND-06, audit must relate Wave 15 implementation to final Wave 14 diagnostics, product premises/gaps and frozen contracts. It must also prove FND-05/FND-07 are non-breaking to FC0-A DEV-consumed contracts.
+
+Only audit PASS releases the four FC0-A DEVs and permits FND-05/FND-07 to activate in parallel.

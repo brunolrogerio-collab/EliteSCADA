@@ -66,14 +66,20 @@ Main retains candidate review, integration, post-merge verification and freeze a
 - AUD: `FND04-AUD-CANDIDATE-0005 / ACTIVE / READ_ONLY_REVIEW`
 - no integration/freeze yet
 
-## FND-04 current Main gate
+## Foundation current Main gate
 
-- PR #336: MERGED
-- exact merge SHA: `6c810647c9773a19b212d9c33694780141786ac7`
-- merge tree: `1221ff55963052be4e924dd644efbaa65763f546`
-- AUD: ACCEPTABLE on exact candidate `c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e`
-- post-merge EliteSCADA CI `35913456486`: IN PROGRESS
-- Web build: SUCCESS
-- Backend build/test/smoke: IN PROGRESS
-- state: **INTEGRATED / POST-MERGE CI PENDING / NOT YET VERIFIED-FROZEN**
-- control plane commit: `bb876c51bb1bb116e0f33b2a61291bf78a213b2c`
+- FND-04: **VERIFIED/FROZEN**
+  - exact product checkpoint: `6c810647c9773a19b212d9c33694780141786ac7`
+  - tree: `1221ff55963052be4e924dd644efbaa65763f546`
+  - post-merge EliteSCADA CI `35913456486`: SUCCESS
+  - Web / Backend+tests+smoke / Chromium: all SUCCESS
+  - control freeze commit: `0453428521b28e951aa8e9d01742ee58b09f6690`
+- FND-06: **ACTIVE / NOT INTEGRATED**
+  - exact product base: `6c810647c9773a19b212d9c33694780141786ac7`
+  - work branch: `work/w15-fnd-06-visual-stability-foundation`
+  - control branch/file: `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
+  - active control commit: `15def327cc61b367d14dbf674c6ebb4e8ea6e8ef`
+  - order: `FND06-CODEX-VISUAL-STABILITY-V1`
+- FC0-A: **BLOCKED only on FND-06**
+- downstream release package is prepared but not released at `docs/WAVE15-FC0-A-RELEASE-PREP.md` on the FND-06 control branch.
+

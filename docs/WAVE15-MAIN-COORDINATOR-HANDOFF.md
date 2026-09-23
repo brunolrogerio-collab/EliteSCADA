@@ -133,42 +133,37 @@ Coordination/documentation commits after this checkpoint do not create a new pro
 
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
-**ORDER_STATE: ACTIVE**  
-**ORDER_ID: FND04-CODEX-REVIEW-CLOSE-04**  
-**CODEX_MODE: FND04_BOUNDED_CORRECTION**  
-**Mission:** correct Main review defects in PR #336; no merge
+**ORDER_STATE: WAIT_AUD**  
+**ORDER_ID: FND04-CODEX-WAIT-AUD-05**  
+**CODEX_MODE: NO_MUTATION / PRESERVE_CANDIDATE**  
+**Mission:** preserve corrected FND-04 candidate while independent AUD reviews exact head
 
-Reviewed exact candidate:
+Exact candidate:
 - product base `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
-- rejected head `21e2ab69a71844d56acf1b7913dc67097697f6ae`
-- tree `8aa104b6c8089c5ac0ad9fd03847032f55657a77`
+- candidate head `8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
+- candidate tree `393938536ee524d2bd7c713ed9f791679fd6c2cb`
 - PR #336
-- natural T1 `35873260360` — SUCCESS.
+- natural T1 `35895957135` — SUCCESS.
 
-Green CI is not sufficient. Main code review found:
+Main preliminary review of the bounded correction confirms:
+- one corrective commit from rejected `21e2ab69...` to `8dba4f11...`;
+- correction delta is 9 files and full FND-04 delta is 20 files, all inside section 3B allowlists;
+- Client Visual now consumes persisted Script TAG bindings and re-proves expected TagId before every read/write;
+- direct write no longer depends on a prior read;
+- undeclared/path-reused/identity-drift references fail closed before write;
+- public resolver states are exactly `Found | NotFound | Ambiguous | Stale | IdentityDrift`;
+- malformed binding is validation diagnostic `SCRIPT_TAG_BINDING_INVALID`, not a sixth resolution state;
+- direct package/save-load, PostgreSQL, ambiguous, multi-TAG and adversarial Client Visual proofs are present in the candidate.
 
-1. Client Visual does not consume the persisted expected TagId binding. `clientVisualEventDispatcher.ts` does not pass Script dependencies/bindings to the provider; the provider learns whatever current ID a path returns and falls back to the raw path on write without prior read. This permits silent path retargeting and undeclared readable references.
-2. Public resolver contract added a sixth `Invalid` state although the frozen contract is exactly `Found | NotFound | Ambiguous | Stale | IdentityDrift`. Malformed bindings belong to validation diagnostics, not a sixth resolution semantic.
-3. Direct acceptance evidence is still missing for readable-binding ambiguity, binding package/save-load round-trip, PostgreSQL round-trip, multi-TAG readable Script, Client Visual identity-drift and undeclared-reference fail-closed behavior.
-4. Final handoff omitted mandatory exact RED-1/RED-2/RED-3 old-base commands/failures.
+CODEX must not mutate, rebase, retarget, rerun or merge while AUD reviews this immutable candidate.
 
-Binding correction is detailed in control plane:
+Dedicated control plane:
 - branch `coord/w15-fnd04-dev-aud-control`
 - file `docs/WAVE15-FND04-DEV-AUD-CONTROL.md`
-- control commit `4981794478447de020499e473b6401173e294a7e`
-- order `FND04-CODEX-REVIEW-CLOSE-04`.
+- control commit `e99b1a911aec5b39772a900b801869207c519b0a`
+- active AUD order `FND04-AUD-CANDIDATE-0005`.
 
-CODEX keeps bounded autonomy inside the original section 3B allowlists. It must:
-- make Client Visual read/write share one declared-binding resolver;
-- re-resolve current path on write and compare with expected TagId;
-- fail closed on undeclared/stale/missing/identity-drift with no write;
-- preserve explicit GUID-only compatibility;
-- restore exact five-state resolver semantics;
-- add the missing persistence/ambiguity/multi-TAG/adversarial proofs;
-- reproduce old-base RED-1/2/3 and review-RED against `21e2ab69...`;
-- push correction to the same PR #336 and obtain a fresh natural T1 run.
-
-No self-merge and no freeze authority.
+No merge/freeze authority is granted.
 ---
 
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
@@ -231,11 +226,34 @@ Normal DEV may revalidate live state and later review evidence only.
 
 ## 5. MAIN COORDINATOR -> FND-04 AUD — CURRENT ORDER
 
-**ORDER_STATE: WAIT_CORRECTED_CANDIDATE**  
-**ORDER_ID: FND04-AUD-WAIT-CORRECTED-0004**  
+**ORDER_STATE: ACTIVE**  
+**ORDER_ID: FND04-AUD-CANDIDATE-0005**  
 **Default mode:** `READ_ONLY_REVIEW`
 
-Main has already rejected `21e2ab69...`; AUD must not spend the independent cycle on that head. Wait until Main supplies the corrected immutable candidate SHA/tree, then execute the adversarial matrix from the dedicated control plane.
+Immutable candidate:
+- base `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
+- head `8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
+- tree `393938536ee524d2bd7c713ed9f791679fd6c2cb`
+- PR #336
+- natural T1 `35895957135` — SUCCESS.
+
+AUD must now execute the independent adversarial matrix from the dedicated control plane against exactly this head. If the PR head moves, stop and report candidate-moved evidence. Stay READ_ONLY; no test/product mutation and no merge.
+
+Special focus:
+- direct readable write without prior read;
+- old-path reuse / identity drift;
+- undeclared readable reference denial;
+- exact five-state resolver semantics;
+- malformed-binding validation separation;
+- ambiguity;
+- package/save-load/PostgreSQL persistence;
+- representative multi-TAG readable Script;
+- legacy GUID compatibility;
+- Authority/sandbox preservation;
+- no second resolver/TAG registry/auth path;
+- classify the executor's local `/api/engineering/export/json` timeout only for causal relation to the FND-04 delta, without scope widening.
+
+Return final classification `ACCEPTABLE | CHANGES_REQUIRED | BLOCKED-CONTRACT` using the mandatory AUD prefix.
 ---
 
 ## 6. FND-04 BINDING CONTRACT — ACTIVE / NOT YET FROZEN

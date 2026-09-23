@@ -38,9 +38,9 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0012`
+`MAIN_ORDER_REV: 0013`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-23 16:22 BRT — ORDINAL PARITY CANDIDATE REJECTED / SOURCE-BINDING VS REGISTRY-BINDING SEMANTICS SEPARATED`
+`LAST_MAIN_UPDATE_BRT: 2026-09-23 16:22 BRT — SOURCE-BINDING SEPARATION ACCEPTED FOR INDEPENDENT REAUDIT`
 
 `GLOBAL_GATE: FND04_ACTIVE`
 
@@ -48,19 +48,21 @@ Current situation:
 
 - FND-03 remains **VERIFIED / FROZEN** on exact product checkpoint `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6` / tree `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`.
 - INFRA-CI-01A remains **VERIFIED / FROZEN** at merge `9f62ad56e3fed5574bab1fa25fc8b64f9e4ae981`.
-- CODEX produced ordinal-parity head `5c77eb418b83af57ccd1812c9c21fd44919b2ca0` / tree `181c6296c35fbb9dd6486d3ef6a318ff0b97dc70` on PR #336 with natural T1 `35907518317` SUCCESS.
-- Main rejects `5c77eb41...` **before AUD** because it introduces independent JavaScript and Python comparers intended to imitate .NET `StringComparer.OrdinalIgnoreCase`.
-- The handoff explicitly limits the proof to a sentinel matrix and does not establish a universal reimplementation of the canonical registry comparer. Because TAG paths are unrestricted Unicode, this would create a second comparison authority and leave behavior runtime/Unicode-version dependent.
-- Main therefore refines the contract to separate two layers:
-  1. **persisted binding <-> current registry path** uses the existing canonical backend TAG registry semantics (`OrdinalIgnoreCase`);
-  2. **Python source argument <-> persisted declared binding token** uses exact string/token equality after the already-defined outer trim only. Source matching is declaration membership, not a second registry lookup.
-- Script Assistant emits the exact persisted visible binding token. Runtime then proves that persisted binding through the canonical registry/protected path and expected TagId.
-- A case-only change in the current TAG registry path remains `found` for the persisted binding when TagId matches.
-- A manually case-changed Python source token that no longer exactly matches its persisted declared binding is an undeclared source reference and fails closed in both Client Visual and Server Script.
-- This removes the need for any JS/Python Unicode case-fold clone while preserving the AUD's original registry-vs-Engineering consistency finding.
-- FND-04 remains **ACTIVE / CORRECTION REQUIRED / NOT INTEGRATED**.
-- CODEX is ACTIVE on `FND04-CODEX-SOURCE-BINDING-SEPARATION-08`.
-- AUD remains **WAIT_NEW_IMMUTABLE_CANDIDATE / READ_ONLY**.
+- CODEX produced source-binding separation candidate `c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e` / reported tree `7fa948de25e4f120566113dc8d14a0a696342a32` on PR #336.
+- Main independently reviewed the exact correction from rejected `5c77eb41...`:
+  - one commit / 5 changed files, all inside the existing section 3B allowlists;
+  - full FND-04 PR scope remains 20 allowlisted files;
+  - Client Visual readable source declaration membership is exact after trim; no JS Unicode/path comparer clone remains;
+  - Server Script readable source declaration membership is exact after trim; no Python Unicode/path comparer clone remains;
+  - legacy GUID-only identity syntax remains explicitly compatible without becoming readable-path comparison authority;
+  - persisted binding -> current TAG path proof remains in the backend canonical resolver/runtime registry using OrdinalIgnoreCase semantics and expected TagId;
+  - direct read/write remain stable-TagId-authorized after binding proof.
+- Natural exact-head Wave 15 T1 run `35910214760` is SUCCESS: classify/common/Web/focused .NET/focused Chromium/T1 gate all green.
+- PR #336 is OPEN and mergeable on exact head `c89ad92e...`.
+- Main preliminary review therefore accepts this immutable candidate for independent reauditing; it is **not yet approved for integration**.
+- FND-04 remains **ACTIVE / CORRECTED CANDIDATE UNDER INDEPENDENT REAUDIT / NOT INTEGRATED**.
+- CODEX is `WAIT_AUD / NO_MUTATION`.
+- AUD is **ACTIVE / READ_ONLY_REVIEW** on exact candidate `c89ad92e...`.
 - No merge/freeze authority is granted.
 
 Live integration divergence from the product base remains acknowledged only for verified INFRA-CI-01A + coordination documentation. Any other unacknowledged product delta remains `BLOCKED-BASE-DIVERGENCE`.
@@ -593,19 +595,17 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 ### CURRENT CODEX EXECUTION ORDER
 
-`ORDER_ID: FND04-CODEX-SOURCE-BINDING-SEPARATION-08`
+`ORDER_ID: FND04-CODEX-WAIT-REAUDIT-09`
 
-`ORDER_STATE: ACTIVE`
+`ORDER_STATE: WAIT_AUD`
 
-`EXECUTOR_MODE: BOUNDED_CORRECTION`
+`EXECUTOR_MODE: NO_MUTATION / PRESERVE_CANDIDATE`
 
 `EXACT_PRODUCT_BASE_SHA: a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
 
-`AUD_REJECTED_SHA: 8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
+`CANDIDATE_SHA: c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e`
 
-`MAIN_REJECTED_PARITY_SHA: 5c77eb418b83af57ccd1812c9c21fd44919b2ca0`
-
-`MAIN_REJECTED_PARITY_TREE: 181c6296c35fbb9dd6486d3ef6a318ff0b97dc70`
+`CANDIDATE_TREE: 7fa948de25e4f120566113dc8d14a0a696342a32`
 
 `WORK_BRANCH: work/w15-fnd-04-script-tag-reference-resolution`
 
@@ -613,67 +613,18 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 `TARGET_BRANCH: wave15/corrections-integration`
 
-`VALIDATION_PROFILE: SCRIPT_ENGINEERING, SCRIPT_RUNTIME`
+Instruction:
 
-Mission: remove the JS/Python OrdinalIgnoreCase clones and implement section **3B.2A A/B separation** exactly.
+> Main preliminary review accepts the source-binding separation candidate for independent reauditing. Preserve exact head `c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e`. Do not mutate product/tests, rebase, retarget, rerun CI or merge while AUD reviews this immutable candidate. On `SIGA`, re-read this control plane and GitHub live; if this order remains current, report `FND-04 CODEX EXECUTOR — WAIT_AUD` with the exact candidate and stop.
 
-#### Required production behavior
-
-1. Keep Engineering persisted-binding resolution against current TAG paths on `.NET StringComparison.OrdinalIgnoreCase`.
-2. Client Visual source argument -> declared `TagBinding.Reference` matching must be exact after trim. Remove custom Unicode/case-fold comparison.
-3. Server Script source argument -> declared readable reference matching must also be exact after trim. Remove Python custom Unicode/case-fold comparison and generic lowercase matching for readable path declarations.
-4. After exact declaration match:
-   - Client Visual re-proves the persisted binding reference through the existing protected reader and verifies expected TagId before read/write;
-   - Server Script host continues `VerifyTagReference(expectedTagId, persistedReference)` through the canonical Active Runtime registry before sandbox execution/replay.
-5. Legacy GUID-only dependencies remain unchanged and case-insensitive GUID parsing behavior may remain where it is identity syntax rather than readable path matching.
-6. Do not change `InMemoryTagRegistry`, Authority, endpoints, schema/migrations, drivers or workflows.
-7. Do not add any JS/Python Unicode comparer, case-fold table, locale transformation, normalization alias or second path registry.
-
-#### Mandatory review-RED against `5c77eb41...`
-
-Record test-only evidence that the rejected parity head violates the refined contract because:
-- Client source `Plant.Σ` binding with source `Plant.ς` is accepted by the custom comparer but must now be undeclared;
-- Server Script equivalent is accepted but must now be undeclared;
-- the helper itself is a second comparison authority outside the canonical registry.
-
-#### Mandatory GREEN matrix
-
-1. persisted binding `Plant.Process.LevelPct` -> A, current registry path `plant.process.levelpct` -> A: Engineering/runtime binding proof = `found`;
-2. same persisted binding, source exactly `Plant.Process.LevelPct`: Client read PASS;
-3. same persisted binding, source exactly `Plant.Process.LevelPct`: direct Client write performs fresh protected proof and writer receives A;
-4. same binding/current case-only registry change: Server Script with exact persisted source token PASS;
-5. source token `plant.process.levelpct` while persisted declaration is `Plant.Process.LevelPct`: Client FAIL undeclared before process read/write;
-6. same source mismatch: Server Script FAIL undeclared;
-7. Unicode source case variant `Plant.ς` while binding is `Plant.Σ`: both Client and Server FAIL undeclared;
-8. exact Unicode persisted token `Plant.Σ` with current registry path `plant.σ` same A: binding proof remains found and exact source token PASS;
-9. true non-case-equivalent rename/move -> `stale`;
-10. old persisted path reused by B while expecting A -> `identityDrift`, B untouched;
-11. prospective duplicate current TAG paths differing only by canonical-registry case -> `ambiguous`;
-12. missing path + expected missing -> `notFound`;
-13. undeclared unrelated source fails closed;
-14. legacy GUID compatibility PASS;
-15. package/save-load/PostgreSQL preserves exact visible binding spelling;
-16. multi-TAG readable Script PASS with exact declared tokens;
-17. exact five resolver states remain;
-18. no second resolver/comparer/TAG registry/Authority path exists;
-19. `git diff --check` + focused local evidence + fresh natural T1 PASS;
-20. no merge/freeze.
-
-Expected correction touch set is only existing section 3B allowlisted files/tests, primarily:
-- `web/scada-web/src/python-runtime/createClientVisualPythonCapabilityProvider.ts`;
-- `src/Scada.Api/Runtime/ServerScriptRunner.py`;
-- `src/Scada.Api/Runtime/IsolatedPythonScriptHandlerExecutor.cs` only if host/request mapping requires cleanup;
-- existing focused Core/Drivers/Playwright tests.
-
-If this cannot be done without widening scope, return `BLOCKED-CONTRACT`.
-
-Return exactly:
-
-`FND-04 CODEX EXECUTOR -> MAIN COORDINATOR — SOURCE-BINDING-SEPARATION HANDOFF`
-
-Include rejected `5c77eb41...` -> new head/tree, review-RED, exact changed files, 20-item matrix, proof no custom Unicode comparer remains, local evidence, natural T1 and explicit non-actions.
-
-No self-merge/freeze authority.
+Frozen evidence:
+- `5c77eb41... -> c89ad92e...` is one commit / 5 allowlisted files;
+- full FND-04 PR scope remains 20 allowlisted files;
+- custom JS/Python OrdinalIgnoreCase clones are removed from readable TAG-path/source declaration matching;
+- source -> declared binding is exact after trim;
+- binding -> current TAG path remains canonical backend proof with expected TagId;
+- natural Wave 15 T1 `35910214760` is SUCCESS;
+- no Main merge/freeze approval has been issued.
 
 ### CODEX mandatory return
 
@@ -740,25 +691,66 @@ AUD never merges its own work and never writes directly to DEV branch, integrati
 
 ### CURRENT AUD ORDER
 
-`ORDER_ID: FND04-AUD-WAIT-SOURCE-BINDING-0008`
+`ORDER_ID: FND04-AUD-REAUDIT-SOURCE-BINDING-0009`
 
-`ORDER_STATE: WAIT_NEW_IMMUTABLE_CANDIDATE`
+`ORDER_STATE: ACTIVE`
 
 `AUD_MODE: READ_ONLY_REVIEW`
 
 `BASE_SHA: a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
 
-`AUD_REJECTED_SHA: 8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
+`CANDIDATE_SHA: c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e`
 
-`MAIN_REJECTED_PARITY_SHA: 5c77eb418b83af57ccd1812c9c21fd44919b2ca0`
+`CANDIDATE_TREE: 7fa948de25e4f120566113dc8d14a0a696342a32`
 
 `PR: #336`
 
+`CANDIDATE_T1_RUN: 35910214760 / SUCCESS`
+
 Instruction:
 
-> Do not audit `5c77eb41...`. Main rejected the cross-language comparer approach because it creates a second TAG-path comparison authority. CODEX now owns a bounded correction separating canonical registry binding resolution (backend OrdinalIgnoreCase) from exact source-token declaration membership. Wait for Main to publish a new immutable SHA/tree, then independently verify the original AUD finding plus this separation contract and the prior PASS regressions.
+> Revalidate the live PR head first. If it moved from `c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e`, stop and return candidate-moved evidence. Otherwise independently re-audit this exact immutable candidate in READ_ONLY mode.
 
-Handoff routing remains Issue #305 / PR #336 supporting evidence / chat fallback.
+Mandatory re-audit focus:
+
+1. Recheck your original critical finding:
+   - persisted binding `Plant.Process.LevelPct` -> expected A;
+   - current registry path case-only variant `plant.process.levelpct` -> same A;
+   - Engineering/backend binding proof must remain found, not stale.
+2. Verify the refined section 3B.2A separation:
+   - source argument -> persisted declared binding is exact after outer trim in both Client Visual and Server Script;
+   - manually case-changed source token is undeclared and fails closed before process read/write;
+   - no JS/Python Unicode/case-fold helper, locale fold, normalization alias, second path registry or second comparer authority remains.
+3. Verify after exact declaration membership:
+   - Client Visual proves persisted binding through protected reader and expected TagId before read/write;
+   - direct write without prior read still performs fresh proof and writes stable TagId only;
+   - Server Script host verifies persisted binding against active canonical TAG registry before sandbox execution/replay.
+4. Regress original PASS items:
+   - true rename/move -> stale;
+   - old path reuse -> identityDrift, wrong TagId untouched;
+   - notFound;
+   - prospective ambiguity under canonical backend path equality;
+   - malformed binding validation separation;
+   - exact five resolver states;
+   - package/save-load/PostgreSQL exact binding preservation;
+   - multi-TAG readable Script;
+   - legacy GUID compatibility;
+   - ServerMemory isolation;
+   - Authority/security preservation;
+   - no second resolver/TAG registry/Auth path.
+5. Recheck scope: full PR remains only section 3B allowlisted files; no workflow, registry, Security/Authority, Driver, migration/schema leakage.
+6. CI: independently inspect exact-head natural T1 `35910214760` and relevant jobs.
+
+Final classification:
+- `ACCEPTABLE` only if all mandatory items pass on exact head;
+- `CHANGES_REQUIRED` for a candidate defect;
+- `BLOCKED-CONTRACT` only for a shared-contract blocker.
+
+Return using:
+`FND-04 AUD -> MAIN COORDINATOR — AUDIT HANDOFF`
+or the rejection/blocker prefixes already defined.
+
+Post to Issue #305 when GitHub-comment capability exists; supporting evidence may also go to PR #336. If posting is unavailable, return the complete handoff in the AUD chat; Main will record it. Product Owner relay is not required.
 
 ### AUD mandatory return format
 

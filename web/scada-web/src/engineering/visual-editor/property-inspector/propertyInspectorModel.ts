@@ -4,7 +4,7 @@ import type {
   VisualEngineeringPropertyValue
 } from '../../types';
 import {
-  getBuiltinVisualObjectSchema,
+  getVisualSchemaForEngineering,
   type VisualObjectPropertySchema,
   type VisualPropertyDefinition,
   type VisualPropertyValidationFailure
@@ -56,7 +56,7 @@ export function buildPropertyInspectorModel(
     }
 
     try {
-      schemas.push(getBuiltinVisualObjectSchema(element.type));
+      schemas.push(getVisualSchemaForEngineering(element.type));
     } catch {
       return {
         objectIds: [],
@@ -144,7 +144,7 @@ export function buildPropertyInspectorSetIntent(
   }
 
   for (const objectType of model.objectTypes) {
-    const validation = getBuiltinVisualObjectSchema(objectType).validate(propertyKey, value);
+    const validation = getVisualSchemaForEngineering(objectType).validate(propertyKey, value);
     if (!validation.ok) {
       return {
         ok: false,

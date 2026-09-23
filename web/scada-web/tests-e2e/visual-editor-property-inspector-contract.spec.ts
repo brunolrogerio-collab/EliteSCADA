@@ -109,6 +109,20 @@ test('fails closed for unknown types, missing stable ids and non-common properti
   expect(result.ok).toBeFalsy();
 });
 
+test('RED: known persisted legacy visual types stay selectable while arbitrary unknown types remain contained', () => {
+  for (const type of ['tank', 'value', 'dynamo', 'status']) {
+    const model = buildPropertyInspectorModel([
+      element(`legacy-${type}`, type, { x: 12, opaqueLegacyProperty: 'preserved' }, `legacy-${type}`)
+    ]);
+    expect(model.error).toBeUndefined();
+    expect(model.objectIds).toEqual([`legacy-${type}`]);
+  }
+
+  expect(buildPropertyInspectorModel([
+    element('unknown-1', 'vendor.unknown-x', {})
+  ]).error).toMatch(/not registered/);
+});
+
 test('supports typed Wave 08 value families without inventing editor-private validation', () => {
   const rectangle = buildPropertyInspectorModel([element('rect-1', 'core.rectangle', {})]);
   const width = rectangle.rows.find(row => row.definition.key === 'width')!.definition;

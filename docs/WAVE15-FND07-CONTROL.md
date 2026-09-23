@@ -4,9 +4,9 @@
 
 `CONTROL_BRANCH: coord/w15-fnd07-control`
 
-`MAIN_ORDER_REV: 0001`
+`MAIN_ORDER_REV: 0002`
 
-`STATE: PREPARED / NOT ACTIVE`
+`STATE: PREPARED / NOT ACTIVE / BLOCKED_ON_POST_FND06_AUDIT`
 
 `PREPARED_ORDER_ID: FND07-CODEX-DETACH-NEUTRAL-V1`
 
@@ -52,6 +52,35 @@ Current repository already contains reusable authority:
 10. Detach never silently deletes Historian/database state.
 11. No populated-install anonymous takeover window is allowed.
 12. Audit non-secret transition evidence.
+
+## 3A. Compatibility promise to FC0-A frozen contracts
+
+FND-07 is permitted to activate only after:
+- FND-06 VERIFIED/FROZEN; and
+- `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01` returns `ACCEPTABLE / FC0A_RELEASE_APPROVED`.
+
+The prepared FND-07 design is **compositional**, not a lifecycle/Authority/licensing redesign.
+
+Must preserve frozen downstream-consumed semantics:
+- FND-01 Working/Revisions/Published/Active authority and fail-closed lifecycle;
+- FND-02/AUTH-04 capability/scope evaluator and populated-install security invariants;
+- FND-03 machine-license trust, install/replace/remove transaction semantics, Runtime lease/authority re-evaluation and shared quota meaning;
+- FND-04 Script contract and FND-06 visual authority are unaffected by detach orchestration.
+
+Allowed FND-07 additions include:
+- one protected detach/preflight transaction that coordinates existing authorities;
+- runtime/process-effect fence before detach;
+- old Authority session/token invalidation;
+- truthful neutral bootstrap orchestration;
+- explicit license keep/remove/replace through existing FND-03 authority;
+- additive status/result surfaces for later Installation UX.
+
+Shared shell/router changes needed to expose neutral bootstrap are integration hotspots, not permission to redefine lifecycle/Authority/licensing semantics.
+
+If implementation requires changing the meaning of a frozen FND-01/FND-02/FND-03 contract consumed by FC0-A DEVs, stop:
+`FND-07 -> BLOCKED-CONTRACT -> MAIN`.
+
+No such breaking change is currently identified by the prepared source audit; final approval belongs to the mandatory post-FND06 audit.
 
 ## 4. Prepared first implementation slice
 
@@ -105,7 +134,7 @@ No anonymous populated-install restore, direct DB hacks, silent Historian deleti
 
 ## 7. Activation dependency
 
-FND-01/FND-02/FND-03 prerequisites are frozen, but this order remains PREPARED because the sequential high-risk Foundation executor is currently assigned to FND-06.
+FND-01/FND-02/FND-03 prerequisites are frozen, but this order remains PREPARED until FND-06 is VERIFIED/FROZEN and the mandatory post-FND06 FC0-A Foundation Closure Audit passes.
 
 Intended sequencing:
 - FND-06 -> FC0-A release;

@@ -78,16 +78,12 @@ INFRA-CI-01A is no longer a blocker.
 
 ## FND-04 current Main gate
 
-- PR #336 immutable candidate: `c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e`
-- reported tree: `7fa948de25e4f120566113dc8d14a0a696342a32`
-- natural Wave 15 T1 `35910214760`: SUCCESS
-- Main disposition: **ACCEPTED FOR INDEPENDENT REAUDIT / NOT INTEGRATED**
-- source declaration matching: exact after trim in Client Visual + Server Script
-- persisted binding -> current TAG path: canonical backend registry proof with expected TagId
-- no JS/Python Unicode readable-path comparer clone
-- CODEX: `FND04-CODEX-WAIT-REAUDIT-09 / WAIT_AUD / NO_MUTATION`
-- AUD: `FND04-AUD-REAUDIT-SOURCE-BINDING-0009 / ACTIVE / READ_ONLY_REVIEW`
-- control commit: `9d1baec56ae723d68bc3a58dd00b1903417caa5b`
-- canonical handoff commit: `aaded72a8df22b9f1d9cde30a7ff5fa300d8b312`
-- no merge/freeze authority
-
+- PR #336: MERGED
+- exact merge SHA: `6c810647c9773a19b212d9c33694780141786ac7`
+- merge tree: `1221ff55963052be4e924dd644efbaa65763f546`
+- AUD: ACCEPTABLE on exact candidate `c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e`
+- post-merge EliteSCADA CI `35913456486`: IN PROGRESS
+- Web build: SUCCESS
+- Backend build/test/smoke: IN PROGRESS
+- state: **INTEGRATED / POST-MERGE CI PENDING / NOT YET VERIFIED-FROZEN**
+- control plane commit: `bb876c51bb1bb116e0f33b2a61291bf78a213b2c`

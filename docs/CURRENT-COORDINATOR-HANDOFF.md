@@ -27,7 +27,7 @@ The infra delta is acknowledged workflow/router/policy only. It does not redefin
 
 ## Active CODEX mission
 
-`ORDER_ID: FND04-CODEX-REVIEW-CLOSE-04`  
+`ORDER_ID: FND04-CODEX-WAIT-AUD-05`  
 `ORDER_STATE: ACTIVE`
 
 Exact product base:
@@ -50,7 +50,18 @@ PR #336 head `21e2ab69a71844d56acf1b7913dc67097697f6ae` is rejected by Main prel
 ## Other lanes
 
 - Normal FND-04 DEV — BLOCKED_ENV / WATCH_ONLY.
-- FND-04 AUD — WAIT_CORRECTED_CANDIDATE / READ_ONLY.
+- FND-04 AUD — ACTIVE / READ_ONLY_REVIEW.
 - FND-03 DEV — WAIT / frozen.
 
 Main retains candidate review, integration, post-merge verification and freeze authority.
+
+
+## FND-04 corrected candidate under audit
+
+- candidate: `8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
+- tree: `393938536ee524d2bd7c713ed9f791679fd6c2cb`
+- PR #336 natural T1 `35895957135` — SUCCESS
+- Main preliminary review: prior known blockers closed
+- CODEX: `WAIT_AUD / NO_MUTATION`
+- AUD: `FND04-AUD-CANDIDATE-0005 / ACTIVE / READ_ONLY_REVIEW`
+- no integration/freeze yet

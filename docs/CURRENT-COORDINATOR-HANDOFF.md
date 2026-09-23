@@ -56,8 +56,8 @@ WAIT. FND-03 is frozen; no active mission.
 
 ### FND-04 DEV
 
-`ORDER_STATE: ACTIVE`  
-`ORDER_ID: FND04-DEV-TAGREF-V1-01`
+`ORDER_STATE: BLOCKED_ENV / WATCH_ONLY`  
+`ORDER_ID: FND04-DEV-ENV-HOLD-02`
 
 Exact base:
 `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
@@ -68,11 +68,18 @@ Work branch:
 Dedicated control plane:
 `coord/w15-fnd04-dev-aud-control:docs/WAVE15-FND04-DEV-AUD-CONTROL.md`
 
-Activation control commit:
-`cea43de5141824057822657d35ed2fb32b3d03f4`
+Current control commit:
+`e871d51238881824e57778cf884b246ba8163bec`
 
 Plan:
 `FND04-TAGREF-V1`
+
+### FND-04 CODEX EXECUTOR
+
+`ORDER_STATE: ACTIVE`  
+`ORDER_ID: FND04-CODEX-TAGREF-V1-01`
+
+Uses the same exact FND-04 base/branch/plan with a functional local checkout/runtime. Mandatory RED-1/RED-2/RED-3 precede production; no merge authority.
 
 ### FND-04 AUD
 
@@ -86,6 +93,6 @@ BLOCKED until FND-04 + FND-06 + INFRA-CI-01 satisfy their gates.
 
 FND-03 has completed the full state machine through VERIFIED/FROZEN on exact SHA `a3eb86f8...`.
 
-FND-04 is the active Foundation implementation lane. DEV may execute the frozen plan with bounded autonomy inside its allowlist; AUD waits for an immutable candidate. In parallel, CODEX owns INFRA-CI-01A on an isolated workflow branch to remove the universal ~14-minute full gate from ordinary Wave 15 leaf PRs without reducing coverage. Main retains review/integration/freeze authority for both lanes.
+FND-04 remains the active Foundation lane, but the normal DEV chat is environment-blocked and watch-only. Execution has been delegated to a dedicated FND-04 Codex runtime executor under the exact same frozen plan/base/branch. AUD waits for an immutable candidate. Separately, the original CODEX lane continues INFRA-CI-01A on its isolated workflow branch. Main retains review/integration/freeze authority.
 
 Do not ask the Product Owner to carry agent messages.

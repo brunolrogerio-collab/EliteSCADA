@@ -103,3 +103,22 @@ PR #335 head `2069f4cb1ea398da615286001102fa44cbc35e67` has natural T1 CI green,
 - `AUTHORITY_UX`, `LICENSING_UX` and `ELITEGO_RUNTIME` did not independently request their owning backend evidence.
 
 CODEX order is now `INFRA-CI-01A-REVIEW-CLOSE-02`; correction remains inside the original six-file allowlist. PR #335 is not approved for merge yet.
+
+
+## FND-04 environment disposition
+
+The original FND-04 DEV chat reported `BLOCKED-ENV` before any RED test or product/test mutation because its local runtime cannot reach GitHub and the connector cannot execute dotnet/Node/Playwright.
+
+Main accepted the blocker and preserved the branch untouched at:
+
+`a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
+
+Execution is now delegated to a dedicated functional-runtime lane:
+
+`FND04-CODEX-TAGREF-V1-01`
+
+Control commit:
+
+`e871d51238881824e57778cf884b246ba8163bec`
+
+The normal DEV chat is `BLOCKED_ENV / WATCH_ONLY`; FND-04 AUD remains `WAIT_CANDIDATE`. The Codex executor must use the exact same section 3B plan, RED-before-production sequence, allowlists, branch and no-merge boundary.

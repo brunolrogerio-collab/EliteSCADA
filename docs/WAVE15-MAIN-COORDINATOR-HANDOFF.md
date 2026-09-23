@@ -291,22 +291,30 @@ Scope exclusions: License Generator UI; full #304 detach/switch UX; Authority A-
 
 ## 4. MAIN COORDINATOR -> FND-04 DEV — CURRENT ORDER
 
-**ORDER_STATE: ACTIVE**  
-**ORDER_ID: FND04-DEV-TAGREF-V1-01**  
+**ORDER_STATE: BLOCKED_ENV / WATCH_ONLY**  
+**ORDER_ID: FND04-DEV-ENV-HOLD-02**  
 **Exact product base:** `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`  
 **Base tree:** `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`  
-**Work branch:** `work/w15-fnd-04-script-tag-reference-resolution`  
-**Target:** `wave15/corrections-integration`  
-**Validation profile:** `SCRIPT_ENGINEERING, SCRIPT_RUNTIME`
+**Work branch:** `work/w15-fnd-04-script-tag-reference-resolution`
 
-The dedicated control plane is authoritative for implementation details:
+Main accepts the normal DEV chat's environment blocker: connector-only access cannot execute the mandatory local RED/GREEN evidence. The branch remains untouched at the exact base.
 
-- branch: `coord/w15-fnd04-dev-aud-control`
-- file: `docs/WAVE15-FND04-DEV-AUD-CONTROL.md`
-- Main control commit at activation: `cea43de5141824057822657d35ed2fb32b3d03f4`
-- plan: `FND04-TAGREF-V1`, section 3B.
+The normal DEV chat must not create a competing implementation. It remains available for live revalidation and later review.
 
-DEV has bounded autonomy inside that closed plan to iterate RED -> implementation -> focused tests -> push -> natural CI, without Main micro-orders. No scope/contract widening or self-merge is authorized.
+### Delegated executable lane
+
+A dedicated **FND-04 CODEX EXECUTOR** is now ACTIVE under the same frozen plan:
+
+- control branch/file: `coord/w15-fnd04-dev-aud-control:docs/WAVE15-FND04-DEV-AUD-CONTROL.md`
+- control commit: `e871d51238881824e57778cf884b246ba8163bec`
+- executor order: `FND04-CODEX-TAGREF-V1-01`
+- source plan: `FND04-TAGREF-V1 / section 3B`
+- exact same base/branch/allowlists
+- RED-1/RED-2/RED-3 must execute before production
+- local dotnet/Node/Playwright GREEN evidence required
+- no scope widening, no self-merge, no freeze authority.
+
+This is an execution substitution only; architecture and DEV ownership semantics are unchanged.
 ---
 
 ## 5. MAIN COORDINATOR -> FND-04 AUD — CURRENT ORDER

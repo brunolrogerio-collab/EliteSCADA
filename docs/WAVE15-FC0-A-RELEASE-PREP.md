@@ -15,7 +15,7 @@ As of preparation:
 - FND-03 global — VERIFIED/FROZEN;
 - INFRA-CI-01A — VERIFIED/FROZEN;
 - FND-04 — VERIFIED/FROZEN at `6c810647c9773a19b212d9c33694780141786ac7` / tree `1221ff55963052be4e924dd644efbaa65763f546`; exact post-merge CI `35913456486` SUCCESS;
-- FND-06 — ACTIVE on exact product base `6c810647c9773a19b212d9c33694780141786ac7`, order `FND06-CODEX-VISUAL-STABILITY-V1`, not yet integrated/frozen.
+- FND-06 — ACTIVE on exact product base `6c810647c9773a19b212d9c33694780141786ac7`, order `FND06-CODEX-VISUAL-STABILITY-V2`, not yet integrated/frozen.
 
 FC0-A remains blocked **only by FND-06 VERIFIED/FROZEN**.
 
@@ -204,3 +204,11 @@ Remain blocked on additional dependencies:
 - P2 recovery lanes — wait for relevant upstream corrections.
 
 No lane may infer release merely because this preparation document exists.
+
+
+## 6. Current FND-06 activation metadata
+
+- active FND-06 order: `FND06-CODEX-VISUAL-STABILITY-V2`
+- FND-06 validation profile: `UI_EDITOR, RUNTIME_RENDERER`
+- FND-06 control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`
+- FC0-A remains blocked until that Foundation slice is integrated, post-merge green and explicitly frozen by Main.

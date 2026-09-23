@@ -166,6 +166,28 @@ test('Client Visual denies an undeclared readable TAG reference before it can re
   expect(writes).toEqual([]);
 });
 
+test('Client Visual accepts case-equivalent readable paths but still writes only the persisted stable TAG ID', async () => {
+  const expectedTagId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  const persistedReference = 'Plant.Área.Nível';
+  const sourceReference = 'plant.área.nível';
+  const reads: string[] = [];
+  const writes: Array<{ reference: string; value: unknown }> = [];
+  const provider = createClientVisualPythonCapabilityProvider({
+    tagDependencies: [readableTagDependency(persistedReference, expectedTagId)],
+    tagReader: async reference => {
+      reads.push(reference);
+      return runtimeTagDetail(expectedTagId, persistedReference);
+    },
+    tagWriter: async (reference, value) => { writes.push({ reference, value }); }
+  });
+
+  await provider.readTag(sourceReference);
+  await provider.writeTag!(sourceReference, 42);
+
+  expect(reads).toEqual([persistedReference, persistedReference]);
+  expect(writes).toEqual([{ reference: expectedTagId, value: 42 }]);
+});
+
 test('Engineering preview can explicitly remove process TAG-write authority while preserving the same sandbox bridge contract', async () => {
   const previewProvider = createClientVisualPythonCapabilityProvider({ tagWriter: null });
   expect(previewProvider.writeTag).toBeUndefined();

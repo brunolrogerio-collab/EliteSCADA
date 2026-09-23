@@ -45,7 +45,7 @@ public sealed class ScriptEngineeringReferenceResolverTests
         var resolver = ScriptEngineeringReferenceResolver.Create(
             [
                 new TagEngineeringDto(firstId, "First", "Plant.Shared.Level", TagDataType.Double, "plc"),
-                new TagEngineeringDto(secondId, "Second", "Plant.Shared.Level", TagDataType.Double, "plc")
+                new TagEngineeringDto(secondId, "Second", "plant.shared.level", TagDataType.Double, "plc")
             ],
             [new DataSourceEngineeringDto(Guid.NewGuid(), "plc", "PLC", "modbus.tcp")]);
         var dependency = new ScriptEngineeringDependency(
@@ -57,6 +57,31 @@ public sealed class ScriptEngineeringReferenceResolverTests
         Assert.Equal(
             ["Found", "NotFound", "Ambiguous", "Stale", "IdentityDrift"],
             Enum.GetNames<ScriptTagReferenceResolutionState>());
+    }
+
+    [Fact]
+    public void ResolveTagBinding_TreatsCaseOnlyVisiblePathChangesAsTheSameCanonicalTag()
+    {
+        var processId = Guid.Parse("10000000-0000-0000-0000-0000000000d1");
+        var unicodeId = Guid.Parse("10000000-0000-0000-0000-0000000000d2");
+        var resolver = ScriptEngineeringReferenceResolver.Create(
+            [
+                new TagEngineeringDto(processId, "Level", "plant.process.levelpct", TagDataType.Double, "plc"),
+                new TagEngineeringDto(unicodeId, "Nível", "plant.área.nível", TagDataType.Double, "plc")
+            ],
+            [new DataSourceEngineeringDto(Guid.NewGuid(), "plc", "PLC", "modbus.tcp")]);
+
+        var processBinding = new ScriptEngineeringDependency(
+            ScriptEngineeringDependencyKind.Tag,
+            processId.ToString("D"),
+            new ScriptTagReferenceBinding(1, "Plant.Process.LevelPct", new TagValueReference(processId)));
+        var unicodeBinding = new ScriptEngineeringDependency(
+            ScriptEngineeringDependencyKind.Tag,
+            unicodeId.ToString("D"),
+            new ScriptTagReferenceBinding(1, "Plant.Área.Nível", new TagValueReference(unicodeId)));
+
+        Assert.Equal(ScriptTagReferenceResolutionState.Found, resolver.ResolveTagBinding(processBinding).State);
+        Assert.Equal(ScriptTagReferenceResolutionState.Found, resolver.ResolveTagBinding(unicodeBinding).State);
     }
 
     [Fact]

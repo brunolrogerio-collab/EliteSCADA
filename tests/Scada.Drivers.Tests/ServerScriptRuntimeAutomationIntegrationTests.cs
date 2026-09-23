@@ -87,6 +87,26 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
     }
 
     [Fact]
+    public async Task ServerScript_CaseVariantReadableTagReference_ResolvesTheDeclaredStableDependency()
+    {
+        var eventBus = new InMemoryScadaEventBus();
+        var tagId = Guid.NewGuid();
+        await using var runtime = CreateRuntime(eventBus);
+        var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, Configuration());
+
+        Assert.True((await manager.ActivateRuntimeAsync(
+            "case-readable-tag",
+            1,
+            TimerPackage(tagId, initialValue: 0, revisionMarker: "case-readable", readableReference: true, caseVariantReference: true))).Activated);
+
+        await WaitUntilAsync(
+            () => runtime.TryGetCurrent(tagId, out var current) && Convert.ToInt32(current!.Value) >= 1,
+            TimeSpan.FromSeconds(3));
+
+        await manager.DisposeAsync();
+    }
+
+    [Fact]
     public async Task ServerScript_MultipleReadableTagReferencesResolveOnlyTheirDeclaredStableDependencies()
     {
         var eventBus = new InMemoryScadaEventBus();
@@ -241,14 +261,18 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
         Guid tagId,
         int initialValue,
         string revisionMarker,
-        bool readableReference = false)
+        bool readableReference = false,
+        bool caseVariantReference = false)
     {
         var tagReference = tagId.ToString("D");
+        var readableTagReference = caseVariantReference
+            ? "simulation.processstate"
+            : "Simulation.ProcessState";
         var source = readableReference
-            ? """
+            ? $"""
 def timer(event):
-    current = read_tag("Simulation.ProcessState")
-    write_tag("Simulation.ProcessState", current + 1)
+    current = read_tag("{readableTagReference}")
+    write_tag("{readableTagReference}", current + 1)
 """
             : $"""
 def initialize(event):

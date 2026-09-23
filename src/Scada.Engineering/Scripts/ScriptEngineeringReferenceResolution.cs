@@ -214,7 +214,7 @@ public sealed class ScriptEngineeringReferenceResolver
         var expected = Resolve(dependency.Kind, dependency.StableReference).Target;
         var visible = References
             .Where(target => target.Kind == dependency.Kind &&
-                string.Equals(target.EntityPath, binding.Reference.Trim(), StringComparison.Ordinal))
+                string.Equals(target.EntityPath, binding.Reference.Trim(), StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
         if (visible.Length > 1)

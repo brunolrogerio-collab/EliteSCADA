@@ -152,7 +152,7 @@ function createDeclaredTagResolver(
 
   return Object.freeze({
     resolve(reference: string): DeclaredTagReference {
-      const normalized = reference.trim();
+      const normalized = normalizeReference(reference);
       const declared = references.get(normalized);
       if (!normalized || rejected.has(normalized) || !declared) {
         throw new Error(`TAG reference '${reference}' is not declared by this Client Visual Script.`);
@@ -168,13 +168,20 @@ function addDeclaredReference(
   reference: string,
   declared: DeclaredTagReference
 ): void {
-  const existing = references.get(reference);
+  const normalized = normalizeReference(reference);
+  const existing = references.get(normalized);
   if (existing && existing.expectedTagId !== declared.expectedTagId) {
-    references.delete(reference);
-    rejected.add(reference);
+    references.delete(normalized);
+    rejected.add(normalized);
     return;
   }
-  if (!rejected.has(reference)) references.set(reference, declared);
+  if (!rejected.has(normalized)) references.set(normalized, declared);
+}
+
+function normalizeReference(reference: string): string {
+  // Mirrors the canonical TAG registry's case-insensitive path ownership. This
+  // is a lookup key only; the persisted visible spelling remains unchanged.
+  return reference.trim().toLocaleLowerCase('en-US');
 }
 
 function verifyExpectedTagIdentity(

@@ -7,6 +7,37 @@ namespace Scada.Core.Tests;
 public sealed class ScriptEngineeringReferenceResolverTests
 {
     [Fact]
+    public void ResolveTagBinding_SeparatesFoundIdentityDriftStaleAndNotFound()
+    {
+        var expectedId = Guid.Parse("10000000-0000-0000-0000-0000000000a1");
+        var reusedPathId = Guid.Parse("10000000-0000-0000-0000-0000000000a2");
+        var resolver = ScriptEngineeringReferenceResolver.Create(
+            [
+                new TagEngineeringDto(expectedId, "Old Level", "Plant.Old.Level", TagDataType.Double, "plc"),
+                new TagEngineeringDto(reusedPathId, "Level", "Plant.Level", TagDataType.Double, "plc")
+            ],
+            [new DataSourceEngineeringDto(Guid.NewGuid(), "plc", "PLC", "modbus.tcp")]);
+
+        ScriptEngineeringDependency Dependency(string reference, Guid id) => new(
+            ScriptEngineeringDependencyKind.Tag,
+            id.ToString("D"),
+            new ScriptTagReferenceBinding(1, reference, new TagValueReference(id)));
+
+        Assert.Equal(
+            ScriptTagReferenceResolutionState.Found,
+            resolver.ResolveTagBinding(Dependency("Plant.Level", reusedPathId)).State);
+        Assert.Equal(
+            ScriptTagReferenceResolutionState.IdentityDrift,
+            resolver.ResolveTagBinding(Dependency("Plant.Level", expectedId)).State);
+        Assert.Equal(
+            ScriptTagReferenceResolutionState.Stale,
+            resolver.ResolveTagBinding(Dependency("Plant.Missing", expectedId)).State);
+        Assert.Equal(
+            ScriptTagReferenceResolutionState.NotFound,
+            resolver.ResolveTagBinding(Dependency("Plant.Missing", Guid.NewGuid())).State);
+    }
+
+    [Fact]
     public void Create_ClassifiesSharedClientMemoryServerMemoryAndVisualReferencesDeterministically()
     {
         var processTagId = Guid.Parse("10000000-0000-0000-0000-000000000001");

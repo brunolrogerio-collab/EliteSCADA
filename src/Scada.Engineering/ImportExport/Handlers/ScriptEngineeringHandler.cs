@@ -86,7 +86,8 @@ internal sealed class ScriptEngineeringHandler
         var referenceResolver = BuildReferenceResolver(package);
         var validation = _validator.Validate(
             new ScriptEngineeringModel(prospectiveScripts, prospectiveReferences),
-            referenceResolver.ToValidationCatalog());
+            referenceResolver.ToValidationCatalog(),
+            referenceResolver);
 
         foreach (var script in incoming)
         {

@@ -30,10 +30,12 @@ export function createClientVisualPythonCapabilityProvider(
   const tagWriter = options.tagWriter === undefined ? writeRuntimeTagValue : options.tagWriter;
   const memoryStore = options.memoryStore ?? clientMemory;
   const visualPropertyProvider = options.visualPropertyProvider;
+  const resolvedTagIds = new Map<string, string>();
 
   return {
     async readTag(reference) {
       const detail = await tagReader(reference);
+      resolvedTagIds.set(reference, detail.tag.id);
       return {
         id: detail.tag.id,
         name: detail.tag.name,
@@ -52,8 +54,9 @@ export function createClientVisualPythonCapabilityProvider(
 
     writeTag: tagWriter
       ? async (reference, value) => {
-          await tagWriter(reference, value);
-          return { accepted: true, reference };
+          const stableReference = resolvedTagIds.get(reference) ?? reference;
+          await tagWriter(stableReference, value);
+          return { accepted: true, reference: stableReference };
         }
       : undefined,
 

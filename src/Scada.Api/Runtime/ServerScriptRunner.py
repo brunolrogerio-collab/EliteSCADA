@@ -307,7 +307,7 @@ class SafeInterpreter:
 
     def _require_tag_argument(self, args, operation):
         if len(args) != 1:
-            raise ScriptError(f"{operation} requires one stable TAG ID.")
+            raise ScriptError(f"{operation} requires one declared TAG reference.")
         key = str(args[0]).lower()
         if key not in self.values:
             raise ScriptError("TAG is not an active declared dependency.")
@@ -315,7 +315,7 @@ class SafeInterpreter:
 
     def _require_write_arguments(self, args, operation):
         if len(args) != 2:
-            raise ScriptError(f"{operation} requires stable TAG ID and value.")
+            raise ScriptError(f"{operation} requires a declared TAG reference and value.")
         key = str(args[0]).lower()
         if key not in self.values:
             raise ScriptError("TAG is not an active declared dependency.")

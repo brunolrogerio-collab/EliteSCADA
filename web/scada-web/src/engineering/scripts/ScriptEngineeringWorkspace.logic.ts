@@ -258,8 +258,18 @@ function normalizeEntryPoint(raw: Record<string, unknown>): ScriptEngineeringEnt
 function normalizeDependency(raw: Record<string, unknown>): ScriptEngineeringDependency {
   return {
     kind: normalizeDependencyKind(raw.kind),
-    stableReference: String(raw.stableReference ?? '')
+    stableReference: String(raw.stableReference ?? ''),
+    tagBinding: normalizeTagBinding(raw.tagBinding)
   };
+}
+
+function normalizeTagBinding(value: unknown): ScriptEngineeringDependency['tagBinding'] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  const reference = typeof raw.reference === 'string' ? raw.reference : '';
+  const version = typeof raw.version === 'number' ? raw.version : 0;
+  const expected = normalizeTagReference(raw.expected);
+  return reference && version > 0 && expected ? { version, reference, expected } : null;
 }
 
 function normalizeTagReference(value: unknown): ScriptEngineeringEntryPoint['tagReference'] {

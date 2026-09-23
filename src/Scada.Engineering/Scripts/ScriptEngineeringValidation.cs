@@ -104,7 +104,8 @@ public sealed class ScriptEngineeringValidator
 
     public ScriptEngineeringValidationResult Validate(
         ScriptEngineeringModel model,
-        ScriptEngineeringReferenceCatalog? referenceCatalog = null)
+        ScriptEngineeringReferenceCatalog? referenceCatalog = null,
+        ScriptEngineeringReferenceResolver? referenceResolver = null)
     {
         ArgumentNullException.ThrowIfNull(model);
 
@@ -123,7 +124,7 @@ public sealed class ScriptEngineeringValidator
             .OrderBy(item => item.Path, StringComparer.Ordinal)
             .ThenBy(item => item.Id))
         {
-            ValidateScript(script, scriptsById, referenceCatalog, issues);
+            ValidateScript(script, scriptsById, referenceCatalog, referenceResolver, issues);
         }
 
         var nonEmptyIdCount = scripts.Count(script => script.Id != Guid.Empty);
@@ -177,6 +178,7 @@ public sealed class ScriptEngineeringValidator
         ScriptEngineeringDefinition script,
         IReadOnlyDictionary<Guid, ScriptEngineeringDefinition> scriptsById,
         ScriptEngineeringReferenceCatalog? referenceCatalog,
+        ScriptEngineeringReferenceResolver? referenceResolver,
         ICollection<ScriptEngineeringValidationIssue> issues)
     {
         var entityKey = string.IsNullOrWhiteSpace(script.Path)
@@ -216,7 +218,7 @@ public sealed class ScriptEngineeringValidator
             Add("SCRIPT_SOURCE_REQUIRED", "Python source is required.");
 
         ValidateEntryPoints(script, scriptId, entityKey, issues);
-        ValidateDependencies(script, scriptsById, referenceCatalog, scriptId, entityKey, issues);
+        ValidateDependencies(script, scriptsById, referenceCatalog, referenceResolver, scriptId, entityKey, issues);
 
         if (CanMapToRuntime(script))
         {
@@ -305,6 +307,7 @@ public sealed class ScriptEngineeringValidator
         ScriptEngineeringDefinition script,
         IReadOnlyDictionary<Guid, ScriptEngineeringDefinition> scriptsById,
         ScriptEngineeringReferenceCatalog? referenceCatalog,
+        ScriptEngineeringReferenceResolver? referenceResolver,
         Guid? scriptId,
         string entityKey,
         ICollection<ScriptEngineeringValidationIssue> issues)
@@ -377,6 +380,17 @@ public sealed class ScriptEngineeringValidator
                 Add(
                     "SCRIPT_DEPENDENCY_REFERENCE_MISSING",
                     $"Required dependency '{dependency.Kind}:{dependency.StableReference}' could not be resolved.");
+            }
+
+            if (dependency.TagBinding is not null && referenceResolver is not null)
+            {
+                var resolution = referenceResolver.ResolveTagBinding(dependency);
+                if (!resolution.IsResolved)
+                {
+                    Add(
+                        $"SCRIPT_TAG_BINDING_{resolution.State.ToString().ToUpperInvariant()}",
+                        $"Readable TAG reference '{dependency.TagBinding.Reference}' is {resolution.State.ToString().ToLowerInvariant()} for the declared stable dependency.");
+                }
             }
         }
 

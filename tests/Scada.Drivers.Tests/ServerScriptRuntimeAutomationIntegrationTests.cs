@@ -62,6 +62,31 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
     }
 
     [Fact]
+    public async Task RED_3_ServerScript_ReadableTagReference_ResolvesDeclaredStableDependency()
+    {
+        var eventBus = new InMemoryScadaEventBus();
+        var tagId = Guid.NewGuid();
+        await using var runtime = CreateRuntime(eventBus);
+        var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, Configuration());
+
+        Assert.True((await manager.ActivateRuntimeAsync(
+            "readable-tag-red",
+            1,
+            TimerPackage(tagId, initialValue: 0, revisionMarker: "readable", readableReference: true))).Activated);
+
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(3);
+        while ((!runtime.TryGetCurrent(tagId, out var current) || Convert.ToInt32(current!.Value) < 1) &&
+               DateTimeOffset.UtcNow < deadline)
+            await Task.Delay(20);
+
+        Assert.True(
+            runtime.TryGetCurrent(tagId, out var final) && Convert.ToInt32(final!.Value) >= 1,
+            manager.Snapshot().Scripts.Single().Diagnostics.LastSanitizedError);
+
+        await manager.DisposeAsync();
+    }
+
+    [Fact]
     public async Task RevisionBoundAccess_RejectsObsoleteGenerationWithSameStableTagId()
     {
         var eventBus = new InMemoryScadaEventBus();
@@ -192,10 +217,17 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
     private static EngineeringPackage TimerPackage(
         Guid tagId,
         int initialValue,
-        string revisionMarker)
+        string revisionMarker,
+        bool readableReference = false)
     {
         var tagReference = tagId.ToString("D");
-        var source = $"""
+        var source = readableReference
+            ? """
+def timer(event):
+    current = read_tag("Simulation.ProcessState")
+    write_tag("Simulation.ProcessState", current + 1)
+"""
+            : $"""
 def initialize(event):
     write_server_memory("{tagReference}", 1)
 
@@ -212,18 +244,24 @@ def timer(event):
             entryPoints: new[]
             {
                 new ScriptEngineeringEntryPoint(
-                    ScriptEngineeringEventKind.Initialize,
-                    "initialize"),
-                new ScriptEngineeringEntryPoint(
                     ScriptEngineeringEventKind.Timer,
                     "timer",
                     TimerIntervalMs: 100)
-            },
+            }.Concat(readableReference
+                ? Array.Empty<ScriptEngineeringEntryPoint>()
+                : new[] { new ScriptEngineeringEntryPoint(ScriptEngineeringEventKind.Initialize, "initialize") })
+             .ToArray(),
             dependencies: new[]
             {
                 new ScriptEngineeringDependency(
                     ScriptEngineeringDependencyKind.ServerMemoryTag,
-                    tagReference)
+                    tagReference,
+                    readableReference
+                        ? new ScriptTagReferenceBinding(
+                            1,
+                            "Simulation.ProcessState",
+                            new TagValueReference(tagId))
+                        : null)
             });
 
         return new EngineeringPackage(

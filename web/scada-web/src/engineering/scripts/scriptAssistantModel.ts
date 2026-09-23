@@ -232,7 +232,7 @@ function buildTag(
   const sourceIdentityStatus = dataSourceId
     ? (dataSource ? 'stable' : 'unresolved')
     : tag.source?.trim() ? 'legacy' : 'none';
-  const canonicalReference = id || null;
+  const canonicalReference = tag.path?.trim() || null;
   const snippets: ScriptAssistantSnippet[] = [];
 
   snippets.push(canonicalReference

@@ -272,6 +272,20 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
         }
     }
 
+    internal void VerifyTagReference(Guid expectedTagId, string reference)
+    {
+        if (_runtime.TryGetTagByPath(reference, out var actual) && actual is not null)
+        {
+            if (actual.Id != expectedTagId)
+                throw new ScriptExecutionDiagnosticException($"Declared TAG reference '{reference}' has identity drift.");
+
+            return;
+        }
+
+        throw new ScriptExecutionDiagnosticException(
+            $"Declared TAG reference '{reference}' is stale for stable TAG '{expectedTagId:D}'.");
+    }
+
     internal async ValueTask<T> ExecuteAgainstActiveRevisionAsync<T>(
         string projectKey,
         long revision,
@@ -457,7 +471,13 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
             entry.TimerIntervalMs)).ToArray(),
         script.Dependencies.Select(dependency => new PythonScriptDependency(
             dependency.Kind.ToString(),
-            dependency.StableReference)).ToArray(),
+            dependency.StableReference,
+            dependency.TagBinding is null
+                ? null
+                : new PythonScriptTagReferenceBinding(
+                    dependency.TagBinding.Version,
+                    dependency.TagBinding.Reference,
+                    dependency.TagBinding.Expected))).ToArray(),
         script.Metadata);
 
     private static PythonScriptEventKind ToPythonEventKind(ScriptEngineeringEventKind kind) => kind switch

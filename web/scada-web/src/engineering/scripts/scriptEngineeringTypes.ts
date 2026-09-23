@@ -33,6 +33,13 @@ export type ScriptEngineeringEntryPoint = {
 export type ScriptEngineeringDependency = {
   kind: ScriptEngineeringDependencyKind;
   stableReference: string;
+  tagBinding?: ScriptTagReferenceBinding | null;
+};
+
+export type ScriptTagReferenceBinding = {
+  version: number;
+  reference: string;
+  expected: TagValueReferenceEngineering;
 };
 
 export type ScriptEngineeringDefinition = {

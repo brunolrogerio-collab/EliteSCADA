@@ -15,7 +15,7 @@
 - FND-03 — **VERIFIED/FROZEN**.
 - FND-04 — **ACTIVE / FND04-TAGREF-V1 / NOT INTEGRATED**.
 - FND-06 — NOT STARTED.
-- INFRA-CI-01 — AUDITED / IMPLEMENTATION PENDING.
+- INFRA-CI-01A — INTEGRATED / POST-MERGE VERIFICATION PENDING.
 - FC0-A — BLOCKED on FND-04 + FND-06 + INFRA-CI-01.
 
 ## Latest verified product checkpoint
@@ -42,13 +42,16 @@ Coordination/documentation HEAD may be ahead of the product checkpoint. Do not t
 
 ### CODEX
 
-`ORDER_STATE: ACTIVE`  
-`ORDER_ID: INFRA-CI-01A-FINAL-CLOSE-03`
+`ORDER_STATE: WAIT_DEPENDENCY`  
+`ORDER_ID: INFRA-CI-01A-POSTMERGE-GATE-04`
 
-Branch:
-`work/w15-infra-ci-01-profile-orchestration`
+PR #335 is merged at exact SHA:
+`9f62ad56e3fed5574bab1fa25fc8b64f9e4ae981`
 
-Mission: correct PR #335 risk-floor defects found by Main review: real FND-04 path inference, manual-dispatch full-branch delta, and owning backend evidence for AUTHORITY_UX / LICENSING_UX / ELITEGO_RUNTIME. Six-file scope unchanged; no merge authority.
+Broad integrated CI #1560 / `35864708583` is the remaining infra gate.
+
+The same CODEX is reserved for FND-04 immediately after Main closes this exact integrated gate. No second FND-04 CODEX implementation lane is authorized.
+
 
 ### FND-03 DEV
 
@@ -76,10 +79,10 @@ Plan:
 
 ### FND-04 CODEX EXECUTOR
 
-`ORDER_STATE: ACTIVE`  
-`ORDER_ID: FND04-CODEX-TAGREF-V1-01`
+`ORDER_STATE: WAIT_DEPENDENCY`  
+`ORDER_ID: FND04-CODEX-WAIT-INFRA-02`
 
-Uses the same exact FND-04 base/branch/plan with a functional local checkout/runtime. Mandatory RED-1/RED-2/RED-3 precede production; no merge authority.
+Reserved for the same CODEX after INFRA-CI-01A post-merge verification. FND-04 branch remains untouched; no RED/product mutation yet.
 
 ### FND-04 AUD
 
@@ -93,6 +96,6 @@ BLOCKED until FND-04 + FND-06 + INFRA-CI-01 satisfy their gates.
 
 FND-03 has completed the full state machine through VERIFIED/FROZEN on exact SHA `a3eb86f8...`.
 
-FND-04 remains the active Foundation lane, but the normal DEV chat is environment-blocked and watch-only. Execution has been delegated to a dedicated FND-04 Codex runtime executor under the exact same frozen plan/base/branch. AUD waits for an immutable candidate. Separately, the original CODEX lane continues INFRA-CI-01A on its isolated workflow branch. Main retains review/integration/freeze authority.
+FND-04 remains the active Foundation lane, but the normal DEV chat is environment-blocked and watch-only. Execution has been delegated to a dedicated FND-04 Codex runtime executor under the exact same frozen plan/base/branch. AUD waits for an immutable candidate. INFRA-CI-01A is merged and under exact integrated verification. The same CODEX remains waiting and will take FND-04 next after Main closes that gate. Main retains review/integration/freeze authority.
 
 Do not ask the Product Owner to carry agent messages.

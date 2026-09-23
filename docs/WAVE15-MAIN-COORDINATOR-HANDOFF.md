@@ -126,118 +126,49 @@ Coordination/documentation commits after this checkpoint do not create a new pro
 - FND-03 global — **VERIFIED/FROZEN**
 - FND-04 Script TAG Reference Resolution — **ACTIVE / EXECUTABLE PLAN FROZEN / NOT INTEGRATED**
 - FND-06 — **NOT STARTED**
-- INFRA-CI-01 — **AUDITED / IMPLEMENTATION PENDING**
+- INFRA-CI-01A — **INTEGRATED / POST-MERGE VERIFICATION PENDING**
 - FC0-A — **BLOCKED on FND-04 + FND-06 + INFRA-CI-01**
 
 ---
 
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
-**ORDER_STATE: ACTIVE**  
-**ORDER_ID: INFRA-CI-01A-FINAL-CLOSE-03**  
-**CODEX_MODE: FINAL_BOUNDED_CORRECTION**  
-**Mission:** finish PR #335 completely, then wait for Main merge/post-merge verification before switching this same CODEX to FND-04
+**ORDER_STATE: WAIT_DEPENDENCY**  
+**ORDER_ID: INFRA-CI-01A-POSTMERGE-GATE-04**  
+**CODEX_MODE: WAIT_MAIN_VERIFICATION**  
+**Mission:** hold after INFRA-CI-01A merge while Main verifies the exact integrated SHA, then switch this same CODEX to FND-04
 
-### Current reviewed candidate
+### Integrated INFRA-CI-01A checkpoint
 
-- PR #335
-- head `ff20e61a8eafefef21f668f26352fd3959d584e0`
-- tree `a29c32c3ce8d38dc8ef476cc74ab891a5095d749`
-- six-file allowlist still respected
-- natural T1 run #3 / `35862545406` — SUCCESS
-- prior Main review defects are closed:
-  - real FND-04 server-runtime paths now infer `SCRIPT_RUNTIME`;
-  - real FND-04 Web Script authoring paths now infer `SCRIPT_ENGINEERING`;
-  - UX/runtime profiles now request owning backend evidence;
-  - manual dispatch now compares against the Wave 15 integration merge-base rather than one commit.
+- PR #335 — MERGED
+- exact reviewed candidate: `6490234887152cd668943615dc9fc80990b44076`
+- candidate tree: `4d11b130744fa88e32f7bcc110c5a8fb4f1bbb06`
+- exact merge SHA: `9f62ad56e3fed5574bab1fa25fc8b64f9e4ae981`
+- merge tree: `1e19a38803e319a418f476d236dfb24fd38d377e`
+- natural candidate T1 run #4 / `35864183668` — SUCCESS
+- exact integrated broad EliteSCADA CI #1560 / run `35864708583` — POST-MERGE GATE IN PROGRESS
 
-Main found two final correctness gaps before integration.
+Main independently reviewed and accepted the final candidate before merge:
+- six-file scope only;
+- PR declarations required for non-exempt PRs;
+- dispatch inference-only mode valid with optional additive override;
+- manual dispatch uses full branch delta via merge-base to `wave15/corrections-integration`;
+- real FND-04 Script Engineering/Script Runtime paths receive non-bypassable inference floors;
+- generic `src/Scada.Api/Runtime/**` receives `RUNTIME_RENDERER` floor;
+- Authority/Licensing/EliteGO UX profiles request owning backend + Web/browser evidence;
+- broad `dotnet-ci.yml` remains intact for integrated push checkpoints and main PRs.
 
-### Final defect A — manual dispatch override is documented optional but currently behaves mandatory
+### Sequential reuse
 
-`workflow_dispatch.inputs.validation_profile` is declared optional, but the router rejects a non-exempt manual dispatch when no PR body and no override are present, even when changed-path inference yields a valid risk profile.
+Do not start FND-04 until Main closes CI #1560 on the exact merge SHA.
 
-Required behavior:
+After Main records INFRA-CI-01A VERIFIED/FROZEN, this same CODEX executor will be switched to the already-prepared FND-04 order in the dedicated control plane.
 
-- PR event: `VALIDATION_PROFILE:` declaration remains required for non-exempt PRs.
-- workflow_dispatch: explicit override remains optional.
-- manual dispatch with no override must be allowed to run from **inferred profiles alone** when branch delta inference yields at least one profile.
-- manual dispatch with neither inferred profile nor override still fails unless it is a narrow coordination-only exemption.
-- manual override remains additive only; it can never suppress inferred risk.
-
-Implement this with an explicit router/workflow mode, not by faking a PR body.
-
-Add deterministic tests for:
-1. PR mode missing declaration -> FAIL;
-2. dispatch mode + inferred Runtime path + no override -> PASS;
-3. dispatch mode + no inferred profile + no override -> FAIL;
-4. dispatch override unions with inferred risk.
-
-### Final defect B — generic backend Runtime paths still have no conservative floor
-
-The router now covers the three exact FND-04 Script Runtime files, but generic backend Runtime changes under:
-
-`src/Scada.Api/Runtime/**`
-
-remain largely uninferred.
-
-That violates the original minimum requirement that Runtime/renderer surfaces have a non-bypassable conservative floor.
-
-Required rule:
-
-- generic `src/Scada.Api/Runtime/**` must infer at least `RUNTIME_RENDERER` (umbrella Runtime evidence in the current profile vocabulary);
-- the three exact Script Runtime files may infer both `SCRIPT_RUNTIME` and `RUNTIME_RENDERER`;
-- do not weaken the specific Script Runtime inference.
-
-Add exact-path tests using current real files such as:
-- `src/Scada.Api/Runtime/RuntimeSessionAdmission.cs`
-- `src/Scada.Api/Runtime/DistributedRuntimeFoundationApi.cs`
-- `src/Scada.Api/Runtime/RuntimeSessionWebSocketAdmission.cs`
-
-with a cheap declared profile, proving `RUNTIME_RENDERER` cannot be suppressed.
-
-### Scope
-
-Original six-file allowlist remains binding. Prefer changing only:
-
-- `.github/workflows/wave15-pr.yml`
-- `scripts/ci/wave15_profile_router.py`
-- `tests/ci/test_wave15_profile_router.py`
-
-Docs may be adjusted only if needed to make dispatch semantics exact. `dotnet-ci.yml` remains trigger-only.
-
-No product source/test, FND-04 branch, Playwright config/test or specialized workflow change.
-
-### Required validation
-
-Before handoff:
-
-- all router unit tests green;
-- exact manual-dispatch semantic tests green;
-- exact generic Runtime path floor tests green;
-- prior 19 tests remain green;
-- `git diff --check` green;
-- push to PR #335;
-- natural T1 run on the new exact head green;
-- no merge.
-
-Return exactly:
-
-`CODEX -> MAIN COORDINATOR — INFRA-CI-01A FINAL-CLOSE HANDOFF`
-
-with old `ff20e61a...` -> new head/tree, exact delta, dispatch-mode proof, Runtime floor proof, tests and natural run/jobs.
-
-### Sequential reuse decision
-
-Product Owner chose to use **this same CODEX executor** for FND-04 after INFRA-CI-01A is fully closed.
-
-Therefore, after delivering the final infra candidate:
-- do not start FND-04 yet;
-- wait for Main to review/merge PR #335 and verify the integrated CI gate;
-- Main will then switch this same CODEX chat to the FND-04 executor mission;
-- no second FND-04 Codex chat should be started unless Main explicitly re-enables it.
-
-FND-04 work branch must remain untouched meanwhile at `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`.
+Until then:
+- no further INFRA-CI commit;
+- no FND-04 mutation;
+- no rerun unless Main diagnoses a failure and explicitly orders it;
+- FND-04 work branch remains untouched at `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`.
 ---
 
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER

@@ -1,7 +1,7 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-23 BRT  
-**Operational state:** **WAVE 15 ACTIVE / FND-03 VERIFIED+FROZEN / FND-04 ACTIVE / FND-06 NOT STARTED / INFRA-CI-01 PENDING / FC0-A BLOCKED**
+**Operational state:** **WAVE 15 ACTIVE / FND-03 VERIFIED+FROZEN / INFRA-CI-01A INTEGRATED+VERIFYING / FND-04 WAITING SAME CODEX / FND-06 NOT STARTED / FC0-A BLOCKED**
 
 > GitHub live is the official memory.
 >
@@ -71,7 +71,7 @@ FND-04 AUD remains WAIT_CANDIDATE / READ_ONLY until Main supplies an immutable D
 
 - FND-04 — ACTIVE.
 - FND-06 — NOT STARTED.
-- INFRA-CI-01A — ACTIVE in CODEX on `work/w15-infra-ci-01-profile-orchestration`.
+- INFRA-CI-01A — INTEGRATED at `9f62ad56e3fed5574bab1fa25fc8b64f9e4ae981`; post-merge CI #1560 pending.
 
 CI efficiency audit: the universal Chromium gate currently runs 624 tests serially on one Playwright worker and dominates ~13.5–14.5 minute full-CI wall time. INFRA-CI-01 should preserve assertions while moving Wave 15 leaf PRs to profile-aware T1 evidence and proving isolated browser sharding for broader checkpoints.
 
@@ -141,3 +141,24 @@ Final pre-merge defects:
 - generic `src/Scada.Api/Runtime/**` changes must receive a non-bypassable Runtime evidence floor.
 
 FND-04 normal DEV remains BLOCKED_ENV/WATCH_ONLY and the FND-04 work branch remains untouched at `a3eb86f8...`.
+
+
+## INFRA-CI-01A integrated checkpoint
+
+PR #335 merged after independent Main review.
+
+Exact reviewed candidate:
+`6490234887152cd668943615dc9fc80990b44076`
+
+Exact integration merge:
+`9f62ad56e3fed5574bab1fa25fc8b64f9e4ae981`
+
+tree:
+`1e19a38803e319a418f476d236dfb24fd38d377e`
+
+Candidate T1 run #4 / `35864183668` — SUCCESS.
+
+Exact integrated broad gate:
+EliteSCADA CI #1560 / `35864708583` — pending/in progress.
+
+The same CODEX remains reserved and must not start FND-04 until Main verifies this exact integrated infra SHA. FND-04 work branch remains untouched at `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`.

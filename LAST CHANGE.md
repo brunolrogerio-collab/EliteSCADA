@@ -122,3 +122,22 @@ Control commit:
 `bb67e74ac0e58625763212e2bc284f4c22559519`
 
 The normal DEV chat is `BLOCKED_ENV / WATCH_ONLY`; FND-04 AUD remains `WAIT_CANDIDATE`. The Codex executor must use the exact same section 3B plan, RED-before-production sequence, allowlists, branch and no-merge boundary.
+
+
+## Same-CODEX sequencing decision
+
+Product Owner selected sequential reuse of the current CODEX runtime:
+
+1. finish INFRA-CI-01A PR #335 completely;
+2. Main independently reviews, merges and verifies the integrated gate;
+3. the same CODEX chat is then switched to FND-04;
+4. no second concurrent FND-04 Codex executor is to run.
+
+Current infra correction order:
+`INFRA-CI-01A-FINAL-CLOSE-03`.
+
+Final pre-merge defects:
+- manual `workflow_dispatch` must allow inference-only execution when optional override is absent;
+- generic `src/Scada.Api/Runtime/**` changes must receive a non-bypassable Runtime evidence floor.
+
+FND-04 normal DEV remains BLOCKED_ENV/WATCH_ONLY and the FND-04 work branch remains untouched at `a3eb86f8...`.

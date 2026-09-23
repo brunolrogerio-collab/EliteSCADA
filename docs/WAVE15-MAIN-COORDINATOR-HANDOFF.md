@@ -134,122 +134,110 @@ Coordination/documentation commits after this checkpoint do not create a new pro
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
 **ORDER_STATE: ACTIVE**  
-**ORDER_ID: INFRA-CI-01A-REVIEW-CLOSE-02**  
-**CODEX_MODE: BOUNDED_CORRECTION**  
-**Mission:** close Main review defects in PR #335 without widening the six-file INFRA-CI-01A scope
+**ORDER_ID: INFRA-CI-01A-FINAL-CLOSE-03**  
+**CODEX_MODE: FINAL_BOUNDED_CORRECTION**  
+**Mission:** finish PR #335 completely, then wait for Main merge/post-merge verification before switching this same CODEX to FND-04
 
-### Reviewed candidate
+### Current reviewed candidate
 
 - PR #335
-- head `2069f4cb1ea398da615286001102fa44cbc35e67`
-- tree `f2e563c06d97810dc560a0c2963be725c9f083d6`
-- target `wave15/corrections-integration`
-- six-file allowlist respected
-- natural T1 run #2 / `35859380179` — SUCCESS
-  - Classify `107175542297` — SUCCESS
-  - Common sanity `107175593790` — SUCCESS
-  - Focused .NET `107175593514` — SUCCESS
-  - T1 gate `107175891532` — SUCCESS
-  - Web/Chromium intentionally skipped for the candidate's effective profile
+- head `ff20e61a8eafefef21f668f26352fd3959d584e0`
+- tree `a29c32c3ce8d38dc8ef476cc74ab891a5095d749`
+- six-file allowlist still respected
+- natural T1 run #3 / `35862545406` — SUCCESS
+- prior Main review defects are closed:
+  - real FND-04 server-runtime paths now infer `SCRIPT_RUNTIME`;
+  - real FND-04 Web Script authoring paths now infer `SCRIPT_ENGINEERING`;
+  - UX/runtime profiles now request owning backend evidence;
+  - manual dispatch now compares against the Wave 15 integration merge-base rather than one commit.
 
-Main does **not** approve integration yet. Independent review found risk-floor defects that can let under-declared changes receive insufficient T1 evidence.
+Main found two final correctness gaps before integration.
 
-### Defect 1 — actual FND-04 server-runtime paths are not inferred
+### Final defect A — manual dispatch override is documented optional but currently behaves mandatory
 
-Current router does not infer any profile for these real, currently-authorized FND-04 paths:
+`workflow_dispatch.inputs.validation_profile` is declared optional, but the router rejects a non-exempt manual dispatch when no PR body and no override are present, even when changed-path inference yields a valid risk profile.
 
-- `src/Scada.Api/Runtime/IsolatedPythonScriptHandlerExecutor.cs`
-- `src/Scada.Api/Runtime/ServerScriptRunner.py`
-- `src/Scada.Api/Runtime/ServerScriptRuntimeManager.cs`
+Required behavior:
 
-A PR changing those files could declare a cheap unrelated profile and suppress `SCRIPT_RUNTIME`, violating the non-bypassable inference-floor contract.
+- PR event: `VALIDATION_PROFILE:` declaration remains required for non-exempt PRs.
+- workflow_dispatch: explicit override remains optional.
+- manual dispatch with no override must be allowed to run from **inferred profiles alone** when branch delta inference yields at least one profile.
+- manual dispatch with neither inferred profile nor override still fails unless it is a narrow coordination-only exemption.
+- manual override remains additive only; it can never suppress inferred risk.
 
-Fix the path rules so these real Server Script runtime surfaces infer `SCRIPT_RUNTIME`.
+Implement this with an explicit router/workflow mode, not by faking a PR body.
 
-### Defect 2 — actual FND-04 web authoring paths do not infer SCRIPT_ENGINEERING
+Add deterministic tests for:
+1. PR mode missing declaration -> FAIL;
+2. dispatch mode + inferred Runtime path + no override -> PASS;
+3. dispatch mode + no inferred profile + no override -> FAIL;
+4. dispatch override unions with inferred risk.
 
-Current router classifies real paths such as:
+### Final defect B — generic backend Runtime paths still have no conservative floor
 
-- `web/scada-web/src/engineering/scripts/scriptEngineeringTypes.ts`
-- `web/scada-web/src/engineering/scripts/ScriptEngineeringWorkspace.logic.ts`
-- `web/scada-web/src/engineering/scripts/scriptAssistantModel.ts`
-- `web/scada-web/src/engineering/scripts/scriptAssistantReferenceValidation.ts`
+The router now covers the three exact FND-04 Script Runtime files, but generic backend Runtime changes under:
 
-as generic `UI_EDITOR` only.
+`src/Scada.Api/Runtime/**`
 
-These are the real Script Engineering authoring surfaces. They must infer `SCRIPT_ENGINEERING` (additional `UI_EDITOR` is acceptable where appropriate).
+remain largely uninferred.
 
-The existing tests used fictional representative paths, so they did not prove the real FND-04 surface.
+That violates the original minimum requirement that Runtime/renderer surfaces have a non-bypassable conservative floor.
 
-### Defect 3 — manual dispatch only examines the last commit
+Required rule:
 
-On `workflow_dispatch`, the workflow currently uses:
+- generic `src/Scada.Api/Runtime/**` must infer at least `RUNTIME_RENDERER` (umbrella Runtime evidence in the current profile vocabulary);
+- the three exact Script Runtime files may infer both `SCRIPT_RUNTIME` and `RUNTIME_RENDERER`;
+- do not weaken the specific Script Runtime inference.
 
-`git diff --name-only "${GITHUB_SHA}^" "$GITHUB_SHA"`
+Add exact-path tests using current real files such as:
+- `src/Scada.Api/Runtime/RuntimeSessionAdmission.cs`
+- `src/Scada.Api/Runtime/DistributedRuntimeFoundationApi.cs`
+- `src/Scada.Api/Runtime/RuntimeSessionWebSocketAdmission.cs`
 
-That is not a safe risk floor for a multi-commit feature branch: earlier risk-bearing commits can disappear from inference.
+with a cheap declared profile, proving `RUNTIME_RENDERER` cannot be suppressed.
 
-For manual dispatch on a feature branch, compare the selected head against the merge-base with `wave15/corrections-integration` (or an equivalently explicit target-base computation). The effective changed-file set must cover the whole branch delta, not only the final commit.
+### Scope
 
-Apply the same base logic to manual-dispatch `git diff --check`.
-
-### Defect 4 — profile-owned backend evidence is incomplete for UX/runtime profiles
-
-The profile declaration itself must imply sufficient owning evidence even when path inference is imperfect.
-
-At minimum:
-
-- `AUTHORITY_UX` must request focused Authority/backend evidence in addition to Web/browser evidence;
-- `LICENSING_UX` must request owning licensing/backend evidence in addition to Web/browser evidence;
-- `ELITEGO_RUNTIME` must request server Runtime/session/reconnect backend evidence in addition to client/browser evidence.
-
-Using existing test projects is acceptable; do not add product tests or broaden outside the six-file allowlist.
-
-### Required deterministic correction tests
-
-Extend `tests/ci/test_wave15_profile_router.py` with exact real-path proofs:
-
-1. each of the three `src/Scada.Api/Runtime/...` FND-04 files above infers `SCRIPT_RUNTIME`;
-2. each of the four `web/scada-web/src/engineering/scripts/...` files above infers `SCRIPT_ENGINEERING`;
-3. a cheap declared profile cannot suppress those inferred profiles;
-4. `AUTHORITY_UX` produces backend + Web/browser evidence;
-5. `LICENSING_UX` produces backend + Web/browser evidence;
-6. `ELITEGO_RUNTIME` produces backend + Web/browser evidence.
-
-Keep all prior router tests green.
-
-### Scope remains unchanged
-
-Only the original six files are authorized:
+Original six-file allowlist remains binding. Prefer changing only:
 
 - `.github/workflows/wave15-pr.yml`
-- `.github/workflows/dotnet-ci.yml` — trigger-only delta; no job/assertion rewrite
 - `scripts/ci/wave15_profile_router.py`
 - `tests/ci/test_wave15_profile_router.py`
-- `docs/CI-USAGE-POLICY.md`
-- `docs/CI-VALIDATION-POLICY.md`
 
-No product source, FND-04 code/test, Playwright config/test, package/lockfile, specialized workflow or branch-protection change.
+Docs may be adjusted only if needed to make dispatch semantics exact. `dotnet-ci.yml` remains trigger-only.
 
-### Validation
+No product source/test, FND-04 branch, Playwright config/test or specialized workflow change.
+
+### Required validation
 
 Before handoff:
 
-- all router unit tests PASS;
-- synthetic exact FND-04 path examples PASS;
-- manual-dispatch branch-delta logic reviewed/validated without using a one-commit shortcut;
-- `git diff --check` PASS;
-- push correction to PR #335;
-- allow natural T1 CI on the new exact head;
+- all router unit tests green;
+- exact manual-dispatch semantic tests green;
+- exact generic Runtime path floor tests green;
+- prior 19 tests remain green;
+- `git diff --check` green;
+- push to PR #335;
+- natural T1 run on the new exact head green;
 - no merge.
 
 Return exactly:
 
-`CODEX -> MAIN COORDINATOR — INFRA-CI-01A REVIEW-CLOSE HANDOFF`
+`CODEX -> MAIN COORDINATOR — INFRA-CI-01A FINAL-CLOSE HANDOFF`
 
-with old head -> new head/tree, exact six-file diff, exact real-path inference matrix, profile-to-evidence matrix, dispatch-base proof, tests, natural run/jobs, and explicit non-actions.
+with old `ff20e61a...` -> new head/tree, exact delta, dispatch-mode proof, Runtime floor proof, tests and natural run/jobs.
 
-FND-04 DEV remains independently ACTIVE. Do not touch its branch.
+### Sequential reuse decision
+
+Product Owner chose to use **this same CODEX executor** for FND-04 after INFRA-CI-01A is fully closed.
+
+Therefore, after delivering the final infra candidate:
+- do not start FND-04 yet;
+- wait for Main to review/merge PR #335 and verify the integrated CI gate;
+- Main will then switch this same CODEX chat to the FND-04 executor mission;
+- no second FND-04 Codex chat should be started unless Main explicitly re-enables it.
+
+FND-04 work branch must remain untouched meanwhile at `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`.
 ---
 
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER

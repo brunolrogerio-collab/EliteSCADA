@@ -43,7 +43,7 @@ Coordination/documentation HEAD may be ahead of the product checkpoint. Do not t
 ### CODEX
 
 `ORDER_STATE: ACTIVE`  
-`ORDER_ID: INFRA-CI-01A-REVIEW-CLOSE-02`
+`ORDER_ID: INFRA-CI-01A-FINAL-CLOSE-03`
 
 Branch:
 `work/w15-infra-ci-01-profile-orchestration`

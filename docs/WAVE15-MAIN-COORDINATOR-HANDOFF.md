@@ -134,48 +134,41 @@ Coordination/documentation commits after this checkpoint do not create a new pro
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
 **ORDER_STATE: ACTIVE**  
-**ORDER_ID: FND04-CODEX-TAGREF-V1-03**  
-**CODEX_MODE: FND04_IMPLEMENTATION / FUNCTIONAL_RUNTIME**  
-**Mission:** execute FND-04 Script TAG Reference Resolution on the prepared exact product base
+**ORDER_ID: FND04-CODEX-REVIEW-CLOSE-04**  
+**CODEX_MODE: FND04_BOUNDED_CORRECTION**  
+**Mission:** correct Main review defects in PR #336; no merge
 
-### Closed dependency
+Reviewed exact candidate:
+- product base `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
+- rejected head `21e2ab69a71844d56acf1b7913dc67097697f6ae`
+- tree `8aa104b6c8089c5ac0ad9fd03847032f55657a77`
+- PR #336
+- natural T1 `35873260360` — SUCCESS.
 
-INFRA-CI-01A is now **VERIFIED/FROZEN**:
+Green CI is not sufficient. Main code review found:
 
-- PR #335 merged at `9f62ad56e3fed5574bab1fa25fc8b64f9e4ae981`
-- tree `1e19a38803e319a418f476d236dfb24fd38d377e`
-- candidate T1 run #4 / `35864183668` — SUCCESS
-- exact integrated broad CI #1560 / `35864708583` — SUCCESS
-  - Web `107193247522` — SUCCESS
-  - Backend `107193247822` — SUCCESS
-  - Chromium `107193893312` — SUCCESS
+1. Client Visual does not consume the persisted expected TagId binding. `clientVisualEventDispatcher.ts` does not pass Script dependencies/bindings to the provider; the provider learns whatever current ID a path returns and falls back to the raw path on write without prior read. This permits silent path retargeting and undeclared readable references.
+2. Public resolver contract added a sixth `Invalid` state although the frozen contract is exactly `Found | NotFound | Ambiguous | Stale | IdentityDrift`. Malformed bindings belong to validation diagnostics, not a sixth resolution semantic.
+3. Direct acceptance evidence is still missing for readable-binding ambiguity, binding package/save-load round-trip, PostgreSQL round-trip, multi-TAG readable Script, Client Visual identity-drift and undeclared-reference fail-closed behavior.
+4. Final handoff omitted mandatory exact RED-1/RED-2/RED-3 old-base commands/failures.
 
-The verified infra delta is workflow/router/policy only and is explicitly acknowledged. It does not redefine the FND-04 product contract or product base.
+Binding correction is detailed in control plane:
+- branch `coord/w15-fnd04-dev-aud-control`
+- file `docs/WAVE15-FND04-DEV-AUD-CONTROL.md`
+- control commit `4981794478447de020499e473b6401173e294a7e`
+- order `FND04-CODEX-REVIEW-CLOSE-04`.
 
-### FND-04 execution
+CODEX keeps bounded autonomy inside the original section 3B allowlists. It must:
+- make Client Visual read/write share one declared-binding resolver;
+- re-resolve current path on write and compare with expected TagId;
+- fail closed on undeclared/stale/missing/identity-drift with no write;
+- preserve explicit GUID-only compatibility;
+- restore exact five-state resolver semantics;
+- add the missing persistence/ambiguity/multi-TAG/adversarial proofs;
+- reproduce old-base RED-1/2/3 and review-RED against `21e2ab69...`;
+- push correction to the same PR #336 and obtain a fresh natural T1 run.
 
-- exact product base: `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
-- base tree: `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`
-- work branch: `work/w15-fnd-04-script-tag-reference-resolution`
-- target: `wave15/corrections-integration`
-- validation profile: `SCRIPT_ENGINEERING, SCRIPT_RUNTIME`
-- dedicated control plane: `coord/w15-fnd04-dev-aud-control:docs/WAVE15-FND04-DEV-AUD-CONTROL.md`
-- active control commit: `65ac0551c17f1794e5a0411897c85327880e12f8`
-- execution plan: `FND04-TAGREF-V1 / section 3B`
-
-Same CODEX executor must now execute the control-plane order `FND04-CODEX-TAGREF-V1-03`.
-
-Binding sequence:
-1. revalidate branch is still exactly at the product base;
-2. establish RED-1 / RED-2 / RED-3 on old behavior before any production correction;
-3. implement only inside the frozen allowlists;
-4. close the full GREEN/acceptance matrix;
-5. push reviewable commits to the existing branch;
-6. open exactly one PR with `VALIDATION_PROFILE: SCRIPT_ENGINEERING, SCRIPT_RUNTIME`;
-7. inspect natural Wave 15 T1 evidence;
-8. return final candidate handoff.
-
-No self-merge. No freeze authority. Any scope/contract widening => `BLOCKED-CONTRACT`.
+No self-merge and no freeze authority.
 ---
 
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
@@ -238,14 +231,14 @@ Normal DEV may revalidate live state and later review evidence only.
 
 ## 5. MAIN COORDINATOR -> FND-04 AUD — CURRENT ORDER
 
-**ORDER_STATE: WAIT_CANDIDATE**  
-**ORDER_ID: FND04-AUD-WAIT-CANDIDATE-0003**  
+**ORDER_STATE: WAIT_CORRECTED_CANDIDATE**  
+**ORDER_ID: FND04-AUD-WAIT-CORRECTED-0004**  
 **Default mode:** `READ_ONLY_REVIEW`
 
-DEV is active, but AUD must not inspect a moving candidate as if immutable. Wait until Main supplies exact DEV candidate SHA/tree, then execute the adversarial matrix from the dedicated control plane.
+Main has already rejected `21e2ab69...`; AUD must not spend the independent cycle on that head. Wait until Main supplies the corrected immutable candidate SHA/tree, then execute the adversarial matrix from the dedicated control plane.
 ---
 
-## 6. FND-04 BINDING CONTRACT — READY, NOT ACTIVE
+## 6. FND-04 BINDING CONTRACT — ACTIVE / NOT YET FROZEN
 
 When activated: human/canonical Python-visible TAG reference (normally full path); `TagId`/Guid stable authority; one shared `tag_read`/`tag_write` resolver; persisted/versionable visible-reference <-> expected-TagId binding; rename/move/path-reuse without silent retarget; missing/ambiguous/stale/identityDrift fail closed; legacy GUID/TagId explicit/tested; Authority preserved; no second Tag registry/resolver/auth pipeline.
 

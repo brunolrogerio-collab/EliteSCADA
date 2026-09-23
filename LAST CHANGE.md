@@ -40,7 +40,7 @@ FND-04 is now actively assigned to the same functional CODEX runtime that finish
 
 Order:
 
-`FND04-CODEX-TAGREF-V1-03`
+`FND04-CODEX-REVIEW-CLOSE-04`
 
 Exact product base:
 
@@ -54,15 +54,9 @@ Control commit:
 
 `65ac0551c17f1794e5a0411897c85327880e12f8`
 
-Execution remains:
-- RED-1 / RED-2 / RED-3 first on old behavior;
-- then production implementation inside frozen allowlists;
-- full GREEN matrix;
-- one PR with `VALIDATION_PROFILE: SCRIPT_ENGINEERING, SCRIPT_RUNTIME`;
-- natural Wave 15 T1 validation;
-- no self-merge.
+PR #336 candidate `21e2ab69a71844d56acf1b7913dc67097697f6ae` reached green T1 but is not integration-ready. Main review found Client Visual expected-TagId enforcement missing, a sixth resolver state outside the frozen contract, and incomplete direct acceptance/RED evidence. CODEX is correcting the same PR inside the existing FND-04 allowlists; no merge is authorized.
 
-Normal FND-04 DEV remains BLOCKED_ENV / WATCH_ONLY. AUD remains WAIT_CANDIDATE.
+Normal FND-04 DEV remains BLOCKED_ENV / WATCH_ONLY. AUD remains WAIT_CORRECTED_CANDIDATE.
 
 ## Remaining FC0-A blockers
 

@@ -27,7 +27,7 @@ The infra delta is acknowledged workflow/router/policy only. It does not redefin
 
 ## Active CODEX mission
 
-`ORDER_ID: FND04-CODEX-TAGREF-V1-03`  
+`ORDER_ID: FND04-CODEX-REVIEW-CLOSE-04`  
 `ORDER_STATE: ACTIVE`
 
 Exact product base:
@@ -45,12 +45,12 @@ Control commit:
 Plan:
 `FND04-TAGREF-V1`
 
-Same CODEX that finished INFRA-CI-01A now owns execution. RED-1/2/3 must be executed before production changes, followed by the frozen GREEN matrix and natural profile-aware T1 PR validation.
+PR #336 head `21e2ab69a71844d56acf1b7913dc67097697f6ae` is rejected by Main preliminary review despite green T1. CODEX must close Client Visual expected-TagId enforcement, exact five-state resolver semantics, missing persistence/ambiguity/multi-TAG proofs, and reproduce RED evidence before a corrected candidate is eligible for AUD.
 
 ## Other lanes
 
 - Normal FND-04 DEV — BLOCKED_ENV / WATCH_ONLY.
-- FND-04 AUD — WAIT_CANDIDATE / READ_ONLY.
+- FND-04 AUD — WAIT_CORRECTED_CANDIDATE / READ_ONLY.
 - FND-03 DEV — WAIT / frozen.
 
 Main retains candidate review, integration, post-merge verification and freeze authority.

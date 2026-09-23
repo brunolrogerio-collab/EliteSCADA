@@ -38,32 +38,26 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0013`
+`MAIN_ORDER_REV: 0014`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-23 16:22 BRT — SOURCE-BINDING SEPARATION ACCEPTED FOR INDEPENDENT REAUDIT`
+`LAST_MAIN_UPDATE_BRT: 2026-09-23 — FND-04 MERGED / EXACT POST-MERGE CI GATE ACTIVE`
 
-`GLOBAL_GATE: FND04_ACTIVE`
+`GLOBAL_GATE: FND04_POST_MERGE_CI`
 
 Current situation:
 
-- FND-03 remains **VERIFIED / FROZEN** on exact product checkpoint `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6` / tree `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`.
+- FND-03 remains **VERIFIED / FROZEN** on exact product checkpoint `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`.
 - INFRA-CI-01A remains **VERIFIED / FROZEN** at merge `9f62ad56e3fed5574bab1fa25fc8b64f9e4ae981`.
-- CODEX produced source-binding separation candidate `c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e` / reported tree `7fa948de25e4f120566113dc8d14a0a696342a32` on PR #336.
-- Main independently reviewed the exact correction from rejected `5c77eb41...`:
-  - one commit / 5 changed files, all inside the existing section 3B allowlists;
-  - full FND-04 PR scope remains 20 allowlisted files;
-  - Client Visual readable source declaration membership is exact after trim; no JS Unicode/path comparer clone remains;
-  - Server Script readable source declaration membership is exact after trim; no Python Unicode/path comparer clone remains;
-  - legacy GUID-only identity syntax remains explicitly compatible without becoming readable-path comparison authority;
-  - persisted binding -> current TAG path proof remains in the backend canonical resolver/runtime registry using OrdinalIgnoreCase semantics and expected TagId;
-  - direct read/write remain stable-TagId-authorized after binding proof.
-- Natural exact-head Wave 15 T1 run `35910214760` is SUCCESS: classify/common/Web/focused .NET/focused Chromium/T1 gate all green.
-- PR #336 is OPEN and mergeable on exact head `c89ad92e...`.
-- Main preliminary review therefore accepts this immutable candidate for independent reauditing; it is **not yet approved for integration**.
-- FND-04 remains **ACTIVE / CORRECTED CANDIDATE UNDER INDEPENDENT REAUDIT / NOT INTEGRATED**.
-- CODEX is `WAIT_AUD / NO_MUTATION`.
-- AUD is **ACTIVE / READ_ONLY_REVIEW** on exact candidate `c89ad92e...`.
-- No merge/freeze authority is granted.
+- Independent AUD accepted exact FND-04 candidate `c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e` / tree `7fa948de25e4f120566113dc8d14a0a696342a32`.
+- PR #336 was merged normally with expected-head protection.
+- Exact integration merge SHA: `6c810647c9773a19b212d9c33694780141786ac7`.
+- Exact merge tree: `1221ff55963052be4e924dd644efbaa65763f546`.
+- Natural post-merge broad `EliteSCADA CI` run `35913456486` / run #1562 was created by the push on that exact SHA.
+- Web build job `107358858133` is SUCCESS.
+- Backend build/test/smoke job `107358858405` is currently in progress.
+- FND-04 is therefore **INTEGRATED / POST-MERGE CI PENDING / NOT YET VERIFIED-FROZEN**.
+- CODEX and AUD are both **WAIT_POST_MERGE_GATE / NO_MUTATION**.
+- No downstream Foundation release is authorized until Main verifies the exact post-merge CI on `6c810647...`.
 
 Live integration divergence from the product base remains acknowledged only for verified INFRA-CI-01A + coordination documentation. Any other unacknowledged product delta remains `BLOCKED-BASE-DIVERGENCE`.
 ---
@@ -595,36 +589,19 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 ### CURRENT CODEX EXECUTION ORDER
 
-`ORDER_ID: FND04-CODEX-WAIT-REAUDIT-09`
+`ORDER_ID: FND04-CODEX-WAIT-POSTMERGE-10`
 
-`ORDER_STATE: WAIT_AUD`
+`ORDER_STATE: WAIT_POST_MERGE_GATE`
 
-`EXECUTOR_MODE: NO_MUTATION / PRESERVE_CANDIDATE`
+`EXECUTOR_MODE: NO_MUTATION`
 
-`EXACT_PRODUCT_BASE_SHA: a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
+`MERGE_SHA: 6c810647c9773a19b212d9c33694780141786ac7`
 
-`CANDIDATE_SHA: c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e`
-
-`CANDIDATE_TREE: 7fa948de25e4f120566113dc8d14a0a696342a32`
-
-`WORK_BRANCH: work/w15-fnd-04-script-tag-reference-resolution`
-
-`PR: #336`
-
-`TARGET_BRANCH: wave15/corrections-integration`
+`POST_MERGE_CI_RUN: 35913456486`
 
 Instruction:
 
-> Main preliminary review accepts the source-binding separation candidate for independent reauditing. Preserve exact head `c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e`. Do not mutate product/tests, rebase, retarget, rerun CI or merge while AUD reviews this immutable candidate. On `SIGA`, re-read this control plane and GitHub live; if this order remains current, report `FND-04 CODEX EXECUTOR — WAIT_AUD` with the exact candidate and stop.
-
-Frozen evidence:
-- `5c77eb41... -> c89ad92e...` is one commit / 5 allowlisted files;
-- full FND-04 PR scope remains 20 allowlisted files;
-- custom JS/Python OrdinalIgnoreCase clones are removed from readable TAG-path/source declaration matching;
-- source -> declared binding is exact after trim;
-- binding -> current TAG path remains canonical backend proof with expected TagId;
-- natural Wave 15 T1 `35910214760` is SUCCESS;
-- no Main merge/freeze approval has been issued.
+> FND-04 has been merged. Do not mutate product/tests, rebase, retarget, rerun or create follow-up work unless Main issues a new order. On `SIGA`, re-read GitHub live, confirm the merge SHA and post-merge gate state, report `FND-04 CODEX EXECUTOR — WAIT_POST_MERGE_GATE`, and stop.
 
 ### CODEX mandatory return
 
@@ -691,66 +668,19 @@ AUD never merges its own work and never writes directly to DEV branch, integrati
 
 ### CURRENT AUD ORDER
 
-`ORDER_ID: FND04-AUD-REAUDIT-SOURCE-BINDING-0009`
+`ORDER_ID: FND04-AUD-WAIT-POSTMERGE-0010`
 
-`ORDER_STATE: ACTIVE`
+`ORDER_STATE: WAIT_POST_MERGE_GATE`
 
 `AUD_MODE: READ_ONLY_REVIEW`
 
-`BASE_SHA: a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
+`MERGE_SHA: 6c810647c9773a19b212d9c33694780141786ac7`
 
-`CANDIDATE_SHA: c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e`
-
-`CANDIDATE_TREE: 7fa948de25e4f120566113dc8d14a0a696342a32`
-
-`PR: #336`
-
-`CANDIDATE_T1_RUN: 35910214760 / SUCCESS`
+`POST_MERGE_CI_RUN: 35913456486`
 
 Instruction:
 
-> Revalidate the live PR head first. If it moved from `c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e`, stop and return candidate-moved evidence. Otherwise independently re-audit this exact immutable candidate in READ_ONLY mode.
-
-Mandatory re-audit focus:
-
-1. Recheck your original critical finding:
-   - persisted binding `Plant.Process.LevelPct` -> expected A;
-   - current registry path case-only variant `plant.process.levelpct` -> same A;
-   - Engineering/backend binding proof must remain found, not stale.
-2. Verify the refined section 3B.2A separation:
-   - source argument -> persisted declared binding is exact after outer trim in both Client Visual and Server Script;
-   - manually case-changed source token is undeclared and fails closed before process read/write;
-   - no JS/Python Unicode/case-fold helper, locale fold, normalization alias, second path registry or second comparer authority remains.
-3. Verify after exact declaration membership:
-   - Client Visual proves persisted binding through protected reader and expected TagId before read/write;
-   - direct write without prior read still performs fresh proof and writes stable TagId only;
-   - Server Script host verifies persisted binding against active canonical TAG registry before sandbox execution/replay.
-4. Regress original PASS items:
-   - true rename/move -> stale;
-   - old path reuse -> identityDrift, wrong TagId untouched;
-   - notFound;
-   - prospective ambiguity under canonical backend path equality;
-   - malformed binding validation separation;
-   - exact five resolver states;
-   - package/save-load/PostgreSQL exact binding preservation;
-   - multi-TAG readable Script;
-   - legacy GUID compatibility;
-   - ServerMemory isolation;
-   - Authority/security preservation;
-   - no second resolver/TAG registry/Auth path.
-5. Recheck scope: full PR remains only section 3B allowlisted files; no workflow, registry, Security/Authority, Driver, migration/schema leakage.
-6. CI: independently inspect exact-head natural T1 `35910214760` and relevant jobs.
-
-Final classification:
-- `ACCEPTABLE` only if all mandatory items pass on exact head;
-- `CHANGES_REQUIRED` for a candidate defect;
-- `BLOCKED-CONTRACT` only for a shared-contract blocker.
-
-Return using:
-`FND-04 AUD -> MAIN COORDINATOR — AUDIT HANDOFF`
-or the rejection/blocker prefixes already defined.
-
-Post to Issue #305 when GitHub-comment capability exists; supporting evidence may also go to PR #336. If posting is unavailable, return the complete handoff in the AUD chat; Main will record it. Product Owner relay is not required.
+> Your independent candidate review is complete and ACCEPTABLE. FND-04 is merged and now waits only for Main's exact post-merge CI verification. Do not re-audit or mutate anything unless Main issues a new order. On `SIGA`, revalidate GitHub live and report the post-merge gate state only.
 
 ### AUD mandatory return format
 

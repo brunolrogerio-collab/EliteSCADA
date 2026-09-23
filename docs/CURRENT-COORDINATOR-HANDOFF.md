@@ -21,13 +21,13 @@
 
 FND-06 is **ACTIVE / NOT INTEGRATED** and is the only remaining FC0-A blocker.
 
-- order: `FND06-CODEX-VISUAL-STABILITY-V2`
+- order: `FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`
 - exact product base: `6c810647c9773a19b212d9c33694780141786ac7`
 - base tree: `1221ff55963052be4e924dd644efbaa65763f546`
 - work branch: `work/w15-fnd-06-visual-stability-foundation`
 - target: `wave15/corrections-integration`
 - control branch/file: `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
-- active control commit: `1a1488388fd67bf89380879b07437e1460170f18`
+- active control commit: `48778387c2fde6ffb645ced17669bd0606d30142`
 - validation profile: `UI_EDITOR, RUNTIME_RENDERER`
 
 Latest revalidation: work branch is still identical to the exact product base; no FND-06 PR/candidate/handoff exists yet.
@@ -96,11 +96,11 @@ Primary ledger: Issue #305.
 
 ## FND-06 corrected execution metadata
 
-- active order: `FND06-CODEX-VISUAL-STABILITY-V2`
+- active order: `FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`
 - validation profile: `UI_EDITOR, RUNTIME_RENDERER`
 - known legacy set: `tank | value | dynamo | status`
 - `status` is compatibility-only unless a lossless migration is separately proven; no alias guessing
-- control commit: `1a1488388fd67bf89380879b07437e1460170f18`
+- control commit: `48778387c2fde6ffb645ced17669bd0606d30142`
 
 
 ## FC0-A collision guard
@@ -117,8 +117,8 @@ The CODEX chat/lane that executed prior Foundation work including FND-04 is the 
 - FND-04 old control no longer means executor WAIT.
 - FND-04 control rev 0016 routes that same CODEX through `ROUTE-SEQUENTIAL-CODEX-TO-FND06-12`.
 - routed destination: `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
-- active FND-06 order: `FND06-CODEX-VISUAL-STABILITY-V2`
-- FND-06 control commit: `1a1488388fd67bf89380879b07437e1460170f18`
+- active FND-06 order: `FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`
+- FND-06 control commit: `48778387c2fde6ffb645ced17669bd0606d30142`
 
 On `SIGA`, that CODEX should execute FND-06, not report FND-04 frozen/wait.
 
@@ -137,3 +137,23 @@ Only after audit `ACCEPTABLE / FC0A_RELEASE_APPROVED` may Main activate:
 - FND-07.
 
 FND-05 and FND-07 remain PREPARED / NOT ACTIVE until then.
+
+
+## FND-06 Main review — mounted legacy closeout
+
+Current PR #337 candidate:
+- head `923543705378016090e7067b35954795a9591a57`
+- tree `5657cee7169a4e77370d416add4efcf07184d7c0`
+- natural T1 `35931139983` — SUCCESS
+- 9 changed files, all inside FND-06 allowlist
+- architecture/scope accepted by Main.
+
+Remaining gate before merge:
+- original Wave 14 A7 was a mounted Screen/Popup selection crash that blanked/poisoned Engineering;
+- candidate currently proves model/helper compatibility but lacks the required mounted Screen + Popup persisted-legacy selection regression;
+- active order: `FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`;
+- control revision `0005`;
+- control commit `48778387c2fde6ffb645ced17669bd0606d30142`;
+- preferred delta: tests only; minimal production fix only if the mounted scenario exposes a remaining defect.
+
+The same sequential CODEX lane remains the executor. No merge/freeze yet.

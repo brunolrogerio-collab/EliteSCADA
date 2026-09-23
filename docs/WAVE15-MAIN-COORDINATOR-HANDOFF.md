@@ -124,44 +124,48 @@ Coordination/documentation commits after this checkpoint do not create a new pro
 - FND-03 Shared Runtime Seat Accounting — **VERIFIED/FROZEN**
 - FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **VERIFIED/FROZEN**
 - FND-03 global — **VERIFIED/FROZEN**
-- FND-04 Script TAG Reference Resolution — **ACTIVE / EXECUTABLE PLAN FROZEN / NOT INTEGRATED**
-- FND-06 — **NOT STARTED**
+- FND-04 Script TAG Reference Resolution — **VERIFIED/FROZEN** at `6c810647c9773a19b212d9c33694780141786ac7`
+- FND-06 — **ACTIVE / EXECUTABLE PLAN FROZEN / NOT INTEGRATED**
 - INFRA-CI-01A — **VERIFIED/FROZEN**
-- FC0-A — **BLOCKED on FND-04 + FND-06**
+- FC0-A — **BLOCKED only on FND-06**
 
 ---
 
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
-**ORDER_STATE: WAIT_AUD**  
-**ORDER_ID: FND04-CODEX-WAIT-REAUDIT-09**  
-**CODEX_MODE: NO_MUTATION / PRESERVE_CANDIDATE**  
-**Mission:** preserve exact FND-04 source-binding candidate while independent AUD revalidates it
+**ORDER_STATE: ACTIVE**  
+**ORDER_ID: FND06-CODEX-VISUAL-STABILITY-V1**  
+**CODEX_MODE: BOUNDED_FOUNDATION_IMPLEMENTATION**  
+**Mission:** close the remaining canonical Runtime/rendering + visual stability Foundation gaps without implementing the full downstream Editor UX
 
-Immutable candidate:
-- base `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
-- head `c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e`
-- reported tree `7fa948de25e4f120566113dc8d14a0a696342a32`
-- PR #336
-- natural Wave 15 T1 `35910214760` — SUCCESS.
+Exact base:
+- product SHA `6c810647c9773a19b212d9c33694780141786ac7`
+- tree `1221ff55963052be4e924dd644efbaa65763f546`
+- exact post-merge EliteSCADA CI `35913456486` — SUCCESS
+  - Web `107358858133` — SUCCESS
+  - Backend/test/smoke `107358858405` — SUCCESS
+  - Chromium `107359503423` — SUCCESS.
 
-Main preliminary review confirms:
-- correction from rejected `5c77eb41...` is one commit / 5 allowlisted files;
-- full PR remains 20 allowlisted files;
-- JS/Python custom Unicode/path comparer clones are removed;
-- source token -> declared binding is exact after trim;
-- persisted binding -> current TAG path remains backend canonical proof with expected TagId;
-- PR is OPEN / mergeable.
+Work branch:
+`work/w15-fnd-06-visual-stability-foundation`
 
-Detailed control:
-- branch `coord/w15-fnd04-dev-aud-control`
-- file `docs/WAVE15-FND04-DEV-AUD-CONTROL.md`
-- control commit `9d1baec56ae723d68bc3a58dd00b1903417caa5b`
-- active AUD order `FND04-AUD-REAUDIT-SOURCE-BINDING-0009`.
+Dedicated control:
+- branch `coord/w15-fnd06-control`
+- file `docs/WAVE15-FND06-CONTROL.md`
+- control commit `15def327cc61b367d14dbf674c6ebb4e8ea6e8ef`
+- order `FND06-CODEX-VISUAL-STABILITY-V1`.
 
-CODEX must not mutate, rebase, retarget, rerun or merge while AUD reviews this exact candidate.
+Frozen scope:
+- centralized known-legacy visual compatibility before strict schema consumers;
+- Screen/Popup selection stability and contained malformed-object diagnostics;
+- canonical renderer/public model single authority;
+- selected Screen + open Popup persistence across retryable projection failure under unchanged Active authority;
+- deliberate navigation reinitialization only on real Active identity change;
+- explicit Working-design vs Active Runtime authority boundary.
 
-No merge/freeze authority.
+Downstream full single-canvas WYSIWYG remains DEV-EDITOR scope and must not be implemented in FND-06.
+
+No self-merge/freeze authority.
 ---
 
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
@@ -294,28 +298,27 @@ Agents execute current order, return evidence and stop on `STOP`/`WAIT`. Main pr
 
 ## FND-04 post-merge status
 
-- PR #336 merged.
-- exact merge SHA: `6c810647c9773a19b212d9c33694780141786ac7`
+- PR #336: MERGED
+- exact merge/product checkpoint: `6c810647c9773a19b212d9c33694780141786ac7`
 - merge tree: `1221ff55963052be4e924dd644efbaa65763f546`
-- independent AUD candidate classification: `ACCEPTABLE`
-- natural post-merge EliteSCADA CI: run `35913456486` / #1562
-- Web build: SUCCESS
-- Backend build/test/smoke: IN PROGRESS
-- FND-04 state: **INTEGRATED / POST-MERGE CI PENDING / NOT YET VERIFIED-FROZEN**
-- CODEX/AUD: wait on post-merge gate; no mutation
-- control plane commit: `bb876c51bb1bb116e0f33b2a61291bf78a213b2c`
-- no downstream Foundation release until exact post-merge CI on `6c810647...` is green
+- independent AUD: `ACCEPTABLE`
+- exact post-merge EliteSCADA CI `35913456486` / #1562: **SUCCESS**
+  - Web: SUCCESS
+  - Backend build/test/smoke: SUCCESS
+  - Chromium end-to-end: SUCCESS
+- FND-04: **VERIFIED/FROZEN**
+- FND-04 control commit: `0453428521b28e951aa8e9d01742ee58b09f6690`
+- downstream may consume the frozen FND-04 contract but may not redefine it.
 
-## FND-06 prepared activation
+## FND-06 active foundation
 
-FND-06 source audit is complete while FND-04 post-merge CI runs.
-
+- state: **ACTIVE / NOT INTEGRATED**
+- exact product base: `6c810647c9773a19b212d9c33694780141786ac7`
+- work branch: `work/w15-fnd-06-visual-stability-foundation`
 - control branch: `coord/w15-fnd06-control`
 - control file: `docs/WAVE15-FND06-CONTROL.md`
-- control commit: `4fb1c211b66bcb44a3143697cc2433a2237ab6e5`
-- prepared order: `FND06-CODEX-VISUAL-STABILITY-V1`
-- state: **WAIT_FND04_POST_MERGE_GATE / NO PRODUCT MUTATION**
-- FND-06 is bounded to shared visual compatibility/selection/runtime-navigation/renderer-authority Foundation.
-- Full single-canvas WYSIWYG remains downstream DEV-EDITOR scope.
-- Main may activate only after exact FND-04 post-merge CI `35913456486` is fully green.
+- control commit: `15def327cc61b367d14dbf674c6ebb4e8ea6e8ef`
+- order: `FND06-CODEX-VISUAL-STABILITY-V1`
+- FC0-A remains blocked only on FND-06.
+- prepared downstream release plan: `docs/WAVE15-FC0-A-RELEASE-PREP.md` on the FND-06 control branch.
 

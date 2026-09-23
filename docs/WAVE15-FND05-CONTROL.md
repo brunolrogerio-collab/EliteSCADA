@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd05-control`
 
-`MAIN_ORDER_REV: 0002`
+`MAIN_ORDER_REV: 0003`
 
 `STATE: PREPARED / NOT ACTIVE / BLOCKED_ON_POST_FND06_AUDIT`
 
@@ -76,6 +76,27 @@ If implementation requires changing the meaning of a frozen FND-03/FND-04/FND-06
 `FND-05 -> BLOCKED-CONTRACT -> MAIN`.
 
 No such breaking change is currently identified by the prepared source audit; final approval belongs to the mandatory post-FND06 audit.
+
+### FND-03 license compatibility hard guard
+
+The phrase `redundancy entitlement` in FND-05 does **not** authorize a breaking redesign of the frozen FND-03 signed license/session contract.
+
+At activation, one of these must be true:
+
+1. redundancy readiness can be derived from an already-frozen FND-03 entitlement without changing existing semantics; or
+2. FND-05 introduces an **additive/backward-compatible** optional entitlement/readiness field or separate authenticated HA-readiness surface.
+
+Required compatibility:
+- existing valid FND-03 licenses remain valid under their existing meaning when HA is not requested;
+- absence of a new HA-only field cannot invalidate Standalone/Single-Server operation;
+- existing Interactive/ViewOnly/session-class quota semantics do not change;
+- machine binding/trust chain does not change;
+- install/replace/remove transaction semantics do not change;
+- DEV-LICENSING-UX may continue consuming the frozen FND-03 lifecycle contract without rewrite.
+
+If HA can only be implemented by changing the meaning of existing signed fields or frozen quota/session semantics:
+`FND-05 -> BLOCKED-CONTRACT -> MAIN`
+and the required Foundation/license contract delta must happen before FC0-A DEV release.
 
 ## 4. Prepared first implementation slice
 

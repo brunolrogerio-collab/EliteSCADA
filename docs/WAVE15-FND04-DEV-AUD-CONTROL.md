@@ -38,9 +38,9 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0002`
+`MAIN_ORDER_REV: 0003`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-23 — PREPARED DURING FND-03 POST-MERGE GATE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-23 — EXECUTABLE FND-04 PLAN FROZEN / WAITING FND-03 POST-MERGE GATE`
 
 `GLOBAL_GATE: HOLD_FND03_POSTMERGE_CI`
 
@@ -130,6 +130,333 @@ Prepared primary source surface:
 
 This is a prepared scope, not active authorization. If exact post-merge CI changes the product base or exposes a causal FND-03 defect, Main must revalidate this map before activation.
 
+
+---
+
+## 3B. EXECUTABLE IMPLEMENTATION PLAN — FND04-TAGREF-V1
+
+**PLAN_STATE: FROZEN_FOR_EXECUTION / GATE_HOLD**  
+**PLAN_ID: FND04-TAGREF-V1**  
+**Provisional exact base:** a3eb86f8e1022675f84f0a76129a64d8e9d5faa6  
+**Provisional tree:** e48c8b9918f4d3a5ae4dee1df6211393c95b6513  
+**Implementation branch after activation:** work/w15-fnd-04-script-tag-reference-resolution  
+**Target:** wave15/corrections-integration
+
+This plan is executable as written only after Main flips GLOBAL_GATE to FND04_ACTIVE. Until then it is binding preparation only.
+
+### 3B.1 Closed architectural choice
+
+Use an additive typed binding on the existing Script dependency. Do not create a second registry, reference database or UI-only source of truth.
+
+For TAG / ServerMemoryTag dependencies, add an optional v1 binding equivalent to:
+
+~~~text
+ScriptTagReferenceBinding
+  Version = 1
+  Reference = canonical human-visible TAG reference/path
+  Expected = TagValueReference(TagId, optional structured selector)
+~~~
+
+Binding rules:
+
+- existing StableReference remains the expected stable TagId for internal identity and compatibility;
+- TagBinding.Reference is the developer-visible source reference;
+- TagBinding.Expected.TagId must equal the TagId encoded by StableReference;
+- TagBinding.Version must be exactly 1 for the new canonical form;
+- a plain path without expected identity is never authoritative;
+- existing GUID-only TAG dependencies with no binding remain an explicit legacy compatibility form;
+- new authoring must not generate GUID-first source;
+- ClientMemoryTag is outside this delta.
+
+No new database table or separate sidecar store is allowed. The binding travels with the existing Script definition and existing save/load/export/import/package paths.
+
+### 3B.2 Resolver states and deterministic classification
+
+The contract exposes exactly:
+
+- found
+- notFound
+- ambiguous
+- stale
+- identityDrift
+
+Classification:
+
+1. found: visible reference resolves to exactly one current TAG and resolved TagId equals expected TagId.
+2. identityDrift: visible reference resolves, but its current TagId differs from expected TagId. Old-path reuse by another TAG is this state.
+3. stale: expected TagId still exists, but its current canonical path differs from the persisted visible reference. Rename/move without explicit rebind is this state.
+4. notFound: visible reference resolves to no TAG and expected TagId is also absent.
+5. ambiguous: prospective/import validation sees more than one canonical candidate for the same visible reference. Runtime registry normally prevents this, but validation must classify it rather than select one.
+
+identityDrift outranks stale when the old visible path is already owned by another TagId.
+
+Diagnostics include state/code, visible reference, expected TagId, resolved TagId when present, and current canonical path of the expected TagId when useful.
+
+### 3B.3 One read/write semantic
+
+Client Visual Python:
+
+1. source supplies the visible reference;
+2. host finds the matching declared Script TAG binding;
+3. existing protected read-by-path surface resolves the current TAG;
+4. host compares returned stable ID with expected TagId;
+5. read returns only after found;
+6. write uses the same proof, then calls the existing protected write-by-TagId surface;
+7. path is never used as write identity.
+
+Server Script Python:
+
+1. source uses the visible reference;
+2. executor maps the declared binding to expected TagId before sandbox execution;
+3. Active Runtime TAG identity/path is checked against the binding;
+4. sandbox receives only the bounded declared reference/value map;
+5. actual read/write remains through existing stable TagId host methods.
+
+The Python sandbox receives no TAG registry, Driver, database or Authority object.
+
+### 3B.4 Frozen authorities that must remain unchanged
+
+Preserve:
+
+- TagDefinition.Id / Guid as TAG identity authority;
+- canonical TAG registry;
+- TagValueReference stable identity/selector semantics;
+- existing protected read-by-path and write-by-TagId backend surfaces;
+- TagAccessAuthorization and capability evaluation;
+- Runtime Session / ViewOnly / Interactive restrictions;
+- Server Script Active-revision gate, sandbox, timeout, queue/coalescing and cancellation.
+
+A display path must never become system identity authority.
+
+### 3B.5 Closed production file allowlist
+
+DEV may modify production code only in this allowlist:
+
+1. src/Scada.Engineering/Scripts/ScriptEngineeringContracts.cs
+2. src/Scada.Engineering/Scripts/ScriptEngineeringReferenceResolution.cs
+3. src/Scada.Engineering/Scripts/ScriptEngineeringValidation.cs
+4. src/Scada.Engineering/Scripts/ScriptEngineeringAdapters.cs
+5. src/Scada.Engineering/VisualScripting/PythonScriptingContracts.cs
+6. src/Scada.Engineering/ImportExport/Handlers/ScriptEngineeringHandler.cs
+7. src/Scada.Api/Runtime/IsolatedPythonScriptHandlerExecutor.cs
+8. src/Scada.Api/Runtime/ServerScriptRunner.py
+9. src/Scada.Api/Runtime/ServerScriptRuntimeManager.cs — conditional, only for minimum Active TAG path/ID lookup required by the resolver proof; no lifecycle/recovery/ownership change
+10. web/scada-web/src/engineering/scripts/scriptEngineeringTypes.ts
+11. web/scada-web/src/engineering/scripts/ScriptEngineeringWorkspace.logic.ts
+12. web/scada-web/src/engineering/scripts/scriptAssistantModel.ts
+13. web/scada-web/src/engineering/scripts/scriptAssistantReferenceValidation.ts
+14. web/scada-web/src/python-runtime/createClientVisualPythonCapabilityProvider.ts
+15. web/scada-web/src/python-runtime/clientVisualEventDispatcher.ts
+16. web/scada-web/src/python-runtime/engineeringPythonPreview.ts — conditional only if required for binding-consistent preview
+
+Explicitly not expected to change:
+
+- src/Scada.Core/Tags/TagValueReference.cs
+- canonical TAG registry interface/implementation
+- src/Scada.Security/Authorization/TagAccessAuthorization.cs
+- web/scada-web/src/runtime/tagInspectorApi.ts
+- web/scada-web/src/runtime/runtimeTagWriteApi.ts
+- web/scada-web/src/python-runtime/clientVisualPythonWorker.ts
+- web/scada-web/src/python-runtime/pythonRuntimeContracts.ts
+- .github/workflows/**
+
+If an explicitly non-expected production file becomes required, stop under BLOCKED-CONTRACT instead of widening scope.
+
+### 3B.6 Closed test allowlist
+
+Focused test edits are limited to:
+
+- tests/Scada.Core.Tests/ScriptEngineeringReferenceResolverTests.cs
+- tests/Scada.Core.Tests/CanonicalScriptEngineeringTests.cs
+- tests/Scada.Core.Tests/CanonicalScriptCompatibilityValidationTests.cs
+- tests/Scada.Persistence.PostgreSql.Tests/PostgreSqlCanonicalScriptPersistenceTests.cs
+- tests/Scada.Persistence.PostgreSql.Tests/ScriptEngineeringDependencyIntegrityTests.cs
+- tests/Scada.Drivers.Tests/ServerScriptRuntimeAutomationIntegrationTests.cs
+- web/scada-web/tests-e2e/script-assistant-model.spec.ts
+- web/scada-web/tests-e2e/script-assistant-reference-validation.spec.ts
+- web/scada-web/tests-e2e/script-engineering-workspace-roundtrip.spec.ts
+- web/scada-web/tests-e2e/python-tag-write-capability.spec.ts
+- web/scada-web/tests-e2e/python-runtime-host.spec.ts
+
+One new focused file is allowed if useful:
+
+- web/scada-web/tests-e2e/script-tag-reference-resolution.spec.ts
+
+No broad fixture rewrite or unrelated test cleanup is authorized.
+
+### 3B.7 Mandatory RED proof before production correction
+
+From the exact activated base, create/run a small behavior-only RED slice before changing production behavior.
+
+RED-1 — authoring readability:
+- normal Script Assistant TAG snippet must contain canonical visible path;
+- Guid literal must be absent.
+- Old base must fail because canonicalReference is GUID-first.
+
+RED-2 — Client Visual read/write convergence:
+- use visible reference Plant.Process.LevelPct;
+- injected reader returns stable ID A;
+- writer spy must receive A, not the path.
+- Old base must fail because provider forwards the input string directly to the writer.
+
+RED-3 — Server Script readable reference:
+- source uses read_tag("Simulation.ProcessState") / write_tag("Simulation.ProcessState", ...);
+- declaration still names the existing stable dependency TagId so this RED test compiles against the old model;
+- expected declared TAG must be read/written.
+- Old base must fail because Server Script values/writes are keyed by GUID strings.
+
+A RED test that passes on the old base is non-discriminating and must be corrected before implementation.
+
+Record exact command, failing test names and failure reason.
+
+### 3B.8 Mandatory GREEN matrix
+
+All items below must be deterministic PASS:
+
+1. canonical generated source uses visible path and no Guid literal;
+2. v1 Reference + Expected TagId + Version survives normalize/clone/save/load/package round-trip;
+3. persisted/PostgreSQL Working round-trip preserves the binding;
+4. readable tag_read resolves found to expected TagId;
+5. readable tag_write uses the same found proof and writes by expected TagId;
+6. read and write expose the same resolution state/evidence;
+7. rename/move of expected TagId causes stale and no retarget;
+8. old path reused by TagId B while binding expects A causes identityDrift and B remains untouched;
+9. missing path + missing expected ID causes notFound;
+10. duplicate prospective canonical path causes ambiguous and no arbitrary choice;
+11. structured TagValueReference selector remains bound to expected TagId;
+12. legacy GUID-only dependency/source compatibility is explicit and tested;
+13. undeclared readable source reference fails closed before any write;
+14. ServerMemory binding cannot elevate a non-ServerMemory TAG;
+15. allowed read/write continues through existing protected backend surfaces and denied write remains denied;
+16. representative source binds at least two readable TAG paths to two distinct expected TagIds, reads both, compares values and performs a bounded conditional action without GUID literals;
+17. no second TAG registry, second authorization evaluator or divergent read/write resolver exists;
+18. focused Core + persistence + Drivers + Web tests are green, git diff --check is green, and natural exact-head EliteSCADA CI is green.
+
+### 3B.9 Compatibility rules
+
+- no mass rewrite of existing projects/scripts;
+- legacy GUID-only form remains tested;
+- new authoring uses path + expected stable identity;
+- no automatic rename refactor in FND-04;
+- explicit rebind/source-update UX belongs downstream;
+- unchanged new-format source may become stale after rename; this is intentional fail-closed behavior;
+- no new top-level Engineering package schema migration is expected;
+- the binding carries its own Version = 1;
+- if a top-level package schema bump or database migration proves necessary, stop for Main disposition.
+
+### 3B.10 Out of scope
+
+FND-04 does not implement:
+
+- Monaco autocomplete/search UX;
+- Project Object Browser redesign;
+- cursor-placement polish;
+- automatic source refactor on TAG rename/move;
+- broad Script Engineering help/recipes;
+- Server Script recovery/throttle redesign;
+- HA ownership/fencing;
+- FND-06 renderer;
+- FND-07 Installation;
+- FND-03 licensing changes;
+- TAG registry redesign;
+- Authority/capability redesign;
+- Driver changes;
+- workflow/CI architecture changes.
+
+### 3B.11 Hard blocker criteria
+
+Return exactly:
+
+FND-04 DEV -> MAIN COORDINATOR — BLOCKED-CONTRACT
+
+and stop if any is true:
+
+1. integration gains an unacknowledged product/infra delta after assigned base;
+2. visible path must become authoritative identity;
+3. second TAG registry/resolver authority/cache-of-truth/auth evaluator is required;
+4. read and write cannot share one semantic without reopening a frozen contract;
+5. TagValueReference, TAG registry semantics or Security capability semantics must change;
+6. protected read/write endpoints must be weakened or bypassed;
+7. direct Driver/database access would enter Python;
+8. sandbox allowlist/escape boundary must broaden;
+9. new database migration/table is required;
+10. top-level Engineering schema must change rather than additive binding;
+11. FND-03, FND-05, FND-06 or FND-07 product change becomes necessary;
+12. broad Script Engineering UI ownership is required;
+13. any explicitly non-expected production file becomes necessary;
+14. RED discrimination cannot be established against the exact base;
+15. GREEN requires weakening/removing a security, package, runtime or sandbox assertion.
+
+Environment-only inability to execute required tests returns:
+
+FND-04 DEV -> MAIN COORDINATOR — BLOCKED-ENV
+
+with exact missing dependency/tool. Unexecuted evidence remains PENDING.
+
+### 3B.12 Reviewable implementation sequence
+
+1. RED tests only.
+2. typed binding + resolver state machine + validation/adapters.
+3. Server Script readable-ref bridge.
+4. Client Visual shared read/write binding + minimal readable snippet generation.
+5. persistence/compatibility/adversarial GREEN tests.
+6. git diff --check + focused validation.
+7. open exactly one PR to wave15/corrections-integration.
+8. natural exact-head CI.
+9. DEV handoff; no self-merge.
+
+No commit may mix unrelated cleanup.
+
+### 3B.13 Final DEV acceptance table
+
+DEV handoff reports PASS | FAIL | PENDING for:
+
+1. v1 binding contract
+2. readable source
+3. stable TagId authority
+4. shared read/write semantic
+5. found/read
+6. found/write
+7. stale rename/move
+8. identityDrift path reuse
+9. notFound
+10. ambiguous
+11. selector identity safety
+12. undeclared ref fail-closed
+13. legacy GUID compatibility
+14. save/load/package round-trip
+15. persisted/PostgreSQL round-trip
+16. ServerMemory restriction
+17. Authority/security preservation
+18. multi-TAG readable script
+19. no second registry/resolver/auth authority
+20. exact-head CI
+
+Any FAIL or required PENDING blocks PR_READY.
+
+### 3B.14 AUD attack matrix
+
+After an immutable DEV candidate, AUD independently attacks:
+
+- path case/canonicalization;
+- rename then old-path reuse;
+- expected-ID missing vs path missing;
+- duplicate prospective path ambiguity;
+- binding version invalid/missing;
+- StableReference vs Expected.TagId mismatch;
+- undeclared source literal;
+- read/write divergence;
+- write-after-resolution must not retarget another TagId;
+- ServerMemory kind confusion;
+- legacy GUID compatibility;
+- selector identity drift;
+- package round-trip;
+- denied Authority write;
+- accidental direct registry/Driver access;
+- accidental second resolver/auth path.
+
+AUD remains READ_ONLY unless Main later explicitly sets AUD_MODE: WRITE_TESTS.
+
 ---
 
 ## 4. FND-04 DEV lane
@@ -165,17 +492,19 @@ DEV must not:
 
 ### CURRENT DEV ORDER
 
-`ORDER_ID: FND04-DEV-PREP-0001`
+`ORDER_ID: FND04-DEV-EXEC-PLAN-0002`
 
 `ORDER_STATE: WAIT_GATE`
 
 `PREPARED_BASE_CANDIDATE: a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
 
-`PREPARED_TREE: e48c8b9918f4d3a5ae4dee1df6211393c95b6513`
+`PREPARED_TREE: e48c8b9918f4d3a5ae4dee1df6211393c95b6513
+
+EXECUTION_PLAN: FND04-TAGREF-V1 / section 3B`
 
 Instruction:
 
-> FND-04 implementation is fully prepared but **not active**. On `SIGA`, re-read this file and GitHub live. While `GLOBAL_GATE` is `HOLD_FND03_POSTMERGE_CI`, make no branch/code/test/PR mutation. Report `FND-04 DEV — PREPARED / WAITING FOR FND-03 POST-MERGE GATE` with the observed integration SHA.
+> FND-04 has a frozen executable implementation plan but is **not active**. On `SIGA`, re-read this file and GitHub live. While `GLOBAL_GATE` is `HOLD_FND03_POSTMERGE_CI`, make no branch/code/test/PR mutation. Report `FND-04 DEV — PREPARED / WAITING FOR FND-03 POST-MERGE GATE` with the observed integration SHA.
 
 When Main flips `GLOBAL_GATE: FND04_ACTIVE`, the activation order will use the verified exact product checkpoint and the source/contract map in section 3A, with these mandatory implementation outcomes:
 
@@ -273,7 +602,7 @@ AUD never merges its own work and never writes directly to DEV branch, integrati
 
 ### CURRENT AUD ORDER
 
-`ORDER_ID: FND04-AUD-PREP-0001`
+`ORDER_ID: FND04-AUD-PREP-0002`
 
 `ORDER_STATE: WAIT_GATE`
 

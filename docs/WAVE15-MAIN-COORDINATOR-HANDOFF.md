@@ -305,3 +305,17 @@ Agents execute current order, return evidence and stop on `STOP`/`WAIT`. Main pr
 - CODEX/AUD: wait on post-merge gate; no mutation
 - control plane commit: `bb876c51bb1bb116e0f33b2a61291bf78a213b2c`
 - no downstream Foundation release until exact post-merge CI on `6c810647...` is green
+
+## FND-06 prepared activation
+
+FND-06 source audit is complete while FND-04 post-merge CI runs.
+
+- control branch: `coord/w15-fnd06-control`
+- control file: `docs/WAVE15-FND06-CONTROL.md`
+- control commit: `4fb1c211b66bcb44a3143697cc2433a2237ab6e5`
+- prepared order: `FND06-CODEX-VISUAL-STABILITY-V1`
+- state: **WAIT_FND04_POST_MERGE_GATE / NO PRODUCT MUTATION**
+- FND-06 is bounded to shared visual compatibility/selection/runtime-navigation/renderer-authority Foundation.
+- Full single-canvas WYSIWYG remains downstream DEV-EDITOR scope.
+- Main may activate only after exact FND-04 post-merge CI `35913456486` is fully green.
+

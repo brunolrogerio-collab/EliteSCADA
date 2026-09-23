@@ -119,6 +119,6 @@ Execution is now delegated to a dedicated functional-runtime lane:
 
 Control commit:
 
-`e871d51238881824e57778cf884b246ba8163bec`
+`bb67e74ac0e58625763212e2bc284f4c22559519`
 
 The normal DEV chat is `BLOCKED_ENV / WATCH_ONLY`; FND-04 AUD remains `WAIT_CANDIDATE`. The Codex executor must use the exact same section 3B plan, RED-before-production sequence, allowlists, branch and no-merge boundary.

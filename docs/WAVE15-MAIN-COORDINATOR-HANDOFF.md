@@ -306,7 +306,7 @@ The normal DEV chat must not create a competing implementation. It remains avail
 A dedicated **FND-04 CODEX EXECUTOR** is now ACTIVE under the same frozen plan:
 
 - control branch/file: `coord/w15-fnd04-dev-aud-control:docs/WAVE15-FND04-DEV-AUD-CONTROL.md`
-- control commit: `e871d51238881824e57778cf884b246ba8163bec`
+- control commit: `bb67e74ac0e58625763212e2bc284f4c22559519`
 - executor order: `FND04-CODEX-TAGREF-V1-01`
 - source plan: `FND04-TAGREF-V1 / section 3B`
 - exact same base/branch/allowlists

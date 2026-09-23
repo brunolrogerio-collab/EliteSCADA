@@ -69,7 +69,7 @@ Dedicated control plane:
 `coord/w15-fnd04-dev-aud-control:docs/WAVE15-FND04-DEV-AUD-CONTROL.md`
 
 Current control commit:
-`e871d51238881824e57778cf884b246ba8163bec`
+`bb67e74ac0e58625763212e2bc284f4c22559519`
 
 Plan:
 `FND04-TAGREF-V1`

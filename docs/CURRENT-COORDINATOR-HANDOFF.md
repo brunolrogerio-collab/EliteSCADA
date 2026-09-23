@@ -27,7 +27,7 @@ FND-06 is **ACTIVE / NOT INTEGRATED** and is the only remaining FC0-A blocker.
 - work branch: `work/w15-fnd-06-visual-stability-foundation`
 - target: `wave15/corrections-integration`
 - control branch/file: `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
-- active control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`
+- active control commit: `1a1488388fd67bf89380879b07437e1460170f18`
 - validation profile: `UI_EDITOR, RUNTIME_RENDERER`
 
 Latest revalidation: work branch is still identical to the exact product base; no FND-06 PR/candidate/handoff exists yet.
@@ -44,7 +44,7 @@ Full single-canvas WYSIWYG remains downstream DEV-EDITOR scope.
 
 ## FC0-A preparation
 
-FC0-A state: **PREPARED / NOT RELEASED / BLOCKED ONLY ON FND-06**.
+FC0-A state: **PREPARED / NOT RELEASED / BLOCKED ON FND-06 + POST-FND06 FOUNDATION AUDIT**.
 
 Prepared release file:
 `coord/w15-fnd06-control:docs/WAVE15-FC0-A-RELEASE-PREP.md`
@@ -100,7 +100,7 @@ Primary ledger: Issue #305.
 - validation profile: `UI_EDITOR, RUNTIME_RENDERER`
 - known legacy set: `tank | value | dynamo | status`
 - `status` is compatibility-only unless a lossless migration is separately proven; no alias guessing
-- control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`
+- control commit: `1a1488388fd67bf89380879b07437e1460170f18`
 
 
 ## FC0-A collision guard
@@ -108,3 +108,32 @@ Primary ledger: Issue #305.
 The prepared downstream release package now includes a Main-owned parallel-file collision map. Primary ownership is separated across Editor (`engineering/visual-editor/**`), Script Engineering (`engineering/scripts/**` + `python-editor/**`), Authority UX (`UserAdministration*`) and Licensing UX (`web/licensing/**` + `Scada.LicenseGenerator/**`). Shared shell/router/types/i18n/CI files are Main-coordinated hotspots, not free-for-all lane ownership.
 
 Latest FC0-A prep commit: `dfae2377f0c6802da726650697040181c7b0f453`.
+
+
+## Same sequential CODEX routing
+
+The CODEX chat/lane that executed prior Foundation work including FND-04 is the active FND-06 executor.
+
+- FND-04 old control no longer means executor WAIT.
+- FND-04 control rev 0016 routes that same CODEX through `ROUTE-SEQUENTIAL-CODEX-TO-FND06-12`.
+- routed destination: `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
+- active FND-06 order: `FND06-CODEX-VISUAL-STABILITY-V2`
+- FND-06 control commit: `1a1488388fd67bf89380879b07437e1460170f18`
+
+On `SIGA`, that CODEX should execute FND-06, not report FND-04 frozen/wait.
+
+## FC0-A release gate update
+
+After FND-06 freeze, FC0-A still waits for `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`.
+
+The audit must close the Wave14->Wave15 premise/gap matrix and prove FND-05/FND-07 are non-breaking to frozen contracts consumed by the first four DEVs.
+
+Only after audit `ACCEPTABLE / FC0A_RELEASE_APPROVED` may Main activate:
+- DEV-EDITOR;
+- DEV-SCRIPT-ENGINEERING;
+- DEV-AUTHORITY-UX;
+- DEV-LICENSING-UX;
+- FND-05;
+- FND-07.
+
+FND-05 and FND-07 remain PREPARED / NOT ACTIVE until then.

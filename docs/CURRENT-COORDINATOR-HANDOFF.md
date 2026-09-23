@@ -43,12 +43,12 @@ Coordination/documentation HEAD may be ahead of the product checkpoint. Do not t
 ### CODEX
 
 `ORDER_STATE: ACTIVE`  
-`ORDER_ID: INFRA-CI-01A-W15-T1-01`
+`ORDER_ID: INFRA-CI-01A-REVIEW-CLOSE-02`
 
 Branch:
 `work/w15-infra-ci-01-profile-orchestration`
 
-Mission: implement the isolated Wave 15 profile-aware T1 PR gate. No FND-04/product changes and no merge authority.
+Mission: correct PR #335 risk-floor defects found by Main review: real FND-04 path inference, manual-dispatch full-branch delta, and owning backend evidence for AUTHORITY_UX / LICENSING_UX / ELITEGO_RUNTIME. Six-file scope unchanged; no merge authority.
 
 ### FND-03 DEV
 

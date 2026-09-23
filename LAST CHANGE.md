@@ -80,7 +80,7 @@ CI efficiency audit: the universal Chromium gate currently runs 624 tests serial
 
 CODEX order:
 
-`INFRA-CI-01A-W15-T1-01`
+`INFRA-CI-01A-REVIEW-CLOSE-02`
 
 Exact branch base:
 
@@ -91,3 +91,15 @@ Work branch:
 `work/w15-infra-ci-01-profile-orchestration`
 
 Mission: add `wave15-pr.yml` profile-aware T1 routing, deterministic profile classifier/tests, and return the universal `dotnet-ci.yml` Wave 15 role to broad integrated push/checkpoint validation instead of every leaf PR. Existing heavy workflow assertions remain untouched. No merge authority.
+
+
+## INFRA-CI-01A Main review correction
+
+PR #335 head `2069f4cb1ea398da615286001102fa44cbc35e67` has natural T1 CI green, but Main review found four pre-integration defects:
+
+- real FND-04 Server Script runtime files under `src/Scada.Api/Runtime/**` were not inferred as `SCRIPT_RUNTIME`;
+- real `web/scada-web/src/engineering/scripts/**` files were not inferred as `SCRIPT_ENGINEERING`;
+- manual dispatch compared only the last commit instead of the full branch delta to Wave 15 integration;
+- `AUTHORITY_UX`, `LICENSING_UX` and `ELITEGO_RUNTIME` did not independently request their owning backend evidence.
+
+CODEX order is now `INFRA-CI-01A-REVIEW-CLOSE-02`; correction remains inside the original six-file allowlist. PR #335 is not approved for merge yet.

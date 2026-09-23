@@ -136,14 +136,14 @@ This is a prepared scope, not active authorization. If exact post-merge CI chang
 
 ## 3B. EXECUTABLE IMPLEMENTATION PLAN — FND04-TAGREF-V1
 
-**PLAN_STATE: FROZEN_FOR_EXECUTION / GATE_HOLD**  
+**PLAN_STATE: ACTIVE / FROZEN_FOR_EXECUTION**  
 **PLAN_ID: FND04-TAGREF-V1**  
 **Provisional exact base:** a3eb86f8e1022675f84f0a76129a64d8e9d5faa6  
 **Provisional tree:** e48c8b9918f4d3a5ae4dee1df6211393c95b6513  
 **Implementation branch after activation:** work/w15-fnd-04-script-tag-reference-resolution  
 **Target:** wave15/corrections-integration
 
-This plan is executable as written only after Main flips GLOBAL_GATE to FND04_ACTIVE. Until then it is binding preparation only.
+GLOBAL_GATE is now FND04_ACTIVE. This plan is the binding executable scope for DEV order FND04-DEV-TAGREF-V1-01.
 
 ### 3B.1 Closed architectural choice
 

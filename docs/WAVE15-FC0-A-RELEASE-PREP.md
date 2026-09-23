@@ -2,7 +2,7 @@
 
 > PREPARED ONLY. This document does not release any DEV lane. GitHub live and Main's later exact FC0-A checkpoint are authoritative.
 
-`STATE: PREPARED / NOT RELEASED`
+`STATE: PREPARED / NOT RELEASED / BLOCKED_ONLY_ON_FND06`
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
@@ -14,10 +14,10 @@ As of preparation:
 - FND-08 — VERIFIED/FROZEN;
 - FND-03 global — VERIFIED/FROZEN;
 - INFRA-CI-01A — VERIFIED/FROZEN;
-- FND-04 — merged, exact post-merge CI still pending final Chromium at preparation time;
-- FND-06 — activation prepared, not yet implemented/frozen.
+- FND-04 — VERIFIED/FROZEN at `6c810647c9773a19b212d9c33694780141786ac7` / tree `1221ff55963052be4e924dd644efbaa65763f546`; exact post-merge CI `35913456486` SUCCESS;
+- FND-06 — ACTIVE on exact product base `6c810647c9773a19b212d9c33694780141786ac7`, order `FND06-CODEX-VISUAL-STABILITY-V1`, not yet integrated/frozen.
 
-FC0-A remains blocked only by FND-04 final freeze + FND-06.
+FC0-A remains blocked **only by FND-06 VERIFIED/FROZEN**.
 
 ## 2. Exact FC0-A checkpoint fields Main must fill
 
@@ -115,6 +115,64 @@ Must preserve:
 
 Prepared branch naming:
 `work/w15-dev-licensing-ux`
+
+## 3A. Prepared lane orders — still blocked, do not execute yet
+
+These identifiers are reserved so Main can activate the four lanes immediately after recording the exact FC0-A checkpoint. They are **not authorization to code** until each order is rewritten with the final exact `FC0_A_INTEGRATION_SHA` and state `ACTIVE`.
+
+### `DEV-EDITOR-FC0A-01`
+
+- parent: #303
+- status now: `PREPARED / BLOCKED_FND06`
+- branch to create only after FC0-A: `work/w15-dev-editor-single-canvas`
+- target: `wave15/corrections-integration`
+- validation profile: `UI_EDITOR, RUNTIME_RENDERER`
+- consumes frozen FND-06 canonical renderer/legacy-compatibility/Working-vs-Active/navigation contracts
+- owns downstream single-primary-canvas UX, direct manipulation, Outliner synchronization, property/binding UX, layout density, grid/snap/zoom/pan and removal of the permanent stacked second-preview workflow
+- forbidden: new renderer, Working->Active collapse, process writes from ordinary design mode, Foundation legacy-compatibility redesign
+- mandatory mounted acceptance is the 12-scenario matrix in #303 plus regression against the frozen FND-06 compatibility contract
+- handoff prefix: `DEV-EDITOR -> MAIN COORDINATOR`
+
+### `DEV-SCRIPT-ENGINEERING-FC0A-01`
+
+- parent: #297 / W15-P1-05 downstream Script Engineering
+- status now: `PREPARED / BLOCKED_FC0A`
+- branch to create only after FC0-A: `work/w15-dev-script-engineering`
+- target: `wave15/corrections-integration`
+- validation profile: `SCRIPT_ENGINEERING, SCRIPT_RUNTIME`
+- consumes frozen FND-04 readable TAG binding/resolution contract
+- owns event-aware fields, timer/tagChanged configuration, hidden-field clearing/migration, cursor-safe insertion, API signatures/examples/property addressing, compare-two-TAG/change-visual-state recipe and mounted UI regression
+- forbidden: Server Script sandbox/runtime ownership redesign, new TAG resolver, Authority/HA contract mutation
+- handoff prefix: `DEV-SCRIPT-ENGINEERING -> MAIN COORDINATOR`
+
+### `DEV-AUTHORITY-UX-FC0A-01`
+
+- parent: #302
+- status now: `PREPARED / BLOCKED_FC0A`
+- branch to create only after FC0-A: `work/w15-dev-authority-ux`
+- target: `wave15/corrections-integration`
+- validation profile: `AUTHORITY_UX`
+- consumes frozen FND-02/AUTH-04 capability/scope/effective-permission semantics
+- owns Users + role/profile assignment, role CRUD under protected invariants, capability grouping, hierarchy/scope selector, effective-permission preview and truthful multi-role UX
+- forbidden: hidden role-name privileges, backend Authority evaluator redesign, Runtime Session Class becoming a role, secret/password exposure
+- must regress #302's backend-authoritative denial scenarios and direct API tampering behavior
+- handoff prefix: `DEV-AUTHORITY-UX -> MAIN COORDINATOR`
+
+### `DEV-LICENSING-UX-FC0A-01`
+
+- parent: #301
+- status now: `PREPARED / BLOCKED_FC0A`
+- branch to create only after FC0-A: `work/w15-dev-licensing-ux`
+- target: `wave15/corrections-integration`
+- validation profile: `LICENSING_UX, SESSION_LICENSING`
+- consumes frozen FND-03 machine-license v2 / Runtime Session Lease / shared Web+EliteGO quota / admission semantics
+- owns License Generator v2 user-facing fields, licensing status/usage UX, Web Runtime View Only request/fallback/granted-class messaging, backward/new-schema UX and deterministic tests
+- forbidden: private signing-key boundary changes, independent client entitlement pools, session-admission authority redesign, HA fencing contract invention
+- handoff prefix: `DEV-LICENSING-UX -> MAIN COORDINATOR`
+
+Release-time rule for all four: Main must first replace the blocked state with `ACTIVE`, write the same exact FC0-A SHA/tree into each order, create each work branch from that SHA, and record the release in #305. No lane may infer activation from this preparation file.
+
+---
 
 ## 4. Release guard
 

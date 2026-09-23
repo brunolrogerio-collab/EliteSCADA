@@ -38,26 +38,27 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0014`
+`MAIN_ORDER_REV: 0015`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-23 — FND-04 MERGED / EXACT POST-MERGE CI GATE ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-23 — FND-04 VERIFIED / FROZEN AFTER EXACT POST-MERGE CI`
 
-`GLOBAL_GATE: FND04_POST_MERGE_CI`
+`GLOBAL_GATE: FND04_VERIFIED_FROZEN`
 
 Current situation:
 
-- FND-03 remains **VERIFIED / FROZEN** on exact product checkpoint `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`.
-- INFRA-CI-01A remains **VERIFIED / FROZEN** at merge `9f62ad56e3fed5574bab1fa25fc8b64f9e4ae981`.
-- Independent AUD accepted exact FND-04 candidate `c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e` / tree `7fa948de25e4f120566113dc8d14a0a696342a32`.
-- PR #336 was merged normally with expected-head protection.
+- FND-04 exact accepted candidate: `c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e` / tree `7fa948de25e4f120566113dc8d14a0a696342a32`.
+- Independent AUD classification on that exact candidate: **ACCEPTABLE**.
+- PR #336 merged normally with expected-head protection.
 - Exact integration merge SHA: `6c810647c9773a19b212d9c33694780141786ac7`.
 - Exact merge tree: `1221ff55963052be4e924dd644efbaa65763f546`.
-- Natural post-merge broad `EliteSCADA CI` run `35913456486` / run #1562 was created by the push on that exact SHA.
-- Web build job `107358858133` is SUCCESS.
-- Backend build/test/smoke job `107358858405` is currently in progress.
-- FND-04 is therefore **INTEGRATED / POST-MERGE CI PENDING / NOT YET VERIFIED-FROZEN**.
-- CODEX and AUD are both **WAIT_POST_MERGE_GATE / NO_MUTATION**.
-- No downstream Foundation release is authorized until Main verifies the exact post-merge CI on `6c810647...`.
+- Natural exact post-merge `EliteSCADA CI` run `35913456486` / #1562: **SUCCESS**.
+  - Web build `107358858133` — SUCCESS.
+  - Backend build/test/smoke `107358858405` — SUCCESS.
+  - Chromium end-to-end `107359503423` — SUCCESS.
+- FND-04 is now **VERIFIED / FROZEN** at exact product checkpoint `6c810647c9773a19b212d9c33694780141786ac7`.
+- The readable Script TAG reference contract is frozen for downstream consumption.
+- CODEX and AUD are **FROZEN / WAIT / NO_MUTATION**.
+- Any later change to this shared contract requires a new Main/Foundation delta; downstream lanes may not redefine it.
 
 Live integration divergence from the product base remains acknowledged only for verified INFRA-CI-01A + coordination documentation. Any other unacknowledged product delta remains `BLOCKED-BASE-DIVERGENCE`.
 ---
@@ -589,19 +590,21 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 ### CURRENT CODEX EXECUTION ORDER
 
-`ORDER_ID: FND04-CODEX-WAIT-POSTMERGE-10`
+`ORDER_ID: FND04-CODEX-FROZEN-11`
 
-`ORDER_STATE: WAIT_POST_MERGE_GATE`
+`ORDER_STATE: WAIT`
 
-`EXECUTOR_MODE: NO_MUTATION`
+`EXECUTOR_MODE: FND04_FROZEN / NO_MUTATION`
 
-`MERGE_SHA: 6c810647c9773a19b212d9c33694780141786ac7`
+`FROZEN_PRODUCT_SHA: 6c810647c9773a19b212d9c33694780141786ac7`
 
-`POST_MERGE_CI_RUN: 35913456486`
+`FROZEN_PRODUCT_TREE: 1221ff55963052be4e924dd644efbaa65763f546`
+
+`POST_MERGE_CI_RUN: 35913456486 / SUCCESS`
 
 Instruction:
 
-> FND-04 has been merged. Do not mutate product/tests, rebase, retarget, rerun or create follow-up work unless Main issues a new order. On `SIGA`, re-read GitHub live, confirm the merge SHA and post-merge gate state, report `FND-04 CODEX EXECUTOR — WAIT_POST_MERGE_GATE`, and stop.
+> FND-04 is VERIFIED/FROZEN. On `SIGA`, re-read this control plane and GitHub live. If no new Main Foundation-delta order exists, report `FND-04 CODEX EXECUTOR — FROZEN / WAIT` and stop. Do not mutate product/tests or reopen PR #336.
 
 ### CODEX mandatory return
 
@@ -668,19 +671,19 @@ AUD never merges its own work and never writes directly to DEV branch, integrati
 
 ### CURRENT AUD ORDER
 
-`ORDER_ID: FND04-AUD-WAIT-POSTMERGE-0010`
+`ORDER_ID: FND04-AUD-FROZEN-0011`
 
-`ORDER_STATE: WAIT_POST_MERGE_GATE`
+`ORDER_STATE: WAIT`
 
-`AUD_MODE: READ_ONLY_REVIEW`
+`AUD_MODE: FND04_FROZEN / READ_ONLY`
 
-`MERGE_SHA: 6c810647c9773a19b212d9c33694780141786ac7`
+`FROZEN_PRODUCT_SHA: 6c810647c9773a19b212d9c33694780141786ac7`
 
-`POST_MERGE_CI_RUN: 35913456486`
+`POST_MERGE_CI_RUN: 35913456486 / SUCCESS`
 
 Instruction:
 
-> Your independent candidate review is complete and ACCEPTABLE. FND-04 is merged and now waits only for Main's exact post-merge CI verification. Do not re-audit or mutate anything unless Main issues a new order. On `SIGA`, revalidate GitHub live and report the post-merge gate state only.
+> FND-04 is VERIFIED/FROZEN after your ACCEPTABLE review and exact post-merge CI. On `SIGA`, revalidate GitHub live and report `FND-04 AUD — FROZEN / WAIT` unless Main has issued a new Foundation-delta audit order. Do not mutate or re-audit the frozen candidate speculatively.
 
 ### AUD mandatory return format
 

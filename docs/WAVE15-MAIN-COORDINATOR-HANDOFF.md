@@ -134,7 +134,7 @@ Coordination/documentation commits after this checkpoint do not create a new pro
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
 **ORDER_STATE: ACTIVE**  
-**ORDER_ID: FND06-CODEX-VISUAL-STABILITY-V1**  
+**ORDER_ID: FND06-CODEX-VISUAL-STABILITY-V2**  
 **CODEX_MODE: BOUNDED_FOUNDATION_IMPLEMENTATION**  
 **Mission:** close the remaining canonical Runtime/rendering + visual stability Foundation gaps without implementing the full downstream Editor UX
 
@@ -152,8 +152,8 @@ Work branch:
 Dedicated control:
 - branch `coord/w15-fnd06-control`
 - file `docs/WAVE15-FND06-CONTROL.md`
-- control commit `15def327cc61b367d14dbf674c6ebb4e8ea6e8ef`
-- order `FND06-CODEX-VISUAL-STABILITY-V1`.
+- control commit `35e1ae631b8471a66eb0c4042295d5b5628d61ec`
+- order `FND06-CODEX-VISUAL-STABILITY-V2`.
 
 Frozen scope:
 - centralized known-legacy visual compatibility before strict schema consumers;
@@ -309,8 +309,20 @@ Agents execute current order, return evidence and stop on `STOP`/`WAIT`. Main pr
 - work branch: `work/w15-fnd-06-visual-stability-foundation`
 - control branch: `coord/w15-fnd06-control`
 - control file: `docs/WAVE15-FND06-CONTROL.md`
-- control commit: `15def327cc61b367d14dbf674c6ebb4e8ea6e8ef`
-- order: `FND06-CODEX-VISUAL-STABILITY-V1`
+- control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`
+- order: `FND06-CODEX-VISUAL-STABILITY-V2`
 - FC0-A remains blocked only on FND-06.
 - prepared downstream release plan: `docs/WAVE15-FC0-A-RELEASE-PREP.md` on the FND-06 control branch.
 
+
+
+## FND-06 status classification correction
+
+- control revision: `0003`
+- active order: `FND06-CODEX-VISUAL-STABILITY-V2`
+- valid Wave 15 T1 profile: `UI_EDITOR, RUNTIME_RENDERER`
+- `tank | value | dynamo | status` are the mandatory known persisted legacy identifiers for the FND-06 compatibility boundary
+- bare `status` is evidenced in the exact product-base seed and is **not** a current `core.*` built-in
+- no guessed alias/migration to `instrument.status`, `core.valueDisplay`, or another canonical type is authorized
+- truly unknown types remain fail-closed/contained
+- control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`

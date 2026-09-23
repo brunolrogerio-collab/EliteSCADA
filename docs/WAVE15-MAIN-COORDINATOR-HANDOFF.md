@@ -133,17 +133,226 @@ Coordination/documentation commits after this checkpoint do not create a new pro
 
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
-**ORDER_STATE: WAIT**  
-**ORDER_ID: FND03-FROZEN-07**  
-**CODEX_MODE: WAIT / NO ACTIVE MISSION**  
-**Mission:** no FND-03 action; exact integrated checkpoint is verified/frozen
+**ORDER_STATE: ACTIVE**  
+**ORDER_ID: INFRA-CI-01A-W15-T1-01**  
+**CODEX_MODE: BOUNDED_AUTONOMOUS_INFRA**  
+**Mission:** implement Wave 15 profile-aware T1 PR CI in an isolated reviewable PR while FND-04 DEV works independently
 
-FND-03 is frozen at:
-- `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
-- tree `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`
-- post-merge CI #1559 / `35815261288`, attempt 2 — SUCCESS.
+### Exact base / branch
 
-CODEX must make no FND-03 or FND-04 changes unless Main later issues a new explicit bounded mission.
+- coordination/integration base at assignment: `084d48f833415797f62ec525d0192def1a380592`
+- product checkpoint carried by that commit: `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
+- branch: `work/w15-infra-ci-01-profile-orchestration`
+- target: `wave15/corrections-integration`
+- issue/ledger: #305
+- FND-04 work branch is separate and MUST NOT be touched.
+
+The current live `.github/workflows/dotnet-ci.yml` now targets pull requests to `wave15/corrections-integration`, so ordinary Wave 15 PRs pay the full universal Backend + Web + 624-test Chromium gate. Main's timing audit in #305 comment `5789766944` shows ~13.5–14.5 minutes wall-clock, dominated by serial Chromium.
+
+### Required implementation
+
+Implement **INFRA-CI-01A/B** as the smallest auditable T1 orchestration change.
+
+#### 1. Add a deterministic profile router
+
+Create:
+
+- `scripts/ci/wave15_profile_router.py`
+- `tests/ci/test_wave15_profile_router.py`
+
+Use Python standard library only.
+
+The router must:
+
+- parse a required PR-body declaration `VALIDATION_PROFILE: ...`;
+- accept an explicit manual-dispatch override;
+- support the versioned vocabulary:
+  - `FOUNDATION_LIFECYCLE`
+  - `FOUNDATION_TIMING`
+  - `AUTHORITY_CORE`
+  - `SESSION_LICENSING`
+  - `SCRIPT_RUNTIME`
+  - `RUNTIME_RENDERER`
+  - `UI_EDITOR`
+  - `SCRIPT_ENGINEERING`
+  - `AUTHORITY_UX`
+  - `LICENSING_UX`
+  - `ELITEGO_RUNTIME`
+  - `INSTALLATION`
+  - `HA_DISTRIBUTED`
+  - `DOCS_I18N_HELP`
+  - `EEE_PACKAGE`
+  - `DRIVER_PROTOCOL`;
+- infer a conservative minimum profile set from changed paths;
+- calculate effective profiles as **declared/override UNION inferred**;
+- never allow a declared cheap profile to suppress an inferred risk profile;
+- reject unknown profile names;
+- reject a PR with missing declaration unless its change is provably limited to coordination-only documentation explicitly exempted by policy;
+- expose stable machine-readable outputs for conditional jobs and a human-readable summary.
+
+At minimum the inference must conservatively recognize Security/Authority, Licensing/session, Script runtime/engineering, Runtime/renderer, visual/editor, Installation, HA/distributed, Driver/DriverHost/Gateway/common communication, EEE/package and docs/i18n/help surfaces.
+
+#### 2. Add Wave 15 T1 workflow
+
+Create:
+
+`.github/workflows/wave15-pr.yml`
+
+Required trigger:
+
+- `pull_request` targeting `wave15/corrections-integration`;
+- `workflow_dispatch` with optional profile override;
+- read-only contents permission;
+- concurrency with cancel-in-progress for superseded PR/branch heads.
+
+Required job shape:
+
+1. `classify`
+   - checkout with enough history for changed-file classification;
+   - resolve PR base/head or dispatch comparison deterministically;
+   - execute the router;
+   - publish effective profiles and job booleans.
+
+2. `common-sanity`
+   - always for non-exempt product/infra PRs;
+   - `git diff --check`;
+   - router/profile self-tests;
+   - no PostgreSQL/browser/Driver lab.
+
+3. profile-driven focused jobs only when required:
+   - Web semantic/type/build evidence for Web/editor/script-authoring profiles;
+   - focused .NET tests for owning Foundation/Authority/Licensing/Script Runtime/Installation/HA/package profiles;
+   - focused Chromium only for profiles that materially require browser behavior;
+   - Driver-impact classification must be explicit and must not silently claim Seven-Driver/Interop PASS.
+
+4. final `t1-gate`
+   - uses `if: always()`;
+   - fails if classification or any required conditional job failed/cancelled;
+   - succeeds when all required T1 evidence is green;
+   - summary names exact effective profiles and explicitly lists specialized/heavy gates as `REQUIRED NOW`, `UNCHANGED/TRUSTED`, or `DEFERRED TO T2/T3`.
+
+Do not duplicate product tests merely for routing. Reuse existing commands/specs.
+
+#### 3. Stop paying the universal full CI on every Wave 15 PR
+
+Modify only the trigger topology in:
+
+`.github/workflows/dotnet-ci.yml`
+
+Required result:
+
+- keep `workflow_dispatch`;
+- keep broad `push` validation on `wave15/corrections-integration` for integrated T2-style checkpoints;
+- keep universal PR validation for `main`;
+- remove `wave15/corrections-integration` from the universal `pull_request` branch list after `wave15-pr.yml` owns T1.
+
+Do not weaken, delete, shard or otherwise rewrite the universal Backend/Web/Chromium assertions in this order.
+
+Browser sharding of the broad checkpoint gate is a separate follow-up after T1 routing is proven; the immediate efficiency gain comes from not executing all 624 Chromium tests for unrelated leaf PRs.
+
+#### 4. Update policy docs
+
+Modify only:
+
+- `docs/CI-USAGE-POLICY.md`
+- `docs/CI-VALIDATION-POLICY.md`
+
+Record:
+- Wave 15 T0/T1/T2/T3/T4 responsibilities;
+- exact `VALIDATION_PROFILE` vocabulary;
+- path inference is a floor, never authority;
+- Main may escalate;
+- universal `dotnet-ci.yml` remains broad integrated/main acceptance;
+- `wave15-pr.yml` is the Wave 15 leaf-PR T1 gate;
+- specialized heavy workflows remain risk-sensitive/manual/checkpoint gates;
+- no test/coverage reduction.
+
+### Exact allowlist
+
+Only these files may change:
+
+- `.github/workflows/wave15-pr.yml` — new
+- `.github/workflows/dotnet-ci.yml` — trigger-only delta
+- `scripts/ci/wave15_profile_router.py` — new
+- `tests/ci/test_wave15_profile_router.py` — new
+- `docs/CI-USAGE-POLICY.md`
+- `docs/CI-VALIDATION-POLICY.md`
+
+No product source, FND-04 file, existing specialized workflow, Playwright config/test, package file or lockfile change is authorized.
+
+### Mandatory deterministic tests
+
+The router test suite must cover at least:
+
+1. docs-only example does not require backend/browser/Driver jobs;
+2. Web/editor example requires Web evidence but not Driver;
+3. Script Engineering-only example requires script/Web evidence;
+4. Script Runtime example escalates to owning runtime/.NET evidence;
+5. Security/Authority example requires Authority evidence;
+6. Licensing/session example requires Licensing evidence;
+7. Driver-impact example always infers `DRIVER_PROTOCOL` despite a cheaper declared profile;
+8. HA example cannot be suppressed by `UI_EDITOR`;
+9. unknown profile fails;
+10. missing required declaration fails;
+11. declared + inferred profiles are unioned deterministically;
+12. manual override can only add/escalate, never remove inferred risk.
+
+Also validate representative current FND-04 paths infer `SCRIPT_ENGINEERING` and/or `SCRIPT_RUNTIME` as appropriate.
+
+### Required proof before handoff
+
+- `python3 -m unittest tests/ci/test_wave15_profile_router.py` PASS;
+- router synthetic CLI examples PASS;
+- workflow YAML/structure validation available in environment PASS;
+- `git diff --check` PASS;
+- exact changed-file allowlist proof;
+- open exactly one PR to `wave15/corrections-integration`;
+- observe whatever natural Actions the PR actually produces and report exact run/job IDs;
+- do not manufacture a run with empty commits;
+- do not merge.
+
+If the newly added T1 workflow cannot self-execute on its introduction PR because of GitHub workflow-event semantics, report that fact accurately and provide the strongest static/synthetic evidence; Main will decide the integration/bootstrap proof. Do not weaken the design to force a green badge.
+
+### Bounded autonomy
+
+CODEX may iterate autonomously:
+
+`implement -> test -> commit/push -> inspect PR/Actions -> causally correct within allowlist`
+
+without a new Main micro-order.
+
+Stop with:
+
+`CODEX -> MAIN COORDINATOR — BLOCKED-AUTONOMY-BOUNDARY`
+
+if completion requires:
+- changing product code/tests;
+- modifying an existing specialized workflow;
+- reducing/removing test coverage;
+- broad global Playwright parallelism against shared state;
+- branch-protection/admin settings;
+- secrets/credentials;
+- a new CI architecture outside the T1 router/orchestrator contract.
+
+### Final handoff
+
+Return exactly:
+
+`CODEX -> MAIN COORDINATOR — INFRA-CI-01A T1 FINAL CANDIDATE HANDOFF`
+
+with:
+- exact base/head/tree;
+- PR;
+- six-file-or-smaller exact diff;
+- profile vocabulary and inference table;
+- synthetic test matrix/results;
+- natural Actions evidence;
+- current expected T1 cost shape vs universal ~14-minute gate;
+- specialized gates not executed and why;
+- explicit non-actions;
+- acceptance `PASS | FAIL | PENDING`.
+
+No merge authority.
 ---
 
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER

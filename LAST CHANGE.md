@@ -71,6 +71,23 @@ FND-04 AUD remains WAIT_CANDIDATE / READ_ONLY until Main supplies an immutable D
 
 - FND-04 — ACTIVE.
 - FND-06 — NOT STARTED.
-- INFRA-CI-01 — AUDITED / IMPLEMENTATION PENDING.
+- INFRA-CI-01A — ACTIVE in CODEX on `work/w15-infra-ci-01-profile-orchestration`.
 
 CI efficiency audit: the universal Chromium gate currently runs 624 tests serially on one Playwright worker and dominates ~13.5–14.5 minute full-CI wall time. INFRA-CI-01 should preserve assertions while moving Wave 15 leaf PRs to profile-aware T1 evidence and proving isolated browser sharding for broader checkpoints.
+
+
+## Parallel CI infrastructure work
+
+CODEX order:
+
+`INFRA-CI-01A-W15-T1-01`
+
+Exact branch base:
+
+`084d48f833415797f62ec525d0192def1a380592`
+
+Work branch:
+
+`work/w15-infra-ci-01-profile-orchestration`
+
+Mission: add `wave15-pr.yml` profile-aware T1 routing, deterministic profile classifier/tests, and return the universal `dotnet-ci.yml` Wave 15 role to broad integrated push/checkpoint validation instead of every leaf PR. Existing heavy workflow assertions remain untouched. No merge authority.

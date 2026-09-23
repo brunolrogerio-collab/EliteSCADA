@@ -40,7 +40,17 @@ Coordination/documentation HEAD may be ahead of the product checkpoint. Do not t
 
 ## Current agent state
 
-### CODEX / FND-03 DEV
+### CODEX
+
+`ORDER_STATE: ACTIVE`  
+`ORDER_ID: INFRA-CI-01A-W15-T1-01`
+
+Branch:
+`work/w15-infra-ci-01-profile-orchestration`
+
+Mission: implement the isolated Wave 15 profile-aware T1 PR gate. No FND-04/product changes and no merge authority.
+
+### FND-03 DEV
 
 WAIT. FND-03 is frozen; no active mission.
 
@@ -76,8 +86,6 @@ BLOCKED until FND-04 + FND-06 + INFRA-CI-01 satisfy their gates.
 
 FND-03 has completed the full state machine through VERIFIED/FROZEN on exact SHA `a3eb86f8...`.
 
-FND-04 is the active Foundation implementation lane. DEV may execute the frozen plan with bounded autonomy inside its allowlist; AUD waits for an immutable candidate. Main retains candidate review, integration, post-merge verification and freeze authority.
-
-Separately, the CI efficiency audit confirmed the broad Chromium suite is the dominant wall-clock cost; INFRA-CI-01 remains a required FC0-A gate and should implement profile-aware T1 validation plus safe isolated browser sharding rather than weakening coverage.
+FND-04 is the active Foundation implementation lane. DEV may execute the frozen plan with bounded autonomy inside its allowlist; AUD waits for an immutable candidate. In parallel, CODEX owns INFRA-CI-01A on an isolated workflow branch to remove the universal ~14-minute full gate from ordinary Wave 15 leaf PRs without reducing coverage. Main retains review/integration/freeze authority for both lanes.
 
 Do not ask the Product Owner to carry agent messages.

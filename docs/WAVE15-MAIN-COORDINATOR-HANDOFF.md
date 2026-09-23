@@ -291,3 +291,17 @@ Ledgers: #297 Wave 15; #301 FND-03/licensing; #305 dependency/checkpoints; #304 
 Agents execute current order, return evidence and stop on `STOP`/`WAIT`. Main promotes states and writes next order.
 
 `Hora: HH:MM` in `America/Sao_Paulo`.
+
+## FND-04 post-merge status
+
+- PR #336 merged.
+- exact merge SHA: `6c810647c9773a19b212d9c33694780141786ac7`
+- merge tree: `1221ff55963052be4e924dd644efbaa65763f546`
+- independent AUD candidate classification: `ACCEPTABLE`
+- natural post-merge EliteSCADA CI: run `35913456486` / #1562
+- Web build: SUCCESS
+- Backend build/test/smoke: IN PROGRESS
+- FND-04 state: **INTEGRATED / POST-MERGE CI PENDING / NOT YET VERIFIED-FROZEN**
+- CODEX/AUD: wait on post-merge gate; no mutation
+- control plane commit: `bb876c51bb1bb116e0f33b2a61291bf78a213b2c`
+- no downstream Foundation release until exact post-merge CI on `6c810647...` is green

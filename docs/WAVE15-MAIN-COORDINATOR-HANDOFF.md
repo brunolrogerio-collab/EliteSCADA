@@ -136,6 +136,8 @@ Coordination/documentation commits after this checkpoint do not create a new pro
 **ORDER_STATE: ACTIVE**  
 **ORDER_ID: FND06-CODEX-VISUAL-STABILITY-V2**  
 **CODEX_MODE: BOUNDED_FOUNDATION_IMPLEMENTATION**  
+**EXECUTOR_IDENTITY: SAME SEQUENTIAL CODEX CHAT/LANE USED IN PRIOR FOUNDATION WORK INCLUDING FND-04**  
+**FND-04 routing override:** `coord/w15-fnd04-dev-aud-control` rev 0016 / `ROUTE-SEQUENTIAL-CODEX-TO-FND06-12`  
 **Mission:** close the remaining canonical Runtime/rendering + visual stability Foundation gaps without implementing the full downstream Editor UX
 
 Exact base:
@@ -152,7 +154,7 @@ Work branch:
 Dedicated control:
 - branch `coord/w15-fnd06-control`
 - file `docs/WAVE15-FND06-CONTROL.md`
-- control commit `35e1ae631b8471a66eb0c4042295d5b5628d61ec`
+- control commit `1a1488388fd67bf89380879b07437e1460170f18`
 - order `FND06-CODEX-VISUAL-STABILITY-V2`.
 
 Frozen scope:
@@ -309,9 +311,9 @@ Agents execute current order, return evidence and stop on `STOP`/`WAIT`. Main pr
 - work branch: `work/w15-fnd-06-visual-stability-foundation`
 - control branch: `coord/w15-fnd06-control`
 - control file: `docs/WAVE15-FND06-CONTROL.md`
-- control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`
+- control commit: `1a1488388fd67bf89380879b07437e1460170f18`
 - order: `FND06-CODEX-VISUAL-STABILITY-V2`
-- FC0-A remains blocked only on FND-06.
+- FC0-A remains blocked on FND-06 **and the mandatory post-FND06 Foundation Closure Audit**.
 - prepared downstream release plan: `docs/WAVE15-FC0-A-RELEASE-PREP.md` on the FND-06 control branch.
 
 
@@ -325,4 +327,31 @@ Agents execute current order, return evidence and stop on `STOP`/`WAIT`. Main pr
 - bare `status` is evidenced in the exact product-base seed and is **not** a current `core.*` built-in
 - no guessed alias/migration to `instrument.status`, `core.valueDisplay`, or another canonical type is authorized
 - truly unknown types remain fail-closed/contained
-- control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`
+- control commit: `1a1488388fd67bf89380879b07437e1460170f18`
+
+
+## FC0-A mandatory post-FND06 audit gate
+
+FND-06 freeze is necessary but is **not sufficient** to release FC0-A.
+
+After FND-06 exact post-merge CI is green and Main declares it VERIFIED/FROZEN, activate:
+
+`FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
+
+Control:
+`coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-CONTROL.md`
+
+The audit must robustly reconcile:
+- Wave 15 premises/roadmap;
+- `WAVE15-CORRECTION-BACKLOG-FINAL.md`;
+- final Wave 14 diagnostics/comments, especially #286 `5628159172`, `5628311338`, `5628760255`, `5634503355`;
+- all frozen Foundation contracts and exact integrated evidence;
+- remaining product gaps/residuals;
+- compatibility of prepared FND-05/FND-07 with contracts consumed by the four FC0-A DEVs.
+
+Release rule:
+- if audit = `ACCEPTABLE / FC0A_RELEASE_APPROVED`, Main may activate the four FC0-A DEVs **plus FND-05 and FND-07 in parallel** from the exact audited checkpoint;
+- if FND-05/FND-07 require breaking a frozen consumed contract, result = `BLOCKED-CONTRACT`; Foundation delta occurs before DEV release.
+
+FND-05 compatibility control: `coord/w15-fnd05-control` rev 0002 / `b995435594f9031a33df5674a0207016405a41d7`.
+FND-07 compatibility control: `coord/w15-fnd07-control` rev 0002 / `503a89d2985db64c1d6666e40d1de06251027687`.

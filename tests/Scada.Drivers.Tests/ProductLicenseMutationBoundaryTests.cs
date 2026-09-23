@@ -3,8 +3,8 @@ namespace Scada.Drivers.Tests;
 /// <summary>
 /// The machine license is host-owned state. Project packages and Authority/System
 /// Recovery may consume entitlement state, but may never acquire mutation authority.
-/// This source guard makes a new non-lifecycle InstallLicense/RemoveLicense call fail
-/// deterministically in the test suite before it can silently reach a machine file.
+/// This source guard makes a new non-lifecycle InstallLicense/RemoveLicense invocation
+/// or method-group reference fail deterministically before it can reach a machine file.
 /// </summary>
 public sealed class ProductLicenseMutationBoundaryTests
 {
@@ -25,7 +25,10 @@ public sealed class ProductLicenseMutationBoundaryTests
             .ToArray();
 
         Assert.Equal(
-            ["src/Scada.Api/Licensing/ProductLicenseLifecycleCoordinator.cs:InstallLicense"],
+            [
+                "src/Scada.Api/Licensing/ProductLicenseLifecycleCoordinator.cs:InstallLicense",
+                "src/Scada.Api/Licensing/ProductLicenseLifecycleCoordinator.cs:RemoveLicense"
+            ],
             mutationCalls);
 
         AssertNoMutationCall(root, "src/Scada.Engineering/ProjectPackages/ProjectPackageService.cs");
@@ -40,7 +43,7 @@ public sealed class ProductLicenseMutationBoundaryTests
         {
             if (System.Text.RegularExpressions.Regex.IsMatch(
                     source,
-                    $@"\.\s*{System.Text.RegularExpressions.Regex.Escape(operation)}\s*\("))
+                    $@"\.\s*{System.Text.RegularExpressions.Regex.Escape(operation)}\b"))
                 yield return operation;
         }
     }

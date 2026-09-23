@@ -126,6 +126,78 @@ public sealed class ProductLicenseLifecycleCoordinatorTests
     }
 
     [Fact]
+    public async Task Remove_AlreadyDemo_IsIdempotentAndPreservesLeaseEpochAndAnchor()
+    {
+        var clock = new MutableTimeProvider(Now);
+        var licensing = new TestLicensing { Installed = LicenseState.Valid };
+        await using var inner = new InMemoryRuntimeSessionLeaseStore(clock.GetUtcNow);
+        await using var store = new FaultingLeaseStore(inner);
+        var runtime = new TestRuntimeReevaluator();
+        var lifecycle = new ProductLicenseLifecycleCoordinator(licensing, store, runtime, clock);
+
+        var first = await lifecycle.RemoveAsync();
+        var afterFirst = await inner.GetAuthorityStateAsync();
+        var lease = await AdmitAsync(inner);
+        var fenceCallsAfterFirst = store.FenceCalls;
+        clock.Advance(TimeSpan.FromMinutes(1));
+
+        var second = await lifecycle.RemoveAsync();
+        var afterSecond = await inner.GetAuthorityStateAsync();
+
+        Assert.True(first.Succeeded);
+        Assert.Equal("completed", first.ReasonCode);
+        Assert.Equal(2, afterFirst.AuthorityRevision);
+        Assert.Equal(Now, afterFirst.DemoStartedAtUtc);
+        Assert.Equal(Now, afterFirst.AuthorityChangedAtUtc);
+        Assert.True(second.Succeeded);
+        Assert.Equal("already-demo", second.ReasonCode);
+        Assert.Equal(afterFirst.AuthorityRevision, second.PreviousAuthorityRevision);
+        Assert.Equal(afterFirst.AuthorityRevision, second.CurrentAuthorityRevision);
+        Assert.Equal(Now, second.AuthorityChangedAtUtc);
+        Assert.Equal(0, second.FencedLeaseCount);
+        Assert.Equal("unchanged", second.LocalRuntimeOutcome);
+        Assert.Equal(afterFirst.AuthorityRevision, afterSecond.AuthorityRevision);
+        Assert.Equal(Now, afterSecond.DemoStartedAtUtc);
+        Assert.Equal(Now, afterSecond.AuthorityChangedAtUtc);
+        Assert.False(afterSecond.TransitionPending);
+        Assert.Equal(1, licensing.RemoveCalls);
+        Assert.Equal(1, runtime.Calls);
+        Assert.Equal(fenceCallsAfterFirst, store.FenceCalls);
+        Assert.True((await inner.ValidateAsync(lease.SessionId, "operator", lease.Runtime, "client-a")).IsValid);
+
+        var pending = await inner.BeginAuthorityTransitionAsync("replace", clock.GetUtcNow());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => lifecycle.RemoveAsync());
+        var unresolved = await inner.GetAuthorityStateAsync();
+        Assert.True(unresolved.TransitionPending);
+        Assert.Equal(pending.TransitionId, unresolved.TransitionId);
+        Assert.Equal(1, licensing.RemoveCalls);
+        Assert.Equal(1, runtime.Calls);
+        Assert.True(await inner.AbortAuthorityTransitionAsync(
+            pending.TransitionId, pending.BaseAuthorityRevision));
+    }
+
+    [Fact]
+    public async Task Remove_InvalidLicense_RemainsARealAuthorityChange()
+    {
+        var licensing = new TestLicensing { Installed = LicenseState.Invalid };
+        await using var store = new InMemoryRuntimeSessionLeaseStore(() => Now);
+        var runtime = new TestRuntimeReevaluator();
+        var lifecycle = new ProductLicenseLifecycleCoordinator(licensing, store, runtime, new FixedTimeProvider());
+
+        var result = await lifecycle.RemoveAsync();
+
+        var state = await store.GetAuthorityStateAsync();
+        Assert.True(result.Succeeded);
+        Assert.Equal("completed", result.ReasonCode);
+        Assert.Equal(LicenseState.Invalid, result.PreviousLicenseState);
+        Assert.Equal(LicenseState.Demo, result.CurrentLicenseState);
+        Assert.Equal(2, state.AuthorityRevision);
+        Assert.Equal(Now, state.DemoStartedAtUtc);
+        Assert.Equal(1, licensing.RemoveCalls);
+        Assert.Equal(1, runtime.Calls);
+    }
+
+    [Fact]
     public async Task Reconciliation_BeforeFileCommit_ConservativelyBumpsAndFencesOnce()
     {
         var licensing = new TestLicensing();
@@ -305,11 +377,19 @@ public sealed class ProductLicenseLifecycleCoordinatorTests
         public override DateTimeOffset GetUtcNow() => Now;
     }
 
+    private sealed class MutableTimeProvider(DateTimeOffset initial) : TimeProvider
+    {
+        private DateTimeOffset _now = initial;
+        public override DateTimeOffset GetUtcNow() => _now;
+        public void Advance(TimeSpan elapsed) => _now = _now.Add(elapsed);
+    }
+
     private sealed class TestLicensing : IProductLicenseService
     {
         public bool CandidateValid { get; set; } = true;
         public bool FailInstall { get; set; }
         public int InstallCalls { get; private set; }
+        public int RemoveCalls { get; private set; }
         public LicenseState Installed { get; set; } = LicenseState.Demo;
         public string MachineFingerprint => "test-machine";
         public string MachineRequestCode => "test-request";
@@ -324,7 +404,11 @@ public sealed class ProductLicenseLifecycleCoordinatorTests
             if (FailInstall) throw new IOException("fixture file failure");
             Installed = LicenseState.Valid;
         }
-        public void RemoveLicense() => Installed = LicenseState.Demo;
+        public void RemoveLicense()
+        {
+            RemoveCalls++;
+            Installed = LicenseState.Demo;
+        }
     }
 
     private sealed class TestRuntimeReevaluator : IProductRuntimeAuthorityReevaluator
@@ -347,6 +431,7 @@ public sealed class ProductLicenseLifecycleCoordinatorTests
     {
         public RuntimeAuthorityState? AuthorityStateOverride { get; init; }
         public bool FailFenceOnce { get; set; }
+        public int FenceCalls { get; private set; }
 
         public Task InitializeAsync(CancellationToken cancellationToken = default) => inner.InitializeAsync(cancellationToken);
         public async Task<RuntimeAuthorityState> GetAuthorityStateAsync(CancellationToken cancellationToken = default) =>
@@ -359,6 +444,7 @@ public sealed class ProductLicenseLifecycleCoordinatorTests
             inner.CommitAuthorityChangeAsync(transitionId, expectedBaseAuthorityRevision, authorityChangedAtUtc, demoStartedAtUtc, cancellationToken);
         public Task<int> FenceLeasesBeforeAuthorityRevisionAsync(Guid transitionId, long authorityRevision, CancellationToken cancellationToken = default)
         {
+            FenceCalls++;
             if (FailFenceOnce)
             {
                 FailFenceOnce = false;

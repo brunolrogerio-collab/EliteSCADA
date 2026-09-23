@@ -29,8 +29,24 @@ public sealed class ProductLicenseLifecycleCoordinator(
             cancellationToken);
     }
 
-    public Task<ProductLicenseLifecycleResult> RemoveAsync(CancellationToken cancellationToken = default) =>
-        ChangeAsync("remove", licensing.CurrentVerification.State, licensing.RemoveLicense, cancellationToken);
+    public async Task<ProductLicenseLifecycleResult> RemoveAsync(CancellationToken cancellationToken = default)
+    {
+        var previous = licensing.CurrentVerification.State;
+        if (previous != LicenseState.Demo)
+            return await ChangeAsync("remove", previous, licensing.RemoveLicense, cancellationToken);
+
+        var authority = await leaseStore.GetAuthorityStateAsync(cancellationToken);
+        if (authority.TransitionPending)
+            throw new InvalidOperationException("Runtime authority transition is pending.");
+
+        // Removing an absent machine license cannot create a new authority epoch. In
+        // particular, it must not reset the bounded Demo allowance or fence leases
+        // already admitted under the existing Demo revision.
+        return new ProductLicenseLifecycleResult(
+            true, "already-demo", LicenseState.Demo, LicenseState.Demo,
+            authority.AuthorityRevision, authority.AuthorityRevision,
+            authority.AuthorityChangedAtUtc, 0, "unchanged");
+    }
 
     internal async Task<(LicenseState LicenseState, RuntimeAuthorityState Authority)> ReadAuditStateAsync() =>
         (licensing.CurrentVerification.State, await leaseStore.GetAuthorityStateAsync());

@@ -134,33 +134,27 @@ Coordination/documentation commits after this checkpoint do not create a new pro
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
 **ORDER_STATE: ACTIVE**  
-**ORDER_ID: FND04-CODEX-CASE-CLOSE-06**  
-**CODEX_MODE: BOUNDED_CORRECTION**  
-**Mission:** close the independent AUD case/canonicalization defect in PR #336; no merge
+**ORDER_ID: FND04-CODEX-ORDINAL-PARITY-07**  
+**CODEX_MODE: BOUNDED_CORRECTION_OR_PROOF**  
+**Mission:** prove/correct exact TAG-path case-equality parity with canonical `.NET StringComparer.OrdinalIgnoreCase`
 
-Rejected AUD candidate:
-- head `8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
-- tree `393938536ee524d2bd7c713ed9f791679fd6c2cb`
-- T1 `35895957135` — SUCCESS
-- AUD classification: `CHANGES_REQUIRED`.
+Held Main-review head:
+- previous AUD-rejected head: `8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
+- case-close head: `139330bcdf758928171f82fb9f4a0984f0aa3455`
+- tree: `9bdddad56edec63989a13f7510614fca6cfa8782`
+- natural T1 `35900689584` — SUCCESS.
 
-Confirmed defect: canonical TAG registry path equality is case-insensitive, while the FND-04 Engineering resolver and Client Visual declaration lookup were case-sensitive. Server Script was already case-insensitive. This violates the frozen one-semantic requirement.
+The original AUD case/canonicalization defect is fixed for ordinary tested examples, but Main is holding this head because Client Visual uses `toLocaleLowerCase('en-US')` while the canonical TAG registry uses `.NET StringComparer.OrdinalIgnoreCase`. TAG paths are not restricted to ASCII, so exact Unicode equality parity must be demonstrated rather than inferred.
 
-Frozen correction rule:
-- TAG readable path equality follows the canonical registry: case-insensitive;
-- path casing is presentation context, not identity;
-- case-only spelling change with the same expected TagId remains `found`;
-- true non-case-equivalent rename/move remains `stale`;
-- old path reused by another TagId remains `identityDrift`;
-- no separator/Unicode/whitespace aliasing beyond existing trim behavior;
-- stable TagId remains write identity.
+Detailed active order is in:
+- branch `coord/w15-fnd04-dev-aud-control`
+- file `docs/WAVE15-FND04-DEV-AUD-CONTROL.md`
+- control commit `3af74c83c20b3e6a49a65f3e7bf43acbd3ca92e3`
+- order `FND04-CODEX-ORDINAL-PARITY-07`.
 
-Detailed executable order:
-- control plane commit `87953b593110f398a930145578b70c6c9d8a2ad6`;
-- section `3B.2A Canonical TAG path case/equality rule`;
-- order `FND04-CODEX-CASE-CLOSE-06`.
+CODEX must run the discriminating sentinel matrix against the canonical registry and cross-surface Script behavior, then either prove no product change is needed or make only the bounded allowlisted correction. Do not change registry semantics, restrict paths to ASCII, normalize Unicode forms, or introduce another path authority.
 
-CODEX must produce discriminating review-RED against `8dba4f11...`, add bounded cross-surface case-equivalence tests, preserve all prior PASS evidence, push to the same PR #336 and obtain a fresh natural T1. No self-merge/freeze.
+No merge/freeze authority.
 ---
 
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
@@ -223,15 +217,15 @@ Normal DEV may revalidate live state and later review evidence only.
 
 ## 5. MAIN COORDINATOR -> FND-04 AUD — CURRENT ORDER
 
-**ORDER_STATE: WAIT_CASE_CORRECTED_CANDIDATE**  
-**ORDER_ID: FND04-AUD-WAIT-CASE-CORRECTION-0006**  
+**ORDER_STATE: WAIT_NEW_IMMUTABLE_CANDIDATE**  
+**ORDER_ID: FND04-AUD-WAIT-ORDINAL-PARITY-0007**  
 **Default mode:** `READ_ONLY_REVIEW`
 
-Main accepts the AUD rejection of `8dba4f1161d4ca5190ddfa37b48d9736478d73ec` as `CHANGES_REQUIRED` and independently confirmed the case/canonicalization divergence.
+Do not audit `139330bcdf758928171f82fb9f4a0984f0aa3455` yet. Main review requires exact parity proof/correction between Client Visual readable-reference comparison and the canonical registry's `.NET StringComparer.OrdinalIgnoreCase` semantics.
 
-AUD now waits for a new immutable CODEX candidate. Do not re-audit the rejected head and do not mutate tests/product.
+Wait for Main to publish the next immutable head/tree after CODEX completes `FND04-CODEX-ORDINAL-PARITY-07`. Then re-audit the bounded case/canonicalization correction plus prior PASS regressions.
 
-Handoff routing is now explicit in the dedicated control plane: normal agent handoffs go to Issue #305 when the runtime can post; PR-specific evidence may also go to #336; if an agent cannot post, it returns the full handoff in its own chat and Main records it. Product Owner relay is not required.
+No test/product mutation and no merge.
 ---
 
 ## 6. FND-04 BINDING CONTRACT — ACTIVE / NOT YET FROZEN

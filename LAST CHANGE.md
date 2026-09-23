@@ -24,7 +24,7 @@ FND-04 is **VERIFIED/FROZEN**. Its downstream Script TAG reference contract may 
 
 FND-06 is the only active FC0-A blocker.
 
-- order: `FND06-CODEX-VISUAL-STABILITY-V2`
+- order: `FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`
 - exact product base: `6c810647c9773a19b212d9c33694780141786ac7`
 - work branch: `work/w15-fnd-06-visual-stability-foundation`
 - dedicated control: `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
@@ -81,7 +81,7 @@ Neither later Foundation is authorized to mutate product while FND-06 owns the s
   - work branch: `work/w15-fnd-06-visual-stability-foundation`
   - control branch/file: `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
   - active control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`
-  - order: `FND06-CODEX-VISUAL-STABILITY-V2`
+  - order: `FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`
 - FC0-A: **BLOCKED only on FND-06**
 - downstream release package is prepared but not released at `docs/WAVE15-FC0-A-RELEASE-PREP.md` on the FND-06 control branch.
 
@@ -91,7 +91,7 @@ Neither later Foundation is authorized to mutate product while FND-06 owns the s
 
 Before first product mutation, Main corrected the prepared FND-06 validation profile to the actual Wave 15 router vocabulary: `UI_EDITOR, RUNTIME_RENDERER`. The exact product seed also proves bare `status` is a persisted legacy identifier alongside `tank`, `value` and `dynamo`; it is not a current canonical `core.*` built-in and no guessed alias is authorized.
 
-Active FND-06 order: `FND06-CODEX-VISUAL-STABILITY-V2`.
+Active FND-06 order: `FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`.
 Control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`.
 
 
@@ -110,7 +110,7 @@ Main corrected this at the source:
 - FND-04 control rev 0016: `ROUTE-SEQUENTIAL-CODEX-TO-FND06-12`
 - commit: `cf19a9b0ce7efbf25d3d85acc2076a8c48148a9d`
 - same sequential CODEX chat/lane is explicitly the FND-06 executor
-- FND-06 control rev 0004: `FND06-CODEX-VISUAL-STABILITY-V2`
+- FND-06 control rev 0004: `FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`
 - commit: `1a1488388fd67bf89380879b07437e1460170f18`
 
 FC0-A sequencing was also tightened:
@@ -124,3 +124,23 @@ FC0-A sequencing was also tightened:
 After FND-06, audit must relate Wave 15 implementation to final Wave 14 diagnostics, product premises/gaps and frozen contracts. It must also prove FND-05/FND-07 are non-breaking to FC0-A DEV-consumed contracts.
 
 Only audit PASS releases the four FC0-A DEVs and permits FND-05/FND-07 to activate in parallel.
+
+
+## FND-06 Main review — mounted legacy closeout
+
+Current PR #337 candidate:
+- head `923543705378016090e7067b35954795a9591a57`
+- tree `5657cee7169a4e77370d416add4efcf07184d7c0`
+- natural T1 `35931139983` — SUCCESS
+- 9 changed files, all inside FND-06 allowlist
+- architecture/scope accepted by Main.
+
+Remaining gate before merge:
+- original Wave 14 A7 was a mounted Screen/Popup selection crash that blanked/poisoned Engineering;
+- candidate currently proves model/helper compatibility but lacks the required mounted Screen + Popup persisted-legacy selection regression;
+- active order: `FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`;
+- control revision `0005`;
+- control commit `48778387c2fde6ffb645ced17669bd0606d30142`;
+- preferred delta: tests only; minimal production fix only if the mounted scenario exposes a remaining defect.
+
+The same sequential CODEX lane remains the executor. No merge/freeze yet.

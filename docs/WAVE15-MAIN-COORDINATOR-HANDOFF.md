@@ -199,9 +199,36 @@ Update `tests/Scada.Drivers.Tests/ProductLicenseLifecycleCoordinatorTests.cs`:
 - assert `DemoStartedAtUtc` remains exactly T0, not T1;
 - assert no extra Runtime re-evaluation and no extra fencing/lease epoch transition.
 
+#### Independent Main test-audit guard
+
+The existing fixture's `FixedTimeProvider` always returns the same `Now`; reusing it for both removals would make a broken implementation capable of passing the Demo-anchor assertion accidentally. Therefore the ORDER-04 regression is accepted only if it proves real clock separation.
+
+Required shape:
+
+1. Use a mutable/steppable `TimeProvider` (or two otherwise provably distinct timestamps) with exact `T1 > T0`; do **not** use the existing constant `FixedTimeProvider` unchanged for this regression.
+2. Start from `LicenseState.Valid`; execute the first remove at T0 and capture the complete post-first-remove authority state before advancing time.
+3. Assert after the first remove:
+   - `AuthorityRevision == R+1`;
+   - `DemoStartedAtUtc == T0`;
+   - `AuthorityChangedAtUtc == T0`;
+   - `TransitionPending == false`.
+4. Admit/capture a post-first-remove lease at revision `R+1` or otherwise instrument the store so the second call can prove no fence/epoch mutation.
+5. Advance the clock to a distinct T1, preferably by at least one minute, and execute the second remove.
+6. Assert after the second remove, by direct equality against the captured state:
+   - `AuthorityRevision == stateAfterFirst.AuthorityRevision`;
+   - `DemoStartedAtUtc == stateAfterFirst.DemoStartedAtUtc == T0`;
+   - `AuthorityChangedAtUtc == stateAfterFirst.AuthorityChangedAtUtc == T0`;
+   - `TransitionPending == false`;
+   - the second result reports the same previous/current revision and `ReasonCode == "already-demo"` (or the exact stable equivalent chosen by implementation);
+   - `FencedLeaseCount == 0`;
+   - no additional Runtime reevaluation call occurred;
+   - no additional `RemoveLicense` file-mutation call occurred;
+   - any post-first-remove lease remains valid under the unchanged revision.
+7. The test must fail against the currently reviewed head `40f0001f...` semantics; a test that would also pass the old unconditional `ChangeAsync("remove", ...)` implementation is not sufficient evidence.
+
 Also prove:
-- already-Demo + pending transition does not bypass fail-closed pending state;
-- Invalid -> remove still performs a real transition to Demo.
+- already-Demo + pending transition does not bypass fail-closed pending state and preserves the exact pending transition metadata;
+- Invalid -> remove still performs a real transition to Demo with revision advance and fresh Demo anchor.
 
 ### Proof gap B — acceptance #7 guard misses method-group references
 

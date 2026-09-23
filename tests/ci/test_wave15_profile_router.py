@@ -73,13 +73,61 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         result = self.classify(["docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md"], "")
         self.assertTrue(result["coordination_exempt"])
 
-    def test_representative_fnd04_engineering_path_is_script_engineering(self):
-        result = self.classify(["src/Scada.Api/Engineering/ScriptTagReferenceResolver.cs"], "VALIDATION_PROFILE: SCRIPT_ENGINEERING")
-        self.assertIn("SCRIPT_ENGINEERING", result["effective_profiles"])
+    def test_real_fnd04_server_runtime_paths_require_script_runtime(self):
+        paths = [
+            "src/Scada.Api/Runtime/IsolatedPythonScriptHandlerExecutor.cs",
+            "src/Scada.Api/Runtime/ServerScriptRunner.py",
+            "src/Scada.Api/Runtime/ServerScriptRuntimeManager.cs",
+        ]
+        for path in paths:
+            with self.subTest(path=path):
+                result = self.classify([path], "VALIDATION_PROFILE: DOCS_I18N_HELP")
+                self.assertIn("SCRIPT_RUNTIME", result["effective_profiles"])
+                self.assertTrue(result["run_dotnet"])
+                self.assertTrue(result["run_web"])
+                self.assertTrue(result["run_e2e"])
 
-    def test_representative_fnd04_runtime_path_is_script_runtime(self):
-        result = self.classify(["src/Scada.Runtime/Scripting/ScriptRuntimeHost.cs"], "VALIDATION_PROFILE: SCRIPT_RUNTIME")
-        self.assertIn("SCRIPT_RUNTIME", result["effective_profiles"])
+    def test_real_fnd04_web_authoring_paths_require_script_engineering(self):
+        paths = [
+            "web/scada-web/src/engineering/scripts/scriptEngineeringTypes.ts",
+            "web/scada-web/src/engineering/scripts/ScriptEngineeringWorkspace.logic.ts",
+            "web/scada-web/src/engineering/scripts/scriptAssistantModel.ts",
+            "web/scada-web/src/engineering/scripts/scriptAssistantReferenceValidation.ts",
+        ]
+        for path in paths:
+            with self.subTest(path=path):
+                result = self.classify([path], "VALIDATION_PROFILE: DOCS_I18N_HELP")
+                self.assertIn("SCRIPT_ENGINEERING", result["effective_profiles"])
+                self.assertTrue(result["run_dotnet"])
+                self.assertTrue(result["run_web"])
+                self.assertTrue(result["run_e2e"])
+
+    def test_authority_ux_has_backend_web_and_browser_evidence(self):
+        result = self.classify([], "VALIDATION_PROFILE: AUTHORITY_UX")
+        self.assertTrue(result["run_dotnet"])
+        self.assertTrue(result["run_web"])
+        self.assertTrue(result["run_e2e"])
+        self.assertIn("Scada.Security.Tests", result["dotnet_projects"][0])
+
+    def test_licensing_ux_has_backend_web_and_browser_evidence(self):
+        result = self.classify([], "VALIDATION_PROFILE: LICENSING_UX")
+        self.assertTrue(result["run_dotnet"])
+        self.assertTrue(result["run_web"])
+        self.assertTrue(result["run_e2e"])
+        self.assertIn("Scada.Drivers.Tests", result["dotnet_projects"][0])
+
+    def test_elitego_runtime_has_backend_web_and_browser_evidence(self):
+        result = self.classify([], "VALIDATION_PROFILE: ELITEGO_RUNTIME")
+        self.assertTrue(result["run_dotnet"])
+        self.assertTrue(result["run_web"])
+        self.assertTrue(result["run_e2e"])
+        self.assertIn("Scada.Drivers.Tests", result["dotnet_projects"][0])
+
+    def test_manual_dispatch_compares_full_branch_delta_from_integration_merge_base(self):
+        workflow = (ROOT / ".github/workflows/wave15-pr.yml").read_text(encoding="utf-8")
+        self.assertIn("refs/heads/wave15/corrections-integration", workflow)
+        self.assertIn('git merge-base "$target_base" "$PR_HEAD_SHA"', workflow)
+        self.assertNotIn('git diff --name-only "${GITHUB_SHA}^" "$GITHUB_SHA"', workflow)
 
 
 if __name__ == "__main__":

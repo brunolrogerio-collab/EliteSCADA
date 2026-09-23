@@ -28,8 +28,16 @@ COORDINATION_ONLY = {
 PATH_RULES = (
     ("AUTHORITY_CORE", ("src/scada.security/", "src/scada.api/security/", "tests/scada.security.tests/")),
     ("SESSION_LICENSING", ("licensing/", "runtimesession", "runtime-session", "license")),
-    ("SCRIPT_RUNTIME", ("src/scada.runtime/", "python-runtime", "script-runtime", "scripting/runtime")),
-    ("SCRIPT_ENGINEERING", ("src/scada.engineering/", "script-engineering", "python-editor", "python-script", "tag-reference")),
+    ("SCRIPT_RUNTIME", (
+        "src/scada.runtime/", "python-runtime", "script-runtime", "scripting/runtime",
+        "src/scada.api/runtime/isolatedpythonscripthandlerexecutor.cs",
+        "src/scada.api/runtime/serverscriptrunner.py",
+        "src/scada.api/runtime/serverscriptruntimemanager.cs",
+    )),
+    ("SCRIPT_ENGINEERING", (
+        "src/scada.engineering/", "script-engineering", "python-editor", "python-script", "tag-reference",
+        "web/scada-web/src/engineering/scripts/",
+    )),
     ("RUNTIME_RENDERER", ("visual-runtime", "renderer", "src/scada.runtime/", "web/scada-web/src/runtime/")),
     ("UI_EDITOR", ("web/scada-web/src/engineering/", "visual-editor", "screen-editor")),
     ("AUTHORITY_UX", ("web/scada-web/src/security/", "effective-capabilities", "user-administration", "security.spec")),
@@ -46,7 +54,9 @@ DOTNET_PROJECTS = {
     "FOUNDATION_LIFECYCLE": "tests/Scada.Core.Tests/Scada.Core.Tests.csproj",
     "FOUNDATION_TIMING": "tests/Scada.Historian.TimescaleDb.Tests/Scada.Historian.TimescaleDb.Tests.csproj",
     "AUTHORITY_CORE": "tests/Scada.Security.Tests/Scada.Security.Tests.csproj",
+    "AUTHORITY_UX": "tests/Scada.Security.Tests/Scada.Security.Tests.csproj",
     "SESSION_LICENSING": "tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj",
+    "LICENSING_UX": "tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj",
     "SCRIPT_RUNTIME": "tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj",
     "RUNTIME_RENDERER": "tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj",
     "SCRIPT_ENGINEERING": "tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj",
@@ -54,6 +64,7 @@ DOTNET_PROJECTS = {
     "HA_DISTRIBUTED": "tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj",
     "EEE_PACKAGE": "tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj",
     "DRIVER_PROTOCOL": "tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj",
+    "ELITEGO_RUNTIME": "tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj",
 }
 WEB_PROFILES = {"UI_EDITOR", "SCRIPT_ENGINEERING", "SCRIPT_RUNTIME", "RUNTIME_RENDERER", "AUTHORITY_UX", "LICENSING_UX", "ELITEGO_RUNTIME"}
 E2E_SPECS = {

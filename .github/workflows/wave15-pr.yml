@@ -48,11 +48,13 @@ jobs:
           set -euo pipefail
           printf '%s' "$PR_BODY" > /tmp/pr-body.txt
           if [ -n "$PR_BASE_SHA" ]; then
-            comparison_base="$(git merge-base "$PR_BASE_SHA" "$PR_HEAD_SHA")"
-            git diff --name-only "$comparison_base" "$PR_HEAD_SHA" > /tmp/changed-files.txt
+            target_base="$PR_BASE_SHA"
           else
-            git diff --name-only "${GITHUB_SHA}^" "$GITHUB_SHA" > /tmp/changed-files.txt
+            git fetch --no-tags origin '+refs/heads/wave15/corrections-integration:refs/remotes/origin/wave15/corrections-integration'
+            target_base='origin/wave15/corrections-integration'
           fi
+          comparison_base="$(git merge-base "$target_base" "$PR_HEAD_SHA")"
+          git diff --name-only "$comparison_base" "$PR_HEAD_SHA" > /tmp/changed-files.txt
           python3 scripts/ci/wave15_profile_router.py \
             --changed-files /tmp/changed-files.txt \
             --pr-body-file /tmp/pr-body.txt \
@@ -78,10 +80,12 @@ jobs:
         run: |
           set -euo pipefail
           if [ -n "$PR_BASE_SHA" ]; then
-            comparison_base="$(git merge-base "$PR_BASE_SHA" "$PR_HEAD_SHA")"
+            target_base="$PR_BASE_SHA"
           else
-            comparison_base="${PR_HEAD_SHA}^"
+            git fetch --no-tags origin '+refs/heads/wave15/corrections-integration:refs/remotes/origin/wave15/corrections-integration'
+            target_base='origin/wave15/corrections-integration'
           fi
+          comparison_base="$(git merge-base "$target_base" "$PR_HEAD_SHA")"
           git diff --check "$comparison_base" "$PR_HEAD_SHA"
       - run: python3 -m unittest tests/ci/test_wave15_profile_router.py
 

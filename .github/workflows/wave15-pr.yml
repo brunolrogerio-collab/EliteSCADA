@@ -1,0 +1,234 @@
+name: Wave 15 T1 PR validation
+
+on:
+  pull_request:
+    branches: [wave15/corrections-integration]
+  workflow_dispatch:
+    inputs:
+      validation_profile:
+        description: Optional additive VALIDATION_PROFILE override (comma-separated)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  classify:
+    name: Classify Wave 15 validation profile
+    runs-on: ubuntu-latest
+    outputs:
+      coordination_exempt: ${{ steps.router.outputs.coordination_exempt }}
+      run_common_sanity: ${{ steps.router.outputs.run_common_sanity }}
+      run_web: ${{ steps.router.outputs.run_web }}
+      run_dotnet: ${{ steps.router.outputs.run_dotnet }}
+      run_e2e: ${{ steps.router.outputs.run_e2e }}
+      run_driver: ${{ steps.router.outputs.run_driver }}
+      effective_profiles: ${{ steps.router.outputs.effective_profiles }}
+      dotnet_projects: ${{ steps.router.outputs.dotnet_projects }}
+      e2e_specs: ${{ steps.router.outputs.e2e_specs }}
+      driver_gate: ${{ steps.router.outputs.driver_gate }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: router
+        name: Resolve declared, inferred and effective profiles
+        env:
+          PR_BODY: ${{ github.event.pull_request.body || '' }}
+          PROFILE_OVERRIDE: ${{ inputs.validation_profile || '' }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$PR_BODY" > /tmp/pr-body.txt
+          if [ -n "$PR_BASE_SHA" ]; then
+            target_base="$PR_BASE_SHA"
+            router_mode='pr'
+          else
+            git fetch --no-tags origin '+refs/heads/wave15/corrections-integration:refs/remotes/origin/wave15/corrections-integration'
+            target_base='origin/wave15/corrections-integration'
+            router_mode='dispatch'
+          fi
+          comparison_base="$(git merge-base "$target_base" "$PR_HEAD_SHA")"
+          git diff --name-only "$comparison_base" "$PR_HEAD_SHA" > /tmp/changed-files.txt
+          python3 scripts/ci/wave15_profile_router.py \
+            --changed-files /tmp/changed-files.txt \
+            --pr-body-file /tmp/pr-body.txt \
+            --manual-override "$PROFILE_OVERRIDE" \
+            --mode "$router_mode" \
+            --github-output "$GITHUB_OUTPUT" \
+            --summary-file /tmp/profile-summary.md
+          cat /tmp/profile-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+  common-sanity:
+    name: Common T1 sanity
+    needs: classify
+    if: needs.classify.outputs.run_common_sanity == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check the PR delta from its merge base
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "$PR_BASE_SHA" ]; then
+            target_base="$PR_BASE_SHA"
+          else
+            git fetch --no-tags origin '+refs/heads/wave15/corrections-integration:refs/remotes/origin/wave15/corrections-integration'
+            target_base='origin/wave15/corrections-integration'
+          fi
+          comparison_base="$(git merge-base "$target_base" "$PR_HEAD_SHA")"
+          git diff --check "$comparison_base" "$PR_HEAD_SHA"
+      - run: python3 -m unittest tests/ci/test_wave15_profile_router.py
+
+  web-semantic:
+    name: Web semantic build
+    needs: classify
+    if: needs.classify.outputs.run_web == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - working-directory: web/scada-web
+        run: npm ci --no-audit --no-fund
+      - working-directory: web/scada-web
+        run: npm run build
+
+  dotnet-focused:
+    name: Focused .NET evidence
+    needs: classify
+    if: needs.classify.outputs.run_dotnet == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ELITESCADA_TEST_POSTGRES: Host=127.0.0.1;Port=5432;Database=elitescada_test;Username=postgres;Password=postgres;Pooling=false
+      ConnectionStrings__EliteScada: Host=127.0.0.1;Port=5432;Database=elitescada_test;Username=postgres;Password=postgres;Pooling=false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - run: dotnet restore ScadaPlatform.sln
+      - name: Run owning focused test projects
+        env:
+          DOTNET_PROJECTS: ${{ needs.classify.outputs.dotnet_projects }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > /tmp/dotnet-projects.txt
+          import json, os
+          print(*json.loads(os.environ['DOTNET_PROJECTS']), sep='\n')
+          PY
+          while IFS= read -r project; do
+            dotnet test "$project" --no-restore --configuration Release --verbosity normal
+          done < /tmp/dotnet-projects.txt
+
+  chromium-focused:
+    name: Focused Chromium evidence
+    needs: classify
+    if: needs.classify.outputs.run_e2e == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_e2e
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_e2e"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ConnectionStrings__EliteScada: Host=127.0.0.1;Port=5432;Database=elitescada_e2e;Username=postgres;Password=postgres;Pooling=false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - run: dotnet restore ScadaPlatform.sln
+      - working-directory: web/scada-web
+        run: npm ci --no-audit --no-fund
+      - working-directory: web/scada-web
+        run: npx playwright install --with-deps chromium
+      - name: Run profile-owned specs
+        working-directory: web/scada-web
+        env:
+          E2E_SPECS: ${{ needs.classify.outputs.e2e_specs }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > /tmp/e2e-specs.txt
+          import json, os
+          print(*json.loads(os.environ['E2E_SPECS']), sep='\n')
+          PY
+          mapfile -t specs < /tmp/e2e-specs.txt
+          npm run test:e2e -- "${specs[@]}"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave15-focused-playwright-report
+          path: web/scada-web/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+
+  t1-gate:
+    name: Wave 15 T1 gate
+    needs: [classify, common-sanity, web-semantic, dotnet-focused, chromium-focused]
+    if: always()
+    runs-on: ubuntu-latest
+    env:
+      CLASSIFY: ${{ needs.classify.result }}
+      COMMON: ${{ needs.common-sanity.result }}
+      WEB: ${{ needs.web-semantic.result }}
+      DOTNET: ${{ needs.dotnet-focused.result }}
+      E2E: ${{ needs.chromium-focused.result }}
+      EXEMPT: ${{ needs.classify.outputs.coordination_exempt }}
+      NEED_WEB: ${{ needs.classify.outputs.run_web }}
+      NEED_DOTNET: ${{ needs.classify.outputs.run_dotnet }}
+      NEED_E2E: ${{ needs.classify.outputs.run_e2e }}
+      PROFILES: ${{ needs.classify.outputs.effective_profiles }}
+      DRIVER_GATE: ${{ needs.classify.outputs.driver_gate }}
+    steps:
+      - name: Require all selected evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$CLASSIFY" = success
+          if [ "$EXEMPT" != true ]; then test "$COMMON" = success; fi
+          if [ "$NEED_WEB" = true ]; then test "$WEB" = success; fi
+          if [ "$NEED_DOTNET" = true ]; then test "$DOTNET" = success; fi
+          if [ "$NEED_E2E" = true ]; then test "$E2E" = success; fi
+          {
+            echo '## Wave 15 T1 gate';
+            echo "Effective profiles: \`$PROFILES\`";
+            echo "Web: $WEB; .NET: $DOTNET; Chromium: $E2E";
+            echo "Driver/Seven-Driver/Interop: $DRIVER_GATE (specialized heavy gates are not claimed PASS by T1).";
+            echo 'Universal integrated/main gate: REQUIRED NOW only for push checkpoint or main PR; otherwise UNCHANGED/TRUSTED.';
+          } >> "$GITHUB_STEP_SUMMARY"

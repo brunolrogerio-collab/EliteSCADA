@@ -32,6 +32,18 @@ The optimization target is **when and how often CI runs**, not what the final pr
 
 ## Normal-mode execution rules
 
+### Wave 15 validation tiers
+
+- **T0:** local deterministic inspection and focused tests before push.
+- **T1:** `wave15-pr.yml` for a leaf PR to `wave15/corrections-integration`; its required `VALIDATION_PROFILE` is the declared risk intent, while path inference is a non-bypassable floor.
+- **T2:** broad `dotnet-ci.yml` push validation on `wave15/corrections-integration` for integrated checkpoints.
+- **T3:** specialized risk-sensitive workflows (Driver/Interop, licensing preview and equivalent labs), manually or checkpoint-triggered when their risk applies.
+- **T4:** universal `dotnet-ci.yml` PR acceptance for `main` and release/final integration evidence.
+
+The T1 vocabulary is: `FOUNDATION_LIFECYCLE`, `FOUNDATION_TIMING`, `AUTHORITY_CORE`, `SESSION_LICENSING`, `SCRIPT_RUNTIME`, `RUNTIME_RENDERER`, `UI_EDITOR`, `SCRIPT_ENGINEERING`, `AUTHORITY_UX`, `LICENSING_UX`, `ELITEGO_RUNTIME`, `INSTALLATION`, `HA_DISTRIBUTED`, `DOCS_I18N_HELP`, `EEE_PACKAGE`, `DRIVER_PROTOCOL`.
+
+T1 does not delete or reduce coverage. It assigns focused evidence to the changed risk. The Coordinator may always escalate a PR to any heavier/specialized gate. A declared inexpensive profile never suppresses an inferred profile.
+
 ### Workers — DEV 1 / DEV 2 / DEV 3
 
 1. Run the focused validation required by the active assignment.

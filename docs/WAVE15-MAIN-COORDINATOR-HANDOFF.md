@@ -134,40 +134,39 @@ Coordination/documentation commits after this checkpoint do not create a new pro
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
 **ORDER_STATE: ACTIVE**  
-**ORDER_ID: FND06-CODEX-VISUAL-STABILITY-V2**  
-**CODEX_MODE: BOUNDED_FOUNDATION_IMPLEMENTATION**  
+**ORDER_ID: FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3**  
+**CODEX_MODE: BOUNDED_TEST_EVIDENCE_AND_MINIMAL_FIX_IF_NEEDED**  
 **EXECUTOR_IDENTITY: SAME SEQUENTIAL CODEX CHAT/LANE USED IN PRIOR FOUNDATION WORK INCLUDING FND-04**  
-**FND-04 routing override:** `coord/w15-fnd04-dev-aud-control` rev 0016 / `ROUTE-SEQUENTIAL-CODEX-TO-FND06-12`  
-**Mission:** close the remaining canonical Runtime/rendering + visual stability Foundation gaps without implementing the full downstream Editor UX
+**Mission:** close mounted Screen/Popup legacy-selection evidence before Main may integrate FND-06
 
-Exact base:
-- product SHA `6c810647c9773a19b212d9c33694780141786ac7`
-- tree `1221ff55963052be4e924dd644efbaa65763f546`
-- exact post-merge EliteSCADA CI `35913456486` — SUCCESS
-  - Web `107358858133` — SUCCESS
-  - Backend/test/smoke `107358858405` — SUCCESS
-  - Chromium `107359503423` — SUCCESS.
+Exact current candidate:
+- base `6c810647c9773a19b212d9c33694780141786ac7`
+- current candidate `923543705378016090e7067b35954795a9591a57`
+- tree `5657cee7169a4e77370d416add4efcf07184d7c0`
+- PR #337
+- natural T1 `35931139983` — SUCCESS.
 
-Work branch:
-`work/w15-fnd-06-visual-stability-foundation`
+Main review accepted:
+- 9-file allowlisted scope;
+- centralized legacy compatibility for `tank | value | dynamo | status`;
+- unknown fail-closed behavior;
+- Runtime Popup persistence under retryable same-identity failure;
+- deliberate navigation reset on genuine Active identity change;
+- no second renderer / no lifecycle or Authority leakage.
 
-Dedicated control:
-- branch `coord/w15-fnd06-control`
-- file `docs/WAVE15-FND06-CONTROL.md`
-- control commit `1a1488388fd67bf89380879b07437e1460170f18`
-- order `FND06-CODEX-VISUAL-STABILITY-V2`.
+Main found one remaining acceptance-evidence gap:
+- Wave 14 A7 was a deterministic **mounted** Screen/Popup selection crash that blanked/poisoned Engineering;
+- candidate `92354370...` proves legacy models and dependent model helpers, but does not yet provide the required mounted Screen+Popup regression over persisted legacy selections.
 
-Frozen scope:
-- centralized known-legacy visual compatibility before strict schema consumers;
-- Screen/Popup selection stability and contained malformed-object diagnostics;
-- canonical renderer/public model single authority;
-- selected Screen + open Popup persistence across retryable projection failure under unchanged Active authority;
-- deliberate navigation reinitialization only on real Active identity change;
-- explicit Working-design vs Active Runtime authority boundary.
+Detailed active order:
+- control `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
+- revision `0005`
+- control commit `48778387c2fde6ffb645ced17669bd0606d30142`
+- order `FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`.
 
-Downstream full single-canvas WYSIWYG remains DEV-EDITOR scope and must not be implemented in FND-06.
+Preferred delta is tests-only. If current candidate already passes mounted A7 scenarios, record GREEN-existing and do not change production. If a mounted residual fails, fix only the minimal existing FND-06 allowlisted surface.
 
-No self-merge/freeze authority.
+No merge/freeze authority.
 ---
 
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER

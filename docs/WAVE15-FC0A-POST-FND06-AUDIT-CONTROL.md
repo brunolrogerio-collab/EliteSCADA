@@ -11,6 +11,12 @@
 
 `MODE: READ_ONLY_CROSS_WAVE_FOUNDATION_AUDIT`
 
+`AUDIT_EXECUTION: MAIN_EVIDENCE_MATRIX + INDEPENDENT_AUD_REVIEW`
+
+`IMPLEMENTING_CODEX_SELF_AUDIT: FORBIDDEN`
+
+`PREFERRED_AUD_LANE: reuse independent FND-04 AUD chat/lane if available, re-routed by Main to this control`
+
 `RELEASE_EFFECT: BLOCKING`
 
 ## 1. Activation rule
@@ -42,6 +48,17 @@ This is not a CI-only gate. It must robustly answer:
 3. Did any Wave 15 Foundation fix create a hidden product gap or contradict another frozen contract?
 4. Can prepared FND-05 and FND-07 be implemented without breaking contracts already frozen and consumed by FC0-A DEVs?
 5. Is there a coherent exact checkpoint from which the four DEV lanes can safely branch without foreseeable Foundation invalidation?
+
+## 2A. Independence rule
+
+The CODEX that implements FND-06 may supply implementation evidence but may **not** be the sole auditor of this gate.
+
+Required roles:
+1. Main Coordinator builds/revalidates the cross-wave closure matrix and exact live state.
+2. An independent READ_ONLY AUD reviews the exact post-FND06 checkpoint, the matrix, frozen-contract compatibility and release disposition.
+3. Main Coordinator makes the final FC0-A release decision.
+
+The existing independent FND-04 AUD chat/lane may be reused for this audit if Main rewrites its routing/current order to this audit control. Product Owner relay is not required.
 
 ## 3. Mandatory evidence sources
 
@@ -249,6 +266,15 @@ Current prepared design is expected to be **COMPOSITIONAL / COMPATIBLE**, becaus
 
 If exact source audit shows neutral bootstrap requires changing the meaning of a frozen lifecycle, Authority or licensing contract:
 `BLOCKED-CONTRACT -> FOUNDATION DELTA BEFORE FC0-A DEV RELEASE`.
+
+### Preliminary compatibility hypothesis — must be revalidated on exact post-FND06 SHA
+
+| Future Foundation | Preliminary classification | Reason | Breaking-change trigger |
+| --- | --- | --- | --- |
+| FND-05 | ADDITIVE / EXPECTED COMPATIBLE | Frozen FND-03 lease already contains ServerNode/ClusterId hooks; HA is intended above Drivers/clients; topology stays out of package; FND-04 source/binding semantics need not change | Any required redefinition of lease identity/class/quota/license semantics, Script TAG resolver, or canonical visual authority |
+| FND-07 | COMPOSITIONAL / EXPECTED COMPATIBLE | Existing System Recovery, prospective Authority admission, atomic Authority replacement and FND-03 licensing lifecycle can be orchestrated | Any required redefinition of Working/Published/Active lifecycle, Authority capability/scope meaning, or transactional licensing semantics |
+
+These are not PASS results. The independent audit must prove them on the exact post-FND06 checkpoint before release.
 
 ## 8. FC0-A release matrix
 

@@ -324,3 +324,21 @@ Rule:
 4. no lane broad-refactors a shared hotspot while parallel PRs are active.
 
 This guard is intended to keep the first four FC0-A lanes actually parallelizable rather than creating avoidable merge/review coupling.
+
+
+## 8. PR #337 pre-freeze contract-risk snapshot
+
+Source candidate:
+- PR #337
+- head `923543705378016090e7067b35954795a9591a57`
+- tree `5657cee7169a4e77370d416add4efcf07184d7c0`
+- T1 `35931139983` SUCCESS
+- not yet FND-06 frozen because mounted A7 selection closeout remains active.
+
+Current risk:
+- DEV-EDITOR: `LOW / GUARDED` — no known contract break; release still blocked by mounted A7 evidence and final FND-06 freeze. DEV must consume the frozen centralized legacy compatibility boundary.
+- DEV-SCRIPT-ENGINEERING: `NONE IDENTIFIED / GUARDED` — PR #337 does not touch FND-04; FND-05 may only add execution fencing around existing Script authority.
+- DEV-AUTHORITY-UX: `NONE IDENTIFIED / GUARDED` — PR #337 does not touch FND-02; FND-07 must compose existing Authority/session mechanisms.
+- DEV-LICENSING-UX: `LOW BUT MATERIAL RESIDUAL` — FND-05 HA redundancy entitlement/readiness must be additive/backward-compatible to FND-03. Breaking license-schema/seat/quota reinterpretation blocks FC0-A.
+
+This snapshot is superseded by the exact post-FND06 independent audit. It does not release any lane.

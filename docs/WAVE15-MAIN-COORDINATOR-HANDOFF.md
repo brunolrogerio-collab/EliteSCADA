@@ -133,37 +133,34 @@ Coordination/documentation commits after this checkpoint do not create a new pro
 
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
-**ORDER_STATE: WAIT_AUD**  
-**ORDER_ID: FND04-CODEX-WAIT-AUD-05**  
-**CODEX_MODE: NO_MUTATION / PRESERVE_CANDIDATE**  
-**Mission:** preserve corrected FND-04 candidate while independent AUD reviews exact head
+**ORDER_STATE: ACTIVE**  
+**ORDER_ID: FND04-CODEX-CASE-CLOSE-06**  
+**CODEX_MODE: BOUNDED_CORRECTION**  
+**Mission:** close the independent AUD case/canonicalization defect in PR #336; no merge
 
-Exact candidate:
-- product base `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
-- candidate head `8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
-- candidate tree `393938536ee524d2bd7c713ed9f791679fd6c2cb`
-- PR #336
-- natural T1 `35895957135` — SUCCESS.
+Rejected AUD candidate:
+- head `8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
+- tree `393938536ee524d2bd7c713ed9f791679fd6c2cb`
+- T1 `35895957135` — SUCCESS
+- AUD classification: `CHANGES_REQUIRED`.
 
-Main preliminary review of the bounded correction confirms:
-- one corrective commit from rejected `21e2ab69...` to `8dba4f11...`;
-- correction delta is 9 files and full FND-04 delta is 20 files, all inside section 3B allowlists;
-- Client Visual now consumes persisted Script TAG bindings and re-proves expected TagId before every read/write;
-- direct write no longer depends on a prior read;
-- undeclared/path-reused/identity-drift references fail closed before write;
-- public resolver states are exactly `Found | NotFound | Ambiguous | Stale | IdentityDrift`;
-- malformed binding is validation diagnostic `SCRIPT_TAG_BINDING_INVALID`, not a sixth resolution state;
-- direct package/save-load, PostgreSQL, ambiguous, multi-TAG and adversarial Client Visual proofs are present in the candidate.
+Confirmed defect: canonical TAG registry path equality is case-insensitive, while the FND-04 Engineering resolver and Client Visual declaration lookup were case-sensitive. Server Script was already case-insensitive. This violates the frozen one-semantic requirement.
 
-CODEX must not mutate, rebase, retarget, rerun or merge while AUD reviews this immutable candidate.
+Frozen correction rule:
+- TAG readable path equality follows the canonical registry: case-insensitive;
+- path casing is presentation context, not identity;
+- case-only spelling change with the same expected TagId remains `found`;
+- true non-case-equivalent rename/move remains `stale`;
+- old path reused by another TagId remains `identityDrift`;
+- no separator/Unicode/whitespace aliasing beyond existing trim behavior;
+- stable TagId remains write identity.
 
-Dedicated control plane:
-- branch `coord/w15-fnd04-dev-aud-control`
-- file `docs/WAVE15-FND04-DEV-AUD-CONTROL.md`
-- control commit `e99b1a911aec5b39772a900b801869207c519b0a`
-- active AUD order `FND04-AUD-CANDIDATE-0005`.
+Detailed executable order:
+- control plane commit `87953b593110f398a930145578b70c6c9d8a2ad6`;
+- section `3B.2A Canonical TAG path case/equality rule`;
+- order `FND04-CODEX-CASE-CLOSE-06`.
 
-No merge/freeze authority is granted.
+CODEX must produce discriminating review-RED against `8dba4f11...`, add bounded cross-surface case-equivalence tests, preserve all prior PASS evidence, push to the same PR #336 and obtain a fresh natural T1. No self-merge/freeze.
 ---
 
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
@@ -226,34 +223,15 @@ Normal DEV may revalidate live state and later review evidence only.
 
 ## 5. MAIN COORDINATOR -> FND-04 AUD — CURRENT ORDER
 
-**ORDER_STATE: ACTIVE**  
-**ORDER_ID: FND04-AUD-CANDIDATE-0005**  
+**ORDER_STATE: WAIT_CASE_CORRECTED_CANDIDATE**  
+**ORDER_ID: FND04-AUD-WAIT-CASE-CORRECTION-0006**  
 **Default mode:** `READ_ONLY_REVIEW`
 
-Immutable candidate:
-- base `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
-- head `8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
-- tree `393938536ee524d2bd7c713ed9f791679fd6c2cb`
-- PR #336
-- natural T1 `35895957135` — SUCCESS.
+Main accepts the AUD rejection of `8dba4f1161d4ca5190ddfa37b48d9736478d73ec` as `CHANGES_REQUIRED` and independently confirmed the case/canonicalization divergence.
 
-AUD must now execute the independent adversarial matrix from the dedicated control plane against exactly this head. If the PR head moves, stop and report candidate-moved evidence. Stay READ_ONLY; no test/product mutation and no merge.
+AUD now waits for a new immutable CODEX candidate. Do not re-audit the rejected head and do not mutate tests/product.
 
-Special focus:
-- direct readable write without prior read;
-- old-path reuse / identity drift;
-- undeclared readable reference denial;
-- exact five-state resolver semantics;
-- malformed-binding validation separation;
-- ambiguity;
-- package/save-load/PostgreSQL persistence;
-- representative multi-TAG readable Script;
-- legacy GUID compatibility;
-- Authority/sandbox preservation;
-- no second resolver/TAG registry/auth path;
-- classify the executor's local `/api/engineering/export/json` timeout only for causal relation to the FND-04 delta, without scope widening.
-
-Return final classification `ACCEPTABLE | CHANGES_REQUIRED | BLOCKED-CONTRACT` using the mandatory AUD prefix.
+Handoff routing is now explicit in the dedicated control plane: normal agent handoffs go to Issue #305 when the runtime can post; PR-specific evidence may also go to #336; if an agent cannot post, it returns the full handoff in its own chat and Main records it. Product Owner relay is not required.
 ---
 
 ## 6. FND-04 BINDING CONTRACT — ACTIVE / NOT YET FROZEN

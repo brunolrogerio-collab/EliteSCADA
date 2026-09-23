@@ -144,3 +144,35 @@ Remaining gate before merge:
 - preferred delta: tests only; minimal production fix only if the mounted scenario exposes a remaining defect.
 
 The same sequential CODEX lane remains the executor. No merge/freeze yet.
+
+
+## PR #337 contract-risk snapshot for post-FND06 FC0-A gate
+
+Post-FND06 audit control:
+- audit: `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
+- audit rev: `0002`
+- latest audit-control commit: `9e75fd836d03dc34619f72ba5056e3aa874cfdbb`
+
+PR #337 pre-freeze evidence:
+- candidate `923543705378016090e7067b35954795a9591a57`
+- tree `5657cee7169a4e77370d416add4efcf07184d7c0`
+- natural T1 `35931139983` SUCCESS
+- no Security/Authority/Licensing/Script/lifecycle contract change in its 9-file visual/editor/runtime delta
+- FND-06 still HOLD pending mounted A7 closeout; this is an evidence gate, not a known contract break.
+
+Current FC0-A contract-risk classification:
+- DEV-EDITOR: `LOW / GUARDED` — must consume frozen FND-06 compatibility/renderer authority; mounted A7 proof still pending.
+- DEV-SCRIPT-ENGINEERING: `NONE IDENTIFIED / GUARDED` — FND-04 remains untouched; FND-05 may only fence execution authority around it.
+- DEV-AUTHORITY-UX: `NONE IDENTIFIED / GUARDED` — FND-07 must compose FND-02/AUTH-04, not redefine it.
+- DEV-LICENSING-UX: `LOW BUT MATERIAL RESIDUAL` — FND-05 redundancy entitlement/readiness must remain additive/backward-compatible to frozen FND-03 semantics.
+
+FND-05 hard guard:
+- control rev `0003`
+- commit `85502eaaa3a27fc2c050396b3f40c3e08943ae37`
+- existing FND-03 license validity/meaning, Interactive/ViewOnly/session quota semantics, machine binding and install/replace/remove behavior may not be reinterpreted by HA.
+- if HA needs such a breaking change -> `BLOCKED-CONTRACT` before FC0-A DEV release.
+
+FC0-A release prep snapshot commit:
+`c0e4bd69c89c47efc7dc936a6ac9e61cbbbd8f96`.
+
+This is pre-freeze risk assessment only; final release still requires exact FND-06 freeze + independent post-FND06 audit PASS.

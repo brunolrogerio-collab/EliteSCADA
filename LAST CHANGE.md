@@ -75,3 +75,21 @@ INFRA-CI-01A is no longer a blocker.
 - CODEX: `WAIT_AUD / NO_MUTATION`
 - AUD: `FND04-AUD-CANDIDATE-0005 / ACTIVE / READ_ONLY_REVIEW`
 - no integration/freeze yet
+
+## FND-04 current Main gate
+
+- PR #336 current Main-reviewed head: `5c77eb418b83af57ccd1812c9c21fd44919b2ca0`
+- tree: `181c6296c35fbb9dd6486d3ef6a318ff0b97dc70`
+- natural T1 `35907518317`: SUCCESS
+- Main disposition: **REJECTED BEFORE AUD / CORRECTION REQUIRED / NOT INTEGRATED**
+- reason: cross-language JS/Python comparers attempted to mimic canonical `.NET StringComparer.OrdinalIgnoreCase`, creating a second TAG-path comparison authority
+- frozen separation:
+  - persisted `TagBinding.Reference` -> current TAG path uses canonical backend registry semantics only;
+  - Python source argument -> persisted declared binding uses exact token equality after trim;
+  - after declaration membership, runtime still proves expected TagId through canonical registry/protected path
+- active CODEX order: `FND04-CODEX-SOURCE-BINDING-SEPARATION-08`
+- AUD: `FND04-AUD-WAIT-SOURCE-BINDING-0008`
+- control commit: `8b2cbf4ebe55ede494d7ad3ed9c4809911b741e0`
+- canonical handoff commit: `c7837d220e48c607a7f9fb473e33e0c0a3e43f94`
+- no merge/freeze authority
+

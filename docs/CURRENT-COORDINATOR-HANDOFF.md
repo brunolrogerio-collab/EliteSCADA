@@ -63,9 +63,9 @@ Phase C implementation is assigned exclusively to CODEX; DEV remains idle to pre
 ### CODEX
 
 `ORDER_STATE: ACTIVE`  
-`ORDER_ID: FND03-PHASE-C-ACCEPTANCE-CLOSE-03`
+`ORDER_ID: FND03-PHASE-C-IDEMPOTENT-REMOVE-CLOSE-04`
 
-Branch: `work/w15-fnd-03-license-lifecycle-orchestrator-v1`. Reviewed candidate `73ce093e...` is PR #334. Main ordered tests-only acceptance close: direct item #7 proof plus C04 request-wait fixture stabilization. No production change or merge authorized.
+Branch: `work/w15-fnd-03-license-lifecycle-orchestrator-v1`. PR #334 head `40f0001f...` has CI #1557 fully green, but Main independently found an already-Demo repeated-remove authority/Demo-anchor reset defect plus a method-group gap in the #7 mutation-boundary guard. A 3-file bounded correction is ACTIVE; no merge authorized.
 
 ### FND-04 DEV/AUD
 

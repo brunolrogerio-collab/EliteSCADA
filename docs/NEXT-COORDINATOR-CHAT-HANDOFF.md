@@ -416,3 +416,19 @@ Ao final de cada interação de coordenação, informe:
 `Hora: HH:MM`
 
 usando `America/Sao_Paulo`.
+
+
+## Current Wave 15 correction for successor
+
+Important live routing:
+- the same sequential CODEX chat/lane that worked prior Foundation stages including FND-04 is the active FND-06 executor;
+- FND-04 control rev 0016 contains `ROUTE-SEQUENTIAL-CODEX-TO-FND06-12`;
+- on `SIGA`, that CODEX must read `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md` and execute `FND06-CODEX-VISUAL-STABILITY-V2`;
+- do not let the historical FND-04 frozen state turn the shared CODEX lane into WAIT.
+
+FC0-A sequencing:
+- after FND-06 VERIFIED/FROZEN, do **not** release DEVs immediately;
+- first run `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`;
+- audit control: `coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-CONTROL.md`;
+- audit must correlate final Wave 14 findings, Wave 15 premises/gaps, frozen contracts and FND-05/FND-07 compatibility;
+- only `ACCEPTABLE / FC0A_RELEASE_APPROVED` releases the four FC0-A DEVs and allows FND-05/FND-07 to activate in parallel.

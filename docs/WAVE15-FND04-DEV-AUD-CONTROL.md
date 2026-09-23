@@ -38,9 +38,9 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0010`
+`MAIN_ORDER_REV: 0011`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-23 15:00 BRT — AUD REJECTED CASE/CANONICALIZATION DIVERGENCE / BOUNDED CORRECTION ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-23 15:00 BRT — CASE CLOSE HEAD HELD BY MAIN / ORDINALIGNORECASE PARITY PROOF REQUIRED`
 
 `GLOBAL_GATE: FND04_ACTIVE`
 
@@ -48,19 +48,14 @@ Current situation:
 
 - FND-03 remains **VERIFIED / FROZEN** on exact product checkpoint `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6` / tree `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`.
 - INFRA-CI-01A remains **VERIFIED / FROZEN** at merge `9f62ad56e3fed5574bab1fa25fc8b64f9e4ae981`.
-- Corrected PR #336 candidate `8dba4f1161d4ca5190ddfa37b48d9736478d73ec` / tree `393938536ee524d2bd7c713ed9f791679fd6c2cb` had natural T1 `35895957135` SUCCESS.
-- Independent FND-04 AUD returned **REJECT CANDIDATE / CHANGES_REQUIRED** on that exact immutable head.
-- Main independently confirmed the AUD finding:
-  - canonical `InMemoryTagRegistry` path ownership/lookup is case-insensitive via `StringComparer.OrdinalIgnoreCase`;
-  - `ScriptEngineeringReferenceResolver.ResolveTagBinding` compares visible paths with `StringComparison.Ordinal`, so a case-only path spelling change can be classified `stale`;
-  - Server Script already treats readable references case-insensitively in its execution map / Python lookup;
-  - Client Visual declared-reference lookup uses a normal case-sensitive JavaScript `Map`.
-- This creates contradictory resolution semantics for equivalent TAG path case variants and violates section 3B.3 one-read/write semantic.
-- Previous Main rejection items A/B/C/D remain closed; the only active FND-04 product blocker is this bounded path case/canonicalization convergence defect.
-- FND-04 remains **ACTIVE / CORRECTION REQUIRED / NOT INTEGRATED**.
-- CODEX is reactivated on bounded correction order `FND04-CODEX-CASE-CLOSE-06`.
-- Normal DEV remains `BLOCKED_ENV / WATCH_ONLY`.
-- AUD is `WAIT_CASE_CORRECTED_CANDIDATE / READ_ONLY`.
+- CODEX produced case-close head `139330bcdf758928171f82fb9f4a0984f0aa3455` / tree `9bdddad56edec63989a13f7510614fca6cfa8782` on PR #336.
+- Natural Wave 15 T1 run `35900689584` is SUCCESS on that exact head; the corrective delta from `8dba4f11...` is one commit / 5 allowlisted files.
+- Main source review confirms the original AUD defect is addressed for ordinary Latin/Latin-accent case variants: Engineering now uses `OrdinalIgnoreCase`; Client Visual introduced case-insensitive declaration lookup; Server Script remained case-insensitive.
+- Main has **not released `139330bc...` to AUD yet** because the Client implementation uses `toLocaleLowerCase('en-US')` as a lookup-key normalizer while the canonical registry uses .NET `StringComparer.OrdinalIgnoreCase`.
+- Those are not guaranteed to be the same comparison algorithm for arbitrary Unicode. Project TAG path validation currently does not restrict paths to ASCII, so exact registry/client semantic parity must be proven rather than inferred from the `Área/Nível` example.
+- FND-04 remains **ACTIVE / MAIN REVIEW HOLD / NOT INTEGRATED**.
+- CODEX is ACTIVE on `FND04-CODEX-ORDINAL-PARITY-07`.
+- AUD remains **WAIT_NEW_IMMUTABLE_CANDIDATE / READ_ONLY**; do not spend another independent cycle on `139330bc...`.
 - No merge/freeze authority is granted.
 
 Live integration divergence from the product base remains acknowledged only for verified INFRA-CI-01A + coordination documentation. Any other unacknowledged product delta remains `BLOCKED-BASE-DIVERGENCE`.
@@ -587,19 +582,19 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 ### CURRENT CODEX EXECUTION ORDER
 
-`ORDER_ID: FND04-CODEX-CASE-CLOSE-06`
+`ORDER_ID: FND04-CODEX-ORDINAL-PARITY-07`
 
 `ORDER_STATE: ACTIVE`
 
-`EXECUTOR_MODE: BOUNDED_CORRECTION`
-
-`SOURCE_DEV_ORDER: FND04-DEV-TAGREF-V1-01`
+`EXECUTOR_MODE: BOUNDED_CORRECTION_OR_PROOF`
 
 `EXACT_PRODUCT_BASE_SHA: a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
 
-`REJECTED_AUD_CANDIDATE_SHA: 8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
+`AUD_REJECTED_SHA: 8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
 
-`REJECTED_AUD_CANDIDATE_TREE: 393938536ee524d2bd7c713ed9f791679fd6c2cb`
+`MAIN_HELD_CASE_CLOSE_SHA: 139330bcdf758928171f82fb9f4a0984f0aa3455`
+
+`MAIN_HELD_CASE_CLOSE_TREE: 9bdddad56edec63989a13f7510614fca6cfa8782`
 
 `WORK_BRANCH: work/w15-fnd-04-script-tag-reference-resolution`
 
@@ -609,102 +604,89 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 `VALIDATION_PROFILE: SCRIPT_ENGINEERING, SCRIPT_RUNTIME`
 
-Mission: close only the independent AUD case/canonicalization defect while preserving all prior PASS evidence.
+Mission: prove or correct exact cross-surface parity with the canonical registry's `.NET StringComparer.OrdinalIgnoreCase` semantics. Do not widen FND-04.
 
-#### Confirmed defect
+#### Why `139330bc...` is held
 
-The canonical TAG registry is case-insensitive, but the rejected candidate has divergent Script semantics:
-- Engineering readable binding path comparison is case-sensitive;
-- Server Script reference lookup is already case-insensitive;
-- Client Visual declared readable-reference lookup is case-sensitive.
+The new Client Visual helper:
 
-That divergence is a candidate defect, not a Foundation redesign.
+`reference.trim().toLocaleLowerCase('en-US')`
 
-#### Binding correction
+is a locale/case-mapping transformation, not a demonstrated implementation of .NET `OrdinalIgnoreCase` equality. FND-04 section 3B.2A requires the Script readable-reference semantics to inherit the canonical TAG registry, not merely be "case insensitive in common examples".
 
-Implement section **3B.2A** exactly.
+The project does not currently restrict TAG paths to ASCII. Therefore Main requires discriminating parity evidence before independent AUD.
 
-Stay inside the original production/test allowlists. Expected production touch set is bounded to the minimum needed among:
-- `src/Scada.Engineering/Scripts/ScriptEngineeringReferenceResolution.cs`;
-- `src/Scada.Api/Runtime/IsolatedPythonScriptHandlerExecutor.cs` only if declaration-conflict/equality logic needs convergence;
-- `web/scada-web/src/python-runtime/createClientVisualPythonCapabilityProvider.ts`;
-- `web/scada-web/src/python-runtime/clientVisualEventDispatcher.ts` only if composition changes are actually required.
+#### Mandatory parity RED/proof against exact `139330bc...`
 
-Do **not** modify:
-- `InMemoryTagRegistry` or TAG registry interface;
-- Authority/Security;
-- Driver/database/schema/migrations;
-- workflows;
-- protected read/write endpoints.
+Create a bounded test-only matrix that compares the **observable equality/lookup decision**, not display spelling, across:
+- canonical registry / .NET `OrdinalIgnoreCase` expectation;
+- Engineering resolver;
+- Client Visual declared-reference lookup;
+- Server Script declaration/runtime lookup where applicable.
 
-Server Script runtime manager/path lookup should remain the canonical existing behavior unless a minimal allowlisted correction is required. Do not create a new path registry or resolver authority.
+At minimum include:
 
-#### Mandatory review-RED against rejected `8dba4f11...`
+1. ASCII case pair: `Plant.K` vs `plant.k` — must be equivalent.
+2. accented Latin pair: `Plant.Área.Nível` vs `plant.área.nível` — must be equivalent.
+3. Kelvin-sign sentinel: a segment containing `K` (U+212A) versus ASCII `k`.
+4. long-s sentinel: `ſ` (U+017F) versus ASCII `s`.
+5. Turkish/dotted-I sentinels: `I`, `i`, `İ`, `ı`.
+6. Greek sigma family where relevant: `Σ`, `σ`, `ς`.
+7. composed vs decomposed accented spelling — must **not** gain normalization aliasing unless the canonical registry itself reports equality.
+8. exact same string with only canonical-registry-supported case change.
+9. a true different path that must remain non-equivalent.
 
-Before production correction, record test-only RED evidence against exact rejected head for:
+The expected result for every sentinel is defined by the actual canonical registry / `StringComparer.OrdinalIgnoreCase` behavior in the project target runtime. Do not invent a browser-only case-fold contract.
 
-1. **Engineering case-only path transition**
-   - binding: `Plant.Process.LevelPct` -> expected A;
-   - current same TagId A path: `plant.process.levelpct`;
-   - expected contract: `Found`;
-   - rejected candidate must expose current `Stale` defect.
+#### Required disposition
 
-2. **Client Visual source case variant**
-   - declared binding `Plant.Process.LevelPct` -> A;
-   - source calls `plant.process.levelpct`;
-   - protected reader resolves A;
-   - expected: read/write accepted and writer gets A;
-   - rejected candidate must expose declaration mismatch.
+A. If `139330bc...` already matches the canonical registry for the entire discriminating matrix, return exact proof and do not modify product.
 
-3. **Cross-surface convergence**
-   - same binding/case variant is accepted by Server Script but not Client Visual/Engineering on rejected candidate;
-   - record the divergence before correction.
+B. If any sentinel diverges, correct only the Client/Engineering/Server Script readable-reference comparison path inside the existing section 3B allowlists, preserving all previous PASS behavior.
 
-#### Mandatory GREEN adversarial matrix
+C. If exact parity cannot be achieved without changing the frozen canonical TAG registry, adding a second registry/comparer authority, or widening outside the existing allowlist, return `BLOCKED-CONTRACT`.
 
-All must PASS on the new exact head:
+Do not solve this by:
+- restricting all TAG paths to ASCII;
+- normalizing Unicode forms;
+- changing registry semantics;
+- adding locale-sensitive aliases;
+- introducing another TAG path authority;
+- weakening undeclared-reference fail-closed behavior.
 
-1. exact-case visible path + expected A -> `found`;
-2. current path changes only by case, same A -> Engineering `found`, not `stale`;
-3. Python source argument differs only by case -> Client Visual read resolves A;
-4. same case-variant direct Client Visual write without prior read -> fresh proof then writer receives stable A;
-5. Server Script read/write with the same case variant resolves the same A;
-6. Engineering, Client Visual and Server Script agree on case-equivalent inputs;
-7. prospective duplicate paths differing only by case -> `ambiguous`, no arbitrary selection;
-8. true non-case-equivalent rename/move of A -> `stale`, no read/write retarget;
-9. old path reused by B while expected A -> `identityDrift`, B untouched;
-10. missing path + missing expected A -> `notFound`;
-11. undeclared non-equivalent readable reference still fails closed;
-12. legacy GUID-only dependency remains unchanged;
-13. persisted visible spelling/casing survives package/save/load/PostgreSQL round-trip unchanged;
-14. representative non-ASCII letter case variant (for example `Plant.Área.Nível` vs `plant.área.nível`) follows the same case-equivalence behavior across tested surfaces;
-15. no new registry, path cache-of-truth, endpoint or Authority evaluator is introduced;
-16. all prior FND-04 acceptance evidence remains green;
-17. `git diff --check` PASS;
-18. full local solution/Web/focused browser evidence PASS as environment permits;
-19. natural fresh Wave 15 T1 on the corrected exact head PASS;
-20. no merge/freeze.
+#### Regression requirements
 
-If exact cross-surface equivalence cannot be achieved without changing the frozen canonical TAG registry or another explicitly non-expected production authority, return `BLOCKED-CONTRACT` instead of widening scope.
+The final immutable head must still prove:
+- case-only ordinary path changes -> `found`;
+- true rename/move -> `stale`;
+- old-path reuse by B -> `identityDrift`;
+- case-only prospective duplicate -> `ambiguous`;
+- direct Client write performs fresh identity proof and writes stable TagId only;
+- undeclared non-equivalent reference fails closed;
+- legacy GUID compatibility;
+- package/PostgreSQL/multi-TAG evidence;
+- exact five-state resolver;
+- Authority/sandbox unchanged;
+- full prior FND-04 focused evidence;
+- `git diff --check`;
+- fresh natural Wave 15 T1 if product/tests change.
 
 Return exactly:
 
-`FND-04 CODEX EXECUTOR -> MAIN COORDINATOR — CASE-CLOSE CANDIDATE HANDOFF`
+`FND-04 CODEX EXECUTOR -> MAIN COORDINATOR — ORDINAL-PARITY HANDOFF`
 
-Include:
-- rejected `8dba4f11...` -> new exact head/tree;
-- exact changed files;
-- review-RED evidence;
-- implementation rule used for case equivalence;
-- full 20-item matrix above;
-- proof true rename remains stale and path reuse remains identityDrift;
-- Client Visual + Server Script convergence evidence;
-- package/persistence regression evidence;
-- local commands/results;
-- natural T1 run/jobs;
+with:
+- `139330bc...` -> final exact head/tree;
+- whether product changed;
+- sentinel matrix with registry / Engineering / Client / Server outcomes;
+- any RED exposed by `139330bc...`;
+- exact fix if needed;
+- changed files;
+- regressions/local tests;
+- natural T1 run/jobs if head changed;
 - explicit non-actions.
 
-No self-merge and no freeze authority.
+No merge/freeze authority.
 
 ### CODEX mandatory return
 
@@ -771,28 +753,28 @@ AUD never merges its own work and never writes directly to DEV branch, integrati
 
 ### CURRENT AUD ORDER
 
-`ORDER_ID: FND04-AUD-WAIT-CASE-CORRECTION-0006`
+`ORDER_ID: FND04-AUD-WAIT-ORDINAL-PARITY-0007`
 
-`ORDER_STATE: WAIT_CASE_CORRECTED_CANDIDATE`
+`ORDER_STATE: WAIT_NEW_IMMUTABLE_CANDIDATE`
 
 `AUD_MODE: READ_ONLY_REVIEW`
 
 `BASE_SHA: a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
 
-`REJECTED_CANDIDATE_SHA: 8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
+`AUD_REJECTED_SHA: 8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
 
-`REJECTED_CANDIDATE_TREE: 393938536ee524d2bd7c713ed9f791679fd6c2cb`
+`MAIN_HELD_CASE_CLOSE_SHA: 139330bcdf758928171f82fb9f4a0984f0aa3455`
 
 `PR: #336`
 
 Instruction:
 
-> Main accepts your independent `REJECT CANDIDATE / CHANGES_REQUIRED` finding. The case/canonicalization defect is confirmed and CODEX now owns bounded correction under section 3B.2A. Do not re-audit the rejected head and do not mutate code/tests. Wait for Main to publish a new immutable corrected SHA/tree, then independently recheck the bounded case correction plus regression of the prior PASS items.
+> Do not audit `139330bc...` yet. Main review found that Client Visual currently approximates canonical registry case equality with `toLocaleLowerCase('en-US')`, which is not yet proven equivalent to .NET `StringComparer.OrdinalIgnoreCase` for unrestricted Unicode TAG paths. CODEX owns the bounded parity proof/correction. Wait for Main to publish the next immutable SHA/tree; then re-audit the case/canonicalization fix and regress the previous PASS matrix.
 
-Handoff destination is explicit:
-- primary ledger: GitHub Issue `#305`;
-- PR-local evidence may also be posted on PR `#336`;
-- if this chat/runtime cannot post GitHub comments, return the complete handoff in this chat and stop; Main Coordinator will record it directly. The Product Owner is not required to relay agent messages.
+Handoff routing remains:
+- primary ledger Issue `#305`;
+- PR #336 for local supporting evidence;
+- if GitHub comment capability is unavailable, return the complete handoff in the AUD chat and stop; Main records it.
 
 ### AUD mandatory return format
 

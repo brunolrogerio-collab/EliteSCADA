@@ -38,9 +38,9 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0009`
+`MAIN_ORDER_REV: 0010`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-23 14:45 BRT — CORRECTED FND-04 CANDIDATE ACCEPTED FOR INDEPENDENT AUD`
+`LAST_MAIN_UPDATE_BRT: 2026-09-23 15:00 BRT — AUD REJECTED CASE/CANONICALIZATION DIVERGENCE / BOUNDED CORRECTION ACTIVE`
 
 `GLOBAL_GATE: FND04_ACTIVE`
 
@@ -48,18 +48,19 @@ Current situation:
 
 - FND-03 remains **VERIFIED / FROZEN** on exact product checkpoint `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6` / tree `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`.
 - INFRA-CI-01A remains **VERIFIED / FROZEN** at merge `9f62ad56e3fed5574bab1fa25fc8b64f9e4ae981`.
-- Main has reviewed the bounded correction on PR #336:
-  - rejected head `21e2ab69a71844d56acf1b7913dc67097697f6ae`;
-  - corrected immutable candidate `8dba4f1161d4ca5190ddfa37b48d9736478d73ec`;
-  - candidate tree reported in executor handoff: `393938536ee524d2bd7c713ed9f791679fd6c2cb`;
-  - correction delta is one commit / 9 changed files, all inside the frozen section 3B allowlists;
-  - full FND-04 delta remains 20 allowlisted files;
-  - natural Wave 15 T1 run `35895957135` SUCCESS: classify/common/Web/.NET/Chromium/T1 gate all green.
-- Main preliminary review confirms the prior known blockers are closed in the corrected delta: Client Visual now consumes declared bindings and re-proves expected TagId on every write, the public resolver is exactly five-state, and direct persistence/ambiguity/multi-TAG/adversarial tests were added.
-- FND-04 remains **ACTIVE / CORRECTED CANDIDATE UNDER INDEPENDENT AUD / NOT INTEGRATED**.
-- CODEX is now **WAIT_AUD / NO MUTATION** on the immutable candidate.
+- Corrected PR #336 candidate `8dba4f1161d4ca5190ddfa37b48d9736478d73ec` / tree `393938536ee524d2bd7c713ed9f791679fd6c2cb` had natural T1 `35895957135` SUCCESS.
+- Independent FND-04 AUD returned **REJECT CANDIDATE / CHANGES_REQUIRED** on that exact immutable head.
+- Main independently confirmed the AUD finding:
+  - canonical `InMemoryTagRegistry` path ownership/lookup is case-insensitive via `StringComparer.OrdinalIgnoreCase`;
+  - `ScriptEngineeringReferenceResolver.ResolveTagBinding` compares visible paths with `StringComparison.Ordinal`, so a case-only path spelling change can be classified `stale`;
+  - Server Script already treats readable references case-insensitively in its execution map / Python lookup;
+  - Client Visual declared-reference lookup uses a normal case-sensitive JavaScript `Map`.
+- This creates contradictory resolution semantics for equivalent TAG path case variants and violates section 3B.3 one-read/write semantic.
+- Previous Main rejection items A/B/C/D remain closed; the only active FND-04 product blocker is this bounded path case/canonicalization convergence defect.
+- FND-04 remains **ACTIVE / CORRECTION REQUIRED / NOT INTEGRATED**.
+- CODEX is reactivated on bounded correction order `FND04-CODEX-CASE-CLOSE-06`.
 - Normal DEV remains `BLOCKED_ENV / WATCH_ONLY`.
-- AUD is **ACTIVE / READ_ONLY_REVIEW** against exact candidate `8dba4f11...`.
+- AUD is `WAIT_CASE_CORRECTED_CANDIDATE / READ_ONLY`.
 - No merge/freeze authority is granted.
 
 Live integration divergence from the product base remains acknowledged only for verified INFRA-CI-01A + coordination documentation. Any other unacknowledged product delta remains `BLOCKED-BASE-DIVERGENCE`.
@@ -195,6 +196,27 @@ Classification:
 identityDrift outranks stale when the old visible path is already owned by another TagId.
 
 Diagnostics include state/code, visible reference, expected TagId, resolved TagId when present, and current canonical path of the expected TagId when useful.
+
+### 3B.2A Canonical TAG path case/equality rule
+
+This rule is now **FROZEN FOR FND-04 CORRECTION** and inherits the existing canonical TAG registry semantics; FND-04 must not invent a second path authority.
+
+1. TAG path equality for Script readable references is **case-insensitive**, matching the canonical registry's existing `StringComparer.OrdinalIgnoreCase` ownership/lookup behavior.
+2. `TagBinding.Reference` preserves the human-visible spelling/casing for source and round-trip. Casing is presentation context, not stable identity.
+3. A case-only difference between:
+   - persisted `TagBinding.Reference`,
+   - current `TagDefinition.Path`, or
+   - the Python source argument
+   is semantically equivalent for resolution when it still resolves to the same expected `TagId`.
+4. Therefore a case-only path change is **not** a rename/move for FND-04 classification and must remain `found` when the stable identity matches.
+5. `stale` requires a **non-case-equivalent** path move/rename: the expected TagId still exists, but the persisted visible reference no longer resolves under canonical registry path equality.
+6. `identityDrift` remains higher priority: if the persisted visible reference, under canonical registry path equality, is now owned by TagId B while the binding expects A, classify `identityDrift` and fail closed.
+7. Prospective/import ambiguity uses the same case-insensitive path equality. Two candidates whose paths differ only by case are the same visible key for ambiguity detection; never pick one arbitrarily.
+8. No additional aliasing is introduced. Do not normalize separators, punctuation, Unicode normalization forms, path segments or arbitrary whitespace. Preserve the existing outer-trim behavior only where already defined.
+9. Stable `TagId` remains the authority after path resolution. Case-insensitive path matching never authorizes a write by path.
+10. Client Visual, Server Script and Engineering resolver must expose the **same observable result** for equivalent case variants.
+
+The canonical TAG registry implementation/interface remains frozen and must not be modified for this correction.
 
 ### 3B.3 One read/write semantic
 
@@ -565,17 +587,19 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 ### CURRENT CODEX EXECUTION ORDER
 
-`ORDER_ID: FND04-CODEX-WAIT-AUD-05`
+`ORDER_ID: FND04-CODEX-CASE-CLOSE-06`
 
-`ORDER_STATE: WAIT_AUD`
+`ORDER_STATE: ACTIVE`
 
-`EXECUTOR_MODE: NO_MUTATION / PRESERVE_CANDIDATE`
+`EXECUTOR_MODE: BOUNDED_CORRECTION`
+
+`SOURCE_DEV_ORDER: FND04-DEV-TAGREF-V1-01`
 
 `EXACT_PRODUCT_BASE_SHA: a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
 
-`CANDIDATE_SHA: 8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
+`REJECTED_AUD_CANDIDATE_SHA: 8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
 
-`CANDIDATE_TREE: 393938536ee524d2bd7c713ed9f791679fd6c2cb`
+`REJECTED_AUD_CANDIDATE_TREE: 393938536ee524d2bd7c713ed9f791679fd6c2cb`
 
 `WORK_BRANCH: work/w15-fnd-04-script-tag-reference-resolution`
 
@@ -583,16 +607,104 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 `TARGET_BRANCH: wave15/corrections-integration`
 
-Instruction:
+`VALIDATION_PROFILE: SCRIPT_ENGINEERING, SCRIPT_RUNTIME`
 
-> Main preliminary review accepted the corrected head as an immutable candidate for independent audit. Do not mutate product/tests, rebase, retarget, rerun CI or merge while AUD reviews this exact candidate. On `SIGA`, re-read this control plane and GitHub live; if this order remains current, report `FND-04 CODEX EXECUTOR — WAIT_AUD` with the exact candidate and stop.
+Mission: close only the independent AUD case/canonicalization defect while preserving all prior PASS evidence.
 
-Evidence frozen for AUD:
-- correction `21e2ab69... -> 8dba4f11...` is one commit / 9 allowlisted files;
-- full product delta from exact base is 20 allowlisted files;
-- natural T1 `35895957135` is SUCCESS;
-- previous Main defects A/B/C/D have direct corrective code/tests in the candidate;
-- no Main merge/freeze approval has been issued.
+#### Confirmed defect
+
+The canonical TAG registry is case-insensitive, but the rejected candidate has divergent Script semantics:
+- Engineering readable binding path comparison is case-sensitive;
+- Server Script reference lookup is already case-insensitive;
+- Client Visual declared readable-reference lookup is case-sensitive.
+
+That divergence is a candidate defect, not a Foundation redesign.
+
+#### Binding correction
+
+Implement section **3B.2A** exactly.
+
+Stay inside the original production/test allowlists. Expected production touch set is bounded to the minimum needed among:
+- `src/Scada.Engineering/Scripts/ScriptEngineeringReferenceResolution.cs`;
+- `src/Scada.Api/Runtime/IsolatedPythonScriptHandlerExecutor.cs` only if declaration-conflict/equality logic needs convergence;
+- `web/scada-web/src/python-runtime/createClientVisualPythonCapabilityProvider.ts`;
+- `web/scada-web/src/python-runtime/clientVisualEventDispatcher.ts` only if composition changes are actually required.
+
+Do **not** modify:
+- `InMemoryTagRegistry` or TAG registry interface;
+- Authority/Security;
+- Driver/database/schema/migrations;
+- workflows;
+- protected read/write endpoints.
+
+Server Script runtime manager/path lookup should remain the canonical existing behavior unless a minimal allowlisted correction is required. Do not create a new path registry or resolver authority.
+
+#### Mandatory review-RED against rejected `8dba4f11...`
+
+Before production correction, record test-only RED evidence against exact rejected head for:
+
+1. **Engineering case-only path transition**
+   - binding: `Plant.Process.LevelPct` -> expected A;
+   - current same TagId A path: `plant.process.levelpct`;
+   - expected contract: `Found`;
+   - rejected candidate must expose current `Stale` defect.
+
+2. **Client Visual source case variant**
+   - declared binding `Plant.Process.LevelPct` -> A;
+   - source calls `plant.process.levelpct`;
+   - protected reader resolves A;
+   - expected: read/write accepted and writer gets A;
+   - rejected candidate must expose declaration mismatch.
+
+3. **Cross-surface convergence**
+   - same binding/case variant is accepted by Server Script but not Client Visual/Engineering on rejected candidate;
+   - record the divergence before correction.
+
+#### Mandatory GREEN adversarial matrix
+
+All must PASS on the new exact head:
+
+1. exact-case visible path + expected A -> `found`;
+2. current path changes only by case, same A -> Engineering `found`, not `stale`;
+3. Python source argument differs only by case -> Client Visual read resolves A;
+4. same case-variant direct Client Visual write without prior read -> fresh proof then writer receives stable A;
+5. Server Script read/write with the same case variant resolves the same A;
+6. Engineering, Client Visual and Server Script agree on case-equivalent inputs;
+7. prospective duplicate paths differing only by case -> `ambiguous`, no arbitrary selection;
+8. true non-case-equivalent rename/move of A -> `stale`, no read/write retarget;
+9. old path reused by B while expected A -> `identityDrift`, B untouched;
+10. missing path + missing expected A -> `notFound`;
+11. undeclared non-equivalent readable reference still fails closed;
+12. legacy GUID-only dependency remains unchanged;
+13. persisted visible spelling/casing survives package/save/load/PostgreSQL round-trip unchanged;
+14. representative non-ASCII letter case variant (for example `Plant.Área.Nível` vs `plant.área.nível`) follows the same case-equivalence behavior across tested surfaces;
+15. no new registry, path cache-of-truth, endpoint or Authority evaluator is introduced;
+16. all prior FND-04 acceptance evidence remains green;
+17. `git diff --check` PASS;
+18. full local solution/Web/focused browser evidence PASS as environment permits;
+19. natural fresh Wave 15 T1 on the corrected exact head PASS;
+20. no merge/freeze.
+
+If exact cross-surface equivalence cannot be achieved without changing the frozen canonical TAG registry or another explicitly non-expected production authority, return `BLOCKED-CONTRACT` instead of widening scope.
+
+Return exactly:
+
+`FND-04 CODEX EXECUTOR -> MAIN COORDINATOR — CASE-CLOSE CANDIDATE HANDOFF`
+
+Include:
+- rejected `8dba4f11...` -> new exact head/tree;
+- exact changed files;
+- review-RED evidence;
+- implementation rule used for case equivalence;
+- full 20-item matrix above;
+- proof true rename remains stale and path reuse remains identityDrift;
+- Client Visual + Server Script convergence evidence;
+- package/persistence regression evidence;
+- local commands/results;
+- natural T1 run/jobs;
+- explicit non-actions.
+
+No self-merge and no freeze authority.
 
 ### CODEX mandatory return
 
@@ -659,34 +771,28 @@ AUD never merges its own work and never writes directly to DEV branch, integrati
 
 ### CURRENT AUD ORDER
 
-`ORDER_ID: FND04-AUD-CANDIDATE-0005`
+`ORDER_ID: FND04-AUD-WAIT-CASE-CORRECTION-0006`
 
-`ORDER_STATE: ACTIVE`
+`ORDER_STATE: WAIT_CASE_CORRECTED_CANDIDATE`
 
 `AUD_MODE: READ_ONLY_REVIEW`
 
 `BASE_SHA: a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
 
-`CANDIDATE_SHA: 8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
+`REJECTED_CANDIDATE_SHA: 8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
 
-`CANDIDATE_TREE: 393938536ee524d2bd7c713ed9f791679fd6c2cb`
+`REJECTED_CANDIDATE_TREE: 393938536ee524d2bd7c713ed9f791679fd6c2cb`
 
 `PR: #336`
 
-`CANDIDATE_T1_RUN: 35895957135 / SUCCESS`
-
 Instruction:
 
-> Execute the independent section 3B.14 adversarial review now against exactly `8dba4f1161d4ca5190ddfa37b48d9736478d73ec`. Revalidate the live PR head before reviewing; if it moved, stop and return candidate-moved evidence. Stay READ_ONLY: no product/test mutation and no merge. Independently verify the full FND-04 contract, with special attention to the prior Main blockers: direct readable write without prior read, old-path reuse/identity drift, undeclared reference denial, exact five-state resolver semantics, malformed-binding validation separation, ambiguous reference handling, package/save-load/PostgreSQL persistence, representative multi-TAG readable Script, legacy GUID compatibility, Authority preservation, and absence of a second resolver/registry/auth path.
+> Main accepts your independent `REJECT CANDIDATE / CHANGES_REQUIRED` finding. The case/canonicalization defect is confirmed and CODEX now owns bounded correction under section 3B.2A. Do not re-audit the rejected head and do not mutate code/tests. Wait for Main to publish a new immutable corrected SHA/tree, then independently recheck the bounded case correction plus regression of the prior PASS items.
 
-Also classify the executor's reported local full-E2E `/api/engineering/export/json` timeout only to determine whether any evidence connects it causally to the FND-04 delta. Do not widen scope or modify Auth/bootstrap.
-
-Required disposition:
-- `ACCEPTABLE` only if all mandatory review items are supported by exact-head evidence;
-- `CHANGES_REQUIRED` for a candidate defect;
-- `BLOCKED-CONTRACT` only for a shared-contract blocker.
-
-Return using the mandatory FND-04 AUD handoff prefix and include the exact reviewed SHA/tree, PR scope, independent acceptance/adversarial matrix, CI examined, defects if any, and final classification.
+Handoff destination is explicit:
+- primary ledger: GitHub Issue `#305`;
+- PR-local evidence may also be posted on PR `#336`;
+- if this chat/runtime cannot post GitHub comments, return the complete handoff in this chat and stop; Main Coordinator will record it directly. The Product Owner is not required to relay agent messages.
 
 ### AUD mandatory return format
 
@@ -751,7 +857,13 @@ FND-04 contract source:
 
 - `#305` binding FND-04 delta and the live Wave 15 coordinator handoff.
 
-Agents may post handoff evidence to `#305` when their active order explicitly authorizes GitHub comments. They must not edit this control file. Only Main Coordinator updates this file/order board.
+**Handoff routing rule:**
+- DEV/CODEX/AUD normal handoffs should be posted to Issue `#305` when the lane has GitHub-comment capability;
+- PR-specific supporting evidence may additionally be posted to PR `#336`;
+- if an agent runtime cannot post comments, it returns the full handoff in its own chat and stops; Main Coordinator records the evidence in `#305`;
+- the Product Owner must not be used as a required message courier.
+
+Agents must not edit this control file. Only Main Coordinator updates this file/order board.
 
 ---
 

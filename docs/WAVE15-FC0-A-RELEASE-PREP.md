@@ -212,3 +212,83 @@ No lane may infer release merely because this preparation document exists.
 - FND-06 validation profile: `UI_EDITOR, RUNTIME_RENDERER`
 - FND-06 control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`
 - FC0-A remains blocked until that Foundation slice is integrated, post-merge green and explicitly frozen by Main.
+
+
+## 7. Parallel-lane collision guard
+
+This ownership map is PREPARED and becomes binding only when FC0-A releases the lanes from one exact common SHA.
+
+### DEV-EDITOR primary ownership
+
+Preferred feature surface:
+- `web/scada-web/src/engineering/visual-editor/**`;
+- focused `visual-editor*` E2E/mounted tests.
+
+FND-06 may modify part of this same surface first. Therefore DEV-EDITOR **must** branch only after FND-06 is integrated/frozen and consume its compatibility/renderer contract.
+
+Frozen/shared surfaces DEV-EDITOR should consume rather than redesign:
+- `web/scada-web/src/visual-runtime/**`;
+- `CanonicalVisualRenderer.tsx`;
+- Runtime navigation/application authority modules.
+
+A required Foundation change -> `DEV-EDITOR -> BLOCKED-CONTRACT -> MAIN`.
+
+### DEV-SCRIPT-ENGINEERING primary ownership
+
+Preferred feature surface:
+- `web/scada-web/src/engineering/scripts/**`;
+- `web/scada-web/src/engineering/python-editor/**`;
+- Script Engineering focused E2E/mounted tests.
+
+Frozen/shared surfaces to consume:
+- FND-04 readable TAG binding/resolution;
+- `web/scada-web/src/python-runtime/**` runtime authority/bridge contracts;
+- server Script runtime/sandbox.
+
+Do not alter FND-04 resolver semantics or sandbox ownership merely to improve authoring UX.
+
+### DEV-AUTHORITY-UX primary ownership
+
+Preferred feature surface:
+- `web/scada-web/src/engineering/UserAdministration.tsx`;
+- `web/scada-web/src/engineering/userAdministrationApi.ts`;
+- `web/scada-web/src/engineering/userAdministration.css`;
+- Authority administration focused tests.
+
+Frozen/shared surfaces to consume:
+- FND-02/AUTH-04 backend evaluator/capability/scope contracts;
+- Identity/session authority.
+
+No frontend role-name shortcut may become authorization authority.
+
+### DEV-LICENSING-UX primary ownership
+
+Preferred feature surface:
+- `web/scada-web/src/licensing/**`;
+- `src/Scada.LicenseGenerator/**`;
+- licensing/generator focused tests;
+- explicitly delegated Web Runtime View Only/granted-class UX.
+
+Frozen/shared surfaces to consume:
+- FND-03 signed schema, Runtime Session Lease admission and shared quota authority;
+- Security/Authority intersection.
+
+No private key, entitlement authority or independent Web/EliteGO seat pool may move client-side.
+
+### Shared hotspots — Main-coordinated only
+
+The following are likely cross-lane integration hotspots and are **not free-for-all ownership**:
+- `web/scada-web/src/engineering/EngineeringApp.tsx`;
+- common Engineering/product `types.ts`;
+- shared App/router/shell files;
+- common localization resource/index files;
+- common CSS/layout shells;
+- CI/workflow files.
+
+Rule:
+1. a DEV avoids these files when lane-local composition can achieve the feature;
+2. if a shared hotspot is truly required, the handoff names the exact need and smallest diff;
+3. Main decides integration order or assigns a bounded shared-wiring follow-up;
+4. no lane broad-refactors a shared hotspot while parallel PRs are active.
+
+This guard is intended to keep the first four FC0-A lanes actually parallelizable rather than creating avoidable merge/review coupling.

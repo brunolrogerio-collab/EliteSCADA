@@ -38,29 +38,33 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0006`
+`MAIN_ORDER_REV: 0007`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-23 — SAME CODEX SEQUENCED: FINISH INFRA-CI-01A, THEN EXECUTE FND-04`
+`LAST_MAIN_UPDATE_BRT: 2026-09-23 — INFRA-CI-01A VERIFIED / SAME CODEX ACTIVATED FOR FND-04`
 
 `GLOBAL_GATE: FND04_ACTIVE`
 
 Current situation:
 
 - FND-03 remains **VERIFIED / FROZEN** on exact product checkpoint `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6` / tree `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`.
+- INFRA-CI-01A is now **VERIFIED / FROZEN**:
+  - PR #335 merged;
+  - exact merge SHA `9f62ad56e3fed5574bab1fa25fc8b64f9e4ae981`;
+  - merge tree `1e19a38803e319a418f476d236dfb24fd38d377e`;
+  - broad post-merge EliteSCADA CI #1560 / run `35864708583` completed SUCCESS on that exact SHA;
+  - Web `107193247522` SUCCESS;
+  - Backend `107193247822` SUCCESS;
+  - Chromium `107193893312` SUCCESS.
+- The INFRA-CI-01A delta from the FND-04 product base is explicitly acknowledged as **workflow/router/policy only**. It does not redefine TAG identity, Script contracts, Runtime semantics, Authority, persistence or FND-04 product architecture.
 - FND-04 `FND04-TAGREF-V1` remains **ACTIVE / PLAN FROZEN / NOT INTEGRATED**.
-- Exact implementation branch remains intact at the verified base:
+- Exact implementation branch remains untouched at the verified FND-03 product base:
   - `work/w15-fnd-04-script-tag-reference-resolution`
   - head/base `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
-- The original normal FND-04 DEV chat reported a pure environment blocker before any RED test or product/test mutation:
-  - local runtime cannot resolve `github.com`;
-  - connector can read/write GitHub but cannot execute `dotnet`, Playwright or the required RED/GREEN commands;
-  - branch remains untouched.
-- Main accepts this as **BLOCKED-ENV**, not a contract/product blocker.
-- Execution ownership is temporarily delegated to a dedicated **FND-04 CODEX EXECUTOR** with a functional checkout/runtime. The executor must use the exact same section 3B plan, base, branch, allowlists, RED-before-production rule and no-merge boundary.
-- The original FND-04 DEV lane is now `BLOCKED_ENV / WATCH_ONLY`: it may revalidate the control plane and later review the Codex handoff, but it must not create a competing implementation.
+- The same CODEX runtime that finished INFRA-CI-01A is now the **ACTIVE FND-04 CODEX EXECUTOR**.
+- The original normal FND-04 DEV chat remains `BLOCKED_ENV / WATCH_ONLY` and must not create a competing implementation.
 - AUD remains `READ_ONLY / WAIT_CANDIDATE` until Main publishes an immutable candidate.
 
-Coordination-document commits after the product checkpoint do not change the FND-04 product base. Any non-document product/infra delta on integration before candidate review remains `BLOCKED-BASE-DIVERGENCE` unless explicitly acknowledged by Main.
+Current live target may be ahead of the FND-04 product base by acknowledged coordination + INFRA-CI-01A files. That acknowledged infra-only divergence is permitted. Any other product/infra delta that appears before candidate review is `BLOCKED-BASE-DIVERGENCE` unless Main explicitly acknowledges it.
 ---
 
 ## 3. Frozen FND-04 product objective
@@ -553,7 +557,7 @@ Every DEV handoff must include:
 
 `LANE: FND-04 CODEX EXECUTOR`
 
-`STATE: WAIT_INFRA_CI`
+`STATE: ACTIVE`
 
 `RUNTIME_REQUIREMENT: functional checkout + dotnet + Node/Playwright + GitHub push/PR capability`
 
@@ -563,11 +567,11 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 ### CURRENT CODEX EXECUTION ORDER
 
-`ORDER_ID: FND04-CODEX-WAIT-INFRA-02`
+`ORDER_ID: FND04-CODEX-TAGREF-V1-03`
 
-`ORDER_STATE: WAIT_DEPENDENCY`
+`ORDER_STATE: ACTIVE`
 
-`EXECUTOR_MODE: RESERVED_SAME_CODEX_AFTER_INFRA`
+`EXECUTOR_MODE: IMPLEMENTATION / FUNCTIONAL_RUNTIME`
 
 `SOURCE_DEV_ORDER: FND04-DEV-TAGREF-V1-01`
 
@@ -575,35 +579,83 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 `EXACT_PRODUCT_BASE_TREE: e48c8b9918f4d3a5ae4dee1df6211393c95b6513`
 
+`ACKNOWLEDGED_INFRA_MERGE_SHA: 9f62ad56e3fed5574bab1fa25fc8b64f9e4ae981`
+
 `WORK_BRANCH: work/w15-fnd-04-script-tag-reference-resolution`
 
 `TARGET_BRANCH: wave15/corrections-integration`
 
 `EXECUTION_PLAN: FND04-TAGREF-V1 / section 3B`
 
+`VALIDATION_PROFILE: SCRIPT_ENGINEERING, SCRIPT_RUNTIME`
+
 Instruction:
 
-> Do **not** mutate the FND-04 work branch yet. The same CODEX executor must first finish INFRA-CI-01A PR #335 through Main review, merge and the required integrated CI gate. After Main records INFRA-CI-01A VERIFIED/FROZEN (or READY enough for FC0-A according to its contract), Main will issue a new ACTIVE FND-04 CODEX order. No second Codex chat is required.
+> Begin FND-04 now in this same CODEX runtime. Re-read this control plane fully, fetch the exact FND-04 work branch, and verify its head is still exactly `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6` before any mutation. Revalidate the live integration target and classify all divergence from the product base: the already-verified INFRA-CI-01A workflow/router/policy delta plus coordination docs are acknowledged; any additional product delta is a hard stop.
 
-While waiting:
+Mandatory execution sequence:
 
-- keep `work/w15-fnd-04-script-tag-reference-resolution` untouched at the exact FND-03 product base;
-- do not create RED tests, product commits or a PR yet;
-- do not rebase onto coordination-only commits;
-- INFRA-CI-01A workflow/docs integration is an acknowledged **infra-only** delta and does not redefine the FND-04 product base;
-- when Main activates FND-04 after infra close, revalidate the live target and use the same section 3B plan/allowlists;
-- mandatory RED-1 / RED-2 / RED-3 still occur before any FND-04 production correction;
-- no merge/freeze authority is granted by this wait order.
+1. **RED evidence first, before any production correction.**
+   - implement/run RED-1, RED-2 and RED-3 exactly as section 3B.7 defines;
+   - record exact commands, failing test names and failure reasons;
+   - each RED must be discriminating against the untouched exact product base;
+   - if any required RED unexpectedly passes on old behavior, repair the test first; do not proceed to production.
 
-The prior active executor order `FND04-CODEX-TAGREF-V1-01` is superseded operationally by this WAIT order. Its implementation semantics remain the prepared execution contract for the later activation.
+2. **Production implementation only after RED is established.**
+   - stay inside section 3B.5 production allowlist and 3B.6 test allowlist;
+   - preserve stable TagId authority, one resolver semantic, Authority, Runtime Session, sandbox and Driver boundaries;
+   - no second TAG registry/resolver/auth path.
 
-### CODEX mandatory wait return
+3. **GREEN close.**
+   - satisfy every item in section 3B.8 and final acceptance table 3B.13;
+   - run focused Core/persistence/Drivers/Web evidence and `git diff --check`;
+   - push reviewable commits to the existing work branch;
+   - open exactly one PR to `wave15/corrections-integration`;
+   - PR body must declare `VALIDATION_PROFILE: SCRIPT_ENGINEERING, SCRIPT_RUNTIME`;
+   - allow the now-integrated Wave 15 T1 workflow to run naturally on the exact candidate head;
+   - do not self-merge.
 
-If this lane is queried before Main activates it, return:
+Bounded autonomy:
 
-`FND-04 CODEX EXECUTOR — WAITING FOR INFRA-CI-01A CLOSE`
+`RED -> implement -> focused tests -> push -> inspect natural T1 CI -> causally correct within frozen allowlist`
 
-with the observed FND-04 work-branch head and no mutation.
+No new Main micro-order is needed for causal corrections that stay inside section 3B. Stop immediately under the section 3B.11 blocker rules if scope/contracts would need to widen.
+
+Return exactly:
+
+`FND-04 CODEX EXECUTOR -> MAIN COORDINATOR — FINAL CANDIDATE HANDOFF`
+
+with:
+- exact base/head/tree;
+- branch/PR;
+- RED-1/2/3 commands and expected old-base failures;
+- complete changed-file list;
+- resolver states/precedence;
+- persistence/binding contract;
+- read/write integration points;
+- rename/move/path-reuse evidence;
+- legacy GUID compatibility;
+- Authority/sandbox preservation;
+- full acceptance table `PASS | FAIL | PENDING`;
+- exact focused test results;
+- natural Wave 15 T1 run/jobs;
+- heavyweight suites not run and reason;
+- explicit non-actions.
+
+No merge/freeze authority is granted.
+### CODEX mandatory return
+
+Normal final handoff:
+
+`FND-04 CODEX EXECUTOR -> MAIN COORDINATOR — FINAL CANDIDATE HANDOFF`
+
+Contract blocker:
+
+`FND-04 CODEX EXECUTOR -> MAIN COORDINATOR — BLOCKED-CONTRACT`
+
+Environment blocker:
+
+`FND-04 CODEX EXECUTOR -> MAIN COORDINATOR — BLOCKED-ENV`
 
 ---
 

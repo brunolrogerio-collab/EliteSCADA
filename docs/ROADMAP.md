@@ -137,12 +137,20 @@ plus:
 - INFRA-CI-01 ready/frozen;
 - one exact integration checkpoint.
 
-FC0-A releases bounded parallel work for:
+FC0-A release now has an additional mandatory closure gate after FND-06:
+
+`FND-06 VERIFIED/FROZEN -> FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01 -> FC0-A`
+
+That audit must reconcile Wave 15 implementation against final Wave 14 diagnostic premises/gaps and prove prepared FND-05/FND-07 do not require breaking contracts already frozen for the first four DEV lanes.
+
+Only `ACCEPTABLE / FC0A_RELEASE_APPROVED` releases bounded parallel work for:
 
 - Editor;
 - Script Engineering;
 - Authority UX;
 - Licensing UX.
+
+At the same audited checkpoint FND-05 and FND-07 may also activate in parallel on isolated Foundation branches.
 
 Start with controlled concurrency, normally no more than four active coding DEVs.
 

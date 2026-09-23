@@ -38,9 +38,9 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0005`
+`MAIN_ORDER_REV: 0006`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-23 — DEV ENV BLOCKER ACCEPTED / CODEX RUNTIME EXECUTOR ACTIVATED`
+`LAST_MAIN_UPDATE_BRT: 2026-09-23 — SAME CODEX SEQUENCED: FINISH INFRA-CI-01A, THEN EXECUTE FND-04`
 
 `GLOBAL_GATE: FND04_ACTIVE`
 
@@ -553,25 +553,27 @@ Every DEV handoff must include:
 
 `LANE: FND-04 CODEX EXECUTOR`
 
-`STATE: ACTIVE`
+`STATE: WAIT_INFRA_CI`
 
 `RUNTIME_REQUIREMENT: functional checkout + dotnet + Node/Playwright + GitHub push/PR capability`
 
-This is a temporary execution substitution for the environment-blocked normal DEV chat. It does **not** create a second architecture or a second implementation owner.
+This lane is reserved for the **same CODEX execution chat currently finishing INFRA-CI-01A**. Product Owner explicitly chose sequential reuse of that executor instead of starting a second Codex implementation chat.
+
+The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 ### CURRENT CODEX EXECUTION ORDER
 
-`ORDER_ID: FND04-CODEX-TAGREF-V1-01`
+`ORDER_ID: FND04-CODEX-WAIT-INFRA-02`
 
-`ORDER_STATE: ACTIVE`
+`ORDER_STATE: WAIT_DEPENDENCY`
 
-`EXECUTOR_MODE: IMPLEMENTATION_WITH_LOCAL_RED_GREEN`
+`EXECUTOR_MODE: RESERVED_SAME_CODEX_AFTER_INFRA`
 
 `SOURCE_DEV_ORDER: FND04-DEV-TAGREF-V1-01`
 
-`EXACT_BASE_SHA: a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
+`EXACT_PRODUCT_BASE_SHA: a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
 
-`EXACT_BASE_TREE: e48c8b9918f4d3a5ae4dee1df6211393c95b6513`
+`EXACT_PRODUCT_BASE_TREE: e48c8b9918f4d3a5ae4dee1df6211393c95b6513`
 
 `WORK_BRANCH: work/w15-fnd-04-script-tag-reference-resolution`
 
@@ -579,58 +581,29 @@ This is a temporary execution substitution for the environment-blocked normal DE
 
 `EXECUTION_PLAN: FND04-TAGREF-V1 / section 3B`
 
-`VALIDATION_PROFILE: SCRIPT_ENGINEERING, SCRIPT_RUNTIME`
-
 Instruction:
 
-> Read this control plane in full, then execute section 3B exactly on the existing FND-04 work branch. The branch must still begin from the exact base above. Establish and record mandatory RED-1 / RED-2 / RED-3 against the exact base **before the first production correction**. Then implement the closed plan, run focused GREEN evidence locally, push reviewable commits to the same branch, open exactly one PR to `wave15/corrections-integration`, and allow natural exact-head CI. Do not merge.
+> Do **not** mutate the FND-04 work branch yet. The same CODEX executor must first finish INFRA-CI-01A PR #335 through Main review, merge and the required integrated CI gate. After Main records INFRA-CI-01A VERIFIED/FROZEN (or READY enough for FC0-A according to its contract), Main will issue a new ACTIVE FND-04 CODEX order. No second Codex chat is required.
 
-Executor obligations:
+While waiting:
 
-- use a real checkout/runtime; connector-only evidence is insufficient for RED/GREEN;
-- preserve every production/test allowlist in section 3B;
-- preserve stable TagId authority, existing TAG registry, Authority, Runtime Session, sandbox and Driver boundaries;
-- no second resolver, registry, cache-of-truth or auth pipeline;
-- preserve explicit legacy GUID compatibility;
-- keep the resolver states/precedence exactly as section 3B defines;
-- record exact RED command/test/failure evidence before production code;
-- record exact GREEN commands/results and `git diff --check`;
-- if natural CI exposes a causal defect inside the allowlist, correct it autonomously and rerun through a new head;
-- if completion requires any section 3B.11 hard-stop condition or scope widening, stop with `FND-04 CODEX EXECUTOR -> MAIN COORDINATOR — BLOCKED-CONTRACT`;
-- if the Codex runtime itself cannot execute required tooling, stop with `... — BLOCKED-ENV`;
-- no merge, no integration/main write, no VERIFIED/FROZEN declaration.
+- keep `work/w15-fnd-04-script-tag-reference-resolution` untouched at the exact FND-03 product base;
+- do not create RED tests, product commits or a PR yet;
+- do not rebase onto coordination-only commits;
+- INFRA-CI-01A workflow/docs integration is an acknowledged **infra-only** delta and does not redefine the FND-04 product base;
+- when Main activates FND-04 after infra close, revalidate the live target and use the same section 3B plan/allowlists;
+- mandatory RED-1 / RED-2 / RED-3 still occur before any FND-04 production correction;
+- no merge/freeze authority is granted by this wait order.
 
-Bounded autonomy:
+The prior active executor order `FND04-CODEX-TAGREF-V1-01` is superseded operationally by this WAIT order. Its implementation semantics remain the prepared execution contract for the later activation.
 
-`RED -> implement -> focused GREEN -> commit/push -> PR -> natural CI -> causal correction within allowlist`
+### CODEX mandatory wait return
 
-No new Main micro-order is required inside that loop.
+If this lane is queried before Main activates it, return:
 
-### CODEX mandatory return format
+`FND-04 CODEX EXECUTOR — WAITING FOR INFRA-CI-01A CLOSE`
 
-Normal candidate handoff must begin exactly:
-
-`FND-04 CODEX EXECUTOR -> MAIN COORDINATOR — IMPLEMENTATION HANDOFF`
-
-and include:
-
-- exact base SHA/tree;
-- RED-1/RED-2/RED-3 command + discriminating failure evidence;
-- exact head SHA/tree;
-- branch and PR;
-- changed files/symbols;
-- resolver public contract/states and precedence;
-- persistence/binding contract;
-- read/write integration points;
-- rename/move/path-reuse behavior;
-- legacy GUID policy;
-- Authority/security/sandbox preservation evidence;
-- GREEN commands/results;
-- natural CI run/job IDs;
-- section 3B.13 acceptance table `PASS | FAIL | PENDING`;
-- explicit confirmation of no second resolver/TAG registry/Authority pipeline;
-- explicit non-actions.
-
+with the observed FND-04 work-branch head and no mutation.
 
 ---
 
@@ -829,26 +802,13 @@ Seu retorno deve seguir exatamente os prefixes e requisitos definidos no control
 
 ---
 
-## 10A. Initial prompt — FND-04 CODEX EXECUTOR chat
+## 10A. FND-04 CODEX bootstrap note — SAME EXECUTOR AFTER INFRA
 
-Use this once to initialize a Codex chat with a functional checkout/runtime:
+Do **not** start a separate Codex executor while `FND04-CODEX-WAIT-INFRA-02` is current.
 
-```text
-Você é o FND-04 CODEX EXECUTOR do EliteSCADA.
+The Product Owner chose to reuse the CODEX chat that is finishing INFRA-CI-01A. When Main closes that dependency, the canonical Main handoff plus this control plane will be updated to an ACTIVE FND-04 CODEX order. The executor then re-reads GitHub live and switches mission in the same chat.
 
-GitHub live é a única autoridade sobre o projeto. Leia integralmente agora o control plane:
-- repo: brunolrogerio-collab/EliteSCADA
-- branch: coord/w15-fnd04-dev-aud-control
-- file: docs/WAVE15-FND04-DEV-AUD-CONTROL.md
-
-Depois revalide:
-- wave15/corrections-integration
-- work/w15-fnd-04-script-tag-reference-resolution
-
-Localize "FND-04 CODEX EXECUTOR lane / CURRENT CODEX EXECUTION ORDER" e execute somente a ordem mais recente.
-
-Use seu checkout/runtime funcional para os RED/GREEN obrigatórios. Não use memória antiga. Não amplie escopo. Não escreva diretamente em integration/main. Não faça merge ou freeze. Se houver blocker, use exatamente o prefixo exigido no control plane.
-```
+If a new Codex chat becomes unavoidable because the existing runtime session is lost, Main may re-enable a bootstrap prompt explicitly; until then this section is informational only.
 
 ---
 

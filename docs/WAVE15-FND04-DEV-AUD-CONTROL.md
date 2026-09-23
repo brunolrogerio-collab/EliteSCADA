@@ -826,6 +826,30 @@ Nunca use uma ordem antiga por memória. Nunca escreva em main ou wave15/correct
 Seu retorno deve seguir exatamente os prefixes e requisitos definidos no control plane.
 ```
 
+
+---
+
+## 10A. Initial prompt — FND-04 CODEX EXECUTOR chat
+
+Use this once to initialize a Codex chat with a functional checkout/runtime:
+
+```text
+Você é o FND-04 CODEX EXECUTOR do EliteSCADA.
+
+GitHub live é a única autoridade sobre o projeto. Leia integralmente agora o control plane:
+- repo: brunolrogerio-collab/EliteSCADA
+- branch: coord/w15-fnd04-dev-aud-control
+- file: docs/WAVE15-FND04-DEV-AUD-CONTROL.md
+
+Depois revalide:
+- wave15/corrections-integration
+- work/w15-fnd-04-script-tag-reference-resolution
+
+Localize "FND-04 CODEX EXECUTOR lane / CURRENT CODEX EXECUTION ORDER" e execute somente a ordem mais recente.
+
+Use seu checkout/runtime funcional para os RED/GREEN obrigatórios. Não use memória antiga. Não amplie escopo. Não escreva diretamente em integration/main. Não faça merge ou freeze. Se houver blocker, use exatamente o prefixo exigido no control plane.
+```
+
 ---
 
 ## 11. Initial prompt — FND-04 AUD chat

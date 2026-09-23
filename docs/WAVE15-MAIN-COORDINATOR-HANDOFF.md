@@ -207,58 +207,50 @@ Scope exclusions: License Generator UI; full #304 detach/switch UX; Authority A-
 
 ## 4. MAIN COORDINATOR -> FND-04 DEV — CURRENT ORDER
 
-**ORDER_STATE: BLOCKED_ENV / WATCH_ONLY**  
-**ORDER_ID: FND04-DEV-ENV-HOLD-02**  
-**Exact product base:** `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`  
-**Base tree:** `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`  
-**Work branch:** `work/w15-fnd-04-script-tag-reference-resolution`
+**ORDER_STATE: FROZEN / WAIT**  
+**ORDER_ID: FND04-DEV-FROZEN-03**  
+**DEV_MODE: NO_MUTATION**
 
-The original normal DEV chat remains environment-blocked and must not create a competing implementation.
+FND-04 is **VERIFIED/FROZEN** at exact integration checkpoint:
+- merge SHA `6c810647c9773a19b212d9c33694780141786ac7`
+- tree `1221ff55963052be4e924dd644efbaa65763f546`
+- exact post-merge EliteSCADA CI `35913456486` — SUCCESS.
 
-The **same CODEX runtime that completed INFRA-CI-01A is now the active executable lane**:
+The normal DEV lane has no active mission. On `SIGA`, revalidate live state, report `FND-04 DEV — FROZEN / WAIT`, and stop unless Main has issued a new Foundation delta.
 
-- control commit: `65ac0551c17f1794e5a0411897c85327880e12f8`
-- executor order: `FND04-CODEX-TAGREF-V1-03`
-- plan: `FND04-TAGREF-V1 / section 3B`
-- RED-before-production remains mandatory;
-- no scope widening or self-merge.
-
-Normal DEV may revalidate live state and later review evidence only.
+Downstream lanes may consume the frozen Script TAG reference contract but may not redefine it.
 ---
 
 ## 5. MAIN COORDINATOR -> FND-04 AUD — CURRENT ORDER
 
-**ORDER_STATE: ACTIVE**  
-**ORDER_ID: FND04-AUD-REAUDIT-SOURCE-BINDING-0009**  
-**Default mode:** `READ_ONLY_REVIEW`
+**ORDER_STATE: FROZEN / WAIT**  
+**ORDER_ID: FND04-AUD-FROZEN-0011**  
+**AUD_MODE: READ_ONLY / NO ACTIVE REVIEW**
 
-Immutable candidate:
-- base `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
-- head `c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e`
-- reported tree `7fa948de25e4f120566113dc8d14a0a696342a32`
-- PR #336
-- natural T1 `35910214760` — SUCCESS.
+Independent AUD completed exact candidate review on `c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e` with final classification **ACCEPTABLE**.
 
-AUD must independently re-audit:
-- the original case-only current-registry-path finding;
-- the refined separation between backend registry equality and exact Script declaration membership;
-- fresh Client direct-write identity proof;
-- Server Script host binding verification;
-- rename/stale, path-reuse/identityDrift, notFound, ambiguity;
-- five-state resolver and malformed-binding validation separation;
-- persistence/package/PostgreSQL/multi-TAG/legacy GUID/ServerMemory/Authority regressions;
-- absence of second comparer/resolver/TAG-registry/Auth authority;
-- exact 20-file allowlisted PR scope and exact-head T1.
+PR #336 merged at `6c810647c9773a19b212d9c33694780141786ac7`; exact post-merge CI `35913456486` completed SUCCESS including Web, Backend/test/smoke and Chromium E2E.
 
-If the PR head moves, stop and report candidate-moved evidence. Stay READ_ONLY; no product/test mutation and no merge.
-
-Final classification: `ACCEPTABLE | CHANGES_REQUIRED | BLOCKED-CONTRACT`.
+No further FND-04 audit is active. On `SIGA`, revalidate live state, report `FND-04 AUD — FROZEN / WAIT`, and stop unless Main issues a new audit order.
 ---
 
-## 6. FND-04 BINDING CONTRACT — ACTIVE / NOT YET FROZEN
+## 6. FND-04 BINDING CONTRACT — VERIFIED / FROZEN
 
-When activated: human/canonical Python-visible TAG reference (normally full path); `TagId`/Guid stable authority; one shared `tag_read`/`tag_write` resolver; persisted/versionable visible-reference <-> expected-TagId binding; rename/move/path-reuse without silent retarget; missing/ambiguous/stale/identityDrift fail closed; legacy GUID/TagId explicit/tested; Authority preserved; no second Tag registry/resolver/auth pipeline.
+Frozen downstream contract:
+- human-readable Python-visible TAG reference for normal authoring;
+- stable `TagId`/Guid remains authoritative identity;
+- persisted versioned visible-reference <-> expected-TagId binding;
+- canonical backend path proof uses the existing TAG registry semantics;
+- Script source token membership is exact after trim;
+- read/write fail closed on missing/ambiguous/stale/identityDrift and never silently retarget;
+- legacy GUID-only dependencies remain explicitly compatible;
+- Authority/security paths remain canonical;
+- no second TAG registry/resolver/comparer/auth authority is permitted.
 
+Exact frozen checkpoint:
+`6c810647c9773a19b212d9c33694780141786ac7` / tree `1221ff55963052be4e924dd644efbaa65763f546`.
+
+Any change requires a new Main/Foundation delta.
 ---
 
 ## 7. FND-03 REMAINING AFTER LIFECYCLE

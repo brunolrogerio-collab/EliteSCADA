@@ -38,26 +38,27 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0001`
+`MAIN_ORDER_REV: 0002`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-17 12:01`
+`LAST_MAIN_UPDATE_BRT: 2026-09-23 — PREPARED DURING FND-03 POST-MERGE GATE`
 
-`GLOBAL_GATE: HOLD_FND03`
+`GLOBAL_GATE: HOLD_FND03_POSTMERGE_CI`
 
 Current situation:
 
-- FND-03 is still the active Foundation node.
-- FND-04 is `QUEUED / CONTRACT DEFINED / NOT ACTIVE / NOT FROZEN`.
-- FND-04 may become active only after Main records the exact post-FND-03 integration checkpoint and explicitly changes this file to `GLOBAL_GATE: FND04_ACTIVE`.
+- FND-03 Phase C is merged at `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6` / tree `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`.
+- Exact merge-SHA post-merge CI is still the final FND-03 gate; FND-03 is therefore `INTEGRATED / VERIFICATION PENDING / NOT FROZEN`.
+- Main completed the FND-03 pre-freeze closeout audit in #301 comment `5788605224`: no additional FND-03 production slice is currently justified if the exact merge-SHA CI is green.
+- FND-04 is now `PREPARED / CONTRACT+SOURCE MAP READY / NOT ACTIVE / NOT FROZEN`.
+- FND-04 may become active only after Main promotes the exact post-FND-03 checkpoint and explicitly changes this file to `GLOBAL_GATE: FND04_ACTIVE`.
 - Until then, neither lane may create FND-04 product commits or PRs.
 
-Current product checkpoint at creation of this control plane:
+Provisional next product base, pending exact merge-SHA verification:
 
-- `wave15/corrections-integration@6f02b9e3c1327b34ff33bab22e90aaf24dfc4628`
-- tree `53ffaf05ecd492d06ecf7852bd6e77b48431a1eb`
+- `wave15/corrections-integration@a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
+- tree `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`
 
-This checkpoint is informational only. It is **not** the future FND-04 implementation base unless Main later activates it explicitly.
-
+This SHA is a **prepared candidate base only** while `GLOBAL_GATE` is HOLD. DEV/AUD must not use it for product mutation until Main flips the gate to `FND04_ACTIVE` after the post-merge CI decision.
 ---
 
 ## 3. Frozen FND-04 product objective
@@ -91,13 +92,53 @@ Main may refine names during activation, but semantics may not be weakened.
 
 ---
 
+## 3A. Main pre-activation source audit — exact integrated SHA `a3eb86f8...`
+
+Main has already mapped the current Script/TAG authority surface so activation does not need another open-ended discovery cycle.
+
+Observed live facts on the provisional next base:
+
+- `ScriptEngineeringDependency` currently persists `Kind + StableReference`; normal TAG `StableReference` is GUID/TagId-first.
+- `ScriptEngineeringReferenceResolver` already owns Script dependency catalog/resolution. For TAGs it carries both `EntityId` and `EntityPath`, but canonical normalization still resolves TAG dependency references as GUIDs.
+- `ServerScriptRunner.py` currently exposes `read_tag` / `write_tag` using stable TAG ID strings and reports errors in GUID-first terms.
+- `IsolatedPythonScriptHandlerExecutor.ResolveAllowedTags` parses TAG dependency `StableReference` directly as `Guid`; runtime values and write requests are keyed by TagId.
+- `InMemoryTagRegistry` is already the canonical TAG registry and supports both `TryGet(Guid)` and `TryGetByPath(string)`; path ownership is unique while `TagDefinition.Id` is stable identity.
+- `TagAccessAuthorization` already evaluates canonical Authority using both stable `ResourceId = TagId` and current `TagPath`. FND-04 must consume this path and must not create another authorization pipeline.
+
+Prepared minimal contract direction for activation:
+
+1. Canonical new authoring/source form uses the human-visible TAG path in Python, while persisting an explicit expected stable TagId binding beside that visible reference.
+2. Runtime read and write use one shared resolver authority; no separate read resolver and write resolver.
+3. Resolver success requires the current visible reference to resolve to exactly the persisted expected TagId.
+4. Current path owner missing -> deterministic `notFound`/stale failure; multiple candidates -> `ambiguous`; current path owned by another TagId -> `identityDrift`; all fail closed.
+5. Rename/move never silently retargets old source. Engineering may later offer an explicit rebind/update workflow, but runtime correctness remains fail-closed until that explicit update occurs.
+6. Legacy GUID/TagId source remains accepted through an explicit compatibility path; new canonical authoring must not remain GUID-first.
+7. Persisted binding must survive Script save/load and engineering package export/import round-trip.
+8. Python sandbox receives only the already-resolved declared dependency map. It must not get direct TAG-registry or Authority access.
+9. Read/write ultimately continue against stable TagId and the existing Runtime/Authority write boundary.
+10. No second TAG registry, resolver authority, source parser authority or capability evaluator may be introduced.
+
+Prepared primary source surface:
+
+- `src/Scada.Engineering/Scripts/ScriptEngineeringContracts.cs`
+- `src/Scada.Engineering/Scripts/ScriptEngineeringReferenceResolution.cs`
+- Script persistence/import-export adapters only where required for the new versioned binding;
+- `src/Scada.Api/Runtime/IsolatedPythonScriptHandlerExecutor.cs`
+- `src/Scada.Api/Runtime/ServerScriptRunner.py`
+- minimum runtime host bridge needed to resolve one binding to stable TagId;
+- focused Core/Drivers/PostgreSQL tests.
+
+This is a prepared scope, not active authorization. If exact post-merge CI changes the product base or exposes a causal FND-03 defect, Main must revalidate this map before activation.
+
+---
+
 ## 4. FND-04 DEV lane
 
 ### Identity
 
 `LANE: FND-04 DEV`
 
-`STATE: STANDBY`
+`STATE: PREPARED_WAIT`
 
 Reserved implementation branch after activation:
 
@@ -124,15 +165,30 @@ DEV must not:
 
 ### CURRENT DEV ORDER
 
-`ORDER_ID: FND04-DEV-0000`
+`ORDER_ID: FND04-DEV-PREP-0001`
 
-`ORDER_STATE: WAIT`
+`ORDER_STATE: WAIT_GATE`
+
+`PREPARED_BASE_CANDIDATE: a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
+
+`PREPARED_TREE: e48c8b9918f4d3a5ae4dee1df6211393c95b6513`
 
 Instruction:
 
-> FND-04 is not active yet. On `SIGA`, re-read this file and GitHub live. If `GLOBAL_GATE` is still `HOLD_FND03`, perform no product mutation and report `FND-04 DEV — WAITING FOR MAIN ACTIVATION` with the observed current integration SHA.
+> FND-04 implementation is fully prepared but **not active**. On `SIGA`, re-read this file and GitHub live. While `GLOBAL_GATE` is `HOLD_FND03_POSTMERGE_CI`, make no branch/code/test/PR mutation. Report `FND-04 DEV — PREPARED / WAITING FOR FND-03 POST-MERGE GATE` with the observed integration SHA.
 
-When Main activates DEV, this section will contain the exact base SHA/tree, allowed files/symbols, acceptance matrix and required validation profile.
+When Main flips `GLOBAL_GATE: FND04_ACTIVE`, the activation order will use the verified exact product checkpoint and the source/contract map in section 3A, with these mandatory implementation outcomes:
+
+- canonical visible TAG path in new Python source plus persisted expected TagId binding;
+- one read/write resolver with `found | notFound | ambiguous | stale | identityDrift` semantics;
+- rename/move/path-reuse fail-closed behavior;
+- persistence/package round-trip;
+- explicit legacy GUID compatibility;
+- canonical Authority preserved;
+- no second registry/resolver/auth pipeline;
+- deterministic multi-TAG readable-source proof.
+
+DEV must treat any need to redesign Server Script sandbox ownership, TAG registry authority, or Security capability semantics as `BLOCKED-CONTRACT`, not as local implementation freedom.
 
 ### DEV mandatory return format
 
@@ -174,7 +230,7 @@ Every DEV handoff must include:
 
 `LANE: FND-04 AUD`
 
-`STATE: STANDBY`
+`STATE: PREPARED_WAIT`
 
 Default mode:
 
@@ -217,17 +273,15 @@ AUD never merges its own work and never writes directly to DEV branch, integrati
 
 ### CURRENT AUD ORDER
 
-`ORDER_ID: FND04-AUD-0000`
+`ORDER_ID: FND04-AUD-PREP-0001`
 
-`ORDER_STATE: WAIT`
+`ORDER_STATE: WAIT_GATE`
 
 `AUD_MODE: READ_ONLY_REVIEW`
 
 Instruction:
 
-> FND-04 is not active yet. On `SIGA`, re-read this file and GitHub live. If `GLOBAL_GATE` is still `HOLD_FND03`, perform no product mutation and report `FND-04 AUD — WAITING FOR MAIN ACTIVATION` with the observed current integration SHA.
-
-When Main activates AUD, this section will identify the exact DEV candidate SHA/PR and the evidence/questions to attack.
+> FND-04 adversarial matrix is prepared but there is no immutable DEV candidate yet. On `SIGA`, re-read this file and GitHub live. While `GLOBAL_GATE` is `HOLD_FND03_POSTMERGE_CI`, do not judge or mutate product. Report `FND-04 AUD — PREPARED / WAITING FOR FND-03 POST-MERGE GATE` with the observed integration SHA. After DEV publishes an immutable candidate, Main will issue the exact candidate SHA and audit mode.
 
 ### AUD mandatory return format
 

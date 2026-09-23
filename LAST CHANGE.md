@@ -24,11 +24,11 @@ FND-04 is **VERIFIED/FROZEN**. Its downstream Script TAG reference contract may 
 
 FND-06 is the only active FC0-A blocker.
 
-- order: `FND06-CODEX-VISUAL-STABILITY-V1`
+- order: `FND06-CODEX-VISUAL-STABILITY-V2`
 - exact product base: `6c810647c9773a19b212d9c33694780141786ac7`
 - work branch: `work/w15-fnd-06-visual-stability-foundation`
 - dedicated control: `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
-- active control commit: `15def327cc61b367d14dbf674c6ebb4e8ea6e8ef`
+- active control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`
 - work branch remains untouched at the exact base and no candidate/PR exists yet.
 
 The frozen FND-06 plan covers centralized known-legacy visual compatibility, Screen/Popup selection stability, canonical renderer/public-model authority, Runtime navigation persistence and Working-vs-Active separation. Full single-canvas WYSIWYG remains downstream DEV-EDITOR scope.
@@ -80,8 +80,16 @@ Neither later Foundation is authorized to mutate product while FND-06 owns the s
   - exact product base: `6c810647c9773a19b212d9c33694780141786ac7`
   - work branch: `work/w15-fnd-06-visual-stability-foundation`
   - control branch/file: `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
-  - active control commit: `15def327cc61b367d14dbf674c6ebb4e8ea6e8ef`
-  - order: `FND06-CODEX-VISUAL-STABILITY-V1`
+  - active control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`
+  - order: `FND06-CODEX-VISUAL-STABILITY-V2`
 - FC0-A: **BLOCKED only on FND-06**
 - downstream release package is prepared but not released at `docs/WAVE15-FC0-A-RELEASE-PREP.md` on the FND-06 control branch.
 
+
+
+## FND-06 execution metadata correction
+
+Before first product mutation, Main corrected the prepared FND-06 validation profile to the actual Wave 15 router vocabulary: `UI_EDITOR, RUNTIME_RENDERER`. The exact product seed also proves bare `status` is a persisted legacy identifier alongside `tank`, `value` and `dynamo`; it is not a current canonical `core.*` built-in and no guessed alias is authorized.
+
+Active FND-06 order: `FND06-CODEX-VISUAL-STABILITY-V2`.
+Control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`.

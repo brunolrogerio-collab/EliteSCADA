@@ -68,18 +68,16 @@ Main retains candidate review, integration, post-merge verification and freeze a
 
 ## FND-04 current Main gate
 
-- PR #336 current Main-reviewed head: `5c77eb418b83af57ccd1812c9c21fd44919b2ca0`
-- tree: `181c6296c35fbb9dd6486d3ef6a318ff0b97dc70`
-- natural T1 `35907518317`: SUCCESS
-- Main disposition: **REJECTED BEFORE AUD / CORRECTION REQUIRED / NOT INTEGRATED**
-- reason: cross-language JS/Python comparers attempted to mimic canonical `.NET StringComparer.OrdinalIgnoreCase`, creating a second TAG-path comparison authority
-- frozen separation:
-  - persisted `TagBinding.Reference` -> current TAG path uses canonical backend registry semantics only;
-  - Python source argument -> persisted declared binding uses exact token equality after trim;
-  - after declaration membership, runtime still proves expected TagId through canonical registry/protected path
-- active CODEX order: `FND04-CODEX-SOURCE-BINDING-SEPARATION-08`
-- AUD: `FND04-AUD-WAIT-SOURCE-BINDING-0008`
-- control commit: `8b2cbf4ebe55ede494d7ad3ed9c4809911b741e0`
-- canonical handoff commit: `c7837d220e48c607a7f9fb473e33e0c0a3e43f94`
+- PR #336 immutable candidate: `c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e`
+- reported tree: `7fa948de25e4f120566113dc8d14a0a696342a32`
+- natural Wave 15 T1 `35910214760`: SUCCESS
+- Main disposition: **ACCEPTED FOR INDEPENDENT REAUDIT / NOT INTEGRATED**
+- source declaration matching: exact after trim in Client Visual + Server Script
+- persisted binding -> current TAG path: canonical backend registry proof with expected TagId
+- no JS/Python Unicode readable-path comparer clone
+- CODEX: `FND04-CODEX-WAIT-REAUDIT-09 / WAIT_AUD / NO_MUTATION`
+- AUD: `FND04-AUD-REAUDIT-SOURCE-BINDING-0009 / ACTIVE / READ_ONLY_REVIEW`
+- control commit: `9d1baec56ae723d68bc3a58dd00b1903417caa5b`
+- canonical handoff commit: `aaded72a8df22b9f1d9cde30a7ff5fa300d8b312`
 - no merge/freeze authority
 

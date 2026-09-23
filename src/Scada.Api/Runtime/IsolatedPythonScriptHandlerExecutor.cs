@@ -203,8 +203,8 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
     {
         var kinds = new Dictionary<Guid, string>();
         var referencesByTagId = new Dictionary<Guid, string>();
-        // The deterministic Python subset normalizes string lookup to lowercase;
-        // preserve that matching semantics when resolving its returned writes.
+        // The deterministic Python subset mirrors the canonical ordinal
+        // case-insensitive TAG-reference semantics when resolving its writes.
         var tagIdsByReference = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
         foreach (var dependency in script.Dependencies)
         {

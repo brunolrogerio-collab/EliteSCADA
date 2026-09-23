@@ -107,6 +107,32 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
     }
 
     [Fact]
+    public async Task ServerScript_OrdinalCaseVariantReadableTagReference_ResolvesTheDeclaredStableDependency()
+    {
+        var eventBus = new InMemoryScadaEventBus();
+        var tagId = Guid.NewGuid();
+        await using var runtime = CreateRuntime(eventBus);
+        var manager = ServerScriptRuntimeManager.GetShared(runtime, eventBus, Configuration());
+
+        Assert.True((await manager.ActivateRuntimeAsync(
+            "ordinal-readable-tag",
+            1,
+            TimerPackage(
+                tagId,
+                initialValue: 0,
+                revisionMarker: "ordinal-readable",
+                readableReference: true,
+                readableBindingReference: "Simulation.Σ",
+                readableSourceReference: "Simulation.ς"))).Activated);
+
+        await WaitUntilAsync(
+            () => runtime.TryGetCurrent(tagId, out var current) && Convert.ToInt32(current!.Value) >= 1,
+            TimeSpan.FromSeconds(3));
+
+        await manager.DisposeAsync();
+    }
+
+    [Fact]
     public async Task ServerScript_MultipleReadableTagReferencesResolveOnlyTheirDeclaredStableDependencies()
     {
         var eventBus = new InMemoryScadaEventBus();
@@ -262,12 +288,15 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
         int initialValue,
         string revisionMarker,
         bool readableReference = false,
-        bool caseVariantReference = false)
+        bool caseVariantReference = false,
+        string? readableBindingReference = null,
+        string? readableSourceReference = null)
     {
         var tagReference = tagId.ToString("D");
-        var readableTagReference = caseVariantReference
+        var visibleTagReference = readableBindingReference ?? "Simulation.ProcessState";
+        var readableTagReference = readableSourceReference ?? (caseVariantReference
             ? "simulation.processstate"
-            : "Simulation.ProcessState";
+            : visibleTagReference);
         var source = readableReference
             ? $"""
 def timer(event):
@@ -306,7 +335,7 @@ def timer(event):
                     readableReference
                         ? new ScriptTagReferenceBinding(
                             1,
-                            "Simulation.ProcessState",
+                            visibleTagReference,
                             new TagValueReference(tagId))
                         : null)
             });
@@ -320,7 +349,7 @@ def timer(event):
                 ServerMemoryTag(
                     tagId,
                     "ProcessState",
-                    "Simulation.ProcessState",
+                    visibleTagReference,
                     initialValue,
                     historian: true)
             },
@@ -330,7 +359,7 @@ def timer(event):
                     null,
                     "Process state high",
                     tagId,
-                    "Simulation.ProcessState",
+                    visibleTagReference,
                     AlarmType.High,
                     AlarmPriority.High,
                     Setpoint: 1.5)

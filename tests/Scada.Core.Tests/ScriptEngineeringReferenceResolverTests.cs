@@ -85,6 +85,42 @@ public sealed class ScriptEngineeringReferenceResolverTests
     }
 
     [Fact]
+    public void ResolveTagBinding_MatchesTheCanonicalOrdinalCaseSentinelMatrix()
+    {
+        var cases = new (string Declared, string Current, bool Equivalent)[]
+        {
+            ("Plant.K", "plant.k", true),
+            ("Plant.Área.Nível", "plant.área.nível", true),
+            ("Plant.K", "Plant.k", false),
+            ("Plant.ſ", "Plant.s", false),
+            ("Plant.I", "Plant.i", true),
+            ("Plant.İ", "Plant.i", false),
+            ("Plant.I", "Plant.ı", false),
+            ("Plant.Σ", "Plant.σ", true),
+            ("Plant.Σ", "Plant.ς", true),
+            ("Plant.É", "Plant.E\u0301", false),
+            ("Plant.A", "Plant.B", false)
+        };
+
+        foreach (var (declared, current, equivalent) in cases)
+        {
+            var tagId = Guid.NewGuid();
+            var resolver = ScriptEngineeringReferenceResolver.Create(
+                [new TagEngineeringDto(tagId, "Level", current, TagDataType.Double, "plc")],
+                [new DataSourceEngineeringDto(Guid.NewGuid(), "plc", "PLC", "modbus.tcp")]);
+            var dependency = new ScriptEngineeringDependency(
+                ScriptEngineeringDependencyKind.Tag,
+                tagId.ToString("D"),
+                new ScriptTagReferenceBinding(1, declared, new TagValueReference(tagId)));
+
+            Assert.Equal(equivalent, StringComparer.OrdinalIgnoreCase.Equals(declared, current));
+            Assert.Equal(
+                equivalent ? ScriptTagReferenceResolutionState.Found : ScriptTagReferenceResolutionState.Stale,
+                resolver.ResolveTagBinding(dependency).State);
+        }
+    }
+
+    [Fact]
     public void Validation_ReportsMalformedReadableBindingAsDiagnosticInsteadOfResolutionState()
     {
         var tagId = Guid.Parse("10000000-0000-0000-0000-0000000000c1");

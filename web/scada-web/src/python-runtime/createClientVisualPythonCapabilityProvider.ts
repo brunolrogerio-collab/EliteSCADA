@@ -119,8 +119,8 @@ function createDeclaredTagResolver(
 ): DeclaredTagResolver | undefined {
   if (dependencies === undefined) return undefined;
 
-  const references = new Map<string, DeclaredTagReference>();
-  const rejected = new Set<string>();
+  const references: DeclaredTagReference[] = [];
+  const rejected: string[] = [];
   for (const dependency of dependencies) {
     if (dependency.kind !== 'tag') continue;
 
@@ -152,36 +152,59 @@ function createDeclaredTagResolver(
 
   return Object.freeze({
     resolve(reference: string): DeclaredTagReference {
-      const normalized = normalizeReference(reference);
-      const declared = references.get(normalized);
-      if (!normalized || rejected.has(normalized) || !declared) {
+      const trimmed = reference.trim();
+      const declared = references.filter(candidate =>
+        ordinalIgnoreCaseEquals(candidate.readReference, trimmed));
+      if (!trimmed ||
+          rejected.some(candidate => ordinalIgnoreCaseEquals(candidate, trimmed)) ||
+          declared.length !== 1) {
         throw new Error(`TAG reference '${reference}' is not declared by this Client Visual Script.`);
       }
-      return declared;
+      return declared[0];
     }
   });
 }
 
 function addDeclaredReference(
-  references: Map<string, DeclaredTagReference>,
-  rejected: Set<string>,
+  references: DeclaredTagReference[],
+  rejected: string[],
   reference: string,
   declared: DeclaredTagReference
 ): void {
-  const normalized = normalizeReference(reference);
-  const existing = references.get(normalized);
+  const existing = references.find(candidate =>
+    ordinalIgnoreCaseEquals(candidate.readReference, reference));
   if (existing && existing.expectedTagId !== declared.expectedTagId) {
-    references.delete(normalized);
-    rejected.add(normalized);
+    for (let index = references.length - 1; index >= 0; index -= 1) {
+      if (ordinalIgnoreCaseEquals(references[index].readReference, reference)) {
+        references.splice(index, 1);
+      }
+    }
+    rejected.push(reference);
     return;
   }
-  if (!rejected.has(normalized)) references.set(normalized, declared);
+  if (!rejected.some(candidate => ordinalIgnoreCaseEquals(candidate, reference)) && !existing) {
+    references.push(declared);
+  }
 }
 
-function normalizeReference(reference: string): string {
-  // Mirrors the canonical TAG registry's case-insensitive path ownership. This
-  // is a lookup key only; the persisted visible spelling remains unchanged.
-  return reference.trim().toLocaleLowerCase('en-US');
+function ordinalIgnoreCaseEquals(left: string, right: string): boolean {
+  const normalizedLeft = left.trim();
+  const normalizedRight = right.trim();
+  if (normalizedLeft.length !== normalizedRight.length) return false;
+
+  // StringComparer.OrdinalIgnoreCase never treats an ASCII code unit and a
+  // non-ASCII code unit as equal. This excludes Unicode compatibility aliases
+  // such as Kelvin-sign / K and long-s / S without adding path aliases.
+  for (let index = 0; index < normalizedLeft.length; index += 1) {
+    if ((normalizedLeft.charCodeAt(index) <= 0x7f) !==
+        (normalizedRight.charCodeAt(index) <= 0x7f)) {
+      return false;
+    }
+  }
+
+  // The remaining comparison is an ordinal Unicode case mapping, not a locale
+  // selection or Unicode normalization. Visible spelling remains untouched.
+  return normalizedLeft.toUpperCase() === normalizedRight.toUpperCase();
 }
 
 function verifyExpectedTagIdentity(

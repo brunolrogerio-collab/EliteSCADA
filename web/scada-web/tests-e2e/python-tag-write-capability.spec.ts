@@ -188,6 +188,42 @@ test('Client Visual accepts case-equivalent readable paths but still writes only
   expect(writes).toEqual([{ reference: expectedTagId, value: 42 }]);
 });
 
+test('Client Visual readable-reference lookup matches the canonical ordinal case matrix', async () => {
+  const expectedTagId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  const cases = [
+    ['Plant.K', 'plant.k', true],
+    ['Plant.Área.Nível', 'plant.área.nível', true],
+    ['Plant.K', 'Plant.k', false],
+    ['Plant.ſ', 'Plant.s', false],
+    ['Plant.I', 'Plant.i', true],
+    ['Plant.İ', 'Plant.i', false],
+    ['Plant.I', 'Plant.ı', false],
+    ['Plant.Σ', 'Plant.σ', true],
+    ['Plant.Σ', 'Plant.ς', true],
+    ['Plant.É', 'Plant.E\u0301', false],
+    ['Plant.A', 'Plant.B', false]
+  ] as const;
+
+  for (const [declaredReference, sourceReference, equivalent] of cases) {
+    const reads: string[] = [];
+    const provider = createClientVisualPythonCapabilityProvider({
+      tagDependencies: [readableTagDependency(declaredReference, expectedTagId)],
+      tagReader: async reference => {
+        reads.push(reference);
+        return runtimeTagDetail(expectedTagId, declaredReference);
+      }
+    });
+
+    if (equivalent) {
+      await expect(provider.readTag(sourceReference)).resolves.toMatchObject({ id: expectedTagId });
+      expect(reads).toEqual([declaredReference]);
+    } else {
+      await expect(provider.readTag(sourceReference)).rejects.toThrow('not declared');
+      expect(reads).toEqual([]);
+    }
+  }
+});
+
 test('Engineering preview can explicitly remove process TAG-write authority while preserving the same sandbox bridge contract', async () => {
   const previewProvider = createClientVisualPythonCapabilityProvider({ tagWriter: null });
   expect(previewProvider.writeTag).toBeUndefined();

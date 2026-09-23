@@ -18,13 +18,29 @@ class ReturnSignal(Exception):
         self.value = value
 
 
+def _ordinal_ignore_case_equals(left, right):
+    left = str(left).strip()
+    right = str(right).strip()
+    if len(left) != len(right):
+        return False
+
+    # Match StringComparer.OrdinalIgnoreCase: an ASCII code point never equals
+    # a non-ASCII compatibility character solely through case mapping.
+    if any((ord(a) <= 0x7F) != (ord(b) <= 0x7F) for a, b in zip(left, right)):
+        return False
+
+    # This is Unicode case comparison only; it intentionally does not normalize
+    # composed/decomposed forms, separators, punctuation, or path segments.
+    return left.upper() == right.upper()
+
+
 class SafeInterpreter:
     def __init__(self, source, values, event, server_memory_tag_ids):
         self.tree = ast.parse(source, mode="exec")
         self._validate_module()
-        self.values = {str(key).lower(): value for key, value in values.items()}
+        self.values = {str(key): value for key, value in values.items()}
         self.server_memory_tag_ids = {
-            str(key).lower() for key in (server_memory_tag_ids or [])
+            str(key) for key in (server_memory_tag_ids or [])
         }
         self.event = event or {}
         self.writes = []
@@ -224,9 +240,7 @@ class SafeInterpreter:
                 raise ScriptError(
                     "Qualified Server Memory publish requires stable TAG ID, value and canonical quality."
                 )
-            key = str(args[0]).lower()
-            if key not in self.values:
-                raise ScriptError("TAG is not an active declared dependency.")
+            key = self._require_tag_argument([args[0]], "Qualified Server Memory publish")
             self._require_server_memory_capability(key)
             quality = args[2]
             if not isinstance(quality, str):
@@ -308,24 +322,31 @@ class SafeInterpreter:
     def _require_tag_argument(self, args, operation):
         if len(args) != 1:
             raise ScriptError(f"{operation} requires one declared TAG reference.")
-        key = str(args[0]).lower()
-        if key not in self.values:
-            raise ScriptError("TAG is not an active declared dependency.")
-        return key
+        return self._resolve_declared_tag_key(str(args[0]))
 
     def _require_write_arguments(self, args, operation):
         if len(args) != 2:
             raise ScriptError(f"{operation} requires a declared TAG reference and value.")
-        key = str(args[0]).lower()
-        if key not in self.values:
-            raise ScriptError("TAG is not an active declared dependency.")
+        key = self._resolve_declared_tag_key(str(args[0]))
         return key, args[1]
 
     def _require_server_memory_capability(self, key):
-        if key not in self.server_memory_tag_ids:
+        if not any(
+            _ordinal_ignore_case_equals(key, declared)
+            for declared in self.server_memory_tag_ids
+        ):
             raise ScriptError(
                 "Server Memory API requires an explicit ServerMemoryTag dependency."
             )
+
+    def _resolve_declared_tag_key(self, reference):
+        matches = [
+            declared for declared in self.values
+            if _ordinal_ignore_case_equals(reference, declared)
+        ]
+        if len(matches) != 1:
+            raise ScriptError("TAG is not an active declared dependency.")
+        return matches[0]
 
     @staticmethod
     def apply_binary(operator, left, right):

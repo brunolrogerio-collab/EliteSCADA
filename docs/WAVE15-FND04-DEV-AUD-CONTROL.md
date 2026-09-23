@@ -38,9 +38,9 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0008`
+`MAIN_ORDER_REV: 0009`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-23 11:23 BRT — FND-04 CANDIDATE REVIEWED / CORRECTION REQUIRED`
+`LAST_MAIN_UPDATE_BRT: 2026-09-23 14:45 BRT — CORRECTED FND-04 CANDIDATE ACCEPTED FOR INDEPENDENT AUD`
 
 `GLOBAL_GATE: FND04_ACTIVE`
 
@@ -48,18 +48,19 @@ Current situation:
 
 - FND-03 remains **VERIFIED / FROZEN** on exact product checkpoint `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6` / tree `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`.
 - INFRA-CI-01A remains **VERIFIED / FROZEN** at merge `9f62ad56e3fed5574bab1fa25fc8b64f9e4ae981`.
-- FND-04 CODEX published PR #336 candidate:
-  - head `21e2ab69a71844d56acf1b7913dc67097697f6ae`;
-  - tree `8aa104b6c8089c5ac0ad9fd03847032f55657a77`;
-  - exact product parent `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`;
-  - 17-file diff, all inside the frozen production/test allowlists;
-  - natural Wave 15 T1 run `35873260360` SUCCESS: classify/common/Web/.NET/Chromium/T1 gate all green;
-  - local executor evidence: 1,271 .NET tests, Web build and 21 targeted Chromium tests passed.
-- Main preliminary review **REJECTS this exact candidate for integration** despite green CI. The Client Visual path does not consume the persisted expected TagId binding, and several mandatory acceptance proofs are incomplete.
-- FND-04 remains **ACTIVE / CORRECTION REQUIRED / NOT INTEGRATED**.
-- Same CODEX remains the single implementation/correction owner.
+- Main has reviewed the bounded correction on PR #336:
+  - rejected head `21e2ab69a71844d56acf1b7913dc67097697f6ae`;
+  - corrected immutable candidate `8dba4f1161d4ca5190ddfa37b48d9736478d73ec`;
+  - candidate tree reported in executor handoff: `393938536ee524d2bd7c713ed9f791679fd6c2cb`;
+  - correction delta is one commit / 9 changed files, all inside the frozen section 3B allowlists;
+  - full FND-04 delta remains 20 allowlisted files;
+  - natural Wave 15 T1 run `35895957135` SUCCESS: classify/common/Web/.NET/Chromium/T1 gate all green.
+- Main preliminary review confirms the prior known blockers are closed in the corrected delta: Client Visual now consumes declared bindings and re-proves expected TagId on every write, the public resolver is exactly five-state, and direct persistence/ambiguity/multi-TAG/adversarial tests were added.
+- FND-04 remains **ACTIVE / CORRECTED CANDIDATE UNDER INDEPENDENT AUD / NOT INTEGRATED**.
+- CODEX is now **WAIT_AUD / NO MUTATION** on the immutable candidate.
 - Normal DEV remains `BLOCKED_ENV / WATCH_ONLY`.
-- AUD is held at `WAIT_CORRECTED_CANDIDATE / READ_ONLY`; do not spend an independent audit cycle on the already-known-defective `21e2ab69...` candidate.
+- AUD is **ACTIVE / READ_ONLY_REVIEW** against exact candidate `8dba4f11...`.
+- No merge/freeze authority is granted.
 
 Live integration divergence from the product base remains acknowledged only for verified INFRA-CI-01A + coordination documentation. Any other unacknowledged product delta remains `BLOCKED-BASE-DIVERGENCE`.
 ---
@@ -564,19 +565,17 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 ### CURRENT CODEX EXECUTION ORDER
 
-`ORDER_ID: FND04-CODEX-REVIEW-CLOSE-04`
+`ORDER_ID: FND04-CODEX-WAIT-AUD-05`
 
-`ORDER_STATE: ACTIVE`
+`ORDER_STATE: WAIT_AUD`
 
-`EXECUTOR_MODE: BOUNDED_CORRECTION`
-
-`SOURCE_DEV_ORDER: FND04-DEV-TAGREF-V1-01`
+`EXECUTOR_MODE: NO_MUTATION / PRESERVE_CANDIDATE`
 
 `EXACT_PRODUCT_BASE_SHA: a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
 
-`REJECTED_CANDIDATE_SHA: 21e2ab69a71844d56acf1b7913dc67097697f6ae`
+`CANDIDATE_SHA: 8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
 
-`REJECTED_CANDIDATE_TREE: 8aa104b6c8089c5ac0ad9fd03847032f55657a77`
+`CANDIDATE_TREE: 393938536ee524d2bd7c713ed9f791679fd6c2cb`
 
 `WORK_BRANCH: work/w15-fnd-04-script-tag-reference-resolution`
 
@@ -584,132 +583,16 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 `TARGET_BRANCH: wave15/corrections-integration`
 
-`EXECUTION_PLAN: FND04-TAGREF-V1 / section 3B`
+Instruction:
 
-`VALIDATION_PROFILE: SCRIPT_ENGINEERING, SCRIPT_RUNTIME`
+> Main preliminary review accepted the corrected head as an immutable candidate for independent audit. Do not mutate product/tests, rebase, retarget, rerun CI or merge while AUD reviews this exact candidate. On `SIGA`, re-read this control plane and GitHub live; if this order remains current, report `FND-04 CODEX EXECUTOR — WAIT_AUD` with the exact candidate and stop.
 
-Main independently reviewed the exact PR #336 candidate and its code, not only CI. The candidate is not integration-ready.
-
-#### Defect A — Client Visual does not enforce persisted expected TagId
-
-The persisted Script dependency now carries `TagBinding.Reference + TagBinding.Expected.TagId`, but the actual Client Visual runtime composition does not use it:
-
-- `clientVisualEventDispatcher.ts` is unchanged and creates the capability provider without the Script's declared TAG dependencies/bindings;
-- `createClientVisualPythonCapabilityProvider.ts` learns `path -> current id` from a successful read into `resolvedTagIds`;
-- write then uses that learned ID, or falls back to the raw input reference when no prior read exists.
-
-Therefore the candidate does **not** prove `visible reference -> expected persisted TagId`.
-
-Concrete unsafe cases on `21e2ab69...`:
-
-1. readable `tag_write(path, value)` without a prior `tag_read(path)` forwards the path directly to the writer;
-2. if a path that was originally bound to TagId A is reused by TagId B, `tag_read(path)` can learn B and a following write can target B because the expected A is not present in the provider;
-3. an undeclared readable reference is not rejected from the Script dependency contract by this provider.
-
-This violates the frozen FND-04 identity invariant and section 3B.3.
-
-#### Required Client Visual correction
-
-Stay inside the existing production allowlist. `clientVisualEventDispatcher.ts` was already authorized by section 3B.5 and may now be changed.
-
-Implement one declared-binding resolver used by both read and write:
-
-- derive the Client Visual Script TAG dependency map from the actual `script.dependencies`;
-- for a v1 readable binding, map `visible Reference -> Expected.TagId`;
-- also preserve explicit legacy GUID-only declared dependencies;
-- the normal runtime dispatcher must pass that declaration/binding map into the capability provider;
-- a readable reference not declared by that Script fails closed;
-- read resolves through the existing protected reader and verifies returned `detail.tag.id == expected TagId` before returning process data;
-- write performs the **same current resolution proof itself** before calling the protected writer; it must not require a prior read and must not trust a stale read cache as authority;
-- after proof, writer receives the stable expected/resolved TagId only, never the path;
-- identity drift, stale/missing or undeclared reference must cause no write;
-- legacy GUID-only declared source remains explicitly compatible;
-- do not create a second registry, endpoint or Authority path.
-
-A cache may exist only as a non-authoritative optimization. Correctness must remain valid if the cache is empty or stale.
-
-#### Defect B — resolver public state expanded beyond the frozen five-state contract
-
-The candidate exposes public `ScriptTagReferenceResolutionState.Invalid`.
-
-The frozen resolver contract is exactly:
-
-`Found | NotFound | Ambiguous | Stale | IdentityDrift`
-
-Malformed binding structure/version or StableReference/Expected mismatch is a **validation error**, not a sixth reference-resolution state.
-
-Remove the public sixth semantic state. Preserve deterministic machine-readable validation issues such as `SCRIPT_TAG_BINDING_INVALID` before/around resolution.
-
-#### Defect C — mandatory GREEN evidence is incomplete
-
-Green CI and broad local test counts do not replace the explicit FND-04 acceptance matrix.
-
-The current candidate lacks direct deterministic proof for at least:
-
-- readable binding `Ambiguous` classification;
-- v1 binding save/load/package JSON round-trip;
-- v1 binding persisted/PostgreSQL round-trip;
-- representative multi-TAG readable Script with at least two visible paths / two stable TagIds;
-- Client Visual rename/path-reuse identity-drift fail-closed behavior;
-- Client Visual undeclared-reference fail-closed behavior.
-
-Add focused tests using only section 3B.6 allowlisted test files. The one already-authorized new focused file `web/scada-web/tests-e2e/script-tag-reference-resolution.spec.ts` remains available if useful.
-
-At minimum update/use:
-- `tests/Scada.Core.Tests/ScriptEngineeringReferenceResolverTests.cs` for exact five-state resolver semantics including Ambiguous and invalid-binding validation separation;
-- `tests/Scada.Core.Tests/CanonicalScriptEngineeringTests.cs` and/or the existing Script compatibility test for package round-trip with a real v1 binding;
-- `tests/Scada.Persistence.PostgreSql.Tests/PostgreSqlCanonicalScriptPersistenceTests.cs` for direct persisted v1 binding proof;
-- `tests/Scada.Drivers.Tests/ServerScriptRuntimeAutomationIntegrationTests.cs` for the representative multi-TAG readable Server Script;
-- Client Visual focused tests for declaration/expected-ID enforcement.
-
-#### Defect D — mandatory RED evidence was not handed off
-
-The final candidate handoff reported GREEN evidence but omitted the exact RED-1/RED-2/RED-3 commands and old-base failure outputs required by the active order.
-
-Before the next handoff, reproduce/record discriminating RED evidence against exact old product base `a3eb86f8...` by applying/running the test-only RED shape without production correction. Do not rewrite history or mutate the frozen base.
-
-Also add **review-RED** proof against current rejected candidate `21e2ab69...`:
-
-- direct readable write without prior read must expose the current fallback-to-path defect;
-- path reuse / reader returns TagId B while persisted binding expects A must expose current silent-retarget behavior.
-
-Those tests must fail against `21e2ab69...` and pass only after the correction.
-
-#### Required final validation
-
-After correction:
-
-- complete 3B.13 acceptance table with no silent PASS by inference;
-- focused resolver + package + PostgreSQL + Server Script + Client Visual tests PASS;
-- full local solution test if environment permits;
-- Web build PASS;
-- targeted Chromium PASS;
-- `git diff --check` PASS;
-- push to the same branch / PR #336;
-- natural Wave 15 T1 on the new exact head must be green;
-- no merge.
-
-Return exactly:
-
-`FND-04 CODEX EXECUTOR -> MAIN COORDINATOR — REVIEW-CLOSE CANDIDATE HANDOFF`
-
-with:
-- old `21e2ab69...` -> new exact head/tree;
-- exact changed-file list;
-- RED-1/2/3 old-base proof;
-- review-RED proof against `21e2ab69...`;
-- Client Visual binding-flow explanation;
-- exact five-state resolver contract;
-- persistence/package/PostgreSQL evidence;
-- multi-TAG proof;
-- legacy GUID proof;
-- Authority/sandbox preservation;
-- full 20-item acceptance table;
-- local tests;
-- natural T1 run/jobs;
-- explicit non-actions.
-
-Bounded autonomy remains active inside the original section 3B production/test allowlists. No merge/freeze authority is granted.
+Evidence frozen for AUD:
+- correction `21e2ab69... -> 8dba4f11...` is one commit / 9 allowlisted files;
+- full product delta from exact base is 20 allowlisted files;
+- natural T1 `35895957135` is SUCCESS;
+- previous Main defects A/B/C/D have direct corrective code/tests in the candidate;
+- no Main merge/freeze approval has been issued.
 
 ### CODEX mandatory return
 
@@ -776,19 +659,34 @@ AUD never merges its own work and never writes directly to DEV branch, integrati
 
 ### CURRENT AUD ORDER
 
-`ORDER_ID: FND04-AUD-WAIT-CORRECTED-0004`
+`ORDER_ID: FND04-AUD-CANDIDATE-0005`
 
-`ORDER_STATE: WAIT_CORRECTED_CANDIDATE`
+`ORDER_STATE: ACTIVE`
 
 `AUD_MODE: READ_ONLY_REVIEW`
 
 `BASE_SHA: a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
 
-`REJECTED_CANDIDATE_SHA: 21e2ab69a71844d56acf1b7913dc67097697f6ae`
+`CANDIDATE_SHA: 8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
+
+`CANDIDATE_TREE: 393938536ee524d2bd7c713ed9f791679fd6c2cb`
+
+`PR: #336`
+
+`CANDIDATE_T1_RUN: 35895957135 / SUCCESS`
 
 Instruction:
 
-> Main preliminary review already rejected `21e2ab69...` for a Client Visual expected-TagId enforcement defect plus incomplete acceptance evidence. Do not spend the independent AUD cycle on that rejected head and do not mutate product/tests. Wait until Main publishes the corrected immutable CODEX candidate SHA/tree, then execute section 3B.14 adversarial review against that exact head.
+> Execute the independent section 3B.14 adversarial review now against exactly `8dba4f1161d4ca5190ddfa37b48d9736478d73ec`. Revalidate the live PR head before reviewing; if it moved, stop and return candidate-moved evidence. Stay READ_ONLY: no product/test mutation and no merge. Independently verify the full FND-04 contract, with special attention to the prior Main blockers: direct readable write without prior read, old-path reuse/identity drift, undeclared reference denial, exact five-state resolver semantics, malformed-binding validation separation, ambiguous reference handling, package/save-load/PostgreSQL persistence, representative multi-TAG readable Script, legacy GUID compatibility, Authority preservation, and absence of a second resolver/registry/auth path.
+
+Also classify the executor's reported local full-E2E `/api/engineering/export/json` timeout only to determine whether any evidence connects it causally to the FND-04 delta. Do not widen scope or modify Auth/bootstrap.
+
+Required disposition:
+- `ACCEPTABLE` only if all mandatory review items are supported by exact-head evidence;
+- `CHANGES_REQUIRED` for a candidate defect;
+- `BLOCKED-CONTRACT` only for a shared-contract blocker.
+
+Return using the mandatory FND-04 AUD handoff prefix and include the exact reviewed SHA/tree, PR scope, independent acceptance/adversarial matrix, CI examined, defects if any, and final classification.
 
 ### AUD mandatory return format
 

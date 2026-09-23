@@ -2,7 +2,7 @@
 
 > PREPARED ONLY. This document does not release any DEV lane. GitHub live and Main's later exact FC0-A checkpoint are authoritative.
 
-`STATE: PREPARED / NOT RELEASED / BLOCKED_ONLY_ON_FND06`
+`STATE: PREPARED / NOT RELEASED / BLOCKED_ON_FND06_AND_POST_FND06_FOUNDATION_AUDIT`
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
@@ -17,7 +17,27 @@ As of preparation:
 - FND-04 — VERIFIED/FROZEN at `6c810647c9773a19b212d9c33694780141786ac7` / tree `1221ff55963052be4e924dd644efbaa65763f546`; exact post-merge CI `35913456486` SUCCESS;
 - FND-06 — ACTIVE on exact product base `6c810647c9773a19b212d9c33694780141786ac7`, order `FND06-CODEX-VISUAL-STABILITY-V2`, not yet integrated/frozen.
 
-FC0-A remains blocked **only by FND-06 VERIFIED/FROZEN**.
+FC0-A remains blocked by **FND-06 VERIFIED/FROZEN + mandatory post-FND06 Foundation Closure Audit ACCEPTABLE**.
+
+## 1A. Mandatory post-FND06 audit gate
+
+After FND-06 becomes VERIFIED/FROZEN, Main must **not** immediately release FC0-A.
+
+Required audit:
+`coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-CONTROL.md`
+
+Required final classification:
+`FC0-A FOUNDATION AUDIT -> MAIN COORDINATOR — ACCEPTABLE / FC0A_RELEASE_APPROVED`
+
+The audit must:
+- reconcile Wave 15 product premises against Wave 14 final diagnostic comments/findings;
+- map every Wave 15 correction-backlog P0/P1/P2/uncertain item to exact evidence/residual ownership;
+- verify no frozen Foundation contracts contradict each other;
+- prove prepared FND-05 can remain additive/non-breaking to FND-03/FND-04/FND-06 contracts consumed by FC0-A DEVs;
+- prove prepared FND-07 can remain compositional/non-breaking to FND-01/FND-02/FND-03 contracts consumed by FC0-A DEVs;
+- block FC0-A if either future Foundation would require redefining a frozen downstream contract.
+
+Until that audit PASS, the four DEV lanes **and FND-05/FND-07 product implementation remain blocked**.
 
 ## 2. Exact FC0-A checkpoint fields Main must fill
 
@@ -170,9 +190,21 @@ These identifiers are reserved so Main can activate the four lanes immediately a
 - forbidden: private signing-key boundary changes, independent client entitlement pools, session-admission authority redesign, HA fencing contract invention
 - handoff prefix: `DEV-LICENSING-UX -> MAIN COORDINATOR`
 
-Release-time rule for all four: Main must first replace the blocked state with `ACTIVE`, write the same exact FC0-A SHA/tree into each order, create each work branch from that SHA, and record the release in #305. No lane may infer activation from this preparation file.
+Release-time rule for all four: Main may replace the blocked state with `ACTIVE` only after FND-06 VERIFIED/FROZEN **and** audit `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01` returns `ACCEPTABLE / FC0A_RELEASE_APPROVED`. Then Main writes the same exact audited FC0-A SHA/tree into each order, creates each work branch from that SHA, and records the release in #305. No lane may infer activation from this preparation file.
 
 ---
+
+## 3B. Parallel release after audit PASS
+
+When the post-FND06 audit passes, Main may activate in parallel:
+- DEV-EDITOR;
+- DEV-SCRIPT-ENGINEERING;
+- DEV-AUTHORITY-UX;
+- DEV-LICENSING-UX;
+- FND-05 on its isolated Foundation branch/order;
+- FND-07 on its isolated Foundation branch/order.
+
+FND-05/FND-07 activation at that point is permitted only because the audit has confirmed their prepared contracts are non-breaking to the exact FC0-A frozen-consumer contracts. If later implementation exposes a contradictory requirement, the relevant lane must stop with `BLOCKED-CONTRACT`.
 
 ## 4. Release guard
 

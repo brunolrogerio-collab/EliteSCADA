@@ -38,9 +38,9 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0015`
+`MAIN_ORDER_REV: 0016`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-23 — FND-04 VERIFIED / FROZEN AFTER EXACT POST-MERGE CI`
+`LAST_MAIN_UPDATE_BRT: 2026-09-23 — FND-04 FROZEN / SEQUENTIAL CODEX REASSIGNED TO FND-06`
 
 `GLOBAL_GATE: FND04_VERIFIED_FROZEN`
 
@@ -57,7 +57,8 @@ Current situation:
   - Chromium end-to-end `107359503423` — SUCCESS.
 - FND-04 is now **VERIFIED / FROZEN** at exact product checkpoint `6c810647c9773a19b212d9c33694780141786ac7`.
 - The readable Script TAG reference contract is frozen for downstream consumption.
-- CODEX and AUD are **FROZEN / WAIT / NO_MUTATION**.
+- FND-04 AUD remains **FROZEN / WAIT / NO_MUTATION**.
+- The **same sequential CODEX executor/chat that executed prior Foundation work including FND-04 is now reassigned to FND-06**. FND-04 being frozen does **not** mean that CODEX is idle.
 - Any later change to this shared contract requires a new Main/Foundation delta; downstream lanes may not redefine it.
 
 Live integration divergence from the product base remains acknowledged only for verified INFRA-CI-01A + coordination documentation. Any other unacknowledged product delta remains `BLOCKED-BASE-DIVERGENCE`.
@@ -590,21 +591,34 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 ### CURRENT CODEX EXECUTION ORDER
 
-`ORDER_ID: FND04-CODEX-FROZEN-11`
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FND06-12`
 
-`ORDER_STATE: WAIT`
+`ORDER_STATE: ACTIVE_ROUTE`
 
-`EXECUTOR_MODE: FND04_FROZEN / NO_MUTATION`
+`EXECUTOR_MODE: SAME_SEQUENTIAL_CODEX / REASSIGNED_TO_FND06`
 
-`FROZEN_PRODUCT_SHA: 6c810647c9773a19b212d9c33694780141786ac7`
+`FND04_STATE: VERIFIED_FROZEN`
 
-`FROZEN_PRODUCT_TREE: 1221ff55963052be4e924dd644efbaa65763f546`
+`NEXT_CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`POST_MERGE_CI_RUN: 35913456486 / SUCCESS`
+`NEXT_CONTROL_FILE: docs/WAVE15-FND06-CONTROL.md`
+
+`EXPECTED_FND06_ORDER: FND06-CODEX-VISUAL-STABILITY-V2`
 
 Instruction:
 
-> FND-04 is VERIFIED/FROZEN. On `SIGA`, re-read this control plane and GitHub live. If no new Main Foundation-delta order exists, report `FND-04 CODEX EXECUTOR — FROZEN / WAIT` and stop. Do not mutate product/tests or reopen PR #336.
+> FND-04 itself is VERIFIED/FROZEN, but **you are not on WAIT as an executor**. Main has reassigned this same sequential CODEX lane/chat — the executor that worked prior Foundation stages including FND-04 — to FND-06.
+>
+> On every `SIGA`:
+> 1. revalidate GitHub live;
+> 2. read `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md` in full;
+> 3. confirm its current executor order is still ACTIVE and the exact base has not moved by unacknowledged product/infra delta;
+> 4. execute that FND-06 order, currently `FND06-CODEX-VISUAL-STABILITY-V2`;
+> 5. return using the FND-06 mandatory handoff format.
+>
+> Do **not** report `FND-04 CODEX EXECUTOR — FROZEN / WAIT` merely because FND-04 is frozen. That old behavior is superseded by this routing order.
+>
+> Stop only if the FND-06 control itself says WAIT/STOP/BLOCKED, or GitHub live shows an unacknowledged base divergence.
 
 ### CODEX mandatory return
 
@@ -735,6 +749,10 @@ On every `SIGA`, the agent must:
 10. never infer that `SIGA` authorizes merge, main mutation, scope expansion or another lane's work.
 
 If the order is `WAIT`, `SIGA` means revalidate and wait; it does not authorize speculative work.
+
+### Sequential CODEX routing override
+
+The CODEX executor is a **sequential shared lane across Foundation missions**. When its CURRENT CODEX order routes to another Foundation control plane, that routing order overrides the local FND-04 frozen state for executor activity. The executor must follow the routed control rather than waiting on FND-04.
 
 ---
 

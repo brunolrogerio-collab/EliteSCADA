@@ -41,7 +41,7 @@ Prepared downstream release file:
 `coord/w15-fnd06-control:docs/WAVE15-FC0-A-RELEASE-PREP.md`
 
 Latest prep commit:
-`f9531e6318176c546d77843ec791ced2f8202795`
+`dfae2377f0c6802da726650697040181c7b0f453`
 
 Reserved, not-yet-active orders:
 - `DEV-EDITOR-FC0A-01`
@@ -93,3 +93,10 @@ Before first product mutation, Main corrected the prepared FND-06 validation pro
 
 Active FND-06 order: `FND06-CODEX-VISUAL-STABILITY-V2`.
 Control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`.
+
+
+## FC0-A collision guard
+
+The prepared downstream release package now includes a Main-owned parallel-file collision map. Primary ownership is separated across Editor (`engineering/visual-editor/**`), Script Engineering (`engineering/scripts/**` + `python-editor/**`), Authority UX (`UserAdministration*`) and Licensing UX (`web/licensing/**` + `Scada.LicenseGenerator/**`). Shared shell/router/types/i18n/CI files are Main-coordinated hotspots, not free-for-all lane ownership.
+
+Latest FC0-A prep commit: `dfae2377f0c6802da726650697040181c7b0f453`.

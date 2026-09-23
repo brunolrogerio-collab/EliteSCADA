@@ -38,27 +38,28 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0003`
+`MAIN_ORDER_REV: 0004`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-23 — EXECUTABLE FND-04 PLAN FROZEN / WAITING FND-03 POST-MERGE GATE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-23 — FND-04 ACTIVATED ON VERIFIED FND-03 CHECKPOINT`
 
-`GLOBAL_GATE: HOLD_FND03_POSTMERGE_CI`
+`GLOBAL_GATE: FND04_ACTIVE`
 
 Current situation:
 
-- FND-03 Phase C is merged at `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6` / tree `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`.
-- Exact merge-SHA post-merge CI is still the final FND-03 gate; FND-03 is therefore `INTEGRATED / VERIFICATION PENDING / NOT FROZEN`.
-- Main completed the FND-03 pre-freeze closeout audit in #301 comment `5788605224`: no additional FND-03 production slice is currently justified if the exact merge-SHA CI is green.
-- FND-04 is now `PREPARED / CONTRACT+SOURCE MAP READY / NOT ACTIVE / NOT FROZEN`.
-- FND-04 may become active only after Main promotes the exact post-FND-03 checkpoint and explicitly changes this file to `GLOBAL_GATE: FND04_ACTIVE`.
-- Until then, neither lane may create FND-04 product commits or PRs.
+- FND-03 is now **VERIFIED / FROZEN** on exact product checkpoint `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6` / tree `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`.
+- Exact post-merge EliteSCADA CI #1559 / run `35815261288`, attempt 2, completed SUCCESS on that SHA:
+  - Web `107058812138` — SUCCESS;
+  - Backend `107058810300` — SUCCESS;
+  - Chromium `107059153655` — SUCCESS / 624 passed.
+- Attempt 1 had one isolated PostgreSQL advisory-lock test failure outside the FND-03 delta; the permitted single backend-job rerun succeeded, and dependent Chromium then completed green.
+- FND-04 `FND04-TAGREF-V1` is now **ACTIVE / PLAN FROZEN / NOT INTEGRATED**.
+- Exact implementation branch has been created from the verified product checkpoint:
+  - `work/w15-fnd-04-script-tag-reference-resolution`
+  - base `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
+- DEV owns implementation under section 3B and the CURRENT DEV ORDER below.
+- AUD remains READ_ONLY / WAIT_CANDIDATE until Main supplies an immutable DEV candidate.
 
-Provisional next product base, pending exact merge-SHA verification:
-
-- `wave15/corrections-integration@a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
-- tree `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`
-
-This SHA is a **prepared candidate base only** while `GLOBAL_GATE` is HOLD. DEV/AUD must not use it for product mutation until Main flips the gate to `FND04_ACTIVE` after the post-merge CI decision.
+Coordination-document commits after the product checkpoint do not change the FND-04 product base. Any non-document product/infra delta on integration before candidate review is `BLOCKED-BASE-DIVERGENCE`.
 ---
 
 ## 3. Frozen FND-04 product objective
@@ -465,7 +466,7 @@ AUD remains READ_ONLY unless Main later explicitly sets AUD_MODE: WRITE_TESTS.
 
 `LANE: FND-04 DEV`
 
-`STATE: PREPARED_WAIT`
+`STATE: ACTIVE`
 
 Reserved implementation branch after activation:
 
@@ -492,32 +493,41 @@ DEV must not:
 
 ### CURRENT DEV ORDER
 
-`ORDER_ID: FND04-DEV-EXEC-PLAN-0002`
+`ORDER_ID: FND04-DEV-TAGREF-V1-01`
 
-`ORDER_STATE: WAIT_GATE`
+`ORDER_STATE: ACTIVE`
 
-`PREPARED_BASE_CANDIDATE: a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
+`DEV_MODE: IMPLEMENTATION`
 
-`PREPARED_TREE: e48c8b9918f4d3a5ae4dee1df6211393c95b6513
+`EXACT_BASE_SHA: a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
 
-EXECUTION_PLAN: FND04-TAGREF-V1 / section 3B`
+`EXACT_BASE_TREE: e48c8b9918f4d3a5ae4dee1df6211393c95b6513`
+
+`WORK_BRANCH: work/w15-fnd-04-script-tag-reference-resolution`
+
+`TARGET_BRANCH: wave15/corrections-integration`
+
+`EXECUTION_PLAN: FND04-TAGREF-V1 / section 3B`
+
+`VALIDATION_PROFILE: SCRIPT_ENGINEERING, SCRIPT_RUNTIME`
 
 Instruction:
 
-> FND-04 has a frozen executable implementation plan but is **not active**. On `SIGA`, re-read this file and GitHub live. While `GLOBAL_GATE` is `HOLD_FND03_POSTMERGE_CI`, make no branch/code/test/PR mutation. Report `FND-04 DEV — PREPARED / WAITING FOR FND-03 POST-MERGE GATE` with the observed integration SHA.
+> Execute section 3B exactly. Start from the already-created exact branch above. Before any production change, revalidate that the branch still descends directly from the exact base and that integration has no unacknowledged product/infra delta. Then implement the mandatory RED -> GREEN sequence, commit in reviewable slices, push to the same work branch and open exactly one PR to `wave15/corrections-integration`.
 
-When Main flips `GLOBAL_GATE: FND04_ACTIVE`, the activation order will use the verified exact product checkpoint and the source/contract map in section 3A, with these mandatory implementation outcomes:
+Binding execution rules:
 
-- canonical visible TAG path in new Python source plus persisted expected TagId binding;
-- one read/write resolver with `found | notFound | ambiguous | stale | identityDrift` semantics;
-- rename/move/path-reuse fail-closed behavior;
-- persistence/package round-trip;
-- explicit legacy GUID compatibility;
-- canonical Authority preserved;
-- no second registry/resolver/auth pipeline;
-- deterministic multi-TAG readable-source proof.
+- establish and record RED-1/RED-2/RED-3 before production correction;
+- do not broaden the production/test allowlists;
+- do not change frozen TAG identity, Authority, Runtime Session, sandbox or Driver contracts;
+- preserve legacy GUID compatibility while making new canonical authoring path-readable;
+- use the exact resolver states and precedence in section 3B;
+- no self-merge;
+- exact-head natural CI must be green before `PR_READY`;
+- if a hard-stop criterion in section 3B.11 is hit, stop immediately with `FND-04 DEV -> MAIN COORDINATOR — BLOCKED-CONTRACT`;
+- environment-only inability to run required evidence returns `BLOCKED-ENV`, never PASS.
 
-DEV must treat any need to redesign Server Script sandbox ownership, TAG registry authority, or Security capability semantics as `BLOCKED-CONTRACT`, not as local implementation freedom.
+Main grants bounded autonomy inside the closed plan: DEV may iterate `RED -> implement -> focused tests -> push -> inspect natural CI -> causally correct within allowlist` without waiting for a new Main micro-order. Any need to widen scope/contracts returns to Main.
 
 ### DEV mandatory return format
 
@@ -559,7 +569,7 @@ Every DEV handoff must include:
 
 `LANE: FND-04 AUD`
 
-`STATE: PREPARED_WAIT`
+`STATE: WAIT_CANDIDATE`
 
 Default mode:
 
@@ -602,15 +612,17 @@ AUD never merges its own work and never writes directly to DEV branch, integrati
 
 ### CURRENT AUD ORDER
 
-`ORDER_ID: FND04-AUD-PREP-0002`
+`ORDER_ID: FND04-AUD-WAIT-CANDIDATE-0003`
 
-`ORDER_STATE: WAIT_GATE`
+`ORDER_STATE: WAIT_CANDIDATE`
 
 `AUD_MODE: READ_ONLY_REVIEW`
 
+`BASE_SHA: a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
+
 Instruction:
 
-> FND-04 adversarial matrix is prepared but there is no immutable DEV candidate yet. On `SIGA`, re-read this file and GitHub live. While `GLOBAL_GATE` is `HOLD_FND03_POSTMERGE_CI`, do not judge or mutate product. Report `FND-04 AUD — PREPARED / WAITING FOR FND-03 POST-MERGE GATE` with the observed integration SHA. After DEV publishes an immutable candidate, Main will issue the exact candidate SHA and audit mode.
+> FND-04 DEV is ACTIVE, but there is no immutable candidate assigned to AUD yet. On `SIGA`, re-read this file and GitHub live. Do not audit a moving branch and do not mutate product/tests. Report `FND-04 AUD — WAITING FOR IMMUTABLE DEV CANDIDATE` with the observed DEV head. Main will later publish the exact candidate SHA/tree and attack order from section 3B.14.
 
 ### AUD mandatory return format
 

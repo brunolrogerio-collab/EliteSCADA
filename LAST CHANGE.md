@@ -40,7 +40,7 @@ FND-04 is now actively assigned to the same functional CODEX runtime that finish
 
 Order:
 
-`FND04-CODEX-REVIEW-CLOSE-04`
+`FND04-CODEX-WAIT-AUD-05`
 
 Exact product base:
 
@@ -56,7 +56,7 @@ Control commit:
 
 PR #336 candidate `21e2ab69a71844d56acf1b7913dc67097697f6ae` reached green T1 but is not integration-ready. Main review found Client Visual expected-TagId enforcement missing, a sixth resolver state outside the frozen contract, and incomplete direct acceptance/RED evidence. CODEX is correcting the same PR inside the existing FND-04 allowlists; no merge is authorized.
 
-Normal FND-04 DEV remains BLOCKED_ENV / WATCH_ONLY. AUD remains WAIT_CORRECTED_CANDIDATE.
+Normal FND-04 DEV remains BLOCKED_ENV / WATCH_ONLY. AUD remains ACTIVE / READ_ONLY_REVIEW.
 
 ## Remaining FC0-A blockers
 
@@ -64,3 +64,14 @@ Normal FND-04 DEV remains BLOCKED_ENV / WATCH_ONLY. AUD remains WAIT_CORRECTED_C
 - FND-06 — NOT STARTED.
 
 INFRA-CI-01A is no longer a blocker.
+
+
+## FND-04 corrected candidate under audit
+
+- candidate: `8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
+- tree: `393938536ee524d2bd7c713ed9f791679fd6c2cb`
+- PR #336 natural T1 `35895957135` — SUCCESS
+- Main preliminary review: prior known blockers closed
+- CODEX: `WAIT_AUD / NO_MUTATION`
+- AUD: `FND04-AUD-CANDIDATE-0005 / ACTIVE / READ_ONLY_REVIEW`
+- no integration/freeze yet

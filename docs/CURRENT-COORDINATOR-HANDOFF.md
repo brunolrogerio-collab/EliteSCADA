@@ -18,7 +18,7 @@
 - FND-03 Shared Runtime Seat Accounting — VERIFIED/FROZEN.
 - FND-03 License Lifecycle/Fencing Phase A — BASELINE VERIFIED; bounded transition-base defect amendment AUTHORIZED.
 - FND-03 License Lifecycle/Fencing Phase B — BASELINE VERIFIED; semantic behavior remains frozen unless directly required by the same defect.
-- FND-03 Phase C — ACTIVE / CODEX / CONTRACT AMENDMENT AUTHORIZED / NOT INTEGRATED.
+- FND-03 Phase C — PR_READY / MAIN-REVIEWED / APPROVED FOR INTEGRATION / NOT YET INTEGRATED.
 - FND-03 global — ACTIVE / NOT FROZEN.
 - FND-04 — QUEUED / CONTRACT DEFINED / WAIT.
 - FC0-A — BLOCKED.
@@ -62,10 +62,19 @@ Phase C implementation is assigned exclusively to CODEX; DEV remains idle to pre
 
 ### CODEX
 
-`ORDER_STATE: ACTIVE`  
-`ORDER_ID: FND03-PHASE-C-IDEMPOTENT-REMOVE-CLOSE-04`
+`ORDER_STATE: WAIT`  
+`ORDER_ID: FND03-PHASE-C-FINAL-CANDIDATE-VERIFIED-06`  
+`CODEX_MODE: WAIT_MAIN_INTEGRATION`
 
-Branch: `work/w15-fnd-03-license-lifecycle-orchestrator-v1`. PR #334 head `40f0001f...` has CI #1557 fully green, but Main independently found an already-Demo repeated-remove authority/Demo-anchor reset defect plus a method-group gap in the #7 mutation-boundary guard. A 3-file bounded correction is ACTIVE; no merge authorized.
+Exact final candidate:
+- PR #334 head `5ddb9065efa24b52c81e59fdfe3aa3b0b9e9d1c4`;
+- tree `e2fd7012b5d1fbc3b5d6ee8cf020d1d62fd66f12`;
+- natural CI #1558 / `35813975645` fully green;
+- final acceptance matrix has no PENDING;
+- Main independently reviewed ORDER-04 RED/GREEN, complete PR scope and CI.
+
+No further CODEX action is authorized until Main completes integration/post-merge verification.
+
 
 ### FND-04 DEV/AUD
 
@@ -77,13 +86,15 @@ BLOCKED.
 
 ## Current Main decision
 
-Live reconstruction completed.
+PR #334 exact candidate `5ddb9065...` is independently reviewed and approved for integration.
 
-- product checkpoint remains `4647dd741551c97306217ac9893d3378b070f43b`;
-- the pre-order integration delta from that checkpoint was documentation-only;
-- #301 comment `5722165708`, PR #332 and PR #333 were revalidated as the frozen Phase A/B architecture/evidence;
-- Phase C remains active in CODEX; Main independently confirmed the second-transition reconciliation defect from #301 comment `5782179278` and authorized the minimal transition-base persistence amendment under Product Owner authorization #301 comment `5782200627`;
-- FND-03 DEV remains WAIT;
+- product base remains `4647dd741551c97306217ac9893d3378b070f43b`;
+- candidate tree `e2fd7012...`;
+- exact CI #1558 fully green;
+- ORDER-04 repeated-remove loophole is closed with mutable-clock T1>T0 proof;
+- acceptance #7 guard covers calls and method groups;
+- integration HEAD movement since product base remains coordination/documentation-only;
+- Main owns merge and exact post-merge gate;
 - FND-04 DEV/AUD remain WAIT;
 - FC0-A remains BLOCKED.
 

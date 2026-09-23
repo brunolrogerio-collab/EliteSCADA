@@ -1,7 +1,7 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-22 BRT  
-**Operational state:** **WAVE 15 ACTIVE / FND-03 A+B BASELINE VERIFIED / PHASE A TRANSITION-BASE DEFECT AMENDMENT AUTHORIZED / PHASE C ACTIVE IN CODEX / FND-03 DEV WAIT / FND-04 WAIT / FC0-A BLOCKED**
+**Operational state:** **WAVE 15 ACTIVE / FND-03 PHASE C PR_READY + MAIN-REVIEWED + APPROVED FOR INTEGRATION / FND-03 DEV WAIT / FND-04 WAIT / FC0-A BLOCKED**
 
 > GitHub live is the official memory.
 >
@@ -41,55 +41,42 @@ Therefore FND-03 Lifecycle/Fencing Phase B is VERIFIED/FROZEN.
 
 ## Current active work
 
-FND-03 Phase C is **ACTIVE** under CODEX.
+FND-03 Phase C final candidate is **PR_READY / MAIN-REVIEWED / APPROVED FOR INTEGRATION**.
 
-Order:
+Canonical wait order:
 
-`FND03-PHASE-C-IDEMPOTENT-REMOVE-CLOSE-04`
+`FND03-PHASE-C-FINAL-CANDIDATE-VERIFIED-06`
 
 Exact product base:
 
 `4647dd741551c97306217ac9893d3378b070f43b`
 
+Final candidate:
+
+`5ddb9065efa24b52c81e59fdfe3aa3b0b9e9d1c4`
+
 tree:
 
-`d7eb7d3f57269e71ed5984c82e701a059be56bfb`
+`e2fd7012b5d1fbc3b5d6ee8cf020d1d62fd66f12`
 
-Work branch:
+PR #334 exact natural CI #1558 / `35813975645`:
+- Backend `107031432714` — SUCCESS
+- Web `107031432463` — SUCCESS
+- Chromium `107031753897` — SUCCESS
 
-`work/w15-fnd-03-license-lifecycle-orchestrator-v1`
-
-Target:
-
-`wave15/corrections-integration`
-
-Current reviewed candidate:
-- PR #334 head `40f0001f969930f227861ef2f11d79e3bd9f2931`, tree `b2f4c83690731723d225c47d371740de2f6c265c`;
-- exact natural CI #1557 / `35810903479`: Backend/Web/Chromium SUCCESS;
-- C04 stabilization accepted;
-- acceptance #7 source guard exists but misses method-group `RemoveLicense` references;
-- Main found repeated remove while already Demo can advance authority and reset `DemoStartedAtUtc`, contrary to #301 binding architecture.
-
-Active correction:
-- make already-Demo/no-license remove idempotent with no revision/anchor/Runtime/fence mutation while preserving fail-closed pending behavior;
-- preserve Invalid -> remove as a real authority transition;
-- strengthen #7 guard to detect both call and method-group references;
-- production change limited to ProductLicenseLifecycleCoordinator plus two focused test files;
-- new exact-head natural CI required before integration.
-
-Original Phase C product scope remains:
-- minimal Phase A transition-state amendment: durable per-transition base authority revision in memory + PostgreSQL additive migration `024_runtime_session_authority_transition_base_v1`, with fail-closed reconciliation for missing/incoherent base;
-- ProductLicenseLifecycleCoordinator install/replace/remove orchestration;
-- conservative pending-transition restart reconciliation;
-- startup ordering before persisted Runtime recovery;
-- EngineeringModify licensing mutation cutover;
-- safe product-license audit;
-- deterministic fault/concurrency acceptance.
+Main independent review confirms:
+- ORDER-04 mutable-clock RED/GREEN proof;
+- already-Demo remove preserves authority revision and Demo anchor;
+- pending remains fail-closed;
+- Invalid -> remove remains real transition;
+- acceptance #7 guard covers calls and method groups;
+- full 12-file Phase C scope matches authorization;
+- no acceptance item remains PENDING.
 
 Current lanes:
-- CODEX — ACTIVE / Phase C implementation;
-- FND-03 DEV — WAIT_CODEX_PHASE_C;
+- CODEX — WAIT_MAIN_INTEGRATION;
+- FND-03 DEV — WAIT;
 - FND-04 DEV/AUD — WAIT;
 - FC0-A — BLOCKED.
 
-No merge is authorized. The prior BLOCKED-FROZEN-CONTRACT is superseded by the bounded amendment order. Main owns candidate review, CI decision, integration order and post-merge verification.
+Main owns merge and exact post-merge verification. FND-03 is not frozen until the exact integrated SHA passes the post-merge gate.

@@ -127,141 +127,57 @@ Antes desta ordem, o coordination HEAD era `8debd70b7c0e0e432b7deca29f5b31070a73
 
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
-**ORDER_STATE: ACTIVE**  
-**ORDER_ID: FND03-PHASE-C-AUTONOMOUS-CLOSE-05**  
-**CODEX_MODE: BOUNDED_AUTONOMOUS_CLOSE_LOOP**  
-**Mission:** finish FND-03 Phase C to an exact-head green candidate with fewer Main round-trips
+**ORDER_STATE: WAIT**  
+**ORDER_ID: FND03-PHASE-C-FINAL-CANDIDATE-VERIFIED-06**  
+**CODEX_MODE: WAIT_MAIN_INTEGRATION**  
+**Mission:** hold exact Phase C final candidate while Main integrates and performs exact merge-SHA verification
 
-### Starting point
+Main independently reviewed the final candidate and its closing delta.
 
-- exact product base: `4647dd741551c97306217ac9893d3378b070f43b`
-- work branch: `work/w15-fnd-03-license-lifecycle-orchestrator-v1`
-- current reviewed work head at order issuance: `40f0001f969930f227861ef2f11d79e3bd9f2931`
-- PR #334 -> `wave15/corrections-integration`
-- integration advances since product base remain coordination/documentation-only
-- ORDER-04 remove-idempotency defect and RED proof remain binding
-- C04 stabilization already accepted and must not be weakened
+### Exact candidate
 
-### Delegated autonomy
+- product base: `4647dd741551c97306217ac9893d3378b070f43b`
+- candidate head: `5ddb9065efa24b52c81e59fdfe3aa3b0b9e9d1c4`
+- candidate tree: `e2fd7012b5d1fbc3b5d6ee8cf020d1d62fd66f12`
+- branch: `work/w15-fnd-03-license-lifecycle-orchestrator-v1`
+- PR #334: OPEN / mergeable / target `wave15/corrections-integration`
+- exact natural CI #1558 / run `35813975645`: SUCCESS
+  - Backend `107031432714` — SUCCESS
+  - Web `107031432463` — SUCCESS
+  - Chromium `107031753897` — SUCCESS
 
-CODEX no longer needs a new Main order for each small corrective iteration inside this Phase C candidate.
+### Independent Main review result
 
-CODEX may independently repeat this loop until it reaches a clean exact-head handoff:
+The exact closing delta from `40f0001f...` to `5ddb9065...` is limited to:
+- `src/Scada.Api/Licensing/ProductLicenseLifecycleCoordinator.cs`;
+- `tests/Scada.Drivers.Tests/ProductLicenseLifecycleCoordinatorTests.cs`;
+- `tests/Scada.Drivers.Tests/ProductLicenseMutationBoundaryTests.cs`.
 
-`diagnose -> edit -> focused tests -> commit/push -> inspect natural CI -> diagnose again`
-
-Within that loop CODEX may:
-
-1. implement the ORDER-04 already-Demo idempotent-remove correction;
-2. add, strengthen or refactor deterministic Phase C tests needed to prove the existing acceptance matrix;
-3. fix a newly exposed defect **without waiting for Main** when all of the following are true:
-   - the defect is directly causal to Phase C behavior already authorized in #301;
-   - the correction does not redefine a frozen public/shared contract;
-   - no new database schema/migration, entitlement model, authorization model, Runtime Session contract or HA/Authority architecture is required;
-   - the correction stays within the existing Phase C functional boundary;
-4. modify existing Phase C production files already touched by PR #334 when directly necessary to close such a causal defect;
-5. add or modify relevant tests under `tests/Scada.Drivers.Tests/`;
-6. keep the accepted C04 fixture correction and, only if a fresh CI proves another deterministic fixture defect in that same test, correct that test without waiting for Main, preserving all semantic assertions;
-7. inspect PR CI and workflow-job evidence directly;
-8. push multiple bounded corrective commits to the same branch/PR;
-9. update the PR body/comments with accurate current evidence;
-10. stop only after producing an exact-head candidate with all Phase C acceptance items non-PENDING and natural CI green, or after hitting a hard stop below.
-
-### ORDER-04 requirements remain mandatory
-
-The repeated-remove regression must use a mutable/steppable clock with real `T1 > T0`.
-
-It must prove on the corrected code:
-- first Valid -> Demo remove at T0 establishes revision R+1 and Demo anchor T0;
-- second remove at distinct T1 is idempotent;
-- exact `AuthorityRevision` preserved;
-- exact `DemoStartedAtUtc` preserved at T0;
-- exact `AuthorityChangedAtUtc` preserved at T0;
-- no second file mutation;
-- no second Runtime reevaluation;
-- no fence/epoch change;
-- a lease admitted after the first remove remains valid;
+The ORDER-04 regression uses a mutable clock with real `T1 > T0` and proves:
+- first Valid -> Demo establishes revision R+1 with Demo/authority anchor T0;
+- second already-Demo remove returns `already-demo`;
+- exact `AuthorityRevision`, `AuthorityChangedAtUtc` and `DemoStartedAtUtc` remain unchanged;
+- no second file mutation, Runtime reevaluation or fence occurs;
+- a post-first-remove lease remains valid;
 - pending transition remains fail-closed;
 - Invalid -> remove remains a real authority change.
 
-The same regression must be demonstrably RED against old head `40f0001f...`; the existing Main audit in #301 comment `5788352467` is acceptable RED evidence if the implemented test shape matches it.
+The strengthened mutation-boundary guard detects both direct calls and method-group references to `InstallLicense` / `RemoveLicense`.
 
-The acceptance #7 guard must detect both invocation and method-group references to `InstallLicense` / `RemoveLicense`.
+Main also revalidated the complete 12-file PR surface, migration 024 boundary, startup ordering, EngineeringModify authorization, audit redaction boundary, Runtime fencing/reconciliation contract and exact-head CI.
 
-### CI autonomy
+### Current state
 
-For each new head, prefer the natural PR CI.
+- Phase C candidate: **PR_READY / MAIN-REVIEWED / APPROVED FOR INTEGRATION**
+- FND-03 global: ACTIVE / NOT FROZEN
+- CODEX: WAIT_MAIN_INTEGRATION
+- FND-03 DEV: WAIT
+- FND-04 DEV/AUD: WAIT
+- FC0-A: BLOCKED
 
-If CI fails:
+CODEX must not add further commits, rerun CI or merge unless Main issues a new order.
 
-- if failure is in changed Phase C code/tests or has a direct causal path to them, CODEX may diagnose, correct, push, and let a new CI run without asking Main;
-- if failure is an unchanged unrelated test and evidence supports nondeterministic infrastructure/fixture behavior, CODEX may rerun the **single failed job once** without asking Main;
-- if that one rerun fails again, do not loop reruns; diagnose and either fix a proven fixture defect within the allowed Phase C/test boundary or STOP with evidence;
-- never weaken/skip tests, increase timeouts merely to mask failure, or change workflow gates to obtain green.
-
-### Files / scope freedom
-
-The prior exact 3-file limit is relaxed.
-
-CODEX may edit:
-- any production file already changed by PR #334 **only when directly causal to closing Phase C acceptance**;
-- relevant `tests/Scada.Drivers.Tests/**`;
-- the already accepted `web/scada-web/tests-e2e/c04-tag-source-browser.spec.ts` only for a proven same-test fixture defect.
-
-CODEX must not modify:
-- unrelated product areas;
-- `.github/workflows/**`;
-- licensing schema/signing/trust model beyond the already frozen design;
-- Runtime Session public contract or persistence schema/migrations beyond the already authorized migration 024;
-- HA, FND-04, FND-05+, #304 UX, License Generator UI, EliteGO, Historian switching;
-- canonical coordinator documents;
-- `main` or `wave15/corrections-integration` directly.
-
-### Hard-stop conditions — Main required
-
-STOP and return evidence if any correction would require:
-
-- a new migration/schema beyond existing authorized 024;
-- changing a frozen shared/public contract;
-- reopening Phase A/B semantics outside a defect directly necessary for Phase C correctness;
-- modifying authorization/capability semantics rather than consuming `EngineeringModify`;
-- weakening fencing/fail-closed behavior;
-- changing workflow gates;
-- touching another FND lane;
-- resolving a product decision not already fixed by #301 architecture.
-
-Use prefix:
-
-`CODEX -> MAIN COORDINATOR — BLOCKED-AUTONOMY-BOUNDARY`
-
-### Merge boundary
-
-CODEX still has **no merge authority**.
-
-Even after exact-head CI is fully green, CODEX must not merge PR #334 or write directly to integration/main.
-
-When the candidate is complete, return exactly:
-
-`CODEX -> MAIN COORDINATOR — FND-03 PHASE C FINAL CANDIDATE HANDOFF`
-
-including:
-- exact base/head/tree;
-- complete changed-file list;
-- final acceptance matrix with no silent PENDING;
-- ORDER-04 RED/GREEN evidence;
-- focused test evidence;
-- exact natural CI run/jobs;
-- PR state/base/head;
-- any rerun used and why;
-- explicit non-actions.
-
-Main then performs one final independent integration review rather than micromanaging intermediate iterations.
-
-Until that final review:
-- FND-03 remains ACTIVE / NOT FROZEN;
-- FND-03 DEV WAIT;
-- FND-04 DEV/AUD WAIT;
-- FC0-A BLOCKED.
+Main now owns the merge and exact post-merge verification gate.
 ---
 
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER

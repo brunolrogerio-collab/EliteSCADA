@@ -60,8 +60,6 @@ const engineeringPackage = {
 };
 
 test('TAG Source selector sends stable Data Source identity through Preview without depending on the historical DEMO', async ({ page }) => {
-  let previewCandidate: typeof engineeringPackage | null = null;
-
   await page.route('**/api/engineering/workspace', route => route.fulfill({ json: workspace }));
   await page.route('**/api/engineering/export/json', route => route.fulfill({ json: engineeringPackage }));
   await page.route('**/api/engineering/data-source-types', route => route.fulfill({
@@ -89,9 +87,8 @@ test('TAG Source selector sends stable Data Source identity through Preview with
       }]
     }
   }));
-  await page.route('**/api/engineering/import/json/preview', async route => {
-    previewCandidate = await route.request().postDataJSON() as typeof engineeringPackage;
-    await route.fulfill({
+  await page.route('**/api/engineering/import/json/preview', route =>
+    route.fulfill({
       json: {
         mode: 'Preview',
         createCount: 0,
@@ -101,8 +98,7 @@ test('TAG Source selector sends stable Data Source identity through Preview with
         items: [],
         canApply: true
       }
-    });
-  });
+    }));
 
   await page.goto('/engineering');
   await page.getByRole('button', { name: /TAGs/ }).click();
@@ -120,10 +116,13 @@ test('TAG Source selector sends stable Data Source identity through Preview with
   await expect(selector).toHaveValue(identity);
 
   await page.getByLabel('Nome').fill('Pressure C04 preview');
+  const previewRequest = page.waitForRequest(request =>
+    request.method() === 'POST' &&
+    new URL(request.url()).pathname === '/api/engineering/import/json/preview');
   await page.getByRole('button', { name: 'Validar preview' }).click();
+  const previewCandidate = (await previewRequest).postDataJSON() as typeof engineeringPackage;
   await expect(page.getByText('Preview não altera o Workspace nem o runtime.', { exact: true })).toBeVisible();
 
-  expect(previewCandidate).not.toBeNull();
   const previewedTag = previewCandidate!.tags.find(tag => tag.id === tagId);
   expect(previewedTag).toBeTruthy();
   expect(previewedTag?.source).toBe('plc-main');

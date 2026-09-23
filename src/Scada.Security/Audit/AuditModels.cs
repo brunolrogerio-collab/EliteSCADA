@@ -34,6 +34,9 @@ public static class AuditActions
     public const string EngineeringLockUnlock = "engineering.lock.unlock";
     public const string EngineeringLockClear = "engineering.lock.clear";
     public const string ServerMemoryRetentionReset = "server-memory.retention.reset";
+    public const string ProductLicenseInstall = "product-license.install";
+    public const string ProductLicenseReplace = "product-license.replace";
+    public const string ProductLicenseRemove = "product-license.remove";
     public const string AuditRead = "audit.read";
     public const string UserRoleManage = "user-role.manage";
     public const string AuthenticationLogin = "auth.login";

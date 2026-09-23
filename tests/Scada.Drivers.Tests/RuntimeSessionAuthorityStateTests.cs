@@ -24,7 +24,9 @@ public sealed class RuntimeSessionAuthorityStateTests
 
         var transition = await store.BeginAuthorityTransitionAsync("replace", now);
         Assert.Equal(1, transition.BaseAuthorityRevision);
-        Assert.True((await store.GetAuthorityStateAsync()).TransitionPending);
+        var pending = await store.GetAuthorityStateAsync();
+        Assert.True(pending.TransitionPending);
+        Assert.Equal(transition.BaseAuthorityRevision, pending.TransitionBaseAuthorityRevision);
 
         var committed = await store.CommitAuthorityChangeAsync(
             transition.TransitionId,
@@ -33,6 +35,7 @@ public sealed class RuntimeSessionAuthorityStateTests
             demoStartedAtUtc: null);
         Assert.Equal(2, committed.AuthorityRevision);
         Assert.True(committed.TransitionPending);
+        Assert.Equal(transition.BaseAuthorityRevision, committed.TransitionBaseAuthorityRevision);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             store.CompleteAuthorityTransitionAsync(transition.TransitionId, 2));
@@ -47,6 +50,7 @@ public sealed class RuntimeSessionAuthorityStateTests
         var completed = await store.GetAuthorityStateAsync();
         Assert.Equal(2, completed.AuthorityRevision);
         Assert.False(completed.TransitionPending);
+        Assert.Null(completed.TransitionBaseAuthorityRevision);
     }
 
     [Fact]
@@ -60,6 +64,7 @@ public sealed class RuntimeSessionAuthorityStateTests
         var state = await store.GetAuthorityStateAsync();
         Assert.Equal(1, state.AuthorityRevision);
         Assert.False(state.TransitionPending);
+        Assert.Null(state.TransitionBaseAuthorityRevision);
     }
 
     [Fact]
@@ -75,6 +80,7 @@ public sealed class RuntimeSessionAuthorityStateTests
         var state = await store.GetAuthorityStateAsync();
         Assert.True(state.AuthorityRevision >= 1);
         Assert.True(state.SupportsDurableRecovery);
+        Assert.Null(state.TransitionBaseAuthorityRevision);
 
         await using var dataSource = NpgsqlDataSource.Create(connectionString);
         await using var command = dataSource.CreateCommand("""
@@ -101,6 +107,21 @@ public sealed class RuntimeSessionAuthorityStateTests
               AND column_name = 'authority_revision';
             """);
         Assert.Contains("1", Convert.ToString(await columnDefault.ExecuteScalarAsync()) ?? string.Empty, StringComparison.Ordinal);
+
+        await using var transitionBaseColumn = dataSource.CreateCommand("""
+            SELECT count(*)
+            FROM information_schema.columns
+            WHERE table_schema = 'elitescada'
+              AND table_name = 'runtime_session_authority_state'
+              AND column_name = 'transition_base_authority_revision';
+            """);
+        Assert.Equal(1L, Convert.ToInt64(await transitionBaseColumn.ExecuteScalarAsync()));
+
+        await using var migration = dataSource.CreateCommand("""
+            SELECT count(*) FROM elitescada.schema_migrations
+            WHERE migration_key = '024_runtime_session_authority_transition_base_v1';
+            """);
+        Assert.Equal(1L, Convert.ToInt64(await migration.ExecuteScalarAsync()));
     }
 
     [Fact]
@@ -129,6 +150,7 @@ public sealed class RuntimeSessionAuthorityStateTests
             Assert.True(afterFailedCommit.TransitionPending);
             Assert.Equal(transition.TransitionId, afterFailedCommit.TransitionId);
             Assert.Equal(transition.BaseAuthorityRevision, afterFailedCommit.AuthorityRevision);
+            Assert.Equal(transition.BaseAuthorityRevision, afterFailedCommit.TransitionBaseAuthorityRevision);
 
             Assert.True(await store.AbortAuthorityTransitionAsync(
                 transition.TransitionId,
@@ -137,6 +159,7 @@ public sealed class RuntimeSessionAuthorityStateTests
             var afterAbort = await store.GetAuthorityStateAsync();
             Assert.False(afterAbort.TransitionPending);
             Assert.Equal(transition.BaseAuthorityRevision, afterAbort.AuthorityRevision);
+            Assert.Null(afterAbort.TransitionBaseAuthorityRevision);
         }
         finally
         {
@@ -237,6 +260,67 @@ public sealed class RuntimeSessionAuthorityStateTests
                 }
             }
 
+            await DeleteLeaseSubjectAsync(connectionString, subject);
+        }
+    }
+
+    [Fact]
+    public async Task PostgreSqlSecondTransition_PersistsCurrentBaseAndFencesRevisionTwoLease()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        await using var store = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await store.InitializeAsync();
+        var initial = await store.GetAuthorityStateAsync();
+        if (initial.TransitionPending) return;
+
+        var now = DateTimeOffset.UtcNow;
+        var subject = $"phase-c-second-transition-{Guid.NewGuid():N}";
+        var runtime = new RuntimeSessionRuntimeIdentity("engineering", "project-a", 7, now);
+        RuntimeAuthorityTransition? active = null;
+        try
+        {
+            active = await store.BeginAuthorityTransitionAsync("install", now);
+            var first = await store.CommitAuthorityChangeAsync(
+                active.TransitionId, active.BaseAuthorityRevision, now, null);
+            await store.FenceLeasesBeforeAuthorityRevisionAsync(active.TransitionId, first.AuthorityRevision);
+            await store.CompleteAuthorityTransitionAsync(active.TransitionId, first.AuthorityRevision);
+
+            var lease = await store.AdmitAsync(new RuntimeSessionLeaseAdmission(
+                subject, "client-a", "interactive", runtime, TimeSpan.FromMinutes(5)));
+            Assert.Equal(first.AuthorityRevision, lease.AuthorityRevision);
+
+            active = await store.BeginAuthorityTransitionAsync("replace", now.AddSeconds(1));
+            var pending = await store.GetAuthorityStateAsync();
+            Assert.Equal(first.AuthorityRevision, pending.AuthorityRevision);
+            Assert.Equal(first.AuthorityRevision, pending.TransitionBaseAuthorityRevision);
+            Assert.Equal(first.AuthorityChangedAtUtc, pending.AuthorityChangedAtUtc); // Prior timestamp is not proof of commit 2.
+            Assert.False((await store.ValidateAsync(
+                lease.SessionId, subject, runtime, "client-a")).IsValid);
+
+            var second = await store.CommitAuthorityChangeAsync(
+                active.TransitionId, active.BaseAuthorityRevision, now.AddSeconds(2), null);
+            Assert.Equal(first.AuthorityRevision + 1, second.AuthorityRevision);
+            await store.FenceLeasesBeforeAuthorityRevisionAsync(active.TransitionId, second.AuthorityRevision);
+            await store.CompleteAuthorityTransitionAsync(active.TransitionId, second.AuthorityRevision);
+            Assert.False((await store.ValidateAsync(
+                lease.SessionId, subject, runtime, "client-a")).IsValid);
+        }
+        finally
+        {
+            var current = await store.GetAuthorityStateAsync();
+            if (active is not null && current.TransitionPending && current.TransitionId == active.TransitionId)
+            {
+                if (current.AuthorityRevision == active.BaseAuthorityRevision)
+                    _ = await store.AbortAuthorityTransitionAsync(active.TransitionId, active.BaseAuthorityRevision);
+                else
+                {
+                    _ = await store.FenceLeasesBeforeAuthorityRevisionAsync(active.TransitionId, current.AuthorityRevision);
+                    await store.CompleteAuthorityTransitionAsync(active.TransitionId, current.AuthorityRevision);
+                }
+            }
             await DeleteLeaseSubjectAsync(connectionString, subject);
         }
     }

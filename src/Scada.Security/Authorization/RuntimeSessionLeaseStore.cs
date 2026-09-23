@@ -47,6 +47,7 @@ public sealed record RuntimeAuthorityState(
     Guid? TransitionId,
     string? TransitionKind,
     DateTimeOffset? TransitionStartedAtUtc,
+    long? TransitionBaseAuthorityRevision,
     DateTimeOffset? AuthorityChangedAtUtc,
     DateTimeOffset? DemoStartedAtUtc,
     bool SupportsDurableRecovery);
@@ -195,6 +196,7 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
     private Guid? _transitionId;
     private string? _transitionKind;
     private DateTimeOffset? _transitionStartedAtUtc;
+    private long? _transitionBaseAuthorityRevision;
     private DateTimeOffset? _authorityChangedAtUtc;
     private DateTimeOffset? _demoStartedAtUtc;
 
@@ -227,6 +229,7 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
             _transitionId = id;
             _transitionKind = kind.Trim();
             _transitionStartedAtUtc = startedAtUtc;
+            _transitionBaseAuthorityRevision = _authorityRevision;
             return new RuntimeAuthorityTransition(id, _authorityRevision, _transitionKind, startedAtUtc);
         }
         finally { _gate.Release(); }
@@ -242,6 +245,7 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
         {
             if (!_transitionPending ||
                 _transitionId != transitionId ||
+                _transitionBaseAuthorityRevision != expectedBaseAuthorityRevision ||
                 _authorityRevision != expectedBaseAuthorityRevision)
                 return false;
 
@@ -261,8 +265,8 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            RequireTransitionLocked(transitionId, expectedBaseAuthorityRevision);
-            _authorityRevision = checked(_authorityRevision + 1);
+            RequireTransitionForCommitLocked(transitionId, expectedBaseAuthorityRevision);
+            _authorityRevision = checked(expectedBaseAuthorityRevision + 1);
             _authorityChangedAtUtc = authorityChangedAtUtc;
             _demoStartedAtUtc = demoStartedAtUtc;
             return AuthorityStateLocked();
@@ -595,21 +599,33 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
             _transitionId,
             _transitionKind,
             _transitionStartedAtUtc,
+            _transitionBaseAuthorityRevision,
             _authorityChangedAtUtc,
             _demoStartedAtUtc,
             SupportsDurableRecovery: false);
 
-    private void RequireTransitionLocked(
+    private void RequireTransitionForCommitLocked(
         Guid transitionId,
-        long expectedRevision,
-        bool revisionAlreadyAdvanced = false)
+        long expectedBaseAuthorityRevision)
     {
-        if (!_transitionPending || _transitionId != transitionId)
+        if (!_transitionPending ||
+            _transitionId != transitionId ||
+            _transitionBaseAuthorityRevision != expectedBaseAuthorityRevision)
             throw new InvalidOperationException("Runtime authority transition does not match the pending transition.");
-
-        var expected = revisionAlreadyAdvanced ? expectedRevision : expectedRevision;
-        if (_authorityRevision != expected)
+        if (_authorityRevision != expectedBaseAuthorityRevision)
             throw new InvalidOperationException("Runtime authority revision changed unexpectedly.");
+    }
+
+    private void RequireTransitionLocked(Guid transitionId, long authorityRevision, bool revisionAlreadyAdvanced = false)
+    {
+        if (!_transitionPending ||
+            _transitionId != transitionId ||
+            _transitionBaseAuthorityRevision is not { } transitionBase ||
+            _authorityRevision != authorityRevision ||
+            (revisionAlreadyAdvanced && authorityRevision != checked(transitionBase + 1)))
+        {
+            throw new InvalidOperationException("Runtime authority transition does not match the pending transition.");
+        }
     }
 
     private void ClearTransitionLocked()
@@ -618,6 +634,7 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
         _transitionId = null;
         _transitionKind = null;
         _transitionStartedAtUtc = null;
+        _transitionBaseAuthorityRevision = null;
     }
 
     private void ExpireLocked(DateTimeOffset now)

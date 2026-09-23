@@ -38,28 +38,29 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0004`
+`MAIN_ORDER_REV: 0005`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-23 — FND-04 ACTIVATED ON VERIFIED FND-03 CHECKPOINT`
+`LAST_MAIN_UPDATE_BRT: 2026-09-23 — DEV ENV BLOCKER ACCEPTED / CODEX RUNTIME EXECUTOR ACTIVATED`
 
 `GLOBAL_GATE: FND04_ACTIVE`
 
 Current situation:
 
-- FND-03 is now **VERIFIED / FROZEN** on exact product checkpoint `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6` / tree `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`.
-- Exact post-merge EliteSCADA CI #1559 / run `35815261288`, attempt 2, completed SUCCESS on that SHA:
-  - Web `107058812138` — SUCCESS;
-  - Backend `107058810300` — SUCCESS;
-  - Chromium `107059153655` — SUCCESS / 624 passed.
-- Attempt 1 had one isolated PostgreSQL advisory-lock test failure outside the FND-03 delta; the permitted single backend-job rerun succeeded, and dependent Chromium then completed green.
-- FND-04 `FND04-TAGREF-V1` is now **ACTIVE / PLAN FROZEN / NOT INTEGRATED**.
-- Exact implementation branch has been created from the verified product checkpoint:
+- FND-03 remains **VERIFIED / FROZEN** on exact product checkpoint `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6` / tree `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`.
+- FND-04 `FND04-TAGREF-V1` remains **ACTIVE / PLAN FROZEN / NOT INTEGRATED**.
+- Exact implementation branch remains intact at the verified base:
   - `work/w15-fnd-04-script-tag-reference-resolution`
-  - base `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
-- DEV owns implementation under section 3B and the CURRENT DEV ORDER below.
-- AUD remains READ_ONLY / WAIT_CANDIDATE until Main supplies an immutable DEV candidate.
+  - head/base `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
+- The original normal FND-04 DEV chat reported a pure environment blocker before any RED test or product/test mutation:
+  - local runtime cannot resolve `github.com`;
+  - connector can read/write GitHub but cannot execute `dotnet`, Playwright or the required RED/GREEN commands;
+  - branch remains untouched.
+- Main accepts this as **BLOCKED-ENV**, not a contract/product blocker.
+- Execution ownership is temporarily delegated to a dedicated **FND-04 CODEX EXECUTOR** with a functional checkout/runtime. The executor must use the exact same section 3B plan, base, branch, allowlists, RED-before-production rule and no-merge boundary.
+- The original FND-04 DEV lane is now `BLOCKED_ENV / WATCH_ONLY`: it may revalidate the control plane and later review the Codex handoff, but it must not create a competing implementation.
+- AUD remains `READ_ONLY / WAIT_CANDIDATE` until Main publishes an immutable candidate.
 
-Coordination-document commits after the product checkpoint do not change the FND-04 product base. Any non-document product/infra delta on integration before candidate review is `BLOCKED-BASE-DIVERGENCE`.
+Coordination-document commits after the product checkpoint do not change the FND-04 product base. Any non-document product/infra delta on integration before candidate review remains `BLOCKED-BASE-DIVERGENCE` unless explicitly acknowledged by Main.
 ---
 
 ## 3. Frozen FND-04 product objective
@@ -466,7 +467,7 @@ AUD remains READ_ONLY unless Main later explicitly sets AUD_MODE: WRITE_TESTS.
 
 `LANE: FND-04 DEV`
 
-`STATE: ACTIVE`
+`STATE: BLOCKED_ENV / WATCH_ONLY`
 
 Reserved implementation branch after activation:
 
@@ -493,11 +494,11 @@ DEV must not:
 
 ### CURRENT DEV ORDER
 
-`ORDER_ID: FND04-DEV-TAGREF-V1-01`
+`ORDER_ID: FND04-DEV-ENV-HOLD-02`
 
-`ORDER_STATE: ACTIVE`
+`ORDER_STATE: BLOCKED_ENV`
 
-`DEV_MODE: IMPLEMENTATION`
+`DEV_MODE: WATCH_ONLY / NO COMPETING IMPLEMENTATION`
 
 `EXACT_BASE_SHA: a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
 
@@ -505,29 +506,11 @@ DEV must not:
 
 `WORK_BRANCH: work/w15-fnd-04-script-tag-reference-resolution`
 
-`TARGET_BRANCH: wave15/corrections-integration`
-
-`EXECUTION_PLAN: FND04-TAGREF-V1 / section 3B`
-
-`VALIDATION_PROFILE: SCRIPT_ENGINEERING, SCRIPT_RUNTIME`
-
 Instruction:
 
-> Execute section 3B exactly. Start from the already-created exact branch above. Before any production change, revalidate that the branch still descends directly from the exact base and that integration has no unacknowledged product/infra delta. Then implement the mandatory RED -> GREEN sequence, commit in reviewable slices, push to the same work branch and open exactly one PR to `wave15/corrections-integration`.
+> Main accepts the reported environment blocker. Do not create production/test commits from this normal chat while the FND-04 CODEX EXECUTOR order below is ACTIVE. On `SIGA`, re-read this file, revalidate live branch/head and report status only. You may review the eventual immutable Codex handoff/candidate when Main asks, but you are not a second implementation team.
 
-Binding execution rules:
-
-- establish and record RED-1/RED-2/RED-3 before production correction;
-- do not broaden the production/test allowlists;
-- do not change frozen TAG identity, Authority, Runtime Session, sandbox or Driver contracts;
-- preserve legacy GUID compatibility while making new canonical authoring path-readable;
-- use the exact resolver states and precedence in section 3B;
-- no self-merge;
-- exact-head natural CI must be green before `PR_READY`;
-- if a hard-stop criterion in section 3B.11 is hit, stop immediately with `FND-04 DEV -> MAIN COORDINATOR — BLOCKED-CONTRACT`;
-- environment-only inability to run required evidence returns `BLOCKED-ENV`, never PASS.
-
-Main grants bounded autonomy inside the closed plan: DEV may iterate `RED -> implement -> focused tests -> push -> inspect natural CI -> causally correct within allowlist` without waiting for a new Main micro-order. Any need to widen scope/contracts returns to Main.
+The original implementation order `FND04-DEV-TAGREF-V1-01` remains the binding implementation contract for the delegated Codex executor; it is not cancelled semantically, only reassigned operationally because this chat cannot execute mandatory RED/GREEN evidence.
 
 ### DEV mandatory return format
 
@@ -560,6 +543,94 @@ Every DEV handoff must include:
 - `PASS | FAIL | PENDING` acceptance matrix;
 - residual risks and deferred items;
 - explicit confirmation of no second resolver/TAG registry/Authority pipeline.
+
+
+---
+
+## 4A. FND-04 CODEX EXECUTOR lane
+
+### Identity
+
+`LANE: FND-04 CODEX EXECUTOR`
+
+`STATE: ACTIVE`
+
+`RUNTIME_REQUIREMENT: functional checkout + dotnet + Node/Playwright + GitHub push/PR capability`
+
+This is a temporary execution substitution for the environment-blocked normal DEV chat. It does **not** create a second architecture or a second implementation owner.
+
+### CURRENT CODEX EXECUTION ORDER
+
+`ORDER_ID: FND04-CODEX-TAGREF-V1-01`
+
+`ORDER_STATE: ACTIVE`
+
+`EXECUTOR_MODE: IMPLEMENTATION_WITH_LOCAL_RED_GREEN`
+
+`SOURCE_DEV_ORDER: FND04-DEV-TAGREF-V1-01`
+
+`EXACT_BASE_SHA: a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
+
+`EXACT_BASE_TREE: e48c8b9918f4d3a5ae4dee1df6211393c95b6513`
+
+`WORK_BRANCH: work/w15-fnd-04-script-tag-reference-resolution`
+
+`TARGET_BRANCH: wave15/corrections-integration`
+
+`EXECUTION_PLAN: FND04-TAGREF-V1 / section 3B`
+
+`VALIDATION_PROFILE: SCRIPT_ENGINEERING, SCRIPT_RUNTIME`
+
+Instruction:
+
+> Read this control plane in full, then execute section 3B exactly on the existing FND-04 work branch. The branch must still begin from the exact base above. Establish and record mandatory RED-1 / RED-2 / RED-3 against the exact base **before the first production correction**. Then implement the closed plan, run focused GREEN evidence locally, push reviewable commits to the same branch, open exactly one PR to `wave15/corrections-integration`, and allow natural exact-head CI. Do not merge.
+
+Executor obligations:
+
+- use a real checkout/runtime; connector-only evidence is insufficient for RED/GREEN;
+- preserve every production/test allowlist in section 3B;
+- preserve stable TagId authority, existing TAG registry, Authority, Runtime Session, sandbox and Driver boundaries;
+- no second resolver, registry, cache-of-truth or auth pipeline;
+- preserve explicit legacy GUID compatibility;
+- keep the resolver states/precedence exactly as section 3B defines;
+- record exact RED command/test/failure evidence before production code;
+- record exact GREEN commands/results and `git diff --check`;
+- if natural CI exposes a causal defect inside the allowlist, correct it autonomously and rerun through a new head;
+- if completion requires any section 3B.11 hard-stop condition or scope widening, stop with `FND-04 CODEX EXECUTOR -> MAIN COORDINATOR — BLOCKED-CONTRACT`;
+- if the Codex runtime itself cannot execute required tooling, stop with `... — BLOCKED-ENV`;
+- no merge, no integration/main write, no VERIFIED/FROZEN declaration.
+
+Bounded autonomy:
+
+`RED -> implement -> focused GREEN -> commit/push -> PR -> natural CI -> causal correction within allowlist`
+
+No new Main micro-order is required inside that loop.
+
+### CODEX mandatory return format
+
+Normal candidate handoff must begin exactly:
+
+`FND-04 CODEX EXECUTOR -> MAIN COORDINATOR — IMPLEMENTATION HANDOFF`
+
+and include:
+
+- exact base SHA/tree;
+- RED-1/RED-2/RED-3 command + discriminating failure evidence;
+- exact head SHA/tree;
+- branch and PR;
+- changed files/symbols;
+- resolver public contract/states and precedence;
+- persistence/binding contract;
+- read/write integration points;
+- rename/move/path-reuse behavior;
+- legacy GUID policy;
+- Authority/security/sandbox preservation evidence;
+- GREEN commands/results;
+- natural CI run/job IDs;
+- section 3B.13 acceptance table `PASS | FAIL | PENDING`;
+- explicit confirmation of no second resolver/TAG registry/Authority pipeline;
+- explicit non-actions.
+
 
 ---
 

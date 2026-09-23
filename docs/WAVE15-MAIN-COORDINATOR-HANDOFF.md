@@ -8,7 +8,7 @@
 >
 > **GitHub live é a autoridade final.** Se este documento divergir do repositório/PRs/Actions live, o Main reconstrói o estado e corrige este arquivo antes de emitir nova ordem.
 
-**Status date:** 2026-09-22 BRT  
+**Status date:** 2026-09-23 BRT  
 **Wave:** 15 — complete product delivery  
 **Integration branch:** `wave15/corrections-integration`  
 **Main Coordinator:** único emissor das ordens abaixo
@@ -95,20 +95,24 @@ State machine:
 
 ### PRODUCT CHECKPOINT atual
 
-FND-03 License Lifecycle/Fencing Phase A e Phase B estão integradas e verificadas.
+FND-03 está agora integralmente **VERIFIED / FROZEN**.
 
-- product checkpoint / PR #333 merge SHA: `4647dd741551c97306217ac9893d3378b070f43b`
-- tree: `d7eb7d3f57269e71ed5984c82e701a059be56bfb`
-- reviewed Phase B candidate: `29c5911318c06f6d07578dd4b97b908f66e3c773`
-- candidate tree: `8e890abab8de005ab4f8e09899e9a208ef3f8073`
-- exact PR CI #1554 / run `35663835807`: Backend/Web/Chromium **SUCCESS**
-- exact post-merge CI #1555 / run `35665138086` on `4647dd741...`:
-  - Web `106549082646` — **SUCCESS**
-  - Backend `106549082897` — **SUCCESS**
-  - Chromium `106549531824` — **SUCCESS**
+- exact integrated product checkpoint / PR #334 merge SHA: `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
+- tree: `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`
+- reviewed Phase C candidate parent: `5ddb9065efa24b52c81e59fdfe3aa3b0b9e9d1c4`
+- candidate tree: `e2fd7012b5d1fbc3b5d6ee8cf020d1d62fd66f12`
+- candidate CI #1558 / run `35813975645`: Backend/Web/Chromium SUCCESS
+- exact post-merge CI #1559 / run `35815261288`, attempt 2: SUCCESS
+  - Web `107058812138` — SUCCESS
+  - Backend `107058810300` — SUCCESS
+  - Chromium `107059153655` — SUCCESS / 624 passed
 
-Antes desta ordem, o coordination HEAD era `8debd70b7c0e0e432b7deca29f5b31070a73e837`; o compare desde o product checkpoint mostrava quatro commits à frente e alterações somente em `LAST CHANGE.md`, `docs/CURRENT-COORDINATOR-HANDOFF.md` e `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`. O commit documental desta própria ordem pode avançar novamente o coordination HEAD sem criar novo product base.
+Attempt 1 of #1559 had one isolated PostgreSQL advisory-lock test failure outside the FND-03 delta. Main diagnosed it, used the permitted single failed-backend-job rerun, and the exact same integrated SHA completed attempt 2 fully green. No product/workflow mutation was made to obtain the green gate.
 
+The FND-04 work branch was created directly from this exact verified product checkpoint:
+`work/w15-fnd-04-script-tag-reference-resolution`.
+
+Coordination/documentation commits after this checkpoint do not create a new product base.
 ### Foundation
 
 - FND-01 — **VERIFIED/FROZEN**
@@ -118,93 +122,38 @@ Antes desta ordem, o coordination HEAD era `8debd70b7c0e0e432b7deca29f5b31070a73
 - FND-03 machine-license v2 + hardening — **VERIFIED/FROZEN**
 - FND-03 Runtime Admission — **VERIFIED/FROZEN**
 - FND-03 Shared Runtime Seat Accounting — **VERIFIED/FROZEN**
-- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **PHASE A+B BASELINE VERIFIED / BOUNDED PHASE A DEFECT AMENDMENT AUTHORIZED / PHASE C ACTIVE / NOT INTEGRATED**
-- FND-03 global — **ACTIVE / NOT FROZEN**
-- FND-04 Script TAG Reference Resolution — **QUEUED / CONTRACT DEFINED / NOT ACTIVE / NOT FROZEN**
-- FC0-A — **BLOCKED**
+- FND-03 License Lifecycle + Runtime Authority Re-evaluation/Fencing — **VERIFIED/FROZEN**
+- FND-03 global — **VERIFIED/FROZEN**
+- FND-04 Script TAG Reference Resolution — **ACTIVE / EXECUTABLE PLAN FROZEN / NOT INTEGRATED**
+- FND-06 — **NOT STARTED**
+- INFRA-CI-01 — **AUDITED / IMPLEMENTATION PENDING**
+- FC0-A — **BLOCKED on FND-04 + FND-06 + INFRA-CI-01**
 
 ---
 
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
 **ORDER_STATE: WAIT**  
-**ORDER_ID: FND03-PHASE-C-FINAL-CANDIDATE-VERIFIED-06**  
-**CODEX_MODE: WAIT_MAIN_INTEGRATION**  
-**Mission:** hold exact Phase C final candidate while Main integrates and performs exact merge-SHA verification
+**ORDER_ID: FND03-FROZEN-07**  
+**CODEX_MODE: WAIT / NO ACTIVE MISSION**  
+**Mission:** no FND-03 action; exact integrated checkpoint is verified/frozen
 
-Main independently reviewed the final candidate and its closing delta.
+FND-03 is frozen at:
+- `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
+- tree `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`
+- post-merge CI #1559 / `35815261288`, attempt 2 — SUCCESS.
 
-### Exact candidate
-
-- product base: `4647dd741551c97306217ac9893d3378b070f43b`
-- candidate head: `5ddb9065efa24b52c81e59fdfe3aa3b0b9e9d1c4`
-- candidate tree: `e2fd7012b5d1fbc3b5d6ee8cf020d1d62fd66f12`
-- branch: `work/w15-fnd-03-license-lifecycle-orchestrator-v1`
-- PR #334: OPEN / mergeable / target `wave15/corrections-integration`
-- exact natural CI #1558 / run `35813975645`: SUCCESS
-  - Backend `107031432714` — SUCCESS
-  - Web `107031432463` — SUCCESS
-  - Chromium `107031753897` — SUCCESS
-
-### Independent Main review result
-
-The exact closing delta from `40f0001f...` to `5ddb9065...` is limited to:
-- `src/Scada.Api/Licensing/ProductLicenseLifecycleCoordinator.cs`;
-- `tests/Scada.Drivers.Tests/ProductLicenseLifecycleCoordinatorTests.cs`;
-- `tests/Scada.Drivers.Tests/ProductLicenseMutationBoundaryTests.cs`.
-
-The ORDER-04 regression uses a mutable clock with real `T1 > T0` and proves:
-- first Valid -> Demo establishes revision R+1 with Demo/authority anchor T0;
-- second already-Demo remove returns `already-demo`;
-- exact `AuthorityRevision`, `AuthorityChangedAtUtc` and `DemoStartedAtUtc` remain unchanged;
-- no second file mutation, Runtime reevaluation or fence occurs;
-- a post-first-remove lease remains valid;
-- pending transition remains fail-closed;
-- Invalid -> remove remains a real authority change.
-
-The strengthened mutation-boundary guard detects both direct calls and method-group references to `InstallLicense` / `RemoveLicense`.
-
-Main also revalidated the complete 12-file PR surface, migration 024 boundary, startup ordering, EngineeringModify authorization, audit redaction boundary, Runtime fencing/reconciliation contract and exact-head CI.
-
-### Current state
-
-- Phase C candidate: **PR_READY / MAIN-REVIEWED / APPROVED FOR INTEGRATION**
-- FND-03 global: ACTIVE / NOT FROZEN
-- CODEX: WAIT_MAIN_INTEGRATION
-- FND-03 DEV: WAIT
-- FND-04 DEV/AUD: WAIT
-- FC0-A: BLOCKED
-
-CODEX must not add further commits, rerun CI or merge unless Main issues a new order.
-
-Main now owns the merge and exact post-merge verification gate.
+CODEX must make no FND-03 or FND-04 changes unless Main later issues a new explicit bounded mission.
 ---
 
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
 
 **ORDER_STATE: WAIT**  
-**DEV_MODE: WAIT_CODEX_PHASE_C**  
-**Mission:** FND-03 License Lifecycle/Fencing — Phase C assigned exclusively to CODEX
+**DEV_MODE: FND03_FROZEN / NO ACTIVE MISSION**
 
-Phase A and Phase B remain **VERIFIED/FROZEN** at product checkpoint:
+FND-03 is **VERIFIED/FROZEN** at exact checkpoint `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`.
 
-- PR #333 merge SHA: `4647dd741551c97306217ac9893d3378b070f43b`
-- merge tree: `d7eb7d3f57269e71ed5984c82e701a059be56bfb`
-- exact post-merge CI #1555 / run `35665138086` — Web/Backend/Chromium SUCCESS
-
-The active Phase C work package is owned by CODEX under `FND03-PHASE-C-LIFECYCLE-ORCH-02`.
-
-While this order is WAIT:
-
-- make no code/test/branch/PR changes;
-- do not implement or review Phase C unless Main later assigns a bounded correction/review;
-- do not rerun CI;
-- do not merge anything;
-- do not start FND-04 / FC0-A;
-- on `SIGA`, reread this file, confirm `WAIT_CODEX_PHASE_C`, and stop.
-
-FND-04 DEV/AUD remain WAIT.
-FC0-A remains BLOCKED.
+On `SIGA`, re-read this file and GitHub live; if no new Main order exists, report `FND-03 DEV — FROZEN / WAIT` and stop.
 ---
 
 ## 3. FND-03 ACCEPTANCE BINDING
@@ -236,21 +185,31 @@ Scope exclusions: License Generator UI; full #304 detach/switch UX; Authority A-
 
 ## 4. MAIN COORDINATOR -> FND-04 DEV — CURRENT ORDER
 
-**ORDER_STATE: WAIT**  
-Reserved branch: `work/w15-fnd-04-script-tag-reference-resolution`  
-Target: `wave15/corrections-integration`.
+**ORDER_STATE: ACTIVE**  
+**ORDER_ID: FND04-DEV-TAGREF-V1-01**  
+**Exact product base:** `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`  
+**Base tree:** `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`  
+**Work branch:** `work/w15-fnd-04-script-tag-reference-resolution`  
+**Target:** `wave15/corrections-integration`  
+**Validation profile:** `SCRIPT_ENGINEERING, SCRIPT_RUNTIME`
 
-No implementation until Main activates with exact product base/scope/acceptance.
+The dedicated control plane is authoritative for implementation details:
 
+- branch: `coord/w15-fnd04-dev-aud-control`
+- file: `docs/WAVE15-FND04-DEV-AUD-CONTROL.md`
+- Main control commit at activation: `cea43de5141824057822657d35ed2fb32b3d03f4`
+- plan: `FND04-TAGREF-V1`, section 3B.
+
+DEV has bounded autonomy inside that closed plan to iterate RED -> implementation -> focused tests -> push -> natural CI, without Main micro-orders. No scope/contract widening or self-merge is authorized.
 ---
 
 ## 5. MAIN COORDINATOR -> FND-04 AUD — CURRENT ORDER
 
-**ORDER_STATE: WAIT**  
+**ORDER_STATE: WAIT_CANDIDATE**  
+**ORDER_ID: FND04-AUD-WAIT-CANDIDATE-0003**  
 **Default mode:** `READ_ONLY_REVIEW`
 
-No speculative audit/test write. When activated, Main supplies exact DEV candidate and `AUD_MODE`.
-
+DEV is active, but AUD must not inspect a moving candidate as if immutable. Wait until Main supplies exact DEV candidate SHA/tree, then execute the adversarial matrix from the dedicated control plane.
 ---
 
 ## 6. FND-04 BINDING CONTRACT — READY, NOT ACTIVE

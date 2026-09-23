@@ -11,91 +11,73 @@
 - Wave 15 — ACTIVE.
 - FND-01 — VERIFIED/FROZEN.
 - FND-02 incl. AUTH-04 — VERIFIED/FROZEN.
-- FND-08 — VERIFIED/FROZEN.
-- FND-03 durable Runtime Session Lease v1 — VERIFIED/FROZEN.
-- FND-03 machine-license v2 + hardening — VERIFIED/FROZEN.
-- FND-03 Runtime Admission — VERIFIED/FROZEN.
-- FND-03 Shared Runtime Seat Accounting — VERIFIED/FROZEN.
-- FND-03 License Lifecycle/Fencing Phase A — BASELINE VERIFIED; bounded transition-base defect amendment AUTHORIZED.
-- FND-03 License Lifecycle/Fencing Phase B — BASELINE VERIFIED; semantic behavior remains frozen unless directly required by the same defect.
-- FND-03 Phase C — PR_READY / MAIN-REVIEWED / APPROVED FOR INTEGRATION / NOT YET INTEGRATED.
-- FND-03 global — ACTIVE / NOT FROZEN.
-- FND-04 — QUEUED / CONTRACT DEFINED / WAIT.
-- FC0-A — BLOCKED.
+- FND-08 common timing contract — VERIFIED/FROZEN.
+- FND-03 — **VERIFIED/FROZEN**.
+- FND-04 — **ACTIVE / FND04-TAGREF-V1 / NOT INTEGRATED**.
+- FND-06 — NOT STARTED.
+- INFRA-CI-01 — AUDITED / IMPLEMENTATION PENDING.
+- FC0-A — BLOCKED on FND-04 + FND-06 + INFRA-CI-01.
 
 ## Latest verified product checkpoint
 
-PR #333 merge:
+PR #334 merge:
 
-`4647dd741551c97306217ac9893d3378b070f43b`
-
-tree:
-
-`d7eb7d3f57269e71ed5984c82e701a059be56bfb`
-
-Reviewed Phase B candidate:
-
-`29c5911318c06f6d07578dd4b97b908f66e3c773`
+`a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
 
 tree:
 
-`8e890abab8de005ab4f8e09899e9a208ef3f8073`
+`e48c8b9918f4d3a5ae4dee1df6211393c95b6513`
 
-Exact CI evidence:
+Exact post-merge CI:
+- EliteSCADA CI #1559 / run `35815261288`, attempt 2 — SUCCESS.
+- Web `107058812138` — SUCCESS.
+- Backend `107058810300` — SUCCESS.
+- Chromium `107059153655` — SUCCESS / 624 passed.
 
-- PR CI #1554 / run `35663835807` — Backend/Web/Chromium SUCCESS.
-- Post-merge CI #1555 / run `35665138086` on `4647dd741...`:
-  - Web `106549082646` — SUCCESS
-  - Backend `106549082897` — SUCCESS
-  - Chromium `106549531824` — SUCCESS
+Attempt 1 had one isolated PostgreSQL advisory-lock failure outside the FND-03 delta; the single permitted failed-backend-job rerun succeeded on the same SHA and the dependent Chromium job completed green.
 
 Coordination/documentation HEAD may be ahead of the product checkpoint. Do not treat doc-only commits as a new product base.
 
 ## Current agent state
 
-### FND-03 DEV
+### CODEX / FND-03 DEV
 
-`ORDER_STATE: WAIT`  
-`DEV_MODE: WAIT_CODEX_PHASE_C`
+WAIT. FND-03 is frozen; no active mission.
 
-Phase C implementation is assigned exclusively to CODEX; DEV remains idle to prevent dual implementation.
+### FND-04 DEV
 
-### CODEX
+`ORDER_STATE: ACTIVE`  
+`ORDER_ID: FND04-DEV-TAGREF-V1-01`
 
-`ORDER_STATE: WAIT`  
-`ORDER_ID: FND03-PHASE-C-FINAL-CANDIDATE-VERIFIED-06`  
-`CODEX_MODE: WAIT_MAIN_INTEGRATION`
+Exact base:
+`a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
 
-Exact final candidate:
-- PR #334 head `5ddb9065efa24b52c81e59fdfe3aa3b0b9e9d1c4`;
-- tree `e2fd7012b5d1fbc3b5d6ee8cf020d1d62fd66f12`;
-- natural CI #1558 / `35813975645` fully green;
-- final acceptance matrix has no PENDING;
-- Main independently reviewed ORDER-04 RED/GREEN, complete PR scope and CI.
+Work branch:
+`work/w15-fnd-04-script-tag-reference-resolution`
 
-No further CODEX action is authorized until Main completes integration/post-merge verification.
+Dedicated control plane:
+`coord/w15-fnd04-dev-aud-control:docs/WAVE15-FND04-DEV-AUD-CONTROL.md`
 
+Activation control commit:
+`cea43de5141824057822657d35ed2fb32b3d03f4`
 
-### FND-04 DEV/AUD
+Plan:
+`FND04-TAGREF-V1`
 
-WAIT.
+### FND-04 AUD
+
+`WAIT_CANDIDATE / READ_ONLY_REVIEW`.
 
 ### FC0-A
 
-BLOCKED.
+BLOCKED until FND-04 + FND-06 + INFRA-CI-01 satisfy their gates.
 
 ## Current Main decision
 
-PR #334 exact candidate `5ddb9065...` is independently reviewed and approved for integration.
+FND-03 has completed the full state machine through VERIFIED/FROZEN on exact SHA `a3eb86f8...`.
 
-- product base remains `4647dd741551c97306217ac9893d3378b070f43b`;
-- candidate tree `e2fd7012...`;
-- exact CI #1558 fully green;
-- ORDER-04 repeated-remove loophole is closed with mutable-clock T1>T0 proof;
-- acceptance #7 guard covers calls and method groups;
-- integration HEAD movement since product base remains coordination/documentation-only;
-- Main owns merge and exact post-merge gate;
-- FND-04 DEV/AUD remain WAIT;
-- FC0-A remains BLOCKED.
+FND-04 is the active Foundation implementation lane. DEV may execute the frozen plan with bounded autonomy inside its allowlist; AUD waits for an immutable candidate. Main retains candidate review, integration, post-merge verification and freeze authority.
 
-Do not ask the Product Owner to carry agent messages. The canonical handoff is the primary order channel.
+Separately, the CI efficiency audit confirmed the broad Chromium suite is the dominant wall-clock cost; INFRA-CI-01 remains a required FC0-A gate and should implement profile-aware T1 validation plus safe isolated browser sharding rather than weakening coverage.
+
+Do not ask the Product Owner to carry agent messages.

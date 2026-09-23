@@ -6,6 +6,8 @@ import {
   buildPropertyInspectorSetIntent,
   parsePropertyInspectorInput
 } from '../src/engineering/visual-editor/property-inspector/propertyInspectorModel';
+import { listBindableVisualProperties } from '../src/engineering/visual-editor/binding-editor/bindingEditorModel';
+import { listDynamicPropertyDestinations } from '../src/engineering/visual-editor/dynamic-property-editor/visualDynamicAuthoringModel';
 
 function element(
   id: string | null,
@@ -123,6 +125,18 @@ test('RED: known persisted legacy visual types stay selectable while arbitrary u
   expect(buildPropertyInspectorModel([
     element('unknown-1', 'vendor.unknown-x', {})
   ]).error).toMatch(/not registered/);
+});
+
+test('known legacy selections do not crash the mounted binding or dynamic-property panels', () => {
+  for (const type of ['tank', 'value', 'dynamo', 'status']) {
+    const selected = element(`legacy-${type}`, type, { x: 12 }, `legacy-${type}`);
+    expect(() => listBindableVisualProperties(selected)).not.toThrow();
+    expect(() => listDynamicPropertyDestinations(selected)).not.toThrow();
+  }
+
+  const unknown = element('unknown-1', 'vendor.unknown-x', {});
+  expect(() => listBindableVisualProperties(unknown)).toThrow(/registered|Unknown built-in/);
+  expect(() => listDynamicPropertyDestinations(unknown)).toThrow(/registered|Unknown built-in/);
 });
 
 test('supports typed Wave 08 value families without inventing editor-private validation', () => {

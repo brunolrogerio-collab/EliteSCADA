@@ -3,7 +3,7 @@ import type {
   TagValueReferenceEngineering,
   VisualElementEngineering
 } from '../../types';
-import { getBuiltinVisualObjectSchema } from '../../../visual-runtime/builtinVisualObjectSchemas';
+import { getVisualSchemaForEngineering } from '../../../visual-runtime';
 import type { VisualPropertyDefinition, VisualPropertyType } from '../../../visual-runtime/visualPropertyTypes';
 import type {
   VisualEditorBindingSelectorCapability,
@@ -396,7 +396,7 @@ function requireBindableDestination(objectType: string, propertyKey: string): Vi
 
 function requireBuiltinSchema(objectType: string) {
   try {
-    return getBuiltinVisualObjectSchema(objectType);
+    return getVisualSchemaForEngineering(objectType);
   } catch {
     throw new VisualBindingEditorError(
       'binding.objectType.unsupported',

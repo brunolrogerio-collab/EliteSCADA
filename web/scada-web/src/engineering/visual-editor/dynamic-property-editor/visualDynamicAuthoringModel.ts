@@ -2,7 +2,7 @@ import {
   compileVisualExpression,
   type VisualExpressionDiagnostic
 } from '../../../expressions';
-import { getBuiltinVisualObjectSchema } from '../../../visual-runtime/builtinVisualObjectSchemas';
+import { getVisualSchemaForEngineering } from '../../../visual-runtime';
 import type { VisualPropertyDefinition } from '../../../visual-runtime/visualPropertyTypes';
 import type {
   TagValueReferenceEngineering,
@@ -40,7 +40,7 @@ export type DynamicAuthoringValidation = Readonly<{
 export function listDynamicPropertyDestinations(
   element: Pick<VisualElementEngineering, 'type'>
 ): readonly DynamicPropertyDestination[] {
-  const schema = getBuiltinVisualObjectSchema(element.type);
+  const schema = getVisualSchemaForEngineering(element.type);
   return Object.freeze(schema.definitions()
     .filter(definition => definition.supportsBinding && (definition.type === 'boolean' || definition.type === 'number'))
     .map(definition => Object.freeze({

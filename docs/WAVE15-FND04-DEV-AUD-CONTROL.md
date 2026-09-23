@@ -38,9 +38,9 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0011`
+`MAIN_ORDER_REV: 0012`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-23 15:00 BRT — CASE CLOSE HEAD HELD BY MAIN / ORDINALIGNORECASE PARITY PROOF REQUIRED`
+`LAST_MAIN_UPDATE_BRT: 2026-09-23 16:22 BRT — ORDINAL PARITY CANDIDATE REJECTED / SOURCE-BINDING VS REGISTRY-BINDING SEMANTICS SEPARATED`
 
 `GLOBAL_GATE: FND04_ACTIVE`
 
@@ -48,14 +48,19 @@ Current situation:
 
 - FND-03 remains **VERIFIED / FROZEN** on exact product checkpoint `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6` / tree `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`.
 - INFRA-CI-01A remains **VERIFIED / FROZEN** at merge `9f62ad56e3fed5574bab1fa25fc8b64f9e4ae981`.
-- CODEX produced case-close head `139330bcdf758928171f82fb9f4a0984f0aa3455` / tree `9bdddad56edec63989a13f7510614fca6cfa8782` on PR #336.
-- Natural Wave 15 T1 run `35900689584` is SUCCESS on that exact head; the corrective delta from `8dba4f11...` is one commit / 5 allowlisted files.
-- Main source review confirms the original AUD defect is addressed for ordinary Latin/Latin-accent case variants: Engineering now uses `OrdinalIgnoreCase`; Client Visual introduced case-insensitive declaration lookup; Server Script remained case-insensitive.
-- Main has **not released `139330bc...` to AUD yet** because the Client implementation uses `toLocaleLowerCase('en-US')` as a lookup-key normalizer while the canonical registry uses .NET `StringComparer.OrdinalIgnoreCase`.
-- Those are not guaranteed to be the same comparison algorithm for arbitrary Unicode. Project TAG path validation currently does not restrict paths to ASCII, so exact registry/client semantic parity must be proven rather than inferred from the `Área/Nível` example.
-- FND-04 remains **ACTIVE / MAIN REVIEW HOLD / NOT INTEGRATED**.
-- CODEX is ACTIVE on `FND04-CODEX-ORDINAL-PARITY-07`.
-- AUD remains **WAIT_NEW_IMMUTABLE_CANDIDATE / READ_ONLY**; do not spend another independent cycle on `139330bc...`.
+- CODEX produced ordinal-parity head `5c77eb418b83af57ccd1812c9c21fd44919b2ca0` / tree `181c6296c35fbb9dd6486d3ef6a318ff0b97dc70` on PR #336 with natural T1 `35907518317` SUCCESS.
+- Main rejects `5c77eb41...` **before AUD** because it introduces independent JavaScript and Python comparers intended to imitate .NET `StringComparer.OrdinalIgnoreCase`.
+- The handoff explicitly limits the proof to a sentinel matrix and does not establish a universal reimplementation of the canonical registry comparer. Because TAG paths are unrestricted Unicode, this would create a second comparison authority and leave behavior runtime/Unicode-version dependent.
+- Main therefore refines the contract to separate two layers:
+  1. **persisted binding <-> current registry path** uses the existing canonical backend TAG registry semantics (`OrdinalIgnoreCase`);
+  2. **Python source argument <-> persisted declared binding token** uses exact string/token equality after the already-defined outer trim only. Source matching is declaration membership, not a second registry lookup.
+- Script Assistant emits the exact persisted visible binding token. Runtime then proves that persisted binding through the canonical registry/protected path and expected TagId.
+- A case-only change in the current TAG registry path remains `found` for the persisted binding when TagId matches.
+- A manually case-changed Python source token that no longer exactly matches its persisted declared binding is an undeclared source reference and fails closed in both Client Visual and Server Script.
+- This removes the need for any JS/Python Unicode case-fold clone while preserving the AUD's original registry-vs-Engineering consistency finding.
+- FND-04 remains **ACTIVE / CORRECTION REQUIRED / NOT INTEGRATED**.
+- CODEX is ACTIVE on `FND04-CODEX-SOURCE-BINDING-SEPARATION-08`.
+- AUD remains **WAIT_NEW_IMMUTABLE_CANDIDATE / READ_ONLY**.
 - No merge/freeze authority is granted.
 
 Live integration divergence from the product base remains acknowledged only for verified INFRA-CI-01A + coordination documentation. Any other unacknowledged product delta remains `BLOCKED-BASE-DIVERGENCE`.
@@ -192,26 +197,32 @@ identityDrift outranks stale when the old visible path is already owned by anoth
 
 Diagnostics include state/code, visible reference, expected TagId, resolved TagId when present, and current canonical path of the expected TagId when useful.
 
-### 3B.2A Canonical TAG path case/equality rule
+### 3B.2A Canonical TAG path and source-binding equality rule
 
-This rule is now **FROZEN FOR FND-04 CORRECTION** and inherits the existing canonical TAG registry semantics; FND-04 must not invent a second path authority.
+This rule is **FROZEN FOR FND-04 CORRECTION** and deliberately separates registry resolution from Script declaration membership.
 
-1. TAG path equality for Script readable references is **case-insensitive**, matching the canonical registry's existing `StringComparer.OrdinalIgnoreCase` ownership/lookup behavior.
-2. `TagBinding.Reference` preserves the human-visible spelling/casing for source and round-trip. Casing is presentation context, not stable identity.
-3. A case-only difference between:
-   - persisted `TagBinding.Reference`,
-   - current `TagDefinition.Path`, or
-   - the Python source argument
-   is semantically equivalent for resolution when it still resolves to the same expected `TagId`.
-4. Therefore a case-only path change is **not** a rename/move for FND-04 classification and must remain `found` when the stable identity matches.
-5. `stale` requires a **non-case-equivalent** path move/rename: the expected TagId still exists, but the persisted visible reference no longer resolves under canonical registry path equality.
-6. `identityDrift` remains higher priority: if the persisted visible reference, under canonical registry path equality, is now owned by TagId B while the binding expects A, classify `identityDrift` and fail closed.
-7. Prospective/import ambiguity uses the same case-insensitive path equality. Two candidates whose paths differ only by case are the same visible key for ambiguity detection; never pick one arbitrarily.
-8. No additional aliasing is introduced. Do not normalize separators, punctuation, Unicode normalization forms, path segments or arbitrary whitespace. Preserve the existing outer-trim behavior only where already defined.
-9. Stable `TagId` remains the authority after path resolution. Case-insensitive path matching never authorizes a write by path.
-10. Client Visual, Server Script and Engineering resolver must expose the **same observable result** for equivalent case variants.
+#### A. Persisted binding -> canonical TAG registry
 
-The canonical TAG registry implementation/interface remains frozen and must not be modified for this correction.
+1. `TagBinding.Reference` stores the human-visible TAG path spelling selected at authoring time.
+2. When Engineering/runtime proves that binding against the current TAG model, path equality follows the existing canonical TAG registry semantics: .NET `StringComparer.OrdinalIgnoreCase` / `StringComparison.OrdinalIgnoreCase`.
+3. Therefore a case-only change in the current `TagDefinition.Path` is not a rename/move for FND-04 and remains `found` if the resolved stable TagId equals `Expected.TagId`.
+4. `stale` requires that the persisted binding reference no longer resolves under the canonical registry semantics while the expected TagId still exists at a non-equivalent path.
+5. `identityDrift` outranks stale when the persisted binding reference is currently owned by a different TagId.
+6. Prospective/import ambiguity uses the same backend canonical path semantics.
+7. The canonical TAG registry remains the only authority for path equivalence. Do not reimplement `OrdinalIgnoreCase` in JavaScript, Python, another table, cache, locale fold or Unicode helper.
+
+#### B. Python source argument -> persisted declared binding
+
+1. Matching a Python `read_tag` / `write_tag` argument to a Script dependency is **declaration membership**, not canonical TAG path resolution.
+2. The source-visible token must match the persisted `TagBinding.Reference` exactly after the already-established outer `trim` behavior.
+3. This matching is intentionally case-sensitive and does not perform locale case folding, Unicode normalization, separator rewriting, aliases or registry lookup.
+4. Script Assistant emits the exact persisted binding spelling, so normal generated source is deterministic.
+5. A source token with different casing/spelling is undeclared even if the backend registry would consider that path case-equivalent. It fails closed before process read/write.
+6. Client Visual and Server Script must use the same exact declaration-membership rule.
+7. Once declaration membership is established, runtime must still prove the persisted binding reference through the canonical registry/protected read path and compare the returned stable identity with `Expected.TagId` before read/write.
+8. Stable TagId remains the only write identity.
+
+This separation prevents a second TAG-path comparer authority while keeping registry/binding semantics consistent with the canonical registry.
 
 ### 3B.3 One read/write semantic
 
@@ -582,19 +593,19 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 ### CURRENT CODEX EXECUTION ORDER
 
-`ORDER_ID: FND04-CODEX-ORDINAL-PARITY-07`
+`ORDER_ID: FND04-CODEX-SOURCE-BINDING-SEPARATION-08`
 
 `ORDER_STATE: ACTIVE`
 
-`EXECUTOR_MODE: BOUNDED_CORRECTION_OR_PROOF`
+`EXECUTOR_MODE: BOUNDED_CORRECTION`
 
 `EXACT_PRODUCT_BASE_SHA: a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
 
 `AUD_REJECTED_SHA: 8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
 
-`MAIN_HELD_CASE_CLOSE_SHA: 139330bcdf758928171f82fb9f4a0984f0aa3455`
+`MAIN_REJECTED_PARITY_SHA: 5c77eb418b83af57ccd1812c9c21fd44919b2ca0`
 
-`MAIN_HELD_CASE_CLOSE_TREE: 9bdddad56edec63989a13f7510614fca6cfa8782`
+`MAIN_REJECTED_PARITY_TREE: 181c6296c35fbb9dd6486d3ef6a318ff0b97dc70`
 
 `WORK_BRANCH: work/w15-fnd-04-script-tag-reference-resolution`
 
@@ -604,89 +615,65 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 `VALIDATION_PROFILE: SCRIPT_ENGINEERING, SCRIPT_RUNTIME`
 
-Mission: prove or correct exact cross-surface parity with the canonical registry's `.NET StringComparer.OrdinalIgnoreCase` semantics. Do not widen FND-04.
+Mission: remove the JS/Python OrdinalIgnoreCase clones and implement section **3B.2A A/B separation** exactly.
 
-#### Why `139330bc...` is held
+#### Required production behavior
 
-The new Client Visual helper:
+1. Keep Engineering persisted-binding resolution against current TAG paths on `.NET StringComparison.OrdinalIgnoreCase`.
+2. Client Visual source argument -> declared `TagBinding.Reference` matching must be exact after trim. Remove custom Unicode/case-fold comparison.
+3. Server Script source argument -> declared readable reference matching must also be exact after trim. Remove Python custom Unicode/case-fold comparison and generic lowercase matching for readable path declarations.
+4. After exact declaration match:
+   - Client Visual re-proves the persisted binding reference through the existing protected reader and verifies expected TagId before read/write;
+   - Server Script host continues `VerifyTagReference(expectedTagId, persistedReference)` through the canonical Active Runtime registry before sandbox execution/replay.
+5. Legacy GUID-only dependencies remain unchanged and case-insensitive GUID parsing behavior may remain where it is identity syntax rather than readable path matching.
+6. Do not change `InMemoryTagRegistry`, Authority, endpoints, schema/migrations, drivers or workflows.
+7. Do not add any JS/Python Unicode comparer, case-fold table, locale transformation, normalization alias or second path registry.
 
-`reference.trim().toLocaleLowerCase('en-US')`
+#### Mandatory review-RED against `5c77eb41...`
 
-is a locale/case-mapping transformation, not a demonstrated implementation of .NET `OrdinalIgnoreCase` equality. FND-04 section 3B.2A requires the Script readable-reference semantics to inherit the canonical TAG registry, not merely be "case insensitive in common examples".
+Record test-only evidence that the rejected parity head violates the refined contract because:
+- Client source `Plant.Σ` binding with source `Plant.ς` is accepted by the custom comparer but must now be undeclared;
+- Server Script equivalent is accepted but must now be undeclared;
+- the helper itself is a second comparison authority outside the canonical registry.
 
-The project does not currently restrict TAG paths to ASCII. Therefore Main requires discriminating parity evidence before independent AUD.
+#### Mandatory GREEN matrix
 
-#### Mandatory parity RED/proof against exact `139330bc...`
+1. persisted binding `Plant.Process.LevelPct` -> A, current registry path `plant.process.levelpct` -> A: Engineering/runtime binding proof = `found`;
+2. same persisted binding, source exactly `Plant.Process.LevelPct`: Client read PASS;
+3. same persisted binding, source exactly `Plant.Process.LevelPct`: direct Client write performs fresh protected proof and writer receives A;
+4. same binding/current case-only registry change: Server Script with exact persisted source token PASS;
+5. source token `plant.process.levelpct` while persisted declaration is `Plant.Process.LevelPct`: Client FAIL undeclared before process read/write;
+6. same source mismatch: Server Script FAIL undeclared;
+7. Unicode source case variant `Plant.ς` while binding is `Plant.Σ`: both Client and Server FAIL undeclared;
+8. exact Unicode persisted token `Plant.Σ` with current registry path `plant.σ` same A: binding proof remains found and exact source token PASS;
+9. true non-case-equivalent rename/move -> `stale`;
+10. old persisted path reused by B while expecting A -> `identityDrift`, B untouched;
+11. prospective duplicate current TAG paths differing only by canonical-registry case -> `ambiguous`;
+12. missing path + expected missing -> `notFound`;
+13. undeclared unrelated source fails closed;
+14. legacy GUID compatibility PASS;
+15. package/save-load/PostgreSQL preserves exact visible binding spelling;
+16. multi-TAG readable Script PASS with exact declared tokens;
+17. exact five resolver states remain;
+18. no second resolver/comparer/TAG registry/Authority path exists;
+19. `git diff --check` + focused local evidence + fresh natural T1 PASS;
+20. no merge/freeze.
 
-Create a bounded test-only matrix that compares the **observable equality/lookup decision**, not display spelling, across:
-- canonical registry / .NET `OrdinalIgnoreCase` expectation;
-- Engineering resolver;
-- Client Visual declared-reference lookup;
-- Server Script declaration/runtime lookup where applicable.
+Expected correction touch set is only existing section 3B allowlisted files/tests, primarily:
+- `web/scada-web/src/python-runtime/createClientVisualPythonCapabilityProvider.ts`;
+- `src/Scada.Api/Runtime/ServerScriptRunner.py`;
+- `src/Scada.Api/Runtime/IsolatedPythonScriptHandlerExecutor.cs` only if host/request mapping requires cleanup;
+- existing focused Core/Drivers/Playwright tests.
 
-At minimum include:
-
-1. ASCII case pair: `Plant.K` vs `plant.k` — must be equivalent.
-2. accented Latin pair: `Plant.Área.Nível` vs `plant.área.nível` — must be equivalent.
-3. Kelvin-sign sentinel: a segment containing `K` (U+212A) versus ASCII `k`.
-4. long-s sentinel: `ſ` (U+017F) versus ASCII `s`.
-5. Turkish/dotted-I sentinels: `I`, `i`, `İ`, `ı`.
-6. Greek sigma family where relevant: `Σ`, `σ`, `ς`.
-7. composed vs decomposed accented spelling — must **not** gain normalization aliasing unless the canonical registry itself reports equality.
-8. exact same string with only canonical-registry-supported case change.
-9. a true different path that must remain non-equivalent.
-
-The expected result for every sentinel is defined by the actual canonical registry / `StringComparer.OrdinalIgnoreCase` behavior in the project target runtime. Do not invent a browser-only case-fold contract.
-
-#### Required disposition
-
-A. If `139330bc...` already matches the canonical registry for the entire discriminating matrix, return exact proof and do not modify product.
-
-B. If any sentinel diverges, correct only the Client/Engineering/Server Script readable-reference comparison path inside the existing section 3B allowlists, preserving all previous PASS behavior.
-
-C. If exact parity cannot be achieved without changing the frozen canonical TAG registry, adding a second registry/comparer authority, or widening outside the existing allowlist, return `BLOCKED-CONTRACT`.
-
-Do not solve this by:
-- restricting all TAG paths to ASCII;
-- normalizing Unicode forms;
-- changing registry semantics;
-- adding locale-sensitive aliases;
-- introducing another TAG path authority;
-- weakening undeclared-reference fail-closed behavior.
-
-#### Regression requirements
-
-The final immutable head must still prove:
-- case-only ordinary path changes -> `found`;
-- true rename/move -> `stale`;
-- old-path reuse by B -> `identityDrift`;
-- case-only prospective duplicate -> `ambiguous`;
-- direct Client write performs fresh identity proof and writes stable TagId only;
-- undeclared non-equivalent reference fails closed;
-- legacy GUID compatibility;
-- package/PostgreSQL/multi-TAG evidence;
-- exact five-state resolver;
-- Authority/sandbox unchanged;
-- full prior FND-04 focused evidence;
-- `git diff --check`;
-- fresh natural Wave 15 T1 if product/tests change.
+If this cannot be done without widening scope, return `BLOCKED-CONTRACT`.
 
 Return exactly:
 
-`FND-04 CODEX EXECUTOR -> MAIN COORDINATOR — ORDINAL-PARITY HANDOFF`
+`FND-04 CODEX EXECUTOR -> MAIN COORDINATOR — SOURCE-BINDING-SEPARATION HANDOFF`
 
-with:
-- `139330bc...` -> final exact head/tree;
-- whether product changed;
-- sentinel matrix with registry / Engineering / Client / Server outcomes;
-- any RED exposed by `139330bc...`;
-- exact fix if needed;
-- changed files;
-- regressions/local tests;
-- natural T1 run/jobs if head changed;
-- explicit non-actions.
+Include rejected `5c77eb41...` -> new head/tree, review-RED, exact changed files, 20-item matrix, proof no custom Unicode comparer remains, local evidence, natural T1 and explicit non-actions.
 
-No merge/freeze authority.
+No self-merge/freeze authority.
 
 ### CODEX mandatory return
 
@@ -753,7 +740,7 @@ AUD never merges its own work and never writes directly to DEV branch, integrati
 
 ### CURRENT AUD ORDER
 
-`ORDER_ID: FND04-AUD-WAIT-ORDINAL-PARITY-0007`
+`ORDER_ID: FND04-AUD-WAIT-SOURCE-BINDING-0008`
 
 `ORDER_STATE: WAIT_NEW_IMMUTABLE_CANDIDATE`
 
@@ -763,18 +750,15 @@ AUD never merges its own work and never writes directly to DEV branch, integrati
 
 `AUD_REJECTED_SHA: 8dba4f1161d4ca5190ddfa37b48d9736478d73ec`
 
-`MAIN_HELD_CASE_CLOSE_SHA: 139330bcdf758928171f82fb9f4a0984f0aa3455`
+`MAIN_REJECTED_PARITY_SHA: 5c77eb418b83af57ccd1812c9c21fd44919b2ca0`
 
 `PR: #336`
 
 Instruction:
 
-> Do not audit `139330bc...` yet. Main review found that Client Visual currently approximates canonical registry case equality with `toLocaleLowerCase('en-US')`, which is not yet proven equivalent to .NET `StringComparer.OrdinalIgnoreCase` for unrestricted Unicode TAG paths. CODEX owns the bounded parity proof/correction. Wait for Main to publish the next immutable SHA/tree; then re-audit the case/canonicalization fix and regress the previous PASS matrix.
+> Do not audit `5c77eb41...`. Main rejected the cross-language comparer approach because it creates a second TAG-path comparison authority. CODEX now owns a bounded correction separating canonical registry binding resolution (backend OrdinalIgnoreCase) from exact source-token declaration membership. Wait for Main to publish a new immutable SHA/tree, then independently verify the original AUD finding plus this separation contract and the prior PASS regressions.
 
-Handoff routing remains:
-- primary ledger Issue `#305`;
-- PR #336 for local supporting evidence;
-- if GitHub comment capability is unavailable, return the complete handoff in the AUD chat and stop; Main records it.
+Handoff routing remains Issue #305 / PR #336 supporting evidence / chat fallback.
 
 ### AUD mandatory return format
 

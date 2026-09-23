@@ -133,28 +133,33 @@ Coordination/documentation commits after this checkpoint do not create a new pro
 
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
-**ORDER_STATE: ACTIVE**  
-**ORDER_ID: FND04-CODEX-SOURCE-BINDING-SEPARATION-08**  
-**CODEX_MODE: BOUNDED_CORRECTION**  
-**Mission:** remove cross-language TAG-path comparer clones and separate registry binding proof from exact Script declaration membership
+**ORDER_STATE: WAIT_AUD**  
+**ORDER_ID: FND04-CODEX-WAIT-REAUDIT-09**  
+**CODEX_MODE: NO_MUTATION / PRESERVE_CANDIDATE**  
+**Mission:** preserve exact FND-04 source-binding candidate while independent AUD revalidates it
 
-Rejected Main-review candidate:
-- head `5c77eb418b83af57ccd1812c9c21fd44919b2ca0`
-- tree `181c6296c35fbb9dd6486d3ef6a318ff0b97dc70`
-- natural T1 `35907518317` — SUCCESS, but not sufficient for acceptance.
+Immutable candidate:
+- base `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
+- head `c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e`
+- reported tree `7fa948de25e4f120566113dc8d14a0a696342a32`
+- PR #336
+- natural Wave 15 T1 `35910214760` — SUCCESS.
 
-Main review disposition:
-- persisted `TagBinding.Reference` -> current TAG path remains governed only by canonical backend registry semantics (`.NET OrdinalIgnoreCase`);
-- Python source argument -> declared binding is exact token membership after trim;
-- Client Visual and Server Script must not implement their own Unicode/case-fold clone of the registry comparer;
-- after exact source declaration match, runtime still proves the persisted binding through canonical registry/protected read and expected TagId;
-- stable TagId remains the only write identity.
+Main preliminary review confirms:
+- correction from rejected `5c77eb41...` is one commit / 5 allowlisted files;
+- full PR remains 20 allowlisted files;
+- JS/Python custom Unicode/path comparer clones are removed;
+- source token -> declared binding is exact after trim;
+- persisted binding -> current TAG path remains backend canonical proof with expected TagId;
+- PR is OPEN / mergeable.
 
-Detailed executable order:
-- control branch `coord/w15-fnd04-dev-aud-control`
+Detailed control:
+- branch `coord/w15-fnd04-dev-aud-control`
 - file `docs/WAVE15-FND04-DEV-AUD-CONTROL.md`
-- control commit `8b2cbf4ebe55ede494d7ad3ed9c4809911b741e0`
-- order `FND04-CODEX-SOURCE-BINDING-SEPARATION-08`.
+- control commit `9d1baec56ae723d68bc3a58dd00b1903417caa5b`
+- active AUD order `FND04-AUD-REAUDIT-SOURCE-BINDING-0009`.
+
+CODEX must not mutate, rebase, retarget, rerun or merge while AUD reviews this exact candidate.
 
 No merge/freeze authority.
 ---
@@ -219,19 +224,31 @@ Normal DEV may revalidate live state and later review evidence only.
 
 ## 5. MAIN COORDINATOR -> FND-04 AUD — CURRENT ORDER
 
-**ORDER_STATE: WAIT_NEW_IMMUTABLE_CANDIDATE**  
-**ORDER_ID: FND04-AUD-WAIT-SOURCE-BINDING-0008**  
+**ORDER_STATE: ACTIVE**  
+**ORDER_ID: FND04-AUD-REAUDIT-SOURCE-BINDING-0009**  
 **Default mode:** `READ_ONLY_REVIEW`
 
-Do not audit `5c77eb418b83af57ccd1812c9c21fd44919b2ca0`. Main rejected the cross-language comparer approach before AUD because it creates a second TAG-path comparison authority.
+Immutable candidate:
+- base `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
+- head `c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e`
+- reported tree `7fa948de25e4f120566113dc8d14a0a696342a32`
+- PR #336
+- natural T1 `35910214760` — SUCCESS.
 
-CODEX now owns the bounded correction separating:
-- canonical backend registry proof of persisted binding path (`OrdinalIgnoreCase`);
-- exact source-token membership in the persisted Script declaration.
+AUD must independently re-audit:
+- the original case-only current-registry-path finding;
+- the refined separation between backend registry equality and exact Script declaration membership;
+- fresh Client direct-write identity proof;
+- Server Script host binding verification;
+- rename/stale, path-reuse/identityDrift, notFound, ambiguity;
+- five-state resolver and malformed-binding validation separation;
+- persistence/package/PostgreSQL/multi-TAG/legacy GUID/ServerMemory/Authority regressions;
+- absence of second comparer/resolver/TAG-registry/Auth authority;
+- exact 20-file allowlisted PR scope and exact-head T1.
 
-Wait for Main to publish a new immutable SHA/tree, then independently re-audit the original case/canonicalization defect, this separation rule, and all prior PASS regressions.
+If the PR head moves, stop and report candidate-moved evidence. Stay READ_ONLY; no product/test mutation and no merge.
 
-No test/product mutation and no merge.
+Final classification: `ACCEPTABLE | CHANGES_REQUIRED | BLOCKED-CONTRACT`.
 ---
 
 ## 6. FND-04 BINDING CONTRACT — ACTIVE / NOT YET FROZEN

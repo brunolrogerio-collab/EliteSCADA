@@ -126,49 +126,56 @@ Coordination/documentation commits after this checkpoint do not create a new pro
 - FND-03 global — **VERIFIED/FROZEN**
 - FND-04 Script TAG Reference Resolution — **ACTIVE / EXECUTABLE PLAN FROZEN / NOT INTEGRATED**
 - FND-06 — **NOT STARTED**
-- INFRA-CI-01A — **INTEGRATED / POST-MERGE VERIFICATION PENDING**
-- FC0-A — **BLOCKED on FND-04 + FND-06 + INFRA-CI-01**
+- INFRA-CI-01A — **VERIFIED/FROZEN**
+- FC0-A — **BLOCKED on FND-04 + FND-06**
 
 ---
 
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
-**ORDER_STATE: WAIT_DEPENDENCY**  
-**ORDER_ID: INFRA-CI-01A-POSTMERGE-GATE-04**  
-**CODEX_MODE: WAIT_MAIN_VERIFICATION**  
-**Mission:** hold after INFRA-CI-01A merge while Main verifies the exact integrated SHA, then switch this same CODEX to FND-04
+**ORDER_STATE: ACTIVE**  
+**ORDER_ID: FND04-CODEX-TAGREF-V1-03**  
+**CODEX_MODE: FND04_IMPLEMENTATION / FUNCTIONAL_RUNTIME**  
+**Mission:** execute FND-04 Script TAG Reference Resolution on the prepared exact product base
 
-### Integrated INFRA-CI-01A checkpoint
+### Closed dependency
 
-- PR #335 — MERGED
-- exact reviewed candidate: `6490234887152cd668943615dc9fc80990b44076`
-- candidate tree: `4d11b130744fa88e32f7bcc110c5a8fb4f1bbb06`
-- exact merge SHA: `9f62ad56e3fed5574bab1fa25fc8b64f9e4ae981`
-- merge tree: `1e19a38803e319a418f476d236dfb24fd38d377e`
-- natural candidate T1 run #4 / `35864183668` — SUCCESS
-- exact integrated broad EliteSCADA CI #1560 / run `35864708583` — POST-MERGE GATE IN PROGRESS
+INFRA-CI-01A is now **VERIFIED/FROZEN**:
 
-Main independently reviewed and accepted the final candidate before merge:
-- six-file scope only;
-- PR declarations required for non-exempt PRs;
-- dispatch inference-only mode valid with optional additive override;
-- manual dispatch uses full branch delta via merge-base to `wave15/corrections-integration`;
-- real FND-04 Script Engineering/Script Runtime paths receive non-bypassable inference floors;
-- generic `src/Scada.Api/Runtime/**` receives `RUNTIME_RENDERER` floor;
-- Authority/Licensing/EliteGO UX profiles request owning backend + Web/browser evidence;
-- broad `dotnet-ci.yml` remains intact for integrated push checkpoints and main PRs.
+- PR #335 merged at `9f62ad56e3fed5574bab1fa25fc8b64f9e4ae981`
+- tree `1e19a38803e319a418f476d236dfb24fd38d377e`
+- candidate T1 run #4 / `35864183668` — SUCCESS
+- exact integrated broad CI #1560 / `35864708583` — SUCCESS
+  - Web `107193247522` — SUCCESS
+  - Backend `107193247822` — SUCCESS
+  - Chromium `107193893312` — SUCCESS
 
-### Sequential reuse
+The verified infra delta is workflow/router/policy only and is explicitly acknowledged. It does not redefine the FND-04 product contract or product base.
 
-Do not start FND-04 until Main closes CI #1560 on the exact merge SHA.
+### FND-04 execution
 
-After Main records INFRA-CI-01A VERIFIED/FROZEN, this same CODEX executor will be switched to the already-prepared FND-04 order in the dedicated control plane.
+- exact product base: `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
+- base tree: `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`
+- work branch: `work/w15-fnd-04-script-tag-reference-resolution`
+- target: `wave15/corrections-integration`
+- validation profile: `SCRIPT_ENGINEERING, SCRIPT_RUNTIME`
+- dedicated control plane: `coord/w15-fnd04-dev-aud-control:docs/WAVE15-FND04-DEV-AUD-CONTROL.md`
+- active control commit: `65ac0551c17f1794e5a0411897c85327880e12f8`
+- execution plan: `FND04-TAGREF-V1 / section 3B`
 
-Until then:
-- no further INFRA-CI commit;
-- no FND-04 mutation;
-- no rerun unless Main diagnoses a failure and explicitly orders it;
-- FND-04 work branch remains untouched at `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`.
+Same CODEX executor must now execute the control-plane order `FND04-CODEX-TAGREF-V1-03`.
+
+Binding sequence:
+1. revalidate branch is still exactly at the product base;
+2. establish RED-1 / RED-2 / RED-3 on old behavior before any production correction;
+3. implement only inside the frozen allowlists;
+4. close the full GREEN/acceptance matrix;
+5. push reviewable commits to the existing branch;
+6. open exactly one PR with `VALIDATION_PROFILE: SCRIPT_ENGINEERING, SCRIPT_RUNTIME`;
+7. inspect natural Wave 15 T1 evidence;
+8. return final candidate handoff.
+
+No self-merge. No freeze authority. Any scope/contract widening => `BLOCKED-CONTRACT`.
 ---
 
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
@@ -216,24 +223,17 @@ Scope exclusions: License Generator UI; full #304 detach/switch UX; Authority A-
 **Base tree:** `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`  
 **Work branch:** `work/w15-fnd-04-script-tag-reference-resolution`
 
-Main accepts the normal DEV chat's environment blocker: connector-only access cannot execute the mandatory local RED/GREEN evidence. The branch remains untouched at the exact base.
+The original normal DEV chat remains environment-blocked and must not create a competing implementation.
 
-The normal DEV chat must not create a competing implementation. It remains available for live revalidation and later review.
+The **same CODEX runtime that completed INFRA-CI-01A is now the active executable lane**:
 
-### Delegated executable lane
+- control commit: `65ac0551c17f1794e5a0411897c85327880e12f8`
+- executor order: `FND04-CODEX-TAGREF-V1-03`
+- plan: `FND04-TAGREF-V1 / section 3B`
+- RED-before-production remains mandatory;
+- no scope widening or self-merge.
 
-A dedicated **FND-04 CODEX EXECUTOR** is now ACTIVE under the same frozen plan:
-
-- control branch/file: `coord/w15-fnd04-dev-aud-control:docs/WAVE15-FND04-DEV-AUD-CONTROL.md`
-- control commit: `bb67e74ac0e58625763212e2bc284f4c22559519`
-- executor order: `FND04-CODEX-TAGREF-V1-01`
-- source plan: `FND04-TAGREF-V1 / section 3B`
-- exact same base/branch/allowlists
-- RED-1/RED-2/RED-3 must execute before production
-- local dotnet/Node/Playwright GREEN evidence required
-- no scope widening, no self-merge, no freeze authority.
-
-This is an execution substitution only; architecture and DEV ownership semantics are unchanged.
+Normal DEV may revalidate live state and later review evidence only.
 ---
 
 ## 5. MAIN COORDINATOR -> FND-04 AUD — CURRENT ORDER

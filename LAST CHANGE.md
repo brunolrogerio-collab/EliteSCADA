@@ -1,15 +1,11 @@
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-23 BRT  
-**Operational state:** **WAVE 15 ACTIVE / FND-03 VERIFIED+FROZEN / INFRA-CI-01A INTEGRATED+VERIFYING / FND-04 WAITING SAME CODEX / FND-06 NOT STARTED / FC0-A BLOCKED**
-
-> GitHub live is the official memory.
->
-> Canonical operational handoff: `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`.
+**Operational state:** **WAVE 15 ACTIVE / FND-03 VERIFIED+FROZEN / INFRA-CI-01A VERIFIED+FROZEN / FND-04 ACTIVE IN SAME CODEX / FND-06 NOT STARTED / FC0-A BLOCKED**
 
 ## Latest verified product checkpoint
 
-PR #334 merged and post-merge verified:
+FND-03 product checkpoint remains:
 
 `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
 
@@ -17,27 +13,34 @@ tree:
 
 `e48c8b9918f4d3a5ae4dee1df6211393c95b6513`
 
-## Verification
+## INFRA-CI-01A closed
 
-Candidate CI #1558 / `35813975645`:
-- Backend/Web/Chromium SUCCESS.
+PR #335 merged:
 
-Exact post-merge CI #1559 / `35815261288`, attempt 2:
-- Web `107058812138` — SUCCESS;
-- Backend `107058810300` — SUCCESS;
-- Chromium `107059153655` — SUCCESS / 624 passed.
+`9f62ad56e3fed5574bab1fa25fc8b64f9e4ae981`
 
-Attempt 1 had one isolated PostgreSQL advisory-lock test failure outside the FND-03 product delta. Main used one diagnosed failed-backend-job rerun; the same exact SHA then completed green without product/workflow mutation.
+tree:
 
-Therefore **FND-03 global = VERIFIED/FROZEN**.
+`1e19a38803e319a418f476d236dfb24fd38d377e`
+
+Evidence:
+- candidate T1 run #4 / `35864183668` — SUCCESS;
+- broad post-merge CI #1560 / `35864708583` — SUCCESS;
+- Web `107193247522` — SUCCESS;
+- Backend `107193247822` — SUCCESS;
+- Chromium `107193893312` — SUCCESS.
+
+Therefore `INFRA-CI-01A = VERIFIED/FROZEN`.
+
+The broad universal gate remains intact for integrated pushes/main PRs; Wave 15 leaf PRs now use profile-aware T1 routing.
 
 ## Current active work
 
-FND-04 Script TAG Reference Resolution is **ACTIVE**.
+FND-04 is now actively assigned to the same functional CODEX runtime that finished INFRA-CI-01A.
 
-Plan:
+Order:
 
-`FND04-TAGREF-V1`
+`FND04-CODEX-TAGREF-V1-03`
 
 Exact product base:
 
@@ -47,118 +50,23 @@ Work branch:
 
 `work/w15-fnd-04-script-tag-reference-resolution`
 
-Dedicated control-plane activation commit:
+Control commit:
 
-`cea43de5141824057822657d35ed2fb32b3d03f4`
+`65ac0551c17f1794e5a0411897c85327880e12f8`
 
-DEV order:
-
-`FND04-DEV-TAGREF-V1-01`
-
-Key execution shape:
-- mandatory RED-1/RED-2/RED-3 before production correction;
-- additive path-readable Script TAG binding with expected stable TagId;
-- resolver states found/notFound/ambiguous/stale/identityDrift;
-- one read/write semantic;
-- legacy GUID compatibility;
-- closed production/test allowlists;
-- exact-head focused tests + natural CI;
+Execution remains:
+- RED-1 / RED-2 / RED-3 first on old behavior;
+- then production implementation inside frozen allowlists;
+- full GREEN matrix;
+- one PR with `VALIDATION_PROFILE: SCRIPT_ENGINEERING, SCRIPT_RUNTIME`;
+- natural Wave 15 T1 validation;
 - no self-merge.
 
-FND-04 AUD remains WAIT_CANDIDATE / READ_ONLY until Main supplies an immutable DEV SHA/tree.
+Normal FND-04 DEV remains BLOCKED_ENV / WATCH_ONLY. AUD remains WAIT_CANDIDATE.
 
 ## Remaining FC0-A blockers
 
 - FND-04 — ACTIVE.
 - FND-06 — NOT STARTED.
-- INFRA-CI-01A — INTEGRATED at `9f62ad56e3fed5574bab1fa25fc8b64f9e4ae981`; post-merge CI #1560 pending.
 
-CI efficiency audit: the universal Chromium gate currently runs 624 tests serially on one Playwright worker and dominates ~13.5–14.5 minute full-CI wall time. INFRA-CI-01 should preserve assertions while moving Wave 15 leaf PRs to profile-aware T1 evidence and proving isolated browser sharding for broader checkpoints.
-
-
-## Parallel CI infrastructure work
-
-CODEX order:
-
-`INFRA-CI-01A-REVIEW-CLOSE-02`
-
-Exact branch base:
-
-`084d48f833415797f62ec525d0192def1a380592`
-
-Work branch:
-
-`work/w15-infra-ci-01-profile-orchestration`
-
-Mission: add `wave15-pr.yml` profile-aware T1 routing, deterministic profile classifier/tests, and return the universal `dotnet-ci.yml` Wave 15 role to broad integrated push/checkpoint validation instead of every leaf PR. Existing heavy workflow assertions remain untouched. No merge authority.
-
-
-## INFRA-CI-01A Main review correction
-
-PR #335 head `2069f4cb1ea398da615286001102fa44cbc35e67` has natural T1 CI green, but Main review found four pre-integration defects:
-
-- real FND-04 Server Script runtime files under `src/Scada.Api/Runtime/**` were not inferred as `SCRIPT_RUNTIME`;
-- real `web/scada-web/src/engineering/scripts/**` files were not inferred as `SCRIPT_ENGINEERING`;
-- manual dispatch compared only the last commit instead of the full branch delta to Wave 15 integration;
-- `AUTHORITY_UX`, `LICENSING_UX` and `ELITEGO_RUNTIME` did not independently request their owning backend evidence.
-
-CODEX order is now `INFRA-CI-01A-REVIEW-CLOSE-02`; correction remains inside the original six-file allowlist. PR #335 is not approved for merge yet.
-
-
-## FND-04 environment disposition
-
-The original FND-04 DEV chat reported `BLOCKED-ENV` before any RED test or product/test mutation because its local runtime cannot reach GitHub and the connector cannot execute dotnet/Node/Playwright.
-
-Main accepted the blocker and preserved the branch untouched at:
-
-`a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`
-
-Execution is now delegated to a dedicated functional-runtime lane:
-
-`FND04-CODEX-TAGREF-V1-01`
-
-Control commit:
-
-`bb67e74ac0e58625763212e2bc284f4c22559519`
-
-The normal DEV chat is `BLOCKED_ENV / WATCH_ONLY`; FND-04 AUD remains `WAIT_CANDIDATE`. The Codex executor must use the exact same section 3B plan, RED-before-production sequence, allowlists, branch and no-merge boundary.
-
-
-## Same-CODEX sequencing decision
-
-Product Owner selected sequential reuse of the current CODEX runtime:
-
-1. finish INFRA-CI-01A PR #335 completely;
-2. Main independently reviews, merges and verifies the integrated gate;
-3. the same CODEX chat is then switched to FND-04;
-4. no second concurrent FND-04 Codex executor is to run.
-
-Current infra correction order:
-`INFRA-CI-01A-FINAL-CLOSE-03`.
-
-Final pre-merge defects:
-- manual `workflow_dispatch` must allow inference-only execution when optional override is absent;
-- generic `src/Scada.Api/Runtime/**` changes must receive a non-bypassable Runtime evidence floor.
-
-FND-04 normal DEV remains BLOCKED_ENV/WATCH_ONLY and the FND-04 work branch remains untouched at `a3eb86f8...`.
-
-
-## INFRA-CI-01A integrated checkpoint
-
-PR #335 merged after independent Main review.
-
-Exact reviewed candidate:
-`6490234887152cd668943615dc9fc80990b44076`
-
-Exact integration merge:
-`9f62ad56e3fed5574bab1fa25fc8b64f9e4ae981`
-
-tree:
-`1e19a38803e319a418f476d236dfb24fd38d377e`
-
-Candidate T1 run #4 / `35864183668` — SUCCESS.
-
-Exact integrated broad gate:
-EliteSCADA CI #1560 / `35864708583` — pending/in progress.
-
-The same CODEX remains reserved and must not start FND-04 until Main verifies this exact integrated infra SHA. FND-04 work branch remains untouched at `a3eb86f8e1022675f84f0a76129a64d8e9d5faa6`.
+INFRA-CI-01A is no longer a blocker.

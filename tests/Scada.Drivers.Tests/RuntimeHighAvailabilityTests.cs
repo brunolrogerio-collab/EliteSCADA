@@ -103,13 +103,13 @@ public sealed class RuntimeHighAvailabilityTests
         bool haEntitled,
         long standbyRevision)
     {
-        var coordinator = CreateCoordinator(out var now);
+        var coordinator = CreateCoordinator(out var clock);
         coordinator.UpdateNodeReadiness(
             "node-a",
-            Evidence(now, haEntitled: true, revision: 7, synchronized: true));
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
         coordinator.UpdateNodeReadiness(
             "node-b",
-            Evidence(now, haEntitled, standbyRevision, synchronized: true));
+            Evidence(clock.UtcNow, haEntitled, standbyRevision, synchronized: true));
 
         var snapshot = coordinator.Snapshot();
         var standby = Node(snapshot, "node-b");

@@ -4,9 +4,9 @@
 
 `CONTROL_BRANCH: coord/w15-fnd07-control`
 
-`MAIN_ORDER_REV: 0004`
+`MAIN_ORDER_REV: 0005`
 
-`STATE: ACTIVE_CODING / DEV_IMPLEMENTATION_AUTHORIZED`
+`STATE: DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
 
 `CURRENT_ORDER_ID: FND07-DEV-DETACH-NEUTRAL-V1`
 
@@ -194,3 +194,64 @@ FND-01/FND-02/FND-03/FND-06 prerequisites are frozen. The mandatory post-FND06 a
 After FC0-A release, FND-07 DEV may implement in parallel with the other prepared DEV lanes on its own isolated branch. There is no fixed four-DEV concurrency cap. Main controls shared-hotspot collisions and validation/integration order.
 
 CODEX does not need to be free for FND-07 **coding**. It is required later for focused/adversarial validation and exact-head T1 before Main integration approval.
+
+
+## 8. Main review — deterministic fresh-install fixture correction
+
+Exact reviewed candidate:
+- PR `#348` (draft);
+- head `ae11e42e8ad5e39b1e2c5a0068f81e4ec31653c6`;
+- T1 `36066422907`.
+
+T1 classification:
+- classifier: SUCCESS;
+- Common sanity: SUCCESS;
+- Web semantic build: SUCCESS;
+- focused .NET: SUCCESS;
+- focused Chromium: FAILURE;
+- exact failure: `tests-e2e/local-auth.spec.ts:89`, old assertion that the fresh server's exported Engineering package contains Demo TAGs.
+
+Main classification:
+
+`EXPECTED_W15_PRODUCT_SEMANTIC / STALE_DEMO-DEPENDENT_E2E_FIXTURE / DEV_CORRECTION_REQUIRED`
+
+Reason:
+- the prepared first-project fresh-install contract explicitly requires a genuinely fresh installation with **no hidden/synthetic Demo Project and no preconfigured TAG/Screen/Script/Data Source/Working state**;
+- FND-07's neutral/bootstrap direction likewise requires no hidden Demo after detach;
+- therefore restoring Demo product behavior merely to satisfy the old test is forbidden.
+
+The red is still deterministic and must be corrected before Main contract acceptance. Do not rerun unchanged SHA as acceptance.
+
+### CURRENT CORRECTION ORDER
+
+`ORDER_ID: FND07-DEV-FRESH-INSTALL-NO-DEMO-E2E-01`
+
+`ORDER_STATE: DEV_CORRECTION / AUTHORIZED`
+
+`CORRECTION_BASE_HEAD: ae11e42e8ad5e39b1e2c5a0068f81e4ec31653c6`
+
+Required bounded correction:
+
+1. update the local-auth/fresh-first-project E2E contract so the **product-visible pre-project state** proves no hidden Demo/preconfigured Engineering content;
+2. remove the old dependency on capturing an in-memory Demo package before first-project creation;
+3. do not expect a Demo `tagValueChanged` stream before a project/runtime with TAGs exists;
+4. preserve proof that initial Administrator bootstrap/session and first-project creation work normally;
+5. preserve proof that the first persisted project is genuinely empty of customer/demo Engineering entities;
+6. if later dependent E2E requires a populated baseline, seed/restore a **test-owned fixture explicitly after the no-Demo/first-project assertions**, through canonical supported APIs, so test infrastructure is not mistaken for normal product bootstrap;
+7. any realtime assertion that depends on TAG traffic must run only after that explicit test-owned population/activation step;
+8. add/retain a regression for post-detach neutral bootstrap showing no hidden Demo/Application A content;
+9. keep production FND-07 no-Demo/neutral semantics unchanged unless a separate focused product defect is proven.
+
+Do not broaden this correction into Installation UX.
+
+After correction:
+- run the focused local-auth/fresh-install case;
+- run FND-07 focused .NET;
+- run natural exact-head T1;
+- return updated exact SHA/tree and evidence.
+
+Required return prefix remains:
+
+`FND-07 DEV -> MAIN COORDINATOR — CANDIDATE HANDOFF`
+
+No CODEX routing yet. No merge/freeze.

@@ -7,6 +7,7 @@ using Scada.Engineering.Gateways;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.Reports;
+using Scada.DriverHost.Runtime;
 using Scada.Security.Authentication;
 
 namespace Scada.Api.Security;

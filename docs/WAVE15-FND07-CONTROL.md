@@ -28,7 +28,7 @@ FND-06 is VERIFIED/FROZEN and the final post-FND06 audit rev 0014 is `ACCEPTABLE
 
 FND-07 is **ACTIVE_CODING** on the exact FC0-A release checkpoint above. The normal ChatGPT DEV may now implement only the bounded detach/neutral-bootstrap slice on its isolated work branch.
 
-The second and third Main audit passes identified no breaking FND-07 contract redefinition. FND-07 remains compositional/compatible, but before activation its acceptance matrix must explicitly cover **Engineering Lock × detach/switch/neutral-bootstrap** so the existing replacement/recovery exemption and backend Authority rules are preserved without inventing a second credential or leaking protected Engineering content.
+The second and third Main audit passes identified no breaking FND-07 contract redefinition. FND-07 remains compositional/compatible, and its active acceptance matrix must explicitly cover **Engineering Lock × detach/switch/neutral-bootstrap** so the existing replacement/recovery exemption and backend Authority rules are preserved without inventing a second credential or leaking protected Engineering content.
 
 Executor policy changed by Product Owner/Main:
 - implementation owner: **normal ChatGPT DEV chat**;
@@ -189,7 +189,7 @@ No anonymous populated-install restore, direct DB hacks, silent Historian deleti
 
 ## 7. Activation dependency
 
-FND-01/FND-02/FND-03/FND-06 prerequisites are frozen. The mandatory post-FND06 audit returned `CHANGES_REQUIRED`; the consolidated FC0-A correction package is the active closure path. This order remains PREPARED until Main records `ACCEPTABLE / FC0A_RELEASE_APPROVED` on the exact integrated checkpoint.
+FND-01/FND-02/FND-03/FND-06 prerequisites are frozen. The mandatory post-FND06 audit rev 0014 returned `ACCEPTABLE / FC0A_RELEASE_APPROVED`. This order is now ACTIVE on the exact base recorded above.
 
 After FC0-A release, FND-07 DEV may implement in parallel with the other prepared DEV lanes on its own isolated branch. There is no fixed four-DEV concurrency cap. Main controls shared-hotspot collisions and validation/integration order.
 

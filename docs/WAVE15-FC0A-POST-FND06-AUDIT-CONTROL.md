@@ -7,9 +7,9 @@
 
 `AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
-`AUDIT_REV: 0009`
+`AUDIT_REV: 0010`
 
-`STATE: PREPARED / WAIT_FINAL_FND06_BROAD_CI`
+`STATE: ACTIVE / INDEPENDENT_READ_ONLY_REVIEW`
 
 `MODE: READ_ONLY_CROSS_WAVE_FOUNDATION_AUDIT`
 
@@ -145,6 +145,41 @@ Current final integrated candidate pending broad acceptance:
 - audit remains PREPARED until that exact broad run is completely green and Main declares FND-06 VERIFIED/FROZEN.
 
 The prior broad #1564 failure is retained as causal evidence for test-fixture isolation and is not release evidence.
+
+## 1D. FINAL ACTIVATION CHECKPOINT — authoritative
+
+This section supersedes earlier pending/preload checkpoint sections for audit activation.
+
+FND-06 is now `VERIFIED/FROZEN`.
+
+Exact audited product checkpoint:
+- product SHA: `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`;
+- tree: `674019fbbc21001a2d68deb853c2c0b293e0a5cb`;
+- final natural broad: `35953557122` / EliteSCADA CI #1565 / SUCCESS;
+- Web: SUCCESS;
+- Backend build/test/smoke: SUCCESS;
+- Chromium end-to-end: SUCCESS.
+
+Integration divergence check before activation:
+- merge-base/product checkpoint remained exact `560ac9d8...`;
+- integration was 13 commits ahead and 0 behind;
+- changed files above the product checkpoint were coordination-only:
+  - `LAST CHANGE.md`;
+  - `docs/CURRENT-COORDINATOR-HANDOFF.md`;
+  - `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`;
+- no product/infra delta existed above the exact frozen product checkpoint.
+
+Audit is therefore ACTIVE now.
+
+The independent AUD must:
+1. review exact product semantics at `560ac9d8...`;
+2. treat later coordination-only documentation commits as non-product divergence;
+3. independently confirm or reject Main's preliminary findings, especially W15-P1-01 and W15-P1-06;
+4. complete the full Wave14 -> Wave15 closure matrix, not only those two findings;
+5. classify FND-05/FND-07 compatibility and the six FC0-A release rows;
+6. perform no product/test/doc mutation.
+
+Main preliminary blocker findings are hypotheses/evidence, not audit conclusions.
 
 ## 2. Audit purpose
 

@@ -752,3 +752,36 @@ Main approved only a DDL-initialization sequencing scope amendment under `INFRA-
 No Authority/session semantics are reopened.
 
 This audit remains PREPARED until V2 is closed, broad integration CI is green, and FND-06 is frozen.
+
+
+## Post-merge gate update — 2026-09-24 / CI #1567
+
+FC0-A consolidated PR #340 remains product-accepted and merged.
+
+INFRA-CI-01C PR #341 is merged at exact SHA
+`da0e64122f1e4d0293e027f45ef95021cd03c1a1`,
+tree `a724e565f11121a43b97bf0c59683b414c72f48c`.
+
+Exact broad `EliteSCADA CI 36047274028 / #1567`:
+- Web build — SUCCESS;
+- Backend build — SUCCESS;
+- Backend Test — SUCCESS;
+- Runtime smoke — SUCCESS;
+- Chromium — FAILURE before browser test execution.
+
+The PostgreSQL `23505` recurrence is closed by the exact broad backend evidence.
+
+The remaining blocker is a deterministic validation-load defect:
+`web/scada-web/tests-e2e/contextual-help-routing.spec.ts` imports
+`contextualHelpTopic` through `AppNavigation.tsx`, whose transitive CSS imports are parsed by the Node-side Playwright spec loader and fail at `src/auth/auth.css` with `Unexpected token (1:0)`.
+
+Classification:
+`FC0A_POSTMERGE_E2E_TEST_LOAD_DEFECT / PRODUCT_BEHAVIOR_NOT_SHOWN_DEFECTIVE`.
+
+Active closeout:
+- order `FC0A-POSTMERGE-HELP-E2E-LOAD-V1`;
+- control `docs/WAVE15-FC0A-POSTMERGE-HELP-E2E-LOAD-CONTROL.md`;
+- work branch `work/w15-fc0a-postmerge-help-e2e-load`;
+- exact base `da0e6412...`.
+
+No `FC0A_RELEASE_APPROVED` yet. The six prepared DEV/FND lanes remain WAIT until the corrected candidate is merged and a new exact broad post-merge CI is globally green.

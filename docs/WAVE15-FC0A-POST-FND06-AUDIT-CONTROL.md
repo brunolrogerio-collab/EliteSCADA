@@ -7,9 +7,9 @@
 
 `AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
-`AUDIT_REV: 0013`
+`AUDIT_REV: 0014`
 
-`STATE: COMPLETED / CHANGES_REQUIRED`
+`STATE: COMPLETED / ACCEPTABLE / FC0A_RELEASE_APPROVED`
 
 `MODE: READ_ONLY_CROSS_WAVE_FOUNDATION_AUDIT`
 
@@ -19,7 +19,7 @@
 
 `SEPARATE_AUD_LANE: OPTIONAL_ADVISORY_ONLY / NOT_A_RELEASE_PREREQUISITE`
 
-`RELEASE_EFFECT: BLOCKING`
+`RELEASE_EFFECT: CLEARED / SIX_LANES_MAY_ACTIVATE_FROM_EXACT_CHECKPOINT`
 
 ## 0. Audit ownership correction
 
@@ -807,3 +807,62 @@ Active closeout:
 - exact base `1ab3550e...`.
 
 No `FC0A_RELEASE_APPROVED` yet. Six prepared DEV/FND lanes remain WAIT until this stale test contract is corrected, merged and a new exact broad post-merge CI is globally green.
+
+
+## 10. Final Main release audit — FC0A_RELEASE_APPROVED
+
+Main re-ran the affected post-FND06 closure rows on the exact final integrated checkpoint.
+
+Final checkpoint:
+- SHA: `e3ed5138369c576549cb58a7aff9783792f322d3`
+- tree: `4e7627774fbfc111344e3d80fcb9d921eed8377e`
+- integration relation: `wave15/corrections-integration` is identical to this SHA at release decision time.
+
+Final exact broad gate:
+- workflow: `EliteSCADA CI #1569`
+- run: `36060017969`
+- exact head: `e3ed5138369c576549cb58a7aff9783792f322d3`
+- Web build: SUCCESS
+- Backend build/test: SUCCESS
+- Runtime smoke: SUCCESS
+- Chromium full suite: SUCCESS
+- Chromium result: **655 passed / 0 failed**
+- corrected Canvas source-contract spec executed in the full suite and passed.
+
+Closure history that remains part of the evidence chain:
+- PR #340 consolidated FC0-A package accepted/merged;
+- INFRA-CI-01C PR #341 fixed the generic PostgreSQL shared-schema fixture race and broad backend evidence became green;
+- PR #342 fixed the deterministic Contextual Help E2E Node/CSS load defect without changing Help semantics;
+- PR #343 corrected the stale Canvas source-contract test so it asserts the frozen FND-06 Engineering compatibility seam rather than the historical builtin-only symbol;
+- the IEC-104 T2 timing failure on #1568 was diagnosed against unchanged frozen-lineage blobs and closed by the single repository-authorized same-SHA rerun; no IEC-104 mutation was made.
+
+Final affected product rows:
+- W15-P1-01 Server Script bounded recovery: CLOSED;
+- W15-P1-06 truthful Engineering shell/model-unavailable identity: CLOSED;
+- FC0-A Runtime Session Class visibility/truth: CLOSED;
+- R6 shell/scroll/Engineering Lock/known-legacy/unknown-containment evidence: CLOSED;
+- contextual Help broad-load defect: CLOSED;
+- Canvas source-contract stale assertion: CLOSED.
+
+Cross-Foundation compatibility:
+- FND-05 = **ADDITIVE / NON-BREAKING** to frozen FND-03/FND-04/FND-06; any future implementation attempt that requires semantic reinterpretation remains `BLOCKED-CONTRACT`;
+- FND-07 = **COMPOSITIONAL / NON-BREAKING** to frozen FND-01/FND-02/FND-03; any semantic rewrite remains `BLOCKED-CONTRACT`.
+
+Final release matrix:
+
+| Lane | Approved base | Contract status | Release disposition |
+| --- | --- | --- | --- |
+| DEV-EDITOR | `e3ed5138369c576549cb58a7aff9783792f322d3` / `4e7627774fbfc111344e3d80fcb9d921eed8377e` | consume frozen FND-06 compatibility/renderer | RELEASE |
+| DEV-SCRIPT-ENGINEERING | same | consume frozen FND-04/FND-06 | RELEASE |
+| DEV-AUTHORITY-UX | same | consume frozen FND-02/AUTH-04 | RELEASE |
+| DEV-LICENSING-UX | same | consume frozen FND-03 | RELEASE |
+| FND-05 DEV | same | additive HA/topology/fencing only | RELEASE |
+| FND-07 DEV | same | compositional detach/neutral-bootstrap only | RELEASE |
+
+Release means **authorized to begin isolated implementation**, not accepted/verified feature output.
+
+Final prefix:
+
+`FC0-A FOUNDATION AUDIT -> MAIN COORDINATOR — ACCEPTABLE / FC0A_RELEASE_APPROVED`
+
+No unresolved P0/P1 Foundation blocker remains at this checkpoint. Downstream Installation UX, EliteGO and other post-Foundation work remain blocked by their own gates.

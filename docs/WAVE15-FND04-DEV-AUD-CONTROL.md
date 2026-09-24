@@ -38,7 +38,7 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0017`
+`MAIN_ORDER_REV: 0018`
 
 `LAST_MAIN_UPDATE_BRT: 2026-09-23 — FND-04 FROZEN / SEQUENTIAL CODEX REASSIGNED TO FND-06`
 
@@ -603,7 +603,7 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 `NEXT_CONTROL_FILE: docs/WAVE15-FND06-CONTROL.md`
 
-`EXPECTED_FND06_ORDER: FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`
+`EXPECTED_FND06_ORDER: FND06-CODEX-WAIT-POSTMERGE-V4`
 
 Instruction:
 
@@ -613,7 +613,7 @@ Instruction:
 > 1. revalidate GitHub live;
 > 2. read `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md` in full;
 > 3. confirm its current executor order is still ACTIVE and the exact base has not moved by unacknowledged product/infra delta;
-> 4. execute that FND-06 order, currently `FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`;
+> 4. execute that FND-06 order, currently `FND06-CODEX-WAIT-POSTMERGE-V4`;
 > 5. return using the FND-06 mandatory handoff format.
 >
 > Do **not** report `FND-04 CODEX EXECUTOR — FROZEN / WAIT` merely because FND-04 is frozen. That old behavior is superseded by this routing order.

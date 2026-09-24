@@ -7,9 +7,9 @@
 
 `AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
-`AUDIT_REV: 0003`
+`AUDIT_REV: 0004`
 
-`STATE: PREPARED / WAIT_FND06_POST_MERGE_CI_GREEN`
+`STATE: PREPARED / WAIT_INFRA_CI_01B_GREEN_AND_FND06_FREEZE`
 
 `MODE: READ_ONLY_CROSS_WAVE_FOUNDATION_AUDIT`
 
@@ -51,7 +51,7 @@ FND-06 has been merged but is **not yet frozen**.
 - integration merge SHA: `624f2eca456310a2c6156538b3616a06e3be075f`
 - merge tree: `fb864fb954b0123e69db379cd6b3120349b43600`
 - candidate natural T1: `35939646387` — SUCCESS
-- exact post-merge broad CI: `35940661531` / EliteSCADA CI #1563 — IN PROGRESS at audit rev 0003.
+- exact post-merge broad CI: `35940661531` / EliteSCADA CI #1563 — FAILURE in generic PostgreSQL initialization; Web succeeded, Backend test failed on `23505 pg_namespace_nspname_index`, Chromium skipped.
 
 Main review has accepted the mounted A7 closeout evidence:
 - Screen selection mounted across `tank | value | dynamo | status`;
@@ -62,6 +62,46 @@ Main review has accepted the mounted A7 closeout evidence:
 - no lifecycle/Authority/Licensing/Driver/Historian/schema scope leakage.
 
 This audit remains PREPARED until post-merge CI is green and Main marks FND-06 VERIFIED/FROZEN.
+
+## 1B. Generic infrastructure blocker discovered by post-merge CI
+
+Exact run:
+- `35940661531` / EliteSCADA CI #1563
+- exact head: `624f2eca456310a2c6156538b3616a06e3be075f`
+- Web: SUCCESS
+- Backend build/test/smoke: FAILURE in Test
+- Chromium: skipped downstream.
+
+Only identified failed test:
+`Scada.Persistence.PostgreSql.Tests.PostgreSqlVisualDynamicPersistenceTests.RevisionPersistence_PreservesVisualExpressionConditionAndAnalogFill`
+
+Error:
+`23505 / pg_namespace_nspname_index`
+during `PostgreSqlEngineeringProjectStore.InitializeAsync` / `CREATE SCHEMA IF NOT EXISTS elitescada`.
+
+Causality:
+- failing store source blob is identical before/after FND-06;
+- failing test blob is identical before/after FND-06;
+- PR #337 did not modify Persistence/PostgreSQL;
+- same catalog-race signature exists in Wave 14 history;
+- current source still has several shared-schema initializers where advisory-lock acquisition and DDL are issued in the same SQL batch.
+
+Classification:
+`GENERIC_INFRASTRUCTURE_BLOCKER / NOT_FND06_CAUSAL`
+
+No blind rerun is authorized.
+
+Blocking correction:
+- control: `coord/w15-infra-ci-01b-control:docs/WAVE15-INFRA-CI-01B-CONTROL.md`
+- order: `INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V1`
+- exact base: `624f2eca456310a2c6156538b3616a06e3be075f`
+- work branch: `work/w15-infra-ci-01b-postgresql-schema-init`
+- control commit: `358b067d9af6501b2945f311b5d2cd32cab64efa`.
+
+The FC0-A audit remains PREPARED until:
+1. INFRA-CI-01B is reviewed/merged;
+2. exact broad integration CI is green;
+3. Main records FND-06 VERIFIED/FROZEN on the resulting exact checkpoint.
 
 ## 2. Audit purpose
 

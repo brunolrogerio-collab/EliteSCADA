@@ -205,17 +205,34 @@ The normal DEV lane has no active mission. On `SIGA`, revalidate live state, rep
 Downstream lanes may consume the frozen Script TAG reference contract but may not redefine it.
 ---
 
-## 5. MAIN COORDINATOR -> FND-04 AUD — CURRENT ORDER
+## 5. MAIN COORDINATOR -> INDEPENDENT AUD — CURRENT ORDER
 
-**ORDER_STATE: FROZEN / WAIT**  
-**ORDER_ID: FND04-AUD-FROZEN-0011**  
-**AUD_MODE: READ_ONLY / NO ACTIVE REVIEW**
+**ORDER_STATE: WAIT_FND06_FINAL_BROAD**  
+**ORDER_ID: FC0A-AUD-WAIT-FND06-FINAL-BROAD-0012**  
+**AUD_MODE: READ_ONLY / PREPARED_CROSS_WAVE_AUDIT**
 
-Independent AUD completed exact candidate review on `c89ad92ed38dcacc6d00c4a9b907720f9dbfcf9e` with final classification **ACCEPTABLE**.
+The independent AUD lane previously used for FND-04 is reserved for the mandatory post-FND06 closure audit.
 
-PR #336 merged at `6c810647c9773a19b212d9c33694780141786ac7`; exact post-merge CI `35913456486` completed SUCCESS including Web, Backend/test/smoke and Chromium E2E.
+Do not start yet.
 
-No further FND-04 audit is active. On `SIGA`, revalidate live state, report `FND-04 AUD — FROZEN / WAIT`, and stop unless Main issues a new audit order.
+Activation requires:
+- broad `35953557122` SUCCESS on exact FND-06 final product checkpoint `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`;
+- Main declaration `FND-06 = VERIFIED/FROZEN`;
+- Main changes the audit order to ACTIVE.
+
+Next audit:
+`FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
+
+Control/evidence:
+- `coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-CONTROL.md`
+- `coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-EVIDENCE.md`
+
+Main preliminary findings are not AUD conclusions. In particular, AUD must independently confirm/disprove the preliminary `W15-P1-01 Server Script recovery = BLOCKED_FOUNDATION` finding.
+
+Dedicated AUD routing:
+`coord/w15-fnd04-dev-aud-control` rev 0023 / commit `1be8ef8cbdd555f3fa554e905faafab186c21dd3`.
+
+No product/test mutation and no FC0-A release authority while WAIT.
 ---
 
 ## 6. FND-04 BINDING CONTRACT — VERIFIED / FROZEN

@@ -133,54 +133,25 @@ Coordination/documentation commits after this checkpoint do not create a new pro
 
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
-**ORDER_STATE: ACTIVE**  
-**ORDER_ID: FND06-CODEX-E2E-FIXTURE-ISOLATION-V6**  
-**CODEX_MODE: TEST_ONLY_CLOSEOUT**  
-**EXECUTOR_IDENTITY: SAME SEQUENTIAL CODEX CHAT/LANE USED IN PRIOR FOUNDATION WORK INCLUDING FND-04/FND-06/INFRA-CI-01B**  
-**Mission:** remove FND-06 mounted-test fixture leakage without changing product/runtime contracts
+**ORDER_STATE: WAIT_POST_MERGE_GATE**  
+**ORDER_ID: FND06-CODEX-WAIT-FINAL-BROAD-V7**  
+**CODEX_MODE: NO_MUTATION**  
+**EXECUTOR_IDENTITY: SAME SEQUENTIAL CODEX CHAT/LANE USED IN PRIOR FOUNDATION WORK INCLUDING FND-04**
 
-Exact base:
-- `eb4563cf0060449b479c4335ef30a19ed65e35ab`
-- tree `0158aa1b6082a8f9e514f6e6a059f49312b07f65`
-- includes merged FND-06 product + merged/Main-accepted INFRA-CI-01B.
+Final FND-06 integration state:
+- PR #337 merged product/mounted closeout;
+- PR #338 merged generic PostgreSQL shared-schema correction;
+- PR #339 merged E2E fixture isolation;
+- exact current integration SHA `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
+- tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`
+- broad post-merge EliteSCADA CI #1565 / `35953557122` is the only remaining FND-06 freeze gate.
 
-Trigger:
-- broad CI #1564 / run `35944510920`;
-- Web SUCCESS;
-- Backend build/test/smoke SUCCESS;
-- Chromium FAILURE;
-- 636 passed / 1 failed;
-- only failed spec: `runtime.spec.ts`;
-- Runtime test observed leaked `fnd06-legacy-screen-*`.
-
-Root cause:
-- `fnd06-mounted-legacy-selection.spec.ts` creates a new Screen/Popup via normal JSON import/apply;
-- `ViewEngineeringHandler.Apply` is upsert-only;
-- reapplying the original package in `finally` updates original entities but cannot delete newly-created Views;
-- Playwright uses `workers: 1`, so this is deterministic persistent fixture leakage, not cross-worker concurrency.
-
-Required correction:
-- test file only;
-- reuse existing canonical Screen/Popup identities while appending temporary legacy objects;
-- restore exact originals by upsert in `finally`;
-- post-cleanup re-export proves original counts/keys/content restored;
-- do not weaken `runtime.spec.ts`;
-- no product/API/import/workflow/retry/worker changes.
-
-Work branch:
-`work/w15-fnd06-e2e-fixture-isolation`
+CODEX must not mutate/rerun/rebase while this exact broad run executes. Main owns freeze and activation of the independent post-FND06 audit.
 
 Detailed control:
-`coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
-rev `0010`
-commit `b7b3ab914464a2da87d7b2175eb95a24d8a7db9b`.
+`coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md` rev 0011 / commit `e124c3a2be4cbd6e8d60cd778861b3258286adc1`.
 
-Required paired proof:
-`fnd06-mounted-legacy-selection.spec.ts + runtime.spec.ts` in the same normal Playwright lifecycle.
-
-No self-merge/freeze authority.
 ---
-
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
 
 **ORDER_STATE: WAIT**  

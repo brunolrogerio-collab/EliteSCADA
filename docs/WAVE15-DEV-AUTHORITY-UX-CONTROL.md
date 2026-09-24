@@ -137,3 +137,31 @@ After correction return:
 `DEV-AUTHORITY-UX -> MAIN COORDINATOR — CANDIDATE HANDOFF`
 
 No CODEX routing or merge yet.
+
+
+### Additional exact-head T1 evidence — compile defect on reviewed head
+
+Natural T1 after Main repaired PR metadata:
+
+`36067636970`
+
+Results on exact old head `3986475b20e4a72969159bfaed003ad5d72626d4`:
+- classifier: SUCCESS;
+- Common sanity: SUCCESS;
+- focused .NET: SUCCESS;
+- focused Chromium: SUCCESS;
+- Web semantic build: **FAILURE**.
+
+Exact TypeScript errors:
+- `AuthorityPolicyAdministration.logic.ts(16,63) TS2345`;
+- `AuthorityPolicyAdministration.logic.ts(18,99) TS2345`;
+- a generic `number` is passed to a Map whose key type was inferred as the literal capability union `0 | 1 | ... | 14`.
+
+This is candidate-causal and belongs to the already-open DEV correction.
+
+Required correction also includes:
+- make the capability lookup map/type accept the declared `number | string` wire-normalization path without weakening the canonical capability table;
+- preserve unknown capability fail-closed/display behavior;
+- Web build must be green on the corrected head.
+
+Do not rerun `36067636970` unchanged. The corrected candidate requires a new natural T1.

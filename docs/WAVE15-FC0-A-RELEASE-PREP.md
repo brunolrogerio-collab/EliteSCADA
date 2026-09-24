@@ -2,9 +2,29 @@
 
 > PREPARED ONLY. This document does not release any DEV lane. GitHub live and Main's later exact FC0-A checkpoint are authoritative.
 
-`STATE: PREPARED / NOT RELEASED / AUDIT_CHANGES_REQUIRED / BLOCKED_ON_P1-01_AND_P1-06`
+`STATE: PREPARED / NOT RELEASED / CONSOLIDATED_FC0A_CORRECTION_ACTIVE`
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
+
+## 0A. Current correction strategy — consolidated pre-release package
+
+Main superseded the previous serialized P1-01 -> review -> P1-06 sequence.
+
+Active order:
+`FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V2`
+
+Control:
+`docs/WAVE15-FC0A-CONSOLIDATED-CORRECTION-PACKAGE.md`
+
+Work branch:
+`work/w15-fc0a-consolidated-corrections`
+
+Exact base:
+`560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
+
+The package brings forward all confirmed/shared FC0-A findings that can be safely corrected without reopening frozen contracts, while leaving only speculative/evidence-bounded future work outside the package. The same sequential CODEX executor is authorized to complete the full package and present one final consolidated candidate before Main re-review.
+
+No DEV/FND-05/FND-07 release occurs until that candidate is reviewed, integrated if accepted, broad exact-head evidence is green, and Main reruns the FC0-A audit rows.
 
 ## 1. Frozen dependencies already established
 

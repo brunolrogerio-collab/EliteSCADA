@@ -5,11 +5,11 @@
 
 `CONTROL_BRANCH: coord/w15-infra-ci-01b-control`
 
-`MAIN_ORDER_REV: 0002`
+`MAIN_ORDER_REV: 0003`
 
-`STATE: ACTIVE / SCOPE_AMENDED_AFTER_FULL_TEST_RED`
+`STATE: MERGED / POST_MERGE_BROAD_CI_PENDING`
 
-`ORDER_ID: INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V2`
+`ORDER_ID: INFRA-CI-01B-WAIT-POSTMERGE-V3`
 
 `EXECUTOR_IDENTITY: SAME SEQUENTIAL CODEX LANE USED FOR PRIOR FOUNDATION/FND-06`
 
@@ -201,40 +201,32 @@ Intermediate candidate `97c665c8...` remains useful evidence but is **not candid
 
 ## 5. CURRENT EXECUTOR ORDER
 
-`ORDER_ID: INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V2`
+`ORDER_ID: INFRA-CI-01B-WAIT-POSTMERGE-V3`
 
-`ORDER_STATE: ACTIVE / SCOPE_AMENDED`
+`ORDER_STATE: WAIT_POST_MERGE_GATE`
 
-`EXECUTOR_MODE: BOUNDED_INFRA_CORRECTION`
+`EXECUTOR_MODE: NO_MUTATION`
 
-`BASE: 624f2eca456310a2c6156538b3616a06e3be075f`
+`FINAL_CANDIDATE: 6f835bd8a084c0952e93f14c7c90bfffd64a3c71`
 
-`INTERMEDIATE_CANDIDATE: 97c665c8e4d62268336dfdef400f992c2f9d43cf`
+`MERGE_SHA: eb4563cf0060449b479c4335ef30a19ed65e35ab`
 
-`WORK_BRANCH: work/w15-infra-ci-01b-postgresql-schema-init`
+`MERGE_TREE: 0158aa1b6082a8f9e514f6e6a059f49312b07f65`
 
-Mission:
+`POST_MERGE_CI_RUN: 35944510920 / EliteSCADA CI #1564`
 
-1. Continue from intermediate candidate `97c665c8...`; do not discard its valid V1 corrections.
-2. Bring **every shared-schema creator in `Scada.Persistence.PostgreSql`** under the same explicit lock-before-DDL initialization invariant.
-3. Preserve shared key `4993446713136202561`.
-4. Add only these newly authorized production files beyond V1:
-   - `src/Scada.Persistence.PostgreSql/PostgreSqlAuthorityPolicyStore.cs`
-   - `src/Scada.Persistence.PostgreSql/PostgreSqlAuthorityLifecycleStore.cs`
-   - `src/Scada.Persistence.PostgreSql/PostgreSqlRuntimeSessionLeaseStore.cs`
-5. For AuthorityPolicy initialization, introduce transaction + explicit shared DDL lock only as necessary to serialize schema initialization. Preserve policy snapshot/mutation semantics.
-6. For AuthorityLifecycle and RuntimeSessionLease, split shared DDL lock acquisition from their existing DDL batches. Preserve every non-DDL lock and all domain semantics.
-7. Use the existing internal `PostgreSqlSharedSchemaInitialization` helper where it cleanly applies; do not widen public API.
-8. Expand `PostgreSqlConcurrentInitializationTests` to exercise the newly authorized creators concurrently with the existing set.
-9. If Timescale cannot be added to this test project without widening project dependencies, preserve its existing dedicated concurrency proof and document that boundary rather than adding a cross-project dependency solely for this test.
-10. Re-run the full relevant PostgreSQL/.NET suite against fresh PostgreSQL/TimescaleDB, not only focused T1.
-11. The previous local RED (120 pass / 1 fail with `23505`) is valid RED evidence for V2.
-12. Obtain a fresh natural T1 on the new exact candidate.
-13. Update PR #338 to the new exact head and return a candidate handoff only when both focused T1 and the fuller local regression are green.
+Instruction:
 
-Hard semantic boundary:
+> INFRA-CI-01B V2 has passed Main review and was merged normally.
+> Do not mutate product/tests, rebase, retarget or rerun while exact broad post-merge run `35944510920` is pending.
+> On `SIGA`, report the exact post-merge gate state unless Main issues a newer order.
 
-> Touching files named Authority or RuntimeSession is authorized **only** to correct shared-schema DDL initialization sequencing. No role, scope, evaluator, epoch, session-class, quota, licensing, admission, fencing or runtime behavior may change.
+Evidence accepted before merge:
+- final candidate `6f835bd8...`;
+- full local .NET/PostgreSQL regression 121/121;
+- natural T1 `35944240953` SUCCESS;
+- all nine shared-schema creators covered by explicit lock-before-DDL invariant or existing equivalent;
+- no Authority/RuntimeSession semantic changes.
 
 ## 6. RED requirement
 

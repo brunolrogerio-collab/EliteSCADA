@@ -5,9 +5,9 @@
 
 `AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
-`MATRIX_REV: 0001`
+`MATRIX_REV: 0002`
 
-`STATE: PREPARED / PENDING_FND06_POST_MERGE_GREEN_AND_INDEPENDENT_AUDIT`
+`STATE: PREPARED / PENDING_INFRA_CI_01B_AND_FND06_FREEZE_AND_INDEPENDENT_AUDIT`
 
 ## 1. Exact checkpoint currently under post-merge validation
 
@@ -16,9 +16,20 @@
 - FND-06 merge: `624f2eca456310a2c6156538b3616a06e3be075f`
 - merge tree: `fb864fb954b0123e69db379cd6b3120349b43600`
 - candidate T1: `35939646387` — SUCCESS
-- post-merge broad CI: `35940661531` — IN PROGRESS when this matrix rev was created.
+- post-merge broad CI: `35940661531` — FAILURE due generic PostgreSQL schema initialization race; FND-06 visual causality not established.
 
 No row below may become final `CLOSED_FOUNDATION` or `RELEASE` solely from this preparatory matrix.
+
+## 1A. Infrastructure blocker classification
+
+The exact FND-06 merge checkpoint cannot yet become the FC0-A audit base because its broad CI is red for a generic shared-schema PostgreSQL race.
+
+Required correction:
+`INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V1`
+
+This blocker does not alter the provisional FND-06 contract-risk conclusions, but it blocks the exact checkpoint/freeze requirement.
+
+The final matrix must use the integration SHA **after** INFRA-CI-01B and its exact green broad CI, not `624f2eca...` alone.
 
 ## 2. Wave 14 -> Wave 15 closure matrix — provisional
 

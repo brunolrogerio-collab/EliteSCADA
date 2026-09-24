@@ -38,7 +38,7 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0018`
+`MAIN_ORDER_REV: 0019`
 
 `LAST_MAIN_UPDATE_BRT: 2026-09-23 — FND-04 FROZEN / SEQUENTIAL CODEX REASSIGNED TO FND-06`
 
@@ -591,34 +591,35 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 ### CURRENT CODEX EXECUTION ORDER
 
-`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FND06-12`
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-INFRA-CI-01B-13`
 
 `ORDER_STATE: ACTIVE_ROUTE`
 
-`EXECUTOR_MODE: SAME_SEQUENTIAL_CODEX / REASSIGNED_TO_FND06`
+`EXECUTOR_MODE: SAME_SEQUENTIAL_CODEX / REASSIGNED_TO_INFRA_CI_01B`
 
 `FND04_STATE: VERIFIED_FROZEN`
 
-`NEXT_CONTROL_BRANCH: coord/w15-fnd06-control`
+`FND06_STATE: INTEGRATED / FREEZE_BLOCKED_GENERIC_INFRA`
 
-`NEXT_CONTROL_FILE: docs/WAVE15-FND06-CONTROL.md`
+`NEXT_CONTROL_BRANCH: coord/w15-infra-ci-01b-control`
 
-`EXPECTED_FND06_ORDER: FND06-CODEX-WAIT-POSTMERGE-V4`
+`NEXT_CONTROL_FILE: docs/WAVE15-INFRA-CI-01B-CONTROL.md`
+
+`EXPECTED_ORDER: INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V1`
 
 Instruction:
 
-> FND-04 itself is VERIFIED/FROZEN, but **you are not on WAIT as an executor**. Main has reassigned this same sequential CODEX lane/chat — the executor that worked prior Foundation stages including FND-04 — to FND-06.
+> The shared sequential CODEX lane is not idle.
+> FND-04 remains frozen and FND-06 product work is merged.
+> Main has assigned this same CODEX lane to the generic PostgreSQL post-merge blocker `INFRA-CI-01B`.
 >
 > On every `SIGA`:
 > 1. revalidate GitHub live;
-> 2. read `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md` in full;
-> 3. confirm its current executor order is still ACTIVE and the exact base has not moved by unacknowledged product/infra delta;
-> 4. execute that FND-06 order, currently `FND06-CODEX-WAIT-POSTMERGE-V4`;
-> 5. return using the FND-06 mandatory handoff format.
+> 2. read `coord/w15-infra-ci-01b-control:docs/WAVE15-INFRA-CI-01B-CONTROL.md`;
+> 3. execute its latest ACTIVE order;
+> 4. return with the INFRA-CI-01B mandatory handoff prefix.
 >
-> Do **not** report `FND-04 CODEX EXECUTOR — FROZEN / WAIT` merely because FND-04 is frozen. That old behavior is superseded by this routing order.
->
-> Stop only if the FND-06 control itself says WAIT/STOP/BLOCKED, or GitHub live shows an unacknowledged base divergence.
+> Do not report FND-04 WAIT or FND-06 WAIT while this routing order is current.
 
 ### CODEX mandatory return
 

@@ -14,16 +14,31 @@ export type RuntimeSessionFetch = (
 export class RuntimeSessionAdmissionError extends Error {
   constructor(
     message: string,
-    public readonly status?: number
+    public readonly status?: number,
+    public readonly outcome?: RuntimeSessionAdmissionOutcome
   ) {
     super(message);
     this.name = 'RuntimeSessionAdmissionError';
   }
 }
 
+export type RuntimeSessionConnectionClass = 'interactive' | 'viewOnly';
+
+export type RuntimeSessionAdmissionOutcome = {
+  headers: Record<string, string>;
+  requestedClass: RuntimeSessionConnectionClass | null;
+  grantedClass: RuntimeSessionConnectionClass | null;
+  admissionReasonCode: string | null;
+  capacityReasonCode: string | null;
+};
+
 type RuntimeSessionAdmission = {
   sessionId?: unknown;
   clientInstanceId?: unknown;
+  requestedClass?: unknown;
+  grantedClass?: unknown;
+  admissionReasonCode?: unknown;
+  capacityReasonCode?: unknown;
 };
 
 /**
@@ -51,6 +66,28 @@ export async function admitInteractiveRuntimeSession(
   fetcher: RuntimeSessionFetch = fetch,
   clientInstanceId = getRuntimeClientInstanceId()
 ): Promise<Record<string, string>> {
+  const outcome = await admitRuntimeSession('interactive', fetcher, clientInstanceId);
+  if (outcome.grantedClass && outcome.grantedClass !== 'interactive') {
+    throw new RuntimeSessionAdmissionError(
+      describeInteractiveFallback(outcome),
+      undefined,
+      outcome
+    );
+  }
+
+  return outcome.headers;
+}
+
+/**
+ * Preserves the server-calculated admission decision. Callers that require mutation
+ * must use admitInteractiveRuntimeSession so a viewOnly fallback is never mistaken
+ * for an interactive grant.
+ */
+export async function admitRuntimeSession(
+  requestedClass: RuntimeSessionConnectionClass,
+  fetcher: RuntimeSessionFetch = fetch,
+  clientInstanceId = getRuntimeClientInstanceId()
+): Promise<RuntimeSessionAdmissionOutcome> {
   let response: Response;
   try {
     response = await fetcher(`${API}/api/runtime/sessions`, {
@@ -60,7 +97,7 @@ export async function admitInteractiveRuntimeSession(
         accept: 'application/json',
         'content-type': 'application/json; charset=utf-8'
       },
-      body: JSON.stringify({ clientInstanceId, connectionClass: 'interactive' })
+      body: JSON.stringify({ clientInstanceId, connectionClass: requestedClass })
     });
   } catch (reason) {
     throw new RuntimeSessionAdmissionError(reason instanceof Error ? reason.message : String(reason));
@@ -87,9 +124,31 @@ export async function admitInteractiveRuntimeSession(
   }
 
   return {
-    [RUNTIME_SESSION_HEADER]: admission.sessionId,
-    [RUNTIME_CLIENT_INSTANCE_HEADER]: clientInstanceId
+    headers: {
+      [RUNTIME_SESSION_HEADER]: admission.sessionId,
+      [RUNTIME_CLIENT_INSTANCE_HEADER]: clientInstanceId
+    },
+    requestedClass: parseConnectionClass(admission.requestedClass),
+    grantedClass: parseConnectionClass(admission.grantedClass),
+    admissionReasonCode: stringValue(admission.admissionReasonCode),
+    capacityReasonCode: stringValue(admission.capacityReasonCode)
   };
+}
+
+function parseConnectionClass(value: unknown): RuntimeSessionConnectionClass | null {
+  if (value === 'interactive') return value;
+  // `viewer` was accepted by older contracts; browser presentation remains canonical.
+  if (value === 'viewOnly' || value === 'viewer') return 'viewOnly';
+  return null;
+}
+
+function stringValue(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
+function describeInteractiveFallback(outcome: RuntimeSessionAdmissionOutcome): string {
+  const reasons = [outcome.admissionReasonCode, outcome.capacityReasonCode].filter(Boolean).join(', ');
+  return `Interactive Runtime access was requested, but the server granted viewOnly access${reasons ? ` (${reasons})` : ''}.`;
 }
 
 function createClientInstanceId(): string {

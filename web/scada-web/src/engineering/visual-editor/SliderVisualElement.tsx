@@ -114,7 +114,7 @@ export function SliderVisualElement({
       onBlur={event => void commit(Number(event.currentTarget.value))}
     />
     <output aria-live="polite">{unavailable ? '—' : formatSliderValue(draftValue, config.step)}</output>
-    {writeError ? <span className="visual-editor-slider__error" role="alert">!</span> : null}
+    {writeError ? <span className="visual-editor-slider__error" role="alert" aria-label={writeError} title={writeError}>!</span> : null}
   </div>;
 }
 

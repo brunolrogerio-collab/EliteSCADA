@@ -167,6 +167,20 @@ test('external identity does not expose local switch-user even when local login 
   await expect(page.getByTestId('session-logout')).toBeVisible();
 });
 
+test('account menu closes with Escape and returns focus to its trigger', async ({ page }) => {
+  await installSessionContract(page, administrator);
+
+  await page.goto('/');
+  const trigger = page.getByTestId('session-menu-toggle');
+  await trigger.focus();
+  await trigger.press('Enter');
+  await expect(page.getByTestId('session-menu-popup')).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('session-menu-popup')).toBeHidden();
+  await expect(trigger).toBeFocused();
+});
+
 test('failed server invalidation keeps the current identity and Runtime interactive', async ({ page }) => {
   const contract = await installSessionContract(page, administrator, 'failure');
 

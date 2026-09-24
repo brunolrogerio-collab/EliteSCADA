@@ -17,7 +17,8 @@ internal static class ServerScriptOperationalEventBridge
 
     public static void Bind(
         ServerScriptRuntimeManager host,
-        IOperationalEventRuntime operationalEvents)
+        IOperationalEventRuntime operationalEvents,
+        Func<bool>? industrialEffectAuthority = null)
     {
         ArgumentNullException.ThrowIfNull(host);
         ArgumentNullException.ThrowIfNull(operationalEvents);
@@ -33,6 +34,8 @@ internal static class ServerScriptOperationalEventBridge
             }
 
             slot.OperationalEvents = operationalEvents;
+            if (industrialEffectAuthority is not null)
+                slot.IndustrialEffectAuthority = industrialEffectAuthority;
         }
     }
 
@@ -57,6 +60,12 @@ internal static class ServerScriptOperationalEventBridge
         {
             throw new ScriptExecutionDiagnosticException(
                 "Operational Event runtime authority is unavailable for this Server Script host.");
+        }
+
+        if (slot.IndustrialEffectAuthority is not null && !slot.IndustrialEffectAuthority())
+        {
+            throw new ScriptExecutionDiagnosticException(
+                "Operational Event emission is fenced because this node is not the effective HA Active authority.");
         }
 
         return await host.ExecuteAgainstActiveRevisionAsync(
@@ -102,5 +111,6 @@ internal static class ServerScriptOperationalEventBridge
     {
         public object Sync { get; } = new();
         public IOperationalEventRuntime? OperationalEvents { get; set; }
+        public Func<bool>? IndustrialEffectAuthority { get; set; }
     }
 }

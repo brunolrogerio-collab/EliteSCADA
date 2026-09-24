@@ -432,3 +432,21 @@ FC0-A sequencing:
 - audit control: `coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-CONTROL.md`;
 - audit must correlate final Wave 14 findings, Wave 15 premises/gaps, frozen contracts and FND-05/FND-07 compatibility;
 - only `ACCEPTABLE / FC0A_RELEASE_APPROVED` releases the four FC0-A DEVs and allows FND-05/FND-07 to activate in parallel.
+
+
+## Latest live blocker for successor — INFRA-CI-01B
+
+Do not freeze FND-06 yet.
+
+FND-06 PR #337 merged at `624f2eca456310a2c6156538b3616a06e3be075f`, but exact broad post-merge CI `35940661531` failed on generic PostgreSQL schema initialization `23505 / pg_namespace_nspname_index`.
+
+Active same sequential CODEX order:
+`INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V1`
+
+Control:
+`coord/w15-infra-ci-01b-control:docs/WAVE15-INFRA-CI-01B-CONTROL.md`
+
+Work:
+`work/w15-infra-ci-01b-postgresql-schema-init`
+
+Do not blind-rerun the failed CI. Fix/review/merge the bounded infrastructure race, require exact broad green CI, then freeze FND-06 and activate the independent post-FND06 FC0-A audit.

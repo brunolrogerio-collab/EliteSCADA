@@ -1,4 +1,5 @@
 using Scada.Engineering.Persistence;
+using Scada.Engineering.Security;
 using Scada.Security.Audit;
 using Scada.Security.Authentication;
 using Scada.Security.Authorization;

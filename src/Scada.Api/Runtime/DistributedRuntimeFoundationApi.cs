@@ -22,6 +22,7 @@ public static class DistributedRuntimeFoundationApi
             ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
             IProductLicenseService licensing,
+            RuntimeHighAvailabilityService highAvailability,
             CancellationToken cancellationToken) =>
         {
             var principal = security.GetPrincipal(context);
@@ -73,6 +74,7 @@ public static class DistributedRuntimeFoundationApi
                     return CapacityFailure(capacity.ReasonCode);
 
                 var before = runtime.Describe();
+                highAvailability.RefreshLocalReadiness(before, licensing.CurrentVerification);
                 var seatAdmission = await security.RuntimeSessions.AdmitWithCapacityAsync(
                     principal.SubjectId,
                     request.ClientInstanceId,
@@ -80,6 +82,8 @@ public static class DistributedRuntimeFoundationApi
                     before,
                     capacity.Capacity,
                     authority.AuthorityRevision,
+                    serverNode: highAvailability.LocalNodeId,
+                    clusterId: highAvailability.ClusterId,
                     cancellationToken: cancellationToken);
 
                 if (!seatAdmission.IsAdmitted)
@@ -108,6 +112,16 @@ public static class DistributedRuntimeFoundationApi
                     return RuntimeChanged();
                 }
 
+                if (highAvailability.Enabled &&
+                    highAvailability.ClusterId is { } clusterId &&
+                    highAvailability.LocalNodeId is { } localNodeId)
+                {
+                    _ = highAvailability.SessionContinuity.CaptureOrRetain(
+                        lease,
+                        clusterId,
+                        localNodeId);
+                }
+
                 return Results.Created(
                     $"/api/runtime/sessions/{lease.SessionId}",
                     ProjectLease(lease, decision, seatAdmission.ReasonCode));
@@ -122,6 +136,7 @@ public static class DistributedRuntimeFoundationApi
             HttpContext context,
             ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
+            RuntimeHighAvailabilityService highAvailability,
             CancellationToken cancellationToken) =>
         {
             var principal = security.GetPrincipal(context);
@@ -146,6 +161,18 @@ public static class DistributedRuntimeFoundationApi
                 request.ClientInstanceId,
                 runtime.Describe(),
                 cancellationToken);
+            if (validation.IsValid &&
+                validation.Lease is not null &&
+                highAvailability.Enabled &&
+                highAvailability.ClusterId is { } clusterId &&
+                highAvailability.LocalNodeId is { } localNodeId)
+            {
+                _ = highAvailability.SessionContinuity.CaptureOrRetain(
+                    validation.Lease,
+                    clusterId,
+                    localNodeId);
+            }
+
             return validation.IsValid && validation.Lease is not null
                 ? Results.Ok(ProjectLease(validation.Lease))
                 : LeaseFailure(validation);
@@ -157,6 +184,7 @@ public static class DistributedRuntimeFoundationApi
             HttpContext context,
             ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
+            RuntimeHighAvailabilityService highAvailability,
             CancellationToken cancellationToken) =>
         {
             var principal = security.GetPrincipal(context);
@@ -173,6 +201,17 @@ public static class DistributedRuntimeFoundationApi
                 request.ClientInstanceId,
                 runtime.Describe(),
                 cancellationToken);
+            if (validation.IsValid &&
+                highAvailability.Enabled &&
+                highAvailability.ClusterId is { } clusterId)
+            {
+                _ = highAvailability.SessionContinuity.Terminate(
+                    clusterId,
+                    principal.SubjectId,
+                    request.ClientInstanceId,
+                    sessionId);
+            }
+
             return validation.IsValid
                 ? Results.NoContent()
                 : LeaseFailure(validation);

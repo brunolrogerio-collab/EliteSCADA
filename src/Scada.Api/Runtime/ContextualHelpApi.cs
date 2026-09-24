@@ -12,11 +12,20 @@ public sealed record ContextualHelpTopic(
     string Summary,
     IReadOnlyCollection<ContextualHelpSection> Sections);
 
+public sealed record ContextualHelpScriptApi(
+    string Name,
+    string Signature,
+    string Parameters,
+    string Result,
+    string Safety,
+    string Example);
+
 public sealed record ContextualHelpCatalogView(
     string Locale,
     IReadOnlyCollection<string> SupportedLocales,
     IReadOnlyCollection<ContextualHelpTopic> Topics,
-    IReadOnlyCollection<string> ServerScriptApi);
+    IReadOnlyCollection<string> ServerScriptApi,
+    IReadOnlyCollection<ContextualHelpScriptApi> ServerScriptApiDetails);
 
 public static class ContextualHelpCatalog
 {
@@ -106,7 +115,8 @@ public static class ContextualHelpCatalog
             locale,
             SupportedLocales,
             topics.OrderBy(topic => topic.Id, StringComparer.Ordinal).ToArray(),
-            ServerScriptApiFunctions);
+            ServerScriptApiFunctions,
+            BuildServerScriptApi(locale));
     }
 
     public static string NormalizeLocale(string? locale) => locale switch
@@ -434,6 +444,11 @@ public static class ContextualHelpCatalog
             "This build-specific API contains only read_tag, read_server_memory, write_tag, write_server_memory, publish_server_memory_sample and emit_operational_event. Accessed TAGs must be declared dependencies; Server Memory functions require ServerMemoryTag.",
             "La API específica de este build contiene solo read_tag, read_server_memory, write_tag, write_server_memory, publish_server_memory_sample y emit_operational_event. Los TAGs accedidos deben ser dependencias declaradas; funciones de Server Memory requieren ServerMemoryTag."),
             "value = read_tag(\"<stable-tag-id>\")\nwrite_tag(\"<stable-tag-id>\", value)\nemit_operational_event(\"<definition-id>\", \"message\", {\"source\": \"script\"})"),
+        S(Tx("Receita: estado visual permitido", "Recipe: allowed visual state", "Receta: estado visual permitido"), Tx(
+            "Leia TAGs estáveis declarados, avalie a condição e escreva somente um TAG de estado autorizado que já esteja ligado à propriedade visual. O script não altera objetos de tela diretamente e não cria uma API visual paralela.",
+            "Read declared stable TAGs, evaluate the condition, and write only an authorized state TAG already bound to the visual property. The script does not mutate screen objects directly or create a parallel visual API.",
+            "Lea TAGs estables declarados, evalúe la condición y escriba solamente un TAG de estado autorizado ya ligado a la propiedad visual. El script no muta objetos de pantalla directamente ni crea una API visual paralela."),
+            "left = read_tag(\"<stable-left-tag-id>\")\nright = read_tag(\"<stable-right-tag-id>\")\nif left > right:\n    write_tag(\"<stable-visual-state-tag-id>\", True)"),
         S(Tx("Lifecycle e triggers", "Lifecycle and triggers", "Lifecycle y triggers"), Tx(
             "Somente scripts habilitados de scope Server são hospedados na revisão Active. O host atual despacha Initialize, Dispose, TagChanged, Timer e ServerRuntimeEvent. Ao trocar Active, a geração anterior é cancelada; acesso de TAG e emissão de Operational Event usam revision gate para impedir execução obsoleta sobre uma revisão nova.",
             "Only enabled Server-scope scripts are hosted on the Active revision. The current host dispatches Initialize, Dispose, TagChanged, Timer and ServerRuntimeEvent. When Active changes, the previous generation is cancelled; TAG access and Operational Event emission use a revision gate to prevent obsolete execution against a new revision.",
@@ -451,6 +466,31 @@ public static class ContextualHelpCatalog
             "Use only functions exposed by the build and declared stable references. Do not document historical or planned convenience functions as if they existed.",
             "Use solo funciones expuestas por el build y referencias estables declaradas. No documente convenience functions históricas o planificadas como si existieran."),
             "value = read_server_memory(\"<stable-tag-id>\")\nwrite_server_memory(\"<stable-tag-id>\", value)\npublish_server_memory_sample(\"<stable-tag-id>\", value, \"Good\")"));
+
+    private static IReadOnlyCollection<ContextualHelpScriptApi> BuildServerScriptApi(string locale) => new[]
+    {
+        ScriptApi("read_tag", "read_tag(tag_id)", "tag_id: stable declared TAG id", "Returns the current TAG value.", "Read only; the TAG must be a declared dependency.", "value = read_tag(\"<stable-tag-id>\")", locale),
+        ScriptApi("read_server_memory", "read_server_memory(tag_id)", "tag_id: stable declared ServerMemoryTag id", "Returns the current Server Memory value.", "Read only; only ServerMemoryTag references are accepted.", "value = read_server_memory(\"<stable-server-memory-tag-id>\")", locale),
+        ScriptApi("write_tag", "write_tag(tag_id, value)", "tag_id: stable declared TAG id; value: serializable value", "Writes the TAG and returns None.", "Only declared, write-authorized TAGs are allowed; no UI object is mutated directly.", "write_tag(\"<stable-visual-state-tag-id>\", True)", locale),
+        ScriptApi("write_server_memory", "write_server_memory(tag_id, value)", "tag_id: stable declared ServerMemoryTag id; value: serializable value", "Writes Server Memory and returns None.", "Only ServerMemoryTag references are accepted.", "write_server_memory(\"<stable-server-memory-tag-id>\", value)", locale),
+        ScriptApi("publish_server_memory_sample", "publish_server_memory_sample(tag_id, value, quality)", "tag_id: stable declared ServerMemoryTag id; value: serializable value; quality: quality string", "Publishes a Server Memory sample and returns None.", "Requires exactly three arguments and a valid ServerMemoryTag.", "publish_server_memory_sample(\"<stable-server-memory-tag-id>\", value, \"Good\")", locale),
+        ScriptApi("emit_operational_event", "emit_operational_event(definition_id, message=None, context=None)", "definition_id: stable event definition id; message: optional string; context: optional dictionary", "Emits the operational event and returns None.", "Inputs are validated and bounded; it does not grant Authority fallback.", "emit_operational_event(\"<definition-id>\", \"threshold crossed\", {\"source\": \"script\"})", locale)
+    };
+
+    private static ContextualHelpScriptApi ScriptApi(
+        string name,
+        string signature,
+        string parameters,
+        string result,
+        string safety,
+        string example,
+        string locale) => new(
+        name,
+        signature,
+        Pick(locale, parameters.Replace("stable declared", "TAG estável declarado", StringComparison.Ordinal), parameters, parameters),
+        Pick(locale, result.Replace("Returns", "Retorna", StringComparison.Ordinal).Replace("Writes", "Escreve", StringComparison.Ordinal).Replace("Publishes", "Publica", StringComparison.Ordinal).Replace("Emits", "Emite", StringComparison.Ordinal), result, result),
+        Pick(locale, safety.Replace("Read only", "Somente leitura", StringComparison.Ordinal).Replace("Only", "Somente", StringComparison.Ordinal).Replace("Requires", "Exige", StringComparison.Ordinal).Replace("Inputs", "Entradas", StringComparison.Ordinal), safety, safety),
+        example);
 
     private static TopicDefinition BuildReusableLibrariesTopic() => Detailed(
         "libraries.reusable-resources", "libraries",

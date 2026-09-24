@@ -80,7 +80,7 @@
 .reusable-library-workspace__resource-list article,
 .reusable-library-workspace__provenance-list article {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(180px, .7fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, .55fr) minmax(180px, .7fr) auto;
   align-items: center;
   gap: .8rem;
   padding: .75rem;
@@ -94,6 +94,24 @@
   gap: .18rem;
   min-width: 0;
 }
+
+.reusable-library-workspace__inspection {
+  min-width: 0;
+}
+
+.reusable-library-workspace__inspection summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.reusable-library-workspace__inspection dl {
+  display: grid;
+  gap: .15rem;
+  margin: .55rem 0 0;
+}
+
+.reusable-library-workspace__inspection dt { font-weight: 700; }
+.reusable-library-workspace__inspection dd { margin: 0 0 .35rem; }
 
 .reusable-library-workspace__kind {
   font-size: .72rem;

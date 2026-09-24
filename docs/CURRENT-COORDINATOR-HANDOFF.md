@@ -759,3 +759,34 @@ Current state:
 `FC0-A -> POST_MERGE_VALIDATION_BLOCKED_BY_INFRA`.
 
 No `FC0A_RELEASE_APPROVED` yet. All six prepared DEV/FND lanes remain WAIT. Their work branches must not be created/activated from a stale checkpoint; after 01C is integrated and the exact new post-merge gate is green, Main will record the final release base and create/activate them.
+
+
+## FC0-A post-merge Help E2E load blocker (2026-09-24)
+
+INFRA-CI-01C PR #341 merged at `da0e64122f1e4d0293e027f45ef95021cd03c1a1`
+(tree `a724e565f11121a43b97bf0c59683b414c72f48c`).
+
+Exact broad `EliteSCADA CI 36047274028 / #1567`:
+- Web SUCCESS;
+- Backend build/test SUCCESS;
+- Runtime smoke SUCCESS;
+- Chromium FAILURE before test execution.
+
+The PostgreSQL recurrence is closed.
+
+The remaining deterministic blocker is the FC0-A-added
+`contextual-help-routing.spec.ts` importing the React shell `AppNavigation.tsx`;
+its transitive CSS import reaches the Node-side Playwright loader and fails with
+`src/auth/auth.css: Unexpected token (1:0)`.
+
+Classification:
+`FC0A_POSTMERGE_E2E_TEST_LOAD_DEFECT / PR340_TEST_CAUSAL / PRODUCT_BEHAVIOR_NOT_SHOWN_DEFECTIVE`.
+
+Active closeout:
+- control: `coord/w15-fnd06-control:docs/WAVE15-FC0A-POSTMERGE-HELP-E2E-LOAD-CONTROL.md`;
+- order: `FC0A-POSTMERGE-HELP-E2E-LOAD-V1`;
+- branch: `work/w15-fc0a-postmerge-help-e2e-load`;
+- exact base: `da0e6412...`;
+- CODEX route rev 0034 / `ROUTE-SEQUENTIAL-CODEX-TO-FC0A-HELP-E2E-22`.
+
+FC0-A remains NOT RELEASED. Do not activate the six prepared downstream lanes until Main obtains a globally green exact post-merge broad CI and records `FC0A_RELEASE_APPROVED`.

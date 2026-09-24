@@ -4,21 +4,29 @@
 
 `CONTROL_BRANCH: coord/w15-fnd07-control`
 
-`MAIN_ORDER_REV: 0003`
+`MAIN_ORDER_REV: 0004`
 
-`STATE: PREPARED / NOT ACTIVE / HOLD_ON_FC0A_CONSOLIDATED_FINAL_ACCEPTANCE`
+`STATE: ACTIVE_CODING / DEV_IMPLEMENTATION_AUTHORIZED`
 
-`PREPARED_ORDER_ID: FND07-DEV-DETACH-NEUTRAL-V1`
+`CURRENT_ORDER_ID: FND07-DEV-DETACH-NEUTRAL-V1`
 
-`LATEST_AUDITED_PRODUCT_CHECKPOINT: 560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
+`LATEST_AUDITED_PRODUCT_CHECKPOINT: e3ed5138369c576549cb58a7aff9783792f322d3`
 
-`ACTIVATION_BASE_RULE: revalidate latest wave15/corrections-integration product checkpoint before activation`
+`EXACT_BASE_SHA: e3ed5138369c576549cb58a7aff9783792f322d3`
+
+`EXACT_BASE_TREE: 4e7627774fbfc111344e3d80fcb9d921eed8377e`
+
+`WORK_BRANCH: work/w15-fnd-07-detach-neutral`
+
+`TARGET_BRANCH: wave15/corrections-integration`
+
+`ACTIVATION_GATE: EliteSCADA CI #1569 / 36060017969 / SUCCESS / Chromium 655 passed`
 
 ## 0A. Current hold reason
 
-FND-06 is VERIFIED/FROZEN and the post-FND06 audit is complete with `CHANGES_REQUIRED`.
+FND-06 is VERIFIED/FROZEN and the final post-FND06 audit rev 0014 is `ACCEPTABLE / FC0A_RELEASE_APPROVED`.
 
-FND-07 remains **PREPARED / NOT ACTIVE** while the consolidated FC0-A correction candidate is still under Main/CODEX completion and final acceptance.
+FND-07 is **ACTIVE_CODING** on the exact FC0-A release checkpoint above. The normal ChatGPT DEV may now implement only the bounded detach/neutral-bootstrap slice on its isolated work branch.
 
 The second and third Main audit passes identified no breaking FND-07 contract redefinition. FND-07 remains compositional/compatible, but before activation its acceptance matrix must explicitly cover **Engineering Lock × detach/switch/neutral-bootstrap** so the existing replacement/recovery exemption and backend Authority rules are preserved without inventing a second credential or leaking protected Engineering content.
 
@@ -31,6 +39,17 @@ Executor policy changed by Product Owner/Main:
 
 Cross-lane coordination:
 `coord/w15-parallel-dev-control:docs/WAVE15-PARALLEL-DEV-CONTROL.md`.
+
+## 0B. Activation order — live
+
+On `SIGA`, FND-07 DEV must:
+1. re-read this control live;
+2. revalidate `work/w15-fnd-07-detach-neutral` still descends from the exact base above;
+3. execute only `FND07-DEV-DETACH-NEUTRAL-V1`;
+4. preserve frozen lifecycle/Authority/licensing semantics;
+5. keep the Engineering Lock × detach/switch/neutral-bootstrap matrix explicit;
+6. stop as `BLOCKED-CONTRACT` if a frozen semantic rewrite would be required;
+7. do not merge or declare VERIFIED/FROZEN.
 
 ## 1. Purpose
 
@@ -121,7 +140,7 @@ Material product/design defects return to FND-07 DEV. Small validation-driven co
 
 `ORDER_ID: FND07-DEV-DETACH-NEUTRAL-V1`
 
-`ORDER_STATE: WAIT / NOT AUTHORIZED`
+`ORDER_STATE: ACTIVE_CODING / AUTHORIZED`
 
 `EXECUTOR_MODE: NORMAL_CHAT_DEV / BOUNDED_FOUNDATION_IMPLEMENTATION`
 

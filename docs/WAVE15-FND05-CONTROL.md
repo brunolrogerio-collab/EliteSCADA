@@ -370,3 +370,35 @@ Mandatory before Main integration approval:
 - exact final candidate T1 and any broader HA evidence required by the adversarial delta.
 
 The shared sequential CODEX is **not routed here yet**. FND-05 DEV must wait. No merge/freeze authority is delegated.
+
+
+## 9. Replacement Main contract review — corrected peer boundary accepted
+
+Exact corrected candidate:
+- PR #347;
+- head `be9cf0f3f02aa1ba49cdb6b589abd5e1e723c845`;
+- tree `c9e94e84c078928ad690217484171fafa6390b46`;
+- natural T1 `36072325579`: SUCCESS.
+
+Main accepts the correction requested by `FND05-DEV-PEER-HANDOFF-BOUNDARY-V2-01` directionally:
+- versioned transport-neutral peer observation and transfer-handoff envelopes;
+- public service-level peer observe/apply boundary usable by two independent service instances;
+- break-before-make manual transfer preserved;
+- peer loss never promotes standby;
+- cluster/topology/node/authority-instance/epoch mismatch fails closed;
+- ambiguous/split-brain authority removes positive industrial ownership;
+- peer lease continuity import remains a mirror of frozen FND-03 logical lease identity, not a second quota/admission authority;
+- stale generation/revision, expiry and tombstone resurrection are rejected;
+- deterministic two-independent-service tests cover the public boundary.
+
+No network transport, consensus protocol, automatic failover, package topology or frozen-contract redesign was introduced.
+
+`CANDIDATE_HEAD: be9cf0f3f02aa1ba49cdb6b589abd5e1e723c845`
+
+`CANDIDATE_TREE: c9e94e84c078928ad690217484171fafa6390b46`
+
+`CANDIDATE_T1: 36072325579 / SUCCESS`
+
+`STATE: MAIN_ACCEPTED_FOR_CODEX_HA_ADVERSARIAL / QUEUED / DEV_WAIT`
+
+Mandatory `CODEX_HA_ADVERSARIAL_GREEN` remains blocking before Main integration. The active shared CODEX mission remains Script Engineering #344; no reroute, merge or freeze is authorized by this acceptance.

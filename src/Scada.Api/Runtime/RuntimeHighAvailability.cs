@@ -814,6 +814,26 @@ public sealed class RuntimeSessionLeaseContinuityRegistry
         }
     }
 
+    public bool Terminate(
+        string clusterId,
+        string userId,
+        string clientInstanceId,
+        Guid sessionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(clusterId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(clientInstanceId);
+
+        lock (_gate)
+        {
+            var key = LogicalKey(clusterId, userId, clientInstanceId);
+            if (!_leases.TryGetValue(key, out var current) || current.SessionId != sessionId)
+                return false;
+            _leases.Remove(key);
+            return true;
+        }
+    }
+
     public int ActiveLogicalLeaseCount(string clusterId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(clusterId);

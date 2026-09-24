@@ -32,7 +32,21 @@
 .runtime-operator-actions { display: flex; align-items: center; gap: 6px; }
 .runtime-session-class { position: relative; }
 .runtime-session-class > summary { cursor: pointer; padding: 5px 8px; font-size: 12px; }
-.runtime-session-class[open] { min-width: 225px; z-index: 31; background: var(--app-surface); }
+.runtime-session-class[open] { z-index: 31; }
+.runtime-session-class__popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 100;
+  display: none;
+  width: min(280px, calc(100vw - 24px));
+  padding: 10px;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  background: var(--app-surface);
+  box-shadow: 0 10px 24px rgb(0 0 0 / 35%);
+}
+.runtime-session-class[open] > .runtime-session-class__popover { display: block; }
 .runtime-session-class__controls { display: grid; gap: 5px; margin-top: 6px; }
 .runtime-session-class__status { display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; margin: 8px 0 0; font-size: 11px; }
 .runtime-session-class__status dt { font-weight: 700; }

@@ -53,17 +53,19 @@ export function RuntimeSessionClassPanel({ locale }: { locale: EngineeringLocale
 
   return <details className="runtime-session-class" data-testid="runtime-session-class">
     <summary>{text.title}</summary>
-    <div className="runtime-session-class__controls">
-      <button type="button" className="runtime-operator-button" data-testid="runtime-session-request-viewOnly" disabled={busy !== null} onClick={() => void request('viewOnly')}>{text.viewOnly}</button>
-      <button type="button" className="runtime-operator-button" data-testid="runtime-session-request-interactive" disabled={busy !== null} onClick={() => void request('interactive')}>{text.interactive}</button>
-      {outcome ? <button type="button" className="runtime-operator-button" data-testid="runtime-session-end" disabled={busy !== null} onClick={() => void end()}>{busy === 'end' ? text.ending : text.end}</button> : null}
+    <div className="runtime-session-class__popover">
+      <div className="runtime-session-class__controls">
+        <button type="button" className="runtime-operator-button" data-testid="runtime-session-request-viewOnly" disabled={busy !== null} onClick={() => void request('viewOnly')}>{text.viewOnly}</button>
+        <button type="button" className="runtime-operator-button" data-testid="runtime-session-request-interactive" disabled={busy !== null} onClick={() => void request('interactive')}>{text.interactive}</button>
+        {outcome ? <button type="button" className="runtime-operator-button" data-testid="runtime-session-end" disabled={busy !== null} onClick={() => void end()}>{busy === 'end' ? text.ending : text.end}</button> : null}
+      </div>
+      {outcome ? <dl className="runtime-session-class__status" data-testid="runtime-session-status">
+        <dt>{text.requested}</dt><dd>{outcome.requestedClass ?? '—'}</dd>
+        <dt>{text.granted}</dt><dd>{outcome.grantedClass ?? '—'}</dd>
+        <dt>{text.admission}</dt><dd>{outcome.admissionReasonCode ?? '—'}</dd>
+        <dt>{text.capacity}</dt><dd>{outcome.capacityReasonCode ?? '—'}</dd>
+      </dl> : <p>{text.unavailable}</p>}
+      {error ? <p role="alert">{error}</p> : null}
     </div>
-    {outcome ? <dl className="runtime-session-class__status" data-testid="runtime-session-status">
-      <dt>{text.requested}</dt><dd>{outcome.requestedClass ?? '—'}</dd>
-      <dt>{text.granted}</dt><dd>{outcome.grantedClass ?? '—'}</dd>
-      <dt>{text.admission}</dt><dd>{outcome.admissionReasonCode ?? '—'}</dd>
-      <dt>{text.capacity}</dt><dd>{outcome.capacityReasonCode ?? '—'}</dd>
-    </dl> : <p>{text.unavailable}</p>}
-    {error ? <p role="alert">{error}</p> : null}
   </details>;
 }

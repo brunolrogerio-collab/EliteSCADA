@@ -635,7 +635,7 @@ public sealed class RuntimeHaAuthorityCoordinator
         }
 
         var active = ResolveNodeLocked(_effectiveActiveNodeId);
-        if (!IsActiveReady(active.Evidence))
+        if (active.Evidence is not null && !IsActiveReady(active.Evidence))
         {
             active.State = RuntimeHaState.Faulted;
             _effectiveActiveNodeId = null;
@@ -663,23 +663,29 @@ public sealed class RuntimeHaAuthorityCoordinator
         }
     }
 
-    private static bool IsActiveReady(RuntimeHaNodeReadinessEvidence? evidence) =>
+    private bool IsActiveReady(RuntimeHaNodeReadinessEvidence? evidence) =>
         evidence is not null &&
+        IsFresh(evidence) &&
         evidence.Healthy &&
         evidence.HaLicenseEntitled &&
         evidence.Runtime.Revision.HasValue;
 
-    private static bool IsStandbyReadyAgainst(
+    private bool IsStandbyReadyAgainst(
         RuntimeHaNodeReadinessEvidence? candidate,
         RuntimeHaNodeReadinessEvidence? active) =>
         candidate is not null &&
         active is not null &&
+        IsFresh(candidate) &&
+        IsFresh(active) &&
         candidate.Healthy &&
         candidate.SynchronizationComplete &&
         candidate.HaLicenseEntitled &&
         active.Healthy &&
         active.HaLicenseEntitled &&
         candidate.Runtime.CompatibleWith(active.Runtime);
+
+    private bool IsFresh(RuntimeHaNodeReadinessEvidence evidence) =>
+        _utcNow() - evidence.ObservedAtUtc <= _topology.FreshnessWindow;
 
     private NodeState ResolveNodeLocked(string nodeId)
     {
@@ -914,6 +920,16 @@ public sealed class RuntimeHighAvailabilityService
             return _authority.TryAcquireIndustrialAuthority(_authority.Definition.LocalNodeId);
 
         var nodeId = _authority.Definition.LocalNodeId;
+        var current = _authority.Snapshot();
+        if (current.AmbiguousAuthority)
+            return RuntimeHaIndustrialAuthorityDecision.Denied("ambiguous-authority");
+        if (current.PendingTransfer is not null)
+            return RuntimeHaIndustrialAuthorityDecision.Denied("transfer-in-progress");
+        if (current.EffectiveActiveNodeId is null ||
+            !current.EffectiveActiveNodeId.Equals(nodeId, StringComparison.OrdinalIgnoreCase))
+        {
+            return RuntimeHaIndustrialAuthorityDecision.Denied("not-effective-active");
+        }
         var haEntitled =
             verification.State == LicenseState.Valid &&
             verification.SessionEntitlements?.HaRuntime == true;

@@ -1,6 +1,7 @@
 using Scada.Api.Licensing;
 using Scada.Api.Realtime;
 using Scada.Api.Runtime;
+using Scada.Core.Abstractions;
 using Scada.Core.Product.Licensing;
 using Scada.Engineering.Gateways;
 using Scada.Engineering.ImportExport;
@@ -200,7 +201,7 @@ public sealed class InstallationDetachService(
         }
 
         var projectKey = preflight.ProjectKey;
-        var started = await binding.BeginDetachAsync(projectKey, cancellationToken);
+        await binding.BeginDetachAsync(projectKey, cancellationToken);
 
         // The process-effect fence is first. Once set, direct Runtime mutations and fallback
         // simulation writes fail closed even before Runtime/Authority teardown completes.
@@ -216,7 +217,7 @@ public sealed class InstallationDetachService(
             reports.Clear();
         }
 
-        var authorityResult = await authorityDetach.DetachAsync(CancellationToken.None);
+        await authorityDetach.DetachAsync(CancellationToken.None);
         var completed = await binding.CompleteDetachAsync(projectKey, CancellationToken.None);
 
         var licenseOutcome = await ApplyLicenseChoiceAsync(request, CancellationToken.None);

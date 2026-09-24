@@ -134,47 +134,49 @@ Coordination/documentation commits after this checkpoint do not create a new pro
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
 **ORDER_STATE: ACTIVE**  
-**ORDER_ID: INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V2**  
-**CODEX_MODE: BOUNDED_INFRA_CORRECTION**  
-**EXECUTOR_IDENTITY: SAME SEQUENTIAL CODEX CHAT/LANE USED IN PRIOR FOUNDATION WORK INCLUDING FND-04/FND-06**  
-**Mission:** close the generic shared-PostgreSQL-schema initialization race blocking FND-06 freeze
+**ORDER_ID: FND06-CODEX-E2E-FIXTURE-ISOLATION-V6**  
+**CODEX_MODE: TEST_ONLY_CLOSEOUT**  
+**EXECUTOR_IDENTITY: SAME SEQUENTIAL CODEX CHAT/LANE USED IN PRIOR FOUNDATION WORK INCLUDING FND-04/FND-06/INFRA-CI-01B**  
+**Mission:** remove FND-06 mounted-test fixture leakage without changing product/runtime contracts
 
-Exact infra base:
-- `624f2eca456310a2c6156538b3616a06e3be075f`
-- tree `fb864fb954b0123e69db379cd6b3120349b43600`
-- this SHA contains the merged, Main-accepted FND-06 product delta.
+Exact base:
+- `eb4563cf0060449b479c4335ef30a19ed65e35ab`
+- tree `0158aa1b6082a8f9e514f6e6a059f49312b07f65`
+- includes merged FND-06 product + merged/Main-accepted INFRA-CI-01B.
 
 Trigger:
-- post-merge EliteSCADA CI #1563 / run `35940661531`
-- Web SUCCESS
-- Backend test FAILURE
-- Chromium skipped
-- only identified failed test:
-  `PostgreSqlVisualDynamicPersistenceTests.RevisionPersistence_PreservesVisualExpressionConditionAndAnalogFill`
-- PostgreSQL `23505 / pg_namespace_nspname_index` in `PostgreSqlEngineeringProjectStore.InitializeAsync`.
+- broad CI #1564 / run `35944510920`;
+- Web SUCCESS;
+- Backend build/test/smoke SUCCESS;
+- Chromium FAILURE;
+- 636 passed / 1 failed;
+- only failed spec: `runtime.spec.ts`;
+- Runtime test observed leaked `fnd06-legacy-screen-*`.
 
-Main classification:
-- `GENERIC_INFRASTRUCTURE_BLOCKER / NOT_FND06_CAUSAL`
-- failing store/test are byte-identical to pre-FND06 base;
-- same error signature has Wave 14 precedent;
-- no blind rerun authorized.
+Root cause:
+- `fnd06-mounted-legacy-selection.spec.ts` creates a new Screen/Popup via normal JSON import/apply;
+- `ViewEngineeringHandler.Apply` is upsert-only;
+- reapplying the original package in `finally` updates original entities but cannot delete newly-created Views;
+- Playwright uses `workers: 1`, so this is deterministic persistent fixture leakage, not cross-worker concurrency.
 
-Dedicated executable control:
-- branch `coord/w15-infra-ci-01b-control`
-- file `docs/WAVE15-INFRA-CI-01B-CONTROL.md`
-- control commit `be7a2d875c24e07d023162e64c65acb0aebe9672`
-- work branch `work/w15-infra-ci-01b-postgresql-schema-init`.
+Required correction:
+- test file only;
+- reuse existing canonical Screen/Popup identities while appending temporary legacy objects;
+- restore exact originals by upsert in `finally`;
+- post-cleanup re-export proves original counts/keys/content restored;
+- do not weaken `runtime.spec.ts`;
+- no product/API/import/workflow/retry/worker changes.
 
-Required direction:
-- explicit completed shared advisory-lock command before shared-schema DDL in inline initializers;
-- common key `4993446713136202561`;
-- bounded concurrency regression;
-- no schema/business/FND-06 semantic change;
-- no CI-parallelism/timing workaround;
-- no blind retry as substitute for serialization.
+Work branch:
+`work/w15-fnd06-e2e-fixture-isolation`
 
-FND-06 remains **INTEGRATED / FREEZE BLOCKED BY INFRA-CI-01B**.
-FC0-A audit remains PREPARED and blocked until infra correction + exact green broad CI + FND-06 freeze.
+Detailed control:
+`coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
+rev `0010`
+commit `b7b3ab914464a2da87d7b2175eb95a24d8a7db9b`.
+
+Required paired proof:
+`fnd06-mounted-legacy-selection.spec.ts + runtime.spec.ts` in the same normal Playwright lifecycle.
 
 No self-merge/freeze authority.
 ---
@@ -456,3 +458,22 @@ Control commit:
 Authority/RuntimeSession files may be touched **only** for shared-schema initialization sequencing; all policy, epoch, session, quota, licensing, admission and fencing semantics remain forbidden to change.
 
 Candidate `97c665c8...` is intermediate only, not merge-ready.
+
+
+## Broad CI #1564 causality split
+
+Exact integration `eb4563cf0060449b479c4335ef30a19ed65e35ab`, run `35944510920`:
+- Web SUCCESS;
+- Backend SUCCESS;
+- Chromium FAILURE, 636/637.
+
+INFRA-CI-01B PostgreSQL correction is Main-accepted and its owning backend gate is green.
+The sole remaining failure is FND-06 test fixture leakage.
+
+Current controls:
+- FND-06 rev 0010 / `b7b3ab914464a2da87d7b2175eb95a24d8a7db9b`
+- shared CODEX route FND-04 rev 0021 / `982b09f40d1e97835883011fdfbefce7709bceb8`
+- INFRA-CI-01B rev 0004 / `a3d81308b460fb04524014f40802031574415b3a`
+- post-FND06 audit rev 0006 / `e5323dcbeff2933762de12cefd8e1b737ed1f52d`.
+
+No FC0-A release until test-only correction merges, a fresh broad run is fully green, FND-06 freezes, and the independent audit passes.

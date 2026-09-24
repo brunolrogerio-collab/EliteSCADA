@@ -5,9 +5,9 @@
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`MAIN_ORDER_REV: 0001`
+`MAIN_ORDER_REV: 0002`
 
-`STATE: ACTIVE / BLOCKS_FC0A_RELEASE`
+`STATE: MERGED / HELP_LOAD_DEFECT_CLOSED / NO_MUTATION`
 
 `ORDER_ID: FC0A-POSTMERGE-HELP-E2E-LOAD-V1`
 
@@ -131,3 +131,29 @@ Include:
 - natural T1 run;
 - explicit non-actions;
 - no merge/freeze/release.
+
+
+## 8. Main closure evidence
+
+Candidate PR #342:
+- head `55052251814a441f454f1d7d77d8b5d1c763637e`;
+- tree `09d58d58e96e4c758c19d6ff2945a96786d420c3`;
+- natural T1 `36048610668` — SUCCESS;
+- focused Chromium — 32 passed;
+- Web semantic build — SUCCESS.
+
+Protected merge:
+- SHA `1ab3550e1afb258e38caaa6de3f6547f481bbef7`;
+- tree `701f4591a294885b414284691b1051cf274c9707`.
+
+Exact broad CI `36049229264 / #1568` proves the original CSS/Node spec-load failure is closed: the Chromium suite loaded and executed 655 tests.
+
+The broad gate later failed one **different** stale Visual Editor source-contract assertion after 654 tests passed. That blocker is owned by:
+
+`docs/WAVE15-FC0A-POSTMERGE-CANVAS-SOURCE-CONTRACT-CONTROL.md`
+
+order:
+
+`FC0A-POSTMERGE-CANVAS-SOURCE-CONTRACT-V1`
+
+No more Help E2E mutation is authorized by this control.

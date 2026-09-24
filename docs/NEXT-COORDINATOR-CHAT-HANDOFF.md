@@ -1010,3 +1010,54 @@ Active closeout:
 - CODEX route rev 0035 / `ROUTE-SEQUENTIAL-CODEX-TO-FC0A-CANVAS-CONTRACT-23`.
 
 FC0-A remains NOT RELEASED and the six post-FC0A lanes remain WAIT until a later exact broad gate is globally green.
+
+
+## FC0-A RELEASE APPROVED / six implementation lanes ACTIVE (2026-09-24)
+
+Main completed the final post-FND06 release audit.
+
+Product release checkpoint:
+- SHA `e3ed5138369c576549cb58a7aff9783792f322d3`
+- tree `4e7627774fbfc111344e3d80fcb9d921eed8377e`
+- exact broad gate `EliteSCADA CI #1569 / 36060017969`: SUCCESS
+- Web build: SUCCESS
+- Backend build/test: SUCCESS
+- Runtime smoke: SUCCESS
+- Chromium full suite: **655 passed / 0 failed**
+
+Final audit:
+`FC0-A FOUNDATION AUDIT -> MAIN COORDINATOR — ACCEPTABLE / FC0A_RELEASE_APPROVED`
+rev 0014.
+
+All six implementation branches were created directly from the exact product release SHA and independently revalidated as identical before coding:
+- `work/w15-dev-editor-single-canvas`
+- `work/w15-dev-script-engineering`
+- `work/w15-dev-authority-ux`
+- `work/w15-dev-licensing-ux`
+- `work/w15-fnd-05-ha-authority`
+- `work/w15-fnd-07-detach-neutral`
+
+All six lanes are now `ACTIVE_CODING / AUTHORIZED`.
+
+Control state:
+- central parallel control rev 0002;
+- four feature controls rev 0002;
+- FND-05 control rev 0005 / order `FND05-DEV-HA-AUTHORITY-V1`;
+- FND-07 control rev 0004 / order `FND07-DEV-DETACH-NEUTRAL-V1`.
+
+Sequential CODEX is no longer executing FC0-A closeouts:
+- route rev 0036;
+- `ROUTE-SEQUENTIAL-CODEX-WAIT-POST-FC0A-24`;
+- state `WAIT_FOR_MAIN_ACCEPTED_CANDIDATE`.
+
+Workflow:
+`normal DEV implements -> Main reviews -> same DEV corrects if needed -> Main accepts -> sequential CODEX validates/tests/T1 -> Main integrates`.
+
+Foundations:
+`normal FND DEV implements -> Main contract review -> sequential CODEX adversarial validation -> T1 -> Main integration -> post-merge -> VERIFIED/FROZEN`.
+
+Product release SHA remains `e3ed5138...` even if `wave15/corrections-integration` advances afterward through coordination-only documentation commits.
+
+Ledger: Issue #305 comment `5822605281`.
+
+After all four feature lanes reach integrated T2 verification and FND-05/FND-07 are independently VERIFIED/FROZEN, proceed to the already-defined two-moment fresh-install first-project partial preview: CODEX black-box first, then Product Owner human journey on a separate reset environment.

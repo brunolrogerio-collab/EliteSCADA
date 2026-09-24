@@ -8,6 +8,7 @@ import {
   type UserStatusFilter
 } from './UserAdministration.logic';
 import type { EngineeringLocale } from './i18n';
+import { AuthorityPolicyAdministration } from './AuthorityPolicyAdministration';
 import {
   AdministrationHttpError,
   localUserAdministrationApi,
@@ -549,6 +550,12 @@ export function UserAdministration({ locale }: { locale: EngineeringLocale }) {
           )}
         </div>
       </div>
+
+      <AuthorityPolicyAdministration
+        locale={locale}
+        users={users}
+        selectedUser={selected}
+      />
     </section>
   );
 }

@@ -555,6 +555,7 @@ export function UserAdministration({ locale }: { locale: EngineeringLocale }) {
         locale={locale}
         users={users}
         selectedUser={selected}
+        onPolicyApplied={() => load(selected?.id, true)}
       />
     </section>
   );

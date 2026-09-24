@@ -581,7 +581,7 @@ Every DEV handoff must include:
 
 `LANE: FND-04 CODEX EXECUTOR`
 
-`STATE: ACTIVE`
+`STATE: WAIT / IDLE_VALIDATION_CAPACITY`
 
 `RUNTIME_REQUIREMENT: functional checkout + dotnet + Node/Playwright + GitHub push/PR capability`
 

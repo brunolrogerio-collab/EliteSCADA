@@ -4,9 +4,9 @@
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`MAIN_ORDER_REV: 0010`
+`MAIN_ORDER_REV: 0011`
 
-`STATE: INTEGRATED / PRODUCT_ACCEPTED / FREEZE_BLOCKED_FND06_E2E_FIXTURE_ISOLATION`
+`STATE: INTEGRATED / FINAL BROAD POST-MERGE CI PENDING`
 
 `EXECUTOR_LANE: SAME SEQUENTIAL CODEX EXECUTOR USED IN PRIOR FOUNDATION WORK INCLUDING FND-04`
 
@@ -216,124 +216,29 @@ Forbidden without new Main order:
 
 ## 7. CURRENT EXECUTOR ORDER
 
-`ORDER_ID: FND06-CODEX-E2E-FIXTURE-ISOLATION-V6`
+`ORDER_ID: FND06-CODEX-WAIT-FINAL-BROAD-V7`
 
-`ORDER_STATE: ACTIVE`
+`ORDER_STATE: WAIT_POST_MERGE_GATE`
 
-`EXECUTOR_MODE: TEST_ONLY_CLOSEOUT`
+`EXECUTOR_MODE: NO_MUTATION`
 
-`EXACT_BASE_SHA: eb4563cf0060449b479c4335ef30a19ed65e35ab`
+`FINAL_MERGE_SHA: 560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
 
-`EXACT_BASE_TREE: 0158aa1b6082a8f9e514f6e6a059f49312b07f65`
+`FINAL_MERGE_TREE: 674019fbbc21001a2d68deb853c2c0b293e0a5cb`
 
-`WORK_BRANCH: work/w15-fnd06-e2e-fixture-isolation`
+`POST_MERGE_BROAD_RUN: 35953557122 / EliteSCADA CI #1565`
 
-`TARGET_BRANCH: wave15/corrections-integration`
-
-`FAILED_BROAD_CI_RUN: 35944510920 / EliteSCADA CI #1564`
-
-`FAILED_JOB: Chromium end-to-end 107459723706`
-
-`VALIDATION_PROFILE: UI_EDITOR, RUNTIME_RENDERER`
+`PR_339: MERGED`
 
 `EXECUTOR_IDENTITY: SAME_SEQUENTIAL_CODEX_FROM_PRIOR_FOUNDATION/FND-04/FND-06/INFRA-CI-01B`
 
-### Main diagnosis
+Instruction:
 
-Broad run #1564 proves:
-- Web build — SUCCESS;
-- Backend build/test/smoke — SUCCESS;
-- Chromium — FAILURE;
-- 636 passed / 1 failed;
-- only failed spec: `tests-e2e/runtime.spec.ts`;
-- exact failure: expected one canonical Screen but observed the temporary `fnd06-legacy-screen-*` fixture left by `fnd06-mounted-legacy-selection.spec.ts`.
-
-This is **not** an INFRA-CI-01B failure:
-- PostgreSQL backend/test gate is green;
-- shared-schema correction is not causal to Chromium state pollution.
-
-This is a **test-isolation defect introduced by the FND-06 mounted closeout spec**.
-
-Exact source proof:
-- `playwright.config.ts` uses `workers: 1`, so this is not cross-worker concurrency;
-- the FND-06 mounted spec calls `/api/engineering/import/json/apply`;
-- `ViewEngineeringHandler.Apply` is upsert-only for Screens/Popups and does not delete entities absent from a later package;
-- therefore the current `finally { applyPackage(original) }` cannot remove a newly-created temporary Screen/Popup;
-- `runtime.spec.ts` correctly detects the leaked extra Screen and must **not** be weakened.
-
-### Required correction
-
-Change **only**:
-
-`web/scada-web/tests-e2e/fnd06-mounted-legacy-selection.spec.ts`
-
-Preferred strategy:
-
-1. Do **not** create a new Screen or Popup entity for mounted compatibility testing.
-2. Export the canonical package.
-3. Reuse an existing canonical Screen (normally `demo.overview`) by cloning that exact Screen and temporarily appending the FND-06 legacy elements to its `elements`.
-4. Apply that modified existing Screen by the normal import/apply path.
-5. Exercise the same mounted Screen selection matrix:
-   - `tank | value | dynamo | status`;
-   - canvas/outliner coverage;
-   - Inspector/Dynamic/Binding continuity;
-   - compatibility diagnostics;
-   - unknown `vendor.unknown-x` remains contained;
-   - one safe shared property edit preserves legacy-specific authored data.
-6. In `finally`, reapply the exact original package. Because the same existing Screen identity/key is being updated rather than a new Screen created, the original upsert restores it truthfully.
-7. For Popup, do the same using an existing canonical Popup (normally `popup.pump.standard`) rather than creating a new Popup entity.
-8. After each cleanup, re-export and assert:
-   - no `fnd06-*` fixture Screen/Popup remains;
-   - canonical Screen/Popup counts/keys match the original exported package;
-   - original canonical entity content is restored.
-9. Do not weaken `runtime.spec.ts`.
-10. Do not change product code, API semantics, import semantics, Playwright workers, CI ordering or retries.
-
-If reusing the canonical Screen/Popup cannot exercise the mounted path without violating a product invariant, stop with a precise blocker instead of adding a delete bypass.
-
-### Mandatory RED/GREEN evidence
-
-RED is already the exact broad run:
-`35944510920` — Chromium 636 pass / 1 fail because `fnd06-legacy-screen-*` leaked into `runtime.spec.ts`.
-
-Required local/focused GREEN:
-- run `fnd06-mounted-legacy-selection.spec.ts` followed by `runtime.spec.ts` under the same normal Playwright server/database lifecycle;
-- both must pass in the same command/process;
-- run the pair more than once if environment permits to prove cleanup determinism.
-
-Required candidate gate:
-- natural Wave 15 T1 on exact candidate under `UI_EDITOR, RUNTIME_RENDERER`;
-- no product files changed;
-- PR scope is test-only.
-
-Required post-merge gate:
-- full broad EliteSCADA CI on exact integration SHA must be green:
-  - Web;
-  - Backend build/test/smoke;
-  - Chromium.
-
-Only that exact green broad run may:
-1. close INFRA-CI-01B;
-2. close this FND-06 test-isolation defect;
-3. mark FND-06 VERIFIED/FROZEN;
-4. activate the independent post-FND06 FC0-A audit.
-
-### Return
-
-Return exactly:
-
-`FND-06 CODEX EXECUTOR -> MAIN COORDINATOR — E2E FIXTURE ISOLATION HANDOFF`
-
-Include:
-- exact base -> candidate SHA/tree;
-- exact changed files;
-- RED evidence from #1564;
-- cleanup strategy;
-- proof original Screen/Popup identities are restored;
-- paired mounted+runtime command/results;
-- natural T1 run/jobs;
-- explicit non-actions;
-- no self-merge/freeze.
+> The final FND-06 test-isolation closeout is merged. Do not mutate product/tests, rerun, rebase, or create follow-up work while broad run `35953557122` executes on exact merge SHA `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`.
+>
+> On `SIGA`, re-read GitHub live and report the exact broad gate state only. Main owns freeze and audit activation.
+>
+> FND-06 may become VERIFIED/FROZEN only if Web + Backend build/test/smoke + Chromium all succeed on this exact SHA.
 
 ## 8. FC0-A effect — FND-06 is necessary but no longer sufficient
 

@@ -135,6 +135,13 @@ public sealed class RuntimeHighAvailabilityTests
 
         var stale = coordinator.Snapshot();
         Assert.All(stale.Nodes, node => Assert.False(node.Fresh));
+
+        var transfer = coordinator.BeginManualTransfer(
+            "node-a",
+            "node-b",
+            stale.AuthorityEpoch);
+        Assert.False(transfer.Succeeded);
+        Assert.Equal("target-not-ready-standby", transfer.ReasonCode);
     }
 
     [Fact]

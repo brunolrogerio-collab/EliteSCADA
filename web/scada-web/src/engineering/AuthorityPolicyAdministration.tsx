@@ -275,30 +275,6 @@ function assignedUsersForRole(users: readonly LocalUser[], roleKey: string) {
   return users.filter(user => user.roles.some(role => role.toLowerCase() === normalized));
 }
 
-export function nextRoleKey(policy: AuthorityPolicyDocument, base = 'custom-role') {
-  const used = new Set(policy.roles.map(role => role.key.toLowerCase()));
-  if (!used.has(base)) return base;
-  let suffix = 2;
-  while (used.has(`${base}-${suffix}`)) suffix += 1;
-  return `${base}-${suffix}`;
-}
-
-export function userGrantPreview(user: LocalUser | null, roles: readonly AuthorityRole[]) {
-  if (!user) return [];
-  const assigned = new Set(user.roles.map(role => role.toLowerCase()));
-  const rows = roles
-    .filter(role => assigned.has(role.key.toLowerCase()))
-    .flatMap(role => (role.grants ?? []).map(grant => ({
-      role: role.key,
-      capability: capabilityKey(grant.capability),
-      scopeNodeId: grant.scope?.scopeNodeId ?? null,
-      includeDescendants: grant.scope?.includeDescendants ?? false
-    })));
-  return rows.sort((a, b) =>
-    a.capability.localeCompare(b.capability) || a.role.localeCompare(b.role)
-  );
-}
-
 export function AuthorityPolicyAdministration({
   locale,
   users,

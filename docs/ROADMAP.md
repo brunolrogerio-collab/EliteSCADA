@@ -27,13 +27,13 @@ This section supersedes older execution-status prose below when describing the *
 - DEV-LICENSING-UX PR #345 — corrected head `f5d3212b9c114d3ad6e2239460172db0b3d568f8`; T1 `36071779912` SUCCESS; Main accepted for sequential CODEX queue.
 - DEV-AUTHORITY-UX PR #346 — corrected head `9fd2462f43c74b085e58be91dbec9ebdf18514c5`; stable role-key direction accepted, but T1 `36071729747` is red on candidate-causal nullable-baseline TS2345; remains DEV correction under `DEV-AUTHORITY-UX-STABLE-ROLE-KEY-02`.
 - FND-05 PR #347 — corrected head `be9cf0f3f02aa1ba49cdb6b589abd5e1e723c845`; T1 `36072325579` SUCCESS; transport-neutral two-independent-service peer handoff boundary Main-accepted; queued for mandatory `CODEX_HA_ADVERSARIAL_GREEN`.
-- FND-07 PR #348 — DRAFT at `ae11e42e8ad5e39b1e2c5a0068f81e4ec31653c6`; remains DEV correction `FND07-DEV-FRESH-INSTALL-NO-DEMO-E2E-01`; clean no-Demo fresh-install truth is binding.
+- FND-07 PR #348 — DRAFT at corrected head `af7bf1ae51539975b3b3e8b40ea36472249ade2e`; no-Demo/empty-first-project fixture progressed, but T1 `36072685058` remains red on one stale historical `developer + operator` expectation while clean bootstrap truth returns one `developer`; remains DEV correction `FND07-DEV-FRESH-INSTALL-NO-DEMO-E2E-01`.
 - INFRA-CI-01D — **PREPARED ONLY / NO MUTATION**; may activate only after the active Script CODEX handoff and a fresh Main decision from then-current integration HEAD.
 - binding shared CODEX route remains `ROUTE-SEQUENTIAL-CODEX-TO-SCRIPT-ENGINEERING-25`. A new explicit route is required before changing mission.
 - first-project fresh-install partial preview — **PREPARED / NOT ACTIVE**; entry still requires four feature lanes integrated/T2-verified plus FND-05/FND-07 independently VERIFIED/FROZEN and no journey-invalidating P0/P1.
 
 Canonical live coordination board:
-`coord/w15-parallel-dev-control:docs/WAVE15-PARALLEL-DEV-CONTROL.md`, rev 0005.
+`coord/w15-parallel-dev-control:docs/WAVE15-PARALLEL-DEV-CONTROL.md`, rev 0006.
 
 ## Product objective
 

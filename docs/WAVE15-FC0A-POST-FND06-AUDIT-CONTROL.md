@@ -7,9 +7,9 @@
 
 `AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
-`AUDIT_REV: 0002`
+`AUDIT_REV: 0003`
 
-`STATE: PREPARED / WAIT_FND06_VERIFIED_FROZEN`
+`STATE: PREPARED / WAIT_FND06_POST_MERGE_CI_GREEN`
 
 `MODE: READ_ONLY_CROSS_WAVE_FOUNDATION_AUDIT`
 
@@ -40,6 +40,28 @@ Until this audit finishes `ACCEPTABLE / FC0A_RELEASE_APPROVED`:
 - FND-07 remains PREPARED / NOT ACTIVE.
 
 After audit PASS, the four FC0-A DEV lanes plus FND-05 and FND-07 may advance in parallel on isolated branches/orders from the exact approved checkpoint.
+
+## 1A. Exact FND-06 merged checkpoint pending freeze
+
+FND-06 has been merged but is **not yet frozen**.
+
+- PR #337: MERGED
+- candidate head: `2257f8f99b5e6deac80d64ed2cc0c43aa8dab1cc`
+- candidate tree: `2ebb839a788bb4fad249877689c25ac1b18f6d74`
+- integration merge SHA: `624f2eca456310a2c6156538b3616a06e3be075f`
+- merge tree: `fb864fb954b0123e69db379cd6b3120349b43600`
+- candidate natural T1: `35939646387` — SUCCESS
+- exact post-merge broad CI: `35940661531` / EliteSCADA CI #1563 — IN PROGRESS at audit rev 0003.
+
+Main review has accepted the mounted A7 closeout evidence:
+- Screen selection mounted across `tank | value | dynamo | status`;
+- Popup selection mounted for `value | status`;
+- Inspector/Dynamic/Binding remain mounted;
+- safe shared property edit preserves legacy-specific authored data;
+- arbitrary unknown remains fail-closed/contained;
+- no lifecycle/Authority/Licensing/Driver/Historian/schema scope leakage.
+
+This audit remains PREPARED until post-merge CI is green and Main marks FND-06 VERIFIED/FROZEN.
 
 ## 2. Audit purpose
 

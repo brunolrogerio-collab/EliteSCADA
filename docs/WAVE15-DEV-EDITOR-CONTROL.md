@@ -3,9 +3,9 @@
 > GitHub live is the sole authority.
 
 `LANE: DEV-EDITOR`
-`MAIN_ORDER_REV: 0002`
+`MAIN_ORDER_REV: 0003`
 `ORDER_ID: DEV-EDITOR-FC0A-01`
-`ORDER_STATE: ACTIVE_CODING / AUTHORIZED`
+`ORDER_STATE: MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`
 `PLANNED_BRANCH: work/w15-dev-editor-single-canvas`
 `WORK_BRANCH: work/w15-dev-editor-single-canvas`
 `FC0A_RELEASE_APPROVED: YES`
@@ -14,6 +14,10 @@
 `ACTIVATION_GATE: EliteSCADA CI #1569 / 36060017969 / SUCCESS / Chromium 655 passed`
 `TARGET: wave15/corrections-integration`
 `VALIDATION_PROFILE: UI_EDITOR, RUNTIME_RENDERER`
+`CANDIDATE_PR: #349`
+`CANDIDATE_HEAD: 06eed31d99ddb34d99e0287e96e38bed3bf7dab5`
+`CANDIDATE_TREE: 11a5a01fd805d3e068dc6e22efff7a65077c09e4`
+`CANDIDATE_T1: 36066874097 / SUCCESS`
 
 ## Activation — ACTIVE
 
@@ -86,3 +90,62 @@ Required prefix:
 
 Cross-lane control:
 `docs/WAVE15-PARALLEL-DEV-CONTROL.md`.
+
+
+## Main candidate review — ACCEPTED FOR SEQUENTIAL CODEX QUEUE
+
+Exact candidate:
+- PR `#349`;
+- head `06eed31d99ddb34d99e0287e96e38bed3bf7dab5`;
+- tree `11a5a01fd805d3e068dc6e22efff7a65077c09e4`;
+- T1 `36066874097`: SUCCESS;
+- Common sanity: SUCCESS;
+- Web semantic build: SUCCESS;
+- focused Chromium: SUCCESS / 42 passed;
+- focused .NET: SUCCESS / 693 passed on the final unchanged-head attempt.
+
+Main code/contract review disposition:
+
+`DEV-EDITOR -> MAIN_ACCEPTED_FOR_CODEX / QUEUED`
+
+Accepted findings:
+- one primary authoring canvas replaces the stacked editor + separate canonical preview;
+- `CanonicalVisualRenderer` remains the visual projection authority inside that canvas;
+- interaction/adornment layer emits canonical UI/mutation intents rather than rendering a second visual implementation;
+- transient drag/resize/rotate/polygon WYSIWYG projection reuses existing canonical mutation reducers;
+- Screen and Popup consume the same `VisualEditorCanvas` path;
+- Popup canonical layer is bounded by the authored logical Popup size;
+- Property Inspector remains driven by the public Visual Property Registry/model;
+- Working/Preview/Apply/Active semantics were not collapsed;
+- design mode gained no process-write authority;
+- no shared app/router/types/workflow/Authority/Licensing/HA surface changed.
+
+Target reconciliation:
+- integration target is ahead of the FC0-A base only by canonical coordination/documentation files;
+- no overlapping product delta exists;
+- PR #349 is mergeable.
+
+### CODEX obligations once this candidate becomes the active sequential route
+
+Validate exact accepted candidate plus any bounded validation-driven test commits:
+1. execute the edited mounted Screen and Popup authoring specs explicitly;
+2. execute the broader Editor 12-scenario matrix from #303 where still applicable;
+3. prove canonical renderer parity during committed and transient manipulation;
+4. prove known legacy `tank|value|dynamo|status` containment and arbitrary unknown fail-closed behavior through the single canvas;
+5. selection/marquee/Outliner/multi-select move/resize/rotate/z-order/group/lock regressions;
+6. undo/redo/history and Preview/Apply persistence after direct manipulation;
+7. Screen/Popup logical-boundary behavior at representative viewport sizes/zoom/pan;
+8. Property Inspector search/collapse must not mutate canonical properties merely by filtering/collapsing;
+9. no process writes from design mode;
+10. Web build + exact-head natural T1.
+
+Small test/validation-driven corrections are allowed only under the common CODEX rule. Material product/design defects return to Main -> DEV-EDITOR.
+
+Queue rule:
+- shared sequential CODEX remains actively assigned to PR #344 Script Engineering;
+- this Editor acceptance **does not supersede the current Script route**;
+- Main will explicitly route CODEX to Editor only after the active Script validation handoff is resolved.
+
+DEV-EDITOR must remain `DEV_WAIT` while queued.
+
+No merge/T2 authorization yet.

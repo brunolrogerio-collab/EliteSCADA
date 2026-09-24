@@ -5,13 +5,13 @@
 
 `AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
-`MATRIX_STATE: PRELIMINARY / WAIT_FND06_FINAL_BROAD_CI`
+`MATRIX_STATE: ACTIVE_MAIN_EVIDENCE / INDEPENDENT_AUD_REVIEW_REQUIRED`
 
 `CURRENT_INTEGRATION_SHA: 560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
 
 `CURRENT_TREE: 674019fbbc21001a2d68deb853c2c0b293e0a5cb`
 
-`FINAL_BROAD_GATE: 35953557122 / EliteSCADA CI #1565 / IN_PROGRESS`
+`FINAL_BROAD_GATE: 35953557122 / EliteSCADA CI #1565 / SUCCESS`
 
 ## High-priority Wave14 -> Wave15 matrix
 
@@ -19,9 +19,9 @@
 | --- | --- | --- | --- |
 | W15-P0-01 Working identity/bootstrap | CLOSED_FOUNDATION, pending independent reconfirmation | FND-01 VERIFIED/FROZEN at `b445ad5a9cdf7f920cf216ac66e42b6a65516aa2`; 69/69 integrated validation | No known release blocker |
 | W15-P1-01 Server Script recovery/observability | **BLOCKED_FOUNDATION — preliminary Main finding** | current `ScriptRuntimeExecutionCoordinator` still hard-stops dispatch when `IsThrottled`; only explicit `ResetThrottle()`; no production automatic reset/recovery caller found | **Blocks FC0-A if independent audit confirms**; requires bounded Foundation correction before DEV release |
-| W15-P1-02 legacy visual compatibility | CLOSED_FOUNDATION if final broad #1565 passes | PR #337 + mounted V3 evidence; known `tank/value/dynamo/status`, unknown fail-closed | Final exact broad CI + independent audit |
-| W15-P1-03 / A7 selection stability | CLOSED_FOUNDATION if final broad #1565 passes | mounted Screen/Popup selection closeout in PR #337; fixture isolation PR #339 prevents cross-spec state leak | Final Chromium on #1565 must pass |
-| W15-P1-04 projection/navigation persistence | CLOSED_FOUNDATION if final broad #1565 passes | retryable same-identity Screen/Popup persistence + real Active identity reset regressions | Final Chromium on #1565 must pass |
+| W15-P1-02 legacy visual compatibility | CLOSED_FOUNDATION, pending independent reconfirmation | PR #337 + mounted V3 evidence; known `tank/value/dynamo/status`, unknown fail-closed | Final broad #1565 SUCCESS; independent audit remains required |
+| W15-P1-03 / A7 selection stability | CLOSED_FOUNDATION, pending independent reconfirmation | mounted Screen/Popup selection closeout in PR #337; fixture isolation PR #339 prevents cross-spec state leak | Chromium on #1565 SUCCESS; independent audit remains required |
+| W15-P1-04 projection/navigation persistence | CLOSED_FOUNDATION, pending independent reconfirmation | retryable same-identity Screen/Popup persistence + real Active identity reset regressions | Chromium on #1565 SUCCESS; independent audit remains required |
 | W15-P1-05 / A8 Script Engineering maturity | SPLIT: Foundation identity contract closed; downstream authoring work remains | FND-04 readable TAG binding VERIFIED/FROZEN at `6c810647...`; #297 owns authoring UX | Cursor-safe insertion, API signatures/examples, event/scope authoring and UI recipe remain DEV-SCRIPT-ENGINEERING scope **after P1-01 Foundation blocker is closed** |
 | W15-P1-06 Engineering/SPA truthful fallback UX | **BLOCKED_PRODUCT — preliminary Main finding** | exact `EngineeringApp.tsx` still renders `Demo Project` when `snapshot=null`, including loading/error states; no-model `WorkspaceBar` can present `unsaved/clean` fallbacks | **Blocks FC0-A if independent audit confirms**; bounded shared-shell correction required before parallel DEV release |
 | W15-P2-01 Trends | DEFERRED_BOUNDED_WITH_EVIDENCE, pending audit | Wave14 uncertain/bounded; requires stable runtime/freshness retest | Does not block FC0-A unless audit finds a P1 mechanism |
@@ -69,3 +69,19 @@ Observed:
 - no-model WorkspaceBar fallback can present `unsaved` and `clean`.
 
 This is direct source evidence of the Wave14 A6/W15-P1-06 class and must be independently mounted/revalidated before audit disposition.
+
+
+## Activation checkpoint
+
+FND-06 was declared VERIFIED/FROZEN by Main after exact broad validation:
+
+- product SHA: `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`;
+- tree: `674019fbbc21001a2d68deb853c2c0b293e0a5cb`;
+- EliteSCADA CI #1565 / run `35953557122`: SUCCESS;
+- Web: SUCCESS;
+- Backend build/test/smoke: SUCCESS;
+- Chromium end-to-end: SUCCESS.
+
+Main verified pre-activation integration divergence above that product SHA was coordination-doc-only.
+
+This matrix remains Main evidence, not an audit verdict. Independent AUD must confirm/reject every row.

@@ -4,11 +4,11 @@
 
 `CONTROL_BRANCH: coord/w15-fnd05-control`
 
-`MAIN_ORDER_REV: 0003`
+`MAIN_ORDER_REV: 0004`
 
-`STATE: PREPARED / NOT ACTIVE / HOLD_ON_P1-01_AND_P1-06_FC0A_GATE`
+`STATE: PREPARED / NOT ACTIVE / HOLD_ON_FC0A_CONSOLIDATED_FINAL_ACCEPTANCE`
 
-`PREPARED_ORDER_ID: FND05-CODEX-HA-AUTHORITY-V1`
+`PREPARED_ORDER_ID: FND05-DEV-HA-AUTHORITY-V1`
 
 `LATEST_AUDITED_PRODUCT_CHECKPOINT: 560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
 
@@ -18,11 +18,19 @@
 
 FND-06 is VERIFIED/FROZEN and the post-FND06 audit is complete with `CHANGES_REQUIRED`.
 
-FND-05 remains **PREPARED / NOT ACTIVE** because FC0-A is held on:
-- W15-P1-01 Server Script bounded recovery;
-- W15-P1-06 truthful Engineering no-model/loading/error fallback.
+FND-05 remains **PREPARED / NOT ACTIVE** while the consolidated FC0-A correction candidate is still under Main/CODEX completion and final acceptance.
 
-The second and third Main audit passes identified no new breaking FND-05 contract risk. FND-05 remains classified additive/compatible and may not activate until Main records FC0-A release approval after the two blockers close.
+The second and third Main audit passes identified no breaking FND-05 contract risk. FND-05 remains classified additive/compatible and may activate only after Main records `FC0A_RELEASE_APPROVED` on the exact integrated checkpoint.
+
+Executor policy changed by Product Owner/Main:
+- implementation owner: **normal ChatGPT DEV chat**;
+- Main owns contract/architecture review;
+- scarce sequential CODEX is reserved for adversarial HA/concurrency validation, focused local tests and exact-head T1 after Main accepts the DEV candidate;
+- material implementation defects return to the same FND-05 DEV;
+- frozen-contract insufficiency returns `FND-05 -> BLOCKED-CONTRACT -> MAIN`.
+
+Cross-lane coordination:
+`coord/w15-parallel-dev-control:docs/WAVE15-PARALLEL-DEV-CONTROL.md`.
 
 ## 1. Purpose
 
@@ -108,13 +116,39 @@ If HA can only be implemented by changing the meaning of existing signed fields 
 `FND-05 -> BLOCKED-CONTRACT -> MAIN`
 and the required Foundation/license contract delta must happen before FC0-A DEV release.
 
+## 3B. Delivery / validation ownership
+
+FND-05 implementation is owned by the normal-chat DEV lane after activation.
+
+DEV deliverable:
+- coherent product implementation on the exact Main-provided FC0-A base;
+- compile/cheap focused sanity where practical;
+- exact head/tree + changed-file map;
+- topology/fencing/state-machine explanation;
+- acceptance rows not executed locally marked `PENDING_FOR_CODEX`.
+
+Main reviews the candidate before spending CODEX time.
+
+Only after `MAIN_ACCEPTED_FOR_CODEX` does the sequential CODEX validate:
+- two-node harness;
+- stale epoch/fencing;
+- split brain / ambiguous authority;
+- peer-loss no-promotion;
+- revision/license readiness negatives;
+- logical lease continuity;
+- no duplicate industrial side effects;
+- package neutrality;
+- exact-head T1 and broader HA validation required by the final diff.
+
+Material product/design defects return to FND-05 DEV. Small validation-driven corrections may be made by CODEX if they do not redesign the contract.
+
 ## 4. Prepared first implementation slice
 
-`ORDER_ID: FND05-CODEX-HA-AUTHORITY-V1`
+`ORDER_ID: FND05-DEV-HA-AUTHORITY-V1`
 
 `ORDER_STATE: WAIT / NOT AUTHORIZED`
 
-`EXECUTOR_MODE: BOUNDED_FOUNDATION_IMPLEMENTATION`
+`EXECUTOR_MODE: NORMAL_CHAT_DEV / BOUNDED_FOUNDATION_IMPLEMENTATION`
 
 At activation Main must write the exact product SHA/tree and create the isolated work branch.
 
@@ -159,8 +193,8 @@ No client-side election, Driver-owned HA, topology in `.escadapkg`, socket-count
 
 ## 7. Activation dependency
 
-The mandatory post-FND06 FC0-A Foundation Closure Audit completed with `CHANGES_REQUIRED`. Do not activate until W15-P1-01 and W15-P1-06 close and Main reruns the affected audit rows to `ACCEPTABLE / FC0A_RELEASE_APPROVED`. Do not activate while another sequential high-risk Foundation CODEX order is active unless Main explicitly assigns a separate isolated executor.
+The mandatory post-FND06 FC0-A Foundation Closure Audit returned `CHANGES_REQUIRED`; the consolidated FC0-A correction package is the active closure path. Do not activate until Main records `ACCEPTABLE / FC0A_RELEASE_APPROVED` on the exact integrated checkpoint.
 
-Current intended sequencing:
-- FND-06 active now;
-- after FC0-A release, Main may run FND-05 while downstream FC0-A feature lanes execute.
+After FC0-A release, FND-05 DEV may implement in parallel with the other prepared DEV lanes on its own isolated branch. There is no fixed four-DEV concurrency cap. Main controls shared-hotspot collisions and validation/integration order.
+
+CODEX does not need to be free for FND-05 **coding**. It is required later for `CODEX_HA_ADVERSARIAL_GREEN`, focused local validation and exact-head T1 before Main integration approval.

@@ -316,11 +316,13 @@ export function userGrantPreview(user: LocalUser | null, roles: readonly Authori
 export function AuthorityPolicyAdministration({
   locale,
   users,
-  selectedUser
+  selectedUser,
+  onPolicyApplied
 }: {
   locale: EngineeringLocale;
   users: LocalUser[];
   selectedUser: LocalUser | null;
+  onPolicyApplied?: () => Promise<void> | void;
 }) {
   const s = policyStrings[locale];
   const [baseline, setBaseline] = useState<AuthorityPolicyDocument | null>(null);
@@ -485,6 +487,7 @@ export function AuthorityPolicyAdministration({
       setPreviewValid(false);
       const nextEffective = await authorityPolicyAdministrationApi.effectiveCapabilities();
       setEffective(nextEffective);
+      await onPolicyApplied?.();
     } catch (reason) {
       setPreviewValid(false);
       setError(policyErrorMessage(reason, s));

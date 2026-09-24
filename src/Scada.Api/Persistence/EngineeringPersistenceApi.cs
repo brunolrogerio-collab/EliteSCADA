@@ -74,7 +74,25 @@ public static class EngineeringPersistenceApi
         }
 
         await persistence.InitializeAsync(cancellationToken);
-        var bindingStore = app.Services.GetRequiredService<IEngineeringInstallationBindingStore>();
+        var bindingStore = app.Services.GetService<IEngineeringInstallationBindingStore>();
+        if (bindingStore is null)
+        {
+            // Compatibility for focused/unit hosts that inject persistence directly instead
+            // of using AddOptionalEngineeringPersistence. Production PostgreSQL wiring always
+            // registers the durable FND-07 binding store.
+            var bootstrap = app.Services.GetRequiredService<IEngineeringWorkingBootstrapService>();
+            var bootstrapResult = await bootstrap.BootstrapAsync(
+                configuredWorkingProjectKey,
+                configuredWorkingRevision,
+                configuredRuntimeProjectKey,
+                cancellationToken);
+            if (bootstrapResult.Source == EngineeringWorkingBootstrapSource.EmptyCatalog &&
+                app.Configuration.GetValue<bool>("Engineering:InitializeDemoWhenEmpty"))
+                app.Services.GetRequiredService<EngineeringWorkspace>().InitializeDemo();
+            await app.RecoverConfiguredEngineeringRuntimeAsync(cancellationToken);
+            return;
+        }
+
         await bindingStore.InitializeAsync(cancellationToken);
         var binding = await bindingStore.GetAsync(cancellationToken);
         if (binding.State == EngineeringInstallationBindingState.Legacy)

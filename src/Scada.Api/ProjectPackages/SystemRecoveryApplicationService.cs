@@ -65,7 +65,8 @@ public sealed class SystemRecoveryApplicationService(
     IGatewayEngineeringRegistry gateways,
     IReportEngineeringRegistry reports,
     InitialInstallationGate installationGate,
-    IConfiguration configuration)
+    IConfiguration configuration,
+    IEngineeringInstallationBindingStore? installationBinding = null)
 {
     public async Task<SystemRecoveryApplicationPreview> PreviewAsync(
         ReadOnlyMemory<byte> packageBytes,
@@ -76,10 +77,16 @@ public sealed class SystemRecoveryApplicationService(
         var inspection = packages.Inspect(packageBytes);
         var preview = packages.Preview(packageBytes, ImportMode.CreateAndUpdate);
         var configuredProjectKey = configuration["EngineeringRuntime:ProjectKey"]?.Trim();
+        var installation = installationBinding is null
+            ? null
+            : await installationBinding.GetAsync(cancellationToken);
+        var effectiveProjectKey = installation?.State == EngineeringInstallationBindingState.Attached
+            ? installation.ProjectKey
+            : configuredProjectKey;
         var catalogEmpty = !await catalog.HasAnyAsync(cancellationToken);
-        var bindingMatches =
-            !string.IsNullOrWhiteSpace(configuredProjectKey) &&
-            configuredProjectKey.Equals(inspection.Manifest.ProjectKey, StringComparison.OrdinalIgnoreCase);
+        var bindingMatches = installation?.State == EngineeringInstallationBindingState.Neutral ||
+            (!string.IsNullOrWhiteSpace(effectiveProjectKey) &&
+             effectiveProjectKey.Equals(inspection.Manifest.ProjectKey, StringComparison.OrdinalIgnoreCase));
 
         var users = await identities.ListAsync(cancellationToken);
         var admissions = users
@@ -107,7 +114,7 @@ public sealed class SystemRecoveryApplicationService(
         return new SystemRecoveryApplicationPreview(
             inspection.Manifest,
             preview,
-            configuredProjectKey,
+            effectiveProjectKey,
             catalogEmpty,
             bindingMatches,
             compatibleAdministratorCount,
@@ -125,6 +132,16 @@ public sealed class SystemRecoveryApplicationService(
         ArgumentNullException.ThrowIfNull(currentUser);
 
         await using var installationLease = await installationGate.EnterAsync(cancellationToken);
+        EngineeringInstallationBindingSnapshot? attachJournal = null;
+        if (installationBinding is not null)
+        {
+            var currentBinding = await installationBinding.GetAsync(cancellationToken);
+            if (currentBinding.State == EngineeringInstallationBindingState.Neutral)
+                attachJournal = await installationBinding.BeginAttachAsync(
+                    packages.Inspect(packageBytes).Manifest.ProjectKey,
+                    cancellationToken);
+        }
+
         var preflight = await PreviewAsync(
             packageBytes,
             currentUser,
@@ -132,6 +149,8 @@ public sealed class SystemRecoveryApplicationService(
             cancellationToken);
         if (!preflight.CanApply)
         {
+            if (attachJournal is not null && installationBinding is not null)
+                await installationBinding.AbortAttachAsync(attachJournal.ProjectKey!, CancellationToken.None);
             return FailedBeforeMutation(
                 preflight,
                 "preflight",
@@ -298,6 +317,9 @@ public sealed class SystemRecoveryApplicationService(
                 lifecycleAfterActivation,
                 ["Recovered application was saved and published, but the accepted Active Runtime revision was not established."]);
         }
+
+        if (attachJournal is not null && installationBinding is not null)
+            await installationBinding.CompleteAttachAsync(snapshot.ProjectKey, CancellationToken.None);
 
         return new SystemRecoveryApplicationApplyResult(
             true,

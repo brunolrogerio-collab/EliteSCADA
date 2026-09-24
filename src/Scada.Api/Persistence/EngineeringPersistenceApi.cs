@@ -34,6 +34,8 @@ public static class EngineeringPersistenceApi
             new PostgreSqlEngineeringProjectStore(connectionString));
         builder.Services.TryAddSingleton<IEngineeringProjectCatalog>(_ =>
             new PostgreSqlEngineeringProjectCatalog(connectionString));
+        builder.Services.TryAddSingleton<IEngineeringInstallationBindingStore>(_ =>
+            new PostgreSqlEngineeringInstallationBindingStore(connectionString));
         builder.Services.TryAddSingleton<IEngineeringProjectPersistenceService, EngineeringProjectPersistenceService>();
         builder.Services.TryAddSingleton<IEngineeringWorkspaceCheckoutService, EngineeringWorkspaceCheckoutService>();
         builder.Services.TryAddSingleton<IEngineeringWorkingBootstrapService, EngineeringWorkingBootstrapService>();
@@ -72,20 +74,57 @@ public static class EngineeringPersistenceApi
         }
 
         await persistence.InitializeAsync(cancellationToken);
+        var bindingStore = app.Services.GetRequiredService<IEngineeringInstallationBindingStore>();
+        await bindingStore.InitializeAsync(cancellationToken);
+        var binding = await bindingStore.GetAsync(cancellationToken);
+        if (binding.State == EngineeringInstallationBindingState.Legacy)
+        {
+            var catalog = app.Services.GetRequiredService<IEngineeringProjectCatalog>();
+            var projects = await catalog.ListAsync(cancellationToken);
+            string? adopted = null;
+            if (!string.IsNullOrWhiteSpace(configuredRuntimeProjectKey) &&
+                projects.Any(project => project.ProjectKey.Equals(configuredRuntimeProjectKey, StringComparison.OrdinalIgnoreCase)))
+                adopted = configuredRuntimeProjectKey.Trim();
+            else if (projects.Count == 1)
+                adopted = projects.Single().ProjectKey;
+            else if (projects.Count > 1)
+                throw new InvalidOperationException(
+                    "FND-07 cannot infer the attached Application from multiple persisted projects. Configure EngineeringRuntime:ProjectKey.");
+            binding = await bindingStore.AdoptLegacyAsync(adopted, cancellationToken);
+        }
+
+        if (binding.State is EngineeringInstallationBindingState.Neutral or
+            EngineeringInstallationBindingState.DetachInProgress)
+        {
+            app.Services.GetRequiredService<EngineeringWorkspace>().ResetToNeutral();
+            return;
+        }
+
         var bootstrap = app.Services.GetRequiredService<IEngineeringWorkingBootstrapService>();
         var bootstrapResult = await bootstrap.BootstrapAsync(
             configuredWorkingProjectKey,
             configuredWorkingRevision,
-            configuredRuntimeProjectKey,
+            binding.ProjectKey ?? configuredRuntimeProjectKey,
             cancellationToken);
-        if (bootstrapResult.Source == EngineeringWorkingBootstrapSource.EmptyCatalog && app.Configuration.GetValue<bool>("Engineering:InitializeDemoWhenEmpty")) app.Services.GetRequiredService<EngineeringWorkspace>().InitializeDemo(); await app.RecoverConfiguredEngineeringRuntimeAsync(cancellationToken);
+        if (bootstrapResult.Source == EngineeringWorkingBootstrapSource.EmptyCatalog &&
+            app.Configuration.GetValue<bool>("Engineering:InitializeDemoWhenEmpty"))
+            app.Services.GetRequiredService<EngineeringWorkspace>().InitializeDemo();
+        await app.RecoverConfiguredEngineeringRuntimeAsync(cancellationToken);
     }
 
     public static async Task<PersistedRuntimeRecoveryResult?> RecoverConfiguredEngineeringRuntimeAsync(
         this WebApplication app,
         CancellationToken cancellationToken = default)
     {
-        var projectKey = app.Configuration["EngineeringRuntime:ProjectKey"];
+        var binding = app.Services.GetService<IEngineeringInstallationBindingStore>() is { } bindingStore
+            ? await bindingStore.GetAsync(cancellationToken)
+            : null;
+        if (binding?.State is EngineeringInstallationBindingState.Neutral or
+            EngineeringInstallationBindingState.DetachInProgress or
+            EngineeringInstallationBindingState.AttachInProgress)
+            return null;
+
+        var projectKey = binding?.ProjectKey ?? app.Configuration["EngineeringRuntime:ProjectKey"];
         if (string.IsNullOrWhiteSpace(projectKey)) return null;
 
         var recovery = app.Services.GetService<IPersistedRuntimeRecoveryService>();
@@ -171,6 +210,17 @@ public static class EngineeringPersistenceApi
             await FirstProjectGate.WaitAsync(cancellationToken);
             try
             {
+                var bindingStore = context.RequestServices.GetService<IEngineeringInstallationBindingStore>();
+                EngineeringInstallationBindingSnapshot? attaching = null;
+                if (bindingStore is not null)
+                {
+                    var currentBinding = await bindingStore.GetAsync(cancellationToken);
+                    if (currentBinding.State == EngineeringInstallationBindingState.Neutral)
+                        attaching = await bindingStore.BeginAttachAsync(projectKey, cancellationToken);
+                    else if (currentBinding.State != EngineeringInstallationBindingState.Legacy)
+                        return Results.Conflict(new { error = "Another Application is already attached to this installation." });
+                }
+
                 if (await catalog.HasAnyAsync(cancellationToken))
                 {
                     return Results.Conflict(new
@@ -180,14 +230,36 @@ public static class EngineeringPersistenceApi
                 }
 
                 var savedBy = authorization.Principal.DisplayName ?? authorization.Principal.SubjectId;
-                var snapshot = await SaveFirstProjectAsync(
-                    projectKey,
-                    new EngineeringSaveRequest(projectName, savedBy),
-                    persistence,
-                    workspace,
-                    gateways,
-                    reports,
-                    cancellationToken);
+                EngineeringProjectSnapshot snapshot;
+                try
+                {
+                    snapshot = await SaveFirstProjectAsync(
+                        projectKey,
+                        new EngineeringSaveRequest(projectName, savedBy),
+                        persistence,
+                        workspace,
+                        gateways,
+                        reports,
+                        cancellationToken);
+                }
+                catch
+                {
+                    if (bindingStore is not null)
+                    {
+                        var currentBinding = await bindingStore.GetAsync(CancellationToken.None);
+                        if (currentBinding.State == EngineeringInstallationBindingState.AttachInProgress &&
+                            string.Equals(currentBinding.ProjectKey, projectKey, StringComparison.OrdinalIgnoreCase))
+                            await bindingStore.AbortAttachAsync(projectKey, CancellationToken.None);
+                    }
+                    throw;
+                }
+
+                if (bindingStore is not null)
+                {
+                    var currentBinding = await bindingStore.GetAsync(cancellationToken);
+                    if (currentBinding.State == EngineeringInstallationBindingState.AttachInProgress)
+                        await bindingStore.CompleteAttachAsync(projectKey, cancellationToken);
+                }
 
                 await audit.RecordAsync(
                     context,

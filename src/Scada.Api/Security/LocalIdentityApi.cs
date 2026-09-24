@@ -79,6 +79,8 @@ public static class LocalIdentityApi
             LocalIdentityBootstrapService bootstrap,
             JwtTokenIssuer issuer,
             IAuthorityLifecycleStore lifecycle,
+            IAuthorityPolicyStore policies,
+            AuthorityAttachService authorityAttach,
             LocalLoginAttemptLimiter limiter,
             InitialInstallationGate installationGate,
             ApiAuditService audit,
@@ -122,7 +124,25 @@ public static class LocalIdentityApi
                 }
 
                 var account = result.Account;
-                await lifecycle.MarkAuthorityPresentAsync(ct);
+                var lifecycleBefore = await lifecycle.GetAsync(ct);
+                if (lifecycleBefore.State == AuthorityLifecycleState.DeliberatelyDetached)
+                {
+                    var currentPolicy = policies.Snapshot();
+                    if (currentPolicy.Roles.Count != 0 || currentPolicy.Scopes.Count != 0)
+                        throw new InvalidOperationException("Detached Authority contains residual canonical policy.");
+                    var target = new AuthorityAttachTarget(
+                        new[] { account },
+                        new[] { BuiltInSecurityRoleDefaults.CreateInitialDeveloperRole() },
+                        Array.Empty<Scada.Engineering.Contracts.SecurityScopeEngineeringDto>());
+                    // Bootstrap created the account through the legacy empty-store primitive.
+                    // Remove it before entering the atomic attach journal, then re-install it there.
+                    await context.RequestServices.GetRequiredService<ILocalIdentityStore>().ClearAllAsync(ct);
+                    await authorityAttach.AttachAsync(target, ct);
+                }
+                else
+                {
+                    await lifecycle.MarkAuthorityPresentAsync(ct);
+                }
                 var issued = await issuer.IssueAsync(account, cancellationToken: ct);
                 context.Response.Cookies.Append(runtime.CookieName, issued.Token, CookieOptions(runtime, issued.ExpiresAtUtc));
 
@@ -267,7 +287,7 @@ public static class LocalIdentityApi
         AuthorityLifecycleSnapshot lifecycle;
         try { lifecycle = await lifecycleStore.GetAsync(cancellationToken); }
         catch { return new InitialAdministratorBootstrapStatus(true, false, "authority-lifecycle-invalid"); }
-        if (lifecycle.State != AuthorityLifecycleState.InitialInstallation)
+        if (lifecycle.State is not (AuthorityLifecycleState.InitialInstallation or AuthorityLifecycleState.DeliberatelyDetached))
             return new InitialAdministratorBootstrapStatus(true, false, $"authority-lifecycle-{lifecycle.State.ToString().ToLowerInvariant()}");
         if (!runtime.DurableStore)
             return new InitialAdministratorBootstrapStatus(true, false, "durable-local-identity-store-required");

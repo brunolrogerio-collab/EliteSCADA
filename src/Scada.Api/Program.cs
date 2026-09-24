@@ -69,6 +69,7 @@ builder.Services.AddSingleton<AuthorityLifecycleBootstrapService>();
 builder.Services.AddSingleton<AuthorityDetachService>();
 builder.Services.AddSingleton<AuthorityAttachService>();
 builder.Services.AddSingleton<AuthoritySwitchService>();
+builder.Services.AddSingleton<InstallationDetachService>();
 builder.Services.AddSingleton<ICommandEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Commands);
 builder.Services.AddSingleton<IScriptEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Scripts);
 builder.Services.AddSingleton<IGatewayEngineeringRegistry>(sp =>
@@ -136,6 +137,8 @@ await app.InitializeRuntimeSessionLeaseStoreAsync();
 await app.Services.GetRequiredService<ProductLicenseLifecycleCoordinator>().ReconcilePendingAsync();
 await app.InitializeEngineeringPersistenceAsync();
 await app.InitializeAuditAsync();
+if (app.Services.GetService<IEngineeringInstallationBindingStore>() is not null)
+    await app.Services.GetRequiredService<InstallationDetachService>().InitializeAsync();
 var localIdentityRuntime = app.Services.GetRequiredService<LocalIdentityRuntimeOptions>();
 if (localIdentityRuntime.Enabled)
 {
@@ -164,6 +167,7 @@ app.MapCommandEndpoints();
 app.MapInternalMemoryEndpoints();
 app.MapProductLicensingEndpoints();
 app.MapRuntimeEngineeringPackageEndpoints();
+app.MapInstallationDetachEndpoints();
 if (historicalQueryEnabled) app.MapHistoricalQueryEndpoints();
 
 // Public health intentionally exposes no plant, driver, project or historian detail.

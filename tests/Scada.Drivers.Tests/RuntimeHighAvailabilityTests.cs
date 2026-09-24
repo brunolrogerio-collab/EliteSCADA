@@ -266,6 +266,7 @@ public sealed class RuntimeHighAvailabilityTests
     private static RuntimeHaAuthorityCoordinator CreateCoordinator(out MutableClock clock)
     {
         clock = new MutableClock(DateTimeOffset.Parse("2026-09-24T18:00:00Z"));
+        var deterministicClock = clock;
         return new RuntimeHaAuthorityCoordinator(
             new RuntimeHaTopologyDefinition(
                 Enabled: true,
@@ -291,7 +292,7 @@ public sealed class RuntimeHighAvailabilityTests
                             new RuntimeHaEndpoint(RuntimeHaEndpointKind.Remote, "https://b.example.test", 1)
                         })
                 }),
-            () => clock.UtcNow,
+            () => deterministicClock.UtcNow,
             Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
     }
 

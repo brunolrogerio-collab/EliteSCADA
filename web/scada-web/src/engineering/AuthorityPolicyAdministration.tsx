@@ -254,11 +254,11 @@ const policyStrings: Record<EngineeringLocale, PolicyStrings> = {
   }
 };
 
-const capabilityByValue = new Map<number, typeof SECURITY_CAPABILITIES[number]>(
-  SECURITY_CAPABILITIES.map(capability => [capability.value, capability])
+const capabilityByValue = new Map(
+  SECURITY_CAPABILITIES.map(capability => [capability.value, capability] as const)
 );
-const capabilityById = new Map<string, typeof SECURITY_CAPABILITIES[number]>(
-  SECURITY_CAPABILITIES.map(capability => [capability.id.toLowerCase(), capability])
+const capabilityById = new Map(
+  SECURITY_CAPABILITIES.map(capability => [capability.id.toLowerCase(), capability] as const)
 );
 
 function capabilityDescriptor(value: number | string) {

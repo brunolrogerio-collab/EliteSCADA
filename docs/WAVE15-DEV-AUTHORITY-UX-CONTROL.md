@@ -3,9 +3,9 @@
 > GitHub live is the sole authority.
 
 `LANE: DEV-AUTHORITY-UX`
-`MAIN_ORDER_REV: 0003`
-`ORDER_ID: DEV-AUTHORITY-UX-FC0A-01`
-`ORDER_STATE: DEV_CORRECTION / STABLE_ROLE_KEY_IDENTITY`
+`MAIN_ORDER_REV: 0004`
+`ORDER_ID: DEV-AUTHORITY-UX-STABLE-ROLE-KEY-COMPILE-03`
+`ORDER_STATE: DEV_CORRECTION / CORRECTED_HEAD_WEB_COMPILE_FAILURE`
 `PLANNED_BRANCH: work/w15-dev-authority-ux`
 `WORK_BRANCH: work/w15-dev-authority-ux`
 `FC0A_RELEASE_APPROVED: YES`
@@ -165,3 +165,46 @@ Required correction also includes:
 - Web build must be green on the corrected head.
 
 Do not rerun `36067636970` unchanged. The corrected candidate requires a new natural T1.
+
+
+## Successor Main review — corrected role-key candidate still has one Web compile defect
+
+Exact corrected candidate reviewed live:
+- head `9fd2462f43c74b085e58be91dbec9ebdf18514c5`;
+- tree `bdd7ac76c3566aef81e249a9db91810674b7dfe8`;
+- correction delta from `3986475b...`: 5 commits / 5 bounded Authority-owned files;
+- natural T1 `36071729747`: classifier/Common/.NET/Chromium SUCCESS, Web semantic build FAILURE.
+
+Main accepts the stable-role-key correction direction:
+- persisted/baseline role keys are read-only;
+- new unapplied role keys remain editable;
+- successful Apply establishes the new stable baseline;
+- assigned-user/delete protection resolves through persisted identity;
+- generic capability lookup is explicitly typed without changing the canonical capability table.
+
+The corrected head is not CODEX-ready because Web build fails at:
+- `AuthorityPolicyAdministration.tsx(341,48) TS2345`;
+- `AuthorityPolicyAdministration.tsx(345,38) TS2345`.
+
+Both are candidate-causal nullability errors: `baseline: AuthorityPolicyDocument | null` is passed to helpers requiring a non-null `AuthorityPolicyDocument`.
+
+### CURRENT CORRECTION ORDER — REV 0004
+
+`ORDER_ID: DEV-AUTHORITY-UX-STABLE-ROLE-KEY-COMPILE-03`
+
+`ORDER_STATE: DEV_CORRECTION / AUTHORIZED`
+
+`CORRECTION_BASE_HEAD: 9fd2462f43c74b085e58be91dbec9ebdf18514c5`
+
+Required bounded correction:
+1. close only the nullable-baseline compile boundary around assigned-user protection / role-key editability;
+2. preserve fail-closed behavior while baseline is unavailable;
+3. preserve editability of genuinely new unapplied roles after a baseline is loaded;
+4. do not redesign Authority policy, role migration, capability semantics or backend authorization;
+5. add/adjust focused regression only if needed to make the null/loading boundary explicit;
+6. run a new natural exact-head T1; no rerun of `36071729747` on the unchanged head.
+
+Return:
+`DEV-AUTHORITY-UX -> MAIN COORDINATOR — CANDIDATE HANDOFF`
+
+No CODEX route, merge or T2 authorization yet.

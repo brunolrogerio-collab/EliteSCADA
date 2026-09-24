@@ -65,6 +65,11 @@ public interface IEngineeringProjectPersistenceService
         string? activatedBy = null,
         CancellationToken cancellationToken = default);
 
+    Task DeleteProjectAsync(
+        string projectKey,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Engineering persistence does not support installation detach.");
+
     Task<EngineeringPublicationResult?> PublishRevisionAsync(
         string projectKey,
         long revision,
@@ -99,15 +104,18 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
     private readonly IEngineeringExchangeService _exchange;
     private readonly IEngineeringProjectStore _store;
     private readonly IVisualAssetEngineeringRegistry? _visualAssets;
+    private readonly IEngineeringInstallationBindingStore? _installationBinding;
 
     public EngineeringProjectPersistenceService(
         IEngineeringExchangeService exchange,
         IEngineeringProjectStore store,
-        IVisualAssetEngineeringRegistry? visualAssets = null)
+        IVisualAssetEngineeringRegistry? visualAssets = null,
+        IEngineeringInstallationBindingStore? installationBinding = null)
     {
         _exchange = exchange;
         _store = store;
         _visualAssets = visualAssets;
+        _installationBinding = installationBinding;
     }
 
     public Task InitializeAsync(CancellationToken cancellationToken = default) =>
@@ -132,6 +140,7 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
         string? savedBy = null,
         CancellationToken cancellationToken = default)
     {
+        await EnsureWritableBindingAsync(projectKey, cancellationToken);
         var json = _exchange.ExportJson(indented: false);
         var package = _exchange.ParseJson(json);
         var revisionAssets = BuildCurrentRevisionAssets(package);
@@ -219,12 +228,20 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
         CancellationToken cancellationToken = default) =>
         _store.GetActivationAsync(projectKey, cancellationToken);
 
-    public Task<EngineeringProjectActivation?> RecordActivationAsync(
+    public async Task<EngineeringProjectActivation?> RecordActivationAsync(
         string projectKey,
         long revision,
         string? activatedBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureWritableBindingAsync(projectKey, cancellationToken);
+        return await _store.RecordActivationAsync(projectKey, revision, activatedBy, cancellationToken);
+    }
+
+    public Task DeleteProjectAsync(
+        string projectKey,
         CancellationToken cancellationToken = default) =>
-        _store.RecordActivationAsync(projectKey, revision, activatedBy, cancellationToken);
+        _store.DeleteProjectAsync(projectKey, cancellationToken);
 
     public async Task<EngineeringPublicationResult?> PublishRevisionAsync(
         string projectKey,
@@ -232,6 +249,7 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
         string? publishedBy = null,
         CancellationToken cancellationToken = default)
     {
+        await EnsureWritableBindingAsync(projectKey, cancellationToken);
         var snapshot = await _store.LoadRevisionAsync(projectKey, revision, cancellationToken);
         if (snapshot is null) return null;
 
@@ -328,6 +346,25 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
 
         var context = await BuildRevisionImportContextAsync(snapshot, package, cancellationToken);
         return (package, context);
+    }
+
+    private async Task EnsureWritableBindingAsync(
+        string projectKey,
+        CancellationToken cancellationToken)
+    {
+        if (_installationBinding is null) return;
+
+        var binding = await _installationBinding.GetAsync(cancellationToken);
+        var allowed = binding.State == EngineeringInstallationBindingState.Legacy ||
+            ((binding.State == EngineeringInstallationBindingState.Attached ||
+              binding.State == EngineeringInstallationBindingState.AttachInProgress) &&
+             string.Equals(binding.ProjectKey, projectKey?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (!allowed)
+        {
+            throw new InvalidOperationException(
+                $"Engineering project '{projectKey}' is not the current installation Application binding " +
+                $"(state '{binding.State}', project '{binding.ProjectKey ?? "none"}').");
+        }
     }
 
     private IReadOnlyCollection<EngineeringRevisionAssetPayload> BuildCurrentRevisionAssets(EngineeringPackage package)

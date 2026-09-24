@@ -158,4 +158,14 @@ public interface IEngineeringProjectStore
         long revision,
         string? activatedBy = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes one Application project's Working revision history plus Published/Active
+    /// bindings. Historian/database authorities are deliberately outside this contract.
+    /// Stores that do not support installation detach fail closed by default.
+    /// </summary>
+    Task DeleteProjectAsync(
+        string projectKey,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("This Engineering project store does not support installation detach.");
 }

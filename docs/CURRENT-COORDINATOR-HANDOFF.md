@@ -254,3 +254,27 @@ Full local concurrency RED exposed additional creators:
 Current order is `INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V2` at control commit `be7a2d875c24e07d023162e64c65acb0aebe9672`.
 
 Only initialization lock sequencing is authorized in those files. No Authority, session, quota, admission, fencing or licensing semantics may change.
+
+
+## Current active order — FND-06 E2E fixture isolation
+
+Broad run `35944510920` proved INFRA-CI-01B backend correction green but exposed a test-only FND-06 fixture leak.
+
+Active order:
+`FND06-CODEX-E2E-FIXTURE-ISOLATION-V6`
+
+Exact base:
+`eb4563cf0060449b479c4335ef30a19ed65e35ab`
+
+Work:
+`work/w15-fnd06-e2e-fixture-isolation`
+
+Only authorized mutation:
+`web/scada-web/tests-e2e/fnd06-mounted-legacy-selection.spec.ts`
+
+Do not weaken `runtime.spec.ts`, change product code, import semantics, Playwright workers/order/retries or CI workflow.
+
+Required strategy: temporarily update existing canonical Screen/Popup identities, then restore those same identities in finally; prove no fnd06 fixture remains.
+
+INFRA-CI-01B is merged/Main-accepted and requires no further mutation.
+FC0-A audit remains PREPARED / blocked.

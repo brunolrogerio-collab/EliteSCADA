@@ -7,7 +7,7 @@
 
 `AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
-`AUDIT_REV: 0007`
+`AUDIT_REV: 0008`
 
 `STATE: PREPARED / WAIT_FINAL_FND06_BROAD_CI`
 
@@ -293,6 +293,38 @@ Mandatory items:
     - Wave 13 signed-release work.
 
 Audit must determine whether any confirmed P0/P1 item is neither closed nor safely owned by one of the released DEV lanes. Such an item blocks FC0-A.
+
+## 4A. Preliminary Main blocker finding — W15-P1-01 Server Script recovery
+
+This finding was discovered while prebuilding the audit matrix and must be independently revalidated after FND-06 freeze.
+
+Wave 14 contract:
+- `W15-P1-01` / #286 requires bounded automatic recovery from repeated Server Script timeout/failure;
+- a permanent silent throttle latch is explicitly unacceptable;
+- sandbox/timeout/queue/Active-revision safety must remain intact.
+
+Live source at the current integration line shows:
+- `ServerScriptRuntimeManager.BuildPolicy` still configures `MaxConsecutiveFailuresBeforeThrottle`;
+- `ScriptRuntimeExecutionCoordinator.ProcessNextAsync` returns `ScriptRuntimeDispatchStatus.Throttled` whenever diagnostics report `IsThrottled`;
+- the coordinator exposes only explicit `ResetThrottle()` to clear that state;
+- repository search found no production caller that automatically invokes `ResetThrottle()` for Server Script recovery;
+- existing coordinator tests explicitly prove timeout -> throttled -> queued event remains, but do not prove cooldown/half-open/probe/automatic recovery.
+
+Preliminary classification:
+
+`W15-P1-01 = PRELIMINARY BLOCKED_FOUNDATION`
+
+This is **not caused by FND-06** and must not block FND-06 freeze if its own exact broad CI is green.
+
+However, under the Product Owner's post-FND06 audit rule, FC0-A cannot be released while this confirmed P1 remains neither closed nor safely delegated to a downstream lane. DEV-SCRIPT-ENGINEERING is an authoring/UI consumer and may not silently redesign Server Script runtime recovery.
+
+Required independent audit disposition:
+1. confirm current source still has the permanent latch semantics on the exact frozen checkpoint;
+2. search for any versioned recovery/health contract outside the coordinator that could supersede this finding;
+3. if none exists, return `BLOCKED-CONTRACT/BLOCKED_FOUNDATION` for FC0-A release;
+4. Main then opens a bounded Foundation correction for Server Script recovery before releasing the four FC0-A DEVs, FND-05 or FND-07.
+
+A future correction must preserve FND-04 readable TAG binding semantics and must not absorb DEV-SCRIPT-ENGINEERING authoring scope.
 
 ## 5. Cross-Foundation invariant audit
 

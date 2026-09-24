@@ -38,9 +38,9 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0026`
+`MAIN_ORDER_REV: 0027`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-23 — FND-04 FROZEN / SEQUENTIAL CODEX REASSIGNED TO FND-06`
+`LAST_MAIN_UPDATE_BRT: 2026-09-24 — SEQUENTIAL CODEX ROUTED TO CONSOLIDATED FC0-A CORRECTION PACKAGE`
 
 `GLOBAL_GATE: FND04_VERIFIED_FROZEN`
 
@@ -591,11 +591,11 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 ### CURRENT CODEX EXECUTION ORDER
 
-`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FC0A-P101-15`
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FC0A-CONSOLIDATED-16`
 
 `ORDER_STATE: ACTIVE_ROUTE`
 
-`EXECUTOR_MODE: SAME_SEQUENTIAL_CODEX / BOUNDED_SERVER_SCRIPT_RECOVERY`
+`EXECUTOR_MODE: SAME_SEQUENTIAL_CODEX / LARGE_CONSOLIDATED_FC0A_PACKAGE`
 
 `FND04_STATE: VERIFIED_FROZEN`
 
@@ -605,28 +605,28 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 `NEXT_CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`NEXT_CONTROL_FILE: docs/WAVE15-FC0A-AUDIT-BLOCKER-CORRECTION-PREP.md`
+`NEXT_CONTROL_FILE: docs/WAVE15-FC0A-CONSOLIDATED-CORRECTION-PACKAGE.md`
 
-`EXPECTED_ORDER: FC0A-BLOCKER-P101-SERVER-SCRIPT-RECOVERY-V1`
+`EXPECTED_ORDER: FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V2`
 
-`WORK_BRANCH: work/w15-fc0a-p101-server-script-recovery`
+`WORK_BRANCH: work/w15-fc0a-consolidated-corrections`
 
 `EXACT_BASE_SHA: 560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
 
 Instruction:
 
-> The Main Coordinator completed the post-FND06 audit and confirmed W15-P1-01 plus W15-P1-06 as release blockers.
->
-> Execute only P1-01 now. Do not touch P1-06 Engineering-shell scope.
+> Main has intentionally consolidated the known FC0-A correction backlog into one large package before the next Main review.
 >
 > On every `SIGA`:
 > 1. revalidate GitHub live;
-> 2. read `coord/w15-fnd06-control:docs/WAVE15-FC0A-AUDIT-BLOCKER-CORRECTION-PREP.md` in full;
-> 3. confirm current active order is `FC0A-BLOCKER-P101-SERVER-SCRIPT-RECOVERY-V1`;
-> 4. work only on `work/w15-fc0a-p101-server-script-recovery`;
-> 5. return `FC0-A P1-01 CODEX -> MAIN COORDINATOR — CANDIDATE HANDOFF`.
+> 2. read `coord/w15-fnd06-control:docs/WAVE15-FC0A-CONSOLIDATED-CORRECTION-PACKAGE.md` in full;
+> 3. confirm current active order is `FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V2`;
+> 4. work only on `work/w15-fc0a-consolidated-corrections`;
+> 5. execute the authorized A/B/C phases sequentially without asking Main for intermediate review;
+> 6. create one consolidated PR to `wave15/corrections-integration` only after the package is complete and exact-head validation is green;
+> 7. return `FC0-A CONSOLIDATED CODEX -> MAIN COORDINATOR — CANDIDATE HANDOFF`.
 >
-> No merge/freeze authority. Stop if the control moves or exact base acquires an unacknowledged product/infra divergence.
+> The former P1-01 branch/order is superseded and must not be used. No merge/freeze authority. Stop only for a real contract/base/environment blocker as defined in the consolidated control.
 
 ### CODEX mandatory return
 

@@ -2,7 +2,7 @@
 
 > PREPARED ONLY. This document does not release any DEV lane. GitHub live and Main's later exact FC0-A checkpoint are authoritative.
 
-`STATE: PREPARED / NOT RELEASED / BLOCKED_ON_FND06_AND_POST_FND06_FOUNDATION_AUDIT`
+`STATE: PREPARED / NOT RELEASED / AUDIT_CHANGES_REQUIRED / BLOCKED_ON_P1-01_AND_P1-06`
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
@@ -15,9 +15,9 @@ As of preparation:
 - FND-03 global — VERIFIED/FROZEN;
 - INFRA-CI-01A — VERIFIED/FROZEN;
 - FND-04 — VERIFIED/FROZEN at `6c810647c9773a19b212d9c33694780141786ac7` / tree `1221ff55963052be4e924dd644efbaa65763f546`; exact post-merge CI `35913456486` SUCCESS;
-- FND-06 — ACTIVE on exact product base `6c810647c9773a19b212d9c33694780141786ac7`, order `FND06-CODEX-VISUAL-STABILITY-V2`, not yet integrated/frozen.
+- FND-06 — VERIFIED/FROZEN at `560ac9d80cc7e854f2513559dc6afb28cfb4aee3` / tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`; exact broad `35953557122` SUCCESS.
 
-FC0-A remains blocked by **FND-06 VERIFIED/FROZEN + mandatory post-FND06 Foundation Closure Audit ACCEPTABLE**.
+FND-06 prerequisite is closed. FC0-A remains blocked because Main's post-FND06 audit returned **CHANGES_REQUIRED** on W15-P1-01 and W15-P1-06.
 
 ## 1A. Mandatory post-FND06 audit gate
 
@@ -64,6 +64,8 @@ Owns downstream editor maturity only:
 - direct manipulation and Outliner synchronization;
 - Property Inspector density/usability;
 - move/resize/group/lock/alignment/distribution/z-order;
+- consume the frozen FND-06 compatibility seam for known persisted legacy geometry/visibility/z-order/authoring paths;
+- prove known legacy `tank | value | dynamo | status` can participate in marquee/topmost selection, move/resize, z-order and multi-object authoring where semantically allowed without a second compatibility table;
 - clipboard/history;
 - bindings/property UX;
 - grid/snap/zoom/pan/workspace density;
@@ -83,13 +85,13 @@ Prepared branch naming:
 Parent: #297 / Script Engineering downstream work  
 Hard dependency: FND-04 VERIFIED/FROZEN.
 
-Owns:
-- event-aware authoring;
-- timer/tagChanged required configuration;
-- stale hidden-field clearing/migration;
-- cursor-aware syntactically safe snippet insertion;
-- API signatures/parameters/property addressing/examples;
-- compare-two-TAG / visual-state recipe;
+Owns remaining Script Engineering maturity:
+- preserve/regress the already-present cursor-safe Monaco insertion instead of reimplementing it;
+- preserve/regress the already-present timer/tagChanged canonical authoring flow instead of treating it as greenfield;
+- close any remaining stale event-field switching edge cases;
+- API signatures/parameters/return semantics/examples beyond the current title+summary help;
+- representative compare-two-TAG / visual-state UI-only recipe;
+- make Script Assistant consume the frozen FND-06 `getVisualSchemaForEngineering` compatibility seam for known legacy visual-property discovery while arbitrary unknown remains fail-closed;
 - mounted UI regression.
 
 Must consume, not redefine:
@@ -125,7 +127,10 @@ Hard dependency: FND-03 VERIFIED/FROZEN.
 Owns:
 - License Generator v2 UI fields;
 - licensing status/usage UX;
-- Web Runtime View Only request/fallback messaging where frontend-bounded;
+- explicit Web Runtime View Only request;
+- truthful `requestedClass` vs server `grantedClass`;
+- Interactive-quota -> ViewOnly fallback/reason messaging using server reason codes;
+- minor `viewer` vs canonical `viewOnly` API/UX wording consistency;
 - backward/new-schema UX and deterministic tests.
 
 Must preserve:
@@ -342,3 +347,24 @@ Current risk:
 - DEV-LICENSING-UX: `LOW BUT MATERIAL RESIDUAL` — FND-05 HA redundancy entitlement/readiness must be additive/backward-compatible to FND-03. Breaking license-schema/seat/quota reinterpretation blocks FC0-A.
 
 This snapshot is superseded by the exact post-FND06 independent audit. It does not release any lane.
+
+
+## 9. Second-pass deep-audit release notes
+
+Authoritative supplement:
+`docs/WAVE15-FC0A-POST-FND06-AUDIT-SECOND-PASS.md`
+commit `43c266949236af377ba859c9b8f09fa2d3a3a31a`.
+
+No third pre-FC0A blocker was identified.
+
+Additional bounded product gaps that remain tracked but do not serialize FC0-A:
+- W15-P2-01 Trends: explicit realtime socket/reconnect/last-request/last-success/freshness observability;
+- W15-P2-02 Popup/shared live values: explicit freshness age/reason and request/success telemetry.
+
+Contract confidence:
+- FND-05 remains additive/compatible;
+- FND-07 remains compositional/compatible;
+- production host already starts Engineering with `seedDemo:false`, so neutral no-Demo workspace state does not require breaking the lifecycle descriptor contract;
+- Authority detach/attach/switch primitives already exist and remain separate from the future Application/runtime detach orchestrator.
+
+Release is still blocked only by the two confirmed first-audit blockers plus their exact post-merge revalidation.

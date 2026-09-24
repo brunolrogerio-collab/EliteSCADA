@@ -7,9 +7,9 @@
 
 `AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
-`AUDIT_REV: 0005`
+`AUDIT_REV: 0006`
 
-`STATE: PREPARED / WAIT_INFRA_CI_01B_GREEN_AND_FND06_FREEZE`
+`STATE: PREPARED / WAIT_FND06_E2E_FIXTURE_ISOLATION_AND_GLOBAL_BROAD_GREEN`
 
 `MODE: READ_ONLY_CROSS_WAVE_FOUNDATION_AUDIT`
 
@@ -102,6 +102,36 @@ The FC0-A audit remains PREPARED until:
 1. INFRA-CI-01B is reviewed/merged;
 2. exact broad integration CI is green;
 3. Main records FND-06 VERIFIED/FROZEN on the resulting exact checkpoint.
+
+## 1C. Broad run #1564 exposed FND-06 test fixture leakage
+
+Exact integration:
+`eb4563cf0060449b479c4335ef30a19ed65e35ab`
+
+Run:
+`35944510920` / EliteSCADA CI #1564
+
+Results:
+- Web — SUCCESS;
+- Backend build/test/smoke — SUCCESS;
+- Chromium — FAILURE, 636 passed / 1 failed.
+
+The prior PostgreSQL blocker is technically closed by the Backend success.
+
+The sole browser failure is:
+`tests-e2e/runtime.spec.ts`
+
+It observed two Screens because `fnd06-mounted-legacy-selection.spec.ts` had created a temporary `fnd06-legacy-screen-*` through upsert-only import. Reapplying the original export cannot delete newly-created Views.
+
+Classification:
+`FND06_TEST_FIXTURE_ISOLATION_DEFECT / PRODUCT_NON_CAUSAL / INFRA_NON_CAUSAL`
+
+Active closeout:
+- order `FND06-CODEX-E2E-FIXTURE-ISOLATION-V6`;
+- work branch `work/w15-fnd06-e2e-fixture-isolation`;
+- exact base `eb4563cf0060449b479c4335ef30a19ed65e35ab`.
+
+The independent FC0-A audit remains PREPARED until this test-only defect is merged and a fresh exact broad run is fully green.
 
 ## 2. Audit purpose
 

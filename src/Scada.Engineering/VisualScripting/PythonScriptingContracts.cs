@@ -231,7 +231,8 @@ public sealed class ScriptExecutionPolicy
         TimeSpan minimumTimerInterval,
         int maxConsecutiveFailuresBeforeThrottle,
         ScriptQueueOverflowStrategy queueOverflowStrategy = ScriptQueueOverflowStrategy.CoalesceByEventKey,
-        ScriptFaultIsolationScope faultIsolationScope = ScriptFaultIsolationScope.ScriptRuntimeInstance)
+        ScriptFaultIsolationScope faultIsolationScope = ScriptFaultIsolationScope.ScriptRuntimeInstance,
+        TimeSpan? failureRecoveryCooldown = null)
     {
         if (handlerTimeout <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(handlerTimeout), "Handler timeout must be positive.");
@@ -241,6 +242,8 @@ public sealed class ScriptExecutionPolicy
             throw new ArgumentOutOfRangeException(nameof(minimumTimerInterval), "Minimum timer interval must be positive.");
         if (maxConsecutiveFailuresBeforeThrottle <= 0)
             throw new ArgumentOutOfRangeException(nameof(maxConsecutiveFailuresBeforeThrottle), "Failure throttle threshold must be positive.");
+        if (failureRecoveryCooldown is { } cooldown && cooldown <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(failureRecoveryCooldown), "Failure recovery cooldown must be positive.");
 
         HandlerTimeout = handlerTimeout;
         MaxQueuedEvents = maxQueuedEvents;
@@ -248,6 +251,7 @@ public sealed class ScriptExecutionPolicy
         MaxConsecutiveFailuresBeforeThrottle = maxConsecutiveFailuresBeforeThrottle;
         QueueOverflowStrategy = queueOverflowStrategy;
         FaultIsolationScope = faultIsolationScope;
+        FailureRecoveryCooldown = failureRecoveryCooldown ?? TimeSpan.FromSeconds(1);
     }
 
     public TimeSpan HandlerTimeout { get; }
@@ -261,6 +265,12 @@ public sealed class ScriptExecutionPolicy
     public ScriptQueueOverflowStrategy QueueOverflowStrategy { get; }
 
     public ScriptFaultIsolationScope FaultIsolationScope { get; }
+
+    /// <summary>
+    /// Bounded delay before a throttled script is allowed one half-open recovery probe.
+    /// A failed probe starts another cooldown; a completed probe restores healthy dispatch.
+    /// </summary>
+    public TimeSpan FailureRecoveryCooldown { get; }
 
     public static ScriptExecutionPolicy SafeDefault { get; } =
         new(

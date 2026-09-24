@@ -447,11 +447,15 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
         var maxFailures = Math.Max(
             1,
             configuration.GetValue<int?>("ServerScripts:MaxConsecutiveFailuresBeforeThrottle") ?? 5);
+        var recoveryCooldown = TimeSpan.FromMilliseconds(Math.Max(
+            10,
+            configuration.GetValue<int?>("ServerScripts:FailureRecoveryCooldownMs") ?? 1000));
         return new ScriptExecutionPolicy(
             handlerTimeout,
             maxQueued,
             minimumTimer,
-            maxFailures);
+            maxFailures,
+            failureRecoveryCooldown: recoveryCooldown);
     }
 
     private static PythonScriptDefinition ToPythonDefinition(ScriptEngineeringDefinition script) => new(

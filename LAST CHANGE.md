@@ -199,3 +199,34 @@ Post-FND06 audit remains blocking and is preloaded with this exact checkpoint:
 - state `PREPARED / WAIT_FND06_POST_MERGE_CI_GREEN`
 
 No FC0-A DEV, FND-05 or FND-07 release until FND-06 freezes and the independent audit returns `ACCEPTABLE / FC0A_RELEASE_APPROVED`.
+
+
+## Post-FND06 broad CI exposed generic PostgreSQL blocker
+
+PR #337 merged at `624f2eca456310a2c6156538b3616a06e3be075f`.
+
+Exact broad EliteSCADA CI #1563 / `35940661531`:
+- Web — SUCCESS;
+- Backend build/test/smoke — FAILURE in test;
+- Chromium — skipped downstream.
+
+Only identified failure:
+`PostgreSqlVisualDynamicPersistenceTests.RevisionPersistence_PreservesVisualExpressionConditionAndAnalogFill`
+
+Error:
+`23505: duplicate key value violates unique constraint pg_namespace_nspname_index`
+during `PostgreSqlEngineeringProjectStore.InitializeAsync`.
+
+The store and failing test are byte-identical to the pre-FND06 checkpoint. PR #337 did not touch Persistence/PostgreSQL. Same PostgreSQL catalog-race signature was diagnosed in Wave 14.
+
+Main did not rerun blindly.
+
+Active generic correction:
+- `INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V1`
+- control `coord/w15-infra-ci-01b-control:docs/WAVE15-INFRA-CI-01B-CONTROL.md`
+- control commit `358b067d9af6501b2945f311b5d2cd32cab64efa`
+- exact base `624f2eca456310a2c6156538b3616a06e3be075f`
+- work branch `work/w15-infra-ci-01b-postgresql-schema-init`.
+
+FND-06 = INTEGRATED / MAIN-ACCEPTED / FREEZE BLOCKED BY GENERIC INFRA.
+FC0-A audit remains PREPARED.

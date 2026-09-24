@@ -1007,3 +1007,30 @@ Central board:
 `coord/w15-parallel-dev-control:docs/WAVE15-PARALLEL-DEV-CONTROL.md`, rev 0003.
 
 The prepared two-stage first-project fresh-install preview remains downstream of four feature integrations/T2 plus FND-05/FND-07 VERIFIED/FROZEN.
+
+
+## Post-review CI diagnosis and sequential CODEX queue (2026-09-24)
+
+GitHub live revalidation after the first six-lane Main review pass:
+
+- Script Engineering PR #344 remains the **active sequential CODEX mission** on exact accepted head `cf0ae2d1dcd2d63668b5b1c2c3590a5b6bb9bdaa`.
+- Editor PR #349 remains `MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT` on `06eed31d99ddb34d99e0287e96e38bed3bf7dab5`, T1 `36066874097` SUCCESS.
+- Authority PR #346 remains in DEV correction. Its repaired-metadata T1 `36067636970` reached real evidence and found a candidate-causal Web compile defect: TS2345 in `AuthorityPolicyAdministration.logic.ts` caused by a generic number lookup against a literal-key capability Map. That defect is now part of `DEV-AUTHORITY-UX-STABLE-ROLE-KEY-02`; unchanged-head rerun is forbidden.
+- Licensing PR #345 remains in DEV correction. T1 `36067628680` had Web/Chromium/Common green and .NET 692/693. The only failure, `Adapter_OutOfOrderIFrameFaultsBeforePublishingAsdu`, is non-causal to Licensing: the exact test, IEC-104 adapter and sequence-state blobs are unchanged from FC0-A.
+- Main proved the IEC-104 failure is an asynchronous **test observation race**: the test waits only for `ProtocolErrors >= 1`, while the adapter increments that counter before `SignalSessionFailure` writes `IsConnected=false` and increments session failures.
+- Separate test-infrastructure closeout prepared:
+  `coord/w15-infra-ci-01d-control:docs/WAVE15-INFRA-CI-01D-IEC104-FAULT-OBSERVATION-RACE-CONTROL.md`,
+  commit `b23cefeaf78a58ea17eaba8cf9a1566f3095ada4`.
+- INFRA-CI-01D is **PREPARED ONLY**. No work branch exists yet and no mutation is authorized.
+- Shared sequential CODEX plan after Script handoff:
+  1. activate/close INFRA-CI-01D from the then-current integration HEAD;
+  2. route CODEX to Editor #349.
+- This queue is planning only. The active route remains Script until Main publishes a new binding route.
+
+Shared CODEX control rev 0038:
+`coord/w15-fnd04-dev-aud-control:docs/WAVE15-FND04-DEV-AUD-CONTROL.md`,
+commit `163b476252ed1a2459730b716b7dd921470c5903`.
+
+Central six-lane control rev 0004:
+`coord/w15-parallel-dev-control:docs/WAVE15-PARALLEL-DEV-CONTROL.md`,
+commit `59223cf41f96f5f7bdfc0e6e0c44f8299fe76031`.

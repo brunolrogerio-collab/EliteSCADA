@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`MAIN_ORDER_REV: 0008`
+`MAIN_ORDER_REV: 0009`
 
 `STATE: INTEGRATED / FREEZE_BLOCKED_GENERIC_INFRA_CI_01B`
 
@@ -230,7 +230,7 @@ Forbidden without new Main order:
 
 `INFRA_CONTROL_FILE: docs/WAVE15-INFRA-CI-01B-CONTROL.md`
 
-`EXPECTED_INFRA_ORDER: INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V2`
+`EXPECTED_INFRA_ORDER: INFRA-CI-01B-WAIT-POSTMERGE-V3`
 
 Instruction:
 
@@ -284,3 +284,11 @@ Only after audit `ACCEPTABLE / FC0A_RELEASE_APPROVED` may Main record the exact 
 - DEV-LICENSING-UX.
 
 At that same approved checkpoint, FND-05 and FND-07 may also be activated in parallel with the four FC0-A DEV lanes, subject to their own isolated branches/orders. EliteGO, Installation UX and HA downstream remain blocked until their respective FND-05/FND-07 contracts freeze.
+
+
+### INFRA-CI-01B merged gate
+
+- PR #338 merged at `eb4563cf0060449b479c4335ef30a19ed65e35ab`
+- tree `0158aa1b6082a8f9e514f6e6a059f49312b07f65`
+- broad post-merge CI `35944510920` / #1564 pending
+- FND-06 freeze remains HOLD until that exact broad run is green.

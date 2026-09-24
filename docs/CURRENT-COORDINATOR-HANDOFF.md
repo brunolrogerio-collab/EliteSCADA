@@ -212,3 +212,31 @@ Post-FND06 audit remains blocking and is preloaded with this exact checkpoint:
 - state `PREPARED / WAIT_FND06_POST_MERGE_CI_GREEN`
 
 No FC0-A DEV, FND-05 or FND-07 release until FND-06 freezes and the independent audit returns `ACCEPTABLE / FC0A_RELEASE_APPROVED`.
+
+
+## Current blocker — INFRA-CI-01B
+
+FND-06 product work is merged and Main-accepted, but not frozen.
+
+- FND-06 merge: `624f2eca456310a2c6156538b3616a06e3be075f`
+- post-merge CI `35940661531`: FAILURE
+- failure: PostgreSQL `23505 pg_namespace_nspname_index` during shared-schema initialization
+- FND-06 causality: not established; failing source/test blobs unchanged by FND-06
+- historical same-signature Wave 14 evidence exists
+- no blind rerun authorized.
+
+Active sequential CODEX mission:
+- `INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V1`
+- control: `coord/w15-infra-ci-01b-control:docs/WAVE15-INFRA-CI-01B-CONTROL.md`
+- control commit: `358b067d9af6501b2945f311b5d2cd32cab64efa`
+- work: `work/w15-infra-ci-01b-postgresql-schema-init`
+- exact base: `624f2eca456310a2c6156538b3616a06e3be075f`.
+
+FND-06 control rev `0007` routes this same CODEX to INFRA-CI-01B.
+FND-04 legacy routing control rev `0019` also routes directly to INFRA-CI-01B.
+
+FC0-A and independent audit are not released until:
+1. INFRA-CI-01B correction is reviewed/merged;
+2. exact broad integration CI is green;
+3. FND-06 is declared VERIFIED/FROZEN;
+4. post-FND06 audit returns ACCEPTABLE / FC0A_RELEASE_APPROVED.

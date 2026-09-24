@@ -5,7 +5,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`ORDER_ID: FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V5`
+`ORDER_ID: FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V6`
 
 `ORDER_STATE: ACTIVE`
 
@@ -21,7 +21,7 @@
 
 `TARGET_BRANCH: wave15/corrections-integration`
 
-`MAIN_REVIEW_POLICY: V3_REVIEWED / PRODUCT_DELTA_ACCEPTED / FINAL_TEST_ONLY_VALIDATION_CLOSEOUT`
+`MAIN_REVIEW_POLICY: V4_REVIEWED / TESTS_ACCEPTED / FINAL_EXECUTION_PROOF_ONLY`
 
 `PR_POLICY: ONE_CONSOLIDATED_PR_AFTER_PACKAGE_COMPLETION`
 
@@ -1098,3 +1098,122 @@ Include:
 - no merge/freeze/release.
 
 This is intended to be the final evidence-only closeout before Main integration decision.
+
+
+## 14. Main review of V4 handoff — tests accepted / FINAL EXECUTION PROOF ONLY
+
+Main reviewed exact V4 candidate:
+
+- PR: `#340`
+- head: `87eafb68e4fea7815a26ccffeb8a070fae6564c8`
+- commit: `test: complete FC0-A V4 closeout coverage`
+- V4 delta: test-only;
+- natural T1: `36037962003` — SUCCESS.
+
+The V4 test additions are directionally accepted:
+
+- `app-shell.spec.ts` now has explicit desktop/compact Engineering scroll-composition assertions;
+- `wave-14-c25-engineering-lock.spec.ts` now covers compact management discovery and lock/clear request paths;
+- `visual-editor-authoring-model.spec.ts` now carries known legacy `tank | value | dynamo | status` through align/size/z-order while preserving legacy-specific fields.
+
+No V4 production code changed.
+
+### Remaining blocker is execution proof, not product code
+
+Main inspected the exact T1 Chromium log for `36037962003`.
+
+It selected only:
+- `python-runtime-host.spec.ts`;
+- `runtime.spec.ts`;
+- `script-engineering-workspace-contract.spec.ts`;
+- `visual-editor-workspace.spec.ts`;
+- local-auth bootstrap.
+
+It did **not** execute:
+- `wave-14-c25-runtime-session.spec.ts`;
+- `app-shell.spec.ts`;
+- `wave-14-c25-engineering-lock.spec.ts`;
+- `visual-editor-authoring-model.spec.ts`;
+- `visual-editor-selection-model.spec.ts`;
+- `visual-editor-z-order-model.spec.ts`.
+
+Therefore V4 T1 is green but still does not prove the newly added closeout specs.
+
+### FINAL required action — smallest CI routing correction
+
+No new product feature is authorized.
+
+Use the existing Wave 15 profile router so the natural T1 itself runs the owner specs needed for this package.
+
+Preferred bounded implementation:
+
+1. change `scripts/ci/wave15_profile_router.py` so one validation profile may own **multiple** E2E specs instead of exactly one;
+2. preserve all current mappings;
+3. extend only the relevant mappings:
+   - `UI_EDITOR` must include:
+     - `tests-e2e/visual-editor-workspace.spec.ts`;
+     - `tests-e2e/app-shell.spec.ts`;
+     - `tests-e2e/wave-14-c25-engineering-lock.spec.ts`;
+     - `tests-e2e/visual-editor-authoring-model.spec.ts`;
+     - `tests-e2e/visual-editor-selection-model.spec.ts`;
+     - `tests-e2e/visual-editor-z-order-model.spec.ts`;
+   - `RUNTIME_RENDERER` must include:
+     - `tests-e2e/runtime.spec.ts`;
+     - `tests-e2e/wave-14-c25-runtime-session.spec.ts`;
+4. add/update `tests/ci/test_wave15_profile_router.py` so the expanded deterministic spec set is itself unit-tested;
+5. do not add a one-off FC0-A-only validation profile and do not weaken existing profile inference.
+
+This is CI/validation infrastructure only.
+
+### Two test-strengthening requirements before final T1
+
+Because this should be the last closeout cycle, strengthen two assertions now:
+
+#### Lock lifecycle
+
+The compact Lock test must prove backend-returned state, not only that requests were sent.
+
+- assert management is collapsed by default and summary/status is visible;
+- for lock-now, return truthful `lockedStatus` and assert the protected workspace becomes restricted/unmounted;
+- prove clear separately from a configured+unlocked state, returning `configured:false, locked:false`, and assert configuration UI returns.
+
+Do not change Lock product semantics unless the stronger test exposes a real defect.
+
+#### Unknown legacy containment
+
+The known legacy positive remains good.
+
+Also add an explicit negative using `vendor.unknown-x` through strict advanced consumers:
+- strict selection/schema-dependent path must reject with a contained diagnostic/error rather than fabricate a schema;
+- z-order/authoring must not mutate an arbitrary unknown as if it were a known legacy type;
+- the test must assert rejection/containment, not merely leave the unknown unselected.
+
+Use existing canonical behavior; no new compatibility registry.
+
+### Final proof
+
+Push the final validation-only head and let natural T1 run.
+
+The Chromium log must visibly include the owner specs above.
+
+Require:
+- Common sanity SUCCESS;
+- Web build SUCCESS;
+- .NET selected evidence SUCCESS;
+- Chromium owner specs SUCCESS;
+- final T1 gate SUCCESS.
+
+Then return:
+
+`FC0-A CONSOLIDATED CODEX -> MAIN COORDINATOR — FINAL INTEGRATION HANDOFF V5`
+
+Include:
+- exact SHA/tree;
+- router/test files changed;
+- exact T1 run ID;
+- Chromium spec list from the log;
+- total pass/fail result;
+- confirmation of no production feature change;
+- no merge/freeze/release.
+
+If this passes, Main may proceed directly to protected merge and post-merge FC0-A gate without another feature review.

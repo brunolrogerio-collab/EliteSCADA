@@ -1,5 +1,6 @@
 import type { ScreenEngineering, VisualElementEngineering } from '../types';
 import {
+  BUILTIN_VISUAL_OBJECT_TYPES,
   getBuiltinVisualObjectSchema,
   VISUAL_PROPERTY_KEYS
 } from '../../visual-runtime';
@@ -37,7 +38,8 @@ export function applyVisualEditorZOrderOperation(
   const siblings = parentId === null
     ? [...(screen.elements ?? [])]
     : [...(requireElement(screen, parentId).children ?? [])];
-  const unregistered = siblings.find(element => !getBuiltinVisualObjectSchema(element.type));
+  const registeredTypes = new Set<string>(Object.values(BUILTIN_VISUAL_OBJECT_TYPES));
+  const unregistered = siblings.find(element => !registeredTypes.has(element.type));
   if (unregistered) {
     throw new Error(`Z-order cannot normalize a stacking context containing unregistered visual object type '${unregistered.type}'.`);
   }

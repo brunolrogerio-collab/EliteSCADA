@@ -21,7 +21,7 @@ function screen(elements: VisualElementEngineering[]): ScreenEngineering {
   return { key: 'screen', name: 'Screen', route: '/screen', elements };
 }
 
-function legacy(id: string, type: 'tank' | 'value' | 'dynamo' | 'status' | 'vendor.unknown-x', x: number): VisualElementEngineering {
+function legacy(id: string, type: string, x: number): VisualElementEngineering {
   return { id, key: id, type, properties: { x, y: 10, width: 30, height: 20, zIndex: x, legacySpecific: `${type}-preserved` } };
 }
 
@@ -178,14 +178,19 @@ test('multi-object operations reject mixed parent coordinate spaces', () => {
 
 test('legacy advanced authoring keeps known legacy fields and contains arbitrary unknown objects', () => {
   const base = screen([
-    legacy('tank', 'tank', 10), legacy('value', 'value', 40), legacy('dynamo', 'dynamo', 70), legacy('status', 'status', 100), legacy('unknown', 'vendor.unknown-x', 130)
+    legacy('rectangle', BUILTIN_VISUAL_OBJECT_TYPES.rectangle, 10),
+    legacy('text', BUILTIN_VISUAL_OBJECT_TYPES.text, 40),
+    legacy('value', BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay, 70),
+    legacy('button', BUILTIN_VISUAL_OBJECT_TYPES.button, 100),
+    legacy('unknown', 'vendor.unknown-x', 130)
   ]);
-  const aligned = applyVisualEditorAuthoringOperation(base, { kind: 'align', objectIds: ['tank', 'value', 'dynamo', 'status'], operation: 'left' });
-  const sized = applyVisualEditorAuthoringOperation(aligned, { kind: 'size', objectIds: ['tank', 'value', 'dynamo', 'status'], referenceObjectId: 'tank', operation: 'sameSize' });
-  expect(() => applyVisualEditorZOrderOperation(sized, ['tank', 'value', 'dynamo', 'status'], 'front'))
+  const knownIds = ['rectangle', 'text', 'value', 'button'];
+  const aligned = applyVisualEditorAuthoringOperation(base, { kind: 'align', objectIds: knownIds, operation: 'left' });
+  const sized = applyVisualEditorAuthoringOperation(aligned, { kind: 'size', objectIds: knownIds, referenceObjectId: 'rectangle', operation: 'sameSize' });
+  expect(() => applyVisualEditorZOrderOperation(sized, knownIds, 'front'))
     .toThrow("unregistered visual object type 'vendor.unknown-x'");
 
-  for (const id of ['tank', 'value', 'dynamo', 'status']) {
+  for (const id of knownIds) {
     const item = sized.elements?.find(element => element.id === id);
     expect(item?.properties?.legacySpecific).toBe(`${item?.type}-preserved`);
     expect(item?.properties?.x).toBe(10);

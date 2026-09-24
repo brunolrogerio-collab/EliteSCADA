@@ -230,3 +230,24 @@ Active generic correction:
 
 FND-06 = INTEGRATED / MAIN-ACCEPTED / FREEZE BLOCKED BY GENERIC INFRA.
 FC0-A audit remains PREPARED.
+
+
+## Broad CI #1564 — PostgreSQL fixed; FND-06 E2E fixture leak remains
+
+Exact run `35944510920` on `eb4563cf0060449b479c4335ef30a19ed65e35ab`:
+- Web SUCCESS;
+- Backend build/test/smoke SUCCESS;
+- Chromium FAILURE: 636 passed / 1 failed.
+
+The PostgreSQL failure that triggered INFRA-CI-01B is closed at the backend gate.
+
+The sole Chromium failure is `runtime.spec.ts`, which saw an extra `fnd06-legacy-screen-*` created by the FND-06 mounted closeout test.
+
+Root cause: JSON import/apply for Screens/Popups is upsert-only. Reapplying the pre-test export cannot delete a new fixture entity.
+
+Active test-only correction:
+- `FND06-CODEX-E2E-FIXTURE-ISOLATION-V6`
+- work `work/w15-fnd06-e2e-fixture-isolation`
+- FND-06 control rev 0010 / `b7b3ab914464a2da87d7b2175eb95a24d8a7db9b`.
+
+No product semantic change is authorized.

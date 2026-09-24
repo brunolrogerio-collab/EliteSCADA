@@ -131,6 +131,10 @@
 .runtime-tag-facts dt { color: #7f8b97; font-size: 9px; text-transform: uppercase; letter-spacing: .06em; }
 .runtime-tag-facts dd { margin: 4px 0 0; color: #d6dde4; font-size: 11px; overflow-wrap: anywhere; }
 .runtime-tag-facts dd.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 9px; color: #aab6c1; }
+.runtime-tag-freshness.freshness-fresh { color: #a7c8b2; }
+.runtime-tag-freshness.freshness-aging { color: #d5bc86; }
+.runtime-tag-freshness.freshness-stale,
+.runtime-tag-freshness.freshness-unavailable { color: #df969c; }
 
 .runtime-tag-history { margin-top: 18px; border: 1px solid #29323b; border-radius: 8px; overflow: hidden; }
 .runtime-tag-history > header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; background: #1b2128; border-bottom: 1px solid #29323b; }

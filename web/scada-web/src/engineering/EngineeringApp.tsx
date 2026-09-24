@@ -88,6 +88,7 @@ export function EngineeringApp() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setSnapshot(null);
     try {
       setSnapshot(await loadEngineeringSnapshot());
     } catch (reason) {
@@ -140,7 +141,9 @@ export function EngineeringApp() {
         <aside className="eng-sidebar" aria-label={t('app.engineering')}>
           <div className="eng-project-chip">
             <span>{t('workspace.project')}</span>
-            <strong>{snapshot?.workspace.projectName ?? snapshot?.workspace.projectKey ?? 'Demo Project'}</strong>
+            <strong data-testid="engineering-project-identity">
+              {snapshot?.workspace.projectName ?? snapshot?.workspace.projectKey ?? t('workspace.unavailable')}
+            </strong>
           </div>
           <nav className="eng-nav">
             {navigation.map(group => (
@@ -149,7 +152,13 @@ export function EngineeringApp() {
                 {group.items
                   .filter(item => item.id !== 'tagMonitor' || snapshot !== null)
                   .map(item => (
-                    <button key={item.id} type="button" className={section === item.id ? 'active' : ''} onClick={() => selectSection(item.id)}>
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={section === item.id ? 'active' : ''}
+                      onClick={() => selectSection(item.id)}
+                      disabled={!snapshot}
+                    >
                       <NavIcon section={item.id}/>
                       <span>{item.literalLabel ? item.literalLabel[locale] : item.label ? t(item.label) : scriptNavLabel(locale)}</span>
                       {snapshot && <small>{sectionCount(snapshot.package, item.id)}</small>}
@@ -161,9 +170,9 @@ export function EngineeringApp() {
         </aside>
 
         <section className="eng-workspace">
-          <WorkspaceBar snapshot={snapshot} t={t} locale={locale}/>
+          <WorkspaceBar snapshot={snapshot} loading={loading} t={t} locale={locale}/>
           {loading && <div className="eng-state-card"><div className="eng-spinner"/><strong>{t('app.loading')}</strong></div>}
-          {!loading && error && <div className="eng-state-card error"><strong>{t('app.loadError')}</strong><span>{error}</span><button type="button" onClick={() => void load()}>{t('app.retry')}</button></div>}
+          {!loading && error && <div className="eng-state-card error" role="alert" data-testid="engineering-load-error"><strong>{t('app.loadError')}</strong><span>{error}</span><button type="button" onClick={() => void load()}>{t('app.retry')}</button></div>}
           {!loading && snapshot && <EngineeringSection section={section} snapshot={snapshot} t={t} locale={locale} onReload={load}/>} 
         </section>
       </div>
@@ -171,14 +180,20 @@ export function EngineeringApp() {
   );
 }
 
-function WorkspaceBar({ snapshot, t, locale }: { snapshot: EngineeringSnapshot | null; t: ReturnType<typeof translator>; locale: EngineeringLocale }) {
+function WorkspaceBar({ snapshot, loading, t, locale }: {
+  snapshot: EngineeringSnapshot | null;
+  loading: boolean;
+  t: ReturnType<typeof translator>;
+  locale: EngineeringLocale;
+}) {
   const workspace = snapshot?.workspace;
   const engineeringPackage = snapshot?.package;
+  const unavailable = loading ? t('workspace.loading') : t('workspace.unavailable');
   return (
-    <div className="eng-workspace-bar">
+    <div className="eng-workspace-bar" data-testid="engineering-workspace-bar">
       <div><span>{t('workspace.schema')}</span><strong>{engineeringPackage ? `${engineeringPackage.schema} v${engineeringPackage.schemaVersion}` : '—'}</strong></div>
-      <div><span>{t('workspace.revision')}</span><strong>{workspace?.baseRevision ?? t('workspace.unsaved')}</strong></div>
-      <div><span>{t('workspace.status')}</span><strong className={workspace?.isDirty ? 'eng-dirty' : ''}>{workspace?.isDirty ? t('workspace.dirty') : t('workspace.clean')}</strong></div>
+      <div><span>{t('workspace.revision')}</span><strong>{workspace ? workspace.baseRevision : unavailable}</strong></div>
+      <div><span>{t('workspace.status')}</span><strong className={workspace?.isDirty ? 'eng-dirty' : ''}>{workspace ? (workspace.isDirty ? t('workspace.dirty') : t('workspace.clean')) : unavailable}</strong></div>
       <div><span>{t('workspace.exportedAt')}</span><strong>{engineeringPackage?.exportedAt ? formatDate(engineeringPackage.exportedAt, locale) : '—'}</strong></div>
     </div>
   );

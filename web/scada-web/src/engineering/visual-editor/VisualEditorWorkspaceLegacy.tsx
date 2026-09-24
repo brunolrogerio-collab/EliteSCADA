@@ -20,7 +20,6 @@ import { initializeClientMemory } from '../../runtime/clientMemory';
 import { BUILTIN_VISUAL_OBJECT_TYPES } from '../../visual-runtime';
 import { BindingEditor } from './binding-editor';
 import { VisualEditorCanvas } from './canvas';
-import { CanonicalVisualRenderer } from './CanonicalVisualRenderer';
 import { DynamicPropertyEditor } from './dynamic-property-editor';
 import { DynamoLibraryPalette } from './DynamoLibraryPalette';
 import { ObjectPalette } from './object-palette';
@@ -404,15 +403,11 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
               canUndo={canUndoVisualEditorSession(session)}
               canRedo={canRedoVisualEditorSession(session)}
               canPaste={canPasteVisualEditorSession(session)}
-              polygonToolActive={polygonToolActive}
-              onPolygonToolCancel={() => setPolygonToolActive(false)}
-            />
-            <div className="visual-editor-canonical-preview-label"><strong>{text.canonicalPreview}</strong><span>{text.canonicalPreviewHint}</span></div>
-            <CanonicalVisualRenderer
-              elements={draft.elements}
-              emptyLabel={text.emptyCanvas}
               locale={locale}
               dynamoDefinitions={snapshot.package.dynamos}
+              emptyLabel={text.emptyCanvas}
+              polygonToolActive={polygonToolActive}
+              onPolygonToolCancel={() => setPolygonToolActive(false)}
             />
           </section>
 

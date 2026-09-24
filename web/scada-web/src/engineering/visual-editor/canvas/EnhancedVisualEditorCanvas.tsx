@@ -21,7 +21,7 @@ import {
 import { DynamoInstanceInspector } from './DynamoInstanceInspector';
 import { VisualDefinitionSurfaceInspector } from './VisualDefinitionSurfaceInspector';
 import { VisualEditorAuthoringToolbar } from './VisualEditorAuthoringToolbar';
-import { VisualEditorCanvas as LegacyVisualEditorCanvas } from './VisualEditorCanvas';
+import { VisualEditorCanvas as LegacyVisualEditorCanvas, type VisualEditorCanvasProps } from './VisualEditorCanvas';
 import { VisualEditorOutliner } from './VisualEditorOutliner';
 import {
   DEFAULT_CANVAS_GRID_SIZE,
@@ -46,7 +46,7 @@ import {
   type VisualEditorMoveGuideResult
 } from './visualEditorSmartGuidesModel';
 
-export type EnhancedVisualEditorCanvasProps = VisualEditorCanvasContractProps & Readonly<{
+export type EnhancedVisualEditorCanvasProps = VisualEditorCanvasProps & Readonly<{
   /** Optional session-level command sink. Legacy mutation shortcuts remain intact when omitted. */
   onKeyboardCommand?: (command: VisualEditorKeyboardCommand) => void;
   onAuthoringOperation?: (operation: VisualEditorAuthoringOperation) => void;

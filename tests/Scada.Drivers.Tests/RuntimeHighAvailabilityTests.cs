@@ -65,6 +65,35 @@ public sealed class RuntimeHighAvailabilityTests
     }
 
     [Fact]
+    public void DesignatedActive_RemainsDesignatedWhileReadinessBootstrapsButCannotOwnEffects()
+    {
+        var coordinator = CreateCoordinator(out var clock);
+
+        coordinator.UpdateNodeReadiness(
+            "node-a",
+            new RuntimeHaNodeReadinessEvidence(
+                Healthy: true,
+                SynchronizationComplete: true,
+                HaLicenseEntitled: false,
+                Runtime: new RuntimeHaRuntimeIdentity("simulation", null, null),
+                ObservedAtUtc: clock.UtcNow));
+
+        var bootstrapping = coordinator.Snapshot();
+        Assert.Equal("node-a", bootstrapping.EffectiveActiveNodeId);
+        Assert.Equal(RuntimeHaState.Synchronizing, Node(bootstrapping, "node-a").State);
+        Assert.False(coordinator.TryAcquireIndustrialAuthority("node-a").Allowed);
+
+        coordinator.UpdateNodeReadiness(
+            "node-a",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+
+        var ready = coordinator.Snapshot();
+        Assert.Equal("node-a", ready.EffectiveActiveNodeId);
+        Assert.Equal(RuntimeHaState.Active, Node(ready, "node-a").State);
+        Assert.True(coordinator.TryAcquireIndustrialAuthority("node-a").Allowed);
+    }
+
+    [Fact]
     public void PeerLoss_DoesNotPromoteStandby()
     {
         var coordinator = CreateReadyPair(out _);

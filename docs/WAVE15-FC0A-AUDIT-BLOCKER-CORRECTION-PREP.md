@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`STATE: ACTIVE / P101_SERVER_SCRIPT_RECOVERY`
+`STATE: SUPERSEDED_BY_CONSOLIDATED_FC0A_PACKAGE`
 
 `AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
@@ -20,11 +20,33 @@ Main revalidated the exact frozen product base. Integration commits above it at 
 
 ---
 
+## 0A. Main supersession — consolidated FC0-A correction package
+
+Product Owner requested that all confirmed/shared FC0-A findings be corrected now where safely possible, with one larger CODEX delivery before Main re-review.
+
+Binding active control is now:
+
+`coord/w15-fnd06-control:docs/WAVE15-FC0A-CONSOLIDATED-CORRECTION-PACKAGE.md`
+
+Active order:
+
+`FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V2`
+
+Work branch:
+
+`work/w15-fc0a-consolidated-corrections`
+
+Exact base remains:
+
+`560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
+
+The old P1-01 branch was still identical to this exact base with no PR when superseded. Do not execute P1-01 or P1-06 as separate serialized orders unless Main later explicitly reverts this supersession.
+
 ## 1. Prepared correction A — W15-P1-01 Server Script recovery
 
 `ORDER_ID: FC0A-BLOCKER-P101-SERVER-SCRIPT-RECOVERY-V1`
 
-`ORDER_STATE: ACTIVE`
+`ORDER_STATE: SUPERSEDED_UNUSED / DO_NOT_EXECUTE`
 
 `WORK_BRANCH: work/w15-fc0a-p101-server-script-recovery`
 
@@ -104,7 +126,7 @@ GREEN:
 
 `QUEUED_ORDER_ID: FC0A-BLOCKER-P106-ENGINEERING-FALLBACK-V1`
 
-`ORDER_STATE: NOT_AUTHORIZED / WAIT_AUDIT_CONFIRMATION`
+`ORDER_STATE: SUPERSEDED_BY_CONSOLIDATED_PACKAGE / DO_NOT_EXECUTE_SEPARATELY`
 
 ### Why prepared
 

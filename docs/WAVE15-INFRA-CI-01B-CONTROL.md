@@ -5,11 +5,11 @@
 
 `CONTROL_BRANCH: coord/w15-infra-ci-01b-control`
 
-`MAIN_ORDER_REV: 0001`
+`MAIN_ORDER_REV: 0002`
 
-`STATE: ACTIVE`
+`STATE: ACTIVE / SCOPE_AMENDED_AFTER_FULL_TEST_RED`
 
-`ORDER_ID: INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V1`
+`ORDER_ID: INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V2`
 
 `EXECUTOR_IDENTITY: SAME SEQUENTIAL CODEX LANE USED FOR PRIOR FOUNDATION/FND-06`
 
@@ -106,33 +106,135 @@ and subsequent DDL.
 The desired Foundation invariant is stronger:
 **acquire the shared advisory lock as an explicit completed database command before executing shared-schema DDL; do not depend on retry as the primary serialization mechanism.**
 
+## 4A. Scope amendment after candidate 97c665c8
+
+Intermediate candidate:
+
+`97c665c8e4d62268336dfdef400f992c2f9d43cf`
+
+Natural Wave 15 T1:
+
+`35943407678` — SUCCESS under `FOUNDATION_LIFECYCLE`.
+
+That focused T1 is necessary but not sufficient. The executor correctly ran a fuller local .NET test pass against fresh TimescaleDB and obtained:
+
+- 120 passed;
+- 1 failed;
+- strengthened `PostgreSqlConcurrentInitializationTests.SharedSchemaStores_InitializeConcurrentlyWithoutDdlCollisions` reproduced PostgreSQL `23505`;
+- failing command observed in `PostgreSqlAuditStore.InitializeAsync`.
+
+The strengthened RED exposed that V1's creator inventory was incomplete.
+
+Main re-audited the complete `src/Scada.Persistence.PostgreSql` directory at exact base `624f2eca...`.
+
+All production creators of `CREATE SCHEMA IF NOT EXISTS elitescada` in this assembly:
+
+1. `PostgreSqlAlarmHistoryStore`
+2. `PostgreSqlAuditStore`
+3. `PostgreSqlAuthorityLifecycleStore`
+4. `PostgreSqlAuthorityPolicyStore`
+5. `PostgreSqlEngineeringProjectStore`
+6. `PostgreSqlLocalIdentityStore`
+7. `PostgreSqlOperationalEventHistoryStore`
+8. `PostgreSqlRuntimeSessionLeaseStore`
+9. `PostgreSqlServerMemoryRetentionStore`
+
+Plus the Timescale historian infrastructure in its separate project.
+
+Initialization sequencing at exact base:
+
+Already explicit lock-before-DDL:
+- Alarm History;
+- Operational Event;
+- Timescale historian.
+
+V1 candidate corrects:
+- Audit;
+- Engineering Project;
+- Local Identity;
+- Server Memory.
+
+Additional residual creators discovered by full-test RED:
+
+### PostgreSqlAuthorityPolicyStore
+
+`InitializeAsync` executes `CREATE SCHEMA IF NOT EXISTS elitescada` with **no shared DDL advisory lock**.
+
+Its policy mutation lock is a separate semantic concern and does not satisfy shared schema initialization serialization.
+
+Required bounded correction:
+- start an initialization transaction;
+- acquire shared DDL advisory lock `4993446713136202561` explicitly as a completed command;
+- execute the existing schema/table/migration DDL unchanged;
+- load the snapshot consistently;
+- do not change policy mutation/concurrency semantics.
+
+### PostgreSqlAuthorityLifecycleStore
+
+Uses shared DDL key `4993446713136202561`, but currently sends:
+
+`SELECT pg_advisory_xact_lock(@ddl_lock);`
+and `CREATE SCHEMA ...`
+
+inside the same multi-statement SQL batch.
+
+Required bounded correction:
+- remove DDL-lock acquisition from the DDL batch;
+- acquire the shared lock explicitly before the existing DDL command;
+- do not change Authority lifecycle states, epochs, mutation locks, transitions or fail-closed behavior.
+
+### PostgreSqlRuntimeSessionLeaseStore
+
+Uses shared DDL key `4993446713136202561`, but also retains lock+DDL in the same SQL batch.
+
+Required bounded correction:
+- explicit shared DDL lock command before existing DDL;
+- no change to lease authority revision, admission, session class, quotas, generations, fencing or licensing semantics.
+
+Classification:
+
+`SAME_GENERIC_SHARED_SCHEMA_INFRASTRUCTURE_INVARIANT / SCOPE_AMENDMENT APPROVED`
+
+This is **not** permission for Authority or Licensing feature changes. Only database-initialization sequencing and directly discriminating concurrency tests are authorized.
+
+Intermediate candidate `97c665c8...` remains useful evidence but is **not candidate-ready**.
+
 ## 5. CURRENT EXECUTOR ORDER
 
-`ORDER_ID: INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V1`
+`ORDER_ID: INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V2`
 
-`ORDER_STATE: ACTIVE`
+`ORDER_STATE: ACTIVE / SCOPE_AMENDED`
 
 `EXECUTOR_MODE: BOUNDED_INFRA_CORRECTION`
 
+`BASE: 624f2eca456310a2c6156538b3616a06e3be075f`
+
+`INTERMEDIATE_CANDIDATE: 97c665c8e4d62268336dfdef400f992c2f9d43cf`
+
+`WORK_BRANCH: work/w15-infra-ci-01b-postgresql-schema-init`
+
 Mission:
 
-1. On exact base `624f2eca456310a2c6156538b3616a06e3be075f`, prove the residual initialization weakness with a discriminating concurrency regression.
-2. Refactor the inline-batch stores so shared advisory lock acquisition is an explicit separate command on the same transaction/connection **before** any shared-schema DDL command.
-3. Preserve lock key `4993446713136202561`.
-4. Do not change schema, migrations, business semantics, retention semantics, Authority, licensing, FND-06 visual behavior or test thresholds.
-5. Prefer one shared internal helper only if it reduces duplication without widening public API; otherwise bounded per-store lock command is acceptable.
-6. Do not solve by adding blind sleep/retry loops to every store.
-7. Existing ServerMemory retry may remain as defensive fallback, but correctness must not rely on it.
-8. Expand the shared-schema concurrency regression to cover the relevant production creators, including at minimum:
-   - Engineering project;
-   - Audit;
-   - Local Identity;
-   - Server Memory;
-   - Operational Event;
-   - Alarm History;
-   - Timescale/historian path where feasible in the existing test project/dependency boundary.
-9. Run the focused PostgreSQL concurrency/persistence tests repeatedly enough to exercise parallel initialization.
-10. Obtain a fresh natural Wave 15 T1 and, after merge, a fresh broad post-merge EliteSCADA CI on the exact integration SHA.
+1. Continue from intermediate candidate `97c665c8...`; do not discard its valid V1 corrections.
+2. Bring **every shared-schema creator in `Scada.Persistence.PostgreSql`** under the same explicit lock-before-DDL initialization invariant.
+3. Preserve shared key `4993446713136202561`.
+4. Add only these newly authorized production files beyond V1:
+   - `src/Scada.Persistence.PostgreSql/PostgreSqlAuthorityPolicyStore.cs`
+   - `src/Scada.Persistence.PostgreSql/PostgreSqlAuthorityLifecycleStore.cs`
+   - `src/Scada.Persistence.PostgreSql/PostgreSqlRuntimeSessionLeaseStore.cs`
+5. For AuthorityPolicy initialization, introduce transaction + explicit shared DDL lock only as necessary to serialize schema initialization. Preserve policy snapshot/mutation semantics.
+6. For AuthorityLifecycle and RuntimeSessionLease, split shared DDL lock acquisition from their existing DDL batches. Preserve every non-DDL lock and all domain semantics.
+7. Use the existing internal `PostgreSqlSharedSchemaInitialization` helper where it cleanly applies; do not widen public API.
+8. Expand `PostgreSqlConcurrentInitializationTests` to exercise the newly authorized creators concurrently with the existing set.
+9. If Timescale cannot be added to this test project without widening project dependencies, preserve its existing dedicated concurrency proof and document that boundary rather than adding a cross-project dependency solely for this test.
+10. Re-run the full relevant PostgreSQL/.NET suite against fresh PostgreSQL/TimescaleDB, not only focused T1.
+11. The previous local RED (120 pass / 1 fail with `23505`) is valid RED evidence for V2.
+12. Obtain a fresh natural T1 on the new exact candidate.
+13. Update PR #338 to the new exact head and return a candidate handoff only when both focused T1 and the fuller local regression are green.
+
+Hard semantic boundary:
+
+> Touching files named Authority or RuntimeSession is authorized **only** to correct shared-schema DDL initialization sequencing. No role, scope, evaluator, epoch, session-class, quota, licensing, admission, fencing or runtime behavior may change.
 
 ## 6. RED requirement
 
@@ -154,6 +256,9 @@ Production, only as needed:
 - `src/Scada.Persistence.PostgreSql/PostgreSqlAuditStore.cs`
 - `src/Scada.Persistence.PostgreSql/PostgreSqlLocalIdentityStore.cs`
 - `src/Scada.Persistence.PostgreSql/PostgreSqlServerMemoryRetentionStore.cs`
+- `src/Scada.Persistence.PostgreSql/PostgreSqlAuthorityPolicyStore.cs`
+- `src/Scada.Persistence.PostgreSql/PostgreSqlAuthorityLifecycleStore.cs`
+- `src/Scada.Persistence.PostgreSql/PostgreSqlRuntimeSessionLeaseStore.cs`
 - optional one new internal shared initialization helper under `src/Scada.Persistence.PostgreSql/`
 
 Tests:
@@ -179,7 +284,8 @@ PASS requires:
 10. PR scope bounded;
 11. normal merge only after Main review;
 12. exact broad post-merge EliteSCADA CI green;
-13. only then may Main complete the pending FND-06 freeze and activate the post-FND06 FC0-A audit.
+13. all nine `Scada.Persistence.PostgreSql` shared-schema creators are either already explicit lock-before-DDL or corrected by this candidate, with no unlocked/same-batch residual creator;
+14. only then may Main complete the pending FND-06 freeze and activate the post-FND06 FC0-A audit.
 
 ## 9. Return
 

@@ -4,9 +4,9 @@
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`MAIN_ORDER_REV: 0005`
+`MAIN_ORDER_REV: 0006`
 
-`STATE: ACTIVE / FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`
+`STATE: INTEGRATED / POST_MERGE_CI_PENDING`
 
 `EXECUTOR_LANE: SAME SEQUENTIAL CODEX EXECUTOR USED IN PRIOR FOUNDATION WORK INCLUDING FND-04`
 
@@ -216,102 +216,27 @@ Forbidden without new Main order:
 
 ## 7. CURRENT EXECUTOR ORDER
 
-`ORDER_ID: FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`
+`ORDER_ID: FND06-CODEX-WAIT-POSTMERGE-V4`
 
-`ORDER_STATE: ACTIVE`
+`ORDER_STATE: WAIT_POST_MERGE_GATE`
 
-`EXECUTOR_MODE: BOUNDED_TEST_EVIDENCE_AND_MINIMAL_FIX_IF_NEEDED`
+`EXECUTOR_MODE: NO_MUTATION`
 
-`EXACT_PRODUCT_BASE_SHA: 6c810647c9773a19b212d9c33694780141786ac7`
+`MERGE_SHA: 624f2eca456310a2c6156538b3616a06e3be075f`
 
-`CURRENT_CANDIDATE_SHA: 923543705378016090e7067b35954795a9591a57`
+`MERGE_TREE: fb864fb954b0123e69db379cd6b3120349b43600`
 
-`CURRENT_CANDIDATE_TREE: 5657cee7169a4e77370d416add4efcf07184d7c0`
-
-`PR: #337`
-
-`WORK_BRANCH: work/w15-fnd-06-visual-stability-foundation`
-
-`TARGET_BRANCH: wave15/corrections-integration`
-
-`VALIDATION_PROFILE: UI_EDITOR, RUNTIME_RENDERER`
+`POST_MERGE_CI_RUN: 35940661531 / EliteSCADA CI #1563`
 
 `EXECUTOR_IDENTITY: SAME_SEQUENTIAL_CODEX_FROM_PRIOR_FOUNDATION/FND-04`
 
-Main review disposition on `92354370...`:
+Instruction:
 
-- architecture/scope: acceptable;
-- centralized known-legacy compatibility: acceptable;
-- arbitrary unknown fail-closed: acceptable;
-- Runtime Popup persistence + Active-identity reset evidence: acceptable;
-- natural T1 `35931139983`: SUCCESS;
-- **candidate is NOT merge-approved yet** because the original Wave 14 A7 acceptance requires mounted Screen + Popup selection regression, while the changed legacy selection evidence is currently model-level.
+> FND-06 PR #337 has been merged on exact SHA `624f2eca456310a2c6156538b3616a06e3be075f`.
+> Do not mutate product/tests, rebase, retarget, rerun or create follow-up work while the exact natural post-merge CI run `35940661531` is pending.
+> On `SIGA`, revalidate GitHub live and report only the exact post-merge gate state unless Main has issued a newer order.
 
-### Mandatory closeout evidence
-
-Against exact current candidate `923543705378016090e7067b35954795a9591a57`, add mounted browser regression that proves the original A7 failure surface is actually closed.
-
-Required matrix:
-
-1. **Mounted Screen editor**
-   - load a Screen containing persisted legacy `tank`, `value`, `dynamo`, and `status` fixtures (one test may cover multiple objects);
-   - select each object through the real mounted editor path (canvas and/or outliner; cover both interaction routes across the matrix);
-   - assert Engineering SPA remains mounted;
-   - assert Property Inspector remains mounted and shows the bounded compatibility diagnostic;
-   - assert Binding/Dynamic dependent panels do not throw/poison the page where they are part of the selected-state composition;
-   - perform one safe shared-surface property edit on at least one known-legacy object and prove authored legacy-specific fields remain preserved.
-
-2. **Mounted Popup editor**
-   - same requirement for representative persisted legacy objects, including at minimum `value` and live-seed `status`;
-   - select via the real mounted Popup editor path;
-   - assert SPA/editor continuity and contained compatibility diagnostic.
-
-3. **Unknown negative**
-   - mounted or nearest truthful selected-state path for `vendor.unknown-x` remains contained/fail-closed;
-   - it must not become accepted as a known legacy/built-in merely because compatibility exists.
-
-4. **No regression of existing candidate evidence**
-   - existing model-level compatibility tests remain green;
-   - Popup retry/recovery remains green;
-   - Active identity reset remains green;
-   - Web build remains green.
-
-### RED requirement
-
-Do not manufacture RED if the current candidate already passes mounted A7 scenarios. Record:
-- `GREEN_EXISTING_ON_92354370` if mounted tests pass without product change; or
-- a discriminating mounted RED if a remaining selected-state component still fails, then make only the minimal allowlisted correction.
-
-### Scope
-
-Preferred change is tests only under `web/scada-web/tests-e2e/**`.
-
-If a remaining mounted defect is exposed, production fix stays inside the existing FND-06 allowlist:
-- `web/scada-web/src/visual-runtime/**`;
-- `web/scada-web/src/engineering/visual-editor/**`;
-- Runtime application/navigation only if directly causal.
-
-No architecture expansion. No single-canvas DEV-EDITOR work. No Security/Authority/Licensing/Driver/Historian/lifecycle/schema/workflow changes.
-
-### Return
-
-Return exactly:
-
-`FND-06 CODEX EXECUTOR -> MAIN COORDINATOR — MOUNTED LEGACY CLOSEOUT HANDOFF`
-
-Include:
-- `92354370...` -> final exact head/tree;
-- whether production changed;
-- exact changed files;
-- mounted Screen matrix;
-- mounted Popup matrix;
-- unknown negative;
-- preservation of legacy-specific authored data;
-- local commands/results;
-- fresh natural T1 if head changes;
-- explicit non-actions.
-
-No self-merge/freeze authority.
+FND-06 is not yet VERIFIED/FROZEN. Main will freeze it only after the exact post-merge CI is green.
 
 ## 8. FC0-A effect — FND-06 is necessary but no longer sufficient
 

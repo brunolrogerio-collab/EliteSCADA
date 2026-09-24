@@ -317,3 +317,23 @@ Audit control rev 0009:
 
 Evidence matrix:
 `a5260ca309742894ee48e8cce17d9175d67cda08`.
+
+
+## Audit blocker correction preparation
+
+Coordination-only preparation exists for the two preliminary blockers. It does **not** authorize product mutation:
+
+`coord/w15-fnd06-control:docs/WAVE15-FC0A-AUDIT-BLOCKER-CORRECTION-PREP.md`
+
+prep commit:
+`5904924faf7dcc13ec42c495ff54fe6ef82ad005`
+
+Prepared, inactive orders:
+- `FC0A-BLOCKER-P101-SERVER-SCRIPT-RECOVERY-V1`
+- `FC0A-BLOCKER-P106-ENGINEERING-FALLBACK-V1`
+
+Activation is forbidden until independent audit confirms the corresponding finding on the exact frozen post-FND06 checkpoint.
+
+P1-01 plan preserves FND-04 Script TAG semantics, sandbox isolation, bounded queue/coalescing and Active revision safety while replacing a permanent latch only if confirmed.
+
+P1-06 plan preserves lifecycle/Authority/FND-06 contracts while removing fictitious no-snapshot project/status state and distinguishing transport rejection from actual HTTP response only if confirmed.

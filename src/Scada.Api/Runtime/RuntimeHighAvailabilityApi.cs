@@ -73,13 +73,25 @@ public static class RuntimeHighAvailabilityApi
                 runtime.Describe(),
                 licensing.CurrentVerification);
 
+            if (highAvailability.LocalNodeId is { } localNodeId &&
+                !localNodeId.Equals(
+                    request.SourceNodeId,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return Results.BadRequest(new
+                {
+                    error = "Manual transfer must be initiated by the configured local source node."
+                });
+            }
+
+            RuntimeHaPeerTransferResult operation;
             RuntimeHaTransitionResult result;
             try
             {
-                result = highAvailability.Authority.BeginManualTransfer(
-                    request.SourceNodeId,
+                operation = highAvailability.BeginManualTransfer(
                     request.TargetNodeId,
                     request.ExpectedEpoch);
+                result = operation.Transition;
             }
             catch (KeyNotFoundException)
             {
@@ -101,8 +113,8 @@ public static class RuntimeHighAvailabilityApi
                 details);
 
             return result.Succeeded
-                ? Results.Accepted(value: result)
-                : Results.Conflict(result);
+                ? Results.Accepted(value: ProjectTransfer(operation))
+                : Results.Conflict(ProjectTransfer(operation));
         });
 
         endpoints.MapPost("/api/runtime/ha/transfers/complete", async (
@@ -136,13 +148,15 @@ public static class RuntimeHighAvailabilityApi
                 runtime.Describe(),
                 licensing.CurrentVerification);
 
+            RuntimeHaPeerTransferResult operation;
             RuntimeHaTransitionResult result;
             try
             {
-                result = highAvailability.Authority.CompleteManualTransfer(
+                operation = highAvailability.CompleteManualTransfer(
                     request.TransferId,
                     request.TargetNodeId,
                     request.ExpectedBreakEpoch);
+                result = operation.Transition;
             }
             catch (KeyNotFoundException)
             {
@@ -167,12 +181,22 @@ public static class RuntimeHighAvailabilityApi
                 details);
 
             return result.Succeeded
-                ? Results.Ok(result)
-                : Results.Conflict(result);
+                ? Results.Ok(ProjectTransfer(operation))
+                : Results.Conflict(ProjectTransfer(operation));
         });
 
         return endpoints;
     }
+
+    private static object ProjectTransfer(RuntimeHaPeerTransferResult operation) =>
+        new
+        {
+            operation.Transition.Succeeded,
+            operation.Transition.ReasonCode,
+            operation.Transition.Transfer,
+            operation.Transition.Snapshot,
+            operation.Handoff
+        };
 
     private static IReadOnlyDictionary<string, string> TransferDetails(
         string sourceNodeId,

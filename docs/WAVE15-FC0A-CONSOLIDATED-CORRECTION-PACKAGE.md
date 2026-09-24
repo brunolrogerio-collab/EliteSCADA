@@ -5,7 +5,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`ORDER_ID: FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V2`
+`ORDER_ID: FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V3`
 
 `ORDER_STATE: ACTIVE`
 
@@ -21,7 +21,7 @@
 
 `TARGET_BRANCH: wave15/corrections-integration`
 
-`MAIN_REVIEW_POLICY: NO_INTERMEDIATE_MAIN_REVIEW_REQUIRED`
+`MAIN_REVIEW_POLICY: V1_REVIEWED_CHANGES_REQUIRED / CONTINUE_SAME_BRANCH_AND_PR / NO_INTERMEDIATE_REVIEW_UNTIL_V2_HANDOFF`
 
 `PR_POLICY: ONE_CONSOLIDATED_PR_AFTER_PACKAGE_COMPLETION`
 
@@ -373,3 +373,148 @@ Include:
 - explicit non-actions.
 
 No self-merge, no freeze, no FC0-A release declaration.
+
+
+## 10. Main review of first consolidated candidate — CHANGES_REQUIRED
+
+First candidate reviewed by Main:
+
+- PR: `#340`
+- candidate head: `0591cf50d987219716d8aa054e4a1c0369ced1b5`
+- candidate tree: `411267c65e2fac56aa59098287d2fe6443833d6d`
+- base: `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
+- commits: 10
+- changed files: 35
+- natural Wave 15 T1: `36003179697` — **SUCCESS**
+  - classification — SUCCESS
+  - Focused Chromium evidence — SUCCESS
+  - Web semantic build — SUCCESS
+  - Common T1 sanity — SUCCESS
+  - Focused .NET evidence — SUCCESS
+  - final Wave 15 T1 gate — SUCCESS
+
+Main accepts this as a strong first implementation but **not yet complete against the active package contract**.
+
+### V1 areas accepted as directionally correct; preserve them
+
+- A1 bounded Server Script cooldown/one-probe recovery state machine and focused tests;
+- A2 truthful Engineering no-model/transport/HTTP/retry model;
+- shared shell responsive CSS direction;
+- desktop Engineering independent sidebar/workspace scrolling direction;
+- compact/disclosed Engineering Lock management direction;
+- canonical `viewOnly` wording changes;
+- contextual Help route mapping foundation;
+- FND-06 compatibility consumption in advanced Editor paths;
+- Script Assistant consumption of the FND-06 compatibility seam;
+- account Escape/focus regression;
+- Template/Equipment binding inspection as a partial C5 improvement.
+
+Do not regress or rewrite these without evidence.
+
+### Required V2 residuals on the SAME branch and PR
+
+#### R1 — B5 Trends observability is only partially implemented
+
+Current V1 adds sample-age freshness, but the package required truthful observability of:
+- realtime connection/reconnecting/disconnected state or an explicit equivalent;
+- last request;
+- last successful update;
+- freshness age/reason;
+- History error vs valid no-data vs realtime failure;
+- retry/recovery behavior under unchanged Active authority.
+
+A sample timestamp freshness badge alone does not close W15-P2-01.
+
+If Basic Trend is intentionally historical-only, make that architecture explicit and surface the missing realtime/request/success truth in the shared live-data path rather than inventing a fake Trend socket.
+
+Add mounted regression covering the chosen truthful model.
+
+#### R2 — B6 shared live-value freshness is only partially implemented
+
+Current `liveValueFreshness.ts` classifies timestamp age, but V2 must also expose/test:
+- last request;
+- last success;
+- age value/threshold or equivalent diagnostic detail;
+- stale/unavailable reason;
+- reconnect/open/close/reopen behavior;
+- distinction between no observation, transport failure and genuinely stale observation.
+
+Preserve correct numeric zero and quality semantics.
+
+Prefer one shared request/success/freshness model reused by Trend/TAG/Popup-compatible paths.
+
+#### R3 — C3 Script API Help maturity was not delivered
+
+The V1 Help delta documents the new Server Script cooldown policy, but does not implement the authorized structured Script API Help contract.
+
+Complete:
+- callable name;
+- formal signature;
+- parameters;
+- return/result semantics;
+- failure/safety notes;
+- concise validated examples;
+- one representative visible-UI recipe reading/comparing two TAGs and conditionally changing an allowed visual property/state using shipped APIs.
+
+Do not reimplement cursor insertion or timer/tagChanged authoring.
+
+Script/object-property examples must consume the frozen FND-06 Engineering schema seam.
+
+#### R4 — C4 Runtime Session/Licensing UX is incomplete and current fallback handling needs correction
+
+V1 correctly preserves server `requestedClass`, `grantedClass` and reason codes in the client helper, but does not yet provide the authorized user-facing flow:
+- explicit ViewOnly request UX;
+- requested class display;
+- granted class display;
+- fallback/rejection reason;
+- current capacity/usage where already exposed by frozen backend contracts.
+
+Additionally, current `admitInteractiveRuntimeSession` calls POST admission, then throws when the server grants `viewOnly`.
+
+The backend has already created a valid lease before the helper throws. The V1 helper neither exposes that lease to a ViewOnly Runtime flow nor terminates it, so the client can abandon a valid server lease until expiry.
+
+V2 must make fallback lifecycle truthful:
+- either consume the granted ViewOnly lease in an explicit read-only flow;
+- or explicitly terminate/release it before reporting rejection;
+- never silently leave a server-created fallback lease orphaned;
+- never treat ViewOnly as Interactive.
+
+Add tests proving no orphaned/falsely-interactive fallback semantics.
+
+#### R5 — C5 reusable-library preview/inspection remains incomplete
+
+V1 improves Template/Equipment binding inspection, but `ReusableLibraryWorkspace` is unchanged.
+
+Complete the residual authorized scope:
+- inspect/preview a reusable-library resource before `Use`;
+- show dependency closure and relevant canonical metadata;
+- visual preview where the resource type already has a canonical renderer/preview path;
+- preserve association != import and Runtime independence from `.escadalib`;
+- do not create a second renderer.
+
+Do not rebuild the existing Dynamo insertion palette.
+
+#### R6 — close the missing explicit regressions for shared UX changes
+
+The V1 product code changes are broader than its new browser regressions.
+
+Add focused mounted evidence for:
+- B1: no document-level horizontal overflow at representative widths around 901-1180 px and navigation/account/theme remain reachable;
+- B2: account accessible name follows pt-BR/en/es in addition to Escape/focus restoration;
+- B3: desktop Engineering uses bounded independent sidebar/workspace scrolling and preserves compact/mobile behavior;
+- B4: collapsed Engineering Lock management remains discoverable and all configure/lock/clear operations still work under existing Authority;
+- C1: known legacy `tank | value | dynamo | status` advanced authoring operations covered by the changed compatibility paths; arbitrary unknown remains contained.
+
+Existing tests may be extended; do not duplicate expensive broad scenarios unnecessarily.
+
+### V2 final evidence
+
+After R1-R6:
+1. update PR #340 body with exact completed matrix;
+2. rerun natural Wave 15 T1 on the new exact head;
+3. return one final handoff:
+   `FC0-A CONSOLIDATED CODEX -> MAIN COORDINATOR — CANDIDATE HANDOFF V2`
+4. include exact head/tree and T1 run ID;
+5. no merge/freeze/release.
+
+Main will not re-review intermediate commits. Continue until V2 is complete or a real frozen-contract/environment blocker prevents completion.

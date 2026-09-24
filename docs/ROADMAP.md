@@ -272,6 +272,43 @@ Application package, Authority backup, Historian/database and License remain sep
 
 No global timeout inflation; GET retry bounded and safe; writes never blind-retry; timeout can be unknown outcome; stale responses cannot overwrite newer state.
 
+## First-project fresh-install partial preview
+
+After the four FC0-A feature lanes are integrated/T2-verified and FND-05/FND-07 are independently VERIFIED/FROZEN, Wave 15 will run a partial product audit before later complete-product/EEE acceptance.
+
+Prepared control:
+
+`coord/w15-fresh-install-preview-control:docs/WAVE15-FIRST-PROJECT-FRESH-INSTALL-PREVIEW-CONTROL.md`
+
+Prepared gates:
+
+- `W15-FIRST-PROJECT-CODEX-BLACKBOX-PREVIEW-01`
+- `W15-FIRST-PROJECT-HUMAN-PREVIEW-01`
+
+The two first-project journeys are intentionally independent.
+
+Moment 1:
+- CODEX uses a truly fresh installation as a user;
+- no prebuilt project/EEE/hidden Demo state;
+- no source/internal-control lookup during exploration;
+- no product correction during the black-box journey;
+- detailed findings remain embargoed from the Product Owner until the human journey completes.
+
+Moment 2:
+- Product Owner repeats the first-project journey as a real human on a separate clean environment;
+- no CODEX-created project or detailed CODEX findings are supplied beforehand;
+- becoming blocked without assistance is valid product evidence.
+
+High-level mission for both:
+
+`start from a fresh installation -> discover the product -> create the first SCADA application from zero -> reach a truthful functional Runtime`
+
+Only after both exploratory journeys complete does Main unseal the CODEX report, compare both paths and optionally run a directed second round covering restart/persistence, Authority/ViewOnly, FND-07 detach/neutral bootstrap/A<->B switching and a separate user-surface HA manual transfer check.
+
+T1/T2/T3/T4 green evidence does not substitute for these product audits.
+
+The partial preview may return `CHANGES_REQUIRED` or `ACCEPTABLE_FOR_NEXT_CONVERGENCE`; the latter is not final Wave 15 acceptance. EEE v15, later complete-product validation and the final fresh Preview remain required.
+
 ## Final Wave 15 acceptance path
 
 ```text
@@ -280,6 +317,10 @@ Foundation slices frozen
   -> bounded parallel Editor/Script/Authority UX/Licensing UX
   -> remaining FND-05/FND-07
   -> FC0-B checkpoint
+  -> first-project fresh-install partial preview
+       -> CODEX black-box journey
+       -> independent Product Owner human journey
+       -> compare / correct material findings
   -> EliteGO + Installation UX + downstream HA
   -> product convergence / industrial visuals / help / localization / EEE v15
   -> exact integrated candidate

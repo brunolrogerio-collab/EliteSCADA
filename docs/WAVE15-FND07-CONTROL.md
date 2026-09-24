@@ -4,11 +4,11 @@
 
 `CONTROL_BRANCH: coord/w15-fnd07-control`
 
-`MAIN_ORDER_REV: 0002`
+`MAIN_ORDER_REV: 0003`
 
-`STATE: PREPARED / NOT ACTIVE / HOLD_ON_P1-01_AND_P1-06_FC0A_GATE`
+`STATE: PREPARED / NOT ACTIVE / HOLD_ON_FC0A_CONSOLIDATED_FINAL_ACCEPTANCE`
 
-`PREPARED_ORDER_ID: FND07-CODEX-DETACH-NEUTRAL-V1`
+`PREPARED_ORDER_ID: FND07-DEV-DETACH-NEUTRAL-V1`
 
 `LATEST_AUDITED_PRODUCT_CHECKPOINT: 560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
 
@@ -18,11 +18,19 @@
 
 FND-06 is VERIFIED/FROZEN and the post-FND06 audit is complete with `CHANGES_REQUIRED`.
 
-FND-07 remains **PREPARED / NOT ACTIVE** because FC0-A is held on:
-- W15-P1-01 Server Script bounded recovery;
-- W15-P1-06 truthful Engineering no-model/loading/error fallback.
+FND-07 remains **PREPARED / NOT ACTIVE** while the consolidated FC0-A correction candidate is still under Main/CODEX completion and final acceptance.
 
 The second and third Main audit passes identified no breaking FND-07 contract redefinition. FND-07 remains compositional/compatible, but before activation its acceptance matrix must explicitly cover **Engineering Lock × detach/switch/neutral-bootstrap** so the existing replacement/recovery exemption and backend Authority rules are preserved without inventing a second credential or leaking protected Engineering content.
+
+Executor policy changed by Product Owner/Main:
+- implementation owner: **normal ChatGPT DEV chat**;
+- Main owns contract/architecture review;
+- scarce sequential CODEX validates the Main-accepted candidate with focused/adversarial tests and exact-head T1;
+- material implementation defects return to FND-07 DEV;
+- frozen-contract insufficiency returns `FND-07 -> BLOCKED-CONTRACT -> MAIN`.
+
+Cross-lane coordination:
+`coord/w15-parallel-dev-control:docs/WAVE15-PARALLEL-DEV-CONTROL.md`.
 
 ## 1. Purpose
 
@@ -92,13 +100,30 @@ If implementation requires changing the meaning of a frozen FND-01/FND-02/FND-03
 
 No such breaking change is currently identified by the prepared source audit; final approval belongs to the mandatory post-FND06 audit.
 
+## 3B. Delivery / validation ownership
+
+FND-07 implementation is owned by the normal-chat DEV lane after activation.
+
+DEV deliverable:
+- coherent protected detach/neutral-bootstrap implementation on the exact Main-provided FC0-A base;
+- compile/cheap focused sanity where practical;
+- exact head/tree + changed-file map;
+- explicit orchestration/fencing assumptions;
+- acceptance rows not executed locally marked `PENDING_FOR_CODEX`.
+
+Main reviews lifecycle/Authority/licensing/Engineering-Lock composition before spending CODEX time.
+
+Only after `MAIN_ACCEPTED_FOR_CODEX` does the sequential CODEX run the focused/adversarial matrix and exact-head T1.
+
+Material product/design defects return to FND-07 DEV. Small validation-driven corrections may be made by CODEX if they do not redesign the contract.
+
 ## 4. Prepared first implementation slice
 
-`ORDER_ID: FND07-CODEX-DETACH-NEUTRAL-V1`
+`ORDER_ID: FND07-DEV-DETACH-NEUTRAL-V1`
 
 `ORDER_STATE: WAIT / NOT AUTHORIZED`
 
-`EXECUTOR_MODE: BOUNDED_FOUNDATION_IMPLEMENTATION`
+`EXECUTOR_MODE: NORMAL_CHAT_DEV / BOUNDED_FOUNDATION_IMPLEMENTATION`
 
 At activation Main must write exact product SHA/tree and create an isolated work branch.
 
@@ -145,8 +170,8 @@ No anonymous populated-install restore, direct DB hacks, silent Historian deleti
 
 ## 7. Activation dependency
 
-FND-01/FND-02/FND-03/FND-06 prerequisites are frozen. The mandatory post-FND06 FC0-A audit completed with `CHANGES_REQUIRED`; this order remains PREPARED until W15-P1-01 and W15-P1-06 close and Main reruns the affected audit rows to `ACCEPTABLE / FC0A_RELEASE_APPROVED`.
+FND-01/FND-02/FND-03/FND-06 prerequisites are frozen. The mandatory post-FND06 audit returned `CHANGES_REQUIRED`; the consolidated FC0-A correction package is the active closure path. This order remains PREPARED until Main records `ACCEPTABLE / FC0A_RELEASE_APPROVED` on the exact integrated checkpoint.
 
-Intended sequencing:
-- FND-06 -> FC0-A release;
-- FND-05/FND-07 can then progress while FC0-A downstream feature lanes execute, subject to Main capacity and exact-base revalidation.
+After FC0-A release, FND-07 DEV may implement in parallel with the other prepared DEV lanes on its own isolated branch. There is no fixed four-DEV concurrency cap. Main controls shared-hotspot collisions and validation/integration order.
+
+CODEX does not need to be free for FND-07 **coding**. It is required later for focused/adversarial validation and exact-head T1 before Main integration approval.

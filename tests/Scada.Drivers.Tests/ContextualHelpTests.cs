@@ -303,6 +303,8 @@ public sealed class ContextualHelpTests
         Assert.Contains("128 events", text, StringComparison.Ordinal);
         Assert.Contains("50 ms", text, StringComparison.Ordinal);
         Assert.Contains("5 consecutive failures", text, StringComparison.Ordinal);
+        Assert.Contains("recovery probe", text, StringComparison.Ordinal);
+        Assert.Contains("configurable cooldown", text, StringComparison.Ordinal);
         Assert.Contains("filesystem", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("shell/process execution", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("arbitrary network", text, StringComparison.OrdinalIgnoreCase);

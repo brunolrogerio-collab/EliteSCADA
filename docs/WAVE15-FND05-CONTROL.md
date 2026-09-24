@@ -28,7 +28,7 @@ FND-06 is VERIFIED/FROZEN and the final post-FND06 audit rev 0014 is `ACCEPTABLE
 
 FND-05 is **ACTIVE_CODING** on the exact FC0-A release checkpoint above. The normal ChatGPT DEV may now implement only the bounded first slice on its isolated work branch.
 
-The second and third Main audit passes identified no breaking FND-05 contract risk. FND-05 remains classified additive/compatible and may activate only after Main records `FC0A_RELEASE_APPROVED` on the exact integrated checkpoint.
+The second and third Main audit passes identified no breaking FND-05 contract risk. Final audit rev 0014 confirmed FND-05 remains additive/compatible, and Main has now activated it on the exact FC0-A release checkpoint recorded above.
 
 Executor policy changed by Product Owner/Main:
 - implementation owner: **normal ChatGPT DEV chat**;
@@ -211,7 +211,7 @@ No client-side election, Driver-owned HA, topology in `.escadapkg`, socket-count
 
 ## 7. Activation dependency
 
-The mandatory post-FND06 FC0-A Foundation Closure Audit returned `CHANGES_REQUIRED`; the consolidated FC0-A correction package is the active closure path. Do not activate until Main records `ACCEPTABLE / FC0A_RELEASE_APPROVED` on the exact integrated checkpoint.
+The mandatory post-FND06 FC0-A Foundation Closure Audit rev 0014 returned `ACCEPTABLE / FC0A_RELEASE_APPROVED`. This order is now ACTIVE on the exact base recorded above.
 
 After FC0-A release, FND-05 DEV may implement in parallel with the other prepared DEV lanes on its own isolated branch. There is no fixed four-DEV concurrency cap. Main controls shared-hotspot collisions and validation/integration order.
 

@@ -3,9 +3,9 @@
 > GitHub live is the sole authority.
 
 `LANE: DEV-LICENSING-UX`
-`MAIN_ORDER_REV: 0003`
-`ORDER_ID: DEV-LICENSING-UX-FC0A-01`
-`ORDER_STATE: DEV_CORRECTION / LICENSE_STATUS_ENTITLEMENT_TRUTH`
+`MAIN_ORDER_REV: 0004`
+`ORDER_ID: DEV-LICENSING-UX-CODEX-VALIDATION-V1`
+`ORDER_STATE: MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`
 `PLANNED_BRANCH: work/w15-dev-licensing-ux`
 `WORK_BRANCH: work/w15-dev-licensing-ux`
 `FC0A_RELEASE_APPROVED: YES`
@@ -197,3 +197,34 @@ Do not mutate IEC-104 code/test in this Licensing lane and do not use an unchang
 The Licensing product correction remains exactly `DEV-LICENSING-UX-STATUS-ENTITLEMENTS-02`.
 
 A separate shared test-infrastructure closeout owns the IEC-104 assertion synchronization.
+
+
+## Successor Main review — Licensing status-entitlement correction accepted
+
+Exact corrected candidate:
+- head `f5d3212b9c114d3ad6e2239460172db0b3d568f8`;
+- tree `a3e87f2ef7beb15bc66d6980e12710eddcc30525`;
+- correction delta from `cdf572d6...`: 6 commits / 5 bounded files;
+- natural T1 `36071779912`: SUCCESS across classifier, Common, Web, focused .NET, focused Chromium and final gate.
+
+Main contract review confirms the prior material residual is closed:
+- server status projection now exposes actual license `SchemaVersion`;
+- signed ESLIC2 `ViewOnlySeats`, `InteractiveSeats` and `HaRuntime` are projected from verified `SessionEntitlements`;
+- ESLIC1/legacy values remain nullable/not-specified rather than fabricated as zero/false;
+- Licensing UI displays schema + signed entitlement totals/HA truth in pt-BR/en/es;
+- no seat-usage pool, quota/admission authority, signing-key boundary or HA fencing authority moved client-side.
+
+Disposition:
+`DEV-LICENSING-UX -> MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`
+
+`ACCEPTED_CANDIDATE_SHA: f5d3212b9c114d3ad6e2239460172db0b3d568f8`
+
+`ACCEPTED_CANDIDATE_TREE: a3e87f2ef7beb15bc66d6980e12710eddcc30525`
+
+`EXPECTED_CODEX_ORDER: DEV-LICENSING-UX-CODEX-VALIDATION-V1`
+
+CODEX remains sequential and is **not routed here yet**. Until Main publishes an explicit shared route, this DEV must wait and make no further candidate mutation.
+
+CODEX later owns the remaining old/new-license, ViewOnly fail-closed, requested/granted/fallback, logical lease/quota and mounted UX negatives against this exact accepted candidate.
+
+No merge/T2 authorization yet.

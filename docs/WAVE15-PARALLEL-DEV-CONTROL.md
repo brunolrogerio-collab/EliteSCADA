@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0005`
+`MAIN_ORDER_REV: 0006`
 
 `STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
@@ -861,3 +861,25 @@ Prepared/accepted waiting work now includes:
 Main will select the next route only after Script returns, after revalidating live integration/candidates and explicit risk/priority. A new shared route is mandatory before the CODEX executor changes mission.
 
 Fresh-install first-project preview remains NOT ACTIVE.
+
+
+## 19. FND-07 post-transfer correction return
+
+FND-07 advanced after the rev 0005 takeover board:
+- PR #348 remains DRAFT;
+- corrected head `af7bf1ae51539975b3b3e8b40ea36472249ade2e`;
+- tree `0947177b314dbcbaaebb3ae8ba65eb2fa3498c49`;
+- correction is test-only in `local-auth.spec.ts`;
+- no-Demo pre-project and genuinely-empty first-project assertions now execute successfully;
+- natural T1 `36072685058` is still red only because the same historical fixture expects `developer + operator` while the truthful clean bootstrap endpoint returns one `developer` role.
+
+State remains:
+`DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
+
+Binding order remains:
+`FND07-DEV-FRESH-INSTALL-NO-DEMO-E2E-01`
+
+Dedicated control rev 0006:
+`bc7e3f810b7534d1180196c1e768f4c92a1c60a5`.
+
+No unchanged-head rerun, CODEX route, merge or freeze is authorized.

@@ -208,3 +208,38 @@ Return:
 `DEV-AUTHORITY-UX -> MAIN COORDINATOR — CANDIDATE HANDOFF`
 
 No CODEX route, merge or T2 authorization yet.
+
+
+## Replacement Main follow-up — corrected candidate still CHANGES_REQUIRED
+
+Exact corrected candidate:
+- head `9fd2462f43c74b085e58be91dbec9ebdf18514c5`;
+- tree `bdd7ac76c3566aef81e249a9db91810674b7dfe8`;
+- natural T1 `36071729747`: FAILURE.
+
+Accepted correction direction:
+- baseline/applied role keys are immutable;
+- new unapplied role keys remain editable;
+- assigned-user protection resolves against persisted identity;
+- capability Map typing is now compatible with generic numeric wire values.
+
+Remaining candidate-causal defect:
+- Web semantic build fails at `AuthorityPolicyAdministration.tsx(341,48)` and `(345,38)`;
+- nullable `baseline: AuthorityPolicyDocument | null` is passed to helpers requiring a non-null `AuthorityPolicyDocument`.
+
+### CURRENT CORRECTION ORDER — rev 0004
+
+`ORDER_ID: DEV-AUTHORITY-UX-STABLE-ROLE-KEY-02`
+
+`ORDER_STATE: DEV_CORRECTION / AUTHORIZED`
+
+`CORRECTION_BASE_HEAD: 9fd2462f43c74b085e58be91dbec9ebdf18514c5`
+
+Required delta is minimal:
+1. preserve the accepted stable-role-key behavior;
+2. make the nullable baseline boundary type-safe and truthful;
+3. do not weaken helper contracts or invent fallback policy state;
+4. return one new exact candidate SHA/tree;
+5. run a new natural exact-head T1.
+
+Do not rerun `36071729747` unchanged. No CODEX route or merge is authorized.

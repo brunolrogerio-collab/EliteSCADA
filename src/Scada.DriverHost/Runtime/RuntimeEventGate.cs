@@ -7,11 +7,16 @@ public sealed class RuntimeEventGate : IScadaEventBus
 {
     private readonly InMemoryScadaEventBus _local = new();
     private readonly IScadaEventBus _external;
+    private readonly Func<bool> _effectAuthority;
     private int _forwardingEnabled;
 
-    public RuntimeEventGate(IScadaEventBus external, bool forwardingEnabled = false)
+    public RuntimeEventGate(
+        IScadaEventBus external,
+        bool forwardingEnabled = false,
+        Func<bool>? effectAuthority = null)
     {
         _external = external ?? throw new ArgumentNullException(nameof(external));
+        _effectAuthority = effectAuthority ?? static () => true;
         _forwardingEnabled = forwardingEnabled ? 1 : 0;
     }
 
@@ -30,6 +35,9 @@ public sealed class RuntimeEventGate : IScadaEventBus
         CancellationToken cancellationToken = default)
         where TEvent : IScadaEvent
     {
+        if (!_effectAuthority())
+            return;
+
         await _local.PublishAsync(scadaEvent, cancellationToken);
         if (ForwardingEnabled)
             await _external.PublishAsync(scadaEvent, cancellationToken);

@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0004`
+`MAIN_ORDER_REV: 0005`
 
 `STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
@@ -787,3 +787,77 @@ Planned queue after Script handoff:
 2. Editor PR #349 exact Main-accepted candidate.
 
 This is queue planning, not an activation order. Main must publish a new explicit route before CODEX changes mission.
+
+
+## 18. Replacement Main takeover — live board after post-transfer returns
+
+GitHub live revalidation supersedes the transfer snapshot for any lane whose head advanced.
+
+Integration target:
+- `wave15/corrections-integration` live head at takeover: `3480ed03a6719aef38e4c1ced2f466aaa4fa10b3`;
+- exact FC0-A product release base remains `e3ed5138369c576549cb58a7aff9783792f322d3`;
+- compare FC0-A -> takeover integration head: 14 commits, changes only the five canonical coordination/documentation files;
+- therefore no post-FC0A product/infra candidate has been integrated and no lane rebase is required solely by that documentation advance.
+
+### DEV-SCRIPT-ENGINEERING
+- PR #344;
+- accepted head `cf0ae2d1dcd2d63668b5b1c2c3590a5b6bb9bdaa`;
+- state `MAIN_ACCEPTED_FOR_CODEX / ACTIVE_SHARED_CODEX_ROUTE / DEV_WAIT`;
+- shared route remains `ROUTE-SEQUENTIAL-CODEX-TO-SCRIPT-ENGINEERING-25`;
+- no post-transfer CODEX validation handoff has been published yet.
+
+### DEV-EDITOR
+- PR #349;
+- head `06eed31d99ddb34d99e0287e96e38bed3bf7dab5`;
+- T1 `36066874097`: SUCCESS;
+- state `MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`.
+
+### DEV-LICENSING-UX
+- PR #345;
+- corrected head `f5d3212b9c114d3ad6e2239460172db0b3d568f8`;
+- tree `a3e87f2ef7beb15bc66d6980e12710eddcc30525`;
+- T1 `36071779912`: SUCCESS;
+- Main accepted the corrected schema/signed-entitlement truth;
+- state `MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`;
+- dedicated control rev 0004 / commit `a4a4098f7c65863bb5cc14a9b566f67aee9f7884`.
+
+### DEV-AUTHORITY-UX
+- PR #346;
+- corrected head `9fd2462f43c74b085e58be91dbec9ebdf18514c5`;
+- tree `bdd7ac76c3566aef81e249a9db91810674b7dfe8`;
+- stable-role-key direction accepted;
+- T1 `36071729747`: FAILURE only at Web semantic build on candidate-causal nullable-baseline TS2345;
+- state remains `DEV_CORRECTION` under `DEV-AUTHORITY-UX-STABLE-ROLE-KEY-02`;
+- dedicated control rev 0004 / commit `5e2804963ea919d9224ace341f279660804437ad`;
+- unchanged-head rerun is forbidden.
+
+### FND-05
+- PR #347;
+- corrected head `be9cf0f3f02aa1ba49cdb6b589abd5e1e723c845`;
+- tree `c9e94e84c078928ad690217484171fafa6390b46`;
+- T1 `36072325579`: SUCCESS;
+- transport-neutral two-independent-service peer readiness/authority/lease handoff boundary accepted directionally;
+- state `MAIN_ACCEPTED_FOR_CODEX_HA_ADVERSARIAL / QUEUED / DEV_WAIT`;
+- dedicated control rev 0007 / commit `a3f69a286a62028b49b0809025c45b585ff698f8`;
+- `CODEX_HA_ADVERSARIAL_GREEN` remains mandatory before integration.
+
+### FND-07
+- PR #348 remains DRAFT;
+- head remains `ae11e42e8ad5e39b1e2c5a0068f81e4ec31653c6`;
+- state `DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`;
+- order `FND07-DEV-FRESH-INSTALL-NO-DEMO-E2E-01`;
+- no corrected post-transfer head exists yet.
+
+### Sequential CODEX queue
+
+Binding active mission remains Script Engineering #344. Do not infer a reroute from candidate readiness.
+
+Prepared/accepted waiting work now includes:
+- INFRA-CI-01D — PREPARED ONLY / NO MUTATION;
+- Editor #349 — Main accepted;
+- Licensing #345 — Main accepted;
+- FND-05 #347 — Main accepted but requires HA adversarial validation.
+
+Main will select the next route only after Script returns, after revalidating live integration/candidates and explicit risk/priority. A new shared route is mandatory before the CODEX executor changes mission.
+
+Fresh-install first-project preview remains NOT ACTIVE.

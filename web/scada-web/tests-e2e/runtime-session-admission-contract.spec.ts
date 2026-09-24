@@ -31,13 +31,20 @@ test('Runtime admission retains the authoritative requested, granted and reason 
 });
 
 test('an interactive operation reports a server viewOnly fallback instead of using that lease', async () => {
-  await expect(admitInteractiveRuntimeSession(admissionResponse({
-    requestedClass: 'interactive',
-    grantedClass: 'viewOnly',
-    admissionReasonCode: 'AuthorityReadOnly'
-  }), clientInstanceId)).rejects.toMatchObject<Partial<RuntimeSessionAdmissionError>>({
+  const calls: Array<{ input: string; init?: RequestInit }> = [];
+  const fetcher: RuntimeSessionFetch = async (input, init) => {
+    calls.push({ input: String(input), init });
+    if (String(input).endsWith('/terminate')) return new Response(null, { status: 204 });
+    return new Response(JSON.stringify({
+      sessionId: '11111111-2222-3333-4444-555555555555', clientInstanceId,
+      requestedClass: 'interactive', grantedClass: 'viewOnly', admissionReasonCode: 'AuthorityReadOnly'
+    }), { status: 201, headers: { 'content-type': 'application/json' } });
+  };
+  await expect(admitInteractiveRuntimeSession(fetcher, clientInstanceId)).rejects.toMatchObject<Partial<RuntimeSessionAdmissionError>>({
     name: 'RuntimeSessionAdmissionError',
     message: 'Interactive Runtime access was requested, but the server granted viewOnly access (AuthorityReadOnly).',
     outcome: { requestedClass: 'interactive', grantedClass: 'viewOnly' }
   });
+  expect(calls.map(call => call.input)).toEqual(['/api/runtime/sessions', '/api/runtime/sessions/11111111-2222-3333-4444-555555555555/terminate']);
+  expect(calls[1]?.init?.body).toBe(JSON.stringify({ clientInstanceId }));
 });

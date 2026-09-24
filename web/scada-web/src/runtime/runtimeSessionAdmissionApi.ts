@@ -25,6 +25,8 @@ export class RuntimeSessionAdmissionError extends Error {
 export type RuntimeSessionConnectionClass = 'interactive' | 'viewOnly';
 
 export type RuntimeSessionAdmissionOutcome = {
+  sessionId: string;
+  clientInstanceId: string;
   headers: Record<string, string>;
   requestedClass: RuntimeSessionConnectionClass | null;
   grantedClass: RuntimeSessionConnectionClass | null;
@@ -68,6 +70,15 @@ export async function admitInteractiveRuntimeSession(
 ): Promise<Record<string, string>> {
   const outcome = await admitRuntimeSession('interactive', fetcher, clientInstanceId);
   if (outcome.grantedClass && outcome.grantedClass !== 'interactive') {
+    try {
+      await releaseRuntimeSession(outcome, fetcher);
+    } catch (reason) {
+      throw new RuntimeSessionAdmissionError(
+        `${describeInteractiveFallback(outcome)} The fallback lease could not be released: ${reason instanceof Error ? reason.message : String(reason)}`,
+        undefined,
+        outcome
+      );
+    }
     throw new RuntimeSessionAdmissionError(
       describeInteractiveFallback(outcome),
       undefined,
@@ -124,6 +135,8 @@ export async function admitRuntimeSession(
   }
 
   return {
+    sessionId: admission.sessionId,
+    clientInstanceId,
     headers: {
       [RUNTIME_SESSION_HEADER]: admission.sessionId,
       [RUNTIME_CLIENT_INSTANCE_HEADER]: clientInstanceId
@@ -133,6 +146,27 @@ export async function admitRuntimeSession(
     admissionReasonCode: stringValue(admission.admissionReasonCode),
     capacityReasonCode: stringValue(admission.capacityReasonCode)
   };
+}
+
+/** Releases a server-owned lease when the caller deliberately cannot consume it. */
+export async function releaseRuntimeSession(
+  outcome: Pick<RuntimeSessionAdmissionOutcome, 'sessionId' | 'clientInstanceId'>,
+  fetcher: RuntimeSessionFetch = fetch
+): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetcher(`${API}/api/runtime/sessions/${encodeURIComponent(outcome.sessionId)}/terminate`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { accept: 'application/json', 'content-type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ clientInstanceId: outcome.clientInstanceId })
+    });
+  } catch (reason) {
+    throw new RuntimeSessionAdmissionError(reason instanceof Error ? reason.message : String(reason));
+  }
+  if (response.ok) return;
+  const body = await response.text();
+  throw new RuntimeSessionAdmissionError(body || `${response.status} ${response.statusText}`.trim(), response.status);
 }
 
 function parseConnectionClass(value: unknown): RuntimeSessionConnectionClass | null {

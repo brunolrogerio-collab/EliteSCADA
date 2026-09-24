@@ -133,23 +133,25 @@ Coordination/documentation commits after this checkpoint do not create a new pro
 
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
-**ORDER_STATE: WAIT_POST_MERGE_GATE**  
-**ORDER_ID: FND06-CODEX-WAIT-FINAL-BROAD-V7**  
-**CODEX_MODE: NO_MUTATION**  
+**ORDER_STATE: VERIFIED_FROZEN / WAIT**  
+**ORDER_ID: FND06-CODEX-FROZEN-FINAL-08**  
+**CODEX_MODE: NO_MUTATION / PRESERVE_FROZEN_PRODUCT**  
 **EXECUTOR_IDENTITY: SAME SEQUENTIAL CODEX CHAT/LANE USED IN PRIOR FOUNDATION WORK INCLUDING FND-04**
 
-Final FND-06 integration state:
-- PR #337 merged product/mounted closeout;
-- PR #338 merged generic PostgreSQL shared-schema correction;
-- PR #339 merged E2E fixture isolation;
-- exact current integration SHA `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
+FND-06 is VERIFIED/FROZEN at:
+- exact product SHA `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
 - tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`
-- broad post-merge EliteSCADA CI #1565 / `35953557122` is the only remaining FND-06 freeze gate.
+- final broad `35953557122` / EliteSCADA CI #1565 — SUCCESS
+  - Web SUCCESS
+  - Backend build/test/smoke SUCCESS
+  - Chromium end-to-end SUCCESS.
 
-CODEX must not mutate/rerun/rebase while this exact broad run executes. Main owns freeze and activation of the independent post-FND06 audit.
+Main verified that integration divergence above the product checkpoint before freeze contained only coordination docs.
 
-Detailed control:
-`coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md` rev 0011 / commit `e124c3a2be4cbd6e8d60cd778861b3258286adc1`.
+CODEX has no active product mission and may not self-audit the FC0-A gate.
+
+Detailed FND-06 control:
+`coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md` rev 0012 / commit `44c372d8316733398d25f72f3331b12022ab6594`.
 
 ---
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
@@ -207,34 +209,32 @@ Downstream lanes may consume the frozen Script TAG reference contract but may no
 
 ## 5. MAIN COORDINATOR -> INDEPENDENT AUD — CURRENT ORDER
 
-**ORDER_STATE: WAIT_FND06_FINAL_BROAD**  
-**ORDER_ID: FC0A-AUD-WAIT-FND06-FINAL-BROAD-0012**  
-**AUD_MODE: READ_ONLY / PREPARED_CROSS_WAVE_AUDIT**
+**ORDER_STATE: ACTIVE**  
+**ORDER_ID: FC0A-AUD-ACTIVE-POST-FND06-0013**  
+**AUD_MODE: READ_ONLY_CROSS_WAVE_FOUNDATION_AUDIT**
 
-The independent AUD lane previously used for FND-04 is reserved for the mandatory post-FND06 closure audit.
-
-Do not start yet.
-
-Activation requires:
-- broad `35953557122` SUCCESS on exact FND-06 final product checkpoint `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`;
-- Main declaration `FND-06 = VERIFIED/FROZEN`;
-- Main changes the audit order to ACTIVE.
-
-Next audit:
+Audit:
 `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
-Control/evidence:
-- `coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-CONTROL.md`
-- `coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-EVIDENCE.md`
+Exact product checkpoint:
+- SHA `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
+- tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`
+- final broad `35953557122` — SUCCESS.
 
-Main preliminary findings are not AUD conclusions. In particular, AUD must independently confirm/disprove the preliminary `W15-P1-01 Server Script recovery = BLOCKED_FOUNDATION` finding.
+Audit control:
+`coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-CONTROL.md` rev 0010 / commit `72421abee84ac09415a045b7c86d554dba7dd187`.
+
+Evidence matrix:
+`coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-EVIDENCE.md`.
 
 Dedicated AUD routing:
-`coord/w15-fnd04-dev-aud-control` rev 0023 / commit `1be8ef8cbdd555f3fa554e905faafab186c21dd3`.
+`coord/w15-fnd04-dev-aud-control` rev 0024 / commit `0048a198a2c7d2ac40dd1a055c5bcc6346f30fe8`.
 
-No product/test mutation and no FC0-A release authority while WAIT.
+AUD must independently confirm/reject Main preliminary P1-01 and P1-06 findings and complete the full mandatory matrix. No product/test/doc mutation.
+
+FC0-A remains HOLD until an exact independent audit handoff is reviewed by Main.
+
 ---
-
 ## 6. FND-04 BINDING CONTRACT — VERIFIED / FROZEN
 
 Frozen downstream contract:

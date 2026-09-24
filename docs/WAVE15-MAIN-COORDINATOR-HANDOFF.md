@@ -134,7 +134,7 @@ Coordination/documentation commits after this checkpoint do not create a new pro
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
 **ORDER_STATE: ACTIVE**  
-**ORDER_ID: FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3**  
+**ORDER_ID: FND06-CODEX-WAIT-POSTMERGE-V4**  
 **CODEX_MODE: BOUNDED_TEST_EVIDENCE_AND_MINIMAL_FIX_IF_NEEDED**  
 **EXECUTOR_IDENTITY: SAME SEQUENTIAL CODEX CHAT/LANE USED IN PRIOR FOUNDATION WORK INCLUDING FND-04**  
 **Mission:** close mounted Screen/Popup legacy-selection evidence before Main may integrate FND-06
@@ -161,8 +161,8 @@ Main found one remaining acceptance-evidence gap:
 Detailed active order:
 - control `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
 - revision `0005`
-- control commit `48778387c2fde6ffb645ced17669bd0606d30142`
-- order `FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`.
+- control commit `8d1f415bc16b556e8133e6a1da1ab89881e7f189`
+- order `FND06-CODEX-WAIT-POSTMERGE-V4`.
 
 Preferred delta is tests-only. If current candidate already passes mounted A7 scenarios, record GREEN-existing and do not change production. If a mounted residual fails, fix only the minimal existing FND-06 allowlisted surface.
 
@@ -386,3 +386,26 @@ FC0-A release prep snapshot commit:
 `c0e4bd69c89c47efc7dc936a6ac9e61cbbbd8f96`.
 
 This is pre-freeze risk assessment only; final release still requires exact FND-06 freeze + independent post-FND06 audit PASS.
+
+
+## FND-06 merged checkpoint pending freeze
+
+PR #337 is merged.
+
+- candidate: `2257f8f99b5e6deac80d64ed2cc0c43aa8dab1cc`
+- candidate tree: `2ebb839a788bb4fad249877689c25ac1b18f6d74`
+- merge SHA: `624f2eca456310a2c6156538b3616a06e3be075f`
+- merge tree: `fb864fb954b0123e69db379cd6b3120349b43600`
+- candidate T1 `35939646387`: SUCCESS
+- post-merge broad CI `35940661531` / #1563: PENDING/IN PROGRESS at this record
+- FND-06 state: **INTEGRATED / POST-MERGE CI PENDING / NOT YET VERIFIED-FROZEN**
+- CODEX: `FND06-CODEX-WAIT-POSTMERGE-V4 / NO_MUTATION`
+- FND-06 control rev `0006`, commit `8d1f415bc16b556e8133e6a1da1ab89881e7f189`
+
+Post-FND06 audit remains blocking and is preloaded with this exact checkpoint:
+- `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
+- audit rev `0003`
+- audit-control commit `a9ed4003acf8c71db035bc854a75f87cf97273fb`
+- state `PREPARED / WAIT_FND06_POST_MERGE_CI_GREEN`
+
+No FC0-A DEV, FND-05 or FND-07 release until FND-06 freezes and the independent audit returns `ACCEPTABLE / FC0A_RELEASE_APPROVED`.

@@ -347,3 +347,22 @@ Wave13 #205/#207 remains paused until a separate Product Owner decision. Do not 
 - stable IDs outrank display names/paths;
 - clients do not directly own process truth, DB or Driver internals;
 - exact SHA/tree and evidence are required at integration/freeze boundaries.
+
+
+## FC0-A post-merge gate — INFRA-CI-01C
+
+FC0-A consolidated PR #340 is merged at product SHA
+`d975174ae81ff7ed754585097240778a9862d965`.
+
+Pre-merge exact-head T1 `36043296814` is green with 54 Chromium owner tests.
+
+Release is **not approved yet** because exact post-merge EliteSCADA CI `36044280802` exposed a generic PostgreSQL shared-schema initialization recurrence:
+`23505 / pg_namespace_nspname_index`.
+
+The affected infrastructure/failing-test blobs are unchanged from pre-FC0A frozen product base, so PR #340 product work remains accepted.
+
+Blocking correction:
+`INFRA-CI-01C-POSTGRES-SCHEMA-RECURRENCE-V1`
+on `work/w15-infra-ci-01c-postgres-schema-recurrence`, exact base `d975174a...`.
+
+After 01C merge, exact broad post-merge green CI and final affected post-FND06 audit recheck are required before `FC0A_RELEASE_APPROVED` and six-lane activation.

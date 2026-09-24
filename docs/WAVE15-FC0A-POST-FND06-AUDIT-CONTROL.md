@@ -7,7 +7,7 @@
 
 `AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
-`AUDIT_REV: 0011`
+`AUDIT_REV: 0012`
 
 `STATE: COMPLETED / CHANGES_REQUIRED`
 
@@ -50,6 +50,45 @@ Contract audit:
 - no current FND-05/FND-07 decision requires breaking a frozen contract consumed by FC0-A DEVs.
 
 Therefore FC0-A release is denied until the two confirmed blockers are corrected, exact CI/post-merge evidence is green, and the affected audit rows are re-run by Main.
+
+## 0A. Second-pass deep audit
+
+Main completed a distinct second-pass review after the first `CHANGES_REQUIRED` result.
+
+Authoritative supplement:
+
+`docs/WAVE15-FC0A-POST-FND06-AUDIT-SECOND-PASS.md`
+
+commit:
+
+`43c266949236af377ba859c9b8f09fa2d3a3a31a`
+
+Second-pass outcome:
+
+`NO NEW PRE-FC0A BLOCKER IDENTIFIED`
+
+The two original blockers remain:
+- W15-P1-01 — Server Script bounded automatic recovery;
+- W15-P1-06 — truthful Engineering no-model/loading/error fallback.
+
+Additional confirmed gaps were classified as downstream or bounded follow-up:
+- DEV-EDITOR legacy geometry/z-order/authoring paths still bypass the FND-06 compatibility seam;
+- Script Assistant legacy property discovery still bypasses the FND-06 compatibility seam;
+- Web Runtime admission UX ignores server requested/granted class and reason codes;
+- Runtime API error wording still uses legacy `viewer` terminology;
+- Trends lacks explicit realtime/reconnect/freshness observability;
+- shared Runtime/visual live-value path lacks explicit last-request/last-success/freshness-reason telemetry.
+
+Positive/refinement findings:
+- server Authority -> Runtime class -> atomic seat fallback contract is already coherent;
+- Interactive quota fallback to ViewOnly is implemented server-side;
+- cursor-safe Monaco insertion already exists;
+- timer/tagChanged canonical authoring already exists;
+- production host uses `EngineeringWorkspace(seedDemo: false)`, so true neutral no-Demo workspace state is already representable;
+- FND-05 remains additive/non-breaking;
+- FND-07 remains compositional/non-breaking, with increased confidence.
+
+Release remains denied until P1-01 and P1-06 close and affected audit rows are rerun.
 
 ## 1. Activation rule
 

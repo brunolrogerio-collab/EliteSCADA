@@ -38,7 +38,7 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0033`
+`MAIN_ORDER_REV: 0034`
 
 `LAST_MAIN_UPDATE_BRT: 2026-09-24 — CODEX CONTINUES CURRENT V2 FLOW / FINAL CHECKLIST RECONCILIATION REQUIRED`
 
@@ -591,7 +591,7 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 ### CURRENT CODEX EXECUTION ORDER
 
-`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-INFRA-CI-01C-21`
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FC0A-HELP-E2E-22`
 
 `ORDER_STATE: ACTIVE_ROUTE`
 
@@ -607,7 +607,7 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 `NEXT_CONTROL_FILE: docs/WAVE15-FC0A-CONSOLIDATED-CORRECTION-PACKAGE.md`
 
-`EXPECTED_ORDER: INFRA-CI-01C-POSTGRES-SCHEMA-RECURRENCE-V1`
+`EXPECTED_ORDER: FC0A-POSTMERGE-HELP-E2E-LOAD-V1`
 
 `WORK_BRANCH: work/w15-fc0a-consolidated-corrections`
 
@@ -948,3 +948,41 @@ On SIGA:
 9. return the exact 01C candidate handoff.
 
 No merge/freeze/FC0A release authority.
+
+
+## MAIN ROUTE — FC0-A post-merge Help E2E load closeout
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FC0A-HELP-E2E-22`
+
+`EXPECTED_ORDER: FC0A-POSTMERGE-HELP-E2E-LOAD-V1`
+
+Authoritative control:
+- branch: `coord/w15-fnd06-control`
+- file: `docs/WAVE15-FC0A-POSTMERGE-HELP-E2E-LOAD-CONTROL.md`
+- control commit: `fa1c1e36dc1ca9f94ba0acc8e3e0dceaa3d02d9a`
+
+Exact base/work:
+- base SHA: `da0e64122f1e4d0293e027f45ef95021cd03c1a1`
+- base tree: `a724e565f11121a43b97bf0c59683b414c72f48c`
+- work branch: `work/w15-fc0a-postmerge-help-e2e-load`
+- target: `wave15/corrections-integration`
+
+Trigger:
+- exact broad run `36047274028`;
+- Backend/Web/Runtime smoke: SUCCESS;
+- Chromium: FAILURE before test execution;
+- deterministic parser error: `src/auth/auth.css: Unexpected token (1:0)`;
+- load chain begins in FC0-A-added `tests-e2e/contextual-help-routing.spec.ts` importing `AppNavigation.tsx`.
+
+On SIGA:
+1. read the new control fully;
+2. revalidate exact branch/base;
+3. keep correction bounded to the test-load/import boundary;
+4. prefer extracting `contextualHelpTopic` to a CSS-free pure module, or an equally small non-duplicative mounted-test correction;
+5. do not skip the spec or weaken broad CI;
+6. run focused contextual Help Playwright + Web build + relevant Help regression;
+7. run natural T1 on exact candidate;
+8. open/update bounded PR;
+9. return `FC0-A POSTMERGE HELP-E2E CODEX -> MAIN COORDINATOR — CANDIDATE HANDOFF`.
+
+No merge/freeze/release authority.

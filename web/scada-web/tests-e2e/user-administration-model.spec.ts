@@ -7,8 +7,11 @@ import {
   summarizeUserChanges
 } from '../src/engineering/UserAdministration.logic';
 import {
+  assignedUsersForRole,
   capabilityKey,
+  isRoleKeyEditable,
   nextRoleKey,
+  roleAssignmentKey,
   userGrantPreview
 } from '../src/engineering/AuthorityPolicyAdministration.logic';
 import type {
@@ -160,4 +163,56 @@ test('Authority UX role-key generation never treats display names as privilege s
   };
 
   expect(nextRoleKey(policy)).toBe('custom-role-3');
+});
+
+
+test('Authority UX locks baseline role keys while keeping unapplied role keys editable', () => {
+  const baseline: AuthorityPolicyDocument = {
+    schema: 'elitescada.authority-policy',
+    schemaVersion: 1,
+    version: 12,
+    roles: [
+      {
+        id: '46000000-0000-0000-0000-000000000020',
+        key: 'operator-stable',
+        name: 'Operator Stable',
+        grants: []
+      }
+    ],
+    scopes: []
+  };
+  const baselineRole = baseline.roles[0];
+  const newRole: AuthorityRole = {
+    id: '46000000-0000-0000-0000-000000000021',
+    key: 'operator-draft',
+    name: 'Operator Draft',
+    grants: []
+  };
+
+  expect(isRoleKeyEditable(baseline, baselineRole)).toBeFalsy();
+  expect(isRoleKeyEditable(baseline, newRole)).toBeTruthy();
+});
+
+test('Authority UX assigned-user protection resolves against the persisted stable role key', () => {
+  const baseline: AuthorityPolicyDocument = {
+    schema: 'elitescada.authority-policy',
+    schemaVersion: 1,
+    version: 12,
+    roles: [
+      {
+        id: '46000000-0000-0000-0000-000000000030',
+        key: 'operator',
+        name: 'Operator',
+        grants: []
+      }
+    ],
+    scopes: []
+  };
+  const hypotheticalDraft: AuthorityRole = {
+    ...baseline.roles[0],
+    key: 'operator-renamed-in-draft'
+  };
+
+  expect(roleAssignmentKey(baseline, hypotheticalDraft)).toBe('operator');
+  expect(assignedUsersForRole(users, baseline, hypotheticalDraft).map(user => user.id)).toEqual(['2']);
 });

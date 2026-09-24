@@ -38,7 +38,7 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0027`
+`MAIN_ORDER_REV: 0028`
 
 `LAST_MAIN_UPDATE_BRT: 2026-09-24 — SEQUENTIAL CODEX ROUTED TO CONSOLIDATED FC0-A CORRECTION PACKAGE`
 
@@ -591,7 +591,7 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 ### CURRENT CODEX EXECUTION ORDER
 
-`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FC0A-CONSOLIDATED-16`
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FC0A-CONSOLIDATED-V2-17`
 
 `ORDER_STATE: ACTIVE_ROUTE`
 
@@ -607,7 +607,7 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 `NEXT_CONTROL_FILE: docs/WAVE15-FC0A-CONSOLIDATED-CORRECTION-PACKAGE.md`
 
-`EXPECTED_ORDER: FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V2`
+`EXPECTED_ORDER: FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V3`
 
 `WORK_BRANCH: work/w15-fc0a-consolidated-corrections`
 
@@ -615,16 +615,17 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 Instruction:
 
-> Main has intentionally consolidated the known FC0-A correction backlog into one large package before the next Main review.
+> Main reviewed the first consolidated candidate on PR #340. T1 `36003179697` is green, but the package is not complete. Continue on the same branch/PR and execute only the V2 residuals R1-R6 from the active consolidated control.
 >
 > On every `SIGA`:
 > 1. revalidate GitHub live;
 > 2. read `coord/w15-fnd06-control:docs/WAVE15-FC0A-CONSOLIDATED-CORRECTION-PACKAGE.md` in full;
 > 3. confirm current active order is `FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V2`;
 > 4. work only on `work/w15-fc0a-consolidated-corrections`;
-> 5. execute the authorized A/B/C phases sequentially without asking Main for intermediate review;
-> 6. create one consolidated PR to `wave15/corrections-integration` only after the package is complete and exact-head validation is green;
-> 7. return `FC0-A CONSOLIDATED CODEX -> MAIN COORDINATOR — CANDIDATE HANDOFF`.
+> 5. preserve accepted V1 work and complete R1-R6 only;
+> 6. keep PR #340 open and update it on the same branch;
+> 7. rerun natural T1 on the final V2 head;
+> 8. return `FC0-A CONSOLIDATED CODEX -> MAIN COORDINATOR — CANDIDATE HANDOFF V2`.
 >
 > The former P1-01 branch/order is superseded and must not be used. No merge/freeze authority. Stop only for a real contract/base/environment blocker as defined in the consolidated control.
 

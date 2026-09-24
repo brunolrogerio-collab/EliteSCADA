@@ -133,27 +133,30 @@ Coordination/documentation commits after this checkpoint do not create a new pro
 
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
-**ORDER_STATE: VERIFIED_FROZEN / WAIT**  
-**ORDER_ID: FND06-CODEX-FROZEN-FINAL-08**  
-**CODEX_MODE: NO_MUTATION / PRESERVE_FROZEN_PRODUCT**  
-**EXECUTOR_IDENTITY: SAME SEQUENTIAL CODEX CHAT/LANE USED IN PRIOR FOUNDATION WORK INCLUDING FND-04**
+**ORDER_STATE: ACTIVE**  
+**ORDER_ID: FC0A-BLOCKER-P101-SERVER-SCRIPT-RECOVERY-V1**  
+**CODEX_MODE: BOUNDED_SERVER_SCRIPT_RECOVERY**  
+**EXECUTOR_IDENTITY: SAME SEQUENTIAL CODEX CHAT/LANE USED IN PRIOR FOUNDATION WORK**
 
-FND-06 is VERIFIED/FROZEN at:
-- exact product SHA `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
-- tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`
-- final broad `35953557122` / EliteSCADA CI #1565 — SUCCESS
-  - Web SUCCESS
-  - Backend build/test/smoke SUCCESS
-  - Chromium end-to-end SUCCESS.
+Audit result:
+`FC0-A FOUNDATION AUDIT -> MAIN COORDINATOR — CHANGES_REQUIRED`
 
-Main verified that integration divergence above the product checkpoint before freeze contained only coordination docs.
+Active correction:
+- W15-P1-01 Server Script bounded recovery;
+- exact base SHA `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`;
+- base tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`;
+- work branch `work/w15-fc0a-p101-server-script-recovery`;
+- target `wave15/corrections-integration`;
+- validation profile `SCRIPT_RUNTIME`;
+- control `coord/w15-fnd06-control:docs/WAVE15-FC0A-AUDIT-BLOCKER-CORRECTION-PREP.md`;
+- control commit `b8858d08a8516588db4be40d2da48ea266fe793e`;
+- routing control rev 0026 / `a088c884d90bd0c2d86b844f74332306a80b7a7c`.
 
-CODEX has no active product mission and may not self-audit the FC0-A gate.
+P1-06 Engineering fallback remains queued and must not be mixed into P1-01.
 
-Detailed FND-06 control:
-`coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md` rev 0012 / commit `44c372d8316733398d25f72f3331b12022ab6594`.
-
+No merge/freeze authority.
 ---
+
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
 
 **ORDER_STATE: WAIT**  
@@ -207,34 +210,35 @@ The normal DEV lane has no active mission. On `SIGA`, revalidate live state, rep
 Downstream lanes may consume the frozen Script TAG reference contract but may not redefine it.
 ---
 
-## 5. MAIN COORDINATOR -> INDEPENDENT AUD — CURRENT ORDER
+## 5. FC0-A POST-FND06 AUDIT — MAIN COORDINATOR RESULT
 
-**ORDER_STATE: ACTIVE**  
-**ORDER_ID: FC0A-AUD-ACTIVE-POST-FND06-0013**  
-**AUD_MODE: READ_ONLY_CROSS_WAVE_FOUNDATION_AUDIT**
+**AUDIT_OWNER: MAIN COORDINATOR**  
+**STATE: COMPLETED / CHANGES_REQUIRED**
 
-Audit:
-`FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
-
-Exact product checkpoint:
-- SHA `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
-- tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`
+Exact audited checkpoint:
+- SHA `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`;
+- tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`;
 - final broad `35953557122` — SUCCESS.
 
-Audit control:
-`coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-CONTROL.md` rev 0010 / commit `72421abee84ac09415a045b7c86d554dba7dd187`.
+Confirmed blockers:
+- W15-P1-01 Server Script permanent throttle latch / missing bounded recovery;
+- W15-P1-06 synthetic Engineering fallback identity/status.
 
-Evidence matrix:
-`coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-EVIDENCE.md`.
+Contract disposition:
+- FND-05 = additive / compatible;
+- FND-07 = compositional / compatible;
+- no current breaking FND-05/FND-07 contract requirement.
 
-Dedicated AUD routing:
-`coord/w15-fnd04-dev-aud-control` rev 0024 / commit `0048a198a2c7d2ac40dd1a055c5bcc6346f30fe8`.
+Authoritative audit report:
+`coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-RESULT.md`
+commit `463d357f8a9c11f774f5da59480e4a17a19569f5`.
 
-AUD must independently confirm/reject Main preliminary P1-01 and P1-06 findings and complete the full mandatory matrix. No product/test/doc mutation.
+Audit control rev 0011 / `ddfc2997ea2d5c594c158a0d16c52277688c46ee`.
+Separate AUD lane is optional advisory only.
 
-FC0-A remains HOLD until an exact independent audit handoff is reviewed by Main.
-
+FC0-A remains HOLD until P1-01 + P1-06 are corrected and affected audit rows pass again.
 ---
+
 ## 6. FND-04 BINDING CONTRACT — VERIFIED / FROZEN
 
 Frozen downstream contract:

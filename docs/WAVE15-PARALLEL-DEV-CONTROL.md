@@ -4,9 +4,9 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0002`
+`MAIN_ORDER_REV: 0003`
 
-`STATE: FC0A_RELEASE_APPROVED / SIX_LANES_ACTIVE_CODING`
+`STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
 `ACTIVATION_RULE: Main must revalidate GitHub live, record the exact FC0-A product SHA/tree, create each work branch from that exact checkpoint, and switch the lane state to ACTIVE before product mutation.`
 
@@ -649,3 +649,70 @@ While CODEX validates this lane:
 - the other five lanes remain ACTIVE_CODING unless their own dedicated controls say otherwise;
 - no lane is blocked merely because CODEX is occupied;
 - next CODEX priority remains Main-owned based on candidate readiness + risk.
+
+
+## 16. Live six-lane board after first Main review pass
+
+This board is a coordination summary only; each dedicated control remains authoritative for its lane.
+
+### DEV-SCRIPT-ENGINEERING
+- PR #344
+- exact accepted head `cf0ae2d1dcd2d63668b5b1c2c3590a5b6bb9bdaa`
+- state: `MAIN_ACCEPTED_FOR_CODEX / DEV_WAIT`
+- shared CODEX route: `ROUTE-SEQUENTIAL-CODEX-TO-SCRIPT-ENGINEERING-25`
+- CODEX is currently active here.
+- original T1 `36063109199` was metadata-invalid before product evidence.
+
+### DEV-EDITOR
+- PR #349
+- exact head `06eed31d99ddb34d99e0287e96e38bed3bf7dab5`
+- T1 `36066874097`: SUCCESS
+- state: `MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`
+- dedicated control rev 0003 / commit `57832a87eef65215845e46d3d55b1e2f82faaebc`.
+- must not preempt the active Script CODEX route.
+
+### DEV-AUTHORITY-UX
+- PR #346
+- reviewed head `3986475b20e4a72969159bfaed003ad5d72626d4`
+- state: `DEV_CORRECTION / STABLE_ROLE_KEY_IDENTITY`
+- order `DEV-AUTHORITY-UX-STABLE-ROLE-KEY-02`
+- control rev 0003 / commit `93dd6d66c78d5ec13133f581fe3c695e6dee8552`.
+- baseline role keys must remain stable because local user assignments persist by role key.
+
+### DEV-LICENSING-UX
+- PR #345
+- reviewed head `cdf572d644417fe83aee3003a3da3fe171d7ada3`
+- state: `DEV_CORRECTION / LICENSE_STATUS_ENTITLEMENT_TRUTH`
+- order `DEV-LICENSING-UX-STATUS-ENTITLEMENTS-02`
+- control rev 0003 / commit `a791f3950a83d6f94f5bee6cbd1bb3b573177ac3`.
+- Licensing status must expose truthful ESLIC1/ESLIC2 schema and signed ESLIC2 Interactive/ViewOnly/HA entitlements.
+
+### FND-05 DEV
+- PR #347
+- reviewed head `8c2bd2724b7f17711d76c59919f68ed7037483a3`
+- T1 `36064607662`: SUCCESS
+- state: `DEV_CORRECTION / PEER_HANDOFF_BOUNDARY_REQUIRED`
+- order `FND05-DEV-PEER-HANDOFF-BOUNDARY-V2-01`
+- dedicated control rev 0006 / commit `e6de4aa2dee0323db95135b08d90c3633f9a954b`.
+- correction is transport-neutral two-independent-node readiness/authority/lease handoff; no network/consensus/automatic-failover scope.
+
+### FND-07 DEV
+- PR #348 (draft)
+- reviewed head `ae11e42e8ad5e39b1e2c5a0068f81e4ec31653c6`
+- state: `DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
+- order `FND07-DEV-FRESH-INSTALL-NO-DEMO-E2E-01`
+- dedicated control rev 0005 / commit `bc1f74056725219ed04225335bbc7695cb70b646`.
+- T1 `36066422907` proved a stale Demo-dependent E2E fixture; product must keep clean no-Demo fresh-install/neutral semantics.
+
+### Integration / target truth
+
+Current feature/Foundation branches remain independently owned.
+
+Do not merge raw candidates merely because a lane T1 is green.
+
+Sequential CODEX remains one-at-a-time:
+1. active Script Engineering validation;
+2. Editor is the first currently Main-accepted queued candidate;
+3. later priority may be reassessed when corrected Authority/Licensing/FND candidates return.
+
+FND-05 and FND-07 still require Foundation-specific Main contract review, CODEX validation and post-merge VERIFIED/FROZEN before the six-lane phase exit gate.

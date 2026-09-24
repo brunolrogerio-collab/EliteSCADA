@@ -318,3 +318,24 @@ Include:
 - weakening/removing concurrency tests;
 - changing CI timing/parallelism merely to hide the race;
 - self-merge/freeze.
+
+
+## 12. Recurrence observed after FC0-A merge
+
+Historical 01B correction remains valid and must not be reverted, but its acceptance evidence proved insufficient to guarantee the invariant under later full parallel solution-test load.
+
+New exact evidence:
+- FC0-A merged checkpoint: `d975174ae81ff7ed754585097240778a9862d965`;
+- post-merge EliteSCADA CI: `36044280802`;
+- failure: PostgreSQL `23505 / pg_namespace_nspname_index`;
+- failing statement: `CREATE SCHEMA IF NOT EXISTS elitescada`;
+- failing test: `PostgreSqlEngineeringSchemaV15CommunicationBindingTests.PostgreSqlRevision_SavePreviewApply_RoundTripsCommunicationBinding`.
+
+Main proved the failing Engineering store, shared-lock helper, Timescale infrastructure, failing test and existing concurrency regression are byte-identical to frozen pre-FC0A checkpoint `560ac9d...`. This is not caused by PR #340.
+
+Do not mutate this historical 01B lane.
+
+Recurrence owner:
+`coord/w15-infra-ci-01c-control:docs/WAVE15-INFRA-CI-01C-POSTGRES-SCHEMA-RACE-RECURRENCE-CONTROL.md`
+
+01C requires a fresh-database cross-project reproduction/root cause before any new production correction. Blind rerun remains forbidden as acceptance.

@@ -12,14 +12,20 @@ type VisualElement = Record<string, unknown> & {
 };
 
 type ExportedPackage = Record<string, unknown> & {
-  screens?: Array<Record<string, unknown>>;
-  popups?: Array<Record<string, unknown>>;
+  screens?: VisualView[];
+  popups?: VisualView[];
+};
+
+type VisualView = Record<string, unknown> & {
+  id: string;
+  key: string;
+  elements?: VisualElement[];
 };
 
 test('FND-06 mounted Screen selection contains known legacy objects and preserves authored data', async ({ page, request }) => {
   const original = await exportPackage(request);
   const suffix = Date.now();
-  const screenKey = `fnd06-legacy-screen-${suffix}`;
+  const screenKey = 'demo.overview';
   const tank = legacy('tank', `fnd06-tank-${suffix}`, 20, {
     equipmentPath: 'Plant/Tank-01', levelScale: 100, label: 'Legacy tank authored label'
   });
@@ -28,11 +34,11 @@ test('FND-06 mounted Screen selection contains known legacy objects and preserve
   const status = legacy('status', `fnd06-status-${suffix}`, 410, { statusCode: 'fault', label: 'Pump status' });
   const unknown = legacy('vendor.unknown-x', `fnd06-unknown-${suffix}`, 540, { vendorState: 'opaque' });
   const seeded: ExportedPackage = structuredClone(original);
-  seeded.screens = [...(seeded.screens ?? []), {
-    id: randomUUID(), key: screenKey, name: 'FND-06 legacy Screen', route: `/fnd06-legacy-${suffix}`,
-    properties: { canvasWidth: '800', canvasHeight: '600' }, context: {}, metadata: {},
-    elements: [tank, value, dynamo, status, unknown]
-  }];
+  seeded.screens = appendLegacyElements(
+    seeded.screens,
+    screenKey,
+    [tank, value, dynamo, status, unknown],
+    'Screen');
 
   try {
     await applyPackage(request, seeded);
@@ -79,21 +85,18 @@ test('FND-06 mounted Screen selection contains known legacy objects and preserve
     await expect(workspace.getByTestId('visual-dynamic-property-editor').getByRole('alert')).toContainText('Unknown built-in visual object type');
     await expect(workspace.getByTestId('visual-binding-editor')).toContainText("Visual object type 'vendor.unknown-x' is not a registered");
   } finally {
-    await applyPackage(request, original);
+    await restoreAndAssertCanonicalViews(request, original);
   }
 });
 
 test('FND-06 mounted Popup selection contains legacy value and status without poisoning the editor', async ({ page, request }) => {
   const original = await exportPackage(request);
   const suffix = Date.now();
-  const popupKey = `fnd06-legacy-popup-${suffix}`;
+  const popupKey = 'popup.pump.standard';
   const value = legacy('value', `fnd06-popup-value-${suffix}`, 20, { sourcePath: 'Plant/PopupPressure', precision: 3 });
   const status = legacy('status', `fnd06-popup-status-${suffix}`, 160, { statusCode: 'fault', alarmClass: 'critical' });
   const seeded: ExportedPackage = structuredClone(original);
-  seeded.popups = [...(seeded.popups ?? []), {
-    id: randomUUID(), key: popupKey, name: 'FND-06 legacy Popup', templateKey: null,
-    properties: {}, context: {}, metadata: {}, x: 100, y: 100, elements: [value, status]
-  }];
+  seeded.popups = appendLegacyElements(seeded.popups, popupKey, [value, status], 'Popup');
 
   try {
     await applyPackage(request, seeded);
@@ -114,9 +117,38 @@ test('FND-06 mounted Popup selection contains legacy value and status without po
       await expect(workspace.getByTestId('visual-binding-editor')).toBeVisible();
     }
   } finally {
-    await applyPackage(request, original);
+    await restoreAndAssertCanonicalViews(request, original);
   }
 });
+
+function appendLegacyElements(
+  views: VisualView[] | undefined,
+  key: string,
+  legacyElements: VisualElement[],
+  kind: 'Screen' | 'Popup'
+): VisualView[] {
+  if (!views?.some(view => view.key === key))
+    throw new Error(`Canonical ${kind} '${key}' is required for the FND-06 fixture.`);
+
+  return views.map(view => view.key === key
+    ? { ...view, elements: [...(view.elements ?? []), ...legacyElements] }
+    : view);
+}
+
+async function restoreAndAssertCanonicalViews(
+  request: import('@playwright/test').APIRequestContext,
+  original: ExportedPackage
+): Promise<void> {
+  await applyPackage(request, original);
+  const restored = await exportPackage(request);
+
+  expect(restored.screens).toEqual(original.screens);
+  expect(restored.popups).toEqual(original.popups);
+  expect([
+    ...(restored.screens ?? []),
+    ...(restored.popups ?? [])
+  ].some(view => view.key.startsWith('fnd06-'))).toBeFalsy();
+}
 
 function legacy(type: string, key: string, x: number, legacyFields: Record<string, unknown>): VisualElement {
   return {

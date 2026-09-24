@@ -7,7 +7,7 @@
 
 `AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
-`AUDIT_REV: 0008`
+`AUDIT_REV: 0009`
 
 `STATE: PREPARED / WAIT_FINAL_FND06_BROAD_CI`
 
@@ -325,6 +325,42 @@ Required independent audit disposition:
 4. Main then opens a bounded Foundation correction for Server Script recovery before releasing the four FC0-A DEVs, FND-05 or FND-07.
 
 A future correction must preserve FND-04 readable TAG binding semantics and must not absorb DEV-SCRIPT-ENGINEERING authoring scope.
+
+## 4B. Preliminary Main blocker finding — W15-P1-06 Engineering/SPA truthful fallback
+
+Wave 14 authority:
+- A1 confirmed indefinite/failed bootstrap must not present fictitious status;
+- A6 confirmed absent/unloaded public model must not masquerade as authoritative `Demo Project`;
+- W15-P1-06 requires bounded truthful loading/unavailable/transport-error/retry states and removal of fake Working identity.
+
+Live exact product source at `560ac9d80cc7e854f2513559dc6afb28cfb4aee3` still shows:
+
+- `EngineeringApp` initializes `snapshot = null` and `loading = true`;
+- the project chip renders:
+  `snapshot?.workspace.projectName ?? snapshot?.workspace.projectKey ?? 'Demo Project'`;
+- therefore loading and failed-load states can show `Demo Project` even though no Engineering public model is loaded;
+- on load failure, catch explicitly keeps `snapshot=null` and renders the error/retry card, while the sidebar project chip remains `Demo Project`;
+- `WorkspaceBar` also derives no-snapshot fallbacks that can show `unsaved` and `clean`, which are not truthful authoritative Working facts when the model is unavailable.
+
+Preliminary classification:
+
+`W15-P1-06 = PRELIMINARY BLOCKED_PRODUCT / SHARED_ENGINEERING_SHELL`
+
+This issue is **not caused by FND-06** and does not prevent FND-06 freeze if its exact broad gate passes.
+
+It does block FC0-A release if independent AUD confirms it, because:
+- it is a confirmed P1/P2 Wave 15 correction item;
+- it affects the shared Engineering shell rather than one bounded feature lane;
+- the prepared FC0-A collision guard explicitly makes shared shell/router files Main-coordinated hotspots, so no DEV lane may silently absorb the correction.
+
+Independent AUD must confirm/disprove:
+1. whether any outer gate prevents the false `Demo Project` chip from rendering while snapshot is null;
+2. whether mounted tests already prove truthful loading/error/unavailable identity;
+3. whether `WorkspaceBar` no-model state is also fictitious;
+4. whether a bounded shared-shell correction is required before FC0-A release.
+
+If confirmed:
+`FC0-A AUD -> BLOCKED_PRODUCT / SHARED-SHELL CORRECTION BEFORE RELEASE`.
 
 ## 5. Cross-Foundation invariant audit
 

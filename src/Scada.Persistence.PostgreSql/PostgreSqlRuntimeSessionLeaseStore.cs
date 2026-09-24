@@ -10,7 +10,6 @@ namespace Scada.Persistence.PostgreSql;
 /// </summary>
 public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
 {
-    private const long SharedDdlAdvisoryLock = 4993446713136202561;
     private const long LeaseMutationAdvisoryLock = 4993446713136202566;
     private readonly NpgsqlDataSource _dataSource;
 
@@ -24,7 +23,6 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         const string sql = """
-            SELECT pg_advisory_xact_lock(@ddl_lock);
             CREATE SCHEMA IF NOT EXISTS elitescada;
             CREATE TABLE IF NOT EXISTS elitescada.schema_migrations (
                 migration_key text PRIMARY KEY,
@@ -107,8 +105,8 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
 
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await PostgreSqlSharedSchemaInitialization.AcquireLockAsync(connection, transaction, cancellationToken);
         await using var command = new NpgsqlCommand(sql, connection, transaction);
-        command.Parameters.AddWithValue("ddl_lock", NpgsqlDbType.Bigint, SharedDdlAdvisoryLock);
         await command.ExecuteNonQueryAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }

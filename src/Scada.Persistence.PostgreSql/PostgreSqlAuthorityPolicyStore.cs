@@ -42,8 +42,12 @@ public sealed class PostgreSqlAuthorityPolicyStore : IAuthorityPolicyStore, IAsy
             INSERT INTO elitescada.schema_migrations (migration_key) VALUES ('019_authority_policy_v1') ON CONFLICT (migration_key) DO NOTHING;
             """;
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
-        await using (var command = new NpgsqlCommand(sql, connection)) await command.ExecuteNonQueryAsync(cancellationToken);
-        var loaded = await LoadAsync(connection, null, cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await PostgreSqlSharedSchemaInitialization.AcquireLockAsync(connection, transaction, cancellationToken);
+        await using (var command = new NpgsqlCommand(sql, connection, transaction))
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        var loaded = await LoadAsync(connection, transaction, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         lock (_sync) _snapshot = loaded;
     }
 

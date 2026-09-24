@@ -276,3 +276,17 @@ Audit evidence:
 - audit control rev 0008 / commit `18a0fcda2b354779cdf0f1ba4d829a838714b3d2`.
 
 DEV-SCRIPT-ENGINEERING may not absorb this runtime/Foundation correction silently.
+
+
+## Independent AUD routing prepared
+
+The former FND-04 independent AUD lane is now pre-routed, but not activated, for the mandatory post-FND06 closure audit.
+
+- current AUD order: `FC0A-AUD-WAIT-FND06-FINAL-BROAD-0012`
+- state: `WAIT_FND06_FINAL_BROAD`
+- final broad: `35953557122`
+- provisional exact product checkpoint: `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
+- FND-04 AUD control rev 0023 / `1be8ef8cbdd555f3fa554e905faafab186c21dd3`
+- next audit: `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
+
+AUD must independently confirm/disprove Main's preliminary P1-01 Server Script recovery blocker after activation.

@@ -5,12 +5,14 @@ import {
   type LocalUser
 } from './userAdministrationApi';
 
-const capabilityByValue = new Map(
-  SECURITY_CAPABILITIES.map(capability => [capability.value, capability] as const)
-);
-const capabilityById = new Map(
-  SECURITY_CAPABILITIES.map(capability => [capability.id.toLowerCase(), capability] as const)
-);
+type CapabilityDefinition = (typeof SECURITY_CAPABILITIES)[number];
+
+const capabilityByValue = new Map<number, CapabilityDefinition>();
+const capabilityById = new Map<string, CapabilityDefinition>();
+for (const capability of SECURITY_CAPABILITIES) {
+  capabilityByValue.set(capability.value, capability);
+  capabilityById.set(capability.id.toLowerCase(), capability);
+}
 
 export function capabilityDescriptor(value: number | string) {
   if (typeof value === 'number') return capabilityByValue.get(value);
@@ -30,6 +32,37 @@ export function nextRoleKey(policy: AuthorityPolicyDocument, base = 'custom-role
   let suffix = 2;
   while (used.has(`${base}-${suffix}`)) suffix += 1;
   return `${base}-${suffix}`;
+}
+
+export function baselineRoleFor(
+  baseline: AuthorityPolicyDocument,
+  role: AuthorityRole
+): AuthorityRole | null {
+  if (!role.id) return null;
+  return baseline.roles.find(candidate => candidate.id === role.id) ?? null;
+}
+
+export function isRoleKeyEditable(
+  baseline: AuthorityPolicyDocument,
+  role: AuthorityRole
+) {
+  return baselineRoleFor(baseline, role) === null;
+}
+
+export function roleAssignmentKey(
+  baseline: AuthorityPolicyDocument,
+  role: AuthorityRole
+) {
+  return baselineRoleFor(baseline, role)?.key ?? role.key;
+}
+
+export function assignedUsersForRole(
+  users: readonly LocalUser[],
+  baseline: AuthorityPolicyDocument,
+  role: AuthorityRole
+) {
+  const normalized = roleAssignmentKey(baseline, role).toLowerCase();
+  return users.filter(user => user.roles.some(assigned => assigned.toLowerCase() === normalized));
 }
 
 export function userGrantPreview(user: LocalUser | null, roles: readonly AuthorityRole[]) {

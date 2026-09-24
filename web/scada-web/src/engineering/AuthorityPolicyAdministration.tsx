@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { EngineeringLocale } from './i18n';
 import {
   AdministrationHttpError,
@@ -268,7 +268,7 @@ function capabilityDescriptor(value: number | string) {
   return capabilityById.get(value.toLowerCase());
 }
 
-function capabilityKey(value: number | string) {
+export function capabilityKey(value: number | string) {
   const descriptor = capabilityDescriptor(value);
   return descriptor?.id ?? String(value);
 }
@@ -289,7 +289,7 @@ function assignedUsersForRole(users: readonly LocalUser[], roleKey: string) {
   return users.filter(user => user.roles.some(role => role.toLowerCase() === normalized));
 }
 
-function nextRoleKey(policy: AuthorityPolicyDocument, base = 'custom-role') {
+export function nextRoleKey(policy: AuthorityPolicyDocument, base = 'custom-role') {
   const used = new Set(policy.roles.map(role => role.key.toLowerCase()));
   if (!used.has(base)) return base;
   let suffix = 2;
@@ -297,7 +297,7 @@ function nextRoleKey(policy: AuthorityPolicyDocument, base = 'custom-role') {
   return `${base}-${suffix}`;
 }
 
-function userGrantPreview(user: LocalUser | null, roles: readonly AuthorityRole[]) {
+export function userGrantPreview(user: LocalUser | null, roles: readonly AuthorityRole[]) {
   if (!user) return [];
   const assigned = new Set(user.roles.map(role => role.toLowerCase()));
   const rows = roles
@@ -757,7 +757,7 @@ function HierarchyTree({ scopes, s }: { scopes: AuthorityScopeNode[]; s: PolicyS
     return map;
   }, [scopes]);
 
-  const render = (parentId: string, depth: number): React.ReactNode =>
+  const render = (parentId: string, depth: number): ReactNode =>
     (children.get(parentId) ?? []).map(scope => (
       <div key={scope.id}>
         <div className="authority-scope-node" style={{ paddingLeft: depth * 14 }}>

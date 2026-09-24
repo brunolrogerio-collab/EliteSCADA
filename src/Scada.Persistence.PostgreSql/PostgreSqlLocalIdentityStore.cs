@@ -9,8 +9,6 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
     private const long MutationAdvisoryLockKey = 4993446713136202562;
 
     private const string InitializeSql = """
-        SELECT pg_advisory_xact_lock(4993446713136202561);
-
         CREATE SCHEMA IF NOT EXISTS elitescada;
 
         CREATE TABLE IF NOT EXISTS elitescada.schema_migrations (
@@ -67,6 +65,7 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
     {
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await PostgreSqlSharedSchemaInitialization.AcquireLockAsync(connection, transaction, cancellationToken);
         await using var command = new NpgsqlCommand(InitializeSql, connection, transaction);
         await command.ExecuteNonQueryAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);

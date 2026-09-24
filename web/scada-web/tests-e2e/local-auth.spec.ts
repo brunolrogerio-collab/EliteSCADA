@@ -78,40 +78,26 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(profile.body.displayName).toBe('Local Developer');
     expect(profile.body.roles).toContain('developer');
 
-    // The fresh server still has the process Demo in memory, but no persisted project.
-    // Capture it so this prerequisite test can restore the shared E2E baseline after
-    // proving that the first persisted project is genuinely empty.
-    const seededEngineering = await page.evaluate(async () => {
+    // A genuinely fresh installation has no hidden Demo/preconfigured Engineering
+    // content. This assertion runs before first-project creation so test fixtures cannot
+    // be confused with normal product bootstrap.
+    const freshEngineering = await page.evaluate(async () => {
       const response = await fetch('/api/engineering/export/json');
       return { status: response.status, body: await response.json() };
     });
-    expect(seededEngineering.status).toBe(200);
-    expect(seededEngineering.body.tags.length).toBeGreaterThan(0);
-    expect(seededEngineering.body.securityRoles).toHaveLength(0);
-    expect(seededEngineering.body.authorityPolicyReference).toBeTruthy();
-    expect(seededEngineering.body.authorityPolicyReference.roleIds).toHaveLength(2);
-
-    const realtime = await page.evaluate(async () => {
-      return await new Promise<string>(resolve => {
-        const socket = new WebSocket('ws://127.0.0.1:5173/ws/tags');
-        const timeout = window.setTimeout(() => {
-          socket.close();
-          resolve('timeout');
-        }, 4000);
-        socket.onmessage = event => {
-          window.clearTimeout(timeout);
-          socket.close();
-          resolve(event.data);
-        };
-        socket.onerror = () => {
-          window.clearTimeout(timeout);
-          resolve('rejected');
-        };
-      });
-    });
-    expect(realtime).not.toBe('timeout');
-    expect(realtime).not.toBe('rejected');
-    expect(JSON.parse(realtime).type).toBe('tagValueChanged');
+    expect(freshEngineering.status).toBe(200);
+    expect(freshEngineering.body.tags).toHaveLength(0);
+    expect(freshEngineering.body.alarms).toHaveLength(0);
+    expect(freshEngineering.body.dataSources).toHaveLength(0);
+    expect(freshEngineering.body.templates).toHaveLength(0);
+    expect(freshEngineering.body.equipment).toHaveLength(0);
+    expect(freshEngineering.body.screens).toHaveLength(0);
+    expect(freshEngineering.body.popups).toHaveLength(0);
+    expect(freshEngineering.body.commands).toHaveLength(0);
+    expect(freshEngineering.body.gateways).toHaveLength(0);
+    expect(freshEngineering.body.scripts).toHaveLength(0);
+    expect(freshEngineering.body.visualAssets).toHaveLength(0);
+    expect(freshEngineering.body.reports).toHaveLength(0);
 
     await expect(page.locator('input[name="project-key"]')).toBeVisible();
     await expect(page.locator('input[name="bootstrap-username"]')).toHaveCount(0);
@@ -181,37 +167,9 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(canonicalProject.body.authorityPolicyReference).toBeTruthy();
     expect(canonicalProject.body.authorityPolicyReference.roleIds).toHaveLength(2);
 
-    // Restore the original Demo through the canonical API before the dependent
-    // Chromium project starts, then save it so the common E2E baseline is clean.
-    const restoredImport = await page.evaluate(async seededPackage => {
-      const response = await fetch('/api/engineering/import/json/apply', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(seededPackage)
-      });
-      return { status: response.status, body: await response.json() };
-    }, seededEngineering.body);
-    expect(restoredImport.status).toBe(200);
-
-    const restoredSave = await page.evaluate(async currentProjectKey => {
-      const response = await fetch(`/api/engineering/persistence/${encodeURIComponent(currentProjectKey)}/save`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ projectName: 'E2E Wave 03 Demo Restored', savedBy: 'local-auth-e2e' })
-      });
-      return { status: response.status, body: await response.json() };
-    }, projectKey);
-    expect(restoredSave.status).toBe(200);
-
-    const restoredWorkspace = await page.evaluate(async () => {
-      const response = await fetch('/api/engineering/workspace');
-      return { status: response.status, body: await response.json() };
-    });
-    expect(restoredWorkspace.status).toBe(200);
-    expect(restoredWorkspace.body.projectKey).toBe(projectKey);
-    expect(restoredWorkspace.body.tagCount).toBeGreaterThan(0);
-    expect(restoredWorkspace.body.securityRoleCount).toBe(1);
-    expect(restoredWorkspace.body.isDirty).toBe(false);
+    // This prerequisite intentionally leaves the first persisted project empty.
+    // Any later E2E that needs TAG traffic must create its own test-owned fixture
+    // through supported APIs instead of depending on product bootstrap seeding.
 
     const logoutStatus = await page.evaluate(async () =>
       (await fetch('/api/auth/logout', { method: 'POST' })).status);

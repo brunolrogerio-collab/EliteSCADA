@@ -1,3 +1,141 @@
+# SUCCESSOR TAKEOVER SNAPSHOT — 2026-09-24
+
+> **READ THIS SECTION FIRST.** It supersedes any older/current-state wording later in this historical handoff when there is a conflict. GitHub live remains the sole authority.
+
+## Current product/Foundation state
+
+- FND-06 is **VERIFIED/FROZEN** at exact product SHA `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`, tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`.
+- Exact final broad: EliteSCADA CI #1565 / run `35953557122` — SUCCESS (Web, Backend build/test/smoke, Chromium E2E).
+- FND-04 remains VERIFIED/FROZEN.
+- No FC0-A DEV, FND-05 or FND-07 is released.
+
+## Post-FND06 audit — authoritative result
+
+The Product Owner clarified that the **Main Coordinator owns and executes the audit**. A separate AUD chat is optional/advisory and is not a release prerequisite.
+
+Audit:
+`FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
+
+Authoritative result:
+`FC0-A FOUNDATION AUDIT -> MAIN COORDINATOR — CHANGES_REQUIRED`
+
+Exact audited checkpoint:
+- SHA `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
+- tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`
+- broad `35953557122` SUCCESS.
+
+Primary report:
+`coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-RESULT.md`
+commit `463d357f8a9c11f774f5da59480e4a17a19569f5`.
+
+Confirmed release blockers:
+1. `W15-P1-01` — Server Script bounded automatic recovery is missing; throttle can remain latched until explicit `ResetThrottle()`.
+2. `W15-P1-06` — Engineering shell can synthesize `Demo Project` and no-model `unsaved/clean` while the authoritative public model is unavailable.
+
+Contract conclusion:
+- FND-05 = **ADDITIVE / COMPATIBLE** under frozen FND-03/FND-04/FND-06 guards.
+- FND-07 = **COMPOSITIONAL / COMPATIBLE** under frozen FND-01/FND-02/FND-03 guards.
+- No current FND-05/FND-07 decision requires breaking a frozen contract consumed by FC0-A DEVs.
+
+## Second-pass deep audit — completed
+
+A distinct second-pass audit was completed after the first CHANGES_REQUIRED result.
+
+Report:
+`coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-SECOND-PASS.md`
+
+Report commit:
+`43c266949236af377ba859c9b8f09fa2d3a3a31a`
+
+Audit control rev 0012:
+`62a731cc4291b751e9cb2e91e440fcf0d5ffb3bd`
+
+Release-prep refinement:
+`c78895b218608b511e61b90206189d2b641a1e71`
+
+Second-pass conclusion:
+`NO NEW PRE-FC0A BLOCKER IDENTIFIED`.
+
+Additional/refined downstream findings:
+- DEV-EDITOR must consume the frozen FND-06 compatibility seam for known-legacy marquee/geometry/z-order/multi-object authoring paths that still use strict built-in lookup.
+- DEV-SCRIPT must make Script Assistant consume the FND-06 compatibility seam for known-legacy property discovery.
+- Script Engineering already has cursor-aware insertion and timer/tagChanged authoring; those are regression/refinement scope, not greenfield.
+- Python API Help still lacks a formal signature/parameter/return/example contract.
+- DEV-LICENSING must surface requested vs granted Runtime class, explicit ViewOnly request and Interactive-quota fallback/reason UX; backend Authority/capacity contract is already sound.
+- one minor Runtime API message still says `viewer` where canonical public vocabulary is `viewOnly`.
+- W15-P2-01 Trends still lacks explicit realtime/reconnect/last-request/last-success/freshness observability.
+- W15-P2-02 shared Popup/live-value path correctly handles numeric zero/quality but still lacks explicit freshness-age/reason telemetry.
+- production host uses `EngineeringWorkspace(seedDemo:false)`; truthful neutral no-Demo workspace is already representable.
+- existing Authority detach/attach/switch primitives further reduce FND-07 contract risk.
+
+## Current active correction — P1-01
+
+Active order:
+`FC0A-BLOCKER-P101-SERVER-SCRIPT-RECOVERY-V1`
+
+Control:
+`coord/w15-fnd06-control:docs/WAVE15-FC0A-AUDIT-BLOCKER-CORRECTION-PREP.md`
+
+Control content SHA at takeover:
+`6c25239f2f9cde8e7f2ef0c38bd9741168e491d3`
+
+Work branch:
+`work/w15-fc0a-p101-server-script-recovery`
+
+Exact base:
+`560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
+
+Validation profile:
+`SCRIPT_RUNTIME`
+
+Live revalidation at takeover:
+- work branch = **IDENTICAL** to exact base;
+- ahead 0 / behind 0;
+- changed files 0;
+- open PR from that branch: **none**.
+
+The same sequential CODEX used for prior Foundation work is the intended executor. On its next `SIGA`, it must re-read the live control and execute only the current P1-01 order.
+
+## Queued correction — P1-06
+
+Queued only:
+`FC0A-BLOCKER-P106-ENGINEERING-FALLBACK-V1`
+
+Do **not** mix P1-06 into P1-01.
+
+P1-06 activates only after P1-01 is reviewed/integrated/validated and Main advances the order.
+
+## Release status
+
+Current release matrix:
+- DEV-EDITOR: HOLD
+- DEV-SCRIPT-ENGINEERING: HOLD
+- DEV-AUTHORITY-UX: HOLD
+- DEV-LICENSING-UX: HOLD
+- FND-05: HOLD
+- FND-07: HOLD
+
+Release requires:
+1. P1-01 closeout;
+2. P1-06 closeout;
+3. exact-head + post-merge validation for each correction as applicable;
+4. Main re-runs affected audit rows;
+5. only then may Main decide `ACCEPTABLE / FC0A_RELEASE_APPROVED`.
+
+## Immediate successor action
+
+On takeover:
+1. re-read `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`, `docs/CURRENT-COORDINATOR-HANDOFF.md`, `LAST CHANGE.md`, this file, Issue #305 and the live P1-01 control;
+2. revalidate `work/w15-fc0a-p101-server-script-recovery` against exact base;
+3. inspect Issue #305 for a `FC0-A P1-01 CODEX -> MAIN COORDINATOR — CANDIDATE HANDOFF`;
+4. if no candidate exists and the CODEX order remains ACTIVE, keep that exact order active; do not invent another mission;
+5. when candidate arrives, perform Main review, exact-head CI, merge authority check, post-merge broad, then advance to P1-06;
+6. after both blockers close, rerun the affected FC0-A audit rows before any DEV/FND-05/FND-07 release.
+
+Do not interpret older sections below this snapshot as current when they conflict with this section.
+
+---
+
 # Next Coordinator Chat Handoff — Permanent Bootstrap Prompt
 
 Use the prompt below whenever a new Main Coordinator chat takes over EliteSCADA.

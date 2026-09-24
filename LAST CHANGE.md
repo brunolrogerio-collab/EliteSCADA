@@ -367,3 +367,30 @@ Mandatory independent post-FND06 audit is now **ACTIVE**:
 Main preliminary P1-01 and P1-06 findings remain hypotheses until independent AUD disposition.
 
 No FC0-A DEV, FND-05 or FND-07 release yet.
+
+
+## FC0-A audit completed by Main — corrections required
+
+The Main Coordinator completed the mandatory post-FND06 Wave14->Wave15 audit on frozen product SHA `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`.
+
+Result:
+`CHANGES_REQUIRED`
+
+Confirmed blockers:
+- W15-P1-01 Server Script throttle recovery;
+- W15-P1-06 truthful Engineering fallback.
+
+FND-05 remains additive/compatible and FND-07 compositional/compatible; neither currently forces a breaking change to FC0-A-consumed frozen contracts.
+
+Audit report commit:
+`463d357f8a9c11f774f5da59480e4a17a19569f5`.
+
+First correction activated:
+- `FC0A-BLOCKER-P101-SERVER-SCRIPT-RECOVERY-V1`;
+- branch `work/w15-fc0a-p101-server-script-recovery`;
+- exact base `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`;
+- profile `SCRIPT_RUNTIME`;
+- control `b8858d08a8516588db4be40d2da48ea266fe793e`;
+- routing `a088c884d90bd0c2d86b844f74332306a80b7a7c`.
+
+P1-06 remains queued. No FC0-A lane has been released.

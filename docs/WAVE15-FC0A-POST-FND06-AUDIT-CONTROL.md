@@ -7,7 +7,7 @@
 
 `AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
-`AUDIT_REV: 0012`
+`AUDIT_REV: 0013`
 
 `STATE: COMPLETED / CHANGES_REQUIRED`
 
@@ -89,6 +89,32 @@ Positive/refinement findings:
 - FND-07 remains compositional/non-breaking, with increased confidence.
 
 Release remains denied until P1-01 and P1-06 close and affected audit rows are rerun.
+
+## 0B. Third-pass targeted gap audit
+
+Main completed a third, distinct read-only pass focused on shared-shell/UI residuals, reusable-resource usability, Help routing and prepared future-Foundation control coverage.
+
+Authoritative supplement:
+
+`docs/WAVE15-FC0A-POST-FND06-AUDIT-THIRD-PASS.md`
+
+Outcome:
+
+`THIRD PASS -> NO NEW PRE-FC0A BLOCKER IDENTIFIED`
+
+The original blockers remain W15-P1-01 and W15-P1-06.
+
+Third-pass refinements:
+- P2-03 shared shell responsiveness remains downstream/open;
+- P2-04 account accessibility behavior is already implemented; focused keyboard regression evidence is partial;
+- P2-05 global Engineering page-scroll dependence remains, despite visual-editor local scroll/collapse mitigation;
+- P2-06 unlocked Engineering Lock management footprint remains open;
+- P2-07 is partially implemented: Dynamo insertion preview exists, while Template/Equipment inspection and reusable-resource content preview remain incomplete;
+- contextual Help global routing is surface-level rather than Engineering-section-specific;
+- FND-07 requires an explicit pre-activation Engineering Lock × detach/switch contract regression;
+- FND-05/FND-07 remain HOLD; no breaking contract was discovered.
+
+This pass does not widen P1-01, authorize P1-06, release any DEV lane, or activate FND-05/FND-07.
 
 ## 1. Activation rule
 

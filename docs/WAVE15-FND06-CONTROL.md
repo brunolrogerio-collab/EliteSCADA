@@ -4,9 +4,9 @@
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`MAIN_ORDER_REV: 0011`
+`MAIN_ORDER_REV: 0012`
 
-`STATE: INTEGRATED / FINAL BROAD POST-MERGE CI PENDING`
+`STATE: VERIFIED / FROZEN`
 
 `EXECUTOR_LANE: SAME SEQUENTIAL CODEX EXECUTOR USED IN PRIOR FOUNDATION WORK INCLUDING FND-04`
 
@@ -216,29 +216,35 @@ Forbidden without new Main order:
 
 ## 7. CURRENT EXECUTOR ORDER
 
-`ORDER_ID: FND06-CODEX-WAIT-FINAL-BROAD-V7`
+`ORDER_ID: FND06-CODEX-FROZEN-FINAL-08`
 
-`ORDER_STATE: WAIT_POST_MERGE_GATE`
+`ORDER_STATE: VERIFIED_FROZEN / WAIT`
 
-`EXECUTOR_MODE: NO_MUTATION`
+`EXECUTOR_MODE: NO_MUTATION / PRESERVE_FROZEN_PRODUCT`
 
-`FINAL_MERGE_SHA: 560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
+`FROZEN_PRODUCT_SHA: 560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
 
-`FINAL_MERGE_TREE: 674019fbbc21001a2d68deb853c2c0b293e0a5cb`
+`FROZEN_PRODUCT_TREE: 674019fbbc21001a2d68deb853c2c0b293e0a5cb`
 
-`POST_MERGE_BROAD_RUN: 35953557122 / EliteSCADA CI #1565`
+`FINAL_BROAD_RUN: 35953557122 / EliteSCADA CI #1565 / SUCCESS`
+
+`FINAL_BROAD_JOBS: Web SUCCESS; Backend build/test/smoke SUCCESS; Chromium end-to-end SUCCESS`
+
+`PR_337: MERGED`
+
+`PR_338: MERGED`
 
 `PR_339: MERGED`
 
-`EXECUTOR_IDENTITY: SAME_SEQUENTIAL_CODEX_FROM_PRIOR_FOUNDATION/FND-04/FND-06/INFRA-CI-01B`
-
 Instruction:
 
-> The final FND-06 test-isolation closeout is merged. Do not mutate product/tests, rerun, rebase, or create follow-up work while broad run `35953557122` executes on exact merge SHA `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`.
+> FND-06 is now VERIFIED/FROZEN at exact product SHA `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`, tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`.
 >
-> On `SIGA`, re-read GitHub live and report the exact broad gate state only. Main owns freeze and audit activation.
+> Final natural broad run `35953557122` completed SUCCESS on that exact SHA: Web, Backend build/test/smoke and Chromium end-to-end all succeeded.
 >
-> FND-06 may become VERIFIED/FROZEN only if Web + Backend build/test/smoke + Chromium all succeed on this exact SHA.
+> Preserve the frozen product. Do not mutate product/tests, rerun, rebase, retarget, or create follow-up FND-06 work without a new Main order.
+>
+> The next blocking gate is the independent post-FND06 audit `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`. CODEX must not self-audit it.
 
 ## 8. FC0-A effect — FND-06 is necessary but no longer sufficient
 
@@ -307,3 +313,24 @@ Classification:
 `FND06_TEST_FIXTURE_ISOLATION_DEFECT / PRODUCT_NON_CAUSAL / INFRA_CI_01B_NON_CAUSAL`
 
 The Runtime assertion remains valid and must not be weakened.
+
+
+### Final FND-06 freeze checkpoint
+
+Main freeze evidence:
+- exact product SHA: `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`;
+- exact tree: `674019fbbc21001a2d68deb853c2c0b293e0a5cb`;
+- broad: `35953557122` / EliteSCADA CI #1565 / SUCCESS;
+- Web: SUCCESS;
+- Backend build/test/smoke: SUCCESS;
+- Chromium end-to-end: SUCCESS;
+- divergence from this product SHA to the pre-freeze integration coordination head was 13 commits touching only:
+  - `LAST CHANGE.md`;
+  - `docs/CURRENT-COORDINATOR-HANDOFF.md`;
+  - `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`.
+No product/infra delta existed above the frozen product checkpoint.
+
+Disposition:
+`FND-06 = VERIFIED/FROZEN`
+
+This freeze satisfies the FND-06 prerequisite only. FC0-A remains blocked by the mandatory independent post-FND06 audit.

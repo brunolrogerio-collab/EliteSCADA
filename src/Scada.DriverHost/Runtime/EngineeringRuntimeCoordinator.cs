@@ -89,6 +89,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
     private readonly CommunicationDriverRuntimeComponentRegistry _communicationComponents;
     private readonly ICommunicationDriverProtectedMaterialResolver? _protectedMaterialResolver;
     private readonly TimeSpan _activationTimeout;
+    private readonly Func<bool> _industrialEffectAuthority;
     private readonly SemaphoreSlim _activationGate = new(1, 1);
     private RuntimeState _active;
 
@@ -98,7 +99,8 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         TimeSpan? activationTimeout = null,
         IServerMemoryRetentionStore? serverMemoryRetentionStore = null,
         CommunicationDriverRuntimeComponentRegistry? communicationComponents = null,
-        ICommunicationDriverProtectedMaterialResolver? protectedMaterialResolver = null)
+        ICommunicationDriverProtectedMaterialResolver? protectedMaterialResolver = null,
+        Func<bool>? industrialEffectAuthority = null)
     {
         _externalEventBus = externalEventBus ?? throw new ArgumentNullException(nameof(externalEventBus));
         _compiler = compiler ?? throw new ArgumentNullException(nameof(compiler));
@@ -106,6 +108,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         _communicationComponents = communicationComponents
             ?? CommunicationDriverRuntimeComposition.BuildForCurrentSchema();
         _protectedMaterialResolver = protectedMaterialResolver;
+        _industrialEffectAuthority = industrialEffectAuthority ?? static () => true;
         _activationTimeout = activationTimeout ?? TimeSpan.FromSeconds(10);
         if (_activationTimeout <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(activationTimeout));
@@ -181,26 +184,36 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
     public ValueTask<bool> AcknowledgeAlarmAsync(
         Guid alarmId,
         string user,
-        CancellationToken cancellationToken = default) =>
-        Volatile.Read(ref _active).Alarms.AcknowledgeAsync(alarmId, user, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        RequireIndustrialEffectAuthority();
+        return Volatile.Read(ref _active).Alarms.AcknowledgeAsync(alarmId, user, cancellationToken);
+    }
 
     public ValueTask<bool> ShelveAlarmAsync(
         Guid alarmId,
         string user,
-        CancellationToken cancellationToken = default) =>
-        Volatile.Read(ref _active).Alarms.ShelveAsync(alarmId, user, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        RequireIndustrialEffectAuthority();
+        return Volatile.Read(ref _active).Alarms.ShelveAsync(alarmId, user, cancellationToken);
+    }
 
     public ValueTask<bool> UnshelveAlarmAsync(
         Guid alarmId,
         string user,
-        CancellationToken cancellationToken = default) =>
-        Volatile.Read(ref _active).Alarms.UnshelveAsync(alarmId, user, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        RequireIndustrialEffectAuthority();
+        return Volatile.Read(ref _active).Alarms.UnshelveAsync(alarmId, user, cancellationToken);
+    }
 
     public async ValueTask WriteAsync(
         Guid tagId,
         object? value,
         CancellationToken cancellationToken = default)
     {
+        RequireIndustrialEffectAuthority();
         var state = Volatile.Read(ref _active);
         if (state.DriverByTagId.TryGetValue(tagId, out var driver))
         {
@@ -221,6 +234,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         Guid tagId,
         CancellationToken cancellationToken = default)
     {
+        RequireIndustrialEffectAuthority();
         var state = Volatile.Read(ref _active);
         if (!state.ServerMemoryByTagId.TryGetValue(tagId, out var memorySource))
             throw new KeyNotFoundException($"Active runtime Server Memory TAG '{tagId}' was not found.");
@@ -232,6 +246,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         Guid commandId,
         CancellationToken cancellationToken = default)
     {
+        RequireIndustrialEffectAuthority();
         var state = Volatile.Read(ref _active);
         if (!state.Commands.TryGet(commandId, out var command) || command is null)
             throw new KeyNotFoundException($"Active runtime command '{commandId}' was not found.");
@@ -414,7 +429,10 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         InternalMemoryRuntimeCompilation memoryCompilation,
         List<RuntimeActivationIssue> runtimeIssues)
     {
-        var eventGate = new RuntimeEventGate(_externalEventBus, forwardingEnabled: false);
+        var eventGate = new RuntimeEventGate(
+            _externalEventBus,
+            forwardingEnabled: false,
+            effectAuthority: _industrialEffectAuthority);
         var registry = new InMemoryTagRegistry();
         var cache = new CurrentTagCache(eventGate);
         var alarms = new InMemoryAlarmEngine(eventGate);
@@ -711,6 +729,13 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                 new TagValueChanged(tag, null, current, DateTimeOffset.UtcNow),
                 cancellationToken);
         }
+    }
+
+    private void RequireIndustrialEffectAuthority()
+    {
+        if (!_industrialEffectAuthority())
+            throw new InvalidOperationException(
+                "Industrial Runtime effects are fenced because this node is not the effective HA Active authority.");
     }
 
     public async ValueTask DisposeAsync()

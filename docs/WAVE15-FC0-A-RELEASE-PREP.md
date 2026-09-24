@@ -2,7 +2,7 @@
 
 > PREPARED ONLY. This document does not release any DEV lane. GitHub live and Main's later exact FC0-A checkpoint are authoritative.
 
-`STATE: PREPARED / NOT RELEASED / CONSOLIDATED_FC0A_CORRECTION_ACTIVE`
+`STATE: FC0A_RELEASE_APPROVED / SIX_LANES_AUTHORIZED_FOR_ACTIVATION`
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
@@ -475,3 +475,37 @@ Active closeout:
 - exact base `1ab3550e...`.
 
 No `FC0A_RELEASE_APPROVED` yet. Six prepared DEV/FND lanes remain WAIT until this stale test contract is corrected, merged and a new exact broad post-merge CI is globally green.
+
+
+## 12. Final FC0-A release checkpoint
+
+`FC0A_RELEASE_APPROVED: YES`
+
+`FC0_A_INTEGRATION_SHA: e3ed5138369c576549cb58a7aff9783792f322d3`
+
+`FC0_A_TREE: 4e7627774fbfc111344e3d80fcb9d921eed8377e`
+
+`EXACT_BROAD_CI: 36060017969 / EliteSCADA CI #1569 / SUCCESS`
+
+Broad evidence:
+- Web build SUCCESS;
+- Backend build/test SUCCESS;
+- Runtime smoke SUCCESS;
+- Chromium full suite **655 passed / 0 failed**.
+
+Mandatory audit:
+`FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
+rev 0014:
+`ACCEPTABLE / FC0A_RELEASE_APPROVED`.
+
+All six prepared lanes must branch from the exact SHA above, even if `wave15/corrections-integration` later advances by coordination-only documentation.
+
+Released lanes:
+- DEV-EDITOR;
+- DEV-SCRIPT-ENGINEERING;
+- DEV-AUTHORITY-UX;
+- DEV-LICENSING-UX;
+- FND-05 DEV;
+- FND-07 DEV.
+
+Each remains subject to its own isolated branch/PR, Main review, sequential CODEX validation and integration gates.

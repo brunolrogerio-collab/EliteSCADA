@@ -364,3 +364,33 @@ Activation is forbidden until independent audit confirms the corresponding findi
 P1-01 plan preserves FND-04 Script TAG semantics, sandbox isolation, bounded queue/coalescing and Active revision safety while replacing a permanent latch only if confirmed.
 
 P1-06 plan preserves lifecycle/Authority/FND-06 contracts while removing fictitious no-snapshot project/status state and distinguishing transport rejection from actual HTTP response only if confirmed.
+
+
+## FND-06 final freeze / FC0-A audit active
+
+FND-06 is now **VERIFIED/FROZEN**.
+
+Exact product checkpoint:
+- SHA `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`;
+- tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`;
+- broad `35953557122` / EliteSCADA CI #1565 — **SUCCESS**;
+- Web SUCCESS;
+- Backend build/test/smoke SUCCESS;
+- Chromium end-to-end SUCCESS.
+
+Main verified that divergence above the product checkpoint was coordination-doc-only before freeze.
+
+FND-06 control:
+- rev 0012;
+- commit `44c372d8316733398d25f72f3331b12022ab6594`;
+- CODEX order `FND06-CODEX-FROZEN-FINAL-08 / NO_MUTATION`.
+
+Mandatory independent post-FND06 audit is now **ACTIVE**:
+- audit `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`;
+- audit rev 0010 / `72421abee84ac09415a045b7c86d554dba7dd187`;
+- AUD lane rev 0024 / `0048a198a2c7d2ac40dd1a055c5bcc6346f30fe8`;
+- order `FC0A-AUD-ACTIVE-POST-FND06-0013`.
+
+Main preliminary P1-01 and P1-06 findings remain hypotheses until independent AUD disposition.
+
+No FC0-A DEV, FND-05 or FND-07 release yet.

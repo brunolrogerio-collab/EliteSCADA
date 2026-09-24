@@ -16,7 +16,7 @@ public sealed class RuntimeEventGate : IScadaEventBus
         Func<bool>? effectAuthority = null)
     {
         _external = external ?? throw new ArgumentNullException(nameof(external));
-        _effectAuthority = effectAuthority ?? static () => true;
+        _effectAuthority = effectAuthority ?? (() => true);
         _forwardingEnabled = forwardingEnabled ? 1 : 0;
     }
 

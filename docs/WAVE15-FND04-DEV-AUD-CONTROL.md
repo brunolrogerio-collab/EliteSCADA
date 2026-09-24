@@ -38,7 +38,7 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0034`
+`MAIN_ORDER_REV: 0035`
 
 `LAST_MAIN_UPDATE_BRT: 2026-09-24 — CODEX CONTINUES CURRENT V2 FLOW / FINAL CHECKLIST RECONCILIATION REQUIRED`
 
@@ -591,7 +591,7 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 ### CURRENT CODEX EXECUTION ORDER
 
-`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FC0A-HELP-E2E-22`
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FC0A-CANVAS-CONTRACT-23`
 
 `ORDER_STATE: ACTIVE_ROUTE`
 
@@ -607,7 +607,7 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 `NEXT_CONTROL_FILE: docs/WAVE15-FC0A-CONSOLIDATED-CORRECTION-PACKAGE.md`
 
-`EXPECTED_ORDER: FC0A-POSTMERGE-HELP-E2E-LOAD-V1`
+`EXPECTED_ORDER: FC0A-POSTMERGE-CANVAS-SOURCE-CONTRACT-V1`
 
 `WORK_BRANCH: work/w15-fc0a-consolidated-corrections`
 
@@ -986,3 +986,40 @@ On SIGA:
 9. return `FC0-A POSTMERGE HELP-E2E CODEX -> MAIN COORDINATOR — CANDIDATE HANDOFF`.
 
 No merge/freeze/release authority.
+
+
+## MAIN ROUTE — FC0-A post-merge Canvas source-contract closeout
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FC0A-CANVAS-CONTRACT-23`
+
+`EXPECTED_ORDER: FC0A-POSTMERGE-CANVAS-SOURCE-CONTRACT-V1`
+
+Authoritative control:
+- branch: `coord/w15-fnd06-control`
+- file: `docs/WAVE15-FC0A-POSTMERGE-CANVAS-SOURCE-CONTRACT-CONTROL.md`
+- control commit: `604a55b7a10e2c47408c05c3bf67e48c7663a2cb`
+
+Exact base/work:
+- base SHA: `1ab3550e1afb258e38caaa6de3f6547f481bbef7`
+- base tree: `701f4591a294885b414284691b1051cf274c9707`
+- work branch: `work/w15-fc0a-postmerge-canvas-source-contract`
+- target: `wave15/corrections-integration`
+
+Trigger:
+- exact broad CI `36049229264 / #1568`;
+- same-SHA diagnosed IEC-104 T2 rerun: Backend Test + smoke SUCCESS;
+- Chromium full suite: 654 passed / 1 failed;
+- only failure: stale source-contract string expectation for `getBuiltinVisualObjectSchema`;
+- accepted FC0-A source correctly uses frozen FND-06 `getVisualSchemaForEngineering` compatibility seam.
+
+On SIGA:
+1. read the Canvas source-contract control fully;
+2. revalidate exact branch/base;
+3. change only the stale test contract unless focused evidence proves a contradiction;
+4. require `getVisualSchemaForEngineering`, preserve common registry/property-key/no-private-default assertions, and guard against regression to direct builtin-only schema dependency;
+5. run focused Canvas source + functional owner tests and Web build;
+6. run natural exact-head T1;
+7. open/update bounded PR;
+8. return `FC0-A POSTMERGE CANVAS CONTRACT CODEX -> MAIN COORDINATOR — CANDIDATE HANDOFF`.
+
+No product feature scope. No merge/freeze/release authority.

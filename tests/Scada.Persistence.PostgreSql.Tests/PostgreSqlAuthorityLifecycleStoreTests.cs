@@ -6,6 +6,8 @@ namespace Scada.Persistence.PostgreSql.Tests;
 
 public sealed class PostgreSqlAuthorityLifecycleStoreTests
 {
+    // Must match the database-wide shared-schema DDL lock used by production initializers.
+    private const string SharedSchemaLockSql = "SELECT pg_advisory_xact_lock(4993446713136202561);";
     private static string? ConnectionString => Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
 
     [Fact]
@@ -121,6 +123,8 @@ public sealed class PostgreSqlAuthorityLifecycleStoreTests
         await using (var connection = new NpgsqlConnection(ConnectionString))
         {
             await connection.OpenAsync();
+            await using var transaction = await connection.BeginTransactionAsync();
+            await AcquireSharedSchemaLockAsync(connection, transaction);
             await using var command = new NpgsqlCommand(
                 """
                 CREATE SCHEMA IF NOT EXISTS elitescada;
@@ -138,8 +142,10 @@ public sealed class PostgreSqlAuthorityLifecycleStoreTests
                 VALUES ('007_audit_retention_query_foundation')
                 ON CONFLICT (migration_key) DO NOTHING;
                 """,
-                connection);
+                connection,
+                transaction);
             await command.ExecuteNonQueryAsync();
+            await transaction.CommitAsync();
         }
 
         await using var store = new PostgreSqlAuthorityLifecycleStore(ConnectionString);
@@ -155,6 +161,8 @@ public sealed class PostgreSqlAuthorityLifecycleStoreTests
     {
         await using var connection = new NpgsqlConnection(ConnectionString);
         await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+        await AcquireSharedSchemaLockAsync(connection, transaction);
         await using var command = new NpgsqlCommand(
             """
             CREATE SCHEMA IF NOT EXISTS elitescada;
@@ -168,7 +176,17 @@ public sealed class PostgreSqlAuthorityLifecycleStoreTests
             ON CONFLICT (state_key) DO UPDATE
                 SET state = EXCLUDED.state, epoch = EXCLUDED.epoch, updated_at_utc = clock_timestamp();
             """,
-            connection);
+            connection,
+            transaction);
+        await command.ExecuteNonQueryAsync();
+        await transaction.CommitAsync();
+    }
+
+    private static async Task AcquireSharedSchemaLockAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction)
+    {
+        await using var command = new NpgsqlCommand(SharedSchemaLockSql, connection, transaction);
         await command.ExecuteNonQueryAsync();
     }
 }

@@ -317,3 +317,30 @@ The former FND-04 independent AUD lane is now pre-routed, but not activated, for
 - next audit: `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
 AUD must independently confirm/disprove Main's preliminary P1-01 Server Script recovery blocker after activation.
+
+
+## Pre-audit finding — W15-P1-06 truthful Engineering fallback
+
+Exact source inspected at the final FND-06 product checkpoint `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`:
+
+`web/scada-web/src/engineering/EngineeringApp.tsx`
+
+Observed:
+- `snapshot` initializes as null while loading;
+- failed load sets/keeps `snapshot=null` and renders an error/retry state;
+- the sidebar project chip nevertheless renders `snapshot?.workspace.projectName ?? snapshot?.workspace.projectKey ?? 'Demo Project'`;
+- therefore an absent/unloaded public model can still be displayed as `Demo Project`;
+- no-model WorkspaceBar fallbacks can also present `unsaved` / `clean` despite no authoritative Working model.
+
+This matches the Wave14 A6 / W15-P1-06 class that required truthful loading/unavailable/error identity rather than a fictitious Working project.
+
+Preliminary disposition:
+`W15-P1-06 = PRELIMINARY BLOCKED_PRODUCT / SHARED_ENGINEERING_SHELL`
+
+This is not causal to FND-06 and does not block its freeze if broad #1565 is green. If independent audit confirms it, FC0-A remains blocked until a bounded shared-shell correction is integrated/revalidated.
+
+Audit control rev 0009:
+`888473cbf27e003d659ec3dd87de2f0f89240474`
+
+Evidence matrix:
+`a5260ca309742894ee48e8cce17d9175d67cda08`.

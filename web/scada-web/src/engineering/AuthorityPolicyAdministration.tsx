@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { EngineeringLocale } from './i18n';
 import {
+  capabilityDescriptor,
+  nextRoleKey,
+  userGrantPreview
+} from './AuthorityPolicyAdministration.logic';
+import {
   AdministrationHttpError,
   SECURITY_CAPABILITIES,
   authorityPolicyAdministrationApi,
@@ -253,25 +258,6 @@ const policyStrings: Record<EngineeringLocale, PolicyStrings> = {
     }
   }
 };
-
-const capabilityByValue = new Map(
-  SECURITY_CAPABILITIES.map(capability => [capability.value, capability] as const)
-);
-const capabilityById = new Map(
-  SECURITY_CAPABILITIES.map(capability => [capability.id.toLowerCase(), capability] as const)
-);
-
-function capabilityDescriptor(value: number | string) {
-  if (typeof value === 'number') return capabilityByValue.get(value);
-  const numeric = Number(value);
-  if (Number.isInteger(numeric) && String(numeric) === value.trim()) return capabilityByValue.get(numeric);
-  return capabilityById.get(value.toLowerCase());
-}
-
-export function capabilityKey(value: number | string) {
-  const descriptor = capabilityDescriptor(value);
-  return descriptor?.id ?? String(value);
-}
 
 function clonePolicy(policy: AuthorityPolicyDocument): AuthorityPolicyDocument {
   return structuredClone(policy);

@@ -11,6 +11,7 @@ import type {
 import {
   BUILTIN_VISUAL_OBJECT_TYPES,
   getBuiltinVisualObjectSchema,
+  getVisualSchemaForEngineering,
   supportsAnalogFill,
   VISUAL_PROPERTY_KEYS,
   type VisualObjectPropertySchema
@@ -250,7 +251,7 @@ function moveVisualObjects(
   let next = screen;
   for (const objectId of ids) {
     next = updateScreenElement(next, objectId, element => {
-      const schema = getBuiltinVisualObjectSchema(element.type);
+      const schema = getVisualSchemaForEngineering(element.type);
       return withValidatedProperties(element, schema, {
         [VISUAL_PROPERTY_KEYS.x]: effectiveNumericProperty(element, schema, VISUAL_PROPERTY_KEYS.x) + delta.x,
         [VISUAL_PROPERTY_KEYS.y]: effectiveNumericProperty(element, schema, VISUAL_PROPERTY_KEYS.y) + delta.y
@@ -268,7 +269,7 @@ function resizeVisualObject(
   assertFiniteBounds(bounds);
   requireVisualElement(screen, objectId);
   return updateScreenElement(screen, objectId, element => {
-    const schema = getBuiltinVisualObjectSchema(element.type);
+    const schema = getVisualSchemaForEngineering(element.type);
     return withValidatedProperties(element, schema, {
       [VISUAL_PROPERTY_KEYS.x]: bounds.x,
       [VISUAL_PROPERTY_KEYS.y]: bounds.y,
@@ -288,7 +289,7 @@ function rotateVisualObjects(
   let next = screen;
   for (const objectId of ids) {
     next = updateScreenElement(next, objectId, element => {
-      const schema = getBuiltinVisualObjectSchema(element.type);
+      const schema = getVisualSchemaForEngineering(element.type);
       return withValidatedProperty(
         element,
         schema,
@@ -336,7 +337,7 @@ function changeVisualObjectZOrder(
   let next = screen;
   for (const objectId of ids) {
     const current = requireVisualElement(next, objectId);
-    const schema = getBuiltinVisualObjectSchema(current.type);
+    const schema = getVisualSchemaForEngineering(current.type);
     const currentZ = effectiveNumericProperty(current, schema, VISUAL_PROPERTY_KEYS.zIndex);
     const siblingElements = findSiblingElements(next.elements ?? [], objectId);
     if (!siblingElements) throw new Error(`Visual object '${objectId}' has no canonical sibling container.`);
@@ -346,7 +347,7 @@ function changeVisualObjectZOrder(
     const nextZ = zOrderValue(currentZ, minimum, maximum, operation);
     next = updateScreenElement(next, objectId, element => withValidatedProperty(
       element,
-      getBuiltinVisualObjectSchema(element.type),
+      getVisualSchemaForEngineering(element.type),
       VISUAL_PROPERTY_KEYS.zIndex,
       nextZ
     ));
@@ -370,7 +371,7 @@ function setVisualProperty(
   for (const objectId of ids) {
     next = updateScreenElement(next, objectId, element => withValidatedProperty(
       element,
-      getBuiltinVisualObjectSchema(element.type),
+      getVisualSchemaForEngineering(element.type),
       propertyKey,
       value
     ));
@@ -386,7 +387,7 @@ function removeVisualProperty(
   const ids = requireVisualElements(screen, objectIds);
   for (const objectId of ids) {
     const element = requireVisualElement(screen, objectId);
-    const schema = getBuiltinVisualObjectSchema(element.type);
+    const schema = getVisualSchemaForEngineering(element.type);
     const definition = schema.getRequired(propertyKey);
     if (!definition.engineeringEditable) {
       throw new Error(`Visual property '${propertyKey}' is not Engineering-editable for '${element.type}'.`);
@@ -527,7 +528,7 @@ function removeVisualAnalogFill(screen: ScreenEngineering, objectId: string): Sc
 }
 
 function validateDynamicDestinationProperty(element: VisualElementEngineering, propertyKey: string): 'Boolean' | 'Number' {
-  const schema = getBuiltinVisualObjectSchema(element.type);
+  const schema = getVisualSchemaForEngineering(element.type);
   const definition = schema.getRequired(propertyKey);
   if (!definition.engineeringEditable) {
     throw new Error(`Visual property '${propertyKey}' is not Engineering-editable for '${element.type}'.`);
@@ -556,7 +557,7 @@ function validateEditableProperty(
   propertyKey: string,
   value: VisualEngineeringPropertyValue
 ): void {
-  const schema = getBuiltinVisualObjectSchema(element.type);
+  const schema = getVisualSchemaForEngineering(element.type);
   const definition = schema.getRequired(propertyKey);
   if (!definition.engineeringEditable) {
     throw new Error(`Visual property '${propertyKey}' is not Engineering-editable for '${element.type}'.`);
@@ -568,7 +569,7 @@ function validateEditableProperty(
 }
 
 function validateBindingDestination(element: VisualElementEngineering, propertyKey: string): void {
-  const schema = getBuiltinVisualObjectSchema(element.type);
+  const schema = getVisualSchemaForEngineering(element.type);
   const definition = schema.getRequired(propertyKey);
   if (!definition.supportsBinding) {
     throw new Error(`Visual property '${propertyKey}' does not support canonical binding.`);
@@ -629,7 +630,7 @@ function effectiveSiblingZIndex(element: VisualElementEngineering): number {
     const legacy = element.properties?.[VISUAL_PROPERTY_KEYS.zIndex];
     return typeof legacy === 'number' && Number.isFinite(legacy) ? legacy : 0;
   }
-  const schema = getBuiltinVisualObjectSchema(element.type);
+  const schema = getVisualSchemaForEngineering(element.type);
   return effectiveNumericProperty(element, schema, VISUAL_PROPERTY_KEYS.zIndex);
 }
 

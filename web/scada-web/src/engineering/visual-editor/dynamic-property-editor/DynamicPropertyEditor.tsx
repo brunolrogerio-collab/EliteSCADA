@@ -56,10 +56,27 @@ const EMPTY_EXPRESSION: ExpressionDraft = Object.freeze({ text: '', dependencies
  */
 export function DynamicPropertyEditor(props: DynamicPropertyEditorProps) {
   const { element } = props;
-  const destinations = useMemo(() => listDynamicPropertyDestinations(element), [element.type]);
+  const destinationResult = useMemo(() => {
+    try {
+      return { destinations: listDynamicPropertyDestinations(element), error: null } as const;
+    } catch (cause) {
+      return {
+        destinations: Object.freeze([]) as readonly DynamicPropertyDestination[],
+        error: cause instanceof Error ? cause.message : String(cause)
+      } as const;
+    }
+  }, [element]);
+  const destinations = destinationResult.destinations;
   const [propertyKey, setPropertyKey] = useState(() => destinations[0]?.propertyKey ?? '');
   const destination = destinations.find(item => item.propertyKey === propertyKey) ?? destinations[0] ?? null;
   const [mode, setMode] = useState<DynamicPropertySourceMode>(() => destination ? effectiveMode(element, destination.propertyKey) : 'Constant');
+
+  if (destinationResult.error) {
+    return <section className="dynamic-property-editor" data-testid="visual-dynamic-property-editor">
+      <header><strong>Dynamic source</strong><span>Unavailable for unsupported visual type.</span></header>
+      <p role="alert">{destinationResult.error}</p>
+    </section>;
+  }
 
   if (!destination) {
     return <section className="dynamic-property-editor" data-testid="visual-dynamic-property-editor">

@@ -4,6 +4,7 @@ export * from './visualEngineeringProjection';
 export * from './visualEngineeringPropertyCodec';
 export * from './legacyVisualEngineeringPropertyCodec';
 export * from './builtinVisualObjectSchemas';
+export * from './legacyVisualCompatibility';
 export * from './runtimeVisualInstance';
 export * from './runtimeVisualTween';
 export * from './visualPythonPropertyCapabilityProvider';

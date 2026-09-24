@@ -547,3 +547,22 @@ Normal pattern:
 - FND-05 receives the strongest concurrency/fencing validation.
 
 This control prepares coordination only. It does not supersede the active FC0-A consolidated CODEX order.
+
+
+## 13. Dedicated chat control files
+
+Feature DEV chats should use these dedicated controls:
+
+- DEV-EDITOR -> `docs/WAVE15-DEV-EDITOR-CONTROL.md`
+- DEV-SCRIPT-ENGINEERING -> `docs/WAVE15-DEV-SCRIPT-ENGINEERING-CONTROL.md`
+- DEV-AUTHORITY-UX -> `docs/WAVE15-DEV-AUTHORITY-UX-CONTROL.md`
+- DEV-LICENSING-UX -> `docs/WAVE15-DEV-LICENSING-UX-CONTROL.md`
+
+Foundation chats use their dedicated existing controls:
+
+- FND-05 DEV -> `coord/w15-fnd05-control:docs/WAVE15-FND05-CONTROL.md`
+- FND-07 DEV -> `coord/w15-fnd07-control:docs/WAVE15-FND07-CONTROL.md`
+
+A future bootstrap prompt should point the chat to its dedicated control first and to this cross-lane control second.
+
+While the lane is PREPARED/WAIT, the chat may initialize, read GitHub live and understand the mission, but must not create/mutate the product branch until Main activates it with an exact base SHA/tree.

@@ -278,3 +278,28 @@ Required strategy: temporarily update existing canonical Screen/Popup identities
 
 INFRA-CI-01B is merged/Main-accepted and requires no further mutation.
 FC0-A audit remains PREPARED / blocked.
+
+
+## Pre-audit finding — W15-P1-01 Server Script recovery
+
+While preparing the mandatory post-FND06 FC0-A audit, Main revalidated the current Server Script runtime against the final Wave 14 backlog contract.
+
+Current source still shows:
+- `ScriptRuntimeExecutionCoordinator.ProcessNextAsync` returns `Throttled` while diagnostics `IsThrottled` is true;
+- the only coordinator exit is explicit `ResetThrottle()`;
+- repository search found no production automatic Server Script caller of `ResetThrottle()`;
+- existing tests prove timeout -> throttled behavior, not bounded cooldown/half-open/probe recovery.
+
+Wave 14/W15-P1-01 explicitly required bounded automatic recovery and rejected a permanent silent throttle latch.
+
+Preliminary disposition:
+`W15-P1-01 = PRELIMINARY BLOCKED_FOUNDATION`
+
+This finding is independent of FND-06 and does not prevent FND-06 from becoming VERIFIED/FROZEN if exact broad CI #1565 is green. It **does** prevent immediate FC0-A release if the independent audit confirms it.
+
+Audit evidence:
+- `coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-EVIDENCE.md`
+- preliminary matrix commit `3483faf3aab4940791807b07b4453865629d9077`
+- audit control rev 0008 / commit `18a0fcda2b354779cdf0f1ba4d829a838714b3d2`.
+
+DEV-SCRIPT-ENGINEERING may not absorb this runtime/Foundation correction silently.

@@ -492,3 +492,26 @@ FND control refreshes:
 - FND-07 hold metadata + Lock/detach acceptance guard: `d0aba9e375a8330b7720b32f4defcdabf0ec12ae`.
 
 No product code, product branch or release state was changed by this audit pass.
+
+
+## Main decision — consolidated FC0-A correction package (2026-09-24)
+
+Product Owner requested that all known FC0-A findings be corrected now where safely possible, with one larger CODEX delivery before the next Main review.
+
+Active order:
+- `FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V2`
+- control: `coord/w15-fnd06-control:docs/WAVE15-FC0A-CONSOLIDATED-CORRECTION-PACKAGE.md`
+- control commit: `0ab4a2f9226a1f3710aa516dff9534d880023218`
+- branch: `work/w15-fc0a-consolidated-corrections`
+- exact base: `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
+- exact base tree: `674019fbbc21001a2d68deb853c2c0b293e0a5cb`
+- one consolidated PR only after the package is complete and exact-head validation is green.
+
+The former P1-01-only order/branch is superseded unused; it was identical to base with no PR at supersession.
+
+The package includes the two mandatory blockers plus confirmed shared/downstream residuals that can be safely brought forward: shell responsiveness, account keyboard regression, Engineering scroll composition, Engineering Lock density, Trends/live-value freshness observability, contextual Help routing, canonical viewOnly wording, frozen FND-06 compatibility consumption in Editor/Script Assistant, structured Script API Help/representative recipe, Runtime Session/Licensing requested/granted UX, and Template/Equipment/Library inspection.
+
+Evidence-bounded/speculative items and future Foundations remain outside the package. Frozen FND-01/02/03/04/06/08 semantics may not be redefined.
+
+Sequential CODEX route updated to rev 0027 / commit `93d79a773d7571677a9f43e6f3a80ad21aa25612`.
+No intermediate Main review is required; CODEX returns one final candidate handoff unless a real contract/base/environment blocker prevents safe completion.

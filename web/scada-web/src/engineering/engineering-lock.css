@@ -144,6 +144,41 @@
 .eng-lock-management {
   width: min(1440px, calc(100% - 32px));
   margin: 18px auto 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.eng-lock-management__summary {
+  min-height: 48px;
+  padding: 10px 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 12px;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+}
+
+.eng-lock-management__summary::-webkit-details-marker {
+  display: none;
+}
+
+.eng-lock-management__summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  color: var(--text-muted, #aeb8c5);
+  transform: rotate(45deg) translateY(-2px);
+}
+
+.eng-lock-management[open] .eng-lock-management__summary::after {
+  transform: rotate(225deg) translateY(-2px);
+}
+
+.eng-lock-management__body {
+  border-top: 1px solid var(--border-color, rgba(127, 127, 127, 0.28));
   padding: 14px 16px;
   display: grid;
   grid-template-columns: minmax(180px, 0.8fr) minmax(420px, 2fr) auto;
@@ -184,6 +219,10 @@
   }
 
   .eng-lock-management {
+    width: min(100% - 20px, 1440px);
+  }
+
+  .eng-lock-management__body {
     grid-template-columns: 1fr;
   }
 

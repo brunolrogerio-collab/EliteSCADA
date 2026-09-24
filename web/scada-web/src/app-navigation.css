@@ -28,6 +28,43 @@
 .runtime-view-navigation a { padding: 6px 11px; border: 1px solid transparent; border-radius: 6px; color: #93a2af; font-size: 12px; font-weight: 650; text-decoration: none; }
 .runtime-view-navigation a:hover, .runtime-view-navigation a:focus-visible { color: #e7edf3; border-color: #304252; outline: none; }
 .runtime-view-navigation a.active { color: #eef6fb; border-color: #3c5b70; background: #16232d; }
+@media (max-width: 1180px) {
+  .app-bar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .app-brand-copy,
+  .app-navigation a small,
+  .app-context {
+    display: none;
+  }
+
+  .app-navigation {
+    min-width: 0;
+    justify-content: flex-end;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .app-navigation a {
+    min-width: 0;
+    padding-inline: 10px;
+    white-space: nowrap;
+  }
+
+  .app-shell-actions {
+    gap: 6px;
+    padding-inline: 6px;
+  }
+
+  .user-session-menu__trigger {
+    min-width: 0;
+  }
+
+  .user-session-menu__trigger-copy {
+    display: none;
+  }
+}
 @media (max-width: 900px) { .app-context { display: none; } .app-bar { grid-template-columns: auto 1fr auto; } }
 @media (max-width: 760px) {
   .app-bar { grid-template-columns: auto 1fr auto; }

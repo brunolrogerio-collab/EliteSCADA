@@ -171,35 +171,37 @@ function EngineeringLockManagement({ locale, copy, status, onStatus }: {
   }
 
   return (
-    <section className="eng-lock-management" data-testid="engineering-lock-management" aria-label={copy.managementTitle}>
-      <div className="eng-lock-management__summary">
+    <details className="eng-lock-management" data-testid="engineering-lock-management" open={!status.configured}>
+      <summary className="eng-lock-management__summary" aria-label={copy.managementTitle}>
         <span>{copy.managementEyebrow}</span>
         <strong>{copy.managementTitle}</strong>
         <small>{status.configured ? copy.configured : copy.notConfigured} · {copy.unlocked}</small>
+      </summary>
+      <div className="eng-lock-management__body">
+        <div className="eng-lock-management__configure">
+          <label>
+            <span>{status.configured ? copy.replaceSecret : copy.newSecret}</span>
+            <input
+              data-testid="engineering-lock-configure-secret"
+              type="password"
+              autoComplete="new-password"
+              value={secret}
+              onChange={event => setSecret(event.target.value)}
+              disabled={Boolean(busy)}
+            />
+          </label>
+          <button type="button" disabled={Boolean(busy) || !secret} onClick={() => void perform('configure', () => configureEngineeringLock(secret, false), copy.configuredNotice)}>{copy.configure}</button>
+          <button type="button" disabled={Boolean(busy) || !secret} onClick={() => void perform('configure-lock', () => configureEngineeringLock(secret, true), copy.lockedNotice)}>{copy.configureAndLock}</button>
+        </div>
+        <div className="eng-lock-management__actions">
+          <button type="button" disabled={Boolean(busy) || !status.configured} onClick={() => void perform('lock', lockEngineering, copy.lockedNotice)}>{copy.lockNow}</button>
+          <button type="button" disabled={Boolean(busy) || !status.configured} onClick={() => void perform('clear', clearEngineeringLock, copy.clearedNotice)}>{copy.clear}</button>
+        </div>
+        <p className="eng-lock-management__hint">{copy.lifecycleHint}</p>
       </div>
-      <div className="eng-lock-management__configure">
-        <label>
-          <span>{status.configured ? copy.replaceSecret : copy.newSecret}</span>
-          <input
-            data-testid="engineering-lock-configure-secret"
-            type="password"
-            autoComplete="new-password"
-            value={secret}
-            onChange={event => setSecret(event.target.value)}
-            disabled={Boolean(busy)}
-          />
-        </label>
-        <button type="button" disabled={Boolean(busy) || !secret} onClick={() => void perform('configure', () => configureEngineeringLock(secret, false), copy.configuredNotice)}>{copy.configure}</button>
-        <button type="button" disabled={Boolean(busy) || !secret} onClick={() => void perform('configure-lock', () => configureEngineeringLock(secret, true), copy.lockedNotice)}>{copy.configureAndLock}</button>
-      </div>
-      <div className="eng-lock-management__actions">
-        <button type="button" disabled={Boolean(busy) || !status.configured} onClick={() => void perform('lock', lockEngineering, copy.lockedNotice)}>{copy.lockNow}</button>
-        <button type="button" disabled={Boolean(busy) || !status.configured} onClick={() => void perform('clear', clearEngineeringLock, copy.clearedNotice)}>{copy.clear}</button>
-      </div>
-      <p className="eng-lock-management__hint">{copy.lifecycleHint}</p>
       {notice && <p className="eng-lock-notice" role="status">{notice}</p>}
       {error && <p className="eng-lock-error" role="alert">{error}</p>}
-    </section>
+    </details>
   );
 }
 

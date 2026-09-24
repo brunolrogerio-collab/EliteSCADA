@@ -109,11 +109,7 @@ export function EngineeringApp() {
 
   const selectSection = (next: SectionId) => {
     setSection(next);
-    const nextPath = next === 'tagMonitor'
-      ? tagMonitorPath
-      : next === 'libraries'
-        ? librariesPath
-        : '/engineering';
+    const nextPath = engineeringSectionPath(next);
     if (window.location.pathname !== nextPath) window.history.replaceState(null, '', nextPath);
   };
 
@@ -366,7 +362,17 @@ function NavIcon({ section }: { section: SectionId }) {
 }
 
 function resolveInitialSection(): SectionId {
-  if (window.location.pathname.startsWith(tagMonitorPath)) return 'tagMonitor';
-  if (window.location.pathname.startsWith(librariesPath)) return 'libraries';
+  const path = window.location.pathname;
+  if (path.startsWith(tagMonitorPath)) return 'tagMonitor';
+  if (path.startsWith(librariesPath)) return 'libraries';
+  const section = path.split('/')[2] as SectionId | undefined;
+  if (section && navigation.some(group => group.items.some(item => item.id === section))) return section;
   return 'overview';
+}
+
+function engineeringSectionPath(section: SectionId): string {
+  if (section === 'overview') return '/engineering';
+  if (section === 'tagMonitor') return tagMonitorPath;
+  if (section === 'libraries') return librariesPath;
+  return `/engineering/${section}`;
 }

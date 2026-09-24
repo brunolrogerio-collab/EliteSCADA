@@ -4,9 +4,9 @@
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`MAIN_ORDER_REV: 0006`
+`MAIN_ORDER_REV: 0007`
 
-`STATE: INTEGRATED / POST_MERGE_CI_PENDING`
+`STATE: INTEGRATED / FREEZE_BLOCKED_GENERIC_INFRA_CI_01B`
 
 `EXECUTOR_LANE: SAME SEQUENTIAL CODEX EXECUTOR USED IN PRIOR FOUNDATION WORK INCLUDING FND-04`
 
@@ -216,27 +216,36 @@ Forbidden without new Main order:
 
 ## 7. CURRENT EXECUTOR ORDER
 
-`ORDER_ID: FND06-CODEX-WAIT-POSTMERGE-V4`
+`ORDER_ID: FND06-CODEX-ROUTE-INFRA-CI-01B-V5`
 
-`ORDER_STATE: WAIT_POST_MERGE_GATE`
+`ORDER_STATE: ACTIVE_ROUTE`
 
-`EXECUTOR_MODE: NO_MUTATION`
+`EXECUTOR_MODE: SAME_SEQUENTIAL_CODEX / GENERIC_INFRA_BLOCKER_CLOSEOUT`
 
-`MERGE_SHA: 624f2eca456310a2c6156538b3616a06e3be075f`
+`FND06_PRODUCT_MERGE_SHA: 624f2eca456310a2c6156538b3616a06e3be075f`
 
-`MERGE_TREE: fb864fb954b0123e69db379cd6b3120349b43600`
+`FAILED_POST_MERGE_CI_RUN: 35940661531`
 
-`POST_MERGE_CI_RUN: 35940661531 / EliteSCADA CI #1563`
+`INFRA_CONTROL_BRANCH: coord/w15-infra-ci-01b-control`
 
-`EXECUTOR_IDENTITY: SAME_SEQUENTIAL_CODEX_FROM_PRIOR_FOUNDATION/FND-04`
+`INFRA_CONTROL_FILE: docs/WAVE15-INFRA-CI-01B-CONTROL.md`
+
+`EXPECTED_INFRA_ORDER: INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V1`
 
 Instruction:
 
-> FND-06 PR #337 has been merged on exact SHA `624f2eca456310a2c6156538b3616a06e3be075f`.
-> Do not mutate product/tests, rebase, retarget, rerun or create follow-up work while the exact natural post-merge CI run `35940661531` is pending.
-> On `SIGA`, revalidate GitHub live and report only the exact post-merge gate state unless Main has issued a newer order.
+> FND-06 product work is merged and Main review accepted its visual/mounted evidence. Its freeze is blocked only because the exact broad post-merge CI exposed a generic PostgreSQL schema-initialization race that is non-causal to the FND-06 delta.
+>
+> This same sequential CODEX lane is now assigned to bounded `INFRA-CI-01B`.
+> On `SIGA`, read `coord/w15-infra-ci-01b-control:docs/WAVE15-INFRA-CI-01B-CONTROL.md` in full and execute its current ACTIVE order.
+>
+> Do not mutate FND-06 visual code unless a newer Main order explicitly reopens it.
 
-FND-06 is not yet VERIFIED/FROZEN. Main will freeze it only after the exact post-merge CI is green.
+Classification:
+- FND-06 product candidate/merge: Main-accepted;
+- FND-06 freeze: HOLD;
+- blocker: `GENERIC_INFRASTRUCTURE_BLOCKER / NOT_FND06_CAUSAL`;
+- no blind CI rerun authorized.
 
 ## 8. FC0-A effect — FND-06 is necessary but no longer sufficient
 

@@ -249,3 +249,19 @@
 .property-inspector__state--mixed {
   font-weight: 600;
 }
+
+/* W15 dense docked inspector. */
+.property-inspector { gap: 0.45rem; min-width: 0; max-width: none; padding: 0.5rem; }
+.property-inspector__header { position: sticky; top: -0.5rem; z-index: 2; margin: -0.5rem -0.5rem 0; padding: 0.5rem; border-bottom: 1px solid var(--border-color,#e5e9ef); background: var(--panel-background,#fff); }
+.property-inspector__filter { display: grid; gap: 0.2rem; font-size: 0.7rem; }
+.property-inspector__filter span { opacity: 0.72; }
+.property-inspector__filter input { min-width: 0; width: 100%; box-sizing: border-box; min-height: 30px; padding: 0.25rem 0.4rem; border: 1px solid var(--border-color,#c7ced8); border-radius: 0.35rem; background: inherit; color: inherit; }
+.property-inspector__group { display: block; border: 1px solid var(--border-color,#e5e9ef); border-radius: 0.4rem; overflow: hidden; }
+.property-inspector__group-toggle { display: flex; width: 100%; min-height: 30px; align-items: center; justify-content: space-between; gap: 0.4rem; padding: 0.3rem 0.45rem; border: 0; background: var(--surface-muted,#f8fafc); color: inherit; cursor: pointer; text-align: left; font: inherit; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.045em; }
+.property-inspector__group-toggle small { min-width: 1.2rem; text-align: center; opacity: 0.65; }
+.property-inspector__group-fields { display: grid; gap: 0.4rem; padding: 0.4rem; }
+.property-inspector__field { gap: 0.25rem; padding-bottom: 0.4rem; }
+.property-inspector__field-heading { gap: 0.3rem; }
+.property-inspector__field-label code { font-size: 0.61rem; }
+.property-inspector__field input[type='text'], .property-inspector__field input[type='number'], .property-inspector__field select { min-height: 30px; padding: 0.25rem 0.4rem; }
+.property-inspector__field-meta, .property-inspector__state { font-size: 0.66rem; }

@@ -2,8 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   applyEngineeringPackage,
   loadEngineeringWorkspace,
-  previewEngineeringPackage,
-  visualAssetContentUrl
+  previewEngineeringPackage
 } from '../api';
 import type { EngineeringLocale } from '../i18n';
 import {
@@ -42,7 +41,6 @@ import {
 import { popupEditorText } from './popupVisualEditorText';
 import { createCanonicalPolygon, updateCanonicalPolygonPoints } from './polygonCanonicalMutations';
 import { PropertyInspector } from './property-inspector';
-import { resolveVisualDefinitionSurfaceStyle } from './visualDefinitionSurfaceModel';
 import {
   applyVisualEditorMutationIntent,
   cloneEngineeringValue,
@@ -420,7 +418,6 @@ function PopupVisualEditorWorkspaceBody({
               locale={locale}
               dynamoDefinitions={snapshot.package.dynamos}
               emptyLabel={text.emptyCanvas}
-              canonicalSurfaceStyle={resolveVisualDefinitionSurfaceStyle(draftPopup.properties, visualAssetContentUrl)}
               logicalBoundary={{
                 width: popupBounds.width,
                 height: popupBounds.height,

@@ -74,7 +74,6 @@ export type VisualEditorCanvasProps = VisualEditorCanvasContractProps & Readonly
   locale?: EngineeringLocale;
   dynamoDefinitions?: readonly DynamoEngineering[] | null;
   emptyLabel?: string;
-  canonicalSurfaceStyle?: CSSProperties;
 }>;
 
 export function VisualEditorCanvas({
@@ -88,8 +87,7 @@ export function VisualEditorCanvas({
   logicalBoundary,
   locale = 'pt-BR',
   dynamoDefinitions,
-  emptyLabel,
-  canonicalSurfaceStyle
+  emptyLabel
 }: VisualEditorCanvasProps) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const [gridEnabled, setGridEnabled] = useState(true);
@@ -364,7 +362,6 @@ export function VisualEditorCanvas({
     '--visual-editor-grid-pan-x': `${effectiveViewport.panX}px`, '--visual-editor-grid-pan-y': `${effectiveViewport.panY}px`
   } as CSSProperties;
   const canonicalLayerStyle = {
-    ...canonicalSurfaceStyle,
     width: logicalBoundary?.width ?? CANVAS_CONTENT_WIDTH,
     height: logicalBoundary?.height ?? CANVAS_CONTENT_HEIGHT
   } satisfies CSSProperties;
@@ -462,6 +459,7 @@ export function VisualEditorCanvas({
           className={`visual-editor-canvas__canonical-layer${logicalBoundary ? ' is-bounded' : ''}`}
           style={canonicalLayerStyle}
           aria-hidden="true"
+          inert
           data-testid="visual-editor-canonical-layer"
         >
           <CanonicalVisualRenderer

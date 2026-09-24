@@ -38,9 +38,9 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0038`
+`MAIN_ORDER_REV: 0039`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-24 — SCRIPT CODEX REMAINS ACTIVE / INFRA-CI-01D THEN EDITOR PLANNED ONLY`
+`LAST_MAIN_UPDATE_BRT: 2026-09-24 — SCRIPT CODEX REMAINS ACTIVE / WAITING QUEUE REFRESHED / NO REROUTE`
 
 `GLOBAL_GATE: FND04_VERIFIED_FROZEN`
 
@@ -1091,3 +1091,28 @@ Why 01D is planned before Editor:
 Main may still reassess later priority if a more urgent blocker appears before activation.
 
 No executor may create the 01D work branch or switch away from Script based on this planned queue section.
+
+
+## MAIN ROUTE STATUS — replacement coordinator queue refresh
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-SCRIPT-ENGINEERING-25`
+
+`ORDER_STATE: ACTIVE_VALIDATION`
+
+This is still the binding executor mission. No later queue entry in this section supersedes it.
+
+Live accepted/prepared waiting work after replacement-Main review:
+- INFRA-CI-01D — `PREPARED / NO_MUTATION`;
+- Editor PR #349 — Main-accepted head `06eed31d99ddb34d99e0287e96e38bed3bf7dab5`;
+- Licensing PR #345 — Main-accepted corrected head `f5d3212b9c114d3ad6e2239460172db0b3d568f8`, T1 `36071779912` SUCCESS;
+- FND-05 PR #347 — Main-accepted corrected head `be9cf0f3f02aa1ba49cdb6b589abd5e1e723c845`, T1 `36072325579` SUCCESS, mandatory `CODEX_HA_ADVERSARIAL_GREEN`.
+
+Authority PR #346 and FND-07 PR #348 are not CODEX-ready.
+
+When Script Engineering returns:
+1. stop and return its exact validation handoff to Main;
+2. do not self-select any waiting mission;
+3. Main revalidates integration/candidate heads and publishes one new explicit route;
+4. only that new route changes executor mission.
+
+The earlier planning preference for INFRA-CI-01D then Editor is not a standing authorization and may be reassessed against the now-ready Licensing/FND-05 candidates after Script resolves.

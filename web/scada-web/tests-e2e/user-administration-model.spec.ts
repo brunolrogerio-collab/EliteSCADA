@@ -10,7 +10,7 @@ import {
   capabilityKey,
   nextRoleKey,
   userGrantPreview
-} from '../src/engineering/AuthorityPolicyAdministration';
+} from '../src/engineering/AuthorityPolicyAdministration.logic';
 import type {
   AuthorityPolicyDocument,
   AuthorityRole,

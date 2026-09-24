@@ -1,6 +1,6 @@
 # EliteSCADA Roadmap — Wave 15
 
-**Status date:** 2026-09-16 (BRT)  
+**Status date:** 2026-09-24 (BRT)  
 **Active direction:** **WAVE 15 FOUNDATION-FIRST COMPLETE PRODUCT DELIVERY**  
 **Integration:** `wave15/corrections-integration`  
 **Global issue:** #297  
@@ -13,6 +13,29 @@ Mutable operational snapshot: root `LAST CHANGE.md`.
 Generic coordinator rotation prompt: `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`.
 
 > GitHub live always wins for exact branch/SHA/PR/CI state. Historical Wave 14 documents remain evidence, not current sequencing authority. While Wave 15 is active, `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` is a live operational document, not a historical snapshot.
+
+## Live current gate — 2026-09-24
+
+This section supersedes older execution-status prose below when describing the **current** Wave 15 gate. Historical slice descriptions remain useful as execution record but are not current authorization.
+
+- FND-01 — **VERIFIED/FROZEN**.
+- FND-02 incl. AUTH-04 — **VERIFIED/FROZEN**.
+- FND-03 — **VERIFIED/FROZEN**.
+- FND-04 — **VERIFIED/FROZEN**.
+- FND-06 — **VERIFIED/FROZEN** at `560ac9d80cc7e854f2513559dc6afb28cfb4aee3` / tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`.
+- FND-08 — **VERIFIED/FROZEN**.
+- FND-05 — **PREPARED / HOLD**.
+- FND-07 — **PREPARED / HOLD**.
+- post-FND06 FC0-A audit — **CHANGES_REQUIRED**.
+- second deep pass — **NO NEW PRE-FC0A BLOCKER IDENTIFIED**.
+- third targeted gap pass — **NO NEW PRE-FC0A BLOCKER IDENTIFIED**.
+- confirmed pre-FC0A blockers remain **W15-P1-01** and **W15-P1-06**.
+- active correction: `FC0A-BLOCKER-P101-SERVER-SCRIPT-RECOVERY-V1` on `work/w15-fc0a-p101-server-script-recovery`; at latest revalidation the branch is identical to the exact frozen product base and has no PR.
+- P1-06 remains queued separately.
+- all four FC0-A DEV lanes plus FND-05/FND-07 remain **HOLD** until both blockers close and Main reruns the affected audit rows.
+
+Authoritative third-pass report:
+`coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-THIRD-PASS.md`.
 
 ## Product objective
 

@@ -73,10 +73,11 @@ test('C26.8 mounted Screen editor exposes truthful controls and completes basic 
     await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: screenKey }).click();
 
     const toolbar = page.getByTestId('visual-editor-authoring-toolbar');
-    const canvasToolbar = page.getByRole('toolbar', { name: 'Canvas controls' });
     const canvas = page.getByTestId('visual-editor-canvas');
+    const canvasToolbar = canvas.getByRole('toolbar', { name: 'Controles do canvas' });
     const canvasSurface = canvas.locator('.visual-editor-canvas__surface');
     const viewport = canvas.locator('.visual-editor-canvas__viewport');
+    const canonicalLayer = canvas.getByTestId('visual-editor-canonical-layer');
     const outliner = page.getByTestId('visual-editor-outliner');
     const inspector = page.getByTestId('visual-property-inspector');
     const undo = toolbar.getByRole('button', { name: 'Desfazer', exact: true });
@@ -84,6 +85,8 @@ test('C26.8 mounted Screen editor exposes truthful controls and completes basic 
     const copy = toolbar.getByRole('button', { name: 'Copiar', exact: true });
     const paste = toolbar.getByRole('button', { name: 'Colar', exact: true });
 
+    await expect(canvas).toHaveAttribute('data-renderer', 'canonical-single-surface');
+    await expect(canonicalLayer).toBeVisible();
     await expect(undo).toBeDisabled();
     await expect(redo).toBeDisabled();
     await expect(copy).toBeDisabled();
@@ -101,15 +104,15 @@ test('C26.8 mounted Screen editor exposes truthful controls and completes basic 
     await expect(snap).toHaveAttribute('aria-pressed', 'false');
 
     await expect(canvas.locator('.visual-editor-canvas__status')).toContainText('100%');
-    await canvasToolbar.getByRole('button', { name: 'Zoom in' }).click();
+    await canvasToolbar.getByRole('button', { name: 'Aumentar zoom' }).click();
     await expect(canvas.locator('.visual-editor-canvas__status')).toContainText('120%');
-    await canvasToolbar.getByRole('button', { name: 'Reset viewport' }).click();
+    await canvasToolbar.getByRole('button', { name: 'Restaurar visualização' }).click();
     await expect(canvas.locator('.visual-editor-canvas__status')).toContainText('100%');
     const transformBeforePan = await viewport.evaluate(element => (element as HTMLElement).style.transform);
     await canvasSurface.dispatchEvent('wheel', { deltaX: 24, deltaY: 16 });
     await expect.poll(() => viewport.evaluate(element => (element as HTMLElement).style.transform))
       .not.toBe(transformBeforePan);
-    await canvasToolbar.getByRole('button', { name: 'Reset viewport' }).click();
+    await canvasToolbar.getByRole('button', { name: 'Restaurar visualização' }).click();
 
     const rectangleA = canvasObject(page, rectangleAId);
     await outlinerEntry(outliner, rectangleAKey).click();
@@ -160,7 +163,7 @@ test('C26.8 mounted Screen editor exposes truthful controls and completes basic 
     await expect(paste).toBeDisabled();
     await copy.click();
     await expect(paste).toBeEnabled();
-    const roots = canvas.locator('.visual-editor-canvas__viewport > .visual-editor-canvas__object');
+    const roots = canvas.locator('.visual-editor-canvas__interaction-layer > .visual-editor-canvas__object');
     await expect(roots).toHaveCount(4);
     await paste.click();
     await expect(roots).toHaveCount(5);
@@ -196,8 +199,8 @@ test('C26.8 mounted Screen editor exposes truthful controls and completes basic 
     await outlinerEntry(outliner, rectangleAKey).click();
     await outlinerEntry(outliner, textKey).click({ modifiers: ['Shift'] });
     await expect(copy).toBeDisabled();
-    await expect(canvasToolbar.getByRole('button', { name: 'Duplicate', exact: true })).toBeDisabled();
-    await expect(canvasToolbar.getByRole('button', { name: 'Delete', exact: true })).toBeDisabled();
+    await expect(canvasToolbar.getByRole('button', { name: 'Duplicar seleção', exact: true })).toBeDisabled();
+    await expect(canvasToolbar.getByRole('button', { name: 'Excluir seleção', exact: true })).toBeDisabled();
 
     await outlinerEntry(outliner, 'group').click();
     await toolbar.getByRole('button', { name: 'Desagrupar', exact: true }).click();
@@ -207,14 +210,14 @@ test('C26.8 mounted Screen editor exposes truthful controls and completes basic 
     await toolbar.getByRole('button', { name: 'Bloquear seleção', exact: true }).click();
     await expect(rectangleA).toHaveClass(/is-authoring-locked/);
     await expect(rectangleA.locator('[data-canvas-resize-handle]')).toHaveCount(0);
-    await expect(canvasToolbar.getByRole('button', { name: 'Duplicate', exact: true })).toBeDisabled();
-    await expect(canvasToolbar.getByRole('button', { name: 'Delete', exact: true })).toBeDisabled();
-    await expect(canvasToolbar.getByRole('button', { name: 'Bring to front', exact: true })).toBeDisabled();
+    await expect(canvasToolbar.getByRole('button', { name: 'Duplicar seleção', exact: true })).toBeDisabled();
+    await expect(canvasToolbar.getByRole('button', { name: 'Excluir seleção', exact: true })).toBeDisabled();
+    await expect(canvasToolbar.getByRole('button', { name: 'Trazer para frente', exact: true })).toBeDisabled();
     await toolbar.getByRole('button', { name: 'Desbloquear seleção', exact: true }).click();
     await expect(rectangleA).not.toHaveClass(/is-authoring-locked/);
     await expect(rectangleA.locator('[data-canvas-resize-handle]')).toHaveCount(4);
 
-    await canvasToolbar.getByRole('button', { name: 'Bring to front', exact: true }).click();
+    await canvasToolbar.getByRole('button', { name: 'Trazer para frente', exact: true }).click();
     await expect.poll(() => inlineNumber(rectangleA, 'zIndex')).toBeGreaterThan(await inlineNumber(rectangleC, 'zIndex'));
 
     const binding = page.getByTestId('visual-binding-editor');

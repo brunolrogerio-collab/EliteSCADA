@@ -9,7 +9,7 @@ type ExportedPackage = {
   [key: string]: unknown;
 };
 
-test('C26.9 mounted Popup editor exposes bounds and preserves Runtime composition semantics', async ({ page, request }) => {
+test('C26.9 mounted Popup editor exposes bounds in the canonical single-canvas authoring surface', async ({ page, request }) => {
   const originalResponse = await request.get('/api/engineering/export/json');
   expect(originalResponse.ok()).toBeTruthy();
   const originalPackage = await originalResponse.json() as ExportedPackage;
@@ -60,8 +60,8 @@ test('C26.9 mounted Popup editor exposes bounds and preserves Runtime compositio
     const outliner = workspace.getByTestId('visual-editor-outliner');
     const inspector = workspace.getByTestId('visual-property-inspector');
     const boundary = workspace.getByTestId('visual-editor-logical-boundary');
-    const runtimePreview = workspace.getByTestId('popup-runtime-composition-preview');
-    const runtimeBox = workspace.getByTestId('popup-runtime-composition-box');
+    const canonicalLayer = workspace.getByTestId('visual-editor-canonical-layer');
+    const authoredBackground = canvas.locator('.visual-editor-canvas__authored-background');
     const toolbar = workspace.getByTestId('visual-editor-authoring-toolbar');
     const paste = toolbar.getByRole('button', { name: 'Colar', exact: true });
 
@@ -72,14 +72,13 @@ test('C26.9 mounted Popup editor exposes bounds and preserves Runtime compositio
     await expect(workspace.getByTestId('popup-authoring-bounds')).toContainText('200 × 130');
     await expect(paste).toBeDisabled();
 
-    await expect(runtimePreview).toHaveAttribute('data-popup-logical-x', '1700');
-    await expect(runtimePreview).toHaveAttribute('data-popup-logical-y', '950');
-    await expect(runtimePreview).toHaveAttribute('data-popup-logical-width', '200');
-    await expect(runtimePreview).toHaveAttribute('data-popup-logical-height', '130');
-    await expect(runtimePreview.getByTestId('runtime-logical-viewport')).toHaveAttribute('data-design-width', '1920');
-    await expect(runtimePreview.getByTestId('runtime-logical-viewport')).toHaveAttribute('data-design-height', '1080');
-    await expect(runtimeBox).toHaveAttribute('data-popup-key', popupKey);
-    await expect(runtimeBox.locator('.runtime-visual-popup-content')).toHaveCSS('background-color', 'rgb(16, 24, 32)');
+    await expect(canvas).toHaveAttribute('data-renderer', 'canonical-single-surface');
+    await expect(canonicalLayer).toBeVisible();
+    await expect(canonicalLayer).toHaveCSS('width', '200px');
+    await expect(canonicalLayer).toHaveCSS('height', '130px');
+    await expect(authoredBackground).toHaveCSS('background-color', 'rgb(16, 24, 32)');
+    await expect(workspace.getByTestId('popup-authoring-bounds')).toContainText('X 1700, Y 950');
+    await expect(workspace.getByTestId('popup-runtime-composition-preview')).toHaveCount(0);
 
     const rectangle = canvasObject(page, rectangleId);
     await outlinerEntry(outliner, rectangleKey).click();
@@ -92,8 +91,8 @@ test('C26.9 mounted Popup editor exposes bounds and preserves Runtime compositio
     await widthInput.press('Enter');
     await expect.poll(() => inlineNumber(rectangle, 'width')).toBe(260);
     await expect(boundary).toHaveAttribute('data-logical-width', '280');
-    await expect(runtimePreview).toHaveAttribute('data-popup-logical-width', '280');
-    await expect(runtimePreview).toHaveAttribute('data-popup-logical-x', '1640');
+    await expect(canonicalLayer).toHaveCSS('width', '280px');
+    await expect(workspace.getByTestId('popup-authoring-bounds')).toContainText('X 1640');
 
     const leftBeforeMove = await inlineNumber(rectangle, 'left');
     const objectBox = await rectangle.boundingBox();
@@ -105,7 +104,7 @@ test('C26.9 mounted Popup editor exposes bounds and preserves Runtime compositio
     await expect.poll(() => inlineNumber(rectangle, 'left')).toBeGreaterThan(leftBeforeMove);
     const widthAfterMove = Number(await boundary.getAttribute('data-logical-width'));
     expect(widthAfterMove).toBeGreaterThan(280);
-    await expect(runtimePreview).toHaveAttribute('data-popup-logical-width', String(widthAfterMove));
+    await expect(canonicalLayer).toHaveCSS('width', `${widthAfterMove}px`);
 
     const objectWidthBeforeResize = await inlineNumber(rectangle, 'width');
     const resizeHandle = rectangle.locator('[data-canvas-resize-handle="southEast"]');
@@ -120,30 +119,24 @@ test('C26.9 mounted Popup editor exposes bounds and preserves Runtime compositio
     const heightAfterResize = Number(await boundary.getAttribute('data-logical-height'));
     expect(widthAfterResize).toBeGreaterThan(widthAfterMove);
     expect(heightAfterResize).toBeGreaterThan(130);
-    await expect(runtimePreview).toHaveAttribute('data-popup-logical-width', String(widthAfterResize));
-    await expect(runtimePreview).toHaveAttribute('data-popup-logical-height', String(heightAfterResize));
+    await expect(canonicalLayer).toHaveCSS('width', `${widthAfterResize}px`);
+    await expect(canonicalLayer).toHaveCSS('height', `${heightAfterResize}px`);
+    await expect(workspace.getByTestId('popup-authoring-bounds')).toContainText(`X ${1920 - widthAfterResize}, Y ${1080 - heightAfterResize}`);
 
-    const previewMetrics = await runtimeBox.evaluate(element => {
-      const box = element as HTMLElement;
-      const content = box.querySelector<HTMLElement>('.runtime-visual-popup-content')!;
-      const renderer = box.querySelector<HTMLElement>('.visual-editor-renderer-stage')!;
+    const canonicalMetrics = await canonicalLayer.evaluate(element => {
+      const layer = element as HTMLElement;
+      const renderer = layer.querySelector<HTMLElement>('.visual-editor-renderer-stage')!;
       return {
-        left: Number.parseFloat(box.style.left),
-        top: Number.parseFloat(box.style.top),
-        width: Number.parseFloat(box.style.width),
-        contentWidth: content.clientWidth,
-        contentHeight: content.clientHeight,
+        layerWidth: layer.clientWidth,
+        layerHeight: layer.clientHeight,
         rendererMargin: getComputedStyle(renderer).margin,
         rendererOverflow: getComputedStyle(renderer).overflow
       };
     });
-    expect(previewMetrics.left).toBe(1920 - widthAfterResize);
-    expect(previewMetrics.top).toBe(1080 - heightAfterResize);
-    expect(previewMetrics.width).toBe(widthAfterResize);
-    expect(previewMetrics.contentWidth).toBe(widthAfterResize);
-    expect(previewMetrics.contentHeight).toBe(heightAfterResize);
-    expect(previewMetrics.rendererMargin).toBe('0px');
-    expect(previewMetrics.rendererOverflow).toBe('hidden');
+    expect(canonicalMetrics.layerWidth).toBe(widthAfterResize);
+    expect(canonicalMetrics.layerHeight).toBe(heightAfterResize);
+    expect(canonicalMetrics.rendererMargin).toBe('0px');
+    expect(canonicalMetrics.rendererOverflow).toBe('hidden');
 
     await workspace.getByTestId('popup-visual-editor-preview').click();
     await expect(workspace.getByText('Candidato válido', { exact: true })).toBeVisible();

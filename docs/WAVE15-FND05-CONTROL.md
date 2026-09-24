@@ -6,13 +6,23 @@
 
 `MAIN_ORDER_REV: 0003`
 
-`STATE: PREPARED / NOT ACTIVE / BLOCKED_ON_POST_FND06_AUDIT`
+`STATE: PREPARED / NOT ACTIVE / HOLD_ON_P1-01_AND_P1-06_FC0A_GATE`
 
 `PREPARED_ORDER_ID: FND05-CODEX-HA-AUTHORITY-V1`
 
-`PROVISIONAL_PRODUCT_CHECKPOINT: 6c810647c9773a19b212d9c33694780141786ac7`
+`LATEST_AUDITED_PRODUCT_CHECKPOINT: 560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
 
 `ACTIVATION_BASE_RULE: revalidate latest wave15/corrections-integration product checkpoint before activation`
+
+## 0A. Current hold reason
+
+FND-06 is VERIFIED/FROZEN and the post-FND06 audit is complete with `CHANGES_REQUIRED`.
+
+FND-05 remains **PREPARED / NOT ACTIVE** because FC0-A is held on:
+- W15-P1-01 Server Script bounded recovery;
+- W15-P1-06 truthful Engineering no-model/loading/error fallback.
+
+The second and third Main audit passes identified no new breaking FND-05 contract risk. FND-05 remains classified additive/compatible and may not activate until Main records FC0-A release approval after the two blockers close.
 
 ## 1. Purpose
 

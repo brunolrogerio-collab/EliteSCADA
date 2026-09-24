@@ -149,3 +149,24 @@ test('Engineering visual workspace can reclaim constrained viewport without losi
   await expect.poll(() => palette.evaluate(element => getComputedStyle(element).overflowY)).toBe('auto');
   await expect.poll(() => properties.evaluate(element => getComputedStyle(element).overflowY)).toBe('auto');
 });
+
+test('Engineering keeps independent desktop scroll regions and intentional compact document flow', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto('/engineering');
+  await expect(page.locator('.eng-shell')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => {
+    const shell = document.querySelector('.eng-shell');
+    const body = document.querySelector('.eng-body');
+    const sidebar = document.querySelector('.eng-sidebar');
+    const workspace = document.querySelector('.eng-workspace');
+    if (!shell || !body || !sidebar || !workspace) return null;
+    const style = (element: Element) => getComputedStyle(element);
+    return { shellHeight: style(shell).height, viewportHeight: `${window.innerHeight}px`, bodyOverflow: style(body).overflowY, sidebarOverflow: style(sidebar).overflowY, workspaceOverflow: style(workspace).overflowY };
+  })).toEqual({ shellHeight: '720px', viewportHeight: '720px', bodyOverflow: 'hidden', sidebarOverflow: 'auto', workspaceOverflow: 'auto' });
+
+  await page.setViewportSize({ width: 700, height: 720 });
+  await page.reload();
+  await expect.poll(() => page.locator('.eng-shell').evaluate(element => getComputedStyle(element).overflowY)).toBe('visible');
+  await expect.poll(() => page.locator('.eng-body').evaluate(element => getComputedStyle(element).display)).toBe('block');
+  await expect.poll(() => page.locator('.eng-workspace').evaluate(element => getComputedStyle(element).overflowY)).toBe('visible');
+});

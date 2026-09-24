@@ -61,6 +61,7 @@ public sealed class ScriptRuntimeExecutionCoordinator : IAsyncDisposable
     private readonly IPythonScriptHandlerExecutor _executor;
     private readonly BoundedScriptEventQueue _queue;
     private readonly ScriptRuntimeDiagnosticsTracker _diagnostics;
+    private readonly TimeProvider _timeProvider;
     private readonly SemaphoreSlim _processingGate = new(1, 1);
     private readonly CancellationTokenSource _disposeCancellation = new();
     private bool _disposed;
@@ -69,7 +70,8 @@ public sealed class ScriptRuntimeExecutionCoordinator : IAsyncDisposable
         PythonScriptDefinition script,
         string runtimeInstanceId,
         ScriptExecutionPolicy policy,
-        IPythonScriptHandlerExecutor executor)
+        IPythonScriptHandlerExecutor executor,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(script);
         ArgumentNullException.ThrowIfNull(policy);
@@ -85,8 +87,9 @@ public sealed class ScriptRuntimeExecutionCoordinator : IAsyncDisposable
         _runtimeInstanceId = runtimeInstanceId;
         _policy = policy;
         _executor = executor;
+        _timeProvider = timeProvider ?? TimeProvider.System;
         _queue = new BoundedScriptEventQueue(script.Id, runtimeInstanceId, policy);
-        _diagnostics = new ScriptRuntimeDiagnosticsTracker(script.Id, runtimeInstanceId, policy);
+        _diagnostics = new ScriptRuntimeDiagnosticsTracker(script.Id, runtimeInstanceId, policy, _timeProvider);
     }
 
     public Guid ScriptId => _script.Id;
@@ -126,11 +129,10 @@ public sealed class ScriptRuntimeExecutionCoordinator : IAsyncDisposable
         {
             ThrowIfDisposed();
 
-            var current = _diagnostics.Snapshot(
-                activeSubscriptions: 0,
-                queuedEvents: _queue.Count);
+            if (_queue.Count == 0)
+                return new(ScriptRuntimeDispatchStatus.NoEvent);
 
-            if (current.IsThrottled)
+            if (!_diagnostics.TryAcquireExecutionSlot())
                 return new(ScriptRuntimeDispatchStatus.Throttled);
 
             if (!_queue.TryDequeue(out var scriptEvent) || scriptEvent is null)
@@ -237,7 +239,7 @@ public sealed class ScriptRuntimeExecutionCoordinator : IAsyncDisposable
             scriptEvent.Identity.HandlerName,
             status,
             Stopwatch.GetElapsedTime(timestamp),
-            DateTimeOffset.UtcNow,
+            _timeProvider.GetUtcNow(),
             sanitizedError);
     }
 

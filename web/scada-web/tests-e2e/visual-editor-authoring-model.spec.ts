@@ -6,6 +6,7 @@ import {
   isVisualElementAuthoringLocked,
   VISUAL_EDITOR_AUTHORING_LOCK_METADATA_KEY
 } from '../src/engineering/visual-editor/visualEditorAuthoringModel';
+import { applyVisualEditorZOrderOperation } from '../src/engineering/visual-editor/visualEditorZOrderModel';
 
 function rectangle(id: string, x: number, y: number, width: number, height: number): VisualElementEngineering {
   return {
@@ -18,6 +19,10 @@ function rectangle(id: string, x: number, y: number, width: number, height: numb
 
 function screen(elements: VisualElementEngineering[]): ScreenEngineering {
   return { key: 'screen', name: 'Screen', route: '/screen', elements };
+}
+
+function legacy(id: string, type: string, x: number): VisualElementEngineering {
+  return { id, key: id, type, properties: { x, y: 10, width: 30, height: 20, zIndex: x, legacySpecific: `${type}-preserved` } };
 }
 
 test('alignment uses deterministic selection bounds in canonical logical coordinates', () => {
@@ -169,4 +174,26 @@ test('multi-object operations reject mixed parent coordinate spaces', () => {
   expect(() => applyVisualEditorAuthoringOperation(base, {
     kind: 'align', objectIds: ['outside', 'inside'], operation: 'left'
   })).toThrow(/same parent coordinate space/);
+});
+
+test('legacy advanced authoring keeps known legacy fields and contains arbitrary unknown objects', () => {
+  const base = screen([
+    legacy('rectangle', BUILTIN_VISUAL_OBJECT_TYPES.rectangle, 10),
+    legacy('text', BUILTIN_VISUAL_OBJECT_TYPES.text, 40),
+    legacy('value', BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay, 70),
+    legacy('button', BUILTIN_VISUAL_OBJECT_TYPES.button, 100),
+    legacy('unknown', 'vendor.unknown-x', 130)
+  ]);
+  const knownIds = ['rectangle', 'text', 'value', 'button'];
+  const aligned = applyVisualEditorAuthoringOperation(base, { kind: 'align', objectIds: knownIds, operation: 'left' });
+  const sized = applyVisualEditorAuthoringOperation(aligned, { kind: 'size', objectIds: knownIds, referenceObjectId: 'rectangle', operation: 'sameSize' });
+  expect(() => applyVisualEditorZOrderOperation(sized, knownIds, 'front'))
+    .toThrow("unregistered visual object type 'vendor.unknown-x'");
+
+  for (const id of knownIds) {
+    const item = sized.elements?.find(element => element.id === id);
+    expect(item?.properties?.legacySpecific).toBe(`${item?.type}-preserved`);
+    expect(item?.properties?.x).toBe(10);
+  }
+  expect(sized.elements?.find(element => element.id === 'unknown')).toMatchObject({ type: 'vendor.unknown-x', properties: { x: 130, legacySpecific: 'vendor.unknown-x-preserved' } });
 });

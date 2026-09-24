@@ -12,11 +12,20 @@ public sealed record ContextualHelpTopic(
     string Summary,
     IReadOnlyCollection<ContextualHelpSection> Sections);
 
+public sealed record ContextualHelpScriptApi(
+    string Name,
+    string Signature,
+    string Parameters,
+    string Result,
+    string Safety,
+    string Example);
+
 public sealed record ContextualHelpCatalogView(
     string Locale,
     IReadOnlyCollection<string> SupportedLocales,
     IReadOnlyCollection<ContextualHelpTopic> Topics,
-    IReadOnlyCollection<string> ServerScriptApi);
+    IReadOnlyCollection<string> ServerScriptApi,
+    IReadOnlyCollection<ContextualHelpScriptApi> ServerScriptApiDetails);
 
 public static class ContextualHelpCatalog
 {
@@ -106,7 +115,8 @@ public static class ContextualHelpCatalog
             locale,
             SupportedLocales,
             topics.OrderBy(topic => topic.Id, StringComparer.Ordinal).ToArray(),
-            ServerScriptApiFunctions);
+            ServerScriptApiFunctions,
+            BuildServerScriptApi(locale));
     }
 
     public static string NormalizeLocale(string? locale) => locale switch
@@ -136,9 +146,9 @@ public static class ContextualHelpCatalog
             Tx("Runtime para o operador", "Runtime operator guide", "Guía de Runtime para el operador"),
             Tx("Operação da revisão Active sob autoridade do backend.", "Operation of the Active revision under backend authority.", "Operación de la revisión Active bajo autoridad del backend."),
             Tx(
-                "O backend e a revisão Active são autoridade canônica. A sessão recebe capabilities efetivas e lease do servidor. Viewer e View Only reduzem capacidades; comandos e escritas continuam bloqueados server-side quando não autorizados. Perda ou expiração do lease significa perda de autoridade interativa, nunca permissão implícita.",
-                "The backend and Active revision are canonical authority. The session receives effective capabilities and a server lease. Viewer and View Only reduce capabilities; commands and writes remain server-blocked when unauthorized. Lease loss or expiry means loss of interactive authority, never implicit permission.",
-                "El backend y la revisión Active son autoridad canónica. La sesión recibe capabilities efectivas y lease del servidor. Viewer y View Only reducen capacidades; comandos y escrituras siguen bloqueados server-side cuando no están autorizados. La pérdida o expiración del lease significa pérdida de autoridad interactiva, nunca permiso implícito.")),
+                "O backend e a revisão Active são autoridade canônica. A sessão recebe capabilities efetivas e lease do servidor. viewOnly reduz capacidades; comandos e escritas continuam bloqueados server-side quando não autorizados. Perda ou expiração do lease significa perda de autoridade interativa, nunca permissão implícita.",
+                "The backend and Active revision are canonical authority. The session receives effective capabilities and a server lease. viewOnly reduces capabilities; commands and writes remain server-blocked when unauthorized. Lease loss or expiry means loss of interactive authority, never implicit permission.",
+                "El backend y la revisión Active son autoridad canónica. La sesión recibe capabilities efectivas y lease del servidor. viewOnly reduce capabilities; comandos y escrituras siguen bloqueados server-side cuando no están autorizados. La pérdida o expiración del lease significa pérdida de autoridad interactiva, nunca permiso implícito.")),
 
         Basic(
             "runtime.history", "runtime",
@@ -229,9 +239,9 @@ public static class ContextualHelpCatalog
             Tx("Writeability", "Writeability", "Writeability"),
             Tx("Autoridade de escrita.", "Write authority.", "Autoridad de escritura."),
             Tx(
-                "Um controle visível não torna um TAG gravável. A escrita depende do contrato do TAG/fonte e das capabilities efetivas, com enforcement server-side. Viewer, View Only ou ausência da capability correspondente permanecem incapazes de escrever.",
-                "A visible control does not make a TAG writable. Writing depends on the TAG/source contract and effective capabilities, with server-side enforcement. Viewer, View Only or a missing capability remain unable to write.",
-                "Un control visible no vuelve un TAG escribible. La escritura depende del contrato TAG/fuente y de las capabilities efectivas, con enforcement server-side. Viewer, View Only o falta de capability siguen sin poder escribir.")),
+                "Um controle visível não torna um TAG gravável. A escrita depende do contrato do TAG/fonte e das capabilities efetivas, com enforcement server-side. viewOnly ou ausência da capability correspondente permanecem incapazes de escrever.",
+                "A visible control does not make a TAG writable. Writing depends on the TAG/source contract and effective capabilities, with server-side enforcement. viewOnly or a missing capability remain unable to write.",
+                "Un control visible no vuelve un TAG escribible. La escritura depende del contrato TAG/fuente y de las capabilities efectivas, con enforcement server-side. viewOnly o falta de capability siguen sin poder escribir.")),
 
         Basic(
             "tags.addressing", "tags",
@@ -369,9 +379,9 @@ public static class ContextualHelpCatalog
                 "Bindings connect UI properties to canonical resources; they do not duplicate TAG Engine, scaling or Authority logic in the browser.",
                 "Bindings conectan propiedades de UI con recursos canónicos; no duplican TAG Engine, scaling ni lógica de Authority en el navegador.")),
             S(Tx("Commands", "Commands", "Commands"), Tx(
-                "Commands representam intenção do operador e passam por validação/autorização server-side. Viewer, View Only ou ausência de capability bloqueiam a ação mesmo quando existe controle visual.",
-                "Commands represent operator intent and pass server-side validation/authorization. Viewer, View Only or a missing capability block the action even when a visual control exists.",
-                "Commands representan intención del operador y pasan por validación/autorización server-side. Viewer, View Only o falta de capability bloquean la acción aunque exista control visual."))),
+                "Commands representam intenção do operador e passam por validação/autorização server-side. viewOnly ou ausência de capability bloqueiam a ação mesmo quando existe controle visual.",
+                "Commands represent operator intent and pass server-side validation/authorization. viewOnly or a missing capability block the action even when a visual control exists.",
+                "Commands representan intención del operador y pasan por validación/autorización server-side. viewOnly o falta de capability bloquean la acción aunque exista control visual."))),
 
         Basic(
             "security.users-roles-capabilities", "security",
@@ -434,14 +444,19 @@ public static class ContextualHelpCatalog
             "This build-specific API contains only read_tag, read_server_memory, write_tag, write_server_memory, publish_server_memory_sample and emit_operational_event. Accessed TAGs must be declared dependencies; Server Memory functions require ServerMemoryTag.",
             "La API específica de este build contiene solo read_tag, read_server_memory, write_tag, write_server_memory, publish_server_memory_sample y emit_operational_event. Los TAGs accedidos deben ser dependencias declaradas; funciones de Server Memory requieren ServerMemoryTag."),
             "value = read_tag(\"<stable-tag-id>\")\nwrite_tag(\"<stable-tag-id>\", value)\nemit_operational_event(\"<definition-id>\", \"message\", {\"source\": \"script\"})"),
+        S(Tx("Receita: estado visual permitido", "Recipe: allowed visual state", "Receta: estado visual permitido"), Tx(
+            "Leia TAGs estáveis declarados, avalie a condição e escreva somente um TAG de estado autorizado que já esteja ligado à propriedade visual. O script não altera objetos de tela diretamente e não cria uma API visual paralela.",
+            "Read declared stable TAGs, evaluate the condition, and write only an authorized state TAG already bound to the visual property. The script does not mutate screen objects directly or create a parallel visual API.",
+            "Lea TAGs estables declarados, evalúe la condición y escriba solamente un TAG de estado autorizado ya ligado a la propiedad visual. El script no muta objetos de pantalla directamente ni crea una API visual paralela."),
+            "left = read_tag(\"<stable-left-tag-id>\")\nright = read_tag(\"<stable-right-tag-id>\")\nif left > right:\n    write_tag(\"<stable-visual-state-tag-id>\", True)"),
         S(Tx("Lifecycle e triggers", "Lifecycle and triggers", "Lifecycle y triggers"), Tx(
             "Somente scripts habilitados de scope Server são hospedados na revisão Active. O host atual despacha Initialize, Dispose, TagChanged, Timer e ServerRuntimeEvent. Ao trocar Active, a geração anterior é cancelada; acesso de TAG e emissão de Operational Event usam revision gate para impedir execução obsoleta sobre uma revisão nova.",
             "Only enabled Server-scope scripts are hosted on the Active revision. The current host dispatches Initialize, Dispose, TagChanged, Timer and ServerRuntimeEvent. When Active changes, the previous generation is cancelled; TAG access and Operational Event emission use a revision gate to prevent obsolete execution against a new revision.",
             "Solo scripts habilitados de scope Server se hospedan en la revisión Active. El host actual despacha Initialize, Dispose, TagChanged, Timer y ServerRuntimeEvent. Al cambiar Active, la generación anterior se cancela; acceso TAG y emisión de Operational Event usan revision gate para impedir ejecución obsoleta sobre una revisión nueva.")),
         S(Tx("Execução e falhas", "Execution and failures", "Ejecución y fallas"), Tx(
-            "A política padrão usa timeout de handler de 250 ms, fila limitada a 128 eventos, Timer mínimo de 50 ms e throttle após 5 falhas consecutivas; esses valores podem ser ajustados pela configuração ServerScripts. Fila, timeout, cancelamento, fault isolation e diagnósticos pertencem à instância do script e não concedem fallback de Authority.",
-            "The default policy uses a 250 ms handler timeout, a queue bounded to 128 events, a 50 ms minimum Timer and throttling after 5 consecutive failures; ServerScripts configuration can adjust these values. Queue, timeout, cancellation, fault isolation and diagnostics belong to the script instance and grant no Authority fallback.",
-            "La política por defecto usa timeout de handler de 250 ms, cola limitada a 128 eventos, Timer mínimo de 50 ms y throttle después de 5 fallas consecutivas; configuración ServerScripts puede ajustar estos valores. Cola, timeout, cancelación, fault isolation y diagnósticos pertenecen a la instancia y no conceden fallback de Authority.")),
+            "A política padrão usa timeout de handler de 250 ms, fila limitada a 128 eventos, Timer mínimo de 50 ms e entra em cooldown após 5 falhas consecutivas. Ao fim do cooldown configurável, somente um evento é aceito como probe de recuperação; sucesso restaura o processamento e nova falha reinicia o cooldown. Fila, timeout, cancelamento, fault isolation e diagnósticos pertencem à instância do script e não concedem fallback de Authority.",
+            "The default policy uses a 250 ms handler timeout, a queue bounded to 128 events, a 50 ms minimum Timer and enters cooldown after 5 consecutive failures. After the configurable cooldown, only one event is accepted as a recovery probe; success restores processing and another failure starts the cooldown again. Queue, timeout, cancellation, fault isolation and diagnostics belong to the script instance and grant no Authority fallback.",
+            "La política por defecto usa timeout de handler de 250 ms, cola limitada a 128 eventos, Timer mínimo de 50 ms y entra en cooldown después de 5 fallas consecutivas. Al terminar el cooldown configurable, solo un evento se acepta como prueba de recuperación; el éxito restaura el procesamiento y una nueva falla reinicia el cooldown. Cola, timeout, cancelación, fault isolation y diagnósticos pertenecen a la instancia y no conceden fallback de Authority.")),
         S(Tx("Sandbox e segurança", "Sandbox and security", "Sandbox y seguridad"), Tx(
             "A superfície de Server Script permite leitura de TAGs compartilhados, leitura/escrita de Server Memory e escrita de TAGs conforme o contrato. O sandbox nega filesystem, sistema operacional, shell/process execution, rede arbitrária, database, acesso direto a industrial drivers, secrets, browser DOM e browser storage. O preflight rejeita imports/calls obviamente proibidos, mas é feedback de editor; enforcement de sandbox não deve depender de scan de texto.",
             "The Server Script surface allows shared TAG reads, Server Memory reads/writes and TAG writes according to contract. The sandbox denies filesystem, operating system, shell/process execution, arbitrary network, database, direct industrial-driver access, secrets, browser DOM and browser storage. Preflight rejects obviously prohibited imports/calls but is editor feedback; sandbox enforcement must not depend on text scanning.",
@@ -451,6 +466,31 @@ public static class ContextualHelpCatalog
             "Use only functions exposed by the build and declared stable references. Do not document historical or planned convenience functions as if they existed.",
             "Use solo funciones expuestas por el build y referencias estables declaradas. No documente convenience functions históricas o planificadas como si existieran."),
             "value = read_server_memory(\"<stable-tag-id>\")\nwrite_server_memory(\"<stable-tag-id>\", value)\npublish_server_memory_sample(\"<stable-tag-id>\", value, \"Good\")"));
+
+    private static IReadOnlyCollection<ContextualHelpScriptApi> BuildServerScriptApi(string locale) => new[]
+    {
+        ScriptApi("read_tag", "read_tag(tag_id)", "tag_id: stable declared TAG id", "Returns the current TAG value.", "Read only; the TAG must be a declared dependency.", "value = read_tag(\"<stable-tag-id>\")", locale),
+        ScriptApi("read_server_memory", "read_server_memory(tag_id)", "tag_id: stable declared ServerMemoryTag id", "Returns the current Server Memory value.", "Read only; only ServerMemoryTag references are accepted.", "value = read_server_memory(\"<stable-server-memory-tag-id>\")", locale),
+        ScriptApi("write_tag", "write_tag(tag_id, value)", "tag_id: stable declared TAG id; value: serializable value", "Writes the TAG and returns None.", "Only declared, write-authorized TAGs are allowed; no UI object is mutated directly.", "write_tag(\"<stable-visual-state-tag-id>\", True)", locale),
+        ScriptApi("write_server_memory", "write_server_memory(tag_id, value)", "tag_id: stable declared ServerMemoryTag id; value: serializable value", "Writes Server Memory and returns None.", "Only ServerMemoryTag references are accepted.", "write_server_memory(\"<stable-server-memory-tag-id>\", value)", locale),
+        ScriptApi("publish_server_memory_sample", "publish_server_memory_sample(tag_id, value, quality)", "tag_id: stable declared ServerMemoryTag id; value: serializable value; quality: quality string", "Publishes a Server Memory sample and returns None.", "Requires exactly three arguments and a valid ServerMemoryTag.", "publish_server_memory_sample(\"<stable-server-memory-tag-id>\", value, \"Good\")", locale),
+        ScriptApi("emit_operational_event", "emit_operational_event(definition_id, message=None, context=None)", "definition_id: stable event definition id; message: optional string; context: optional dictionary", "Emits the operational event and returns None.", "Inputs are validated and bounded; it does not grant Authority fallback.", "emit_operational_event(\"<definition-id>\", \"threshold crossed\", {\"source\": \"script\"})", locale)
+    };
+
+    private static ContextualHelpScriptApi ScriptApi(
+        string name,
+        string signature,
+        string parameters,
+        string result,
+        string safety,
+        string example,
+        string locale) => new(
+        name,
+        signature,
+        Pick(locale, parameters.Replace("stable declared", "TAG estável declarado", StringComparison.Ordinal), parameters, parameters),
+        Pick(locale, result.Replace("Returns", "Retorna", StringComparison.Ordinal).Replace("Writes", "Escreve", StringComparison.Ordinal).Replace("Publishes", "Publica", StringComparison.Ordinal).Replace("Emits", "Emite", StringComparison.Ordinal), result, result),
+        Pick(locale, safety.Replace("Read only", "Somente leitura", StringComparison.Ordinal).Replace("Only", "Somente", StringComparison.Ordinal).Replace("Requires", "Exige", StringComparison.Ordinal).Replace("Inputs", "Entradas", StringComparison.Ordinal), safety, safety),
+        example);
 
     private static TopicDefinition BuildReusableLibrariesTopic() => Detailed(
         "libraries.reusable-resources", "libraries",

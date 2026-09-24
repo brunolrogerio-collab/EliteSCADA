@@ -43,6 +43,9 @@ async function installHelpContract(page: Page) {
           'publish_server_memory_sample',
           'emit_operational_event'
         ],
+        serverScriptApiDetails: [
+          { name: 'read_tag', signature: 'read_tag(tag_id)', parameters: 'tag_id', result: 'value', safety: 'declared dependency', example: 'value = read_tag("<stable-tag-id>")' }
+        ],
         topics: [
           {
             id: 'driver.modbus.tcp',
@@ -85,4 +88,13 @@ test('contextual Help resolves a stable topic locally and follows the canonical 
   await expect(article.getByText('Communication driver registered in this EliteSCADA build.')).toBeVisible();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('elitescada.engineering.locale'))).toBe('en');
   await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('en');
+});
+
+test('contextual Help renders the structured Server Script API contract', async ({ page }) => {
+  await installHelpContract(page);
+  await page.goto('/help?topic=scripts.server');
+  const api = page.getByTestId('server-script-api-details');
+  await expect(api).toBeVisible();
+  await expect(api.getByText('read_tag(tag_id)')).toBeVisible();
+  await expect(api.getByText('declared dependency')).toBeVisible();
 });

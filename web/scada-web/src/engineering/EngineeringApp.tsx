@@ -88,6 +88,7 @@ export function EngineeringApp() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setSnapshot(null);
     try {
       setSnapshot(await loadEngineeringSnapshot());
     } catch (reason) {
@@ -108,11 +109,7 @@ export function EngineeringApp() {
 
   const selectSection = (next: SectionId) => {
     setSection(next);
-    const nextPath = next === 'tagMonitor'
-      ? tagMonitorPath
-      : next === 'libraries'
-        ? librariesPath
-        : '/engineering';
+    const nextPath = engineeringSectionPath(next);
     if (window.location.pathname !== nextPath) window.history.replaceState(null, '', nextPath);
   };
 
@@ -140,7 +137,9 @@ export function EngineeringApp() {
         <aside className="eng-sidebar" aria-label={t('app.engineering')}>
           <div className="eng-project-chip">
             <span>{t('workspace.project')}</span>
-            <strong>{snapshot?.workspace.projectName ?? snapshot?.workspace.projectKey ?? 'Demo Project'}</strong>
+            <strong data-testid="engineering-project-identity">
+              {snapshot?.workspace.projectName ?? snapshot?.workspace.projectKey ?? t('workspace.unavailable')}
+            </strong>
           </div>
           <nav className="eng-nav">
             {navigation.map(group => (
@@ -149,7 +148,13 @@ export function EngineeringApp() {
                 {group.items
                   .filter(item => item.id !== 'tagMonitor' || snapshot !== null)
                   .map(item => (
-                    <button key={item.id} type="button" className={section === item.id ? 'active' : ''} onClick={() => selectSection(item.id)}>
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={section === item.id ? 'active' : ''}
+                      onClick={() => selectSection(item.id)}
+                      disabled={!snapshot}
+                    >
                       <NavIcon section={item.id}/>
                       <span>{item.literalLabel ? item.literalLabel[locale] : item.label ? t(item.label) : scriptNavLabel(locale)}</span>
                       {snapshot && <small>{sectionCount(snapshot.package, item.id)}</small>}
@@ -161,9 +166,9 @@ export function EngineeringApp() {
         </aside>
 
         <section className="eng-workspace">
-          <WorkspaceBar snapshot={snapshot} t={t} locale={locale}/>
+          <WorkspaceBar snapshot={snapshot} loading={loading} t={t} locale={locale}/>
           {loading && <div className="eng-state-card"><div className="eng-spinner"/><strong>{t('app.loading')}</strong></div>}
-          {!loading && error && <div className="eng-state-card error"><strong>{t('app.loadError')}</strong><span>{error}</span><button type="button" onClick={() => void load()}>{t('app.retry')}</button></div>}
+          {!loading && error && <div className="eng-state-card error" role="alert" data-testid="engineering-load-error"><strong>{t('app.loadError')}</strong><span>{error}</span><button type="button" onClick={() => void load()}>{t('app.retry')}</button></div>}
           {!loading && snapshot && <EngineeringSection section={section} snapshot={snapshot} t={t} locale={locale} onReload={load}/>} 
         </section>
       </div>
@@ -171,14 +176,20 @@ export function EngineeringApp() {
   );
 }
 
-function WorkspaceBar({ snapshot, t, locale }: { snapshot: EngineeringSnapshot | null; t: ReturnType<typeof translator>; locale: EngineeringLocale }) {
+function WorkspaceBar({ snapshot, loading, t, locale }: {
+  snapshot: EngineeringSnapshot | null;
+  loading: boolean;
+  t: ReturnType<typeof translator>;
+  locale: EngineeringLocale;
+}) {
   const workspace = snapshot?.workspace;
   const engineeringPackage = snapshot?.package;
+  const unavailable = loading ? t('workspace.loading') : t('workspace.unavailable');
   return (
-    <div className="eng-workspace-bar">
+    <div className="eng-workspace-bar" data-testid="engineering-workspace-bar">
       <div><span>{t('workspace.schema')}</span><strong>{engineeringPackage ? `${engineeringPackage.schema} v${engineeringPackage.schemaVersion}` : '—'}</strong></div>
-      <div><span>{t('workspace.revision')}</span><strong>{workspace?.baseRevision ?? t('workspace.unsaved')}</strong></div>
-      <div><span>{t('workspace.status')}</span><strong className={workspace?.isDirty ? 'eng-dirty' : ''}>{workspace?.isDirty ? t('workspace.dirty') : t('workspace.clean')}</strong></div>
+      <div><span>{t('workspace.revision')}</span><strong>{workspace ? workspace.baseRevision : unavailable}</strong></div>
+      <div><span>{t('workspace.status')}</span><strong className={workspace?.isDirty ? 'eng-dirty' : ''}>{workspace ? (workspace.isDirty ? t('workspace.dirty') : t('workspace.clean')) : unavailable}</strong></div>
       <div><span>{t('workspace.exportedAt')}</span><strong>{engineeringPackage?.exportedAt ? formatDate(engineeringPackage.exportedAt, locale) : '—'}</strong></div>
     </div>
   );
@@ -210,13 +221,15 @@ function EngineeringSection({ section, snapshot, t, locale, onReload }: {
     case 'templates': return <EntitySection title={t('nav.templates')} items={model.templates ?? []} t={t} columns={[
       { key: 'key', title: t('table.key'), render: item => <Code>{item.key}</Code> },
       { key: 'name', title: t('table.name'), render: item => item.name },
-      { key: 'bindings', title: t('table.bindings'), render: item => item.bindings?.length ?? 0 }
+      { key: 'bindings', title: t('table.bindings'), render: item => item.bindings?.length ?? 0 },
+      { key: 'inspect', title: t('section.inspect'), render: item => <BindingInspection bindings={item.bindings} t={t} /> }
     ]}/>;
     case 'equipment': return <EntitySection title={t('nav.equipment')} items={model.equipment ?? []} t={t} columns={[
       { key: 'path', title: t('table.path'), render: item => <Code>{item.path}</Code> },
       { key: 'name', title: t('table.name'), render: item => item.name },
       { key: 'template', title: t('table.template'), render: item => item.templateKey ? <Code>{item.templateKey}</Code> : '—' },
-      { key: 'bindings', title: t('table.bindings'), render: item => item.bindings?.length ?? 0 }
+      { key: 'bindings', title: t('table.bindings'), render: item => item.bindings?.length ?? 0 },
+      { key: 'inspect', title: t('section.inspect'), render: item => <BindingInspection bindings={item.bindings} t={t} /> }
     ]}/>;
     case 'dynamos': return <EntitySection title={t('nav.dynamos')} items={model.dynamos ?? []} t={t} columns={[
       { key: 'key', title: t('table.key'), render: item => <Code>{item.key}</Code> },
@@ -318,6 +331,12 @@ function Diagnostic({ label, value, mono = false }: { label: string; value: stri
   return <div className="eng-diagnostic-card"><span>{label}</span><strong className={mono ? 'mono' : ''}>{value}</strong></div>;
 }
 function Code({ children }: { children: React.ReactNode }) { return <code className="eng-code">{children}</code>; }
+function BindingInspection({ bindings, t }: { bindings: Array<{ key: string; kind: string; target: string; direction?: string | null }> | null | undefined; t: ReturnType<typeof translator> }) {
+  return <details className="eng-binding-inspection">
+    <summary>{t('section.inspect')}</summary>
+    {!bindings?.length ? <span>{t('section.noBindings')}</span> : <ul>{bindings.map(binding => <li key={`${binding.key}:${binding.target}`}><Code>{binding.key}</Code> <span>{binding.kind}</span> <Code>{binding.target}</Code>{binding.direction ? <small>{binding.direction}</small> : null}</li>)}</ul>}
+  </details>;
+}
 function sectionCount(model: EngineeringPackageView, section: SectionId): number | string {
   switch (section) {
     case 'dataSources': return model.dataSources?.length ?? 0;
@@ -351,7 +370,17 @@ function NavIcon({ section }: { section: SectionId }) {
 }
 
 function resolveInitialSection(): SectionId {
-  if (window.location.pathname.startsWith(tagMonitorPath)) return 'tagMonitor';
-  if (window.location.pathname.startsWith(librariesPath)) return 'libraries';
+  const path = window.location.pathname;
+  if (path.startsWith(tagMonitorPath)) return 'tagMonitor';
+  if (path.startsWith(librariesPath)) return 'libraries';
+  const section = path.split('/')[2] as SectionId | undefined;
+  if (section && navigation.some(group => group.items.some(item => item.id === section))) return section;
   return 'overview';
+}
+
+function engineeringSectionPath(section: SectionId): string {
+  if (section === 'overview') return '/engineering';
+  if (section === 'tagMonitor') return tagMonitorPath;
+  if (section === 'libraries') return librariesPath;
+  return `/engineering/${section}`;
 }

@@ -682,7 +682,7 @@ function cloneVisualElementWithNewIdentity(
   duplicateOffset: number,
   applyOffset: boolean
 ): VisualElementEngineering {
-  const schema = getBuiltinVisualObjectSchema(element.type);
+  const schema = getVisualSchemaForEngineering(element.type);
   const clone: VisualElementEngineering = {
     ...cloneEngineeringValue(element),
     id: requireGeneratedObjectId(createObjectId()),

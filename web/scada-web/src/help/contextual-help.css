@@ -108,3 +108,18 @@
     max-height: 16rem;
   }
 }
+.help-page__script-api {
+  display: grid;
+  gap: .8rem;
+}
+
+.help-page__script-api article {
+  border: 1px solid var(--shell-border, #d8dde5);
+  border-radius: .45rem;
+  padding: .85rem;
+}
+
+.help-page__script-api h4 { margin: 0 0 .6rem; }
+.help-page__script-api dl { display: grid; gap: .2rem; margin: 0; }
+.help-page__script-api dt { font-weight: 700; }
+.help-page__script-api dd { margin: 0 0 .45rem; }

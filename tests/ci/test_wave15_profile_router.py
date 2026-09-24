@@ -23,6 +23,21 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         result = self.classify(["web/scada-web/src/engineering/Editor.tsx"], "VALIDATION_PROFILE: UI_EDITOR")
         self.assertTrue(result["run_web"])
         self.assertFalse(result["run_driver"])
+        self.assertEqual(result["e2e_specs"], [
+            "tests-e2e/app-shell.spec.ts",
+            "tests-e2e/visual-editor-authoring-model.spec.ts",
+            "tests-e2e/visual-editor-selection-model.spec.ts",
+            "tests-e2e/visual-editor-workspace.spec.ts",
+            "tests-e2e/visual-editor-z-order-model.spec.ts",
+            "tests-e2e/wave-14-c25-engineering-lock.spec.ts",
+        ])
+
+    def test_runtime_renderer_runs_runtime_and_runtime_session_owner_specs(self):
+        result = self.classify(["web/scada-web/src/runtime/application/RuntimeApplicationMount.tsx"], "VALIDATION_PROFILE: RUNTIME_RENDERER")
+        self.assertEqual(result["e2e_specs"], [
+            "tests-e2e/runtime.spec.ts",
+            "tests-e2e/wave-14-c25-runtime-session.spec.ts",
+        ])
 
     def test_script_engineering_requires_script_and_web(self):
         result = self.classify(["src/Scada.Engineering/Script/Resolver.cs"], "VALIDATION_PROFILE: SCRIPT_ENGINEERING")

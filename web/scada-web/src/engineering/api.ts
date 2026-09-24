@@ -13,16 +13,42 @@ import type {
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
-async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${API}${path}`, {
-    headers: { accept: 'application/json' }
-  });
+export class EngineeringSnapshotLoadError extends Error {
+  constructor(
+    public readonly kind: 'transport' | 'http' | 'response',
+    public readonly path: string,
+    public readonly status?: number,
+    cause?: unknown
+  ) {
+    const detail = kind === 'transport'
+      ? `Transport unavailable while loading ${path}.`
+      : kind === 'http'
+        ? `HTTP ${status ?? 'unknown'} response while loading ${path}.`
+        : `Invalid HTTP response while loading ${path}.`;
+    super(detail, cause === undefined ? undefined : { cause });
+    this.name = 'EngineeringSnapshotLoadError';
+  }
+}
 
-  if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText}`);
+async function getJson<T>(path: string): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`${API}${path}`, {
+      headers: { accept: 'application/json' }
+    });
+  } catch (reason) {
+    throw new EngineeringSnapshotLoadError('transport', path, undefined, reason);
   }
 
-  return await response.json() as T;
+  if (!response.ok) {
+    throw new EngineeringSnapshotLoadError('http', path, response.status);
+  }
+
+  try {
+    return await response.json() as T;
+  } catch (reason) {
+    throw new EngineeringSnapshotLoadError('response', path, response.status, reason);
+  }
 }
 
 async function readError(response: Response): Promise<Error> {

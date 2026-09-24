@@ -282,6 +282,16 @@ public sealed class ContextualHelpTests
             var documentedCode = string.Join("\n", scriptTopic.Sections.Select(section => section.Code ?? string.Empty));
             foreach (var apiFunction in runtimeApi)
                 Assert.Contains($"{apiFunction}(", documentedCode, StringComparison.Ordinal);
+
+            Assert.Equal(runtimeApi, catalog.ServerScriptApiDetails.Select(item => item.Name).OrderBy(name => name, StringComparer.Ordinal).ToArray());
+            Assert.All(catalog.ServerScriptApiDetails, item =>
+            {
+                Assert.False(string.IsNullOrWhiteSpace(item.Signature));
+                Assert.False(string.IsNullOrWhiteSpace(item.Parameters));
+                Assert.False(string.IsNullOrWhiteSpace(item.Result));
+                Assert.False(string.IsNullOrWhiteSpace(item.Safety));
+                Assert.Contains($"{item.Name}(", item.Example, StringComparison.Ordinal);
+            });
         }
     }
 
@@ -303,6 +313,8 @@ public sealed class ContextualHelpTests
         Assert.Contains("128 events", text, StringComparison.Ordinal);
         Assert.Contains("50 ms", text, StringComparison.Ordinal);
         Assert.Contains("5 consecutive failures", text, StringComparison.Ordinal);
+        Assert.Contains("recovery probe", text, StringComparison.Ordinal);
+        Assert.Contains("configurable cooldown", text, StringComparison.Ordinal);
         Assert.Contains("filesystem", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("shell/process execution", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("arbitrary network", text, StringComparison.OrdinalIgnoreCase);

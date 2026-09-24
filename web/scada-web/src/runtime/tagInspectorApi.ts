@@ -63,7 +63,7 @@ export function loadRecentTagHistory(
   return requestJson<RuntimeTagHistorySample[]>(`/api/history/${encodeURIComponent(tagId)}?${query}`, signal);
 }
 
-export type RuntimeTagRealtimeState = 'connecting' | 'live' | 'closed' | 'error';
+export type RuntimeTagRealtimeState = 'connecting' | 'live' | 'reconnecting' | 'closed' | 'error';
 export type RuntimeTagRealtimeDisposer = () => void;
 
 export function buildRuntimeTagRealtimeUrl(
@@ -87,26 +87,37 @@ export function connectRuntimeTagRealtime(
   onEvent: (event: RuntimeTagRealtimeEvent) => void,
   onState?: (state: RuntimeTagRealtimeState) => void
 ): RuntimeTagRealtimeDisposer {
-  onState?.('connecting');
-  const socket = new WebSocket(buildRuntimeTagRealtimeUrl());
   let disposed = false;
+  let socket: WebSocket | null = null;
+  let reconnectTimer: number | undefined;
 
-  socket.addEventListener('open', () => onState?.('live'));
-  socket.addEventListener('message', event => {
-    try {
-      const payload = JSON.parse(String(event.data)) as RuntimeTagRealtimeEvent;
-      if (payload?.type === 'tagValueChanged') onEvent(payload);
-    } catch {
-      // Ignore malformed/non-TAG messages. The periodic protected refresh remains authoritative fallback.
-    }
-  });
-  socket.addEventListener('error', () => onState?.('error'));
-  socket.addEventListener('close', () => {
-    if (!disposed) onState?.('closed');
-  });
+  const open = (reconnecting: boolean) => {
+    if (disposed) return;
+    onState?.(reconnecting ? 'reconnecting' : 'connecting');
+    socket = new WebSocket(buildRuntimeTagRealtimeUrl());
+
+    socket.addEventListener('open', () => onState?.('live'));
+    socket.addEventListener('message', event => {
+      try {
+        const payload = JSON.parse(String(event.data)) as RuntimeTagRealtimeEvent;
+        if (payload?.type === 'tagValueChanged') onEvent(payload);
+      } catch {
+        // Ignore malformed/non-TAG messages. The periodic protected refresh remains authoritative fallback.
+      }
+    });
+    socket.addEventListener('error', () => onState?.('error'));
+    socket.addEventListener('close', () => {
+      if (disposed) return;
+      onState?.('closed');
+      reconnectTimer = window.setTimeout(() => open(true), 1_000);
+    });
+  };
+
+  open(false);
 
   return () => {
     disposed = true;
-    if (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN) socket.close();
+    if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
+    if (socket && (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN)) socket.close();
   };
 }

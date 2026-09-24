@@ -6,7 +6,7 @@ import {
   CLIENT_VISUAL_PYTHON_CAPABILITIES,
   type ClientVisualPythonCapability
 } from '../../python-runtime/pythonRuntimeContracts';
-import { getBuiltinVisualObjectSchema } from '../../visual-runtime/builtinVisualObjectSchemas';
+import { getVisualSchemaForEngineering, isKnownLegacyVisualType } from '../../visual-runtime';
 import type { VisualPropertyDefinition, VisualPropertyValue } from '../../visual-runtime/visualPropertyTypes';
 import type {
   DataSourceEngineering,
@@ -88,7 +88,7 @@ export type ScriptAssistantVisualObject = Readonly<{
   properties: readonly ScriptAssistantVisualProperty[];
   publicDynamoParameters: readonly ScriptAssistantDynamoParameter[];
   children: readonly ScriptAssistantVisualObject[];
-  schemaStatus: 'canonical' | 'unknown';
+  schemaStatus: 'canonical' | 'compatible' | 'unknown';
 }>;
 
 export type ScriptAssistantVisualDefinition = Readonly<{
@@ -317,16 +317,16 @@ function buildVisualObject(
 function buildVisualProperties(
   element: VisualElementEngineering,
   canonicalReference: string
-): { schemaStatus: 'canonical' | 'unknown'; properties: ScriptAssistantVisualProperty[] } {
+): { schemaStatus: 'canonical' | 'compatible' | 'unknown'; properties: ScriptAssistantVisualProperty[] } {
   let definitions: readonly VisualPropertyDefinition[];
   try {
-    definitions = getBuiltinVisualObjectSchema(element.type).definitions();
+    definitions = getVisualSchemaForEngineering(element.type).definitions();
   } catch {
     return { schemaStatus: 'unknown', properties: [] };
   }
 
   return {
-    schemaStatus: 'canonical',
+    schemaStatus: isKnownLegacyVisualType(element.type) ? 'compatible' : 'canonical',
     properties: definitions.map(definition => buildVisualProperty(element, canonicalReference, definition))
   };
 }

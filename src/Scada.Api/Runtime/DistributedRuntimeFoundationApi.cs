@@ -38,7 +38,7 @@ public static class DistributedRuntimeFoundationApi
             {
                 return Results.BadRequest(new
                 {
-                    error = "Runtime connectionClass must be 'viewer' or 'interactive'."
+                    error = "Runtime connectionClass must be 'viewOnly' or 'interactive'."
                 });
             }
 

@@ -2,7 +2,7 @@ import type { ScreenEngineering, VisualElementEngineering } from '../../types';
 import {
   COMMON_VISUAL_PROPERTY_REGISTRY,
   VISUAL_PROPERTY_KEYS,
-  getBuiltinVisualObjectSchema
+  getVisualSchemaForEngineering
 } from '../../../visual-runtime';
 import type {
   VisualEditorBounds,
@@ -305,7 +305,7 @@ function readBoolean(element: VisualElementEngineering, propertyKey: string): bo
 
 function registryDefault(objectType: string, propertyKey: string): unknown {
   try {
-    const schema = getBuiltinVisualObjectSchema(objectType);
+    const schema = getVisualSchemaForEngineering(objectType);
     if (schema.declares(propertyKey)) return schema.getRequired(propertyKey).defaultValue;
   } catch {
     // Historical/non-built-in objects may still be projected generically. Their

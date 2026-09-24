@@ -22,6 +22,14 @@ type HelpCatalog = Readonly<{
   supportedLocales: readonly EngineeringLocale[];
   topics: readonly HelpTopic[];
   serverScriptApi: readonly string[];
+  serverScriptApiDetails?: readonly Readonly<{
+    name: string;
+    signature: string;
+    parameters: string;
+    result: string;
+    safety: string;
+    example: string;
+  }>[];
 }>;
 
 const ui = {
@@ -33,7 +41,7 @@ const ui = {
     loading: 'Carregando ajuda local...',
     error: 'Não foi possível carregar o manual local.',
     empty: 'Tópico de ajuda não encontrado.',
-    api: 'API de Server Script suportada nesta compilação'
+    api: 'API de Server Script suportada nesta compilação', parameters: 'Parâmetros', result: 'Resultado', safety: 'Segurança'
   },
   en: {
     title: 'EliteSCADA Help',
@@ -43,7 +51,7 @@ const ui = {
     loading: 'Loading local help...',
     error: 'The local manual could not be loaded.',
     empty: 'Help topic not found.',
-    api: 'Server Script API supported by this build'
+    api: 'Server Script API supported by this build', parameters: 'Parameters', result: 'Result', safety: 'Safety'
   },
   es: {
     title: 'Ayuda de EliteSCADA',
@@ -53,7 +61,7 @@ const ui = {
     loading: 'Cargando ayuda local...',
     error: 'No fue posible cargar el manual local.',
     empty: 'Tema de ayuda no encontrado.',
-    api: 'API de Server Script soportada en esta compilación'
+    api: 'API de Server Script soportada en esta compilación', parameters: 'Parámetros', result: 'Resultado', safety: 'Seguridad'
   }
 } as const;
 
@@ -149,7 +157,17 @@ export function ContextualHelpApp() {
             ))}
             {selected.id === 'scripts.server' ? <section>
               <h3>{text.api}</h3>
-              <ul>{catalog.serverScriptApi.map(name => <li key={name}><code>{name}</code></li>)}</ul>
+              {catalog.serverScriptApiDetails?.length ? <div className="help-page__script-api" data-testid="server-script-api-details">
+                {catalog.serverScriptApiDetails.map(api => <article key={api.name}>
+                  <h4><code>{api.signature}</code></h4>
+                  <dl>
+                    <dt>{text.parameters}</dt><dd>{api.parameters}</dd>
+                    <dt>{text.result}</dt><dd>{api.result}</dd>
+                    <dt>{text.safety}</dt><dd>{api.safety}</dd>
+                  </dl>
+                  <pre><code>{api.example}</code></pre>
+                </article>)}
+              </div> : <ul>{catalog.serverScriptApi.map(name => <li key={name}><code>{name}</code></li>)}</ul>}
             </section> : null}
           </> : <p>{text.empty}</p>}
         </article>

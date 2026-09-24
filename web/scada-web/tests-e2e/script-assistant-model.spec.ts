@@ -201,3 +201,18 @@ test('capability catalog advertises only official product capabilities while res
   expect(advertised).not.toContain('backendOperation.request');
   expect(CLIENT_VISUAL_PYTHON_PROTOCOL_CAPABILITIES).toContain('backendOperation.request');
 });
+
+test('known persisted legacy visual objects retain their bounded compatibility schema in Script Assistant', () => {
+  const catalog = buildScriptAssistantCatalog({
+    ...engineeringPackage,
+    screens: [{
+      id: 'legacy-screen', key: 'legacy', name: 'Legacy', route: '/legacy',
+      elements: [{ id: 'legacy-tank', key: 'LegacyTank', type: 'tank', properties: { x: 12, y: 24 } }]
+    }]
+  } as unknown as EngineeringPackageView);
+
+  const object = catalog.screens[0].objects[0];
+  expect(object.schemaStatus).toBe('compatible');
+  expect(object.properties.map(property => property.key)).toEqual(expect.arrayContaining(['x', 'y', 'width', 'height', 'visible']));
+  expect(object.properties.some(property => property.key === 'text')).toBe(false);
+});

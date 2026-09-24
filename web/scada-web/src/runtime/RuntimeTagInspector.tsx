@@ -26,6 +26,7 @@ import type {
   RuntimeTagQualityFilter,
   RuntimeTagRealtimeEvent
 } from './tagInspectorTypes';
+import { describeLiveValueDiagnostics } from './liveValueFreshness';
 import './runtime-tag-inspector.css';
 
 export type RuntimeTagListLoader = (signal?: AbortSignal) => Promise<RuntimeTagListItem[]>;
@@ -68,6 +69,7 @@ type Copy = {
   total: string;
   live: string;
   connecting: string;
+  reconnecting: string;
   polling: string;
   realtimeError: string;
   currentValue: string;
@@ -94,6 +96,14 @@ type Copy = {
   unavailable: string;
   selectedUnavailable: string;
   unknown: string;
+  valueFreshness: string;
+  freshnessFresh: string;
+  freshnessAging: string;
+  freshnessStale: string;
+  freshnessUnavailable: string;
+  lastRequest: string;
+  lastSuccess: string;
+  freshnessReason: string;
 };
 
 const copy: Record<RuntimeTagInspectorLocale, Copy> = {
@@ -103,10 +113,11 @@ const copy: Record<RuntimeTagInspectorLocale, Copy> = {
     search: 'Buscar TAGs', searchPlaceholder: 'Path, nome, tipo, unidade, origem ou valor', qualityFilter: 'Qualidade', accessFilter: 'Acesso',
     all: 'Todos', good: 'Good', attention: 'Atenção', bad: 'Bad', noSample: 'Sem amostra', readOnly: 'Somente leitura', writable: 'Gravável',
     refresh: 'Atualizar', refreshing: 'Atualizando…', loading: 'Carregando TAGs do Runtime…', empty: 'Nenhuma TAG visível no Runtime ativo.', noMatches: 'Nenhuma TAG corresponde aos filtros.', total: 'TAGs',
-    live: 'Realtime conectado', connecting: 'Conectando realtime…', polling: 'Realtime desconectado · atualização periódica ativa', realtimeError: 'Realtime indisponível · atualização periódica ativa',
+    live: 'Realtime conectado', connecting: 'Conectando realtime…', reconnecting: 'Reconectando realtime…', polling: 'Realtime desconectado · atualização periódica ativa', realtimeError: 'Realtime indisponível · atualização periódica ativa',
     currentValue: 'Valor atual', quality: 'Qualidade', timestamp: 'Timestamp EliteSCADA', sourceTimestamp: 'Timestamp da origem', serverTimestamp: 'Timestamp do servidor', dataType: 'Tipo', unit: 'Unidade', source: 'Origem / Data Source', descriptionLabel: 'Descrição', access: 'Acesso', path: 'Path', identity: 'ID estável',
     recentHistory: 'Histórico recente', historyWindow: 'janela', historyEmpty: 'Nenhuma amostra histórica neste intervalo.', historyLoading: 'Carregando histórico…', historyRefresh: 'Atualizar histórico', value: 'Valor',
-    unauthenticated: 'Sessão não autenticada para consultar TAGs.', forbidden: 'Sem permissão para consultar este recurso do Runtime.', notFound: 'A TAG selecionada não existe mais no Runtime ativo.', unavailable: 'Serviço de TAGs indisponível no momento.', selectedUnavailable: 'Não foi possível carregar os detalhes desta TAG.', unknown: 'Desconhecido'
+    unauthenticated: 'Sessão não autenticada para consultar TAGs.', forbidden: 'Sem permissão para consultar este recurso do Runtime.', notFound: 'A TAG selecionada não existe mais no Runtime ativo.', unavailable: 'Serviço de TAGs indisponível no momento.', selectedUnavailable: 'Não foi possível carregar os detalhes desta TAG.', unknown: 'Desconhecido',
+    valueFreshness: 'Atualização do valor', freshnessFresh: 'Atualizada', freshnessAging: 'Dados envelhecendo', freshnessStale: 'Dados desatualizados', freshnessUnavailable: 'Sem timestamp de atualização', lastRequest: 'Última solicitação', lastSuccess: 'Última resposta válida', freshnessReason: 'Motivo'
   },
   en: {
     title: 'TAG Inspector',
@@ -114,10 +125,11 @@ const copy: Record<RuntimeTagInspectorLocale, Copy> = {
     search: 'Search TAGs', searchPlaceholder: 'Path, name, type, unit, source or value', qualityFilter: 'Quality', accessFilter: 'Access',
     all: 'All', good: 'Good', attention: 'Attention', bad: 'Bad', noSample: 'No sample', readOnly: 'Read-only', writable: 'Writable',
     refresh: 'Refresh', refreshing: 'Refreshing…', loading: 'Loading Runtime TAGs…', empty: 'No TAG is visible in the active Runtime.', noMatches: 'No TAG matches the filters.', total: 'TAGs',
-    live: 'Realtime connected', connecting: 'Connecting realtime…', polling: 'Realtime disconnected · periodic refresh active', realtimeError: 'Realtime unavailable · periodic refresh active',
+    live: 'Realtime connected', connecting: 'Connecting realtime…', reconnecting: 'Reconnecting realtime…', polling: 'Realtime disconnected · periodic refresh active', realtimeError: 'Realtime unavailable · periodic refresh active',
     currentValue: 'Current value', quality: 'Quality', timestamp: 'EliteSCADA timestamp', sourceTimestamp: 'Source timestamp', serverTimestamp: 'Server timestamp', dataType: 'Type', unit: 'Unit', source: 'Source / Data Source', descriptionLabel: 'Description', access: 'Access', path: 'Path', identity: 'Stable ID',
     recentHistory: 'Recent history', historyWindow: 'window', historyEmpty: 'No historical sample in this interval.', historyLoading: 'Loading history…', historyRefresh: 'Refresh history', value: 'Value',
-    unauthenticated: 'The session is not authenticated to read TAGs.', forbidden: 'Not authorized to read this Runtime resource.', notFound: 'The selected TAG no longer exists in the active Runtime.', unavailable: 'TAG service is currently unavailable.', selectedUnavailable: 'The selected TAG details could not be loaded.', unknown: 'Unknown'
+    unauthenticated: 'The session is not authenticated to read TAGs.', forbidden: 'Not authorized to read this Runtime resource.', notFound: 'The selected TAG no longer exists in the active Runtime.', unavailable: 'TAG service is currently unavailable.', selectedUnavailable: 'The selected TAG details could not be loaded.', unknown: 'Unknown',
+    valueFreshness: 'Value freshness', freshnessFresh: 'Updated', freshnessAging: 'Data aging', freshnessStale: 'Data stale', freshnessUnavailable: 'No update timestamp', lastRequest: 'Last request', lastSuccess: 'Last successful response', freshnessReason: 'Reason'
   },
   es: {
     title: 'Inspector de TAGs',
@@ -125,10 +137,11 @@ const copy: Record<RuntimeTagInspectorLocale, Copy> = {
     search: 'Buscar TAGs', searchPlaceholder: 'Path, nombre, tipo, unidad, origen o valor', qualityFilter: 'Calidad', accessFilter: 'Acceso',
     all: 'Todos', good: 'Good', attention: 'Atención', bad: 'Bad', noSample: 'Sin muestra', readOnly: 'Solo lectura', writable: 'Escribible',
     refresh: 'Actualizar', refreshing: 'Actualizando…', loading: 'Cargando TAGs del Runtime…', empty: 'No hay TAGs visibles en el Runtime activo.', noMatches: 'Ninguna TAG coincide con los filtros.', total: 'TAGs',
-    live: 'Realtime conectado', connecting: 'Conectando realtime…', polling: 'Realtime desconectado · actualización periódica activa', realtimeError: 'Realtime no disponible · actualización periódica activa',
+    live: 'Realtime conectado', connecting: 'Conectando realtime…', reconnecting: 'Reconectando realtime…', polling: 'Realtime desconectado · actualización periódica activa', realtimeError: 'Realtime no disponible · actualización periódica activa',
     currentValue: 'Valor actual', quality: 'Calidad', timestamp: 'Timestamp EliteSCADA', sourceTimestamp: 'Timestamp de origen', serverTimestamp: 'Timestamp del servidor', dataType: 'Tipo', unit: 'Unidad', source: 'Origen / Data Source', descriptionLabel: 'Descripción', access: 'Acceso', path: 'Path', identity: 'ID estable',
     recentHistory: 'Histórico reciente', historyWindow: 'ventana', historyEmpty: 'No hay muestras históricas en este intervalo.', historyLoading: 'Cargando histórico…', historyRefresh: 'Actualizar histórico', value: 'Valor',
-    unauthenticated: 'La sesión no está autenticada para consultar TAGs.', forbidden: 'Sin permiso para consultar este recurso del Runtime.', notFound: 'La TAG seleccionada ya no existe en el Runtime activo.', unavailable: 'El servicio de TAGs no está disponible.', selectedUnavailable: 'No fue posible cargar los detalles de esta TAG.', unknown: 'Desconocido'
+    unauthenticated: 'La sesión no está autenticada para consultar TAGs.', forbidden: 'Sin permiso para consultar este recurso del Runtime.', notFound: 'La TAG seleccionada ya no existe en el Runtime activo.', unavailable: 'El servicio de TAGs no está disponible.', selectedUnavailable: 'No fue posible cargar los detalles de esta TAG.', unknown: 'Desconocido',
+    valueFreshness: 'Actualización del valor', freshnessFresh: 'Actualizado', freshnessAging: 'Datos envejeciendo', freshnessStale: 'Datos obsoletos', freshnessUnavailable: 'Sin timestamp de actualización', lastRequest: 'Última solicitud', lastSuccess: 'Última respuesta válida', freshnessReason: 'Motivo'
   }
 };
 
@@ -192,6 +205,8 @@ export function RuntimeTagInspector({
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyIssue, setHistoryIssue] = useState<RuntimeTagEndpointIssue | null>(null);
   const [realtimeState, setRealtimeState] = useState<RuntimeTagRealtimeState>('connecting');
+  const [lastRequestAt, setLastRequestAt] = useState<string | null>(null);
+  const [lastSuccessAt, setLastSuccessAt] = useState<string | null>(null);
   const listAbort = useRef<AbortController | null>(null);
   const selectionAbort = useRef<AbortController | null>(null);
 
@@ -200,10 +215,12 @@ export function RuntimeTagInspector({
     const controller = new AbortController();
     listAbort.current = controller;
     setRefreshing(true);
+    setLastRequestAt(new Date().toISOString());
     try {
       const next = await listLoader(controller.signal);
       if (controller.signal.aborted) return;
       setTags(next);
+      setLastSuccessAt(new Date().toISOString());
       setListIssue(null);
       setSelectedId(current => current && next.some(tag => tag.id === current) ? current : next[0]?.id ?? null);
     } catch (error) {
@@ -283,6 +300,10 @@ export function RuntimeTagInspector({
     () => [...history].sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp)),
     [history]
   );
+  const selectedFreshness = useMemo(
+    () => describeLiveValueDiagnostics({ observedAt: selectedTag?.current?.timestamp, lastRequestAt, lastSuccessAt, requestFailed: listIssue !== null || realtimeState === 'error', now: Date.now(), staleAfterMilliseconds: Math.max(refreshIntervalMs * 3, 15_000) }),
+    [lastRequestAt, lastSuccessAt, listIssue, realtimeState, refreshIntervalMs, selectedTag?.current?.timestamp, tags]
+  );
 
   if (loading && tags.length === 0) return <section className="runtime-tag-inspector runtime-tag-state">{text.loading}</section>;
 
@@ -305,7 +326,7 @@ export function RuntimeTagInspector({
         </div>
         <div className="runtime-tag-header-actions">
           <span className={`runtime-tag-live state-${realtimeState}`} aria-live="polite">
-            {realtimeState === 'live' ? text.live : realtimeState === 'connecting' ? text.connecting : realtimeState === 'error' ? text.realtimeError : text.polling}
+            {realtimeState === 'live' ? text.live : realtimeState === 'connecting' ? text.connecting : realtimeState === 'reconnecting' ? text.reconnecting : realtimeState === 'error' ? text.realtimeError : text.polling}
           </span>
           <button type="button" disabled={refreshing} onClick={() => void refreshTags()}>{refreshing ? text.refreshing : text.refresh}</button>
         </div>
@@ -389,6 +410,10 @@ export function RuntimeTagInspector({
                 <Fact label={text.source} value={detail?.tag.source || selectedTag.current?.source || '—'} mono />
                 <Fact label={text.access} value={selectedTag.readOnly ? text.readOnly : text.writable} />
                 <Fact label={text.timestamp} value={formatMoment(selectedTag.current?.timestamp, locale)} />
+                <Fact label={text.valueFreshness} value={freshnessText(selectedFreshness.state, text)} tone={selectedFreshness.state} />
+                <Fact label={text.lastRequest} value={formatMoment(selectedFreshness.lastRequestAt, locale)} />
+                <Fact label={text.lastSuccess} value={formatMoment(selectedFreshness.lastSuccessAt, locale)} />
+                <Fact label={text.freshnessReason} value={selectedFreshness.reason} tone={selectedFreshness.state} />
                 <Fact label={text.sourceTimestamp} value={formatMoment(selectedTag.current?.sourceTimestamp, locale)} />
                 <Fact label={text.serverTimestamp} value={formatMoment(selectedTag.current?.serverTimestamp, locale)} />
                 <Fact label={text.descriptionLabel} value={selectedTag.description || detail?.tag.description || '—'} />
@@ -432,6 +457,13 @@ function Summary({ label, value, tone }: { label: string; value: number; tone?: 
   return <div className={`runtime-tag-summary-item${tone ? ` tone-${tone}` : ''}`}><span>{label}</span><strong>{value}</strong></div>;
 }
 
-function Fact({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
-  return <div><dt>{label}</dt><dd className={mono ? 'mono' : undefined}>{value}</dd></div>;
+function Fact({ label, value, mono = false, tone }: { label: string; value: string; mono?: boolean; tone?: ReturnType<typeof describeLiveValueDiagnostics>['state'] }) {
+  return <div><dt>{label}</dt><dd className={`${mono ? 'mono ' : ''}${tone ? `runtime-tag-freshness freshness-${tone}` : ''}`.trim()}>{value}</dd></div>;
+}
+
+function freshnessText(state: ReturnType<typeof describeLiveValueDiagnostics>['state'], text: Copy) {
+  if (state === 'fresh') return text.freshnessFresh;
+  if (state === 'aging') return text.freshnessAging;
+  if (state === 'stale') return text.freshnessStale;
+  return text.freshnessUnavailable;
 }

@@ -907,3 +907,50 @@ Required return:
 `FC0-A CONSOLIDATED CODEX -> MAIN COORDINATOR — FINAL INTEGRATION HANDOFF V5`.
 
 No merge/freeze/release yet. Six downstream lanes remain PREPARED/HOLD.
+
+
+## FC0-A merged / release blocked by INFRA-CI-01C recurrence (2026-09-24)
+
+FC0-A consolidated PR #340 is merged.
+
+Exact accepted product checkpoint:
+- SHA `d975174ae81ff7ed754585097240778a9862d965`
+- tree `5ac06f47f1bede7a1b0c384c7b1d3c83730015ea`
+- pre-merge Wave 15 T1 `36043296814`: SUCCESS
+- required Chromium owner suite: 54 passed.
+
+The exact post-merge push gate `EliteSCADA CI 36044280802` is red:
+- Web build SUCCESS;
+- Backend build SUCCESS;
+- Backend Test FAILURE;
+- smoke/Chromium skipped downstream.
+
+Only identified failure:
+`PostgreSqlEngineeringSchemaV15CommunicationBindingTests.PostgreSqlRevision_SavePreviewApply_RoundTripsCommunicationBinding`
+with PostgreSQL
+`23505 / pg_namespace_nspname_index`
+on concurrent
+`CREATE SCHEMA IF NOT EXISTS elitescada`.
+
+Main proved the affected Engineering store, shared-schema lock helper, Timescale infrastructure, failing test and existing concurrency regression are byte-identical to frozen pre-FC0A `560ac9d...`. Classification:
+
+`GENERIC_INFRASTRUCTURE_RECURRENCE / NOT_FC0A_PRODUCT_CAUSAL`.
+
+Do not reopen accepted PR #340 product work and do not use a blind rerun as release evidence.
+
+Active blocker:
+- `coord/w15-infra-ci-01c-control:docs/WAVE15-INFRA-CI-01C-POSTGRES-SCHEMA-RACE-RECURRENCE-CONTROL.md`
+- order `INFRA-CI-01C-POSTGRES-SCHEMA-RECURRENCE-V1`
+- control commit `8cf15e123823f5aaae2c911f0f113e804c9dad0d`
+- work branch `work/w15-infra-ci-01c-postgres-schema-recurrence`
+- exact base `d975174ae81ff7ed754585097240778a9862d965`.
+
+Sequential CODEX route:
+- rev 0033
+- `ROUTE-SEQUENTIAL-CODEX-TO-INFRA-CI-01C-21`
+- commit `57dbe4a29ad69483d0a06f1bc0b8dc2f8f908d6b`.
+
+Current state:
+`FC0-A -> POST_MERGE_VALIDATION_BLOCKED_BY_INFRA`.
+
+No `FC0A_RELEASE_APPROVED` yet. All six prepared DEV/FND lanes remain WAIT. Their work branches must not be created/activated from a stale checkpoint; after 01C is integrated and the exact new post-merge gate is green, Main will record the final release base and create/activate them.

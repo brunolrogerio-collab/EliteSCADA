@@ -4,11 +4,11 @@
 
 `CONTROL_BRANCH: coord/w15-fnd05-control`
 
-`MAIN_ORDER_REV: 0005`
+`MAIN_ORDER_REV: 0006`
 
-`STATE: ACTIVE_CODING / DEV_IMPLEMENTATION_AUTHORIZED`
+`STATE: DEV_CORRECTION / PEER_HANDOFF_BOUNDARY_REQUIRED`
 
-`CURRENT_ORDER_ID: FND05-DEV-HA-AUTHORITY-V1`
+`CURRENT_ORDER_ID: FND05-DEV-PEER-HANDOFF-BOUNDARY-V2-01`
 
 `LATEST_AUDITED_PRODUCT_CHECKPOINT: e3ed5138369c576549cb58a7aff9783792f322d3`
 
@@ -216,3 +216,110 @@ The mandatory post-FND06 FC0-A Foundation Closure Audit rev 0014 returned `ACCEP
 After FC0-A release, FND-05 DEV may implement in parallel with the other prepared DEV lanes on its own isolated branch. There is no fixed four-DEV concurrency cap. Main controls shared-hotspot collisions and validation/integration order.
 
 CODEX does not need to be free for FND-05 **coding**. It is required later for `CODEX_HA_ADVERSARIAL_GREEN`, focused local validation and exact-head T1 before Main integration approval.
+
+
+## 8. Main contract review — CHANGES_REQUIRED / transport-neutral peer handoff boundary
+
+Exact reviewed candidate:
+- PR `#347`;
+- head `8c2bd2724b7f17711d76c59919f68ed7037483a3`;
+- tree `c88c5f005f9914c535c786eea7f646ace381ae6b`;
+- natural T1 `36064607662`: SUCCESS.
+
+Main accepts the internal HA state-machine direction:
+- explicit topology/NodeId/ClusterId;
+- effective-Active authority;
+- break-before-make epoch transition;
+- stale fencing-token rejection;
+- peer-loss no-promotion;
+- ambiguous authority fail-closed;
+- HA entitlement/revision readiness rules;
+- event/effect guards;
+- logical lease-continuity model.
+
+However the candidate is **not yet ready for CODEX adversarial validation** because the current production boundary cannot carry the state between two independent node instances.
+
+Live evidence on the exact head:
+- `RuntimeHighAvailabilityApi` only refreshes **local** readiness before topology/transfer operations;
+- `RuntimeHighAvailabilityService.RefreshLocalReadiness` updates only its local node;
+- remote readiness in focused tests is injected directly through `RuntimeHaAuthorityCoordinator.UpdateNodeReadiness`;
+- there is no production/service-level peer observation ingestion boundary for remote readiness/authority epoch/claim;
+- `BeginManualTransfer` requires target ReadyStandby, so a real node A cannot establish B readiness through the product contract as written;
+- each process owns its own in-memory authority coordinator/authority-instance state, but no transport-neutral handoff currently converges the break/grant state on the peer;
+- `RuntimeSessionLeaseContinuityRegistry` can capture/snapshot local envelopes and resume local state, but exposes no import/apply path for a peer-replicated envelope.
+
+Therefore the current harness proves one coordinator modeling two nodes; it does not yet prove the intended **two-node implementation/handoff boundary** from the FND-05 first slice.
+
+Disposition:
+
+`FND-05 DEV -> MAIN COORDINATOR — CHANGES_REQUIRED`
+
+### CURRENT CORRECTION ORDER
+
+`ORDER_ID: FND05-DEV-PEER-HANDOFF-BOUNDARY-V2-01`
+
+`ORDER_STATE: DEV_CORRECTION / AUTHORIZED`
+
+`CORRECTION_BASE_HEAD: 8c2bd2724b7f17711d76c59919f68ed7037483a3`
+
+Implement the smallest **transport-neutral** peer contract needed to make the existing state machine consumable by two independent node services.
+
+Required outcomes:
+
+1. Add a versioned peer observation/handoff contract that can carry, at minimum:
+   - ClusterId / topology version;
+   - source NodeId;
+   - remote readiness/runtime identity/synchronization/license evidence;
+   - authority epoch/claim state needed to fail closed;
+   - freshness/observation identity needed to reject stale peer evidence.
+
+2. Add a service-level apply/observe boundary so a node can consume peer evidence **without tests reaching into the other node's coordinator internals**.
+
+3. Manual transfer must have a transport-neutral break/grant handoff:
+   - A establishes the break and advances epoch before B can own effects;
+   - B can consume the break/grant state through the public HA boundary;
+   - stale A authority remains denied;
+   - B cannot become effective Active from peer loss alone;
+   - mismatched cluster/topology/node/epoch/authority state fails closed.
+
+4. Extend Runtime Session continuity with an explicit peer import/apply boundary:
+   - imported envelope may preserve one logical lease identity;
+   - it must not become a second seat-admission/quota authority;
+   - expired/stale/lower-generation state cannot resurrect or replace newer state;
+   - termination/expiry remains deterministic.
+
+5. Replace/extend the focused two-node harness so it uses **two independent RuntimeHighAvailabilityService/authority instances** and exchanges only the new public transport-neutral contracts. Do not prove A/B by directly mutating both logical nodes inside one coordinator.
+
+6. Prove in that harness:
+   - A and B converge on compatible runtime identity/readiness;
+   - B becomes ReadyStandby only after valid peer evidence;
+   - manual A->B is break-before-make across the two instances;
+   - stale epoch/token on A is rejected;
+   - conflicting/ambiguous claims fail closed;
+   - peer loss does not auto-promote;
+   - one logical lease can be handed to B without double counting/resurrection.
+
+7. Keep existing industrial-effect guards and existing T1 coverage green.
+
+### Explicit non-scope
+
+This correction does **not** authorize:
+- a full network/HTTP/gRPC peer transport;
+- distributed consensus/Raft;
+- automatic failover/election;
+- package topology state;
+- a second license/quota ledger;
+- a FND-03/FND-04/FND-06 semantic rewrite;
+- broad UI work.
+
+A future transport may serialize/carry these versioned envelopes. This correction freezes the safe product boundary that such a transport must consume.
+
+After correction:
+- return exact candidate SHA/tree and changed-file map;
+- document the before/after two-node synchronization model;
+- run focused two-instance HA tests;
+- run natural exact-head T1;
+- return:
+  `FND-05 DEV -> MAIN COORDINATOR — CANDIDATE HANDOFF`.
+
+Only after Main accepts this correction may the lane enter mandatory `CODEX_HA_ADVERSARIAL_VALIDATION`.

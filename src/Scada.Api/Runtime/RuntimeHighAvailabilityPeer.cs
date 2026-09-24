@@ -259,13 +259,29 @@ public sealed partial class RuntimeSessionLeaseContinuityRegistry
                 envelope.UserId,
                 envelope.ClientInstanceId);
 
-            if (_peerTombstones.TryGetValue(key, out var tombstone) &&
-                envelope.Generation <= tombstone.Generation)
+            if (_peerTombstones.TryGetValue(key, out var tombstone))
             {
-                return new RuntimeSessionContinuityImportResult(
-                    false,
-                    "session-terminated-or-expired-generation",
-                    null);
+                if (envelope.AuthorityRevision < tombstone.AuthorityRevision)
+                {
+                    return new RuntimeSessionContinuityImportResult(
+                        false,
+                        "session-authority-revision-stale",
+                        null);
+                }
+                if (envelope.SessionId == tombstone.SessionId)
+                {
+                    return new RuntimeSessionContinuityImportResult(
+                        false,
+                        "session-terminated-or-expired-session",
+                        null);
+                }
+                if (envelope.IssuedAtUtc <= tombstone.IssuedAtUtc)
+                {
+                    return new RuntimeSessionContinuityImportResult(
+                        false,
+                        "session-issued-at-stale",
+                        null);
+                }
             }
 
             if (_leases.TryGetValue(key, out var current))
@@ -284,12 +300,13 @@ public sealed partial class RuntimeSessionLeaseContinuityRegistry
                         "session-generation-stale",
                         current);
                 }
-                if (envelope.Generation == current.Generation &&
-                    envelope.AuthorityRevision < current.AuthorityRevision)
+                if (envelope.AuthorityRevision != current.AuthorityRevision)
                 {
                     return new RuntimeSessionContinuityImportResult(
                         false,
-                        "session-authority-revision-stale",
+                        envelope.AuthorityRevision < current.AuthorityRevision
+                            ? "session-authority-revision-stale"
+                            : "session-authority-revision-mismatch",
                         current);
                 }
                 if (envelope.ConnectionClass != current.ConnectionClass)
@@ -342,6 +359,7 @@ public sealed partial class RuntimeSessionLeaseContinuityRegistry
             lease.SessionId,
             lease.Generation,
             lease.AuthorityRevision,
+            lease.IssuedAtUtc,
             _utcNow(),
             reasonCode);
     }
@@ -353,6 +371,7 @@ public sealed partial class RuntimeSessionLeaseContinuityRegistry
         Guid SessionId,
         long Generation,
         long AuthorityRevision,
+        DateTimeOffset IssuedAtUtc,
         DateTimeOffset RecordedAtUtc,
         string ReasonCode);
 }

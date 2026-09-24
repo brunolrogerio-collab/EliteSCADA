@@ -226,9 +226,9 @@ FND-06 product work is merged and Main-accepted, but not frozen.
 - no blind rerun authorized.
 
 Active sequential CODEX mission:
-- `INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V1`
+- `INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V2`
 - control: `coord/w15-infra-ci-01b-control:docs/WAVE15-INFRA-CI-01B-CONTROL.md`
-- control commit: `358b067d9af6501b2945f311b5d2cd32cab64efa`
+- control commit: `be7a2d875c24e07d023162e64c65acb0aebe9672`
 - work: `work/w15-infra-ci-01b-postgresql-schema-init`
 - exact base: `624f2eca456310a2c6156538b3616a06e3be075f`.
 
@@ -240,3 +240,17 @@ FC0-A and independent audit are not released until:
 2. exact broad integration CI is green;
 3. FND-06 is declared VERIFIED/FROZEN;
 4. post-FND06 audit returns ACCEPTABLE / FC0A_RELEASE_APPROVED.
+
+
+## INFRA-CI-01B V2 widened only for shared-schema DDL sequencing
+
+Intermediate PR #338 head `97c665c8e4d62268336dfdef400f992c2f9d43cf` remains unmerged.
+
+Full local concurrency RED exposed additional creators:
+- PostgreSqlAuthorityPolicyStore
+- PostgreSqlAuthorityLifecycleStore
+- PostgreSqlRuntimeSessionLeaseStore
+
+Current order is `INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V2` at control commit `be7a2d875c24e07d023162e64c65acb0aebe9672`.
+
+Only initialization lock sequencing is authorized in those files. No Authority, session, quota, admission, fencing or licensing semantics may change.

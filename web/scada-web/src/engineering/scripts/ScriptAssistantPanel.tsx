@@ -340,7 +340,7 @@ function VisualObjectCard({
       <details className="script-assistant__properties">
         <summary>{copy.properties} ({object.properties.length})</summary>
         {object.schemaStatus === 'unknown' && <p className="script-assistant__hint">{copy.schemaUnknown}</p>}
-        {object.properties.length === 0 && object.schemaStatus === 'canonical' && <p className="script-assistant__hint">{copy.noProperties}</p>}
+        {object.properties.length === 0 && object.schemaStatus !== 'unknown' && <p className="script-assistant__hint">{copy.noProperties}</p>}
         {object.properties.map(property => (
           <VisualPropertyRow
             key={property.key}

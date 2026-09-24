@@ -468,3 +468,27 @@ Contract result strengthened:
 - existing Authority detach/attach/switch primitives further reduce FND-07 contract risk.
 
 No DEV/FND-05/FND-07 release occurs until P1-01 and P1-06 close and Main reruns the affected release rows.
+
+
+## Main Coordinator takeover — third post-FND06 audit pass (2026-09-24)
+
+Live takeover revalidated against GitHub after coordinator-chat rotation.
+
+- frozen product checkpoint remains `560ac9d80cc7e854f2513559dc6afb28cfb4aee3` / tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`;
+- post-FND06 FC0-A audit remains `CHANGES_REQUIRED`;
+- third Main pass outcome: `NO NEW PRE-FC0A BLOCKER IDENTIFIED`;
+- authoritative third-pass report: `coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-THIRD-PASS.md`, commit `b144de748337045bf447a5142d825fa0beac1ff1`;
+- audit control rev 0013: `0d27fe59d154c161418c996a4ea2df6fe59066e6`;
+- confirmed release blockers remain only W15-P1-01 and W15-P1-06;
+- active order remains `FC0A-BLOCKER-P101-SERVER-SCRIPT-RECOVERY-V1` on `work/w15-fc0a-p101-server-script-recovery`;
+- work branch revalidated identical to exact base: 0 ahead / 0 behind / no changed files / no PR;
+- P1-06 remains queued separately; it must not be mixed into P1-01;
+- DEV-EDITOR, DEV-SCRIPT-ENGINEERING, DEV-AUTHORITY-UX, DEV-LICENSING-UX, FND-05 and FND-07 remain HOLD.
+
+Third-pass refinements are downstream/pre-activation only: P2-03 shell responsiveness remains open; P2-04 account accessibility is substantially implemented but needs focused keyboard regression; P2-05/P2-06 remain Engineering layout-density residuals; P2-07 is partially implemented and should not rebuild the existing Dynamo insertion preview; Help routing is surface-level rather than Engineering-section-contextual; FND-07 gained an explicit Engineering Lock × detach/switch/neutral-bootstrap acceptance guard. FND-05 remains additive/compatible; FND-07 remains compositional/compatible.
+
+FND control refreshes:
+- FND-05 hold/activation metadata: `0c69dd307880b6afcd89f352cf76fef183087410`;
+- FND-07 hold metadata + Lock/detach acceptance guard: `d0aba9e375a8330b7720b32f4defcdabf0ec12ae`.
+
+No product code, product branch or release state was changed by this audit pass.

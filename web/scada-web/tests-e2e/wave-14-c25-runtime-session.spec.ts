@@ -228,6 +228,20 @@ test('Runtime session class shows requested/granted truth and explicitly ends it
   await expect(page.getByTestId('runtime-session-status')).toHaveCount(0);
 });
 
+test('shell keeps navigation, account and theme reachable without horizontal overflow at compact desktop widths', async ({ page }) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+
+  for (const width of [1180, 1024, 901]) {
+    await page.setViewportSize({ width, height: 720 });
+    await page.goto('/');
+    await expect(page.getByRole('navigation', { name: 'EliteSCADA' })).toBeVisible();
+    await expect(page.getByTestId('session-menu-toggle')).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Tema' })).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
+});
+
 test('failed server invalidation keeps the current identity and Runtime interactive', async ({ page }) => {
   const contract = await installSessionContract(page, administrator, 'failure');
 

@@ -4,9 +4,9 @@
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`MAIN_ORDER_REV: 0009`
+`MAIN_ORDER_REV: 0010`
 
-`STATE: INTEGRATED / FREEZE_BLOCKED_GENERIC_INFRA_CI_01B`
+`STATE: INTEGRATED / PRODUCT_ACCEPTED / FREEZE_BLOCKED_FND06_E2E_FIXTURE_ISOLATION`
 
 `EXECUTOR_LANE: SAME SEQUENTIAL CODEX EXECUTOR USED IN PRIOR FOUNDATION WORK INCLUDING FND-04`
 
@@ -216,36 +216,124 @@ Forbidden without new Main order:
 
 ## 7. CURRENT EXECUTOR ORDER
 
-`ORDER_ID: FND06-CODEX-ROUTE-INFRA-CI-01B-V5`
+`ORDER_ID: FND06-CODEX-E2E-FIXTURE-ISOLATION-V6`
 
-`ORDER_STATE: ACTIVE_ROUTE`
+`ORDER_STATE: ACTIVE`
 
-`EXECUTOR_MODE: SAME_SEQUENTIAL_CODEX / GENERIC_INFRA_BLOCKER_CLOSEOUT`
+`EXECUTOR_MODE: TEST_ONLY_CLOSEOUT`
 
-`FND06_PRODUCT_MERGE_SHA: 624f2eca456310a2c6156538b3616a06e3be075f`
+`EXACT_BASE_SHA: eb4563cf0060449b479c4335ef30a19ed65e35ab`
 
-`FAILED_POST_MERGE_CI_RUN: 35940661531`
+`EXACT_BASE_TREE: 0158aa1b6082a8f9e514f6e6a059f49312b07f65`
 
-`INFRA_CONTROL_BRANCH: coord/w15-infra-ci-01b-control`
+`WORK_BRANCH: work/w15-fnd06-e2e-fixture-isolation`
 
-`INFRA_CONTROL_FILE: docs/WAVE15-INFRA-CI-01B-CONTROL.md`
+`TARGET_BRANCH: wave15/corrections-integration`
 
-`EXPECTED_INFRA_ORDER: INFRA-CI-01B-WAIT-POSTMERGE-V3`
+`FAILED_BROAD_CI_RUN: 35944510920 / EliteSCADA CI #1564`
 
-Instruction:
+`FAILED_JOB: Chromium end-to-end 107459723706`
 
-> FND-06 product work is merged and Main review accepted its visual/mounted evidence. Its freeze is blocked only because the exact broad post-merge CI exposed a generic PostgreSQL schema-initialization race that is non-causal to the FND-06 delta.
->
-> This same sequential CODEX lane is now assigned to bounded `INFRA-CI-01B`.
-> On `SIGA`, read `coord/w15-infra-ci-01b-control:docs/WAVE15-INFRA-CI-01B-CONTROL.md` in full and execute its current ACTIVE order.
->
-> Do not mutate FND-06 visual code unless a newer Main order explicitly reopens it.
+`VALIDATION_PROFILE: UI_EDITOR, RUNTIME_RENDERER`
 
-Classification:
-- FND-06 product candidate/merge: Main-accepted;
-- FND-06 freeze: HOLD;
-- blocker: `GENERIC_INFRASTRUCTURE_BLOCKER / NOT_FND06_CAUSAL`;
-- no blind CI rerun authorized.
+`EXECUTOR_IDENTITY: SAME_SEQUENTIAL_CODEX_FROM_PRIOR_FOUNDATION/FND-04/FND-06/INFRA-CI-01B`
+
+### Main diagnosis
+
+Broad run #1564 proves:
+- Web build — SUCCESS;
+- Backend build/test/smoke — SUCCESS;
+- Chromium — FAILURE;
+- 636 passed / 1 failed;
+- only failed spec: `tests-e2e/runtime.spec.ts`;
+- exact failure: expected one canonical Screen but observed the temporary `fnd06-legacy-screen-*` fixture left by `fnd06-mounted-legacy-selection.spec.ts`.
+
+This is **not** an INFRA-CI-01B failure:
+- PostgreSQL backend/test gate is green;
+- shared-schema correction is not causal to Chromium state pollution.
+
+This is a **test-isolation defect introduced by the FND-06 mounted closeout spec**.
+
+Exact source proof:
+- `playwright.config.ts` uses `workers: 1`, so this is not cross-worker concurrency;
+- the FND-06 mounted spec calls `/api/engineering/import/json/apply`;
+- `ViewEngineeringHandler.Apply` is upsert-only for Screens/Popups and does not delete entities absent from a later package;
+- therefore the current `finally { applyPackage(original) }` cannot remove a newly-created temporary Screen/Popup;
+- `runtime.spec.ts` correctly detects the leaked extra Screen and must **not** be weakened.
+
+### Required correction
+
+Change **only**:
+
+`web/scada-web/tests-e2e/fnd06-mounted-legacy-selection.spec.ts`
+
+Preferred strategy:
+
+1. Do **not** create a new Screen or Popup entity for mounted compatibility testing.
+2. Export the canonical package.
+3. Reuse an existing canonical Screen (normally `demo.overview`) by cloning that exact Screen and temporarily appending the FND-06 legacy elements to its `elements`.
+4. Apply that modified existing Screen by the normal import/apply path.
+5. Exercise the same mounted Screen selection matrix:
+   - `tank | value | dynamo | status`;
+   - canvas/outliner coverage;
+   - Inspector/Dynamic/Binding continuity;
+   - compatibility diagnostics;
+   - unknown `vendor.unknown-x` remains contained;
+   - one safe shared property edit preserves legacy-specific authored data.
+6. In `finally`, reapply the exact original package. Because the same existing Screen identity/key is being updated rather than a new Screen created, the original upsert restores it truthfully.
+7. For Popup, do the same using an existing canonical Popup (normally `popup.pump.standard`) rather than creating a new Popup entity.
+8. After each cleanup, re-export and assert:
+   - no `fnd06-*` fixture Screen/Popup remains;
+   - canonical Screen/Popup counts/keys match the original exported package;
+   - original canonical entity content is restored.
+9. Do not weaken `runtime.spec.ts`.
+10. Do not change product code, API semantics, import semantics, Playwright workers, CI ordering or retries.
+
+If reusing the canonical Screen/Popup cannot exercise the mounted path without violating a product invariant, stop with a precise blocker instead of adding a delete bypass.
+
+### Mandatory RED/GREEN evidence
+
+RED is already the exact broad run:
+`35944510920` — Chromium 636 pass / 1 fail because `fnd06-legacy-screen-*` leaked into `runtime.spec.ts`.
+
+Required local/focused GREEN:
+- run `fnd06-mounted-legacy-selection.spec.ts` followed by `runtime.spec.ts` under the same normal Playwright server/database lifecycle;
+- both must pass in the same command/process;
+- run the pair more than once if environment permits to prove cleanup determinism.
+
+Required candidate gate:
+- natural Wave 15 T1 on exact candidate under `UI_EDITOR, RUNTIME_RENDERER`;
+- no product files changed;
+- PR scope is test-only.
+
+Required post-merge gate:
+- full broad EliteSCADA CI on exact integration SHA must be green:
+  - Web;
+  - Backend build/test/smoke;
+  - Chromium.
+
+Only that exact green broad run may:
+1. close INFRA-CI-01B;
+2. close this FND-06 test-isolation defect;
+3. mark FND-06 VERIFIED/FROZEN;
+4. activate the independent post-FND06 FC0-A audit.
+
+### Return
+
+Return exactly:
+
+`FND-06 CODEX EXECUTOR -> MAIN COORDINATOR — E2E FIXTURE ISOLATION HANDOFF`
+
+Include:
+- exact base -> candidate SHA/tree;
+- exact changed files;
+- RED evidence from #1564;
+- cleanup strategy;
+- proof original Screen/Popup identities are restored;
+- paired mounted+runtime command/results;
+- natural T1 run/jobs;
+- explicit non-actions;
+- no self-merge/freeze.
 
 ## 8. FC0-A effect — FND-06 is necessary but no longer sufficient
 
@@ -292,3 +380,25 @@ At that same approved checkpoint, FND-05 and FND-07 may also be activated in par
 - tree `0158aa1b6082a8f9e514f6e6a059f49312b07f65`
 - broad post-merge CI `35944510920` / #1564 pending
 - FND-06 freeze remains HOLD until that exact broad run is green.
+
+
+### Broad CI #1564 fixture-isolation diagnosis
+
+Exact integration SHA:
+`eb4563cf0060449b479c4335ef30a19ed65e35ab`
+
+Run:
+`35944510920`
+
+Results:
+- Web `107459384660` — SUCCESS;
+- Backend `107459384855` — SUCCESS;
+- Chromium `107459723706` — FAILURE;
+- 636 passed / 1 failed.
+
+The only failed spec was `runtime.spec.ts`, which saw two Screens because the FND-06 mounted test created `fnd06-legacy-screen-*` and its upsert-based restore did not delete that entity.
+
+Classification:
+`FND06_TEST_FIXTURE_ISOLATION_DEFECT / PRODUCT_NON_CAUSAL / INFRA_CI_01B_NON_CAUSAL`
+
+The Runtime assertion remains valid and must not be weakened.

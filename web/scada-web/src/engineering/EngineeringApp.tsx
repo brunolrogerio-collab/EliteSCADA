@@ -221,13 +221,15 @@ function EngineeringSection({ section, snapshot, t, locale, onReload }: {
     case 'templates': return <EntitySection title={t('nav.templates')} items={model.templates ?? []} t={t} columns={[
       { key: 'key', title: t('table.key'), render: item => <Code>{item.key}</Code> },
       { key: 'name', title: t('table.name'), render: item => item.name },
-      { key: 'bindings', title: t('table.bindings'), render: item => item.bindings?.length ?? 0 }
+      { key: 'bindings', title: t('table.bindings'), render: item => item.bindings?.length ?? 0 },
+      { key: 'inspect', title: t('section.inspect'), render: item => <BindingInspection bindings={item.bindings} t={t} /> }
     ]}/>;
     case 'equipment': return <EntitySection title={t('nav.equipment')} items={model.equipment ?? []} t={t} columns={[
       { key: 'path', title: t('table.path'), render: item => <Code>{item.path}</Code> },
       { key: 'name', title: t('table.name'), render: item => item.name },
       { key: 'template', title: t('table.template'), render: item => item.templateKey ? <Code>{item.templateKey}</Code> : '—' },
-      { key: 'bindings', title: t('table.bindings'), render: item => item.bindings?.length ?? 0 }
+      { key: 'bindings', title: t('table.bindings'), render: item => item.bindings?.length ?? 0 },
+      { key: 'inspect', title: t('section.inspect'), render: item => <BindingInspection bindings={item.bindings} t={t} /> }
     ]}/>;
     case 'dynamos': return <EntitySection title={t('nav.dynamos')} items={model.dynamos ?? []} t={t} columns={[
       { key: 'key', title: t('table.key'), render: item => <Code>{item.key}</Code> },
@@ -329,6 +331,12 @@ function Diagnostic({ label, value, mono = false }: { label: string; value: stri
   return <div className="eng-diagnostic-card"><span>{label}</span><strong className={mono ? 'mono' : ''}>{value}</strong></div>;
 }
 function Code({ children }: { children: React.ReactNode }) { return <code className="eng-code">{children}</code>; }
+function BindingInspection({ bindings, t }: { bindings: Array<{ key: string; kind: string; target: string; direction?: string | null }> | null | undefined; t: ReturnType<typeof translator> }) {
+  return <details className="eng-binding-inspection">
+    <summary>{t('section.inspect')}</summary>
+    {!bindings?.length ? <span>{t('section.noBindings')}</span> : <ul>{bindings.map(binding => <li key={`${binding.key}:${binding.target}`}><Code>{binding.key}</Code> <span>{binding.kind}</span> <Code>{binding.target}</Code>{binding.direction ? <small>{binding.direction}</small> : null}</li>)}</ul>}
+  </details>;
+}
 function sectionCount(model: EngineeringPackageView, section: SectionId): number | string {
   switch (section) {
     case 'dataSources': return model.dataSources?.length ?? 0;

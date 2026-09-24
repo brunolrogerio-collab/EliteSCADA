@@ -432,6 +432,13 @@
   line-height: 1.5;
 }
 
+.eng-binding-inspection { min-width: 180px; }
+.eng-binding-inspection summary { cursor: pointer; color: #a9c8dc; }
+.eng-binding-inspection ul { display: grid; gap: 5px; margin: 8px 0 0; padding: 0; list-style: none; }
+.eng-binding-inspection li { display: grid; grid-template-columns: minmax(70px, auto) minmax(60px, auto) minmax(100px, 1fr); gap: 6px; align-items: center; font-size: 11px; }
+.eng-binding-inspection small { grid-column: 1 / -1; color: var(--eng-muted); }
+.eng-binding-inspection > span { display: block; margin-top: 8px; color: var(--eng-muted); font-size: 11px; }
+
 .eng-bool {
   display: inline-block;
   min-width: 34px;

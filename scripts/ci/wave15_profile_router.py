@@ -68,13 +68,17 @@ DOTNET_PROJECTS = {
 }
 WEB_PROFILES = {"UI_EDITOR", "SCRIPT_ENGINEERING", "SCRIPT_RUNTIME", "RUNTIME_RENDERER", "AUTHORITY_UX", "LICENSING_UX", "ELITEGO_RUNTIME"}
 E2E_SPECS = {
-    "UI_EDITOR": "tests-e2e/visual-editor-workspace.spec.ts",
-    "SCRIPT_ENGINEERING": "tests-e2e/script-engineering-workspace-contract.spec.ts",
-    "SCRIPT_RUNTIME": "tests-e2e/python-runtime-host.spec.ts",
-    "RUNTIME_RENDERER": "tests-e2e/runtime.spec.ts",
-    "AUTHORITY_UX": "tests-e2e/security.spec.ts",
-    "LICENSING_UX": "tests-e2e/effective-capabilities-contract.spec.ts",
-    "ELITEGO_RUNTIME": "tests-e2e/runtime.spec.ts",
+    "UI_EDITOR": (
+        "tests-e2e/visual-editor-workspace.spec.ts", "tests-e2e/app-shell.spec.ts",
+        "tests-e2e/wave-14-c25-engineering-lock.spec.ts", "tests-e2e/visual-editor-authoring-model.spec.ts",
+        "tests-e2e/visual-editor-selection-model.spec.ts", "tests-e2e/visual-editor-z-order-model.spec.ts",
+    ),
+    "SCRIPT_ENGINEERING": ("tests-e2e/script-engineering-workspace-contract.spec.ts",),
+    "SCRIPT_RUNTIME": ("tests-e2e/python-runtime-host.spec.ts",),
+    "RUNTIME_RENDERER": ("tests-e2e/runtime.spec.ts", "tests-e2e/wave-14-c25-runtime-session.spec.ts"),
+    "AUTHORITY_UX": ("tests-e2e/security.spec.ts",),
+    "LICENSING_UX": ("tests-e2e/effective-capabilities-contract.spec.ts",),
+    "ELITEGO_RUNTIME": ("tests-e2e/runtime.spec.ts",),
 }
 
 
@@ -125,7 +129,7 @@ def classify(paths: list[str], pr_body: str, override: str = "", mode: str = "pr
         raise ProfileError("no effective validation profile could be resolved")
     ordered = sorted(effective, key=ORDER.__getitem__)
     projects = sorted({DOTNET_PROJECTS[p] for p in ordered if p in DOTNET_PROJECTS})
-    specs = sorted({E2E_SPECS[p] for p in ordered if p in E2E_SPECS})
+    specs = sorted({spec for profile in ordered for spec in E2E_SPECS.get(profile, ())})
     driver = "DRIVER_PROTOCOL" in effective
     return {
         "declared_profiles": sorted(declared, key=ORDER.__getitem__),

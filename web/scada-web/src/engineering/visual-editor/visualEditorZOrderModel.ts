@@ -37,6 +37,10 @@ export function applyVisualEditorZOrderOperation(
   const siblings = parentId === null
     ? [...(screen.elements ?? [])]
     : [...(requireElement(screen, parentId).children ?? [])];
+  const unregistered = siblings.find(element => !getBuiltinVisualObjectSchema(element.type));
+  if (unregistered) {
+    throw new Error(`Z-order cannot normalize a stacking context containing unregistered visual object type '${unregistered.type}'.`);
+  }
   const selected = new Set(ids);
   const stack: StackItem[] = siblings
     .map((element, originalIndex) => ({

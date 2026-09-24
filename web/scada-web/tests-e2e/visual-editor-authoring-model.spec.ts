@@ -182,12 +182,13 @@ test('legacy advanced authoring keeps known legacy fields and contains arbitrary
   ]);
   const aligned = applyVisualEditorAuthoringOperation(base, { kind: 'align', objectIds: ['tank', 'value', 'dynamo', 'status'], operation: 'left' });
   const sized = applyVisualEditorAuthoringOperation(aligned, { kind: 'size', objectIds: ['tank', 'value', 'dynamo', 'status'], referenceObjectId: 'tank', operation: 'sameSize' });
-  const reordered = applyVisualEditorZOrderOperation(sized, ['tank', 'value', 'dynamo', 'status'], 'front');
+  expect(() => applyVisualEditorZOrderOperation(sized, ['tank', 'value', 'dynamo', 'status'], 'front'))
+    .toThrow("unregistered visual object type 'vendor.unknown-x'");
 
   for (const id of ['tank', 'value', 'dynamo', 'status']) {
-    const item = reordered.elements?.find(element => element.id === id);
+    const item = sized.elements?.find(element => element.id === id);
     expect(item?.properties?.legacySpecific).toBe(`${item?.type}-preserved`);
     expect(item?.properties?.x).toBe(10);
   }
-  expect(reordered.elements?.find(element => element.id === 'unknown')).toMatchObject({ type: 'vendor.unknown-x', properties: { x: 130, legacySpecific: 'vendor.unknown-x-preserved' } });
+  expect(sized.elements?.find(element => element.id === 'unknown')).toMatchObject({ type: 'vendor.unknown-x', properties: { x: 130, legacySpecific: 'vendor.unknown-x-preserved' } });
 });

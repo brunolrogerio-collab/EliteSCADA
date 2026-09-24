@@ -44,6 +44,7 @@ builder.Services.Configure<JsonOptions>(options => options.SerializerOptions.Con
 builder.Services.AddSingleton<TagRealtimeHub>();
 builder.AddConfiguredHistorian();
 builder.AddConfiguredServerMemoryRetention();
+builder.Services.AddSingleton<RuntimeHighAvailabilityService>();
 
 builder.Services.AddSingleton(_ => new EngineeringWorkspace(seedDemo: false));
 builder.Services.AddSingleton<ITagRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Tags);
@@ -84,7 +85,9 @@ builder.Services.AddSingleton<GatewayEngineeringRuntimeCoordinator>(sp =>
             TimeSpan.FromSeconds(Math.Max(
                 1,
                 builder.Configuration.GetValue<double?>("EngineeringRuntime:ActivationTimeoutSeconds") ?? 10)),
-            sp.GetRequiredService<IServerMemoryRetentionStore>()),
+            sp.GetRequiredService<IServerMemoryRetentionStore>(),
+            industrialEffectAuthority: () =>
+                sp.GetRequiredService<RuntimeHighAvailabilityService>().CanOwnIndustrialEffects()),
         sp.GetRequiredService<IScadaEventBus>()));
 builder.Services.AddSingleton<IEngineeringRuntimeCoordinator>(sp =>
     sp.GetRequiredService<GatewayEngineeringRuntimeCoordinator>());
@@ -93,6 +96,11 @@ builder.Services.AddSingleton<IGatewayRuntimeDiagnosticsProvider>(sp =>
 // Product licensing is registered after the raw runtime so its host-owned coordinator
 // becomes the final IEngineeringRuntimeCoordinator/diagnostics boundary resolved by DI.
 builder.AddProductLicensedRuntimeCoordinator();
+builder.Services.AddSingleton<HighAvailabilityRuntimeCoordinator>();
+builder.Services.AddSingleton<IEngineeringRuntimeCoordinator>(sp =>
+    sp.GetRequiredService<HighAvailabilityRuntimeCoordinator>());
+builder.Services.AddSingleton<IGatewayRuntimeDiagnosticsProvider>(sp =>
+    sp.GetRequiredService<HighAvailabilityRuntimeCoordinator>());
 
 builder.Services.AddSingleton<IEngineeringExchangeService, EngineeringExchangeService>();
 builder.Services.AddSingleton<IProjectPackageService, ProjectPackageService>();
@@ -104,7 +112,6 @@ builder.Services.AddSingleton<ApiAuthorizationService>(sp =>
         sp.GetRequiredService<IAuthorityPolicyStore>(),
         sp.GetRequiredService<IConfiguration>(),
         sp.GetRequiredService<IRuntimeSessionLeaseStore>()));
-builder.Services.AddSingleton<RuntimeHighAvailabilityService>();
 builder.AddOptionalEngineeringPersistence();
 builder.AddConfiguredAudit();
 builder.Services.AddOpenApi();

@@ -38,9 +38,9 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0036`
+`MAIN_ORDER_REV: 0037`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-24 — CODEX CONTINUES CURRENT V2 FLOW / FINAL CHECKLIST RECONCILIATION REQUIRED`
+`LAST_MAIN_UPDATE_BRT: 2026-09-24 — SCRIPT ENGINEERING CANDIDATE ACCEPTED / CODEX VALIDATION ACTIVE`
 
 `GLOBAL_GATE: FND04_VERIFIED_FROZEN`
 
@@ -581,7 +581,7 @@ Every DEV handoff must include:
 
 `LANE: FND-04 CODEX EXECUTOR`
 
-`STATE: WAIT / IDLE_VALIDATION_CAPACITY`
+`STATE: ACTIVE / SCRIPT_ENGINEERING_VALIDATION`
 
 `RUNTIME_REQUIREMENT: functional checkout + dotnet + Node/Playwright + GitHub push/PR capability`
 
@@ -591,11 +591,11 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 ### CURRENT CODEX EXECUTION ORDER
 
-`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-WAIT-POST-FC0A-24`
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-SCRIPT-ENGINEERING-25`
 
-`ORDER_STATE: WAIT_FOR_MAIN_ACCEPTED_CANDIDATE`
+`ORDER_STATE: ACTIVE_VALIDATION`
 
-`EXECUTOR_MODE: SAME_SEQUENTIAL_CODEX / VALIDATION_QUEUE_IDLE`
+`EXECUTOR_MODE: SAME_SEQUENTIAL_CODEX / SCRIPT_ENGINEERING_VALIDATION`
 
 `FND04_STATE: VERIFIED_FROZEN`
 
@@ -609,7 +609,7 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 `FC0A_BROAD_GATE: EliteSCADA CI #1569 / 36060017969 / SUCCESS / Chromium 655 passed`
 
-`EXPECTED_ORDER: NONE_UNTIL_MAIN_ACCEPTS_A_DEV_OR_FOUNDATION_CANDIDATE`
+`EXPECTED_ORDER: DEV-SCRIPT-ENGINEERING-CODEX-VALIDATION-V1`
 
 Instruction:
 
@@ -1019,3 +1019,43 @@ On SIGA:
 8. return `FC0-A POSTMERGE CANVAS CONTRACT CODEX -> MAIN COORDINATOR — CANDIDATE HANDOFF`.
 
 No product feature scope. No merge/freeze/release authority.
+
+
+## MAIN ROUTE — DEV-SCRIPT-ENGINEERING candidate validation
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-SCRIPT-ENGINEERING-25`
+
+`EXPECTED_ORDER: DEV-SCRIPT-ENGINEERING-CODEX-VALIDATION-V1`
+
+Authoritative lane control:
+- branch: `coord/w15-parallel-dev-control`
+- file: `docs/WAVE15-DEV-SCRIPT-ENGINEERING-CONTROL.md`
+- control commit: `aaa8e5f4a8488ea2c485798cf62a148952ca23c9`
+
+Exact candidate:
+- PR: `#344`
+- branch: `work/w15-dev-script-engineering`
+- accepted base: `e3ed5138369c576549cb58a7aff9783792f322d3`
+- candidate SHA: `cf0ae2d1dcd2d63668b5b1c2c3590a5b6bb9bdaa`
+- candidate tree: `0820a2a00f36bcc13a05659d85cc43ee7f266d24`
+- target: `wave15/corrections-integration`
+- profiles: `SCRIPT_ENGINEERING, SCRIPT_RUNTIME`
+
+Main review:
+- implementation direction accepted;
+- live target advance from release base is documentation-only and non-overlapping;
+- PR #344 is mergeable;
+- first T1 `36063109199` is metadata-invalid only because the PR lacked `VALIDATION_PROFILE`; Main corrected PR metadata without changing source.
+
+On `SIGA`:
+1. re-read the dedicated Script Engineering control live;
+2. revalidate PR #344 exact head and target;
+3. validate the exact Main-accepted candidate; do not attach to another lane;
+4. add/strengthen focused tests for mounted event authoring, stale-field clearing, Timer, TAG stable identity/FND-04 negatives, Client Memory identity, Script Assistant compatibility, Python composition and backend tampering;
+5. small validation-driven fixes are allowed only if they do not redesign the feature;
+6. material product/design defects return `CODEX -> MAIN -> DEV-SCRIPT-ENGINEERING CORRECTION`;
+7. run Web/focused evidence and natural exact-head T1;
+8. keep the PR updated with exact evidence;
+9. return `DEV-SCRIPT-ENGINEERING CODEX -> MAIN COORDINATOR — VALIDATION HANDOFF`.
+
+No self-merge/freeze/T2 authority.

@@ -615,3 +615,37 @@ That preview has two independent user-like moments:
 Detailed CODEX findings are intentionally not shown to the Product Owner before the human journey completes.
 
 This audit is meant to reveal end-to-end product birth/discoverability gaps before later Installation UX, EliteGO, EEE v15 and final complete-product acceptance.
+
+
+## 15. Live queue — Script Engineering candidate in CODEX validation
+
+Main accepted the first post-FC0A feature candidate for sequential CODEX validation.
+
+`LANE: DEV-SCRIPT-ENGINEERING`
+
+`STATE: MAIN_ACCEPTED_FOR_CODEX`
+
+`PR: #344`
+
+`CANDIDATE_SHA: cf0ae2d1dcd2d63668b5b1c2c3590a5b6bb9bdaa`
+
+`CANDIDATE_TREE: 0820a2a00f36bcc13a05659d85cc43ee7f266d24`
+
+`VALIDATION_PROFILE: SCRIPT_ENGINEERING, SCRIPT_RUNTIME`
+
+Main review found the candidate bounded to five lane-owned Script Engineering files and compatible with frozen FND-04/FND-06/backend event rules.
+
+The live integration branch has advanced from the common FC0-A release base only by coordination/documentation files, so there is no product/infra overlap requiring a DEV rebase.
+
+Initial T1 `36063109199` is metadata-invalid only: the PR profile declaration was missing, the classifier failed before product evidence, and Main corrected the PR body without source mutation.
+
+Shared CODEX route:
+- route rev 0037;
+- `ROUTE-SEQUENTIAL-CODEX-TO-SCRIPT-ENGINEERING-25`;
+- route commit `d5f6d4c6aa682db1f633f61396d46a1fe0eb427d`.
+
+While CODEX validates this lane:
+- DEV-SCRIPT-ENGINEERING is `DEV_WAIT`;
+- the other five lanes remain ACTIVE_CODING unless their own dedicated controls say otherwise;
+- no lane is blocked merely because CODEX is occupied;
+- next CODEX priority remains Main-owned based on candidate readiness + risk.

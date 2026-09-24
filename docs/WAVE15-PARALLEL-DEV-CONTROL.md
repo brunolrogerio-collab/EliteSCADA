@@ -4,11 +4,39 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0001`
+`MAIN_ORDER_REV: 0002`
 
-`STATE: PREPARED / ALL_LANES_BLOCKED_ON_FC0A_RELEASE_APPROVED`
+`STATE: FC0A_RELEASE_APPROVED / SIX_LANES_ACTIVE_CODING`
 
 `ACTIVATION_RULE: Main must revalidate GitHub live, record the exact FC0-A product SHA/tree, create each work branch from that exact checkpoint, and switch the lane state to ACTIVE before product mutation.`
+
+## 0A. FC0-A release activation — six lanes ACTIVE
+
+`FC0A_RELEASE_APPROVED: YES`
+
+`FC0_A_BASE_SHA: e3ed5138369c576549cb58a7aff9783792f322d3`
+
+`FC0_A_BASE_TREE: 4e7627774fbfc111344e3d80fcb9d921eed8377e`
+
+`EXACT_BROAD_GATE: EliteSCADA CI #1569 / 36060017969 / SUCCESS`
+
+`CHROMIUM_FULL_SUITE: 655 passed / 0 failed`
+
+All six work branches were created directly from this exact checkpoint:
+- `work/w15-dev-editor-single-canvas`
+- `work/w15-dev-script-engineering`
+- `work/w15-dev-authority-ux`
+- `work/w15-dev-licensing-ux`
+- `work/w15-fnd-05-ha-authority`
+- `work/w15-fnd-07-detach-neutral`
+
+Activation rule:
+- each chat may now mutate only its own branch and owned scope;
+- on `SIGA`, it must re-read its dedicated live control before coding;
+- no lane may infer authority from this summary alone if its dedicated control disagrees;
+- shared-hotspot policy remains binding;
+- no lane self-merges;
+- CODEX remains sequential validation owner after Main accepts each candidate.
 
 ## 0. Coordination decision
 
@@ -150,7 +178,7 @@ Rules:
 
 `ORDER_ID: DEV-EDITOR-FC0A-01`
 
-`STATE: PREPARED / BLOCKED_ON_FC0A_RELEASE_APPROVED`
+`STATE: ACTIVE_CODING / EXACT_FC0A_BASE_RECORDED`
 
 `PLANNED_BRANCH: work/w15-dev-editor-single-canvas`
 
@@ -207,7 +235,7 @@ Handoff prefix:
 
 `ORDER_ID: DEV-SCRIPT-ENGINEERING-FC0A-01`
 
-`STATE: PREPARED / BLOCKED_ON_FC0A_RELEASE_APPROVED`
+`STATE: ACTIVE_CODING / EXACT_FC0A_BASE_RECORDED`
 
 `PLANNED_BRANCH: work/w15-dev-script-engineering`
 
@@ -267,7 +295,7 @@ Handoff prefix:
 
 `ORDER_ID: DEV-AUTHORITY-UX-FC0A-01`
 
-`STATE: PREPARED / BLOCKED_ON_FC0A_RELEASE_APPROVED`
+`STATE: ACTIVE_CODING / EXACT_FC0A_BASE_RECORDED`
 
 `PLANNED_BRANCH: work/w15-dev-authority-ux`
 
@@ -322,7 +350,7 @@ Handoff prefix:
 
 `ORDER_ID: DEV-LICENSING-UX-FC0A-01`
 
-`STATE: PREPARED / BLOCKED_ON_FC0A_RELEASE_APPROVED`
+`STATE: ACTIVE_CODING / EXACT_FC0A_BASE_RECORDED`
 
 `PLANNED_BRANCH: work/w15-dev-licensing-ux`
 
@@ -380,7 +408,7 @@ Handoff prefix:
 
 `ORDER_ID: FND07-DEV-DETACH-NEUTRAL-V1`
 
-`STATE: PREPARED / BLOCKED_ON_FC0A_RELEASE_APPROVED`
+`STATE: ACTIVE_CODING / EXACT_FC0A_BASE_RECORDED`
 
 `PLANNED_BRANCH: work/w15-fnd-07-detach-neutral`
 
@@ -446,7 +474,7 @@ Handoff prefix:
 
 `ORDER_ID: FND05-DEV-HA-AUTHORITY-V1`
 
-`STATE: PREPARED / BLOCKED_ON_FC0A_RELEASE_APPROVED`
+`STATE: ACTIVE_CODING / EXACT_FC0A_BASE_RECORDED`
 
 `PLANNED_BRANCH: work/w15-fnd-05-ha-authority`
 

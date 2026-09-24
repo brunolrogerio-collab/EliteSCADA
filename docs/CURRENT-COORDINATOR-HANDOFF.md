@@ -918,3 +918,103 @@ commit `163b476252ed1a2459730b716b7dd921470c5903`.
 Central six-lane control rev 0004:
 `coord/w15-parallel-dev-control:docs/WAVE15-PARALLEL-DEV-CONTROL.md`,
 commit `59223cf41f96f5f7bdfc0e6e0c44f8299fe76031`.
+
+
+## MAIN COORDINATOR CHAT TRANSFER — 2026-09-24
+
+This coordinator chat is being replaced because the current chat runtime became unreliable. GitHub live remains the sole authority.
+
+### Exact live checkpoint at transfer
+
+- integration branch: `wave15/corrections-integration`
+- integration HEAD observed at transfer: `3cdb13ed27b0529265b2e92785c09df09c96af3f`
+- FC0-A released product base: `e3ed5138369c576549cb58a7aff9783792f322d3`
+- FC0-A tree: `4e7627774fbfc111344e3d80fcb9d921eed8377e`
+- release gate: EliteSCADA CI #1569 / `36060017969` / SUCCESS / Chromium 655 passed
+- comparison from prior coordination target `e380e66f...` to transfer HEAD is documentation-only across the canonical handoff/roadmap files; no accepted post-FC0A lane product code has been integrated yet.
+
+### Binding lane state at transfer
+
+1. **DEV-SCRIPT-ENGINEERING / PR #344**
+   - accepted candidate head `cf0ae2d1dcd2d63668b5b1c2c3590a5b6bb9bdaa`
+   - state: `MAIN_ACCEPTED_FOR_CODEX / DEV_WAIT`
+   - active shared CODEX route: `ROUTE-SEQUENTIAL-CODEX-TO-SCRIPT-ENGINEERING-25`
+   - no CODEX validation handoff had appeared at the last revalidation; new coordinator must re-check live before acting.
+
+2. **DEV-EDITOR / PR #349**
+   - head `06eed31d99ddb34d99e0287e96e38bed3bf7dab5`
+   - T1 `36066874097`: SUCCESS
+   - state: `MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`
+   - must not preempt the currently active Script CODEX route unless Main deliberately reorders after live revalidation.
+
+3. **DEV-AUTHORITY-UX / PR #346**
+   - reviewed head `3986475b20e4a72969159bfaed003ad5d72626d4`
+   - state: `DEV_CORRECTION`
+   - order: `DEV-AUTHORITY-UX-STABLE-ROLE-KEY-02`
+   - repaired-metadata T1 `36067636970` reached product evidence and found candidate-causal Web TS2345 compile errors in `AuthorityPolicyAdministration.logic.ts`.
+   - do not rerun the unchanged old head as acceptance.
+
+4. **DEV-LICENSING-UX / PR #345**
+   - reviewed head `cdf572d644417fe83aee3003a3da3fe171d7ada3`
+   - state: `DEV_CORRECTION`
+   - order: `DEV-LICENSING-UX-STATUS-ENTITLEMENTS-02`
+   - T1 `36067628680`: Web/Chromium/Common green; .NET 692/693.
+   - only failure was diagnosed as shared IEC-104 test-observation race, not Licensing causal.
+   - prepared infra closeout: `INFRA-CI-01D-IEC104-FAULT-OBSERVATION-RACE-V1`; it is PREPARED ONLY until Main explicitly activates it.
+
+5. **FND-05 / PR #347**
+   - reviewed head `8c2bd2724b7f17711d76c59919f68ed7037483a3`
+   - T1 `36064607662`: SUCCESS
+   - state: `DEV_CORRECTION / PEER_HANDOFF_BOUNDARY_REQUIRED`
+   - current order: `FND05-DEV-PEER-HANDOFF-BOUNDARY-V2-01`
+   - dedicated control rev 0006.
+   - Main accepted the internal HA state-machine direction but requires a transport-neutral two-independent-node readiness/authority/lease handoff boundary before CODEX.
+   - no network/consensus/automatic-failover scope was authorized.
+
+6. **FND-07 / PR #348 (draft)**
+   - reviewed head `ae11e42e8ad5e39b1e2c5a0068f81e4ec31653c6`
+   - state: `DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
+   - current order: `FND07-DEV-FRESH-INSTALL-NO-DEMO-E2E-01`
+   - dedicated control rev 0005.
+   - T1 `36066422907` exposed a stale Demo-dependent E2E fixture; Wave 15 product truth is clean no-Demo fresh-install / neutral bootstrap.
+   - do not restore hidden Demo product behavior merely to satisfy the old test.
+
+### Sequential CODEX queue
+
+Binding active route at transfer: Script Engineering #344.
+
+Planned only, not yet activated:
+1. after Script handoff, Main may activate INFRA-CI-01D to stabilize the shared IEC-104 test observation race;
+2. then Editor #349 is the first already Main-accepted queued product candidate.
+
+A new explicit shared CODEX route is required before the executor changes mission.
+
+### Fresh-install preview remains downstream
+
+The prepared two-stage first-project fresh-install partial preview remains **NOT ACTIVE**.
+
+Entry still requires:
+- four feature lanes integrated with required T2 acceptance;
+- FND-05 and FND-07 post-merge validated and VERIFIED/FROZEN;
+- no known blocking P0/P1 invalidating the journey.
+
+Then:
+1. CODEX black-box first-project journey on a clean environment;
+2. Product Owner human first-project journey on an independent clean environment;
+3. detailed CODEX findings remain embargoed from the Product Owner until the human journey ends;
+4. Main compares both journeys afterward.
+
+Prepared control:
+`coord/w15-fresh-install-preview-control:docs/WAVE15-FIRST-PROJECT-FRESH-INSTALL-PREVIEW-CONTROL.md`.
+
+### Mandatory startup for the replacement coordinator
+
+Before any merge, rerun, correction, CODEX reroute or new architecture decision:
+
+1. read `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md` fully;
+2. read `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` fully;
+3. read `docs/CURRENT-COORDINATOR-HANDOFF.md` and `LAST CHANGE.md`;
+4. revalidate live integration HEAD, PRs #344-#349, their exact heads/mergeability/CI/comments, Issue #305, shared CODEX control, central six-lane control, and the dedicated controls of any lane being acted on;
+5. if live GitHub differs from this transfer snapshot, GitHub live wins.
+
+Do not treat the Product Owner as a courier between agents. Normal lane handoffs should be recovered directly from GitHub comments/control planes whenever available.

@@ -645,3 +645,38 @@ PR #340 Main review comment: `5819091955`.
 Issue #305 ledger comment: `5819092476`.
 
 No merge/freeze/release occurred. All downstream six lanes remain PREPARED/HOLD until FC0-A final acceptance.
+
+
+## Main review — PR #340 V3 product accepted / final evidence-only closeout active (2026-09-24)
+
+Exact V3:
+- head `1efc16994ea7b11857b0a1aac7da1690276e6d07`
+- tree `da022f95a0c2342188a34ffe6dc830acf84d873a`
+- natural T1 `36036316797`: SUCCESS.
+
+Main accepts the V3 Runtime Session Class product surface and shell compact-width product direction.
+
+Merge remains blocked only on final test/evidence closure:
+- explicit Engineering scroll-composition proof;
+- compact Engineering Lock lifecycle proof including lock-now + clear;
+- known-legacy advanced-authoring + arbitrary-unknown containment proof;
+- focused execution of owner specs that natural T1 did not select.
+
+The T1 Chromium job on V3 executed 16 tests but did not select the Runtime Session mounted spec, app-shell, Engineering Lock or legacy owner-model specs, so its green result is not used as proof for those rows.
+
+Binding control:
+- `FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V5`
+- section 13
+- commit `1485bd3d832a57b109d347e0b931b21334d56844`
+
+CODEX route:
+- rev 0031
+- `ROUTE-SEQUENTIAL-CODEX-TO-FC0A-CONSOLIDATED-V4-19`
+- commit `63afda347e798d5e45292161fab382911093ae42`
+
+This is test/validation-only. No new feature scope is authorized.
+
+PR #340 Main comment: `5819317792`.
+Issue #305 ledger: `5819318386`.
+
+No merge/freeze/release occurred. Six downstream lanes remain PREPARED/HOLD.

@@ -69,6 +69,7 @@ type Copy = {
   total: string;
   live: string;
   connecting: string;
+  reconnecting: string;
   polling: string;
   realtimeError: string;
   currentValue: string;
@@ -112,7 +113,7 @@ const copy: Record<RuntimeTagInspectorLocale, Copy> = {
     search: 'Buscar TAGs', searchPlaceholder: 'Path, nome, tipo, unidade, origem ou valor', qualityFilter: 'Qualidade', accessFilter: 'Acesso',
     all: 'Todos', good: 'Good', attention: 'Atenção', bad: 'Bad', noSample: 'Sem amostra', readOnly: 'Somente leitura', writable: 'Gravável',
     refresh: 'Atualizar', refreshing: 'Atualizando…', loading: 'Carregando TAGs do Runtime…', empty: 'Nenhuma TAG visível no Runtime ativo.', noMatches: 'Nenhuma TAG corresponde aos filtros.', total: 'TAGs',
-    live: 'Realtime conectado', connecting: 'Conectando realtime…', polling: 'Realtime desconectado · atualização periódica ativa', realtimeError: 'Realtime indisponível · atualização periódica ativa',
+    live: 'Realtime conectado', connecting: 'Conectando realtime…', reconnecting: 'Reconectando realtime…', polling: 'Realtime desconectado · atualização periódica ativa', realtimeError: 'Realtime indisponível · atualização periódica ativa',
     currentValue: 'Valor atual', quality: 'Qualidade', timestamp: 'Timestamp EliteSCADA', sourceTimestamp: 'Timestamp da origem', serverTimestamp: 'Timestamp do servidor', dataType: 'Tipo', unit: 'Unidade', source: 'Origem / Data Source', descriptionLabel: 'Descrição', access: 'Acesso', path: 'Path', identity: 'ID estável',
     recentHistory: 'Histórico recente', historyWindow: 'janela', historyEmpty: 'Nenhuma amostra histórica neste intervalo.', historyLoading: 'Carregando histórico…', historyRefresh: 'Atualizar histórico', value: 'Valor',
     unauthenticated: 'Sessão não autenticada para consultar TAGs.', forbidden: 'Sem permissão para consultar este recurso do Runtime.', notFound: 'A TAG selecionada não existe mais no Runtime ativo.', unavailable: 'Serviço de TAGs indisponível no momento.', selectedUnavailable: 'Não foi possível carregar os detalhes desta TAG.', unknown: 'Desconhecido',
@@ -124,7 +125,7 @@ const copy: Record<RuntimeTagInspectorLocale, Copy> = {
     search: 'Search TAGs', searchPlaceholder: 'Path, name, type, unit, source or value', qualityFilter: 'Quality', accessFilter: 'Access',
     all: 'All', good: 'Good', attention: 'Attention', bad: 'Bad', noSample: 'No sample', readOnly: 'Read-only', writable: 'Writable',
     refresh: 'Refresh', refreshing: 'Refreshing…', loading: 'Loading Runtime TAGs…', empty: 'No TAG is visible in the active Runtime.', noMatches: 'No TAG matches the filters.', total: 'TAGs',
-    live: 'Realtime connected', connecting: 'Connecting realtime…', polling: 'Realtime disconnected · periodic refresh active', realtimeError: 'Realtime unavailable · periodic refresh active',
+    live: 'Realtime connected', connecting: 'Connecting realtime…', reconnecting: 'Reconnecting realtime…', polling: 'Realtime disconnected · periodic refresh active', realtimeError: 'Realtime unavailable · periodic refresh active',
     currentValue: 'Current value', quality: 'Quality', timestamp: 'EliteSCADA timestamp', sourceTimestamp: 'Source timestamp', serverTimestamp: 'Server timestamp', dataType: 'Type', unit: 'Unit', source: 'Source / Data Source', descriptionLabel: 'Description', access: 'Access', path: 'Path', identity: 'Stable ID',
     recentHistory: 'Recent history', historyWindow: 'window', historyEmpty: 'No historical sample in this interval.', historyLoading: 'Loading history…', historyRefresh: 'Refresh history', value: 'Value',
     unauthenticated: 'The session is not authenticated to read TAGs.', forbidden: 'Not authorized to read this Runtime resource.', notFound: 'The selected TAG no longer exists in the active Runtime.', unavailable: 'TAG service is currently unavailable.', selectedUnavailable: 'The selected TAG details could not be loaded.', unknown: 'Unknown',
@@ -136,7 +137,7 @@ const copy: Record<RuntimeTagInspectorLocale, Copy> = {
     search: 'Buscar TAGs', searchPlaceholder: 'Path, nombre, tipo, unidad, origen o valor', qualityFilter: 'Calidad', accessFilter: 'Acceso',
     all: 'Todos', good: 'Good', attention: 'Atención', bad: 'Bad', noSample: 'Sin muestra', readOnly: 'Solo lectura', writable: 'Escribible',
     refresh: 'Actualizar', refreshing: 'Actualizando…', loading: 'Cargando TAGs del Runtime…', empty: 'No hay TAGs visibles en el Runtime activo.', noMatches: 'Ninguna TAG coincide con los filtros.', total: 'TAGs',
-    live: 'Realtime conectado', connecting: 'Conectando realtime…', polling: 'Realtime desconectado · actualización periódica activa', realtimeError: 'Realtime no disponible · actualización periódica activa',
+    live: 'Realtime conectado', connecting: 'Conectando realtime…', reconnecting: 'Reconectando realtime…', polling: 'Realtime desconectado · actualización periódica activa', realtimeError: 'Realtime no disponible · actualización periódica activa',
     currentValue: 'Valor actual', quality: 'Calidad', timestamp: 'Timestamp EliteSCADA', sourceTimestamp: 'Timestamp de origen', serverTimestamp: 'Timestamp del servidor', dataType: 'Tipo', unit: 'Unidad', source: 'Origen / Data Source', descriptionLabel: 'Descripción', access: 'Acceso', path: 'Path', identity: 'ID estable',
     recentHistory: 'Histórico reciente', historyWindow: 'ventana', historyEmpty: 'No hay muestras históricas en este intervalo.', historyLoading: 'Cargando histórico…', historyRefresh: 'Actualizar histórico', value: 'Valor',
     unauthenticated: 'La sesión no está autenticada para consultar TAGs.', forbidden: 'Sin permiso para consultar este recurso del Runtime.', notFound: 'La TAG seleccionada ya no existe en el Runtime activo.', unavailable: 'El servicio de TAGs no está disponible.', selectedUnavailable: 'No fue posible cargar los detalles de esta TAG.', unknown: 'Desconocido',
@@ -325,7 +326,7 @@ export function RuntimeTagInspector({
         </div>
         <div className="runtime-tag-header-actions">
           <span className={`runtime-tag-live state-${realtimeState}`} aria-live="polite">
-            {realtimeState === 'live' ? text.live : realtimeState === 'connecting' ? text.connecting : realtimeState === 'error' ? text.realtimeError : text.polling}
+            {realtimeState === 'live' ? text.live : realtimeState === 'connecting' ? text.connecting : realtimeState === 'reconnecting' ? text.reconnecting : realtimeState === 'error' ? text.realtimeError : text.polling}
           </span>
           <button type="button" disabled={refreshing} onClick={() => void refreshTags()}>{refreshing ? text.refreshing : text.refresh}</button>
         </div>

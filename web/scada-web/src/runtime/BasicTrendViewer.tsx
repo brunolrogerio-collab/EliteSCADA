@@ -15,7 +15,7 @@ import type {
   RuntimeTagHistorySample,
   RuntimeTagListItem
 } from './trendTypes';
-import { describeLiveValueFreshness, latestLiveObservation } from './liveValueFreshness';
+import { describeLiveValueDiagnostics, latestLiveObservation } from './liveValueFreshness';
 import './basic-trend-viewer.css';
 
 export type BasicTrendTagLoader = (signal?: AbortSignal) => Promise<RuntimeTagListItem[]>;
@@ -77,6 +77,10 @@ type Copy = {
   freshnessAging: string;
   freshnessStale: string;
   freshnessUnavailable: string;
+  historianPolling: string;
+  lastRequest: string;
+  lastSuccess: string;
+  freshnessReason: string;
 };
 
 const copy: Record<BasicTrendLocale, Copy> = {
@@ -89,7 +93,7 @@ const copy: Record<BasicTrendLocale, Copy> = {
     minimum: 'Mínimo', maximum: 'Máximo', latest: 'Último', timestamp: 'Timestamp', value: 'Valor', quality: 'Qualidade', source: 'Origem', unit: 'Unidade',
     unauthenticated: 'Sessão não autenticada para consultar o Historian.', forbidden: 'Sem permissão para consultar esta TAG.', notFound: 'A TAG selecionada não existe mais no Runtime ativo.', unavailable: 'Historian ou catálogo de TAGs indisponível no momento.',
     singlePenNote: 'Esta etapa usa uma Pen para preservar escala e unidade sem inventar semântica de múltiplos eixos.',
-    freshness: 'Atualização', freshnessFresh: 'Atualizada', freshnessAging: 'Dados envelhecendo', freshnessStale: 'Dados desatualizados', freshnessUnavailable: 'Sem timestamp de atualização'
+    freshness: 'Atualização', freshnessFresh: 'Atualizada', freshnessAging: 'Dados envelhecendo', freshnessStale: 'Dados desatualizados', freshnessUnavailable: 'Sem timestamp de atualização', historianPolling: 'Historian por consulta periódica (sem socket realtime)', lastRequest: 'Última solicitação', lastSuccess: 'Última resposta válida', freshnessReason: 'Motivo'
   },
   en: {
     title: 'Basic Trend',
@@ -100,7 +104,7 @@ const copy: Record<BasicTrendLocale, Copy> = {
     minimum: 'Minimum', maximum: 'Maximum', latest: 'Latest', timestamp: 'Timestamp', value: 'Value', quality: 'Quality', source: 'Source', unit: 'Unit',
     unauthenticated: 'The session is not authenticated to query the Historian.', forbidden: 'Not authorized to query this TAG.', notFound: 'The selected TAG no longer exists in the active Runtime.', unavailable: 'Historian or TAG catalog is currently unavailable.',
     singlePenNote: 'This stage uses one Pen so scale and engineering unit remain honest without inventing multi-axis semantics.',
-    freshness: 'Freshness', freshnessFresh: 'Updated', freshnessAging: 'Data aging', freshnessStale: 'Data stale', freshnessUnavailable: 'No update timestamp'
+    freshness: 'Freshness', freshnessFresh: 'Updated', freshnessAging: 'Data aging', freshnessStale: 'Data stale', freshnessUnavailable: 'No update timestamp', historianPolling: 'Historian polling (no realtime socket)', lastRequest: 'Last request', lastSuccess: 'Last successful response', freshnessReason: 'Reason'
   },
   es: {
     title: 'Trend básico',
@@ -111,7 +115,7 @@ const copy: Record<BasicTrendLocale, Copy> = {
     minimum: 'Mínimo', maximum: 'Máximo', latest: 'Último', timestamp: 'Timestamp', value: 'Valor', quality: 'Calidad', source: 'Origen', unit: 'Unidad',
     unauthenticated: 'La sesión no está autenticada para consultar el Historian.', forbidden: 'Sin permiso para consultar esta TAG.', notFound: 'La TAG seleccionada ya no existe en el Runtime activo.', unavailable: 'Historian o catálogo de TAGs no disponible.',
     singlePenNote: 'Esta etapa usa una Pen para preservar escala y unidad sin inventar semántica de múltiples ejes.',
-    freshness: 'Actualización', freshnessFresh: 'Actualizado', freshnessAging: 'Datos envejeciendo', freshnessStale: 'Datos obsoletos', freshnessUnavailable: 'Sin timestamp de actualización'
+    freshness: 'Actualización', freshnessFresh: 'Actualizado', freshnessAging: 'Datos envejeciendo', freshnessStale: 'Datos obsoletos', freshnessUnavailable: 'Sin timestamp de actualización', historianPolling: 'Historian por consulta periódica (sin socket realtime)', lastRequest: 'Última solicitud', lastSuccess: 'Última respuesta válida', freshnessReason: 'Motivo'
   }
 };
 
@@ -175,6 +179,8 @@ export function BasicTrendViewer({
   const [historyIssue, setHistoryIssue] = useState<RuntimeTagEndpointIssue | null>(null);
   const [loadingTags, setLoadingTags] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [lastHistoryRequestAt, setLastHistoryRequestAt] = useState<string | null>(null);
+  const [lastHistorySuccessAt, setLastHistorySuccessAt] = useState<string | null>(null);
   const tagAbort = useRef<AbortController | null>(null);
   const historyAbort = useRef<AbortController | null>(null);
 
@@ -187,8 +193,8 @@ export function BasicTrendViewer({
     [orderedSamples]
   );
   const freshness = useMemo(
-    () => describeLiveValueFreshness(latestObservation, Date.now(), Math.max(refreshIntervalMs * 3, 15_000)),
-    [latestObservation, refreshIntervalMs, samples]
+    () => describeLiveValueDiagnostics({ observedAt: latestObservation, lastRequestAt: lastHistoryRequestAt, lastSuccessAt: lastHistorySuccessAt, requestFailed: historyIssue !== null, now: Date.now(), staleAfterMilliseconds: Math.max(refreshIntervalMs * 3, 15_000) }),
+    [historyIssue, lastHistoryRequestAt, lastHistorySuccessAt, latestObservation, refreshIntervalMs, samples]
   );
 
   const refreshTags = useCallback(async () => {
@@ -229,6 +235,7 @@ export function BasicTrendViewer({
     historyAbort.current = controller;
     setLoadingHistory(true);
     setHistoryIssue(null);
+    setLastHistoryRequestAt(new Date().toISOString());
 
     const parsedEnd = mode === 'historical' ? new Date(historicalEnd) : null;
     const range = buildBasicTrendRange(mode, window, parsedEnd && Number.isFinite(parsedEnd.getTime()) ? parsedEnd : null);
@@ -238,6 +245,7 @@ export function BasicTrendViewer({
       const next = await historyLoader(selectedTag.id, range.from, range.to, sampleLimit, controller.signal);
       if (controller.signal.aborted) return;
       setSamples(next);
+      setLastHistorySuccessAt(new Date().toISOString());
     } catch (error) {
       if (controller.signal.aborted) return;
       setSamples([]);
@@ -276,6 +284,7 @@ export function BasicTrendViewer({
           {loadingHistory ? text.refreshing : text.refresh}
         </button>
       </header>
+      <p className="basic-trend-note" data-testid="trend-transport-state">{text.historianPolling}</p>
 
       <div className="basic-trend-toolbar">
         <label>
@@ -346,6 +355,9 @@ export function BasicTrendViewer({
                 <Summary label={text.maximum} value={summary.maximum === null ? '—' : formatValue(summary.maximum, locale)} />
                 <Summary label={text.latest} value={formatValue(summary.latestValue, locale)} />
                 <Summary label={text.freshness} value={freshnessText(freshness.state, text)} tone={freshnessTone(freshness.state)} />
+                <Summary label={text.lastRequest} value={formatMoment(freshness.lastRequestAt, locale)} />
+                <Summary label={text.lastSuccess} value={formatMoment(freshness.lastSuccessAt, locale)} />
+                <Summary label={text.freshnessReason} value={freshness.reason} tone={freshnessTone(freshness.state)} />
               </div>
 
               {plot.points.length > 0 ? (
@@ -400,14 +412,14 @@ function Summary({ label, value, tone }: { label: string; value: string; tone?: 
   return <div className={`basic-trend-summary-card${tone ? ` tone-${tone}` : ''}`}><span>{label}</span><strong>{value}</strong></div>;
 }
 
-function freshnessText(state: ReturnType<typeof describeLiveValueFreshness>['state'], text: Copy) {
+function freshnessText(state: ReturnType<typeof describeLiveValueDiagnostics>['state'], text: Copy) {
   if (state === 'fresh') return text.freshnessFresh;
   if (state === 'aging') return text.freshnessAging;
   if (state === 'stale') return text.freshnessStale;
   return text.freshnessUnavailable;
 }
 
-function freshnessTone(state: ReturnType<typeof describeLiveValueFreshness>['state']): 'good' | 'attention' | 'bad' | undefined {
+function freshnessTone(state: ReturnType<typeof describeLiveValueDiagnostics>['state']): 'good' | 'attention' | 'bad' | undefined {
   if (state === 'fresh') return 'good';
   if (state === 'aging') return 'attention';
   if (state === 'stale' || state === 'unavailable') return 'bad';

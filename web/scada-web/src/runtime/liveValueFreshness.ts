@@ -6,6 +6,12 @@ export type LiveValueFreshnessSnapshot = Readonly<{
   ageMilliseconds: number | null;
 }>;
 
+export type LiveValueDiagnostics = Readonly<LiveValueFreshnessSnapshot & {
+  lastRequestAt: string | null;
+  lastSuccessAt: string | null;
+  reason: 'no-observation' | 'invalid-observation' | 'request-failed' | 'fresh' | 'aging' | 'stale';
+}>;
+
 export function describeLiveValueFreshness(
   observedAt: string | null | undefined,
   now = Date.now(),
@@ -40,4 +46,30 @@ export function latestLiveObservation(...timestamps: Array<string | null | undef
   }
 
   return latest;
+}
+
+/** Shared request/success/freshness view. Browser time is used only to calculate age;
+ * it never becomes an observation timestamp. */
+export function describeLiveValueDiagnostics(input: {
+  observedAt?: string | null;
+  lastRequestAt?: string | null;
+  lastSuccessAt?: string | null;
+  requestFailed?: boolean;
+  now?: number;
+  staleAfterMilliseconds?: number;
+}): LiveValueDiagnostics {
+  const freshness = describeLiveValueFreshness(
+    input.observedAt,
+    input.now,
+    input.staleAfterMilliseconds
+  );
+  const invalidObservation = Boolean(freshness.observedAt && freshness.ageMilliseconds === null);
+  const reason = input.requestFailed
+    ? 'request-failed'
+    : invalidObservation
+      ? 'invalid-observation'
+      : freshness.state === 'unavailable'
+        ? 'no-observation'
+        : freshness.state;
+  return { ...freshness, lastRequestAt: input.lastRequestAt ?? null, lastSuccessAt: input.lastSuccessAt ?? null, reason };
 }

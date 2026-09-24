@@ -484,3 +484,50 @@ Evidence-bounded/speculative items and future Foundations remain outside the pac
 
 Sequential CODEX route updated to rev 0027 / commit `93d79a773d7571677a9f43e6f3a80ad21aa25612`.
 No intermediate Main review is required; CODEX returns one final candidate handoff unless a real contract/base/environment blocker prevents safe completion.
+
+
+## Main decision — six prepared parallel DEV chats / CODEX as sequential validator (2026-09-24)
+
+Product Owner clarified that the previous `normally no more than four active coding DEVs` rule was a historical operational throttle for a different context and is **not** a permanent Wave 15 concurrency limit.
+
+Prepared post-FC0A implementation chats:
+- DEV-EDITOR;
+- DEV-SCRIPT-ENGINEERING;
+- DEV-AUTHORITY-UX;
+- DEV-LICENSING-UX;
+- FND-05 DEV;
+- FND-07 DEV.
+
+Canonical cross-lane coordination:
+- branch: `coord/w15-parallel-dev-control`
+- file: `docs/WAVE15-PARALLEL-DEV-CONTROL.md`
+- prepared control commit: `92f72080a778ede54b85e382a5496cfadb62fb81`
+
+All six are **PREPARED / BLOCKED** until Main records `FC0A_RELEASE_APPROVED` on an exact integrated SHA/tree. No work branch is created before that exact activation base is known.
+
+Execution pipeline:
+`normal DEV chat implements code -> Main reviews -> same DEV corrects material defects -> Main accepts exact candidate for CODEX -> sequential scarce CODEX writes/extends tests, runs focused/adversarial local validation and exact-head T1 -> Main finalizes integration`.
+
+CODEX may make small validation-driven corrections that do not redesign the feature. Material product/design defects return to the owning DEV. Frozen-contract insufficiency returns to Main.
+
+Feature DEV results stay in **separate PRs**; they are not combined into a raw monolithic implementation package. After individually accepted/T1-green merges, Main runs broader integrated T2 on the exact integration head.
+
+FND-05/FND-07 also move to normal-chat DEV implementation:
+- FND-05 prepared order: `FND05-DEV-HA-AUTHORITY-V1`; dedicated control rev 0004 / commit `f3f685cff16ebfef53db4aa69b061d7bac773829`.
+- FND-07 prepared order: `FND07-DEV-DETACH-NEUTRAL-V1`; dedicated control rev 0003 / commit `ae92f5f1ec55464eea7f231c178d0a05dc04df13`.
+
+Foundation validation remains stricter:
+`DEV -> Main contract review -> CODEX adversarial/focused validation -> exact-head T1 -> Main merge -> post-merge validation -> VERIFIED/FROZEN`.
+
+FND-05 additionally requires `CODEX_HA_ADVERSARIAL_GREEN`.
+
+Release preparation was updated:
+- `coord/w15-fnd06-control:docs/WAVE15-FC0-A-RELEASE-PREP.md`
+- commit `349ed55e74b237c77dec64971a7f8dac3ee97c7e`.
+
+ROADMAP current coordination update:
+- commit `08b11987b78adee134de77906fd57b2af199e5fb`.
+
+Current FC0-A product work remains PR #340 / V2 IN PROGRESS. This coordination preparation does not activate any downstream lane and does not alter the current CODEX mission.
+
+Bootstrap texts for each lane will be generated on Product Owner request; the bootstrap is only onboarding convenience and GitHub live controls remain authoritative.

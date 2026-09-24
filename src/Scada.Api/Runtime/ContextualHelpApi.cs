@@ -136,9 +136,9 @@ public static class ContextualHelpCatalog
             Tx("Runtime para o operador", "Runtime operator guide", "Guía de Runtime para el operador"),
             Tx("Operação da revisão Active sob autoridade do backend.", "Operation of the Active revision under backend authority.", "Operación de la revisión Active bajo autoridad del backend."),
             Tx(
-                "O backend e a revisão Active são autoridade canônica. A sessão recebe capabilities efetivas e lease do servidor. Viewer e View Only reduzem capacidades; comandos e escritas continuam bloqueados server-side quando não autorizados. Perda ou expiração do lease significa perda de autoridade interativa, nunca permissão implícita.",
-                "The backend and Active revision are canonical authority. The session receives effective capabilities and a server lease. Viewer and View Only reduce capabilities; commands and writes remain server-blocked when unauthorized. Lease loss or expiry means loss of interactive authority, never implicit permission.",
-                "El backend y la revisión Active son autoridad canónica. La sesión recibe capabilities efectivas y lease del servidor. Viewer y View Only reducen capacidades; comandos y escrituras siguen bloqueados server-side cuando no están autorizados. La pérdida o expiración del lease significa pérdida de autoridad interactiva, nunca permiso implícito.")),
+                "O backend e a revisão Active são autoridade canônica. A sessão recebe capabilities efetivas e lease do servidor. viewOnly reduz capacidades; comandos e escritas continuam bloqueados server-side quando não autorizados. Perda ou expiração do lease significa perda de autoridade interativa, nunca permissão implícita.",
+                "The backend and Active revision are canonical authority. The session receives effective capabilities and a server lease. viewOnly reduces capabilities; commands and writes remain server-blocked when unauthorized. Lease loss or expiry means loss of interactive authority, never implicit permission.",
+                "El backend y la revisión Active son autoridad canónica. La sesión recibe capabilities efectivas y lease del servidor. viewOnly reduce capabilities; comandos y escrituras siguen bloqueados server-side cuando no están autorizados. La pérdida o expiración del lease significa pérdida de autoridad interactiva, nunca permiso implícito.")),
 
         Basic(
             "runtime.history", "runtime",
@@ -229,9 +229,9 @@ public static class ContextualHelpCatalog
             Tx("Writeability", "Writeability", "Writeability"),
             Tx("Autoridade de escrita.", "Write authority.", "Autoridad de escritura."),
             Tx(
-                "Um controle visível não torna um TAG gravável. A escrita depende do contrato do TAG/fonte e das capabilities efetivas, com enforcement server-side. Viewer, View Only ou ausência da capability correspondente permanecem incapazes de escrever.",
-                "A visible control does not make a TAG writable. Writing depends on the TAG/source contract and effective capabilities, with server-side enforcement. Viewer, View Only or a missing capability remain unable to write.",
-                "Un control visible no vuelve un TAG escribible. La escritura depende del contrato TAG/fuente y de las capabilities efectivas, con enforcement server-side. Viewer, View Only o falta de capability siguen sin poder escribir.")),
+                "Um controle visível não torna um TAG gravável. A escrita depende do contrato do TAG/fonte e das capabilities efetivas, com enforcement server-side. viewOnly ou ausência da capability correspondente permanecem incapazes de escrever.",
+                "A visible control does not make a TAG writable. Writing depends on the TAG/source contract and effective capabilities, with server-side enforcement. viewOnly or a missing capability remain unable to write.",
+                "Un control visible no vuelve un TAG escribible. La escritura depende del contrato TAG/fuente y de las capabilities efectivas, con enforcement server-side. viewOnly o falta de capability siguen sin poder escribir.")),
 
         Basic(
             "tags.addressing", "tags",
@@ -369,9 +369,9 @@ public static class ContextualHelpCatalog
                 "Bindings connect UI properties to canonical resources; they do not duplicate TAG Engine, scaling or Authority logic in the browser.",
                 "Bindings conectan propiedades de UI con recursos canónicos; no duplican TAG Engine, scaling ni lógica de Authority en el navegador.")),
             S(Tx("Commands", "Commands", "Commands"), Tx(
-                "Commands representam intenção do operador e passam por validação/autorização server-side. Viewer, View Only ou ausência de capability bloqueiam a ação mesmo quando existe controle visual.",
-                "Commands represent operator intent and pass server-side validation/authorization. Viewer, View Only or a missing capability block the action even when a visual control exists.",
-                "Commands representan intención del operador y pasan por validación/autorización server-side. Viewer, View Only o falta de capability bloquean la acción aunque exista control visual."))),
+                "Commands representam intenção do operador e passam por validação/autorização server-side. viewOnly ou ausência de capability bloqueiam a ação mesmo quando existe controle visual.",
+                "Commands represent operator intent and pass server-side validation/authorization. viewOnly or a missing capability block the action even when a visual control exists.",
+                "Commands representan intención del operador y pasan por validación/autorización server-side. viewOnly o falta de capability bloquean la acción aunque exista control visual."))),
 
         Basic(
             "security.users-roles-capabilities", "security",

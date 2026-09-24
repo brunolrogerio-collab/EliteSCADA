@@ -300,7 +300,7 @@ public static class RuntimeSessionCapabilityProjection
             ? baseline
             : AuthorizationDecision.Denied(
                 baseline.Capability,
-                "The Runtime Viewer session is deliberately downscoped to read-only operation.");
+                "The Runtime viewOnly session is deliberately downscoped to read-only operation.");
     }
 }
 

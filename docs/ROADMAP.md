@@ -29,10 +29,10 @@ This section supersedes older execution-status prose below when describing the *
 - post-FND06 FC0-A audit — **CHANGES_REQUIRED**.
 - second deep pass — **NO NEW PRE-FC0A BLOCKER IDENTIFIED**.
 - third targeted gap pass — **NO NEW PRE-FC0A BLOCKER IDENTIFIED**.
-- confirmed pre-FC0A blockers remain **W15-P1-01** and **W15-P1-06**.
-- active correction: `FC0A-BLOCKER-P101-SERVER-SCRIPT-RECOVERY-V1` on `work/w15-fc0a-p101-server-script-recovery`; at latest revalidation the branch is identical to the exact frozen product base and has no PR.
-- P1-06 remains queued separately.
-- all four FC0-A DEV lanes plus FND-05/FND-07 remain **HOLD** until both blockers close and Main reruns the affected audit rows.
+- confirmed pre-FC0A blockers originated as **W15-P1-01** and **W15-P1-06**, but Main intentionally consolidated the known FC0-A correction backlog into PR #340.
+- active correction path: `FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V3` on `work/w15-fc0a-consolidated-corrections`; PR #340 is OPEN / V2 IN PROGRESS at exact head `6f19029b52641d5644fe0cf7365c119f7f87fa9a`.
+- natural Wave 15 T1 on that checkpoint, run `36005490966`, is SUCCESS; remaining V2 reconciliation/validation is still in progress.
+- DEV-EDITOR, DEV-SCRIPT-ENGINEERING, DEV-AUTHORITY-UX, DEV-LICENSING-UX, FND-05 and FND-07 remain **PREPARED / HOLD** until Main records `FC0A_RELEASE_APPROVED` on the exact integrated checkpoint.
 
 Authoritative third-pass report:
 `coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-THIRD-PASS.md`.
@@ -175,7 +175,7 @@ Only `ACCEPTABLE / FC0A_RELEASE_APPROVED` releases bounded parallel work for:
 
 At the same audited checkpoint FND-05 and FND-07 may also activate in parallel on isolated Foundation branches.
 
-Start with controlled concurrency, normally no more than four active coding DEVs.
+Parallel coding concurrency is set dynamically by Main according to ownership isolation, shared-hotspot risk, review capacity and the sequential CODEX validation queue. There is **no fixed four-DEV limit**; the prior limit was a historical operational throttle for a different context.
 
 Until Main explicitly records FC0-A, these DEVs remain blocked even if an individual prerequisite PR happens to exist.
 
@@ -193,6 +193,31 @@ FC0-B releases:
 - explicitly delegated downstream HA implementation consuming frozen HA contracts.
 
 F0 is complete only at FC0-B.
+
+## Prepared six-lane post-FC0A coordination
+
+The implementation model after `FC0A_RELEASE_APPROVED` is prepared for six normal ChatGPT DEV chats:
+
+- DEV-EDITOR;
+- DEV-SCRIPT-ENGINEERING;
+- DEV-AUTHORITY-UX;
+- DEV-LICENSING-UX;
+- FND-05 DEV;
+- FND-07 DEV.
+
+Canonical prepared control:
+
+`coord/w15-parallel-dev-control:docs/WAVE15-PARALLEL-DEV-CONTROL.md`
+
+Execution model:
+
+`DEV code -> Main review -> same DEV correction if material -> Main accepts for CODEX -> sequential CODEX focused/adversarial validation + exact-head T1 -> Main integration`
+
+Feature lanes keep independent branches/PRs and converge at integrated T2 after controlled merges.
+
+FND-05/FND-07 also use normal DEV implementers, but each remains an independent Foundation gate: Main contract review -> CODEX validation -> T1 -> merge -> post-merge validation -> VERIFIED/FROZEN.
+
+CODEX is a scarce sequential validation resource, not the default implementation owner for these six lanes.
 
 ## Parallel DEV model after release
 

@@ -901,6 +901,42 @@ public sealed class RuntimeHighAvailabilityService
     public RuntimeHaAuthorityCoordinator Authority => _authority;
     public RuntimeSessionLeaseContinuityRegistry SessionContinuity { get; }
 
+    public RuntimeHaIndustrialAuthorityDecision PrepareLocalActivation(
+        string projectKey,
+        long revision,
+        LicenseVerificationResult verification)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectKey);
+        if (revision < 1) throw new ArgumentOutOfRangeException(nameof(revision));
+        ArgumentNullException.ThrowIfNull(verification);
+
+        if (!Enabled)
+            return _authority.TryAcquireIndustrialAuthority(_authority.Definition.LocalNodeId);
+
+        var nodeId = _authority.Definition.LocalNodeId;
+        var haEntitled =
+            verification.State == LicenseState.Valid &&
+            verification.SessionEntitlements?.HaRuntime == true;
+        _authority.UpdateNodeReadiness(
+            nodeId,
+            new RuntimeHaNodeReadinessEvidence(
+                Healthy: true,
+                SynchronizationComplete: true,
+                HaLicenseEntitled: haEntitled,
+                Runtime: new RuntimeHaRuntimeIdentity("engineering", projectKey.Trim(), revision),
+                ObservedAtUtc: _utcNow(),
+                Diagnostic: haEntitled ? null : "local-license-not-ha-entitled"));
+
+        return _authority.TryAcquireIndustrialAuthority(nodeId);
+    }
+
+    public bool CanOwnIndustrialEffects()
+    {
+        if (!Enabled) return true;
+        return _authority.TryAcquireIndustrialAuthority(
+            _authority.Definition.LocalNodeId).Allowed;
+    }
+
     public void RefreshLocalReadiness(
         ScadaRuntimeDescriptor runtime,
         LicenseVerificationResult verification)

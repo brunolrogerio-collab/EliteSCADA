@@ -68,7 +68,7 @@ public sealed class ProductLicensingApiTests
         Assert.Equal(EliteScadaLicenseCodec.LicenseV2SchemaVersion, v2.SchemaVersion);
         Assert.Equal(7, v2.ViewOnlySeats);
         Assert.Equal(3, v2.InteractiveSeats);
-        Assert.True(v2.HaRuntime);
+        Assert.Equal(true, v2.HaRuntime);
     }
 
     [Fact]

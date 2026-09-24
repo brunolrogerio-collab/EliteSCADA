@@ -51,6 +51,11 @@ public sealed class RuntimeHighAvailabilityPeerBoundaryTests
         Assert.Null(appliedBreak.Snapshot.EffectiveActiveNodeId);
         Assert.False(pair.NodeB.TryAcquireLocalIndustrialAuthority().Allowed);
 
+        var breakObservation = pair.NodeA.CreatePeerObservation();
+        var observedBreak = pair.NodeB.ApplyPeerObservation(breakObservation);
+        Assert.True(observedBreak.Accepted);
+        Assert.Null(observedBreak.Snapshot.EffectiveActiveNodeId);
+
         var complete = pair.NodeA.CompleteManualTransfer(
             begin.Transition.Transfer!.TransferId,
             "node-b",

@@ -635,20 +635,20 @@ public sealed class RuntimeHaAuthorityCoordinator
         }
 
         var active = ResolveNodeLocked(_effectiveActiveNodeId);
-        if (active.Evidence is not null && !IsActiveReady(active.Evidence))
+        if (active.Evidence is null)
         {
-            active.State = RuntimeHaState.Faulted;
-            _effectiveActiveNodeId = null;
-            _authorityEpoch = checked(_authorityEpoch + 1);
-            foreach (var node in _nodes.Values.Where(node => !ReferenceEquals(node, active)))
-            {
-                if (node.State != RuntimeHaState.Faulted)
-                    node.State = RuntimeHaState.Isolated;
-            }
-            return;
+            active.State = RuntimeHaState.Synchronizing;
         }
-
-        active.State = RuntimeHaState.Active;
+        else if (!IsActiveReady(active.Evidence))
+        {
+            active.State = active.Evidence.Healthy
+                ? RuntimeHaState.Synchronizing
+                : RuntimeHaState.Faulted;
+        }
+        else
+        {
+            active.State = RuntimeHaState.Active;
+        }
         foreach (var node in _nodes.Values.Where(node => !ReferenceEquals(node, active)))
         {
             if (node.Evidence is not null && !node.Evidence.Healthy)

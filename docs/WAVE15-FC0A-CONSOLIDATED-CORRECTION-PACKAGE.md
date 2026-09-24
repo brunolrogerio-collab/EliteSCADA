@@ -5,7 +5,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`ORDER_ID: FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V3`
+`ORDER_ID: FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V4`
 
 `ORDER_STATE: ACTIVE`
 
@@ -21,7 +21,7 @@
 
 `TARGET_BRANCH: wave15/corrections-integration`
 
-`MAIN_REVIEW_POLICY: V1_REVIEWED_CHANGES_REQUIRED / CONTINUE_SAME_BRANCH_AND_PR / NO_INTERMEDIATE_REVIEW_UNTIL_V2_HANDOFF`
+`MAIN_REVIEW_POLICY: V2_REVIEWED_CHANGES_REQUIRED / CONTINUE_SAME_BRANCH_AND_PR / NARROW_FINAL_CLOSEOUT`
 
 `PR_POLICY: ONE_CONSOLIDATED_PR_AFTER_PACKAGE_COMPLETION`
 
@@ -840,3 +840,117 @@ Stop and report `BLOCKED-CONTRACT` only if completing an item requires:
 - inventing unavailable Runtime/capacity facts.
 
 Environment-only local Playwright identity setup is **not** a product blocker if the natural GitHub T1 provides the required mounted evidence on the exact head.
+
+
+## 12. Main review of final V2 handoff — CHANGES_REQUIRED / narrow V3 closeout
+
+Main reviewed the exact V2 candidate:
+
+- PR: `#340`
+- head: `150b808140a5fdf80afd0c88d46ea80f83f630b2`
+- tree: `c2bfbbfe705be64e5c1aac314f96bf8851a913b0`
+- commits: 15
+- changed files: 41
+- final natural T1: `36033152318` — **SUCCESS**
+  - classification — SUCCESS
+  - Common T1 sanity — SUCCESS
+  - Focused .NET evidence — SUCCESS
+  - Focused Chromium evidence — SUCCESS
+  - Web semantic build — SUCCESS
+  - Wave 15 T1 gate — SUCCESS
+- integration branch remains product/infra-identical to frozen checkpoint outside the PR; its current divergence from `560ac9d...` is documentation only.
+
+Main accepts the following V2 closures and they must not be reopened without new failing evidence:
+
+- A1/P1-01 bounded Server Script recovery;
+- A2/P1-06 truthful Engineering fallback;
+- R1/B5 Trend polling/request-success/freshness truth;
+- R2 shared freshness model and final TAG realtime reconnect state;
+- R3 structured Script API Help + representative recipe;
+- R4 orphan fallback-lease termination and mutation-path requested/granted/reason feedback;
+- R5 metadata-only pre-Use library inspection boundary as `NOT_APPLICABLE_WITH_EVIDENCE` for rendered pixels because the associated catalog does not expose canonical renderable content;
+- contextual Help routing, canonical `viewOnly` wording and accepted V1 shared UX directions.
+
+However V2 does **not** fully satisfy the binding reconciliation checklist. Do not merge yet.
+
+### V3-R1 — complete the actual user-facing Runtime Session Class surface
+
+The V2 implementation exposes `admitRuntimeSession(requestedClass)` and requested/granted/reason data in the client API, and the mutation helper truthfully reports Interactive -> ViewOnly fallback.
+
+But the current product candidate still lacks the user-facing control/status surface required by R4:
+
+- `web/scada-web/src/licensing/LicensingApp.tsx` remains a license/status/install/remove UI and has no Runtime Session Class request/status control;
+- `web/scada-web/src/runtime/application/RuntimeApplicationMount.tsx` has no ViewOnly/Interactive request/status surface;
+- no changed product UI in PR #340 provides an explicit user action to request `viewOnly` and then displays the resulting requested class, granted class and reason codes.
+
+Required bounded closeout:
+
+1. add one minimal user-facing Runtime Session access surface in the most appropriate existing Runtime/Licensing UI;
+2. allow an explicit `viewOnly` request and an explicit `interactive` request without inventing new backend authority;
+3. show requested class, server granted class, admission reason and capacity reason when present;
+4. make accepted/downscoped/rejected truth visible;
+5. never route a ViewOnly grant into mutation helpers;
+6. if the UI creates a lease that it will not actually consume, terminate it explicitly; do not add a second orphan-lease path;
+7. do not invent active-seat counts/capacity facts not exposed by frozen FND-03;
+8. add a mounted product-level regression for this UI.
+
+Keep the scope bounded: do not absorb the full future DEV-LICENSING-UX mission or redesign FND-03.
+
+### V3-R2 — close only the missing R6 evidence, not more product scope
+
+Main re-read the exact-head owner tests.
+
+The following checklist rows are not proven by the current PR:
+
+#### Shell width/no-overflow
+`app-shell.spec.ts` still contains the historical 1024x720 visual-editor viewport case but no explicit `scrollWidth <= clientWidth` matrix at approximately 1180 / 1024 / 901 px.
+
+Add the bounded assertions required by R6-A. Production code changes only if the new test exposes a real regression.
+
+#### Engineering scroll composition
+The current `app-shell.spec.ts` does not explicitly prove the R6-C contract:
+- desktop viewport-bounded shell;
+- independent sidebar/workspace scrolling;
+- compact/mobile return to intentional document-flow behavior without clipping.
+
+Add focused mounted evidence. Product changes only on a real failure.
+
+#### Engineering Lock compact management
+Existing `wave-14-c25-engineering-lock.spec.ts` proves core lock/unlock/configure behavior, but does not explicitly prove the new compact/collapsed discoverability and the full configure/lock/clear lifecycle through that composition.
+
+Extend the owner spec only as needed to cover the changed compact UI. Do not redesign Lock semantics.
+
+#### Legacy advanced authoring containment
+The current selection/authoring/z-order owner specs do not explicitly exercise known persisted legacy `tank | value | dynamo | status` through the advanced paths changed by this package, nor the arbitrary-unknown negative across those paths.
+
+Add focused model/mounted regressions for the operations actually touched by PR #340:
+- selection/topmost/marquee as applicable;
+- move/resize/z-order/align-distribute-size where the changed model participates;
+- arbitrary unknown remains contained/fail-closed;
+- legacy-specific authored fields survive.
+
+Do not broaden into the full future DEV-EDITOR mission.
+
+### V3 completion rule
+
+Continue on the SAME branch and PR:
+
+- branch: `work/w15-fc0a-consolidated-corrections`
+- PR: `#340`
+
+Preserve all accepted V2 work.
+
+No intermediate Main review is required.
+
+After V3-R1/R2:
+1. run the smallest focused specs;
+2. run Web build;
+3. update PR body with exact V3 reconciliation;
+4. run natural Wave 15 T1 on the exact new head;
+5. return:
+
+`FC0-A CONSOLIDATED CODEX -> MAIN COORDINATOR — CANDIDATE HANDOFF V3`
+
+Include exact SHA/tree, changed files for this narrow closeout and exact T1 run ID.
+
+No merge/freeze/release.

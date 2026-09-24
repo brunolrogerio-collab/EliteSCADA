@@ -950,3 +950,16 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+.authority-role-fields input[readonly] {
+  cursor: not-allowed;
+  opacity: .78;
+  background: #111820;
+}
+
+.authority-role-key-note {
+  color: var(--eng-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}

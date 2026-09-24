@@ -26,7 +26,8 @@ public sealed class ScadaRuntimeFacade(
     IEngineeringRuntimeCoordinator engineeringRuntime,
     GatewayEngineeringRuntimeCoordinator? operationalEvents = null,
     IScadaEventBus? eventBus = null,
-    IConfiguration? configuration = null)
+    IConfiguration? configuration = null,
+    RuntimeHighAvailabilityService? highAvailability = null)
 {
     private IOperationalEventRuntime? EventRuntime =>
         operationalEvents ?? engineeringRuntime as IOperationalEventRuntime;
@@ -143,39 +144,52 @@ public sealed class ScadaRuntimeFacade(
     public ValueTask<bool> AcknowledgeAlarmAsync(
         Guid alarmId,
         string user,
-        CancellationToken cancellationToken = default) =>
-        IsEngineeringActive
+        CancellationToken cancellationToken = default)
+    {
+        RequireIndustrialAuthority();
+        return IsEngineeringActive
             ? engineeringRuntime.AcknowledgeAlarmAsync(alarmId, user, cancellationToken)
             : fallback.Alarms.AcknowledgeAsync(alarmId, user, cancellationToken);
+    }
 
     public ValueTask<bool> ShelveAlarmAsync(
         Guid alarmId,
         string user,
-        CancellationToken cancellationToken = default) =>
-        IsEngineeringActive
+        CancellationToken cancellationToken = default)
+    {
+        RequireIndustrialAuthority();
+        return IsEngineeringActive
             ? engineeringRuntime.ShelveAlarmAsync(alarmId, user, cancellationToken)
             : fallback.Alarms.ShelveAsync(alarmId, user, cancellationToken);
+    }
 
     public ValueTask<bool> UnshelveAlarmAsync(
         Guid alarmId,
         string user,
-        CancellationToken cancellationToken = default) =>
-        IsEngineeringActive
+        CancellationToken cancellationToken = default)
+    {
+        RequireIndustrialAuthority();
+        return IsEngineeringActive
             ? engineeringRuntime.UnshelveAlarmAsync(alarmId, user, cancellationToken)
             : fallback.Alarms.UnshelveAsync(alarmId, user, cancellationToken);
+    }
 
     public ValueTask WriteAsync(
         Guid tagId,
         object? value,
-        CancellationToken cancellationToken = default) =>
-        IsEngineeringActive
+        CancellationToken cancellationToken = default)
+    {
+        RequireIndustrialAuthority();
+        return IsEngineeringActive
             ? engineeringRuntime.WriteAsync(tagId, value, cancellationToken)
             : fallbackDriver.WriteAsync(tagId, value, cancellationToken);
+    }
 
     public ValueTask ResetServerMemoryRetainedValueAsync(
         Guid tagId,
         CancellationToken cancellationToken = default)
     {
+        RequireIndustrialAuthority();
         if (!IsEngineeringActive)
             throw new InvalidOperationException("Server Memory retained values exist only in an active Engineering runtime.");
         return engineeringRuntime.ResetServerMemoryRetainedValueAsync(tagId, cancellationToken);
@@ -185,6 +199,7 @@ public sealed class ScadaRuntimeFacade(
         Guid commandId,
         CancellationToken cancellationToken = default)
     {
+        RequireIndustrialAuthority();
         if (IsEngineeringActive)
         {
             await engineeringRuntime.ExecuteCommandAsync(commandId, cancellationToken);
@@ -202,10 +217,20 @@ public sealed class ScadaRuntimeFacade(
         OperationalEventEmissionContext? context = null,
         CancellationToken cancellationToken = default)
     {
+        RequireIndustrialAuthority();
         if (!IsEngineeringActive)
             throw new InvalidOperationException("Operational Events can only be emitted by an active Engineering runtime.");
         if (EventRuntime is not { } events)
             throw new InvalidOperationException("The active Engineering runtime does not expose Operational Event support.");
         return events.EmitOperationalEventAsync(definitionId, context, cancellationToken);
+    }
+
+    private void RequireIndustrialAuthority()
+    {
+        if (highAvailability?.Enabled == true && !highAvailability.CanOwnIndustrialEffects())
+        {
+            throw new InvalidOperationException(
+                "Industrial Runtime effects are fenced because this node is not the effective HA Active authority.");
+        }
     }
 }

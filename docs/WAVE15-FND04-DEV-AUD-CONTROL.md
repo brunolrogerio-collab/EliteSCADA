@@ -38,7 +38,7 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0025`
+`MAIN_ORDER_REV: 0026`
 
 `LAST_MAIN_UPDATE_BRT: 2026-09-23 — FND-04 FROZEN / SEQUENTIAL CODEX REASSIGNED TO FND-06`
 
@@ -591,35 +591,42 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 ### CURRENT CODEX EXECUTION ORDER
 
-`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FND06-E2E-14`
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FC0A-P101-15`
 
 `ORDER_STATE: ACTIVE_ROUTE`
 
-`EXECUTOR_MODE: SAME_SEQUENTIAL_CODEX / FND06_TEST_ONLY_CLOSEOUT`
+`EXECUTOR_MODE: SAME_SEQUENTIAL_CODEX / BOUNDED_SERVER_SCRIPT_RECOVERY`
 
 `FND04_STATE: VERIFIED_FROZEN`
 
-`FND06_STATE: INTEGRATED / PRODUCT_ACCEPTED / FREEZE_BLOCKED_TEST_ISOLATION`
+`FND06_STATE: VERIFIED_FROZEN`
+
+`AUDIT_RESULT: CHANGES_REQUIRED`
 
 `NEXT_CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`NEXT_CONTROL_FILE: docs/WAVE15-FND06-CONTROL.md`
+`NEXT_CONTROL_FILE: docs/WAVE15-FC0A-AUDIT-BLOCKER-CORRECTION-PREP.md`
 
-`EXPECTED_ORDER: FND06-CODEX-WAIT-FINAL-BROAD-V7`
+`EXPECTED_ORDER: FC0A-BLOCKER-P101-SERVER-SCRIPT-RECOVERY-V1`
+
+`WORK_BRANCH: work/w15-fc0a-p101-server-script-recovery`
+
+`EXACT_BASE_SHA: 560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
 
 Instruction:
 
-> The shared sequential CODEX lane is active.
-> FND-04 remains frozen; INFRA-CI-01B product correction is merged/Main-accepted.
-> The exact broad CI exposed one FND-06 E2E fixture-isolation defect.
+> The Main Coordinator completed the post-FND06 audit and confirmed W15-P1-01 plus W15-P1-06 as release blockers.
+>
+> Execute only P1-01 now. Do not touch P1-06 Engineering-shell scope.
 >
 > On every `SIGA`:
 > 1. revalidate GitHub live;
-> 2. read `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`;
-> 3. execute current order `FND06-CODEX-WAIT-FINAL-BROAD-V7`;
-> 4. return with the FND-06 E2E fixture isolation handoff prefix.
+> 2. read `coord/w15-fnd06-control:docs/WAVE15-FC0A-AUDIT-BLOCKER-CORRECTION-PREP.md` in full;
+> 3. confirm current active order is `FC0A-BLOCKER-P101-SERVER-SCRIPT-RECOVERY-V1`;
+> 4. work only on `work/w15-fc0a-p101-server-script-recovery`;
+> 5. return `FC0-A P1-01 CODEX -> MAIN COORDINATOR — CANDIDATE HANDOFF`.
 >
-> Do not report WAIT from FND-04 or INFRA-CI-01B while this routing order is current.
+> No merge/freeze authority. Stop if the control moves or exact base acquires an unacknowledged product/infra divergence.
 
 ### CODEX mandatory return
 

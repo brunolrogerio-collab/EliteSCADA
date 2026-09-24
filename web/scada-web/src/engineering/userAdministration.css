@@ -573,3 +573,380 @@
     text-align: left;
   }
 }
+
+
+/* Wave 15 Authority administration stays lane-local. Security decisions remain backend-owned. */
+.authority-policy {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--eng-border);
+}
+
+.authority-policy-header,
+.authority-section-heading,
+.authority-policy-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.authority-policy-header h3,
+.authority-preview-card h4 {
+  margin: 3px 0;
+}
+
+.authority-policy-header p,
+.authority-preview-card p {
+  margin: 0;
+  color: var(--eng-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.authority-policy-version,
+.authority-validation-status {
+  display: grid;
+  gap: 3px;
+  min-width: 150px;
+  justify-items: end;
+  text-align: right;
+}
+
+.authority-policy-version span,
+.authority-policy-version small,
+.authority-validation-status span,
+.authority-section-heading span {
+  color: var(--eng-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.authority-policy-version strong {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 20px;
+}
+
+.authority-policy-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--eng-border-soft);
+  border-radius: 6px;
+  background: #0f161e;
+  color: #cbd5df;
+  font-size: 12px;
+}
+
+.authority-policy-state.error {
+  border-color: rgba(212, 106, 106, .5);
+}
+
+.authority-policy-state.warning {
+  border-color: rgba(214, 169, 88, .5);
+}
+
+.authority-policy-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.authority-policy-overview > div {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--eng-border-soft);
+  border-radius: 7px;
+  background: #0d141b;
+}
+
+.authority-policy-overview strong {
+  font-size: 18px;
+}
+
+.authority-policy-overview span {
+  color: var(--eng-muted);
+  font-size: 11px;
+}
+
+.authority-policy-layout {
+  display: grid;
+  grid-template-columns: minmax(230px, .7fr) minmax(0, 1.8fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.authority-role-list,
+.authority-role-editor,
+.authority-preview-card {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--eng-border-soft);
+  border-radius: 8px;
+  background: #0d141b;
+}
+
+.authority-role-items {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+  max-height: 420px;
+  overflow: auto;
+}
+
+.authority-role-item {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--eng-border-soft);
+  border-radius: 6px;
+  background: #0f161e;
+  color: var(--eng-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.authority-role-item:hover,
+.authority-role-item.selected {
+  border-color: #3f6079;
+  background: #14202a;
+}
+
+.authority-role-item:focus-visible {
+  outline: 2px solid var(--eng-accent);
+  outline-offset: 1px;
+}
+
+.authority-role-item code,
+.authority-section-heading code,
+.authority-scope-node code,
+.authority-assignment-summary code,
+.authority-preview-list code,
+.authority-effective-list code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 10px;
+}
+
+.authority-role-item small,
+.authority-scope-node small,
+.authority-assignment-summary small {
+  color: var(--eng-muted);
+  font-size: 10px;
+}
+
+.authority-hierarchy {
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--eng-border-soft);
+}
+
+.authority-scope-node {
+  display: grid;
+  gap: 2px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  border-left: 1px solid var(--eng-border-soft);
+}
+
+.authority-role-editor {
+  display: grid;
+  gap: 12px;
+}
+
+.authority-role-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.authority-role-fields label,
+.authority-grant-row label {
+  display: grid;
+  gap: 5px;
+  color: var(--eng-muted);
+  font-size: 11px;
+}
+
+.authority-role-fields input,
+.authority-role-fields textarea,
+.authority-grant-row select {
+  min-width: 0;
+  border: 1px solid var(--eng-border);
+  border-radius: 5px;
+  padding: 8px 9px;
+  background: #0b1118;
+  color: var(--eng-text);
+}
+
+.authority-wide {
+  grid-column: 1 / -1;
+}
+
+.authority-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.authority-assignment-summary {
+  display: grid;
+  gap: 6px;
+  padding: 9px 10px;
+  border: 1px solid var(--eng-border-soft);
+  border-radius: 6px;
+  background: #0b1118;
+}
+
+.authority-assignment-summary > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.authority-assignment-summary code,
+.authority-effective-list code {
+  padding: 3px 6px;
+  border: 1px solid var(--eng-border-soft);
+  border-radius: 999px;
+  background: #111b24;
+}
+
+.authority-grants {
+  display: grid;
+  gap: 8px;
+}
+
+.authority-grant-row {
+  display: grid;
+  grid-template-columns: minmax(170px, 1fr) minmax(220px, 1.35fr) minmax(145px, auto) auto;
+  gap: 8px;
+  align-items: end;
+  padding: 10px;
+  border: 1px solid var(--eng-border-soft);
+  border-radius: 7px;
+  background: #0f161e;
+}
+
+.authority-descendants {
+  display: flex !important;
+  align-items: center;
+  min-height: 34px;
+}
+
+.authority-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.authority-preview-card {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+}
+
+.authority-preview-card > span {
+  color: var(--eng-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.authority-preview-list {
+  display: grid;
+  gap: 5px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.authority-preview-list > div {
+  display: grid;
+  grid-template-columns: minmax(130px, auto) minmax(90px, auto) 1fr;
+  gap: 5px 9px;
+  align-items: baseline;
+  padding: 7px 8px;
+  border: 1px solid var(--eng-border-soft);
+  border-radius: 5px;
+}
+
+.authority-preview-list small {
+  color: var(--eng-muted);
+  font-size: 10px;
+}
+
+.authority-effective-list {
+  display: grid;
+  gap: 6px;
+  padding-top: 7px;
+  border-top: 1px solid var(--eng-border-soft);
+}
+
+.authority-effective-list > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.authority-policy-actions {
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid var(--eng-border-soft);
+}
+
+@media (max-width: 1120px) {
+  .authority-policy-layout,
+  .authority-preview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .authority-role-items {
+    max-height: 260px;
+  }
+
+  .authority-grant-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .authority-policy-header,
+  .authority-policy-actions,
+  .authority-section-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .authority-policy-version,
+  .authority-validation-status {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .authority-policy-overview,
+  .authority-role-fields,
+  .authority-grant-row {
+    grid-template-columns: 1fr;
+  }
+
+  .authority-wide {
+    grid-column: auto;
+  }
+
+  .authority-inline-actions {
+    justify-content: flex-start;
+  }
+
+  .authority-preview-list > div {
+    grid-template-columns: 1fr;
+  }
+}

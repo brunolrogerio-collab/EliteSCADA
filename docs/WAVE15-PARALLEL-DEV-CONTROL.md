@@ -566,3 +566,24 @@ Foundation chats use their dedicated existing controls:
 A future bootstrap prompt should point the chat to its dedicated control first and to this cross-lane control second.
 
 While the lane is PREPARED/WAIT, the chat may initialize, read GitHub live and understand the mission, but must not create/mutate the product branch until Main activates it with an exact base SHA/tree.
+
+
+## 14. Six-lane phase exit -> first-project fresh-install partial preview
+
+Completion of the six prepared implementation lanes does not go directly to a prebuilt EEE-only audit.
+
+After:
+- the four feature lanes are integrated and T2-verified; and
+- FND-05/FND-07 are independently VERIFIED/FROZEN;
+
+Main prepares the exact checkpoint for:
+
+`coord/w15-fresh-install-preview-control:docs/WAVE15-FIRST-PROJECT-FRESH-INSTALL-PREVIEW-CONTROL.md`
+
+That preview has two independent user-like moments:
+1. CODEX black-box fresh-install / first-project audit;
+2. Product Owner human fresh-install / first-project audit on a separate reset environment.
+
+Detailed CODEX findings are intentionally not shown to the Product Owner before the human journey completes.
+
+This audit is meant to reveal end-to-end product birth/discoverability gaps before later Installation UX, EliteGO, EEE v15 and final complete-product acceptance.

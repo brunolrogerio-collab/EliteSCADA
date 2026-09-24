@@ -31,7 +31,7 @@ On `SIGA`:
 
 ## Activation history
 
-Do not mutate product until Main records `FC0A_RELEASE_APPROVED`, writes exact base SHA/tree here, creates the branch and changes ORDER_STATE to ACTIVE.
+Historical prerequisite — now satisfied: Main recorded `FC0A_RELEASE_APPROVED`, wrote the exact base SHA/tree, created the branch and changed the order to ACTIVE.
 
 ## Mission after activation
 

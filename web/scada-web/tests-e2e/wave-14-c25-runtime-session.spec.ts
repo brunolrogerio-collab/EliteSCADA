@@ -181,6 +181,26 @@ test('account menu closes with Escape and returns focus to its trigger', async (
   await expect(trigger).toBeFocused();
 });
 
+test('account menu keeps its localized accessible name and actions in every supported locale', async ({ page }) => {
+  await installSessionContract(page, administrator);
+  const expectations = [
+    { locale: 'pt-BR', account: 'Conta', switchUser: 'Trocar usuário', logout: 'Sair' },
+    { locale: 'en', account: 'Account', switchUser: 'Switch user', logout: 'Sign out' },
+    { locale: 'es', account: 'Cuenta', switchUser: 'Cambiar usuario', logout: 'Salir' }
+  ];
+
+  for (const expected of expectations) {
+    await page.addInitScript(locale => window.localStorage.setItem('elitescada.engineering.locale', locale), expected.locale);
+    await page.goto('/');
+    const trigger = page.getByTestId('session-menu-toggle');
+    await expect(trigger).toHaveAttribute('aria-label', `${expected.account}: Administrador Local`);
+    await trigger.click();
+    await expect(page.getByTestId('session-menu-popup')).toHaveAttribute('aria-label', expected.account);
+    await expect(page.getByTestId('session-switch-user')).toHaveText(expected.switchUser);
+    await expect(page.getByTestId('session-logout')).toHaveText(expected.logout);
+  }
+});
+
 test('failed server invalidation keeps the current identity and Runtime interactive', async ({ page }) => {
   const contract = await installSessionContract(page, administrator, 'failure');
 

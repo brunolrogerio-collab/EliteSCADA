@@ -518,3 +518,308 @@ After R1-R6:
 5. no merge/freeze/release.
 
 Main will not re-review intermediate commits. Continue until V2 is complete or a real frozen-contract/environment blocker prevents completion.
+
+
+## 11. CODEX resume checklist — complete R2 / R4 / R5 / R6 only
+
+Checkpoint to resume from:
+
+- PR: `#340`
+- branch: `work/w15-fc0a-consolidated-corrections`
+- exact current head: `6f19029b52641d5644fe0cf7365c119f7f87fa9a`
+- exact current tree: `5120d7484d8b62dc9cf36880cf96b11566e58622`
+- natural T1 on this checkpoint: `36005490966` — **SUCCESS**
+- PR body state: `CANDIDATE HANDOFF V2 (IN PROGRESS)`
+
+### 11.0 Do-not-repeat / preserve list
+
+Do **not** reimplement, rewrite or reopen without a new failing proof:
+
+- R1/B5 Historian polling truth + last request/last success/freshness diagnostics already added;
+- R3/C3 structured Server Script API Help + signatures/parameters/result/safety/examples + TAG recipe already added;
+- R4 critical orphan-lease fix already added: Interactive request that receives ViewOnly must terminate the unused fallback lease before rejection;
+- R5 resource inspection already added: resource identity, payload path, dependency closure and metadata/canonical-renderer boundary;
+- V1 accepted A1/A2, shell responsive direction, Engineering scroll direction, compact Lock direction, viewOnly wording, Help routing, FND-06 compatibility consumption, account Escape/focus, Template/Equipment binding inspection;
+- do not create a second visual renderer, second compatibility registry, second Authority path or new FND-03 quota/admission contract.
+
+### 11.1 Step 1 — finish R2 shared live-value diagnostics first
+
+Goal: finish the **shared** diagnostics contract before adding more mounted tests.
+
+Current implementation already has:
+- `describeLiveValueDiagnostics`;
+- `lastRequestAt`;
+- `lastSuccessAt`;
+- reasons `no-observation | invalid-observation | request-failed | fresh | aging | stale`;
+- Trend and TAG Inspector initial consumption.
+
+Complete only the residuals:
+
+1. ensure the shared diagnostics presentation exposes:
+   - observation age in useful human-readable form or the exact age value;
+   - stale threshold / equivalent diagnostic threshold;
+   - explicit reason when unavailable/stale;
+2. preserve:
+   - numeric zero as a valid value;
+   - quality independently from value/freshness;
+   - null/no-sample as distinct from zero;
+   - transport failure as distinct from stale authoritative observation;
+3. wire the same shared model to any existing Popup/live-value consumer **only if that consumer already exposes live-value status**; do not create a Popup-only parallel model;
+4. verify realtime reconnect/open/close/reopen transitions do not:
+   - invent observation timestamps;
+   - reset freshness to fresh without a new authoritative observation;
+   - discard the last successful observation merely because transport disconnected;
+5. add/extend focused tests:
+   - `web/scada-web/tests-e2e/live-value-freshness-contract.spec.ts`;
+   - `web/scada-web/tests-e2e/runtime-tag-inspector-contract.spec.ts`;
+   - the existing mounted Runtime/Popup spec that owns the live-value transport if applicable.
+
+R2 DONE only when tests prove:
+- Good zero remains zero;
+- null/no-sample remains unavailable;
+- non-Good quality remains visible independently;
+- request failure != stale != no observation;
+- reconnect/open/close/reopen preserves truthful last request / last success / observation state.
+
+Commit suggestion:
+`test/fix: close shared live value diagnostics contract`
+
+### 11.2 Step 2 — finish R4 Runtime Session / Licensing UX without backend redesign
+
+Preserve the already-completed fallback lease termination.
+
+Do not add new admission/quota semantics.
+
+Backend facts already available and authoritative:
+- `POST /api/runtime/sessions` returns `requestedClass`, `grantedClass`, `admissionReasonCode`, `capacityReasonCode`, `capacityReserved`;
+- `GET /api/runtime/contract` exposes supported connection classes and admission reason-code vocabulary;
+- terminate/heartbeat endpoints already exist;
+- current backend does **not** expose an authoritative active-session count/usage counter in this contract.
+
+Therefore:
+
+1. add explicit user-facing Runtime Session control/status surface using the existing client helper:
+   - selector/action for `viewOnly` vs `interactive`;
+   - display requested class;
+   - display server granted class;
+   - display admission reason;
+   - display capacity reason when present;
+   - display whether the admission was accepted, downscoped or rejected;
+2. on `viewOnly` request:
+   - consume the granted ViewOnly lease as read-only;
+   - never route it through Interactive-only mutation helpers;
+3. on `interactive -> viewOnly` fallback:
+   - keep current termination-before-rejection behavior unless the UI intentionally chooses to accept the ViewOnly fallback;
+   - if UI accepts fallback, make that an explicit user-visible state/action, not silent automatic mutation;
+4. capacity/usage:
+   - show only facts already provided by frozen contracts;
+   - do **not** invent active-seat counts or add a new backend capacity endpoint merely to satisfy the UI;
+   - `capacityReasonCode`, supported classes, lease duration and reserved state are acceptable truthful facts;
+5. place the UX in the smallest existing shared Runtime/Licensing surface that avoids duplicating session logic; prefer reuse of existing Runtime session helpers over a second client API;
+6. add mounted regression proving:
+   - explicit ViewOnly request;
+   - Interactive request granted Interactive;
+   - Interactive request downscoped to ViewOnly;
+   - fallback reason shown;
+   - no mutation path uses ViewOnly as Interactive;
+   - rejected/unconsumed fallback lease is terminated;
+   - termination failure is surfaced;
+   - pt-BR/en/es labels remain coherent.
+
+Recommended files to inspect/reuse:
+- `web/scada-web/src/runtime/runtimeSessionAdmissionApi.ts`;
+- `web/scada-web/src/licensing/LicensingApp.tsx`;
+- existing Runtime shell/session surface;
+- `web/scada-web/tests-e2e/runtime-session-admission-contract.spec.ts`;
+- `web/scada-web/tests-e2e/wave-14-c25-runtime-session.spec.ts`.
+
+R4 DONE only when the user can see requested/granted/reason truth and ViewOnly cannot be mistaken for Interactive.
+
+Commit suggestion:
+`feat: complete runtime session admission UX`
+
+### 11.3 Step 3 — finish R5 reusable-library preview with an explicit capability decision
+
+Current inspection is already valid and must be preserved.
+
+Before writing more production code, perform one bounded capability check:
+
+1. inspect the current reusable-library resource DTO/API:
+   - if the associated catalog already exposes enough canonical typed payload to feed an existing canonical preview/renderer **without incorporation**, reuse that exact renderer;
+   - if it exposes only manifest metadata / payload path / dependency closure, do not invent a second parser or renderer;
+2. for `screen | popup | dynamo`:
+   - reuse an existing canonical preview component only if it can consume the existing canonical resource model directly;
+   - otherwise retain metadata/payload/dependency inspection and explicitly label visual preview as unavailable before incorporation because the catalog does not expose renderable canonical content;
+3. for non-visual resources:
+   - metadata/package inspection is sufficient;
+4. never:
+   - import/incorporate merely to preview;
+   - mutate Working during preview;
+   - make Runtime depend on `.escadalib`;
+   - duplicate FND-06 renderer/compatibility logic;
+5. extend the existing reusable-library mounted test:
+   - `web/scada-web/tests-e2e/wave-14-c25-reusable-libraries.spec.ts`;
+6. prove:
+   - inspection opens before Use;
+   - resource ID/payload/dependencies visible;
+   - preview either uses canonical renderer or explicitly reports metadata-only capability;
+   - preview causes zero Working mutation;
+   - Use still performs the existing validated incorporation path;
+   - disassociation preserves incorporated content.
+
+R5 DONE when the capability boundary is truthful and tested, even if the correct result for some associated resource kinds is “metadata-only until incorporation”.
+
+Commit suggestion:
+`test/fix: close reusable library preview boundary`
+
+### 11.4 Step 4 — R6 mounted regressions, grouped by existing owner spec
+
+Do this only after R2/R4/R5 product deltas are stable.
+
+#### R6-A — shell overflow / reachability
+
+Extend `web/scada-web/tests-e2e/app-shell.spec.ts`.
+
+Test representative widths:
+- 1180;
+- 1024;
+- 901;
+- optionally 900/760 as breakpoint guards.
+
+Assertions:
+- `document.documentElement.scrollWidth <= clientWidth`;
+- Runtime/Engineering/Audit/Licensing/Help remain reachable according to current Authority;
+- theme control remains reachable;
+- account trigger remains reachable;
+- no navigation item becomes unreachable solely because of overflow.
+
+#### R6-B — localized account accessibility
+
+Extend `wave-14-c25-runtime-session.spec.ts` or `session-menu-contract.spec.ts`.
+
+For pt-BR / en / es:
+- account trigger has expected accessible name;
+- keyboard Enter/Space opens;
+- Escape closes;
+- focus returns to trigger;
+- logout/switch actions remain keyboard-operable where authorized.
+
+Do not rewrite the account component unless a test fails.
+
+#### R6-C — Engineering scroll composition
+
+Extend `app-shell.spec.ts`.
+
+Desktop:
+- `.eng-shell` is viewport-bounded;
+- `.eng-body` does not force document scrolling;
+- sidebar has independent vertical scroll;
+- workspace has independent vertical scroll;
+- visual editor canvas/panels remain usable.
+
+Compact/mobile:
+- breakpoint intentionally returns to document-flow behavior;
+- no clipping of sidebar/workspace controls.
+
+#### R6-D — Engineering Lock compact management
+
+Extend `wave-14-c25-engineering-lock.spec.ts`.
+
+Configured + unlocked:
+- management is collapsed/compact by default;
+- summary/status remains discoverable;
+- expand and perform:
+  - configure/replace secret;
+  - configure + lock;
+  - lock now;
+  - clear;
+- existing backend Authority behavior remains the source of truth.
+
+Locked:
+- protected workspace still never mounts;
+- no regression to restricted administration/recovery surface.
+
+#### R6-E — legacy advanced authoring + arbitrary unknown containment
+
+Do **not** add a new compatibility registry.
+
+Extend existing owner-model tests:
+- `visual-editor-selection-model.spec.ts`;
+- `visual-editor-authoring-model.spec.ts`;
+- `visual-editor-z-order-model.spec.ts`;
+- existing resize/move/toolbar spec where needed.
+
+Create fixtures using known persisted legacy types:
+- `tank`;
+- `value`;
+- `dynamo`;
+- `status`.
+
+Prove, where semantically supported:
+- point/topmost selection;
+- marquee selection;
+- move;
+- resize;
+- z-order;
+- align/distribute/size operations.
+
+Also prove:
+- arbitrary unknown type remains contained/fail-closed;
+- no crash;
+- no fabricated schema;
+- legacy-specific authored fields survive operations.
+
+### 11.5 Step 5 — focused validation before final T1
+
+Run the smallest focused set first:
+
+- live-value diagnostics specs;
+- Runtime session/admission specs;
+- reusable-library mounted spec;
+- app-shell;
+- Engineering Lock;
+- legacy visual-editor model specs.
+
+Then:
+- Web production build;
+- owning .NET tests if any backend/UI contract touched.
+
+Do not rerun unrelated broad suites manually if natural T1 will own them.
+
+### 11.6 Step 6 — final PR update + exact-head natural T1
+
+Only after Steps 1-5 are green:
+
+1. update PR #340 body from `V2 (IN PROGRESS)` to final candidate handoff;
+2. include an explicit matrix:
+   - R2 COMPLETE;
+   - R4 COMPLETE;
+   - R5 COMPLETE;
+   - R6 COMPLETE;
+3. include any R5 metadata-only preview decision and why it preserves the canonical renderer boundary;
+4. push final head;
+5. let the natural Wave 15 T1 run on that exact head;
+6. require all selected jobs + final gate SUCCESS;
+7. return:
+
+`FC0-A CONSOLIDATED CODEX -> MAIN COORDINATOR — CANDIDATE HANDOFF V2`
+
+Include:
+- exact final SHA/tree;
+- commits added after `6f19029b...`;
+- changed files grouped R2/R4/R5/R6;
+- focused test results;
+- exact T1 run ID;
+- confirmation that no FND-01/02/03/04/06/08 contract was redefined;
+- no merge/freeze/release.
+
+### 11.7 Stop conditions
+
+Stop and report `BLOCKED-CONTRACT` only if completing an item requires:
+- a new FND-03 admission/quota contract;
+- a second FND-06 renderer/compatibility registry;
+- preview by mutating Working;
+- weakening Engineering Lock/Authority;
+- inventing unavailable Runtime/capacity facts.
+
+Environment-only local Playwright identity setup is **not** a product blocker if the natural GitHub T1 provides the required mounted evidence on the exact head.

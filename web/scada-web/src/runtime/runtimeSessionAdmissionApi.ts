@@ -180,7 +180,7 @@ function parseAdmissionFailure(body: string): { message: string; capacityReasonC
     const error = stringValue(parsed.error);
     const capacityReasonCode = stringValue(parsed.capacityReasonCode);
     return {
-      message: [error, capacityReasonCode].filter(Boolean).join(' '),
+      message: error ?? '',
       capacityReasonCode
     };
   } catch {

@@ -61,6 +61,18 @@ public sealed record RuntimeSessionContinuityImportResult(
 
 public sealed partial class RuntimeHaAuthorityCoordinator
 {
+    internal (RuntimeHaNodeReadinessEvidence Readiness, RuntimeHaTopologySnapshot Snapshot)
+        CaptureLocalPeerObservation()
+    {
+        lock (_gate)
+        {
+            var readiness = ResolveNodeLocked(_topology.LocalNodeId).Evidence
+                ?? throw new InvalidOperationException(
+                    "Local HA readiness must be observed before publishing peer evidence.");
+            return (readiness, SnapshotLocked());
+        }
+    }
+
     internal RuntimeHaTransitionResult ApplyPeerTransferBreak(
         RuntimeHaTransferHandoffEnvelope handoff)
     {
@@ -392,10 +404,9 @@ public sealed partial class RuntimeHighAvailabilityService
             throw new InvalidOperationException(
                 "Peer observation is available only when HA is enabled.");
 
-        var readiness = _authority.GetNodeReadiness(LocalNodeId)
-            ?? throw new InvalidOperationException(
-                "Local HA readiness must be observed before publishing peer evidence.");
-        var snapshot = _authority.Snapshot();
+        var observation = _authority.CaptureLocalPeerObservation();
+        var readiness = observation.Readiness;
+        var snapshot = observation.Snapshot;
         long sequence;
 
         lock (_peerGate)
@@ -672,11 +683,20 @@ public sealed partial class RuntimeHighAvailabilityService
                     "handoff-peer-instance-mismatch",
                     _authority.Snapshot());
             }
-            if (handoff.BreakEpoch <= peer.AuthorityEpoch)
+            if (handoff.Phase == RuntimeHaTransferHandoffPhase.Break &&
+                handoff.BreakEpoch <= peer.AuthorityEpoch)
             {
                 return new RuntimeHaPeerApplyResult(
                     false,
                     "handoff-epoch-not-newer-than-peer-observation",
+                    _authority.Snapshot());
+            }
+            if (handoff.Phase == RuntimeHaTransferHandoffPhase.Grant &&
+                handoff.BreakEpoch < peer.AuthorityEpoch)
+            {
+                return new RuntimeHaPeerApplyResult(
+                    false,
+                    "handoff-grant-epoch-stale",
                     _authority.Snapshot());
             }
 

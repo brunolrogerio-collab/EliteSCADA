@@ -6,13 +6,23 @@
 
 `MAIN_ORDER_REV: 0002`
 
-`STATE: PREPARED / NOT ACTIVE / BLOCKED_ON_POST_FND06_AUDIT`
+`STATE: PREPARED / NOT ACTIVE / HOLD_ON_P1-01_AND_P1-06_FC0A_GATE`
 
 `PREPARED_ORDER_ID: FND07-CODEX-DETACH-NEUTRAL-V1`
 
-`PROVISIONAL_PRODUCT_CHECKPOINT: 6c810647c9773a19b212d9c33694780141786ac7`
+`LATEST_AUDITED_PRODUCT_CHECKPOINT: 560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
 
 `ACTIVATION_BASE_RULE: revalidate latest wave15/corrections-integration product checkpoint before activation`
+
+## 0A. Current hold reason
+
+FND-06 is VERIFIED/FROZEN and the post-FND06 audit is complete with `CHANGES_REQUIRED`.
+
+FND-07 remains **PREPARED / NOT ACTIVE** because FC0-A is held on:
+- W15-P1-01 Server Script bounded recovery;
+- W15-P1-06 truthful Engineering no-model/loading/error fallback.
+
+The second and third Main audit passes identified no breaking FND-07 contract redefinition. FND-07 remains compositional/compatible, but before activation its acceptance matrix must explicitly cover **Engineering Lock × detach/switch/neutral-bootstrap** so the existing replacement/recovery exemption and backend Authority rules are preserved without inventing a second credential or leaking protected Engineering content.
 
 ## 1. Purpose
 

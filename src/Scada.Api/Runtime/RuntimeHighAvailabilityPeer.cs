@@ -352,6 +352,8 @@ public sealed partial class RuntimeHighAvailabilityService
     private long _peerObservationSequence;
     private long _peerHandoffSequence;
 
+    public RuntimeHaTopologySnapshot Snapshot() => _authority.Snapshot();
+
     public RuntimeHaTopologySnapshot ObserveLocalReadiness(
         RuntimeHaNodeReadinessEvidence evidence)
     {
@@ -483,14 +485,6 @@ public sealed partial class RuntimeHighAvailabilityService
                     local);
             }
 
-            _peerObservations[envelope.SourceNodeId] =
-                new PeerObservationCursor(
-                    envelope.SourceObservationInstanceId,
-                    envelope.ObservationSequence,
-                    envelope.SourceAuthorityInstanceId,
-                    envelope.AuthorityEpoch,
-                    envelope.ObservedAtUtc);
-
             if (envelope.AmbiguousAuthority)
             {
                 var ambiguous = _authority.MarkAmbiguousPeerAuthority(
@@ -549,6 +543,14 @@ public sealed partial class RuntimeHighAvailabilityService
                         claimed);
                 }
             }
+
+            _peerObservations[envelope.SourceNodeId] =
+                new PeerObservationCursor(
+                    envelope.SourceObservationInstanceId,
+                    envelope.ObservationSequence,
+                    envelope.SourceAuthorityInstanceId,
+                    envelope.AuthorityEpoch,
+                    envelope.ObservedAtUtc);
 
             _authority.UpdateNodeReadiness(
                 envelope.SourceNodeId,

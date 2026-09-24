@@ -38,7 +38,7 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0019`
+`MAIN_ORDER_REV: 0020`
 
 `LAST_MAIN_UPDATE_BRT: 2026-09-23 — FND-04 FROZEN / SEQUENTIAL CODEX REASSIGNED TO FND-06`
 
@@ -605,7 +605,7 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 `NEXT_CONTROL_FILE: docs/WAVE15-INFRA-CI-01B-CONTROL.md`
 
-`EXPECTED_ORDER: INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V1`
+`EXPECTED_ORDER: INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V2`
 
 Instruction:
 

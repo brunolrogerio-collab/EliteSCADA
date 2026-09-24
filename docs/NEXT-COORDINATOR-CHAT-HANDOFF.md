@@ -450,3 +450,35 @@ Work:
 `work/w15-infra-ci-01b-postgresql-schema-init`
 
 Do not blind-rerun the failed CI. Fix/review/merge the bounded infrastructure race, require exact broad green CI, then freeze FND-06 and activate the independent post-FND06 FC0-A audit.
+
+
+## Main audit result after FND-06 freeze
+
+Do not wait for a separate AUD chat to decide FC0-A. Product Owner clarified that the Main Coordinator is responsible for the audit.
+
+Main completed:
+`FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
+
+Result:
+`CHANGES_REQUIRED`
+
+Authoritative report:
+`coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-RESULT.md`
+commit `463d357f8a9c11f774f5da59480e4a17a19569f5`.
+
+Confirmed blockers:
+- W15-P1-01 Server Script bounded recovery;
+- W15-P1-06 truthful Engineering fallback.
+
+No current contract break is required by FND-05/FND-07.
+
+Current active executor order:
+`FC0A-BLOCKER-P101-SERVER-SCRIPT-RECOVERY-V1`
+
+Same sequential CODEX reads:
+`coord/w15-fnd06-control:docs/WAVE15-FC0A-AUDIT-BLOCKER-CORRECTION-PREP.md`
+
+Work branch:
+`work/w15-fc0a-p101-server-script-recovery`
+
+P1-06 is queued after P1-01. FC0-A DEVs, FND-05 and FND-07 remain HOLD until both blockers close and Main re-audits affected rows.

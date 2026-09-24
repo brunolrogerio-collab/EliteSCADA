@@ -154,3 +154,46 @@ After correction return:
 with new exact SHA/tree, changed files and focused evidence.
 
 No CODEX routing, merge or T2 authorization yet.
+
+
+### Additional exact-head T1 evidence — unrelated IEC-104 observation race
+
+Natural T1 after Main repaired PR metadata:
+
+`36067628680`
+
+Results on exact old head `cdf572d644417fe83aee3003a3da3fe171d7ada3`:
+- classifier: SUCCESS;
+- Common sanity: SUCCESS;
+- Web semantic build: SUCCESS;
+- focused Chromium: SUCCESS;
+- focused .NET: **692/693**, one failure.
+
+Only failure:
+
+`Iec104TcpFaultInjectionTests.Adapter_OutOfOrderIFrameFaultsBeforePublishingAsdu`
+
+at the immediate assertion:
+`Assert.False(diagnostics.IsConnected)`.
+
+Main proved unchanged lineage between FC0-A release base and this Licensing head:
+- test blob `b9afd137678d225182de2288e879afbacef2579f`;
+- `Iec104TcpClientAdapter.cs` blob `18c836aa7a6935121104020aa63c50966475b2b8`;
+- `Iec104SequenceState.cs` blob `7c0f66374e679faf181f98504f12946e81a6e388`.
+
+Root cause is in the existing test observation boundary:
+1. the test waits only until `ProtocolErrors >= 1`;
+2. adapter catch increments `_protocolErrors`;
+3. only **after that** it calls `SignalSessionFailure`;
+4. `SignalSessionFailure` increments session failures and writes `_connected = 0`;
+5. the test can therefore legally wake between steps 2 and 4 and observe `ProtocolErrors=1` while `IsConnected=true`.
+
+Classification:
+
+`IEC104_TEST_OBSERVATION_RACE / NOT_LICENSING_CAUSAL / SHARED_TEST_INFRA_DEFECT`
+
+Do not mutate IEC-104 code/test in this Licensing lane and do not use an unchanged-head rerun to hide it.
+
+The Licensing product correction remains exactly `DEV-LICENSING-UX-STATUS-ENTITLEMENTS-02`.
+
+A separate shared test-infrastructure closeout owns the IEC-104 assertion synchronization.

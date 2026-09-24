@@ -84,6 +84,18 @@ Required roles:
 
 The existing independent FND-04 AUD chat/lane may be reused for this audit if Main rewrites its routing/current order to this audit control. Product Owner relay is not required.
 
+## 2B. Prepared Main evidence matrix
+
+Preparatory matrix:
+
+`coord/w15-fnd06-control:docs/WAVE15-FC0A-AUDIT-EVIDENCE-MATRIX.md`
+
+Latest prepared matrix commit:
+
+`bcaa29602577cd1cc1262ff943506973b29eed17`
+
+This matrix is not PASS. It pre-maps Wave14->Wave15 items and contract-risk hypotheses so the independent AUD can review exact evidence after FND-06 freezes.
+
 ## 3. Mandatory evidence sources
 
 Audit must read/reconcile at minimum:

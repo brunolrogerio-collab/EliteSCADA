@@ -807,3 +807,36 @@ Roadmap update: `57729b9db0ebcac2c748a9f6f0101eb48c5b625b`.
 Six-lane control link update: `e130b5353c320e9c22f8e1f8f3a7e42a2dd6946c`.
 
 This preparation does not activate the preview now and does not alter current PR #340 / CODEX V2 execution.
+
+
+## Main review — PR #340 V2 complete / narrow V3 closeout active (2026-09-24)
+
+Main reviewed final V2 candidate:
+- PR #340;
+- head `150b808140a5fdf80afd0c88d46ea80f83f630b2`;
+- tree `c2bfbbfe705be64e5c1aac314f96bf8851a913b0`;
+- 15 commits / 41 changed files;
+- natural Wave 15 T1 `36033152318`: SUCCESS across classification, Common T1 sanity, Focused .NET, Focused Chromium, Web semantic build and final gate.
+
+Disposition:
+`FC0-A CONSOLIDATED V2 -> MAIN COORDINATOR — CHANGES_REQUIRED / NARROW V3`
+
+Accepted V2 closures remain preserved. Two bounded groups remain before merge:
+1. actual user-facing Runtime Session Class request/status surface for ViewOnly/Interactive requested-vs-granted/reason truth without FND-03 redesign;
+2. missing R6 mounted evidence for shell no-overflow, Engineering independent scroll, compact Engineering Lock lifecycle and known-legacy advanced-authoring/unknown containment.
+
+Binding control:
+- `coord/w15-fnd06-control:docs/WAVE15-FC0A-CONSOLIDATED-CORRECTION-PACKAGE.md`
+- order `FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V4`
+- section 12
+- commit `6a13c88fd112fe94e9c87e1206d9840be75161eb`.
+
+Sequential CODEX route:
+- rev 0030
+- `ROUTE-SEQUENTIAL-CODEX-TO-FC0A-CONSOLIDATED-V3-18`
+- commit `7011f7e2a29f37c105657b1a56ceac62a6ef4d58`.
+
+PR #340 Main review comment: `5819091955`.
+Issue #305 ledger comment: `5819092476`.
+
+No merge/freeze/release occurred. All downstream six lanes remain PREPARED/HOLD until FC0-A final acceptance.

@@ -1018,3 +1018,68 @@ Before any merge, rerun, correction, CODEX reroute or new architecture decision:
 5. if live GitHub differs from this transfer snapshot, GitHub live wins.
 
 Do not treat the Product Owner as a courier between agents. Normal lane handoffs should be recovered directly from GitHub comments/control planes whenever available.
+
+
+## REPLACEMENT MAIN TAKEOVER — LIVE REVALIDATION AFTER TRANSFER (2026-09-24)
+
+GitHub live supersedes the transfer snapshot where lane heads advanced.
+
+### Integration / product truth
+- FC0-A released product checkpoint remains `e3ed5138369c576549cb58a7aff9783792f322d3` / tree `4e7627774fbfc111344e3d80fcb9d921eed8377e`.
+- takeover integration HEAD before this documentation refresh was `3480ed03a6719aef38e4c1ced2f466aaa4fa10b3`.
+- comparison FC0-A -> that takeover HEAD was 14 commits ahead / 0 behind and changed only the five canonical coordination/documentation files.
+- therefore no post-FC0A feature/Foundation product code had been integrated at takeover.
+
+### Live lane decisions
+1. **Script Engineering / PR #344**
+   - head `cf0ae2d1dcd2d63668b5b1c2c3590a5b6bb9bdaa`;
+   - remains `MAIN_ACCEPTED_FOR_CODEX / ACTIVE_SHARED_CODEX_ROUTE / DEV_WAIT`;
+   - no post-transfer CODEX validation handoff has appeared;
+   - binding route remains `ROUTE-SEQUENTIAL-CODEX-TO-SCRIPT-ENGINEERING-25`.
+
+2. **Editor / PR #349**
+   - head `06eed31d99ddb34d99e0287e96e38bed3bf7dab5`;
+   - T1 `36066874097` SUCCESS;
+   - remains `MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`.
+
+3. **Licensing UX / PR #345**
+   - corrected head `f5d3212b9c114d3ad6e2239460172db0b3d568f8`;
+   - tree `a3e87f2ef7beb15bc66d6980e12710eddcc30525`;
+   - T1 `36071779912` SUCCESS;
+   - Main accepted the corrected ESLIC1/ESLIC2 schema + signed Interactive/ViewOnly/HA entitlement projection;
+   - state `MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`.
+
+4. **Authority UX / PR #346**
+   - corrected head `9fd2462f43c74b085e58be91dbec9ebdf18514c5`;
+   - tree `bdd7ac76c3566aef81e249a9db91810674b7dfe8`;
+   - stable-role-key correction direction accepted;
+   - T1 `36071729747` FAILURE because Web semantic build reports nullable-baseline TS2345 at `AuthorityPolicyAdministration.tsx(341,48)` and `(345,38)`;
+   - remains DEV correction under `DEV-AUTHORITY-UX-STABLE-ROLE-KEY-02`;
+   - no unchanged-head rerun.
+
+5. **FND-05 / PR #347**
+   - corrected head `be9cf0f3f02aa1ba49cdb6b589abd5e1e723c845`;
+   - tree `c9e94e84c078928ad690217484171fafa6390b46`;
+   - T1 `36072325579` SUCCESS;
+   - Main accepted the transport-neutral two-independent-service readiness/authority/lease handoff boundary directionally;
+   - state `MAIN_ACCEPTED_FOR_CODEX_HA_ADVERSARIAL / QUEUED / DEV_WAIT`;
+   - `CODEX_HA_ADVERSARIAL_GREEN` remains mandatory before integration.
+
+6. **FND-07 / PR #348**
+   - remains DRAFT at `ae11e42e8ad5e39b1e2c5a0068f81e4ec31653c6`;
+   - remains `DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`;
+   - no corrected post-transfer head has appeared.
+
+### Sequential queue / infra
+- INFRA-CI-01D remains `PREPARED / NO_MUTATION`; it is not automatically activated by the Licensing old-head IEC-104 diagnosis.
+- Main will choose the next explicit CODEX route only after Script returns and after a fresh live revalidation.
+- accepted/ready waiting work currently includes Editor #349, Licensing #345 and FND-05 #347 in addition to prepared INFRA-CI-01D; readiness does not itself change the route.
+- fresh-install first-project preview remains PREPARED / NOT ACTIVE.
+
+Central board rev 0005:
+`coord/w15-parallel-dev-control:docs/WAVE15-PARALLEL-DEV-CONTROL.md`.
+
+Dedicated control refreshes:
+- Authority rev 0004 / `5e2804963ea919d9224ace341f279660804437ad`;
+- Licensing rev 0004 / `a4a4098f7c65863bb5cc14a9b566f67aee9f7884`;
+- FND-05 rev 0007 / `a3f69a286a62028b49b0809025c45b585ff698f8`.

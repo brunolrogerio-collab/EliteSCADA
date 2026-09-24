@@ -108,7 +108,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         _communicationComponents = communicationComponents
             ?? CommunicationDriverRuntimeComposition.BuildForCurrentSchema();
         _protectedMaterialResolver = protectedMaterialResolver;
-        _industrialEffectAuthority = industrialEffectAuthority ?? static () => true;
+        _industrialEffectAuthority = industrialEffectAuthority ?? (() => true);
         _activationTimeout = activationTimeout ?? TimeSpan.FromSeconds(10);
         if (_activationTimeout <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(activationTimeout));

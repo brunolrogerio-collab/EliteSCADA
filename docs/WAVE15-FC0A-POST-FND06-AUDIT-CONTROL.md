@@ -7,9 +7,9 @@
 
 `AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
-`AUDIT_REV: 0006`
+`AUDIT_REV: 0007`
 
-`STATE: PREPARED / WAIT_FND06_E2E_FIXTURE_ISOLATION_AND_GLOBAL_BROAD_GREEN`
+`STATE: PREPARED / WAIT_FINAL_FND06_BROAD_CI`
 
 `MODE: READ_ONLY_CROSS_WAVE_FOUNDATION_AUDIT`
 
@@ -132,6 +132,19 @@ Active closeout:
 - exact base `eb4563cf0060449b479c4335ef30a19ed65e35ab`.
 
 The independent FC0-A audit remains PREPARED until this test-only defect is merged and a fresh exact broad run is fully green.
+
+## 1A. Final FND-06 exact checkpoint preload
+
+Current final integrated candidate pending broad acceptance:
+
+- FND-06 product PR: #337, merged earlier at `624f2eca456310a2c6156538b3616a06e3be075f`;
+- generic PostgreSQL shared-schema correction: PR #338, merged at `eb4563cf0060449b479c4335ef30a19ed65e35ab`;
+- FND-06 mounted-test fixture isolation: PR #339, merged at `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`;
+- exact final integration tree: `674019fbbc21001a2d68deb853c2c0b293e0a5cb`;
+- final broad gate: EliteSCADA CI #1565 / run `35953557122`;
+- audit remains PREPARED until that exact broad run is completely green and Main declares FND-06 VERIFIED/FROZEN.
+
+The prior broad #1564 failure is retained as causal evidence for test-fixture isolation and is not release evidence.
 
 ## 2. Audit purpose
 

@@ -18,24 +18,22 @@ Generic coordinator rotation prompt: `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`.
 
 This section supersedes older execution-status prose below when describing the **current** Wave 15 gate. Historical slice descriptions remain useful as execution record but are not current authorization.
 
-- FND-01 — **VERIFIED/FROZEN**.
-- FND-02 incl. AUTH-04 — **VERIFIED/FROZEN**.
-- FND-03 — **VERIFIED/FROZEN**.
-- FND-04 — **VERIFIED/FROZEN**.
-- FND-06 — **VERIFIED/FROZEN** at `560ac9d80cc7e854f2513559dc6afb28cfb4aee3` / tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`.
-- FND-08 — **VERIFIED/FROZEN**.
-- FND-05 — **PREPARED / HOLD**.
-- FND-07 — **PREPARED / HOLD**.
-- post-FND06 FC0-A audit — **CHANGES_REQUIRED**.
-- second deep pass — **NO NEW PRE-FC0A BLOCKER IDENTIFIED**.
-- third targeted gap pass — **NO NEW PRE-FC0A BLOCKER IDENTIFIED**.
-- confirmed pre-FC0A blockers originated as **W15-P1-01** and **W15-P1-06**, but Main intentionally consolidated the known FC0-A correction backlog into PR #340.
-- active correction path: `FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V4` on `work/w15-fc0a-consolidated-corrections`; PR #340 remains OPEN after Main reviewed final V2 head `150b808140a5fdf80afd0c88d46ea80f83f630b2` / tree `c2bfbbfe705be64e5c1aac314f96bf8851a913b0`.
-- natural Wave 15 T1 `36033152318` on that exact V2 head is SUCCESS; Main disposition is `CHANGES_REQUIRED / NARROW V3`, limited to the user-facing Runtime Session Class surface and missing R6 mounted evidence.
-- DEV-EDITOR, DEV-SCRIPT-ENGINEERING, DEV-AUTHORITY-UX, DEV-LICENSING-UX, FND-05 and FND-07 remain **PREPARED / HOLD** until Main records `FC0A_RELEASE_APPROVED` on the exact integrated checkpoint.
+- FC0-A — **RELEASE APPROVED** at product SHA `e3ed5138369c576549cb58a7aff9783792f322d3` / tree `4e7627774fbfc111344e3d80fcb9d921eed8377e`.
+- release gate — EliteSCADA CI #1569 / `36060017969`: SUCCESS; Chromium 655 passed / 0 failed.
+- FND-01 / FND-02 incl. AUTH-04 / FND-03 / FND-04 / FND-06 / FND-08 — **VERIFIED/FROZEN**.
+- current integration HEAD at replacement-Main takeover — `3480ed03a6719aef38e4c1ced2f466aaa4fa10b3`; divergence from FC0-A is coordination/documentation-only across the five canonical handoff/roadmap files. No post-FC0A lane product code is integrated yet.
+- DEV-SCRIPT-ENGINEERING PR #344 — `MAIN_ACCEPTED_FOR_CODEX / ACTIVE_SHARED_CODEX_ROUTE / DEV_WAIT` at `cf0ae2d1dcd2d63668b5b1c2c3590a5b6bb9bdaa`.
+- DEV-EDITOR PR #349 — `MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT` at `06eed31d99ddb34d99e0287e96e38bed3bf7dab5`; T1 `36066874097` SUCCESS.
+- DEV-LICENSING-UX PR #345 — corrected head `f5d3212b9c114d3ad6e2239460172db0b3d568f8`; T1 `36071779912` SUCCESS; Main accepted for sequential CODEX queue.
+- DEV-AUTHORITY-UX PR #346 — corrected head `9fd2462f43c74b085e58be91dbec9ebdf18514c5`; stable role-key direction accepted, but T1 `36071729747` is red on candidate-causal nullable-baseline TS2345; remains DEV correction under `DEV-AUTHORITY-UX-STABLE-ROLE-KEY-02`.
+- FND-05 PR #347 — corrected head `be9cf0f3f02aa1ba49cdb6b589abd5e1e723c845`; T1 `36072325579` SUCCESS; transport-neutral two-independent-service peer handoff boundary Main-accepted; queued for mandatory `CODEX_HA_ADVERSARIAL_GREEN`.
+- FND-07 PR #348 — DRAFT at `ae11e42e8ad5e39b1e2c5a0068f81e4ec31653c6`; remains DEV correction `FND07-DEV-FRESH-INSTALL-NO-DEMO-E2E-01`; clean no-Demo fresh-install truth is binding.
+- INFRA-CI-01D — **PREPARED ONLY / NO MUTATION**; may activate only after the active Script CODEX handoff and a fresh Main decision from then-current integration HEAD.
+- binding shared CODEX route remains `ROUTE-SEQUENTIAL-CODEX-TO-SCRIPT-ENGINEERING-25`. A new explicit route is required before changing mission.
+- first-project fresh-install partial preview — **PREPARED / NOT ACTIVE**; entry still requires four feature lanes integrated/T2-verified plus FND-05/FND-07 independently VERIFIED/FROZEN and no journey-invalidating P0/P1.
 
-Authoritative third-pass report:
-`coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-THIRD-PASS.md`.
+Canonical live coordination board:
+`coord/w15-parallel-dev-control:docs/WAVE15-PARALLEL-DEV-CONTROL.md`, rev 0005.
 
 ## Product objective
 

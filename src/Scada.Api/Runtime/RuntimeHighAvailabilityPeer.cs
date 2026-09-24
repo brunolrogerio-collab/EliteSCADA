@@ -173,7 +173,10 @@ public sealed partial class RuntimeHaAuthorityCoordinator
             _ambiguousAuthority = true;
             _effectiveActiveNodeId = null;
             _pendingTransfer = null;
-            _authorityEpoch = checked(Math.Max(_authorityEpoch, observedEpoch) + 1);
+            var highestEpoch = Math.Max(_authorityEpoch, observedEpoch);
+            _authorityEpoch = highestEpoch == long.MaxValue
+                ? long.MaxValue
+                : highestEpoch + 1;
             foreach (var node in _nodes.Values)
             {
                 if (node.State != RuntimeHaState.Faulted)
@@ -445,6 +448,15 @@ public sealed partial class RuntimeHighAvailabilityService
                 "peer-readiness-stale",
                 _authority.Snapshot());
         }
+        if (envelope.ObservationSequence < 1 ||
+            envelope.AuthorityEpoch < 1 ||
+            envelope.AuthorityEpoch == long.MaxValue)
+        {
+            return new RuntimeHaPeerApplyResult(
+                false,
+                "peer-observation-sequence-or-epoch-invalid",
+                _authority.Snapshot());
+        }
 
         lock (_peerGate)
         {
@@ -462,10 +474,8 @@ public sealed partial class RuntimeHighAvailabilityService
                         _authority.Snapshot());
                 }
 
-                if (cursor.ObservationInstanceId ==
-                        envelope.SourceObservationInstanceId &&
-                    cursor.SourceAuthorityInstanceId !=
-                        envelope.SourceAuthorityInstanceId)
+                if (cursor.SourceAuthorityInstanceId !=
+                    envelope.SourceAuthorityInstanceId)
                 {
                     var ambiguous = _authority.MarkAmbiguousPeerAuthority(
                         envelope.AuthorityEpoch);
@@ -617,6 +627,16 @@ public sealed partial class RuntimeHighAvailabilityService
             return new RuntimeHaPeerApplyResult(
                 false,
                 headerFailure,
+                _authority.Snapshot());
+        }
+
+        if (handoff.HandoffSequence < 1 ||
+            handoff.BreakEpoch < 1 ||
+            handoff.BreakEpoch == long.MaxValue)
+        {
+            return new RuntimeHaPeerApplyResult(
+                false,
+                "handoff-sequence-or-epoch-invalid",
                 _authority.Snapshot());
         }
 

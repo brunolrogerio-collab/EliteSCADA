@@ -38,7 +38,7 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0023`
+`MAIN_ORDER_REV: 0024`
 
 `LAST_MAIN_UPDATE_BRT: 2026-09-23 — FND-04 FROZEN / SEQUENTIAL CODEX REASSIGNED TO FND-06`
 
@@ -686,42 +686,50 @@ AUD never merges its own work and never writes directly to DEV branch, integrati
 
 ### CURRENT AUD ORDER
 
-`ORDER_ID: FC0A-AUD-WAIT-FND06-FINAL-BROAD-0012`
+`ORDER_ID: FC0A-AUD-ACTIVE-POST-FND06-0013`
 
-`ORDER_STATE: WAIT_FND06_FINAL_BROAD`
+`ORDER_STATE: ACTIVE`
 
-`AUD_MODE: READ_ONLY / PREPARED_CROSS_WAVE_AUDIT`
+`AUD_MODE: READ_ONLY_CROSS_WAVE_FOUNDATION_AUDIT`
 
-`NEXT_AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
+`AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
-`NEXT_CONTROL_BRANCH: coord/w15-fnd06-control`
+`AUDIT_CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`NEXT_CONTROL_FILE: docs/WAVE15-FC0A-POST-FND06-AUDIT-CONTROL.md`
+`AUDIT_CONTROL_FILE: docs/WAVE15-FC0A-POST-FND06-AUDIT-CONTROL.md`
 
 `EVIDENCE_MATRIX_FILE: docs/WAVE15-FC0A-POST-FND06-AUDIT-EVIDENCE.md`
 
-`PROVISIONAL_EXACT_PRODUCT_SHA: 560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
+`EXACT_PRODUCT_SHA: 560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
 
-`PROVISIONAL_EXACT_PRODUCT_TREE: 674019fbbc21001a2d68deb853c2c0b293e0a5cb`
+`EXACT_PRODUCT_TREE: 674019fbbc21001a2d68deb853c2c0b293e0a5cb`
 
-`FINAL_BROAD_RUN: 35953557122 / EliteSCADA CI #1565`
+`FINAL_BROAD_RUN: 35953557122 / EliteSCADA CI #1565 / SUCCESS`
 
 Instruction:
 
-> Your FND-04 candidate audit is complete/frozen. Main intends to reuse this same independent AUD lane for the mandatory post-FND06 Wave14->Wave15 Foundation closure audit.
+> Begin the mandatory independent post-FND06 Wave14 -> Wave15 Foundation closure audit now.
 >
-> Do **not** start the cross-wave audit yet. The activation prerequisite is exact broad run `35953557122` completing SUCCESS on `560ac9d80cc7e854f2513559dc6afb28cfb4aee3` and Main explicitly changing this order to ACTIVE after declaring FND-06 VERIFIED/FROZEN.
+> Re-read the audit control and evidence matrix in full from `coord/w15-fnd06-control`. Revalidate GitHub live before conclusions.
 >
-> On `SIGA` while this order remains WAIT:
-> 1. revalidate GitHub live;
-> 2. confirm the broad run state;
-> 3. do not mutate product/tests/docs;
-> 4. report `FC0-A AUD — WAIT_FND06_FINAL_BROAD`.
+> Review exact product semantics at `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`, tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`.
 >
-> Once Main activates the audit, read the new audit control/evidence matrix in full and independently review them. Do not accept Main's preliminary classifications by assumption.
-
-Known preliminary item requiring independent review after activation:
-- `W15-P1-01 Server Script recovery` is preliminarily classified by Main as `BLOCKED_FOUNDATION` because current server coordinator appears permanently throttled until explicit `ResetThrottle()`; AUD must confirm or disprove on exact frozen state.
+> Final broad `35953557122` is SUCCESS on that exact SHA. Main verified that divergence above this product checkpoint at activation was coordination-doc-only; independently stop if you discover an unacknowledged product/infra delta.
+>
+> You must independently confirm or reject Main's preliminary findings:
+> - W15-P1-01 Server Script recovery / permanent-throttle-latch hypothesis;
+> - W15-P1-06 truthful Engineering/SPA fallback / synthetic Demo Project hypothesis.
+>
+> Do not restrict review to those findings. Complete every mandatory Wave14 -> Wave15 row, frozen-contract invariant, FND-05 compatibility, FND-07 compatibility and six-row FC0-A release matrix.
+>
+> READ_ONLY only. Do not mutate product, tests or docs. Do not use CODEX implementation evidence as sole acceptance authority.
+>
+> Return one exact audit outcome prefix defined by the audit control:
+> - `FC0-A FOUNDATION AUDIT -> MAIN COORDINATOR — ACCEPTABLE / FC0A_RELEASE_APPROVED`
+> - `FC0-A FOUNDATION AUDIT -> MAIN COORDINATOR — CHANGES_REQUIRED`
+> - `FC0-A FOUNDATION AUDIT -> MAIN COORDINATOR — BLOCKED-CONTRACT`
+>
+> Include exact checkpoint, evidence reviewed, per-item matrix, negative/adversarial evidence, residual ownership, FND-05/FND-07 compatibility and all six release rows.
 
 ### AUD mandatory return format
 

@@ -6,6 +6,9 @@ internal sealed class LicenseGeneratorForm : Form
 {
     private readonly TextBox _requestCode = new() { Multiline = true, ScrollBars = ScrollBars.Vertical, Height = 78 };
     private readonly ComboBox _tier = new() { DropDownStyle = ComboBoxStyle.DropDownList };
+    private readonly NumericUpDown _interactiveSeats = new() { Minimum = 0, Maximum = 100000, Value = 2 };
+    private readonly NumericUpDown _viewOnlySeats = new() { Minimum = 0, Maximum = 100000, Value = 2 };
+    private readonly CheckBox _haRuntime = new() { Text = "Licenciar redundância / HA Runtime", AutoSize = true };
     private readonly TextBox _privateKeyPath = new();
     private readonly TextBox _keyId = new() { Text = ProductLicenseTrustAnchors.ProductionKeyId };
     private readonly TextBox _licenseId = new() { Text = Guid.NewGuid().ToString("D") };
@@ -56,7 +59,7 @@ internal sealed class LicenseGeneratorForm : Form
         {
             AutoSize = true,
             MaximumSize = new Size(740, 0),
-            Text = "Cole o código de solicitação da máquina, selecione o limite de TAGs e informe a chave privada externa. A chave não é incorporada ao executável nem ao arquivo de licença.",
+            Text = "Cole o código de solicitação da máquina, defina o limite de TAGs e os totais efetivos de clientes Runtime Interactive/View Only, e informe a chave privada externa. A chave não é incorporada ao executável nem ao arquivo de licença.",
             Margin = new Padding(0, 0, 0, 16)
         };
 
@@ -74,10 +77,13 @@ internal sealed class LicenseGeneratorForm : Form
 
         AddField(fields, "Código da máquina", _requestCode);
         AddField(fields, "Limite de TAGs", _tier);
+        AddField(fields, "Clientes Interactive", _interactiveSeats);
+        AddField(fields, "Clientes View Only", _viewOnlySeats);
+        AddField(fields, "Redundância", _haRuntime);
         AddField(fields, "Chave privada (.pem)", _privateKeyPath, BrowseButton("Procurar…", SelectPrivateKey));
         AddField(fields, "Identificador da chave", _keyId);
         AddField(fields, "Identificador da licença", _licenseId, new Button { Text = "Novo UUID", AutoSize = true });
-        ((Button)fields.GetControlFromPosition(2, 4)!).Click += (_, _) => _licenseId.Text = Guid.NewGuid().ToString("D");
+        ((Button)fields.GetControlFromPosition(2, 7)!).Click += (_, _) => _licenseId.Text = Guid.NewGuid().ToString("D");
         AddField(fields, "Expiração opcional", _expires);
         AddField(fields, "Salvar licença em", _outputPath, BrowseButton("Escolher…", SelectOutputPath));
 
@@ -171,6 +177,9 @@ internal sealed class LicenseGeneratorForm : Form
             var result = LicenseGenerationService.Generate(new LicenseGenerationRequest(
                 _requestCode.Text,
                 SelectedTier(),
+                decimal.ToInt32(_interactiveSeats.Value),
+                decimal.ToInt32(_viewOnlySeats.Value),
+                _haRuntime.Checked,
                 _privateKeyPath.Text,
                 _keyId.Text,
                 _outputPath.Text,
@@ -182,7 +191,11 @@ internal sealed class LicenseGeneratorForm : Form
                 "Licença gerada com sucesso.",
                 $"ID: {result.LicenseId}",
                 $"Máquina: {result.MachineFingerprint}",
+                $"Esquema: ESLIC{result.SchemaVersion}",
                 $"Limite: {LicensingPolicy.TierDisplayName(result.Tier)}",
+                $"Interactive: {result.InteractiveSeats}",
+                $"View Only: {result.ViewOnlySeats}",
+                $"HA Runtime: {(result.HaRuntime ? "Licenciado" : "Não licenciado")}",
                 $"Chave: {result.KeyId}",
                 $"Expira: {(result.NotAfterUtc is null ? "Nunca" : result.NotAfterUtc.Value.ToString("u"))}",
                 $"Arquivo: {result.OutputPath}"

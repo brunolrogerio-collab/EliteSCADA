@@ -875,3 +875,35 @@ PR #340 Main comment: `5819317792`.
 Issue #305 ledger: `5819318386`.
 
 No merge/freeze/release occurred. Six downstream lanes remain PREPARED/HOLD.
+
+
+## Main review — PR #340 V4 tests accepted / final execution proof active (2026-09-24)
+
+Exact V4 head `87eafb68e4fea7815a26ccffeb8a070fae6564c8` is test-only and natural T1 `36037962003` is green.
+
+Main accepts the added scroll/Lock/legacy tests directionally, but the T1 Chromium log did not execute those owner specs. It selected only python-runtime-host, runtime, script-engineering-workspace-contract, visual-editor-workspace and local-auth bootstrap.
+
+Merge therefore remains blocked solely on execution proof.
+
+Binding control:
+- `FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V6`
+- section 14
+- commit `9990d84750be61c86322951255a67ff22fb4a29d`.
+
+CODEX route:
+- rev 0032
+- `ROUTE-SEQUENTIAL-CODEX-TO-FC0A-CONSOLIDATED-V5-20`
+- commit `96ccc7d6287db9889940b6a57ed54cee115a74e5`.
+
+Required work is validation-only:
+- support multiple profile-owned E2E specs in Wave 15 router;
+- make UI_EDITOR execute app-shell, Engineering Lock and visual-editor owner specs in addition to workspace;
+- make RUNTIME_RENDERER execute runtime-session owner spec in addition to runtime;
+- unit-test router mapping;
+- strengthen Lock backend-state transition and arbitrary-unknown containment assertions;
+- final exact-head natural T1 must visibly execute these owner specs.
+
+Required return:
+`FC0-A CONSOLIDATED CODEX -> MAIN COORDINATOR — FINAL INTEGRATION HANDOFF V5`.
+
+No merge/freeze/release yet. Six downstream lanes remain PREPARED/HOLD.

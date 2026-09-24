@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0003`
+`MAIN_ORDER_REV: 0004`
 
 `STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
@@ -716,3 +716,74 @@ Sequential CODEX remains one-at-a-time:
 3. later priority may be reassessed when corrected Authority/Licensing/FND candidates return.
 
 FND-05 and FND-07 still require Foundation-specific Main contract review, CODEX validation and post-merge VERIFIED/FROZEN before the six-lane phase exit gate.
+
+
+## 17. Shared CI diagnosis / CODEX queue update
+
+### Authority UX old-head T1
+
+PR #346 old reviewed head:
+`3986475b20e4a72969159bfaed003ad5d72626d4`
+
+Natural T1:
+`36067636970`
+
+Evidence:
+- classifier SUCCESS;
+- Common sanity SUCCESS;
+- focused .NET SUCCESS;
+- focused Chromium SUCCESS;
+- Web build FAILURE.
+
+Exact candidate-causal TypeScript failure:
+- `AuthorityPolicyAdministration.logic.ts(16,63) TS2345`;
+- `AuthorityPolicyAdministration.logic.ts(18,99) TS2345`;
+- generic `number` lookup against a Map inferred with literal capability keys.
+
+This compile defect is folded into the already-open Authority DEV correction:
+`DEV-AUTHORITY-UX-STABLE-ROLE-KEY-02`.
+
+Do not rerun the unchanged old head.
+
+### Licensing UX old-head T1
+
+PR #345 old reviewed head:
+`cdf572d644417fe83aee3003a3da3fe171d7ada3`
+
+Natural T1:
+`36067628680`
+
+Evidence:
+- classifier SUCCESS;
+- Common sanity SUCCESS;
+- Web SUCCESS;
+- Chromium SUCCESS;
+- focused .NET 692/693.
+
+Only failure:
+`Iec104TcpFaultInjectionTests.Adapter_OutOfOrderIFrameFaultsBeforePublishingAsdu`.
+
+Main proved the exact test, adapter and sequence-state blobs are unchanged from FC0-A release.
+
+The test waits only for `ProtocolErrors >= 1`; production increments that counter before `SignalSessionFailure` writes disconnected/session-failure state. The test can therefore observe the intermediate state `ProtocolErrors=1 / IsConnected=true`.
+
+Classification:
+`IEC104_TEST_OBSERVATION_RACE / NOT_LICENSING_CAUSAL / SHARED_TEST_INFRA_DEFECT`.
+
+Licensing stays on its own product correction:
+`DEV-LICENSING-UX-STATUS-ENTITLEMENTS-02`.
+
+Separate prepared closeout:
+- `INFRA-CI-01D-IEC104-FAULT-OBSERVATION-RACE-V1`;
+- control commit `b23cefeaf78a58ea17eaba8cf9a1566f3095ada4`;
+- state `PREPARED / NO MUTATION`.
+
+### Sequential CODEX planning
+
+Active route remains Script Engineering PR #344.
+
+Planned queue after Script handoff:
+1. INFRA-CI-01D test-only shared-gate stabilization;
+2. Editor PR #349 exact Main-accepted candidate.
+
+This is queue planning, not an activation order. Main must publish a new explicit route before CODEX changes mission.

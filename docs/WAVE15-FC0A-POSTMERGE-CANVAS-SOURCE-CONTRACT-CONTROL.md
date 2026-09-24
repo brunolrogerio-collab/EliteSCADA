@@ -6,9 +6,9 @@
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`MAIN_ORDER_REV: 0001`
+`MAIN_ORDER_REV: 0002`
 
-`STATE: ACTIVE / BLOCKS_FC0A_RELEASE`
+`STATE: MERGED / BROAD_GREEN / CLOSED_FOR_MUTATION`
 
 `ORDER_ID: FC0A-POSTMERGE-CANVAS-SOURCE-CONTRACT-V1`
 
@@ -152,3 +152,24 @@ Include:
 - no merge/freeze/release.
 
 This is intended to be the final deterministic test-contract closeout before another exact broad post-merge release gate.
+
+
+## 7. Main closure
+
+PR #343 candidate:
+- head `1b02b9ca0e7d84eed71d01cce2776fc1ced64c3b`
+- T1 `36053138551`: SUCCESS.
+
+Protected merge:
+- `e3ed5138369c576549cb58a7aff9783792f322d3`
+- tree `4e7627774fbfc111344e3d80fcb9d921eed8377e`.
+
+Exact broad post-merge:
+- `EliteSCADA CI 36060017969 / #1569`: SUCCESS;
+- Chromium: **655 passed / 0 failed**;
+- corrected source-contract and functional Canvas cases executed and passed.
+
+Disposition:
+`FC0A-POSTMERGE-CANVAS-SOURCE-CONTRACT-V1 -> CLOSED`.
+
+No further mutation is authorized by this control.

@@ -1,3 +1,4 @@
+using Scada.Api.Runtime;
 using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
 using Scada.Core.Commands;
@@ -742,7 +743,9 @@ public static class ProductLicensedRuntimeConfiguration
                         sp.GetRequiredService<IEngineeringDriverCompiler>(),
                         activationTimeout,
                         sp.GetRequiredService<IServerMemoryRetentionStore>(),
-                        protectedMaterialResolver: sp.GetService<ICommunicationDriverProtectedMaterialResolver>()),
+                        protectedMaterialResolver: sp.GetService<ICommunicationDriverProtectedMaterialResolver>(),
+                        industrialEffectAuthority: () =>
+                            sp.GetRequiredService<RuntimeHighAvailabilityService>().CanOwnIndustrialEffects()),
                     eventBus);
 
             return new ProductLicensedRuntimeCoordinator(

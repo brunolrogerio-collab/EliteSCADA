@@ -7,7 +7,6 @@ namespace Scada.Persistence.PostgreSql;
 /// <summary>PostgreSQL-backed, cross-instance Authority lifecycle and session epoch state.</summary>
 public sealed class PostgreSqlAuthorityLifecycleStore : IAuthorityLifecycleStore, IAsyncDisposable
 {
-    private const long SharedDdlAdvisoryLock = 4993446713136202561;
     private const long IdentityMutationAdvisoryLock = 4993446713136202562;
     private const long PolicyMutationAdvisoryLock = 4993446713136202564;
     private const long AuthorityOperationAdvisoryLock = 4993446713136202565;
@@ -24,7 +23,6 @@ public sealed class PostgreSqlAuthorityLifecycleStore : IAuthorityLifecycleStore
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         const string sql = """
-            SELECT pg_advisory_xact_lock(@ddl_lock);
             CREATE SCHEMA IF NOT EXISTS elitescada;
             CREATE TABLE IF NOT EXISTS elitescada.schema_migrations (
                 migration_key text PRIMARY KEY,
@@ -64,8 +62,8 @@ public sealed class PostgreSqlAuthorityLifecycleStore : IAuthorityLifecycleStore
 
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await PostgreSqlSharedSchemaInitialization.AcquireLockAsync(connection, transaction, cancellationToken);
         await using var command = new NpgsqlCommand(sql, connection, transaction);
-        command.Parameters.AddWithValue("ddl_lock", NpgsqlDbType.Bigint, SharedDdlAdvisoryLock);
         await command.ExecuteNonQueryAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }

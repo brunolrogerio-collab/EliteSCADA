@@ -53,6 +53,21 @@ public sealed class PostgreSqlConcurrentInitializationTests
             },
             async () =>
             {
+                await using var authorityPolicy = new PostgreSqlAuthorityPolicyStore(connectionString);
+                await authorityPolicy.InitializeAsync();
+            },
+            async () =>
+            {
+                await using var authorityLifecycle = new PostgreSqlAuthorityLifecycleStore(connectionString);
+                await authorityLifecycle.InitializeAsync();
+            },
+            async () =>
+            {
+                await using var runtimeSessionLeases = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+                await runtimeSessionLeases.InitializeAsync();
+            },
+            async () =>
+            {
                 await using var operationalEvents = new PostgreSqlOperationalEventHistoryStore(connectionString);
                 _ = await operationalEvents.QueryAsync(operationalEventQuery);
             },
@@ -63,7 +78,7 @@ public sealed class PostgreSqlConcurrentInitializationTests
             }
         };
 
-        var tasks = Enumerable.Range(0, 6)
+        var tasks = Enumerable.Range(0, 4)
             .SelectMany(_ => initializers)
             .Select(initialize => Task.Run(initialize))
             .ToArray();

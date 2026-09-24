@@ -228,3 +228,29 @@ CODEX remains sequential and is **not routed here yet**. Until Main publishes an
 CODEX later owns the remaining old/new-license, ViewOnly fail-closed, requested/granted/fallback, logical lease/quota and mounted UX negatives against this exact accepted candidate.
 
 No merge/T2 authorization yet.
+
+
+## Replacement Main follow-up — corrected candidate accepted for CODEX
+
+Exact corrected candidate:
+- head `f5d3212b9c114d3ad6e2239460172db0b3d568f8`;
+- tree `a3e87f2ef7beb15bc66d6980e12710eddcc30525`;
+- natural T1 `36071779912`: SUCCESS.
+
+Main accepts closure of `DEV-LICENSING-UX-STATUS-ENTITLEMENTS-02`:
+- status projection exposes license schema plus nullable signed ESLIC2 Interactive/ViewOnly/HA entitlements;
+- ESLIC1 remains truthful legacy/null and is never fabricated as zero/false;
+- Licensing UI exposes that truth in pt-BR/en/es;
+- no client-side admission/quota authority was introduced.
+
+`CANDIDATE_PR: #345`
+
+`CANDIDATE_HEAD: f5d3212b9c114d3ad6e2239460172db0b3d568f8`
+
+`CANDIDATE_TREE: a3e87f2ef7beb15bc66d6980e12710eddcc30525`
+
+`CANDIDATE_T1: 36071779912 / SUCCESS`
+
+`STATE: MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`
+
+The shared sequential CODEX route remains Script Engineering #344. This lane must not mutate while queued unless Main returns a material defect. No merge/T2 authorization exists yet.

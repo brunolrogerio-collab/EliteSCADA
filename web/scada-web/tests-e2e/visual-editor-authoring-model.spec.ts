@@ -6,6 +6,7 @@ import {
   isVisualElementAuthoringLocked,
   VISUAL_EDITOR_AUTHORING_LOCK_METADATA_KEY
 } from '../src/engineering/visual-editor/visualEditorAuthoringModel';
+import { applyVisualEditorZOrderOperation } from '../src/engineering/visual-editor/visualEditorZOrderModel';
 
 function rectangle(id: string, x: number, y: number, width: number, height: number): VisualElementEngineering {
   return {
@@ -18,6 +19,10 @@ function rectangle(id: string, x: number, y: number, width: number, height: numb
 
 function screen(elements: VisualElementEngineering[]): ScreenEngineering {
   return { key: 'screen', name: 'Screen', route: '/screen', elements };
+}
+
+function legacy(id: string, type: 'tank' | 'value' | 'dynamo' | 'status' | 'vendor.unknown-x', x: number): VisualElementEngineering {
+  return { id, key: id, type, properties: { x, y: 10, width: 30, height: 20, zIndex: x, legacySpecific: `${type}-preserved` } };
 }
 
 test('alignment uses deterministic selection bounds in canonical logical coordinates', () => {
@@ -169,4 +174,20 @@ test('multi-object operations reject mixed parent coordinate spaces', () => {
   expect(() => applyVisualEditorAuthoringOperation(base, {
     kind: 'align', objectIds: ['outside', 'inside'], operation: 'left'
   })).toThrow(/same parent coordinate space/);
+});
+
+test('legacy advanced authoring keeps known legacy fields and contains arbitrary unknown objects', () => {
+  const base = screen([
+    legacy('tank', 'tank', 10), legacy('value', 'value', 40), legacy('dynamo', 'dynamo', 70), legacy('status', 'status', 100), legacy('unknown', 'vendor.unknown-x', 130)
+  ]);
+  const aligned = applyVisualEditorAuthoringOperation(base, { kind: 'align', objectIds: ['tank', 'value', 'dynamo', 'status'], operation: 'left' });
+  const sized = applyVisualEditorAuthoringOperation(aligned, { kind: 'size', objectIds: ['tank', 'value', 'dynamo', 'status'], referenceObjectId: 'tank', operation: 'sameSize' });
+  const reordered = applyVisualEditorZOrderOperation(sized, ['tank', 'value', 'dynamo', 'status'], 'front');
+
+  for (const id of ['tank', 'value', 'dynamo', 'status']) {
+    const item = reordered.elements?.find(element => element.id === id);
+    expect(item?.properties?.legacySpecific).toBe(`${item?.type}-preserved`);
+    expect(item?.properties?.x).toBe(10);
+  }
+  expect(reordered.elements?.find(element => element.id === 'unknown')).toMatchObject({ type: 'vendor.unknown-x', properties: { x: 130, legacySpecific: 'vendor.unknown-x-preserved' } });
 });

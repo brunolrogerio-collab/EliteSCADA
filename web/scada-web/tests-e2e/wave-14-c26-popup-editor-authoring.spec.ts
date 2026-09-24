@@ -77,6 +77,8 @@ test('C26.9 mounted Popup editor exposes bounds in the canonical single-canvas a
     await expect(canonicalLayer).toHaveCSS('width', '200px');
     await expect(canonicalLayer).toHaveCSS('height', '130px');
     await expect(authoredBackground).toHaveCSS('background-color', 'rgb(16, 24, 32)');
+    await expect(authoredBackground).toHaveCSS('width', '200px');
+    await expect(authoredBackground).toHaveCSS('height', '130px');
     await expect(workspace.getByTestId('popup-authoring-bounds')).toContainText('X 1700, Y 950');
     await expect(workspace.getByTestId('popup-runtime-composition-preview')).toHaveCount(0);
 
@@ -92,6 +94,7 @@ test('C26.9 mounted Popup editor exposes bounds in the canonical single-canvas a
     await expect.poll(() => inlineNumber(rectangle, 'width')).toBe(260);
     await expect(boundary).toHaveAttribute('data-logical-width', '280');
     await expect(canonicalLayer).toHaveCSS('width', '280px');
+    await expect(authoredBackground).toHaveCSS('width', '280px');
     await expect(workspace.getByTestId('popup-authoring-bounds')).toContainText('X 1640');
 
     const leftBeforeMove = await inlineNumber(rectangle, 'left');
@@ -121,6 +124,8 @@ test('C26.9 mounted Popup editor exposes bounds in the canonical single-canvas a
     expect(heightAfterResize).toBeGreaterThan(130);
     await expect(canonicalLayer).toHaveCSS('width', `${widthAfterResize}px`);
     await expect(canonicalLayer).toHaveCSS('height', `${heightAfterResize}px`);
+    await expect(authoredBackground).toHaveCSS('width', `${widthAfterResize}px`);
+    await expect(authoredBackground).toHaveCSS('height', `${heightAfterResize}px`);
     await expect(workspace.getByTestId('popup-authoring-bounds')).toContainText(`X ${1920 - widthAfterResize}, Y ${1080 - heightAfterResize}`);
 
     const canonicalMetrics = await canonicalLayer.evaluate(element => {

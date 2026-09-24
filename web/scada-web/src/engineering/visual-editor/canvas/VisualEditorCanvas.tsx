@@ -359,7 +359,10 @@ export function VisualEditorCanvas({
   } satisfies CSSProperties;
   const surfaceStyle = {
     '--visual-editor-grid-size': `${DEFAULT_CANVAS_GRID_SIZE * effectiveViewport.zoom}px`,
-    '--visual-editor-grid-pan-x': `${effectiveViewport.panX}px`, '--visual-editor-grid-pan-y': `${effectiveViewport.panY}px`
+    '--visual-editor-grid-pan-x': `${effectiveViewport.panX}px`,
+    '--visual-editor-grid-pan-y': `${effectiveViewport.panY}px`,
+    '--visual-editor-background-grid-width': String((logicalBoundary?.width ?? CANVAS_CONTENT_WIDTH) / DEFAULT_CANVAS_GRID_SIZE),
+    '--visual-editor-background-grid-height': String((logicalBoundary?.height ?? CANVAS_CONTENT_HEIGHT) / DEFAULT_CANVAS_GRID_SIZE)
   } as CSSProperties;
   const canonicalLayerStyle = {
     width: logicalBoundary?.width ?? CANVAS_CONTENT_WIDTH,

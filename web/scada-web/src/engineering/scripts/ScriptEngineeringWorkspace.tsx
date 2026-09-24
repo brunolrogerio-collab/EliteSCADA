@@ -36,6 +36,7 @@ import {
   scopeLabel,
   scriptWorkspaceCopy
 } from './ScriptEngineeringWorkspace.copy';
+import { ScriptEntryPointsEditor } from './ScriptEntryPointsEditor';
 import { scriptPythonPreviewCopy } from './scriptPythonPreviewCopy';
 import type {
   ScriptDeleteDependency,
@@ -415,17 +416,30 @@ export function ScriptEngineeringWorkspace({
                 </div>
               )}
 
-              <EditorCollectionHeader title={copy.entryPoints} hint={copy.entryPointsHint} action={copy.addEntryPoint} onAdd={() => patchDraft({ entryPoints: [...draft.entryPoints, { eventKind: 'initialize', handlerName: 'initialize', targetReference: null }] })} />
-              <div className="script-rows">
-                {draft.entryPoints.map((entry, index) => (
-                  <div className="script-row script-row--entry" key={`entry-${index}`}>
-                    <label>{copy.event}<select value={entry.eventKind} onChange={event => patchDraft({ entryPoints: draft.entryPoints.map((item, itemIndex) => itemIndex === index ? { ...item, eventKind: event.target.value as typeof entry.eventKind } : item) })}>{SCRIPT_EVENT_KINDS.map(kind => <option key={kind} value={kind}>{eventKindLabel(kind, locale)}</option>)}</select></label>
-                    <label>{copy.handler}<input value={entry.handlerName} onChange={event => patchDraft({ entryPoints: draft.entryPoints.map((item, itemIndex) => itemIndex === index ? { ...item, handlerName: event.target.value } : item) })} /></label>
-                    <label>{copy.target}<input value={entry.targetReference ?? ''} onChange={event => patchDraft({ entryPoints: draft.entryPoints.map((item, itemIndex) => itemIndex === index ? { ...item, targetReference: event.target.value || null } : item) })} /></label>
-                    <button type="button" className="danger ghost" onClick={() => patchDraft({ entryPoints: draft.entryPoints.filter((_, itemIndex) => itemIndex !== index) })}>{copy.remove}</button>
-                  </div>
-                ))}
-              </div>
+              <EditorCollectionHeader
+                title={copy.entryPoints}
+                hint={copy.entryPointsHint}
+                action={copy.addEntryPoint}
+                onAdd={() => patchDraft({
+                  entryPoints: [
+                    ...draft.entryPoints,
+                    {
+                      eventKind: 'initialize',
+                      handlerName: 'initialize',
+                      targetReference: null,
+                      tagReference: null,
+                      timerIntervalMs: null
+                    }
+                  ]
+                })}
+              />
+              <ScriptEntryPointsEditor
+                locale={locale}
+                scope={draft.scope}
+                entries={draft.entryPoints}
+                disabled={busy}
+                onChange={entryPoints => patchDraft({ entryPoints })}
+              />
 
               <EditorCollectionHeader title={copy.dependencies} hint={copy.dependenciesHint} action={copy.addDependency} onAdd={() => patchDraft({ dependencies: [...draft.dependencies, { kind: 'script', stableReference: '' }] })} />
               <div className="script-rows">

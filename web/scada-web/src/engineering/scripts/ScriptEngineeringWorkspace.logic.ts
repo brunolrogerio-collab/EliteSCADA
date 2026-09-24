@@ -35,6 +35,44 @@ export const SCRIPT_DEPENDENCY_KINDS: ScriptEngineeringDependencyKind[] = [
 ];
 
 export const MINIMUM_SCRIPT_TIMER_INTERVAL_MS = 50;
+export const DEFAULT_SCRIPT_TIMER_INTERVAL_MS = 1000;
+
+export function isScriptEventAllowedForScope(
+  scope: ScriptEngineeringScope,
+  eventKind: ScriptEngineeringEventKind
+): boolean {
+  if (scope === 'clientVisual') return eventKind !== 'serverRuntimeEvent';
+  return eventKind === 'initialize' ||
+    eventKind === 'dispose' ||
+    eventKind === 'tagChanged' ||
+    eventKind === 'timer' ||
+    eventKind === 'serverRuntimeEvent';
+}
+
+export function retargetScriptEntryPoint(
+  entryPoint: ScriptEngineeringEntryPoint,
+  eventKind: ScriptEngineeringEventKind
+): ScriptEngineeringEntryPoint {
+  if (entryPoint.eventKind === eventKind) {
+    return {
+      ...entryPoint,
+      tagReference: entryPoint.tagReference
+        ? {
+            ...entryPoint.tagReference,
+            selector: entryPoint.tagReference.selector ? { ...entryPoint.tagReference.selector } : null
+          }
+        : null
+    };
+  }
+
+  return {
+    eventKind,
+    handlerName: entryPoint.handlerName,
+    targetReference: null,
+    tagReference: null,
+    timerIntervalMs: eventKind === 'timer' ? DEFAULT_SCRIPT_TIMER_INTERVAL_MS : null
+  };
+}
 
 const numericScopes: ScriptEngineeringScope[] = ['clientVisual', 'server'];
 const numericEvents: ScriptEngineeringEventKind[] = SCRIPT_EVENT_KINDS;
@@ -211,6 +249,7 @@ export function validateScriptDraft(script: ScriptEngineeringDefinition): string
   const entryKeys = new Set<string>();
   for (const entry of script.entryPoints) {
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(entry.handlerName.trim())) issues.push('entryPoint');
+    if (!isScriptEventAllowedForScope(script.scope, entry.eventKind)) issues.push('entryPointScope');
     issues.push(...validateEventTarget(entry.eventKind, entry.targetReference, entry.tagReference, entry.timerIntervalMs));
     const key = eventAssociationIdentity(entry.eventKind, entry.handlerName.trim(), entry.targetReference, entry.tagReference, entry.timerIntervalMs);
     if (entryKeys.has(key)) issues.push('entryPointDuplicate');

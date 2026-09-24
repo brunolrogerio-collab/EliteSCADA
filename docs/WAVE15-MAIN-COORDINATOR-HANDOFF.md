@@ -134,7 +134,7 @@ Coordination/documentation commits after this checkpoint do not create a new pro
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
 **ORDER_STATE: ACTIVE**  
-**ORDER_ID: INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V1**  
+**ORDER_ID: INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V2**  
 **CODEX_MODE: BOUNDED_INFRA_CORRECTION**  
 **EXECUTOR_IDENTITY: SAME SEQUENTIAL CODEX CHAT/LANE USED IN PRIOR FOUNDATION WORK INCLUDING FND-04/FND-06**  
 **Mission:** close the generic shared-PostgreSQL-schema initialization race blocking FND-06 freeze
@@ -162,7 +162,7 @@ Main classification:
 Dedicated executable control:
 - branch `coord/w15-infra-ci-01b-control`
 - file `docs/WAVE15-INFRA-CI-01B-CONTROL.md`
-- control commit `358b067d9af6501b2945f311b5d2cd32cab64efa`
+- control commit `be7a2d875c24e07d023162e64c65acb0aebe9672`
 - work branch `work/w15-infra-ci-01b-postgresql-schema-init`.
 
 Required direction:
@@ -428,7 +428,7 @@ FND-06 PR #337 is merged at `624f2eca456310a2c6156538b3616a06e3be075f`, but broa
 - FND-06 visual/mounted evidence remains Main-accepted.
 - FND-06 is not VERIFIED/FROZEN until infrastructure is corrected and exact broad integration CI is green.
 - active control: `coord/w15-infra-ci-01b-control:docs/WAVE15-INFRA-CI-01B-CONTROL.md`
-- active order: `INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V1`
+- active order: `INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V2`
 - control commit: `358b067d9af6501b2945f311b5d2cd32cab64efa`
 
 Post-FND06 FC0-A audit:
@@ -436,3 +436,23 @@ Post-FND06 FC0-A audit:
 - control commit `bbe9c4a63aef310c45f7f8d2dab17ccb9ccf5bac`
 - evidence matrix rev `0002` / commit `435e1ee639e520644751c14fab6baca2e5ada38c`
 - state: PREPARED / blocked on INFRA-CI-01B + FND-06 freeze.
+
+
+## INFRA-CI-01B V2 scope amendment
+
+Intermediate candidate `97c665c8e4d62268336dfdef400f992c2f9d43cf` has natural T1 `35943407678` SUCCESS, but full local .NET/PostgreSQL regression reproduced `23505`.
+
+Additional shared-schema creators were confirmed:
+- `PostgreSqlAuthorityPolicyStore`: initialization creates `elitescada` without the shared DDL lock;
+- `PostgreSqlAuthorityLifecycleStore`: shared lock + DDL remain in one SQL batch;
+- `PostgreSqlRuntimeSessionLeaseStore`: shared lock + DDL remain in one SQL batch.
+
+This is the same generic DDL serialization invariant. Main expanded the bounded infra order to:
+`INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V2`
+
+Control commit:
+`be7a2d875c24e07d023162e64c65acb0aebe9672`
+
+Authority/RuntimeSession files may be touched **only** for shared-schema initialization sequencing; all policy, epoch, session, quota, licensing, admission and fencing semantics remain forbidden to change.
+
+Candidate `97c665c8...` is intermediate only, not merge-ready.

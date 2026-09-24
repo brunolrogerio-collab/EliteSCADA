@@ -425,3 +425,46 @@ Queued after P1-01:
 `FC0A-BLOCKER-P106-ENGINEERING-FALLBACK-V1`.
 
 DEV-EDITOR / DEV-SCRIPT-ENGINEERING / DEV-AUTHORITY-UX / DEV-LICENSING-UX / FND-05 / FND-07 remain HOLD.
+
+
+## Post-FND06 audit — second-pass deep review
+
+Main completed a distinct second-pass audit on the frozen baseline:
+`560ac9d80cc7e854f2513559dc6afb28cfb4aee3` / tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`.
+
+Report:
+`coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-SECOND-PASS.md`
+
+report commit:
+`43c266949236af377ba859c9b8f09fa2d3a3a31a`
+
+audit control rev 0012:
+`62a731cc4291b751e9cb2e91e440fcf0d5ffb3bd`
+
+release-prep refinement:
+`c78895b218608b511e61b90206189d2b641a1e71`
+
+Second-pass conclusion:
+`NO NEW PRE-FC0A BLOCKER IDENTIFIED`.
+
+The two confirmed release blockers remain:
+- W15-P1-01 Server Script bounded recovery;
+- W15-P1-06 truthful Engineering no-model/loading/error state.
+
+New/refined downstream findings:
+- DEV-EDITOR must consume FND-06 compatibility for known-legacy marquee/geometry/z-order/multi-object authoring paths that still use strict built-in lookup;
+- DEV-SCRIPT must make Script Assistant consume the FND-06 compatibility seam for known-legacy property discovery;
+- Script Engineering already has cursor-aware insertion and timer/tagChanged authoring, so those are regression/refinement scope, not greenfield;
+- Python API Help still lacks a formal signature/parameter/return/example contract;
+- DEV-LICENSING must surface requested vs granted Runtime class, explicit ViewOnly request and Interactive-quota fallback/reason UX; backend Authority/capacity contract is already sound;
+- one minor Runtime API message still says `viewer` where canonical public vocabulary is `viewOnly`;
+- W15-P2-01 Trends still lacks explicit realtime/reconnect/last-request/last-success/freshness observability;
+- W15-P2-02 shared Popup/live-value path correctly handles numeric zero/quality but still lacks explicit freshness-age/reason telemetry.
+
+Contract result strengthened:
+- FND-05 remains ADDITIVE / COMPATIBLE;
+- FND-07 remains COMPOSITIONAL / COMPATIBLE;
+- production host uses `EngineeringWorkspace(seedDemo:false)`, so a truthful neutral no-Demo workspace is already representable;
+- existing Authority detach/attach/switch primitives further reduce FND-07 contract risk.
+
+No DEV/FND-05/FND-07 release occurs until P1-01 and P1-06 close and Main reruns the affected release rows.

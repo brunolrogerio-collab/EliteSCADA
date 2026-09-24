@@ -80,13 +80,13 @@ public static class EngineeringPersistenceApi
             // Compatibility for focused/unit hosts that inject persistence directly instead
             // of using AddOptionalEngineeringPersistence. Production PostgreSQL wiring always
             // registers the durable FND-07 binding store.
-            var bootstrap = app.Services.GetRequiredService<IEngineeringWorkingBootstrapService>();
-            var bootstrapResult = await bootstrap.BootstrapAsync(
+            var legacyBootstrap = app.Services.GetRequiredService<IEngineeringWorkingBootstrapService>();
+            var legacyBootstrapResult = await legacyBootstrap.BootstrapAsync(
                 configuredWorkingProjectKey,
                 configuredWorkingRevision,
                 configuredRuntimeProjectKey,
                 cancellationToken);
-            if (bootstrapResult.Source == EngineeringWorkingBootstrapSource.EmptyCatalog &&
+            if (legacyBootstrapResult.Source == EngineeringWorkingBootstrapSource.EmptyCatalog &&
                 app.Configuration.GetValue<bool>("Engineering:InitializeDemoWhenEmpty"))
                 app.Services.GetRequiredService<EngineeringWorkspace>().InitializeDemo();
             await app.RecoverConfiguredEngineeringRuntimeAsync(cancellationToken);

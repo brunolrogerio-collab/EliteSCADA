@@ -38,7 +38,7 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0032`
+`MAIN_ORDER_REV: 0033`
 
 `LAST_MAIN_UPDATE_BRT: 2026-09-24 — CODEX CONTINUES CURRENT V2 FLOW / FINAL CHECKLIST RECONCILIATION REQUIRED`
 
@@ -591,7 +591,7 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 ### CURRENT CODEX EXECUTION ORDER
 
-`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FC0A-CONSOLIDATED-V5-20`
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-INFRA-CI-01C-21`
 
 `ORDER_STATE: ACTIVE_ROUTE`
 
@@ -607,7 +607,7 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 `NEXT_CONTROL_FILE: docs/WAVE15-FC0A-CONSOLIDATED-CORRECTION-PACKAGE.md`
 
-`EXPECTED_ORDER: FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V6`
+`EXPECTED_ORDER: INFRA-CI-01C-POSTGRES-SCHEMA-RECURRENCE-V1`
 
 `WORK_BRANCH: work/w15-fc0a-consolidated-corrections`
 
@@ -615,18 +615,18 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 Instruction:
 
-> Main reviewed V4 on PR #340 at `87eafb68...`. The test additions are accepted; only execution proof and two assertion-strengthening items remain. Continue on the same CODEX context/branch/PR and read section 14 of the consolidated control.
+> FC0-A PR #340 has been accepted and merged at `d975174ae81ff7ed754585097240778a9862d965`. Exact post-merge EliteSCADA CI `36044280802` exposed a generic recurring PostgreSQL shared-schema initialization race. Stop FC0-A product work. Route the same sequential CODEX lane to `coord/w15-infra-ci-01c-control:docs/WAVE15-INFRA-CI-01C-POSTGRES-SCHEMA-RACE-RECURRENCE-CONTROL.md`.
 >
 > On every `SIGA`:
 > 1. revalidate GitHub live;
 > 2. read `coord/w15-fnd06-control:docs/WAVE15-FC0A-CONSOLIDATED-CORRECTION-PACKAGE.md` in full;
 > 3. confirm current active order is `FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V3`;
 > 4. work only on `work/w15-fc0a-consolidated-corrections`;
-> 5. preserve all accepted product code; complete only section 14 CI-routing/test-strengthening work;
-> 6. no new feature scope and no one-off validation profile;
-> 7. keep PR #340 open and update it on the same branch;
-> 8. require natural T1 Chromium log to visibly execute the owner specs listed in section 14;
-> 9. return `FC0-A CONSOLIDATED CODEX -> MAIN COORDINATOR — FINAL INTEGRATION HANDOFF V5`.
+> 5. treat PR #340 product work as closed/accepted; do not mutate that merged branch;
+> 6. switch to `work/w15-infra-ci-01c-postgres-schema-recurrence`, exact base `d975174ae81ff7ed754585097240778a9862d965`;
+> 7. follow the 01C control: reproduce/diagnose first, no blind rerun and no retry/CI-serialization shortcut;
+> 8. open/update a bounded PR to `wave15/corrections-integration` only after root cause + regression are established;
+> 9. return `INFRA-CI-01C CODEX -> MAIN COORDINATOR — CANDIDATE HANDOFF`.
 >
 > The former P1-01 branch/order is superseded and must not be used. No merge/freeze authority. Stop only for a real contract/base/environment blocker as defined in the consolidated control.
 
@@ -910,3 +910,41 @@ Agents must treat absence of an exact base/candidate in an `ACTIVE` order as `BL
 ---
 
 Hora: 12:01 BRT
+
+
+## MAIN ROUTE — INFRA-CI-01C recurrence after FC0-A merge
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-INFRA-CI-01C-21`
+
+`EXPECTED_ORDER: INFRA-CI-01C-POSTGRES-SCHEMA-RECURRENCE-V1`
+
+Authoritative control:
+- branch: `coord/w15-infra-ci-01c-control`
+- file: `docs/WAVE15-INFRA-CI-01C-POSTGRES-SCHEMA-RACE-RECURRENCE-CONTROL.md`
+- control commit: `8cf15e123823f5aaae2c911f0f113e804c9dad0d`
+
+Exact base/work:
+- base SHA: `d975174ae81ff7ed754585097240778a9862d965`
+- base tree: `5ac06f47f1bede7a1b0c384c7b1d3c83730015ea`
+- work branch: `work/w15-infra-ci-01c-postgres-schema-recurrence`
+- target: `wave15/corrections-integration`
+
+Trigger:
+- exact post-merge CI `36044280802`;
+- failure: PostgreSQL `23505 / pg_namespace_nspname_index`;
+- failing test: `PostgreSqlEngineeringSchemaV15CommunicationBindingTests.PostgreSqlRevision_SavePreviewApply_RoundTripsCommunicationBinding`.
+
+Main proved the failing store/helper/Timescale/failing test/concurrency test blobs are unchanged from pre-FC0A frozen product base. Classification is generic infra recurrence, not FC0-A product causality.
+
+On SIGA:
+1. read the 01C control fully;
+2. checkout/revalidate exact work branch/base;
+3. reproduce/diagnose the cross-project fresh-schema race before production mutation;
+4. do not use a blind unchanged-SHA rerun as acceptance;
+5. do not change test parallelism/sleeps to hide the race;
+6. make only the root-cause-bounded generic infra fix + discriminating regression;
+7. run focused concurrency + failing test + full local .NET where possible + natural T1;
+8. open/update bounded PR;
+9. return the exact 01C candidate handoff.
+
+No merge/freeze/FC0A release authority.

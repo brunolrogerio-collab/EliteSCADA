@@ -6,9 +6,9 @@
 
 `CONTROL_BRANCH: coord/w15-infra-ci-01c-control`
 
-`MAIN_ORDER_REV: 0001`
+`MAIN_ORDER_REV: 0002`
 
-`STATE: ACTIVE / BLOCKS_FC0A_RELEASE`
+`STATE: MERGED / POST_MERGE_BACKEND_GREEN / NO_MUTATION`
 
 `ORDER_ID: INFRA-CI-01C-POSTGRES-SCHEMA-RECURRENCE-V1`
 
@@ -238,3 +238,36 @@ Until this lane is closed:
 - do not record `FC0A_RELEASE_APPROVED`;
 - all six prepared DEV/FND lanes remain WAIT;
 - their future exact activation base remains undecided until this generic correction is integrated and the new exact post-merge checkpoint is green.
+
+
+## 12. Main closure evidence
+
+Candidate:
+- PR #341;
+- head `8cd0a4efdb1a179678ced4255084a8ad37c8bdf8`;
+- tree `80c1ef79602b3d985e04faf4c2db2756c0897130`;
+- T1 `36046834536` — SUCCESS.
+
+Protected merge:
+- merge SHA `da0e64122f1e4d0293e027f45ef95021cd03c1a1`;
+- tree `a724e565f11121a43b97bf0c59683b414c72f48c`.
+
+Exact broad post-merge `EliteSCADA CI 36047274028`:
+- Web build — SUCCESS;
+- Backend build — SUCCESS;
+- Backend Test — SUCCESS;
+- Runtime smoke — SUCCESS.
+
+This directly closes the PostgreSQL `23505 / pg_namespace_nspname_index` recurrence that created 01C.
+
+The broad Chromium job failed for a separate deterministic test-load defect in the FC0-A-added `contextual-help-routing.spec.ts`: Node-side Playwright loading of `AppNavigation.tsx` reaches CSS and throws before test execution.
+
+Classification:
+
+`INFRA-CI-01C -> MERGED / POST_MERGE_BACKEND_GREEN / CLOSED_FOR_MUTATION`
+
+No more PostgreSQL/01C mutation is authorized.
+
+Global FC0-A release remains blocked by:
+`coord/w15-fnd06-control:docs/WAVE15-FC0A-POSTMERGE-HELP-E2E-LOAD-CONTROL.md`
+order `FC0A-POSTMERGE-HELP-E2E-LOAD-V1`.

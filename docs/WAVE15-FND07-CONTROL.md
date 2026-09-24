@@ -136,7 +136,8 @@ At minimum prove:
 17. license remains outside Application/Authority artifacts;
 18. A->B->A repeated switching is deterministic;
 19. Audit contains safe metadata and no credentials/signing material;
-20. natural Wave 15 T1 + focused System Recovery/Authority/Licensing tests green.
+20. Engineering Lock × detach/switch/neutral-bootstrap is explicitly reconciled with the existing authorized replacement/recovery exemption: backend Authority remains authoritative, protected Engineering does not leak, no second credential/bypass is invented, and locked/unlocked paths are deterministic;
+21. natural Wave 15 T1 + focused System Recovery/Authority/Licensing tests green.
 
 ## 6. Forbidden
 
@@ -144,7 +145,7 @@ No anonymous populated-install restore, direct DB hacks, silent Historian deleti
 
 ## 7. Activation dependency
 
-FND-01/FND-02/FND-03 prerequisites are frozen, but this order remains PREPARED until FND-06 is VERIFIED/FROZEN and the mandatory post-FND06 FC0-A Foundation Closure Audit passes.
+FND-01/FND-02/FND-03/FND-06 prerequisites are frozen. The mandatory post-FND06 FC0-A audit completed with `CHANGES_REQUIRED`; this order remains PREPARED until W15-P1-01 and W15-P1-06 close and Main reruns the affected audit rows to `ACCEPTABLE / FC0A_RELEASE_APPROVED`.
 
 Intended sequencing:
 - FND-06 -> FC0-A release;

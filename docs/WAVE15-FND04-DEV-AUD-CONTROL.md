@@ -38,7 +38,7 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0035`
+`MAIN_ORDER_REV: 0036`
 
 `LAST_MAIN_UPDATE_BRT: 2026-09-24 — CODEX CONTINUES CURRENT V2 FLOW / FINAL CHECKLIST RECONCILIATION REQUIRED`
 
@@ -591,44 +591,40 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 ### CURRENT CODEX EXECUTION ORDER
 
-`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FC0A-CANVAS-CONTRACT-23`
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-WAIT-POST-FC0A-24`
 
-`ORDER_STATE: ACTIVE_ROUTE`
+`ORDER_STATE: WAIT_FOR_MAIN_ACCEPTED_CANDIDATE`
 
-`EXECUTOR_MODE: SAME_SEQUENTIAL_CODEX / LARGE_CONSOLIDATED_FC0A_PACKAGE`
+`EXECUTOR_MODE: SAME_SEQUENTIAL_CODEX / VALIDATION_QUEUE_IDLE`
 
 `FND04_STATE: VERIFIED_FROZEN`
 
 `FND06_STATE: VERIFIED_FROZEN`
 
-`AUDIT_RESULT: CHANGES_REQUIRED`
+`AUDIT_RESULT: ACCEPTABLE / FC0A_RELEASE_APPROVED`
 
-`NEXT_CONTROL_BRANCH: coord/w15-fnd06-control`
+`FC0A_RELEASE_BASE_SHA: e3ed5138369c576549cb58a7aff9783792f322d3`
 
-`NEXT_CONTROL_FILE: docs/WAVE15-FC0A-CONSOLIDATED-CORRECTION-PACKAGE.md`
+`FC0A_RELEASE_BASE_TREE: 4e7627774fbfc111344e3d80fcb9d921eed8377e`
 
-`EXPECTED_ORDER: FC0A-POSTMERGE-CANVAS-SOURCE-CONTRACT-V1`
+`FC0A_BROAD_GATE: EliteSCADA CI #1569 / 36060017969 / SUCCESS / Chromium 655 passed`
 
-`WORK_BRANCH: work/w15-fc0a-consolidated-corrections`
-
-`EXACT_BASE_SHA: 560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
+`EXPECTED_ORDER: NONE_UNTIL_MAIN_ACCEPTS_A_DEV_OR_FOUNDATION_CANDIDATE`
 
 Instruction:
 
-> FC0-A PR #340 has been accepted and merged at `d975174ae81ff7ed754585097240778a9862d965`. Exact post-merge EliteSCADA CI `36044280802` exposed a generic recurring PostgreSQL shared-schema initialization race. Stop FC0-A product work. Route the same sequential CODEX lane to `coord/w15-infra-ci-01c-control:docs/WAVE15-INFRA-CI-01C-POSTGRES-SCHEMA-RACE-RECURRENCE-CONTROL.md`.
+> FC0-A is released and the six normal-chat DEV/FND implementation lanes are ACTIVE on isolated branches.
+>
+> The sequential CODEX executor is now **idle validation capacity**.
 >
 > On every `SIGA`:
-> 1. revalidate GitHub live;
-> 2. read `coord/w15-fnd06-control:docs/WAVE15-FC0A-CONSOLIDATED-CORRECTION-PACKAGE.md` in full;
-> 3. confirm current active order is `FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V3`;
-> 4. work only on `work/w15-fc0a-consolidated-corrections`;
-> 5. treat PR #340 product work as closed/accepted; do not mutate that merged branch;
-> 6. switch to `work/w15-infra-ci-01c-postgres-schema-recurrence`, exact base `d975174ae81ff7ed754585097240778a9862d965`;
-> 7. follow the 01C control: reproduce/diagnose first, no blind rerun and no retry/CI-serialization shortcut;
-> 8. open/update a bounded PR to `wave15/corrections-integration` only after root cause + regression are established;
-> 9. return `INFRA-CI-01C CODEX -> MAIN COORDINATOR — CANDIDATE HANDOFF`.
+> 1. revalidate GitHub live and this control;
+> 2. if `ORDER_STATE` is still `WAIT_FOR_MAIN_ACCEPTED_CANDIDATE`, do not mutate any product/test/CI branch;
+> 3. do not attach yourself to a DEV lane merely because it has commits or an open PR;
+> 4. wait until Main records an exact accepted candidate SHA/tree, lane, validation scope and target order;
+> 5. then validate only that Main-accepted candidate using the appropriate dedicated control.
 >
-> The former P1-01 branch/order is superseded and must not be used. No merge/freeze authority. Stop only for a real contract/base/environment blocker as defined in the consolidated control.
+> Candidate priority is determined by Main from readiness + risk. FND-05 adversarial HA validation remains mandatory when its candidate reaches Main acceptance. No self-merge/freeze/release authority.
 
 ### CODEX mandatory return
 

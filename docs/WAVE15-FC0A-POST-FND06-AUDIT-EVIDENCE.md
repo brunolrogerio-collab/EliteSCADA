@@ -23,7 +23,7 @@
 | W15-P1-03 / A7 selection stability | CLOSED_FOUNDATION if final broad #1565 passes | mounted Screen/Popup selection closeout in PR #337; fixture isolation PR #339 prevents cross-spec state leak | Final Chromium on #1565 must pass |
 | W15-P1-04 projection/navigation persistence | CLOSED_FOUNDATION if final broad #1565 passes | retryable same-identity Screen/Popup persistence + real Active identity reset regressions | Final Chromium on #1565 must pass |
 | W15-P1-05 / A8 Script Engineering maturity | SPLIT: Foundation identity contract closed; downstream authoring work remains | FND-04 readable TAG binding VERIFIED/FROZEN at `6c810647...`; #297 owns authoring UX | Cursor-safe insertion, API signatures/examples, event/scope authoring and UI recipe remain DEV-SCRIPT-ENGINEERING scope **after P1-01 Foundation blocker is closed** |
-| W15-P1-06 Engineering/SPA truthful fallback UX | PENDING AUDIT CLASSIFICATION | product has bounded retry/error work from prior corrections, but exact Wave14 objective must be rechecked against current mounted behavior | Cannot be assumed closed solely from FND-06 |
+| W15-P1-06 Engineering/SPA truthful fallback UX | **BLOCKED_PRODUCT — preliminary Main finding** | exact `EngineeringApp.tsx` still renders `Demo Project` when `snapshot=null`, including loading/error states; no-model `WorkspaceBar` can present `unsaved/clean` fallbacks | **Blocks FC0-A if independent audit confirms**; bounded shared-shell correction required before parallel DEV release |
 | W15-P2-01 Trends | DEFERRED_BOUNDED_WITH_EVIDENCE, pending audit | Wave14 uncertain/bounded; requires stable runtime/freshness retest | Does not block FC0-A unless audit finds a P1 mechanism |
 | W15-P2-02 Popup live values | DEFERRED_BOUNDED_WITH_EVIDENCE, pending audit | Wave14 authoritative Good zero/binding evidence but missing browser freshness path | Downstream bounded runtime/UI follow-up unless audit escalates |
 | W15-P2-03..07 shared UX/accessibility/navigation/templates | READY_FOR_DOWNSTREAM_DEV / DEFERRED by owner, pending audit | Wave15 backlog explicitly UI/usability scoped | Must have named downstream ownership; not Foundation by default |
@@ -35,7 +35,7 @@
 
 | Lane | Current risk | Main note |
 | --- | --- | --- |
-| DEV-EDITOR | LOW / GUARDED | FND-06 contract appears consumable; no known semantic break. Final broad + independent audit required. |
+| DEV-EDITOR | HOLD — shared-shell P1-06 + audit | FND-06 contract appears consumable, but confirmed Wave15 truthful Engineering-shell UX must be closed centrally before Editor starts on the same UI shell. |
 | DEV-SCRIPT-ENGINEERING | **HOLD — upstream P1-01 Foundation blocker** | FND-04 TAG binding contract is frozen, but the runtime throttle-recovery defect is not safe to delegate to authoring UX. |
 | DEV-AUTHORITY-UX | NONE IDENTIFIED / GUARDED | FND-07 must compose, not redefine, FND-02/AUTH-04. |
 | DEV-LICENSING-UX | LOW BUT MATERIAL RESIDUAL | FND-05 HA entitlement/readiness must remain additive/backward-compatible to FND-03. |
@@ -55,3 +55,17 @@ The mandatory independent audit must first determine whether W15-P1-01 is still 
 - FND-07.
 
 This matrix is append-only evidence and does not authorize product mutation by itself.
+
+
+## P1-06 source note
+
+Exact product source inspected:
+`web/scada-web/src/engineering/EngineeringApp.tsx@560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
+
+Observed:
+- null snapshot during initial loading;
+- null snapshot on failed fetch;
+- unconditional sidebar fallback `'Demo Project'` while snapshot is null;
+- no-model WorkspaceBar fallback can present `unsaved` and `clean`.
+
+This is direct source evidence of the Wave14 A6/W15-P1-06 class and must be independently mounted/revalidated before audit disposition.

@@ -231,9 +231,41 @@ When the post-FND06 audit passes, Main may activate in parallel:
 
 FND-05/FND-07 activation at that point is permitted only because the audit has confirmed their prepared contracts are non-breaking to the exact FC0-A frozen-consumer contracts. If later implementation exposes a contradictory requirement, the relevant lane must stop with `BLOCKED-CONTRACT`.
 
+## 3C. Updated six-lane execution model
+
+Prepared cross-lane control:
+
+`coord/w15-parallel-dev-control:docs/WAVE15-PARALLEL-DEV-CONTROL.md`
+
+Prepared implementation chats after FC0-A:
+- DEV-EDITOR;
+- DEV-SCRIPT-ENGINEERING;
+- DEV-AUTHORITY-UX;
+- DEV-LICENSING-UX;
+- FND-05 DEV;
+- FND-07 DEV.
+
+All six are normal ChatGPT DEV implementation chats.
+
+Pipeline:
+
+`DEV code -> Main review -> same DEV correction if material -> Main accepts for CODEX -> sequential CODEX local/adversarial validation + exact-head T1 -> Main integration`
+
+Feature lanes remain separate PRs and consolidate at integrated T2 after controlled merges.
+
+FND-05/FND-07 remain separate Foundation PRs and each must pass Main contract review, CODEX validation, exact-head T1, post-merge validation and explicit VERIFIED/FROZEN. They are not folded into one raw feature package.
+
+CODEX is a scarce sequential validation resource, not the default implementation owner for these six lanes.
+
+FND-05 prepared implementation order is now `FND05-DEV-HA-AUTHORITY-V1`.
+
+FND-07 prepared implementation order is now `FND07-DEV-DETACH-NEUTRAL-V1`.
+
+No lane is activated by this preparation.
+
 ## 4. Release guard
 
-At FC0-A Main may activate no more than these four implementation lanes initially.
+At FC0-A there is **no fixed numeric cap** on coding DEV chats. The previous four-DEV limit was a historical operational throttle for a different context. Main controls concurrency dynamically through ownership isolation, shared-hotspot collision risk, review capacity and CODEX validation queue.
 
 Each lane's final issue/order must contain:
 1. DEV-ID and parent;

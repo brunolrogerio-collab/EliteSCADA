@@ -7,7 +7,7 @@
 
 `AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
-`AUDIT_REV: 0004`
+`AUDIT_REV: 0005`
 
 `STATE: PREPARED / WAIT_INFRA_CI_01B_GREEN_AND_FND06_FREEZE`
 
@@ -93,10 +93,10 @@ No blind rerun is authorized.
 
 Blocking correction:
 - control: `coord/w15-infra-ci-01b-control:docs/WAVE15-INFRA-CI-01B-CONTROL.md`
-- order: `INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V1`
+- order: `INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V2`
 - exact base: `624f2eca456310a2c6156538b3616a06e3be075f`
 - work branch: `work/w15-infra-ci-01b-postgresql-schema-init`
-- control commit: `358b067d9af6501b2945f311b5d2cd32cab64efa`.
+- control commit: `be7a2d875c24e07d023162e64c65acb0aebe9672`.
 
 The FC0-A audit remains PREPARED until:
 1. INFRA-CI-01B is reviewed/merged;
@@ -496,3 +496,18 @@ On failure:
 - Evidence is exact-SHA and append-only.
 - Product Owner is not a required messenger.
 - GitHub live controls all release decisions.
+
+
+## INFRA-CI-01B V2 scope amendment
+
+The first infra candidate `97c665c8e4d62268336dfdef400f992c2f9d43cf` is intermediate only.
+
+Its focused T1 `35943407678` succeeded, but fuller local PostgreSQL concurrency testing reproduced `23505` and exposed three residual shared-schema creators:
+- AuthorityPolicy initialization without shared DDL lock;
+- AuthorityLifecycle lock+DDL same batch;
+- RuntimeSessionLease lock+DDL same batch.
+
+Main approved only a DDL-initialization sequencing scope amendment under `INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V2`.
+No Authority/session semantics are reopened.
+
+This audit remains PREPARED until V2 is closed, broad integration CI is green, and FND-06 is frozen.

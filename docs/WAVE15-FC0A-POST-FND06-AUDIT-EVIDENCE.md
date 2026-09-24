@@ -5,7 +5,7 @@
 
 `AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
-`MATRIX_STATE: ACTIVE_MAIN_EVIDENCE / INDEPENDENT_AUD_REVIEW_REQUIRED`
+`MATRIX_STATE: FINAL_MAIN_AUDIT / CHANGES_REQUIRED`
 
 `CURRENT_INTEGRATION_SHA: 560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
 
@@ -17,16 +17,16 @@
 
 | Item | Preliminary status | Exact/current evidence | Residual / release impact |
 | --- | --- | --- | --- |
-| W15-P0-01 Working identity/bootstrap | CLOSED_FOUNDATION, pending independent reconfirmation | FND-01 VERIFIED/FROZEN at `b445ad5a9cdf7f920cf216ac66e42b6a65516aa2`; 69/69 integrated validation | No known release blocker |
-| W15-P1-01 Server Script recovery/observability | **BLOCKED_FOUNDATION — preliminary Main finding** | current `ScriptRuntimeExecutionCoordinator` still hard-stops dispatch when `IsThrottled`; only explicit `ResetThrottle()`; no production automatic reset/recovery caller found | **Blocks FC0-A if independent audit confirms**; requires bounded Foundation correction before DEV release |
+| W15-P0-01 Working identity/bootstrap | CLOSED_FOUNDATION | FND-01 VERIFIED/FROZEN at `b445ad5a9cdf7f920cf216ac66e42b6a65516aa2`; 69/69 integrated validation | No known release blocker |
+| W15-P1-01 Server Script recovery/observability | **BLOCKED_FOUNDATION — CONFIRMED BY MAIN AUDIT** | current `ScriptRuntimeExecutionCoordinator` still hard-stops dispatch when `IsThrottled`; only explicit `ResetThrottle()`; no production automatic reset/recovery caller found | **Blocks FC0-A if independent audit confirms**; requires bounded Foundation correction before DEV release |
 | W15-P1-02 legacy visual compatibility | CLOSED_FOUNDATION, pending independent reconfirmation | PR #337 + mounted V3 evidence; known `tank/value/dynamo/status`, unknown fail-closed | Final broad #1565 SUCCESS; independent audit remains required |
 | W15-P1-03 / A7 selection stability | CLOSED_FOUNDATION, pending independent reconfirmation | mounted Screen/Popup selection closeout in PR #337; fixture isolation PR #339 prevents cross-spec state leak | Chromium on #1565 SUCCESS; independent audit remains required |
 | W15-P1-04 projection/navigation persistence | CLOSED_FOUNDATION, pending independent reconfirmation | retryable same-identity Screen/Popup persistence + real Active identity reset regressions | Chromium on #1565 SUCCESS; independent audit remains required |
 | W15-P1-05 / A8 Script Engineering maturity | SPLIT: Foundation identity contract closed; downstream authoring work remains | FND-04 readable TAG binding VERIFIED/FROZEN at `6c810647...`; #297 owns authoring UX | Cursor-safe insertion, API signatures/examples, event/scope authoring and UI recipe remain DEV-SCRIPT-ENGINEERING scope **after P1-01 Foundation blocker is closed** |
-| W15-P1-06 Engineering/SPA truthful fallback UX | **BLOCKED_PRODUCT — preliminary Main finding** | exact `EngineeringApp.tsx` still renders `Demo Project` when `snapshot=null`, including loading/error states; no-model `WorkspaceBar` can present `unsaved/clean` fallbacks | **Blocks FC0-A if independent audit confirms**; bounded shared-shell correction required before parallel DEV release |
-| W15-P2-01 Trends | DEFERRED_BOUNDED_WITH_EVIDENCE, pending audit | Wave14 uncertain/bounded; requires stable runtime/freshness retest | Does not block FC0-A unless audit finds a P1 mechanism |
-| W15-P2-02 Popup live values | DEFERRED_BOUNDED_WITH_EVIDENCE, pending audit | Wave14 authoritative Good zero/binding evidence but missing browser freshness path | Downstream bounded runtime/UI follow-up unless audit escalates |
-| W15-P2-03..07 shared UX/accessibility/navigation/templates | READY_FOR_DOWNSTREAM_DEV / DEFERRED by owner, pending audit | Wave15 backlog explicitly UI/usability scoped | Must have named downstream ownership; not Foundation by default |
+| W15-P1-06 Engineering/SPA truthful fallback UX | **BLOCKED_PRODUCT — CONFIRMED BY MAIN AUDIT** | exact `EngineeringApp.tsx` still renders `Demo Project` when `snapshot=null`, including loading/error states; no-model `WorkspaceBar` can present `unsaved/clean` fallbacks | **Blocks FC0-A if independent audit confirms**; bounded shared-shell correction required before parallel DEV release |
+| W15-P2-01 Trends | DEFERRED_BOUNDED_WITH_EVIDENCE, bounded downstream disposition | Wave14 uncertain/bounded; requires stable runtime/freshness retest | Does not block FC0-A unless audit finds a P1 mechanism |
+| W15-P2-02 Popup live values | DEFERRED_BOUNDED_WITH_EVIDENCE, bounded downstream disposition | Wave14 authoritative Good zero/binding evidence but missing browser freshness path | Downstream bounded runtime/UI follow-up unless audit escalates |
+| W15-P2-03..07 shared UX/accessibility/navigation/templates | READY_FOR_DOWNSTREAM_DEV / DEFERRED by owner, bounded downstream disposition | Wave15 backlog explicitly UI/usability scoped | Must have named downstream ownership; not Foundation by default |
 | W15-U-01 forwarding latency | DEFERRED_BOUNDED_WITH_EVIDENCE | no product patch without correlated product-owned divergence | Non-blocking unless reproduced/correlated |
 | W15-U-02 Alarm timestamp semantics | DEFERRED_BOUNDED_WITH_EVIDENCE | reopen only with same-occurrence authority/timestamp correlation | Non-blocking unless reproduced/correlated |
 | RECHECK-SIM-PUMP-LEVEL | NOT A CONFIRMED DEFECT | Wave14 chronology says do not reopen absent correlated reproduction before restart | Must not be used to invent a Server Script fix |
@@ -85,3 +85,22 @@ FND-06 was declared VERIFIED/FROZEN by Main after exact broad validation:
 Main verified pre-activation integration divergence above that product SHA was coordination-doc-only.
 
 This matrix remains Main evidence, not an audit verdict. Independent AUD must confirm/reject every row.
+
+
+## Final Main audit disposition
+
+Audit owner: Main Coordinator.
+
+Result:
+`FC0-A FOUNDATION AUDIT -> MAIN COORDINATOR — CHANGES_REQUIRED`
+
+Confirmed blockers:
+- W15-P1-01 Server Script recovery;
+- W15-P1-06 truthful Engineering fallback.
+
+FND-05: additive/compatible.
+FND-07: compositional/compatible.
+No current FND-05/FND-07 contract break is required.
+
+Authoritative report:
+`docs/WAVE15-FC0A-POST-FND06-AUDIT-RESULT.md`.

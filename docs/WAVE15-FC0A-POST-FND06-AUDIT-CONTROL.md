@@ -7,19 +7,49 @@
 
 `AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
-`AUDIT_REV: 0010`
+`AUDIT_REV: 0011`
 
-`STATE: ACTIVE / INDEPENDENT_READ_ONLY_REVIEW`
+`STATE: COMPLETED / CHANGES_REQUIRED`
 
 `MODE: READ_ONLY_CROSS_WAVE_FOUNDATION_AUDIT`
 
-`AUDIT_EXECUTION: MAIN_EVIDENCE_MATRIX + INDEPENDENT_AUD_REVIEW`
+`AUDIT_EXECUTION: MAIN_COORDINATOR_OWNS_AND_EXECUTES_AUDIT`
 
 `IMPLEMENTING_CODEX_SELF_AUDIT: FORBIDDEN`
 
-`PREFERRED_AUD_LANE: reuse independent FND-04 AUD chat/lane if available, re-routed by Main to this control`
+`SEPARATE_AUD_LANE: OPTIONAL_ADVISORY_ONLY / NOT_A_RELEASE_PREREQUISITE`
 
 `RELEASE_EFFECT: BLOCKING`
+
+## 0. Audit ownership correction
+
+Product Owner clarified that the Main Coordinator is the responsible auditor for this gate.
+
+Binding consequence:
+- Main Coordinator owns the Wave14->Wave15 closure audit and makes the audit finding directly from GitHub live evidence;
+- the former FND-04 AUD lane is optional advisory support only;
+- a separate AUD handoff is **not** required to complete or fail this gate;
+- CODEX that implemented product changes still may not self-approve its own candidate.
+
+Final Main audit outcome:
+
+`FC0-A FOUNDATION AUDIT -> MAIN COORDINATOR — CHANGES_REQUIRED`
+
+Exact audited product checkpoint:
+- SHA `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`;
+- tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`;
+- broad `35953557122` / EliteSCADA CI #1565 — SUCCESS.
+
+Confirmed release blockers:
+1. `W15-P1-01` — Server Script failure throttle can latch permanently; no bounded automatic cooldown/half-open/probe recovery exists.
+2. `W15-P1-06` — Engineering shell can synthesize `Demo Project` and no-model `unsaved/clean` state while the public model is loading/unavailable.
+
+Contract audit:
+- FND-05 = additive / compatible, subject to existing hard guards;
+- FND-07 = compositional / compatible;
+- no current FND-05/FND-07 decision requires breaking a frozen contract consumed by FC0-A DEVs.
+
+Therefore FC0-A release is denied until the two confirmed blockers are corrected, exact CI/post-merge evidence is green, and the affected audit rows are re-run by Main.
 
 ## 1. Activation rule
 

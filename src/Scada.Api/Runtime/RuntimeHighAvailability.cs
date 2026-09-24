@@ -858,6 +858,7 @@ public sealed class RuntimeSessionLeaseContinuityRegistry
 public sealed class RuntimeHighAvailabilityService
 {
     private readonly RuntimeHaAuthorityCoordinator _authority;
+    private readonly Func<DateTimeOffset> _utcNow;
 
     public RuntimeHighAvailabilityService(IConfiguration configuration)
         : this(RuntimeHaTopologyDefinition.FromConfiguration(configuration))
@@ -869,8 +870,9 @@ public sealed class RuntimeHighAvailabilityService
         Func<DateTimeOffset>? utcNow = null,
         Guid? authorityInstanceId = null)
     {
-        _authority = new RuntimeHaAuthorityCoordinator(topology, utcNow, authorityInstanceId);
-        SessionContinuity = new RuntimeSessionLeaseContinuityRegistry(utcNow);
+        _utcNow = utcNow ?? (() => DateTimeOffset.UtcNow);
+        _authority = new RuntimeHaAuthorityCoordinator(topology, _utcNow, authorityInstanceId);
+        SessionContinuity = new RuntimeSessionLeaseContinuityRegistry(_utcNow);
     }
 
     public bool Enabled => _authority.Definition.Enabled;
@@ -903,7 +905,7 @@ public sealed class RuntimeHighAvailabilityService
                 SynchronizationComplete: previous?.SynchronizationComplete ?? isEffectiveActive,
                 HaLicenseEntitled: haEntitled,
                 Runtime: RuntimeHaRuntimeIdentity.From(runtime),
-                ObservedAtUtc: DateTimeOffset.UtcNow,
+                ObservedAtUtc: _utcNow(),
                 Diagnostic: haEntitled ? null : "local-license-not-ha-entitled"));
     }
 
@@ -920,7 +922,7 @@ public sealed class RuntimeHighAvailabilityService
             previous with
             {
                 SynchronizationComplete = synchronizationComplete,
-                ObservedAtUtc = DateTimeOffset.UtcNow
+                ObservedAtUtc = _utcNow()
             });
     }
 }

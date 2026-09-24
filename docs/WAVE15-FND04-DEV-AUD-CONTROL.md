@@ -38,7 +38,7 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0030`
+`MAIN_ORDER_REV: 0031`
 
 `LAST_MAIN_UPDATE_BRT: 2026-09-24 — CODEX CONTINUES CURRENT V2 FLOW / FINAL CHECKLIST RECONCILIATION REQUIRED`
 
@@ -591,7 +591,7 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 ### CURRENT CODEX EXECUTION ORDER
 
-`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FC0A-CONSOLIDATED-V3-18`
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FC0A-CONSOLIDATED-V4-19`
 
 `ORDER_STATE: ACTIVE_ROUTE`
 
@@ -607,7 +607,7 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 `NEXT_CONTROL_FILE: docs/WAVE15-FC0A-CONSOLIDATED-CORRECTION-PACKAGE.md`
 
-`EXPECTED_ORDER: FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V4`
+`EXPECTED_ORDER: FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V5`
 
 `WORK_BRANCH: work/w15-fc0a-consolidated-corrections`
 
@@ -615,18 +615,18 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 Instruction:
 
-> Main reviewed the final V2 handoff on PR #340 at `150b8081...`. T1 is green, most V2 work is accepted, but two narrow closeout groups remain. Continue on the same CODEX context/branch/PR and read section 12 of the consolidated control. Preserve all accepted V2 work.
+> Main reviewed V3 on PR #340 at `1efc1699...`. The V3 product delta is accepted. Only a final evidence/test-only closeout remains. Continue on the same CODEX context/branch/PR and read section 13 of the consolidated control. Preserve all accepted product code.
 >
 > On every `SIGA`:
 > 1. revalidate GitHub live;
 > 2. read `coord/w15-fnd06-control:docs/WAVE15-FC0A-CONSOLIDATED-CORRECTION-PACKAGE.md` in full;
 > 3. confirm current active order is `FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V3`;
 > 4. work only on `work/w15-fc0a-consolidated-corrections`;
-> 5. preserve accepted V2 work and complete only section 12 V3-R1/V3-R2;
-> 6. do not absorb the full future DEV-LICENSING-UX or DEV-EDITOR missions;
+> 5. preserve accepted V3 product code and complete only section 13 evidence/test closeout;
+> 6. no new feature scope; production changes only if a newly required closeout test exposes a real in-package defect;
 > 7. keep PR #340 open and update it on the same branch;
-> 8. rerun natural T1 on the final V3 head;
-> 9. return `FC0-A CONSOLIDATED CODEX -> MAIN COORDINATOR — CANDIDATE HANDOFF V3`.
+> 8. run focused owner specs, then rerun natural T1 on the final head;
+> 9. return `FC0-A CONSOLIDATED CODEX -> MAIN COORDINATOR — FINAL CANDIDATE HANDOFF V4`.
 >
 > The former P1-01 branch/order is superseded and must not be used. No merge/freeze authority. Stop only for a real contract/base/environment blocker as defined in the consolidated control.
 

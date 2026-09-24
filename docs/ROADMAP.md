@@ -30,8 +30,8 @@ This section supersedes older execution-status prose below when describing the *
 - second deep pass — **NO NEW PRE-FC0A BLOCKER IDENTIFIED**.
 - third targeted gap pass — **NO NEW PRE-FC0A BLOCKER IDENTIFIED**.
 - confirmed pre-FC0A blockers originated as **W15-P1-01** and **W15-P1-06**, but Main intentionally consolidated the known FC0-A correction backlog into PR #340.
-- active correction path: `FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V3` on `work/w15-fc0a-consolidated-corrections`; PR #340 is OPEN / V2 IN PROGRESS at exact head `6f19029b52641d5644fe0cf7365c119f7f87fa9a`.
-- natural Wave 15 T1 on that checkpoint, run `36005490966`, is SUCCESS; remaining V2 reconciliation/validation is still in progress.
+- active correction path: `FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V4` on `work/w15-fc0a-consolidated-corrections`; PR #340 remains OPEN after Main reviewed final V2 head `150b808140a5fdf80afd0c88d46ea80f83f630b2` / tree `c2bfbbfe705be64e5c1aac314f96bf8851a913b0`.
+- natural Wave 15 T1 `36033152318` on that exact V2 head is SUCCESS; Main disposition is `CHANGES_REQUIRED / NARROW V3`, limited to the user-facing Runtime Session Class surface and missing R6 mounted evidence.
 - DEV-EDITOR, DEV-SCRIPT-ENGINEERING, DEV-AUTHORITY-UX, DEV-LICENSING-UX, FND-05 and FND-07 remain **PREPARED / HOLD** until Main records `FC0A_RELEASE_APPROVED` on the exact integrated checkpoint.
 
 Authoritative third-pass report:

@@ -397,3 +397,28 @@ Active closeout:
 - CODEX route rev 0034 / `ROUTE-SEQUENTIAL-CODEX-TO-FC0A-HELP-E2E-22`.
 
 FC0-A remains NOT RELEASED. Do not activate the six prepared downstream lanes until Main obtains a globally green exact post-merge broad CI and records `FC0A_RELEASE_APPROVED`.
+
+
+## FC0-A broad #1568 — stale Canvas source-contract blocker (2026-09-24)
+
+Current exact release candidate:
+`1ab3550e1afb258e38caaa6de3f6547f481bbef7`
+(tree `701f4591a294885b414284691b1051cf274c9707`).
+
+EliteSCADA CI `36049229264 / #1568`:
+- Web SUCCESS;
+- Backend build/test SUCCESS and Runtime smoke SUCCESS after the single repository-authorized same-SHA retry of the known IEC-104 T2 timing transient;
+- Chromium full suite: 654 passed / 1 failed.
+
+The only Chromium failure is `visual-editor-canvas-source-contract.spec.ts`, whose unchanged historical source assertion still requires `getBuiltinVisualObjectSchema`. The accepted FC0-A product intentionally consumes FND-06's `getVisualSchemaForEngineering` compatibility seam instead. Functional Canvas tests pass.
+
+Classification:
+`STALE_SOURCE_CONTRACT_TEST / PRODUCT_BEHAVIOR_NOT_DEFECTIVE`.
+
+Active closeout:
+- `FC0A-POSTMERGE-CANVAS-SOURCE-CONTRACT-V1`;
+- control `coord/w15-fnd06-control:docs/WAVE15-FC0A-POSTMERGE-CANVAS-SOURCE-CONTRACT-CONTROL.md`;
+- branch `work/w15-fc0a-postmerge-canvas-source-contract`;
+- CODEX route rev 0035 / `ROUTE-SEQUENTIAL-CODEX-TO-FC0A-CANVAS-CONTRACT-23`.
+
+FC0-A remains NOT RELEASED and the six post-FC0A lanes remain WAIT until a later exact broad gate is globally green.

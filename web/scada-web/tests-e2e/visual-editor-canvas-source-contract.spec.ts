@@ -26,11 +26,12 @@ test('Canvas emits shared UI and mutation intents without persistence or API aut
   expect(canvas).not.toContain('sessionStorage');
 });
 
-test('Canvas geometry projection consumes the public Visual Property Registry instead of duplicating defaults', async () => {
+test('Canvas geometry projection uses the Engineering compatibility seam and public Visual Property Registry', async () => {
   const model = await source('../src/engineering/visual-editor/canvas/canvasInteractionModel.ts');
 
   expect(model).toContain('COMMON_VISUAL_PROPERTY_REGISTRY');
-  expect(model).toContain('getBuiltinVisualObjectSchema');
+  expect(model).toContain('getVisualSchemaForEngineering');
+  expect(model).not.toContain('getBuiltinVisualObjectSchema');
   expect(model).toContain('VISUAL_PROPERTY_KEYS');
   expect(model).not.toMatch(/const\s+(?:X|Y|WIDTH|HEIGHT|ROTATION|Z_INDEX)_DEFAULT/i);
   expect(model).not.toContain('element.properties =');

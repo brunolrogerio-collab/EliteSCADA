@@ -38,7 +38,7 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0021`
+`MAIN_ORDER_REV: 0022`
 
 `LAST_MAIN_UPDATE_BRT: 2026-09-23 — FND-04 FROZEN / SEQUENTIAL CODEX REASSIGNED TO FND-06`
 
@@ -605,7 +605,7 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 `NEXT_CONTROL_FILE: docs/WAVE15-FND06-CONTROL.md`
 
-`EXPECTED_ORDER: FND06-CODEX-E2E-FIXTURE-ISOLATION-V6`
+`EXPECTED_ORDER: FND06-CODEX-WAIT-FINAL-BROAD-V7`
 
 Instruction:
 
@@ -616,7 +616,7 @@ Instruction:
 > On every `SIGA`:
 > 1. revalidate GitHub live;
 > 2. read `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`;
-> 3. execute current order `FND06-CODEX-E2E-FIXTURE-ISOLATION-V6`;
+> 3. execute current order `FND06-CODEX-WAIT-FINAL-BROAD-V7`;
 > 4. return with the FND-06 E2E fixture isolation handoff prefix.
 >
 > Do not report WAIT from FND-04 or INFRA-CI-01B while this routing order is current.

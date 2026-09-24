@@ -4,21 +4,29 @@
 
 `CONTROL_BRANCH: coord/w15-fnd05-control`
 
-`MAIN_ORDER_REV: 0004`
+`MAIN_ORDER_REV: 0005`
 
-`STATE: PREPARED / NOT ACTIVE / HOLD_ON_FC0A_CONSOLIDATED_FINAL_ACCEPTANCE`
+`STATE: ACTIVE_CODING / DEV_IMPLEMENTATION_AUTHORIZED`
 
-`PREPARED_ORDER_ID: FND05-DEV-HA-AUTHORITY-V1`
+`CURRENT_ORDER_ID: FND05-DEV-HA-AUTHORITY-V1`
 
-`LATEST_AUDITED_PRODUCT_CHECKPOINT: 560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
+`LATEST_AUDITED_PRODUCT_CHECKPOINT: e3ed5138369c576549cb58a7aff9783792f322d3`
 
-`ACTIVATION_BASE_RULE: revalidate latest wave15/corrections-integration product checkpoint before activation`
+`EXACT_BASE_SHA: e3ed5138369c576549cb58a7aff9783792f322d3`
+
+`EXACT_BASE_TREE: 4e7627774fbfc111344e3d80fcb9d921eed8377e`
+
+`WORK_BRANCH: work/w15-fnd-05-ha-authority`
+
+`TARGET_BRANCH: wave15/corrections-integration`
+
+`ACTIVATION_GATE: EliteSCADA CI #1569 / 36060017969 / SUCCESS / Chromium 655 passed`
 
 ## 0A. Current hold reason
 
-FND-06 is VERIFIED/FROZEN and the post-FND06 audit is complete with `CHANGES_REQUIRED`.
+FND-06 is VERIFIED/FROZEN and the final post-FND06 audit rev 0014 is `ACCEPTABLE / FC0A_RELEASE_APPROVED`.
 
-FND-05 remains **PREPARED / NOT ACTIVE** while the consolidated FC0-A correction candidate is still under Main/CODEX completion and final acceptance.
+FND-05 is **ACTIVE_CODING** on the exact FC0-A release checkpoint above. The normal ChatGPT DEV may now implement only the bounded first slice on its isolated work branch.
 
 The second and third Main audit passes identified no breaking FND-05 contract risk. FND-05 remains classified additive/compatible and may activate only after Main records `FC0A_RELEASE_APPROVED` on the exact integrated checkpoint.
 
@@ -31,6 +39,16 @@ Executor policy changed by Product Owner/Main:
 
 Cross-lane coordination:
 `coord/w15-parallel-dev-control:docs/WAVE15-PARALLEL-DEV-CONTROL.md`.
+
+## 0B. Activation order — live
+
+On `SIGA`, FND-05 DEV must:
+1. re-read this control live;
+2. revalidate `work/w15-fnd-05-ha-authority` still descends from the exact base above;
+3. execute only `FND05-DEV-HA-AUTHORITY-V1`;
+4. keep FND-03/FND-04/FND-06 semantics additive and unchanged;
+5. stop as `BLOCKED-CONTRACT` if the implementation would reinterpret a frozen contract;
+6. do not merge or declare VERIFIED/FROZEN.
 
 ## 1. Purpose
 
@@ -146,7 +164,7 @@ Material product/design defects return to FND-05 DEV. Small validation-driven co
 
 `ORDER_ID: FND05-DEV-HA-AUTHORITY-V1`
 
-`ORDER_STATE: WAIT / NOT AUTHORIZED`
+`ORDER_STATE: ACTIVE_CODING / AUTHORIZED`
 
 `EXECUTOR_MODE: NORMAL_CHAT_DEV / BOUNDED_FOUNDATION_IMPLEMENTATION`
 

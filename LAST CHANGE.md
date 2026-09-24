@@ -24,7 +24,7 @@ FND-04 is **VERIFIED/FROZEN**. Its downstream Script TAG reference contract may 
 
 FND-06 is the only active FC0-A blocker.
 
-- order: `FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`
+- order: `FND06-CODEX-WAIT-POSTMERGE-V4`
 - exact product base: `6c810647c9773a19b212d9c33694780141786ac7`
 - work branch: `work/w15-fnd-06-visual-stability-foundation`
 - dedicated control: `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
@@ -81,7 +81,7 @@ Neither later Foundation is authorized to mutate product while FND-06 owns the s
   - work branch: `work/w15-fnd-06-visual-stability-foundation`
   - control branch/file: `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
   - active control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`
-  - order: `FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`
+  - order: `FND06-CODEX-WAIT-POSTMERGE-V4`
 - FC0-A: **BLOCKED only on FND-06**
 - downstream release package is prepared but not released at `docs/WAVE15-FC0-A-RELEASE-PREP.md` on the FND-06 control branch.
 
@@ -91,7 +91,7 @@ Neither later Foundation is authorized to mutate product while FND-06 owns the s
 
 Before first product mutation, Main corrected the prepared FND-06 validation profile to the actual Wave 15 router vocabulary: `UI_EDITOR, RUNTIME_RENDERER`. The exact product seed also proves bare `status` is a persisted legacy identifier alongside `tank`, `value` and `dynamo`; it is not a current canonical `core.*` built-in and no guessed alias is authorized.
 
-Active FND-06 order: `FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`.
+Active FND-06 order: `FND06-CODEX-WAIT-POSTMERGE-V4`.
 Control commit: `35e1ae631b8471a66eb0c4042295d5b5628d61ec`.
 
 
@@ -110,7 +110,7 @@ Main corrected this at the source:
 - FND-04 control rev 0016: `ROUTE-SEQUENTIAL-CODEX-TO-FND06-12`
 - commit: `cf19a9b0ce7efbf25d3d85acc2076a8c48148a9d`
 - same sequential CODEX chat/lane is explicitly the FND-06 executor
-- FND-06 control rev 0004: `FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`
+- FND-06 control rev 0004: `FND06-CODEX-WAIT-POSTMERGE-V4`
 - commit: `1a1488388fd67bf89380879b07437e1460170f18`
 
 FC0-A sequencing was also tightened:
@@ -138,9 +138,9 @@ Current PR #337 candidate:
 Remaining gate before merge:
 - original Wave 14 A7 was a mounted Screen/Popup selection crash that blanked/poisoned Engineering;
 - candidate currently proves model/helper compatibility but lacks the required mounted Screen + Popup persisted-legacy selection regression;
-- active order: `FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`;
+- active order: `FND06-CODEX-WAIT-POSTMERGE-V4`;
 - control revision `0005`;
-- control commit `48778387c2fde6ffb645ced17669bd0606d30142`;
+- control commit `8d1f415bc16b556e8133e6a1da1ab89881e7f189`;
 - preferred delta: tests only; minimal production fix only if the mounted scenario exposes a remaining defect.
 
 The same sequential CODEX lane remains the executor. No merge/freeze yet.
@@ -176,3 +176,26 @@ FC0-A release prep snapshot commit:
 `c0e4bd69c89c47efc7dc936a6ac9e61cbbbd8f96`.
 
 This is pre-freeze risk assessment only; final release still requires exact FND-06 freeze + independent post-FND06 audit PASS.
+
+
+## FND-06 merged checkpoint pending freeze
+
+PR #337 is merged.
+
+- candidate: `2257f8f99b5e6deac80d64ed2cc0c43aa8dab1cc`
+- candidate tree: `2ebb839a788bb4fad249877689c25ac1b18f6d74`
+- merge SHA: `624f2eca456310a2c6156538b3616a06e3be075f`
+- merge tree: `fb864fb954b0123e69db379cd6b3120349b43600`
+- candidate T1 `35939646387`: SUCCESS
+- post-merge broad CI `35940661531` / #1563: PENDING/IN PROGRESS at this record
+- FND-06 state: **INTEGRATED / POST-MERGE CI PENDING / NOT YET VERIFIED-FROZEN**
+- CODEX: `FND06-CODEX-WAIT-POSTMERGE-V4 / NO_MUTATION`
+- FND-06 control rev `0006`, commit `8d1f415bc16b556e8133e6a1da1ab89881e7f189`
+
+Post-FND06 audit remains blocking and is preloaded with this exact checkpoint:
+- `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
+- audit rev `0003`
+- audit-control commit `a9ed4003acf8c71db035bc854a75f87cf97273fb`
+- state `PREPARED / WAIT_FND06_POST_MERGE_CI_GREEN`
+
+No FC0-A DEV, FND-05 or FND-07 release until FND-06 freezes and the independent audit returns `ACCEPTABLE / FC0A_RELEASE_APPROVED`.

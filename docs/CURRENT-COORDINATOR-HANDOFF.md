@@ -394,3 +394,34 @@ Mandatory independent post-FND06 audit is now **ACTIVE**:
 Main preliminary P1-01 and P1-06 findings remain hypotheses until independent AUD disposition.
 
 No FC0-A DEV, FND-05 or FND-07 release yet.
+
+
+## Main-owned FC0-A audit result / active P1-01 correction
+
+Audit owner is Main Coordinator.
+
+Final result:
+`FC0-A FOUNDATION AUDIT -> MAIN COORDINATOR — CHANGES_REQUIRED`
+
+Audit report:
+- `coord/w15-fnd06-control:docs/WAVE15-FC0A-POST-FND06-AUDIT-RESULT.md`
+- commit `463d357f8a9c11f774f5da59480e4a17a19569f5`.
+
+Confirmed blockers:
+1. W15-P1-01 Server Script bounded recovery missing;
+2. W15-P1-06 truthful Engineering fallback missing.
+
+FND-05 and FND-07 are contract-compatible under their current hard guards; no breaking contract delta is required now.
+
+Active correction:
+- order `FC0A-BLOCKER-P101-SERVER-SCRIPT-RECOVERY-V1`;
+- branch `work/w15-fc0a-p101-server-script-recovery`;
+- exact base `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`;
+- profile `SCRIPT_RUNTIME`;
+- control commit `b8858d08a8516588db4be40d2da48ea266fe793e`;
+- CODEX routing rev 0026 / `a088c884d90bd0c2d86b844f74332306a80b7a7c`.
+
+Queued after P1-01:
+`FC0A-BLOCKER-P106-ENGINEERING-FALLBACK-V1`.
+
+DEV-EDITOR / DEV-SCRIPT-ENGINEERING / DEV-AUTHORITY-UX / DEV-LICENSING-UX / FND-05 / FND-07 remain HOLD.

@@ -242,8 +242,24 @@ public sealed class RuntimeHighAvailabilityPeerBoundaryTests
             ExpiresAtUtc = now.AddMinutes(5)
         });
         Assert.False(resurrect.Accepted);
-        Assert.Equal("session-terminated-or-expired-generation", resurrect.ReasonCode);
+        Assert.Equal("session-terminated-or-expired-session", resurrect.ReasonCode);
         Assert.Equal(0, pair.NodeB.SessionContinuity.ActiveLogicalLeaseCount("cluster-a"));
+
+        pair.Clock.Advance(TimeSpan.FromSeconds(1));
+        var newAdmission = exported with
+        {
+            SessionId = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            IssuedAtUtc = pair.Clock.UtcNow,
+            LastHeartbeatUtc = pair.Clock.UtcNow,
+            ExpiresAtUtc = pair.Clock.UtcNow.AddMinutes(2),
+            Generation = 1
+        };
+        var newAdmissionApplied =
+            pair.NodeB.ApplyPeerSessionContinuity(newAdmission);
+        Assert.True(newAdmissionApplied.Accepted);
+        Assert.Equal(
+            1,
+            pair.NodeB.SessionContinuity.ActiveLogicalLeaseCount("cluster-a"));
     }
 
     [Fact]

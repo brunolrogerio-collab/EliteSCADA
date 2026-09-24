@@ -38,7 +38,7 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0024`
+`MAIN_ORDER_REV: 0025`
 
 `LAST_MAIN_UPDATE_BRT: 2026-09-23 — FND-04 FROZEN / SEQUENTIAL CODEX REASSIGNED TO FND-06`
 
@@ -686,50 +686,21 @@ AUD never merges its own work and never writes directly to DEV branch, integrati
 
 ### CURRENT AUD ORDER
 
-`ORDER_ID: FC0A-AUD-ACTIVE-POST-FND06-0013`
+`ORDER_ID: FC0A-AUD-ADVISORY-WAIT-0014`
 
-`ORDER_STATE: ACTIVE`
+`ORDER_STATE: WAIT / OPTIONAL_ADVISORY_ONLY`
 
-`AUD_MODE: READ_ONLY_CROSS_WAVE_FOUNDATION_AUDIT`
-
-`AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
-
-`AUDIT_CONTROL_BRANCH: coord/w15-fnd06-control`
-
-`AUDIT_CONTROL_FILE: docs/WAVE15-FC0A-POST-FND06-AUDIT-CONTROL.md`
-
-`EVIDENCE_MATRIX_FILE: docs/WAVE15-FC0A-POST-FND06-AUDIT-EVIDENCE.md`
-
-`EXACT_PRODUCT_SHA: 560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
-
-`EXACT_PRODUCT_TREE: 674019fbbc21001a2d68deb853c2c0b293e0a5cb`
-
-`FINAL_BROAD_RUN: 35953557122 / EliteSCADA CI #1565 / SUCCESS`
+`AUD_MODE: READ_ONLY / NO_RELEASE_AUTHORITY`
 
 Instruction:
 
-> Begin the mandatory independent post-FND06 Wave14 -> Wave15 Foundation closure audit now.
+> Main Coordinator is the responsible auditor for `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`.
 >
-> Re-read the audit control and evidence matrix in full from `coord/w15-fnd06-control`. Revalidate GitHub live before conclusions.
+> The separate AUD lane is no longer a prerequisite for FC0-A disposition.
 >
-> Review exact product semantics at `560ac9d80cc7e854f2513559dc6afb28cfb4aee3`, tree `674019fbbc21001a2d68deb853c2c0b293e0a5cb`.
+> Main completed the audit on exact product SHA `560ac9d80cc7e854f2513559dc6afb28cfb4aee3` with result `CHANGES_REQUIRED`.
 >
-> Final broad `35953557122` is SUCCESS on that exact SHA. Main verified that divergence above this product checkpoint at activation was coordination-doc-only; independently stop if you discover an unacknowledged product/infra delta.
->
-> You must independently confirm or reject Main's preliminary findings:
-> - W15-P1-01 Server Script recovery / permanent-throttle-latch hypothesis;
-> - W15-P1-06 truthful Engineering/SPA fallback / synthetic Demo Project hypothesis.
->
-> Do not restrict review to those findings. Complete every mandatory Wave14 -> Wave15 row, frozen-contract invariant, FND-05 compatibility, FND-07 compatibility and six-row FC0-A release matrix.
->
-> READ_ONLY only. Do not mutate product, tests or docs. Do not use CODEX implementation evidence as sole acceptance authority.
->
-> Return one exact audit outcome prefix defined by the audit control:
-> - `FC0-A FOUNDATION AUDIT -> MAIN COORDINATOR — ACCEPTABLE / FC0A_RELEASE_APPROVED`
-> - `FC0-A FOUNDATION AUDIT -> MAIN COORDINATOR — CHANGES_REQUIRED`
-> - `FC0-A FOUNDATION AUDIT -> MAIN COORDINATOR — BLOCKED-CONTRACT`
->
-> Include exact checkpoint, evidence reviewed, per-item matrix, negative/adversarial evidence, residual ownership, FND-05/FND-07 compatibility and all six release rows.
+> On `SIGA`, revalidate live state and report `FC0-A AUD — OPTIONAL ADVISORY WAIT`; do not duplicate the audit unless Main explicitly assigns a bounded advisory question.
 
 ### AUD mandatory return format
 

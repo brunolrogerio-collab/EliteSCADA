@@ -117,9 +117,12 @@ export async function admitRuntimeSession(
 
   if (!response.ok) {
     const body = await response.text();
+    const failure = parseAdmissionFailure(body);
     throw new RuntimeSessionAdmissionError(
-      body || `${response.status} ${response.statusText}`.trim(),
-      response.status
+      failure.message || `${response.status} ${response.statusText}`.trim(),
+      response.status,
+      undefined,
+      failure.capacityReasonCode
     );
   }
 

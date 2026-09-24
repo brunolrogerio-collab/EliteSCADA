@@ -226,7 +226,7 @@ public sealed record RuntimeHaTransitionResult(
 /// performs no automatic promotion. A future replication/fencing transport can publish the
 /// same state contract without moving authority into Drivers or clients.
 /// </summary>
-public sealed class RuntimeHaAuthorityCoordinator
+public sealed partial class RuntimeHaAuthorityCoordinator
 {
     private readonly object _gate = new();
     private readonly RuntimeHaTopologyDefinition _topology;
@@ -733,7 +733,7 @@ public sealed record RuntimeSessionContinuityResumeResult(
 /// without becoming a second licensing/quota authority. The frozen FND-03 ledger remains the
 /// source of seat admission; future peer transport/store adoption can consume these envelopes.
 /// </summary>
-public sealed class RuntimeSessionLeaseContinuityRegistry
+public sealed partial class RuntimeSessionLeaseContinuityRegistry
 {
     public const string Schema = "elitescada.runtime-session-continuity";
     public const int SchemaVersion = 1;
@@ -780,6 +780,7 @@ public sealed class RuntimeSessionLeaseContinuityRegistry
         {
             ExpireLocked(now);
             var key = LogicalKey(candidate.ClusterId, candidate.UserId, candidate.ClientInstanceId);
+            ClearPeerTombstoneForLocalAdmissionLocked(key);
             if (_leases.TryGetValue(key, out var current) &&
                 current.ExpiresAtUtc > now &&
                 current.SessionId != candidate.SessionId)
@@ -835,6 +836,7 @@ public sealed class RuntimeSessionLeaseContinuityRegistry
             var key = LogicalKey(clusterId, userId, clientInstanceId);
             if (!_leases.TryGetValue(key, out var current) || current.SessionId != sessionId)
                 return false;
+            RecordPeerTombstoneLocked(key, current, "terminated");
             _leases.Remove(key);
             return true;
         }
@@ -865,12 +867,12 @@ public sealed class RuntimeSessionLeaseContinuityRegistry
 
     private void ExpireLocked(DateTimeOffset now)
     {
-        foreach (var key in _leases
+        foreach (var pair in _leases
                      .Where(pair => pair.Value.ExpiresAtUtc <= now)
-                     .Select(pair => pair.Key)
                      .ToArray())
         {
-            _leases.Remove(key);
+            RecordPeerTombstoneLocked(pair.Key, pair.Value, "expired");
+            _leases.Remove(pair.Key);
         }
     }
 
@@ -881,7 +883,7 @@ public sealed class RuntimeSessionLeaseContinuityRegistry
             clientInstanceId.Trim());
 }
 
-public sealed class RuntimeHighAvailabilityService
+public sealed partial class RuntimeHighAvailabilityService
 {
     private readonly RuntimeHaAuthorityCoordinator _authority;
     private readonly Func<DateTimeOffset> _utcNow;

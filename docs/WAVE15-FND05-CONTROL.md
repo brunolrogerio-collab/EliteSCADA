@@ -159,7 +159,7 @@ No client-side election, Driver-owned HA, topology in `.escadapkg`, socket-count
 
 ## 7. Activation dependency
 
-Do not activate before the mandatory post-FND06 FC0-A Foundation Closure Audit passes. Do not activate while another sequential high-risk Foundation CODEX order is active unless Main explicitly assigns a separate isolated executor.
+The mandatory post-FND06 FC0-A Foundation Closure Audit completed with `CHANGES_REQUIRED`. Do not activate until W15-P1-01 and W15-P1-06 close and Main reruns the affected audit rows to `ACCEPTABLE / FC0A_RELEASE_APPROVED`. Do not activate while another sequential high-risk Foundation CODEX order is active unless Main explicitly assigns a separate isolated executor.
 
 Current intended sequencing:
 - FND-06 active now;

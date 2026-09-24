@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { EngineeringLocale } from './i18n';
 import {
+  assignedUsersForRole,
   capabilityDescriptor,
+  isRoleKeyEditable,
   nextRoleKey,
   userGrantPreview
 } from './AuthorityPolicyAdministration.logic';
@@ -31,6 +33,8 @@ type PolicyStrings = {
   deleteRole: string;
   assignedUsers: string;
   roleKey: string;
+  roleKeyStableNote: string;
+  roleKeyDraftNote: string;
   roleName: string;
   description: string;
   grants: string;
@@ -87,6 +91,8 @@ const policyStrings: Record<EngineeringLocale, PolicyStrings> = {
     deleteRole: 'Excluir',
     assignedUsers: 'Usuários atribuídos',
     roleKey: 'Chave estável',
+    roleKeyStableNote: 'Esta chave já existe na Authority e identifica atribuições persistidas. Para renomeá-la seria necessária uma migração contratual separada.',
+    roleKeyDraftNote: 'Este papel ainda não foi aplicado. A chave pode ser ajustada até o primeiro Apply.',
     roleName: 'Nome',
     description: 'Descrição',
     grants: 'Grants explícitos',
@@ -148,6 +154,8 @@ const policyStrings: Record<EngineeringLocale, PolicyStrings> = {
     deleteRole: 'Delete',
     assignedUsers: 'Assigned users',
     roleKey: 'Stable key',
+    roleKeyStableNote: 'This key already exists in Authority and identifies persisted assignments. Renaming it would require a separate contract-level migration.',
+    roleKeyDraftNote: 'This role has not been applied yet. Its key may be adjusted until the first Apply.',
     roleName: 'Name',
     description: 'Description',
     grants: 'Explicit grants',
@@ -209,6 +217,8 @@ const policyStrings: Record<EngineeringLocale, PolicyStrings> = {
     deleteRole: 'Eliminar',
     assignedUsers: 'Usuarios asignados',
     roleKey: 'Clave estable',
+    roleKeyStableNote: 'Esta clave ya existe en Authority e identifica asignaciones persistidas. Renombrarla requeriría una migración contractual separada.',
+    roleKeyDraftNote: 'Este rol aún no fue aplicado. La clave puede ajustarse hasta el primer Apply.',
     roleName: 'Nombre',
     description: 'Descripción',
     grants: 'Grants explícitos',
@@ -270,11 +280,6 @@ function stablePolicyShape(policy: AuthorityPolicyDocument) {
   });
 }
 
-function assignedUsersForRole(users: readonly LocalUser[], roleKey: string) {
-  const normalized = roleKey.toLowerCase();
-  return users.filter(user => user.roles.some(role => role.toLowerCase() === normalized));
-}
-
 export function AuthorityPolicyAdministration({
   locale,
   users,
@@ -333,8 +338,12 @@ export function AuthorityPolicyAdministration({
   [draft, selectedRoleId]);
 
   const selectedRoleUsers = useMemo(() =>
-    selectedRole ? assignedUsersForRole(users, selectedRole.key) : [],
-  [selectedRole, users]);
+    selectedRole ? assignedUsersForRole(users, baseline, selectedRole) : [],
+  [baseline, selectedRole, users]);
+
+  const selectedRoleKeyEditable = useMemo(() =>
+    selectedRole ? isRoleKeyEditable(baseline, selectedRole) : false,
+  [baseline, selectedRole]);
 
   const configuredPreview = useMemo(() =>
     draft ? userGrantPreview(selectedUser, draft.roles) : [],
@@ -502,7 +511,7 @@ export function AuthorityPolicyAdministration({
           </div>
           <div className="authority-role-items">
             {draft.roles.map(role => {
-              const assigned = assignedUsersForRole(users, role.key);
+              const assigned = assignedUsersForRole(users, baseline, role);
               return (
                 <button
                   type="button"
@@ -546,7 +555,18 @@ export function AuthorityPolicyAdministration({
               <div className="authority-role-fields">
                 <label>
                   {s.roleKey}
-                  <input value={selectedRole.key} onChange={event => updateSelectedRole({ key: event.target.value })} />
+                  <input
+                    data-testid="authority-role-key"
+                    value={selectedRole.key}
+                    readOnly={!selectedRoleKeyEditable}
+                    aria-readonly={!selectedRoleKeyEditable}
+                    onChange={event => {
+                      if (selectedRoleKeyEditable) updateSelectedRole({ key: event.target.value });
+                    }}
+                  />
+                  <small className="authority-role-key-note" data-testid="authority-role-key-note">
+                    {selectedRoleKeyEditable ? s.roleKeyDraftNote : s.roleKeyStableNote}
+                  </small>
                 </label>
                 <label>
                   {s.roleName}

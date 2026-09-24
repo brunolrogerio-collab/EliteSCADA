@@ -104,6 +104,7 @@ builder.Services.AddSingleton<ApiAuthorizationService>(sp =>
         sp.GetRequiredService<IAuthorityPolicyStore>(),
         sp.GetRequiredService<IConfiguration>(),
         sp.GetRequiredService<IRuntimeSessionLeaseStore>()));
+builder.Services.AddSingleton<RuntimeHighAvailabilityService>();
 builder.AddOptionalEngineeringPersistence();
 builder.AddConfiguredAudit();
 builder.Services.AddOpenApi();
@@ -164,6 +165,7 @@ app.MapCommandEndpoints();
 app.MapInternalMemoryEndpoints();
 app.MapProductLicensingEndpoints();
 app.MapRuntimeEngineeringPackageEndpoints();
+app.MapRuntimeHighAvailabilityEndpoints();
 if (historicalQueryEnabled) app.MapHistoricalQueryEndpoints();
 
 // Public health intentionally exposes no plant, driver, project or historian detail.

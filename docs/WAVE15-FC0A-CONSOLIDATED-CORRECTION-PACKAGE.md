@@ -520,16 +520,33 @@ After R1-R6:
 Main will not re-review intermediate commits. Continue until V2 is complete or a real frozen-contract/environment blocker prevents completion.
 
 
-## 11. CODEX resume checklist — complete R2 / R4 / R5 / R6 only
+## 11. CODEX mandatory reconciliation checklist — preserve current execution flow
 
-Checkpoint to resume from:
+Checkpoint recorded when this checklist was created:
 
 - PR: `#340`
 - branch: `work/w15-fc0a-consolidated-corrections`
-- exact current head: `6f19029b52641d5644fe0cf7365c119f7f87fa9a`
-- exact current tree: `5120d7484d8b62dc9cf36880cf96b11566e58622`
-- natural T1 on this checkpoint: `36005490966` — **SUCCESS**
-- PR body state: `CANDIDATE HANDOFF V2 (IN PROGRESS)`
+- checkpoint head: `6f19029b52641d5644fe0cf7365c119f7f87fa9a`
+- checkpoint tree: `5120d7484d8b62dc9cf36880cf96b11566e58622`
+- natural T1 on that checkpoint: `36005490966` — **SUCCESS**
+- PR body state then: `CANDIDATE HANDOFF V2 (IN PROGRESS)`
+
+### 11.A Binding interpretation — checklist is mandatory to REVIEW, not a forced execution sequence
+
+The CODEX executor was already making good progress before this checklist was written. This section must **not** cause a task switch, loss of in-chat/runtime context, forced reordering, or abandonment of work already in progress.
+
+Binding rules:
+
+1. continue the technical sequence and implementation plan the CODEX was already following when its session stopped, unless live GitHub evidence requires a change;
+2. treat the detailed items below as a **mandatory reconciliation checklist before final handoff**, not as an instruction to stop current work and execute them mechanically in numbered order;
+3. the headings `Step 1`, `Step 2`, etc. below are suggested review grouping only; CODEX may implement/test in a different order when that is technically safer or preserves work already underway;
+4. do not discard useful context, partial analysis, local test intent, or implementation decisions already present in the CODEX chat/runtime merely because they were not yet written to GitHub;
+5. before final handoff, reconcile any such useful context with GitHub live and persist the relevant durable evidence/code/tests/documentation; **GitHub remains the final authority if there is any conflict**;
+6. if CODEX discovers an additional gap while continuing its existing work, it may close that gap when it is inside the authorized FC0-A package and does not redefine a frozen contract;
+7. do not skip an already-started safe piece of work solely because it is not named in this checklist; finish it if it belongs to the authorized package and prevents a later gap;
+8. before declaring V2 complete, explicitly review every R2/R4/R5/R6 checklist item below and mark it `COVERED`, `NOT_APPLICABLE_WITH_EVIDENCE`, or `BLOCKED-CONTRACT`.
+
+The purpose of this checklist is to prevent omissions at the end, not to micromanage the executor.
 
 ### 11.0 Do-not-repeat / preserve list
 
@@ -542,7 +559,7 @@ Do **not** reimplement, rewrite or reopen without a new failing proof:
 - V1 accepted A1/A2, shell responsive direction, Engineering scroll direction, compact Lock direction, viewOnly wording, Help routing, FND-06 compatibility consumption, account Escape/focus, Template/Equipment binding inspection;
 - do not create a second visual renderer, second compatibility registry, second Authority path or new FND-03 quota/admission contract.
 
-### 11.1 Step 1 — finish R2 shared live-value diagnostics first
+### 11.1 R2 review group — shared live-value diagnostics
 
 Goal: finish the **shared** diagnostics contract before adding more mounted tests.
 
@@ -584,7 +601,7 @@ R2 DONE only when tests prove:
 Commit suggestion:
 `test/fix: close shared live value diagnostics contract`
 
-### 11.2 Step 2 — finish R4 Runtime Session / Licensing UX without backend redesign
+### 11.2 R4 review group — Runtime Session / Licensing UX without backend redesign
 
 Preserve the already-completed fallback lease termination.
 
@@ -638,7 +655,7 @@ R4 DONE only when the user can see requested/granted/reason truth and ViewOnly c
 Commit suggestion:
 `feat: complete runtime session admission UX`
 
-### 11.3 Step 3 — finish R5 reusable-library preview with an explicit capability decision
+### 11.3 R5 review group — reusable-library preview with an explicit capability decision
 
 Current inspection is already valid and must be preserved.
 
@@ -672,7 +689,7 @@ R5 DONE when the capability boundary is truthful and tested, even if the correct
 Commit suggestion:
 `test/fix: close reusable library preview boundary`
 
-### 11.4 Step 4 — R6 mounted regressions, grouped by existing owner spec
+### 11.4 R6 review group — mounted regressions, grouped by existing owner spec
 
 Do this only after R2/R4/R5 product deltas are stable.
 
@@ -769,7 +786,7 @@ Also prove:
 - no fabricated schema;
 - legacy-specific authored fields survive operations.
 
-### 11.5 Step 5 — focused validation before final T1
+### 11.5 Focused validation review before final T1
 
 Run the smallest focused set first:
 
@@ -786,9 +803,9 @@ Then:
 
 Do not rerun unrelated broad suites manually if natural T1 will own them.
 
-### 11.6 Step 6 — final PR update + exact-head natural T1
+### 11.6 Final reconciliation + PR update + exact-head natural T1
 
-Only after Steps 1-5 are green:
+Only after the executor's current work is complete and the mandatory checklist reconciliation shows the required coverage:
 
 1. update PR #340 body from `V2 (IN PROGRESS)` to final candidate handoff;
 2. include an explicit matrix:

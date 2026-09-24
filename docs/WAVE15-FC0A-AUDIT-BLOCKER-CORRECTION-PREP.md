@@ -1,27 +1,38 @@
 # Wave 15 — FC0-A Audit Blocker Correction Preparation
 
-> PREPARED ONLY. No product mutation is authorized by this file.
-> These orders may be activated only if the independent post-FND06 audit confirms the corresponding blocker.
+> Main Coordinator owns the post-FND06 audit. This file now carries the active bounded correction sequence produced by that audit.
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`STATE: PREPARED / NOT ACTIVE / WAIT_INDEPENDENT_AUDIT`
+`STATE: ACTIVE / P101_SERVER_SCRIPT_RECOVERY`
 
 `AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
-`PROVISIONAL_BASE_PRODUCT_SHA: 560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
+`AUDIT_RESULT: CHANGES_REQUIRED`
 
-`PROVISIONAL_BASE_TREE: 674019fbbc21001a2d68deb853c2c0b293e0a5cb`
+`AUDIT_REPORT: docs/WAVE15-FC0A-POST-FND06-AUDIT-RESULT.md`
 
-The actual activation base must be revalidated after FND-06 freeze and any coordination-only commits.
+`EXACT_BASE_PRODUCT_SHA: 560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
+
+`EXACT_BASE_TREE: 674019fbbc21001a2d68deb853c2c0b293e0a5cb`
+
+Main revalidated the exact frozen product base. Integration commits above it at audit time were coordination-only; product correction branches remain based on the exact frozen product SHA.
 
 ---
 
 ## 1. Prepared correction A — W15-P1-01 Server Script recovery
 
-`PREPARED_ORDER_ID: FC0A-BLOCKER-P101-SERVER-SCRIPT-RECOVERY-V1`
+`ORDER_ID: FC0A-BLOCKER-P101-SERVER-SCRIPT-RECOVERY-V1`
 
-`ORDER_STATE: NOT_AUTHORIZED / WAIT_AUDIT_CONFIRMATION`
+`ORDER_STATE: ACTIVE`
+
+`WORK_BRANCH: work/w15-fc0a-p101-server-script-recovery`
+
+`TARGET_BRANCH: wave15/corrections-integration`
+
+`VALIDATION_PROFILE: SCRIPT_RUNTIME`
+
+`EXECUTOR: SAME_SEQUENTIAL_CODEX_USED_FOR_PRIOR_FOUNDATION_WORK`
 
 ### Why prepared
 
@@ -91,7 +102,7 @@ GREEN:
 
 ## 2. Prepared correction B — W15-P1-06 truthful Engineering fallback
 
-`PREPARED_ORDER_ID: FC0A-BLOCKER-P106-ENGINEERING-FALLBACK-V1`
+`QUEUED_ORDER_ID: FC0A-BLOCKER-P106-ENGINEERING-FALLBACK-V1`
 
 `ORDER_STATE: NOT_AUTHORIZED / WAIT_AUDIT_CONFIRMATION`
 
@@ -162,12 +173,33 @@ Natural Wave 15 validation must use a valid profile selected from the live route
 Do not combine these two corrections merely because both block FC0-A; they are different authorities/surfaces.
 
 Preferred sequencing:
-1. independent AUD confirms exact blocker(s);
-2. Main activates the smallest confirmed correction;
+1. Main audit has confirmed both blockers;
+2. Main activates the smallest confirmed correction first;
 3. CODEX executes exact bounded order on isolated branch;
 4. Main review + exact-head CI + post-merge broad;
 5. repeat for the second blocker if still required;
 6. rerun affected rows of `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`;
 7. only then consider FC0-A release.
 
-No DEV/FND-05/FND-07 release is implied by this preparation.
+No DEV/FND-05/FND-07 release is authorized until P1-01 and P1-06 close and Main re-runs the affected audit rows.
+
+
+## 4. Active P1-01 execution contract
+
+CODEX must work only on `work/w15-fc0a-p101-server-script-recovery`.
+
+Mandatory behavior:
+- prove RED for permanent-throttle-latch behavior on exact base before production correction;
+- implement bounded recovery without timeout inflation;
+- preserve queue/coalescing, sandbox isolation, Active revision gating, FND-04 TAG binding and Authority;
+- add truthful health/recovery observability;
+- no client-only or EEE-specific workaround;
+- no P1-06 Engineering-shell changes in this order.
+
+Return prefix:
+
+`FC0-A P1-01 CODEX -> MAIN COORDINATOR — CANDIDATE HANDOFF`
+
+Include exact base/head/tree, changed files, RED evidence, GREEN matrix, local tests, natural T1 run, and explicit non-actions.
+
+No self-merge/freeze authority.

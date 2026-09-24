@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd07-control`
 
-`MAIN_ORDER_REV: 0005`
+`MAIN_ORDER_REV: 0006`
 
 `STATE: DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
 
@@ -255,3 +255,40 @@ Required return prefix remains:
 `FND-07 DEV -> MAIN COORDINATOR — CANDIDATE HANDOFF`
 
 No CODEX routing yet. No merge/freeze.
+
+
+## 9. Replacement Main follow-up — fresh-install fixture progressed, one stale role assertion remains
+
+Exact corrected candidate:
+- head `af7bf1ae51539975b3b3e8b40ea36472249ade2e`;
+- tree `0947177b314dbcbaaebb3ae8ba65eb2fa3498c49`;
+- delta from prior reviewed head: one test-only commit in `web/scada-web/tests-e2e/local-auth.spec.ts`;
+- natural T1 `36072685058`: FAILURE only in focused Chromium.
+
+Accepted progress:
+- clean pre-project export now proves no hidden Demo/preconfigured Engineering content;
+- Demo realtime dependency is removed;
+- first Administrator + first project + genuinely-empty-project assertions remain.
+
+Remaining deterministic stale fixture expectation:
+- `security-roles` returns exactly one clean bootstrap `developer` role;
+- the test still expects historical `developer + operator`;
+- the same clean run reports `workspace.securityRoleCount == 1`;
+- canonical package assertions separately keep zero project `securityRoles` and two Authority policy reference role IDs.
+
+### CURRENT CORRECTION ORDER — rev 0006
+
+`ORDER_ID: FND07-DEV-FRESH-INSTALL-NO-DEMO-E2E-01`
+
+`ORDER_STATE: DEV_CORRECTION / AUTHORIZED`
+
+`CORRECTION_BASE_HEAD: af7bf1ae51539975b3b3e8b40ea36472249ade2e`
+
+Required bounded correction:
+1. assert truthful clean bootstrap Engineering security-role state;
+2. preserve explicit bootstrap developer coverage;
+3. preserve Authority reference assertions as a separate authority;
+4. do not seed Demo/operator state to obtain green;
+5. return a new exact candidate and natural T1.
+
+Do not rerun `36072685058` unchanged. No CODEX, merge or freeze authority exists yet.

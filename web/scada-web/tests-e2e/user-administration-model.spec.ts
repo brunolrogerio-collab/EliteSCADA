@@ -6,7 +6,16 @@ import {
   sameRoles,
   summarizeUserChanges
 } from '../src/engineering/UserAdministration.logic';
-import type { LocalUser } from '../src/engineering/userAdministrationApi';
+import {
+  capabilityKey,
+  nextRoleKey,
+  userGrantPreview
+} from '../src/engineering/AuthorityPolicyAdministration';
+import type {
+  AuthorityPolicyDocument,
+  AuthorityRole,
+  LocalUser
+} from '../src/engineering/userAdministrationApi';
 
 const users: LocalUser[] = [
   {
@@ -67,4 +76,88 @@ test('Administration classifies authorization, conflict and validation HTTP stat
   expect(classifyAdministrationStatus(404)).toBe('not-found');
   expect(classifyAdministrationStatus(409)).toBe('conflict');
   expect(classifyAdministrationStatus(503)).toBe('unknown');
+});
+
+
+test('Authority UX keeps command execution distinct from process-value writing', () => {
+  expect(capabilityKey(2)).toBe('CommandExecute');
+  expect(capabilityKey(3)).toBe('ProcessValueWrite');
+  expect(capabilityKey(2)).not.toBe(capabilityKey(3));
+});
+
+test('Authority UX multi-role preview preserves independent scoped grants', () => {
+  const roles: AuthorityRole[] = [
+    {
+      id: '46000000-0000-0000-0000-000000000010',
+      key: 'operator-a',
+      name: 'Area A Operator',
+      grants: [
+        {
+          capability: 2,
+          scope: {
+            scopeNodeId: '51000000-0000-0000-0000-000000000001',
+            includeDescendants: true
+          }
+        }
+      ]
+    },
+    {
+      id: '46000000-0000-0000-0000-000000000011',
+      key: 'alarm-ack',
+      name: 'Alarm Acknowledger',
+      grants: [
+        {
+          capability: 4,
+          scope: {
+            scopeNodeId: '51000000-0000-0000-0000-000000000002',
+            includeDescendants: false
+          }
+        }
+      ]
+    }
+  ];
+  const user: LocalUser = {
+    ...users[0],
+    roles: ['alarm-ack', 'operator-a']
+  };
+
+  expect(userGrantPreview(user, roles)).toEqual([
+    {
+      role: 'alarm-ack',
+      capability: 'AlarmAcknowledge',
+      scopeNodeId: '51000000-0000-0000-0000-000000000002',
+      includeDescendants: false
+    },
+    {
+      role: 'operator-a',
+      capability: 'CommandExecute',
+      scopeNodeId: '51000000-0000-0000-0000-000000000001',
+      includeDescendants: true
+    }
+  ]);
+});
+
+test('Authority UX role-key generation never treats display names as privilege semantics', () => {
+  const policy: AuthorityPolicyDocument = {
+    schema: 'elitescada.authority-policy',
+    schemaVersion: 1,
+    version: 7,
+    roles: [
+      {
+        id: '46000000-0000-0000-0000-000000000001',
+        key: 'custom-role',
+        name: 'Administrator',
+        grants: []
+      },
+      {
+        id: '46000000-0000-0000-0000-000000000002',
+        key: 'custom-role-2',
+        name: 'Viewer',
+        grants: []
+      }
+    ],
+    scopes: []
+  };
+
+  expect(nextRoleKey(policy)).toBe('custom-role-3');
 });

@@ -3,14 +3,33 @@
 > GitHub live is the sole authority.
 
 `LANE: DEV-SCRIPT-ENGINEERING`
-`MAIN_ORDER_REV: 0001`
+`MAIN_ORDER_REV: 0002`
 `ORDER_ID: DEV-SCRIPT-ENGINEERING-FC0A-01`
-`ORDER_STATE: PREPARED / WAIT_FC0A_RELEASE`
+`ORDER_STATE: ACTIVE_CODING / AUTHORIZED`
 `PLANNED_BRANCH: work/w15-dev-script-engineering`
+`WORK_BRANCH: work/w15-dev-script-engineering`
+`FC0A_RELEASE_APPROVED: YES`
+`EXACT_BASE_SHA: e3ed5138369c576549cb58a7aff9783792f322d3`
+`EXACT_BASE_TREE: 4e7627774fbfc111344e3d80fcb9d921eed8377e`
+`ACTIVATION_GATE: EliteSCADA CI #1569 / 36060017969 / SUCCESS / Chromium 655 passed`
 `TARGET: wave15/corrections-integration`
 `VALIDATION_PROFILE: SCRIPT_ENGINEERING, SCRIPT_RUNTIME`
 
-## Activation
+## Activation — ACTIVE
+
+Main activated this lane after final FC0-A audit rev 0014 returned:
+`ACCEPTABLE / FC0A_RELEASE_APPROVED`.
+
+The work branch was created directly from the exact base above.
+
+On `SIGA`:
+1. re-read this control live;
+2. revalidate the exact work-branch head;
+3. inspect the FC0-A base and subtract already-integrated work;
+4. begin implementation only inside this lane's owned scope;
+5. do not merge or widen frozen contracts.
+
+## Activation history
 
 Do not mutate product until Main records `FC0A_RELEASE_APPROVED`, writes exact base SHA/tree here, creates the work branch and changes ORDER_STATE to ACTIVE.
 

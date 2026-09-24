@@ -21,13 +21,13 @@
 
 FND-06 is **ACTIVE / NOT INTEGRATED** and is the only remaining FC0-A blocker.
 
-- order: `FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`
+- order: `FND06-CODEX-WAIT-POSTMERGE-V4`
 - exact product base: `6c810647c9773a19b212d9c33694780141786ac7`
 - base tree: `1221ff55963052be4e924dd644efbaa65763f546`
 - work branch: `work/w15-fnd-06-visual-stability-foundation`
 - target: `wave15/corrections-integration`
 - control branch/file: `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
-- active control commit: `48778387c2fde6ffb645ced17669bd0606d30142`
+- active control commit: `8d1f415bc16b556e8133e6a1da1ab89881e7f189`
 - validation profile: `UI_EDITOR, RUNTIME_RENDERER`
 
 Latest revalidation: work branch is still identical to the exact product base; no FND-06 PR/candidate/handoff exists yet.
@@ -96,11 +96,11 @@ Primary ledger: Issue #305.
 
 ## FND-06 corrected execution metadata
 
-- active order: `FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`
+- active order: `FND06-CODEX-WAIT-POSTMERGE-V4`
 - validation profile: `UI_EDITOR, RUNTIME_RENDERER`
 - known legacy set: `tank | value | dynamo | status`
 - `status` is compatibility-only unless a lossless migration is separately proven; no alias guessing
-- control commit: `48778387c2fde6ffb645ced17669bd0606d30142`
+- control commit: `8d1f415bc16b556e8133e6a1da1ab89881e7f189`
 
 
 ## FC0-A collision guard
@@ -117,8 +117,8 @@ The CODEX chat/lane that executed prior Foundation work including FND-04 is the 
 - FND-04 old control no longer means executor WAIT.
 - FND-04 control rev 0016 routes that same CODEX through `ROUTE-SEQUENTIAL-CODEX-TO-FND06-12`.
 - routed destination: `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
-- active FND-06 order: `FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`
-- FND-06 control commit: `48778387c2fde6ffb645ced17669bd0606d30142`
+- active FND-06 order: `FND06-CODEX-WAIT-POSTMERGE-V4`
+- FND-06 control commit: `8d1f415bc16b556e8133e6a1da1ab89881e7f189`
 
 On `SIGA`, that CODEX should execute FND-06, not report FND-04 frozen/wait.
 
@@ -151,9 +151,9 @@ Current PR #337 candidate:
 Remaining gate before merge:
 - original Wave 14 A7 was a mounted Screen/Popup selection crash that blanked/poisoned Engineering;
 - candidate currently proves model/helper compatibility but lacks the required mounted Screen + Popup persisted-legacy selection regression;
-- active order: `FND06-CODEX-MOUNTED-LEGACY-CLOSE-V3`;
+- active order: `FND06-CODEX-WAIT-POSTMERGE-V4`;
 - control revision `0005`;
-- control commit `48778387c2fde6ffb645ced17669bd0606d30142`;
+- control commit `8d1f415bc16b556e8133e6a1da1ab89881e7f189`;
 - preferred delta: tests only; minimal production fix only if the mounted scenario exposes a remaining defect.
 
 The same sequential CODEX lane remains the executor. No merge/freeze yet.
@@ -189,3 +189,26 @@ FC0-A release prep snapshot commit:
 `c0e4bd69c89c47efc7dc936a6ac9e61cbbbd8f96`.
 
 This is pre-freeze risk assessment only; final release still requires exact FND-06 freeze + independent post-FND06 audit PASS.
+
+
+## FND-06 merged checkpoint pending freeze
+
+PR #337 is merged.
+
+- candidate: `2257f8f99b5e6deac80d64ed2cc0c43aa8dab1cc`
+- candidate tree: `2ebb839a788bb4fad249877689c25ac1b18f6d74`
+- merge SHA: `624f2eca456310a2c6156538b3616a06e3be075f`
+- merge tree: `fb864fb954b0123e69db379cd6b3120349b43600`
+- candidate T1 `35939646387`: SUCCESS
+- post-merge broad CI `35940661531` / #1563: PENDING/IN PROGRESS at this record
+- FND-06 state: **INTEGRATED / POST-MERGE CI PENDING / NOT YET VERIFIED-FROZEN**
+- CODEX: `FND06-CODEX-WAIT-POSTMERGE-V4 / NO_MUTATION`
+- FND-06 control rev `0006`, commit `8d1f415bc16b556e8133e6a1da1ab89881e7f189`
+
+Post-FND06 audit remains blocking and is preloaded with this exact checkpoint:
+- `FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
+- audit rev `0003`
+- audit-control commit `a9ed4003acf8c71db035bc854a75f87cf97273fb`
+- state `PREPARED / WAIT_FND06_POST_MERGE_CI_GREEN`
+
+No FC0-A DEV, FND-05 or FND-07 release until FND-06 freezes and the independent audit returns `ACCEPTABLE / FC0A_RELEASE_APPROVED`.

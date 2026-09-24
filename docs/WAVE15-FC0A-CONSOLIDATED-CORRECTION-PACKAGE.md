@@ -5,7 +5,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`ORDER_ID: FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V4`
+`ORDER_ID: FC0A-CONSOLIDATED-CORRECTION-PACKAGE-V5`
 
 `ORDER_STATE: ACTIVE`
 
@@ -21,7 +21,7 @@
 
 `TARGET_BRANCH: wave15/corrections-integration`
 
-`MAIN_REVIEW_POLICY: V2_REVIEWED_CHANGES_REQUIRED / CONTINUE_SAME_BRANCH_AND_PR / NARROW_FINAL_CLOSEOUT`
+`MAIN_REVIEW_POLICY: V3_REVIEWED / PRODUCT_DELTA_ACCEPTED / FINAL_TEST_ONLY_VALIDATION_CLOSEOUT`
 
 `PR_POLICY: ONE_CONSOLIDATED_PR_AFTER_PACKAGE_COMPLETION`
 
@@ -954,3 +954,147 @@ After V3-R1/R2:
 Include exact SHA/tree, changed files for this narrow closeout and exact T1 run ID.
 
 No merge/freeze/release.
+
+
+## 13. Main review of V3 handoff — product delta accepted / FINAL TEST-ONLY closeout
+
+Main reviewed exact V3 candidate:
+
+- PR: `#340`
+- head: `1efc16994ea7b11857b0a1aac7da1690276e6d07`
+- tree: `da022f95a0c2342188a34ffe6dc830acf84d873a`
+- commits: 17
+- changed files: 44
+- natural T1: `36036316797` — SUCCESS on exact head.
+
+### Accepted V3 product delta
+
+V3-R1 is accepted.
+
+`RuntimeSessionClassPanel.tsx` now provides:
+- explicit ViewOnly request;
+- explicit Interactive request;
+- requested class display;
+- granted class display;
+- admission reason display;
+- capacity reason display;
+- explicit session end;
+- disposal-time release of a user-owned lease;
+- no reuse of this user-owned ViewOnly grant as mutation admission.
+
+The mounted Runtime session spec includes a bounded requested/granted/end regression.
+
+The shell reachability/no-horizontal-overflow matrix at 1180 / 1024 / 901 is also present.
+
+Do not redesign or reopen these product changes without new failing evidence.
+
+### Why merge remains blocked
+
+The V3 handoff stated that remaining R6 Engineering scroll, compact Engineering Lock lifecycle and legacy advanced-authoring/unknown containment were covered by existing owner specs.
+
+Main independently read the exact V3 tree and that statement is not sufficiently supported.
+
+#### Missing evidence A — Engineering scroll composition
+
+Current `app-shell.spec.ts` proves visual-editor panel internal overflow and panel collapse/reclaim behavior, but does not explicitly prove the binding R6-C contract:
+- desktop `.eng-shell` is viewport-bounded;
+- Engineering document/body does not become the unintended primary scroll surface;
+- Engineering sidebar has independent vertical scrolling;
+- Engineering workspace has independent vertical scrolling;
+- compact/mobile intentionally returns to document-flow behavior without clipping.
+
+#### Missing evidence B — compact Engineering Lock lifecycle
+
+Current `wave-14-c25-engineering-lock.spec.ts` proves:
+- locked workspace does not mount;
+- wrong/correct unlock;
+- configure-and-lock.
+
+It does not explicitly prove the changed compact-management composition required by R6-D:
+- compact/collapsed-by-default state for configured + unlocked;
+- status/summary remains discoverable;
+- expanding management exposes the lifecycle;
+- lock-now path;
+- clear path;
+- backend Authority remains source of truth.
+
+#### Missing evidence C — legacy advanced authoring
+
+Current legacy coverage is concentrated in Property Inspector / Binding / Dynamic Property compatibility.
+
+The exact current:
+- `visual-editor-selection-model.spec.ts`;
+- `visual-editor-authoring-model.spec.ts`;
+- `visual-editor-z-order-model.spec.ts`
+
+do not exercise persisted legacy `tank | value | dynamo | status` across the advanced authoring models changed by this package, and do not carry the arbitrary `vendor.unknown-x` negative through those paths.
+
+The old tests are useful but are not the explicit R6-E proof Main ordered.
+
+### Validation-routing finding
+
+Natural T1 `36036316797` is green, but its Chromium job selected only:
+
+- `python-runtime-host.spec.ts`;
+- `runtime.spec.ts`;
+- `script-engineering-workspace-contract.spec.ts`;
+- `visual-editor-workspace.spec.ts`;
+- plus local-auth bootstrap.
+
+It did **not** execute:
+- `wave-14-c25-runtime-session.spec.ts`;
+- `app-shell.spec.ts`;
+- `wave-14-c25-engineering-lock.spec.ts`;
+- `visual-editor-selection-model.spec.ts`;
+- `visual-editor-authoring-model.spec.ts`;
+- `visual-editor-z-order-model.spec.ts`.
+
+Therefore T1 green is valid for the selected profile-owned suite, but it is not evidence for these closeout rows.
+
+### FINAL closeout scope — tests/validation only
+
+Continue SAME branch and SAME PR.
+
+No new product feature is authorized.
+
+1. Add explicit Engineering scroll-composition evidence to the existing owner spec.
+2. Add explicit compact Engineering Lock lifecycle evidence, including lock-now and clear.
+3. Add explicit known-legacy advanced authoring + arbitrary-unknown containment evidence to the existing owner-model specs.
+4. Re-run the new Runtime Session Class mounted test plus shell-width test, because natural T1 did not execute that spec.
+5. Run the smallest focused Playwright/model set covering:
+   - Runtime Session Class + shell width;
+   - Engineering scroll;
+   - Engineering Lock;
+   - legacy selection/authoring/z-order.
+6. Persist exact focused command/result in the PR handoff.
+
+Production code may change only if one of these newly required tests exposes a real defect directly inside the already-authorized FC0-A correction package. No scope expansion.
+
+### T1 proof rule
+
+After focused evidence is green:
+- rerun natural T1 on the exact final head;
+- T1 must again be SUCCESS;
+- do not claim that T1 itself executed the owner specs unless the router actually selected them.
+
+If the local CODEX environment cannot execute the required focused Playwright specs because of the known first-run identity environment limitation, CODEX may make the smallest validation-router change necessary to run these exact owner specs in natural T1, with router tests, rather than weakening or skipping the evidence.
+
+Do not broaden the router beyond the exact profiles/specs needed for this closeout.
+
+### Required final handoff
+
+Return:
+
+`FC0-A CONSOLIDATED CODEX -> MAIN COORDINATOR — FINAL CANDIDATE HANDOFF V4`
+
+Include:
+- exact final SHA/tree;
+- tests added/changed;
+- exact focused commands;
+- exact focused results;
+- natural T1 run ID;
+- whether owner specs ran locally or via T1 routing;
+- confirmation that no new feature scope was added;
+- no merge/freeze/release.
+
+This is intended to be the final evidence-only closeout before Main integration decision.

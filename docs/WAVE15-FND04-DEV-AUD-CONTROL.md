@@ -38,9 +38,9 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0037`
+`MAIN_ORDER_REV: 0038`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-24 — SCRIPT ENGINEERING CANDIDATE ACCEPTED / CODEX VALIDATION ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-24 — SCRIPT CODEX REMAINS ACTIVE / INFRA-CI-01D THEN EDITOR PLANNED ONLY`
 
 `GLOBAL_GATE: FND04_VERIFIED_FROZEN`
 
@@ -1059,3 +1059,35 @@ On `SIGA`:
 9. return `DEV-SCRIPT-ENGINEERING CODEX -> MAIN COORDINATOR — VALIDATION HANDOFF`.
 
 No self-merge/freeze/T2 authority.
+
+
+## PLANNED SEQUENTIAL CODEX QUEUE — NOT AN ACTIVE ORDER
+
+This section records Main's current **planned queue only**. It does not supersede the active Script Engineering route above and must not be executed until Main publishes a new binding `MAIN ROUTE`.
+
+Current active route remains:
+
+`ROUTE-SEQUENTIAL-CODEX-TO-SCRIPT-ENGINEERING-25`
+
+Planned next priorities after the Script validation handoff is resolved:
+
+1. `INFRA-CI-01D-IEC104-FAULT-OBSERVATION-RACE-V1`
+   - control: `coord/w15-infra-ci-01d-control:docs/WAVE15-INFRA-CI-01D-IEC104-FAULT-OBSERVATION-RACE-CONTROL.md`
+   - prepared control commit: `b23cefeaf78a58ea17eaba8cf9a1566f3095ada4`
+   - state: `PREPARED / NO WORK BRANCH YET / NO MUTATION`
+   - reason: shared T1 reliability; exact asynchronous observation race proven in the existing IEC-104 fault-injection test.
+
+2. DEV-EDITOR PR `#349`
+   - exact Main-accepted candidate: `06eed31d99ddb34d99e0287e96e38bed3bf7dab5`
+   - tree: `11a5a01fd805d3e068dc6e22efff7a65077c09e4`
+   - T1 `36066874097`: SUCCESS
+   - state: `MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`.
+
+Why 01D is planned before Editor:
+- 01D is test-only and bounded;
+- it stabilizes shared .NET evidence that later candidate T1 runs consume;
+- its work branch must be created from the current integration HEAD **only when activated**, avoiding stale-base work.
+
+Main may still reassess later priority if a more urgent blocker appears before activation.
+
+No executor may create the 01D work branch or switch away from Script based on this planned queue section.

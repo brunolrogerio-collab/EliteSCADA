@@ -562,3 +562,53 @@ ROADMAP current coordination update:
 Current FC0-A product work remains PR #340 / V2 IN PROGRESS. This coordination preparation does not activate any downstream lane and does not alter the current CODEX mission.
 
 Bootstrap texts for each lane will be generated on Product Owner request; the bootstrap is only onboarding convenience and GitHub live controls remain authoritative.
+
+
+## Main decision — two-stage fresh-install partial preview (2026-09-24)
+
+After the four feature DEV lanes are integrated/T2-verified and FND-05/FND-07 are independently VERIFIED/FROZEN, Main will run a partial first-project product audit before later EEE/complete-product acceptance.
+
+Prepared control:
+- branch: `coord/w15-fresh-install-preview-control`
+- file: `docs/WAVE15-FIRST-PROJECT-FRESH-INSTALL-PREVIEW-CONTROL.md`
+- prepared commit: `8d209c8f0cacf5c1feb050632645c9537e1f09dc`
+
+Prepared gates:
+- `W15-FIRST-PROJECT-CODEX-BLACKBOX-PREVIEW-01`
+- `W15-FIRST-PROJECT-HUMAN-PREVIEW-01`
+
+The two first-project journeys are independent.
+
+CODEX moment:
+- fresh installation / no project / no EEE / no hidden Demo project;
+- user-like browser exploration;
+- high-level objective only: create a first SCADA application from zero and reach a functional truthful Runtime;
+- no source/control/database/internal API lookup during the black-box journey;
+- no code correction during exploration;
+- source/log/API diagnosis is allowed only after the journey completes or is blocked;
+- detailed CODEX findings are persisted but not surfaced to Product Owner before the human preview.
+
+Human moment:
+- second independent clean environment;
+- Product Owner repeats the same high-level first-project mission as a real user;
+- no CODEX-created project;
+- no detailed CODEX report/checklist before the unaided human journey completes;
+- needing help or becoming blocked is itself audit evidence.
+
+After both journeys:
+- Main unseals and compares findings as BOTH / CODEX_ONLY / HUMAN_ONLY / PATH_DIVERGENCE / NOT_REPRODUCED;
+- a directed follow-up may then cover restart/persistence, Authority/ViewOnly, FND-07 detach -> neutral bootstrap -> Project B -> B/A switching, and a separate HA user-surface/manual transfer check;
+- material blockers are corrected/owned; non-blocking onboarding/usability gaps may feed later Installation UX/product convergence.
+
+T1/T2/T3/T4 green evidence does not replace these audits.
+
+Possible partial-preview dispositions:
+- `ACCEPTABLE_FOR_NEXT_CONVERGENCE`
+- `CHANGES_REQUIRED`
+
+Neither is final Wave 15 acceptance. EEE v15, later T3/T4 and final fresh complete-product Preview remain mandatory.
+
+Roadmap update: `57729b9db0ebcac2c748a9f6f0101eb48c5b625b`.
+Six-lane control link update: `e130b5353c320e9c22f8e1f8f3a7e42a2dd6946c`.
+
+This preparation does not activate the preview now and does not alter current PR #340 / CODEX V2 execution.

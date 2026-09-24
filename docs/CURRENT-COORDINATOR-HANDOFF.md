@@ -1083,3 +1083,26 @@ Dedicated control refreshes:
 - Authority rev 0004 / `5e2804963ea919d9224ace341f279660804437ad`;
 - Licensing rev 0004 / `a4a4098f7c65863bb5cc14a9b566f67aee9f7884`;
 - FND-05 rev 0007 / `a3f69a286a62028b49b0809025c45b585ff698f8`.
+
+
+## REPLACEMENT MAIN FOLLOW-UP — FND-07 CORRECTION RETURN (2026-09-24)
+
+FND-07 advanced after the initial takeover revalidation:
+- PR #348 remains DRAFT;
+- corrected head `af7bf1ae51539975b3b3e8b40ea36472249ade2e`;
+- tree `0947177b314dbcbaaebb3ae8ba65eb2fa3498c49`;
+- delta is test-only in `web/scada-web/tests-e2e/local-auth.spec.ts`;
+- fresh pre-project export now proves no hidden Demo/preconfigured Engineering content;
+- first Administrator + first project + genuinely-empty-project assertions now execute past the prior blocker;
+- natural T1 `36072685058` remains FAILURE only in focused Chromium because the historical fixture expects two Engineering security roles `developer + operator`, while the clean bootstrap endpoint truthfully returns one `developer` role and the same run reports `workspace.securityRoleCount == 1`.
+
+Disposition:
+`FND-07 -> DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
+
+Binding order remains:
+`FND07-DEV-FRESH-INSTALL-NO-DEMO-E2E-01`
+
+Dedicated control rev 0006:
+`bc7e3f810b7534d1180196c1e768f4c92a1c60a5`.
+
+Required delta remains test/harness-only unless new product evidence appears. Do not seed hidden Demo/operator state merely to satisfy the old expectation. No CODEX/merge/freeze authority.

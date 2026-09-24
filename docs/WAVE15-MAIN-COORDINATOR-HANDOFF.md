@@ -648,7 +648,7 @@ Prepared post-FC0A implementation chats:
 Canonical cross-lane coordination:
 - branch: `coord/w15-parallel-dev-control`
 - file: `docs/WAVE15-PARALLEL-DEV-CONTROL.md`
-- prepared control commit: `92f72080a778ede54b85e382a5496cfadb62fb81`
+- prepared control commit: `87479d0bc3042435935ac1dbaa119d3a7ed72bd6`
 
 All six are **PREPARED / BLOCKED** until Main records `FC0A_RELEASE_APPROVED` on an exact integrated SHA/tree. No work branch is created before that exact activation base is known.
 

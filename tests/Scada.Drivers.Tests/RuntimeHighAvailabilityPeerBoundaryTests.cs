@@ -108,6 +108,27 @@ public sealed class RuntimeHighAvailabilityPeerBoundaryTests
     }
 
     [Fact]
+    public void PeerAuthorityInstanceChangeWithoutHandoff_FailsClosed()
+    {
+        var pair = CreateReadyPair();
+        var restartedPeer = pair.NodeA.CreatePeerObservation() with
+        {
+            SourceObservationInstanceId =
+                Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc"),
+            SourceAuthorityInstanceId =
+                Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd")
+        };
+
+        var applied = pair.NodeB.ApplyPeerObservation(restartedPeer);
+
+        Assert.False(applied.Accepted);
+        Assert.Equal("peer-authority-instance-conflict", applied.ReasonCode);
+        Assert.True(applied.Snapshot.AmbiguousAuthority);
+        Assert.Null(applied.Snapshot.EffectiveActiveNodeId);
+        Assert.False(pair.NodeB.TryAcquireLocalIndustrialAuthority().Allowed);
+    }
+
+    [Fact]
     public void PeerLoss_DoesNotPromoteIndependentStandby()
     {
         var pair = CreateReadyPair();

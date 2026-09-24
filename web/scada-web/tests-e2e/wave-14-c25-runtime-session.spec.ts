@@ -201,6 +201,33 @@ test('account menu keeps its localized accessible name and actions in every supp
   }
 });
 
+test('Runtime session class shows requested/granted truth and explicitly ends its user-owned lease', async ({ page }) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+  let terminated = false;
+  await page.route('**/api/runtime/sessions', route => {
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    return route.fulfill({ status: 201, json: {
+      sessionId: '00000000-0000-0000-0000-000000000123', clientInstanceId: request.clientInstanceId,
+      requestedClass: request.connectionClass, grantedClass: 'viewOnly', admissionReasonCode: 'ExplicitViewOnly', capacityReasonCode: 'SeatReserved'
+    }});
+  });
+  await page.route('**/api/runtime/sessions/00000000-0000-0000-0000-000000000123/terminate', route => {
+    terminated = true;
+    return route.fulfill({ status: 204, body: '' });
+  });
+
+  await page.goto('/');
+  await page.getByTestId('runtime-session-class').locator('summary').click();
+  await page.getByTestId('runtime-session-request-viewOnly').click();
+  const status = page.getByTestId('runtime-session-status');
+  await expect(status).toContainText('viewOnly');
+  await expect(status).toContainText('ExplicitViewOnly');
+  await page.getByTestId('runtime-session-end').click();
+  await expect.poll(() => terminated).toBe(true);
+  await expect(page.getByTestId('runtime-session-status')).toHaveCount(0);
+});
+
 test('failed server invalidation keeps the current identity and Runtime interactive', async ({ page }) => {
   const contract = await installSessionContract(page, administrator, 'failure');
 

@@ -29,6 +29,13 @@
 .runtime-operator-context strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .runtime-operator-context span { color: var(--app-text-secondary); font-size: 11px; }
 .runtime-operator-actions { display: flex; align-items: center; gap: 6px; }
+.runtime-session-class { position: relative; }
+.runtime-session-class > summary { cursor: pointer; padding: 5px 8px; font-size: 12px; }
+.runtime-session-class[open] { min-width: 225px; }
+.runtime-session-class__controls { display: grid; gap: 5px; margin-top: 6px; }
+.runtime-session-class__status { display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; margin: 8px 0 0; font-size: 11px; }
+.runtime-session-class__status dt { font-weight: 700; }
+.runtime-session-class__status dd { margin: 0; overflow-wrap: anywhere; }
 .runtime-operator-button {
   min-height: 30px;
   padding: 0 10px;

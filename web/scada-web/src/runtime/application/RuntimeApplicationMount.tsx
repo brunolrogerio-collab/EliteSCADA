@@ -13,6 +13,7 @@ import {
 } from './runtimeApplicationApi';
 import { resolveRuntimeStartupScreen } from './runtimeStartupScreen';
 import { SimulationRuntimeApp } from './SimulationRuntimeApp';
+import { RuntimeSessionClassPanel } from './RuntimeSessionClassPanel';
 
 const REFRESH_INTERVAL_MS = 1500;
 const RETRYABLE_RUNTIME_PROJECTION_STATUSES = new Set([502, 503, 504]);
@@ -151,6 +152,7 @@ function EngineeringRuntimeApplication({
         <span>rev {projection.revision}</span>
       </div>
       <div className="runtime-operator-actions">
+        <RuntimeSessionClassPanel locale={locale} />
         <button type="button" className="runtime-operator-button" aria-expanded={alarmsOpen} onClick={() => setAlarmsOpen(value => !value)}>
           {text.alarms}
         </button>

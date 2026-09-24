@@ -5,11 +5,11 @@
 
 `CONTROL_BRANCH: coord/w15-infra-ci-01b-control`
 
-`MAIN_ORDER_REV: 0003`
+`MAIN_ORDER_REV: 0004`
 
-`STATE: MERGED / POST_MERGE_BROAD_CI_PENDING`
+`STATE: MERGED / MAIN_ACCEPTED / BROAD_BACKEND_GREEN / FINAL_GLOBAL_GREEN_BLOCKED_BY_FND06_TEST_FIXTURE`
 
-`ORDER_ID: INFRA-CI-01B-WAIT-POSTMERGE-V3`
+`ORDER_ID: INFRA-CI-01B-NO-MUTATION-V4`
 
 `EXECUTOR_IDENTITY: SAME SEQUENTIAL CODEX LANE USED FOR PRIOR FOUNDATION/FND-06`
 
@@ -201,9 +201,9 @@ Intermediate candidate `97c665c8...` remains useful evidence but is **not candid
 
 ## 5. CURRENT EXECUTOR ORDER
 
-`ORDER_ID: INFRA-CI-01B-WAIT-POSTMERGE-V3`
+`ORDER_ID: INFRA-CI-01B-NO-MUTATION-V4`
 
-`ORDER_STATE: WAIT_POST_MERGE_GATE`
+`ORDER_STATE: HOLD / NO_MUTATION`
 
 `EXECUTOR_MODE: NO_MUTATION`
 
@@ -215,18 +215,30 @@ Intermediate candidate `97c665c8...` remains useful evidence but is **not candid
 
 `POST_MERGE_CI_RUN: 35944510920 / EliteSCADA CI #1564`
 
-Instruction:
+Main disposition:
 
-> INFRA-CI-01B V2 has passed Main review and was merged normally.
-> Do not mutate product/tests, rebase, retarget or rerun while exact broad post-merge run `35944510920` is pending.
-> On `SIGA`, report the exact post-merge gate state unless Main issues a newer order.
+- INFRA-CI-01B production correction is accepted.
+- Exact run #1564 Backend build/test/smoke is SUCCESS, directly closing the PostgreSQL failure that triggered this lane.
+- Chromium failed for a separate FND-06 E2E fixture leak: temporary `fnd06-legacy-screen-*` remained after an upsert-only restore.
+- No additional PostgreSQL/infra mutation is authorized.
+- Final INFRA-CI-01B closure label remains pending only until the next exact broad integration run is globally green after the FND-06 test-only fix.
 
-Evidence accepted before merge:
-- final candidate `6f835bd8...`;
-- full local .NET/PostgreSQL regression 121/121;
-- natural T1 `35944240953` SUCCESS;
-- all nine shared-schema creators covered by explicit lock-before-DDL invariant or existing equivalent;
-- no Authority/RuntimeSession semantic changes.
+On `SIGA`, do not mutate INFRA-CI-01B. Follow Main's newer shared-CODEX routing to FND-06 E2E fixture isolation.
+
+## 5A. Broad run #1564 causality split
+
+Exact broad run `35944510920`:
+- Web — SUCCESS;
+- Backend build/test/smoke — SUCCESS;
+- Chromium — FAILURE, 636 passed / 1 failed.
+
+The sole Chromium failure is `runtime.spec.ts` observing an extra FND-06 test fixture Screen. This is unrelated to the PostgreSQL sequencing changes in PR #338.
+
+Therefore:
+- PostgreSQL correction evidence = PASS;
+- global broad-run gate = still red;
+- no infra rerun or infra code change is justified;
+- next correction owner = FND-06 test-only fixture isolation.
 
 ## 6. RED requirement
 

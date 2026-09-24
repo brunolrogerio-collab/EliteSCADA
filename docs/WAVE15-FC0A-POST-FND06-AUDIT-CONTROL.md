@@ -785,3 +785,25 @@ Active closeout:
 - exact base `da0e6412...`.
 
 No `FC0A_RELEASE_APPROVED` yet. The six prepared DEV/FND lanes remain WAIT until the corrected candidate is merged and a new exact broad post-merge CI is globally green.
+
+
+## Post-merge gate update — CI #1568 Canvas source-contract stale
+
+Current exact release candidate:
+- SHA `1ab3550e1afb258e38caaa6de3f6547f481bbef7`;
+- tree `701f4591a294885b414284691b1051cf274c9707`.
+
+Exact broad `EliteSCADA CI 36049229264 / #1568`:
+- Web — SUCCESS;
+- Backend build/test + Runtime smoke — SUCCESS after one diagnosed same-SHA retry of the repository-documented known IEC-104 T2 timing transient;
+- Chromium — 654 passed / 1 failed.
+
+The only Chromium failure is a stale source-contract assertion that still requires direct `getBuiltinVisualObjectSchema` in Canvas while the accepted FC0-A/FND-06 contract intentionally uses `getVisualSchemaForEngineering` for built-in + bounded known-legacy Engineering compatibility.
+
+Active closeout:
+- `FC0A-POSTMERGE-CANVAS-SOURCE-CONTRACT-V1`;
+- control `docs/WAVE15-FC0A-POSTMERGE-CANVAS-SOURCE-CONTRACT-CONTROL.md`;
+- work branch `work/w15-fc0a-postmerge-canvas-source-contract`;
+- exact base `1ab3550e...`.
+
+No `FC0A_RELEASE_APPROVED` yet. Six prepared DEV/FND lanes remain WAIT until this stale test contract is corrected, merged and a new exact broad post-merge CI is globally green.

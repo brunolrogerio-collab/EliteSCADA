@@ -134,39 +134,49 @@ Coordination/documentation commits after this checkpoint do not create a new pro
 ## 2. MAIN COORDINATOR -> CODEX — CURRENT ORDER
 
 **ORDER_STATE: ACTIVE**  
-**ORDER_ID: FND06-CODEX-WAIT-POSTMERGE-V4**  
-**CODEX_MODE: BOUNDED_TEST_EVIDENCE_AND_MINIMAL_FIX_IF_NEEDED**  
-**EXECUTOR_IDENTITY: SAME SEQUENTIAL CODEX CHAT/LANE USED IN PRIOR FOUNDATION WORK INCLUDING FND-04**  
-**Mission:** close mounted Screen/Popup legacy-selection evidence before Main may integrate FND-06
+**ORDER_ID: INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V1**  
+**CODEX_MODE: BOUNDED_INFRA_CORRECTION**  
+**EXECUTOR_IDENTITY: SAME SEQUENTIAL CODEX CHAT/LANE USED IN PRIOR FOUNDATION WORK INCLUDING FND-04/FND-06**  
+**Mission:** close the generic shared-PostgreSQL-schema initialization race blocking FND-06 freeze
 
-Exact current candidate:
-- base `6c810647c9773a19b212d9c33694780141786ac7`
-- current candidate `923543705378016090e7067b35954795a9591a57`
-- tree `5657cee7169a4e77370d416add4efcf07184d7c0`
-- PR #337
-- natural T1 `35931139983` — SUCCESS.
+Exact infra base:
+- `624f2eca456310a2c6156538b3616a06e3be075f`
+- tree `fb864fb954b0123e69db379cd6b3120349b43600`
+- this SHA contains the merged, Main-accepted FND-06 product delta.
 
-Main review accepted:
-- 9-file allowlisted scope;
-- centralized legacy compatibility for `tank | value | dynamo | status`;
-- unknown fail-closed behavior;
-- Runtime Popup persistence under retryable same-identity failure;
-- deliberate navigation reset on genuine Active identity change;
-- no second renderer / no lifecycle or Authority leakage.
+Trigger:
+- post-merge EliteSCADA CI #1563 / run `35940661531`
+- Web SUCCESS
+- Backend test FAILURE
+- Chromium skipped
+- only identified failed test:
+  `PostgreSqlVisualDynamicPersistenceTests.RevisionPersistence_PreservesVisualExpressionConditionAndAnalogFill`
+- PostgreSQL `23505 / pg_namespace_nspname_index` in `PostgreSqlEngineeringProjectStore.InitializeAsync`.
 
-Main found one remaining acceptance-evidence gap:
-- Wave 14 A7 was a deterministic **mounted** Screen/Popup selection crash that blanked/poisoned Engineering;
-- candidate `92354370...` proves legacy models and dependent model helpers, but does not yet provide the required mounted Screen+Popup regression over persisted legacy selections.
+Main classification:
+- `GENERIC_INFRASTRUCTURE_BLOCKER / NOT_FND06_CAUSAL`
+- failing store/test are byte-identical to pre-FND06 base;
+- same error signature has Wave 14 precedent;
+- no blind rerun authorized.
 
-Detailed active order:
-- control `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`
-- revision `0005`
-- control commit `8d1f415bc16b556e8133e6a1da1ab89881e7f189`
-- order `FND06-CODEX-WAIT-POSTMERGE-V4`.
+Dedicated executable control:
+- branch `coord/w15-infra-ci-01b-control`
+- file `docs/WAVE15-INFRA-CI-01B-CONTROL.md`
+- control commit `358b067d9af6501b2945f311b5d2cd32cab64efa`
+- work branch `work/w15-infra-ci-01b-postgresql-schema-init`.
 
-Preferred delta is tests-only. If current candidate already passes mounted A7 scenarios, record GREEN-existing and do not change production. If a mounted residual fails, fix only the minimal existing FND-06 allowlisted surface.
+Required direction:
+- explicit completed shared advisory-lock command before shared-schema DDL in inline initializers;
+- common key `4993446713136202561`;
+- bounded concurrency regression;
+- no schema/business/FND-06 semantic change;
+- no CI-parallelism/timing workaround;
+- no blind retry as substitute for serialization.
 
-No merge/freeze authority.
+FND-06 remains **INTEGRATED / FREEZE BLOCKED BY INFRA-CI-01B**.
+FC0-A audit remains PREPARED and blocked until infra correction + exact green broad CI + FND-06 freeze.
+
+No self-merge/freeze authority.
 ---
 
 ## 2A. MAIN COORDINATOR -> FND-03 DEV — CURRENT ORDER
@@ -409,3 +419,20 @@ Post-FND06 audit remains blocking and is preloaded with this exact checkpoint:
 - state `PREPARED / WAIT_FND06_POST_MERGE_CI_GREEN`
 
 No FC0-A DEV, FND-05 or FND-07 release until FND-06 freezes and the independent audit returns `ACCEPTABLE / FC0A_RELEASE_APPROVED`.
+
+
+## INFRA-CI-01B post-FND06 blocker
+
+FND-06 PR #337 is merged at `624f2eca456310a2c6156538b3616a06e3be075f`, but broad post-merge CI `35940661531` failed on a generic PostgreSQL shared-schema initialization race.
+
+- FND-06 visual/mounted evidence remains Main-accepted.
+- FND-06 is not VERIFIED/FROZEN until infrastructure is corrected and exact broad integration CI is green.
+- active control: `coord/w15-infra-ci-01b-control:docs/WAVE15-INFRA-CI-01B-CONTROL.md`
+- active order: `INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V1`
+- control commit: `358b067d9af6501b2945f311b5d2cd32cab64efa`
+
+Post-FND06 FC0-A audit:
+- rev `0004`
+- control commit `bbe9c4a63aef310c45f7f8d2dab17ccb9ccf5bac`
+- evidence matrix rev `0002` / commit `435e1ee639e520644751c14fab6baca2e5ada38c`
+- state: PREPARED / blocked on INFRA-CI-01B + FND-06 freeze.

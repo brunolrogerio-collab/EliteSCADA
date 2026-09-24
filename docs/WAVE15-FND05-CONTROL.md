@@ -4,11 +4,11 @@
 
 `CONTROL_BRANCH: coord/w15-fnd05-control`
 
-`MAIN_ORDER_REV: 0006`
+`MAIN_ORDER_REV: 0007`
 
-`STATE: DEV_CORRECTION / PEER_HANDOFF_BOUNDARY_REQUIRED`
+`STATE: MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`
 
-`CURRENT_ORDER_ID: FND05-DEV-PEER-HANDOFF-BOUNDARY-V2-01`
+`CURRENT_ORDER_ID: FND05-CODEX-HA-ADVERSARIAL-V2-02`
 
 `LATEST_AUDITED_PRODUCT_CHECKPOINT: e3ed5138369c576549cb58a7aff9783792f322d3`
 
@@ -323,3 +323,50 @@ After correction:
   `FND-05 DEV -> MAIN COORDINATOR — CANDIDATE HANDOFF`.
 
 Only after Main accepts this correction may the lane enter mandatory `CODEX_HA_ADVERSARIAL_VALIDATION`.
+
+
+## 9. Successor Main contract review — peer handoff boundary accepted for adversarial CODEX
+
+Exact corrected candidate:
+- head `be9cf0f3f02aa1ba49cdb6b589abd5e1e723c845`;
+- tree `c9e94e84c078928ad690217484171fafa6390b46`;
+- correction delta from `8c2bd272...`: 11 commits / 4 files;
+- natural T1 `36072325579`: SUCCESS across classifier, Common, Web, focused .NET, focused Chromium and final gate.
+
+Main contract review confirms the material boundary gap is closed directionally:
+- versioned transport-neutral peer observation and transfer-handoff envelopes exist;
+- two independent `RuntimeHighAvailabilityService` instances converge remote readiness only through public peer boundaries;
+- break/grant handoff is explicit and fail-closed across cluster/topology/node/authority-instance/epoch identity;
+- peer loss alone does not promote Standby;
+- ambiguous/conflicting authority isolates and denies industrial ownership;
+- Runtime Session continuity has explicit peer import, stale/generation/authority/runtime/class rejection and tombstone anti-resurrection behavior;
+- the continuity registry remains a replication/resume boundary and does not become a second FND-03 quota/admission authority;
+- no network transport, consensus protocol, automatic failover breadth, package topology state or frozen Foundation rewrite was added.
+
+Disposition:
+`FND-05 DEV -> MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`
+
+`ACCEPTED_CANDIDATE_SHA: be9cf0f3f02aa1ba49cdb6b589abd5e1e723c845`
+
+`ACCEPTED_CANDIDATE_TREE: c9e94e84c078928ad690217484171fafa6390b46`
+
+### CURRENT CODEX ORDER — QUEUED, NOT ROUTED
+
+`ORDER_ID: FND05-CODEX-HA-ADVERSARIAL-V2-02`
+
+`ORDER_STATE: QUEUED / WAIT_EXPLICIT_SHARED_ROUTE`
+
+Mandatory before Main integration approval:
+- `CODEX_HA_ADVERSARIAL_GREEN`;
+- direct two-node stale/future/replayed envelope attacks;
+- conflicting authority-instance / split-brain fail-closed;
+- break-before-make under reordered/duplicate handoffs;
+- peer-loss no-promotion;
+- incompatible revision/license readiness;
+- one logical Runtime Session Lease across A/B continuity without duplicate admission authority;
+- expired/tombstoned lease non-resurrection;
+- no duplicate Alarm/Historian/Script/Event/process effects;
+- package topology/session/fencing neutrality;
+- exact final candidate T1 and any broader HA evidence required by the adversarial delta.
+
+The shared sequential CODEX is **not routed here yet**. FND-05 DEV must wait. No merge/freeze authority is delegated.

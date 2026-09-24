@@ -216,6 +216,48 @@ public sealed class ScriptRuntimeExecutionCoordinatorTests
     }
 
     [Fact]
+    public async Task Coordinator_CancelledProbeReturnsToBoundedCooldown()
+    {
+        var entry = new PythonScriptEntryPoint(
+            PythonScriptEventKind.ObjectInteraction,
+            "on_click",
+            "object:first");
+        var probeEntry = new PythonScriptEntryPoint(
+            PythonScriptEventKind.ObjectInteraction,
+            "on_click",
+            "object:probe");
+        var script = CreateClientScript(entry, probeEntry);
+        var clock = new MutableTimeProvider(DateTimeOffset.Parse("2026-01-01T00:00:00Z"));
+        var policy = new ScriptExecutionPolicy(
+            TimeSpan.FromSeconds(2),
+            maxQueuedEvents: 4,
+            minimumTimerInterval: TimeSpan.FromMilliseconds(50),
+            maxConsecutiveFailuresBeforeThrottle: 1,
+            failureRecoveryCooldown: TimeSpan.FromSeconds(10));
+
+        await using var coordinator = new ScriptRuntimeExecutionCoordinator(
+            script,
+            "runtime-1",
+            policy,
+            new FaultThenWaitForCancellationExecutor(),
+            clock);
+
+        coordinator.Enqueue(Identity(entry));
+        coordinator.Enqueue(Identity(probeEntry));
+        _ = await coordinator.ProcessNextAsync();
+
+        clock.Advance(TimeSpan.FromSeconds(10));
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(10));
+        var cancelledProbe = await coordinator.ProcessNextAsync(cancellation.Token);
+        var diagnostics = coordinator.GetDiagnostics();
+
+        Assert.Equal(ScriptExecutionStatus.Cancelled, cancelledProbe.Execution!.Status);
+        Assert.Equal(ScriptFailureRecoveryState.CoolingDown, diagnostics.RecoveryState);
+        Assert.Equal(clock.GetUtcNow() + TimeSpan.FromSeconds(10), diagnostics.NextRecoveryProbeAt);
+        Assert.Equal(ScriptRuntimeDispatchStatus.NoEvent, (await coordinator.ProcessNextAsync()).Status);
+    }
+
+    [Fact]
     public async Task Coordinator_RejectsUndeclaredOrCrossScopeEventsBeforeQueueing()
     {
         var declaredEntry = new PythonScriptEntryPoint(
@@ -369,6 +411,22 @@ public sealed class ScriptRuntimeExecutionCoordinatorTests
         {
             InvocationCount++;
             throw new InvalidOperationException("simulated handler failure");
+        }
+    }
+
+    private sealed class FaultThenWaitForCancellationExecutor : IPythonScriptHandlerExecutor
+    {
+        private int _invocationCount;
+
+        public async ValueTask ExecuteAsync(
+            PythonScriptDefinition script,
+            ScriptEventEnvelope scriptEvent,
+            ScriptExecutionLease lease)
+        {
+            if (Interlocked.Increment(ref _invocationCount) == 1)
+                throw new InvalidOperationException("simulated handler failure");
+
+            await Task.Delay(Timeout.InfiniteTimeSpan, lease.CancellationToken);
         }
     }
 

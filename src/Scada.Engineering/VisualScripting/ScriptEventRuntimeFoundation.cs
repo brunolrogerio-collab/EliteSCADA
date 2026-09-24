@@ -516,14 +516,17 @@ public sealed class ScriptFailureThrottle
             }
 
             if (status is not (ScriptExecutionStatus.Faulted or ScriptExecutionStatus.TimedOut))
+            {
+                // A cancelled half-open execution never establishes recovery. Return it to the
+                // same bounded cooldown instead of leaving the single probe reservation stuck.
+                if (_recoveryState == ScriptFailureRecoveryState.ProbeExecuting)
+                    StartCooldown();
                 return;
+            }
 
             _consecutiveFailures++;
             if (_consecutiveFailures >= _policy.MaxConsecutiveFailuresBeforeThrottle)
-            {
-                _recoveryState = ScriptFailureRecoveryState.CoolingDown;
-                _nextRecoveryProbeAt = _timeProvider.GetUtcNow() + _policy.FailureRecoveryCooldown;
-            }
+                StartCooldown();
         }
     }
 
@@ -535,6 +538,12 @@ public sealed class ScriptFailureThrottle
             _recoveryState = ScriptFailureRecoveryState.Healthy;
             _nextRecoveryProbeAt = null;
         }
+    }
+
+    private void StartCooldown()
+    {
+        _recoveryState = ScriptFailureRecoveryState.CoolingDown;
+        _nextRecoveryProbeAt = _timeProvider.GetUtcNow() + _policy.FailureRecoveryCooldown;
     }
 }
 

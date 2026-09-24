@@ -38,7 +38,7 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0022`
+`MAIN_ORDER_REV: 0023`
 
 `LAST_MAIN_UPDATE_BRT: 2026-09-23 — FND-04 FROZEN / SEQUENTIAL CODEX REASSIGNED TO FND-06`
 
@@ -686,19 +686,42 @@ AUD never merges its own work and never writes directly to DEV branch, integrati
 
 ### CURRENT AUD ORDER
 
-`ORDER_ID: FND04-AUD-FROZEN-0011`
+`ORDER_ID: FC0A-AUD-WAIT-FND06-FINAL-BROAD-0012`
 
-`ORDER_STATE: WAIT`
+`ORDER_STATE: WAIT_FND06_FINAL_BROAD`
 
-`AUD_MODE: FND04_FROZEN / READ_ONLY`
+`AUD_MODE: READ_ONLY / PREPARED_CROSS_WAVE_AUDIT`
 
-`FROZEN_PRODUCT_SHA: 6c810647c9773a19b212d9c33694780141786ac7`
+`NEXT_AUDIT_ID: FC0A-POST-FND06-W15-FOUNDATION-AUDIT-01`
 
-`POST_MERGE_CI_RUN: 35913456486 / SUCCESS`
+`NEXT_CONTROL_BRANCH: coord/w15-fnd06-control`
+
+`NEXT_CONTROL_FILE: docs/WAVE15-FC0A-POST-FND06-AUDIT-CONTROL.md`
+
+`EVIDENCE_MATRIX_FILE: docs/WAVE15-FC0A-POST-FND06-AUDIT-EVIDENCE.md`
+
+`PROVISIONAL_EXACT_PRODUCT_SHA: 560ac9d80cc7e854f2513559dc6afb28cfb4aee3`
+
+`PROVISIONAL_EXACT_PRODUCT_TREE: 674019fbbc21001a2d68deb853c2c0b293e0a5cb`
+
+`FINAL_BROAD_RUN: 35953557122 / EliteSCADA CI #1565`
 
 Instruction:
 
-> FND-04 is VERIFIED/FROZEN after your ACCEPTABLE review and exact post-merge CI. On `SIGA`, revalidate GitHub live and report `FND-04 AUD — FROZEN / WAIT` unless Main has issued a new Foundation-delta audit order. Do not mutate or re-audit the frozen candidate speculatively.
+> Your FND-04 candidate audit is complete/frozen. Main intends to reuse this same independent AUD lane for the mandatory post-FND06 Wave14->Wave15 Foundation closure audit.
+>
+> Do **not** start the cross-wave audit yet. The activation prerequisite is exact broad run `35953557122` completing SUCCESS on `560ac9d80cc7e854f2513559dc6afb28cfb4aee3` and Main explicitly changing this order to ACTIVE after declaring FND-06 VERIFIED/FROZEN.
+>
+> On `SIGA` while this order remains WAIT:
+> 1. revalidate GitHub live;
+> 2. confirm the broad run state;
+> 3. do not mutate product/tests/docs;
+> 4. report `FC0-A AUD — WAIT_FND06_FINAL_BROAD`.
+>
+> Once Main activates the audit, read the new audit control/evidence matrix in full and independently review them. Do not accept Main's preliminary classifications by assumption.
+
+Known preliminary item requiring independent review after activation:
+- `W15-P1-01 Server Script recovery` is preliminarily classified by Main as `BLOCKED_FOUNDATION` because current server coordinator appears permanently throttled until explicit `ResetThrottle()`; AUD must confirm or disprove on exact frozen state.
 
 ### AUD mandatory return format
 

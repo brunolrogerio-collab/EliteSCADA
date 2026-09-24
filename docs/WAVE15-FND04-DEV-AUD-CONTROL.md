@@ -38,7 +38,7 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0020`
+`MAIN_ORDER_REV: 0021`
 
 `LAST_MAIN_UPDATE_BRT: 2026-09-23 — FND-04 FROZEN / SEQUENTIAL CODEX REASSIGNED TO FND-06`
 
@@ -591,35 +591,35 @@ The FND-04 architecture/plan is unchanged. Only operational sequencing changes.
 
 ### CURRENT CODEX EXECUTION ORDER
 
-`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-INFRA-CI-01B-13`
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FND06-E2E-14`
 
 `ORDER_STATE: ACTIVE_ROUTE`
 
-`EXECUTOR_MODE: SAME_SEQUENTIAL_CODEX / REASSIGNED_TO_INFRA_CI_01B`
+`EXECUTOR_MODE: SAME_SEQUENTIAL_CODEX / FND06_TEST_ONLY_CLOSEOUT`
 
 `FND04_STATE: VERIFIED_FROZEN`
 
-`FND06_STATE: INTEGRATED / FREEZE_BLOCKED_GENERIC_INFRA`
+`FND06_STATE: INTEGRATED / PRODUCT_ACCEPTED / FREEZE_BLOCKED_TEST_ISOLATION`
 
-`NEXT_CONTROL_BRANCH: coord/w15-infra-ci-01b-control`
+`NEXT_CONTROL_BRANCH: coord/w15-fnd06-control`
 
-`NEXT_CONTROL_FILE: docs/WAVE15-INFRA-CI-01B-CONTROL.md`
+`NEXT_CONTROL_FILE: docs/WAVE15-FND06-CONTROL.md`
 
-`EXPECTED_ORDER: INFRA-CI-01B-POSTGRES-SCHEMA-LOCK-V2`
+`EXPECTED_ORDER: FND06-CODEX-E2E-FIXTURE-ISOLATION-V6`
 
 Instruction:
 
-> The shared sequential CODEX lane is not idle.
-> FND-04 remains frozen and FND-06 product work is merged.
-> Main has assigned this same CODEX lane to the generic PostgreSQL post-merge blocker `INFRA-CI-01B`.
+> The shared sequential CODEX lane is active.
+> FND-04 remains frozen; INFRA-CI-01B product correction is merged/Main-accepted.
+> The exact broad CI exposed one FND-06 E2E fixture-isolation defect.
 >
 > On every `SIGA`:
 > 1. revalidate GitHub live;
-> 2. read `coord/w15-infra-ci-01b-control:docs/WAVE15-INFRA-CI-01B-CONTROL.md`;
-> 3. execute its latest ACTIVE order;
-> 4. return with the INFRA-CI-01B mandatory handoff prefix.
+> 2. read `coord/w15-fnd06-control:docs/WAVE15-FND06-CONTROL.md`;
+> 3. execute current order `FND06-CODEX-E2E-FIXTURE-ISOLATION-V6`;
+> 4. return with the FND-06 E2E fixture isolation handoff prefix.
 >
-> Do not report FND-04 WAIT or FND-06 WAIT while this routing order is current.
+> Do not report WAIT from FND-04 or INFRA-CI-01B while this routing order is current.
 
 ### CODEX mandatory return
 

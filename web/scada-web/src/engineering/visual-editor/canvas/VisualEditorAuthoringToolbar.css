@@ -4,3 +4,8 @@
 .visual-editor-authoring-toolbar button { min-width: 28px; min-height: 27px; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 5px; background: #fff; color: #334155; font: inherit; font-size: 10px; cursor: pointer; }
 .visual-editor-authoring-toolbar button:hover:not(:disabled) { border-color: #64748b; background: #f1f5f9; }
 .visual-editor-authoring-toolbar button:disabled { opacity: .38; cursor: not-allowed; }
+
+/* W15 compact icon-first authoring controls. Accessible names remain localized through aria-label/title. */
+.visual-editor-authoring-toolbar { gap: 4px; padding: 4px 6px; overflow-x: auto; flex-wrap: nowrap; }
+.visual-editor-authoring-toolbar__group { flex: 0 0 auto; gap: 2px; padding-right: 4px; }
+.visual-editor-authoring-toolbar button { width: 28px; min-width: 28px; height: 28px; min-height: 28px; padding: 0; font-size: 13px; line-height: 1; }

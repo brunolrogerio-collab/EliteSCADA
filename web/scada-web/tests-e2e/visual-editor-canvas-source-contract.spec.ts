@@ -61,3 +61,24 @@ test('dragging an already selected object preserves the existing multiselect set
   expect(canvas).toContain('if (!preserveExistingSelection)');
   expect(canvas).not.toContain("emitSelection([projection.objectId], mode);\n    const localSelection");
 });
+
+
+test('Screen and Popup authoring use one canonical-rendered primary canvas instead of stacked previews', async () => {
+  const canvas = await source('../src/engineering/visual-editor/canvas/VisualEditorCanvas.tsx');
+  const screenWorkspace = await source('../src/engineering/visual-editor/VisualEditorWorkspaceLegacy.tsx');
+  const popupWorkspace = await source('../src/engineering/visual-editor/PopupVisualEditorWorkspaceImpl.tsx');
+
+  expect(canvas).toContain("from '../CanonicalVisualRenderer'");
+  expect(canvas).toContain('data-renderer="canonical-single-surface"');
+  expect(canvas).toContain('data-testid="visual-editor-canonical-layer"');
+  expect(canvas).toContain('projectTransientInteraction');
+  expect(canvas).toContain('applyVisualEditorMutationIntent');
+  expect(canvas).not.toMatch(/from ['\"][^'\"]*\/api['\"]/);
+
+  expect(screenWorkspace).not.toContain('visual-editor-canonical-preview-label');
+  expect(screenWorkspace).not.toContain('<CanonicalVisualRenderer');
+  expect(popupWorkspace).not.toContain('PopupRuntimeCompositionPreview');
+  expect(popupWorkspace).not.toContain('popup-runtime-composition-preview');
+  expect(popupWorkspace).not.toContain('popup-runtime-composition-box');
+  expect(popupWorkspace).not.toContain('visual-editor-canonical-preview-label');
+});

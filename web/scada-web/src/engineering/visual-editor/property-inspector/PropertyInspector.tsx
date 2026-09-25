@@ -39,6 +39,9 @@ export type PropertyInspectorCopy = Readonly<{
   defaultState: string;
   engineeringState: string;
   mixedState: (explicitCount: number, selectionCount: number) => string;
+  filterLabel: string;
+  filterPlaceholder: string;
+  noMatches: string;
   category: Readonly<Record<string, string>>;
 }>;
 
@@ -64,6 +67,9 @@ const DEFAULT_COPY: PropertyInspectorCopy = {
   defaultState: 'Default',
   engineeringState: 'Engineering',
   mixedState: (explicitCount, selectionCount) => `Mixed · ${explicitCount}/${selectionCount} explicit`,
+  filterLabel: 'Filter properties',
+  filterPlaceholder: 'Name or canonical key',
+  noMatches: 'No properties match this filter.',
   category: {
     general: 'General',
     geometry: 'Geometry',
@@ -83,13 +89,27 @@ export function PropertyInspector({
 }: PropertyInspectorProps) {
   const currentVisualText = useC07VisualEditorText();
   const locale = localeForVisualText(currentVisualText);
+  const chromeText = propertyInspectorChromeText(locale);
   const text: PropertyInspectorCopy = {
     ...DEFAULT_COPY,
+    ...chromeText,
     ...copy,
     category: { ...DEFAULT_COPY.category, ...(copy?.category ?? {}) }
   };
+  const [filter, setFilter] = useState('');
+  const [collapsedCategories, setCollapsedCategories] = useState<ReadonlySet<string>>(() => new Set());
   const model = useMemo(() => buildPropertyInspectorModel(selectedElements), [selectedElements]);
-  const groupedRows = useMemo(() => groupRows(model.rows), [model.rows]);
+  const filteredRows = useMemo(() => filterPropertyRows(model.rows, filter, text), [model.rows, filter, text]);
+  const groupedRows = useMemo(() => groupRows(filteredRows), [filteredRows]);
+
+  const toggleCategory = (category: string) => {
+    setCollapsedCategories(current => {
+      const next = new Set(current);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  };
 
   if (selectedElements.length === 0) {
     return (
@@ -132,22 +152,45 @@ export function PropertyInspector({
 
       {model.diagnostic ? <p className="property-inspector__diagnostic" role="status">{model.diagnostic}</p> : null}
 
-      {groupedRows.map(([category, rows]) => (
-        <section className="property-inspector__group" key={category}>
-          <h3>{text.category[category] ?? category}</h3>
-          {rows.map(row => (
-            <PropertyField
-              key={row.definition.key}
-              model={model}
-              row={row}
-              text={text}
-              locale={locale}
-              visualAssets={visualAssets}
-              onMutationIntent={onMutationIntent}
-            />
-          ))}
-        </section>
-      ))}
+      <label className="property-inspector__filter">
+        <span>{text.filterLabel}</span>
+        <input
+          type="search"
+          value={filter}
+          aria-label={text.filterLabel}
+          placeholder={text.filterPlaceholder}
+          onChange={event => setFilter(event.currentTarget.value)}
+        />
+      </label>
+
+      {groupedRows.length === 0 ? <p className="property-inspector__empty">{text.noMatches}</p> : null}
+      {groupedRows.map(([category, rows]) => {
+        const collapsed = collapsedCategories.has(category);
+        return <section className={`property-inspector__group property-inspector__group--${category}`} key={category}>
+          <button
+            type="button"
+            className="property-inspector__group-toggle"
+            aria-expanded={!collapsed}
+            onClick={() => toggleCategory(category)}
+          >
+            <span>{text.category[category] ?? category}</span>
+            <small>{rows.length}</small>
+          </button>
+          {!collapsed ? <div className="property-inspector__group-fields">
+            {rows.map(row => (
+              <PropertyField
+                key={row.definition.key}
+                model={model}
+                row={row}
+                text={text}
+                locale={locale}
+                visualAssets={visualAssets}
+                onMutationIntent={onMutationIntent}
+              />
+            ))}
+          </div> : null}
+        </section>;
+      })}
 
       {selectedTrend ? <TrendPenEditor element={selectedTrend} onMutationIntent={onMutationIntent} /> : null}
       {selectedBrowser ? <BrowserConfigurationEditor element={selectedBrowser} locale={locale} onMutationIntent={onMutationIntent} /> : null}
@@ -263,6 +306,23 @@ export function humanizeVisualPropertyKey(propertyKey: string): string {
   return `${words[0].toUpperCase()}${words.slice(1)}`;
 }
 
+function filterPropertyRows(
+  rows: readonly PropertyInspectorRow[],
+  filter: string,
+  text: PropertyInspectorCopy
+): readonly PropertyInspectorRow[] {
+  const query = filter.trim().toLocaleLowerCase();
+  if (!query) return rows;
+  return rows.filter(row => {
+    const category = row.definition.category ?? 'general';
+    return [
+      row.definition.key,
+      humanizeVisualPropertyKey(row.definition.key),
+      text.category[category] ?? category
+    ].some(value => value.toLocaleLowerCase().includes(query));
+  });
+}
+
 function groupRows(rows: readonly PropertyInspectorRow[]): readonly [string, readonly PropertyInspectorRow[]][] {
   const groups = new Map<string, PropertyInspectorRow[]>();
   for (const row of rows) {
@@ -280,6 +340,24 @@ function stateLabel(row: PropertyInspectorRow, text: PropertyInspectorCopy): str
     case 'engineered': return text.engineeringState;
     case 'mixed': return text.mixedState(row.explicitCount, row.selectionCount);
   }
+}
+
+function propertyInspectorChromeText(locale: EngineeringLocale) {
+  if (locale === 'pt-BR') return {
+    filterLabel: 'Filtrar propriedades',
+    filterPlaceholder: 'Nome ou chave canônica',
+    noMatches: 'Nenhuma propriedade corresponde ao filtro.'
+  };
+  if (locale === 'es') return {
+    filterLabel: 'Filtrar propiedades',
+    filterPlaceholder: 'Nombre o clave canónica',
+    noMatches: 'Ninguna propiedad coincide con el filtro.'
+  };
+  return {
+    filterLabel: 'Filter properties',
+    filterPlaceholder: 'Name or canonical key',
+    noMatches: 'No properties match this filter.'
+  };
 }
 
 function localeForVisualText(text: ReturnType<typeof useC07VisualEditorText>): EngineeringLocale {

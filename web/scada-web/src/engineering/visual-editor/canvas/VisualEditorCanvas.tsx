@@ -6,6 +6,11 @@ import type {
   WheelEvent as ReactWheelEvent
 } from 'react';
 import { BUILTIN_VISUAL_OBJECT_TYPES } from '../../../visual-runtime';
+import type { EngineeringLocale } from '../../i18n';
+import type { DynamoEngineering } from '../../types';
+import { CanonicalVisualRenderer } from '../CanonicalVisualRenderer';
+import { updateCanonicalPolygonPoints } from '../polygonCanonicalMutations';
+import { applyVisualEditorMutationIntent } from '../visualEditorCanonicalModel';
 import { isVisualElementEffectivelyAuthoringLocked } from '../visualEditorAuthoringModel';
 import type {
   VisualEditorBounds,
@@ -65,6 +70,12 @@ type CanvasInteraction = MoveInteraction | ResizeInteraction | RotateInteraction
 const CANVAS_CONTENT_WIDTH = 6000;
 const CANVAS_CONTENT_HEIGHT = 4000;
 
+export type VisualEditorCanvasProps = VisualEditorCanvasContractProps & Readonly<{
+  locale?: EngineeringLocale;
+  dynamoDefinitions?: readonly DynamoEngineering[] | null;
+  emptyLabel?: string;
+}>;
+
 export function VisualEditorCanvas({
   screen,
   selectedObjectIds,
@@ -73,8 +84,11 @@ export function VisualEditorCanvas({
   onMutationIntent,
   polygonToolActive = false,
   onPolygonToolCancel,
-  logicalBoundary
-}: VisualEditorCanvasContractProps) {
+  logicalBoundary,
+  locale = 'pt-BR',
+  dynamoDefinitions,
+  emptyLabel
+}: VisualEditorCanvasProps) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const [gridEnabled, setGridEnabled] = useState(true);
   const [snapEnabled, setSnapEnabled] = useState(true);
@@ -104,6 +118,11 @@ export function VisualEditorCanvas({
   const selectedPolygonPoints = selectedProjection?.element.type === BUILTIN_VISUAL_OBJECT_TYPES.polygon
     ? readPolygonPoints(selectedProjection.element)
     : Object.freeze([]);
+  const renderedScreen = useMemo(
+    () => projectTransientInteraction(screen, interaction),
+    [screen, interaction]
+  );
+  const canvasText = canvasControlText(locale);
 
   const emitSelection = (objectIds: readonly string[], mode: 'replace' | 'add' | 'toggle'): void => {
     onUiIntent({ kind: 'selection.change', objectIds, mode });
@@ -340,8 +359,15 @@ export function VisualEditorCanvas({
   } satisfies CSSProperties;
   const surfaceStyle = {
     '--visual-editor-grid-size': `${DEFAULT_CANVAS_GRID_SIZE * effectiveViewport.zoom}px`,
-    '--visual-editor-grid-pan-x': `${effectiveViewport.panX}px`, '--visual-editor-grid-pan-y': `${effectiveViewport.panY}px`
+    '--visual-editor-grid-pan-x': `${effectiveViewport.panX}px`,
+    '--visual-editor-grid-pan-y': `${effectiveViewport.panY}px`,
+    '--visual-editor-background-grid-width': String((logicalBoundary?.width ?? CANVAS_CONTENT_WIDTH) / DEFAULT_CANVAS_GRID_SIZE),
+    '--visual-editor-background-grid-height': String((logicalBoundary?.height ?? CANVAS_CONTENT_HEIGHT) / DEFAULT_CANVAS_GRID_SIZE)
   } as CSSProperties;
+  const canonicalLayerStyle = {
+    width: logicalBoundary?.width ?? CANVAS_CONTENT_WIDTH,
+    height: logicalBoundary?.height ?? CANVAS_CONTENT_HEIGHT
+  } satisfies CSSProperties;
 
   const renderProjection = (projection: CanvasElementProjection, ancestorMovesWithSelection: boolean): React.ReactNode => {
     const objectId = projection.objectId;
@@ -380,9 +406,6 @@ export function VisualEditorCanvas({
       onPointerEnter={() => setHoveredObjectId(objectId)}
       onPointerLeave={() => setHoveredObjectId(current => current === objectId ? null : current)}
     >
-      {projection.element.type === BUILTIN_VISUAL_OBJECT_TYPES.polygon && polygonPoints.length >= 3 ? <svg className="visual-editor-canvas__polygon-shape" viewBox={`0 0 ${Math.max(pointBounds.width, 1)} ${Math.max(pointBounds.height, 1)}`} preserveAspectRatio="none" aria-hidden="true">
-        <polygon points={polygonPointsAttribute(polygonPoints.map(point => ({ x: point.x - pointBounds.minX, y: point.y - pointBounds.minY })))} />
-      </svg> : null}
       <span className="visual-editor-canvas__object-label" aria-hidden="true">{projection.element.key}</span>
 
       {selected && objectId !== null && !authoringLocked ? <div className="visual-editor-canvas__adorners" aria-hidden="true">
@@ -408,33 +431,48 @@ export function VisualEditorCanvas({
     ? [...polygonDraftPoints, polygonHoverPoint]
     : polygonDraftPoints;
 
-  return <section className={`visual-editor-canvas${polygonToolActive ? ' is-polygon-tool' : ''}`} data-testid="visual-editor-canvas">
-    <div className="visual-editor-canvas__toolbar" role="toolbar" aria-label="Canvas controls">
-      <button type="button" onClick={() => onUiIntent({ kind: 'viewport.change', viewport: zoomViewport(viewport, 1 / 1.2) })} aria-label="Zoom out">−</button>
-      <button type="button" onClick={() => onUiIntent({ kind: 'viewport.change', viewport: { zoom: 1, panX: 0, panY: 0 } })} aria-label="Reset viewport">100%</button>
-      <button type="button" onClick={() => onUiIntent({ kind: 'viewport.change', viewport: zoomViewport(viewport, 1.2) })} aria-label="Zoom in">+</button>
-      <button type="button" aria-pressed={gridEnabled} onClick={() => setGridEnabled(value => !value)} data-testid="canvas-grid-toggle">Grid</button>
-      <button type="button" aria-pressed={snapEnabled} onClick={() => setSnapEnabled(value => !value)} data-testid="canvas-snap-toggle">Snap</button>
+  return <section className={`visual-editor-canvas${polygonToolActive ? ' is-polygon-tool' : ''}`} data-testid="visual-editor-canvas" data-renderer="canonical-single-surface">
+    <div className="visual-editor-canvas__toolbar" role="toolbar" aria-label={canvasText.controls}>
+      <button type="button" title={canvasText.zoomOut} onClick={() => onUiIntent({ kind: 'viewport.change', viewport: zoomViewport(viewport, 1 / 1.2) })} aria-label={canvasText.zoomOut}>−</button>
+      <button type="button" title={canvasText.resetViewport} onClick={() => onUiIntent({ kind: 'viewport.change', viewport: { zoom: 1, panX: 0, panY: 0 } })} aria-label={canvasText.resetViewport}>1:1</button>
+      <button type="button" title={canvasText.zoomIn} onClick={() => onUiIntent({ kind: 'viewport.change', viewport: zoomViewport(viewport, 1.2) })} aria-label={canvasText.zoomIn}>+</button>
+      <button type="button" title={canvasText.grid} aria-label={canvasText.grid} aria-pressed={gridEnabled} onClick={() => setGridEnabled(value => !value)} data-testid="canvas-grid-toggle">#</button>
+      <button type="button" title={canvasText.snap} aria-label={canvasText.snap} aria-pressed={snapEnabled} onClick={() => setSnapEnabled(value => !value)} data-testid="canvas-snap-toggle">⊙</button>
       {polygonToolActive ? <>
-        <span className="visual-editor-canvas__polygon-status">Polygon · {polygonDraftPoints.length} points</span>
-        <button type="button" disabled={polygonDraftPoints.length < 3} onClick={finishPolygon} data-testid="polygon-finish">Finish polygon</button>
-        <button type="button" onClick={cancelPolygon}>Cancel polygon</button>
+        <span className="visual-editor-canvas__polygon-status">{canvasText.polygon} · {polygonDraftPoints.length}</span>
+        <button type="button" title={canvasText.finishPolygon} aria-label={canvasText.finishPolygon} disabled={polygonDraftPoints.length < 3} onClick={finishPolygon} data-testid="polygon-finish">✓</button>
+        <button type="button" title={canvasText.cancelPolygon} aria-label={canvasText.cancelPolygon} onClick={cancelPolygon}>×</button>
       </> : null}
       {!polygonToolActive && selectedProjection?.element.type === BUILTIN_VISUAL_OBJECT_TYPES.polygon ? <>
-        <button type="button" onClick={addPolygonVertex}>+ Vertex</button>
-        <button type="button" disabled={!selectedVertex || selectedPolygonPoints.length <= 3} onClick={removePolygonVertex}>− Vertex</button>
+        <button type="button" title={canvasText.addVertex} aria-label={canvasText.addVertex} onClick={addPolygonVertex}>◇+</button>
+        <button type="button" title={canvasText.removeVertex} aria-label={canvasText.removeVertex} disabled={!selectedVertex || selectedPolygonPoints.length <= 3} onClick={removePolygonVertex}>◇−</button>
       </> : null}
       <span className="visual-editor-canvas__toolbar-spacer" />
-      <button type="button" disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.duplicate', objectIds: selection })}>Duplicate</button>
-      <button type="button" disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.delete', objectIds: selection })}>Delete</button>
-      <button type="button" disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'sendToBack' })} aria-label="Send to back">⇤</button>
-      <button type="button" disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'sendBackward' })} aria-label="Send backward">←</button>
-      <button type="button" disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'bringForward' })} aria-label="Bring forward">→</button>
-      <button type="button" disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'bringToFront' })} aria-label="Bring to front">⇥</button>
+      <button type="button" title={canvasText.duplicate} aria-label={canvasText.duplicate} disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.duplicate', objectIds: selection })}>⧉</button>
+      <button type="button" title={canvasText.deleteSelection} aria-label={canvasText.deleteSelection} disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.delete', objectIds: selection })}>⌫</button>
+      <button type="button" title={canvasText.sendToBack} disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'sendToBack' })} aria-label={canvasText.sendToBack}>⇤</button>
+      <button type="button" title={canvasText.sendBackward} disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'sendBackward' })} aria-label={canvasText.sendBackward}>←</button>
+      <button type="button" title={canvasText.bringForward} disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'bringForward' })} aria-label={canvasText.bringForward}>→</button>
+      <button type="button" title={canvasText.bringToFront} disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'bringToFront' })} aria-label={canvasText.bringToFront}>⇥</button>
     </div>
 
     <div ref={surfaceRef} className={`visual-editor-canvas__surface${gridEnabled ? ' has-grid' : ''}`} style={surfaceStyle} tabIndex={0} role="application" aria-label={`Visual editor canvas for ${screen.name}`} onPointerDown={handleSurfacePointerDown} onPointerMove={handlePointerMove} onPointerUp={finishInteraction} onPointerCancel={() => setInteraction(null)} onDoubleClick={() => { if (polygonToolActive && polygonDraftPoints.length >= 3) finishPolygon(); }} onWheel={handleWheel} onKeyDown={handleKeyDown}>
       <div className="visual-editor-canvas__viewport" style={viewportStyle}>
+        <div
+          className={`visual-editor-canvas__canonical-layer${logicalBoundary ? ' is-bounded' : ''}`}
+          style={canonicalLayerStyle}
+          aria-hidden="true"
+          inert
+          data-testid="visual-editor-canonical-layer"
+        >
+          <CanonicalVisualRenderer
+            elements={renderedScreen.elements}
+            emptyLabel={emptyLabel ?? canvasText.empty}
+            locale={locale}
+            dynamoDefinitions={dynamoDefinitions}
+            showTechnicalFallbackText
+          />
+        </div>
         {logicalBoundary ? <div
           className="visual-editor-canvas__logical-boundary"
           data-testid="visual-editor-logical-boundary"
@@ -442,7 +480,9 @@ export function VisualEditorCanvas({
           data-logical-height={logicalBoundary.height}
           style={{ width: logicalBoundary.width, height: logicalBoundary.height }}
         ><span>{logicalBoundary.label}</span></div> : null}
-        {projectedElements.map(projection => renderProjection(projection, false))}
+        <div className="visual-editor-canvas__interaction-layer">
+          {projectedElements.map(projection => renderProjection(projection, false))}
+        </div>
         {polygonToolActive && draftPreviewPoints.length > 0 ? <svg className="visual-editor-canvas__polygon-draft" width={CANVAS_CONTENT_WIDTH} height={CANVAS_CONTENT_HEIGHT} aria-hidden="true">
           <polyline points={polygonPointsAttribute(draftPreviewPoints)} />
           {polygonDraftPoints.map((point, index) => <circle key={index} cx={point.x} cy={point.y} r={4} />)}
@@ -451,9 +491,73 @@ export function VisualEditorCanvas({
     </div>
 
     <footer className="visual-editor-canvas__status" aria-live="polite">
-      <span>{Math.round(effectiveViewport.zoom * 100)}%</span><span>{selection.length} selected</span>{interaction?.kind ? <span>{interaction.kind}</span> : null}{polygonToolActive ? <span>polygon drawing</span> : null}
+      <span>{Math.round(effectiveViewport.zoom * 100)}%</span><span>{selection.length} {canvasText.selected}</span>{interaction?.kind ? <span>{interaction.kind}</span> : null}{polygonToolActive ? <span>{canvasText.polygonDrawing}</span> : null}
     </footer>
   </section>;
+}
+
+function projectTransientInteraction(
+  screen: VisualEditorCanvasContractProps['screen'],
+  interaction: CanvasInteraction
+): VisualEditorCanvasContractProps['screen'] {
+  if (!interaction || interaction.kind === 'pan') return screen;
+  try {
+    switch (interaction.kind) {
+      case 'move':
+        if (!interaction.objectIds.length || !hasMeaningfulDelta(interaction.delta)) return screen;
+        return applyVisualEditorMutationIntent(screen, {
+          kind: 'object.move',
+          objectIds: interaction.objectIds,
+          delta: interaction.delta
+        });
+      case 'resize':
+        if (sameBounds(interaction.startBounds, interaction.bounds)) return screen;
+        return applyVisualEditorMutationIntent(screen, {
+          kind: 'object.resize',
+          objectId: interaction.objectId,
+          bounds: interaction.bounds
+        });
+      case 'rotate':
+        if (!interaction.objectIds.length || Math.abs(interaction.deltaDegrees) <= Number.EPSILON) return screen;
+        return applyVisualEditorMutationIntent(screen, {
+          kind: 'object.rotate',
+          objectIds: interaction.objectIds,
+          deltaDegrees: interaction.deltaDegrees
+        });
+      case 'polygon-vertex':
+        if (pointsEqual(interaction.startPoints, interaction.points)) return screen;
+        return updateCanonicalPolygonPoints(screen, interaction.objectId, interaction.points);
+    }
+  } catch {
+    return screen;
+  }
+}
+
+function canvasControlText(locale: EngineeringLocale) {
+  if (locale === 'en') return {
+    controls: 'Canvas controls', zoomOut: 'Zoom out', resetViewport: 'Reset viewport', zoomIn: 'Zoom in',
+    grid: 'Grid', snap: 'Snap', polygon: 'Polygon points', finishPolygon: 'Finish polygon', cancelPolygon: 'Cancel polygon',
+    addVertex: 'Add polygon vertex', removeVertex: 'Remove polygon vertex', duplicate: 'Duplicate selection',
+    deleteSelection: 'Delete selection', sendToBack: 'Send to back', sendBackward: 'Send backward',
+    bringForward: 'Bring forward', bringToFront: 'Bring to front', selected: 'selected',
+    polygonDrawing: 'polygon drawing', empty: 'This visual surface has no objects yet.'
+  };
+  if (locale === 'es') return {
+    controls: 'Controles del canvas', zoomOut: 'Alejar', resetViewport: 'Restablecer vista', zoomIn: 'Acercar',
+    grid: 'Cuadrícula', snap: 'Ajuste', polygon: 'Puntos del polígono', finishPolygon: 'Finalizar polígono', cancelPolygon: 'Cancelar polígono',
+    addVertex: 'Agregar vértice', removeVertex: 'Eliminar vértice', duplicate: 'Duplicar selección',
+    deleteSelection: 'Eliminar selección', sendToBack: 'Enviar al fondo', sendBackward: 'Enviar atrás',
+    bringForward: 'Traer adelante', bringToFront: 'Traer al frente', selected: 'seleccionados',
+    polygonDrawing: 'dibujando polígono', empty: 'Esta superficie visual todavía no tiene objetos.'
+  };
+  return {
+    controls: 'Controles do canvas', zoomOut: 'Reduzir zoom', resetViewport: 'Restaurar visualização', zoomIn: 'Aumentar zoom',
+    grid: 'Grade', snap: 'Ajuste à grade', polygon: 'Pontos do polígono', finishPolygon: 'Finalizar polígono', cancelPolygon: 'Cancelar polígono',
+    addVertex: 'Adicionar vértice', removeVertex: 'Remover vértice', duplicate: 'Duplicar seleção',
+    deleteSelection: 'Excluir seleção', sendToBack: 'Enviar para trás', sendBackward: 'Recuar uma camada',
+    bringForward: 'Avançar uma camada', bringToFront: 'Trazer para frente', selected: 'selecionados',
+    polygonDrawing: 'desenhando polígono', empty: 'Esta superfície visual ainda não possui objetos.'
+  };
 }
 
 function pointFromPointer(event: ReactPointerEvent<HTMLElement>): VisualEditorPoint { return Object.freeze({ x: event.clientX, y: event.clientY }); }

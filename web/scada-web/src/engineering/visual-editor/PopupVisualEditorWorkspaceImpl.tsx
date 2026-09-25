@@ -2,8 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   applyEngineeringPackage,
   loadEngineeringWorkspace,
-  previewEngineeringPackage,
-  visualAssetContentUrl
+  previewEngineeringPackage
 } from '../api';
 import type { EngineeringLocale } from '../i18n';
 import {
@@ -17,7 +16,6 @@ import type {
   ScreenEngineering
 } from '../types';
 import { initializeClientMemory } from '../../runtime/clientMemory';
-import { RuntimeLogicalViewport } from '../../runtime/visual-navigation/RuntimeLogicalViewport';
 import { resolveRuntimeLogicalSize } from '../../runtime/visual-navigation/runtimeLogicalCanvas';
 import {
   resolvePopupLogicalBounds,
@@ -26,7 +24,6 @@ import {
 import { BUILTIN_VISUAL_OBJECT_TYPES } from '../../visual-runtime';
 import { BindingEditor } from './binding-editor';
 import { VisualEditorCanvas } from './canvas';
-import { CanonicalVisualRenderer } from './CanonicalVisualRenderer';
 import { DynamoAuthoringCatalogProvider } from './DynamoAuthoringCatalogContext';
 import { DynamicPropertyEditor } from './dynamic-property-editor';
 import { DynamoLibraryPalette } from './DynamoLibraryPalette';
@@ -44,7 +41,6 @@ import {
 import { popupEditorText } from './popupVisualEditorText';
 import { createCanonicalPolygon, updateCanonicalPolygonPoints } from './polygonCanonicalMutations';
 import { PropertyInspector } from './property-inspector';
-import { resolveVisualDefinitionSurfaceStyle } from './visualDefinitionSurfaceModel';
 import {
   applyVisualEditorMutationIntent,
   cloneEngineeringValue,
@@ -419,6 +415,9 @@ function PopupVisualEditorWorkspaceBody({
               canUndo={canUndoVisualEditorSession(session)}
               canRedo={canRedoVisualEditorSession(session)}
               canPaste={canPasteVisualEditorSession(session)}
+              locale={locale}
+              dynamoDefinitions={snapshot.package.dynamos}
+              emptyLabel={text.emptyCanvas}
               logicalBoundary={{
                 width: popupBounds.width,
                 height: popupBounds.height,
@@ -426,13 +425,6 @@ function PopupVisualEditorWorkspaceBody({
               }}
               polygonToolActive={polygonToolActive}
               onPolygonToolCancel={() => setPolygonToolActive(false)}
-            />
-            <div className="visual-editor-canonical-preview-label"><strong>{text.canonicalPreview}</strong><span>{text.canonicalPreviewHint}</span></div>
-            <PopupRuntimeCompositionPreview
-              popup={draftPopup}
-              emptyLabel={text.emptyCanvas}
-              locale={locale}
-              dynamoDefinitions={snapshot.package.dynamos}
             />
           </section>
 
@@ -479,68 +471,5 @@ function PopupVisualEditorWorkspaceBody({
         </section>
       </section>
     </div>
-  </div>;
-}
-
-function PopupRuntimeCompositionPreview({
-  popup,
-  emptyLabel,
-  locale,
-  dynamoDefinitions
-}: {
-  popup: ReturnType<typeof visualScreenToPopup>;
-  emptyLabel: string;
-  locale: EngineeringLocale;
-  dynamoDefinitions: EngineeringPackageView['dynamos'];
-}) {
-  const bounds = resolvePopupLogicalBounds(popup);
-  const position = resolvePopupLogicalPosition(popup, RUNTIME_DESIGN_SIZE, bounds);
-
-  return <div
-    className="popup-visual-editor-runtime-preview"
-    data-testid="popup-runtime-composition-preview"
-    data-popup-logical-x={position.x}
-    data-popup-logical-y={position.y}
-    data-popup-logical-width={bounds.width}
-    data-popup-logical-height={bounds.height}
-  >
-    <RuntimeLogicalViewport designSize={RUNTIME_DESIGN_SIZE}>
-      <div className="runtime-logical-composition">
-        <div className="runtime-visual-popup-layer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-          <section
-            className="runtime-visual-popup"
-            data-testid="popup-runtime-composition-box"
-            data-popup-key={popup.key}
-            style={{
-              position: 'absolute',
-              left: position.x,
-              top: position.y,
-              width: bounds.width,
-              zIndex: 1,
-              pointerEvents: 'auto'
-            }}
-          >
-            <div
-              className="runtime-visual-popup-content"
-              style={{
-                ...resolveVisualDefinitionSurfaceStyle(popup.properties, visualAssetContentUrl),
-                width: bounds.width,
-                height: bounds.height
-              }}
-            >
-              <div className="runtime-visual-definition" data-runtime-visual-context-id="popup:engineering-preview">
-                <CanonicalVisualRenderer
-                  elements={popup.elements}
-                  emptyLabel={emptyLabel}
-                  locale={locale}
-                  dynamoDefinitions={dynamoDefinitions}
-                  showTechnicalFallbackText={false}
-                />
-              </div>
-            </div>
-          </section>
-        </div>
-      </div>
-    </RuntimeLogicalViewport>
   </div>;
 }

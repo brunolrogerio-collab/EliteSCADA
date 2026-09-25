@@ -38,9 +38,9 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0041`
+`MAIN_ORDER_REV: 0042`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-24 — INFRA-CI-01D MERGED / EDITOR CODEX ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-24 — EDITOR MERGED / FND-05 HA CODEX ACTIVE`
 
 `GLOBAL_GATE: FND04_VERIFIED_FROZEN`
 
@@ -1164,3 +1164,26 @@ Exact candidate:
 - current target SHA `66694aac1408218a41d1251459c20465d990cfef`.
 
 Prior Script/01D routes are complete. Execute only Editor validation. Do not self-select Authority, Licensing or FND-05 afterward; return to Main for the next explicit route.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0042
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FND05-HA-28`
+
+`ORDER_STATE: ACTIVE_VALIDATION`
+
+`EXPECTED_ORDER: FND05-CODEX-HA-ADVERSARIAL-V2-02`
+
+Authoritative lane control:
+- branch: `coord/w15-fnd05-control`;
+- file: `docs/WAVE15-FND05-CONTROL.md`;
+- control commit: `ddfd84ab4f2522c255fa9a155f9ec14dfbbc8734`.
+
+Exact candidate:
+- PR #347;
+- branch `work/w15-fnd05-ha-authority`;
+- candidate SHA `be9cf0f3f02aa1ba49cdb6b589abd5e1e723c845`;
+- candidate tree `c9e94e84c078928ad690217484171fafa6390b46`;
+- current target SHA `cfaafa4b29e1462bf9d304af995cc8638578a3c2`.
+
+Mandatory outcome is `CODEX_HA_ADVERSARIAL_GREEN` or a material defect returned to Main. Execute only FND-05. Do not self-select Authority/Licensing afterward.

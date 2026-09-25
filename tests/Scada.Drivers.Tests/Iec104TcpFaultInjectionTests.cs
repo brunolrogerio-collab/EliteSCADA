@@ -54,7 +54,13 @@ public sealed class Iec104TcpFaultInjectionTests
             await adapter.StartDataTransferAsync(timeout.Token);
 
             await WaitUntilAsync(
-                () => adapter.GetTransportDiagnostics().ProtocolErrors >= 1,
+                () =>
+                {
+                    var diagnostics = adapter.GetTransportDiagnostics();
+                    return diagnostics.ProtocolErrors >= 1 &&
+                        diagnostics.SessionFailures >= 1 &&
+                        !diagnostics.IsConnected;
+                },
                 timeout.Token);
 
             var diagnostics = adapter.GetTransportDiagnostics();

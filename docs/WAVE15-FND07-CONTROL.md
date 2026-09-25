@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd07-control`
 
-`MAIN_ORDER_REV: 0020`
+`MAIN_ORDER_REV: 0021`
 
 `STATE: DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
 
@@ -983,3 +983,51 @@ Remaining mandatory gates:
 FND-07 DEV must now wait. It must not rebase, resolve conflicts, mutate source, or start another correction unless Main returns a new finding.
 
 Future handoffs must be GitHub-durable under rev 0019 protocol.
+
+
+## 24. MAIN RECONCILIATION COMPLETE / FINAL VALIDATION — rev 0021
+
+Main reconciled the audited FND-07 candidate with current integration.
+
+Exact reconciled candidate:
+- head `2bacddbc558bba0dd1a316d98b9895fbb847683c`;
+- tree `06ddb27f8f50c495653c1b8e57a2142769ca29e0`;
+- first parent: `9895a01a662851505198b965fae2335e55fba6fa`;
+- second parent: `0189b7f79bf9772c1cf7ece8f4774ba9ea207f6b`;
+- PR #348 is mergeable.
+
+Cross-lane reconciliation preserves:
+- FND-05 HA industrial-effect authority;
+- FND-07 Neutral/Detach process-effect fence;
+- both HA and Installation endpoints/startup services.
+
+Additional Main reconciliation finding:
+`FND07-AUD-NEUTRAL-RUNTIME-METADATA-07`
+was closed in the merge candidate. Neutral now hides Operational Events, Client Memory, Drivers and Server Memory identity, with a focused regression test.
+
+Natural exact-head Wave 15 T1:
+- run `36093062819`;
+- exact head `2bacddbc558bba0dd1a316d98b9895fbb847683c`;
+- state: ACTIVE / queued-or-running.
+
+`ORDER_ID: FND07-CODEX-RECONCILED-ADVERSARIAL-09`
+
+`ORDER_STATE: CODEX_FINAL_VALIDATION / ACTIVE_SHARED_ROUTE / DEV_WAIT`
+
+FND-07 DEV remains WAIT and must not mutate source.
+
+CODEX final validation must cover:
+1. exact reconciled SHA/tree;
+2. both HA and installation process-effect fences;
+3. fresh install / first Administrator / first Project / no Demo;
+4. startup order: storage -> Authority -> installation journal -> Working;
+5. AttachInProgress pre-save/post-save restart;
+6. DetachInProgress Authority convergence;
+7. Keep/Remove/Replace FND-03 semantics;
+8. Neutral metadata/process-effect no-leak behavior;
+9. System Recovery attach journal;
+10. Working != Published != Active;
+11. exact-head T1 result;
+12. no regression to frozen FND-05 HA boundary.
+
+No merge/freeze unless Main receives green exact-head T1 and accepts the final CODEX handoff.

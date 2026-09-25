@@ -38,7 +38,7 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0044`
+`MAIN_ORDER_REV: 0045`
 
 `LAST_MAIN_UPDATE_BRT: 2026-09-25 — FND-05 VERIFIED/FROZEN / FND-07 CODEX ACTIVE`
 
@@ -1238,3 +1238,21 @@ Primary mission:
 FND-05 is now VERIFIED/FROZEN and this route supersedes its post-merge route.
 
 Do not self-select Authority or Licensing after FND-07.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0045
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FND07-30`
+
+`ORDER_STATE: ACTIVE_VALIDATION / BOUNDED_TEST_FIX`
+
+`EXPECTED_ORDER: FND07-CODEX-EXACT-HEAD-T1-VALIDATION-04`
+
+Authoritative updated lane control:
+- branch: `coord/w15-fnd07-control`;
+- file: `docs/WAVE15-FND07-CONTROL.md`;
+- control commit: `PLACEHOLDER_FND07_CONTROL`.
+
+The exact-head T1 `36088026405` on `a8fcfe8c855a692670e9c74a95f4450caf612b2f` failed only because the explicit downstream test fixture was saved but not published/activated.
+
+CODEX remains on FND-07 and is authorized for the bounded test-only lifecycle completion defined in rev 0014. No product mutation. Do not switch to Authority or Licensing yet.

@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd07-control`
 
-`MAIN_ORDER_REV: 0008`
+`MAIN_ORDER_REV: 0009`
 
 `STATE: DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
 
@@ -352,3 +352,24 @@ Required bounded correction:
 8. run a new natural exact-head T1 and return the candidate.
 
 No CODEX, merge or freeze authority yet.
+
+
+## 12. Explicit downstream populated fixture candidate — T1 pending
+
+DEV advanced the bounded test-harness correction to:
+- head `da1f00a2db4dbd1125fa342aa5a41c5ec57edbdb`;
+- tree `a53271a20a9b5b2e7a2f51d20dcce766f9bb62d8`;
+- delta from prior head: test-only `local-auth.spec.ts`.
+
+Main source review confirms the intended sequencing:
+1. clean fresh-install/first-project truth is asserted first;
+2. only afterwards the test explicitly creates the downstream operator role through the Authority API;
+3. only afterwards it applies/saves a populated Engineering fixture through supported APIs;
+4. the fixture is explicitly marked test setup and is not product bootstrap behavior;
+5. no production file changed.
+
+Natural T1 `36085732961` is currently running.
+
+`ORDER_STATE: DEV_CANDIDATE / T1_PENDING / DEV_WAIT`
+
+DEV must not add further mutation while this exact candidate is under Main review/T1 unless Main returns a defect.

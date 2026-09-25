@@ -462,7 +462,7 @@ public sealed class InstallationDetachDeepAuditTests
                 string.Equals(Snapshot.ProjectKey, nextProject, StringComparison.OrdinalIgnoreCase))
                 return Task.FromResult(Snapshot);
             Assert.Equal(expected, Snapshot.State);
-            Assert.True(string.Equals(Snapshot.ProjectKey, expectedProject, StringComparison.OrdinalIgnoreCase));
+            Assert.Equal(expectedProject, Snapshot.ProjectKey, ignoreCase: true);
             return SetAsync(next, nextProject, advanceGeneration);
         }
 

@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0018`
+`MAIN_ORDER_REV: 0019`
 
 `STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
@@ -1183,5 +1183,31 @@ Dedicated FND-07 control rev 0017 contains the binding audit gate.
 
 Current DEV correction remains bounded to:
 `FND07-DEV-AUTHORITY-BEFORE-ENGINEERING-RESTART-05`.
+
+CODEX remains paused.
+
+
+## 32. FND-07 cumulative deep audit — blockers returned to DEV
+
+Main audited PR #348 cumulatively at:
+- head `f2f1fed37552133e30567faa0c944d605b048125`;
+- tree `74d2186d69e77c8252f0ec8740794e3485072e5f`;
+- 14 commits / 21 changed files.
+
+Open BLOCKERs:
+1. `AttachInProgress` restart recovery can be unreachable before first durable revision;
+2. interrupted installation detach can complete Application Neutral while leaving Authority attached.
+
+Open MAJORs:
+3. license Keep/Remove/Replace intent/result is not restart-durable/transactionally honest;
+4. transition/restart/System-Recovery test coverage is insufficient.
+
+Cross-lane reconciliation is also required after DEV correction because FND-07 overlaps frozen FND-05 HA surfaces in `ProductLicensedRuntimeCoordinator.cs`, `Program.cs` and `ScadaRuntimeFacade.cs`.
+
+State:
+`FND-07 -> DEV_CORRECTION / DEEP_AUDIT_BLOCKERS_OPEN`
+
+Binding order:
+`FND07-DEV-DEEP-AUDIT-BLOCKERS-06`.
 
 CODEX remains paused.

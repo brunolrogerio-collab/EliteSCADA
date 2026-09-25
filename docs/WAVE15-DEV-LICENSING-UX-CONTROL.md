@@ -3,9 +3,9 @@
 > GitHub live is the sole authority.
 
 `LANE: DEV-LICENSING-UX`
-`MAIN_ORDER_REV: 0005`
+`MAIN_ORDER_REV: 0006`
 `ORDER_ID: DEV-LICENSING-UX-SESSION-REPLACEMENT-TRUTH-03`
-`ORDER_STATE: DEV_CORRECTION / AUTHORIZED`
+`ORDER_STATE: MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`
 `PLANNED_BRANCH: work/w15-dev-licensing-ux`
 `WORK_BRANCH: work/w15-dev-licensing-ux`
 `FC0A_RELEASE_APPROVED: YES`
@@ -288,3 +288,28 @@ Return:
 with exact SHA/tree and focused/natural T1 evidence.
 
 No CODEX route/merge/T2 before corrected Main review.
+
+
+## Main re-acceptance after independent audit correction — rev 0006
+
+Exact corrected candidate:
+- PR #345;
+- head `d97598fb16ba0eb6d43e78b25c848149a1ec547a`;
+- correction delta from accepted `f5d3212b...`: 2 commits / 2 files;
+- natural exact-head T1 `36092087487`: SUCCESS across all jobs and final gate.
+
+The session-replacement stale-state MAJOR is closed.
+
+`ORDER_ID: DEV-LICENSING-UX-CODEX-VALIDATION-V2`
+
+`ORDER_STATE: MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`
+
+CODEX obligations remain:
+- ESLIC1/ESLIC2 truth;
+- nullable legacy semantics;
+- requested/granted/fallback behavior;
+- replacement admission failure with no stale lease;
+- ViewOnly fail-closed mutation behavior;
+- exact-head/adversarial validation on the final routed candidate.
+
+Do not mutate DEV source while queued. No merge/T2 until Main explicitly routes CODEX.

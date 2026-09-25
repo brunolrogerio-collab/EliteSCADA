@@ -5,9 +5,9 @@
 
 `CONTROL_BRANCH: coord/w15-infra-ci-01d-control`
 
-`MAIN_ORDER_REV: 0002`
+`MAIN_ORDER_REV: 0003`
 
-`STATE: ACTIVE / SEQUENTIAL_CODEX`
+`STATE: INTEGRATED / CLOSED`
 
 `ORDER_ID: INFRA-CI-01D-IEC104-FAULT-OBSERVATION-RACE-V1`
 
@@ -213,3 +213,23 @@ Work branch created directly from this exact head:
 `WORK_BRANCH: work/w15-infra-ci-01d-iec104-fault-observation-race`
 
 Executor must perform only the test-infrastructure correction authorized above and return the candidate handoff. No product/driver redesign, no blind rerun, no self-merge.
+
+
+## 11. Main integration closeout
+
+Final candidate:
+- PR #350;
+- head `925070a1fb0c35a28266115f57856791f403b425`;
+- tree `7c1588becd9ef2dc375d2a4d6381430c560a5875`;
+- natural T1 `36079753043`: SUCCESS;
+- full local `Scada.Drivers.Tests`: 693/693 PASS;
+- production-code delta: none.
+
+Protected merge:
+- integration SHA `66694aac1408218a41d1251459c20465d990cfef`;
+- integration tree `7c1588becd9ef2dc375d2a4d6381430c560a5875`.
+
+Disposition:
+`INFRA-CI-01D -> INTEGRATED / CLOSED`.
+
+No further mutation is authorized under this order.

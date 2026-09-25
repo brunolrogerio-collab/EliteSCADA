@@ -1429,4 +1429,28 @@ Authorized correction is limited to the explicit downstream E2E fixture and stal
 No product source mutation, merge or freeze is authorized.
 
 Shared CODEX remains paused/unavailable. Authority and Licensing remain unable to self-select the shared CODEX resource.
+## 40. FND-07 new T1 failure classified / CODEX correction active
+
+FND-07 DEV delivered exact head `95fd68468c7ce26b94e8c60a513625e917f4c4a2`, tree `beca8b125258e812680573558a1c382acffe87ff`.
+
+T1 `36136242327`:
+- Classify SUCCESS;
+- Common SUCCESS;
+- Web SUCCESS;
+- focused .NET SUCCESS;
+- focused Chromium FAILURE.
+
+The Server Memory fixture correction closed the prior no-active-source blocker. The new failure occurs after successful Runtime activation commit when `EngineeringLockAccess.Replace` constructs a lock-only Engineering package without the current Authority reference.
+
+Classification:
+`GENERIC_PRODUCT_DEFECT / ENGINEERING_LOCK_PARTIAL_PACKAGE_DROPS_AUTHORITY_REFERENCE`.
+
+The affected production file is byte-identical to FC0-A and current integration, so the defect is pre-existing rather than FND-07 DEV causal.
+
+Shared CODEX is now ACTIVE on:
+`FND07-CODEX-ENGINEERING-LOCK-AUTHORITY-CORRECTION-12`.
+
+CODEX may perform the bounded production correction + tests/adversarial validation. Authority validation must remain exact/fail-closed; no bypass is permitted.
+
+FND-07 DEV remains WAIT. Authority UX and Licensing UX remain queued and must not preempt the shared CODEX route.
 

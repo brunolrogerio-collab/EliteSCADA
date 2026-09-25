@@ -3,7 +3,7 @@
 > GitHub live is the sole authority.
 
 `LANE: DEV-AUTHORITY-UX`
-`MAIN_ORDER_REV: 0005`
+`MAIN_ORDER_REV: 0006`
 `ORDER_ID: DEV-AUTHORITY-UX-CODEX-QUEUE-04`
 `ORDER_STATE: MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`
 `PLANNED_BRANCH: work/w15-dev-authority-ux`
@@ -280,3 +280,26 @@ When Main later publishes an explicit Authority CODEX route, validation emphasis
 4. effective-permission truth across relevant identities/scopes;
 5. mounted pt-BR/en/es behavior as applicable;
 6. exact final-head T1 after any bounded validation-driven delta.
+
+
+## Independent Main cumulative audit — rev 0006
+
+Audited queued candidate:
+- PR #346;
+- head `d96e685daf7ddb190cefc67c6ba975d71a779a52`;
+- tree `184f8a49bdf15a34ce7ba96bc99168f5152a4fef`.
+
+Additional live checks:
+- UserAdministration role picker reads `/api/auth/roles`;
+- backend `/api/auth/roles` projects canonical `IAuthorityPolicyStore.Snapshot().Roles`, not Engineering package roles;
+- canonical Authority store rejects persisted roles without stable IDs;
+- policy preview/apply validates orphan assignments, self-lockout and expected-version concurrency on the backend;
+- successful policy Apply refreshes Users + canonical role choices.
+
+Finding:
+`NO_NEW_BLOCKER_OR_MAJOR`.
+
+State remains:
+`MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`.
+
+The earlier CODEX adversarial obligations remain mandatory before merge; this audit does not replace them.

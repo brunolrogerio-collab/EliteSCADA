@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd07-control`
 
-`MAIN_ORDER_REV: 0017`
+`MAIN_ORDER_REV: 0018`
 
 `STATE: DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
 
@@ -825,3 +825,88 @@ The current implementation order remains:
 DEV should continue only that bounded correction and return the required Product Correction Handoff.
 
 The deep audit is a **Main responsibility after the handoff**. DEV must not broaden its implementation to preemptively satisfy speculative audit findings.
+
+
+## 21. CURRENT ORDER — cumulative deep audit BLOCKERS — rev 0018
+
+This section supersedes prior current-action sections for FND-07 DEV.
+
+Audited candidate:
+- PR #348;
+- head `f2f1fed37552133e30567faa0c944d605b048125`;
+- tree `74d2186d69e77c8252f0ec8740794e3485072e5f`;
+- cumulative lane: 14 commits / 21 files.
+
+`DEEP_AUDIT_RESULT: REJECTED / BLOCKERS_OPEN`
+
+### BLOCKER 1 — FND07-AUD-ATTACH-RESTART-01
+
+`AttachInProgress` recovery currently happens after `InitializeEngineeringPersistenceAsync()`.
+
+A crash after `BeginAttachAsync` but before the first durable project revision can leave an empty catalog + selected journal project key. Working bootstrap may throw before `RecoverInterruptedAttachAsync` can abort the journal.
+
+Required:
+- recover installation attach/detach journal before persisted Working checkout can fail;
+- test pre-save crash -> Neutral recovery;
+- test post-save crash -> Attached recovery followed by Working restore.
+
+### BLOCKER 2 — FND07-AUD-DETACH-AUTHORITY-02
+
+`RecoverInterruptedDetachAsync` completes Application cleanup/binding Neutral but does not detach Authority.
+
+A crash after Application BeginDetach and before Authority detach can therefore restart into:
+- Application Neutral;
+- Authority still Present.
+
+Required:
+- interrupted installation detach must idempotently converge Authority to DeliberatelyDetached before the installation journal completes;
+- test restart before/during/after Authority detach.
+
+### MAJOR 3 — FND07-AUD-LICENSE-JOURNAL-03
+
+Detach license intent is not durable. Normal detach completes Application + Authority + binding before license Remove/Replace, so a license failure can be reported as detach failure after detach already completed.
+
+Required:
+- make license handling restart-safe and result semantics truthful;
+- preserve frozen Licensing authority;
+- add Keep/Remove/Replace failure/restart tests.
+
+### MAJOR 4 — FND07-AUD-TEST-GAPS-04
+
+Required coverage is missing for:
+- `AttachInProgress`;
+- `DetachInProgress`;
+- installation detach recovery;
+- System Recovery using the installation binding journal;
+- complete startup orchestration rather than only manually ordered helper calls.
+
+### MAIN-owned cross-lane blocker — FND07-AUD-CROSSLANE-05
+
+FND-07 overlaps current integration in:
+- `ProductLicensedRuntimeCoordinator.cs`;
+- `Program.cs`;
+- `ScadaRuntimeFacade.cs`.
+
+Final reconciliation must preserve both:
+- frozen FND-05 HA industrial-effect authority;
+- FND-07 installation Neutral/Detach fence.
+
+DEV must not rebase merely to resolve this. Main owns reconciliation after functional findings close.
+
+### MINOR — FND07-AUD-E2E-FIXTURE-06
+
+The large inline E2E populated baseline should later be extracted to a named test fixture/helper. This does not block the current product correction.
+
+`ORDER_ID: FND07-DEV-DEEP-AUDIT-BLOCKERS-06`
+
+`ORDER_STATE: DEV_CORRECTION / AUTHORIZED`
+
+`CORRECTION_BASE_HEAD: f2f1fed37552133e30567faa0c944d605b048125`
+
+Required DEV return:
+
+`FND-07 DEV -> MAIN COORDINATOR — DEEP AUDIT CORRECTION HANDOFF`
+
+Include exact SHA/tree, changed files, focused tests, transition/restart matrix results and natural exact-head T1 if available.
+
+No CODEX route, merge or freeze until Main re-audits and closes all BLOCKER/MAJOR findings.

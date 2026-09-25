@@ -1031,3 +1031,57 @@ CODEX final validation must cover:
 12. no regression to frozen FND-05 HA boundary.
 
 No merge/freeze unless Main receives green exact-head T1 and accepts the final CODEX handoff.
+
+
+## 25. MAIN TEST-AUDIT HANDOFF / CODEX CAPACITY HOLD — rev 0022
+
+`ORDER_ID: FND07-MAIN-TEST-AUDIT-HANDOFF-10`
+
+`ORDER_STATE: MAIN_DIAGNOSTIC / DEV_WAIT / CODEX_UNAVAILABLE / NO_MERGE`
+
+Exact live candidate at coordinator transfer:
+- PR #348;
+- branch `work/w15-fnd-07-detach-neutral`;
+- head `3ecc4a78080685b0556402d50190e09236d6d8fa`;
+- PR remains OPEN/DRAFT and mergeable;
+- target integration `9895a01a662851505198b965fae2335e55fba6fa`.
+
+### Test-audit work completed by Main
+
+Main used the CODEX-unavailable interval to audit legacy/stale test assumptions rather than merely rerun red CI.
+
+Closed test/harness findings:
+1. `InstallationDetachDeepAuditTests.cs` was missing `using Scada.Api.Persistence;` for checkout contracts — test-only compile defect corrected.
+2. xUnit analyzer `xUnit2010` in the same deep-audit fixture used `Assert.True(string.Equals(...))` — corrected to the canonical string equality assertion.
+3. Playwright still carried legacy `Engineering__InitializeDemoWhenEmpty=true` — removed from the E2E server environment because FND-07 fresh-install must not depend on hidden Demo bootstrap.
+4. Wave 15 router had no browser evidence owned directly by `INSTALLATION` — `local-auth.spec.ts` is now explicit INSTALLATION E2E evidence with a router regression test.
+5. `local-auth.spec.ts` now proves first-project Runtime remains neutral/no TAGs before the explicit test fixture, then provisions a test-owned fixture through supported APIs.
+6. `runtime.spec.ts` now requires the persisted `e2e-wave03` revision to be the real Active Engineering Runtime and restores Working through checkout of the persisted Active revision, preventing dirty Working leakage between specs/retries.
+7. `EngineeringWorkspaceCheckoutServiceTests.CheckoutAsync_MismatchedAuthorityReferenceFailsClosed` had a stale assertion: structural preview is intentionally isolated from live Authority; fail-closed occurs in live Apply. The test now requires `CheckedOut=false` and `SECURITY_AUTHORITY_POLICY_REFERENCE_MISMATCH` in `ApplyResult`.
+8. Real product defect exposed by the modernized E2E: the `/published/activate` Minimal API mapping returned nested `Task<IResult>` because it omitted `await`. This caused a 500 while ASP.NET attempted to serialize the Task state machine. Candidate now uses `=> await ActivatePublishedAsync(...)`.
+
+### Exact-head evidence
+
+Latest natural T1:
+- run `36094394912`;
+- exact head `3ecc4a78080685b0556402d50190e09236d6d8fa`;
+- Classify: SUCCESS;
+- Common T1 sanity: SUCCESS;
+- Web semantic build: SUCCESS;
+- Focused .NET: SUCCESS;
+- Focused Chromium: FAILURE;
+- final T1 gate: FAILURE.
+
+Current Chromium blocker:
+- fresh install, first Administrator, first project, explicit fixture import/save and publish all succeed;
+- publish of revision 2 returns HTTP 200;
+- activation endpoint no longer throws the old nested-Task 500;
+- the real activation path now returns HTTP 422, so `Activated=false`;
+- root cause of that 422 is **not diagnosed yet** and must not be guessed.
+
+### Transfer disposition
+
+- FND-07 DEV remains WAIT; no source/test mutation unless the next Main returns a bounded finding.
+- CODEX is unavailable and the shared route is paused.
+- no blind rerun, no merge, no freeze.
+- next Main must diagnose the 422 from the exact live head before deciding whether it is product, authority/licensing/runtime admission, or fixture contract.

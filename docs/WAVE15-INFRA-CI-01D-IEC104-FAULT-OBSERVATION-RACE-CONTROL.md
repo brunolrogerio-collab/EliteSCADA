@@ -5,9 +5,9 @@
 
 `CONTROL_BRANCH: coord/w15-infra-ci-01d-control`
 
-`MAIN_ORDER_REV: 0001`
+`MAIN_ORDER_REV: 0002`
 
-`STATE: PREPARED / QUEUED_AFTER_ACTIVE_SCRIPT_CODEX / NO_MUTATION`
+`STATE: ACTIVE / SEQUENTIAL_CODEX`
 
 `ORDER_ID: INFRA-CI-01D-IEC104-FAULT-OBSERVATION-RACE-V1`
 
@@ -187,3 +187,29 @@ Include:
 - natural T1;
 - explicit no production-code mutation;
 - no merge/freeze authority.
+
+
+## 10. Activation — exact live base
+
+Main resolved the Script Engineering CODEX handoff and merged PR #344.
+
+Exact activation base:
+- branch: `wave15/corrections-integration`;
+- SHA: `3b1511799a73c3c4fee1c2265005d6724bcaa235`;
+- tree: `bb9b1fb4b9a7ffe47d9eb56eaee6dd8ba0e300fe`;
+- merge origin: PR #344 Script Engineering.
+
+Work branch created directly from this exact head:
+`work/w15-infra-ci-01d-iec104-fault-observation-race`.
+
+`ORDER_ID: INFRA-CI-01D-IEC104-FAULT-OBSERVATION-RACE-V1`
+
+`ORDER_STATE: ACTIVE / AUTHORIZED`
+
+`EXACT_BASE_SHA: 3b1511799a73c3c4fee1c2265005d6724bcaa235`
+
+`EXACT_BASE_TREE: bb9b1fb4b9a7ffe47d9eb56eaee6dd8ba0e300fe`
+
+`WORK_BRANCH: work/w15-infra-ci-01d-iec104-fault-observation-race`
+
+Executor must perform only the test-infrastructure correction authorized above and return the candidate handoff. No product/driver redesign, no blind rerun, no self-merge.

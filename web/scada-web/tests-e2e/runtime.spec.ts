@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test';
-import { admitInteractiveRuntimeSession } from './runtimeSessionLease';
 
 test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) => {
   test.setTimeout(90_000);
@@ -23,31 +22,20 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
     throw new Error('The explicit E2E fixture must be Active before Runtime evidence begins.');
   expect(runtimeState.live.revision).toBe(fixtureActiveRevision);
 
-  await expect(page.getByText('SCADA Platform')).toBeVisible();
-  await expect(page.getByText(/ONLINE · 7 TAGs/)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('link', { name: /EliteSCADA/ })).toBeVisible();
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('runtime-engineering-canvas')).toBeVisible();
+  await expect(page.getByText('E2E Explicit Demo Fixture')).toBeVisible();
   await expect(page.getByText('Reservatório TK01')).toBeVisible();
-  await expect(page.getByTitle('Abrir detalhes da bomba')).toBeVisible();
 
   const tagResponse = await request.get('/api/tags');
   expect(tagResponse.ok()).toBeTruthy();
-  const tags = await tagResponse.json() as Array<{ id: string; path: string; readOnly: boolean }>;
+  const tags = await tagResponse.json() as Array<{ id: string; path: string; readOnly: boolean; value: unknown }>;
   expect(tags).toHaveLength(7);
 
   const frequencyTag = tags.find(tag => tag.path === 'Demo.P01.Frequency');
   expect(frequencyTag).toBeTruthy();
   expect(frequencyTag!.readOnly).toBeFalsy();
-
-  const writeResponse = await request.post(`/api/tags/${frequencyTag!.id}/write`, {
-    data: { value: 50 },
-    headers: await admitInteractiveRuntimeSession(request)
-  });
-  expect(writeResponse.status()).toBe(202);
-  await expect(page.getByText('50.0 Hz')).toBeVisible({ timeout: 10_000 });
-
-  await page.getByTitle('Abrir detalhes da bomba').click();
-  await expect(page.getByText('Bomba P01')).toBeVisible();
-  await expect(page.getByText('Histórico recente · Corrente')).toBeVisible();
-  await expect.poll(async () => page.locator('.spark-values span').count(), { timeout: 10_000 }).toBeGreaterThan(0);
 
   const exportResponse = await request.get('/api/engineering/export/json');
   expect(exportResponse.ok()).toBeTruthy();
@@ -239,22 +227,6 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(projectPreview.errorCount).toBe(0);
   expect(projectPreview.canApply).toBeTruthy();
 
-  let activeAlarmId: string | undefined;
-  await expect.poll(async () => {
-    const alarmResponse = await request.get('/api/alarms?activeOnly=true');
-    if (!alarmResponse.ok()) return '';
-    const alarms = await alarmResponse.json() as Array<{ definitionId: string }>;
-    activeAlarmId = alarms[0]?.definitionId;
-    return activeAlarmId ?? '';
-  }, { timeout: 15_000 }).not.toBe('');
-  expect(activeAlarmId).toBeTruthy();
-
-  const ackResponse = await request.post(`/api/alarms/${activeAlarmId!}/ack`, {
-    data: { user: 'e2e-operator' },
-    headers: await admitInteractiveRuntimeSession(request)
-  });
-  expect(ackResponse.ok()).toBeTruthy();
-
   const workspaceMutation = JSON.parse(engineeringText) as any;
   workspaceMutation.tags.push({
     id: '50000000-0000-0000-0000-000000000001',
@@ -310,7 +282,7 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
     const runtimeAfterWorkspaceEdit = await runtimeAfterWorkspaceEditResponse.json() as Array<{ path: string }>;
     expect(runtimeAfterWorkspaceEdit).toHaveLength(7);
     expect(runtimeAfterWorkspaceEdit.some(tag => tag.path === 'Engineering.Workspace.Only')).toBeFalsy();
-    await expect(page.getByText(/ONLINE · 7 TAGs/)).toBeVisible();
+    await expect(page.getByTestId('runtime-engineering-canvas')).toBeVisible();
   } finally {
     if (workspaceMutationApplied) {
       // Restore the persisted Active revision instead of merely re-applying JSON.

@@ -38,9 +38,9 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0040`
+`MAIN_ORDER_REV: 0041`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-24 — SCRIPT MERGED / INFRA-CI-01D ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-24 — INFRA-CI-01D MERGED / EDITOR CODEX ACTIVE`
 
 `GLOBAL_GATE: FND04_VERIFIED_FROZEN`
 
@@ -1140,3 +1140,27 @@ Exact base/work:
 The Script Engineering route `ROUTE-SEQUENTIAL-CODEX-TO-SCRIPT-ENGINEERING-25` is complete and superseded by this route after its validated candidate was merged as PR #344.
 
 Execute only 01D. Do not self-select Editor, Authority, Licensing or FND-05 after completion; return to Main for the next explicit route.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0041
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-EDITOR-27`
+
+`ORDER_STATE: ACTIVE_VALIDATION`
+
+`EXPECTED_ORDER: DEV-EDITOR-CODEX-VALIDATION-V1`
+
+Authoritative lane control:
+- branch: `coord/w15-parallel-dev-control`;
+- file: `docs/WAVE15-DEV-EDITOR-CONTROL.md`;
+- control commit: `PLACEHOLDER_EDITOR_CONTROL_COMMIT`.
+
+Exact candidate:
+- PR #349;
+- branch `work/w15-dev-editor-single-canvas`;
+- candidate SHA `06eed31d99ddb34d99e0287e96e38bed3bf7dab5`;
+- candidate tree `11a5a01fd805d3e068dc6e22efff7a65077c09e4`;
+- target `wave15/corrections-integration`;
+- current target SHA `66694aac1408218a41d1251459c20465d990cfef`.
+
+Prior Script/01D routes are complete. Execute only Editor validation. Do not self-select Authority, Licensing or FND-05 afterward; return to Main for the next explicit route.

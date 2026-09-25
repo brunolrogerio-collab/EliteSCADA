@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0008`
+`MAIN_ORDER_REV: 0009`
 
 `STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
@@ -928,3 +928,28 @@ Sequential CODEX is now explicitly routed to INFRA-CI-01D:
 - shared route control rev 0040 / commit `4fbd0c2aef92ae2362376fbcaed624e5d4e8f074`.
 
 Editor, Authority, Licensing and FND-05 remain queued/waiting. FND-07 remains the only normal DEV still authorized to continue its bounded correction independently.
+
+
+## 22. INFRA-CI-01D merged / Editor CODEX active / FND-07 continues correction
+
+INFRA-CI-01D:
+- PR #350;
+- final head `925070a1fb0c35a28266115f57856791f403b425`;
+- T1 `36079753043`: SUCCESS;
+- full local Drivers 693/693;
+- merged at integration SHA `66694aac1408218a41d1251459c20465d990cfef`;
+- state `INTEGRATED / CLOSED`.
+
+Sequential CODEX is now explicitly routed to Editor:
+- route `ROUTE-SEQUENTIAL-CODEX-TO-EDITOR-27`;
+- Editor candidate `06eed31d99ddb34d99e0287e96e38bed3bf7dab5`;
+- Editor control rev 0004 / `513912326b32683d60b8b65007361ca9b275839c`;
+- shared route control rev 0041 / `9d2968122f8afb48b359ef51a9b362413358bb2a`.
+
+FND-07 remains independently authorized on normal DEV correction:
+- current head `3f90cc6d62d1ea9df0101e228cd28332d422fa08`;
+- T1 `36079596118` red only on stale historical Authority roleIds cardinality;
+- dedicated control rev 0007 / `f8f9a0a46961c92ad70573380415c83f74e988bb`;
+- no product mutation is authorized by that failure.
+
+Authority, Licensing and FND-05 remain queued/waiting.

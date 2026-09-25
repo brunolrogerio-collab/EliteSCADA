@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd05-control`
 
-`MAIN_ORDER_REV: 0008`
+`MAIN_ORDER_REV: 0009`
 
 `STATE: CODEX_HA_ADVERSARIAL_VALIDATION / ACTIVE_SHARED_ROUTE / DEV_WAIT`
 
@@ -426,3 +426,31 @@ CODEX must perform the mandatory adversarial matrix already defined above and re
 `FND-05 CODEX -> MAIN COORDINATOR — HA ADVERSARIAL HANDOFF`.
 
 Material product/design defects return to Main -> FND-05 DEV. No self-merge/freeze.
+
+
+## 11. CODEX adversarial finding — invalid handoff phase fail-closed correction
+
+CODEX produced RED evidence against accepted head `be9cf0f3f02aa1ba49cdb6b589abd5e1e723c845`:
+- a transport envelope carrying undefined `RuntimeHaTransferHandoffPhase = 99` could pass a valid Break and fall through the Grant path;
+- that malformed versioned peer input could incorrectly grant effective Active authority.
+
+Classification:
+`VALIDATION_DRIVEN_FOUNDATION_SECURITY_CORRECTION / CODEX_BOUNDED_FIX_ALLOWED`.
+
+Corrected candidate:
+- head `19c65423880719afc0163bf7fd741d2cd2d0377d`;
+- tree `8c0c440016434d95498297936f824acde57f92f3`;
+- delta: `RuntimeHighAvailabilityPeer.cs` + focused peer-boundary test only;
+- invalid phases now fail closed with `handoff-phase-invalid` before replay/transfer processing;
+- focused HA evidence: 22/22 PASS;
+- full local Drivers evidence from CODEX: 715/715 PASS.
+
+Natural Wave 15 T1 `36085565091` is currently running. All completed jobs are green; final gate remains pending.
+
+A separate broad Backend run exposed only the previously known IEC-104 T2 timing transient:
+`Adapter_T2FlushesPendingReceiveAcknowledgementWithoutFaultingSession`.
+No FND-05/HA file participates in that test. No blind rerun is authorized; this red is tracked as non-HA-causal unless new evidence contradicts that diagnosis.
+
+`ORDER_STATE: CODEX_HA_ADVERSARIAL_VALIDATION / T1_PENDING / DEV_WAIT`
+
+Do not merge/freeze until the exact candidate T1 completes and Main reviews the final handoff.

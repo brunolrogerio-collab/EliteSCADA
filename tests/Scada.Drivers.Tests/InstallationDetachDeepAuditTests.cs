@@ -188,6 +188,34 @@ public sealed class InstallationDetachDeepAuditTests
     }
 
     [Fact]
+    public async Task ReplacementFileFailureDoesNotStartDetachAndPreservesPriorValidLicense()
+    {
+        var binding = new TestBindingStore(
+            new EngineeringInstallationBindingSnapshot(
+                EngineeringInstallationBindingState.Attached,
+                ProjectKey,
+                4,
+                T0));
+        var fixture = await CreateFixtureAsync(
+            binding,
+            createLatest: true,
+            licenseState: LicenseState.Valid);
+        fixture.Licensing.FailInstall = true;
+
+        var result = await fixture.Service.DetachAsync(
+            Request(InstallationDetachLicenseAction.Replace, "valid-replacement"));
+
+        Assert.False(result.Detached);
+        Assert.Equal("license", result.Stage);
+        Assert.Equal("file-mutation-failed", result.LicenseOutcome);
+        Assert.Equal(LicenseState.Valid, fixture.Licensing.CurrentVerification.State);
+        Assert.Equal(EngineeringInstallationBindingState.Attached, binding.Snapshot.State);
+        Assert.Equal(AuthorityLifecycleState.AuthorityPresent, (await fixture.AuthorityLifecycle.GetAsync()).State);
+        Assert.NotNull(fixture.Store.Latest);
+        Assert.False(fixture.Fence.ProcessEffectsFenced);
+    }
+
+    [Fact]
     public async Task InvalidReplacementDoesNotStartDetachAndPreservesPriorValidLicense()
     {
         var binding = new TestBindingStore(
@@ -577,6 +605,7 @@ public sealed class InstallationDetachDeepAuditTests
     private sealed class TestLicenseService : IProductLicenseService
     {
         public bool CandidateValid { get; set; } = true;
+        public bool FailInstall { get; set; }
         public bool FailRemove { get; set; }
         public LicenseState Installed { get; set; } = LicenseState.Valid;
         public string MachineFingerprint => "test-machine";
@@ -588,7 +617,12 @@ public sealed class InstallationDetachDeepAuditTests
         public RunEntitlementDecision EvaluateRun(int projectTagCount) =>
             throw new NotSupportedException();
 
-        public void InstallLicense(string licenseCode) => Installed = LicenseState.Valid;
+        public void InstallLicense(string licenseCode)
+        {
+            if (FailInstall)
+                throw new IOException("fixture license install failure");
+            Installed = LicenseState.Valid;
+        }
 
         public void RemoveLicense()
         {

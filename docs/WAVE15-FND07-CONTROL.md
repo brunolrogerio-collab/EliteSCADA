@@ -1085,3 +1085,77 @@ Current Chromium blocker:
 - CODEX is unavailable and the shared route is paused.
 - no blind rerun, no merge, no freeze.
 - next Main must diagnose the 422 from the exact live head before deciding whether it is product, authority/licensing/runtime admission, or fixture contract.
+## 26. EXACT-HEAD ACTIVATION 422 DIAGNOSED / BOUNDED FIXTURE CORRECTION — rev 0023
+
+`ORDER_ID: FND07-DEV-ACTIVE-RUNTIME-FIXTURE-SOURCE-11`
+
+`ORDER_STATE: DEV_CORRECTION / AUTHORIZED / TEST_HARNESS_ONLY / CODEX_UNAVAILABLE`
+
+Exact evidence boundary:
+- PR #348 exact head before this order: `3ecc4a78080685b0556402d50190e09236d6d8fa`;
+- live integration head at diagnosis: `d0b1c6a98ad6dc05ebb2e849483a6221f248c272`;
+- integration divergence after `9895a01a662851505198b965fae2335e55fba6fa` is documentation-only;
+- exact-head T1 `36094394912`;
+- focused Chromium job `107943486009`;
+- Classify/Common/Web/focused .NET: SUCCESS;
+- focused Chromium/final gate: FAILURE.
+
+### Diagnosis
+
+The HTTP 422 is now evidence-classified:
+
+`FND07_TEST_FIXTURE_SOURCE_INCOMPATIBILITY / BUILTIN_SIMULATION_NOT_ACTIVE_RUNTIME_SOURCE`.
+
+Observed exact-head chain:
+1. fresh install and first Administrator/first project succeed;
+2. explicit test-owned Engineering fixture import/save succeeds;
+3. revision 2 publish succeeds with HTTP 200;
+4. `POST /api/engineering/persistence/e2e-wave03/published/activate` reaches the real awaited handler and returns HTTP 422;
+5. reproduced activation outcome is `runtime.activated=false`, `activeRevision=null`, with sole runtime issue `RUNTIME_NO_ACTIVE_SOURCES` — `Published engineering produced no supported active runtime sources.`
+
+Independent source confirmation on the same exact head:
+- `local-auth.spec.ts` assigns all seven TAGs to a single `builtin.simulation` data source;
+- `EngineeringDriverCompiler.Compile` explicitly skips `builtin.simulation`;
+- `InternalMemoryRuntimePlanner` recognizes only `builtin.memory.server` / `builtin.memory.client` as internal active runtime sources;
+- `EngineeringRuntimeCoordinator.BuildCandidate` emits `RUNTIME_NO_ACTIVE_SOURCES` when there is no compiled communication driver, no Server Memory source and no Client Memory TAG;
+- `EngineeringPersistenceApi.ActivatePublishedAsync` truthfully maps `Activated=false` to HTTP 422.
+
+This closes Authority, Licensing/admission and endpoint-transport hypotheses for this failure. The previously fixed nested-`Task<IResult>` HTTP 500 remains closed. No product Runtime rule is to be weakened to make the test pass.
+
+### Authorized DEV delta
+
+FND-07 DEV may make only the bounded downstream fixture correction required to give the persisted test application a supported Active source.
+
+Primary owned files:
+- `web/scada-web/tests-e2e/local-auth.spec.ts`;
+- `web/scada-web/tests-e2e/runtime.spec.ts` only for assertions that still encode the legacy Simulation fixture.
+
+Required direction:
+1. preserve the pre-fixture fresh-install proof: Neutral / no hidden Demo / no preconfigured TAGs;
+2. replace the explicit fixture's active source with a test-owned supported source, preferably the existing canonical E2E pattern:
+   - data-source key such as `memory.server.e2e`;
+   - driver `builtin.memory.server`;
+   - TAG `source` values bound to that data-source key;
+3. make values needed by downstream runtime/alarm assertions explicit and deterministic fixture data (for example Server Memory initial values), not implicit Demo/Simulation behavior;
+4. update stale `runtime.spec.ts` assertions that require `builtin.simulation`, including source/data-source/CSV expectations, to the explicit Server Memory contract;
+5. preserve the seven-TAG application shape, stable IDs, templates/equipment/screens/popups/commands, Working != Published != Active sequencing and clean checkout restore;
+6. prove save -> publish -> activate returns success and the durable Active revision equals the live Engineering Runtime revision;
+7. do not alter product source, Authority, Licensing, FND-05 HA, installation-detach semantics or runtime activation rules.
+
+If this bounded fixture cannot satisfy the existing runtime behavior without a production change, STOP and return a durable blocker to PR #348. Do not broaden scope.
+
+### Required return
+
+Persist the handoff directly to PR #348 with:
+- exact new SHA/tree;
+- exact changed files;
+- focused local evidence if available;
+- natural exact-head Wave 15 T1 run ID and result when available;
+- any remaining blocker.
+
+After the DEV handoff, return to WAIT.
+
+No merge/freeze is authorized by this order. Even an exact-head green T1 remains subject to Main review and the mandatory final adversarial validation explicitly accepted by Main.
+
+CODEX remains unavailable/paused. No historical CODEX route may auto-resume.
+

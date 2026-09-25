@@ -1510,4 +1510,32 @@ Final CI:
 `36194762603` / run #1577.
 
 CODEX remains idle until Main classifies this exact integrated CI and either freezes FND-07 or publishes another explicit blocker route.
+## CURRENT SHARED CODEX ROUTE — rev 0058
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FND07-CI-FIRST-PROJECT-43`
+
+`ORDER_STATE: ACTIVE_CI_HARNESS_CORRECTION`
+
+`EXPECTED_ORDER: FND07-CODEX-CI-FIRST-PROJECT-SMOKE-18`
+
+Authoritative FND-07 control:
+- branch `coord/w15-fnd07-control`;
+- file `docs/WAVE15-FND07-CONTROL.md`;
+- rev 0031;
+- control commit `7a3b7ffabf946dc3e0817ab86747b519199df3ba`.
+
+Correction branch:
+`work/w15-fnd07-postmerge-ci-first-project-smoke`
+
+Exact base:
+`e49155e4a17acb6cd35683500f4ef211eb8f6e56`.
+
+Mission:
+- update only the stale full-CI smoke from generic first save to canonical `projects/first`;
+- preserve product binding enforcement;
+- adapt necessary response/assertion handling;
+- improve API-log diagnostics on smoke failure;
+- run validation and return durable evidence.
+
+Do not modify production code and do not self-select Authority UX or Licensing UX afterward.
 

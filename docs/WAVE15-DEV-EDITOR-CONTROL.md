@@ -3,9 +3,9 @@
 > GitHub live is the sole authority.
 
 `LANE: DEV-EDITOR`
-`MAIN_ORDER_REV: 0004`
+`MAIN_ORDER_REV: 0005`
 `ORDER_ID: DEV-EDITOR-FC0A-01`
-`ORDER_STATE: CODEX_VALIDATION / ACTIVE_SHARED_ROUTE / DEV_WAIT`
+`ORDER_STATE: INTEGRATED_PENDING_T2 / DEV_WAIT`
 `PLANNED_BRANCH: work/w15-dev-editor-single-canvas`
 `WORK_BRANCH: work/w15-dev-editor-single-canvas`
 `FC0A_RELEASE_APPROVED: YES`
@@ -173,3 +173,23 @@ Target advance is non-overlapping with Editor-owned product files:
 `ORDER_STATE: CODEX_VALIDATION / ACTIVE_SHARED_ROUTE`
 
 CODEX must validate the exact accepted Editor candidate and may add bounded validation-driven test commits. Material product/design defects return to Main -> DEV-EDITOR. No self-merge/T2.
+
+
+## Main integration — Editor CODEX validation accepted
+
+Final validated candidate:
+- head `06eed31d99ddb34d99e0287e96e38bed3bf7dab5`;
+- tree `11a5a01fd805d3e068dc6e22efff7a65077c09e4`;
+- CODEX source delta: none;
+- existing natural T1 `36066874097`: SUCCESS;
+- mounted/adversarial matrices returned without material product defect.
+
+Protected merge:
+- PR #349: MERGED;
+- integration SHA `cfaafa4b29e1462bf9d304af995cc8638578a3c2`;
+- integration tree `3ac411cfe2aff5451396ee6606625825d601ed1d`.
+
+Disposition:
+`DEV-EDITOR -> INTEGRATED_PENDING_T2 / DEV_WAIT`.
+
+No broader T2 verification is claimed yet.

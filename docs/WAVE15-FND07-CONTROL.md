@@ -1296,4 +1296,32 @@ Main explicitly accepts the final CODEX adversarial handoff.
 `MERGE: AUTHORIZED`
 
 Do not mutate the FND-07 branch further before merge. Freeze will be recorded only on the resulting integrated SHA.
+## 30. PROTECTED MERGE COMPLETE / POST-MERGE CI PENDING — rev 0027
+
+`ORDER_ID: FND07-MAIN-POSTMERGE-CI-14`
+
+`ORDER_STATE: INTEGRATED_PENDING_POSTMERGE_CI / DEV_WAIT / CODEX_WAIT`
+
+Protected merge completed:
+- PR #348: MERGED;
+- accepted source head: `ebec9e346e03068a565669d03ba018d2b9eb025f`;
+- integrated SHA: `1b186c48ba5d2e3012be2c58f0efc36170101fe9`;
+- integration branch: `wave15/corrections-integration`;
+- live branch compare confirms integration head is exactly the merge SHA.
+
+Pre-merge exact-head evidence remains:
+- T1 `36189002703`: SUCCESS;
+- 737/737 Scada.Drivers.Tests;
+- 42/42 Scada.Security.Tests;
+- 26/26 focused Chromium.
+
+Post-merge CI:
+- EliteSCADA CI run `36191702355`;
+- run #1576;
+- exact head `1b186c48ba5d2e3012be2c58f0efc36170101fe9`;
+- currently queued at this revision.
+
+FND-07 is integrated but not yet declared VERIFIED/FROZEN. Main must accept the exact integrated CI or diagnose any non-causal failure first.
+
+No FND-07 DEV/CODEX mutation is authorized while post-merge CI is pending.
 

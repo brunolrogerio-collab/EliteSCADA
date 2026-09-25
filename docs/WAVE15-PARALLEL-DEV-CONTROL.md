@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0013`
+`MAIN_ORDER_REV: 0014`
 
 `STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
@@ -1037,3 +1037,31 @@ Canonical state:
 Dedicated control rev 0012 / `7f7db7eb4e1e7a878a7624de2ec2de61e9d227bf`.
 
 No further DEV action is expected until Main resolves CI execution.
+
+
+## 27. FND-05 VERIFIED/FROZEN / FND-07 CODEX active / Editor test closeout separated
+
+FND-05:
+- integrated checkpoint `b2874a00c7f7b35ca8223defd7e3b6bbdd89ecf8`;
+- HA post-merge 52/52 PASS;
+- Drivers 715/715 PASS;
+- isolated PostgreSQL advisory-lock 124/124 PASS;
+- targeted Backend rerun on CI #1574: SUCCESS;
+- remaining Chromium red classified as stale Editor contract test, non-causal to HA;
+- state `VERIFIED / FROZEN`;
+- control rev 0011 / `82d75e12c3e0a1e0c4f36e3a0c4e7b375cda932c`.
+
+Separated infrastructure closeout:
+- PR #351;
+- branch `work/w15-infra-ci-01e-editor-surface-contract`;
+- head `b83ca41cfde8b1424c0a8666d499e53bae179960`;
+- test-only correction aligning legacy hardcoded 600/400 expectation with parameterized Editor CSS variables;
+- natural T1 `36087895502` currently running.
+
+Sequential CODEX is now routed to FND-07:
+- route `ROUTE-SEQUENTIAL-CODEX-TO-FND07-30`;
+- exact candidate `a8fcfe8c855a692670e9c74a95f4450caf612b2f`;
+- FND-07 DEV remains WAIT_MAIN / no source mutation;
+- CODEX owns exact-head T1 execution and focused/adversarial validation.
+
+Authority and Licensing remain Main-accepted/queued. Script and Editor remain integrated pending broader T2.

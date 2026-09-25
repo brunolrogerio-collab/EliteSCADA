@@ -135,10 +135,11 @@ _ = app.Services.GetRequiredService<IHistorian>();
 await app.InitializeServerMemoryRetentionAsync();
 await app.InitializeRuntimeSessionLeaseStoreAsync();
 await app.Services.GetRequiredService<ProductLicenseLifecycleCoordinator>().ReconcilePendingAsync();
-await app.InitializeEngineeringPersistenceAsync();
+
+// Durable Engineering schema/catalog must exist before Authority migration can inspect it,
+// but no persisted Working package may be applied until canonical Authority is hydrated.
+await app.InitializeEngineeringPersistenceStorageAsync();
 await app.InitializeAuditAsync();
-if (app.Services.GetService<IEngineeringInstallationBindingStore>() is not null)
-    await app.Services.GetRequiredService<InstallationDetachService>().InitializeAsync();
 var localIdentityRuntime = app.Services.GetRequiredService<LocalIdentityRuntimeOptions>();
 if (localIdentityRuntime.Enabled)
 {
@@ -151,6 +152,10 @@ else
     // Only the local-identity lifecycle is unavailable in this runtime profile.
     await app.Services.GetRequiredService<AuthorityPolicyBootstrapService>().EnsureInitializedAsync();
 }
+
+await app.InitializeEngineeringPersistenceAsync();
+if (app.Services.GetService<IEngineeringInstallationBindingStore>() is not null)
+    await app.Services.GetRequiredService<InstallationDetachService>().InitializeAsync();
 
 app.UseMiddleware<TimingCorrelationMiddleware>();
 app.UseCors();

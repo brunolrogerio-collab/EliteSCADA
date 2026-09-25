@@ -43,6 +43,22 @@ public static class EngineeringPersistenceApi
         builder.Services.TryAddSingleton<IPersistedRuntimeRecoveryService, PersistedRuntimeRecoveryService>();
     }
 
+    public static async Task InitializeEngineeringPersistenceStorageAsync(
+        this WebApplication app,
+        CancellationToken cancellationToken = default)
+    {
+        var persistence = app.Services.GetService<IEngineeringProjectPersistenceService>();
+        if (persistence is null) return;
+
+        // Storage/schema initialization is an explicit startup phase and must have
+        // completed before canonical Authority hydration. Repeating it here remains
+        // safe for focused hosts that call this method directly.
+        await app.InitializeEngineeringPersistenceStorageAsync(cancellationToken);
+        var bindingStore = app.Services.GetService<IEngineeringInstallationBindingStore>();
+        if (bindingStore is not null)
+            await bindingStore.InitializeAsync(cancellationToken);
+    }
+
     public static async Task InitializeEngineeringPersistenceAsync(
         this WebApplication app,
         CancellationToken cancellationToken = default)
@@ -93,7 +109,6 @@ public static class EngineeringPersistenceApi
             return;
         }
 
-        await bindingStore.InitializeAsync(cancellationToken);
         var binding = await bindingStore.GetAsync(cancellationToken);
         if (binding.State == EngineeringInstallationBindingState.Legacy)
         {

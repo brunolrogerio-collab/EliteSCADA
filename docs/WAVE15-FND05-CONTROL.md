@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd05-control`
 
-`MAIN_ORDER_REV: 0010`
+`MAIN_ORDER_REV: 0011`
 
 `STATE: CODEX_HA_ADVERSARIAL_VALIDATION / ACTIVE_SHARED_ROUTE / DEV_WAIT`
 
@@ -489,3 +489,35 @@ Return:
 `FND-05 CODEX -> MAIN COORDINATOR — POSTMERGE VALIDATION HANDOFF`.
 
 Do not claim VERIFIED/FROZEN until Main accepts this post-merge evidence.
+
+
+## 13. Main post-merge disposition — VERIFIED / FROZEN
+
+Exact integrated checkpoint:
+- integration SHA `b2874a00c7f7b35ca8223defd7e3b6bbdd89ecf8`;
+- integration tree `c942dc46692a1f2350bcf478b952db00cfa756ec`.
+
+Post-merge CODEX evidence:
+- HA adversarial/topology/package-neutrality matrix: 52/52 PASS;
+- full Drivers: 715/715 PASS;
+- isolated PostgreSQL advisory-lock reproduction: 124/124 PASS;
+- no product/source mutation during post-merge validation.
+
+Exact integration CI #1574:
+- first attempt Backend red only on PostgreSQL advisory-lock timing transient;
+- Main performed one targeted Backend rerun after diagnosis;
+- Backend rerun: SUCCESS;
+- Web: SUCCESS;
+- Chromium then exposed one stale Editor contract test asserting hardcoded 600/400 instead of the already-integrated parameterized Editor CSS variables;
+- that Chromium failure is outside FND-05 HA scope and has been separated into test-only closeout PR #351.
+
+Main classification:
+`POSTMERGE_FND05_GREEN / NON_CAUSAL_EDITOR_TEST_STALENESS_SEPARATED`.
+
+`STATE: VERIFIED / FROZEN`
+
+`FND05_CONTRACT_FREEZE_SHA: b2874a00c7f7b35ca8223defd7e3b6bbdd89ecf8`
+
+Downstream lanes may consume FND-05. They must not silently redesign the HA authority/handoff contract.
+
+No further FND-05 DEV or CODEX mutation is authorized unless Main explicitly reopens the Foundation due to a proven contract defect.

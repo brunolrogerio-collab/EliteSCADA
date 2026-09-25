@@ -38,7 +38,7 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0047`
+`MAIN_ORDER_REV: 0048`
 
 `LAST_MAIN_UPDATE_BRT: 2026-09-25 — FND-05 VERIFIED/FROZEN / FND-07 CODEX ACTIVE`
 
@@ -1292,3 +1292,27 @@ Main cumulative audit of PR #348 found open BLOCKER/MAJOR lifecycle defects. Bin
 CODEX must remain idle for FND-07 until Main re-audits the next DEV candidate and explicitly publishes a new route.
 
 Do not self-select Authority or Licensing.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0048
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FND07-RECONCILED-33`
+
+`ORDER_STATE: ACTIVE_VALIDATION`
+
+`EXPECTED_ORDER: FND07-CODEX-RECONCILED-ADVERSARIAL-09`
+
+Authoritative control:
+- branch: `coord/w15-fnd07-control`;
+- file: `docs/WAVE15-FND07-CONTROL.md`;
+- exact candidate: `2bacddbc558bba0dd1a316d98b9895fbb847683c`;
+- tree: `06ddb27f8f50c495653c1b8e57a2142769ca29e0`;
+- PR #348.
+
+Main has completed cumulative deep audit and cross-lane reconciliation.
+
+CODEX must perform final adversarial validation on the exact reconciled candidate. Do not mutate source initially. Test-only correction is permitted only for a proven harness/test defect; any product/architecture defect returns to Main.
+
+Natural T1 `36093062819` is already active on the exact SHA.
+
+After handoff, return to Main. Do not self-select Authority or Licensing.

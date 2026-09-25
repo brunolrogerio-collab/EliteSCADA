@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0021`
+`MAIN_ORDER_REV: 0022`
 
 `STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
@@ -1301,3 +1301,31 @@ FND-07 is now:
 `MAIN_DEEP_AUDIT / DEV_WAIT`
 
 Licensing remains on its own DEV correction/T1 path.
+
+
+## 35. FND-07 handoff received durably / deep re-audit disposition
+
+FND-07 exact candidate:
+- head `0189b7f79bf9772c1cf7ece8f4774ba9ea207f6b`;
+- tree `bd6971f73348ec7b4f4682d18cabe36f6ef32a47`;
+- DEV chat handoff mirrored by Main to PR #348 because it was not originally persisted;
+- future chat-only handoffs are not considered delivered.
+
+Deep re-audit:
+- Attach restart blocker: source-closed;
+- interrupted detach/Authority blocker: source-closed;
+- license truth/restart major: architecture-closed via independent FND-03 staging before destructive installation journal;
+- test-gap major: source coverage added, but execution evidence still pending;
+- cross-lane reconciliation remains Main-owned/open.
+
+FND-07 overlaps current integration in exactly:
+- `ProductLicensedRuntimeCoordinator.cs`;
+- `Program.cs`;
+- `ScadaRuntimeFacade.cs`.
+
+State:
+`FND-07 -> MAIN_OWNED_RECONCILIATION / DEV_WAIT`
+
+No further FND-07 DEV mutation.
+
+Main must reconcile frozen FND-05 HA fencing with FND-07 Neutral/Detach fencing, then obtain executable exact-head evidence before any CODEX merge/freeze decision.

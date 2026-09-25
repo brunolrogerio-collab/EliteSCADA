@@ -149,8 +149,7 @@ public sealed class SystemRecoveryApplicationService(
             cancellationToken);
         if (!preflight.CanApply)
         {
-            if (attachJournal is not null && installationBinding is not null)
-                await installationBinding.AbortAttachAsync(attachJournal.ProjectKey!, CancellationToken.None);
+            await AbortAttachBeforeDurableCheckpointAsync(attachJournal);
             return FailedBeforeMutation(
                 preflight,
                 "preflight",
@@ -182,6 +181,7 @@ public sealed class SystemRecoveryApplicationService(
             if (!replacementPreview.CanApply)
             {
                 RestoreBackup(backupPackage, backupContext, backupDescriptor);
+                await AbortAttachBeforeDurableCheckpointAsync(attachJournal);
                 return new SystemRecoveryApplicationApplyResult(
                     false,
                     false,
@@ -206,6 +206,7 @@ public sealed class SystemRecoveryApplicationService(
             if (applyResult.Issues.Any(x => x.IsError))
             {
                 RestoreBackup(backupPackage, backupContext, backupDescriptor);
+                await AbortAttachBeforeDurableCheckpointAsync(attachJournal);
                 return new SystemRecoveryApplicationApplyResult(
                     false,
                     false,
@@ -228,6 +229,7 @@ public sealed class SystemRecoveryApplicationService(
         catch
         {
             RestoreBackup(backupPackage, backupContext, backupDescriptor);
+            await AbortAttachBeforeDurableCheckpointAsync(attachJournal);
             throw;
         }
 
@@ -254,6 +256,7 @@ public sealed class SystemRecoveryApplicationService(
             // successful snapshot is returned there is no accepted durable recovery
             // checkpoint, so restoring the previous in-memory Working state is honest.
             RestoreBackup(backupPackage, backupContext, backupDescriptor);
+            await AbortAttachBeforeDurableCheckpointAsync(attachJournal);
             throw;
         }
 
@@ -335,6 +338,18 @@ public sealed class SystemRecoveryApplicationService(
             activationOutcome.Activation,
             lifecycleAfterActivation,
             Array.Empty<string>());
+    }
+
+    private async Task AbortAttachBeforeDurableCheckpointAsync(
+        EngineeringInstallationBindingSnapshot? attachJournal)
+    {
+        if (attachJournal is null || installationBinding is null)
+            return;
+
+        await installationBinding.AbortAttachAsync(
+            attachJournal.ProjectKey
+                ?? throw new InvalidOperationException("Application attach journal has no project identity."),
+            CancellationToken.None);
     }
 
     private static SystemRecoveryApplicationApplyResult FailedBeforeMutation(

@@ -1565,4 +1565,30 @@ find sequential CI failures locally before spending another GitHub Actions run.
 Do not stop after fixing the first known smoke error. Continue until the local full-CI parity battery is green or a genuine out-of-scope product blocker is proven.
 
 No production mutation is authorized. Do not self-select another lane afterward.
+## CURRENT SHARED CODEX ROUTE — rev 0060
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FND07-CONTAINERIZED-CI-PARITY-45`
+
+`ORDER_STATE: ACTIVE_CI_HARNESS_CORRECTION + REUSABLE_CONTAINERIZED_PARITY`
+
+`EXPECTED_ORDER: FND07-CODEX-CI-FIRST-PROJECT-SMOKE-18`
+
+Authoritative amendment:
+- FND-07 rev 0033;
+- commit `3a0e47c8e005286f80cf0c385c2f0cd2927ce3d5`.
+
+CODEX should turn the current persistent local CI battery into a reusable repository-owned container/Compose harness for future CI investigations.
+
+Design rule:
+do not create a second CI truth. Extract/share executable scripts so the local harness and GitHub Actions exercise the same commands whenever practical.
+
+The harness must make future investigation cheap:
+- dependencies/services start once;
+- test databases reset independently;
+- backend/full smoke/web/e2e can be rerun individually;
+- full `all` pass is available;
+- logs are easy to inspect;
+- no production source changes.
+
+Continue the active first-project smoke correction and use this harness to drive the full local parity battery to green.
 

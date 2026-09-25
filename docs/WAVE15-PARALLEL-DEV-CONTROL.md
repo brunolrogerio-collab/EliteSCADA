@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0014`
+`MAIN_ORDER_REV: 0015`
 
 `STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
@@ -1065,3 +1065,27 @@ Sequential CODEX is now routed to FND-07:
 - CODEX owns exact-head T1 execution and focused/adversarial validation.
 
 Authority and Licensing remain Main-accepted/queued. Script and Editor remain integrated pending broader T2.
+
+
+## 28. Editor test closeout merged / FND-07 CODEX lifecycle fixture correction
+
+Editor stale-contract closeout:
+- PR #351;
+- head `b83ca41cfde8b1424c0a8666d499e53bae179960`;
+- T1 `36087895502`: SUCCESS;
+- one test file only;
+- merged at integration SHA `9895a01a662851505198b965fae2335e55fba6fa`;
+- no product mutation.
+
+FND-07 exact-head validation:
+- candidate `a8fcfe8c855a692670e9c74a95f4450caf612b2f`;
+- exact workflow-dispatch T1 `36088026405`;
+- Common/Web/.NET green;
+- Chromium red only because the explicit downstream fixture imports+saves but does not publish+activate the saved revision;
+- product fresh-install/runtime authority semantics remain correct.
+
+CODEX remains on FND-07 under `ROUTE-SEQUENTIAL-CODEX-TO-FND07-30`, authorized for a bounded test-only lifecycle completion:
+`save -> publish exact revision -> activate published revision`.
+
+FND-07 DEV remains WAIT_MAIN / no source mutation.
+Authority and Licensing remain Main-accepted/queued.

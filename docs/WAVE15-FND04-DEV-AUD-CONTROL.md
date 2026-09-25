@@ -1362,4 +1362,27 @@ Do not resume rev 0048 or any older FND-07 route.
 Do not self-select Authority or Licensing.
 
 When CODEX capacity returns, Main must first revalidate the corrected FND-07 exact head and then publish a new explicit route. No implicit continuation is authorized.
+## CURRENT SHARED CODEX ROUTE — rev 0051
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-AVAILABLE-HOLD-FND07-36`
+
+`ORDER_STATE: AVAILABLE_MODERATE / HOLD_WAIT_FND07_CORRECTED_HEAD / NO_ACTIVE_MISSION`
+
+Product Owner reports that CODEX capacity is available again at a moderate level.
+
+This availability does **not** reactivate rev 0048, rev 0049 or rev 0050 automatically.
+
+Live revalidation at this revision:
+- FND-07 PR #348 remains at exact head `3ecc4a78080685b0556402d50190e09236d6d8fa`;
+- no corrected head has yet been delivered for order `FND07-DEV-ACTIVE-RUNTIME-FIXTURE-SOURCE-11`;
+- therefore no CODEX execution is currently authorized.
+
+Resource policy while capacity is moderate:
+1. preserve CODEX for validation rather than duplicate implementation work already assigned to FND-07 DEV;
+2. wait for the corrected FND-07 exact head;
+3. Main reviews that head first;
+4. only then Main publishes a new explicit CODEX route for focused/adversarial validation and exact-head evidence;
+5. no self-selection of Authority or Licensing while FND-07 closeout remains the priority.
+
+Current state is availability without mission, not an execution route.
 

@@ -3,9 +3,9 @@
 > GitHub live is the sole authority.
 
 `LANE: DEV-SCRIPT-ENGINEERING`
-`MAIN_ORDER_REV: 0003`
+`MAIN_ORDER_REV: 0004`
 `ORDER_ID: DEV-SCRIPT-ENGINEERING-FC0A-01`
-`ORDER_STATE: MAIN_ACCEPTED_FOR_CODEX / DEV_WAIT`
+`ORDER_STATE: INTEGRATED_PENDING_T2 / DEV_WAIT`
 `PLANNED_BRANCH: work/w15-dev-script-engineering`
 `WORK_BRANCH: work/w15-dev-script-engineering`
 `FC0A_RELEASE_APPROVED: YES`
@@ -143,3 +143,22 @@ DEV must not mutate while this state remains `MAIN_ACCEPTED_FOR_CODEX / DEV_WAIT
 CODEX return prefix:
 
 `DEV-SCRIPT-ENGINEERING CODEX -> MAIN COORDINATOR — VALIDATION HANDOFF`
+
+
+## Main integration — CODEX validation accepted and PR merged
+
+Final CODEX-validated candidate:
+- head `79d43f1994acb509628b08e703c20820bf8a9c72`;
+- tree `c5e85db0c176d9dc070f20ff79ce81d7894f4ccc`;
+- delta from Main-reviewed candidate: one test-only contract regression;
+- natural T1 `36078781412`: SUCCESS.
+
+Protected merge:
+- PR #344: MERGED;
+- integration merge SHA: `3b1511799a73c3c4fee1c2265005d6724bcaa235`;
+- integration tree: `bb9b1fb4b9a7ffe47d9eb56eaee6dd8ba0e300fe`.
+
+Disposition:
+`DEV-SCRIPT-ENGINEERING -> INTEGRATED_PENDING_T2 / DEV_WAIT`
+
+No post-merge T2 verification is claimed yet. DEV must not mutate unless Main explicitly reopens it.

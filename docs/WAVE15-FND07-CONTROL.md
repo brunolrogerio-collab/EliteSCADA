@@ -1324,4 +1324,68 @@ Post-merge CI:
 FND-07 is integrated but not yet declared VERIFIED/FROZEN. Main must accept the exact integrated CI or diagnose any non-causal failure first.
 
 No FND-07 DEV/CODEX mutation is authorized while post-merge CI is pending.
+## 31. POST-MERGE CI BLOCKER / LOCAL AUTHORITY COMPOSITION — rev 0028
+
+`ORDER_ID: FND07-CODEX-POSTMERGE-LOCAL-AUTHORITY-GATE-15`
+
+`ORDER_STATE: CODEX_ACTIVE / POSTMERGE_CORRECTION / DEV_WAIT / NO_FREEZE`
+
+Integrated baseline:
+- `wave15/corrections-integration@1b186c48ba5d2e3012be2c58f0efc36170101fe9`;
+- PR #348 merged;
+- post-merge CI `36191702355` / run #1576: FAILURE.
+
+Failure classification:
+`FND07_POSTMERGE_COMPOSITION_BLOCKER / LOCAL_AUTHORITY_SERVICES_RESOLVED_WHEN_LOCAL_AUTH_DISABLED`.
+
+Exact post-merge evidence:
+- Web build: SUCCESS;
+- Backend build/tests proceed far enough to smoke-start the API;
+- API startup then fails:
+  `Unable to resolve service for type 'Scada.Security.Authentication.IAuthorityLifecycleStore' while attempting to activate 'Scada.Api.Security.AuthorityDetachService'.`
+- Chromium is skipped only because Backend failed.
+
+Main diagnosis:
+1. `AddConfiguredAudit` invokes `AddLocalIdentity(authenticationEnabled)`;
+2. when `Authentication:Local:Enabled=false`, `LocalIdentityRuntimeOptions.Enabled=false` is registered, but `IAuthorityLifecycleStore` and `ILocalIdentityStore` are intentionally absent;
+3. `InstallationStartupOrchestration` correctly avoids local Authority recovery in that mode;
+4. however its installation-journal recovery phase resolves `InstallationDetachService` whenever an installation-binding store exists;
+5. `InstallationDetachService` requires `AuthorityDetachService` and `IAuthorityLifecycleStore`, so the host fails during DI construction;
+6. `MapInstallationDetachEndpoints` is also currently unconditional even though FND-07 detach semantics explicitly remove/replace the bound local Authority.
+
+This is a real post-merge integration/composition defect. It is not a CI transient and must not be rerun away.
+
+Dedicated correction branch:
+`work/w15-fnd07-postmerge-local-authority-gate`
+based exactly on integrated SHA `1b186c48ba5d2e3012be2c58f0efc36170101fe9`.
+
+### CODEX authorized correction
+
+CODEX may correct only the local-Authority composition boundary.
+
+Required invariants:
+1. when `LocalIdentityRuntimeOptions.Enabled=false`:
+   - startup must not resolve local Authority detach/lifecycle services;
+   - installation journal recovery must not instantiate `InstallationDetachService` if that service's local-Authority contract is unavailable;
+   - local-Authority detach endpoints must not expose a transaction that cannot be composed safely;
+   - canonical Authority policy bootstrap for non-local/external auth remains intact.
+2. when local identity is enabled:
+   - existing FND-07 detach/recovery behavior remains unchanged;
+   - Authority lifecycle recovery, detach journaling and fail-closed semantics remain intact.
+3. do not introduce fake/no-op `IAuthorityLifecycleStore` or `ILocalIdentityStore` merely to satisfy DI.
+4. do not broaden into Authority policy semantics, Licensing, HA, Runtime, or Historian.
+
+Preferred direction:
+- conditionally compose/recover/map local-Authority detach behavior based on `LocalIdentityRuntimeOptions.Enabled` (or an equivalent explicit capability boundary);
+- keep service absence truthful when local Authority is disabled.
+
+Mandatory evidence:
+- focused tests proving startup succeeds with local auth disabled + persistence enabled;
+- focused tests proving local-auth-enabled detach/recovery path still resolves and behaves as before;
+- API/endpoints truth test for disabled local Authority mode;
+- relevant focused .NET;
+- exact-head CI on the correction branch;
+- if green, return durable handoff to Main for protected integration.
+
+No freeze until this post-merge blocker is closed on integrated code.
 

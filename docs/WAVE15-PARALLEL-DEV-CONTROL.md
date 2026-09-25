@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0006`
+`MAIN_ORDER_REV: 0007`
 
 `STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
@@ -883,3 +883,22 @@ Dedicated control rev 0006:
 `bc7e3f810b7534d1180196c1e768f4c92a1c60a5`.
 
 No unchanged-head rerun, CODEX route, merge or freeze is authorized.
+
+
+## 20. Authority control normalization after coordinator inconsistency
+
+Main found and corrected a coordination defect in the dedicated Authority control: two sections were simultaneously labeled as current after the coordinator takeover.
+
+Canonical Authority state is now unambiguous:
+
+- PR #346;
+- head `d96e685daf7ddb190cefc67c6ba975d71a779a52`;
+- tree `184f8a49bdf15a34ce7ba96bc99168f5152a4fef`;
+- natural T1 `36076143618`: SUCCESS;
+- state `MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`;
+- current order `DEV-AUTHORITY-UX-CODEX-QUEUE-04`;
+- dedicated control rev 0005 / commit `28f152607e01ac5964b2f4ccc2abd37f5d4769d9`.
+
+All older Authority correction-order sections are historical/superseded only.
+
+The shared sequential CODEX route remains Script Engineering #344. Authority acceptance does not reroute CODEX or authorize merge/T2.

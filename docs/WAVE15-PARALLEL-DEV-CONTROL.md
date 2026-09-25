@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0011`
+`MAIN_ORDER_REV: 0012`
 
 `STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
@@ -996,3 +996,23 @@ Required direction is test-harness-only:
 Dedicated control rev 0008.
 
 FND-05 remains active in CODEX HA adversarial validation. Authority and Licensing remain queued. Script and Editor remain integrated pending T2.
+
+
+## 25. FND-05 merged pending post-merge validation / FND-07 one fixture assertion remains
+
+FND-05:
+- final CODEX candidate `19c65423880719afc0163bf7fd741d2cd2d0377d`;
+- T1 `36085565091`: SUCCESS;
+- `CODEX_HA_ADVERSARIAL_GREEN`: SATISFIED;
+- PR #347 merged at integration SHA `b2874a00c7f7b35ca8223defd7e3b6bbdd89ecf8`;
+- state `INTEGRATED_PENDING_POSTMERGE_VALIDATION`;
+- CODEX remains on FND-05 under route `ROUTE-SEQUENTIAL-CODEX-TO-FND05-POSTMERGE-29`.
+
+FND-07:
+- current head `da1f00a2db4dbd1125fa342aa5a41c5ec57edbdb`;
+- explicit populated fixture direction accepted;
+- T1 red only because the test conflated Authority role count with Engineering Workspace role count;
+- state remains bounded DEV correction;
+- dedicated control rev 0010.
+
+Authority and Licensing remain Main-accepted/queued. Script and Editor remain integrated pending T2.

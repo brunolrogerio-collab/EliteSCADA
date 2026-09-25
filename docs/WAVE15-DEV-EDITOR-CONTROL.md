@@ -3,9 +3,9 @@
 > GitHub live is the sole authority.
 
 `LANE: DEV-EDITOR`
-`MAIN_ORDER_REV: 0003`
+`MAIN_ORDER_REV: 0004`
 `ORDER_ID: DEV-EDITOR-FC0A-01`
-`ORDER_STATE: MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`
+`ORDER_STATE: CODEX_VALIDATION / ACTIVE_SHARED_ROUTE / DEV_WAIT`
 `PLANNED_BRANCH: work/w15-dev-editor-single-canvas`
 `WORK_BRANCH: work/w15-dev-editor-single-canvas`
 `FC0A_RELEASE_APPROVED: YES`
@@ -149,3 +149,27 @@ Queue rule:
 DEV-EDITOR must remain `DEV_WAIT` while queued.
 
 No merge/T2 authorization yet.
+
+
+## Main route activation — sequential CODEX
+
+Exact accepted candidate remains:
+- PR #349;
+- head `06eed31d99ddb34d99e0287e96e38bed3bf7dab5`;
+- tree `11a5a01fd805d3e068dc6e22efff7a65077c09e4`;
+- prior natural T1 `36066874097`: SUCCESS.
+
+Current integration target after Script + INFRA-CI-01D:
+- SHA `66694aac1408218a41d1251459c20465d990cfef`;
+- tree `7c1588becd9ef2dc375d2a4d6381430c560a5875`.
+
+Target advance is non-overlapping with Editor-owned product files:
+- Script Engineering lane files;
+- one IEC-104 test-infrastructure file;
+- coordination documentation.
+
+`ORDER_ID: DEV-EDITOR-CODEX-VALIDATION-V1`
+
+`ORDER_STATE: CODEX_VALIDATION / ACTIVE_SHARED_ROUTE`
+
+CODEX must validate the exact accepted Editor candidate and may add bounded validation-driven test commits. Material product/design defects return to Main -> DEV-EDITOR. No self-merge/T2.

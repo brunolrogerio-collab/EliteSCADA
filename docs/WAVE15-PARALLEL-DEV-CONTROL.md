@@ -1548,4 +1548,20 @@ No production semantics may change as part of this infrastructure work.
 
 Binding order remains:
 `FND07-CODEX-CI-FIRST-PROJECT-SMOKE-18`.
+## 46. CODEX creative autonomy for reusable CI harness
+
+The active FND-07 CODEX lane now has broad autonomy over CI/test infrastructure design.
+
+CODEX may choose and iterate on the most effective container/Compose/devcontainer/script/cache architecture needed to reproduce universal CI locally and make future debugging cheap.
+
+Routine infrastructure limitations are CODEX-owned problems to solve, not reasons to stop and ask Main for implementation preference.
+
+Mandatory boundary:
+- no production semantics changes;
+- no security/licensing/HA/runtime weakening;
+- no CI gate removal;
+- final hosted GitHub CI remains independent confirmation.
+
+Binding order remains:
+`FND07-CODEX-CI-FIRST-PROJECT-SMOKE-18`.
 

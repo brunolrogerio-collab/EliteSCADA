@@ -38,9 +38,9 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0043`
+`MAIN_ORDER_REV: 0044`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-24 — FND-05 MERGED / POSTMERGE CODEX ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-25 — FND-05 VERIFIED/FROZEN / FND-07 CODEX ACTIVE`
 
 `GLOBAL_GATE: FND04_VERIFIED_FROZEN`
 
@@ -1207,3 +1207,34 @@ Exact integration head:
 - tree `c942dc46692a1f2350bcf478b952db00cfa756ec`.
 
 FND-05 is merged but not yet VERIFIED/FROZEN. Execute post-merge validation only. Return to Main after handoff; do not self-select Authority or Licensing.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0044
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FND07-30`
+
+`ORDER_STATE: ACTIVE_VALIDATION`
+
+`EXPECTED_ORDER: FND07-CODEX-EXACT-HEAD-T1-VALIDATION-04`
+
+Authoritative lane control:
+- branch: `coord/w15-fnd07-control`;
+- file: `docs/WAVE15-FND07-CONTROL.md`;
+- control commit: `d86926adad90712e679607c90437533591505db2`.
+
+Exact candidate:
+- PR #348;
+- branch `work/w15-fnd-07-detach-neutral`;
+- SHA `a8fcfe8c855a692670e9c74a95f4450caf612b2f`;
+- tree `6913879ae0a1d7cf1a69da7fe8f58b1eb0dfdab3`.
+
+Primary mission:
+- obtain exact-head Wave 15 T1 on this SHA;
+- then perform FND-07 adversarial/focused validation;
+- no source mutation initially;
+- bounded test-only fixes allowed only if validation exposes test-harness defects;
+- material product defect returns to Main/FND-07 DEV.
+
+FND-05 is now VERIFIED/FROZEN and this route supersedes its post-merge route.
+
+Do not self-select Authority or Licensing after FND-07.

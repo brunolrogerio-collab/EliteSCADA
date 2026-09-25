@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0009`
+`MAIN_ORDER_REV: 0010`
 
 `STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
@@ -953,3 +953,21 @@ FND-07 remains independently authorized on normal DEV correction:
 - no product mutation is authorized by that failure.
 
 Authority, Licensing and FND-05 remain queued/waiting.
+
+
+## 23. Editor integrated / FND-05 HA adversarial CODEX active
+
+Editor PR #349:
+- final candidate `06eed31d99ddb34d99e0287e96e38bed3bf7dab5`;
+- CODEX source delta: none;
+- T1 `36066874097`: SUCCESS;
+- merged at integration SHA `cfaafa4b29e1462bf9d304af995cc8638578a3c2`;
+- state `INTEGRATED_PENDING_T2`.
+
+Sequential CODEX now targets FND-05:
+- route `ROUTE-SEQUENTIAL-CODEX-TO-FND05-HA-28`;
+- candidate `be9cf0f3f02aa1ba49cdb6b589abd5e1e723c845`;
+- mandatory `CODEX_HA_ADVERSARIAL_GREEN`;
+- dedicated control rev 0008 / `ddfd84ab4f2522c255fa9a155f9ec14dfbbc8734`.
+
+FND-07 remains independently authorized in DEV correction. Authority and Licensing remain queued/waiting. Script and Editor are both integrated pending broader T2.

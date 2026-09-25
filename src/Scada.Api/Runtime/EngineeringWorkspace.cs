@@ -225,6 +225,21 @@ public sealed class EngineeringWorkspace : IDisposable
         VisualAssets.Clear();
     }
 
+    public void ResetToNeutral()
+    {
+        Clear();
+        lock (_stateGate)
+        {
+            _projectKey = null;
+            _projectName = null;
+            _baseRevision = null;
+            _checkedOutAtUtc = null;
+            _lastSavedAtUtc = null;
+            _isDirty = false;
+            _changeVersion = checked(_changeVersion + 1);
+        }
+    }
+
     internal void InitializeDemo()
     {
         if (Describe().ChangeVersion != 0)

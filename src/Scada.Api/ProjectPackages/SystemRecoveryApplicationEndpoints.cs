@@ -236,7 +236,8 @@ public static class SystemRecoveryApplicationEndpoints
             services.GetRequiredService<IGatewayEngineeringRegistry>(),
             services.GetRequiredService<IReportEngineeringRegistry>(),
             services.GetRequiredService<InitialInstallationGate>(),
-            services.GetRequiredService<IConfiguration>());
+            services.GetRequiredService<IConfiguration>(),
+            services.GetService<IEngineeringInstallationBindingStore>());
     }
 
     private static async Task<(SecurityPrincipal? Principal, LocalUserAccount? Account, IResult? Failure)> ResolveLocalActorAsync(

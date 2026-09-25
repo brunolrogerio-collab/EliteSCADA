@@ -54,7 +54,8 @@ export default defineConfig({
         Authentication__Jwt__Audience: E2E_AUTH_AUDIENCE,
         Authentication__Jwt__SigningKey: E2E_AUTH_SIGNING_KEY,
         Authentication__Local__Enabled: 'true',
-        Authentication__Local__SecureCookie: 'false', Engineering__InitializeDemoWhenEmpty: 'true',
+        Authentication__Local__SecureCookie: 'false',
+        EngineeringRuntime__ProjectKey: 'e2e-wave03',
       }
     },
     {

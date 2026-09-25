@@ -84,6 +84,17 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
             PRIMARY KEY (revision, asset_id)
         );
 
+        CREATE TABLE IF NOT EXISTS elitescada.engineering_installation_binding (
+            state_key text PRIMARY KEY,
+            state text NOT NULL CONSTRAINT engineering_installation_binding_state_allowed
+                CHECK (state IN ('Legacy', 'Neutral', 'AttachInProgress', 'Attached', 'DetachInProgress')),
+            project_key varchar(200) NULL,
+            generation bigint NOT NULL CHECK (generation > 0),
+            updated_at_utc timestamptz NOT NULL DEFAULT clock_timestamp(),
+            CONSTRAINT engineering_installation_binding_project_shape CHECK (
+                (state IN ('Legacy', 'Neutral') AND project_key IS NULL) OR
+                (state IN ('AttachInProgress', 'Attached', 'DetachInProgress') AND project_key IS NOT NULL)));
+
         CREATE INDEX IF NOT EXISTS ix_engineering_revision_assets_project_revision
             ON elitescada.engineering_revision_assets (project_key, revision);
 
@@ -109,6 +120,14 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         INSERT INTO elitescada.schema_migrations (migration_key)
         VALUES ('005_engineering_visual_asset_blobs')
         ON CONFLICT (migration_key) DO NOTHING;
+
+        INSERT INTO elitescada.schema_migrations (migration_key)
+        VALUES ('006_engineering_installation_binding')
+        ON CONFLICT (migration_key) DO NOTHING;
+
+        INSERT INTO elitescada.engineering_installation_binding (state_key, state, project_key, generation)
+        VALUES ('engineering-installation-binding-v1', 'Legacy', NULL, 1)
+        ON CONFLICT (state_key) DO NOTHING;
         """;
 
     private readonly NpgsqlDataSource _dataSource;
@@ -207,12 +226,21 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
                 @saved_by,
                 @based_on_revision,
                 @payload
-            WHERE @based_on_revision IS NULL
-               OR EXISTS (
+            WHERE (
+                    @based_on_revision IS NULL
+                    OR EXISTS (
+                        SELECT 1
+                        FROM elitescada.engineering_revisions parent
+                        WHERE parent.project_key = @project_key
+                          AND parent.revision = @based_on_revision))
+              AND EXISTS (
                     SELECT 1
-                    FROM elitescada.engineering_revisions parent
-                    WHERE parent.project_key = @project_key
-                      AND parent.revision = @based_on_revision)
+                    FROM elitescada.engineering_installation_binding binding
+                    WHERE binding.state_key = 'engineering-installation-binding-v1'
+                      AND (
+                          binding.state = 'Legacy'
+                          OR (binding.state IN ('Attached', 'AttachInProgress')
+                              AND binding.project_key = @project_key)))
             RETURNING revision, saved_at_utc;
             """;
 
@@ -235,8 +263,8 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
             {
                 throw new InvalidOperationException(
                     basedOnRevision.HasValue
-                        ? $"Engineering base revision {basedOnRevision} does not belong to project '{normalizedProjectKey}'."
-                        : "PostgreSQL did not return the saved engineering revision.");
+                        ? $"Engineering base revision {basedOnRevision} does not belong to project '{normalizedProjectKey}', or the installation binding no longer admits that project."
+                        : $"Engineering project '{normalizedProjectKey}' is not admitted by the current installation binding.");
             }
 
             revision = reader.GetInt64(0);
@@ -609,6 +637,49 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
                 Content = asset.Content.ToArray()
             };
         }).ToArray();
+    }
+
+    public async Task DeleteProjectAsync(
+        string projectKey,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateProjectKey(projectKey);
+        var normalizedProjectKey = projectKey.Trim();
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        await using (var guard = new NpgsqlCommand(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM elitescada.engineering_revisions child
+                JOIN elitescada.engineering_revisions parent
+                  ON parent.revision = child.based_on_revision
+                WHERE parent.project_key = @project_key
+                  AND child.project_key <> @project_key);
+            """,
+            connection,
+            transaction))
+        {
+            guard.Parameters.AddWithValue("project_key", normalizedProjectKey);
+            if ((bool)(await guard.ExecuteScalarAsync(cancellationToken) ?? false))
+            {
+                throw new InvalidOperationException(
+                    $"Engineering project '{normalizedProjectKey}' cannot be detached while another project revision derives from it.");
+            }
+        }
+
+        const string sql = """
+            DELETE FROM elitescada.project_activations WHERE project_key = @project_key;
+            DELETE FROM elitescada.project_publications WHERE project_key = @project_key;
+            DELETE FROM elitescada.engineering_revision_assets WHERE project_key = @project_key;
+            DELETE FROM elitescada.engineering_revisions WHERE project_key = @project_key;
+            """;
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("project_key", normalizedProjectKey);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     private static EngineeringProjectSnapshot ReadSnapshot(NpgsqlDataReader reader) => new(

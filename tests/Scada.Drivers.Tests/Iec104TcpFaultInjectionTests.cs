@@ -185,6 +185,9 @@ public sealed class Iec104TcpFaultInjectionTests
             await adapter.StartDataTransferAsync(timeout.Token);
 
             await acknowledgementObserved.Task.WaitAsync(timeout.Token);
+            await WaitUntilAsync(
+                () => adapter.GetTransportDiagnostics().PendingReceiveAcknowledgementCount == 0,
+                timeout.Token);
 
             var diagnostics = adapter.GetTransportDiagnostics();
             Assert.True(diagnostics.IsConnected);

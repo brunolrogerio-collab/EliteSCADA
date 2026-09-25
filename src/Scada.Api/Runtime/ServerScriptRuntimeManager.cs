@@ -195,6 +195,34 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
         }
     }
 
+    public async Task DeactivateForInstallationDetachAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await _lifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            ThrowIfDisposed();
+            ActiveGeneration? active;
+            await _revisionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                active = Interlocked.Exchange(ref _active, null);
+                active?.Cancel();
+            }
+            finally
+            {
+                _revisionGate.Release();
+            }
+
+            if (active is not null)
+                await active.DisposeAsync(runDisposeHandlers: false).ConfigureAwait(false);
+        }
+        finally
+        {
+            _lifecycleGate.Release();
+        }
+    }
+
     public async Task DispatchRuntimeEventAsync(
         string? targetReference = null,
         CancellationToken cancellationToken = default)

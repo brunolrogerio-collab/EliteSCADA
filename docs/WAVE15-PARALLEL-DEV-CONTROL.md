@@ -1531,4 +1531,21 @@ Amended FND-07 control:
 rev 0032 / `25877bfb5c1154d63c21f001f2190c9b28dc6bc6`.
 
 Production mutation remains prohibited.
+## 45. Reusable local CI container/harness authorized
+
+The active FND-07 CI debugging lane is authorized to create a small reusable repository-owned container/Compose based CI-parity environment.
+
+Purpose:
+- reproduce universal CI locally;
+- keep dependencies/services warm across iterations;
+- reset only disposable DB/state;
+- run backend, Runtime smoke, web and Chromium independently or as one full battery;
+- reuse shared scripts with GitHub Actions to minimize drift.
+
+The current `.devcontainer` can be reused where helpful, but the historical `.devcontainer/docker-compose.yml` referenced in documentation is absent from current integration and must not be assumed.
+
+No production semantics may change as part of this infrastructure work.
+
+Binding order remains:
+`FND07-CODEX-CI-FIRST-PROJECT-SMOKE-18`.
 

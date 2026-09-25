@@ -95,6 +95,29 @@ public sealed class RuntimeHighAvailabilityPeerBoundaryTests
     }
 
     [Fact]
+    public void UnknownHandoffPhase_CannotBeTreatedAsGrant()
+    {
+        var pair = CreateReadyPair();
+        var begin = pair.NodeA.BeginManualTransfer(
+            "node-b",
+            pair.NodeA.Snapshot().AuthorityEpoch);
+        Assert.NotNull(begin.Handoff);
+
+        Assert.True(pair.NodeB.ApplyPeerTransferHandoff(begin.Handoff!).Accepted);
+
+        var malformed = pair.NodeB.ApplyPeerTransferHandoff(begin.Handoff with
+        {
+            HandoffId = Guid.NewGuid(),
+            HandoffSequence = begin.Handoff.HandoffSequence + 1,
+            Phase = (RuntimeHaTransferHandoffPhase)99
+        });
+
+        Assert.False(malformed.Accepted);
+        Assert.Equal("handoff-phase-invalid", malformed.ReasonCode);
+        Assert.False(pair.NodeB.TryAcquireLocalIndustrialAuthority().Allowed);
+    }
+
+    [Fact]
     public void ConflictingPeerActiveClaim_FailsClosedAcrossIndependentServices()
     {
         var pair = CreateReadyPair();

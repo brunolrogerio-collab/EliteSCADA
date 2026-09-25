@@ -669,6 +669,13 @@ public sealed partial class RuntimeHighAvailabilityService
                 "handoff-sequence-or-epoch-invalid",
                 _authority.Snapshot());
         }
+        if (!Enum.IsDefined(handoff.Phase))
+        {
+            return new RuntimeHaPeerApplyResult(
+                false,
+                "handoff-phase-invalid",
+                _authority.Snapshot());
+        }
 
         if (LocalNodeId is null ||
             !handoff.TargetNodeId.Equals(

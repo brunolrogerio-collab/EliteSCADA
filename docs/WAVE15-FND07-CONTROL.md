@@ -1158,4 +1158,24 @@ After the DEV handoff, return to WAIT.
 No merge/freeze is authorized by this order. Even an exact-head green T1 remains subject to Main review and the mandatory final adversarial validation explicitly accepted by Main.
 
 CODEX remains unavailable/paused. No historical CODEX route may auto-resume.
+## 27. CODEX CAPACITY RESTORED MODERATELY / DEV ORDER UNCHANGED — rev 0024
+
+Product Owner reports CODEX capacity is available again at a moderate level.
+
+FND-07 live revalidation:
+- PR #348 remains at `3ecc4a78080685b0556402d50190e09236d6d8fa`;
+- no corrected DEV head has yet been returned after rev 0023.
+
+Therefore the binding DEV order remains unchanged:
+`FND07-DEV-ACTIVE-RUNTIME-FIXTURE-SOURCE-11`
+
+State:
+`DEV_CORRECTION / AUTHORIZED / TEST_HARNESS_ONLY`
+
+CODEX is now available but **not active** on this lane. It is intentionally held until:
+1. FND-07 DEV persists the corrected candidate;
+2. Main revalidates/reviews the exact head;
+3. Main explicitly publishes a new CODEX validation route.
+
+Do not use CODEX to duplicate the bounded fixture implementation and do not resume any historical FND-07 route.
 

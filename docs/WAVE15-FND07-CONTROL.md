@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd07-control`
 
-`MAIN_ORDER_REV: 0011`
+`MAIN_ORDER_REV: 0012`
 
 `STATE: DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
 
@@ -467,3 +467,51 @@ If T1 is still running, return `T1_RUNNING`; do **not** make another source chan
 `ORDER_STATE: TEST_ONLY / DISPATCH_T1 / NO_SOURCE_MUTATION`
 
 This is the single current FND-07 DEV action.
+
+
+## 15. CURRENT STATE — environment blocker confirmed / WAIT_MAIN — rev 0012
+
+This section supersedes rev 0011 as the current FND-07 DEV instruction.
+
+Exact candidate remains unchanged:
+- PR `#348`
+- branch `work/w15-fnd-07-detach-neutral`
+- head `a8fcfe8c855a692670e9c74a95f4450caf612b2f`
+- tree `6913879ae0a1d7cf1a69da7fe8f58b1eb0dfdab3`
+- source review: ACCEPTED
+- source mutation after rev 0011: none
+
+Environment finding:
+- DEV connector cannot dispatch `workflow_dispatch`;
+- DEV runtime has no `gh`;
+- Main attempted non-source GitHub event triggers while preserving the exact candidate:
+  - close/reopen PR #348 on the same head;
+  - temporary ref pulse parent -> exact head;
+- neither produced a new Wave 15 T1 run for `a8fcfe8c...`.
+
+Therefore the blocker is coordination/tooling, not DEV implementation.
+
+`ORDER_ID: FND07-DEV-WAIT-MAIN-T1-03`
+
+`ORDER_STATE: WAIT_MAIN / NO_SOURCE_MUTATION`
+
+### DEV ACTION
+
+Do nothing.
+
+DEV must not:
+- edit source/test code;
+- create commits;
+- change PR metadata;
+- rebase;
+- rerun the old `da1f00a2...` workflow;
+- attempt alternate CI workarounds;
+- merge/freeze.
+
+Main owns resolution of exact-head T1 execution from this point.
+
+Required return on `SIGA` while this order remains current:
+
+`FND-07 DEV -> MAIN COORDINATOR — WAIT_MAIN / EXACT-HEAD T1 ENVIRONMENT BLOCKED`
+
+No additional action is expected from the FND-07 DEV until Main publishes a new order.

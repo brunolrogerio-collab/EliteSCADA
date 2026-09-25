@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0012`
+`MAIN_ORDER_REV: 0013`
 
 `STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
@@ -1016,3 +1016,24 @@ FND-07:
 - dedicated control rev 0010.
 
 Authority and Licensing remain Main-accepted/queued. Script and Editor remain integrated pending T2.
+
+
+## 26. FND-07 exact-head T1 environment blocker / DEV WAIT_MAIN
+
+FND-07 exact candidate remains:
+- PR #348;
+- head `a8fcfe8c855a692670e9c74a95f4450caf612b2f`;
+- tree `6913879ae0a1d7cf1a69da7fe8f58b1eb0dfdab3`;
+- source review ACCEPTED;
+- no source mutation after the one-line role-count fix.
+
+Exact-head T1 execution is environment-blocked:
+- DEV has no workflow_dispatch capability and no `gh`;
+- Main close/reopen and parent->head ref pulse preserved the candidate but did not create a new T1.
+
+Canonical state:
+`FND-07 -> WAIT_MAIN / NO_SOURCE_MUTATION`
+
+Dedicated control rev 0012 / `7f7db7eb4e1e7a878a7624de2ec2de61e9d227bf`.
+
+No further DEV action is expected until Main resolves CI execution.

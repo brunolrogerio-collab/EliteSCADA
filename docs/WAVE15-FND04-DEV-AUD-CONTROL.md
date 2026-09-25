@@ -1481,4 +1481,20 @@ Mission:
 - test both modes and obtain exact-head CI evidence.
 
 Do not self-select Authority UX or Licensing UX afterward. Return durable handoff to Main.
+## CURRENT SHARED CODEX ROUTE — rev 0056
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FND07-CORRECTION-ACCEPTED-41`
+
+`ORDER_STATE: COMPLETED / MAIN_ACCEPTED / HOLD_FOR_CORRECTION_MERGE`
+
+Accepted correction:
+- PR #352;
+- head `50a6fa477b166dd115b7d6b8152fd7d53f7e7d6a`;
+- T1 `36193282035`: SUCCESS.
+
+Main acceptance control:
+- FND-07 rev 0029;
+- commit `169aa0a7c975edd1268d56aad27b64dd1f39777e`.
+
+CODEX must not mutate the corrective branch further and must not self-select another lane until Main completes integration and post-merge CI.
 

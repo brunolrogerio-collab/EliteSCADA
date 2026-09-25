@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0019`
+`MAIN_ORDER_REV: 0020`
 
 `STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
@@ -1211,3 +1211,60 @@ Binding order:
 `FND07-DEV-DEEP-AUDIT-BLOCKERS-06`.
 
 CODEX remains paused.
+
+
+## 33. Independent cross-lane delivery audit while FND-07 correction runs
+
+Live audit checkpoint:
+- integration `9895a01a662851505198b965fae2335e55fba6fa`;
+- FND-07 continues independently under deep-audit correction order and has advanced beyond the audited `f2f1fed3...` checkpoint; Main will re-audit its eventual handoff separately.
+
+### Script Engineering #344
+Independent cumulative audit:
+`NO_NEW_BLOCKER_OR_MAJOR`.
+- backend/frontend scope-event rules align;
+- stable TagId / client-memory identity semantics preserved;
+- stale event fields cleared deterministically;
+- no second resolver/runtime authority.
+Control rev 0005.
+
+### Editor #349
+Independent cumulative audit:
+`NO_NEW_BLOCKER_OR_MAJOR`.
+- single-canvas canonical-renderer architecture remains coherent;
+- interaction layer remains non-authoritative;
+- Popup/Screen paths share the canonical canvas;
+- the prior stale hardcoded surface test was already closed test-only by #351.
+Control rev 0006.
+
+### Authority UX #346
+Independent candidate audit:
+`NO_NEW_BLOCKER_OR_MAJOR`.
+- user role choices come from canonical `IAuthorityPolicyStore`;
+- persisted stable role IDs/keys remain protected;
+- orphan assignment, self-lockout and expected-version concurrency remain backend-authoritative.
+State remains `MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`.
+Control rev 0006.
+
+### Licensing UX #345
+Independent audit found:
+`LICENSING_UX_SESSION_REPLACEMENT_STALE_STATE / MAJOR_TRUTH_GAP`.
+
+When changing Runtime Session class, the UI terminates the old lease before admitting the replacement but retains old local `lease.current` / `outcome` until the replacement succeeds. A replacement admission failure can therefore display an already-terminated old session as active.
+
+State changed to:
+`DEV_CORRECTION / AUTHORIZED`
+
+Binding order:
+`DEV-LICENSING-UX-SESSION-REPLACEMENT-TRUTH-03`
+
+Control rev 0005.
+
+### FND-05
+Independent post-freeze source audit:
+`NO_NEW_BLOCKER_OR_MAJOR_WITHIN_FROZEN_FND05_SCOPE`.
+State remains `VERIFIED / FROZEN`.
+The control header was also normalized to the already-established freeze disposition.
+Control rev 0012.
+
+CODEX remains paused while FND-07 deep-audit blockers are being corrected. It must not self-select Authority/Licensing.

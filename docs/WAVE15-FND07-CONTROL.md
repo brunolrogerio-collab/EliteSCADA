@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd07-control`
 
-`MAIN_ORDER_REV: 0016`
+`MAIN_ORDER_REV: 0017`
 
 `STATE: DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
 
@@ -718,3 +718,110 @@ Required bounded correction:
 Do not rebase solely because integration advanced to `9895a01a662851505198b965fae2335e55fba6fa`. Main will reconcile target after candidate acceptance.
 
 No merge/freeze/CODEX route yet.
+
+
+## 20. MAIN DEEP-AUDIT GATE — mandatory before CODEX/merge — rev 0017
+
+This gate is mandatory for the **next FND-07 DEV handoff and every replacement candidate until Main explicitly closes the audit**.
+
+Reason:
+the lane accumulated multiple fast correction cycles and several gaps were found only by later validation. Main will therefore perform a full cumulative audit rather than reviewing only the final incremental patch.
+
+`MAIN_DEEP_AUDIT_REQUIRED: YES`
+
+`CODEX_ROUTE_BEFORE_DEEP_AUDIT: FORBIDDEN`
+
+`MERGE_BEFORE_DEEP_AUDIT: FORBIDDEN`
+
+`T1_GREEN_ALONE_IS_NOT_ACCEPTANCE: TRUE`
+
+### Audit scope
+
+Main must review the full cumulative FND-07 implementation, not only the latest commit:
+
+1. **Cumulative diff**
+   - inspect the entire PR #348 change set from the authoritative Wave 15 base through the final candidate;
+   - identify accidental complexity, duplicated initialization, dead paths, stale compatibility code and changes introduced during iterative fixes.
+
+2. **Startup dependency/order graph**
+   - Engineering storage/schema initialization;
+   - installation binding initialization;
+   - Authority lifecycle recovery;
+   - canonical Authority policy hydration/migration;
+   - Working checkout;
+   - persisted Runtime recovery;
+   - detach/attach recovery;
+   - licensing/runtime-session/audit initialization interactions.
+
+3. **Durable restart matrix**
+   - truly fresh installation;
+   - initial Administrator before first Project;
+   - first Project persisted;
+   - persisted Project + matching Authority;
+   - persisted Project + mismatched Authority;
+   - Authority deliberately detached;
+   - installation neutral;
+   - detach/attach transition in progress;
+   - legacy/pre-AUTH-03 migration;
+   - multiple persisted projects / configured Working/Runtime selection;
+   - repeated process restart/idempotent initialization.
+
+4. **Authority boundary**
+   - Authority remains canonical/server-side;
+   - Engineering packages remain Authority-reference-only;
+   - stable role IDs are preserved;
+   - no client/project role duplication;
+   - true mismatch remains fail-closed;
+   - no validation bypass or special-case that converts invalid state into success.
+
+5. **Engineering / Runtime lifecycle**
+   - Working != Published != Active;
+   - import/save does not silently activate Runtime;
+   - publish/activate transitions remain explicit;
+   - first Project is genuinely empty except canonical built-ins;
+   - no hidden Demo restoration or bootstrap fixture leakage.
+
+6. **Detach / neutral semantics**
+   - no project/Authority leakage after detach;
+   - restart while neutral remains neutral;
+   - transition recovery is deterministic and fail-closed;
+   - no accidental auto-attach or inferred authority.
+
+7. **Persistence and failure handling**
+   - schema/store initialization is idempotent;
+   - no recursion/re-entrant initialization;
+   - no initialization ordering race;
+   - partial startup failure cannot leave contradictory durable markers;
+   - retry/restart behavior is deterministic.
+
+8. **Tests**
+   - verify tests actually exercise production startup order, not just isolated services;
+   - inspect negative-path assertions, not only happy paths;
+   - require deterministic evidence for matching/mismatched Authority, fresh install, neutral/detached and restart;
+   - ensure E2E fixture setup is explicitly test-owned and lifecycle-complete;
+   - distinguish harness failures from product failures with causal evidence.
+
+9. **Cross-lane compatibility**
+   - rebase/target reconciliation is Main-owned;
+   - compare against the then-current `wave15/corrections-integration`;
+   - verify no conflict with frozen FND-05, integrated Script/Editor, Authority UX or Licensing contracts.
+
+10. **Review output**
+   Main must produce an explicit finding set:
+   - `BLOCKER`;
+   - `MAJOR`;
+   - `MINOR`;
+   - `NO_FINDING`;
+   for each audit domain above.
+
+Only when all BLOCKER/MAJOR findings are closed may Main publish a fresh CODEX route.
+
+### Current DEV order remains unchanged
+
+The current implementation order remains:
+
+`FND07-DEV-AUTHORITY-BEFORE-ENGINEERING-RESTART-05`
+
+DEV should continue only that bounded correction and return the required Product Correction Handoff.
+
+The deep audit is a **Main responsibility after the handoff**. DEV must not broaden its implementation to preemptively satisfy speculative audit findings.

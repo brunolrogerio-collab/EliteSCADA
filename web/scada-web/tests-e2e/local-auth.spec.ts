@@ -334,7 +334,7 @@ test('secure first-run creates the initial local Administrator, first project an
     });
     expect(populatedWorkspace.status).toBe(200);
     expect(populatedWorkspace.body.tagCount).toBe(7);
-    expect(populatedWorkspace.body.securityRoleCount).toBe(2);
+    expect(populatedWorkspace.body.securityRoleCount).toBe(1);
     expect(populatedWorkspace.body.isDirty).toBe(false);
 
     const logoutStatus = await page.evaluate(async () =>

@@ -1453,4 +1453,20 @@ Shared CODEX is now ACTIVE on:
 CODEX may perform the bounded production correction + tests/adversarial validation. Authority validation must remain exact/fail-closed; no bypass is permitted.
 
 FND-07 DEV remains WAIT. Authority UX and Licensing UX remain queued and must not preempt the shared CODEX route.
+## 41. FND-07 merged / post-merge CI pending
+
+PR #348 has been merged after Main final adversarial acceptance.
+
+Integrated SHA:
+`1b186c48ba5d2e3012be2c58f0efc36170101fe9`.
+
+Pre-merge exact-head T1 `36189002703` was fully green.
+
+Post-merge exact integrated CI:
+`36191702355` / run #1576 — queued at this revision.
+
+State:
+`FND-07 -> INTEGRATED_PENDING_POSTMERGE_CI`.
+
+No freeze yet. FND-07 DEV and CODEX remain WAIT. Shared CODEX stays held until Main resolves the post-merge CI and publishes the next sequential route.
 

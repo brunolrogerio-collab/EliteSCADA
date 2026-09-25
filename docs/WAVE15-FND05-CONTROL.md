@@ -4,11 +4,11 @@
 
 `CONTROL_BRANCH: coord/w15-fnd05-control`
 
-`MAIN_ORDER_REV: 0011`
+`MAIN_ORDER_REV: 0012`
 
-`STATE: CODEX_HA_ADVERSARIAL_VALIDATION / ACTIVE_SHARED_ROUTE / DEV_WAIT`
+`STATE: VERIFIED / FROZEN`
 
-`CURRENT_ORDER_ID: FND05-CODEX-HA-ADVERSARIAL-V2-02`
+`CURRENT_ORDER_ID: FND05-VERIFIED-FROZEN-V2-04`
 
 `LATEST_AUDITED_PRODUCT_CHECKPOINT: e3ed5138369c576549cb58a7aff9783792f322d3`
 
@@ -521,3 +521,34 @@ Main classification:
 Downstream lanes may consume FND-05. They must not silently redesign the HA authority/handoff contract.
 
 No further FND-05 DEV or CODEX mutation is authorized unless Main explicitly reopens the Foundation due to a proven contract defect.
+
+
+## 14. Independent Main post-freeze source audit — rev 0012
+
+Re-audited the frozen FND-05 implementation against its first-slice contract and current integration.
+
+Reviewed:
+- final HA coordinator/decorator and industrial-effect fences;
+- raw Runtime mutation/event-gate fencing;
+- Server Script operational-event fencing;
+- persisted Runtime activation/recovery hooks;
+- two-node peer observation/handoff boundary;
+- Runtime Session continuity/tombstones;
+- topology/license/readiness behavior;
+- mandatory test matrix and prior CODEX post-merge evidence.
+
+Important scope distinction retained:
+- full peer transport / broad state replication / automatic failover are explicitly outside the frozen first slice;
+- `ReportLocalSynchronization` and peer envelopes form the transport-neutral boundary for later replication work;
+- this is not treated as a missing first-slice implementation.
+
+Finding:
+`NO_NEW_BLOCKER_OR_MAJOR_WITHIN_FROZEN_FND05_SCOPE`.
+
+State remains:
+`VERIFIED / FROZEN`
+
+Freeze checkpoint remains:
+`b2874a00c7f7b35ca8223defd7e3b6bbdd89ecf8`.
+
+This audit also corrects the stale header metadata so it matches the already-recorded freeze disposition.

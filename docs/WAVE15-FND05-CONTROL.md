@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd05-control`
 
-`MAIN_ORDER_REV: 0009`
+`MAIN_ORDER_REV: 0010`
 
 `STATE: CODEX_HA_ADVERSARIAL_VALIDATION / ACTIVE_SHARED_ROUTE / DEV_WAIT`
 
@@ -454,3 +454,38 @@ No FND-05/HA file participates in that test. No blind rerun is authorized; this 
 `ORDER_STATE: CODEX_HA_ADVERSARIAL_VALIDATION / T1_PENDING / DEV_WAIT`
 
 Do not merge/freeze until the exact candidate T1 completes and Main reviews the final handoff.
+
+
+## 12. Main merge / required post-merge validation
+
+Final validated candidate:
+- head `19c65423880719afc0163bf7fd741d2cd2d0377d`;
+- tree `8c0c440016434d95498297936f824acde57f92f3`;
+- exact T1 `36085565091`: SUCCESS;
+- mandatory `CODEX_HA_ADVERSARIAL_GREEN`: SATISFIED.
+
+Protected merge:
+- PR #347 MERGED;
+- integration SHA `b2874a00c7f7b35ca8223defd7e3b6bbdd89ecf8`;
+- integration tree `c942dc46692a1f2350bcf478b952db00cfa756ec`.
+
+`STATE: INTEGRATED_PENDING_POSTMERGE_VALIDATION`
+
+`ORDER_ID: FND05-CODEX-POSTMERGE-VALIDATION-V2-03`
+
+`ORDER_STATE: ACTIVE_SHARED_ROUTE / AUTHORIZED`
+
+CODEX must now validate the exact integration head, focusing on:
+1. HA two-node peer boundary and malformed/replayed envelope fail-closed behavior;
+2. break-before-make authority;
+3. peer-loss no-promotion;
+4. split-brain/ambiguous authority fail-closed;
+5. Runtime Session continuity/tombstone non-resurrection;
+6. no duplicate industrial effects;
+7. no regression from integration with Script/Editor/01D;
+8. relevant exact-head broader evidence.
+
+Return:
+`FND-05 CODEX -> MAIN COORDINATOR — POSTMERGE VALIDATION HANDOFF`.
+
+Do not claim VERIFIED/FROZEN until Main accepts this post-merge evidence.

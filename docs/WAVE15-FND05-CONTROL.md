@@ -4,9 +4,9 @@
 
 `CONTROL_BRANCH: coord/w15-fnd05-control`
 
-`MAIN_ORDER_REV: 0007`
+`MAIN_ORDER_REV: 0008`
 
-`STATE: MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`
+`STATE: CODEX_HA_ADVERSARIAL_VALIDATION / ACTIVE_SHARED_ROUTE / DEV_WAIT`
 
 `CURRENT_ORDER_ID: FND05-CODEX-HA-ADVERSARIAL-V2-02`
 
@@ -402,3 +402,27 @@ No network transport, consensus protocol, automatic failover, package topology o
 `STATE: MAIN_ACCEPTED_FOR_CODEX_HA_ADVERSARIAL / QUEUED / DEV_WAIT`
 
 Mandatory `CODEX_HA_ADVERSARIAL_GREEN` remains blocking before Main integration. The active shared CODEX mission remains Script Engineering #344; no reroute, merge or freeze is authorized by this acceptance.
+
+
+## 10. Main route activation — mandatory HA adversarial CODEX
+
+`ORDER_ID: FND05-CODEX-HA-ADVERSARIAL-V2-02`
+
+`ORDER_STATE: ACTIVE_SHARED_ROUTE / AUTHORIZED`
+
+Exact accepted candidate:
+- PR #347;
+- head `be9cf0f3f02aa1ba49cdb6b589abd5e1e723c845`;
+- tree `c9e94e84c078928ad690217484171fafa6390b46`;
+- prior natural T1 `36072325579`: SUCCESS.
+
+Current integration target:
+- SHA `cfaafa4b29e1462bf9d304af995cc8638578a3c2`;
+- tree `3ac411cfe2aff5451396ee6606625825d601ed1d`.
+
+The target advance since FC0-A is Script Engineering, Editor, one IEC-104 test-infrastructure correction and coordination documentation. No known overlap exists with the accepted FND-05 HA product files.
+
+CODEX must perform the mandatory adversarial matrix already defined above and return:
+`FND-05 CODEX -> MAIN COORDINATOR — HA ADVERSARIAL HANDOFF`.
+
+Material product/design defects return to Main -> FND-05 DEV. No self-merge/freeze.

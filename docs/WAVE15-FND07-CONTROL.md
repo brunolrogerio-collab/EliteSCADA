@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd07-control`
 
-`MAIN_ORDER_REV: 0018`
+`MAIN_ORDER_REV: 0019`
 
 `STATE: DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
 
@@ -910,3 +910,41 @@ Required DEV return:
 Include exact SHA/tree, changed files, focused tests, transition/restart matrix results and natural exact-head T1 if available.
 
 No CODEX route, merge or freeze until Main re-audits and closes all BLOCKER/MAJOR findings.
+
+
+## 22. HANDOFF RECEIVED / MAIN DEEP AUDIT IN PROGRESS — rev 0019
+
+Main received the DEV handoff for exact candidate:
+
+- PR #348;
+- head `0189b7f79bf9772c1cf7ece8f4774ba9ea207f6b`;
+- tree `bd6971f73348ec7b4f4682d18cabe36f6ef32a47`;
+- deep-audit correction delta from `f2f1fed37552133e30567faa0c944d605b048125`: 7 commits / 7 files;
+- focused .NET not executed by DEV due environment;
+- no natural exact-head T1 exists yet.
+
+Main mirrored the chat-only DEV handoff to PR #348 because the DEV did not persist it there.
+
+`ORDER_ID: FND07-MAIN-DEEP-AUDIT-REVIEW-07`
+
+`ORDER_STATE: MAIN_DEEP_AUDIT / DEV_WAIT / NO_SOURCE_MUTATION`
+
+DEV must make no additional source/test mutation until Main returns the audit disposition.
+
+### Durable handoff rule
+
+From this revision onward, a FND-07 handoff is **not considered delivered** if it exists only in the executor chat.
+
+Required handoff transport:
+1. post the complete handoff directly to PR #348; or
+2. if PR commenting is unavailable, write the handoff into this dedicated control and explicitly report the tooling blocker.
+
+The Product Owner must not be used as an inter-agent messenger.
+
+Main now owns:
+- independent verification of all claimed blocker/major closures;
+- cumulative PR audit;
+- cross-lane reconciliation against current integration;
+- decision whether the candidate may return to CODEX.
+
+No CODEX route, merge or freeze is authorized while this audit is open.

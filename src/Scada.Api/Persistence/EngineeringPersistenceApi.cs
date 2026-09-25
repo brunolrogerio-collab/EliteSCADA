@@ -50,10 +50,9 @@ public static class EngineeringPersistenceApi
         var persistence = app.Services.GetService<IEngineeringProjectPersistenceService>();
         if (persistence is null) return;
 
-        // Storage/schema initialization is an explicit startup phase and must have
-        // completed before canonical Authority hydration. Repeating it here remains
-        // safe for focused hosts that call this method directly.
-        await app.InitializeEngineeringPersistenceStorageAsync(cancellationToken);
+        // Storage/schema initialization is an explicit startup phase and must complete
+        // before canonical Authority hydration and before any persisted Working apply.
+        await persistence.InitializeAsync(cancellationToken);
         var bindingStore = app.Services.GetService<IEngineeringInstallationBindingStore>();
         if (bindingStore is not null)
             await bindingStore.InitializeAsync(cancellationToken);
@@ -89,7 +88,6 @@ public static class EngineeringPersistenceApi
             configuredWorkingRevision = revision;
         }
 
-        await persistence.InitializeAsync(cancellationToken);
         var bindingStore = app.Services.GetService<IEngineeringInstallationBindingStore>();
         if (bindingStore is null)
         {

@@ -79,6 +79,7 @@ E2E_SPECS = {
     "AUTHORITY_UX": ("tests-e2e/security.spec.ts",),
     "LICENSING_UX": ("tests-e2e/effective-capabilities-contract.spec.ts",),
     "ELITEGO_RUNTIME": ("tests-e2e/runtime.spec.ts",),
+    "INSTALLATION": ("tests-e2e/local-auth.spec.ts",),
 }
 
 

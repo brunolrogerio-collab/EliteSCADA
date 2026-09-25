@@ -39,6 +39,12 @@ class Wave15ProfileRouterTests(unittest.TestCase):
             "tests-e2e/wave-14-c25-runtime-session.spec.ts",
         ])
 
+    def test_installation_profile_owns_fresh_install_browser_evidence(self):
+        result = self.classify([], "VALIDATION_PROFILE: INSTALLATION")
+        self.assertTrue(result["run_dotnet"])
+        self.assertTrue(result["run_e2e"])
+        self.assertEqual(result["e2e_specs"], ["tests-e2e/local-auth.spec.ts"])
+
     def test_script_engineering_requires_script_and_web(self):
         result = self.classify(["src/Scada.Engineering/Script/Resolver.cs"], "VALIDATION_PROFILE: SCRIPT_ENGINEERING")
         self.assertIn("SCRIPT_ENGINEERING", result["effective_profiles"])

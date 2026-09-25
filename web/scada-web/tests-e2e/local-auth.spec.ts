@@ -169,6 +169,24 @@ test('secure first-run creates the initial local Administrator, first project an
       '46000000-0000-0000-0000-000000000002'
     ]);
 
+    // A saved Working revision is not Runtime Active. Before the explicit E2E fixture is
+    // published/activated, the server must remain neutral and expose no Runtime TAGs.
+    const firstProjectRuntime = await page.evaluate(async currentProjectKey => {
+      const response = await fetch(`/api/engineering/persistence/${encodeURIComponent(currentProjectKey)}/runtime`);
+      return { status: response.status, body: await response.json() };
+    }, projectKey);
+    expect(firstProjectRuntime.status).toBe(200);
+    expect(firstProjectRuntime.body.durable.activeRevision).toBeNull();
+    expect(firstProjectRuntime.body.live.mode).toBe('neutral');
+    expect(firstProjectRuntime.body.live.revision).toBeNull();
+
+    const firstProjectRuntimeTags = await page.evaluate(async () => {
+      const response = await fetch('/api/tags');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(firstProjectRuntimeTags.status).toBe(200);
+    expect(firstProjectRuntimeTags.body).toHaveLength(0);
+
     // This prerequisite intentionally leaves the first persisted project empty.
     // Any later E2E that needs TAG traffic must create its own test-owned fixture
     // through supported APIs instead of depending on product bootstrap seeding.
@@ -327,6 +345,47 @@ test('secure first-run creates the initial local Administrator, first project an
       return { status: response.status, body: await response.json() };
     }, projectKey);
     expect(fixtureSave.status).toBe(200);
+    expect(Number.isInteger(fixtureSave.body.revision)).toBeTruthy();
+    const fixtureRevision = fixtureSave.body.revision as number;
+
+    // Downstream Runtime specs must exercise this explicit test-owned Engineering revision,
+    // never the legacy DemoRuntimeServices fallback. Preserve Working != Published != Active.
+    const fixturePublish = await page.evaluate(async ({ currentProjectKey, revision }) => {
+      const response = await fetch(
+        `/api/engineering/persistence/${encodeURIComponent(currentProjectKey)}/revisions/${revision}/publish`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ publishedBy: 'local-auth-e2e' })
+        });
+      return { status: response.status, body: await response.json() };
+    }, { currentProjectKey: projectKey, revision: fixtureRevision });
+    expect(fixturePublish.status).toBe(200);
+    expect(fixturePublish.body.lifecycle.publishedRevision).toBe(fixtureRevision);
+
+    const fixtureActivate = await page.evaluate(async currentProjectKey => {
+      const response = await fetch(
+        `/api/engineering/persistence/${encodeURIComponent(currentProjectKey)}/published/activate`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ activatedBy: 'local-auth-e2e' })
+        });
+      return { status: response.status, body: await response.json() };
+    }, projectKey);
+    expect(fixtureActivate.status).toBe(200);
+    expect(fixtureActivate.body.activated).toBe(true);
+
+    const activeFixtureRuntime = await page.evaluate(async currentProjectKey => {
+      const response = await fetch(`/api/engineering/persistence/${encodeURIComponent(currentProjectKey)}/runtime`);
+      return { status: response.status, body: await response.json() };
+    }, projectKey);
+    expect(activeFixtureRuntime.status).toBe(200);
+    expect(activeFixtureRuntime.body.consistent).toBe(true);
+    expect(activeFixtureRuntime.body.durable.activeRevision).toBe(fixtureRevision);
+    expect(activeFixtureRuntime.body.live.mode).toBe('engineering');
+    expect(activeFixtureRuntime.body.live.projectKey).toBe(projectKey);
+    expect(activeFixtureRuntime.body.live.revision).toBe(fixtureRevision);
 
     const populatedWorkspace = await page.evaluate(async () => {
       const response = await fetch('/api/engineering/workspace');

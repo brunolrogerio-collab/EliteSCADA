@@ -1178,4 +1178,74 @@ CODEX is now available but **not active** on this lane. It is intentionally held
 3. Main explicitly publishes a new CODEX validation route.
 
 Do not use CODEX to duplicate the bounded fixture implementation and do not resume any historical FND-07 route.
+## 28. T1 POST-ACTIVATION ENGINEERING LOCK DEFECT / CODEX BOUNDED CORRECTION — rev 0025
+
+`ORDER_ID: FND07-CODEX-ENGINEERING-LOCK-AUTHORITY-CORRECTION-12`
+
+`ORDER_STATE: CODEX_ACTIVE / BOUNDED_PRODUCT_CORRECTION + FOCUSED_ADVERSARIAL_VALIDATION / DEV_WAIT`
+
+Exact input candidate:
+- PR #348;
+- head `95fd68468c7ce26b94e8c60a513625e917f4c4a2`;
+- tree `beca8b125258e812680573558a1c382acffe87ff`;
+- T1 `36136242327`;
+- Classify/Common/Web/focused .NET: SUCCESS;
+- focused Chromium: FAILURE;
+- failing job: `108074945455`.
+
+### Main classification
+
+`GENERIC_PRODUCT_DEFECT / ENGINEERING_LOCK_PARTIAL_PACKAGE_DROPS_AUTHORITY_REFERENCE`
+
+The Server Memory fixture correction succeeded in advancing activation beyond the prior `RUNTIME_NO_ACTIVE_SOURCES` failure.
+
+The remaining exact failure is post-runtime activation:
+`EngineeringLockAccess.Replace(...) -> InvalidOperationException: Engineering Lock state could not pass canonical Engineering validation.`
+
+Main source audit:
+- `EngineeringLockAccess.Replace` exports current Engineering state, then constructs a lock-only `EngineeringPackage`;
+- that partial package carries the lock but omits the current `AuthorityPolicyReference`;
+- `EngineeringExchangeService.Preview` correctly requires an exact Authority reference whenever the security registry is Authority-backed;
+- therefore the lock-only partial mutation fails canonical validation despite the live Authority being valid;
+- the `EngineeringLockAccess.cs` blob is byte-identical on:
+  - current FND-07 candidate `95fd6846...`;
+  - current integration `d0b1c6a9...`;
+  - checkpoint `9895a01a...`;
+  - FC0-A release `e3ed5138...`.
+
+This is a pre-existing generic product defect exposed by the real persisted activation path, not a regression introduced by the FND-07 DEV fixture correction.
+
+### CODEX authorization
+
+CODEX may make a small validation-driven production correction on PR #348.
+
+Primary production owner:
+- `src/Scada.Api/Security/EngineeringLockAccess.cs`.
+
+Expected invariant:
+- a lock-only canonical mutation must retain the current exact `AuthorityPolicyReference` required by Authority-backed Engineering validation;
+- Authority roles/scopes remain reference-only and must not be copied as mutable Engineering-owned security state;
+- do not disable, bypass or weaken `AuthorityPolicyReferenceValidator.ValidateExact`;
+- do not skip canonical `Preview` / `Apply`;
+- do not broaden into Authority, Licensing, HA, installation detach or unrelated Engineering mutation semantics.
+
+A minimal correction that preserves the current exported Authority reference in the partial lock package is acceptable if tests prove the invariant. CODEX may choose an equivalent safer implementation within the same boundary.
+
+### Mandatory tests/evidence
+
+CODEX must:
+1. add/extend focused unit coverage for `EngineeringLockAccess.Replace` under an Authority-backed registry;
+2. prove lock mutation succeeds when current Authority reference is valid;
+3. prove Authority policy/roles/scopes are not mutated by lock replacement;
+4. preserve fail-closed behavior for genuinely invalid Authority reference paths elsewhere;
+5. re-run the focused activation/local-auth path that exposed the HTTP 500;
+6. run relevant focused .NET tests;
+7. obtain a new natural exact-head Wave 15 T1 after its commit;
+8. perform final adversarial review of the corrected FND-07 candidate, including fresh-install no-Demo, persisted Active Runtime, Working != Published != Active, Authority reference integrity, FND-05 HA fence and installation Neutral/Detach fence.
+
+CODEX may make further tiny validation-driven corrections only if directly required by this exact failure chain and within the above contract. Any material architecture/product scope expansion returns to Main.
+
+FND-07 DEV remains WAIT.
+
+No merge/freeze until Main accepts the CODEX handoff and exact-head green evidence.
 

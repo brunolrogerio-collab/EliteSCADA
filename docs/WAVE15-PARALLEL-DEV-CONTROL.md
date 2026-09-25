@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0015`
+`MAIN_ORDER_REV: 0016`
 
 `STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
@@ -1089,3 +1089,37 @@ CODEX remains on FND-07 under `ROUTE-SEQUENTIAL-CODEX-TO-FND07-30`, authorized f
 
 FND-07 DEV remains WAIT_MAIN / no source mutation.
 Authority and Licensing remain Main-accepted/queued.
+
+
+## 29. FND-07 material restart-order defect returned to DEV
+
+Main independently confirmed the CODEX investigation finding on exact candidate:
+- PR #348;
+- head `a8fcfe8c855a692670e9c74a95f4450caf612b2f`;
+- tree `6913879ae0a1d7cf1a69da7fe8f58b1eb0dfdab3`.
+
+The previous test-only lifecycle-gap classification is revoked.
+
+Confirmed startup defect:
+- Engineering persistence/bootstrap currently runs before canonical Authority policy hydration;
+- persisted Working checkout can reach live `EngineeringExchangeService.Apply`;
+- live apply validates immutable `AuthorityPolicyReference` against the current Authority snapshot;
+- PostgreSQL Authority policy snapshot remains empty in memory until `AuthorityPolicyStore.InitializeAsync` is reached later through Authority bootstrap;
+- valid persisted project restart can therefore fail before persisted Authority is loaded.
+
+Canonical state:
+`FND-07 -> DEV_CORRECTION / AUTHORIZED`
+
+Binding order:
+`FND07-DEV-AUTHORITY-BEFORE-ENGINEERING-RESTART-05`
+
+Dedicated control rev 0015 / `86249242be5dc0d3e412bf472bc3fc9634ab4438`.
+
+CODEX:
+- material defect returned to DEV;
+- shared route rev 0046 / `a213a78834b697a4a85df1d844fc51939519a4a2`;
+- state `PAUSED / MATERIAL_DEFECT_RETURNED_TO_DEV / CODEX_USAGE_BLOCKED`.
+
+FND-05 remains VERIFIED/FROZEN.
+Authority and Licensing remain Main-accepted/queued.
+Script and Editor remain integrated pending broader T2.

@@ -29,6 +29,6 @@ test('canvas layer order keeps authored background below grid and visual objects
 test('authored background follows logical canvas pan and zoom variables', () => {
   expect(inspectorCss).toContain('left: var(--visual-editor-grid-pan-x)');
   expect(inspectorCss).toContain('top: var(--visual-editor-grid-pan-y)');
-  expect(inspectorCss).toContain('width: calc(var(--visual-editor-grid-size) * 600)');
-  expect(inspectorCss).toContain('height: calc(var(--visual-editor-grid-size) * 400)');
+  expect(inspectorCss).toContain('width: calc(var(--visual-editor-grid-size) * var(--visual-editor-background-grid-width,600))');
+  expect(inspectorCss).toContain('height: calc(var(--visual-editor-grid-size) * var(--visual-editor-background-grid-height,400))');
 });

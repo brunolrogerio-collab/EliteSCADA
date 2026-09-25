@@ -38,7 +38,7 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0045`
+`MAIN_ORDER_REV: 0046`
 
 `LAST_MAIN_UPDATE_BRT: 2026-09-25 — FND-05 VERIFIED/FROZEN / FND-07 CODEX ACTIVE`
 
@@ -1256,3 +1256,25 @@ Authoritative updated lane control:
 The exact-head T1 `36088026405` on `a8fcfe8c855a692670e9c74a95f4450caf612b2f` failed only because the explicit downstream test fixture was saved but not published/activated.
 
 CODEX remains on FND-07 and is authorized for the bounded test-only lifecycle completion defined in rev 0014. No product mutation. Do not switch to Authority or Licensing yet.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0046
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FND07-DEFECT-RETURN-31`
+
+`ORDER_STATE: PAUSED / MATERIAL_DEFECT_RETURNED_TO_DEV / CODEX_USAGE_BLOCKED`
+
+The prior bounded test-fix authorization is revoked.
+
+Main independently confirmed a material FND-07 product defect:
+`AUTHORITY_HYDRATION_BEFORE_ENGINEERING_CHECKOUT_REQUIRED`.
+
+Binding DEV order:
+- branch: `coord/w15-fnd07-control`;
+- file: `docs/WAVE15-FND07-CONTROL.md`;
+- order: `FND07-DEV-AUTHORITY-BEFORE-ENGINEERING-RESTART-05`;
+- state: `DEV_CORRECTION / AUTHORIZED`.
+
+CODEX also hit its current usage limit during investigation. It must not continue local/test-only mutation when capacity returns unless Main publishes a new route after the corrected DEV candidate is reviewed.
+
+No Authority or Licensing reroute is active while FND-07 material correction is unresolved.

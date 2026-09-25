@@ -51,6 +51,19 @@ public interface IProductRuntimeAuthorityReevaluator
         CancellationToken cancellationToken = default);
 }
 
+public sealed record InstallationRuntimeFenceResult(
+    string? ProjectKey,
+    long? Revision,
+    bool RuntimeStopped);
+
+public interface IInstallationRuntimeFence
+{
+    bool ProcessEffectsFenced { get; }
+    Task FenceProcessEffectsForInstallationDetachAsync(CancellationToken cancellationToken = default);
+    Task<InstallationRuntimeFenceResult> StopFencedRuntimeForInstallationDetachAsync(
+        CancellationToken cancellationToken = default);
+}
+
 /// <summary>
 /// Product-owned runtime boundary. Entitlement is evaluated before the existing
 /// transactional runtime coordinator is entered, so a denied Run never stages,
@@ -62,11 +75,13 @@ public sealed class ProductLicensedRuntimeCoordinator :
     IEngineeringRuntimeCoordinator,
     IGatewayRuntimeDiagnosticsProvider,
     IProductRuntimeStatusProvider,
-    IProductRuntimeAuthorityReevaluator
+    IProductRuntimeAuthorityReevaluator,
+    IInstallationRuntimeFence
 {
     public const string EntitlementDeniedIssueCode = "PRODUCT_RUN_ENTITLEMENT_DENIED";
     public const string DemoExpiredDiagnostic = "Demo Run session expired after its continuous runtime allowance.";
     public const string NoActiveRuntimeDiagnostic = "No active Runtime requires product authority re-evaluation.";
+    public const string InstallationDetachFenceIssueCode = "INSTALLATION_DETACH_PROCESS_EFFECT_FENCE";
 
     private readonly Func<IEngineeringRuntimeCoordinator> _innerFactory;
     private readonly IProductRunEntitlementProvider _entitlements;
@@ -74,7 +89,11 @@ public sealed class ProductLicensedRuntimeCoordinator :
     private readonly IRuntimeSessionLeaseStore? _authorityStore;
     private readonly SemaphoreSlim _activationGate = new(1, 1);
     private readonly object _statusGate = new();
+    private readonly object _processEffectGate = new();
     private IEngineeringRuntimeCoordinator _inner;
+    private bool _installationEffectsFenced;
+    private int _activeProcessEffects;
+    private TaskCompletionSource? _processEffectsDrained;
     private CancellationTokenSource? _demoExpiryCancellation;
     private Task? _demoExpiryTask;
     private long _activationGeneration;
@@ -121,34 +140,117 @@ public sealed class ProductLicensedRuntimeCoordinator :
             ? diagnostics.GatewayDiagnostics()
             : Array.Empty<GatewayRouteRuntimeDiagnostic>();
 
-    public ValueTask<bool> AcknowledgeAlarmAsync(
+    public async ValueTask<bool> AcknowledgeAlarmAsync(
         Guid alarmId,
         string user,
-        CancellationToken cancellationToken = default) =>
-        Current.AcknowledgeAlarmAsync(alarmId, user, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        using var effect = EnterProcessEffect();
+        return await Current.AcknowledgeAlarmAsync(alarmId, user, cancellationToken);
+    }
 
-    public ValueTask<bool> ShelveAlarmAsync(
+    public async ValueTask<bool> ShelveAlarmAsync(
         Guid alarmId,
         string user,
-        CancellationToken cancellationToken = default) =>
-        Current.ShelveAlarmAsync(alarmId, user, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        using var effect = EnterProcessEffect();
+        return await Current.ShelveAlarmAsync(alarmId, user, cancellationToken);
+    }
 
-    public ValueTask<bool> UnshelveAlarmAsync(
+    public async ValueTask<bool> UnshelveAlarmAsync(
         Guid alarmId,
         string user,
-        CancellationToken cancellationToken = default) =>
-        Current.UnshelveAlarmAsync(alarmId, user, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        using var effect = EnterProcessEffect();
+        return await Current.UnshelveAlarmAsync(alarmId, user, cancellationToken);
+    }
 
-    public ValueTask WriteAsync(Guid tagId, object? value, CancellationToken cancellationToken = default) =>
-        Current.WriteAsync(tagId, value, cancellationToken);
+    public async ValueTask WriteAsync(Guid tagId, object? value, CancellationToken cancellationToken = default)
+    {
+        using var effect = EnterProcessEffect();
+        await Current.WriteAsync(tagId, value, cancellationToken);
+    }
 
-    public ValueTask ResetServerMemoryRetainedValueAsync(
+    public async ValueTask ResetServerMemoryRetainedValueAsync(
         Guid tagId,
-        CancellationToken cancellationToken = default) =>
-        Current.ResetServerMemoryRetainedValueAsync(tagId, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        using var effect = EnterProcessEffect();
+        await Current.ResetServerMemoryRetainedValueAsync(tagId, cancellationToken);
+    }
 
-    public ValueTask ExecuteCommandAsync(Guid commandId, CancellationToken cancellationToken = default) =>
-        Current.ExecuteCommandAsync(commandId, cancellationToken);
+    public async ValueTask ExecuteCommandAsync(Guid commandId, CancellationToken cancellationToken = default)
+    {
+        using var effect = EnterProcessEffect();
+        await Current.ExecuteCommandAsync(commandId, cancellationToken);
+    }
+
+    public bool ProcessEffectsFenced
+    {
+        get { lock (_processEffectGate) return _installationEffectsFenced; }
+    }
+
+    public async Task FenceProcessEffectsForInstallationDetachAsync(
+        CancellationToken cancellationToken = default)
+    {
+        Task? drain = null;
+        lock (_processEffectGate)
+        {
+            _installationEffectsFenced = true;
+            if (_activeProcessEffects > 0)
+            {
+                _processEffectsDrained ??= new TaskCompletionSource(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                drain = _processEffectsDrained.Task;
+            }
+        }
+
+        if (drain is not null)
+            await drain.WaitAsync(cancellationToken);
+    }
+
+    public async Task<InstallationRuntimeFenceResult> StopFencedRuntimeForInstallationDetachAsync(
+        CancellationToken cancellationToken = default)
+    {
+        if (!ProcessEffectsFenced)
+            throw new InvalidOperationException("Installation Runtime stop requires the process-effect fence first.");
+
+        await _activationGate.WaitAsync(cancellationToken);
+        try
+        {
+            ThrowIfDisposed();
+            var current = Current;
+            var descriptor = current.Describe();
+
+            CancelDemoExpiryLocked();
+            ++_activationGeneration;
+            var replacement = _innerFactory();
+            Volatile.Write(ref _inner, replacement);
+
+            try
+            {
+                await current.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                SetInstallationDetachedStatus($"Runtime stop reported during installation detach: {ex.Message}");
+                throw new InvalidOperationException(
+                    "Runtime could not be stopped cleanly during installation detach.", ex);
+            }
+
+            SetInstallationDetachedStatus("Runtime stopped by installation detach fence.");
+            return new InstallationRuntimeFenceResult(
+                descriptor.ProjectKey,
+                descriptor.Revision,
+                RuntimeStopped: descriptor.Revision.HasValue);
+        }
+        finally
+        {
+            _activationGate.Release();
+        }
+    }
 
     public async Task<ProductRuntimeAuthorityReevaluationResult> ReevaluateForAuthorityChangeAsync(
         DateTimeOffset authorityChangedAtUtc,
@@ -310,6 +412,22 @@ public sealed class ProductLicensedRuntimeCoordinator :
         {
             ThrowIfDisposed();
 
+            if (commitAsync is null && ProcessEffectsFenced)
+            {
+                return new RuntimeActivationResult(
+                    projectKey.Trim(),
+                    revision,
+                    false,
+                    Array.Empty<EngineeringDriverIssue>(),
+                    new[]
+                    {
+                        new RuntimeActivationIssue(
+                            InstallationDetachFenceIssueCode,
+                            "Runtime activation without a durable Application commit is denied while installation detach is fenced.",
+                            IsError: true)
+                    });
+            }
+
             var decision = _entitlements.EvaluateRun(package.Tags.Count);
             if (!decision.Allowed)
             {
@@ -416,6 +534,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
                     cancellation.Token);
             }
 
+            ReleaseInstallationEffectFenceAfterCommittedActivation();
             return result;
         }
         finally
@@ -659,6 +778,71 @@ public sealed class ProductLicensedRuntimeCoordinator :
                     IsError: true)
             });
 
+    private ProcessEffectLease EnterProcessEffect()
+    {
+        lock (_processEffectGate)
+        {
+            if (_installationEffectsFenced)
+                throw new InvalidOperationException(
+                    "Runtime process effects are fenced while the installation Application/Authority is detached.");
+            _activeProcessEffects++;
+            return new ProcessEffectLease(this);
+        }
+    }
+
+    private void ExitProcessEffect()
+    {
+        TaskCompletionSource? drained = null;
+        lock (_processEffectGate)
+        {
+            _activeProcessEffects--;
+            if (_activeProcessEffects < 0)
+                throw new InvalidOperationException("Runtime process-effect fence accounting became invalid.");
+            if (_activeProcessEffects == 0 && _processEffectsDrained is not null)
+            {
+                drained = _processEffectsDrained;
+                _processEffectsDrained = null;
+            }
+        }
+        drained?.TrySetResult();
+    }
+
+    private void ReleaseInstallationEffectFenceAfterCommittedActivation()
+    {
+        lock (_processEffectGate)
+        {
+            if (_activeProcessEffects != 0)
+                throw new InvalidOperationException("Cannot release installation process-effect fence while effects are active.");
+            _installationEffectsFenced = false;
+            _processEffectsDrained = null;
+        }
+    }
+
+    private void SetInstallationDetachedStatus(string diagnostic)
+    {
+        lock (_statusGate)
+        {
+            _lifecycleState = ProductRuntimeLifecycleState.Idle;
+            _activeDecision = null;
+            _demoStartedTimestamp = null;
+            _demoStartedAtUtc = null;
+            _demoDuration = null;
+            _demoElapsedBeforeCurrentProcess = TimeSpan.Zero;
+            _lastDiagnostic = diagnostic;
+        }
+    }
+
+    private sealed class ProcessEffectLease(ProductLicensedRuntimeCoordinator owner) : IDisposable
+    {
+        private ProductLicensedRuntimeCoordinator? _owner = owner;
+
+        public void Dispose()
+        {
+            var current = Interlocked.Exchange(ref _owner, null);
+            current?.ExitProcessEffect();
+        }
+    }
+
     private void SetLastDiagnostic(string? diagnostic)
     {
         if (string.IsNullOrWhiteSpace(diagnostic))
@@ -767,6 +951,8 @@ public static class ProductLicensedRuntimeConfiguration
         builder.Services.AddSingleton<IProductRuntimeStatusProvider>(sp =>
             sp.GetRequiredService<ProductLicensedRuntimeCoordinator>());
         builder.Services.AddSingleton<IProductRuntimeAuthorityReevaluator>(sp =>
+            sp.GetRequiredService<ProductLicensedRuntimeCoordinator>());
+        builder.Services.AddSingleton<IInstallationRuntimeFence>(sp =>
             sp.GetRequiredService<ProductLicensedRuntimeCoordinator>());
     }
 }

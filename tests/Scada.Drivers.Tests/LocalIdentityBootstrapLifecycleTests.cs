@@ -9,7 +9,7 @@ namespace Scada.Drivers.Tests;
 public sealed class LocalIdentityBootstrapLifecycleTests
 {
     [Fact]
-    public async Task Bootstrap_IsAvailableOnlyForExplicitInitialInstallation()
+    public async Task Bootstrap_IsAvailableForInitialInstallationAndExplicitNeutralDetach()
     {
         var initial = new InMemoryAuthorityLifecycleStore();
         var initialStatus = await ResolveAsync(initial);
@@ -21,8 +21,8 @@ public sealed class LocalIdentityBootstrapLifecycleTests
         await initial.CompleteDetachAsync();
         var detachedStatus = await ResolveAsync(initial);
         Assert.True(detachedStatus.Required);
-        Assert.False(detachedStatus.Available);
-        Assert.Equal("authority-lifecycle-deliberatelydetached", detachedStatus.BlockedReason);
+        Assert.True(detachedStatus.Available);
+        Assert.Null(detachedStatus.BlockedReason);
     }
 
     [Fact]

@@ -70,6 +70,7 @@ builder.Services.AddSingleton<AuthorityLifecycleBootstrapService>();
 builder.Services.AddSingleton<AuthorityDetachService>();
 builder.Services.AddSingleton<AuthorityAttachService>();
 builder.Services.AddSingleton<AuthoritySwitchService>();
+builder.Services.AddSingleton<InstallationDetachService>();
 builder.Services.AddSingleton<ICommandEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Commands);
 builder.Services.AddSingleton<IScriptEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Scripts);
 builder.Services.AddSingleton<IGatewayEngineeringRegistry>(sp =>
@@ -142,20 +143,9 @@ _ = app.Services.GetRequiredService<IHistorian>();
 await app.InitializeServerMemoryRetentionAsync();
 await app.InitializeRuntimeSessionLeaseStoreAsync();
 await app.Services.GetRequiredService<ProductLicenseLifecycleCoordinator>().ReconcilePendingAsync();
-await app.InitializeEngineeringPersistenceAsync();
-await app.InitializeAuditAsync();
-var localIdentityRuntime = app.Services.GetRequiredService<LocalIdentityRuntimeOptions>();
-if (localIdentityRuntime.Enabled)
-{
-    await app.Services.GetRequiredService<AuthorityDetachService>().RecoverIfInProgressAsync();
-    await app.Services.GetRequiredService<AuthorityLifecycleBootstrapService>().EnsureInitializedAsync();
-}
-else
-{
-    // Policy remains canonical Authority state even when local authentication is disabled.
-    // Only the local-identity lifecycle is unavailable in this runtime profile.
-    await app.Services.GetRequiredService<AuthorityPolicyBootstrapService>().EnsureInitializedAsync();
-}
+// Durable Engineering storage, Authority hydration, installation-journal recovery and
+// persisted Working checkout use one tested startup ordering boundary.
+await app.InitializeInstallationFoundationAsync();
 
 app.UseMiddleware<TimingCorrelationMiddleware>();
 app.UseCors();
@@ -172,6 +162,7 @@ app.MapCommandEndpoints();
 app.MapInternalMemoryEndpoints();
 app.MapProductLicensingEndpoints();
 app.MapRuntimeEngineeringPackageEndpoints();
+app.MapInstallationDetachEndpoints();
 app.MapRuntimeHighAvailabilityEndpoints();
 if (historicalQueryEnabled) app.MapHistoricalQueryEndpoints();
 

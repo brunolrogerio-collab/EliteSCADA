@@ -244,6 +244,7 @@ public static class AuthorityBackupApi
             ILocalIdentityStore store,
             IAuthorityPolicyStore policyStore,
             IAuthorityLifecycleStore lifecycle,
+            AuthorityAttachService authorityAttach,
             ApiAuditService audit,
             AuthorityBackupService backup,
             TagRealtimeHub realtime,
@@ -299,21 +300,41 @@ public static class AuthorityBackupApi
                 return InvalidBackup();
             }
 
-            var previousPolicy = policyStore.Snapshot();
-            var policyRestore = await policyStore.TryReplaceAsync(previousPolicy.Version, roles!, scopes!, ct);
-            if (!policyRestore.Applied)
-                return Results.Conflict(new { error = policyRestore.Error, currentVersion = policyRestore.Snapshot.Version });
-
-            if (!await store.TryReplaceAllIfEmptyAsync(replacement, ct))
+            var lifecycleBefore = await lifecycle.GetAsync(ct);
+            if (lifecycleBefore.State == AuthorityLifecycleState.DeliberatelyDetached)
             {
-                await policyStore.TryReplaceAsync(policyRestore.Snapshot.Version, previousPolicy.Roles, previousPolicy.Scopes, CancellationToken.None);
-                return Results.Conflict(new
+                try
                 {
-                    error = "Anonymous Authority restore is already closed because another identity initialization won the race."
-                });
+                    await authorityAttach.AttachAsync(
+                        new AuthorityAttachTarget(replacement, roles!, scopes!),
+                        ct);
+                }
+                catch (InvalidOperationException)
+                {
+                    return Results.Conflict(new
+                    {
+                        error = "Neutral Authority restore lost its attach race or remains fail-closed for recovery."
+                    });
+                }
             }
+            else
+            {
+                var previousPolicy = policyStore.Snapshot();
+                var policyRestore = await policyStore.TryReplaceAsync(previousPolicy.Version, roles!, scopes!, ct);
+                if (!policyRestore.Applied)
+                    return Results.Conflict(new { error = policyRestore.Error, currentVersion = policyRestore.Snapshot.Version });
 
-            await lifecycle.MarkAuthorityPresentAsync(ct);
+                if (!await store.TryReplaceAllIfEmptyAsync(replacement, ct))
+                {
+                    await policyStore.TryReplaceAsync(policyRestore.Snapshot.Version, previousPolicy.Roles, previousPolicy.Scopes, CancellationToken.None);
+                    return Results.Conflict(new
+                    {
+                        error = "Anonymous Authority restore is already closed because another identity initialization won the race."
+                    });
+                }
+
+                await lifecycle.MarkAuthorityPresentAsync(ct);
+            }
 
             var revokedRealtimeClients = RevokeRealtimeSubjects(
                 realtime,

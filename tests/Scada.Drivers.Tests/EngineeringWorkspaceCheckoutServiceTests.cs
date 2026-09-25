@@ -6,6 +6,8 @@ using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
+using Scada.Engineering.Security;
+using Scada.Security.Authorization;
 
 namespace Scada.Drivers.Tests;
 
@@ -138,6 +140,89 @@ public sealed class EngineeringWorkspaceCheckoutServiceTests
         Assert.Equal(1, after.DataSourceCount);
         Assert.Equal(1, after.TemplateCount);
         Assert.Equal(1, after.ScreenCount);
+    }
+
+    [Fact]
+    public async Task CheckoutAsync_MatchingAuthorityReferenceSucceeds()
+    {
+        using var workspace = new EngineeringWorkspace(seedDemo: false);
+        var authority = new InMemoryAuthorityPolicyStore();
+        var developer = new SecurityRoleEngineeringDto(
+            Guid.Parse("46000000-0000-0000-0000-000000000002"),
+            "developer",
+            "Developer",
+            Grants: [new CapabilityGrantEngineeringDto(SecurityCapability.EngineeringModify)]);
+        var write = await authority.TryReplaceAsync(
+            0,
+            [developer],
+            Array.Empty<SecurityScopeEngineeringDto>());
+        Assert.True(write.Applied);
+
+        var exchange = new EngineeringExchangeService(
+            workspace.Tags,
+            workspace.Alarms,
+            workspace.DataSources,
+            workspace.Assets,
+            workspace.Views,
+            new AuthorityPolicyRegistryView(authority));
+
+        var snapshot = Snapshot(3, "plant-a", "Plant A", exchange.ExportPackage());
+        var service = new EngineeringWorkspaceCheckoutService(
+            new SingleSnapshotStore(snapshot),
+            exchange,
+            workspace);
+
+        var outcome = await service.CheckoutAsync("plant-a", 3);
+
+        Assert.NotNull(outcome);
+        Assert.True(outcome!.CheckedOut);
+        Assert.Equal("plant-a", outcome.Workspace.ProjectKey);
+    }
+
+    [Fact]
+    public async Task CheckoutAsync_MismatchedAuthorityReferenceFailsClosed()
+    {
+        using var workspace = new EngineeringWorkspace(seedDemo: false);
+        var authority = new InMemoryAuthorityPolicyStore();
+        var developer = new SecurityRoleEngineeringDto(
+            Guid.Parse("46000000-0000-0000-0000-000000000002"),
+            "developer",
+            "Developer",
+            Grants: [new CapabilityGrantEngineeringDto(SecurityCapability.EngineeringModify)]);
+        var write = await authority.TryReplaceAsync(
+            0,
+            [developer],
+            Array.Empty<SecurityScopeEngineeringDto>());
+        Assert.True(write.Applied);
+
+        var exchange = new EngineeringExchangeService(
+            workspace.Tags,
+            workspace.Alarms,
+            workspace.DataSources,
+            workspace.Assets,
+            workspace.Views,
+            new AuthorityPolicyRegistryView(authority));
+
+        var current = exchange.ExportPackage();
+        var mismatch = current with
+        {
+            AuthorityPolicyReference = current.AuthorityPolicyReference! with
+            {
+                RoleIds = [Guid.Parse("46000000-0000-0000-0000-000000000099")]
+            }
+        };
+        var snapshot = Snapshot(4, "plant-b", "Plant B", mismatch);
+        var service = new EngineeringWorkspaceCheckoutService(
+            new SingleSnapshotStore(snapshot),
+            exchange,
+            workspace);
+
+        var outcome = await service.CheckoutAsync("plant-b", 4);
+
+        Assert.NotNull(outcome);
+        Assert.False(outcome!.CheckedOut);
+        Assert.False(outcome.Preview.CanApply);
+        Assert.Null(workspace.Describe().ProjectKey);
     }
 
     private static EngineeringExchangeService CreateExchange(EngineeringWorkspace workspace) =>

@@ -228,6 +228,50 @@ test('Runtime session class shows requested/granted truth and explicitly ends it
   await expect(page.getByTestId('runtime-session-status')).toHaveCount(0);
 });
 
+test('failed Runtime class replacement clears the terminated old session before showing the admission error', async ({ page }) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+
+  let admissionRequests = 0;
+  let terminated = false;
+  await page.route('**/api/runtime/sessions', route => {
+    admissionRequests++;
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    if (admissionRequests === 1) {
+      return route.fulfill({ status: 201, json: {
+        sessionId: '00000000-0000-0000-0000-000000000456',
+        clientInstanceId: request.clientInstanceId,
+        requestedClass: request.connectionClass,
+        grantedClass: 'viewOnly',
+        admissionReasonCode: 'ExplicitViewOnly',
+        capacityReasonCode: 'ViewOnlyReserved'
+      }});
+    }
+
+    return route.fulfill({ status: 409, json: {
+      error: 'Runtime session capacity is unavailable.',
+      capacityReasonCode: 'EligiblePoolsExhausted'
+    }});
+  });
+  await page.route('**/api/runtime/sessions/00000000-0000-0000-0000-000000000456/terminate', route => {
+    terminated = true;
+    return route.fulfill({ status: 204, body: '' });
+  });
+
+  await page.goto('/');
+  await page.getByTestId('runtime-session-class').locator('summary').click();
+  await page.getByTestId('runtime-session-request-viewOnly').click();
+  await expect(page.getByTestId('runtime-session-status')).toContainText('viewOnly');
+
+  await page.getByTestId('runtime-session-request-interactive').click();
+
+  await expect.poll(() => terminated).toBe(true);
+  await expect(page.getByTestId('runtime-session-status')).toHaveCount(0);
+  await expect(page.getByTestId('runtime-session-end')).toHaveCount(0);
+  await expect(page.getByRole('alert')).toContainText('EligiblePoolsExhausted');
+  await expect(page.getByRole('alert')).toContainText('Runtime session capacity is unavailable.');
+});
+
 test('shell keeps navigation, account and theme reachable without horizontal overflow at compact desktop widths', async ({ page }) => {
   await installSessionContract(page, administrator);
   await installEngineeringRuntimeProjection(page);

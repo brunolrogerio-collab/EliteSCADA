@@ -1612,4 +1612,66 @@ Before asking Main to consume another GitHub CI run, CODEX must persist:
 Only after this local parity battery is green should CODEX trigger/use the natural GitHub evidence to confirm reproducibility on hosted CI.
 
 The existing product mutation prohibition remains binding.
+## 36. REUSABLE CONTAINERIZED CI PARITY HARNESS — rev 0033
+
+`ORDER_ID: FND07-CODEX-CI-FIRST-PROJECT-SMOKE-18`
+
+`ORDER_AMENDMENT: REUSABLE_CONTAINERIZED_CI_HARNESS_AUTHORIZED`
+
+The persistent local CI battery from rev 0032 should now be made reusable for future diagnostics.
+
+### Repository audit
+
+Current live repository already has:
+- `.devcontainer/devcontainer.json` with .NET 10 + Node 24;
+- multiple Docker Compose based protocol labs under `interop-lab`;
+- the universal CI pinned to TimescaleDB `timescale/timescaledb:2.29.2-pg18`.
+
+However:
+- the current integration branch does **not** contain the `.devcontainer/docker-compose.yml` referenced by the historical Codespaces runbook;
+- therefore CODEX must not depend on that stale historical path.
+
+### Authorization
+
+CODEX may add a small reusable, repository-owned CI-parity harness as part of the active CI/harness-only mission.
+
+Preferred properties:
+1. one command (or very small command set) starts the required local CI services;
+2. pinned TimescaleDB/PostgreSQL version matches universal CI;
+3. toolchain container/environment matches or clearly documents .NET 10.0.400 + Node 24.19.0;
+4. Chromium/Playwright installation is cacheable/reusable;
+5. backend test DB, E2E DB and smoke DB can be reset deterministically without rebuilding the entire environment;
+6. the same scripts/commands used locally should be callable from GitHub Actions where practical, reducing drift between local parity and hosted CI;
+7. logs are retained/printed in a predictable place for failure diagnosis;
+8. teardown is explicit and safe;
+9. no credentials/secrets are embedded;
+10. no product semantics are changed.
+
+Acceptable surfaces include a focused combination such as:
+- `ci/local/` or `scripts/ci/`;
+- a dedicated Compose file for CI-parity services;
+- a Dockerfile only if needed to pin the execution toolchain;
+- thin shell scripts shared by local harness and workflow.
+
+Do **not** duplicate the entire workflow as a second independent source of truth. Prefer extracting/reusing common scripts so:
+`GitHub CI -> shared scripts <- local container harness`.
+
+### Required commands/capabilities
+
+The reusable harness should support at least:
+- `up`: start dependencies;
+- `reset`: reset disposable DB/test state;
+- `backend`: Release build + full tests + Runtime smoke;
+- `web`: frontend build;
+- `e2e`: complete Chromium suite;
+- `all`: full CI-equivalent sequence;
+- `down`: stop/remove disposable services.
+
+Naming may differ if the contract remains obvious and documented.
+
+### Validation requirement
+
+For this FND-07 closeout, CODEX must use the new/reused harness to run the full local parity battery successfully before relying on the next hosted CI run.
+
+If implementing the reusable harness would materially expand beyond CI/test infrastructure or require product-source changes, stop and return that part as a proposal; do not broaden production scope.
 

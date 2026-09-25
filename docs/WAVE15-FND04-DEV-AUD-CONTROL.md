@@ -38,7 +38,7 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0046`
+`MAIN_ORDER_REV: 0047`
 
 `LAST_MAIN_UPDATE_BRT: 2026-09-25 — FND-05 VERIFIED/FROZEN / FND-07 CODEX ACTIVE`
 
@@ -1278,3 +1278,17 @@ Binding DEV order:
 CODEX also hit its current usage limit during investigation. It must not continue local/test-only mutation when capacity returns unless Main publishes a new route after the corrected DEV candidate is reviewed.
 
 No Authority or Licensing reroute is active while FND-07 material correction is unresolved.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0047
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FND07-DEEP-AUDIT-HOLD-32`
+
+`ORDER_STATE: PAUSED / FND07_DEEP_AUDIT_BLOCKERS_OPEN`
+
+Main cumulative audit of PR #348 found open BLOCKER/MAJOR lifecycle defects. Binding FND-07 DEV order:
+`FND07-DEV-DEEP-AUDIT-BLOCKERS-06`.
+
+CODEX must remain idle for FND-07 until Main re-audits the next DEV candidate and explicitly publishes a new route.
+
+Do not self-select Authority or Licensing.

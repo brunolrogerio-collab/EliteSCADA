@@ -35,7 +35,8 @@ public sealed class PublishedRuntimeActivationService(
     SimulationDriver simulationFallback,
     IScadaEventBus? eventBus = null,
     IConfiguration? configuration = null,
-    GatewayEngineeringRuntimeCoordinator? operationalEvents = null) : IPublishedRuntimeActivationService
+    GatewayEngineeringRuntimeCoordinator? operationalEvents = null,
+    RuntimeHighAvailabilityService? highAvailability = null) : IPublishedRuntimeActivationService
 {
     public async Task<PublishedRuntimeActivationOutcome> ActivateAsync(
         string projectKey,
@@ -97,7 +98,12 @@ public sealed class PublishedRuntimeActivationService(
                 configuration);
 
             if (operationalEvents is not null)
-                ServerScriptOperationalEventBridge.Bind(scripts, operationalEvents);
+                ServerScriptOperationalEventBridge.Bind(
+                    scripts,
+                    operationalEvents,
+                    highAvailability is null
+                        ? null
+                        : () => highAvailability.CanOwnIndustrialEffects());
 
             runtimeResult = await scripts.ActivateRuntimeAsync(
                 snapshot.ProjectKey,

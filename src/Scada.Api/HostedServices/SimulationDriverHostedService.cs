@@ -7,12 +7,18 @@ namespace Scada.Api.HostedServices;
 public sealed class SimulationDriverHostedService(
     SimulationDriver driver,
     DemoRuntimeServices demoRuntime,
-    IEngineeringRuntimeCoordinator engineeringRuntime) : IHostedService
+    IEngineeringRuntimeCoordinator engineeringRuntime,
+    RuntimeHighAvailabilityService? highAvailability = null) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         if (engineeringRuntime.Describe().Revision.HasValue)
             return;
+        if (highAvailability?.Enabled == true &&
+            !highAvailability.CanOwnIndustrialEffects())
+        {
+            return;
+        }
 
         await driver.StartAsync(cancellationToken);
 

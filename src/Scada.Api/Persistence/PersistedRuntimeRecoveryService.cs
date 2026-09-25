@@ -36,7 +36,8 @@ public sealed class PersistedRuntimeRecoveryService(
     IRuntimeSessionLeaseStore authorityStore,
     IScadaEventBus? eventBus = null,
     IConfiguration? configuration = null,
-    GatewayEngineeringRuntimeCoordinator? operationalEvents = null) : IPersistedRuntimeRecoveryService
+    GatewayEngineeringRuntimeCoordinator? operationalEvents = null,
+    RuntimeHighAvailabilityService? highAvailability = null) : IPersistedRuntimeRecoveryService
 {
     public const string RecoveryDeniedIssueCode = "PERSISTED_RUNTIME_RECOVERY_DENIED";
     public const string TransitionPendingDiagnostic =
@@ -113,7 +114,12 @@ public sealed class PersistedRuntimeRecoveryService(
                 configuration);
 
             if (operationalEvents is not null)
-                ServerScriptOperationalEventBridge.Bind(scripts, operationalEvents);
+                ServerScriptOperationalEventBridge.Bind(
+                    scripts,
+                    operationalEvents,
+                    highAvailability is null
+                        ? null
+                        : () => highAvailability.CanOwnIndustrialEffects());
 
             result = await scripts.ActivateRuntimeAsync(
                 snapshot.ProjectKey,

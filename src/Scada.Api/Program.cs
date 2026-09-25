@@ -153,9 +153,12 @@ else
     await app.Services.GetRequiredService<AuthorityPolicyBootstrapService>().EnsureInitializedAsync();
 }
 
-await app.InitializeEngineeringPersistenceAsync();
+// Recover the durable installation attach/detach journal before persisted Working
+// checkout. An interrupted pre-save attach must be allowed to return to Neutral, while
+// an accepted root revision may complete attach and then be checked out normally.
 if (app.Services.GetService<IEngineeringInstallationBindingStore>() is not null)
     await app.Services.GetRequiredService<InstallationDetachService>().InitializeAsync();
+await app.InitializeEngineeringPersistenceAsync();
 
 app.UseMiddleware<TimingCorrelationMiddleware>();
 app.UseCors();

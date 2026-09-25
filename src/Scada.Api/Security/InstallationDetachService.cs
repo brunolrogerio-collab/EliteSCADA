@@ -202,6 +202,36 @@ public sealed class InstallationDetachService(
         }
 
         var projectKey = preflight.ProjectKey;
+
+        // License is a separate frozen authority. Complete its own durable FND-03
+        // transition before the destructive installation journal starts. Therefore a
+        // rejected/failed license mutation cannot be reported after Application/Authority
+        // detach has already completed, and any in-progress license transition is recovered
+        // independently by ProductLicenseLifecycleCoordinator on restart.
+        InstallationDetachLicensePreparation licensePreparation;
+        try
+        {
+            licensePreparation = await ApplyLicenseChoiceAsync(request, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            throw new InvalidOperationException(
+                "License transition did not complete; Application/Authority detach has not started.",
+                ex);
+        }
+
+        if (!licensePreparation.Succeeded)
+        {
+            return Failure(
+                "license",
+                projectKey,
+                preflight.ActiveRevision,
+                preflight.AuthorityEpoch,
+                licensing.CurrentVerification.State.ToString(),
+                [licensePreparation.Issue ?? "License transition was rejected."],
+                licensePreparation.Outcome);
+        }
+
         await binding.BeginDetachAsync(projectKey, cancellationToken);
 
         // The process-effect fence is first. Once set, direct Runtime mutations and fallback
@@ -221,7 +251,6 @@ public sealed class InstallationDetachService(
         await authorityDetach.DetachAsync(CancellationToken.None);
         var completed = await binding.CompleteDetachAsync(projectKey, CancellationToken.None);
 
-        var licenseOutcome = await ApplyLicenseChoiceAsync(request, CancellationToken.None);
         var finalAuthority = await authorityLifecycle.GetAsync(CancellationToken.None);
         var finalLicense = licensing.CurrentVerification.State;
 
@@ -232,37 +261,41 @@ public sealed class InstallationDetachService(
             DetachedRevision: stopped.Revision,
             AuthorityEpoch: finalAuthority.Epoch,
             LicenseState: finalLicense.ToString(),
-            LicenseOutcome: licenseOutcome,
+            LicenseOutcome: licensePreparation.Outcome,
             HistorianPreserved: true,
             SignInRequired: true,
             Issues: Array.Empty<string>());
     }
 
-    private async Task<string> ApplyLicenseChoiceAsync(
+    private async Task<InstallationDetachLicensePreparation> ApplyLicenseChoiceAsync(
         InstallationDetachRequest request,
         CancellationToken cancellationToken)
     {
         switch (request.LicenseAction)
         {
             case InstallationDetachLicenseAction.Keep:
-                return "kept";
+                return new InstallationDetachLicensePreparation(true, "kept");
             case InstallationDetachLicenseAction.Remove:
             {
                 var result = await licenseLifecycle.RemoveAsync(cancellationToken);
-                if (!result.Succeeded)
-                    throw new InvalidOperationException(
-                        $"Application/Authority detach completed, but license removal did not complete ({result.ReasonCode}).");
-                return result.ReasonCode;
+                return result.Succeeded
+                    ? new InstallationDetachLicensePreparation(true, result.ReasonCode)
+                    : new InstallationDetachLicensePreparation(
+                        false,
+                        result.ReasonCode,
+                        $"License removal did not complete ({result.ReasonCode}); installation detach was not started.");
             }
             case InstallationDetachLicenseAction.Replace:
             {
                 var result = await licenseLifecycle.InstallOrReplaceAsync(
                     request.ReplacementLicenseCode!,
                     cancellationToken);
-                if (!result.Succeeded)
-                    throw new InvalidOperationException(
-                        $"Application/Authority detach completed, but license replacement was rejected ({result.ReasonCode}).");
-                return result.ReasonCode;
+                return result.Succeeded
+                    ? new InstallationDetachLicensePreparation(true, result.ReasonCode)
+                    : new InstallationDetachLicensePreparation(
+                        false,
+                        result.ReasonCode,
+                        $"License replacement was rejected ({result.ReasonCode}); installation detach was not started.");
             }
             default:
                 throw new InvalidOperationException("Unsupported installation detach license action.");
@@ -293,6 +326,11 @@ public sealed class InstallationDetachService(
             gateways.Clear();
             reports.Clear();
         }
+
+        // The installation journal is not complete until both Application and Authority
+        // have converged to their detached states. This is idempotent for an Authority
+        // already DeliberatelyDetached and resumes an Authority DetachInProgress journal.
+        await authorityDetach.DetachAsync(cancellationToken);
         await binding.CompleteDetachAsync(state.ProjectKey, cancellationToken);
     }
 
@@ -322,7 +360,8 @@ public sealed class InstallationDetachService(
         long? revision,
         long authorityEpoch,
         string licenseState,
-        IReadOnlyCollection<string> issues) =>
+        IReadOnlyCollection<string> issues,
+        string licenseOutcome = "unchanged") =>
         new(
             false,
             stage,
@@ -330,10 +369,15 @@ public sealed class InstallationDetachService(
             revision,
             authorityEpoch,
             licenseState,
-            "unchanged",
+            licenseOutcome,
             true,
             false,
             issues);
+
+    private sealed record InstallationDetachLicensePreparation(
+        bool Succeeded,
+        string Outcome,
+        string? Issue = null);
 
     private static string? Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

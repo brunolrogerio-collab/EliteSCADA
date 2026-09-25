@@ -1509,4 +1509,26 @@ Branch:
 Scope is CI/harness only. No product rule may be weakened.
 
 FND-07 remains NOT VERIFIED/FROZEN until corrected full post-merge evidence is green.
+## 44. FND-07 CODEX local full-CI parity battery required
+
+The active FND-07 CI-harness correction now includes a mandatory persistent local parity pass before additional hosted-CI debugging.
+
+CODEX must reproduce the complete current `EliteSCADA CI` surface in one reusable environment:
+- Release backend build;
+- full solution tests;
+- complete Runtime smoke;
+- frontend build;
+- complete Chromium E2E.
+
+Expensive dependencies/tooling should be installed/restored once and reused while inputs remain unchanged. Databases/test state must be reset between passes as needed.
+
+The goal is to discover sequential failures locally rather than requiring one GitHub Actions run per blocker.
+
+Binding order remains:
+`FND07-CODEX-CI-FIRST-PROJECT-SMOKE-18`
+
+Amended FND-07 control:
+rev 0032 / `25877bfb5c1154d63c21f001f2190c9b28dc6bc6`.
+
+Production mutation remains prohibited.
 

@@ -1153,7 +1153,7 @@ Execute only 01D. Do not self-select Editor, Authority, Licensing or FND-05 afte
 Authoritative lane control:
 - branch: `coord/w15-parallel-dev-control`;
 - file: `docs/WAVE15-DEV-EDITOR-CONTROL.md`;
-- control commit: `PLACEHOLDER_EDITOR_CONTROL_COMMIT`.
+- control commit: `513912326b32683d60b8b65007361ca9b275839c`.
 
 Exact candidate:
 - PR #349;

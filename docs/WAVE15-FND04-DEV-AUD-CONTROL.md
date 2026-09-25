@@ -1497,4 +1497,17 @@ Main acceptance control:
 - commit `169aa0a7c975edd1268d56aad27b64dd1f39777e`.
 
 CODEX must not mutate the corrective branch further and must not self-select another lane until Main completes integration and post-merge CI.
+## CURRENT SHARED CODEX ROUTE — rev 0057
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FND07-FINAL-POSTMERGE-HOLD-42`
+
+`ORDER_STATE: HOLD / FINAL_POSTMERGE_CI_PENDING`
+
+FND-07 corrected integration:
+`e49155e4a17acb6cd35683500f4ef211eb8f6e56`.
+
+Final CI:
+`36194762603` / run #1577.
+
+CODEX remains idle until Main classifies this exact integrated CI and either freezes FND-07 or publishes another explicit blocker route.
 

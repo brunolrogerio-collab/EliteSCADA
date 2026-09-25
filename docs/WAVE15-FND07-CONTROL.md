@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd07-control`
 
-`MAIN_ORDER_REV: 0014`
+`MAIN_ORDER_REV: 0015`
 
 `STATE: DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
 
@@ -600,3 +600,63 @@ Current integration target advanced only by the test-only Editor closeout PR #35
 This target advance does not alter FND-07 product semantics.
 
 FND-07 DEV remains `WAIT_MAIN / NO_SOURCE_MUTATION`.
+
+
+## 18. CURRENT ORDER — material startup-order defect confirmed — rev 0015
+
+This section supersedes rev 0014 as the only current FND-07 order.
+
+Main independently confirmed the CODEX finding against exact candidate:
+- PR #348;
+- head `a8fcfe8c855a692670e9c74a95f4450caf612b2f`;
+- tree `6913879ae0a1d7cf1a69da7fe8f58b1eb0dfdab3`.
+
+### Confirmed product defect
+
+Startup currently performs Engineering persistence bootstrap before canonical Authority policy hydration.
+
+Concrete code path:
+1. `Program.cs` calls `InitializeEngineeringPersistenceAsync()`;
+2. persisted Working bootstrap may call `EngineeringWorkspaceCheckoutService.CheckoutAsync(...)`;
+3. checkout calls live `EngineeringExchangeService.Apply(...)`;
+4. live apply validates `AuthorityPolicyReference` against `IAuthorityPolicyEngineeringRegistryView.AuthoritySnapshot()`;
+5. `PostgreSqlAuthorityPolicyStore` begins with an empty in-memory snapshot and only loads persisted policy in `InitializeAsync()`;
+6. that initialization is currently reached later through `AuthorityPolicyBootstrapService.EnsureInitializedAsync()`.
+
+Result:
+a valid persisted Engineering project may fail restart checkout against an empty in-memory Authority snapshot before persisted Authority is loaded.
+
+Classification:
+`FND07_PRODUCT_DEFECT / AUTHORITY_HYDRATION_BEFORE_ENGINEERING_CHECKOUT_REQUIRED`
+
+The earlier test-only classification in rev 0014 is revoked.
+
+`ORDER_ID: FND07-DEV-AUTHORITY-BEFORE-ENGINEERING-RESTART-05`
+
+`ORDER_STATE: DEV_CORRECTION / AUTHORIZED`
+
+`CORRECTION_BASE_HEAD: a8fcfe8c855a692670e9c74a95f4450caf612b2f`
+
+### Required correction
+
+1. guarantee durable canonical Authority policy state is initialized/hydrated before any persisted Engineering checkout/apply that validates `AuthorityPolicyReference`;
+2. do **not** weaken, skip or special-case `AuthorityPolicyReferenceValidator`;
+3. preserve Engineering package reference-only Authority semantics;
+4. preserve fail-closed behavior for true Authority-reference mismatch;
+5. preserve fresh empty-installation bootstrap;
+6. preserve deliberately-detached / neutral installation behavior;
+7. preserve legacy pre-AUTH-03 migration support;
+8. if Authority migration needs Engineering catalog/schema availability, split durable Engineering schema/store initialization from Working checkout/runtime recovery so Authority can hydrate/migrate before package apply;
+9. do not restore hidden Demo state;
+10. add deterministic regression coverage for:
+   - restart with persisted project + matching persisted Authority reference -> server startup/Working checkout succeeds;
+   - persisted project + mismatched Authority reference -> fail closed;
+   - fresh empty installation -> still valid;
+   - detached/neutral installation -> still valid;
+11. run focused FND-07/.NET evidence and natural exact-head Wave 15 T1 on the corrected candidate;
+12. return exact SHA/tree and evidence.
+
+Required return prefix:
+`FND-07 DEV -> MAIN COORDINATOR — PRODUCT CORRECTION HANDOFF`
+
+No merge/freeze. CODEX is paused until a new DEV candidate exists and Main publishes a fresh explicit route.

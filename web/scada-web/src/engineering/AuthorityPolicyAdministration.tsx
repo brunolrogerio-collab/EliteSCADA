@@ -338,11 +338,11 @@ export function AuthorityPolicyAdministration({
   [draft, selectedRoleId]);
 
   const selectedRoleUsers = useMemo(() =>
-    selectedRole ? assignedUsersForRole(users, baseline, selectedRole) : [],
+    selectedRole && baseline ? assignedUsersForRole(users, baseline, selectedRole) : [],
   [baseline, selectedRole, users]);
 
   const selectedRoleKeyEditable = useMemo(() =>
-    selectedRole ? isRoleKeyEditable(baseline, selectedRole) : false,
+    selectedRole && baseline ? isRoleKeyEditable(baseline, selectedRole) : false,
   [baseline, selectedRole]);
 
   const configuredPreview = useMemo(() =>

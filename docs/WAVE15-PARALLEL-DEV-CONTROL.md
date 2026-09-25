@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0017`
+`MAIN_ORDER_REV: 0018`
 
 `STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
@@ -1153,3 +1153,35 @@ CODEX remains paused / no action.
 FND-05 remains VERIFIED/FROZEN.
 Authority and Licensing remain Main-accepted/queued.
 Script and Editor remain integrated pending broader T2.
+
+
+## 31. FND-07 mandatory cumulative deep-audit gate
+
+Product Owner requested elevated scrutiny before FND-07 can return to CODEX or integration.
+
+Reason:
+the lane accumulated several rapid correction cycles and later validation exposed gaps that were not visible from narrow incremental review.
+
+Canonical rule:
+- review the **entire cumulative FND-07 PR**, not only the latest patch;
+- T1 green is necessary but insufficient;
+- no CODEX route and no merge until Main completes the deep audit and closes all BLOCKER/MAJOR findings.
+
+Audit domains:
+- cumulative diff/code quality;
+- startup ordering and initialization dependencies;
+- durable restart matrix;
+- Authority boundary/fail-closed semantics;
+- Engineering Working/Published/Active lifecycle;
+- fresh install/no hidden Demo;
+- detach/neutral/recovery states;
+- persistence idempotence/failure recovery;
+- adequacy of real startup/integration/E2E tests;
+- compatibility with current integration and frozen Foundation contracts.
+
+Dedicated FND-07 control rev 0017 contains the binding audit gate.
+
+Current DEV correction remains bounded to:
+`FND07-DEV-AUTHORITY-BEFORE-ENGINEERING-RESTART-05`.
+
+CODEX remains paused.

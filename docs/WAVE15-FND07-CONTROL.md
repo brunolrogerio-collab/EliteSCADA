@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd07-control`
 
-`MAIN_ORDER_REV: 0015`
+`MAIN_ORDER_REV: 0016`
 
 `STATE: DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
 
@@ -660,3 +660,61 @@ Required return prefix:
 `FND-07 DEV -> MAIN COORDINATOR — PRODUCT CORRECTION HANDOFF`
 
 No merge/freeze. CODEX is paused until a new DEV candidate exists and Main publishes a fresh explicit route.
+
+
+## 19. CURRENT ORDER — candidate ed552418 rejected for storage-init recursion — rev 0016
+
+This section supersedes rev 0015 as the only current FND-07 DEV instruction.
+
+DEV produced:
+- head `ed552418a95d8b7b086eb81ed42ac12d29efaefa`;
+- tree `5329588c4e6bfeabd524d190a48ff0cfca95a8d0`;
+- delta: `Program.cs`, `EngineeringPersistenceApi.cs`, focused checkout tests.
+
+Main accepts the architectural direction:
+- Engineering durable storage/schema initialization separated from Working checkout;
+- Authority hydration placed before persisted Engineering checkout;
+- immutable Authority reference validation preserved.
+
+### Blocking implementation defect
+
+The new method:
+
+`InitializeEngineeringPersistenceStorageAsync(...)`
+
+currently calls:
+
+`await app.InitializeEngineeringPersistenceStorageAsync(cancellationToken);`
+
+This is direct self-recursion and will not initialize the persistence service. It must be replaced by initialization of the actual persistence service/storage object, preserving idempotent startup behavior.
+
+### Regression gap
+
+The new matching/mismatched Authority checkout tests are useful but do not yet prove the required startup sequencing contract.
+
+`ORDER_ID: FND07-DEV-AUTHORITY-BEFORE-ENGINEERING-RESTART-05`
+
+`ORDER_STATE: DEV_CORRECTION / AUTHORIZED`
+
+`CORRECTION_BASE_HEAD: ed552418a95d8b7b086eb81ed42ac12d29efaefa`
+
+Required bounded correction:
+1. eliminate storage-init self-recursion;
+2. initialize actual Engineering persistence/schema exactly once before Authority hydration;
+3. preserve binding-store initialization needed by installation lifecycle;
+4. keep canonical Authority hydration before persisted Working checkout/apply;
+5. keep `AuthorityPolicyReferenceValidator` unchanged and fail-closed;
+6. retain matching/mismatch checkout tests;
+7. add deterministic regression coverage for the startup-order seam, including:
+   - matching persisted Authority + persisted project restart succeeds;
+   - mismatch fails closed;
+   - fresh empty install remains valid;
+   - detached/neutral install remains valid;
+8. run focused .NET evidence and natural exact-head Wave 15 T1;
+9. return:
+   `FND-07 DEV -> MAIN COORDINATOR — PRODUCT CORRECTION HANDOFF`
+   with exact SHA/tree/run IDs.
+
+Do not rebase solely because integration advanced to `9895a01a662851505198b965fae2335e55fba6fa`. Main will reconcile target after candidate acceptance.
+
+No merge/freeze/CODEX route yet.

@@ -38,9 +38,9 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0039`
+`MAIN_ORDER_REV: 0040`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-24 — SCRIPT CODEX REMAINS ACTIVE / WAITING QUEUE REFRESHED / NO REROUTE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-24 — SCRIPT MERGED / INFRA-CI-01D ACTIVE`
 
 `GLOBAL_GATE: FND04_VERIFIED_FROZEN`
 
@@ -1116,3 +1116,27 @@ When Script Engineering returns:
 4. only that new route changes executor mission.
 
 The earlier planning preference for INFRA-CI-01D then Editor is not a standing authorization and may be reassessed against the now-ready Licensing/FND-05 candidates after Script resolves.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0040
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-INFRA-CI-01D-26`
+
+`ORDER_STATE: ACTIVE_EXECUTION`
+
+`EXPECTED_ORDER: INFRA-CI-01D-IEC104-FAULT-OBSERVATION-RACE-V1`
+
+Authoritative control:
+- branch: `coord/w15-infra-ci-01d-control`;
+- file: `docs/WAVE15-INFRA-CI-01D-IEC104-FAULT-OBSERVATION-RACE-CONTROL.md`;
+- control commit: `47437359cb33a47faa3db6df5758d4340843e4ea`.
+
+Exact base/work:
+- base SHA: `3b1511799a73c3c4fee1c2265005d6724bcaa235`;
+- base tree: `bb9b1fb4b9a7ffe47d9eb56eaee6dd8ba0e300fe`;
+- work branch: `work/w15-infra-ci-01d-iec104-fault-observation-race`;
+- target: `wave15/corrections-integration`.
+
+The Script Engineering route `ROUTE-SEQUENTIAL-CODEX-TO-SCRIPT-ENGINEERING-25` is complete and superseded by this route after its validated candidate was merged as PR #344.
+
+Execute only 01D. Do not self-select Editor, Authority, Licensing or FND-05 after completion; return to Main for the next explicit route.

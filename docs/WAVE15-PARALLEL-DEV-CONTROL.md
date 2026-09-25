@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0022`
+`MAIN_ORDER_REV: 0023`
 
 `STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
@@ -1329,3 +1329,20 @@ State:
 No further FND-07 DEV mutation.
 
 Main must reconcile frozen FND-05 HA fencing with FND-07 Neutral/Detach fencing, then obtain executable exact-head evidence before any CODEX merge/freeze decision.
+
+
+## 36. Licensing audit correction accepted / queued again
+
+DEV-LICENSING-UX exact corrected candidate:
+- PR #345;
+- head `d97598fb16ba0eb6d43e78b25c848149a1ec547a`;
+- natural exact-head T1 `36092087487`: SUCCESS across classifier/Common/Web/.NET/Chromium/final gate.
+
+The prior session-replacement stale-state MAJOR is closed.
+
+State:
+`DEV-LICENSING-UX -> MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`
+
+Dedicated control rev 0006.
+
+Shared CODEX remains reserved/paused for the Main-owned FND-07 reconciliation/validation path; Licensing must not preempt it.

@@ -3,9 +3,9 @@
 > GitHub live is the sole authority.
 
 `LANE: DEV-AUTHORITY-UX`
-`MAIN_ORDER_REV: 0004`
-`ORDER_ID: DEV-AUTHORITY-UX-STABLE-ROLE-KEY-COMPILE-03`
-`ORDER_STATE: DEV_CORRECTION / CORRECTED_HEAD_WEB_COMPILE_FAILURE`
+`MAIN_ORDER_REV: 0005`
+`ORDER_ID: DEV-AUTHORITY-UX-CODEX-QUEUE-04`
+`ORDER_STATE: MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`
 `PLANNED_BRANCH: work/w15-dev-authority-ux`
 `WORK_BRANCH: work/w15-dev-authority-ux`
 `FC0A_RELEASE_APPROVED: YES`
@@ -105,7 +105,7 @@ Disposition:
 
 `DEV-AUTHORITY-UX -> MAIN COORDINATOR — CHANGES_REQUIRED`
 
-### CURRENT CORRECTION ORDER
+### Historical correction order (SUPERSEDED)
 
 `ORDER_ID: DEV-AUTHORITY-UX-STABLE-ROLE-KEY-02`
 
@@ -188,7 +188,7 @@ The corrected head is not CODEX-ready because Web build fails at:
 
 Both are candidate-causal nullability errors: `baseline: AuthorityPolicyDocument | null` is passed to helpers requiring a non-null `AuthorityPolicyDocument`.
 
-### CURRENT CORRECTION ORDER — REV 0004
+### Historical correction order — rev 0004 (SUPERSEDED)
 
 `ORDER_ID: DEV-AUTHORITY-UX-STABLE-ROLE-KEY-COMPILE-03`
 
@@ -227,7 +227,7 @@ Remaining candidate-causal defect:
 - Web semantic build fails at `AuthorityPolicyAdministration.tsx(341,48)` and `(345,38)`;
 - nullable `baseline: AuthorityPolicyDocument | null` is passed to helpers requiring a non-null `AuthorityPolicyDocument`.
 
-### CURRENT CORRECTION ORDER — rev 0004
+### Historical correction order — rev 0004 (SUPERSEDED)
 
 `ORDER_ID: DEV-AUTHORITY-UX-STABLE-ROLE-KEY-02`
 
@@ -243,3 +243,40 @@ Required delta is minimal:
 5. run a new natural exact-head T1.
 
 Do not rerun `36071729747` unchanged. No CODEX route or merge is authorized.
+
+
+## CURRENT MAIN DISPOSITION — rev 0005
+
+`ORDER_ID: DEV-AUTHORITY-UX-CODEX-QUEUE-04`
+
+`ORDER_STATE: MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`
+
+`CANDIDATE_PR: #346`
+
+`CANDIDATE_HEAD: d96e685daf7ddb190cefc67c6ba975d71a779a52`
+
+`CANDIDATE_TREE: 184f8a49bdf15a34ce7ba96bc99168f5152a4fef`
+
+`CANDIDATE_T1: 36076143618 / SUCCESS`
+
+This section is the **only current Authority order**. All earlier correction-order sections are historical/superseded evidence.
+
+Main acceptance:
+- stable persisted role keys remain immutable;
+- genuinely new/unapplied roles remain editable after a real baseline exists;
+- assigned-user/delete protection remains tied to persisted identity;
+- generic capability lookup compile defect is closed;
+- nullable baseline boundary is fail-closed without synthetic policy state;
+- exact-head T1 is green across Web, Common, focused .NET, focused Chromium and final gate.
+
+DEV-AUTHORITY-UX must now wait and must not mutate the branch unless Main explicitly returns a material defect.
+
+The shared sequential CODEX executor remains assigned to Script Engineering PR #344. Authority is queued only; no implicit reroute, merge or T2 authorization exists.
+
+When Main later publishes an explicit Authority CODEX route, validation emphasis remains:
+1. unauthorized direct-API mutation/tampering;
+2. backend orphan-assignment and self-lockout final authority;
+3. 401/403/409 denial and concurrency behavior;
+4. effective-permission truth across relevant identities/scopes;
+5. mounted pt-BR/en/es behavior as applicable;
+6. exact final-head T1 after any bounded validation-driven delta.

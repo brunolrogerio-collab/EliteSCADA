@@ -38,9 +38,9 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0042`
+`MAIN_ORDER_REV: 0043`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-24 — EDITOR MERGED / FND-05 HA CODEX ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-24 — FND-05 MERGED / POSTMERGE CODEX ACTIVE`
 
 `GLOBAL_GATE: FND04_VERIFIED_FROZEN`
 
@@ -1187,3 +1187,23 @@ Exact candidate:
 - current target SHA `cfaafa4b29e1462bf9d304af995cc8638578a3c2`.
 
 Mandatory outcome is `CODEX_HA_ADVERSARIAL_GREEN` or a material defect returned to Main. Execute only FND-05. Do not self-select Authority/Licensing afterward.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0043
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FND05-POSTMERGE-29`
+
+`ORDER_STATE: ACTIVE_VALIDATION`
+
+`EXPECTED_ORDER: FND05-CODEX-POSTMERGE-VALIDATION-V2-03`
+
+Authoritative lane control:
+- branch: `coord/w15-fnd05-control`;
+- file: `docs/WAVE15-FND05-CONTROL.md`;
+- control commit: `346d5f64cb317355ecb3b4589a1efb45954339a2`.
+
+Exact integration head:
+- SHA `b2874a00c7f7b35ca8223defd7e3b6bbdd89ecf8`;
+- tree `c942dc46692a1f2350bcf478b952db00cfa756ec`.
+
+FND-05 is merged but not yet VERIFIED/FROZEN. Execute post-merge validation only. Return to Main after handoff; do not self-select Authority or Licensing.

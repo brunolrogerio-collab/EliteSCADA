@@ -33,7 +33,11 @@ export function RuntimeSessionClassPanel({ locale }: { locale: EngineeringLocale
   async function request(requestedClass: RuntimeSessionConnectionClass) {
     setBusy(requestedClass); setError(null); setNotice(null);
     try {
-      if (lease.current) await releaseRuntimeSession(lease.current);
+      if (lease.current) {
+        await releaseRuntimeSession(lease.current);
+        lease.current = null;
+        setOutcome(null);
+      }
       const next = await admitRuntimeSession(requestedClass);
       lease.current = next;
       setOutcome(next);

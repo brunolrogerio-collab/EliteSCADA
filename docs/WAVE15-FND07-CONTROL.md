@@ -1248,4 +1248,52 @@ CODEX may make further tiny validation-driven corrections only if directly requi
 FND-07 DEV remains WAIT.
 
 No merge/freeze until Main accepts the CODEX handoff and exact-head green evidence.
+## 29. MAIN FINAL ADVERSARIAL ACCEPTANCE / MERGE AUTHORIZED — rev 0026
+
+`ORDER_ID: FND07-MAIN-FINAL-ACCEPTANCE-13`
+
+`ORDER_STATE: MAIN_ACCEPTED / MERGE_AUTHORIZED / DEV_WAIT / CODEX_WAIT`
+
+Exact candidate accepted:
+- PR #348;
+- head `ebec9e346e03068a565669d03ba018d2b9eb025f`;
+- tree `58a1bd60f42fe36af7c17f8c8692e32ef53cbe61`;
+- exact-head T1 `36189002703` / run #102: SUCCESS.
+
+Exact T1 evidence:
+- Classify: SUCCESS;
+- Common T1 sanity: SUCCESS;
+- Web semantic build: SUCCESS;
+- focused .NET: SUCCESS;
+- focused Chromium: SUCCESS;
+- final Wave 15 T1 gate: SUCCESS;
+- Scada.Drivers.Tests: 737/737 PASS;
+- Scada.Security.Tests: 42/42 PASS;
+- focused Chromium: 26/26 PASS.
+
+Main independently reviewed the CODEX correction delta from `95fd68468c7ce26b94e8c60a513625e917f4c4a2`:
+1. `EngineeringLockAccess.Replace` preserves the current immutable `AuthorityPolicyReference` in its partial lock-only package;
+2. mutable Authority roles/scopes remain absent from Engineering-owned mutation state;
+3. canonical Preview/Apply and `AuthorityPolicyReferenceValidator.ValidateExact` remain intact/fail-closed;
+4. dedicated Authority-backed regression coverage proves lock replacement succeeds without mutating Authority and mismatched Authority reference still fails closed;
+5. IEC-104 follow-up only waits for the adapter transport snapshot to observe the already-acknowledged frame, closing a timing race without changing protocol/product behavior;
+6. Runtime Chromium follow-up targets the current persisted Engineering Runtime surface and retains explicit Active revision/source/application evidence; removed demo-only/direct-security interactions remain covered by dedicated security/audit suites.
+
+Final adversarial acceptance:
+- fresh install / first Administrator / first Project / no hidden Demo: accepted;
+- explicit test-owned Server Memory fixture / persisted Active Runtime: accepted;
+- Working != Published != Active: accepted;
+- Authority reference integrity/fail-closed validation: accepted;
+- frozen FND-05 HA boundary: no product delta in CODEX follow-up; focused .NET remains green;
+- FND-07 Neutral/Detach fence and restart/recovery coverage: green in exact-head focused .NET;
+- no open PR review threads.
+
+Live target remains `wave15/corrections-integration@d0b1c6a98ad6dc05ebb2e849483a6221f248c272`.
+Its five commits after the FND-07 merge base `9895a01a662851505198b965fae2335e55fba6fa` remain documentation-only. PR #348 is mergeable.
+
+Main explicitly accepts the final CODEX adversarial handoff.
+
+`MERGE: AUTHORIZED`
+
+Do not mutate the FND-07 branch further before merge. Freeze will be recorded only on the resulting integrated SHA.
 

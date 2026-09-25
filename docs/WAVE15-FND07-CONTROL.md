@@ -1451,4 +1451,74 @@ Final post-merge CI:
 No further FND-07 mutation is authorized unless this exact integrated CI returns a material blocker.
 
 VERIFIED/FROZEN waits only on this final post-merge gate.
+## 34. FINAL POST-MERGE CI HARNESS BLOCKER / FIRST-PROJECT CONTRACT — rev 0031
+
+`ORDER_ID: FND07-CODEX-CI-FIRST-PROJECT-SMOKE-18`
+
+`ORDER_STATE: CODEX_ACTIVE / CI_HARNESS_ONLY / DEV_WAIT / NO_FREEZE`
+
+Integrated baseline:
+- `wave15/corrections-integration@e49155e4a17acb6cd35683500f4ef211eb8f6e56`;
+- corrective PR #352 merged;
+- final post-merge CI `36194762603` / run #1577: FAILURE.
+
+Exact run evidence:
+- Web build: SUCCESS;
+- Backend tests complete successfully through all test suites shown;
+- API host starts successfully and `/health` is green;
+- historian/runtime smoke is green;
+- failure occurs at:
+  `POST /api/engineering/persistence/ci-demo/save` -> HTTP 500;
+- Chromium is skipped only because Backend smoke fails.
+
+Classification:
+`CI_HARNESS_STALE_FIRST_PROJECT_BOOTSTRAP / GENERIC_SAVE_ON_NEUTRAL_BINDING`.
+
+Main source diagnosis:
+1. FND-07 correctly leaves a fresh persisted installation binding in `Neutral`;
+2. `EngineeringProjectPersistenceService.EnsureWritableBindingAsync` correctly forbids generic save unless the requested project is already the attached/attaching Application;
+3. the canonical first-Application transaction is:
+   `POST /api/engineering/persistence/projects/first`;
+4. that endpoint owns `BeginAttach -> SaveFirstProject -> CompleteAttach`;
+5. the legacy full CI smoke still attempts to manufacture the first persisted Application through `/{projectKey}/save`;
+6. therefore the smoke is stale relative to the frozen FND-07 contract. Product binding enforcement must not be weakened.
+
+Dedicated CI-harness correction branch:
+`work/w15-fnd07-postmerge-ci-first-project-smoke`
+
+Exact base:
+`e49155e4a17acb6cd35683500f4ef211eb8f6e56`.
+
+### CODEX authorized delta
+
+Primary file:
+- `.github/workflows/dotnet-ci.yml`.
+
+Required correction:
+1. replace the initial legacy
+   `POST /api/engineering/persistence/ci-demo/save`
+   used to create the first persisted Application with the canonical:
+   `POST /api/engineering/persistence/projects/first`
+   using explicit `projectKey=ci-demo` and `projectName=CI Demo`;
+2. parse the first-project response shape correctly (`revision` is nested in the Created response);
+3. update only smoke assertions that necessarily change because first-project bootstrap is canonical, including the workspace's built-in bootstrap content;
+4. preserve subsequent ordinary save/publish/lifecycle checks after the binding is Attached;
+5. preserve historian/runtime/security smoke intent;
+6. on HTTP smoke failure, print `/tmp/scada-api.log` before exiting so future CI failures expose server-side cause;
+7. do not change production source, binding rules, FND-07 semantics, Authority, Licensing, HA, Runtime or Historian.
+
+Expected first-project invariant:
+- binding transitions Neutral -> AttachInProgress -> Attached;
+- first revision is root (`basedOnRevision=null`);
+- workspace is accepted on `ci-demo`;
+- built-in first-project bootstrap content is allowed/expected;
+- subsequent `/{projectKey}/save` remains valid and derived from the first revision.
+
+Mandatory evidence:
+- workflow syntax/profile validation;
+- exact-head Wave 15 T1 where applicable;
+- full `EliteSCADA CI` on the branch or resulting integration proving Backend smoke and Chromium execute successfully;
+- durable handoff to Main.
+
+No product mutation is authorized by this order.
 

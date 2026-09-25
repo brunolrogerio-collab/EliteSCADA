@@ -1416,4 +1416,22 @@ Mission:
 Do not bypass Authority validation.
 Do not self-select Authority UX or Licensing UX afterward.
 Return the complete durable handoff to PR #348 and Main.
+## CURRENT SHARED CODEX ROUTE — rev 0053
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FND07-ACCEPTED-HOLD-38`
+
+`ORDER_STATE: COMPLETED / MAIN_ACCEPTED / HOLD_FOR_MERGE`
+
+FND-07 final CODEX validation is accepted by Main.
+
+Accepted exact head:
+- `ebec9e346e03068a565669d03ba018d2b9eb025f`;
+- tree `58a1bd60f42fe36af7c17f8c8692e32ef53cbe61`;
+- exact-head T1 `36189002703`: SUCCESS.
+
+Main acceptance control:
+- FND-07 rev 0026;
+- commit `e24ce7098c905f95947dedd22592d92d8f20b28c`.
+
+CODEX must not mutate FND-07 further and must not self-select Authority UX or Licensing UX. Shared resource is held until Main completes the protected merge and publishes the next explicit route.
 

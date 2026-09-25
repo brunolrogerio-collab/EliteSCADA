@@ -1396,3 +1396,37 @@ Shared CODEX:
 `PAUSED / CODEX_UNAVAILABLE`.
 
 Authority and Licensing must not self-select the shared CODEX resource. The replacement Main Coordinator must revalidate live GitHub, diagnose the exact-head 422, and publish the next explicit route.
+## 39. FND-07 activation 422 diagnosed / bounded DEV fixture correction
+
+Main revalidated PR #348 exact head `3ecc4a78080685b0556402d50190e09236d6d8fa` and exact-head T1 `36094394912`.
+
+Diagnosis:
+`FND07_TEST_FIXTURE_SOURCE_INCOMPATIBILITY / BUILTIN_SIMULATION_NOT_ACTIVE_RUNTIME_SOURCE`.
+
+Evidence:
+- fresh install / first Administrator / first project remain valid;
+- explicit fixture save succeeds;
+- revision 2 publish succeeds;
+- real awaited Published -> Active handler returns 422;
+- reproduced activation outcome reports sole runtime issue `RUNTIME_NO_ACTIVE_SOURCES`;
+- the fixture uses only `builtin.simulation`;
+- the runtime compiler intentionally skips `builtin.simulation`;
+- no communication driver, Server Memory or Client Memory source therefore exists to activate.
+
+This is not an Authority, Licensing/admission or endpoint-transport defect. The prior nested-Task 500 remains closed.
+
+Current FND-07 state:
+`DEV_CORRECTION / AUTHORIZED / TEST_HARNESS_ONLY`
+
+Binding order:
+`FND07-DEV-ACTIVE-RUNTIME-FIXTURE-SOURCE-11`
+
+Dedicated control rev 0023:
+`e7964661e06ce70f3cca20659a3bd7d05a79065b`.
+
+Authorized correction is limited to the explicit downstream E2E fixture and stale runtime assertions: move the test-owned active source to canonical Server Memory (`builtin.memory.server`) and preserve fresh-install no-Demo truth plus Working != Published != Active sequencing.
+
+No product source mutation, merge or freeze is authorized.
+
+Shared CODEX remains paused/unavailable. Authority and Licensing remain unable to self-select the shared CODEX resource.
+

@@ -3,7 +3,7 @@
 > GitHub live is the sole authority.
 
 `LANE: DEV-SCRIPT-ENGINEERING`
-`MAIN_ORDER_REV: 0004`
+`MAIN_ORDER_REV: 0005`
 `ORDER_ID: DEV-SCRIPT-ENGINEERING-FC0A-01`
 `ORDER_STATE: INTEGRATED_PENDING_T2 / DEV_WAIT`
 `PLANNED_BRANCH: work/w15-dev-script-engineering`
@@ -162,3 +162,25 @@ Disposition:
 `DEV-SCRIPT-ENGINEERING -> INTEGRATED_PENDING_T2 / DEV_WAIT`
 
 No post-merge T2 verification is claimed yet. DEV must not mutate unless Main explicitly reopens it.
+
+
+## Independent Main cumulative audit — rev 0005
+
+Audited final merged lane:
+- PR #344;
+- final head `79d43f1994acb509628b08e703c20820bf8a9c72`;
+- integration disposition remains `INTEGRATED_PENDING_T2`.
+
+Audit domains:
+- frontend scope/event compatibility vs backend `ScriptScopeEventRules`;
+- stale hidden-field clearing;
+- Timer canonical interval/minimum;
+- TAG Changed stable TagId + optional bit selector;
+- Client Memory stable definition identity and idempotent browser initialization;
+- Script Assistant/object/property paths;
+- no second TAG resolver/runtime authority.
+
+Finding:
+`NO_NEW_BLOCKER_OR_MAJOR`.
+
+The lane remains integrated pending the later broad T2. This audit does not promote it to VERIFIED/FROZEN and does not reopen DEV.

@@ -1521,4 +1521,95 @@ Mandatory evidence:
 - durable handoff to Main.
 
 No product mutation is authorized by this order.
+## 35. CODEX FULL-CI PARITY BATTERY / PERSISTENT ENVIRONMENT — rev 0032
+
+`ORDER_ID: FND07-CODEX-CI-FIRST-PROJECT-SMOKE-18`
+
+`ORDER_AMENDMENT: FULL_CI_LOCAL_PARITY_BATTERY_REQUIRED`
+
+The Product Owner requests that CODEX use its persistent execution environment to reproduce the same validation surface as the GitHub `EliteSCADA CI` before consuming additional GitHub runs.
+
+This amendment is binding for the active order.
+
+### Objective
+
+Do not treat GitHub Actions as the primary debugger.
+
+Set up the CI-equivalent dependencies/services once, keep them alive/reused where safe, and iterate locally through the entire CI battery until it is green or until a genuine product blocker outside the authorized CI/harness scope is proven.
+
+### Required CI parity baseline
+
+Match the current `.github/workflows/dotnet-ci.yml` environment as closely as the CODEX runtime permits:
+
+- .NET SDK: `10.0.400`;
+- Node.js: `24.19.0`;
+- PostgreSQL/TimescaleDB behavior compatible with `timescale/timescaledb:2.29.2-pg18`;
+- backend test DB equivalent to `elitescada_test`;
+- browser E2E DB equivalent to `elitescada_e2e`;
+- smoke DB equivalent to `postgres`;
+- Chromium installed for Playwright;
+- same relevant environment variables and connection strings as the workflow.
+
+If the CODEX host cannot reproduce one exact container/version detail, document the deviation and still run the closest executable equivalent. Do not claim exact parity for a component that was not reproduced.
+
+### Dependency reuse policy
+
+Perform expensive/bootstrap work only when required by changed dependency inputs:
+
+1. `dotnet restore ScadaPlatform.sln` once per dependency graph change;
+2. `npm ci --no-audit --no-fund` once per frontend lockfile/dependency change;
+3. `npx playwright install --with-deps chromium` once unless the browser/runtime image changes;
+4. start/reuse local PostgreSQL/TimescaleDB services across iterations where isolation can be preserved;
+5. reset test databases/state between passes instead of recreating all toolchain dependencies;
+6. reuse Release build outputs while source inputs are unchanged; rebuild only after source/workflow changes that require it.
+
+### Full local battery
+
+CODEX must execute, in CI order/semantics, at least:
+
+**Backend**
+1. restore;
+2. Release build with no restore;
+3. full `dotnet test ScadaPlatform.sln --no-build --configuration Release --verbosity normal`;
+4. the complete Runtime smoke from `.github/workflows/dotnet-ci.yml`, not just the currently failing command.
+
+**Frontend**
+5. frontend dependency install if not already valid;
+6. `npm run build`.
+
+**Browser**
+7. backend/frontend prerequisites retained;
+8. Chromium available;
+9. `npm run test:e2e` against a clean E2E database.
+
+### Iterative failure discovery
+
+After correcting the known stale first-project smoke:
+
+- continue through the rest of the Runtime smoke;
+- if a later smoke assertion fails, diagnose it immediately in the same persistent environment;
+- fix only CI/harness expectations that are demonstrably stale against an already accepted product contract;
+- rerun from the cheapest safe checkpoint rather than repeating dependency installation;
+- periodically rerun the complete local battery from a clean database state to ensure earlier stages still pass;
+- do not stop merely because the originally reported failure is closed.
+
+If any failure requires changing production semantics, STOP that correction, preserve the evidence, and return it to Main for classification. This amendment does not expand production mutation authority.
+
+### Required handoff evidence
+
+Before asking Main to consume another GitHub CI run, CODEX must persist:
+- exact branch/head/tree;
+- exact files changed;
+- dependency/runtime versions actually used;
+- whether TimescaleDB/PostgreSQL was exact or equivalent;
+- full backend build/test result and test counts;
+- full Runtime smoke result;
+- frontend build result;
+- full Chromium E2E result and count;
+- any local-vs-GitHub parity gaps;
+- all failures discovered and how each was classified.
+
+Only after this local parity battery is green should CODEX trigger/use the natural GitHub evidence to confirm reproducibility on hosted CI.
+
+The existing product mutation prohibition remains binding.
 

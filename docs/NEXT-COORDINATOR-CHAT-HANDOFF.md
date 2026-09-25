@@ -1301,3 +1301,54 @@ Dedicated control rev 0006:
 `bc7e3f810b7534d1180196c1e768f4c92a1c60a5`.
 
 Required delta remains test/harness-only unless new product evidence appears. Do not seed hidden Demo/operator state merely to satisfy the old expectation. No CODEX/merge/freeze authority.
+
+
+## REPLACEMENT MAIN HANDOFF — FND-07 TEST AUDIT / CODEX UNAVAILABLE (2026-09-25)
+
+GitHub live remains the sole authority.
+
+Transfer snapshot:
+- integration before these documentation-only handoff commits: `9895a01a662851505198b965fae2335e55fba6fa`;
+- FND-07 PR #348: OPEN/DRAFT, mergeable;
+- exact candidate head: `3ecc4a78080685b0556402d50190e09236d6d8fa`;
+- exact-head T1: `36094394912`;
+- Classify/Common/Web/focused .NET: SUCCESS;
+- focused Chromium/final gate: FAILURE.
+
+Main used the CODEX-unavailable interval for a legacy/stale-test audit. Durable audit details are in:
+- PR #348 comment `5831728502`;
+- FND-07 control rev 0022 / commit `101e2977cd28e0e7d6c470e61b3e2c5f5a7ffc2c`;
+- shared CODEX control rev 0049 / commit `8b3be7727b18888a5dd3c0e046f8926a78c3d7e7`;
+- central board transfer commit `3c24c683575ae0aaf87483c5b6ec36f95aa1878b`.
+
+Closed audit findings include:
+- deep-audit test compile/analyzer defects;
+- removal of legacy hidden-Demo Playwright bootstrap;
+- explicit INSTALLATION browser evidence;
+- true persisted Working -> Published -> Active Runtime evidence instead of fallback Demo;
+- deterministic Working cleanup between stateful E2E specs;
+- stale Authority checkout test expectation;
+- real `/published/activate` Minimal API nested-Task 500 fixed by awaiting `ActivatePublishedAsync`.
+
+Remaining live blocker:
+- explicit FND-07 fixture save/import succeeds;
+- revision 2 publish returns HTTP 200;
+- activation now reaches the real handler but returns HTTP 422 (`Activated=false`);
+- root cause has not yet been diagnosed.
+
+Disposition:
+`FND-07 -> MAIN_DIAGNOSTIC / DEV_WAIT / CODEX_UNAVAILABLE / NO_MERGE`.
+
+No blind rerun, no merge, no freeze. Replacement Main must revalidate live GitHub first and diagnose the exact-head 422 before issuing any new DEV/CODEX route.
+
+
+## IMMEDIATE BOOTSTRAP FOR THE NEXT COORDINATOR
+
+1. Read this file completely.
+2. Read `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`, `docs/CURRENT-COORDINATOR-HANDOFF.md`, `LAST CHANGE.md`, and `docs/ROADMAP.md`.
+3. Revalidate live integration, PRs, issues, CI, branches and dedicated controls; GitHub live wins any conflict.
+4. Revalidate PR #348 and T1 `36094394912` first.
+5. Treat shared CODEX as unavailable/paused; do not resume a historical active route when capacity returns.
+6. Diagnose why the exact candidate `3ecc4a78080685b0556402d50190e09236d6d8fa` publishes the test-owned persisted revision successfully but `/published/activate` returns HTTP 422.
+7. Do not classify that 422 as product or harness until the returned activation outcome/runtime issues are inspected.
+8. Keep FND-07 DEV in WAIT and do not merge/freeze until exact-head evidence is green and final adversarial validation is explicitly accepted.

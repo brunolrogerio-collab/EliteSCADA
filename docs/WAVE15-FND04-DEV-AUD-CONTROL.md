@@ -1316,3 +1316,25 @@ CODEX must perform final adversarial validation on the exact reconciled candidat
 Natural T1 `36093062819` is already active on the exact SHA.
 
 After handoff, return to Main. Do not self-select Authority or Licensing.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0049
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FND07-CAPACITY-HOLD-34`
+
+`ORDER_STATE: PAUSED / CODEX_UNAVAILABLE / MAIN_TEST_AUDIT_HANDOFF`
+
+The prior rev 0048 ACTIVE_VALIDATION route is superseded.
+
+Current FND-07 exact candidate:
+- PR #348;
+- branch `work/w15-fnd-07-detach-neutral`;
+- head `3ecc4a78080685b0556402d50190e09236d6d8fa`;
+- exact-head T1 `36094394912`: FAILURE only in focused Chromium; classifier/Common/Web/focused .NET all SUCCESS.
+
+Main test audit already closed several legacy/harness defects and one hidden production endpoint defect. The remaining live blocker is:
+- explicit test-owned fixture publishes revision successfully;
+- `POST /api/engineering/persistence/e2e-wave03/published/activate` now reaches the real handler and returns HTTP 422;
+- root cause of `Activated=false` is not yet diagnosed at coordinator handoff.
+
+CODEX is currently unavailable to the Product Owner and must remain idle. When capacity returns, do not resume rev 0048 or self-select Authority/Licensing. The next Main Coordinator must first revalidate PR #348 live, diagnose the exact-head 422, and publish a new explicit route if CODEX is still needed.

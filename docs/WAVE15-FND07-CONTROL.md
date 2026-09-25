@@ -1674,4 +1674,99 @@ Naming may differ if the contract remains obvious and documented.
 For this FND-07 closeout, CODEX must use the new/reused harness to run the full local parity battery successfully before relying on the next hosted CI run.
 
 If implementing the reusable harness would materially expand beyond CI/test infrastructure or require product-source changes, stop and return that part as a proposal; do not broaden production scope.
+## 37. CODEX CREATIVE AUTONOMY FOR CI PARITY HARNESS — rev 0034
+
+`ORDER_ID: FND07-CODEX-CI-FIRST-PROJECT-SMOKE-18`
+
+`ORDER_AMENDMENT: CI_INFRA_CREATIVE_AUTONOMY`
+
+For the reusable CI-parity harness authorized in rev 0033, CODEX now has broad implementation autonomy inside **test/CI infrastructure**.
+
+### Intent
+
+The coordinator is defining the outcome and safety boundary, not prescribing the harness architecture.
+
+CODEX should use engineering judgment to find the most efficient, reproducible and maintainable way to replicate the universal GitHub CI locally and preserve that capability for future debugging.
+
+CODEX does **not** need to return to Main for approval merely because:
+- the initial container layout is inconvenient;
+- a particular base image lacks a needed tool;
+- Compose is less efficient than another repository-controlled container approach;
+- caching needs a different strategy;
+- Playwright/Chromium requires a different image/layer;
+- host networking, service discovery or database reset needs adaptation;
+- workflow extraction reveals a better script boundary;
+- the first proposed directory/file layout is suboptimal;
+- one CI-equivalent command needs to be wrapped or refactored into a shared script.
+
+Within the authorized CI/test surface, CODEX may diagnose, redesign, implement, test and iterate independently until the full parity battery is green.
+
+### Creative freedom explicitly allowed
+
+CODEX may choose among or combine, as appropriate:
+- Dockerfile(s);
+- Docker Compose;
+- devcontainer reuse;
+- dedicated CI-runner container;
+- Playwright official/base images;
+- multi-stage images;
+- bind mounts or named volumes;
+- NuGet/npm/Playwright caches;
+- persistent service containers;
+- disposable per-run databases/schemas;
+- database snapshots/templates for fast reset;
+- shared shell/Python/PowerShell orchestration scripts;
+- extraction of existing workflow command blocks into reusable scripts;
+- Makefile/justfile/task-runner style entrypoints if lightweight and repository-appropriate;
+- container health checks/readiness probes;
+- structured log collection;
+- deterministic environment manifests/version checks;
+- separate fast/focused and full-parity modes;
+- automatic cleanup of stale test state;
+- local artifact/report retention useful for diagnosis.
+
+CODEX may also discover and implement a materially better design than the examples above.
+
+### Outcome requirements
+
+Whatever design is selected, it must:
+1. reproduce the **behavior and gates** of the current universal CI, not merely approximate a happy-path subset;
+2. keep exact or documented-equivalent tool/runtime versions;
+3. allow repeated investigation without reinstalling expensive dependencies every iteration;
+4. make state reset cheap and deterministic;
+5. preserve a clean full-run mode proving no hidden dependency on dirty/warm state;
+6. expose useful logs/artifacts on failure;
+7. remain runnable from repository-controlled files with clear commands;
+8. avoid secrets in source, image layers, logs or fixtures;
+9. avoid making Docker/container state a new source of product truth;
+10. keep hosted GitHub CI as the final independent confirmation.
+
+### Authority to resolve harness problems autonomously
+
+If CODEX finds a limitation or failure **inside CI/test infrastructure**, it should:
+- diagnose it;
+- choose a reasonable solution;
+- implement it;
+- validate it;
+- document the decision in the handoff;
+- continue the battery.
+
+Do not stop to ask Main merely for implementation preference.
+
+CODEX should stop and return a blocker only when one of these boundaries is crossed:
+- production source/semantics must change;
+- security/auth/Authority policy would be weakened or bypassed;
+- Licensing or HA behavior would change;
+- product Runtime/Engineering contracts would change;
+- a required CI gate would need to be removed/weakened rather than faithfully reproduced;
+- the solution requires secrets/credentials that are unavailable and cannot be safely substituted;
+- the environment cannot reproduce a material CI dependency closely enough for the evidence to be trustworthy.
+
+### Scope discipline
+
+Creative autonomy applies to the harness, CI scripts, test orchestration and test-only support infrastructure.
+
+It is **not** architectural authority over EliteSCADA product code.
+
+The active first-project smoke correction remains part of the same mission, and product binding enforcement must remain unchanged.
 

@@ -1538,4 +1538,31 @@ Mission:
 - run validation and return durable evidence.
 
 Do not modify production code and do not self-select Authority UX or Licensing UX afterward.
+## CURRENT SHARED CODEX ROUTE — rev 0059
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FND07-CI-PARITY-BATTERY-44`
+
+`ORDER_STATE: ACTIVE_CI_HARNESS_CORRECTION + LOCAL_FULL_CI_PARITY`
+
+`EXPECTED_ORDER: FND07-CODEX-CI-FIRST-PROJECT-SMOKE-18`
+
+Authoritative amendment:
+- FND-07 control rev 0032;
+- commit `25877bfb5c1154d63c21f001f2190c9b28dc6bc6`.
+
+In addition to the first-project smoke correction, CODEX must now run a persistent local battery equivalent to the complete `EliteSCADA CI`:
+
+- backend restore/build/full tests;
+- complete Runtime smoke;
+- frontend build;
+- complete Chromium E2E.
+
+Use one persistent environment and reuse .NET restore, npm dependencies, installed Chromium and database services where safe. Reset data/state between test passes, not the whole toolchain.
+
+Purpose:
+find sequential CI failures locally before spending another GitHub Actions run.
+
+Do not stop after fixing the first known smoke error. Continue until the local full-CI parity battery is green or a genuine out-of-scope product blocker is proven.
+
+No production mutation is authorized. Do not self-select another lane afterward.
 

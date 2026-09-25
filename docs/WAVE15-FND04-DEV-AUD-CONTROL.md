@@ -1591,4 +1591,34 @@ The harness must make future investigation cheap:
 - no production source changes.
 
 Continue the active first-project smoke correction and use this harness to drive the full local parity battery to green.
+## CURRENT SHARED CODEX ROUTE — rev 0061
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FND07-AUTONOMOUS-CI-HARNESS-46`
+
+`ORDER_STATE: ACTIVE / CI_INFRA_CREATIVE_AUTONOMY`
+
+`EXPECTED_ORDER: FND07-CODEX-CI-FIRST-PROJECT-SMOKE-18`
+
+Authoritative amendment:
+- FND-07 rev 0034;
+- commit `26d7cbecbdf5c31c1f0543b2784baacc9830fff0`.
+
+CODEX now owns implementation decisions for the reusable local CI-parity harness within the CI/test-infrastructure boundary.
+
+Main specifies the outcome:
+- faithful universal-CI parity;
+- cheap repeated investigation;
+- persistent/cached dependencies where safe;
+- deterministic clean-state reset;
+- backend + Runtime smoke + web + full Chromium;
+- useful failure logs;
+- final independent hosted-CI confirmation.
+
+CODEX may freely redesign the harness implementation, files, containers, caches and orchestration if a better solution is discovered.
+
+Do not ask Main for preferences on routine harness limitations. Diagnose and solve them autonomously, then document the result.
+
+Return to Main only if the needed fix crosses into product semantics/security/licensing/HA/runtime contracts, requires weakening a gate, or cannot reproduce a material CI dependency credibly.
+
+No production mutation authority is granted.
 

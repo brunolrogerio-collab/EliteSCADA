@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd07-control`
 
-`MAIN_ORDER_REV: 0009`
+`MAIN_ORDER_REV: 0010`
 
 `STATE: DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
 
@@ -373,3 +373,30 @@ Natural T1 `36085732961` is currently running.
 `ORDER_STATE: DEV_CANDIDATE / T1_PENDING / DEV_WAIT`
 
 DEV must not add further mutation while this exact candidate is under Main review/T1 unless Main returns a defect.
+
+
+## 13. Authority-vs-Engineering role-count fixture correction — rev 0010
+
+Exact candidate:
+- head `da1f00a2db4dbd1125fa342aa5a41c5ec57edbdb`;
+- tree `a53271a20a9b5b2e7a2f51d20dcce766f9bb62d8`;
+- T1 `36085732961`: focused Chromium failure only.
+
+The explicit downstream fixture is accepted directionally. Remaining failure:
+- Authority has developer + operator after explicit test setup;
+- Engineering Workspace correctly still reports one Engineering security role;
+- test incorrectly expected Workspace count 2.
+
+`ORDER_ID: FND07-DEV-FRESH-INSTALL-NO-DEMO-E2E-01`
+
+`ORDER_STATE: DEV_CORRECTION / AUTHORIZED`
+
+`CORRECTION_BASE_HEAD: da1f00a2db4dbd1125fa342aa5a41c5ec57edbdb`
+
+Required minimal correction:
+- assert Authority developer+operator separately;
+- keep Engineering Workspace securityRoleCount = 1;
+- keep project package securityRoles empty;
+- preserve Authority policy reference separation;
+- no production mutation;
+- run new natural exact-head T1.

@@ -3,9 +3,9 @@
 > GitHub live is the sole authority.
 
 `LANE: DEV-LICENSING-UX`
-`MAIN_ORDER_REV: 0004`
-`ORDER_ID: DEV-LICENSING-UX-CODEX-VALIDATION-V1`
-`ORDER_STATE: MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`
+`MAIN_ORDER_REV: 0005`
+`ORDER_ID: DEV-LICENSING-UX-SESSION-REPLACEMENT-TRUTH-03`
+`ORDER_STATE: DEV_CORRECTION / AUTHORIZED`
 `PLANNED_BRANCH: work/w15-dev-licensing-ux`
 `WORK_BRANCH: work/w15-dev-licensing-ux`
 `FC0A_RELEASE_APPROVED: YES`
@@ -254,3 +254,37 @@ Main accepts closure of `DEV-LICENSING-UX-STATUS-ENTITLEMENTS-02`:
 `STATE: MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`
 
 The shared sequential CODEX route remains Script Engineering #344. This lane must not mutate while queued unless Main returns a material defect. No merge/T2 authorization exists yet.
+
+
+## Independent Main audit — session replacement truth correction
+
+Audit exact candidate:
+- PR #345;
+- head `f5d3212b9c114d3ad6e2239460172db0b3d568f8`;
+- tree `a3e87f2ef7beb15bc66d6980e12710eddcc30525`.
+
+The prior Main acceptance is reopened for one bounded UX truth defect.
+
+`ORDER_ID: DEV-LICENSING-UX-SESSION-REPLACEMENT-TRUTH-03`
+
+`ORDER_STATE: DEV_CORRECTION / AUTHORIZED`
+
+`CORRECTION_BASE_HEAD: f5d3212b9c114d3ad6e2239460172db0b3d568f8`
+
+Problem:
+`RuntimeSessionClassPanel.request()` releases an existing lease before requesting the replacement, but keeps `lease.current` and `outcome` until the new admission succeeds. A failed replacement therefore leaves the browser showing a dead old session as active.
+
+Required bounded correction:
+1. after successful termination of the old lease, immediately clear `lease.current` and `outcome`;
+2. then request the replacement class;
+3. replacement failure must leave no active-session state and show the server/capacity error truthfully;
+4. no client admission/fallback/quota authority;
+5. add focused regression for release-success + replacement-failure;
+6. preserve all ESLIC1/ESLIC2 status/generator behavior.
+
+Return:
+`DEV-LICENSING-UX -> MAIN COORDINATOR — CANDIDATE HANDOFF`
+
+with exact SHA/tree and focused/natural T1 evidence.
+
+No CODEX route/merge/T2 before corrected Main review.

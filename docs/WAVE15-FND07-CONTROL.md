@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd07-control`
 
-`MAIN_ORDER_REV: 0007`
+`MAIN_ORDER_REV: 0008`
 
 `STATE: DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
 
@@ -319,3 +319,36 @@ Required bounded delta:
 5. return a new candidate and natural T1.
 
 No product mutation, CODEX route, merge or freeze is authorized by this failure.
+
+
+## 11. Downstream populated E2E fixture gap — rev 0008
+
+Exact corrected candidate:
+- head `72c22e0ea751222e9929af2fb86305f0da95204c`;
+- tree `a318df054072aaffe5f7aae8efe0cdf7ab2eebea`;
+- natural T1 `36084614406`: FAILURE only in focused Chromium.
+
+The clean fresh-install/local-auth scenario progressed beyond the prior role and Authority-reference assertions. Remaining failure is in downstream `runtime.spec.ts`, which still expects the historical shared Demo baseline (`ONLINE · 7 TAGs`, `Demo.P01.Frequency`, `demo.overview`, etc.).
+
+Classification:
+`DOWNSTREAM_DEMO_DEPENDENT_E2E_BASELINE / TEST_HARNESS_FIXTURE_GAP`.
+
+The product fresh-install semantic remains correct.
+
+`ORDER_ID: FND07-DEV-FRESH-INSTALL-NO-DEMO-E2E-01`
+
+`ORDER_STATE: DEV_CORRECTION / AUTHORIZED`
+
+`CORRECTION_BASE_HEAD: 72c22e0ea751222e9929af2fb86305f0da95204c`
+
+Required bounded correction:
+1. keep all clean fresh-install assertions before any populated setup;
+2. after those assertions, provision an explicit **test-owned** populated baseline for downstream Chromium specs;
+3. use supported/canonical APIs only;
+4. do not capture/restore product-seeded Demo state;
+5. if downstream security/runtime specs need developer/operator Authority setup, provision it explicitly through supported Authority test/setup paths;
+6. keep Project `securityRoles` separate from Authority roles;
+7. do not mutate production bootstrap semantics;
+8. run a new natural exact-head T1 and return the candidate.
+
+No CODEX, merge or freeze authority yet.

@@ -1385,4 +1385,35 @@ Resource policy while capacity is moderate:
 5. no self-selection of Authority or Licensing while FND-07 closeout remains the priority.
 
 Current state is availability without mission, not an execution route.
+## CURRENT SHARED CODEX ROUTE — rev 0052
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FND07-LOCK-CORRECTION-37`
+
+`ORDER_STATE: ACTIVE_CORRECTION_AND_VALIDATION`
+
+`EXPECTED_ORDER: FND07-CODEX-ENGINEERING-LOCK-AUTHORITY-CORRECTION-12`
+
+Authoritative lane control:
+- branch: `coord/w15-fnd07-control`;
+- file: `docs/WAVE15-FND07-CONTROL.md`;
+- control rev: 0025;
+- control commit: `0511b86c387fce496b57b03cc532c66f665342ef`.
+
+Exact starting candidate:
+- PR #348;
+- branch `work/w15-fnd-07-detach-neutral`;
+- SHA `95fd68468c7ce26b94e8c60a513625e917f4c4a2`;
+- tree `beca8b125258e812680573558a1c382acffe87ff`;
+- T1 `36136242327`: green except focused Chromium.
+
+Mission:
+- correct the bounded generic Engineering Lock partial-package Authority-reference defect;
+- add focused regression coverage;
+- execute focused activation/browser evidence;
+- obtain new exact-head T1;
+- complete final FND-07 adversarial validation.
+
+Do not bypass Authority validation.
+Do not self-select Authority UX or Licensing UX afterward.
+Return the complete durable handoff to PR #348 and Main.
 

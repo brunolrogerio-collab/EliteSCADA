@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0020`
+`MAIN_ORDER_REV: 0021`
 
 `STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
@@ -1268,3 +1268,36 @@ The control header was also normalized to the already-established freeze disposi
 Control rev 0012.
 
 CODEX remains paused while FND-07 deep-audit blockers are being corrected. It must not self-select Authority/Licensing.
+
+
+## 34. Durable inter-agent handoff protocol
+
+Product Owner must not relay lane handoffs between executor chats and Main.
+
+Effective immediately for all Wave 15 DEV/CODEX lanes:
+
+`CHAT_ONLY_HANDOFF: NOT_DELIVERED`
+
+A handoff is considered delivered only when persisted in GitHub:
+1. preferred: comment on the lane PR;
+2. if no PR exists: comment on the coordinator Issue/control ledger;
+3. if comment tooling is unavailable: write the complete handoff into the lane's dedicated control and report the tooling blocker.
+
+Minimum durable handoff fields:
+- order ID/revision;
+- exact branch/head/tree;
+- changed-file map;
+- tests/workflow IDs and conclusions;
+- explicit blockers/environment limitations;
+- requested Main disposition.
+
+After a durable handoff, the executor defaults to `DEV_WAIT` / no mutation until Main responds unless the current order explicitly says otherwise.
+
+The Product Owner should never need to copy executor output into the Main chat for coordination continuity.
+
+Current FND-07 handoff at `0189b7f79bf9772c1cf7ece8f4774ba9ea207f6b` was chat-only and has been mirrored by Main to PR #348 as a one-time recovery action.
+
+FND-07 is now:
+`MAIN_DEEP_AUDIT / DEV_WAIT`
+
+Licensing remains on its own DEV correction/T1 path.

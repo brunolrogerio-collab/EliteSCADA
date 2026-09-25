@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0016`
+`MAIN_ORDER_REV: 0017`
 
 `STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
@@ -1120,6 +1120,36 @@ CODEX:
 - shared route rev 0046 / `a213a78834b697a4a85df1d844fc51939519a4a2`;
 - state `PAUSED / MATERIAL_DEFECT_RETURNED_TO_DEV / CODEX_USAGE_BLOCKED`.
 
+FND-05 remains VERIFIED/FROZEN.
+Authority and Licensing remain Main-accepted/queued.
+Script and Editor remain integrated pending broader T2.
+
+
+## 30. FND-07 candidate ed552418 rejected / DEV correction continues
+
+FND-07 DEV advanced from `a8fcfe8c...` to:
+- head `ed552418a95d8b7b086eb81ed42ac12d29efaefa`;
+- tree `5329588c4e6bfeabd524d190a48ff0cfca95a8d0`.
+
+Direction accepted:
+- split Engineering storage initialization from Working checkout;
+- hydrate Authority before persisted checkout;
+- preserve fail-closed Authority reference validation.
+
+Candidate rejected due deterministic startup defect:
+- `InitializeEngineeringPersistenceStorageAsync` recursively calls itself instead of initializing the underlying persistence service.
+
+Regression coverage is also incomplete for real startup ordering, fresh install and detached/neutral semantics.
+
+State:
+`FND-07 -> DEV_CORRECTION / AUTHORIZED`
+
+Binding order remains:
+`FND07-DEV-AUTHORITY-BEFORE-ENGINEERING-RESTART-05`
+
+Dedicated control rev 0016.
+
+CODEX remains paused / no action.
 FND-05 remains VERIFIED/FROZEN.
 Authority and Licensing remain Main-accepted/queued.
 Script and Editor remain integrated pending broader T2.

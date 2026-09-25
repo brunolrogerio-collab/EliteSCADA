@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Scada.Api.Persistence;
 using Scada.Api.Runtime;
+using Scada.Api.Security;
 using Scada.Core.Alarms;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;

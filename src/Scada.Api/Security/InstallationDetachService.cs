@@ -82,7 +82,9 @@ public sealed class InstallationDetachService(
 {
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        await binding.InitializeAsync(cancellationToken);
+        // Durable storage/schema initialization is owned by
+        // InitializeEngineeringPersistenceStorageAsync and occurs before Authority hydration.
+        // This phase only reconciles the already-initialized installation journal.
         var current = await binding.GetAsync(cancellationToken);
         if (current.State == EngineeringInstallationBindingState.Legacy)
         {

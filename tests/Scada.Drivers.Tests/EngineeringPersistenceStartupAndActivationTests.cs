@@ -25,6 +25,52 @@ public sealed class EngineeringPersistenceStartupAndActivationTests
     private static readonly DateTimeOffset T0 = new(2026, 9, 11, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
+    public async Task InstallationStartupOrchestrationOrdersStorageAuthorityJournalBeforeWorking()
+    {
+        var events = new List<string>();
+
+        await InstallationStartupOrchestration.RunAsync(
+            _ => Record("storage"),
+            _ => Record("authority"),
+            _ => Record("journal"),
+            _ => Record("working"));
+
+        Assert.Equal(new[] { "storage", "authority", "journal", "working" }, events);
+
+        Task Record(string value)
+        {
+            events.Add(value);
+            return Task.CompletedTask;
+        }
+    }
+
+    [Fact]
+    public async Task InstallationStartupOrchestrationDoesNotCheckoutWorkingWhenJournalRecoveryFails()
+    {
+        var events = new List<string>();
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            InstallationStartupOrchestration.RunAsync(
+                _ => Record("storage"),
+                _ => Record("authority"),
+                _ =>
+                {
+                    events.Add("journal");
+                    return Task.FromException(new InvalidOperationException("fixture journal recovery failure"));
+                },
+                _ => Record("working")));
+
+        Assert.Contains("journal recovery", error.Message);
+        Assert.Equal(new[] { "storage", "authority", "journal" }, events);
+
+        Task Record(string value)
+        {
+            events.Add(value);
+            return Task.CompletedTask;
+        }
+    }
+
+    [Fact]
     public async Task StartupInitializesStorageThenHydratesAuthorityBeforePersistedWorkingCheckout()
     {
         var events = new List<string>();

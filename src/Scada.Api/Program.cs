@@ -136,29 +136,9 @@ await app.InitializeServerMemoryRetentionAsync();
 await app.InitializeRuntimeSessionLeaseStoreAsync();
 await app.Services.GetRequiredService<ProductLicenseLifecycleCoordinator>().ReconcilePendingAsync();
 
-// Durable Engineering schema/catalog must exist before Authority migration can inspect it,
-// but no persisted Working package may be applied until canonical Authority is hydrated.
-await app.InitializeEngineeringPersistenceStorageAsync();
-await app.InitializeAuditAsync();
-var localIdentityRuntime = app.Services.GetRequiredService<LocalIdentityRuntimeOptions>();
-if (localIdentityRuntime.Enabled)
-{
-    await app.Services.GetRequiredService<AuthorityDetachService>().RecoverIfInProgressAsync();
-    await app.Services.GetRequiredService<AuthorityLifecycleBootstrapService>().EnsureInitializedAsync();
-}
-else
-{
-    // Policy remains canonical Authority state even when local authentication is disabled.
-    // Only the local-identity lifecycle is unavailable in this runtime profile.
-    await app.Services.GetRequiredService<AuthorityPolicyBootstrapService>().EnsureInitializedAsync();
-}
-
-// Recover the durable installation attach/detach journal before persisted Working
-// checkout. An interrupted pre-save attach must be allowed to return to Neutral, while
-// an accepted root revision may complete attach and then be checked out normally.
-if (app.Services.GetService<IEngineeringInstallationBindingStore>() is not null)
-    await app.Services.GetRequiredService<InstallationDetachService>().InitializeAsync();
-await app.InitializeEngineeringPersistenceAsync();
+// Durable Engineering storage, Authority hydration, installation-journal recovery and
+// persisted Working checkout use one tested startup ordering boundary.
+await app.InitializeInstallationFoundationAsync();
 
 app.UseMiddleware<TimingCorrelationMiddleware>();
 app.UseCors();

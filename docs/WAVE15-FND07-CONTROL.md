@@ -1388,4 +1388,40 @@ Mandatory evidence:
 - if green, return durable handoff to Main for protected integration.
 
 No freeze until this post-merge blocker is closed on integrated code.
+## 32. POST-MERGE CORRECTION ACCEPTED / MERGE AUTHORIZED — rev 0029
+
+`ORDER_ID: FND07-MAIN-POSTMERGE-CORRECTION-ACCEPTANCE-16`
+
+`ORDER_STATE: MAIN_ACCEPTED / CORRECTION_MERGE_AUTHORIZED / DEV_WAIT / CODEX_WAIT`
+
+Accepted corrective candidate:
+- PR #352;
+- head `50a6fa477b166dd115b7d6b8152fd7d53f7e7d6a`;
+- exact base `1b186c48ba5d2e3012be2c58f0efc36170101fe9`;
+- exact T1 `36193282035` / run #104: SUCCESS.
+
+Evidence:
+- profile classification: SUCCESS;
+- Common T1 sanity: SUCCESS;
+- focused .NET: SUCCESS;
+- focused Chromium: SUCCESS;
+- final T1 gate: SUCCESS;
+- Web semantic build intentionally skipped because no web files changed under the effective AUTHORITY_CORE + INSTALLATION profile;
+- local focused suite: 740/740 PASS.
+
+Main independent review accepted:
+1. `InstallationDetachService` is registered only when local identity/Authority is enabled;
+2. installation-journal detach recovery does not resolve local Authority services when local identity is disabled;
+3. installation detach endpoints are absent in that mode;
+4. `MapLocalIdentityEndpoints` retains only the truthful `/api/auth/config` surface and returns before local-only handlers when local identity is disabled;
+5. canonical external Authority policy bootstrap remains active;
+6. no fake/no-op Authority lifecycle or identity store was introduced;
+7. local-enabled FND-07 detach/recovery behavior remains composed and covered;
+8. no Authority policy, Licensing, HA, Runtime or Historian contract expansion was introduced.
+
+No open PR review threads.
+
+`MERGE: AUTHORIZED`
+
+FND-07 remains not VERIFIED/FROZEN until the corrected integrated SHA passes post-merge CI.
 

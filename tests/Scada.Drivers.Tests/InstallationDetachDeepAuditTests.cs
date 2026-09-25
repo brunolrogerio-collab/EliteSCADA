@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Scada.Api.Licensing;
+using Scada.Api.Persistence;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Core.Alarms;

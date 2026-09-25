@@ -1453,4 +1453,32 @@ Exact integrated CI:
 CODEX must remain idle until Main accepts the post-merge CI and records FND-07 VERIFIED/FROZEN or explicitly returns a material failure.
 
 Do not self-select Authority UX or Licensing UX yet.
+## CURRENT SHARED CODEX ROUTE — rev 0055
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FND07-POSTMERGE-LOCAL-AUTHORITY-40`
+
+`ORDER_STATE: ACTIVE_POSTMERGE_CORRECTION`
+
+`EXPECTED_ORDER: FND07-CODEX-POSTMERGE-LOCAL-AUTHORITY-GATE-15`
+
+Authoritative FND-07 control:
+- branch `coord/w15-fnd07-control`;
+- file `docs/WAVE15-FND07-CONTROL.md`;
+- rev 0028;
+- control commit `b6b5e8a1b6a54cc5b3f161e08cd137de04d810e4`.
+
+Correction branch:
+`work/w15-fnd07-postmerge-local-authority-gate`
+
+Exact base:
+`1b186c48ba5d2e3012be2c58f0efc36170101fe9`.
+
+Mission:
+- fix the post-merge DI/composition failure when local Authority is disabled;
+- condition local-Authority detach recovery/endpoints on actual local-Authority capability;
+- preserve external/canonical Authority policy bootstrap;
+- preserve all enabled-local-Authority FND-07 semantics;
+- test both modes and obtain exact-head CI evidence.
+
+Do not self-select Authority UX or Licensing UX afterward. Return durable handoff to Main.
 

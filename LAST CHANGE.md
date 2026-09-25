@@ -1075,3 +1075,22 @@ Dedicated control rev 0006:
 `bc7e3f810b7534d1180196c1e768f4c92a1c60a5`.
 
 Required delta remains test/harness-only unless new product evidence appears. Do not seed hidden Demo/operator state merely to satisfy the old expectation. No CODEX/merge/freeze authority.
+
+
+## 2026-09-25 — Main coordinator forced handoff after FND-07 legacy-test audit
+
+The outgoing Main Coordinator paused the shared CODEX route because CODEX is temporarily unavailable and persisted the exact transfer state in GitHub.
+
+FND-07 PR #348 exact head at transfer:
+`3ecc4a78080685b0556402d50190e09236d6d8fa`.
+
+Latest exact-head T1:
+`36094394912` — Classify/Common/Web/.NET green; Chromium red.
+
+The audit removed several legacy/harness assumptions and exposed/fixed a real activation endpoint nested-Task defect. The remaining blocker is now a clean HTTP 422 from the real Published -> Active path after publish returns 200. Root cause remains open for the replacement Main.
+
+Durable ledger:
+- PR #348 comment `5831728502`;
+- FND-07 control `101e2977cd28e0e7d6c470e61b3e2c5f5a7ffc2c`;
+- shared route `8b3be7727b18888a5dd3c0e046f8926a78c3d7e7`;
+- central board `3c24c683575ae0aaf87483c5b6ec36f95aa1878b`.

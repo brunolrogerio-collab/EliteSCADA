@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd07-control`
 
-`MAIN_ORDER_REV: 0019`
+`MAIN_ORDER_REV: 0020`
 
 `STATE: DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
 
@@ -948,3 +948,38 @@ Main now owns:
 - decision whether the candidate may return to CODEX.
 
 No CODEX route, merge or freeze is authorized while this audit is open.
+
+
+## 23. DEEP AUDIT DISPOSITION — product findings source-closed / Main reconciliation pending — rev 0020
+
+Exact candidate under review:
+- PR #348;
+- head `0189b7f79bf9772c1cf7ece8f4774ba9ea207f6b`;
+- tree `bd6971f73348ec7b4f4682d18cabe36f6ef32a47`;
+- DEV correction delta from audited `f2f1fed3...`: 7 commits / 7 files.
+
+Main deep re-audit disposition:
+- `FND07-AUD-ATTACH-RESTART-01 -> SOURCE_REVIEW_CLOSED`;
+- `FND07-AUD-DETACH-AUTHORITY-02 -> SOURCE_REVIEW_CLOSED`;
+- `FND07-AUD-LICENSE-JOURNAL-03 -> ARCHITECTURAL_REVIEW_CLOSED`;
+- `FND07-AUD-TEST-GAPS-04 -> COVERAGE_REVIEW_CLOSED / EXECUTION_PENDING`;
+- `FND07-AUD-CROSSLANE-05 -> OPEN / MAIN_OWNED`;
+- `FND07-AUD-E2E-FIXTURE-06 -> MINOR / NON_BLOCKING`.
+
+Why Licensing finding is closed:
+the frozen FND-07 contract explicitly treats machine licensing as an independent FND-03 authority. The candidate resolves deliberate Keep/Remove/Replace before the destructive installation journal, so license rejection/failure cannot falsely report after Application/Authority detach has already completed. Once the installation journal begins, restart recovery owns convergence.
+
+Remaining mandatory gates:
+1. reconcile FND-07 with current integration `9895a01a662851505198b965fae2335e55fba6fa`;
+2. preserve both frozen FND-05 HA effect authority and FND-07 Neutral/Detach effect fence;
+3. execute focused .NET / lifecycle matrix on the reconciled exact candidate;
+4. execute exact-head Wave 15 T1;
+5. perform final CODEX adversarial validation before merge/freeze.
+
+`ORDER_ID: FND07-MAIN-RECONCILIATION-AND-VALIDATION-08`
+
+`ORDER_STATE: MAIN_OWNED / DEV_WAIT / NO_SOURCE_MUTATION`
+
+FND-07 DEV must now wait. It must not rebase, resolve conflicts, mutate source, or start another correction unless Main returns a new finding.
+
+Future handoffs must be GitHub-durable under rev 0019 protocol.

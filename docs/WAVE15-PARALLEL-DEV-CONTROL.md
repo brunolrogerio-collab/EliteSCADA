@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0010`
+`MAIN_ORDER_REV: 0011`
 
 `STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
@@ -971,3 +971,28 @@ Sequential CODEX now targets FND-05:
 - dedicated control rev 0008 / `ddfd84ab4f2522c255fa9a155f9ec14dfbbc8734`.
 
 FND-07 remains independently authorized in DEV correction. Authority and Licensing remain queued/waiting. Script and Editor are both integrated pending broader T2.
+
+
+## 24. FND-07 clean bootstrap passed farther / downstream E2E fixture gap
+
+FND-07 advanced to:
+- PR #348 head `72c22e0ea751222e9929af2fb86305f0da95204c`;
+- tree `a318df054072aaffe5f7aae8efe0cdf7ab2eebea`;
+- T1 `36084614406`.
+
+Fresh-install assertions now progress past the prior Engineering-role and Authority-reference expectations. The remaining focused Chromium failure is downstream `runtime.spec.ts`, which still assumes the old shared Demo baseline with 7 TAGs.
+
+State:
+`DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
+
+Binding correction remains:
+`FND07-DEV-FRESH-INSTALL-NO-DEMO-E2E-01`
+
+Required direction is test-harness-only:
+- preserve clean fresh-install proof;
+- afterwards create/load an explicit test-owned populated baseline through supported APIs for legacy downstream Runtime/Security specs;
+- never restore hidden product Demo bootstrap.
+
+Dedicated control rev 0008.
+
+FND-05 remains active in CODEX HA adversarial validation. Authority and Licensing remain queued. Script and Editor remain integrated pending T2.

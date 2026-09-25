@@ -165,7 +165,9 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(canonicalProject.body.dynamos.length).toBeGreaterThan(0);
     expect(canonicalProject.body.securityRoles).toHaveLength(0);
     expect(canonicalProject.body.authorityPolicyReference).toBeTruthy();
-    expect(canonicalProject.body.authorityPolicyReference.roleIds).toHaveLength(2);
+    expect(canonicalProject.body.authorityPolicyReference.roleIds).toEqual([
+      '46000000-0000-0000-0000-000000000002'
+    ]);
 
     // This prerequisite intentionally leaves the first persisted project empty.
     // Any later E2E that needs TAG traffic must create its own test-owned fixture

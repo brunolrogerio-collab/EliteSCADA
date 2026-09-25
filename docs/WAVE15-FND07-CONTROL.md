@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd07-control`
 
-`MAIN_ORDER_REV: 0012`
+`MAIN_ORDER_REV: 0013`
 
 `STATE: DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
 
@@ -515,3 +515,34 @@ Required return on `SIGA` while this order remains current:
 `FND-07 DEV -> MAIN COORDINATOR — WAIT_MAIN / EXACT-HEAD T1 ENVIRONMENT BLOCKED`
 
 No additional action is expected from the FND-07 DEV until Main publishes a new order.
+
+
+## 16. Main route transfer — CODEX exact-head T1 / FND-07 validation — rev 0013
+
+FND-07 DEV remains in WAIT_MAIN and must not mutate source.
+
+Exact candidate:
+- PR #348;
+- branch `work/w15-fnd-07-detach-neutral`;
+- head `a8fcfe8c855a692670e9c74a95f4450caf612b2f`;
+- tree `6913879ae0a1d7cf1a69da7fe8f58b1eb0dfdab3`;
+- source review: ACCEPTED;
+- remaining blocker: no Wave 15 T1 exists for this exact head.
+
+`ORDER_ID: FND07-CODEX-EXACT-HEAD-T1-VALIDATION-04`
+
+`ORDER_STATE: CODEX_VALIDATION / ACTIVE_SHARED_ROUTE`
+
+CODEX must:
+1. revalidate PR #348 exact head and target;
+2. do not change source initially;
+3. dispatch/run the existing `wave15-pr.yml` against exact branch/head using the lane's declared profiles:
+   `INSTALLATION, AUTHORITY_CORE, SESSION_LICENSING, SCRIPT_RUNTIME, RUNTIME_RENDERER`;
+4. verify the workflow head SHA is exactly `a8fcfe8c855a692670e9c74a95f4450caf612b2f`;
+5. if T1 is green, run the required adversarial/focused FND-07 validation on fresh-install, detach, neutral bootstrap, no hidden Demo, Runtime truth and no-leak behavior;
+6. if validation finds only bounded test-harness defects, CODEX may fix test-only issues and rerun exact-head T1;
+7. any material product/architecture defect returns to Main -> FND-07 DEV;
+8. no self-merge/freeze.
+
+Return:
+`FND-07 CODEX -> MAIN COORDINATOR — EXACT-HEAD VALIDATION HANDOFF`.

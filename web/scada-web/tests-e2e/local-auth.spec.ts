@@ -243,13 +243,13 @@ test('secure first-run creates the initial local Administrator, first project an
     const demoFixture = {
       ...fixtureBase.body,
       tags: [
-        { id: '10000000-0000-0000-0000-000000000001', name: 'Tank Level', path: 'Demo.Tank01.Level', dataType: 'double', source: 'builtin.simulation', engineeringUnit: '%', readOnly: true },
-        { id: '10000000-0000-0000-0000-000000000002', name: 'Pump Running', path: 'Demo.P01.Running', dataType: 'boolean', source: 'builtin.simulation', readOnly: false },
-        { id: '10000000-0000-0000-0000-000000000003', name: 'Pump Fault', path: 'Demo.P01.Fault', dataType: 'boolean', source: 'builtin.simulation', readOnly: true },
-        { id: '10000000-0000-0000-0000-000000000004', name: 'Pump Current', path: 'Demo.P01.Current', dataType: 'double', source: 'builtin.simulation', engineeringUnit: 'A', readOnly: true },
-        { id: '10000000-0000-0000-0000-000000000005', name: 'Pump Frequency', path: 'Demo.P01.Frequency', dataType: 'double', source: 'builtin.simulation', engineeringUnit: 'Hz', readOnly: false },
-        { id: '10000000-0000-0000-0000-000000000006', name: 'Discharge Pressure', path: 'Demo.Discharge.Pressure', dataType: 'double', source: 'builtin.simulation', engineeringUnit: 'bar', readOnly: true },
-        { id: '10000000-0000-0000-0000-000000000007', name: 'Flow', path: 'Demo.Discharge.Flow', dataType: 'double', source: 'builtin.simulation', engineeringUnit: 'm³/h', readOnly: true }
+        { id: '10000000-0000-0000-0000-000000000001', name: 'Tank Level', path: 'Demo.Tank01.Level', dataType: 'double', source: 'memory.server.e2e', dataSourceId: '40000000-0000-0000-0000-000000000001', engineeringUnit: '%', readOnly: true, initialValue: { dataType: 'double', value: 62.5 } },
+        { id: '10000000-0000-0000-0000-000000000002', name: 'Pump Running', path: 'Demo.P01.Running', dataType: 'boolean', source: 'memory.server.e2e', dataSourceId: '40000000-0000-0000-0000-000000000001', readOnly: false, initialValue: { dataType: 'boolean', value: true } },
+        { id: '10000000-0000-0000-0000-000000000003', name: 'Pump Fault', path: 'Demo.P01.Fault', dataType: 'boolean', source: 'memory.server.e2e', dataSourceId: '40000000-0000-0000-0000-000000000001', readOnly: true, initialValue: { dataType: 'boolean', value: false } },
+        { id: '10000000-0000-0000-0000-000000000004', name: 'Pump Current', path: 'Demo.P01.Current', dataType: 'double', source: 'memory.server.e2e', dataSourceId: '40000000-0000-0000-0000-000000000001', engineeringUnit: 'A', readOnly: true, initialValue: { dataType: 'double', value: 12.5 }, historian: { enabled: true, strategy: 'onChange', deadband: 0.01, periodMilliseconds: null, maximumPeriodMilliseconds: 5000 } },
+        { id: '10000000-0000-0000-0000-000000000005', name: 'Pump Frequency', path: 'Demo.P01.Frequency', dataType: 'double', source: 'memory.server.e2e', dataSourceId: '40000000-0000-0000-0000-000000000001', engineeringUnit: 'Hz', readOnly: false, initialValue: { dataType: 'double', value: 60 } },
+        { id: '10000000-0000-0000-0000-000000000006', name: 'Discharge Pressure', path: 'Demo.Discharge.Pressure', dataType: 'double', source: 'memory.server.e2e', dataSourceId: '40000000-0000-0000-0000-000000000001', engineeringUnit: 'bar', readOnly: true, initialValue: { dataType: 'double', value: 10.5 } },
+        { id: '10000000-0000-0000-0000-000000000007', name: 'Flow', path: 'Demo.Discharge.Flow', dataType: 'double', source: 'memory.server.e2e', dataSourceId: '40000000-0000-0000-0000-000000000001', engineeringUnit: 'm³/h', readOnly: true, initialValue: { dataType: 'double', value: 75 } }
       ],
       alarms: [
         { id: '20000000-0000-0000-0000-000000000001', name: 'High discharge pressure', tagId: '10000000-0000-0000-0000-000000000006', tagPath: 'Demo.Discharge.Pressure', type: 'high', priority: 'high', setpoint: 9.0, digitalActiveValue: true, area: 'Demo', message: 'Discharge pressure above 9.0 bar', requiresAcknowledgement: true, shelvingAllowed: true, enabled: true },
@@ -257,12 +257,12 @@ test('secure first-run creates the initial local Administrator, first project an
       ],
       dataSources: [{
         id: '40000000-0000-0000-0000-000000000001',
-        key: 'builtin.simulation',
-        name: 'Built-in Simulation',
-        driver: 'builtin.simulation',
+        key: 'memory.server.e2e',
+        name: 'E2E Server Memory',
+        driver: 'builtin.memory.server',
         enabled: true,
-        settings: { scanIntervalMilliseconds: '500' },
-        metadata: { system: 'true' }
+        settings: {},
+        metadata: { fixture: 'runtime-e2e' }
       }],
       templates: [{
         id: '41000000-0000-0000-0000-000000000001',

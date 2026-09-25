@@ -84,10 +84,11 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(engineering.schemaVersion).toBeGreaterThanOrEqual(7);
   expect(engineering.tags.some(tag => tag.path === 'Demo.Tank01.Level')).toBeTruthy();
   expect(engineering.tags.some(tag => tag.path === 'Demo.P01.Frequency')).toBeTruthy();
-  expect(engineering.tags.every(tag => tag.source === 'builtin.simulation')).toBeTruthy();
+  expect(engineering.tags.every(tag => tag.source === 'memory.server.e2e')).toBeTruthy();
   expect(engineering.tags.find(tag => tag.path === 'Demo.P01.Frequency')?.id).toBe('10000000-0000-0000-0000-000000000005');
   expect(engineering.dataSources).toHaveLength(1);
-  expect(engineering.dataSources[0].key).toBe('builtin.simulation');
+  expect(engineering.dataSources[0].key).toBe('memory.server.e2e');
+  expect(engineering.dataSources[0].driver).toBe('builtin.memory.server');
   expect(engineering.templates).toHaveLength(1);
   expect(engineering.templates[0].key).toBe('pump.standard');
   expect(engineering.templates[0].bindings.some(binding => binding.target === '{equipmentPath}.Running')).toBeTruthy();
@@ -171,8 +172,8 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   const dataSourceCsvResponse = await request.get('/api/engineering/export/datasources.csv');
   expect(dataSourceCsvResponse.ok()).toBeTruthy();
   const dataSourceCsv = await dataSourceCsvResponse.text();
-  expect(dataSourceCsv).toContain('builtin.simulation');
-  expect(dataSourceCsv).toContain('scanIntervalMilliseconds');
+  expect(dataSourceCsv).toContain('memory.server.e2e');
+  expect(dataSourceCsv).toContain('builtin.memory.server');
 
   const tagsCsvResponse = await request.get('/api/engineering/export/tags.csv');
   expect(tagsCsvResponse.ok()).toBeTruthy();
@@ -260,7 +261,7 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
     name: 'Workspace Only',
     path: 'Engineering.Workspace.Only',
     dataType: 'double',
-    source: 'builtin.simulation',
+    source: 'memory.server.e2e',
     readOnly: true
   });
 

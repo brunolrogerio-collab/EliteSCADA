@@ -496,3 +496,10 @@ Central board:
 `coord/w15-parallel-dev-control:docs/WAVE15-PARALLEL-DEV-CONTROL.md`, rev 0003.
 
 The prepared two-stage first-project fresh-install preview remains downstream of four feature integrations/T2 plus FND-05/FND-07 VERIFIED/FROZEN.
+
+
+### Live coordinator transfer gate — 2026-09-25
+
+FND-07 remains the current Foundation closeout blocker. PR #348 is at `3ecc4a78080685b0556402d50190e09236d6d8fa`; T1 `36094394912` is green except focused Chromium. Legacy Demo/fallback test assumptions were removed and persisted activation is now exercised directly. Publish succeeds; activation returns HTTP 422 and must be diagnosed before merge/freeze.
+
+Shared CODEX is paused/unavailable. No historical route may auto-resume; the replacement Main must publish a new explicit route after live revalidation and 422 diagnosis.

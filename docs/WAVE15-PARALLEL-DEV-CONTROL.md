@@ -1488,4 +1488,25 @@ Shared CODEX route is active on:
 `FND07-CODEX-POSTMERGE-LOCAL-AUTHORITY-GATE-15`.
 
 FND-07 remains integrated but NOT VERIFIED/FROZEN until the correction is integrated and post-merge evidence is green.
+## 43. FND-07 final post-merge CI: stale first-project smoke / CODEX active
+
+Final post-merge CI `36194762603` on `e49155e4a17acb6cd35683500f4ef211eb8f6e56` failed only after the API had started and backend tests/runtime/historian smoke had succeeded.
+
+Failure:
+legacy CI uses `POST /api/engineering/persistence/ci-demo/save` to create the first Application while the installation binding is correctly `Neutral`.
+
+Classification:
+`CI_HARNESS_STALE_FIRST_PROJECT_BOOTSTRAP / GENERIC_SAVE_ON_NEUTRAL_BINDING`.
+
+FND-07 product behavior is correct. The canonical first-Application transaction is `POST /api/engineering/persistence/projects/first`.
+
+Shared CODEX is active on:
+`FND07-CODEX-CI-FIRST-PROJECT-SMOKE-18`
+
+Branch:
+`work/w15-fnd07-postmerge-ci-first-project-smoke`.
+
+Scope is CI/harness only. No product rule may be weakened.
+
+FND-07 remains NOT VERIFIED/FROZEN until corrected full post-merge evidence is green.
 

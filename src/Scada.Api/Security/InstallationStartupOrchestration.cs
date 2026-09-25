@@ -36,7 +36,9 @@ public static class InstallationStartupOrchestration
             },
             async ct =>
             {
-                if (app.Services.GetService<IEngineeringInstallationBindingStore>() is not null)
+                var localIdentityRuntime = app.Services.GetRequiredService<LocalIdentityRuntimeOptions>();
+                if (localIdentityRuntime.Enabled &&
+                    app.Services.GetService<IEngineeringInstallationBindingStore>() is not null)
                     await app.Services.GetRequiredService<InstallationDetachService>()
                         .InitializeAsync(ct);
             },

@@ -12,6 +12,9 @@ public static class InstallationDetachApi
 
     public static IEndpointRouteBuilder MapInstallationDetachEndpoints(this IEndpointRouteBuilder endpoints)
     {
+        var localRuntime = endpoints.ServiceProvider.GetRequiredService<LocalIdentityRuntimeOptions>();
+        if (!localRuntime.Enabled) return endpoints;
+
         endpoints.MapPost("/api/installation/detach/preflight", async (
             InstallationDetachRequest request,
             HttpContext context,

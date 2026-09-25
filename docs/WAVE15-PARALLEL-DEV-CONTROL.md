@@ -1469,4 +1469,23 @@ State:
 `FND-07 -> INTEGRATED_PENDING_POSTMERGE_CI`.
 
 No freeze yet. FND-07 DEV and CODEX remain WAIT. Shared CODEX stays held until Main resolves the post-merge CI and publishes the next sequential route.
+## 42. FND-07 post-merge CI blocker / CODEX correction active
+
+Post-merge CI `36191702355` on integrated SHA `1b186c48ba5d2e3012be2c58f0efc36170101fe9` failed in Backend smoke startup.
+
+Exact failure:
+`AuthorityDetachService` cannot be constructed because `IAuthorityLifecycleStore` is absent when local authentication is disabled.
+
+Classification:
+`FND07_POSTMERGE_COMPOSITION_BLOCKER / LOCAL_AUTHORITY_SERVICES_RESOLVED_WHEN_LOCAL_AUTH_DISABLED`.
+
+This is a real composition defect, not a transient. No rerun is authorized before correction.
+
+Dedicated correction branch:
+`work/w15-fnd07-postmerge-local-authority-gate`.
+
+Shared CODEX route is active on:
+`FND07-CODEX-POSTMERGE-LOCAL-AUTHORITY-GATE-15`.
+
+FND-07 remains integrated but NOT VERIFIED/FROZEN until the correction is integrated and post-merge evidence is green.
 

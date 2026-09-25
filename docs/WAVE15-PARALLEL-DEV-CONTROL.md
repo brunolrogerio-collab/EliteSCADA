@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0007`
+`MAIN_ORDER_REV: 0008`
 
 `STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
@@ -902,3 +902,29 @@ Canonical Authority state is now unambiguous:
 All older Authority correction-order sections are historical/superseded only.
 
 The shared sequential CODEX route remains Script Engineering #344. Authority acceptance does not reroute CODEX or authorize merge/T2.
+
+
+## 21. Script integrated / INFRA-CI-01D activated
+
+Script Engineering PR #344 completed CODEX validation and was merged.
+
+Final Script candidate:
+- head `79d43f1994acb509628b08e703c20820bf8a9c72`;
+- tree `c5e85db0c176d9dc070f20ff79ce81d7894f4ccc`;
+- T1 `36078781412`: SUCCESS.
+
+Integration:
+- merge SHA `3b1511799a73c3c4fee1c2265005d6724bcaa235`;
+- tree `bb9b1fb4b9a7ffe47d9eb56eaee6dd8ba0e300fe`;
+- state `SCRIPT_ENGINEERING -> INTEGRATED_PENDING_T2`.
+
+No broader post-merge T2 verification is claimed yet.
+
+Sequential CODEX is now explicitly routed to INFRA-CI-01D:
+- route `ROUTE-SEQUENTIAL-CODEX-TO-INFRA-CI-01D-26`;
+- exact activation base `3b1511799a73c3c4fee1c2265005d6724bcaa235`;
+- work branch `work/w15-infra-ci-01d-iec104-fault-observation-race`;
+- control rev 0002 / commit `47437359cb33a47faa3db6df5758d4340843e4ea`;
+- shared route control rev 0040 / commit `4fbd0c2aef92ae2362376fbcaed624e5d4e8f074`.
+
+Editor, Authority, Licensing and FND-05 remain queued/waiting. FND-07 remains the only normal DEV still authorized to continue its bounded correction independently.

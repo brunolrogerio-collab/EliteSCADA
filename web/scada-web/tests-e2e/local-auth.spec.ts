@@ -139,8 +139,8 @@ test('secure first-run creates the initial local Administrator, first project an
       return { status: response.status, body: await response.json() };
     });
     expect(securityRoles.status).toBe(200);
-    expect(securityRoles.body).toHaveLength(2);
-    expect(securityRoles.body.map((role: { key: string }) => role.key).sort()).toEqual(['developer', 'operator']);
+    expect(securityRoles.body).toHaveLength(1);
+    expect(securityRoles.body.map((role: { key: string }) => role.key)).toEqual(['developer']);
 
     // The descriptor does not expose every canonical collection, so assert the
     // actual package that persistence/import/export use as the source of truth.

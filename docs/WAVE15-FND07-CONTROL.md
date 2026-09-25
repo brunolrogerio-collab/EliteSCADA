@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd07-control`
 
-`MAIN_ORDER_REV: 0006`
+`MAIN_ORDER_REV: 0007`
 
 `STATE: DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
 
@@ -292,3 +292,30 @@ Required bounded correction:
 5. return a new exact candidate and natural T1.
 
 Do not rerun `36072685058` unchanged. No CODEX, merge or freeze authority exists yet.
+
+
+## 10. Fresh-install Authority reference follow-up — rev 0007
+
+Exact head:
+- `3f90cc6d62d1ea9df0101e228cd28332d422fa08`;
+- tree `845cb62238246f4d525d8e78e8f662e2d196b9e7`;
+- T1 `36079596118`: FAILURE only in focused Chromium.
+
+The clean bootstrap Engineering role assertion is now correct. Remaining stale fixture assertion:
+- `authorityPolicyReference.roleIds` expects historical cardinality 2;
+- clean bootstrap returns exactly one role ID `46000000-0000-0000-0000-000000000002`, consistent with the single developer bootstrap role.
+
+`ORDER_ID: FND07-DEV-FRESH-INSTALL-NO-DEMO-E2E-01`
+
+`ORDER_STATE: DEV_CORRECTION / AUTHORIZED`
+
+`CORRECTION_BASE_HEAD: 3f90cc6d62d1ea9df0101e228cd28332d422fa08`
+
+Required bounded delta:
+1. remove the historical cardinality-2 expectation;
+2. assert the Authority reference contains the actual bootstrap developer identity;
+3. preserve empty project `securityRoles`;
+4. do not seed operator/Demo state;
+5. return a new candidate and natural T1.
+
+No product mutation, CODEX route, merge or freeze is authorized by this failure.

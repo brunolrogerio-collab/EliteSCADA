@@ -1338,3 +1338,28 @@ Main test audit already closed several legacy/harness defects and one hidden pro
 - root cause of `Activated=false` is not yet diagnosed at coordinator handoff.
 
 CODEX is currently unavailable to the Product Owner and must remain idle. When capacity returns, do not resume rev 0048 or self-select Authority/Licensing. The next Main Coordinator must first revalidate PR #348 live, diagnose the exact-head 422, and publish a new explicit route if CODEX is still needed.
+## CURRENT SHARED CODEX ROUTE — rev 0050
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FND07-FIXTURE-CORRECTION-HOLD-35`
+
+`ORDER_STATE: PAUSED / CODEX_UNAVAILABLE / FND07_DEV_FIXTURE_CORRECTION_ACTIVE`
+
+The exact-head FND-07 activation 422 has now been diagnosed by Main.
+
+Current classification:
+`FND07_TEST_FIXTURE_SOURCE_INCOMPATIBILITY / BUILTIN_SIMULATION_NOT_ACTIVE_RUNTIME_SOURCE`.
+
+Binding FND-07 DEV order:
+- control branch: `coord/w15-fnd07-control`;
+- file: `docs/WAVE15-FND07-CONTROL.md`;
+- control rev: 0023;
+- control commit: `e7964661e06ce70f3cca20659a3bd7d05a79065b`;
+- order: `FND07-DEV-ACTIVE-RUNTIME-FIXTURE-SOURCE-11`;
+- state: `DEV_CORRECTION / AUTHORIZED / TEST_HARNESS_ONLY`.
+
+CODEX remains unavailable and must stay idle.
+Do not resume rev 0048 or any older FND-07 route.
+Do not self-select Authority or Licensing.
+
+When CODEX capacity returns, Main must first revalidate the corrected FND-07 exact head and then publish a new explicit route. No implicit continuation is authorized.
+

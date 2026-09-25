@@ -1251,7 +1251,7 @@ Do not self-select Authority or Licensing after FND-07.
 Authoritative updated lane control:
 - branch: `coord/w15-fnd07-control`;
 - file: `docs/WAVE15-FND07-CONTROL.md`;
-- control commit: `PLACEHOLDER_FND07_CONTROL`.
+- control commit: `2a9b44ce9c20ef620b9c8c2088babd31917df0e4`.
 
 The exact-head T1 `36088026405` on `a8fcfe8c855a692670e9c74a95f4450caf612b2f` failed only because the explicit downstream test fixture was saved but not published/activated.
 

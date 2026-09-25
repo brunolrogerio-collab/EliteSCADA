@@ -13,12 +13,12 @@ public static class AuditApi
 {
     public const string NextCursorHeader = "X-EliteSCADA-Audit-Next-Cursor";
 
-    public static void AddConfiguredAudit(this WebApplicationBuilder builder)
+    public static bool AddConfiguredAudit(this WebApplicationBuilder builder)
     {
         var authenticationEnabled = builder.Configuration
             .GetSection("Authentication")
             .GetValue<bool>("Enabled");
-        builder.AddLocalIdentity(authenticationEnabled);
+        var localIdentityEnabled = builder.AddLocalIdentity(authenticationEnabled);
 
         var queryPolicy = new AuditQueryPolicy(
             builder.Configuration.GetValue<int?>("Audit:Query:MaximumPageSize") ?? 1000);
@@ -75,6 +75,7 @@ public static class AuditApi
             builder.Services.AddHostedService<AuditRetentionHostedService>();
 
         builder.Services.TryAddSingleton<ApiAuditService>();
+        return localIdentityEnabled;
     }
 
     public static async Task InitializeAuditAsync(

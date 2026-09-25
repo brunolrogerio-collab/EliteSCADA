@@ -70,7 +70,6 @@ builder.Services.AddSingleton<AuthorityLifecycleBootstrapService>();
 builder.Services.AddSingleton<AuthorityDetachService>();
 builder.Services.AddSingleton<AuthorityAttachService>();
 builder.Services.AddSingleton<AuthoritySwitchService>();
-builder.Services.AddSingleton<InstallationDetachService>();
 builder.Services.AddSingleton<ICommandEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Commands);
 builder.Services.AddSingleton<IScriptEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Scripts);
 builder.Services.AddSingleton<IGatewayEngineeringRegistry>(sp =>
@@ -114,7 +113,9 @@ builder.Services.AddSingleton<ApiAuthorizationService>(sp =>
         sp.GetRequiredService<IConfiguration>(),
         sp.GetRequiredService<IRuntimeSessionLeaseStore>()));
 builder.AddOptionalEngineeringPersistence();
-builder.AddConfiguredAudit();
+var localIdentityEnabled = builder.AddConfiguredAudit();
+if (localIdentityEnabled)
+    builder.Services.AddSingleton<InstallationDetachService>();
 builder.Services.AddOpenApi();
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
     policy
@@ -162,7 +163,7 @@ app.MapCommandEndpoints();
 app.MapInternalMemoryEndpoints();
 app.MapProductLicensingEndpoints();
 app.MapRuntimeEngineeringPackageEndpoints();
-app.MapInstallationDetachEndpoints();
+if (localIdentityEnabled) app.MapInstallationDetachEndpoints();
 app.MapRuntimeHighAvailabilityEndpoints();
 if (historicalQueryEnabled) app.MapHistoricalQueryEndpoints();
 

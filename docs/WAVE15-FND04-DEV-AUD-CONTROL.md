@@ -1434,4 +1434,23 @@ Main acceptance control:
 - commit `e24ce7098c905f95947dedd22592d92d8f20b28c`.
 
 CODEX must not mutate FND-07 further and must not self-select Authority UX or Licensing UX. Shared resource is held until Main completes the protected merge and publishes the next explicit route.
+## CURRENT SHARED CODEX ROUTE — rev 0054
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FND07-POSTMERGE-HOLD-39`
+
+`ORDER_STATE: HOLD / FND07_INTEGRATED_PENDING_POSTMERGE_CI`
+
+PR #348 has been merged.
+
+Integrated FND-07 SHA:
+`1b186c48ba5d2e3012be2c58f0efc36170101fe9`.
+
+Exact integrated CI:
+- EliteSCADA CI `36191702355`;
+- run #1576;
+- currently queued.
+
+CODEX must remain idle until Main accepts the post-merge CI and records FND-07 VERIFIED/FROZEN or explicitly returns a material failure.
+
+Do not self-select Authority UX or Licensing UX yet.
 

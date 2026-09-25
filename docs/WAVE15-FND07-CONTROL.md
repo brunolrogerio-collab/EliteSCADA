@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd07-control`
 
-`MAIN_ORDER_REV: 0010`
+`MAIN_ORDER_REV: 0011`
 
 `STATE: DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
 
@@ -400,3 +400,70 @@ Required minimal correction:
 - preserve Authority policy reference separation;
 - no production mutation;
 - run new natural exact-head T1.
+
+
+## 14. ONLY CURRENT ACTION — exact-head T1 dispatch, NO CODE CHANGES — rev 0011
+
+This section **supersedes every earlier FND-07 correction instruction as the current action**.
+
+Current exact candidate is already corrected:
+
+- PR: `#348`
+- branch: `work/w15-fnd-07-detach-neutral`
+- head: `a8fcfe8c855a692670e9c74a95f4450caf612b2f`
+- tree: `6913879ae0a1d7cf1a69da7fe8f58b1eb0dfdab3`
+- delta from prior reviewed head: exactly **1 line** in `web/scada-web/tests-e2e/local-auth.spec.ts`
+- source correction: populated Engineering Workspace `securityRoleCount` expectation changed from stale `2` to truthful `1`
+- Main source review: **ACCEPTED**
+
+### DO NOT DO
+
+DEV must **NOT**:
+- edit code;
+- amend or create another commit;
+- change product behavior;
+- rebase merely to start CI;
+- change PR metadata;
+- rerun the old failed run `36085732961`;
+- merge, route CODEX, or declare VERIFIED/FROZEN.
+
+### DO THIS NOW
+
+The automatic `pull_request/synchronize` T1 did not appear for exact head `a8fcfe8c...`.
+
+Dispatch the existing Wave 15 T1 workflow explicitly against the exact candidate branch:
+
+```bash
+gh workflow run wave15-pr.yml \
+  --repo brunolrogerio-collab/EliteSCADA \
+  --ref work/w15-fnd-07-detach-neutral \
+  -f validation_profile='INSTALLATION, AUTHORITY_CORE, SESSION_LICENSING, SCRIPT_RUNTIME, RUNTIME_RENDERER'
+```
+
+Then obtain the newly-created run and verify that its `head_sha` is exactly:
+
+`a8fcfe8c855a692670e9c74a95f4450caf612b2f`
+
+If the run head is not this SHA, stop and report the mismatch. Do not mutate source.
+
+### REQUIRED RETURN
+
+Return only after the exact-head workflow is visible, using:
+
+`FND-07 DEV -> MAIN COORDINATOR — EXACT-HEAD T1 HANDOFF`
+
+Include:
+- exact candidate SHA/tree;
+- workflow run ID;
+- event type;
+- workflow head SHA;
+- per-job status/conclusion;
+- final T1 result if already complete.
+
+If T1 is still running, return `T1_RUNNING`; do **not** make another source change.
+
+`ORDER_ID: FND07-DEV-EXACT-HEAD-T1-02`
+
+`ORDER_STATE: TEST_ONLY / DISPATCH_T1 / NO_SOURCE_MUTATION`
+
+This is the single current FND-07 DEV action.

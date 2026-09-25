@@ -5,6 +5,24 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   test.setTimeout(90_000);
   await page.goto('/');
 
+  const fixtureProjectKey = 'e2e-wave03';
+  const runtimeStateResponse = await request.get(
+    `/api/engineering/persistence/${encodeURIComponent(fixtureProjectKey)}/runtime`);
+  expect(runtimeStateResponse.ok()).toBeTruthy();
+  const runtimeState = await runtimeStateResponse.json() as {
+    consistent: boolean;
+    durable: { activeRevision: number | null };
+    live: { mode: string; projectKey: string | null; revision: number | null };
+  };
+  expect(runtimeState.consistent).toBeTruthy();
+  expect(runtimeState.live.mode).toBe('engineering');
+  expect(runtimeState.live.projectKey).toBe(fixtureProjectKey);
+  const fixtureActiveRevision = runtimeState.durable.activeRevision;
+  expect(fixtureActiveRevision).not.toBeNull();
+  if (fixtureActiveRevision === null)
+    throw new Error('The explicit E2E fixture must be Active before Runtime evidence begins.');
+  expect(runtimeState.live.revision).toBe(fixtureActiveRevision);
+
   await expect(page.getByText('SCADA Platform')).toBeVisible();
   await expect(page.getByText(/ONLINE · 7 TAGs/)).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('Reservatório TK01')).toBeVisible();
@@ -173,7 +191,8 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(tagsPreview.errorCount).toBe(0);
   expect(tagsPreview.canApply).toBeTruthy();
 
-  const projectPackageResponse = await request.get('/api/project-package/export?projectKey=demo&projectName=Demo%20Project');
+  const projectPackageResponse = await request.get(
+    `/api/project-package/export?projectKey=${encodeURIComponent(fixtureProjectKey)}&projectName=${encodeURIComponent('E2E Explicit Fixture')}`);
   expect(projectPackageResponse.ok()).toBeTruthy();
   expect(projectPackageResponse.headers()['content-type']).toContain('application/vnd.elitescada.project-package');
   const projectPackage = await projectPackageResponse.body();
@@ -197,8 +216,8 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   };
   expect(projectInspect.manifest.format).toBe('elitescada.project-package');
   expect(projectInspect.manifest.formatVersion).toBe(3);
-  expect(projectInspect.manifest.projectKey).toBe('demo');
-  expect(projectInspect.manifest.projectName).toBe('Demo Project');
+  expect(projectInspect.manifest.projectKey).toBe(fixtureProjectKey);
+  expect(projectInspect.manifest.projectName).toBe('E2E Explicit Fixture');
   expect(projectInspect.manifest.engineeringSchemaVersion).toBe(engineering.schemaVersion);
   expect(projectInspect.manifest.files).toHaveLength(1);
   expect(projectInspect.manifest.files[0].path).toBe('engineering.json');
@@ -293,11 +312,31 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
     await expect(page.getByText(/ONLINE · 7 TAGs/)).toBeVisible();
   } finally {
     if (workspaceMutationApplied) {
-      const restoreResponse = await request.post('/api/engineering/import/json/apply', {
-        data: engineeringText,
-        headers: { 'content-type': 'application/json; charset=utf-8' }
-      });
+      // Restore the persisted Active revision instead of merely re-applying JSON.
+      // This leaves Working clean and prevents state leakage into later specs/retries.
+      const restoreResponse = await request.post(
+        `/api/engineering/persistence/${encodeURIComponent(fixtureProjectKey)}/revisions/${fixtureActiveRevision}/checkout`);
       expect(restoreResponse.ok()).toBeTruthy();
+      const restored = await restoreResponse.json() as {
+        checkedOut: boolean;
+        workspace: { isDirty: boolean; baseRevision: number | null; tagCount: number };
+      };
+      expect(restored.checkedOut).toBeTruthy();
+      expect(restored.workspace.isDirty).toBeFalsy();
+      expect(restored.workspace.baseRevision).toBe(fixtureActiveRevision);
+      expect(restored.workspace.tagCount).toBe(7);
+
+      const runtimeAfterRestoreResponse = await request.get(
+        `/api/engineering/persistence/${encodeURIComponent(fixtureProjectKey)}/runtime`);
+      expect(runtimeAfterRestoreResponse.ok()).toBeTruthy();
+      const runtimeAfterRestore = await runtimeAfterRestoreResponse.json() as {
+        consistent: boolean;
+        durable: { activeRevision: number | null };
+        live: { revision: number | null };
+      };
+      expect(runtimeAfterRestore.consistent).toBeTruthy();
+      expect(runtimeAfterRestore.durable.activeRevision).toBe(fixtureActiveRevision);
+      expect(runtimeAfterRestore.live.revision).toBe(fixtureActiveRevision);
     }
   }
 });

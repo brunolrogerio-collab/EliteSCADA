@@ -371,10 +371,16 @@ test('secure first-run creates the initial local Administrator, first project an
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ activatedBy: 'local-auth-e2e' })
         });
-      return { status: response.status, body: await response.json() };
+      const text = await response.text();
+      let body: any = null;
+      if (text) {
+        try { body = JSON.parse(text); }
+        catch { body = { raw: text }; }
+      }
+      return { status: response.status, body };
     }, projectKey);
     expect(fixtureActivate.status).toBe(200);
-    expect(fixtureActivate.body.activated).toBe(true);
+    expect(fixtureActivate.body?.activated).toBe(true);
 
     const activeFixtureRuntime = await page.evaluate(async currentProjectKey => {
       const response = await fetch(`/api/engineering/persistence/${encodeURIComponent(currentProjectKey)}/runtime`);

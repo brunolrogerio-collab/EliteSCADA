@@ -221,7 +221,13 @@ public sealed class EngineeringWorkspaceCheckoutServiceTests
 
         Assert.NotNull(outcome);
         Assert.False(outcome!.CheckedOut);
-        Assert.False(outcome.Preview.CanApply);
+        // The structural preview is intentionally isolated from live Authority state.
+        // Fail-closed Authority binding is enforced by the live Apply step.
+        Assert.True(outcome.Preview.CanApply);
+        Assert.NotNull(outcome.ApplyResult);
+        Assert.Contains(
+            outcome.ApplyResult!.Issues,
+            issue => issue.IsError && issue.Code == "SECURITY_AUTHORITY_POLICY_REFERENCE_MISMATCH");
         Assert.Null(workspace.Describe().ProjectKey);
     }
 

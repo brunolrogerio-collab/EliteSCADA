@@ -382,7 +382,7 @@ public static class EngineeringPersistenceApi
             string projectKey,
             EngineeringActivateRequest request,
             HttpContext context,
-            CancellationToken cancellationToken) => ActivatePublishedAsync(
+            CancellationToken cancellationToken) => await ActivatePublishedAsync(
                 projectKey,
                 request,
                 ResolveConfiguredProjectKey(context),

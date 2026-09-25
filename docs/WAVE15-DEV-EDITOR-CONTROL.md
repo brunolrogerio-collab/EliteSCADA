@@ -3,7 +3,7 @@
 > GitHub live is the sole authority.
 
 `LANE: DEV-EDITOR`
-`MAIN_ORDER_REV: 0005`
+`MAIN_ORDER_REV: 0006`
 `ORDER_ID: DEV-EDITOR-FC0A-01`
 `ORDER_STATE: INTEGRATED_PENDING_T2 / DEV_WAIT`
 `PLANNED_BRANCH: work/w15-dev-editor-single-canvas`
@@ -193,3 +193,27 @@ Disposition:
 `DEV-EDITOR -> INTEGRATED_PENDING_T2 / DEV_WAIT`.
 
 No broader T2 verification is claimed yet.
+
+
+## Independent Main cumulative audit — rev 0006
+
+Audited final merged lane:
+- PR #349;
+- final head `06eed31d99ddb34d99e0287e96e38bed3bf7dab5`;
+- stale post-merge surface-contract assertion was already isolated/fixed test-only in PR #351;
+- current product state remains `INTEGRATED_PENDING_T2`.
+
+Audit domains:
+- single primary authoring surface;
+- canonical renderer remains projection authority;
+- transparent interaction/adornment layer has no persistence/process authority;
+- transient move/resize/rotate/polygon projection reuses canonical mutation model;
+- Screen/Popup use the same canvas path;
+- Popup logical authored bounds and parameterized background dimensions;
+- Property Inspector filtering/collapse;
+- design-mode process-effect prohibition.
+
+Finding:
+`NO_NEW_BLOCKER_OR_MAJOR`.
+
+The lane remains integrated pending broad T2. No DEV reopen is authorized by this audit.

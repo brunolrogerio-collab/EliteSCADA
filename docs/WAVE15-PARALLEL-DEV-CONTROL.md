@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-parallel-dev-control`
 
-`MAIN_ORDER_REV: 0023`
+`MAIN_ORDER_REV: 0024`
 
 `STATE: POST_FC0A_PARALLEL_EXECUTION / MIXED_REVIEW_VALIDATION_CORRECTION`
 
@@ -1346,3 +1346,33 @@ State:
 Dedicated control rev 0006.
 
 Shared CODEX remains reserved/paused for the Main-owned FND-07 reconciliation/validation path; Licensing must not preempt it.
+
+
+## 37. FND-07 Main reconciliation complete / final CODEX active
+
+Main reconciled FND-07 against current integration using an explicit two-parent merge commit:
+
+- exact head `2bacddbc558bba0dd1a316d98b9895fbb847683c`;
+- tree `06ddb27f8f50c495653c1b8e57a2142769ca29e0`;
+- parent 1: integration `9895a01a662851505198b965fae2335e55fba6fa`;
+- parent 2: audited FND-07 DEV candidate `0189b7f79bf9772c1cf7ece8f4774ba9ea207f6b`;
+- PR #348 is mergeable.
+
+Hotspot resolution preserves both:
+- frozen FND-05 HA industrial authority;
+- FND-07 installation Neutral/Detach authority.
+
+Main also closed one reconciliation finding:
+`FND07-AUD-NEUTRAL-RUNTIME-METADATA-07`.
+Neutral now hides stale Operational Event / Client Memory / Driver / Server Memory metadata, with a focused regression.
+
+Natural exact-head T1:
+`36093062819` — active on the reconciled SHA.
+
+Sequential CODEX route:
+`ROUTE-SEQUENTIAL-CODEX-TO-FND07-RECONCILED-33`
+
+Expected order:
+`FND07-CODEX-RECONCILED-ADVERSARIAL-09`
+
+FND-07 DEV remains WAIT. Authority and Licensing remain queued behind this Foundation closeout.

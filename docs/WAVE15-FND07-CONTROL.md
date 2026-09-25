@@ -4,7 +4,7 @@
 
 `CONTROL_BRANCH: coord/w15-fnd07-control`
 
-`MAIN_ORDER_REV: 0013`
+`MAIN_ORDER_REV: 0014`
 
 `STATE: DEV_CORRECTION / FRESH_INSTALL_NO_DEMO_TEST_CONTRACT`
 
@@ -546,3 +546,57 @@ CODEX must:
 
 Return:
 `FND-07 CODEX -> MAIN COORDINATOR — EXACT-HEAD VALIDATION HANDOFF`.
+
+
+## 17. CODEX exact-head T1 diagnosis — populate fixture must publish + activate — rev 0014
+
+Exact candidate tested:
+- PR #348;
+- head `a8fcfe8c855a692670e9c74a95f4450caf612b2f`;
+- tree `6913879ae0a1d7cf1a69da7fe8f58b1eb0dfdab3`;
+- exact workflow-dispatch T1: `36088026405`;
+- workflow head SHA: exact match;
+- classifier: SUCCESS;
+- Common sanity: SUCCESS;
+- Web semantic build: SUCCESS;
+- focused .NET: SUCCESS;
+- focused Chromium: FAILURE;
+- final T1 gate: FAILURE.
+
+Deterministic Chromium failure:
+- `tests-e2e/runtime.spec.ts` times out waiting for `ONLINE · 7 TAGs`;
+- the preceding local-auth fixture has already imported the 7-TAG Engineering package and saved a revision;
+- it does **not** publish that saved revision nor activate the published revision;
+- therefore the fixture populates Working/Engineering state but does not make it the Active Runtime authority.
+
+Canonical lifecycle API already provides:
+- `POST /api/engineering/persistence/{projectKey}/revisions/{revision}/publish`;
+- `POST /api/engineering/persistence/{projectKey}/published/activate`.
+
+Classification:
+`TEST_HARNESS_LIFECYCLE_GAP / ACTIVE_NOT_UPDATED / PRODUCT_SEMANTIC_CORRECT`.
+
+`ORDER_ID: FND07-CODEX-EXACT-HEAD-T1-VALIDATION-04`
+
+`ORDER_STATE: CODEX_BOUNDED_TEST_FIX / ACTIVE_SHARED_ROUTE`
+
+CODEX is authorized to make a bounded **test-only** correction on PR #348:
+1. preserve all clean fresh-install assertions before fixture provisioning;
+2. after fixture import + save, capture the returned saved `revision`;
+3. publish that exact saved revision through the supported lifecycle endpoint;
+4. activate the published revision through the supported lifecycle endpoint;
+5. assert the publish and activate calls succeed;
+6. optionally assert runtime consistency/lifecycle reports the same active revision before downstream Runtime specs;
+7. do not change production/bootstrap/runtime authority semantics;
+8. do not introduce hidden Demo startup behavior;
+9. rerun exact-head Wave 15 T1 after the test-only commit;
+10. continue focused/adversarial FND-07 validation only after exact-head T1 is green.
+
+If this lifecycle-complete fixture still fails, return the exact failure to Main before further mutation.
+
+Current integration target advanced only by the test-only Editor closeout PR #351:
+- integration SHA `9895a01a662851505198b965fae2335e55fba6fa`;
+- tree `9f1238feafb9a2d19c6539bb99e51455cd8ccd39`.
+This target advance does not alter FND-07 product semantics.
+
+FND-07 DEV remains `WAIT_MAIN / NO_SOURCE_MUTATION`.

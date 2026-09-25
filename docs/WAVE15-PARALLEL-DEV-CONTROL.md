@@ -1376,3 +1376,23 @@ Expected order:
 `FND07-CODEX-RECONCILED-ADVERSARIAL-09`
 
 FND-07 DEV remains WAIT. Authority and Licensing remain queued behind this Foundation closeout.
+
+
+## 38. Coordinator transfer — FND-07 test-audit / CODEX unavailable
+
+Live transfer state:
+- integration: `9895a01a662851505198b965fae2335e55fba6fa`;
+- FND-07 PR #348 exact head: `3ecc4a78080685b0556402d50190e09236d6d8fa`;
+- T1 `36094394912`: classifier/Common/Web/.NET green, Chromium red;
+- remaining failure is HTTP 422 from real persisted Published -> Active activation after publish succeeds;
+- activation mapping's prior nested-Task 500 was found and corrected during Main test audit.
+
+Main also removed legacy Demo dependency from Playwright, made INSTALLATION own fresh-install browser evidence, corrected stale Authority-checkout test expectations, and made Runtime E2E require the actual persisted Active revision rather than a fallback Demo runtime.
+
+State:
+`FND-07 -> MAIN_DIAGNOSTIC / DEV_WAIT / NO_MERGE`
+
+Shared CODEX:
+`PAUSED / CODEX_UNAVAILABLE`.
+
+Authority and Licensing must not self-select the shared CODEX resource. The replacement Main Coordinator must revalidate live GitHub, diagnose the exact-head 422, and publish the next explicit route.

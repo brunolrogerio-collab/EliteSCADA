@@ -1424,4 +1424,31 @@ No open PR review threads.
 `MERGE: AUTHORIZED`
 
 FND-07 remains not VERIFIED/FROZEN until the corrected integrated SHA passes post-merge CI.
+## 33. CORRECTION MERGED / FINAL POST-MERGE CI PENDING — rev 0030
+
+`ORDER_ID: FND07-MAIN-FINAL-POSTMERGE-CI-17`
+
+`ORDER_STATE: INTEGRATED_CORRECTED / FINAL_POSTMERGE_CI_PENDING / DEV_WAIT / CODEX_WAIT`
+
+Corrective PR #352 is merged.
+
+Integrated corrected SHA:
+`e49155e4a17acb6cd35683500f4ef211eb8f6e56`.
+
+Live compare confirms:
+`wave15/corrections-integration == e49155e4a17acb6cd35683500f4ef211eb8f6e56`.
+
+Exact pre-merge correction evidence:
+- head `50a6fa477b166dd115b7d6b8152fd7d53f7e7d6a`;
+- T1 `36193282035`: SUCCESS.
+
+Final post-merge CI:
+- EliteSCADA CI `36194762603`;
+- run #1577;
+- exact integrated SHA `e49155e4a17acb6cd35683500f4ef211eb8f6e56`;
+- pending at this revision.
+
+No further FND-07 mutation is authorized unless this exact integrated CI returns a material blocker.
+
+VERIFIED/FROZEN waits only on this final post-merge gate.
 

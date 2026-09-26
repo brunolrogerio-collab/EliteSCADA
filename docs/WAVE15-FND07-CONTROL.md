@@ -2081,4 +2081,43 @@ After correction:
 - obtain exact-head T1 and hosted EliteSCADA CI green again.
 
 No merge/freeze until Main independently reviews this invariant on the new exact head.
+## 41. MAIN ATOMICITY ACCEPTANCE / MERGE AUTHORIZED — rev 0038
+
+`ORDER_ID: FND07-MAIN-ATOMICITY-ACCEPTANCE-21`
+
+`ORDER_STATE: MAIN_ACCEPTED / MERGE_AUTHORIZED / DEV_WAIT / CODEX_WAIT`
+
+Accepted exact candidate:
+- PR #353;
+- head `a0152678243e1418905994f9440e5e668aaa3c86`;
+- base `wave15/corrections-integration@e49155e4a17acb6cd35683500f4ef211eb8f6e56`.
+
+Evidence:
+- clean local Linux `linux-all`: SUCCESS;
+- full Chromium: 658/658;
+- exact-head Wave 15 T1 `36278444005` / #109: SUCCESS;
+- exact-head EliteSCADA CI `36278465853` / #1581: SUCCESS;
+- no open review threads.
+
+Main independent review of the atomicity delta accepts:
+1. an explicit Demo Run that needs a new/replacement anchor establishes the durable anchor before Active persistence;
+2. `PostgreSqlEngineeringProjectStore.RecordActivationAsync` reads the current Authority Demo anchor under `FOR SHARE` and commits the Active revision plus its exact Demo-session binding in one PostgreSQL transaction;
+3. concurrent anchor replacement requires an incompatible Authority-row lock, so the anchor cannot change between the binding read and Active commit;
+4. if Active persistence fails after a new anchor was established, the previous Active row remains bound to its previous anchor;
+5. recovery compares the Active row's `DemoStartedAtUtc` binding with current Authority anchor and rejects a mismatch fail-closed;
+6. retry after a failed Active commit reuses the already-started Demo anchor and does not extend the allowance;
+7. concurrent explicit Runs converge on one CAS anchor;
+8. automatic recovery never establishes/replaces the anchor;
+9. expected missing/mismatched/expired Demo authority remains Runtime-denied while host stays available;
+10. technical/corrupt recovery remains fatal.
+
+The remaining conservative behavior is explicit and accepted:
+- if anchor establishment succeeds but Active commit fails, Demo allowance may begin before a Runtime becomes Active;
+- this is fail-closed and does not grant extra allowance;
+- subsequent retry preserves the same start time.
+
+`MERGE: AUTHORIZED`
+
+No further branch mutation before protected merge.
+FND-07 VERIFIED/FROZEN still waits for exact integrated post-merge CI.
 

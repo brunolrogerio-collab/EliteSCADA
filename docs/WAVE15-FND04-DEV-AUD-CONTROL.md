@@ -1621,4 +1621,28 @@ Do not ask Main for preferences on routine harness limitations. Diagnose and sol
 Return to Main only if the needed fix crosses into product semantics/security/licensing/HA/runtime contracts, requires weakening a gate, or cannot reproduce a material CI dependency credibly.
 
 No production mutation authority is granted.
+## CURRENT SHARED CODEX ROUTE — rev 0062
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FND07-LINUX-E2E-PARITY-47`
+
+`ORDER_STATE: ACTIVE / LINUX_CONTAINERIZED_E2E_PARITY`
+
+`EXPECTED_ORDER: FND07-CODEX-CI-FIRST-PROJECT-SMOKE-18`
+
+Authoritative FND-07 control:
+- rev 0035;
+- commit `d7f804d9da516b01f7ce7e162060be8db6da3855`.
+
+Current candidate:
+`68b22226a230cf75a40a228f5fce7cc07f226855`.
+
+Backend/full tests, Runtime smoke and Web build are locally green. Windows browser execution is classified as an environment parity gap, not product failure.
+
+CODEX must now execute Playwright 1.62.1 in a Linux container/runtime materially aligned with hosted CI, retain failure artifacts, autonomously correct test/harness-only defects, and continue until:
+- full Linux Chromium suite is green;
+- one clean full local parity `all` pass is green.
+
+Only then use hosted CI for independent confirmation.
+
+Routine Linux/container/tooling limitations remain CODEX-owned. No production mutation authority is granted.
 

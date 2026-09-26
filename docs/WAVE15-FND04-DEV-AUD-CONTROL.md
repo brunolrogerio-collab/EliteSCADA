@@ -1723,4 +1723,19 @@ Main atomicity acceptance:
 - commit `090158f8ae2b5f9259fa9d5c68d0e419e6b348b1`.
 
 CODEX must remain idle and must not self-select another lane until Main completes protected merge and post-merge verification.
+## CURRENT SHARED CODEX ROUTE — rev 0066
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FND07-FINAL-INTEGRATED-HOLD-51`
+
+`ORDER_STATE: HOLD / FND07_POSTMERGE_CI_PENDING`
+
+FND-07 final corrective PR #353 is merged.
+
+Integrated SHA:
+`3819715ba3a015a182c97b2a4ebcb4de447da717`.
+
+Post-merge EliteSCADA CI:
+`36279534882` / run #1582 — queued.
+
+CODEX remains idle. Do not self-select another lane until Main classifies this exact integrated run and publishes the next explicit route.
 

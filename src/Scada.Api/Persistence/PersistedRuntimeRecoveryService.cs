@@ -53,6 +53,8 @@ public sealed class PersistedRuntimeRecoveryService(
         "Persisted Runtime recovery is denied because the installed product license is invalid.";
     public const string DemoAnchorMissingDiagnostic =
         "Persisted Runtime recovery is denied because Demo authority has no durable start anchor.";
+    public const string DemoAnchorMismatchDiagnostic =
+        "Persisted Runtime recovery is denied because the Active revision is not bound to the current durable Demo session.";
     public async Task<PersistedRuntimeRecoveryResult> RecoverAsync(
         string projectKey,
         CancellationToken cancellationToken = default)
@@ -108,6 +110,15 @@ public sealed class PersistedRuntimeRecoveryService(
                 snapshot,
                 activation.ActiveRevision,
                 DemoAnchorMissingDiagnostic);
+        }
+
+        if (verification.State == LicenseState.Demo &&
+            activation.DemoStartedAtUtc != authority.DemoStartedAtUtc)
+        {
+            return RecoveryDenied(
+                snapshot,
+                activation.ActiveRevision,
+                DemoAnchorMismatchDiagnostic);
         }
 
         var package = ParseAndValidate(snapshot);

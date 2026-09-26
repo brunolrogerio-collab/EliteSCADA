@@ -233,6 +233,38 @@ public sealed class PersistedRuntimeRecoveryServiceTests
     }
 
     [Fact]
+    public async Task Recovery_DemoWithNewAnchor_DeniesOlderActiveRevisionAfterFailedCommit()
+    {
+        var oldAnchor = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
+        var newAnchor = oldAnchor.AddHours(6);
+        var snapshot = CreateSnapshot(1, CreateSimplePackage(0));
+        var store = new RecoveryStore(snapshot, snapshot, oldAnchor);
+        var exchangeBus = new InMemoryScadaEventBus();
+        using var exchangeAlarms = new InMemoryAlarmEngine(exchangeBus);
+        var exchange = new EngineeringExchangeService(new InMemoryTagRegistry(), exchangeAlarms);
+        var persistence = new EngineeringProjectPersistenceService(exchange, store);
+        var runtimeBus = new InMemoryScadaEventBus();
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            runtimeBus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2));
+        var licensing = new TestProductLicenseService(LicenseVerificationResult.Demo());
+        await using var authorityStore = new InMemoryRuntimeSessionLeaseStore();
+        await SeedDemoAuthorityAsync(authorityStore, oldAnchor);
+        await authorityStore.EstablishDemoSessionAnchorAsync(newAnchor, oldAnchor);
+        var recovery = new PersistedRuntimeRecoveryService(
+            persistence, exchange, runtime, licensing, authorityStore);
+
+        var result = await recovery.RecoverAsync("plant-a");
+
+        Assert.True(result.Found);
+        Assert.False(result.Recovered);
+        Assert.Null(runtime.Describe().Revision);
+        Assert.Equal(newAnchor, (await authorityStore.GetAuthorityStateAsync()).DemoStartedAtUtc);
+        Assert.Contains(result.Runtime!.RuntimeIssues, issue =>
+            issue.Code == PersistedRuntimeRecoveryService.RecoveryDeniedIssueCode &&
+            issue.Message == PersistedRuntimeRecoveryService.DemoAnchorMismatchDiagnostic);
+    }
+
+    [Fact]
     public async Task Recovery_DemoWithAuthorityAnchor_UsesNormalPathAndPreservesRemainingWindow()
     {
         var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
@@ -241,7 +273,7 @@ public sealed class PersistedRuntimeRecoveryServiceTests
         var persistedLock = new EngineeringLockSecretService().Configure("persisted-demo-lock", locked: true);
         var package = CreateServerMemoryPackage() with { EngineeringLock = persistedLock };
         var snapshot = CreateSnapshot(1, package);
-        var store = new RecoveryStore(snapshot, snapshot);
+        var store = new RecoveryStore(snapshot, snapshot, anchor);
 
         var exchangeBus = new InMemoryScadaEventBus();
         using var exchangeAlarms = new InMemoryAlarmEngine(exchangeBus);
@@ -296,7 +328,7 @@ public sealed class PersistedRuntimeRecoveryServiceTests
         var time = new RecordingTimeProvider(now);
         var package = CreateSimplePackage(0);
         var snapshot = CreateSnapshot(1, package);
-        var store = new RecoveryStore(snapshot, snapshot);
+        var store = new RecoveryStore(snapshot, snapshot, expiredAnchor);
 
         var exchangeBus = new InMemoryScadaEventBus();
         using var exchangeAlarms = new InMemoryAlarmEngine(exchangeBus);
@@ -572,7 +604,8 @@ public sealed class PersistedRuntimeRecoveryServiceTests
 
     private sealed class RecoveryStore(
         EngineeringProjectSnapshot activeSnapshot,
-        EngineeringProjectSnapshot publishedSnapshot) : IEngineeringProjectStore
+        EngineeringProjectSnapshot publishedSnapshot,
+        DateTimeOffset? demoStartedAtUtc = null) : IEngineeringProjectStore
     {
         private readonly EngineeringProjectSnapshot[] _snapshots =
             [activeSnapshot, publishedSnapshot];
@@ -580,7 +613,8 @@ public sealed class PersistedRuntimeRecoveryServiceTests
             activeSnapshot.ProjectKey,
             activeSnapshot.Revision,
             DateTimeOffset.UtcNow,
-            "operator");
+            "operator",
+            demoStartedAtUtc);
         private readonly EngineeringProjectPublication _publication = new(
             publishedSnapshot.ProjectKey,
             publishedSnapshot.Revision,

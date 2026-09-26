@@ -514,12 +514,15 @@ public sealed class ProductLicensedRuntimeCoordinator :
                     requiresExplicitDemoAnchor
                         ? async (context, ct) =>
                         {
-                            await commitAsync(context, ct);
                             var anchor = await _authorityStore!.EstablishDemoSessionAnchorAsync(
                                 context.ActivatedAtUtc,
                                 durableDemoStartedAtUtc,
                                 ct);
                             durableDemoStartedAtUtc = anchor.DemoStartedAtUtc;
+                            // The durable Active revision must never precede its Demo
+                            // authority. A failed commit leaves a conservative anchor;
+                            // recovery rejects an older Active bound to another session.
+                            await commitAsync(context, ct);
                         }
                         : commitAsync,
                     cancellationToken);

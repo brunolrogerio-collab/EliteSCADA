@@ -1621,4 +1621,21 @@ CODEX is active on:
 `FND07-CODEX-DEMO-RECOVERY-ATOMICITY-20`.
 
 Merge/freeze remain blocked until the new exact head proves no durable Active can become visible without the required Demo anchor.
+## 50. FND-07 Demo activation atomicity accepted / merge authorized
+
+PR #353 exact head:
+`a0152678243e1418905994f9440e5e668aaa3c86`.
+
+Main independent review accepts the final durable invariant:
+- new/replacement Demo anchor is established before Active persistence;
+- Active revision stores its exact Demo-session binding transactionally;
+- Authority-row locking prevents anchor replacement during Active binding commit;
+- failed Active commit leaves the previous Active bound to its previous anchor;
+- recovery rejects binding mismatch fail-closed;
+- retry cannot extend Demo allowance.
+
+Exact-head local Linux parity, T1 #109 and EliteSCADA CI #1581 are green.
+
+State:
+`FND-07 -> MAIN_ACCEPTED / MERGE_AUTHORIZED / POSTMERGE_PENDING`.
 

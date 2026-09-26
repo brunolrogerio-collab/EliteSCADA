@@ -2152,4 +2152,44 @@ Post-merge exact integrated CI:
 No further FND-07 mutation is authorized.
 
 FND-07 VERIFIED/FROZEN waits only on classification of this exact integrated post-merge CI.
+## 43. FND-07 VERIFIED / FROZEN — rev 0040
+
+`ORDER_ID: FND07-MAIN-VERIFIED-FROZEN-23`
+
+`ORDER_STATE: VERIFIED / FROZEN / NO_FURTHER_MUTATION`
+
+Final integrated SHA:
+`3819715ba3a015a182c97b2a4ebcb4de447da717`.
+
+GitHub live verification:
+- `wave15/corrections-integration` is exactly the integrated SHA;
+- PR #353: MERGED;
+- final post-merge EliteSCADA CI `36279534882` / #1582: SUCCESS;
+- Web build: SUCCESS;
+- Backend build/test/smoke: SUCCESS;
+- Chromium end-to-end: SUCCESS.
+
+Accepted pre-merge evidence remains:
+- local Linux `linux-all`: SUCCESS;
+- Chromium 658/658;
+- exact-head T1 `36278444005`: SUCCESS;
+- exact-head full CI `36278465853`: SUCCESS;
+- Main atomicity review: ACCEPTED.
+
+Final disposition:
+`FND-07 = VERIFIED / FROZEN`.
+
+Frozen contracts include:
+- fresh-install Neutral / first Administrator / first Project / no hidden Demo;
+- durable installation Attach/Detach/restart recovery;
+- FND-05 HA authority fence reconciliation;
+- persisted Active Runtime recovery;
+- canonical Authority reference integrity;
+- Demo session durable anchor/restart/expiry semantics;
+- Active-revision <-> Demo-anchor binding fail-closed behavior;
+- expected authority/entitlement recovery denial keeps host available;
+- technical/corrupt recovery remains fatal;
+- reusable local CI parity harness and current hosted-CI parity.
+
+No DEV or CODEX mutation may reopen FND-07 without a new Main-classified exact-head defect.
 

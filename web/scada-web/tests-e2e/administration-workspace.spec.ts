@@ -93,3 +93,55 @@ test('Administration keeps localized major states in pt-BR, en and es', async ({
     await expect(admin.getByText(expected.search, { exact: true })).toBeVisible();
   }
 });
+
+
+test('Authority administration keeps applied role keys stable and new draft role keys editable', async ({ page }) => {
+  test.setTimeout(60_000);
+
+  await page.goto('/engineering');
+  await page.locator('#engineering-locale').selectOption('en');
+  await page.locator('.eng-nav button').filter({ hasText: 'Security' }).click();
+
+  const fixture = await page.evaluate(async () => {
+    const [usersResponse, policyResponse] = await Promise.all([
+      fetch('/api/auth/users'),
+      fetch('/api/auth/authority-policy')
+    ]);
+    if (!usersResponse.ok || !policyResponse.ok) {
+      throw new Error(`Authority fixture unavailable: users=${usersResponse.status}, policy=${policyResponse.status}`);
+    }
+
+    const users = await usersResponse.json() as Array<{ username: string; roles: string[] }>;
+    const policy = await policyResponse.json() as { roles: Array<{ key: string }> };
+    const known = new Set(policy.roles.map(role => role.key.toLowerCase()));
+    for (const user of users) {
+      const roleKey = user.roles.find(role => known.has(role.toLowerCase()));
+      if (roleKey) return { username: user.username, roleKey };
+    }
+
+    throw new Error('No persisted local-user role assignment was available for the stable-key regression.');
+  });
+
+  const authority = page.getByTestId('authority-policy-administration');
+  await expect(authority).toBeVisible();
+
+  const baselineRole = authority.locator('.authority-role-item').filter({ hasText: fixture.roleKey }).first();
+  await expect(baselineRole).toBeVisible();
+  await baselineRole.click();
+
+  const roleKey = authority.getByTestId('authority-role-key');
+  expect(await roleKey.isEditable()).toBeFalsy();
+  await expect(roleKey).toHaveValue(fixture.roleKey);
+  await expect(authority.getByTestId('authority-role-key-note')).toContainText('persisted assignments');
+  await expect(authority.locator('.authority-assignment-summary')).toContainText(fixture.username);
+
+  await authority.getByRole('button', { name: 'New role' }).click();
+  expect(await roleKey.isEditable()).toBeTruthy();
+
+  const draftKey = `mounted-draft-${Date.now()}`;
+  await roleKey.fill(draftKey);
+  await expect(roleKey).toHaveValue(draftKey);
+  await expect(authority.getByTestId('authority-role-key-note')).toContainText('has not been applied yet');
+
+  await authority.getByRole('button', { name: 'Discard draft' }).click();
+});

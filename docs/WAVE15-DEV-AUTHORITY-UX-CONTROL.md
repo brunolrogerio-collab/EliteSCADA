@@ -303,3 +303,41 @@ State remains:
 `MAIN_ACCEPTED_FOR_CODEX / QUEUED / DEV_WAIT`.
 
 The earlier CODEX adversarial obligations remain mandatory before merge; this audit does not replace them.
+## CURRENT MAIN ORDER — rev 0007
+
+`ORDER_ID: DEV-AUTHORITY-UX-INTEGRATION-RECONCILE-05`
+
+`ORDER_STATE: DEV_RECONCILIATION / AUTHORIZED`
+
+PR:
+- #346;
+- current head `d96e685daf7ddb190cefc67c6ba975d71a779a52`;
+- prior exact-head T1 `36076143618`: SUCCESS;
+- prior state `MAIN_ACCEPTED_FOR_CODEX / QUEUED`.
+
+Current live integration:
+`wave15/corrections-integration@3819715ba3a015a182c97b2a4ebcb4de447da717`.
+
+GitHub now reports PR #346 `mergeable=false` after the Foundation integration sequence.
+
+Main diff audit:
+- Authority lane owns 7 Web Authority/UserAdministration files;
+- integration advanced 121 commits from the old shared baseline;
+- **no Authority-owned file overlaps the integration-changed file set**.
+
+Therefore this is classified as:
+`STALE_BRANCH_INTEGRATION_RECONCILIATION / NO_KNOWN_FUNCTIONAL_OVERLAP`.
+
+DEV-AUTHORITY-UX is authorized to:
+1. reconcile/rebase its branch onto exact integration SHA `3819715ba3a015a182c97b2a4ebcb4de447da717`;
+2. preserve the previously Main-accepted Authority UX delta exactly unless compilation/test adaptation is mechanically required by the new baseline;
+3. do not redesign Authority semantics;
+4. do not absorb Licensing/FND-05/FND-07 behavior;
+5. resolve only mechanical ancestry/build/test effects from the new integration;
+6. run a new natural exact-head Wave 15 T1;
+7. return durable handoff on PR #346 with exact SHA/tree, ancestry/reconciliation summary and T1.
+
+If the new baseline exposes a material semantic conflict, stop that semantic change and return the exact evidence to Main.
+
+After reconciliation, DEV must WAIT. CODEX adversarial validation remains mandatory before merge.
+

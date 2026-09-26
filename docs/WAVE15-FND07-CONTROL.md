@@ -2120,4 +2120,36 @@ The remaining conservative behavior is explicit and accepted:
 
 No further branch mutation before protected merge.
 FND-07 VERIFIED/FROZEN still waits for exact integrated post-merge CI.
+## 42. FINAL MERGE COMPLETE / POST-MERGE CI PENDING — rev 0039
+
+`ORDER_ID: FND07-MAIN-FINAL-POSTMERGE-22`
+
+`ORDER_STATE: INTEGRATED / POSTMERGE_CI_PENDING / DEV_WAIT / CODEX_WAIT`
+
+PR #353 merged successfully.
+
+Integrated SHA:
+`3819715ba3a015a182c97b2a4ebcb4de447da717`.
+
+Live compare confirms:
+`wave15/corrections-integration == 3819715ba3a015a182c97b2a4ebcb4de447da717`.
+
+Accepted pre-merge evidence:
+- exact candidate `a0152678243e1418905994f9440e5e668aaa3c86`;
+- clean Linux `linux-all`: SUCCESS;
+- full Chromium 658/658;
+- Wave 15 T1 `36278444005`: SUCCESS;
+- EliteSCADA CI `36278465853`: SUCCESS;
+- final Main atomicity review: ACCEPTED.
+
+Post-merge exact integrated CI:
+- EliteSCADA CI `36279534882`;
+- run #1582;
+- event: push;
+- exact head `3819715ba3a015a182c97b2a4ebcb4de447da717`;
+- currently queued at this revision.
+
+No further FND-07 mutation is authorized.
+
+FND-07 VERIFIED/FROZEN waits only on classification of this exact integrated post-merge CI.
 

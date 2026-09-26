@@ -2004,4 +2004,81 @@ After the bounded product correction:
 CODEX retains creative autonomy for CI/harness infrastructure. Product autonomy is limited to the exact Demo/recovery contract above.
 
 No merge/freeze until Main reviews the exact corrected head and green evidence.
+## 40. MAIN REVIEW BLOCKER / ACTIVE REVISION + DEMO ANCHOR ATOMICITY — rev 0037
+
+`ORDER_ID: FND07-CODEX-DEMO-RECOVERY-ATOMICITY-20`
+
+`ORDER_STATE: CODEX_CORRECTION_REQUIRED / PR353_BLOCKED / NO_MERGE / NO_FREEZE`
+
+Reviewed candidate:
+- PR #353;
+- exact head `2b857f55cd85a46b0458aa16ac093412a7bf6889`;
+- base `wave15/corrections-integration@e49155e4a17acb6cd35683500f4ef211eb8f6e56`;
+- local Linux `linux-all`: GREEN;
+- full hosted CI `36276418761`: SUCCESS;
+- Wave 15 T1 `36276417516`: SUCCESS.
+
+The broad Demo/recovery semantics and CI-parity work are accepted **except for one merge-blocking durability gap**.
+
+### Blocker
+
+`GENERIC_PRODUCT_DEFECT / DEMO_ACTIVE_ANCHOR_DURABILITY_GAP`
+
+Current explicit persisted Demo activation wraps the existing activation commit callback as:
+
+1. existing `commitAsync(...)` executes;
+2. that callback records the Engineering Active revision durably through `RecordActivationAsync`;
+3. only afterward `EstablishDemoSessionAnchorAsync(...)` persists the Demo anchor.
+
+Therefore a process crash, storage failure, cancellation/fault, or anchor-CAS failure after step 2 but before step 3 can leave:
+- durable Active revision present;
+- durable Demo anchor absent/stale.
+
+That is exactly the invalid state this correction is intended to eliminate.
+
+The inner `EngineeringRuntimeCoordinator` does not provide a cross-store transaction: it merely invokes the callback before swapping the in-memory Runtime. A callback failure disposes the candidate, but it cannot roll back a previously committed Engineering activation row.
+
+### Required invariant
+
+For an explicit persisted Demo Run that needs a new/replacement anchor:
+
+> It must be impossible for the system to durably expose the new Active revision without the corresponding authoritative Demo-session anchor already being durably established for that Run/session.
+
+The solution must remain correct under process failure between durable effects.
+
+Main does **not** prescribe the implementation.
+
+CODEX may choose the cleanest bounded design, including:
+- making the anchor durable before Active commit with conservative failure semantics;
+- adding a shared atomic persistence operation/transaction where architecture permits;
+- introducing a narrowly scoped activation-intent/session state;
+- another design that proves the invariant without weakening Authority/Licensing.
+
+### Additional invariants
+
+1. automatic recovery must never mint/replace the Demo anchor;
+2. ordinary explicit reactivation with an unexpired anchor must not reset it;
+3. explicit Run after expiry may establish a fresh anchor;
+4. authority revision and license transitions must not be faked merely to obtain atomicity;
+5. a failed activation must not extend a user's Demo allowance;
+6. if conservative ordering can consume Demo time before Active commit, that behavior must be explicit, bounded, and tested; CODEX should prefer a design that avoids user-visible allowance loss when reasonably possible;
+7. concurrent explicit Runs must converge on one authoritative anchor;
+8. technical persistence failure must remain diagnosable/fail-closed.
+
+### Mandatory regression/failure-injection evidence
+
+Add tests proving at minimum:
+- simulated failure at the boundary between Demo-anchor persistence and Engineering Active persistence cannot produce `Active && no matching durable anchor`;
+- simulated Active persistence failure cannot leave an unsafe state that later recovery interprets as a valid Active Runtime;
+- concurrent explicit Demo activation remains CAS-safe;
+- restart after successful committed activation recovers using the durable anchor;
+- expired-anchor explicit Run still starts a new session correctly;
+- recovery path cannot invoke the new-anchor mutation.
+
+After correction:
+- rerun focused .NET persistence/licensing/recovery tests;
+- rerun clean Linux `linux-all`;
+- obtain exact-head T1 and hosted EliteSCADA CI green again.
+
+No merge/freeze until Main independently reviews this invariant on the new exact head.
 

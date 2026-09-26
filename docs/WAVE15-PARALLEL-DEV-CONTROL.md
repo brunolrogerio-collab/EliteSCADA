@@ -1606,4 +1606,19 @@ The correction must preserve:
 After correction, CODEX continues the full Linux parity battery to green before hosted CI.
 
 FND-07 remains NOT VERIFIED/FROZEN.
+## 49. FND-07 PR #353 blocked on durable Demo activation atomicity
+
+Candidate `2b857f55cd85a46b0458aa16ac093412a7bf6889` is green locally and in hosted CI/T1, but Main independent review found a durability gap:
+
+`RecordActivationAsync` persists the Engineering Active revision before `EstablishDemoSessionAnchorAsync` persists the required Demo-session anchor.
+
+A crash/fault between those effects can recreate `Active revision + missing anchor`.
+
+Classification:
+`GENERIC_PRODUCT_DEFECT / DEMO_ACTIVE_ANCHOR_DURABILITY_GAP`.
+
+CODEX is active on:
+`FND07-CODEX-DEMO-RECOVERY-ATOMICITY-20`.
+
+Merge/freeze remain blocked until the new exact head proves no durable Active can become visible without the required Demo anchor.
 

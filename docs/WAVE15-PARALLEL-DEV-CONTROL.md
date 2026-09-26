@@ -1564,4 +1564,22 @@ Mandatory boundary:
 
 Binding order remains:
 `FND07-CODEX-CI-FIRST-PROJECT-SMOKE-18`.
+## 47. FND-07 local parity: Windows E2E gap -> Linux container route
+
+CODEX partial head:
+`68b22226a230cf75a40a228f5fce7cc07f226855`.
+
+Locally green:
+- .NET full tests;
+- two-phase Runtime smoke;
+- Web build.
+
+Browser execution on Windows was not reliable enough to qualify as parity evidence.
+
+Classification:
+`LOCAL_PARITY_ENVIRONMENT_GAP / WINDOWS_PLAYWRIGHT_VITE_INSTABILITY`.
+
+CODEX is now required to run the full Playwright 1.62.1 suite in a repository-controlled Linux container/runtime aligned with hosted CI, then rerun one clean full parity battery before hosted CI.
+
+Production source remains out of scope.
 

@@ -1738,4 +1738,23 @@ Post-merge EliteSCADA CI:
 `36279534882` / run #1582 — queued.
 
 CODEX remains idle. Do not self-select another lane until Main classifies this exact integrated run and publishes the next explicit route.
+## CURRENT SHARED CODEX ROUTE — rev 0067
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FND07-CLOSED-FEATURE-RECONCILE-HOLD-52`
+
+`ORDER_STATE: HOLD / NO_ACTIVE_MISSION`
+
+FND-07 is now:
+`VERIFIED / FROZEN`
+at integrated SHA:
+`3819715ba3a015a182c97b2a4ebcb4de447da717`.
+
+Final integrated CI:
+`36279534882` / #1582 — SUCCESS.
+
+The shared CODEX resource is currently reported temporarily unavailable and has no active mission.
+
+Authority UX PR #346 and Licensing UX PR #345 are being returned to their own DEV lanes for mechanical reconciliation onto the new integration baseline. CODEX must not auto-resume any older route.
+
+When CODEX availability returns, Main will publish a new explicit sequential adversarial-validation route against a freshly reconciled exact head.
 

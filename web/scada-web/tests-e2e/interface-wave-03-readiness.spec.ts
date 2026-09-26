@@ -43,7 +43,7 @@ test('Wave 03 readiness: local session survives Runtime -> Engineering -> Audit 
 
     const navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
     await expect(navigation.getByRole('link', { name: /Runtime/ })).toHaveAttribute('aria-current', 'page');
-    await expect(page.getByTestId('runtime-simulation-fallback')).toBeVisible();
+    await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
     await expect(page.locator('.eng-shell')).toHaveCount(0);
     await expect(page.locator('.runtime-tag-inspector')).toHaveCount(0);
 
@@ -73,9 +73,11 @@ test('Wave 03 readiness: local session survives Runtime -> Engineering -> Audit 
 test('Wave 03 readiness: Runtime stays operational while TAG/history diagnostics live in Engineering', async ({ page, request }) => {
   await page.goto('/');
 
-  await expect(page.getByTestId('runtime-simulation-fallback')).toBeVisible();
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
   await expect(page.locator('.runtime-tag-inspector')).toHaveCount(0);
-  await expect(page.getByText(/ONLINE · 7 TAGs/)).toBeVisible({ timeout: 15_000 });
+  // The persisted explicit-Demo fixture deliberately renders the application
+  // identity and revision instead of the retired aggregate "ONLINE" counter.
+  await expect(page.getByText('E2E Explicit Demo Fixture')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText('Reservatório TK01')).toBeVisible();
 
   const tagsResponse = await request.get('/api/tags');
@@ -209,7 +211,7 @@ for (const expected of localeExpectations) {
     const runtimeNavigation = page.getByRole('navigation', { name: 'EliteSCADA' });
     await expect(page.getByText(expected.subtitle, { exact: true })).toBeVisible();
     await expect(page.locator('.app-context')).toContainText(expected.currentArea);
-    await expect(page.getByTestId('runtime-simulation-fallback')).toBeVisible();
+    await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Runtime views' }).getByRole('link', { name: expected.overview, exact: true })).toHaveAttribute('aria-current', 'page');
     await expect(page.locator('.user-session-menu')).toBeVisible();
 

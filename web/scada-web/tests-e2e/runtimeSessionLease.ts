@@ -17,13 +17,41 @@ export async function admitInteractiveRuntimeSession(request: APIRequestContext)
     throw new Error(`Runtime session admission expected 201, received ${response.status()}: ${await response.text()}`);
   }
 
-  const body = await response.json() as { sessionId?: unknown; clientInstanceId?: unknown };
+  const body = await response.json() as {
+    sessionId?: unknown;
+    clientInstanceId?: unknown;
+    grantedClass?: unknown;
+    admissionReasonCode?: unknown;
+  };
   if (typeof body.sessionId !== 'string' || body.clientInstanceId !== clientInstanceId) {
     throw new Error('Runtime session admission did not return a bound logical lease.');
+  }
+  if (body.grantedClass !== 'interactive') {
+    throw new Error(`Runtime session admission unexpectedly downscoped the test client: ${String(body.admissionReasonCode)}.`);
   }
 
   return {
     [runtimeSessionHeader]: body.sessionId,
     [runtimeClientInstanceHeader]: clientInstanceId
   };
+}
+
+/** Ends the public logical lease so independent E2E subjects do not consume a Demo seat. */
+export async function terminateRuntimeSession(
+  request: APIRequestContext,
+  headers: Record<string, string>
+): Promise<void> {
+  const sessionId = headers[runtimeSessionHeader];
+  const clientInstanceId = headers[runtimeClientInstanceHeader];
+  if (!sessionId || !clientInstanceId) {
+    throw new Error('Runtime session termination requires the admission headers.');
+  }
+
+  const response = await request.post(`/api/runtime/sessions/${sessionId}/terminate`, {
+    data: { clientInstanceId },
+    headers
+  });
+  if (response.status() !== 204) {
+    throw new Error(`Runtime session termination expected 204, received ${response.status()}: ${await response.text()}`);
+  }
 }

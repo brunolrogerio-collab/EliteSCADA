@@ -19,6 +19,13 @@ public sealed record PersistedRuntimeRecoveryResult(
     RuntimeActivationResult? Runtime)
 {
     public bool Recovered => Found && Runtime?.Activated == true;
+
+    public bool IsExpectedAuthorityDenial =>
+        Found &&
+        Runtime?.RuntimeIssues.Any(issue =>
+            issue.IsError &&
+            (issue.Code == PersistedRuntimeRecoveryService.RecoveryDeniedIssueCode ||
+             issue.Code == ProductLicensedRuntimeCoordinator.EntitlementDeniedIssueCode)) == true;
 }
 
 public interface IPersistedRuntimeRecoveryService

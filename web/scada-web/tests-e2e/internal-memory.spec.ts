@@ -35,8 +35,15 @@ test('Client Memory is isolated per opened runtime page and preserves exact Int6
   }
 
   await Promise.all([first.goto('/'), second.goto('/')]);
-  await expect(first.getByText(/2 Client Memory/)).toBeVisible();
-  await expect(second.getByText(/2 Client Memory/)).toBeVisible();
+  // Client Memory is intentionally a page-local runtime service, not Runtime
+  // chrome. Exercise the service directly so this contract does not depend on
+  // the retired aggregate status label.
+  for (const page of [first, second]) {
+    await page.evaluate(async () => {
+      const module = await import('/src/runtime/clientMemory.ts');
+      await module.clientMemory.initialize();
+    });
+  }
 
   const firstValue = await first.evaluate(async () => {
     const module = await import('/src/runtime/clientMemory.ts');

@@ -282,6 +282,67 @@ public sealed class EngineeringPersistenceStartupAndActivationTests
     }
 
     [Fact]
+    public async Task Startup_ExpectedRuntimeAuthorityRecoveryDenial_KeepsHostAvailable()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["EngineeringRuntime:ProjectKey"] = "plant-a"
+        });
+        builder.Services.AddSingleton<IPersistedRuntimeRecoveryService>(
+            new FixedRecovery(new PersistedRuntimeRecoveryResult(
+                "plant-a",
+                7,
+                true,
+                new RuntimeActivationResult(
+                    "plant-a",
+                    7,
+                    false,
+                    Array.Empty<EngineeringDriverIssue>(),
+                    [new RuntimeActivationIssue(
+                        PersistedRuntimeRecoveryService.RecoveryDeniedIssueCode,
+                        PersistedRuntimeRecoveryService.DemoAnchorMissingDiagnostic,
+                        IsError: true)]))));
+
+        await using var app = builder.Build();
+        var result = await app.RecoverConfiguredEngineeringRuntimeAsync();
+
+        Assert.NotNull(result);
+        Assert.True(result!.IsExpectedAuthorityDenial);
+        Assert.False(result.Recovered);
+    }
+
+    [Fact]
+    public async Task Startup_TechnicalRuntimeRecoveryFailure_RemainsFatal()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["EngineeringRuntime:ProjectKey"] = "plant-a"
+        });
+        builder.Services.AddSingleton<IPersistedRuntimeRecoveryService>(
+            new FixedRecovery(new PersistedRuntimeRecoveryResult(
+                "plant-a",
+                7,
+                true,
+                new RuntimeActivationResult(
+                    "plant-a",
+                    7,
+                    false,
+                    Array.Empty<EngineeringDriverIssue>(),
+                    [new RuntimeActivationIssue(
+                        "RUNTIME_CORRUPT_PAYLOAD",
+                        "fixture technical recovery failure",
+                        IsError: true)]))));
+
+        await using var app = builder.Build();
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => app.RecoverConfiguredEngineeringRuntimeAsync());
+
+        Assert.Contains("RUNTIME_CORRUPT_PAYLOAD", error.Message);
+    }
+
+    [Fact]
     public async Task StartupWithNeutralInstallationDoesNotCheckoutPersistedWorking()
     {
         var events = new List<string>();
@@ -418,6 +479,13 @@ public sealed class EngineeringPersistenceStartupAndActivationTests
                 T0.AddMinutes(3));
             return Task.FromResult(new PersistedRuntimeRecoveryResult(projectKey, 2, true, runtime));
         }
+    }
+
+    private sealed class FixedRecovery(PersistedRuntimeRecoveryResult result) : IPersistedRuntimeRecoveryService
+    {
+        public Task<PersistedRuntimeRecoveryResult> RecoverAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default) => Task.FromResult(result);
     }
 
     private sealed class RecordingActivationService(

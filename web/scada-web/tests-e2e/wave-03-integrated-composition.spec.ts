@@ -163,5 +163,5 @@ test('Wave 03 integrated composition publishes without bypassing the runtime bin
 
   const inspector = tagMonitor.locator('.runtime-tag-inspector');
   await expect(inspector).toBeVisible();
-  await expect(inspector.getByRole('listbox', { name: 'Inspector de TAGs' }).getByText('Demo.P01.Current', { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(inspector.getByRole('listbox', { name: 'Inspector de TAGs' }).getByText(runtimeTagPath, { exact: true })).toBeVisible({ timeout: 15_000 });
 });

@@ -166,7 +166,9 @@ public static class EngineeringPersistenceApi
         }
 
         var result = await recovery.RecoverAsync(projectKey, cancellationToken);
-        if (result.PersistedActiveRevision.HasValue && !result.Recovered)
+        if (result.PersistedActiveRevision.HasValue &&
+            !result.Recovered &&
+            !result.IsExpectedAuthorityDenial)
         {
             var issues = result.Runtime is null
                 ? "The persisted active engineering snapshot could not be loaded."

@@ -10,9 +10,17 @@ public sealed record RuntimeSessionRuntimeIdentity(
     long? Revision,
     DateTimeOffset? ActivatedAtUtc)
 {
+    // PostgreSQL timestamptz persists microseconds. Runtime activation is part of
+    // the durable lease identity, so compare it at that storage precision rather
+    // than treating a harmless sub-microsecond truncation as a runtime change.
+    public RuntimeSessionRuntimeIdentity NormalizeStoragePrecision() =>
+        ActivatedAtUtc is { } activatedAtUtc
+            ? this with { ActivatedAtUtc = RuntimeDemoSessionAnchor.Normalize(activatedAtUtc) }
+            : this;
+
     public bool Matches(RuntimeSessionRuntimeIdentity other) =>
         Revision == other.Revision &&
-        ActivatedAtUtc == other.ActivatedAtUtc &&
+        NormalizeStoragePrecision().ActivatedAtUtc == other.NormalizeStoragePrecision().ActivatedAtUtc &&
         string.Equals(Mode, other.Mode, StringComparison.Ordinal) &&
         string.Equals(ProjectKey, other.ProjectKey, StringComparison.OrdinalIgnoreCase);
 }
@@ -57,6 +65,27 @@ public sealed record RuntimeAuthorityTransition(
     long BaseAuthorityRevision,
     string Kind,
     DateTimeOffset StartedAtUtc);
+
+/// <summary>
+/// Result of the durable Demo-session anchor compare-and-set operation. This is
+/// deliberately independent from license authority revision changes: starting
+/// a Demo Runtime must not masquerade as a license transition.
+/// </summary>
+public sealed record RuntimeDemoSessionAnchorResult(
+    DateTimeOffset DemoStartedAtUtc,
+    bool WasEstablished);
+
+public static class RuntimeDemoSessionAnchor
+{
+    // PostgreSQL timestamptz is microsecond-precise. Normalizing at the shared
+    // boundary keeps the result of a successful CAS byte-for-byte equal to a
+    // later read, including when another process wins the next comparison.
+    public static DateTimeOffset Normalize(DateTimeOffset value)
+    {
+        var utc = value.ToUniversalTime();
+        return new DateTimeOffset(utc.Ticks - utc.Ticks % 10, TimeSpan.Zero);
+    }
+}
 
 public sealed record RuntimeSessionLeaseStoreResult(
     bool IsValid,
@@ -125,6 +154,17 @@ public interface IRuntimeSessionLeaseStore : IAsyncDisposable
     Task InitializeAsync(CancellationToken cancellationToken = default);
 
     Task<RuntimeAuthorityState> GetAuthorityStateAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Establishes or replaces the durable Demo-session start only when the
+    /// current value still matches <paramref name="expectedExistingStartedAtUtc"/>.
+    /// A concurrent writer is returned unchanged so callers can re-evaluate the
+    /// authoritative remaining allowance without resetting it.
+    /// </summary>
+    Task<RuntimeDemoSessionAnchorResult> EstablishDemoSessionAnchorAsync(
+        DateTimeOffset requestedStartedAtUtc,
+        DateTimeOffset? expectedExistingStartedAtUtc,
+        CancellationToken cancellationToken = default);
 
     Task<RuntimeAuthorityTransition> BeginAuthorityTransitionAsync(
         string kind,
@@ -212,6 +252,35 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
         finally { _gate.Release(); }
     }
 
+    public async Task<RuntimeDemoSessionAnchorResult> EstablishDemoSessionAnchorAsync(
+        DateTimeOffset requestedStartedAtUtc,
+        DateTimeOffset? expectedExistingStartedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        requestedStartedAtUtc = RuntimeDemoSessionAnchor.Normalize(requestedStartedAtUtc);
+        expectedExistingStartedAtUtc = expectedExistingStartedAtUtc is { } expectedAnchor
+            ? RuntimeDemoSessionAnchor.Normalize(expectedAnchor)
+            : null;
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_transitionPending)
+                throw new InvalidOperationException("A Runtime authority transition is pending.");
+
+            if (_demoStartedAtUtc == expectedExistingStartedAtUtc)
+            {
+                _demoStartedAtUtc = requestedStartedAtUtc;
+                return new RuntimeDemoSessionAnchorResult(requestedStartedAtUtc, WasEstablished: true);
+            }
+
+            if (_demoStartedAtUtc is { } concurrentAnchor)
+                return new RuntimeDemoSessionAnchorResult(concurrentAnchor, WasEstablished: false);
+
+            throw new InvalidOperationException("Runtime Demo session anchor changed concurrently.");
+        }
+        finally { _gate.Release(); }
+    }
+
     public async Task<RuntimeAuthorityTransition> BeginAuthorityTransitionAsync(
         string kind,
         DateTimeOffset startedAtUtc,
@@ -268,7 +337,9 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
             RequireTransitionForCommitLocked(transitionId, expectedBaseAuthorityRevision);
             _authorityRevision = checked(expectedBaseAuthorityRevision + 1);
             _authorityChangedAtUtc = authorityChangedAtUtc;
-            _demoStartedAtUtc = demoStartedAtUtc;
+            _demoStartedAtUtc = demoStartedAtUtc is { } anchor
+                ? RuntimeDemoSessionAnchor.Normalize(anchor)
+                : null;
             return AuthorityStateLocked();
         }
         finally { _gate.Release(); }

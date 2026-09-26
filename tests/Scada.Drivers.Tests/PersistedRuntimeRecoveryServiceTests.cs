@@ -289,6 +289,47 @@ public sealed class PersistedRuntimeRecoveryServiceTests
     }
 
     [Fact]
+    public async Task Recovery_DemoWithExpiredAuthorityAnchor_RemainsStoppedAsExpectedAuthorityDenial()
+    {
+        var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
+        var expiredAnchor = now - LicensingPolicy.DemoMaxContinuousRun - TimeSpan.FromMinutes(1);
+        var time = new RecordingTimeProvider(now);
+        var package = CreateSimplePackage(0);
+        var snapshot = CreateSnapshot(1, package);
+        var store = new RecoveryStore(snapshot, snapshot);
+
+        var exchangeBus = new InMemoryScadaEventBus();
+        using var exchangeAlarms = new InMemoryAlarmEngine(exchangeBus);
+        var exchange = new EngineeringExchangeService(new InMemoryTagRegistry(), exchangeAlarms);
+        var persistence = new EngineeringProjectPersistenceService(exchange, store);
+        var runtimeBus = new InMemoryScadaEventBus();
+        var licensing = new TestProductLicenseService(LicenseVerificationResult.Demo());
+        await using var authorityStore = new InMemoryRuntimeSessionLeaseStore();
+        await SeedDemoAuthorityAsync(authorityStore, expiredAnchor);
+        await using var runtime = new ProductLicensedRuntimeCoordinator(
+            new EngineeringRuntimeCoordinator(runtimeBus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)),
+            () => new EngineeringRuntimeCoordinator(runtimeBus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)),
+            licensing,
+            time,
+            authorityStore);
+        var recovery = new PersistedRuntimeRecoveryService(
+            persistence,
+            exchange,
+            runtime,
+            licensing,
+            authorityStore);
+
+        var result = await recovery.RecoverAsync("plant-a");
+
+        Assert.True(result.Found);
+        Assert.False(result.Recovered);
+        Assert.True(result.IsExpectedAuthorityDenial);
+        Assert.Null(runtime.Describe().Revision);
+        Assert.Equal(ProductRuntimeLifecycleState.DemoExpired, runtime.GetProductRuntimeStatus().State);
+        Assert.Equal(expiredAnchor, runtime.GetProductRuntimeStatus().DemoStartedAtUtc);
+    }
+
+    [Fact]
     public void EngineeringPackage_DoesNotContainRuntimeAuthorityRecoveryState()
     {
         var json = JsonSerializer.Serialize(CreateSimplePackage(1));

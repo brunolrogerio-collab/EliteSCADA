@@ -1645,4 +1645,36 @@ CODEX must now execute Playwright 1.62.1 in a Linux container/runtime materially
 Only then use hosted CI for independent confirmation.
 
 Routine Linux/container/tooling limitations remain CODEX-owned. No production mutation authority is granted.
+## CURRENT SHARED CODEX ROUTE — rev 0063
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FND07-DEMO-RECOVERY-48`
+
+`ORDER_STATE: ACTIVE / BOUNDED_PRODUCT_CORRECTION + LINUX_FULL_CI_PARITY`
+
+`EXPECTED_ORDER: FND07-CODEX-DEMO-RECOVERY-ANCHOR-19`
+
+Authoritative FND-07 control:
+- rev 0036;
+- commit `89d4f8a6b1e81ed34f7bdbbc80b8020e1c8171ef`.
+
+Current branch/head:
+- `work/w15-fnd07-postmerge-ci-first-project-smoke`;
+- published head `68b22226a230cf75a40a228f5fce7cc07f226855`.
+
+Main classification:
+1. first successful explicit Demo activation fails to persist the durable session anchor required by restart recovery;
+2. expected fail-closed product-authority recovery denials are incorrectly escalated into fatal host startup.
+
+CODEX is explicitly authorized to make the narrow product correction defined in rev 0036.
+
+Do not seed the E2E database/anchor directly and do not use fake licensing transitions or bypass recovery.
+
+Required result:
+- durable Demo session semantics correct across explicit Run, reactivation, process restart and expiry;
+- expected authority/entitlement denials keep Runtime stopped while host remains usable;
+- genuine corruption remains fatal;
+- full Linux local parity battery green;
+- then hosted CI confirmation.
+
+Harness implementation autonomy remains broad. Product changes remain bounded to the rev 0036 contract.
 

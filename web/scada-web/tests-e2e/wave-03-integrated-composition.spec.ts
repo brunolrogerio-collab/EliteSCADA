@@ -7,7 +7,7 @@ const runtimeSourceKey = 'memory.server.wave03';
 const runtimeTagPath = 'Wave03.RuntimeValue';
 
 test('Wave 03 integrated composition publishes without bypassing the runtime binding and operates through mounted product surfaces', async ({ page, request }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(150_000);
   await page.addInitScript(() => {
     window.localStorage.setItem('elitescada.engineering.locale', 'pt-BR');
   });
@@ -94,8 +94,10 @@ test('Wave 03 integrated composition publishes without bypassing the runtime bin
   await page.goto('/engineering');
 
   const lifecycle = page.locator('.eng-lifecycle-workspace');
-  await expect(lifecycle).toHaveCount(1);
-  await expect(lifecycle).toBeVisible();
+  // On a cold local Vite server, the Engineering route imports the visual
+  // editor surface before its snapshot renders. Keep this UI assertion
+  // independent of that one-time development-server compilation cost.
+  await expect(lifecycle).toBeVisible({ timeout: 45_000 });
   await expect(lifecycle.getByRole('heading', { name: 'Ciclo do Engineering' })).toBeVisible();
   await expect(lifecycle).toContainText('Wave 03 E2E');
   await expect(lifecycle).toContainText(/r\d+/);
@@ -117,29 +119,43 @@ test('Wave 03 integrated composition publishes without bypassing the runtime bin
   }, { timeout: 10_000 }).not.toBeNull();
 
   const activate = lifecycle.getByRole('button', { name: 'Ativar Published' });
-  // The standard E2E host intentionally has no EngineeringRuntime:ProjectKey.
-  // Publishing is allowed, but activation must remain blocked rather than letting
-  // a browser select the running project.
-  await expect(activate).toBeDisabled();
+  // The prerequisite creates the canonical local-auth project and the E2E host
+  // binds the runtime to that exact project. The browser may therefore request
+  // activation, while the backend remains the authority that applies it.
+  await expect(activate).toBeEnabled();
+  await activate.click();
+  const activationConfirmation = lifecycle.getByRole('dialog');
+  await expect(activationConfirmation).toContainText('Ativar a revisão Published?');
+  await activationConfirmation.getByRole('button', { name: 'Ativar Published' }).click();
+
+  await expect.poll(async () => {
+    const runtimeState = await request.get(`/api/engineering/persistence/${projectKey}/runtime`);
+    if (!runtimeState.ok()) return false;
+    const runtime = await runtimeState.json() as {
+      configuredProjectKey?: string | null;
+      durable: { publishedRevision?: number | null; activeRevision?: number | null };
+    };
+    return runtime.configuredProjectKey === projectKey &&
+      runtime.durable.publishedRevision !== null &&
+      runtime.durable.activeRevision === runtime.durable.publishedRevision;
+  }, { timeout: 10_000 }).toBe(true);
 
   const runtimeState = await request.get(`/api/engineering/persistence/${projectKey}/runtime`);
   expect(runtimeState.ok()).toBeTruthy();
-  const runtime = await runtimeState.json() as {
+  const persistedRuntime = await runtimeState.json() as {
     configuredProjectKey?: string | null;
     durable: { publishedRevision?: number | null; activeRevision?: number | null };
   };
-  expect(runtime.configuredProjectKey).toBeNull();
-  expect(runtime.durable.publishedRevision).toBeTruthy();
-  expect(runtime.durable.activeRevision).toBeNull();
+  expect(persistedRuntime.configuredProjectKey).toBe(projectKey);
+  expect(persistedRuntime.durable.activeRevision).toBe(persistedRuntime.durable.publishedRevision);
 
   const activeTagsResponse = await request.get('/api/tags');
   expect(activeTagsResponse.ok()).toBeTruthy();
   const activeTags = await activeTagsResponse.json() as Array<{ id: string; path: string }>;
-  expect(activeTags).toHaveLength(7);
-  expect(activeTags.some(tag => tag.id === runtimeTagId || tag.path === runtimeTagPath)).toBeFalsy();
+  expect(activeTags.some(tag => tag.id === runtimeTagId || tag.path === runtimeTagPath)).toBeTruthy();
 
   await page.goto('/');
-  await expect(page.getByTestId('runtime-simulation-fallback')).toBeVisible();
+  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible({ timeout: 15_000 });
 
   await page.goto('/engineering/diagnostics/tag-monitor');
   const tagMonitor = page.getByTestId('engineering-tag-monitor');

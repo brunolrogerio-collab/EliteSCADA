@@ -71,7 +71,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          trap 'status=$?; echo "RUNTIME_SMOKE_FAILURE line=${LINENO} command=${BASH_COMMAND} status=${status}"; exit "${status}"' ERR
+          trap 'status=$?; echo "RUNTIME_SMOKE_FAILURE line=${LINENO} command=${BASH_COMMAND} status=${status}"; cat /tmp/scada-api.log || true; exit "${status}"' ERR
           export ASPNETCORE_URLS=http://127.0.0.1:5080
           # Keep the runtime boot deterministic: integration tests create
           # disposable persisted projects in elitescada_test, while this
@@ -212,20 +212,56 @@ jobs:
 
           curl -fsS http://127.0.0.1:5080/api/engineering/export/json > /tmp/current-engineering.json
 
-          curl -fsS -X POST http://127.0.0.1:5080/api/engineering/persistence/ci-demo/save \
+          # First-project creation is an authority-owned operation. Switch from
+          # the anonymous Runtime fixture to a fresh secure-installation session.
+          kill "$API_PID"
+          wait "$API_PID" 2>/dev/null || true
+          export Authentication__Enabled=true
+          export Authentication__Local__Enabled=true
+          export Authentication__Local__SecureCookie=false
+          export Authentication__Jwt__Issuer=elitescada-ci
+          export Authentication__Jwt__Audience=elitescada-ci
+          export Authentication__Jwt__SigningKey=elitescada-ci-signing-key-at-least-32-bytes
+          dotnet run --project src/Scada.Api/Scada.Api.csproj --no-build --configuration Release --no-launch-profile > /tmp/scada-api.log 2>&1 &
+          API_PID=$!
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:5080/health > /tmp/secure-health.json; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:5080/api/auth/config > /tmp/auth-config.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/auth-config.json') as f:
+              config = json.load(f)
+          assert config['authenticationEnabled'] is True
+          assert config['localLoginEnabled'] is True
+          assert config['initialAdministratorRequired'] is True
+          PY
+          curl -fsS -c /tmp/scada-auth.cookie -X POST http://127.0.0.1:5080/api/auth/bootstrap \
             -H 'content-type: application/json' \
-            -d '{"projectName":"CI Demo","savedBy":"github-actions"}' > /tmp/persistence-save.json
-          REVISION=$(python3 -c 'import json; print(json.load(open("/tmp/persistence-save.json"))["revision"])')
-          echo "Saved engineering revision ${REVISION}"
+            -d '{"username":"ci-admin","displayName":"CI Administrator","password":"ci-admin-password"}' > /tmp/auth-bootstrap.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/auth-bootstrap.json') as f:
+              profile = json.load(f)
+          assert profile['username'] == 'ci-admin'
+          assert profile['identityProvider'] == 'local'
+          PY
+
+          curl -fsS -b /tmp/scada-auth.cookie -X POST http://127.0.0.1:5080/api/engineering/persistence/projects/first \
+            -H 'content-type: application/json' \
+            -d '{"projectKey":"ci-demo","projectName":"CI Demo"}' > /tmp/persistence-save.json
+          REVISION=$(python3 -c 'import json; print(json.load(open("/tmp/persistence-save.json"))["revision"]["revision"])')
+          echo "Created first engineering revision ${REVISION}"
           test "$REVISION" -ge 1
           python3 - <<'PY'
           import json
           with open('/tmp/persistence-save.json') as f:
               saved = json.load(f)
-          assert saved['basedOnRevision'] is None
+          assert saved['revision']['basedOnRevision'] is None
           PY
 
-          curl -fsS http://127.0.0.1:5080/api/engineering/workspace > /tmp/workspace-after-save.json
+          curl -fsS -b /tmp/scada-auth.cookie http://127.0.0.1:5080/api/engineering/workspace > /tmp/workspace-after-save.json
           python3 - <<'PY'
           import json
           with open('/tmp/workspace-after-save.json') as f:
@@ -233,14 +269,15 @@ jobs:
           with open('/tmp/persistence-save.json') as f:
               saved = json.load(f)
           assert workspace['projectKey'] == 'ci-demo'
-          assert workspace['baseRevision'] == saved['revision']
+          assert workspace['baseRevision'] == saved['revision']['revision']
           assert workspace['isDirty'] is False
           assert workspace['lastSavedAtUtc'] is not None
-          assert workspace['securityRoleCount'] == 0
+          assert workspace['securityRoleCount'] == 1
+          assert workspace['dynamoCount'] == 8
           assert workspace['commandCount'] == 0
           PY
 
-          curl -fsS http://127.0.0.1:5080/api/engineering/persistence/ci-demo/lifecycle > /tmp/lifecycle-draft.json
+          curl -fsS -b /tmp/scada-auth.cookie http://127.0.0.1:5080/api/engineering/persistence/ci-demo/lifecycle > /tmp/lifecycle-draft.json
           python3 - <<'PY'
           import json
           with open('/tmp/lifecycle-draft.json') as f:
@@ -250,7 +287,7 @@ jobs:
           assert lifecycle['publishedRevision'] is None
           PY
 
-          curl -fsS http://127.0.0.1:5080/api/engineering/persistence/ci-demo/revisions > /tmp/persistence-revisions.json
+          curl -fsS -b /tmp/scada-auth.cookie http://127.0.0.1:5080/api/engineering/persistence/ci-demo/revisions > /tmp/persistence-revisions.json
           python3 - <<'PY'
           import json
           with open('/tmp/persistence-revisions.json') as f:
@@ -263,7 +300,7 @@ jobs:
           assert revisions[0]['basedOnRevision'] is None
           PY
 
-          curl -fsS -X POST http://127.0.0.1:5080/api/engineering/persistence/ci-demo/latest/preview > /tmp/persistence-preview.json
+          curl -fsS -b /tmp/scada-auth.cookie -X POST http://127.0.0.1:5080/api/engineering/persistence/ci-demo/latest/preview > /tmp/persistence-preview.json
           python3 - <<'PY'
           import json
           with open('/tmp/persistence-preview.json') as f:
@@ -272,7 +309,7 @@ jobs:
           assert result['revision']['projectKey'] == 'ci-demo'
           PY
 
-          curl -fsS -X POST "http://127.0.0.1:5080/api/engineering/persistence/ci-demo/revisions/${REVISION}/publish" \
+          curl -fsS -b /tmp/scada-auth.cookie -X POST "http://127.0.0.1:5080/api/engineering/persistence/ci-demo/revisions/${REVISION}/publish" \
             -H 'content-type: application/json' \
             -d '{"publishedBy":"github-actions"}' > /tmp/persistence-publish.json
           python3 - <<'PY'
@@ -283,7 +320,7 @@ jobs:
           assert result['lifecycle']['status'] == 2
           PY
 
-          curl -fsS -X POST http://127.0.0.1:5080/api/engineering/persistence/ci-demo/save \
+          curl -fsS -b /tmp/scada-auth.cookie -X POST http://127.0.0.1:5080/api/engineering/persistence/ci-demo/save \
             -H 'content-type: application/json' \
             -d '{"projectName":"CI Demo","savedBy":"github-actions-after-publish"}' > /tmp/persistence-save-2.json
           python3 - <<'PY'
@@ -296,7 +333,7 @@ jobs:
           assert second['basedOnRevision'] == first['revision']
           PY
 
-          curl -fsS http://127.0.0.1:5080/api/engineering/workspace > /tmp/workspace-after-save-2.json
+          curl -fsS -b /tmp/scada-auth.cookie http://127.0.0.1:5080/api/engineering/workspace > /tmp/workspace-after-save-2.json
           python3 - <<'PY'
           import json
           with open('/tmp/workspace-after-save-2.json') as f:
@@ -307,7 +344,7 @@ jobs:
           assert workspace['isDirty'] is False
           PY
 
-          curl -fsS http://127.0.0.1:5080/api/engineering/persistence/ci-demo/lifecycle > /tmp/lifecycle-pending.json
+          curl -fsS -b /tmp/scada-auth.cookie http://127.0.0.1:5080/api/engineering/persistence/ci-demo/lifecycle > /tmp/lifecycle-pending.json
           python3 - <<'PY'
           import json
           with open('/tmp/lifecycle-pending.json') as f:

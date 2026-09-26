@@ -1677,4 +1677,31 @@ Required result:
 - then hosted CI confirmation.
 
 Harness implementation autonomy remains broad. Product changes remain bounded to the rev 0036 contract.
+## CURRENT SHARED CODEX ROUTE — rev 0064
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FND07-DEMO-ATOMICITY-49`
+
+`ORDER_STATE: ACTIVE / PR353_REQUEST_CHANGES / DURABILITY_ATOMICITY`
+
+`EXPECTED_ORDER: FND07-CODEX-DEMO-RECOVERY-ATOMICITY-20`
+
+Authoritative control:
+- FND-07 rev 0037;
+- commit `5d4228fefd00c2729b4827f1f5397eabf47603f1`.
+
+PR #353 head `2b857f55cd85a46b0458aa16ac093412a7bf6889` is green in local Linux parity, hosted CI and T1, but Main found one merge blocker:
+
+the Engineering Active revision is durably recorded before the new/replacement Demo anchor is durably established.
+
+CODEX must eliminate the crash/failure window so a new durable Active Runtime can never exist without the Demo-session anchor required for restart recovery.
+
+CODEX has bounded design autonomy over the persistence/activation mechanism needed to satisfy this invariant. Do not broaden into unrelated product architecture.
+
+Required before return:
+- failure-injection regression proof;
+- focused tests green;
+- clean Linux full parity green;
+- exact-head hosted CI + T1 green.
+
+Do not merge and do not self-select another lane.
 

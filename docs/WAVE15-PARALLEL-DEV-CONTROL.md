@@ -1638,4 +1638,20 @@ Exact-head local Linux parity, T1 #109 and EliteSCADA CI #1581 are green.
 
 State:
 `FND-07 -> MAIN_ACCEPTED / MERGE_AUTHORIZED / POSTMERGE_PENDING`.
+## 51. FND-07 final corrective merge complete / post-merge CI pending
+
+PR #353 is merged at:
+`3819715ba3a015a182c97b2a4ebcb4de447da717`.
+
+Integration live is exactly that SHA.
+
+Pre-merge local Linux parity, T1 #109, full CI #1581 and Main atomicity review were accepted.
+
+Final integrated CI:
+`36279534882` / #1582 — queued.
+
+State:
+`FND-07 -> INTEGRATED / POSTMERGE_CI_PENDING / NOT_YET_FROZEN`.
+
+No FND-07 or shared CODEX work is authorized until Main resolves the final integrated CI.
 

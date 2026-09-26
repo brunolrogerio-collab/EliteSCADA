@@ -15,7 +15,8 @@ export class RuntimeSessionAdmissionError extends Error {
   constructor(
     message: string,
     public readonly status?: number,
-    public readonly outcome?: RuntimeSessionAdmissionOutcome
+    public readonly outcome?: RuntimeSessionAdmissionOutcome,
+    public readonly capacityReasonCode?: string | null
   ) {
     super(message);
     this.name = 'RuntimeSessionAdmissionError';
@@ -116,9 +117,12 @@ export async function admitRuntimeSession(
 
   if (!response.ok) {
     const body = await response.text();
+    const failure = parseAdmissionFailure(body);
     throw new RuntimeSessionAdmissionError(
-      body || `${response.status} ${response.statusText}`.trim(),
-      response.status
+      failure.message || `${response.status} ${response.statusText}`.trim(),
+      response.status,
+      undefined,
+      failure.capacityReasonCode
     );
   }
 
@@ -167,6 +171,21 @@ export async function releaseRuntimeSession(
   if (response.ok) return;
   const body = await response.text();
   throw new RuntimeSessionAdmissionError(body || `${response.status} ${response.statusText}`.trim(), response.status);
+}
+
+function parseAdmissionFailure(body: string): { message: string; capacityReasonCode: string | null } {
+  if (!body.trim()) return { message: '', capacityReasonCode: null };
+  try {
+    const parsed = JSON.parse(body) as { error?: unknown; capacityReasonCode?: unknown };
+    const error = stringValue(parsed.error);
+    const capacityReasonCode = stringValue(parsed.capacityReasonCode);
+    return {
+      message: error ?? '',
+      capacityReasonCode
+    };
+  } catch {
+    return { message: body, capacityReasonCode: null };
+  }
 }
 
 function parseConnectionClass(value: unknown): RuntimeSessionConnectionClass | null {

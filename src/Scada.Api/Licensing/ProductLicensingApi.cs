@@ -7,6 +7,21 @@ namespace Scada.Api.Licensing;
 
 public sealed record ProductLicenseInstallRequest(string LicenseCode);
 
+public sealed record ProductLicenseStatusProjection(
+    string State,
+    string? Tier,
+    int? MaximumTags,
+    double? DemoMaximumContinuousMinutes,
+    string? LicenseId,
+    int? SchemaVersion,
+    DateTimeOffset? IssuedAtUtc,
+    DateTimeOffset? NotAfterUtc,
+    string? KeyId,
+    int? ViewOnlySeats,
+    int? InteractiveSeats,
+    bool? HaRuntime,
+    string? Diagnostic);
+
 public static class ProductLicensingApi
 {
     public static void MapProductLicensingEndpoints(this WebApplication app)
@@ -202,9 +217,12 @@ public static class ProductLicensingApi
         return details;
     }
 
-    private static object DescribeLicense(LicenseVerificationResult verification)
+    internal static ProductLicenseStatusProjection DescribeLicense(LicenseVerificationResult verification)
     {
+        ArgumentNullException.ThrowIfNull(verification);
+
         var license = verification.License;
+        var sessionEntitlements = verification.SessionEntitlements;
         var maximumTags = verification.State switch
         {
             LicenseState.Demo => LicensingPolicy.DemoMaxTags,
@@ -212,20 +230,22 @@ public static class ProductLicensingApi
             _ => null
         };
 
-        return new
-        {
-            state = verification.State.ToString(),
-            tier = license?.Tier.ToString(),
+        return new ProductLicenseStatusProjection(
+            verification.State.ToString(),
+            license?.Tier.ToString(),
             maximumTags,
-            demoMaximumContinuousMinutes = verification.State == LicenseState.Demo
+            verification.State == LicenseState.Demo
                 ? LicensingPolicy.DemoMaxContinuousRun.TotalMinutes
-                : (double?)null,
-            licenseId = license?.LicenseId,
-            issuedAtUtc = license?.IssuedAtUtc,
-            notAfterUtc = license?.NotAfterUtc,
-            keyId = license?.KeyId,
-            diagnostic = verification.Diagnostic
-        };
+                : null,
+            license?.LicenseId,
+            license?.SchemaVersion,
+            license?.IssuedAtUtc,
+            license?.NotAfterUtc,
+            license?.KeyId,
+            sessionEntitlements?.ViewOnlySeats,
+            sessionEntitlements?.InteractiveSeats,
+            sessionEntitlements?.HaRuntime,
+            verification.Diagnostic);
     }
 
     private static object DescribeRuntime(ProductRuntimeEntitlementStatus status) => new

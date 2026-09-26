@@ -18,6 +18,9 @@ internal static class LicenseGeneratorCli
             var request = new LicenseGenerationRequest(
                 Required(args, "--request"),
                 LicenseGenerationService.ParseTier(Required(args, "--tier")),
+                RequiredNonNegativeInt(args, "--interactive"),
+                RequiredNonNegativeInt(args, "--view-only"),
+                HasFlag(args, "--ha-runtime"),
                 Required(args, "--key"),
                 Optional(args, "--key-id") ?? ProductLicenseTrustAnchors.ProductionKeyId,
                 Optional(args, "--out") ?? "EliteSCADA.license",
@@ -28,7 +31,11 @@ internal static class LicenseGeneratorCli
             Console.WriteLine("EliteSCADA license generated successfully.");
             Console.WriteLine($"License ID : {result.LicenseId}");
             Console.WriteLine($"Machine    : {result.MachineFingerprint}");
+            Console.WriteLine($"Schema     : ESLIC{result.SchemaVersion}");
             Console.WriteLine($"Tier       : {LicensingPolicy.TierDisplayName(result.Tier)}");
+            Console.WriteLine($"Interactive: {result.InteractiveSeats}");
+            Console.WriteLine($"View Only  : {result.ViewOnlySeats}");
+            Console.WriteLine($"HA Runtime : {(result.HaRuntime ? "enabled" : "disabled")}");
             Console.WriteLine($"Key ID     : {result.KeyId}");
             Console.WriteLine($"Expires    : {(result.NotAfterUtc is null ? "never" : result.NotAfterUtc.Value.ToString("O", CultureInfo.InvariantCulture))}");
             Console.WriteLine($"Output     : {result.OutputPath}");
@@ -46,6 +53,14 @@ internal static class LicenseGeneratorCli
 
     private static string Required(string[] args, string name) =>
         Optional(args, name) ?? throw new ArgumentException($"Required argument '{name}' is missing.");
+
+    private static int RequiredNonNegativeInt(string[] args, string name)
+    {
+        var raw = Required(args, name);
+        if (!int.TryParse(raw, NumberStyles.None, CultureInfo.InvariantCulture, out var value) || value < 0)
+            throw new ArgumentException($"Argument '{name}' must be a non-negative integer.");
+        return value;
+    }
 
     private static string? Optional(string[] args, string name)
     {
@@ -66,10 +81,13 @@ internal static class LicenseGeneratorCli
         Console.WriteLine("Double-click the executable to open the graphical interface.");
         Console.WriteLine();
         Console.WriteLine("Command-line usage:");
-        Console.WriteLine("  EliteSCADA.LicenseGenerator --request <ESREQ1...> --tier <500|1000|1500|3000|5000|Unlimited> --key <private.pem> [options]");
+        Console.WriteLine("  EliteSCADA.LicenseGenerator --request <ESREQ1...> --tier <500|1000|1500|3000|5000|Unlimited> --interactive <total> --view-only <total> --key <private.pem> [options]");
         Console.WriteLine();
         Console.WriteLine("Options:");
         Console.WriteLine("  --gui                 Open the graphical interface");
+        Console.WriteLine("  --interactive <n>     Signed effective Interactive Runtime client total");
+        Console.WriteLine("  --view-only <n>       Signed effective View Only Runtime client total");
+        Console.WriteLine("  --ha-runtime          Authorize Runtime redundancy/HA on this machine");
         Console.WriteLine($"  --key-id <id>         Public verification key identifier. Default: {ProductLicenseTrustAnchors.ProductionKeyId}");
         Console.WriteLine("  --out <file>          Output license file. Default: EliteSCADA.license");
         Console.WriteLine("  --license-id <id>     Explicit license ID. Default: generated UUID");

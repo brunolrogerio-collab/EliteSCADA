@@ -1704,4 +1704,23 @@ Required before return:
 - exact-head hosted CI + T1 green.
 
 Do not merge and do not self-select another lane.
+## CURRENT SHARED CODEX ROUTE — rev 0065
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FND07-ATOMICITY-ACCEPTED-50`
+
+`ORDER_STATE: COMPLETED / MAIN_ACCEPTED / HOLD_FOR_MERGE`
+
+Accepted exact head:
+`a0152678243e1418905994f9440e5e668aaa3c86`.
+
+Exact gates:
+- T1 `36278444005`: SUCCESS;
+- EliteSCADA CI `36278465853`: SUCCESS;
+- clean Linux parity: SUCCESS.
+
+Main atomicity acceptance:
+- FND-07 rev 0038;
+- commit `090158f8ae2b5f9259fa9d5c68d0e419e6b348b1`.
+
+CODEX must remain idle and must not self-select another lane until Main completes protected merge and post-merge verification.
 

@@ -38,6 +38,40 @@ public sealed class ProductLicensingApiTests
     }
 
     [Fact]
+    public void LicenseStatusProjection_PreservesEslic1LegacyAndEslic2SignedEntitlements()
+    {
+        var issuedAt = DateTimeOffset.Parse("2026-09-24T12:00:00Z");
+        var legacyLicense = new EliteScadaLicensePayload(
+            EliteScadaLicenseCodec.CurrentSchemaVersion,
+            "legacy-license",
+            new string('a', 64),
+            LicenseTier.Tags1000,
+            issuedAt,
+            null,
+            "legacy-key");
+        var v2License = legacyLicense with
+        {
+            SchemaVersion = EliteScadaLicenseCodec.LicenseV2SchemaVersion,
+            LicenseId = "v2-license"
+        };
+
+        var legacy = ProductLicensingApi.DescribeLicense(LicenseVerificationResult.Valid(legacyLicense));
+        var v2 = ProductLicensingApi.DescribeLicense(LicenseVerificationResult.Valid(
+            v2License,
+            new MachineLicenseV2Entitlements(ViewOnlySeats: 7, InteractiveSeats: 3, HaRuntime: true)));
+
+        Assert.Equal(EliteScadaLicenseCodec.CurrentSchemaVersion, legacy.SchemaVersion);
+        Assert.Null(legacy.ViewOnlySeats);
+        Assert.Null(legacy.InteractiveSeats);
+        Assert.Null(legacy.HaRuntime);
+
+        Assert.Equal(EliteScadaLicenseCodec.LicenseV2SchemaVersion, v2.SchemaVersion);
+        Assert.Equal(7, v2.ViewOnlySeats);
+        Assert.Equal(3, v2.InteractiveSeats);
+        Assert.Equal(true, v2.HaRuntime);
+    }
+
+    [Fact]
     public async Task LicenseMutationAudit_RecordsAllowedDeniedAndFailedWithSafeBoundedMetadata()
     {
         var sink = new InMemoryAuditSink();

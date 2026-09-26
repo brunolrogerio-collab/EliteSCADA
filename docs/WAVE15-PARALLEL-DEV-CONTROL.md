@@ -1654,4 +1654,49 @@ State:
 `FND-07 -> INTEGRATED / POSTMERGE_CI_PENDING / NOT_YET_FROZEN`.
 
 No FND-07 or shared CODEX work is authorized until Main resolves the final integrated CI.
+## 52. FND-07 frozen / Authority + Licensing reconciliation activated
+
+### FND-07
+
+Final integrated SHA:
+`3819715ba3a015a182c97b2a4ebcb4de447da717`.
+
+Post-merge EliteSCADA CI `36279534882` / #1582:
+SUCCESS across Web, Backend/test/smoke and Chromium.
+
+State:
+`FND-07 -> VERIFIED / FROZEN`.
+
+### DEV-AUTHORITY-UX
+
+PR #346 current head:
+`d96e685daf7ddb190cefc67c6ba975d71a779a52`.
+
+GitHub reports `mergeable=false` against the new integration. Main diff audit found no owned-file overlap with the 121 integration commits since the stale baseline.
+
+New order:
+`DEV-AUTHORITY-UX-INTEGRATION-RECONCILE-05`.
+
+State:
+`DEV_RECONCILIATION / AUTHORIZED`.
+
+### DEV-LICENSING-UX
+
+PR #345 current head:
+`d97598fb16ba0eb6d43e78b25c848149a1ec547a`.
+
+GitHub reports `mergeable=false` against the new integration. Main diff audit found no owned-file overlap with the 121 integration commits since the stale baseline.
+
+New order:
+`DEV-LICENSING-UX-INTEGRATION-RECONCILE-07`.
+
+State:
+`DEV_RECONCILIATION / AUTHORIZED`.
+
+Both DEVs may reconcile in parallel onto:
+`wave15/corrections-integration@3819715ba3a015a182c97b2a4ebcb4de447da717`.
+
+They must preserve their previously accepted lane semantics, obtain new exact-head T1 evidence, persist handoff to their PR and then WAIT.
+
+Shared CODEX remains HOLD / no active mission until availability returns and Main publishes a fresh route.
 

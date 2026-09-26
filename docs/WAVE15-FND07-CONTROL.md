@@ -1769,4 +1769,78 @@ Creative autonomy applies to the harness, CI scripts, test orchestration and tes
 It is **not** architectural authority over EliteSCADA product code.
 
 The active first-project smoke correction remains part of the same mission, and product binding enforcement must remain unchanged.
+## 38. LOCAL E2E PARITY GAP / LINUX CONTAINER EXECUTION REQUIRED — rev 0035
+
+`ORDER_ID: FND07-CODEX-CI-FIRST-PROJECT-SMOKE-18`
+
+`ORDER_AMENDMENT: RESOLVE_WINDOWS_E2E_PARITY_GAP_WITH_LINUX_CONTAINER`
+
+CODEX partial handoff accepted as progress, not completion.
+
+Current branch:
+`work/w15-fnd07-postmerge-ci-first-project-smoke`
+
+Current head:
+`68b22226a230cf75a40a228f5fce7cc07f226855`.
+
+Delivered CI/test-only infrastructure:
+- universal Runtime smoke migrated to the canonical secure first-project transaction;
+- reusable local TimescaleDB harness pinned to `timescale/timescaledb:2.29.2-pg18`;
+- shared Runtime smoke implementation and retained diagnostics;
+- local CI parity orchestration/documentation;
+- Wave-03 E2E expectation updated to the current configured persisted Runtime contract.
+
+Local evidence accepted so far:
+- .NET build/full tests: GREEN, reported 1286 tests;
+- complete two-phase Runtime smoke: GREEN;
+- Web build: GREEN;
+- Playwright discovery/compilation: GREEN.
+
+Remaining gap:
+- browser execution on the Windows host was not trustworthy:
+  - one run observed healthy API responses but Engineering UI remained loading;
+  - a retry ended with `ECONNRESET` on `/api/engineering/export/json`;
+  - no orphan server/container remained after cleanup.
+
+Classification:
+`LOCAL_PARITY_ENVIRONMENT_GAP / WINDOWS_PLAYWRIGHT_VITE_INSTABILITY`.
+
+This is **not** currently classified as a product defect.
+
+### Binding next action
+
+CODEX must resolve the browser parity gap by moving the E2E execution into a repository-controlled **Linux container/runtime** that is materially closer to GitHub `ubuntu-latest`.
+
+Known project contract:
+- `@playwright/test = 1.62.1`;
+- Node = 24.19.0 target;
+- .NET SDK = 10.0.400 target;
+- TimescaleDB = `2.29.2-pg18`;
+- Playwright config runs `chromium-local-auth` first and the full `chromium` project afterward.
+
+CODEX has creative autonomy to choose the implementation:
+- official Playwright-compatible Linux image;
+- custom CI-runner image;
+- multi-container runner;
+- Compose service;
+- another repository-controlled Linux execution design.
+
+Do not stop for image/layout/network/cache preferences. Diagnose and solve them.
+
+### Required Linux E2E evidence
+
+Before hosted CI:
+1. clean/reset disposable E2E database;
+2. run `chromium-local-auth`;
+3. run the complete dependent `chromium` project / full `npm run test:e2e`;
+4. preserve traces/screenshots/videos/logs on any failure;
+5. if a test failure reproduces deterministically in Linux, classify it:
+   - stale test/harness -> CODEX may correct within existing test-infra authority;
+   - product semantics -> stop only that product mutation and return exact evidence to Main;
+6. after every correction, continue until the **full Linux E2E suite** is green;
+7. then run one clean `all` parity pass from reset state: backend + Runtime smoke + Web build + Linux Chromium.
+
+Only after that complete local Linux parity battery is GREEN may CODEX open/update the corrective PR and consume a hosted GitHub CI run for independent confirmation.
+
+No production source mutation is authorized.
 

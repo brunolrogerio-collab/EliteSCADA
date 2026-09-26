@@ -1843,4 +1843,165 @@ Before hosted CI:
 Only after that complete local Linux parity battery is GREEN may CODEX open/update the corrective PR and consume a hosted GitHub CI run for independent confirmation.
 
 No production source mutation is authorized.
+## 39. DEMO RECOVERY PRODUCT DEFECTS / BOUNDED CODEX CORRECTION — rev 0036
+
+`ORDER_ID: FND07-CODEX-DEMO-RECOVERY-ANCHOR-19`
+
+`ORDER_STATE: CODEX_ACTIVE / BOUNDED_PRODUCT_CORRECTION + LINUX_CI_PARITY / DEV_WAIT / NO_FREEZE`
+
+Supersedes the product-mutation prohibition of rev 0035 **only for the exact bounded product contract below**.
+
+Current working branch:
+`work/w15-fnd07-postmerge-ci-first-project-smoke`
+
+Current published head:
+`68b22226a230cf75a40a228f5fce7cc07f226855`.
+
+CODEX may first checkpoint/publish its already-built Linux runner/harness work, then continue on this same branch. No branch split is required unless CODEX finds it operationally safer.
+
+### New deterministic Linux evidence
+
+On a repository-controlled Ubuntu 24.04 runner with:
+- Playwright 1.62.1;
+- Node 24.19.0;
+- .NET SDK 10.0.400;
+- TimescaleDB 2.29.2-pg18;
+
+the isolated `chromium-local-auth` prerequisite passes from a clean database.
+
+The complete Linux suite then executes 658 tests and reports 15 deterministic failures. Several are test-only stale expectations already within CODEX harness authority.
+
+A material product failure reproduces after a fresh DB plus **passing chromium-local-auth only**:
+- first project `e2e-wave03` is created/published/activated;
+- persisted Active revision is durable;
+- a second API process over the same database fails during startup with:
+  `PERSISTED_RUNTIME_RECOVERY_DENIED`
+  / `Persisted Runtime recovery is denied because Demo authority has no durable start anchor.`
+
+No downstream Chromium test is required to reproduce it.
+
+### Main classification
+
+Two linked generic product defects are now established.
+
+#### A. INITIAL DEMO RUN IS NOT DURABLY ANCHORED
+
+`GENERIC_PRODUCT_DEFECT / INITIAL_DEMO_RUN_NOT_DURABLY_ANCHORED`
+
+Evidence:
+1. `RuntimeAuthorityState` carries `DemoStartedAtUtc`;
+2. `PersistedRuntimeRecoveryService` correctly refuses to recover Demo Active Runtime without that durable anchor;
+3. `ProductLicensedRuntimeCoordinator.ActivateCoreAsync` reads a durable anchor, but when none exists it only starts an in-memory Demo timer at activation time;
+4. the successful first explicit Demo activation never persists that new start time;
+5. the current public Licensing API has no supported "start Demo anchor" operation for a fixture/user to invoke;
+6. tests currently prove:
+   - Demo activation without a durable anchor starts at activation time in memory;
+   - recovery without a durable anchor is denied;
+   but they do **not** prove the successful activation established the durable prerequisite needed by restart recovery.
+
+The E2E must not manufacture the anchor through SQL, internal stores, fake license transitions or a test-only bypass.
+
+#### B. EXPECTED FAIL-CLOSED RECOVERY DENIAL IS ESCALATED TO HOST-FATAL STARTUP
+
+`GENERIC_PRODUCT_DEFECT / EXPECTED_RUNTIME_RECOVERY_DENIAL_ESCALATES_TO_HOST_FATAL`
+
+`EngineeringPersistenceApi.RecoverConfiguredEngineeringRuntimeAsync` currently throws whenever a persisted Active revision exists but Runtime recovery is denied.
+
+That is too coarse for expected entitlement/authority denials:
+- invalid license;
+- missing/expired Demo session anchor;
+- authority transition pending;
+- other explicit product-authority fail-closed outcomes.
+
+Runtime must stay stopped/fail-closed, but the EliteSCADA host/Engineering/Licensing surface must remain available where the denial is an expected product-authority state rather than technical persistence/corruption failure.
+
+This is also required by the Demo contract: Runtime expiration stops industrial Runtime while the normal application/Engineering UI remains alive and a later explicit Run may start a fresh Demo session.
+
+Do **not** convert arbitrary recovery failures into soft failures. Corrupt snapshots, invalid Engineering payload, unclassified technical activation faults and similar integrity failures may remain startup-fatal.
+
+### Bounded product authorization
+
+CODEX may modify the smallest coherent surface needed in:
+- Runtime session authority/durable Demo-session state;
+- PostgreSQL + in-memory implementations of that state;
+- Product licensed Runtime activation;
+- persisted Runtime recovery/startup classification;
+- directly related regression tests.
+
+Likely owner files include, but are not mandatory if CODEX finds a cleaner design:
+- `src/Scada.Security/Authorization/RuntimeSessionLeaseStore.cs`;
+- `src/Scada.Persistence.PostgreSql/PostgreSqlRuntimeSessionLeaseStore.cs`;
+- `src/Scada.Api/Licensing/ProductLicensedRuntimeCoordinator.cs`;
+- `src/Scada.Api/Persistence/PersistedRuntimeRecoveryService.cs`;
+- `src/Scada.Api/Persistence/EngineeringPersistenceApi.cs`;
+- focused tests.
+
+### Required semantic invariants
+
+1. **First explicit Demo Run**
+   - a successful committed/persisted activation establishes a durable Demo-session start anchor;
+   - a crash/restart after successful activation cannot leave an Active revision that has no recoverable Demo-session anchor.
+
+2. **Process restart**
+   - recovery never mints a fresh Demo window;
+   - it reuses the existing durable anchor and therefore preserves elapsed allowance.
+
+3. **Reactivation during the same live Demo session**
+   - publishing/activating another revision must not reset the existing unexpired 300-minute window.
+
+4. **Demo expiry**
+   - Runtime stops fail-closed;
+   - host/Engineering/Licensing remain available;
+   - restart with an expired anchor does not auto-run or mint a new window.
+
+5. **Later explicit Run after expiry**
+   - an explicit product Run/activation may establish a fresh Demo-session anchor and begin a new 300-minute session;
+   - this must be distinguishable from automatic persisted recovery.
+   - the existing explicit activation commit path versus recovery path may be used as a design signal if appropriate, but Main is not prescribing the implementation.
+
+6. **Legacy/missing anchor state**
+   - automatic recovery remains denied and must not silently create a new allowance;
+   - host remains usable so an explicit Run can deliberately establish a new session.
+
+7. **Authority/license integrity**
+   - do not fake a license authority transition merely to obtain a Demo timestamp unless CODEX can prove no incorrect authority-revision/lease-fencing semantics result;
+   - prefer a dedicated durable Demo-session CAS/state operation if that is the cleanest model;
+   - license authority revision, remote lease fencing, HA authority and machine-license semantics must remain unchanged unless genuinely required by the contract.
+
+8. **Failure classification**
+   - soften only explicitly recognized product-authority recovery denials;
+   - do not swallow arbitrary exceptions or technical Runtime/Engineering corruption.
+
+### Mandatory regression evidence
+
+At minimum prove:
+- first Demo persisted activation creates durable anchor;
+- a new store/process reads the same anchor;
+- restart recovery succeeds and preserves remaining time;
+- repeated explicit activation while anchor is unexpired does not mint a new window;
+- expired anchor causes recovery to remain stopped without killing the host;
+- explicit activation after expired session establishes a new anchor;
+- missing-anchor legacy Active state remains fail-closed on recovery, host stays alive, and explicit activation can recover intentionally;
+- invalid-license persisted recovery remains Runtime-denied while host stays available with diagnosable state;
+- genuinely corrupt/technical recovery still fails startup rather than being silently ignored;
+- PostgreSQL concurrency/CAS behavior is covered.
+
+### Linux parity remains binding
+
+After the bounded product correction:
+1. continue fixing the remaining deterministic **test/harness-only** Linux E2E failures autonomously;
+2. clean DB;
+3. `chromium-local-auth` GREEN;
+4. full Chromium suite GREEN;
+5. one clean full local parity pass:
+   - backend Release build;
+   - full .NET tests;
+   - complete Runtime smoke;
+   - Web build;
+   - Linux Chromium;
+6. only then open/update the corrective PR and use hosted CI as independent confirmation.
+
+CODEX retains creative autonomy for CI/harness infrastructure. Product autonomy is limited to the exact Demo/recovery contract above.
+
+No merge/freeze until Main reviews the exact corrected head and green evidence.
 

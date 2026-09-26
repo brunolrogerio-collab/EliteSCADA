@@ -65,8 +65,12 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
             project_key varchar(200) PRIMARY KEY,
             active_revision bigint NOT NULL REFERENCES elitescada.engineering_revisions(revision),
             activated_at_utc timestamptz NOT NULL DEFAULT clock_timestamp(),
-            activated_by varchar(300) NULL
+            activated_by varchar(300) NULL,
+            demo_started_at_utc timestamptz NULL
         );
+
+        ALTER TABLE elitescada.project_activations
+            ADD COLUMN IF NOT EXISTS demo_started_at_utc timestamptz NULL;
 
         CREATE TABLE IF NOT EXISTS elitescada.engineering_asset_blobs (
             sha256 char(64) PRIMARY KEY,
@@ -123,6 +127,10 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
 
         INSERT INTO elitescada.schema_migrations (migration_key)
         VALUES ('006_engineering_installation_binding')
+        ON CONFLICT (migration_key) DO NOTHING;
+
+        INSERT INTO elitescada.schema_migrations (migration_key)
+        VALUES ('007_activation_demo_session_binding')
         ON CONFLICT (migration_key) DO NOTHING;
 
         INSERT INTO elitescada.engineering_installation_binding (state_key, state, project_key, generation)
@@ -517,7 +525,7 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         ValidateProjectKey(projectKey);
 
         const string sql = """
-            SELECT project_key, active_revision, activated_at_utc, activated_by
+            SELECT project_key, active_revision, activated_at_utc, activated_by, demo_started_at_utc
             FROM elitescada.project_activations
             WHERE project_key = @project_key;
             """;
@@ -539,33 +547,64 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         if (revision < 1)
             throw new ArgumentOutOfRangeException(nameof(revision));
 
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        // The Authority row lock serializes the anchor read with replacement.
+        // The Active revision and its session binding commit together. Stores
+        // initialized without Runtime authority (engineering-only tests) remain
+        // supported; such activations cannot recover under Demo authority.
+        DateTimeOffset? demoStartedAtUtc = null;
+        await using (var exists = new NpgsqlCommand(
+            "SELECT to_regclass('elitescada.runtime_session_authority_state') IS NOT NULL;",
+            connection,
+            transaction))
+        {
+            if ((bool)(await exists.ExecuteScalarAsync(cancellationToken) ?? false))
+            {
+                await using var anchor = new NpgsqlCommand(
+                    "SELECT demo_started_at_utc FROM elitescada.runtime_session_authority_state WHERE singleton_id = 1 FOR SHARE;",
+                    connection,
+                    transaction);
+                var value = await anchor.ExecuteScalarAsync(cancellationToken);
+                if (value is DateTime time)
+                    demoStartedAtUtc = new DateTimeOffset(time.Kind == DateTimeKind.Utc ? time : time.ToUniversalTime());
+            }
+        }
+
         const string sql = """
             INSERT INTO elitescada.project_activations (
                 project_key,
                 active_revision,
                 activated_at_utc,
-                activated_by)
+                activated_by,
+                demo_started_at_utc)
             SELECT
                 project_key,
                 published_revision,
                 clock_timestamp(),
-                @activated_by
+                @activated_by,
+                @demo_started_at_utc
             FROM elitescada.project_publications
             WHERE project_key = @project_key AND published_revision = @revision
             ON CONFLICT (project_key) DO UPDATE SET
                 active_revision = EXCLUDED.active_revision,
                 activated_at_utc = EXCLUDED.activated_at_utc,
-                activated_by = EXCLUDED.activated_by
-            RETURNING project_key, active_revision, activated_at_utc, activated_by;
+                activated_by = EXCLUDED.activated_by,
+                demo_started_at_utc = EXCLUDED.demo_started_at_utc
+            RETURNING project_key, active_revision, activated_at_utc, activated_by, demo_started_at_utc;
             """;
 
-        await using var command = _dataSource.CreateCommand(sql);
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("project_key", projectKey.Trim());
         command.Parameters.AddWithValue("revision", revision);
         command.Parameters.AddWithValue("activated_by", NpgsqlDbType.Varchar, (object?)NormalizeOptional(activatedBy) ?? DBNull.Value);
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-
-        return await reader.ReadAsync(cancellationToken) ? ReadActivation(reader) : null;
+        command.Parameters.AddWithValue("demo_started_at_utc", NpgsqlDbType.TimestampTz, (object?)demoStartedAtUtc ?? DBNull.Value);
+        EngineeringProjectActivation? activation;
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+            activation = await reader.ReadAsync(cancellationToken) ? ReadActivation(reader) : null;
+        await transaction.CommitAsync(cancellationToken);
+        return activation;
     }
 
     public ValueTask DisposeAsync() => _dataSource.DisposeAsync();
@@ -703,7 +742,8 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         reader.GetString(0),
         reader.GetInt64(1),
         ReadTimestamp(reader, 2),
-        reader.IsDBNull(3) ? null : reader.GetString(3));
+        reader.IsDBNull(3) ? null : reader.GetString(3),
+        reader.IsDBNull(4) ? null : ReadTimestamp(reader, 4));
 
     private static DateTimeOffset ReadTimestamp(NpgsqlDataReader reader, int ordinal)
     {

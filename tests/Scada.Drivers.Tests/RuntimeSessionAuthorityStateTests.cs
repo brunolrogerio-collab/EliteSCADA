@@ -125,6 +125,66 @@ public sealed class RuntimeSessionAuthorityStateTests
     }
 
     [Fact]
+    public async Task PostgreSqlDemoAnchor_CompareAndSetAllowsExactlyOneConcurrentExplicitStart()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        await using var first = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await using var second = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await first.InitializeAsync();
+        await second.InitializeAsync();
+
+        var before = await first.GetAuthorityStateAsync();
+        if (before.TransitionPending) return;
+
+        var firstCandidate = DateTimeOffset.UtcNow;
+        var secondCandidate = firstCandidate.AddSeconds(1);
+        var results = await Task.WhenAll(
+            first.EstablishDemoSessionAnchorAsync(firstCandidate, before.DemoStartedAtUtc),
+            second.EstablishDemoSessionAnchorAsync(secondCandidate, before.DemoStartedAtUtc));
+
+        Assert.Single(results, result => result.WasEstablished);
+        Assert.Single(results.Select(result => result.DemoStartedAtUtc).Distinct());
+
+        var persisted = await first.GetAuthorityStateAsync();
+        Assert.Equal(results[0].DemoStartedAtUtc, persisted.DemoStartedAtUtc);
+        Assert.Equal(before.AuthorityRevision, persisted.AuthorityRevision);
+    }
+
+    [Fact]
+    public async Task PostgreSqlLeaseValidation_PreservesRuntimeIdentityAcrossTimestampStoragePrecision()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??
+            Environment.GetEnvironmentVariable("ELITESCADA_C25_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var subject = $"runtime-precision-{Guid.NewGuid():N}";
+        var now = DateTimeOffset.UtcNow;
+        // Deliberately retain sub-microsecond ticks; PostgreSQL timestamptz stores microseconds.
+        var activatedAt = now.AddTicks(now.Ticks % 10 == 9 ? 2 : 1);
+        var runtime = new RuntimeSessionRuntimeIdentity("engineering", "project-a", 7, activatedAt);
+
+        await using var store = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await store.InitializeAsync();
+        try
+        {
+            var lease = await store.AdmitAsync(new RuntimeSessionLeaseAdmission(
+                subject, "precision-client", "interactive", runtime, TimeSpan.FromMinutes(1)));
+
+            var validation = await store.ValidateAsync(
+                lease.SessionId, subject, runtime, "precision-client");
+
+            Assert.True(validation.IsValid, validation.FailureCode);
+        }
+        finally
+        {
+            await DeleteLeaseSubjectAsync(connectionString, subject);
+        }
+    }
+
+    [Fact]
     public async Task PostgreSqlAuthorityTransition_FailedCommitRollsBackAndAbortPreservesBaseRevision()
     {
         var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES") ??

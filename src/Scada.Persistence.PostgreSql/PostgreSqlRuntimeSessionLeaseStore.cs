@@ -129,6 +129,57 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         }
     }
 
+    public async Task<RuntimeDemoSessionAnchorResult> EstablishDemoSessionAnchorAsync(
+        DateTimeOffset requestedStartedAtUtc,
+        DateTimeOffset? expectedExistingStartedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        requestedStartedAtUtc = RuntimeDemoSessionAnchor.Normalize(requestedStartedAtUtc);
+        expectedExistingStartedAtUtc = expectedExistingStartedAtUtc is { } expectedAnchor
+            ? RuntimeDemoSessionAnchor.Normalize(expectedAnchor)
+            : null;
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            await AcquireLeaseMutationLockAsync(connection, transaction, cancellationToken);
+            var state = await LoadAuthorityStateForUpdateAsync(connection, transaction, cancellationToken);
+            if (state.TransitionPending)
+                throw new InvalidOperationException("A Runtime authority transition is pending.");
+
+            if (state.DemoStartedAtUtc == expectedExistingStartedAtUtc)
+            {
+                const string sql = """
+                    UPDATE elitescada.runtime_session_authority_state
+                    SET demo_started_at_utc = @requested_started_at
+                    WHERE singleton_id = 1
+                      AND NOT transition_pending
+                      AND demo_started_at_utc IS NOT DISTINCT FROM @expected_started_at;
+                    """;
+                await using var command = new NpgsqlCommand(sql, connection, transaction);
+                command.Parameters.AddWithValue("requested_started_at", NpgsqlDbType.TimestampTz, requestedStartedAtUtc);
+                command.Parameters.AddWithValue("expected_started_at", NpgsqlDbType.TimestampTz, (object?)expectedExistingStartedAtUtc ?? DBNull.Value);
+                if (await command.ExecuteNonQueryAsync(cancellationToken) == 1)
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                    return new RuntimeDemoSessionAnchorResult(requestedStartedAtUtc, WasEstablished: true);
+                }
+            }
+
+            var current = await LoadAuthorityStateForUpdateAsync(connection, transaction, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            if (current.DemoStartedAtUtc is { } concurrentAnchor)
+                return new RuntimeDemoSessionAnchorResult(concurrentAnchor, WasEstablished: false);
+
+            throw new InvalidOperationException("Runtime Demo session anchor changed concurrently.");
+        }
+        catch
+        {
+            await RollbackQuietlyAsync(transaction);
+            throw;
+        }
+    }
+
     public async Task<RuntimeAuthorityTransition> BeginAuthorityTransitionAsync(
         string kind,
         DateTimeOffset startedAtUtc,
@@ -216,6 +267,9 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         DateTimeOffset? demoStartedAtUtc,
         CancellationToken cancellationToken = default)
     {
+        demoStartedAtUtc = demoStartedAtUtc is { } anchor
+            ? RuntimeDemoSessionAnchor.Normalize(anchor)
+            : null;
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         try
@@ -768,6 +822,7 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
+        runtime = runtime.NormalizeStoragePrecision();
         const string sql = """
             SELECT count(*)
             FROM elitescada.runtime_session_leases

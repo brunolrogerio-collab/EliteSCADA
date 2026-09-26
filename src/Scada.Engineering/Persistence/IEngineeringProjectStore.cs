@@ -47,7 +47,8 @@ public sealed record EngineeringProjectActivation(
     string ProjectKey,
     long ActiveRevision,
     DateTimeOffset ActivatedAtUtc,
-    string? ActivatedBy = null);
+    string? ActivatedBy = null,
+    DateTimeOffset? DemoStartedAtUtc = null);
 
 public sealed record EngineeringProjectLifecycle(
     string ProjectKey,

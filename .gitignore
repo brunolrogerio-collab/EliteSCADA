@@ -80,3 +80,5 @@ web/scada-web/public/pyodide/
 Thumbs.db
 desktop.ini
 web/scada-web/tsconfig.tsbuildinfo
+ci/local/artifacts/
+scripts/ci/__pycache__/

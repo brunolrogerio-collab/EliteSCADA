@@ -1,9 +1,42 @@
 using Scada.Persistence.PostgreSql;
+using Scada.Security.Authorization;
 
 namespace Scada.Persistence.PostgreSql.Tests;
 
 public sealed class PostgreSqlEngineeringProjectStoreTests
 {
+    [Fact]
+    public async Task Activation_BindsToLockedDemoAnchorAndOldActiveCannotMatchReplacement()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        await using var engineering = new PostgreSqlEngineeringProjectStore(connectionString);
+        await engineering.InitializeAsync();
+        var authority = new PostgreSqlRuntimeSessionLeaseStore(connectionString);
+        await authority.InitializeAsync();
+
+        var projectKey = $"demo-session-binding-{Guid.NewGuid():N}";
+        const string json = """
+            {"schema":"scada.engineering","schemaVersion":5,"exportedAt":"2026-08-26T00:00:00Z","tags":[],"alarms":[]}
+            """;
+        var revision = await engineering.SaveAsync(projectKey, "Demo Binding", "scada.engineering", 5, json);
+        await engineering.PublishRevisionAsync(projectKey, revision.Revision);
+
+        var existing = (await authority.GetAuthorityStateAsync()).DemoStartedAtUtc;
+        var first = await authority.EstablishDemoSessionAnchorAsync(DateTimeOffset.UtcNow, existing);
+        var activated = await engineering.RecordActivationAsync(projectKey, revision.Revision);
+        Assert.Equal(first.DemoStartedAtUtc, activated!.DemoStartedAtUtc);
+
+        var replacement = await authority.EstablishDemoSessionAnchorAsync(
+            first.DemoStartedAtUtc.AddHours(6), first.DemoStartedAtUtc);
+        var stale = await engineering.GetActivationAsync(projectKey);
+        Assert.NotEqual(replacement.DemoStartedAtUtc, stale!.DemoStartedAtUtc);
+
+        var rebound = await engineering.RecordActivationAsync(projectKey, revision.Revision);
+        Assert.Equal(replacement.DemoStartedAtUtc, rebound!.DemoStartedAtUtc);
+    }
+
     [Fact]
     public async Task Store_InitializesSavesLoadsAndListsImmutableRevisions()
     {

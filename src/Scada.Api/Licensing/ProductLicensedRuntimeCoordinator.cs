@@ -448,6 +448,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
             }
 
             DateTimeOffset? durableDemoStartedAtUtc = null;
+            var requiresExplicitDemoAnchor = false;
             if (decision.LicenseState == LicenseState.Demo &&
                 decision.MaximumContinuousRun is { } candidateDemoDuration)
             {
@@ -457,28 +458,44 @@ public sealed class ProductLicensedRuntimeCoordinator :
                         durableDemoStartedAtUtc.Value,
                         candidateDemoDuration) <= TimeSpan.Zero)
                 {
-                    var current = Current;
-                    if (current.Describe().Revision.HasValue)
+                    if (commitAsync is not null && _authorityStore is not null)
                     {
-                        await StopActiveRuntimeLockedAsync(
-                            current,
-                            decision,
-                            ProductRuntimeLifecycleState.DemoExpired,
-                            DemoExpiredDiagnostic,
-                            durableDemoStartedAtUtc.Value,
-                            candidateDemoDuration);
+                        // A user-initiated persisted Run may deliberately begin
+                        // a new Demo session after expiry. Recovery never follows
+                        // this branch, so it cannot mint a fresh allowance.
+                        requiresExplicitDemoAnchor = true;
                     }
                     else
                     {
-                        SetStoppedStatus(
-                            decision,
-                            ProductRuntimeLifecycleState.DemoExpired,
-                            DemoExpiredDiagnostic,
-                            durableDemoStartedAtUtc.Value,
-                            candidateDemoDuration);
-                    }
+                        var current = Current;
+                        if (current.Describe().Revision.HasValue)
+                        {
+                            await StopActiveRuntimeLockedAsync(
+                                current,
+                                decision,
+                                ProductRuntimeLifecycleState.DemoExpired,
+                                DemoExpiredDiagnostic,
+                                durableDemoStartedAtUtc.Value,
+                                candidateDemoDuration);
+                        }
+                        else
+                        {
+                            SetStoppedStatus(
+                                decision,
+                                ProductRuntimeLifecycleState.DemoExpired,
+                                DemoExpiredDiagnostic,
+                                durableDemoStartedAtUtc.Value,
+                                candidateDemoDuration);
+                        }
 
-                    return DeniedActivation(projectKey.Trim(), revision, DemoExpiredDiagnostic);
+                        return DeniedActivation(projectKey.Trim(), revision, DemoExpiredDiagnostic);
+                    }
+                }
+                else if (!durableDemoStartedAtUtc.HasValue &&
+                         commitAsync is not null &&
+                         _authorityStore is not null)
+                {
+                    requiresExplicitDemoAnchor = true;
                 }
             }
 
@@ -494,7 +511,20 @@ public sealed class ProductLicensedRuntimeCoordinator :
                     projectKey,
                     revision,
                     package,
-                    commitAsync,
+                    requiresExplicitDemoAnchor
+                        ? async (context, ct) =>
+                        {
+                            var anchor = await _authorityStore!.EstablishDemoSessionAnchorAsync(
+                                context.ActivatedAtUtc,
+                                durableDemoStartedAtUtc,
+                                ct);
+                            durableDemoStartedAtUtc = anchor.DemoStartedAtUtc;
+                            // The durable Active revision must never precede its Demo
+                            // authority. A failed commit leaves a conservative anchor;
+                            // recovery rejects an older Active bound to another session.
+                            await commitAsync(context, ct);
+                        }
+                        : commitAsync,
                     cancellationToken);
             }
 

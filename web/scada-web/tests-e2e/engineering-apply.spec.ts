@@ -260,7 +260,7 @@ test('TAG Delete panel surfaces dependency conflict without removing the TAG', a
 
   await page.goto('/engineering');
   await page.getByRole('button', { name: /TAGs/ }).click();
-  const panel = page.locator('.eng-mutation-panel');
+  const panel = page.locator('.eng-mutation-panel').filter({ has: page.getByTestId('engineering-delete') });
   await expect(panel).toBeVisible();
   await panel.getByLabel('Entidade').selectOption(tag!.id!);
 
@@ -287,7 +287,7 @@ test('TAG Bulk panel gates Apply behind Preview and shows affected quantity', as
   try {
     await page.goto('/engineering');
     await page.getByRole('button', { name: /TAGs/ }).click();
-    const panel = page.locator('.eng-mutation-panel');
+    const panel = page.locator('.eng-mutation-panel').filter({ has: page.getByTestId('engineering-bulk-preview') });
     const entity = panel.locator('.eng-bulk-entities label').filter({ hasText: tag!.path });
     await entity.getByRole('checkbox').check();
 

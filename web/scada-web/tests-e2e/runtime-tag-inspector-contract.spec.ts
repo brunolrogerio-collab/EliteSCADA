@@ -8,6 +8,7 @@ import {
   recentHistoryWindow
 } from '../src/runtime/tagInspectorModel';
 import type { RuntimeTagListItem } from '../src/runtime/tagInspectorTypes';
+import { admitInteractiveRuntimeSession, terminateRuntimeSession } from './runtimeSessionLease';
 
 function tag(overrides: Partial<RuntimeTagListItem> = {}): RuntimeTagListItem {
   return {
@@ -123,31 +124,53 @@ test('protected Runtime TAG/detail/history contracts expose the read-only inspec
   expect(history.every(sample => Boolean(sample.timestamp))).toBeTruthy();
 });
 
-test('protected realtime endpoint publishes TAG current-value facts used by the inspector', async ({ page }) => {
-  await page.goto('/');
-  const payload = await page.evaluate(() => new Promise<Record<string, unknown>>((resolve, reject) => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const socket = new WebSocket(`${protocol}//${window.location.host}/ws/tags`);
-    const timer = window.setTimeout(() => {
-      socket.close();
-      reject(new Error('Timed out waiting for tagValueChanged.'));
-    }, 10_000);
+test('protected realtime endpoint publishes TAG current-value facts used by the inspector', async ({ page, request }) => {
+  const tagsResponse = await request.get('/api/tags');
+  expect(tagsResponse.ok()).toBeTruthy();
+  const tags = await tagsResponse.json() as RuntimeTagListItem[];
+  const writable = tags.find(tag => !tag.readOnly);
+  expect(writable).toBeTruthy();
 
-    socket.addEventListener('message', event => {
-      const parsed = JSON.parse(String(event.data)) as Record<string, unknown>;
-      if (parsed.type !== 'tagValueChanged') return;
-      window.clearTimeout(timer);
-      socket.close();
-      resolve(parsed);
+  await page.goto('/');
+  await page.evaluate(tagId => {
+    const target = window as typeof window & { e2eTagEvent?: Promise<Record<string, unknown>> };
+    target.e2eTagEvent = new Promise<Record<string, unknown>>((resolve, reject) => {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const socket = new WebSocket(`${protocol}//${window.location.host}/ws/tags`);
+      const timer = window.setTimeout(() => {
+        socket.close();
+        reject(new Error('Timed out waiting for the requested tagValueChanged.'));
+      }, 10_000);
+
+      socket.addEventListener('message', event => {
+        const parsed = JSON.parse(String(event.data)) as { type?: string; tag?: { id?: string } };
+        if (parsed.type !== 'tagValueChanged' || parsed.tag?.id !== tagId) return;
+        window.clearTimeout(timer);
+        socket.close();
+        resolve(parsed);
+      });
+      socket.addEventListener('error', () => {
+        window.clearTimeout(timer);
+        reject(new Error('Realtime WebSocket failed.'));
+      });
     });
-    socket.addEventListener('error', () => {
-      window.clearTimeout(timer);
-      reject(new Error('Realtime WebSocket failed.'));
-    });
-  }));
+  }, writable!.id);
+
+  const leaseHeaders = await admitInteractiveRuntimeSession(request);
+  expect((await request.post(`/api/tags/${writable!.id}/write`, {
+    data: { value: 59.5 },
+    headers: leaseHeaders
+  })).status()).toBe(202);
+
+  const payload = await page.evaluate(() => {
+    const target = window as typeof window & { e2eTagEvent?: Promise<Record<string, unknown>> };
+    if (!target.e2eTagEvent) throw new Error('Realtime listener was not initialized.');
+    return target.e2eTagEvent;
+  });
 
   expect(payload.type).toBe('tagValueChanged');
   expect(payload.tag).toBeTruthy();
   expect(payload.timestamp).toBeTruthy();
   expect(payload.quality).toBeTruthy();
+  await terminateRuntimeSession(request, leaseHeaders);
 });

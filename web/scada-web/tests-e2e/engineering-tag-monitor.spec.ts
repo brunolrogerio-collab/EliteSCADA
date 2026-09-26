@@ -24,8 +24,10 @@ test('TAG Monitor is an Engineering diagnostic while its facts remain Active Run
   await expect(context.getByText('Revisão Working', { exact: true })).toBeVisible();
   await expect(context.getByText('Fonte observada', { exact: true })).toBeVisible();
   await expect(context.getByText('Active Runtime', { exact: true })).toBeVisible();
-  await expect(context.getByText('Simulação / demo', { exact: true })).toBeVisible();
-  await expect(page.getByTestId('tag-monitor-runtime-boundary')).toContainText('Working é contexto de engenharia');
+  // The explicit local-auth fixture publishes an Engineering application; it is
+  // deliberately not the historical simulation fallback.
+  await expect(context.getByText(/E2E Explicit Demo Fixture|E2E C01 First Project|e2e-wave03/).first()).toBeVisible();
+  await expect(page.getByTestId('tag-monitor-runtime-boundary')).toContainText(/Working e Active|Working x Active/);
 
   const inspector = page.locator('.runtime-tag-inspector');
   await expect(inspector).toBeVisible();

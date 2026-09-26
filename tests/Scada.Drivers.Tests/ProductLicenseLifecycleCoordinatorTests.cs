@@ -436,6 +436,8 @@ public sealed class ProductLicenseLifecycleCoordinatorTests
         public Task InitializeAsync(CancellationToken cancellationToken = default) => inner.InitializeAsync(cancellationToken);
         public async Task<RuntimeAuthorityState> GetAuthorityStateAsync(CancellationToken cancellationToken = default) =>
             AuthorityStateOverride ?? await inner.GetAuthorityStateAsync(cancellationToken);
+        public Task<RuntimeDemoSessionAnchorResult> EstablishDemoSessionAnchorAsync(DateTimeOffset requestedStartedAtUtc, DateTimeOffset? expectedExistingStartedAtUtc, CancellationToken cancellationToken = default) =>
+            inner.EstablishDemoSessionAnchorAsync(requestedStartedAtUtc, expectedExistingStartedAtUtc, cancellationToken);
         public Task<RuntimeAuthorityTransition> BeginAuthorityTransitionAsync(string kind, DateTimeOffset startedAtUtc, CancellationToken cancellationToken = default) =>
             inner.BeginAuthorityTransitionAsync(kind, startedAtUtc, cancellationToken);
         public Task<bool> AbortAuthorityTransitionAsync(Guid transitionId, long expectedBaseAuthorityRevision, CancellationToken cancellationToken = default) =>

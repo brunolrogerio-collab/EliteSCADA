@@ -1582,4 +1582,28 @@ Classification:
 CODEX is now required to run the full Playwright 1.62.1 suite in a repository-controlled Linux container/runtime aligned with hosted CI, then rerun one clean full parity battery before hosted CI.
 
 Production source remains out of scope.
+## 48. FND-07 Linux parity exposed Demo recovery product defects
+
+Linux runner removed the prior Windows uncertainty.
+
+After a fresh DB plus passing `chromium-local-auth`, a second API process deterministically fails because the successful first Demo activation left a persisted Active revision without a durable Demo-session anchor.
+
+Classifications:
+- `GENERIC_PRODUCT_DEFECT / INITIAL_DEMO_RUN_NOT_DURABLY_ANCHORED`;
+- `GENERIC_PRODUCT_DEFECT / EXPECTED_RUNTIME_RECOVERY_DENIAL_ESCALATES_TO_HOST_FATAL`.
+
+CODEX is now ACTIVE on:
+`FND07-CODEX-DEMO-RECOVERY-ANCHOR-19`.
+
+The correction must preserve:
+- no fresh Demo window on process restart;
+- no reset on ordinary reactivation within an existing session;
+- fresh window only on later **explicit Run** after expiry;
+- fail-closed Runtime under invalid/missing authority;
+- host/Engineering/Licensing availability for expected product-authority denials;
+- fatal handling of genuine technical/corrupt recovery faults.
+
+After correction, CODEX continues the full Linux parity battery to green before hosted CI.
+
+FND-07 remains NOT VERIFIED/FROZEN.
 

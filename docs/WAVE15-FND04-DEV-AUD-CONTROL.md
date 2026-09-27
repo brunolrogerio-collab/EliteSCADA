@@ -2768,3 +2768,53 @@ The preferred final handoff should include:
 - explicit non-actions on product code.
 
 Human Preview continues independently. Stage 2 remains PREPARED / NOT ACTIVE.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0092
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-ENV-A-REPAIR-FINAL-LIFECYCLE-77`
+
+`ORDER_STATE: ACTIVE / AUTONOMOUS_FINAL_LIFECYCLE_VALIDATION / NO_PRODUCT_FIX / EMBARGO_ACTIVE`
+
+Main reviewed and accepts the repair candidate for final lifecycle validation:
+- branch `preview/w15-first-project-env-harness-repair`;
+- SHA `50a4451aa122f7f9fd0af98173c184f6623a147b`;
+- tree `5efeafb08725a90ce0c3df689b8d613f165bb569`;
+- product base `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Authoritative Preview control:
+- rev 0023;
+- commit `5c0e57c6336e75a68769f35251cca245963b4801`.
+
+Accepted root cause:
+old dependency provenance hashed working-tree bytes, so Windows LF/CRLF materialization could change the dependency key on the same exact committed Git tree. Repair derives identity from committed Git blob IDs instead. Embedded Bash text is also normalized to LF before PowerShell->Bash transport.
+
+Attempt 1 remains sealed/inconclusive and preserved. Do not resume it as black-box exploration.
+
+### Continue autonomously — do not return for micro-decisions
+
+Run the complete final lifecycle proof on the repair branch. You are already authorized to iterate on harness-only fixes/regressions if any step fails.
+
+Required final proof:
+1. dependency identity + Bash line-ending regression PASS;
+2. status NOT_STARTED / PREPARATION=READY on exact candidate;
+3. disposable start reaches healthy true fresh first-run product surface without starting a new audit;
+4. repeated status keeps the same dependency key/READY state;
+5. pause -> PAUSED_RESUMABLE/READY;
+6. resume same disposable session;
+7. real Docker Desktop/engine restart;
+8. status + resume after engine recovery;
+9. separate evidence worktree commit while runtime worktree stays fixed; runtime status must remain same PREPARATION=READY/key;
+10. reset -> NOT_STARTED/READY, no product-state resources;
+11. second fresh disposable start without package prepare/install/restore;
+12. final reset -> NOT_STARTED/READY;
+13. PowerShell/static/diff/worktree checks pass;
+14. compare from product base remains harness-only.
+
+No project creation is required. Do not start another independent Stage1 attempt in this context.
+
+If small harness defects appear, fix/test/commit them on the repair branch and continue. Return only after a fully validated final candidate is pushed or a genuine external blocker/preservation risk remains.
+
+Do not fast-forward the canonical harness branch yourself; Main will promote after final review.
+
+Human Preview continues independently. Product Owner observations remain off-limits. Detailed product findings remain embargoed. Stage2 remains PREPARED / NOT ACTIVE.

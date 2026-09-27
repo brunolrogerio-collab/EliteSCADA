@@ -1799,4 +1799,36 @@ State:
 `DEV-AUTHORITY-UX -> INTEGRATED / POSTMERGE_CI_PENDING`.
 
 Shared CODEX remains HOLD. Licensing #345 remains WAIT.
+## 58. Authority complete / Licensing final reconciliation active
+
+### Authority UX
+
+Integrated SHA:
+`27412e4fbe47dbbb6573229364ee8319369ae076`.
+
+Post-merge CI #1583:
+SUCCESS across Backend, Web and Chromium.
+
+State:
+`DEV-AUTHORITY-UX -> INTEGRATED / VERIFIED_COMPLETE`.
+
+### Licensing UX
+
+Current candidate:
+`3d73ccd8f683be94f741fdb431df0e1525e6c0e9`.
+
+It is now ahead 18 / behind 3 after Authority integration.
+
+Main overlap audit:
+- Authority merge: 7 files;
+- Licensing lane: 13 files;
+- overlap: 0.
+
+New order:
+`DEV-LICENSING-UX-POST-AUTHORITY-RECONCILE-09`.
+
+State:
+`DEV_RECONCILIATION / AUTHORIZED`.
+
+Shared CODEX remains HOLD to preserve its reduced budget until the fresh Licensing exact head is ready.
 

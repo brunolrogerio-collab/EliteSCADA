@@ -110,3 +110,62 @@ The replacement relative to the prior static-reviewed harness changes only `scri
 Do not create the real Product Owner Codespace from a later moving branch head without revalidation. At creation time, record `git rev-parse HEAD`; it must equal the exact harness SHA Main has accepted for ENV_B or the environment is not under acceptance.
 
 Real Codespace execution remains pending because the connected GitHub connector has no Codespaces lifecycle actions.
+
+
+## 8. Exact Product Owner Codespace branch released for lifecycle proof
+
+Main has accepted ENV_A and created a dedicated exact branch for the Product Owner Codespace lifecycle proof:
+
+`preview/w15-first-project-env-b-codespace`
+
+Creation point:
+`bb451fa6e07982ac12384895f6097d5833761d16`
+
+tree:
+`650d30089596021cb1a564ee1d2f1abfc7d2b509`.
+
+This branch was created directly from the accepted Preview harness candidate. Use this branch, not the moving `preview/w15-first-project-env-harness`, when creating the real Product Owner Codespace.
+
+### Product Owner action boundary
+
+The Product Owner should only need to:
+1. create/open a **new Codespace** for repository `brunolrogerio-collab/EliteSCADA` on branch `preview/w15-first-project-env-b-codespace`;
+2. wait for the devcontainer lifecycle to complete;
+3. open the forwarded Web 5173 URL in a normal browser when available.
+
+Do not manually start API/Web/database unless Main is diagnosing an environment failure. Do not manually make ports public unless the repository-controlled policy fails and Main first captures the failure evidence.
+
+### First-open acceptance evidence
+
+Before any human product exploration beyond confirming the fresh first-run surface, capture:
+- `git rev-parse HEAD`;
+- Codespace name;
+- devcontainer startup outcome;
+- live Codespaces port list/visibility;
+- Web/API/database container/service health;
+- public 5173 browser result;
+- visible product first-run state.
+
+Expected:
+- HEAD = `bb451fa6e07982ac12384895f6097d5833761d16`;
+- 5173 = PUBLIC;
+- 5080/5432 != PUBLIC;
+- EliteSCADA visible in browser;
+- initial Administrator setup available;
+- no persisted project/application/import/Demo state.
+
+Do not create the real audit project yet. This first open is ENV_B readiness proof only.
+
+### Resume acceptance evidence
+
+After first-open readiness is captured:
+1. stop the Codespace through normal GitHub Codespaces lifecycle;
+2. reopen/resume the same Codespace;
+3. do not run terminal recovery commands;
+4. verify repository-controlled startup restores API/Web/database;
+5. verify 5173 becomes PUBLIC again automatically;
+6. verify 5080/5432 remain non-public;
+7. verify the product-owned state used for continuity proof remains present;
+8. verify browser access works again.
+
+Only then may Main record `ENV_B_READY` and release the Product Owner human Preview together with CODEX Stage 1.

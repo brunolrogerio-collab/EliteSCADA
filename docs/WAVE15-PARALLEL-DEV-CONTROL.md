@@ -1831,4 +1831,27 @@ State:
 `DEV_RECONCILIATION / AUTHORIZED`.
 
 Shared CODEX remains HOLD to preserve its reduced budget until the fresh Licensing exact head is ready.
+## 59. Licensing final reconciliation accepted / scarce CODEX active
+
+Exact candidate:
+- PR #345;
+- head `3d166c0b45eef34ef878e710b5db28c3ea2fa93f`;
+- base `27412e4fbe47dbbb6573229364ee8319369ae076`;
+- ahead 19 / behind 0;
+- T1 #113 `36289854846`: SUCCESS.
+
+All 13 Licensing/session blobs are byte-identical to the previously accepted candidate after Authority integration.
+
+Shared CODEX is now active only on:
+`DEV-LICENSING-UX-CODEX-ADVERSARIAL-SCARCE-10`.
+
+Focus:
+- ESLIC1/ESLIC2 truth;
+- signed entitlement projection;
+- ViewOnly fail-closed behavior;
+- requested/granted/fallback/capacity truth;
+- replacement-admission failure without stale lease;
+- cheap direct API/tampering negatives.
+
+No broad rerun unless warranted. Authority/FND-05/FND-07 are closed/frozen.
 

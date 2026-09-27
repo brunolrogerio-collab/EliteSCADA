@@ -2669,3 +2669,102 @@ After this handoff, remain:
 
 Do not begin Stage 2.
 Do not begin a Stage 1 retry in the same CODEX context.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0091
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-AUTONOMOUS-ENV-A-INFRA-RECOVERY-76`
+
+`ORDER_STATE: ACTIVE / AUTONOMOUS_INFRA_HARNESS_RECOVERY / NO_PRODUCT_FIX / EMBARGO_ACTIVE`
+
+Product Owner explicitly authorized you to keep making useful progress without stopping for Main approval on every small infrastructure decision.
+
+Authoritative Preview control:
+- rev 0022;
+- commit `40125a09fd4444c64ca874c59dcb4269055940c1`.
+
+Current facts:
+- accepted harness/product identity remains `bb451fa6e07982ac12384895f6097d5833761d16` / tree `650d30089596021cb1a564ee1d2f1abfc7d2b509`;
+- sealed attempt-1 session: `6f18039a-5e67-49bd-a566-2050cf775aee`;
+- runtime worktree is already exact/clean;
+- session reports RUNNING;
+- preparation reports REQUIRED because expected provenance manifest is absent;
+- attempt 1 is SEALED / INCONCLUSIVE and must not resume as black-box exploration.
+
+### Mission
+
+Act autonomously as ENV_A infrastructure/audit-harness maintainer.
+
+Do not return to Main for routine implementation decisions. Investigate, preserve, repair, test, iterate and push a replacement harness candidate if needed.
+
+Priorities:
+1. preserve attempt-1 state/evidence durably;
+2. safely pause/quiesce the attempt-1 runtime;
+3. determine the missing-preparation-manifest root cause;
+4. fix the harness so evidence work, worktree operations and lifecycle events cannot silently invalidate preparation;
+5. add regression coverage for the discovered failure;
+6. validate a clean replacement candidate comprehensively;
+7. leave ENV_A deterministic for a future fresh CODEX context and/or Stage 2.
+
+### You are authorized to
+
+- inspect Docker/container/volume/image labels and metadata;
+- inspect ignored Preview artifacts, preparation manifests, dependency markers and session manifests;
+- inspect harness source/config/logs/tests;
+- use source/API/log knowledge for infrastructure diagnosis;
+- create separate Git worktrees for evidence;
+- change/commit/push **Preview harness infrastructure only**;
+- add infrastructure regression tests/checks;
+- add repair/snapshot/preparation lifecycle commands if useful;
+- reconstruct preparation metadata only from cryptographically/label-verified immutable prepared assets;
+- run explicit preparation after attempt-1 is safely preserved/quiesced;
+- use the already accepted explicit trusted-root preparation mechanism if package network is needed;
+- create and destroy disposable validation sessions;
+- restart Docker Desktop for validation;
+- perform as many safe harness iterations as necessary.
+
+### Preserve attempt 1 first
+
+Before destructive cleanup of attempt-1 runtime state, capture and verify:
+- session manifest;
+- exact harness/product identity;
+- Docker container/volume/network metadata;
+- a durable database/product-state snapshot or equivalent restorable backup;
+- embargoed evidence branch references.
+
+Try the normal harness `pause` first. It does not require PREPARATION=READY. If it fails solely because of infrastructure, you may use the least-invasive Docker quiesce necessary, documenting it.
+
+After durable preservation, you may archive/reset attempt-1 runtime if that becomes necessary for harness repair/validation. Never reuse it as a new black-box attempt.
+
+### Forbidden
+
+- no EliteSCADA product source modification;
+- no product test changes to hide a defect;
+- no auth/licensing/Authority weakening;
+- no direct DB-row repair to force success;
+- no seeded project/Demo/EEE state;
+- no Product Owner observation consumption;
+- no detailed finding disclosure to Product Owner-facing surfaces;
+- no new independent Stage1 black-box attempt in this already-contaminated CODEX context.
+
+If you discover a probable product defect, preserve it in embargoed evidence and keep working on independent infrastructure tasks. Do not fix the product.
+
+### Completion target
+
+Return only after either:
+A. a fully validated replacement harness candidate is pushed, with root cause + regression proof + lifecycle validation; or
+B. a genuine external blocker prevents safe further progress.
+
+The preferred final handoff should include:
+- exact branch/head/tree/product base;
+- attempt-1 preservation location and final sealed state;
+- missing-manifest root cause;
+- exact harness changes;
+- regression coverage;
+- preparation/provenance validation;
+- start/pause/resume/Docker-restart/reset validation;
+- proof evidence branch operations no longer invalidate runtime preparation identity;
+- final clean/disposable environment state;
+- explicit non-actions on product code.
+
+Human Preview continues independently. Stage 2 remains PREPARED / NOT ACTIVE.

@@ -1746,4 +1746,28 @@ Licensing UX #345 remains:
 `MAIN_ACCEPTED_FOR_CODEX / WAIT`.
 
 No other CODEX route is active.
+## 55. Authority adversarial pass -> bounded concurrency-feedback correction
+
+CODEX targeted adversarial validation on PR #346 confirmed:
+- 401 anonymous;
+- 403 viewer;
+- orphan assignment fail-closed;
+- self-lockout fail-closed;
+- no rejected mutation changes policy version.
+
+One bounded finding:
+`AUTHORITY_UX_CONCURRENCY_FEEDBACK_MISMATCH`.
+
+Frozen backend stale-version path returns:
+`400 + AUTHORITY_POLICY_CONCURRENCY_CONFLICT`.
+
+The UI currently displays localized conflict guidance only for HTTP 409.
+
+New CODEX order:
+`DEV-AUTHORITY-UX-CODEX-CONCURRENCY-FEEDBACK-08`.
+
+Scope:
+Authority UX/test only; semantic conflict-code recognition + focused regression + new T1.
+
+Licensing remains WAIT.
 

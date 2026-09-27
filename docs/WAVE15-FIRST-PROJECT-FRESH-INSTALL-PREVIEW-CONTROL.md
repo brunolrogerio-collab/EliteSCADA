@@ -1916,3 +1916,70 @@ After Main accepts the final repaired harness, Main may activate Stage 2 using t
 - ENV_A repair lifecycle validation: ACTIVE;
 - Stage 2: `PREPARED / NOT ACTIVE`;
 - Wave 15 Preview acceptance: NOT ACHIEVED.
+
+
+## 35. Second DEV UX correction wave prepared
+
+MAIN_ORDER_REV: 0025
+
+STATE: HUMAN_PREVIEW_BLOCKED_BY_PRODUCT / UX2_PREPARED / ENV_A_HARNESS_FINAL_VALIDATION_ACTIVE
+
+The Product Owner decided that the post-Preview correction program should include a **second DEV UX wave** rather than treating the remaining authoring/usability findings as scattered polish.
+
+Umbrella issue:
+- #357 — `W15-UX2 — segunda leva DEV UX pós-Preview: Engineering usability, authoring e visual workflow`.
+
+Dedicated toolbox issue:
+- #358 — `W15-UX2-EDITOR — substituir toolbox textual por paleta compacta de ícones`.
+
+### 35.1 UX2 intent
+
+UX2 is a product-correctness/usability wave grounded in the real Human Preview.
+
+It owns, in bounded slices:
+- Editor first-user usability and Property Inspector readability under #303;
+- text content/name discoverability;
+- fill/stroke/color discoverability and immediate visual feedback;
+- compact icon-first object toolbox under #358;
+- Library/Dynamo preview and reusable-object browsing under #308;
+- Templates create/edit discoverability under #356;
+- general first-user Engineering action hierarchy/empty-state consistency.
+
+P0/P1 product correctness remains authoritative. UX2 must not cosmetically hide #354 or #355.
+
+### 35.2 Toolbox product decision
+
+The current persistent text-button object toolbox consumes too much editor workspace and is not sufficiently intuitive.
+
+Target:
+- icon-first palette by default;
+- compact/canvas-prioritized layout;
+- grouped/flyout categories where useful;
+- localized tooltip and accessible name for every icon;
+- keyboard reachable;
+- clear active/insertion state;
+- no critical meaning conveyed by color alone;
+- no object-schema or renderer fork;
+- no proprietary SCADA/HMI icon copying.
+
+#308 remains responsible for actual visual previews of Library/Dynamo objects; an icon that opens Library/Dynamo browsing is not a substitute for preview.
+
+### 35.3 Stage 2 coverage
+
+Stage 2 contract now includes:
+`V2-19 — icon-first object toolbox`
+via commit `fcf732cc4de95512291fe30bb2cd180c2c3a6375`.
+
+### 35.4 Scheduling
+
+Do not interrupt the currently active autonomous ENV_A harness final lifecycle validation.
+
+After Main accepts the repaired harness, the correction sequence should prioritize:
+1. #354 P0 Runtime/Demo authority;
+2. #355 P1 Data Source -> TAG blocker;
+3. bounded UX2 DEV slices (#303/#358/#308/#356) in parallel where file/contracts permit;
+4. integration;
+5. directed Stage 2 verification;
+6. repeat fresh first-project Preview.
+
+UX2 is PREPARED, not yet assigned to a DEV agent by this decision alone.

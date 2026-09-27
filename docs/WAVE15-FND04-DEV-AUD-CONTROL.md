@@ -2147,3 +2147,37 @@ In addition to rev 0079 requirements, return:
 - explicit statement that no first-project/user journey was pre-seeded while solving environment lifecycle.
 
 Do not begin either exploratory audit until Main accepts this lifecycle proof and releases ENV_A/ENV_B READY.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0081
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FIRST-PROJECT-ENV-HARNESS-PUBLIC-WEB-66`
+
+`ORDER_STATE: ACTIVE / ENVIRONMENT_HARNESS_ONLY / HUMAN_CODESPACE_5173_PUBLIC`
+
+This amendment is binding and supersedes rev 0080 where more specific.
+
+Product Owner requirement for Environment B (Human Preview Codespace):
+- Web port `5173` must be PUBLIC automatically;
+- API `5080` and database `5432` remain internal/private;
+- Public visibility must be restored automatically after Codespace stop/suspend -> resume/reopen;
+- do not require the Product Owner to open the Ports panel and manually change visibility each session.
+
+Read the authoritative Preview control rev 0004 first:
+- branch: `coord/w15-fresh-install-preview-control`;
+- file: `docs/WAVE15-FIRST-PROJECT-FRESH-INSTALL-PREVIEW-CONTROL.md`;
+- commit: `b4d84d646be9d5b20567394290cac066b0b87cb0`.
+
+Important implementation constraint:
+GitHub Codespaces can revert a forwarded port to private when the port is removed/re-added or the Codespace restarts. Therefore a one-time manual/public setting is insufficient.
+
+Implement repository-controlled visibility re-assertion for 5173 using supported GitHub Codespaces mechanisms (for example `gh codespace ports visibility 5173:public -c <current-codespace>` where available), deriving the current Codespace identity dynamically and verifying success. Do not hardcode a Codespace name.
+
+The harness readiness proof must include:
+1. fresh Codespace -> automatic product startup -> 5173 healthy and PUBLIC;
+2. direct ordinary-browser access to the public 5173 URL reaches EliteSCADA;
+3. stop/suspend -> resume/reopen -> product auto-recovers and 5173 becomes PUBLIC again without Product Owner manual action;
+4. 5080/5432 remain non-public;
+5. no product auth/licensing weakening and no first-project state pre-seeding.
+
+Note: public forwarded 5173 removes GitHub's port-level authentication for anyone who knows the URL. EliteSCADA's own login/auth/authorization must remain intact.

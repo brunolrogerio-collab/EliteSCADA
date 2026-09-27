@@ -367,3 +367,99 @@ Detailed findings MUST be persisted in a dedicated preview evidence artifact/bra
 Before beginning user interaction, CODEX must verify only at the environment level that it is clean as defined in section 2. If a truthful clean environment cannot be obtained without implementation-specific product seeding, return `INVALID_ENVIRONMENT / RESET_REQUIRED` or `BLOCKED_BY_ENVIRONMENT`; do not silently weaken the fresh-install contract.
 
 No Human Preview is active yet. It activates only after CODEX first-project exploration ends and a second independent clean environment is prepared.
+
+
+## 13. Product Owner amendment — parallel independent environments
+
+MAIN_ORDER_REV: 0003
+
+STATE: ACTIVE / PRE-AUDIT ENVIRONMENT PREPARATION / PARALLEL INDEPENDENT EXECUTION AUTHORIZED
+
+The Product Owner replaced the strictly sequential execution topology before either exploratory journey produced evidence.
+
+Section 12's product base, T2 acceptance, clean-environment contract, black-box restrictions and findings embargo remain binding. Only the **environment/execution topology** changes.
+
+### 13.1 Exact product authority
+
+Both audits remain pinned to the same exact product bytes:
+- product SHA: `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`;
+- product tree: `5e5fce8ce87f31dfc11b83bb68ff86c67f9f0112`;
+- accepted T2: `W15-FOUR-FEATURE-INTEGRATED-T2-01 -> PASS / ACCEPTED`;
+- broad evidence: EliteSCADA CI #1584 / `36290910850` SUCCESS.
+
+A dedicated environment-only branch has been created directly from that product SHA:
+`preview/w15-first-project-env-harness`.
+
+At creation it is byte-identical to the accepted product checkpoint. It may receive only Preview/container/devcontainer/startup/reset/diagnostic infrastructure. Product semantics must not change on that branch.
+
+### 13.2 Preparation phase is not the black-box journey
+
+Before either audit starts, CODEX may inspect source/configuration/controls **only to build and validate the environment harness**. The black-box source/control/database/internal-API restrictions begin only after Main accepts the harness, resets both environments to clean state and explicitly marks each exploratory gate READY.
+
+If getting a clean environment to boot requires a product-semantic change, hidden Demo/project seeding, auth/licensing bypass, or other behavior change, stop and return an environment/product blocker. Do not hide it in the harness.
+
+### 13.3 Environment A — CODEX local container
+
+CODEX will audit EliteSCADA locally on its machine using repository-owned Docker/Compose infrastructure.
+
+Required direction:
+- reuse the existing pinned Linux CI assets where practical: `ci/local/Dockerfile.linux-e2e`, `ci/local/docker-compose.yml`, `scripts/ci/*`;
+- provide a clean application Preview mode, not merely a test runner;
+- isolated disposable TimescaleDB/PostgreSQL volume/database;
+- normal EliteSCADA API + Web startup from the accepted product bytes;
+- browser-visible Web endpoint for user-like exploration;
+- no precreated project, imported package, hidden Demo Engineering state or test-owned Working state;
+- no automatic first Administrator/project creation that would bypass what a fresh user must discover through the product UI;
+- deterministic reset that destroys only audit-environment state and browser/session state;
+- environment/bootstrap diagnostics may exist outside the product UI but must not be used by CODEX to navigate the black-box journey.
+
+After ENV_A is accepted and reset, CODEX executes `W15-FIRST-PROJECT-CODEX-BLACKBOX-PREVIEW-01` under the original black-box rules.
+
+### 13.4 Environment B — Product Owner fresh Codespace
+
+A second independent environment will be a **fresh GitHub Codespace** built from the same accepted environment harness and product bytes.
+
+Codespace requirements:
+- fresh Codespace, not a repaired/reused prior Preview;
+- repository-controlled devcontainer/Compose/startup path;
+- separate database/volume and separate browser/session state from CODEX;
+- Web port 5173 exposed only through normal Codespaces forwarding and kept Private;
+- API 5080 and database 5432 remain internal/private;
+- no precreated project/EEE/imported package/hidden Demo Engineering state;
+- no CODEX-created application/state copied into the Codespace;
+- automatic environment startup may start dependencies/API/Web but may not complete the user's first Administrator/project/Engineering journey for them.
+
+The existing `.devcontainer/devcontainer.json` is only a partial starting point. The historical `docs/CODESPACES-PREVIEW-RUNBOOK.md` is reference evidence, not permission to resurrect stale Wave 14 Demo/bootstrap behavior.
+
+### 13.5 Parallel independence rule
+
+Once Main records both environments READY on the same accepted harness/product checkpoint, the two exploratory journeys may execute **in parallel**.
+
+No sequencing dependency remains between their start/end times.
+
+Independence is enforced by isolation and information embargo:
+- no shared DB/volume/project/session/browser profile;
+- no shared audit-created files/state;
+- no CODEX report/checklist/navigation hints exposed to Product Owner;
+- Product Owner observations are not fed to CODEX during its black-box journey;
+- Main may know only coarse gate state for coordination until both journeys end;
+- detailed findings remain sealed until both exploratory journeys are COMPLETE/BLOCKED.
+
+Parallel execution is therefore considered at least as independent as the former CODEX-first/human-second ordering and avoids one auditor waiting on the other.
+
+### 13.6 Planned harness convergence
+
+CODEX first prepares and validates `preview/w15-first-project-env-harness` as infrastructure-only.
+
+After Main accepts one exact harness commit, Main should derive two clean audit refs/environments from that same harness commit:
+- CODEX local audit environment;
+- Product Owner Codespace audit environment.
+
+The environment harness itself is not a product integration candidate and must not be merged into `wave15/corrections-integration` merely to run the Preview.
+
+### 13.7 Current gate state
+
+- `W15-FIRST-PROJECT-CODEX-BLACKBOX-PREVIEW-01`: RESERVED / WAIT_ENVIRONMENT_A_READY;
+- `W15-FIRST-PROJECT-HUMAN-PREVIEW-01`: RESERVED / WAIT_ENVIRONMENT_B_READY;
+- execution topology after readiness: `PARALLEL_INDEPENDENT`;
+- findings embargo: ACTIVE.

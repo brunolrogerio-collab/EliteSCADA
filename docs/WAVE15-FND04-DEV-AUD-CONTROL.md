@@ -3033,3 +3033,55 @@ Also report:
 - confirmation that the handoff copy and repository file are byte-equivalent as UTF-8 text aside from platform newline normalization, if any.
 
 All rev 0094 safety, validation and product non-action rules remain binding.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0096
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-VS-LOCAL-OPERATOR-BOOTSTRAP-78B`
+
+`ORDER_STATE: ACTIVE / SAME_MISSION / LOCAL_OPERATIONS_EVIDENCE_REQUIRED`
+
+This revision keeps rev 0094/0095 implementation scope and adds a mandatory canonical evidence artifact.
+
+Create and commit:
+`docs/LOCAL-ELITESCADA-OPERATIONS-EVIDENCE.md`.
+
+Purpose:
+preserve the real evidence, failure modes, lifecycle behavior and design lessons discovered while running EliteSCADA locally so they can be reused by:
+- the next fresh Preview;
+- #307/#359 local-vs-remote diagnostics;
+- Windows packaging #205/#207;
+- future Linux packaging;
+- installed-service lifecycle #361.
+
+Required evidence sections:
+1. environment/provenance;
+2. confirmed local lifecycle behavior for prepare/start/status/pause/resume/stop/restart/reset;
+3. actual problems encountered, including provenance-manifest loss, LF/CRLF identity instability, PowerShell->Bash CRLF, evidence/runtime worktree contamination risk, Docker restart/resume, port/resource/startup/readiness issues;
+4. confirmed root causes/corrections/regressions;
+5. persistence semantics and destructive boundaries;
+6. readiness/health contract;
+7. diagnose/redaction contract;
+8. implications for the next Preview;
+9. implications for Windows Service/Linux systemd installers;
+10. open questions/future tests.
+
+Use explicit evidence labels:
+`CONFIRMED | OBSERVED | HYPOTHESIS | NOT_TESTED`.
+
+Do not include secrets/credentials/private keys/tokens/license secrets.
+
+Installed-service design owner now exists:
+#361 — `INSTALL-OPS — lifecycle operacional como Windows Service e Linux systemd`.
+
+Important boundary:
+#360 may prototype/reuse lifecycle semantics, but must **not** implement production Windows Service/systemd architecture in this mission. Record evidence and implications only.
+
+The final CODEX handoff must include:
+- exact evidence file path/blob/commit;
+- a concise list of the most important confirmed local-operation lessons;
+- the full verbatim Visual Studio AI bootstrap copy required by rev 0095;
+- exact branch/head/tree;
+- explicit product non-actions.
+
+All previous safety/validation requirements remain binding.

@@ -2372,3 +2372,67 @@ Return `CODEX -> MAIN COORDINATOR` with:
 - explicit statement that black-box exploration did not start.
 
 ENV_B is now pinned to this same exact shared harness candidate but remains under MAIN ownership and WAIT_REAL_CODESPACE_PROOF.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0086
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-ENV-A-DEPENDENCY-BOUNDARY-FIX-71`
+
+`ORDER_STATE: ACTIVE / HARNESS_FIX_ONLY / BLACKBOX_HOLD`
+
+Main reviewed #305 comment `5856199560`.
+
+The final continuity proof materially passed the Product Owner's shutdown/resume requirement on exact harness `ec050e9bfda121805b1165860a4aeda0eb2582e8`:
+- minimal Local Administrator created through UI;
+- clean pause;
+- real Docker Desktop restart via `docker desktop restart --timeout 180`;
+- Docker session/engine restarted;
+- same audit session resumed;
+- same post-bootstrap no-project product state survived;
+- second pause/resume passed;
+- reset returned NOT_STARTED with no dedicated preview resources.
+
+The remaining blocker is harness-only: reset also destroyed dependency volumes, so the subsequent fresh start ran runtime `npm install` and failed on external registry certificate validation (`UNABLE_TO_VERIFY_LEAF_SIGNATURE`).
+
+Authoritative correction contract:
+- Preview control rev 0011;
+- commit `44023a9cf9e29c38d9b0e62f72198fa89e242018`.
+
+### Mission
+
+On `preview/w15-first-project-env-harness`, make the narrowest robust infrastructure-only change that separates immutable dependency/tool preparation from destructive product/audit reset.
+
+Preferred direction:
+- add explicit `prepare` semantics and/or a provenance-bound prebuilt dependency image/cache;
+- network/npm/NuGet resolution occurs at preparation/build time;
+- `reset` removes DB/runtime/audit session state but preserves dependency/tool preparation state;
+- repeated `reset -> start` must not need new npm/NuGet downloads;
+- dependency reuse must be tied to exact lock/project/harness provenance and must never silently accept stale packages.
+
+Forbidden:
+- disabling TLS/certificate verification;
+- `strict-ssl=false`;
+- `NODE_TLS_REJECT_UNAUTHORIZED=0`;
+- importing unknown machine-local trust anchors automatically;
+- floating dependency versions;
+- changing product source/tests/workflows/auth/licensing/Authority/lifecycle semantics.
+
+If one-time preparation cannot reach registries under valid TLS, return `ENVIRONMENT_PREP_BLOCKED_TLS`; do not hide the environment problem in product startup.
+
+### Required replacement proof
+
+Return one exact replacement harness SHA/tree after proving:
+1. infrastructure-only diff;
+2. valid dependency preparation/provenance;
+3. clean product start -> first Administrator surface;
+4. minimal Administrator marker via UI;
+5. pause;
+6. real Docker Desktop/engine restart;
+7. resume same marker/session;
+8. reset destroys product state but not immutable dependency preparation;
+9. second clean start reaches first-run/no-project state with no new npm/NuGet network download;
+10. if practical, repeat that start while external package network is unavailable after preparation;
+11. final reset -> NOT_STARTED with no dedicated product-state containers/volumes;
+12. black-box Stage 1 did not start.
+
+Do not start ENV_A Stage 1 or Stage 2. ENV_B remains under Main ownership.

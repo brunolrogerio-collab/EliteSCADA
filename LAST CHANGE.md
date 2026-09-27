@@ -1,3 +1,169 @@
+# LIVE CURRENT CHECKPOINT — 2026-09-27 — WAVE 15 FRESH-INSTALL PREVIEW ENVIRONMENT PREPARATION
+
+> This section supersedes older current-state snapshots below when they conflict. Historical entries remain preserved. GitHub live remains the sole authority.
+
+GitHub live was revalidated before this documentation refresh.
+
+- integration branch coordination tip before this refresh: `22fad82c3da98588d98051bd2ceb608da64ff8f3`;
+- exact integrated **product checkpoint** remains `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`;
+- exact product tree remains `5e5fce8ce87f31dfc11b83bb68ff86c67f9f0112`;
+- the integration tip above is one coordination-document commit beyond the product checkpoint; no later product/test/workflow bytes redefine the Preview product base;
+- broader feature T2 is formally accepted: `W15-FOUR-FEATURE-INTEGRATED-T2-01 -> PASS / ACCEPTED`;
+- exact broad evidence: EliteSCADA CI #1584 / run `36290910850` — SUCCESS across Backend build/full tests/Runtime smoke, Web build and Chromium end-to-end.
+
+Final six-lane disposition:
+- Script Engineering: `T2_VERIFIED`;
+- Editor: `T2_VERIFIED`;
+- Authority UX: `INTEGRATED / VERIFIED_COMPLETE`;
+- Licensing UX: `INTEGRATED / VERIFIED_COMPLETE`;
+- FND-05: `VERIFIED / FROZEN`;
+- FND-07: `VERIFIED / FROZEN`.
+
+
+## Fresh-install Preview topology
+
+The six-lane product phase is closed and the Preview has moved into environment-readiness work.
+
+The Product Owner changed the Preview topology before either exploratory journey produced findings:
+
+1. **ENV_A — CODEX local:** EliteSCADA runs locally in an isolated containerized audit environment on the CODEX machine.
+2. **ENV_B — Product Owner human:** a fresh independent GitHub Codespace runs the same exact product bytes.
+3. After both environments are READY, the two exploratory journeys may run independently/in parallel.
+4. No DB, project, browser/session state or findings are shared.
+5. Detailed CODEX findings remain embargoed from the Product Owner until the independent human journey is complete.
+
+Canonical Preview control:
+`coord/w15-fresh-install-preview-control:docs/WAVE15-FIRST-PROJECT-FRESH-INSTALL-PREVIEW-CONTROL.md`.
+
+## ENV_A — local CODEX harness
+
+Harness branch:
+`preview/w15-first-project-env-harness`.
+
+Current reviewed candidate before the active correction:
+- SHA `ec050e9bfda121805b1165860a4aeda0eb2582e8`;
+- tree `0d6221540c3678a8b042c51082f7a2ed0a466fa2`;
+- exact parent/product base `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+The branch differs from the product base only by Preview/devcontainer/Compose/startup/lifecycle infrastructure.
+
+### Pause/resume requirement — materially proven
+
+The Product Owner requires the local CODEX audit to survive CODEX usage limits and PC shutdown/restart.
+
+Repository-controlled lifecycle semantics are:
+`start | pause | resume | status | reset`.
+
+On the accepted candidate CODEX proved:
+- clean ENV_A reached RUNNING;
+- first Local Administrator was created through the normal UI as a minimal product-owned persistence marker;
+- no project was created;
+- audit paused as `PAUSED_RESUMABLE`;
+- Docker Desktop was fully restarted with `docker desktop restart --timeout 180`;
+- Docker Desktop/Engine returned with a different Docker session and healthy engine;
+- the exact same audit session resumed;
+- the normal product UI still showed the persisted Administrator/no-project state;
+- a second ordinary pause/resume cycle preserved the same state;
+- explicit reset returned `NOT_STARTED` and removed the dedicated Preview containers/volumes.
+
+Therefore the important user requirement **pause -> power/engine interruption -> resume same audit** is materially proven.
+
+Evidence handoff:
+Issue #305 comment `5856199560`.
+
+## Current ENV_A blocker — dependency preparation incorrectly coupled to product reset
+
+After the successful continuity proof and explicit reset, a fresh start attempted to reinstall runtime npm dependencies because the reset had also removed dependency volumes.
+
+The fresh start stopped before product UI with:
+`UNABLE_TO_VERIFY_LEAF_SIGNATURE`
+while downloading `ws-8.21.3.tgz` from npm.
+
+CODEX correctly did **not**:
+- disable npm TLS;
+- set `NODE_TLS_REJECT_UNAUTHORIZED=0`;
+- change host/container trust;
+- alter product source.
+
+Classification:
+`ENV_A_HARNESS_DEFECT / AUDIT_RESET_DEPENDENCY_BOOTSTRAP_COUPLING`.
+
+Main decision:
+a clean **product/audit reset** must be independent from **toolchain/dependency preparation**.
+
+Required new boundary:
+- preparation/tool caches may persist and must be tied to exact lock/project/harness provenance;
+- product database, Administrator/project/application state and audit session remain explicitly resettable;
+- after successful preparation, repeated `reset -> start` must not download npm/NuGet packages again;
+- no TLS/certificate weakening is allowed.
+
+Active CODEX route:
+`ROUTE-SEQUENTIAL-CODEX-ENV-A-DEPENDENCY-BOUNDARY-FIX-71`.
+
+Shared control rev 0086:
+commit `574011f722bb2234c7a1586fc8d62739892f716a`.
+
+Preview control rev 0011:
+commit `44023a9cf9e29c38d9b0e62f72198fa89e242018`.
+
+ENV_A remains:
+`BLACKBOX_HOLD / NOT_READY`.
+
+## ENV_B — Product Owner Codespace
+
+Canonical runbook:
+`coord/w15-fresh-install-preview-control:docs/WAVE15-FIRST-PROJECT-CODESPACE-ENV-B-RUNBOOK.md`.
+
+The current static design uses:
+- Compose-backed EliteSCADA + TimescaleDB;
+- `postStartCommand` for every Codespace start/resume;
+- Web port `5173` automatically set to **PUBLIC**;
+- API `5080` remains internal/private;
+- database `5432` remains internal/private;
+- no precreated Administrator/project/Demo/EEE state;
+- after Codespace stop/resume, repository automation must restart the product and re-assert `5173:public` without Product Owner terminal/Ports-panel work.
+
+ENV_B is not yet READY because a real fresh Codespace + stop/resume lifecycle still needs to be exercised.
+
+The currently connected GitHub automation cannot create/start/stop a Codespace. Product Owner interaction should ultimately be limited to creating/opening the prepared Codespace; product startup and port visibility must be automatic.
+
+## CODEX Stage 1 and Stage 2
+
+Stage 1 remains the unspoiled black-box first-project journey:
+`W15-FIRST-PROJECT-CODEX-BLACKBOX-PREVIEW-01`.
+
+It has **not started** because ENV_A is not READY.
+
+A second post-journey verification stage has already been prepared:
+
+`docs/WAVE15-ENV-A-CODEX-STAGE2-DIRECTED-VERIFICATION.md`
+commit `ce7a4b9a26cc5cdf36d466712eef62ab061d978f`.
+
+Stage 2:
+`W15-ENV-A-CODEX-STAGE2-DIRECTED-VERIFICATION = PREPARED / NOT ACTIVE`.
+
+It will only start after Stage 1 evidence is sealed and a derived checkpoint/copy of the CODEX-created project exists. It targets the Wave 14 -> Wave 15 regression contracts: Working/Active authority, truthful failure UX, Editor/schema selection stability, Script Engineering maturity, Server Script recovery, Runtime projection/popup persistence, Popup values, Trends, Authority/Licensing truth and FND-07 Neutral/Detach; FND-05 HA is explicitly not overclaimed from single-node ENV_A.
+
+## Immediate next safe action
+
+1. Wait for CODEX to return an exact replacement harness for `ENV_A dependency preparation vs reset`.
+2. Main reviews exact diff/SHA/tree; product semantics must remain untouched.
+3. Prove:
+   - preparation/provenance;
+   - clean start;
+   - Administrator persistence through real Docker Desktop restart;
+   - reset;
+   - second fresh start with **no new npm/NuGet download**;
+   - final reset -> `NOT_STARTED`.
+4. Only then mark ENV_A READY and release Stage 1 on a new clean audit session.
+5. In parallel, once the shared harness impact is known, continue ENV_B real Codespace create/start/stop/resume proof.
+6. Keep Stage 2 PREPARED / NOT ACTIVE until Stage 1 is sealed.
+
+Durable ledger:
+Issue #305 comments `5856105046`, `5856118585`, `5856157684`, `5856199560`, `5856218697`.
+
+---
+
 # LAST CHANGE — EliteSCADA
 
 **Date:** 2026-09-23 BRT  

@@ -1830,3 +1830,89 @@ Return only:
 Human Preview remains ACTIVE and independent.
 Detailed attempt-1 product observations remain embargoed.
 Stage 2 remains `PREPARED / NOT ACTIVE`.
+
+
+## 34. Human Preview blocked by product / embargo lifted / correction backlog opened
+
+MAIN_ORDER_REV: 0024
+
+STATE: HUMAN_PREVIEW_BLOCKED_BY_PRODUCT / EMBARGO_LIFTED / ENV_A_HARNESS_FINAL_VALIDATION_ACTIVE
+
+The Product Owner completed the unaided Human Preview and could not reach a trustworthy effective data-backed Runtime application.
+
+Main disposition:
+`W15-FIRST-PROJECT-HUMAN-PREVIEW-01 = BLOCKED_BY_PRODUCT`.
+
+Canonical human evidence:
+`docs/WAVE15-FIRST-PROJECT-HUMAN-PREVIEW-FINDINGS.md`
+commit `e413b3c85224cbf3f62bad6896738ec7ebe7810c`.
+
+### 34.1 Human findings accepted
+
+Material findings:
+1. unexpected Demo-like Runtime content in the first project, including tank/pump/frequency/current-style visuals not intentionally created/imported and not readily reconcilable from Engineering;
+2. Data Source Type selector not usable/selectable, blocking Data Source completion and normal TAG creation;
+3. Library/Dynamo objects still lack useful visual preview;
+4. Templates expose no discoverable create/edit authoring workflow;
+5. Screen Editor Property Inspector has poor light-on-light contrast/readability;
+6. inserted text object's displayed text/content could not be discoverably edited/renamed;
+7. basic rectangle/shape fill/display color could not be changed reliably through the discovered property surfaces;
+8. Editor is materially improved overall, but the journey remains below the first-project usability/correctness gate.
+
+### 34.2 Cross-audit after embargo lift
+
+The Human Preview has ended, so the CODEX findings embargo is now lifted for Main/CODEX cross-audit work.
+
+Independent CODEX attempt-1 evidence provides convergent support for two important areas:
+- CODEX also observed Runtime labeled `Demo · Estação Elevatória` while Engineering showed another project identity and zero TAGs/Data Sources;
+- CODEX also observed Data Sources/TAGs controls that did not successfully advance the visible authoring path in its follow-up.
+
+The Demo/runtime authority mismatch is therefore treated as a convergent product defect, not a single-session anomaly.
+
+The Data Source issue is a direct Human Preview reproduction with supportive CODEX evidence; CODEX did not independently isolate the exact Type-dropdown failure.
+
+### 34.3 Correction owners opened/updated
+
+New issues:
+- #354 — `W15-PREVIEW-P0 — fresh first project leaks Demo Runtime content / Engineering authority mismatch`;
+- #355 — `W15-PREVIEW-P1 — Data Source type selector unusable blocks TAG creation`;
+- #356 — `W15-PREVIEW-P1 — Templates surface lacks discoverable create/edit authoring workflow`.
+
+Existing issue evidence updated:
+- #303 — Editor/Properties/text/fill usability; Human Preview evidence comment `5857988331`;
+- #308 — Library/Dynamo visual preview still absent; Human Preview evidence comment `5857988604`.
+
+### 34.4 Stage 2 contract updated
+
+`docs/WAVE15-ENV-A-CODEX-STAGE2-DIRECTED-VERIFICATION.md` now includes V2-14 through V2-18 covering:
+- hidden Demo leakage/Runtime authority;
+- Data Source Type -> TAG -> Runtime path;
+- Templates CRUD/discoverability;
+- Editor first-user property usability;
+- Library/Dynamo visual previews.
+
+Stage 2 update commit:
+`e96f1045a644a70e3f49c6aa0cdd1ebb88eab0da`.
+
+Stage 2 remains:
+`PREPARED / NOT ACTIVE`
+while the ENV_A repair candidate is completing final lifecycle validation.
+
+### 34.5 Current CODEX mission remains unchanged until infrastructure proof ends
+
+Do not interrupt the active harness final-validation mission merely because embargo has lifted.
+
+Current CODEX infrastructure route remains:
+`ROUTE-SEQUENTIAL-CODEX-ENV-A-REPAIR-FINAL-LIFECYCLE-77`.
+
+After Main accepts the final repaired harness, Main may activate Stage 2 using the now-unembargoed Human + CODEX evidence.
+
+### 34.6 Current gates
+
+- Human Preview: `BLOCKED_BY_PRODUCT / COMPLETE_FOR_FIRST_PASS`;
+- findings embargo: `LIFTED`;
+- ENV_B: preserved as Human Preview evidence environment;
+- CODEX attempt 1: `INCONCLUSIVE / SEALED`;
+- ENV_A repair lifecycle validation: ACTIVE;
+- Stage 2: `PREPARED / NOT ACTIVE`;
+- Wave 15 Preview acceptance: NOT ACHIEVED.

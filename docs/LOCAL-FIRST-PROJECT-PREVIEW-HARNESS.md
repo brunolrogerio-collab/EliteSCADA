@@ -8,12 +8,17 @@ The local audit runs in a Linux container based on the repository's pinned Playw
 
 The repository pins the preview shell scripts to LF so Windows Git checkouts remain executable by Bash inside Docker.
 
-After Main posts an exact live acceptance SHA for Environment A, run in PowerShell from the repository checkout:
+After Main posts an exact live acceptance SHA for Environment A, prepare the pinned tool image and dependency cache once, then run in PowerShell from the repository checkout:
 
 ```powershell
+./scripts/preview/local-audit.ps1 prepare
 ./scripts/preview/local-audit.ps1 status
 ./scripts/preview/local-audit.ps1 start -AcceptedHarnessSha <accepted-harness-sha>
 ```
+
+`prepare` resolves the locked npm and NuGet dependencies into external, hash-keyed Docker volumes. Their provenance is tied to the exact harness SHA/tree, product checkpoint, dependency manifests, and tool-image labels. The preparation manifest and volumes live outside the audit-session directory. `start` and `resume` require that exact provenance and use the already-built local image (`--no-build --pull never`); they do not install or restore packages. Missing or mismatched prepared state fails explicitly and requires `prepare` rather than silently downloading or reusing stale artifacts. A TLS-chain failure during preparation is reported as `ENVIRONMENT_PREP_BLOCKED_TLS`; certificate verification must not be weakened.
+
+Prepared mode is enabled only by `docker-compose.preview.local.yml` for Environment A. Other Compose consumers retain the existing startup restore behavior unless their own reviewed configuration opts into prepared dependencies.
 
 Open `http://localhost:5173` in a normal browser. The host binding remains loopback-only, and the `localhost` origin preserves the product's default Secure-cookie behavior. The harness enables the supported secure first-run local identity flow but supplies no bootstrap username/password, project key, package, fixture, or Demo state. JWT and query-cursor signing keys are generated randomly into the private persistent runtime volume and are not committed.
 
@@ -33,7 +38,7 @@ Use these commands to preserve/continue a session:
 ./scripts/preview/local-audit.ps1 reset
 ```
 
-It removes only containers/volumes labelled with Compose project `elitescada-preview-a`. It archives the local evidence folder instead of deleting it. Starting again always requires a fresh exact acceptance SHA and creates a new random session ID. If the manifest is absent but dedicated containers/volumes remain, `start` refuses to reuse them and requires explicit inspection/reset.
+It removes only containers, network, and product/audit volumes labelled with Compose project `elitescada-preview-a`; the provenance-bound dependency volumes and local tool image are preserved. It archives the local evidence folder instead of deleting it. Starting again always requires a fresh exact acceptance SHA and creates a new random session ID. If the manifest is absent but dedicated product/audit resources remain, `start` refuses to reuse them and requires explicit inspection/reset.
 
 ## Product Owner Environment B
 

@@ -1,4 +1,23 @@
 services:
   preview:
+    image: elitescada-preview-a-preview:${ELITESCADA_PREVIEW_DEPENDENCY_KEY:?run local-audit prepare first}
+    pull_policy: never
+    build:
+      args:
+        PREVIEW_DEPENDENCY_KEY: ${ELITESCADA_PREVIEW_DEPENDENCY_KEY:?run local-audit prepare first}
+        PREVIEW_DEPENDENCY_INPUTS_SHA: ${ELITESCADA_PREVIEW_DEPENDENCY_INPUTS_SHA:?run local-audit prepare first}
+        PREVIEW_HARNESS_SHA: ${ELITESCADA_PREVIEW_HARNESS_SHA:?run local-audit prepare first}
+        PREVIEW_PRODUCT_BASE_SHA: ${ELITESCADA_PREVIEW_PRODUCT_BASE_SHA:?run local-audit prepare first}
+    environment:
+      PREVIEW_USE_PREPARED_DEPENDENCIES: "1"
+      PREVIEW_DEPENDENCY_KEY: ${ELITESCADA_PREVIEW_DEPENDENCY_KEY:?run local-audit prepare first}
     ports:
       - "127.0.0.1:${ELITESCADA_PREVIEW_PORT:-5173}:5173"
+
+volumes:
+  preview_nuget:
+    external: true
+    name: ${ELITESCADA_PREVIEW_NUGET_VOLUME:?run local-audit prepare first}
+  preview_node_modules:
+    external: true
+    name: ${ELITESCADA_PREVIEW_NODE_MODULES_VOLUME:?run local-audit prepare first}

@@ -2,6 +2,16 @@
 # Ubuntu. The overlays below align the remaining CI toolchains with GitHub CI.
 FROM mcr.microsoft.com/playwright:v1.62.1-noble
 
+ARG PREVIEW_DEPENDENCY_KEY=unprepared
+ARG PREVIEW_DEPENDENCY_INPUTS_SHA=unprepared
+ARG PREVIEW_HARNESS_SHA=unprepared
+ARG PREVIEW_PRODUCT_BASE_SHA=unprepared
+
+LABEL com.elitescada.preview.dependency-key=${PREVIEW_DEPENDENCY_KEY} \
+    com.elitescada.preview.dependency-inputs-sha=${PREVIEW_DEPENDENCY_INPUTS_SHA} \
+    com.elitescada.preview.harness-sha=${PREVIEW_HARNESS_SHA} \
+    com.elitescada.preview.product-base-sha=${PREVIEW_PRODUCT_BASE_SHA}
+
 USER root
 
 ARG NODE_VERSION=24.19.0

@@ -254,3 +254,47 @@ The Human Preview evidence is now sufficient to:
 
 It is not sufficient to declare Wave 15 Preview accepted.
 
+
+
+## H-09 — Security/Authority administration unavailable with observed HTTP 402
+
+### Observed
+
+During the same real Codespace Human Preview, the Product Owner reported that some product surfaces failed to load correctly and showed an HTTP `402` condition.
+
+The most material repeatable failure was the **Security/Authority administration surface**, which never became usable during the journey.
+
+As a result, the Product Owner could not:
+- create users;
+- edit users;
+- exercise the real User/Role administration workflow.
+
+### Causal boundary
+
+At triage time, repository search did not identify an explicit intentional product `402 Payment Required` response path.
+
+The exact request URL, response body/headers and backend correlation were not captured during the unaided journey, so root cause remains bounded between:
+- generic Authority/product defect;
+- license/session composition;
+- same-origin/proxy routing;
+- remote Codespaces transport/timing;
+- environment-only behavior.
+
+Do not infer the root solely from the numeric status.
+
+### Impact
+
+Wave 15 Authority UX cannot be considered practically accepted if the real mounted Security page never loads and user administration cannot be performed.
+
+### Classification
+
+`DEFECT / PREVIEW_SECURITY_ADMIN_UNAVAILABLE / ROOT_LAYER_UNCERTAIN_BOUNDED`.
+
+Priority recommendation: **P1 Preview blocker**.
+
+### Owner
+
+Issue #359:
+`W15-PREVIEW-P1 — Security/Authority administration fails to load in Codespace with observed HTTP 402`.
+
+It is linked to #302 Authority and #307 remote/WAN resilience until the responsible layer is isolated.

@@ -842,3 +842,53 @@ ENV_B therefore advances to:
 `EXACT_SHARED_HARNESS_SELECTED / WAIT_REAL_CODESPACE_CREATE_START_RESUME_PROOF / HUMAN_PREVIEW_NOT_RELEASED`.
 
 No real Codespace audit begins until the Codespace lifecycle gate is proven.
+
+
+## 20. ENV_A CODEX Stage 2 directed verification prepared
+
+MAIN_ORDER_REV: 0010
+
+STATE: PREPARED / NOT ACTIVE / DOES_NOT_SUPERSEDE_CURRENT_ENV_A_READINESS_ORDER
+
+A second ENV_A verification stage has been prepared from the Wave 14 diagnostic closure and final direct-CODEX handoffs, aligned with the accepted Wave 15 integrated lane premises.
+
+Canonical contract:
+`docs/WAVE15-ENV-A-CODEX-STAGE2-DIRECTED-VERIFICATION.md`
+
+Creation commit:
+`ce7a4b9a26cc5cdf36d466712eef62ab061d978f`.
+
+Purpose:
+- preserve Stage 1 as the unspoiled fresh-install/user-route black-box journey;
+- after Stage 1 is sealed, derive a checkpoint/clone of the real CODEX-created project;
+- use that realistic project as the body for directed/adversarial regression verification of Wave 14 transferred findings and Wave 15 integrated corrections;
+- close or strengthen the formerly bounded A1/A4/A5a observations in local ENV_A where Codespaces forwarding is no longer the primary ambiguity;
+- verify Editor, Script Engineering, runtime resilience, Authority/Licensing truth and FND-07 fresh/Neutral behavior without pretending single-node ENV_A proves FND-05 HA.
+
+The prepared matrix is:
+- V2-01 Working/Published/Active authority;
+- V2-02 Engineering transport/error/fallback UX;
+- V2-03 Screen/Popup selection + schema compatibility;
+- V2-04 single-canvas Editor integration;
+- V2-05 Script Engineering authoring/discovery;
+- V2-06 Server Script bounded recovery/observability;
+- V2-07 Runtime projection/navigation resilience;
+- V2-08 Popup live values;
+- V2-09 Trends/Historian/realtime separation;
+- V2-10 Authority UX integrated behavior;
+- V2-11 Licensing UX integrated behavior;
+- V2-12 fresh-install Neutral/Detach boundary;
+- V2-13 bounded FND-05 HA applicability.
+
+Stage 2 has two modes:
+- 2A: directed product-visible verification first;
+- 2B: only after visible capture, diagnostic/adversarial correlation may use source, diagnostic/internal APIs, logs and controlled fault injection.
+
+No product correction is authorized by this preparation.
+
+Stage 2 may run after CODEX Stage 1 is complete/sealed even if the independent Product Owner ENV_B journey is still in progress, but all detailed CODEX Stage 1/Stage 2 findings remain embargoed from the Product Owner until the human journey ends.
+
+Current binding shared CODEX mission remains the ENV_A readiness/continuity work already issued. Do not self-start Stage 2.
+
+Gate:
+`W15-ENV-A-CODEX-STAGE2-DIRECTED-VERIFICATION = PREPARED / NOT ACTIVE`.

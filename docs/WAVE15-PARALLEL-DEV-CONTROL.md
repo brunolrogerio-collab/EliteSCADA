@@ -1879,4 +1879,20 @@ State:
 `DEV-LICENSING-UX -> MAIN_ACCEPTED / MERGE_AUTHORIZED`.
 
 Shared CODEX remains HOLD pending integration.
+## 61. Licensing UX merged / post-merge CI pending
+
+PR #345 merged at:
+`1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Integration live is exactly that SHA.
+
+Pre-merge exact-head T1 #113 and scarce-budget CODEX adversarial validation were accepted.
+
+Final integrated CI:
+`36290910850` / #1584 — queued.
+
+State:
+`DEV-LICENSING-UX -> INTEGRATED / POSTMERGE_CI_PENDING`.
+
+Shared CODEX remains HOLD.
 

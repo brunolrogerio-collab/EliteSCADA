@@ -1,3 +1,64 @@
+# LATEST DELTA — 2026-09-27 — CODEX AUTONOMOUS ENV_A INFRA RECOVERY
+
+> This delta supersedes older CODEX current-state wording below when there is a conflict. GitHub live remains the sole authority.
+
+Human Preview remains:
+`W15-FIRST-PROJECT-HUMAN-PREVIEW-01 = ACTIVE`.
+
+ENV_B remains:
+`READY / RESUMABLE`.
+
+CODEX Stage1 attempt 1 remains:
+`INCONCLUSIVE / SEALED`.
+
+The attempt is not classified as a product defect and must not resume as an independent black-box journey in the same CODEX context.
+
+Latest infrastructure reconciliation confirmed:
+- exact accepted runtime worktree `bb451fa6e07982ac12384895f6097d5833761d16`;
+- exact tree `650d30089596021cb1a564ee1d2f1abfc7d2b509`;
+- sealed session `6f18039a-5e67-49bd-a566-2050cf775aee` still RUNNING;
+- `PREPARATION=REQUIRED` because expected preparation provenance manifest is absent.
+
+Product Owner authorized CODEX to continue useful work autonomously inside the ENV_A infrastructure/harness/evidence boundary.
+
+Active shared route:
+`ROUTE-SEQUENTIAL-CODEX-AUTONOMOUS-ENV-A-INFRA-RECOVERY-76`
+commit `9b3c4b0170cb819a13bf096fefb10c483d024092`.
+
+Preview control rev 0022:
+`40125a09fd4444c64ca874c59dcb4269055940c1`.
+
+CODEX may now:
+- preserve/snapshot attempt1 state;
+- pause/quiesce it safely;
+- diagnose/fix preparation-manifest/provenance loss;
+- create separate evidence worktrees;
+- change Preview harness infrastructure;
+- add regressions;
+- prepare/revalidate dependencies after preservation;
+- create/reset disposable validation sessions;
+- restart Docker Desktop;
+- iterate without returning for each small implementation decision.
+
+Boundaries:
+- no product source changes;
+- no product-state DB repair shortcut;
+- no auth/licensing/Authority weakening;
+- no seeded project/Demo/EEE;
+- no Product Owner observation consumption;
+- no detailed finding disclosure;
+- no new independent Stage1 black-box attempt in the contaminated CODEX context.
+
+CODEX should return only with a fully validated replacement harness candidate or a genuine external blocker.
+
+Stage2 remains:
+`PREPARED / NOT ACTIVE`.
+
+Durable ledger:
+Issue #305 comment `5857659128`.
+
+---
+
 # LATEST DELTA — 2026-09-27 — HUMAN PREVIEW ACTIVE / CODEX STAGE1 ATTEMPT1 SEALED INCONCLUSIVE
 
 > This delta supersedes older CODEX Stage1 current-state wording below when there is a conflict. GitHub live remains the sole authority.

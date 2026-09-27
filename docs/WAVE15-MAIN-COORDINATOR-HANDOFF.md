@@ -1,3 +1,57 @@
+# LATEST DELTA — 2026-09-27 — CONTAINER-NATIVE DISTRIBUTION ARCHITECTURE CANDIDATE
+
+> This delta supersedes older packaging/distribution strategic wording below when there is a conflict. GitHub live remains the sole authority.
+
+Product Owner expanded the local-container work into a strategic distribution direction.
+
+New owner:
+- #363 — `ARCH-CONTAINER-FIRST — distribuição OCI canônica, multi-arch e perfis Windows/Linux/Edge`.
+
+Canonical architecture ADR:
+- `docs/ADR-010-CONTAINER-NATIVE-DISTRIBUTION.md`;
+- commit `c15a6f102945f40de51c39dfcf018554dd2eb14f`.
+
+Stable Product Goal direction:
+- commit `59fcab51ae927e3799c009bb559c60eb679ab932`.
+
+Linux distribution reconciliation:
+- commit `0a9236c1a793e886595448f7592cf4385964e1cd`.
+
+Preferred architecture candidate:
+
+`same EliteSCADA product + canonical OCI image + external persistent state + host adapters + deployment capacity profiles`.
+
+Initial OCI target architectures:
+- `linux/amd64`;
+- `linux/arm64`.
+
+Key rules:
+- do not create a separate Lite/Edge fork by default;
+- Edge capacity limits are evidence-based hardware Deployment Capacity Profiles;
+- commercial license entitlement and physical platform capacity remain independent;
+- do not bind licenses to ephemeral container ID/hostname/veth MAC/image digest;
+- container recreate/update on the same authorized host must not require license reissue;
+- preferred first constrained-Edge topology is EliteSCADA OCI with external PostgreSQL/TimescaleDB;
+- official support is per homologated OCI host/runtime/Driver/resource matrix;
+- Windows native packaging remains preserved until an unattended industrially supportable Windows container-host strategy is proven.
+
+Relationships:
+- #360 collects local lifecycle/evidence only; no ADR-010 implementation in that mission;
+- #361 owns common installed lifecycle/host-adapter semantics;
+- #205/#207 must re-audit #363 when Windows packaging resumes;
+- #306 must only document the container profile after it becomes technically accepted.
+
+Preview control rev 0030:
+`2f9d9512a2a71f78619a80a7f82c092b9ea0ad82`.
+
+Ledger:
+Issue #305 comment `5859084494`.
+
+Disposition:
+`CONTAINER-NATIVE PREFERRED ARCHITECTURE CANDIDATE / TECHNICAL VALIDATION REQUIRED / IMPLEMENTATION NOT YET AUTHORIZED`.
+
+---
+
 # LATEST DELTA — 2026-09-27 — LOCAL OPERATIONS EVIDENCE REQUIRED / INSTALLED SERVICE LIFECYCLE OPENED
 
 > This delta supersedes older local-operator planning wording below when there is a conflict. GitHub live remains the sole authority.

@@ -463,3 +463,50 @@ The environment harness itself is not a product integration candidate and must n
 - `W15-FIRST-PROJECT-HUMAN-PREVIEW-01`: RESERVED / WAIT_ENVIRONMENT_B_READY;
 - execution topology after readiness: `PARALLEL_INDEPENDENT`;
 - findings embargo: ACTIVE.
+
+
+## 14. Product Owner amendment — Human Codespace Web port public
+
+MAIN_ORDER_REV: 0004
+
+STATE: BINDING / ENVIRONMENT_B_NETWORK_EXPOSURE
+
+The Product Owner explicitly requires the Human Preview Codespace Web entry to be easy to open directly in an ordinary browser.
+
+### 14.1 Required exposure
+
+For **Environment B — Product Owner fresh Codespace**:
+- Web port `5173` MUST be forwarded and set to `PUBLIC` automatically;
+- the resulting `https://<codespace>-5173.app.github.dev` URL must open directly without a separate GitHub forwarded-port authentication step;
+- API `5080` remains internal/private and is consumed through the normal same-origin Web proxy;
+- database `5432` remains internal/private and must not be forwarded publicly.
+
+This amendment supersedes the previous requirement that 5173 remain Private for this specific Product Owner audit environment.
+
+### 14.2 Public visibility must survive resume/reopen
+
+GitHub Codespaces currently defaults forwarded ports to private, and GitHub documents that a public forwarded port can revert to private when the port is removed/re-added or when the Codespace is restarted.
+
+Therefore, merely making 5173 public once by hand is NOT accepted.
+
+The repository-controlled Environment B lifecycle must re-assert `5173:public` automatically on initial startup and after Codespace stop/suspend -> resume/reopen.
+
+The implementation may use the supported GitHub CLI visibility operation or another repository-controlled supported mechanism, but it must verify the real running Codespace result rather than assume a devcontainer label/forward declaration changes visibility.
+
+Expected supported CLI semantics where available:
+`gh codespace ports visibility 5173:public -c <codespace-name>`
+
+If executed inside the Codespace, derive the current Codespace identity from supported environment/runtime context and verify that authentication/permissions permit the operation. Do not hardcode a Codespace name.
+
+### 14.3 Readiness proof
+
+ENV_B is not READY until evidence shows:
+1. fresh Codespace starts from the accepted harness;
+2. EliteSCADA Web becomes healthy on 5173;
+3. 5173 visibility is PUBLIC without Product Owner manual configuration;
+4. ordinary browser access to the public forwarded URL reaches the EliteSCADA product surface;
+5. after stop/suspend and resume/reopen, EliteSCADA restarts automatically AND 5173 is restored to PUBLIC automatically;
+6. 5080 and 5432 are not publicly exposed;
+7. no first-project/application state is pre-seeded to obtain this result.
+
+Security note: public Codespaces forwarding means anyone who obtains the URL can reach the forwarded Web endpoint without GitHub authentication. EliteSCADA's own authentication/authorization must remain intact; do not weaken it for Preview convenience.

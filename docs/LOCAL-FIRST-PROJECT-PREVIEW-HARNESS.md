@@ -2,6 +2,8 @@
 
 This branch is infrastructure-only for the Wave 15 first-project preview. Its product checkpoint is `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`; the harness must not change product, identity, licensing, Authority, or project-seeding semantics.
 
+See [LOCAL-ELITESCADA-OPERATIONS-EVIDENCE.md](LOCAL-ELITESCADA-OPERATIONS-EVIDENCE.md) for the evidence labels, actual local lifecycle results, regressions, and remaining questions. Local ENV_A evidence is not a substitute for Codespaces or Product Owner Preview acceptance.
+
 ## Local Environment A
 
 The local audit runs in a Linux container based on the repository's pinned Playwright/.NET/Node image. The preview Compose project has its own TimescaleDB database and named volumes; it does not use `ci/local/docker-compose.yml`, expose PostgreSQL, or expose the API to the host. Only Web is bound to host loopback at `127.0.0.1:5173`.

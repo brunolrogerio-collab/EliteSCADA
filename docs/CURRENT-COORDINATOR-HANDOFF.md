@@ -1,3 +1,64 @@
+# LATEST DELTA — 2026-09-27 — ENV_A READY / ENV_B REAL CODESPACE GATE
+
+> This delta supersedes older ENV_A readiness wording below when they conflict. GitHub live remains the sole authority.
+
+Main accepted the final ENV_A readiness proof on exact Preview harness:
+
+- harness SHA: `bb451fa6e07982ac12384895f6097d5833761d16`;
+- harness tree: `650d30089596021cb1a564ee1d2f1abfc7d2b509`;
+- product base: `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Disposition:
+`ENV_A = READY / CLEAN / RESUMABLE`.
+
+Accepted proof includes:
+- provenance-bound dependency preparation READY;
+- true first-run UI;
+- minimal Administrator created through normal UI;
+- real Docker Desktop restart;
+- same-session product-state continuity;
+- second pause/resume cycle;
+- reset preserving prepared dependencies while deleting product/audit state;
+- second clean start with no npm/NuGet install/restore/bootstrap;
+- final `NOT_STARTED / PREPARATION=READY`;
+- no project created;
+- Stage 1/Stage 2 not started.
+
+Shared CODEX is now:
+`HOLD / ENV_A_READY / WAIT_ENV_B_READY / NO_ACTIVE_EXPLORATORY_MISSION`.
+
+Binding CODEX route:
+`ROUTE-SEQUENTIAL-CODEX-ENV-A-READY-HOLD-FOR-ENV-B-73`
+control commit `d3a2b643a1cd81bd2fbaf2f5197e4cd3769a361b`.
+
+Preview control rev 0013:
+`af6c911623e93ca868176c7b5597b04a9e303f0f`.
+
+For ENV_B Main created a dedicated exact branch from the accepted harness:
+
+`preview/w15-first-project-env-b-codespace`
+at `bb451fa6e07982ac12384895f6097d5833761d16`.
+
+ENV_B runbook updated:
+`coord/w15-fresh-install-preview-control:docs/WAVE15-FIRST-PROJECT-CODESPACE-ENV-B-RUNBOOK.md`
+commit `1ccc1be58d6d7231da4800d47fe5d165d5e874c6`.
+
+Current next gate:
+create/open one **fresh Codespace** from `preview/w15-first-project-env-b-codespace` and prove:
+- automatic API/Web/database startup;
+- 5173 PUBLIC automatically;
+- 5080/5432 not public;
+- truthful first-run/no-project state;
+- normal stop/resume recovers product automatically;
+- 5173 is re-asserted PUBLIC after resume;
+- no terminal/Ports-panel recovery needed.
+
+Human Preview and CODEX Stage 1 remain HOLD until ENV_B is READY.
+
+Stage 2 remains `PREPARED / NOT ACTIVE`.
+
+---
+
 # LATEST DELTA — 2026-09-27 — ENV_A REPLACEMENT ACCEPTED FOR FINAL READINESS PROOF
 
 > This delta supersedes the ENV_A active-route/candidate wording in the checkpoint immediately below when they conflict. GitHub live remains the sole authority.

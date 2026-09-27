@@ -681,3 +681,58 @@ Neither exploratory journey is released by this acceptance.
 After CODEX returns the ENV_A lifecycle proof, Main may mark ENV_A READY if evidence is sufficient. ENV_B requires independent real Codespace proof before Human Preview starts.
 
 The first-project CODEX audit must start only from a new clean post-validation session after the readiness probe has been explicitly reset.
+
+
+## 17. ENV_A readiness blocker — bounded harness correction
+
+MAIN_ORDER_REV: 0007
+
+STATE: ENV_A_HARNESS_FIX_AUTHORIZED / BLACKBOX_HOLD
+
+CODEX executed the exact accepted readiness probe on harness `1df4dae293bcca59ee3191faf889058fecc973ee` and correctly stopped on a harness-only lifecycle defect.
+
+Observed blocker:
+- product/database/Web/API became healthy;
+- fresh state remained valid: Local Identity initial Administrator still required; no account/project/application/import/Demo was created;
+- after Compose health succeeded, `scripts/preview/local-audit.ps1` failed in `Add-Transition` while assigning `lastTransitionMessage` to a `PSCustomObject` whose initial schema did not define that property;
+- persisted session therefore remained `STARTING` and could not truthfully report resumable RUNNING state;
+- CODEX used the authorized explicit `reset`, returning the environment to `NOT_STARTED` with no dedicated containers/volumes remaining.
+
+Classification:
+`HARNESS_DEFECT / POWERSHELL_SESSION_SCHEMA_MUTATION`.
+
+This is not a product defect and does not reopen any product lane.
+
+### 17.1 Bounded correction authorization
+
+CODEX is authorized to change **only Preview harness infrastructure** on:
+`preview/w15-first-project-env-harness`.
+
+Required correction:
+- make session transition metadata schema-safe and idempotent across newly-created and JSON-reloaded session objects;
+- specifically, `Add-Transition` must never assume optional properties already exist before assigning them;
+- preserve existing session/provenance/version-mismatch/reset semantics;
+- do not weaken clean-worktree/exact-SHA/product-base guards;
+- do not alter product source, tests, workflows, identity, licensing, Authority, lifecycle or project semantics.
+
+A robust solution may initialize all optional schema fields at session creation and/or use explicit PowerShell property-add/update logic for missing optional fields. CODEX may choose the narrowest maintainable implementation.
+
+### 17.2 Required harness regression proof before Main acceptance
+
+Before publishing a replacement candidate, CODEX must prove at least:
+1. PowerShell parse/static validation;
+2. fresh `start` reaches truthful `RUNNING` and persists a manifest with the intended transition metadata;
+3. `status` reports RUNNING without mutating/resetting state;
+4. `pause -Checkpoint ...` reaches `PAUSED_RESUMABLE` and stores the checkpoint/message correctly;
+5. `resume` reaches RUNNING/RESUMED correctly after JSON reload of the saved session;
+6. repeated transition updates do not fail because optional properties are missing;
+7. explicit `reset` returns `NOT_STARTED` and removes only the dedicated preview project/volumes while archiving evidence;
+8. final branch diff from product base remains infrastructure-only.
+
+This correction proof may remain blank-first-run infrastructure proof; do NOT create the continuity marker or begin exploratory product use until Main accepts the replacement exact harness SHA.
+
+### 17.3 Gate state
+
+- ENV_A: `HARNESS_FIX_AUTHORIZED / NOT_READY / BLACKBOX_NOT_RELEASED`;
+- ENV_B: unchanged `HARNESS_STATIC_ACCEPTED / WAIT_REAL_CODESPACE_PROOF / HUMAN_AUDIT_NOT_RELEASED`;
+- product checkpoint remains `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.

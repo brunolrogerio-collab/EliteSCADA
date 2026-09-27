@@ -1619,3 +1619,125 @@ Current gates:
 - Human Preview: ACTIVE;
 - findings embargo: ACTIVE;
 - Stage 2: PREPARED / NOT ACTIVE.
+
+
+## 32. CODEX autonomous ENV_A infrastructure recovery authorized
+
+MAIN_ORDER_REV: 0022
+
+STATE: HUMAN_PREVIEW_ACTIVE / CODEX_AUTONOMOUS_ENV_A_INFRA_RECOVERY / EMBARGO_ACTIVE
+
+The Product Owner explicitly authorized CODEX to continue doing useful work without stopping for Main approval at every small infrastructure decision.
+
+Main reviewed the latest reconciliation handoff in Issue #305 comment `5857641422`:
+- runtime worktree is already exact and clean at accepted harness `bb451fa6e07982ac12384895f6097d5833761d16` / tree `650d30089596021cb1a564ee1d2f1abfc7d2b509`;
+- existing attempt-1 session `6f18039a-5e67-49bd-a566-2050cf775aee` remains RUNNING;
+- preparation reports REQUIRED because the provenance manifest is absent;
+- no destructive/product action was taken during reconciliation.
+
+The earlier attempt-1 product exploration remains sealed/inconclusive. It must not resume as an independent black-box attempt in this CODEX context.
+
+### 32.1 Autonomous mission
+
+CODEX is now authorized to act as **ENV_A infrastructure/audit-harness maintainer** until it reaches a stable repaired state or a genuine external blocker.
+
+CODEX may decide the detailed implementation path without asking Main for each micro-step.
+
+Goals, in priority order:
+1. preserve all attempt-1 evidence and product/audit state before any destructive infrastructure operation;
+2. quiesce/pause the existing attempt-1 runtime safely;
+3. determine why the exact accepted harness now lacks its previously valid preparation manifest/provenance state;
+4. correct the harness so evidence-branch operations, worktree switching, restart, pause/resume and evidence persistence cannot silently invalidate preparation state;
+5. create automated regression coverage for the discovered harness failure mode;
+6. validate the repaired harness through prepare/start/pause/resume/restart/reset cycles on disposable validation state;
+7. leave a clean, deterministic ENV_A infrastructure candidate ready for a future fresh CODEX context or Stage 2;
+8. preserve the sealed attempt-1 evidence independently from the runtime harness worktree.
+
+### 32.2 Broadly authorized infrastructure actions
+
+CODEX may, when needed:
+- inspect harness source/scripts/configuration;
+- inspect Docker images, labels, volumes, networks and container metadata;
+- inspect gitignored Preview artifact/provenance files;
+- inspect session/evidence manifests;
+- inspect package preparation manifests and dependency markers;
+- use source/log/API/test knowledge for **infrastructure diagnosis only**;
+- create a separate Git worktree for embargoed evidence;
+- commit/push harness-only changes on `preview/w15-first-project-env-harness`;
+- add harness unit/static/integration regression checks;
+- add a dedicated infrastructure command such as `repair-preparation`, `snapshot`, or equivalent if that is the cleanest design;
+- regenerate preparation metadata from already-present immutable assets **only when their exact provenance can be cryptographically/label-verified**;
+- run `prepare` after the attempt-1 session is safely quiesced/preserved and the harness contract supports doing so without touching product state;
+- use package network during explicit preparation if required, under the already accepted TLS/trust rules;
+- create disposable validation sessions after attempt-1 evidence is safely preserved;
+- perform Docker Desktop restart tests;
+- reset **disposable validation sessions** freely;
+- update Preview harness documentation/evidence.
+
+### 32.3 Attempt-1 preservation boundary
+
+Before any destructive action against the existing attempt-1 product state, CODEX must create and verify a durable snapshot sufficient to preserve forensic value, including at minimum:
+- current session manifest;
+- exact harness/product identity;
+- Docker volume/container metadata;
+- persistent database/product-state snapshot or equivalent restorable backup;
+- existing embargoed evidence branch HEAD/path references.
+
+Prefer first attempting the normal harness `pause`; the current `pause` path does not require preparation READY and should preserve the database volume/session.
+
+If normal `pause` fails for an infrastructure-only reason, CODEX may use the least invasive Docker-level quiesce necessary to preserve state, documenting that deviation. Do not edit product DB rows to manufacture a paused state.
+
+After verified snapshot/preservation, CODEX may archive/reset the attempt-1 runtime **only if necessary to repair/validate the harness**. Attempt-1 remains sealed and must never be silently repurposed as a new black-box attempt.
+
+### 32.4 Product boundary remains strict
+
+CODEX MUST NOT:
+- modify EliteSCADA product source or product tests;
+- change product behavior to make the audit easier;
+- alter auth/licensing/Authority semantics;
+- mutate product DB rows as a repair shortcut;
+- seed a project/Demo/EEE state for a pass;
+- disclose attempt-1 detailed findings to Product Owner-facing controls;
+- consume Product Owner human-audit observations;
+- start a new independent black-box attempt in the same contaminated CODEX context.
+
+If diagnosis uncovers a probable product defect, preserve it in embargoed evidence only and continue with infrastructure work where independent. Do not fix it.
+
+### 32.5 Harness repair acceptance target
+
+A replacement harness candidate is considered ready for Main review when CODEX can demonstrate, preferably in one comprehensive handoff:
+- exact infrastructure-only diff from product base;
+- attempt-1 evidence safely preserved/archived;
+- preparation manifest/provenance failure root cause identified;
+- regression test/check reproduces the old failure and passes after the fix;
+- evidence commits no longer require moving/changing the runtime harness worktree;
+- `prepare` reaches READY with exact provenance;
+- disposable clean start reaches true first-run state;
+- pause/resume works;
+- Docker Desktop restart/resume works;
+- reset preserves dependency preparation and removes product state;
+- repeated status does not incorrectly flip READY -> REQUIRED;
+- evidence worktree/branch commits do not invalidate runtime dependency identity;
+- final disposable validation state is clean.
+
+Do not stop merely because one approach fails. Choose another safe infrastructure approach within this contract.
+
+### 32.6 Reporting cadence
+
+CODEX should not return to Main for ordinary implementation choices or recoverable harness failures.
+
+Return only when one of these is true:
+- replacement harness candidate is fully validated and pushed;
+- a genuine external blocker prevents further safe progress;
+- preservation of attempt-1 evidence would be endangered by continuing;
+- a required action would cross the product boundary above.
+
+Detailed product observations remain embargoed.
+
+### 32.7 Parallel human audit
+
+Human Preview remains ACTIVE and unchanged.
+
+No CODEX infrastructure repair should alter ENV_B or provide navigation guidance to the Product Owner.
+
+Stage 2 remains `PREPARED / NOT ACTIVE`.

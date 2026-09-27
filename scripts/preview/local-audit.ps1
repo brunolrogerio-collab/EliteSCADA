@@ -140,7 +140,8 @@ function Get-Sha256Text([string]$Text) {
 }
 
 function ConvertTo-BashCommandArgument([string]$Script) {
-    $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($Script))
+    $normalizedScript = ConvertTo-PreviewBashScriptLf $Script
+    $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($normalizedScript))
     return "echo $encoded | base64 -d | bash"
 }
 

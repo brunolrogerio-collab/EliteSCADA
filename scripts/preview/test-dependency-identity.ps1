@@ -2,6 +2,12 @@ $ErrorActionPreference = 'Stop'
 $modulePath = Join-Path $PSScriptRoot 'PreviewDependencyIdentity.psm1'
 Import-Module $modulePath -Force
 
+$normalizedBash = ConvertTo-PreviewBashScriptLf "set -Eeuo pipefail`r`nnext-command`r"
+if ($normalizedBash -ne "set -Eeuo pipefail`nnext-command`n" -or $normalizedBash.Contains("`r")) {
+    throw 'PowerShell-to-Bash normalization did not convert CRLF/CR to LF.'
+}
+Write-Output 'PASS: embedded Bash scripts are normalized to LF before execution.'
+
 function Invoke-TestGit {
     param(
         [Parameter(Mandatory = $true)]

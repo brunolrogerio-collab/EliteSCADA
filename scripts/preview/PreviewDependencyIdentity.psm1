@@ -65,4 +65,14 @@ function Get-PreviewDependencyInputIdentity {
     }
 }
 
-Export-ModuleMember -Function Get-PreviewDependencyInputIdentity
+function ConvertTo-PreviewBashScriptLf {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Script
+    )
+
+    return $Script.Replace("`r`n", "`n").Replace("`r", "`n")
+}
+
+Export-ModuleMember -Function Get-PreviewDependencyInputIdentity, ConvertTo-PreviewBashScriptLf

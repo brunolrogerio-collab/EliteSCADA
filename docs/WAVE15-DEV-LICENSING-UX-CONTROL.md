@@ -437,4 +437,96 @@ DEV-LICENSING-UX is authorized to:
 If the new Authority baseline exposes any real semantic conflict, stop that semantic mutation and return exact evidence.
 
 CODEX adversarial validation remains mandatory after this fresh reconciliation.
+## CURRENT MAIN ORDER — rev 0010
+
+`ORDER_ID: DEV-LICENSING-UX-CODEX-ADVERSARIAL-SCARCE-10`
+
+`ORDER_STATE: CODEX_ACTIVE / ADVERSARIAL_VALIDATION / SCARCE_BUDGET`
+
+Exact candidate:
+- PR #345;
+- head `3d166c0b45eef34ef878e710b5db28c3ea2fa93f`;
+- base `27412e4fbe47dbbb6573229364ee8319369ae076`;
+- ancestry: ahead 19 / behind 0;
+- PR: OPEN / MERGEABLE.
+
+Exact-head T1:
+- `36289854846` / #113: SUCCESS;
+- classifier SUCCESS;
+- Web SUCCESS;
+- Common SUCCESS;
+- focused .NET SUCCESS;
+- focused Chromium SUCCESS;
+- final gate SUCCESS.
+
+Main reconciliation verification:
+- all 13 Licensing/session owned blobs are byte-for-byte identical to prior Main-accepted head `3d73ccd8f683be94f741fdb431df0e1525e6c0e9`;
+- no semantic adaptation was introduced after Authority integration;
+- the closed stale-lease/session-replacement truth fix remains intact.
+
+CODEX availability is limited. Mission priority is **adversarial evidence per unit of time**.
+
+### Required adversarial focus
+
+1. ESLIC1 legacy truth:
+   - schema/version truthful;
+   - ESLIC2-only entitlements remain null/absent rather than fabricated zero/false.
+
+2. ESLIC2 signed entitlement truth:
+   - Interactive seats;
+   - ViewOnly seats;
+   - HA entitlement;
+   - signature-backed values survive status projection without client reinterpretation.
+
+3. Runtime Session requested/granted/fallback truth:
+   - requested class displayed separately from granted class;
+   - capacity/fallback reason remains server-provided;
+   - no client-side admission/quota authority.
+
+4. ViewOnly fail-closed behavior:
+   - mutation-capable UI/actions remain denied when server grants ViewOnly;
+   - do not infer privileges from labels/names.
+
+5. Replacement failure truth:
+   - existing lease release succeeds;
+   - replacement admission fails;
+   - old local lease/outcome stays cleared;
+   - error/capacity reason remains visible;
+   - no phantom active session and no stale release on cleanup.
+
+6. Direct API/tampering negatives where cheap:
+   - invalid/unsupported requested session class;
+   - stale/invalid lease identifiers;
+   - admission failures must not create client truth inconsistent with backend state.
+
+7. Mounted locale behavior (pt-BR/en/es) only where cheap and already supported by focused tests.
+
+### Scarce-budget guidance
+
+Prefer:
+- existing ProductLicensingApi focused tests;
+- existing runtime-session admission contract specs;
+- existing Wave-14 C25 session spec;
+- targeted API probes;
+- existing local parity harness/dependencies.
+
+Do not rerun the full Linux parity battery unless:
+- a CODEX-owned correction touches shared Runtime/licensing infrastructure;
+- focused evidence reveals a cross-cutting failure;
+- the exact candidate changes materially beyond a bounded lane correction.
+
+If no material defect is found:
+- do not mutate the candidate;
+- return durable adversarial handoff on PR #345 with exact head, commands/specs run, outcomes and residual risk;
+- existing exact-head T1 remains valid.
+
+If a bounded Licensing UX/test truth defect is found:
+- CODEX may correct it on the same branch within the 13-file lane boundary or directly related focused test;
+- add focused regression;
+- obtain new exact-head T1;
+- return the new exact head to Main.
+
+If a backend/Foundation/FND-05/FND-07/Authority or core Runtime contract defect is found, do not broaden; return exact evidence to Main.
+
+No merge is authorized by this order.
 

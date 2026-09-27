@@ -169,3 +169,26 @@ After first-open readiness is captured:
 8. verify browser access works again.
 
 Only then may Main record `ENV_B_READY` and release the Product Owner human Preview together with CODEX Stage 1.
+
+
+## 9. Public visibility no longer blocks ENV_B readiness
+
+Product Owner decision: automatic `5173=Public` is no longer a readiness blocker for Wave 15 ENV_B.
+
+Observed live behavior:
+- the Codespaces Ports menu offers `Public`, so policy allows it;
+- the actual 5173 forward remained `Private`;
+- the authenticated Product Owner opened EliteSCADA successfully in a normal browser through that Private URL.
+
+For this Preview, a Private 5173 forward is acceptable if browser access works for the Product Owner and 5080/5432 remain non-public.
+
+Do not spend further implementation/audit time on automatic Public visibility unless Private forwarding later blocks the human audit.
+
+The remaining mandatory ENV_B gate is lifecycle continuity:
+- minimal readiness marker;
+- normal Codespace stop/suspend;
+- resume same Codespace;
+- automatic DB/API/Web recovery;
+- same browser-access path works again;
+- product-owned state persists;
+- no terminal recovery is required.

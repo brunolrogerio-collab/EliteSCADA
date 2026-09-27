@@ -1,3 +1,63 @@
+# LATEST DELTA — 2026-09-27 — ENV_A REPAIR CANDIDATE IN AUTONOMOUS FINAL VALIDATION
+
+> This delta supersedes older ENV_A repair current-state wording below when there is a conflict. GitHub live remains the sole authority.
+
+Human Preview remains:
+`W15-FIRST-PROJECT-HUMAN-PREVIEW-01 = ACTIVE`.
+
+ENV_B remains:
+`READY / RESUMABLE`.
+
+CODEX Stage1 attempt 1 remains:
+`INCONCLUSIVE / SEALED`.
+
+Attempt-1 evidence/database state was preserved before old runtime cleanup. No product disposition was made from that attempt.
+
+CODEX autonomous infrastructure recovery produced a repair candidate:
+
+- branch: `preview/w15-first-project-env-harness-repair`;
+- SHA: `50a4451aa122f7f9fd0af98173c184f6623a147b`;
+- tree: `5efeafb08725a90ce0c3df689b8d613f165bb569`;
+- product base: `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Accepted root cause:
+the old dependency provenance hashed working-tree bytes. A clean Windows checkout of the same exact Git tree could materialize LF vs CRLF differently, changing `inputsSha` and therefore the dependency key/manifest lookup. The repair uses committed Git blob IDs for dependency identity and normalizes embedded Bash text to LF before PowerShell->Bash execution.
+
+Accepted static/regression evidence:
+- same committed tree across LF/CRLF -> same dependency identity;
+- committed dependency input change -> different identity;
+- Bash CRLF/CR -> LF normalization regression PASS;
+- preparation on repair candidate -> `PREPARATION=READY / STATE=NOT_STARTED`;
+- compare remains Preview/harness-only.
+
+Preview control rev 0023:
+`5c0e57c6336e75a68769f35251cca245963b4801`.
+
+Active shared CODEX route:
+`ROUTE-SEQUENTIAL-CODEX-ENV-A-REPAIR-FINAL-LIFECYCLE-77`
+commit `f7400e554907307506e634dd19b18a0bbb500ece`.
+
+CODEX now continues autonomously through the complete final lifecycle proof:
+- start/status stability;
+- pause/resume;
+- real Docker Desktop restart;
+- separate evidence worktree commit while runtime dependency identity stays READY/stable;
+- reset preserving preparation;
+- second fresh start with no package install/restore;
+- final reset/static/diff cleanliness.
+
+CODEX should not return for ordinary recoverable harness failures; it should iterate safely and return only with a fully validated final candidate or a genuine blocker/preservation risk.
+
+Do not promote the canonical harness branch yet. Main will promote after final proof review.
+
+Stage2 remains:
+`PREPARED / NOT ACTIVE`.
+
+Durable ledger:
+Issue #305 comment `5857900488`.
+
+---
+
 # LATEST DELTA — 2026-09-27 — CODEX AUTONOMOUS ENV_A INFRA RECOVERY
 
 > This delta supersedes older CODEX current-state wording below when there is a conflict. GitHub live remains the sole authority.

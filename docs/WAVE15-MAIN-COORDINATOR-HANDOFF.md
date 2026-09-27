@@ -1,3 +1,88 @@
+# LATEST DELTA — 2026-09-27 — BOTH PREVIEW ENVIRONMENTS READY / PARALLEL EXPLORATION ACTIVE
+
+> This delta supersedes older Preview-readiness wording below when there is a conflict. GitHub live remains the sole authority.
+
+Main accepted the real ENV_B stop/resume proof and now has both independent Preview environments READY.
+
+## ENV_A
+
+`ENV_A = READY / CLEAN / RESUMABLE`
+
+Exact harness:
+- SHA `bb451fa6e07982ac12384895f6097d5833761d16`;
+- tree `650d30089596021cb1a564ee1d2f1abfc7d2b509`;
+- product base `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+## ENV_B
+
+`ENV_B = READY / RESUMABLE`
+
+Real Codespace source:
+`preview/w15-first-project-env-b-codespace`
+at exact branch point `bb451fa6e07982ac12384895f6097d5833761d16`.
+
+Accepted real lifecycle evidence:
+- first Local Administrator created as readiness marker;
+- no project created;
+- same Codespace stopped normally;
+- same Codespace reopened;
+- repository-controlled startup restored EliteSCADA automatically;
+- browser access returned without manual terminal recovery;
+- Administrator marker persisted;
+- product returned to normal no-project / create-project state;
+- no hidden project/import/Demo/EEE state appeared.
+
+5173 remains Private but owner-accessible; this was explicitly reclassified non-blocking by Product Owner. 5080/5432 remain non-public in accepted evidence.
+
+## Parallel exploratory gates
+
+Human Preview:
+`W15-FIRST-PROJECT-HUMAN-PREVIEW-01 -> ACTIVE`.
+
+Human starting checkpoint:
+Administrator already exists only as ENV_B readiness marker; no project is prepared. The human first-project audit begins from the visible `Criar novo projeto` boundary.
+
+CODEX Stage 1:
+`W15-FIRST-PROJECT-CODEX-BLACKBOX-PREVIEW-01 -> ACTIVE`.
+
+Shared CODEX route:
+`ROUTE-SEQUENTIAL-CODEX-FIRST-PROJECT-BLACKBOX-STAGE1-74`
+commit `689a854638bfc0f26262cb86d1daaeee53b32456`.
+
+Preview control rev 0020:
+`965ceef9753bac16d488c064de5b9bcb1ed55333`.
+
+Embargoed CODEX evidence branch:
+`preview/w15-first-project-codex-evidence`.
+
+## Independence / embargo
+
+Detailed CODEX findings remain embargoed from Product Owner until the human first-project journey completes.
+
+Product Owner findings are not fed to CODEX while its black-box journey is active.
+
+No cross-audit comparison is permitted yet.
+
+## Stage 2
+
+`W15-ENV-A-CODEX-STAGE2-DIRECTED-VERIFICATION = PREPARED / NOT ACTIVE`.
+
+Stage 2 starts only after CODEX Stage 1 is complete/sealed and its project/session state is checkpointed/derived according to the prepared Stage 2 contract.
+
+## Immediate coordinator action
+
+1. Allow Product Owner to perform the first-project journey unaided from `Criar novo projeto`.
+2. Allow CODEX to execute Stage 1 independently on clean ENV_A.
+3. If CODEX needs time interruption, it may use infrastructure-only pause/resume without reset.
+4. Surface only coarse CODEX gate state while embargo is active.
+5. When the Product Owner journey reaches COMPLETE or BLOCKED, end embargo and perform cross-audit comparison.
+6. Only then consider Stage 2 activation.
+
+Durable ledger:
+Issue #305 comment `5857445127`.
+
+---
+
 # LATEST DELTA — 2026-09-27 — ENV_A READY / ENV_B REAL CODESPACE GATE
 
 > This delta supersedes older ENV_A readiness wording below when they conflict. GitHub live remains the sole authority.

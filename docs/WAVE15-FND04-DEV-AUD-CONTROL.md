@@ -1861,4 +1861,23 @@ Post-merge EliteSCADA CI:
 Because CODEX budget is reduced, keep it idle until Main classifies this exact integrated run.
 
 Licensing #345 remains WAIT and must not be touched until Main publishes a new explicit route.
+## CURRENT SHARED CODEX ROUTE — rev 0073
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-LICENSING-RECONCILE-HOLD-58`
+
+`ORDER_STATE: HOLD / NO_ACTIVE_MISSION / SCARCE_BUDGET_PRESERVED`
+
+Authority UX is now integrated and verified at:
+`27412e4fbe47dbbb6573229364ee8319369ae076`.
+
+Licensing UX PR #345 became stale only because Authority was merged after its prior reconciliation.
+
+Main verified zero file overlap between the Authority merge and the 13 Licensing-owned files.
+
+Licensing DEV is now authorized to reconcile onto the new baseline under:
+`DEV-LICENSING-UX-POST-AUTHORITY-RECONCILE-09`.
+
+CODEX remains idle to preserve reduced usage budget.
+
+Do not auto-resume any prior route. Main will publish a fresh explicit Licensing adversarial route only after a new exact reconciled head + T1 are available.
 

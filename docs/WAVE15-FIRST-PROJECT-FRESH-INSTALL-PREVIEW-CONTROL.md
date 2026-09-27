@@ -1097,3 +1097,84 @@ Current gates:
 - ENV_A: `FINAL_EXACT_SHA_READINESS_PROOF_AUTHORIZED / NOT_READY / BLACKBOX_HOLD`;
 - ENV_B: `STATIC_ACCEPTED / WAIT_REAL_CODESPACE_PROOF / HUMAN_PREVIEW_NOT_RELEASED`;
 - ENV_A Stage 2: `PREPARED / NOT ACTIVE`.
+
+
+## 23. ENV_A READY — black-box still held for ENV_B readiness
+
+MAIN_ORDER_REV: 0013
+
+STATE: ENV_A_READY / ENV_B_WAIT_REAL_CODESPACE / BLACKBOX_HOLD
+
+Main reviewed CODEX final readiness handoff in Issue #305 comment `5856722029` against exact accepted harness:
+- branch: `preview/w15-first-project-env-harness`;
+- SHA: `bb451fa6e07982ac12384895f6097d5833761d16`;
+- tree: `650d30089596021cb1a564ee1d2f1abfc7d2b509`;
+- product base: `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Main disposition:
+`ENV_A -> READY / CLEAN / RESUMABLE`.
+
+Accepted evidence on exact SHA:
+- preparation provenance: READY;
+- fresh start reached true first-run UI;
+- only minimal Local Administrator was created through normal UI;
+- no project/import/Demo state was created;
+- pause -> `PAUSED_RESUMABLE`;
+- real Docker Desktop restart succeeded;
+- same audit session resumed;
+- same Administrator/no-project product state survived;
+- second ordinary pause/resume cycle passed;
+- reset destroyed product/audit state while preserving `PREPARATION=READY`;
+- second fresh start used prepared dependencies with `--no-build --pull never`;
+- no `npm ci`, `npm install`, `dotnet restore` or restore log match occurred during the second start;
+- second fresh start reached healthy product UI;
+- final reset returned `NOT_STARTED / PREPARATION=READY` with no product/audit containers/volumes;
+- black-box Stage 1 and Stage 2 did not start.
+
+This closes the ENV_A infrastructure gate.
+
+### 23.1 Black-box release discipline
+
+ENV_A readiness does **not** self-start the CODEX black-box journey.
+
+Per the parallel-independent topology, Main keeps Stage 1 on HOLD until ENV_B has one real Codespace lifecycle proof and is also READY. This ensures both auditors can begin from independently prepared clean environments without one auditor's findings influencing the other.
+
+Current CODEX state after this disposition:
+`HOLD / ENV_A_READY / WAIT_ENV_B_READY / NO_ACTIVE_EXPLORATORY_MISSION`.
+
+### 23.2 Dedicated Product Owner Codespace branch
+
+Main created an exact Codespace audit branch directly from the accepted ENV_A/ENV_B harness SHA:
+`preview/w15-first-project-env-b-codespace`
+
+Exact branch creation point:
+`bb451fa6e07982ac12384895f6097d5833761d16`.
+
+This branch is intended to remain the Product Owner Codespace source for the real ENV_B lifecycle proof so the Codespace does not depend on a moving harness branch.
+
+No product semantics differ from the accepted harness candidate at branch creation.
+
+### 23.3 ENV_B next gate
+
+ENV_B remains:
+`WAIT_REAL_CODESPACE_CREATE_START_RESUME_PROOF / HUMAN_PREVIEW_NOT_RELEASED`.
+
+The next safe action is to create/open a **fresh GitHub Codespace from branch**:
+`preview/w15-first-project-env-b-codespace`.
+
+The repository-controlled devcontainer must then prove automatically:
+1. exact checkout SHA remains the accepted Codespace branch point unless a deliberate Main-only documentation/infrastructure delta is authorized;
+2. TimescaleDB/API/Web become healthy without manual terminal startup;
+3. true first-run Administrator/no-project state;
+4. port 5173 becomes PUBLIC automatically;
+5. 5080/5432 are not public;
+6. ordinary browser access reaches EliteSCADA;
+7. after Codespace stop/suspend -> resume, product startup recovers automatically and 5173 is re-asserted PUBLIC;
+8. product state continuity is preserved;
+9. no manual Ports-panel or terminal recovery is required.
+
+Only after ENV_B is READY may Main release both independent exploratory gates.
+
+### 23.4 Stage 2
+
+`W15-ENV-A-CODEX-STAGE2-DIRECTED-VERIFICATION` remains `PREPARED / NOT ACTIVE`.

@@ -1,3 +1,75 @@
+# LATEST DELTA — 2026-09-27 — HUMAN PREVIEW ACTIVE / CODEX STAGE1 ATTEMPT1 SEALED INCONCLUSIVE
+
+> This delta supersedes older CODEX Stage1 current-state wording below when there is a conflict. GitHub live remains the sole authority.
+
+## Human Preview
+
+`W15-FIRST-PROJECT-HUMAN-PREVIEW-01 = ACTIVE`.
+
+ENV_B remains:
+`READY / RESUMABLE`.
+
+The Product Owner continues the first-project journey independently from the visible no-project boundary.
+
+Detailed CODEX findings remain embargoed and must not influence the Human Preview.
+
+## CODEX Stage1 attempt 1
+
+Main reviewed the coarse handoff and embargoed evidence.
+
+Disposition:
+`STAGE1_ATTEMPT1 = INCONCLUSIVE / SEALED`.
+
+This is not a product-defect disposition and not a completed independent black-box journey.
+
+The attempt has already crossed into post-block diagnostic correlation, so the same CODEX context must not resume black-box exploration as though it were still unspoiled.
+
+Existing ENV_A audit session is preserved; no reset is authorized.
+
+Preview control rev 0021:
+`95a632ba8fb2ef3db8caaff760e94be9953f4ef6`.
+
+Shared CODEX route rev 0090:
+`ROUTE-SEQUENTIAL-CODEX-STAGE1-ATTEMPT1-SEAL-RECONCILE-75`
+commit `f37eebab556b44fa88f4a31ad1c3922568d10518`.
+
+Current CODEX mission is infrastructure reconciliation only:
+- restore runtime worktree to exact accepted harness if needed;
+- verify same session / expected dependency preparation;
+- pause the same session if reconciliation is exact;
+- no product interaction;
+- no prepare/start/resume/reset;
+- no Stage1 retry;
+- no Stage2.
+
+Accepted harness remains:
+`bb451fa6e07982ac12384895f6097d5833761d16`
+/ tree `650d30089596021cb1a564ee1d2f1abfc7d2b509`.
+
+Embargoed evidence branch remains:
+`preview/w15-first-project-codex-evidence`.
+
+A valid future independent CODEX black-box retry requires a fresh CODEX context/agent that has not consumed attempt-1 diagnostic findings.
+
+## Stage2
+
+`W15-ENV-A-CODEX-STAGE2-DIRECTED-VERIFICATION = PREPARED / NOT ACTIVE`.
+
+Main will consider Stage2 after the Human Preview reaches COMPLETE or BLOCKED and the embargo/cross-audit state can be reconciled.
+
+## Immediate coordinator action
+
+1. Let the Product Owner continue Human Preview unaided.
+2. Wait for CODEX's coarse attempt1 seal/reconciliation handoff.
+3. Do not expose embargoed CODEX findings to Product Owner.
+4. Do not start a CODEX retry in the same contaminated context.
+5. After Human Preview completion/block, lift embargo and perform cross-audit reconciliation before deciding retry/Stage2 sequencing.
+
+Durable ledger:
+Issue #305 comment `5857629860`.
+
+---
+
 # LATEST DELTA — 2026-09-27 — BOTH PREVIEW ENVIRONMENTS READY / PARALLEL EXPLORATION ACTIVE
 
 > This delta supersedes older Preview-readiness wording below when there is a conflict. GitHub live remains the sole authority.

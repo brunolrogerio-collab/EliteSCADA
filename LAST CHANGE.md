@@ -1,3 +1,44 @@
+# LATEST DELTA — 2026-09-27 — SECURITY 402 REMOTE-LATENCY HYPOTHESIS ELEVATED
+
+> This delta supersedes older #359 causal wording below when there is a conflict. GitHub live remains the sole authority.
+
+Product Owner correlated the real Codespace Security/Authority failure with the established Wave 14 pattern where some browser/Engineering loads failed through the remote/forwarded path while local API/Vite remained healthy.
+
+This is consistent with:
+- Wave 14 A1 transport root `UNCERTAIN — BOUNDED`, with local API/Vite outage excluded in the captured window and forwarded-browser/static delivery left unresolved;
+- #307 remote/WAN resilience contract.
+
+#359 is now framed with the primary working hypothesis:
+
+`REMOTE_PATH_LATENCY_OR_FORWARDING_EXPOSES_TOO-TIGHT_CLIENT_TIMING / ERROR_MAPPING`.
+
+This is not yet the final root cause.
+
+Required diagnostic order:
+1. ENV_A local / normal latency;
+2. ENV_A local / deterministic remote-like latency+jitter injection;
+3. ENV_B/Codespace forwarded path with exact request/status/body/proxy/API correlation.
+
+Interpretation:
+- local normal failure -> generic Authority/product;
+- local normal pass + injected-latency failure -> #307 generic remote/WAN resilience;
+- local normal + injected-latency pass but Codespace failure -> forwarding/edge/environment remains likely.
+
+Do not infer licensing/Authority semantics from numeric HTTP 402 alone.
+Do not solve by globally increasing all timeouts.
+Read/list operations may use bounded retry under #307; user/role mutations must not be blindly retried after ambiguous transport outcomes.
+
+Stage2 V2-20 update:
+`df057db7fe388d02f2a98266facfff8d726cb94c`.
+
+Preview control rev 0027:
+`a27eef269bd3a2618435a622d944bd7e7fc560a1`.
+
+Ledger:
+Issue #305 comment `5858066237`.
+
+---
+
 # LATEST DELTA — 2026-09-27 — SECURITY/AUTHORITY CODESPACE P1 ADDED
 
 > This delta supersedes older Human Preview findings summaries below when there is a conflict. GitHub live remains the sole authority.

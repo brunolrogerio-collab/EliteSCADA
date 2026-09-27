@@ -1217,3 +1217,47 @@ Current gates:
 - CODEX: HOLD;
 - Stage 1: HOLD;
 - Stage 2: PREPARED / NOT ACTIVE.
+
+
+## 25. ENV_B first real Codespace creation in progress
+
+MAIN_ORDER_REV: 0015
+
+STATE: ENV_A_READY / ENV_B_FIRST_BOOT_IN_PROGRESS / BLACKBOX_HOLD
+
+Product Owner initiated the first real GitHub Codespace creation from the dedicated ENV_B branch:
+`preview/w15-first-project-env-b-codespace`.
+
+Visual confirmation received from the Product Owner shows GitHub Codespaces in the remote setup/build phase (`Building codespace...`).
+
+No readiness claim is made yet. Exact in-Codespace HEAD, devcontainer completion, service health and port visibility still require evidence after the build completes.
+
+During this first boot the Product Owner must not:
+- run manual startup commands;
+- alter port visibility;
+- seed Administrator/project/application state beyond a later Main-authorized continuity marker;
+- restart/rebuild the Codespace before initial failure evidence is captured.
+
+Expected automatic sequence after build:
+1. repository devcontainer starts;
+2. Compose starts TimescaleDB + EliteSCADA;
+3. postStartCommand runs;
+4. 5173 forwarding appears;
+5. repository script re-asserts 5173 PUBLIC;
+6. 5080/5432 remain non-public;
+7. browser can open EliteSCADA first-run surface.
+
+Next evidence gate after build completion:
+- exact `git rev-parse HEAD`;
+- Codespace/devcontainer startup completion;
+- service health;
+- Ports state for 5173/5080/5432;
+- browser result on 5173;
+- visible first-run/no-project product state.
+
+Current state:
+- ENV_A: `READY / CLEAN / RESUMABLE`;
+- ENV_B: `FIRST_BOOT_IN_PROGRESS / NOT_READY`;
+- CODEX Stage 1: HOLD;
+- Human Preview: HOLD;
+- Stage 2: PREPARED / NOT ACTIVE.

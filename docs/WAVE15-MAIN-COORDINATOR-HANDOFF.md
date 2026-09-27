@@ -1,3 +1,68 @@
+# LATEST DELTA — 2026-09-27 — REPAIRED HARNESS ACCEPTED / VISUAL STUDIO LOCAL OPERATOR ACTIVE
+
+> This delta supersedes older ENV_A harness current-state wording below when there is a conflict. GitHub live remains the sole authority.
+
+CODEX final repaired-harness lifecycle proof was accepted from Issue #305 comment `5858036695`.
+
+Accepted harness:
+- SHA `50a4451aa122f7f9fd0af98173c184f6623a147b`;
+- tree `5efeafb08725a90ce0c3df689b8d613f165bb569`;
+- product base `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Canonical harness branch was fast-forwarded:
+`preview/w15-first-project-env-harness -> 50a4451...`.
+
+Accepted proof includes:
+- dependency provenance stable across Windows LF/CRLF materialization;
+- preparation READY;
+- start/status stability;
+- pause/resume;
+- real Docker Desktop restart/resume;
+- separate evidence worktree commit without invalidating runtime preparation;
+- reset preserving dependency preparation;
+- second fresh start without package install/restore;
+- final NOT_STARTED / PREPARATION=READY.
+
+## Visual Studio local operator
+
+Product Owner authorized a reusable local container operator for native Visual Studio AI.
+
+Dedicated branch:
+`preview/w15-vs-local-runner`
+created from exact accepted harness `50a4451...`.
+
+Dedicated issue:
+- #360 — `W15-LOCAL-OPS — operador local containerizado + bootstrap para IA do Visual Studio`.
+
+Active CODEX route:
+`ROUTE-SEQUENTIAL-CODEX-VS-LOCAL-OPERATOR-BOOTSTRAP-78`
+commit `f1ec3ad28ceb0ce13a1d645e6ca84c356036301c`.
+
+Preview control rev 0028:
+`510291282cbdceca9bbdab806dd7f5b4524f55e9`.
+
+Preferred operator:
+`scripts/preview/elite-local.ps1`
+
+Required commands:
+`prepare | start | status | pause | resume | stop | restart | diagnose | reset`.
+
+Default behavior preserves local database/project/workbench state. `reset` is explicitly destructive and must require confirmation.
+
+Required native Visual Studio AI bootstrap:
+`docs/VISUAL-STUDIO-AI-LOCAL-ELITESCADA-BOOTSTRAP.md`.
+
+The bootstrap must let the Product Owner instruct Visual Studio AI in natural language to run, pause, stop, resume, restart and diagnose the local application without improvising Docker commands.
+
+The local operator is also the preferred manual/AI-assisted surface for comparing local behavior against Codespace/remote findings under #307/#359.
+
+This mission is infrastructure/docs only. Product corrections #354/#355/#359 and UX2 remain separate.
+
+Ledger:
+Issue #305 comment `5858162988`.
+
+---
+
 # LATEST DELTA — 2026-09-27 — SECURITY 402 REMOTE-LATENCY HYPOTHESIS ELEVATED
 
 > This delta supersedes older #359 causal wording below when there is a conflict. GitHub live remains the sole authority.

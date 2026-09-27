@@ -1827,4 +1827,21 @@ Keep execution cheap:
 - no full Linux parity unless a focused failure warrants it.
 
 Licensing #345 remains WAIT.
+## CURRENT SHARED CODEX ROUTE — rev 0071
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-AUTHORITY-ACCEPTED-HOLD-56`
+
+`ORDER_STATE: COMPLETED / AUTHORITY_MAIN_ACCEPTED / HOLD_FOR_MERGE`
+
+Authority UX accepted exact head:
+`f82a5662234e42a73b77f15fbdfd730872cc5cc1`.
+
+Exact-head T1:
+`36288094878` / #112 — SUCCESS.
+
+Main acceptance control:
+- Authority rev 0011;
+- commit `6670f027624245c3a24e1b58cbc2c50e274318f3`.
+
+CODEX must remain idle. Do not self-select Licensing #345 until Main completes Authority integration/post-merge verification and publishes a new explicit route.
 

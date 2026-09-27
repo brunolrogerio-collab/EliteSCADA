@@ -396,4 +396,45 @@ CODEX adversarial validation remains mandatory before merge, emphasizing:
 6. exact final-head validation after any CODEX-owned bounded correction.
 
 No merge/T2 is authorized.
+## CURRENT MAIN ORDER — rev 0009
+
+`ORDER_ID: DEV-LICENSING-UX-POST-AUTHORITY-RECONCILE-09`
+
+`ORDER_STATE: DEV_RECONCILIATION / AUTHORIZED`
+
+Current PR:
+- #345;
+- head `3d73ccd8f683be94f741fdb431df0e1525e6c0e9`;
+- prior T1 `36280752132` / #110: SUCCESS.
+
+New live integration baseline:
+`wave15/corrections-integration@27412e4fbe47dbbb6573229364ee8319369ae076`.
+
+GitHub now reports PR #345 as non-mergeable because its candidate is:
+- ahead 18;
+- behind 3;
+- diverged from the new integration.
+
+Main overlap audit:
+- the 3 new integration commits since Licensing's accepted base are exactly the Authority UX merge sequence;
+- those commits touch 7 Authority-owned files;
+- Licensing owns 13 different files;
+- overlap: **zero files**.
+
+Classification:
+`STALE_BRANCH_POST_AUTHORITY_RECONCILIATION / NO_FUNCTIONAL_OVERLAP`.
+
+DEV-LICENSING-UX is authorized to:
+1. reconcile/rebase the exact previously accepted Licensing candidate onto `27412e4fbe47dbbb6573229364ee8319369ae076`;
+2. preserve all 13 previously accepted Licensing/session blobs byte-for-byte unless a strictly mechanical build/test adaptation is required;
+3. preserve the closed stale-lease/session-replacement truth fix;
+4. do not absorb or alter Authority UX semantics;
+5. do not change FND-05/FND-07, Demo-session, Runtime-admission or HA contracts;
+6. obtain a new natural exact-head T1;
+7. return durable handoff on PR #345 with exact SHA/tree and reconciliation proof;
+8. then WAIT for Main.
+
+If the new Authority baseline exposes any real semantic conflict, stop that semantic mutation and return exact evidence.
+
+CODEX adversarial validation remains mandatory after this fresh reconciliation.
 

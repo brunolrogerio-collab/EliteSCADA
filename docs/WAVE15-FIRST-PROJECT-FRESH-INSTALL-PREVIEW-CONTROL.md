@@ -510,3 +510,97 @@ ENV_B is not READY until evidence shows:
 7. no first-project/application state is pre-seeded to obtain this result.
 
 Security note: public Codespaces forwarding means anyone who obtains the URL can reach the forwarded Web endpoint without GitHub authentication. EliteSCADA's own authentication/authorization must remain intact; do not weaken it for Preview convenience.
+
+
+## 15. Product Owner amendment — CODEX local audit pause/resume
+
+MAIN_ORDER_REV: 0005
+
+STATE: BINDING / ENVIRONMENT_A_RESUMABLE_AUDIT
+
+The Product Owner requires the local CODEX audit to survive CODEX usage-window limits and host-PC shutdown/restart. The audit is therefore a **persistent resumable session**, not a single continuous process.
+
+### 15.1 Required operator contract
+
+The Environment A harness MUST expose one repository-controlled command surface with at least:
+
+- `start` — create/start a brand-new clean audit session only when no resumable session exists;
+- `pause` — gracefully checkpoint and stop the audit runtime while preserving all legitimate audit state/evidence required to continue later;
+- `resume` — restore the same paused audit session and continue from its persisted state without resetting/reseeding the product;
+- `status` — report session ID, lifecycle state, exact product/harness SHA, container/service health and whether the session is resumable;
+- `reset` — explicitly destroy the local audit session and all disposable product state so a new clean `start` can be performed. This action must never happen implicitly during pause/resume.
+
+A preferred interface is a single idempotent entry point such as:
+`scripts/preview/local-audit.sh start|pause|resume|status|reset`
+
+The exact file/name may differ if CODEX has a better repository-consistent design, but the semantics above are binding.
+
+### 15.2 Persistence boundary
+
+Pause/resume MUST preserve, outside ephemeral process lifetime:
+- the disposable PostgreSQL/TimescaleDB audit volume containing the user-created application state;
+- the local audit session identifier and exact product/harness provenance;
+- audit evidence already collected by CODEX (notes/timestamps/screenshots/traces as applicable);
+- browser/session state when technically practical and safe, or enough ordinary product-visible state to re-authenticate and continue without reconstructing hidden state;
+- the last explicit audit checkpoint/status needed for CODEX to resume its own work without re-reading spoiler-producing implementation internals.
+
+Persistent audit state must live in a named Docker volume and/or host-mounted ignored directory dedicated to Environment A. It must not depend on the running container filesystem alone.
+
+Pause MUST stop compute/processes but MUST NOT delete the database volume, audit evidence, or user-created project.
+
+### 15.3 Resume semantics
+
+`resume` must be safe after:
+- an explicit prior `pause`;
+- CODEX session expiration;
+- PC shutdown/reboot after a clean pause;
+- unexpected host interruption, to the extent Docker state remains recoverable.
+
+On resume the harness must:
+1. revalidate the repository worktree/harness identity expected by the saved audit session;
+2. refuse to silently resume against different product bytes;
+3. restart required database/API/Web/browser tooling;
+4. preserve the existing user-created product state;
+5. verify health before returning READY;
+6. emit a concise machine-readable/human-readable resume checkpoint so CODEX knows where its own audit left off.
+
+If saved product/harness provenance does not match the current checkout, return a clear `RESUME_BLOCKED_VERSION_MISMATCH` (or equivalent) rather than migrating/resetting automatically.
+
+### 15.4 Black-box integrity
+
+The resumability mechanism is infrastructure only. It MUST NOT:
+- seed or repair the first project;
+- directly mutate product DB rows/state to advance the journey;
+- inject navigation hints based on source/control knowledge;
+- turn CODEX's prior detailed findings into a scripted checklist;
+- use reset/recreate as a substitute for continuing the same audit session.
+
+The persisted audit checkpoint may say where CODEX itself stopped (for example current visible product area and whether a step was COMPLETE/BLOCKED), but must not contain implementation-derived shortcuts for the next black-box interaction.
+
+### 15.5 Evidence/embargo
+
+Detailed CODEX findings remain embargoed from the Product Owner even across pauses.
+
+Pause must flush/retain detailed evidence to the dedicated CODEX evidence surface. The Product Owner-facing coordination surface may expose only coarse state such as:
+- NOT_STARTED;
+- RUNNING;
+- PAUSED_RESUMABLE;
+- RESUMED;
+- COMPLETE;
+- BLOCKED_BY_PRODUCT;
+- BLOCKED_BY_ENVIRONMENT;
+- INVALID_ENVIRONMENT.
+
+### 15.6 Readiness proof
+
+ENV_A is not READY until CODEX proves at least:
+1. clean `start` produces a fresh no-project product state;
+2. CODEX can create some ordinary product-visible state sufficient to distinguish the session from fresh state;
+3. `pause` stops the audit runtime without deleting that state;
+4. host/container processes can be restarted and `resume` restores the same audit session/state;
+5. a second pause/resume cycle is idempotent;
+6. `status` distinguishes RUNNING vs PAUSED_RESUMABLE accurately;
+7. `reset` is separately explicit/destructive and returns the next `start` to true fresh-install state;
+8. no product/source semantics were changed merely to enable pause/resume.
+
+The actual first-project exploratory audit starts only after Main accepts this proof and marks ENV_A READY.

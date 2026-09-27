@@ -1929,4 +1929,21 @@ Main acceptance control:
 - commit `eab694e8bbc6e099656d69d2eebbc60bda0ccabf`.
 
 CODEX must remain idle. Do not self-select any new lane until Main completes Licensing integration/post-merge verification and publishes a new explicit route.
+## CURRENT SHARED CODEX ROUTE — rev 0076
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-LICENSING-POSTMERGE-HOLD-61`
+
+`ORDER_STATE: HOLD / LICENSING_POSTMERGE_CI_PENDING`
+
+Licensing UX PR #345 is merged.
+
+Integrated SHA:
+`1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Post-merge EliteSCADA CI:
+`36290910850` / #1584 — queued.
+
+Because CODEX budget is reduced, keep it idle until Main classifies this exact integrated run.
+
+No other CODEX route is active.
 

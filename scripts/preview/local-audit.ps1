@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet('prepare', 'start', 'pause', 'resume', 'status', 'reset')]
+    [ValidateSet('prepare', 'start', 'status', 'pause', 'stop', 'resume', 'restart', 'diagnose', 'reset')]
     [string]$Command,
 
     [Parameter()]
@@ -17,7 +17,10 @@ param(
 
     [Parameter()]
     [ValidatePattern('^[0-9a-fA-F]{40}$')]
-    [string]$TrustedRootThumbprint
+    [string]$TrustedRootThumbprint,
+
+    [Parameter()]
+    [switch]$Force
 )
 
 $ErrorActionPreference = 'Stop'
@@ -71,6 +74,8 @@ function Invoke-NativeCommand {
 }
 
 function Get-HarnessIdentity {
+    param([switch]$AllowUnclean)
+
     $head = (Invoke-Git -GitArguments @('rev-parse', 'HEAD')).Trim()
     $tree = (Invoke-Git -GitArguments @('rev-parse', 'HEAD^{tree}')).Trim()
     $branch = (Invoke-Git -GitArguments @('branch', '--show-current')).Trim()
@@ -83,19 +88,27 @@ function Get-HarnessIdentity {
     }
 
     $allowedRoots = @('.devcontainer/', 'ci/local/', 'scripts/preview/')
-    $allowedFiles = @('.gitattributes', 'docs/LOCAL-FIRST-PROJECT-PREVIEW-HARNESS.md')
+    $allowedFiles = @(
+        '.gitattributes',
+        'docs/LOCAL-FIRST-PROJECT-PREVIEW-HARNESS.md',
+        'docs/VISUAL-STUDIO-AI-LOCAL-ELITESCADA-BOOTSTRAP.md'
+    )
     $changedPaths = @(Invoke-Git -GitArguments @('diff', '--name-only', $productBaseSha, 'HEAD'))
+    $productScopeChanges = @()
     foreach ($path in $changedPaths) {
         $normalized = $path.Replace('\', '/')
         $isAllowed = ($allowedFiles -contains $normalized) -or
             @($allowedRoots | Where-Object { $normalized.StartsWith($_, [System.StringComparison]::Ordinal) }).Count -gt 0
         if (-not $isAllowed) {
-            throw "Product-scope change detected since the approved base: $normalized"
+            $productScopeChanges += $normalized
         }
     }
 
     $dirty = @(Invoke-Git -GitArguments @('status', '--porcelain', '--untracked-files=all'))
-    if ($dirty.Count -gt 0) {
+    if ($productScopeChanges.Count -gt 0 -and -not $AllowUnclean) {
+        throw "Product-scope changes are not allowed in the local preview harness: $($productScopeChanges -join ', ')"
+    }
+    if ($dirty.Count -gt 0 -and -not $AllowUnclean) {
         throw 'The audit requires a clean, committed harness worktree; commit or safely preserve local changes before continuing.'
     }
 
@@ -104,6 +117,8 @@ function Get-HarnessIdentity {
         Head = $head
         Tree = $tree
         ProductBase = $productBaseSha
+        DirtyPaths = $dirty
+        ProductScopeChanges = $productScopeChanges
     }
 }
 
@@ -127,6 +142,65 @@ function Get-StackResources {
     $networks = @(Invoke-NativeCommand -FilePath 'docker' -Arguments @('network', 'ls', '--quiet', '--filter', "label=com.docker.compose.project=$projectName"))
     if ($LASTEXITCODE -ne 0) { throw 'Could not inspect Docker networks for the dedicated preview project.' }
     return [pscustomobject]@{ Containers = $containers; Volumes = $volumes; Networks = $networks }
+}
+
+function Get-StackContainers {
+    $lines = @(Invoke-NativeCommand -FilePath 'docker' -Arguments @(
+        'ps', '--all', '--filter', "label=com.docker.compose.project=$projectName",
+        '--format', '{{.ID}}|{{.Names}}|{{.State}}|{{.Status}}'
+    ))
+    if ($LASTEXITCODE -ne 0) {
+        return [pscustomobject]@{ Available = $false; Error = (@($lines) -join ' ').Trim(); Containers = @() }
+    }
+
+    $containers = @()
+    foreach ($line in $lines) {
+        if ([string]::IsNullOrWhiteSpace([string]$line)) { continue }
+        $parts = ([string]$line).Split('|', 4)
+        if ($parts.Count -ne 4) { continue }
+        $details = @(Invoke-NativeCommand -FilePath 'docker' -Arguments @(
+            'inspect', '--format', '{{index .Config.Labels "com.docker.compose.service"}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}', $parts[0]
+        ))
+        if ($LASTEXITCODE -ne 0) { $details = @('unknown|unknown') }
+        $detailParts = ([string]($details | Select-Object -First 1)).Split('|', 2)
+        $containers += [pscustomobject]@{
+            id = $parts[0]
+            name = $parts[1]
+            service = $detailParts[0]
+            state = $parts[2]
+            status = $parts[3]
+            health = if ($detailParts.Count -gt 1) { $detailParts[1] } else { 'unknown' }
+        }
+    }
+    return [pscustomobject]@{ Available = $true; Error = ''; Containers = $containers }
+}
+
+function Stop-PreviewContainers {
+    $snapshot = Get-StackContainers
+    if (-not $snapshot.Available) { throw "Docker Engine is unavailable; cannot safely stop the local workbench. $($snapshot.Error)" }
+    foreach ($container in $snapshot.Containers) {
+        if ($container.state -eq 'running') {
+            Invoke-NativeCommand -FilePath 'docker' -Arguments @('container', 'stop', '--time', '30', $container.id) | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "Could not gracefully stop local workbench service '$($container.service)' ($($container.name))." }
+        }
+    }
+    return $snapshot.Containers.Count
+}
+
+function Test-HttpEndpoint([string]$Uri) {
+    $stopwatch = [Diagnostics.Stopwatch]::StartNew()
+    try {
+        $response = Invoke-WebRequest -Uri $Uri -Method Get -TimeoutSec 5 -UseBasicParsing
+        $stopwatch.Stop()
+        return [pscustomobject]@{ state = if ([int]$response.StatusCode -ge 200 -and [int]$response.StatusCode -lt 400) { 'healthy' } else { 'unhealthy' }; statusCode = [int]$response.StatusCode; durationMs = $stopwatch.ElapsedMilliseconds }
+    } catch {
+        $stopwatch.Stop()
+        $statusCode = $null
+        if ($null -ne $_.Exception.Response -and $null -ne $_.Exception.Response.StatusCode) {
+            $statusCode = [int]$_.Exception.Response.StatusCode
+        }
+        return [pscustomobject]@{ state = if ($null -eq $statusCode) { 'unreachable' } else { 'unhealthy' }; statusCode = $statusCode; durationMs = $stopwatch.ElapsedMilliseconds }
+    }
 }
 
 function Get-Sha256Text([string]$Text) {
@@ -216,6 +290,23 @@ function Set-PreviewDependencyEnvironment($Dependency) {
     $env:ELITESCADA_PREVIEW_NODE_MODULES_VOLUME = $Dependency.NodeModulesVolume
     $env:ELITESCADA_PREVIEW_NUGET_VOLUME = $Dependency.NuGetVolume
     $env:ELITESCADA_PREVIEW_PORT = "$Port"
+}
+
+function Set-SessionComposeEnvironment($Session, $Dependency = $null) {
+    $dependencyInputsSha = [string]$Session.dependencyInputsSha
+    if ([string]::IsNullOrWhiteSpace($dependencyInputsSha) -and $null -ne $Dependency) {
+        $dependencyInputsSha = [string]$Dependency.InputsSha
+    }
+    if ([string]::IsNullOrWhiteSpace($dependencyInputsSha)) {
+        throw 'RESUME_BLOCKED_VERSION_MISMATCH: saved session lacks dependency provenance required by the current operator.'
+    }
+    $env:ELITESCADA_PREVIEW_DEPENDENCY_KEY = [string]$Session.dependencyKey
+    $env:ELITESCADA_PREVIEW_DEPENDENCY_INPUTS_SHA = $dependencyInputsSha
+    $env:ELITESCADA_PREVIEW_HARNESS_SHA = [string]$Session.harnessSha
+    $env:ELITESCADA_PREVIEW_PRODUCT_BASE_SHA = [string]$Session.productBaseSha
+    $env:ELITESCADA_PREVIEW_NODE_MODULES_VOLUME = [string]$Session.nodeModulesVolume
+    $env:ELITESCADA_PREVIEW_NUGET_VOLUME = [string]$Session.nugetVolume
+    $env:ELITESCADA_PREVIEW_PORT = [string]$Session.webPort
 }
 
 function Get-ExpectedVolumeLabels($Dependency, [string]$Role) {
@@ -569,75 +660,217 @@ function Assert-ResumableSession($Session, $Identity, $Dependency) {
 }
 
 function Wait-PreviewHealth([int]$WebPort) {
-    $uri = "http://localhost:$WebPort/health"
+    $webUri = "http://localhost:$WebPort/"
+    $apiUri = "http://localhost:$WebPort/health"
     for ($attempt = 0; $attempt -lt 24; $attempt++) {
-        try {
-            $null = Invoke-RestMethod -Uri $uri -TimeoutSec 3
+        $web = Test-HttpEndpoint $webUri
+        $api = Test-HttpEndpoint $apiUri
+        if ($web.state -eq 'healthy' -and $api.state -eq 'healthy') {
             return
-        } catch {
-            Start-Sleep -Seconds 5
         }
+        Start-Sleep -Seconds 5
     }
-    throw "The preview did not become healthy at $uri. Use 'docker compose logs preview timescaledb' to inspect the environment."
+    throw "The preview did not become healthy. Web=$($web.state) at $webUri; API=$($api.state) at $apiUri. Run 'elite-local.ps1 diagnose' for a sanitized report."
+}
+
+function Test-InternalApiHealth($PreviewContainer) {
+    if ($null -eq $PreviewContainer -or $PreviewContainer.state -ne 'running') {
+        return [pscustomobject]@{ state = 'not-running'; statusCode = $null }
+    }
+    $stopwatch = [Diagnostics.Stopwatch]::StartNew()
+    $output = @(Invoke-NativeCommand -FilePath 'docker' -Arguments @(
+        'exec', $PreviewContainer.id, 'node', '-e', "fetch('http://127.0.0.1:5080/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+    ))
+    $stopwatch.Stop()
+    return [pscustomobject]@{ state = if ($LASTEXITCODE -eq 0) { 'healthy' } else { 'unhealthy' }; statusCode = $null; durationMs = $stopwatch.ElapsedMilliseconds }
+}
+
+function Get-SessionStatusSnapshot($Session, $Identity) {
+    $dependency = $null
+    $preparationState = 'UNKNOWN'
+    $preparationDetail = ''
+    try {
+        $dependency = Get-PreviewDependencyIdentity $Identity
+        Set-PreviewDependencyEnvironment $dependency
+        $null = Assert-PreparedDependencies $Identity $dependency -VerifyContents
+        $preparationState = 'READY'
+    } catch {
+        $preparationState = 'REQUIRED_OR_UNAVAILABLE'
+        $preparationDetail = Protect-DiagnosticText (($_.Exception.Message -replace '\s+', ' ').Trim())
+    }
+
+    $containerSnapshot = Get-StackContainers
+    $containers = @($containerSnapshot.Containers)
+    $timescale = $containers | Where-Object { $_.service -eq 'timescaledb' } | Select-Object -First 1
+    $preview = $containers | Where-Object { $_.service -eq 'preview' } | Select-Object -First 1
+    $port = if ($null -ne $Session) { [int]$Session.webPort } else { $Port }
+    $webUrl = "http://localhost:$port/"
+    $apiUrl = "http://localhost:$port/health"
+    $webHealth = if ($null -ne $preview -and $preview.state -eq 'running') { Test-HttpEndpoint $webUrl } else { [pscustomobject]@{ state = 'not-running'; statusCode = $null } }
+    $apiHealth = Test-InternalApiHealth $preview
+    $databaseHealth = if ($null -eq $timescale -or $timescale.state -ne 'running') { 'not-running' } elseif ($timescale.health -eq 'none') { 'running' } else { $timescale.health }
+    $dockerEngine = if ($containerSnapshot.Available) { 'available' } else { 'unavailable' }
+
+    if ($null -eq $Session) {
+        $hasResources = $containers.Count -gt 0
+        if (-not $hasResources -and $containerSnapshot.Available) {
+            try {
+                $resources = Get-StackResources
+                $hasResources = $resources.Volumes.Count -gt 0 -or $resources.Networks.Count -gt 0
+            } catch { $hasResources = $false }
+        }
+        $state = if ($hasResources) { 'ORPHANED_PREVIEW_STATE_REVIEW_REQUIRED' } else { 'NOT_STARTED' }
+        $differs = $null
+        $resumable = $false
+        $sessionId = $null
+        $sessionHarnessSha = $null
+        $sessionHarnessTree = $null
+        $workbenchBranch = $null
+        $lastCheckpoint = ''
+    } else {
+        $differs = $Identity.Head -ne $Session.harnessSha -or
+            $Identity.Tree -ne $Session.harnessTree -or
+            $Identity.Branch -ne $Session.branch -or
+            $Identity.DirtyPaths.Count -gt 0
+        $identityMatches = $Identity.Head -eq $Session.harnessSha -and $Identity.Tree -eq $Session.harnessTree
+        $resumable = $identityMatches -and $Session.productBaseSha -eq $Identity.ProductBase
+        if (-not $identityMatches) {
+            $state = 'RESUME_BLOCKED_CHECKOUT_DIFFERS'
+        } elseif (-not $containerSnapshot.Available) {
+            $state = 'DOCKER_UNAVAILABLE_RESUMABLE'
+        } elseif ($preview -and $preview.state -eq 'running' -and $webHealth.state -eq 'healthy' -and $apiHealth.state -eq 'healthy' -and $databaseHealth -eq 'healthy') {
+            $state = 'RUNNING_HEALTHY'
+        } elseif ($preview -and $preview.state -eq 'running') {
+            $state = 'RUNNING_UNHEALTHY'
+        } elseif ($resumable) {
+            $state = 'PAUSED_RESUMABLE'
+        } else {
+            $state = [string]$Session.state
+        }
+        $sessionId = $Session.sessionId
+        $sessionHarnessSha = $Session.harnessSha
+        $sessionHarnessTree = $Session.harnessTree
+        $workbenchBranch = $Session.branch
+        $lastCheckpoint = Protect-DiagnosticText (($Session.lastCheckpoint -replace '\s+', ' ').Trim())
+    }
+
+    return [pscustomobject]@{
+        state = $state
+        composeProject = $projectName
+        currentBranch = $Identity.Branch
+        currentHead = $Identity.Head
+        currentTree = $Identity.Tree
+        currentCheckoutDirty = $Identity.DirtyPaths.Count -gt 0
+        currentDirtyPaths = @($Identity.DirtyPaths)
+        currentProductScopeChanges = @($Identity.ProductScopeChanges)
+        workbenchBranch = $workbenchBranch
+        workbenchHarnessSha = $sessionHarnessSha
+        workbenchHarnessTree = $sessionHarnessTree
+        workbenchCheckoutDiffers = $differs
+        sessionId = $sessionId
+        resumable = $resumable
+        lastCheckpoint = $lastCheckpoint
+        dependencyPreparation = $preparationState
+        dependencyKey = if ($null -ne $dependency) { $dependency.Key } elseif ($null -ne $Session) { $Session.dependencyKey } else { $null }
+        dependencyDetail = $preparationDetail
+        dockerEngine = $dockerEngine
+        timescaleDbHealth = $databaseHealth
+        apiHealth = $apiHealth.state
+        apiHealthDurationMs = $apiHealth.durationMs
+        webHealth = $webHealth.state
+        webHealthStatusCode = $webHealth.statusCode
+        webHealthDurationMs = $webHealth.durationMs
+        webUrl = $webUrl
+        apiUrl = $apiUrl
+        apiInternalUrl = 'http://127.0.0.1:5080/health inside preview container; not published to host'
+        containers = @($containers | Select-Object name, service, state, status, health)
+        evidenceDirectory = $sessionRoot
+        observedAtUtc = [DateTime]::UtcNow.ToString('o')
+    }
 }
 
 function Print-SessionStatus($Session, $Identity) {
-    $dependency = Get-PreviewDependencyIdentity $Identity
-    Set-PreviewDependencyEnvironment $dependency
-    try {
-        $null = Assert-PreparedDependencies $Identity $dependency -VerifyContents
-        $preparationState = 'READY'
-        $preparationDetail = ''
-    } catch {
-        $preparationState = 'REQUIRED'
-        $preparationDetail = ($_.Exception.Message -replace '\s+', ' ').Trim()
-    }
+    $snapshot = Get-SessionStatusSnapshot $Session $Identity
+    Write-Output "STATE=$($snapshot.state)"
+    Write-Output "BRANCH=$($snapshot.currentBranch)"
+    Write-Output "HEAD=$($snapshot.currentHead)"
+    Write-Output "TREE=$($snapshot.currentTree)"
+    Write-Output "DIRTY=$($snapshot.currentCheckoutDirty.ToString().ToLowerInvariant())"
+    Write-Output "SESSION_ID=$($snapshot.sessionId)"
+    Write-Output "WORKBENCH_HEAD=$($snapshot.workbenchHarnessSha)"
+    Write-Output "WORKBENCH_TREE=$($snapshot.workbenchHarnessTree)"
+    $checkoutDiffers = if ($null -eq $snapshot.workbenchCheckoutDiffers) { 'unknown' } else { $snapshot.workbenchCheckoutDiffers.ToString().ToLowerInvariant() }
+    Write-Output "CHECKOUT_DIFFERS_FROM_WORKBENCH=$checkoutDiffers"
+    Write-Output "RESUMABLE=$($snapshot.resumable.ToString().ToLowerInvariant())"
+    Write-Output "PREPARATION=$($snapshot.dependencyPreparation)"
+    Write-Output "DEPENDENCY_KEY=$($snapshot.dependencyKey)"
+    if ($snapshot.dependencyDetail) { Write-Output "PREPARATION_DETAIL=$($snapshot.dependencyDetail)" }
+    Write-Output "DOCKER_ENGINE=$($snapshot.dockerEngine)"
+    Write-Output "TIMESCALEDB_HEALTH=$($snapshot.timescaleDbHealth)"
+    Write-Output "API_HEALTH=$($snapshot.apiHealth)"
+    Write-Output "WEB_HEALTH=$($snapshot.webHealth)"
+    Write-Output "WEB_URL=$($snapshot.webUrl)"
+    Write-Output "API_URL=$($snapshot.apiUrl)"
+    Write-Output "CONTAINERS_JSON=$(ConvertTo-Json -InputObject @($snapshot.containers) -Compress -Depth 4)"
+    Write-Output "STATUS_JSON=$(ConvertTo-Json -InputObject $snapshot -Compress -Depth 6)"
+}
 
-    if ($null -eq $Session) {
-        $resources = Get-StackResources
-        $state = if ($resources.Containers.Count -or $resources.Volumes.Count -or $resources.Networks.Count) { 'ORPHANED_PREVIEW_STATE / RESET_REQUIRED' } else { 'NOT_STARTED' }
-        Write-Output "STATE=$state"
-        Write-Output "PROJECT=$projectName"
-        Write-Output "CURRENT_HARNESS_SHA=$($Identity.Head)"
-        Write-Output "PREPARATION=$preparationState"
-        Write-Output "DEPENDENCY_KEY=$($dependency.Key)"
-        if ($preparationDetail) { Write-Output "PREPARATION_DETAIL=$preparationDetail" }
-        return
-    }
+function Protect-DiagnosticText([string]$Text) {
+    $safe = $Text -replace '(?i)\bBearer\s+[A-Za-z0-9._~+/-]+=*', 'Bearer [REDACTED]'
+    $safe = $safe -replace '(?im)(password|passwd|pwd|token|secret|signing[_-]?key|authorization|api[_-]?key)(\s*[:=]\s*["'']?)([^\s,"'';&]+)', '$1$2[REDACTED]'
+    $safe = $safe -replace '\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b', '[REDACTED_JWT]'
+    return ($safe -replace '(?i)([?&](?:access_token|token|code|key|secret|password)=)[^&\s]+', '$1[REDACTED]')
+}
 
-    $state = $Session.state
-    if ($Session.harnessSha -ne $Identity.Head -or $Session.harnessTree -ne $Identity.Tree) {
-        $state = 'RESUME_BLOCKED_VERSION_MISMATCH'
-    } elseif ($Session.state -in @('RUNNING', 'RESUMED')) {
-        try {
-            Wait-PreviewHealth ([int]$Session.webPort)
-            $state = 'RUNNING'
-        } catch {
-            $state = 'INTERRUPTED_RESUMABLE'
+function Write-LocalDiagnosticReport($Session, $Identity) {
+    $snapshot = Get-SessionStatusSnapshot $Session $Identity
+    $reportLines = @(
+        '# EliteSCADA local diagnostic snapshot',
+        "Generated UTC: $($snapshot.observedAtUtc)",
+        '',
+        '## Identity and health',
+        (ConvertTo-Json -InputObject $snapshot -Depth 8)
+    )
+    $containerSnapshot = Get-StackContainers
+    if ($containerSnapshot.Available -and $containerSnapshot.Containers.Count -gt 0) {
+        $reportLines += @('', '## Recent service logs (last 30 minutes; redacted)')
+        foreach ($container in $containerSnapshot.Containers) {
+            $reportLines += @('', "### $($container.service): $($container.name)")
+            $logLines = @(Invoke-NativeCommand -FilePath 'docker' -Arguments @('logs', '--since', '30m', '--tail', '120', $container.id))
+            if ($LASTEXITCODE -ne 0) {
+                $reportLines += 'Log collection unavailable.'
+            } else {
+                $reportLines += Protect-DiagnosticText ($logLines -join [Environment]::NewLine)
+            }
         }
+    } else {
+        $reportLines += @('', '## Recent service logs', 'No preview containers are available.')
     }
 
-    Write-Output "STATE=$state"
-    Write-Output "SESSION_ID=$($Session.sessionId)"
-    Write-Output "PRODUCT_BASE_SHA=$($Session.productBaseSha)"
-    Write-Output "ACCEPTED_HARNESS_SHA=$($Session.acceptedHarnessSha)"
-    Write-Output "BRANCH=$($Session.branch)"
-    Write-Output "WEB_PORT=$($Session.webPort)"
-    Write-Output "RESUMABLE=$($state -in @('PAUSED_RESUMABLE', 'INTERRUPTED_RESUMABLE', 'RUNNING'))"
-    Write-Output "LAST_CHECKPOINT=$(($Session.lastCheckpoint -replace '\s+', ' ').Trim())"
-    Write-Output "EVIDENCE_DIR=$sessionRoot"
-    Write-Output "PREPARATION=$preparationState"
-    Write-Output "DEPENDENCY_KEY=$($dependency.Key)"
-    if ($preparationDetail) { Write-Output "PREPARATION_DETAIL=$preparationDetail" }
+    $diagnosticDirectory = Join-Path $sessionRoot 'diagnostics'
+    $resolvedDirectory = [IO.Path]::GetFullPath($diagnosticDirectory)
+    if (-not $resolvedDirectory.StartsWith($repoPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Refusing to write diagnostics outside the repository-local evidence directory.'
+    }
+    New-Item -ItemType Directory -Path $resolvedDirectory -Force | Out-Null
+    $fileName = 'local-diagnostic-' + [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmssfff') + 'Z.md'
+    $reportPath = Join-Path $resolvedDirectory $fileName
+    [IO.File]::WriteAllText($reportPath, ($reportLines -join [Environment]::NewLine) + [Environment]::NewLine, [Text.UTF8Encoding]::new($false))
+    Write-Output "DIAGNOSTIC_REPORT=$reportPath"
+    Write-Output "DIAGNOSTIC_SECRETS_REDACTED=true"
+    Print-SessionStatus $Session $Identity
 }
 
 if ($Command -ne 'prepare' -and -not [string]::IsNullOrWhiteSpace($TrustedRootThumbprint)) {
     throw '-TrustedRootThumbprint is permitted only for the isolated prepare operation.'
 }
+if ($Command -eq 'reset' -and -not $Force) {
+    throw 'RESET_CONFIRMATION_REQUIRED: reset deletes the local product database/session. Re-run only after the Product Owner explicitly requests a fresh install, with -Force.'
+}
 
 switch ($Command) {
     'status' {
-        $identity = Get-HarnessIdentity
+        $identity = Get-HarnessIdentity -AllowUnclean
         Print-SessionStatus (Read-Session) $identity
     }
     'prepare' {
@@ -654,16 +887,28 @@ switch ($Command) {
         Invoke-PreparedDependencyBootstrap $identity $dependency $TrustedRootThumbprint
     }
     'start' {
-        if ([string]::IsNullOrWhiteSpace($AcceptedHarnessSha)) {
-            throw "start requires -AcceptedHarnessSha <40-hex SHA> copied from Main's live ENV_A harness-acceptance order."
-        }
         $identity = Get-HarnessIdentity
-        if ($AcceptedHarnessSha.ToLowerInvariant() -ne $identity.Head) {
-            throw "Accepted SHA does not match this exact harness HEAD ($($identity.Head)); refusing to start."
-        }
         $existing = Read-Session
         if ($null -ne $existing) {
-            throw "A session already exists in state '$($existing.state)'. Use resume, pause, status or explicit reset; start never replaces a session."
+            if (-not [string]::IsNullOrWhiteSpace($AcceptedHarnessSha) -and $AcceptedHarnessSha.ToLowerInvariant() -ne $identity.Head) {
+                throw "Accepted SHA does not match this exact harness HEAD ($($identity.Head)); refusing to resume the saved workbench."
+            }
+            $dependency = Get-PreviewDependencyIdentity $identity
+            Assert-ResumableSession $existing $identity $dependency
+            Set-SessionComposeEnvironment $existing $dependency
+            $null = Assert-PreparedDependencies $identity $dependency -VerifyContents
+            Invoke-PreviewCompose -ComposeArguments @('up', '--no-build', '--pull', 'never', '--detach', '--wait', '--wait-timeout', '240')
+            Wait-PreviewHealth ([int]$existing.webPort)
+            Add-Transition $existing 'RUNNING' 'Existing workbench resumed by start; database and product state were preserved.'
+            Print-SessionStatus $existing $identity
+            Write-Output "WEB_URL=http://localhost:$($existing.webPort)"
+            return
+        }
+        if ([string]::IsNullOrWhiteSpace($AcceptedHarnessSha)) {
+            throw "A new workbench requires -AcceptedHarnessSha <40-hex SHA> copied from Main's live ENV_A harness-acceptance order."
+        }
+        if ($AcceptedHarnessSha.ToLowerInvariant() -ne $identity.Head) {
+            throw "Accepted SHA does not match this exact harness HEAD ($($identity.Head)); refusing to start."
         }
         $resources = Get-StackResources
         if ($resources.Containers.Count -or $resources.Volumes.Count -or $resources.Networks.Count) {
@@ -684,6 +929,7 @@ switch ($Command) {
             harnessTree = $identity.Tree
             branch = $identity.Branch
             dependencyKey = $dependency.Key
+            dependencyInputsSha = $dependency.InputsSha
             nodeModulesVolume = $dependency.NodeModulesVolume
             nugetVolume = $dependency.NuGetVolume
             createdAtUtc = [DateTime]::UtcNow.ToString('o')
@@ -705,30 +951,58 @@ switch ($Command) {
         }
     }
     'pause' {
-        $identity = Get-HarnessIdentity
-        $dependency = Get-PreviewDependencyIdentity $identity
-        Set-PreviewDependencyEnvironment $dependency
+        $identity = Get-HarnessIdentity -AllowUnclean
         $session = Read-Session
-        if ($null -eq $session) { throw 'No audit session exists to pause.' }
-        Assert-ResumableSession $session $identity $dependency
-        Invoke-PreviewCompose -ComposeArguments @('stop', '--timeout', '30')
-        Add-Transition $session 'PAUSED_RESUMABLE' 'Runtime and database containers stopped cleanly; database volume, user project and local evidence were preserved.' $Checkpoint
+        $count = Stop-PreviewContainers
+        if ($null -ne $session -and $session.state -notin @('PAUSED_RESUMABLE', 'STOPPED_PRESERVED')) {
+            Add-Transition $session 'PAUSED_RESUMABLE' 'Runtime and database containers stopped cleanly; database volume, user project and local evidence were preserved.' $Checkpoint
+        }
+        if ($null -eq $session) { Write-Output "STOPPED_CONTAINERS=$count"; Write-Output 'STATE=NO_SAVED_SESSION; no data was deleted.' }
+        Print-SessionStatus $session $identity
+    }
+    'stop' {
+        $identity = Get-HarnessIdentity -AllowUnclean
+        $session = Read-Session
+        $count = Stop-PreviewContainers
+        if ($null -ne $session -and $session.state -notin @('PAUSED_RESUMABLE', 'STOPPED_PRESERVED')) {
+            Add-Transition $session 'PAUSED_RESUMABLE' 'Stopped local services; database volume, user project, evidence and provenance were preserved.' $Checkpoint
+        }
+        Write-Output "STOPPED_CONTAINERS=$count"
+        Write-Output 'PRODUCT_STATE_PRESERVED=true'
         Print-SessionStatus $session $identity
     }
     'resume' {
         $identity = Get-HarnessIdentity
         $dependency = Get-PreviewDependencyIdentity $identity
-        Set-PreviewDependencyEnvironment $dependency
         $session = Read-Session
         if ($null -eq $session) { throw 'No saved audit session exists. A new start requires Main acceptance; resume never creates one.' }
         Assert-ResumableSession $session $identity $dependency
+        Set-SessionComposeEnvironment $session $dependency
         $null = Assert-PreparedDependencies $identity $dependency -VerifyContents
-        $env:ELITESCADA_PREVIEW_PORT = "$($session.webPort)"
         Invoke-PreviewCompose -ComposeArguments @('up', '--no-build', '--pull', 'never', '--detach', '--wait', '--wait-timeout', '240')
         Wait-PreviewHealth ([int]$session.webPort)
         Add-Transition $session 'RESUMED' 'Same saved Environment A identity reopened; product/database state was not reset or reseeded.'
         Print-SessionStatus $session $identity
         Write-Output "WEB_URL=http://localhost:$($session.webPort)"
+    }
+    'restart' {
+        $identity = Get-HarnessIdentity
+        $dependency = Get-PreviewDependencyIdentity $identity
+        $session = Read-Session
+        if ($null -eq $session) { throw 'No saved workbench exists to restart. A new start requires Main acceptance.' }
+        Assert-ResumableSession $session $identity $dependency
+        Set-SessionComposeEnvironment $session $dependency
+        $null = Assert-PreparedDependencies $identity $dependency -VerifyContents
+        Invoke-PreviewCompose -ComposeArguments @('up', '--no-build', '--pull', 'never', '--detach', '--force-recreate', '--wait', '--wait-timeout', '240')
+        Wait-PreviewHealth ([int]$session.webPort)
+        Add-Transition $session 'RUNNING' 'Application and database containers were recreated against the same named product volumes.'
+        Write-Output 'PRODUCT_STATE_PRESERVED=true'
+        Print-SessionStatus $session $identity
+        Write-Output "WEB_URL=http://localhost:$($session.webPort)"
+    }
+    'diagnose' {
+        $identity = Get-HarnessIdentity -AllowUnclean
+        Write-LocalDiagnosticReport (Read-Session) $identity
     }
     'reset' {
         $session = Read-Session

@@ -8,12 +8,12 @@ The local audit runs in a Linux container based on the repository's pinned Playw
 
 The repository pins the preview shell scripts to LF so Windows Git checkouts remain executable by Bash inside Docker.
 
-After Main posts an exact live acceptance SHA for Environment A, prepare the pinned tool image and dependency cache once, then run in PowerShell from the repository checkout:
+After Main posts an exact live acceptance SHA for Environment A, prepare the pinned tool image and dependency cache once, then use the repository operator in PowerShell from the repository checkout:
 
 ```powershell
-./scripts/preview/local-audit.ps1 prepare
-./scripts/preview/local-audit.ps1 status
-./scripts/preview/local-audit.ps1 start -AcceptedHarnessSha <accepted-harness-sha>
+./scripts/preview/elite-local.ps1 prepare
+./scripts/preview/elite-local.ps1 status
+./scripts/preview/elite-local.ps1 start -AcceptedHarnessSha <accepted-harness-sha>
 ```
 
 `prepare` resolves the locked npm and NuGet dependencies into external, hash-keyed Docker volumes. Their provenance is tied to the exact harness SHA/tree, product checkpoint, dependency manifests, and tool-image labels. Dependency inputs are identified from committed Git blob IDs, then aggregated with SHA-256; this keeps the key stable when Windows checkouts differ only in LF/CRLF working-tree bytes while still changing it when a committed dependency input changes. The preparation bootstrap also normalizes embedded shell text to LF before invoking Bash, so Windows checkout line endings cannot alter shell options. The scripts/preview/test-dependency-identity.ps1 regression test exercises both cases using disposable Git repositories. The preparation manifest and volumes live outside the audit-session directory. `start` and `resume` require that exact provenance and use the already-built local image (`--no-build --pull never`); they do not install or restore packages. Missing or mismatched prepared state fails explicitly and requires `prepare` rather than silently downloading or reusing stale artifacts. A TLS-chain failure during preparation is reported as `ENVIRONMENT_PREP_BLOCKED_TLS`; certificate verification must not be weakened.
@@ -27,20 +27,29 @@ Open `http://localhost:5173` in a normal browser. The host binding remains loopb
 Use these commands to preserve/continue a session:
 
 ```powershell
-./scripts/preview/local-audit.ps1 pause -Checkpoint "Last user-visible area and coarse completion state"
-./scripts/preview/local-audit.ps1 status
-./scripts/preview/local-audit.ps1 resume
+./scripts/preview/elite-local.ps1 pause -Checkpoint "Last user-visible area and coarse completion state"
+./scripts/preview/elite-local.ps1 status
+./scripts/preview/elite-local.ps1 resume
 ```
 
 `pause` stops the application and database containers without deleting the database volume, account/project state, evidence directory, or session provenance. `resume` requires the exact same accepted harness commit/tree and does not reset or seed product data. Detailed CODEX notes/screenshots/traces belong under `ci/local/artifacts/preview-audit-a/`; they are ignored local evidence, not a Product Owner status channel.
 
+`stop` is a friendly alias for `pause`. `restart` recreates the application and database containers against the same named product volumes and verifies Web/API health before returning. `status` reports the current Git branch/HEAD/tree, whether the checkout differs from the saved session, dependency preparation identity, Docker containers, TimescaleDB/API/Web health, resumability, and local URLs. `diagnose` writes a local report with recent service logs after common secret/token patterns are redacted; review it before sharing.
+
+The operator's safe script checks do not start/reset the product environment:
+
+```powershell
+./scripts/preview/test-local-operator.ps1
+./scripts/preview/test-dependency-identity.ps1
+```
+
 `reset` is the only destructive operation:
 
 ```powershell
-./scripts/preview/local-audit.ps1 reset
+./scripts/preview/elite-local.ps1 reset -Force
 ```
 
-It removes only containers, network, and product/audit volumes labelled with Compose project `elitescada-preview-a`; the provenance-bound dependency volumes and local tool image are preserved. It archives the local evidence folder instead of deleting it. Starting again always requires a fresh exact acceptance SHA and creates a new random session ID. If the manifest is absent but dedicated product/audit resources remain, `start` refuses to reuse them and requires explicit inspection/reset.
+`-Force` is mandatory and must only be supplied after the Product Owner explicitly requests a fresh install. Reset removes only containers, network, and product/audit volumes labelled with Compose project `elitescada-preview-a`; the provenance-bound dependency volumes and local tool image are preserved. It archives the local evidence folder instead of deleting it. Starting again always requires a fresh exact acceptance SHA and creates a new random session ID. If the manifest is absent but dedicated product/audit resources remain, `start` refuses to reuse them and requires explicit inspection/reset.
 
 ## Product Owner Environment B
 

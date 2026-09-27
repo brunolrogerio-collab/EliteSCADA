@@ -575,4 +575,29 @@ Post-merge exact integrated CI:
 No further Authority mutation is authorized.
 
 Authority closeout waits only on classification of this exact integrated CI.
+## CURRENT MAIN DISPOSITION — rev 0013
+
+`ORDER_ID: DEV-AUTHORITY-UX-INTEGRATED-COMPLETE-11`
+
+`ORDER_STATE: INTEGRATED / VERIFIED_COMPLETE / NO_FURTHER_MUTATION`
+
+Final integrated SHA:
+`27412e4fbe47dbbb6573229364ee8319369ae076`.
+
+Post-merge EliteSCADA CI:
+- run `36288961537` / #1583;
+- Backend build/test/smoke: SUCCESS;
+- Web build: SUCCESS;
+- Chromium end-to-end: SUCCESS.
+
+Pre-merge exact-head evidence remains:
+- candidate `f82a5662234e42a73b77f15fbdfd730872cc5cc1`;
+- T1 `36288094878` / #112: SUCCESS;
+- CODEX adversarial validation accepted;
+- bounded concurrency-feedback correction accepted.
+
+Final disposition:
+`DEV-AUTHORITY-UX = INTEGRATED / VERIFIED_COMPLETE`.
+
+No further DEV/CODEX mutation is authorized without a new Main-classified defect.
 

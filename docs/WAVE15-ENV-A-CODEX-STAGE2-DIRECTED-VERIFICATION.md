@@ -733,3 +733,26 @@ Stage 2 remains PREPARED / NOT ACTIVE until Main accepts a stable ENV_A harness 
 Once activated, the matrix is now V2-01 through V2-18.
 
 The former Human-Preview embargo restriction no longer applies because the human journey has ended. CODEX may consume the human findings above only after Main activates Stage 2. Product correction remains forbidden during Stage 2 verification itself unless Main opens a separate correction mission.
+
+
+### V2-19 — icon-first object toolbox
+
+**Owner:** #358 / UX2 #357 / Editor #303.
+
+Human Preview follow-up Product Owner decision: the current object toolbox made of persistent text buttons consumes too much authoring workspace and is not sufficiently intuitive.
+
+Verify after UX2 implementation:
+- default toolbox is icon-first and materially more compact than the prior text-button layout;
+- icons map truthfully to the canonical object/action types;
+- hover/focus exposes localized tooltip/label;
+- accessible name and keyboard focus/activation work;
+- selected insertion mode is visibly explicit;
+- representative primitives (selection, rectangle, ellipse, text) insert the expected canonical objects;
+- Escape/cancel semantics are coherent where insertion mode is modal;
+- Library/Dynamo entry point opens the canonical reuse surface without implicit insertion;
+- #308 visual preview remains available after entering Library/Dynamo browsing;
+- toolbar layout remains usable at 1366x768, 1440x900 and 1920x1080 without harmful global page scrolling;
+- pt-BR/en/es tooltip/accessible-label structure remains in parity;
+- Runtime rendering and Working/Active authority are unchanged by the toolbox redesign.
+
+Do not count an icon-only visual conversion as PASS if labels/tooltips/accessibility/discoverability regress.

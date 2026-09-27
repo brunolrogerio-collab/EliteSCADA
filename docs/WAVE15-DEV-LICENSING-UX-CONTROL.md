@@ -575,4 +575,35 @@ Final disposition:
 `MERGE: AUTHORIZED`
 
 No further branch mutation before protected merge.
+## CURRENT MAIN DISPOSITION — rev 0012
+
+`ORDER_ID: DEV-LICENSING-UX-POSTMERGE-CI-12`
+
+`ORDER_STATE: INTEGRATED / POSTMERGE_CI_PENDING / DEV_WAIT / CODEX_WAIT`
+
+PR #345 merged successfully.
+
+Integrated SHA:
+`1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Live compare confirms:
+`wave15/corrections-integration == 1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Accepted pre-merge evidence:
+- exact candidate `3d166c0b45eef34ef878e710b5db28c3ea2fa93f`;
+- T1 `36289854846` / #113: SUCCESS;
+- targeted CODEX adversarial validation: ACCEPTED;
+- no candidate-causal defect found;
+- no CODEX source mutation.
+
+Post-merge exact integrated CI:
+- EliteSCADA CI `36290910850`;
+- run #1584;
+- event: push;
+- exact head `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`;
+- currently queued.
+
+No further Licensing mutation is authorized.
+
+Licensing closeout waits only on classification of this exact integrated CI.
 

@@ -1352,3 +1352,106 @@ No blind rerun, no merge, no freeze. Replacement Main must revalidate live GitHu
 6. Diagnose why the exact candidate `3ecc4a78080685b0556402d50190e09236d6d8fa` publishes the test-owned persisted revision successfully but `/published/activate` returns HTTP 422.
 7. Do not classify that 422 as product or harness until the returned activation outcome/runtime issues are inspected.
 8. Keep FND-07 DEV in WAIT and do not merge/freeze until exact-head evidence is green and final adversarial validation is explicitly accepted.
+
+## MAIN COORDINATOR FORCED HANDOFF — 2026-09-27
+
+GitHub live remains the sole authority. This handoff supersedes stale coordination snapshots.
+
+### Exact integration checkpoint
+
+- integration branch: `wave15/corrections-integration`
+- exact HEAD: `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`
+- latest exact integrated broad CI: EliteSCADA CI #1584 / run `36290910850` — SUCCESS
+  - Backend build/test/smoke: SUCCESS
+  - Web build: SUCCESS
+  - Chromium end-to-end: SUCCESS
+
+### Six post-FC0A lanes
+
+1. DEV-SCRIPT-ENGINEERING / PR #344
+   - MERGED
+   - final candidate `79d43f1994acb509628b08e703c20820bf8a9c72`
+   - merge SHA `3b1511799a73c3c4fee1c2265005d6724bcaa235`
+   - lane state remains `INTEGRATED_PENDING_T2`
+
+2. DEV-EDITOR / PR #349
+   - MERGED
+   - final candidate `06eed31d99ddb34d99e0287e96e38bed3bf7dab5`
+   - merge SHA `cfaafa4b29e1462bf9d304af995cc8638578a3c2`
+   - lane state remains `INTEGRATED_PENDING_T2`
+
+3. DEV-AUTHORITY-UX / PR #346
+   - MERGED
+   - final candidate `f82a5662234e42a73b77f15fbdfd730872cc5cc1`
+   - merge SHA `27412e4fbe47dbbb6573229364ee8319369ae076`
+   - post-merge CI #1583 / `36288961537`: SUCCESS
+   - Main disposition: `INTEGRATED / VERIFIED_COMPLETE`
+
+4. DEV-LICENSING-UX / PR #345
+   - MERGED
+   - final candidate `3d166c0b45eef34ef878e710b5db28c3ea2fa93f`
+   - merge SHA `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`
+   - exact-head T1 #113 / `36289854846`: SUCCESS
+   - scarce CODEX adversarial validation: Chromium 6/6 PASS; focused Drivers 36/36 PASS; no candidate-causal defect; no source mutation
+   - post-merge CI #1584 / `36290910850`: SUCCESS
+   - therefore Licensing is ready to be recorded `INTEGRATED / VERIFIED_COMPLETE`
+
+5. FND-05 / PR #347
+   - MERGED
+   - merge SHA `b2874a00c7f7b35ca8223defd7e3b6bbdd89ecf8`
+   - `CODEX_HA_ADVERSARIAL_GREEN`: SATISFIED
+   - dedicated control state: `VERIFIED / FROZEN`
+
+6. FND-07 / PR #348 plus corrective PRs #352/#353
+   - original PR #348 MERGED at `1b186c48ba5d2e3012be2c58f0efc36170101fe9`
+   - final corrective PR #353 MERGED
+   - final integrated Foundation checkpoint: `3819715ba3a015a182c97b2a4ebcb4de447da717`
+   - post-merge CI #1582 / `36279534882`: SUCCESS
+   - dedicated control state: `VERIFIED / FROZEN`
+
+### CRITICAL NEXT GATE — DO NOT ACTIVATE PREVIEW YET
+
+The prepared fresh-install partial preview entry condition requires:
+- all four feature lanes integrated **and T2-verified**;
+- FND-05 + FND-07 VERIFIED/FROZEN;
+- no known P0/P1 invalidating the journey.
+
+The Foundations are satisfied and all four feature PRs are integrated, but the broader integrated feature-lane **T2 has not yet been formally executed/accepted on the current exact integration head**.
+
+Therefore:
+`W15-FIRST-PROJECT-FRESH-INSTALL-PARTIAL-PREVIEW = PREPARED / NOT ACTIVE`.
+
+The next coordinator must NOT treat EliteSCADA CI #1584 as an automatic substitute for the explicit T2 contract without first reading the T2 definition/route and recording an exact-head T2 disposition.
+
+### Immediate next safe action for replacement Main
+
+1. Revalidate live GitHub first.
+2. Read:
+   - `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`
+   - `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`
+   - `docs/CURRENT-COORDINATOR-HANDOFF.md`
+   - `LAST CHANGE.md`
+   - `coord/w15-parallel-dev-control:docs/WAVE15-PARALLEL-DEV-CONTROL.md`
+   - `coord/w15-fresh-install-preview-control:docs/WAVE15-FIRST-PROJECT-FRESH-INSTALL-PREVIEW-CONTROL.md`
+3. Revalidate integration HEAD `1f14a574...` and latest CI.
+4. Locate/define the already-intended broader integrated **T2** gate for the four feature lanes on this exact head.
+5. Run/accept that T2 before changing Script/Editor from `INTEGRATED_PENDING_T2` to `T2_VERIFIED`.
+6. Only after T2 is formally green/accepted, record the exact preview base SHA/tree and activate Moment 1 CODEX black-box preview.
+7. Preserve the embargo: detailed CODEX preview findings must not be shown to Product Owner before the independent human fresh-install journey.
+
+### CODEX budget / route state
+
+CODEX has returned but with reduced usage budget.
+
+Current correct shared state after Licensing merge:
+- no active validation mission should continue automatically;
+- CODEX should remain HOLD until Main decides the exact T2 route;
+- old routes must never auto-resume.
+
+### Product Owner action state at handoff
+
+No DEV chat currently requires `SIGA`.
+
+Do not ask the Product Owner to carry technical handoffs between agents. Persist routes in GitHub controls/comments.
+
+

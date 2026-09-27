@@ -138,6 +138,11 @@ function Get-Sha256Text([string]$Text) {
     }
 }
 
+function ConvertTo-BashCommandArgument([string]$Script) {
+    $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($Script))
+    return "echo $encoded | base64 -d | bash"
+}
+
 function New-ExplicitTrustedRootPem([string]$Thumbprint) {
     $matching = @(Get-ChildItem Cert:\LocalMachine\Root, Cert:\CurrentUser\Root |
         Where-Object { $_.Thumbprint -eq $Thumbprint.ToUpperInvariant() })
@@ -328,7 +333,7 @@ set -Eeuo pipefail
         '--mount', "type=volume,source=$($Dependency.NodeModulesVolume),target=/node_modules,readonly",
         '--mount', "type=volume,source=$($Dependency.NuGetVolume),target=/nuget,readonly",
         '--env', "PREVIEW_DEPENDENCY_KEY=$($Dependency.Key)",
-        $ImageId, 'bash', '-lc', $verifyCommand
+        $ImageId, 'bash', '-lc', (ConvertTo-BashCommandArgument $verifyCommand)
     )
     Invoke-NativeCommand -FilePath 'docker' -Arguments $arguments *> $null
     return ($LASTEXITCODE -eq 0)
@@ -467,7 +472,7 @@ printf '%s\n' "$PREVIEW_DEPENDENCY_KEY" > src/Scada.Api/obj/.preview-dependency-
                 '--env', 'SSL_CERT_FILE=/tmp/explicit-trusted-root.pem'
             )
         }
-        $runArguments += @($imageId, 'bash', '-lc', $prepareCommand)
+        $runArguments += @($imageId, 'bash', '-lc', (ConvertTo-BashCommandArgument $prepareCommand))
         $prepareOutput = Invoke-NativeCommand -FilePath 'docker' -Arguments $runArguments
     } finally {
         if ($null -ne $trustedRoot -and (Test-Path -LiteralPath $trustedRoot.Path)) {

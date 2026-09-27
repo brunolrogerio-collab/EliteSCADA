@@ -736,3 +736,40 @@ This correction proof may remain blank-first-run infrastructure proof; do NOT cr
 - ENV_A: `HARNESS_FIX_AUTHORIZED / NOT_READY / BLACKBOX_NOT_RELEASED`;
 - ENV_B: unchanged `HARNESS_STATIC_ACCEPTED / WAIT_REAL_CODESPACE_PROOF / HUMAN_AUDIT_NOT_RELEASED`;
 - product checkpoint remains `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+
+## 18. MAIN parallel ownership — ENV_B Codespace preparation
+
+MAIN_ORDER_REV: 0008
+
+STATE: ENV_B_MAIN_OWNED_PREPARATION / WAIT_SHARED_HARNESS_STABLE
+
+The Product Owner authorized parallel preparation while CODEX continues ENV_A local-harness work.
+
+Responsibility split:
+- CODEX: ENV_A local container/readiness implementation and proof;
+- MAIN COORDINATOR: ENV_B Codespace preparation, static review and real Codespace acceptance.
+
+MAIN must not concurrently edit the shared harness implementation files while CODEX has an active bounded harness correction. ENV_B work is recorded control-side until the shared harness replacement SHA is reviewed and accepted.
+
+Canonical ENV_B runbook:
+`docs/WAVE15-FIRST-PROJECT-CODESPACE-ENV-B-RUNBOOK.md`
+
+Runbook creation commit:
+`04f3584baa72ffc5babf6bbe682ae2bad06be300`.
+
+Current externally revalidated lifecycle facts incorporated into ENV_B acceptance:
+- Dev Container `postStartCommand` executes on each successful container start and is part of environment resume semantics;
+- GitHub Codespaces forwarded ports are private by default;
+- a public forwarded port reverts to private after Codespace restart or remove/re-add;
+- supported GitHub CLI visibility control is `gh codespace ports visibility <port>:public -c <codespace>`;
+- `CODESPACE_NAME` and `CODESPACES=true` are supplied by Codespaces runtime;
+- GitHub documentation explicitly warns that applications need to be restarted when a Codespace returns from inactivity.
+
+Therefore the intended ENV_B design remains:
+product/database start from Compose -> `postStartCommand` -> wait for 5173 forwarding -> re-assert 5173 PUBLIC -> verify 5080/5432 non-public -> browser readiness.
+
+ENV_B remains:
+`MAIN_PREPARING / STATIC_PATH_CONFIRMED / WAIT_EXACT_SHARED_HARNESS_SHA / HUMAN_PREVIEW_NOT_RELEASED`.
+
+A real Codespace cannot be created/stopped/resumed through the currently available GitHub connector. Once the exact shared harness SHA is accepted, Product Owner interaction should be reduced to opening/creating the fresh Codespace; all startup and visibility configuration must be repository-controlled.

@@ -1741,3 +1741,92 @@ Human Preview remains ACTIVE and unchanged.
 No CODEX infrastructure repair should alter ENV_B or provide navigation guidance to the Product Owner.
 
 Stage 2 remains `PREPARED / NOT ACTIVE`.
+
+
+## 33. ENV_A repair candidate accepted for autonomous final lifecycle validation
+
+MAIN_ORDER_REV: 0023
+
+STATE: HUMAN_PREVIEW_ACTIVE / ENV_A_REPAIR_CANDIDATE_FINAL_VALIDATION / EMBARGO_ACTIVE
+
+Main independently reviewed CODEX autonomous recovery handoff in Issue #305 comment `5857835461` and exact repair candidate:
+- branch: `preview/w15-first-project-env-harness-repair`;
+- SHA: `50a4451aa122f7f9fd0af98173c184f6623a147b`;
+- tree: `5efeafb08725a90ce0c3df689b8d613f165bb569`;
+- parent accepted harness: `bb451fa6e07982ac12384895f6097d5833761d16`;
+- product base: `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Compare vs product base remains Preview/harness-only. No EliteSCADA product source/test/workflow/auth/licensing/Authority/application-lifecycle semantics changed.
+
+### 33.1 Root cause accepted
+
+Main accepts the infrastructure root-cause model:
+
+The previous dependency identity used hashes of dependency files as materialized in the working tree. On Windows, two clean checkouts of the **same exact Git commit/tree** may materialize text with different LF/CRLF bytes depending on checkout/configuration. That changed `inputsSha`, therefore changed the derived dependency key/manifest path even though Git HEAD/tree and dependency content authority had not changed. Result: a valid prepared environment could later report `PREPARATION=REQUIRED` with a different key and no matching manifest.
+
+The repair changes dependency-input identity to committed Git blob IDs, aggregated deterministically, while the existing clean-worktree and exact harness SHA/tree guards remain authoritative.
+
+This gives the desired property:
+- same committed tree + different LF/CRLF materialization -> same dependency identity;
+- changed committed dependency input -> different dependency identity.
+
+A second Windows boundary was also identified: PowerShell here-string/embedded shell text may carry CRLF into Bash. The repair normalizes embedded Bash text to LF before base64 transport/execution.
+
+### 33.2 Static/regression review accepted
+
+Main accepts the candidate design for final validation:
+- new `scripts/preview/PreviewDependencyIdentity.psm1` isolates committed dependency identity logic;
+- dependency paths are repository-relative, normalized, sorted/unique and validated;
+- provenance is derived from `HEAD:<path>` Git blobs rather than mutable checkout bytes;
+- non-blob/missing committed inputs fail closed;
+- `scripts/preview/test-dependency-identity.ps1` creates LF and CRLF clean clones of the same tree and proves identical dependency identity;
+- the regression also proves a committed dependency change changes identity;
+- the regression proves embedded Bash CRLF/CR is normalized to LF;
+- preparation on the candidate reached `PREPARATION=READY / STATE=NOT_STARTED`;
+- attempt-1 database snapshot was verified via disposable TimescaleDB restore before old runtime cleanup;
+- sealed attempt-1 evidence remains preserved/embargoed.
+
+This is an acceptance to run final lifecycle validation, not yet the final ENV_A harness promotion.
+
+### 33.3 Autonomous final lifecycle proof — execute without further micro-approval
+
+CODEX must continue autonomously on exact repair candidate `50a4451...` until the full validation below is complete or a genuine external blocker remains.
+
+Required proof:
+1. re-run the dependency identity/line-ending regression and record PASS;
+2. `status = NOT_STARTED / PREPARATION=READY` on exact repair SHA/tree;
+3. run a disposable `start` using Main-accepted repair SHA;
+4. prove application stack health and true fresh first-run surface, without beginning a new black-box audit;
+5. run repeated `status` checks and prove dependency key remains stable;
+6. `pause` -> `PAUSED_RESUMABLE / PREPARATION=READY`;
+7. `resume` -> same disposable session healthy;
+8. perform a real Docker Desktop/engine restart;
+9. after engine recovery, `status` then `resume` and prove same disposable session lifecycle remains valid;
+10. while the runtime harness worktree remains fixed, make at least one harmless embargoed-evidence commit through a **separate worktree/path** and prove runtime `status` still reports the same PREPARATION=READY/dependency key;
+11. pause/reset the disposable validation session;
+12. prove `NOT_STARTED / PREPARATION=READY` and no product-state containers/volumes remain;
+13. start a second disposable fresh session without re-running package preparation and prove no npm/NuGet install/restore is triggered;
+14. final reset -> clean `NOT_STARTED / PREPARATION=READY`;
+15. `git diff --check`, PowerShell parse/static checks and worktree cleanliness pass;
+16. exact compare from product base remains harness-only.
+
+No project creation is required for this validation. Do not turn it into a new black-box attempt.
+
+### 33.4 Promotion target
+
+If all proof passes, CODEX may push any final harness-only cleanup commit(s) on the repair branch and return one exact final SHA/tree.
+
+Do **not** fast-forward or rewrite `preview/w15-first-project-env-harness` yourself. Main will promote the accepted final candidate after review.
+
+### 33.5 Reporting discipline
+
+Do not stop for recoverable test failures or small implementation choices. Iterate safely within the infrastructure boundary until the full proof passes.
+
+Return only:
+- fully validated final candidate; or
+- genuine external blocker; or
+- preservation boundary risk.
+
+Human Preview remains ACTIVE and independent.
+Detailed attempt-1 product observations remain embargoed.
+Stage 2 remains `PREPARED / NOT ACTIVE`.

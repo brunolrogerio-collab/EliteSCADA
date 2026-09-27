@@ -3126,3 +3126,53 @@ The Visual Studio bootstrap full text was delivered in Issue #305 comment `58589
 Local-operations evidence handoff is Issue #305 comment `5859122865`.
 
 Container-native strategic architecture is separately recorded under #363 / ADR-010. Do not widen #360 into OCI production implementation.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0098
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-VS-LOCAL-OPERATOR-CORRECTION-79`
+
+`ORDER_STATE: ACTIVE_CORRECTION / EXACT_HEAD_13CB1F_REJECTED_FOR_LIFECYCLE / NO_PREPARE_START_RESET_MERGE`
+
+Main independently reviewed PR #362 at exact HEAD:
+`13cb1fcaa3091085515e4d84a3d3e894db541f5f`
+against accepted harness:
+`50a4451aa122f7f9fd0af98173c184f6623a147b`.
+
+Main review disposition:
+`CHANGES_REQUIRED / PREVIEW_INFRA_ONLY / LIFECYCLE_NOT_AUTHORIZED`.
+
+Scope review:
+- exact compare is 3 commits ahead / 0 behind from the accepted harness;
+- exactly six paths changed;
+- all six are Preview infrastructure/docs/operator-test paths;
+- no EliteSCADA product source, product tests, workflow, licensing, Authority, Runtime/Driver contract, or ADR-010 implementation is present.
+
+Blocking defect on exact HEAD `13cb1f...`:
+- `docs/LOCAL-ELITESCADA-OPERATIONS-EVIDENCE.md` was added after the operator implementation commit;
+- `scripts/preview/local-audit.ps1:Get-HarnessIdentity` does not include that exact documentation path in its allowed Preview file set;
+- therefore normal identity-gated operations such as `prepare`, new `start`, `resume`, and `restart` classify the PR's own evidence file as a product-scope change and fail before lifecycle execution;
+- this means the full lifecycle proof cannot validly run on `13cb1f...` as delivered.
+
+Documentation truthfulness correction:
+- the evidence file currently calls `4ffb4bef69c3ca69528793e58eee7aa2fecb9c6a` the "current local-operator delivery", while live PR HEAD is `13cb1f...`;
+- preserve `4ffb4bef...` only as the operator implementation commit if useful, and phrase branch-tip/current-candidate identity so it cannot become self-referential/stale.
+
+Required narrow correction:
+1. make the canonical evidence document an explicitly permitted Preview documentation path for strict harness identity checks; do not broaden this to arbitrary `docs/**`;
+2. add/strengthen regression coverage so the full exact #362 changed-path set is accepted by the Preview scope guard while a representative product-scope path is still rejected;
+3. correct the stale/misleading `4ffb4bef...` wording in `docs/LOCAL-ELITESCADA-OPERATIONS-EVIDENCE.md`;
+4. rerun PowerShell parser/operator safety tests, dependency-identity LF/CRLF regression, documentation whitespace/`git diff --check`, and any focused scope-guard regression;
+5. return exact new branch HEAD/tree and changed-file list.
+
+Hard boundaries:
+- no product source/test/workflow mutation;
+- no ADR-010/#363 implementation;
+- no `prepare`, product `start`, `resume`, `restart`, destructive `reset`, or lifecycle proof in this correction order;
+- no merge;
+- do not rewrite/delete existing evidence history.
+
+After the corrected exact HEAD returns, Main will revalidate the diff and only then may issue an exact-SHA lifecycle authorization.
+
+Required return:
+`CODEX -> MAIN COORDINATOR — #362 SCOPE-GUARD CORRECTION HANDOFF`.

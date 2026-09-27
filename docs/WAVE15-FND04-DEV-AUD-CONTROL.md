@@ -2534,3 +2534,74 @@ Reason for HOLD:
 The Product Owner requested independent parallel audit topology. Main is now completing ENV_B real Codespace readiness so both environments can begin cleanly without cross-contamination.
 
 Next CODEX action will be issued only after Main records ENV_B READY and explicitly releases the black-box gate.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0089
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FIRST-PROJECT-BLACKBOX-STAGE1-74`
+
+`ORDER_STATE: ACTIVE / BLACKBOX_STAGE1 / EMBARGO_ACTIVE`
+
+Main has accepted both independent Preview environments as READY.
+
+Authoritative Preview control:
+- rev 0020;
+- commit `965ceef9753bac16d488c064de5b9bcb1ed55333`.
+
+ENV_A exact authority:
+- harness branch: `preview/w15-first-project-env-harness`;
+- harness SHA: `bb451fa6e07982ac12384895f6097d5833761d16`;
+- harness tree: `650d30089596021cb1a564ee1d2f1abfc7d2b509`;
+- product base: `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`;
+- readiness: `READY / CLEAN / RESUMABLE`;
+- expected initial infrastructure state: `NOT_STARTED / PREPARATION=READY`.
+
+Embargoed evidence branch:
+`preview/w15-first-project-codex-evidence`.
+
+### Execute Stage 1 now
+
+Start exactly one new clean audit session using the accepted harness SHA, then perform the black-box product journey.
+
+Binding user mission:
+> You have just installed EliteSCADA. Explore the product using normal user-visible interfaces and create a small SCADA application from scratch that reaches a functional Runtime.
+
+During the exploratory journey:
+- use only normal user-visible product UI and product-visible Help/manual surfaces;
+- do not read product source/control documents to discover implementation or navigation;
+- do not inspect database state;
+- do not use internal API shortcuts to bypass UI;
+- do not use implementation logs as navigation guidance;
+- do not use test fixtures/imports/hidden Demo state;
+- do not patch product/configuration;
+- do not correct code;
+- do not use shell/state mutation to advance product state.
+
+Allowed shell/harness operations are infrastructure-only:
+- `local-audit.ps1 start -AcceptedHarnessSha bb451fa6e07982ac12384895f6097d5833761d16` once;
+- `status` for environment health/state;
+- `pause -Checkpoint <coarse user-visible stopping point>` when CODEX time/host interruption requires suspension;
+- `resume` to continue the same audit session later.
+
+Do not `reset` an active Stage 1 session without a new Main order unless the environment is conclusively invalid and continuation would destroy evidence; in that case stop and return `INVALID_ENVIRONMENT / RESET_REQUIRED`.
+
+If the user-visible journey completes, return coarse status `COMPLETE` to Main. If product-visible behavior blocks progress, return `BLOCKED_BY_PRODUCT`. If infrastructure blocks progress, return `BLOCKED_BY_ENVIRONMENT`.
+
+Do not expose detailed findings to the Product Owner-facing ledger/control while the Human Preview is active.
+
+After COMPLETE/BLOCKED, diagnostic correlation may inspect source/log/API/tests and persist detailed findings to the embargoed evidence branch. Product mutation remains forbidden.
+
+### Required coarse handoff to Main while embargo active
+
+Return only:
+- exact harness SHA/tree;
+- audit session ID;
+- coarse gate state;
+- whether pause/resume was used;
+- whether a functional Runtime was reached;
+- embargoed evidence branch/path reference;
+- no spoiler detail.
+
+Human Preview is active independently. Do not wait for Product Owner observations and do not consume them.
+
+Stage 2 remains PREPARED / NOT ACTIVE.

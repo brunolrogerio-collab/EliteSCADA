@@ -172,8 +172,12 @@ function Get-ExpectedVolumeLabels($Dependency, [string]$Role) {
 }
 
 function Read-DockerVolume([string]$Name) {
-    $output = & docker volume inspect $Name 2>$null
-    if ($LASTEXITCODE -ne 0) { return $null }
+    $volumeNames = @(& docker volume ls --quiet)
+    if ($LASTEXITCODE -ne 0) { throw 'Could not list Docker volumes while checking dependency provenance.' }
+    if ($volumeNames -notcontains $Name) { return $null }
+
+    $output = & docker volume inspect $Name
+    if ($LASTEXITCODE -ne 0) { throw "Could not inspect existing dependency volume '$Name'." }
     try {
         $json = ConvertFrom-Json -InputObject ($output -join [Environment]::NewLine)
         return @($json)[0]
@@ -214,8 +218,13 @@ function Ensure-DockerVolume([string]$Name, $Dependency, [string]$Role) {
 function Get-PreviewImageName($Dependency) { return "$projectName-preview:$($Dependency.Key)" }
 
 function Get-PreviewImageId($Dependency) {
-    $imageId = & docker image inspect --format '{{.Id}}' (Get-PreviewImageName $Dependency) 2>$null
-    if ($LASTEXITCODE -ne 0) { return $null }
+    $imageName = Get-PreviewImageName $Dependency
+    $imageIds = @(& docker image ls --quiet --no-trunc --filter "reference=$imageName")
+    if ($LASTEXITCODE -ne 0) { throw "Could not list Docker images while checking '$imageName'." }
+    if ($imageIds.Count -eq 0) { return $null }
+
+    $imageId = & docker image inspect --format '{{.Id}}' $imageName
+    if ($LASTEXITCODE -ne 0) { throw "Could not inspect existing preview image '$imageName'." }
     return ($imageId | Select-Object -First 1).Trim()
 }
 

@@ -1782,4 +1782,26 @@ Planned priority after CODEX availability returns:
 Authority #346 first, Licensing #345 second.
 
 No old route may auto-resume. Main must publish a new explicit ACTIVE route before CODEX acts.
+## CURRENT SHARED CODEX ROUTE — rev 0069
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-AUTHORITY-SCARCE-54`
+
+`ORDER_STATE: ACTIVE / AUTHORITY_UX_ADVERSARIAL / SCARCE_BUDGET`
+
+`EXPECTED_ORDER: DEV-AUTHORITY-UX-CODEX-ADVERSARIAL-SCARCE-07`
+
+Exact candidate:
+- PR #346;
+- head `e3c646b5f0e6fb06b509f44b0ed866ec61fd1db6`;
+- T1 `36280754990`: SUCCESS.
+
+Authoritative Authority control:
+- rev 0009;
+- commit `919c1f8bf33716ddd92c8b9eaaaf129a94637f5e`.
+
+CODEX must prioritize targeted adversarial Authority evidence and reuse existing harness/dependencies. Avoid redundant full-battery execution unless a material cross-cutting correction makes it necessary.
+
+Licensing UX #345 remains WAIT and must not be touched until Main publishes the next explicit route.
+
+Return durable handoff to PR #346 and Main.
 

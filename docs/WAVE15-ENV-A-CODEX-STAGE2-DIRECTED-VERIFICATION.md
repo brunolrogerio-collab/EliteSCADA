@@ -756,3 +756,40 @@ Verify after UX2 implementation:
 - Runtime rendering and Working/Active authority are unchanged by the toolbox redesign.
 
 Do not count an icon-only visual conversion as PASS if labels/tooltips/accessibility/discoverability regress.
+
+
+### V2-20 — Security/Authority mounted UI and HTTP 402 root isolation
+
+**Owner:** #359 with semantic ownership from #302 and remote-path dependency on #307 if applicable.
+
+Human Preview observed some Codespace surfaces failing with HTTP `402`; Security/Authority administration was persistently unusable and the Product Owner could not create or edit users.
+
+Stage 2 must first isolate the responsible layer before any fix acceptance.
+
+Required capture under shared timestamps:
+- visible Security navigation action;
+- exact request URL(s);
+- exact HTTP status;
+- response headers/body;
+- browser console/network error;
+- same-origin proxy route if present;
+- API health/log correlation;
+- authenticated identity/session class;
+- current license/session state.
+
+Run the same Security route in:
+1. local ENV_A;
+2. a remote/Codespace-equivalent path where available.
+
+Then verify mounted UI behavior:
+- Security page loads reliably;
+- users list loads;
+- create one local user;
+- edit permitted fields;
+- enable/disable as supported;
+- assign/change role/profile(s);
+- save/reload/restart persistence;
+- backend rejects unauthorized direct mutations;
+- UI shows truthful error states instead of blank/failing surfaces.
+
+Do not treat a numeric 402 alone as proof of licensing or Authority root cause. At triage time no explicit intentional product `402 Payment Required` path was found in repository search.

@@ -995,3 +995,105 @@ The actual black-box Stage 1 remains HOLD until this exact replacement candidate
 ENV_B remains pinned to the previously reviewed Codespaces implementation until Main reviews whether the replacement candidate touches shared Compose/devcontainer/startup files. No real Human Preview is released by this order.
 
 ENV_A Stage 2 remains `PREPARED / NOT ACTIVE`.
+
+
+## 22. Replacement dependency-boundary candidate accepted for final ENV_A proof
+
+MAIN_ORDER_REV: 0012
+
+STATE: EXACT_REPLACEMENT_ACCEPTED_FOR_FINAL_ENV_A_PROOF / BLACKBOX_HOLD
+
+Main independently reviewed exact replacement harness:
+- branch: `preview/w15-first-project-env-harness`;
+- SHA: `bb451fa6e07982ac12384895f6097d5833761d16`;
+- tree: `650d30089596021cb1a564ee1d2f1abfc7d2b509`;
+- product base: `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Compare vs product base remains Preview/infrastructure-only. No product source, product test, workflow, auth, licensing, Authority or application-lifecycle semantic file changed.
+
+### 22.1 Dependency boundary review
+
+Main accepts the replacement architecture for final readiness proof:
+- explicit `prepare` command owns package/network work;
+- dependency identity is keyed to exact product base, harness SHA/tree and hashes of dependency inputs/lock/project files;
+- Node/NuGet caches use external hash-keyed Docker volumes with provenance labels;
+- the local Preview image is labeled with exact dependency provenance;
+- `start` and `resume` require prepared provenance and execute Compose with `--no-build --pull never`;
+- prepared startup verifies dependency markers before product launch;
+- `reset` removes product/audit containers/network/database/runtime volumes but preserves provenance-bound dependency caches/tool image;
+- evidence remains archived;
+- stale/mismatched dependency state is fail-closed.
+
+Toolchain image versions are pinned:
+- Node 24.19.0;
+- .NET SDK 10.0.400;
+- Playwright 1.62.1;
+with registry image digests pinned in the Preview runner Dockerfile.
+
+### 22.2 Explicit local HTTPS-inspection root disposition
+
+The earlier npm failure was traced to local Norton HTTPS inspection. The selected Norton root is already present in the Windows trusted-root store.
+
+Main accepts the new opt-in mechanism **only for dependency preparation** because it:
+- requires an explicit 40-hex thumbprint;
+- reads only LocalMachine/CurrentUser Windows trusted-root stores;
+- rejects absent, non-self-issued, non-CA or expired/not-yet-valid certificates;
+- exports only the public certificate to a temporary PEM;
+- mounts the PEM read-only only in the isolated preparation container;
+- keeps TLS verification enabled through `NODE_EXTRA_CA_CERTS` / `SSL_CERT_FILE`;
+- deletes the temporary PEM after preparation;
+- records thumbprint + DER SHA-256 in local preparation provenance;
+- does not modify Windows, Docker or product trust stores;
+- does not copy the root into product `start`/`resume`;
+- does not permit `TrustedRootThumbprint` on any command except `prepare`.
+
+This does not authorize arbitrary enterprise/local roots. Any different root requires the same explicit trusted-root checks and remains an environment preparation concern, not product trust policy.
+
+### 22.3 Preparation evidence accepted
+
+On exact SHA `bb451fa...` CODEX reports:
+- pinned tool image build: PASS;
+- explicit trusted-root preparation: PASS;
+- `npm ci`: PASS;
+- `dotnet restore`: PASS;
+- offline marker/provenance verification: PASS;
+- repeated `prepare`: `READY_REUSED`;
+- `status`: `NOT_STARTED / PREPARATION=READY`;
+- no product/audit containers active.
+
+Preparation evidence is sufficient to proceed to final product/audit lifecycle proof, not sufficient by itself to declare ENV_A READY.
+
+### 22.4 Final exact-SHA ENV_A readiness proof
+
+CODEX is now authorized to execute the final disposable readiness proof on exact SHA `bb451fa6e07982ac12384895f6097d5833761d16`.
+
+Required sequence:
+1. verify `status = NOT_STARTED / PREPARATION=READY`;
+2. `start -AcceptedHarnessSha bb451fa6e07982ac12384895f6097d5833761d16`;
+3. verify normal UI is true fresh first-run Administrator state with no seeded project/import/Demo;
+4. create only the minimal Local Administrator through normal UI;
+5. verify post-bootstrap no-project state;
+6. `pause` -> `PAUSED_RESUMABLE`;
+7. perform a real Docker Desktop/engine restart;
+8. verify Docker engine recovery, then `status` + `resume`;
+9. prove same audit session and same Administrator/no-project product state survived;
+10. second normal `pause -> resume` cycle;
+11. explicit `reset`;
+12. prove product/audit resources are removed while `PREPARATION=READY` remains;
+13. perform a second clean `start` on the same accepted SHA;
+14. prove the second start performs no npm/NuGet install/restore/download and reaches fresh first-run Administrator/no-project state;
+15. if practical, establish that package-network access is unnecessary during step 13 (without changing product networking semantics);
+16. final explicit `reset` -> `NOT_STARTED / PREPARATION=READY`, with no product/audit containers/volumes remaining.
+
+Do not create a project during this proof. Do not begin black-box Stage 1. Do not begin Stage 2.
+
+### 22.5 ENV_B impact review
+
+This replacement changes shared `ci/local/Dockerfile.linux-e2e` but does not change `.devcontainer/devcontainer.json`, `ci/local/docker-compose.preview.yml` or `scripts/preview/codespaces-public-web-port.sh` relative to the previously reviewed Codespaces candidate.
+
+The final image still exposes the same pinned Node/.NET/Playwright toolchain and has already booted the local product path. ENV_B static design therefore remains accepted but still requires real Codespace create/start/stop/resume proof after ENV_A replacement acceptance is complete.
+
+Current gates:
+- ENV_A: `FINAL_EXACT_SHA_READINESS_PROOF_AUTHORIZED / NOT_READY / BLACKBOX_HOLD`;
+- ENV_B: `STATIC_ACCEPTED / WAIT_REAL_CODESPACE_PROOF / HUMAN_PREVIEW_NOT_RELEASED`;
+- ENV_A Stage 2: `PREPARED / NOT ACTIVE`.

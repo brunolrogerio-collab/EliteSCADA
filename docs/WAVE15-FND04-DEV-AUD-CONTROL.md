@@ -1974,3 +1974,42 @@ Next Main must define/execute/accept the broader integrated feature T2 on the ex
 
 CODEX usage budget is reduced; preserve it until Main publishes an explicit T2 mission.
 
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0078
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-FIRST-PROJECT-BLACKBOX-63`
+
+`ORDER_STATE: ACTIVE / FIRST_PROJECT_BLACKBOX_PREVIEW / SCARCE_BUDGET`
+
+Main has formally accepted the four-feature broader integrated T2 and activated the first-project partial preview.
+
+Binding evidence:
+- exact preview product base: `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`;
+- exact product tree: `5e5fce8ce87f31dfc11b83bb68ff86c67f9f0112`;
+- integrated T2: `W15-FOUR-FEATURE-INTEGRATED-T2-01 -> PASS / ACCEPTED`;
+- T2 evidence: EliteSCADA CI #1584 / run `36290910850` — SUCCESS;
+- central board acceptance commit: `f018438c0a651aff5fd3776989f54ea9e9d9e0bf`;
+- authoritative preview control activation commit: `5cf92000ad3bf182b7aa26c43bd44b7c415f1f0b`.
+
+On next CODEX execution, first read live:
+`coord/w15-fresh-install-preview-control:docs/WAVE15-FIRST-PROJECT-FRESH-INSTALL-PREVIEW-CONTROL.md`
+
+Execute only:
+`W15-FIRST-PROJECT-CODEX-BLACKBOX-PREVIEW-01`.
+
+During the user-like exploratory journey:
+- use a genuinely clean fresh-install environment;
+- use normal user-visible product interfaces and product-visible Help only;
+- do not inspect repository source, control-plane documents for implementation discovery, database state, internal APIs, implementation logs or test fixtures;
+- do not mutate product/source/configuration to correct findings;
+- do not use shell/state shortcuts to bypass the product journey.
+
+Mission:
+> You have just installed EliteSCADA. Explore the product using normal user-visible interfaces and create a small SCADA application from scratch that reaches a functional Runtime.
+
+If the journey completes or becomes product-blocked, only then may diagnostic source/log/API inspection begin to correlate findings. Product correction still requires a separate Main order.
+
+Persist detailed findings in the dedicated preview evidence surface defined by the preview control and keep them embargoed from the Product Owner until the independent human journey is complete. Return only the gate status and durable evidence location to Main before the embargo lifts.
+
+Do not activate the Human Preview yourself. Do not resume any older CODEX route. Do not self-select another mission after this gate.

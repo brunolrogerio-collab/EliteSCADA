@@ -1,3 +1,106 @@
+# LIVE WAVE 15 PREVIEW HANDOFF — 2026-09-27
+
+> **READ THIS SECTION FIRST.** It supersedes older current-state wording later in this file when there is a conflict. GitHub live remains the sole authority.
+
+GitHub live was revalidated before this documentation refresh.
+
+- integration branch coordination tip before this refresh: `22fad82c3da98588d98051bd2ceb608da64ff8f3`;
+- exact integrated **product checkpoint** remains `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`;
+- exact product tree remains `5e5fce8ce87f31dfc11b83bb68ff86c67f9f0112`;
+- the integration tip above is one coordination-document commit beyond the product checkpoint; no later product/test/workflow bytes redefine the Preview product base;
+- broader feature T2 is formally accepted: `W15-FOUR-FEATURE-INTEGRATED-T2-01 -> PASS / ACCEPTED`;
+- exact broad evidence: EliteSCADA CI #1584 / run `36290910850` — SUCCESS across Backend build/full tests/Runtime smoke, Web build and Chromium end-to-end.
+
+Final six-lane disposition:
+- Script Engineering: `T2_VERIFIED`;
+- Editor: `T2_VERIFIED`;
+- Authority UX: `INTEGRATED / VERIFIED_COMPLETE`;
+- Licensing UX: `INTEGRATED / VERIFIED_COMPLETE`;
+- FND-05: `VERIFIED / FROZEN`;
+- FND-07: `VERIFIED / FROZEN`.
+
+
+## Current phase
+
+Wave 15 product/Foundation implementation is closed at the accepted product checkpoint. Current work is **fresh-install Preview environment readiness**, not feature development.
+
+Preview topology:
+- ENV_A = CODEX local isolated containerized audit environment;
+- ENV_B = Product Owner fresh independent GitHub Codespace;
+- exploratory journeys may run independently/in parallel only after their environments are READY;
+- detailed CODEX findings remain embargoed until the Product Owner human journey completes.
+
+## ENV_A binding state
+
+Harness branch:
+`preview/w15-first-project-env-harness`.
+
+Last reviewed candidate:
+`ec050e9bfda121805b1165860a4aeda0eb2582e8`
+tree `0d6221540c3678a8b042c51082f7a2ed0a466fa2`.
+
+Daemon continuity is proven:
+first Administrator via UI -> pause -> real Docker Desktop restart -> resume same session/state -> second pause/resume -> reset.
+
+Current blocker is harness-only:
+`ENV_A_HARNESS_DEFECT / AUDIT_RESET_DEPENDENCY_BOOTSTRAP_COUPLING`.
+
+After reset, dependency volumes were gone, so a fresh start attempted `npm install` and external TLS validation failed with `UNABLE_TO_VERIFY_LEAF_SIGNATURE`.
+
+Active shared CODEX order:
+`ROUTE-SEQUENTIAL-CODEX-ENV-A-DEPENDENCY-BOUNDARY-FIX-71`
+rev 0086 / commit `574011f722bb2234c7a1586fc8d62739892f716a`.
+
+Authoritative Preview control:
+rev 0011 / commit `44023a9cf9e29c38d9b0e62f72198fa89e242018`.
+
+Required fix:
+separate provenance-bound dependency/tool preparation from destructive product/audit reset. No TLS weakening.
+
+ENV_A:
+`BLACKBOX_HOLD / NOT_READY`.
+
+## ENV_B binding state
+
+Runbook:
+`docs/WAVE15-FIRST-PROJECT-CODESPACE-ENV-B-RUNBOOK.md`
+on `coord/w15-fresh-install-preview-control`.
+
+Required behavior:
+- fresh Codespace;
+- automatic product/database startup;
+- `5173` PUBLIC automatically;
+- `5080` + `5432` private/internal;
+- same automatic recovery/public visibility after Codespace stop/resume;
+- no pre-seeded first-project state.
+
+ENV_B still requires a real Codespace lifecycle proof. Human Preview is not released.
+
+## Prepared second CODEX verification stage
+
+`docs/WAVE15-ENV-A-CODEX-STAGE2-DIRECTED-VERIFICATION.md`
+commit `ce7a4b9a26cc5cdf36d466712eef62ab061d978f`.
+
+State:
+`PREPARED / NOT ACTIVE`.
+
+It starts only after black-box Stage 1 is complete/sealed and a derived checkpoint of the CODEX-created project exists.
+
+## Immediate coordinator action
+
+1. Revalidate GitHub live.
+2. Read the live shared CODEX control and Preview control.
+3. Inspect whether CODEX returned a replacement harness for order `...DEPENDENCY-BOUNDARY-FIX-71`.
+4. If yes, independently review exact diff/head/tree and evidence.
+5. Do not release black-box Stage 1 until reset->fresh-start works without runtime dependency downloads and final clean state is proven.
+6. Re-review ENV_B static impact if shared Compose/devcontainer/startup files changed.
+7. Then execute real Codespace lifecycle proof.
+8. Stage 2 remains PREPARED / NOT ACTIVE.
+
+Do not resume historical lane routes. No feature DEV/FND mission is active.
+
+---
+
 # Current Coordinator Handoff — Wave 15
 
 > GitHub live is the authority. Canonical operational handoff: `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`.

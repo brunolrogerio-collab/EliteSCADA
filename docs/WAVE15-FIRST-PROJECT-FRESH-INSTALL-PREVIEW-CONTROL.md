@@ -1261,3 +1261,51 @@ Current state:
 - CODEX Stage 1: HOLD;
 - Human Preview: HOLD;
 - Stage 2: PREPARED / NOT ACTIVE.
+
+
+## 26. ENV_B first-open partial acceptance — product surface reached
+
+MAIN_ORDER_REV: 0016
+
+STATE: ENV_A_READY / ENV_B_FIRST_OPEN_PARTIAL_PASS / WAIT_PORT_VISIBILITY_AND_RESUME_PROOF / BLACKBOX_HOLD
+
+Product Owner supplied visual evidence from the first real ENV_B Codespace boot.
+
+Out-of-band screen-sharing note:
+- a visible `Licença gratuita (uso não profissional)` banner belongs to AnyDesk remote-access software used by the Product Owner to access the computer;
+- it is NOT EliteSCADA product UI and must be excluded from product findings/evidence classification.
+
+GitHub live revalidation confirms the dedicated ENV_B branch still points to exact accepted harness SHA:
+`bb451fa6e07982ac12384895f6097d5833761d16`.
+
+First-open evidence accepted so far:
+- GitHub Codespace successfully completed creation sufficiently to open the repository workspace;
+- repository branch shown in the Codespace UI is the dedicated ENV_B Preview branch;
+- EliteSCADA Web is reachable through a Codespaces forwarded `5173.app.github.dev` URL;
+- the visible product surface is the genuine first-run `Bem-vindo ao EliteSCADA` flow;
+- first Administrator creation form is available;
+- no persisted project/application/import/Demo state is visible;
+- no manual product startup command was reported by the Product Owner.
+
+This is a **partial** ENV_B readiness pass only.
+
+Still required before ENV_B READY:
+1. inspect Ports state without changing it;
+2. prove 5173 visibility is PUBLIC as required;
+3. prove 5080 and 5432 are not PUBLIC;
+4. capture exact in-Codespace HEAD if needed beyond branch-ref proof;
+5. establish a minimal product-owned continuity marker at the correct readiness step;
+6. normal Codespace stop/suspend;
+7. resume same Codespace with no terminal recovery;
+8. automatic DB/API/Web recovery;
+9. automatic re-assertion of 5173 PUBLIC;
+10. product-state continuity after resume.
+
+Do not begin the real human first-project audit yet.
+
+Current gates:
+- ENV_A: `READY / CLEAN / RESUMABLE`;
+- ENV_B: `FIRST_OPEN_PARTIAL_PASS / NOT_READY`;
+- CODEX Stage 1: HOLD;
+- Human Preview: HOLD;
+- Stage 2: PREPARED / NOT ACTIVE.

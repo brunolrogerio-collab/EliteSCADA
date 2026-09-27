@@ -2042,3 +2042,31 @@ Do not interrupt the currently active ENV_A repaired-harness final lifecycle val
 After harness acceptance, #359 joins the post-Preview correction/Stage2 program alongside #354/#355/#356 and UX2 #357/#358/#303/#308.
 
 Wave 15 Preview acceptance remains NOT ACHIEVED.
+
+
+## 37. Security 402 remote-latency hypothesis elevated
+
+MAIN_ORDER_REV: 0027
+
+STATE: HUMAN_PREVIEW_BLOCKED_BY_PRODUCT / SECURITY_REMOTE_PATH_HYPOTHESIS_PRIMARY / ROOT_STILL_BOUNDED
+
+The Product Owner correlated #359 with the Wave 14 pattern where some browser/Engineering loads failed through the remote Codespaces-forwarded path while local API/Vite remained healthy.
+
+Wave 14 closure and #307 support elevating the working hypothesis to:
+`REMOTE_PATH_LATENCY_OR_FORWARDING_EXPOSES_TOO-TIGHT_CLIENT_TIMING / ERROR_MAPPING`.
+
+This is not yet a final root-cause classification.
+
+#359 has been updated accordingly.
+#307 received coordinator correlation comment `5858062991`.
+
+Required diagnostic order after the repaired ENV_A harness is accepted:
+1. Security/User workflow on ENV_A local with normal latency;
+2. same workflow on ENV_A with deterministic remote-like latency/jitter injection;
+3. same workflow on ENV_B/Codespace with browser waterfall + exact status/body/proxy/API correlation.
+
+Do not patch Authority/licensing based only on the observed numeric `402`.
+
+If local normal passes and latency injection reproduces, route the product correction primarily through #307. If only Codespace reproduces, keep forwarding/edge/environment root bounded while correcting any generic product error-UX/resilience defect revealed.
+
+Stage2 V2-20 has been updated with this A/B/C isolation order.

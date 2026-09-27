@@ -1389,3 +1389,54 @@ Current states:
 - CODEX Stage 1: HOLD;
 - Human Preview: HOLD;
 - Stage 2: PREPARED / NOT ACTIVE.
+
+
+## 29. ENV_B continuity marker created / Codespace stop in progress
+
+MAIN_ORDER_REV: 0019
+
+STATE: ENV_A_READY / ENV_B_CONTINUITY_PROOF_IN_PROGRESS / BLACKBOX_HOLD
+
+Product Owner completed the minimal ENV_B readiness continuity marker through the normal EliteSCADA first-run UI:
+- first Local Administrator created;
+- no project created;
+- no application/import/Demo/EEE state created;
+- current product-owned continuity state is therefore the persisted Administrator plus the normal no-project surface.
+
+This is the intended minimal marker for the Codespace stop/resume readiness proof and is not counted as the human first-project audit.
+
+Product Owner then initiated a normal stop of the same Codespace and is waiting for it to reach the fully stopped state.
+
+### Required resume proof
+
+Once the Codespace is fully stopped, Product Owner must reopen **the same Codespace**.
+
+During resume:
+- do not run terminal startup commands;
+- do not rebuild the container manually;
+- do not change port visibility;
+- do not create a project;
+- do not repair product state manually.
+
+Required observed result after normal resume:
+1. Codespace/devcontainer returns to a usable state;
+2. repository-controlled startup automatically restores TimescaleDB/API/Web;
+3. the existing private 5173 forward remains browser-accessible to the authenticated Product Owner or is recreated automatically;
+4. EliteSCADA opens without manual terminal recovery;
+5. the first-run Administrator creation form does **not** reappear;
+6. the product instead returns to the authenticated/post-bootstrap no-project state (e.g. `Criar novo projeto / No persisted project`);
+7. no hidden project/import/Demo state appears;
+8. no product-owned continuity state is lost.
+
+If all pass, Main may record:
+`ENV_B = READY / RESUMABLE`.
+
+Then, and only then, Main may release the independent Product Owner human Preview and CODEX Stage 1 together from clean/isolated environments.
+
+Current gates:
+- ENV_A: `READY / CLEAN / RESUMABLE`;
+- ENV_B: `CONTINUITY_MARKER_CREATED / CODESPACE_STOP_IN_PROGRESS / NOT_READY`;
+- CODEX: HOLD;
+- Stage 1: HOLD;
+- Human Preview: HOLD;
+- Stage 2: PREPARED / NOT ACTIVE.

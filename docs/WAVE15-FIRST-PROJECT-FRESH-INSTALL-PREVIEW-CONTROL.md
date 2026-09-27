@@ -1983,3 +1983,62 @@ After Main accepts the repaired harness, the correction sequence should prioriti
 6. repeat fresh first-project Preview.
 
 UX2 is PREPARED, not yet assigned to a DEV agent by this decision alone.
+
+
+## 36. Security/Authority Codespace HTTP 402 finding added
+
+MAIN_ORDER_REV: 0026
+
+STATE: HUMAN_PREVIEW_BLOCKED_BY_PRODUCT / SECURITY_ADMIN_P1_ADDED / UX2_PREPARED / ENV_A_HARNESS_FINAL_VALIDATION_ACTIVE
+
+The Product Owner added a further material Human Preview finding from the real Codespace audit:
+- some product surfaces failed to load with an observed HTTP `402` condition;
+- Security/Authority administration never became usable during the journey;
+- user creation and user editing could not be exercised.
+
+Canonical human evidence updated:
+`docs/WAVE15-FIRST-PROJECT-HUMAN-PREVIEW-FINDINGS.md`
+commit `4199df90a7f8ece83217e28cdab3e6b4261f4be1`.
+
+### 36.1 Triage disposition
+
+Repository search did not identify an explicit intentional product `Status402PaymentRequired` / `PaymentRequired` response path.
+
+Therefore Main does not infer the root from the numeric status.
+
+Current classification:
+`DEFECT / PREVIEW_SECURITY_ADMIN_UNAVAILABLE / ROOT_LAYER_UNCERTAIN_BOUNDED`.
+
+Potential responsible layers to isolate:
+- Authority/user administration product path;
+- licensing/session composition;
+- same-origin/proxy routing;
+- remote/WAN/Codespaces transport;
+- environment-only failure.
+
+### 36.2 Owner
+
+New issue:
+- #359 — `W15-PREVIEW-P1 — Security/Authority administration fails to load in Codespace with observed HTTP 402`.
+
+Cross-links/evidence:
+- #302 Authority comment `5858041554`;
+- #307 remote/WAN comment `5858041854`.
+
+The issue is P1 because Wave 15 cannot claim practical Authority UX acceptance when the mounted Security surface never loads and users cannot be created/edited.
+
+### 36.3 Stage 2 coverage
+
+Stage 2 contract now includes:
+`V2-20 — Security/Authority mounted UI and HTTP 402 root isolation`
+via commit `202e9ccbac805294c24905017bf893ac9606d650`.
+
+Required future proof includes exact request/status/body capture, local-vs-remote comparison, and real mounted user create/edit/role-assignment workflow.
+
+### 36.4 Scheduling
+
+Do not interrupt the currently active ENV_A repaired-harness final lifecycle validation.
+
+After harness acceptance, #359 joins the post-Preview correction/Stage2 program alongside #354/#355/#356 and UX2 #357/#358/#303/#308.
+
+Wave 15 Preview acceptance remains NOT ACHIEVED.

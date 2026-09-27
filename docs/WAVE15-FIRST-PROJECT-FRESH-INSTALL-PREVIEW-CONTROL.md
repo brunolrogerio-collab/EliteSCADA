@@ -1309,3 +1309,39 @@ Current gates:
 - CODEX Stage 1: HOLD;
 - Human Preview: HOLD;
 - Stage 2: PREPARED / NOT ACTIVE.
+
+
+## 27. ENV_B port visibility observation — Private but owner-accessible
+
+MAIN_ORDER_REV: 0017
+
+STATE: ENV_A_READY / ENV_B_FIRST_OPEN_PRODUCT_PASS / PORT_VISIBILITY_POLICY_MISMATCH / BLACKBOX_HOLD
+
+Product Owner supplied the first live Ports-panel evidence from ENV_B.
+
+Observed:
+- EliteSCADA Web forwarding exists and the product opens successfully through the remote `5173.app.github.dev` URL;
+- the Codespaces Ports panel reports the Web forwarded port as `Private`, not `Public`;
+- this is consistent with GitHub Codespaces behavior: private forwarded ports remain browser-accessible to the authenticated Codespace creator, while public visibility removes the GitHub authentication requirement;
+- therefore product/browser reachability is PASS, but the previously specified automatic-public visibility policy is NOT proven and currently mismatches the requested configuration.
+
+Do not change the port manually yet. Preserve the live first-boot state for diagnosis.
+
+This observation does not indicate an EliteSCADA product defect.
+
+Possible infrastructure causes to distinguish before correction:
+1. repository postStartCommand did not complete successfully;
+2. the GitHub CLI inside the Codespace could not authorize the `gh codespace ports visibility` action with the runtime token;
+3. organization/repository Codespaces policy disallows Public visibility;
+4. visibility was set and subsequently reverted by a lifecycle/forwarding recreation event.
+
+Main must distinguish these before changing the harness or asking Product Owner to modify the port manually.
+
+Current gates:
+- ENV_A: `READY / CLEAN / RESUMABLE`;
+- ENV_B product first-open reachability: PASS;
+- ENV_B port policy: `5173 PRIVATE / REQUESTED PUBLIC / DIAGNOSIS REQUIRED`;
+- ENV_B overall: NOT READY;
+- CODEX Stage 1: HOLD;
+- Human Preview: HOLD;
+- Stage 2: PREPARED / NOT ACTIVE.

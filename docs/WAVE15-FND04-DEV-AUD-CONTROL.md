@@ -2013,3 +2013,66 @@ If the journey completes or becomes product-blocked, only then may diagnostic so
 Persist detailed findings in the dedicated preview evidence surface defined by the preview control and keep them embargoed from the Product Owner until the independent human journey is complete. Return only the gate status and durable evidence location to Main before the embargo lifts.
 
 Do not activate the Human Preview yourself. Do not resume any older CODEX route. Do not self-select another mission after this gate.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0079
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FIRST-PROJECT-ENV-HARNESS-64`
+
+`ORDER_STATE: ACTIVE / ENVIRONMENT_HARNESS_ONLY / PRE_BLACKBOX`
+
+The Product Owner has changed the Preview topology before either exploratory journey produced findings.
+
+Do not begin the black-box product journey yet.
+
+Authoritative preview control:
+- branch: `coord/w15-fresh-install-preview-control`;
+- file: `docs/WAVE15-FIRST-PROJECT-FRESH-INSTALL-PREVIEW-CONTROL.md`;
+- rev 0003 amendment commit: `9f9d750cc28b42214bf46974dec9f7107ba5b666`.
+
+Dedicated environment branch already created by Main directly from the accepted product checkpoint:
+`preview/w15-first-project-env-harness`
+
+Exact product base:
+`1f14a57491805a5d976bc9d0bf51393cf1b3ebcd` / tree `5e5fce8ce87f31dfc11b83bb68ff86c67f9f0112`.
+
+### Mission
+
+Prepare one repository-owned, infrastructure-only fresh-install Preview harness capable of producing two isolated environments from the same product bytes:
+
+A. CODEX local container environment;
+B. fresh GitHub Codespace environment for the Product Owner.
+
+You may use source/config/control knowledge while building and validating the harness. This is **PRE-AUDIT ENVIRONMENT PREPARATION**, not the black-box journey.
+
+Prefer reuse/convergence with existing assets:
+- `ci/local/Dockerfile.linux-e2e`;
+- `ci/local/docker-compose.yml`;
+- `scripts/ci/*`;
+- current `.devcontainer/devcontainer.json`;
+- historical `docs/CODESPACES-PREVIEW-RUNBOOK.md` only as infrastructure reference.
+
+Do not resurrect stale Wave 14 Demo/bootstrap behavior.
+
+Required outcome:
+- container/Compose path starts normal EliteSCADA API + Web against an isolated disposable PostgreSQL/TimescaleDB state;
+- fresh install has no imported project, EEE, hidden Demo Engineering project or test-owned Working state;
+- startup automation may start dependencies/API/Web but must not create the user's first Administrator/project/application for them;
+- deterministic clean reset;
+- browser endpoint suitable for user-like exploration;
+- separate Codespaces path from the same harness with Web 5173 Private, API 5080 + DB 5432 internal;
+- no production semantic/auth/licensing/runtime/HA/security bypass;
+- harness-only files unless a genuine product blocker is proven.
+
+Validate both modes enough to prove they boot cleanly and reproducibly. Do not perform the actual first-project exploration while validating environment readiness.
+
+Return to Main with:
+- exact harness branch/head/tree;
+- file list and rationale;
+- local container clean-boot evidence;
+- Codespaces/devcontainer readiness evidence that can be established repository-side;
+- exact reset/start commands or automation entrypoints;
+- confirmation that the branch differs from product base only by environment/harness infrastructure;
+- any genuine blocker that prevents a truthful fresh install.
+
+After Main accepts the harness it will release both exploratory gates for parallel independent execution. Do not self-start them before that acceptance.

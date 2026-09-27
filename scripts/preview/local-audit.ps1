@@ -34,6 +34,7 @@ $sessionFile = Join-Path $sessionRoot 'session.json'
 $archiveRoot = Join-Path $artifactRoot 'preview-audit-archive'
 $dependencyManifestRoot = Join-Path $artifactRoot 'preview-dependencies'
 $repoPrefix = $repoRoot.TrimEnd('\') + '\'
+Import-Module (Join-Path $PSScriptRoot 'PreviewDependencyIdentity.psm1') -Force
 
 function Invoke-Git([string[]]$GitArguments) {
     $result = Invoke-NativeCommand -FilePath 'git' -Arguments (@('-C', $repoRoot) + $GitArguments)
@@ -183,17 +184,15 @@ function Get-PreviewDependencyIdentity($Identity) {
     })
     $manifestPaths = @($manifestPaths | Sort-Object -Unique)
 
-    $manifestHashes = @()
     foreach ($relativePath in $manifestPaths) {
         $filePath = Join-Path $repoRoot ($relativePath.Replace('/', '\'))
         if (-not (Test-Path -LiteralPath $filePath -PathType Leaf)) {
             throw "Dependency provenance input is missing: $relativePath"
         }
-        $hash = (Get-FileHash -LiteralPath $filePath -Algorithm SHA256).Hash.ToLowerInvariant()
-        $manifestHashes += "$relativePath=$hash"
     }
 
-    $inputsSha = Get-Sha256Text ($manifestHashes -join "`n")
+    $dependencyInputs = Get-PreviewDependencyInputIdentity -RepositoryRoot $repoRoot -RelativePaths $manifestPaths
+    $inputsSha = $dependencyInputs.InputsSha
     $keyMaterial = "productBase=$productBaseSha`nharnessSha=$($Identity.Head)`nharnessTree=$($Identity.Tree)`ninputsSha=$inputsSha"
     $key = Get-Sha256Text $keyMaterial
     return [pscustomobject]@{

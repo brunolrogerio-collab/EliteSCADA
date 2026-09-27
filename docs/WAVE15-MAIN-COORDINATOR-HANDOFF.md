@@ -1,3 +1,63 @@
+# LATEST DELTA — 2026-09-27 — ENV_A REPLACEMENT ACCEPTED FOR FINAL READINESS PROOF
+
+> This delta supersedes the ENV_A active-route/candidate wording in the checkpoint immediately below when they conflict. GitHub live remains the sole authority.
+
+Main accepted the new exact Preview harness candidate for **final readiness proof only**:
+
+- harness branch: `preview/w15-first-project-env-harness`;
+- exact SHA: `bb451fa6e07982ac12384895f6097d5833761d16`;
+- exact tree: `650d30089596021cb1a564ee1d2f1abfc7d2b509`;
+- exact product base remains `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+The replacement separates dependency preparation from product/audit reset:
+- explicit provenance-bound `prepare`;
+- Node/NuGet dependency volumes are external, hash-keyed and provenance-labeled;
+- tool image/version inputs are pinned;
+- `start` / `resume` require prepared provenance and use `--no-build --pull never`;
+- `reset` removes product/audit state while preserving prepared dependencies/tool image;
+- stale/mismatched preparation fails closed.
+
+Local HTTPS inspection is handled only by explicit opt-in during `prepare`:
+- the selected certificate must already be a valid Windows trusted root;
+- only its public PEM is mounted read-only into the preparation container;
+- TLS verification remains enabled;
+- no Windows/Docker/product trust store is changed;
+- the root is not carried into product `start`/`resume`;
+- thumbprint/DER SHA-256 are recorded in local preparation provenance.
+
+Exact-candidate preparation already passed:
+- tool image build: PASS;
+- npm `ci`: PASS;
+- dotnet restore: PASS;
+- offline provenance/marker verification: PASS;
+- second prepare: `READY_REUSED`;
+- current preparation state at handoff: `NOT_STARTED / PREPARATION=READY`.
+
+Binding shared CODEX route:
+`ROUTE-SEQUENTIAL-CODEX-ENV-A-FINAL-EXACT-SHA-READINESS-PROOF-72`
+
+Shared control rev 0087:
+`7de960c87c7f09d4fed65f0c508cdc4b7a3988b0`.
+
+Preview control rev 0012:
+`08471efc2716fd5065bddb279a20d9f48c89e8b8`.
+
+CODEX must now prove on exact `bb451fa...`:
+fresh UI -> minimal Administrator -> pause -> real Docker Desktop restart -> same-session resume -> second pause/resume -> reset preserving `PREPARATION=READY` -> second clean start with **no npm/NuGet network/install/restore** -> final reset.
+
+ENV_A remains:
+`FINAL_READINESS_PROOF_ACTIVE / NOT_READY / BLACKBOX_HOLD`.
+
+ENV_B remains:
+`STATIC_ACCEPTED / WAIT_REAL_CODESPACE_PROOF / HUMAN_PREVIEW_NOT_RELEASED`.
+
+ENV_A Stage 2 remains:
+`PREPARED / NOT ACTIVE`.
+
+Durable ledger: Issue #305 comment `5856654198`.
+
+---
+
 # LIVE WAVE 15 PREVIEW HANDOFF — 2026-09-27
 
 > **READ THIS SECTION FIRST.** It supersedes older current-state wording later in this file when there is a conflict. GitHub live remains the sole authority.

@@ -1345,3 +1345,47 @@ Current gates:
 - CODEX Stage 1: HOLD;
 - Human Preview: HOLD;
 - Stage 2: PREPARED / NOT ACTIVE.
+
+
+## 28. ENV_B port visibility policy relaxed by Product Owner
+
+MAIN_ORDER_REV: 0018
+
+STATE: ENV_A_READY / ENV_B_PORT_VISIBILITY_NON_BLOCKING / WAIT_STOP_RESUME_PROOF / BLACKBOX_HOLD
+
+The Product Owner explicitly chose not to spend further time on automatic 5173 Public visibility.
+
+Live evidence shows:
+- the Ports UI offers both Private and Public, so organization/repository policy permits Public visibility;
+- the current 5173 forward is Private;
+- the authenticated Product Owner can open EliteSCADA successfully in a normal browser through the Private forwarded URL;
+- 5080 and 5432 are not exposed as public browser ports in the supplied evidence.
+
+Main therefore reclassifies automatic `5173=Public` as a **non-blocking convenience requirement** for this Wave 15 human Preview.
+
+This supersedes earlier wording that made Public visibility a readiness gate.
+
+ENV_B may be accepted READY with 5173 remaining Private provided:
+1. the Product Owner can open the forwarded Web URL normally while authenticated to GitHub;
+2. 5080 and 5432 remain non-public;
+3. product startup is automatic;
+4. stop/suspend -> resume restores the product without terminal recovery;
+5. the Product Owner can reopen the same Private forwarded Web URL after resume;
+6. product-owned continuity state survives resume;
+7. no hidden project/import/Demo state is seeded.
+
+Do not spend CODEX/Main time repairing automatic Public visibility unless it later prevents the Product Owner from performing the audit.
+
+Current next gate:
+- create the minimal readiness continuity marker through the normal first-run UI;
+- stop/suspend the Codespace normally;
+- resume the same Codespace;
+- verify automatic product recovery and browser accessibility;
+- if PASS, Main may declare ENV_B READY.
+
+Current states:
+- ENV_A: `READY / CLEAN / RESUMABLE`;
+- ENV_B: `FIRST_OPEN_PASS / PORT_PRIVATE_ACCEPTED / WAIT_STOP_RESUME_PROOF`;
+- CODEX Stage 1: HOLD;
+- Human Preview: HOLD;
+- Stage 2: PREPARED / NOT ACTIVE.

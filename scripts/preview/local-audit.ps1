@@ -13,7 +13,11 @@ param(
     [int]$Port = 5173,
 
     [Parameter()]
-    [string]$Checkpoint
+    [string]$Checkpoint,
+
+    [Parameter()]
+    [ValidatePattern('^[0-9a-fA-F]{40}$')]
+    [string]$TrustedRootThumbprint
 )
 
 $ErrorActionPreference = 'Stop'
@@ -132,6 +136,30 @@ function Get-Sha256Text([string]$Text) {
     } finally {
         $sha.Dispose()
     }
+}
+
+function New-ExplicitTrustedRootPem([string]$Thumbprint) {
+    $matching = @(Get-ChildItem Cert:\LocalMachine\Root, Cert:\CurrentUser\Root |
+        Where-Object { $_.Thumbprint -eq $Thumbprint.ToUpperInvariant() })
+    if ($matching.Count -eq 0) {
+        throw 'ENVIRONMENT_PREP_BLOCKED_TLS: the explicitly selected root is absent from the Windows trusted-root stores.'
+    }
+    $certificate = $matching[0]
+    $caExtension = @($certificate.Extensions | Where-Object { $_ -is [Security.Cryptography.X509Certificates.X509BasicConstraintsExtension] } | Select-Object -First 1)
+    if ($certificate.Subject -ne $certificate.Issuer -or $caExtension.Count -ne 1 -or -not $caExtension[0].CertificateAuthority -or
+        [DateTime]::Now -lt $certificate.NotBefore -or [DateTime]::Now -gt $certificate.NotAfter) {
+        throw 'ENVIRONMENT_PREP_BLOCKED_TLS: the selected Windows certificate is not a currently valid root CA.'
+    }
+    $pemPath = Join-Path ([IO.Path]::GetTempPath()) ("elitescada-preview-root-$([Guid]::NewGuid().ToString('N')).pem")
+    $base64 = [Convert]::ToBase64String($certificate.RawData, [Base64FormattingOptions]::InsertLineBreaks)
+    [IO.File]::WriteAllText($pemPath, "-----BEGIN CERTIFICATE-----`n$base64`n-----END CERTIFICATE-----`n", [Text.Encoding]::ASCII)
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        $derSha256 = ([BitConverter]::ToString($sha.ComputeHash($certificate.RawData))).Replace('-', '').ToLowerInvariant()
+    } finally {
+        $sha.Dispose()
+    }
+    return [pscustomobject]@{ Path = $pemPath; Thumbprint = $Thumbprint.ToLowerInvariant(); DerSha256 = $derSha256 }
 }
 
 function Get-PreviewDependencyIdentity($Identity) {
@@ -350,7 +378,7 @@ function Assert-PreparedDependencies {
     return $Dependency
 }
 
-function Write-PreparedDependencyManifest($Dependency, [string]$ImageId) {
+function Write-PreparedDependencyManifest($Dependency, [string]$ImageId, $TrustedRoot) {
     New-Item -ItemType Directory -Path $dependencyManifestRoot -Force | Out-Null
     $temporaryPath = "$($Dependency.ManifestPath).tmp"
     $manifest = [pscustomobject]@{
@@ -364,13 +392,15 @@ function Write-PreparedDependencyManifest($Dependency, [string]$ImageId) {
         imageId = $ImageId
         nodeModulesVolume = $Dependency.NodeModulesVolume
         nugetVolume = $Dependency.NuGetVolume
+        explicitTrustedRootThumbprint = if ($null -eq $TrustedRoot) { $null } else { $TrustedRoot.Thumbprint }
+        explicitTrustedRootDerSha256 = if ($null -eq $TrustedRoot) { $null } else { $TrustedRoot.DerSha256 }
         preparedAtUtc = [DateTime]::UtcNow.ToString('o')
     }
     $manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $temporaryPath -Encoding utf8
     Move-Item -LiteralPath $temporaryPath -Destination $Dependency.ManifestPath -Force
 }
 
-function Invoke-PreparedDependencyBootstrap($Identity, $Dependency) {
+function Invoke-PreparedDependencyBootstrap($Identity, $Dependency, [string]$RootThumbprint) {
     if (Test-Path -LiteralPath $Dependency.ManifestPath -PathType Leaf) {
         try {
             $null = Assert-PreparedDependencies $Identity $Dependency -VerifyContents
@@ -420,15 +450,30 @@ printf '%s\n' "$PREVIEW_DEPENDENCY_KEY" > /root/.nuget/packages/.preview-depende
 mkdir -p src/Scada.Api/obj
 printf '%s\n' "$PREVIEW_DEPENDENCY_KEY" > src/Scada.Api/obj/.preview-dependency-key
 '@
-    $runArguments = @(
-        'run', '--rm', '--network', 'bridge', '--workdir', '/workspace',
-        '--mount', "type=bind,source=$repoRoot,target=/workspace",
-        '--mount', "type=volume,source=$($Dependency.NodeModulesVolume),target=/workspace/web/scada-web/node_modules",
-        '--mount', "type=volume,source=$($Dependency.NuGetVolume),target=/root/.nuget/packages",
-        '--env', "PREVIEW_DEPENDENCY_KEY=$($Dependency.Key)",
-        $imageId, 'bash', '-lc', $prepareCommand
-    )
-    $prepareOutput = Invoke-NativeCommand -FilePath 'docker' -Arguments $runArguments
+    $trustedRoot = $null
+    try {
+        $runArguments = @(
+            'run', '--rm', '--network', 'bridge', '--workdir', '/workspace',
+            '--mount', "type=bind,source=$repoRoot,target=/workspace",
+            '--mount', "type=volume,source=$($Dependency.NodeModulesVolume),target=/workspace/web/scada-web/node_modules",
+            '--mount', "type=volume,source=$($Dependency.NuGetVolume),target=/root/.nuget/packages",
+            '--env', "PREVIEW_DEPENDENCY_KEY=$($Dependency.Key)"
+        )
+        if (-not [string]::IsNullOrWhiteSpace($RootThumbprint)) {
+            $trustedRoot = New-ExplicitTrustedRootPem $RootThumbprint
+            $runArguments += @(
+                '--mount', "type=bind,source=$($trustedRoot.Path),target=/tmp/explicit-trusted-root.pem,readonly",
+                '--env', 'NODE_EXTRA_CA_CERTS=/tmp/explicit-trusted-root.pem',
+                '--env', 'SSL_CERT_FILE=/tmp/explicit-trusted-root.pem'
+            )
+        }
+        $runArguments += @($imageId, 'bash', '-lc', $prepareCommand)
+        $prepareOutput = Invoke-NativeCommand -FilePath 'docker' -Arguments $runArguments
+    } finally {
+        if ($null -ne $trustedRoot -and (Test-Path -LiteralPath $trustedRoot.Path)) {
+            Remove-Item -LiteralPath $trustedRoot.Path -Force
+        }
+    }
     $prepareExitCode = $LASTEXITCODE
     $prepareText = ($prepareOutput | Out-String)
     $prepareOutput | ForEach-Object { Write-Output $_ }
@@ -439,7 +484,7 @@ printf '%s\n' "$PREVIEW_DEPENDENCY_KEY" > src/Scada.Api/obj/.preview-dependency-
         throw "Dependency preparation failed with exit code $prepareExitCode."
     }
 
-    Write-PreparedDependencyManifest $Dependency $imageId
+    Write-PreparedDependencyManifest $Dependency $imageId $trustedRoot
     $null = Assert-PreparedDependencies $Identity $Dependency -VerifyContents
     Write-Output 'PREPARATION=READY'
     Write-Output "DEPENDENCY_KEY=$($Dependency.Key)"
@@ -581,6 +626,10 @@ function Print-SessionStatus($Session, $Identity) {
     if ($preparationDetail) { Write-Output "PREPARATION_DETAIL=$preparationDetail" }
 }
 
+if ($Command -ne 'prepare' -and -not [string]::IsNullOrWhiteSpace($TrustedRootThumbprint)) {
+    throw '-TrustedRootThumbprint is permitted only for the isolated prepare operation.'
+}
+
 switch ($Command) {
     'status' {
         $identity = Get-HarnessIdentity
@@ -597,7 +646,7 @@ switch ($Command) {
         if ($resources.Containers.Count -or $resources.Volumes.Count -or $resources.Networks.Count) {
             throw 'Preparation is allowed only when the dedicated product/audit stack is absent; inspect or explicitly reset it first.'
         }
-        Invoke-PreparedDependencyBootstrap $identity $dependency
+        Invoke-PreparedDependencyBootstrap $identity $dependency $TrustedRootThumbprint
     }
     'start' {
         if ([string]::IsNullOrWhiteSpace($AcceptedHarnessSha)) {

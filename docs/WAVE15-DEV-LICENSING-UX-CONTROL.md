@@ -606,4 +606,32 @@ Post-merge exact integrated CI:
 No further Licensing mutation is authorized.
 
 Licensing closeout waits only on classification of this exact integrated CI.
+## CURRENT MAIN DISPOSITION — rev 0013
+
+`ORDER_ID: DEV-LICENSING-UX-INTEGRATED-COMPLETE-13`
+
+`ORDER_STATE: INTEGRATED / VERIFIED_COMPLETE / NO_FURTHER_MUTATION`
+
+Final integrated SHA:
+`1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Post-merge EliteSCADA CI:
+- run `36290910850` / #1584;
+- Backend build/test/smoke: SUCCESS;
+- Web build: SUCCESS;
+- Chromium end-to-end: SUCCESS.
+
+Pre-merge exact-head evidence:
+- candidate `3d166c0b45eef34ef878e710b5db28c3ea2fa93f`;
+- T1 `36289854846` / #113: SUCCESS;
+- scarce CODEX adversarial validation accepted;
+- focused Chromium 6/6 PASS;
+- focused Drivers 36/36 PASS;
+- no candidate-causal defect;
+- no source mutation.
+
+Final disposition:
+`DEV-LICENSING-UX = INTEGRATED / VERIFIED_COMPLETE`.
+
+No further DEV/CODEX mutation is authorized without a new Main-classified defect.
 

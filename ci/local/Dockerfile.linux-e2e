@@ -1,6 +1,8 @@
-# The Playwright image pins the browser stack to @playwright/test 1.62.1 on
-# Ubuntu. The overlays below align the remaining CI toolchains with GitHub CI.
-FROM mcr.microsoft.com/playwright:v1.62.1-noble
+# Keep the complete Linux toolchain reproducible and fetch it only through
+# verified container-registry TLS. The tags document versions; digests pin bytes.
+FROM node:24.19.0-bookworm-slim@sha256:a9f5f7c91a432850b2a8a7797adf5eadb6c733ceed61167806cee7ea7fbc29df AS node-toolchain
+FROM mcr.microsoft.com/dotnet/sdk:10.0.400-noble@sha256:4beef5b8919dcaa2dc924233bd069257e883cc7a061e09088a97d152d6a48510 AS dotnet-toolchain
+FROM mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
 
 ARG PREVIEW_DEPENDENCY_KEY=unprepared
 ARG PREVIEW_DEPENDENCY_INPUTS_SHA=unprepared
@@ -14,8 +16,8 @@ LABEL com.elitescada.preview.dependency-key=${PREVIEW_DEPENDENCY_KEY} \
 
 USER root
 
-ARG NODE_VERSION=24.19.0
-ARG DOTNET_SDK_VERSION=10.0.400
+COPY --from=node-toolchain /usr/local/ /opt/node/
+COPY --from=dotnet-toolchain /usr/share/dotnet/ /usr/share/dotnet/
 
 ENV DOTNET_ROOT=/usr/share/dotnet \
     PATH=/usr/share/dotnet:/opt/node/bin:${PATH} \
@@ -23,17 +25,5 @@ ENV DOTNET_ROOT=/usr/share/dotnet \
     DOTNET_NOLOGO=1 \
     DOTNET_CLI_TELEMETRY_OPTOUT=1
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl python3 xz-utils \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN curl --fail --location --silent --show-error \
-        "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
-    | tar --extract --xz --file - --directory /opt \
-    && mv "/opt/node-v${NODE_VERSION}-linux-x64" /opt/node
-
-RUN curl --fail --location --silent --show-error https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \
-    && bash /tmp/dotnet-install.sh --version "${DOTNET_SDK_VERSION}" --install-dir "${DOTNET_ROOT}" \
-    && rm /tmp/dotnet-install.sh \
-    && node --version | grep --fixed-strings "v${NODE_VERSION}" \
-    && dotnet --version | grep --fixed-strings "${DOTNET_SDK_VERSION}"
+RUN node --version | grep --fixed-strings 'v24.19.0' \
+    && dotnet --version | grep --fixed-strings '10.0.400'

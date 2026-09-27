@@ -892,3 +892,106 @@ Current binding shared CODEX mission remains the ENV_A readiness/continuity work
 
 Gate:
 `W15-ENV-A-CODEX-STAGE2-DIRECTED-VERIFICATION = PREPARED / NOT ACTIVE`.
+
+
+## 21. ENV_A fresh-start dependency bootstrap blocker
+
+MAIN_ORDER_REV: 0011
+
+STATE: ENV_A_HARNESS_DEPENDENCY_BOUNDARY_FIX_AUTHORIZED / BLACKBOX_HOLD
+
+CODEX completed the strongest part of the final continuity proof on exact harness `ec050e9bfda121805b1165860a4aeda0eb2582e8`:
+- fresh session reached RUNNING;
+- first Local Administrator was created through the normal UI as the minimal product-owned persistence marker;
+- no project was created;
+- session paused cleanly;
+- Docker Desktop was fully restarted through supported `docker desktop restart --timeout 180`;
+- Docker Desktop/Engine session changed and returned healthy;
+- the exact same ENV_A session resumed;
+- normal UI still showed the post-bootstrap no-project state, proving the Administrator/product-owned marker survived without reseed/import/migration;
+- a second normal pause/resume cycle passed;
+- explicit reset returned `NOT_STARTED` and removed all dedicated preview containers/volumes.
+
+The final fresh-start absence check then failed before product startup because `run-product-preview.sh` attempted a new runtime `npm install` after reset and Node rejected the registry TLS chain with:
+`UNABLE_TO_VERIFY_LEAF_SIGNATURE` while downloading `ws-8.21.3.tgz`.
+
+CODEX correctly did not disable TLS verification or mutate host/container trust. The failed session was explicitly reset and ENV_A again ended `NOT_STARTED` with no dedicated preview resources.
+
+Classification:
+`ENV_A_HARNESS_DEFECT / AUDIT_RESET_DEPENDENCY_BOOTSTRAP_COUPLING`.
+
+This is not a product defect. The Docker-daemon continuity requirement itself is now materially proven on the accepted candidate.
+
+### 21.1 Architectural correction contract
+
+A product/audit reset must not be the same thing as toolchain/dependency destruction.
+
+The local Preview harness must separate:
+
+**Preparation/toolchain state** — safe to persist across audit resets:
+- pinned Linux runner image/toolchain;
+- npm package cache and/or pre-resolved node_modules seed;
+- NuGet package cache and/or pre-restored package seed;
+- other immutable package-manager artifacts derived solely from repository lock/project files.
+
+**Audit/product state** — MUST be reset explicitly:
+- PostgreSQL/TimescaleDB audit database;
+- runtime secrets/state specific to the audit session;
+- Local Administrator/project/application data;
+- browser/session state owned by the audit where applicable;
+- current audit manifest/session identity.
+
+Detailed audit evidence continues to be archived, not silently deleted.
+
+### 21.2 Required operator semantics
+
+CODEX may add an explicit repository-controlled preparation action such as:
+`scripts/preview/local-audit.ps1 prepare`
+(or a better equivalent), or may pre-bake dependencies into a dedicated Preview image/cache layer.
+
+Binding behavior:
+- network/package download belongs to preparation/build time, not to a clean product `start` after every reset;
+- once preparation succeeds for an exact harness/product dependency set, repeated `reset -> start` cycles must not require a fresh registry/NuGet download;
+- `reset` destroys product/audit state but preserves immutable dependency/tool caches;
+- `start` must never silently repair a missing dependency boundary by weakening TLS/trust;
+- exact repository lock/project files remain the package authority;
+- cache/image provenance must be tied to the relevant lock/project hash or exact harness/product identity so stale dependencies cannot be reused silently.
+
+### 21.3 Security boundary
+
+Forbidden fixes:
+- `npm strict-ssl=false`;
+- `NODE_TLS_REJECT_UNAUTHORIZED=0`;
+- disabling certificate validation in curl/npm/dotnet;
+- automatically importing an unknown/untrusted host certificate;
+- replacing pinned dependencies with floating versions;
+- vendoring arbitrary machine-local dependency state into Git.
+
+If a one-time preparation step itself cannot reach an external package registry because the host trust/network policy is invalid, fail explicitly as:
+`ENVIRONMENT_PREP_BLOCKED_TLS`.
+
+Do not hide that condition inside product startup.
+
+### 21.4 Required proof on replacement candidate
+
+Before Main acceptance, CODEX must return an exact replacement harness SHA/tree and prove:
+1. branch diff from product base remains Preview/harness-only;
+2. preparation succeeds or reuses a valid provenance-bound prepared layer;
+3. clean `start` reaches the real first-run Administrator surface;
+4. create the minimal Administrator marker through UI;
+5. pause;
+6. perform a real Docker Desktop/engine restart;
+7. resume same session and prove marker continuity;
+8. explicit `reset` removes product/audit state but preserves only dependency/tool preparation state;
+9. a subsequent clean `start` reaches first-run Administrator/no-project state **without downloading npm/NuGet packages again**;
+10. where technically possible, prove the post-reset start with external package network unavailable/blocked after preparation;
+11. final explicit `reset` -> `NOT_STARTED` and no dedicated product-state containers/volumes;
+12. no product semantics, auth, licensing, Authority or lifecycle were weakened.
+
+The actual black-box Stage 1 remains HOLD until this exact replacement candidate is reviewed and ENV_A is declared READY.
+
+### 21.5 Other gates
+
+ENV_B remains pinned to the previously reviewed Codespaces implementation until Main reviews whether the replacement candidate touches shared Compose/devcontainer/startup files. No real Human Preview is released by this order.
+
+ENV_A Stage 2 remains `PREPARED / NOT ACTIVE`.

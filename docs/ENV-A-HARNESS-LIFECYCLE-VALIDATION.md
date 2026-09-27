@@ -19,8 +19,12 @@ This is infrastructure-only evidence for coordinator route `ROUTE-SEQUENTIAL-COD
 - After engine recovery, status still reported `PAUSED_RESUMABLE` / `PREPARATION=READY`; resume returned the same session to `RUNNING` with the same key.
 - No project was created, no product workflow was explored, and no Stage 1 attempt was started.
 
-This file is committed from the separate evidence worktree while the runtime worktree remains at the exact candidate SHA. Runtime status is checked immediately after that evidence commit.
+The checkpoint above was committed from this separate evidence worktree as `a49527f4d2c15a2e2af245750f3d56f2cf570a27` and pushed. Immediately after the evidence commit, the runtime worktree remained at the candidate SHA and status remained `RUNNING` / `PREPARATION=READY` with the same dependency key.
 
-## Remaining lifecycle checks
+## Post-checkpoint lifecycle checks
 
-Reset the disposable session while preserving preparation, then perform one second fresh start without package installation/restore, perform the final reset, and verify the final `NOT_STARTED` / `PREPARATION=READY` state plus static/diff/worktree cleanliness.
+- First disposable reset completed as `NOT_STARTED` / `PREPARATION=READY`; the dependency image, volumes, and manifest remained valid.
+- Second fresh start created session `12905718-9cfb-4174-b6df-243ce42bfa29`, reached healthy services, and served the Web root as HTTP 200. Its start output contained no package installation/restore; it reused the already-prepared image and volumes.
+- A status check after the second start retained `PREPARATION=READY` and the exact same dependency key.
+- Final reset completed. Final status is `NOT_STARTED` / `PREPARATION=READY` at candidate SHA `50a4451aa122f7f9fd0af98173c184f6623a147b`.
+- No project was created, no product workflow was explored, and no Stage 1 attempt was started.

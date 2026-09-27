@@ -1946,4 +1946,31 @@ Post-merge EliteSCADA CI:
 Because CODEX budget is reduced, keep it idle until Main classifies this exact integrated run.
 
 No other CODEX route is active.
+## CURRENT SHARED CODEX ROUTE — rev 0077
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-INTEGRATED-T2-HANDOFF-HOLD-62`
+
+`ORDER_STATE: HOLD / NO_ACTIVE_MISSION / AWAITING_MAIN_T2_DECISION`
+
+Latest integration:
+`1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Latest broad CI:
+`36290910850` / #1584 — SUCCESS.
+
+Feature status:
+- Script Engineering: integrated, still formally `INTEGRATED_PENDING_T2`;
+- Editor: integrated, still formally `INTEGRATED_PENDING_T2`;
+- Authority UX: integrated / verified complete;
+- Licensing UX: integrated / verified complete.
+
+Foundations:
+- FND-05 VERIFIED/FROZEN;
+- FND-07 VERIFIED/FROZEN.
+
+Do not auto-resume any prior CODEX route.
+
+Next Main must define/execute/accept the broader integrated feature T2 on the exact current integration head before activating the prepared fresh-install first-project preview.
+
+CODEX usage budget is reduced; preserve it until Main publishes an explicit T2 mission.
 

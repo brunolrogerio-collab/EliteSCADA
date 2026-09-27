@@ -1548,3 +1548,74 @@ Current gates:
 - Human Preview: ACTIVE;
 - Stage 2: PREPARED / NOT ACTIVE;
 - findings embargo: ACTIVE.
+
+
+## 31. CODEX Stage 1 attempt 1 sealed inconclusive
+
+MAIN_ORDER_REV: 0021
+
+STATE: HUMAN_PREVIEW_ACTIVE / CODEX_STAGE1_ATTEMPT1_SEAL_AND_RECONCILE / EMBARGO_ACTIVE
+
+Main reviewed the coarse CODEX handoff from Issue #305 comment `5857611740` together with the embargoed evidence branch, without exposing detailed findings to the Product Owner.
+
+Exact accepted environment authority remains unchanged:
+- harness SHA: `bb451fa6e07982ac12384895f6097d5833761d16`;
+- harness tree: `650d30089596021cb1a564ee1d2f1abfc7d2b509`;
+- product base: `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+### 31.1 Main disposition of CODEX Stage 1 attempt 1
+
+The attempt is sealed as:
+`INCONCLUSIVE / AUDIT_INTERACTION_AND_STATE_RECONCILIATION_REQUIRED`.
+
+It is **not** classified as a product defect and it is **not** considered a completed independent black-box journey.
+
+Reasons are retained only in the embargoed evidence surface. Product Owner-facing coordination must expose no navigation/detail spoilers while the Human Preview is active.
+
+The existing attempt has already crossed into permitted post-block diagnostic correlation. Therefore the same CODEX context/session must not resume black-box exploration as if it were still unspoiled.
+
+### 31.2 Preparation-state reconciliation
+
+The audit session remains valuable evidence and must not be reset.
+
+CODEX must reconcile only infrastructure/worktree identity:
+1. stop all product interaction and diagnostic exploration;
+2. preserve/push existing detailed evidence to `preview/w15-first-project-codex-evidence`;
+3. use a separate Git worktree or connector-backed evidence path for future evidence commits so the runtime harness worktree is not moved onto the evidence branch;
+4. inspect current runtime worktree branch/HEAD/tree using Git only;
+5. if the runtime worktree is not the exact accepted harness SHA `bb451fa...`, restore that worktree to the exact accepted harness commit **without** resetting/recreating Docker product state;
+6. do not run `prepare`, `start`, `resume` or `reset` during identity reconciliation;
+7. run only `local-audit.ps1 status` after the exact harness checkout is restored;
+8. expected reconciled preparation key is the accepted READY key `0d074f1bd0f1702a5313651791dd7ce6aa1996821f312ca45a7d6761f9b0794e`;
+9. if status becomes `RUNNING / PREPARATION=READY`, immediately `pause` the same session with a coarse checkpoint indicating Stage 1 attempt 1 is sealed;
+10. if status does not reconcile cleanly, return the exact coarse infrastructure state to Main and do nothing destructive.
+
+No product-state mutation is authorized by this reconciliation.
+
+### 31.3 Black-box retry policy
+
+Because attempt 1 has already entered source/log/API diagnostic correlation, a valid independent black-box retry must use a **fresh CODEX context/agent** that has not consumed the embargoed attempt-1 findings.
+
+Do not start such a retry yet while the Product Owner human journey remains active unless Main explicitly provisions a fresh CODEX context and new evidence surface.
+
+Current shared CODEX state after reconciliation is intended to become:
+`HOLD / STAGE1_ATTEMPT1_SEALED / WAIT_MAIN_RETRY_DECISION`.
+
+### 31.4 Human Preview remains unchanged
+
+`W15-FIRST-PROJECT-HUMAN-PREVIEW-01 = ACTIVE`.
+
+Do not expose any CODEX detailed observations to the Product Owner. Do not change ENV_B in response to CODEX attempt 1.
+
+### 31.5 Stage 2 remains held
+
+`W15-ENV-A-CODEX-STAGE2-DIRECTED-VERIFICATION = PREPARED / NOT ACTIVE`.
+
+Main will consider Stage 2 only after the human first-project journey reaches COMPLETE or BLOCKED and the embargo can be lifted/cross-audit state can be reconciled.
+
+Current gates:
+- ENV_A infrastructure: `READY / ATTEMPT1_SESSION_TO_BE_PAUSED`;
+- CODEX Stage 1 attempt 1: `INCONCLUSIVE / SEALED_PENDING_INFRA_RECONCILIATION`;
+- Human Preview: ACTIVE;
+- findings embargo: ACTIVE;
+- Stage 2: PREPARED / NOT ACTIVE.

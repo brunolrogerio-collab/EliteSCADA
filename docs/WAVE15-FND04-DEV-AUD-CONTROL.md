@@ -2858,3 +2858,142 @@ Stage2 contract now includes V2-14..V2-18 via commit `e96f1045a644a70e3f49c6aa0c
 Do NOT start Stage2 until Main accepts the final repaired harness and explicitly activates it.
 
 Product-source modification remains forbidden in the current infrastructure mission.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0094
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-VS-LOCAL-OPERATOR-BOOTSTRAP-78`
+
+`ORDER_STATE: ACTIVE / INFRASTRUCTURE_AND_DOCS_ONLY / PRODUCT_FIX_FORBIDDEN`
+
+Main accepts the repaired ENV_A harness and has promoted canonical harness branch:
+`preview/w15-first-project-env-harness@50a4451aa122f7f9fd0af98173c184f6623a147b`
+/tree `5efeafb08725a90ce0c3df689b8d613f165bb569`.
+
+Authoritative Preview control:
+- rev 0028;
+- commit `510291282cbdceca9bbdab806dd7f5b4524f55e9`.
+
+Dedicated implementation branch:
+`preview/w15-vs-local-runner`
+created from exact accepted harness SHA `50a4451...`.
+
+Dedicated issue:
+#360 — `W15-LOCAL-OPS — operador local containerizado + bootstrap para IA do Visual Studio`.
+
+### Mission
+
+Create a robust one-command-surface local EliteSCADA operator intended for Product Owner + native Visual Studio AI use.
+
+Preferred entry point:
+`scripts/preview/elite-local.ps1`.
+
+Required commands:
+- `prepare`;
+- `start`;
+- `status`;
+- `pause`;
+- `resume`;
+- `stop`;
+- `restart`;
+- `diagnose`;
+- `reset` with explicit destructive confirmation.
+
+Use the already accepted dependency identity/preparation/lifecycle infrastructure instead of duplicating fragile Compose behavior.
+
+### User semantics
+
+The Product Owner should be able to tell Visual Studio AI in normal Portuguese:
+- "Rode o EliteSCADA localmente";
+- "Pause, vou desligar o PC";
+- "Retome o mesmo ambiente";
+- "Pare sem apagar meu projeto";
+- "Reinicie o EliteSCADA sem apagar nada";
+- "Qual o status e a URL?";
+- "Colete um diagnóstico para comparar com o Codespace";
+- "Quero fresh install" — destructive confirmation required.
+
+The script must make these mappings unambiguous.
+
+### Required bootstrap
+
+Create:
+`docs/VISUAL-STUDIO-AI-LOCAL-ELITESCADA-BOOTSTRAP.md`.
+
+It must be concise enough to paste/read directly in the native Visual Studio AI and must instruct it to:
+- use the operator script instead of improvising Docker commands;
+- run `status` before lifecycle actions;
+- preserve state by default;
+- use `restart` for service restart, never `reset`;
+- never run reset without explicit Product Owner request/confirmation;
+- report the local Web URL clearly;
+- use `diagnose` on failure and report evidence;
+- not alter product code without a later explicit correction mission;
+- not seed Demo/EEE/project state;
+- not weaken TLS/auth/licensing/Authority;
+- not infer Codespace-only failures are generic product defects without local A/B evidence.
+
+Include ready-to-use example prompts for the Product Owner.
+
+### Diagnose contract
+
+`diagnose` must be non-mutating and useful for local-vs-Codespace comparison, reporting/capturing at minimum:
+- Git branch/HEAD/tree;
+- dependency preparation key/state;
+- local workbench/session identity/lifecycle;
+- DB/API/Web health;
+- ports/URLs;
+- recent startup/API/Web logs;
+- timestamp;
+- no secrets.
+
+Keep room for later latency/jitter diagnostics under #307/#359, but do not add product-specific remote workarounds.
+
+### Safety/ergonomics
+
+- Windows/PowerShell + Docker Desktop first-class;
+- repo-root-relative paths only;
+- detect Docker Desktop/engine availability;
+- commands idempotent where possible;
+- preserve DB/product state on pause/stop/restart;
+- `reset` is the only destructive product-state operation and must fail without explicit confirmation;
+- preparation remains reusable/provenance-bound;
+- default Web URL normally `http://localhost:5173`;
+- optional JSON status output / IDE tasks are encouraged if clean.
+
+### Acceptance proof
+
+Before returning:
+1. prepare -> READY;
+2. start -> DB/API/Web healthy;
+3. status exact + useful;
+4. preserve one disposable state marker across pause/resume;
+5. preserve it across stop/start or stop/resume;
+6. preserve it across restart;
+7. preserve it across Docker Desktop restart + resume;
+8. diagnose works and leaks no secret;
+9. reset refuses without explicit destructive confirmation;
+10. explicit reset -> fresh product state while PREPARATION remains READY;
+11. next start performs no package reinstall/restore;
+12. bootstrap matches actual command syntax and semantics;
+13. PowerShell parse/static checks + relevant lifecycle regressions PASS;
+14. branch diff from product base is infrastructure/docs only.
+
+### Creative freedom
+
+You have freedom to simplify/refactor the local operator and reuse existing modules. Prefer one obvious user-facing command surface over exposing audit-internal complexity.
+
+Do not stop for ordinary implementation choices. Iterate until a validated branch/head/tree is ready or a genuine external blocker remains.
+
+### Forbidden
+
+- no EliteSCADA product source modification;
+- no product test weakening;
+- no auth/licensing/Authority weakening;
+- no direct DB-row shortcut;
+- no seeded Demo/EEE/project pass condition;
+- no product correction for #354/#355/#359/UX2 in this mission.
+
+Return:
+`CODEX -> MAIN COORDINATOR — VS LOCAL OPERATOR + VISUAL STUDIO AI BOOTSTRAP`
+with exact branch/head/tree, implemented commands, validation evidence, bootstrap path and explicit product non-actions.

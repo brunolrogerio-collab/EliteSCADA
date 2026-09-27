@@ -630,3 +630,106 @@ Activation requires a new explicit Main order containing:
 Until that order exists:
 
 `W15-ENV-A-CODEX-STAGE2-DIRECTED-VERIFICATION = PREPARED / NOT ACTIVE`.
+
+
+## 15. Human Preview delta — mandatory Stage 2 additions
+
+The Product Owner Human Preview has now ended as:
+`W15-FIRST-PROJECT-HUMAN-PREVIEW-01 = BLOCKED_BY_PRODUCT`.
+
+Canonical human evidence:
+`docs/WAVE15-FIRST-PROJECT-HUMAN-PREVIEW-FINDINGS.md`
+commit `e413b3c85224cbf3f62bad6896738ec7ebe7810c`.
+
+The CODEX findings embargo is therefore lifted for Main/CODEX cross-audit work. The following additions are mandatory in Stage 2.
+
+### V2-14 — Fresh first-project Runtime must not leak Demo content
+
+Human Preview observed unexpected Demo-like Runtime content after creating the first project, including a tank, pump and frequency/current-style objects, while the Product Owner could not reconcile/delete those objects from Engineering.
+
+Independent CODEX evidence also observed a visible Runtime labeled `Demo · Estação Elevatória` while Engineering showed another project identity and zero TAGs/Data Sources.
+
+Verify from a true fresh state:
+- no hidden Demo project/content is selected as Runtime fallback;
+- first project creation does not inherit unrelated Demo visuals/state;
+- Working/Published/Active/Runtime project identities agree intentionally;
+- Runtime content is explainable from the authoritative Active revision;
+- restart/resume does not reintroduce Demo state;
+- no stale Demo runtime survives Neutral/bootstrap/project creation.
+
+Track product correction under issue #354.
+
+### V2-15 — Data Source type selection -> TAG creation -> Runtime path
+
+Human Preview was blocked because the Data Source `Type` field did not expose a usable/selectable list.
+
+Verify mounted UI end-to-end:
+1. fresh project;
+2. open Data Source creation;
+3. Type selector opens and lists supported types;
+4. select one representative supported type;
+5. persist/reopen Data Source;
+6. create one representative TAG;
+7. persist/reopen/restart;
+8. bind/use the TAG through normal Engineering/Runtime flow;
+9. confirm validation/readability of errors.
+
+A source-code enum or API endpoint existing is not a pass; the mounted UI must work.
+
+Track under issue #355.
+
+### V2-16 — Templates authoring CRUD/discoverability
+
+Human Preview found no discoverable mechanism to create or edit Templates.
+
+Determine whether functionality is missing or merely unreachable, then verify through mounted UI:
+- create;
+- name/rename;
+- edit content/properties;
+- save/reopen;
+- instantiate/use where supported;
+- delete/archive where supported;
+- contained validation/error behavior.
+
+Track under issue #356.
+
+### V2-17 — Editor first-user property usability
+
+Human Preview reported:
+- Property Inspector fields with light-on-light contrast/readability problems;
+- text object displayed content not discoverably editable;
+- generic Texto-like label remained with no obvious content/rename path;
+- rectangles/basic shapes could be inserted, but intended display/fill color could not be changed reliably even after finding property-like fields.
+
+Revalidate #303 through mounted UI, not only unit/component evidence:
+- readable contrast in Properties;
+- selected text object's visible content can be found and edited by a first-time user;
+- basic shape fill/stroke can be changed and visibly updates immediately;
+- object identity/name/content distinctions are understandable;
+- direct canvas + Properties remain synchronized;
+- save/reopen preserves results.
+
+Existing #303 owns the correction; Human Preview evidence is in comment `5857988331`.
+
+### V2-18 — Library/Dynamo visual preview acceptance
+
+Human Preview directly confirmed that Library/Dynamo reuse remains name-driven without useful object preview.
+
+Revalidate #308 acceptance through real UI:
+- visual preview before insertion;
+- representative current Library object;
+- representative Dynamo;
+- preview uses canonical rendering;
+- selection does not mutate Working;
+- explicit insertion matches preview;
+- malformed asset preview fails contained/actionably.
+
+Existing #308 owns the correction; Human Preview evidence is in comment `5857988604`.
+
+### Updated Stage 2 entry/exit note
+
+Stage 2 remains PREPARED / NOT ACTIVE until Main accepts a stable ENV_A harness after the ongoing repair lifecycle proof.
+
+Once activated, the matrix is now V2-01 through V2-18.
+
+The former Human-Preview embargo restriction no longer applies because the human journey has ended. CODEX may consume the human findings above only after Main activates Stage 2. Product correction remains forbidden during Stage 2 verification itself unless Main opens a separate correction mission.

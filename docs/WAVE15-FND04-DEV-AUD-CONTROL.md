@@ -1880,4 +1880,30 @@ Licensing DEV is now authorized to reconcile onto the new baseline under:
 CODEX remains idle to preserve reduced usage budget.
 
 Do not auto-resume any prior route. Main will publish a fresh explicit Licensing adversarial route only after a new exact reconciled head + T1 are available.
+## CURRENT SHARED CODEX ROUTE — rev 0074
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TO-LICENSING-SCARCE-59`
+
+`ORDER_STATE: ACTIVE / LICENSING_UX_ADVERSARIAL / SCARCE_BUDGET`
+
+`EXPECTED_ORDER: DEV-LICENSING-UX-CODEX-ADVERSARIAL-SCARCE-10`
+
+Exact candidate:
+- PR #345;
+- head `3d166c0b45eef34ef878e710b5db28c3ea2fa93f`;
+- base `27412e4fbe47dbbb6573229364ee8319369ae076`;
+- T1 `36289854846` / #113: SUCCESS.
+
+Authoritative Licensing control:
+- rev 0010;
+- commit `80c5c16bd0adb60824f9c9215ef8a8fb0044ca51`.
+
+CODEX must prioritize targeted adversarial Licensing/session truth evidence and reuse existing harness/dependencies.
+
+Avoid redundant full-battery execution unless a material cross-cutting correction makes it necessary.
+
+Authority UX is integrated/verified and must not be touched.
+FND-05/FND-07 remain frozen.
+
+Return durable handoff to PR #345 and Main. No other CODEX route is active.
 

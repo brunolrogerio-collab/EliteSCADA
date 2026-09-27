@@ -1,3 +1,89 @@
+# LATEST DELTA — 2026-09-27 — HUMAN PREVIEW BLOCKED / EMBARGO LIFTED / PRODUCT CORRECTIONS OPENED
+
+> This delta supersedes older Human Preview / embargo wording below when there is a conflict. GitHub live remains the sole authority.
+
+## Human Preview result
+
+`W15-FIRST-PROJECT-HUMAN-PREVIEW-01 = BLOCKED_BY_PRODUCT`.
+
+Canonical Product Owner evidence:
+`coord/w15-fresh-install-preview-control:docs/WAVE15-FIRST-PROJECT-HUMAN-PREVIEW-FINDINGS.md`
+commit `e413b3c85224cbf3f62bad6896738ec7ebe7810c`.
+
+The Product Owner reported that the interface improved substantially, but could not create a trustworthy effective data-backed Runtime application.
+
+Material findings:
+- first-project Runtime contained unexpected Demo-like tank/pump/frequency/current content not intentionally created/imported and not readily reconcilable/deletable from Engineering;
+- Data Source Type field did not expose a usable selectable list, blocking Data Source completion and TAG creation;
+- Library/Dynamo preview still absent;
+- Templates have no discoverable create/edit mechanism;
+- Editor Property Inspector has light-on-light readability issues;
+- text object visible content/rename path was not discoverable;
+- rectangle/basic-shape fill/display color could not be changed reliably.
+
+## Embargo lifted / cross-audit
+
+The Human Preview reached a blocked disposition, so the CODEX findings embargo is now LIFTED for Main/CODEX cross-audit work.
+
+Convergent evidence:
+- CODEX independently observed Runtime `Demo · Estação Elevatória` while Engineering showed another project identity and zero TAGs/Data Sources;
+- CODEX also observed Data Sources/TAGs controls not advancing usefully, supportive but not identical to the Product Owner's Type-selector failure.
+
+## Correction owners
+
+New issues:
+- #354 — fresh first project leaks Demo Runtime content / Engineering authority mismatch;
+- #355 — Data Source Type selector unusable blocks TAG creation;
+- #356 — Templates create/edit workflow missing/not discoverable.
+
+Existing issues updated:
+- #303 — Human Preview Editor Properties/text/fill evidence;
+- #308 — Human Preview Library/Dynamo preview evidence.
+
+Preview control rev 0024:
+`1d96f4262c4d2bf8ba7e383453b075f9e28540bd`.
+
+Shared CODEX control rev 0093:
+`9cc5489bb4d4f3d3f005df118fb38fa7bd3cdc24`.
+
+## Stage2
+
+Stage2 contract now includes V2-14..V2-18 for:
+- hidden Demo Runtime leakage/authority;
+- Data Source Type -> TAG -> Runtime path;
+- Templates authoring CRUD/discoverability;
+- Editor first-user property usability;
+- Library/Dynamo visual previews.
+
+Stage2 update:
+`e96f1045a644a70e3f49c6aa0cdd1ebb88eab0da`.
+
+Stage2 remains:
+`PREPARED / NOT ACTIVE`.
+
+## Current CODEX infrastructure work
+
+Do not interrupt the current autonomous final lifecycle validation of:
+`preview/w15-first-project-env-harness-repair@50a4451aa122f7f9fd0af98173c184f6623a147b`.
+
+The repaired harness uses committed Git blob IDs for dependency identity so Windows LF/CRLF checkout differences do not invalidate preparation provenance.
+
+CODEX should finish the full lifecycle proof before Main activates Stage2 or opens product correction execution.
+
+## Current overall state
+
+- Human Preview: `BLOCKED_BY_PRODUCT / COMPLETE_FOR_FIRST_PASS`;
+- findings embargo: `LIFTED`;
+- CODEX Stage1 attempt1: `INCONCLUSIVE / SEALED`;
+- ENV_A repair lifecycle validation: ACTIVE;
+- Stage2: `PREPARED / NOT ACTIVE`;
+- Wave15 Preview acceptance: NOT ACHIEVED.
+
+Durable ledger:
+Issue #305 comment `5857997672`.
+
+---
+
 # LATEST DELTA — 2026-09-27 — ENV_A REPAIR CANDIDATE IN AUTONOMOUS FINAL VALIDATION
 
 > This delta supersedes older ENV_A repair current-state wording below when there is a conflict. GitHub live remains the sole authority.

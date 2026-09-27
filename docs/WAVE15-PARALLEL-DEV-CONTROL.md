@@ -1727,4 +1727,23 @@ Planned sequential CODEX validation priority when availability returns:
 2. Licensing UX #345.
 
 This is queue planning only, not an active CODEX mission. A new explicit shared route is required before CODEX acts.
+## 54. CODEX returned with reduced budget / Authority UX active
+
+CODEX availability is restored but usage is limited.
+
+Main assigns the scarce sequential validator only to:
+`DEV-AUTHORITY-UX-CODEX-ADVERSARIAL-SCARCE-07`.
+
+Exact candidate:
+- PR #346;
+- `e3c646b5f0e6fb06b509f44b0ed866ec61fd1db6`;
+- T1 #111 SUCCESS.
+
+Execution strategy:
+targeted adversarial API/browser evidence, existing focused tests and reuse of the local parity harness. Do not repeat expensive broad batteries without a material reason.
+
+Licensing UX #345 remains:
+`MAIN_ACCEPTED_FOR_CODEX / WAIT`.
+
+No other CODEX route is active.
 

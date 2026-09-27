@@ -3085,3 +3085,44 @@ The final CODEX handoff must include:
 - explicit product non-actions.
 
 All previous safety/validation requirements remain binding.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0097
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-VS-LOCAL-OPERATOR-BOOTSTRAP-78C`
+
+`ORDER_STATE: WAIT_PENDING_MAIN_REVIEW / HANDOFF_RECEIVED / DO_NOT_CONTINUE_OR_MERGE`
+
+CODEX has returned the #360 implementation/evidence handoff.
+
+Current exact candidate:
+- PR #362 — `feat(preview): add safe local workbench operator`;
+- branch `preview/w15-vs-local-runner`;
+- exact HEAD `13cb1fcaa3091085515e4d84a3d3e894db541f5f`;
+- base `preview/w15-first-project-env-harness@50a4451aa122f7f9fd0af98173c184f6623a147b`;
+- PR currently OPEN / mergeable / NOT MERGED.
+
+Changed paths are bounded to:
+- `docs/LOCAL-ELITESCADA-OPERATIONS-EVIDENCE.md`;
+- `docs/LOCAL-FIRST-PROJECT-PREVIEW-HARNESS.md`;
+- `docs/VISUAL-STUDIO-AI-LOCAL-ELITESCADA-BOOTSTRAP.md`;
+- `scripts/preview/elite-local.ps1`;
+- `scripts/preview/local-audit.ps1`;
+- `scripts/preview/test-local-operator.ps1`.
+
+CODEX reports static/regression checks PASS, but the complete product lifecycle proof on exact HEAD `13cb1f...` is still NOT_TESTED because Main has not accepted this changed harness SHA for a new ENV_A session.
+
+Do not continue implementation, prepare, start, reset, merge or rewrite #362 until the next Main Coordinator independently reviews the exact PR diff/head and issues the next order.
+
+Mandatory next Main action:
+1. revalidate PR #362 live exact head/base;
+2. inspect all six changed files and compare against accepted harness `50a4451...`;
+3. confirm scope remains Preview infrastructure/docs only and reset/lifecycle safety is correct;
+4. if acceptable, explicitly authorize exact candidate SHA for lifecycle validation without product mutation;
+5. require full lifecycle proof before considering merge/promotion.
+
+The Visual Studio bootstrap full text was delivered in Issue #305 comment `5858902468`.
+
+Local-operations evidence handoff is Issue #305 comment `5859122865`.
+
+Container-native strategic architecture is separately recorded under #363 / ADR-010. Do not widen #360 into OCI production implementation.

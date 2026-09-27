@@ -48,3 +48,17 @@ test('an interactive operation reports a server viewOnly fallback instead of usi
   expect(calls.map(call => call.input)).toEqual(['/api/runtime/sessions', '/api/runtime/sessions/11111111-2222-3333-4444-555555555555/terminate']);
   expect(calls[1]?.init?.body).toBe(JSON.stringify({ clientInstanceId }));
 });
+
+test('capacity rejection exposes the machine-readable reason without hiding the server message', async () => {
+  const fetcher: RuntimeSessionFetch = async () => new Response(JSON.stringify({
+    error: 'Runtime session capacity is unavailable.',
+    capacityReasonCode: 'EligiblePoolsExhausted'
+  }), { status: 409, headers: { 'content-type': 'application/json' } });
+
+  await expect(admitRuntimeSession('interactive', fetcher, clientInstanceId)).rejects.toMatchObject<Partial<RuntimeSessionAdmissionError>>({
+    name: 'RuntimeSessionAdmissionError',
+    status: 409,
+    message: 'Runtime session capacity is unavailable.',
+    capacityReasonCode: 'EligiblePoolsExhausted'
+  });
+});

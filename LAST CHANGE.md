@@ -1,3 +1,61 @@
+# LATEST DELTA — 2026-09-27 — LOCAL OPERATIONS EVIDENCE REQUIRED / INSTALLED SERVICE LIFECYCLE OPENED
+
+> This delta supersedes older local-operator planning wording below when there is a conflict. GitHub live remains the sole authority.
+
+Product Owner added two related operational requirements.
+
+## Canonical local-running evidence
+
+Before #360 completes, CODEX must create:
+
+`docs/LOCAL-ELITESCADA-OPERATIONS-EVIDENCE.md`.
+
+The file must preserve real local-operation evidence and failure modes for reuse by:
+- the next fresh Preview;
+- #307/#359 local-vs-Codespace diagnosis;
+- Windows packaging #205/#207;
+- future Linux packaging;
+- installed-service design #361.
+
+Required topics include lifecycle behavior, persistence/destructive boundaries, readiness/health, diagnostics/redaction, provenance-manifest loss, LF/CRLF dependency identity, PowerShell->Bash line endings, evidence/runtime worktree isolation, Docker restart/resume and installer implications.
+
+Evidence labels:
+`CONFIRMED | OBSERVED | HYPOTHESIS | NOT_TESTED`.
+
+Shared CODEX control rev 0096:
+`523458b51dc4a13045ed2efd07452a8fae68bca1`.
+
+#360 requirement comment:
+`5858872903`.
+
+## Installed-service lifecycle
+
+New issue:
+- #361 — `INSTALL-OPS — lifecycle operacional como Windows Service e Linux systemd`.
+
+Product Owner intent:
+reuse the operational **semantics** now being proven locally for future installed administration, but not the Docker Preview implementation itself.
+
+Future production targets:
+- Windows Service / Service Control Manager;
+- Linux systemd.
+
+Normal start/stop/restart/status/diagnose must preserve persistent EliteSCADA state.
+Pause/resume should be implemented only if a technical audit proves safe/meaningful.
+Destructive reset/purge is not a normal service operation.
+
+Packaging links:
+- #205 comment `5858873311`;
+- #306 comment `5858873683`.
+
+Preview control rev 0029:
+`0d5e6523fd49cb87ae13e4da5c902d71fa8bc644`.
+
+Durable ledger:
+Issue #305 comment `5858878923`.
+
+---
+
 # LATEST DELTA — 2026-09-27 — REPAIRED HARNESS ACCEPTED / VISUAL STUDIO LOCAL OPERATOR ACTIVE
 
 > This delta supersedes older ENV_A harness current-state wording below when there is a conflict. GitHub live remains the sole authority.

@@ -1,3 +1,100 @@
+# SUCCESSOR TAKEOVER SNAPSHOT — 2026-09-27 — PREVIEW ENVIRONMENT READINESS
+
+> **READ THIS SECTION FIRST.** This is newer than every current-state section below. GitHub live remains the sole authority; revalidate before acting.
+
+GitHub live was revalidated before this documentation refresh.
+
+- integration branch coordination tip before this refresh: `22fad82c3da98588d98051bd2ceb608da64ff8f3`;
+- exact integrated **product checkpoint** remains `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`;
+- exact product tree remains `5e5fce8ce87f31dfc11b83bb68ff86c67f9f0112`;
+- the integration tip above is one coordination-document commit beyond the product checkpoint; no later product/test/workflow bytes redefine the Preview product base;
+- broader feature T2 is formally accepted: `W15-FOUR-FEATURE-INTEGRATED-T2-01 -> PASS / ACCEPTED`;
+- exact broad evidence: EliteSCADA CI #1584 / run `36290910850` — SUCCESS across Backend build/full tests/Runtime smoke, Web build and Chromium end-to-end.
+
+Final six-lane disposition:
+- Script Engineering: `T2_VERIFIED`;
+- Editor: `T2_VERIFIED`;
+- Authority UX: `INTEGRATED / VERIFIED_COMPLETE`;
+- Licensing UX: `INTEGRATED / VERIFIED_COMPLETE`;
+- FND-05: `VERIFIED / FROZEN`;
+- FND-07: `VERIFIED / FROZEN`.
+
+
+## What is active now
+
+The active work is no longer the six feature/Foundation lanes. They are closed at their accepted states.
+
+The active shared CODEX mission is ENV_A Preview harness infrastructure:
+
+`ROUTE-SEQUENTIAL-CODEX-ENV-A-DEPENDENCY-BOUNDARY-FIX-71`
+
+Control:
+`coord/w15-fnd04-dev-aud-control:docs/WAVE15-FND04-DEV-AUD-CONTROL.md`
+rev 0086 / commit `574011f722bb2234c7a1586fc8d62739892f716a`.
+
+Preview control:
+`coord/w15-fresh-install-preview-control:docs/WAVE15-FIRST-PROJECT-FRESH-INSTALL-PREVIEW-CONTROL.md`
+rev 0011 / commit `44023a9cf9e29c38d9b0e62f72198fa89e242018`.
+
+ENV_A harness branch:
+`preview/w15-first-project-env-harness`.
+
+Last reviewed candidate:
+`ec050e9bfda121805b1165860a4aeda0eb2582e8`.
+
+## Why ENV_A is still HOLD
+
+Pause/resume across a real Docker Desktop restart is already proven, including persistence of the first Local Administrator state.
+
+The remaining harness defect is reset architecture:
+product reset also deleted dependency caches, causing the next fresh start to execute a network `npm install`, which failed TLS certificate validation.
+
+Required correction:
+- dependency/tool preparation persists independently;
+- product/audit state remains resettable;
+- after preparation, reset->start performs no fresh npm/NuGet download;
+- no TLS weakening.
+
+Do not start black-box Stage 1 until Main accepts the replacement exact harness and final proof.
+
+## ENV_B
+
+Main owns Product Owner Codespace preparation.
+
+Requirements:
+- fresh Codespace;
+- automatic product startup;
+- Web 5173 PUBLIC automatically on creation and resume;
+- API 5080 and DB 5432 private;
+- no manual terminal/Ports-panel recovery;
+- no seeded project.
+
+Real Codespace create/start/stop/resume proof is still pending.
+
+## Stage 2
+
+Prepared only:
+`docs/WAVE15-ENV-A-CODEX-STAGE2-DIRECTED-VERIFICATION.md`
+commit `ce7a4b9a26cc5cdf36d466712eef62ab061d978f`.
+
+Do not activate before Stage 1 is sealed.
+
+## Immediate successor action
+
+Revalidate the harness branch and Issue #305 for a new CODEX handoff after comment `5856218697`.
+
+If replacement exists:
+- review exact infrastructure-only diff;
+- verify dependency-preparation provenance;
+- verify Docker restart continuity;
+- verify reset then fresh start without package network;
+- verify final reset/NOT_STARTED;
+- only then declare ENV_A READY and issue the Stage 1 black-box order.
+
+Do not use the Product Owner as a courier.
+
+---
+
 # SUCCESSOR TAKEOVER SNAPSHOT — 2026-09-24
 
 > **READ THIS SECTION FIRST.** It supersedes any older/current-state wording later in this historical handoff when there is a conflict. GitHub live remains the sole authority.

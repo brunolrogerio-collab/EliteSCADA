@@ -1783,4 +1783,20 @@ State:
 `DEV-AUTHORITY-UX -> MAIN_ACCEPTED / MERGE_AUTHORIZED`.
 
 Shared CODEX remains HOLD. Licensing #345 remains WAIT until Authority integration is resolved.
+## 57. Authority UX merged / post-merge CI pending
+
+PR #346 merged at:
+`27412e4fbe47dbbb6573229364ee8319369ae076`.
+
+Integration live is exactly that SHA.
+
+Pre-merge exact-head T1 #112 and scarce-budget CODEX adversarial validation were accepted.
+
+Final integrated CI:
+`36288961537` / #1583 — queued.
+
+State:
+`DEV-AUTHORITY-UX -> INTEGRATED / POSTMERGE_CI_PENDING`.
+
+Shared CODEX remains HOLD. Licensing #345 remains WAIT.
 

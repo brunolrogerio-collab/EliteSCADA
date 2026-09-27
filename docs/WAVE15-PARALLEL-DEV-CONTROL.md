@@ -1854,4 +1854,29 @@ Focus:
 - cheap direct API/tampering negatives.
 
 No broad rerun unless warranted. Authority/FND-05/FND-07 are closed/frozen.
+## 60. Licensing UX adversarial closeout accepted / merge authorized
+
+PR #345 exact head:
+`3d166c0b45eef34ef878e710b5db28c3ea2fa93f`.
+
+Exact-head T1 #113:
+SUCCESS.
+
+Scarce-budget CODEX adversarial validation:
+- Chromium 6/6 PASS;
+- focused Drivers 36/36 PASS;
+- no candidate-causal defect;
+- no source mutation.
+
+Main accepts the final Licensing/session truth surface:
+- ESLIC1 nullable legacy behavior;
+- signed ESLIC2 Interactive/ViewOnly/HA projection;
+- requested/granted/fallback/capacity truth;
+- ViewOnly fail-closed behavior;
+- replacement-admission failure with no stale lease/outcome.
+
+State:
+`DEV-LICENSING-UX -> MAIN_ACCEPTED / MERGE_AUTHORIZED`.
+
+Shared CODEX remains HOLD pending integration.
 

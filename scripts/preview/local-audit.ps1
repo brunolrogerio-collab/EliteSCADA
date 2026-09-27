@@ -17,6 +17,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# Native CLI failures are checked explicitly through $LASTEXITCODE below.
+# Keep PowerShell 7 hosts from promoting expected Docker/Git non-zero results
+# (for example, inspecting a not-yet-created volume) into terminating errors.
+$PSNativeCommandUseErrorActionPreference = $false
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $productBaseSha = '1f14a57491805a5d976bc9d0bf51393cf1b3ebcd'
 $projectName = 'elitescada-preview-a'

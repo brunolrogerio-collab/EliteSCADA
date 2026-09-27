@@ -446,4 +446,60 @@ If a bounded Authority UX/test defect is found:
 If a backend/Foundation/security contract defect is discovered, do not broaden; return exact evidence to Main.
 
 No merge is authorized by this order.
+## CURRENT MAIN ORDER — rev 0010
+
+`ORDER_ID: DEV-AUTHORITY-UX-CODEX-CONCURRENCY-FEEDBACK-08`
+
+`ORDER_STATE: CODEX_BOUNDED_CORRECTION / AUTHORIZED / SCARCE_BUDGET`
+
+Exact reviewed candidate:
+- PR #346;
+- head `e3c646b5f0e6fb06b509f44b0ed866ec61fd1db6`;
+- T1 `36280754990`: SUCCESS.
+
+CODEX adversarial evidence accepted:
+- anonymous policy GET/preview/apply -> 401;
+- authenticated viewer policy GET/preview/apply -> 403;
+- orphan assignment -> rejected with `AUTHORITY_POLICY_ORPHANED_ASSIGNMENT`;
+- self-lockout -> rejected with `AUTHORITY_POLICY_SELF_LOCKOUT`;
+- policy version unchanged after rejected probes;
+- focused/mounted Authority coverage otherwise passes, aside from one transient Vite/API ECONNRESET that passed on immediate isolated rerun.
+
+### Main classification
+
+`AUTHORITY_UX_CONCURRENCY_FEEDBACK_MISMATCH / BOUNDED_UX_TRUTH_DEFECT`
+
+Observed frozen backend contract:
+- stale `expectedVersion` is rejected by `ValidateMutationAsync`;
+- preview and apply both return HTTP 400 with:
+  `AUTHORITY_POLICY_CONCURRENCY_CONFLICT`;
+- a later `TryReplaceAsync` race may still return HTTP 409.
+
+No authorization or integrity bypass exists.
+
+Current UX only appends the localized conflict/reload guidance when `AdministrationHttpError.status === 409`, so the normal stale-version 400 path renders generic rejection plus raw error code.
+
+### Required bounded correction
+
+Do **not** change the frozen backend status mapping in this lane.
+
+Within Authority UX/test ownership:
+1. recognize concurrency conflict by semantic server code `AUTHORITY_POLICY_CONCURRENCY_CONFLICT`, independent of whether HTTP status is 400 or 409;
+2. preserve existing 409 handling for replacement-time races;
+3. show the existing localized `conflictHint` for both stale-version paths;
+4. preserve the raw/server error truth; do not fabricate success or automatically overwrite/reload unsaved edits;
+5. add the cheapest focused regression proving:
+   - 400 + `AUTHORITY_POLICY_CONCURRENCY_CONFLICT` -> conflict guidance;
+   - 409 conflict -> conflict guidance;
+   - unrelated 400 rejection -> no concurrency guidance;
+6. if practical within the existing focused browser/model tests, prove preview and apply surface the same truthful guidance.
+
+Expected implementation is small, likely in `AuthorityPolicyAdministration.tsx` and a focused test. CODEX may choose an equivalent minimal design.
+
+After the correction:
+- run only relevant focused Web/Playwright tests;
+- obtain a new natural exact-head T1 because the candidate head changes;
+- no full Linux parity battery is required unless focused evidence exposes a cross-cutting issue.
+
+Return durable handoff on PR #346. No merge is authorized yet.
 

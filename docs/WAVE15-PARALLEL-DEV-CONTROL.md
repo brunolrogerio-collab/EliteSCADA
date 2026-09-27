@@ -1770,4 +1770,17 @@ Scope:
 Authority UX/test only; semantic conflict-code recognition + focused regression + new T1.
 
 Licensing remains WAIT.
+## 56. Authority UX adversarial closeout accepted / merge authorized
+
+PR #346 exact head:
+`f82a5662234e42a73b77f15fbdfd730872cc5cc1`.
+
+CODEX adversarial validation found no authorization bypass. One bounded stale-version UX feedback mismatch was corrected without backend mutation.
+
+Exact-head T1 #112 `36288094878`: SUCCESS.
+
+State:
+`DEV-AUTHORITY-UX -> MAIN_ACCEPTED / MERGE_AUTHORIZED`.
+
+Shared CODEX remains HOLD. Licensing #345 remains WAIT until Authority integration is resolved.
 

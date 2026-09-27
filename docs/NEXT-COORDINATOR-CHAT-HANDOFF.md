@@ -1,3 +1,55 @@
+# LATEST DELTA — 2026-09-27 — SECOND DEV UX WAVE PREPARED / ICON-FIRST EDITOR TOOLBOX
+
+> This delta supersedes older post-Preview UX planning wording below when there is a conflict. GitHub live remains the sole authority.
+
+The Product Owner decided to organize the remaining post-Preview usability work as a dedicated **second DEV UX wave** rather than scattered polish.
+
+New umbrella:
+- #357 — `W15-UX2 — segunda leva DEV UX pós-Preview: Engineering usability, authoring e visual workflow`.
+
+New dedicated toolbox item:
+- #358 — `W15-UX2-EDITOR — substituir toolbox textual por paleta compacta de ícones`.
+
+## Binding toolbox decision
+
+The current persistent text-button object toolbox consumes too much Editor workspace and is not sufficiently intuitive.
+
+Target:
+- icon-first compact palette by default;
+- localized tooltip + accessible label per icon;
+- keyboard reachable;
+- clear active/insertion state;
+- category grouping/flyouts where useful;
+- canvas-space priority at representative desktop sizes;
+- no object-schema/renderer fork;
+- no proprietary SCADA/HMI icon copying.
+
+#308 still owns actual Library/Dynamo visual preview before insertion; an icon opening the Library/Dynamo surface is not a substitute for preview.
+
+#303 received the UX2 toolbox decision in comment `5858013095`.
+
+Stage2 contract now includes:
+`V2-19 — icon-first object toolbox`
+via commit `fcf732cc4de95512291fe30bb2cd180c2c3a6375`.
+
+Preview control rev 0025:
+`f5bff65222f3c4adba85c12912c00b101422c20a`.
+
+Planned post-harness correction order:
+1. #354 P0 fresh-project Demo/Runtime authority;
+2. #355 P1 Data Source Type -> TAG blocker;
+3. bounded UX2 DEV slices (#303/#358/#308/#356) in parallel where safe;
+4. integration;
+5. directed Stage2 verification;
+6. repeat fresh first-project Preview.
+
+The currently active ENV_A harness final lifecycle validation remains uninterrupted.
+
+Durable ledger:
+Issue #305 comment `5858016758`.
+
+---
+
 # LATEST DELTA — 2026-09-27 — HUMAN PREVIEW BLOCKED / EMBARGO LIFTED / PRODUCT CORRECTIONS OPENED
 
 > This delta supersedes older Human Preview / embargo wording below when there is a conflict. GitHub live remains the sole authority.

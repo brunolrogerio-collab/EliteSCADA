@@ -773,3 +773,72 @@ ENV_B remains:
 `MAIN_PREPARING / STATIC_PATH_CONFIRMED / WAIT_EXACT_SHARED_HARNESS_SHA / HUMAN_PREVIEW_NOT_RELEASED`.
 
 A real Codespace cannot be created/stopped/resumed through the currently available GitHub connector. Once the exact shared harness SHA is accepted, Product Owner interaction should be reduced to opening/creating the fresh Codespace; all startup and visibility configuration must be repository-controlled.
+
+
+## 19. Replacement harness accepted — final ENV_A continuity proof
+
+MAIN_ORDER_REV: 0009
+
+STATE: REPLACEMENT_HARNESS_ACCEPTED_FOR_FINAL_READINESS_PROOF / BLACKBOX_HOLD
+
+Main independently reviewed replacement harness:
+- branch: `preview/w15-first-project-env-harness`;
+- commit: `ec050e9bfda121805b1165860a4aeda0eb2582e8`;
+- tree: `0d6221540c3678a8b042c51082f7a2ed0a466fa2`;
+- parent harness: `1df4dae293bcca59ee3191faf889058fecc973ee`;
+- product base: `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Replacement delta vs parent is exactly one harness file:
+`scripts/preview/local-audit.ps1`.
+
+The fix introduces schema-safe add-or-update handling for optional session fields `lastTransitionMessage` and `lastCheckpoint`. No product/test/workflow/identity/licensing/Authority/project-seeding path changed.
+
+CODEX regression evidence on the exact candidate is accepted for the blank first-run lifecycle layer:
+- fresh start -> RUNNING;
+- status -> RUNNING without manifest mutation;
+- pause/checkpoint -> PAUSED_RESUMABLE;
+- JSON-reloaded resume -> same session;
+- two pause/resume cycles passed;
+- repeated transition updates passed;
+- reset -> NOT_STARTED with no dedicated preview containers/volumes.
+
+This satisfies the harness wrapper regression but does not yet prove persisted product state across a host-level Docker restart.
+
+### 19.1 Final ENV_A continuity proof authorized
+
+CODEX is authorized to run one final disposable pre-audit readiness session using exact accepted harness:
+`ec050e9bfda121805b1165860a4aeda0eb2582e8`.
+
+Required sequence:
+1. `start -AcceptedHarnessSha ec050e9bfda121805b1165860a4aeda0eb2582e8`;
+2. prove fresh Local Identity/product state has no harness-seeded Administrator/project/application;
+3. create the smallest supported product-owned persistence marker required for continuity proof. Prefer a minimal first-run Local Administrator identity only; do not create/import a project unless technically required to prove persistence;
+4. verify the marker through normal supported product/public behavior;
+5. `pause` and confirm `PAUSED_RESUMABLE`;
+6. perform a **real Docker Desktop/daemon stop and restart**, not merely Compose stop/start, using a supported mechanism available on the host;
+7. after Docker engine is healthy again, run `status` then `resume`;
+8. prove the same session ID and same product-owned marker survived without reseed/migration;
+9. perform a second normal `pause -> resume` cycle;
+10. verify status/provenance;
+11. explicit `reset`;
+12. prove `NOT_STARTED`, no dedicated preview containers/volumes remain, and the marker no longer exists in a subsequent fresh environment boundary.
+
+If an actual Docker Desktop/daemon restart is impossible because of host permissions/tooling, do not silently substitute Compose restart. Return `HOST_DAEMON_RESTART_PROOF_BLOCKED` with the exact limitation and strongest safe host-level test performed.
+
+The purpose of step 6 is to validate the Product Owner requirement that a paused audit can survive PC shutdown/reboot. No actual OS reboot is required if the Docker engine itself can be fully stopped and restarted while named volumes persist.
+
+This is still readiness proof, not black-box exploration. CODEX may use normal supported product/public contracts only to create/read the minimal marker; no source-guided UX evaluation, DB mutation, project fixture, EEE/Demo import or product correction.
+
+ENV_A remains:
+`FINAL_CONTINUITY_PROOF_AUTHORIZED / NOT_READY / BLACKBOX_NOT_RELEASED`.
+
+### 19.2 Shared harness disposition for ENV_B
+
+The same exact harness SHA `ec050e9bfda121805b1165860a4aeda0eb2582e8` is now the current shared candidate for Product Owner Codespace ENV_B.
+
+The replacement touched only the local PowerShell lifecycle wrapper; Codespaces/devcontainer/Compose/public-port files are byte-identical to the previously static-reviewed candidate.
+
+ENV_B therefore advances to:
+`EXACT_SHARED_HARNESS_SELECTED / WAIT_REAL_CODESPACE_CREATE_START_RESUME_PROOF / HUMAN_PREVIEW_NOT_RELEASED`.
+
+No real Codespace audit begins until the Codespace lifecycle gate is proven.

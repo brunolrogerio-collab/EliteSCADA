@@ -529,4 +529,50 @@ If a bounded Licensing UX/test truth defect is found:
 If a backend/Foundation/FND-05/FND-07/Authority or core Runtime contract defect is found, do not broaden; return exact evidence to Main.
 
 No merge is authorized by this order.
+## CURRENT MAIN DISPOSITION — rev 0011
+
+`ORDER_ID: DEV-LICENSING-UX-MAIN-FINAL-ACCEPTANCE-11`
+
+`ORDER_STATE: MAIN_ACCEPTED / MERGE_AUTHORIZED / CODEX_WAIT / DEV_WAIT`
+
+Exact accepted candidate:
+- PR #345;
+- head `3d166c0b45eef34ef878e710b5db28c3ea2fa93f`;
+- base `27412e4fbe47dbbb6573229364ee8319369ae076`;
+- ancestry: ahead 19 / behind 0;
+- PR: OPEN / MERGEABLE.
+
+Exact-head T1:
+- `36289854846` / #113: SUCCESS;
+- classifier SUCCESS;
+- Web SUCCESS;
+- Common SUCCESS;
+- focused .NET SUCCESS;
+- focused Chromium SUCCESS;
+- final gate SUCCESS.
+
+Main accepts the scarce-budget CODEX adversarial handoff:
+- Chromium/Playwright focused Licensing/session coverage: 6/6 PASS;
+- focused Drivers licensing/admission/tampering coverage: 36/36 PASS;
+- ESLIC1 nullable legacy truth preserved;
+- signed ESLIC2 Interactive/ViewOnly/HA projection preserved;
+- requested/granted/fallback/capacity truth remains server-owned;
+- server-side ViewOnly downscope remains fail-closed;
+- tampered/missing logical lease identities are denied;
+- invalid/tampered license candidates are rejected without replacing the installed license;
+- replacement-admission failure keeps old local lease/outcome cleared and preserves capacity error truth;
+- no candidate-causal defect was found;
+- CODEX made no source change.
+
+Main reconciliation verification remains:
+- all 13 Licensing/session blobs are byte-for-byte identical to the previously accepted candidate after final Authority integration;
+- stale-lease truth correction remains intact;
+- no Authority/FND-05/FND-07 behavior was absorbed.
+
+No open PR review threads.
+
+Final disposition:
+`MERGE: AUTHORIZED`
+
+No further branch mutation before protected merge.
 

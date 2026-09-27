@@ -1757,4 +1757,29 @@ The shared CODEX resource is currently reported temporarily unavailable and has 
 Authority UX PR #346 and Licensing UX PR #345 are being returned to their own DEV lanes for mechanical reconciliation onto the new integration baseline. CODEX must not auto-resume any older route.
 
 When CODEX availability returns, Main will publish a new explicit sequential adversarial-validation route against a freshly reconciled exact head.
+## CURRENT SHARED CODEX ROUTE — rev 0068
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-UNAVAILABLE-RECONCILED-QUEUE-53`
+
+`ORDER_STATE: HOLD / CODEX_TEMPORARILY_UNAVAILABLE / NO_ACTIVE_MISSION`
+
+Frozen integration baseline:
+`3819715ba3a015a182c97b2a4ebcb4de447da717`.
+
+Ready reconciled candidates:
+
+1. Authority UX PR #346
+   - head `e3c646b5f0e6fb06b509f44b0ed866ec61fd1db6`;
+   - T1 `36280754990`: SUCCESS;
+   - Main accepted for adversarial CODEX validation.
+
+2. Licensing UX PR #345
+   - head `3d73ccd8f683be94f741fdb431df0e1525e6c0e9`;
+   - T1 `36280752132`: SUCCESS;
+   - Main accepted for adversarial CODEX validation.
+
+Planned priority after CODEX availability returns:
+Authority #346 first, Licensing #345 second.
+
+No old route may auto-resume. Main must publish a new explicit ACTIVE route before CODEX acts.
 

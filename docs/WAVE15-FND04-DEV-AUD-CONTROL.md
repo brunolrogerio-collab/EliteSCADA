@@ -2076,3 +2076,74 @@ Return to Main with:
 - any genuine blocker that prevents a truthful fresh install.
 
 After Main accepts the harness it will release both exploratory gates for parallel independent execution. Do not self-start them before that acceptance.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0080
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FIRST-PROJECT-ENV-HARNESS-W14-CODESPACE-LIFECYCLE-65`
+
+`ORDER_STATE: ACTIVE / ENVIRONMENT_HARNESS_ONLY / W14_CODESPACE_LIFECYCLE_REQUIRED`
+
+This amendment is binding and supersedes rev 0079 where more specific.
+
+The Product Owner identified a proven Wave 14 Codespaces lifecycle/reopen problem that MUST be consumed before designing the Wave 15 human Preview environment.
+
+### Mandatory historical source set — read before changing the harness
+
+Primary historical Preview branch:
+`preview/codespaces-test-preview`
+
+Read these exact repository-controlled artifacts from that branch:
+1. `docs/CODESPACES-PREVIEW-RUNBOOK.md` — operational handoff/runbook, introduced at commit `0ab6e80c1c47a78b0bd33b07424d906b5f847faa`, later policy-aligned at `a08171ebe62ce20427a22aaf028b764a9c114184`;
+2. `.devcontainer/devcontainer.json` — final preserved Preview topology;
+3. `.devcontainer/docker-compose.yml`;
+4. `scripts/preview/launch-test-preview.sh`;
+5. `.vscode/tasks.json`.
+
+Historical GitHub evidence that explains WHY the lifecycle design matters:
+- issue #208 comment `5510874911`: first automatic-launch correction; real Codespace had forwarded 5173 but no serving Web process; startup was moved to repository-controlled automatic launch instead of requiring a terminal;
+- issue #208 comment `5511449185`: CRITICAL lifecycle finding — CI could validate the configured `postAttachCommand` string and launcher behavior but did **not** reproduce real Codespaces lifecycle/process-lifetime behavior after the command returned; fresh Codespace still produced 502. This is the specific historical warning to preserve;
+- issue #208 comment `5512754904`: durable operational runbook and recovery levels A/B/C/D;
+- issue #286 comment `5629189357`: later direct-Codespace handoff explicitly requires capturing browser/5173/5080/process/log state BEFORE restart/reopen, proving restart/reopen can erase diagnostic evidence and must be treated as an environment lifecycle event.
+
+### Historical configuration facts to understand, not blindly cargo-cult
+
+The preserved Wave 14 Preview used:
+- Compose-backed devcontainer named `EliteSCADA Test Preview`;
+- app service kept alive by `command: sleep infinity`;
+- `shutdownAction: stopCompose`;
+- disposable machine identity prepared during `initializeCommand` and mounted read-only at `/etc/machine-id`;
+- TimescaleDB service with `restart: unless-stopped`;
+- only port 5173 forwarded/opened; API 5080 ignored for auto-forwarding; database private;
+- `postCreateCommand` only for dependency installation;
+- automatic launcher `bash scripts/preview/launch-test-preview.sh` through devcontainer lifecycle;
+- manual VS Code task `Launch Test Preview` as explicit recovery/restart path;
+- launcher is idempotent around stale PID files/processes and can restart API/Web without requiring a fresh Codespace.
+
+Do NOT import the old Wave 11 Demo/bootstrap semantics into Wave 15. The value of these artifacts is the **Codespaces lifecycle, process supervision, restart/reopen, machine identity, port exposure and deterministic recovery design**.
+
+### Product Owner-specific reopen requirement
+
+The Wave 15 harness must explicitly cover the scenario the Product Owner remembers from Wave 14:
+- Codespace is initially opened and EliteSCADA starts successfully;
+- the Codespace later stops/suspends after its normal inactivity/continuous-use lifecycle;
+- the same Codespace is opened/resumed again;
+- EliteSCADA API and Web MUST become available again automatically without requiring hidden terminal intervention or recreating the Codespace;
+- forwarded 5173 MUST NOT remain as a misleading proxy-only 502 state;
+- the solution must work from repository-controlled devcontainer/lifecycle automation.
+
+Do not assume that merely declaring `postAttachCommand` proves this. Wave 14 explicitly demonstrated that CI string validation was insufficient. Choose the appropriate devcontainer lifecycle hooks/process model after reading the historical artifacts, then prove the actual stop/start/reattach behavior as closely as the available environment permits. If `postStartCommand`, `postAttachCommand`, both, or another repository-owned supervisor is needed, decide from lifecycle semantics and validate it rather than copying one hook blindly.
+
+### Required evidence in CODEX handoff
+
+In addition to rev 0079 requirements, return:
+- exact historical Wave 14 references actually consumed;
+- explanation of the old first-open/502/resume failure mode;
+- chosen Wave 15 lifecycle hook/process-supervision design and why;
+- proof that initial creation works;
+- proof that launcher restart is idempotent;
+- proof or faithful simulation of Codespace stop/suspend -> resume/reopen -> automatic API/Web recovery;
+- proof that 5173 becomes healthy again while 5080/5432 remain private/internal;
+- explicit statement that no first-project/user journey was pre-seeded while solving environment lifecycle.
+
+Do not begin either exploratory audit until Main accepts this lifecycle proof and releases ENV_A/ENV_B READY.

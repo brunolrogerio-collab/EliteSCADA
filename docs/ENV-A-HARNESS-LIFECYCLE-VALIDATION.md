@@ -26,5 +26,6 @@ The checkpoint above was committed from this separate evidence worktree as `a495
 - First disposable reset completed as `NOT_STARTED` / `PREPARATION=READY`; the dependency image, volumes, and manifest remained valid.
 - Second fresh start created session `12905718-9cfb-4174-b6df-243ce42bfa29`, reached healthy services, and served the Web root as HTTP 200. Its start output contained no package installation/restore; it reused the already-prepared image and volumes.
 - A status check after the second start retained `PREPARATION=READY` and the exact same dependency key.
-- Final reset completed. Final status is `NOT_STARTED` / `PREPARATION=READY` at candidate SHA `50a4451aa122f7f9fd0af98173c184f6623a147b`.
+- To verify actual client rendering beyond an HTTP response, a third disposable session (`71f19ff2-728e-47c0-9d2c-be4f8020f116`) was opened once in headless Chromium. The initial setup surface rendered; no fields were filled and no buttons or product workflow were used. Its screenshot remains only in the local ignored archive at `ci/local/artifacts/preview-audit-archive/preview-audit-a-0a600e8673c14ed58f7a3bd54dc2b724/initial-surface.png`.
+- The third session was reset. Final status is `NOT_STARTED` / `PREPARATION=READY` at candidate SHA `50a4451aa122f7f9fd0af98173c184f6623a147b`; zero preview containers remain and port 5173 is free.
 - No project was created, no product workflow was explored, and no Stage 1 attempt was started.

@@ -2274,3 +2274,49 @@ Return a `CODEX -> MAIN` handoff with:
 - any blocker/limitation in faithfully simulating host shutdown/reboot.
 
 ENV_B remains WAIT_REAL_CODESPACE_PROOF. Do not self-start Human Preview.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0084
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-ENV-A-HARNESS-FIX-69`
+
+`ORDER_STATE: ACTIVE / HARNESS_FIX_ONLY / BLACKBOX_HOLD`
+
+Main reviewed CODEX readiness-proof handoff #305 comment `5855982610`.
+
+The exact accepted harness `1df4dae293bcca59ee3191faf889058fecc973ee` successfully booted fresh EliteSCADA infrastructure but failed in the PowerShell lifecycle wrapper after health became green:
+`Add-Transition` attempted to assign missing optional property `lastTransitionMessage` on the session `PSCustomObject`.
+
+CODEX correctly stopped, did not bypass the wrapper, ran explicit authorized reset, and returned `NOT_STARTED` with no dedicated preview containers/volumes.
+
+Authoritative correction order:
+- Preview control rev 0007;
+- commit `162e2ed82e8dbf26c73f8fabcb1489f02d4ede40`.
+
+### Mission
+
+On `preview/w15-first-project-env-harness`, make the narrowest infrastructure-only correction so transition/session metadata is schema-safe across both newly created and JSON-reloaded PowerShell objects.
+
+Required behavior:
+- missing optional transition fields may be added safely before update;
+- existing fields update normally;
+- repeated transitions remain idempotent;
+- exact product-base, clean-worktree, accepted-harness-SHA, version-mismatch and destructive-reset guards remain intact.
+
+Do NOT change product source/tests/workflows/identity/licensing/Authority/lifecycle/project semantics.
+
+### Proof before handoff
+
+Use blank-first-run infrastructure state only and prove:
+1. parse/static checks;
+2. `start` -> truthful RUNNING + persisted transition metadata;
+3. `status` -> RUNNING;
+4. `pause -Checkpoint ...` -> PAUSED_RESUMABLE with checkpoint/message persisted;
+5. `resume` after session JSON reload -> healthy RUNNING/RESUMED;
+6. repeated transition metadata updates do not throw;
+7. explicit `reset` -> NOT_STARTED and no dedicated containers/volumes;
+8. compare from `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd` remains harness-only.
+
+Publish one replacement exact harness commit/tree and return `CODEX -> MAIN` with commands/evidence and final clean/reset state.
+
+Do NOT create the positive continuity marker yet. Do NOT start the actual black-box audit. ENV_B remains WAIT_REAL_CODESPACE_PROOF.

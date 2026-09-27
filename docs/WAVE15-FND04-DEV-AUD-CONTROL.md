@@ -2320,3 +2320,55 @@ Use blank-first-run infrastructure state only and prove:
 Publish one replacement exact harness commit/tree and return `CODEX -> MAIN` with commands/evidence and final clean/reset state.
 
 Do NOT create the positive continuity marker yet. Do NOT start the actual black-box audit. ENV_B remains WAIT_REAL_CODESPACE_PROOF.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0085
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-ENV-A-FINAL-CONTINUITY-PROOF-70`
+
+`ORDER_STATE: ACTIVE / FINAL_READINESS_PROOF_ONLY / BLACKBOX_HOLD`
+
+Main accepts exact replacement harness:
+- SHA `ec050e9bfda121805b1165860a4aeda0eb2582e8`;
+- tree `0d6221540c3678a8b042c51082f7a2ed0a466fa2`;
+- product base `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Authoritative preview control:
+- rev 0009;
+- commit `d3f35cc6ea09d3be032c1337aa3b020992d01e4d`.
+
+Do NOT begin the black-box first-project audit.
+
+### Final ENV_A readiness mission
+
+Run one disposable pre-audit session on exact accepted harness and prove product-state continuity across a **real Docker Desktop/daemon restart**.
+
+Required sequence:
+1. start with `-AcceptedHarnessSha ec050e9bfda121805b1165860a4aeda0eb2582e8`;
+2. confirm fresh state / no harness-seeded Administrator/project/application;
+3. create the smallest supported product-owned persistence marker, preferably only the first Local Administrator identity;
+4. verify marker via normal supported product/public behavior;
+5. pause -> PAUSED_RESUMABLE;
+6. fully stop and restart Docker Desktop/engine using a supported host mechanism; do not substitute only Compose stop/start;
+7. after Docker is healthy, status + resume;
+8. prove same session ID + marker survived without reseed/migration;
+9. second ordinary pause/resume cycle;
+10. verify status/provenance;
+11. reset;
+12. prove NOT_STARTED, no dedicated preview containers/volumes, and no marker survives the fresh boundary.
+
+If host policy/tooling prevents a real Docker daemon restart, return exactly `HOST_DAEMON_RESTART_PROOF_BLOCKED` with the limitation. Do not fake equivalent proof.
+
+Use public/supported product contracts only for the minimal marker. No exploratory UX evaluation, direct DB mutation, project fixture, EEE/Demo import, product correction or black-box journey.
+
+Return `CODEX -> MAIN COORDINATOR` with:
+- exact branch/head/tree;
+- session ID;
+- exact marker type (do not expose secrets);
+- command/method used to stop/start Docker Desktop/engine;
+- proof before/after daemon restart;
+- second pause/resume proof;
+- reset/fresh proof;
+- explicit statement that black-box exploration did not start.
+
+ENV_B is now pinned to this same exact shared harness candidate but remains under MAIN ownership and WAIT_REAL_CODESPACE_PROOF.

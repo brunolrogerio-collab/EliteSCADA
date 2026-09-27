@@ -545,4 +545,34 @@ Final disposition:
 `MERGE: AUTHORIZED`
 
 No further branch mutation before protected merge.
+## CURRENT MAIN DISPOSITION — rev 0012
+
+`ORDER_ID: DEV-AUTHORITY-UX-POSTMERGE-CI-10`
+
+`ORDER_STATE: INTEGRATED / POSTMERGE_CI_PENDING / DEV_WAIT / CODEX_WAIT`
+
+PR #346 merged successfully.
+
+Integrated SHA:
+`27412e4fbe47dbbb6573229364ee8319369ae076`.
+
+Live compare confirms:
+`wave15/corrections-integration == 27412e4fbe47dbbb6573229364ee8319369ae076`.
+
+Accepted pre-merge evidence:
+- exact candidate `f82a5662234e42a73b77f15fbdfd730872cc5cc1`;
+- T1 `36288094878` / #112: SUCCESS;
+- targeted CODEX adversarial validation: ACCEPTED;
+- bounded concurrency-feedback correction: ACCEPTED.
+
+Post-merge exact integrated CI:
+- EliteSCADA CI `36288961537`;
+- run #1583;
+- event: push;
+- exact head `27412e4fbe47dbbb6573229364ee8319369ae076`;
+- currently queued.
+
+No further Authority mutation is authorized.
+
+Authority closeout waits only on classification of this exact integrated CI.
 

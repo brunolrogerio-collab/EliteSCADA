@@ -2818,3 +2818,43 @@ If small harness defects appear, fix/test/commit them on the repair branch and c
 Do not fast-forward the canonical harness branch yourself; Main will promote after final review.
 
 Human Preview continues independently. Product Owner observations remain off-limits. Detailed product findings remain embargoed. Stage2 remains PREPARED / NOT ACTIVE.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0093
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-ENV-A-REPAIR-FINAL-LIFECYCLE-77A`
+
+`ORDER_STATE: ACTIVE / AUTONOMOUS_FINAL_LIFECYCLE_VALIDATION / HUMAN_PREVIEW_COMPLETE / EMBARGO_LIFTED`
+
+This revision supersedes rev 0092 only for Human Preview / embargo status. The active infrastructure mission and exact repair candidate remain unchanged.
+
+Human Preview ended:
+`W15-FIRST-PROJECT-HUMAN-PREVIEW-01 = BLOCKED_BY_PRODUCT`.
+
+Canonical human evidence:
+`coord/w15-fresh-install-preview-control:docs/WAVE15-FIRST-PROJECT-HUMAN-PREVIEW-FINDINGS.md`
+commit `e413b3c85224cbf3f62bad6896738ec7ebe7810c`.
+
+The findings embargo is now LIFTED. After you complete the current ENV_A harness final lifecycle validation, you may consume the Human Preview findings and the sealed attempt-1 CODEX observations for cross-audit/Stage2 work when Main activates Stage2.
+
+Do not interrupt or shortcut the current harness validation because of the newly available product findings.
+
+Current repair candidate remains:
+- branch `preview/w15-first-project-env-harness-repair`;
+- SHA `50a4451aa122f7f9fd0af98173c184f6623a147b`;
+- tree `5efeafb08725a90ce0c3df689b8d613f165bb569`.
+
+Continue the complete lifecycle proof exactly as ordered in rev 0092.
+
+New/confirmed product correction owners now available for later directed verification:
+- #354 fresh first-project Demo Runtime leakage / authority mismatch;
+- #355 Data Source Type selector blocks TAG creation;
+- #356 Templates create/edit authoring gap;
+- #303 Editor Properties/text/fill usability;
+- #308 Library/Dynamo visual preview.
+
+Stage2 contract now includes V2-14..V2-18 via commit `e96f1045a644a70e3f49c6aa0cdd1ebb88eab0da`.
+
+Do NOT start Stage2 until Main accepts the final repaired harness and explicitly activates it.
+
+Product-source modification remains forbidden in the current infrastructure mission.

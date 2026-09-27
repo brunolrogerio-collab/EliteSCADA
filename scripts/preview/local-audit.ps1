@@ -36,9 +36,37 @@ $dependencyManifestRoot = Join-Path $artifactRoot 'preview-dependencies'
 $repoPrefix = $repoRoot.TrimEnd('\') + '\'
 
 function Invoke-Git([string[]]$GitArguments) {
-    $result = & git -C $repoRoot @GitArguments
+    $result = Invoke-NativeCommand -FilePath 'git' -Arguments (@('-C', $repoRoot) + $GitArguments)
     if ($LASTEXITCODE -ne 0) { throw "git $($GitArguments -join ' ') failed." }
     return $result
+}
+
+function Invoke-NativeCommand {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments
+    )
+
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $output = & $FilePath @Arguments 2>&1
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
+    $global:LASTEXITCODE = $exitCode
+    foreach ($item in $output) {
+        if ($item -is [System.Management.Automation.ErrorRecord]) {
+            Write-Output $item.ToString()
+        } else {
+            Write-Output $item
+        }
+    }
 }
 
 function Get-HarnessIdentity {
@@ -86,16 +114,16 @@ function Get-ComposeArguments {
 
 function Invoke-PreviewCompose([string[]]$ComposeArguments) {
     $composeArgs = (Get-ComposeArguments) + $ComposeArguments
-    & docker compose @composeArgs
+    Invoke-NativeCommand -FilePath 'docker' -Arguments (@('compose') + $composeArgs)
     if ($LASTEXITCODE -ne 0) { throw "Docker Compose failed: $($ComposeArguments -join ' ')" }
 }
 
 function Get-StackResources {
-    $containers = @(& docker ps --all --quiet --filter "label=com.docker.compose.project=$projectName")
+    $containers = @(Invoke-NativeCommand -FilePath 'docker' -Arguments @('ps', '--all', '--quiet', '--filter', "label=com.docker.compose.project=$projectName"))
     if ($LASTEXITCODE -ne 0) { throw 'Could not inspect Docker containers for the dedicated preview project.' }
-    $volumes = @(& docker volume ls --quiet --filter "label=com.docker.compose.project=$projectName")
+    $volumes = @(Invoke-NativeCommand -FilePath 'docker' -Arguments @('volume', 'ls', '--quiet', '--filter', "label=com.docker.compose.project=$projectName"))
     if ($LASTEXITCODE -ne 0) { throw 'Could not inspect Docker volumes for the dedicated preview project.' }
-    $networks = @(& docker network ls --quiet --filter "label=com.docker.compose.project=$projectName")
+    $networks = @(Invoke-NativeCommand -FilePath 'docker' -Arguments @('network', 'ls', '--quiet', '--filter', "label=com.docker.compose.project=$projectName"))
     if ($LASTEXITCODE -ne 0) { throw 'Could not inspect Docker networks for the dedicated preview project.' }
     return [pscustomobject]@{ Containers = $containers; Volumes = $volumes; Networks = $networks }
 }
@@ -172,11 +200,11 @@ function Get-ExpectedVolumeLabels($Dependency, [string]$Role) {
 }
 
 function Read-DockerVolume([string]$Name) {
-    $volumeNames = @(& docker volume ls --quiet)
+    $volumeNames = @(Invoke-NativeCommand -FilePath 'docker' -Arguments @('volume', 'ls', '--quiet'))
     if ($LASTEXITCODE -ne 0) { throw 'Could not list Docker volumes while checking dependency provenance.' }
     if ($volumeNames -notcontains $Name) { return $null }
 
-    $output = & docker volume inspect $Name
+    $output = Invoke-NativeCommand -FilePath 'docker' -Arguments @('volume', 'inspect', $Name)
     if ($LASTEXITCODE -ne 0) { throw "Could not inspect existing dependency volume '$Name'." }
     try {
         $json = ConvertFrom-Json -InputObject ($output -join [Environment]::NewLine)
@@ -210,7 +238,7 @@ function Ensure-DockerVolume([string]$Name, $Dependency, [string]$Role) {
         $arguments += @('--label', "$($label.Key)=$($label.Value)")
     }
     $arguments += $Name
-    & docker @arguments | Out-Null
+    Invoke-NativeCommand -FilePath 'docker' -Arguments $arguments | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "Could not create dedicated dependency volume '$Name'." }
     Assert-DockerVolumeProvenance (Read-DockerVolume $Name) $Name $Dependency $Role
 }
@@ -219,11 +247,11 @@ function Get-PreviewImageName($Dependency) { return "$projectName-preview:$($Dep
 
 function Get-PreviewImageId($Dependency) {
     $imageName = Get-PreviewImageName $Dependency
-    $imageIds = @(& docker image ls --quiet --no-trunc --filter "reference=$imageName")
+    $imageIds = @(Invoke-NativeCommand -FilePath 'docker' -Arguments @('image', 'ls', '--quiet', '--no-trunc', '--filter', "reference=$imageName"))
     if ($LASTEXITCODE -ne 0) { throw "Could not list Docker images while checking '$imageName'." }
     if ($imageIds.Count -eq 0) { return $null }
 
-    $imageId = & docker image inspect --format '{{.Id}}' $imageName
+    $imageId = Invoke-NativeCommand -FilePath 'docker' -Arguments @('image', 'inspect', '--format', '{{.Id}}', $imageName)
     if ($LASTEXITCODE -ne 0) { throw "Could not inspect existing preview image '$imageName'." }
     return ($imageId | Select-Object -First 1).Trim()
 }
@@ -234,7 +262,7 @@ function Assert-PreviewImageProvenance($Dependency) {
     if ([string]::IsNullOrWhiteSpace($imageId)) {
         throw 'ENVIRONMENT_PREP_REQUIRED: the pinned preview tool image is missing; run local-audit.ps1 prepare.'
     }
-    $labelsJson = & docker image inspect --format '{{json .Config.Labels}}' $imageName
+    $labelsJson = Invoke-NativeCommand -FilePath 'docker' -Arguments @('image', 'inspect', '--format', '{{json .Config.Labels}}', $imageName)
     if ($LASTEXITCODE -ne 0) { throw "Could not inspect provenance labels for image '$imageName'." }
     $labels = ConvertFrom-Json -InputObject ($labelsJson -join [Environment]::NewLine)
     $expectedLabels = @{
@@ -278,7 +306,7 @@ set -Eeuo pipefail
         '--env', "PREVIEW_DEPENDENCY_KEY=$($Dependency.Key)",
         $ImageId, 'bash', '-lc', $verifyCommand
     )
-    & docker @arguments *> $null
+    Invoke-NativeCommand -FilePath 'docker' -Arguments $arguments *> $null
     return ($LASTEXITCODE -eq 0)
 }
 
@@ -369,7 +397,7 @@ function Invoke-PreparedDependencyBootstrap($Identity, $Dependency) {
     $imageId = Get-PreviewImageId $Dependency
     if ([string]::IsNullOrWhiteSpace($imageId)) {
         $composeArgs = (Get-ComposeArguments) + @('build', 'preview')
-        $buildOutput = & docker compose @composeArgs 2>&1
+        $buildOutput = Invoke-NativeCommand -FilePath 'docker' -Arguments (@('compose') + $composeArgs)
         $buildExitCode = $LASTEXITCODE
         $buildText = ($buildOutput | Out-String)
         $buildOutput | ForEach-Object { Write-Output $_ }
@@ -404,7 +432,7 @@ printf '%s\n' "$PREVIEW_DEPENDENCY_KEY" > src/Scada.Api/obj/.preview-dependency-
         '--env', "PREVIEW_DEPENDENCY_KEY=$($Dependency.Key)",
         $imageId, 'bash', '-lc', $prepareCommand
     )
-    $prepareOutput = & docker @runArguments 2>&1
+    $prepareOutput = Invoke-NativeCommand -FilePath 'docker' -Arguments $runArguments
     $prepareExitCode = $LASTEXITCODE
     $prepareText = ($prepareOutput | Out-String)
     $prepareOutput | ForEach-Object { Write-Output $_ }
@@ -425,17 +453,17 @@ printf '%s\n' "$PREVIEW_DEPENDENCY_KEY" > src/Scada.Api/obj/.preview-dependency-
 function Remove-PreviewProjectResources {
     $resources = Get-StackResources
     foreach ($containerId in $resources.Containers) {
-        $running = & docker container inspect --format '{{.State.Running}}' $containerId
+        $running = Invoke-NativeCommand -FilePath 'docker' -Arguments @('container', 'inspect', '--format', '{{.State.Running}}', $containerId)
         if ($LASTEXITCODE -ne 0) { throw "Could not inspect dedicated preview container '$containerId'." }
         if (($running | Select-Object -First 1).Trim() -eq 'true') {
-            & docker container stop --time 30 $containerId | Out-Null
+            Invoke-NativeCommand -FilePath 'docker' -Arguments @('container', 'stop', '--time', '30', $containerId) | Out-Null
             if ($LASTEXITCODE -ne 0) { throw "Could not stop dedicated preview container '$containerId'." }
         }
-        & docker container rm $containerId | Out-Null
+        Invoke-NativeCommand -FilePath 'docker' -Arguments @('container', 'rm', $containerId) | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "Could not remove dedicated preview container '$containerId'." }
     }
     foreach ($networkId in $resources.Networks) {
-        & docker network rm $networkId | Out-Null
+        Invoke-NativeCommand -FilePath 'docker' -Arguments @('network', 'rm', $networkId) | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "Could not remove dedicated preview network '$networkId'." }
     }
     foreach ($volumeName in $resources.Volumes) {
@@ -444,7 +472,7 @@ function Remove-PreviewProjectResources {
             Write-Output "PRESERVED_DEPENDENCY_VOLUME=$volumeName"
             continue
         }
-        & docker volume rm $volumeName | Out-Null
+        Invoke-NativeCommand -FilePath 'docker' -Arguments @('volume', 'rm', $volumeName) | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "Could not remove dedicated preview volume '$volumeName'." }
     }
 }

@@ -2997,3 +2997,39 @@ Do not stop for ordinary implementation choices. Iterate until a validated branc
 Return:
 `CODEX -> MAIN COORDINATOR — VS LOCAL OPERATOR + VISUAL STUDIO AI BOOTSTRAP`
 with exact branch/head/tree, implemented commands, validation evidence, bootstrap path and explicit product non-actions.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0095
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-VS-LOCAL-OPERATOR-BOOTSTRAP-78A`
+
+`ORDER_STATE: ACTIVE / SAME_MISSION / BOOTSTRAP_COPY_REQUIRED_IN_HANDOFF`
+
+This revision does not change the implementation mission from rev 0094.
+
+Additional Product Owner requirement:
+
+When the Visual Studio AI bootstrap is complete, CODEX must deliver **two forms** of it:
+
+1. canonical repository file:
+   `docs/VISUAL-STUDIO-AI-LOCAL-ELITESCADA-BOOTSTRAP.md`;
+2. a **verbatim full copy of the final bootstrap text in the CODEX -> MAIN handoff**, so Main can paste/re-send it directly to the Product Owner in ChatGPT without requiring GitHub navigation.
+
+The handoff must therefore include a clearly delimited section:
+
+`BEGIN VISUAL STUDIO AI BOOTSTRAP COPY`
+
+<complete final bootstrap text>
+
+`END VISUAL STUDIO AI BOOTSTRAP COPY`
+
+The copy must match the committed file exactly at the returned final branch HEAD.
+
+If the bootstrap is long, do not summarize it in the handoff; include the complete text.
+
+Also report:
+- bootstrap file blob/path identity where practical;
+- exact final branch HEAD/tree;
+- confirmation that the handoff copy and repository file are byte-equivalent as UTF-8 text aside from platform newline normalization, if any.
+
+All rev 0094 safety, validation and product non-action rules remain binding.

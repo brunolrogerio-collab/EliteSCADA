@@ -103,11 +103,21 @@ function Save-Session($Session) {
     $Session | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $sessionFile -Encoding utf8
 }
 
+function Set-OptionalNoteProperty($Object, [string]$Name, $Value) {
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) {
+        $Object | Add-Member -MemberType NoteProperty -Name $Name -Value $Value
+        return
+    }
+
+    $property.Value = $Value
+}
+
 function Add-Transition($Session, [string]$State, [string]$Message, [string]$CheckpointNote) {
     $Session.state = $State
     $Session.updatedAtUtc = [DateTime]::UtcNow.ToString('o')
-    if ($Message) { $Session.lastTransitionMessage = $Message }
-    if ($CheckpointNote) { $Session.lastCheckpoint = $CheckpointNote }
+    if ($Message) { Set-OptionalNoteProperty $Session 'lastTransitionMessage' $Message }
+    if ($CheckpointNote) { Set-OptionalNoteProperty $Session 'lastCheckpoint' $CheckpointNote }
     if ($null -eq $Session.transitions) { $Session | Add-Member -NotePropertyName transitions -NotePropertyValue @() }
     $Session.transitions += [pscustomobject]@{
         state = $State

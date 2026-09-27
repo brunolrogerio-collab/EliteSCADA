@@ -1178,3 +1178,42 @@ Only after ENV_B is READY may Main release both independent exploratory gates.
 ### 23.4 Stage 2
 
 `W15-ENV-A-CODEX-STAGE2-DIRECTED-VERIFICATION` remains `PREPARED / NOT ACTIVE`.
+
+
+## 24. ENV_B one-click Codespace launch prepared
+
+MAIN_ORDER_REV: 0014
+
+STATE: ENV_A_READY / ENV_B_READY_FOR_PRODUCT_OWNER_CONFIRMATION / BLACKBOX_HOLD
+
+Main prepared the real Product Owner Codespace creation handoff without moving the exact ENV_B audit branch.
+
+Canonical launch document:
+`docs/WAVE15-ENV-B-CODESPACE-LAUNCH.md`
+
+Creation commit:
+`b33e74d2c9983353a145a3ab0c00948183e65fd1`.
+
+Official GitHub Codespaces deep link:
+`https://codespaces.new/brunolrogerio-collab/EliteSCADA/tree/preview/w15-first-project-env-b-codespace`
+
+This link preselects:
+- repository `brunolrogerio-collab/EliteSCADA`;
+- branch `preview/w15-first-project-env-b-codespace`.
+
+The branch remains pinned at release point:
+`bb451fa6e07982ac12384895f6097d5833761d16`
+/tree `650d30089596021cb1a564ee1d2f1abfc7d2b509`.
+
+Expected Product Owner action is limited to opening the deep link and confirming **Create codespace**. Repository-controlled devcontainer/Compose/startup/port automation owns the rest.
+
+Do not use `?quickstart=1` for this first ENV_B proof because that may resume a previously matching Codespace; the readiness gate requires a fresh Codespace.
+
+ENV_B remains not READY until the first-open + real stop/resume evidence is accepted by Main.
+
+Current gates:
+- ENV_A: `READY / CLEAN / RESUMABLE`;
+- ENV_B: `READY_FOR_PRODUCT_OWNER_CONFIRMATION / WAIT_REAL_CODESPACE_PROOF`;
+- CODEX: HOLD;
+- Stage 1: HOLD;
+- Stage 2: PREPARED / NOT ACTIVE.

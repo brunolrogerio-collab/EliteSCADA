@@ -386,4 +386,64 @@ CODEX adversarial validation remains mandatory before merge, emphasizing:
 6. exact final-head validation after any CODEX-owned bounded correction.
 
 No merge/T2 is authorized.
+## CURRENT MAIN ORDER — rev 0009
+
+`ORDER_ID: DEV-AUTHORITY-UX-CODEX-ADVERSARIAL-SCARCE-07`
+
+`ORDER_STATE: CODEX_ACTIVE / ADVERSARIAL_VALIDATION / SCARCE_BUDGET`
+
+Exact candidate:
+- PR #346;
+- head `e3c646b5f0e6fb06b509f44b0ed866ec61fd1db6`;
+- base `3819715ba3a015a182c97b2a4ebcb4de447da717`;
+- T1 `36280754990` / #111: SUCCESS;
+- PR: OPEN / MERGEABLE.
+
+CODEX availability is restored with reduced usage budget.
+
+Mission priority is **adversarial evidence per unit of CODEX time**, not redundant broad retesting.
+
+CODEX should reuse the existing local CI parity harness, installed dependencies, cached Playwright/browser artifacts and already-green T1 evidence where safe.
+
+### Required adversarial focus
+
+1. direct API tampering / unauthorized Authority policy mutation;
+2. 401/403 denial behavior;
+3. expected-version / 409 concurrency behavior;
+4. orphan-assignment rejection;
+5. self-lockout rejection;
+6. stable persisted role-key identity under mounted UI;
+7. scoped + multi-role effective-permission truth;
+8. current-session effective-capability truth remains backend-owned;
+9. mounted pt-BR/en/es behavior where cheap to cover;
+10. verify no selected-user configured-grant preview is presented as authoritative authorization.
+
+### Scarce-budget execution guidance
+
+Prefer, in order:
+- existing focused tests already in the repo;
+- targeted API-level probes;
+- targeted Playwright specs;
+- existing local harness components;
+- only the cheapest additional test needed to close a real evidence gap.
+
+Do not spend CODEX time rerunning the entire Linux parity battery unless:
+- a CODEX-owned correction changes shared product/runtime infrastructure;
+- a focused failure suggests cross-cutting breakage;
+- Main/T1 evidence becomes stale because the exact head changes materially.
+
+If no product defect is found:
+- do not mutate the candidate;
+- return a durable adversarial handoff on PR #346 with exact head, commands/specs executed, outcomes and residual risk;
+- keep the existing exact-head T1 as the final lane gate unless a new commit is introduced.
+
+If a bounded Authority UX/test defect is found:
+- CODEX may correct it on the same branch only if it stays inside the Authority UX/test boundary;
+- add focused regression;
+- obtain a new natural exact-head T1;
+- return the new exact head to Main.
+
+If a backend/Foundation/security contract defect is discovered, do not broaden; return exact evidence to Main.
+
+No merge is authorized by this order.
 

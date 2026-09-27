@@ -1804,4 +1804,27 @@ CODEX must prioritize targeted adversarial Authority evidence and reuse existing
 Licensing UX #345 remains WAIT and must not be touched until Main publishes the next explicit route.
 
 Return durable handoff to PR #346 and Main.
+## CURRENT SHARED CODEX ROUTE — rev 0070
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-AUTHORITY-CONCURRENCY-FEEDBACK-55`
+
+`ORDER_STATE: ACTIVE / AUTHORITY_BOUNDED_CORRECTION / SCARCE_BUDGET`
+
+`EXPECTED_ORDER: DEV-AUTHORITY-UX-CODEX-CONCURRENCY-FEEDBACK-08`
+
+Authoritative Authority control:
+- rev 0010;
+- commit `a425166f0fe531c68144dfb45ffdcfcec8ee28f2`.
+
+The adversarial Authority pass found no authorization bypass, but exposed one bounded UX truth mismatch:
+stale-version validation returns `400 + AUTHORITY_POLICY_CONCURRENCY_CONFLICT`, while the UI only shows localized conflict guidance on HTTP 409.
+
+CODEX is authorized to correct this in Authority UX/tests only, using the semantic error code while retaining existing 409 handling.
+
+Keep execution cheap:
+- targeted tests;
+- new exact-head T1 after the commit;
+- no full Linux parity unless a focused failure warrants it.
+
+Licensing #345 remains WAIT.
 

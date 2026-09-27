@@ -604,3 +604,80 @@ ENV_A is not READY until CODEX proves at least:
 8. no product/source semantics were changed merely to enable pause/resume.
 
 The actual first-project exploratory audit starts only after Main accepts this proof and marks ENV_A READY.
+
+
+## 16. Main acceptance — harness candidate for readiness proof only
+
+MAIN_ORDER_REV: 0006
+
+STATE: HARNESS_CANDIDATE_ACCEPTED_FOR_READINESS_PROOF_ONLY / BLACKBOX_HOLD
+
+Main independently reviewed exact harness candidate:
+- branch: `preview/w15-first-project-env-harness`;
+- commit: `1df4dae293bcca59ee3191faf889058fecc973ee`;
+- tree: `6efbf4b6fccd7750231c51d5f638d556707fdaec`;
+- exact parent/product base: `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Compare against the accepted product checkpoint contains exactly eight harness/infrastructure files:
+- `.devcontainer/devcontainer.json`;
+- `.gitattributes`;
+- `ci/local/docker-compose.preview.local.yml`;
+- `ci/local/docker-compose.preview.yml`;
+- `docs/LOCAL-FIRST-PROJECT-PREVIEW-HARNESS.md`;
+- `scripts/preview/codespaces-public-web-port.sh`;
+- `scripts/preview/local-audit.ps1`;
+- `scripts/preview/run-product-preview.sh`.
+
+No product source, product test, workflow, identity, licensing, Authority, lifecycle or project-seeding semantics changed.
+
+Main review accepts the candidate architecture for **readiness validation**, not yet for exploratory audit execution.
+
+### 16.1 ENV_A validation authorization
+
+CODEX is authorized to run the exact candidate locally with:
+`scripts/preview/local-audit.ps1 start -AcceptedHarnessSha 1df4dae293bcca59ee3191faf889058fecc973ee`.
+
+This validation session is disposable infrastructure proof and MUST NOT be counted as the black-box first-project audit.
+
+To prove persistence/resumability, CODEX may create the **smallest supported product-owned state marker** required to distinguish the session from fresh install. It may use normal supported product/public contracts during this pre-audit validation phase. It MUST NOT mutate database rows directly, use a hidden fixture, import EEE/Demo, or perform exploratory UX/product evaluation.
+
+Required ENV_A proof sequence:
+1. exact candidate clean start;
+2. prove no pre-seeded Administrator/project/application state from the harness;
+3. create one minimal disposable product-owned persistence marker sufficient to prove continuity;
+4. record its identity/value without exposing detailed product findings;
+5. `pause` with a coarse checkpoint;
+6. stop/restart the relevant Docker/host runtime as faithfully as the available local environment permits;
+7. `resume` and prove the exact marker/session survived;
+8. second `pause -> resume` cycle and prove idempotence;
+9. verify `status` truthfully reports RUNNING / PAUSED_RESUMABLE and exact provenance;
+10. explicitly `reset`;
+11. prove `status = NOT_STARTED`, no dedicated preview containers/volumes remain, and a subsequent fresh start would have no state from the probe.
+
+Detailed probe mechanics/evidence stay in CODEX evidence. Main only needs exact commands, session/provenance, pass/fail and proof that reset returned the environment to fresh state.
+
+ENV_A remains:
+`CANDIDATE_ACCEPTED_FOR_READINESS_PROOF / NOT_READY / BLACKBOX_NOT_RELEASED`.
+
+### 16.2 ENV_B disposition
+
+Static review accepts the intended Codespaces design shape:
+- Compose-backed product/database;
+- only 5173 forwarded;
+- 5080/5432 ignored/not published;
+- `postStartCommand` used so the visibility policy re-runs on container start/resume rather than only first creation;
+- `codespaces-public-web-port.sh` dynamically uses `CODESPACE_NAME` and verifies live port state;
+- supported GitHub CLI form `gh codespace ports visibility 5173:public --codespace <name>` is used.
+
+However ENV_B cannot be declared READY from static/local proof. It still requires one real fresh Codespace plus one actual stop/resume cycle.
+
+ENV_B remains:
+`HARNESS_STATIC_ACCEPTED / WAIT_REAL_CODESPACE_PROOF / HUMAN_AUDIT_NOT_RELEASED`.
+
+### 16.3 Gate discipline
+
+Neither exploratory journey is released by this acceptance.
+
+After CODEX returns the ENV_A lifecycle proof, Main may mark ENV_A READY if evidence is sufficient. ENV_B requires independent real Codespace proof before Human Preview starts.
+
+The first-project CODEX audit must start only from a new clean post-validation session after the readiness probe has been explicitly reset.

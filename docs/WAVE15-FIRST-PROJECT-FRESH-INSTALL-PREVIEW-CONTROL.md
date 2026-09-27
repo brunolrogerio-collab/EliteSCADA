@@ -2070,3 +2070,104 @@ Do not patch Authority/licensing based only on the observed numeric `402`.
 If local normal passes and latency injection reproduces, route the product correction primarily through #307. If only Codespace reproduces, keep forwarding/edge/environment root bounded while correcting any generic product error-UX/resilience defect revealed.
 
 Stage2 V2-20 has been updated with this A/B/C isolation order.
+
+
+## 38. Visual Studio local operator + AI bootstrap authorized
+
+MAIN_ORDER_REV: 0028
+
+STATE: REPAIRED_ENV_A_HARNESS_ACCEPTED / VS_LOCAL_OPERATOR_AUTHORIZED / PRODUCT_CORRECTION_NOT_STARTED
+
+Main reviewed CODEX final lifecycle handoff in Issue #305 comment `5858036695` and accepts the repaired ENV_A harness candidate:
+- source repair branch: `preview/w15-first-project-env-harness-repair`;
+- accepted SHA: `50a4451aa122f7f9fd0af98173c184f6623a147b`;
+- accepted tree: `5efeafb08725a90ce0c3df689b8d613f165bb569`;
+- product base remains `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Accepted proof includes:
+- dependency identity stable across LF/CRLF using committed Git blob identity;
+- embedded Bash line-ending normalization;
+- preparation READY;
+- start/status stability;
+- pause/resume;
+- real Docker Desktop restart/resume;
+- evidence commits through separate worktree without invalidating runtime preparation;
+- reset preserving preparation;
+- second fresh start without package install/restore;
+- final NOT_STARTED / PREPARATION=READY;
+- infrastructure/docs-only diff from product base.
+
+Main fast-forwarded canonical harness branch:
+`preview/w15-first-project-env-harness -> 50a4451aa122f7f9fd0af98173c184f6623a147b`.
+
+### 38.1 Product Owner local-Visual-Studio workflow decision
+
+The Product Owner wants to use the native Visual Studio AI to operate EliteSCADA locally for comparison with the Codespace experience.
+
+Main created dedicated infrastructure branch:
+`preview/w15-vs-local-runner`
+from exact accepted harness SHA `50a4451...`.
+
+Dedicated implementation issue:
+- #360 — `W15-LOCAL-OPS — operador local containerizado + bootstrap para IA do Visual Studio`.
+
+### 38.2 Required deliverables
+
+CODEX is authorized to implement, test and document a repository-controlled local operator, preferred entry point:
+`scripts/preview/elite-local.ps1`.
+
+Required user-facing commands:
+- `prepare`;
+- `start`;
+- `status`;
+- `pause`;
+- `resume`;
+- `stop`;
+- `restart`;
+- `diagnose`;
+- `reset` (explicitly destructive, confirmation required).
+
+The operator must preserve local product state by default and reuse the accepted provenance-bound dependency preparation.
+
+The intended Product Owner mental model is:
+- `start` = run EliteSCADA locally;
+- `pause/stop` = stop compute but keep my data/project;
+- `resume` = continue the same environment;
+- `restart` = restart EliteSCADA without erasing state;
+- `status` = tell me what is running and the local URL;
+- `diagnose` = collect evidence for local-vs-Codespace comparison;
+- `reset` = fresh install, destructive and never implicit.
+
+### 38.3 Visual Studio AI bootstrap
+
+CODEX must also create a canonical directly reusable bootstrap, preferred path:
+`docs/VISUAL-STUDIO-AI-LOCAL-ELITESCADA-BOOTSTRAP.md`.
+
+The bootstrap must teach the Visual Studio AI to operate the local environment only through the repository script where possible, preserve state by default, never reset without explicit Product Owner request, report `http://localhost:5173` (or actual configured URL), and use `status + diagnose` rather than bypassing the harness when something fails.
+
+It must explicitly tell the Visual Studio AI not to:
+- seed Demo/EEE/project state;
+- weaken TLS/auth/licensing/Authority;
+- modify product source unless the Product Owner/Main explicitly starts a correction mission;
+- assume a Codespace-only failure is a local product defect without A/B evidence.
+
+### 38.4 Local-vs-Codespace testing purpose
+
+This operator is also the preferred manual/AI-assisted local comparison surface for #307 and #359.
+
+It should make it easy to compare the same product operation under:
+1. local normal latency;
+2. local controlled latency/jitter when a later diagnostic mission authorizes it;
+3. Codespace/remote path.
+
+Do not build a Codespaces-specific product fork into the operator.
+
+### 38.5 Boundaries
+
+This mission is infrastructure/docs only.
+
+CODEX may refactor Preview harness infrastructure to avoid duplication and may add local operator regression tests/tasks.
+
+CODEX MUST NOT modify EliteSCADA product source/tests/workflows to make local operation succeed.
+
+Current post-Preview product correction backlog (#354/#355/#359/UX2) remains separate and not started by this authorization.

@@ -2222,3 +2222,75 @@ Technical audit must decide whether true pause/resume is safe/valuable in instal
 #360 evidence requirement comment: `5858872903`.
 
 Current #360 mission remains infrastructure/docs only. Product corrections remain separate.
+
+
+## 40. Container-native distribution strategic direction
+
+MAIN_ORDER_REV: 0030
+
+STATE: VS_LOCAL_OPERATOR_ACTIVE / CONTAINER_NATIVE_ARCHITECTURE_CANDIDATE_RECORDED / IMPLEMENTATION_NOT_AUTHORIZED
+
+Product Owner broadened the local-container insight into a strategic distribution hypothesis:
+EliteSCADA may ultimately use one canonical OCI/container artifact across supported Linux, Edge and potentially Windows host profiles instead of separate product implementations.
+
+New architecture owner:
+- #363 — `ARCH-CONTAINER-FIRST — distribuição OCI canônica, multi-arch e perfis Windows/Linux/Edge`.
+
+Canonical ADR:
+- `docs/ADR-010-CONTAINER-NATIVE-DISTRIBUTION.md`;
+- commit `c15a6f102945f40de51c39dfcf018554dd2eb14f`.
+
+Stable Product Goal direction:
+- commit `59fcab51ae927e3799c009bb559c60eb679ab932`.
+
+Linux distribution reconciliation:
+- commit `0a9236c1a793e886595448f7592cf4385964e1cd`.
+
+### 40.1 Architecture intent
+
+Preferred candidate:
+`same EliteSCADA product + canonical OCI artifact + external state + host adapters + deployment capacity profiles`.
+
+Initial OCI architectures to validate:
+- `linux/amd64`;
+- `linux/arm64`.
+
+Edge/embedded does not imply a Lite fork. The complete product may run subject to an evidence-based hardware capacity envelope.
+
+Commercial license entitlement and physical platform capacity are separate constraints.
+
+### 40.2 Licensing rule
+
+Do not bind a container license to ephemeral container identity such as container ID, random hostname, veth/MAC or image digest.
+
+Container recreate/update must not require license reissue on the same authorized host.
+
+Future technical work must evolve the machine identity abstraction toward stable host/deployment identity providers while preserving asymmetric signed offline licensing and fail-closed host mismatch.
+
+### 40.3 Host profiles
+
+Candidate host profiles:
+- Linux server/IPC;
+- industrial Edge/controller OCI host;
+- Windows through a supported unattended container-host adapter only if proven;
+- future appliance/server deployments.
+
+"Container-native" does not mean every OS/device automatically supports the product. Official support is per homologated architecture/runtime/Driver/resource matrix.
+
+### 40.4 Database and Edge
+
+Preferred first constrained-Edge topology:
+`EliteSCADA OCI -> external PostgreSQL/TimescaleDB`.
+
+A local composed DB profile may be supported on stronger IPC/server/Edge hardware.
+
+Do not introduce a separate Edge persistence engine without an independent architecture decision.
+
+### 40.5 Current boundaries
+
+#360 remains evidence/operator infrastructure only and must not expand into ADR-010 implementation.
+#361 remains the common installed lifecycle/host-adapter owner.
+#205 native Windows packaging remains preserved until a Windows container-host spike proves the OCI route operationally superior and supportable.
+
+Disposition:
+`CONTAINER-NATIVE PREFERRED ARCHITECTURE CANDIDATE / TECHNICAL VALIDATION REQUIRED`.

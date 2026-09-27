@@ -2171,3 +2171,54 @@ CODEX may refactor Preview harness infrastructure to avoid duplication and may a
 CODEX MUST NOT modify EliteSCADA product source/tests/workflows to make local operation succeed.
 
 Current post-Preview product correction backlog (#354/#355/#359/UX2) remains separate and not started by this authorization.
+
+
+## 39. Local operations evidence + installed service lifecycle requirement
+
+MAIN_ORDER_REV: 0029
+
+STATE: VS_LOCAL_OPERATOR_ACTIVE / LOCAL_EVIDENCE_REQUIRED / INSTALLED_SERVICE_REQUIREMENT_OPENED
+
+Product Owner added two related operational decisions.
+
+### 39.1 Canonical local-running evidence
+
+Before #360 completes, CODEX must commit:
+`docs/LOCAL-ELITESCADA-OPERATIONS-EVIDENCE.md`.
+
+This is the durable evidence/lessons file for:
+- future fresh Preview preparation;
+- local-vs-Codespace comparisons;
+- Windows installer/service design;
+- future Linux installer/service design.
+
+It must distinguish confirmed behavior/root causes from observations/hypotheses and capture lifecycle, persistence, readiness, diagnostics, failure modes and installer implications without secrets.
+
+Shared CODEX route rev 0096:
+`523458b51dc4a13045ed2efd07452a8fae68bca1`.
+
+### 39.2 Installed-service lifecycle
+
+New issue:
+- #361 — `INSTALL-OPS — lifecycle operacional como Windows Service e Linux systemd`.
+
+Product Owner intent:
+the same operational intentions being proven locally — start/stop/pause/resume/restart/status/diagnose — should inform a future system-administrator lifecycle for installed EliteSCADA.
+
+Production implementation must use native service concepts:
+- Windows Service / Service Control Manager;
+- Linux systemd.
+
+Do not copy Docker Preview mechanics into production blindly.
+
+Normal service stop/restart must preserve product state. Destructive reset/purge is not a service lifecycle operation.
+
+Technical audit must decide whether true pause/resume is safe/valuable in installed service semantics; do not fake it simply to mirror Preview commands.
+
+### 39.3 Packaging links
+
+#205 Windows signed package received service-lifecycle dependency comment `5858873311`.
+#306 Productization received operations/help dependency comment `5858873683`.
+#360 evidence requirement comment: `5858872903`.
+
+Current #360 mission remains infrastructure/docs only. Product corrections remain separate.

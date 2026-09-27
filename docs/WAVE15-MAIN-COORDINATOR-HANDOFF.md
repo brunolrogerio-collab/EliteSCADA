@@ -1,3 +1,140 @@
+# LATEST DELTA — 2026-09-27 — CHAT HANDOFF / #362 REVIEW PENDING / CONTAINER-NATIVE CORE DIRECTION
+
+> This delta supersedes older current-state wording below when there is a conflict. GitHub live remains the sole authority.
+
+## Product authority
+
+Accepted Wave 15 product checkpoint remains:
+`1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`
+(tree `5e5fce8ce87f31dfc11b83bb68ff86c67f9f0112`).
+
+Do not confuse later coordination/docs commits with accepted product bytes.
+
+## ENV_A canonical harness
+
+Accepted repaired harness remains:
+`preview/w15-first-project-env-harness@50a4451aa122f7f9fd0af98173c184f6623a147b`
+(tree `5efeafb08725a90ce0c3df689b8d613f165bb569`).
+
+## #360 local operator candidate delivered — review pending
+
+CODEX delivered PR #362:
+- title: `feat(preview): add safe local workbench operator`;
+- branch: `preview/w15-vs-local-runner`;
+- exact HEAD: `13cb1fcaa3091085515e4d84a3d3e894db541f5f`;
+- base: `preview/w15-first-project-env-harness@50a4451...`;
+- PR: OPEN / mergeable / NOT MERGED.
+
+Changed paths:
+- `docs/LOCAL-ELITESCADA-OPERATIONS-EVIDENCE.md`;
+- `docs/LOCAL-FIRST-PROJECT-PREVIEW-HARNESS.md`;
+- `docs/VISUAL-STUDIO-AI-LOCAL-ELITESCADA-BOOTSTRAP.md`;
+- `scripts/preview/elite-local.ps1`;
+- `scripts/preview/local-audit.ps1`;
+- `scripts/preview/test-local-operator.ps1`.
+
+CODEX reports static/operator/dependency-identity regressions PASS.
+
+Important:
+**full lifecycle proof on exact HEAD `13cb1f...` is NOT_TESTED** because Main has not accepted this changed harness SHA for a new ENV_A session.
+
+Shared CODEX control rev 0097:
+`4147b108b74ec68082baa3b29c003ea4a515c1d5`.
+
+State:
+`WAIT_PENDING_MAIN_REVIEW / DO_NOT_CONTINUE_OR_MERGE`.
+
+Full Visual Studio AI bootstrap copy:
+Issue #305 comment `5858902468`.
+
+Local-operations evidence handoff:
+Issue #305 comment `5859122865`.
+
+Mandatory next Main action:
+1. revalidate PR #362 live exact head/base;
+2. inspect all six changed files and compare with accepted harness `50a4451...`;
+3. verify reset/persistence/accepted-SHA gating and infrastructure-only scope;
+4. if acceptable, explicitly authorize exact `13cb1f...` for full lifecycle validation;
+5. require full lifecycle proof before merge/promotion.
+
+## Product Owner strategic architecture — containerized core
+
+Product Owner clarified the desired long-term architecture:
+
+**The containerized EliteSCADA Core should be the common product implementation. Platform/host architecture surrounds this same core to make it operational on each supported environment.**
+
+Architecture owner:
+- #363 — `ARCH-CONTAINER-FIRST — distribuição OCI canônica, multi-arch e perfis Windows/Linux/Edge`.
+
+Canonical ADR:
+- `docs/ADR-010-CONTAINER-NATIVE-DISTRIBUTION.md`;
+- commit `c15a6f102945f40de51c39dfcf018554dd2eb14f`.
+
+Stable Product Goal direction:
+- commit `59fcab51ae927e3799c009bb559c60eb679ab932`.
+
+Linux distribution reconciliation:
+- `docs/LINUX-DEBIAN-DISTRIBUTION.md`;
+- commit `0a9236c1a793e886595448f7592cf4385964e1cd`.
+
+Preferred architecture candidate:
+
+`canonical OCI core + external persistent state + host adapter + deployment capacity profile`.
+
+Initial OCI architecture targets:
+- `linux/amd64`;
+- `linux/arm64`.
+
+Host/platform adapters may provide:
+- Windows service/host integration around a validated unattended OCI runtime;
+- Linux systemd/OCI integration;
+- industrial Edge/PLC container manager integration;
+- future appliance/server integration.
+
+Rules:
+- no separate Lite/Edge product fork by default;
+- same product contracts and `.escadapkg`;
+- Edge capacity is an evidence-based deployment envelope, not a second product;
+- commercial license entitlement is independent from physical hardware capacity;
+- do not bind licensing to container ID, random hostname, veth/MAC or image digest;
+- image recreate/update on the same authorized deployment host must not force license reissue;
+- first constrained-Edge topology prefers external PostgreSQL/TimescaleDB;
+- support is per homologated CPU/runtime/Driver/network/resource matrix;
+- container-native does not mean literally every OS/device is automatically supported.
+
+Windows native packaging remains preserved until an unattended industrially supportable Windows container-host spike proves OCI can safely replace it.
+
+Current architecture disposition:
+`CONTAINER-NATIVE PREFERRED ARCHITECTURE CANDIDATE / TECHNICAL VALIDATION REQUIRED / IMPLEMENTATION NOT YET AUTHORIZED`.
+
+#360 must not widen into #363 implementation.
+
+## Human Preview / correction state retained
+
+Human Preview remains:
+`BLOCKED_BY_PRODUCT / COMPLETE_FOR_FIRST_PASS`.
+
+Material correction owners remain:
+- #354 Demo/Runtime authority leakage;
+- #355 Data Source Type -> TAG blocker;
+- #356 Templates authoring discoverability;
+- #359 Security/Authority remote/Codespace failure with remote-latency hypothesis;
+- UX2 #357 / toolbox #358 / Editor #303 / Library-Dynamo #308.
+
+Stage 2 remains prepared, not active.
+
+## Coordinator transfer
+
+Preview control rev 0031:
+`297eb379b282ee3cebb9ce25aa30ac94026500ff`.
+
+Durable ledger:
+Issue #305 comment `5859163983`.
+
+No product mutation is authorized by this handoff.
+
+---
+
 # LATEST DELTA — 2026-09-27 — CONTAINER-NATIVE DISTRIBUTION ARCHITECTURE CANDIDATE
 
 > This delta supersedes older packaging/distribution strategic wording below when there is a conflict. GitHub live remains the sole authority.

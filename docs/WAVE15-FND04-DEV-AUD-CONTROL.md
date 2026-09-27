@@ -2436,3 +2436,60 @@ Return one exact replacement harness SHA/tree after proving:
 12. black-box Stage 1 did not start.
 
 Do not start ENV_A Stage 1 or Stage 2. ENV_B remains under Main ownership.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0087
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-ENV-A-FINAL-EXACT-SHA-READINESS-PROOF-72`
+
+`ORDER_STATE: ACTIVE / FINAL_READINESS_PROOF_ONLY / BLACKBOX_HOLD`
+
+Main independently reviewed and accepts exact replacement harness for final readiness proof:
+- branch: `preview/w15-first-project-env-harness`;
+- SHA: `bb451fa6e07982ac12384895f6097d5833761d16`;
+- tree: `650d30089596021cb1a564ee1d2f1abfc7d2b509`;
+- product base: `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Authoritative Preview control:
+- rev 0012;
+- commit `08471efc2716fd5065bddb279a20d9f48c89e8b8`.
+
+Preparation/provenance design and the explicit trusted Windows root opt-in for preparation-only TLS inspection are accepted as bounded environment infrastructure. TLS verification must remain enabled. Do not change trust globally or carry the selected root into product start/resume.
+
+### Execute final ENV_A proof now
+
+Use the already prepared exact candidate state if `status` confirms:
+`NOT_STARTED / PREPARATION=READY`.
+
+Then execute:
+1. start exact `bb451fa...` using Main acceptance SHA;
+2. verify true fresh first-run UI, no seeded project/import/Demo;
+3. create only minimal Local Administrator through UI;
+4. verify no-project post-bootstrap state;
+5. pause -> PAUSED_RESUMABLE;
+6. real Docker Desktop/engine restart;
+7. status + resume after engine recovery;
+8. prove same session + same Administrator/no-project state;
+9. second ordinary pause/resume;
+10. reset;
+11. prove product/audit resources removed but `PREPARATION=READY` retained;
+12. second clean start on same exact accepted SHA;
+13. prove no npm/NuGet install/restore/download occurs during second start and fresh first-run UI appears;
+14. where practical, prove package-network access is unnecessary for that second start without changing product networking semantics;
+15. final reset -> `NOT_STARTED / PREPARATION=READY`, no product/audit resources.
+
+Do not create a project. Do not begin Stage 1 black-box. Do not begin Stage 2.
+
+Return `CODEX -> MAIN COORDINATOR — ENV_A FINAL READINESS HANDOFF` with:
+- exact head/tree/product base;
+- preparation dependency key and provenance status;
+- session IDs used;
+- exact Docker Desktop restart method and before/after engine evidence;
+- evidence of same product-owned marker after resume;
+- evidence reset preserved preparation but destroyed product state;
+- evidence second start used no package network/install/restore;
+- final status/resources;
+- explicit statement Stage 1/Stage 2 did not start;
+- any blocker classified by layer.
+
+ENV_B remains Main-owned and WAIT_REAL_CODESPACE_PROOF.

@@ -350,4 +350,50 @@ DEV-LICENSING-UX is authorized to:
 If the new baseline exposes a material semantic conflict, stop that semantic change and return the exact evidence to Main.
 
 After reconciliation, DEV must WAIT. CODEX adversarial validation remains mandatory before merge.
+## CURRENT MAIN DISPOSITION — rev 0008
+
+`ORDER_ID: DEV-LICENSING-UX-RECONCILED-CODEX-QUEUE-08`
+
+`ORDER_STATE: MAIN_ACCEPTED_FOR_CODEX / RECONCILED / DEV_WAIT`
+
+Exact reconciled candidate:
+- PR #345;
+- head `3d73ccd8f683be94f741fdb431df0e1525e6c0e9`;
+- exact base `3819715ba3a015a182c97b2a4ebcb4de447da717`;
+- ancestry: ahead 18 / behind 0;
+- PR: OPEN / MERGEABLE.
+
+Exact-head T1:
+- `36280752132` / #110: SUCCESS;
+- classifier SUCCESS;
+- Web SUCCESS;
+- Common SUCCESS;
+- focused .NET SUCCESS;
+- focused Chromium SUCCESS;
+- final gate SUCCESS.
+
+Main reconciliation verification:
+- all 13 Licensing/session owned blobs at the reconciled head are byte-for-byte identical to prior Main-accepted head `d97598fb16ba0eb6d43e78b25c848149a1ec547a`;
+- this includes the previously accepted session-replacement truth correction in `RuntimeSessionClassPanel.tsx` and its regression;
+- no semantic adaptation was introduced by reconciliation;
+- no Authority/FND-05/FND-07 behavior was absorbed.
+
+Prior Main findings remain closed:
+- truthful ESLIC1/ESLIC2 schema + signed entitlement projection;
+- nullable legacy semantics;
+- requested/granted/fallback truth;
+- release-success + replacement-failure clears stale local lease/outcome;
+- server remains authoritative for admission/quota/fallback.
+
+DEV-LICENSING-UX returns to WAIT.
+
+CODEX adversarial validation remains mandatory before merge, emphasizing:
+1. old/new license truth and ESLIC1 nullable behavior;
+2. signed ESLIC2 Interactive/ViewOnly/HA truth;
+3. ViewOnly fail-closed mutation;
+4. requested/granted/fallback/capacity-reason behavior;
+5. replacement-admission failure with no stale lease;
+6. exact final-head validation after any CODEX-owned bounded correction.
+
+No merge/T2 is authorized.
 

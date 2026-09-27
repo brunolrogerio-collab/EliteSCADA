@@ -2493,3 +2493,44 @@ Return `CODEX -> MAIN COORDINATOR — ENV_A FINAL READINESS HANDOFF` with:
 - any blocker classified by layer.
 
 ENV_B remains Main-owned and WAIT_REAL_CODESPACE_PROOF.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0088
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-ENV-A-READY-HOLD-FOR-ENV-B-73`
+
+`ORDER_STATE: HOLD / ENV_A_READY / WAIT_ENV_B_READY / NO_ACTIVE_EXPLORATORY_MISSION`
+
+Main reviewed and accepted the final ENV_A readiness proof on exact harness:
+- SHA `bb451fa6e07982ac12384895f6097d5833761d16`;
+- tree `650d30089596021cb1a564ee1d2f1abfc7d2b509`;
+- product base `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Authoritative Preview control:
+- rev 0013;
+- commit `af6c911623e93ca868176c7b5597b04a9e303f0f`.
+
+Disposition:
+`ENV_A = READY / CLEAN / RESUMABLE`.
+
+Evidence accepted:
+- provenance-bound preparation READY;
+- first-run UI truthful;
+- minimal Local Administrator via UI;
+- real Docker Desktop restart;
+- same-session state continuity;
+- second pause/resume;
+- reset preserved PREPARATION=READY while deleting product/audit state;
+- second clean start used no npm/NuGet install/restore/network bootstrap;
+- final reset -> NOT_STARTED / PREPARATION=READY;
+- Stage 1/Stage 2 did not start.
+
+Do NOT begin Stage 1 yet.
+Do NOT begin Stage 2.
+Do NOT create a project.
+Do NOT resume any older mission.
+
+Reason for HOLD:
+The Product Owner requested independent parallel audit topology. Main is now completing ENV_B real Codespace readiness so both environments can begin cleanly without cross-contamination.
+
+Next CODEX action will be issued only after Main records ENV_B READY and explicitly releases the black-box gate.

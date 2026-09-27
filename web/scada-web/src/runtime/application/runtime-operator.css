@@ -48,6 +48,7 @@
 }
 .runtime-session-class[open] > .runtime-session-class__popover { display: block; }
 .runtime-session-class__controls { display: grid; gap: 5px; margin-top: 6px; }
+.runtime-session-class__notice { margin: 8px 0 0; font-size: 11px; line-height: 1.35; }
 .runtime-session-class__status { display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; margin: 8px 0 0; font-size: 11px; }
 .runtime-session-class__status dt { font-weight: 700; }
 .runtime-session-class__status dd { margin: 0; overflow-wrap: anywhere; }

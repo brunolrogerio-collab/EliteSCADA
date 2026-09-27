@@ -1,4 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  displayLicenseSchema,
+  displaySignedHaEntitlement,
+  displaySignedSeatTotal
+} from './licensingEntitlementPresentation';
 import './licensing.css';
 
 type Locale = 'pt-BR' | 'en' | 'es';
@@ -9,6 +14,10 @@ type LicenseStatus = {
   maximumTags?: number | null;
   demoMaximumContinuousMinutes?: number | null;
   licenseId?: string | null;
+  schemaVersion?: number | null;
+  viewOnlySeats?: number | null;
+  interactiveSeats?: number | null;
+  haRuntime?: boolean | null;
   issuedAtUtc?: string | null;
   notAfterUtc?: string | null;
   keyId?: string | null;
@@ -44,8 +53,9 @@ const messages = {
   'pt-BR': {
     title: 'Licenciamento', subtitle: 'Estado da licença, modo Demo e ativação desta máquina.',
     refresh: 'Atualizar', license: 'Licença', runtime: 'Runtime', state: 'Estado', tier: 'Faixa', tags: 'Limite de TAGs',
-    licenseId: 'ID da licença', expires: 'Validade', diagnostic: 'Diagnóstico', demoRemaining: 'Demo restante',
-    unlimited: 'Ilimitado', none: 'Não informado', machineRequest: 'Solicitação da máquina', requestHelp: 'Copie este código e envie para a autoridade de licenciamento EliteSCADA. Identificadores brutos de hardware não são exibidos.',
+    licenseId: 'ID da licença', schema: 'Esquema da licença', interactiveTotal: 'Clientes Runtime Interactive', viewOnlyTotal: 'Clientes Runtime View Only', haRuntime: 'Redundância / HA Runtime',
+    expires: 'Validade', diagnostic: 'Diagnóstico', demoRemaining: 'Demo restante',
+    unlimited: 'Ilimitado', none: 'Não informado', legacy: 'legado', legacyNotSpecified: 'Não especificado pela ESLIC1', yes: 'Licenciado', no: 'Não licenciado', machineRequest: 'Solicitação da máquina', requestHelp: 'Copie este código e envie para a autoridade de licenciamento EliteSCADA. Identificadores brutos de hardware não são exibidos.',
     copy: 'Copiar código', copied: 'Código da máquina copiado.', install: 'Instalar licença', licenseCode: 'Código de licença assinado',
     validateInstall: 'Validar e instalar', remove: 'Remover licença', installed: 'Licença validada e instalada.', removed: 'Licença removida. As próximas ativações usarão o modo Demo.',
     loading: 'Carregando…', loadError: 'Não foi possível carregar o estado de licenciamento.', installError: 'Não foi possível instalar a licença.', removeConfirm: 'Remover a licença instalada desta máquina?'
@@ -53,8 +63,9 @@ const messages = {
   en: {
     title: 'Licensing', subtitle: 'License state, Demo mode and activation for this machine.',
     refresh: 'Refresh', license: 'License', runtime: 'Runtime', state: 'State', tier: 'Tier', tags: 'TAG limit',
-    licenseId: 'License ID', expires: 'Expiry', diagnostic: 'Diagnostic', demoRemaining: 'Demo remaining',
-    unlimited: 'Unlimited', none: 'Not provided', machineRequest: 'Machine request', requestHelp: 'Copy this code and send it to the EliteSCADA licensing authority. Raw hardware identifiers are not exposed.',
+    licenseId: 'License ID', schema: 'License schema', interactiveTotal: 'Interactive Runtime clients', viewOnlyTotal: 'View Only Runtime clients', haRuntime: 'Runtime redundancy / HA',
+    expires: 'Expiry', diagnostic: 'Diagnostic', demoRemaining: 'Demo remaining',
+    unlimited: 'Unlimited', none: 'Not provided', legacy: 'legacy', legacyNotSpecified: 'Not specified by ESLIC1', yes: 'Licensed', no: 'Not licensed', machineRequest: 'Machine request', requestHelp: 'Copy this code and send it to the EliteSCADA licensing authority. Raw hardware identifiers are not exposed.',
     copy: 'Copy request', copied: 'Machine request copied.', install: 'Install license', licenseCode: 'Signed license code',
     validateInstall: 'Validate and install', remove: 'Remove license', installed: 'License validated and installed.', removed: 'License removed. Future activations will use Demo mode.',
     loading: 'Loading…', loadError: 'Licensing status could not be loaded.', installError: 'License could not be installed.', removeConfirm: 'Remove the installed license from this machine?'
@@ -62,8 +73,9 @@ const messages = {
   es: {
     title: 'Licenciamiento', subtitle: 'Estado de licencia, modo Demo y activación de esta máquina.',
     refresh: 'Actualizar', license: 'Licencia', runtime: 'Runtime', state: 'Estado', tier: 'Nivel', tags: 'Límite de TAGs',
-    licenseId: 'ID de licencia', expires: 'Validez', diagnostic: 'Diagnóstico', demoRemaining: 'Demo restante',
-    unlimited: 'Ilimitado', none: 'No informado', machineRequest: 'Solicitud de la máquina', requestHelp: 'Copie este código y envíelo a la autoridad de licenciamiento EliteSCADA. No se muestran identificadores brutos de hardware.',
+    licenseId: 'ID de licencia', schema: 'Esquema de licencia', interactiveTotal: 'Clientes Runtime Interactive', viewOnlyTotal: 'Clientes Runtime Solo visualización', haRuntime: 'Redundancia / HA Runtime',
+    expires: 'Validez', diagnostic: 'Diagnóstico', demoRemaining: 'Demo restante',
+    unlimited: 'Ilimitado', none: 'No informado', legacy: 'legado', legacyNotSpecified: 'No especificado por ESLIC1', yes: 'Licenciado', no: 'No licenciado', machineRequest: 'Solicitud de la máquina', requestHelp: 'Copie este código y envíelo a la autoridad de licenciamiento EliteSCADA. No se muestran identificadores brutos de hardware.',
     copy: 'Copiar código', copied: 'Código de máquina copiado.', install: 'Instalar licencia', licenseCode: 'Código de licencia firmado',
     validateInstall: 'Validar e instalar', remove: 'Eliminar licencia', installed: 'Licencia validada e instalada.', removed: 'Licencia eliminada. Las próximas activaciones usarán el modo Demo.',
     loading: 'Cargando…', loadError: 'No fue posible cargar el estado de licenciamiento.', installError: 'No fue posible instalar la licencia.', removeConfirm: '¿Eliminar la licencia instalada de esta máquina?'
@@ -190,6 +202,10 @@ export function LicensingApp() {
               <dt>{t.state}</dt><dd><strong>{status.license.state}</strong></dd>
               <dt>{t.tier}</dt><dd>{status.license.tier ?? t.none}</dd>
               <dt>{t.tags}</dt><dd>{displayTags(status.license.maximumTags, status.license.state, t.unlimited, t.none)}</dd>
+              <dt>{t.schema}</dt><dd data-testid="license-schema">{displayLicenseSchema(status.license, t)}</dd>
+              <dt>{t.interactiveTotal}</dt><dd data-testid="license-interactive-total">{displaySignedSeatTotal(status.license.interactiveSeats, status.license, t)}</dd>
+              <dt>{t.viewOnlyTotal}</dt><dd data-testid="license-view-only-total">{displaySignedSeatTotal(status.license.viewOnlySeats, status.license, t)}</dd>
+              <dt>{t.haRuntime}</dt><dd data-testid="license-ha-runtime">{displaySignedHaEntitlement(status.license.haRuntime, status.license, t)}</dd>
               <dt>{t.licenseId}</dt><dd className="licensing-mono">{status.license.licenseId ?? t.none}</dd>
               <dt>{t.expires}</dt><dd>{displayDate(status.license.notAfterUtc, t.none)}</dd>
               <dt>{t.diagnostic}</dt><dd>{status.license.diagnostic ?? t.none}</dd>
@@ -221,7 +237,7 @@ export function LicensingApp() {
             <h2>{t.install}</h2>
             <form onSubmit={install}>
               <label htmlFor="license-code">{t.licenseCode}</label>
-              <textarea id="license-code" value={licenseCode} onChange={event => setLicenseCode(event.target.value)} placeholder="ESLIC1..." />
+              <textarea id="license-code" value={licenseCode} onChange={event => setLicenseCode(event.target.value)} placeholder="ESLIC1... / ESLIC2..." />
               <div className="licensing-actions">
                 <button type="submit" disabled={busy || !licenseCode.trim()}>{t.validateInstall}</button>
                 <button type="button" className="licensing-danger" disabled={busy} onClick={() => void remove()}>{t.remove}</button>

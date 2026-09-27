@@ -7,6 +7,9 @@ namespace EliteSCADA.LicenseGenerator;
 internal sealed record LicenseGenerationRequest(
     string MachineRequestCode,
     LicenseTier Tier,
+    int InteractiveSeats,
+    int ViewOnlySeats,
+    bool HaRuntime,
     string PrivateKeyPath,
     string KeyId,
     string OutputPath,
@@ -17,6 +20,10 @@ internal sealed record LicenseGenerationResult(
     string LicenseId,
     string MachineFingerprint,
     LicenseTier Tier,
+    int SchemaVersion,
+    int InteractiveSeats,
+    int ViewOnlySeats,
+    bool HaRuntime,
     string KeyId,
     DateTimeOffset? NotAfterUtc,
     string OutputPath);
@@ -34,6 +41,11 @@ internal static class LicenseGenerationService
             throw new InvalidOperationException(requestDiagnostic ?? "Machine request code is invalid.");
         }
 
+        if (input.InteractiveSeats < 0)
+            throw new ArgumentOutOfRangeException(nameof(input.InteractiveSeats), "Interactive Runtime client total cannot be negative.");
+        if (input.ViewOnlySeats < 0)
+            throw new ArgumentOutOfRangeException(nameof(input.ViewOnlySeats), "View Only Runtime client total cannot be negative.");
+
         var privateKeyPath = Path.GetFullPath(input.PrivateKeyPath.Trim());
         if (!File.Exists(privateKeyPath))
             throw new FileNotFoundException("Private signing key file was not found.", privateKeyPath);
@@ -47,21 +59,28 @@ internal static class LicenseGenerationService
         using var privateKey = RSA.Create();
         privateKey.ImportFromPem(File.ReadAllText(privateKeyPath));
 
-        var payload = new EliteScadaLicensePayload(
-            EliteScadaLicenseCodec.CurrentSchemaVersion,
+        var payload = new EliteScadaLicenseV2Payload(
+            EliteScadaLicenseCodec.LicenseV2SchemaVersion,
             licenseId,
             machineRequest.MachineFingerprint,
             input.Tier,
             DateTimeOffset.UtcNow,
             input.NotAfterUtc,
-            keyId);
-        var signedLicense = EliteScadaLicenseCodec.CreateSignedLicense(payload, privateKey);
+            keyId,
+            input.ViewOnlySeats,
+            input.InteractiveSeats,
+            input.HaRuntime);
+        var signedLicense = EliteScadaLicenseCodec.CreateSignedLicenseV2(payload, privateKey);
         File.WriteAllText(fullOutputPath, signedLicense + Environment.NewLine);
 
         return new LicenseGenerationResult(
             licenseId,
             machineRequest.MachineFingerprint,
             input.Tier,
+            payload.SchemaVersion,
+            input.InteractiveSeats,
+            input.ViewOnlySeats,
+            input.HaRuntime,
             keyId,
             input.NotAfterUtc,
             fullOutputPath);

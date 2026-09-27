@@ -75,6 +75,8 @@ The supported Visual Studio interface is `scripts/preview/elite-local.ps1`:
 
 - `CONFIRMED` — local ENV_A readiness is infrastructure evidence only. It does not certify Codespaces forwarding, remote latency, or the Product Owner's end-to-end Preview journey. ENV_B and human Preview keep their own exact branch, session and acceptance gates.
 - `CONFIRMED` — the local Preview operator is development infrastructure, not an installer/service contract. Issue #361 owns future Windows Service and Linux systemd operations. The intended installed-service surface is `start | stop | restart | status | diagnose`; ordinary service lifecycle must preserve project/database/Authority/license/Historian/configuration. Destructive purge/reset is not a normal service command.
+- `CONFIRMED` — Main recorded container-native OCI distribution as a preferred architecture candidate in #363, but explicitly marked it as requiring technical validation and **not authorized for implementation**. #360 remains local operator/evidence only; Windows native packaging remains until a qualified Windows container-host spike establishes otherwise. Do not infer that the Preview Compose files are an installer or a supported production deployment.
+- `CONFIRMED` — the candidate architecture forbids binding license entitlement to ephemeral container identity; replacing an image on the same authorized host must not force license reissue. It prefers an external PostgreSQL/TimescaleDB topology for constrained Edge, and targets `linux/amd64` plus `linux/arm64`, subject to an explicit host/runtime/Driver/resource qualification matrix.
 - `NOT_TESTED` — Windows Service Control Manager or Linux systemd installation, identity/permissions, startup ordering, readiness integration, crash recovery, upgrade/rollback, log rotation, and machine reboot continuity.
 - `NOT_TESTED` — whether pause/resume has safe, useful semantics for an installed service. Do not copy the Preview operator's `pause`/`resume` behavior into SCM/systemd by assumption.
 
@@ -94,4 +96,5 @@ The supported Visual Studio interface is `scripts/preview/elite-local.ps1`:
 - Manifest mismatch and sealed-attempt disposition: issue #305 comments `5857641422`, `5857659128`.
 - Final repaired-harness lifecycle, Docker Desktop restart, dependency-preserving reset, fresh start and final cleanup: issue #305 comments `5857900488`, `5858036695`.
 - #360 local operator mission and #361 service boundary: issue #305 comments `5858162988`, `5858878923`.
+- New container-native distribution boundary (candidate only; no implementation authorized): issue #305 comment `5859084494`.
 - Local operator and regressions: `scripts/preview/elite-local.ps1`, `scripts/preview/local-audit.ps1`, `scripts/preview/test-local-operator.ps1`, `scripts/preview/test-dependency-identity.ps1`.

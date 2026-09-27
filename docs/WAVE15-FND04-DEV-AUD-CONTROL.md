@@ -2605,3 +2605,67 @@ Return only:
 Human Preview is active independently. Do not wait for Product Owner observations and do not consume them.
 
 Stage 2 remains PREPARED / NOT ACTIVE.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0090
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-STAGE1-ATTEMPT1-SEAL-RECONCILE-75`
+
+`ORDER_STATE: ACTIVE / INFRA_RECONCILIATION_ONLY / NO_PRODUCT_INTERACTION / EMBARGO_ACTIVE`
+
+Main reviewed your coarse handoff and the embargoed evidence branch.
+
+Authoritative Preview control:
+- rev 0021;
+- commit `95a632ba8fb2ef3db8caaff760e94be9953f4ef6`.
+
+Disposition of current black-box attempt:
+`STAGE1_ATTEMPT1 = INCONCLUSIVE / SEALED`.
+
+Do not continue product exploration. Do not perform further diagnostic correlation. Do not create/modify project state.
+
+### Reconcile only runtime harness identity
+
+Existing audit session:
+`6f18039a-5e67-49bd-a566-2050cf775aee`.
+
+Accepted harness identity:
+- SHA `bb451fa6e07982ac12384895f6097d5833761d16`;
+- tree `650d30089596021cb1a564ee1d2f1abfc7d2b509`;
+- expected dependency key `0d074f1bd0f1702a5313651791dd7ce6aa1996821f312ca45a7d6761f9b0794e`.
+
+Perform exactly:
+1. ensure current detailed evidence is pushed to `preview/w15-first-project-codex-evidence`;
+2. from now on, do not checkout the evidence branch in the runtime harness worktree; use a separate Git worktree or connector-backed write path for evidence;
+3. inspect runtime worktree `git status --short`, current branch, HEAD and tree;
+4. if it is not exact accepted harness SHA/tree, restore the runtime worktree to exact `bb451fa...` cleanly, without touching Docker containers/volumes/database/session manifest;
+5. do NOT run `prepare`, `start`, `resume`, or `reset` during this reconciliation;
+6. run only:
+   `scripts/preview/local-audit.ps1 status`;
+7. if and only if status returns same session with `RUNNING` and `PREPARATION=READY` on expected dependency key, run:
+   `scripts/preview/local-audit.ps1 pause -Checkpoint "Stage1 attempt 1 sealed by Main after audit-state reconciliation"`;
+8. verify final coarse state `PAUSED_RESUMABLE / PREPARATION=READY`;
+9. if any mismatch remains, stop immediately and return the exact coarse infrastructure mismatch without destructive action.
+
+Do not expose embargoed findings in the Product Owner-facing ledger.
+
+### Required handoff
+
+Return:
+`CODEX -> MAIN COORDINATOR — STAGE1 ATTEMPT1 SEALED RECONCILIATION`
+
+Include only:
+- runtime worktree branch/HEAD/tree before reconciliation;
+- whether it differed from exact harness;
+- status after exact-harness restoration;
+- dependency key;
+- same audit session ID confirmation;
+- final lifecycle state (expected PAUSED_RESUMABLE);
+- evidence branch HEAD;
+- no detailed product findings.
+
+After this handoff, remain:
+`HOLD / STAGE1_ATTEMPT1_SEALED / WAIT_MAIN_RETRY_DECISION`.
+
+Do not begin Stage 2.
+Do not begin a Stage 1 retry in the same CODEX context.

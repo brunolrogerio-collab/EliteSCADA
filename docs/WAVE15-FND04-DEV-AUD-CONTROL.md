@@ -2229,3 +2229,48 @@ Required proof before ENV_A can be accepted READY:
 Keep black-box integrity: do not use the checkpoint mechanism to inject source-derived navigation hints or repair product state. Detailed findings remain embargoed across pauses.
 
 Do not start the actual first-project exploratory audit until Main accepts this lifecycle proof and marks ENV_A READY.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0083
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-ENV-A-READINESS-PROOF-68`
+
+`ORDER_STATE: ACTIVE / READINESS_PROOF_ONLY / BLACKBOX_HOLD`
+
+Main independently reviewed exact harness candidate `1df4dae293bcca59ee3191faf889058fecc973ee` / tree `6efbf4b6fccd7750231c51d5f638d556707fdaec` and accepts it only for readiness validation.
+
+Authoritative preview-control acceptance:
+- branch: `coord/w15-fresh-install-preview-control`;
+- file: `docs/WAVE15-FIRST-PROJECT-FRESH-INSTALL-PREVIEW-CONTROL.md`;
+- rev 0006 commit: `d142afce04954fe65986b2a0c74a944f6e7e6d5d`.
+
+Do NOT begin the actual black-box first-project audit.
+
+### Execute ENV_A lifecycle proof now
+
+From exact harness candidate, run the repository-owned local audit lifecycle using Main acceptance SHA:
+`scripts/preview/local-audit.ps1 start -AcceptedHarnessSha 1df4dae293bcca59ee3191faf889058fecc973ee`.
+
+Then complete the readiness sequence from rev 0006:
+1. clean start / prove no harness-seeded Administrator/project/application;
+2. create only the smallest supported product-owned persistence marker needed to prove continuity;
+3. first `pause` with coarse checkpoint;
+4. stop/restart local Docker/host runtime as faithfully as possible;
+5. `resume` and prove same session/marker survived;
+6. second `pause -> resume` cycle and prove idempotence;
+7. prove `status` truth for RUNNING and PAUSED_RESUMABLE plus exact provenance;
+8. explicit `reset`;
+9. prove final `status = NOT_STARTED`, no dedicated preview containers/volumes remain, and no probe state survives.
+
+This pre-audit probe may use normal supported product/public contracts strictly to create/read the minimal persistence marker. Do not use database row mutation, hidden fixture, EEE/Demo import, exploratory UX evaluation, or product correction.
+
+Return a `CODEX -> MAIN` handoff with:
+- exact branch/head/tree;
+- commands actually executed;
+- session ID and exact product/harness provenance;
+- evidence for both pause/resume cycles;
+- evidence for post-reset fresh state;
+- explicit statement that the actual black-box audit did NOT start;
+- any blocker/limitation in faithfully simulating host shutdown/reboot.
+
+ENV_B remains WAIT_REAL_CODESPACE_PROOF. Do not self-start Human Preview.

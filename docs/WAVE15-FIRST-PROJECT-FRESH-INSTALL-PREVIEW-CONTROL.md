@@ -2294,3 +2294,80 @@ Do not introduce a separate Edge persistence engine without an independent archi
 
 Disposition:
 `CONTAINER-NATIVE PREFERRED ARCHITECTURE CANDIDATE / TECHNICAL VALIDATION REQUIRED`.
+
+
+## 41. Coordinator handoff — local operator delivered / container-native direction preserved
+
+MAIN_ORDER_REV: 0031
+
+STATE: LOCAL_OPERATOR_CANDIDATE_DELIVERED / MAIN_REVIEW_PENDING / CONTAINER_NATIVE_ARCH_CANDIDATE_RECORDED / PRODUCT_CORRECTIONS_NOT_STARTED
+
+### 41.1 #360 local operator delivery
+
+CODEX delivered the local Visual Studio/Preview operator candidate in PR #362.
+
+Exact candidate:
+- branch `preview/w15-vs-local-runner`;
+- HEAD `13cb1fcaa3091085515e4d84a3d3e894db541f5f`;
+- base canonical harness `50a4451aa122f7f9fd0af98173c184f6623a147b`;
+- PR #362 OPEN / mergeable / NOT MERGED.
+
+Changed files are limited to local Preview/operator/docs surfaces.
+
+CODEX delivered:
+- `scripts/preview/elite-local.ps1`;
+- `docs/VISUAL-STUDIO-AI-LOCAL-ELITESCADA-BOOTSTRAP.md`;
+- `docs/LOCAL-ELITESCADA-OPERATIONS-EVIDENCE.md`;
+- supporting runbook/regression updates.
+
+Static/operator/dependency-identity regressions are reported PASS.
+
+Important: full lifecycle proof on exact new candidate HEAD remains **NOT_TESTED**. Main has not yet accepted `13cb1f...` as an ENV_A lifecycle candidate.
+
+Shared CODEX route rev 0097 parks CODEX at WAIT_PENDING_MAIN_REVIEW:
+`4147b108b74ec68082baa3b29c003ea4a515c1d5`.
+
+### 41.2 Container-native core strategic direction
+
+Product Owner clarified the desired long-term architecture:
+
+**EliteSCADA containerized core should be the common product implementation. Host/platform layers surround that core to make it operable on each supported environment.**
+
+Canonical owner:
+- #363 — `ARCH-CONTAINER-FIRST — distribuição OCI canônica, multi-arch e perfis Windows/Linux/Edge`.
+
+Canonical architecture doc:
+- `docs/ADR-010-CONTAINER-NATIVE-DISTRIBUTION.md`;
+- commit `c15a6f102945f40de51c39dfcf018554dd2eb14f`.
+
+Stable Product Goal direction:
+- commit `59fcab51ae927e3799c009bb559c60eb679ab932`.
+
+Linux reconciliation:
+- `docs/LINUX-DEBIAN-DISTRIBUTION.md`;
+- commit `0a9236c1a793e886595448f7592cf4385964e1cd`.
+
+Strategic model:
+`canonical OCI core + external persistent state + host adapter + deployment capacity profile`.
+
+Host adapters may target:
+- Linux/systemd/container runtime;
+- Windows host/service/controller around a validated unattended OCI runtime;
+- industrial Edge/PLC container runtime;
+- future appliance/server deployment.
+
+The same product contracts remain authoritative. Do not create a separate Lite/Edge fork by default.
+
+Container-first does NOT mean every OS/device is automatically supported. Homologation remains per CPU architecture/runtime/network/device/Driver/resource profile.
+
+Current disposition:
+`CONTAINER-NATIVE PREFERRED ARCHITECTURE CANDIDATE / TECHNICAL VALIDATION REQUIRED / IMPLEMENTATION NOT YET AUTHORIZED`.
+
+### 41.3 Next coordinator priority
+
+Before Stage 2 or product corrections advance:
+1. independently review PR #362 exact head/diff;
+2. decide whether to authorize exact `13cb1f...` for full local lifecycle validation;
+3. only after that proof decide merge/promotion of the local operator;
+4. keep #363 architectural implementation separate unless Product Owner explicitly authorizes the OCI spike;
+5. then resume post-Preview product correction orchestration (#354/#355/#359/UX2) and Stage 2 sequencing.

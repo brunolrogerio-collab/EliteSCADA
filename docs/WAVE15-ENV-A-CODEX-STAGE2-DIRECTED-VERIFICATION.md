@@ -793,3 +793,23 @@ Then verify mounted UI behavior:
 - UI shows truthful error states instead of blank/failing surfaces.
 
 Do not treat a numeric 402 alone as proof of licensing or Authority root cause. At triage time no explicit intentional product `402 Payment Required` path was found in repository search.
+
+
+#### V2-20 diagnostic ordering update — remote latency hypothesis first
+
+Product Owner correlation with Wave 14 elevates remote latency/forwarding to the **primary hypothesis** for #359, while preserving the bounded root classification until A/B evidence exists.
+
+Run V2-20 in this exact order:
+1. ENV_A local / normal latency;
+2. ENV_A local / deterministic latency+jitter injection at HTTP/proxy layer;
+3. ENV_B/Codespace remote forwarded path.
+
+Do not begin by changing Authority semantics or licensing.
+
+Classification after the A/B/C matrix:
+- A fails -> generic product/Authority;
+- A passes, B fails -> generic remote/WAN resilience (#307);
+- A+B pass, C fails -> forwarding/edge/environment-specific root remains likely;
+- status code `402` alone is not semantic evidence of licensing or Authority.
+
+Read/list requests may exercise bounded retry/backoff if allowed by #307. User/role mutations must not be blindly retried after ambiguous transport outcomes.

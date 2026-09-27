@@ -1922,3 +1922,56 @@ define/execute/accept the intended integrated T2 on `1f14a574...`; only then may
 
 Shared CODEX remains HOLD with no active mission.
 
+
+
+## 63. Four-feature broader integrated T2 accepted / phase exit
+
+Main takeover revalidated GitHub live before this disposition.
+
+Coordination truth at decision time:
+- live integration branch tip: `22fad82c3da98588d98051bd2ceb608da64ff8f3`;
+- exact integrated product checkpoint: `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`;
+- product tree: `5e5fce8ce87f31dfc11b83bb68ff86c67f9f0112`;
+- compare product checkpoint -> coordination tip: 1 commit, 1 changed file, `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md` only; no product/CI/workflow bytes changed.
+
+### Reconstructed T2 contract
+
+The Wave 15 feature-lane T2 is the broader integrated product validation required by sections 3.2 and 14 after the four independently reviewed/CODEX-validated/T1-green feature PRs are integrated. It is not another lane-local T1 and it is not replaced by a feature-specific focused profile.
+
+For this checkpoint the executable broad gate is the repository-owned `EliteSCADA CI` workflow `.github/workflows/dotnet-ci.yml`, which on one exact integrated product SHA executes:
+- Release restore/build plus full `dotnet test ScadaPlatform.sln`;
+- the integrated Runtime smoke, including persisted first-project/lifecycle evidence;
+- semantic Web production build;
+- full Chromium Playwright end-to-end suite after Backend/Web success.
+
+### Exact T2 evidence / disposition
+
+Gate ID: `W15-FOUR-FEATURE-INTEGRATED-T2-01`.
+
+Exact execution already produced naturally after the final feature merge:
+- product SHA: `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`;
+- product tree: `5e5fce8ce87f31dfc11b83bb68ff86c67f9f0112`;
+- EliteSCADA CI #1584 / run `36290910850` / attempt 1: SUCCESS;
+- Backend build, full tests and Runtime smoke: SUCCESS;
+- Web build: SUCCESS;
+- Chromium end-to-end: SUCCESS.
+
+Because the only later integration-branch commit is coordination documentation, Main accepts that already-executed exact-product run as the intended broader integrated T2. A redundant rerun on unchanged product bytes would add no product evidence and is not required.
+
+Disposition:
+`W15-FOUR-FEATURE-INTEGRATED-T2-01 -> PASS / ACCEPTED`.
+
+Lane promotions:
+- Script Engineering -> `T2_VERIFIED`;
+- Editor -> `T2_VERIFIED`;
+- Authority UX remains `INTEGRATED / VERIFIED_COMPLETE` and is covered by the accepted integrated T2;
+- Licensing UX remains `INTEGRATED / VERIFIED_COMPLETE` and is covered by the accepted integrated T2;
+- FND-05 remains `VERIFIED / FROZEN`;
+- FND-07 remains `VERIFIED / FROZEN`.
+
+Entry-condition blocker check:
+- no open issue currently carries a P0 or P1 label;
+- open issue #307 `W15-P0-02` is historical naming for the WAN contract and its ledger records the FND-08 common contract as VERIFIED/FROZEN;
+- no known P0/P1 product blocker invalidates a meaningful fresh-install first-project journey at this checkpoint.
+
+Six-lane phase exit is therefore satisfied. Main may activate `W15-FIRST-PROJECT-CODEX-BLACKBOX-PREVIEW-01` under the dedicated fresh-install preview control. Detailed CODEX findings remain embargoed until the independent Product Owner human journey completes.

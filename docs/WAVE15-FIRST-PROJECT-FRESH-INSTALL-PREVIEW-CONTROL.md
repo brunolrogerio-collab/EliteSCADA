@@ -318,3 +318,52 @@ At activation Main must:
 9. record remediation ownership in GitHub.
 
 No preview is activated by this preparation document.
+
+
+## 12. ACTIVATION — CODEX black-box first-project preview
+
+MAIN_ORDER_REV: 0002
+
+STATE: ACTIVE / CODEX BLACK-BOX FIRST
+
+ACTIVE_GATE_ID: `W15-FIRST-PROJECT-CODEX-BLACKBOX-PREVIEW-01`
+
+Main activation revalidated the exact six-lane exit gate.
+
+Exact preview product base:
+- SHA: `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`;
+- tree: `5e5fce8ce87f31dfc11b83bb68ff86c67f9f0112`;
+- accepted broader feature T2: `W15-FOUR-FEATURE-INTEGRATED-T2-01 -> PASS / ACCEPTED`;
+- broad evidence: EliteSCADA CI #1584 / run `36290910850` / attempt 1 — SUCCESS across Backend build/full tests/Runtime smoke, Web build and Chromium end-to-end.
+
+Coordination branch note:
+`wave15/corrections-integration` subsequently advanced only by coordination documentation beyond this exact product SHA. Those documentation-only commits do not redefine the preview product bytes.
+
+Entry condition at activation:
+- Script Engineering: `T2_VERIFIED`;
+- Editor: `T2_VERIFIED`;
+- Authority UX: `INTEGRATED / VERIFIED_COMPLETE`;
+- Licensing UX: `INTEGRATED / VERIFIED_COMPLETE`;
+- FND-05: `VERIFIED / FROZEN`;
+- FND-07: `VERIFIED / FROZEN`;
+- no known blocking P0/P1 invalidates the first-project journey.
+
+### Binding CODEX mission
+
+Use a genuinely clean environment satisfying section 2. The user mission is intentionally high-level only:
+
+> You have just installed EliteSCADA. Explore the product using normal user-visible interfaces and create a small SCADA application from scratch that reaches a functional Runtime.
+
+During the exploratory journey CODEX MUST NOT use repository source, control-plane documents, database inspection, internal API shortcuts, shell/state mutation, test fixtures or implementation logs to discover/bypass the UI path.
+
+No product/code correction is allowed during exploration. If blocked, record the product-visible blocker and end the black-box journey honestly.
+
+After the journey is COMPLETE or BLOCKED, diagnostic source/log/API inspection is allowed only to correlate findings. Product mutation remains forbidden unless Main later issues a separate correction order.
+
+Detailed findings MUST be persisted in a dedicated preview evidence artifact/branch and MUST remain embargoed from the Product Owner until the independent human first-project journey is completed. Main may surface only gate status (COMPLETE/BLOCKED/INVALID_ENVIRONMENT), not spoiler details.
+
+### Environment validity gate
+
+Before beginning user interaction, CODEX must verify only at the environment level that it is clean as defined in section 2. If a truthful clean environment cannot be obtained without implementation-specific product seeding, return `INVALID_ENVIRONMENT / RESET_REQUIRED` or `BLOCKED_BY_ENVIRONMENT`; do not silently weaken the fresh-install contract.
+
+No Human Preview is active yet. It activates only after CODEX first-project exploration ends and a second independent clean environment is prepared.

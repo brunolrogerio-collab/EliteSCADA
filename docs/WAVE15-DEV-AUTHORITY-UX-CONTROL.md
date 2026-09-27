@@ -502,4 +502,47 @@ After the correction:
 - no full Linux parity battery is required unless focused evidence exposes a cross-cutting issue.
 
 Return durable handoff on PR #346. No merge is authorized yet.
+## CURRENT MAIN DISPOSITION — rev 0011
+
+`ORDER_ID: DEV-AUTHORITY-UX-MAIN-FINAL-ACCEPTANCE-09`
+
+`ORDER_STATE: MAIN_ACCEPTED / MERGE_AUTHORIZED / CODEX_WAIT / DEV_WAIT`
+
+Exact accepted candidate:
+- PR #346;
+- head `f82a5662234e42a73b77f15fbdfd730872cc5cc1`;
+- base `3819715ba3a015a182c97b2a4ebcb4de447da717`;
+- PR: OPEN / MERGEABLE;
+- exact-head T1 `36288094878` / #112: SUCCESS.
+
+Main accepts the CODEX adversarial evidence:
+- anonymous policy GET/preview/apply -> 401;
+- viewer policy GET/preview/apply -> 403;
+- orphan assignment rejected fail-closed;
+- self-lockout rejected fail-closed;
+- rejected mutations do not alter policy version;
+- scoped/multi-role/effective-capability focused evidence remains green;
+- no backend authorization or integrity bypass was found.
+
+Main accepts the bounded CODEX correction:
+- stale-version HTTP 400 with `AUTHORITY_POLICY_CONCURRENCY_CONFLICT` now receives the same localized concurrency guidance as HTTP 409;
+- unrelated HTTP 400 remains an ordinary rejection;
+- raw server error remains visible;
+- frozen Authority backend was not changed;
+- no automatic overwrite/reload of unsaved edits was introduced.
+
+Exact CODEX delta from reconciled candidate:
+- 1 commit;
+- 3 lane-owned files;
+- no backend, Foundation, workflow or integration mutation.
+
+Focused local evidence:
+- Web build PASS;
+- focused model Playwright 11/11 PASS;
+- one broader local mounted fixture had local-auth environment limitations, while the profile-owned exact-head Chromium job in T1 is SUCCESS.
+
+Final disposition:
+`MERGE: AUTHORIZED`
+
+No further branch mutation before protected merge.
 

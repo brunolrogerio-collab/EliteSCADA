@@ -6,6 +6,26 @@ See [LOCAL-ELITESCADA-OPERATIONS-EVIDENCE.md](LOCAL-ELITESCADA-OPERATIONS-EVIDEN
 
 ## Local Environment A
 
+### Visual Studio local development profile
+
+For ordinary local use, launch the separate developer workbench with:
+
+```powershell
+./scripts/preview/elite-local.ps1 launch
+```
+
+This one command checks the `development` profile, prepares pinned dependencies if the exact Git-blob provenance is not ready, starts or resumes its own Compose project/database/session/evidence, waits for DB/API/Web health, and prints the local URL. The profile uses `elitescada-preview-dev` and `ci/local/artifacts/preview-dev/`; it is not Main-accepted ENV_A evidence. Product source edits may remain uncommitted, while dependency-input changes must be committed before preparation. The separate development and audit profiles share host port `5173`; the operator refuses to start either while the other has running containers.
+
+Stop local development without deleting data:
+
+```powershell
+./scripts/preview/elite-local.ps1 stop -Profile development
+```
+
+Resume with `launch`, or use `restart -Profile development` to recreate the app/database containers on the same volumes. Destructive reset is separate and must only follow an explicit fresh-install request: `reset -Profile development -Force`.
+
+The official audit profile below remains gated by Main's exact acceptance SHA. Do not treat a development-profile launch as audit readiness or Product Owner Preview evidence.
+
 The local audit runs in a Linux container based on the repository's pinned Playwright/.NET/Node image. The preview Compose project has its own TimescaleDB database and named volumes; it does not use `ci/local/docker-compose.yml`, expose PostgreSQL, or expose the API to the host. Only Web is bound to host loopback at `127.0.0.1:5173`.
 
 The repository pins the preview shell scripts to LF so Windows Git checkouts remain executable by Bash inside Docker.

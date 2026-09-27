@@ -1,8 +1,12 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet('prepare', 'start', 'status', 'pause', 'stop', 'resume', 'restart', 'diagnose', 'reset')]
+    [ValidateSet('launch', 'prepare', 'start', 'status', 'pause', 'stop', 'resume', 'restart', 'diagnose', 'reset')]
     [string]$Command,
+
+    [Parameter()]
+    [ValidateSet('audit', 'development')]
+    [string]$Profile = 'audit',
 
     [Parameter()]
     [ValidatePattern('^[0-9a-fA-F]{40}$')]
@@ -20,24 +24,35 @@ param(
     [string]$TrustedRootThumbprint,
 
     [Parameter()]
-    [switch]$Force
+    [switch]$Force,
+
+    [Parameter()]
+    [switch]$LocalOwnerLaunch
 )
 
 $ErrorActionPreference = 'Stop'
+if ($Command -eq 'launch') { $Profile = 'development' }
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $productBaseSha = '1f14a57491805a5d976bc9d0bf51393cf1b3ebcd'
-$projectName = 'elitescada-preview-a'
+$projectName = if ($Profile -eq 'development') { 'elitescada-preview-dev' } else { 'elitescada-preview-a' }
 $composeFiles = @(
     (Join-Path $repoRoot 'ci\local\docker-compose.preview.yml'),
     (Join-Path $repoRoot 'ci\local\docker-compose.preview.local.yml')
 )
+$sessionDirectoryName = if ($Profile -eq 'development') { 'preview-dev' } else { 'preview-audit-a' }
+$archiveDirectoryName = if ($Profile -eq 'development') { 'preview-dev-archive' } else { 'preview-audit-archive' }
+if ($Profile -eq 'development') {
+    $composeFiles += (Join-Path $repoRoot 'ci\local\docker-compose.preview.dev.yml')
+}
 $artifactRoot = Join-Path $repoRoot 'ci\local\artifacts'
-$sessionRoot = Join-Path $artifactRoot 'preview-audit-a'
+$sessionRoot = Join-Path $artifactRoot $sessionDirectoryName
 $sessionFile = Join-Path $sessionRoot 'session.json'
-$archiveRoot = Join-Path $artifactRoot 'preview-audit-archive'
+$archiveRoot = Join-Path $artifactRoot $archiveDirectoryName
 $dependencyManifestRoot = Join-Path $artifactRoot 'preview-dependencies'
 $repoPrefix = $repoRoot.TrimEnd('\') + '\'
 Import-Module (Join-Path $PSScriptRoot 'PreviewDependencyIdentity.psm1') -Force
+
+if ($Command -ne 'start' -and $LocalOwnerLaunch) { throw '-LocalOwnerLaunch is valid only for the internal start dispatched by launch.' }
 
 function Invoke-Git([string[]]$GitArguments) {
     $result = Invoke-NativeCommand -FilePath 'git' -Arguments (@('-C', $repoRoot) + $GitArguments)
@@ -91,7 +106,8 @@ function Get-HarnessIdentity {
     $allowedFiles = @(
         '.gitattributes',
         'docs/LOCAL-FIRST-PROJECT-PREVIEW-HARNESS.md',
-        'docs/VISUAL-STUDIO-AI-LOCAL-ELITESCADA-BOOTSTRAP.md'
+        'docs/VISUAL-STUDIO-AI-LOCAL-ELITESCADA-BOOTSTRAP.md',
+        'docs/LOCAL-ELITESCADA-OPERATIONS-EVIDENCE.md'
     )
     $changedPaths = @(Invoke-Git -GitArguments @('diff', '--name-only', $productBaseSha, 'HEAD'))
     $productScopeChanges = @()
@@ -105,10 +121,10 @@ function Get-HarnessIdentity {
     }
 
     $dirty = @(Invoke-Git -GitArguments @('status', '--porcelain', '--untracked-files=all'))
-    if ($productScopeChanges.Count -gt 0 -and -not $AllowUnclean) {
+    if ($Profile -eq 'audit' -and $productScopeChanges.Count -gt 0 -and -not $AllowUnclean) {
         throw "Product-scope changes are not allowed in the local preview harness: $($productScopeChanges -join ', ')"
     }
-    if ($dirty.Count -gt 0 -and -not $AllowUnclean) {
+    if ($Profile -eq 'audit' -and $dirty.Count -gt 0 -and -not $AllowUnclean) {
         throw 'The audit requires a clean, committed harness worktree; commit or safely preserve local changes before continuing.'
     }
 
@@ -142,6 +158,15 @@ function Get-StackResources {
     $networks = @(Invoke-NativeCommand -FilePath 'docker' -Arguments @('network', 'ls', '--quiet', '--filter', "label=com.docker.compose.project=$projectName"))
     if ($LASTEXITCODE -ne 0) { throw 'Could not inspect Docker networks for the dedicated preview project.' }
     return [pscustomobject]@{ Containers = $containers; Volumes = $volumes; Networks = $networks }
+}
+
+function Assert-OtherProfileStopped {
+    $otherProject = if ($Profile -eq 'development') { 'elitescada-preview-a' } else { 'elitescada-preview-dev' }
+    $otherContainers = @(Invoke-NativeCommand -FilePath 'docker' -Arguments @('ps', '--quiet', '--filter', "label=com.docker.compose.project=$otherProject"))
+    if ($LASTEXITCODE -ne 0) { throw 'Could not check the other local Preview profile before using the shared host Web port.' }
+    if ($otherContainers.Count -gt 0) {
+        throw "PROFILE_PORT_CONFLICT: the other local Preview profile '$otherProject' has running containers. Stop that profile explicitly before starting/resuming this one; no profile was changed."
+    }
 }
 
 function Get-StackContainers {
@@ -252,6 +277,7 @@ function Get-PreviewDependencyIdentity($Identity) {
         'ci/local/Dockerfile.linux-e2e',
         'ci/local/docker-compose.preview.yml',
         'ci/local/docker-compose.preview.local.yml',
+        'ci/local/docker-compose.preview.dev.yml',
         'scripts/preview/run-product-preview.sh'
     )
     $manifestPaths += @($tracked | Where-Object {
@@ -282,6 +308,15 @@ function Get-PreviewDependencyIdentity($Identity) {
     }
 }
 
+function Assert-DevelopmentDependencyInputsClean($Identity) {
+    if ($Profile -ne 'development') { return }
+    $dependencyPattern = '(?i)(^|/)(global\.json|package\.json|package-lock\.json|packages\.lock\.json|NuGet\.Config|Directory\.Build\.(props|targets)|Directory\.Packages\.props|[^/]+\.csproj|Dockerfile\.linux-e2e|docker-compose\.preview(\.local|\.dev)?\.yml|run-product-preview\.sh)$'
+    $dirtyDependencyInputs = @($Identity.DirtyPaths | Where-Object { $_ -match $dependencyPattern })
+    if ($dirtyDependencyInputs.Count -gt 0) {
+        throw "DEV_DEPENDENCY_INPUTS_DIRTY: commit the dependency-input changes before launch/prepare so the exact Git blobs can be prepared. Product source edits may remain uncommitted. Paths: $($dirtyDependencyInputs -join ', ')"
+    }
+}
+
 function Set-PreviewDependencyEnvironment($Dependency) {
     $env:ELITESCADA_PREVIEW_DEPENDENCY_KEY = $Dependency.Key
     $env:ELITESCADA_PREVIEW_DEPENDENCY_INPUTS_SHA = $Dependency.InputsSha
@@ -289,6 +324,7 @@ function Set-PreviewDependencyEnvironment($Dependency) {
     $env:ELITESCADA_PREVIEW_PRODUCT_BASE_SHA = $Dependency.ProductBase
     $env:ELITESCADA_PREVIEW_NODE_MODULES_VOLUME = $Dependency.NodeModulesVolume
     $env:ELITESCADA_PREVIEW_NUGET_VOLUME = $Dependency.NuGetVolume
+    $env:ELITESCADA_PREVIEW_IMAGE_NAME = Get-PreviewImageName $Dependency
     $env:ELITESCADA_PREVIEW_PORT = "$Port"
 }
 
@@ -306,6 +342,7 @@ function Set-SessionComposeEnvironment($Session, $Dependency = $null) {
     $env:ELITESCADA_PREVIEW_PRODUCT_BASE_SHA = [string]$Session.productBaseSha
     $env:ELITESCADA_PREVIEW_NODE_MODULES_VOLUME = [string]$Session.nodeModulesVolume
     $env:ELITESCADA_PREVIEW_NUGET_VOLUME = [string]$Session.nugetVolume
+    $env:ELITESCADA_PREVIEW_IMAGE_NAME = "$projectName-preview:$($Session.dependencyKey)"
     $env:ELITESCADA_PREVIEW_PORT = [string]$Session.webPort
 }
 
@@ -648,8 +685,13 @@ function Add-Transition($Session, [string]$State, [string]$Message, [string]$Che
 }
 
 function Assert-ResumableSession($Session, $Identity, $Dependency) {
-    if ($Session.productBaseSha -ne $Identity.ProductBase -or
-        $Session.acceptedHarnessSha -ne $Session.harnessSha -or
+    $authorizationMatches = if ($Session.authorizationMode -eq 'LOCAL_OWNER_DEVELOPMENT') {
+        $Session.localDevelopmentSha -eq $Session.harnessSha
+    } else {
+        $Session.acceptedHarnessSha -eq $Session.harnessSha
+    }
+    if (-not $authorizationMatches -or
+        $Session.productBaseSha -ne $Identity.ProductBase -or
         $Session.harnessSha -ne $Identity.Head -or
         $Session.harnessTree -ne $Identity.Tree -or
         $Session.dependencyKey -ne $Dependency.Key -or
@@ -733,9 +775,16 @@ function Get-SessionStatusSnapshot($Session, $Identity) {
             $Identity.Branch -ne $Session.branch -or
             $Identity.DirtyPaths.Count -gt 0
         $identityMatches = $Identity.Head -eq $Session.harnessSha -and $Identity.Tree -eq $Session.harnessTree
-        $resumable = $identityMatches -and $Session.productBaseSha -eq $Identity.ProductBase
+        $authorizationMatches = if ($Session.authorizationMode -eq 'LOCAL_OWNER_DEVELOPMENT') {
+            $Session.localDevelopmentSha -eq $Session.harnessSha
+        } else {
+            $Session.acceptedHarnessSha -eq $Session.harnessSha
+        }
+        $resumable = $identityMatches -and $authorizationMatches -and $Session.productBaseSha -eq $Identity.ProductBase
         if (-not $identityMatches) {
             $state = 'RESUME_BLOCKED_CHECKOUT_DIFFERS'
+        } elseif (-not $authorizationMatches) {
+            $state = 'RESUME_BLOCKED_AUTHORIZATION_MISMATCH'
         } elseif (-not $containerSnapshot.Available) {
             $state = 'DOCKER_UNAVAILABLE_RESUMABLE'
         } elseif ($preview -and $preview.state -eq 'running' -and $webHealth.state -eq 'healthy' -and $apiHealth.state -eq 'healthy' -and $databaseHealth -eq 'healthy') {
@@ -757,6 +806,8 @@ function Get-SessionStatusSnapshot($Session, $Identity) {
     return [pscustomobject]@{
         state = $state
         composeProject = $projectName
+        profile = $Profile
+        authorizationMode = if ($null -ne $Session) { $Session.authorizationMode } else { $null }
         currentBranch = $Identity.Branch
         currentHead = $Identity.Head
         currentTree = $Identity.Tree
@@ -792,6 +843,8 @@ function Get-SessionStatusSnapshot($Session, $Identity) {
 function Print-SessionStatus($Session, $Identity) {
     $snapshot = Get-SessionStatusSnapshot $Session $Identity
     Write-Output "STATE=$($snapshot.state)"
+    Write-Output "PROFILE=$($snapshot.profile)"
+    if ($snapshot.authorizationMode) { Write-Output "AUTHORIZATION_MODE=$($snapshot.authorizationMode)" }
     Write-Output "BRANCH=$($snapshot.currentBranch)"
     Write-Output "HEAD=$($snapshot.currentHead)"
     Write-Output "TREE=$($snapshot.currentTree)"
@@ -861,24 +914,73 @@ function Write-LocalDiagnosticReport($Session, $Identity) {
     Print-SessionStatus $Session $Identity
 }
 
-if ($Command -ne 'prepare' -and -not [string]::IsNullOrWhiteSpace($TrustedRootThumbprint)) {
-    throw '-TrustedRootThumbprint is permitted only for the isolated prepare operation.'
+if ($Command -notin @('prepare', 'launch') -and -not [string]::IsNullOrWhiteSpace($TrustedRootThumbprint)) {
+    throw '-TrustedRootThumbprint is permitted only for prepare or launch automatic preparation.'
 }
 if ($Command -eq 'reset' -and -not $Force) {
     throw 'RESET_CONFIRMATION_REQUIRED: reset deletes the local product database/session. Re-run only after the Product Owner explicitly requests a fresh install, with -Force.'
 }
 
 switch ($Command) {
+    'launch' {
+        if ($Profile -ne 'development') { throw 'Local launch always uses the isolated development profile.' }
+        $identity = Get-HarnessIdentity
+        Assert-DevelopmentDependencyInputsClean $identity
+        $session = Read-Session
+        $snapshot = Get-SessionStatusSnapshot $session $identity
+        if ($snapshot.dockerEngine -ne 'available') { throw 'DOCKER_UNAVAILABLE: start Docker Desktop, then retry launch. No workbench state was changed.' }
+
+        if ($null -ne $session) {
+            if ($snapshot.state -eq 'RUNNING_HEALTHY') {
+                Print-SessionStatus $session $identity
+                Write-Output "WEB_URL=http://localhost:$($session.webPort)"
+                return
+            }
+            if ($snapshot.state -eq 'RUNNING_UNHEALTHY') {
+                throw 'LOCAL_WORKBENCH_UNHEALTHY: run status and diagnose; launch will not blindly recreate a running but unhealthy workbench.'
+            }
+            if (-not $snapshot.resumable) {
+                throw "LOCAL_WORKBENCH_NOT_RESUMABLE: status=$($snapshot.state). Run status and diagnose; launch will not reset, migrate, or overwrite this workbench."
+            }
+            Assert-OtherProfileStopped
+            & $PSCommandPath resume -Profile development -Port $Port
+            if (-not $?) { throw 'Could not resume the saved local development workbench.' }
+            return
+        }
+
+        if ($snapshot.state -ne 'NOT_STARTED') {
+            throw "LOCAL_WORKBENCH_REVIEW_REQUIRED: status=$($snapshot.state). Run status and diagnose; launch will not remove orphaned containers, networks, volumes, or evidence."
+        }
+        Assert-OtherProfileStopped
+        $identity = Get-HarnessIdentity
+        $dependency = Get-PreviewDependencyIdentity $identity
+        Set-PreviewDependencyEnvironment $dependency
+        $prepared = $false
+        try {
+            $null = Assert-PreparedDependencies $identity $dependency -VerifyContents
+            $prepared = $true
+        } catch {
+            $prepared = $false
+        }
+        if (-not $prepared) {
+            Invoke-PreparedDependencyBootstrap $identity $dependency $TrustedRootThumbprint
+            $null = Assert-PreparedDependencies $identity $dependency -VerifyContents
+        }
+        & $PSCommandPath start -Profile development -LocalOwnerLaunch -Port $Port
+        if (-not $?) { throw 'Local launch did not complete successfully.' }
+        return
+    }
     'status' {
         $identity = Get-HarnessIdentity -AllowUnclean
         Print-SessionStatus (Read-Session) $identity
     }
     'prepare' {
         $identity = Get-HarnessIdentity
+        Assert-DevelopmentDependencyInputsClean $identity
         $dependency = Get-PreviewDependencyIdentity $identity
         Set-PreviewDependencyEnvironment $dependency
         if ($null -ne (Read-Session)) {
-            throw 'Preparation is allowed only with no active audit session; pause/reset the product session first.'
+            throw "Preparation is allowed only with no saved $Profile session; stop/reset that profile first."
         }
         $resources = Get-StackResources
         if ($resources.Containers.Count -or $resources.Volumes.Count -or $resources.Networks.Count) {
@@ -888,6 +990,7 @@ switch ($Command) {
     }
     'start' {
         $identity = Get-HarnessIdentity
+        Assert-DevelopmentDependencyInputsClean $identity
         $existing = Read-Session
         if ($null -ne $existing) {
             if (-not [string]::IsNullOrWhiteSpace($AcceptedHarnessSha) -and $AcceptedHarnessSha.ToLowerInvariant() -ne $identity.Head) {
@@ -897,6 +1000,7 @@ switch ($Command) {
             Assert-ResumableSession $existing $identity $dependency
             Set-SessionComposeEnvironment $existing $dependency
             $null = Assert-PreparedDependencies $identity $dependency -VerifyContents
+            Assert-OtherProfileStopped
             Invoke-PreviewCompose -ComposeArguments @('up', '--no-build', '--pull', 'never', '--detach', '--wait', '--wait-timeout', '240')
             Wait-PreviewHealth ([int]$existing.webPort)
             Add-Transition $existing 'RUNNING' 'Existing workbench resumed by start; database and product state were preserved.'
@@ -904,11 +1008,17 @@ switch ($Command) {
             Write-Output "WEB_URL=http://localhost:$($existing.webPort)"
             return
         }
-        if ([string]::IsNullOrWhiteSpace($AcceptedHarnessSha)) {
-            throw "A new workbench requires -AcceptedHarnessSha <40-hex SHA> copied from Main's live ENV_A harness-acceptance order."
-        }
-        if ($AcceptedHarnessSha.ToLowerInvariant() -ne $identity.Head) {
-            throw "Accepted SHA does not match this exact harness HEAD ($($identity.Head)); refusing to start."
+        if ($Profile -eq 'development') {
+            if (-not $LocalOwnerLaunch) { throw 'For the local development workbench, use `elite-local.ps1 launch`; only that command records a separate Product Owner local-development authorization.' }
+            if (-not [string]::IsNullOrWhiteSpace($AcceptedHarnessSha)) { throw 'Do not pass Main audit acceptance SHA to the isolated local development profile.' }
+        } else {
+            if ($LocalOwnerLaunch) { throw 'Local development authorization cannot be used for the Main-gated ENV_A audit profile.' }
+            if ([string]::IsNullOrWhiteSpace($AcceptedHarnessSha)) {
+                throw "A new audit workbench requires -AcceptedHarnessSha <40-hex SHA> copied from Main's live ENV_A harness-acceptance order."
+            }
+            if ($AcceptedHarnessSha.ToLowerInvariant() -ne $identity.Head) {
+                throw "Accepted SHA does not match this exact harness HEAD ($($identity.Head)); refusing to start."
+            }
         }
         $resources = Get-StackResources
         if ($resources.Containers.Count -or $resources.Volumes.Count -or $resources.Networks.Count) {
@@ -917,14 +1027,18 @@ switch ($Command) {
         $dependency = Get-PreviewDependencyIdentity $identity
         Set-PreviewDependencyEnvironment $dependency
         $null = Assert-PreparedDependencies $identity $dependency -VerifyContents
+        Assert-OtherProfileStopped
 
         New-Item -ItemType Directory -Path $sessionRoot -Force | Out-Null
+        $authorizationMode = if ($Profile -eq 'development') { 'LOCAL_OWNER_DEVELOPMENT' } else { 'MAIN_ENV_A_ACCEPTANCE' }
         $session = [pscustomobject]@{
             schemaVersion = 1
             sessionId = [Guid]::NewGuid().ToString('D')
             state = 'STARTING'
             productBaseSha = $identity.ProductBase
-            acceptedHarnessSha = $identity.Head
+            authorizationMode = $authorizationMode
+            acceptedHarnessSha = if ($Profile -eq 'audit') { $identity.Head } else { $null }
+            localDevelopmentSha = if ($Profile -eq 'development') { $identity.Head } else { $null }
             harnessSha = $identity.Head
             harnessTree = $identity.Tree
             branch = $identity.Branch
@@ -935,14 +1049,15 @@ switch ($Command) {
             createdAtUtc = [DateTime]::UtcNow.ToString('o')
             updatedAtUtc = [DateTime]::UtcNow.ToString('o')
             webPort = $Port
-            lastCheckpoint = 'New clean Environment A session; no project/user state was pre-seeded by the harness.'
+            lastCheckpoint = if ($Profile -eq 'development') { 'New local development session; no project/user state was pre-seeded by the harness.' } else { 'New clean Environment A session; no project/user state was pre-seeded by the harness.' }
             transitions = @([pscustomobject]@{ state = 'STARTING'; atUtc = [DateTime]::UtcNow.ToString('o') })
         }
         Save-Session $session
         try {
             Invoke-PreviewCompose -ComposeArguments @('up', '--no-build', '--pull', 'never', '--detach', '--wait', '--wait-timeout', '240')
             Wait-PreviewHealth $Port
-            Add-Transition $session 'RUNNING' 'Clean application stack healthy; product remains available for the accepted audit.'
+            $readyMessage = if ($Profile -eq 'development') { 'Clean local development stack healthy; this session is not Main-accepted ENV_A audit evidence.' } else { 'Clean application stack healthy; product remains available for the accepted audit.' }
+            Add-Transition $session 'RUNNING' $readyMessage
             Print-SessionStatus $session $identity
             Write-Output "WEB_URL=http://localhost:$Port"
         } catch {
@@ -973,12 +1088,14 @@ switch ($Command) {
     }
     'resume' {
         $identity = Get-HarnessIdentity
+        Assert-DevelopmentDependencyInputsClean $identity
         $dependency = Get-PreviewDependencyIdentity $identity
         $session = Read-Session
-        if ($null -eq $session) { throw 'No saved audit session exists. A new start requires Main acceptance; resume never creates one.' }
+        if ($null -eq $session) { throw 'No saved session exists. Resume never creates a workbench; use the approved start/launch path for the selected profile.' }
         Assert-ResumableSession $session $identity $dependency
         Set-SessionComposeEnvironment $session $dependency
         $null = Assert-PreparedDependencies $identity $dependency -VerifyContents
+        Assert-OtherProfileStopped
         Invoke-PreviewCompose -ComposeArguments @('up', '--no-build', '--pull', 'never', '--detach', '--wait', '--wait-timeout', '240')
         Wait-PreviewHealth ([int]$session.webPort)
         Add-Transition $session 'RESUMED' 'Same saved Environment A identity reopened; product/database state was not reset or reseeded.'
@@ -987,12 +1104,14 @@ switch ($Command) {
     }
     'restart' {
         $identity = Get-HarnessIdentity
+        Assert-DevelopmentDependencyInputsClean $identity
         $dependency = Get-PreviewDependencyIdentity $identity
         $session = Read-Session
         if ($null -eq $session) { throw 'No saved workbench exists to restart. A new start requires Main acceptance.' }
         Assert-ResumableSession $session $identity $dependency
         Set-SessionComposeEnvironment $session $dependency
         $null = Assert-PreparedDependencies $identity $dependency -VerifyContents
+        Assert-OtherProfileStopped
         Invoke-PreviewCompose -ComposeArguments @('up', '--no-build', '--pull', 'never', '--detach', '--force-recreate', '--wait', '--wait-timeout', '240')
         Wait-PreviewHealth ([int]$session.webPort)
         Add-Transition $session 'RUNNING' 'Application and database containers were recreated against the same named product volumes.'
@@ -1013,7 +1132,7 @@ switch ($Command) {
                 throw 'Refusing to archive audit evidence outside this repository.'
             }
             New-Item -ItemType Directory -Path $archiveRoot -Force | Out-Null
-            $archiveName = 'preview-audit-a-' + [Guid]::NewGuid().ToString('N')
+            $archiveName = $sessionDirectoryName + '-' + [Guid]::NewGuid().ToString('N')
             $archivePath = Join-Path $archiveRoot $archiveName
             if (-not $archivePath.StartsWith($repoPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
                 throw 'Refusing to archive evidence outside this repository.'
@@ -1022,6 +1141,6 @@ switch ($Command) {
             Write-Output "ARCHIVED_EVIDENCE=$archivePath"
         }
         Write-Output "STATE=NOT_STARTED"
-        Write-Output "RESET_SCOPE=only Docker Compose project $projectName and its dedicated product/audit containers, network and volumes; provenance-bound dependency volumes and tool image are preserved; evidence archived under ci/local/artifacts/preview-audit-archive"
+        Write-Output "RESET_SCOPE=only profile=$Profile Docker Compose project $projectName and its dedicated containers, network and product volumes; provenance-bound dependency volumes and tool image are preserved; evidence archived under ci/local/artifacts/$archiveDirectoryName"
     }
 }

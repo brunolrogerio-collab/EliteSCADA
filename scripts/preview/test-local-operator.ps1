@@ -13,7 +13,7 @@ foreach ($path in @($operatorScript, $implementationScript)) {
 Write-Output 'PASS: local operator PowerShell syntax.'
 
 $help = (& $operatorScript help | Out-String)
-foreach ($command in @('prepare', 'start', 'status', 'pause', 'resume', 'stop', 'restart', 'diagnose', 'reset')) {
+foreach ($command in @('launch', 'prepare', 'start', 'status', 'pause', 'resume', 'stop', 'restart', 'diagnose', 'reset')) {
     if ($help -notmatch "(?m)^\s+$command\s+") { throw "Operator help does not document '$command'." }
 }
 Write-Output 'PASS: operator help lists every required lifecycle command.'
@@ -22,14 +22,24 @@ foreach ($entry in @(
     @{ Path = $operatorScript; Name = 'elite-local' },
     @{ Path = $implementationScript; Name = 'local-audit' }
 )) {
-    try {
-        & $entry.Path reset | Out-Null
-        throw "FAIL: $($entry.Name) accepted reset without -Force."
-    } catch {
-        if ($_.Exception.Message -notmatch 'RESET_CONFIRMATION_REQUIRED') { throw }
+    foreach ($profile in @('audit', 'development')) {
+        try {
+            & $entry.Path reset -Profile $profile | Out-Null
+            throw "FAIL: $($entry.Name) accepted reset for '$profile' without -Force."
+        } catch {
+            if ($_.Exception.Message -notmatch 'RESET_CONFIRMATION_REQUIRED') { throw }
+        }
     }
 }
 Write-Output 'PASS: reset is refused before Docker/state access unless -Force is explicit.'
+
+$auditCompose = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot '..\..\ci\local\docker-compose.preview.local.yml')
+$developmentCompose = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot '..\..\ci\local\docker-compose.preview.dev.yml')
+if ($auditCompose -notmatch '127\.0\.0\.1:\$\{ELITESCADA_PREVIEW_PORT' -or
+    $developmentCompose -notmatch 'preview-dev:/preview-evidence') {
+    throw 'Local development Compose profile is not isolated from audit evidence or loopback-bound.'
+}
+Write-Output 'PASS: development profile uses its own evidence mount and remains loopback-bound by the shared Compose base.'
 
 $tokens = $null
 $errors = $null

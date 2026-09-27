@@ -1,3 +1,42 @@
+# LATEST DELTA — 2026-09-27 — SECURITY/AUTHORITY CODESPACE P1 ADDED
+
+> This delta supersedes older Human Preview findings summaries below when there is a conflict. GitHub live remains the sole authority.
+
+Additional Product Owner Human Preview finding:
+
+- some Engineering surfaces failed to load with an observed HTTP `402` condition;
+- Security/Authority administration remained unusable throughout the real Codespace journey;
+- user creation and user editing could not be exercised.
+
+Triage did not find an explicit intentional product `402 Payment Required` response path, so root cause remains bounded rather than inferred.
+
+Classification:
+`DEFECT / PREVIEW_SECURITY_ADMIN_UNAVAILABLE / ROOT_LAYER_UNCERTAIN_BOUNDED`.
+
+New issue:
+- #359 — `W15-PREVIEW-P1 — Security/Authority administration fails to load in Codespace with observed HTTP 402`.
+
+Cross-linked owners:
+- #302 Authority;
+- #307 remote/WAN resilience.
+
+Human findings:
+`coord/w15-fresh-install-preview-control:docs/WAVE15-FIRST-PROJECT-HUMAN-PREVIEW-FINDINGS.md`
+commit `4199df90a7f8ece83217e28cdab3e6b4261f4be1`.
+
+Stage2 now includes:
+`V2-20 — Security/Authority mounted UI and HTTP 402 root isolation`
+commit `202e9ccbac805294c24905017bf893ac9606d650`.
+
+Preview control rev 0026:
+`0c6d47a31abf3bff2ef29e913683e34bdd351c3a`.
+
+Future acceptance requires exact network/status/body capture, local-vs-remote isolation, and mounted user create/edit/role-assignment verification.
+
+The active repaired ENV_A harness final lifecycle validation remains uninterrupted.
+
+---
+
 # LATEST DELTA — 2026-09-27 — SECOND DEV UX WAVE PREPARED / ICON-FIRST EDITOR TOOLBOX
 
 > This delta supersedes older post-Preview UX planning wording below when there is a conflict. GitHub live remains the sole authority.

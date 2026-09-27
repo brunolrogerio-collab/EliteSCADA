@@ -2181,3 +2181,51 @@ The harness readiness proof must include:
 5. no product auth/licensing weakening and no first-project state pre-seeding.
 
 Note: public forwarded 5173 removes GitHub's port-level authentication for anyone who knows the URL. EliteSCADA's own login/auth/authorization must remain intact.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0082
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-FIRST-PROJECT-ENV-HARNESS-RESUMABLE-LOCAL-AUDIT-67`
+
+`ORDER_STATE: ACTIVE / ENVIRONMENT_HARNESS_ONLY / LOCAL_AUDIT_START_PAUSE_RESUME_REQUIRED`
+
+This amendment is binding and supersedes rev 0081 where more specific.
+
+Product Owner requirement for Environment A (CODEX local audit): the audit must be resumable across CODEX usage-window limits and PC shutdown/restart.
+
+Read authoritative Preview control rev 0005 first:
+- branch: `coord/w15-fresh-install-preview-control`;
+- file: `docs/WAVE15-FIRST-PROJECT-FRESH-INSTALL-PREVIEW-CONTROL.md`;
+- commit: `6a6ce2226df69b6c976d125f80749d65b31b6802`.
+
+Implement one repository-controlled lifecycle surface with at least:
+`start | pause | resume | status | reset`.
+
+Preferred shape:
+`scripts/preview/local-audit.sh start|pause|resume|status|reset`
+(or a demonstrably better equivalent).
+
+Binding semantics:
+- `start`: create a brand-new clean audit session only when no resumable session exists;
+- `pause`: checkpoint + stop runtime/compute while preserving audit DB/project/evidence/provenance;
+- `resume`: continue the same paused audit session, never silently reset/reseed;
+- `status`: report session ID, lifecycle state, exact product/harness SHA, service health and resumability;
+- `reset`: explicit destructive cleanup only; never implicit during pause/resume.
+
+Persistent state must survive container/process lifetime via named Docker volume and/or host-mounted ignored storage. Preserve database/project state, audit evidence and exact provenance. Do not rely only on writable container layers.
+
+Resume must validate exact saved product/harness identity and fail clearly on mismatch rather than migrating product state automatically.
+
+Required proof before ENV_A can be accepted READY:
+1. fresh start is actually fresh/no-project;
+2. create distinguishable ordinary product-visible state;
+3. pause stops services without deleting that state;
+4. restart host/container runtime as faithfully as available and resume same session/state;
+5. second pause/resume cycle works idempotently;
+6. status truthfully distinguishes RUNNING / PAUSED_RESUMABLE;
+7. reset is explicitly destructive and next start returns to true fresh-install state;
+8. no product semantic/auth/licensing/runtime change was made for resumability.
+
+Keep black-box integrity: do not use the checkpoint mechanism to inject source-derived navigation hints or repair product state. Detailed findings remain embargoed across pauses.
+
+Do not start the actual first-project exploratory audit until Main accepts this lifecycle proof and marks ENV_A READY.

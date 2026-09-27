@@ -692,3 +692,29 @@ Full locked semantics and the permitted early non-production spike: `docs/OPC-UA
 - `docs/LINUX-DEBIAN-DISTRIBUTION.md`: future Development-Lead-triggered Linux x64/Debian `.deb` packaging, acceptance and dependency-license contract; specification only until explicitly started.
 
 These documents must remain consistent. `PROJECT GOAL.md` wins for locked product intent; current repository code/`main` wins for implementation truth; `LAST CHANGE.md` records the exact handoff.
+
+
+## Container-native distribution strategic direction
+
+EliteSCADA should converge, where technical validation supports it, on **one common product implementation with a canonical OCI/container distribution artifact** rather than creating separate product forks for Windows, Linux and industrial Edge targets.
+
+Binding strategic preferences:
+
+- preserve the same canonical Engineering model, `.escadapkg`, Runtime, Authority, Licensing and Driver contracts across deployment targets;
+- prefer host adapters/deployment profiles over separate Lite/Edge product forks;
+- initial OCI architecture targets are `linux/amd64` and `linux/arm64`;
+- mutable product state, licensing state, configuration, certificates and diagnostics stay outside immutable image layers;
+- constrained Edge hardware may run the complete product subject to an evidence-based Deployment Capacity Profile rather than a different product implementation;
+- commercial license entitlement and physical hardware capacity are independent constraints;
+- container replacement/update must not invalidate a license merely because ephemeral container identity changed;
+- do not bind licensing to container ID, random hostname, virtual MAC or image digest;
+- container support is per homologated OCI host/platform/Driver matrix, not a claim that every OS/device automatically supports EliteSCADA;
+- Linux/Edge are the preferred first production OCI validation fronts;
+- Windows may later become a host-integration package around the same OCI artifact only if an unattended industrially supportable container-host strategy is proven; preserved native Windows packaging remains valid until then;
+- containerization does not authorize arbitrary stateless replication or bypass existing HA/Active Runtime/Authority/licensing contracts.
+
+Architecture candidate and phased validation plan:
+`docs/ADR-010-CONTAINER-NATIVE-DISTRIBUTION.md` / issue #363.
+
+Current state:
+`STRATEGIC DIRECTION / TECHNICAL VALIDATION REQUIRED / NOT YET A RELEASE CONTRACT`.

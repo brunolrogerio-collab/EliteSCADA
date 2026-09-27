@@ -1440,3 +1440,111 @@ Current gates:
 - Stage 1: HOLD;
 - Human Preview: HOLD;
 - Stage 2: PREPARED / NOT ACTIVE.
+
+
+## 30. ENV_B READY — parallel exploratory journeys released
+
+MAIN_ORDER_REV: 0020
+
+STATE: ENV_A_READY / ENV_B_READY / PARALLEL_EXPLORATORY_PREVIEW_ACTIVE
+
+Product Owner completed the ENV_B stop/resume readiness proof on the same real Codespace created from:
+`preview/w15-first-project-env-b-codespace`
+at exact harness point:
+`bb451fa6e07982ac12384895f6097d5833761d16` / tree `650d30089596021cb1a564ee1d2f1abfc7d2b509`.
+
+Observed after normal Codespace stop -> reopen:
+- Codespace resumed successfully;
+- repository-controlled product startup ran automatically in the terminal lifecycle;
+- Product Owner did not manually start EliteSCADA;
+- browser access to the forwarded Web surface worked again;
+- the first Administrator setup flow did not return;
+- the persisted Administrator continuity marker survived;
+- product returned to the normal no-project / `Criar novo projeto` state;
+- no project/import/Demo/EEE state appeared.
+
+Main disposition:
+`ENV_B = READY / RESUMABLE`.
+
+5173 remains Private but authenticated-owner browser access is accepted as a non-blocking convenience deviation per rev 0018. 5080/5432 remain non-public in the accepted first-open evidence.
+
+### 30.1 Human Preview released
+
+Gate:
+`W15-FIRST-PROJECT-HUMAN-PREVIEW-01 -> ACTIVE`.
+
+Human starting checkpoint:
+- genuine Product Owner Codespace;
+- Administrator already created solely as the ENV_B readiness continuity marker;
+- **no project exists**;
+- current product-visible surface is `Criar novo projeto`.
+
+This readiness bootstrap does not count as the first-project audit itself. The Human Preview begins now from the first-project boundary.
+
+Binding human mission remains high-level:
+> Starting from EliteSCADA with no prepared project, create the first SCADA application from zero and make it work in Runtime using the product as a normal human user.
+
+No Main/CODEX click-by-click coaching should be given during the unaided journey. If Product Owner becomes blocked and asks for help, record that point as the end of unaided discovery before providing assistance.
+
+### 30.2 CODEX Stage 1 released in parallel
+
+Gate:
+`W15-FIRST-PROJECT-CODEX-BLACKBOX-PREVIEW-01 -> ACTIVE`.
+
+Exact environment authority:
+- harness branch: `preview/w15-first-project-env-harness`;
+- harness SHA: `bb451fa6e07982ac12384895f6097d5833761d16`;
+- harness tree: `650d30089596021cb1a564ee1d2f1abfc7d2b509`;
+- product base: `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`;
+- ENV_A readiness: `READY / CLEAN / RESUMABLE`;
+- expected starting state: `NOT_STARTED / PREPARATION=READY`.
+
+Dedicated embargoed CODEX evidence branch created:
+`preview/w15-first-project-codex-evidence`
+from exact harness SHA `bb451fa...`.
+
+CODEX must start a brand-new ENV_A audit session and then obey the original black-box restrictions.
+
+Allowed infrastructure-only lifecycle operations during Stage 1:
+- `start` once for the accepted clean session;
+- `status` for coarse environment state;
+- `pause` / `resume` solely to survive CODEX time-window or host interruption;
+- no `reset` unless the environment is invalid and Main later authorizes abandoning the session.
+
+These lifecycle commands are not product navigation shortcuts and must not inspect or mutate product DB/state directly.
+
+Binding CODEX user mission:
+> You have just installed EliteSCADA. Explore the product using normal user-visible interfaces and create a small SCADA application from scratch that reaches a functional Runtime.
+
+During the exploratory journey CODEX MUST NOT use repository source, control-plane implementation detail, database inspection, direct internal API shortcuts, implementation logs, test fixtures or shell/state mutation to discover how to proceed.
+
+If blocked, stop the user journey honestly and classify `BLOCKED_BY_PRODUCT` or `BLOCKED_BY_ENVIRONMENT` as applicable.
+
+After the user journey is COMPLETE or BLOCKED, CODEX may enter diagnostic correlation and inspect source/log/API/tests, but must not fix product code.
+
+Detailed findings must go only to the embargoed CODEX evidence branch and must not be copied into Product Owner-facing control/handoff text while the human journey is active.
+
+### 30.3 Embargo and independence
+
+While Human Preview is active:
+- Main may know only coarse CODEX gate state: RUNNING / PAUSED_RESUMABLE / COMPLETE / BLOCKED;
+- do not expose detailed CODEX findings, navigation traps, recommended clicks or diagnostic causes to Product Owner;
+- do not feed Product Owner findings to CODEX;
+- do not alter either environment in response to the other auditor's findings;
+- no cross-audit comparison yet.
+
+The embargo ends only after the Product Owner human first-project journey reaches COMPLETE or BLOCKED.
+
+### 30.4 Stage 2 remains held
+
+`W15-ENV-A-CODEX-STAGE2-DIRECTED-VERIFICATION = PREPARED / NOT ACTIVE`.
+
+It may activate only after Stage 1 is sealed and its state is checkpointed/derived according to the Stage 2 contract.
+
+Current gates:
+- ENV_A: `READY / STAGE1_ACTIVE`;
+- ENV_B: `READY / HUMAN_PREVIEW_ACTIVE`;
+- CODEX Stage 1: ACTIVE;
+- Human Preview: ACTIVE;
+- Stage 2: PREPARED / NOT ACTIVE;
+- findings embargo: ACTIVE.

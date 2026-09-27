@@ -1,32 +1,36 @@
 {
-  "name": "EliteSCADA .NET 10 + React",
-  "image": "mcr.microsoft.com/devcontainers/dotnet:1-10.0",
+  "name": "EliteSCADA first-project preview harness",
+  "dockerComposeFile": "../ci/local/docker-compose.preview.yml",
+  "service": "preview",
+  "workspaceFolder": "/workspace",
+  "overrideCommand": false,
+  "shutdownAction": "stopCompose",
   "features": {
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "24"
-    }
+    "ghcr.io/devcontainers/features/github-cli:1": {}
   },
-  "forwardPorts": [5173, 5080],
+  "forwardPorts": [5173],
   "portsAttributes": {
     "5173": {
-      "label": "EliteSCADA Web",
-      "onAutoForward": "openPreview"
+      "label": "EliteSCADA Product Owner Preview",
+      "onAutoForward": "notify"
     },
     "5080": {
-      "label": "EliteSCADA API",
-      "onAutoForward": "silent"
+      "label": "EliteSCADA API (internal)",
+      "onAutoForward": "ignore"
+    },
+    "5432": {
+      "label": "EliteSCADA TimescaleDB (internal)",
+      "onAutoForward": "ignore"
     }
   },
-  "postCreateCommand": "dotnet restore ScadaPlatform.sln && cd web/scada-web && npm install --no-audit --no-fund",
+  "postStartCommand": "bash /workspace/scripts/preview/codespaces-public-web-port.sh",
   "containerEnv": {
     "DOTNET_NOLOGO": "true",
     "DOTNET_CLI_TELEMETRY_OPTOUT": "1"
   },
   "customizations": {
     "vscode": {
-      "extensions": [
-        "ms-dotnettools.csdevkit"
-      ]
+      "extensions": ["ms-dotnettools.csdevkit"]
     }
   }
 }

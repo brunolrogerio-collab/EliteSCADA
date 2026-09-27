@@ -1,0 +1,4 @@
+services:
+  preview:
+    ports:
+      - "127.0.0.1:${ELITESCADA_PREVIEW_PORT:-5173}:5173"

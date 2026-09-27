@@ -95,3 +95,18 @@ A **real Codespace lifecycle proof cannot be executed through the currently conn
 Therefore, after exact harness acceptance, the only Product Owner interaction needed should be the minimal act of creating/opening the fresh Codespace. Repository automation must handle product startup and public-port configuration after that.
 
 Do not ask the Product Owner to perform manual environment configuration that can be repository-controlled.
+
+
+## 7. Current exact shared harness candidate
+
+Current exact shared candidate selected by Main:
+- branch: `preview/w15-first-project-env-harness`;
+- SHA: `ec050e9bfda121805b1165860a4aeda0eb2582e8`;
+- tree: `0d6221540c3678a8b042c51082f7a2ed0a466fa2`;
+- product parent/base: `1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+The replacement relative to the prior static-reviewed harness changes only `scripts/preview/local-audit.ps1`, so ENV_B devcontainer/Compose/public-port mechanics are unchanged from the reviewed design.
+
+Do not create the real Product Owner Codespace from a later moving branch head without revalidation. At creation time, record `git rev-parse HEAD`; it must equal the exact harness SHA Main has accepted for ENV_B or the environment is not under acceptance.
+
+Real Codespace execution remains pending because the connected GitHub connector has no Codespaces lifecycle actions.

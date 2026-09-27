@@ -1906,4 +1906,27 @@ Authority UX is integrated/verified and must not be touched.
 FND-05/FND-07 remain frozen.
 
 Return durable handoff to PR #345 and Main. No other CODEX route is active.
+## CURRENT SHARED CODEX ROUTE — rev 0075
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-LICENSING-ACCEPTED-HOLD-60`
+
+`ORDER_STATE: COMPLETED / LICENSING_MAIN_ACCEPTED / HOLD_FOR_MERGE`
+
+Licensing UX accepted exact head:
+`3d166c0b45eef34ef878e710b5db28c3ea2fa93f`.
+
+Exact-head T1:
+`36289854846` / #113 — SUCCESS.
+
+CODEX adversarial evidence:
+- focused Chromium 6/6 PASS;
+- focused Drivers 36/36 PASS;
+- no candidate-causal defect;
+- no source mutation.
+
+Main acceptance control:
+- Licensing rev 0011;
+- commit `eab694e8bbc6e099656d69d2eebbc60bda0ccabf`.
+
+CODEX must remain idle. Do not self-select any new lane until Main completes Licensing integration/post-merge verification and publishes a new explicit route.
 

@@ -1699,4 +1699,32 @@ Both DEVs may reconcile in parallel onto:
 They must preserve their previously accepted lane semantics, obtain new exact-head T1 evidence, persist handoff to their PR and then WAIT.
 
 Shared CODEX remains HOLD / no active mission until availability returns and Main publishes a fresh route.
+## 53. Authority + Licensing reconciliations accepted
+
+Both feature lanes are now cleanly reconciled onto the frozen Foundation baseline:
+`wave15/corrections-integration@3819715ba3a015a182c97b2a4ebcb4de447da717`.
+
+### Authority UX — PR #346
+
+- head `e3c646b5f0e6fb06b509f44b0ed866ec61fd1db6`;
+- ahead 1 / behind 0;
+- T1 `36280754990`: SUCCESS;
+- all 7 lane-owned blobs are byte-identical to the previously Main-accepted Authority candidate;
+- state: `MAIN_ACCEPTED_FOR_CODEX / RECONCILED / DEV_WAIT`.
+
+### Licensing UX — PR #345
+
+- head `3d73ccd8f683be94f741fdb431df0e1525e6c0e9`;
+- ahead 18 / behind 0;
+- T1 `36280752132`: SUCCESS;
+- all 13 lane-owned blobs are byte-identical to the previously Main-accepted Licensing candidate, including the closed session-replacement truth fix;
+- state: `MAIN_ACCEPTED_FOR_CODEX / RECONCILED / DEV_WAIT`.
+
+No DEV mutation is currently authorized.
+
+Planned sequential CODEX validation priority when availability returns:
+1. Authority UX #346;
+2. Licensing UX #345.
+
+This is queue planning only, not an active CODEX mission. A new explicit shared route is required before CODEX acts.
 

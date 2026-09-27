@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import type { EngineeringLocale } from './i18n';
 import {
   assignedUsersForRole,
+  authorityPolicyErrorMessage,
   capabilityDescriptor,
   isRoleKeyEditable,
   nextRoleKey,
   userGrantPreview
 } from './AuthorityPolicyAdministration.logic';
 import {
-  AdministrationHttpError,
   SECURITY_CAPABILITIES,
   authorityPolicyAdministrationApi,
   toAuthorityMutationRequest,
@@ -837,10 +837,5 @@ function scopeKindLabel(kind: number | string) {
 }
 
 function policyErrorMessage(reason: unknown, s: PolicyStrings) {
-  if (!(reason instanceof AdministrationHttpError)) {
-    return reason instanceof Error ? reason.message : s.backendRejected;
-  }
-
-  const suffix = reason.status === 409 ? ' ' + s.conflictHint : '';
-  return `${s.backendRejected} ${reason.message}${suffix}`;
+  return authorityPolicyErrorMessage(reason, s.backendRejected, s.conflictHint);
 }

@@ -8,6 +8,7 @@ import {
 } from '../src/engineering/UserAdministration.logic';
 import {
   assignedUsersForRole,
+  authorityPolicyErrorMessage,
   capabilityKey,
   isRoleKeyEditable,
   nextRoleKey,
@@ -19,6 +20,7 @@ import type {
   AuthorityRole,
   LocalUser
 } from '../src/engineering/userAdministrationApi';
+import { AdministrationHttpError } from '../src/engineering/userAdministrationApi';
 
 const users: LocalUser[] = [
   {
@@ -79,6 +81,21 @@ test('Administration classifies authorization, conflict and validation HTTP stat
   expect(classifyAdministrationStatus(404)).toBe('not-found');
   expect(classifyAdministrationStatus(409)).toBe('conflict');
   expect(classifyAdministrationStatus(503)).toBe('unknown');
+});
+
+test('Authority UX shows localized concurrency guidance for semantic 400 and HTTP 409, not unrelated 400', () => {
+  const rejected = 'Backend rejected.';
+  const retry = 'Reload and recreate the change.';
+
+  expect(authorityPolicyErrorMessage(
+    new AdministrationHttpError(400, 'AUTHORITY_POLICY_CONCURRENCY_CONFLICT'), rejected, retry
+  )).toBe('Backend rejected. AUTHORITY_POLICY_CONCURRENCY_CONFLICT Reload and recreate the change.');
+  expect(authorityPolicyErrorMessage(
+    new AdministrationHttpError(409, 'Version changed'), rejected, retry
+  )).toBe('Backend rejected. Version changed Reload and recreate the change.');
+  expect(authorityPolicyErrorMessage(
+    new AdministrationHttpError(400, 'Invalid role key'), rejected, retry
+  )).toBe('Backend rejected. Invalid role key');
 });
 
 

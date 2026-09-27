@@ -1,9 +1,26 @@
 import {
+  AdministrationHttpError,
   SECURITY_CAPABILITIES,
   type AuthorityPolicyDocument,
   type AuthorityRole,
   type LocalUser
 } from './userAdministrationApi';
+
+export function authorityPolicyErrorMessage(
+  reason: unknown,
+  backendRejected: string,
+  conflictHint: string
+) {
+  if (!(reason instanceof AdministrationHttpError)) {
+    return reason instanceof Error ? reason.message : backendRejected;
+  }
+
+  // The frozen API reports a stale expectedVersion as HTTP 400 before the
+  // replacement CAS. A later CAS race can still return HTTP 409.
+  const conflict = reason.status === 409 ||
+    reason.message === 'AUTHORITY_POLICY_CONCURRENCY_CONFLICT';
+  return `${backendRejected} ${reason.message}${conflict ? ' ' + conflictHint : ''}`;
+}
 
 type CapabilityDefinition = (typeof SECURITY_CAPABILITIES)[number];
 

@@ -340,4 +340,50 @@ DEV-AUTHORITY-UX is authorized to:
 If the new baseline exposes a material semantic conflict, stop that semantic change and return the exact evidence to Main.
 
 After reconciliation, DEV must WAIT. CODEX adversarial validation remains mandatory before merge.
+## CURRENT MAIN DISPOSITION — rev 0008
+
+`ORDER_ID: DEV-AUTHORITY-UX-RECONCILED-CODEX-QUEUE-06`
+
+`ORDER_STATE: MAIN_ACCEPTED_FOR_CODEX / RECONCILED / DEV_WAIT`
+
+Exact reconciled candidate:
+- PR #346;
+- head `e3c646b5f0e6fb06b509f44b0ed866ec61fd1db6`;
+- exact base `3819715ba3a015a182c97b2a4ebcb4de447da717`;
+- ancestry: ahead 1 / behind 0;
+- PR: OPEN / MERGEABLE.
+
+Exact-head T1:
+- `36280754990` / #111: SUCCESS;
+- classifier SUCCESS;
+- Web SUCCESS;
+- Common SUCCESS;
+- focused .NET SUCCESS;
+- focused Chromium SUCCESS;
+- final gate SUCCESS.
+
+Main reconciliation verification:
+- the 7 Authority/UserAdministration owned blobs at the reconciled head are byte-for-byte identical to prior Main-accepted head `d96e685daf7ddb190cefc67c6ba975d71a779a52`;
+- no semantic adaptation was introduced;
+- the new candidate is therefore the previously accepted Authority UX delta transplanted exactly onto the frozen Foundation integration baseline;
+- no FND-05/FND-07/Licensing behavior was absorbed.
+
+Prior Main findings remain closed:
+- stable persisted role-key identity;
+- assigned-user/delete protection;
+- generic capability lookup typing;
+- nullable baseline fail-closed boundary;
+- no client-side authorization authority.
+
+DEV-AUTHORITY-UX returns to WAIT.
+
+CODEX adversarial validation remains mandatory before merge, emphasizing:
+1. direct API tampering/unauthorized mutation;
+2. orphan-assignment and self-lockout final backend authority;
+3. 401/403/409 + expected-version concurrency;
+4. effective-capability truth and scoped/multi-role behavior;
+5. mounted pt-BR/en/es behavior;
+6. exact final-head validation after any CODEX-owned bounded correction.
+
+No merge/T2 is authorized.
 

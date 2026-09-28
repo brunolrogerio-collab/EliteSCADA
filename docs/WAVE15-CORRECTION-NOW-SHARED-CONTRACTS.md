@@ -533,3 +533,36 @@ Still dependent on C-VISUAL-IDENTITY-01:
 - compatibility migration from current DynamoKey/EquipmentPath references at the Editor boundary.
 
 No DEV-REUSE product implementation is released while this dependency remains open.
+
+
+### C-VISUAL-IDENTITY-01 — FROZEN_FOR_CONSUMERS
+
+Frozen at integrated correction composition:
+`wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`
+
+Integrated tree:
+`bf0b43ff9ea1211443d614487f4a05bab2ee2c97`
+
+Evidence:
+- #371 recomposed exact E2 T1 `36374037238` SUCCESS;
+- combined #371 + #370 E3 handoff `5863212189` = `COMBINED_E3_PASS`;
+- CODEX validated combined tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`;
+- Main merged #371 then #370;
+- final integration tree is byte-identical to the CODEX-validated combined tree.
+
+Frozen semantics:
+1. every persisted visual object has an immutable stable object Id across rename/property edits/reorder/save-reopen;
+2. canonical stable object reference is `visualDefinitionId + visualObjectId`;
+3. property-level stable reference adds canonical `propertyKey`;
+4. mutable `Key/name` is developer-facing authoring identity, not canonical Runtime/Script identity;
+5. sibling Key uniqueness is case-insensitive; rename must not regenerate Id;
+6. groups and children each retain their own stable Id; hierarchy does not replace identity;
+7. Canvas/Outliner/Properties/Animations/Script authoring must resolve the same canonical object identity;
+8. the visual property registry remains authority for canonical property key/type/editability/runtime-read-write/animatable-bindable semantics;
+9. new Script object/property authoring must emit stable Id-based references;
+10. current Visual Python `objectKey` targetReference remains a bounded legacy/runtime compatibility alias only; #369 owns detection/migration/warning behavior for legacy/manual Key references before correction-round acceptance.
+
+State:
+`C-VISUAL-IDENTITY-01 = FROZEN_FOR_CONSUMERS @ 50b2750c73623b7ffef77f0ca93755c3e8278676`.
+
+This freeze releases #367/#368/#369 consumers and clears the visual-identity blocker for the next bounded #365 implementation slice.

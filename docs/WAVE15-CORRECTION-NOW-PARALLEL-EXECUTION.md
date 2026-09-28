@@ -772,3 +772,53 @@ Preferred:
 4. freeze C-VISUAL-IDENTITY-01;
 5. release #367/#368/#369;
 6. keep #355 remote-specific closure pending C-TRANSPORT E4 where applicable.
+
+
+---
+
+## 17. Combined E3 accepted and #371 + #370 integrated
+
+CODEX handoff:
+#305 comment `5863212189`.
+
+Disposition:
+`COMBINED_E3_PASS`.
+
+Validated combined tree:
+`bf0b43ff9ea1211443d614487f4a05bab2ee2c97`.
+
+Main integration:
+1. #371 merged as `c027b990cc1f1d6b994456e0554680fd14fcf938`;
+2. #370 merged as `50b2750c73623b7ffef77f0ca93755c3e8278676`;
+3. final integration tree = `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`.
+
+Therefore:
+- #303/#371 first-user Editor correction = INTEGRATED;
+- #355/#370 generic local Data Source correction = INTEGRATED;
+- C-VISUAL-IDENTITY-01 = FROZEN_FOR_CONSUMERS;
+- #355 remains open only for remote/Codespace root closure under C-TRANSPORT where applicable.
+
+### Parallel releases from integration 50b275...
+
+Lane E — DEV-HMI-DYNAMICS-IO:
+`ACTIVE / EXACT_BASE=50b2750c73623b7ffef77f0ca93755c3e8278676`.
+Consume frozen C-VISUAL-IDENTITY and C-TAG-WRITE. Implement bounded #367/#368 first slice; no identity or Runtime write-service redesign.
+
+Lane F — DEV-SCRIPT-OBJECT:
+`ACTIVE / EXACT_BASE=50b2750c73623b7ffef77f0ca93755c3e8278676`.
+Consume frozen C-VISUAL-IDENTITY. Existing visual Python capabilities only; new authoring emits Id-based references and includes bounded legacy Key-reference compatibility handling.
+
+Lane G — DEV-REUSE:
+`ACTIVE_R1 / EXACT_BASE=50b2750c73623b7ffef77f0ca93755c3e8278676`.
+First implementation slice only: stable-reference compatibility seam + validation/import/package tests from the Main-reviewed C-REUSE draft. No Editor authoring/Preview UI in R1.
+
+Lane H — DEV-GATEWAY:
+remains `READY / WAIT_MAIN_RELEASE` for one more integration interval to avoid simultaneous Engineering navigation conflict with newly released E/F lanes.
+
+### Shared CODEX next mission
+
+After accepting combined E3, shared CODEX moves to #359/#307 local A/B diagnostic on the exact integrated tree:
+- E3-A local normal;
+- E3-B deterministic latency/jitter;
+- no product mutation;
+- E4-C real Codespace remains separate and required before remote-root closure.

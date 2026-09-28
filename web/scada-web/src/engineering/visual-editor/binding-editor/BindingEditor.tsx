@@ -95,6 +95,10 @@ export function BindingEditor({
   const sources = sourceResult.value;
 
   const existing = propertyKey ? findVisualBinding(element, propertyKey) : undefined;
+  const [decimalPlaces, setDecimalPlaces] = useState(existing?.metadata?.decimalPlaces ?? '');
+  const [prefix, setPrefix] = useState(existing?.metadata?.prefix ?? '');
+  const [suffix, setSuffix] = useState(existing?.metadata?.suffix ?? '');
+  const [engineeringUnit, setEngineeringUnit] = useState(existing?.metadata?.engineeringUnit ?? '');
   const existingBaseSource = existing ? findBindingSourceForBinding(existing, sources) : undefined;
   const existingSourceKey = existingBaseSource ? bindingSourceIdentity(existingBaseSource) : undefined;
   const existingBitIndex = existing?.tagReference?.selector?.kind === 'bit'
@@ -140,7 +144,10 @@ export function BindingEditor({
       const effectiveSource = bitSelectorCapability(selectedDestination, source)
         ? createTagBitBindingSource(source, bitIndex ?? Number.NaN)
         : source;
-      onMutationIntent(createBindingSetIntent(element, propertyKey, effectiveSource, existing?.direction));
+      const formatting = propertyKey === 'text'
+        ? scalarTextMetadata(decimalPlaces, prefix, suffix, engineeringUnit)
+        : undefined;
+      onMutationIntent(createBindingSetIntent(element, propertyKey, effectiveSource, existing?.direction, formatting));
     } catch (cause) {
       setActionError(errorText(cause));
     }
@@ -310,6 +317,31 @@ export function BindingEditor({
             />
           ) : null}
 
+          {propertyKey === 'text' ? (
+            <fieldset data-testid="visual-dynamic-text-format">
+              <legend>Dynamic value format</legend>
+              <label>
+                <span>Decimal places</span>
+                <input type="number" min={0} max={12} step={1} value={decimalPlaces}
+                  placeholder="automatic"
+                  onChange={event => setDecimalPlaces(event.currentTarget.value)} />
+              </label>
+              <label>
+                <span>Unit</span>
+                <input value={engineeringUnit} onChange={event => setEngineeringUnit(event.currentTarget.value)} placeholder={selectedSource?.engineeringUnit ?? ''} />
+              </label>
+              <label>
+                <span>Prefix</span>
+                <input value={prefix} onChange={event => setPrefix(event.currentTarget.value)} />
+              </label>
+              <label>
+                <span>Suffix</span>
+                <input value={suffix} onChange={event => setSuffix(event.currentTarget.value)} />
+              </label>
+              <small>Text → Dynamic value uses the canonical text binding and scalar formatter.</small>
+            </fieldset>
+          ) : null}
+
           {existing && (
             <p data-testid="visual-binding-current">
               <strong>{text.current}:</strong> {existing.kind} · {existing.target}
@@ -395,6 +427,26 @@ function localizedBitCopy(locale: EngineeringLocale): Pick<BindingEditorCopy, 'b
   if (locale === 'en') return { bit: 'Bit', bitHint: 'Select one bit from the authoritative integer TAG.' };
   if (locale === 'es') return { bit: 'Bit', bitHint: 'Seleccione un bit del TAG entero autoritativo.' };
   return { bit: 'Bit', bitHint: 'Selecione um bit da TAG inteira autoritativa.' };
+}
+
+function scalarTextMetadata(
+  decimalPlaces: string,
+  prefix: string,
+  suffix: string,
+  engineeringUnit: string
+): Readonly<Record<string, string>> {
+  const metadata: Record<string, string> = {};
+  if (decimalPlaces.trim()) {
+    const parsed = Number(decimalPlaces);
+    if (!Number.isInteger(parsed) || parsed < 0 || parsed > 12) {
+      throw new Error('Decimal places must be an integer from 0 to 12.');
+    }
+    metadata.decimalPlaces = String(parsed);
+  }
+  if (prefix) metadata.prefix = prefix;
+  if (suffix) metadata.suffix = suffix;
+  if (engineeringUnit.trim()) metadata.engineeringUnit = engineeringUnit.trim();
+  return Object.freeze(metadata);
 }
 
 function errorText(cause: unknown): string {

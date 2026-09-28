@@ -294,3 +294,49 @@ Every AUD handoff must include:
 - mounted acceptance where user-facing;
 - findings ordered by severity;
 - no fix unless Main explicitly authorizes write mode.
+
+
+---
+
+## Environment capability rule for all chats
+
+Do **not** assume this chat can run every required test environment.
+
+All chats consume:
+`C-TEST-EVIDENCE-01`.
+
+At handoff, always report:
+
+```text
+EVIDENCE_CAPABILITY
+AVAILABLE: <E0/E1/E2/E3/E4/E5 actually available here>
+EXECUTED: <what was actually run>
+NOT_AVAILABLE: <required tiers unavailable>
+REQUIRED_NEXT: <exact validation still needed>
+```
+
+If Docker/browser/local mounted product/Codespace is unavailable, do not stop useful development and do not fabricate evidence.
+
+Return:
+
+`ENV_CAPABILITY_GAP / <E3|E4|...> / <reason> / <recommended executor>`
+
+Main will route the exact candidate to:
+- GitHub CI for E2;
+- shared CODEX/capable local harness for E3;
+- real Codespace/remote executor for E4;
+- scheduled Product Owner Preview for E5.
+
+Important:
+- `DEV_READY_FOR_REVIEW` is not the same as integration acceptance;
+- user-facing changes still require E3 before Main accepts them;
+- remote-timing conclusions still require the relevant E4 evidence;
+- Product Owner is not routine test labor for missing agent environments.
+
+### Specific note for CHAT D
+
+If AUD-REMOTE cannot execute all of local-normal, latency-injected-local and real Codespace:
+- execute only the legs genuinely available;
+- prepare deterministic instrumentation/steps for the missing legs;
+- return `ENV_CAPABILITY_GAP`;
+- do not claim `C-TRANSPORT-01` frozen from incomplete A/B/C evidence.

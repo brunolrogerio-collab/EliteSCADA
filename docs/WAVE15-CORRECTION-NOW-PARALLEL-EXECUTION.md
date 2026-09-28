@@ -700,3 +700,75 @@ Preferred sequence:
 `#371 recomposed E2 -> #371 E3 -> integrate #371 -> freeze C-VISUAL-IDENTITY -> release #367/#368/#369 -> #370 E3/integration -> remaining correction lanes`.
 
 #370 may recompose/E2 in parallel while #371 is being prepared.
+
+
+---
+
+## 16. Combined E3 for recomposed Editor + Data Source candidates
+
+Both downstream candidates have now returned on the same integrated authority baseline:
+
+- #371 / DEV-EDITOR-CORE:
+  - HEAD `38506f1ea8d281287949b3fb23f26dbd319ffa43`
+  - tree `f4843811a53b4dc91ca301d3594f0a85b574bb35`
+  - exact E2 T1 `36374037238` SUCCESS
+  - PR mergeable=true
+- #370 / DEV-DATA:
+  - HEAD `bc39f5fe64f59e73b1f0e0e413196cb917af50b4`
+  - tree `eae78480d565aa5020df58ae79fa9b53910a5168`
+  - exact E2 T1 `36374028034` SUCCESS
+  - PR mergeable=true
+- shared base:
+  `wave15/corrections-integration@33e514eb3f5cf8f984779c0091069387741e7296`
+
+The two PR diffs have **zero changed-file overlap**.
+
+### Validation strategy
+
+Main accepts a single **combined E3 composition** instead of two separate mounted sessions.
+
+Shared CODEX must locally compose the exact #371 + #370 heads without pushing product changes, compute and report the resulting exact combined tree, and validate that tree in one real mounted PostgreSQL/API/Web/browser session.
+
+This combined E3 is valid for both candidates only if:
+1. local composition is clean and contains exactly the union of #371 + #370 over base `33e514...`;
+2. no extra product/test/workflow changes are introduced by CODEX;
+3. the combined tree is recorded before testing;
+4. both full journeys pass in the same mounted composition;
+5. after E3 PASS, Main merges #371 then #370 and verifies the final integration tree is **byte-identical** to the E3-validated combined tree.
+
+If the final tree differs, the combined E3 evidence does not authorize acceptance and the changed final composition must be revalidated.
+
+### Combined mounted journey
+
+The E3 session must cover:
+- #354 authority regression sanity: fresh/no-Active remains neutral; no hidden Demo application;
+- #371 Editor:
+  - Screen + Popup;
+  - rectangle fill/stroke/stroke width;
+  - Text literal edit;
+  - Key rename with stable Id;
+  - Canvas/Outliner/Properties synchronization;
+  - local disclosure/layout behavior;
+  - Undo/Redo;
+  - Save/Reopen;
+- #370 Data Source:
+  - normal Project -> Data Source -> Type selection -> configure/apply;
+  - TAG creation and binding/use;
+  - Save/Reopen;
+  - service restart/persistence;
+  - Publish/Activate;
+  - Runtime reads the intended Active project/revision/TAG path;
+- no DataSource-specific timeout/retry/Codespace workaround;
+- no Design-mode process write.
+
+The catalog error/reload injected failure already has exact E2 mounted regression coverage; combined E3 primarily proves the real normal lifecycle and cross-surface composition.
+
+### Integration order after PASS
+
+Preferred:
+1. merge #371;
+2. merge #370;
+3. verify final integration tree == E3 combined tree;
+4. freeze C-VISUAL-IDENTITY-01;
+5. release #367/#368/#369;
+6. keep #355 remote-specific closure pending C-TRANSPORT E4 where applicable.

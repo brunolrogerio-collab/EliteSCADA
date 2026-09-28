@@ -624,3 +624,15 @@ rev0105 uses a dedicated Codespaces harness around the same exact product bytes:
 `preview/w15-e4-codespace-harness-50b275@604806d012a3caaa804c7ce505a12b38cde3a939`.
 
 Only homologation infrastructure differs from product baseline. C-TRANSPORT-01 still requires actual forwarded-browser E4 evidence before freeze/root closure.
+
+
+### C-TRANSPORT-01 — E4 retry2
+
+State remains:
+`PROPOSAL / E3_A_PASS / E3_B_PASS / E4_ENVIRONMENT_RETRY2_ACTIVE`.
+
+rev0105 did not reach product execution; the only failure was an over-strict harness SDK equality guard inconsistent with repository `latestFeature` policy.
+
+No transport/product conclusion is added.
+
+rev0106 uses the same real Codespace with harness HEAD `62c5b8068638681eddb6e707df2b2d393e8dbd71` and the same canonical product bytes.

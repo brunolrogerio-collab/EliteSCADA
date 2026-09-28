@@ -5,6 +5,7 @@ import { loadEngineeringSnapshot } from '../api';
 import type { ScriptVisualEventReference } from './scriptEngineeringTypes';
 import {
   buildScriptAssistantCatalog,
+  buildScriptAssistantVisualValueSnippet,
   filterScriptAssistantCatalog,
   type ScriptAssistantCatalog,
   type ScriptAssistantSnippet,
@@ -71,7 +72,8 @@ export function ScriptAssistantPanel({
   }
 
   function startAction(object: ScriptAssistantVisualObject) {
-    setWizardObject(current => current === object.canonicalReference ? null : object.canonicalReference);
+    const key = objectSelectionKey(object);
+    setWizardObject(current => current === key ? null : key);
   }
 
   if (loading && !catalog) {
@@ -166,6 +168,14 @@ export function ScriptAssistantPanel({
         ) : (
           <div className="script-assistant__cards">
             <p className="script-assistant__hint">{copy.apiHint}</p>
+            <details className="script-assistant__definition" data-testid="script-visual-api-help">
+              <summary><strong>{copy.visualApiHelp}</strong></summary>
+              <div className="script-assistant__objects">
+                <p className="script-assistant__hint">{copy.visualApiHelpHint}</p>
+                <pre>{['from elite_scada import visual_property_read, visual_property_write, visual_property_clear', 'ref = "<visualDefinitionId>/<visualObjectId>"', 'value = await visual_property_read(ref, "visible")', 'await visual_property_write(ref, "visible", True)', 'await visual_property_clear(ref, "visible")'].join('\n')}</pre>
+                <pre>{['from elite_scada import visual_tween_request', 'await visual_tween_request({', '    "targetReference": "<visualDefinitionId>/<visualObjectId>",', '    "propertyKey": "x",', '    "targetValue": 100,', '    "durationMs": 300', '})'].join('\n')}</pre>
+              </div>
+            </details>
             {filtered.capabilities.length === 0 ? <Empty copy={copy} /> : filtered.capabilities.map(item => (
               <article className="script-assistant__card script-assistant__card--compact" key={item.capability}>
                 <strong><code>{item.capability}</code></strong>
@@ -246,11 +256,11 @@ function VisualSection({
           <div className="script-assistant__objects">
             {definition.objects.length === 0 ? <Empty copy={copy} /> : definition.objects.map(object => (
               <VisualObjectCard
-                key={object.canonicalReference}
+                key={objectSelectionKey(object)}
                 object={object}
                 copy={copy}
                 visualTargetPolicy={visualTargetPolicy}
-                wizardOpen={wizardObject === object.canonicalReference}
+                wizardOpen={wizardObject === objectSelectionKey(object)}
                 onStartAction={onStartAction}
                 onNavigate={onNavigate}
                 onInsert={onInsert}
@@ -294,10 +304,16 @@ function VisualObjectCard({
         <code>{object.type}</code>
       </div>
       <div className="script-assistant__meta">
-        <span>{copy.canonicalReference}: <code>{object.canonicalReference}</code></span>
+        <span>{copy.visualDefinitionId}: <code>{object.visualDefinitionId || '—'}</code></span>
+        <span>{copy.visualObjectId}: <code>{object.id || '—'}</code></span>
+        <span>{copy.canonicalReference}: <code>{object.canonicalReference ?? '—'}</code></span>
         {object.equipmentPath && <span>{copy.equipment}: <code>{object.equipmentPath}</code></span>}
         {object.dynamoKey && <span>{copy.dynamo}: <code>{object.dynamoKey}</code></span>}
       </div>
+
+      {context.allowed && (
+        <p className="script-assistant__message" data-testid="script-event-object-context">{copy.eventObjectContext}</p>
+      )}
 
       {object.events.length > 0 && (
         <details className="script-assistant__events">
@@ -345,6 +361,8 @@ function VisualObjectCard({
           <VisualPropertyRow
             key={property.key}
             property={property}
+            objectType={object.type}
+            canonicalReference={object.canonicalReference}
             copy={copy}
             context={context}
             onInsert={onInsert}
@@ -354,7 +372,7 @@ function VisualObjectCard({
 
       {object.children.map(child => (
         <VisualObjectCard
-          key={child.canonicalReference}
+          key={objectSelectionKey(child)}
           object={child}
           copy={copy}
           visualTargetPolicy={visualTargetPolicy}
@@ -371,40 +389,69 @@ function VisualObjectCard({
 }
 
 function VisualPropertyRow({
-  property,
-  copy,
-  context,
-  onInsert
+  property, objectType, canonicalReference, copy, context, onInsert
 }: {
   property: ScriptAssistantVisualProperty;
+  objectType: string;
+  canonicalReference: string | null;
   copy: ScriptAssistantCopy;
   context: VisualTargetDecision;
   onInsert(code: string): void;
 }) {
+  const [rawValue, setRawValue] = useState(() => authoringInputValue(property.defaultValue));
+  const writeSnippet = useMemo(
+    () => buildScriptAssistantVisualValueSnippet(objectType, canonicalReference, property.key, 'write', rawValue),
+    [objectType, canonicalReference, property.key, rawValue]
+  );
+  const tweenSnippet = useMemo(
+    () => buildScriptAssistantVisualValueSnippet(objectType, canonicalReference, property.key, 'tween', rawValue),
+    [objectType, canonicalReference, property.key, rawValue]
+  );
+  const staticSnippets = property.snippets.filter(snippet => snippet.kind === 'visual-property-read' || snippet.kind === 'visual-property-clear');
+  const valueControl = property.runtimeWritable && property.type !== 'assetRef'
+    ? property.type === 'boolean'
+      ? <select aria-label={`${copy.value}: ${property.key}`} value={rawValue} onChange={event => setRawValue(event.currentTarget.value)}><option value="true">true</option><option value="false">false</option></select>
+      : property.type === 'enum'
+        ? <select aria-label={`${copy.value}: ${property.key}`} value={rawValue} onChange={event => setRawValue(event.currentTarget.value)}>{property.allowedValues.map(value => <option key={value} value={value}>{value}</option>)}</select>
+        : <input aria-label={`${copy.value}: ${property.key}`} type={property.type === 'number' ? 'number' : 'text'} value={rawValue} min={property.minimum ?? undefined} max={property.maximum ?? undefined} step={property.integer ? 1 : 'any'} placeholder={property.type === 'color' ? '#RRGGBB' : undefined} onChange={event => setRawValue(event.currentTarget.value)} />
+    : null;
+  const writeDisabled = !writeSnippet.enabled ? writeSnippet.reason : context.allowed ? null : context.reason;
+  const tweenDisabled = !tweenSnippet.enabled ? tweenSnippet.reason : context.allowed ? null : context.reason;
   return (
     <div className="script-assistant__property">
-      <div>
-        <strong>{property.key}</strong>
-        <code>{property.type}</code>
-        {property.category && <span>{property.category}</span>}
-      </div>
+      <div><strong>{property.key}</strong><code>{property.type}</code>{property.category && <span>{property.category}</span>}</div>
       <div className="script-assistant__meta">
         <span>{copy.runtimeRead}: {property.runtimeReadable ? copy.yes : copy.no}</span>
         <span>{copy.runtimeWrite}: {property.runtimeWritable ? copy.yes : copy.no}</span>
+        <span>{copy.clearable}: {property.clearable ? copy.yes : copy.no}</span>
         <span>{copy.binding}: {property.supportsBinding ? copy.yes : copy.no}</span>
         <span>{copy.animation}: {property.animatable ? copy.yes : copy.no}</span>
         <span>{copy.current}: <code>{formatValue(property.currentValue)}</code></span>
+        {property.unit && <span>{copy.unit}: <code>{property.unit}</code></span>}
         {property.allowedValues.length > 0 && <span>{copy.enum}: <code>{property.allowedValues.join(' | ')}</code></span>}
       </div>
       {!context.allowed && <p className="script-assistant__hint">{context.reason}</p>}
-      <SnippetActions
-        snippets={property.snippets}
-        copy={copy}
-        onInsert={onInsert}
-        additionalDisabledReason={context.allowed ? null : context.reason}
-      />
+      <SnippetActions snippets={staticSnippets} copy={copy} onInsert={onInsert} additionalDisabledReason={context.allowed ? null : context.reason} />
+      {valueControl && <div className="script-assistant__value-authoring" data-testid={`script-property-value-${property.key}`}>
+        <label><span>{copy.value}</span>{valueControl}</label>
+        <div className="script-assistant__actions">
+          <button type="button" disabled={Boolean(writeDisabled)} title={writeDisabled ?? writeSnippet.code} onClick={() => onInsert(writeSnippet.code)}>{copy.insert} · {copy.write}</button>
+          {property.animatable && <button type="button" disabled={Boolean(tweenDisabled)} title={tweenDisabled ?? tweenSnippet.code} onClick={() => onInsert(tweenSnippet.code)}>{copy.insert} · {copy.tween}</button>}
+        </div>
+        {writeDisabled && !writeSnippet.enabled && <p className="script-assistant__hint">{writeDisabled}</p>}
+      </div>}
     </div>
   );
+}
+
+function authoringInputValue(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  return String(value);
+}
+
+function objectSelectionKey(object: ScriptAssistantVisualObject): string {
+  return object.canonicalReference ?? `${object.visualDefinitionId}:${object.id}:${object.key}`;
 }
 
 function SnippetActions({
@@ -467,18 +514,23 @@ function formatValue(value: unknown): string {
 }
 
 type VisualTargetDecision = Readonly<{ allowed: boolean; reason: string | null }>;
-type VisualTargetPolicy = Readonly<{ forTarget(reference: string): VisualTargetDecision }>;
+type VisualTargetPolicy = Readonly<{ forTarget(reference: string | null): VisualTargetDecision }>;
 
 function buildVisualTargetPolicy(
   references: readonly ScriptVisualEventReference[],
   copy: ScriptAssistantCopy
 ): VisualTargetPolicy {
   const targets = [...new Set(references
-    .map(reference => reference.visualObjectId?.trim())
+    .map(reference => {
+      const definitionId = reference.visualDefinitionId?.trim();
+      const objectId = reference.visualObjectId?.trim();
+      return definitionId && objectId ? `${definitionId}/${objectId}` : null;
+    })
     .filter((value): value is string => Boolean(value)))];
 
   return Object.freeze({
-    forTarget(reference: string): VisualTargetDecision {
+    forTarget(reference: string | null): VisualTargetDecision {
+      if (!reference) return Object.freeze({ allowed: false, reason: copy.missingStableVisualIdentity });
       if (targets.length === 0) return Object.freeze({ allowed: false, reason: copy.noVisualTarget });
       if (targets.length > 1) return Object.freeze({ allowed: false, reason: copy.multipleVisualTargets });
       if (targets[0] !== reference) return Object.freeze({ allowed: false, reason: copy.runtimeContextOnly });

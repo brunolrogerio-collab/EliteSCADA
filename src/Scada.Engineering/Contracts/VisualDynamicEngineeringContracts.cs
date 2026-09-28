@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Scada.Core.Tags;
 
 namespace Scada.Engineering.Contracts;
@@ -120,4 +121,29 @@ public sealed record VisualAnalogFillEngineeringDto(
     bool Clamp = true,
     bool InvertScale = false,
     VisualAnalogFillDirection Direction = VisualAnalogFillDirection.BottomToTop,
+    int Version = VisualDynamicEngineeringVersions.Current);
+
+/// <summary>
+/// One ordered numeric-range rule for a canonical destination property. The
+/// persisted Value is validated against the destination's Visual Property
+/// Registry definition before activation. Rules are evaluated in list order;
+/// first match wins, making overlap deterministic rather than browser-specific.
+/// </summary>
+public sealed record VisualPropertyMapRuleEngineeringDto(
+    JsonElement Value,
+    double? Minimum = null,
+    bool MinimumInclusive = true,
+    double? Maximum = null,
+    bool MaximumInclusive = false);
+
+/// <summary>
+/// Canonical typed numeric-range mapping. Source identity remains a normal stable
+/// TAG/Client Memory/expression source; destination identity is canonical
+/// propertyKey. Fallback is optional and is validated by the same registry.
+/// </summary>
+public sealed record VisualPropertyMapEngineeringDto(
+    string PropertyKey,
+    VisualValueSourceEngineeringDto Source,
+    IReadOnlyCollection<VisualPropertyMapRuleEngineeringDto> Rules,
+    JsonElement? Fallback = null,
     int Version = VisualDynamicEngineeringVersions.Current);

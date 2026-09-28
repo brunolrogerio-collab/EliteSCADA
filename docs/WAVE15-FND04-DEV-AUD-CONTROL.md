@@ -58,10 +58,10 @@ Current situation:
 - FND-04 is now **VERIFIED / FROZEN** at exact product checkpoint `6c810647c9773a19b212d9c33694780141786ac7`.
 - The readable Script TAG reference contract is frozen for downstream consumption.
 - FND-04 AUD remains **FROZEN / WAIT / NO_MUTATION**.
-- The **same sequential CODEX executor/chat that executed prior Foundation work is now assigned to #359/#307 real Codespace/forwarded E4-C diagnostic under rev0104**. FND-04 remains frozen; the shared CODEX route is independent of the legacy FND-04 DEV order.
+- The **same sequential CODEX executor/chat that executed prior Foundation work is now assigned to the exact #373 + #374 + #376 combined mounted E3 under rev0107**. FND-04 remains frozen; the shared CODEX route is independent of the legacy FND-04 DEV order.
 - Any later change to this shared contract requires a new Main/Foundation delta; downstream lanes may not redefine it.
 
-Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`, tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`. Local transport A/B passed on this exact tree. rev0104 requires a real Codespace/forwarded-path E4-C on the same bytes. Any later movement of integration invalidates rev0104 until Main reissues exact coordinates.
+Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`, tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`. Local transport A/B and real forwarded remote E4 passed on these canonical product bytes; historical 402 cause remains unassigned. rev0107 now owns the exact #373 + #374 + #376 combined mounted E3. Any movement of integration or any candidate HEAD invalidates rev0107 until Main reissues exact coordinates.
 ---
 
 ## 2A. CURRENT SHARED CODEX ORDER — EXECUTION POINTER

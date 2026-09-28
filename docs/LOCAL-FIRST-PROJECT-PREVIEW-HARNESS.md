@@ -62,7 +62,7 @@ Use these commands to preserve/continue a session:
 
 `stop` is a friendly alias for `pause`. `restart` recreates the application and database containers against the same named product volumes and verifies Web/API health before returning. `status` reports the current Git branch/HEAD/tree, whether the checkout differs from the saved session, dependency preparation identity, Docker containers, TimescaleDB/API/Web health, resumability, and local URLs. `diagnose` writes a local report with recent service logs after common secret/token patterns are redacted; review it before sharing.
 
-Run the consolidated local regression suite from the repository root. It checks PowerShell syntax and command contracts, the exact PR #362 scope allowlist (and rejection of product paths), reset guardrails, development-profile isolation, Docker inspect JSON parsing, diagnostic redaction, and dependency provenance/line-ending/path-order stability. It does not start or reset the product environment. Run it in both Windows PowerShell 5.1 (Visual Studio's default) and PowerShell 7 when available:
+Run the consolidated local regression suite from the repository root. It checks PowerShell syntax and command contracts, the exact current eleven-path PR #362 scope allowlist (and rejection of product paths), reset guardrails, development-profile isolation, Docker inspect JSON parsing, diagnostic redaction, and dependency provenance/line-ending/path-order stability. It does not start or reset the product environment. Run it in both Windows PowerShell 5.1 (Visual Studio's default) and PowerShell 7 when available:
 
 ```powershell
 ./scripts/preview/test-local.ps1

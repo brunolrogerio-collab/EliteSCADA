@@ -47,16 +47,19 @@ $pr362ChangedPaths = @(
     'docs/LOCAL-ELITESCADA-OPERATIONS-EVIDENCE.md',
     'docs/LOCAL-FIRST-PROJECT-PREVIEW-HARNESS.md',
     'docs/VISUAL-STUDIO-AI-LOCAL-ELITESCADA-BOOTSTRAP.md',
+    'scripts/preview/PreviewDependencyIdentity.psm1',
     'scripts/preview/elite-local.ps1',
     'scripts/preview/local-audit.ps1',
-    'scripts/preview/test-local-operator.ps1'
+    'scripts/preview/test-dependency-identity.ps1',
+    'scripts/preview/test-local-operator.ps1',
+    'scripts/preview/test-local.ps1'
 )
 $script:scopeChangedPaths = $pr362ChangedPaths
 $acceptedIdentity = Get-HarnessIdentity
 if ($acceptedIdentity.ProductScopeChanges.Count -ne 0) {
     throw "The exact PR #362 changed-path set was rejected: $($acceptedIdentity.ProductScopeChanges -join ', ')"
 }
-Write-Output 'PASS: the exact PR #362 changed-path set is allowed by the strict harness scope guard.'
+Write-Output 'PASS: the exact current PR #362 changed-path set is allowed by the strict harness scope guard.'
 
 foreach ($rejectedPath in @('src/Scada.Security/Authorization/CapabilityAuthorizationService.cs', 'docs/UNAPPROVED.md')) {
     $script:scopeChangedPaths = @($pr362ChangedPaths + $rejectedPath)

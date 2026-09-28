@@ -416,3 +416,27 @@ Main determines the minimum tier by change type:
 - final correction-round acceptance: E2 + E3 + applicable E4 + E5.
 
 No lane may lower the required tier because its own environment is limited.
+
+
+### Integration eligibility vs phase acceptance
+
+Do not conflate GitHub mechanical `mergeable` with Main product acceptance.
+
+For CORRECTION-NOW integration into `wave15/corrections-integration`:
+
+- docs/contract-only change: E0/E1 as applicable;
+- backend/library correction: E2 minimum;
+- ordinary user-facing correction: **E2 + E3** is the normal Main integration gate;
+- E4 is **not** a universal merge prerequisite. It is required before accepting/closing a claim whose correctness specifically depends on the real remote/forwarded environment, such as #307/#359 remote timing/root closure;
+- E5 is **not** a normal PR merge prerequisite. It is a later Human Preview / correction-phase acceptance gate.
+
+Therefore a user-facing correction may become:
+
+`MAIN_ACCEPTED_FOR_INTEGRATION`
+
+after E2+E3 even though broader E4/E5 validation is still scheduled, provided:
+- the branch does not claim an unproven remote-specific fix;
+- no known P0/P1 remains in the corrected local/product path;
+- Main records any outstanding E4/E5 as downstream validation obligations.
+
+For remote-specific correction branches, Main may require E4 before integration when the change itself cannot be safely accepted without proving the real forwarded path.

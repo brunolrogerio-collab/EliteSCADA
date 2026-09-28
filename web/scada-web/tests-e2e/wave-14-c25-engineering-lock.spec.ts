@@ -87,7 +87,10 @@ test('unlocked Engineering can configure and lock without making frontend capabi
 
   await page.goto('/engineering');
 
-  await expect(page.getByTestId('engineering-lock-management')).toBeVisible();
+  const management = page.getByTestId('engineering-lock-management');
+  await expect(management).toBeVisible();
+  await expect(management).not.toHaveAttribute('open', '');
+  await management.locator('summary').click();
   await expect(page.getByTestId('engineering-lock-configure-secret')).toHaveAttribute('type', 'password');
   await expect(page.getByRole('heading', { name: 'Visão geral do projeto' })).toBeVisible();
 

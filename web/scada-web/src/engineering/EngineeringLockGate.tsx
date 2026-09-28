@@ -170,7 +170,7 @@ function EngineeringLockManagement({ locale, copy, status, onStatus }: {
   return (
     <details className="eng-lock-management eng-lock-management--topbar" data-testid="engineering-lock-management">
       <summary className="eng-lock-management__summary" aria-label={copy.managementTitle} title={copy.managementTitle}>
-        <span className="eng-lock-management__padlock" aria-hidden="true">▣</span>
+        <span className="eng-lock-management__padlock" aria-hidden="true">🔒</span>
         <span className="eng-lock-management__summary-copy">
           <strong>{copy.managementTitle}</strong>
           <small>{status.configured ? copy.configured : copy.notConfigured}</small>

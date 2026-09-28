@@ -242,6 +242,34 @@ test('duplicate and delete preserve hierarchy while minting new canonical identi
   expect(deleted.elements?.[1].children).toHaveLength(1);
 });
 
+test('developer Key rename preserves stable Id and enforces sibling-local uniqueness', () => {
+  const base = screen([
+    { id: 'group-a', key: 'group-a', type: BUILTIN_VISUAL_OBJECT_TYPES.group, properties: {}, children: [
+      { id: 'child-a', key: 'display', type: BUILTIN_VISUAL_OBJECT_TYPES.text, properties: { text: 'A' } }
+    ] },
+    { id: 'group-b', key: 'group-b', type: BUILTIN_VISUAL_OBJECT_TYPES.group, properties: {}, children: [
+      { id: 'child-b', key: 'display', type: BUILTIN_VISUAL_OBJECT_TYPES.text, properties: { text: 'B' } }
+    ] },
+    { id: 'root-a', key: 'shape-a', type: BUILTIN_VISUAL_OBJECT_TYPES.rectangle, properties: {} },
+    { id: 'root-b', key: 'shape-b', type: BUILTIN_VISUAL_OBJECT_TYPES.rectangle, properties: {} }
+  ]);
+
+  const renamed = applyVisualEditorMutationIntent(base, {
+    kind: 'object.rename', objectId: 'root-a', key: 'pump-status'
+  });
+  expect(renamed.elements?.[2]).toMatchObject({ id: 'root-a', key: 'pump-status' });
+  expect(base.elements?.[2]).toMatchObject({ id: 'root-a', key: 'shape-a' });
+
+  const nested = applyVisualEditorMutationIntent(renamed, {
+    kind: 'object.rename', objectId: 'child-b', key: 'display-b'
+  });
+  expect(nested.elements?.[1].children?.[0]).toMatchObject({ id: 'child-b', key: 'display-b' });
+
+  expect(() => applyVisualEditorMutationIntent(renamed, {
+    kind: 'object.rename', objectId: 'root-a', key: 'SHAPE-B'
+  })).toThrow(/already used by a sibling/i);
+});
+
 test('z-order operations persist only the explicit zIndex interaction result', () => {
   const base = screen([
     { id: 'a', key: 'a', type: BUILTIN_VISUAL_OBJECT_TYPES.rectangle, properties: {} },

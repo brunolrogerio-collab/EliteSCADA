@@ -103,7 +103,7 @@ test('deleted TAG, object, property and Client Memory references remain invalid 
   expect(validateScriptAssistantReferences(source, catalog)).toEqual([
     expect.objectContaining({ code: 'SCRIPT_REFERENCE_TAG_MISSING', line: 1, reference: 'tag-deleted' }),
     expect.objectContaining({ code: 'SCRIPT_REFERENCE_OBJECT_MISSING', line: 2, reference: 'button-deleted', propertyKey: 'visible' }),
-    expect.objectContaining({ code: 'SCRIPT_REFERENCE_PROPERTY_MISSING', line: 3, reference: 'button-live', propertyKey: 'text' }),
+    expect.objectContaining({ code: 'SCRIPT_REFERENCE_PROPERTY_MISSING', line: 3, reference: 'screen-main/button-live', propertyKey: 'text' }),
     expect.objectContaining({ code: 'SCRIPT_REFERENCE_CLIENT_MEMORY_MISSING', line: 4, reference: 'memory-deleted' })
   ]);
 

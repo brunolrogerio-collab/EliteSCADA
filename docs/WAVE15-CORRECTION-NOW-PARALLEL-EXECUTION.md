@@ -666,3 +666,37 @@ Required sequence now:
 4. then #371 E2/E3 and #370 E2/E3 according to conflict/dependency review.
 
 Do not validate #371 as final E3 and then merge #354 underneath it if overlapping integration changes would invalidate the evidence.
+
+
+---
+
+## 15. #354 integrated — downstream recomposition gate
+
+#354 was accepted at E2+E3 and merged as:
+`wave15/corrections-integration@33e514eb3f5cf8f984779c0091069387741e7296`
+
+Tree:
+`d7219cbbc27d39bdebb54193d6a71b9d3f65db2f`
+
+`C-AUTHORITY-01 = FROZEN_FOR_CONSUMERS`.
+
+The one-off Playwright APIRequestContext export body-read timeout is recorded under #307 as a non-blocking observation; no product cause was proven.
+
+### Downstream consequence
+
+Old #371/#370 candidate branches were created from `00d17e...` and are now diverged from live integration.
+
+They must not receive final E3 against stale composition.
+
+Required next parallel actions:
+- DEV-EDITOR-CORE: recompose #371 onto exact integration `33e514...`, preserve scope, rerun E2, return exact candidate.
+- DEV-DATA: recompose #370 onto exact integration `33e514...`, preserve scope, rerun E2, return exact candidate.
+- shared CODEX: WAIT until the recomposed #371 exact candidate is posted; then Main will issue its E3 order.
+- DEV-REUSE: contract audit accepted as MAIN_REVIEWED_DRAFT; no implementation until C-VISUAL-IDENTITY freeze.
+- AUD-REMOTE: remains waiting for E3-A/B + E4-C.
+- HMI Dynamics/Script Object remain WAIT_C-VISUAL-IDENTITY.
+
+Preferred sequence:
+`#371 recomposed E2 -> #371 E3 -> integrate #371 -> freeze C-VISUAL-IDENTITY -> release #367/#368/#369 -> #370 E3/integration -> remaining correction lanes`.
+
+#370 may recompose/E2 in parallel while #371 is being prepared.

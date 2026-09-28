@@ -270,6 +270,67 @@ Real Preview testing exposed a Script Engineering contrast defect even though st
 
 Rule: browser availability is not product acceptance. Unreadable text, invisible controls, wrong layout, broken scaling and bad interaction are real defects.
 
+
+### 8.7 Codespace suspended/reopened: public link error and healthy listener already occupying 5173
+
+Observed again during Wave 15 transport validation on 2026-09-28; evidence retained in issue #359, comment `5871149846`.
+
+Observed sequence:
+
+- the Codespace had suspended/closed while unattended;
+- after reopening/resuming it, the existing public application link initially showed a page error;
+- the root cause of that first page error was not captured and remains **unknown**;
+- the already-reopened Codespace itself was preserved rather than reset, rebuilt or recreated;
+- Web was found listening on `0.0.0.0:5173`;
+- API was found listening on `127.0.0.1:5080`;
+- Web returned HTTP 200 and API `/health` returned HTTP 200;
+- the normal Security create/edit/reload journey and Data Source catalog read then passed;
+- a duplicate launcher attempt reported `Port 5173 is already in use`, but that message reflected an existing healthy Web listener rather than proof of a failed environment;
+- Docker CLI was not available inside the app container. That absence did **not** prove the backing database or compose stack was unavailable.
+
+Classification:
+
+`KNOWN_CODESPACE_LIFECYCLE_LIMITATION / INITIAL_REOPEN_LINK_ERROR_ROOT_CAUSE_UNKNOWN / HEALTHY_EXISTING_LISTENER_CAN_SURVIVE_RESUME`.
+
+First-response rule when this happens again:
+
+1. **Preserve the current Codespace first.** Do not immediately rebuild, delete, recreate or reset it.
+2. Record timestamp, exact failing forwarded URL/path and visible browser error; capture a screenshot if available.
+3. Record whether Codespaces reports the instance as stopped, resuming or running.
+4. Revalidate repository/environment identity before changing anything:
+
+```bash
+git rev-parse HEAD
+git status --short
+dotnet --version
+node --version
+```
+
+5. Inspect existing listeners/processes for 5173 and 5080 **before** running a launcher or killing anything. Preserve the process working directory/command where available.
+6. If port 5173 is already bound **and** the Web endpoint answers HTTP 200, reuse that listener. Do not kill it or start a duplicate merely because the launcher reports `address already in use`.
+7. Check the API independently:
+
+```bash
+curl -I http://127.0.0.1:5173/
+curl -I http://127.0.0.1:5080/health
+```
+
+8. Preserve and inspect the relevant log window:
+
+```bash
+tail -n 160 .preview/web.log
+tail -n 160 .preview/api.log
+```
+
+9. Treat missing `docker` CLI inside the app container as an **environment/tooling limitation**, not as proof that TimescaleDB/Compose is down. Use observed API health, application behavior, available service tooling and coordinator-approved host/container diagnostics before classifying the backing stack.
+10. Respect the currently authorized port-visibility policy. Do not silently change Public/Private state as a troubleshooting shortcut. API 5080 and DB 5432 remain internal unless an explicit coordinator order says otherwise.
+11. Only restart a service after capturing the observations above and confirming its listener is absent or unhealthy.
+12. Escalate any Codespace rebuild/recreate/reset decision to the coordinator if the environment is being used as acceptance evidence.
+
+Do not infer that a post-resume browser/link error is a product defect, forwarding defect or recurrence of the historical HTTP 402 without layer-specific evidence.
+
+This recovery path is intentionally conservative because preserving the resumed instance can retain the evidence needed to distinguish Codespaces lifecycle behavior from EliteSCADA product behavior.
+
 ## 9. Updating an existing Codespace
 
 Before update:

@@ -348,7 +348,10 @@ test('W15 Dynamic Text and Numeric Input are mounted, persisted and Design mode 
 
     const numericRendered = page.getByTestId('visual-editor-canonical-layer').locator('[data-object-id="' + numericId + '"]');
     await expect(numericRendered).toHaveAttribute('data-numeric-input-state', 'design');
-    await expect(numericRendered.getByRole('spinbutton')).toHaveAttribute('readonly', '');
+    const designInput = numericRendered.locator('input[type="number"]');
+    await expect(designInput).toHaveCount(1);
+    await expect(designInput).toHaveAttribute('readonly', '');
+    await expect(numericRendered.locator('button').filter({ hasText: 'Apply' })).toBeDisabled();
 
     await page.getByTestId('visual-editor-preview').click();
     await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();

@@ -87,7 +87,7 @@ test('Gateway Engineering config uses canonical Preview Apply and shows runtime 
   await expect(source.locator('option')).toHaveCount(4);
   await expect(source).not.toContainText('UI.Local');
   await source.selectOption(sourceId);
-  await destination.selectOption(destinationId);
+  await destination.selectOption(fanoutId);
 
   await page.getByTestId('gateway-key').fill('server-to-plc');
   await panel.locator('.eng-mutation-card').first().locator('input').nth(1).fill('Server to PLC');
@@ -101,8 +101,8 @@ test('Gateway Engineering config uses canonical Preview Apply and shows runtime 
   expect(createdRoute).toBeTruthy();
   expect(createdRoute.sourceTagId).toBe(sourceId);
   expect(createdRoute.sourceTagPath).toBe('Server.Source');
-  expect(createdRoute.destinationTagId).toBe(destinationId);
-  expect(createdRoute.destinationTagPath).toBe('PLC.Destination');
+  expect(createdRoute.destinationTagId).toBe(fanoutId);
+  expect(createdRoute.destinationTagPath).toBe('PLC.Fanout');
   expect(createdRoute.transferMode).toBe('periodic');
   expect(createdRoute.periodMilliseconds).toBe(250);
   expect(createdRoute.qualityPolicy).toBe('goodOnly');

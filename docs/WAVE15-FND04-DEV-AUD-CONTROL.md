@@ -38,11 +38,11 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0110`
+`MAIN_ORDER_REV: 0111`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-28 — LOCAL E3 HARNESS UNRELIABLE / FRESH CODESPACE E3 ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-28 — CODESPACE CREATED / PRODUCT OWNER LOGIN+PROJECT PREPARATION ACTIVE`
 
-`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_COMBINED_E3_FRESH_CODESPACE_ACTIVE`
+`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_COMBINED_E3_PREPARED_CODESPACE_ACTIVE`
 
 Current situation:
 
@@ -58,10 +58,10 @@ Current situation:
 - FND-04 is now **VERIFIED / FROZEN** at exact product checkpoint `6c810647c9773a19b212d9c33694780141786ac7`.
 - The readable Script TAG reference contract is frozen for downstream consumption.
 - FND-04 AUD remains **FROZEN / WAIT / NO_MUTATION**.
-- The **same sequential CODEX executor/chat that executed prior Foundation work is now assigned to the corrected exact #373 + #374 + #376 combined E3 in a fresh real Codespace under rev0110**. FND-04 remains frozen; the shared CODEX route is independent of the legacy FND-04 DEV order.
+- The **same sequential CODEX executor/chat that executed prior Foundation work is now assigned to the corrected exact #373 + #374 + #376 combined E3 in the Product Owner-prepared real Codespace under rev0111**. FND-04 remains frozen; the shared CODEX route is independent of the legacy FND-04 DEV order.
 - Any later change to this shared contract requires a new Main/Foundation delta; downstream lanes may not redefine it.
 
-Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`, tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`. Local transport A/B and real forwarded remote E4 passed on these canonical product bytes; historical 402 cause remains unassigned. rev0110 owns the corrected exact #373 + #374 + #376 combined E3 in a fresh Codespace because the local mounted runner repeatedly produced proxy/reset evidence before the matrix could complete. Any movement of integration or any candidate HEAD invalidates rev0110 until Main reissues exact coordinates.
+Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`, tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`. Local transport A/B and real forwarded remote E4 passed on these canonical product bytes; historical 402 cause remains unassigned. rev0111 owns the corrected exact #373 + #374 + #376 combined E3 in the newly created Codespace. The Product Owner is intentionally creating the initial login/project before handing the environment to CODEX, so pristine-bootstrap assumptions from rev0110 are superseded. Any movement of integration or any candidate HEAD invalidates rev0111 until Main reissues exact coordinates.
 ---
 
 ## 2A. CURRENT SHARED CODEX ORDER — EXECUTION POINTER
@@ -70,240 +70,132 @@ Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave1
 >
 > The shared CODEX executor is not the legacy FND-04 DEV lane.
 
-`SHARED_CODEX_ORDER_REV: 0110`
+`SHARED_CODEX_ORDER_REV: 0111`
 
-`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-COMBINED-E3-FRESH-CODESPACE-91`
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-COMBINED-E3-PREPARED-CODESPACE-92`
 
-`ORDER_STATE: ACTIVE_VALIDATION / FRESH_REAL_CODESPACE / PRODUCT_BYTES_PINNED / INFRA_HARNESS_ONLY / NO_PRODUCT_MUTATION / NO_MERGE`
+`ORDER_STATE: ACTIVE_VALIDATION / REAL_CODESPACE_CREATED / PRODUCT_OWNER_PREPARES_LOGIN_PROJECT / PRODUCT_BYTES_PINNED / NO_PRODUCT_MUTATION / NO_MERGE`
 
-### rev0109 local-run disposition
+### Supersedes rev0110 pristine-bootstrap assumption
 
-rev0109 revalidated the exact corrected combined candidate and returned:
-`E3_LOCAL_NOT_ACCEPTED / MATRIX_INCOMPLETE / NO_MERGE`.
+rev0110 required a pristine first-bootstrap Codespace so the Playwright `local-auth.spec.ts` dependency could create the first Administrator/project.
 
-Exact local result:
-- 38 passed;
-- 1 failed;
-- 3 not run because the serial Visual Editor spec stopped after the first failure.
+The Product Owner has now intentionally created a new Codespace and will:
+- make port 5173 public;
+- open EliteSCADA in the integrated CODEX browser;
+- create the initial login;
+- create the initial project;
+- then hand the environment to CODEX as ready.
 
-The failure occurred before the intended combined product matrix could be completed:
-- `visual-editor-workspace.spec.ts` Wave 08 timed out with Engineering navigation disabled;
-- page showed `Modelo indisponível` / `Carregando projeto de Engenharia...`;
-- the trace contained successful populated `GET /api/engineering/workspace` and `GET /api/engineering/export/json` responses;
-- Vite also logged `ECONNRESET` for `/api/engineering/export/json`;
-- the same general local proxy/reset class had already appeared during rev0107;
-- Playwright teardown then found its request context closed during restore.
+Therefore, after that Product Owner preparation:
+- the Codespace remains valid for E3;
+- it is **not** a pristine bootstrap environment anymore;
+- CODEX must **not** rerun `local-auth.spec.ts` expecting `initialAdministratorRequired=true`;
+- the Product Owner preparation is environment setup, not acceptance evidence.
 
-Main source revalidation:
-- `loadEngineeringSnapshot()` loads `/api/engineering/workspace` and `/api/engineering/export/json` concurrently;
-- #376 only adds Gateway navigation/panel wiring and does not alter the Engineering snapshot loader;
-- #374 does not alter Engineering bootstrap/loading;
-- corrected #373 exact-head T1 reran Wave 08 successfully;
-- #373/#374/#376 individual T1 evidence remains green.
+### Exact product/harness coordinate remains unchanged
 
-Main classification:
-`LOCAL_MOUNTED_RUNNER_UNRELIABLE / PROXY_RESET_OBSERVED / PRODUCT_DEFECT_UNPROVEN / MOVE_E3_TO_FRESH_REAL_CODESPACE`.
+Canonical combined product:
+- branch `preview/w15-e3-combined-373-374-376-r2-50b275`;
+- commit `051cc0cdc71b85a7777c93893b0b7012bec4fcc0`;
+- tree `3aaec957ce27c73bb8b7090b7cd9f412ba26b567`.
 
-Do not change product or tests from this local-run symptom.
+Prepared Codespace harness:
+- branch `preview/w15-e3-codespace-harness-373-374-376-r2`;
+- HEAD `39a5d43c2d6a3374035598f435fbf15595aec0ee`;
+- tree `4dbb11daa0854c3695531b96c0209147fdff76a9`;
+- parent product `051cc0cdc71b85a7777c93893b0b7012bec4fcc0`.
 
-### Canonical product coordinate
-
-Integration base:
-`50b2750c73623b7ffef77f0ca93755c3e8278676`
-tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`.
-
-Corrected combined product branch:
-`preview/w15-e3-combined-373-374-376-r2-50b275`
-
-Combined product commit:
-`051cc0cdc71b85a7777c93893b0b7012bec4fcc0`
-
-`COMBINED_TREE_SHA: 3aaec957ce27c73bb8b7090b7cd9f412ba26b567`
-
-Exact accepted inputs remain:
-- #373 `9079e3d41a51d603e82cb791247596fddda23771`;
-- #374 `687708551554886b1682e41a58ad72b4991d0f5a`;
-- #376 `4a5252abf008cb314f4494d48107be25a3643d0c`.
-
-### Dedicated fresh-Codespace harness
-
-Branch:
-`preview/w15-e3-codespace-harness-373-374-376-r2`
-
-Exact harness HEAD:
-`39a5d43c2d6a3374035598f435fbf15595aec0ee`
-
-Harness tree:
-`4dbb11daa0854c3695531b96c0209147fdff76a9`
-
-Parent:
-`051cc0cdc71b85a7777c93893b0b7012bec4fcc0`.
-
-The harness overlays the combined product tree with exactly the four already-proven E4 infrastructure blobs:
+Harness delta remains exactly:
 - `.devcontainer/devcontainer.json`;
 - `.devcontainer/docker-compose.yml`;
 - `.devcontainer/initialize-preview-machine-id.sh`;
 - `scripts/preview/launch-w15-e4-transport.sh`.
 
-Proof:
-- harness is 1 commit ahead / 0 behind the combined product commit;
-- combined product -> harness diff is exactly those four infrastructure paths;
-- no product/source/test/workflow blob differs from `COMBINED_TREE_SHA`.
+No product/source/test/workflow byte differs from the accepted combined product tree.
 
-The devcontainer/launcher names still contain `E4` because the exact proven infrastructure blobs are intentionally reused byte-for-byte. Those labels are historical infrastructure labels, not product-version authority. The rev0110 control coordinates above are authoritative.
+### CODEX preflight after Product Owner says environment is ready
 
-### Fresh environment is mandatory
-
-Use a **fresh Codespace created from the exact harness branch/HEAD above**.
-
-Do NOT reuse the prior E4 Codespace for the acceptance run because `local-auth.spec.ts` requires genuinely fresh Local Identity/bootstrap and first-project state. A prior E4 database contains persisted security state and is not acceptable for that prerequisite.
-
-If fresh Codespace creation is unavailable to the executor, return:
-`ENV_CAPABILITY_GAP / E3_CODESPACE / fresh Codespace creation unavailable / Main coordinator`
-and STOP.
-
-### Fresh Codespace preflight
-
-1. Re-read rev0110 live.
-2. Revalidate integration and all three PR HEADs remain exact and unmerged.
-3. Revalidate harness HEAD/tree/parent.
-4. Prove combined product -> harness diff is exactly the four infrastructure paths.
-5. Create/open a **fresh** Codespace from:
-   `preview/w15-e3-codespace-harness-373-374-376-r2@39a5d43...`.
-6. Record:
+1. Re-read rev0111 live.
+2. Revalidate:
+   - integration = `50b2750...`;
+   - #373 = `9079e3d41a51d603e82cb791247596fddda23771`;
+   - #374 = `687708551554886b1682e41a58ad72b4991d0f5a`;
+   - #376 = `4a5252abf008cb314f4494d48107be25a3643d0c`;
+   - harness HEAD/tree/parent exact.
+3. In the Codespace record:
    - `git rev-parse HEAD`;
    - `git status --short`;
    - `dotnet --version`;
    - `node --version`.
-7. Let repository `postCreateCommand` complete.
-8. The proven postAttach launcher may start API/Web and verify the private TimescaleDB. Confirm:
-   - DB reachable only privately;
+4. Verify:
+   - Web 5173 reachable through the Product Owner-enabled public forwarded port;
    - API `127.0.0.1:5080/health` = 200;
-   - Web 5173 = 200.
-9. Do not perform human/security bootstrap through the E4-style browser journey before the Playwright prerequisite. The database must remain first-run fresh for `local-auth.spec.ts`.
+   - Product Owner-created login works;
+   - Product Owner-created project is accessible.
+5. Inspect current project contents through supported product APIs/UI.
+6. Do not delete/recreate/reset the Codespace merely to recover first-bootstrap state.
 
-Consume the Codespace lifecycle/reopen procedure in:
-`docs/CODESPACES-PREVIEW-RUNBOOK.md` section 8.7.
+### Deterministic E3 fixture after manual bootstrap
 
-### Running Playwright in the fresh Codespace
+The manually created project may be empty or may not match the normal E2E fixture.
 
-The repository Playwright config uses `reuseExistingServer=false` and starts its own API/Web on 5080/5173.
+CODEX may provision deterministic E3 fixture content only through supported product APIs/UI and only without committing repository changes.
 
-Therefore, before the Playwright run:
+Allowed:
+- use the existing Product Owner-created project;
+- create deterministic TAGs/Data Source/Screen/Popup/Gateway/Script fixture content through supported Engineering APIs/UI;
+- save/publish/activate through supported lifecycle APIs where the target scenario requires Runtime evidence;
+- use an ephemeral script outside tracked repository files (for example under `/tmp`) if needed to call supported public APIs;
+- use the existing accepted test fixture definitions as reference data.
 
-1. preserve the private TimescaleDB service;
-2. stop only the launcher-owned API/Web processes using the recorded `.preview/api.pid` and `.preview/web.pid` after capturing health/log evidence;
-3. verify 5080 and 5173 are free;
-4. do NOT stop/recreate the TimescaleDB service;
-5. export the exact fresh-Codespace DB connection for the Playwright child API:
-   `ConnectionStrings__EliteScada=Host=timescaledb;Port=5432;Database=elitescada_e4;Username=postgres;Password=elitescada-e4-db;Pooling=false`;
-   `ConnectionStrings__Historian` = same value;
-   `Historian__Provider=timescaledb`.
-6. Run the explicit focused specs on the exact harness checkout. The Playwright `chromium-local-auth` dependency must bootstrap the fresh DB and provision the explicit `e2e-wave03` fixture.
-7. Preserve trace/screenshots/logs for any failure; no test edits or timeout inflation.
+Not allowed:
+- modify or commit product/test/workflow files;
+- replace product APIs with mocks for mounted acceptance;
+- mutate persistence directly in PostgreSQL;
+- bypass Authority;
+- create a second hidden project/bootstrap authority.
 
-### Mandatory focused specs
+If an exact focused Playwright spec depends on the `chromium-local-auth` dependency, run the target project/specs with dependencies disabled only after equivalent deterministic fixture/bootstrap prerequisites are established in the Product Owner-prepared project. Do not falsely report the skipped bootstrap dependency as PASS.
 
-Run explicitly:
+### Focused specs + mounted matrix
 
-#373:
-- `tests-e2e/wave-15-hmi-dynamics-io.spec.ts`;
-- `tests-e2e/visual-editor-workspace.spec.ts`;
-- relevant changed Visual Editor contract specs.
+Run the mandatory #373/#374/#376 focused specs from rev0110, but account truthfully for the already-consumed manual bootstrap state.
 
-#374:
-- `tests-e2e/script-assistant-model.spec.ts`;
-- `tests-e2e/script-assistant-reference-validation.spec.ts`;
-- `tests-e2e/script-engineering-workspace-contract.spec.ts`;
-- `tests-e2e/visual-python-property-provider.spec.ts`;
-- `tests-e2e/wave-10-client-visual-event-dispatcher.spec.ts`.
+Then execute the full real-browser mounted matrix:
+- #373 HMI Dynamics + NumericInput;
+- #374 Script Object/Property;
+- #376 TAG Gateway;
+exactly as required by rev0110.
 
-#376:
-- `tests-e2e/gateway-engineering.spec.ts`.
+The Gateway mocked spec remains necessary but insufficient.
 
-The mocked Gateway spec is necessary but not sufficient.
+### Codespace operational rule
 
-### Mounted real-browser matrix after focused specs
+Consume `docs/CODESPACES-PREVIEW-RUNBOOK.md` section 8.7.
 
-After focused Playwright completes, restart the exact combined product against the same fresh Codespace DB using the proven harness launcher or an equivalent no-byte-change start. Use the real forwarded 5173 browser path.
-
-The explicit E2E fixture/local identity created by the prerequisite may be used for the mounted acceptance; do not create a second hidden bootstrap authority.
-
-Prove the full rev0109 matrix:
-
-#### #373 HMI
-- Screen RangeMap;
-- Popup RangeMap;
-- first-match semantics;
-- Undo/Redo;
-- Screen/Popup Save/Reopen;
-- Dynamic Text formatting;
-- NumericInput Runtime authorized write;
-- authoritative readback;
-- read-only;
-- bad-quality/unavailable;
-- unauthorized;
-- failed write;
-- Apply/Enter;
-- Cancel/Esc;
-- Design no-write;
-- canonical Screen/Popup renderer/write boundary.
-
-#### #374 Script Object/Property
-- Object Browser;
-- Screen + Popup object discovery;
-- Property Browser;
-- read/write/clear/tween generation;
-- stable `visualDefinitionId + visualObjectId + propertyKey`;
-- Key rename stability;
-- old-Key reuse ambiguity/fail-safe;
-- unsupported capability behavior;
-- event-associated object context;
-- Save/Reopen stable reference;
-- supported Runtime read/write/tween through existing sandbox/capability bridge;
-- legacy Key compatibility remains bounded.
-
-#### #376 TAG Gateway
-- direct `Comunicação -> TAG Gateway`;
-- inventory/list;
-- `Nova rota`;
-- route A + independent route B;
-- edit A without replacing B;
-- disable/re-enable independence;
-- valid fan-out;
-- duplicate active destination writer rejection;
-- TAG -> TAG authority;
-- Preview/Apply/Working/Active truthfulness;
-- Save/Reopen;
-- route diagnostics;
-- export/import persistence where available.
-
-### No-mutation rule
-
-No candidate product/test/workflow mutation is authorized.
-No merge.
-No timeout workaround.
-No transport diagnosis reopening.
-No Codespace port-visibility shortcut.
-No replacement of canonical APIs with test-only mocks for the mounted acceptance.
+Because the Product Owner is making port 5173 public for the integrated browser:
+- record that this visibility change was explicitly Product Owner-authorized for this E3;
+- API 5080 and DB 5432 remain internal;
+- do not expose them publicly.
 
 ### Return
 
-If all mandatory focused and mounted evidence passes:
+If the exact focused + mounted matrix passes:
 `COMBINED_E3_PASS`.
 
 If a causal product defect is proven:
 `COMBINED_E3_FAIL / <lane or cross-lane> / <first causal evidence>`.
 
-If the fresh Codespace itself cannot provide the required environment:
-`ENV_CAPABILITY_GAP / E3_CODESPACE / <exact reason> / Main coordinator`.
+If manual bootstrap/project preparation prevents deterministic E3 fixture establishment:
+`ENV_CAPABILITY_GAP / E3_PREPARED_CODESPACE / <exact reason> / Main coordinator`.
 
 Required title:
-`CODEX -> MAIN COORDINATOR — #373/#374/#376 FRESH CODESPACE E3 HANDOFF`.
+`CODEX -> MAIN COORDINATOR — #373/#374/#376 PREPARED CODESPACE E3 HANDOFF`.
 
 Then STOP.
 
-Main alone owns merge. No merge until PASS and exact-tree proof.
+Main alone owns merge.
 
 ---
 
@@ -4179,5 +4071,28 @@ Execute the full focused + real-browser matrix from the canonical pointer.
 
 Required handoff:
 `CODEX -> MAIN COORDINATOR — #373/#374/#376 FRESH CODESPACE E3 HANDOFF`.
+
+Then stop.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0111
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-COMBINED-E3-PREPARED-CODESPACE-92`
+
+Product Owner created the new rev0110 Codespace and is intentionally preparing:
+- public forwarded Web 5173;
+- initial login;
+- initial project;
+- integrated browser access.
+
+That manual preparation supersedes rev0110's pristine-bootstrap assumption.
+
+Exact harness remains:
+`preview/w15-e3-codespace-harness-373-374-376-r2@39a5d43c2d6a3374035598f435fbf15595aec0ee`.
+
+CODEX must use the Product Owner-prepared project, establish any deterministic test fixture only through supported APIs/UI, and execute the focused + mounted E3 matrix without repository mutation.
+
+Required handoff:
+`CODEX -> MAIN COORDINATOR — #373/#374/#376 PREPARED CODESPACE E3 HANDOFF`.
 
 Then stop.

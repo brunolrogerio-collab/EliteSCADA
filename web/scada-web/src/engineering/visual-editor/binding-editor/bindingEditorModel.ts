@@ -258,7 +258,7 @@ export function createBindingSetIntent(
     );
   }
   const normalizedDirection = normalizeDirection(
-    direction ?? (element.type === 'core.slider' && propertyKey === 'value'
+    direction ?? ((element.type === 'core.slider' || element.type === 'core.numericInput') && propertyKey === 'value'
       ? source.writable === true ? 'readWrite' : 'read'
       : undefined)
   );

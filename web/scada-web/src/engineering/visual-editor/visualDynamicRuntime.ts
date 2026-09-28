@@ -13,9 +13,10 @@ import type {
   VisualElementEngineering,
   VisualExpressionDependencyEngineering,
   VisualExpressionEngineering,
+  VisualPropertyMapEngineering,
   VisualValueSourceEngineering
 } from '../types';
-import type { VisualPropertyValue } from '../../visual-runtime';
+import { getVisualSchemaForEngineering, type VisualPropertyValue } from '../../visual-runtime';
 import {
   computeAnalogFillPresentation,
   type AnalogFillPresentation
@@ -98,6 +99,13 @@ export function resolveVisualDynamicState(
     const resolved = resolveBooleanCondition(condition, samples);
     if (resolved.ok) values[condition.propertyKey] = resolved.value;
     else diagnostics.push(Object.freeze({ propertyKey: condition.propertyKey, sourceKind: 'BooleanCondition', message: resolved.message }));
+  }
+
+  for (const propertyMap of element.propertyMaps ?? []) {
+    if (!(propertyMap.propertyKey in values)) continue;
+    const resolved = resolvePropertyMap(element, propertyMap, samples);
+    if (resolved.ok) values[propertyMap.propertyKey] = resolved.value;
+    else diagnostics.push(Object.freeze({ propertyKey: propertyMap.propertyKey, sourceKind: 'PropertyMap', message: resolved.message }));
   }
 
   let analogFill: VisualDynamicResolution['analogFill'] = null;
@@ -192,6 +200,49 @@ function resolveBooleanCondition(
   const intervalResult = intervalMode.value === 'Outside' ? !inside : inside;
   const value = condition.negate ? !intervalResult : intervalResult;
   return Object.freeze({ ok: true, value, valueType: 'boolean' });
+}
+
+function resolvePropertyMap(
+  element: VisualElementEngineering,
+  map: VisualPropertyMapEngineering,
+  samples: ReadonlyMap<string, VisualDynamicSample>
+): Readonly<{ ok: true; value: VisualPropertyValue }> | Readonly<{ ok: false; message: string }> {
+  const source = resolveValueSource(map.source, samples);
+  if (!source.ok) return source;
+  if (source.valueType !== 'number' || typeof source.value !== 'number') {
+    return Object.freeze({ ok: false, message: 'Visual property map requires a Number source.' });
+  }
+
+  const rule = map.rules.find(candidate => rangeContains(source.value, candidate));
+  const candidate = rule?.value ?? map.fallback;
+  if (candidate === undefined || candidate === null) {
+    return Object.freeze({ ok: false, message: `No property-map rule matched '${map.propertyKey}' and no fallback is configured.` });
+  }
+
+  try {
+    const schema = getVisualSchemaForEngineering(element.type);
+    const validation = schema.validate(map.propertyKey, candidate);
+    if (!validation.ok) {
+      return Object.freeze({ ok: false, message: `Mapped value for '${map.propertyKey}' is invalid (${validation.code}).` });
+    }
+    return Object.freeze({ ok: true, value: validation.value });
+  } catch (reason) {
+    return Object.freeze({ ok: false, message: reason instanceof Error ? reason.message : String(reason) });
+  }
+}
+
+function rangeContains(
+  value: number,
+  rule: VisualPropertyMapEngineering['rules'][number]
+): boolean {
+  const minimum = rule.minimum ?? null;
+  const maximum = rule.maximum ?? null;
+  if (minimum === null && maximum === null) return false;
+  if (minimum !== null && (!Number.isFinite(minimum) ||
+      (rule.minimumInclusive === false ? value <= minimum : value < minimum))) return false;
+  if (maximum !== null && (!Number.isFinite(maximum) ||
+      (rule.maximumInclusive === true ? value > maximum : value >= maximum))) return false;
+  return true;
 }
 
 function resolveAnalogFill(

@@ -66,6 +66,11 @@ export type VisualEditorMutationIntent =
       initialProperties?: Readonly<Record<string, VisualEngineeringPropertyValue>>;
     }>
   | Readonly<{
+      kind: 'object.rename';
+      objectId: string;
+      key: string;
+    }>
+  | Readonly<{
       kind: 'dynamo.add';
       dynamoKey: string;
       equipmentPath?: string | null;

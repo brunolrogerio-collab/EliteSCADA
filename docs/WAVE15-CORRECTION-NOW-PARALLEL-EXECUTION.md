@@ -822,3 +822,62 @@ After accepting combined E3, shared CODEX moves to #359/#307 local A/B diagnosti
 - E3-B deterministic latency/jitter;
 - no product mutation;
 - E4-C real Codespace remains separate and required before remote-root closure.
+
+
+---
+
+## 18. Live queue after local transport A/B and first E/F/G candidates
+
+Shared CODEX transport discriminator:
+`A_PASS_B_PASS_REMOTE_E4_REQUIRED`.
+
+Authoritative integration remains:
+`wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`
+tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`.
+
+### E / #367+#368
+PR #373:
+- HEAD `c10f4e5115333b6de4bd43a1f001dcf2bcb271da`;
+- mergeable=true;
+- T1 `36378897614` = FAILURE;
+- Common sanity, .NET and Web build passed;
+- Focused Chromium profile failed.
+
+State:
+`CHANGES_REQUIRED / E2_CHROMIUM_FAIL / NO_E3 / NO_MERGE`.
+
+DEV-HMI-DYNAMICS-IO must diagnose/fix the exact Chromium failure without widening scope, rerun E2 and return a new exact candidate.
+
+### F / #369
+PR #374:
+- HEAD `09a24f6e16ff3c152e0155d83b386342685a12b1`;
+- mergeable=true;
+- T1 `36379229072` SUCCESS.
+
+State:
+`E2_GREEN / WAIT_DEV_HANDOFF / E3_REQUIRED_BEFORE_INTEGRATION`.
+
+### G / #365 R1
+PR #375:
+- HEAD `8c47e7944f1e025992b203a45a5caaf146819e9c`;
+- mergeable=true;
+- T1 `36379540510` SUCCESS.
+
+State:
+`E2_GREEN / WAIT_DEV_HANDOFF_MAIN_REVIEW`.
+
+R1 is backend/contracts/persistence-first; Main may accept it after code/contract review at E2 if the handoff confirms no user-facing UI semantics were added.
+
+Important overlap:
+#373 and #375 both touch `src/Scada.Engineering/Contracts/EngineeringContracts.cs`.
+Whichever is integrated first requires the other candidate to be recomposed/revalidated before integration.
+
+### H / #364
+Released now:
+`ACTIVE_PRODUCT_CORRECTION / EXACT_BASE=50b2750c73623b7ffef77f0ca93755c3e8278676`.
+
+Current #373/#374/#375 changed-file sets do not occupy the Gateway-specific navigation/panel files identified by #364 as its primary UX surface. H may proceed in parallel, but must not redesign C-GATEWAY-01 runtime semantics.
+
+### Shared CODEX next route
+rev0104:
+real Codespace/forwarded E4-C only. If real Codespace capability is unavailable, return `ENV_CAPABILITY_GAP / E4`; do not substitute another local proxy.

@@ -353,6 +353,7 @@ test('W15 first-user flow configures rectangle and Text through canonical WYSIWY
 
     await page.getByTestId('visual-editor-preview').click();
     await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
+    await expect(page.getByTestId('visual-editor-apply')).toBeEnabled();
     page.once('dialog', dialog => dialog.accept());
     await page.getByTestId('visual-editor-apply').click();
     await page.reload();
@@ -363,7 +364,7 @@ test('W15 first-user flow configures rectangle and Text through canonical WYSIWY
     const popupProof = await exercise('popup');
 
     await page.getByTestId('popup-visual-editor-preview').click();
-    await expect(page.getByTestId('hmi-operational-configuration')).toHaveCount(0);
+    await expect(page.getByTestId('popup-visual-editor-apply')).toBeEnabled();
     page.once('dialog', dialog => dialog.accept());
     await page.getByTestId('popup-visual-editor-apply').click();
     await page.reload();

@@ -606,3 +606,44 @@ Human testing remains reserved for:
 - product-level subjective/ergonomic acceptance.
 
 Routine compile/test/runtime validation belongs to CI/CODEX/harness executors.
+
+
+---
+
+## 14. Live candidate queue after first parallel DEV handoffs
+
+### #370 / DEV-DATA
+Candidate:
+`6083c2a1c91aed682405367f06c0eb10223ddf51`
+
+State:
+`MAIN_CODE_REVIEW_PASS / E2_ACCEPTED / WAIT_E3_MOUNTED_VALIDATION`
+
+No further DEV mutation currently ordered.
+
+### #371 / DEV-EDITOR-CORE
+Candidate:
+`2e288bbf8b9b0540aa19d1ca40278c16a0e11a05`
+
+State:
+`MAIN_CODE_REVIEW_PASS / E2_ACCEPTED / WAIT_E3_MOUNTED_VALIDATION / C-VISUAL-IDENTITY_NOT_YET_FROZEN`
+
+Main review accepted the bounded Editor direction but added the objectKey compatibility-alias rule to C-VISUAL-IDENTITY.
+
+### #359/#307 / AUD-REMOTE
+State:
+`E0_DIAGNOSTIC_ACCEPTED / WAIT_E3_A_B / WAIT_E4_C / NO_PRODUCT_MUTATION`
+
+### Shared CODEX sequential validation queue
+
+Current active mission remains #354.
+
+After #354 handoff/review, preferred queued use of the same existing CODEX is:
+
+1. exact #371 E3 mounted Editor validation;
+2. exact #370 E3 mounted Data Source -> TAG -> Runtime validation;
+3. #359/#307 E3-A local-normal + E3-B deterministic latency/jitter diagnostic.
+
+E4-C must run on a real supported Codespace/forwarded path and may use a separate capable remote executor.
+
+This queue is planning only until Main activates each exact mission after revalidating live GitHub.

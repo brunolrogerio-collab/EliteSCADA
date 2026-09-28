@@ -582,3 +582,30 @@ The previously blocked Editor identity dependency is resolved semantically. R1 r
 - package/library roundtrip preservation.
 
 Exact persisted wire field names/reference adapter details are owned by #365 implementation and must remain consistent with frozen C-VISUAL identity. New Editor UI/Preview remains outside R1.
+
+
+### C-TRANSPORT-01 — local discriminator update
+
+Evidence:
+- shared CODEX #305 handoff `5863670500`;
+- duplicate summary `5863679165` contains one SHA typo; authoritative integration remains `50b2750c73623b7ffef77f0ca93755c3e8278676`.
+
+State:
+`PROPOSAL / E3_A_PASS / E3_B_PASS / WAIT_E4_C_REAL_CODESPACE`.
+
+Accepted evidence:
+- A local normal Security users/roles/create/edit/save/reload = PASS;
+- B deterministic delayed responses at 2.5s, 28s and 32s = PASS for the tested eventual-response profiles;
+- no automatic mutation retry observed;
+- a 32s delayed mutation response eventually completed and authoritative readback matched;
+- Data Source catalog secondary witness returned 200;
+- local health remained good.
+
+Interpretation boundary:
+- local normal does not reproduce the Human Codespace failure;
+- deterministic local delay beyond the ordinary-read budget also did not reproduce it;
+- therefore no generic local timeout increase or Security-specific retry correction is justified from A/B;
+- the historical HTTP 402 source remains unassigned;
+- real Codespace/forwarded-path E4-C is still required before remote root closure or C-TRANSPORT freeze.
+
+The current lack of a distinct unknown-mutation-outcome state for a truly lost response remains a resilience-design gap, but A/B tested eventual delayed delivery rather than response loss. Do not infer a concrete mutation bug without the required discriminator.

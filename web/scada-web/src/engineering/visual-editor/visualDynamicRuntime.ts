@@ -213,7 +213,8 @@ function resolvePropertyMap(
     return Object.freeze({ ok: false, message: 'Visual property map requires a Number source.' });
   }
 
-  const rule = map.rules.find(candidate => rangeContains(source.value, candidate));
+  const numericValue = source.value;
+  const rule = map.rules.find(candidate => rangeContains(numericValue, candidate));
   const candidate = rule?.value ?? map.fallback;
   if (candidate === undefined || candidate === null) {
     return Object.freeze({ ok: false, message: `No property-map rule matched '${map.propertyKey}' and no fallback is configured.` });

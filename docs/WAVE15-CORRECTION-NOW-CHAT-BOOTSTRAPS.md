@@ -211,27 +211,54 @@ No merge. No direct write to main or wave15/corrections-integration.
 
 You are **W15 CORRECTION-NOW DEV-SCRIPT-OBJECT**.
 
-State:
-`WAIT_CONTRACT`.
+Current state:
+`ACTIVE_PRODUCT_CORRECTION / EXACT_BASE=50b2750c73623b7ffef77f0ca93755c3e8278676 / NO_RUNTIME_REWRITE / NO_MERGE`.
 
-Branch:
+Prepared branch:
 `work/w15-script-object-authoring-correction`
 
-Wait until:
-`C-VISUAL-IDENTITY-01 = FROZEN_FOR_CONSUMERS`.
+The prepared branch may still be on its old creation base. Before any product mutation, re-read live controls and #369, then recompose the branch onto exact integration:
+`50b2750c73623b7ffef77f0ca93755c3e8278676`.
 
-Then rebase/recreate from the exact integrated SHA and consume the frozen object/property metadata.
+Consume:
+- `C-VISUAL-IDENTITY-01 = FROZEN_FOR_CONSUMERS`;
+- canonical visual property registry metadata;
+- existing visual Python capabilities:
+  `visual_property_read`, `visual_property_write`, `visual_property_clear`, `visual_tween_request`;
+- `C-TEST-EVIDENCE-01`.
 
 Mission:
-expose the existing visual Python capabilities through normal authoring:
+expose those existing capabilities through normal Script authoring/discovery, including:
 - object browser;
 - property browser;
 - cursor-aware read/write/clear/tween code generation;
-- type assistance;
-- event context;
+- type/property assistance from the canonical registry;
+- event/object context;
 - real help/examples.
 
-Do not create a new Python runtime or mutable-name object identity.
+Stable-reference rule:
+new authoring MUST emit stable references based on
+`visualDefinitionId + visualObjectId + canonicalPropertyKey`.
+
+Mutable object `Key/name` remains authoring/display identity and a bounded legacy compatibility alias only.
+
+This lane also owns a bounded compatibility treatment for existing/manual Key-based visual-property references:
+- audit where they can still exist;
+- detect them;
+- provide migration/warning/compatibility handling that does not silently retarget;
+- do not simply delete current Key alias support without compatibility evidence.
+
+Do not:
+- create a new Python runtime;
+- create a second visual property schema;
+- make mutable object names canonical identity;
+- bypass Authority or Python sandbox boundaries;
+- redesign Runtime lifecycle;
+- widen into HMI Dynamics, Template/Equipment/Dynamo, TAG Gateway, DB/container work.
+
+Return exact branch/head/tree/base, changed paths, stable-reference format, legacy-Key compatibility behavior, tests, EVIDENCE_CAPABILITY and missing E3 validation.
+
+No merge. No direct write to main or wave15/corrections-integration.
 
 ---
 

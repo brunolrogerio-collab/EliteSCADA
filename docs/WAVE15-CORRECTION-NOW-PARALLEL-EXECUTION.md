@@ -511,3 +511,98 @@ Correction Preview Round 2
 Do not collapse these two gates.
 
 Wave 13 signing/release work remains separately paused unless the Product Owner later changes that decision.
+
+
+---
+
+## 13. Central validation queue — environment-capability aware
+
+Parallel development must not assume every chat can run Docker, browsers, local services, Codespaces or latency injection.
+
+All lanes consume `C-TEST-EVIDENCE-01`.
+
+### DEV responsibility
+
+DEV must:
+- implement the bounded correction;
+- add/maintain deterministic regressions;
+- run the highest evidence tier available;
+- return exact candidate SHA/tree;
+- state environment capability truthfully.
+
+DEV is **not blocked merely because E3/E4 is unavailable** if the code/test candidate is otherwise reviewable.
+
+### Main validation routing
+
+After a candidate handoff, Main routes missing evidence in this order:
+
+1. **Exact-SHA GitHub CI (E2)**
+   - compile/build;
+   - unit/integration;
+   - existing component/e2e jobs.
+
+2. **Shared CODEX / capable local harness executor (E3)**
+   - mounted Docker DB/API/Web;
+   - real UI;
+   - restart/persistence/lifecycle;
+   - focused acceptance journey.
+
+3. **Remote/Codespace executor (E4)**
+   - only when remote-path/forwarding/timing is materially relevant.
+
+4. **Product Owner Human Preview (E5)**
+   - scheduled Preview checkpoints;
+   - not used as routine developer test labor.
+
+### CODEX queue
+
+The existing shared CODEX remains one sequential executor.
+
+It has two kinds of missions:
+- high-risk correction ownership, such as current #354;
+- exact-candidate validation missions after DEV handoff when mounted/local evidence is needed.
+
+Main does not create a second imaginary CODEX. Candidates queue behind the active CODEX mission unless another genuinely capable executor exists.
+
+### Candidate states
+
+Use:
+
+- `DEV_READY_FOR_REVIEW` — implementation returned; some evidence may still be missing;
+- `WAIT_E2_CI`;
+- `WAIT_E3_MOUNTED_VALIDATION`;
+- `WAIT_E4_REMOTE_VALIDATION`;
+- `MAIN_ACCEPTED_FOR_INTEGRATION`;
+- `CHANGES_REQUIRED`.
+
+Do not conflate `DEV_READY_FOR_REVIEW` with accepted/integrable.
+
+### User-facing acceptance
+
+For #303/#355/#367/#368/#364/#365/#369:
+- DEV may return without E3 if environment cannot mount product;
+- Main review then requires a capable E3 executor before final acceptance;
+- screenshots generated from isolated component mocks do not replace normal mounted product evidence when the issue is an end-to-end authoring flow.
+
+### Remote diagnostic special case (#359/#307)
+
+AUD-REMOTE may not possess both a local injectable environment and a real Codespace.
+
+Therefore:
+- it runs whichever A/B/C legs are genuinely available;
+- it prepares exact instrumentation/procedure for missing legs;
+- returns `ENV_CAPABILITY_GAP` for unavailable legs;
+- Main routes the remaining leg to CODEX/local harness or a real Codespace executor.
+
+`C-TRANSPORT-01` cannot be frozen from source inspection alone; discriminating A/B/C evidence remains required.
+
+### Product Owner role
+
+The Product Owner is not used to compensate for agent environment limitations.
+
+Human testing remains reserved for:
+- planned UX checkpoints;
+- independent Preview rounds;
+- product-level subjective/ergonomic acceptance.
+
+Routine compile/test/runtime validation belongs to CI/CODEX/harness executors.

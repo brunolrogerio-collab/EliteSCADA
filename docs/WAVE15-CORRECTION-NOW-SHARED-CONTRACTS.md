@@ -609,3 +609,18 @@ Interpretation boundary:
 - real Codespace/forwarded-path E4-C is still required before remote root closure or C-TRANSPORT freeze.
 
 The current lack of a distinct unknown-mutation-outcome state for a truly lost response remains a resilience-design gap, but A/B tested eventual delayed delivery rather than response loss. Do not infer a concrete mutation bug without the required discriminator.
+
+
+### C-TRANSPORT-01 — E4 harness retry state
+
+rev0104 did not execute the remote journey because the pinned no-delta Codespace lacked the exact .NET SDK and a durable DB/container capability.
+
+State remains:
+`PROPOSAL / E3_A_PASS / E3_B_PASS / E4_ENVIRONMENT_RETRY_ACTIVE`.
+
+No transport/product inference is added from that environment failure.
+
+rev0105 uses a dedicated Codespaces harness around the same exact product bytes:
+`preview/w15-e4-codespace-harness-50b275@604806d012a3caaa804c7ce505a12b38cde3a939`.
+
+Only homologation infrastructure differs from product baseline. C-TRANSPORT-01 still requires actual forwarded-browser E4 evidence before freeze/root closure.

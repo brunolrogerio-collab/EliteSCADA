@@ -38,11 +38,11 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0048`
+`MAIN_ORDER_REV: 0102`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-25 — FND-05 VERIFIED/FROZEN / FND-07 CODEX ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-28 — CORRECTION-NOW / #371+#370 COMBINED E3 ACTIVE`
 
-`GLOBAL_GATE: FND04_VERIFIED_FROZEN`
+`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_CORRECTION_NOW_COMBINED_E3_ACTIVE`
 
 Current situation:
 
@@ -62,6 +62,51 @@ Current situation:
 - Any later change to this shared contract requires a new Main/Foundation delta; downstream lanes may not redefine it.
 
 Live integration divergence from the product base remains acknowledged only for verified INFRA-CI-01A + coordination documentation. Any other unacknowledged product delta remains `BLOCKED-BASE-DIVERGENCE`.
+---
+
+## 2A. CURRENT SHARED CODEX ORDER — EXECUTION POINTER
+
+> **THIS SECTION IS THE CANONICAL SIGA POINTER FOR THE EXISTING SHARED CODEX CHAT.**
+>
+> The shared CODEX executor is **not** the normal `FND-04 DEV` lane. Do not use the legacy `CURRENT DEV ORDER` (`FND04-DEV-ENV-HOLD-02`) for the shared CODEX.
+>
+> On every CODEX `SIGA`, read this pointer first, then read the matching full route at the end of this file.
+
+`SHARED_CODEX_ORDER_REV: 0102`
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-COMBINED-EDITOR-DATA-E3-83`
+
+`ORDER_STATE: ACTIVE_E3_VALIDATION / TWO_EXACT_CANDIDATES / LOCAL_COMPOSITION_ONLY / NO_PRODUCT_MUTATION / NO_MERGE`
+
+Shared exact base:
+`wave15/corrections-integration@33e514eb3f5cf8f984779c0091069387741e7296`
+
+Candidate C / #371:
+- HEAD `38506f1ea8d281287949b3fb23f26dbd319ffa43`
+- tree `f4843811a53b4dc91ca301d3594f0a85b574bb35`
+- T1 `36374037238` SUCCESS.
+
+Candidate B / #370:
+- HEAD `bc39f5fe64f59e73b1f0e0e413196cb917af50b4`
+- tree `eae78480d565aa5020df58ae79fa9b53910a5168`
+- T1 `36374028034` SUCCESS.
+
+Immediate CODEX action:
+1. locally compose the two exact candidates over the shared base;
+2. do not push a synthetic product branch;
+3. record the exact `COMBINED_TREE_SHA` and prove the path set equals the union of #371 + #370;
+4. run one mounted E3 with PostgreSQL + API + Web + browser;
+5. exercise Editor Screen/Popup + Data Source -> TAG -> Save/Reopen -> restart -> Publish/Activate -> Runtime;
+6. preserve #354 authority sanity: no Active => neutral, no hidden Demo fallback;
+7. return exactly:
+   `CODEX -> MAIN COORDINATOR — #371 + #370 COMBINED E3 HANDOFF`;
+8. stop after the handoff. Main alone decides merge/integration.
+
+Full detailed mission:
+`CURRENT SHARED CODEX ROUTE — rev 0102` at the end of this file.
+
+All earlier shared CODEX routes rev 0101 and below are superseded for execution.
+
 ---
 
 ## 3. Frozen FND-04 product objective

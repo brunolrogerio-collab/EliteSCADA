@@ -38,11 +38,11 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0104`
+`MAIN_ORDER_REV: 0105`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-28 — #359+#307 LOCAL A-B PASS / REAL CODESPACE E4-C ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-28 — E4 ENV GAP DIAGNOSED / PREPARED E4 HARNESS RETRY ACTIVE`
 
-`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_TRANSPORT_E4_CODESPACE_ACTIVE`
+`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_TRANSPORT_E4_HARNESS_RETRY_ACTIVE`
 
 Current situation:
 
@@ -68,49 +68,67 @@ Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave1
 
 > **THIS SECTION IS THE CANONICAL SIGA POINTER FOR THE EXISTING SHARED CODEX CHAT.**
 >
-> The shared CODEX executor is **not** the normal `FND-04 DEV` lane.
+> The shared CODEX executor is not the legacy FND-04 DEV lane.
 >
-> On every CODEX `SIGA`, read this pointer first, then the matching full route at the end of this file.
+> rev0104 ended with a real environment-capability gap before E4 execution. Main has now prepared a dedicated Codespaces harness that changes only homologation infrastructure, not product bytes.
 
-`SHARED_CODEX_ORDER_REV: 0104`
+`SHARED_CODEX_ORDER_REV: 0105`
 
-`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TRANSPORT-REAL-CODESPACE-E4-85`
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TRANSPORT-E4-HARNESS-RETRY-86`
 
-`ORDER_STATE: ACTIVE_DIAGNOSTIC / E4_C_REAL_CODESPACE_ONLY / NO_PRODUCT_MUTATION / NO_MERGE`
+`ORDER_STATE: ACTIVE_DIAGNOSTIC / REAL_CODESPACE / HARNESS_PREPARED / PRODUCT_BYTES_PINNED / NO_PRODUCT_MUTATION / NO_MERGE`
 
-Exact product:
-`wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`
+Canonical product baseline:
+`50b2750c73623b7ffef77f0ca93755c3e8278676`
+tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`.
 
-Exact tree:
-`bf0b43ff9ea1211443d614487f4a05bab2ee2c97`
+Dedicated Codespaces harness branch:
+`preview/w15-e4-codespace-harness-50b275`
 
-Prior result:
-`A_PASS_B_PASS_REMOTE_E4_REQUIRED`
-from #305 comment `5863670500`.
+Exact harness HEAD:
+`604806d012a3caaa804c7ce505a12b38cde3a939`
 
-Immediate action:
-- execute only C = real supported Codespace/forwarded path;
-- use exact product bytes above;
-- only Web :5173 may be forwarded/public; API :5080 and DB remain internal;
-- exercise Security users/roles/create/edit/save/reload and capture the exact remote request/status/body/timing/correlation/proxy/API evidence;
-- reproduce/characterize the historical remote failure if it occurs;
-- do not infer 402 origin without the exact response;
-- no timeout increase, blind retry, Codespace-specific product logic or product mutation.
+Exact harness tree:
+`e7c40ad428c6db693cb57be5d897d9ce1c702c2c`.
 
-If this executor cannot create/access a real authenticated Codespace and browser-forwarded path, return exactly:
-`ENV_CAPABILITY_GAP / E4 / <exact capability missing> / real Codespace-capable executor`.
+Base -> harness delta must remain exactly these four infrastructure paths:
+- `.devcontainer/devcontainer.json`;
+- `.devcontainer/docker-compose.yml`;
+- `.devcontainer/initialize-preview-machine-id.sh`;
+- `scripts/preview/launch-w15-e4-transport.sh`.
 
-Do not substitute a local proxy, localhost tunnel or simulated forwarding for E4.
+The harness restores the historically proven compose topology with:
+- .NET 10 devcontainer;
+- Node 24;
+- private TimescaleDB service;
+- disposable machine-id;
+- API internal on 5080;
+- Web forwarded on 5173 only;
+- no Demo fixture import;
+- no product source/test/workflow changes.
+
+Immediate action after a fresh Codespace is created from this exact harness branch:
+1. verify harness HEAD/tree and exact four-path delta against product baseline;
+2. verify `dotnet --version == 10.0.400` and Node 24;
+3. verify TimescaleDB private service is healthy;
+4. allow the harness launcher to start API and Web;
+5. use the real forwarded 5173 browser URL;
+6. complete normal first-run/bootstrap through product UI;
+7. execute E4-C Security users/roles/create/edit/save/reload;
+8. capture Data Source Type/catalog as secondary witness;
+9. capture HAR/console/status/body/correlation/API logs;
+10. classify the remote result without product mutation.
+
+If the exact harness itself still cannot supply SDK/DB/forwarded Web, return:
+`ENV_CAPABILITY_GAP / E4 / <exact harness failure> / Main coordinator`.
 
 Return:
-`CODEX -> MAIN COORDINATOR — #359/#307 E4-C REAL CODESPACE HANDOFF`
+`CODEX -> MAIN COORDINATOR — #359/#307 E4-C HARNESS RETRY HANDOFF`.
 
-Then stop.
+After return, STOP.
 
-Full route:
-`CURRENT SHARED CODEX ROUTE — rev 0104`.
-
-All earlier shared CODEX routes are superseded for execution.
+Next queued after E4:
+combined mounted E3 for exact #373 + #374, subject to Main revalidation.
 
 ---
 
@@ -3781,3 +3799,77 @@ Preflight required inside the fresh Codespace:
 If the fresh Codespace cannot provide a durable DB or a real forwarded browser URL, return `ENV_CAPABILITY_GAP / E4` rather than patching product or using localhost simulation.
 
 Human preparation may create/open the Codespace and leave the integrated browser authenticated, but CODEX must execute and capture the actual E4 journey itself.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0105
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TRANSPORT-E4-HARNESS-RETRY-86`
+
+rev0104 returned:
+`ENV_CAPABILITY_GAP / E4`
+because the no-delta product Codespace lacked the exact SDK and durable DB/container capability before the browser test could start.
+
+Main corrected the **homologation environment only** by creating:
+`preview/w15-e4-codespace-harness-50b275@604806d012a3caaa804c7ce505a12b38cde3a939`.
+
+Product baseline remains exactly:
+`50b2750c73623b7ffef77f0ca93755c3e8278676`.
+
+### Harness provenance
+
+`git diff --name-only 50b2750c73623b7ffef77f0ca93755c3e8278676..604806d012a3caaa804c7ce505a12b38cde3a939`
+must contain only:
+- .devcontainer/devcontainer.json
+- .devcontainer/docker-compose.yml
+- .devcontainer/initialize-preview-machine-id.sh
+- scripts/preview/launch-w15-e4-transport.sh
+
+Any additional delta invalidates the retry.
+
+### Required environment
+
+Fresh Codespace from the exact harness branch.
+
+Expected topology:
+`browser -> Codespaces 5173 forwarder -> Vite -> /api -> API 127.0.0.1:5080 -> private timescaledb:5432`.
+
+Do not expose API/DB.
+
+The harness intentionally does not import any historical Demo package. It exists only to provide the missing SDK/DB/machine-id/startup infrastructure around the exact product bytes.
+
+### E4 journey
+
+After normal first-user/bootstrap:
+- Security users + roles;
+- create one disposable user exactly once;
+- edit once, including role/profile where product allows;
+- save;
+- reload/reopen and authoritative readback;
+- one Data Source Type/catalog read as secondary witness.
+
+Capture:
+- real forwarded browser URL path, sanitized;
+- methods/timings/status/body;
+- response headers and X-EliteSCADA-Correlation-Id;
+- browser HAR/waterfall and console;
+- Vite proxy evidence;
+- API correlation/log;
+- /health;
+- auth/session/license class;
+- visible UI state.
+
+If 402 appears, capture exact layer evidence and do not infer licensing/edge origin without proof.
+
+No timeout increase, no blind mutation retry, no product source/test/workflow mutation, no merge.
+
+Return one:
+- E4_PASS_REMOTE_PATH
+- E4_FAIL_PRODUCT_OR_API / <evidence>
+- E4_FAIL_FORWARDING_OR_EDGE / <evidence>
+- E4_FAIL_UNRESOLVED_LAYER / <evidence>
+- ENV_CAPABILITY_GAP / E4 / <reason> / Main coordinator
+
+Required handoff:
+`CODEX -> MAIN COORDINATOR — #359/#307 E4-C HARNESS RETRY HANDOFF`.
+
+Then stop.

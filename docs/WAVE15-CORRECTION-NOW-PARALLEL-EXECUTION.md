@@ -920,3 +920,62 @@ After rev0104 returns, Main may combine #374 E3 with a corrected E/#373 candidat
 4. final integration tree is byte-identical to the validated composition.
 
 Do not merge #374 before E3.
+
+
+---
+
+## 20. E4 environment gap repaired with dedicated harness; E/F/G review queue
+
+rev0104 returned:
+`ENV_CAPABILITY_GAP / E4`
+before remote product testing because the no-delta Codespace lacked the exact .NET SDK and durable DB/container capability.
+
+This is an environment/harness gap, not a product finding.
+
+Main prepared:
+`preview/w15-e4-codespace-harness-50b275@604806d012a3caaa804c7ce505a12b38cde3a939`
+tree `e7c40ad428c6db693cb57be5d897d9ce1c702c2c`.
+
+Canonical product remains:
+`50b2750c73623b7ffef77f0ca93755c3e8278676`
+tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`.
+
+Base -> harness delta is exactly four homologation paths:
+- .devcontainer/devcontainer.json
+- .devcontainer/docker-compose.yml
+- .devcontainer/initialize-preview-machine-id.sh
+- scripts/preview/launch-w15-e4-transport.sh
+
+No product source/test/workflow file differs.
+
+Shared CODEX rev0105 retries E4-C on a fresh Codespace from that exact harness.
+
+### E / #367+#368
+PR #373 exact candidate:
+`fd25b9f01a3fa55800dbcab7147aab96b083548e`
+tree `6da8b4e20f09631b1ef774a545b74434783c88de`.
+T1 `36381809937` SUCCESS.
+
+Main disposition:
+`MAIN_CODE_REVIEW_PASS / E2_ACCEPTED / WAIT_COMBINED_E3_WITH_#374 / NO_MERGE`.
+
+### F / #369
+PR #374:
+`09a24f6e16ff3c152e0155d83b386342685a12b1`
+tree `2c123369c1554fad67e63ad4ecc06f769cb67841`.
+
+Main disposition remains:
+`MAIN_CODE_REVIEW_PASS / E2_ACCEPTED / WAIT_COMBINED_E3_WITH_#373 / NO_MERGE`.
+
+#373 and #374 currently have zero changed-file overlap. After E4 returns, preferred shared CODEX mission is one exact combined E3 for E+F.
+
+### G / #365 R1
+PR #375:
+`8c47e7944f1e025992b203a45a5caaf146819e9c`
+tree `5008fa501758552c7648607e7123633252df760c`.
+T1 `36379540510` SUCCESS.
+
+Main disposition:
+`MAIN_CODE_REVIEW_PASS / R1_E2_ACCEPTED / INTEGRATION_DEFERRED_BEHIND_#373_#374 / NO_MERGE`.
+
+R1 stable-reference semantics are accepted pending integration. Because #375 and #373 both edit EngineeringContracts.cs, #375 will recompose after E+F integration rather than invalidate #373 evidence now.

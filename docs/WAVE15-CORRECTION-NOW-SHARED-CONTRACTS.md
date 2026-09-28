@@ -477,3 +477,31 @@ Provisional semantics accepted by Main:
 - any intentionally supported Demo application must use the same explicit publish/activate authority as another project.
 
 Freeze remains blocked until exact-candidate E3 mounted authority/lifecycle proof and integration.
+
+
+### C-AUTHORITY-01 — FROZEN_FOR_CONSUMERS
+
+Frozen at integrated correction:
+`wave15/corrections-integration@33e514eb3f5cf8f984779c0091069387741e7296`
+
+Integrated tree:
+`d7219cbbc27d39bdebb54193d6a71b9d3f65db2f`
+
+Evidence:
+- exact candidate E2 T1 `36370397556` SUCCESS;
+- exact candidate E3 mounted PostgreSQL/API/Web/Chromium PASS;
+- merge commit tree is byte-identical to the validated candidate tree.
+
+Frozen semantics:
+1. Working, Published and Active are distinct lifecycle authorities.
+2. Runtime project/revision/application truth comes only from persisted/recovered Active authority.
+3. No Active revision means neutral Runtime; no implicit Demo/application fallback.
+4. Neutral Runtime exposes no unowned operational reads and permits no process effects.
+5. Recovery may rehydrate only persisted Active authority; it must not mint/select another project/application.
+6. Demo licensing/session authority does not select project/application content.
+7. Any explicitly supported Demo application must enter through the same normal publish/activate authority as another project.
+
+State:
+`C-AUTHORITY-01 = FROZEN_FOR_CONSUMERS @ 33e514eb3f5cf8f984779c0091069387741e7296`.
+
+Round-2 Preview must recheck these semantics independently before correction-phase acceptance.

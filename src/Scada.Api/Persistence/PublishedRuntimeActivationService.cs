@@ -2,8 +2,6 @@ using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Core.Abstractions;
 using Scada.DriverHost.Runtime;
-using Scada.Drivers.Abstractions;
-using Scada.Drivers.Simulation;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
@@ -32,7 +30,6 @@ public sealed class PublishedRuntimeActivationService(
     IEngineeringProjectPersistenceService persistence,
     IEngineeringExchangeService exchange,
     IEngineeringRuntimeCoordinator runtime,
-    SimulationDriver simulationFallback,
     IScadaEventBus? eventBus = null,
     IConfiguration? configuration = null,
     GatewayEngineeringRuntimeCoordinator? operationalEvents = null,
@@ -52,40 +49,22 @@ public sealed class PublishedRuntimeActivationService(
 
         var package = ParseAndValidate(snapshot);
         EngineeringProjectActivation? recordedActivation = null;
-        var fallbackWasRunning =
-            simulationFallback.Status.State is DriverState.Starting or DriverState.Running;
 
         async Task CommitAsync(
             RuntimeActivationCommitContext _,
             CancellationToken ct)
         {
-            try
+            recordedActivation = await persistence.RecordActivationAsync(
+                snapshot.ProjectKey,
+                snapshot.Revision,
+                activatedBy,
+                ct);
+
+            if (recordedActivation is null ||
+                recordedActivation.ActiveRevision != snapshot.Revision)
             {
-                if (fallbackWasRunning)
-                    await simulationFallback.StopAsync(ct);
-
-                recordedActivation = await persistence.RecordActivationAsync(
-                    snapshot.ProjectKey,
-                    snapshot.Revision,
-                    activatedBy,
-                    ct);
-
-                if (recordedActivation is null ||
-                    recordedActivation.ActiveRevision != snapshot.Revision)
-                {
-                    throw new InvalidOperationException(
-                        "Published revision changed before activation could be committed.");
-                }
-            }
-            catch
-            {
-                if (fallbackWasRunning &&
-                    simulationFallback.Status.State != DriverState.Running)
-                {
-                    await simulationFallback.StartAsync(CancellationToken.None);
-                }
-
-                throw;
+                throw new InvalidOperationException(
+                    "Published revision changed before activation could be committed.");
             }
         }
 

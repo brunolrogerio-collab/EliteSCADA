@@ -16,7 +16,6 @@ using Scada.Core.InternalMemory;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
-using Scada.Drivers.Simulation;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;
@@ -74,7 +73,6 @@ builder.Services.AddSingleton<ICommandEngineeringRegistry>(sp => sp.GetRequiredS
 builder.Services.AddSingleton<IScriptEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Scripts);
 builder.Services.AddSingleton<IGatewayEngineeringRegistry>(sp =>
     new InMemoryGatewayEngineeringRegistry(sp.GetRequiredService<EngineeringWorkspace>().MarkDirty));
-builder.Services.AddSingleton<DemoRuntimeServices>();
 
 builder.Services.AddSingleton<IEngineeringDriverCompiler, EngineeringDriverCompiler>();
 builder.Services.AddSingleton<GatewayEngineeringRuntimeCoordinator>(sp =>
@@ -124,18 +122,8 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
         .AllowAnyMethod()
         .WithExposedHeaders(TimingCorrelationMiddleware.CorrelationResponseHeader)));
 
-builder.Services.AddSingleton(sp =>
-{
-    var demoRuntime = sp.GetRequiredService<DemoRuntimeServices>();
-    return new SimulationDriver(
-        demoRuntime.Cache,
-        demoRuntime.Registry,
-        DemoProcessModel.CreateSimulationPoints(),
-        TimeSpan.FromMilliseconds(500));
-});
 builder.Services.AddSingleton<ScadaRuntimeFacade>();
 var historicalQueryEnabled = builder.AddConfiguredHistoricalQuery();
-builder.Services.AddHostedService<SimulationDriverHostedService>();
 
 var app = builder.Build();
 

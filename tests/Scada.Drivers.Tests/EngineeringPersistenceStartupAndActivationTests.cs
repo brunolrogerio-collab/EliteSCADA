@@ -8,6 +8,7 @@ using Scada.Api.Persistence;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Core.Alarms;
+using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
@@ -255,6 +256,10 @@ public sealed class EngineeringPersistenceStartupAndActivationTests
                 Array.Empty<SecurityScopeEngineeringDto>()),
             events);
         var builder = WebApplication.CreateBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Engineering:InitializeDemoWhenEmpty"] = "true"
+        });
         var workspace = new EngineeringWorkspace(seedDemo: false);
         var exchange = new EngineeringExchangeService(
             workspace.Tags,
@@ -279,6 +284,93 @@ public sealed class EngineeringPersistenceStartupAndActivationTests
         Assert.Equal(1, store.InitializeCalls);
         Assert.Null(workspace.Describe().ProjectKey);
         Assert.Equal(0, workspace.Describe().TagCount);
+    }
+
+    [Fact]
+    public async Task StartupWithoutPersistenceDoesNotSeedAnUnownedDemoWorkspace()
+    {
+        var workspace = new EngineeringWorkspace(seedDemo: false);
+        var builder = WebApplication.CreateBuilder();
+        builder.Services.AddSingleton(workspace);
+
+        await using var app = builder.Build();
+        await app.InitializeEngineeringPersistenceAsync();
+
+        Assert.Null(workspace.Describe().ProjectKey);
+        Assert.Null(workspace.Describe().BaseRevision);
+        Assert.Equal(0, workspace.Describe().TagCount);
+        Assert.Equal(0, workspace.Describe().AlarmCount);
+        Assert.Equal(0, workspace.Describe().DataSourceCount);
+        Assert.Empty(workspace.Assets.SnapshotEquipment());
+        Assert.Empty(workspace.Views.SnapshotScreens());
+    }
+
+    [Fact]
+    public async Task RestartWithFirstProjectButNoActiveRevisionRemainsNeutral()
+    {
+        var events = new List<string>();
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            T0,
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>(),
+            Array.Empty<DataSourceEngineeringDto>());
+        var snapshot = Snapshot(1, "first-project", "First Project", package);
+        var store = new StartupStore(
+            snapshot,
+            new EngineeringProjectPublication("first-project", 1, T0, "test"),
+            activation: null,
+            events: events);
+        var workspace = new EngineeringWorkspace(seedDemo: false);
+        var gateways = new InMemoryGatewayEngineeringRegistry(workspace.MarkDirty);
+        var reports = new InMemoryReportEngineeringRegistry(workspace.MarkDirty);
+        var exchange = new EngineeringExchangeService(
+            workspace.Tags,
+            workspace.Alarms,
+            workspace.DataSources,
+            workspace.Assets,
+            workspace.Views,
+            workspace.SecurityPolicies,
+            workspace.Commands,
+            gateways,
+            workspace.Scripts,
+            workspace.VisualAssets,
+            reports);
+        var persistence = new EngineeringProjectPersistenceService(exchange, store, workspace.VisualAssets);
+        var checkout = new EngineeringWorkspaceCheckoutService(store, exchange, workspace, gateways, reports);
+        var bootstrap = new EngineeringWorkingBootstrapService(
+            new StartupCatalog(store, snapshot, events),
+            checkout,
+            workspace);
+        var builder = WebApplication.CreateBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["EngineeringWorking:ProjectKey"] = "first-project"
+        });
+        builder.Services.AddSingleton(workspace);
+        builder.Services.AddSingleton<IEngineeringProjectPersistenceService>(persistence);
+        builder.Services.AddSingleton<IEngineeringWorkingBootstrapService>(bootstrap);
+
+        await using var app = builder.Build();
+        await app.InitializeEngineeringPersistenceStorageAsync();
+        await app.InitializeEngineeringPersistenceAsync();
+
+        Assert.Equal("first-project", workspace.Describe().ProjectKey);
+        Assert.Equal(1, workspace.Describe().BaseRevision);
+        Assert.Equal(0, workspace.Describe().TagCount);
+        Assert.Equal(0, workspace.Describe().ScreenCount);
+
+        var runtimeBus = new InMemoryScadaEventBus();
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            runtimeBus,
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromSeconds(1));
+        var descriptor = new ScadaRuntimeFacade(runtime).Describe();
+        Assert.Equal("neutral", descriptor.Mode);
+        Assert.Null(descriptor.ProjectKey);
+        Assert.Null(descriptor.Revision);
+        Assert.Empty(descriptor.Drivers);
     }
 
     [Fact]
@@ -669,13 +761,13 @@ public sealed class EngineeringPersistenceStartupAndActivationTests
     private sealed class StartupStore(
         EngineeringProjectSnapshot snapshot,
         EngineeringProjectPublication publication,
-        EngineeringProjectActivation activation,
+        EngineeringProjectActivation? activation,
         List<string> events) : IEngineeringProjectStore
     {
         public bool Initialized { get; private set; }
         public int InitializeCalls { get; private set; }
         public EngineeringProjectPublication Publication { get; private set; } = publication;
-        public EngineeringProjectActivation Activation { get; private set; } = activation;
+        public EngineeringProjectActivation? Activation { get; private set; } = activation;
         public int PublishCalls { get; private set; }
         public int ActivateCalls { get; private set; }
         public List<(string ProjectKey, long Revision)> LoadRequests { get; } = new();

@@ -87,17 +87,21 @@ public static class BuiltinVisualEngineeringValidation
 
         issues.AddRange(VisualDynamicEngineeringValidation.Validate(element, schema, entityKind, entityKey));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.SliderType, StringComparison.Ordinal))
-            issues.AddRange(ValidateSlider(element, entityKind, entityKey));
+            issues.AddRange(ValidateWritableNumericControl(element, entityKind, entityKey, "Slider", "VISUAL_SLIDER"));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.NumericInputType, StringComparison.Ordinal))
+            issues.AddRange(ValidateWritableNumericControl(element, entityKind, entityKey, "Numeric Input", "VISUAL_NUMERIC_INPUT"));
         if (element.Type.Equals(BuiltinVisualObjectSchemas.AlarmBrowserType, StringComparison.Ordinal) ||
             element.Type.Equals(BuiltinVisualObjectSchemas.EventBrowserType, StringComparison.Ordinal))
             issues.AddRange(ValidateBrowserConfiguration(element, entityKind, entityKey));
         return issues;
     }
 
-    private static IEnumerable<ImportIssue> ValidateSlider(
+    private static IEnumerable<ImportIssue> ValidateWritableNumericControl(
         VisualElementEngineeringDto element,
         ImportEntityKind entityKind,
-        string entityKey)
+        string entityKey,
+        string controlName,
+        string codePrefix)
     {
         var minimum = ReadNumber(element, VisualPropertyKeys.Minimum, 0);
         var maximum = ReadNumber(element, VisualPropertyKeys.Maximum, 100);
@@ -106,8 +110,8 @@ public static class BuiltinVisualEngineeringValidation
         if (minimum >= maximum)
         {
             yield return Error(
-                "VISUAL_SLIDER_RANGE_INVALID",
-                $"Slider '{element.Key}' requires minimum to be less than maximum.",
+                $"{codePrefix}_RANGE_INVALID",
+                $"{controlName} '{element.Key}' requires minimum to be less than maximum.",
                 entityKind,
                 entityKey);
         }
@@ -115,8 +119,8 @@ public static class BuiltinVisualEngineeringValidation
         if (step <= 0)
         {
             yield return Error(
-                "VISUAL_SLIDER_STEP_INVALID",
-                $"Slider '{element.Key}' requires a positive step.",
+                $"{codePrefix}_STEP_INVALID",
+                $"{controlName} '{element.Key}' requires a positive step.",
                 entityKind,
                 entityKey);
         }
@@ -137,8 +141,8 @@ public static class BuiltinVisualEngineeringValidation
             !IsWriteDirection(valueBinding.Direction))
         {
             yield return Error(
-                "VISUAL_SLIDER_WRITABLE_TAG_REQUIRED",
-                $"Interactive Slider '{element.Key}' requires one numeric TAG value binding with stable identity and readWrite/write direction.",
+                $"{codePrefix}_WRITABLE_TAG_REQUIRED",
+                $"Interactive {controlName} '{element.Key}' requires one numeric TAG value binding with stable identity and readWrite/write direction.",
                 entityKind,
                 entityKey);
         }

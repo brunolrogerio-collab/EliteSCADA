@@ -7,7 +7,11 @@ import {
   type ClientVisualPythonCapability
 } from '../../python-runtime/pythonRuntimeContracts';
 import { getVisualSchemaForEngineering, isKnownLegacyVisualType } from '../../visual-runtime';
-import type { VisualPropertyDefinition, VisualPropertyValue } from '../../visual-runtime/visualPropertyTypes';
+import type {
+  VisualPropertyDefinition,
+  VisualPropertyValidationResult,
+  VisualPropertyValue
+} from '../../visual-runtime/visualPropertyTypes';
 import type {
   DataSourceEngineering,
   DynamoEngineering,
@@ -61,8 +65,14 @@ export type ScriptAssistantVisualProperty = Readonly<{
   defaultValue: VisualPropertyValue;
   runtimeReadable: boolean;
   runtimeWritable: boolean;
+  clearable: boolean;
   supportsBinding: boolean;
   animatable: boolean;
+  unit: string | null;
+  presentationHint: string | null;
+  minimum: number | null;
+  maximum: number | null;
+  integer: boolean;
   allowedValues: readonly string[];
   snippets: readonly ScriptAssistantSnippet[];
 }>;
@@ -78,10 +88,11 @@ export type ScriptAssistantDynamoParameter = Readonly<{
 
 export type ScriptAssistantVisualObject = Readonly<{
   kind: 'visual-object';
+  visualDefinitionId: string;
   id: string;
   key: string;
   type: string;
-  canonicalReference: string;
+  canonicalReference: string | null;
   dynamoKey: string | null;
   equipmentPath: string | null;
   events: readonly string[];
@@ -273,21 +284,38 @@ function buildVisualDefinition(
   definition: ScreenEngineering | PopupEngineering,
   dynamosByKey: ReadonlyMap<string, DynamoEngineering>
 ): ScriptAssistantVisualDefinition {
+  const visualDefinitionId = definition.id?.trim() || '';
   return Object.freeze({
     kind,
-    id: definition.id?.trim() || definition.key,
+    id: visualDefinitionId,
     key: definition.key,
     name: definition.name,
     route: kind === 'screen' ? (definition as ScreenEngineering).route ?? null : null,
-    objects: Object.freeze((definition.elements ?? []).map(element => buildVisualObject(element, dynamosByKey)))
+    objects: Object.freeze((definition.elements ?? []).map(element =>
+      buildVisualObject(element, dynamosByKey, visualDefinitionId)))
   });
+}
+
+/**
+ * Mirrors ScriptEngineeringReferenceKeys.VisualObject on the web authoring side.
+ * Key/name never participates in the canonical reference.
+ */
+export function scriptVisualObjectReference(
+  visualDefinitionId: string,
+  visualObjectId: string
+): string | null {
+  const definitionId = visualDefinitionId.trim();
+  const objectId = visualObjectId.trim();
+  return definitionId && objectId ? `${definitionId}/${objectId}` : null;
 }
 
 function buildVisualObject(
   element: VisualElementEngineering,
-  dynamosByKey: ReadonlyMap<string, DynamoEngineering>
+  dynamosByKey: ReadonlyMap<string, DynamoEngineering>,
+  visualDefinitionId: string
 ): ScriptAssistantVisualObject {
-  const canonicalReference = element.id?.trim() || element.key;
+  const objectId = element.id?.trim() || '';
+  const canonicalReference = scriptVisualObjectReference(visualDefinitionId, objectId);
   const dynamoDefinition = element.dynamoKey ? dynamosByKey.get(element.dynamoKey) ?? null : null;
   const publicDynamoParameters = dynamoDefinition
     ? buildDynamoPublicParameters(element, dynamoDefinition)
@@ -296,11 +324,12 @@ function buildVisualObject(
   const propertyModel = buildVisualProperties(element, canonicalReference);
   const children = element.dynamoKey
     ? []
-    : (element.children ?? []).map(child => buildVisualObject(child, dynamosByKey));
+    : (element.children ?? []).map(child => buildVisualObject(child, dynamosByKey, visualDefinitionId));
 
   return Object.freeze({
     kind: 'visual-object',
-    id: element.id?.trim() || '',
+    visualDefinitionId,
+    id: objectId,
     key: element.key,
     type: element.type,
     canonicalReference,
@@ -316,7 +345,7 @@ function buildVisualObject(
 
 function buildVisualProperties(
   element: VisualElementEngineering,
-  canonicalReference: string
+  canonicalReference: string | null
 ): { schemaStatus: 'canonical' | 'compatible' | 'unknown'; properties: ScriptAssistantVisualProperty[] } {
   let definitions: readonly VisualPropertyDefinition[];
   try {
@@ -333,7 +362,7 @@ function buildVisualProperties(
 
 function buildVisualProperty(
   element: VisualElementEngineering,
-  canonicalReference: string,
+  canonicalReference: string | null,
   definition: VisualPropertyDefinition
 ): ScriptAssistantVisualProperty {
   const currentValue = Object.hasOwn(element.properties ?? {}, definition.key)
@@ -341,16 +370,25 @@ function buildVisualProperty(
     : definition.defaultValue;
   const snippets: ScriptAssistantSnippet[] = [];
 
-  snippets.push(definition.runtimeReadable
-    ? enabledSnippet('visual-property-read', visualReadCode(canonicalReference, definition.key))
-    : disabledSnippet('visual-property-read', 'Property is not runtime-readable.'));
+  const stableIdentityReason = canonicalReference
+    ? null
+    : 'Visual object has no stable visualDefinitionId + visualObjectId identity.';
 
-  if (definition.runtimeWritable && definition.type !== 'assetRef') {
+  snippets.push(stableIdentityReason
+    ? disabledSnippet('visual-property-read', stableIdentityReason)
+    : definition.runtimeReadable
+      ? enabledSnippet('visual-property-read', visualReadCode(canonicalReference!, definition.key))
+      : disabledSnippet('visual-property-read', 'Property is not runtime-readable.'));
+
+  if (stableIdentityReason) {
+    snippets.push(disabledSnippet('visual-property-write', stableIdentityReason));
+    snippets.push(disabledSnippet('visual-property-clear', stableIdentityReason));
+  } else if (definition.runtimeWritable && definition.type !== 'assetRef') {
     const literal = pythonLiteral(definition.defaultValue);
     snippets.push(literal === null
       ? disabledSnippet('visual-property-write', 'Property default cannot be represented as a safe Python scalar.')
-      : enabledSnippet('visual-property-write', visualWriteCode(canonicalReference, definition.key, literal)));
-    snippets.push(enabledSnippet('visual-property-clear', visualClearCode(canonicalReference, definition.key)));
+      : enabledSnippet('visual-property-write', visualWriteCode(canonicalReference!, definition.key, literal)));
+    snippets.push(enabledSnippet('visual-property-clear', visualClearCode(canonicalReference!, definition.key)));
   } else {
     snippets.push(disabledSnippet('visual-property-write', 'Property is not runtime-script-writable.'));
     snippets.push(disabledSnippet('visual-property-clear', 'Property is not runtime-script-writable.'));
@@ -358,9 +396,11 @@ function buildVisualProperty(
 
   if (definition.animatable && definition.runtimeWritable && definition.type !== 'assetRef') {
     const literal = pythonLiteral(definition.defaultValue);
-    snippets.push(literal === null
-      ? disabledSnippet('visual-tween', 'Property target cannot be represented as a safe Python scalar.')
-      : enabledSnippet('visual-tween', visualTweenCode(canonicalReference, definition.key, literal)));
+    snippets.push(stableIdentityReason
+      ? disabledSnippet('visual-tween', stableIdentityReason)
+      : literal === null
+        ? disabledSnippet('visual-tween', 'Property target cannot be represented as a safe Python scalar.')
+        : enabledSnippet('visual-tween', visualTweenCode(canonicalReference!, definition.key, literal)));
   }
 
   return Object.freeze({
@@ -372,11 +412,97 @@ function buildVisualProperty(
     defaultValue: definition.defaultValue,
     runtimeReadable: definition.runtimeReadable,
     runtimeWritable: definition.runtimeWritable,
+    clearable: definition.runtimeWritable,
     supportsBinding: definition.supportsBinding,
     animatable: definition.animatable,
+    unit: definition.unit ?? null,
+    presentationHint: definition.presentationHint ?? null,
+    minimum: definition.type === 'number' ? definition.minimum ?? null : null,
+    maximum: definition.type === 'number' ? definition.maximum ?? null : null,
+    integer: definition.type === 'number' && definition.integer === true,
     allowedValues: Object.freeze(definition.type === 'enum' ? [...definition.allowedValues] : []),
     snippets: Object.freeze(snippets)
   });
+}
+
+export function buildScriptAssistantVisualValueSnippet(
+  objectType: string,
+  canonicalReference: string | null,
+  propertyKey: string,
+  operation: 'write' | 'tween',
+  rawValue: string
+): ScriptAssistantSnippet {
+  const kind: ScriptAssistantSnippetKind = operation === 'write'
+    ? 'visual-property-write'
+    : 'visual-tween';
+  if (!canonicalReference) {
+    return disabledSnippet(kind, 'Visual object has no stable visualDefinitionId + visualObjectId identity.');
+  }
+
+  let definition: VisualPropertyDefinition;
+  let validation: VisualPropertyValidationResult;
+  try {
+    const schema = getVisualSchemaForEngineering(objectType);
+    definition = schema.getRequired(propertyKey);
+    if (!definition.runtimeWritable || definition.type === 'assetRef') {
+      return disabledSnippet(kind, 'Property is not runtime-script-writable.');
+    }
+    if (operation === 'tween' && !definition.animatable) {
+      return disabledSnippet(kind, 'Property is not animatable.');
+    }
+
+    const parsed = parseVisualPropertyAuthoringValue(definition, rawValue);
+    if (!parsed.ok) return disabledSnippet(kind, parsed.reason);
+    validation = schema.validate(propertyKey, parsed.value);
+  } catch {
+    return disabledSnippet(kind, 'Canonical visual property schema is unavailable for this object type.');
+  }
+
+  if (!validation.ok) return disabledSnippet(kind, visualValidationReason(definition, validation));
+  const literal = pythonLiteral(validation.value);
+  if (literal === null) return disabledSnippet(kind, 'Value cannot be represented as a supported Python literal.');
+
+  return operation === 'write'
+    ? enabledSnippet(kind, visualWriteCode(canonicalReference, propertyKey, literal))
+    : enabledSnippet(kind, visualTweenCode(canonicalReference, propertyKey, literal));
+}
+
+function parseVisualPropertyAuthoringValue(
+  definition: VisualPropertyDefinition,
+  rawValue: string
+): { ok: true; value: VisualPropertyValue } | { ok: false; reason: string } {
+  if (definition.type === 'number') {
+    if (!rawValue.trim()) return { ok: false, reason: 'Enter a numeric value.' };
+    const value = Number(rawValue);
+    return Number.isFinite(value)
+      ? { ok: true, value }
+      : { ok: false, reason: 'Enter a finite numeric value.' };
+  }
+  if (definition.type === 'boolean') {
+    if (rawValue === 'true') return { ok: true, value: true };
+    if (rawValue === 'false') return { ok: true, value: false };
+    return { ok: false, reason: 'Choose true or false.' };
+  }
+  if (definition.type === 'assetRef') {
+    return { ok: false, reason: 'Asset references are not runtime-script-writable.' };
+  }
+  return { ok: true, value: rawValue };
+}
+
+function visualValidationReason(
+  definition: VisualPropertyDefinition,
+  validation: Exclude<VisualPropertyValidationResult, { ok: true }>
+): string {
+  if (validation.detail) return validation.detail;
+  if (validation.code === 'number.minimum' && definition.type === 'number')
+    return `Value must be >= ${definition.minimum}.`;
+  if (validation.code === 'number.maximum' && definition.type === 'number')
+    return `Value must be <= ${definition.maximum}.`;
+  if (validation.code === 'number.integer') return 'Value must be a signed 32-bit integer.';
+  if (validation.code === 'color.format') return 'Use canonical #RRGGBB or #RRGGBBAA color notation.';
+  if (validation.code === 'enum.value' && definition.type === 'enum')
+    return `Choose one of: ${definition.allowedValues.join(', ')}.`;
+  return `Value is incompatible with canonical property '${definition.key}' (${validation.code}).`;
 }
 
 function buildDynamoPublicParameters(

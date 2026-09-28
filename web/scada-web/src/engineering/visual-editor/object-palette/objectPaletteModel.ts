@@ -37,7 +37,8 @@ const PALETTE_ORDER: readonly BuiltinVisualObjectType[] = Object.freeze([
   BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser,
   BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser,
   BUILTIN_VISUAL_OBJECT_TYPES.button,
-  BUILTIN_VISUAL_OBJECT_TYPES.slider
+  BUILTIN_VISUAL_OBJECT_TYPES.slider,
+  BUILTIN_VISUAL_OBJECT_TYPES.numericInput
 ]);
 
 const PALETTE_METADATA: Readonly<Record<BuiltinVisualObjectType, Readonly<{
@@ -56,7 +57,8 @@ const PALETTE_METADATA: Readonly<Record<BuiltinVisualObjectType, Readonly<{
   [BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser]: { labelKey: 'alarmBrowser', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser]: { labelKey: 'eventBrowser', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.button]: { labelKey: 'button', category: 'control' },
-  [BUILTIN_VISUAL_OBJECT_TYPES.slider]: { labelKey: 'slider', category: 'control' }
+  [BUILTIN_VISUAL_OBJECT_TYPES.slider]: { labelKey: 'slider', category: 'control' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.numericInput]: { labelKey: 'numericInput', category: 'control' }
 });
 
 export function listVisualObjectPaletteItems(): readonly VisualObjectPaletteItem[] {

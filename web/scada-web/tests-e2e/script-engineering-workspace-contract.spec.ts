@@ -71,6 +71,20 @@ test('wire enums normalize and minimal package preserves owned visual references
   expect(packageData.scriptVisualEventReferences[0]?.scriptId).toBe(id);
 });
 
+test('stable visual property reference survives canonical Script save/reopen package round-trip', () => {
+  const script = makeScript('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'scripts/stable-visual.py');
+  script.source = [
+    'from elite_scada import visual_property_read, visual_property_write',
+    'ref = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/cccccccc-cccc-4ccc-8ccc-cccccccccccc"',
+    'value = await visual_property_read(ref, "visible")',
+    'await visual_property_write(ref, "visible", False)'
+  ].join('\n');
+  const packageData = buildCanonicalScriptPackage(script, [], '2026-09-28T00:00:00.000Z');
+  const reopened = normalizeScriptDefinition(packageData.scripts[0] as unknown as Record<string, unknown>);
+  expect(reopened.source).toBe(script.source);
+  expect(reopened.source).toContain('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/cccccccc-cccc-4ccc-8ccc-cccccccccccc');
+});
+
 test('Preview token is bound to exact Script package and mutation mode', () => {
   const script = makeScript(crypto.randomUUID(), `scripts/token-${Date.now()}.py`);
   const packageData = buildCanonicalScriptPackage(script, [], '2026-08-28T00:00:00.000Z');

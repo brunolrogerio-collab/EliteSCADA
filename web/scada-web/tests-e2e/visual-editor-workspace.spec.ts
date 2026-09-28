@@ -7,7 +7,7 @@ type ExportedVisualElement = {
   id?: string | null;
   key: string;
   type: string;
-  bindings?: Array<{ key: string; kind: string; target: string }> | null;
+  bindings?: Array<{ key: string; kind: string; target: string; direction?: string | null; metadata?: Record<string, string> | null }> | null;
   properties?: Record<string, unknown> | null;
   children?: ExportedVisualElement[] | null;
   propertyExpressions?: Array<{
@@ -16,6 +16,12 @@ type ExportedVisualElement = {
   }> | null;
   booleanConditions?: Array<{ propertyKey: string; kind: string; minimum?: number | null; maximum?: number | null }> | null;
   analogFill?: { inputMinimum: number; inputMaximum: number; fillColor: string; direction?: string; source: { kind: string; tagReference?: { tagId: string } | null } } | null;
+  propertyMaps?: Array<{
+    propertyKey: string;
+    source: { kind: string; tagReference?: { tagId: string } | null };
+    rules: Array<{ minimum?: number | null; maximum?: number | null; value: unknown }>;
+    fallback?: unknown;
+  }> | null;
 };
 
 type ExportedPackage = {
@@ -39,6 +45,8 @@ type ExportedPackage = {
     name: string;
     path: string;
     dataType: string;
+    readOnly?: boolean;
+    engineeringUnit?: string | null;
   }>;
   [key: string]: unknown;
 };
@@ -228,6 +236,16 @@ test('FOLLOW-B mounted editor persists expression, Boolean Condition and Analog 
     await analog.getByLabel('Direction').selectOption('LeftToRight');
     await analog.getByRole('button', { name: 'Apply Analog Fill' }).click();
 
+    await dynamic.getByLabel('Visual property').selectOption('fillColor');
+    await dynamic.getByLabel('Source mode').selectOption('RangeMap');
+    const rangeMap = dynamic.getByTestId('visual-range-property-map');
+    await selectSourceByPath(rangeMap.getByLabel('Canonical source'), numericTag!.path);
+    await rangeMap.getByRole('spinbutton', { name: 'Minimum', exact: true }).fill('0');
+    await rangeMap.getByRole('spinbutton', { name: 'Maximum', exact: true }).fill('60');
+    await rangeMap.getByLabel('Mapped color').fill('#008800');
+    await rangeMap.getByLabel('Fallback (optional)').fill('#CC0000');
+    await rangeMap.getByRole('button', { name: 'Apply range map' }).click();
+
     const apply = page.getByTestId('visual-editor-apply');
     await page.getByTestId('visual-editor-preview').click();
     await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
@@ -245,7 +263,8 @@ test('FOLLOW-B mounted editor persists expression, Boolean Condition and Analog 
         element.type === 'core.rectangle' &&
         element.propertyExpressions?.some(item => item.propertyKey === 'x') &&
         element.booleanConditions?.some(item => item.propertyKey === 'visible') &&
-        Boolean(element.analogFill)) ?? null;
+        Boolean(element.analogFill) &&
+        element.propertyMaps?.some(item => item.propertyKey === 'fillColor')) ?? null;
     }).not.toBeNull().then(async () => {
       const response = await request.get('/api/engineering/export/json');
       const model = await response.json() as ExportedPackage;
@@ -253,7 +272,8 @@ test('FOLLOW-B mounted editor persists expression, Boolean Condition and Analog 
         (originalScreen!.id && candidate.id === originalScreen!.id) || candidate.key === originalScreen!.key)!;
       return flatten(persistedScreen.elements ?? []).find(element =>
         element.type === 'core.rectangle' && element.propertyExpressions?.some(item => item.propertyKey === 'x') &&
-        element.booleanConditions?.some(item => item.propertyKey === 'visible') && Boolean(element.analogFill))!;
+        element.booleanConditions?.some(item => item.propertyKey === 'visible') && Boolean(element.analogFill) &&
+        element.propertyMaps?.some(item => item.propertyKey === 'fillColor'))!;
     });
 
     expect(persisted.booleanConditions?.[0]).toMatchObject({
@@ -265,9 +285,102 @@ test('FOLLOW-B mounted editor persists expression, Boolean Condition and Analog 
       inputMinimum: 0, inputMaximum: 100, fillColor: '#12AB34', direction: 'leftToRight',
       source: { kind: 'tag', tagReference: { tagId: numericTag!.id } }
     });
+    expect(persisted.propertyMaps?.find(item => item.propertyKey === 'fillColor')).toMatchObject({
+      propertyKey: 'fillColor',
+      source: { kind: 'tag', tagReference: { tagId: numericTag!.id } },
+      rules: [{ minimum: 0, maximum: 60, value: '#008800' }],
+      fallback: '#CC0000'
+    });
 
     await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();
     await expect(page.locator('.visual-editor-object-error')).toHaveCount(0);
+  } finally {
+    const restore = await request.post('/api/engineering/import/json/apply', {
+      headers: { 'content-type': 'application/json; charset=utf-8' }, data: originalPackage
+    });
+    expect(restore.ok()).toBeTruthy();
+  }
+});
+
+test('W15 Dynamic Text and Numeric Input are mounted, persisted and Design mode never writes', async ({ page, request }, testInfo) => {
+  const originalResponse = await request.get('/api/engineering/export/json');
+  expect(originalResponse.ok()).toBeTruthy();
+  const originalPackage = await originalResponse.json() as ExportedPackage;
+  const originalScreen = originalPackage.screens?.[0];
+  expect(originalScreen).toBeTruthy();
+  const numericTag = originalPackage.tags?.find(tag =>
+    Boolean(tag.id) && tag.readOnly === false &&
+    ['int16', 'int32', 'int64', 'float', 'double'].includes(tag.dataType.toLowerCase()));
+  expect(numericTag, 'seeded demo must expose one writable numeric TAG for Numeric Input acceptance').toBeTruthy();
+
+  try {
+    await page.goto('/engineering');
+    await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
+    await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: originalScreen!.key }).click();
+
+    const palette = page.getByTestId('visual-object-palette');
+    const bindingEditor = page.getByTestId('visual-binding-editor');
+
+    await palette.locator('[data-object-type="core.text"]').click();
+    const textObject = page.locator('[data-canvas-object-type="core.text"]').last();
+    await textObject.click();
+    const textId = await textObject.getAttribute('data-canvas-object-id');
+    expect(textId).toBeTruthy();
+
+    await bindingEditor.getByLabel('Propriedade visual').selectOption('text');
+    const textSource = bindingEditor.getByLabel('Fonte do projeto');
+    await selectBindingSourceByPath(textSource, numericTag!.path);
+    const format = bindingEditor.getByTestId('visual-dynamic-text-format');
+    await format.getByRole('spinbutton', { name: 'Decimal places' }).fill('2');
+    await format.getByRole('textbox', { name: 'Unit' }).fill('bar');
+    await format.getByRole('textbox', { name: 'Prefix' }).fill('SP ');
+    await bindingEditor.getByRole('button', { name: 'Aplicar binding' }).click();
+
+    await palette.locator('[data-object-type="core.numericInput"]').click();
+    const numericCanvas = page.locator('[data-canvas-object-type="core.numericInput"]').last();
+    await numericCanvas.click();
+    const numericId = await numericCanvas.getAttribute('data-canvas-object-id');
+    expect(numericId).toBeTruthy();
+
+    await bindingEditor.getByLabel('Propriedade visual').selectOption('value');
+    await selectBindingSourceByPath(bindingEditor.getByLabel('Fonte do projeto'), numericTag!.path);
+    await bindingEditor.getByRole('button', { name: 'Aplicar binding' }).click();
+
+    const numericRendered = page.getByTestId('visual-editor-canonical-layer').locator('[data-object-id="' + numericId + '"]');
+    await expect(numericRendered).toHaveAttribute('data-numeric-input-state', 'design');
+    const designInput = numericRendered.locator('input[type="number"]');
+    await expect(designInput).toHaveCount(1);
+    await expect(designInput).toHaveAttribute('readonly', '');
+    await expect(numericRendered.locator('button').filter({ hasText: 'Apply' })).toBeDisabled();
+
+    await page.getByTestId('visual-editor-preview').click();
+    await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByTestId('visual-editor-apply').click();
+    await page.reload();
+
+    const reopenedText = page.getByTestId('visual-editor-canonical-layer').locator('[data-object-id="' + textId + '"]');
+    const reopenedNumeric = page.getByTestId('visual-editor-canonical-layer').locator('[data-object-id="' + numericId + '"]');
+    await expect(reopenedText).toBeVisible();
+    await expect(reopenedNumeric).toHaveAttribute('data-numeric-input-state', 'design');
+    await testInfo.attach('dynamic-text-numeric-input-save-reopen', {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: 'image/png'
+    });
+
+    const persistedResponse = await request.get('/api/engineering/export/json');
+    const persisted = await persistedResponse.json() as ExportedPackage;
+    const screenAfter = persisted.screens?.find(item => item.id === originalScreen!.id || item.key === originalScreen!.key);
+    const savedText = flatten(screenAfter?.elements ?? []).find(item => item.id === textId);
+    const savedNumeric = flatten(screenAfter?.elements ?? []).find(item => item.id === numericId);
+    expect(savedText?.bindings?.[0]).toMatchObject({
+      key: 'text', target: numericTag!.path,
+      metadata: { presentationMode: 'scalar-text', decimalPlaces: '2', engineeringUnit: 'bar', prefix: 'SP ' }
+    });
+    expect(savedNumeric).toMatchObject({ type: 'core.numericInput' });
+    expect(savedNumeric?.bindings?.find(binding => binding.key === 'value')).toMatchObject({
+      target: numericTag!.path, direction: 'readWrite'
+    });
   } finally {
     const restore = await request.post('/api/engineering/import/json/apply', {
       headers: { 'content-type': 'application/json; charset=utf-8' }, data: originalPackage
@@ -395,6 +508,14 @@ test('W15 first-user flow configures rectangle and Text through canonical WYSIWY
     expect(restore.ok()).toBeTruthy();
   }
 });
+
+async function selectBindingSourceByPath(select: import('@playwright/test').Locator, path: string): Promise<void> {
+  const option = select.locator('option').filter({ hasText: path });
+  await expect(option, `expected one visible canonical binding source for ${path}`).toHaveCount(1);
+  const label = await option.textContent();
+  expect(label).toBeTruthy();
+  await select.selectOption({ label: label! });
+}
 
 async function selectSourceByPath(select: import('@playwright/test').Locator, path: string): Promise<void> {
   const option = select.locator(`option[value="${path.replaceAll('"', '\\"')}"]`);

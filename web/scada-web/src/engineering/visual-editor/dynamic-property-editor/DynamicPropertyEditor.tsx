@@ -4,7 +4,9 @@ import type {
   VisualBooleanConditionEngineering,
   VisualElementEngineering,
   VisualExpressionDependencyEngineering,
-  VisualPropertyExpressionEngineering
+  VisualPropertyExpressionEngineering,
+  VisualPropertyMapEngineering,
+  VisualPropertyMapRuleEngineering
 } from '../../types';
 import { supportsAnalogFill } from '../../../visual-runtime';
 import type {
@@ -22,6 +24,7 @@ import {
   createDirectBooleanCondition,
   createExpressionDependency,
   createNumericIntervalCondition,
+  createPropertyMapEngineering,
   createValueSource,
   createVisualExpressionEngineering,
   listDynamicPropertyDestinations,
@@ -41,6 +44,8 @@ export type DynamicPropertyEditorProps = Readonly<{
   onRemoveBooleanCondition: (propertyKey: string) => void;
   onSetAnalogFill: (configuration: VisualAnalogFillEngineering) => void;
   onRemoveAnalogFill: () => void;
+  onSetPropertyMap: (configuration: VisualPropertyMapEngineering) => void;
+  onRemovePropertyMap: (propertyKey: string) => void;
 }>;
 
 type ExpressionDraft = Readonly<{
@@ -73,14 +78,14 @@ export function DynamicPropertyEditor(props: DynamicPropertyEditorProps) {
 
   if (destinationResult.error) {
     return <section className="dynamic-property-editor" data-testid="visual-dynamic-property-editor">
-      <header><strong>Dynamic source</strong><span>Unavailable for unsupported visual type.</span></header>
+      <header><strong>Animations</strong><span>Unavailable for unsupported visual type.</span></header>
       <p role="alert">{destinationResult.error}</p>
     </section>;
   }
 
   if (!destination) {
     return <section className="dynamic-property-editor" data-testid="visual-dynamic-property-editor">
-      <header><strong>Dynamic source</strong><span>No Boolean or numeric bindable properties.</span></header>
+      <header><strong>Animations</strong><span>No canonical dynamic properties are available for this object.</span></header>
     </section>;
   }
 
@@ -91,7 +96,7 @@ export function DynamicPropertyEditor(props: DynamicPropertyEditorProps) {
   };
 
   return <section className="dynamic-property-editor" data-testid="visual-dynamic-property-editor">
-    <header><strong>Dynamic source</strong><span>Canonical Binding/Expression configuration</span></header>
+    <header><strong>Animations</strong><span>Canonical bindings, conditions, expressions, range maps and Analog Fill</span></header>
     <label><span>Visual property</span><select value={destination.propertyKey} onChange={event => selectProperty(event.currentTarget.value)}>
       {destinations.map(item => <option key={item.propertyKey} value={item.propertyKey}>{item.propertyKey} · {item.propertyType}</option>)}
     </select></label>
@@ -105,6 +110,7 @@ export function DynamicPropertyEditor(props: DynamicPropertyEditorProps) {
       ? <BooleanConditionMode key={`condition:${destination.propertyKey}`} destination={destination} {...props} />
       : null}
     {mode === 'Expression' ? <ExpressionMode key={`expression:${destination.propertyKey}`} destination={destination} {...props} /> : null}
+    {mode === 'RangeMap' ? <RangeMapMode key={`range-map:${destination.propertyKey}`} destination={destination} {...props} /> : null}
     {supportsAnalogFill(element.type) ? <AnalogFillMode key={`analog:${element.id ?? element.key}`} {...props} /> : null}
   </section>;
 }
@@ -116,7 +122,8 @@ function ConstantMode({
   element,
   onBindingIntent,
   onRemoveExpression,
-  onRemoveBooleanCondition
+  onRemoveBooleanCondition,
+  onRemovePropertyMap
 }: DestinationProps) {
   return <div className="dynamic-property-editor__panel">
     <p>Engineering/default value remains authoritative for this property.</p>
@@ -124,6 +131,7 @@ function ConstantMode({
       removeBindingIfPossible(element, destination.propertyKey, onBindingIntent);
       onRemoveExpression(destination.propertyKey);
       removeBooleanConditionIfApplicable(destination, onRemoveBooleanCondition);
+      onRemovePropertyMap(destination.propertyKey);
     }}>Use constant</button>
   </div>;
 }
@@ -134,7 +142,8 @@ function DirectBindingMode({
   sourceCatalog,
   onBindingIntent,
   onRemoveExpression,
-  onRemoveBooleanCondition
+  onRemoveBooleanCondition,
+  onRemovePropertyMap
 }: DestinationProps) {
   const sources = useMemo(
     () => compatibleBindingSources({ key: destination.propertyKey, type: destination.propertyType }, sourceCatalog),
@@ -156,6 +165,7 @@ function DirectBindingMode({
         onBindingIntent(createBindingSetIntent(element, destination.propertyKey, effectiveSource));
         onRemoveExpression(destination.propertyKey);
         removeBooleanConditionIfApplicable(destination, onRemoveBooleanCondition);
+        onRemovePropertyMap(destination.propertyKey);
         setError(null);
       } catch (reason) { setError(errorText(reason)); }
     }}>Apply direct binding</button>
@@ -170,7 +180,8 @@ function BooleanConditionMode({
   sourceCatalog,
   onBindingIntent,
   onRemoveExpression,
-  onSetBooleanCondition
+  onSetBooleanCondition,
+  onRemovePropertyMap
 }: DestinationProps) {
   const [kind, setKind] = useState<'Direct' | 'NumericInterval'>('Direct');
   const [sourceTarget, setSourceTarget] = useState('');
@@ -221,6 +232,7 @@ function BooleanConditionMode({
         removeBindingIfPossible(element, destination.propertyKey, onBindingIntent);
         onRemoveExpression(destination.propertyKey);
         onSetBooleanCondition(condition);
+        onRemovePropertyMap(destination.propertyKey);
         setError(null);
       } catch (reason) { setError(errorText(reason)); }
     }}>Apply condition</button>
@@ -234,7 +246,8 @@ function ExpressionMode({
   sourceCatalog,
   onBindingIntent,
   onRemoveBooleanCondition,
-  onSetExpression
+  onSetExpression,
+  onRemovePropertyMap
 }: DestinationProps) {
   const existing = element.propertyExpressions?.find(item => item.propertyKey === destination.propertyKey)?.expression;
   const [draft, setDraft] = useState<ExpressionDraft>(() => existing
@@ -292,10 +305,115 @@ function ExpressionMode({
         removeBindingIfPossible(element, destination.propertyKey, onBindingIntent);
         removeBooleanConditionIfApplicable(destination, onRemoveBooleanCondition);
         onSetExpression(Object.freeze({ propertyKey: destination.propertyKey, expression, version: 1 }));
+        onRemovePropertyMap(destination.propertyKey);
         setError(null);
       } catch (reason) { setError(errorText(reason)); }
     }}>Apply expression</button>
   </div>;
+}
+
+type RangeRuleDraft = Readonly<{
+  minimum: string;
+  maximum: string;
+  minimumInclusive: boolean;
+  maximumInclusive: boolean;
+  value: string;
+}>;
+
+function RangeMapMode({
+  destination,
+  element,
+  sourceCatalog,
+  onBindingIntent,
+  onRemoveExpression,
+  onRemoveBooleanCondition,
+  onSetPropertyMap
+}: DestinationProps) {
+  const numericSources = sourceCatalog.filter(source => sourceValueType(source) === 'Number');
+  const existing = element.propertyMaps?.find(item => item.propertyKey === destination.propertyKey);
+  const [sourceTarget, setSourceTarget] = useState(existing?.source.target ?? numericSources[0]?.target ?? '');
+  const [rules, setRules] = useState<readonly RangeRuleDraft[]>(() => existing?.rules?.length
+    ? existing.rules.map(rule => Object.freeze({
+        minimum: rule.minimum == null ? '' : String(rule.minimum),
+        maximum: rule.maximum == null ? '' : String(rule.maximum),
+        minimumInclusive: rule.minimumInclusive !== false,
+        maximumInclusive: rule.maximumInclusive === true,
+        value: String(rule.value)
+      }))
+    : [Object.freeze({ minimum: '', maximum: '', minimumInclusive: true, maximumInclusive: false, value: defaultMappedText(destination) })]);
+  const [fallback, setFallback] = useState(existing?.fallback == null ? '' : String(existing.fallback));
+  const [error, setError] = useState<string | null>(null);
+  const source = numericSources.find(item => item.target === sourceTarget) ?? numericSources[0];
+
+  const updateRule = (index: number, patch: Partial<RangeRuleDraft>) =>
+    setRules(current => current.map((rule, currentIndex) =>
+      currentIndex === index ? Object.freeze({ ...rule, ...patch }) : rule));
+
+  return <div className="dynamic-property-editor__panel" data-testid="visual-range-property-map">
+    <p>Ordered numeric ranges map through the canonical property registry. First matching range wins.</p>
+    <SourceSelect sources={numericSources} source={source} onChange={setSourceTarget} />
+    {rules.map((rule, index) => <fieldset key={index} className="dynamic-property-editor__analog-fill">
+      <legend>Range {index + 1}</legend>
+      <div className="dynamic-property-editor__grid">
+        <label><span>Minimum</span><input type="number" value={rule.minimum} onChange={event => updateRule(index, { minimum: event.currentTarget.value })} placeholder="open" /></label>
+        <label><span>Maximum</span><input type="number" value={rule.maximum} onChange={event => updateRule(index, { maximum: event.currentTarget.value })} placeholder="open" /></label>
+        <label><span>Mapped {destination.propertyType}</span><input
+          type={destination.propertyType === 'color' ? 'color' : 'text'}
+          value={rule.value}
+          onChange={event => updateRule(index, { value: event.currentTarget.value })}
+        /></label>
+      </div>
+      <Check label="Minimum inclusive" checked={rule.minimumInclusive} onChange={value => updateRule(index, { minimumInclusive: value })} />
+      <Check label="Maximum inclusive" checked={rule.maximumInclusive} onChange={value => updateRule(index, { maximumInclusive: value })} />
+      <button type="button" disabled={rules.length === 1} onClick={() => setRules(current => current.filter((_, currentIndex) => currentIndex !== index))}>Remove range</button>
+    </fieldset>)}
+    <button type="button" onClick={() => setRules(current => [...current, Object.freeze({
+      minimum: '', maximum: '', minimumInclusive: true, maximumInclusive: false, value: defaultMappedText(destination)
+    })])}>Add range</button>
+    <label><span>Fallback (optional)</span><input
+      type={destination.propertyType === 'color' ? 'color' : 'text'}
+      value={fallback}
+      onChange={event => setFallback(event.currentTarget.value)}
+    /></label>
+    <button type="button" disabled={!source} onClick={() => {
+      if (!source) return;
+      try {
+        const typedRules: VisualPropertyMapRuleEngineering[] = rules.map(rule => Object.freeze({
+          value: mappedValue(destination, rule.value),
+          minimum: optionalNumber(rule.minimum),
+          minimumInclusive: rule.minimumInclusive,
+          maximum: optionalNumber(rule.maximum),
+          maximumInclusive: rule.maximumInclusive
+        }));
+        removeBindingIfPossible(element, destination.propertyKey, onBindingIntent);
+        onRemoveExpression(destination.propertyKey);
+        removeBooleanConditionIfApplicable(destination, onRemoveBooleanCondition);
+        onSetPropertyMap(createPropertyMapEngineering(
+          element,
+          destination.propertyKey,
+          createValueSource('Number', source),
+          typedRules,
+          fallback.trim() ? mappedValue(destination, fallback) : undefined
+        ));
+        setError(null);
+      } catch (reason) { setError(errorText(reason)); }
+    }}>Apply range map</button>
+    {error ? <ErrorText message={error} /> : null}
+  </div>;
+}
+
+function defaultMappedText(destination: DynamicPropertyDestination): string {
+  return destination.propertyType === 'color' ? '#00AAFF' : '0';
+}
+
+function mappedValue(destination: DynamicPropertyDestination, raw: string): string | number | boolean {
+  if (destination.propertyType === 'number') return requiredNumber(raw, 'Mapped value');
+  if (destination.propertyType === 'boolean') {
+    if (raw === 'true') return true;
+    if (raw === 'false') return false;
+    throw new Error('Mapped Boolean value must be true or false.');
+  }
+  return raw;
 }
 
 function AnalogFillMode({ element, sourceCatalog, onSetAnalogFill, onRemoveAnalogFill }: DynamicPropertyEditorProps) {
@@ -395,6 +513,7 @@ function removeBooleanConditionIfApplicable(
 }
 
 function effectiveMode(element: VisualElementEngineering, propertyKey: string): DynamicPropertySourceMode {
+  if (element.propertyMaps?.some(item => item.propertyKey === propertyKey)) return 'RangeMap';
   if (element.booleanConditions?.some(item => item.propertyKey === propertyKey)) return 'BooleanCondition';
   if (element.propertyExpressions?.some(item => item.propertyKey === propertyKey)) return 'Expression';
   if (element.bindings?.some(item => item.key === propertyKey)) return 'DirectBinding';
@@ -442,6 +561,7 @@ function modeLabel(mode: DynamicPropertySourceMode): string {
     case 'DirectBinding': return 'Direct binding / TAG bit';
     case 'BooleanCondition': return 'Boolean condition';
     case 'Expression': return 'Typed expression';
+    case 'RangeMap': return 'Typed numeric range map';
   }
 }
 

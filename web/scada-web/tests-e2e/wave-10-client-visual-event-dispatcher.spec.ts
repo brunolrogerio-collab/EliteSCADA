@@ -100,7 +100,7 @@ class TweenRequestWorker {
           capability: 'visualTween.request',
           operation: 'request',
           arguments: {
-            targetReference: objectId,
+            targetReference: `${visualDefinitionId}/${objectId}`,
             propertyKey: 'x',
             targetValue: 100,
             durationMs: 100,
@@ -225,6 +225,7 @@ test('Wave 10 click association dispatches through Python bridge into tween and 
   let invalidations = 0;
 
   const dispatcher = new ClientVisualEventDispatcher({
+    visualDefinitionId,
     instances: new Map([[objectId, instance]]),
     frameClock: clock,
     onVisualStateChanged: () => { invalidations++; },
@@ -265,6 +266,7 @@ test('Wave 10 dispatcher fails closed when persisted reference cannot resolve an
   context.scripts[0] = { ...context.scripts[0], enabled: false };
 
   const dispatcher = new ClientVisualEventDispatcher({
+    visualDefinitionId,
     instances: new Map([[objectId, instance]]),
     frameClock: new ManualFrameClock()
   });

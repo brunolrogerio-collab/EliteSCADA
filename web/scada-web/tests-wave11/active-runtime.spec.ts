@@ -12,7 +12,7 @@ const tinyPng = Buffer.from(
 
 test('Active persisted Engineering revision is the mounted HMI Runtime truth', async ({ page, request }) => {
   await page.goto('/');
-  await expect(page.getByTestId('runtime-simulation-fallback')).toBeVisible();
+  await expect(page.getByTestId('runtime-neutral')).toBeVisible();
 
   const initialProjectionResponse = await request.get('/api/runtime/application');
   expect(initialProjectionResponse.ok()).toBeTruthy();
@@ -21,7 +21,7 @@ test('Active persisted Engineering revision is the mounted HMI Runtime truth', a
     revision?: number | null;
     package?: unknown;
   };
-  expect(initialProjection.mode).toBe('simulation');
+  expect(initialProjection.mode).toBe('neutral');
   expect(initialProjection.revision ?? null).toBeNull();
   expect(initialProjection.package ?? null).toBeNull();
 

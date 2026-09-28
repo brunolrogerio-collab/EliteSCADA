@@ -1,13 +1,11 @@
 using Scada.Api.Licensing;
 using Scada.Api.Runtime;
-using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
 using Scada.Core.Commands;
 using Scada.Core.Events;
-using Scada.Core.InternalMemory;
 using Scada.Core.Tags;
+using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
-using Scada.Drivers.Simulation;
 using Scada.Engineering.Contracts;
 
 namespace Scada.Drivers.Tests;
@@ -15,24 +13,10 @@ namespace Scada.Drivers.Tests;
 public sealed class ScadaRuntimeFacadeInstallationNeutralTests
 {
     [Fact]
-    public async Task NeutralFenceHidesOperationalMetadataAndFallbackDrivers()
+    public async Task NeutralFenceHidesOperationalMetadata()
     {
-        var bus = new InMemoryScadaEventBus();
-        using var fallback = new DemoRuntimeServices(bus);
-        var fallbackTag = TagDefinition.Create(
-            "Fallback",
-            "Demo.NeutralLeak.Value",
-            TagDataType.Double,
-            "builtin.simulation");
-        await using var simulation = new SimulationDriver(
-            fallback.Cache,
-            fallback.Registry,
-            [new SimulationPoint(fallbackTag, SimulationSignalType.Constant, ConstantValue: 1)],
-            TimeSpan.FromMilliseconds(25));
         await using var runtime = new OperationalRuntimeFixture();
         var facade = new ScadaRuntimeFacade(
-            fallback,
-            simulation,
             runtime,
             installationFence: new FixedInstallationFence());
 
@@ -43,6 +27,33 @@ public sealed class ScadaRuntimeFacadeInstallationNeutralTests
         Assert.Empty(facade.ClientMemorySources());
         Assert.False(facade.TryGetOperationalEvent(OperationalRuntimeFixture.EventId, out _));
         Assert.False(facade.IsServerMemoryTag(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task MissingActiveProjectIsNeutralAndCannotExposeOrOperateAnUnownedRuntime()
+    {
+        var eventBus = new InMemoryScadaEventBus();
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            eventBus,
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromSeconds(1));
+        var facade = new ScadaRuntimeFacade(runtime);
+
+        var descriptor = facade.Describe();
+        Assert.Equal("neutral", descriptor.Mode);
+        Assert.Null(descriptor.ProjectKey);
+        Assert.Null(descriptor.Revision);
+        Assert.Empty(facade.Tags());
+        Assert.Empty(facade.CurrentValues());
+        Assert.Empty(facade.AlarmDefinitions());
+        Assert.Empty(facade.Alarms());
+        Assert.Empty(facade.Commands());
+        Assert.Empty(facade.Drivers());
+        Assert.False(facade.TryGetTag(Guid.NewGuid(), out _));
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => facade.WriteAsync(Guid.NewGuid(), 1d).AsTask());
+        Assert.Contains("No Active Engineering Runtime", error.Message);
     }
 
     private sealed class FixedInstallationFence : IInstallationRuntimeFence

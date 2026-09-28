@@ -42,6 +42,7 @@ type Copy = {
   runtime: string;
   runtimeEngineering: string;
   runtimeSimulation: string;
+  runtimeNeutral: string;
   project: string;
   revision: string;
   drivers: string;
@@ -94,7 +95,7 @@ const copy: Record<RuntimeOperationsLocale, Copy> = {
     refresh: 'Atualizar', loading: 'Carregando contexto operacional...', refreshed: 'Atualizado', partial: 'Dados parciais',
     unavailable: 'Indisponível no momento', restricted: 'Sem permissão para este diagnóstico',
     overallHealthy: 'Operação estável', overallAttention: 'Atenção operacional', overallDanger: 'Falha operacional', overallUnknown: 'Visão operacional parcial',
-    runtime: 'Runtime', runtimeEngineering: 'Engineering ativo', runtimeSimulation: 'Simulação / demo', project: 'Projeto', revision: 'Revisão', drivers: 'Drivers', tags: 'TAGs', historian: 'Historian', pending: 'pendentes',
+    runtime: 'Runtime', runtimeEngineering: 'Engineering ativo', runtimeSimulation: 'Simulação / demo', runtimeNeutral: 'Sem revisão Active', project: 'Projeto', revision: 'Revisão', drivers: 'Drivers', tags: 'TAGs', historian: 'Historian', pending: 'pendentes',
     communication: 'Comunicação', externalSources: 'Data Sources externos', healthy: 'saudáveis', attention: 'atenção', faulted: 'em falha', noExternalSources: 'Nenhum Data Source externo ativo', lastSuccess: 'Último sucesso', failures: 'Falhas', timeouts: 'Timeouts', reconnects: 'Reconexões',
     quality: 'Qualidade das TAGs de comunicação', good: 'Good', badCommunication: 'BadCommunication', otherBad: 'Outras anormais', noSample: 'Sem amostra',
     alarms: 'Alarmes ativos', noActiveAlarms: 'Nenhum alarme ativo visível', alarmState: 'Estado',
@@ -107,7 +108,7 @@ const copy: Record<RuntimeOperationsLocale, Copy> = {
     refresh: 'Refresh', loading: 'Loading operational context...', refreshed: 'Updated', partial: 'Partial data',
     unavailable: 'Currently unavailable', restricted: 'Not authorized for this diagnostic',
     overallHealthy: 'Operation stable', overallAttention: 'Operational attention', overallDanger: 'Operational fault', overallUnknown: 'Partial operational view',
-    runtime: 'Runtime', runtimeEngineering: 'Engineering active', runtimeSimulation: 'Simulation / demo', project: 'Project', revision: 'Revision', drivers: 'Drivers', tags: 'TAGs', historian: 'Historian', pending: 'pending',
+    runtime: 'Runtime', runtimeEngineering: 'Engineering active', runtimeSimulation: 'Simulation / demo', runtimeNeutral: 'No Active revision', project: 'Project', revision: 'Revision', drivers: 'Drivers', tags: 'TAGs', historian: 'Historian', pending: 'pending',
     communication: 'Communication', externalSources: 'External Data Sources', healthy: 'healthy', attention: 'attention', faulted: 'faulted', noExternalSources: 'No external Data Source is active', lastSuccess: 'Last success', failures: 'Failures', timeouts: 'Timeouts', reconnects: 'Reconnects',
     quality: 'Communication TAG quality', good: 'Good', badCommunication: 'BadCommunication', otherBad: 'Other abnormal', noSample: 'No sample',
     alarms: 'Active alarms', noActiveAlarms: 'No visible active alarm', alarmState: 'State',
@@ -120,7 +121,7 @@ const copy: Record<RuntimeOperationsLocale, Copy> = {
     refresh: 'Actualizar', loading: 'Cargando contexto operacional...', refreshed: 'Actualizado', partial: 'Datos parciales',
     unavailable: 'No disponible en este momento', restricted: 'Sin permiso para este diagnóstico',
     overallHealthy: 'Operación estable', overallAttention: 'Atención operacional', overallDanger: 'Fallo operacional', overallUnknown: 'Vista operacional parcial',
-    runtime: 'Runtime', runtimeEngineering: 'Engineering activo', runtimeSimulation: 'Simulación / demo', project: 'Proyecto', revision: 'Revisión', drivers: 'Drivers', tags: 'TAGs', historian: 'Historian', pending: 'pendientes',
+    runtime: 'Runtime', runtimeEngineering: 'Engineering activo', runtimeSimulation: 'Simulación / demo', runtimeNeutral: 'Sin revisión Active', project: 'Proyecto', revision: 'Revisión', drivers: 'Drivers', tags: 'TAGs', historian: 'Historian', pending: 'pendientes',
     communication: 'Comunicación', externalSources: 'Data Sources externos', healthy: 'saludables', attention: 'atención', faulted: 'en fallo', noExternalSources: 'No hay Data Sources externos activos', lastSuccess: 'Último éxito', failures: 'Fallos', timeouts: 'Timeouts', reconnects: 'Reconexiones',
     quality: 'Calidad de TAGs de comunicación', good: 'Good', badCommunication: 'BadCommunication', otherBad: 'Otras anormales', noSample: 'Sin muestra',
     alarms: 'Alarmas activas', noActiveAlarms: 'No hay alarmas activas visibles', alarmState: 'Estado',
@@ -457,7 +458,11 @@ function overallDetail(summary: ReturnType<typeof buildRuntimeOperationsSummary>
 }
 
 function runtimeModeLabel(mode: string, text: Copy): string {
-  return mode.toLocaleLowerCase() === 'engineering' ? text.runtimeEngineering : text.runtimeSimulation;
+  switch (mode.toLocaleLowerCase()) {
+    case 'engineering': return text.runtimeEngineering;
+    case 'simulation': return text.runtimeSimulation;
+    default: return text.runtimeNeutral;
+  }
 }
 
 function stateLabel(state: string, text: Copy): string {

@@ -5,9 +5,9 @@ const adminPassword = 'E2Epass8';
 
 test.setTimeout(90_000);
 
-test('secure first-run creates the initial local Administrator, first project and durable local session', async ({ browser }) => {
+test('secure first-run creates the initial local Administrator, first project and durable local session', async ({ browser, baseURL }) => {
   const context = await browser.newContext({
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: baseURL ?? 'http://127.0.0.1:5173',
     extraHTTPHeaders: { Authorization: '' }
   });
   const page = await context.newPage();
@@ -62,7 +62,7 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(localSession.body.authenticated).toBe(true);
     expect(localSession.body.username).toBe(adminUsername);
 
-    const cookies = await context.cookies('http://127.0.0.1:5173');
+    const cookies = await context.cookies(baseURL ?? 'http://127.0.0.1:5173');
     const accessCookie = cookies.find(cookie => cookie.name === 'elitescada_access');
     expect(accessCookie).toBeTruthy();
     expect(accessCookie!.httpOnly).toBeTruthy();
@@ -77,6 +77,16 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(profile.status).toBe(200);
     expect(profile.body.displayName).toBe('Local Developer');
     expect(profile.body.roles).toContain('developer');
+
+    const initialRuntimeProjection = await page.evaluate(async () => {
+      const response = await fetch('/api/runtime/application');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(initialRuntimeProjection.status).toBe(200);
+    expect(initialRuntimeProjection.body.mode).toBe('neutral');
+    expect(initialRuntimeProjection.body.projectKey).toBeNull();
+    expect(initialRuntimeProjection.body.revision).toBeNull();
+    expect(initialRuntimeProjection.body.package).toBeNull();
 
     // A genuinely fresh installation has no hidden Demo/preconfigured Engineering
     // content. This assertion runs before first-project creation so test fixtures cannot
@@ -180,12 +190,36 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(firstProjectRuntime.body.live.mode).toBe('neutral');
     expect(firstProjectRuntime.body.live.revision).toBeNull();
 
+    const firstProjectProjection = await page.evaluate(async () => {
+      const response = await fetch('/api/runtime/application');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(firstProjectProjection.status).toBe(200);
+    expect(firstProjectProjection.body.mode).toBe('neutral');
+    expect(firstProjectProjection.body.projectKey).toBeNull();
+    expect(firstProjectProjection.body.revision).toBeNull();
+    expect(firstProjectProjection.body.package).toBeNull();
+
     const firstProjectRuntimeTags = await page.evaluate(async () => {
       const response = await fetch('/api/tags');
       return { status: response.status, body: await response.json() };
     });
     expect(firstProjectRuntimeTags.status).toBe(200);
     expect(firstProjectRuntimeTags.body).toHaveLength(0);
+
+    await page.goto('/');
+    await expect(page.getByTestId('runtime-neutral')).toBeVisible();
+    await expect(page.getByTestId('runtime-simulation-fallback')).toHaveCount(0);
+    await expect(page.getByText('Demo · Estação Elevatória')).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByTestId('runtime-neutral')).toBeVisible();
+    const resumedProjection = await page.evaluate(async () => {
+      const response = await fetch('/api/runtime/application');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(resumedProjection.body.mode).toBe('neutral');
+    expect(resumedProjection.body.projectKey).toBeNull();
+    expect(resumedProjection.body.revision).toBeNull();
 
     // This prerequisite intentionally leaves the first persisted project empty.
     // Any later E2E that needs TAG traffic must create its own test-owned fixture
@@ -453,9 +487,9 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(loginProfile.username).toBe(adminUsername);
     expect(loginProfile.identityProvider).toBe('local');
 
-    await expect(page.locator('.eng-shell')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('session-menu-toggle').getByText('@local-developer')).toBeVisible({ timeout: 15_000 });
     await page.reload();
-    await expect(page.locator('.eng-shell')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('session-menu-toggle').getByText('@local-developer')).toBeVisible({ timeout: 15_000 });
 
     const reloadedLocalSession = await page.evaluate(async () => {
       const response = await fetch('/api/auth/local-session');

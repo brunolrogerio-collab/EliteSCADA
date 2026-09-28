@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Scada.Api.HostedServices;
 using Scada.Api.Licensing;
 using Scada.Api.Persistence;
 using Scada.Api.Runtime;
@@ -11,8 +10,6 @@ using Scada.Core.Product.Licensing;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
-using Scada.Drivers.Abstractions;
-using Scada.Drivers.Simulation;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
@@ -371,64 +368,6 @@ public sealed class PersistedRuntimeRecoveryServiceTests
         Assert.DoesNotContain("demoStartedAtUtc", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("runtimeSession", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("seat", json, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task DemoHostedService_DoesNotStartSimulationAfterEngineeringRecovery()
-    {
-        await using var activeServer = new TestModbusTcpServer();
-        activeServer.HoldingRegisters[10] = 55;
-        activeServer.Start();
-
-        var activePackage = CreatePackage(
-            activeServer.Port,
-            Guid.NewGuid(),
-            "Plant.Active.Value",
-            "holding:10");
-        var activeSnapshot = CreateSnapshot(1, activePackage);
-        var store = new RecoveryStore(activeSnapshot, activeSnapshot);
-
-        var exchangeBus = new InMemoryScadaEventBus();
-        using var exchangeAlarms = new InMemoryAlarmEngine(exchangeBus);
-        var exchange = new EngineeringExchangeService(new InMemoryTagRegistry(), exchangeAlarms);
-        var persistence = new EngineeringProjectPersistenceService(exchange, store);
-
-        var runtimeBus = new InMemoryScadaEventBus();
-        await using var runtime = new EngineeringRuntimeCoordinator(
-            runtimeBus,
-            new EngineeringDriverCompiler(),
-            TimeSpan.FromSeconds(2));
-        var licensing = new TestProductLicenseService(ValidVerification());
-        await using var authorityStore = new InMemoryRuntimeSessionLeaseStore();
-        var recovery = new PersistedRuntimeRecoveryService(
-            persistence,
-            exchange,
-            runtime,
-            licensing,
-            authorityStore);
-        Assert.True((await recovery.RecoverAsync("plant-a")).Recovered);
-
-        using var fallback = new DemoRuntimeServices(runtimeBus);
-        var fallbackTag = TagDefinition.Create(
-            "Demo fallback",
-            "Demo.Fallback",
-            TagDataType.Double,
-            "builtin.simulation");
-        await using var simulation = new SimulationDriver(
-            fallback.Cache,
-            fallback.Registry,
-            new[] { new SimulationPoint(fallbackTag, SimulationSignalType.Constant, ConstantValue: 12) },
-            TimeSpan.FromMilliseconds(20));
-
-        var hosted = new SimulationDriverHostedService(
-            simulation,
-            fallback,
-            runtime);
-
-        await hosted.StartAsync(CancellationToken.None);
-
-        Assert.Equal(DriverState.Stopped, simulation.Status.State);
-        Assert.Empty(fallback.Registry.Snapshot());
     }
 
     private static EngineeringPackage CreateServerMemoryPackage()

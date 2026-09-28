@@ -3744,3 +3744,40 @@ C-TRANSPORT-01 must not be frozen unless evidence is sufficient.
 `CODEX -> MAIN COORDINATOR — #359/#307 E4-C REAL CODESPACE HANDOFF`
 
 After return, STOP.
+
+
+### rev0104 — fresh Codespace launch coordinate and environment preflight
+
+Main created a no-delta launch branch pinned exactly to the E4 product bytes:
+
+`preview/w15-e4-codespace-transport-50b275`
+
+Pinned commit:
+`50b2750c73623b7ffef77f0ca93755c3e8278676`
+
+Expected tree:
+`bf0b43ff9ea1211443d614487f4a05bab2ee2c97`.
+
+Important live repository fact at this exact ref:
+- `.devcontainer/devcontainer.json` installs .NET 10 + Node 24 and forwards 5173/5080;
+- it currently has no `postAttachCommand`;
+- `.devcontainer/docker-compose.yml` is absent;
+- historical `scripts/preview/launch-test-preview.sh` is absent from this exact product tree.
+
+Therefore the executor must **not** assume historical automatic Preview startup. A fresh Codespace is still valid E4 infrastructure, but the exact product stack must be started explicitly without changing repository bytes.
+
+Preflight required inside the fresh Codespace:
+1. `git rev-parse HEAD` == pinned commit above;
+2. clean worktree;
+3. `dotnet --version` satisfies `global.json` (10.0.400);
+4. Node 24 available;
+5. durable PostgreSQL/TimescaleDB available inside the Codespace environment only;
+6. API bound to `127.0.0.1:5080` with `ConnectionStrings__EliteScada` configured;
+7. Web/Vite bound to `0.0.0.0:5173` with same-origin `/api` proxy targeting `http://127.0.0.1:5080`;
+8. only the Web 5173 forwarded URL is used by the browser; do not browse/expose API 5080 or DB;
+9. normal Local Identity/authentication remains enabled; bootstrap credential, if needed, is ephemeral/protected and never printed into GitHub evidence;
+10. API and Web logs are retained for request-correlation evidence.
+
+If the fresh Codespace cannot provide a durable DB or a real forwarded browser URL, return `ENV_CAPABILITY_GAP / E4` rather than patching product or using localhost simulation.
+
+Human preparation may create/open the Codespace and leave the integrated browser authenticated, but CODEX must execute and capture the actual E4 journey itself.

@@ -25,7 +25,8 @@ test('palette is derived from the complete registered built-in set', () => {
     BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser,
     BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser,
     BUILTIN_VISUAL_OBJECT_TYPES.button,
-    BUILTIN_VISUAL_OBJECT_TYPES.slider
+    BUILTIN_VISUAL_OBJECT_TYPES.slider,
+    BUILTIN_VISUAL_OBJECT_TYPES.numericInput
   ]);
   expect(new Set(items.map(item => item.objectType)).size).toBe(items.length);
 

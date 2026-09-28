@@ -1,6 +1,6 @@
 services:
   preview:
-    image: elitescada-preview-a-preview:${ELITESCADA_PREVIEW_DEPENDENCY_KEY:?run local-audit prepare first}
+    image: ${ELITESCADA_PREVIEW_IMAGE_NAME:?run local-audit prepare first}
     pull_policy: never
     build:
       args:

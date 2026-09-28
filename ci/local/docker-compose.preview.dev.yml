@@ -1,0 +1,4 @@
+services:
+  preview:
+    volumes:
+      - ./artifacts/preview-dev:/preview-evidence

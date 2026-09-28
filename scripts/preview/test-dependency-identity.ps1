@@ -52,7 +52,9 @@ try {
     $null = Invoke-TestGit -WorkingDirectory $seed -Arguments @('config', 'user.email', 'preview-identity-test@example.invalid')
     $null = Invoke-TestGit -WorkingDirectory $seed -Arguments @('config', 'core.autocrlf', 'false')
     [IO.File]::WriteAllText((Join-Path $seed 'dependency.txt'), "alpha`nbeta`n", [Text.UTF8Encoding]::new($false))
-    $null = Invoke-TestGit -WorkingDirectory $seed -Arguments @('add', 'dependency.txt')
+    [IO.File]::WriteAllText((Join-Path $seed 'package.json'), '{}', [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText((Join-Path $seed 'package-lock.json'), '{}', [Text.UTF8Encoding]::new($false))
+    $null = Invoke-TestGit -WorkingDirectory $seed -Arguments @('add', 'dependency.txt', 'package.json', 'package-lock.json')
     $null = Invoke-TestGit -WorkingDirectory $seed -Arguments @('commit', '-m', 'seed dependency input')
 
     $null = Invoke-TestGit -WorkingDirectory $resolvedTempRoot -Arguments @('clone', '--no-checkout', $seed, $lfClone)
@@ -77,21 +79,27 @@ try {
         throw 'The LF/CRLF regression clones must both be clean.'
     }
 
-    $lfIdentity = Get-PreviewDependencyInputIdentity -RepositoryRoot $lfClone -RelativePaths @('dependency.txt')
-    $crlfIdentity = Get-PreviewDependencyInputIdentity -RepositoryRoot $crlfClone -RelativePaths @('dependency.txt')
+    $dependencyPaths = @('dependency.txt', 'package.json', 'package-lock.json')
+    $lfIdentity = Get-PreviewDependencyInputIdentity -RepositoryRoot $lfClone -RelativePaths $dependencyPaths
+    $crlfIdentity = Get-PreviewDependencyInputIdentity -RepositoryRoot $crlfClone -RelativePaths $dependencyPaths
     if ($lfIdentity.InputsSha -ne $crlfIdentity.InputsSha) {
         throw 'Dependency identity changed across LF/CRLF checkouts of the same committed tree.'
+    }
+    $orderedPaths = @($lfIdentity.Entries | ForEach-Object { ($_ -split '=', 2)[0] })
+    if (($orderedPaths -join '|') -ne 'dependency.txt|package-lock.json|package.json') {
+        throw 'Dependency path order differs from the shared PowerShell 5.1/7 cache identity.'
     }
 
     [IO.File]::WriteAllText((Join-Path $lfClone 'dependency.txt'), "alpha`nbeta`ngamma`n", [Text.UTF8Encoding]::new($false))
     $null = Invoke-TestGit -WorkingDirectory $lfClone -Arguments @('add', 'dependency.txt')
     $null = Invoke-TestGit -WorkingDirectory $lfClone -Arguments @('commit', '-m', 'change dependency input')
-    $changedIdentity = Get-PreviewDependencyInputIdentity -RepositoryRoot $lfClone -RelativePaths @('dependency.txt')
+    $changedIdentity = Get-PreviewDependencyInputIdentity -RepositoryRoot $lfClone -RelativePaths $dependencyPaths
     if ($changedIdentity.InputsSha -eq $lfIdentity.InputsSha) {
         throw 'Dependency identity did not change when the committed dependency input changed.'
     }
 
     Write-Output 'PASS: same committed tree has the same dependency identity across LF/CRLF working trees.'
+    Write-Output 'PASS: dependency paths retain the same order across Windows PowerShell 5.1 and PowerShell 7.'
     Write-Output 'PASS: changing a committed dependency input changes the dependency identity.'
 } finally {
     if (Test-Path -LiteralPath $resolvedTempRoot) {

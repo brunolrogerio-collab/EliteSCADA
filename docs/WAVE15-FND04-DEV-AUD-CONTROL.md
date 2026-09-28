@@ -38,11 +38,11 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0106`
+`MAIN_ORDER_REV: 0107`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-28 — E4 HARNESS SDK GUARD FIXED / SAME CODESPACE RETRY ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-28 — E4 REMOTE PASS ACCEPTED / #373+#374+#376 COMBINED E3 ACTIVE`
 
-`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_TRANSPORT_E4_HARNESS_RETRY2_ACTIVE`
+`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_COMBINED_E3_373_374_376_ACTIVE`
 
 Current situation:
 
@@ -70,54 +70,201 @@ Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave1
 >
 > The shared CODEX executor is not the legacy FND-04 DEV lane.
 
-`SHARED_CODEX_ORDER_REV: 0106`
+`SHARED_CODEX_ORDER_REV: 0107`
 
-`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TRANSPORT-E4-HARNESS-RETRY2-87`
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-COMBINED-E3-373-374-376-88`
 
-`ORDER_STATE: ACTIVE_DIAGNOSTIC / EXISTING_REAL_CODESPACE_ALLOWED / HARNESS_HEAD_UPDATE_REQUIRED / PRODUCT_BYTES_PINNED / NO_PRODUCT_MUTATION / NO_MERGE`
+`ORDER_STATE: ACTIVE_VALIDATION / EXACT_COMBINED_TREE / MOUNTED_E3 / NO_PRODUCT_MUTATION / NO_MERGE`
 
-Canonical product baseline:
-`50b2750c73623b7ffef77f0ca93755c3e8278676`
-tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`.
+### Prior transport gate disposition
 
-Dedicated harness branch:
-`preview/w15-e4-codespace-harness-50b275`
+rev0106 returned a real forwarded Codespace result:
+`E4_PASS_REMOTE_PATH`.
 
-New exact harness HEAD:
-`62c5b8068638681eddb6e707df2b2d393e8dbd71`
+Main accepted:
+`E4_PASS_REMOTE_PATH / HISTORICAL_402_ROOT_CAUSE_UNASSIGNED / NO_TRANSPORT_PRODUCT_CORRECTION`.
 
-New exact harness tree:
-`24d49905943c933398ab05dc2de64f8de14258f4`.
+C-TRANSPORT-01 remains:
+`PROPOSAL / LOCAL_A_PASS / LOCAL_DELAY_B_PASS / REMOTE_E4_PASS / HISTORICAL_CAUSE_UNASSIGNED`.
 
-Base -> harness delta remains exactly the same four authorized infrastructure paths:
-- `.devcontainer/devcontainer.json`;
-- `.devcontainer/docker-compose.yml`;
-- `.devcontainer/initialize-preview-machine-id.sh`;
-- `scripts/preview/launch-w15-e4-transport.sh`.
+Do not reopen transport diagnosis, change timeout policy, retry mutations blindly, or attribute the historical 402 during this order.
 
-rev0105 failed before DB/API/Web startup only because the harness demanded exact SDK string `10.0.400`, while repository `global.json` explicitly allows `rollForward: latestFeature` and the Codespace correctly resolved `10.0.401`.
+### Canonical product base
 
-Main corrected only that harness guard. The launcher now accepts the compatible .NET 10.0.4xx feature band after successful repository `global.json` resolution.
+`wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`
 
-Immediate action:
-1. in the **existing real Codespace** from the harness branch, fetch/fast-forward only the harness branch to exact HEAD `62c5b806...`;
-2. verify the four-path-only delta against product baseline;
-3. verify `dotnet --version` resolves to compatible 10.0.4xx (10.0.401 observed previously);
-4. rerun `scripts/preview/launch-w15-e4-transport.sh`;
-5. verify private TimescaleDB, API internal 5080 and forwarded Web 5173;
-6. execute the full E4-C Security + secondary Data Source catalog journey;
-7. capture HAR/console/correlation/API evidence;
-8. return classification.
+tree:
+`bf0b43ff9ea1211443d614487f4a05bab2ee2c97`
 
-No Codespace rebuild is required solely for this one-file launcher correction unless the current compose/devcontainer services are absent or unhealthy.
+### Exact accepted candidate inputs
 
-Return:
-`CODEX -> MAIN COORDINATOR — #359/#307 E4-C HARNESS RETRY2 HANDOFF`.
+PR #373:
+`fd25b9f01a3fa55800dbcab7147aab96b083548e`
+tree `6da8b4e20f09631b1ef774a545b74434783c88de`.
+
+PR #374:
+`09a24f6e16ff3c152e0155d83b386342685a12b1`
+tree `2c123369c1554fad67e63ad4ecc06f769cb67841`.
+
+PR #376:
+`4a5252abf008cb314f4494d48107be25a3643d0c`
+tree `2acad074f5f30a22a742e643b74520eb611137af`.
+
+All three exact candidates were revalidated immediately before composition:
+- same exact integration base;
+- open / not merged;
+- pairwise changed-file overlap = zero.
+
+### Exact combined E3 coordinate
+
+Validation branch:
+`preview/w15-e3-combined-373-374-376-50b275`
+
+Exact combined commit:
+`c0118888b6250ece19a1bae5d98e07c32297b279`
+
+`COMBINED_TREE_SHA: 9dc3c76ead0b77312c90113516f48e19c9bb0355`
+
+Parent:
+`50b2750c73623b7ffef77f0ca93755c3e8278676`.
+
+The combined tree was constructed from the exact candidate blobs over the canonical base and revalidated as:
+- 1 commit ahead / 0 behind the base;
+- exactly 48 changed files;
+- exact union of #373 (29) + #374 (14) + #376 (5);
+- no extra path;
+- no overlapping path requiring conflict resolution.
+
+Any mismatch in base, candidate HEAD, combined commit or combined tree means:
+`COORDINATION_STALE / STOP / MAIN COORDINATOR`.
+
+### Immediate CODEX action
+
+1. Re-read this control live immediately before execution and confirm rev0107.
+2. Revalidate live integration remains exactly `50b2750...`.
+3. Revalidate PR #373, #374 and #376 still point to the exact HEADs above and remain unmerged.
+4. Checkout only the exact combined validation branch/commit above.
+5. Verify `git rev-parse HEAD`, tree SHA and parent SHA.
+6. Verify base -> combined changed-file set contains exactly 48 paths and no unexpected file.
+7. Do not modify product, tests, workflows, candidate PRs or integration.
+8. Start a genuine mounted product environment with durable DB/API/Web/browser capability.
+9. Execute the explicit focused specs and the mounted user journeys below.
+10. Return one exact combined E3 handoff and STOP.
+
+### Mandatory focused spec execution
+
+Execute explicitly, regardless of router selection:
+
+#373 / HMI:
+- `web/scada-web/tests-e2e/wave-15-hmi-dynamics-io.spec.ts`;
+- relevant changed visual editor specs needed to support the mounted findings.
+
+#374 / Script Object:
+- `web/scada-web/tests-e2e/script-assistant-model.spec.ts`;
+- `web/scada-web/tests-e2e/script-assistant-reference-validation.spec.ts`;
+- `web/scada-web/tests-e2e/visual-python-property-provider.spec.ts`;
+- `web/scada-web/tests-e2e/wave-10-client-visual-event-dispatcher.spec.ts`;
+- normal Script Engineering workspace contract spec.
+
+#376 / TAG Gateway:
+- `web/scada-web/tests-e2e/gateway-engineering.spec.ts`.
+
+Do not weaken, skip or rewrite a failing spec merely to obtain PASS.
+
+### Mounted E3 matrix — #373 HMI Dynamics + NumericInput
+
+Prove on the exact combined tree:
+
+- Screen typed RangeMap authoring;
+- Popup typed RangeMap authoring;
+- deterministic first-match semantics;
+- Undo/Redo;
+- Save/Reopen without reference drift;
+- Dynamic Text/value formatting path;
+- NumericInput Runtime authorized write;
+- authoritative TAG readback after write;
+- read-only state;
+- bad/unavailable quality state;
+- unauthorized 401/403 state;
+- failed-write state;
+- Apply/button + Enter commit;
+- Cancel + Esc discard;
+- Design mode performs no process write;
+- Screen and Popup use the canonical renderer/write boundary.
+
+No second write service or frontend->Driver bypass may be introduced.
+
+### Mounted E3 matrix — #374 Script Object/Property
+
+Prove:
+
+- Script workspace -> Object Browser;
+- Screen object discovery;
+- Popup object discovery;
+- canonical Property Browser;
+- generated read / write / clear / tween snippets;
+- new source uses stable `visualDefinitionId + visualObjectId + propertyKey`;
+- mutable Key is not new target authority;
+- rename Key while retaining stable IDs does not retarget;
+- reuse an old Key on another object produces safe warning/ambiguity behavior;
+- unsupported property/tween operation is disabled or fails clearly;
+- event-associated object context remains correct;
+- Save/Reopen preserves source and stable reference;
+- Runtime smoke exercises supported visual-property read/write/tween through existing sandbox/capability bridge;
+- legacy Key-only compatibility remains bounded and is never silently rewritten to an ambiguous target.
+
+### Mounted E3 matrix — #376 TAG Gateway
+
+Prove:
+
+- direct Engineering `Comunicação -> TAG Gateway` navigation;
+- Gateway no longer appears as a hidden Data Sources sub-surface;
+- route inventory/list;
+- explicit `Nova rota`;
+- existing route A remains while independent route B is created;
+- edit route A does not replace route B;
+- disable/re-enable one route leaves the other independent;
+- valid fan-out: one Source TAG -> multiple Destination TAGs through separate routes;
+- duplicate active destination writer is rejected;
+- TAG -> TAG remains the persisted authority;
+- canonical Preview/Apply/Working/Active lifecycle remains truthful;
+- Save/Reopen preserves multiple routes;
+- diagnostics remain isolated per route and do not masquerade as driver network health;
+- project/package export/import persistence where available in the mounted environment.
+
+No Gateway runtime redesign, protocol-pair authority, frontend->Driver path or Gateway-specific timeout/retry policy is authorized.
+
+### Evidence standard
+
+Apply C-TEST-EVIDENCE-01.
+
+Report:
+- exact branch / commit / tree;
+- environment topology;
+- DB/API/Web health;
+- all commands/specs executed;
+- mounted UI journey evidence;
+- authoritative readbacks;
+- failures or limitations;
+- no-mutation proof.
+
+A functional PASS requires the exact combined tree and the required mounted journeys. Static-only evidence is insufficient.
+
+If the mounted environment cannot genuinely perform required evidence, return:
+`ENV_CAPABILITY_GAP / E3 / <exact reason> / Main coordinator`.
+
+If a product defect is found, return:
+`COMBINED_E3_FAIL / <lane #373|#374|#376 or cross-lane> / <first causal evidence>`.
+
+If all required evidence passes, return:
+`COMBINED_E3_PASS`.
+
+Required handoff title:
+`CODEX -> MAIN COORDINATOR — #373/#374/#376 COMBINED E3 HANDOFF`.
 
 After return, STOP.
 
-Next queued:
-combined E3 for exact #373 + #374, subject to Main revalidation.
+Main alone owns any later merge. Preferred post-PASS merge order is #373 -> #374 -> #376 followed by byte-identical tree proof against `9dc3c76ead0b77312c90113516f48e19c9bb0355`.
 
 ---
 
@@ -3899,5 +4046,30 @@ All rev0105 E4 capture/classification requirements still apply.
 
 Required handoff:
 `CODEX -> MAIN COORDINATOR — #359/#307 E4-C HARNESS RETRY2 HANDOFF`.
+
+Then stop.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0107
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-COMBINED-E3-373-374-376-88`
+
+rev0106 returned:
+`E4_PASS_REMOTE_PATH`.
+
+Main accepted the remote path as functionally passing while keeping the historical 402 cause unassigned.
+
+Exact combined E3 coordinate:
+- branch `preview/w15-e3-combined-373-374-376-50b275`;
+- commit `c0118888b6250ece19a1bae5d98e07c32297b279`;
+- tree `9dc3c76ead0b77312c90113516f48e19c9bb0355`;
+- parent/base `50b2750c73623b7ffef77f0ca93755c3e8278676`;
+- source PRs #373/#374/#376 at exact accepted HEADs;
+- exact union = 48 changed files, zero overlap.
+
+Execute the full mandatory focused-spec + mounted HMI/Script/Gateway matrix from the canonical pointer above.
+
+Required handoff:
+`CODEX -> MAIN COORDINATOR — #373/#374/#376 COMBINED E3 HANDOFF`.
 
 Then stop.

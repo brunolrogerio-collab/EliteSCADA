@@ -25,7 +25,7 @@ export type RuntimeHmiEngineeringPackage = Readonly<{
 }>;
 
 export type RuntimeApplicationProjection = Readonly<{
-  mode: 'simulation' | 'engineering';
+  mode: 'neutral' | 'simulation' | 'engineering';
   projectKey?: string | null;
   projectName?: string | null;
   revision?: number | null;

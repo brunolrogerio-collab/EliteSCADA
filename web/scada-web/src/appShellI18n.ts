@@ -26,6 +26,8 @@ const ptBR = {
   accessDenied: 'Você não possui permissão para acessar esta área.',
   capabilitiesUnavailable: 'Não foi possível carregar as permissões efetivas da sessão.',
   runtimeUnavailable: 'Runtime não disponível para esta sessão.',
+  runtimeNotActive: 'Nenhuma revisão Active selecionada.',
+  runtimeNotActiveDescription: 'O Runtime só exibe conteúdo de uma revisão Active do projeto. Crie um projeto e ative uma revisão para iniciar a operação.',
   emptyVisual: 'Nenhum objeto visual.'
 } as const;
 
@@ -54,6 +56,8 @@ const en: Record<AppShellTextKey, string> = {
   accessDenied: 'You do not have permission to access this area.',
   capabilitiesUnavailable: 'The effective session permissions could not be loaded.',
   runtimeUnavailable: 'Runtime is not available for this session.',
+  runtimeNotActive: 'No Active revision selected.',
+  runtimeNotActiveDescription: 'Runtime only displays content from an Active project revision. Create a project and activate a revision to start operation.',
   emptyVisual: 'No visual objects.'
 };
 
@@ -80,6 +84,8 @@ const es: Record<AppShellTextKey, string> = {
   accessDenied: 'No tiene permiso para acceder a esta área.',
   capabilitiesUnavailable: 'No fue posible cargar los permisos efectivos de la sesión.',
   runtimeUnavailable: 'Runtime no está disponible para esta sesión.',
+  runtimeNotActive: 'No hay una revisión Active seleccionada.',
+  runtimeNotActiveDescription: 'Runtime solo muestra contenido de una revisión Active del proyecto. Cree un proyecto y active una revisión para iniciar la operación.',
   emptyVisual: 'No hay objetos visuales.'
 };
 

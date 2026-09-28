@@ -7,8 +7,6 @@ using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
-using Scada.Drivers.Abstractions;
-using Scada.Drivers.Simulation;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
@@ -19,7 +17,7 @@ namespace Scada.Drivers.Tests;
 public sealed class PublishedRuntimeActivationServiceTests
 {
     [Fact]
-    public async Task ActivateAsync_CommitsPublishedRevisionStopsFallbackSwitchesFacadeAndRehydratesEngineeringLock()
+    public async Task ActivateAsync_CommitsPublishedRevisionSwitchesFacadeAndRehydratesEngineeringLock()
     {
         await using var server = new TestModbusTcpServer();
         server.HoldingRegisters[10] = 321;
@@ -35,42 +33,25 @@ public sealed class PublishedRuntimeActivationServiceTests
         Assert.False(EngineeringLockContract.Normalize(exchange.ExportPackage().EngineeringLock).Locked);
 
         var externalBus = new InMemoryScadaEventBus();
-        using var fallback = new DemoRuntimeServices(externalBus);
-        var fallbackTag = TagDefinition.Create(
-            "Demo fallback",
-            "Demo.Fallback",
-            TagDataType.Double,
-            "builtin.simulation");
-
-        await using var simulation = new SimulationDriver(
-            fallback.Cache,
-            fallback.Registry,
-            new[] { new SimulationPoint(fallbackTag, SimulationSignalType.Constant, ConstantValue: 12) },
-            TimeSpan.FromMilliseconds(15));
-        await simulation.StartAsync();
-
         await using var runtime = new EngineeringRuntimeCoordinator(
             externalBus,
             new EngineeringDriverCompiler(),
             TimeSpan.FromSeconds(2));
-        var facade = new ScadaRuntimeFacade(fallback, simulation, runtime);
+        var facade = new ScadaRuntimeFacade(runtime);
         var activation = new PublishedRuntimeActivationService(
             persistence,
             exchange,
-            runtime,
-            simulation);
+            runtime);
 
         var outcome = await activation.ActivateAsync("plant-a", "integration-test");
 
         Assert.True(outcome.Activated);
         Assert.Equal(1, outcome.Activation!.ActiveRevision);
-        Assert.Equal(DriverState.Stopped, simulation.Status.State);
         Assert.True(facade.IsEngineeringActive);
         Assert.Equal("engineering", facade.Describe().Mode);
         Assert.Equal(1, facade.Describe().Revision);
         Assert.True(facade.TryGetTag(runtimeTagId, out var runtimeTag));
         Assert.Equal("Plant.Runtime.Value", runtimeTag!.Path);
-        Assert.False(facade.TryGetTag(fallbackTag.Id, out _));
         Assert.True(facade.TryGetCurrent(runtimeTagId, out var current));
         Assert.Equal(321d, Convert.ToDouble(current!.Value));
 
@@ -81,7 +62,7 @@ public sealed class PublishedRuntimeActivationServiceTests
     }
 
     [Fact]
-    public async Task ActivateAsync_PersistenceRejectionRestartsSimulationKeepsFacadeOnFallbackAndDoesNotChangeLock()
+    public async Task ActivateAsync_PersistenceRejectionKeepsFacadeNeutralAndDoesNotChangeLock()
     {
         await using var server = new TestModbusTcpServer();
         server.HoldingRegisters[10] = 222;
@@ -95,30 +76,15 @@ public sealed class PublishedRuntimeActivationServiceTests
         var currentBefore = EngineeringLockContract.Normalize(exchange.ExportPackage().EngineeringLock);
 
         var externalBus = new InMemoryScadaEventBus();
-        using var fallback = new DemoRuntimeServices(externalBus);
-        var fallbackTag = TagDefinition.Create(
-            "Demo fallback",
-            "Demo.Fallback",
-            TagDataType.Double,
-            "builtin.simulation");
-
-        await using var simulation = new SimulationDriver(
-            fallback.Cache,
-            fallback.Registry,
-            new[] { new SimulationPoint(fallbackTag, SimulationSignalType.Constant, ConstantValue: 12) },
-            TimeSpan.FromMilliseconds(15));
-        await simulation.StartAsync();
-
         await using var runtime = new EngineeringRuntimeCoordinator(
             externalBus,
             new EngineeringDriverCompiler(),
             TimeSpan.FromSeconds(2));
-        var facade = new ScadaRuntimeFacade(fallback, simulation, runtime);
+        var facade = new ScadaRuntimeFacade(runtime);
         var activation = new PublishedRuntimeActivationService(
             persistence,
             exchange,
-            runtime,
-            simulation);
+            runtime);
 
         var outcome = await activation.ActivateAsync("plant-a", "integration-test");
 
@@ -128,10 +94,8 @@ public sealed class PublishedRuntimeActivationServiceTests
             outcome.Runtime!.RuntimeIssues,
             issue => issue.Code == "RUNTIME_ACTIVATION_COMMIT_FAILED" && issue.IsError);
         Assert.Null(runtime.Describe().Revision);
-        Assert.Equal(DriverState.Running, simulation.Status.State);
         Assert.False(facade.IsEngineeringActive);
-        Assert.Equal("simulation", facade.Describe().Mode);
-        Assert.True(facade.TryGetTag(fallbackTag.Id, out _));
+        Assert.Equal("neutral", facade.Describe().Mode);
 
         var currentAfter = EngineeringLockContract.Normalize(exchange.ExportPackage().EngineeringLock);
         Assert.Equal(currentBefore, currentAfter);

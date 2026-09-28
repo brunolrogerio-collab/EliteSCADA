@@ -72,6 +72,7 @@ E2E_SPECS = {
         "tests-e2e/visual-editor-workspace.spec.ts", "tests-e2e/app-shell.spec.ts",
         "tests-e2e/wave-14-c25-engineering-lock.spec.ts", "tests-e2e/visual-editor-authoring-model.spec.ts",
         "tests-e2e/visual-editor-selection-model.spec.ts", "tests-e2e/visual-editor-z-order-model.spec.ts",
+        "tests-e2e/data-source-catalog-editor-mounted.spec.ts",
     ),
     "SCRIPT_ENGINEERING": ("tests-e2e/script-engineering-workspace-contract.spec.ts",),
     "SCRIPT_RUNTIME": ("tests-e2e/python-runtime-host.spec.ts",),

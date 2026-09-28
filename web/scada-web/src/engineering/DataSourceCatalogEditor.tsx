@@ -28,6 +28,7 @@ import './structured-editors.css';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 type CatalogResponse = { dataSourceTypes: DataSourceTypeDefinition[] };
+type CatalogStatus = 'loading' | 'ready' | 'error';
 type Props = { model: EngineeringPackageView; locale: EngineeringLocale };
 
 type EditorText = ReturnType<typeof text>;
@@ -44,7 +45,9 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
   const copy = useMemo(() => text(locale), [locale]);
   const sources = useMemo(() => model.dataSources ?? [], [model.dataSources]);
   const [catalog, setCatalog] = useState<DataSourceTypeDefinition[]>([]);
+  const [catalogStatus, setCatalogStatus] = useState<CatalogStatus>('loading');
   const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [catalogLoadVersion, setCatalogLoadVersion] = useState(0);
   const [selectedIdentity, setSelectedIdentity] = useState<string | null>(() => sources[0] ? dataSourceIdentity(sources[0]) : null);
   const [draft, setDraft] = useState<DataSourceEngineering | null>(() => sources[0] ? cloneDataSourceValue(sources[0]) : null);
   const [preview, setPreview] = useState<Awaited<ReturnType<typeof previewEngineeringPackage>> | null>(null);
@@ -66,17 +69,22 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
 
   useEffect(() => {
     let alive = true;
+    setCatalogStatus('loading');
+    setCatalogError(null);
     void loadDataSourceTypeCatalog()
       .then(types => {
         if (!alive) return;
         setCatalog(types);
-        setCatalogError(null);
+        setCatalogStatus('ready');
       })
       .catch(reason => {
-        if (alive) setCatalogError(reason instanceof Error ? reason.message : String(reason));
+        if (!alive) return;
+        setCatalog([]);
+        setCatalogError(reason instanceof Error ? reason.message : String(reason));
+        setCatalogStatus('error');
       });
     return () => { alive = false; };
-  }, []);
+  }, [catalogLoadVersion]);
 
   useEffect(() => {
     if (selectedIdentity === NEW_DATA_SOURCE_IDENTITY) return;
@@ -99,7 +107,7 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
   const currentType = draft
     ? catalog.find(type => type.typeKey.toLowerCase() === draft.driver.toLowerCase()) ?? null
     : null;
-  const unsupported = Boolean(draft?.driver && catalog.length > 0 && !currentType);
+  const unsupported = catalogStatus === 'ready' && Boolean(draft?.driver && catalog.length > 0 && !currentType);
   const pristineNew = newDataSourceDraft();
   const changed = Boolean(draft && (isNew
     ? JSON.stringify(draft) !== JSON.stringify(pristineNew)
@@ -108,7 +116,7 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
     ? incompatibleDataSourceConfiguration(draft, currentType)
     : { settings: [], secretReferences: [] };
   const hasIncompatible = incompatible.settings.length + incompatible.secretReferences.length > 0;
-  const clientIssues = draft ? validateDataSourceDraft(draft, currentType) : [];
+  const clientIssues = draft && catalogStatus === 'ready' ? validateDataSourceDraft(draft, currentType) : [];
 
   const updateDraft = (next: DataSourceEngineering) => {
     setDraft(next);
@@ -207,7 +215,31 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
         <button type="button" onClick={() => choose(NEW_DATA_SOURCE_IDENTITY)}>{copy.newSource}</button>
       </header>
 
-      {catalogError && <pre className="eng-editor-error">{copy.catalogError}: {catalogError}</pre>}
+      {catalogStatus === 'loading' && (
+        <div className="eng-editor-empty" role="status" aria-live="polite" data-testid="data-source-catalog-loading">
+          {copy.catalogLoading}
+        </div>
+      )}
+      {catalogStatus === 'error' && (
+        <section className="eng-preview-panel" role="alert" data-testid="data-source-catalog-error">
+          <header>
+            <strong className="invalid">{copy.catalogError}</strong>
+            <button
+              type="button"
+              onClick={() => setCatalogLoadVersion(version => version + 1)}
+              data-testid="data-source-catalog-reload"
+            >
+              {copy.catalogReload}
+            </button>
+          </header>
+          <span>{catalogError}</span>
+        </section>
+      )}
+      {catalogStatus === 'ready' && catalog.length === 0 && (
+        <div className="eng-editor-empty" role="status" data-testid="data-source-catalog-empty">
+          {copy.catalogEmpty}
+        </div>
+      )}
       <div className="eng-editor-layout">
         <aside className="eng-entity-picker">
           {sources.map(source => (
@@ -227,7 +259,8 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
                   data-testid="data-source-type"
                   value={currentType?.typeKey ?? draft.driver}
                   onChange={event => changeType(event.target.value)}
-                  disabled={catalog.length === 0}
+                  disabled={catalogStatus !== 'ready' || catalog.length === 0}
+                  aria-busy={catalogStatus === 'loading'}
                 >
                   {unsupported && <option value={draft.driver}>{copy.unsupported}: {draft.driver}</option>}
                   {!draft.driver && <option value="">{copy.chooseType}</option>}
@@ -407,7 +440,7 @@ function clientIssueMessage(issue: DataSourceDraftIssue, copy: EditorText): stri
 function text(locale: EngineeringLocale) {
   if (locale === 'en') return {
     title: 'Data Source editor', description: 'Choose a source type from the backend catalog. Configuration fields come from that type schema.',
-    newSource: 'New Data Source', catalogError: 'Could not load source type catalog', noSelection: 'Select or create a Data Source.',
+    newSource: 'New Data Source', catalogLoading: 'Loading Data Source types…', catalogError: 'Could not load source type catalog', catalogEmpty: 'No Data Source types are available in this build.', catalogReload: 'Reload catalog', noSelection: 'Select or create a Data Source.',
     name: 'Name', key: 'Key', type: 'Data Source type', enabled: 'Enabled', yes: 'Yes', no: 'No', chooseType: 'Choose a type',
     unsupported: 'Unavailable type', unsupportedHint: 'This persisted type is not available in this build. Select a supported type explicitly; it will not be remapped silently.',
     settings: 'Type configuration', settingsHint: 'Only fields declared by the selected backend schema are editable.', noSettings: 'This source type has no configuration fields.',
@@ -419,7 +452,7 @@ function text(locale: EngineeringLocale) {
   };
   if (locale === 'es') return {
     title: 'Editor de Data Source', description: 'Seleccione un tipo del catálogo backend. Los campos provienen del schema de ese tipo.',
-    newSource: 'Nueva Data Source', catalogError: 'No se pudo cargar el catálogo de tipos', noSelection: 'Seleccione o cree una Data Source.',
+    newSource: 'Nueva Data Source', catalogLoading: 'Cargando tipos de Data Source…', catalogError: 'No se pudo cargar el catálogo de tipos', catalogEmpty: 'No hay tipos de Data Source disponibles en esta build.', catalogReload: 'Recargar catálogo', noSelection: 'Seleccione o cree una Data Source.',
     name: 'Nombre', key: 'Clave', type: 'Tipo de Data Source', enabled: 'Habilitado', yes: 'Sí', no: 'No', chooseType: 'Seleccione un tipo',
     unsupported: 'Tipo no disponible', unsupportedHint: 'El tipo persistido no existe en esta build. Seleccione otro explícitamente; no será reinterpretado.',
     settings: 'Configuración del tipo', settingsHint: 'Solo los campos declarados por el schema backend son editables.', noSettings: 'Este tipo no tiene campos de configuración.',
@@ -431,7 +464,7 @@ function text(locale: EngineeringLocale) {
   };
   return {
     title: 'Editor de Data Source', description: 'Escolha um tipo no catálogo do backend. Os campos de configuração vêm do schema desse tipo.',
-    newSource: 'Nova Data Source', catalogError: 'Não foi possível carregar o catálogo de tipos', noSelection: 'Selecione ou crie uma Data Source.',
+    newSource: 'Nova Data Source', catalogLoading: 'Carregando tipos de Data Source…', catalogError: 'Não foi possível carregar o catálogo de tipos', catalogEmpty: 'Nenhum tipo de Data Source está disponível nesta build.', catalogReload: 'Recarregar catálogo', noSelection: 'Selecione ou crie uma Data Source.',
     name: 'Nome', key: 'Chave', type: 'Tipo de Data Source', enabled: 'Habilitado', yes: 'Sim', no: 'Não', chooseType: 'Escolha um tipo',
     unsupported: 'Tipo indisponível', unsupportedHint: 'O tipo persistido não existe nesta build. Selecione outro explicitamente; ele não será reinterpretado silenciosamente.',
     settings: 'Configuração do tipo', settingsHint: 'Somente campos declarados pelo schema do backend podem ser editados.', noSettings: 'Este tipo não possui campos de configuração.',

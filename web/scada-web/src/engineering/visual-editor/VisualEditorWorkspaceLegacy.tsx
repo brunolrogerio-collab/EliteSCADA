@@ -460,6 +460,12 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
                 onRemoveAnalogFill={() => handleMutationIntent({
                   kind: 'analogFill.remove', objectId: selectedElement.id!
                 })}
+                onSetPropertyMap={configuration => handleMutationIntent({
+                  kind: 'propertyMap.set', objectId: selectedElement.id!, configuration
+                })}
+                onRemovePropertyMap={propertyKey => handleMutationIntent({
+                  kind: 'propertyMap.remove', objectId: selectedElement.id!, propertyKey
+                })}
               />
             ) : null}
 

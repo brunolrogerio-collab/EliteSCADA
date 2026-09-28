@@ -34,6 +34,7 @@ export function applyProtectedVisualEditorMutationIntent(
     case 'property.remove':
       assertVisualElementsAuthoringEditable(screen, intent.objectIds);
       return applyLegacyVisualEditorMutationIntent(screen, intent, options);
+    case 'object.rename':
     case 'object.resize':
     case 'polygon.points.set':
     case 'binding.set':

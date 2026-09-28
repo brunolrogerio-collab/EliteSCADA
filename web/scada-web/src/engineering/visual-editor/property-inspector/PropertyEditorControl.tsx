@@ -317,7 +317,10 @@ function ColorControl({
           disabled={!definition.engineeringEditable}
           aria-label={`${definition.key} color`}
           onChange={event => {
-            const next = withColorAlpha(event.currentTarget.value, alpha);
+            // A first color choice must be immediately visible. Canonical color defaults may be
+            // fully transparent (#RRGGBB00); preserving that zero alpha makes the picker look broken.
+            // Preserve intentional translucency, but promote the transparent default to opaque.
+            const next = withColorAlpha(event.currentTarget.value, alpha === 0 ? 100 : alpha);
             setDraft(next);
             setDirty(false);
             commit(next);

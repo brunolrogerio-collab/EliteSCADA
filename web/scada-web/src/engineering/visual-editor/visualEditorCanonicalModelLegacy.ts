@@ -114,6 +114,8 @@ export function applyVisualEditorMutationIntent(
   switch (intent.kind) {
     case 'object.add':
       return addVisualObject(screen, intent.objectType, intent.parentObjectId ?? null, intent.at ?? null, intent.initialProperties, createObjectId);
+    case 'object.rename':
+      return renameVisualObject(screen, intent.objectId, intent.key);
     case 'dynamo.add':
       return addDynamoInstance(screen, intent, createObjectId);
     case 'object.move':
@@ -152,6 +154,31 @@ export function applyVisualEditorMutationIntent(
     case 'analogFill.remove':
       return removeVisualAnalogFill(screen, intent.objectId);
   }
+}
+
+function renameVisualObject(
+  screen: ScreenEngineering,
+  objectId: string,
+  rawKey: string
+): ScreenEngineering {
+  const element = requireVisualElement(screen, objectId);
+  const key = rawKey.trim();
+  if (!key) throw new Error('Visual object developer Key is required.');
+
+  const siblings = findSiblingElements(screen.elements ?? [], objectId);
+  if (!siblings) throw new Error(`Visual object '${objectId}' has no canonical sibling container.`);
+
+  const normalized = key.toLocaleLowerCase('en-US');
+  const duplicate = siblings.find(candidate =>
+    candidate.id !== objectId &&
+    candidate.key.trim().toLocaleLowerCase('en-US') === normalized
+  );
+  if (duplicate) {
+    throw new Error(`Visual object Key '${key}' is already used by a sibling object.`);
+  }
+
+  if (element.key === key) return screen;
+  return updateScreenElement(screen, objectId, current => ({ ...current, key }));
 }
 
 function addDynamoInstance(

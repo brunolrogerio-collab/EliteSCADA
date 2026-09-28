@@ -25,6 +25,7 @@ import { DynamoLibraryPalette } from './DynamoLibraryPalette';
 import { ObjectPalette } from './object-palette';
 import { createCanonicalPolygon, updateCanonicalPolygonPoints } from './polygonCanonicalMutations';
 import { PropertyInspector } from './property-inspector';
+import { VisualEditorRegionToggle } from './VisualEditorRegionToggle';
 import {
   NEW_SCREEN_IDENTITY,
   applyVisualEditorMutationIntent,
@@ -89,6 +90,9 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
   const [applying, setApplying] = useState(false);
   const [importingAsset, setImportingAsset] = useState(false);
   const [polygonToolActive, setPolygonToolActive] = useState(false);
+  const [screensCollapsed, setScreensCollapsed] = useState(false);
+  const [paletteCollapsed, setPaletteCollapsed] = useState(false);
+  const [propertiesCollapsed, setPropertiesCollapsed] = useState(false);
   const [clientMemoryDefinitions, setClientMemoryDefinitions] = useState<readonly ClientMemoryDefinitionView[]>(Object.freeze([]));
 
   const replaceSession = (next: VisualEditorSessionState) => {
@@ -333,7 +337,14 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
   const issues = preview?.items.flatMap(item => item.issues ?? []) ?? [];
   const objectCount = countVisualElements(draft.elements);
 
-  return <div className="eng-section visual-editor-workspace" data-testid="visual-editor-workspace">
+  const layoutClassName = [
+    'eng-section visual-editor-workspace',
+    screensCollapsed ? 'visual-editor-workspace--screens-collapsed' : '',
+    paletteCollapsed ? 'visual-editor-workspace--palette-collapsed' : '',
+    propertiesCollapsed ? 'visual-editor-workspace--properties-collapsed' : ''
+  ].filter(Boolean).join(' ');
+
+  return <div className={layoutClassName} data-testid="visual-editor-workspace">
     <header className="visual-editor-header">
       <div><span>{text.eyebrow}</span><h1>{text.title}</h1><p>{text.description}</p></div>
       <div className="visual-editor-authority"><strong>{text.authorityTitle}</strong><span>{text.authorityHint}</span></div>
@@ -341,7 +352,13 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
 
     <div className="visual-editor-shell">
       <aside className="visual-editor-screens" aria-label={text.screenList}>
-        <header><strong>{text.screens}</strong><button type="button" className={isNew ? 'active' : ''} onClick={() => chooseScreen(NEW_SCREEN_IDENTITY)}>+ {text.newScreen}</button></header>
+        <header>
+          <strong>{text.screens}</strong>
+          <div className="visual-editor-region-actions">
+            <button type="button" className={isNew ? 'active' : ''} onClick={() => chooseScreen(NEW_SCREEN_IDENTITY)}>+ {text.newScreen}</button>
+            <VisualEditorRegionToggle region="screens" collapsed={screensCollapsed} locale={locale} onToggle={() => setScreensCollapsed(value => !value)} />
+          </div>
+        </header>
         <div className="visual-editor-screen-list">
           {screens.map(screen => {
             const identity = screenIdentity(screen);
@@ -362,6 +379,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
 
         <div className="visual-editor-composition">
           <aside className="visual-editor-slot visual-editor-palette-slot">
+            <VisualEditorRegionToggle region="palette" collapsed={paletteCollapsed} locale={locale} onToggle={() => setPaletteCollapsed(value => !value)} />
             <ObjectPalette
               onMutationIntent={handlePaletteIntent}
               copy={{ title: text.objectsPanel, hint: text.objectsPanelHint, addLabel: text.addObject, labels: text.objectLabels }}
@@ -412,6 +430,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
           </section>
 
           <aside className="visual-editor-slot visual-editor-inspector-slot">
+            <VisualEditorRegionToggle region="properties" collapsed={propertiesCollapsed} locale={locale} onToggle={() => setPropertiesCollapsed(value => !value)} />
             <PropertyInspector
               selectedElements={selectedElements}
               visualAssets={visualAssets}

@@ -232,3 +232,62 @@
     grid-column: 1;
   }
 }
+
+/* W15 Editor-first: Engineering Lock lives in the Engineering top bar and expands only on demand. */
+.eng-top-actions { position: relative; }
+.eng-lock-management--topbar {
+  width: auto;
+  margin: 0;
+  overflow: visible;
+  border-radius: 7px;
+  background: #111922;
+}
+.eng-lock-management--topbar .eng-lock-management__summary {
+  min-height: 34px;
+  min-width: 38px;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  gap: 7px;
+  padding: 5px 8px;
+}
+.eng-lock-management__padlock {
+  width: 20px;
+  height: 20px;
+  display: grid !important;
+  place-items: center;
+  border: 1px solid #3b5469;
+  border-radius: 5px;
+  color: var(--eng-accent, #58a6d6);
+  font-size: 10px !important;
+  letter-spacing: 0 !important;
+}
+.eng-lock-management__summary-copy { display: none; min-width: 0; }
+.eng-lock-management--topbar[open] .eng-lock-management__summary-copy { display: grid; gap: 1px; }
+.eng-lock-management__summary-copy strong { font-size: 11px; white-space: nowrap; }
+.eng-lock-management__summary-copy small { color: var(--eng-muted, #8e9baa); font-size: 9px; white-space: nowrap; }
+.eng-lock-management--topbar > .eng-lock-management__body,
+.eng-lock-management--topbar > .eng-lock-notice,
+.eng-lock-management--topbar > .eng-lock-error {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  width: min(720px, calc(100vw - 32px));
+  background: var(--eng-panel, #121922);
+  border: 1px solid var(--eng-border, #283544);
+  box-shadow: 0 14px 40px rgba(0,0,0,.38);
+}
+.eng-lock-management--topbar > .eng-lock-management__body {
+  grid-template-columns: minmax(220px,1.3fr) auto;
+  border-radius: 9px;
+}
+.eng-lock-management--topbar .eng-lock-management__hint { grid-column: 1 / -1; }
+.eng-lock-management--topbar > .eng-lock-notice,
+.eng-lock-management--topbar > .eng-lock-error {
+  top: calc(100% + 8px);
+  margin: 0;
+  border-radius: 8px;
+}
+@media (max-width: 720px) {
+  .eng-lock-management--topbar > .eng-lock-management__body { grid-template-columns: 1fr; }
+  .eng-lock-management--topbar .eng-lock-management__hint { grid-column: 1; }
+}

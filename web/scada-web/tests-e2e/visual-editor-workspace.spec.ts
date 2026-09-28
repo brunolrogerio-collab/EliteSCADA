@@ -27,6 +27,13 @@ type ExportedPackage = {
     elements?: ExportedVisualElement[] | null;
     [key: string]: unknown;
   }>;
+  popups?: Array<{
+    id?: string;
+    key: string;
+    name: string;
+    elements?: ExportedVisualElement[] | null;
+    [key: string]: unknown;
+  }>;
   tags?: Array<{
     id?: string;
     name: string;
@@ -261,6 +268,126 @@ test('FOLLOW-B mounted editor persists expression, Boolean Condition and Analog 
 
     await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();
     await expect(page.locator('.visual-editor-object-error')).toHaveCount(0);
+  } finally {
+    const restore = await request.post('/api/engineering/import/json/apply', {
+      headers: { 'content-type': 'application/json; charset=utf-8' }, data: originalPackage
+    });
+    expect(restore.ok()).toBeTruthy();
+  }
+});
+
+test('W15 first-user flow configures rectangle and Text through canonical WYSIWYG in Screen and Popup', async ({ page, request }, testInfo) => {
+  const originalResponse = await request.get('/api/engineering/export/json');
+  expect(originalResponse.ok()).toBeTruthy();
+  const originalPackage = await originalResponse.json() as ExportedPackage;
+  const originalScreen = originalPackage.screens?.[0];
+  const originalPopup = originalPackage.popups?.[0];
+  expect(originalScreen).toBeTruthy();
+  expect(originalPopup).toBeTruthy();
+
+  async function exercise(kind: 'screen' | 'popup') {
+    const root = kind === 'screen' ? page.getByTestId('visual-editor-workspace') : page.getByTestId('popup-visual-editor-workspace');
+    const palette = root.getByTestId('visual-object-palette');
+    const inspector = root.getByTestId('visual-property-inspector');
+
+    await palette.locator('[data-object-type="core.rectangle"]').click();
+    const rectangle = root.locator('[data-canvas-object-type="core.rectangle"]').last();
+    await rectangle.click();
+    const rectangleId = await rectangle.getAttribute('data-canvas-object-id');
+    expect(rectangleId).toBeTruthy();
+    await expect(inspector.getByTestId('visual-property-identity-id')).toHaveText(rectangleId!);
+    await expect(root.getByTestId('visual-editor-outliner').locator('[role="treeitem"][aria-selected="true"]')).toHaveCount(1);
+
+    await inspector.locator('[data-property-key="fillColor"] input[type="color"]').fill('#123456');
+    await inspector.locator('[data-property-key="strokeColor"] input[type="color"]').fill('#654321');
+    const strokeWidth = inspector.locator('[data-property-key="strokeWidth"] input');
+    await strokeWidth.fill('5');
+    await strokeWidth.press('Enter');
+
+    const canonicalRectangle = root.getByTestId('visual-editor-canonical-layer').locator('[data-object-id="' + rectangleId + '"]');
+    await expect.poll(() => canonicalRectangle.evaluate(element => ({
+      fill: getComputedStyle(element).backgroundColor,
+      stroke: getComputedStyle(element).borderTopColor,
+      width: getComputedStyle(element).borderTopWidth
+    }))).toEqual({ fill: 'rgb(18, 52, 86)', stroke: 'rgb(101, 67, 33)', width: '5px' });
+
+    const renamedRect = 'rect-' + kind + '-first-user';
+    await inspector.getByTestId('visual-property-identity-key').fill(renamedRect);
+    await inspector.getByTestId('visual-property-identity-key').press('Enter');
+    await expect(rectangle).toHaveAttribute('data-canvas-object-id', rectangleId!);
+    await expect(rectangle).toHaveAttribute('data-canvas-object-key', renamedRect);
+
+    await palette.locator('[data-object-type="core.text"]').click();
+    const textObject = root.locator('[data-canvas-object-type="core.text"]').last();
+    await textObject.click();
+    const textId = await textObject.getAttribute('data-canvas-object-id');
+    expect(textId).toBeTruthy();
+    const literal = 'W15 ' + kind.toUpperCase() + ' FIRST USER';
+    const literalInput = inspector.locator('[data-property-key="text"] input');
+    await literalInput.fill(literal);
+    await literalInput.press('Enter');
+    const textKey = 'text-' + kind + '-first-user';
+    await inspector.getByTestId('visual-property-identity-key').fill(textKey);
+    await inspector.getByTestId('visual-property-identity-key').press('Enter');
+
+    const canonicalText = root.getByTestId('visual-editor-canonical-layer').locator('[data-object-id="' + textId + '"]');
+    await expect(canonicalText).toContainText(literal);
+    await expect(root.getByTestId('visual-editor-outliner').locator('[role="treeitem"][aria-selected="true"]')).toContainText(textKey);
+
+    const surface = root.locator('.visual-editor-canvas__surface');
+    await surface.focus();
+    await surface.press('Control+z');
+    await expect(textObject).not.toHaveAttribute('data-canvas-object-key', textKey);
+    await expect(textObject).toHaveAttribute('data-canvas-object-id', textId!);
+    await surface.press('Control+Shift+z');
+    await expect(textObject).toHaveAttribute('data-canvas-object-key', textKey);
+
+    return { rectangleId: rectangleId!, textId: textId!, literal, textKey };
+  }
+
+  try {
+    await page.goto('/engineering');
+    await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
+    await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: originalScreen!.key }).click();
+    const screenProof = await exercise('screen');
+
+    await page.getByTestId('visual-editor-preview').click();
+    await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
+    await expect(page.getByTestId('visual-editor-apply')).toBeEnabled();
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByTestId('visual-editor-apply').click();
+    await page.reload();
+    await expect(page.getByTestId('visual-editor-canonical-layer').locator('[data-object-id="' + screenProof.textId + '"]')).toContainText(screenProof.literal);
+    await testInfo.attach('screen-first-user-save-reopen', {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: 'image/png'
+    });
+
+    await page.locator('.eng-nav').getByRole('button', { name: /Popups/ }).click();
+    await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: originalPopup!.key }).click();
+    const popupProof = await exercise('popup');
+
+    await page.getByTestId('popup-visual-editor-preview').click();
+    await expect(page.getByTestId('popup-visual-editor-apply')).toBeEnabled();
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByTestId('popup-visual-editor-apply').click();
+    await page.reload();
+    await expect(page.getByTestId('visual-editor-canonical-layer').locator('[data-object-id="' + popupProof.textId + '"]')).toContainText(popupProof.literal);
+    await testInfo.attach('popup-first-user-save-reopen', {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: 'image/png'
+    });
+
+    const persistedResponse = await request.get('/api/engineering/export/json');
+    const persisted = await persistedResponse.json() as ExportedPackage;
+    const screenAfter = persisted.screens?.find(item => item.id === originalScreen!.id || item.key === originalScreen!.key);
+    const popupAfter = persisted.popups?.find(item => item.id === originalPopup!.id || item.key === originalPopup!.key);
+    expect(flatten(screenAfter?.elements ?? []).find(item => item.id === screenProof.textId)).toMatchObject({
+      id: screenProof.textId, key: screenProof.textKey, properties: { text: screenProof.literal }
+    });
+    expect(flatten(popupAfter?.elements ?? []).find(item => item.id === popupProof.textId)).toMatchObject({
+      id: popupProof.textId, key: popupProof.textKey, properties: { text: popupProof.literal }
+    });
   } finally {
     const restore = await request.post('/api/engineering/import/json/apply', {
       headers: { 'content-type': 'application/json; charset=utf-8' }, data: originalPackage

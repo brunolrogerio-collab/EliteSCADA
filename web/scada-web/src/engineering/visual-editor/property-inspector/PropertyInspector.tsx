@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { EngineeringLocale } from '../../i18n';
 import type { VisualEditorPropertyInspectorContractProps } from '../visualEditorContracts';
-import type { VisualAssetEngineering, VisualEngineeringPropertyValue } from '../../types';
+import type { VisualAssetEngineering, VisualElementEngineering, VisualEngineeringPropertyValue } from '../../types';
 import { BUILTIN_VISUAL_OBJECT_TYPES, VISUAL_PROPERTY_KEYS } from '../../../visual-runtime';
 import { BrowserConfigurationEditor } from '../BrowserConfigurationEditor';
 import { EventsEditor } from '../events-editor/EventsEditor';
@@ -24,6 +24,11 @@ import './PropertyInspector.css';
 
 export type PropertyInspectorCopy = Readonly<{
   title: string;
+  identity: string;
+  developerKey: string;
+  stableId: string;
+  renameHint: string;
+  keyRequired: string;
   noSelection: string;
   selectHint: string;
   selected: (count: number) => string;
@@ -52,6 +57,11 @@ export type PropertyInspectorProps = VisualEditorPropertyInspectorContractProps 
 
 const DEFAULT_COPY: PropertyInspectorCopy = {
   title: 'Properties',
+  identity: 'Identity',
+  developerKey: 'Development name (Key)',
+  stableId: 'Stable Id',
+  renameHint: 'Rename changes the developer Key only. Stable identity is preserved.',
+  keyRequired: 'Development Key is required.',
   noSelection: 'No selection',
   selectHint: 'Select a visual object to inspect its registered properties.',
   selected: count => `${count} selected`,
@@ -151,6 +161,12 @@ export function PropertyInspector({
       </header>
 
       {model.diagnostic ? <p className="property-inspector__diagnostic" role="status">{model.diagnostic}</p> : null}
+
+      {selectedElements.length === 1 && selectedElements[0].id ? <IdentityEditor
+        element={selectedElements[0]}
+        text={text}
+        onMutationIntent={onMutationIntent}
+      /> : null}
 
       <label className="property-inspector__filter">
         <span>{text.filterLabel}</span>
@@ -300,6 +316,65 @@ function PropertyField({ model, row, text, locale, visualAssets, onMutationInten
   );
 }
 
+function IdentityEditor({
+  element,
+  text,
+  onMutationIntent
+}: {
+  element: VisualElementEngineering;
+  text: PropertyInspectorCopy;
+  onMutationIntent: VisualEditorPropertyInspectorContractProps['onMutationIntent'];
+}) {
+  const [keyDraft, setKeyDraft] = useState(element.key);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setKeyDraft(element.key);
+    setError(null);
+  }, [element.id, element.key]);
+
+  const commit = () => {
+    const key = keyDraft.trim();
+    if (!key) {
+      setError(text.keyRequired);
+      return;
+    }
+    setKeyDraft(key);
+    setError(null);
+    if (key === element.key || !element.id) return;
+    onMutationIntent({ kind: 'object.rename', objectId: element.id, key });
+  };
+
+  return <section className="property-inspector__identity" data-testid="visual-property-identity">
+    <header>
+      <strong>{text.identity}</strong>
+      <span>{text.renameHint}</span>
+    </header>
+    <label>
+      <span>{text.developerKey}</span>
+      <input
+        data-testid="visual-property-identity-key"
+        value={keyDraft}
+        onChange={event => { setKeyDraft(event.currentTarget.value); setError(null); }}
+        onBlur={commit}
+        onKeyDown={event => {
+          if (event.key === 'Enter') event.currentTarget.blur();
+          if (event.key === 'Escape') {
+            setKeyDraft(element.key);
+            setError(null);
+            event.currentTarget.blur();
+          }
+        }}
+      />
+    </label>
+    <div className="property-inspector__stable-id">
+      <span>{text.stableId}</span>
+      <code data-testid="visual-property-identity-id">{element.id}</code>
+    </div>
+    {error ? <p className="property-inspector__validation" role="alert">{error}</p> : null}
+  </section>;
+}
+
 export function humanizeVisualPropertyKey(propertyKey: string): string {
   if (!propertyKey) return propertyKey;
   const words = propertyKey.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
@@ -344,16 +419,31 @@ function stateLabel(row: PropertyInspectorRow, text: PropertyInspectorCopy): str
 
 function propertyInspectorChromeText(locale: EngineeringLocale) {
   if (locale === 'pt-BR') return {
+    identity: 'Identidade',
+    developerKey: 'Nome de desenvolvimento (Key)',
+    stableId: 'Id estável',
+    renameHint: 'Renomear altera apenas o Key de desenvolvimento. A identidade estável é preservada.',
+    keyRequired: 'O Key de desenvolvimento é obrigatório.',
     filterLabel: 'Filtrar propriedades',
     filterPlaceholder: 'Nome ou chave canônica',
     noMatches: 'Nenhuma propriedade corresponde ao filtro.'
   };
   if (locale === 'es') return {
+    identity: 'Identidad',
+    developerKey: 'Nombre de desarrollo (Key)',
+    stableId: 'Id estable',
+    renameHint: 'Renombrar cambia solo el Key de desarrollo. La identidad estable se preserva.',
+    keyRequired: 'El Key de desarrollo es obligatorio.',
     filterLabel: 'Filtrar propiedades',
     filterPlaceholder: 'Nombre o clave canónica',
     noMatches: 'Ninguna propiedad coincide con el filtro.'
   };
   return {
+    identity: 'Identity',
+    developerKey: 'Development name (Key)',
+    stableId: 'Stable Id',
+    renameHint: 'Rename changes the developer Key only. Stable identity is preserved.',
+    keyRequired: 'Development Key is required.',
     filterLabel: 'Filter properties',
     filterPlaceholder: 'Name or canonical key',
     noMatches: 'No properties match this filter.'

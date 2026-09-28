@@ -77,12 +77,13 @@ const navigation: NavGroup[] = [
   ] }
 ];
 
-export function EngineeringApp() {
+export function EngineeringApp({ engineeringLockControl }: { engineeringLockControl?: React.ReactNode } = {}) {
   const [locale, setLocale] = useState<EngineeringLocale>(() => resolveInitialLocale());
   const [section, setSection] = useState<SectionId>(() => resolveInitialSection());
   const [snapshot, setSnapshot] = useState<EngineeringSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [navigationCollapsed, setNavigationCollapsed] = useState(false);
   const t = useMemo(() => translator(locale), [locale]);
 
   const load = useCallback(async () => {
@@ -121,6 +122,7 @@ export function EngineeringApp() {
           <div><strong>{t('app.title')}</strong><span>{t('app.subtitle')}</span></div>
         </div>
         <div className="eng-top-actions">
+          {engineeringLockControl}
           <a className="eng-runtime-link" href="/">{t('app.runtime')}</a>
           <div className="eng-locale">
             <label htmlFor="engineering-locale">{t('locale.label')}</label>
@@ -133,8 +135,17 @@ export function EngineeringApp() {
         </div>
       </header>
 
-      <div className="eng-body">
+      <div className={navigationCollapsed ? 'eng-body eng-body--navigation-collapsed' : 'eng-body'}>
         <aside className="eng-sidebar" aria-label={t('app.engineering')}>
+          {(section === 'screens' || section === 'popups') ? <button
+            type="button"
+            className="eng-sidebar__toggle"
+            data-testid="engineering-navigation-toggle"
+            aria-expanded={!navigationCollapsed}
+            aria-label={navigationCollapsed ? editorNavigationLabel(locale, true) : editorNavigationLabel(locale, false)}
+            title={navigationCollapsed ? editorNavigationLabel(locale, true) : editorNavigationLabel(locale, false)}
+            onClick={() => setNavigationCollapsed(value => !value)}
+          ><span aria-hidden="true">{navigationCollapsed ? '›' : '‹'}</span></button> : null}
           <div className="eng-project-chip">
             <span>{t('workspace.project')}</span>
             <strong data-testid="engineering-project-identity">
@@ -174,6 +185,12 @@ export function EngineeringApp() {
       </div>
     </main>
   );
+}
+
+function editorNavigationLabel(locale: EngineeringLocale, collapsed: boolean): string {
+  if (locale === 'en') return collapsed ? 'Show Engineering navigation' : 'Hide Engineering navigation';
+  if (locale === 'es') return collapsed ? 'Mostrar navegación de Engineering' : 'Ocultar navegación de Engineering';
+  return collapsed ? 'Mostrar navegação do Engineering' : 'Ocultar navegação do Engineering';
 }
 
 function WorkspaceBar({ snapshot, loading, t, locale }: {

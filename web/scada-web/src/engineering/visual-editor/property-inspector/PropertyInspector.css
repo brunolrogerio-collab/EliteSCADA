@@ -265,3 +265,88 @@
 .property-inspector__field-label code { font-size: 0.61rem; }
 .property-inspector__field input[type='text'], .property-inspector__field input[type='number'], .property-inspector__field select { min-height: 30px; padding: 0.25rem 0.4rem; }
 .property-inspector__field-meta, .property-inspector__state { font-size: 0.66rem; }
+
+/* W15 first-user correction: the Inspector must remain readable inside the dark Engineering shell. */
+.eng-shell .property-inspector {
+  background: var(--eng-panel, #121922);
+  color: var(--eng-text, #e8edf3);
+  border-color: var(--eng-border, #283544);
+}
+.eng-shell .property-inspector__header,
+.eng-shell .property-inspector__group-toggle {
+  background: var(--eng-panel-soft, #17212c);
+  color: var(--eng-text, #e8edf3);
+  border-color: var(--eng-border, #283544);
+}
+.eng-shell .property-inspector__header span,
+.eng-shell .property-inspector__diagnostic,
+.eng-shell .property-inspector__field-label code,
+.eng-shell .property-inspector__field-meta,
+.eng-shell .property-inspector__state,
+.eng-shell .property-inspector__filter > span,
+.eng-shell .property-inspector__identity header span,
+.eng-shell .property-inspector__stable-id > span {
+  color: var(--eng-muted, #a7b4c2);
+  opacity: 1;
+}
+.eng-shell .property-inspector input,
+.eng-shell .property-inspector select,
+.eng-shell .property-inspector textarea {
+  background: var(--eng-bg, #0b1016);
+  color: var(--eng-text, #e8edf3);
+  border-color: var(--eng-border, #34465a);
+}
+.eng-shell .property-inspector input::placeholder,
+.eng-shell .property-inspector textarea::placeholder {
+  color: var(--eng-muted, #a7b4c2);
+  opacity: 1;
+}
+.eng-shell .property-inspector__field {
+  border-color: var(--eng-border-soft, #202c39);
+  background: rgba(11, 16, 22, 0.24);
+}
+.property-inspector__identity {
+  display: grid;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--eng-border, var(--border-color, rgba(127,127,127,.28)));
+  background: rgba(88, 166, 214, 0.055);
+}
+.property-inspector__identity > header {
+  display: grid;
+  gap: 3px;
+}
+.property-inspector__identity > header span {
+  font-size: .75rem;
+  line-height: 1.35;
+}
+.property-inspector__identity label {
+  display: grid;
+  gap: 5px;
+  font-size: .78rem;
+}
+.property-inspector__identity input {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid var(--eng-border, var(--border-color, rgba(127,127,127,.28)));
+  border-radius: 6px;
+  font: inherit;
+}
+.property-inspector__stable-id {
+  display: grid;
+  gap: 4px;
+}
+.property-inspector__stable-id > span {
+  font-size: .72rem;
+}
+.property-inspector__stable-id code {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--eng-text, inherit);
+  font-size: .72rem;
+}

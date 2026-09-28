@@ -331,3 +331,183 @@ PR #362 local operator remains PARKED / NO LIFECYCLE / NO MERGE pending separate
 4. keep downstream lanes prepared but contract-gated;
 5. integrate only exact reviewed candidates sequentially;
 6. update this control file whenever a contract freezes or lane changes state.
+
+
+---
+
+## 11. Mandatory second Preview + Audit before returning to original Wave 15 flow
+
+**Product Owner decision:** the current CORRECTION-NOW program is a temporary correction phase. It does **not** replace the original Wave 15 complete-product plan.
+
+The return sequence is binding:
+
+```text
+CORRECTION-NOW
+  -> integrated correction candidate
+  -> SECOND PREVIEW + AUDIT ROUND
+  -> residual correction/recheck if needed
+  -> CORRECTION PHASE ACCEPTED
+  -> resume original Wave 15 deferred flow
+```
+
+There is no direct jump from individual correction PRs to EliteGO/Redundancy/new architecture work.
+
+### Phase R2-0 — correction candidate assembly
+
+Entry:
+- C0/C1 material corrections integrated;
+- required contract owners frozen/integrated;
+- C2 user-facing disconnected surfaces completed to the degree scheduled for this correction round;
+- exact integration SHA selected;
+- exact-SHA CI/focused regression green;
+- local/remote harnesses rebuilt from that exact candidate;
+- no known unresolved P0/P1 that invalidates a fresh journey.
+
+Output:
+`W15-CORRECTION-ROUND2-CANDIDATE = READY`.
+
+### Phase R2-1 — independent fresh Preview round 2
+
+Run a second fresh-install / first-project journey against the same exact correction candidate.
+
+Two independent views are preferred again:
+
+1. **CODEX black-box/product-visible Preview**
+   - clean state;
+   - normal UI/Help;
+   - no source/internal shortcuts during discovery;
+   - create a real first project and reach a useful Runtime.
+
+2. **Product Owner Human Preview**
+   - independent clean state;
+   - no CODEX navigation hints before Human disposition;
+   - normal user path;
+   - specifically re-exercise the failures found in round 1.
+
+Minimum Round-2 user path:
+- fresh bootstrap/no hidden Demo;
+- project creation;
+- Data Source Type selection;
+- TAG creation/use;
+- Working -> Save/Publish -> Activate -> Runtime;
+- Security/User administration;
+- Screen + Popup authoring;
+- rectangle fill/stroke;
+- Text literal + dynamic display where integrated;
+- NumericInput/setpoint where integrated;
+- Animations/context/group workflow where integrated;
+- Script object/property authoring where integrated;
+- Library/Dynamo preview and reusable-object workflow where integrated;
+- TAG Gateway multi-route flow where integrated;
+- restart/reopen persistence;
+- truthful local/remote failure states.
+
+Do not declare the correction phase accepted merely because CI is green.
+
+### Phase R2-2 — directed audit / Stage 2
+
+After the Round-2 independent journey evidence is sealed, activate the prepared directed verification matrix on the **same exact product candidate**.
+
+Use:
+`docs/WAVE15-ENV-A-CODEX-STAGE2-DIRECTED-VERIFICATION.md`
+
+Revalidate the matrix before activation and run the applicable V2-01..V2-20 cases, including:
+- Working/Published/Active/Runtime authority;
+- transport/recovery truth;
+- Editor selection/property behavior;
+- Script Engineering;
+- Server Script recovery;
+- Runtime projection/navigation;
+- Popup values;
+- Trends/Historian/realtime;
+- Authority/Licensing;
+- Neutral/detach;
+- fresh-project Demo absence;
+- Data Source -> TAG;
+- Templates;
+- Editor first-user usability;
+- Library/Dynamo preview;
+- icon/toolbox;
+- Security/remote A/B behavior.
+
+Stage 2 is verification, not an in-place correction session.
+
+### Phase R2-3 — residual correction loop
+
+If Round 2 or Stage 2 finds a material defect:
+
+```text
+finding
+ -> bounded issue/contract owner
+ -> isolated correction branch
+ -> Main/AUD review
+ -> integrate
+ -> exact affected recheck
+```
+
+For any P0/P1 or shared-contract regression, repeat the relevant fresh Round-2 journey before phase acceptance.
+
+Minor bounded residuals require explicit Main/Product Owner disposition; they are not silently carried forward.
+
+### Correction-phase exit gate
+
+Main may record:
+
+`W15-CORRECTION-NOW = ACCEPTED / RETURN_TO_ORIGINAL_W15_FLOW`
+
+only when:
+1. second Human Preview has an accepted disposition;
+2. CODEX independent Preview has an accepted/bounded disposition;
+3. Stage 2 directed verification is complete for applicable items;
+4. no material correction finding remains unresolved;
+5. exact integrated correction SHA is documented;
+6. current contract/control docs are synchronized.
+
+Until that record exists:
+
+`ORIGINAL_W15_DEFERRED_FLOW = HOLD`.
+
+---
+
+## 12. Resume point — original Wave 15 complete-product plan
+
+After the correction-phase exit gate, resume the authoritative original Wave 15 plan from issue #297 rather than inventing a new roadmap.
+
+The deferred major work resumes with:
+
+1. **#298 EliteGO**
+   - distinct companion application;
+   - consume public/versioned EliteSCADA contracts;
+   - redundancy-oriented companion functions;
+   - never become a second industrial authority.
+
+2. **#299 Redundancy / HA**
+   - continue from already-established Foundation/authority work;
+   - complete the accepted distributed-authority/failover product capability;
+   - coordinate its public contract with EliteGO.
+
+3. **remaining original Wave 15 complete-product work**
+   - integration of corrections + Editor + Scripts + EliteGO + HA;
+   - configuration/package topology;
+   - bounded Trends/Popup/P2 retests;
+   - exact-SHA complete-product CI.
+
+4. **#300 final complete-product assembly + fresh Preview**
+   - this is a later final Wave 15 gate;
+   - it is distinct from the correction Round-2 Preview described above;
+   - final Preview must include representative EliteGO + redundancy behavior in addition to the corrected EliteSCADA core.
+
+Important distinction:
+
+```text
+Correction Preview Round 2
+    validates the corrected current product
+    and gates return to deferred Wave 15 work.
+
+#300 Final Wave 15 Preview
+    validates the complete product after EliteGO + HA + all deferred Wave 15 work.
+```
+
+Do not collapse these two gates.
+
+Wave 13 signing/release work remains separately paused unless the Product Owner later changes that decision.

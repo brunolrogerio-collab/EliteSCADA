@@ -46,7 +46,7 @@ public sealed class DistributedRuntimeFoundationTestsProductionAuthorization
             eventBus,
             new EngineeringDriverCompiler(),
             TimeSpan.FromSeconds(2));
-        var runtime = new ScadaRuntimeFacade(fallback, simulation, engineeringRuntime);
+        var runtime = new ScadaRuntimeFacade(engineeringRuntime);
 
         var exchange = new EngineeringExchangeService(workspace.Tags, workspace.Alarms);
         var configuration = new ConfigurationManager
@@ -84,7 +84,7 @@ public sealed class DistributedRuntimeFoundationTestsProductionAuthorization
             TagAccessOperation.Write);
 
         Assert.True(baselineCommand.Allowed);
-        Assert.True(baselineWrite.Allowed);
+        Assert.False(baselineWrite.Allowed);
 
         // A modified authenticated REST client cannot discard Runtime session identity to
         // recover its baseline mutation Authority.

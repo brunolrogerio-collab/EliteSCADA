@@ -23,7 +23,10 @@ test('primary shell keeps authorized application navigation coherent without Eng
 
   let navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
   await expect(navigation.getByRole('link', { name: /Runtime/ })).toHaveAttribute('aria-current', 'page');
-  await expect(page.getByTestId('runtime-engineering-application').or(page.getByTestId('runtime-simulation-fallback'))).toBeVisible();
+  await expect(
+    page.getByTestId('runtime-engineering-application')
+      .or(page.getByTestId('runtime-neutral'))
+  ).toBeVisible();
   await expect(page.locator('.eng-shell')).toHaveCount(0);
   await expect(page.locator('.runtime-tag-inspector')).toHaveCount(0);
 

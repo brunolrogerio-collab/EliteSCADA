@@ -76,7 +76,6 @@ public static class EngineeringPersistenceApi
                     "Engineering Working/Runtime persistence is configured, but engineering persistence is unavailable. Configure ConnectionStrings:EliteScada before selecting a persisted project.");
             }
 
-            app.Services.GetRequiredService<EngineeringWorkspace>().InitializeDemo();
             return;
         }
 
@@ -95,14 +94,11 @@ public static class EngineeringPersistenceApi
             // of using AddOptionalEngineeringPersistence. Production PostgreSQL wiring always
             // registers the durable FND-07 binding store.
             var legacyBootstrap = app.Services.GetRequiredService<IEngineeringWorkingBootstrapService>();
-            var legacyBootstrapResult = await legacyBootstrap.BootstrapAsync(
+            await legacyBootstrap.BootstrapAsync(
                 configuredWorkingProjectKey,
                 configuredWorkingRevision,
                 configuredRuntimeProjectKey,
                 cancellationToken);
-            if (legacyBootstrapResult.Source == EngineeringWorkingBootstrapSource.EmptyCatalog &&
-                app.Configuration.GetValue<bool>("Engineering:InitializeDemoWhenEmpty"))
-                app.Services.GetRequiredService<EngineeringWorkspace>().InitializeDemo();
             await app.RecoverConfiguredEngineeringRuntimeAsync(cancellationToken);
             return;
         }
@@ -132,14 +128,11 @@ public static class EngineeringPersistenceApi
         }
 
         var bootstrap = app.Services.GetRequiredService<IEngineeringWorkingBootstrapService>();
-        var bootstrapResult = await bootstrap.BootstrapAsync(
+        await bootstrap.BootstrapAsync(
             configuredWorkingProjectKey,
             configuredWorkingRevision,
             binding.ProjectKey ?? configuredRuntimeProjectKey,
             cancellationToken);
-        if (bootstrapResult.Source == EngineeringWorkingBootstrapSource.EmptyCatalog &&
-            app.Configuration.GetValue<bool>("Engineering:InitializeDemoWhenEmpty"))
-            app.Services.GetRequiredService<EngineeringWorkspace>().InitializeDemo();
         await app.RecoverConfiguredEngineeringRuntimeAsync(cancellationToken);
     }
 

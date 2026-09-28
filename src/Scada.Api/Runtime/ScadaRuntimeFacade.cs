@@ -6,7 +6,6 @@ using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.DriverHost.Runtime;
 using Scada.Drivers.Abstractions;
-using Scada.Drivers.Simulation;
 
 namespace Scada.Api.Runtime;
 
@@ -22,8 +21,6 @@ public sealed record ScadaRuntimeDescriptor(
     ServerScriptRuntimeSnapshot? ServerScripts = null);
 
 public sealed class ScadaRuntimeFacade(
-    DemoRuntimeServices fallback,
-    SimulationDriver fallbackDriver,
     IEngineeringRuntimeCoordinator engineeringRuntime,
     GatewayEngineeringRuntimeCoordinator? operationalEvents = null,
     IScadaEventBus? eventBus = null,
@@ -34,82 +31,72 @@ public sealed class ScadaRuntimeFacade(
     private IOperationalEventRuntime? EventRuntime =>
         operationalEvents ?? engineeringRuntime as IOperationalEventRuntime;
 
-    public bool IsEngineeringActive => engineeringRuntime.Describe().Revision.HasValue;
     public bool IsInstallationNeutral => installationFence?.ProcessEffectsFenced == true;
+    public bool IsEngineeringActive
+    {
+        get
+        {
+            var active = engineeringRuntime.Describe();
+            return !IsInstallationNeutral &&
+                   active.Revision.HasValue &&
+                   !string.IsNullOrWhiteSpace(active.ProjectKey);
+        }
+    }
 
     public ScadaRuntimeDescriptor Describe()
     {
         if (IsInstallationNeutral)
         {
-            return new ScadaRuntimeDescriptor(
-                "neutral",
-                null,
-                null,
-                null,
-                Array.Empty<DriverStatus>(),
-                Array.Empty<CommunicationDriverDiagnosticSnapshot>(),
-                0,
-                0,
-                null);
+            return NeutralDescriptor();
         }
 
         var engineering = engineeringRuntime.Describe();
-        if (engineering.Revision.HasValue)
-        {
-            var serverScripts = eventBus is not null && configuration is not null
-                ? ServerScriptRuntimeManager.GetShared(
-                    engineeringRuntime,
-                    eventBus,
-                    configuration).Snapshot()
-                : null;
+        if (!engineering.Revision.HasValue || string.IsNullOrWhiteSpace(engineering.ProjectKey))
+            return NeutralDescriptor();
 
-            return new ScadaRuntimeDescriptor(
-                "engineering",
-                engineering.ProjectKey,
-                engineering.Revision,
-                engineering.ActivatedAtUtc,
-                engineering.Drivers,
-                engineering.CommunicationDrivers,
-                engineering.TagCount,
-                engineering.ActiveAlarmCount,
-                serverScripts);
-        }
+        var serverScripts = eventBus is not null && configuration is not null
+            ? ServerScriptRuntimeManager.GetShared(
+                engineeringRuntime,
+                eventBus,
+                configuration).Snapshot()
+            : null;
 
         return new ScadaRuntimeDescriptor(
-            "simulation",
-            null,
-            null,
-            null,
-            new[] { fallbackDriver.Status },
-            Array.Empty<CommunicationDriverDiagnosticSnapshot>(),
-            fallback.Registry.Snapshot().Count,
-            fallback.Alarms.Snapshot(activeOnly: true).Count);
+            "engineering",
+            engineering.ProjectKey,
+            engineering.Revision,
+            engineering.ActivatedAtUtc,
+            engineering.Drivers,
+            engineering.CommunicationDrivers,
+            engineering.TagCount,
+            engineering.ActiveAlarmCount,
+            serverScripts);
     }
 
     public IReadOnlyCollection<TagDefinition> Tags() =>
-        IsInstallationNeutral
+        IsInstallationNeutral || !IsEngineeringActive
             ? Array.Empty<TagDefinition>()
-            : IsEngineeringActive ? engineeringRuntime.Tags() : fallback.Registry.Snapshot();
+            : engineeringRuntime.Tags();
 
     public IReadOnlyCollection<TagValue> CurrentValues() =>
-        IsInstallationNeutral
+        IsInstallationNeutral || !IsEngineeringActive
             ? Array.Empty<TagValue>()
-            : IsEngineeringActive ? engineeringRuntime.CurrentValues() : fallback.Cache.Snapshot();
+            : engineeringRuntime.CurrentValues();
 
     public IReadOnlyCollection<AlarmDefinition> AlarmDefinitions() =>
-        IsInstallationNeutral
+        IsInstallationNeutral || !IsEngineeringActive
             ? Array.Empty<AlarmDefinition>()
-            : IsEngineeringActive ? engineeringRuntime.AlarmDefinitions() : fallback.Alarms.Definitions();
+            : engineeringRuntime.AlarmDefinitions();
 
     public IReadOnlyCollection<AlarmInstance> Alarms(bool activeOnly = false) =>
-        IsInstallationNeutral
+        IsInstallationNeutral || !IsEngineeringActive
             ? Array.Empty<AlarmInstance>()
-            : IsEngineeringActive ? engineeringRuntime.Alarms(activeOnly) : fallback.Alarms.Snapshot(activeOnly);
+            : engineeringRuntime.Alarms(activeOnly);
 
     public IReadOnlyCollection<CommandDefinition> Commands() =>
-        IsInstallationNeutral
+        IsInstallationNeutral || !IsEngineeringActive
             ? Array.Empty<CommandDefinition>()
-            : IsEngineeringActive ? engineeringRuntime.Commands() : fallback.Commands.Snapshot();
+            : engineeringRuntime.Commands();
 
     public IReadOnlyCollection<OperationalEventDefinition> OperationalEventDefinitions() =>
         !IsInstallationNeutral && IsEngineeringActive && EventRuntime is { } events
@@ -122,13 +109,13 @@ public sealed class ScadaRuntimeFacade(
             : Array.Empty<ClientMemoryRuntimeSource>();
 
     public IReadOnlyCollection<DriverStatus> Drivers() =>
-        IsInstallationNeutral
+        IsInstallationNeutral || !IsEngineeringActive
             ? Array.Empty<DriverStatus>()
-            : IsEngineeringActive ? engineeringRuntime.Describe().Drivers : new[] { fallbackDriver.Status };
+            : engineeringRuntime.Describe().Drivers;
 
     public bool TryGetTag(Guid tagId, out TagDefinition? tag)
     {
-        if (IsInstallationNeutral)
+        if (IsInstallationNeutral || !IsEngineeringActive)
         {
             tag = null;
             return false;
@@ -136,12 +123,13 @@ public sealed class ScadaRuntimeFacade(
         if (IsEngineeringActive)
             return engineeringRuntime.TryGetTag(tagId, out tag);
 
-        return fallback.Registry.TryGet(tagId, out tag);
+        tag = null;
+        return false;
     }
 
     public bool TryGetTagByPath(string path, out TagDefinition? tag)
     {
-        if (IsInstallationNeutral)
+        if (IsInstallationNeutral || !IsEngineeringActive)
         {
             tag = null;
             return false;
@@ -149,12 +137,13 @@ public sealed class ScadaRuntimeFacade(
         if (IsEngineeringActive)
             return engineeringRuntime.TryGetTagByPath(path, out tag);
 
-        return fallback.Registry.TryGetByPath(path, out tag);
+        tag = null;
+        return false;
     }
 
     public bool TryGetCurrent(Guid tagId, out TagValue? value)
     {
-        if (IsInstallationNeutral)
+        if (IsInstallationNeutral || !IsEngineeringActive)
         {
             value = null;
             return false;
@@ -162,12 +151,13 @@ public sealed class ScadaRuntimeFacade(
         if (IsEngineeringActive)
             return engineeringRuntime.TryGetCurrent(tagId, out value);
 
-        return fallback.Cache.TryGet(tagId, out value);
+        value = null;
+        return false;
     }
 
     public bool TryGetCommand(Guid commandId, out CommandDefinition? command)
     {
-        if (IsInstallationNeutral)
+        if (IsInstallationNeutral || !IsEngineeringActive)
         {
             command = null;
             return false;
@@ -175,7 +165,8 @@ public sealed class ScadaRuntimeFacade(
         if (IsEngineeringActive)
             return engineeringRuntime.TryGetCommand(commandId, out command);
 
-        return fallback.Commands.TryGet(commandId, out command);
+        command = null;
+        return false;
     }
 
     public bool TryGetOperationalEvent(Guid definitionId, out OperationalEventDefinition? definition)
@@ -201,10 +192,9 @@ public sealed class ScadaRuntimeFacade(
         CancellationToken cancellationToken = default)
     {
         ThrowIfProcessEffectsFenced();
+        RequireActiveEngineeringRuntime();
         RequireIndustrialAuthority();
-        return IsEngineeringActive
-            ? engineeringRuntime.AcknowledgeAlarmAsync(alarmId, user, cancellationToken)
-            : fallback.Alarms.AcknowledgeAsync(alarmId, user, cancellationToken);
+        return engineeringRuntime.AcknowledgeAlarmAsync(alarmId, user, cancellationToken);
     }
 
     public ValueTask<bool> ShelveAlarmAsync(
@@ -213,10 +203,9 @@ public sealed class ScadaRuntimeFacade(
         CancellationToken cancellationToken = default)
     {
         ThrowIfProcessEffectsFenced();
+        RequireActiveEngineeringRuntime();
         RequireIndustrialAuthority();
-        return IsEngineeringActive
-            ? engineeringRuntime.ShelveAlarmAsync(alarmId, user, cancellationToken)
-            : fallback.Alarms.ShelveAsync(alarmId, user, cancellationToken);
+        return engineeringRuntime.ShelveAlarmAsync(alarmId, user, cancellationToken);
     }
 
     public ValueTask<bool> UnshelveAlarmAsync(
@@ -225,10 +214,9 @@ public sealed class ScadaRuntimeFacade(
         CancellationToken cancellationToken = default)
     {
         ThrowIfProcessEffectsFenced();
+        RequireActiveEngineeringRuntime();
         RequireIndustrialAuthority();
-        return IsEngineeringActive
-            ? engineeringRuntime.UnshelveAlarmAsync(alarmId, user, cancellationToken)
-            : fallback.Alarms.UnshelveAsync(alarmId, user, cancellationToken);
+        return engineeringRuntime.UnshelveAlarmAsync(alarmId, user, cancellationToken);
     }
 
     public ValueTask WriteAsync(
@@ -237,10 +225,9 @@ public sealed class ScadaRuntimeFacade(
         CancellationToken cancellationToken = default)
     {
         ThrowIfProcessEffectsFenced();
+        RequireActiveEngineeringRuntime();
         RequireIndustrialAuthority();
-        return IsEngineeringActive
-            ? engineeringRuntime.WriteAsync(tagId, value, cancellationToken)
-            : fallbackDriver.WriteAsync(tagId, value, cancellationToken);
+        return engineeringRuntime.WriteAsync(tagId, value, cancellationToken);
     }
 
     public ValueTask ResetServerMemoryRetainedValueAsync(
@@ -249,8 +236,7 @@ public sealed class ScadaRuntimeFacade(
     {
         ThrowIfProcessEffectsFenced();
         RequireIndustrialAuthority();
-        if (!IsEngineeringActive)
-            throw new InvalidOperationException("Server Memory retained values exist only in an active Engineering runtime.");
+        RequireActiveEngineeringRuntime();
         return engineeringRuntime.ResetServerMemoryRetainedValueAsync(tagId, cancellationToken);
     }
 
@@ -260,16 +246,8 @@ public sealed class ScadaRuntimeFacade(
     {
         ThrowIfProcessEffectsFenced();
         RequireIndustrialAuthority();
-        if (IsEngineeringActive)
-        {
-            await engineeringRuntime.ExecuteCommandAsync(commandId, cancellationToken);
-            return;
-        }
-
-        if (!fallback.Commands.TryGet(commandId, out var command) || command is null)
-            throw new KeyNotFoundException($"Runtime command '{commandId}' was not found.");
-
-        await fallbackDriver.WriteAsync(command.TargetTagId, command.Value, cancellationToken);
+        RequireActiveEngineeringRuntime();
+        await engineeringRuntime.ExecuteCommandAsync(commandId, cancellationToken);
     }
 
     public ValueTask<OperationalEventOccurred> EmitOperationalEventAsync(
@@ -279,8 +257,7 @@ public sealed class ScadaRuntimeFacade(
     {
         ThrowIfProcessEffectsFenced();
         RequireIndustrialAuthority();
-        if (!IsEngineeringActive)
-            throw new InvalidOperationException("Operational Events can only be emitted by an active Engineering runtime.");
+        RequireActiveEngineeringRuntime();
         if (EventRuntime is not { } events)
             throw new InvalidOperationException("The active Engineering runtime does not expose Operational Event support.");
         return events.EmitOperationalEventAsync(definitionId, context, cancellationToken);
@@ -301,4 +278,21 @@ public sealed class ScadaRuntimeFacade(
                 "Industrial Runtime effects are fenced because this node is not the effective HA Active authority.");
         }
     }
+
+    private void RequireActiveEngineeringRuntime()
+    {
+        if (!IsEngineeringActive)
+            throw new InvalidOperationException("No Active Engineering Runtime is selected.");
+    }
+
+    private static ScadaRuntimeDescriptor NeutralDescriptor() => new(
+        "neutral",
+        null,
+        null,
+        null,
+        Array.Empty<DriverStatus>(),
+        Array.Empty<CommunicationDriverDiagnosticSnapshot>(),
+        0,
+        0,
+        null);
 }

@@ -91,7 +91,7 @@ public static class RuntimeEngineeringPackageApi
             {
                 return Results.Ok(new
                 {
-                    mode = "simulation",
+                    mode = "neutral",
                     projectKey = (string?)null,
                     projectName = (string?)null,
                     revision = (long?)null,

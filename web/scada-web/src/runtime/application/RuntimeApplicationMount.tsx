@@ -12,7 +12,6 @@ import {
   type RuntimeApplicationProjection
 } from './runtimeApplicationApi';
 import { resolveRuntimeStartupScreen } from './runtimeStartupScreen';
-import { SimulationRuntimeApp } from './SimulationRuntimeApp';
 import { RuntimeSessionClassPanel } from './RuntimeSessionClassPanel';
 
 const REFRESH_INTERVAL_MS = 1500;
@@ -85,7 +84,14 @@ export function RuntimeApplicationMount() {
     </main>;
   }
 
-  if (projection.mode === 'simulation') return <SimulationRuntimeApp />;
+  if (projection.mode !== 'engineering') {
+    return <main className="shell" data-testid="runtime-neutral">
+      <section className="runtime-visual-diagnostic" role="status" data-diagnostic-code="RUNTIME_ACTIVE_REVISION_NOT_SELECTED">
+        <strong>{text.runtimeNotActive}</strong>
+        <span>{text.runtimeNotActiveDescription}</span>
+      </section>
+    </main>;
+  }
   return <EngineeringRuntimeApplication projection={projection} locale={locale} />;
 }
 
@@ -199,7 +205,7 @@ function sameRuntimeProjection(
   next: RuntimeApplicationProjection
 ): boolean {
   if (!current || current.mode !== next.mode) return false;
-  if (next.mode === 'simulation') return true;
+  if (next.mode !== 'engineering') return true;
   return current.projectKey === next.projectKey &&
     current.revision === next.revision &&
     current.activatedAtUtc === next.activatedAtUtc;

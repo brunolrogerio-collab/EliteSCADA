@@ -356,7 +356,7 @@ test('W15 Dynamic Text and Numeric Input are mounted, persisted and Design mode 
     await page.getByTestId('visual-editor-preview').click();
     await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
     page.once('dialog', dialog => dialog.accept());
-    await page.getByTestId('visual-editor-apply').click();
+    await applyAndAwaitCanonicalCompletion(page, 'visual-editor-apply');
     await page.reload();
 
     const reopenedText = page.getByTestId('visual-editor-canonical-layer').locator('[data-object-id="' + textId + '"]');
@@ -468,7 +468,7 @@ test('W15 first-user flow configures rectangle and Text through canonical WYSIWY
     await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
     await expect(page.getByTestId('visual-editor-apply')).toBeEnabled();
     page.once('dialog', dialog => dialog.accept());
-    await page.getByTestId('visual-editor-apply').click();
+    await applyAndAwaitCanonicalCompletion(page, 'visual-editor-apply');
     await page.reload();
     await expect(page.getByTestId('visual-editor-canonical-layer').locator('[data-object-id="' + screenProof.textId + '"]')).toContainText(screenProof.literal);
     await testInfo.attach('screen-first-user-save-reopen', {
@@ -483,7 +483,7 @@ test('W15 first-user flow configures rectangle and Text through canonical WYSIWY
     await page.getByTestId('popup-visual-editor-preview').click();
     await expect(page.getByTestId('popup-visual-editor-apply')).toBeEnabled();
     page.once('dialog', dialog => dialog.accept());
-    await page.getByTestId('popup-visual-editor-apply').click();
+    await applyAndAwaitCanonicalCompletion(page, 'popup-visual-editor-apply');
     await page.reload();
     await expect(page.getByTestId('visual-editor-canonical-layer').locator('[data-object-id="' + popupProof.textId + '"]')).toContainText(popupProof.literal);
     await testInfo.attach('popup-first-user-save-reopen', {
@@ -508,6 +508,25 @@ test('W15 first-user flow configures rectangle and Text through canonical WYSIWY
     expect(restore.ok()).toBeTruthy();
   }
 });
+
+async function applyAndAwaitCanonicalCompletion(
+  page: import('@playwright/test').Page,
+  applyTestId: 'visual-editor-apply' | 'popup-visual-editor-apply'
+): Promise<void> {
+  const apply = page.getByTestId(applyTestId);
+  const responsePromise = page.waitForResponse(response =>
+    response.url().includes('/api/engineering/import/json/apply') &&
+    response.request().method() === 'POST'
+  );
+  await apply.click();
+  const response = await responsePromise;
+  expect(response.ok(), `canonical Engineering Apply failed with HTTP ${response.status()}`).toBeTruthy();
+
+  // applyDraft awaits onApplied() before clearing preview/candidate. Waiting for
+  // the mounted preview state to disappear proves the real Apply lifecycle has
+  // completed before a reload can abort or race the authoritative refresh.
+  await expect(page.getByText('Candidato válido', { exact: true })).toHaveCount(0);
+}
 
 async function selectBindingSourceByPath(select: import('@playwright/test').Locator, path: string): Promise<void> {
   const option = select.locator('option').filter({ hasText: path });

@@ -566,3 +566,19 @@ State:
 `C-VISUAL-IDENTITY-01 = FROZEN_FOR_CONSUMERS @ 50b2750c73623b7ffef77f0ca93755c3e8278676`.
 
 This freeze releases #367/#368/#369 consumers and clears the visual-identity blocker for the next bounded #365 implementation slice.
+
+
+### C-REUSE-01 — visual-identity blocker cleared
+
+C-VISUAL-IDENTITY-01 is now frozen at integration `50b2750c73623b7ffef77f0ca93755c3e8278676`.
+
+State transition:
+`C-REUSE-01 = MAIN_REVIEWED_DRAFT / R1_IMPLEMENTATION_ACTIVE / OWNER #365`.
+
+The previously blocked Editor identity dependency is resolved semantically. R1 remains deliberately backend/contracts/tests-first:
+- canonical TemplateId / EquipmentId / DynamoDefinitionId references;
+- alias compatibility for legacy Key/Path payloads;
+- fail-closed stable-ID/alias collision handling;
+- package/library roundtrip preservation.
+
+Exact persisted wire field names/reference adapter details are owned by #365 implementation and must remain consistent with frozen C-VISUAL identity. New Editor UI/Preview remains outside R1.

@@ -49,6 +49,7 @@ Target product scope includes:
 - EliteGO companion runtime application;
 - HA/redundancy;
 - safe installation/application/Authority detach and project switching;
+- deployment database topology with **Local managed** default plus supported **Remote PostgreSQL/TimescaleDB** profiles and safe migration/cutover;
 - WAN/timing resilience;
 - profile-aware CI;
 - industrial visuals/library/thumbnails;
@@ -266,6 +267,35 @@ Use the canonical Runtime renderer with Engineering overlays. Design/Preview sha
 
 Application package, Authority backup, Historian/database and License remain separate authorities even when one UX coordinates a safe detach. Fence process effects, invalidate old sessions and never silently delete Historian or leak project-A identities into project B.
 
+### Database topology — Local managed + Remote
+
+Canonical architecture owner: **#366 — ARCH-DB-TOPOLOGY**.
+
+The product route explicitly includes two supported deployment profiles:
+
+- **Local managed** — normal installation provides a usable durable PostgreSQL/TimescaleDB service/profile by default;
+- **Remote** — administrator may configure a supported external PostgreSQL/TimescaleDB deployment through EliteSCADA without manually editing raw environment connection strings.
+
+This is **deployment/host configuration**, not project Engineering content and not `.escadapkg` data.
+
+Required product direction:
+- structured administration surface for host/FQDN, port, database, credential reference, TLS/trust, timeout and health;
+- protected secret storage outside canonical Engineering/project packages;
+- optional separate Historian endpoint where explicitly enabled;
+- Local -> Remote, Remote -> Local and Remote -> Remote are controlled migration/cutover operations, not blind connection-string swaps;
+- test connection and compatibility before cutover;
+- migrate/copy durable state under a bounded maintenance/quiesce boundary;
+- verify schema/version and state consistency before switching authority;
+- rollback to the prior profile on failed cutover;
+- preserve the old source database until explicit archive/purge;
+- Edge/container deployments may prefer Remote to reduce local CPU/RAM/storage pressure;
+- normal application container/image remains the same regardless of Local or Remote DB profile.
+
+Current status remains:
+`PRODUCT_ROUTE / ARCHITECTURE_VALIDATION_REQUIRED / IMPLEMENTATION_NOT_YET_RELEASED`.
+
+This item must not be lost when Wave 15 returns from CORRECTION-NOW to the deferred original roadmap.
+
 ### WAN/timing
 
 No global timeout inflation; GET retry bounded and safe; writes never blind-retry; timeout can be unknown outcome; stale responses cannot overwrite newer state.
@@ -320,6 +350,7 @@ Foundation slices frozen
        -> independent Product Owner human journey
        -> compare / correct material findings
   -> EliteGO + Installation UX + downstream HA
+  -> deployment productization: container/native host profiles + Local managed / Remote PostgreSQL-TimescaleDB topology (#363/#366)
   -> product convergence / industrial visuals / help / localization / EEE v15
   -> exact integrated candidate
   -> T3/T4 validation

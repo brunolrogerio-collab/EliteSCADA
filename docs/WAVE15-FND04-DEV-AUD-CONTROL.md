@@ -38,11 +38,11 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0107`
+`MAIN_ORDER_REV: 0108`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-28 — E4 REMOTE PASS ACCEPTED / #373+#374+#376 COMBINED E3 ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-28 — COMBINED E3 INCOMPLETE / WAIT E+F TEST CORRECTIONS`
 
-`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_COMBINED_E3_373_374_376_ACTIVE`
+`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_WAIT_EF_TEST_CORRECTIONS`
 
 Current situation:
 
@@ -70,215 +70,77 @@ Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave1
 >
 > The shared CODEX executor is not the legacy FND-04 DEV lane.
 
-`SHARED_CODEX_ORDER_REV: 0107`
+`SHARED_CODEX_ORDER_REV: 0108`
 
-`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-COMBINED-E3-373-374-376-88`
+`ORDER_ID: WAIT-EF-E3-TEST-CORRECTIONS-89`
 
-`ORDER_STATE: ACTIVE_VALIDATION / EXACT_COMBINED_TREE / MOUNTED_E3 / NO_PRODUCT_MUTATION / NO_MERGE`
+`ORDER_STATE: WAIT / NO_EXECUTION / PRESERVE_E3_EVIDENCE / NO_PRODUCT_MUTATION / NO_MERGE`
 
-### Prior transport gate disposition
+### rev0107 disposition
 
-rev0106 returned a real forwarded Codespace result:
-`E4_PASS_REMOTE_PATH`.
+rev0107 exact combined coordinate was:
+- branch `preview/w15-e3-combined-373-374-376-50b275`;
+- commit `c0118888b6250ece19a1bae5d98e07c32297b279`;
+- tree `9dc3c76ead0b77312c90113516f48e19c9bb0355`;
+- base `50b2750c73623b7ffef77f0ca93755c3e8278676`.
 
-Main accepted:
-`E4_PASS_REMOTE_PATH / HISTORICAL_402_ROOT_CAUSE_UNASSIGNED / NO_TRANSPORT_PRODUCT_CORRECTION`.
+CODEX handoff #305/`5871812674` returned:
+`E3_LOCAL_NOT_ACCEPTED / NO_MERGE / MATRIX_INCOMPLETE`.
 
-C-TRANSPORT-01 remains:
-`PROPOSAL / LOCAL_A_PASS / LOCAL_DELAY_B_PASS / REMOTE_E4_PASS / HISTORICAL_CAUSE_UNASSIGNED`.
+Accepted evidence:
+- Web build PASS;
+- focused PostgreSQL visual schema 3/3 PASS;
+- focused Core/Drivers Gateway + Script classes 23/23 PASS;
+- selected Chromium run 44 PASS / 2 FAIL / 3 not run;
+- Gateway UI spec passed, but only with mocked APIs;
+- FOLLOW-B mounted Expression / Boolean Condition / Analog Fill / RangeMap passed.
 
-Do not reopen transport diagnosis, change timeout policy, retry mutations blindly, or attribute the historical 402 during this order.
+Not accepted as product defects:
+- #374 focused failure is a stale test expectation: canonical call `screen-main/button-live` is correctly diagnosed using canonical reference, while the test still expects short `button-live`;
+- #373 newly-added save/reopen tests click Apply and immediately `page.reload()`, and traces showed the Apply POST aborted with `status -1`;
+- the pre-existing Wave 08 save/reopen failure is inconclusive: submitted package contained the intended route/image and Apply returned HTTP 200; a later rerun encountered Vite/API `ECONNRESET` during Engineering export. The Apply implementation used by Wave 08 was not changed by #373.
 
-Known Codespace lifecycle/reopen limitation is now recorded in:
-`docs/CODESPACES-PREVIEW-RUNBOOK.md` section 8.7 and issue #359 comment `5871149846`.
+Remaining mounted matrix is therefore not proven, but no causal product defect is accepted yet.
 
-If the Codespace is resumed/reopened and the forwarded app link initially errors:
-- preserve the existing instance before reset/rebuild/recreate;
-- capture the failing URL/path and visible error;
-- inspect existing 5173/5080 listeners before starting or killing processes;
-- if 5173 is already bound and Web returns HTTP 200, reuse the healthy listener even if a duplicate launcher reports `Port 5173 is already in use`;
-- verify API `127.0.0.1:5080/health` independently;
-- preserve `.preview/web.log` and `.preview/api.log`;
-- missing Docker CLI inside the app container is an environment/tooling limitation and does not by itself prove the DB/compose backing stack is down;
-- do not silently alter port visibility;
-- only restart after capturing evidence and confirming a listener is absent or unhealthy.
+### Active corrective owners
 
-### Canonical product base
+LANE E / PR #373:
+- Main orders recorded on #367/`5872038460` and #368/`5872039361`;
+- correct deterministic Apply synchronization in #373-added mounted tests;
+- no arbitrary sleeps/timeouts;
+- test-first; production mutation only if causal product evidence appears;
+- rerun affected mounted tests and pre-existing Wave 08 in healthy environment;
+- return `DEV-HMI -> MAIN COORDINATOR — #373 E3 TEST-SYNC CORRECTION HANDOFF`.
 
-`wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`
+LANE F / PR #374:
+- Main order recorded on #369/`5872040040`;
+- correct stale canonical-reference test expectation only;
+- do not regress production semantics to legacy short object reference;
+- rerun explicit focused Script specs + natural T1/E2;
+- return `DEV-SCRIPT-OBJECT -> MAIN COORDINATOR — #374 E3 TEST-EXPECTATION CORRECTION HANDOFF`.
 
-tree:
-`bf0b43ff9ea1211443d614487f4a05bab2ee2c97`
+LANE H / PR #376:
+`WAIT / NO_MUTATION`.
+No Gateway correction is ordered from rev0107.
 
-### Exact accepted candidate inputs
+LANE G / PR #375:
+`WAIT / INTEGRATION_DEFERRED`.
 
-PR #373:
-`fd25b9f01a3fa55800dbcab7147aab96b083548e`
-tree `6da8b4e20f09631b1ef774a545b74434783c88de`.
+### Immediate shared CODEX action
 
-PR #374:
-`09a24f6e16ff3c152e0155d83b386342685a12b1`
-tree `2c123369c1554fad67e63ad4ecc06f769cb67841`.
+None.
 
-PR #376:
-`4a5252abf008cb314f4494d48107be25a3643d0c`
-tree `2acad074f5f30a22a742e643b74520eb611137af`.
+On user `SIGA`, shared CODEX must:
+1. re-read this live pointer;
+2. verify rev0108;
+3. preserve rev0107 evidence;
+4. do not rerun the stale combined tree;
+5. do not alter product/tests/branches;
+6. return only:
+`CODEX -> MAIN COORDINATOR — rev0108 WAIT ACK / waiting for #373/#374 corrected exact heads`
+and STOP.
 
-All three exact candidates were revalidated immediately before composition:
-- same exact integration base;
-- open / not merged;
-- pairwise changed-file overlap = zero.
-
-### Exact combined E3 coordinate
-
-Validation branch:
-`preview/w15-e3-combined-373-374-376-50b275`
-
-Exact combined commit:
-`c0118888b6250ece19a1bae5d98e07c32297b279`
-
-`COMBINED_TREE_SHA: 9dc3c76ead0b77312c90113516f48e19c9bb0355`
-
-Parent:
-`50b2750c73623b7ffef77f0ca93755c3e8278676`.
-
-The combined tree was constructed from the exact candidate blobs over the canonical base and revalidated as:
-- 1 commit ahead / 0 behind the base;
-- exactly 48 changed files;
-- exact union of #373 (29) + #374 (14) + #376 (5);
-- no extra path;
-- no overlapping path requiring conflict resolution.
-
-Any mismatch in base, candidate HEAD, combined commit or combined tree means:
-`COORDINATION_STALE / STOP / MAIN COORDINATOR`.
-
-### Immediate CODEX action
-
-1. Re-read this control live immediately before execution and confirm rev0107.
-2. Revalidate live integration remains exactly `50b2750...`.
-3. Revalidate PR #373, #374 and #376 still point to the exact HEADs above and remain unmerged.
-4. Checkout only the exact combined validation branch/commit above.
-5. Verify `git rev-parse HEAD`, tree SHA and parent SHA.
-6. Verify base -> combined changed-file set contains exactly 48 paths and no unexpected file.
-7. Do not modify product, tests, workflows, candidate PRs or integration.
-8. Start a genuine mounted product environment with durable DB/API/Web/browser capability.
-9. Execute the explicit focused specs and the mounted user journeys below.
-10. Return one exact combined E3 handoff and STOP.
-
-### Mandatory focused spec execution
-
-Execute explicitly, regardless of router selection:
-
-#373 / HMI:
-- `web/scada-web/tests-e2e/wave-15-hmi-dynamics-io.spec.ts`;
-- relevant changed visual editor specs needed to support the mounted findings.
-
-#374 / Script Object:
-- `web/scada-web/tests-e2e/script-assistant-model.spec.ts`;
-- `web/scada-web/tests-e2e/script-assistant-reference-validation.spec.ts`;
-- `web/scada-web/tests-e2e/visual-python-property-provider.spec.ts`;
-- `web/scada-web/tests-e2e/wave-10-client-visual-event-dispatcher.spec.ts`;
-- normal Script Engineering workspace contract spec.
-
-#376 / TAG Gateway:
-- `web/scada-web/tests-e2e/gateway-engineering.spec.ts`.
-
-Do not weaken, skip or rewrite a failing spec merely to obtain PASS.
-
-### Mounted E3 matrix — #373 HMI Dynamics + NumericInput
-
-Prove on the exact combined tree:
-
-- Screen typed RangeMap authoring;
-- Popup typed RangeMap authoring;
-- deterministic first-match semantics;
-- Undo/Redo;
-- Save/Reopen without reference drift;
-- Dynamic Text/value formatting path;
-- NumericInput Runtime authorized write;
-- authoritative TAG readback after write;
-- read-only state;
-- bad/unavailable quality state;
-- unauthorized 401/403 state;
-- failed-write state;
-- Apply/button + Enter commit;
-- Cancel + Esc discard;
-- Design mode performs no process write;
-- Screen and Popup use the canonical renderer/write boundary.
-
-No second write service or frontend->Driver bypass may be introduced.
-
-### Mounted E3 matrix — #374 Script Object/Property
-
-Prove:
-
-- Script workspace -> Object Browser;
-- Screen object discovery;
-- Popup object discovery;
-- canonical Property Browser;
-- generated read / write / clear / tween snippets;
-- new source uses stable `visualDefinitionId + visualObjectId + propertyKey`;
-- mutable Key is not new target authority;
-- rename Key while retaining stable IDs does not retarget;
-- reuse an old Key on another object produces safe warning/ambiguity behavior;
-- unsupported property/tween operation is disabled or fails clearly;
-- event-associated object context remains correct;
-- Save/Reopen preserves source and stable reference;
-- Runtime smoke exercises supported visual-property read/write/tween through existing sandbox/capability bridge;
-- legacy Key-only compatibility remains bounded and is never silently rewritten to an ambiguous target.
-
-### Mounted E3 matrix — #376 TAG Gateway
-
-Prove:
-
-- direct Engineering `Comunicação -> TAG Gateway` navigation;
-- Gateway no longer appears as a hidden Data Sources sub-surface;
-- route inventory/list;
-- explicit `Nova rota`;
-- existing route A remains while independent route B is created;
-- edit route A does not replace route B;
-- disable/re-enable one route leaves the other independent;
-- valid fan-out: one Source TAG -> multiple Destination TAGs through separate routes;
-- duplicate active destination writer is rejected;
-- TAG -> TAG remains the persisted authority;
-- canonical Preview/Apply/Working/Active lifecycle remains truthful;
-- Save/Reopen preserves multiple routes;
-- diagnostics remain isolated per route and do not masquerade as driver network health;
-- project/package export/import persistence where available in the mounted environment.
-
-No Gateway runtime redesign, protocol-pair authority, frontend->Driver path or Gateway-specific timeout/retry policy is authorized.
-
-### Evidence standard
-
-Apply C-TEST-EVIDENCE-01.
-
-Report:
-- exact branch / commit / tree;
-- environment topology;
-- DB/API/Web health;
-- all commands/specs executed;
-- mounted UI journey evidence;
-- authoritative readbacks;
-- failures or limitations;
-- no-mutation proof.
-
-A functional PASS requires the exact combined tree and the required mounted journeys. Static-only evidence is insufficient.
-
-If the mounted environment cannot genuinely perform required evidence, return:
-`ENV_CAPABILITY_GAP / E3 / <exact reason> / Main coordinator`.
-
-If a product defect is found, return:
-`COMBINED_E3_FAIL / <lane #373|#374|#376 or cross-lane> / <first causal evidence>`.
-
-If all required evidence passes, return:
-`COMBINED_E3_PASS`.
-
-Required handoff title:
-`CODEX -> MAIN COORDINATOR — #373/#374/#376 COMBINED E3 HANDOFF`.
-
-After return, STOP.
-
-Main alone owns any later merge. Preferred post-PASS merge order is #373 -> #374 -> #376 followed by byte-identical tree proof against `9dc3c76ead0b77312c90113516f48e19c9bb0355`.
+Main will issue a new exact combined E3 coordinate only after both E and F corrected handoffs are independently reviewed and their new exact HEADs/T1 evidence are accepted.
 
 ---
 
@@ -4085,5 +3947,26 @@ Execute the full mandatory focused-spec + mounted HMI/Script/Gateway matrix from
 
 Required handoff:
 `CODEX -> MAIN COORDINATOR — #373/#374/#376 COMBINED E3 HANDOFF`.
+
+Then stop.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0108
+
+`ORDER_ID: WAIT-EF-E3-TEST-CORRECTIONS-89`
+
+rev0107 combined E3 returned:
+`E3_LOCAL_NOT_ACCEPTED / NO_MERGE / MATRIX_INCOMPLETE`.
+
+Main independently classified:
+- #374 failure = stale test expectation against canonical reference semantics;
+- #373 new mounted save/reopen failures = deterministic test synchronization defect (Apply POST aborted by immediate reload);
+- Wave 08 persistence failure = inconclusive/environment-sensitive, not accepted as product defect;
+- #376 Gateway = no correction ordered.
+
+Active work is now owned by LANE E and LANE F on their PR branches. Shared CODEX is WAIT and must not rerun the stale combined tree.
+
+Required shared CODEX response on SIGA:
+`CODEX -> MAIN COORDINATOR — rev0108 WAIT ACK / waiting for #373/#374 corrected exact heads`.
 
 Then stop.

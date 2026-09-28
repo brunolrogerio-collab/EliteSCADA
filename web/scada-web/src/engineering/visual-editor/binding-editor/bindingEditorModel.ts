@@ -243,7 +243,8 @@ export function createBindingSetIntent(
   element: Pick<VisualElementEngineering, 'id' | 'type'>,
   propertyKey: string,
   source: VisualEditorBindingSourceCatalogItem,
-  direction?: string | null
+  direction?: string | null,
+  presentationMetadata?: Readonly<Record<string, string>>
 ): Extract<VisualEditorMutationIntent, { kind: 'binding.set' }> {
   const objectId = requireElementIdentity(element.id);
   const destination = requireBindableDestination(element.type, propertyKey);
@@ -273,7 +274,8 @@ export function createBindingSetIntent(
       metadata: {
         presentationMode: 'scalar-text',
         sourceDataType: source.dataType!,
-        ...(source.engineeringUnit ? { engineeringUnit: source.engineeringUnit } : {})
+        ...(source.engineeringUnit ? { engineeringUnit: source.engineeringUnit } : {}),
+        ...(presentationMetadata ?? {})
       }
     } : {}),
     ...(tagReference !== undefined ? { tagReference } : {})

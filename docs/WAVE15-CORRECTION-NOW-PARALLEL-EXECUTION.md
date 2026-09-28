@@ -647,3 +647,22 @@ After #354 handoff/review, preferred queued use of the same existing CODEX is:
 E4-C must run on a real supported Codespace/forwarded path and may use a separate capable remote executor.
 
 This queue is planning only until Main activates each exact mission after revalidating live GitHub.
+
+
+### #372 / #354 CODEX-AUTHORITY candidate
+
+Candidate:
+`c84dee88268ecf786737cf3ec9364d0113d5f028`
+
+State:
+`MAIN_CODE_REVIEW_PASS / E2_ACCEPTED / WAIT_E3_MOUNTED_AUTHORITY_VALIDATION / NO_MERGE`.
+
+This P0 candidate remains ahead of the queued #371/#370 E3 missions.
+
+Required sequence now:
+1. #354 exact candidate E3 fresh/first-project/Active/restart authority validation;
+2. if PASS, Main integration of #354 and C-AUTHORITY freeze;
+3. revalidate/rebase downstream candidates as necessary against the new integration HEAD;
+4. then #371 E2/E3 and #370 E2/E3 according to conflict/dependency review.
+
+Do not validate #371 as final E3 and then merge #354 underneath it if overlapping integration changes would invalidate the evidence.

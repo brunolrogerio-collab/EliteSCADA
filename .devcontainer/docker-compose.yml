@@ -1,0 +1,27 @@
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/dotnet:2-10.0-noble
+    command: sleep infinity
+    volumes:
+      - ..:/workspaces/EliteSCADA:cached
+      - ../.preview/machine-id:/etc/machine-id:ro
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    environment:
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+
+  timescaledb:
+    image: timescale/timescaledb:2.29.2-pg18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: elitescada_e4
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: elitescada-e4-db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d elitescada_e4"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s

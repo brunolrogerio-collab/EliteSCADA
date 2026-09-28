@@ -5,7 +5,7 @@ import {
   CLIENT_VISUAL_PYTHON_CAPABILITIES,
   CLIENT_VISUAL_PYTHON_PROTOCOL_CAPABILITIES
 } from '../src/python-runtime/pythonRuntimeContracts';
-import { buildScriptAssistantCatalog } from '../src/engineering/scripts/scriptAssistantModel';
+import { buildScriptAssistantCatalog, buildScriptAssistantVisualValueSnippet } from '../src/engineering/scripts/scriptAssistantModel';
 
 const writableTagId = '11111111-1111-1111-1111-111111111111';
 const readOnlyTagId = '22222222-2222-2222-2222-222222222222';
@@ -215,4 +215,56 @@ test('known persisted legacy visual objects retain their bounded compatibility s
   expect(object.schemaStatus).toBe('compatible');
   expect(object.properties.map(property => property.key)).toEqual(expect.arrayContaining(['x', 'y', 'width', 'height', 'visible']));
   expect(object.properties.some(property => property.key === 'text')).toBe(false);
+});
+
+
+test('visual authoring uses definition/object stable identity for Screen and Popup and survives Key rename/reuse', () => {
+  const before = buildScriptAssistantCatalog(engineeringPackage, clientMemorySources);
+  const screenObject = before.screens[0].objects.find(object => object.id === 'button-1')!;
+  const popupObject = before.popups[0].objects.find(object => object.id === 'detail-text')!;
+
+  expect(screenObject.canonicalReference).toBe('screen-main/button-1');
+  expect(popupObject.canonicalReference).toBe('popup-detail/detail-text');
+  expect(screenObject.snippets).toEqual(expect.arrayContaining([
+    expect.objectContaining({ kind: 'visual-property-read', enabled: true })
+  ]));
+  expect(JSON.stringify(screenObject.snippets)).not.toContain('"StartButton"');
+
+  const renamedPackage = {
+    ...engineeringPackage,
+    screens: [{
+      ...engineeringPackage.screens![0],
+      elements: [
+        { ...engineeringPackage.screens![0].elements![0], key: 'StartButtonRenamed' },
+        { id: 'button-2', key: 'StartButton', type: 'core.button', properties: { visible: true } }
+      ]
+    }]
+  } as unknown as EngineeringPackageView;
+  const after = buildScriptAssistantCatalog(renamedPackage, clientMemorySources);
+  const renamed = after.screens[0].objects.find(object => object.id === 'button-1')!;
+  const reused = after.screens[0].objects.find(object => object.id === 'button-2')!;
+
+  expect(renamed.canonicalReference).toBe('screen-main/button-1');
+  expect(reused.canonicalReference).toBe('screen-main/button-2');
+  expect(reused.canonicalReference).not.toBe(renamed.canonicalReference);
+});
+
+test('typed property assistance validates against canonical registry metadata', () => {
+  const catalog = buildScriptAssistantCatalog(engineeringPackage, clientMemorySources);
+  const button = catalog.screens[0].objects.find(object => object.id === 'button-1')!;
+
+  const visible = buildScriptAssistantVisualValueSnippet(button.type, button.canonicalReference, 'visible', 'write', 'false');
+  expect(visible).toMatchObject({ enabled: true });
+  expect(visible.code).toContain('screen-main/button-1');
+  expect(visible.code).toContain('False');
+
+  const invalidOpacity = buildScriptAssistantVisualValueSnippet(button.type, button.canonicalReference, 'opacity', 'write', '2');
+  expect(invalidOpacity.enabled).toBe(false);
+
+  const tween = buildScriptAssistantVisualValueSnippet(button.type, button.canonicalReference, 'x', 'tween', '42');
+  expect(tween).toMatchObject({ enabled: true });
+  expect(tween.code).toContain('visual_tween_request');
+
+  const invalidTween = buildScriptAssistantVisualValueSnippet(button.type, button.canonicalReference, 'visible', 'tween', 'true');
+  expect(invalidTween).toMatchObject({ enabled: false, reason: 'Property is not animatable.' });
 });

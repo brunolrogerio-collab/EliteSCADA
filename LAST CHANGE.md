@@ -2191,3 +2191,217 @@ Durable ledger:
 - FND-07 control `101e2977cd28e0e7d6c470e61b3e2c5f5a7ffc2c`;
 - shared route `8b3be7727b18888a5dd3c0e046f8926a78c3d7e7`;
 - central board `3c24c683575ae0aaf87483c5b6ec36f95aa1878b`.
+
+
+---
+
+# MAIN COORDINATOR TRANSFER — CORRECTION-NOW LIVE STATE — 2026-09-28
+
+> This section supersedes older transfer snapshots when they conflict with GitHub live.
+>
+> GitHub live is the sole authority. The replacement Main must revalidate every SHA/PR/control before acting.
+
+## Product integration truth
+
+Current correction integration product baseline:
+
+`wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`
+
+Validated tree:
+
+`bf0b43ff9ea1211443d614487f4a05bab2ee2c97`
+
+Already integrated and accepted in CORRECTION-NOW:
+- #354 Demo/Runtime authority correction;
+- #371 first-user Editor correction;
+- #370 Data Source catalog/authoring correction.
+
+Frozen contracts:
+- `C-AUTHORITY-01 = FROZEN_FOR_CONSUMERS`;
+- `C-VISUAL-IDENTITY-01 = FROZEN_FOR_CONSUMERS`.
+
+Do not confuse later coordination/harness commits with product bytes.
+
+## Transport / remote Codespace gate
+
+Local A/B discriminator for #359/#307 passed:
+`A_PASS_B_PASS_REMOTE_E4_REQUIRED`.
+
+Local normal Security path passed, and deterministic eventual-response delays at 2.5s, 28s and 32s also passed without automatic mutation replay. This did not reproduce the historical Codespace failure and did not identify the source of the historical HTTP 402.
+
+`C-TRANSPORT-01` remains proposal and cannot be frozen until real forwarded-path E4 evidence exists.
+
+The first real Codespace attempt ended before product execution with environment capability gaps. Main then built a dedicated homologation harness around the same product bytes.
+
+Current shared CODEX route is rev0106:
+
+`ROUTE-SEQUENTIAL-CODEX-TRANSPORT-E4-HARNESS-RETRY2-87`
+
+Canonical shared CODEX control:
+`coord/w15-fnd04-dev-aud-control`
+
+Control branch HEAD observed at transfer:
+`ba320b9757619f37703dbd36c1cc0a4eadcf886e`
+
+Dedicated E4 harness:
+`preview/w15-e4-codespace-harness-50b275@62c5b8068638681eddb6e707df2b2d393e8dbd71`
+
+Harness tree:
+`24d49905943c933398ab05dc2de64f8de14258f4`
+
+The harness differs from product baseline only in four homologation paths:
+- `.devcontainer/devcontainer.json`;
+- `.devcontainer/docker-compose.yml`;
+- `.devcontainer/initialize-preview-machine-id.sh`;
+- `scripts/preview/launch-w15-e4-transport.sh`.
+
+rev0105 exposed an over-strict harness guard: repository `global.json` requests SDK 10.0.400 with `rollForward=latestFeature`, while the Codespace correctly resolved 10.0.401. rev0106 fixes only that harness guard. Product bytes are unchanged.
+
+Immediate transport action:
+1. let shared CODEX finish rev0106 in the existing real Codespace if still available;
+2. accept only real browser -> Codespaces forwarder -> Web 5173 -> Vite /api -> internal API 5080 -> private TimescaleDB evidence;
+3. if E4 passes, classify/freeze C-TRANSPORT only to the degree supported by evidence;
+4. if E4 finds a concrete product/API or forwarding defect, create a bounded correction order; do not guess from status 402 alone.
+
+## E — HMI Dynamics / NumericInput — #367 + #368
+
+PR #373:
+- branch `work/w15-hmi-dynamics-io-correction`;
+- HEAD `fd25b9f01a3fa55800dbcab7147aab96b083548e`;
+- tree `6da8b4e20f09631b1ef774a545b74434783c88de`;
+- base `50b2750c73623b7ffef77f0ca93755c3e8278676`;
+- T1 `36381809937` SUCCESS;
+- Main code review PASS;
+- draft / mergeable / NOT MERGED.
+
+Accepted bounded semantics include typed PropertyMap/range dynamics through the canonical visual registry and canonical `core.numericInput` using the existing protected TAG-write boundary.
+
+State:
+`MAIN_CODE_REVIEW_PASS / E2_ACCEPTED / WAIT_COMBINED_E3_WITH_#374 / NO_MERGE`.
+
+## F — Script Object/Property authoring — #369
+
+PR #374:
+- branch `work/w15-script-object-authoring-correction`;
+- HEAD `09a24f6e16ff3c152e0155d83b386342685a12b1`;
+- tree `2c123369c1554fad67e63ad4ecc06f769cb67841`;
+- base `50b2750c73623b7ffef77f0ca93755c3e8278676`;
+- T1 `36379229072` SUCCESS;
+- Main code review PASS;
+- draft / mergeable / NOT MERGED.
+
+New authoring emits stable visual definition/object references plus canonical property keys. Legacy `objectKey` remains compatibility-only and is detected/warned rather than silently retargeted.
+
+State:
+`MAIN_CODE_REVIEW_PASS / E2_ACCEPTED / WAIT_COMBINED_E3_WITH_#373 / NO_MERGE`.
+
+Important E3 obligation: explicitly execute the focused Script model/reference/provider specs that were committed but not individually selected by the routed T1 profile.
+
+## Combined E+F validation plan
+
+#373 and #374 currently have zero changed-file overlap.
+
+Preferred next shared CODEX mission after E4:
+1. revalidate integration + exact #373/#374 heads;
+2. locally compose exact E + F over the then-current integration;
+3. record exact combined tree before testing;
+4. run one mounted E3 covering both HMI dynamics/NumericInput and Script Object/Property journeys;
+5. no product mutation during validation;
+6. if PASS, merge #373 then #374;
+7. accept only if final integration tree is byte-identical to the E3-validated combined tree.
+
+E3 must cover at least:
+- Screen and Popup typed RangeMap;
+- NumericInput Apply/Enter, Cancel/Esc, authorized Runtime write, readback, read-only, bad-quality, unauthorized/failure, Design no-write;
+- Dynamic Text/value formatting;
+- Script Object Browser + Property Browser;
+- stable visual references;
+- read/write/clear/tween insertion;
+- Key rename/reuse behavior;
+- legacy Key warnings/ambiguity;
+- Save/Reopen;
+- explicit focused Script specs.
+
+## G — Reusable objects R1 — #365
+
+PR #375:
+- branch `work/w15-reusable-objects-correction`;
+- HEAD `8c47e7944f1e025992b203a45a5caaf146819e9c`;
+- tree `5008fa501758552c7648607e7123633252df760c`;
+- T1 `36379540510` SUCCESS;
+- Main code review PASS / R1 semantics accepted;
+- draft / mergeable / NOT MERGED.
+
+Accepted R1 wire shape:
+- Equipment.TemplateId;
+- Dynamo.TemplateId;
+- Popup.TemplateId;
+- VisualElement.DynamoDefinitionId;
+- VisualElement.EquipmentId.
+
+Legacy Key/Path aliases remain compatibility/display metadata; stable-ID/alias disagreement fails closed; .escadalib/.escadapkg identity semantics remain preserved; nested Dynamo remains unsupported.
+
+State:
+`MAIN_CODE_REVIEW_PASS / R1_E2_ACCEPTED / INTEGRATION_DEFERRED_BEHIND_#373_#374 / NO_MERGE`.
+
+Reason:
+#375 and #373 both modify `src/Scada.Engineering/Contracts/EngineeringContracts.cs`.
+
+After E+F integration:
+1. order DEV-REUSE to recompose #375 on the new integration;
+2. resolve only additive contract composition;
+3. rerun E2;
+4. if semantics/user-facing behavior remain unchanged and Main review still holds, integrate R1;
+5. then continue later reusable-object UI/Preview slices (#356/#308/#365) under their own evidence requirements.
+
+## H — TAG Gateway — #364
+
+Lane is released:
+`ACTIVE_PRODUCT_CORRECTION / CONSUME_C-GATEWAY-01 / NO_RUNTIME_REDESIGN / NO_MERGE`.
+
+Prepared branch:
+`work/w15-tag-gateway-correction`.
+
+At transfer the branch still points to old `00d17e716b877e4cc00e25ea093f53f0da485c24`; no H handoff/PR has been delivered yet.
+
+On H execution, recompose to live integration before product mutation. Mission remains direct Communication -> TAG Gateway navigation, route inventory/detail, independent multi-route authoring, fan-out, deterministic duplicate-destination rejection, diagnostics, canonical Preview/Apply/Active semantics, persistence/import.
+
+## Parked / hold items
+
+- PR #362 local operator: PARKED / NO LIFECYCLE / NO MERGE.
+- #363 container-native distribution: HOLD/PREPARED, not current implementation priority.
+- #366 DB topology: HOLD.
+- Original Wave 15 deferred flow (#297/#298/#299/#300) remains HOLD.
+- Do not jump from correction PRs directly to EliteGO/HA/final Wave15.
+
+Mandatory correction exit remains:
+
+`integrated correction candidate -> SECOND PREVIEW + AUDIT ROUND -> residual correction/recheck -> CORRECTION PHASE ACCEPTED -> resume original Wave 15 flow`.
+
+Second Preview/audit must be independent and fresh; CI alone does not close the correction phase.
+
+## Canonical correction controls
+
+Read live before every decision:
+- `coord/w15-correction-now-parallel-control:docs/WAVE15-CORRECTION-NOW-SHARED-CONTRACTS.md`
+- `coord/w15-correction-now-parallel-control:docs/WAVE15-CORRECTION-NOW-PARALLEL-EXECUTION.md`
+- `coord/w15-correction-now-parallel-control:docs/WAVE15-CORRECTION-NOW-CHAT-BOOTSTRAPS.md`
+- `coord/w15-fnd04-dev-aud-control:docs/WAVE15-FND04-DEV-AUD-CONTROL.md`
+- Issue #305 newest comments.
+
+Issue #305 latest transfer-era checkpoint at handoff:
+`5864424058`.
+
+## Immediate replacement-Main startup
+
+Before any action:
+1. read this handoff and the correction control files above completely;
+2. revalidate live `wave15/corrections-integration`;
+3. revalidate PRs #373/#374/#375 and issue #364;
+4. revalidate the shared CODEX control and newest #305/#359 comments;
+5. if rev0106 E4 handoff has arrived, process it first;
+6. otherwise do not invent a new CODEX mission while rev0106 is active;
+7. preserve exact-tree evidence rules for combined E+F E3;
+8. do not use the Product Owner as messenger between agents.
+
+GitHub live supersedes every SHA/state in this transfer if anything moved after this snapshot.

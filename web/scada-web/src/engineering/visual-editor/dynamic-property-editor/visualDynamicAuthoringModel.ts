@@ -261,8 +261,11 @@ export function createPropertyMapEngineering(
     if (minimum !== null && maximum !== null && minimum > maximum) throw new Error('Range-map minimum cannot exceed maximum.');
     const validation = schema.validate(propertyKey, rule.value);
     if (!validation.ok) throw new Error(`Mapped value for '${propertyKey}' is invalid (${validation.code}).`);
+    const mappedValue = definition.type === 'color' && typeof validation.value === 'string'
+      ? validation.value.toUpperCase()
+      : validation.value;
     return Object.freeze({
-      value: validation.value,
+      value: mappedValue,
       minimum,
       minimumInclusive: rule.minimumInclusive ?? true,
       maximum,
@@ -274,7 +277,9 @@ export function createPropertyMapEngineering(
   if (fallback !== undefined && fallback !== null && fallback !== '') {
     const validation = schema.validate(propertyKey, fallback);
     if (!validation.ok) throw new Error(`Fallback value for '${propertyKey}' is invalid (${validation.code}).`);
-    normalizedFallback = validation.value;
+    normalizedFallback = definition.type === 'color' && typeof validation.value === 'string'
+      ? validation.value.toUpperCase()
+      : validation.value;
   }
 
   return Object.freeze({

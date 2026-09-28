@@ -3277,3 +3277,70 @@ Include:
 - no merge.
 
 After #354 candidate returns, Main will independently review before integration.
+
+## CURRENT SHARED CODEX ROUTE — rev 0100
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-P0-DEMO-RUNTIME-AUTHORITY-E3-81`
+
+`ORDER_STATE: ACTIVE_E3_VALIDATION / EXACT_CANDIDATE_LOCKED / NO_PRODUCT_MUTATION / NO_MERGE`
+
+Main independently reviewed #354 candidate:
+- PR #372;
+- exact branch `work/w15-p0-demo-runtime-authority-correction`;
+- exact HEAD `c84dee88268ecf786737cf3ec9364d0113d5f028`;
+- exact tree `d7219cbbc27d39bdebb54193d6a71b9d3f65db2f`;
+- exact base `wave15/corrections-integration@00d17e716b877e4cc00e25ea093f53f0da485c24`;
+- T1 exact-SHA run `36370397556` SUCCESS.
+
+Main disposition:
+`MAIN_CODE_REVIEW_PASS / E2_ACCEPTED / WAIT_E3_MOUNTED_AUTHORITY_VALIDATION`.
+
+### Mission
+
+Validate the exact #354 candidate as a real mounted local product without changing product source/tests/contracts.
+
+Required E3 environment:
+- real PostgreSQL;
+- real API;
+- real Web;
+- browser using normal mounted product UI;
+- persistent state across an actual application/service restart.
+
+Required journey:
+1. start from genuinely fresh product state;
+2. complete supported first-run Administrator/identity flow;
+3. before any project is Active, open Runtime and prove neutral state with no hidden Demo/tank/pump application content;
+4. create the first project through normal supported product flow but do not Activate it; Runtime must remain neutral;
+5. Publish/Activate that project explicitly; Runtime project/revision identity must match the selected Active revision;
+6. restart the mounted application/services while preserving the product DB/state; Runtime must recover the same persisted Active project/revision;
+7. create or edit a different Working project/revision without activating it; Runtime must stay on the previous Active authority;
+8. verify Runtime reads/effects are not sourced from a non-Active Working/Published project;
+9. verify no hidden Demo application content appears at any neutral/first-project stage;
+10. determine whether a currently supported explicit Demo application artifact/path exists. If yes, prove it works only after explicit normal publish/activate. If no, report N/A with concrete product/code evidence. Do not recreate legacy fallback merely to satisfy this point.
+
+Capture:
+- exact candidate SHA/tree;
+- exact environment/start commands;
+- DB/API/Web health;
+- browser-visible states/screenshots where useful;
+- Runtime project/revision before activation, after activation and after restart;
+- persistence/recovery evidence;
+- negative Demo-content evidence;
+- any errors/log correlations.
+
+Hard boundaries:
+- no product source/test/workflow mutation;
+- no branch commit;
+- no merge;
+- no write to `main` or `wave15/corrections-integration`;
+- no timeout workaround;
+- no fixture seeding that bypasses normal first-project authority;
+- no use of the parked #362 expanded lifecycle as accepted evidence unless Main separately authorizes it.
+
+If E3 cannot be run in this environment, return:
+`ENV_CAPABILITY_GAP / E3 / <exact reason> / <recommended executor>`.
+
+Required return:
+`CODEX -> MAIN COORDINATOR — #354 E3 AUTHORITY VALIDATION HANDOFF`.
+
+After this E3 handoff, stop and wait. Do not proceed to #371 on your own.

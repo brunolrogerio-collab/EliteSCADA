@@ -78,14 +78,14 @@ export function DynamicPropertyEditor(props: DynamicPropertyEditorProps) {
 
   if (destinationResult.error) {
     return <section className="dynamic-property-editor" data-testid="visual-dynamic-property-editor">
-      <header><strong>Dynamic source</strong><span>Unavailable for unsupported visual type.</span></header>
+      <header><strong>Animations</strong><span>Unavailable for unsupported visual type.</span></header>
       <p role="alert">{destinationResult.error}</p>
     </section>;
   }
 
   if (!destination) {
     return <section className="dynamic-property-editor" data-testid="visual-dynamic-property-editor">
-      <header><strong>Dynamic source</strong><span>No Boolean or numeric bindable properties.</span></header>
+      <header><strong>Animations</strong><span>No canonical dynamic properties are available for this object.</span></header>
     </section>;
   }
 
@@ -96,7 +96,7 @@ export function DynamicPropertyEditor(props: DynamicPropertyEditorProps) {
   };
 
   return <section className="dynamic-property-editor" data-testid="visual-dynamic-property-editor">
-    <header><strong>Dynamic source</strong><span>Canonical Binding/Expression configuration</span></header>
+    <header><strong>Animations</strong><span>Canonical bindings, conditions, expressions, range maps and Analog Fill</span></header>
     <label><span>Visual property</span><select value={destination.propertyKey} onChange={event => selectProperty(event.currentTarget.value)}>
       {destinations.map(item => <option key={item.propertyKey} value={item.propertyKey}>{item.propertyKey} · {item.propertyType}</option>)}
     </select></label>

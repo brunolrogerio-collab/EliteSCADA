@@ -3176,3 +3176,104 @@ After the corrected exact HEAD returns, Main will revalidate the diff and only t
 
 Required return:
 `CODEX -> MAIN COORDINATOR — #362 SCOPE-GUARD CORRECTION HANDOFF`.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0099
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-P0-DEMO-RUNTIME-AUTHORITY-CORRECTION-80`
+
+`ORDER_STATE: ACTIVE_PRODUCT_CORRECTION / #362_PARKED_NO_LIFECYCLE_NO_MERGE / #354_FIRST`
+
+Product Owner has reprioritized Wave 15 to **CORRECTION-NOW**. User-visible and authority defects confirmed by Human Preview/CODEX cross-audit must be corrected now; Editor is urgent but is only one lane inside the broader correction program.
+
+### #362 park / exact live disposition
+
+PR #362 live branch advanced after rev0098 to:
+`preview/w15-vs-local-runner@6d0f4c6f80e7bb1a53b4d95b6a215a9cc6ba1e05`.
+
+Main revalidated that:
+- it remains Preview infrastructure/docs only;
+- the original evidence-file allowlist defect is corrected;
+- however the new commit is **not** a narrow rev0098 handoff: it adds a separate local development profile, `launch` semantics, new Compose overlay and broader lifecycle behavior;
+- no explicit rev0098-compliant CODEX correction handoff was posted;
+- no lifecycle proof exists on `6d0f4c6...`.
+
+Therefore:
+`#362 = PARKED / NO LIFECYCLE / NO MERGE / PRESERVE BRANCH`.
+
+Do not rewrite/delete it. Main will return later for independent full review of the expanded local-development operator.
+
+### Active product correction — #354
+
+Owner issue:
+#354 — `W15-PREVIEW-P0 — fresh first project leaks Demo Runtime content / Engineering authority mismatch`.
+
+Dedicated branch:
+`work/w15-p0-demo-runtime-authority-correction`
+
+Exact base:
+`wave15/corrections-integration@00d17e716b877e4cc00e25ea093f53f0da485c24`.
+
+Accepted product bytes at that base remain:
+`1f14a57491805a5d976bc9d0bf51393cf1b3ebcd`.
+
+Human/CODEX convergent evidence:
+- Human first-project Runtime displayed unexpected Demo-like tank/pump/frequency/current content that could not be reconciled from Engineering.
+- Independent CODEX Stage 1 observed visible `Demo · Estação Elevatória` while Engineering showed another project identity and zero TAGs/Data Sources.
+
+Classification:
+`P0/P1 GENERIC PRODUCT AUTHORITY DEFECT / FIRST-PROJECT TRUST BLOCKER`.
+
+### Mission
+
+Identify and correct the exact generic product authority/recovery/fallback path that allows hidden Demo/EEE Runtime content to become visible under Neutral/fresh/first-project state.
+
+Required proof before handoff:
+1. trace exact Working/Published/Active/Runtime source-of-truth path that produced the stale/hidden Demo content;
+2. preserve all valid Demo-mode licensing/session behavior while preventing Demo application content from becoming an implicit fresh-project fallback;
+3. true fresh/no-project state shows no unexplained Demo Runtime;
+4. normal first-project creation through supported product lifecycle does not inherit unrelated Demo visuals/state;
+5. Working/Published/Active/Runtime project + revision identities agree intentionally;
+6. restart/recovery/resume does not resurrect unrelated Demo content;
+7. Neutral/detach/bootstrap remains free of stale operational visual/project projection;
+8. cross-project activation/recovery remains fail-closed;
+9. regression covers no-project bootstrap, first-project bootstrap, persisted restart/recovery and explicit Demo application behavior if applicable;
+10. full affected focused tests + relevant broad product gates pass.
+
+### Diagnostic freedom
+
+CODEX may inspect source/tests/history and run deterministic local tests. This is a correction mission, not black-box Preview.
+
+Use existing canonical authority/lifecycle contracts. Do not solve by:
+- hiding Demo visuals in frontend;
+- hard-coding the first project;
+- deleting valid Demo licensing/session semantics;
+- weakening persisted Runtime recovery;
+- mutating database rows as a product fix;
+- seeding a different fixture;
+- changing unrelated Editor/UX/Container/DB architecture.
+
+### Scope boundary
+
+Modify only files required for #354 root-cause correction and regressions.
+
+If root cause crosses a frozen shared authority contract, stop before broad redesign and return:
+`BLOCKED_CONTRACT / exact contract + evidence`.
+
+Do not include #355, #359, Editor UX, TAG Gateway, Templates, container-first or DB-topology implementation in this branch.
+
+### Required return
+
+`CODEX -> MAIN COORDINATOR — #354 DEMO RUNTIME AUTHORITY CORRECTION HANDOFF`
+
+Include:
+- exact branch/head/tree;
+- exact root cause;
+- changed files;
+- regression matrix;
+- focused/broad test evidence;
+- explicit preserved Demo semantics;
+- remaining uncertainty;
+- no merge.
+
+After #354 candidate returns, Main will independently review before integration.

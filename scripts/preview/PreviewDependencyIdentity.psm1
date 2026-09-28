@@ -33,7 +33,11 @@ function Get-PreviewDependencyInputIdentity {
     )
 
     $root = (Resolve-Path -LiteralPath $RepositoryRoot).Path
-    $normalizedPaths = @($RelativePaths | ForEach-Object { $_.Replace('\', '/') } | Sort-Object -Unique)
+    # Sort-Object orders punctuation differently in Windows PowerShell 5.1 and
+    # PowerShell 7. An ordinal, case-insensitive order matches the prepared
+    # dependency identity and stays stable across both hosts.
+    $normalizedPaths = [string[]]@($RelativePaths | ForEach-Object { $_.Replace('\', '/') } | Select-Object -Unique)
+    [Array]::Sort($normalizedPaths, [StringComparer]::OrdinalIgnoreCase)
     $entries = @()
 
     foreach ($relativePath in $normalizedPaths) {

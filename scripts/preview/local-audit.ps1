@@ -183,18 +183,27 @@ function Get-StackContainers {
         if ([string]::IsNullOrWhiteSpace([string]$line)) { continue }
         $parts = ([string]$line).Split('|', 4)
         if ($parts.Count -ne 4) { continue }
-        $details = @(Invoke-NativeCommand -FilePath 'docker' -Arguments @(
-            'inspect', '--format', '{{index .Config.Labels "com.docker.compose.service"}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}', $parts[0]
-        ))
-        if ($LASTEXITCODE -ne 0) { $details = @('unknown|unknown') }
-        $detailParts = ([string]($details | Select-Object -First 1)).Split('|', 2)
+        $service = 'unknown'
+        $health = 'unknown'
+        $details = @(Invoke-NativeCommand -FilePath 'docker' -Arguments @('inspect', $parts[0]))
+        if ($LASTEXITCODE -eq 0) {
+            try {
+                $inspected = @((ConvertFrom-Json -InputObject ($details -join [Environment]::NewLine)))[0]
+                $serviceProperty = $inspected.Config.Labels.PSObject.Properties['com.docker.compose.service']
+                if ($null -ne $serviceProperty) { $service = [string]$serviceProperty.Value }
+                $health = if ($null -ne $inspected.State.Health) { [string]$inspected.State.Health.Status } else { 'none' }
+            } catch {
+                $service = 'unknown'
+                $health = 'unknown'
+            }
+        }
         $containers += [pscustomobject]@{
             id = $parts[0]
             name = $parts[1]
-            service = $detailParts[0]
+            service = $service
             state = $parts[2]
             status = $parts[3]
-            health = if ($detailParts.Count -gt 1) { $detailParts[1] } else { 'unknown' }
+            health = $health
         }
     }
     return [pscustomobject]@{ Available = $true; Error = ''; Containers = $containers }
@@ -266,6 +275,39 @@ function New-ExplicitTrustedRootPem([string]$Thumbprint) {
         $sha.Dispose()
     }
     return [pscustomobject]@{ Path = $pemPath; Thumbprint = $Thumbprint.ToLowerInvariant(); DerSha256 = $derSha256 }
+}
+
+function Get-WindowsTrustedRootThumbprintForEndpoint([string]$HostName) {
+    $tcp = $null
+    $ssl = $null
+    $leaf = $null
+    $chain = $null
+    try {
+        $tcp = [System.Net.Sockets.TcpClient]::new($HostName, 443)
+        $ssl = [System.Net.Security.SslStream]::new($tcp.GetStream(), $false)
+        # Use the normal Windows TLS validation path. No callback accepts invalid certificates.
+        $ssl.AuthenticateAsClient($HostName)
+        $leaf = [Security.Cryptography.X509Certificates.X509Certificate2]::new($ssl.RemoteCertificate)
+        $chain = [Security.Cryptography.X509Certificates.X509Chain]::new()
+        if (-not $chain.Build($leaf) -or $chain.ChainElements.Count -lt 1) {
+            throw 'Windows could not build a trusted certificate chain for the dependency endpoint.'
+        }
+        $root = $chain.ChainElements[$chain.ChainElements.Count - 1].Certificate
+        if ($root.Subject -ne $root.Issuer) {
+            throw 'The validated endpoint chain did not terminate in a self-issued root certificate.'
+        }
+        $rootThumbprint = [string]$root.Thumbprint
+        $validatedRoot = New-ExplicitTrustedRootPem $rootThumbprint
+        if (Test-Path -LiteralPath $validatedRoot.Path) { Remove-Item -LiteralPath $validatedRoot.Path -Force }
+        return $rootThumbprint
+    } catch {
+        throw "ENVIRONMENT_PREP_BLOCKED_TLS: could not identify a Windows-trusted root for $HostName without weakening TLS validation. $($_.Exception.Message)"
+    } finally {
+        if ($null -ne $chain) { $chain.Dispose() }
+        if ($null -ne $leaf) { $leaf.Dispose() }
+        if ($null -ne $ssl) { $ssl.Dispose() }
+        if ($null -ne $tcp) { $tcp.Dispose() }
+    }
 }
 
 function Get-PreviewDependencyIdentity($Identity) {
@@ -963,7 +1005,19 @@ switch ($Command) {
             $prepared = $false
         }
         if (-not $prepared) {
-            Invoke-PreparedDependencyBootstrap $identity $dependency $TrustedRootThumbprint
+            if (-not [string]::IsNullOrWhiteSpace($TrustedRootThumbprint)) {
+                Invoke-PreparedDependencyBootstrap $identity $dependency $TrustedRootThumbprint
+            } else {
+                try {
+                    Invoke-PreparedDependencyBootstrap $identity $dependency ''
+                } catch {
+                    $preparationError = $_.Exception.Message
+                    if ($preparationError -notmatch 'ENVIRONMENT_PREP_BLOCKED_TLS' -or $preparationError -notmatch 'registry\.npmjs\.org') { throw }
+                    $trustedRootThumbprint = Get-WindowsTrustedRootThumbprintForEndpoint 'registry.npmjs.org'
+                    Write-Output 'TLS_VALIDATED_WINDOWS_ROOT_RETRY=true'
+                    Invoke-PreparedDependencyBootstrap $identity $dependency $trustedRootThumbprint
+                }
+            }
             $null = Assert-PreparedDependencies $identity $dependency -VerifyContents
         }
         & $PSCommandPath start -Profile development -LocalOwnerLaunch -Port $Port

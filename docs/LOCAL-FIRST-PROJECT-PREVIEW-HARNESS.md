@@ -40,6 +40,10 @@ After Main posts an exact live acceptance SHA for Environment A, prepare the pin
 
 `prepare` resolves the locked npm and NuGet dependencies into external, hash-keyed Docker volumes. Their provenance is tied to the exact harness SHA/tree, product checkpoint, dependency manifests, and tool-image labels. Dependency inputs are identified from committed Git blob IDs, then aggregated with SHA-256; this keeps the key stable when Windows checkouts differ only in LF/CRLF working-tree bytes while still changing it when a committed dependency input changes. The preparation bootstrap also normalizes embedded shell text to LF before invoking Bash, so Windows checkout line endings cannot alter shell options. The scripts/preview/test-dependency-identity.ps1 regression test exercises both cases using disposable Git repositories. The preparation manifest and volumes live outside the audit-session directory. `start` and `resume` require that exact provenance and use the already-built local image (`--no-build --pull never`); they do not install or restore packages. Missing or mismatched prepared state fails explicitly and requires `prepare` rather than silently downloading or reusing stale artifacts. A TLS-chain failure during preparation is reported as `ENVIRONMENT_PREP_BLOCKED_TLS`; certificate verification must not be weakened.
 
+Dependency input paths use one ordinal, case-insensitive order in Windows PowerShell 5.1 and PowerShell 7. Both hosts derive the same provenance key for the same committed Git tree, so the local operator does not require a separate PowerShell 7 installation.
+
+On the development profile's `launch` path only, a failing npm TLS chain may trigger one retry after the host validates `registry.npmjs.org` through its normal Windows trust store. The matching root is mounted read-only only into the preparation container, removed afterward, and recorded by thumbprint/hash. No certificate is imported and TLS verification remains enabled. If the Windows chain cannot be validated, launch stops with a TLS blocker.
+
 If a local HTTPS-inspection product substitutes certificates, an operator may explicitly select a root **already trusted by Windows** for this one preparation container: `prepare -TrustedRootThumbprint <40-hex-thumbprint>`. The script refuses a missing or non-root certificate, mounts only its public PEM read-only during `npm ci`/`dotnet restore`, keeps TLS verification enabled, deletes the temporary PEM, and records the root thumbprint and SHA-256 in the local preparation manifest. It does not change the Windows/Docker trust stores or carry that root into product `start`/`resume`. Do not use this option with an unknown or untrusted certificate.
 
 Prepared mode is enabled only by `docker-compose.preview.local.yml` for Environment A. Other Compose consumers retain the existing startup restore behavior unless their own reviewed configuration opts into prepared dependencies.
@@ -58,11 +62,10 @@ Use these commands to preserve/continue a session:
 
 `stop` is a friendly alias for `pause`. `restart` recreates the application and database containers against the same named product volumes and verifies Web/API health before returning. `status` reports the current Git branch/HEAD/tree, whether the checkout differs from the saved session, dependency preparation identity, Docker containers, TimescaleDB/API/Web health, resumability, and local URLs. `diagnose` writes a local report with recent service logs after common secret/token patterns are redacted; review it before sharing.
 
-The operator's safe script checks do not start/reset the product environment:
+Run the consolidated local regression suite from the repository root. It checks PowerShell syntax and command contracts, the exact PR #362 scope allowlist (and rejection of product paths), reset guardrails, development-profile isolation, Docker inspect JSON parsing, diagnostic redaction, and dependency provenance/line-ending/path-order stability. It does not start or reset the product environment. Run it in both Windows PowerShell 5.1 (Visual Studio's default) and PowerShell 7 when available:
 
 ```powershell
-./scripts/preview/test-local-operator.ps1
-./scripts/preview/test-dependency-identity.ps1
+./scripts/preview/test-local.ps1
 ```
 
 `reset` is the only destructive operation:

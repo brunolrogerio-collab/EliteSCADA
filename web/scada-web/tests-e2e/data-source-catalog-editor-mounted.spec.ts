@@ -53,7 +53,8 @@ test('mounted Data Source editor exposes catalog failure and recovers only after
 
   await expect(page.getByTestId('data-source-catalog-error')).toHaveCount(0);
   await expect(typePicker).toBeEnabled();
-  await expect(typePicker.locator('option')).toContainText(['Built-in Simulation']);
+  const optionValues = await typePicker.locator('option').evaluateAll(options => options.map(option => (option as HTMLOptionElement).value));
+  expect(optionValues).toContain('builtin.simulation');
   await typePicker.selectOption('builtin.simulation');
   await expect(typePicker).toHaveValue('builtin.simulation');
   await expect(page.getByTestId('data-source-setting-scanIntervalMilliseconds')).toBeVisible();

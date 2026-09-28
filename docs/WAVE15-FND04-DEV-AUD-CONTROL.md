@@ -89,6 +89,20 @@ C-TRANSPORT-01 remains:
 
 Do not reopen transport diagnosis, change timeout policy, retry mutations blindly, or attribute the historical 402 during this order.
 
+Known Codespace lifecycle/reopen limitation is now recorded in:
+`docs/CODESPACES-PREVIEW-RUNBOOK.md` section 8.7 and issue #359 comment `5871149846`.
+
+If the Codespace is resumed/reopened and the forwarded app link initially errors:
+- preserve the existing instance before reset/rebuild/recreate;
+- capture the failing URL/path and visible error;
+- inspect existing 5173/5080 listeners before starting or killing processes;
+- if 5173 is already bound and Web returns HTTP 200, reuse the healthy listener even if a duplicate launcher reports `Port 5173 is already in use`;
+- verify API `127.0.0.1:5080/health` independently;
+- preserve `.preview/web.log` and `.preview/api.log`;
+- missing Docker CLI inside the app container is an environment/tooling limitation and does not by itself prove the DB/compose backing stack is down;
+- do not silently alter port visibility;
+- only restart after capturing evidence and confirming a listener is absent or unhealthy.
+
 ### Canonical product base
 
 `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`

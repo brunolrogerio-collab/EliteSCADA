@@ -505,3 +505,31 @@ State:
 `C-AUTHORITY-01 = FROZEN_FOR_CONSUMERS @ 33e514eb3f5cf8f984779c0091069387741e7296`.
 
 Round-2 Preview must recheck these semantics independently before correction-phase acceptance.
+
+
+### C-REUSE-01 — Main-reviewed draft after DEV-REUSE audit
+
+Evidence:
+#365 handoff `5862150703`.
+
+State:
+`MAIN_REVIEWED_DRAFT / CORE_SEMANTICS_ACCEPTED / WAIT_C-VISUAL-IDENTITY`.
+
+Accepted core semantics:
+- Template, Equipment and Dynamo definitions use their existing stable Guid IDs as canonical entity identity;
+- mutable Key/Path aliases remain authoring/display/legacy compatibility, not sole authority for newly-authored cross-domain links;
+- inserted Dynamo instance identity is the owning stable visual object identity;
+- Dynamo instance -> Dynamo definition is mandatory;
+- Dynamo instance -> Equipment is optional;
+- Template association is optional affinity/context, not mandatory 1:1 ownership;
+- Dynamo definitions remain live-linked to instances rather than copied as snapshots;
+- .escadalib incorporation preserves stable resource identity and is not duplicate/copy;
+- stable-ID/alias conflicts must fail closed before mutation;
+- canonical Preview must use the actual canonical renderer/composition and cannot be satisfied by category glyphs or screenshots;
+- nested Dynamo remains unsupported in v1 unless a later explicit contract changes it.
+
+Still dependent on C-VISUAL-IDENTITY-01:
+- exact persisted Screen/Popup visual-instance reference adapter/wire shape for DynamoDefinitionId and optional EquipmentId;
+- compatibility migration from current DynamoKey/EquipmentPath references at the Editor boundary.
+
+No DEV-REUSE product implementation is released while this dependency remains open.

@@ -266,27 +266,48 @@ No merge. No direct write to main or wave15/corrections-integration.
 
 You are **W15 CORRECTION-NOW DEV-REUSE**.
 
-Initial mode:
-`READ_ONLY_CONTRACT_AUDIT`.
+Current state:
+`ACTIVE_R1_STABLE_REFERENCE_SEAM / EXACT_BASE=50b2750c73623b7ffef77f0ca93755c3e8278676 / BACKEND-CONTRACTS-TESTS_FIRST / NO_EDITOR_UI_YET / NO_MERGE`.
 
-Branch prepared:
-`work/w15-reusable-objects-correction`.
+Prepared branch:
+`work/w15-reusable-objects-correction`
 
-Read current Template/Equipment/Dynamo schemas and the related issues.
+The branch may still be on its original creation base. Before product mutation, re-read live controls and #365/#356/#308, then recompose the branch onto exact integration:
+`50b2750c73623b7ffef77f0ca93755c3e8278676`.
 
-Own proposal:
-`C-REUSE-01`.
+Consume:
+- `C-VISUAL-IDENTITY-01 = FROZEN_FOR_CONSUMERS`;
+- Main-reviewed `C-REUSE-01` core semantics;
+- `C-TEST-EVIDENCE-01`.
 
-First return should define:
-- which Template/Equipment/Dynamo relationships already exist;
-- which are mandatory/optional;
-- stable references;
-- import/export implications;
-- Editor/Dynamo insertion dependency.
+R1 mission:
+implement only the stable-reference compatibility seam for reusable-object relationships:
+- canonical TemplateId;
+- canonical EquipmentId;
+- canonical DynamoDefinitionId;
+- stable Dynamo-instance visual identity from frozen C-VISUAL-IDENTITY;
+- legacy Key/Path aliases retained for compatibility/display but no longer sole authority for new canonical links;
+- fail-closed stable-ID/alias collision detection before mutation;
+- migration/normalization handling for legacy TemplateKey, DynamoKey and EquipmentPath payloads;
+- preserve .escadalib stable resource identity/dependency semantics;
+- preserve .escadapkg save/export/import roundtrip.
 
-Do not implement Editor reference integration until C-VISUAL-IDENTITY is frozen.
+Do not in R1:
+- build new Template/Equipment/Dynamo authoring UI;
+- build canonical pre-insertion Dynamo/Library visual Preview;
+- redesign Editor insertion UX;
+- enable nested Dynamos;
+- create a second renderer;
+- invent Template inheritance/materialization;
+- make Equipment a reusable-library resource;
+- broaden into Gateway, Scripts, HMI dynamics, DB/container or Runtime lifecycle work.
 
-After Main accepts both required contracts, a product implementation order will be issued.
+The exact persisted wire/reference shape is owned by this lane but must be compatible with frozen C-VISUAL identity and the Main-reviewed C-REUSE rules. If required semantics are missing, stop and return:
+`BLOCKED_CONTRACT / C-REUSE-01 / <missing semantic>`.
+
+Return exact branch/head/tree/base, implemented reference shape, compatibility matrix, import/export/package behavior, collision semantics, tests/E2, EVIDENCE_CAPABILITY and remaining UI work.
+
+No merge. No direct write to main or wave15/corrections-integration.
 
 ---
 

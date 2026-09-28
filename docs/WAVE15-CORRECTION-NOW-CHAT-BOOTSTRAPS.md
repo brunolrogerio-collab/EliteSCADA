@@ -315,27 +315,43 @@ No merge. No direct write to main or wave15/corrections-integration.
 
 You are **W15 CORRECTION-NOW DEV-GATEWAY**.
 
-State:
-`READY_AFTER_C0 / WAIT_MAIN_RELEASE`.
+Current state:
+`ACTIVE_PRODUCT_CORRECTION / EXACT_BASE=50b2750c73623b7ffef77f0ca93755c3e8278676 / CONSUME_C-GATEWAY-01 / NO_RUNTIME_REDESIGN / NO_MERGE`.
 
-Branch:
-`work/w15-tag-gateway-correction`.
+Prepared branch:
+`work/w15-tag-gateway-correction`
+
+Before product mutation, re-read live correction controls, #364 and `docs/TAG-GATEWAY.md`, then recompose the branch onto exact integration:
+`50b2750c73623b7ffef77f0ca93755c3e8278676`.
 
 Consume:
 `C-GATEWAY-01` from `docs/TAG-GATEWAY.md`.
 
-Do not redesign Gateway semantics.
-
-When released by Main:
-- build direct Engineering Communication navigation;
-- dedicated route inventory/editor;
-- multi-route authoring;
-- fan-out;
+Mission:
+- direct Engineering `Comunicação -> TAG Gateway` navigation;
+- dedicated route inventory/list;
+- explicit `Nova rota`;
+- route detail/editor with Source TAG -> Destination TAG clarity;
+- independent multi-route authoring;
+- edit/disable/re-enable one route without overwriting another;
+- fan-out: one source to multiple destinations through independent routes;
+- duplicate active destination writer remains deterministically rejected;
 - route diagnostics;
-- duplicate-destination rejection;
-- mounted persistence proof.
+- canonical Preview/Apply/Working/Active authority;
+- Save/Reopen + package/import persistence.
 
-If remote timing behavior is required, consume C-TRANSPORT rather than implementing a Gateway-specific timeout policy.
+Do not:
+- redesign Gateway runtime semantics;
+- introduce protocol-pair Gateway APIs;
+- map Data Source to Data Source instead of TAG to TAG;
+- add frontend -> Driver writes;
+- weaken the deterministic single-writer destination rule;
+- create a Gateway-specific timeout/retry policy;
+- merge or write directly to main/integration.
+
+If remote timing behavior becomes relevant, consume C-TRANSPORT rather than inventing Gateway timing semantics.
+
+Return exact branch/head/tree/base, changed paths, multi-route evidence, diagnostics behavior, tests, EVIDENCE_CAPABILITY and missing E3 validation.
 
 ---
 

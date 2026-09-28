@@ -41,6 +41,7 @@ import {
 import { popupEditorText } from './popupVisualEditorText';
 import { createCanonicalPolygon, updateCanonicalPolygonPoints } from './polygonCanonicalMutations';
 import { PropertyInspector } from './property-inspector';
+import { VisualEditorRegionToggle } from './VisualEditorRegionToggle';
 import {
   applyVisualEditorMutationIntent,
   cloneEngineeringValue,
@@ -128,6 +129,9 @@ function PopupVisualEditorWorkspaceBody({
   const selectedObjectIds = session.selectedObjectIds;
   const [viewport, setViewport] = useState<VisualEditorViewport>(DEFAULT_VIEWPORT);
   const [polygonToolActive, setPolygonToolActive] = useState(false);
+  const [screensCollapsed, setScreensCollapsed] = useState(false);
+  const [paletteCollapsed, setPaletteCollapsed] = useState(false);
+  const [propertiesCollapsed, setPropertiesCollapsed] = useState(false);
   const [preview, setPreview] = useState<ImportPreviewView | null>(null);
   const [candidate, setCandidate] = useState<ValidatedPopupCandidate | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -359,7 +363,14 @@ function PopupVisualEditorWorkspaceBody({
 
   const issues = preview?.items.flatMap(item => item.issues ?? []) ?? [];
 
-  return <div className="eng-section visual-editor-workspace" data-testid="popup-visual-editor-workspace">
+  const layoutClassName = [
+    'eng-section visual-editor-workspace',
+    screensCollapsed ? 'visual-editor-workspace--screens-collapsed' : '',
+    paletteCollapsed ? 'visual-editor-workspace--palette-collapsed' : '',
+    propertiesCollapsed ? 'visual-editor-workspace--properties-collapsed' : ''
+  ].filter(Boolean).join(' ');
+
+  return <div className={layoutClassName} data-testid="popup-visual-editor-workspace">
     <header className="visual-editor-header">
       <div><span>{text.eyebrow}</span><h1>{text.title}</h1><p>{text.description}</p></div>
       <div className="visual-editor-authority"><strong>{text.authorityTitle}</strong><span>{text.authorityHint}</span></div>
@@ -367,7 +378,13 @@ function PopupVisualEditorWorkspaceBody({
 
     <div className="visual-editor-shell">
       <aside className="visual-editor-screens" aria-label={text.popupList}>
-        <header><strong>{text.popups}</strong><button type="button" className={isNew ? 'active' : ''} onClick={() => choosePopup(NEW_POPUP_IDENTITY)}>+ {text.newPopup}</button></header>
+        <header>
+          <strong>{text.popups}</strong>
+          <div className="visual-editor-region-actions">
+            <button type="button" className={isNew ? 'active' : ''} onClick={() => choosePopup(NEW_POPUP_IDENTITY)}>+ {text.newPopup}</button>
+            <VisualEditorRegionToggle region="screens" collapsed={screensCollapsed} locale={locale} onToggle={() => setScreensCollapsed(value => !value)} />
+          </div>
+        </header>
         <div className="visual-editor-screen-list">
           {popups.map(popup => {
             const identity = popupIdentity(popup);
@@ -390,6 +407,7 @@ function PopupVisualEditorWorkspaceBody({
 
         <div className="visual-editor-composition">
           <aside className="visual-editor-slot visual-editor-palette-slot">
+            <VisualEditorRegionToggle region="palette" collapsed={paletteCollapsed} locale={locale} onToggle={() => setPaletteCollapsed(value => !value)} />
             <ObjectPalette onMutationIntent={handlePaletteIntent} />
             <DynamoLibraryPalette
               definitions={snapshot.package.dynamos ?? []}
@@ -429,6 +447,7 @@ function PopupVisualEditorWorkspaceBody({
           </section>
 
           <aside className="visual-editor-slot visual-editor-inspector-slot">
+            <VisualEditorRegionToggle region="properties" collapsed={propertiesCollapsed} locale={locale} onToggle={() => setPropertiesCollapsed(value => !value)} />
             <PropertyInspector
               selectedElements={selectedElements}
               visualAssets={snapshot.package.visualAssets ?? []}

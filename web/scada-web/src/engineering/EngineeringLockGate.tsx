@@ -54,12 +54,9 @@ export function EngineeringLockGate() {
     return <LockedEngineeringSurface locale={locale} copy={copy} status={status} onStatus={setStatus} />;
   }
 
-  return (
-    <>
-      <EngineeringLockManagement locale={locale} copy={copy} status={status} onStatus={setStatus} />
-      <EngineeringApp />
-    </>
-  );
+  return <EngineeringApp engineeringLockControl={
+    <EngineeringLockManagement locale={locale} copy={copy} status={status} onStatus={setStatus} />
+  } />;
 }
 
 function LockedEngineeringSurface({ locale, copy, status, onStatus }: {
@@ -171,11 +168,13 @@ function EngineeringLockManagement({ locale, copy, status, onStatus }: {
   }
 
   return (
-    <details className="eng-lock-management" data-testid="engineering-lock-management" open={!status.configured}>
-      <summary className="eng-lock-management__summary" aria-label={copy.managementTitle}>
-        <span>{copy.managementEyebrow}</span>
-        <strong>{copy.managementTitle}</strong>
-        <small>{status.configured ? copy.configured : copy.notConfigured} · {copy.unlocked}</small>
+    <details className="eng-lock-management eng-lock-management--topbar" data-testid="engineering-lock-management">
+      <summary className="eng-lock-management__summary" aria-label={copy.managementTitle} title={copy.managementTitle}>
+        <span className="eng-lock-management__padlock" aria-hidden="true">▣</span>
+        <span className="eng-lock-management__summary-copy">
+          <strong>{copy.managementTitle}</strong>
+          <small>{status.configured ? copy.configured : copy.notConfigured}</small>
+        </span>
       </summary>
       <div className="eng-lock-management__body">
         <div className="eng-lock-management__configure">

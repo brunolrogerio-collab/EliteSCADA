@@ -649,3 +649,31 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* W15 Editor-first: navigation collapses from its own region, not from a global editor banner. */
+.eng-sidebar { position: relative; }
+.eng-sidebar__toggle {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0 0 6px auto;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--eng-border);
+  border-radius: 6px;
+  background: #111922;
+  color: var(--eng-text);
+  cursor: pointer;
+}
+.eng-sidebar__toggle span { font-size: 18px; line-height: 1; }
+.eng-body--navigation-collapsed { grid-template-columns: 42px minmax(0,1fr); }
+.eng-body--navigation-collapsed .eng-sidebar { padding: 8px 6px; overflow: hidden; }
+.eng-body--navigation-collapsed .eng-sidebar__toggle { margin: 0 auto; }
+.eng-body--navigation-collapsed .eng-project-chip,
+.eng-body--navigation-collapsed .eng-nav { display: none; }
+@media (max-width: 720px) {
+  .eng-body--navigation-collapsed { display: block; }
+  .eng-body--navigation-collapsed .eng-sidebar { min-height: 42px; }
+}

@@ -38,11 +38,11 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0102`
+`MAIN_ORDER_REV: 0103`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-28 — CORRECTION-NOW / #371+#370 COMBINED E3 ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-28 — #371+#370 INTEGRATED / #359+#307 LOCAL A-B DIAGNOSTIC ACTIVE`
 
-`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_CORRECTION_NOW_COMBINED_E3_ACTIVE`
+`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_TRANSPORT_AB_DIAGNOSTIC_ACTIVE`
 
 Current situation:
 
@@ -58,54 +58,56 @@ Current situation:
 - FND-04 is now **VERIFIED / FROZEN** at exact product checkpoint `6c810647c9773a19b212d9c33694780141786ac7`.
 - The readable Script TAG reference contract is frozen for downstream consumption.
 - FND-04 AUD remains **FROZEN / WAIT / NO_MUTATION**.
-- The **same sequential CODEX executor/chat that executed prior Foundation work is now assigned to CORRECTION-NOW combined E3 for #371 + #370 under rev0102**. FND-04 remains frozen; the shared CODEX route is independent of the legacy FND-04 DEV order.
+- The **same sequential CODEX executor/chat that executed prior Foundation work is now assigned to #359/#307 local A/B transport diagnostic under rev0103**. FND-04 remains frozen; the shared CODEX route is independent of the legacy FND-04 DEV order.
 - Any later change to this shared contract requires a new Main/Foundation delta; downstream lanes may not redefine it.
 
-Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave15/corrections-integration@33e514eb3f5cf8f984779c0091069387741e7296`. Exact candidates #371 and #370 are both recomposed on that baseline and E2-green. Any later movement of integration or either candidate invalidates rev0102 until Main reissues exact coordinates.
+Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`, tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`. #371 and #370 are integrated and this exact tree is the combined E3-validated tree. Any later movement of integration invalidates rev0103 until Main reissues exact coordinates.
 ---
 
 ## 2A. CURRENT SHARED CODEX ORDER — EXECUTION POINTER
 
 > **THIS SECTION IS THE CANONICAL SIGA POINTER FOR THE EXISTING SHARED CODEX CHAT.**
 >
-> The shared CODEX executor is **not** the normal `FND-04 DEV` lane. Do not use the legacy `CURRENT DEV ORDER` (`FND04-DEV-ENV-HOLD-02`) for the shared CODEX.
+> The shared CODEX executor is **not** the normal `FND-04 DEV` lane. Do not use the legacy `CURRENT DEV ORDER` for the shared CODEX.
 >
 > On every CODEX `SIGA`, read this pointer first, then read the matching full route at the end of this file.
 
-`SHARED_CODEX_ORDER_REV: 0102`
+`SHARED_CODEX_ORDER_REV: 0103`
 
-`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-COMBINED-EDITOR-DATA-E3-83`
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TRANSPORT-LOCAL-AB-DIAGNOSTIC-84`
 
-`ORDER_STATE: ACTIVE_E3_VALIDATION / TWO_EXACT_CANDIDATES / LOCAL_COMPOSITION_ONLY / NO_PRODUCT_MUTATION / NO_MERGE`
+`ORDER_STATE: ACTIVE_DIAGNOSTIC / E3_A_B / NO_PRODUCT_MUTATION / E4_C_NOT_INCLUDED / NO_MERGE`
 
-Shared exact base:
-`wave15/corrections-integration@33e514eb3f5cf8f984779c0091069387741e7296`
+Exact integrated product:
+`wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`
 
-Candidate C / #371:
-- HEAD `38506f1ea8d281287949b3fb23f26dbd319ffa43`
-- tree `f4843811a53b4dc91ca301d3594f0a85b574bb35`
-- T1 `36374037238` SUCCESS.
+Exact tree:
+`bf0b43ff9ea1211443d614487f4a05bab2ee2c97`
 
-Candidate B / #370:
-- HEAD `bc39f5fe64f59e73b1f0e0e413196cb917af50b4`
-- tree `eae78480d565aa5020df58ae79fa9b53910a5168`
-- T1 `36374028034` SUCCESS.
+Mission:
+execute #359/#307 discriminator legs A and B only:
+- A = mounted local normal;
+- B = same mounted product with deterministic HTTP delay/jitter.
 
-Immediate CODEX action:
-1. locally compose the two exact candidates over the shared base;
-2. do not push a synthetic product branch;
-3. record the exact `COMBINED_TREE_SHA` and prove the path set equals the union of #371 + #370;
-4. run one mounted E3 with PostgreSQL + API + Web + browser;
-5. exercise Editor Screen/Popup + Data Source -> TAG -> Save/Reopen -> restart -> Publish/Activate -> Runtime;
-6. preserve #354 authority sanity: no Active => neutral, no hidden Demo fallback;
-7. return exactly:
-   `CODEX -> MAIN COORDINATOR — #371 + #370 COMBINED E3 HANDOFF`;
-8. stop after the handoff. Main alone decides merge/integration.
+Primary witness:
+`Security -> users/roles -> create disposable user -> edit -> role/profile -> save -> reload`.
+
+Secondary read witness:
+Data Source catalog/Type request may be captured under the same A/B timing profiles, but do not widen into a #355 correction.
+
+Capture request URL/method/timestamps/status/headers/body/duration/cancellation/retries/console/proxy/API correlation/session/license/final UI state.
+
+No product source/test/workflow mutation. No blind mutation retry. No timeout increase. No Codespace-specific logic.
+
+Return:
+`CODEX -> MAIN COORDINATOR — #359/#307 E3 A-B TRANSPORT DIAGNOSTIC HANDOFF`
+
+Then stop. E4-C real Codespace remains a separate required gate.
 
 Full detailed mission:
-`CURRENT SHARED CODEX ROUTE — rev 0102` at the end of this file.
+`CURRENT SHARED CODEX ROUTE — rev 0103` at the end of this file.
 
-All earlier shared CODEX routes rev 0101 and below are superseded for execution.
+All earlier shared CODEX routes rev0102 and below are superseded for execution.
 
 ---
 
@@ -3535,3 +3537,110 @@ Final disposition must be one of:
 - `ENV_CAPABILITY_GAP / E3 / <reason>`
 
 After return, STOP. Main alone decides integration.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0103
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TRANSPORT-LOCAL-AB-DIAGNOSTIC-84`
+
+`ORDER_STATE: ACTIVE_DIAGNOSTIC / EXACT_INTEGRATION_50B275 / E3_A_B / NO_PRODUCT_MUTATION / NO_MERGE`
+
+Main accepted combined #371 + #370 E3 and integrated both PRs.
+
+Exact baseline:
+- integration: `50b2750c73623b7ffef77f0ca93755c3e8278676`;
+- tree: `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`;
+- this tree is byte-identical to the combined tree validated by CODEX in #305 handoff `5863212189`.
+
+Owner issues:
+- #359 Security/remote failure witness;
+- #307 timing/resilience policy owner.
+
+Prior AUD-REMOTE handoff:
+#359 comment `5861743510`.
+
+### Mission
+
+Run the missing local discriminator legs on the exact integrated product.
+
+#### A — E3 local normal
+
+Use a fresh mounted local environment with real PostgreSQL/API/Web/browser.
+
+Exercise:
+1. first-run/authenticated session as supported;
+2. Engineering -> Security;
+3. list users and roles;
+4. create one disposable user;
+5. edit that user and change role/profile where permitted;
+6. save;
+7. reload/reopen and prove authoritative state;
+8. capture health and request correlation throughout.
+
+Also capture one Data Source catalog/Type read sequence as a secondary read-only witness if it can be done without disturbing the Security journey.
+
+#### B — E3 deterministic latency/jitter
+
+Repeat the same exact product/session semantics.
+
+Inject deterministic delay/jitter only at browser HTTP interception/proxy level. Do not modify product code or backend timing policy.
+
+Use at least three recorded deterministic read profiles that cross the UI slow threshold and approach/exceed ordinary-read timing without randomness. Record injected delay separately from server duration.
+
+For Security mutations:
+- send each mutation exactly once;
+- if the response becomes delayed/lost/ambiguous, do not blindly replay;
+- perform authoritative readback before any manual retry;
+- record whether the current UI distinguishes an unknown mutation outcome.
+
+### Required capture
+
+For each relevant request/action:
+- browser timestamp/action label;
+- exact URL + method;
+- request start / response start / response end / total;
+- HTTP status;
+- response headers including `X-EliteSCADA-Correlation-Id`;
+- sanitized body;
+- timeout/cancellation/retry count;
+- browser console and network/waterfall if available;
+- same-origin proxy route;
+- `/health` during the window;
+- API correlation/log evidence;
+- authenticated subject/session class;
+- licensing/session state;
+- final visible UI state.
+
+Never record passwords, cookies, bearer tokens or unsanitized credentials.
+
+### Classification
+
+Return one bounded classification:
+- `A_FAIL_GENERIC_PRODUCT_PATH`;
+- `A_PASS_B_FAIL_LATENCY_RESILIENCE`;
+- `A_PASS_B_PASS_REMOTE_E4_REQUIRED`;
+- or `ENV_CAPABILITY_GAP / E3 / <reason>`.
+
+Do not claim the historical HTTP 402 source from A/B alone.
+
+C-TRANSPORT-01 remains PROPOSAL until real E4-C evidence.
+
+### Boundaries
+
+- no product/source/test/workflow mutation;
+- no branch commit;
+- no merge;
+- no timeout increases;
+- no automatic mutation retry;
+- no Authority/Licensing weakening;
+- no auth/session/HA semantics change;
+- no Codespace-specific code;
+- do not use Product Owner as routine test executor.
+
+### Required return
+
+`CODEX -> MAIN COORDINATOR — #359/#307 E3 A-B TRANSPORT DIAGNOSTIC HANDOFF`
+
+Include exact baseline/tree, environment, A evidence, B profiles/evidence, correlation data, mutation reconciliation observation, classification, limits and cleanup.
+
+After return, STOP. Main decides whether a #307 product correction is justified and separately routes E4-C.

@@ -3344,3 +3344,30 @@ Required return:
 `CODEX -> MAIN COORDINATOR — #354 E3 AUTHORITY VALIDATION HANDOFF`.
 
 After this E3 handoff, stop and wait. Do not proceed to #371 on your own.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0101
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-WAIT-RECOMPOSED-EDITOR-E3-82`
+
+`ORDER_STATE: WAIT_EXACT_CANDIDATE / #354_INTEGRATED / NO_PRODUCT_MUTATION / NO_MERGE`
+
+#354 E3 was accepted and PR #372 was merged.
+
+Integrated authority baseline:
+`wave15/corrections-integration@33e514eb3f5cf8f984779c0091069387741e7296`
+
+`C-AUTHORITY-01 = FROZEN_FOR_CONSUMERS`.
+
+Do **not** continue to #371 using stale candidate `2e288bbf...`.
+
+#371 must first be recomposed by DEV-EDITOR-CORE onto the exact integration baseline above and rerun E2/T1.
+
+Until Main posts a new exact candidate HEAD/tree and explicit E3 order:
+- wait;
+- do not modify #371;
+- do not merge;
+- do not start #370;
+- do not return to #362.
+
+When the user says SIGA while this WAIT state remains, revalidate live control + #303/#371 and report WAIT if no recomposed candidate is authorized.

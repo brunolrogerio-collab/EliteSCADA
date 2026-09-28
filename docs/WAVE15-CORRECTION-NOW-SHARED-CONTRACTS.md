@@ -457,3 +457,23 @@ Until #371 passes E3 and is integrated:
 `C-VISUAL-IDENTITY-01 = DRAFT_OWNER / E2_ACCEPTED / WAIT_E3`.
 
 After #371 integration Main may freeze the contract with the compatibility rule above and release #367/#368/#369 consumers.
+
+
+### C-AUTHORITY-01 — Main review after #354 candidate
+
+Candidate under review:
+`work/w15-p0-demo-runtime-authority-correction@c84dee88268ecf786737cf3ec9364d0113d5f028`
+
+State:
+`DRAFT_OWNER / E2_ACCEPTED / WAIT_E3`.
+
+Provisional semantics accepted by Main:
+- Working, Published and Active are distinct lifecycle authorities;
+- Runtime project/revision/application truth derives only from persisted/recovered Active authority;
+- no Active revision means `neutral`, with no implicit Demo/application fallback;
+- neutral Runtime exposes no unowned operational reads and permits no process effects;
+- recovery may rehydrate only the persisted Active project/revision and must not mint or silently select another application;
+- Demo licensing/session authority does not select project/application content;
+- any intentionally supported Demo application must use the same explicit publish/activate authority as another project.
+
+Freeze remains blocked until exact-candidate E3 mounted authority/lifecycle proof and integration.

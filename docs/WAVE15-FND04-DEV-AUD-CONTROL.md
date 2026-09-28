@@ -38,11 +38,11 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0105`
+`MAIN_ORDER_REV: 0106`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-28 — E4 ENV GAP DIAGNOSED / PREPARED E4 HARNESS RETRY ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-28 — E4 HARNESS SDK GUARD FIXED / SAME CODESPACE RETRY ACTIVE`
 
-`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_TRANSPORT_E4_HARNESS_RETRY_ACTIVE`
+`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_TRANSPORT_E4_HARNESS_RETRY2_ACTIVE`
 
 Current situation:
 
@@ -69,66 +69,55 @@ Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave1
 > **THIS SECTION IS THE CANONICAL SIGA POINTER FOR THE EXISTING SHARED CODEX CHAT.**
 >
 > The shared CODEX executor is not the legacy FND-04 DEV lane.
->
-> rev0104 ended with a real environment-capability gap before E4 execution. Main has now prepared a dedicated Codespaces harness that changes only homologation infrastructure, not product bytes.
 
-`SHARED_CODEX_ORDER_REV: 0105`
+`SHARED_CODEX_ORDER_REV: 0106`
 
-`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TRANSPORT-E4-HARNESS-RETRY-86`
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TRANSPORT-E4-HARNESS-RETRY2-87`
 
-`ORDER_STATE: ACTIVE_DIAGNOSTIC / REAL_CODESPACE / HARNESS_PREPARED / PRODUCT_BYTES_PINNED / NO_PRODUCT_MUTATION / NO_MERGE`
+`ORDER_STATE: ACTIVE_DIAGNOSTIC / EXISTING_REAL_CODESPACE_ALLOWED / HARNESS_HEAD_UPDATE_REQUIRED / PRODUCT_BYTES_PINNED / NO_PRODUCT_MUTATION / NO_MERGE`
 
 Canonical product baseline:
 `50b2750c73623b7ffef77f0ca93755c3e8278676`
 tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`.
 
-Dedicated Codespaces harness branch:
+Dedicated harness branch:
 `preview/w15-e4-codespace-harness-50b275`
 
-Exact harness HEAD:
-`604806d012a3caaa804c7ce505a12b38cde3a939`
+New exact harness HEAD:
+`62c5b8068638681eddb6e707df2b2d393e8dbd71`
 
-Exact harness tree:
-`e7c40ad428c6db693cb57be5d897d9ce1c702c2c`.
+New exact harness tree:
+`24d49905943c933398ab05dc2de64f8de14258f4`.
 
-Base -> harness delta must remain exactly these four infrastructure paths:
+Base -> harness delta remains exactly the same four authorized infrastructure paths:
 - `.devcontainer/devcontainer.json`;
 - `.devcontainer/docker-compose.yml`;
 - `.devcontainer/initialize-preview-machine-id.sh`;
 - `scripts/preview/launch-w15-e4-transport.sh`.
 
-The harness restores the historically proven compose topology with:
-- .NET 10 devcontainer;
-- Node 24;
-- private TimescaleDB service;
-- disposable machine-id;
-- API internal on 5080;
-- Web forwarded on 5173 only;
-- no Demo fixture import;
-- no product source/test/workflow changes.
+rev0105 failed before DB/API/Web startup only because the harness demanded exact SDK string `10.0.400`, while repository `global.json` explicitly allows `rollForward: latestFeature` and the Codespace correctly resolved `10.0.401`.
 
-Immediate action after a fresh Codespace is created from this exact harness branch:
-1. verify harness HEAD/tree and exact four-path delta against product baseline;
-2. verify `dotnet --version == 10.0.400` and Node 24;
-3. verify TimescaleDB private service is healthy;
-4. allow the harness launcher to start API and Web;
-5. use the real forwarded 5173 browser URL;
-6. complete normal first-run/bootstrap through product UI;
-7. execute E4-C Security users/roles/create/edit/save/reload;
-8. capture Data Source Type/catalog as secondary witness;
-9. capture HAR/console/status/body/correlation/API logs;
-10. classify the remote result without product mutation.
+Main corrected only that harness guard. The launcher now accepts the compatible .NET 10.0.4xx feature band after successful repository `global.json` resolution.
 
-If the exact harness itself still cannot supply SDK/DB/forwarded Web, return:
-`ENV_CAPABILITY_GAP / E4 / <exact harness failure> / Main coordinator`.
+Immediate action:
+1. in the **existing real Codespace** from the harness branch, fetch/fast-forward only the harness branch to exact HEAD `62c5b806...`;
+2. verify the four-path-only delta against product baseline;
+3. verify `dotnet --version` resolves to compatible 10.0.4xx (10.0.401 observed previously);
+4. rerun `scripts/preview/launch-w15-e4-transport.sh`;
+5. verify private TimescaleDB, API internal 5080 and forwarded Web 5173;
+6. execute the full E4-C Security + secondary Data Source catalog journey;
+7. capture HAR/console/correlation/API evidence;
+8. return classification.
+
+No Codespace rebuild is required solely for this one-file launcher correction unless the current compose/devcontainer services are absent or unhealthy.
 
 Return:
-`CODEX -> MAIN COORDINATOR — #359/#307 E4-C HARNESS RETRY HANDOFF`.
+`CODEX -> MAIN COORDINATOR — #359/#307 E4-C HARNESS RETRY2 HANDOFF`.
 
 After return, STOP.
 
-Next queued after E4:
-combined mounted E3 for exact #373 + #374, subject to Main revalidation.
+Next queued:
+combined E3 for exact #373 + #374, subject to Main revalidation.
 
 ---
 
@@ -3871,5 +3860,44 @@ Return one:
 
 Required handoff:
 `CODEX -> MAIN COORDINATOR — #359/#307 E4-C HARNESS RETRY HANDOFF`.
+
+Then stop.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0106
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TRANSPORT-E4-HARNESS-RETRY2-87`
+
+rev0105 returned:
+`ENV_CAPABILITY_GAP / E4 / harness launcher rejects SDK 10.0.401 even though global.json permits latestFeature`.
+
+Main disposition:
+this is a harness validation bug, not a product/runtime/transport finding.
+
+Repository policy:
+`global.json = 10.0.400 + rollForward latestFeature`.
+
+Observed Codespace resolver result:
+`10.0.401`.
+
+Harness-only correction:
+`preview/w15-e4-codespace-harness-50b275@62c5b8068638681eddb6e707df2b2d393e8dbd71`.
+
+Product bytes remain pinned at `50b2750...`.
+
+The existing Codespace may be reused because only the launcher guard changed after the devcontainer/compose environment was already created.
+
+Required steps:
+- fast-forward harness checkout to exact new HEAD;
+- prove base->harness delta remains exactly four infrastructure files;
+- run launcher;
+- if DB/API/Web start, continue real forwarded E4 immediately;
+- if environment still fails before product start, return exact capability gap with the first causal failure;
+- do not edit product files or bypass another failing guard ad hoc.
+
+All rev0105 E4 capture/classification requirements still apply.
+
+Required handoff:
+`CODEX -> MAIN COORDINATOR — #359/#307 E4-C HARNESS RETRY2 HANDOFF`.
 
 Then stop.

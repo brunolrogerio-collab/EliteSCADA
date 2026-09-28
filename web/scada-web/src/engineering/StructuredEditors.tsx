@@ -3,7 +3,6 @@ import { TagEditor as BaseTagEditor } from './EngineeringMutationPanels';
 import { DataSourceCatalogEditor } from './DataSourceCatalogEditor';
 import { DataSourceMutationPanel } from './DataSourceMutationPanel';
 import { EngineeringEntityBrowser, type EngineeringEntityBrowserMessages } from './EngineeringEntityBrowser';
-import { GatewayEngineeringPanel } from './GatewayEngineeringPanel';
 import { MemoryTagSettingsPanel } from './MemoryTagSettingsPanel';
 import type { EngineeringLocale } from './i18n';
 import type { EngineeringPackageView } from './types';
@@ -13,7 +12,6 @@ export function DataSourceEditor({ model, locale }: { model: EngineeringPackageV
     <>
       <DataSourceCatalogEditor model={model} locale={locale} />
       <DataSourceMutationPanel model={model} locale={locale} />
-      <GatewayEngineeringPanel model={model} locale={locale} />
     </>
   );
 }

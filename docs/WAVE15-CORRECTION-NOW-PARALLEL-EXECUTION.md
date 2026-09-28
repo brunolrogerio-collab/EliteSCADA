@@ -881,3 +881,42 @@ Current #373/#374/#375 changed-file sets do not occupy the Gateway-specific navi
 ### Shared CODEX next route
 rev0104:
 real Codespace/forwarded E4-C only. If real Codespace capability is unavailable, return `ENV_CAPABILITY_GAP / E4`; do not substitute another local proxy.
+
+
+---
+
+## 19. #369 Main review complete
+
+DEV-SCRIPT-OBJECT handoff:
+#369 comment `5863713919`.
+
+Exact candidate:
+- PR #374;
+- HEAD `09a24f6e16ff3c152e0155d83b386342685a12b1`;
+- tree `2c123369c1554fad67e63ad4ecc06f769cb67841`;
+- exact T1 `36379229072` SUCCESS.
+
+Main independently reviewed the key authoring/runtime seams.
+
+Disposition:
+`MAIN_CODE_REVIEW_PASS / E2_ACCEPTED / WAIT_E3_MOUNTED_SCRIPT_OBJECT_VALIDATION / NO_MERGE`.
+
+Accepted compatibility boundary:
+- new authoring emits stable `visualDefinitionId/visualObjectId` + canonical property key;
+- mutable Key is not emitted as new identity;
+- existing objectKey/objectId runtime aliases remain compatibility-only;
+- literal legacy Key references are detected/warned, never silently retargeted;
+- ambiguous/reused Key produces no migration target;
+- dynamic Python expressions are not guessed.
+
+E3 must also explicitly execute the newly added focused model/reference/provider specs that were committed but not individually selected by the routed E2 Playwright profile.
+
+Shared CODEX remains on rev0104 E4-C real Codespace first.
+
+After rev0104 returns, Main may combine #374 E3 with a corrected E/#373 candidate if:
+1. #373 is E2-green;
+2. both exact inputs are composed over the same then-current integration;
+3. Main records an exact combined tree before mounted execution;
+4. final integration tree is byte-identical to the validated composition.
+
+Do not merge #374 before E3.

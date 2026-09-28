@@ -3371,3 +3371,122 @@ Until Main posts a new exact candidate HEAD/tree and explicit E3 order:
 - do not return to #362.
 
 When the user says SIGA while this WAIT state remains, revalidate live control + #303/#371 and report WAIT if no recomposed candidate is authorized.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0102
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-COMBINED-EDITOR-DATA-E3-83`
+
+`ORDER_STATE: ACTIVE_E3_VALIDATION / TWO_EXACT_CANDIDATES / LOCAL_COMPOSITION_ONLY / NO_PRODUCT_MUTATION / NO_MERGE`
+
+Main revalidated both recomposed candidates.
+
+Shared base:
+`wave15/corrections-integration@33e514eb3f5cf8f984779c0091069387741e7296`
+
+Candidate C / #371:
+- branch `work/w15-editor-first-user-correction`
+- HEAD `38506f1ea8d281287949b3fb23f26dbd319ffa43`
+- tree `f4843811a53b4dc91ca301d3594f0a85b574bb35`
+- T1 `36374037238` SUCCESS
+- PR mergeable=true.
+
+Candidate B / #370:
+- branch `work/w15-p1-datasource-authoring-correction`
+- HEAD `bc39f5fe64f59e73b1f0e0e413196cb917af50b4`
+- tree `eae78480d565aa5020df58ae79fa9b53910a5168`
+- T1 `36374028034` SUCCESS
+- PR mergeable=true.
+
+Main independently confirmed zero changed-file overlap between #371 and #370.
+
+### Mission
+
+Validate both candidates together in one exact local composition.
+
+Do not push a combined product branch and do not mutate either candidate branch.
+
+1. fetch/revalidate exact base + both exact heads;
+2. locally compose #371 and #370 with the exact shared base, preserving both candidates byte-for-byte where there is no overlap;
+3. if any merge conflict or unexpected additional delta exists, STOP and return `COMPOSITION_BLOCKED / <evidence>`;
+4. compute and record:
+   - local combined commit SHA if one is created;
+   - mandatory exact `COMBINED_TREE_SHA`;
+   - diff path set against `33e514...`;
+5. prove the combined path set is exactly the union of the reviewed #371 + #370 diffs;
+6. run one real mounted E3 with PostgreSQL + API + Web + browser on that exact combined tree.
+
+### Required E3 journey
+
+Use a genuinely fresh mounted product state.
+
+Authority sanity:
+- before Active, Runtime is neutral;
+- no hidden Demo/tank/pump fallback.
+
+Editor #371:
+- normal Engineering UI;
+- Screen: add/select rectangle, change fill/stroke/width, immediate canonical WYSIWYG;
+- Text: edit literal + rename Key while stable Id remains unchanged;
+- Canvas/Outliner/Properties remain synchronized;
+- Undo/Redo;
+- Save/Reopen;
+- repeat applicable first-user path on Popup;
+- local disclosure controls/Engineering Lock/HMI config layout remain usable.
+
+Data #370:
+- create Data Source through normal UI;
+- Type/Driver catalog is visible/selectable;
+- configure/apply Data Source;
+- create representative TAG;
+- bind/use the TAG through normal product authoring;
+- Save/Reopen;
+- restart mounted API/Web while preserving DB;
+- Publish/Activate;
+- Runtime resolves the intended Active project/revision and representative TAG path/value/quality as applicable.
+
+Composition:
+- after restart and after activation, re-open Editor/Data Source surfaces and prove persistence;
+- no Working-only change replaces Active Runtime authority;
+- no frontend/private API shortcut may substitute for discovery/configuration steps required by the user-facing journey.
+
+The exact injected catalog 503 -> Reload regression is already E2-covered. It may be rechecked if convenient, but the mandatory E3 gate is the complete normal mounted lifecycle above.
+
+### Boundaries
+
+- no product source/test/workflow mutation;
+- no push of a combined product branch;
+- no write to either DEV branch;
+- no merge;
+- no write to main or wave15/corrections-integration;
+- no #367/#368/#369 expansion;
+- no #307/#359 timing redesign;
+- no Codespace-specific workaround;
+- no second renderer;
+- no Design-mode process write.
+
+### Required return
+
+`CODEX -> MAIN COORDINATOR — #371 + #370 COMBINED E3 HANDOFF`
+
+Include:
+- exact base;
+- both exact input heads/trees;
+- exact COMBINED_TREE_SHA;
+- local composition method;
+- proof path-set == union of #371 + #370;
+- mounted environment;
+- Editor Screen/Popup evidence;
+- Data Source -> TAG -> Runtime evidence;
+- restart/persistence evidence;
+- authority sanity;
+- findings;
+- explicit non-actions.
+
+Final disposition must be one of:
+- `COMBINED_E3_PASS`
+- `COMBINED_E3_FAIL / <finding>`
+- `COMPOSITION_BLOCKED / <reason>`
+- `ENV_CAPABILITY_GAP / E3 / <reason>`
+
+After return, STOP. Main alone decides integration.

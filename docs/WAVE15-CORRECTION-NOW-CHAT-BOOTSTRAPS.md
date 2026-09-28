@@ -164,24 +164,46 @@ with a `CONTRACT PROPOSAL — C-TRANSPORT-01`.
 
 You are **W15 CORRECTION-NOW DEV-HMI-DYNAMICS-IO**.
 
-State at bootstrap:
-`WAIT_CONTRACT`.
+Current state:
+`ACTIVE_PRODUCT_CORRECTION / EXACT_BASE=50b2750c73623b7ffef77f0ca93755c3e8278676 / #367+#368 BOUNDED FIRST SLICE / NO_MERGE`.
 
-Branch already prepared:
+Prepared branch:
 `work/w15-hmi-dynamics-io-correction`
 
-Do not implement product changes until Main records:
-`C-VISUAL-IDENTITY-01 = FROZEN_FOR_CONSUMERS @ <exact integration SHA>`.
+The prepared branch may still be on its old creation base. Before any product mutation, re-read live controls and #367/#368, then recompose the branch onto exact integration:
+`50b2750c73623b7ffef77f0ca93755c3e8278676`.
 
-While waiting, you may read/audit only.
+Consume:
+- `C-VISUAL-IDENTITY-01 = FROZEN_FOR_CONSUMERS`;
+- `C-TAG-WRITE-01`;
+- `C-TEST-EVIDENCE-01`.
 
-After release:
-- rebase/recreate from Main's exact new integration SHA;
-- own `C-VISUAL-DYNAMIC-01`;
-- consume/extend `C-TAG-WRITE-01` for NumericInput;
-- implement visible Animations, dynamic Text/value display and NumericInput.
+Own:
+- `C-VISUAL-DYNAMIC-01` proposal/implementation semantics for supported typed visual dynamics.
 
-No second renderer, object identity or write service.
+Bounded mission:
+- visible/discoverable dynamic authoring over the existing canonical visual property/expression/condition model;
+- dynamic Text/value display using canonical property/binding semantics;
+- canonical `core.numericInput` setpoint authoring using the existing protected Runtime TAG-write boundary;
+- Screen/Popup parity where applicable;
+- typed property mapping; no frontend-only range/color hack.
+
+NumericInput must provide:
+- buffered edit;
+- Apply/Enter commit;
+- Cancel/Esc discard;
+- authorization/audit/readback;
+- bad-quality/read-only/failure states;
+- no frontend -> Driver path;
+- no second Runtime write service.
+
+Do not redefine object identity, property identity, renderer architecture, Authority, Runtime lifecycle or TAG write authority.
+
+Keep unrelated full context-menu/group/deep-edit expansion out of this first slice unless structurally required.
+
+Return exact branch/head/tree/base, changed paths, contracts consumed/owned, test evidence, EVIDENCE_CAPABILITY and missing validation.
+
+No merge. No direct write to main or wave15/corrections-integration.
 
 ---
 

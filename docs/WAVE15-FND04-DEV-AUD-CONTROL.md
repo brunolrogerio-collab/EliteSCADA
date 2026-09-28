@@ -58,10 +58,10 @@ Current situation:
 - FND-04 is now **VERIFIED / FROZEN** at exact product checkpoint `6c810647c9773a19b212d9c33694780141786ac7`.
 - The readable Script TAG reference contract is frozen for downstream consumption.
 - FND-04 AUD remains **FROZEN / WAIT / NO_MUTATION**.
-- The **same sequential CODEX executor/chat that executed prior Foundation work including FND-04 is now reassigned to FND-06**. FND-04 being frozen does **not** mean that CODEX is idle.
+- The **same sequential CODEX executor/chat that executed prior Foundation work is now assigned to CORRECTION-NOW combined E3 for #371 + #370 under rev0102**. FND-04 remains frozen; the shared CODEX route is independent of the legacy FND-04 DEV order.
 - Any later change to this shared contract requires a new Main/Foundation delta; downstream lanes may not redefine it.
 
-Live integration divergence from the product base remains acknowledged only for verified INFRA-CI-01A + coordination documentation. Any other unacknowledged product delta remains `BLOCKED-BASE-DIVERGENCE`.
+Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave15/corrections-integration@33e514eb3f5cf8f984779c0091069387741e7296`. Exact candidates #371 and #370 are both recomposed on that baseline and E2-green. Any later movement of integration or either candidate invalidates rev0102 until Main reissues exact coordinates.
 ---
 
 ## 2A. CURRENT SHARED CODEX ORDER — EXECUTION POINTER

@@ -276,7 +276,7 @@ test('FOLLOW-B mounted editor persists expression, Boolean Condition and Analog 
   }
 });
 
-test('W15 first-user flow configures rectangle and Text through canonical WYSIWYG in Screen and Popup', async ({ page, request }) => {
+test('W15 first-user flow configures rectangle and Text through canonical WYSIWYG in Screen and Popup', async ({ page, request }, testInfo) => {
   const originalResponse = await request.get('/api/engineering/export/json');
   expect(originalResponse.ok()).toBeTruthy();
   const originalPackage = await originalResponse.json() as ExportedPackage;
@@ -358,6 +358,10 @@ test('W15 first-user flow configures rectangle and Text through canonical WYSIWY
     await page.getByTestId('visual-editor-apply').click();
     await page.reload();
     await expect(page.getByTestId('visual-editor-canonical-layer').locator('[data-object-id="' + screenProof.textId + '"]')).toContainText(screenProof.literal);
+    await testInfo.attach('screen-first-user-save-reopen', {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: 'image/png'
+    });
 
     await page.locator('.eng-nav').getByRole('button', { name: /Popups/ }).click();
     await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: originalPopup!.key }).click();
@@ -369,6 +373,10 @@ test('W15 first-user flow configures rectangle and Text through canonical WYSIWY
     await page.getByTestId('popup-visual-editor-apply').click();
     await page.reload();
     await expect(page.getByTestId('visual-editor-canonical-layer').locator('[data-object-id="' + popupProof.textId + '"]')).toContainText(popupProof.literal);
+    await testInfo.attach('popup-first-user-save-reopen', {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: 'image/png'
+    });
 
     const persistedResponse = await request.get('/api/engineering/export/json');
     const persisted = await persistedResponse.json() as ExportedPackage;

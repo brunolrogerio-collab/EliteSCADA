@@ -36,3 +36,25 @@
   border-top: 1px solid var(--eng-border, #283544);
   border-radius: 0;
 }
+
+/* Region scrolling is independent from the removed global collapse banner. */
+.visual-editor-screens {
+  display: flex;
+  min-height: 0;
+  max-height: min(76vh, 760px);
+  flex-direction: column;
+  overflow: hidden;
+}
+.visual-editor-screen-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+.visual-editor-palette-slot,
+.visual-editor-inspector-slot {
+  min-height: 0;
+  max-height: min(72vh, 700px);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}

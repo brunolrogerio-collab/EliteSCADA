@@ -440,3 +440,20 @@ after E2+E3 even though broader E4/E5 validation is still scheduled, provided:
 - Main records any outstanding E4/E5 as downstream validation obligations.
 
 For remote-specific correction branches, Main may require E4 before integration when the change itself cannot be safely accepted without proving the real forwarded path.
+
+
+### C-VISUAL-IDENTITY-01 compatibility refinement from Main review of #371
+
+Current evidence adds one compatibility rule before freeze:
+
+- canonical stable identity for new authoring/persistence is `visualDefinitionId + visualObjectId`;
+- property references add canonical `propertyKey`;
+- mutable `Key/name` remains developer-facing and renameable;
+- current Visual Python runtime accepts `objectKey` as a compatibility alias for targetReference;
+- this Key alias is not the canonical rename-safe identity and must not be emitted by new #369 authoring;
+- existing/manual Key-based references require bounded compatibility handling before correction-round acceptance.
+
+Until #371 passes E3 and is integrated:
+`C-VISUAL-IDENTITY-01 = DRAFT_OWNER / E2_ACCEPTED / WAIT_E3`.
+
+After #371 integration Main may freeze the contract with the compatibility rule above and release #367/#368/#369 consumers.

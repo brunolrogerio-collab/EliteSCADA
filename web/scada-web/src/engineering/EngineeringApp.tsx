@@ -140,6 +140,7 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
           {(section === 'screens' || section === 'popups') ? <button
             type="button"
             className="eng-sidebar__toggle"
+            data-testid="engineering-navigation-toggle"
             aria-expanded={!navigationCollapsed}
             aria-label={navigationCollapsed ? editorNavigationLabel(locale, true) : editorNavigationLabel(locale, false)}
             title={navigationCollapsed ? editorNavigationLabel(locale, true) : editorNavigationLabel(locale, false)}

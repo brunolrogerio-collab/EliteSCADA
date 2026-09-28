@@ -114,32 +114,49 @@ test('Engineering visual workspace can reclaim constrained viewport without losi
   const paletteToggle = page.getByTestId('visual-editor-palette-toggle');
   const propertiesToggle = page.getByTestId('visual-editor-properties-toggle');
 
+  const initialNavigation = await page.locator('.eng-sidebar').boundingBox();
+  const initialScreens = await screens.boundingBox();
+  const initialPalette = await palette.boundingBox();
+  const initialProperties = await properties.boundingBox();
+  expect(initialNavigation && initialScreens && initialPalette && initialProperties).toBeTruthy();
+
   await navigationToggle.click();
-  await expect(navigationToggle).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('.eng-sidebar')).toBeHidden();
+  await expect(navigationToggle).toHaveAttribute('aria-expanded', 'false');
+  const collapsedNavigation = await page.locator('.eng-sidebar').boundingBox();
+  expect(collapsedNavigation).not.toBeNull();
+  expect(collapsedNavigation!.width).toBeLessThan(initialNavigation!.width);
 
   await screensToggle.click();
-  await expect(screensToggle).toHaveAttribute('aria-pressed', 'true');
-  await expect(screens).toBeHidden();
+  await expect(screensToggle).toHaveAttribute('aria-expanded', 'false');
+  const collapsedScreens = await screens.boundingBox();
+  expect(collapsedScreens).not.toBeNull();
+  expect(collapsedScreens!.width).toBeLessThan(initialScreens!.width);
 
   await paletteToggle.click();
-  await expect(paletteToggle).toHaveAttribute('aria-pressed', 'true');
-  await expect(palette).toBeHidden();
+  await expect(paletteToggle).toHaveAttribute('aria-expanded', 'false');
+  const collapsedPalette = await palette.boundingBox();
+  expect(collapsedPalette).not.toBeNull();
+  expect(collapsedPalette!.width).toBeLessThan(initialPalette!.width);
 
   const reclaimedCanvas = await canvas.boundingBox();
   expect(reclaimedCanvas).not.toBeNull();
   expect(reclaimedCanvas!.width).toBeGreaterThan(initialCanvas!.width);
 
   await propertiesToggle.click();
-  await expect(propertiesToggle).toHaveAttribute('aria-pressed', 'true');
-  await expect(properties).toBeHidden();
+  await expect(propertiesToggle).toHaveAttribute('aria-expanded', 'false');
+  const collapsedProperties = await properties.boundingBox();
+  expect(collapsedProperties).not.toBeNull();
+  expect(collapsedProperties!.width).toBeLessThan(initialProperties!.width);
   await propertiesToggle.click();
-  await expect(propertiesToggle).toHaveAttribute('aria-pressed', 'false');
-  await expect(properties).toBeVisible();
+  await expect(propertiesToggle).toHaveAttribute('aria-expanded', 'true');
 
   await paletteToggle.click();
   await screensToggle.click();
   await navigationToggle.click();
+  await expect(navigationToggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(screensToggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(paletteToggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(propertiesToggle).toHaveAttribute('aria-expanded', 'true');
   await expect(page.locator('.eng-sidebar')).toBeVisible();
   await expect(screens).toBeVisible();
   await expect(palette).toBeVisible();

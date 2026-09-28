@@ -329,7 +329,7 @@ test('W15 Dynamic Text and Numeric Input are mounted, persisted and Design mode 
 
     await bindingEditor.getByLabel('Propriedade visual').selectOption('text');
     const textSource = bindingEditor.getByLabel('Fonte do projeto');
-    await selectSourceByPath(textSource, numericTag!.path);
+    await selectBindingSourceByPath(textSource, numericTag!.path);
     const format = bindingEditor.getByTestId('visual-dynamic-text-format');
     await format.getByRole('spinbutton', { name: 'Decimal places' }).fill('2');
     await format.getByRole('textbox', { name: 'Unit' }).fill('bar');
@@ -343,7 +343,7 @@ test('W15 Dynamic Text and Numeric Input are mounted, persisted and Design mode 
     expect(numericId).toBeTruthy();
 
     await bindingEditor.getByLabel('Propriedade visual').selectOption('value');
-    await selectSourceByPath(bindingEditor.getByLabel('Fonte do projeto'), numericTag!.path);
+    await selectBindingSourceByPath(bindingEditor.getByLabel('Fonte do projeto'), numericTag!.path);
     await bindingEditor.getByRole('button', { name: 'Aplicar binding' }).click();
 
     const numericRendered = page.getByTestId('visual-editor-canonical-layer').locator('[data-object-id="' + numericId + '"]');
@@ -505,6 +505,14 @@ test('W15 first-user flow configures rectangle and Text through canonical WYSIWY
     expect(restore.ok()).toBeTruthy();
   }
 });
+
+async function selectBindingSourceByPath(select: import('@playwright/test').Locator, path: string): Promise<void> {
+  const option = select.locator('option').filter({ hasText: path });
+  await expect(option, `expected one visible canonical binding source for ${path}`).toHaveCount(1);
+  const label = await option.textContent();
+  expect(label).toBeTruthy();
+  await select.selectOption({ label: label! });
+}
 
 async function selectSourceByPath(select: import('@playwright/test').Locator, path: string): Promise<void> {
   const option = select.locator(`option[value="${path.replaceAll('"', '\\"')}"]`);

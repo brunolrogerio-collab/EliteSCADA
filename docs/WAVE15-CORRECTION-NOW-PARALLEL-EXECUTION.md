@@ -979,3 +979,35 @@ Main disposition:
 `MAIN_CODE_REVIEW_PASS / R1_E2_ACCEPTED / INTEGRATION_DEFERRED_BEHIND_#373_#374 / NO_MERGE`.
 
 R1 stable-reference semantics are accepted pending integration. Because #375 and #373 both edit EngineeringContracts.cs, #375 will recompose after E+F integration rather than invalidate #373 evidence now.
+
+
+---
+
+## 21. E4 harness retry2 — SDK roll-forward guard corrected
+
+rev0105 failed before DB/API/Web startup because the homologation launcher required exact SDK string `10.0.400`.
+
+The repository itself declares:
+`global.json -> 10.0.400 / rollForward=latestFeature`.
+
+The real Codespace resolved:
+`10.0.401`.
+
+Main classifies this as a **harness validation bug**, not a product finding.
+
+Harness-only fix:
+`preview/w15-e4-codespace-harness-50b275@62c5b8068638681eddb6e707df2b2d393e8dbd71`
+tree `24d49905943c933398ab05dc2de64f8de14258f4`.
+
+Canonical product remains:
+`50b2750c73623b7ffef77f0ca93755c3e8278676`
+tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`.
+
+Base->harness delta is still exactly the same four homologation paths.
+
+Shared CODEX rev0106 may reuse the existing real Codespace, fast-forward the harness branch, rerun the launcher, and continue E4 if DB/API/Web start normally.
+
+E/F/G queue remains unchanged:
+- #373 Main review PASS / E2 accepted / wait combined E3 with #374;
+- #374 Main review PASS / E2 accepted / wait combined E3 with #373;
+- #375 R1 Main review PASS / E2 accepted / integration deferred until after E+F.

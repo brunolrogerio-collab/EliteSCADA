@@ -38,11 +38,11 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0103`
+`MAIN_ORDER_REV: 0104`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-28 — #371+#370 INTEGRATED / #359+#307 LOCAL A-B DIAGNOSTIC ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-28 — #359+#307 LOCAL A-B PASS / REAL CODESPACE E4-C ACTIVE`
 
-`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_TRANSPORT_AB_DIAGNOSTIC_ACTIVE`
+`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_TRANSPORT_E4_CODESPACE_ACTIVE`
 
 Current situation:
 
@@ -58,56 +58,59 @@ Current situation:
 - FND-04 is now **VERIFIED / FROZEN** at exact product checkpoint `6c810647c9773a19b212d9c33694780141786ac7`.
 - The readable Script TAG reference contract is frozen for downstream consumption.
 - FND-04 AUD remains **FROZEN / WAIT / NO_MUTATION**.
-- The **same sequential CODEX executor/chat that executed prior Foundation work is now assigned to #359/#307 local A/B transport diagnostic under rev0103**. FND-04 remains frozen; the shared CODEX route is independent of the legacy FND-04 DEV order.
+- The **same sequential CODEX executor/chat that executed prior Foundation work is now assigned to #359/#307 real Codespace/forwarded E4-C diagnostic under rev0104**. FND-04 remains frozen; the shared CODEX route is independent of the legacy FND-04 DEV order.
 - Any later change to this shared contract requires a new Main/Foundation delta; downstream lanes may not redefine it.
 
-Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`, tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`. #371 and #370 are integrated and this exact tree is the combined E3-validated tree. Any later movement of integration invalidates rev0103 until Main reissues exact coordinates.
+Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`, tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`. Local transport A/B passed on this exact tree. rev0104 requires a real Codespace/forwarded-path E4-C on the same bytes. Any later movement of integration invalidates rev0104 until Main reissues exact coordinates.
 ---
 
 ## 2A. CURRENT SHARED CODEX ORDER — EXECUTION POINTER
 
 > **THIS SECTION IS THE CANONICAL SIGA POINTER FOR THE EXISTING SHARED CODEX CHAT.**
 >
-> The shared CODEX executor is **not** the normal `FND-04 DEV` lane. Do not use the legacy `CURRENT DEV ORDER` for the shared CODEX.
+> The shared CODEX executor is **not** the normal `FND-04 DEV` lane.
 >
-> On every CODEX `SIGA`, read this pointer first, then read the matching full route at the end of this file.
+> On every CODEX `SIGA`, read this pointer first, then the matching full route at the end of this file.
 
-`SHARED_CODEX_ORDER_REV: 0103`
+`SHARED_CODEX_ORDER_REV: 0104`
 
-`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TRANSPORT-LOCAL-AB-DIAGNOSTIC-84`
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TRANSPORT-REAL-CODESPACE-E4-85`
 
-`ORDER_STATE: ACTIVE_DIAGNOSTIC / E3_A_B / NO_PRODUCT_MUTATION / E4_C_NOT_INCLUDED / NO_MERGE`
+`ORDER_STATE: ACTIVE_DIAGNOSTIC / E4_C_REAL_CODESPACE_ONLY / NO_PRODUCT_MUTATION / NO_MERGE`
 
-Exact integrated product:
+Exact product:
 `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`
 
 Exact tree:
 `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`
 
-Mission:
-execute #359/#307 discriminator legs A and B only:
-- A = mounted local normal;
-- B = same mounted product with deterministic HTTP delay/jitter.
+Prior result:
+`A_PASS_B_PASS_REMOTE_E4_REQUIRED`
+from #305 comment `5863670500`.
 
-Primary witness:
-`Security -> users/roles -> create disposable user -> edit -> role/profile -> save -> reload`.
+Immediate action:
+- execute only C = real supported Codespace/forwarded path;
+- use exact product bytes above;
+- only Web :5173 may be forwarded/public; API :5080 and DB remain internal;
+- exercise Security users/roles/create/edit/save/reload and capture the exact remote request/status/body/timing/correlation/proxy/API evidence;
+- reproduce/characterize the historical remote failure if it occurs;
+- do not infer 402 origin without the exact response;
+- no timeout increase, blind retry, Codespace-specific product logic or product mutation.
 
-Secondary read witness:
-Data Source catalog/Type request may be captured under the same A/B timing profiles, but do not widen into a #355 correction.
+If this executor cannot create/access a real authenticated Codespace and browser-forwarded path, return exactly:
+`ENV_CAPABILITY_GAP / E4 / <exact capability missing> / real Codespace-capable executor`.
 
-Capture request URL/method/timestamps/status/headers/body/duration/cancellation/retries/console/proxy/API correlation/session/license/final UI state.
-
-No product source/test/workflow mutation. No blind mutation retry. No timeout increase. No Codespace-specific logic.
+Do not substitute a local proxy, localhost tunnel or simulated forwarding for E4.
 
 Return:
-`CODEX -> MAIN COORDINATOR — #359/#307 E3 A-B TRANSPORT DIAGNOSTIC HANDOFF`
+`CODEX -> MAIN COORDINATOR — #359/#307 E4-C REAL CODESPACE HANDOFF`
 
-Then stop. E4-C real Codespace remains a separate required gate.
+Then stop.
 
-Full detailed mission:
-`CURRENT SHARED CODEX ROUTE — rev 0103` at the end of this file.
+Full route:
+`CURRENT SHARED CODEX ROUTE — rev 0104`.
 
-All earlier shared CODEX routes rev0102 and below are superseded for execution.
+All earlier shared CODEX routes are superseded for execution.
 
 ---
 
@@ -3644,3 +3647,100 @@ C-TRANSPORT-01 remains PROPOSAL until real E4-C evidence.
 Include exact baseline/tree, environment, A evidence, B profiles/evidence, correlation data, mutation reconciliation observation, classification, limits and cleanup.
 
 After return, STOP. Main decides whether a #307 product correction is justified and separately routes E4-C.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0104
+
+`ORDER_ID: ROUTE-SEQUENTIAL-CODEX-TRANSPORT-REAL-CODESPACE-E4-85`
+
+`ORDER_STATE: ACTIVE_DIAGNOSTIC / EXACT_INTEGRATION_50B275 / E4_C_REAL_CODESPACE_ONLY / NO_PRODUCT_MUTATION / NO_MERGE`
+
+Main reviewed the rev0103 A/B handoff.
+
+Authoritative local classification:
+`A_PASS_B_PASS_REMOTE_E4_REQUIRED`.
+
+The duplicate summary comment that printed an integration SHA ending in `...8677` contains a typo. The sole authoritative product is:
+- integration `50b2750c73623b7ffef77f0ca93755c3e8278676`;
+- tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`.
+
+### Mission — C only
+
+Run the same product through a **real GitHub Codespaces/forwarded browser path**.
+
+Supported topology:
+`browser -> GitHub Codespaces forwarder/edge -> Web/Vite :5173 -> same-origin /api proxy -> API 127.0.0.1:5080 -> PostgreSQL internal`.
+
+Only Web :5173 may be public/forwarded for this evidence.
+API and DB remain internal.
+
+### Required journey
+
+1. create/start a real Codespace from the exact integrated product SHA if the environment is authorized/capable;
+2. start supported DB/API/Web topology without product mutation;
+3. use the real forwarded Web URL in a browser;
+4. complete normal authentication/first-run as required;
+5. Engineering -> Security;
+6. GET users + roles;
+7. create one disposable user once;
+8. edit once, including role/profile change where permitted;
+9. save;
+10. reload/reopen and prove authoritative state;
+11. capture one Data Source catalog/Type read as a secondary remote witness if practical;
+12. keep /health and API logs correlated throughout.
+
+### Capture
+
+For every relevant request:
+- exact public browser URL path (sanitize Codespace owner/token-like details where needed);
+- method;
+- request start / response start / response end / total duration;
+- exact HTTP status;
+- sanitized response body;
+- relevant response headers;
+- `X-EliteSCADA-Correlation-Id`;
+- browser HAR/waterfall;
+- browser console;
+- forwarder/proxy evidence available to the executor;
+- Vite same-origin proxy destination;
+- API correlation/log line;
+- /health during same window;
+- session/auth class and licensing state without secrets;
+- visible UI state.
+
+If HTTP 402 occurs:
+- capture exact URL/method/status/headers/body/correlation and whether response came through Vite/API logs;
+- do not label it licensing, forwarding or product-generated until evidence identifies the layer.
+
+For mutations:
+- issue each mutation once;
+- no blind replay;
+- if response outcome is ambiguous, perform authoritative readback before any retry.
+
+### Classification
+
+Return exactly one:
+- `E4_PASS_REMOTE_PATH`;
+- `E4_FAIL_PRODUCT_OR_API / <evidence>`;
+- `E4_FAIL_FORWARDING_OR_EDGE / <evidence>`;
+- `E4_FAIL_UNRESOLVED_LAYER / <evidence>`;
+- `ENV_CAPABILITY_GAP / E4 / <reason> / real Codespace-capable executor`.
+
+C-TRANSPORT-01 must not be frozen unless evidence is sufficient.
+
+### Hard boundary
+
+- no product/test/workflow mutation;
+- no branch commit;
+- no merge;
+- no timeout increase;
+- no Codespace-specific workaround;
+- no Authority/Licensing weakening;
+- no simulated local substitute for E4;
+- do not use the Product Owner as routine test labor.
+
+### Required return
+
+`CODEX -> MAIN COORDINATOR — #359/#307 E4-C REAL CODESPACE HANDOFF`
+
+After return, STOP.

@@ -48,7 +48,8 @@ function fixture() {
     definition,
     schema
   });
-  const provider = createVisualPythonPropertyCapabilityProvider(instance);
+  const visualDefinitionId = 'screen:provider-definition';
+  const provider = createVisualPythonPropertyCapabilityProvider(instance, {}, { visualDefinitionId });
   const context = {
     scriptId: 'script:provider',
     runtimeInstanceId: 'script-runtime-provider',
@@ -56,17 +57,17 @@ function fixture() {
     executionId: 'execution-provider'
   };
 
-  return { instance, provider, context };
+  return { instance, provider, context, visualDefinitionId };
 }
 
 test('integrated Python visual provider binds reads and writes to the current runtime instance', async () => {
-  const { instance, provider, context } = fixture();
+  const { instance, provider, context, visualDefinitionId } = fixture();
 
   const initial = await dispatchClientVisualPythonCapability(
     provider,
     'visualProperty.read',
     'read',
-    { targetReference: instance.objectId, propertyKey: 'x' },
+    { targetReference: `${visualDefinitionId}/${instance.objectId}`, propertyKey: 'x' },
     context
   );
   expect(initial).toEqual({ value: 12, source: 'engineering' });
@@ -96,7 +97,7 @@ test('integrated Python visual provider binds reads and writes to the current ru
 });
 
 test('integrated Python visual provider fails closed for policy, target, instance and lifecycle violations', async () => {
-  const { instance, provider, context } = fixture();
+  const { instance, provider, context, visualDefinitionId } = fixture();
 
   await expect(dispatchClientVisualPythonCapability(
     provider,
@@ -113,6 +114,14 @@ test('integrated Python visual provider fails closed for policy, target, instanc
     { targetReference: instance.objectKey, propertyKey: 'assetRef', value: { assetId: 'asset:other' } },
     context
   )).rejects.toThrow(/not runtime-writable/);
+
+  await expect(dispatchClientVisualPythonCapability(
+    provider,
+    'visualProperty.read',
+    'read',
+    { targetReference: `screen:other/${instance.objectId}`, propertyKey: 'x' },
+    context
+  )).rejects.toThrow(/outside the current Runtime Visual Instance context/);
 
   await expect(dispatchClientVisualPythonCapability(
     provider,

@@ -21,7 +21,8 @@ public sealed class BuiltinVisualObjectSchemasTests
             "core.alarmBrowser",
             "core.eventBrowser",
             "core.button",
-            "core.slider"
+            "core.slider",
+            "core.numericInput"
         ], BuiltinVisualObjectSchemas.All.Select(schema => schema.ObjectTypeKey).ToArray());
     }
 

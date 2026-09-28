@@ -259,6 +259,7 @@ function collectRuntimeSourceRequests(elements: readonly VisualElementEngineerin
     }
     for (const configured of element.propertyExpressions ?? []) addExpression(configured.expression);
     for (const condition of element.booleanConditions ?? []) addSource(condition.source);
+    for (const propertyMap of element.propertyMaps ?? []) addSource(propertyMap.source);
     addSource(element.analogFill?.source);
     for (const child of element.children ?? []) visit(child);
   };

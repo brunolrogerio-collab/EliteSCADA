@@ -32,7 +32,8 @@ const DEFAULT_LABELS: Readonly<Record<string, string>> = Object.freeze({
   alarmBrowser: 'Alarm Browser',
   eventBrowser: 'Event Browser',
   button: 'Button',
-  slider: 'Slider'
+  slider: 'Slider',
+  numericInput: 'Numeric input'
 });
 
 export function ObjectPalette({
@@ -109,6 +110,7 @@ function paletteGlyph(item: VisualObjectPaletteItem): string {
     case 'eventBrowser': return '≣';
     case 'button': return '▰';
     case 'slider': return '↔';
+    case 'numericInput': return '123';
     default: return '□';
   }
 }

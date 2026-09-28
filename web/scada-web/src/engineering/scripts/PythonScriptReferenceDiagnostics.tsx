@@ -22,6 +22,9 @@ const copy = {
     object: 'Objeto removido ou indisponível',
     property: 'Propriedade não existe mais no schema canônico do objeto',
     memory: 'Client Memory removida ou indisponível',
+    legacy: 'Referência legada por Key — revise e substitua explicitamente por stable IDs',
+    legacyAmbiguous: 'Referência legada por Key ambígua — não é seguro migrar automaticamente',
+    suggested: 'Referência estável atual (não aplicada automaticamente)',
     line: 'linha'
   },
   en: {
@@ -31,6 +34,9 @@ const copy = {
     object: 'Object was removed or is unavailable',
     property: 'Property no longer exists in the object canonical schema',
     memory: 'Client Memory was removed or is unavailable',
+    legacy: 'Legacy Key reference — review and explicitly replace it with stable IDs',
+    legacyAmbiguous: 'Ambiguous legacy Key reference — automatic migration is unsafe',
+    suggested: 'Current stable reference (not applied automatically)',
     line: 'line'
   },
   es: {
@@ -40,6 +46,9 @@ const copy = {
     object: 'Objeto eliminado o no disponible',
     property: 'La propiedad ya no existe en el schema canónico del objeto',
     memory: 'Client Memory eliminada o no disponible',
+    legacy: 'Referencia heredada por Key — revísela y reemplácela explícitamente por IDs estables',
+    legacyAmbiguous: 'Referencia heredada por Key ambigua — la migración automática no es segura',
+    suggested: 'Referencia estable actual (no aplicada automáticamente)',
     line: 'línea'
   }
 } as const satisfies Record<EngineeringLocale, Record<string, string>>;
@@ -85,6 +94,7 @@ export function PythonScriptReferenceDiagnostics({ locale, source }: Props) {
             <span>
               {text.line} {diagnostic.line}:{diagnostic.column} · <code>{diagnostic.reference}</code>
               {diagnostic.propertyKey ? <> · <code>{diagnostic.propertyKey}</code></> : null}
+              {diagnostic.canonicalReference ? <> · {text.suggested}: <code>{diagnostic.canonicalReference}</code></> : null}
             </span>
           </article>
         ))}
@@ -100,5 +110,7 @@ function diagnosticLabel(
   if (diagnostic.code === 'SCRIPT_REFERENCE_TAG_MISSING') return text.tag;
   if (diagnostic.code === 'SCRIPT_REFERENCE_OBJECT_MISSING') return text.object;
   if (diagnostic.code === 'SCRIPT_REFERENCE_PROPERTY_MISSING') return text.property;
+  if (diagnostic.code === 'SCRIPT_REFERENCE_LEGACY_OBJECT_KEY') return text.legacy;
+  if (diagnostic.code === 'SCRIPT_REFERENCE_LEGACY_OBJECT_KEY_AMBIGUOUS') return text.legacyAmbiguous;
   return text.memory;
 }

@@ -14,6 +14,8 @@ import type {
   VisualExpressionEngineering,
   VisualExpressionValueTypeEngineering,
   VisualNumericIntervalModeEngineering,
+  VisualPropertyMapEngineering,
+  VisualPropertyMapRuleEngineering,
   VisualValueSourceEngineering
 } from '../../types';
 import type { VisualEditorBindingSourceCatalogItem } from '../visualEditorContracts';
@@ -23,7 +25,7 @@ import {
   resolveBindingSourceReference
 } from '../binding-editor/bindingEditorModel';
 
-export type DynamicPropertySourceMode = 'Constant' | 'DirectBinding' | 'BooleanCondition' | 'Expression';
+export type DynamicPropertySourceMode = 'Constant' | 'DirectBinding' | 'BooleanCondition' | 'Expression' | 'RangeMap';
 
 export type DynamicPropertyDestination = Readonly<{
   propertyKey: string;
@@ -42,14 +44,20 @@ export function listDynamicPropertyDestinations(
 ): readonly DynamicPropertyDestination[] {
   const schema = getVisualSchemaForEngineering(element.type);
   return Object.freeze(schema.definitions()
-    .filter(definition => definition.supportsBinding && (definition.type === 'boolean' || definition.type === 'number'))
-    .map(definition => Object.freeze({
-      propertyKey: definition.key,
-      propertyType: definition.type,
-      sourceModes: Object.freeze(definition.type === 'boolean'
-        ? ['Constant', 'DirectBinding', 'BooleanCondition', 'Expression'] as const
-        : ['Constant', 'DirectBinding', 'Expression'] as const)
-    })));
+    .filter(definition => definition.supportsBinding &&
+      (definition.type === 'boolean' || definition.type === 'number' || definition.animatable))
+    .map(definition => {
+      const modes: DynamicPropertySourceMode[] = ['Constant'];
+      if (definition.type === 'boolean' || definition.type === 'number') modes.push('DirectBinding');
+      if (definition.type === 'boolean') modes.push('BooleanCondition');
+      if (definition.type === 'boolean' || definition.type === 'number') modes.push('Expression');
+      if (definition.animatable) modes.push('RangeMap');
+      return Object.freeze({
+        propertyKey: definition.key,
+        propertyType: definition.type,
+        sourceModes: Object.freeze(modes)
+      });
+    }));
 }
 
 export function resolveDynamicAuthoringSource(
@@ -227,6 +235,58 @@ export function createNumericIntervalCondition(
     maximum,
     maximumInclusive: options.maximumInclusive ?? true,
     intervalMode: options.intervalMode ?? 'Inside',
+    version: 1
+  });
+}
+
+export function createPropertyMapEngineering(
+  element: Pick<VisualElementEngineering, 'type'>,
+  propertyKey: string,
+  source: VisualValueSourceEngineering,
+  rules: readonly VisualPropertyMapRuleEngineering[],
+  fallback?: unknown
+): VisualPropertyMapEngineering {
+  if (source.valueType !== 'Number') throw new Error('Visual property maps require a Number source.');
+  const schema = getVisualSchemaForEngineering(element.type);
+  const definition = schema.getRequired(propertyKey);
+  if (!definition.animatable) throw new Error(`Visual property '${propertyKey}' is not animatable.`);
+  if (!rules.length) throw new Error('Visual property map requires at least one ordered rule.');
+
+  const normalizedRules = rules.map(rule => {
+    const minimum = rule.minimum ?? null;
+    const maximum = rule.maximum ?? null;
+    if (minimum === null && maximum === null) throw new Error('Each range-map rule requires at least one bound.');
+    if (minimum !== null && !Number.isFinite(minimum)) throw new Error('Range-map minimum must be finite.');
+    if (maximum !== null && !Number.isFinite(maximum)) throw new Error('Range-map maximum must be finite.');
+    if (minimum !== null && maximum !== null && minimum > maximum) throw new Error('Range-map minimum cannot exceed maximum.');
+    const validation = schema.validate(propertyKey, rule.value);
+    if (!validation.ok) throw new Error(`Mapped value for '${propertyKey}' is invalid (${validation.code}).`);
+    const mappedValue = definition.type === 'color' && typeof validation.value === 'string'
+      ? validation.value.toUpperCase()
+      : validation.value;
+    return Object.freeze({
+      value: mappedValue,
+      minimum,
+      minimumInclusive: rule.minimumInclusive ?? true,
+      maximum,
+      maximumInclusive: rule.maximumInclusive ?? false
+    });
+  });
+
+  let normalizedFallback: VisualPropertyMapEngineering['fallback'];
+  if (fallback !== undefined && fallback !== null && fallback !== '') {
+    const validation = schema.validate(propertyKey, fallback);
+    if (!validation.ok) throw new Error(`Fallback value for '${propertyKey}' is invalid (${validation.code}).`);
+    normalizedFallback = definition.type === 'color' && typeof validation.value === 'string'
+      ? validation.value.toUpperCase()
+      : validation.value;
+  }
+
+  return Object.freeze({
+    propertyKey: requirePropertyKey(propertyKey),
+    source,
+    rules: Object.freeze(normalizedRules),
+    ...(normalizedFallback !== undefined ? { fallback: normalizedFallback } : {}),
     version: 1
   });
 }

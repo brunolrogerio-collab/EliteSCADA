@@ -39,6 +39,7 @@ export type ClientVisualPythonRuntimeFactory = (
 ) => ClientVisualPythonRuntimeHandle;
 
 export type ClientVisualEventDispatcherOptions = Readonly<{
+  visualDefinitionId: string;
   instances: ReadonlyMap<string, RuntimeVisualInstance>;
   onVisualStateChanged?: () => void;
   frameClock?: VisualTweenFrameClock;
@@ -58,12 +59,14 @@ export type ClientVisualEventDispatcherOptions = Readonly<{
  */
 export class ClientVisualEventDispatcher {
   private readonly instances: ReadonlyMap<string, RuntimeVisualInstance>;
+  private readonly visualDefinitionId: string;
   private readonly visualProviders = new Map<string, ClientVisualPythonVisualPropertyProvider>();
   private readonly runtimeFactory: ClientVisualPythonRuntimeFactory;
   private sequence = 0;
 
   constructor(options: ClientVisualEventDispatcherOptions) {
     this.instances = options.instances;
+    this.visualDefinitionId = options.visualDefinitionId.trim();
     this.runtimeFactory = options.runtimeFactory ?? (runtimeOptions => new ClientVisualPythonRuntime(runtimeOptions));
 
     const notify = options.onVisualStateChanged ?? (() => undefined);
@@ -71,7 +74,11 @@ export class ClientVisualEventDispatcher {
     const clock = createInvalidatingClock(baseClock, notify);
 
     for (const [objectId, instance] of this.instances) {
-      const provider = createVisualPythonPropertyCapabilityProvider(instance, { clock });
+      const provider = createVisualPythonPropertyCapabilityProvider(
+        instance,
+        { clock },
+        { visualDefinitionId: this.visualDefinitionId }
+      );
       this.visualProviders.set(objectId, createInvalidatingVisualProvider(provider, notify));
     }
   }

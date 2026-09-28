@@ -463,6 +463,8 @@ function PopupVisualEditorWorkspaceBody({
               onRemoveBooleanCondition={propertyKey => handleMutationIntent({ kind: 'booleanCondition.remove', objectId: selectedElement.id!, propertyKey })}
               onSetAnalogFill={configuration => handleMutationIntent({ kind: 'analogFill.set', objectId: selectedElement.id!, configuration })}
               onRemoveAnalogFill={() => handleMutationIntent({ kind: 'analogFill.remove', objectId: selectedElement.id! })}
+              onSetPropertyMap={configuration => handleMutationIntent({ kind: 'propertyMap.set', objectId: selectedElement.id!, configuration })}
+              onRemovePropertyMap={propertyKey => handleMutationIntent({ kind: 'propertyMap.remove', objectId: selectedElement.id!, propertyKey })}
             /> : null}
             {selectedElement ? <BindingEditor
               element={selectedElement}

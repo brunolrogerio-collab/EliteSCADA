@@ -243,7 +243,8 @@ export function createBindingSetIntent(
   element: Pick<VisualElementEngineering, 'id' | 'type'>,
   propertyKey: string,
   source: VisualEditorBindingSourceCatalogItem,
-  direction?: string | null
+  direction?: string | null,
+  presentationMetadata?: Readonly<Record<string, string>>
 ): Extract<VisualEditorMutationIntent, { kind: 'binding.set' }> {
   const objectId = requireElementIdentity(element.id);
   const destination = requireBindableDestination(element.type, propertyKey);
@@ -258,7 +259,7 @@ export function createBindingSetIntent(
     );
   }
   const normalizedDirection = normalizeDirection(
-    direction ?? (element.type === 'core.slider' && propertyKey === 'value'
+    direction ?? ((element.type === 'core.slider' || element.type === 'core.numericInput') && propertyKey === 'value'
       ? source.writable === true ? 'readWrite' : 'read'
       : undefined)
   );
@@ -273,7 +274,8 @@ export function createBindingSetIntent(
       metadata: {
         presentationMode: 'scalar-text',
         sourceDataType: source.dataType!,
-        ...(source.engineeringUnit ? { engineeringUnit: source.engineeringUnit } : {})
+        ...(source.engineeringUnit ? { engineeringUnit: source.engineeringUnit } : {}),
+        ...(presentationMetadata ?? {})
       }
     } : {}),
     ...(tagReference !== undefined ? { tagReference } : {})

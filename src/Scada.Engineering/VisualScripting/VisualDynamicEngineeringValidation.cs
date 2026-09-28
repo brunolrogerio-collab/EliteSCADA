@@ -29,6 +29,7 @@ public static class VisualDynamicEngineeringValidation
 
         ValidatePropertyExpressions(element.PropertyExpressions, schema, occupied, entityKind, entityKey, issues);
         ValidateBooleanConditions(element.BooleanConditions, schema, occupied, entityKind, entityKey, issues);
+        ValidatePropertyMaps(element.PropertyMaps, schema, occupied, entityKind, entityKey, issues);
 
         if (element.AnalogFill is not null)
             ValidateAnalogFill(element.AnalogFill, schema, entityKind, entityKey, issues);
@@ -205,6 +206,101 @@ public static class VisualDynamicEngineeringValidation
              (condition.Minimum.Value == condition.Maximum.Value && (!condition.MinimumInclusive || !condition.MaximumInclusive))))
         {
             issues.Add(Error("VISUAL_BOOLEAN_CONDITION_RANGE_INVALID", "Numeric interval bounds must describe a non-empty deterministic range.", kind, key));
+        }
+    }
+
+    private static void ValidatePropertyMaps(
+        IReadOnlyCollection<VisualPropertyMapEngineeringDto>? maps,
+        VisualObjectPropertySchema schema,
+        HashSet<string> occupied,
+        ImportEntityKind kind,
+        string key,
+        List<ImportIssue> issues)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var map in maps ?? Array.Empty<VisualPropertyMapEngineeringDto>())
+        {
+            if (map is null)
+            {
+                issues.Add(Error("VISUAL_PROPERTY_MAP_NULL", "Visual property map cannot be null.", kind, key));
+                continue;
+            }
+
+            Version(map.Version, "property map", kind, key, issues);
+            if (string.IsNullOrWhiteSpace(map.PropertyKey))
+            {
+                issues.Add(Error("VISUAL_PROPERTY_MAP_PROPERTY_REQUIRED", "Visual property map requires a canonical destination property.", kind, key));
+                continue;
+            }
+            if (!seen.Add(map.PropertyKey))
+                issues.Add(Error("VISUAL_PROPERTY_MAP_DUPLICATE", $"Visual property '{map.PropertyKey}' has more than one property map.", kind, key));
+            if (occupied.Contains(map.PropertyKey))
+                issues.Add(Error("VISUAL_DYNAMIC_PROPERTY_SOURCE_CONFLICT", $"Visual property '{map.PropertyKey}' already has another Binding/Expression/Condition source.", kind, key));
+            if (!schema.Declares(map.PropertyKey))
+            {
+                issues.Add(Error("VISUAL_PROPERTY_MAP_DESTINATION_INVALID", $"Visual property '{map.PropertyKey}' is not declared by '{schema.ObjectTypeKey}'.", kind, key));
+                continue;
+            }
+
+            var definition = schema.GetRequired(map.PropertyKey);
+            if (!definition.Animatable)
+                issues.Add(Error("VISUAL_PROPERTY_MAP_DESTINATION_NOT_ANIMATABLE", $"Visual property '{map.PropertyKey}' is not animatable.", kind, key));
+
+            ValidateSource(map.Source, kind, key, issues);
+            if (map.Source is not null && map.Source.ValueType != VisualExpressionValueType.Number)
+                issues.Add(Error("VISUAL_PROPERTY_MAP_SOURCE_TYPE_INVALID", "Visual property maps require a numeric source.", kind, key));
+
+            var rules = map.Rules ?? Array.Empty<VisualPropertyMapRuleEngineeringDto>();
+            if (rules.Count == 0)
+                issues.Add(Error("VISUAL_PROPERTY_MAP_RULE_REQUIRED", "Visual property map requires at least one ordered range rule.", kind, key));
+
+            foreach (var rule in rules)
+            {
+                if (rule is null)
+                {
+                    issues.Add(Error("VISUAL_PROPERTY_MAP_RULE_NULL", "Visual property map rule cannot be null.", kind, key));
+                    continue;
+                }
+                if (!rule.Minimum.HasValue && !rule.Maximum.HasValue)
+                    issues.Add(Error("VISUAL_PROPERTY_MAP_BOUND_REQUIRED", "Each visual property map rule requires at least one numeric bound.", kind, key));
+                if (rule.Minimum.HasValue && !double.IsFinite(rule.Minimum.Value))
+                    issues.Add(Error("VISUAL_PROPERTY_MAP_BOUND_INVALID", "Visual property map minimum must be finite.", kind, key));
+                if (rule.Maximum.HasValue && !double.IsFinite(rule.Maximum.Value))
+                    issues.Add(Error("VISUAL_PROPERTY_MAP_BOUND_INVALID", "Visual property map maximum must be finite.", kind, key));
+                if (rule.Minimum.HasValue && rule.Maximum.HasValue &&
+                    (rule.Minimum.Value > rule.Maximum.Value ||
+                     (rule.Minimum.Value == rule.Maximum.Value && (!rule.MinimumInclusive || !rule.MaximumInclusive))))
+                    issues.Add(Error("VISUAL_PROPERTY_MAP_RANGE_INVALID", "Visual property map bounds must describe a non-empty range.", kind, key));
+
+                ValidateMappedValue(schema, map.PropertyKey, rule.Value, kind, key, issues);
+            }
+
+            if (map.Fallback.HasValue)
+                ValidateMappedValue(schema, map.PropertyKey, map.Fallback.Value, kind, key, issues);
+            occupied.Add(map.PropertyKey);
+        }
+    }
+
+    private static void ValidateMappedValue(
+        VisualObjectPropertySchema schema,
+        string propertyKey,
+        System.Text.Json.JsonElement value,
+        ImportEntityKind kind,
+        string key,
+        List<ImportIssue> issues)
+    {
+        try
+        {
+            VisualEngineeringPropertyCodec.Decode(
+                schema,
+                new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal)
+                {
+                    [propertyKey] = value.Clone()
+                });
+        }
+        catch (Exception exception) when (exception is InvalidDataException or ArgumentException or KeyNotFoundException)
+        {
+            issues.Add(Error("VISUAL_PROPERTY_MAP_VALUE_INVALID", $"Mapped value for '{propertyKey}' is invalid: {exception.Message}", kind, key));
         }
     }
 

@@ -245,6 +245,7 @@ public sealed record VisualElementEngineeringDto(
     IReadOnlyCollection<VisualPropertyExpressionEngineeringDto>? PropertyExpressions = null,
     IReadOnlyCollection<VisualBooleanConditionEngineeringDto>? BooleanConditions = null,
     VisualAnalogFillEngineeringDto? AnalogFill = null,
+    IReadOnlyCollection<VisualPropertyMapEngineeringDto>? PropertyMaps = null,
     IReadOnlyCollection<DynamoParameterValueEngineeringDto>? DynamoParameters = null,
     IReadOnlyCollection<VisualNavigationActionEngineeringDto>? Actions = null);
 

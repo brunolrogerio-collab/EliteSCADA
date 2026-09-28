@@ -285,6 +285,22 @@ export type VisualAnalogFillEngineering = Readonly<{
   version?: number;
 }>;
 
+export type VisualPropertyMapRuleEngineering = Readonly<{
+  value: VisualEngineeringPropertyValue;
+  minimum?: number | null;
+  minimumInclusive?: boolean;
+  maximum?: number | null;
+  maximumInclusive?: boolean;
+}>;
+
+export type VisualPropertyMapEngineering = Readonly<{
+  propertyKey: string;
+  source: VisualValueSourceEngineering;
+  rules: readonly VisualPropertyMapRuleEngineering[];
+  fallback?: VisualEngineeringPropertyValue | null;
+  version?: number;
+}>;
+
 export type VisualEngineeringAssetReference = Readonly<{
   assetId: string;
 }>;
@@ -338,6 +354,7 @@ export type VisualElementEngineering = {
   propertyExpressions?: readonly VisualPropertyExpressionEngineering[] | null;
   booleanConditions?: readonly VisualBooleanConditionEngineering[] | null;
   analogFill?: VisualAnalogFillEngineering | null;
+  propertyMaps?: readonly VisualPropertyMapEngineering[] | null;
   dynamoParameters?: readonly import('../runtime/visual-navigation/runtimeVisualNavigationModel').DynamoParameterValueEngineering[] | null;
   actions?: readonly import('../runtime/visual-navigation/runtimeVisualNavigationModel').VisualNavigationActionEngineering[] | null;
 };

@@ -301,3 +301,118 @@ Order:
 7. sequential integration.
 
 No branch-to-branch feature dependency becomes permanent authority.
+
+
+---
+
+## 13. Test/evidence capability contract — C-TEST-EVIDENCE-01
+
+**State:** `FROZEN_FOR_CONSUMERS`  
+**Owner:** Main / #305  
+**Purpose:** parallel DEV/AUD chats must not be blocked or allowed to overclaim merely because their execution environment differs.
+
+### Core rule
+
+A lane is responsible for the **highest evidence tier its environment can truthfully execute**.
+
+A lane must never:
+- invent a PASS for a test it could not run;
+- weaken tests because Docker/browser/Codespace is unavailable;
+- mutate product merely to avoid environment limitations;
+- claim mounted UI acceptance from source inspection.
+
+If a required higher tier is unavailable, the lane returns an explicit capability gap and Main routes the exact candidate to a capable test executor.
+
+### Evidence tiers
+
+#### E0 — source/contract review
+
+Available to all GitHub-capable chats.
+
+Evidence:
+- exact base->candidate diff;
+- scope;
+- contract compliance;
+- static reasoning;
+- regression tests added/updated;
+- no execution claim.
+
+#### E1 — local lightweight execution
+
+When runtime permits:
+- parser/typecheck;
+- focused unit tests;
+- pure-library tests;
+- lint/static validation;
+- deterministic tests that do not need Docker/browser/services.
+
+#### E2 — exact-SHA CI
+
+Preferred shared automation for:
+- build;
+- .NET/Web test suites;
+- analyzers;
+- component/e2e jobs already supported by repository Actions;
+- exact candidate status.
+
+A DEV may prepare tests without being able to execute them locally; Main/AUD must obtain E2 evidence before integration whenever the affected gate requires it.
+
+#### E3 — mounted local product
+
+Requires a capable Docker/browser/harness executor.
+
+Evidence:
+- real DB/API/Web;
+- normal mounted product UI;
+- persistence/restart;
+- lifecycle;
+- local product behavior.
+
+This tier is **not assumed available in ordinary parallel chats**.
+
+#### E4 — remote/forwarded environment
+
+Requires a real Codespace or accepted equivalent remote topology.
+
+Evidence:
+- forwarding/proxy/network path;
+- remote timing;
+- browser waterfall;
+- environment-specific lifecycle.
+
+A local simulator may provide controlled latency evidence, but it cannot certify actual Codespaces forwarding behavior.
+
+#### E5 — independent Human Preview
+
+Product Owner performs normal user journey without internal implementation guidance.
+
+This remains a distinct acceptance source and cannot be replaced by CODEX/source tests.
+
+### Standard lane handoff fields
+
+Every DEV/AUD handoff must include:
+
+`EVIDENCE_CAPABILITY`
+- `AVAILABLE: E0,E1,...`
+- `EXECUTED: <tiers actually run>`
+- `NOT_AVAILABLE: <tiers unavailable in this environment>`
+- `REQUIRED_NEXT: <exact missing validation>`
+
+If a required tier is unavailable, use:
+
+`ENV_CAPABILITY_GAP / <tier> / <reason> / <recommended executor>`
+
+This is **not** a product failure.
+
+### Integration minimum
+
+Main determines the minimum tier by change type:
+
+- contract/docs-only: E0/E1 as applicable;
+- backend/library logic: E2 minimum;
+- user-facing mounted UI: E2 + E3 before acceptance;
+- remote-timing claim: E2 + E3 + E4 before root closure;
+- fresh-install/lifecycle authority: E2 + E3, plus E5 at the scheduled Human gate;
+- final correction-round acceptance: E2 + E3 + applicable E4 + E5.
+
+No lane may lower the required tier because its own environment is limited.

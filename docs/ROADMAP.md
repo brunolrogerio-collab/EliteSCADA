@@ -11,6 +11,7 @@ Mutable operational snapshot: root `LAST CHANGE.md`.
 **Live canonical Wave 15 Main Coordinator <-> Codex/Work handoff:** `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md`.  
 **Short current combinator/pointer:** `docs/CURRENT-COORDINATOR-HANDOFF.md`.  
 Generic coordinator rotation prompt: `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`.
+Prepared post-E3 correction route: `docs/WAVE15-POST-E3-DEVELOPMENT-ROUTE.md` / issue #378.
 
 > GitHub live always wins for exact branch/SHA/PR/CI state. Historical Wave 14 documents remain evidence, not current sequencing authority. While Wave 15 is active, `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` is a live operational document, not a historical snapshot.
 

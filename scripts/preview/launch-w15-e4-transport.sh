@@ -26,9 +26,9 @@ for command_name in dotnet npm node curl od; do
   require_command "$command_name"
 done
 
-EXPECTED_SDK="10.0.400"
-ACTUAL_SDK="$(dotnet --version)"
-[[ "$ACTUAL_SDK" == "$EXPECTED_SDK" ]] || fail "expected .NET SDK $EXPECTED_SDK from global.json, got $ACTUAL_SDK"
+ACTUAL_SDK="$(dotnet --version)" || fail "dotnet SDK resolution failed under repository global.json"
+[[ "$ACTUAL_SDK" =~ ^10\.0\.4[0-9][0-9]$ ]] || fail "repository global.json resolved an unexpected SDK '$ACTUAL_SDK'; expected a compatible .NET 10.0.4xx feature-band SDK"
+printf 'Resolved repository SDK via global.json: %s\n' "$ACTUAL_SDK"
 
 stop_process() {
   local pid_file="$1"

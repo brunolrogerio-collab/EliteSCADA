@@ -6,7 +6,8 @@ import type {
   VisualBooleanConditionEngineering,
   VisualElementEngineering,
   VisualEngineeringPropertyValue,
-  VisualPropertyExpressionEngineering
+  VisualPropertyExpressionEngineering,
+  VisualPropertyMapEngineering
 } from '../types';
 import {
   BUILTIN_VISUAL_OBJECT_TYPES,
@@ -153,6 +154,10 @@ export function applyVisualEditorMutationIntent(
       return setVisualAnalogFill(screen, intent.objectId, intent.configuration);
     case 'analogFill.remove':
       return removeVisualAnalogFill(screen, intent.objectId);
+    case 'propertyMap.set':
+      return setVisualPropertyMap(screen, intent.objectId, intent.configuration);
+    case 'propertyMap.remove':
+      return removeVisualPropertyMap(screen, intent.objectId, intent.propertyKey);
   }
 }
 
@@ -546,6 +551,47 @@ function setVisualAnalogFill(
   return updateScreenElement(screen, objectId, current => ({
     ...current,
     analogFill: cloneEngineeringValue(configuration)
+  }));
+}
+
+function setVisualPropertyMap(
+  screen: ScreenEngineering,
+  objectId: string,
+  configuration: VisualPropertyMapEngineering
+): ScreenEngineering {
+  const element = requireVisualElement(screen, objectId);
+  const schema = getVisualSchemaForEngineering(element.type);
+  const definition = schema.getRequired(configuration.propertyKey);
+  if (!definition.animatable) throw new Error(`Visual property '${configuration.propertyKey}' is not animatable.`);
+  if (configuration.source.valueType !== 'Number') throw new Error('Visual property maps require a Number source.');
+  if (!configuration.rules.length) throw new Error('Visual property maps require at least one ordered range rule.');
+  for (const rule of configuration.rules) {
+    schema.validate(configuration.propertyKey, rule.value);
+    const minimum = rule.minimum ?? null;
+    const maximum = rule.maximum ?? null;
+    if (minimum === null && maximum === null) throw new Error('Each property map rule requires at least one bound.');
+    if (minimum !== null && !Number.isFinite(minimum)) throw new Error('Property map minimum must be finite.');
+    if (maximum !== null && !Number.isFinite(maximum)) throw new Error('Property map maximum must be finite.');
+    if (minimum !== null && maximum !== null && minimum > maximum) throw new Error('Property map minimum cannot exceed maximum.');
+  }
+  if (configuration.fallback !== undefined && configuration.fallback !== null) {
+    schema.validate(configuration.propertyKey, configuration.fallback);
+  }
+  return updateScreenElement(screen, objectId, current => ({
+    ...current,
+    propertyMaps: [
+      ...(current.propertyMaps ?? []).filter(item => item.propertyKey !== configuration.propertyKey),
+      cloneEngineeringValue(configuration)
+    ]
+  }));
+}
+
+function removeVisualPropertyMap(screen: ScreenEngineering, objectId: string, propertyKey: string): ScreenEngineering {
+  const element = requireVisualElement(screen, objectId);
+  getVisualSchemaForEngineering(element.type).getRequired(propertyKey);
+  return updateScreenElement(screen, objectId, current => ({
+    ...current,
+    propertyMaps: (current.propertyMaps ?? []).filter(item => item.propertyKey !== propertyKey)
   }));
 }
 

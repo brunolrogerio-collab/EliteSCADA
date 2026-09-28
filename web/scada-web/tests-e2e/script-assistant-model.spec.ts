@@ -225,10 +225,11 @@ test('visual authoring uses definition/object stable identity for Screen and Pop
 
   expect(screenObject.canonicalReference).toBe('screen-main/button-1');
   expect(popupObject.canonicalReference).toBe('popup-detail/detail-text');
-  expect(screenObject.snippets).toEqual(expect.arrayContaining([
+  const visible = screenObject.properties.find(property => property.key === 'visible')!;
+  expect(visible.snippets).toEqual(expect.arrayContaining([
     expect.objectContaining({ kind: 'visual-property-read', enabled: true })
   ]));
-  expect(JSON.stringify(screenObject.snippets)).not.toContain('"StartButton"');
+  expect(JSON.stringify(visible.snippets)).not.toContain('"StartButton"');
 
   const renamedPackage = {
     ...engineeringPackage,

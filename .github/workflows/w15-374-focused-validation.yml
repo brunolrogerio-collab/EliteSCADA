@@ -1,0 +1,50 @@
+name: W15 #374 focused correction validation
+
+on:
+  push:
+    branches:
+      - validation/w15-374-focused-6877085
+
+permissions:
+  contents: read
+
+jobs:
+  focused-script-object:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_e2e
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_e2e"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ConnectionStrings__EliteScada: Host=127.0.0.1;Port=5432;Database=elitescada_e2e;Username=postgres;Password=postgres;Pooling=false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 687708551554886b1682e41a58ad72b4991d0f5a
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - run: dotnet restore ScadaPlatform.sln
+      - working-directory: web/scada-web
+        run: npm ci --no-audit --no-fund
+      - working-directory: web/scada-web
+        run: npx playwright install --with-deps chromium
+      - name: Run exact requested focused specs
+        working-directory: web/scada-web
+        run: >-
+          npm run test:e2e --
+          tests-e2e/script-assistant-reference-validation.spec.ts
+          tests-e2e/script-assistant-model.spec.ts
+          tests-e2e/visual-python-property-provider.spec.ts
+          tests-e2e/wave-10-client-visual-event-dispatcher.spec.ts
+          tests-e2e/script-engineering-workspace-contract.spec.ts

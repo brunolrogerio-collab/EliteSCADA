@@ -244,6 +244,13 @@ function addVisualObject(
       [VISUAL_PROPERTY_KEYS.height]: 56
     });
   }
+  if (objectType === BUILTIN_VISUAL_OBJECT_TYPES.numericInput) {
+    element = withValidatedProperties(element, schema, {
+      [VISUAL_PROPERTY_KEYS.width]: 190,
+      [VISUAL_PROPERTY_KEYS.height]: 52,
+      [VISUAL_PROPERTY_KEYS.interactionEnabled]: true
+    });
+  }
 
   for (const [propertyKey, value] of Object.entries(initialProperties ?? {})) {
     element = withValidatedProperty(element, schema, propertyKey, value);

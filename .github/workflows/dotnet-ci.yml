@@ -415,11 +415,13 @@ jobs:
           import json
           with open('/tmp/runtime-session.json') as f:
               session = json.load(f)
+          with open('/tmp/persistence-activate.json') as f:
+              activation = json.load(f)
           assert session['requestedClass'] == 'interactive', session
           assert session['grantedClass'] == 'interactive', session
           assert session['capacityReserved'] is True, session
           assert session['runtime']['projectKey'] == 'ci-demo', session
-          assert session['runtime']['revision'] == 2, session
+          assert session['runtime']['revision'] == activation['revision']['revision'], session
           print(session['sessionId'])
           PY
           )

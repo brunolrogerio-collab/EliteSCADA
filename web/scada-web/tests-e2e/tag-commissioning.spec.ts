@@ -15,10 +15,10 @@ test('TAG commissioning tests a Modbus draft read without applying or mutating A
     }
   });
 
-  await page.route('**/api/engineering/workspace', async route => {
+  await page.route('**/api/engineering/export/json', async route => {
     const response = await route.fetch();
     const snapshot = await response.json();
-    snapshot.package.dataSources = [{
+    snapshot.dataSources = [{
       id: '00000000-0000-0000-0000-00000000c390',
       key: 'modbus.commissioning',
       name: 'Modbus commissioning fixture',
@@ -27,7 +27,7 @@ test('TAG commissioning tests a Modbus draft read without applying or mutating A
       settings: { host: '127.0.0.1', port: '1502', unitId: '1' },
       secretReferences: {}
     }];
-    snapshot.package.tags = [{
+    snapshot.tags = [{
       id: '00000000-0000-0000-0000-00000000c391',
       name: 'Commissioning Pressure',
       path: 'Commissioning.Pressure',

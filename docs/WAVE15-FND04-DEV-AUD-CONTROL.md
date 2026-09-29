@@ -38,11 +38,11 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0115`
+`MAIN_ORDER_REV: 0116`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-29 — #373 E3 ACCEPTED / #374 PYTHON EXECUTION COMPLETION DIAGNOSTIC ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-29 — REV0115 INVALID FIXTURE / CORRECTED PRODUCT-GENERATED SCRIPT COMPLETION ACTIVE`
 
-`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_FINAL_SCRIPT_EXECUTION_DIAGNOSTIC_ACTIVE`
+`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_CORRECTED_SCRIPT_COMPLETION_ACTIVE`
 
 Current situation:
 
@@ -58,7 +58,7 @@ Current situation:
 - FND-04 is now **VERIFIED / FROZEN** at exact product checkpoint `6c810647c9773a19b212d9c33694780141786ac7`.
 - The readable Script TAG reference contract is frozen for downstream consumption.
 - FND-04 AUD remains **FROZEN / WAIT / NO_MUTATION**.
-- The **same sequential CODEX executor/chat is now assigned under rev0115 to perform one final no-mutation #374 Script Python execution-completion diagnostic only**. #373 HMI and #376 Gateway mounted E3 are accepted and must not be rerun. FND-04 remains frozen; the shared CODEX route is independent of the legacy FND-04 DEV order.
+- The **same sequential CODEX executor/chat is now assigned under rev0116 to repeat only the #374 minimal Python completion diagnostic using the actual Script Assistant-generated snippets, after rev0115 was invalidated by a hand-authored fixture missing the required `elite_scada` import**. #373 HMI and #376 Gateway mounted E3 are accepted and must not be rerun. FND-04 remains frozen; the shared CODEX route is independent of the legacy FND-04 DEV order.
 - Any later change to this shared contract requires a new Main/Foundation delta; downstream lanes may not redefine it.
 
 Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`, tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`. #373 HMI and #376 Gateway mounted E3 are accepted on the exact combined product candidate. rev0114 also proved #374 canonical Apply, persisted stable-ID Key rename/reuse and real Worker bridge acknowledgements/rendered effects, but the combined smoke handler hard-stopped before final `execution-result`. rev0115 owns only the minimal individual Python read/write/tween completion diagnostic. Any movement of integration or any candidate HEAD invalidates rev0115 until Main reissues exact coordinates.
@@ -70,26 +70,43 @@ Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave1
 >
 > The shared CODEX executor is not the legacy FND-04 DEV lane.
 
-`SHARED_CODEX_ORDER_REV: 0115`
+`SHARED_CODEX_ORDER_REV: 0116`
 
-`ORDER_ID: FINAL-SEQUENTIAL-CODEX-SCRIPT-PYTHON-COMPLETION-96`
+`ORDER_ID: FINAL-SEQUENTIAL-CODEX-SCRIPT-PYTHON-CORRECTED-FIXTURE-97`
 
-`ORDER_STATE: ACTIVE_DIAGNOSTIC / #373_E3_ACCEPTED / #376_E3_ACCEPTED / #374_SINGLE_RESIDUAL_ONLY / NO_PRODUCT_MUTATION / NO_MERGE`
+`ORDER_STATE: ACTIVE_DIAGNOSTIC / REV0115_INVALID_TEST_FIXTURE / #373_E3_ACCEPTED / #376_E3_ACCEPTED / #374_SINGLE_RESIDUAL_ONLY / NO_PRODUCT_MUTATION / NO_MERGE`
 
-### rev0114 handoff processed
+### rev0115 disposition
 
 CODEX handoff:
-#305/`5883034102`.
+#305/`5883208687`.
 
-Exact coordinates remain unchanged:
+rev0115 did **not** establish a product failure.
+
+Observed:
+- real Worker `execution-result.status = faulted`;
+- duration 2.805 ms;
+- sanitized `NameError` at line 2;
+- no capability `api-request`.
+
+Cause:
+- disposable fixture called bare `visual_property_read(...)`;
+- canonical product-generated code requires:
+  `from elite_scada import visual_property_read`.
+
+Classification:
+`INVALID_TEST_FIXTURE / NO_PRODUCT_DEFECT / NO_E3_PASS_OR_FAIL`.
+
+The rev0115 stop-on-first-fault behavior was correct. WRITE and TWEEN were not executed.
+
+### Exact coordinates remain pinned
+
 - integration `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`;
 - combined product `051cc0cdc71b85a7777c93893b0b7012bec4fcc0`;
-- tree `3aaec957ce27c73bb8b7090b7cd9f412ba26b567`;
+- combined tree `3aaec957ce27c73bb8b7090b7cd9f412ba26b567`;
 - #373 `9079e3d41a51d603e82cb791247596fddda23771`;
 - #374 `687708551554886b1682e41a58ad72b4991d0f5a`;
 - #376 `4a5252abf008cb314f4494d48107be25a3643d0c`.
-
-### Accepted and frozen for this cohort
 
 #373:
 `E2_ACCEPTED / E3_MOUNTED_ACCEPTED / WAIT_COHORT_GATE0_CLOSE`.
@@ -97,111 +114,119 @@ Exact coordinates remain unchanged:
 #376:
 `E2_ACCEPTED / E3_MOUNTED_ACCEPTED / WAIT_COHORT_GATE0_CLOSE`.
 
-Do NOT rerun HMI or Gateway unless product bytes change.
+Do not rerun #373 or #376 unless product bytes change.
 
-### #374 evidence already accepted
+### #374 accepted evidence carried forward
 
-Carry forward:
-- Object Browser/Property Browser stable-ID authoring;
-- assistant Read/Write/Clear/Tween capability behavior;
+Carry forward all previously accepted #374 evidence:
+- stable-ID Object/Property authoring;
+- Script Assistant capability behavior;
 - Script Save/Reopen;
-- canonical Visual Editor Apply HTTP 200;
-- persisted visual developer-Key rename;
-- reuse of old Key on a distinct stable object ID;
-- no silent identity retarget;
-- Save/Publish/Activate under supported Runtime project config;
-- real Worker bridge requests for:
-  - `visualProperty.read`;
-  - `visualProperty.write`;
-  - `visualTween.request`;
-- each bridge operation returned `ok:true`;
-- expected target rendered with the changed position/color;
-- wrong-object capability remains fail-safe from carried focused/mounted evidence.
+- real Visual Editor Apply HTTP 200;
+- persisted Key rename;
+- old-Key reuse on distinct stable ID;
+- no silent retarget;
+- Save/Publish/Activate;
+- supported Runtime project configuration;
+- real Worker bridge operations previously acknowledged `ok:true`;
+- rendered target effect observed.
 
-### Single remaining question
+Only the final normal Python handler completion proof remains.
 
-The combined rev0114 smoke did not emit the final Worker `execution-result` before hard-stop/fault.
+### Validation-source rule for rev0116
 
-This matters because the public sandbox contract is:
-- handler budget = 250 ms;
-- hard-stop grace = 50 ms;
-- normal successful dispatch returns `execution-result: completed`;
-- hard-stop is classified as timed-out/faulted, not completed.
+Do **not** hand-author the capability snippets.
 
-Do not accept the combined smoke as a successful Script execution solely because bridge sub-operations succeeded.
+For READ, WRITE and TWEEN:
+1. use the mounted product Script Assistant;
+2. select the same real stable visual target/property through normal UI;
+3. invoke the Assistant action that generates the snippet;
+4. use that exact generated snippet as the handler body;
+5. add only the minimal event-handler wrapper required by the normal product Script model;
+6. preserve the product-generated imports and call structure verbatim.
 
-At the same time, do not classify a product defect yet: the rev0114 handler may simply have combined too much work for one bounded event.
+Source-confirmed product forms include:
+- READ:
+  `from elite_scada import visual_property_read`
+- WRITE:
+  `from elite_scada import visual_property_write`
+- TWEEN:
+  `from elite_scada import visual_tween_request`
 
-### Immediate CODEX action — three minimal independent handlers
+The full generated call arguments must come from the product itself; do not reconstruct them from memory.
 
-Reuse the proven local Docker/mounted topology and exact product bytes.
+### Immediate CODEX action — corrected three-handler completion proof
 
-Warm/initialize Pyodide before timing the actual event dispatch.
+Reuse the proven mounted local Docker topology with:
+`EngineeringRuntime__ProjectKey=e2e-wave03`.
 
-Run **three independent minimal handlers/events**, not one handler containing all operations.
+Warm/initialize Pyodide before event timing.
 
-#### Handler 1 — READ only
+Execute three independent minimal handlers.
 
-- normal supported Script/event association;
-- one supported stable-reference `visualProperty.read`;
-- no write;
-- no tween;
+#### 1. READ-only
+
+- generate READ snippet through Script Assistant;
+- dispatch one event;
 - capture:
-  - handler dispatch start;
-  - bridge request/response;
-  - final `execution-result`;
+  - generated source;
+  - capability bridge request/response;
+  - final Worker `execution-result`;
   - duration.
 
-Required PASS:
+PASS:
 `execution-result.status = completed`.
 
-#### Handler 2 — WRITE only
+#### 2. WRITE-only
 
-- one supported stable-reference `visualProperty.write`;
-- no read except what the bridge/runtime requires internally;
-- no tween;
-- prove rendered target property changed;
-- capture final `execution-result` and duration.
+- generate WRITE snippet through Script Assistant;
+- dispatch independently;
+- capture bridge request/response;
+- capture rendered property change;
+- capture final `execution-result`;
+- capture duration.
 
-Required PASS:
+PASS:
 `execution-result.status = completed`.
 
-#### Handler 3 — TWEEN only
+#### 3. TWEEN-only
 
-- one supported `visualTween.request`;
-- no extra read/write sequence in the Script;
+- generate TWEEN snippet through Script Assistant;
+- dispatch independently;
 - capture bridge acknowledgement;
 - capture final `execution-result`;
-- then independently observe deterministic visual completion/result.
+- observe deterministic final visual property/result after tween;
+- capture duration.
 
-Required PASS:
+PASS:
 `execution-result.status = completed`.
 
-### Classification rule
+### Classification
 
-If all three minimal handlers complete:
+If all three product-generated minimal handlers complete:
 `COMBINED_E3_PASS / LOCAL_DOCKER_MOUNTED / #373+#374+#376 COMPLETE`.
 
-If one minimal handler individually hard-stops, times out or faults:
-`COMBINED_E3_FAIL / #374_SCRIPT_RUNTIME / <READ|WRITE|TWEEN> / <exact execution-result or hard-stop evidence>`.
+If any one product-generated minimal handler returns a real timed-out/faulted result or hard-stop:
+`COMBINED_E3_FAIL / #374_SCRIPT_RUNTIME / <READ|WRITE|TWEEN> / <exact causal evidence>`.
 
-If the browser/executor cannot capture the final result despite the product remaining alive and no product failure evidence:
+If the executor cannot run/capture a product-generated snippet despite the mounted product being otherwise healthy:
 `E3_HOMOLOGATION_ENV_GAP / #374 / <exact blocker>`.
 
 ### Constraints
 
 - no product/source/test/workflow mutation;
 - no timeout increase;
-- no retry workaround;
-- no direct DOM/private renderer shortcut;
-- no browser route mock;
+- no retries to mask a real failure;
+- no hand-authored substitute capability snippet;
+- no DOM/private renderer shortcut;
+- no browser endpoint mock;
 - no PostgreSQL mutation;
 - no HMI rerun;
 - no Gateway rerun;
-- no 42/42 rerun unless directly required to diagnose a proven failure.
+- no broad focused-suite rerun.
 
 Required handoff title:
-`CODEX -> MAIN COORDINATOR — #374 MINIMAL PYTHON COMPLETION HANDOFF`.
+`CODEX -> MAIN COORDINATOR — #374 PRODUCT-GENERATED PYTHON COMPLETION HANDOFF`.
 
 Then STOP.
 
@@ -4199,5 +4224,30 @@ No timeout change.
 
 Required handoff:
 `CODEX -> MAIN COORDINATOR — #374 MINIMAL PYTHON COMPLETION HANDOFF`.
+
+Then stop.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0116
+
+`ORDER_ID: FINAL-SEQUENTIAL-CODEX-SCRIPT-PYTHON-CORRECTED-FIXTURE-97`
+
+rev0115:
+`INVALID_TEST_FIXTURE / NO_PRODUCT_DEFECT / NO_E3_PASS_OR_FAIL`.
+
+Reason:
+- hand-authored READ fixture omitted the product-required `from elite_scada import visual_property_read`.
+
+rev0116:
+- use actual Script Assistant-generated READ/WRITE/TWEEN snippets;
+- three independent warmed minimal handlers;
+- each must return `execution-result.status = completed`.
+
+No product mutation.
+No timeout change.
+No HMI/Gateway rerun.
+
+Required handoff:
+`CODEX -> MAIN COORDINATOR — #374 PRODUCT-GENERATED PYTHON COMPLETION HANDOFF`.
 
 Then stop.

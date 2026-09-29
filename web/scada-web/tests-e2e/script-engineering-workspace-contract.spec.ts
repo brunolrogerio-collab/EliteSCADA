@@ -341,7 +341,7 @@ test('mounted specialized Engineering surfaces keep dark/light contrast and Mona
   await shell.evaluate(element => {
     const fixture = document.createElement('div');
     fixture.dataset.testid = 'theme-state-fixture';
-    fixture.style.cssText = 'position:fixed;left:8px;bottom:8px;width:360px;z-index:9999;padding:8px';
+    fixture.style.cssText = 'position:fixed;left:8px;bottom:8px;width:360px;max-height:70vh;overflow:auto;z-index:9999;padding:8px';
     fixture.innerHTML = `
       <section class="eng-editor-section">
         <div class="eng-editor-form-panel">
@@ -415,7 +415,8 @@ test('mounted specialized Engineering surfaces keep dark/light contrast and Mona
 
     const hover = page.getByTestId('theme-hover');
     const beforeHover = await hover.evaluate(element => getComputedStyle(element).backgroundColor);
-    await hover.hover({ force: true });
+    await hover.scrollIntoViewIfNeeded();
+    await hover.hover();
     const afterHover = await hover.evaluate(element => getComputedStyle(element).backgroundColor);
     expect(afterHover).not.toBe(beforeHover);
 

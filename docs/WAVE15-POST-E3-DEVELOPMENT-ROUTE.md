@@ -171,9 +171,10 @@ No consumer may locally redefine a missing semantic; it returns:
 
 ## 4.5. F0 — shared wire foundation
 
-**State:** NEXT_IMPLEMENTATION_PACKAGE / OWNER_UNASSIGNED / NO_BOOTSTRAP_RELEASED.
+**State:** NEXT_IMPLEMENTATION_PACKAGE / ISSUE_#387 / OWNER_UNASSIGNED / NO_BOOTSTRAP_RELEASED.
 
 Purpose:
+- tracked by #387;
 - translate frozen C0 semantics into additive shared DTO/enums/schema/version types once;
 - prevent Historian Capture, Data Query and Portability lanes from concurrently rewriting shared Engineering contract/type hotspots.
 
@@ -720,7 +721,7 @@ Any consumer that finds an insufficient contract returns:
 | Current | #375 Main recomposition / T1 | exact R1 11-file scope; shared CODEX WAIT | T1 active now |
 | Gate 1 | G / #375 recomposition | none required | E/F/H integration |
 | C0 Contract | Main / #386 | complete / frozen | post-#375 exact base `bb946f9e...` |
-| F0 | Shared Wire Foundation / owner unassigned | none | C0 frozen + exact post-#375 base |
+| F0 | #387 Shared Wire Foundation / owner unassigned | none | C0 frozen + exact post-#375 base |
 | R2-A | I / Engineering density | K | frozen C-ENG-DENSITY-01 + C-PRODUCT-VERSION-01 + post-#375 base |
 | R2-A | K / Theme + contrast | I + O | frozen C-ENG-THEME-01 + post-#375 base |
 | R2-A | O / Historian capture | I + K + DATA-QUERY-CORE + PORTABILITY-CORE when ownership is clean | frozen C-HISTORIAN-CAPTURE-01 + post-#375 base + no material file overlap |

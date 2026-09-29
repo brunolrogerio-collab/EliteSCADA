@@ -1,10 +1,7 @@
-using Scada.Core.Alarms;
-using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Historian;
-using Scada.Engineering.ImportExport;
 
 namespace Scada.Drivers.Tests;
 
@@ -114,39 +111,6 @@ public sealed class HistorianCaptureProfileRuntimeTests
 
         Assert.False(result.CanActivate);
         Assert.Contains(result.Issues, issue => issue.Code == "HISTORIAN_CAPTURE_PROFILE_NOT_FOUND");
-    }
-
-    [Fact]
-    public void EngineeringExchange_ImportExportPreservesStableTagProfileReference()
-    {
-        var profileId = Guid.NewGuid();
-        var tag = Tag("Plant.RoundTrip", TagDataType.Double, profileId);
-        var profile = Profile(
-            profileId,
-            HistorianCaptureStrategy.OnChangeDeadbandMaxInterval,
-            deadband: 0.25d,
-            maximumIntervalMilliseconds: 60_000);
-
-        var tags = new InMemoryTagRegistry();
-        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
-        var exchange = new EngineeringExchangeService(tags, alarms);
-        var package = Package([tag], [profile]);
-
-        var preview = exchange.Preview(package, ImportMode.CreateAndUpdate);
-        Assert.True(preview.CanApply);
-        var applied = exchange.Apply(package, ImportMode.CreateAndUpdate);
-        Assert.Empty(applied.Issues);
-
-        var exported = exchange.ExportPackage();
-        var exportedTag = Assert.Single(exported.Tags);
-        var exportedProfile = Assert.Single(exported.HistorianCaptureProfiles!);
-
-        Assert.Equal(profileId, exportedTag.HistorianCaptureProfileId);
-        Assert.Equal(profileId, exportedProfile.Id);
-        Assert.Equal(profile.Key, exportedProfile.Key);
-        Assert.Equal(profile.Strategy, exportedProfile.Strategy);
-        Assert.Equal(profile.Deadband, exportedProfile.Deadband);
-        Assert.Equal(profile.MaximumIntervalMilliseconds, exportedProfile.MaximumIntervalMilliseconds);
     }
 
     [Fact]

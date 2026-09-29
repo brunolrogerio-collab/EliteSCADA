@@ -5,5 +5,25 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <LangVersion>latest</LangVersion>
+
+    <!--
+      C-PRODUCT-VERSION-01 canonical product identity.
+      Keep the human-facing product identity here so API, Web and published
+      assembly/distribution metadata derive from one source rather than
+      component-local literals.
+    -->
+    <EliteScadaProductName>EliteSCADA</EliteScadaProductName>
+    <EliteScadaProductChannel>Alpha</EliteScadaProductChannel>
+    <EliteScadaProductVersion>0.15.2.1</EliteScadaProductVersion>
+    <Product>$(EliteScadaProductName)</Product>
+    <AssemblyVersion>$(EliteScadaProductVersion)</AssemblyVersion>
+    <FileVersion>$(EliteScadaProductVersion)</FileVersion>
+    <InformationalVersion>$(EliteScadaProductName) $(EliteScadaProductChannel) $(EliteScadaProductVersion)</InformationalVersion>
   </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="EliteScadaProductName" Value="$(EliteScadaProductName)" />
+    <AssemblyMetadata Include="EliteScadaProductChannel" Value="$(EliteScadaProductChannel)" />
+    <AssemblyMetadata Include="EliteScadaProductVersion" Value="$(EliteScadaProductVersion)" />
+  </ItemGroup>
 </Project>

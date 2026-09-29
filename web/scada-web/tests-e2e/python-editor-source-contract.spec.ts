@@ -10,6 +10,10 @@ test('Monaco editor provides Python editing, markers, Script Assistant insertion
 
   expect(editor).toContain("createModel(sourceRef.current, 'python'");
   expect(editor).toContain("lineNumbers: 'on'");
+  expect(editor).toContain('useAppliedAppTheme');
+  expect(editor).toContain("appTheme === 'dark' ? 'vs-dark' : 'vs'");
+  expect(editor).toContain('theme: monacoTheme');
+  expect(editor).toContain('monaco.editor.setTheme(monacoTheme)');
   expect(editor).toContain('registerCompletionItemProvider');
   expect(editor).toContain('setModelMarkers');
   expect(editor).toContain('buildEntryPointCompletions');
@@ -73,4 +77,15 @@ test('editor API help and Script Assistant derive from the reserved bridge capab
   expect(assistantModel).toContain('CLIENT_VISUAL_PYTHON_CAPABILITIES');
   expect(assistantModel).toContain("case 'tag.write': return 'elite_scada.tag_write'");
   expect(worker).toContain("tag_write: (reference: unknown, value: unknown) => requestCapability('tag.write', 'write'");
+});
+
+
+test('Python editor chrome consumes Engineering semantic theme tokens without generic light fallbacks', async () => {
+  const css = await source('../src/engineering/python-editor/python-editor.css');
+  expect(css).toContain('--python-surface: var(--eng-panel');
+  expect(css).toContain('--python-muted: var(--eng-muted');
+  expect(css).toContain('--python-focus: var(--eng-focus');
+  expect(css).toContain('--python-danger: var(--eng-danger');
+  expect(css).not.toContain('var(--surface, #fff)');
+  expect(css).not.toContain('var(--border, #d6dae2)');
 });

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { getProductIdentity, type ProductIdentityView } from '../productInfoApi';
 import { loadEngineeringSnapshot } from './api';
 import {
   resolveInitialLocale,
@@ -45,7 +46,8 @@ type SectionId =
   | 'security'
   | 'monitor'
   | 'tagMonitor'
-  | 'diagnostics';
+  | 'diagnostics'
+  | 'information';
 
 type NavItem = { id: SectionId; label?: TranslationKey; literalLabel?: Record<EngineeringLocale, string> };
 type NavGroup = { label: TranslationKey; items: NavItem[] };
@@ -76,7 +78,8 @@ const navigation: NavGroup[] = [
   { label: 'nav.diagnostics', items: [
     { id: 'monitor', literalLabel: { 'pt-BR': 'Monitoramento', en: 'Development Monitor', es: 'Monitor de Desarrollo' } },
     { id: 'tagMonitor', literalLabel: { 'pt-BR': 'TAG Monitor', en: 'TAG Monitor', es: 'TAG Monitor' } },
-    { id: 'diagnostics', label: 'nav.diagnostics' }
+    { id: 'diagnostics', label: 'nav.diagnostics' },
+    { id: 'information', literalLabel: { 'pt-BR': 'Informações', en: 'Information', es: 'Información' } }
   ] }
 ];
 
@@ -87,6 +90,7 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [navigationCollapsed, setNavigationCollapsed] = useState(false);
+  const [productIdentity, setProductIdentity] = useState<ProductIdentityView | null>(null);
   const t = useMemo(() => translator(locale), [locale]);
 
   const load = useCallback(async () => {
@@ -105,6 +109,18 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
 
   useEffect(() => { void load(); }, [load]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    void getProductIdentity(controller.signal)
+      .then(identity => {
+        if (!controller.signal.aborted) setProductIdentity(identity);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setProductIdentity(null);
+      });
+    return () => controller.abort();
+  }, []);
+
   const changeLocale = (next: EngineeringLocale) => {
     setLocale(next);
     setStoredLocale(next);
@@ -122,7 +138,24 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
       <header className="eng-topbar">
         <div className="eng-brand">
           <div className="eng-mark" aria-hidden="true">E</div>
-          <div><strong>{t('app.title')}</strong><span>{t('app.subtitle')}</span></div>
+          <strong className="eng-brand__title">{t('app.title')}</strong>
+        </div>
+        <div className="eng-context" data-testid="engineering-context-row">
+          <strong className="eng-context__task">{currentSectionLabel(section, locale, t)}</strong>
+          <span
+            className="eng-context__project"
+            data-testid="engineering-project-identity"
+            title={snapshot?.workspace.projectName ?? snapshot?.workspace.projectKey ?? t('workspace.unavailable')}
+          >
+            {snapshot?.workspace.projectName ?? snapshot?.workspace.projectKey ?? t('workspace.unavailable')}
+          </span>
+          <span
+            className={snapshot?.workspace.isDirty ? 'eng-context__workspace eng-context__workspace--dirty' : 'eng-context__workspace'}
+            data-testid="engineering-workspace-state"
+          >
+            <span>{t('workspace.status')}</span>
+            <strong>{loading ? t('workspace.loading') : snapshot ? (snapshot.workspace.isDirty ? t('workspace.dirty') : t('workspace.clean')) : t('workspace.unavailable')}</strong>
+          </span>
         </div>
         <div className="eng-top-actions">
           {engineeringLockControl}
@@ -149,12 +182,6 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
             title={navigationCollapsed ? editorNavigationLabel(locale, true) : editorNavigationLabel(locale, false)}
             onClick={() => setNavigationCollapsed(value => !value)}
           ><span aria-hidden="true">{navigationCollapsed ? '›' : '‹'}</span></button> : null}
-          <div className="eng-project-chip">
-            <span>{t('workspace.project')}</span>
-            <strong data-testid="engineering-project-identity">
-              {snapshot?.workspace.projectName ?? snapshot?.workspace.projectKey ?? t('workspace.unavailable')}
-            </strong>
-          </div>
           <nav className="eng-nav">
             {navigation.map(group => (
               <div className="eng-nav-group" key={group.label}>
@@ -179,11 +206,13 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
           </nav>
         </aside>
 
-        <section className="eng-workspace">
-          <WorkspaceBar snapshot={snapshot} loading={loading} t={t} locale={locale}/>
+        <section
+          className={section === 'screens' || section === 'popups' ? 'eng-workspace eng-workspace--wide-section' : 'eng-workspace'}
+          data-section-layout={section === 'screens' || section === 'popups' ? 'wide' : 'readable'}
+        >
           {loading && <div className="eng-state-card"><div className="eng-spinner"/><strong>{t('app.loading')}</strong></div>}
           {!loading && error && <div className="eng-state-card error" role="alert" data-testid="engineering-load-error"><strong>{t('app.loadError')}</strong><span>{error}</span><button type="button" onClick={() => void load()}>{t('app.retry')}</button></div>}
-          {!loading && snapshot && <EngineeringSection section={section} snapshot={snapshot} t={t} locale={locale} onReload={load}/>} 
+          {!loading && snapshot && <EngineeringSection section={section} snapshot={snapshot} productIdentity={productIdentity} t={t} locale={locale} onReload={load}/>}
         </section>
       </div>
     </main>
@@ -196,28 +225,10 @@ function editorNavigationLabel(locale: EngineeringLocale, collapsed: boolean): s
   return collapsed ? 'Mostrar navegação do Engineering' : 'Ocultar navegação do Engineering';
 }
 
-function WorkspaceBar({ snapshot, loading, t, locale }: {
-  snapshot: EngineeringSnapshot | null;
-  loading: boolean;
-  t: ReturnType<typeof translator>;
-  locale: EngineeringLocale;
-}) {
-  const workspace = snapshot?.workspace;
-  const engineeringPackage = snapshot?.package;
-  const unavailable = loading ? t('workspace.loading') : t('workspace.unavailable');
-  return (
-    <div className="eng-workspace-bar" data-testid="engineering-workspace-bar">
-      <div><span>{t('workspace.schema')}</span><strong>{engineeringPackage ? `${engineeringPackage.schema} v${engineeringPackage.schemaVersion}` : '—'}</strong></div>
-      <div><span>{t('workspace.revision')}</span><strong>{workspace ? workspace.baseRevision : unavailable}</strong></div>
-      <div><span>{t('workspace.status')}</span><strong className={workspace?.isDirty ? 'eng-dirty' : ''}>{workspace ? (workspace.isDirty ? t('workspace.dirty') : t('workspace.clean')) : unavailable}</strong></div>
-      <div><span>{t('workspace.exportedAt')}</span><strong>{engineeringPackage?.exportedAt ? formatDate(engineeringPackage.exportedAt, locale) : '—'}</strong></div>
-    </div>
-  );
-}
-
-function EngineeringSection({ section, snapshot, t, locale, onReload }: {
+function EngineeringSection({ section, snapshot, productIdentity, t, locale, onReload }: {
   section: SectionId;
   snapshot: EngineeringSnapshot;
+  productIdentity: ProductIdentityView | null;
   t: ReturnType<typeof translator>;
   locale: EngineeringLocale;
   onReload: () => Promise<void>;
@@ -232,6 +243,7 @@ function EngineeringSection({ section, snapshot, t, locale, onReload }: {
   if (section === 'monitor') return <DevelopmentMonitorWorkspace snapshot={snapshot} locale={locale}/>;
   if (section === 'tagMonitor') return <EngineeringTagMonitorWorkspace snapshot={snapshot} locale={locale}/>;
   if (section === 'diagnostics') return <DiagnosticsSection model={model} t={t} locale={locale}/>;
+  if (section === 'information') return <EngineeringInformation snapshot={snapshot} productIdentity={productIdentity} t={t} locale={locale}/>;
 
   switch (section) {
     case 'dataSources': return <DataSourceEditor model={model} locale={locale}/>;
@@ -262,6 +274,39 @@ function EngineeringSection({ section, snapshot, t, locale, onReload }: {
     case 'popups': return <PopupVisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
     default: return null;
   }
+}
+
+function EngineeringInformation({ snapshot, productIdentity, t, locale }: {
+  snapshot: EngineeringSnapshot;
+  productIdentity: ProductIdentityView | null;
+  t: ReturnType<typeof translator>;
+  locale: EngineeringLocale;
+}) {
+  const copy = informationCopy(locale);
+  const project = snapshot.workspace.projectName ?? snapshot.workspace.projectKey ?? t('workspace.unavailable');
+  const baseRevision = snapshot.workspace.baseRevision === null || snapshot.workspace.baseRevision === undefined
+    ? t('workspace.unsaved')
+    : String(snapshot.workspace.baseRevision);
+
+  return (
+    <div className="eng-section eng-information" data-testid="engineering-information">
+      <SectionHeader title={copy.title} description={copy.description} t={t}/>
+      <section className="eng-panel eng-information__product" aria-label={copy.product}>
+        <span>{copy.product}</span>
+        <strong data-testid="engineering-product-version">{productIdentity?.displayVersion ?? copy.productUnavailable}</strong>
+      </section>
+      <details className="eng-panel eng-information__technical">
+        <summary>{copy.technicalDetails}</summary>
+        <div className="eng-diagnostic-grid">
+          <Diagnostic label={copy.schema} value={`${snapshot.package.schema} v${snapshot.package.schemaVersion}`} mono/>
+          <Diagnostic label={copy.baseRevision} value={baseRevision}/>
+          <Diagnostic label={copy.snapshot} value={formatDate(snapshot.package.exportedAt, locale)}/>
+          <Diagnostic label={copy.project} value={project}/>
+          {productIdentity?.buildCommit ? <Diagnostic label={copy.buildCommit} value={productIdentity.buildCommit} mono/> : null}
+        </div>
+      </details>
+    </div>
+  );
 }
 
 function Overview({ snapshot, t }: { snapshot: EngineeringSnapshot; t: ReturnType<typeof translator> }) {
@@ -378,16 +423,67 @@ function sectionCount(model: EngineeringPackageView, section: SectionId): number
     case 'overview':
     case 'monitor':
     case 'tagMonitor':
-    case 'diagnostics': return '•';
+    case 'diagnostics':
+    case 'information': return '•';
   }
 }
+function currentSectionLabel(section: SectionId, locale: EngineeringLocale, t: ReturnType<typeof translator>): string {
+  for (const group of navigation) {
+    const item = group.items.find(candidate => candidate.id === section);
+    if (!item) continue;
+    if (item.literalLabel) return item.literalLabel[locale];
+    if (item.label) return t(item.label);
+    return scriptNavLabel(locale);
+  }
+  return t('app.engineering');
+}
+
+function informationCopy(locale: EngineeringLocale) {
+  if (locale === 'en') return {
+    title: 'Information',
+    description: 'Product identity and on-demand technical details for the current Engineering workspace.',
+    product: 'Product version',
+    productUnavailable: 'Product version unavailable',
+    technicalDetails: 'Technical details',
+    schema: 'Engineering schema',
+    baseRevision: 'Base revision',
+    snapshot: 'Loaded snapshot',
+    project: 'Project',
+    buildCommit: 'Build commit'
+  };
+  if (locale === 'es') return {
+    title: 'Información',
+    description: 'Identidad del producto y detalles técnicos bajo demanda del área de Engineering actual.',
+    product: 'Versión del producto',
+    productUnavailable: 'Versión del producto no disponible',
+    technicalDetails: 'Detalles técnicos',
+    schema: 'Schema de Engineering',
+    baseRevision: 'Revisión base',
+    snapshot: 'Snapshot cargado',
+    project: 'Proyecto',
+    buildCommit: 'Commit de build'
+  };
+  return {
+    title: 'Informações',
+    description: 'Identidade do produto e detalhes técnicos sob demanda da área de Engineering atual.',
+    product: 'Versão do produto',
+    productUnavailable: 'Versão do produto indisponível',
+    technicalDetails: 'Detalhes técnicos',
+    schema: 'Schema de Engineering',
+    baseRevision: 'Revisão base',
+    snapshot: 'Snapshot carregado',
+    project: 'Projeto',
+    buildCommit: 'Commit do build'
+  };
+}
+
 function formatDate(value: string, locale: EngineeringLocale) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'medium' }).format(date);
 }
 function scriptNavLabel(_locale: EngineeringLocale) { return 'Scripts'; }
 function NavIcon({ section }: { section: SectionId }) {
-  const symbols: Record<SectionId, string> = { overview: '⌂', scripts: '</>', libraries: '▱', dataSources: '⇄', gateway: '⇢', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯' };
+  const symbols: Record<SectionId, string> = { overview: '⌂', scripts: '</>', libraries: '▱', dataSources: '⇄', gateway: '⇢', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯', information: 'ⓘ' };
   return <i aria-hidden="true">{symbols[section]}</i>;
 }
 

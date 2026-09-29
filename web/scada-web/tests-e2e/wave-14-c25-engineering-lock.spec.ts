@@ -89,8 +89,11 @@ test('unlocked Engineering can configure and lock without making frontend capabi
 
   const management = page.getByTestId('engineering-lock-management');
   await expect(management).toBeVisible();
+  await expect(management.locator('summary')).toContainText('Sem proteção');
+  await expect(management.locator('summary')).not.toContainText('Engineering Lock');
   await expect(management).not.toHaveAttribute('open', '');
   await management.locator('summary').click();
+  await expect(management).toContainText('Engineering Lock');
   await expect(page.getByTestId('engineering-lock-configure-secret')).toHaveAttribute('type', 'password');
   await expect(page.getByRole('heading', { name: 'Visão geral do projeto' })).toBeVisible();
 
@@ -111,7 +114,10 @@ test('configured compact Lock management remains discoverable and applies a back
 
   const management = page.getByTestId('engineering-lock-management');
   await expect(management).toBeVisible();
+  await expect(management.locator('summary')).toContainText('Desbloqueado');
+  await expect(management.locator('summary')).not.toContainText('Engineering Lock');
   await management.locator('summary').click();
+  await expect(management).toContainText('Engineering Lock');
   await expect(page.getByRole('button', { name: 'Bloquear agora' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Remover segredo' })).toBeVisible();
   await page.getByRole('button', { name: 'Bloquear agora' }).click();

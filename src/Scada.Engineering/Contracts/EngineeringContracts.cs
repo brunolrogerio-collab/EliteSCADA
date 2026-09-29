@@ -205,7 +205,8 @@ public sealed record EquipmentEngineeringDto(
     IReadOnlyCollection<EngineeringBindingDto>? Bindings = null,
     Dictionary<string, string>? Properties = null,
     Dictionary<string, string>? Context = null,
-    Dictionary<string, string>? Metadata = null);
+    Dictionary<string, string>? Metadata = null,
+    Guid? TemplateId = null);
 
 public sealed record DynamoEngineeringDto(
     Guid? Id,
@@ -217,7 +218,8 @@ public sealed record DynamoEngineeringDto(
     Dictionary<string, string>? Context = null,
     Dictionary<string, string>? Metadata = null,
     IReadOnlyCollection<DynamoParameterDefinitionEngineeringDto>? Parameters = null,
-    IReadOnlyCollection<VisualElementEngineeringDto>? Elements = null);
+    IReadOnlyCollection<VisualElementEngineeringDto>? Elements = null,
+    Guid? TemplateId = null);
 
 /// <summary>
 /// Canonical Engineering node for a visual-object tree. Id is the stable object
@@ -247,7 +249,9 @@ public sealed record VisualElementEngineeringDto(
     VisualAnalogFillEngineeringDto? AnalogFill = null,
     IReadOnlyCollection<VisualPropertyMapEngineeringDto>? PropertyMaps = null,
     IReadOnlyCollection<DynamoParameterValueEngineeringDto>? DynamoParameters = null,
-    IReadOnlyCollection<VisualNavigationActionEngineeringDto>? Actions = null);
+    IReadOnlyCollection<VisualNavigationActionEngineeringDto>? Actions = null,
+    Guid? DynamoDefinitionId = null,
+    Guid? EquipmentId = null);
 
 public sealed record ScreenEngineeringDto(
     Guid? Id,
@@ -273,7 +277,8 @@ public sealed record PopupEngineeringDto(
     Dictionary<string, string>? Context = null,
     Dictionary<string, string>? Metadata = null,
     double X = 0,
-    double Y = 0);
+    double Y = 0,
+    Guid? TemplateId = null);
 
 /// <summary>
 /// First-class Wave 08 project image asset metadata. Raw raster bytes are not

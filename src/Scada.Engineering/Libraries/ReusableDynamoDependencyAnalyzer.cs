@@ -24,18 +24,7 @@ public static class ReusableDynamoDependencyAnalyzer
 
         return Analyze(
             dynamo,
-            templateKey =>
-            {
-                var template = assets.FindTemplateByKey(templateKey)
-                    ?? throw new InvalidDataException(
-                        $"Dynamo '{dynamo.Key}' references template '{templateKey}', which was not found in Working.");
-                if (!template.Id.HasValue || template.Id == Guid.Empty)
-                    throw new InvalidDataException(
-                        $"Dynamo '{dynamo.Key}' template dependency '{templateKey}' does not have stable identity.");
-                return new ReusableLibraryDependency(
-                    ReusableLibraryResourceKinds.EquipmentTemplate,
-                    template.Id.Value);
-            },
+            ResolveWorkingTemplateDependency(dynamo, assets),
             assetId =>
             {
                 var asset = visualAssets.FindAsset(assetId)
@@ -57,23 +46,6 @@ public static class ReusableDynamoDependencyAnalyzer
         ArgumentNullException.ThrowIfNull(dynamo);
         ArgumentNullException.ThrowIfNull(manifest);
 
-        ReusableLibraryResourceEntry ResolveByKey(string kind, string key)
-        {
-            var matches = manifest.Resources
-                .Where(resource =>
-                    resource.Kind.Equals(kind, StringComparison.Ordinal) &&
-                    resource.SourceKey.Equals(key, StringComparison.Ordinal))
-                .ToArray();
-            return matches.Length switch
-            {
-                1 => matches[0],
-                0 => throw new InvalidDataException(
-                    $"Dynamo '{dynamo.Key}' reusable dependency '{kind}:{key}' is missing from the library manifest."),
-                _ => throw new InvalidDataException(
-                    $"Dynamo '{dynamo.Key}' reusable dependency '{kind}:{key}' is ambiguous in the library manifest.")
-            };
-        }
-
         ReusableLibraryResourceEntry ResolveById(string kind, Guid id)
         {
             var matches = manifest.Resources
@@ -93,11 +65,7 @@ public static class ReusableDynamoDependencyAnalyzer
 
         return Analyze(
             dynamo,
-            templateKey =>
-            {
-                var resource = ResolveByKey(ReusableLibraryResourceKinds.EquipmentTemplate, templateKey);
-                return new ReusableLibraryDependency(resource.Kind, resource.ResourceId);
-            },
+            ResolveManifestTemplateDependency(dynamo, manifest),
             assetId =>
             {
                 var resource = ResolveById(ReusableLibraryResourceKinds.VisualAsset, assetId);
@@ -122,16 +90,95 @@ public static class ReusableDynamoDependencyAnalyzer
                 $"Dynamo '{dynamo.Key}' declared reusable dependencies do not exactly match dependencies derived from canonical content.");
     }
 
+    private static ReusableLibraryDependency? ResolveWorkingTemplateDependency(
+        DynamoEngineeringDto dynamo,
+        IEngineeringAssetRegistry assets)
+    {
+        if (!dynamo.TemplateId.HasValue && string.IsNullOrWhiteSpace(dynamo.TemplateKey))
+            return null;
+        if (dynamo.TemplateId == Guid.Empty)
+            throw new InvalidDataException($"Dynamo '{dynamo.Key}' declares an empty Template identity.");
+
+        var byId = dynamo.TemplateId.HasValue ? assets.FindTemplate(dynamo.TemplateId.Value) : null;
+        var byKey = !string.IsNullOrWhiteSpace(dynamo.TemplateKey)
+            ? assets.FindTemplateByKey(dynamo.TemplateKey)
+            : null;
+        if (dynamo.TemplateId.HasValue && byId is null)
+            throw new InvalidDataException(
+                $"Dynamo '{dynamo.Key}' references Template identity '{dynamo.TemplateId.Value:D}', which was not found in Working.");
+        if (!dynamo.TemplateId.HasValue && !string.IsNullOrWhiteSpace(dynamo.TemplateKey) && byKey is null)
+            throw new InvalidDataException(
+                $"Dynamo '{dynamo.Key}' references template '{dynamo.TemplateKey}', which was not found in Working.");
+        if (byId?.Id.HasValue == true && byKey?.Id.HasValue == true && byId.Id != byKey.Id)
+            throw new InvalidDataException(
+                $"Dynamo '{dynamo.Key}' Template identity and alias resolve to different Working resources.");
+
+        var template = byId ?? byKey
+            ?? throw new InvalidDataException($"Dynamo '{dynamo.Key}' Template dependency could not be resolved.");
+        if (!template.Id.HasValue || template.Id == Guid.Empty)
+            throw new InvalidDataException(
+                $"Dynamo '{dynamo.Key}' Template dependency does not have stable identity.");
+        return new ReusableLibraryDependency(
+            ReusableLibraryResourceKinds.EquipmentTemplate,
+            template.Id.Value);
+    }
+
+    private static ReusableLibraryDependency? ResolveManifestTemplateDependency(
+        DynamoEngineeringDto dynamo,
+        ReusableLibraryManifest manifest)
+    {
+        if (!dynamo.TemplateId.HasValue && string.IsNullOrWhiteSpace(dynamo.TemplateKey))
+            return null;
+        if (dynamo.TemplateId == Guid.Empty)
+            throw new InvalidDataException($"Dynamo '{dynamo.Key}' declares an empty Template identity.");
+
+        var byId = dynamo.TemplateId.HasValue
+            ? manifest.Resources.SingleOrDefault(resource =>
+                resource.Kind == ReusableLibraryResourceKinds.EquipmentTemplate &&
+                resource.ResourceId == dynamo.TemplateId.Value)
+            : null;
+        ReusableLibraryResourceEntry? byKey = null;
+        if (!string.IsNullOrWhiteSpace(dynamo.TemplateKey))
+        {
+            var matches = manifest.Resources
+                .Where(resource =>
+                    resource.Kind == ReusableLibraryResourceKinds.EquipmentTemplate &&
+                    resource.SourceKey.Equals(dynamo.TemplateKey, StringComparison.Ordinal))
+                .ToArray();
+            byKey = matches.Length switch
+            {
+                0 => null,
+                1 => matches[0],
+                _ => throw new InvalidDataException(
+                    $"Dynamo '{dynamo.Key}' reusable Template alias '{dynamo.TemplateKey}' is ambiguous in the library manifest.")
+            };
+        }
+
+        if (dynamo.TemplateId.HasValue && byId is null)
+            throw new InvalidDataException(
+                $"Dynamo '{dynamo.Key}' reusable Template dependency '{dynamo.TemplateId.Value:D}' is missing from the library manifest.");
+        if (!dynamo.TemplateId.HasValue && !string.IsNullOrWhiteSpace(dynamo.TemplateKey) && byKey is null)
+            throw new InvalidDataException(
+                $"Dynamo '{dynamo.Key}' reusable Template dependency '{dynamo.TemplateKey}' is missing from the library manifest.");
+        if (byId is not null && byKey is not null && byId.ResourceId != byKey.ResourceId)
+            throw new InvalidDataException(
+                $"Dynamo '{dynamo.Key}' Template identity and alias resolve to different library resources.");
+
+        var resource = byId ?? byKey
+            ?? throw new InvalidDataException($"Dynamo '{dynamo.Key}' reusable Template dependency could not be resolved.");
+        return new ReusableLibraryDependency(resource.Kind, resource.ResourceId);
+    }
+
     private static IReadOnlyCollection<ReusableLibraryDependency> Analyze(
         DynamoEngineeringDto dynamo,
-        Func<string, ReusableLibraryDependency> resolveTemplate,
+        ReusableLibraryDependency? templateDependency,
         Func<Guid, ReusableLibraryDependency> resolveAsset)
     {
         var dependencies = new Dictionary<(string Kind, Guid ResourceId), ReusableLibraryDependency>();
         ValidatePortableBindings(dynamo.Bindings, $"Dynamo '{dynamo.Key}'");
 
-        if (!string.IsNullOrWhiteSpace(dynamo.TemplateKey))
-            Add(dependencies, resolveTemplate(dynamo.TemplateKey));
+        if (templateDependency is not null)
+            Add(dependencies, templateDependency);
 
         foreach (var parameter in dynamo.Parameters ?? Array.Empty<DynamoParameterDefinitionEngineeringDto>())
         {
@@ -163,6 +210,9 @@ public static class ReusableDynamoDependencyAnalyzer
             if (element is null)
                 throw new InvalidDataException($"Dynamo '{ownerKey}' contains a null visual element.");
 
+            if (element.EquipmentId.HasValue)
+                throw new InvalidDataException(
+                    $"Dynamo '{ownerKey}' element '{element.Key}' carries stable project Equipment identity '{element.EquipmentId.Value:D}'. Reusable Dynamos must keep project equipment context parameterized.");
             if (!string.IsNullOrWhiteSpace(element.EquipmentPath) && !ContainsPlaceholder(element.EquipmentPath))
                 throw new InvalidDataException(
                     $"Dynamo '{ownerKey}' element '{element.Key}' has concrete equipment path '{element.EquipmentPath}'. Reusable Dynamos must keep project equipment context parameterized.");
@@ -181,9 +231,14 @@ public static class ReusableDynamoDependencyAnalyzer
                 throw new InvalidDataException(
                     $"Dynamo '{ownerKey}' element '{element.Key}' contains navigation/command actions. Action target dependencies are not reusable-library enabled in the Dynamo slice yet.");
 
-            if (!string.IsNullOrWhiteSpace(element.DynamoKey))
+            if (!string.IsNullOrWhiteSpace(element.DynamoKey) || element.DynamoDefinitionId.HasValue)
+            {
+                var nestedReference = !string.IsNullOrWhiteSpace(element.DynamoKey)
+                    ? element.DynamoKey
+                    : element.DynamoDefinitionId!.Value.ToString("D");
                 throw new InvalidDataException(
-                    $"Dynamo '{ownerKey}' element '{element.Key}' nests Dynamo '{element.DynamoKey}'. Canonical Dynamo composition version 1 does not support nested Dynamos, so reusable libraries cannot enable that composition implicitly.");
+                    $"Dynamo '{ownerKey}' element '{element.Key}' nests Dynamo '{nestedReference}'. Canonical Dynamo composition version 1 does not support nested Dynamos, so reusable libraries cannot enable that composition implicitly.");
+            }
 
             if (string.Equals(element.Type, "core.image", StringComparison.Ordinal) &&
                 element.Properties is not null &&

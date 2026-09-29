@@ -23,9 +23,20 @@ public static class DynamoRuntimeComposer
         ArgumentNullException.ThrowIfNull(instance);
         ArgumentNullException.ThrowIfNull(definition);
 
-        if (string.IsNullOrWhiteSpace(instance.DynamoKey) ||
-            !instance.DynamoKey.Equals(definition.Key, StringComparison.OrdinalIgnoreCase))
+        if (instance.DynamoDefinitionId.HasValue)
+        {
+            if (!definition.Id.HasValue || definition.Id.Value == Guid.Empty ||
+                instance.DynamoDefinitionId.Value != definition.Id.Value)
+                throw new ArgumentException("Visual element stable Dynamo reference does not match the supplied definition.", nameof(instance));
+            if (!string.IsNullOrWhiteSpace(instance.DynamoKey) &&
+                !instance.DynamoKey.Equals(definition.Key, StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("Visual element Dynamo alias does not match the supplied definition.", nameof(instance));
+        }
+        else if (string.IsNullOrWhiteSpace(instance.DynamoKey) ||
+                 !instance.DynamoKey.Equals(definition.Key, StringComparison.OrdinalIgnoreCase))
+        {
             throw new ArgumentException("Visual element does not reference the supplied Dynamo definition.", nameof(instance));
+        }
         if (!instance.Id.HasValue || instance.Id.Value == Guid.Empty)
             throw new ArgumentException("Dynamo instance requires a stable visual element Id.", nameof(instance));
         if (!definition.Id.HasValue || definition.Id.Value == Guid.Empty)

@@ -197,9 +197,9 @@ jobs:
           curl -fsS -b /tmp/scada-auth.cookie -X POST http://127.0.0.1:5080/api/engineering/persistence/projects/first \
             -H 'content-type: application/json' \
             -d '{"projectKey":"ci-demo","projectName":"CI Demo"}' > /tmp/persistence-save.json
-          REVISION=$(python3 -c 'import json; print(json.load(open("/tmp/persistence-save.json"))["revision"]["revision"])')
-          echo "Created first engineering revision ${REVISION}"
-          test "$REVISION" -ge 1
+          FIRST_REVISION=$(python3 -c 'import json; print(json.load(open("/tmp/persistence-save.json"))["revision"]["revision"])')
+          echo "Created first engineering revision ${FIRST_REVISION}"
+          test "$FIRST_REVISION" -ge 1
           python3 - <<'PY'
           import json
           with open('/tmp/persistence-save.json') as f:
@@ -244,6 +244,47 @@ jobs:
           assert revisions[0]['projectKey'] == 'ci-demo'
           assert revisions[0]['engineeringSchemaVersion'] == engineering['schemaVersion']
           assert revisions[0]['basedOnRevision'] is None
+          PY
+
+          # The canonical First Project is intentionally empty. Populate this
+          # disposable CI project explicitly through Engineering Preview/Apply
+          # instead of relying on any hidden Demo seed.
+          WORKSPACE_VERSION=$(python3 -c 'import json; print(json.load(open("/tmp/workspace-after-save.json"))["changeVersion"])')
+          curl -fsS -b /tmp/scada-auth.cookie -X POST http://127.0.0.1:5080/api/engineering/import/json/preview \
+            -H 'content-type: application/json' \
+            --data-binary @docs/examples/engineering-package.json > /tmp/engineering-import-preview.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/engineering-import-preview.json') as f:
+              preview = json.load(f)
+          assert preview['canApply'] is True, preview
+          assert preview['errorCount'] == 0, preview
+          PY
+
+          curl -fsS -b /tmp/scada-auth.cookie -X POST http://127.0.0.1:5080/api/engineering/import/json/apply \
+            -H 'content-type: application/json' \
+            -H "x-elitescada-workspace-version: ${WORKSPACE_VERSION}" \
+            --data-binary @docs/examples/engineering-package.json > /tmp/engineering-import-apply.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/engineering-import-apply.json') as f:
+              applied = json.load(f)
+          assert not any(issue.get('isError') for issue in applied.get('issues', [])), applied
+          PY
+
+          curl -fsS -b /tmp/scada-auth.cookie -X POST http://127.0.0.1:5080/api/engineering/persistence/ci-demo/save \
+            -H 'content-type: application/json' \
+            -d '{"projectName":"CI Demo","savedBy":"github-actions-fixture"}' > /tmp/persistence-configured-save.json
+          REVISION=$(python3 -c 'import json; print(json.load(open("/tmp/persistence-configured-save.json"))["revision"])')
+          echo "Saved configured engineering revision ${REVISION}"
+          test "$REVISION" -gt "$FIRST_REVISION"
+          python3 - <<'PY'
+          import json
+          with open('/tmp/persistence-configured-save.json') as f:
+              saved = json.load(f)
+          with open('/tmp/persistence-save.json') as f:
+              first = json.load(f)
+          assert saved['basedOnRevision'] == first['revision']['revision']
           PY
 
           curl -fsS -b /tmp/scada-auth.cookie -X POST http://127.0.0.1:5080/api/engineering/persistence/ci-demo/latest/preview > /tmp/persistence-preview.json
@@ -315,7 +356,7 @@ jobs:
           curl -fsS -b /tmp/scada-auth.cookie http://127.0.0.1:5080/api/tags > /tmp/tags.json
           TAG_COUNT=$(python3 -c 'import json; print(len(json.load(open("/tmp/tags.json"))))')
           echo "Runtime exposed ${TAG_COUNT} TAGs"
-          test "$TAG_COUNT" -ge 7
+          test "$TAG_COUNT" -ge 1
 
           TANK_ID=$(python3 - <<'PY'
           import json
@@ -325,7 +366,6 @@ jobs:
           PY
           )
           echo "Historian smoke selected TANK_ID=${TANK_ID}"
-          test "$TANK_ID" = "10000000-0000-0000-0000-000000000001"
           cat /tmp/tags.json
           curl -fsS -b /tmp/scada-auth.cookie "http://127.0.0.1:5080/api/history/${TANK_ID}?limit=100" > /tmp/history.json
           curl -fsS -b /tmp/scada-auth.cookie http://127.0.0.1:5080/api/diagnostics/runtime > /tmp/runtime-diagnostics-history.json
@@ -334,7 +374,7 @@ jobs:
           PGPASSWORD=postgres psql \
             --host=127.0.0.1 --port=5432 --username=postgres --dbname=postgres \
             --no-align --tuples-only --pset pager=off \
-            --command="SELECT current_database(), current_schema(), now(), current_setting('TimeZone'); SELECT tag_id, COUNT(*) AS samples, MIN(ts) AS first_ts, MAX(ts) AS last_ts FROM elitescada.tag_history GROUP BY tag_id ORDER BY tag_id; SELECT tag_id, ts, quality, source, value, data_type FROM elitescada.tag_history WHERE tag_id = '10000000-0000-0000-0000-000000000001' AND ts >= now() - interval '15 minutes' ORDER BY ts;" || true
+            --command="SELECT current_database(), current_schema(), now(), current_setting('TimeZone'); SELECT tag_id, COUNT(*) AS samples, MIN(ts) AS first_ts, MAX(ts) AS last_ts FROM elitescada.tag_history GROUP BY tag_id ORDER BY tag_id; SELECT tag_id, ts, quality, source, value, data_type FROM elitescada.tag_history WHERE tag_id = '${TANK_ID}' AND ts >= now() - interval '15 minutes' ORDER BY ts;" || true
           python3 - <<'PY'
           import json
           with open('/tmp/history.json') as f:
@@ -365,12 +405,12 @@ jobs:
             -d '{"projectName":"CI Demo","savedBy":"github-actions-after-publish"}' > /tmp/persistence-save-2.json
           python3 - <<'PY'
           import json
-          with open('/tmp/persistence-save.json') as f:
-              first = json.load(f)
+          with open('/tmp/persistence-configured-save.json') as f:
+              active = json.load(f)
           with open('/tmp/persistence-save-2.json') as f:
               second = json.load(f)
-          assert second['revision'] > first['revision']['revision']
-          assert second['basedOnRevision'] == first['revision']['revision']
+          assert second['revision'] > active['revision']
+          assert second['basedOnRevision'] == active['revision']
           PY
 
           curl -fsS -b /tmp/scada-auth.cookie http://127.0.0.1:5080/api/engineering/workspace > /tmp/workspace-after-save-2.json

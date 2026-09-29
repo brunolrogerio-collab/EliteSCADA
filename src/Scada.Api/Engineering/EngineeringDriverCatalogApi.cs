@@ -375,7 +375,7 @@ public static class EngineeringDriverCatalogApi
                 request.TimeoutMilliseconds);
             driverRequest.Validate();
         }
-        catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException or NotSupportedException)
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException)
         {
             return Results.BadRequest(new { error = "Point-read test request is invalid." });
         }

@@ -1,10 +1,10 @@
 # Wave 15 — Post-E3 Development Route
 
-**Status:** GATE0_GREEN / GATE1_GREEN / #375_INTEGRATED / R2_C0_FROZEN / F0_WIRE_FOUNDATION_NEXT / SHARED_CODEX_WAIT / NO_BOOTSTRAP_RELEASED  
+**Status:** GATE0_GREEN / GATE1_GREEN / #375_INTEGRATED / R2_C0_FROZEN / F0_WIRE_FOUNDATION_NEXT / SHARED_CODEX_PARKED / NO_BOOTSTRAP_RELEASED  
 **Coordinator issue:** #378  
 **Execution ledger:** #305  
 **Current integration baseline:** `wave15/corrections-integration@bb946f9e7d6910d59a9ac172d71361e5badab4b1` / tree `75398319b8b4630b72a525fb9bdd235dc0d541a9`  
-**Current shared CODEX order:** `rev0120 / SHARED-CODEX-WAIT-AFTER-MAIN-REUSE-RECOMPOSE-101`
+**Current shared CODEX order:** `rev0121 / SHARED-CODEX-PARKED-AFTER-GATE1-C0-FREEZE-102`
 
 GitHub live is authoritative. Every gate below must be revalidated against live branches, PR heads, CI and issue handoffs before execution.
 

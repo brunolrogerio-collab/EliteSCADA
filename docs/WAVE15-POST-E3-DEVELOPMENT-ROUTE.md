@@ -485,6 +485,18 @@ Any consumer that finds an insufficient contract returns:
 | Validation | Shared CODEX / E3 | no DEV mutation of candidate | all target lanes delivered |
 | Preview/Audit | CODEX Preview + Human Preview + AUD | independent evidence paths | exact integrated candidate |
 
+## Coordinator / Product Owner operating convention
+
+This route carries the following interaction rules across coordinator rotations:
+
+- every Main status/update ends with a simple table of chat/lane, current live status and the exact Product Owner action;
+- status/action must be revalidated from GitHub live, not memory;
+- Product Owner is not a courier between agents; durable handoffs live in GitHub;
+- a Product Owner `SIGA` to Main means execute the next safe already-authorized action after live revalidation;
+- future chats I/K/J/L/N/M are not released yet and have no bootstrap text;
+- the Product Owner will explicitly ask Main for each bootstrap when its release gate is reached;
+- do not tell the Product Owner to open a future chat before its base/contracts are ready.
+
 ## 15. Current disposition
 
 `PREPARED / WAIT_REV0116 / NO_POST_E3_PRODUCT_MUTATION_YET`.

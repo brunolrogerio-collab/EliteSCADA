@@ -636,3 +636,172 @@ rev0105 did not reach product execution; the only failure was an over-strict har
 No transport/product conclusion is added.
 
 rev0106 uses the same real Codespace with harness HEAD `62c5b8068638681eddb6e707df2b2d393e8dbd71` and the same canonical product bytes.
+
+
+---
+
+## Round-2 shared contracts — prepared after Product Owner visible Preview
+
+These contracts are **PREPARED / NOT RELEASED** while shared CODEX rev0113 is active.
+
+No R2 DEV may implement a shared semantic before Main records the relevant contract as `FROZEN_FOR_CONSUMERS`.
+
+### C-ENG-DENSITY-01 — Engineering information hierarchy / graphical wide mode
+
+**State:** `PREPARED_DRAFT / WAIT_POST_#375_BASE`  
+**Owner:** Main + shared CODEX contract review  
+**Implementation consumer:** Chat I / DEV-ENG-DENSITY  
+**Downstream consumers:** Chat J Editor UX, Chat L Branding settings integration, all Engineering modules.
+
+Frozen semantics must define:
+- `TASK_FIRST / COMPACT_CONTEXT / SECONDARY_INFORMATION_ON_DEMAND`;
+- one compact persistent Engineering context row;
+- dirty / Engineering Lock / CAS/conflict / current-task safety state remains visible when relevant;
+- schema/base revision/snapshot timestamps move to Info/Diagnostics in healthy normal flow;
+- graphical Screen/Popup surfaces can opt into a wide/full-width section mode;
+- ordinary forms/lists retain readable widths;
+- no change to Working/Published/Active authority.
+
+Consumes:
+- `C-AUTHORITY-01`;
+- `C-SURFACE-01`;
+- `C-TEST-EVIDENCE-01`.
+
+Forbidden:
+- redefining project lifecycle;
+- hiding conflict/dirty/Lock state;
+- adding browser-local layout state as project authority.
+
+Chat J must consume the integrated wide-section/layout hook rather than invent a second one.
+
+### C-EDITOR-UX-R2-01 — shared Screen/Popup interaction model
+
+**State:** `PREPARED_DRAFT / WAIT_C-REUSE-01_INTEGRATED / WAIT_C-VISUAL-ASSET-02`  
+**Owner:** Main + shared CODEX contract review  
+**Implementation consumer:** Chat J / DEV-EDITOR-UX-R2
+
+Frozen semantics must define:
+- frequent built-in object insertion through compact toolbar actions;
+- Structure + Dynamo/library/assets in one shared side-authoring surface;
+- no Outliner overlay over canvas;
+- independent scrolling of Structure and Library regions;
+- collapsed state releases nearly all layout width;
+- reopen affordance remains visible, focusable and high-contrast;
+- object/group contextual action model;
+- click-vs-drag threshold/lifecycle;
+- group deep-edit without identity loss;
+- object label visibility mode = all / selected / hidden;
+- Screen/Popup parity.
+
+Consumes without redefining:
+- `C-VISUAL-IDENTITY-01`;
+- `C-VISUAL-DYNAMIC-01`;
+- `C-TAG-WRITE-01`;
+- `C-REUSE-01` after #375 integration/freeze;
+- `C-VISUAL-ASSET-02`;
+- `C-AUTHORITY-01`;
+- `C-SURFACE-01`;
+- `C-TEST-EVIDENCE-01`.
+
+Forbidden:
+- new visual identity;
+- second renderer;
+- private property registry;
+- alternate TAG write path;
+- alternate Dynamo/reuse relationship;
+- alternate asset store/import authority.
+
+### C-VISUAL-ASSET-02 — common asset/import authority for Editor + Branding
+
+**State:** `PREPARED_DRAFT / SHARED_R2_FOUNDATION_REQUIRED`  
+**Owner:** Main + shared CODEX contract review  
+**Consumers:** Chat J Editor UX, Chat L Branding, Screen/Popup/Dynamo/Runtime/package paths.
+
+Existing canonical authority:
+- `docs/VISUAL-ASSETS-AND-IMAGES.md`;
+- stable `VisualAssetEngineeringDto` identity;
+- existing project asset import/storage/package boundary;
+- current raster support PNG/JPEG/BMP.
+
+This contract must freeze **before Chat J and Chat L run in parallel**.
+
+Required semantics:
+1. one canonical project asset identity/store/API;
+2. local filesystem paths never become persisted object/branding references;
+3. Screen/Popup/image/background/branding all reference stable asset ID;
+4. import validation remains server-authoritative;
+5. project package/export/import preserves asset identity/hash/content;
+6. missing/corrupt assets fail explicitly;
+7. existing PNG/JPEG/BMP support remains compatible;
+8. if SVG is implemented, it extends this same authority rather than creating a branding-only file path;
+9. safe SVG means static sanitized vector only:
+   - bounded XML parse;
+   - reject scripts;
+   - reject event handlers;
+   - reject `foreignObject`;
+   - reject external/network references;
+   - reject active/executable content;
+   - deterministic sanitized/canonical representation;
+10. Runtime and Engineering consume only the accepted served asset representation.
+
+Ownership split after freeze:
+- **Chat J** may change Editor image/background selection/import UX, but may not change asset persistence/validation semantics.
+- **Chat L** may implement the agreed SVG validator/asset extension and branding consumer, but may not create another asset store or Editor-specific behavior.
+- if either consumer discovers a missing asset semantic, return:
+  `BLOCKED_CONTRACT / C-VISUAL-ASSET-02 / <missing semantic>`.
+
+### C-BRANDING-01 — canonical client branding
+
+**State:** `PREPARED_DRAFT / WAIT_C-VISUAL-ASSET-02 / WAIT_C-ENG-DENSITY-01_INTEGRATED`  
+**Owner:** Main + #377 contract review  
+**Implementation consumer:** Chat L / DEV-BRANDING  
+**Product consumers:** global application shell, Engineering, Runtime and other shell surfaces.
+
+Required semantics:
+- mode = `DEFAULT | TEXT | IMAGE | NONE`;
+- absence/legacy = default EliteSCADA branding;
+- text is plain display text, never HTML;
+- image references canonical `C-VISUAL-ASSET-02` asset ID;
+- no branding-only blob/file authority;
+- Working/Preview/Apply/Published/Active semantics consume `C-AUTHORITY-01`;
+- unsaved/Working branding does not silently mutate Active Runtime branding;
+- Runtime resolves Active branding;
+- branding settings may preview Working candidate locally without changing Active authority;
+- `NONE` removes reserved brand width cleanly;
+- package/export/import/restart/recovery preserve config and asset reference;
+- missing/corrupt image produces explicit fallback/diagnostic.
+
+Consumes:
+- `C-AUTHORITY-01`;
+- `C-VISUAL-ASSET-02`;
+- `C-ENG-DENSITY-01`;
+- `C-SURFACE-01`;
+- `C-TEST-EVIDENCE-01`.
+
+Forbidden:
+- deployment-local logo file as project truth;
+- direct Working -> Runtime shell mutation;
+- independent shell branding state per page.
+
+### R2 contract dependency matrix
+
+| Consumer | Required shared contracts before implementation |
+|---|---|
+| Chat I — ENG-DENSITY | C-AUTHORITY-01, C-SURFACE-01, C-TEST-EVIDENCE-01, frozen C-ENG-DENSITY-01 |
+| Chat K — REPORT-THEME | C-SURFACE-01, C-TEST-EVIDENCE-01; consume existing Engineering semantic theme tokens |
+| Chat J — EDITOR-UX-R2 | C-ENG-DENSITY-01 integrated, C-VISUAL-IDENTITY-01, C-VISUAL-DYNAMIC-01, C-TAG-WRITE-01, C-REUSE-01 integrated/frozen, C-VISUAL-ASSET-02 frozen, C-SURFACE-01, C-TEST-EVIDENCE-01 |
+| Chat L — BRANDING | C-ENG-DENSITY-01 integrated, C-AUTHORITY-01, C-VISUAL-ASSET-02 frozen, C-BRANDING-01 frozen, C-SURFACE-01, C-TEST-EVIDENCE-01 |
+
+### Parallel release consequence
+
+The planned R2 parallelism remains valid only after the dependency gates above:
+
+1. post-#375 exact integration base;
+2. freeze C-ENG-DENSITY-01;
+3. R2-A: I + K may run in parallel;
+4. integrate I/K;
+5. freeze C-VISUAL-ASSET-02 and C-BRANDING-01 against the new base;
+6. ensure C-REUSE-01 is integrated/frozen;
+7. R2-B: J + L may run in parallel with explicit file/authority ownership.
+
+If these conditions are not met, do not release the corresponding chat.

@@ -82,7 +82,9 @@ jobs:
           trap 'kill "$API_PID" 2>/dev/null || true' EXIT
 
           ready=false
-          for _ in $(seq 1 30); do
+          # Cold CI startup currently crosses 30s after the full test suite on pg/Timescale runners.
+          # Keep this bounded but allow enough startup grace before judging the Runtime unhealthy.
+          for _ in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:5080/health > /tmp/health.json; then
               ready=true
               break

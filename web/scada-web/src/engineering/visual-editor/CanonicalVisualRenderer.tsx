@@ -32,6 +32,7 @@ import {
 } from './visualEditorLiveValues';
 import { resolveVisualDynamicState } from './visualDynamicRuntime';
 import { SliderVisualElement, type SliderTagWrite } from './SliderVisualElement';
+import { NumericInputVisualElement } from './NumericInputVisualElement';
 import { TrendVisualElement } from './TrendVisualElement';
 import {
   cssStrokeStyle,
@@ -287,6 +288,19 @@ function CanonicalElement({
 
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.slider) {
       return <SliderVisualElement
+        element={element}
+        values={values}
+        diagnostics={dynamic.diagnostics}
+        liveSamples={liveSamples}
+        style={style}
+        runtimeObjectId={runtimeObjectId}
+        title={elementTitle}
+        onTagWrite={onTagWrite}
+      />;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.numericInput) {
+      return <NumericInputVisualElement
         element={element}
         values={values}
         diagnostics={dynamic.diagnostics}

@@ -20,7 +20,8 @@ const expectedTypes = [
   'core.alarmBrowser',
   'core.eventBrowser',
   'core.button',
-  'core.slider'
+  'core.slider',
+  'core.numericInput'
 ];
 
 test('built-in visual object types are stable and unique', () => {

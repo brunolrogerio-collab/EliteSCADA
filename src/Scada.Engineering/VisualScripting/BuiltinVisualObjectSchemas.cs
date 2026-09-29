@@ -20,6 +20,7 @@ public static class BuiltinVisualObjectSchemas
     public const string EventBrowserType = "core.eventBrowser";
     public const string ButtonType = "core.button";
     public const string SliderType = "core.slider";
+    public const string NumericInputType = "core.numericInput";
     public const string TrendPensProperty = "pens";
     public const string BrowserConfigProperty = "browserConfig";
 
@@ -252,6 +253,27 @@ public static class BuiltinVisualObjectSchemas
             VisualPropertyKeys.CornerRadius
         ]));
 
+    public static VisualObjectPropertySchema NumericInput { get; } = Create(
+        NumericInputType,
+        Base
+            .Concat([VisualPropertyKeys.BackgroundColor])
+            .Concat(
+            [
+                VisualPropertyKeys.StrokeColor,
+                VisualPropertyKeys.StrokeWidth,
+                VisualPropertyKeys.CornerRadius,
+                VisualPropertyKeys.TextColor,
+                VisualPropertyKeys.FontFamily,
+                VisualPropertyKeys.FontSize,
+                VisualPropertyKeys.FontWeight,
+                VisualPropertyKeys.HorizontalAlignment,
+                VisualPropertyKeys.Value,
+                VisualPropertyKeys.Minimum,
+                VisualPropertyKeys.Maximum,
+                VisualPropertyKeys.Step,
+                VisualPropertyKeys.InteractionEnabled
+            ]));
+
     public static IReadOnlyCollection<VisualObjectPropertySchema> All { get; } =
     [
         Group,
@@ -266,7 +288,8 @@ public static class BuiltinVisualObjectSchemas
         AlarmBrowser,
         EventBrowser,
         Button,
-        Slider
+        Slider,
+        NumericInput
     ];
 
     /// <summary>

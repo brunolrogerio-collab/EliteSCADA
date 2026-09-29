@@ -45,6 +45,8 @@ export function applyProtectedVisualEditorMutationIntent(
     case 'booleanCondition.remove':
     case 'analogFill.set':
     case 'analogFill.remove':
+    case 'propertyMap.set':
+    case 'propertyMap.remove':
       assertVisualElementsAuthoringEditable(screen, [intent.objectId]);
       return applyLegacyVisualEditorMutationIntent(screen, intent, options);
     case 'object.duplicate': {

@@ -17,7 +17,8 @@ export const BUILTIN_VISUAL_OBJECT_TYPES = {
   alarmBrowser: 'core.alarmBrowser',
   eventBrowser: 'core.eventBrowser',
   button: 'core.button',
-  slider: 'core.slider'
+  slider: 'core.slider',
+  numericInput: 'core.numericInput'
 } as const;
 
 export type BuiltinVisualObjectType = typeof BUILTIN_VISUAL_OBJECT_TYPES[keyof typeof BUILTIN_VISUAL_OBJECT_TYPES];
@@ -182,6 +183,23 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     VISUAL_PROPERTY_KEYS.strokeColor,
     VISUAL_PROPERTY_KEYS.strokeWidth,
     VISUAL_PROPERTY_KEYS.cornerRadius
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.numericInput, schema(BUILTIN_VISUAL_OBJECT_TYPES.numericInput, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.backgroundColor,
+    VISUAL_PROPERTY_KEYS.strokeColor,
+    VISUAL_PROPERTY_KEYS.strokeWidth,
+    VISUAL_PROPERTY_KEYS.cornerRadius,
+    VISUAL_PROPERTY_KEYS.textColor,
+    VISUAL_PROPERTY_KEYS.fontFamily,
+    VISUAL_PROPERTY_KEYS.fontSize,
+    VISUAL_PROPERTY_KEYS.fontWeight,
+    VISUAL_PROPERTY_KEYS.horizontalAlignment,
+    VISUAL_PROPERTY_KEYS.value,
+    VISUAL_PROPERTY_KEYS.minimum,
+    VISUAL_PROPERTY_KEYS.maximum,
+    VISUAL_PROPERTY_KEYS.step,
+    VISUAL_PROPERTY_KEYS.interactionEnabled
   ])]
 ]);
 

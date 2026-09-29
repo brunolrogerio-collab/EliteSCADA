@@ -6,7 +6,8 @@ import type {
   VisualBooleanConditionEngineering,
   VisualElementEngineering,
   VisualEngineeringPropertyValue,
-  VisualPropertyExpressionEngineering
+  VisualPropertyExpressionEngineering,
+  VisualPropertyMapEngineering
 } from '../types';
 
 /**
@@ -164,6 +165,16 @@ export type VisualEditorMutationIntent =
   | Readonly<{
       kind: 'analogFill.remove';
       objectId: string;
+    }>
+  | Readonly<{
+      kind: 'propertyMap.set';
+      objectId: string;
+      configuration: VisualPropertyMapEngineering;
+    }>
+  | Readonly<{
+      kind: 'propertyMap.remove';
+      objectId: string;
+      propertyKey: string;
     }>;
 
 export type VisualEditorBindingSelectorCapability = Readonly<{

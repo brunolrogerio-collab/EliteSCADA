@@ -112,6 +112,18 @@ F0 implemented the shared additive wire authority for:
 
 These wire definitions are now integrated downstream authority. Behavioral lanes may implement services/runtime/UI but must not redefine the shared wire locally. Any missing semantic returns `BLOCKED_CONTRACT` to Main.
 
+### 1.4 Post-F0 C0 delta — TAG commissioning/productivity
+
+Product Owner requirement on 2026-09-29 adds two mandatory first-external-test contracts after F0 integration:
+- C-TAG-COMMISSIONING-01 / #390;
+- C-TAG-DUPLICATION-01 / #391.
+
+This does not reopen F0 schema v20 wholesale.
+- #390 requires a bounded transient Driver Engineering wire delta (F0-D1) for `PointReadTest` capability/request/result/provider semantics.
+- #391 consumes existing TAG/Fragment/Working contracts and should require no new persistent wire unless implementation proves a missing shared semantic.
+
+No consumer may implement private point-test or clipboard wire semantics outside these contracts.
+
 ## 2. Global acceptance contract — C-SURFACE-01
 
 **State:** `FROZEN_FOR_CONSUMERS`  
@@ -289,6 +301,131 @@ Required semantics:
 #368 extends this contract to numeric input without creating a second write service.
 
 ---
+
+### C-TAG-COMMISSIONING-01 — draft TAG point-read commissioning
+
+**State:** `FROZEN_FOR_CONSUMERS / POST_F0_DELTA_REQUIRED / MANDATORY_FIRST_EXTERNAL_TEST / OWNER_ISSUE_#390`  
+**Owner:** Main + #390  
+**Consumers:** Driver Engineering tooling, TAG structured editor, Development Monitor handoff, Chat N / structured Engineering, Chat M / copy-i18n.
+
+Permanent separation:
+- `ConnectionTest` = Data Source/transport/session reachability and identity;
+- `PointReadTest` = one transient read of a draft TAG binding/address through the selected Driver;
+- `Development Monitor` = ongoing observation of already-Active Runtime TAGs/driver diagnostics.
+
+Product flow:
+`DRAFT TAG -> TEST READ -> RAW EVIDENCE -> DECODED VALUE -> ENGINEERING VALUE -> QUALITY/LATENCY -> FIX BINDING -> PREVIEW/APPLY`.
+
+Required semantics:
+1. Point-read test is Engineering-only and read-only. It never mutates Working/Published/Active, writes process values, writes Historian rows or changes Driver scan rates.
+2. A test may use a configured Data Source or a validated draft Source/binding through protected Driver Engineering tooling, but secrets remain protected references and are never returned.
+3. Driver SDK exposes an independent optional capability `PointReadTest`; it is not overloaded onto Data Source `ConnectionTest`.
+4. Result states are typed and at least cover `GOOD | BAD | NO_DATA | INTERMITTENT_OR_UNCERTAIN | NOT_SUPPORTED`.
+5. UI state is conveyed by text/icon as well as color. Prepared convention: GOOD blue accent, BAD red, NO_DATA neutral gray, intermittent/uncertain amber or gray with explicit diagnostic.
+6. Result carries, where the Driver can safely provide it:
+   - sanitized endpoint/source;
+   - canonical portable address;
+   - source/observed timestamps;
+   - bounded latency;
+   - quality;
+   - raw wire/register representation;
+   - decoded process value before Engineering normalization;
+   - Engineering/normalized value after canonical transforms/selectors/scale/offset;
+   - applied transform summary;
+   - typed Driver issues.
+7. Raw evidence is optional by Driver capability; absence must be explicit rather than fabricated.
+8. Bounded multi-sample mode may observe a few reads for intermittent-link diagnosis, with fixed duration/sample cap and cancellation.
+9. Active Runtime remains the sole ongoing process authority. The test provider is transient and cannot become a second Runtime Driver.
+10. After Apply/Activate, `Development Monitor` remains the normal ongoing watch surface.
+
+Physical transform authority:
+- canonical cross-driver physical transform remains `CommunicationTagBinding.ValueTransform` where supported;
+- a Driver may also have protocol-native ordering settings required to materialize the canonical binding;
+- UI and implementation must not apply equivalent byte/word ordering twice;
+- the point-read result reports the **effective transform actually used**;
+- if both a protocol setting and generic transform express the same physical operation, the Driver projection must normalize to one effective operation or fail validation as ambiguous.
+
+First external-test Driver targets:
+- Modbus TCP — mandatory;
+- Siemens S7 ISO — mandatory where current binding/transform contract supports the addressed value type;
+- OPC UA — mandatory canonical value/quality read where current Engineering tooling can resolve the node;
+- other Drivers may truthfully return `NOT_SUPPORTED` until their provider is implemented.
+
+Modbus acceptance evidence must expose enough to diagnose commissioning:
+- unit/slave;
+- data area/reference;
+- raw words and/or hex bytes when available;
+- configured value type;
+- effective byte/word ordering;
+- decoded value;
+- scale/offset engineering result;
+- bit selector where applicable.
+
+Acceptance:
+- correct draft address returns GOOD without Apply;
+- incorrect device/address returns BAD/NO_DATA truthfully;
+- draft transform/order change can be retested immediately;
+- raw/decoded/engineering values are distinguishable;
+- bounded intermittent sample summary is truthful;
+- no Active/History/process mutation;
+- timeout/cancellation is bounded;
+- protected material is never returned.
+
+Shared-wire consequence:
+- because F0 is already integrated, a bounded **F0-D1 Driver Point Read Test Wire** delta must add the optional Driver Engineering capability/provider/request/result wire before behavioral implementation;
+- this transient tooling delta should not increment Engineering schema v20 unless a persisted Engineering DTO is actually changed.
+
+### C-TAG-DUPLICATION-01 — TAG copy/paste and sequential duplication
+
+**State:** `FROZEN_FOR_CONSUMERS / MANDATORY_FIRST_EXTERNAL_TEST / OWNER_ISSUE_#391`  
+**Owner:** Main + #391  
+**Consumes:** C-ENGINEERING-PORTABILITY-01, C-ENG-WORKFLOW-01, stable TAG/Data Source identity and normal Working Preview/Apply/CAS.
+
+Product flow:
+`SELECT TAG(S) -> COPY/DUPLICATE -> PREVIEW GENERATED TAGS -> RESOLVE NAME/PATH/ADDRESS -> APPLY TO WORKING`.
+
+Identity and data rules:
+1. every duplicated TAG receives a new stable TAG ID;
+2. source TAG IDs are never reused;
+3. only configuration is copied — Runtime value, quality, timestamps, Historian rows, alarm/event history and diagnostics are never copied;
+4. Data Source/binding references remain stable references; protected material is never duplicated as plaintext;
+5. original TAGs remain untouched.
+
+Required authoring operations:
+- Duplicate TAG;
+- Copy selected;
+- Paste;
+- Duplicate selected;
+- bulk edit generated drafts before Apply;
+- keyboard shortcuts where context-safe plus discoverable toolbar/context actions.
+
+Single duplicate:
+- copy editable TAG configuration;
+- generate a non-colliding draft name/path;
+- retain Source/binding/transform/Historian profile references when valid;
+- Preview before Apply.
+
+Sequential generator:
+- bounded count;
+- name/path find-replace or numeric suffix start/step;
+- Driver address increment only through a Driver-owned canonical increment rule;
+- first mandatory implementation: canonical Modbus coil/discrete/holding/input address + integer step;
+- no generic arithmetic over opaque address strings;
+- Preview table shows every resulting name/path/address and all collisions before mutation.
+
+Dependency rules:
+- default TAG copy does not silently duplicate Alarms, Gateways, Scripts, Commands, visual bindings or Historian data;
+- any future `copy with dependencies` must consume Engineering Fragment dependency Preview explicitly;
+- same-project app clipboard may be session-local, but cross-project transfer converges on `.escadafrag` rather than creating another portable format.
+
+Acceptance:
+- duplicate one TAG -> new ID and safe path;
+- duplicate a group of sequential Modbus TAGs with predictable name/address increments;
+- collisions fail before Apply;
+- source/binding/transform configuration is preserved;
+- no process/history/event state is copied;
+- normal Preview/Apply/CAS and save/reopen are used;
+- cross-project design remains compatible with C-ENGINEERING-PORTABILITY-01.
 
 ## 8. Reusable object relationship — C-REUSE-01
 

@@ -79,6 +79,7 @@ export type DataQueryParameterTarget =
   | 'absoluteFromUtc'
   | 'absoluteToUtc'
   | 'relativeDurationSeconds'
+  | 'historianTargetUtc'
   | 'search'
   | 'filterValue';
 
@@ -117,6 +118,7 @@ export type HistorianRetrievalEngineering = Readonly<{
   bucketMilliseconds?: number | null;
   maximumGapMilliseconds?: number | null;
   aggregateFunction?: DataQueryAggregateFunction | null;
+  targetUtc?: string | null;
 }>;
 
 export type DataQueryEngineering = Readonly<{

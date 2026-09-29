@@ -1,10 +1,10 @@
 # Wave 15 — Post-E3 Development Route
 
-**Status:** PREPARED / WAIT_REV0112 / NO_POST_E3_PRODUCT_MUTATION_YET  
+**Status:** PREPARED / WAIT_REV0113 / NO_POST_E3_PRODUCT_MUTATION_YET  
 **Coordinator issue:** #378  
 **Execution ledger:** #305  
 **Current integration baseline at preparation time:** `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`  
-**Current shared CODEX order at preparation time:** `rev0112 / COMPLETE-SEQUENTIAL-CODEX-COMBINED-E3-LOCAL-DOCKER-MOUNTED-93`
+**Current shared CODEX order:** `rev0113 / COMPLETE-SEQUENTIAL-CODEX-RESIDUAL-E3-HMI-SCRIPT-94`
 
 GitHub live is authoritative. Every gate below must be revalidated against live branches, PR heads, CI and issue handoffs before execution.
 
@@ -15,8 +15,8 @@ Finish the current correction wave without mixing unrelated productization work 
 The route is:
 
 ```text
-rev0112 E3
-  -> integrate #373/#374/#376 if accepted
+rev0113 residual E3 (#373/#374; #376 already E3-accepted)
+  -> integrate #373/#374/#376 if Gate 0 closes
   -> recompose/integrate #375
   -> freeze Round-2 UX/product contracts
   -> R2-A: Engineering density + Report theme
@@ -29,13 +29,18 @@ rev0112 E3
   -> container/host productization + Local/Remote DB topology later in canonical order
 ```
 
-## 2. Gate 0 — rev0112 disposition
+## 2. Gate 0 — residual E3 disposition
 
-Do not start new product branches while rev0112 is active.
+Do not start new product branches while rev0113 is active.
+
+Current carried-forward state:
+- #376 Gateway: `E2_ACCEPTED / E3_MOUNTED_ACCEPTED / WAIT_COHORT_GATE0_CLOSE`;
+- #373 HMI: residual Undo/Redo + failed-write UI + bad/unavailable-quality evidence/capability classification;
+- #374 Script: residual persisted Key rename/reuse/no-retarget + Runtime read/write/tween smoke.
 
 If CODEX returns:
 
-`COMBINED_E3_PASS / LOCAL_DOCKER_MOUNTED`
+`COMBINED_E3_PASS / LOCAL_DOCKER_MOUNTED / #373+#374+#376 COMPLETE`
 
 Main must:
 1. revalidate integration still equals the pinned base;
@@ -323,4 +328,4 @@ Resume canonical sequencing for:
 
 ## 14. Current disposition
 
-`PREPARED / WAIT_REV0112 / NO_POST_E3_PRODUCT_MUTATION_YET`.
+`PREPARED / WAIT_REV0113 / NO_POST_E3_PRODUCT_MUTATION_YET`.

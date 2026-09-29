@@ -22,7 +22,7 @@ namespace Scada.Engineering.ImportExport;
 public sealed class EngineeringExchangeService : IEngineeringExchangeService
 {
     public const string CurrentSchema = "scada.engineering";
-    public const int CurrentSchemaVersion = 19;
+    public const int CurrentSchemaVersion = 20;
 
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
@@ -253,7 +253,10 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
                 AuthorityPolicyContract.SchemaVersion,
                 authoritySnapshot.Version,
                 authoritySnapshot.Roles.Select(role => role.Id!.Value).Order().ToArray(),
-                authoritySnapshot.Scopes.Select(scope => scope.Id).Order().ToArray()));
+                authoritySnapshot.Scopes.Select(scope => scope.Id).Order().ToArray()),
+            HistorianCaptureProfiles: Array.Empty<HistorianCaptureProfileEngineeringDto>(),
+            DataQueries: Array.Empty<DataQueryEngineeringDto>(),
+            AlarmViews: Array.Empty<AlarmViewEngineeringDto>());
     }
 
     public string ExportJson(bool indented = true)
@@ -295,6 +298,9 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
                 package.SchemaVersion),
             SecurityScopes = package.SecurityScopes ?? Array.Empty<SecurityScopeEngineeringDto>(),
             AuthorityPolicyReference = package.AuthorityPolicyReference,
+            HistorianCaptureProfiles = package.HistorianCaptureProfiles ?? Array.Empty<HistorianCaptureProfileEngineeringDto>(),
+            DataQueries = package.DataQueries ?? Array.Empty<DataQueryEngineeringDto>(),
+            AlarmViews = package.AlarmViews ?? Array.Empty<AlarmViewEngineeringDto>(),
             Commands = package.Commands ?? Array.Empty<CommandEngineeringDto>(),
             Gateways = package.Gateways ?? Array.Empty<GatewayRouteEngineeringDto>(),
             Scripts = package.Scripts ?? Array.Empty<ScriptEngineeringDefinition>(),

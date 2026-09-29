@@ -427,6 +427,26 @@ Required evidence:
 - no known internal-only vocabulary in ordinary first-user paths;
 - Human Preview remains final language-quality evidence.
 
+## 8.6. Prepared cross-domain extensions from E3 comparative audit
+
+The Product Owner comparative audit on 2026-09-29 created:
+
+- #384 / C-DATA-QUERY-VIEW-01 — shared typed Query authority across Historian retrieval, Alarm View, Browser, Trend and Report;
+- #385 / C-ENGINEERING-PORTABILITY-01 — Engineering Fragment/selective import-export plus reusable Library/Dynamo version/update lifecycle.
+
+These are **product-correction findings, not released DEV lanes yet**.
+
+Main must resolve their overlap after Gate 0/1 and before releasing implementation:
+- #384 overlaps O (#382 Historian capture), P (#383 time range), Historical Browser and Reporting;
+- #385 overlaps G/#375 reuse, #365 Template/Equipment/Dynamo workflow, #308 Library preview, J visual Editor and N structured Engineering workflows.
+
+Do not create Chat Q/R or any other bootstrap merely because these issues exist.
+
+Required scheduling decision after the exact post-#375 base exists:
+1. determine whether #384 is a bounded foundation consumed by P or requires its own isolated lane;
+2. determine whether #385 can be split cleanly into backend Fragment/Library versioning plus J/N UI consumption without colliding with current reuse work;
+3. preserve SECOND Preview/Audit as the acceptance authority for any portion admitted into the correction phase.
+
 ## 8. Gate 4 — integrated correction E3
 
 After R2-A and R2-B are integrated, validate one exact integrated candidate with:

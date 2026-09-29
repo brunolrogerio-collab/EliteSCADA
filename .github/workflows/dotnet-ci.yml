@@ -253,27 +253,72 @@ jobs:
           test "$WORKSPACE_VERSION" -ge 1
 
           # Derive the CI package from the live canonical First Project export.
-          # Preserve its current schema/Authority/Dynamo envelope and overlay only
-          # the explicit disposable simulation TAG, alarm and Data Source fixture.
+          # Preserve its current schema/Authority/Dynamo envelope and overlay one
+          # explicit Server Memory TAG so the persisted runtime is self-contained
+          # and does not depend on the historical Demo/simulation fallback.
           curl -fsS -b /tmp/scada-auth.cookie http://127.0.0.1:5080/api/engineering/export/json > /tmp/first-project-engineering.json
           python3 - <<'PY'
           import json
           with open('/tmp/first-project-engineering.json') as f:
               current = json.load(f)
-          with open('docs/examples/engineering-package.json') as f:
-              legacy_fixture = json.load(f)
           assert current.get('authorityPolicyReference') is not None, current
-          current['tags'] = legacy_fixture['tags']
-          current['alarms'] = legacy_fixture['alarms']
+
+          data_source_id = '95000000-0000-0000-0000-000000000001'
+          tag_id = '95000000-0000-0000-0000-000000000002'
+          alarm_id = '95000000-0000-0000-0000-000000000003'
           current['dataSources'] = [
               {
-                  'id': None,
-                  'key': 'builtin.simulation',
-                  'name': 'CI Built-in Simulation',
-                  'driver': 'builtin.simulation',
+                  'id': data_source_id,
+                  'key': 'ci.memory.server',
+                  'name': 'CI Server Memory',
+                  'driver': 'builtin.memory.server',
                   'enabled': True,
-                  'settings': {'scanIntervalMilliseconds': '500'},
-                  'metadata': {'system': 'true', 'owner': 'ci-fixture'}
+                  'metadata': {'owner': 'ci-fixture'}
+              }
+          ]
+          current['tags'] = [
+              {
+                  'id': tag_id,
+                  'name': 'CI Runtime Value',
+                  'path': 'CI.Runtime.Value',
+                  'dataType': 'double',
+                  'source': 'ci.memory.server',
+                  'address': None,
+                  'engineeringUnit': '%',
+                  'description': 'Disposable CI runtime/historian value',
+                  'readOnly': False,
+                  'scaleMinimum': 0,
+                  'scaleMaximum': 100,
+                  'historian': {
+                      'enabled': True,
+                      'strategy': 'change',
+                      'deadband': None,
+                      'periodMilliseconds': None,
+                      'maximumPeriodMilliseconds': None
+                  },
+                  'metadata': {'owner': 'ci-fixture'},
+                  'initialValue': {'dataType': 'double', 'value': 42.5},
+                  'dataSourceId': data_source_id
+              }
+          ]
+          current['alarms'] = [
+              {
+                  'id': alarm_id,
+                  'name': 'CI Runtime High',
+                  'tagId': tag_id,
+                  'tagPath': 'CI.Runtime.Value',
+                  'type': 'high',
+                  'priority': 'high',
+                  'setpoint': 90,
+                  'digitalActiveValue': True,
+                  'alarmClass': 'CI',
+                  'area': 'CI',
+                  'message': 'CI runtime value above 90',
+                  'activationDelayMilliseconds': 0,
+                  'requiresAcknowledgement': True,
+                  'shelvingAllowed': True,
+                  'enabled': True,
+                  'metadata': {'owner': 'ci-fixture'}
               }
           ]
           with open('/tmp/ci-runtime-engineering.json', 'w') as f:
@@ -338,10 +383,12 @@ jobs:
           assert result['lifecycle']['status'] == 2
           PY
 
-          curl -fsS -b /tmp/scada-auth.cookie -X POST http://127.0.0.1:5080/api/engineering/persistence/ci-demo/published/activate \
+          ACTIVATE_STATUS=$(curl -sS -b /tmp/scada-auth.cookie -o /tmp/persistence-activate.json -w '%{http_code}' \
+            -X POST http://127.0.0.1:5080/api/engineering/persistence/ci-demo/published/activate \
             -H 'content-type: application/json' \
-            -d '{"activatedBy":"github-actions"}' > /tmp/persistence-activate.json
+            -d '{"activatedBy":"github-actions"}')
           cat /tmp/persistence-activate.json
+          test "$ACTIVATE_STATUS" = "200"
           python3 - <<'PY'
           import json
           with open('/tmp/persistence-activate.json') as f:
@@ -389,23 +436,23 @@ jobs:
           echo "Runtime exposed ${TAG_COUNT} TAGs"
           test "$TAG_COUNT" -ge 1
 
-          TANK_ID=$(python3 - <<'PY'
+          CI_TAG_ID=$(python3 - <<'PY'
           import json
           with open('/tmp/tags.json') as f:
               tags = json.load(f)
-          print(next(tag['id'] for tag in tags if tag['path'] == 'Demo.Tank01.Level'))
+          print(next(tag['id'] for tag in tags if tag['path'] == 'CI.Runtime.Value'))
           PY
           )
-          echo "Historian smoke selected TANK_ID=${TANK_ID}"
+          echo "Historian smoke selected CI_TAG_ID=${CI_TAG_ID}"
           cat /tmp/tags.json
-          curl -fsS -b /tmp/scada-auth.cookie "http://127.0.0.1:5080/api/history/${TANK_ID}?limit=100" > /tmp/history.json
+          curl -fsS -b /tmp/scada-auth.cookie "http://127.0.0.1:5080/api/history/${CI_TAG_ID}?limit=100" > /tmp/history.json
           curl -fsS -b /tmp/scada-auth.cookie http://127.0.0.1:5080/api/diagnostics/runtime > /tmp/runtime-diagnostics-history.json
           cat /tmp/history.json
           cat /tmp/runtime-diagnostics-history.json
           PGPASSWORD=postgres psql \
             --host=127.0.0.1 --port=5432 --username=postgres --dbname=postgres \
             --no-align --tuples-only --pset pager=off \
-            --command="SELECT current_database(), current_schema(), now(), current_setting('TimeZone'); SELECT tag_id, COUNT(*) AS samples, MIN(ts) AS first_ts, MAX(ts) AS last_ts FROM elitescada.tag_history GROUP BY tag_id ORDER BY tag_id; SELECT tag_id, ts, quality, source, value, data_type FROM elitescada.tag_history WHERE tag_id = '${TANK_ID}' AND ts >= now() - interval '15 minutes' ORDER BY ts;" || true
+            --command="SELECT current_database(), current_schema(), now(), current_setting('TimeZone'); SELECT tag_id, COUNT(*) AS samples, MIN(ts) AS first_ts, MAX(ts) AS last_ts FROM elitescada.tag_history GROUP BY tag_id ORDER BY tag_id; SELECT tag_id, ts, quality, source, value, data_type FROM elitescada.tag_history WHERE tag_id = '${CI_TAG_ID}' AND ts >= now() - interval '15 minutes' ORDER BY ts;" || true
           python3 - <<'PY'
           import json
           with open('/tmp/history.json') as f:

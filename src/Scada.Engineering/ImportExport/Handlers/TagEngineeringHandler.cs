@@ -385,6 +385,7 @@ internal sealed class TagEngineeringHandler
         Set(result, "historian.deadband", dto.Historian?.Deadband);
         Set(result, "historian.periodMs", dto.Historian?.PeriodMilliseconds);
         Set(result, "historian.maxPeriodMs", dto.Historian?.MaximumPeriodMilliseconds);
+        Set(result, HistorianCaptureProfileMetadata.ProfileIdMetadataKey, dto.HistorianCaptureProfileId);
         MemoryEngineeringValueCodec.WriteToMetadata(result, dto.InitialValue);
         return result;
     }

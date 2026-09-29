@@ -143,6 +143,32 @@ public static class EngineeringDriverCatalogApi
         })
         .RequireWorkspaceEngineeringRead();
 
+        app.MapPost("/api/engineering/driver-tools/point-read-test", async (
+            DriverEngineeringDraftPointReadTestApiRequest request,
+            EngineeringWorkspace workspace,
+            EngineeringDriverToolProviderFactoryRegistry factories,
+            CancellationToken cancellationToken) =>
+        {
+            var dataSource = ToDraftDataSource(request.DataSource);
+            if (dataSource is null)
+                return Results.BadRequest(new { error = "SourceKey and DriverType are required." });
+
+            return await ExecutePointReadTestAsync(
+                workspace.Describe().ProjectKey,
+                dataSource,
+                new DriverEngineeringPointReadTestApiRequest(
+                    request.Binding,
+                    request.DataType,
+                    request.AddressSelector,
+                    request.EngineeringUnit,
+                    request.SampleCount,
+                    request.SampleIntervalMilliseconds,
+                    request.TimeoutMilliseconds),
+                factories,
+                cancellationToken);
+        })
+        .RequireWorkspaceEngineeringRead();
+
         app.MapPost("/api/engineering/driver-tools/discover", async (
             DriverEngineeringDraftDiscoveryApiRequest request,
             EngineeringWorkspace workspace,
@@ -215,6 +241,27 @@ public static class EngineeringDriverCatalogApi
             {
                 return DriverToolFailure(ex);
             }
+        })
+        .RequireWorkspaceEngineeringRead();
+
+        app.MapPost("/api/engineering/data-sources/{id:guid}/driver-tools/point-read-test", async (
+            Guid id,
+            DriverEngineeringPointReadTestApiRequest request,
+            EngineeringWorkspace workspace,
+            IDataSourceEngineeringRegistry dataSources,
+            EngineeringDriverToolProviderFactoryRegistry factories,
+            CancellationToken cancellationToken) =>
+        {
+            var dataSource = dataSources.Find(id);
+            if (dataSource is null)
+                return Results.NotFound(new { error = $"Engineering Data Source '{id}' was not found." });
+
+            return await ExecutePointReadTestAsync(
+                workspace.Describe().ProjectKey,
+                dataSource,
+                request,
+                factories,
+                cancellationToken);
         })
         .RequireWorkspaceEngineeringRead();
 
@@ -302,6 +349,61 @@ public static class EngineeringDriverCatalogApi
             }
         })
         .RequireWorkspaceEngineeringRead();
+    }
+
+    private static async Task<IResult> ExecutePointReadTestAsync(
+        string? projectKey,
+        DataSourceEngineeringDto dataSource,
+        DriverEngineeringPointReadTestApiRequest request,
+        EngineeringDriverToolProviderFactoryRegistry factories,
+        CancellationToken cancellationToken)
+    {
+        if (!factories.TryGet(dataSource.Driver, out var factory) || factory is null)
+            return UnsupportedTooling(dataSource.Driver);
+
+        DriverPointReadTestRequest driverRequest;
+        try
+        {
+            driverRequest = new DriverPointReadTestRequest(
+                ToDriverContext(dataSource),
+                request.Binding,
+                request.DataType,
+                request.AddressSelector,
+                request.EngineeringUnit,
+                request.SampleCount,
+                request.SampleIntervalMilliseconds,
+                request.TimeoutMilliseconds);
+            driverRequest.Validate();
+        }
+        catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException or NotSupportedException)
+        {
+            return Results.BadRequest(new { error = "Point-read test request is invalid." });
+        }
+
+        using var bounded = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        bounded.CancelAfter(TimeSpan.FromMilliseconds(driverRequest.TimeoutMilliseconds));
+
+        try
+        {
+            await using var lease = await factory.CreateAsync(projectKey, dataSource, bounded.Token);
+            var tester = lease.Registration.PointReadTester;
+            if (tester is null)
+                return UnsupportedCapability(dataSource.Driver, DriverEngineeringCapabilities.PointReadTest);
+
+            var result = await tester.TestPointReadAsync(driverRequest, bounded.Token);
+            return Results.Ok(result);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return Results.Problem(
+                title: "Driver Engineering point-read test timed out.",
+                detail: "The bounded Engineering point-read test timed out. Working and Runtime state were not changed.",
+                statusCode: StatusCodes.Status504GatewayTimeout);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            return DriverToolFailure(ex);
+        }
     }
 
     private static DataSourceEngineeringDto? ToDraftDataSource(DriverEngineeringDraftDataSourceApiRequest request)

@@ -209,7 +209,7 @@ public sealed class S7IsoEngineeringAdapter :
             "Siemens S7 ISO-on-TCP",
             1,
             DriverCapabilities.Read | DriverCapabilities.Write | DriverCapabilities.Diagnostics,
-            DriverEngineeringCapabilities.ConnectionTest | DriverEngineeringCapabilities.FileImport,
+            DriverEngineeringCapabilities.ConnectionTest | DriverEngineeringCapabilities.FileImport | DriverEngineeringCapabilities.PointReadTest,
             new[] { DriverAcquisitionMode.Polling },
             new DriverConfigurationSchemaDescriptor(
                 "siemens.s7.iso",

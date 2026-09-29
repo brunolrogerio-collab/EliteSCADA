@@ -35,7 +35,10 @@ export function applyModbusAddressBuild(
         schemaId: result.bindingSchema.schemaId,
         schemaVersion: result.bindingSchema.schemaVersion,
         portableAddress: result.address,
-        settings: { ...result.metadata }
+        settings: { ...result.metadata },
+        ...(tag.communicationBinding?.valueTransform
+          ? { valueTransform: tag.communicationBinding.valueTransform }
+          : {})
       }
     : tag.communicationBinding
       ? {

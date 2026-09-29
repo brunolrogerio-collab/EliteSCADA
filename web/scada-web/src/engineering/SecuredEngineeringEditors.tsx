@@ -7,6 +7,7 @@ import {
 import { editorTranslator } from './editorI18n';
 import type { EngineeringLocale } from './i18n';
 import { TagAddressEditor } from './TagAddressEditor';
+import { TagCommissioningPanel } from './TagCommissioningPanel';
 import { TagSourceSelector } from './TagSourceSelector';
 import { assignTagDataSource, type TagSourceAwareEngineering } from './TagSourceSelector.logic';
 import type {
@@ -148,6 +149,13 @@ export function TagEditor({ model, locale }: EditorProps) {
                   tag={draft as TagSourceAwareEngineering}
                   sources={model.dataSources ?? []}
                   locale={locale}
+                  onChange={next => setDraft(next)}
+                />
+                <TagCommissioningPanel
+                  tag={draft as TagSourceAwareEngineering}
+                  sources={model.dataSources ?? []}
+                  locale={locale}
+                  persisted={!isNew}
                   onChange={next => setDraft(next)}
                 />
                 <TextField label={text('editor.field.unit')} value={draft.engineeringUnit ?? ''} onChange={value => updateTag(setDraft, tag => ({ ...tag, engineeringUnit: emptyToNull(value) }))} />

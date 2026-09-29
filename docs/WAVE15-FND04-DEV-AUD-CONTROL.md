@@ -38,11 +38,11 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0120`
+`MAIN_ORDER_REV: 0121`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-29 — GATE1 #375 MAIN-RECOMPOSED / CI ACTIVE / CODEX CAPACITY PRESERVED`
+`LAST_MAIN_UPDATE_BRT: 2026-09-29 — GATE1 GREEN / C0 FROZEN / SHARED CODEX PARKED`
 
-`GLOBAL_GATE: FND04_VERIFIED_FROZEN / GATE0_GREEN / GATE1_REUSE_R1_MAIN_RECOMPOSED / SHARED_CODEX_WAIT`
+`GLOBAL_GATE: FND04_VERIFIED_FROZEN / GATE0_GREEN / GATE1_GREEN / R2_C0_FROZEN / SHARED_CODEX_PARKED`
 
 Current situation:
 
@@ -61,7 +61,7 @@ Current situation:
 - Main performed the #375 Reuse R1 recomposition directly to preserve limited CODEX capacity. The shared CODEX executor is now WAIT and must not consume capacity unless Main issues a later environment-dependent order. Gate0 (#373/#374/#376) remains integrated and tree-proven. FND-04 remains frozen.
 - Any later change to this shared contract requires a new Main/Foundation delta; downstream lanes may not redefine it.
 
-Current CORRECTION-NOW integration baseline is `wave15/corrections-integration@036e07743e7d3574d87af8ff99354b0665b88148`, tree `efd32e7bfb68603a966b96d54d85f4a0e0d0ba41`. Gate0 is green and #373/#374/#376 are merged. Main recomposed #375 directly to `53f9524d098a0497acf95ad4669a2f1738742e00`, tree `75398319b8b4630b72a525fb9bdd235dc0d541a9`, with exact R1 11-file scope; natural Wave 15 T1 run `36589349320` is active. Shared CODEX is WAIT pending Main decision after CI.
+Current CORRECTION-NOW integration baseline is `wave15/corrections-integration@bb946f9e7d6910d59a9ac172d71361e5badab4b1`, tree `75398319b8b4630b72a525fb9bdd235dc0d541a9`. Gate0 and Gate1 are green. #375 exact-head Wave 15 T1 `36589349320` is SUCCESS and #375 is merged. R2 C0 contracts are frozen on this exact base. Shared CODEX is PARKED to preserve remaining capacity and has no active product mutation order.
 ---
 
 ## 2A. CURRENT SHARED CODEX ORDER — EXECUTION POINTER
@@ -70,11 +70,11 @@ Current CORRECTION-NOW integration baseline is `wave15/corrections-integration@0
 >
 > The shared CODEX executor is not the legacy FND-04 DEV lane.
 
-`SHARED_CODEX_ORDER_REV: 0120`
+`SHARED_CODEX_ORDER_REV: 0121`
 
-`ORDER_ID: SHARED-CODEX-WAIT-AFTER-MAIN-REUSE-RECOMPOSE-101`
+`ORDER_ID: SHARED-CODEX-PARKED-AFTER-GATE1-C0-FREEZE-102`
 
-`ORDER_STATE: WAIT / MAIN_RECOMPOSED_#375 / T1_36589349320_ACTIVE / PRESERVE_CODEX_CAPACITY / NO_PRODUCT_MUTATION / NO_MERGE`
+`ORDER_STATE: PARKED / GATE1_GREEN / C0_FROZEN / PRESERVE_REMAINING_CAPACITY / NO_PRODUCT_MUTATION / NO_MERGE`
 
 ### rev0119 disposition — Main recomposed #375 directly / CODEX capacity preserved
 

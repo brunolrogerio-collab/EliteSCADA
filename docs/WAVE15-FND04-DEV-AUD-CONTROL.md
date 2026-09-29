@@ -38,11 +38,11 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0118`
+`MAIN_ORDER_REV: 0119`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-29 — REV0117 ROOT CAUSE CONFIRMED / BOUNDED PYPROXY LIFETIME FIX ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-29 — GATE0 INTEGRATED TREE PROVEN / GATE1 #375 RECOMPOSITION ACTIVE`
 
-`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_TWEEN_PYPROXY_FIX_ACTIVE`
+`GLOBAL_GATE: FND04_VERIFIED_FROZEN / GATE0_GREEN / SHARED_CODEX_REUSE_R1_RECOMPOSITION_ACTIVE`
 
 Current situation:
 
@@ -58,10 +58,10 @@ Current situation:
 - FND-04 is now **VERIFIED / FROZEN** at exact product checkpoint `6c810647c9773a19b212d9c33694780141786ac7`.
 - The readable Script TAG reference contract is frozen for downstream consumption.
 - FND-04 AUD remains **FROZEN / WAIT / NO_MUTATION**.
-- The **same sequential CODEX executor/chat is now assigned under rev0118 to apply the bounded #374 TWEEN PyProxy lifetime correction proven by rev0117**. #373 HMI and #376 Gateway mounted E3 are accepted and must not be rerun. FND-04 remains frozen; the shared CODEX route is independent of the legacy FND-04 DEV order.
+- The **same sequential CODEX executor/chat is now assigned under rev0119 to recompose #375 Reuse R1 onto the exact post-Gate0 integration and obtain fresh E2**. Gate0 (#373/#374/#376) is integrated and tree-proven. FND-04 remains frozen; the shared CODEX route is independent of the legacy FND-04 DEV order.
 - Any later change to this shared contract requires a new Main/Foundation delta; downstream lanes may not redefine it.
 
-Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`, tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`. #373 HMI and #376 Gateway mounted E3 are accepted on the exact combined product candidate. rev0117 causally proved premature destruction of the borrowed Python dict PyProxy inside `normalizeBridgeValue()` while the Python async call frame was still awaiting the bridge Promise. rev0118 owns only the bounded correction, focused regression, exact-head E2, and Script-only mounted E3 recheck. Any movement of integration or #374 HEAD outside this order invalidates rev0118 until Main reissues exact coordinates.
+Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave15/corrections-integration@036e07743e7d3574d87af8ff99354b0665b88148`, tree `efd32e7bfb68603a966b96d54d85f4a0e0d0ba41`. Gate0 is green and #373/#374/#376 are merged. rev0119 owns only #375 R1 recomposition onto this exact base plus fresh E2. Any movement of integration or #375 HEAD outside this order invalidates rev0119 until Main reissues exact coordinates.
 ---
 
 ## 2A. CURRENT SHARED CODEX ORDER — EXECUTION POINTER
@@ -70,11 +70,104 @@ Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave1
 >
 > The shared CODEX executor is not the legacy FND-04 DEV lane.
 
-`SHARED_CODEX_ORDER_REV: 0118`
+`SHARED_CODEX_ORDER_REV: 0119`
 
-`ORDER_ID: FINAL-SEQUENTIAL-CODEX-SCRIPT-TWEEN-PYPROXY-LIFETIME-FIX-99`
+`ORDER_ID: FINAL-SEQUENTIAL-CODEX-REUSE-R1-RECOMPOSE-100`
 
-`ORDER_STATE: ACTIVE_CORRECTION / REV0117_CAUSE_CONFIRMED / #374_TWEEN_PYPROXY_LIFETIME_FIX / #373_E3_ACCEPTED / #376_E3_ACCEPTED / NO_TIMEOUT_CHANGE / NO_MERGE`
+`ORDER_STATE: ACTIVE_RECOMPOSITION / GATE0_GREEN / #375_R1_SEMANTICS_ACCEPTED / EXACT_POST_GATE0_BASE / FRESH_E2_REQUIRED / NO_MERGE`
+
+### rev0118 disposition — Main processed / Gate0 green
+
+Durable final handoff:
+- Issue #305 comment `5892535933`.
+
+Accepted #374 correction:
+- exact head `a51964e855321098b9f48f9333cd19c0b1a435d2`;
+- source fix removes only premature borrowed inbound PyProxy destruction;
+- focused suite/build accepted;
+- natural T1 `36567681036` SUCCESS.
+
+Accepted mounted residual on exact combined candidate:
+- candidate `b506afbc14f91d1bd1bb20ba9b440d300ba7d322`;
+- tree `efd32e7bfb68603a966b96d54d85f4a0e0d0ba41`;
+- canonical visual target;
+- product Script Assistant generator;
+- real `visualTween.request`;
+- mounted target effect `left: 650px -> 420px`;
+- matching Worker `execution-result.status=completed`;
+- 4.08 ms under unchanged 250 ms policy.
+
+Main integrated with expected-head protection:
+- #373 -> merge `2074070eb9e6227a186aabb27a050bccd0ae9522`;
+- #374 -> merge `888a27ed6eeef2f5bf5ac7c170ec17b7efe6dcdd`;
+- #376 -> merge `036e07743e7d3574d87af8ff99354b0665b88148`.
+
+Final integration Git tree:
+`efd32e7bfb68603a966b96d54d85f4a0e0d0ba41`.
+
+This is byte-identical to the validated rev0118 combined E3 tree.
+
+Main classification:
+`GATE0_GREEN / EXACT_TREE_PROVEN / #373+#374+#376_INTEGRATED`.
+
+### CURRENT rev0119 mission
+
+Execute only:
+`FINAL-SEQUENTIAL-CODEX-REUSE-R1-RECOMPOSE-100`.
+
+Exact live base:
+- integration branch: `wave15/corrections-integration`;
+- base SHA: `036e07743e7d3574d87af8ff99354b0665b88148`;
+- base tree: `efd32e7bfb68603a966b96d54d85f4a0e0d0ba41`.
+
+Exact #375 lane:
+- branch: `work/w15-reusable-objects-correction`;
+- current head: `8c47e7944f1e025992b203a45a5caaf146819e9c`;
+- previous accepted R1 tree: `5008fa501758552c7648607e7123633252df760c`;
+- PR: #375.
+
+Accepted R1 semantics to preserve:
+- additive stable `TemplateId`, `EquipmentId`, `DynamoDefinitionId` references;
+- stable ID is authority; Key/Path remain compatibility/display aliases;
+- stable-ID + alias collision fails closed before mutation;
+- legacy alias-only payload normalizes to stable ID + current alias through canonical Apply/Save;
+- stale old alias with valid stable ID canonicalizes rather than becoming identity;
+- Dynamo Runtime composition accepts `DynamoDefinitionId`;
+- .escadalib keeps stable resource/incorporation identity;
+- Equipment remains project-specific;
+- .escadapkg/Engineering roundtrip preserves normalized stable references;
+- nested Dynamos remain unsupported.
+
+Required recomposition:
+1. bring exact integration `036e07743e7d3574d87af8ff99354b0665b88148` into `work/w15-reusable-objects-correction`;
+2. preserve all Gate0 integrated bytes;
+3. resolve only genuine additive composition/conflicts required by the accepted R1 semantics;
+4. the known historical overlap is `src/Scada.Engineering/Contracts/EngineeringContracts.cs`; inspect all actual overlaps live rather than assuming it is the only one;
+5. do not broaden R1 into Editor UI, Library redesign, Query/Portability C0 work, nested Dynamo support or new renderer work;
+6. after recomposition, prove the diff from the exact new integration contains only accepted #375 R1 scope plus necessary R1 tests;
+7. push the recomposed #375 branch.
+
+Required validation:
+- focused .NET tests covering reusable-reference/import/export/runtime seams;
+- relevant .escadalib/.escadapkg roundtrip tests;
+- Web/semantic checks only if affected by the recomposition;
+- natural exact-head Wave 15 T1 on the new #375 head.
+
+E3:
+- no separate user-facing E3 is required if recomposition changes only additive contract composition and preserves the previously accepted R1 behavior;
+- if conflict resolution changes any user-facing Runtime/Engineering behavior, stop and return `REUSE_R1_RECOMPOSE / E3_REQUIRED / <exact reason>` rather than self-expanding scope.
+
+Return exactly one of:
+`REUSE_R1_RECOMPOSE / E2_GREEN / <new #375 HEAD> / <tree> / <diff summary>`
+
+`REUSE_R1_RECOMPOSE / E3_REQUIRED / <exact reason>`
+
+or
+`REUSE_R1_RECOMPOSE / BLOCKED / <exact causal evidence>`.
+
+No merge. Main reviews the exact recomposed diff/tree before integrating #375.
+
+---
 
 ### rev0117 disposition — Main processed / root cause confirmed
 

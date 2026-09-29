@@ -1,6 +1,6 @@
 # Wave 15 — Post-E3 Development Route
 
-**Status:** PREPARED / WAIT_REV0118_TWEEN_PYPROXY_FIX / GATE0_SCRIPT_CORRECTION_ACTIVE  
+**Status:** PREPARED / WAIT_REV0118_TWEEN_PYPROXY_FIX / GATE0_SCRIPT_CORRECTION_ACTIVE / R2_C0_CONTRACT_LAYER_DECLARED  
 **Coordinator issue:** #378  
 **Execution ledger:** #305  
 **Current integration baseline at preparation time:** `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`  
@@ -18,14 +18,15 @@ The route is:
 rev0118 bounded TWEEN borrowed-PyProxy lifetime correction after rev0117 causal proof (#373 and #376 E3 evidence carried forward)
   -> integrate #373/#374/#376 if Gate 0 closes
   -> recompose/integrate #375
-  -> freeze Round-2 UX/product contracts
-  -> R2-A: Engineering density + specialized-surface theme/contrast + Historian capture enforcement
-  -> R2-B: Editor UX + Client branding + structured Engineering workflows
-  -> R2-C1: Trend/history absolute time-range convergence
-  -> R2-C2: user-facing terminology + multilingual consistency
-  -> exact E2/E3
+  -> R2-C0 SHARED CONTRACT LAYER (#386) / freeze all mandatory external-test semantics
+  -> R2-A foundations: Engineering shell/theme + Historian capture + Data Query core + Portability core
+  -> R2-B authoring: Editor UX + Branding + structured Engineering + Script authoring + Library/Fragment consumers
+  -> R2-C historical consumers: Trend/Browser/Alarm View/Report query convergence + Playback
+  -> R2-D user-facing terminology + multilingual consistency
+  -> exact integrated E2/E3
   -> mandatory SECOND Preview + independent Audit
   -> residual corrections/recheck
+  -> THIRD-PARTY TEST CANDIDATE
   -> CORRECTION PHASE ACCEPTED
   -> return to deferred original Wave 15
   -> container/host productization + Local/Remote DB topology later in canonical order
@@ -76,9 +77,20 @@ After #373/#374/#376 are integrated:
 
 No new Round-2 correction branch should be based on the old pre-#375 integration checkpoint.
 
-## 4. Gate 2 — freeze minimal shared contracts
+## 4. Gate 2 — R2-C0 mandatory shared contract layer
 
-Before parallel Round-2 implementation, Main/CODEX freezes the bounded shared contracts below.
+Before any new Round-2 implementation release, Main freezes the mandatory shared-contract layer tracked by #386 and `docs/WAVE15-R2-SHARED-CONTRACT-LAYER.md`.
+
+C0 is now a **hard release gate** for the first third-party test candidate. #384 and #385 are mandatory product scope, not optional research.
+
+No new R2 DEV bootstrap is generated until:
+- Gate 0 closes;
+- #375 is recomposed/integrated;
+- exact post-#375 base is known;
+- every contract consumed by the intended package is `FROZEN_FOR_CONSUMERS`;
+- Main has checked file/authority overlap.
+
+The contract families below are part of C0.
 
 ### C-ENG-DENSITY-01
 
@@ -156,13 +168,38 @@ Prepared now, implemented later:
 - industrial/product terms are either intentionally retained or localized consistently;
 - technical codes/details remain available under diagnostics when useful.
 
-Implementation is intentionally deferred until R2-A + R2-B are integrated to avoid copy work colliding with structural UI rewrites.
+Implementation is intentionally deferred until structural R2 consumers are integrated to avoid copy work colliding with Editor/Query/Library/Playback rewrites.
 
-## 5. Development Wave R2-A
+### Additional mandatory C0 contracts
 
-Base: exact post-#375 integration checkpoint.
+The detailed contracts live in `docs/WAVE15-CORRECTION-NOW-SHARED-CONTRACTS.md` and the C0 manifest.
 
-Three branches/chats may run in parallel because ownership is intentionally isolated. Main must revalidate exact file overlap at release time.
+Mandatory for the first external-test candidate:
+- C-SCRIPT-EVENT-LINK-01;
+- C-SCRIPT-AUTHORING-R2-01;
+- C-HISTORIAN-CAPTURE-01;
+- C-HISTORICAL-TIME-RANGE-01;
+- C-DATA-QUERY-VIEW-01;
+- C-HISTORICAL-PLAYBACK-01;
+- C-ENGINEERING-PORTABILITY-01;
+- C-ENG-WORKFLOW-01;
+- C-BRANDING-01;
+- C-USER-COPY-I18N-01.
+
+C0 must also revalidate C-REUSE-01 on the exact post-#375 integrated base.
+
+No consumer may locally redefine a missing semantic; it returns:
+`BLOCKED_CONTRACT / <contract-id> / <missing semantic>`.
+
+## 5. Development Wave R2-A — foundations
+
+Base: exact post-#375 integration checkpoint after the required C0 contracts are frozen.
+
+Existing planned chats I/K/O remain unreleased. In addition, C0 now requires two foundation implementation packages whose exact chat/branch assignment is intentionally deferred until post-#375 file-overlap review:
+- DATA-QUERY-CORE / #384;
+- ENGINEERING-PORTABILITY-CORE / #385.
+
+Parallelism is allowed only when file + authority ownership is explicitly disjoint.
 
 ### Chat I — DEV-ENG-DENSITY
 
@@ -241,9 +278,45 @@ Expected evidence:
 
 May run concurrently with Chat I/K after C-HISTORIAN-CAPTURE-01 is frozen and Main confirms no material file collision.
 
-## 6. Development Wave R2-B
+### Planned package — DATA-QUERY-CORE / #384
 
-Starts only after R2-A (including Chat O) is integrated **and**:
+No chat/bootstrap is assigned yet.
+
+Owns after C0 freeze:
+- reusable typed Query definition;
+- protected provider/query execution foundation;
+- Historian retrieval modes: Raw/Last/Before/After/Exact/Interpolated/FixedStep/Aggregate as frozen;
+- server-side bounds/aggregation;
+- reusable typed Alarm Filter/View model;
+- public contracts consumed later by Trend/Browser/Report/Playback.
+
+Must not:
+- own raw capture policy from Chat O;
+- own Trend/Browser/Report layout;
+- create SQL as normal user authority;
+- create direct browser-to-database access.
+
+### Planned package — ENGINEERING-PORTABILITY-CORE / #385
+
+No chat/bootstrap is assigned yet.
+
+Owns after #375 integration + C0 freeze:
+- Engineering Fragment schema and selective export/import;
+- dependency closure;
+- Preview/remap/conflict plan;
+- CSV/XLSX vs structured Fragment format authority;
+- Library provenance/version/update/Compare/Upgrade/Fork backend semantics;
+- component-bundle portability boundary.
+
+Must not:
+- replace .escadapkg;
+- turn .escadalib into Runtime authority;
+- own Screen/Popup Editor layout;
+- silently auto-upgrade project behavior.
+
+## 6. Development Wave R2-B — authoring consumers
+
+Starts only after the required R2-A foundation packages are integrated **and**:
 - C-VISUAL-ASSET-02 is frozen;
 - C-BRANDING-01 is frozen;
 - C-REUSE-01 is integrated/frozen after #375;
@@ -350,6 +423,36 @@ Evidence:
 - advanced disclosure;
 - dark/light.
 
+### Planned package — SCRIPT-AUTHORING-R2
+
+No chat/bootstrap is assigned yet.
+
+Consumes C-SCRIPT-AUTHORING-R2-01 + C-SCRIPT-EVENT-LINK-01 and the frozen visual identity/property contracts.
+
+Owns:
+- continuous real-engine syntax guard;
+- distinct syntax/reference diagnostics;
+- project context browser;
+- guided Event -> Action -> Object -> Property/Method -> Parameters flow;
+- safe generated snippets;
+- high-level TAG/Client Memory/visual actions;
+- declarative Binding/Dynamic recommendation where preferable;
+- mounted fault-isolation proof.
+
+It must not reopen the current Gate-0 PyProxy bridge correction unless new evidence proves a separate runtime defect.
+
+### Portability/Library UI consumers
+
+After ENGINEERING-PORTABILITY-CORE freezes its APIs, Main assigns the UI ownership across J/N or a new bounded lane based on live file overlap.
+
+Required first external-test behavior:
+- Export selected / Import;
+- dependency/conflict Preview;
+- Library real visual preview;
+- Add to Library;
+- update status + Compare/Upgrade/Keep/Fork;
+- Template -> Equipment -> Dynamo -> Screen/Popup discoverable workflow.
+
 ## 7. Gate 3 — validation/integration
 
 Every user-facing lane requires:
@@ -367,9 +470,9 @@ If Main builds a combined E3 candidate:
 - no extra files may enter via conflict resolution;
 - post-integration final tree must match the validated composition where that exact-tree model is used.
 
-## 8.4. Development Wave R2-C1 — Trend/history time range
+## 8.4. Development Wave R2-C — historical consumers
 
-Starts only after R2-B J/L/N is integrated and C-HISTORICAL-TIME-RANGE-01 is frozen.
+Starts only after R2-B structural authoring packages and DATA-QUERY-CORE are integrated, with C-HISTORICAL-TIME-RANGE-01 + C-DATA-QUERY-VIEW-01 frozen.
 
 ### Chat P — DEV-HISTORICAL-TIME-RANGE
 
@@ -398,11 +501,40 @@ Expected evidence:
 - representative `27/09/2026 01:00:00 -> 28/09/2026 12:00:00` locale-to-UTC boundary proof;
 - refresh/requery preserves the absolute range.
 
-## 8.5. Development Wave R2-C2 — UX copy / i18n cleanup
+### Additional historical-consumer packages — unassigned until C0/file review
+
+Mandatory before the first external-test candidate:
+
+**Browser / Alarm View / Report Query convergence**
+- Historical Data Browser consumes reusable typed Query definitions;
+- configurable columns/filter/sort and bounded export where authorized;
+- reusable Alarm Filter/View semantics;
+- Report can reference/reuse Query definitions and Runtime parameters;
+- no duplicate private query languages.
+
+**Trend convergence**
+- explicit Automatic/Historical/Live Pen semantics;
+- shared period;
+- analog interpolation vs digital step behavior;
+- historical/current join, gaps, duplicates and quality precedence;
+- bounded visible-range retrieval;
+- alarm/event markers where supported by the frozen contract.
+
+**Historical Playback**
+- consume C-HISTORICAL-PLAYBACK-01;
+- read-only historical Screen/Popup/Dynamo projection;
+- clear historical-mode indication;
+- command/write/ACK mutation unavailable;
+- shared Playback timestamp/context;
+- explicit return to current Runtime.
+
+Exact chat/branch slicing is deliberately deferred until the C0 dependency and file-overlap matrix is frozen.
+
+## 8.5. Development Wave R2-D — UX copy / i18n cleanup
 
 Issue: #379.
 
-Starts only after R2-A, all R2-B lanes (J/L/N), and Chat P are integrated.
+Starts only after all structural R2-A/R2-B/R2-C consumers, including Query/Portability/Playback surfaces, are integrated.
 
 ### Chat M — DEV-UX-COPY-I18N
 
@@ -427,29 +559,31 @@ Required evidence:
 - no known internal-only vocabulary in ordinary first-user paths;
 - Human Preview remains final language-quality evidence.
 
-## 8.6. Prepared cross-domain extensions from E3 comparative audit
+## 8.6. Mandatory cross-domain scope from E3 comparative audit
 
 The Product Owner comparative audit on 2026-09-29 created:
 
 - #384 / C-DATA-QUERY-VIEW-01 — shared typed Query authority across Historian retrieval, Alarm View, Browser, Trend and Report;
 - #385 / C-ENGINEERING-PORTABILITY-01 — Engineering Fragment/selective import-export plus reusable Library/Dynamo version/update lifecycle.
 
-These are **product-correction findings, not released DEV lanes yet**.
+These are **mandatory first external-test product scope**. They remain unreleased implementation packages until C0 freeze and exact post-#375 ownership review.
 
 Main must resolve their overlap after Gate 0/1 and before releasing implementation:
 - #384 overlaps O (#382 Historian capture), P (#383 time range), Historical Browser and Reporting;
 - #385 overlaps G/#375 reuse, #365 Template/Equipment/Dynamo workflow, #308 Library preview, J visual Editor and N structured Engineering workflows.
 
-Do not create Chat Q/R or any other bootstrap merely because these issues exist.
+Do not create Chat Q/R/S or any other bootstrap merely because these issues exist.
 
 Required scheduling decision after the exact post-#375 base exists:
-1. determine whether #384 is a bounded foundation consumed by P or requires its own isolated lane;
-2. determine whether #385 can be split cleanly into backend Fragment/Library versioning plus J/N UI consumption without colliding with current reuse work;
-3. preserve SECOND Preview/Audit as the acceptance authority for any portion admitted into the correction phase.
+1. freeze #384/C-DATA-QUERY-VIEW-01 and assign DATA-QUERY-CORE ownership;
+2. freeze #385/C-ENGINEERING-PORTABILITY-01 and assign PORTABILITY-CORE plus UI consumer ownership;
+3. freeze C-SCRIPT-AUTHORING-R2-01 and assign a bounded Script-authoring package;
+4. freeze C-HISTORICAL-PLAYBACK-01 and assign Playback only after Query/time-range consumers exist;
+5. preserve SECOND Preview/Audit as the final acceptance authority.
 
 ## 8. Gate 4 — integrated correction E3
 
-After R2-A and R2-B are integrated, validate one exact integrated candidate with:
+After all mandatory R2 foundation, authoring and historical-consumer packages are integrated, validate one exact integrated candidate with:
 - real DB/API/Web/browser;
 - normal Engineering navigation;
 - Screen/Popup authoring;
@@ -457,6 +591,14 @@ After R2-A and R2-B are integrated, validate one exact integrated candidate with
 - contextual object/group actions;
 - image/background workflows;
 - Report Designer dark/light;
+- reusable Query -> Browser/Trend/Report flow;
+- Historian capture profile enforcement;
+- absolute/relative historical period;
+- Alarm View/filter behavior;
+- Engineering Fragment import/export Preview;
+- Library visual preview + version/update workflow;
+- Script syntax guard + guided authoring;
+- historical Playback read-only behavior;
 - branding default/text/image/none;
 - Save/Reopen;
 - Publish/Activate/restart where affected;
@@ -508,12 +650,13 @@ finding
 
 Do not declare acceptance while material P0/P1/P2 findings remain unresolved.
 
-## 11. Gate 7 — CORRECTION PHASE ACCEPTED
+## 11. Gate 7 — THIRD-PARTY TEST CANDIDATE / CORRECTION PHASE ACCEPTED
 
 Required:
 - #373/#374/#376 integrated;
 - #375 integrated;
-- R2-A/R2-B integrated;
+- C0 contract layer complete;
+- all mandatory R2-A/R2-B/R2-C/R2-D packages integrated;
 - applicable E2/E3 green;
 - CODEX second Preview complete;
 - Product Owner second Preview complete;
@@ -522,7 +665,7 @@ Required:
 
 Then Main records:
 
-`CORRECTION PHASE ACCEPTED`
+`CORRECTION PHASE ACCEPTED / THIRD-PARTY TEST CANDIDATE`
 
 Only then return to the deferred original Wave 15 roadmap.
 
@@ -553,10 +696,14 @@ Resume canonical sequencing for:
 | I — ENG-DENSITY | C-AUTHORITY-01, C-SURFACE-01, C-TEST-EVIDENCE-01, frozen C-ENG-DENSITY-01, frozen C-PRODUCT-VERSION-01 | Working/Published/Active, Lock/CAS authority |
 | K — THEME-CONTRAST | C-SURFACE-01, C-TEST-EVIDENCE-01, frozen C-ENG-THEME-01, existing Engineering semantic theme tokens | report/script data models, lifecycle, Script capability/runtime semantics |
 | O — HISTORIAN-CAPTURE | frozen C-HISTORIAN-CAPTURE-01, C-AUTHORITY-01, C-TEST-EVIDENCE-01, existing Historian/Timescale storage authority | Historical Query time ranges, Driver scan rates, storage replacement, visual-editor internals |
+| DATA-QUERY-CORE — unassigned | frozen C-DATA-QUERY-VIEW-01 + C-HISTORICAL-TIME-RANGE-01, Historical Query v1, C-AUTHORITY-01, C-TEST-EVIDENCE-01 | raw capture policy, consumer layout, free SQL/direct DB |
+| PORTABILITY-CORE — unassigned | integrated/frozen C-REUSE-01, frozen C-ENGINEERING-PORTABILITY-01, C-AUTHORITY-01, C-TEST-EVIDENCE-01 | .escadapkg replacement, Runtime library dependency, Editor layout |
 | J — EDITOR-UX-R2 | integrated C-ENG-DENSITY-01, C-VISUAL-IDENTITY-01, C-VISUAL-DYNAMIC-01, C-TAG-WRITE-01, integrated/frozen C-REUSE-01, frozen C-VISUAL-ASSET-02, frozen C-SCRIPT-EVENT-LINK-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | renderer, identity, TAG write, reuse relationship, asset store/API, Script execution authority |
 | L — BRANDING | integrated C-ENG-DENSITY-01, C-AUTHORITY-01, frozen C-VISUAL-ASSET-02, frozen C-BRANDING-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | lifecycle authority, asset store/API, independent per-page branding state |
 | N — ENG-WORKFLOW-FORMS | integrated C-ENG-DENSITY-01, integrated/frozen C-ENG-THEME-01, integrated C-HISTORIAN-CAPTURE-01 implementation, frozen C-ENG-WORKFLOW-01, frozen C-SCRIPT-EVENT-LINK-01, C-AUTHORITY-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | visual-editor internals, branding shell, backend mutation semantics/API identity, Script execution authority |
-| P — HISTORICAL-TIME-RANGE | frozen C-HISTORICAL-TIME-RANGE-01, integrated R2-B, Historical Query v1, C-SURFACE-01, C-TEST-EVIDENCE-01 | Historian capture policy, database authority, visual-editor layout, new private time API |
+| P — HISTORICAL-TIME-RANGE | frozen C-HISTORICAL-TIME-RANGE-01 + C-DATA-QUERY-VIEW-01, integrated DATA-QUERY-CORE + R2-B, C-SURFACE-01, C-TEST-EVIDENCE-01 | Historian capture policy, database authority, visual-editor layout, new private time API |
+| SCRIPT-AUTHORING-R2 — unassigned | frozen C-SCRIPT-AUTHORING-R2-01 + C-SCRIPT-EVENT-LINK-01 + visual identity, C-TEST-EVIDENCE-01 | Gate0 bridge semantics, Driver bypass, DOM/private renderer API |
+| HISTORICAL-PLAYBACK — unassigned | frozen C-HISTORICAL-PLAYBACK-01 + integrated Query/time-range foundations, C-AUTHORITY-01, C-TEST-EVIDENCE-01 | process writes/commands, alternate Active authority |
 | M — UX-COPY-I18N | integrated R2-A + J/L/N + P, frozen C-USER-COPY-I18N-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | lifecycle/Authority semantics, backend enum/API identity, accepted layout architecture |
 
 Any consumer that finds an insufficient contract returns:
@@ -568,16 +715,21 @@ Any consumer that finds an insufficient contract returns:
 |---|---|---|---|
 | Current | Shared CODEX rev0118 TWEEN PyProxy fix | only bounded #374 worker + regression test mutation | active now |
 | Gate 1 | G / #375 recomposition | none required | E/F/H integration |
-| Contract | Main/CODEX | no product DEV required | post-#375 base |
+| C0 Contract | Main / #386 | no product DEV required | post-#375 exact base |
 | R2-A | I / Engineering density | K | frozen C-ENG-DENSITY-01 + C-PRODUCT-VERSION-01 + post-#375 base |
 | R2-A | K / Theme + contrast | I + O | frozen C-ENG-THEME-01 + post-#375 base |
-| R2-A | O / Historian capture | I + K | frozen C-HISTORIAN-CAPTURE-01 + post-#375 base + no material file overlap |
-| Contract | Main/CODEX C-VISUAL-ASSET-02 + C-BRANDING-01 | none | I/K/O integration |
+| R2-A | O / Historian capture | I + K + DATA-QUERY-CORE + PORTABILITY-CORE when ownership is clean | frozen C-HISTORIAN-CAPTURE-01 + post-#375 base + no material file overlap |
+| R2-A | DATA-QUERY-CORE / unassigned | I + K + O + PORTABILITY-CORE when clean | C-DATA-QUERY-VIEW-01 frozen + post-#375 base |
+| R2-A | PORTABILITY-CORE / unassigned | I + K + O + DATA-QUERY-CORE when clean | C-ENGINEERING-PORTABILITY-01 + C-REUSE-01 frozen + post-#375 base |
+| Contract | Main C-VISUAL-ASSET-02 + C-BRANDING-01 + authoring consumer revalidation | none | required R2-A foundation integration |
 | R2-B | J / Editor UX | L | I/K integrated + C-REUSE-01 integrated/frozen + C-VISUAL-ASSET-02 + C-SCRIPT-EVENT-LINK-01 frozen |
 | R2-B | L / Branding | J | I/K integrated + C-VISUAL-ASSET-02 + C-BRANDING-01 frozen |
-| R2-B | N / Engineering workflow + forms | J + L | I/K/O integrated + C-ENG-WORKFLOW-01 + C-SCRIPT-EVENT-LINK-01 frozen |
-| R2-C1 | P / Trend + historical time range | none | J/L/N integrated + C-HISTORICAL-TIME-RANGE-01 frozen |
-| R2-C2 | M / UX copy + i18n | none | I/J/K/L/N/O/P integrated + C-USER-COPY-I18N-01 frozen |
+| R2-B | N / Engineering workflow + forms | J + L + SCRIPT-AUTHORING-R2 when clean | foundation packages integrated + C-ENG-WORKFLOW-01 + C-SCRIPT-EVENT-LINK-01 + Portability APIs frozen |
+| R2-B | SCRIPT-AUTHORING-R2 / unassigned | J + L + N when clean | C-SCRIPT-AUTHORING-R2-01 frozen + visual identity/event contracts frozen |
+| R2-C | P / Trend + historical time range | Browser/Report/Alarm consumers when clean | authoring + DATA-QUERY-CORE integrated + C-HISTORICAL-TIME-RANGE-01 frozen |
+| R2-C | Historical Query consumers / unassigned | P | C-DATA-QUERY-VIEW-01 frozen + Query core integrated |
+| R2-C | Historical Playback / unassigned | none or isolated consumer lane | Query/time-range/visual authority integrated + C-HISTORICAL-PLAYBACK-01 frozen |
+| R2-D | M / UX copy + i18n | none | all structural R2 consumers integrated + C-USER-COPY-I18N-01 frozen |
 | Validation | Shared CODEX / E3 | no DEV mutation of candidate | all target lanes delivered |
 | Preview/Audit | CODEX Preview + Human Preview + AUD | independent evidence paths | exact integrated candidate |
 
@@ -590,9 +742,10 @@ This route carries the following interaction rules across coordinator rotations:
 - Product Owner is not a courier between agents; durable handoffs live in GitHub;
 - a Product Owner `SIGA` to Main means execute the next safe already-authorized action after live revalidation;
 - future chats I/K/J/L/N/M/O/P are not released yet and have no bootstrap text;
+- DATA-QUERY-CORE, PORTABILITY-CORE, SCRIPT-AUTHORING-R2, Historical Query consumer and Playback packages are planned but intentionally have no assigned chat/bootstrap yet;
 - the Product Owner will explicitly ask Main for each bootstrap when its release gate is reached;
 - do not tell the Product Owner to open a future chat before its base/contracts are ready.
 
 ## 15. Current disposition
 
-`PREPARED / WAIT_REV0118_TWEEN_PYPROXY_FIX / GATE0_SCRIPT_CORRECTION_ACTIVE`.
+`PREPARED / WAIT_REV0118_TWEEN_PYPROXY_FIX / GATE0_SCRIPT_CORRECTION_ACTIVE / C0_DECLARED_NO_NEW_DEV_RELEASE`.

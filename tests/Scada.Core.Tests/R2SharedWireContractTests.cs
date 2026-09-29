@@ -171,6 +171,7 @@ public sealed class R2SharedWireContractTests
             JsonOptions());
 
         Assert.Equal(".escadafrag", EngineeringFragmentContract.FileExtension);
+        Assert.Equal(EngineeringFragmentContract.SchemaVersion, envelope.SchemaVersion);
         Assert.Contains("\"schema\":\"scada.engineering.fragment\"", json);
         Assert.Contains("\"operation\":\"reuseIdentical\"", json);
         Assert.Contains("\"state\":\"updateAvailable\"", json);

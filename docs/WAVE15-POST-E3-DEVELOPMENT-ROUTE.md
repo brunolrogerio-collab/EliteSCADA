@@ -1,10 +1,10 @@
 # Wave 15 — Post-E3 Development Route
 
-**Status:** PREPARED / WAIT_REV0114 / NO_POST_E3_PRODUCT_MUTATION_YET  
+**Status:** PREPARED / WAIT_REV0115 / NO_POST_E3_PRODUCT_MUTATION_YET  
 **Coordinator issue:** #378  
 **Execution ledger:** #305  
 **Current integration baseline at preparation time:** `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`  
-**Current shared CODEX order:** `rev0114 / FINAL-SEQUENTIAL-CODEX-RESIDUAL-E3-HOMOLOGATION-95`
+**Current shared CODEX order:** `rev0115 / FINAL-SEQUENTIAL-CODEX-SCRIPT-PYTHON-COMPLETION-96`
 
 GitHub live is authoritative. Every gate below must be revalidated against live branches, PR heads, CI and issue handoffs before execution.
 
@@ -15,7 +15,7 @@ Finish the current correction wave without mixing unrelated productization work 
 The route is:
 
 ```text
-rev0114 final residual E3 homologation (#373/#374; #376 already E3-accepted)
+rev0115 final Script Python completion diagnostic (#373 and #376 already E3-accepted)
   -> integrate #373/#374/#376 if Gate 0 closes
   -> recompose/integrate #375
   -> freeze Round-2 UX/product contracts
@@ -32,13 +32,14 @@ rev0114 final residual E3 homologation (#373/#374; #376 already E3-accepted)
 
 ## 2. Gate 0 — residual E3 disposition
 
-Do not start new product branches while rev0114 is active.
+Do not start new product branches while rev0115 is active.
 
 Current carried-forward state:
 - #376 Gateway: `E2_ACCEPTED / E3_MOUNTED_ACCEPTED / WAIT_COHORT_GATE0_CLOSE`;
-- #373 HMI: Undo/Redo accepted; final unavailable/bad-quality + write-failed UI/capability classification remains;
-- #374 Script: final persisted Key rename/reuse/no-retarget + Active Runtime read/write/tween smoke remains;
-- rev0113 Apply did not reach API and the manual API omitted repository-standard `EngineeringRuntime__ProjectKey=e2e-wave03`; rev0114 corrects homologation setup only.
+- #373 HMI: `E2_ACCEPTED / E3_MOUNTED_ACCEPTED`;
+- #376 Gateway: `E2_ACCEPTED / E3_MOUNTED_ACCEPTED`;
+- #374 Script: Apply + persisted Key rename/reuse/no-retarget + bridge operation/render evidence accepted; only minimal Python handler completion remains;
+- rev0115 runs READ-only / WRITE-only / TWEEN-only handlers independently and requires `execution-result: completed` for each.
 
 If CODEX returns:
 
@@ -470,7 +471,7 @@ Any consumer that finds an insufficient contract returns:
 
 | Phase | Chat | May run with | Must wait for |
 |---|---|---|---|
-| Current | Shared CODEX rev0114 | nothing new mutating same product | active now |
+| Current | Shared CODEX rev0115 | nothing new mutating same product | active now |
 | Gate 1 | G / #375 recomposition | none required | E/F/H integration |
 | Contract | Main/CODEX | no product DEV required | post-#375 base |
 | R2-A | I / Engineering density | K | frozen C-ENG-DENSITY-01 + C-PRODUCT-VERSION-01 + post-#375 base |
@@ -485,4 +486,4 @@ Any consumer that finds an insufficient contract returns:
 
 ## 15. Current disposition
 
-`PREPARED / WAIT_REV0114 / NO_POST_E3_PRODUCT_MUTATION_YET`.
+`PREPARED / WAIT_REV0115 / NO_POST_E3_PRODUCT_MUTATION_YET`.

@@ -1,10 +1,10 @@
 # Wave 15 — Post-E3 Development Route
 
-**Status:** GATE0_GREEN / #373+#374+#376_INTEGRATED / WAIT_REV0119_REUSE_R1_RECOMPOSE / R2_C0_DECLARED_NO_NEW_DEV_RELEASE  
+**Status:** GATE0_GREEN / #373+#374+#376_INTEGRATED / #375_MAIN_RECOMPOSED_T1_ACTIVE / SHARED_CODEX_WAIT / R2_C0_DECLARED_NO_NEW_DEV_RELEASE  
 **Coordinator issue:** #378  
 **Execution ledger:** #305  
 **Current integration baseline:** `wave15/corrections-integration@036e07743e7d3574d87af8ff99354b0665b88148` / tree `efd32e7bfb68603a966b96d54d85f4a0e0d0ba41`  
-**Current shared CODEX order:** `rev0119 / FINAL-SEQUENTIAL-CODEX-REUSE-R1-RECOMPOSE-100`
+**Current shared CODEX order:** `rev0120 / SHARED-CODEX-WAIT-AFTER-MAIN-REUSE-RECOMPOSE-101`
 
 GitHub live is authoritative. Every gate below must be revalidated against live branches, PR heads, CI and issue handoffs before execution.
 
@@ -16,7 +16,7 @@ The route is:
 
 ```text
 Gate0 complete: #373/#374/#376 integrated with final tree byte-identical to validated E3
-  -> rev0119 recompose/integrate #375 on exact post-Gate0 base
+  -> #375 recomposed directly by Main on exact post-Gate0 base; wait exact-head T1, review, integrate
   -> R2-C0 SHARED CONTRACT LAYER (#386) / freeze all mandatory external-test semantics
   -> R2-A foundations: Engineering shell/theme + Historian capture + Data Query core + Portability core
   -> R2-B authoring: Editor UX + Branding + structured Engineering + Script authoring + Library/Fragment consumers
@@ -50,14 +50,14 @@ The old pre-fix combined tree `3aaec957ce27c73bb8b7090b7cd9f412ba26b567` remains
 Gate0 is complete. Current binding Gate1 base is:
 - integration `036e07743e7d3574d87af8ff99354b0665b88148`;
 - tree `efd32e7bfb68603a966b96d54d85f4a0e0d0ba41`;
-- active shared CODEX order `rev0119 / FINAL-SEQUENTIAL-CODEX-REUSE-R1-RECOMPOSE-100`.
+- #375 Main-recomposed candidate `53f9524d098a0497acf95ad4669a2f1738742e00`, tree `75398319b8b4630b72a525fb9bdd235dc0d541a9`;
+- exact-head T1 run `36589349320` active;
+- shared CODEX rev0120 is WAIT to preserve capacity.
 
 Now:
-- recompose `work/w15-reusable-objects-correction` from this exact integration;
-- preserve accepted C-REUSE-01 semantics;
-- resolve only additive composition;
-- rerun E2;
-- Main reviews exact diff/tree;
+- Main recomposition is complete and exact R1 scope was preserved;
+- wait for natural exact-head E2/T1 on `53f9524d098a0497acf95ad4669a2f1738742e00`;
+- Main reviews CI + exact diff/tree;
 - integrate #375 if accepted.
 
 No new Round-2 correction branch should be based on the old pre-#375 integration checkpoint.
@@ -698,7 +698,7 @@ Any consumer that finds an insufficient contract returns:
 
 | Phase | Chat | May run with | Must wait for |
 |---|---|---|---|
-| Current | Shared CODEX rev0119 Reuse R1 recomposition | only #375 branch recomposition + accepted R1 conflict resolution/tests | active now |
+| Current | #375 Main recomposition / T1 | exact R1 11-file scope; shared CODEX WAIT | T1 active now |
 | Gate 1 | G / #375 recomposition | none required | E/F/H integration |
 | C0 Contract | Main / #386 | no product DEV required | post-#375 exact base |
 | R2-A | I / Engineering density | K | frozen C-ENG-DENSITY-01 + C-PRODUCT-VERSION-01 + post-#375 base |
@@ -733,4 +733,4 @@ This route carries the following interaction rules across coordinator rotations:
 
 ## 15. Current disposition
 
-`GATE0_GREEN / WAIT_REV0119_REUSE_R1_RECOMPOSE / C0_DECLARED_NO_NEW_DEV_RELEASE`.
+`GATE0_GREEN / #375_MAIN_RECOMPOSED_T1_ACTIVE / SHARED_CODEX_WAIT / C0_DECLARED_NO_NEW_DEV_RELEASE`.

@@ -252,22 +252,32 @@ jobs:
           WORKSPACE_VERSION=$(python3 -c 'import json; print(json.load(open("/tmp/workspace-after-save.json"))["changeVersion"])')
           test "$WORKSPACE_VERSION" -ge 1
 
-          # Derive the CI package from the live First Project export so the
-          # Security Authority reference is exact. Keep the legacy simulation
-          # example at schema v1 so builtin.simulation remains a valid fixture
-          # without inventing a persisted Data Source.
+          # Derive the CI package from the live canonical First Project export.
+          # Preserve its current schema/Authority/Dynamo envelope and overlay only
+          # the explicit disposable simulation TAG, alarm and Data Source fixture.
           curl -fsS -b /tmp/scada-auth.cookie http://127.0.0.1:5080/api/engineering/export/json > /tmp/first-project-engineering.json
           python3 - <<'PY'
           import json
           with open('/tmp/first-project-engineering.json') as f:
               current = json.load(f)
           with open('docs/examples/engineering-package.json') as f:
-              fixture = json.load(f)
-          authority = current.get('authorityPolicyReference')
-          assert authority is not None, current
-          fixture['authorityPolicyReference'] = authority
+              legacy_fixture = json.load(f)
+          assert current.get('authorityPolicyReference') is not None, current
+          current['tags'] = legacy_fixture['tags']
+          current['alarms'] = legacy_fixture['alarms']
+          current['dataSources'] = [
+              {
+                  'id': None,
+                  'key': 'builtin.simulation',
+                  'name': 'CI Built-in Simulation',
+                  'driver': 'builtin.simulation',
+                  'enabled': True,
+                  'settings': {'scanIntervalMilliseconds': '500'},
+                  'metadata': {'system': 'true', 'owner': 'ci-fixture'}
+              }
+          ]
           with open('/tmp/ci-runtime-engineering.json', 'w') as f:
-              json.dump(fixture, f)
+              json.dump(current, f)
           PY
 
           curl -fsS -b /tmp/scada-auth.cookie -X POST http://127.0.0.1:5080/api/engineering/import/json/preview \
@@ -308,6 +318,7 @@ jobs:
           PY
 
           curl -fsS -b /tmp/scada-auth.cookie -X POST http://127.0.0.1:5080/api/engineering/persistence/ci-demo/latest/preview > /tmp/persistence-preview.json
+          cat /tmp/persistence-preview.json
           python3 - <<'PY'
           import json
           with open('/tmp/persistence-preview.json') as f:

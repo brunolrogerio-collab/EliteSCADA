@@ -186,9 +186,9 @@ No item in this table is optional for the first external-test candidate unless t
 
 ## 4.5. F0 — Shared Wire Foundation
 
-Before behavior packages run in parallel, one bounded implementation package must translate the frozen C0 semantics into shared additive wire/schema types.
+Before behavior packages run in parallel, one bounded implementation package tracked by #387 must translate the frozen C0 semantics into shared additive wire/schema types.
 
-**State:** PLANNED / CONTRACTS_FROZEN / OWNER_UNASSIGNED / NO_BOOTSTRAP.
+**State:** PLANNED / CONTRACTS_FROZEN / ISSUE_#387 / OWNER_UNASSIGNED / NO_BOOTSTRAP.
 
 Owns only shared public/model foundations such as:
 - Historian Capture Profile identity/configuration DTOs and strategy enums;

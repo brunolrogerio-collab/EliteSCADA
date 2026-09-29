@@ -375,7 +375,9 @@ Modbus acceptance evidence must expose enough to diagnose commissioning:
 
 Acceptance:
 - correct draft address returns GOOD without Apply;
-- incorrect device/address returns BAD/NO_DATA truthfully;
+- incorrect device/address returns BAD/NO_DATA truthfully and does not block Preview/Apply;
+- INTERMITTENT_OR_UNCERTAIN and NOT_SUPPORTED remain diagnostic states and do not block Preview/Apply/Save/Publish/Activate;
+- a structurally valid draft remains persistable with PLC/device offline or physically unavailable;
 - draft transform/order change can be retested immediately;
 - raw/decoded/engineering values are distinguishable;
 - bounded intermittent sample summary is truthful;

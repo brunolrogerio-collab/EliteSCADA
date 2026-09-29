@@ -226,3 +226,8 @@ public sealed record ReusableLibrarySourceProvenanceEngineeringDto(
     string SourceVersion,
     string SourceContentHash,
     int Version = R2SharedEngineeringContractVersions.LibraryProvenance);
+
+public sealed record ReusableLibraryResourceUpdateEngineeringDto(
+    ReusableLibrarySourceProvenanceEngineeringDto Source,
+    ReusableLibraryUpdateState State,
+    string? CurrentContentHash = null);

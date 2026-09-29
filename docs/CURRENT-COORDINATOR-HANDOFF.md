@@ -1,3 +1,220 @@
+# CURRENT MAIN COORDINATOR TAKEOVER — 2026-09-29 — F0 INTEGRATED / #389 MERGED / CI #1593 BLOCKED / TAG COMMISSIONING DELTA FROZEN
+
+> **THIS SECTION SUPERSEDES ALL OLDER CURRENT-STATE / TRANSFER WORDING BELOW WHEN THERE IS A CONFLICT.**
+>
+> GitHub live is the sole authority. Revalidate live before every merge, rerun, DEV/CODEX release, correction, contract change or architecture decision.
+
+## 1. Product integration checkpoint
+
+Current correction integration at this handoff:
+- branch: `wave15/corrections-integration`;
+- HEAD: `45ddfe93e2e8b2cf4dc3051f6c44f964ee006ebd`;
+- tree: `788f0437d6b2a084879706e7d1cd113cd0f350ee`;
+- commit purpose: merged CI-only Runtime smoke startup grace from #389.
+
+Completed gates:
+- Gate0 #373/#374/#376: GREEN / integrated / exact validated E3 tree proved;
+- Gate1 #375 Reuse R1: GREEN / integrated;
+- R2 C0 shared contracts: FROZEN_FOR_CONSUMERS;
+- F0 Shared Wire Foundation #387/#388: integrated.
+
+F0 exact evidence:
+- PR #388 head `297d71fc21f11b9513fdd22c64c6d586f3f9a035`;
+- Wave 15 T1 `36593596331` / #144 SUCCESS;
+- merge `d869c538700eca4b72703c311bb56f810a8baa2d`;
+- product tree `cf6f23cb44b8cef7f2d6b097ae417d44ed86f99c`.
+
+F0 integrated:
+- Engineering schema v20;
+- Historian Capture Profile + stable TAG profile reference;
+- reusable Data Query / retrieval-mode / Alarm View wire;
+- `.escadafrag` manifest/envelope/preview operations;
+- Library provenance/update state;
+- Web mirrors;
+- v19 normalization/compatibility.
+
+## 2. CURRENT BLOCKER — post-merge CI #1593
+
+CI-only PR #389:
+- final head `9660196179865b0b499c9eaf0a719eeb5d9644b8`;
+- only `.github/workflows/dotnet-ci.yml`;
+- Wave 15 T1 `36598116875` / #146 SUCCESS;
+- merged as integration `45ddfe93e2e8b2cf4dc3051f6c44f964ee006ebd`.
+
+Post-merge `EliteSCADA CI`:
+- run `36598484002` / #1593 — FAILURE;
+- Web build — SUCCESS;
+- Backend build — SUCCESS;
+- all Backend tests — SUCCESS;
+- Runtime smoke — FAILURE;
+- Chromium — skipped because Backend gate is red.
+
+Important diagnosis:
+- #389 successfully extended the **initial** health readiness loop from 30 to 60 seconds;
+- do NOT increase that timeout again;
+- the Runtime smoke then sees a truthful neutral installation:
+  `runtime.mode=neutral / projectKey=null / tagCount=0 / historian.writtenSamples=0`;
+- the smoke still assumes an already-active Demo/project and waits for Historian samples;
+- current product tests explicitly state that an empty persisted installation must remain neutral and must **not** seed an unowned Demo workspace.
+
+Classification:
+`POSTMERGE_CI_BLOCKED / STALE_SMOKE_FIXTURE_EXPECTS_ACTIVE_PROJECT / PRODUCT_STARTUP_AUTHORITY_NOT_PROVEN_WRONG`.
+
+Next safe coordinator action:
+1. revalidate integration and CI live;
+2. inspect the Runtime smoke sequence in `.github/workflows/dotnet-ci.yml`;
+3. correct the smoke fixture/order so neutral startup is accepted, then create/own/save/publish/activate a disposable CI project through canonical authority **before** TAG/Historian assertions;
+4. do not change product startup authority merely to make the stale smoke pass;
+5. require green post-merge CI before releasing R2-A product lanes.
+
+## 3. Shared CODEX
+
+Shared CODEX remains parked to preserve its remaining capacity.
+
+Control plane:
+- branch `coord/w15-fnd04-dev-aud-control`;
+- file `docs/WAVE15-FND04-DEV-AUD-CONTROL.md`;
+- latest known order state: `rev0121 / PARKED / PRESERVE_REMAINING_CAPACITY / NO_PRODUCT_MUTATION`.
+
+Do not send SIGA to shared CODEX unless a new Main order explicitly requires an environment-only proof.
+
+## 4. C0 / F0 product contracts and mandatory external-test scope
+
+Canonical coordination:
+- #378 correction coordinator;
+- #386 C0 shared-contract layer;
+- #387 F0 wire foundation;
+- `docs/WAVE15-CORRECTION-NOW-SHARED-CONTRACTS.md`;
+- `docs/WAVE15-R2-SHARED-CONTRACT-LAYER.md`;
+- `docs/WAVE15-POST-E3-DEVELOPMENT-ROUTE.md`.
+
+Mandatory first third-party-test scope includes:
+- Script syntax guard + guided Script Assistant;
+- visual event -> existing Script handler;
+- Historian capture profiles/runtime enforcement;
+- relative + absolute historical time range;
+- reusable typed Data Query / historian retrieval / Alarm View;
+- Trend/Browser/Report convergence;
+- Historical Playback;
+- Engineering Fragment import/export;
+- reusable Library/Dynamo preview/version/update/fork;
+- structured Engineering workflows;
+- Branding/theme;
+- pt-BR/en/es copy and no product-facing Monaco/Vite/Canvas implementation branding.
+
+## 5. NEW mandatory TAG commissioning/productivity delta
+
+Product Owner explicitly requires E3/SCADA-LTS-style commissioning and TAG duplication before the first third-party-test candidate.
+
+Issues:
+- #390 — TAG commissioning read-test / raw decode / quality diagnostics;
+- #391 — TAG copy/paste, duplicate and sequential generation.
+
+Frozen contract:
+`C-TAG-COMMISSIONING-01`
+
+Product flow:
+`DRAFT TAG -> TEST READ -> RAW EVIDENCE -> DECODED VALUE -> ENGINEERING VALUE -> QUALITY/LATENCY -> FIX BINDING -> PREVIEW/APPLY`.
+
+Permanent separation:
+- Data Source `ConnectionTest` = transport/session;
+- draft TAG `PointReadTest` = transient read of one configured binding/address;
+- Development Monitor = ongoing Active Runtime observation.
+
+Requirements:
+- read-only Engineering test;
+- no Active mutation/process write/Historian write;
+- raw protocol evidence where safely available;
+- decoded value before Engineering normalization;
+- Engineering value after transforms/selector/scale/offset;
+- quality/timestamps/latency/Driver issues;
+- effective byte/word transform shown;
+- bounded short monitoring for intermittent communication;
+- first mandatory Drivers: Modbus TCP, S7 ISO, OPC UA where their current binding/tooling supports the operation;
+- unsupported Drivers return truthful NOT_SUPPORTED.
+
+Because F0 is already integrated, #390 requires a small prerequisite:
+`F0-D1 — Driver Point Read Test Wire`
+- optional `DriverEngineeringCapabilities.PointReadTest`;
+- request/result/status contracts;
+- provider interface;
+- module registration/capability validation;
+- Engineering API/Web mirror;
+- **no protocol behavior and no UI in F0-D1**;
+- do not reopen Engineering schema v20 unless persisted payload really changes.
+
+Frozen contract:
+`C-TAG-DUPLICATION-01`
+
+Requirements:
+- Duplicate one TAG;
+- Copy/Paste/Duplicate selected TAGs;
+- every duplicate gets a new stable TAG ID;
+- configuration only — never copy Runtime values/history/events;
+- preserve valid Data Source/binding/transform/profile references;
+- Preview before Apply;
+- sequential generator with count + name/path pattern + safe address increment;
+- Modbus canonical address increment is mandatory first;
+- no generic arithmetic over opaque Driver addresses;
+- cross-project transfer converges on `.escadafrag`;
+- implementation belongs with structured TAG Engineering/Chat N after Portability foundation, not a second TAG editor.
+
+## 6. R2 development sequencing
+
+Do **not** release product DEVs while post-merge CI is red.
+
+Once CI is green:
+1. F0-D1 / PointReadTest wire;
+2. R2-A foundations may proceed under path locks:
+   - I / Engineering Density;
+   - K / Theme Contrast;
+   - O / Historian Capture;
+   - DATA-QUERY-CORE / #384;
+   - PORTABILITY-CORE / #385;
+   - TAG-C / #390 behavior after F0-D1.
+3. integrate foundations;
+4. R2-B:
+   - J / Editor UX;
+   - L / Branding;
+   - N / Structured Engineering + TAG duplication #391;
+   - SCRIPT-AUTHORING-R2;
+   - Library/Fragment consumers.
+5. R2-C:
+   - P / historical time range/Trend consumers;
+   - Browser / Alarm View / Report convergence;
+   - Historical Playback.
+6. R2-D:
+   - M / UX copy + i18n.
+7. integrated exact E2/E3;
+8. fresh CODEX black-box Preview if capacity/tooling available;
+9. Product Owner human Preview;
+10. independent technical Audit;
+11. residual corrections/recheck;
+12. only then:
+   `CORRECTION PHASE ACCEPTED / THIRD-PARTY TEST CANDIDATE`.
+
+## 7. Bootstrap rule
+
+No future chat bootstrap is implicitly authorized.
+
+Known planned/released names may appear in route docs, but the Product Owner explicitly requests a bootstrap when the real gate is reached.
+
+Do not auto-create Q/R/S-style lanes from package names.
+
+## 8. Main coordination behavior
+
+- GitHub live always wins.
+- Product Owner is not a messenger between agents.
+- do not merge only because `mergeable=true`;
+- preserve C-TEST-EVIDENCE-01 evidence levels;
+- shared contract missing semantic => `BLOCKED_CONTRACT / <contract-id> / <missing semantic>`;
+- do not let downstream DEV privately redefine frozen C0/F0 contracts;
+- external installers/compiled customer artifacts must not contain development documentation/materials (#381).
+- Every user-facing coordination update ends with:
+  `| Chat/lane | Status atual | Minha ação |`.
+
+---
+
 # LATEST MAIN COORDINATOR TRANSFER — 2026-09-29 — REV0116 ACTIVE / POST-E3 ROUTE PREPARED
 
 > **THIS SECTION SUPERSEDES OLDER CURRENT-STATE / TRANSFER WORDING BELOW WHEN THERE IS A CONFLICT.**

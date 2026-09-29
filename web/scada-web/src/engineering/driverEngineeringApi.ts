@@ -1,3 +1,9 @@
+import type {
+  CommunicationTagBindingEngineering,
+  TagPhysicalValueTransformEngineering
+} from './TagSourceSelector.logic';
+import type { TagValueSelectorEngineering } from './types';
+
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
 export type DriverEngineeringIssueView = Readonly<{
@@ -14,6 +20,71 @@ export type DriverConnectionTestResultView = Readonly<{
   observedIdentity?: string | null;
   observedProperties?: Record<string, string> | null;
   issues?: readonly DriverEngineeringIssueView[] | null;
+}>;
+
+export type DriverPointReadTestStatusView =
+  | 'Good'
+  | 'Bad'
+  | 'NoData'
+  | 'IntermittentOrUncertain'
+  | string
+  | number;
+
+export type DriverPointReadRawRepresentationView = Readonly<{
+  kind: string;
+  hex?: string | null;
+  elements?: readonly string[] | null;
+  metadata?: Record<string, string> | null;
+}>;
+
+export type DriverPointReadValueView = Readonly<{
+  valueType: string;
+  value: unknown;
+  engineeringUnit?: string | null;
+}>;
+
+export type DriverPointReadSampleView = Readonly<{
+  status: DriverPointReadTestStatusView;
+  observedAtUtc: string;
+  sourceTimestampUtc?: string | null;
+  latencyMilliseconds?: number | null;
+  quality: string | number;
+  raw?: DriverPointReadRawRepresentationView | null;
+  decoded?: DriverPointReadValueView | null;
+  engineering?: DriverPointReadValueView | null;
+  effectiveValueTransform?: TagPhysicalValueTransformEngineering | null;
+  issues?: readonly DriverEngineeringIssueView[] | null;
+}>;
+
+export type DriverPointReadSampleSummaryView = Readonly<{
+  requestedSamples: number;
+  completedSamples: number;
+  goodSamples: number;
+  uncertainSamples: number;
+  badSamples: number;
+  noDataSamples: number;
+  minimumLatencyMilliseconds?: number | null;
+  averageLatencyMilliseconds?: number | null;
+  maximumLatencyMilliseconds?: number | null;
+}>;
+
+export type DriverPointReadTestResultView = Readonly<{
+  status: DriverPointReadTestStatusView;
+  sanitizedEndpoint?: string | null;
+  portableAddress: string;
+  summary: DriverPointReadSampleSummaryView;
+  samples: readonly DriverPointReadSampleView[];
+  issues?: readonly DriverEngineeringIssueView[] | null;
+}>;
+
+export type DriverPointReadTestRequestView = Readonly<{
+  binding: CommunicationTagBindingEngineering;
+  dataType: string;
+  addressSelector?: TagValueSelectorEngineering | null;
+  engineeringUnit?: string | null;
+  sampleCount?: number;
+  sampleIntervalMilliseconds?: number;
+  timeoutMilliseconds?: number;
 }>;
 
 export type DriverDiscoveryCandidateView = Readonly<{
@@ -69,6 +140,27 @@ export async function testEngineeringDataSourceDraftConnection(
   return await postJson<DriverConnectionTestResultView>(
     '/api/engineering/driver-tools/connection-test',
     dataSource);
+}
+
+export async function testEngineeringPointRead(
+  dataSourceId: string,
+  request: DriverPointReadTestRequestView
+): Promise<DriverPointReadTestResultView> {
+  return await postJson<DriverPointReadTestResultView>(
+    `/api/engineering/data-sources/${encodeURIComponent(dataSourceId)}/driver-tools/point-read-test`,
+    request);
+}
+
+export async function testEngineeringDraftPointRead(
+  dataSource: DriverDraftDataSourceView,
+  request: DriverPointReadTestRequestView
+): Promise<DriverPointReadTestResultView> {
+  return await postJson<DriverPointReadTestResultView>(
+    '/api/engineering/driver-tools/point-read-test',
+    {
+      dataSource,
+      ...request
+    });
 }
 
 export async function discoverEngineeringDataSource(

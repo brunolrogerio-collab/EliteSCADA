@@ -56,7 +56,7 @@ test('boolean and numeric property destinations expose the required source modes
   const x = destinations.find(item => item.propertyKey === 'x');
 
   expect(visible?.sourceModes).toEqual(['Constant', 'DirectBinding', 'BooleanCondition', 'Expression']);
-  expect(x?.sourceModes).toEqual(['Constant', 'DirectBinding', 'Expression']);
+  expect(x?.sourceModes).toEqual(['Constant', 'DirectBinding', 'Expression', 'RangeMap']);
 });
 
 test('bit authoring resolves from canonical base TAG and persists TagId plus selector', () => {

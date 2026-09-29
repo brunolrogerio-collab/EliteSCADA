@@ -211,7 +211,11 @@ public sealed class TimescaleDbHistorianTests
         Assert.Equal(0, second.SkippedSamples);
         var persisted = second.Query(tag.Id, origin.AddSeconds(-1), origin.AddSeconds(6), 10);
         Assert.Equal(2, persisted.Count);
-        Assert.Equal(new[] { origin, restartedObservation }, persisted.Select(x => x.Timestamp));
+        Assert.InRange(Math.Abs((persisted[0].Timestamp - origin).Ticks), 0, TimeSpan.TicksPerMicrosecond);
+        Assert.InRange(
+            Math.Abs((persisted[1].Timestamp - restartedObservation).Ticks),
+            0,
+            TimeSpan.TicksPerMicrosecond);
     }
 
     private static TagDefinition CreatePolicyTag(

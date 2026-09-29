@@ -19,6 +19,16 @@ async function expectCssToken(locator: Locator, property: string, token: string)
 }
 
 test('primary shell keeps authorized application navigation coherent without Engineering chrome inside Runtime', async ({ page }) => {
+  await page.route('**/api/product/info', route => route.fulfill({
+    json: {
+      productName: 'TestSCADA',
+      channel: 'Alpha',
+      version: '9.9.9',
+      displayVersion: 'TestSCADA Alpha 9.9.9',
+      informationalVersion: 'TestSCADA Alpha 9.9.9+abcdef123456',
+      buildCommit: 'abcdef123456'
+    }
+  }));
   await page.goto('/');
 
   let navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
@@ -50,8 +60,20 @@ test('primary shell keeps authorized application navigation coherent without Eng
   await expect(navigation.getByRole('link', { name: /Engineering/ })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByText(/Gerenciamento do projeto|Project Management/, { exact: true })).toBeVisible();
   await expectCssToken(page.locator('.eng-shell'), 'background-color', '--app-bg');
+  await expect(page.getByTestId('engineering-context-row')).toBeVisible();
+  await expect(page.getByTestId('engineering-workspace-state')).toBeVisible();
+  await expect(page.getByTestId('engineering-workspace-bar')).toHaveCount(0);
 
   const engineeringNavigation = page.locator('.eng-nav');
+  await engineeringNavigation.getByRole('button', { name: /Informações|Information|Información/ }).click();
+  await expect(page.getByTestId('engineering-information')).toBeVisible();
+  await expect(page.getByTestId('engineering-product-version')).toHaveText('TestSCADA Alpha 9.9.9');
+  const technicalDetails = page.locator('details.eng-information__technical');
+  await expect(technicalDetails).not.toHaveAttribute('open', '');
+  await technicalDetails.locator('summary').click();
+  await expect(technicalDetails).toContainText(/scada\.engineering/i);
+  await expect(technicalDetails).toContainText('abcdef123456');
+
   await engineeringNavigation.getByRole('button', { name: /Diagnósticos|Diagnostics/ }).click();
   await expect(page.getByText(/TAG Monitor/i)).toBeVisible();
 
@@ -83,6 +105,8 @@ test('shell uses shared locale, updates live from Engineering selector, and pres
   await expect(page.locator('html')).toHaveAttribute('data-app-theme', 'dark');
   await expect(page.getByRole('combobox', { name: 'Theme' })).toHaveValue('dark');
   await expect(page.getByText('Project Management', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('engineering-context-row')).toBeVisible();
+  await expect(page.getByTestId('engineering-workspace-state')).toBeVisible();
 
   const locale = page.locator('#engineering-locale');
   await locale.selectOption('es');
@@ -104,6 +128,8 @@ test('Engineering visual workspace can reclaim constrained viewport without losi
   const engineeringNavigation = page.locator('.eng-nav');
   await engineeringNavigation.getByRole('button', { name: /Telas/ }).click();
   await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();
+  await expect(page.locator('.eng-workspace')).toHaveAttribute('data-section-layout', 'wide');
+  await expect(page.locator('.eng-workspace')).toHaveClass(/eng-workspace--wide-section/);
 
   const canvas = page.locator('.visual-editor-canvas-slot');
   const screens = page.locator('.visual-editor-screens');

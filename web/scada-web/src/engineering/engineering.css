@@ -28,11 +28,12 @@
 }
 
 .eng-topbar {
-  height: 64px;
+  height: 52px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 22px;
+  padding: 0 14px;
+  gap: 12px;
   border-bottom: 1px solid var(--eng-border);
   background: #0d131a;
   position: sticky;
@@ -52,8 +53,8 @@
 }
 
 .eng-mark {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   border: 1px solid #3b5469;
   border-radius: 8px;
   display: grid;
@@ -86,16 +87,17 @@
 }
 
 .eng-top-actions {
-  gap: 18px;
+  gap: 8px;
+  flex: 0 0 auto;
 }
 
 .eng-runtime-link {
   color: #cbd6e1;
   text-decoration: none;
   border: 1px solid var(--eng-border);
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .eng-runtime-link:hover {
@@ -112,7 +114,7 @@
   color: var(--eng-text);
   border: 1px solid var(--eng-border);
   border-radius: 6px;
-  padding: 7px 28px 7px 9px;
+  padding: 5px 26px 5px 8px;
 }
 
 .eng-body {
@@ -126,7 +128,7 @@
 .eng-sidebar {
   border-right: 1px solid var(--eng-border);
   background: #0d131a;
-  padding: 16px 12px 28px;
+  padding: 10px 12px 28px;
   min-height: 0;
   overflow-y: auto;
 }
@@ -210,9 +212,18 @@
 
 .eng-workspace {
   min-width: 0;
-  padding: 0 24px 34px;
+  padding: 14px 24px 34px;
   min-height: 0;
   overflow-y: auto;
+}
+
+.eng-workspace--wide-section {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.eng-workspace--wide-section > * {
+  max-width: none;
 }
 
 .eng-workspace-bar {
@@ -243,6 +254,121 @@
 .eng-section {
   max-width: 1440px;
   margin: 0 auto;
+}
+
+.eng-brand__title {
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.eng-context {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.eng-context__task,
+.eng-context__project,
+.eng-context__workspace {
+  min-width: 0;
+  border: 1px solid var(--eng-border-soft);
+  border-radius: 6px;
+  background: var(--eng-panel-soft);
+  padding: 5px 8px;
+  font-size: 11px;
+  line-height: 1.15;
+}
+
+.eng-context__task {
+  flex: 0 1 auto;
+  color: var(--eng-text);
+  white-space: nowrap;
+}
+
+.eng-context__project {
+  flex: 0 1 280px;
+  color: var(--eng-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eng-context__workspace {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.eng-context__workspace > span {
+  color: var(--eng-muted);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.eng-context__workspace > strong {
+  color: var(--eng-text);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.eng-context__workspace--dirty {
+  border-color: color-mix(in srgb, var(--eng-warning) 55%, var(--eng-border));
+}
+
+.eng-context__workspace--dirty > strong {
+  color: var(--eng-warning);
+}
+
+.eng-information {
+  display: grid;
+  gap: 14px;
+}
+
+.eng-information .eng-section-header {
+  margin-bottom: 0;
+}
+
+.eng-information__product {
+  display: grid;
+  gap: 5px;
+}
+
+.eng-information__product > span {
+  color: var(--eng-muted);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.eng-information__product > strong {
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+.eng-information__technical {
+  padding: 0;
+}
+
+.eng-information__technical > summary {
+  padding: 14px 18px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.eng-information__technical[open] > summary {
+  border-bottom: 1px solid var(--eng-border-soft);
+}
+
+.eng-information__technical .eng-diagnostic-grid {
+  padding: 16px 18px 18px;
 }
 
 .eng-section-header {
@@ -575,10 +701,21 @@
 
   .eng-topbar {
     height: auto;
-    min-height: 64px;
+    min-height: 52px;
     align-items: flex-start;
-    gap: 10px;
-    padding: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .eng-context {
+    order: 3;
+    width: 100%;
+    flex-basis: 100%;
+  }
+
+  .eng-context__project {
+    flex: 1 1 auto;
   }
 
   .eng-top-actions {
@@ -626,13 +763,13 @@
   }
 
   .eng-workspace {
-    padding: 0 12px 24px;
+    padding: 12px 12px 24px;
     overflow-y: visible;
   }
 
-  .eng-workspace-bar {
-    margin: 0 -12px 18px;
-    padding: 9px 12px;
+  .eng-workspace--wide-section {
+    padding-left: 6px;
+    padding-right: 6px;
   }
 
   .eng-section-header {

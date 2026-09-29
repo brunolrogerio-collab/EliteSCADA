@@ -161,6 +161,40 @@ Must freeze before final UI cleanup:
 - pt-BR/en/es glossary;
 - no ordinary user-facing Monaco/Vite/React/Pyodide/Web Worker/Canvas implementation branding.
 
+### C0-H — TAG commissioning and productivity
+
+Post-F0 mandatory delta:
+- C-TAG-COMMISSIONING-01 / #390;
+- C-TAG-DUPLICATION-01 / #391.
+
+TAG commissioning freezes:
+- Data Source ConnectionTest vs draft TAG PointReadTest vs Active Development Monitor separation;
+- read-only transient point test;
+- raw / decoded / Engineering value layers;
+- quality/timestamp/latency/issue evidence;
+- effective physical transform reporting;
+- no process/Active/Historian mutation.
+
+Because F0 is already integrated, #390 has one bounded wire prerequisite:
+
+**F0-D1 — Driver Point Read Test Wire**
+- `DriverEngineeringCapabilities.PointReadTest`;
+- point-read request/result/status DTOs;
+- optional provider interface;
+- module-registration provider slot and fail-closed capability validation;
+- protected Engineering API request/result surface;
+- Web type/API mirror needed by TAG editor;
+- no Driver behavior and no UI in D1;
+- no Engineering schema increment unless persisted Engineering payload changes.
+
+TAG duplication freezes:
+- new stable IDs on duplicates;
+- configuration-only copy;
+- single + multi copy/paste/duplicate;
+- Modbus-aware sequential address generator;
+- dependency-safe Preview/Apply;
+- cross-project convergence on `.escadafrag`.
+
 ## 4. Mandatory external-test capabilities and contract owners
 
 | Capability | Contract owner |
@@ -181,6 +215,8 @@ Must freeze before final UI cleanup:
 | Template -> Equipment -> Dynamo reuse | C-REUSE-01 |
 | Editor Library/Dynamo consumption | C-EDITOR-UX-R2-01 + C-REUSE-01 |
 | Product-facing terminology/i18n | C-USER-COPY-I18N-01 |
+| Draft TAG read-test/raw decode/quality | C-TAG-COMMISSIONING-01 |
+| TAG copy/paste/duplicate/sequential generation | C-TAG-DUPLICATION-01 |
 
 No item in this table is optional for the first external-test candidate unless the Product Owner explicitly changes scope.
 
@@ -232,6 +268,39 @@ may run concurrently if their remaining file/authority ownership is disjoint.
 ## 5. Implementation packages after C0
 
 These are **packages, not released chats**. Gate1 and C0 freeze are complete; exact chat/branch ownership is still assigned only when the Product Owner requests release and Main records the exact base/path contract.
+
+### Package F0-D1 — Driver Point Read Test Wire
+
+Issue: #390 prerequisite. Owner unassigned; no bootstrap.
+
+- add only the transient Driver Engineering PointReadTest wire/capability/provider/API mirror;
+- do not implement protocol reads or TAG editor UX;
+- preserve F0 integrated schema v20 unless persisted Engineering really changes.
+
+Integrate before TAG Commissioning behavior.
+
+### Package TAG-C — TAG commissioning
+
+Issue #390.
+
+- protocol-specific protected PointReadTest providers;
+- first targets Modbus TCP, S7 ISO, OPC UA;
+- TAG editor Test read / bounded monitor UX;
+- raw/decoded/engineering value diagnostics;
+- effective byte/word transform visibility;
+- Development Monitor handoff after activation.
+
+### Package TAG-D — TAG duplication/productivity
+
+Issue #391.
+
+- structured TAG list selection;
+- copy/paste/duplicate;
+- generated draft Preview;
+- sequential Modbus generator;
+- consume Portability/Fragment contracts for cross-project direction.
+
+Prefer ownership with structured Engineering (Chat N) after Portability foundation is stable rather than inventing another TAG form implementation.
 
 ### Package A — Engineering shell foundation
 Likely consumers: existing I + K.
@@ -319,6 +388,9 @@ Runs after structural consumers stabilize.
 
 | Package | Primary authority after F0 | Must not own |
 |---|---|---|
+| F0-D1 / TAG Point Read wire | Driver Engineering transient capability/request/result contracts | protocol behavior, UI, Engineering schema changes without blocker |
+| TAG-C / Commissioning | Driver point-read providers + TAG read-test UX | Active Runtime mutation, process writes, Historian capture |
+| TAG-D / Duplication | TAG structured workflow + Fragment-compatible copy semantics | Driver point-read, Runtime state/history copy |
 | A / I Engineering density + product info | Engineering shell/layout/info hierarchy | theme engine internals, visual editor internals, domain backend semantics |
 | A / K Theme + contrast | semantic theme tokens + specialized editor styling | data models, Runtime behavior, layout architecture |
 | B / O Historian Capture | capture-profile service/policy, writer admission, diagnostics | Driver scan, query retrieval, Trend UI |

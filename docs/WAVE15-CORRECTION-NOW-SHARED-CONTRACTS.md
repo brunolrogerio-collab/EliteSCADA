@@ -1363,6 +1363,60 @@ Retrieval rules:
 - long windows remain bounded and should use server-side aggregation/downsampling/pixel-aware resolution where appropriate;
 - no unbounded raw browser load.
 
+### C-DATA-QUERY-VIEW-01 deterministic retrieval delta — 2026-09-29
+
+The #384 implementation block identified four semantics that were not fully determined by the original F0 wire. Main freezes them here. Consumers must not guess range endpoints, interpolation quality, grid alignment or bucket provenance.
+
+**F0-D2 bounded wire prerequisite**
+
+The existing `HistorianRetrievalEngineeringDto` has no point target, therefore:
+- add optional `TargetUtc` to the Historian retrieval wire;
+- add a `historianTargetUtc` parameter-binding target so Runtime/ad-hoc DateTime parameters can supply the point target without rewriting the saved Query;
+- `AtOrBefore | AtOrAfter | Exact | Interpolated` require an effective `TargetUtc` after parameter binding;
+- no mode may silently substitute `FromUtc` or `ToUtc` when the target is absent;
+- effective `TargetUtc` must be inside the resolved Historical Query range, inclusive;
+- this is an additive F0-D2 wire delta; do not broaden it into query execution or consumer UI.
+
+**Single-point behavior**
+- `AtOrBefore` returns the greatest source timestamp `<= TargetUtc` inside the resolved range;
+- `AtOrAfter` returns the least source timestamp `>= TargetUtc` inside the resolved range;
+- `Exact` returns only a persisted observation at the exact canonical stored timestamp; no tolerance/nearest fallback;
+- `Interpolated` returns an exact measured observation unchanged when one exists at `TargetUtc`; otherwise only analog/numeric interpolation is eligible;
+- `Last` remains the last observation inside the resolved range and does not consume `TargetUtc`.
+
+**Interpolation / synthesis quality and gap**
+- only canonical `TagQuality.Good` observations are admissible inputs for a synthesized interpolated or held value;
+- a measured exact observation is never rewritten to Good: its original quality/value/timestamp remain authoritative;
+- `MaximumGapMilliseconds` is mandatory and positive for `Interpolated` and `SampledFixedStep`; null means **no synthesis authority**, not unlimited interpolation;
+- analog interpolation requires Good adjacent bracketing observations and their source-timestamp span must be `<= MaximumGapMilliseconds`;
+- Boolean/Enum/discrete values are never linearly interpolated; fixed-step synthesis uses bounded hold-last from a Good observation only;
+- if no admissible source exists, return an explicit gap/no-data result; never emit zero, nearest-unbounded or a fabricated Good observation;
+- synthesized results must expose provenance distinguishing `MEASURED | INTERPOLATED | HELD | GAP` and the source timestamp(s) used.
+
+**SampledFixedStep deterministic grid**
+- `StepMilliseconds` is mandatory and positive;
+- grid origin is the resolved `FromUtc`;
+- grid timestamps are `FromUtc + n * StepMilliseconds` for integer `n >= 0`;
+- include every grid timestamp `<= ToUtc`; do not append an extra synthetic `ToUtc` when it is off-grid;
+- exact measured observation at a grid timestamp wins and preserves its quality;
+- otherwise numeric values use the interpolation rule above and discrete values use bounded Good hold-last;
+- output timestamp is always the grid timestamp; provenance carries the measured/bracketing source timestamp(s);
+- a grid point with no admissible source is represented explicitly as GAP/NO_DATA.
+
+**Aggregate deterministic buckets / provenance**
+- bucket identity is independent of the query window and follows the existing UTC alignment rule used by `HistorianBucketCalculator`: `utcTicks - (utcTicks % bucketWidthTicks)`;
+- buckets are canonical half-open intervals `[bucketStart, bucketEnd)`; Historical Query v1's inclusive final `ToUtc` remains authoritative for source selection, so an observation exactly at `ToUtc` is assigned to its own canonical bucket when it lies on a bucket boundary;
+- leading/trailing partial query overlap uses only observations inside the resolved query range; data outside the requested range is never pulled in to complete a bucket;
+- empty buckets are omitted; consumers infer a gap from missing bucket timestamps rather than receiving invented zero values;
+- returned aggregate timestamp is the canonical `bucketStart`; bucket end and quality/sample counts remain provenance;
+- `Count` counts all selected observations regardless of quality;
+- `Sum | Average | Minimum | Maximum` operate only on Good numeric values; if no Good numeric value exists, the aggregate value is null/no-data;
+- `First | Last` select by source timestamp and preserve the selected observation's exact value, quality and source timestamp;
+- mixed-quality buckets expose `sampleCount / goodCount / uncertainCount / badCount`; a derived bucket quality is Bad if any Bad exists, else Uncertain if any Uncertain exists, else Good;
+- aggregation may never silently upgrade bad/uncertain source history into a healthy aggregate.
+
+This delta freezes semantics but **does not yet release #384 implementation**. DATA-QUERY-CORE remains blocked until the bounded F0-D2 TargetUtc/parameter-target wire is integrated on a Main-approved base.
+
 Consumer semantics:
 - Browser = tabular exploration/presentation;
 - Trend = time-series visualization;

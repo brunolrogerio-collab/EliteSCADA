@@ -38,11 +38,11 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0117`
+`MAIN_ORDER_REV: 0118`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-29 — REV0116 TWEEN COMPLETION GAP / BRIDGE-LIFETIME DIAGNOSTIC ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-29 — REV0117 ROOT CAUSE CONFIRMED / BOUNDED PYPROXY LIFETIME FIX ACTIVE`
 
-`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_TWEEN_BRIDGE_DIAGNOSTIC_ACTIVE`
+`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_TWEEN_PYPROXY_FIX_ACTIVE`
 
 Current situation:
 
@@ -58,10 +58,10 @@ Current situation:
 - FND-04 is now **VERIFIED / FROZEN** at exact product checkpoint `6c810647c9773a19b212d9c33694780141786ac7`.
 - The readable Script TAG reference contract is frozen for downstream consumption.
 - FND-04 AUD remains **FROZEN / WAIT / NO_MUTATION**.
-- The **same sequential CODEX executor/chat is now assigned under rev0117 to diagnose only the #374 TWEEN bridge completion gap proven by rev0116**. #373 HMI and #376 Gateway mounted E3 are accepted and must not be rerun. FND-04 remains frozen; the shared CODEX route is independent of the legacy FND-04 DEV order.
+- The **same sequential CODEX executor/chat is now assigned under rev0118 to apply the bounded #374 TWEEN PyProxy lifetime correction proven by rev0117**. #373 HMI and #376 Gateway mounted E3 are accepted and must not be rerun. FND-04 remains frozen; the shared CODEX route is independent of the legacy FND-04 DEV order.
 - Any later change to this shared contract requires a new Main/Foundation delta; downstream lanes may not redefine it.
 
-Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`, tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`. #373 HMI and #376 Gateway mounted E3 are accepted on the exact combined product candidate. rev0116 proved READ and WRITE completion but left a TWEEN request that visibly executed without a Worker completion result. rev0117 owns only causal localization of that TWEEN bridge completion gap. Any movement of integration or any candidate HEAD invalidates rev0117 until Main reissues exact coordinates.
+Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`, tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`. #373 HMI and #376 Gateway mounted E3 are accepted on the exact combined product candidate. rev0117 causally proved premature destruction of the borrowed Python dict PyProxy inside `normalizeBridgeValue()` while the Python async call frame was still awaiting the bridge Promise. rev0118 owns only the bounded correction, focused regression, exact-head E2, and Script-only mounted E3 recheck. Any movement of integration or #374 HEAD outside this order invalidates rev0118 until Main reissues exact coordinates.
 ---
 
 ## 2A. CURRENT SHARED CODEX ORDER — EXECUTION POINTER
@@ -70,11 +70,100 @@ Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave1
 >
 > The shared CODEX executor is not the legacy FND-04 DEV lane.
 
-`SHARED_CODEX_ORDER_REV: 0117`
+`SHARED_CODEX_ORDER_REV: 0118`
 
-`ORDER_ID: FINAL-SEQUENTIAL-CODEX-SCRIPT-TWEEN-BRIDGE-DIAGNOSTIC-98`
+`ORDER_ID: FINAL-SEQUENTIAL-CODEX-SCRIPT-TWEEN-PYPROXY-LIFETIME-FIX-99`
 
-`ORDER_STATE: ACTIVE_DIAGNOSTIC / REV0116_READ_WRITE_COMPLETED / TWEEN_REQUEST_APPLIED_NO_COMPLETION / #373_E3_ACCEPTED / #376_E3_ACCEPTED / #374_SINGLE_RESIDUAL_ONLY / NO_PRODUCT_MUTATION / NO_MERGE`
+`ORDER_STATE: ACTIVE_CORRECTION / REV0117_CAUSE_CONFIRMED / #374_TWEEN_PYPROXY_LIFETIME_FIX / #373_E3_ACCEPTED / #376_E3_ACCEPTED / NO_TIMEOUT_CHANGE / NO_MERGE`
+
+### rev0117 disposition — Main processed / root cause confirmed
+
+Durable handoff:
+- Issue #305 comment `5889639321`.
+
+Exact live coordinates at processing:
+- integration `50b2750c73623b7ffef77f0ca93755c3e8278676`;
+- #374 branch `work/w15-script-object-authoring-correction`;
+- #374 exact head `687708551554886b1682e41a58ad72b4991d0f5a`;
+- #373 `9079e3d41a51d603e82cb791247596fddda23771` — carried E3 accepted;
+- #376 `4a5252abf008cb314f4494d48107be25a3643d0c` — carried E3 accepted.
+
+rev0117 correlated one exact TWEEN request chain:
+- dispatch `dispatch-1-2`;
+- execution `execution-1-3`;
+- TWEEN API request `api-1-1`;
+- host posted `api-response(api-1-1, ok=true)`;
+- Worker `handleApiResponse` found the matching pending request and called `pending.resolve`;
+- Python handler did not resume and runtime timed out.
+
+Causal A/B:
+- baseline checked-in behavior timed out;
+- changing only the in-memory Worker so `normalizeBridgeValue()` did **not** call `proxy.destroy()` made the same awaited TWEEN call complete in 3.255 ms;
+- no repository file was changed by rev0117.
+
+Main classification:
+`PRODUCT_DEFECT_CONFIRMED / CLIENT_VISUAL_PYTHON_BRIDGE / PREMATURE_BORROWED_PYPROXY_DESTROY`.
+
+The input Python object proxy passed into the JS bridge is borrowed by the suspended Python async frame. The bridge may copy/normalize its value for structured-clone transport, but must not manually destroy that borrowed proxy before the Python await resumes.
+
+### CURRENT rev0118 mission
+
+Execute only:
+`FINAL-SEQUENTIAL-CODEX-SCRIPT-TWEEN-PYPROXY-LIFETIME-FIX-99`.
+
+Exact mutation branch:
+`work/w15-script-object-authoring-correction`.
+
+Exact starting head:
+`687708551554886b1682e41a58ad72b4991d0f5a`.
+
+Allowed production file:
+- `web/scada-web/src/python-runtime/clientVisualPythonWorker.ts`.
+
+Allowed regression-test file:
+- prefer `web/scada-web/tests-e2e/python-sandbox-dynamic.spec.ts`;
+- a second existing Client Visual Python test file may be touched only if strictly required to prove the same ownership/lifetime contract and must be justified in the handoff.
+
+Required implementation semantics:
+1. Remove the premature manual destruction of the **borrowed inbound PyProxy** in the `normalizeBridgeValue()` conversion path.
+2. Preserve the existing normalization, bridge-depth/value restrictions, structured-clone-compatible output and security sandbox.
+3. Do **not** change public capability contracts, Script Assistant snippets, Runtime tween semantics, timeout/hard-stop values, queue/throttle policy, visual property authority, or Pyodide version.
+4. Do not replace the defect with deferred arbitrary timers/retries or a timeout increase.
+5. If another explicitly-owned proxy needs destruction, ownership must be proven; do not globally disable legitimate cleanup unrelated to this borrowed argument.
+
+Required regression:
+- use the real module Worker + real pinned Pyodide path already exercised by `python-sandbox-dynamic.spec.ts`;
+- define a minimal awaited Python handler with the product public `from elite_scada import visual_tween_request` and a **Python dict** argument;
+- provider returns the normal `VisualTweenAccepted`-shape acknowledgement synchronously;
+- assert `dispatchEvent(...).status === completed` under the unchanged 250 ms policy;
+- assert the provider received the normalized expected dict values;
+- include at least one repeated invocation so the fix is not a one-shot stale-response artifact;
+- keep security/denied-boundary regressions intact.
+
+Validation:
+1. focused real-Pyodide regression;
+2. relevant existing Client Visual Python runtime/sandbox tests;
+3. Web semantic build;
+4. natural exact-head Wave 15 T1 on the new #374 head;
+5. after T1 green, rebuild the combined #373+#374+#376 E3 composition against unchanged integration and rerun **only the Script TWEEN completion residual**, using the actual Script Assistant-generated TWEEN snippet;
+6. #373 HMI and #376 Gateway mounted E3 evidence are carried forward and must not be rerun if their bytes remain unchanged.
+
+Required final E3 evidence:
+- real `visualTween.request`;
+- mounted target effect;
+- Worker `execution-result.status=completed`;
+- no timeout-policy modification;
+- exact candidate/composed SHA/tree reported.
+
+Return:
+`SCRIPT_TWEEN_PYPROXY_FIX / E2_GREEN / E3_TWEEN_COMPLETED / <new #374 HEAD> / <combined tree>`
+
+or:
+`SCRIPT_TWEEN_PYPROXY_FIX / BLOCKED / <exact causal evidence>`.
+
+No merge. Main alone reviews and integrates.
+
+---
 
 ### rev0116 disposition — Main processed
 

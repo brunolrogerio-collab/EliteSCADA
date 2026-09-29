@@ -512,7 +512,8 @@ public sealed class ReusableLibraryPackageService : IReusableLibraryPackageServi
             throw new InvalidDataException("Reusable library name and version are required.");
         if (!string.Equals(manifest.EngineeringSchema, EngineeringExchangeService.CurrentSchema, StringComparison.Ordinal))
             throw new InvalidDataException("Reusable library Engineering schema is not supported.");
-        if (manifest.EngineeringSchemaVersion != EngineeringExchangeService.CurrentSchemaVersion)
+        if (manifest.EngineeringSchemaVersion < 1 ||
+            manifest.EngineeringSchemaVersion > EngineeringExchangeService.CurrentSchemaVersion)
             throw new InvalidDataException("Reusable library Engineering schema version is not supported.");
         if (manifest.Resources is null || manifest.Resources.Count == 0)
             throw new InvalidDataException("Reusable library must contain at least one resource.");

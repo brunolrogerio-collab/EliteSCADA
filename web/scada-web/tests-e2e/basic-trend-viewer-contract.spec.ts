@@ -79,22 +79,25 @@ test('protected TAG catalog and Historian expose the facts required by the basic
   const tags = await tagsResponse.json() as RuntimeTagListItem[];
   expect(tags.length).toBeGreaterThan(0);
 
-  const selected = tags.find(tag => tag.path === 'Demo.Tank01.Level') ?? tags[0];
-  expect(selected.id).toBeTruthy();
-  expect(selected.path).toBeTruthy();
+  // local-auth.spec.ts seeds this historian-enabled writable TAG only after
+  // committed activation, so this contract never depends on candidate initial state.
+  const selected = tags.find(tag => tag.path === 'Demo.P01.Frequency');
+  expect(selected).toBeTruthy();
+  expect(selected!.id).toBeTruthy();
+  expect(selected!.path).toBeTruthy();
 
   let history: RuntimeTagHistorySample[] = [];
   await expect.poll(async () => {
     const end = new Date();
     const start = new Date(end.getTime() - 15 * 60_000);
-    const response = await request.get(buildTrendHistoryPath(selected.id, start.toISOString(), end.toISOString(), 200));
+    const response = await request.get(buildTrendHistoryPath(selected!.id, start.toISOString(), end.toISOString(), 200));
     if (!response.ok()) return 0;
     history = await response.json() as RuntimeTagHistorySample[];
     return history.length;
   }, { timeout: 12_000 }).toBeGreaterThan(0);
 
   expect(history.length).toBeLessThanOrEqual(200);
-  expect(history.every(item => item.tagId === selected.id)).toBeTruthy();
+  expect(history.every(item => item.tagId === selected!.id)).toBeTruthy();
   expect(history.every(item => Boolean(item.timestamp))).toBeTruthy();
   expect(history.every((item, index) => index === 0 || new Date(item.timestamp).getTime() >= new Date(history[index - 1].timestamp).getTime())).toBeTruthy();
 });

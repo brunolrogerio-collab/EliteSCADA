@@ -1,3 +1,4 @@
+using Scada.Core.Tags;
 using Scada.Drivers.Abstractions;
 
 namespace Scada.Drivers.Tests;
@@ -42,5 +43,42 @@ public sealed class DriverEngineeringContractsTests
             .IsAssignableTo(typeof(ICommunicationDriverBrowser)));
         Assert.False(typeof(ICommunicationDriverFileImporter)
             .IsAssignableTo(typeof(ICommunicationDriverBrowser)));
+        Assert.True(typeof(ICommunicationDriverPointReadTester)
+            .IsAssignableTo(typeof(ICommunicationDriverDescriptorProvider)));
+        Assert.False(typeof(ICommunicationDriverPointReadTester)
+            .IsAssignableTo(typeof(ICommunicationDriverConnectionTester)));
+    }
+
+    [Fact]
+    public void PointReadRequest_ValidatesCanonicalBindingAndBoundedSampling()
+    {
+        var request = new DriverPointReadTestRequest(
+            new DriverEngineeringDataSourceContext(
+                "source-1",
+                "Source 1",
+                "modbus.tcp",
+                new Dictionary<string, string>(),
+                new Dictionary<string, string>()),
+            new CommunicationTagBinding(
+                CommunicationTagBinding.CurrentContractVersion,
+                "elitescada.driver.modbus.tcp.tag",
+                1,
+                "holding:10"),
+            TagDataType.Double,
+            EngineeringUnit: "bar",
+            SampleCount: 3,
+            SampleIntervalMilliseconds: 250,
+            TimeoutMilliseconds: 5000);
+
+        request.Validate();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            (request with { SampleCount = 0 }).Validate());
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            (request with { SampleCount = DriverPointReadTestRequest.MaximumSampleCount + 1 }).Validate());
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            (request with { TimeoutMilliseconds = DriverPointReadTestRequest.MaximumTimeoutMilliseconds + 1 }).Validate());
+        Assert.Throws<ArgumentException>(() =>
+            (request with { AddressSelector = new TagValueSelector(TagValueSelectorKind.Bit, -1) }).Validate());
     }
 }

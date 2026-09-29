@@ -1,9 +1,9 @@
 # Wave 15 — Post-E3 Development Route
 
-**Status:** GATE0_GREEN / GATE1_GREEN / R2_C0_FROZEN / F0_INTEGRATED / R2_A_HOLD_POSTMERGE_CI_RETRY / SHARED_CODEX_PARKED / NO_BOOTSTRAP_RELEASED  
+**Status:** GATE0_GREEN / GATE1_GREEN / R2_C0_FROZEN / F0_INTEGRATED / #389_MERGED_T1_GREEN / POSTMERGE_CI_1593_RUNTIME_NEUTRAL_BLOCKER / R2_A_HOLD / TAG_C0_DELTA_FROZEN / SHARED_CODEX_PARKED  
 **Coordinator issue:** #378  
 **Execution ledger:** #305  
-**Current integration baseline:** `wave15/corrections-integration@d869c538700eca4b72703c311bb56f810a8baa2d` / tree `cf6f23cb44b8cef7f2d6b097ae417d44ed86f99c`  
+**Current integration baseline:** `wave15/corrections-integration@45ddfe93e2e8b2cf4dc3051f6c44f964ee006ebd` / tree `788f0437d6b2a084879706e7d1cd113cd0f350ee`  
 **Current shared CODEX order:** `rev0121 / SHARED-CODEX-PARKED-AFTER-GATE1-C0-FREEZE-102`
 
 GitHub live is authoritative. Every gate below must be revalidated against live branches, PR heads, CI and issue handoffs before execution.
@@ -210,30 +210,80 @@ Forbidden:
 
 F0 is integrated. Its former hotspot lock is released, but downstream lanes must consume the integrated wire contracts and may not redefine them. Any missing shared wire semantic returns `BLOCKED_CONTRACT` to Main.
 
-### F0 post-merge CI disposition
+### F0 / #389 post-merge CI disposition — CURRENT BLOCKER
 
-Post-merge `EliteSCADA CI` run `36594248859` / #1592:
+F0 product foundation was integrated at `d869c538700eca4b72703c311bb56f810a8baa2d`.
+
+CI-only PR #389 then corrected the first Runtime smoke readiness window:
+- final PR head `9660196179865b0b499c9eaf0a719eeb5d9644b8`;
+- only `.github/workflows/dotnet-ci.yml`;
+- natural Wave 15 T1 `36598116875` / #146 SUCCESS;
+- merged to integration as `45ddfe93e2e8b2cf4dc3051f6c44f964ee006ebd`;
+- tree `788f0437d6b2a084879706e7d1cd113cd0f350ee`.
+
+Post-merge `EliteSCADA CI` run `36598484002` / #1593 is still FAILURE:
 - Web build SUCCESS;
-- first Backend attempt failed in one pre-existing PostgreSQL activation test with PostgreSQL `40P01 deadlock detected`;
-- F0 did not modify PostgreSQL persistence/activation code;
-- the same project otherwise passed 124/125 tests; Core 410/410 and Drivers 754/754 passed;
-- failed Backend job is being rerun without byte changes.
+- Backend build SUCCESS;
+- all Backend tests SUCCESS;
+- Runtime smoke fails;
+- Chromium is skipped because Backend gate is red.
 
-Until the retry closes green:
-`R2_A_HOLD_POSTMERGE_CI_RETRY`.
+The failure is **no longer classified as startup grace**. The 60-second readiness change succeeds in reaching the API, but the smoke then observes:
+`runtime.mode=neutral / projectKey=null / tagCount=0 / historian.writtenSamples=0`
+and waits for Historian samples that can never appear in a neutral installation.
 
-Attempt 2 diagnosis:
-- all backend tests passed;
-- failure occurred only in Runtime smoke startup readiness;
-- smoke waits 30 x 1 s for `/health`;
-- API became healthy shortly after that window (~34 s from process launch);
-- once listening, `/health` and `/api/diagnostics/runtime` returned HTTP 200;
-- no F0 product/runtime behavior change is implicated by current evidence;
-- attempt 3 reruns only the Backend job on identical `d869c538...` bytes.
+This aligns with current startup tests that explicitly require an empty persisted installation to remain neutral rather than seed an unowned Demo workspace.
 
-Until attempt 3 is green, downstream release remains blocked.
+Main classification:
+`POSTMERGE_CI_BLOCKED / SMOKE_FIXTURE_EXPECTS_ACTIVE_DEMO_BUT_PRODUCT_STARTS_NEUTRAL / DO_NOT_INCREASE_TIMEOUT_AGAIN`.
 
-No downstream bootstrap is released on a failed post-merge CI.
+Next coordinator must determine the correct smoke fixture/order of operations:
+- create/own/publish/activate a disposable CI project through canonical authority before asserting TAG/Historian data; or
+- otherwise rewrite the smoke sequence to validate truthful neutral startup first and only assert Historian after explicit project activation.
+
+Do **not** change product startup authority merely to satisfy the stale smoke assumption.
+
+Until corrected CI proves green on current product bytes:
+`R2_A_HOLD_POSTMERGE_CI_FIXTURE_CORRECTION`.
+
+No downstream bootstrap should be released from a red post-merge CI.
+
+### R2-A0 delta — TAG Point Read Test wire / #390
+
+**State:** CONTRACT_FROZEN / WAIT_GREEN_POSTMERGE_CI / OWNER_UNASSIGNED / NO_BOOTSTRAP.
+
+Before TAG commissioning behavior, integrate one bounded F0-D1 delta:
+- `DriverEngineeringCapabilities.PointReadTest`;
+- transient request/result/status contracts;
+- optional provider interface;
+- module-registration provider slot and fail-closed validation;
+- protected Engineering API + Web mirror.
+
+F0-D1 contains no protocol behavior and no TAG UI. It should not change Engineering schema v20 unless a persisted DTO change is proven necessary.
+
+### TAG commissioning behavior / #390
+
+After F0-D1:
+- protected Modbus TCP point-read provider first;
+- S7 ISO and OPC UA point-read providers where supported;
+- TAG editor `Testar leitura` + bounded short monitor;
+- raw -> decoded -> Engineering value display;
+- quality/timestamp/latency;
+- effective byte/word transform diagnostics;
+- no Active/process/Historian mutation.
+
+This package may run in R2-A once CI is green and path ownership is checked against O/Data Query/Portability.
+
+### TAG duplication / #391
+
+Primary UI implementation belongs with R2-B structured Engineering / Chat N after Portability foundation:
+- copy/paste/duplicate selected TAGs;
+- new stable IDs;
+- sequential Modbus address/name generation;
+- Preview before Apply;
+- same-project clipboard remains compatible with `.escadafrag` for cross-project transfer.
+
+Do not create a parallel TAG editor implementation.
 
 ## 5. Development Wave R2-A — foundations
 
@@ -702,6 +752,8 @@ After all mandatory R2 foundation, authoring and historical-consumer packages ar
 - Report Designer dark/light;
 - reusable Query -> Browser/Trend/Report flow;
 - Historian capture profile enforcement;
+- draft TAG point-read commissioning with raw/decoded/Engineering value evidence;
+- TAG duplicate/group sequential generation workflow;
 - absolute/relative historical period;
 - Alarm View/filter behavior;
 - Engineering Fragment import/export Preview;

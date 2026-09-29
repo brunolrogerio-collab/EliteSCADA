@@ -145,7 +145,13 @@ State at handoff:
 - branch `work/w15-r2-historian-capture`;
 - PR #404 open/draft/mergeable;
 - exact head `01174d30197019291adaa8fddeb92dc75565abd0`;
-- Wave 15 T1 #168 / `36635438819`: in progress at handoff.
+- Wave 15 T1 #168 / `36635438819`: **FAILURE**;
+- focused .NET failed 2 of 33 TimescaleDB tests;
+- both failures are timestamp equality at sub-microsecond precision after PostgreSQL/Timescale round-trip:
+  - `PeriodicCapture_OneHundredMillisecondObservationsPersistOnlyAcceptedRows`;
+  - `MemoryAndTimescaleCapture_DecisionsAndPersistedSamplesAgree`;
+- example: expected `...8402336Z`, actual persisted `...8402330Z`;
+- this may be a test/precision normalization defect, but do not correct it until the ownership-invalid ImportExport paths are first removed from O's net diff.
 
 Main has already rejected O's current ownership composition.
 

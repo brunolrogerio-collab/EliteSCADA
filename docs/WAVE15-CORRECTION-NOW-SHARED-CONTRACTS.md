@@ -995,6 +995,175 @@ Representative acceptance:
 `27/09/2026 01:00:00 -> 28/09/2026 12:00:00`
 must be authorable as an absolute Runtime filter and map deterministically to the protected Historical Query request.
 
+### C-DATA-QUERY-VIEW-01 — reusable typed data-query authority
+
+**State:** `PREPARED_DRAFT / E3_REFERENCE_AUDIT_COMPLETE / OWNER_ISSUE_384 / NO_DEV_RELEASE`  
+**Owner:** Main + #384  
+**Depends on:** Historical Query v1, #382 capture/storage separation, #383 shared time range.  
+**Consumers:** Historical Data Browser, Alarm history, Trend, Reports, future authorized read-only query clients.
+
+Product rule:
+`DATA SELECTION != PRESENTATION != STORAGE CAPTURE`.
+
+A reusable Query definition must remain a typed protected provider contract, not SQL text and not a private widget model.
+
+Required definition semantics:
+- stable id/key/name/description;
+- provider/dataset identity;
+- selected typed fields;
+- typed filters;
+- deterministic sort;
+- optional grouping/aggregation;
+- runtime parameter definitions;
+- shared relative/absolute time-range descriptor where applicable;
+- bounded page/result policy;
+- optional historian retrieval policy;
+- schema/version metadata.
+
+Required historian retrieval modes to evaluate/freeze:
+- raw samples;
+- last sample;
+- at-or-before;
+- at-or-after;
+- exact-at-time;
+- interpolated-at-time;
+- fixed-step sampled/interpolated series;
+- aggregate/time-bucket series.
+
+Retrieval rules:
+- capture policy/frequency remains owned by C-HISTORIAN-CAPTURE-01;
+- interpolation is type-aware;
+- Boolean/Enum/discrete values are never silently linearly interpolated;
+- analog interpolation may not cross invalid quality/gaps without an explicit frozen policy;
+- quality and timestamp provenance remain available;
+- long windows remain bounded and should use server-side aggregation/downsampling/pixel-aware resolution where appropriate;
+- no unbounded raw browser load.
+
+Consumer semantics:
+- Browser = tabular exploration/presentation;
+- Trend = time-series visualization;
+- Report = paginated/export presentation;
+- all may consume the same saved Query definition or equivalent ad-hoc descriptor;
+- Runtime ad-hoc parameter changes do not dirty Engineering;
+- saved project Query = canonical Engineering;
+- future saved personal view = separate user/session authority.
+
+Alarm specialization:
+- reusable typed Alarm Filter/View definition may compose area/hierarchy, severity/priority, type/category/subcondition, source/TAG/equipment, acknowledgement, shelving and typed event facts;
+- current Alarm Center may consume equivalent filter vocabulary;
+- historical `alarm.events` remains read-only;
+- filter reuse never grants ACK/shelve command authority.
+
+Trend specialization:
+- evaluate `Automatic` Pen behavior after historical/current splice semantics are frozen;
+- a Pen should primarily bind by canonical TAG identity;
+- backend resolves current/historical source;
+- visible time window drives bounded retrieval;
+- historical/current join must define gap, duplicate, timestamp and quality precedence;
+- digital step and analog interpolation remain distinct;
+- no browser-only fake merge.
+
+Explicitly forbidden:
+- unrestricted SQL as normal Browser/Trend/Report authoring;
+- direct browser-to-database access;
+- one widget inventing its own query language;
+- hidden interpolation that makes bad/stale data appear good;
+- duplicating persisted data merely to satisfy presentation resolution.
+
+### C-ENGINEERING-PORTABILITY-01 — full package vs fragment vs reusable library
+
+**State:** `PREPARED_DRAFT / E3_REFERENCE_AUDIT_COMPLETE / OWNER_ISSUE_385 / NO_DEV_RELEASE`  
+**Owner:** Main + #385  
+**Related:** #375, #365, #308, #356, #303/#367.  
+**Consumers:** all Engineering entity browsers/editors, reusable Library workspace, Screen/Popup/Dynamo workflows.
+
+Permanent product distinction:
+
+1. **Application package** — `.escadapkg`
+   - complete project/application portability and recovery boundary.
+
+2. **Engineering Fragment** — exact extension not frozen; conceptual schema `scada.engineering.fragment`
+   - one-time transfer/copy of selected project entities;
+   - may include concrete project configuration deliberately selected by the engineer;
+   - selected roots + validated transitive dependency closure;
+   - Preview/remap/conflict plan before Apply;
+   - target project owns incorporated result;
+   - no update relationship is implied.
+
+3. **Reusable Library** — `.escadalib`
+   - curated reusable definitions/templates intended for repeated use/versioning;
+   - association is not import;
+   - Runtime never depends on source library bytes/path;
+   - project-owned incorporated definitions remain canonical Runtime input.
+
+Fragment UX contract:
+- `Export selected…`;
+- `Import…`;
+- `Add to Library…` only for reusable-safe kinds;
+- dependency Preview;
+- conflict/remap Preview with operations conceptually:
+  `Create | Reuse identical | Update | Remap | Skip | Conflict | Unsupported`;
+- no project mutation before validated Apply;
+- no resolved secret/password/private-key export.
+
+Format rule:
+- canonical JSON/Fragment for nested/complex entities such as Screens, Popups, Dynamos, Scripts, Reports and Query definitions;
+- CSV/XLSX for appropriate flat/bulk entities such as TAGs, Alarms, Data Sources and profile assignments;
+- never flatten complex visual/script state into CSV merely for genericity.
+
+Reusable-safe library kinds to evaluate:
+- Equipment Template;
+- Dynamo;
+- Popup/faceplate template;
+- Script/module;
+- Visual Asset;
+- Query Definition;
+- Report Template;
+- Historian Capture Profile;
+- Alarm Filter/View Definition;
+- future Command/Alarm template definitions only after stable template contracts exist.
+
+Concrete TAG/Data Source/Equipment instances normally belong to Fragment/project configuration, not Library, unless a separate safe reusable template kind is explicitly defined.
+
+Library update lifecycle:
+- incorporated definition retains provenance: library id, source resource id/version, content hash;
+- associated library may report:
+  `UP_TO_DATE | UPDATE_AVAILABLE | LOCALLY_MODIFIED | SOURCE_MISSING | INCOMPATIBLE`;
+- explicit actions:
+  `Compare | Upgrade | Keep current | Fork/Detach`;
+- Upgrade previews structural/dependency change before Working mutation;
+- preserve stable project identities where migration safely permits;
+- preserve compatible instance overrides;
+- never silently replace divergent local content;
+- Runtime remains self-contained after library disappearance.
+
+Dynamo/class-instance workflow:
+- persisted instance references project-owned definition by stable identity plus typed public parameters;
+- definition update is assessed/applied deliberately;
+- `Create Dynamo from selection` should expose a controlled public interface selection;
+- Library provides real thumbnail/visual preview for visual resources;
+- instance offers `Open definition`, usage/instance discovery and override inspection;
+- nested reuse is dependency-aware;
+- `Add definition to Library` is an ordinary authoring action, not a separate hidden technical tool.
+
+Component-bundle concept to evaluate:
+`Equipment Template + Dynamo + Faceplate/Popup + Script(s) + Alarm/Command templates + Query/Trend defaults + Visual Assets`.
+
+A bundle can support a reusable industrial class (for example a centrifugal pump) but may not silently create process-affecting project entities without a visible Preview/selection.
+
+Exchange-profile concept:
+- typed reusable profile for CSV/XLSX/Fragment export/import selection;
+- defines entity kinds, columns/fields, filters, locale/delimiter and default conflict policy;
+- never bypasses public schema, validation, Authority or Engineering Lock.
+
+Explicitly forbidden:
+- external Library as Runtime authority;
+- automatic update that silently changes process behavior;
+- name-only identity;
+- whole-library import because one item was selected;
+- using full-project Apply as the implementation of selective library incorporation;
+- dropping Script/internal visual state merely because a tabular format cannot represent it.
+
 ### C-ENG-WORKFLOW-01 — task-oriented Engineering forms and entity workflows
 
 **State:** `PREPARED_DRAFT / FREEZE_AFTER_R2-A / BEFORE_CHAT_N`  

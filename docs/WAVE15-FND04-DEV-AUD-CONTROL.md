@@ -38,11 +38,11 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0112`
+`MAIN_ORDER_REV: 0113`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-28 — LOCAL DOCKER FOCUSED PASS / COMPLETE MOUNTED MATRIX ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-28 — #376 E3 ACCEPTED / #373+#374 RESIDUAL MOUNTED E3 ACTIVE`
 
-`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_COMBINED_E3_LOCAL_DOCKER_MOUNTED_ACTIVE`
+`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_RESIDUAL_E3_HMI_SCRIPT_ACTIVE`
 
 Current situation:
 
@@ -58,10 +58,10 @@ Current situation:
 - FND-04 is now **VERIFIED / FROZEN** at exact product checkpoint `6c810647c9773a19b212d9c33694780141786ac7`.
 - The readable Script TAG reference contract is frozen for downstream consumption.
 - FND-04 AUD remains **FROZEN / WAIT / NO_MUTATION**.
-- The **same sequential CODEX executor/chat that executed prior Foundation work is now assigned to complete the missing non-mocked #373 + #374 + #376 mounted E3 matrix in the proven isolated local Docker topology under rev0112**. FND-04 remains frozen; the shared CODEX route is independent of the legacy FND-04 DEV order.
+- The **same sequential CODEX executor/chat that executed prior Foundation work is now assigned under rev0113 to close only the residual #373 HMI and #374 Script mounted E3 evidence in the proven isolated local Docker topology**. #376 Gateway mounted E3 is accepted and must not be rerun. FND-04 remains frozen; the shared CODEX route is independent of the legacy FND-04 DEV order.
 - Any later change to this shared contract requires a new Main/Foundation delta; downstream lanes may not redefine it.
 
-Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`, tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`. Local transport A/B and real forwarded remote E4 passed on these canonical product bytes; historical 402 cause remains unassigned. rev0112 owns completion of the non-mocked mounted #373 + #374 + #376 E3 matrix in the proven isolated local Docker topology. The prepared Codespace remains an E4 environment gap because its Data Source catalog showed Failed to fetch; that remote symptom is preserved separately and does not replace the normal E2+E3 integration gate. Any movement of integration or any candidate HEAD invalidates rev0112 until Main reissues exact coordinates.
+Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`, tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`. Local transport A/B and real forwarded remote E4 passed on these canonical product bytes; historical 402 cause remains unassigned. rev0113 owns only the residual mounted #373 HMI and #374 Script evidence in the proven isolated local Docker topology. #376 Gateway E3 is accepted and frozen for this cohort pending Gate-0 close. The prepared Codespace remains a separate E4 environment gap. Any movement of integration or any candidate HEAD invalidates rev0113 until Main reissues exact coordinates.
 ---
 
 ## 2A. CURRENT SHARED CODEX ORDER — EXECUTION POINTER
@@ -70,178 +70,173 @@ Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave1
 >
 > The shared CODEX executor is not the legacy FND-04 DEV lane.
 
-`SHARED_CODEX_ORDER_REV: 0112`
+`SHARED_CODEX_ORDER_REV: 0113`
 
-`ORDER_ID: COMPLETE-SEQUENTIAL-CODEX-COMBINED-E3-LOCAL-DOCKER-MOUNTED-93`
+`ORDER_ID: COMPLETE-SEQUENTIAL-CODEX-RESIDUAL-E3-HMI-SCRIPT-94`
 
-`ORDER_STATE: ACTIVE_VALIDATION / LOCAL_DOCKER_E3_CAPABLE / FOCUSED_SUITE_ALREADY_PASS / COMPLETE_MOUNTED_MATRIX_ONLY / NO_PRODUCT_MUTATION / NO_MERGE`
+`ORDER_STATE: ACTIVE_VALIDATION / LOCAL_DOCKER_E3_CAPABLE / GATEWAY_E3_ACCEPTED / HMI_SCRIPT_RESIDUAL_ONLY / NO_PRODUCT_MUTATION / NO_MERGE`
 
-### Accepted evidence carried forward
+### rev0112 disposition
 
-Prepared Codespace rev0111:
-`ENV_CAPABILITY_GAP / E4_REMOTE_PREPARED_CODESPACE / DATASOURCE_CATALOG_FAILED_TO_FETCH / ROOT_CAUSE_UNASSIGNED`.
+CODEX handoff:
+#305/`5879297550`.
 
-Do not rebuild/reset that Codespace or attribute the catalog failure to product without new causal evidence.
+Overall:
+`E3_PARTIAL`.
 
-Supplemental local Docker result #305/`5878172837` is accepted as:
+Accepted cohort evidence carried forward:
+- exact integration remains `50b2750c73623b7ffef77f0ca93755c3e8278676`;
+- exact combined product remains `051cc0cdc71b85a7777c93893b0b7012bec4fcc0`;
+- product tree remains `3aaec957ce27c73bb8b7090b7cd9f412ba26b567`;
+- focused suite remains 42/42 PASS;
+- backend visual schema remains 3/3 PASS;
+- local Docker topology is valid E3 capability.
 
-`E3_ENV_CAPABLE / FOCUSED_SUITE_PASS / FULL_MOUNTED_MATRIX_PENDING`.
+### #376 Gateway — E3 accepted
 
-Exact evidence:
-- harness HEAD `39a5d43c2d6a3374035598f435fbf15595aec0ee`;
-- parent/product candidate `051cc0cdc71b85a7777c93893b0b7012bec4fcc0`;
-- product tree `3aaec957ce27c73bb8b7090b7cd9f412ba26b567`;
-- isolated Linux Docker environment;
-- real fresh TimescaleDB;
-- .NET 10.0.400;
-- Node 24.19.0;
-- Playwright 1.62.1;
-- 10 changed/focused E2E specs = 42/42 PASS;
-- focused BuiltinVisualObjectSchemasTests = 3/3 PASS;
-- repository bytes unchanged;
-- prior Wave 08 timeout not reproduced.
+PR #376 exact candidate:
+`4a5252abf008cb314f4494d48107be25a3643d0c`.
 
-Those focused results may be carried forward. Do not rerun them unless necessary to establish or troubleshoot the mounted journey.
+Accepted real mounted evidence:
+- direct Engineering -> TAG Gateway;
+- two independent persisted routes;
+- Save/Publish/Activate;
+- diagnostics Running;
+- transferCount observed;
+- duplicate active destination writer rejected;
+- edit preserves sibling route;
+- disable/re-enable independent;
+- reload persistence.
 
-### Why completion is still required
+Disposition:
+`#376 E2_ACCEPTED / E3_MOUNTED_ACCEPTED / WAIT_COHORT_GATE0_CLOSE / NO_MERGE_YET`.
 
-C-TEST-EVIDENCE-01 defines E3 as:
-- real DB/API/Web;
-- normal mounted product UI;
-- persistence/restart;
-- lifecycle;
-- local product behavior.
+Do NOT rerun Gateway unless exact product bytes change.
 
-The 42/42 focused suite contains valid regression evidence but does not by itself prove every required mounted user journey.
+### #373 HMI — accepted evidence carried forward
 
-In particular:
-- `gateway-engineering.spec.ts` uses mocked HTTP routes and is not sufficient for real persisted Gateway acceptance;
-- several HMI/Script focused specs are model/source/contract tests;
-- the complete mounted Script Object/Property runtime path was not reported;
-- the full HMI Runtime/NumericInput state matrix was not reported as real-product evidence.
+PR #373 exact candidate:
+`9079e3d41a51d603e82cb791247596fddda23771`.
 
-### Exact candidate remains pinned
+Already accepted mounted evidence:
+- Screen + Popup RangeMaps persisted/reopened;
+- ordered first-match behavior;
+- Dynamic Text formatted value;
+- NumericInput real protected Apply + Enter writes;
+- authoritative TAG readback;
+- Cancel + Esc discard;
+- Design no-write;
+- read-only rejection;
+- unauthenticated 401 rejection.
 
-Integration base:
-`wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`
+Residual only:
+1. mounted Undo/Redo of an authored dynamic change;
+2. bad/unavailable-quality behavior, **if it can be produced through supported product boundaries**;
+3. explicit mounted failed-write UI state from a real rejected write.
 
-Combined product:
-- branch `preview/w15-e3-combined-373-374-376-r2-50b275`;
-- commit `051cc0cdc71b85a7777c93893b0b7012bec4fcc0`;
-- tree `3aaec957ce27c73bb8b7090b7cd9f412ba26b567`.
+For bad/unavailable quality:
+- do not mutate PostgreSQL directly;
+- do not mock browser endpoints;
+- do not change product/test bytes merely to manufacture the state;
+- use supported Data Source/TAG/runtime controls if deterministic;
+- if the current product/public fixture cannot produce this state, return the exact capability gap and Main will classify it against the acceptance requirement.
 
-Harness:
-- branch `preview/w15-e3-codespace-harness-373-374-376-r2`;
-- HEAD `39a5d43c2d6a3374035598f435fbf15595aec0ee`;
-- tree `4dbb11daa0854c3695531b96c0209147fdff76a9`.
+For failed-write UI:
+- a real read-only rejection may be reused if the UI clearly surfaces the canonical failed-write state;
+- capture the rendered failure state and authoritative backend rejection together.
 
-Accepted PR inputs:
-- #373 `9079e3d41a51d603e82cb791247596fddda23771`;
-- #374 `687708551554886b1682e41a58ad72b4991d0f5a`;
-- #376 `4a5252abf008cb314f4494d48107be25a3643d0c`.
+### #374 Script — accepted evidence carried forward
+
+PR #374 exact candidate:
+`687708551554886b1682e41a58ad72b4991d0f5a`.
+
+Already accepted mounted evidence:
+- Object Browser discovers Screen + Popup objects with stable IDs;
+- Script event association targets exact stable visual identity;
+- Read/Write/Clear insertion available;
+- supported Tween available;
+- unsupported Tween disabled/fails clearly;
+- wrong-object action fails closed;
+- Script source Save/Reopen.
+
+Residual only:
+1. persisted visual developer-Key rename/reuse proof;
+2. no-silent-retarget proof after persisted rename/reuse;
+3. Runtime read/write/tween smoke through the existing sandbox/capability bridge.
+
+### Key rename/reuse diagnostic rule
+
+rev0112 observed:
+- rename/reuse was previewed in the visual editor;
+- after save/reopen, canonical export still showed original `text` / `rectangle` keys.
+
+Do NOT call this a product defect yet.
+
+First determine whether the validation journey actually completed the full canonical Screen/Popup lifecycle:
+- edit draft;
+- Preview;
+- Apply;
+- authoritative workspace refresh;
+- Save/Reopen/canonical export.
+
+Use normal mounted product UI/API only.
+
+If the rename was not Applied, repeat the journey correctly and report the procedural cause.
+
+If a successful canonical Apply is observed and the authoritative reopened/exported package still restores the old Key:
+`COMBINED_E3_FAIL / #374_OR_SHARED_EDITOR / VISUAL_KEY_RENAME_NOT_PERSISTED_AFTER_SUCCESSFUL_APPLY`
+with exact request/response and before/after package evidence, then STOP.
+
+If rename persists:
+- create/reuse the old Key on another object through normal authoring;
+- reopen;
+- prove the existing Script stable reference still resolves the original stable object or fails safe;
+- prove it does not silently retarget to the new object.
+
+### Script Runtime smoke
+
+Using the mounted product and normal lifecycle:
+
+1. ensure the Script/event association under test is in the lifecycle state required by Runtime;
+2. Publish/Activate through supported product actions if necessary;
+3. execute a supported stable-reference property read;
+4. execute a supported property write;
+5. execute a supported tween;
+6. observe the targeted canonical visual object/result;
+7. prove an unauthorized/wrong-object target remains fail-closed where the accepted capability model requires it.
+
+Do not expose DOM/private renderer APIs to make the smoke pass.
 
 ### Immediate CODEX action
 
-Reuse the proven isolated local Docker topology from #305/`5878172837`.
+1. Re-read rev0113 live.
+2. Revalidate:
+   - integration = `50b2750...`;
+   - #373 = `9079e3d...`;
+   - #374 = `687708551...`;
+   - #376 remains exact and unmerged;
+   - combined product = `051cc0c...` / tree `3aaec957...`.
+3. Reuse the proven isolated local Docker E3 topology with fresh disposable DB.
+4. Do not rerun Gateway.
+5. Do not rerun 42/42 focused suite unless a residual failure requires diagnosis.
+6. Execute only the #373 and #374 residual items above.
+7. No product/source/test/workflow mutation.
+8. Preserve traces/screenshots/API responses/canonical package evidence for any failure.
+9. Return one handoff and STOP.
 
-Do not use the prepared Codespace for this order.
+### Return classifications
 
-1. Re-read rev0112 live.
-2. Revalidate the exact integration, PR HEADs, combined product commit/tree and harness HEAD/tree.
-3. Create/use a disposable fresh local DB/container topology with real API/Web/browser.
-4. Do not modify product/source/test/workflow files.
-5. Do not rerun the already-passing 42 focused tests unless needed for diagnosis.
-6. Establish deterministic fixture state through supported public product APIs/UI only.
-7. Execute the **missing mounted real-product journeys below**, without `page.route`/mock replacements for the behavior being accepted.
-8. Preserve screenshots/traces/logs for failures.
-9. Return one combined mounted handoff and STOP.
+If #373 residuals are all proved and #374 residuals all prove:
+`COMBINED_E3_PASS / LOCAL_DOCKER_MOUNTED / #373+#374+#376 COMPLETE`.
 
-### Mounted journey A — #373 HMI Dynamics + NumericInput
+If only a product-public capability gap remains for bad/unavailable quality:
+`E3_RESIDUAL_CAPABILITY_GAP / #373 BAD_QUALITY / <exact supported-boundary limitation> / #374 PASS`.
 
-Using normal mounted Engineering + Runtime:
-
-- create/open representative Screen;
-- create/open representative Popup;
-- author typed RangeMap on Screen;
-- author typed RangeMap on Popup;
-- prove ordered first-match behavior;
-- prove Undo/Redo of the authored dynamic change;
-- Save/Apply and Reopen both Screen and Popup;
-- prove Dynamic Text/value formatting path;
-- prove NumericInput authorized Runtime write through canonical protected TAG write boundary;
-- prove authoritative TAG readback;
-- prove Apply/button commit;
-- prove Enter commit;
-- prove Cancel discard;
-- prove Esc discard;
-- prove Design mode produces no process write.
-
-Negative states must be exercised truthfully where deterministic fixture support exists:
-- read-only;
-- bad/unavailable quality;
-- unauthorized 401/403;
-- failed write.
-
-If a negative state cannot be produced without private DB mutation or product/test changes, report the exact gap rather than mocking it.
-
-### Mounted journey B — #374 Script Object/Property
-
-Using the normal mounted Script Engineering surface:
-
-- open Object Browser;
-- discover Screen objects;
-- discover Popup objects;
-- open Property Browser;
-- generate/read a stable read snippet;
-- generate/write a stable write snippet;
-- generate/clear where supported;
-- generate/tween where supported;
-- prove new source uses canonical stable `visualDefinitionId + visualObjectId + propertyKey`;
-- rename developer Key while preserving stable identity;
-- reuse an old Key on another object and prove no silent retarget;
-- prove unsupported property/tween capability is disabled or fails clearly;
-- prove event-associated object context;
-- Save/Reopen Script source;
-- execute a supported Runtime read/write/tween smoke through existing sandbox/capability bridge.
-
-Do not substitute source/model unit tests for this mounted path.
-
-### Mounted journey C — #376 TAG Gateway
-
-Using real persisted Engineering endpoints and the normal UI:
-
-- navigate directly to `Comunicação -> TAG Gateway`;
-- create real route A;
-- create independent real route B;
-- prove both persist;
-- edit A and prove B remains unchanged;
-- disable/re-enable A independently;
-- prove valid fan-out from one Source TAG to multiple Destination TAGs using separate routes;
-- attempt duplicate active destination writer and prove rejection;
-- prove Preview/Apply/Working/Active lifecycle remains truthful;
-- Save/Reopen and prove routes persist;
-- inspect route diagnostics;
-- prove package/export/import persistence if the mounted environment exposes the supported workflow.
-
-Do not use the existing mocked `gateway-engineering.spec.ts` as acceptance for this journey.
-
-### Evidence rule
-
-Normal integration gate for these user-facing corrections is E2 + E3.
-
-E4 is not required for integration unless the change claims a remote-specific fix.
-
-Therefore, if the above mounted matrix passes on the exact pinned product bytes, return:
-`COMBINED_E3_PASS / LOCAL_DOCKER_MOUNTED`.
-
-If a causal product defect is found:
-`COMBINED_E3_FAIL / <lane or cross-lane> / <first causal evidence>`.
-
-If local Docker cannot produce one required state without violating the public-product boundary:
-`E3_PARTIAL / <passed journeys> / <exact remaining capability gap>`.
+If a causal defect is proven:
+`COMBINED_E3_FAIL / <#373|#374|cross-lane> / <first causal evidence>`.
 
 Required title:
-`CODEX -> MAIN COORDINATOR — #373/#374/#376 LOCAL DOCKER MOUNTED E3 COMPLETION HANDOFF`.
+`CODEX -> MAIN COORDINATOR — #373/#374 RESIDUAL LOCAL DOCKER E3 HANDOFF`.
 
 Then STOP.
 
@@ -4168,5 +4163,28 @@ Exact product tree remains:
 
 Required handoff:
 `CODEX -> MAIN COORDINATOR — #373/#374/#376 LOCAL DOCKER MOUNTED E3 COMPLETION HANDOFF`.
+
+Then stop.
+
+
+## CURRENT SHARED CODEX ROUTE — rev 0113
+
+`ORDER_ID: COMPLETE-SEQUENTIAL-CODEX-RESIDUAL-E3-HMI-SCRIPT-94`
+
+rev0112 disposition:
+- #376 Gateway mounted E3 accepted;
+- #373 HMI mounted E3 partial;
+- #374 Script mounted E3 partial.
+
+Carry forward all accepted evidence. Execute only:
+- #373 Undo/Redo + real failed-write UI + supported bad/unavailable-quality evidence or exact capability gap;
+- #374 persisted Key rename/reuse/no-retarget + Runtime read/write/tween smoke.
+
+No product mutation.
+No Gateway rerun.
+No focused-suite rerun unless diagnostic need.
+
+Required handoff:
+`CODEX -> MAIN COORDINATOR — #373/#374 RESIDUAL LOCAL DOCKER E3 HANDOFF`.
 
 Then stop.

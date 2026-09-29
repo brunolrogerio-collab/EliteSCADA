@@ -32,7 +32,10 @@ public enum ImportEntityKind
     Script,
     VisualAsset,
     Report,
-    SecurityScope
+    SecurityScope,
+    HistorianCaptureProfile,
+    DataQuery,
+    AlarmView
 }
 
 public enum SecurityScopeNodeKind
@@ -123,7 +126,8 @@ public sealed record TagEngineeringDto(
     MemoryInitialValueDto? InitialValue = null,
     TagValueSelector? AddressSelector = null,
     CommunicationTagBinding? CommunicationBinding = null,
-    Guid? DataSourceId = null);
+    Guid? DataSourceId = null,
+    Guid? HistorianCaptureProfileId = null);
 
 public sealed record AlarmEngineeringDto(
     Guid? Id,
@@ -426,7 +430,10 @@ public sealed record EngineeringPackage(
     Guid? StartupScreenId = null,
     EngineeringLockEngineeringDto? EngineeringLock = null,
     IReadOnlyCollection<SecurityScopeEngineeringDto>? SecurityScopes = null,
-    AuthorityPolicyReferenceEngineeringDto? AuthorityPolicyReference = null);
+    AuthorityPolicyReferenceEngineeringDto? AuthorityPolicyReference = null,
+    IReadOnlyCollection<HistorianCaptureProfileEngineeringDto>? HistorianCaptureProfiles = null,
+    IReadOnlyCollection<DataQueryEngineeringDto>? DataQueries = null,
+    IReadOnlyCollection<AlarmViewEngineeringDto>? AlarmViews = null);
 
 public sealed record ImportIssue(
     string Code,

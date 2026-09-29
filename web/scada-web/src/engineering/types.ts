@@ -27,6 +27,205 @@ export type HistorianEngineering = {
   maximumPeriodMilliseconds?: number | null;
 };
 
+export type HistorianCaptureStrategy =
+  | 'periodic'
+  | 'onChange'
+  | 'onChangeDeadband'
+  | 'onChangeDeadbandMaxInterval';
+
+export type HistorianCaptureProfileEngineering = Readonly<{
+  id?: string | null;
+  key: string;
+  name: string;
+  strategy: HistorianCaptureStrategy;
+  periodMilliseconds?: number | null;
+  deadband?: number | null;
+  maximumIntervalMilliseconds?: number | null;
+  description?: string | null;
+  metadata?: Record<string, string> | null;
+  version?: number;
+}>;
+
+export type HistorianRetrievalMode =
+  | 'raw'
+  | 'last'
+  | 'atOrBefore'
+  | 'atOrAfter'
+  | 'exact'
+  | 'interpolated'
+  | 'sampledFixedStep'
+  | 'aggregate';
+
+export type DataQueryAggregateFunction =
+  | 'count'
+  | 'sum'
+  | 'average'
+  | 'minimum'
+  | 'maximum'
+  | 'first'
+  | 'last';
+
+export type DataQueryParameterType =
+  | 'string'
+  | 'boolean'
+  | 'number'
+  | 'int64'
+  | 'dateTime'
+  | 'durationSeconds'
+  | 'guid'
+  | 'enum';
+
+export type DataQueryParameterTarget =
+  | 'absoluteFromUtc'
+  | 'absoluteToUtc'
+  | 'relativeDurationSeconds'
+  | 'search'
+  | 'filterValue';
+
+export type DataQueryParameterValueEngineering = Readonly<{
+  type: DataQueryParameterType;
+  value: string;
+}>;
+
+export type DataQueryParameterEngineering = Readonly<{
+  key: string;
+  name: string;
+  type: DataQueryParameterType;
+  defaultValue?: DataQueryParameterValueEngineering | null;
+  description?: string | null;
+  allowedValues?: readonly DataQueryParameterValueEngineering[] | null;
+}>;
+
+export type DataQueryParameterBindingEngineering = Readonly<{
+  parameterKey: string;
+  target: DataQueryParameterTarget;
+  filterIndex?: number | null;
+  valueIndex?: number | null;
+}>;
+
+export type DataQueryGroupEngineering = Readonly<{ field: string }>;
+
+export type DataQueryAggregateEngineering = Readonly<{
+  key: string;
+  field: string;
+  function: DataQueryAggregateFunction;
+}>;
+
+export type HistorianRetrievalEngineering = Readonly<{
+  mode: HistorianRetrievalMode;
+  stepMilliseconds?: number | null;
+  bucketMilliseconds?: number | null;
+  maximumGapMilliseconds?: number | null;
+  aggregateFunction?: DataQueryAggregateFunction | null;
+}>;
+
+export type DataQueryEngineering = Readonly<{
+  id?: string | null;
+  key: string;
+  name: string;
+  providerKey: string;
+  query: import('../runtime/historical-browser/historicalQueryApi').HistoricalQueryRequest;
+  selectedFields?: readonly string[] | null;
+  groups?: readonly DataQueryGroupEngineering[] | null;
+  aggregates?: readonly DataQueryAggregateEngineering[] | null;
+  parameters?: readonly DataQueryParameterEngineering[] | null;
+  parameterBindings?: readonly DataQueryParameterBindingEngineering[] | null;
+  historianRetrieval?: HistorianRetrievalEngineering | null;
+  description?: string | null;
+  metadata?: Record<string, string> | null;
+  version?: number;
+}>;
+
+export type AlarmViewMatchState = 'any' | 'yes' | 'no';
+
+export type AlarmViewFilterEngineering = Readonly<{
+  areas?: readonly string[] | null;
+  priorities?: readonly string[] | null;
+  types?: readonly string[] | null;
+  alarmClasses?: readonly string[] | null;
+  categories?: readonly string[] | null;
+  subconditions?: readonly string[] | null;
+  sources?: readonly string[] | null;
+  alarmIds?: readonly string[] | null;
+  tagIds?: readonly string[] | null;
+  equipmentIds?: readonly string[] | null;
+  active?: AlarmViewMatchState;
+  acknowledged?: AlarmViewMatchState;
+  shelved?: AlarmViewMatchState;
+  search?: string | null;
+}>;
+
+export type AlarmViewEngineering = Readonly<{
+  id?: string | null;
+  key: string;
+  name: string;
+  filter: AlarmViewFilterEngineering;
+  description?: string | null;
+  metadata?: Record<string, string> | null;
+  version?: number;
+}>;
+
+export const ENGINEERING_FRAGMENT_SCHEMA = 'scada.engineering.fragment' as const;
+export const ENGINEERING_FRAGMENT_SCHEMA_VERSION = 1 as const;
+export const ENGINEERING_FRAGMENT_EXTENSION = '.escadafrag' as const;
+
+export type EngineeringFragmentPlanOperation =
+  | 'create'
+  | 'reuseIdentical'
+  | 'update'
+  | 'remap'
+  | 'skip'
+  | 'conflict'
+  | 'unsupported';
+
+export type EngineeringFragmentEntityReference = Readonly<{
+  entityKind: string;
+  entityKey: string;
+  entityId?: string | null;
+}>;
+
+export type EngineeringFragmentManifest = Readonly<{
+  roots: readonly EngineeringFragmentEntityReference[];
+  dependencies?: readonly EngineeringFragmentEntityReference[] | null;
+  version?: number;
+}>;
+
+export type EngineeringFragmentPreviewItem = Readonly<{
+  source: EngineeringFragmentEntityReference;
+  operation: EngineeringFragmentPlanOperation;
+  target?: EngineeringFragmentEntityReference | null;
+  reason?: string | null;
+}>;
+
+export type EngineeringFragmentEnvelope = Readonly<{
+  schema: typeof ENGINEERING_FRAGMENT_SCHEMA;
+  schemaVersion: typeof ENGINEERING_FRAGMENT_SCHEMA_VERSION;
+  exportedAt: string;
+  manifest: EngineeringFragmentManifest;
+  engineering: EngineeringPackageView;
+}>;
+
+export type ReusableLibraryUpdateState =
+  | 'upToDate'
+  | 'updateAvailable'
+  | 'locallyModified'
+  | 'sourceMissing'
+  | 'incompatible';
+
+export type ReusableLibrarySourceProvenanceEngineering = Readonly<{
+  sourceLibraryId: string;
+  sourceResourceId: string;
+  sourceVersion: string;
+  sourceContentHash: string;
+  version?: number;
+}>;
+
+export type ReusableLibraryResourceUpdateEngineering = Readonly<{
+  source: ReusableLibrarySourceProvenanceEngineering;
+  state: ReusableLibraryUpdateState;
+  currentContentHash?: string | null;
+}>;
+
 export type TagAccessPolicyEngineering = {
   readRoles?: string[] | null;
   writeRoles?: string[] | null;
@@ -65,6 +264,7 @@ export type TagEngineering = {
   accessPolicy?: TagAccessPolicyEngineering | null;
   initialValue?: MemoryInitialValueEngineering | null;
   addressSelector?: TagValueSelectorEngineering | null;
+  historianCaptureProfileId?: string | null;
 };
 
 export type AlarmEngineering = {
@@ -451,6 +651,9 @@ export type EngineeringPackageView = {
   commands?: CommandEngineering[];
   gateways?: GatewayEngineering[];
   visualAssets?: VisualAssetEngineering[];
+  historianCaptureProfiles?: HistorianCaptureProfileEngineering[];
+  dataQueries?: DataQueryEngineering[];
+  alarmViews?: AlarmViewEngineering[];
   startupScreenId?: string | null;
   [key: string]: unknown;
 };

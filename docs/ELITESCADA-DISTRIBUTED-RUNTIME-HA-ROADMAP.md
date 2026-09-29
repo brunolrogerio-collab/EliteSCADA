@@ -7,6 +7,8 @@
 
 > This roadmap records product direction. It does not authorize merges, bypass current Wave governance, or make every future phase part of C25. GitHub live state and the active checkpoint ledger remain the execution authority.
 
+> **Product Owner sequencing update — 2026-09-29:** EliteGO product/client implementation is deferred out of Wave 15 and is not a Wave 16 requirement. Wave 15 closes EliteSCADA and preserves the server/runtime contracts EliteGO will later consume. The immediate post-Wave-15 execution priority is **Wave 16 — native Windows Runtime + Installer**. The EliteGO sections below remain binding future product semantics, but any wording that places EliteGO before this Windows productization step is superseded by this sequencing update.
+
 ## 1. Product invariants
 
 The evolution to distributed Runtime and High Availability must preserve these invariants:

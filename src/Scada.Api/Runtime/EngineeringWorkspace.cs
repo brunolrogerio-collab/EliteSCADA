@@ -7,6 +7,7 @@ using Scada.Engineering.Assets;
 using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
+using Scada.Engineering.DataQueries;
 using Scada.Engineering.Historian;
 using Scada.Engineering.DataQueries;
 using Scada.Engineering.Scripts;
@@ -76,6 +77,8 @@ public sealed class EngineeringWorkspace : IDisposable
         Tags = new InMemoryTagRegistry(MarkDirty);
         Alarms = new InMemoryAlarmEngine(_eventBus, MarkDirty);
         DataSources = new InMemoryDataSourceEngineeringRegistry(MarkDirty);
+        DataQueries = new InMemoryDataQueryEngineeringRegistry(MarkDirty);
+        AlarmViews = new InMemoryAlarmViewEngineeringRegistry(MarkDirty);
         HistorianCaptureProfiles = new InMemoryHistorianCaptureProfileEngineeringRegistry(
             MarkDirty,
             profileId => Tags.Snapshot().Any(tag =>
@@ -95,6 +98,8 @@ public sealed class EngineeringWorkspace : IDisposable
     public InMemoryTagRegistry Tags { get; }
     public InMemoryAlarmEngine Alarms { get; }
     public InMemoryDataSourceEngineeringRegistry DataSources { get; }
+    public InMemoryDataQueryEngineeringRegistry DataQueries { get; }
+    public InMemoryAlarmViewEngineeringRegistry AlarmViews { get; }
     public InMemoryHistorianCaptureProfileEngineeringRegistry HistorianCaptureProfiles { get; }
     public InMemoryDataQueryEngineeringRegistry DataQueries { get; }
     public InMemoryAlarmViewEngineeringRegistry AlarmViews { get; }
@@ -232,6 +237,8 @@ public sealed class EngineeringWorkspace : IDisposable
         Alarms.Clear();
         Tags.Clear();
         DataSources.Clear();
+        DataQueries.Clear();
+        AlarmViews.Clear();
         HistorianCaptureProfiles.Clear();
         DataQueries.Clear();
         AlarmViews.Clear();

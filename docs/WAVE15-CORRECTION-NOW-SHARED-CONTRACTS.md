@@ -662,6 +662,8 @@ Frozen semantics must define:
 - ordinary forms/lists retain readable widths;
 - no change to Working/Published/Active authority.
 - persistent security/lock controls follow `FEATURE_NAME_ON_DEMAND / CURRENT_STATE_PERSISTENT`: the compact header shows only a clear state + icon, while the full feature name/details remain in tooltip/aria-label/expanded management UI.
+- only Workspace dirty/saved/conflict state remains permanently visible from the old Schema/Base revision/Workspace/Snapshot strip; schema, base revision and snapshot timestamp move to an on-demand Engineering Information surface.
+- the Information surface distinguishes human-facing product version from Engineering schema/project revision metadata.
 
 Consumes:
 - `C-AUTHORITY-01`;
@@ -674,6 +676,43 @@ Forbidden:
 - adding browser-local layout state as project authority.
 
 Chat J must consume the integrated wide-section/layout hook rather than invent a second one.
+
+### C-PRODUCT-VERSION-01 — human-facing EliteSCADA product version
+
+**State:** `PREPARED_DRAFT / FREEZE_BEFORE_CHAT_I`  
+**Owner:** Main + shared CODEX contract review  
+**Consumers:** Chat I / Engineering Information, global shell/help/diagnostics, packaging/release tooling.
+
+Problem:
+- current Web package declares generic `0.1.0`;
+- Engineering schema versions such as `scada.engineering v19` are internal compatibility metadata;
+- project base revision/snapshot are lifecycle metadata;
+- none of those should be presented as the human-facing EliteSCADA product version.
+
+Product Owner proposed current visible development identity:
+`Alpha 0.15.2.1`.
+
+Intended coordination meaning for this development cycle:
+- `0` = pre-1.0 product;
+- `15` = Wave 15 generation;
+- `2` = post-Preview 2 convergence/revision cycle;
+- `1` = correction package 1.
+
+Freeze must define:
+1. one canonical product-version source consumed by Web/API/distribution metadata;
+2. human display string, including stage/channel such as `Alpha`;
+3. build/commit provenance available under technical details without becoming the marketing version;
+4. clear separation from Engineering schema version;
+5. clear separation from project Working/base revision;
+6. increment rule for future Wave/Preview/correction packages;
+7. compatibility with future Beta/RC/1.0 release naming;
+8. no component-local hard-coded version strings.
+
+Normal Engineering Information presentation:
+- primary: product name + version, e.g. `EliteSCADA Alpha 0.15.2.1`;
+- secondary technical details: schema, base revision, snapshot timestamp, exact build/commit.
+
+Until frozen, `Alpha 0.15.2.1` is the Product Owner-approved proposed display identity for the current cycle, not yet an implementation authority.
 
 ### C-EDITOR-UX-R2-01 — shared Screen/Popup interaction model
 
@@ -788,7 +827,7 @@ Forbidden:
 
 | Consumer | Required shared contracts before implementation |
 |---|---|
-| Chat I — ENG-DENSITY | C-AUTHORITY-01, C-SURFACE-01, C-TEST-EVIDENCE-01, frozen C-ENG-DENSITY-01 |
+| Chat I — ENG-DENSITY | C-AUTHORITY-01, C-SURFACE-01, C-TEST-EVIDENCE-01, frozen C-ENG-DENSITY-01, frozen C-PRODUCT-VERSION-01 |
 | Chat K — REPORT-THEME | C-SURFACE-01, C-TEST-EVIDENCE-01; consume existing Engineering semantic theme tokens |
 | Chat J — EDITOR-UX-R2 | C-ENG-DENSITY-01 integrated, C-VISUAL-IDENTITY-01, C-VISUAL-DYNAMIC-01, C-TAG-WRITE-01, C-REUSE-01 integrated/frozen, C-VISUAL-ASSET-02 frozen, C-SURFACE-01, C-TEST-EVIDENCE-01 |
 | Chat L — BRANDING | C-ENG-DENSITY-01 integrated, C-AUTHORITY-01, C-VISUAL-ASSET-02 frozen, C-BRANDING-01 frozen, C-SURFACE-01, C-TEST-EVIDENCE-01 |

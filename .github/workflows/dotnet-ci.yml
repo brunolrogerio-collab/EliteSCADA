@@ -251,9 +251,28 @@ jobs:
           # instead of relying on any hidden Demo seed.
           WORKSPACE_VERSION=$(python3 -c 'import json; print(json.load(open("/tmp/workspace-after-save.json"))["changeVersion"])')
           test "$WORKSPACE_VERSION" -ge 1
+
+          # Derive the CI package from the live First Project export so the
+          # Security Authority reference is exact. Keep the legacy simulation
+          # example at schema v1 so builtin.simulation remains a valid fixture
+          # without inventing a persisted Data Source.
+          curl -fsS -b /tmp/scada-auth.cookie http://127.0.0.1:5080/api/engineering/export/json > /tmp/first-project-engineering.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/first-project-engineering.json') as f:
+              current = json.load(f)
+          with open('docs/examples/engineering-package.json') as f:
+              fixture = json.load(f)
+          authority = current.get('authorityPolicyReference')
+          assert authority is not None, current
+          fixture['authorityPolicyReference'] = authority
+          with open('/tmp/ci-runtime-engineering.json', 'w') as f:
+              json.dump(fixture, f)
+          PY
+
           curl -fsS -b /tmp/scada-auth.cookie -X POST http://127.0.0.1:5080/api/engineering/import/json/preview \
             -H 'content-type: application/json' \
-            --data-binary @docs/examples/engineering-package.json > /tmp/engineering-import-preview.json
+            --data-binary @/tmp/ci-runtime-engineering.json > /tmp/engineering-import-preview.json
           python3 - <<'PY'
           import json
           with open('/tmp/engineering-import-preview.json') as f:
@@ -265,7 +284,7 @@ jobs:
           curl -fsS -b /tmp/scada-auth.cookie -X POST http://127.0.0.1:5080/api/engineering/import/json/apply \
             -H 'content-type: application/json' \
             -H "x-elitescada-workspace-version: ${WORKSPACE_VERSION}" \
-            --data-binary @docs/examples/engineering-package.json > /tmp/engineering-import-apply.json
+            --data-binary @/tmp/ci-runtime-engineering.json > /tmp/engineering-import-apply.json
           python3 - <<'PY'
           import json
           with open('/tmp/engineering-import-apply.json') as f:

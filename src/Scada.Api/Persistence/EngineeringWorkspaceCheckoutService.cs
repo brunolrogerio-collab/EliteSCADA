@@ -5,6 +5,7 @@ using Scada.Core.Tags;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
+using Scada.Engineering.DataQueries;
 using Scada.Engineering.Gateways;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
@@ -180,12 +181,16 @@ public sealed class EngineeringWorkspaceCheckoutService(
     {
         var bus = new InMemoryScadaEventBus();
         using var alarms = new InMemoryAlarmEngine(bus);
-        var isolated = new EngineeringExchangeService(
+        IEngineeringExchangeService isolated = new EngineeringExchangeService(
             new InMemoryTagRegistry(),
             alarms,
             new InMemoryDataSourceEngineeringRegistry(),
             new InMemoryEngineeringAssetRegistry(),
             new InMemoryEngineeringViewRegistry());
+        isolated = new DataQueryEngineeringExchangeDecorator(
+            isolated,
+            new InMemoryDataQueryEngineeringRegistry(),
+            new InMemoryAlarmViewEngineeringRegistry());
 
         return isolated.Preview(package, ImportMode.CreateAndUpdate, context);
     }

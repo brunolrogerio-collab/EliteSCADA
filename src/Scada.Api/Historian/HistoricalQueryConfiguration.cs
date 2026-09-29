@@ -62,10 +62,14 @@ public static class HistoricalQueryConfiguration
         }
 
         builder.Services.AddSingleton<RuntimeTagRegistryView>();
-        builder.Services.AddSingleton<IHistoricalDatasetProvider>(sp =>
+        builder.Services.AddSingleton(sp =>
             new TimescaleHistoricalQueryProvider(
                 connectionString,
                 sp.GetRequiredService<RuntimeTagRegistryView>()));
+        builder.Services.AddSingleton<IHistoricalDatasetProvider>(sp =>
+            sp.GetRequiredService<TimescaleHistoricalQueryProvider>());
+        builder.Services.AddSingleton<IHistoricalRetrievalProvider>(sp =>
+            sp.GetRequiredService<TimescaleHistoricalQueryProvider>());
 
         builder.Services.AddSingleton<PostgreSqlAlarmHistoryStore>(_ =>
             new PostgreSqlAlarmHistoryStore(connectionString));

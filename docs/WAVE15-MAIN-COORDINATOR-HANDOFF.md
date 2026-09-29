@@ -1,3 +1,19 @@
+# TAKEOVER POINTER — 2026-09-29 — R2-A PARALLEL EXECUTION
+
+> **READ FIRST:** `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-09-29-R2A.md`
+>
+> That file is the canonical current Main Coordinator handoff and supersedes older current-state wording in this file whenever there is a conflict.
+>
+> Live product checkpoint at pointer creation:
+> - `wave15/corrections-integration@37fcfb6ab9f25b2c2478d0a06b38379a9f3bcf5a`;
+> - tree `8b42220c31877c40affb34c4fe96426dfdcb4244`;
+> - TAG commissioning PR #401 merged;
+> - post-merge EliteSCADA CI #1602 / `36634093326` still required final revalidation;
+> - product-version authority PR #403 exact head `2eae0339036c79155126a15ac2cbc0be8e3ed66e`, T1 #162 / `36634435918` GREEN;
+> - Data Query #384 is `BLOCKED_CONTRACT` with zero product mutation;
+> - Historian #404 remains NO_MERGE until Portability-owned ImportExport paths disappear from its net diff;
+> - shared CODEX remains PARKED.
+
 # CURRENT MAIN COORDINATOR TAKEOVER — 2026-09-29 — F0 INTEGRATED / #389 MERGED / CI #1593 BLOCKED / TAG COMMISSIONING DELTA FROZEN
 
 > **THIS SECTION SUPERSEDES ALL OLDER CURRENT-STATE / TRANSFER WORDING BELOW WHEN THERE IS A CONFLICT.**

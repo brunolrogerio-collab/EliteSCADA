@@ -1,6 +1,6 @@
 # Wave 15 — Post-E3 Development Route
 
-**Status:** GATE0_GREEN / GATE1_GREEN / R2_C0_FROZEN / F0_INTEGRATED / R2_A_RELEASE_READY / SHARED_CODEX_PARKED / NO_BOOTSTRAP_RELEASED  
+**Status:** GATE0_GREEN / GATE1_GREEN / R2_C0_FROZEN / F0_INTEGRATED / R2_A_HOLD_POSTMERGE_CI_RETRY / SHARED_CODEX_PARKED / NO_BOOTSTRAP_RELEASED  
 **Coordinator issue:** #378  
 **Execution ledger:** #305  
 **Current integration baseline:** `wave15/corrections-integration@d869c538700eca4b72703c311bb56f810a8baa2d` / tree `cf6f23cb44b8cef7f2d6b097ae417d44ed86f99c`  
@@ -209,6 +209,20 @@ Forbidden:
 - Trend/Browser/Report/Playback implementation.
 
 F0 is integrated. Its former hotspot lock is released, but downstream lanes must consume the integrated wire contracts and may not redefine them. Any missing shared wire semantic returns `BLOCKED_CONTRACT` to Main.
+
+### F0 post-merge CI disposition
+
+Post-merge `EliteSCADA CI` run `36594248859` / #1592:
+- Web build SUCCESS;
+- first Backend attempt failed in one pre-existing PostgreSQL activation test with PostgreSQL `40P01 deadlock detected`;
+- F0 did not modify PostgreSQL persistence/activation code;
+- the same project otherwise passed 124/125 tests; Core 410/410 and Drivers 754/754 passed;
+- failed Backend job is being rerun without byte changes.
+
+Until the retry closes green:
+`R2_A_HOLD_POSTMERGE_CI_RETRY`.
+
+No downstream bootstrap is released on a failed post-merge CI.
 
 ## 5. Development Wave R2-A — foundations
 

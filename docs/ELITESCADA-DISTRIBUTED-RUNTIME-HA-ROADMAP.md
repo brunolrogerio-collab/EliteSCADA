@@ -194,8 +194,9 @@ Closing C25 does not jump directly to release packaging. The required sequence i
 9. **keep that Codespace active** through homologation and the subsequent approved main transition so the visual environment remains available for comparison/verification;
 10. only after later explicit Product Owner authorization may PR #212 merge into `main`;
 11. verify the new `main` after merge while keeping the Preview Codespace available as requested;
-12. resume the paused Wave 13 release/signing/installable work from the **new `main` that already contains accepted Wave 14/C25 behavior**;
-13. produce and validate the Windows-installable EliteSCADA from that new mainline authority.
+12. do **not** resume cancelled Wave 13 #205/#207; preserve it as historical evidence only;
+13. after Wave 15 acceptance, execute Wave 16 / #408 from the exact accepted product authority, prioritizing real #360/#362 local operational evidence and #208/#210 Preview lessons;
+14. produce and validate the Windows-first / cross-platform-core installed EliteSCADA through the new Wave 16 line.
 
 Do not use an older pre-C25 `main` as the final Windows release authority after this sequence.
 
@@ -206,5 +207,5 @@ Until the above gates are reached:
 - PR #212 remains OPEN/DRAFT and is not authorized to merge to `main`;
 - C11 remains frozen on `wave14/c11-canonical-eee-demo` at its preserved exact head until C25 acceptance/integration/post-merge validation;
 - PR #266 remains validation-only and MUST NEVER MERGE;
-- Wave 13 #205/#207 remains paused;
+- Wave 13 #205/#207 is CANCELLED / CLOSED / HISTORICAL ONLY; it must never be resumed or merged;
 - no direct `main` mutation is authorized.

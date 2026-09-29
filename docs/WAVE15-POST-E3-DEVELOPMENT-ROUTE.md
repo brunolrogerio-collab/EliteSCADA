@@ -19,9 +19,10 @@ rev0118 bounded TWEEN borrowed-PyProxy lifetime correction after rev0117 causal 
   -> integrate #373/#374/#376 if Gate 0 closes
   -> recompose/integrate #375
   -> freeze Round-2 UX/product contracts
-  -> R2-A: Engineering density + specialized-surface theme/contrast
+  -> R2-A: Engineering density + specialized-surface theme/contrast + Historian capture enforcement
   -> R2-B: Editor UX + Client branding + structured Engineering workflows
-  -> R2-C: user-facing terminology + multilingual consistency
+  -> R2-C1: Trend/history absolute time-range convergence
+  -> R2-C2: user-facing terminology + multilingual consistency
   -> exact E2/E3
   -> mandatory SECOND Preview + independent Audit
   -> residual corrections/recheck
@@ -161,7 +162,7 @@ Implementation is intentionally deferred until R2-A + R2-B are integrated to avo
 
 Base: exact post-#375 integration checkpoint.
 
-Two branches/chats may run in parallel because ownership is intentionally isolated.
+Three branches/chats may run in parallel because ownership is intentionally isolated. Main must revalidate exact file overlap at release time.
 
 ### Chat I — DEV-ENG-DENSITY
 
@@ -209,9 +210,40 @@ Acceptance includes toolbar, path/cursor text, handler context, chips, Client Vi
 
 May run concurrently with Chat I.
 
+### Chat O — DEV-HISTORIAN-CAPTURE
+
+Issue: #382.
+
+Own:
+- freeze/consume C-HISTORIAN-CAPTURE-01;
+- implement Runtime enforcement of the effective Historian capture policy;
+- introduce stable reusable capture-profile Engineering authority and migration/compatibility for existing inline TAG settings;
+- periodic and on-change semantics;
+- bounded deadband/max-period semantics only as frozen by the contract;
+- quality-transition preservation;
+- accepted/skipped/coalesced diagnostics;
+- deterministic TimescaleDB + in-memory policy parity;
+- bulk/profile API foundations consumed later by Chat N.
+
+Must not:
+- redesign Historical Query/Trend time-range semantics;
+- replace TimescaleDB storage authority;
+- duplicate raw streams merely to create different display resolutions;
+- weaken quality semantics;
+- reorganize generic TAG forms owned by Chat N;
+- alter unrelated Driver scan rates.
+
+Expected evidence:
+- focused Historian policy tests;
+- real TimescaleDB capture-volume regression;
+- exact-SHA E2;
+- proof that fast source updates are reduced to the configured raw-capture rate.
+
+May run concurrently with Chat I/K after C-HISTORIAN-CAPTURE-01 is frozen and Main confirms no material file collision.
+
 ## 6. Development Wave R2-B
 
-Starts only after R2-A is integrated **and**:
+Starts only after R2-A (including Chat O) is integrated **and**:
 - C-VISUAL-ASSET-02 is frozen;
 - C-BRANDING-01 is frozen;
 - C-REUSE-01 is integrated/frozen after #375;
@@ -293,6 +325,7 @@ May run in parallel with J/L only under strict ownership:
 Consumes:
 - integrated C-ENG-DENSITY-01;
 - integrated/frozen C-ENG-THEME-01;
+- integrated C-HISTORIAN-CAPTURE-01 implementation from Chat O;
 - frozen C-ENG-WORKFLOW-01;
 - frozen C-SCRIPT-EVENT-LINK-01;
 - C-AUTHORITY-01;
@@ -334,11 +367,42 @@ If Main builds a combined E3 candidate:
 - no extra files may enter via conflict resolution;
 - post-integration final tree must match the validated composition where that exact-tree model is used.
 
-## 8.5. Development Wave R2-C — UX copy / i18n cleanup
+## 8.4. Development Wave R2-C1 — Trend/history time range
+
+Starts only after R2-B J/L/N is integrated and C-HISTORICAL-TIME-RANGE-01 is frozen.
+
+### Chat P — DEV-HISTORICAL-TIME-RANGE
+
+Issue: #383.
+
+Own:
+- converge Basic Trend compatibility surface, canonical multipen Trend and Historical Data Browser on the shared time-range semantics;
+- Historical absolute `From -> To` controls;
+- relative quick ranges + custom amount/unit;
+- localized date/time display with UTC query authority;
+- preserve active absolute range on refresh;
+- bounded large-range query behavior;
+- Runtime/session date selections that do not dirty Engineering.
+
+Must not:
+- create a second Trend-only database API;
+- modify Historian raw-capture semantics owned by Chat O;
+- create unbounded browser data loads;
+- redefine Screen/Popup editor layout owned by Chat J;
+- invent a private external DateTime binding contract without Main freeze.
+
+Expected evidence:
+- exact-SHA E2;
+- mounted canonical multipen Trend absolute-range proof;
+- equivalent Historical Browser query proof;
+- representative `27/09/2026 01:00:00 -> 28/09/2026 12:00:00` locale-to-UTC boundary proof;
+- refresh/requery preserves the absolute range.
+
+## 8.5. Development Wave R2-C2 — UX copy / i18n cleanup
 
 Issue: #379.
 
-Starts only after R2-A and all R2-B lanes (J/L/N) are integrated.
+Starts only after R2-A, all R2-B lanes (J/L/N), and Chat P are integrated.
 
 ### Chat M — DEV-UX-COPY-I18N
 
@@ -468,10 +532,12 @@ Resume canonical sequencing for:
 |---|---|---|
 | I — ENG-DENSITY | C-AUTHORITY-01, C-SURFACE-01, C-TEST-EVIDENCE-01, frozen C-ENG-DENSITY-01, frozen C-PRODUCT-VERSION-01 | Working/Published/Active, Lock/CAS authority |
 | K — THEME-CONTRAST | C-SURFACE-01, C-TEST-EVIDENCE-01, frozen C-ENG-THEME-01, existing Engineering semantic theme tokens | report/script data models, lifecycle, Script capability/runtime semantics |
+| O — HISTORIAN-CAPTURE | frozen C-HISTORIAN-CAPTURE-01, C-AUTHORITY-01, C-TEST-EVIDENCE-01, existing Historian/Timescale storage authority | Historical Query time ranges, Driver scan rates, storage replacement, visual-editor internals |
 | J — EDITOR-UX-R2 | integrated C-ENG-DENSITY-01, C-VISUAL-IDENTITY-01, C-VISUAL-DYNAMIC-01, C-TAG-WRITE-01, integrated/frozen C-REUSE-01, frozen C-VISUAL-ASSET-02, frozen C-SCRIPT-EVENT-LINK-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | renderer, identity, TAG write, reuse relationship, asset store/API, Script execution authority |
 | L — BRANDING | integrated C-ENG-DENSITY-01, C-AUTHORITY-01, frozen C-VISUAL-ASSET-02, frozen C-BRANDING-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | lifecycle authority, asset store/API, independent per-page branding state |
-| N — ENG-WORKFLOW-FORMS | integrated C-ENG-DENSITY-01, integrated/frozen C-ENG-THEME-01, frozen C-ENG-WORKFLOW-01, frozen C-SCRIPT-EVENT-LINK-01, C-AUTHORITY-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | visual-editor internals, branding shell, backend mutation semantics/API identity, Script execution authority |
-| M — UX-COPY-I18N | integrated R2-A + J/L/N, frozen C-USER-COPY-I18N-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | lifecycle/Authority semantics, backend enum/API identity, accepted layout architecture |
+| N — ENG-WORKFLOW-FORMS | integrated C-ENG-DENSITY-01, integrated/frozen C-ENG-THEME-01, integrated C-HISTORIAN-CAPTURE-01 implementation, frozen C-ENG-WORKFLOW-01, frozen C-SCRIPT-EVENT-LINK-01, C-AUTHORITY-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | visual-editor internals, branding shell, backend mutation semantics/API identity, Script execution authority |
+| P — HISTORICAL-TIME-RANGE | frozen C-HISTORICAL-TIME-RANGE-01, integrated R2-B, Historical Query v1, C-SURFACE-01, C-TEST-EVIDENCE-01 | Historian capture policy, database authority, visual-editor layout, new private time API |
+| M — UX-COPY-I18N | integrated R2-A + J/L/N + P, frozen C-USER-COPY-I18N-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | lifecycle/Authority semantics, backend enum/API identity, accepted layout architecture |
 
 Any consumer that finds an insufficient contract returns:
 `BLOCKED_CONTRACT / <contract-id> / <missing semantic>`.
@@ -484,12 +550,14 @@ Any consumer that finds an insufficient contract returns:
 | Gate 1 | G / #375 recomposition | none required | E/F/H integration |
 | Contract | Main/CODEX | no product DEV required | post-#375 base |
 | R2-A | I / Engineering density | K | frozen C-ENG-DENSITY-01 + C-PRODUCT-VERSION-01 + post-#375 base |
-| R2-A | K / Theme + contrast | I | frozen C-ENG-THEME-01 + post-#375 base |
-| Contract | Main/CODEX C-VISUAL-ASSET-02 + C-BRANDING-01 | none | I/K integration |
+| R2-A | K / Theme + contrast | I + O | frozen C-ENG-THEME-01 + post-#375 base |
+| R2-A | O / Historian capture | I + K | frozen C-HISTORIAN-CAPTURE-01 + post-#375 base + no material file overlap |
+| Contract | Main/CODEX C-VISUAL-ASSET-02 + C-BRANDING-01 | none | I/K/O integration |
 | R2-B | J / Editor UX | L | I/K integrated + C-REUSE-01 integrated/frozen + C-VISUAL-ASSET-02 + C-SCRIPT-EVENT-LINK-01 frozen |
 | R2-B | L / Branding | J | I/K integrated + C-VISUAL-ASSET-02 + C-BRANDING-01 frozen |
-| R2-B | N / Engineering workflow + forms | J + L | I/K integrated + C-ENG-WORKFLOW-01 + C-SCRIPT-EVENT-LINK-01 frozen |
-| R2-C | M / UX copy + i18n | none | I/J/K/L/N integrated + C-USER-COPY-I18N-01 frozen |
+| R2-B | N / Engineering workflow + forms | J + L | I/K/O integrated + C-ENG-WORKFLOW-01 + C-SCRIPT-EVENT-LINK-01 frozen |
+| R2-C1 | P / Trend + historical time range | none | J/L/N integrated + C-HISTORICAL-TIME-RANGE-01 frozen |
+| R2-C2 | M / UX copy + i18n | none | I/J/K/L/N/O/P integrated + C-USER-COPY-I18N-01 frozen |
 | Validation | Shared CODEX / E3 | no DEV mutation of candidate | all target lanes delivered |
 | Preview/Audit | CODEX Preview + Human Preview + AUD | independent evidence paths | exact integrated candidate |
 
@@ -501,7 +569,7 @@ This route carries the following interaction rules across coordinator rotations:
 - status/action must be revalidated from GitHub live, not memory;
 - Product Owner is not a courier between agents; durable handoffs live in GitHub;
 - a Product Owner `SIGA` to Main means execute the next safe already-authorized action after live revalidation;
-- future chats I/K/J/L/N/M are not released yet and have no bootstrap text;
+- future chats I/K/J/L/N/M/O/P are not released yet and have no bootstrap text;
 - the Product Owner will explicitly ask Main for each bootstrap when its release gate is reached;
 - do not tell the Product Owner to open a future chat before its base/contracts are ready.
 

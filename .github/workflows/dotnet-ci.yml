@@ -401,6 +401,31 @@ jobs:
           assert result['revision']['revision'] == lifecycle['activeRevision']
           PY
 
+          # Runtime mutations require a server-owned logical Runtime session lease.
+          # Admit this authenticated CI client as interactive against the committed
+          # active Runtime, then carry the lease headers on the process-value write.
+          RUNTIME_CLIENT_INSTANCE=ci-runtime-smoke
+          SESSION_STATUS=$(curl -sS -b /tmp/scada-auth.cookie -o /tmp/runtime-session.json -w '%{http_code}' \
+            -X POST http://127.0.0.1:5080/api/runtime/sessions \
+            -H 'content-type: application/json' \
+            -d "{\"clientInstanceId\":\"${RUNTIME_CLIENT_INSTANCE}\",\"connectionClass\":\"interactive\"}")
+          cat /tmp/runtime-session.json
+          test "$SESSION_STATUS" = "201"
+          RUNTIME_SESSION_ID=$(python3 - <<'PY'
+          import json
+          with open('/tmp/runtime-session.json') as f:
+              session = json.load(f)
+          with open('/tmp/persistence-activate.json') as f:
+              activation = json.load(f)
+          assert session['requestedClass'] == 'interactive', session
+          assert session['grantedClass'] == 'interactive', session
+          assert session['capacityReserved'] is True, session
+          assert session['runtime']['projectKey'] == 'ci-demo', session
+          assert session['runtime']['revision'] == activation['revision']['revision'], session
+          print(session['sessionId'])
+          PY
+          )
+
           # Initial Server Memory state is composed while the candidate Runtime
           # event gate is still closed. Produce one deliberate post-activation
           # process-value write through the normal authorized Runtime API so the
@@ -409,6 +434,8 @@ jobs:
           WRITE_STATUS=$(curl -sS -b /tmp/scada-auth.cookie -o /tmp/runtime-write.json -w '%{http_code}' \
             -X POST "http://127.0.0.1:5080/api/tags/${CI_RUNTIME_TAG_ID}/write" \
             -H 'content-type: application/json' \
+            -H "X-EliteSCADA-Runtime-Session: ${RUNTIME_SESSION_ID}" \
+            -H "X-EliteSCADA-Runtime-Client-Instance: ${RUNTIME_CLIENT_INSTANCE}" \
             -d '{"value":43.5}')
           cat /tmp/runtime-write.json || true
           test "$WRITE_STATUS" = "202"

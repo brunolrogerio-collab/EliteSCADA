@@ -238,6 +238,87 @@ def fault_probe(event):
   expect(result.healthStatus).toBe(200);
 });
 
+test('real Pyodide Worker completes repeated awaited visual tween bridge calls', async ({ page }) => {
+  test.slow();
+  await page.goto('/');
+
+  const result = await page.evaluate(async () => {
+    const importModule = new Function('specifier', 'return import(specifier)') as
+      (specifier: string) => Promise<any>;
+    const runtimeModule = await importModule('/src/python-runtime/clientVisualPythonRuntime.ts');
+    const tweenRequests: Array<Record<string, unknown>> = [];
+    const source = `
+import elite_scada
+
+
+async def tween_probe(event):
+    await elite_scada.visual_tween_request({
+        "targetReference": "diagnostic/demo-rectangle",
+        "propertyKey": "x",
+        "targetValue": 420,
+        "durationMs": 300,
+        "easing": "linear"
+    })
+`;
+    const runtime = new runtimeModule.ClientVisualPythonRuntime({
+      identity: {
+        scriptId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+        runtimeInstanceId: 'dynamic-visual-tween-bridge'
+      },
+      source,
+      handlerNames: ['tween_probe'],
+      capabilityProvider: {
+        requestVisualTween(argumentsValue: unknown) {
+          const request = argumentsValue as Record<string, unknown>;
+          tweenRequests.push({ ...request });
+          return {
+            accepted: true,
+            handle: `diagnostic-tween-${tweenRequests.length}`,
+            propertyKey: request.propertyKey,
+            visualRuntimeInstanceId: 'diagnostic-visual-instance'
+          };
+        }
+      }
+    });
+
+    try {
+      await runtime.initialize();
+      const first = await runtime.dispatchEvent('tween_probe', 'pointer:click:first', null);
+      const second = await runtime.dispatchEvent('tween_probe', 'pointer:click:second', null);
+      return {
+        first,
+        second,
+        tweenRequests,
+        throttled: runtime.isThrottled
+      };
+    } finally {
+      await runtime.dispose();
+    }
+  });
+
+  expect(result.first.status).toBe('completed');
+  expect(result.second.status).toBe('completed');
+  expect(result.first.durationMs).toBeLessThan(250);
+  expect(result.second.durationMs).toBeLessThan(250);
+  expect(result.tweenRequests).toEqual([
+    {
+      targetReference: 'diagnostic/demo-rectangle',
+      propertyKey: 'x',
+      targetValue: 420,
+      durationMs: 300,
+      easing: 'linear'
+    },
+    {
+      targetReference: 'diagnostic/demo-rectangle',
+      propertyKey: 'x',
+      targetValue: 420,
+      durationMs: 300,
+      easing: 'linear'
+    }
+  ]);
+  expect(result.throttled).toBe(false);
+});
+
 test('real Pyodide execution stays bounded across timeout, cancellation, queue flood and disposal', async ({ page }) => {
   test.slow();
   await page.goto('/');

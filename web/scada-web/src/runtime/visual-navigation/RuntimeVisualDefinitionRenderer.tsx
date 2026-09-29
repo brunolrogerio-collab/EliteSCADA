@@ -93,11 +93,12 @@ export function RuntimeVisualDefinitionRenderer({
     [elements, runtimeContextId]
   );
   const dispatcher = useMemo(() => new ClientVisualEventDispatcher({
+    visualDefinitionId,
     instances,
     onVisualStateChanged: () => setRevision(current => current + 1),
     runtimeFactory,
     frameClock
-  }), [instances, runtimeFactory, frameClock]);
+  }), [visualDefinitionId, instances, runtimeFactory, frameClock]);
 
   useEffect(() => () => dispatcher.dispose(), [dispatcher]);
 

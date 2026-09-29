@@ -8,6 +8,7 @@ using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.Events;
 using Scada.Engineering.Gateways;
+using Scada.Engineering.Historian;
 using Scada.Engineering.ImportExport.Handlers;
 using Scada.Engineering.Reports;
 using Scada.Engineering.Scripts;
@@ -37,6 +38,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     private readonly IReportEngineeringRegistry _reports;
     private readonly IOperationalEventEngineeringRegistry _operationalEvents;
     private readonly IEngineeringLockRegistry _engineeringLock;
+    private readonly IHistorianCaptureProfileEngineeringRegistry _historianCaptureProfiles;
     private readonly JsonSerializerOptions _json;
     private readonly EngineeringCsvExchange _csv;
     private readonly DataSourceEngineeringHandler _dataSourceHandler;
@@ -52,6 +54,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     private readonly ScriptEngineeringHandler _scriptHandler;
     private readonly ReportEngineeringHandler _reportHandler;
     private readonly OperationalEventEngineeringHandler _operationalEventHandler;
+    private readonly HistorianCaptureProfileEngineeringHandler _historianCaptureProfileHandler;
 
     public EngineeringExchangeService(ITagRegistry tags, IAlarmEngine alarms)
         : this(
@@ -165,7 +168,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         IReportEngineeringRegistry? reports = null,
         IDataSourceConfigurationValidator? dataSourceConfigurationValidator = null,
         IOperationalEventEngineeringRegistry? operationalEvents = null,
-        IEngineeringLockRegistry? engineeringLock = null)
+        IEngineeringLockRegistry? engineeringLock = null,
+        IHistorianCaptureProfileEngineeringRegistry? historianCaptureProfiles = null)
     {
         _tags = tags;
         _alarms = alarms;
@@ -182,6 +186,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             ?? (_scripts as IOperationalEventEngineeringRegistry)
             ?? new InMemoryOperationalEventEngineeringRegistry();
         _engineeringLock = engineeringLock ?? new InMemoryEngineeringLockRegistry();
+        _historianCaptureProfiles = historianCaptureProfiles ?? new InMemoryHistorianCaptureProfileEngineeringRegistry();
         _json = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -212,6 +217,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _scriptHandler = new ScriptEngineeringHandler(_scripts, tags, dataSources, assets, views);
         _reportHandler = new ReportEngineeringHandler(_reports, _visualAssets);
         _operationalEventHandler = new OperationalEventEngineeringHandler(_operationalEvents);
+        _historianCaptureProfileHandler = new HistorianCaptureProfileEngineeringHandler(_historianCaptureProfiles);
     }
 
     public EngineeringPackage ExportPackage()
@@ -254,7 +260,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
                 authoritySnapshot.Version,
                 authoritySnapshot.Roles.Select(role => role.Id!.Value).Order().ToArray(),
                 authoritySnapshot.Scopes.Select(scope => scope.Id).Order().ToArray()),
-            HistorianCaptureProfiles: Array.Empty<HistorianCaptureProfileEngineeringDto>(),
+            HistorianCaptureProfiles: _historianCaptureProfiles.Snapshot(),
             DataQueries: Array.Empty<DataQueryEngineeringDto>(),
             AlarmViews: Array.Empty<AlarmViewEngineeringDto>());
     }
@@ -359,6 +365,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
                 items.Add(new ImportPreviewItem(ImportEntityKind.SecurityRole, "authority-policy", ImportOperation.Error, [issue]));
             }
         }
+        _historianCaptureProfileHandler.Preview(package, mode, items);
         _dataSourceHandler.Preview(package, mode, items);
         _tagHandler.Preview(package, mode, items);
         _alarmHandler.Preview(package, mode, items);
@@ -404,6 +411,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         var updated = 0;
         var skipped = 0;
 
+        _historianCaptureProfileHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _dataSourceHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _tagHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _alarmHandler.Apply(package, mode, ref created, ref updated, ref skipped);

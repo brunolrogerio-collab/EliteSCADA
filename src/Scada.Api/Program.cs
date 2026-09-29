@@ -175,7 +175,10 @@ app.MapGet("/api/diagnostics/runtime", (ScadaRuntimeFacade runtime, IHistorian h
         {
             provider = HistorianConfiguration.DescribeProvider(historian),
             historian.WrittenSamples,
-            historian.PendingSamples
+            historian.PendingSamples,
+            historian.AcceptedSamples,
+            historian.SkippedSamples,
+            historian.CoalescedSamples
         },
         activeAlarms = descriptor.ActiveAlarmCount
     });

@@ -19,6 +19,7 @@ import { reportCollection } from './reports/reportDesignerModel';
 import { ReusableLibraryWorkspace } from './ReusableLibraryWorkspace';
 import { ScriptEngineeringWorkspace } from './scripts/ScriptEngineeringWorkspace';
 import { DataSourceEditor, TagEditor } from './StructuredEditors';
+import { GatewayEngineeringPanel } from './GatewayEngineeringPanel';
 import { UserAdministration } from './UserAdministration';
 import { PopupVisualEditorWorkspace } from './visual-editor/PopupVisualEditorWorkspace';
 import { VisualEditorWorkspace } from './visual-editor/VisualEditorWorkspace';
@@ -30,6 +31,7 @@ type SectionId =
   | 'scripts'
   | 'libraries'
   | 'dataSources'
+  | 'gateway'
   | 'tags'
   | 'alarms'
   | 'operationalEvents'
@@ -60,6 +62,7 @@ const navigation: NavGroup[] = [
   { label: 'nav.communication', items: [
     { id: 'dataSources', label: 'nav.dataSources' },
     { id: 'tags', label: 'nav.tags' },
+    { id: 'gateway', literalLabel: { 'pt-BR': 'TAG Gateway', en: 'TAG Gateway', es: 'TAG Gateway' } },
     { id: 'alarms', label: 'nav.alarms' },
     { id: 'operationalEvents', literalLabel: { 'pt-BR': 'Eventos Operacionais', en: 'Operational Events', es: 'Eventos Operacionales' } }
   ] },
@@ -232,6 +235,7 @@ function EngineeringSection({ section, snapshot, t, locale, onReload }: {
 
   switch (section) {
     case 'dataSources': return <DataSourceEditor model={model} locale={locale}/>;
+    case 'gateway': return <GatewayEngineeringPanel model={model} locale={locale}/>;
     case 'tags': return <TagEditor model={model} locale={locale}/>;
     case 'alarms': return <AlarmEditor model={model} locale={locale}/>;
     case 'operationalEvents': return <OperationalEventEditor model={model} locale={locale} onApplied={onReload}/>;
@@ -357,6 +361,7 @@ function BindingInspection({ bindings, t }: { bindings: Array<{ key: string; kin
 function sectionCount(model: EngineeringPackageView, section: SectionId): number | string {
   switch (section) {
     case 'dataSources': return model.dataSources?.length ?? 0;
+    case 'gateway': return model.gateways?.length ?? 0;
     case 'tags': return model.tags.length;
     case 'alarms': return model.alarms.length;
     case 'operationalEvents': return operationalEventCount(model);
@@ -382,7 +387,7 @@ function formatDate(value: string, locale: EngineeringLocale) {
 }
 function scriptNavLabel(_locale: EngineeringLocale) { return 'Scripts'; }
 function NavIcon({ section }: { section: SectionId }) {
-  const symbols: Record<SectionId, string> = { overview: '⌂', scripts: '</>', libraries: '▱', dataSources: '⇄', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯' };
+  const symbols: Record<SectionId, string> = { overview: '⌂', scripts: '</>', libraries: '▱', dataSources: '⇄', gateway: '⇢', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯' };
   return <i aria-hidden="true">{symbols[section]}</i>;
 }
 

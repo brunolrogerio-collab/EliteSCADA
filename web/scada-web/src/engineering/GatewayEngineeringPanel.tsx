@@ -46,6 +46,7 @@ export function GatewayEngineeringPanel({ model, locale }: Props) {
   const writableTags = useMemo(() => eligibleTags.filter(tag => !tag.readOnly), [eligibleTags]);
   const routes = model.gateways ?? [];
   const [selected, setSelected] = useState<string>('new');
+  const [routeQuery, setRouteQuery] = useState('');
   const [draft, setDraft] = useState<Draft>(() => emptyDraft(eligibleTags, writableTags));
   const [preview, setPreview] = useState<ImportPreviewView | null>(null);
   const [candidate, setCandidate] = useState<EngineeringPackageView | null>(null);
@@ -56,6 +57,12 @@ export function GatewayEngineeringPanel({ model, locale }: Props) {
   const [diagnostics, setDiagnostics] = useState<GatewayRuntimeDiagnostic[]>([]);
   const [diagnosticError, setDiagnosticError] = useState<string | null>(null);
   const [loadingDiagnostics, setLoadingDiagnostics] = useState(false);
+  const filteredRoutes = useMemo(() => {
+    const query = routeQuery.trim().toLowerCase();
+    if (!query) return routes;
+    return routes.filter(route => [route.key, route.name, route.sourceTagPath, route.destinationTagPath, route.transferMode]
+      .filter(Boolean).some(value => String(value).toLowerCase().includes(query)));
+  }, [routeQuery, routes]);
 
   const refreshDiagnostics = async () => {
     setLoadingDiagnostics(true);
@@ -150,6 +157,46 @@ export function GatewayEngineeringPanel({ model, locale }: Props) {
         </div>
       </header>
 
+      <section className="eng-panel gateway-route-inventory" data-testid="gateway-route-inventory">
+        <div className="eng-mutation-header">
+          <div>
+            <span>{text.inventoryEyebrow}</span>
+            <h2>{text.inventoryTitle}</h2>
+            <p>{text.inventoryHint}</p>
+          </div>
+          <button type="button" className="primary gateway-new-route" data-testid="gateway-new-route" onClick={() => chooseRoute('new')} disabled={previewing || applying}>
+            {text.newRoute}
+          </button>
+        </div>
+        <div className="gateway-route-toolbar">
+          <label className="eng-mutation-field">
+            <span>{text.searchRoutes}</span>
+            <input value={routeQuery} onChange={event => setRouteQuery(event.target.value)} placeholder={text.searchRoutesPlaceholder} data-testid="gateway-route-search" />
+          </label>
+          <strong data-testid="gateway-route-count">{routes.length} {text.routes}</strong>
+        </div>
+        {filteredRoutes.length === 0 ? <div className="eng-empty"><strong>{routes.length === 0 ? text.noRoutes : text.noRouteMatches}</strong><span>{text.noRoutesHint}</span></div> :
+          <div className="gateway-route-list" role="list">
+            {filteredRoutes.map(route => {
+              const identity = routeIdentity(route);
+              return <button
+                key={identity}
+                type="button"
+                role="listitem"
+                className={selected === identity ? 'gateway-route-row active' : 'gateway-route-row'}
+                onClick={() => chooseRoute(identity)}
+                disabled={previewing || applying}
+                data-testid="gateway-route-row"
+              >
+                <span className="gateway-route-main"><strong>{route.key}</strong><small>{route.name}</small></span>
+                <code>{route.sourceTagPath || '—'} → {route.destinationTagPath || '—'}</code>
+                <span>{normalizeEnum(route.transferMode) === 'periodic' ? 'Periodic' : 'OnChange'}</span>
+                <span className={route.enabled === false ? 'gateway-route-state disabled' : 'gateway-route-state'}>{route.enabled === false ? text.disabled : text.enabledState}</span>
+              </button>;
+            })}
+          </div>}
+      </section>
+
       <section className="eng-mutation-panel">
         <header className="eng-mutation-header">
           <div>
@@ -163,13 +210,10 @@ export function GatewayEngineeringPanel({ model, locale }: Props) {
         <div className="eng-mutation-grid">
           <section className="eng-mutation-card">
             <header><strong>{text.route}</strong><span>{text.routeHint}</span></header>
-            <label className="eng-mutation-field">
+            <div className="gateway-selected-route" data-testid="gateway-selected-route">
               <span>{text.route}</span>
-              <select value={selected} onChange={event => chooseRoute(event.target.value)} disabled={previewing || applying} data-testid="gateway-route-select">
-                <option value="new">{text.newRoute}</option>
-                {routes.map(route => <option key={routeIdentity(route)} value={routeIdentity(route)}>{route.key}</option>)}
-              </select>
-            </label>
+              <strong>{selected === 'new' ? text.newRouteDraft : draft.key || text.newRouteDraft}</strong>
+            </div>
             <label className="eng-mutation-field"><span>{text.key}</span><input value={draft.key} onChange={event => change('key', event.target.value)} data-testid="gateway-key" /></label>
             <label className="eng-mutation-field"><span>{text.name}</span><input value={draft.name} onChange={event => change('name', event.target.value)} /></label>
             <label className="eng-mutation-field">
@@ -364,7 +408,7 @@ function labels(locale: EngineeringLocale) {
   if (locale === 'en') return {
     title: 'TAG Gateway', description: 'Route server-authoritative TAG values between Data Sources without coupling protocol drivers.', routes: 'routes',
     editorEyebrow: 'Canonical Engineering', editorTitle: 'Route configuration', editorHint: 'Preview and Apply use the public versioned Engineering package.',
-    warning: 'Client Memory and built-in simulation are not valid server Gateway endpoints.', route: 'Route', routeHint: 'Edit an existing route or create a new stable route.', newRoute: '+ New route',
+    warning: 'Client Memory and built-in simulation are not valid server Gateway endpoints.', inventoryEyebrow: 'Working routes', inventoryTitle: 'Route inventory', inventoryHint: 'Each row is one independent TAG-to-TAG route. Select a route to edit it without replacing the others.', searchRoutes: 'Search routes', searchRoutesPlaceholder: 'Search by key, name or endpoint', noRoutes: 'No routes configured', noRouteMatches: 'No routes match this search', noRoutesHint: 'Use New route to add an independent TAG-to-TAG mapping.', enabledState: 'Enabled', disabled: 'Disabled', newRouteDraft: 'New unsaved route', route: 'Route', routeHint: 'Edit an existing route or create a new stable route.', newRoute: '+ New route',
     key: 'Key', name: 'Name', enabled: 'Enabled', yes: 'Yes', no: 'No', endpoints: 'Endpoints', endpointsHint: 'Stable TAG IDs are runtime identity; paths remain portable context.', source: 'Source TAG', destination: 'Destination TAG', selectTag: 'Select TAG...', serverOnly: 'Only active server-owned TAGs are eligible.',
     transfer: 'Transfer policy', transferHint: 'OnChange is change-driven; Periodic samples the latest Good value.', mode: 'Mode', startup: 'Startup', synchronize: 'Synchronize first acceptable value', waitNext: 'Wait for next acceptable value', deadband: 'Deadband', minimumInterval: 'Minimum interval (ms)', period: 'Period (ms)',
     conversion: 'Conversion', conversionHint: 'Exact is default. Numeric conversion must be explicit and checked.', policy: 'Policy', preview: 'Preview route', previewing: 'Previewing...', apply: 'Apply to Workspace', applying: 'Applying...', valid: 'Valid Engineering candidate', invalid: 'Invalid Engineering candidate', creates: 'Creates', updates: 'Updates', errors: 'Errors',
@@ -374,7 +418,7 @@ function labels(locale: EngineeringLocale) {
   if (locale === 'es') return {
     title: 'TAG Gateway', description: 'Enruta valores de TAG autoritativos del servidor entre Data Sources sin acoplar drivers de protocolo.', routes: 'rutas',
     editorEyebrow: 'Engineering canónico', editorTitle: 'Configuración de ruta', editorHint: 'Preview y Apply usan el paquete público y versionado de Engineering.',
-    warning: 'Client Memory y la simulación integrada no son endpoints válidos del Gateway de servidor.', route: 'Ruta', routeHint: 'Edite una ruta existente o cree una ruta estable.', newRoute: '+ Nueva ruta',
+    warning: 'Client Memory y la simulación integrada no son endpoints válidos del Gateway de servidor.', inventoryEyebrow: 'Rutas Working', inventoryTitle: 'Inventario de rutas', inventoryHint: 'Cada fila es una ruta TAG-a-TAG independiente. Seleccione una ruta para editarla sin reemplazar las demás.', searchRoutes: 'Buscar rutas', searchRoutesPlaceholder: 'Buscar por clave, nombre o endpoint', noRoutes: 'No hay rutas configuradas', noRouteMatches: 'Ninguna ruta coincide con la búsqueda', noRoutesHint: 'Use Nueva ruta para agregar un mapeo TAG-a-TAG independiente.', enabledState: 'Habilitada', disabled: 'Deshabilitada', newRouteDraft: 'Nueva ruta sin guardar', route: 'Ruta', routeHint: 'Edite una ruta existente o cree una ruta estable.', newRoute: '+ Nueva ruta',
     key: 'Clave', name: 'Nombre', enabled: 'Habilitada', yes: 'Sí', no: 'No', endpoints: 'Endpoints', endpointsHint: 'Los IDs estables de TAG son identidad de runtime; los paths mantienen contexto portable.', source: 'TAG origen', destination: 'TAG destino', selectTag: 'Seleccione TAG...', serverOnly: 'Solo TAGs activos y autoritativos del servidor son elegibles.',
     transfer: 'Política de transferencia', transferHint: 'OnChange responde a cambios; Periodic usa el último valor Good.', mode: 'Modo', startup: 'Inicio', synchronize: 'Sincronizar primer valor aceptable', waitNext: 'Esperar próximo valor aceptable', deadband: 'Deadband', minimumInterval: 'Intervalo mínimo (ms)', period: 'Período (ms)',
     conversion: 'Conversión', conversionHint: 'Exact es el valor por defecto. La conversión numérica debe ser explícita y checked.', policy: 'Política', preview: 'Preview de ruta', previewing: 'Validando...', apply: 'Aplicar al Workspace', applying: 'Aplicando...', valid: 'Candidato Engineering válido', invalid: 'Candidato Engineering inválido', creates: 'Creadas', updates: 'Actualizadas', errors: 'Errores',
@@ -384,7 +428,7 @@ function labels(locale: EngineeringLocale) {
   return {
     title: 'TAG Gateway', description: 'Roteie valores de TAGs autoritativas do servidor entre Data Sources sem acoplar drivers de protocolo.', routes: 'rotas',
     editorEyebrow: 'Engineering canônico', editorTitle: 'Configuração de rota', editorHint: 'Preview e Apply usam o pacote público e versionado de Engineering.',
-    warning: 'Client Memory e a simulação interna não são endpoints válidos do Gateway de servidor.', route: 'Rota', routeHint: 'Edite uma rota existente ou crie uma nova rota estável.', newRoute: '+ Nova rota',
+    warning: 'Client Memory e a simulação interna não são endpoints válidos do Gateway de servidor.', inventoryEyebrow: 'Rotas Working', inventoryTitle: 'Inventário de rotas', inventoryHint: 'Cada linha é uma rota TAG-a-TAG independente. Selecione uma rota para editá-la sem substituir as demais.', searchRoutes: 'Pesquisar rotas', searchRoutesPlaceholder: 'Pesquise por chave, nome ou endpoint', noRoutes: 'Nenhuma rota configurada', noRouteMatches: 'Nenhuma rota corresponde à pesquisa', noRoutesHint: 'Use Nova rota para adicionar um mapeamento TAG-a-TAG independente.', enabledState: 'Habilitada', disabled: 'Desabilitada', newRouteDraft: 'Nova rota ainda não salva', route: 'Rota', routeHint: 'Edite uma rota existente ou crie uma nova rota estável.', newRoute: '+ Nova rota',
     key: 'Chave', name: 'Nome', enabled: 'Habilitada', yes: 'Sim', no: 'Não', endpoints: 'Endpoints', endpointsHint: 'IDs estáveis de TAG são a identidade runtime; paths mantêm contexto portável.', source: 'TAG origem', destination: 'TAG destino', selectTag: 'Selecione a TAG...', serverOnly: 'Somente TAGs ativas e autoritativas do servidor são elegíveis.',
     transfer: 'Política de transferência', transferHint: 'OnChange reage a mudança real; Periodic usa o valor Good mais recente.', mode: 'Modo', startup: 'Inicialização', synchronize: 'Sincronizar primeiro valor aceitável', waitNext: 'Aguardar próximo valor aceitável', deadband: 'Deadband', minimumInterval: 'Intervalo mínimo (ms)', period: 'Período (ms)',
     conversion: 'Conversão', conversionHint: 'Exact é o padrão. Conversão numérica precisa ser explícita e checked.', policy: 'Política', preview: 'Preview da rota', previewing: 'Validando...', apply: 'Aplicar ao Workspace', applying: 'Aplicando...', valid: 'Candidato Engineering válido', invalid: 'Candidato Engineering inválido', creates: 'Criações', updates: 'Atualizações', errors: 'Erros',

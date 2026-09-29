@@ -414,6 +414,7 @@ test('mounted specialized Engineering surfaces keep dark/light contrast and Mona
     expect(focus.outline).toBe(resolvedFocus);
 
     const hover = page.getByTestId('theme-hover');
+    await page.mouse.move(0, 0);
     const beforeHover = await hover.evaluate(element => getComputedStyle(element).backgroundColor);
     await hover.scrollIntoViewIfNeeded();
     await hover.hover();

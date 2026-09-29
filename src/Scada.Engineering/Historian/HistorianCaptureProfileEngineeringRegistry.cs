@@ -5,6 +5,19 @@ namespace Scada.Engineering.Historian;
 
 public sealed record HistorianCaptureProfileValidationProblem(string Code, string Message);
 
+public static class HistorianCaptureProfileMetadata
+{
+    public const string ProfileIdMetadataKey = "historian.captureProfileId";
+
+    public static Guid? ReadProfileId(IReadOnlyDictionary<string, string>? metadata) =>
+        metadata is not null &&
+        metadata.TryGetValue(ProfileIdMetadataKey, out var value) &&
+        Guid.TryParse(value, out var id) &&
+        id != Guid.Empty
+            ? id
+            : null;
+}
+
 public static class HistorianCaptureProfileEngineeringValidation
 {
     public static IReadOnlyCollection<HistorianCaptureProfileValidationProblem> Validate(
@@ -101,10 +114,14 @@ public sealed class InMemoryHistorianCaptureProfileEngineeringRegistry : IHistor
     private readonly Dictionary<Guid, HistorianCaptureProfileEngineeringDto> _byId = new();
     private readonly Dictionary<string, Guid> _byKey = new(StringComparer.OrdinalIgnoreCase);
     private readonly Action? _changed;
+    private readonly Func<Guid, bool>? _isReferenced;
 
-    public InMemoryHistorianCaptureProfileEngineeringRegistry(Action? changed = null)
+    public InMemoryHistorianCaptureProfileEngineeringRegistry(
+        Action? changed = null,
+        Func<Guid, bool>? isReferenced = null)
     {
         _changed = changed;
+        _isReferenced = isReferenced;
     }
 
     public IReadOnlyCollection<HistorianCaptureProfileEngineeringDto> Snapshot()
@@ -161,6 +178,10 @@ public sealed class InMemoryHistorianCaptureProfileEngineeringRegistry : IHistor
 
     public bool Remove(Guid id)
     {
+        if (_isReferenced?.Invoke(id) == true)
+            throw new InvalidOperationException(
+                $"Historian capture profile '{id:D}' cannot be deleted while one or more TAGs reference it.");
+
         HistorianCaptureProfileEngineeringDto? removed;
         lock (_sync)
         {

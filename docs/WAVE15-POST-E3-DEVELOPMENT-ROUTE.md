@@ -1,10 +1,10 @@
 # Wave 15 — Post-E3 Development Route
 
-**Status:** PREPARED / WAIT_REV0117_TWEEN_DIAGNOSTIC / NO_POST_E3_PRODUCT_MUTATION_YET  
+**Status:** PREPARED / WAIT_REV0118_TWEEN_PYPROXY_FIX / GATE0_SCRIPT_CORRECTION_ACTIVE  
 **Coordinator issue:** #378  
 **Execution ledger:** #305  
 **Current integration baseline at preparation time:** `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`  
-**Current shared CODEX order:** `rev0117 / FINAL-SEQUENTIAL-CODEX-SCRIPT-TWEEN-BRIDGE-DIAGNOSTIC-98`
+**Current shared CODEX order:** `rev0118 / FINAL-SEQUENTIAL-CODEX-SCRIPT-TWEEN-PYPROXY-LIFETIME-FIX-99`
 
 GitHub live is authoritative. Every gate below must be revalidated against live branches, PR heads, CI and issue handoffs before execution.
 
@@ -15,7 +15,7 @@ Finish the current correction wave without mixing unrelated productization work 
 The route is:
 
 ```text
-rev0117 causal TWEEN bridge-completion diagnostic after rev0116 READ+WRITE completed (#373 and #376 already E3-accepted)
+rev0118 bounded TWEEN borrowed-PyProxy lifetime correction after rev0117 causal proof (#373 and #376 E3 evidence carried forward)
   -> integrate #373/#374/#376 if Gate 0 closes
   -> recompose/integrate #375
   -> freeze Round-2 UX/product contracts
@@ -32,27 +32,29 @@ rev0117 causal TWEEN bridge-completion diagnostic after rev0116 READ+WRITE compl
 
 ## 2. Gate 0 — residual E3 disposition
 
-Do not start new product branches while rev0117 is active.
+Do not start unrelated product branches while rev0118 is active. The only authorized Gate-0 product mutation is the bounded #374 Script bridge fix on its existing branch.
 
 Current carried-forward state:
 - #376 Gateway: `E2_ACCEPTED / E3_MOUNTED_ACCEPTED / WAIT_COHORT_GATE0_CLOSE`;
 - #373 HMI: `E2_ACCEPTED / E3_MOUNTED_ACCEPTED`;
 - #376 Gateway: `E2_ACCEPTED / E3_MOUNTED_ACCEPTED`;
-- #374 Script: Apply + persisted Key rename/reuse/no-retarget + bridge operation/render evidence accepted; only minimal Python handler completion remains;
+- #374 Script: prior authoring evidence remains accepted; rev0117 confirmed the remaining TWEEN completion failure is a Client Visual Python bridge lifetime defect, now owned by rev0118;
 - rev0115 was invalidated by a disposable fixture that omitted the product-generated `elite_scada` import;
-- rev0116 proved Script Assistant-generated READ and WRITE complete; TWEEN emitted a real request and changed the mounted object but did not return Worker completion. rev0117 localizes that exact request/response/await seam without product mutation.
+- rev0116 proved Script Assistant-generated READ and WRITE complete; rev0117 proved TWEEN response delivery succeeds but the Python await cannot resume because `normalizeBridgeValue()` prematurely destroys the borrowed inbound dict PyProxy. rev0118 applies only that fix plus regression/E2/Script-only E3 residual recheck.
 
-If CODEX returns:
+The pre-fix combined tree `3aaec957ce27c73bb8b7090b7cd9f412ba26b567` is historical evidence only now that rev0117 proved a product defect requiring a #374 byte change. It must **not** be used as the final post-fix tree target.
 
-`COMBINED_E3_PASS / LOCAL_DOCKER_MOUNTED / #373+#374+#376 COMPLETE`
+If rev0118 returns:
+`SCRIPT_TWEEN_PYPROXY_FIX / E2_GREEN / E3_TWEEN_COMPLETED / <new #374 HEAD> / <new combined tree>`
 
 Main must:
 1. revalidate integration still equals the pinned base;
-2. revalidate #373/#374/#376 exact heads;
-3. integrate in preferred order:
+2. revalidate #373/#376 remained byte-identical to their accepted E3 heads;
+3. review the exact #374 correction diff and exact-head T1;
+4. treat the rev0118-reported combined tree as the new Gate-0 E3 product-tree authority;
+5. integrate in preferred order:
    `#373 -> #374 -> #376`;
-4. prove final integrated tree is byte-identical to:
-   `3aaec957ce27c73bb8b7090b7cd9f412ba26b567`.
+6. prove the resulting final integrated **product tree** is byte-identical to that new rev0118 combined E3 tree.
 
 If a causal failure is returned:
 - assign only the proven owning lane or cross-lane boundary;
@@ -472,7 +474,7 @@ Any consumer that finds an insufficient contract returns:
 
 | Phase | Chat | May run with | Must wait for |
 |---|---|---|---|
-| Current | Shared CODEX rev0117 TWEEN diagnostic | nothing new mutating same product | active now |
+| Current | Shared CODEX rev0118 TWEEN PyProxy fix | only bounded #374 worker + regression test mutation | active now |
 | Gate 1 | G / #375 recomposition | none required | E/F/H integration |
 | Contract | Main/CODEX | no product DEV required | post-#375 base |
 | R2-A | I / Engineering density | K | frozen C-ENG-DENSITY-01 + C-PRODUCT-VERSION-01 + post-#375 base |
@@ -499,4 +501,4 @@ This route carries the following interaction rules across coordinator rotations:
 
 ## 15. Current disposition
 
-`PREPARED / WAIT_REV0117_TWEEN_DIAGNOSTIC / NO_POST_E3_PRODUCT_MUTATION_YET`.
+`PREPARED / WAIT_REV0118_TWEEN_PYPROXY_FIX / GATE0_SCRIPT_CORRECTION_ACTIVE`.

@@ -197,6 +197,14 @@ export type EngineeringFragmentPreviewItem = Readonly<{
   reason?: string | null;
 }>;
 
+export type EngineeringFragmentEnvelope = Readonly<{
+  schema: typeof ENGINEERING_FRAGMENT_SCHEMA;
+  schemaVersion: typeof ENGINEERING_FRAGMENT_SCHEMA_VERSION;
+  exportedAt: string;
+  manifest: EngineeringFragmentManifest;
+  engineering: EngineeringPackageView;
+}>;
+
 export type ReusableLibraryUpdateState =
   | 'upToDate'
   | 'updateAvailable'
@@ -210,6 +218,12 @@ export type ReusableLibrarySourceProvenanceEngineering = Readonly<{
   sourceVersion: string;
   sourceContentHash: string;
   version?: number;
+}>;
+
+export type ReusableLibraryResourceUpdateEngineering = Readonly<{
+  source: ReusableLibrarySourceProvenanceEngineering;
+  state: ReusableLibraryUpdateState;
+  currentContentHash?: string | null;
 }>;
 
 export type TagAccessPolicyEngineering = {
@@ -250,6 +264,7 @@ export type TagEngineering = {
   accessPolicy?: TagAccessPolicyEngineering | null;
   initialValue?: MemoryInitialValueEngineering | null;
   addressSelector?: TagValueSelectorEngineering | null;
+  historianCaptureProfileId?: string | null;
 };
 
 export type AlarmEngineering = {

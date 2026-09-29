@@ -1,10 +1,10 @@
 # Wave 15 — Post-E3 Development Route
 
-**Status:** PREPARED / WAIT_REV0116 / NO_POST_E3_PRODUCT_MUTATION_YET  
+**Status:** PREPARED / WAIT_REV0117_TWEEN_DIAGNOSTIC / NO_POST_E3_PRODUCT_MUTATION_YET  
 **Coordinator issue:** #378  
 **Execution ledger:** #305  
 **Current integration baseline at preparation time:** `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`  
-**Current shared CODEX order:** `rev0116 / FINAL-SEQUENTIAL-CODEX-SCRIPT-PYTHON-CORRECTED-FIXTURE-97`
+**Current shared CODEX order:** `rev0117 / FINAL-SEQUENTIAL-CODEX-SCRIPT-TWEEN-BRIDGE-DIAGNOSTIC-98`
 
 GitHub live is authoritative. Every gate below must be revalidated against live branches, PR heads, CI and issue handoffs before execution.
 
@@ -15,7 +15,7 @@ Finish the current correction wave without mixing unrelated productization work 
 The route is:
 
 ```text
-rev0116 corrected product-generated Script Python completion diagnostic (#373 and #376 already E3-accepted)
+rev0117 causal TWEEN bridge-completion diagnostic after rev0116 READ+WRITE completed (#373 and #376 already E3-accepted)
   -> integrate #373/#374/#376 if Gate 0 closes
   -> recompose/integrate #375
   -> freeze Round-2 UX/product contracts
@@ -32,7 +32,7 @@ rev0116 corrected product-generated Script Python completion diagnostic (#373 an
 
 ## 2. Gate 0 — residual E3 disposition
 
-Do not start new product branches while rev0116 is active.
+Do not start new product branches while rev0117 is active.
 
 Current carried-forward state:
 - #376 Gateway: `E2_ACCEPTED / E3_MOUNTED_ACCEPTED / WAIT_COHORT_GATE0_CLOSE`;
@@ -40,7 +40,7 @@ Current carried-forward state:
 - #376 Gateway: `E2_ACCEPTED / E3_MOUNTED_ACCEPTED`;
 - #374 Script: Apply + persisted Key rename/reuse/no-retarget + bridge operation/render evidence accepted; only minimal Python handler completion remains;
 - rev0115 was invalidated by a disposable fixture that omitted the product-generated `elite_scada` import;
-- rev0116 uses the actual Script Assistant-generated READ/WRITE/TWEEN snippets and requires `execution-result: completed` for each.
+- rev0116 proved Script Assistant-generated READ and WRITE complete; TWEEN emitted a real request and changed the mounted object but did not return Worker completion. rev0117 localizes that exact request/response/await seam without product mutation.
 
 If CODEX returns:
 
@@ -472,7 +472,7 @@ Any consumer that finds an insufficient contract returns:
 
 | Phase | Chat | May run with | Must wait for |
 |---|---|---|---|
-| Current | Shared CODEX rev0116 | nothing new mutating same product | active now |
+| Current | Shared CODEX rev0117 TWEEN diagnostic | nothing new mutating same product | active now |
 | Gate 1 | G / #375 recomposition | none required | E/F/H integration |
 | Contract | Main/CODEX | no product DEV required | post-#375 base |
 | R2-A | I / Engineering density | K | frozen C-ENG-DENSITY-01 + C-PRODUCT-VERSION-01 + post-#375 base |
@@ -499,4 +499,4 @@ This route carries the following interaction rules across coordinator rotations:
 
 ## 15. Current disposition
 
-`PREPARED / WAIT_REV0116 / NO_POST_E3_PRODUCT_MUTATION_YET`.
+`PREPARED / WAIT_REV0117_TWEEN_DIAGNOSTIC / NO_POST_E3_PRODUCT_MUTATION_YET`.

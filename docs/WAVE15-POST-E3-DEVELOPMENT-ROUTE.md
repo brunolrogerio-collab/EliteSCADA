@@ -830,25 +830,53 @@ Then Main records:
 
 Only then return to the deferred original Wave 15 roadmap.
 
-## 12. Deferred original Wave 15 after correction acceptance
+## 12. Wave 15 closeout boundary and post-W15 sequencing
 
-Do not activate these merely because they are documented here.
+**Product Owner scope decision — 2026-09-29**
 
-Resume canonical sequencing for:
-- EliteGO;
-- Installation UX;
+Wave 15 must close the EliteSCADA product and the remaining accepted correction/product demands **without implementing EliteGO as a product/client in this Wave**.
+
+EliteGO is explicitly:
+`DEFERRED_AFTER_WAVE16 / NOT_A_WAVE15_EXIT_GATE`.
+
+Wave 15 must nevertheless preserve the architectural prerequisites a future EliteGO will consume inside EliteSCADA itself:
+- canonical Server Runtime/public Runtime projection;
+- transport-independent Runtime boundary where already established;
+- one canonical Runtime/rendering implementation, not a second HMI engine;
+- backend Authority/effective-capability enforcement;
+- Runtime Session Lease semantics and reconnect-safe identity where already part of server contracts;
+- topology-neutral `.escadapkg`;
+- no direct Runtime-client access to Drivers/database authority;
+- truthful freshness/reconnect semantics;
+- product/API version identity;
+- no implementation choice in Wave 15 may make future remote Runtime require a product fork.
+
+Do **not** expand Wave 15 merely to prove a separate EliteGO executable/UI.
+
+The next productization Wave after Wave 15 is **Wave 16 — Windows Native Runtime + Installer**.
+
+Wave 16 direction:
+- run EliteSCADA natively on supported Windows x64 without Visual Studio or Docker Desktop;
+- package the current accepted EliteSCADA product from the post-W15 authority;
+- native Windows Service/SCM lifecycle and deterministic startup/readiness;
+- packaged Web/Pyodide/runtime assets;
+- protected config/data/license/certificate/log locations outside immutable program files;
+- preserve project/Authority/license/Historian state across restart/update;
+- installer install/repair/upgrade/uninstall with explicit non-destructive data retention and separate destructive purge;
+- local access to Engineering/Runtime after service readiness;
+- exact product version/build provenance;
+- reuse applicable work/evidence from preserved Wave 13 #205/#207 and installed-service contract #361, but do not resume or merge the stale Wave 13 product snapshot as the new release authority;
+- signing/Authenticode remains a release-trust stage and must consume the new post-W15 Windows package;
+- customer installer/package must not contain internal development docs/materials.
+
+Longer-term deployment fronts remain preserved, not discarded:
+- EliteGO / remote Runtime client — future after the installed server foundation is stable;
 - downstream HA;
-- container/native deployment productization #363;
-- database topology #366:
-  - Local managed PostgreSQL/TimescaleDB by default;
-  - supported Remote PostgreSQL/TimescaleDB;
-  - optional Historian override;
-  - Local -> Remote;
-  - Remote -> Local;
-  - Remote -> Remote;
-  - safe migration/cutover/rollback;
-- product convergence / industrial visuals / help / localization / EEE v15;
-- final exact validation and final Preview.
+- OCI/container-native architecture #363;
+- database topology #366;
+- future Linux/Debian distribution.
+
+Wave 15 still closes its remaining accepted product work, Preview/audit/correction gates and exact final validation. EliteGO absence is not a Wave 15 defect after this decision.
 
 ## 13. Shared-contract dependency matrix
 

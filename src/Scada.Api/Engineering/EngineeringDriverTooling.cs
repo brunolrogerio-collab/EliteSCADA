@@ -3,7 +3,9 @@ using System.Text;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.Drivers.Abstractions;
+using Scada.Drivers.Modbus;
 using Scada.Drivers.OpcUa;
+using Scada.Drivers.SiemensS7Iso;
 using Scada.Engineering.Contracts;
 
 namespace Scada.Api.Engineering;
@@ -117,6 +119,56 @@ public sealed class EngineeringDriverToolProviderFactoryRegistry
     }
 }
 
+
+public sealed class ModbusEngineeringDriverToolProviderFactory : IEngineeringDriverToolProviderFactory
+{
+    public string DriverType => ModbusTcpDriverDescriptorProvider.DriverTypeId;
+
+    public ValueTask<EngineeringDriverToolProviderLease> CreateAsync(
+        string? projectKey,
+        DataSourceEngineeringDto dataSource,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(dataSource);
+        if (!string.Equals(dataSource.Driver, DriverType, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"Modbus Engineering tooling cannot open Data Source driver '{dataSource.Driver}'.", nameof(dataSource));
+
+        var tester = new ModbusTcpPointReadTester();
+        var registration = new CommunicationDriverModuleRegistration(
+            tester,
+            PointReadTester: tester);
+        registration.Validate();
+        return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));
+    }
+}
+
+public sealed class S7IsoEngineeringDriverToolProviderFactory : IEngineeringDriverToolProviderFactory
+{
+    public string DriverType => "siemens.s7.iso";
+
+    public ValueTask<EngineeringDriverToolProviderLease> CreateAsync(
+        string? projectKey,
+        DataSourceEngineeringDto dataSource,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(dataSource);
+        if (!string.Equals(dataSource.Driver, DriverType, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"S7 ISO Engineering tooling cannot open Data Source driver '{dataSource.Driver}'.", nameof(dataSource));
+
+        var engineering = new S7IsoEngineeringAdapter();
+        var pointRead = new S7IsoPointReadTester();
+        var registration = new CommunicationDriverModuleRegistration(
+            engineering,
+            ConnectionTester: engineering,
+            FileImporter: engineering,
+            PointReadTester: pointRead);
+        registration.Validate();
+        return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));
+    }
+}
+
 public sealed class OpcUaEngineeringDriverToolProviderFactory :
     IEngineeringDriverToolProviderFactory,
     IAsyncDisposable
@@ -207,13 +259,15 @@ public sealed class OpcUaEngineeringDriverToolProviderFactory :
             dataSource.SecretReferences,
             _protectedMaterialResolver);
         var provider = new OpcUaFoundationEngineeringProvider(securityMaterialProvider);
+        var pointRead = new OpcUaPointReadTester(securityMaterialProvider);
         var registration = new CommunicationDriverModuleRegistration(
             provider,
             ConnectionTester: provider,
             DiscoverySource: provider,
             Browser: provider,
             FileImporter: null,
-            Reconciler: provider);
+            Reconciler: provider,
+            PointReadTester: pointRead);
         registration.Validate();
         return new CreatedProvider(provider, registration);
     }

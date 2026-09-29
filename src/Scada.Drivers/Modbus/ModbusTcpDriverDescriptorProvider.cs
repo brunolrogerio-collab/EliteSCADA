@@ -62,7 +62,7 @@ public sealed class ModbusTcpDriverDescriptorProvider : ICommunicationDriverDesc
         DisplayName: "Modbus TCP",
         DriverContractVersion: 1,
         RuntimeCapabilities: DriverCapabilities.Read | DriverCapabilities.Write | DriverCapabilities.Diagnostics,
-        EngineeringCapabilities: DriverEngineeringCapabilities.None,
+        EngineeringCapabilities: DriverEngineeringCapabilities.PointReadTest,
         AcquisitionModes: new[] { DriverAcquisitionMode.Polling },
         ConfigurationSchema: new DriverConfigurationSchemaDescriptor(
             SchemaId: "modbus.tcp.engineering",

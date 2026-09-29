@@ -1,3 +1,31 @@
+# LATEST PRODUCT OWNER DELTA — 2026-09-29 — WAVE 13 CANCELLED / WAVE 16 EVIDENCE AUTHORITY
+
+> This delta supersedes every older instruction that says Wave 13 #205/#207 is merely paused or should later resume.
+
+Product Owner final disposition:
+- Wave 13 #205 is CLOSED / NOT_PLANNED;
+- PR #207 is CLOSED / CANCELLED / MUST NOT MERGE;
+- branch/artifacts remain only as historical evidence and must not be revived/rebased into the future Windows release path;
+- the useful historical outcome from that period is the first real browser Preview path #208/#210 and the product findings it enabled.
+
+Next installed-product authority:
+- Wave 16 / #408 — Windows-first / cross-platform-core;
+- exact accepted post-Wave-15 product is the source authority;
+- primary operational evidence is #360/#362 plus `docs/LOCAL-ELITESCADA-OPERATIONS-EVIDENCE.md`;
+- #208/#210 first browser Preview evidence is secondary real-use evidence;
+- #361 installed-service contract and #366 DB topology remain inputs;
+- Wave 13 techniques may be inspected only as non-authoritative historical reference.
+
+Reason:
+the later CODEX/local workbench actually exercised startup/lifecycle/provenance/cache/PowerShell/TLS/readiness/persistence/failure behavior on a Windows host and records both confirmed behavior and explicit untested gaps. Wave 16 must convert those lessons into native installed-product requirements rather than inherit the old unsigned Wave 13 package assumptions.
+
+Canonical current preparation:
+- `docs/WAVE16-WINDOWS-NATIVE-INSTALLER-DIRECTION.md`;
+- active roadmap `docs/ROADMAP.md`;
+- issue #408.
+
+---
+
 # TAKEOVER POINTER — 2026-09-29 — R2-A PARALLEL EXECUTION
 
 > **READ FIRST:** `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-09-29-R2A.md`

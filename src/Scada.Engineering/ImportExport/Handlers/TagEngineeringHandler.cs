@@ -3,7 +3,6 @@ using Scada.Core.Alarms;
 using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
-using Scada.Engineering.Historian;
 using Scada.Engineering.Security;
 using Scada.Engineering.Validation;
 
@@ -15,20 +14,17 @@ internal sealed class TagEngineeringHandler
     private readonly IDataSourceEngineeringRegistry _dataSources;
     private readonly IAlarmEngine _alarms;
     private readonly ISecurityPolicyEngineeringRegistry _securityPolicies;
-    private readonly IHistorianCaptureProfileEngineeringRegistry _historianCaptureProfiles;
 
     public TagEngineeringHandler(
         ITagRegistry tags,
         IDataSourceEngineeringRegistry dataSources,
         IAlarmEngine alarms,
-        ISecurityPolicyEngineeringRegistry securityPolicies,
-        IHistorianCaptureProfileEngineeringRegistry historianCaptureProfiles)
+        ISecurityPolicyEngineeringRegistry securityPolicies)
     {
         _tags = tags;
         _dataSources = dataSources;
         _alarms = alarms;
         _securityPolicies = securityPolicies;
-        _historianCaptureProfiles = historianCaptureProfiles;
     }
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
@@ -45,7 +41,6 @@ internal sealed class TagEngineeringHandler
             issues.AddRange(MemoryEngineeringValidator.ValidateTag(dto, dataSource));
             ValidateClientMemoryTransition(dto, dataSource, issues);
             ValidateDataSourceReference(dto, package, dataSource, issues);
-            ValidateHistorianCaptureProfileReference(dto, package, issues);
 
             if (duplicatePaths.Contains(dto.Path))
                 issues.Add(new(
@@ -322,55 +317,6 @@ internal sealed class TagEngineeringHandler
         }
     }
 
-    private void ValidateHistorianCaptureProfileReference(
-        TagEngineeringDto dto,
-        EngineeringPackage package,
-        List<ImportIssue> issues)
-    {
-        if (!dto.HistorianCaptureProfileId.HasValue) return;
-
-        var profileId = dto.HistorianCaptureProfileId.Value;
-        if (profileId == Guid.Empty)
-        {
-            issues.Add(new(
-                "HISTORIAN_CAPTURE_PROFILE_REFERENCE_INVALID",
-                $"TAG '{dto.Path}' has an empty Historian capture profile identity.",
-                ImportEntityKind.Tag,
-                dto.Path,
-                true));
-            return;
-        }
-
-        var packageMatches = (package.HistorianCaptureProfiles ?? Array.Empty<HistorianCaptureProfileEngineeringDto>())
-            .Where(profile => profile is not null && profile.Id == profileId)
-            .ToArray();
-
-        var profile = packageMatches.Length == 1
-            ? packageMatches[0]
-            : _historianCaptureProfiles.Find(profileId);
-
-        if (profile is null)
-        {
-            issues.Add(new(
-                "HISTORIAN_CAPTURE_PROFILE_NOT_FOUND",
-                $"TAG '{dto.Path}' references Historian capture profile '{profileId:D}', which was not found in current or prospective Engineering.",
-                ImportEntityKind.Tag,
-                dto.Path,
-                true));
-            return;
-        }
-
-        foreach (var problem in HistorianCaptureProfileEngineeringValidation.ValidateForTag(profile, dto.DataType))
-        {
-            issues.Add(new(
-                problem.Code,
-                $"TAG '{dto.Path}': {problem.Message}",
-                ImportEntityKind.Tag,
-                dto.Path,
-                true));
-        }
-    }
-
     private static IReadOnlyDictionary<string, string> BuildMetadata(TagEngineeringDto dto)
     {
         var result = dto.Metadata is null
@@ -385,7 +331,6 @@ internal sealed class TagEngineeringHandler
         Set(result, "historian.deadband", dto.Historian?.Deadband);
         Set(result, "historian.periodMs", dto.Historian?.PeriodMilliseconds);
         Set(result, "historian.maxPeriodMs", dto.Historian?.MaximumPeriodMilliseconds);
-        Set(result, HistorianCaptureProfileMetadata.ProfileIdMetadataKey, dto.HistorianCaptureProfileId);
         MemoryEngineeringValueCodec.WriteToMetadata(result, dto.InitialValue);
         return result;
     }

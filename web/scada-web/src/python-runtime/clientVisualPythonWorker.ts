@@ -595,11 +595,9 @@ function normalizeBridgeValue(value: unknown): unknown {
     const proxy = value as PythonProxyLike;
     if (typeof proxy.toJs === 'function') {
       const converted = proxy.toJs({ dict_converter: entries => Object.fromEntries(entries) });
-      try {
-        return normalizeBridgeValue(converted);
-      } finally {
-        if (converted !== value && typeof proxy.destroy === 'function') proxy.destroy();
-      }
+      // This PyProxy is borrowed from the active Python frame. That frame may
+      // still be suspended awaiting the bridge Promise, so Pyodide owns its lifetime.
+      return normalizeBridgeValue(converted);
     }
 
     if (Array.isArray(value)) return value.map(normalizeBridgeValue);

@@ -1,6 +1,6 @@
 # Wave 15 R2 — Shared Contract Layer (C0)
 
-**State:** C0_FROZEN / F0_INTEGRATED / R2_A_RELEASE_READY / NO_BOOTSTRAP_RELEASED  
+**State:** C0_FROZEN / F0_INTEGRATED / F0_D1_INTEGRATED_VERIFIED / R2_A_RELEASE_READY / NEXT_BOOTSTRAPS_NOT_RELEASED  
 **Coordinator issue:** #386  
 **Parent correction route:** #378  
 **Control branch:** `coord/w15-correction-now-parallel-control`  
@@ -32,7 +32,7 @@ C0 does not authorize production mutation by itself.
 ### Current exact freeze base
 
 - C0 freeze base: `wave15/corrections-integration@bb946f9e7d6910d59a9ac172d71361e5badab4b1` / tree `75398319b8b4630b72a525fb9bdd235dc0d541a9`;
-- current post-F0 integration: `wave15/corrections-integration@d869c538700eca4b72703c311bb56f810a8baa2d` / tree `cf6f23cb44b8cef7f2d6b097ae417d44ed86f99c`;
+- current post-F0/F0-D1 integration: `wave15/corrections-integration@3140ad20b759924a15e3e29d74726b6912bf3da6` / tree `97b0dba782cabb0a8becccfa736db65b4653826e`;
 - Gate0 #373/#374/#376: integrated and exact-tree proven;
 - Gate1 #375: recomposed by Main, exact-head T1 `36589349320` SUCCESS, integrated;
 - C-REUSE-01: integrated/frozen;
@@ -273,13 +273,16 @@ These are **packages, not released chats**. Gate1 and C0 freeze are complete; ex
 
 Issue: #390 prerequisite.
 
-**RELEASED / ACTIVE — 2026-09-29**
+**INTEGRATED / VERIFIED — 2026-09-29**
 
-- owner: Main Coordinator;
-- exact base: `e965e9f7381d332e17c792ba20f93214e7d66f78`;
-- release evidence: EliteSCADA CI `#1600 / 36616608742` — globally GREEN (Web, Backend build/tests, Runtime smoke, Chromium E2E);
-- Product Owner explicitly authorized Main to execute F0-D1 immediately once that post-merge gate became globally GREEN;
-- work branch: `work/w15-r2-f0-d1-point-read-wire`.
+- owner/executor: Main Coordinator;
+- release base: `e965e9f7381d332e17c792ba20f93214e7d66f78`;
+- release evidence: EliteSCADA CI `#1600 / 36616608742` — globally GREEN;
+- implementation: PR `#399`, exact head `87c676c6e6833603cf42206f3c6388c02f703765`;
+- integration merge: `3140ad20b759924a15e3e29d74726b6912bf3da6`;
+- post-merge evidence: EliteSCADA CI `#1601 / 36620256066` — globally GREEN (Web, Backend build/tests, Runtime smoke, Chromium E2E);
+- work branch: `work/w15-r2-f0-d1-point-read-wire`;
+- disposition: `F0_D1_COMPLETE / TAG_C_PREREQUISITE_SATISFIED`.
 
 Scope remains frozen:
 
@@ -294,6 +297,12 @@ Integrate before TAG Commissioning behavior.
 ### Package TAG-C — TAG commissioning
 
 Issue #390.
+
+**READY / WAIT_PRODUCT_OWNER_BOOTSTRAP — 2026-09-29**
+
+- prerequisite F0-D1 is integrated and globally green at `3140ad20b759924a15e3e29d74726b6912bf3da6`;
+- no TAG-C work branch has been created;
+- no protocol/provider/UI implementation is released until the Product Owner explicitly requests the bootstrap and Main records the exact owner/base/path locks.
 
 - protocol-specific protected PointReadTest providers;
 - first targets Modbus TCP, S7 ISO, OPC UA;

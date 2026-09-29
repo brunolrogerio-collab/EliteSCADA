@@ -163,6 +163,18 @@ public sealed class HistorianCaptureProfileRuntimeTests
         Assert.NotNull(registry.Find(profileId));
     }
 
+    [Fact]
+    public void CaptureProfileRegistry_AllowsDeletionWhenUnreferenced()
+    {
+        var profileId = Guid.NewGuid();
+        var registry = new InMemoryHistorianCaptureProfileEngineeringRegistry(
+            isReferenced: _ => false);
+        registry.Upsert(Profile(profileId, HistorianCaptureStrategy.Periodic, periodMilliseconds: 1_000));
+
+        Assert.True(registry.Remove(profileId));
+        Assert.Null(registry.Find(profileId));
+    }
+
     private static HistorianCaptureProfileEngineeringDto Profile(
         Guid id,
         HistorianCaptureStrategy strategy,

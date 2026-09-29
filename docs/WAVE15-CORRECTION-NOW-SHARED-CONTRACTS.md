@@ -94,6 +94,24 @@ Main freeze outcome:
 
 This freeze authorizes implementation consumers only after Main assigns exact package ownership/base/paths. It does **not** auto-release any Chat bootstrap.
 
+### 1.3 F0 wire implementation checkpoint
+
+Exact integrated foundation:
+- PR #388 head `297d71fc21f11b9513fdd22c64c6d586f3f9a035`;
+- Wave 15 T1 `36593596331` / #144 SUCCESS;
+- validated/integrated tree `cf6f23cb44b8cef7f2d6b097ae417d44ed86f99c`;
+- integration merge `d869c538700eca4b72703c311bb56f810a8baa2d`.
+
+F0 implemented the shared additive wire authority for:
+- Historian Capture Profiles and TAG profile reference;
+- reusable Data Query / retrieval-mode / Alarm View definitions over existing Historical Query v1;
+- `.escadafrag` manifest/envelope/plan contracts;
+- reusable Library provenance/update state;
+- Engineering schema v20 plus v19 normalization;
+- matching Web type mirrors.
+
+These wire definitions are now integrated downstream authority. Behavioral lanes may implement services/runtime/UI but must not redefine the shared wire locally. Any missing semantic returns `BLOCKED_CONTRACT` to Main.
+
 ## 2. Global acceptance contract — C-SURFACE-01
 
 **State:** `FROZEN_FOR_CONSUMERS`  

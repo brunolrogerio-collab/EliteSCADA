@@ -113,8 +113,8 @@ public sealed class TimescaleDbHistorianTests
 
         var persisted = historian.Query(tag.Id, origin.AddSeconds(-1), origin.AddSeconds(61), 100);
         Assert.Equal(2, persisted.Count);
-        Assert.Equal(origin, persisted[0].Timestamp);
-        Assert.Equal(origin.AddSeconds(60), persisted[1].Timestamp);
+        AssertTimestampWithinTimescalePrecision(origin, persisted[0].Timestamp);
+        AssertTimestampWithinTimescalePrecision(origin.AddSeconds(60), persisted[1].Timestamp);
     }
 
     [Fact]
@@ -165,9 +165,8 @@ public sealed class TimescaleDbHistorianTests
         var persisted = timescale.Query(tag.Id, from, to, 100);
 
         Assert.Equal(inMemory.Count, persisted.Count);
-        Assert.Equal(
-            inMemory.Select(x => x.Timestamp),
-            persisted.Select(x => x.Timestamp));
+        for (var i = 0; i < inMemory.Count; i++)
+            AssertTimestampWithinTimescalePrecision(inMemory[i].Timestamp, persisted[i].Timestamp);
         Assert.Equal(
             inMemory.Select(x => x.Quality),
             persisted.Select(x => x.Quality));
@@ -211,12 +210,15 @@ public sealed class TimescaleDbHistorianTests
         Assert.Equal(0, second.SkippedSamples);
         var persisted = second.Query(tag.Id, origin.AddSeconds(-1), origin.AddSeconds(6), 10);
         Assert.Equal(2, persisted.Count);
-        Assert.InRange(Math.Abs((persisted[0].Timestamp - origin).Ticks), 0, TimeSpan.TicksPerMicrosecond);
+        AssertTimestampWithinTimescalePrecision(origin, persisted[0].Timestamp);
+        AssertTimestampWithinTimescalePrecision(restartedObservation, persisted[1].Timestamp);
+    }
+
+    private static void AssertTimestampWithinTimescalePrecision(DateTimeOffset expected, DateTimeOffset actual) =>
         Assert.InRange(
-            Math.Abs((persisted[1].Timestamp - restartedObservation).Ticks),
+            Math.Abs((actual - expected).Ticks),
             0,
             TimeSpan.TicksPerMicrosecond);
-    }
 
     private static TagDefinition CreatePolicyTag(
         TagDataType dataType,

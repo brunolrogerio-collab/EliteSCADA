@@ -78,6 +78,7 @@ public enum DataQueryParameterTarget
     [JsonStringEnumMemberName("absoluteFromUtc")] AbsoluteFromUtc,
     [JsonStringEnumMemberName("absoluteToUtc")] AbsoluteToUtc,
     [JsonStringEnumMemberName("relativeDurationSeconds")] RelativeDurationSeconds,
+    [JsonStringEnumMemberName("historianTargetUtc")] HistorianTargetUtc,
     [JsonStringEnumMemberName("search")] Search,
     [JsonStringEnumMemberName("filterValue")] FilterValue
 }
@@ -112,7 +113,8 @@ public sealed record HistorianRetrievalEngineeringDto(
     int? StepMilliseconds = null,
     int? BucketMilliseconds = null,
     int? MaximumGapMilliseconds = null,
-    DataQueryAggregateFunction? AggregateFunction = null);
+    DataQueryAggregateFunction? AggregateFunction = null,
+    DateTimeOffset? TargetUtc = null);
 
 /// <summary>
 /// Saved Engineering definition over the existing protected Historical Query v1 request.

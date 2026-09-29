@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as monaco from 'monaco-editor';
 import EditorWorker from 'monaco-editor/editor/editor.worker?worker';
+import { useAppliedAppTheme } from '../../appTheme';
 import type { EngineeringLocale } from '../i18n';
 import { PythonPreviewTestPanel } from '../scripts/PythonPreviewTestPanel';
 import { PythonScriptAssistant } from '../scripts/PythonScriptAssistant';
@@ -67,6 +68,8 @@ export function PythonMonacoEditor({
   readOnly = false
 }: PythonMonacoEditorProps) {
   const copy = useMemo(() => pythonEditorCopy(locale), [locale]);
+  const appTheme = useAppliedAppTheme();
+  const monacoTheme = appTheme === 'dark' ? 'vs-dark' : 'vs';
   const containerRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const modelRef = useRef<monaco.editor.ITextModel | null>(null);
@@ -151,6 +154,7 @@ export function PythonMonacoEditor({
       model = monaco.editor.createModel(sourceRef.current, 'python', uri);
       editor = monaco.editor.create(container, {
         model,
+        theme: monacoTheme,
         automaticLayout: true,
         readOnly,
         lineNumbers: 'on',
@@ -243,6 +247,10 @@ export function PythonMonacoEditor({
   }, [readOnly]);
 
   useEffect(() => {
+    monaco.editor.setTheme(monacoTheme);
+  }, [monacoTheme]);
+
+  useEffect(() => {
     const model = modelRef.current;
     if (!model) return;
     monaco.editor.setModelMarkers(
@@ -309,7 +317,13 @@ export function PythonMonacoEditor({
       <footer className="python-editor__status">
         <span>{copy.sourceAuthority}</span>
         {effectiveDiagnostics.status === 'ready' ? (
-          <strong className={errorCount > 0 ? 'python-editor__diagnostic-error' : ''}>
+          <strong className={
+            errorCount > 0
+              ? 'python-editor__diagnostic-error'
+              : warningCount > 0
+                ? 'python-editor__diagnostic-warning'
+                : 'python-editor__diagnostic-success'
+          }>
             {copy.diagnosticsReady}: {errorCount} {copy.errors}, {warningCount} {copy.warnings}
             {projection.rejectedCount > 0 ? ` · ${projection.rejectedCount} ${copy.diagnosticsRejected}` : ''}
           </strong>

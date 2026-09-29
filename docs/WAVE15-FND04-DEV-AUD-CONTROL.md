@@ -38,11 +38,11 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0123`
+`MAIN_ORDER_REV: 0124`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-29 — F0 INTEGRATED / POSTMERGE CI RETRY / R2-A HOLD / SHARED CODEX PARKED`
+`LAST_MAIN_UPDATE_BRT: 2026-09-29 — #389 MERGED / POSTMERGE CI #1593 NEUTRAL-FIXTURE BLOCKER / TAG C0 DELTA FROZEN / SHARED CODEX PARKED`
 
-`GLOBAL_GATE: FND04_VERIFIED_FROZEN / GATE0_GREEN / GATE1_GREEN / R2_C0_FROZEN / F0_INTEGRATED / R2_A_HOLD_POSTMERGE_CI_RETRY / SHARED_CODEX_PARKED`
+`GLOBAL_GATE: FND04_VERIFIED_FROZEN / GATE0_GREEN / GATE1_GREEN / R2_C0_FROZEN / F0_INTEGRATED / #389_MERGED / R2_A_HOLD_POSTMERGE_CI_FIXTURE / TAG_C0_DELTA_FROZEN / SHARED_CODEX_PARKED`
 
 Current situation:
 
@@ -61,7 +61,7 @@ Current situation:
 - Main performed the #375 Reuse R1 recomposition directly to preserve limited CODEX capacity. The shared CODEX executor is now WAIT and must not consume capacity unless Main issues a later environment-dependent order. Gate0 (#373/#374/#376) remains integrated and tree-proven. FND-04 remains frozen.
 - Any later change to this shared contract requires a new Main/Foundation delta; downstream lanes may not redefine it.
 
-Current CORRECTION-NOW integration baseline is `wave15/corrections-integration@d869c538700eca4b72703c311bb56f810a8baa2d`, tree `cf6f23cb44b8cef7f2d6b097ae417d44ed86f99c`. Gate0 and Gate1 are green. R2 C0 contracts are frozen. F0 shared wire foundation PR #388 passed exact-head Wave 15 T1 `36593596331` and is integrated with a merge tree byte-identical to the T1 candidate. F0 post-merge EliteSCADA CI run `36594248859` had one PostgreSQL test deadlock (`40P01`) in code untouched by F0; its failed Backend job is being rerun with unchanged bytes. R2-A remains HOLD until that retry is green. No future DEV bootstrap has been generated. Shared CODEX remains PARKED to preserve remaining capacity and has no active product mutation order.
+Current CORRECTION-NOW integration baseline is `wave15/corrections-integration@45ddfe93e2e8b2cf4dc3051f6c44f964ee006ebd`, tree `788f0437d6b2a084879706e7d1cd113cd0f350ee`. Gate0 and Gate1 are green. R2 C0 contracts are frozen. F0 shared wire foundation #388 remains integrated. CI-only PR #389 is merged; its final head `9660196179865b0b499c9eaf0a719eeb5d9644b8` passed natural Wave 15 T1 `36598116875`. Post-merge EliteSCADA CI `36598484002` / #1593 still fails only in Runtime smoke after Build/Test success: the API reaches healthy state but the smoke observes a truthful neutral installation (`projectKey=null / tagCount=0 / historian.writtenSamples=0`) while the fixture still expects an active Demo/project. Do not increase startup timeout again and do not change product startup authority merely to satisfy the stale smoke assumption. R2-A remains HOLD until the smoke fixture explicitly creates/activates a disposable canonical project and post-merge CI is green. New mandatory first-external-test TAG contracts #390/#391 are frozen; #390 requires a bounded F0-D1 transient Driver `PointReadTest` wire before behavior. No future DEV bootstrap has been generated from this delta. Shared CODEX remains PARKED to preserve remaining capacity and has no active product mutation order.
 ---
 
 ## 2A. CURRENT SHARED CODEX ORDER — EXECUTION POINTER

@@ -186,7 +186,10 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             ?? (_scripts as IOperationalEventEngineeringRegistry)
             ?? new InMemoryOperationalEventEngineeringRegistry();
         _engineeringLock = engineeringLock ?? new InMemoryEngineeringLockRegistry();
-        _historianCaptureProfiles = historianCaptureProfiles ?? new InMemoryHistorianCaptureProfileEngineeringRegistry();
+        _historianCaptureProfiles = historianCaptureProfiles ??
+            new InMemoryHistorianCaptureProfileEngineeringRegistry(
+                isReferenced: profileId => tags.Snapshot().Any(tag =>
+                    HistorianCaptureProfileMetadata.ReadProfileId(tag.Metadata) == profileId));
         _json = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,

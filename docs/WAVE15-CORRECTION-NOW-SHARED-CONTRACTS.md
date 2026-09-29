@@ -66,6 +66,34 @@ Mandatory C0 families for the first external-test candidate include:
 
 #384 and #385 are therefore mandatory product scope for the external-test candidate, not optional research backlog. Implementation slicing remains unresolved until C0 freeze and exact post-#375 file-ownership review.
 
+### 1.2 C0 freeze checkpoint — post-Gate1
+
+Exact product base used for freeze:
+- integration `wave15/corrections-integration@bb946f9e7d6910d59a9ac172d71361e5badab4b1`;
+- tree `75398319b8b4630b72a525fb9bdd235dc0d541a9`;
+- Gate0 cohort #373/#374/#376 integrated and tree-proven;
+- Gate1 #375 R1 integrated after exact-head T1 `36589349320` SUCCESS.
+
+Main freeze outcome:
+- C-REUSE-01 integrated/frozen;
+- C-ENG-DENSITY-01 frozen;
+- C-PRODUCT-VERSION-01 frozen to `EliteSCADA Alpha 0.15.2.1`;
+- C-USER-COPY-I18N-01 glossary frozen;
+- C-EDITOR-UX-R2-01 frozen;
+- C-SCRIPT-EVENT-LINK-01 frozen;
+- C-SCRIPT-AUTHORING-R2-01 frozen;
+- C-VISUAL-ASSET-02 frozen with static sanitized SVG required;
+- C-HISTORIAN-CAPTURE-01 frozen with explicit source-observation-driven modes;
+- C-HISTORICAL-TIME-RANGE-01 frozen;
+- C-DATA-QUERY-VIEW-01 frozen including Automatic Pen merge/quality semantics;
+- C-HISTORICAL-PLAYBACK-01 frozen;
+- C-ENGINEERING-PORTABILITY-01 frozen with `.escadafrag`;
+- C-ENG-WORKFLOW-01 frozen;
+- C-BRANDING-01 frozen;
+- C-ENG-THEME-01 frozen.
+
+This freeze authorizes implementation consumers only after Main assigns exact package ownership/base/paths. It does **not** auto-release any Chat bootstrap.
+
 ## 2. Global acceptance contract — C-SURFACE-01
 
 **State:** `FROZEN_FOR_CONSUMERS`  
@@ -685,7 +713,7 @@ No R2 DEV may implement a shared semantic before Main records the relevant contr
 
 ### C-ENG-DENSITY-01 — Engineering information hierarchy / graphical wide mode
 
-**State:** `PREPARED_DRAFT / WAIT_POST_#375_BASE`  
+**State:** `FROZEN_FOR_CONSUMERS / POST_GATE1_BASE_bb946f9e / IMPLEMENTATION_PENDING`  
 **Owner:** Main + shared CODEX contract review  
 **Implementation consumer:** Chat I / DEV-ENG-DENSITY  
 **Downstream consumers:** Chat J Editor UX, Chat L Branding settings integration, all Engineering modules.
@@ -717,7 +745,7 @@ Chat J must consume the integrated wide-section/layout hook rather than invent a
 
 ### C-PRODUCT-VERSION-01 — human-facing EliteSCADA product version
 
-**State:** `PREPARED_DRAFT / FREEZE_BEFORE_CHAT_I`  
+**State:** `FROZEN_FOR_CONSUMERS / PRODUCT_VERSION_AUTHORITY_READY / IMPLEMENTATION_PENDING`  
 **Owner:** Main + shared CODEX contract review  
 **Consumers:** Chat I / Engineering Information, global shell/help/diagnostics, packaging/release tooling.
 
@@ -750,11 +778,11 @@ Normal Engineering Information presentation:
 - primary: product name + version, e.g. `EliteSCADA Alpha 0.15.2.1`;
 - secondary technical details: schema, base revision, snapshot timestamp, exact build/commit.
 
-Until frozen, `Alpha 0.15.2.1` is the Product Owner-approved proposed display identity for the current cycle, not yet an implementation authority.
+`EliteSCADA Alpha 0.15.2.1` is the frozen human-facing product identity for this correction/external-test cycle. Engineering schema, project revision and Git/build provenance remain separate technical metadata.
 
 ### C-USER-COPY-I18N-01 — user-facing terminology and multilingual identity
 
-**State:** `PREPARED_DRAFT / C0_GLOSSARY_FREEZE_REQUIRED / IMPLEMENT_AFTER_STRUCTURAL_CONSUMERS / MANDATORY_FIRST_EXTERNAL_TEST`  
+**State:** `FROZEN_FOR_CONSUMERS / IMPLEMENT_AFTER_STRUCTURAL_CONSUMERS / MANDATORY_FIRST_EXTERNAL_TEST`  
 **Owner:** Main + #379 terminology/glossary review  
 **Implementation consumer:** future Chat M / DEV-UX-COPY-I18N  
 **Supported locales:** pt-BR / en / es.
@@ -786,17 +814,27 @@ Prepared product-facing authoring terminology:
 
 Implementation names may remain in source code, package metadata, build logs and developer-only diagnostics. Ordinary Product UI, help, accessibility text and user-facing errors describe the EliteSCADA function rather than the underlying implementation technology.
 
-Product/industrial terms requiring an explicit per-locale glossary decision:
-- Engineering;
-- Runtime;
-- TAG;
-- Driver;
-- Data Source;
-- Historian;
-- Script;
-- Popup;
-- Workspace;
-- Preview.
+Frozen product glossary:
+
+| Concept | pt-BR | en | es |
+|---|---|---|---|
+| Engineering | Engenharia | Engineering | Ingeniería |
+| Runtime | Runtime | Runtime | Runtime |
+| TAG | TAG | TAG | TAG |
+| Driver | Driver | Driver | Driver |
+| Data Source | Fonte de dados | Data Source | Fuente de datos |
+| Historian | Historiador | Historian | Historiador |
+| Script | Script | Script | Script |
+| Popup | Popup | Popup | Popup |
+| Workspace | Área de trabalho | Workspace | Área de trabajo |
+| Preview | Pré-visualização | Preview | Vista previa |
+| Screen Editor | Editor de Tela | Screen Editor | Editor de Pantalla |
+| Popup Editor | Editor de Popup | Popup Editor | Editor de Popup |
+| Editing area | Área de edição | Editing area | Área de edición |
+| Code editor | Editor de código | Code editor | Editor de código |
+| Structure | Estrutura | Structure | Estructura |
+
+These display terms do not rename backend/API enums or wire contracts.
 
 Rules:
 1. backend/API/internal enum names do not need renaming merely for display copy;
@@ -815,7 +853,7 @@ This sequencing avoids merge conflicts while ensuring the next Product Owner Pre
 
 ### C-EDITOR-UX-R2-01 — shared Screen/Popup interaction model
 
-**State:** `PREPARED_DRAFT / WAIT_C-REUSE-01_INTEGRATED / WAIT_C-VISUAL-ASSET-02`  
+**State:** `FROZEN_FOR_CONSUMERS / C-REUSE-01_INTEGRATED / IMPLEMENTATION_PENDING`  
 **Owner:** Main + shared CODEX contract review  
 **Implementation consumer:** Chat J / DEV-EDITOR-UX-R2
 
@@ -857,7 +895,7 @@ Forbidden:
 
 ### C-SCRIPT-EVENT-LINK-01 — visual trigger -> existing Script association
 
-**State:** `PREPARED_DRAFT / FREEZE_AFTER_GATE1 / BEFORE_R2-B_J+N`  
+**State:** `FROZEN_FOR_CONSUMERS / POST_GATE1 / IMPLEMENTATION_PENDING`  
 **Owner:** Main + shared CODEX contract review  
 **Consumers:** Chat J / DEV-EDITOR-UX-R2, Chat N / DEV-ENG-WORKFLOW-FORMS, Chat M / DEV-UX-COPY-I18N.
 
@@ -902,7 +940,7 @@ Forbidden:
 
 ### C-SCRIPT-AUTHORING-R2-01 — safe guided Script authoring
 
-**State:** `PREPARED_DRAFT / C0_FREEZE_REQUIRED / MANDATORY_FIRST_EXTERNAL_TEST`  
+**State:** `FROZEN_FOR_CONSUMERS / MANDATORY_FIRST_EXTERNAL_TEST / IMPLEMENTATION_PENDING`  
 **Owner:** Main + #369 + #378 Script benchmark findings  
 **Depends on:** C-VISUAL-IDENTITY-01, C-SCRIPT-EVENT-LINK-01, C-TAG-WRITE-01, C-AUTHORITY-01.  
 **Consumers:** future bounded Script-authoring implementation package, Chat J event navigation, Chat N Script metadata forms, Chat M terminology.
@@ -968,7 +1006,7 @@ Acceptance must include:
 
 ### C-VISUAL-ASSET-02 — common asset/import authority for Editor + Branding
 
-**State:** `PREPARED_DRAFT / SHARED_R2_FOUNDATION_REQUIRED`  
+**State:** `FROZEN_FOR_CONSUMERS / SVG_STATIC_SANITIZED_REQUIRED / IMPLEMENTATION_PENDING`  
 **Owner:** Main + shared CODEX contract review  
 **Consumers:** Chat J Editor UX, Chat L Branding, Screen/Popup/Dynamo/Runtime/package paths.
 
@@ -988,7 +1026,7 @@ Required semantics:
 5. project package/export/import preserves asset identity/hash/content;
 6. missing/corrupt assets fail explicitly;
 7. existing PNG/JPEG/BMP support remains compatible;
-8. if SVG is implemented, it extends this same authority rather than creating a branding-only file path;
+8. SVG support is required for the first external-test candidate and extends this same authority rather than creating a branding-only file path;
 9. safe SVG means static sanitized vector only:
    - bounded XML parse;
    - reject scripts;
@@ -1007,7 +1045,7 @@ Ownership split after freeze:
 
 ### C-HISTORIAN-CAPTURE-01 — reusable historian capture policy and runtime enforcement
 
-**State:** `PREPARED_DRAFT / CONFIRMED_RUNTIME_GAP / FREEZE_BEFORE_CHAT_O`  
+**State:** `FROZEN_FOR_CONSUMERS / CONFIRMED_RUNTIME_GAP / IMPLEMENTATION_PENDING`  
 **Owner:** Main + #382  
 **Implementation consumer:** future Chat O / DEV-HISTORIAN-CAPTURE  
 **UI consumer:** Chat N / DEV-ENG-WORKFLOW-FORMS  
@@ -1028,16 +1066,17 @@ Required semantics:
 2. explicit TAG -> profile reference with bulk assignment;
 3. one effective raw-capture policy per TAG; do not duplicate the same raw TAG stream merely for multiple display resolutions;
 4. legacy inline per-TAG historian settings remain readable/migratable until deliberate cutover;
-5. capture modes must be versioned and unambiguous, at minimum:
-   - periodic;
-   - on-change;
-   - bounded change/deadband mode if frozen by contract review;
+5. capture modes are frozen as:
+   - `PERIODIC` — accept the latest acceptable source observation when the configured interval has elapsed;
+   - `ON_CHANGE` — accept value transitions and all quality transitions;
+   - `ON_CHANGE_DEADBAND` — numeric only; accept a value when absolute delta from the last persisted acceptable value reaches/exceeds the configured deadband, plus all quality transitions;
+   - `ON_CHANGE_DEADBAND_MAX_INTERVAL` — same as deadband, but if acceptable source observations continue arriving, persist the latest observation once the configured maximum interval since the last persisted sample is reached;
 6. periodic configuration is user-authored with practical units (ms/s/min/h) but persisted in one canonical duration representation;
 7. boolean/discrete on-change is a first-class use case;
 8. numeric deadband is type-checked and does not apply to incompatible values;
 9. quality transitions remain historically meaningful and cannot be discarded merely because process value delta is below deadband;
 10. first accepted observation after activation/profile attachment is deterministic;
-11. maximum-silence/heartbeat behavior, if enabled, must not manufacture a healthy fresh source during actual input silence;
+11. maximum-interval behavior is source-observation-driven: it may persist the latest newly received acceptable observation once the interval is reached, but it never emits a timer-only synthetic sample when the source is silent; source silence/communication loss therefore cannot be manufactured into a fresh healthy sample;
 12. TimescaleDB and in-memory Historian paths share equivalent policy semantics;
 13. diagnostics expose accepted/skipped/coalesced counts by capture policy;
 14. Working/Preview/Apply/Published/Active authority applies to profile/configuration changes;
@@ -1049,7 +1088,7 @@ Examples:
 - `Analógicas 1 min` -> periodic 60 s;
 - `Processo rápido` -> periodic 1 s;
 - `Estados digitais` -> on-change;
-- `Analógicas por variação` -> on-change + numeric deadband + bounded maximum interval if the final contract accepts that mode.
+- `Analógicas por variação` -> `ON_CHANGE_DEADBAND_MAX_INTERVAL` with numeric deadband + bounded maximum interval.
 
 Forbidden:
 - free-text strategy as the only product authority;
@@ -1060,7 +1099,7 @@ Forbidden:
 
 ### C-HISTORICAL-TIME-RANGE-01 — shared Trend/history interval semantics
 
-**State:** `PREPARED_DRAFT / SHARED_QUERY_AUTHORITY_EXISTS / FREEZE_BEFORE_CHAT_P`  
+**State:** `FROZEN_FOR_CONSUMERS / SHARED_QUERY_AUTHORITY_EXISTS / IMPLEMENTATION_PENDING`  
 **Owner:** Main + #383  
 **Implementation consumer:** future Chat P / DEV-HISTORICAL-TIME-RANGE  
 **Consumers:** canonical Trend, Basic Trend compatibility surface, Historical Data Browser, Chat M copy/i18n.
@@ -1100,7 +1139,7 @@ must be authorable as an absolute Runtime filter and map deterministically to th
 
 ### C-DATA-QUERY-VIEW-01 — reusable typed data-query authority
 
-**State:** `PREPARED_DRAFT / E3_REFERENCE_AUDIT_COMPLETE / C0_FREEZE_REQUIRED / MANDATORY_FIRST_EXTERNAL_TEST / OWNER_ISSUE_384`  
+**State:** `FROZEN_FOR_CONSUMERS / E3_REFERENCE_AUDIT_COMPLETE / MANDATORY_FIRST_EXTERNAL_TEST / OWNER_ISSUE_384`  
 **Owner:** Main + #384  
 **Depends on:** Historical Query v1, #382 capture/storage separation, #383 shared time range.  
 **Consumers:** Historical Data Browser, Alarm history, Trend, Reports, future authorized read-only query clients.
@@ -1123,7 +1162,7 @@ Required definition semantics:
 - optional historian retrieval policy;
 - schema/version metadata.
 
-Required historian retrieval modes to evaluate/freeze:
+Frozen historian retrieval modes:
 - raw samples;
 - last sample;
 - at-or-before;
@@ -1158,7 +1197,12 @@ Alarm specialization:
 - filter reuse never grants ACK/shelve command authority.
 
 Trend specialization:
-- evaluate `Automatic` Pen behavior after historical/current splice semantics are frozen;
+- `Automatic` Pen is part of the first external-test contract: it binds by canonical TAG identity and consumes both historical and current providers through public backend contracts;
+- merged samples are ordered by source timestamp;
+- identical TAG+timestamp observations are de-duplicated; if the historical and current paths disagree at the same timestamp, the later-arriving current-path observation is presentation-authoritative and a diagnostic is emitted;
+- analog lines may interpolate only between acceptable-quality adjacent samples and never across a frozen maximum-gap threshold;
+- Boolean/Enum/discrete series use step/hold-last semantics and are never linearly interpolated;
+- bad/uncertain quality or an excessive gap produces a visible break/quality indication rather than a fabricated continuous line;
 - a Pen should primarily bind by canonical TAG identity;
 - backend resolves current/historical source;
 - visible time window drives bounded retrieval;
@@ -1216,7 +1260,7 @@ Forbidden:
 
 ### C-ENGINEERING-PORTABILITY-01 — full package vs fragment vs reusable library
 
-**State:** `PREPARED_DRAFT / E3_REFERENCE_AUDIT_COMPLETE / C0_FREEZE_REQUIRED / MANDATORY_FIRST_EXTERNAL_TEST / OWNER_ISSUE_385`  
+**State:** `FROZEN_FOR_CONSUMERS / E3_REFERENCE_AUDIT_COMPLETE / MANDATORY_FIRST_EXTERNAL_TEST / OWNER_ISSUE_385`  
 **Owner:** Main + #385  
 **Related:** #375, #365, #308, #356, #303/#367.  
 **Consumers:** all Engineering entity browsers/editors, reusable Library workspace, Screen/Popup/Dynamo workflows.
@@ -1226,7 +1270,7 @@ Permanent product distinction:
 1. **Application package** — `.escadapkg`
    - complete project/application portability and recovery boundary.
 
-2. **Engineering Fragment** — exact extension not frozen; conceptual schema `scada.engineering.fragment`
+2. **Engineering Fragment** — file extension `.escadafrag`; schema `scada.engineering.fragment`
    - one-time transfer/copy of selected project entities;
    - may include concrete project configuration deliberately selected by the engineer;
    - selected roots + validated transitive dependency closure;
@@ -1255,17 +1299,19 @@ Format rule:
 - CSV/XLSX for appropriate flat/bulk entities such as TAGs, Alarms, Data Sources and profile assignments;
 - never flatten complex visual/script state into CSV merely for genericity.
 
-Reusable-safe library kinds to evaluate:
+Frozen first external-test reusable Library kinds:
 - Equipment Template;
 - Dynamo;
-- Popup/faceplate template;
+- Screen definition/template;
+- Popup/faceplate definition/template;
 - Script/module;
 - Visual Asset;
 - Query Definition;
 - Report Template;
 - Historian Capture Profile;
-- Alarm Filter/View Definition;
-- future Command/Alarm template definitions only after stable template contracts exist.
+- Alarm Filter/View Definition.
+
+Command/Alarm template definitions are explicitly deferred until their own stable template contracts exist. Concrete TAG/Data Source/Equipment instances remain Fragment/project configuration rather than Library resources.
 
 Concrete TAG/Data Source/Equipment instances normally belong to Fragment/project configuration, not Library, unless a separate safe reusable template kind is explicitly defined.
 
@@ -1290,7 +1336,7 @@ Dynamo/class-instance workflow:
 - nested reuse is dependency-aware;
 - `Add definition to Library` is an ordinary authoring action, not a separate hidden technical tool.
 
-Component-bundle concept to evaluate:
+Frozen reusable component-bundle concept:
 `Equipment Template + Dynamo + Faceplate/Popup + Script(s) + Alarm/Command templates + Query/Trend defaults + Visual Assets`.
 
 A bundle can support a reusable industrial class (for example a centrifugal pump) but may not silently create process-affecting project entities without a visible Preview/selection.
@@ -1310,7 +1356,7 @@ Explicitly forbidden:
 
 ### C-ENG-WORKFLOW-01 — task-oriented Engineering forms and entity workflows
 
-**State:** `PREPARED_DRAFT / FREEZE_AFTER_R2-A / BEFORE_CHAT_N`  
+**State:** `FROZEN_FOR_CONSUMERS / IMPLEMENT_AFTER_FOUNDATIONS / BEFORE_CHAT_N`  
 **Owner:** Main + #380 workflow review  
 **Implementation consumer:** Chat N / DEV-ENG-WORKFLOW-FORMS  
 **Downstream consumer:** Chat M / UX-COPY-I18N.
@@ -1371,7 +1417,7 @@ Any missing shared semantic returns:
 
 ### C-BRANDING-01 — canonical client branding
 
-**State:** `PREPARED_DRAFT / WAIT_C-VISUAL-ASSET-02 / WAIT_C-ENG-DENSITY-01_INTEGRATED`  
+**State:** `FROZEN_FOR_CONSUMERS / IMPLEMENT_AFTER_ASSET+DENSITY_FOUNDATIONS`  
 **Owner:** Main + #377 contract review  
 **Implementation consumer:** Chat L / DEV-BRANDING  
 **Product consumers:** global application shell, Engineering, Runtime and other shell surfaces.
@@ -1404,7 +1450,7 @@ Forbidden:
 
 ### C-ENG-THEME-01 — specialized Engineering surface theme/contrast
 
-**State:** `PREPARED_DRAFT / FREEZE_BEFORE_CHAT_K`  
+**State:** `FROZEN_FOR_CONSUMERS / IMPLEMENTATION_PENDING`  
 **Owner:** Main + shared CODEX contract review  
 **Implementation consumer:** Chat K / DEV-THEME-CONTRAST  
 **Consumers:** Report Designer, Script/Python editor, shared structured Engineering forms/mutation panels, future specialized Engineering authoring surfaces.

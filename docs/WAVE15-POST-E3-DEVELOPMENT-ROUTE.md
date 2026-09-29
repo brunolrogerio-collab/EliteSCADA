@@ -19,7 +19,7 @@ rev0114 final residual E3 homologation (#373/#374; #376 already E3-accepted)
   -> integrate #373/#374/#376 if Gate 0 closes
   -> recompose/integrate #375
   -> freeze Round-2 UX/product contracts
-  -> R2-A: Engineering density + Report theme
+  -> R2-A: Engineering density + specialized-surface theme/contrast
   -> R2-B: Editor UX + Client branding
   -> R2-C: user-facing terminology + multilingual consistency
   -> exact E2/E3
@@ -181,15 +181,25 @@ Expected evidence:
 - exact-SHA E2;
 - mounted Engineering smoke.
 
-### Chat K — DEV-REPORT-THEME
+### Chat K — DEV-THEME-CONTRAST
 
 Own:
 - Report Designer theme-token correction;
-- Engineering semantic tokens;
+- Script/Python editor theme-token correction;
+- Engineering semantic theme consumption;
+- Monaco light/dark theme synchronized with the active EliteSCADA theme;
 - dark/light parity;
-- disabled/hover/selected/focus contrast;
+- disabled/hover/selected/focus/error/warning contrast;
 - white report paper remains semantically white;
-- no report model/data redesign.
+- no report model/data redesign;
+- no Script lifecycle/capability/runtime redesign.
+
+Source-confirmed Script/Python defect to correct:
+- outer Script workspace already consumes `--eng-*` through `--script-*`;
+- `python-editor.css` independently uses generic `--surface` / `--border` with light fallbacks;
+- `PythonMonacoEditor` creates Monaco without an explicit theme, allowing a light editor inside dark Engineering.
+
+Acceptance includes toolbar, path/cursor text, handler context, chips, Client Visual API help, Monaco surface, diagnostics/status and focus states in both themes.
 
 May run concurrently with Chat I.
 
@@ -394,7 +404,7 @@ Resume canonical sequencing for:
 | Chat | Must consume/freeze before start | May not redefine |
 |---|---|---|
 | I — ENG-DENSITY | C-AUTHORITY-01, C-SURFACE-01, C-TEST-EVIDENCE-01, frozen C-ENG-DENSITY-01, frozen C-PRODUCT-VERSION-01 | Working/Published/Active, Lock/CAS authority |
-| K — REPORT-THEME | C-SURFACE-01, C-TEST-EVIDENCE-01, existing Engineering semantic theme tokens | report data/model authority |
+| K — THEME-CONTRAST | C-SURFACE-01, C-TEST-EVIDENCE-01, frozen C-ENG-THEME-01, existing Engineering semantic theme tokens | report/script data models, lifecycle, Script capability/runtime semantics |
 | J — EDITOR-UX-R2 | integrated C-ENG-DENSITY-01, C-VISUAL-IDENTITY-01, C-VISUAL-DYNAMIC-01, C-TAG-WRITE-01, integrated/frozen C-REUSE-01, frozen C-VISUAL-ASSET-02, C-SURFACE-01, C-TEST-EVIDENCE-01 | renderer, identity, TAG write, reuse relationship, asset store/API |
 | L — BRANDING | integrated C-ENG-DENSITY-01, C-AUTHORITY-01, frozen C-VISUAL-ASSET-02, frozen C-BRANDING-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | lifecycle authority, asset store/API, independent per-page branding state |
 | M — UX-COPY-I18N | integrated R2-A/R2-B, frozen C-USER-COPY-I18N-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | lifecycle/Authority semantics, backend enum/API identity, accepted layout architecture |
@@ -410,7 +420,7 @@ Any consumer that finds an insufficient contract returns:
 | Gate 1 | G / #375 recomposition | none required | E/F/H integration |
 | Contract | Main/CODEX | no product DEV required | post-#375 base |
 | R2-A | I / Engineering density | K | frozen C-ENG-DENSITY-01 + C-PRODUCT-VERSION-01 + post-#375 base |
-| R2-A | K / Report theme | I | post-#375 base |
+| R2-A | K / Theme + contrast | I | frozen C-ENG-THEME-01 + post-#375 base |
 | Contract | Main/CODEX C-VISUAL-ASSET-02 + C-BRANDING-01 | none | I/K integration |
 | R2-B | J / Editor UX | L | I/K integrated + C-REUSE-01 integrated/frozen + C-VISUAL-ASSET-02 frozen |
 | R2-B | L / Branding | J | I/K integrated + C-VISUAL-ASSET-02 + C-BRANDING-01 frozen |

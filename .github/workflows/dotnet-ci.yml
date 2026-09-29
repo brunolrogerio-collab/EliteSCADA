@@ -104,77 +104,20 @@ jobs:
           assert health == {'status': 'ok', 'service': 'scada-api'}
           PY
 
-          historian_ready=false
-          for _ in $(seq 1 30); do
-            curl -fsS http://127.0.0.1:5080/api/diagnostics/runtime > /tmp/runtime-diagnostics.json
-            if python3 - <<'PY'
-          import json, sys
-          with open('/tmp/runtime-diagnostics.json') as f:
-              diagnostics = json.load(f)
-          ok = diagnostics['historian']['provider'] == 'timescaledb' and diagnostics['historian']['writtenSamples'] >= 1
-          sys.exit(0 if ok else 1)
-          PY
-            then
-              historian_ready=true
-              break
-            fi
-            sleep 1
-          done
-
-          if [ "$historian_ready" != "true" ]; then
-            cat /tmp/runtime-diagnostics.json
-            cat /tmp/scada-api.log
-            exit 1
-          fi
-
+          curl -fsS http://127.0.0.1:5080/api/diagnostics/runtime > /tmp/runtime-diagnostics-neutral.json
           cat /tmp/health.json
-          cat /tmp/runtime-diagnostics.json
-          curl -fsS http://127.0.0.1:5080/api/tags > /tmp/tags.json
-          TAG_COUNT=$(python3 -c 'import json; print(len(json.load(open("/tmp/tags.json"))))')
-          echo "Runtime exposed ${TAG_COUNT} TAGs"
-          test "$TAG_COUNT" -ge 7
-
-          TANK_ID=$(python3 - <<'PY'
-          import json
-          with open('/tmp/tags.json') as f:
-              tags = json.load(f)
-          print(next(tag['id'] for tag in tags if tag['path'] == 'Demo.Tank01.Level'))
-          PY
-          )
-          echo "Historian smoke selected TANK_ID=${TANK_ID}"
-          test "$TANK_ID" = "10000000-0000-0000-0000-000000000001"
-          cat /tmp/tags.json
-          curl -fsS "http://127.0.0.1:5080/api/history/${TANK_ID}?limit=100" > /tmp/history.json
-          curl -fsS http://127.0.0.1:5080/api/diagnostics/runtime > /tmp/runtime-diagnostics-history.json
-          cat /tmp/history.json
-          cat /tmp/runtime-diagnostics-history.json
-          PGPASSWORD=postgres psql \
-            --host=127.0.0.1 --port=5432 --username=postgres --dbname=postgres \
-            --no-align --tuples-only --pset pager=off \
-            --command="SELECT current_database(), current_schema(), now(), current_setting('TimeZone'); SELECT tag_id, COUNT(*) AS samples, MIN(ts) AS first_ts, MAX(ts) AS last_ts FROM elitescada.tag_history GROUP BY tag_id ORDER BY tag_id; SELECT tag_id, ts, quality, source, value, data_type FROM elitescada.tag_history WHERE tag_id = '10000000-0000-0000-0000-000000000001' AND ts >= now() - interval '15 minutes' ORDER BY ts;" || true
+          cat /tmp/runtime-diagnostics-neutral.json
           python3 - <<'PY'
           import json
-          with open('/tmp/history.json') as f:
-              history = json.load(f)
-          assert len(history) >= 1
-          assert all(sample['quality'] == 0 for sample in history)
-          PY
-
-          curl -fsS -X POST http://127.0.0.1:5080/api/historical/query \
-            -H 'content-type: application/json' \
-            -d '{"datasetKey":"historian.samples","timeRange":{"kind":"relative","durationSeconds":300,"anchor":"now"},"page":{"limit":5}}' \
-            > /tmp/historical-query.json
-          cat /tmp/historical-query.json
-          python3 - <<'PY'
-          import json
-          with open('/tmp/historical-query.json') as f:
-              result = json.load(f)
-          assert result['version'] == 1
-          assert result['datasetKey'] == 'historian.samples'
-          assert result['pageSize'] == 5
-          assert result['fromUtc'] < result['toUtc']
-          assert len(result['rows']) >= 1
-          assert {column['field'] for column in result['columns']} >= {'tag.id', 'tag.path', 'timestamp', 'value', 'quality'}
+          with open('/tmp/runtime-diagnostics-neutral.json') as f:
+              diagnostics = json.load(f)
+          runtime = diagnostics['runtime']
+          historian = diagnostics['historian']
+          assert runtime['mode'] == 'neutral'
+          assert runtime['projectKey'] is None
+          assert runtime['tagCount'] == 0
+          assert historian['provider'] == 'timescaledb'
+          assert historian['writtenSamples'] == 0
           PY
 
           curl -fsS http://127.0.0.1:5080/api/engineering/security-roles > /tmp/security-roles.json
@@ -224,6 +167,7 @@ jobs:
           export Authentication__Jwt__Issuer=elitescada-ci
           export Authentication__Jwt__Audience=elitescada-ci
           export Authentication__Jwt__SigningKey=elitescada-ci-signing-key-at-least-32-bytes
+          export EngineeringRuntime__ProjectKey=ci-demo
           dotnet run --project src/Scada.Api/Scada.Api.csproj --no-build --configuration Release --no-launch-profile > /tmp/scada-api.log 2>&1 &
           API_PID=$!
           for _ in $(seq 1 30); do
@@ -320,6 +264,100 @@ jobs:
               result = json.load(f)
           assert result['publication']['publishedRevision'] == result['revision']['revision']
           assert result['lifecycle']['status'] == 2
+          PY
+
+          curl -fsS -b /tmp/scada-auth.cookie -X POST http://127.0.0.1:5080/api/engineering/persistence/ci-demo/published/activate \
+            -H 'content-type: application/json' \
+            -d '{"activatedBy":"github-actions"}' > /tmp/persistence-activate.json
+          cat /tmp/persistence-activate.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/persistence-activate.json') as f:
+              result = json.load(f)
+          lifecycle = result['lifecycle']
+          assert result['activated'] is True
+          assert lifecycle['status'] == 2
+          assert lifecycle['runtimeStatus'] == 2
+          assert lifecycle['activeRevision'] == lifecycle['publishedRevision']
+          assert result['revision']['revision'] == lifecycle['activeRevision']
+          PY
+
+          historian_ready=false
+          for _ in $(seq 1 30); do
+            curl -fsS -b /tmp/scada-auth.cookie http://127.0.0.1:5080/api/diagnostics/runtime > /tmp/runtime-diagnostics.json
+            if python3 - <<'PY'
+          import json, sys
+          with open('/tmp/runtime-diagnostics.json') as f:
+              diagnostics = json.load(f)
+          ok = (
+              diagnostics['runtime']['projectKey'] == 'ci-demo'
+              and diagnostics['runtime']['tagCount'] >= 1
+              and diagnostics['historian']['provider'] == 'timescaledb'
+              and diagnostics['historian']['writtenSamples'] >= 1
+          )
+          sys.exit(0 if ok else 1)
+          PY
+            then
+              historian_ready=true
+              break
+            fi
+            sleep 1
+          done
+
+          if [ "$historian_ready" != "true" ]; then
+            cat /tmp/runtime-diagnostics.json
+            cat /tmp/scada-api.log
+            exit 1
+          fi
+
+          cat /tmp/secure-health.json
+          cat /tmp/runtime-diagnostics.json
+          curl -fsS -b /tmp/scada-auth.cookie http://127.0.0.1:5080/api/tags > /tmp/tags.json
+          TAG_COUNT=$(python3 -c 'import json; print(len(json.load(open("/tmp/tags.json"))))')
+          echo "Runtime exposed ${TAG_COUNT} TAGs"
+          test "$TAG_COUNT" -ge 7
+
+          TANK_ID=$(python3 - <<'PY'
+          import json
+          with open('/tmp/tags.json') as f:
+              tags = json.load(f)
+          print(next(tag['id'] for tag in tags if tag['path'] == 'Demo.Tank01.Level'))
+          PY
+          )
+          echo "Historian smoke selected TANK_ID=${TANK_ID}"
+          test "$TANK_ID" = "10000000-0000-0000-0000-000000000001"
+          cat /tmp/tags.json
+          curl -fsS -b /tmp/scada-auth.cookie "http://127.0.0.1:5080/api/history/${TANK_ID}?limit=100" > /tmp/history.json
+          curl -fsS -b /tmp/scada-auth.cookie http://127.0.0.1:5080/api/diagnostics/runtime > /tmp/runtime-diagnostics-history.json
+          cat /tmp/history.json
+          cat /tmp/runtime-diagnostics-history.json
+          PGPASSWORD=postgres psql \
+            --host=127.0.0.1 --port=5432 --username=postgres --dbname=postgres \
+            --no-align --tuples-only --pset pager=off \
+            --command="SELECT current_database(), current_schema(), now(), current_setting('TimeZone'); SELECT tag_id, COUNT(*) AS samples, MIN(ts) AS first_ts, MAX(ts) AS last_ts FROM elitescada.tag_history GROUP BY tag_id ORDER BY tag_id; SELECT tag_id, ts, quality, source, value, data_type FROM elitescada.tag_history WHERE tag_id = '10000000-0000-0000-0000-000000000001' AND ts >= now() - interval '15 minutes' ORDER BY ts;" || true
+          python3 - <<'PY'
+          import json
+          with open('/tmp/history.json') as f:
+              history = json.load(f)
+          assert len(history) >= 1
+          assert all(sample['quality'] == 0 for sample in history)
+          PY
+
+          curl -fsS -b /tmp/scada-auth.cookie -X POST http://127.0.0.1:5080/api/historical/query \
+            -H 'content-type: application/json' \
+            -d '{"datasetKey":"historian.samples","timeRange":{"kind":"relative","durationSeconds":300,"anchor":"now"},"page":{"limit":5}}' \
+            > /tmp/historical-query.json
+          cat /tmp/historical-query.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/historical-query.json') as f:
+              result = json.load(f)
+          assert result['version'] == 1
+          assert result['datasetKey'] == 'historian.samples'
+          assert result['pageSize'] == 5
+          assert result['fromUtc'] < result['toUtc']
+          assert len(result['rows']) >= 1
+          assert {column['field'] for column in result['columns']} >= {'tag.id', 'tag.path', 'timestamp', 'value', 'quality'}
           PY
 
           curl -fsS -b /tmp/scada-auth.cookie -X POST http://127.0.0.1:5080/api/engineering/persistence/ci-demo/save \

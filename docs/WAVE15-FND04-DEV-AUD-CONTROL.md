@@ -38,11 +38,11 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0122`
+`MAIN_ORDER_REV: 0123`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-29 — F0 INTEGRATED / R2-A RELEASE-READY / SHARED CODEX PARKED`
+`LAST_MAIN_UPDATE_BRT: 2026-09-29 — F0 INTEGRATED / POSTMERGE CI RETRY / R2-A HOLD / SHARED CODEX PARKED`
 
-`GLOBAL_GATE: FND04_VERIFIED_FROZEN / GATE0_GREEN / GATE1_GREEN / R2_C0_FROZEN / F0_INTEGRATED / R2_A_RELEASE_READY / SHARED_CODEX_PARKED`
+`GLOBAL_GATE: FND04_VERIFIED_FROZEN / GATE0_GREEN / GATE1_GREEN / R2_C0_FROZEN / F0_INTEGRATED / R2_A_HOLD_POSTMERGE_CI_RETRY / SHARED_CODEX_PARKED`
 
 Current situation:
 
@@ -61,7 +61,7 @@ Current situation:
 - Main performed the #375 Reuse R1 recomposition directly to preserve limited CODEX capacity. The shared CODEX executor is now WAIT and must not consume capacity unless Main issues a later environment-dependent order. Gate0 (#373/#374/#376) remains integrated and tree-proven. FND-04 remains frozen.
 - Any later change to this shared contract requires a new Main/Foundation delta; downstream lanes may not redefine it.
 
-Current CORRECTION-NOW integration baseline is `wave15/corrections-integration@d869c538700eca4b72703c311bb56f810a8baa2d`, tree `cf6f23cb44b8cef7f2d6b097ae417d44ed86f99c`. Gate0 and Gate1 are green. R2 C0 contracts are frozen. F0 shared wire foundation PR #388 passed exact-head Wave 15 T1 `36593596331` and is integrated with a merge tree byte-identical to the T1 candidate. R2-A is release-ready, but no future DEV bootstrap has been generated. Shared CODEX remains PARKED to preserve remaining capacity and has no active product mutation order.
+Current CORRECTION-NOW integration baseline is `wave15/corrections-integration@d869c538700eca4b72703c311bb56f810a8baa2d`, tree `cf6f23cb44b8cef7f2d6b097ae417d44ed86f99c`. Gate0 and Gate1 are green. R2 C0 contracts are frozen. F0 shared wire foundation PR #388 passed exact-head Wave 15 T1 `36593596331` and is integrated with a merge tree byte-identical to the T1 candidate. F0 post-merge EliteSCADA CI run `36594248859` had one PostgreSQL test deadlock (`40P01`) in code untouched by F0; its failed Backend job is being rerun with unchanged bytes. R2-A remains HOLD until that retry is green. No future DEV bootstrap has been generated. Shared CODEX remains PARKED to preserve remaining capacity and has no active product mutation order.
 ---
 
 ## 2A. CURRENT SHARED CODEX ORDER — EXECUTION POINTER

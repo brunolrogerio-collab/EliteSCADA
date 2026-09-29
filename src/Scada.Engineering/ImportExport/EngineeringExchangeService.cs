@@ -200,7 +200,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
 
         _csv = new EngineeringCsvExchange(_json);
         _dataSourceHandler = new DataSourceEngineeringHandler(dataSources, tags, alarms, commands, dataSourceConfigurationValidator);
-        _tagHandler = new TagEngineeringHandler(tags, dataSources, alarms, securityPolicies);
+        _tagHandler = new TagEngineeringHandler(tags, dataSources, alarms, securityPolicies, _historianCaptureProfiles);
         _securityScopeHandler = new SecurityScopeEngineeringHandler(
             securityPolicies,
             tags,

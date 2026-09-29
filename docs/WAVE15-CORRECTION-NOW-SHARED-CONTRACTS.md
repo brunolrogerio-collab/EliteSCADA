@@ -900,7 +900,7 @@ Chat J must consume the integrated wide-section/layout hook rather than invent a
 
 ### C-PRODUCT-VERSION-01 — human-facing EliteSCADA product version
 
-**State:** `FROZEN_FOR_CONSUMERS / PRODUCT_VERSION_AUTHORITY_READY / IMPLEMENTATION_PENDING`  
+**State:** `FROZEN_FOR_CONSUMERS / PRODUCT_VERSION_AUTHORITY_PR_#403 / IMPLEMENTATION_PENDING_INTEGRATION`  
 **Owner:** Main + shared CODEX contract review  
 **Consumers:** Chat I / Engineering Information, global shell/help/diagnostics, packaging/release tooling.
 
@@ -913,11 +913,16 @@ Problem:
 Product Owner proposed current visible development identity:
 `Alpha 0.15.2.1`.
 
-Intended coordination meaning for this development cycle:
-- `0` = pre-1.0 product;
-- `15` = Wave 15 generation;
-- `2` = post-Preview 2 convergence/revision cycle;
-- `1` = correction package 1.
+Product Owner versioning convention:
+- current identity: `EliteSCADA Alpha 0.15.2.1`;
+- approximate numeric model: `0.WAVE.REVISION.DELIVERY` while the product remains pre-1.0;
+- `0` = pre-1.0 product generation;
+- `15` = Wave 15;
+- `2` = second revision/convergence cycle;
+- `1` = first delivery/correction package inside that revision;
+- future versions should preserve these axes approximately rather than incrementing an unrelated component/package number;
+- the Product Owner/Main may adjust an axis when the real release/revision semantics require it;
+- Alpha/Beta/RC/1.0 remain release-channel/product maturity semantics and are not Engineering schema versions.
 
 Freeze must define:
 1. one canonical product-version source consumed by Web/API/distribution metadata;
@@ -934,6 +939,14 @@ Normal Engineering Information presentation:
 - secondary technical details: schema, base revision, snapshot timestamp, exact build/commit.
 
 `EliteSCADA Alpha 0.15.2.1` is the frozen human-facing product identity for this correction/external-test cycle. Engineering schema, project revision and Git/build provenance remain separate technical metadata.
+
+Implementation checkpoint:
+- Main foundation PR #403 `W15 R2: canonical product version authority`;
+- branch `work/w15-r2-product-version-authority`;
+- head `2eae0339036c79155126a15ac2cbc0be8e3ed66e`;
+- Wave 15 T1 #162 / `36634435918`: SUCCESS;
+- PR #403 provides the canonical build/API/Web source and must integrate before Chat I hardens the Information consumer;
+- Chat I / PR #400 must consume the canonical source and must not embed `0.15.2.1` locally.
 
 ### C-USER-COPY-I18N-01 — user-facing terminology and multilingual identity
 

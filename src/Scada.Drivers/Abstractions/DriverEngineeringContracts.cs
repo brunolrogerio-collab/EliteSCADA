@@ -246,7 +246,7 @@ public sealed record DriverPointReadTestRequest(
 
         if (AddressSelector is not null)
         {
-            if (!Enum.IsDefined(AddressSelector.Kind) ||
+            if (!Enum.IsDefined(typeof(TagValueSelectorKind), AddressSelector.Kind) ||
                 AddressSelector.Kind != TagValueSelectorKind.Bit ||
                 AddressSelector.Index < 0)
             {

@@ -21,6 +21,7 @@ rev0113 residual E3 (#373/#374; #376 already E3-accepted)
   -> freeze Round-2 UX/product contracts
   -> R2-A: Engineering density + Report theme
   -> R2-B: Editor UX + Client branding
+  -> R2-C: user-facing terminology + multilingual consistency
   -> exact E2/E3
   -> mandatory SECOND Preview + independent Audit
   -> residual corrections/recheck
@@ -77,7 +78,7 @@ Before parallel Round-2 implementation, Main/CODEX freezes the bounded shared co
 
 - `TASK_FIRST / COMPACT_CONTEXT / SECONDARY_INFORMATION_ON_DEMAND`;
 - one compact persistent Engineering context row;
-- from the current metadata strip, only Workspace saved/dirty/conflict state remains permanently visible;
+- from the current metadata strip, only Workspace saved/dirty/conflict state remains permanently visible, moved into the compact top Engineering context row so the separate metadata strip disappears;
 - Engineering Lock becomes compact state-first: feature name/details on demand;
 - schema/base revision/snapshot timestamp move to `Informações -> Detalhes técnicos`;
 - dirty/Lock/CAS/current-task state remains truthful when relevant;
@@ -138,6 +139,18 @@ Editor authoring requirements are part of this same contract:
 - Engineering settings may preview Working branding without changing Active authority;
 - package/restart/recovery preserve branding;
 - SVG support requires the frozen C-VISUAL-ASSET-02 safe static-vector boundary.
+
+### C-USER-COPY-I18N-01
+
+Prepared now, implemented later:
+- internal development jargon stays out of ordinary user UI;
+- one deliberate glossary for pt-BR/en/es;
+- no accidental language mixing;
+- lifecycle/action/error copy is natural per locale;
+- industrial/product terms are either intentionally retained or localized consistently;
+- technical codes/details remain available under diagnostics when useful.
+
+Implementation is intentionally deferred until R2-A + R2-B are integrated to avoid copy work colliding with structural UI rewrites.
 
 ## 5. Development Wave R2-A
 
@@ -247,6 +260,35 @@ If Main builds a combined E3 candidate:
 - no extra files may enter via conflict resolution;
 - post-integration final tree must match the validated composition where that exact-tree model is used.
 
+## 8.5. Development Wave R2-C — UX copy / i18n cleanup
+
+Issue: #379.
+
+Starts only after R2-A and R2-B are integrated.
+
+### Chat M — DEV-UX-COPY-I18N
+
+Own:
+- inventory user-visible strings across the corrected product surfaces;
+- freeze/consume C-USER-COPY-I18N-01 glossary;
+- remove internal coordination jargon from ordinary UI;
+- normalize pt-BR/en/es user-facing terminology;
+- migrate common concepts to shared translation keys where practical;
+- preserve backend/API/internal semantic identifiers;
+- add focused localization/copy regressions.
+
+Must not:
+- redesign lifecycle/Authority semantics;
+- rename backend enums/contracts for cosmetic reasons;
+- reopen layout/component architecture already accepted from I/J/K/L;
+- silently remove technical diagnostics that are useful to support; move them behind an appropriate details surface instead.
+
+Required evidence:
+- exact-SHA E2;
+- mounted pt-BR/en/es smoke on affected surfaces;
+- no known internal-only vocabulary in ordinary first-user paths;
+- Human Preview remains final language-quality evidence.
+
 ## 8. Gate 4 — integrated correction E3
 
 After R2-A and R2-B are integrated, validate one exact integrated candidate with:
@@ -354,6 +396,7 @@ Resume canonical sequencing for:
 | K — REPORT-THEME | C-SURFACE-01, C-TEST-EVIDENCE-01, existing Engineering semantic theme tokens | report data/model authority |
 | J — EDITOR-UX-R2 | integrated C-ENG-DENSITY-01, C-VISUAL-IDENTITY-01, C-VISUAL-DYNAMIC-01, C-TAG-WRITE-01, integrated/frozen C-REUSE-01, frozen C-VISUAL-ASSET-02, C-SURFACE-01, C-TEST-EVIDENCE-01 | renderer, identity, TAG write, reuse relationship, asset store/API |
 | L — BRANDING | integrated C-ENG-DENSITY-01, C-AUTHORITY-01, frozen C-VISUAL-ASSET-02, frozen C-BRANDING-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | lifecycle authority, asset store/API, independent per-page branding state |
+| M — UX-COPY-I18N | integrated R2-A/R2-B, frozen C-USER-COPY-I18N-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | lifecycle/Authority semantics, backend enum/API identity, accepted layout architecture |
 
 Any consumer that finds an insufficient contract returns:
 `BLOCKED_CONTRACT / <contract-id> / <missing semantic>`.
@@ -370,6 +413,7 @@ Any consumer that finds an insufficient contract returns:
 | Contract | Main/CODEX C-VISUAL-ASSET-02 + C-BRANDING-01 | none | I/K integration |
 | R2-B | J / Editor UX | L | I/K integrated + C-REUSE-01 integrated/frozen + C-VISUAL-ASSET-02 frozen |
 | R2-B | L / Branding | J | I/K integrated + C-VISUAL-ASSET-02 + C-BRANDING-01 frozen |
+| R2-C | M / UX copy + i18n | none | I/J/K/L integrated + C-USER-COPY-I18N-01 frozen |
 | Validation | Shared CODEX / E3 | no DEV mutation of candidate | all target lanes delivered |
 | Preview/Audit | CODEX Preview + Human Preview + AUD | independent evidence paths | exact integrated candidate |
 

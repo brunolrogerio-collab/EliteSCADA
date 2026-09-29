@@ -362,7 +362,7 @@ Foundation slices frozen
   -> final Wave 15 acceptance
 ```
 
-Wave13 #205/#207 remains paused until a separate Product Owner decision. Do not silently reinsert signed-release work into the active path.
+Wave 13 #205/#207 is **CANCELLED / CLOSED / HISTORICAL ONLY** by Product Owner decision on 2026-09-29. Do not resume, rebase or merge that line. The next Windows productization authority is Wave 16 / #408, using the accepted post-Wave-15 product and prioritizing #360/#362 local CODEX/workbench evidence plus #208/#210 first real Preview evidence.
 
 ## Permanent execution guards
 

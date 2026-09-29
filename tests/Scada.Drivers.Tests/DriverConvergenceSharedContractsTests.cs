@@ -30,6 +30,17 @@ public sealed class DriverConvergenceSharedContractsTests
     }
 
     [Fact]
+    public void ModuleRegistration_RequiresPointReadProviderWhenCapabilityIsAdvertised()
+    {
+        var registration = new CommunicationDriverModuleRegistration(
+            new DescriptorProvider("modbus.tcp", DriverEngineeringCapabilities.PointReadTest));
+
+        var error = Assert.Throws<InvalidOperationException>(registration.Validate);
+
+        Assert.Contains(nameof(CommunicationDriverModuleRegistration.PointReadTester), error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Readiness_IsReadyOnlyForExplicitReadyState()
     {
         var ready = new CommunicationDriverReadinessSnapshot(

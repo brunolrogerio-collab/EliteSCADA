@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.Drivers.Abstractions;
 using Scada.Drivers.OpcUa;
@@ -28,6 +29,25 @@ public sealed record DriverEngineeringDraftDiscoveryApiRequest(
     DriverEngineeringDraftDataSourceApiRequest DataSource,
     IReadOnlyDictionary<string, string>? Parameters = null,
     int? MaximumResults = null);
+
+public sealed record DriverEngineeringPointReadTestApiRequest(
+    CommunicationTagBinding Binding,
+    TagDataType DataType,
+    TagValueSelector? AddressSelector = null,
+    string? EngineeringUnit = null,
+    int SampleCount = 1,
+    int SampleIntervalMilliseconds = 0,
+    int TimeoutMilliseconds = 5000);
+
+public sealed record DriverEngineeringDraftPointReadTestApiRequest(
+    DriverEngineeringDraftDataSourceApiRequest DataSource,
+    CommunicationTagBinding Binding,
+    TagDataType DataType,
+    TagValueSelector? AddressSelector = null,
+    string? EngineeringUnit = null,
+    int SampleCount = 1,
+    int SampleIntervalMilliseconds = 0,
+    int TimeoutMilliseconds = 5000);
 
 /// <summary>
 /// Opens a driver Engineering module for a configured or transient Data Source.

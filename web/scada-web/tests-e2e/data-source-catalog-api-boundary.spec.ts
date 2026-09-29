@@ -33,13 +33,20 @@ test('Driver catalog DI and endpoint remain in the Engineering API boundary', as
 test('Driver Engineering tooling keeps persisted GUID scope and adds read-authorized transient draft tooling', async () => {
   const engineeringApi = await repoFile('src/Scada.Api/Engineering/EngineeringDriverCatalogApi.cs');
   const tooling = await repoFile('src/Scada.Api/Engineering/EngineeringDriverTooling.cs');
+  const driverContracts = await repoFile('src/Scada.Drivers/Abstractions/DriverEngineeringContracts.cs');
+  const moduleRegistry = await repoFile('src/Scada.Drivers/Abstractions/CommunicationDriverModuleRegistry.cs');
+  const webApi = await repoFile('web/scada-web/src/engineering/driverEngineeringApi.ts');
 
   expect(engineeringApi).toContain('/api/engineering/data-sources/{id:guid}/driver-tools/connection-test');
   expect(engineeringApi).toContain('/api/engineering/data-sources/{id:guid}/driver-tools/discover');
   expect(engineeringApi).toContain('/api/engineering/data-sources/{id:guid}/driver-tools/browse');
   expect(engineeringApi).toContain('/api/engineering/driver-tools/connection-test');
   expect(engineeringApi).toContain('/api/engineering/driver-tools/discover');
-  expect(engineeringApi.match(/\.RequireWorkspaceEngineeringRead\(\);/g)?.length ?? 0).toBeGreaterThanOrEqual(7);
+  expect(engineeringApi).toContain('/api/engineering/driver-tools/point-read-test');
+  expect(engineeringApi).toContain('/api/engineering/data-sources/{id:guid}/driver-tools/point-read-test');
+  expect(engineeringApi).toContain('DriverEngineeringCapabilities.PointReadTest');
+  expect(engineeringApi).toContain('bounded.CancelAfter');
+  expect(engineeringApi.match(/\.RequireWorkspaceEngineeringRead\(\);/g)?.length ?? 0).toBeGreaterThanOrEqual(9);
 
   // Persisted operations still resolve the canonical Source by GUID.
   expect(engineeringApi).toContain('dataSources.Find(id)');
@@ -50,6 +57,19 @@ test('Driver Engineering tooling keeps persisted GUID scope and adds read-author
   expect(tooling).toContain('new EngineeringDriverToolProviderLease(transient.Registration, transient.Provider)');
   expect(tooling).toContain('_ownedProvider?.DisposeAsync()');
   expect(tooling).toContain('ICommunicationDriverProtectedMaterialResolver');
+  expect(tooling).toContain('DriverEngineeringPointReadTestApiRequest');
+  expect(tooling).toContain('DriverEngineeringDraftPointReadTestApiRequest');
+
+  expect(driverContracts).toContain('PointReadTest = 1 << 5');
+  expect(driverContracts).toContain('ICommunicationDriverPointReadTester');
+  expect(driverContracts).toContain('DriverPointReadRawRepresentation');
+  expect(driverContracts).toContain('DriverPointReadSampleSummary');
+  expect(moduleRegistry).toContain('PointReadTester');
+  expect(moduleRegistry).toContain('DriverEngineeringCapabilities.PointReadTest');
+
+  expect(webApi).toContain('testEngineeringPointRead');
+  expect(webApi).toContain('testEngineeringDraftPointRead');
+  expect(webApi).toContain('DriverPointReadTestResultView');
 
   const failureBoundary = engineeringApi.slice(
     engineeringApi.indexOf('private static IResult DriverToolFailure'),

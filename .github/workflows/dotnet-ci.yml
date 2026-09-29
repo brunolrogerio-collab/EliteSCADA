@@ -401,6 +401,18 @@ jobs:
           assert result['revision']['revision'] == lifecycle['activeRevision']
           PY
 
+          # Initial Server Memory state is composed while the candidate Runtime
+          # event gate is still closed. Produce one deliberate post-activation
+          # process-value write through the normal authorized Runtime API so the
+          # Historian assertion observes only committed active-runtime traffic.
+          CI_RUNTIME_TAG_ID=95000000-0000-0000-0000-000000000002
+          WRITE_STATUS=$(curl -sS -b /tmp/scada-auth.cookie -o /tmp/runtime-write.json -w '%{http_code}' \
+            -X POST "http://127.0.0.1:5080/api/tags/${CI_RUNTIME_TAG_ID}/write" \
+            -H 'content-type: application/json' \
+            -d '{"value":43.5}')
+          cat /tmp/runtime-write.json || true
+          test "$WRITE_STATUS" = "202"
+
           historian_ready=false
           for _ in $(seq 1 30); do
             curl -fsS -b /tmp/scada-auth.cookie http://127.0.0.1:5080/api/diagnostics/runtime > /tmp/runtime-diagnostics.json

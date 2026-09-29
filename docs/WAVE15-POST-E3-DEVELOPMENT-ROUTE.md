@@ -1,9 +1,9 @@
 # Wave 15 — Post-E3 Development Route
 
-**Status:** GATE0_GREEN / GATE1_GREEN / #375_INTEGRATED / R2_C0_FROZEN / F0_WIRE_FOUNDATION_NEXT / SHARED_CODEX_PARKED / NO_BOOTSTRAP_RELEASED  
+**Status:** GATE0_GREEN / GATE1_GREEN / R2_C0_FROZEN / F0_INTEGRATED / R2_A_RELEASE_READY / SHARED_CODEX_PARKED / NO_BOOTSTRAP_RELEASED  
 **Coordinator issue:** #378  
 **Execution ledger:** #305  
-**Current integration baseline:** `wave15/corrections-integration@bb946f9e7d6910d59a9ac172d71361e5badab4b1` / tree `75398319b8b4630b72a525fb9bdd235dc0d541a9`  
+**Current integration baseline:** `wave15/corrections-integration@d869c538700eca4b72703c311bb56f810a8baa2d` / tree `cf6f23cb44b8cef7f2d6b097ae417d44ed86f99c`  
 **Current shared CODEX order:** `rev0121 / SHARED-CODEX-PARKED-AFTER-GATE1-C0-FREEZE-102`
 
 GitHub live is authoritative. Every gate below must be revalidated against live branches, PR heads, CI and issue handoffs before execution.
@@ -18,7 +18,7 @@ The route is:
 Gate0 complete: #373/#374/#376 integrated with final tree byte-identical to validated E3
   -> Gate1 complete: #375 recomposed by Main, exact-head T1 green, integrated
   -> R2-C0 SHARED CONTRACT LAYER (#386) FROZEN
-  -> F0 SHARED WIRE FOUNDATION / additive DTO+schema hotspots only
+  -> F0 complete: shared wire/schema foundation integrated with exact T1-green tree
   -> R2-A foundations: Engineering shell/theme + Historian capture + Data Query core + Portability core
   -> R2-B authoring: Editor UX + Branding + structured Engineering + Script authoring + Library/Fragment consumers
   -> R2-C historical consumers: Trend/Browser/Alarm View/Report query convergence + Playback
@@ -169,13 +169,27 @@ C0 must also revalidate C-REUSE-01 on the exact post-#375 integrated base.
 No consumer may locally redefine a missing semantic; it returns:
 `BLOCKED_CONTRACT / <contract-id> / <missing semantic>`.
 
-## 4.5. F0 — shared wire foundation
+## 4.5. F0 — COMPLETE / shared wire foundation
 
-**State:** NEXT_IMPLEMENTATION_PACKAGE / ISSUE_#387 / OWNER_UNASSIGNED / NO_BOOTSTRAP_RELEASED.
+**State:** INTEGRATED / PR_#388 / EXACT_TREE_PROVEN / DOWNSTREAM_HOTSPOTS_UNLOCKED.
 
-Purpose:
-- tracked by #387;
-- translate frozen C0 semantics into additive shared DTO/enums/schema/version types once;
+Completion evidence:
+- issue #387;
+- PR #388;
+- exact PR head `297d71fc21f11b9513fdd22c64c6d586f3f9a035`;
+- exact validated tree `cf6f23cb44b8cef7f2d6b097ae417d44ed86f99c`;
+- Wave 15 T1 `36593596331` / #144 SUCCESS across classification, sanity, Web, focused .NET and Chromium;
+- squash merge `d869c538700eca4b72703c311bb56f810a8baa2d`;
+- merge tree `cf6f23cb44b8cef7f2d6b097ae417d44ed86f99c`, byte-identical to the T1 candidate.
+
+Implemented only:
+- shared frozen DTO/enums/schema/version types;
+- Engineering schema v20;
+- compatibility normalization for v19 Engineering payloads;
+- previous reusable-library Engineering schema remains readable;
+- matching Web type mirrors and roundtrip tests.
+
+No Historian/query/import/Library/Trend/Playback behavior was added.
 - prevent Historian Capture, Data Query and Portability lanes from concurrently rewriting shared Engineering contract/type hotspots.
 
 Owns only:
@@ -194,7 +208,7 @@ Forbidden:
 - UI;
 - Trend/Browser/Report/Playback implementation.
 
-While F0 is active, no other package may edit its frozen hotspot set. After F0 integration, R2-A behavioral foundations may parallelize according to the C0 ownership matrix.
+F0 is integrated. Its former hotspot lock is released, but downstream lanes must consume the integrated wire contracts and may not redefine them. Any missing shared wire semantic returns `BLOCKED_CONTRACT` to Main.
 
 ## 5. Development Wave R2-A — foundations
 
@@ -721,7 +735,7 @@ Any consumer that finds an insufficient contract returns:
 | Current | #375 Main recomposition / T1 | exact R1 11-file scope; shared CODEX WAIT | T1 active now |
 | Gate 1 | G / #375 recomposition | none required | E/F/H integration |
 | C0 Contract | Main / #386 | complete / frozen | post-#375 exact base `bb946f9e...` |
-| F0 | #387 Shared Wire Foundation / owner unassigned | none | C0 frozen + exact post-#375 base |
+| F0 | #387 / PR #388 | COMPLETE | integrated `d869c538...` / tree `cf6f23cb...` |
 | R2-A | I / Engineering density | K | frozen C-ENG-DENSITY-01 + C-PRODUCT-VERSION-01 + post-#375 base |
 | R2-A | K / Theme + contrast | I + O | frozen C-ENG-THEME-01 + post-#375 base |
 | R2-A | O / Historian capture | I + K + DATA-QUERY-CORE + PORTABILITY-CORE when ownership is clean | frozen C-HISTORIAN-CAPTURE-01 + post-#375 base + no material file overlap |

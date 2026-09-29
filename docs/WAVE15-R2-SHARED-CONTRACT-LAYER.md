@@ -248,6 +248,15 @@ Because F0 is already integrated, #390 has one bounded wire prerequisite:
 - no Driver behavior and no UI in D1;
 - no Engineering schema increment unless persisted Engineering payload changes.
 
+DATA-QUERY deterministic retrieval delta:
+- #384 point modes require explicit `TargetUtc`; no FromUtc/ToUtc guessing;
+- bounded F0-D2 must add optional `HistorianRetrieval.TargetUtc` plus `historianTargetUtc` parameter target before DATA-QUERY-CORE resumes;
+- interpolation/sampled synthesis uses Good-only source observations with mandatory positive maximum gap;
+- SampledFixedStep grid originates at resolved FromUtc;
+- aggregate buckets reuse canonical UTC bucket alignment and expose mixed-quality provenance;
+- exact detailed authority: `docs/WAVE15-CORRECTION-NOW-SHARED-CONTRACTS.md` @ `7369fcd3892b7af9ab2ee26d4a8a84f0815b240f`;
+- DATA-QUERY-CORE remains HOLD until F0-D2 is integrated on a Main-approved base.
+
 TAG duplication freezes:
 - new stable IDs on duplicates;
 - configuration-only copy;

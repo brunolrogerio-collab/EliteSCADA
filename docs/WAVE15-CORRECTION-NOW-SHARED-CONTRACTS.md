@@ -29,6 +29,43 @@ Contract state vocabulary:
 - `INTEGRATED` — implementation is on live integration;
 - `REOPEN_REQUIRED` — evidence proves the frozen contract itself is wrong/incomplete.
 
+### 1.1 R2 C0 Contract Layer — mandatory before new implementation release
+
+**Coordinator:** #386  
+**Product Owner decision:** the post-Preview capabilities captured here are required for the first EliteSCADA candidate distributed to third-party testers.
+
+Execution order:
+`GATE0 -> GATE1/#375 -> C0 CONTRACT FREEZE -> IMPLEMENTATION PACKAGES -> INTEGRATION -> E2/E3 -> SECOND PREVIEW/AUDIT -> THIRD-PARTY TEST CANDIDATE`.
+
+C0 is a documentation/semantic gate, not a product-mutation lane.
+
+Before Main releases any new R2 implementation consumer:
+1. revalidate the exact post-#375 integration base;
+2. identify every shared contract consumed by that package;
+3. freeze canonical identity, wire/persistence semantics, lifecycle/Authority, validation/error rules, compatibility/migration and deterministic acceptance;
+4. record the consumer/owner boundary;
+5. confirm file/authority overlap against other planned packages.
+
+If a consumer finds missing semantics, it returns:
+`BLOCKED_CONTRACT / <contract-id> / <missing semantic>`.
+
+The consumer must not invent a local replacement.
+
+Mandatory C0 families for the first external-test candidate include:
+- Engineering density/theme/version;
+- visual identity/dynamics/reuse/assets/Editor interaction;
+- Script event linking and Script authoring safety/guidance;
+- Historian capture;
+- shared historical time range;
+- reusable typed Data Query / Alarm View / Historian retrieval;
+- historical Playback;
+- Engineering Fragment/import-export and reusable Library lifecycle;
+- structured Engineering workflows;
+- Branding;
+- user-facing terminology/i18n.
+
+#384 and #385 are therefore mandatory product scope for the external-test candidate, not optional research backlog. Implementation slicing remains unresolved until C0 freeze and exact post-#375 file-ownership review.
+
 ## 2. Global acceptance contract — C-SURFACE-01
 
 **State:** `FROZEN_FOR_CONSUMERS`  
@@ -717,7 +754,7 @@ Until frozen, `Alpha 0.15.2.1` is the Product Owner-approved proposed display id
 
 ### C-USER-COPY-I18N-01 — user-facing terminology and multilingual identity
 
-**State:** `PREPARED_DRAFT / DEFERRED_UNTIL_R2-A+R2-B_INTEGRATED`  
+**State:** `PREPARED_DRAFT / C0_GLOSSARY_FREEZE_REQUIRED / IMPLEMENT_AFTER_STRUCTURAL_CONSUMERS / MANDATORY_FIRST_EXTERNAL_TEST`  
 **Owner:** Main + #379 terminology/glossary review  
 **Implementation consumer:** future Chat M / DEV-UX-COPY-I18N  
 **Supported locales:** pt-BR / en / es.
@@ -863,6 +900,72 @@ Forbidden:
 - DOM/React callbacks becoming project/runtime authority;
 - bypassing Script sandbox/capability/authorization rules.
 
+### C-SCRIPT-AUTHORING-R2-01 — safe guided Script authoring
+
+**State:** `PREPARED_DRAFT / C0_FREEZE_REQUIRED / MANDATORY_FIRST_EXTERNAL_TEST`  
+**Owner:** Main + #369 + #378 Script benchmark findings  
+**Depends on:** C-VISUAL-IDENTITY-01, C-SCRIPT-EVENT-LINK-01, C-TAG-WRITE-01, C-AUTHORITY-01.  
+**Consumers:** future bounded Script-authoring implementation package, Chat J event navigation, Chat N Script metadata forms, Chat M terminology.
+
+Product objective:
+`EVENT/CONTEXT -> ACTION -> PROJECT TARGET -> PROPERTY/METHOD -> PARAMETERS -> GENERATED/EDITED PYTHON -> CONTINUOUS VALIDATION -> TEST/PREVIEW -> SAFE EXECUTION`.
+
+Required syntax-safety semantics:
+1. code edits trigger debounced, non-executing syntax validation using the real scope-appropriate Python parser/compiler;
+2. canonical syntax authority is never regex;
+3. diagnostics include exact line/column where available and project into the code editor;
+4. editor state distinguishes `CHECKING | VALID | ERROR | VALIDATOR_UNAVAILABLE/STALE`;
+5. syntax errors block Preview/Apply/Publish/Activate paths that would otherwise make invalid code executable;
+6. reference diagnostics remain distinct from syntax diagnostics;
+7. valid Python that references missing/incompatible TAG/object/property reports a reference error without pretending it is syntax-invalid;
+8. user Script failure is fault-isolated from Engineering, Runtime shell, unrelated Scripts and project authority;
+9. timeout/cancellation/throttle/sandbox rules remain explicit and bounded.
+
+Required guided-authoring semantics:
+- one context browser reuses canonical project identities;
+- user can navigate relevant TAGs, Screens, Popups, visual objects, properties, Client Memory and public APIs;
+- only valid actions/properties/methods for the selected target are shown;
+- stable IDs remain persistence/runtime authority behind friendly names;
+- generated snippets are cursor-aware and syntactically valid;
+- exact generated identity/reference format consumes existing public contracts.
+
+First high-level action families:
+- TAG: Read / Write / Toggle Boolean where type-compatible;
+- Client Memory: Read / Write / Toggle where type-compatible;
+- visual property: Read / Write / Clear / Tween;
+- visual Show/Hide as friendly operations over canonical writable visibility;
+- Screen/Popup navigation only through a frozen public Runtime navigation capability;
+- Alarm actions only through authenticated backend authority;
+- Report actions only through a frozen public Report/Runtime command;
+- declarative Binding/Dynamic should be suggested before Python when it is the safer native solution.
+
+Event integration:
+- visual `Events` selects an existing Script/compatible handler through C-SCRIPT-EVENT-LINK-01;
+- `Open Script` navigates to the existing source/handler;
+- the visual object never owns a duplicate private source copy.
+
+Product terminology:
+- user-facing product copy says `Editor de código` / `Code editor`, not Monaco;
+- Vite, React, Pyodide and Web Worker remain implementation vocabulary unless explicitly shown in developer diagnostics;
+- `Canvas` is not the product-facing name of the Screen/Popup editing area.
+
+Forbidden:
+- DOM/React/CSS-private target APIs;
+- mutable display name as Script target authority;
+- direct Driver bypass;
+- external process execution merely because another SCADA exposes it;
+- syntax validation that executes user code;
+- silently green validation when the validator is unavailable.
+
+Acceptance must include:
+- continuously detected real syntax error;
+- line/column navigation;
+- missing-reference diagnostic;
+- generated TAG Read/Write and visual property action;
+- event-object shortcut;
+- bad handler contained without breaking unrelated Runtime/Engineering;
+- save/reopen and mounted Preview/Test on exact candidate.
+
 ### C-VISUAL-ASSET-02 — common asset/import authority for Editor + Branding
 
 **State:** `PREPARED_DRAFT / SHARED_R2_FOUNDATION_REQUIRED`  
@@ -997,7 +1100,7 @@ must be authorable as an absolute Runtime filter and map deterministically to th
 
 ### C-DATA-QUERY-VIEW-01 — reusable typed data-query authority
 
-**State:** `PREPARED_DRAFT / E3_REFERENCE_AUDIT_COMPLETE / OWNER_ISSUE_384 / NO_DEV_RELEASE`  
+**State:** `PREPARED_DRAFT / E3_REFERENCE_AUDIT_COMPLETE / C0_FREEZE_REQUIRED / MANDATORY_FIRST_EXTERNAL_TEST / OWNER_ISSUE_384`  
 **Owner:** Main + #384  
 **Depends on:** Historical Query v1, #382 capture/storage separation, #383 shared time range.  
 **Consumers:** Historical Data Browser, Alarm history, Trend, Reports, future authorized read-only query clients.
@@ -1070,9 +1173,50 @@ Explicitly forbidden:
 - hidden interpolation that makes bad/stale data appear good;
 - duplicating persisted data merely to satisfy presentation resolution.
 
+### C-HISTORICAL-PLAYBACK-01 — read-only historical application playback
+
+**State:** `PREPARED_DRAFT / C0_FREEZE_REQUIRED / MANDATORY_FIRST_EXTERNAL_TEST`  
+**Owner:** Main + #384  
+**Depends on:** C-DATA-QUERY-VIEW-01, C-HISTORICAL-TIME-RANGE-01, C-VISUAL-IDENTITY-01, C-AUTHORITY-01.  
+**Consumers:** Runtime visual projection, Trend/Browser consumers, Screen/Popup shell, user-facing copy.
+
+Product objective:
+`ACTIVE APPLICATION DEFINITION + HISTORICAL TIME CONTEXT -> READ-ONLY PAST-STATE PROJECTION`.
+
+Required semantics:
+1. Playback never becomes Active process authority; the Active application definition remains the structural source and the selected historical timestamp/range is presentation/query context;
+2. process writes, Commands, ACK/shelve and other mutations are disabled or explicitly unavailable while in Playback;
+3. the UI is unmistakably in historical mode and displays the effective historical timestamp/range;
+4. historical TAG values resolve through C-DATA-QUERY-VIEW-01 retrieval semantics;
+5. Boolean/Enum/discrete values use deterministic at-or-before/step semantics unless a more specific typed policy is frozen;
+6. analog values may use exact/at-or-before/interpolated semantics only under an explicit quality/gap policy;
+7. missing history, bad quality and data gaps remain visibly truthful;
+8. screen navigation may remain available for analysis, but navigation never exits Playback implicitly;
+9. Trend/Browser widgets inside the application receive the shared Playback time context where their contract supports it;
+10. historical alarms/events may be displayed, but historical rows never gain current alarm command authority;
+11. Playback controls may support point-in-time navigation and bounded play speed, but data retrieval remains server-bounded/cancellable;
+12. exiting Playback returns to current Runtime through an explicit user action and current subscriptions are re-established deterministically;
+13. Playback state does not dirty Engineering.
+
+Initial acceptance:
+- choose a historical timestamp;
+- Screen/Popup values and representative Dynamo state resolve from historical data;
+- digital value uses step/at-or-before behavior;
+- analog historical value obeys the frozen retrieval policy;
+- no write/command action is executable;
+- move backward/forward in time without mutating Engineering;
+- missing/bad data is visibly represented;
+- exit returns to current Runtime cleanly.
+
+Forbidden:
+- replaying historical commands into process authority;
+- presenting interpolated/unknown values as healthy measured facts;
+- browser-only fake historical state disconnected from protected query providers;
+- hidden Demo or alternate project authority.
+
 ### C-ENGINEERING-PORTABILITY-01 — full package vs fragment vs reusable library
 
-**State:** `PREPARED_DRAFT / E3_REFERENCE_AUDIT_COMPLETE / OWNER_ISSUE_385 / NO_DEV_RELEASE`  
+**State:** `PREPARED_DRAFT / E3_REFERENCE_AUDIT_COMPLETE / C0_FREEZE_REQUIRED / MANDATORY_FIRST_EXTERNAL_TEST / OWNER_ISSUE_385`  
 **Owner:** Main + #385  
 **Related:** #375, #365, #308, #356, #303/#367.  
 **Consumers:** all Engineering entity browsers/editors, reusable Library workspace, Screen/Popup/Dynamo workflows.

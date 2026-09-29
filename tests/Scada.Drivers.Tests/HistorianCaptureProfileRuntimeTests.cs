@@ -196,7 +196,7 @@ public sealed class HistorianCaptureProfileRuntimeTests
             path.Split('.').Last(),
             path,
             dataType,
-            Source: "memory.server",
+            Source: null,
             ReadOnly: false,
             HistorianCaptureProfileId: profileId);
 

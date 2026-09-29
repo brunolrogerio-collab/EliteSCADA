@@ -298,18 +298,53 @@ Integrate before TAG Commissioning behavior.
 
 Issue #390.
 
-**READY / WAIT_PRODUCT_OWNER_BOOTSTRAP — 2026-09-29**
+**RELEASED / ACTIVE — 2026-09-29**
 
-- prerequisite F0-D1 is integrated and globally green at `3140ad20b759924a15e3e29d74726b6912bf3da6`;
-- no TAG-C work branch has been created;
-- no protocol/provider/UI implementation is released until the Product Owner explicitly requests the bootstrap and Main records the exact owner/base/path locks.
+- Product Owner authorization: explicit Main `SIGA` after F0-D1 completion and green post-merge CI;
+- owner: `DEV-TAG-COMMISSIONING`;
+- exact base: `3140ad20b759924a15e3e29d74726b6912bf3da6`;
+- exact tree: `97b0dba782cabb0a8becccfa736db65b4653826e`;
+- release evidence: F0-D1 PR #399 integrated + EliteSCADA CI `#1601 / 36620256066` globally GREEN;
+- branch: `work/w15-r2-tag-c-commissioning`.
 
+Owned paths / mutation authority:
+- `src/Scada.Drivers/Modbus/**` only for PointReadTest provider/read/decode support;
+- `src/Scada.Drivers/SiemensS7Iso/**` only for PointReadTest provider/read/decode support;
+- `src/Scada.Drivers/OpcUa/**` only for PointReadTest provider/read/decode support;
+- `src/Scada.Api/Engineering/EngineeringDriverTooling.cs` and minimal `EngineeringDriverCatalogApi.cs` factory/provider registration needed by TAG-C;
+- TAG-commissioning UI only under `web/scada-web/src/engineering/**`, primarily `StructuredEditors.tsx`, `TagSourceSelector.tsx`, existing Driver Engineering API mirror consumption, and a dedicated bounded commissioning component if extracted;
+- owning driver/unit/E2E tests.
+
+Read-only frozen dependencies unless Main explicitly approves a contract delta:
+- `src/Scada.Drivers/Abstractions/DriverEngineeringContracts.cs`;
+- `src/Scada.Drivers/Abstractions/CommunicationDriverModuleRegistry.cs`;
+- F0/F0-D1 shared contracts and Web wire types;
+- `src/Scada.Engineering/Contracts/**` / schema v20;
+- Runtime/process-write/Historian/query/portability kernels.
+
+Mission:
 - protocol-specific protected PointReadTest providers;
 - first targets Modbus TCP, S7 ISO, OPC UA;
-- TAG editor Test read / bounded monitor UX;
+- TAG editor `Testar leitura / Test read / Probar lectura`;
+- optional bounded short monitor using only the transient PointReadTest wire;
 - raw/decoded/engineering value diagnostics;
-- effective byte/word transform visibility;
-- Development Monitor handoff after activation.
+- quality, observed/source timestamps, latency, issues and sanitized endpoint;
+- effective byte/word transform visibility with no duplicate swap mechanism;
+- Development Monitor handoff only after Apply/Activate.
+
+Hard boundaries:
+- no process writes;
+- no Active Runtime mutation;
+- no Historian writes;
+- no automatic TAG creation/Apply;
+- no secret disclosure;
+- no persisted Engineering/schema increment;
+- no second Driver runtime;
+- no changes to Data Query/Portability/Historian Capture foundations.
+
+Return:
+`DEV-TAG-COMMISSIONING -> MAIN COORDINATOR — #390 TAG-C HANDOFF`
+with exact branch/head/tree, changed files, protocol coverage matrix, focused tests, T1 evidence and any `BLOCKED_CONTRACT` item.
 
 ### Package TAG-D — TAG duplication/productivity
 

@@ -92,7 +92,12 @@ test('Wave 03 readiness: Runtime stays operational while TAG/history diagnostics
   const currentResponse = await request.get('/api/tags/current');
   expect(currentResponse.ok()).toBeTruthy();
 
-  const historyResponse = await request.get(`/api/history/${currentTag!.id}?limit=5`);
+  // Keep the read-only Pump Current assertion above, but obtain Historian
+  // evidence from the deterministic post-activation sample seeded for Frequency.
+  const historyTag = tags.find(tag => tag.path === 'Demo.P01.Frequency');
+  expect(historyTag).toBeTruthy();
+  expect(historyTag!.readOnly).toBeFalsy();
+  const historyResponse = await request.get(`/api/history/${historyTag!.id}?limit=5`);
   expect(historyResponse.ok()).toBeTruthy();
   const history = await historyResponse.json() as Array<{ timestamp: string; quality: unknown }>;
   expect(Array.isArray(history)).toBeTruthy();
@@ -132,6 +137,11 @@ test('Wave 03 readiness: Engineering exposes the configured domains, Gateway, di
   await expect(page.getByRole('heading', { name: 'Editor de Data Source' })).toBeVisible();
   await expect(page.getByTestId('schema-data-source-editor')).toBeVisible();
   await expect(page.getByTestId('data-source-type')).toBeVisible();
+  await expect(page.getByTestId('gateway-engineering-panel')).toHaveCount(0);
+
+  // Gateway is a first-class Engineering section; it is no longer nested in
+  // Data Sources. Follow the same current navigation proved by gateway-engineering.spec.ts.
+  await engineeringNavigation.getByRole('button', { name: /TAG Gateway/ }).click();
   await expect(page.getByTestId('gateway-engineering-panel')).toBeVisible();
 
   await engineeringNavigation.getByRole('button', { name: /TAGs/ }).click();

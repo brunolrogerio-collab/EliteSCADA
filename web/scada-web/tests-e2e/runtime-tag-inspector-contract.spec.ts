@@ -98,29 +98,32 @@ test('protected Runtime TAG/detail/history contracts expose the read-only inspec
   const tags = await tagsResponse.json() as RuntimeTagListItem[];
   expect(tags.length).toBeGreaterThan(0);
 
-  const selected = tags.find(item => item.path === 'Demo.Tank01.Level') ?? tags[0];
-  expect(selected.id).toBeTruthy();
-  expect(selected.path).toBeTruthy();
-  expect(typeof selected.readOnly).toBe('boolean');
-  expect(selected.current?.timestamp).toBeTruthy();
+  // The Chromium prerequisite seeds one committed Historian sample for this
+  // explicit writable TAG. Do not infer history from candidate initial values.
+  const selected = tags.find(item => item.path === 'Demo.P01.Frequency');
+  expect(selected).toBeTruthy();
+  expect(selected!.id).toBeTruthy();
+  expect(selected!.path).toBeTruthy();
+  expect(typeof selected!.readOnly).toBe('boolean');
+  expect(selected!.current?.timestamp).toBeTruthy();
 
-  const detailResponse = await request.get(`/api/tags/by-path/${selected.path.split('/').map(encodeURIComponent).join('/')}`);
+  const detailResponse = await request.get(`/api/tags/by-path/${selected!.path.split('/').map(encodeURIComponent).join('/')}`);
   expect(detailResponse.ok()).toBeTruthy();
   const detail = await detailResponse.json() as { tag: { id: string; path: string; source?: string | null }; current?: { tagId: string } | null };
-  expect(detail.tag.id).toBe(selected.id);
-  expect(detail.tag.path).toBe(selected.path);
+  expect(detail.tag.id).toBe(selected!.id);
+  expect(detail.tag.path).toBe(selected!.path);
 
   const end = new Date();
   const start = new Date(end.getTime() - 15 * 60_000);
   let history: Array<{ tagId: string; timestamp: string; quality: string | number }> = [];
   await expect.poll(async () => {
-    const response = await request.get(`/api/history/${selected.id}?from=${encodeURIComponent(start.toISOString())}&to=${encodeURIComponent(new Date().toISOString())}&limit=50`);
+    const response = await request.get(`/api/history/${selected!.id}?from=${encodeURIComponent(start.toISOString())}&to=${encodeURIComponent(new Date().toISOString())}&limit=50`);
     if (!response.ok()) return 0;
     history = await response.json() as typeof history;
     return history.length;
   }, { timeout: 12_000 }).toBeGreaterThan(0);
 
-  expect(history.every(sample => sample.tagId === selected.id)).toBeTruthy();
+  expect(history.every(sample => sample.tagId === selected!.id)).toBeTruthy();
   expect(history.every(sample => Boolean(sample.timestamp))).toBeTruthy();
 });
 

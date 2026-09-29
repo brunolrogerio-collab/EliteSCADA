@@ -1,11 +1,12 @@
 import { expect, test } from '@playwright/test';
+import { admitInteractiveRuntimeSession, terminateRuntimeSession } from './runtimeSessionLease';
 
 const adminUsername = 'local-developer';
 const adminPassword = 'E2Epass8';
 
 test.setTimeout(90_000);
 
-test('secure first-run creates the initial local Administrator, first project and durable local session', async ({ browser, baseURL }) => {
+test('secure first-run creates the initial local Administrator, first project and durable local session', async ({ browser, baseURL, request }) => {
   const context = await browser.newContext({
     baseURL: baseURL ?? 'http://127.0.0.1:5173',
     extraHTTPHeaders: { Authorization: '' }
@@ -281,7 +282,7 @@ test('secure first-run creates the initial local Administrator, first project an
         { id: '10000000-0000-0000-0000-000000000002', name: 'Pump Running', path: 'Demo.P01.Running', dataType: 'boolean', source: 'memory.server.e2e', dataSourceId: '40000000-0000-0000-0000-000000000001', readOnly: false, initialValue: { dataType: 'boolean', value: true } },
         { id: '10000000-0000-0000-0000-000000000003', name: 'Pump Fault', path: 'Demo.P01.Fault', dataType: 'boolean', source: 'memory.server.e2e', dataSourceId: '40000000-0000-0000-0000-000000000001', readOnly: true, initialValue: { dataType: 'boolean', value: false } },
         { id: '10000000-0000-0000-0000-000000000004', name: 'Pump Current', path: 'Demo.P01.Current', dataType: 'double', source: 'memory.server.e2e', dataSourceId: '40000000-0000-0000-0000-000000000001', engineeringUnit: 'A', readOnly: true, initialValue: { dataType: 'double', value: 12.5 }, historian: { enabled: true, strategy: 'onChange', deadband: 0.01, periodMilliseconds: null, maximumPeriodMilliseconds: 5000 } },
-        { id: '10000000-0000-0000-0000-000000000005', name: 'Pump Frequency', path: 'Demo.P01.Frequency', dataType: 'double', source: 'memory.server.e2e', dataSourceId: '40000000-0000-0000-0000-000000000001', engineeringUnit: 'Hz', readOnly: false, initialValue: { dataType: 'double', value: 60 } },
+        { id: '10000000-0000-0000-0000-000000000005', name: 'Pump Frequency', path: 'Demo.P01.Frequency', dataType: 'double', source: 'memory.server.e2e', dataSourceId: '40000000-0000-0000-0000-000000000001', engineeringUnit: 'Hz', readOnly: false, initialValue: { dataType: 'double', value: 60 }, historian: { enabled: true, strategy: 'onChange', deadband: 0.01, periodMilliseconds: null, maximumPeriodMilliseconds: 5000 } },
         { id: '10000000-0000-0000-0000-000000000006', name: 'Discharge Pressure', path: 'Demo.Discharge.Pressure', dataType: 'double', source: 'memory.server.e2e', dataSourceId: '40000000-0000-0000-0000-000000000001', engineeringUnit: 'bar', readOnly: true, initialValue: { dataType: 'double', value: 10.5 } },
         { id: '10000000-0000-0000-0000-000000000007', name: 'Flow', path: 'Demo.Discharge.Flow', dataType: 'double', source: 'memory.server.e2e', dataSourceId: '40000000-0000-0000-0000-000000000001', engineeringUnit: 'm³/h', readOnly: true, initialValue: { dataType: 'double', value: 75 } }
       ],
@@ -426,6 +427,29 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(activeFixtureRuntime.body.live.mode).toBe('engineering');
     expect(activeFixtureRuntime.body.live.projectKey).toBe(projectKey);
     expect(activeFixtureRuntime.body.live.revision).toBe(fixtureRevision);
+
+    // Candidate initial Server Memory values are composed before the activation
+    // EventGate commits and therefore are intentionally not Historian evidence.
+    // Seed one deterministic sample only after activation through the normal
+    // authenticated Runtime Session + TAG write path used by real clients.
+    const historianTagId = '10000000-0000-0000-0000-000000000005';
+    const leaseHeaders = await admitInteractiveRuntimeSession(request);
+    try {
+      const writeResponse = await request.post(`/api/tags/${historianTagId}/write`, {
+        data: { value: 59.5 },
+        headers: leaseHeaders
+      });
+      expect(writeResponse.status()).toBe(202);
+
+      await expect.poll(async () => {
+        const response = await request.get(`/api/history/${historianTagId}?limit=5`);
+        if (!response.ok()) return 0;
+        const history = await response.json() as unknown[];
+        return history.length;
+      }, { timeout: 12_000 }).toBeGreaterThan(0);
+    } finally {
+      await terminateRuntimeSession(request, leaseHeaders);
+    }
 
     const populatedWorkspace = await page.evaluate(async () => {
       const response = await fetch('/api/engineering/workspace');

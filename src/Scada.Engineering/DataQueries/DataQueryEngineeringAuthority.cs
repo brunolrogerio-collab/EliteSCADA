@@ -5,6 +5,7 @@ using Scada.Core.Alarms;
 using Scada.Core.HistoricalQueries;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
+using Scada.Engineering.VisualAssets;
 using Scada.Security.Authorization;
 
 namespace Scada.Engineering.DataQueries;

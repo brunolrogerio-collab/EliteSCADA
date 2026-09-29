@@ -271,11 +271,23 @@ These are **packages, not released chats**. Gate1 and C0 freeze are complete; ex
 
 ### Package F0-D1 — Driver Point Read Test Wire
 
-Issue: #390 prerequisite. Owner unassigned; no bootstrap.
+Issue: #390 prerequisite.
 
-- add only the transient Driver Engineering PointReadTest wire/capability/provider/API mirror;
+**RELEASED / ACTIVE — 2026-09-29**
+
+- owner: Main Coordinator;
+- exact base: `e965e9f7381d332e17c792ba20f93214e7d66f78`;
+- release evidence: EliteSCADA CI `#1600 / 36616608742` — globally GREEN (Web, Backend build/tests, Runtime smoke, Chromium E2E);
+- Product Owner explicitly authorized Main to execute F0-D1 immediately once that post-merge gate became globally GREEN;
+- work branch: `work/w15-r2-f0-d1-point-read-wire`.
+
+Scope remains frozen:
+
+- add only the transient Driver Engineering PointReadTest wire/capability/provider/API/Web mirror;
 - do not implement protocol reads or TAG editor UX;
-- preserve F0 integrated schema v20 unless persisted Engineering really changes.
+- do not mutate Active Runtime/History/process state;
+- preserve F0 integrated schema v20 because no persisted Engineering contract changes in F0-D1;
+- capability/provider registration must be truthful and opt-in; protocol implementations come later in TAG-C.
 
 Integrate before TAG Commissioning behavior.
 

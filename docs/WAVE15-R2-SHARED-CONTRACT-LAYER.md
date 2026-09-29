@@ -1,12 +1,69 @@
 # Wave 15 R2 — Shared Contract Layer (C0)
 
-**State:** C0_FROZEN / F0_INTEGRATED / F0_D1_INTEGRATED_VERIFIED / R2_A_RELEASE_READY / NEXT_BOOTSTRAPS_NOT_RELEASED  
+**State:** C0_FROZEN / F0_INTEGRATED / F0_D1_INTEGRATED_VERIFIED / TAG_C_ACTIVE / R2_A_PARALLEL_RELEASED / NO_MERGE  
 **Coordinator issue:** #386  
 **Parent correction route:** #378  
 **Control branch:** `coord/w15-correction-now-parallel-control`  
 **Product integration authority:** `wave15/corrections-integration`
 
 GitHub live is the only authority.
+
+
+## LIVE R2-A PARALLEL RELEASE — 2026-09-29
+
+This live release supersedes older `OWNER_UNASSIGNED / NO_BOOTSTRAP` wording below for the lanes listed here.
+
+Product Owner authorization:
+- explicit request to prepare every R2-A package that can safely work in parallel and generate the bootstraps one-by-one;
+- Main revalidated the globally-green F0-D1 integration before release.
+
+Exact shared creation base for all five lanes:
+- integration: `wave15/corrections-integration@3140ad20b759924a15e3e29d74726b6912bf3da6`;
+- tree: `97b0dba782cabb0a8becccfa736db65b4653826e`;
+- evidence: F0-D1 PR #399 integrated + EliteSCADA CI #1601 / `36620256066` globally GREEN.
+
+Released parallel lanes:
+
+1. **I — DEV-ENG-DENSITY**
+   - branch: `work/w15-r2-eng-density`;
+   - owner: Engineering shell/context/info/layout only;
+   - primary authority: `web/scada-web/src/engineering/EngineeringApp.tsx`, `engineering.css`, shell/info/context composition and focused shell tests;
+   - forbidden: visual-editor internals, TAG commissioning, theme-engine internals, domain DTO/backend semantics, AppNavigation branding.
+
+2. **K — DEV-THEME-CONTRAST**
+   - branch: `work/w15-r2-theme-contrast`;
+   - owner: semantic theme tokens + Report/Script/Python/structured-form visual styling;
+   - primary authority: `web/scada-web/src/app-theme.css`, `appTheme.ts`, Report Designer theme files, Python Monaco theme files, Script/structured-form CSS and focused theme tests;
+   - forbidden: Engineering layout architecture, domain models, Script runtime/lifecycle, TAG commissioning behavior.
+
+3. **O — DEV-HISTORIAN-CAPTURE / #382**
+   - branch: `work/w15-r2-historian-capture`;
+   - owner: Historian capture profiles/policy admission/writer diagnostics;
+   - primary authority: `src/Scada.Historian/Policies/**`, `src/Scada.Historian/Memory/BufferedInMemoryHistorian.cs`, `src/Scada.Historian.TimescaleDb/TimescaleDbHistorian.cs`, narrowly scoped capture-profile services/diagnostics and focused tests;
+   - forbidden: `src/Scada.Core/HistoricalQueries/**`, `TimescaleHistoricalQueryProvider.cs`, Historical Query API, Trend/Browser/Report UI, Driver scan policy.
+
+4. **DATA-QUERY-CORE / #384**
+   - branch: `work/w15-r2-data-query-core`;
+   - owner: typed query/retrieval providers, bounded aggregation and Alarm View model;
+   - primary authority: `src/Scada.Core/HistoricalQueries/**`, `src/Scada.Historian.TimescaleDb/TimescaleHistoricalQueryProvider.cs`, `src/Scada.Api/Historian/HistoricalQueryApi.cs`, `HistoricalQueryConfiguration.cs`, new bounded Query-definition services and focused tests;
+   - forbidden: Historian capture admission/writer queues, `src/Scada.Engineering/ImportExport/**`, Libraries mutation, Trend/Browser/Report presentation.
+
+5. **ENGINEERING-PORTABILITY-CORE / #385**
+   - branch: `work/w15-r2-engineering-portability-core`;
+   - owner: Engineering Fragment plan/apply/dependency/remap and Library provenance/update backend;
+   - primary authority: `src/Scada.Engineering/ImportExport/**`, `src/Scada.Engineering/Libraries/**`, new Fragment/portability services and compatibility tests;
+   - forbidden: Historian capture/query execution, Screen/Popup layout, full `.escadapkg` authority replacement, Runtime dependency on external `.escadalib`.
+
+Shared-hotspot lock for all five:
+- do not edit `EngineeringContracts.cs`, schema v20 definitions, F0/F0-D1 shared public wire files or canonical TypeScript wire mirrors without Main approval;
+- if a frozen semantic is insufficient, return `BLOCKED_CONTRACT / <contract-id> / <missing semantic>`;
+- each lane stays on its owned subsystem and returns a handoff to Main; no lane merges itself.
+
+Parallel compatibility:
+`TAG-C + I + K + O + DATA-QUERY-CORE + PORTABILITY-CORE` may run concurrently under these locks.
+
+Still NOT released:
+`J / L / N / M / P / TAG-D / Playback` and later structural consumers.
 
 ## 1. Purpose
 

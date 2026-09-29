@@ -2,7 +2,6 @@ using System.Globalization;
 using Scada.Core.Alarms;
 using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
-using Scada.Engineering.Historian;
 
 namespace Scada.Engineering.ImportExport;
 
@@ -49,8 +48,7 @@ internal static class EngineeringDtoMapper
             initialValue,
             tag.AddressSelector,
             tag.CommunicationBinding,
-            tag.DataSourceId,
-            HistorianCaptureProfileMetadata.ReadProfileId(tag.Metadata));
+            tag.DataSourceId);
     }
 
     public static AlarmEngineeringDto ToDto(AlarmDefinition alarm, string? tagPath) =>

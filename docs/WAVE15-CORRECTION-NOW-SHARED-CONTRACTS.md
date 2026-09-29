@@ -274,7 +274,7 @@ Required semantics:
 
 ## 8. Reusable object relationship — C-REUSE-01
 
-**State:** `DRAFT_OWNER`.  
+**State:** `INTEGRATED / FROZEN_FOR_CONSUMERS / POST_GATE1_BASE_bb946f9e`.  
 **Owner:** #365, with specialized owners #356 and #308.  
 **Consumers:** #303 Screen/Popup Editor, import/export/package, Runtime visual composition.
 
@@ -1219,7 +1219,7 @@ Explicitly forbidden:
 
 ### C-HISTORICAL-PLAYBACK-01 — read-only historical application playback
 
-**State:** `PREPARED_DRAFT / C0_FREEZE_REQUIRED / MANDATORY_FIRST_EXTERNAL_TEST`  
+**State:** `FROZEN_FOR_CONSUMERS / MANDATORY_FIRST_EXTERNAL_TEST / IMPLEMENTATION_PENDING`  
 **Owner:** Main + #384  
 **Depends on:** C-DATA-QUERY-VIEW-01, C-HISTORICAL-TIME-RANGE-01, C-VISUAL-IDENTITY-01, C-AUTHORITY-01.  
 **Consumers:** Runtime visual projection, Trend/Browser consumers, Screen/Popup shell, user-facing copy.

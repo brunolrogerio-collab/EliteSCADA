@@ -212,7 +212,7 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
         >
           {loading && <div className="eng-state-card"><div className="eng-spinner"/><strong>{t('app.loading')}</strong></div>}
           {!loading && error && <div className="eng-state-card error" role="alert" data-testid="engineering-load-error"><strong>{t('app.loadError')}</strong><span>{error}</span><button type="button" onClick={() => void load()}>{t('app.retry')}</button></div>}
-          {!loading && snapshot && <EngineeringSection section={section} snapshot={snapshot} productIdentity={productIdentity} t={t} locale={locale} onReload={load}/>} 
+          {!loading && snapshot && <EngineeringSection section={section} snapshot={snapshot} productIdentity={productIdentity} t={t} locale={locale} onReload={load}/>}
         </section>
       </div>
     </main>

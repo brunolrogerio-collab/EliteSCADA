@@ -73,7 +73,10 @@ public sealed class EngineeringWorkspace : IDisposable
         Tags = new InMemoryTagRegistry(MarkDirty);
         Alarms = new InMemoryAlarmEngine(_eventBus, MarkDirty);
         DataSources = new InMemoryDataSourceEngineeringRegistry(MarkDirty);
-        HistorianCaptureProfiles = new InMemoryHistorianCaptureProfileEngineeringRegistry(MarkDirty);
+        HistorianCaptureProfiles = new InMemoryHistorianCaptureProfileEngineeringRegistry(
+            MarkDirty,
+            profileId => Tags.Snapshot().Any(tag =>
+                HistorianCaptureProfileMetadata.ReadProfileId(tag.Metadata) == profileId));
         Assets = new InMemoryEngineeringAssetRegistry(MarkDirty);
         Views = new InMemoryEngineeringViewRegistry(MarkDirty);
         SecurityPolicies = new InMemorySecurityPolicyEngineeringRegistry(MarkDirty);

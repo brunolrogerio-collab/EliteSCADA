@@ -142,6 +142,8 @@ public static class EngineeringValidator
             issues.Add(Error("TEMPLATE_KEY_WHITESPACE", "Template key cannot contain whitespace.", ImportEntityKind.Template, key));
         if (string.IsNullOrWhiteSpace(template.Name))
             issues.Add(Error("TEMPLATE_NAME_REQUIRED", "Template name is required.", ImportEntityKind.Template, key));
+        if (template.Id == Guid.Empty)
+            issues.Add(Error("TEMPLATE_ID_EMPTY", "Template stable identity cannot be empty.", ImportEntityKind.Template, key));
         issues.AddRange(ValidateBindings(template.Bindings, ImportEntityKind.Template, key, allowTagPlaceholders: true));
         return issues;
     }
@@ -156,6 +158,10 @@ public static class EngineeringValidator
             issues.Add(Error("EQUIPMENT_PATH_WHITESPACE", "Equipment path cannot contain whitespace.", ImportEntityKind.Equipment, key));
         if (string.IsNullOrWhiteSpace(equipment.Name))
             issues.Add(Error("EQUIPMENT_NAME_REQUIRED", "Equipment name is required.", ImportEntityKind.Equipment, key));
+        if (equipment.Id == Guid.Empty)
+            issues.Add(Error("EQUIPMENT_ID_EMPTY", "Equipment stable identity cannot be empty.", ImportEntityKind.Equipment, key));
+        if (equipment.TemplateId == Guid.Empty)
+            issues.Add(Error("EQUIPMENT_TEMPLATE_ID_EMPTY", "Equipment Template identity cannot be empty.", ImportEntityKind.Equipment, key));
         if (equipment.TemplateKey?.Any(char.IsWhiteSpace) == true)
             issues.Add(Error("EQUIPMENT_TEMPLATE_KEY_WHITESPACE", "Equipment template key cannot contain whitespace.", ImportEntityKind.Equipment, key));
         issues.AddRange(ValidateBindings(equipment.Bindings, ImportEntityKind.Equipment, key, allowTagPlaceholders: false));
@@ -172,6 +178,10 @@ public static class EngineeringValidator
             issues.Add(Error("DYNAMO_KEY_WHITESPACE", "Dynamo key cannot contain whitespace.", ImportEntityKind.Dynamo, key));
         if (string.IsNullOrWhiteSpace(dynamo.Name))
             issues.Add(Error("DYNAMO_NAME_REQUIRED", "Dynamo name is required.", ImportEntityKind.Dynamo, key));
+        if (dynamo.Id == Guid.Empty)
+            issues.Add(Error("DYNAMO_ID_EMPTY", "Dynamo stable identity cannot be empty.", ImportEntityKind.Dynamo, key));
+        if (dynamo.TemplateId == Guid.Empty)
+            issues.Add(Error("DYNAMO_TEMPLATE_ID_EMPTY", "Dynamo Template identity cannot be empty.", ImportEntityKind.Dynamo, key));
         if (dynamo.TemplateKey?.Any(char.IsWhiteSpace) == true)
             issues.Add(Error("DYNAMO_TEMPLATE_KEY_WHITESPACE", "Dynamo template key cannot contain whitespace.", ImportEntityKind.Dynamo, key));
         issues.AddRange(ValidateBindings(dynamo.Bindings, ImportEntityKind.Dynamo, key, allowTagPlaceholders: true));
@@ -204,6 +214,8 @@ public static class EngineeringValidator
             issues.Add(Error("POPUP_KEY_WHITESPACE", "Popup key cannot contain whitespace.", ImportEntityKind.Popup, key));
         if (string.IsNullOrWhiteSpace(popup.Name))
             issues.Add(Error("POPUP_NAME_REQUIRED", "Popup name is required.", ImportEntityKind.Popup, key));
+        if (popup.TemplateId == Guid.Empty)
+            issues.Add(Error("POPUP_TEMPLATE_ID_EMPTY", "Popup Template identity cannot be empty.", ImportEntityKind.Popup, key));
         if (popup.TemplateKey?.Any(char.IsWhiteSpace) == true)
             issues.Add(Error("POPUP_TEMPLATE_KEY_WHITESPACE", "Popup template key cannot contain whitespace.", ImportEntityKind.Popup, key));
         issues.AddRange(ValidateVisualElements(popup.Elements, ImportEntityKind.Popup, key, allowPlaceholders: true, new HashSet<Guid>()));
@@ -244,6 +256,10 @@ public static class EngineeringValidator
                 yield return Error("VISUAL_ELEMENT_ID_EMPTY", $"Visual element '{element.Key}' cannot use an empty Id.", entityKind, entityKey);
             else if (element.Id.HasValue && !visualIds.Add(element.Id.Value))
                 yield return Error("VISUAL_ELEMENT_ID_DUPLICATE", $"Visual element Id '{element.Id.Value:D}' appears more than once in the same visual definition.", entityKind, entityKey);
+            if (element.DynamoDefinitionId == Guid.Empty)
+                yield return Error("VISUAL_DYNAMO_DEFINITION_ID_EMPTY", $"Dynamo definition identity on element '{element.Key}' cannot be empty.", entityKind, entityKey);
+            if (element.EquipmentId == Guid.Empty)
+                yield return Error("VISUAL_EQUIPMENT_ID_EMPTY", $"Equipment identity on element '{element.Key}' cannot be empty.", entityKind, entityKey);
             if (!string.IsNullOrWhiteSpace(element.DynamoKey) && element.DynamoKey.Any(char.IsWhiteSpace))
                 yield return Error("VISUAL_DYNAMO_KEY_WHITESPACE", $"Dynamo key on element '{element.Key}' cannot contain whitespace.", entityKind, entityKey);
             if (!string.IsNullOrWhiteSpace(element.EquipmentPath) && !allowPlaceholders && ContainsPlaceholder(element.EquipmentPath))

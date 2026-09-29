@@ -25,11 +25,11 @@ public static class ReusableViewDependencyAnalyzer
         ValidateNoScriptCoupling(screen.Id!.Value, $"Screen '{screen.Key}'", scripts);
         return Analyze(
             $"Screen '{screen.Key}'",
-            templateKey: null,
+            templateDependency: null,
             screen.Elements,
-            key => ResolveWorkingDynamo(key, assets, $"Screen '{screen.Key}'"),
-            id => ResolveWorkingAsset(id, visualAssets, $"Screen '{screen.Key}'"),
-            _ => throw new InvalidDataException("Screen cannot declare a Template dependency."));
+            id => ResolveWorkingDynamo(id, assets, $"Screen '{screen.Key}'"),
+            key => TryResolveWorkingDynamo(key, assets),
+            id => ResolveWorkingAsset(id, visualAssets, $"Screen '{screen.Key}'"));
     }
 
     public static IReadOnlyCollection<ReusableLibraryDependency> AnalyzeWorking(
@@ -43,11 +43,11 @@ public static class ReusableViewDependencyAnalyzer
         ValidateNoScriptCoupling(popup.Id!.Value, $"Popup '{popup.Key}'", scripts);
         return Analyze(
             $"Popup '{popup.Key}'",
-            popup.TemplateKey,
+            ResolveWorkingTemplate(popup.TemplateId, popup.TemplateKey, assets, $"Popup '{popup.Key}'"),
             popup.Elements,
-            key => ResolveWorkingDynamo(key, assets, $"Popup '{popup.Key}'"),
-            id => ResolveWorkingAsset(id, visualAssets, $"Popup '{popup.Key}'"),
-            key => ResolveWorkingTemplate(key, assets, $"Popup '{popup.Key}'"));
+            id => ResolveWorkingDynamo(id, assets, $"Popup '{popup.Key}'"),
+            key => TryResolveWorkingDynamo(key, assets),
+            id => ResolveWorkingAsset(id, visualAssets, $"Popup '{popup.Key}'"));
     }
 
     public static IReadOnlyCollection<ReusableLibraryDependency> AnalyzeManifest(
@@ -55,22 +55,22 @@ public static class ReusableViewDependencyAnalyzer
         ReusableLibraryManifest manifest) =>
         Analyze(
             $"Screen '{screen.Key}'",
-            templateKey: null,
+            templateDependency: null,
             screen.Elements,
-            key => ResolveManifestByKey(manifest, ReusableLibraryResourceKinds.Dynamo, key, $"Screen '{screen.Key}'"),
-            id => ResolveManifestById(manifest, ReusableLibraryResourceKinds.VisualAsset, id, $"Screen '{screen.Key}'"),
-            _ => throw new InvalidDataException("Screen cannot declare a Template dependency."));
+            id => ResolveManifestById(manifest, ReusableLibraryResourceKinds.Dynamo, id, $"Screen '{screen.Key}'"),
+            key => TryResolveManifestByKey(manifest, ReusableLibraryResourceKinds.Dynamo, key, $"Screen '{screen.Key}'"),
+            id => ResolveManifestById(manifest, ReusableLibraryResourceKinds.VisualAsset, id, $"Screen '{screen.Key}'"));
 
     public static IReadOnlyCollection<ReusableLibraryDependency> AnalyzeManifest(
         PopupEngineeringDto popup,
         ReusableLibraryManifest manifest) =>
         Analyze(
             $"Popup '{popup.Key}'",
-            popup.TemplateKey,
+            ResolveManifestTemplate(popup.TemplateId, popup.TemplateKey, manifest, $"Popup '{popup.Key}'"),
             popup.Elements,
-            key => ResolveManifestByKey(manifest, ReusableLibraryResourceKinds.Dynamo, key, $"Popup '{popup.Key}'"),
-            id => ResolveManifestById(manifest, ReusableLibraryResourceKinds.VisualAsset, id, $"Popup '{popup.Key}'"),
-            key => ResolveManifestByKey(manifest, ReusableLibraryResourceKinds.EquipmentTemplate, key, $"Popup '{popup.Key}'"));
+            id => ResolveManifestById(manifest, ReusableLibraryResourceKinds.Dynamo, id, $"Popup '{popup.Key}'"),
+            key => TryResolveManifestByKey(manifest, ReusableLibraryResourceKinds.Dynamo, key, $"Popup '{popup.Key}'"),
+            id => ResolveManifestById(manifest, ReusableLibraryResourceKinds.VisualAsset, id, $"Popup '{popup.Key}'"));
 
     public static void ValidateDeclaredDependencies(
         ScreenEngineeringDto screen,
@@ -86,17 +86,17 @@ public static class ReusableViewDependencyAnalyzer
 
     private static IReadOnlyCollection<ReusableLibraryDependency> Analyze(
         string owner,
-        string? templateKey,
+        ReusableLibraryDependency? templateDependency,
         IReadOnlyCollection<VisualElementEngineeringDto>? elements,
-        Func<string, ReusableLibraryDependency> resolveDynamo,
-        Func<Guid, ReusableLibraryDependency> resolveAsset,
-        Func<string, ReusableLibraryDependency> resolveTemplate)
+        Func<Guid, ReusableLibraryDependency> resolveDynamoById,
+        Func<string, ReusableLibraryDependency?> tryResolveDynamoByKey,
+        Func<Guid, ReusableLibraryDependency> resolveAsset)
     {
         var dependencies = new Dictionary<(string Kind, Guid ResourceId), ReusableLibraryDependency>();
-        if (!string.IsNullOrWhiteSpace(templateKey))
-            Add(dependencies, resolveTemplate(templateKey));
+        if (templateDependency is not null)
+            Add(dependencies, templateDependency);
 
-        AnalyzeElements(owner, elements, dependencies, resolveDynamo, resolveAsset);
+        AnalyzeElements(owner, elements, dependencies, resolveDynamoById, tryResolveDynamoByKey, resolveAsset);
         return dependencies.Values
             .OrderBy(dependency => dependency.Kind, StringComparer.Ordinal)
             .ThenBy(dependency => dependency.ResourceId)
@@ -107,7 +107,8 @@ public static class ReusableViewDependencyAnalyzer
         string owner,
         IReadOnlyCollection<VisualElementEngineeringDto>? elements,
         IDictionary<(string Kind, Guid ResourceId), ReusableLibraryDependency> dependencies,
-        Func<string, ReusableLibraryDependency> resolveDynamo,
+        Func<Guid, ReusableLibraryDependency> resolveDynamoById,
+        Func<string, ReusableLibraryDependency?> tryResolveDynamoByKey,
         Func<Guid, ReusableLibraryDependency> resolveAsset)
     {
         foreach (var element in elements ?? Array.Empty<VisualElementEngineeringDto>())
@@ -115,6 +116,9 @@ public static class ReusableViewDependencyAnalyzer
             if (element is null)
                 throw new InvalidDataException($"{owner} contains a null visual element.");
 
+            if (element.EquipmentId.HasValue)
+                throw new InvalidDataException(
+                    $"{owner} element '{element.Key}' carries stable project Equipment identity '{element.EquipmentId.Value:D}'. Reusable views must keep project equipment context parameterized.");
             if (!string.IsNullOrWhiteSpace(element.EquipmentPath) && !ContainsPlaceholder(element.EquipmentPath))
                 throw new InvalidDataException(
                     $"{owner} element '{element.Key}' has concrete equipment path '{element.EquipmentPath}'. Reusable views must keep project equipment context parameterized.");
@@ -133,8 +137,25 @@ public static class ReusableViewDependencyAnalyzer
                 throw new InvalidDataException(
                     $"{owner} element '{element.Key}' contains navigation/command actions. Screen/Popup action target closure is not reusable-library enabled in v1.");
 
+            ReusableLibraryDependency? dynamoById = null;
+            ReusableLibraryDependency? dynamoByKey = null;
+            if (element.DynamoDefinitionId.HasValue)
+                dynamoById = resolveDynamoById(element.DynamoDefinitionId.Value);
             if (!string.IsNullOrWhiteSpace(element.DynamoKey))
-                Add(dependencies, resolveDynamo(element.DynamoKey));
+            {
+                dynamoByKey = tryResolveDynamoByKey(element.DynamoKey);
+                if (!element.DynamoDefinitionId.HasValue && dynamoByKey is null)
+                    throw new InvalidDataException(
+                        $"{owner} element '{element.Key}' references Dynamo '{element.DynamoKey}', which was not found.");
+            }
+            if (dynamoById is not null && dynamoByKey is not null &&
+                dynamoById.ResourceId != dynamoByKey.ResourceId)
+                throw new InvalidDataException(
+                    $"{owner} element '{element.Key}' Dynamo identity and alias resolve to different reusable dependencies.");
+            if (dynamoById is not null)
+                Add(dependencies, dynamoById);
+            else if (dynamoByKey is not null)
+                Add(dependencies, dynamoByKey);
 
             if (string.Equals(element.Type, "core.image", StringComparison.Ordinal) &&
                 element.Properties is not null &&
@@ -144,7 +165,7 @@ public static class ReusableViewDependencyAnalyzer
                 Add(dependencies, resolveAsset(ParseVisualAssetReference(assetReference, owner, element.Key)));
             }
 
-            AnalyzeElements(owner, element.Children, dependencies, resolveDynamo, resolveAsset);
+            AnalyzeElements(owner, element.Children, dependencies, resolveDynamoById, tryResolveDynamoByKey, resolveAsset);
         }
     }
 
@@ -234,6 +255,29 @@ public static class ReusableViewDependencyAnalyzer
         }
     }
 
+    private static ReusableLibraryDependency? TryResolveWorkingDynamo(
+        string key,
+        IEngineeringAssetRegistry assets)
+    {
+        var dynamo = assets.FindDynamoByKey(key);
+        if (dynamo is null) return null;
+        RequireStableIdentity(dynamo.Id, $"Dynamo '{key}'");
+        return new ReusableLibraryDependency(ReusableLibraryResourceKinds.Dynamo, dynamo.Id!.Value);
+    }
+
+    private static ReusableLibraryDependency ResolveWorkingDynamo(
+        Guid id,
+        IEngineeringAssetRegistry assets,
+        string owner)
+    {
+        if (id == Guid.Empty)
+            throw new InvalidDataException($"{owner} references an empty Dynamo identity.");
+        var dynamo = assets.FindDynamo(id)
+            ?? throw new InvalidDataException($"{owner} references Dynamo identity '{id:D}', which was not found in Working.");
+        RequireStableIdentity(dynamo.Id, $"Dynamo '{dynamo.Key}'");
+        return new ReusableLibraryDependency(ReusableLibraryResourceKinds.Dynamo, dynamo.Id!.Value);
+    }
+
     private static ReusableLibraryDependency ResolveWorkingDynamo(
         string key,
         IEngineeringAssetRegistry assets,
@@ -245,15 +289,52 @@ public static class ReusableViewDependencyAnalyzer
         return new ReusableLibraryDependency(ReusableLibraryResourceKinds.Dynamo, dynamo.Id!.Value);
     }
 
-    private static ReusableLibraryDependency ResolveWorkingTemplate(
-        string key,
+    private static ReusableLibraryDependency? ResolveWorkingTemplate(
+        Guid? id,
+        string? key,
         IEngineeringAssetRegistry assets,
         string owner)
     {
-        var template = assets.FindTemplateByKey(key)
-            ?? throw new InvalidDataException($"{owner} references template '{key}', which was not found in Working.");
-        RequireStableIdentity(template.Id, $"Template '{key}'");
+        if (!id.HasValue && string.IsNullOrWhiteSpace(key))
+            return null;
+        if (id == Guid.Empty)
+            throw new InvalidDataException($"{owner} references an empty Template identity.");
+
+        var byId = id.HasValue ? assets.FindTemplate(id.Value) : null;
+        var byKey = !string.IsNullOrWhiteSpace(key) ? assets.FindTemplateByKey(key) : null;
+        if (id.HasValue && byId is null)
+            throw new InvalidDataException($"{owner} references Template identity '{id.Value:D}', which was not found in Working.");
+        if (!id.HasValue && !string.IsNullOrWhiteSpace(key) && byKey is null)
+            throw new InvalidDataException($"{owner} references template '{key}', which was not found in Working.");
+        if (byId?.Id.HasValue == true && byKey?.Id.HasValue == true && byId.Id != byKey.Id)
+            throw new InvalidDataException($"{owner} Template identity and alias resolve to different Working resources.");
+
+        var template = byId ?? byKey
+            ?? throw new InvalidDataException($"{owner} Template dependency could not be resolved.");
+        RequireStableIdentity(template.Id, $"Template '{template.Key}'");
         return new ReusableLibraryDependency(ReusableLibraryResourceKinds.EquipmentTemplate, template.Id!.Value);
+    }
+
+    private static ReusableLibraryDependency? ResolveManifestTemplate(
+        Guid? id,
+        string? key,
+        ReusableLibraryManifest manifest,
+        string owner)
+    {
+        if (!id.HasValue && string.IsNullOrWhiteSpace(key))
+            return null;
+        if (id == Guid.Empty)
+            throw new InvalidDataException($"{owner} references an empty Template identity.");
+
+        ReusableLibraryDependency? byId = id.HasValue
+            ? ResolveManifestById(manifest, ReusableLibraryResourceKinds.EquipmentTemplate, id.Value, owner)
+            : null;
+        ReusableLibraryDependency? byKey = !string.IsNullOrWhiteSpace(key)
+            ? ResolveManifestByKey(manifest, ReusableLibraryResourceKinds.EquipmentTemplate, key, owner)
+            : null;
+        if (byId is not null && byKey is not null && byId.ResourceId != byKey.ResourceId)
+            throw new InvalidDataException($"{owner} Template identity and alias resolve to different library resources.");
+        return byId ?? byKey;
     }
 
     private static ReusableLibraryDependency ResolveWorkingAsset(
@@ -265,6 +346,23 @@ public static class ReusableViewDependencyAnalyzer
             ?? throw new InvalidDataException($"{owner} references Visual Asset '{id:D}', which was not found in Working.");
         RequireStableIdentity(asset.Id, $"Visual Asset '{asset.Key}'");
         return new ReusableLibraryDependency(ReusableLibraryResourceKinds.VisualAsset, asset.Id!.Value);
+    }
+
+    private static ReusableLibraryDependency? TryResolveManifestByKey(
+        ReusableLibraryManifest manifest,
+        string kind,
+        string key,
+        string owner)
+    {
+        var matches = manifest.Resources
+            .Where(resource => resource.Kind == kind && resource.SourceKey.Equals(key, StringComparison.Ordinal))
+            .ToArray();
+        return matches.Length switch
+        {
+            0 => null,
+            1 => new ReusableLibraryDependency(kind, matches[0].ResourceId),
+            _ => throw new InvalidDataException($"{owner} reusable dependency '{kind}:{key}' is ambiguous in the library manifest.")
+        };
     }
 
     private static ReusableLibraryDependency ResolveManifestByKey(

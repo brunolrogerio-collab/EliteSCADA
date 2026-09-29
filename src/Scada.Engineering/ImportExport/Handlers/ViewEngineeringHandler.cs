@@ -43,6 +43,7 @@ internal sealed class ViewEngineeringHandler
             if (operation == ImportOperation.Skip) { skipped++; continue; }
 
             var normalized = VisualEngineeringPropertyMigration.NormalizeScreen(dto, package.SchemaVersion);
+            normalized = normalized with { Elements = NormalizeVisualReferences(normalized.Elements) };
             _views.UpsertScreen(normalized with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
             if (existing is null) created++; else updated++;
         }
@@ -54,6 +55,7 @@ internal sealed class ViewEngineeringHandler
             if (operation == ImportOperation.Skip) { skipped++; continue; }
 
             var normalized = VisualEngineeringPropertyMigration.NormalizePopup(dto, package.SchemaVersion);
+            normalized = NormalizePopupReferences(normalized);
             _views.UpsertPopup(normalized with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
             if (existing is null) created++; else updated++;
         }
@@ -139,13 +141,12 @@ internal sealed class ViewEngineeringHandler
                     entityKey,
                     true));
 
-            if (!string.IsNullOrWhiteSpace(dto.TemplateKey) && !TemplateExists(dto.TemplateKey, package))
-                issues.Add(new(
-                    "POPUP_TEMPLATE_NOT_FOUND",
-                    $"Template '{dto.TemplateKey}' referenced by popup '{dto.Key}' was not found.",
-                    ImportEntityKind.Popup,
-                    entityKey,
-                    true));
+            ValidateTemplateReference(
+                dto.TemplateId,
+                dto.TemplateKey,
+                entityKey,
+                package,
+                issues);
 
             ValidateVisualReferences(dto.Elements, ImportEntityKind.Popup, entityKey, package, issues);
             EngineeringHandlerSupport.AddPreview(
@@ -183,32 +184,11 @@ internal sealed class ViewEngineeringHandler
             EngineeringHandlerSupport.ValidateConcreteTagBindings(
                 _tags, element.Bindings, kind, entityKey, package, issues);
 
-            DynamoEngineeringDto? dynamo = null;
-            if (!string.IsNullOrWhiteSpace(element.DynamoKey))
-            {
-                dynamo = FindDynamo(element.DynamoKey, package);
-                if (dynamo is null)
-                    issues.Add(new(
-                        "VISUAL_DYNAMO_NOT_FOUND",
-                        $"Dynamo '{element.DynamoKey}' referenced by visual element '{element.Key}' was not found.",
-                        kind,
-                        entityKey,
-                        true));
-                else
-                    ValidateDynamoInstance(element, dynamo, kind, entityKey, package, issues);
-            }
+            var dynamo = ValidateDynamoReference(element, kind, entityKey, package, issues);
+            if (dynamo is not null)
+                ValidateDynamoInstance(element, dynamo, kind, entityKey, package, issues);
 
-            if (!string.IsNullOrWhiteSpace(element.EquipmentPath) &&
-                !EngineeringHandlerSupport.ContainsPlaceholder(element.EquipmentPath) &&
-                !EquipmentExists(element.EquipmentPath, package))
-            {
-                issues.Add(new(
-                    "VISUAL_EQUIPMENT_NOT_FOUND",
-                    $"Equipment '{element.EquipmentPath}' referenced by visual element '{element.Key}' was not found.",
-                    kind,
-                    entityKey,
-                    true));
-            }
+            ValidateEquipmentReference(element, kind, entityKey, package, issues);
 
             ValidateNavigationReferences(element, kind, entityKey, package, issues);
             ValidateVisualReferences(element.Children, kind, entityKey, package, issues);
@@ -544,15 +524,227 @@ internal sealed class ViewEngineeringHandler
         (package.VisualAssets ?? Array.Empty<VisualAssetEngineeringDto>())
             .Any(x => x is not null && x.Id == id);
 
-    private bool TemplateExists(string key, EngineeringPackage package) =>
-        _assets.FindTemplateByKey(key) is not null ||
-        (package.Templates ?? Array.Empty<EquipmentTemplateEngineeringDto>())
-            .Any(x => x.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+    private PopupEngineeringDto NormalizePopupReferences(PopupEngineeringDto popup)
+    {
+        EquipmentTemplateEngineeringDto? template = null;
+        if (popup.TemplateId.HasValue)
+            template = _assets.FindTemplate(popup.TemplateId.Value);
+        if (template is null && !string.IsNullOrWhiteSpace(popup.TemplateKey))
+            template = _assets.FindTemplateByKey(popup.TemplateKey);
+        if ((popup.TemplateId.HasValue || !string.IsNullOrWhiteSpace(popup.TemplateKey)) &&
+            (template?.Id is null || template.Id == Guid.Empty))
+            throw new InvalidOperationException(
+                $"Popup '{popup.Key}' Template reference could not be normalized to a stable identity.");
 
-    private bool EquipmentExists(string path, EngineeringPackage package) =>
-        _assets.FindEquipmentByPath(path) is not null ||
+        return popup with
+        {
+            TemplateId = template?.Id,
+            TemplateKey = template?.Key ?? popup.TemplateKey,
+            Elements = NormalizeVisualReferences(popup.Elements)
+        };
+    }
+
+    private IReadOnlyCollection<VisualElementEngineeringDto>? NormalizeVisualReferences(
+        IReadOnlyCollection<VisualElementEngineeringDto>? elements)
+    {
+        if (elements is null) return null;
+        return elements.Select(element =>
+        {
+            DynamoEngineeringDto? dynamo = null;
+            if (element.DynamoDefinitionId.HasValue)
+                dynamo = _assets.FindDynamo(element.DynamoDefinitionId.Value);
+            if (dynamo is null && !string.IsNullOrWhiteSpace(element.DynamoKey))
+                dynamo = _assets.FindDynamoByKey(element.DynamoKey);
+            if ((element.DynamoDefinitionId.HasValue || !string.IsNullOrWhiteSpace(element.DynamoKey)) &&
+                (dynamo?.Id is null || dynamo.Id == Guid.Empty))
+                throw new InvalidOperationException(
+                    $"Visual element '{element.Key}' Dynamo reference could not be normalized to a stable identity.");
+
+            EquipmentEngineeringDto? equipment = null;
+            var concreteEquipmentPath = !string.IsNullOrWhiteSpace(element.EquipmentPath) &&
+                !EngineeringHandlerSupport.ContainsPlaceholder(element.EquipmentPath);
+            if (element.EquipmentId.HasValue)
+                equipment = _assets.FindEquipment(element.EquipmentId.Value);
+            if (equipment is null && concreteEquipmentPath)
+                equipment = _assets.FindEquipmentByPath(element.EquipmentPath!);
+            if ((element.EquipmentId.HasValue || concreteEquipmentPath) &&
+                (equipment?.Id is null || equipment.Id == Guid.Empty))
+                throw new InvalidOperationException(
+                    $"Visual element '{element.Key}' Equipment reference could not be normalized to a stable identity.");
+
+            return element with
+            {
+                DynamoDefinitionId = dynamo?.Id,
+                DynamoKey = dynamo?.Key ?? element.DynamoKey,
+                EquipmentId = equipment?.Id,
+                EquipmentPath = equipment?.Path ?? element.EquipmentPath,
+                Children = NormalizeVisualReferences(element.Children)
+            };
+        }).ToArray();
+    }
+
+    private void ValidateTemplateReference(
+        Guid? templateId,
+        string? templateKey,
+        string entityKey,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        if (templateId == Guid.Empty)
+            return;
+        if (!templateId.HasValue && string.IsNullOrWhiteSpace(templateKey))
+            return;
+
+        var byId = templateId.HasValue ? FindTemplate(templateId.Value, package) : null;
+        var byKey = !string.IsNullOrWhiteSpace(templateKey) ? FindTemplate(templateKey!, package) : null;
+        if (templateId.HasValue && byId is null)
+            issues.Add(new(
+                "POPUP_TEMPLATE_ID_NOT_FOUND",
+                $"Template identity '{templateId.Value:D}' referenced by popup '{entityKey}' was not found.",
+                ImportEntityKind.Popup,
+                entityKey,
+                true));
+        if (!templateId.HasValue && !string.IsNullOrWhiteSpace(templateKey) && byKey is null)
+            issues.Add(new(
+                "POPUP_TEMPLATE_NOT_FOUND",
+                $"Template '{templateKey}' referenced by popup '{entityKey}' was not found.",
+                ImportEntityKind.Popup,
+                entityKey,
+                true));
+        if (byId?.Id.HasValue == true && byKey?.Id.HasValue == true && byId.Id != byKey.Id)
+            issues.Add(new(
+                "POPUP_TEMPLATE_REFERENCE_MISMATCH",
+                $"Template identity '{templateId:D}' and alias '{templateKey}' resolve to different Templates for popup '{entityKey}'.",
+                ImportEntityKind.Popup,
+                entityKey,
+                true));
+    }
+
+    private DynamoEngineeringDto? ValidateDynamoReference(
+        VisualElementEngineeringDto element,
+        ImportEntityKind kind,
+        string entityKey,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        if (element.DynamoDefinitionId == Guid.Empty)
+            return null;
+        if (!element.DynamoDefinitionId.HasValue && string.IsNullOrWhiteSpace(element.DynamoKey))
+            return null;
+
+        var byId = element.DynamoDefinitionId.HasValue
+            ? FindDynamo(element.DynamoDefinitionId.Value, package)
+            : null;
+        var byKey = !string.IsNullOrWhiteSpace(element.DynamoKey)
+            ? FindDynamo(element.DynamoKey, package)
+            : null;
+
+        if (element.DynamoDefinitionId.HasValue && byId is null)
+            issues.Add(new(
+                "VISUAL_DYNAMO_ID_NOT_FOUND",
+                $"Dynamo identity '{element.DynamoDefinitionId.Value:D}' referenced by visual element '{element.Key}' was not found.",
+                kind,
+                entityKey,
+                true));
+        if (!element.DynamoDefinitionId.HasValue && !string.IsNullOrWhiteSpace(element.DynamoKey) && byKey is null)
+            issues.Add(new(
+                "VISUAL_DYNAMO_NOT_FOUND",
+                $"Dynamo '{element.DynamoKey}' referenced by visual element '{element.Key}' was not found.",
+                kind,
+                entityKey,
+                true));
+        if (byId?.Id.HasValue == true && byKey?.Id.HasValue == true && byId.Id != byKey.Id)
+        {
+            issues.Add(new(
+                "VISUAL_DYNAMO_REFERENCE_MISMATCH",
+                $"Dynamo identity '{element.DynamoDefinitionId:D}' and alias '{element.DynamoKey}' resolve to different definitions for visual element '{element.Key}'.",
+                kind,
+                entityKey,
+                true));
+            return null;
+        }
+
+        return byId ?? byKey;
+    }
+
+    private void ValidateEquipmentReference(
+        VisualElementEngineeringDto element,
+        ImportEntityKind kind,
+        string entityKey,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        if (element.EquipmentId == Guid.Empty)
+            return;
+
+        var hasPath = !string.IsNullOrWhiteSpace(element.EquipmentPath);
+        var placeholderPath = hasPath && EngineeringHandlerSupport.ContainsPlaceholder(element.EquipmentPath!);
+        if (placeholderPath)
+        {
+            if (element.EquipmentId.HasValue)
+                issues.Add(new(
+                    "VISUAL_EQUIPMENT_REFERENCE_MISMATCH",
+                    $"Visual element '{element.Key}' cannot combine stable Equipment identity '{element.EquipmentId.Value:D}' with placeholder path '{element.EquipmentPath}'.",
+                    kind,
+                    entityKey,
+                    true));
+            return;
+        }
+        if (!element.EquipmentId.HasValue && !hasPath)
+            return;
+
+        var byId = element.EquipmentId.HasValue
+            ? FindEquipment(element.EquipmentId.Value, package)
+            : null;
+        var byPath = hasPath ? FindEquipment(element.EquipmentPath!, package) : null;
+
+        if (element.EquipmentId.HasValue && byId is null)
+            issues.Add(new(
+                "VISUAL_EQUIPMENT_ID_NOT_FOUND",
+                $"Equipment identity '{element.EquipmentId.Value:D}' referenced by visual element '{element.Key}' was not found.",
+                kind,
+                entityKey,
+                true));
+        if (!element.EquipmentId.HasValue && hasPath && byPath is null)
+            issues.Add(new(
+                "VISUAL_EQUIPMENT_NOT_FOUND",
+                $"Equipment '{element.EquipmentPath}' referenced by visual element '{element.Key}' was not found.",
+                kind,
+                entityKey,
+                true));
+        if (byId?.Id.HasValue == true && byPath?.Id.HasValue == true && byId.Id != byPath.Id)
+            issues.Add(new(
+                "VISUAL_EQUIPMENT_REFERENCE_MISMATCH",
+                $"Equipment identity '{element.EquipmentId:D}' and path '{element.EquipmentPath}' resolve to different Equipment instances for visual element '{element.Key}'.",
+                kind,
+                entityKey,
+                true));
+    }
+
+    private EquipmentTemplateEngineeringDto? FindTemplate(Guid id, EngineeringPackage package) =>
+        _assets.FindTemplate(id) ??
+        (package.Templates ?? Array.Empty<EquipmentTemplateEngineeringDto>())
+            .FirstOrDefault(x => x.Id == id);
+
+    private EquipmentTemplateEngineeringDto? FindTemplate(string key, EngineeringPackage package) =>
+        _assets.FindTemplateByKey(key) ??
+        (package.Templates ?? Array.Empty<EquipmentTemplateEngineeringDto>())
+            .FirstOrDefault(x => x.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+
+    private EquipmentEngineeringDto? FindEquipment(Guid id, EngineeringPackage package) =>
+        _assets.FindEquipment(id) ??
         (package.Equipment ?? Array.Empty<EquipmentEngineeringDto>())
-            .Any(x => x.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(x => x.Id == id);
+
+    private EquipmentEngineeringDto? FindEquipment(string path, EngineeringPackage package) =>
+        _assets.FindEquipmentByPath(path) ??
+        (package.Equipment ?? Array.Empty<EquipmentEngineeringDto>())
+            .FirstOrDefault(x => x.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
+
+    private DynamoEngineeringDto? FindDynamo(Guid id, EngineeringPackage package) =>
+        _assets.FindDynamo(id) ??
+        (package.Dynamos ?? Array.Empty<DynamoEngineeringDto>())
+            .FirstOrDefault(x => x.Id == id);
 
     private DynamoEngineeringDto? FindDynamo(string key, EngineeringPackage package) =>
         _assets.FindDynamoByKey(key) ??

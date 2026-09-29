@@ -81,8 +81,8 @@ public static class VisualCompositionEngineeringValidation
     {
         var values = element.DynamoParameters;
         if (values is null) return;
-        if (string.IsNullOrWhiteSpace(element.DynamoKey))
-            issues.Add(Error("VISUAL_DYNAMO_PARAMETERS_REQUIRE_DYNAMO", $"Visual element '{element.Key}' declares Dynamo parameters without a DynamoKey.", kind, entityKey));
+        if (string.IsNullOrWhiteSpace(element.DynamoKey) && !element.DynamoDefinitionId.HasValue)
+            issues.Add(Error("VISUAL_DYNAMO_PARAMETERS_REQUIRE_DYNAMO", $"Visual element '{element.Key}' declares Dynamo parameters without a Dynamo definition reference.", kind, entityKey));
         if (values.Count > MaximumParameters)
             issues.Add(Error("VISUAL_DYNAMO_PARAMETER_LIMIT", $"Visual element '{element.Key}' exceeds the {MaximumParameters} Dynamo parameter limit.", kind, entityKey));
 
@@ -242,8 +242,13 @@ public static class VisualCompositionEngineeringValidation
                 issues.Add(Error("DYNAMO_VISUAL_ELEMENT_ID_EMPTY", $"Dynamo visual element '{element.Key}' cannot use an empty Id.", ImportEntityKind.Dynamo, entityKey));
             else if (element.Id.HasValue && !ids.Add(element.Id.Value))
                 issues.Add(Error("DYNAMO_VISUAL_ELEMENT_ID_DUPLICATE", $"Dynamo visual element Id '{element.Id.Value:D}' appears more than once.", ImportEntityKind.Dynamo, entityKey));
-            if (!string.IsNullOrWhiteSpace(element.DynamoKey))
-                issues.Add(Error("DYNAMO_NESTING_NOT_SUPPORTED", $"Dynamo definition '{entityKey}' cannot nest Dynamo '{element.DynamoKey}' in composition version 1.", ImportEntityKind.Dynamo, entityKey));
+            if (!string.IsNullOrWhiteSpace(element.DynamoKey) || element.DynamoDefinitionId.HasValue)
+            {
+                var nestedReference = !string.IsNullOrWhiteSpace(element.DynamoKey)
+                    ? element.DynamoKey
+                    : element.DynamoDefinitionId!.Value.ToString("D");
+                issues.Add(Error("DYNAMO_NESTING_NOT_SUPPORTED", $"Dynamo definition '{entityKey}' cannot nest Dynamo '{nestedReference}' in composition version 1.", ImportEntityKind.Dynamo, entityKey));
+            }
 
             issues.AddRange(ValidateElement(element, ImportEntityKind.Dynamo, entityKey));
             ValidateDefinitionElements(element.Children, entityKey, issues, ids);

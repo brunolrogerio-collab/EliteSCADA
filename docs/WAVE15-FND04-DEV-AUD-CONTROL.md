@@ -58,10 +58,10 @@ Current situation:
 - FND-04 is now **VERIFIED / FROZEN** at exact product checkpoint `6c810647c9773a19b212d9c33694780141786ac7`.
 - The readable Script TAG reference contract is frozen for downstream consumption.
 - FND-04 AUD remains **FROZEN / WAIT / NO_MUTATION**.
-- The **same sequential CODEX executor/chat is now assigned under rev0116 to repeat only the #374 minimal Python completion diagnostic using the actual Script Assistant-generated snippets, after rev0115 was invalidated by a hand-authored fixture missing the required `elite_scada` import**. #373 HMI and #376 Gateway mounted E3 are accepted and must not be rerun. FND-04 remains frozen; the shared CODEX route is independent of the legacy FND-04 DEV order.
+- The **same sequential CODEX executor/chat is now assigned under rev0117 to diagnose only the #374 TWEEN bridge completion gap proven by rev0116**. #373 HMI and #376 Gateway mounted E3 are accepted and must not be rerun. FND-04 remains frozen; the shared CODEX route is independent of the legacy FND-04 DEV order.
 - Any later change to this shared contract requires a new Main/Foundation delta; downstream lanes may not redefine it.
 
-Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`, tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`. #373 HMI and #376 Gateway mounted E3 are accepted on the exact combined product candidate. rev0114 also proved #374 canonical Apply, persisted stable-ID Key rename/reuse and real Worker bridge acknowledgements/rendered effects, but the combined smoke handler hard-stopped before final `execution-result`. rev0115 owns only the minimal individual Python read/write/tween completion diagnostic. Any movement of integration or any candidate HEAD invalidates rev0115 until Main reissues exact coordinates.
+Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`, tree `bf0b43ff9ea1211443d614487f4a05bab2ee2c97`. #373 HMI and #376 Gateway mounted E3 are accepted on the exact combined product candidate. rev0116 proved READ and WRITE completion but left a TWEEN request that visibly executed without a Worker completion result. rev0117 owns only causal localization of that TWEEN bridge completion gap. Any movement of integration or any candidate HEAD invalidates rev0117 until Main reissues exact coordinates.
 ---
 
 ## 2A. CURRENT SHARED CODEX ORDER — EXECUTION POINTER

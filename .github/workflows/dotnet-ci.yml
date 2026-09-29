@@ -250,6 +250,7 @@ jobs:
           # disposable CI project explicitly through Engineering Preview/Apply
           # instead of relying on any hidden Demo seed.
           WORKSPACE_VERSION=$(python3 -c 'import json; print(json.load(open("/tmp/workspace-after-save.json"))["changeVersion"])')
+          test "$WORKSPACE_VERSION" -ge 1
           curl -fsS -b /tmp/scada-auth.cookie -X POST http://127.0.0.1:5080/api/engineering/import/json/preview \
             -H 'content-type: application/json' \
             --data-binary @docs/examples/engineering-package.json > /tmp/engineering-import-preview.json

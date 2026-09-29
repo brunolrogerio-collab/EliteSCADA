@@ -20,7 +20,7 @@ rev0114 final residual E3 homologation (#373/#374; #376 already E3-accepted)
   -> recompose/integrate #375
   -> freeze Round-2 UX/product contracts
   -> R2-A: Engineering density + specialized-surface theme/contrast
-  -> R2-B: Editor UX + Client branding
+  -> R2-B: Editor UX + Client branding + structured Engineering workflows
   -> R2-C: user-facing terminology + multilingual consistency
   -> exact E2/E3
   -> mandatory SECOND Preview + independent Audit
@@ -186,13 +186,15 @@ Expected evidence:
 Own:
 - Report Designer theme-token correction;
 - Script/Python editor theme-token correction;
+- shared structured Engineering form/mutation-panel theme correction;
 - Engineering semantic theme consumption;
 - Monaco light/dark theme synchronized with the active EliteSCADA theme;
 - dark/light parity;
 - disabled/hover/selected/focus/error/warning contrast;
 - white report paper remains semantically white;
 - no report model/data redesign;
-- no Script lifecycle/capability/runtime redesign.
+- no Script lifecycle/capability/runtime redesign;
+- no entity/bulk/delete workflow redesign (that belongs to Chat N).
 
 Source-confirmed Script/Python defect to correct:
 - outer Script workspace already consumes `--eng-*` through `--script-*`;
@@ -254,6 +256,57 @@ Must not modify Visual Editor layout internals.
 
 Chat J and Chat L may run in parallel after R2-A integration.
 
+### Chat N — DEV-ENG-WORKFLOW-FORMS
+
+Issue: #380.
+
+Starts after R2-A integrates and C-ENG-WORKFLOW-01 freezes.
+
+Owns structured/non-graphical Engineering workflows:
+- make the selected entity the single normal interaction context;
+- contextualize Delete/secondary actions instead of permanent duplicate mutation panels;
+- introduce intentional multi-select/bulk-edit mode;
+- reuse entity browser selection where practical;
+- group fields by user mental model;
+- basic vs advanced progressive disclosure;
+- conditional field relevance;
+- helper text/unit/example/range for non-obvious fields;
+- actionable empty states;
+- coherent Preview/Apply/status region;
+- representative cleanup across TAG/Data Source/Alarm and other structured surfaces.
+
+May run in parallel with J/L only under strict ownership:
+- N does not modify Screen/Popup visual-editor internals;
+- N does not own global branding/AppNavigation;
+- J does not reorganize generic TAG/Data Source/Alarm forms;
+- L does not redefine generic entity workflows.
+
+Consumes:
+- integrated C-ENG-DENSITY-01;
+- integrated/frozen C-ENG-THEME-01;
+- frozen C-ENG-WORKFLOW-01;
+- C-AUTHORITY-01;
+- C-SURFACE-01;
+- C-TEST-EVIDENCE-01.
+
+Must preserve:
+- CAS;
+- secure delete/dependency validation;
+- bulk Preview-before-Apply;
+- stable entity/API identity;
+- Working/Published/Active semantics.
+
+Evidence:
+- exact-SHA E2;
+- mounted TAG/Data Source/Alarm first-user workflows;
+- at least one additional structured surface;
+- create/edit/preview/apply;
+- contextual delete;
+- bulk mode;
+- empty state;
+- advanced disclosure;
+- dark/light.
+
 ## 7. Gate 3 — validation/integration
 
 Every user-facing lane requires:
@@ -275,7 +328,7 @@ If Main builds a combined E3 candidate:
 
 Issue: #379.
 
-Starts only after R2-A and R2-B are integrated.
+Starts only after R2-A and all R2-B lanes (J/L/N) are integrated.
 
 ### Chat M — DEV-UX-COPY-I18N
 
@@ -407,7 +460,8 @@ Resume canonical sequencing for:
 | K — THEME-CONTRAST | C-SURFACE-01, C-TEST-EVIDENCE-01, frozen C-ENG-THEME-01, existing Engineering semantic theme tokens | report/script data models, lifecycle, Script capability/runtime semantics |
 | J — EDITOR-UX-R2 | integrated C-ENG-DENSITY-01, C-VISUAL-IDENTITY-01, C-VISUAL-DYNAMIC-01, C-TAG-WRITE-01, integrated/frozen C-REUSE-01, frozen C-VISUAL-ASSET-02, C-SURFACE-01, C-TEST-EVIDENCE-01 | renderer, identity, TAG write, reuse relationship, asset store/API |
 | L — BRANDING | integrated C-ENG-DENSITY-01, C-AUTHORITY-01, frozen C-VISUAL-ASSET-02, frozen C-BRANDING-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | lifecycle authority, asset store/API, independent per-page branding state |
-| M — UX-COPY-I18N | integrated R2-A/R2-B, frozen C-USER-COPY-I18N-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | lifecycle/Authority semantics, backend enum/API identity, accepted layout architecture |
+| N — ENG-WORKFLOW-FORMS | integrated C-ENG-DENSITY-01, integrated/frozen C-ENG-THEME-01, frozen C-ENG-WORKFLOW-01, C-AUTHORITY-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | visual-editor internals, branding shell, backend mutation semantics/API identity |
+| M — UX-COPY-I18N | integrated R2-A + J/L/N, frozen C-USER-COPY-I18N-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | lifecycle/Authority semantics, backend enum/API identity, accepted layout architecture |
 
 Any consumer that finds an insufficient contract returns:
 `BLOCKED_CONTRACT / <contract-id> / <missing semantic>`.
@@ -424,7 +478,8 @@ Any consumer that finds an insufficient contract returns:
 | Contract | Main/CODEX C-VISUAL-ASSET-02 + C-BRANDING-01 | none | I/K integration |
 | R2-B | J / Editor UX | L | I/K integrated + C-REUSE-01 integrated/frozen + C-VISUAL-ASSET-02 frozen |
 | R2-B | L / Branding | J | I/K integrated + C-VISUAL-ASSET-02 + C-BRANDING-01 frozen |
-| R2-C | M / UX copy + i18n | none | I/J/K/L integrated + C-USER-COPY-I18N-01 frozen |
+| R2-B | N / Engineering workflow + forms | J + L | I/K integrated + C-ENG-WORKFLOW-01 frozen |
+| R2-C | M / UX copy + i18n | none | I/J/K/L/N integrated + C-USER-COPY-I18N-01 frozen |
 | Validation | Shared CODEX / E3 | no DEV mutation of candidate | all target lanes delivered |
 | Preview/Audit | CODEX Preview + Human Preview + AUD | independent evidence paths | exact integrated candidate |
 

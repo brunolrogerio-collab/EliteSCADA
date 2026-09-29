@@ -266,6 +266,17 @@ jobs:
           authority = current.get('authorityPolicyReference')
           assert authority is not None, current
           fixture['authorityPolicyReference'] = authority
+          fixture['dataSources'] = [
+              {
+                  'id': None,
+                  'key': 'builtin.simulation',
+                  'name': 'CI Built-in Simulation',
+                  'driver': 'builtin.simulation',
+                  'enabled': True,
+                  'settings': {'scanIntervalMilliseconds': '500'},
+                  'metadata': {'system': 'true', 'owner': 'ci-fixture'}
+              }
+          ]
           with open('/tmp/ci-runtime-engineering.json', 'w') as f:
               json.dump(fixture, f)
           PY
@@ -308,6 +319,7 @@ jobs:
           PY
 
           curl -fsS -b /tmp/scada-auth.cookie -X POST http://127.0.0.1:5080/api/engineering/persistence/ci-demo/latest/preview > /tmp/persistence-preview.json
+          cat /tmp/persistence-preview.json
           python3 - <<'PY'
           import json
           with open('/tmp/persistence-preview.json') as f:

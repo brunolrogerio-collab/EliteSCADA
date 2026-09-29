@@ -105,6 +105,67 @@ public sealed class R2SharedWireContractTests
     }
 
     [Fact]
+    public void DataQueryPointTargetWire_RoundTripsAsAdditiveSchemaV20Contract()
+    {
+        var targetUtc = DateTimeOffset.Parse("2026-09-29T15:00:00+00:00");
+        var query = new DataQueryEngineeringDto(
+            Guid.Parse("88888888-8888-8888-8888-888888888888"),
+            "historian-point",
+            "Historian point",
+            "historical",
+            new HistoricalQueryRequest(
+                HistoricalDatasets.HistorianSamples,
+                HistoricalTimeRange.Absolute(
+                    DateTimeOffset.Parse("2026-09-29T14:00:00+00:00"),
+                    DateTimeOffset.Parse("2026-09-29T16:00:00+00:00"))),
+            Parameters:
+            [
+                new DataQueryParameterEngineeringDto(
+                    "target",
+                    "Target",
+                    DataQueryParameterType.DateTime,
+                    new DataQueryParameterValue(
+                        DataQueryParameterType.DateTime,
+                        targetUtc.ToString("O")))
+            ],
+            ParameterBindings:
+            [
+                new DataQueryParameterBindingEngineeringDto(
+                    "target",
+                    DataQueryParameterTarget.HistorianTargetUtc)
+            ],
+            HistorianRetrieval: new HistorianRetrievalEngineeringDto(
+                HistorianRetrievalMode.Interpolated,
+                MaximumGapMilliseconds: 300_000,
+                TargetUtc: targetUtc));
+
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.Parse("2026-09-29T16:30:00+00:00"),
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>(),
+            DataQueries: [query]);
+
+        var json = JsonSerializer.Serialize(package, JsonOptions());
+
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var service = new EngineeringExchangeService(new InMemoryTagRegistry(), alarms);
+        var parsed = service.ParseJson(json);
+        var parsedQuery = Assert.Single(parsed.DataQueries!);
+
+        Assert.Equal(20, parsed.SchemaVersion);
+        Assert.Equal(R2SharedEngineeringContractVersions.DataQuery, parsedQuery.Version);
+        Assert.Equal(targetUtc, parsedQuery.HistorianRetrieval!.TargetUtc);
+        Assert.Equal(
+            DataQueryParameterTarget.HistorianTargetUtc,
+            Assert.Single(parsedQuery.ParameterBindings!).Target);
+        Assert.Contains("\"historianTargetUtc\"", json);
+        Assert.Contains("\"targetUtc\"", json);
+    }
+
+    [Fact]
     public void SchemaV19_MissingF0Fields_RemainsReadableAndNormalizesCollections()
     {
         const string json =

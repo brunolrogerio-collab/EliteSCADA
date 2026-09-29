@@ -21,6 +21,26 @@ export function setStoredAppTheme(theme: AppTheme) {
   applyAppTheme(theme);
 }
 
+export function readAppliedAppTheme(): AppTheme {
+  const applied = document.documentElement.getAttribute(ATTRIBUTE);
+  return applied === 'dark' || applied === 'light' ? applied : resolveAppTheme();
+}
+
+export function useAppliedAppTheme(): AppTheme {
+  const [theme, setTheme] = useState<AppTheme>(() => readAppliedAppTheme());
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const sync = () => setTheme(readAppliedAppTheme());
+    const observer = new MutationObserver(sync);
+    observer.observe(root, { attributes: true, attributeFilter: [ATTRIBUTE] });
+    sync();
+    return () => observer.disconnect();
+  }, []);
+
+  return theme;
+}
+
 export function initializeAppTheme(): AppTheme {
   const theme = resolveAppTheme();
   applyAppTheme(theme);

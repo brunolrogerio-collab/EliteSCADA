@@ -236,8 +236,12 @@ Own:
 11. selected image object: choose project image / import from computer;
 12. Popup image-import parity;
 13. visible Screen/Popup background authoring;
-14. preserve all existing library/import capability;
-15. Screen/Popup parity.
+14. selected Screen/Popup/object side context with localized `Properties | Dynamics | Events`;
+15. visual `Events` links triggers to already-created Scripts/handlers through C-SCRIPT-EVENT-LINK-01;
+16. Screen/Popup lifecycle triggers expose friendly Open/Close semantics over canonical initialize/dispose;
+17. object Click association remains stable-ID based and supports direct `Open Script` navigation without duplicating source;
+18. preserve all existing library/import capability;
+19. Screen/Popup parity.
 
 Do not split this lane into simultaneous Editor branches. The files/hotspots overlap too heavily.
 
@@ -277,7 +281,8 @@ Owns structured/non-graphical Engineering workflows:
 - helper text/unit/example/range for non-obvious fields;
 - actionable empty states;
 - coherent Preview/Apply/status region;
-- representative cleanup across TAG/Data Source/Alarm and other structured surfaces.
+- representative cleanup across TAG/Data Source/Alarm and other structured surfaces;
+- Script metadata/event-entry-point forms outside the code editor, consuming C-SCRIPT-EVENT-LINK-01 without touching Screen/Popup visual-editor internals.
 
 May run in parallel with J/L only under strict ownership:
 - N does not modify Screen/Popup visual-editor internals;
@@ -289,6 +294,7 @@ Consumes:
 - integrated C-ENG-DENSITY-01;
 - integrated/frozen C-ENG-THEME-01;
 - frozen C-ENG-WORKFLOW-01;
+- frozen C-SCRIPT-EVENT-LINK-01;
 - C-AUTHORITY-01;
 - C-SURFACE-01;
 - C-TEST-EVIDENCE-01.
@@ -462,9 +468,9 @@ Resume canonical sequencing for:
 |---|---|---|
 | I — ENG-DENSITY | C-AUTHORITY-01, C-SURFACE-01, C-TEST-EVIDENCE-01, frozen C-ENG-DENSITY-01, frozen C-PRODUCT-VERSION-01 | Working/Published/Active, Lock/CAS authority |
 | K — THEME-CONTRAST | C-SURFACE-01, C-TEST-EVIDENCE-01, frozen C-ENG-THEME-01, existing Engineering semantic theme tokens | report/script data models, lifecycle, Script capability/runtime semantics |
-| J — EDITOR-UX-R2 | integrated C-ENG-DENSITY-01, C-VISUAL-IDENTITY-01, C-VISUAL-DYNAMIC-01, C-TAG-WRITE-01, integrated/frozen C-REUSE-01, frozen C-VISUAL-ASSET-02, C-SURFACE-01, C-TEST-EVIDENCE-01 | renderer, identity, TAG write, reuse relationship, asset store/API |
+| J — EDITOR-UX-R2 | integrated C-ENG-DENSITY-01, C-VISUAL-IDENTITY-01, C-VISUAL-DYNAMIC-01, C-TAG-WRITE-01, integrated/frozen C-REUSE-01, frozen C-VISUAL-ASSET-02, frozen C-SCRIPT-EVENT-LINK-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | renderer, identity, TAG write, reuse relationship, asset store/API, Script execution authority |
 | L — BRANDING | integrated C-ENG-DENSITY-01, C-AUTHORITY-01, frozen C-VISUAL-ASSET-02, frozen C-BRANDING-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | lifecycle authority, asset store/API, independent per-page branding state |
-| N — ENG-WORKFLOW-FORMS | integrated C-ENG-DENSITY-01, integrated/frozen C-ENG-THEME-01, frozen C-ENG-WORKFLOW-01, C-AUTHORITY-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | visual-editor internals, branding shell, backend mutation semantics/API identity |
+| N — ENG-WORKFLOW-FORMS | integrated C-ENG-DENSITY-01, integrated/frozen C-ENG-THEME-01, frozen C-ENG-WORKFLOW-01, frozen C-SCRIPT-EVENT-LINK-01, C-AUTHORITY-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | visual-editor internals, branding shell, backend mutation semantics/API identity, Script execution authority |
 | M — UX-COPY-I18N | integrated R2-A + J/L/N, frozen C-USER-COPY-I18N-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | lifecycle/Authority semantics, backend enum/API identity, accepted layout architecture |
 
 Any consumer that finds an insufficient contract returns:
@@ -480,9 +486,9 @@ Any consumer that finds an insufficient contract returns:
 | R2-A | I / Engineering density | K | frozen C-ENG-DENSITY-01 + C-PRODUCT-VERSION-01 + post-#375 base |
 | R2-A | K / Theme + contrast | I | frozen C-ENG-THEME-01 + post-#375 base |
 | Contract | Main/CODEX C-VISUAL-ASSET-02 + C-BRANDING-01 | none | I/K integration |
-| R2-B | J / Editor UX | L | I/K integrated + C-REUSE-01 integrated/frozen + C-VISUAL-ASSET-02 frozen |
+| R2-B | J / Editor UX | L | I/K integrated + C-REUSE-01 integrated/frozen + C-VISUAL-ASSET-02 + C-SCRIPT-EVENT-LINK-01 frozen |
 | R2-B | L / Branding | J | I/K integrated + C-VISUAL-ASSET-02 + C-BRANDING-01 frozen |
-| R2-B | N / Engineering workflow + forms | J + L | I/K integrated + C-ENG-WORKFLOW-01 frozen |
+| R2-B | N / Engineering workflow + forms | J + L | I/K integrated + C-ENG-WORKFLOW-01 + C-SCRIPT-EVENT-LINK-01 frozen |
 | R2-C | M / UX copy + i18n | none | I/J/K/L/N integrated + C-USER-COPY-I18N-01 frozen |
 | Validation | Shared CODEX / E3 | no DEV mutation of candidate | all target lanes delivered |
 | Preview/Audit | CODEX Preview + Human Preview + AUD | independent evidence paths | exact integrated candidate |

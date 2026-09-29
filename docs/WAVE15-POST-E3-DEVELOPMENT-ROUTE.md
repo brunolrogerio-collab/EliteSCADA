@@ -1,10 +1,10 @@
 # Wave 15 — Post-E3 Development Route
 
-**Status:** PREPARED / WAIT_REV0118_TWEEN_PYPROXY_FIX / GATE0_SCRIPT_CORRECTION_ACTIVE / R2_C0_CONTRACT_LAYER_DECLARED  
+**Status:** GATE0_GREEN / #373+#374+#376_INTEGRATED / WAIT_REV0119_REUSE_R1_RECOMPOSE / R2_C0_DECLARED_NO_NEW_DEV_RELEASE  
 **Coordinator issue:** #378  
 **Execution ledger:** #305  
-**Current integration baseline at preparation time:** `wave15/corrections-integration@50b2750c73623b7ffef77f0ca93755c3e8278676`  
-**Current shared CODEX order:** `rev0118 / FINAL-SEQUENTIAL-CODEX-SCRIPT-TWEEN-PYPROXY-LIFETIME-FIX-99`
+**Current integration baseline:** `wave15/corrections-integration@036e07743e7d3574d87af8ff99354b0665b88148` / tree `efd32e7bfb68603a966b96d54d85f4a0e0d0ba41`  
+**Current shared CODEX order:** `rev0119 / FINAL-SEQUENTIAL-CODEX-REUSE-R1-RECOMPOSE-100`
 
 GitHub live is authoritative. Every gate below must be revalidated against live branches, PR heads, CI and issue handoffs before execution.
 
@@ -15,9 +15,8 @@ Finish the current correction wave without mixing unrelated productization work 
 The route is:
 
 ```text
-rev0118 bounded TWEEN borrowed-PyProxy lifetime correction after rev0117 causal proof (#373 and #376 E3 evidence carried forward)
-  -> integrate #373/#374/#376 if Gate 0 closes
-  -> recompose/integrate #375
+Gate0 complete: #373/#374/#376 integrated with final tree byte-identical to validated E3
+  -> rev0119 recompose/integrate #375 on exact post-Gate0 base
   -> R2-C0 SHARED CONTRACT LAYER (#386) / freeze all mandatory external-test semantics
   -> R2-A foundations: Engineering shell/theme + Historian capture + Data Query core + Portability core
   -> R2-B authoring: Editor UX + Branding + structured Engineering + Script authoring + Library/Fragment consumers
@@ -32,43 +31,29 @@ rev0118 bounded TWEEN borrowed-PyProxy lifetime correction after rev0117 causal 
   -> container/host productization + Local/Remote DB topology later in canonical order
 ```
 
-## 2. Gate 0 — residual E3 disposition
+## 2. Gate 0 — COMPLETE / exact tree proven
 
-Do not start unrelated product branches while rev0118 is active. The only authorized Gate-0 product mutation is the bounded #374 Script bridge fix on its existing branch.
+Accepted:
+- #373 HMI integrated at merge `2074070eb9e6227a186aabb27a050bccd0ae9522`;
+- #374 Script integrated at merge `888a27ed6eeef2f5bf5ac7c170ec17b7efe6dcdd`;
+- #376 Gateway integrated at merge `036e07743e7d3574d87af8ff99354b0665b88148`;
+- final integration tree `efd32e7bfb68603a966b96d54d85f4a0e0d0ba41`;
+- validated rev0118 combined E3 tree `efd32e7bfb68603a966b96d54d85f4a0e0d0ba41`.
 
-Current carried-forward state:
-- #376 Gateway: `E2_ACCEPTED / E3_MOUNTED_ACCEPTED / WAIT_COHORT_GATE0_CLOSE`;
-- #373 HMI: `E2_ACCEPTED / E3_MOUNTED_ACCEPTED`;
-- #376 Gateway: `E2_ACCEPTED / E3_MOUNTED_ACCEPTED`;
-- #374 Script: prior authoring evidence remains accepted; rev0117 confirmed the remaining TWEEN completion failure is a Client Visual Python bridge lifetime defect, now owned by rev0118;
-- rev0115 was invalidated by a disposable fixture that omitted the product-generated `elite_scada` import;
-- rev0116 proved Script Assistant-generated READ and WRITE complete; rev0117 proved TWEEN response delivery succeeds but the Python await cannot resume because `normalizeBridgeValue()` prematurely destroys the borrowed inbound dict PyProxy. rev0118 applies only that fix plus regression/E2/Script-only E3 residual recheck.
+Therefore:
+`GATE0_GREEN / EXACT_TREE_PROVEN / #373+#374+#376_INTEGRATED`.
 
-The pre-fix combined tree `3aaec957ce27c73bb8b7090b7cd9f412ba26b567` is historical evidence only now that rev0117 proved a product defect requiring a #374 byte change. It must **not** be used as the final post-fix tree target.
-
-If rev0118 returns:
-`SCRIPT_TWEEN_PYPROXY_FIX / E2_GREEN / E3_TWEEN_COMPLETED / <new #374 HEAD> / <new combined tree>`
-
-Main must:
-1. revalidate integration still equals the pinned base;
-2. revalidate #373/#376 remained byte-identical to their accepted E3 heads;
-3. review the exact #374 correction diff and exact-head T1;
-4. treat the rev0118-reported combined tree as the new Gate-0 E3 product-tree authority;
-5. integrate in preferred order:
-   `#373 -> #374 -> #376`;
-6. prove the resulting final integrated **product tree** is byte-identical to that new rev0118 combined E3 tree.
-
-If a causal failure is returned:
-- assign only the proven owning lane or cross-lane boundary;
-- no speculative broad rewrite;
-- rebuild the exact combined candidate after correction;
-- obtain required E2/E3 again before integration.
+The old pre-fix combined tree `3aaec957ce27c73bb8b7090b7cd9f412ba26b567` remains historical evidence only.
 
 ## 3. Gate 1 — Reusable Objects R1 (#375)
 
-After #373/#374/#376 are integrated:
+Gate0 is complete. Current binding Gate1 base is:
+- integration `036e07743e7d3574d87af8ff99354b0665b88148`;
+- tree `efd32e7bfb68603a966b96d54d85f4a0e0d0ba41`;
+- active shared CODEX order `rev0119 / FINAL-SEQUENTIAL-CODEX-REUSE-R1-RECOMPOSE-100`.
 
-- recompose `work/w15-reusable-objects-correction` from then-current integration;
+Now:
+- recompose `work/w15-reusable-objects-correction` from this exact integration;
 - preserve accepted C-REUSE-01 semantics;
 - resolve only additive composition;
 - rerun E2;
@@ -713,7 +698,7 @@ Any consumer that finds an insufficient contract returns:
 
 | Phase | Chat | May run with | Must wait for |
 |---|---|---|---|
-| Current | Shared CODEX rev0118 TWEEN PyProxy fix | only bounded #374 worker + regression test mutation | active now |
+| Current | Shared CODEX rev0119 Reuse R1 recomposition | only #375 branch recomposition + accepted R1 conflict resolution/tests | active now |
 | Gate 1 | G / #375 recomposition | none required | E/F/H integration |
 | C0 Contract | Main / #386 | no product DEV required | post-#375 exact base |
 | R2-A | I / Engineering density | K | frozen C-ENG-DENSITY-01 + C-PRODUCT-VERSION-01 + post-#375 base |
@@ -748,4 +733,4 @@ This route carries the following interaction rules across coordinator rotations:
 
 ## 15. Current disposition
 
-`PREPARED / WAIT_REV0118_TWEEN_PYPROXY_FIX / GATE0_SCRIPT_CORRECTION_ACTIVE / C0_DECLARED_NO_NEW_DEV_RELEASE`.
+`GATE0_GREEN / WAIT_REV0119_REUSE_R1_RECOMPOSE / C0_DECLARED_NO_NEW_DEV_RELEASE`.

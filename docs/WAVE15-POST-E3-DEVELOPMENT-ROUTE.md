@@ -222,6 +222,17 @@ Post-merge `EliteSCADA CI` run `36594248859` / #1592:
 Until the retry closes green:
 `R2_A_HOLD_POSTMERGE_CI_RETRY`.
 
+Attempt 2 diagnosis:
+- all backend tests passed;
+- failure occurred only in Runtime smoke startup readiness;
+- smoke waits 30 x 1 s for `/health`;
+- API became healthy shortly after that window (~34 s from process launch);
+- once listening, `/health` and `/api/diagnostics/runtime` returned HTTP 200;
+- no F0 product/runtime behavior change is implicated by current evidence;
+- attempt 3 reruns only the Backend job on identical `d869c538...` bytes.
+
+Until attempt 3 is green, downstream release remains blocked.
+
 No downstream bootstrap is released on a failed post-merge CI.
 
 ## 5. Development Wave R2-A — foundations
@@ -346,6 +357,71 @@ Must not:
 - turn .escadalib into Runtime authority;
 - own Screen/Popup Editor layout;
 - silently auto-upgrade project behavior.
+
+### R2-A exact ownership lock after F0
+
+Prepared on integration `d869c538700eca4b72703c311bb56f810a8baa2d`.
+This is a release plan only; no bootstrap is generated while post-merge CI is red.
+
+**Chat O / Historian Capture primary paths**
+- `src/Scada.Historian/Policies/**`;
+- `src/Scada.Historian/Memory/BufferedInMemoryHistorian.cs`;
+- `src/Scada.Historian.TimescaleDb/TimescaleDbHistorian.cs`;
+- narrowly scoped Historian configuration/diagnostics required to resolve Active capture profiles;
+- focused Historian tests.
+
+Forbidden to O:
+- `src/Scada.Core/HistoricalQueries/**`;
+- `TimescaleHistoricalQueryProvider.cs`;
+- Historical Query API;
+- Trend/Browser/Report UI;
+- F0 wire/schema redefinition.
+
+**DATA-QUERY-CORE / #384 primary paths**
+- `src/Scada.Core/HistoricalQueries/**`;
+- `src/Scada.Historian.TimescaleDb/TimescaleHistoricalQueryProvider.cs`;
+- `src/Scada.Api/Historian/HistoricalQueryApi.cs`;
+- `src/Scada.Api/Historian/HistoricalQueryConfiguration.cs`;
+- new bounded Engineering Query-definition services consuming F0 DTOs;
+- focused provider/query/aggregation tests.
+
+Forbidden to DATA-QUERY-CORE:
+- Historian admission/capture policy;
+- Writer queues;
+- `src/Scada.Engineering/ImportExport/**`;
+- reusable Library mutation;
+- Trend/Browser/Report presentation;
+- F0 wire/schema redefinition.
+
+**ENGINEERING-PORTABILITY-CORE / #385 primary paths**
+- `src/Scada.Engineering/ImportExport/**`;
+- `src/Scada.Engineering/Libraries/**`;
+- new Fragment plan/apply/dependency/remap services consuming F0 DTOs;
+- package/fragment/library compatibility tests.
+
+Forbidden to PORTABILITY-CORE:
+- Historian capture/query execution;
+- Screen/Popup graphical editor;
+- full `.escadapkg` authority replacement;
+- Runtime dependency on external `.escadalib`;
+- F0 wire/schema redefinition.
+
+**I / Engineering Density**
+- Engineering shell/context/info/layout paths only;
+- owns the wide-section layout hook;
+- may expose product version/info but does not change domain DTO semantics.
+
+**K / Theme Contrast**
+- CSS/theme/Monaco configuration only;
+- may not change Script execution models or Engineering domain models.
+
+Shared-hotspot rule after F0:
+- `EngineeringContracts.cs`, R2 shared wire contract files, schema v20 definitions and canonical TypeScript wire mirrors are frozen shared hotspots;
+- if any R2-A lane requires a semantic change there, return `BLOCKED_CONTRACT` to Main instead of editing opportunistically.
+
+Parallelism after CI release:
+- I + K + O + DATA-QUERY-CORE + PORTABILITY-CORE may run concurrently under these ownership locks;
+- Main revalidates exact base/head and changed-path overlap before accepting any merge.
 
 ## 6. Development Wave R2-B — authoring consumers
 

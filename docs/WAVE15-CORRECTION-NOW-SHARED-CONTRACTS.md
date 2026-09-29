@@ -313,16 +313,28 @@ Permanent separation:
 - `PointReadTest` = one transient read of a draft TAG binding/address through the selected Driver;
 - `Development Monitor` = ongoing observation of already-Active Runtime TAGs/driver diagnostics.
 
-Product flow:
-`DRAFT TAG -> TEST READ -> RAW EVIDENCE -> DECODED VALUE -> ENGINEERING VALUE -> QUALITY/LATENCY -> FIX BINDING -> PREVIEW/APPLY`.
+Lifecycle authority:
+
+`OPTIONAL / NON-BLOCKING / NEVER A PREVIEW-APPLY-SAVE-PUBLISH-ACTIVATE GATE`
+
+Normal TAG lifecycle remains:
+
+`DRAFT TAG -> PREVIEW -> APPLY`
+
+Commissioning is an optional diagnostic branch:
+
+`DRAFT TAG -> TEST READ -> RAW/DECODED/ENGINEERING/QUALITY/LATENCY -> ADJUST DRAFT -> RETEST IF DESIRED`
 
 Required semantics:
-1. Point-read test is Engineering-only and read-only. It never mutates Working/Published/Active, writes process values, writes Historian rows or changes Driver scan rates.
-2. A test may use a configured Data Source or a validated draft Source/binding through protected Driver Engineering tooling, but secrets remain protected references and are never returned.
-3. Driver SDK exposes an independent optional capability `PointReadTest`; it is not overloaded onto Data Source `ConnectionTest`.
-4. Result states are typed and at least cover `GOOD | BAD | NO_DATA | INTERMITTENT_OR_UNCERTAIN | NOT_SUPPORTED`.
-5. UI state is conveyed by text/icon as well as color. Prepared convention: GOOD blue accent, BAD red, NO_DATA neutral gray, intermittent/uncertain amber or gray with explicit diagnostic.
-6. Result carries, where the Driver can safely provide it:
+1. Point-read test is Engineering-only, read-only and optional. It never mutates Working/Published/Active, writes process values, writes Historian rows or changes Driver scan rates.
+2. Physical communication success is never a prerequisite for TAG persistence or lifecycle. `BAD`, `NO_DATA`, `INTERMITTENT_OR_UNCERTAIN` and `NOT_SUPPORTED` must not block Preview, Apply, Save, Publish or Activate.
+3. Offline Engineering is valid: a TAG may be configured, structurally validated and persisted while the PLC/device is powered off, disconnected, not commissioned yet or otherwise unavailable.
+4. Normal structural Driver/binding validation remains authoritative. Commissioning results may diagnose an address/transform/device problem but may not convert transient physical reachability into a structural persistence gate.
+5. A test may use a configured Data Source or a validated draft Source/binding through protected Driver Engineering tooling, but secrets remain protected references and are never returned.
+6. Driver SDK exposes an independent optional capability `PointReadTest`; it is not overloaded onto Data Source `ConnectionTest`.
+7. Result states are typed and at least cover `GOOD | BAD | NO_DATA | INTERMITTENT_OR_UNCERTAIN | NOT_SUPPORTED`.
+8. UI state is conveyed by text/icon as well as color. Prepared convention: GOOD blue accent, BAD red, NO_DATA neutral gray, intermittent/uncertain amber or gray with explicit diagnostic.
+9. Result carries, where the Driver can safely provide it:
    - sanitized endpoint/source;
    - canonical portable address;
    - source/observed timestamps;
@@ -333,10 +345,10 @@ Required semantics:
    - Engineering/normalized value after canonical transforms/selectors/scale/offset;
    - applied transform summary;
    - typed Driver issues.
-7. Raw evidence is optional by Driver capability; absence must be explicit rather than fabricated.
-8. Bounded multi-sample mode may observe a few reads for intermittent-link diagnosis, with fixed duration/sample cap and cancellation.
-9. Active Runtime remains the sole ongoing process authority. The test provider is transient and cannot become a second Runtime Driver.
-10. After Apply/Activate, `Development Monitor` remains the normal ongoing watch surface.
+10. Raw evidence is optional by Driver capability; absence must be explicit rather than fabricated.
+11. Bounded multi-sample mode may observe a few reads for intermittent-link diagnosis, with fixed duration/sample cap and cancellation.
+12. Active Runtime remains the sole ongoing process authority. The test provider is transient and cannot become a second Runtime Driver.
+13. After Apply/Activate, `Development Monitor` remains the normal ongoing watch surface.
 
 Physical transform authority:
 - canonical cross-driver physical transform remains `CommunicationTagBinding.ValueTransform` where supported;

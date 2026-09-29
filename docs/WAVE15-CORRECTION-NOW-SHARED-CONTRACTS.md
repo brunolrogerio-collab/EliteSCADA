@@ -735,7 +735,19 @@ Internal-only vocabulary normally forbidden in ordinary user workflows:
 - exact SHA/tree/branch/PR;
 - control plane;
 - C-* contract IDs;
-- validation harness / coordinator wording.
+- validation harness / coordinator wording;
+- implementation/framework/tool branding such as Monaco, Vite, React, Pyodide and Web Worker;
+- `Canvas` as an implementation-facing name for the Screen/Popup graphical editing surface.
+
+Prepared product-facing authoring terminology:
+- `Editor de Tela` / `Screen Editor` / `Editor de Pantalla`;
+- `Editor de Popup` / `Popup Editor` / `Editor de Popup`;
+- graphical surface formerly called Canvas: `Área de edição` / `Editing area` / `Área de edición`;
+- Script product surface: `Scripts` or `Editor de Scripts` / `Scripts` or `Script Editor` / `Scripts` or `Editor de Scripts`;
+- embedded source control: `Editor de código` / `Code editor` / `Editor de código`;
+- visual hierarchy formerly called Outliner: `Estrutura` / `Structure` / `Estructura`.
+
+Implementation names may remain in source code, package metadata, build logs and developer-only diagnostics. Ordinary Product UI, help, accessibility text and user-facing errors describe the EliteSCADA function rather than the underlying implementation technology.
 
 Product/industrial terms requiring an explicit per-locale glossary decision:
 - Engineering;
@@ -773,7 +785,7 @@ This sequencing avoids merge conflicts while ensuring the next Product Owner Pre
 Frozen semantics must define:
 - frequent built-in object insertion through compact toolbar actions;
 - Structure + Dynamo/library/assets in one shared side-authoring surface;
-- no Outliner overlay over canvas;
+- no Structure/Outliner overlay over the graphical editing area;
 - independent scrolling of Structure and Library regions;
 - collapsed state releases nearly all layout width;
 - reopen affordance remains visible, focusable and high-contrast;
@@ -781,7 +793,10 @@ Frozen semantics must define:
 - click-vs-drag threshold/lifecycle;
 - group deep-edit without identity loss;
 - object label visibility mode = all / selected / hidden;
-- Screen/Popup parity.
+- Screen/Popup parity;
+- the selected Screen/Popup/object authoring context exposes one coherent side surface with `Properties | Dynamics | Events`, localized through C-USER-COPY-I18N-01;
+- `Events` links a trigger to an already-created Script/handler; it does not create a second Script source authority inside the visual object;
+- Screen/Popup lifecycle and object-interaction triggers consume C-SCRIPT-EVENT-LINK-01.
 
 Consumes without redefining:
 - `C-VISUAL-IDENTITY-01`;
@@ -789,6 +804,7 @@ Consumes without redefining:
 - `C-TAG-WRITE-01`;
 - `C-REUSE-01` after #375 integration/freeze;
 - `C-VISUAL-ASSET-02`;
+- `C-SCRIPT-EVENT-LINK-01`;
 - `C-AUTHORITY-01`;
 - `C-SURFACE-01`;
 - `C-TEST-EVIDENCE-01`.
@@ -800,6 +816,51 @@ Forbidden:
 - alternate TAG write path;
 - alternate Dynamo/reuse relationship;
 - alternate asset store/import authority.
+
+### C-SCRIPT-EVENT-LINK-01 — visual trigger -> existing Script association
+
+**State:** `PREPARED_DRAFT / FREEZE_AFTER_GATE1 / BEFORE_R2-B_J+N`  
+**Owner:** Main + shared CODEX contract review  
+**Consumers:** Chat J / DEV-EDITOR-UX-R2, Chat N / DEV-ENG-WORKFLOW-FORMS, Chat M / DEV-UX-COPY-I18N.
+
+Existing canonical authority to preserve:
+- `ScriptVisualEventReference`;
+- stable `visualDefinitionId + visualObjectId`;
+- stable `scriptId + entryPoint`;
+- Script scope/event-kind validation;
+- existing Preview/Apply/CAS and dependency authority.
+
+Product intent:
+`VISUAL_CONTEXT -> TRIGGER -> EXISTING_SCRIPT -> COMPATIBLE_HANDLER`.
+
+Required semantics:
+1. a Screen, Popup or visual object never owns a private copy of Script source;
+2. the visual editor only creates/removes/reassigns canonical event associations to Scripts that already exist;
+3. the selected Screen/Popup/object exposes `Events` beside `Properties` and `Dynamics`;
+4. Screen/Popup lifecycle presents friendly triggers such as `Ao abrir` / `On open` and `Ao fechar` / `On close`, mapped to canonical `initialize` / `dispose`;
+5. object interaction initially reuses the supported `Click` / `objectInteraction` path; richer interaction subtypes require an explicit canonical event contract;
+6. TAG-changed, Client-Memory-changed and Timer remain canonical Script triggers and may be exposed contextually without pretending they are intrinsic pointer events of the selected object;
+7. only Scripts/entry points compatible with the selected trigger and scope are selectable;
+8. persisted authority uses stable IDs; display names/Keys may change without retargeting;
+9. current links are visible and may be intentionally unlinked/relinked without deleting the Script;
+10. provide an `Abrir Script` / `Open Script` affordance that navigates to the existing Script editor/handler without duplicating source;
+11. unsaved/unapplied visual identity cannot silently create an unstable link; authoring stays disabled with an actionable explanation until stable identity exists;
+12. a Script syntax/runtime fault is isolated from the Screen/Popup editor, Runtime shell and unrelated Scripts;
+13. syntax/reference validation remains Script authority; the visual Events surface reports invalid/unavailable target state but does not invent a second compiler;
+14. deletion continues through dependency validation so no dangling association is silently retained;
+15. Screen and Popup consume the same association semantics.
+
+Current implementation evidence:
+- `web/scada-web/src/engineering/visual-editor/events-editor/EventsEditor.tsx` already supports Click, Initialize, Dispose, TAG value change, Client Memory change and Timer;
+- `PropertyInspector.tsx` already mounts the Events editor for a single selected object;
+- R2 is primarily integration/usability/context correction, not a replacement event architecture.
+
+Forbidden:
+- embedding independent Script source inside Screen/object DTOs;
+- mutable display-name-only event targets;
+- visual-editor-private execution paths;
+- DOM/React callbacks becoming project/runtime authority;
+- bypassing Script sandbox/capability/authorization rules.
 
 ### C-VISUAL-ASSET-02 — common asset/import authority for Editor + Branding
 
@@ -879,7 +940,7 @@ Initial structured surfaces:
 - Historian;
 - Security/Engineering Lock settings;
 - Reports non-canvas settings;
-- Script metadata/entry points outside Monaco;
+- Script metadata/event entry points outside the code editor, consuming C-SCRIPT-EVENT-LINK-01; user-facing copy must never require the implementation name Monaco;
 - authoring/configuration diagnostics where applicable.
 
 Consumes:

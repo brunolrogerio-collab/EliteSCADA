@@ -38,11 +38,11 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0119`
+`MAIN_ORDER_REV: 0120`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-29 — GATE0 INTEGRATED TREE PROVEN / GATE1 #375 RECOMPOSITION ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-29 — GATE1 #375 MAIN-RECOMPOSED / CI ACTIVE / CODEX CAPACITY PRESERVED`
 
-`GLOBAL_GATE: FND04_VERIFIED_FROZEN / GATE0_GREEN / SHARED_CODEX_REUSE_R1_RECOMPOSITION_ACTIVE`
+`GLOBAL_GATE: FND04_VERIFIED_FROZEN / GATE0_GREEN / GATE1_REUSE_R1_MAIN_RECOMPOSED / SHARED_CODEX_WAIT`
 
 Current situation:
 
@@ -58,10 +58,10 @@ Current situation:
 - FND-04 is now **VERIFIED / FROZEN** at exact product checkpoint `6c810647c9773a19b212d9c33694780141786ac7`.
 - The readable Script TAG reference contract is frozen for downstream consumption.
 - FND-04 AUD remains **FROZEN / WAIT / NO_MUTATION**.
-- The **same sequential CODEX executor/chat is now assigned under rev0119 to recompose #375 Reuse R1 onto the exact post-Gate0 integration and obtain fresh E2**. Gate0 (#373/#374/#376) is integrated and tree-proven. FND-04 remains frozen; the shared CODEX route is independent of the legacy FND-04 DEV order.
+- Main performed the #375 Reuse R1 recomposition directly to preserve limited CODEX capacity. The shared CODEX executor is now WAIT and must not consume capacity unless Main issues a later environment-dependent order. Gate0 (#373/#374/#376) remains integrated and tree-proven. FND-04 remains frozen.
 - Any later change to this shared contract requires a new Main/Foundation delta; downstream lanes may not redefine it.
 
-Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave15/corrections-integration@036e07743e7d3574d87af8ff99354b0665b88148`, tree `efd32e7bfb68603a966b96d54d85f4a0e0d0ba41`. Gate0 is green and #373/#374/#376 are merged. rev0119 owns only #375 R1 recomposition onto this exact base plus fresh E2. Any movement of integration or #375 HEAD outside this order invalidates rev0119 until Main reissues exact coordinates.
+Current CORRECTION-NOW integration baseline is `wave15/corrections-integration@036e07743e7d3574d87af8ff99354b0665b88148`, tree `efd32e7bfb68603a966b96d54d85f4a0e0d0ba41`. Gate0 is green and #373/#374/#376 are merged. Main recomposed #375 directly to `53f9524d098a0497acf95ad4669a2f1738742e00`, tree `75398319b8b4630b72a525fb9bdd235dc0d541a9`, with exact R1 11-file scope; natural Wave 15 T1 run `36589349320` is active. Shared CODEX is WAIT pending Main decision after CI.
 ---
 
 ## 2A. CURRENT SHARED CODEX ORDER — EXECUTION POINTER
@@ -70,11 +70,58 @@ Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave1
 >
 > The shared CODEX executor is not the legacy FND-04 DEV lane.
 
-`SHARED_CODEX_ORDER_REV: 0119`
+`SHARED_CODEX_ORDER_REV: 0120`
 
-`ORDER_ID: FINAL-SEQUENTIAL-CODEX-REUSE-R1-RECOMPOSE-100`
+`ORDER_ID: SHARED-CODEX-WAIT-AFTER-MAIN-REUSE-RECOMPOSE-101`
 
-`ORDER_STATE: ACTIVE_RECOMPOSITION / GATE0_GREEN / #375_R1_SEMANTICS_ACCEPTED / EXACT_POST_GATE0_BASE / FRESH_E2_REQUIRED / NO_MERGE`
+`ORDER_STATE: WAIT / MAIN_RECOMPOSED_#375 / T1_36589349320_ACTIVE / PRESERVE_CODEX_CAPACITY / NO_PRODUCT_MUTATION / NO_MERGE`
+
+### rev0119 disposition — Main recomposed #375 directly / CODEX capacity preserved
+
+Main detected that the shared CODEX executor was approaching its interaction/capacity limit and removed it from the Gate1 critical path.
+
+Exact base:
+- integration `036e07743e7d3574d87af8ff99354b0665b88148`;
+- tree `efd32e7bfb68603a966b96d54d85f4a0e0d0ba41`.
+
+Old accepted R1:
+- #375 head `8c47e7944f1e025992b203a45a5caaf146819e9c`;
+- old tree `5008fa501758552c7648607e7123633252df760c`;
+- 11 changed files.
+
+Live overlap audit:
+- Gate0 changed 50 files;
+- R1 changed 11 files;
+- exactly one overlap: `src/Scada.Engineering/Contracts/EngineeringContracts.cs`.
+
+Main recomposition method:
+- used exact Gate0 integration tree as base;
+- reused the accepted R1 blob bytes for the 10 non-overlapping R1 files;
+- manually composed the one overlapping contract file so Gate0 `PropertyMaps` remains intact and R1 stable references are added:
+  - `Equipment.TemplateId`;
+  - `Dynamo.TemplateId`;
+  - `VisualElement.DynamoDefinitionId`;
+  - `VisualElement.EquipmentId`;
+  - `Popup.TemplateId`;
+- created one recomposition commit directly on the Gate0 base.
+
+New #375:
+- head `53f9524d098a0497acf95ad4669a2f1738742e00`;
+- tree `75398319b8b4630b72a525fb9bdd235dc0d541a9`;
+- compare vs Gate0: exactly 1 commit, 11 files, same per-file change statistics as accepted R1;
+- PR #375 remains draft / mergeable / NOT MERGED;
+- natural exact-head Wave 15 T1 run `36589349320` started automatically.
+
+Main classification:
+`REUSE_R1_RECOMPOSED_BY_MAIN / EXACT_SCOPE_PRESERVED / WAIT_T1 / SHARED_CODEX_NOT_REQUIRED`.
+
+### CURRENT shared CODEX state
+
+WAIT.
+
+Do not run local tests, change product code, mutate #375, or consume further CODEX capacity unless Main issues a new ACTIVE order after reviewing CI.
+
+---
 
 ### rev0118 disposition — Main processed / Gate0 green
 

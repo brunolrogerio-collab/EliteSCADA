@@ -226,6 +226,10 @@ Post-F0 mandatory delta:
 
 TAG commissioning freezes:
 - Data Source ConnectionTest vs draft TAG PointReadTest vs Active Development Monitor separation;
+- `PointReadTest` is OPTIONAL / NON-BLOCKING and NEVER a Preview/Apply/Save/Publish/Activate gate;
+- normal lifecycle remains `DRAFT TAG -> PREVIEW -> APPLY`; Test Read is only an optional commissioning/diagnostic branch;
+- BAD / NO_DATA / INTERMITTENT_OR_UNCERTAIN / NOT_SUPPORTED never block Apply or later lifecycle;
+- offline Engineering remains valid with PLC/device unavailable; only normal structural Driver/binding validation is authoritative for persistence;
 - read-only transient point test;
 - raw / decoded / Engineering value layers;
 - quality/timestamp/latency/issue evidence;

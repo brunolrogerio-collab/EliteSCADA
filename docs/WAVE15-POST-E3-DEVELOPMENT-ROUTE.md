@@ -103,15 +103,29 @@ Before parallel Round-2 implementation, Main/CODEX freezes four bounded contract
 - no new private image persistence path;
 - asset IDs remain canonical authority.
 
+### C-VISUAL-ASSET-02
+
+Shared foundation required before J/L parallel release.
+
+- one canonical VisualAsset store/API/identity;
+- PNG/JPEG/BMP compatibility preserved;
+- image object, Screen/Popup background and Branding all reference stable asset ID;
+- no local filesystem path persistence;
+- no branding-only asset/blob store;
+- package/export/import preserves identity/hash/content;
+- safe SVG, if implemented, extends this same authority through a static sanitized-vector boundary;
+- Editor and Branding consumers return `BLOCKED_CONTRACT` instead of locally widening asset semantics.
+
 ### C-BRANDING-01
 
 - modes: default EliteSCADA / text / image / none;
 - branding is versioned application/project configuration;
-- image references canonical project VisualAsset;
+- image references canonical C-VISUAL-ASSET-02 asset identity;
 - Active Runtime uses Active branding;
 - Working-only edits do not mutate Active Runtime;
+- Engineering settings may preview Working branding without changing Active authority;
 - package/restart/recovery preserve branding;
-- SVG support requires an explicit safe static-vector validation/sanitization boundary.
+- SVG support requires the frozen C-VISUAL-ASSET-02 safe static-vector boundary.
 
 ## 5. Development Wave R2-A
 
@@ -153,7 +167,12 @@ May run concurrently with Chat I.
 
 ## 6. Development Wave R2-B
 
-Starts only after R2-A is integrated.
+Starts only after R2-A is integrated **and**:
+- C-VISUAL-ASSET-02 is frozen;
+- C-BRANDING-01 is frozen;
+- C-REUSE-01 is integrated/frozen after #375;
+- the integrated C-ENG-DENSITY-01 layout hook is available.
+
 
 ### Chat J — DEV-EDITOR-UX-R2
 
@@ -313,19 +332,33 @@ Resume canonical sequencing for:
 - product convergence / industrial visuals / help / localization / EEE v15;
 - final exact validation and final Preview.
 
-## 13. Parallelism matrix
+## 13. Shared-contract dependency matrix
+
+| Chat | Must consume/freeze before start | May not redefine |
+|---|---|---|
+| I — ENG-DENSITY | C-AUTHORITY-01, C-SURFACE-01, C-TEST-EVIDENCE-01, frozen C-ENG-DENSITY-01 | Working/Published/Active, Lock/CAS authority |
+| K — REPORT-THEME | C-SURFACE-01, C-TEST-EVIDENCE-01, existing Engineering semantic theme tokens | report data/model authority |
+| J — EDITOR-UX-R2 | integrated C-ENG-DENSITY-01, C-VISUAL-IDENTITY-01, C-VISUAL-DYNAMIC-01, C-TAG-WRITE-01, integrated/frozen C-REUSE-01, frozen C-VISUAL-ASSET-02, C-SURFACE-01, C-TEST-EVIDENCE-01 | renderer, identity, TAG write, reuse relationship, asset store/API |
+| L — BRANDING | integrated C-ENG-DENSITY-01, C-AUTHORITY-01, frozen C-VISUAL-ASSET-02, frozen C-BRANDING-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | lifecycle authority, asset store/API, independent per-page branding state |
+
+Any consumer that finds an insufficient contract returns:
+`BLOCKED_CONTRACT / <contract-id> / <missing semantic>`.
+
+## 14. Parallelism matrix
 
 | Phase | Chat | May run with | Must wait for |
 |---|---|---|---|
-| Current | Shared CODEX rev0112 | nothing new mutating same product | active now |
+| Current | Shared CODEX rev0113 | nothing new mutating same product | active now |
 | Gate 1 | G / #375 recomposition | none required | E/F/H integration |
-| R2-A | I / Engineering density | K | post-#375 base |
+| Contract | Main/CODEX | no product DEV required | post-#375 base |
+| R2-A | I / Engineering density | K | frozen C-ENG-DENSITY-01 + post-#375 base |
 | R2-A | K / Report theme | I | post-#375 base |
-| R2-B | J / Editor UX | L | R2-A integration |
-| R2-B | L / Branding | J | R2-A integration |
+| Contract | Main/CODEX C-VISUAL-ASSET-02 + C-BRANDING-01 | none | I/K integration |
+| R2-B | J / Editor UX | L | I/K integrated + C-REUSE-01 integrated/frozen + C-VISUAL-ASSET-02 frozen |
+| R2-B | L / Branding | J | I/K integrated + C-VISUAL-ASSET-02 + C-BRANDING-01 frozen |
 | Validation | Shared CODEX / E3 | no DEV mutation of candidate | all target lanes delivered |
 | Preview/Audit | CODEX Preview + Human Preview + AUD | independent evidence paths | exact integrated candidate |
 
-## 14. Current disposition
+## 15. Current disposition
 
 `PREPARED / WAIT_REV0113 / NO_POST_E3_PRODUCT_MUTATION_YET`.

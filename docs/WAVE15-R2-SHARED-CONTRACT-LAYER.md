@@ -1,6 +1,6 @@
 # Wave 15 R2 — Shared Contract Layer (C0)
 
-**State:** C0_FROZEN / POST_GATE1_BASE_bb946f9e / READY_FOR_IMPLEMENTATION_PACKAGING / NO_BOOTSTRAP_RELEASED  
+**State:** C0_FROZEN / F0_INTEGRATED / R2_A_RELEASE_READY / NO_BOOTSTRAP_RELEASED  
 **Coordinator issue:** #386  
 **Parent correction route:** #378  
 **Control branch:** `coord/w15-correction-now-parallel-control`  
@@ -31,8 +31,8 @@ C0 does not authorize production mutation by itself.
 
 ### Current exact freeze base
 
-- integration: `wave15/corrections-integration@bb946f9e7d6910d59a9ac172d71361e5badab4b1`;
-- tree: `75398319b8b4630b72a525fb9bdd235dc0d541a9`;
+- C0 freeze base: `wave15/corrections-integration@bb946f9e7d6910d59a9ac172d71361e5badab4b1` / tree `75398319b8b4630b72a525fb9bdd235dc0d541a9`;
+- current post-F0 integration: `wave15/corrections-integration@d869c538700eca4b72703c311bb56f810a8baa2d` / tree `cf6f23cb44b8cef7f2d6b097ae417d44ed86f99c`;
 - Gate0 #373/#374/#376: integrated and exact-tree proven;
 - Gate1 #375: recomposed by Main, exact-head T1 `36589349320` SUCCESS, integrated;
 - C-REUSE-01: integrated/frozen;
@@ -186,9 +186,9 @@ No item in this table is optional for the first external-test candidate unless t
 
 ## 4.5. F0 — Shared Wire Foundation
 
-Before behavior packages run in parallel, one bounded implementation package tracked by #387 must translate the frozen C0 semantics into shared additive wire/schema types.
+F0 translated the frozen C0 semantics into shared additive wire/schema types before behavior packages parallelize.
 
-**State:** PLANNED / CONTRACTS_FROZEN / ISSUE_#387 / OWNER_UNASSIGNED / NO_BOOTSTRAP.
+**State:** INTEGRATED / ISSUE_#387 / PR_#388 / T1_GREEN / EXACT_TREE_PROVEN.
 
 Owns only shared public/model foundations such as:
 - Historian Capture Profile identity/configuration DTOs and strategy enums;
@@ -220,9 +220,9 @@ Hotspot ownership while F0 is active:
 - `web/scada-web/src/engineering/types.ts` or deliberately extracted shared type modules;
 - only the minimal roundtrip tests needed for wire compatibility.
 
-No parallel lane may edit those hotspots until F0 integrates.
+F0 is integrated. Those types are now downstream authority; lanes may extend only through Main-approved contract deltas.
 
-After F0 integrates:
+The following may now run concurrently when Main releases exact ownership:
 - Historian Capture;
 - Data Query Core;
 - Engineering Portability Core

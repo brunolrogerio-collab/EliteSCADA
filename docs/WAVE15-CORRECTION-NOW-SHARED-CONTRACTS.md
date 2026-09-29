@@ -805,6 +805,7 @@ Consumes without redefining:
 - `C-REUSE-01` after #375 integration/freeze;
 - `C-VISUAL-ASSET-02`;
 - `C-SCRIPT-EVENT-LINK-01`;
+- `C-HISTORIAN-CAPTURE-01` where Script/visual surfaces consume historian-aware TAG metadata;
 - `C-AUTHORITY-01`;
 - `C-SURFACE-01`;
 - `C-TEST-EVIDENCE-01`.
@@ -901,6 +902,99 @@ Ownership split after freeze:
 - if either consumer discovers a missing asset semantic, return:
   `BLOCKED_CONTRACT / C-VISUAL-ASSET-02 / <missing semantic>`.
 
+### C-HISTORIAN-CAPTURE-01 — reusable historian capture policy and runtime enforcement
+
+**State:** `PREPARED_DRAFT / CONFIRMED_RUNTIME_GAP / FREEZE_BEFORE_CHAT_O`  
+**Owner:** Main + #382  
+**Implementation consumer:** future Chat O / DEV-HISTORIAN-CAPTURE  
+**UI consumer:** Chat N / DEV-ENG-WORKFLOW-FORMS  
+**Downstream validation:** SECOND Preview/Audit.
+
+Confirmed live gap:
+- TAG Engineering already stores `enabled / strategy / deadband / periodMilliseconds / maximumPeriodMilliseconds`;
+- current TAG UI exposes these as raw per-TAG fields;
+- Runtime `HistorianCapturePolicy` only enforces `historian.enabled`;
+- TimescaleDB and in-memory Historians currently accept every `TagValueChanged` once enabled;
+- declared strategy/deadband/period/max-period therefore do not currently control write volume.
+
+Product model:
+`TAG -> EFFECTIVE CAPTURE PROFILE -> HISTORIAN ACCEPT/SKIP -> RAW STORE -> OPTIONAL DOWNSAMPLING`.
+
+Required semantics:
+1. reusable named capture profiles with stable identity/key;
+2. explicit TAG -> profile reference with bulk assignment;
+3. one effective raw-capture policy per TAG; do not duplicate the same raw TAG stream merely for multiple display resolutions;
+4. legacy inline per-TAG historian settings remain readable/migratable until deliberate cutover;
+5. capture modes must be versioned and unambiguous, at minimum:
+   - periodic;
+   - on-change;
+   - bounded change/deadband mode if frozen by contract review;
+6. periodic configuration is user-authored with practical units (ms/s/min/h) but persisted in one canonical duration representation;
+7. boolean/discrete on-change is a first-class use case;
+8. numeric deadband is type-checked and does not apply to incompatible values;
+9. quality transitions remain historically meaningful and cannot be discarded merely because process value delta is below deadband;
+10. first accepted observation after activation/profile attachment is deterministic;
+11. maximum-silence/heartbeat behavior, if enabled, must not manufacture a healthy fresh source during actual input silence;
+12. TimescaleDB and in-memory Historian paths share equivalent policy semantics;
+13. diagnostics expose accepted/skipped/coalesced counts by capture policy;
+14. Working/Preview/Apply/Published/Active authority applies to profile/configuration changes;
+15. package/import/export/restart preserve stable profile references;
+16. deleting a referenced profile is dependency-safe;
+17. existing retention/downsampling storage policy remains a separate concern from capture frequency unless explicitly versioned later.
+
+Examples:
+- `Analógicas 1 min` -> periodic 60 s;
+- `Processo rápido` -> periodic 1 s;
+- `Estados digitais` -> on-change;
+- `Analógicas por variação` -> on-change + numeric deadband + bounded maximum interval if the final contract accepts that mode.
+
+Forbidden:
+- free-text strategy as the only product authority;
+- silently ignoring configured capture timing;
+- browser-only throttling;
+- duplicating Historian rows into multiple physical histories solely to obtain different Trend resolutions;
+- treating Timescale downsampling as a substitute for preventing unnecessary raw writes.
+
+### C-HISTORICAL-TIME-RANGE-01 — shared Trend/history interval semantics
+
+**State:** `PREPARED_DRAFT / SHARED_QUERY_AUTHORITY_EXISTS / FREEZE_BEFORE_CHAT_P`  
+**Owner:** Main + #383  
+**Implementation consumer:** future Chat P / DEV-HISTORICAL-TIME-RANGE  
+**Consumers:** canonical Trend, Basic Trend compatibility surface, Historical Data Browser, Chat M copy/i18n.
+
+Existing authority:
+- Historical Query v1 typed time range;
+- Historical Data Browser relative + absolute From/To behavior;
+- UTC backend/query boundaries with localized input/display.
+
+Confirmed live gap:
+- Historical Data Browser already supports separate absolute start/end;
+- legacy Basic Trend only supports 15m/1h/6h/24h plus one historical end value and hard-limits 24 h;
+- canonical multipen Trend supports relative `trendWindowSeconds` up to 7 d, but its historical query is always relative and anchored at now;
+- Trend has no unified absolute From/To Runtime interaction.
+
+Required modes:
+1. `LIVE_ROLLING`;
+2. `HISTORICAL_RELATIVE`;
+3. `HISTORICAL_ABSOLUTE`.
+
+Required semantics:
+- explicit From and To date/time for absolute mode, with seconds-capable precision where supported;
+- locale/timezone affects authoring/display only; canonical query boundaries remain UTC;
+- `from < to` validation before request;
+- visible effective interval;
+- quick ranges plus configurable amount/unit;
+- refresh/requery preserves the active absolute interval;
+- Runtime-selected dates are session/presentation state and do not dirty Engineering;
+- canonical multipen Trend and Historical Data Browser consume the same time-range semantics;
+- large ranges remain server-bounded and may use aggregation/downsampling rather than unbounded raw browser loads;
+- if future external DateTime controls bind a Trend range, they must consume stable typed Client Memory/binding authority rather than private widget state;
+- no new Trend-only database/query authority.
+
+Representative acceptance:
+`27/09/2026 01:00:00 -> 28/09/2026 12:00:00`
+must be authorable as an absolute Runtime filter and map deterministically to the protected Historical Query request.
+
 ### C-ENG-WORKFLOW-01 — task-oriented Engineering forms and entity workflows
 
 **State:** `PREPARED_DRAFT / FREEZE_AFTER_R2-A / BEFORE_CHAT_N`  
@@ -941,6 +1035,7 @@ Initial structured surfaces:
 - Security/Engineering Lock settings;
 - Reports non-canvas settings;
 - Script metadata/event entry points outside the code editor, consuming C-SCRIPT-EVENT-LINK-01; user-facing copy must never require the implementation name Monaco;
+- Historian capture profile assignment/editor UX, consuming C-HISTORIAN-CAPTURE-01 without redefining runtime capture semantics;
 - authoring/configuration diagnostics where applicable.
 
 Consumes:

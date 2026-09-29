@@ -98,16 +98,39 @@ Freeze these rules:
 
 A Wave 16 implementation that makes Linux/Edge support materially harder without a documented technical necessity is an architecture regression and must be reviewed before acceptance.
 
-## 3. Reuse, do not restart from zero
+## 3. Evidence hierarchy — do not restart from zero, but do not inherit stale assumptions
 
-Wave 16 must harvest validated work from:
-- #205 / PR #207 — preserved Wave 13 Windows packaging/signing checkpoint;
-- #361 — installed Windows Service operational contract;
-- #360 — local lifecycle evidence where still applicable;
-- #366 — database-topology direction when required for a usable installed product;
-- current canonical licensing/Authority/package/runtime contracts.
+Wave 13 is **cancelled** and is not a resumable implementation line.
 
-The old Wave 13 product snapshot is historical technical input only. It must not become the post-W15 release authority by direct merge/revival.
+Wave 16 must prioritize evidence in this order:
+
+1. **accepted post-Wave-15 product authority** — current code/contracts are the implementation truth;
+2. **real local CODEX/workbench operational evidence** from #360/#362 and `docs/LOCAL-ELITESCADA-OPERATIONS-EVIDENCE.md`;
+3. **first real browser Preview evidence** from #208/#210, especially environment/startup/login/reproducibility lessons exposed by real use;
+4. #361 installed Windows Service operational contract;
+5. #366 database-topology direction;
+6. current canonical licensing/Authority/package/runtime contracts;
+7. **Wave 13 #205/#207 only as historical technique/reference**, never as a design authority or branch to revive.
+
+The local CODEX/workbench evidence is particularly important because it exercised real Windows-hosted operation and exposed concrete requirements/failures including:
+- exact SDK/toolchain compatibility;
+- stable machine identity requirements;
+- dependency provenance/cache invalidation;
+- Windows PowerShell 5.1 vs PowerShell 7 behavior;
+- LF/CRLF identity instability;
+- Docker inspection/parsing differences;
+- TLS interception/trusted-root handling without disabling certificate validation;
+- DB/API/Web readiness rather than container-start assumptions;
+- pause/resume/restart/reset boundaries;
+- Docker Desktop restart recovery;
+- separation of persistent preparation from resettable product state;
+- fail-closed orphan/provenance handling;
+- diagnostics/redaction;
+- explicit gaps still not tested for installed SCM/systemd behavior.
+
+Wave 16 must convert these observations into installed-product requirements and tests rather than copy the Preview harness itself.
+
+The useful Wave 13-era outcome to preserve is historical learning and the path that led to the first Preview. The old unsigned Windows candidate, signing branch and CI matrix do not establish the future installed architecture.
 
 ## 4. Trust/signing boundary
 
@@ -163,7 +186,8 @@ Wave 16 starts only after:
 1. Wave 15 correction/product scope is accepted;
 2. final Wave 15 Preview/audit/recheck gates are closed;
 3. an exact post-W15 product authority is chosen;
-4. existing Wave 13/Windows artifacts are re-audited against that current product before reuse.
+4. #360/#362 local operational evidence and #208/#210 Preview evidence are re-read against the exact post-W15 product;
+5. any isolated Wave 13 technique considered for reuse is independently re-derived/revalidated rather than inherited from its cancelled branch.
 
 ## 8. Non-goals for Wave 16 unless separately authorized
 

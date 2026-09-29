@@ -71,16 +71,28 @@ No new Round-2 correction branch should be based on the old pre-#375 integration
 
 ## 4. Gate 2 — freeze minimal shared contracts
 
-Before parallel Round-2 implementation, Main/CODEX freezes four bounded contracts.
+Before parallel Round-2 implementation, Main/CODEX freezes the bounded shared contracts below.
 
 ### C-ENG-DENSITY-01
 
 - `TASK_FIRST / COMPACT_CONTEXT / SECONDARY_INFORMATION_ON_DEMAND`;
 - one compact persistent Engineering context row;
-- dirty/Lock/CAS/current-task state remains truthful;
-- schema/revision/snapshot metadata becomes on-demand unless contextually relevant;
+- from the current metadata strip, only Workspace saved/dirty/conflict state remains permanently visible;
+- Engineering Lock becomes compact state-first: feature name/details on demand;
+- schema/base revision/snapshot timestamp move to `Informações -> Detalhes técnicos`;
+- dirty/Lock/CAS/current-task state remains truthful when relevant;
 - explicit wide/full-width mode for graphical editors;
 - ordinary form/list surfaces retain readable widths.
+
+### C-PRODUCT-VERSION-01
+
+- human-facing EliteSCADA version is distinct from Engineering schema and project revision;
+- current Product Owner proposal: `EliteSCADA Alpha 0.15.2.1`;
+- intended cycle mapping: pre-1.0 / Wave 15 / post-Preview 2 / correction package 1;
+- one canonical version source for Web/API/distribution metadata;
+- exact commit/build remains technical provenance, not the visible release version;
+- no component-local hard-coded version string;
+- Engineering `Informações` shows product version first and technical metadata separately.
 
 ### C-EDITOR-UX-R2-01
 
@@ -95,17 +107,17 @@ Before parallel Round-2 implementation, Main/CODEX freezes four bounded contract
 - object label visibility modes: all / selected / hidden;
 - Screen/Popup parity.
 
-### C-VISUAL-ASSET-AUTHORING-02
+### C-VISUAL-ASSET-02
 
+Shared foundation required before J/L parallel release.
+
+Editor authoring requirements are part of this same contract:
 - image object selects/imports canonical VisualAsset;
 - Screen/Popup import parity;
 - background color/image/fit is visible and discoverable;
 - no new private image persistence path;
 - asset IDs remain canonical authority.
 
-### C-VISUAL-ASSET-02
-
-Shared foundation required before J/L parallel release.
 
 - one canonical VisualAsset store/API/identity;
 - PNG/JPEG/BMP compatibility preserved;
@@ -138,7 +150,9 @@ Two branches/chats may run in parallel because ownership is intentionally isolat
 Own:
 - consolidate the two Engineering context/header rows;
 - compact persistent state;
-- move secondary metadata to Info/Diagnostics;
+- keep only Workspace saved/dirty/conflict state from the current metadata strip;
+- move schema/base revision/snapshot timestamp to `Informações -> Detalhes técnicos`;
+- expose canonical product version prominently in `Informações`;
 - reduce vertical chrome;
 - create/own graphical-editor wide-section hook;
 - preserve normal non-editor readable widths;
@@ -336,7 +350,7 @@ Resume canonical sequencing for:
 
 | Chat | Must consume/freeze before start | May not redefine |
 |---|---|---|
-| I — ENG-DENSITY | C-AUTHORITY-01, C-SURFACE-01, C-TEST-EVIDENCE-01, frozen C-ENG-DENSITY-01 | Working/Published/Active, Lock/CAS authority |
+| I — ENG-DENSITY | C-AUTHORITY-01, C-SURFACE-01, C-TEST-EVIDENCE-01, frozen C-ENG-DENSITY-01, frozen C-PRODUCT-VERSION-01 | Working/Published/Active, Lock/CAS authority |
 | K — REPORT-THEME | C-SURFACE-01, C-TEST-EVIDENCE-01, existing Engineering semantic theme tokens | report data/model authority |
 | J — EDITOR-UX-R2 | integrated C-ENG-DENSITY-01, C-VISUAL-IDENTITY-01, C-VISUAL-DYNAMIC-01, C-TAG-WRITE-01, integrated/frozen C-REUSE-01, frozen C-VISUAL-ASSET-02, C-SURFACE-01, C-TEST-EVIDENCE-01 | renderer, identity, TAG write, reuse relationship, asset store/API |
 | L — BRANDING | integrated C-ENG-DENSITY-01, C-AUTHORITY-01, frozen C-VISUAL-ASSET-02, frozen C-BRANDING-01, C-SURFACE-01, C-TEST-EVIDENCE-01 | lifecycle authority, asset store/API, independent per-page branding state |
@@ -351,7 +365,7 @@ Any consumer that finds an insufficient contract returns:
 | Current | Shared CODEX rev0113 | nothing new mutating same product | active now |
 | Gate 1 | G / #375 recomposition | none required | E/F/H integration |
 | Contract | Main/CODEX | no product DEV required | post-#375 base |
-| R2-A | I / Engineering density | K | frozen C-ENG-DENSITY-01 + post-#375 base |
+| R2-A | I / Engineering density | K | frozen C-ENG-DENSITY-01 + C-PRODUCT-VERSION-01 + post-#375 base |
 | R2-A | K / Report theme | I | post-#375 base |
 | Contract | Main/CODEX C-VISUAL-ASSET-02 + C-BRANDING-01 | none | I/K integration |
 | R2-B | J / Editor UX | L | I/K integrated + C-REUSE-01 integrated/frozen + C-VISUAL-ASSET-02 frozen |

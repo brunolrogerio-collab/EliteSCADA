@@ -662,7 +662,8 @@ Frozen semantics must define:
 - ordinary forms/lists retain readable widths;
 - no change to Working/Published/Active authority.
 - persistent security/lock controls follow `FEATURE_NAME_ON_DEMAND / CURRENT_STATE_PERSISTENT`: the compact header shows only a clear state + icon, while the full feature name/details remain in tooltip/aria-label/expanded management UI.
-- only Workspace dirty/saved/conflict state remains permanently visible from the old Schema/Base revision/Workspace/Snapshot strip; schema, base revision and snapshot timestamp move to an on-demand Engineering Information surface.
+- only Workspace dirty/saved/conflict state remains permanently visible from the old Schema/Base revision/Workspace/Snapshot strip; it moves into the compact top Engineering context row so the dedicated metadata strip can disappear entirely.
+- schema, base revision and snapshot timestamp move to an on-demand Engineering Information surface.
 - the Information surface distinguishes human-facing product version from Engineering schema/project revision metadata.
 
 Consumes:
@@ -713,6 +714,55 @@ Normal Engineering Information presentation:
 - secondary technical details: schema, base revision, snapshot timestamp, exact build/commit.
 
 Until frozen, `Alpha 0.15.2.1` is the Product Owner-approved proposed display identity for the current cycle, not yet an implementation authority.
+
+### C-USER-COPY-I18N-01 — user-facing terminology and multilingual identity
+
+**State:** `PREPARED_DRAFT / DEFERRED_UNTIL_R2-A+R2-B_INTEGRATED`  
+**Owner:** Main + #379 terminology/glossary review  
+**Implementation consumer:** future Chat M / DEV-UX-COPY-I18N  
+**Supported locales:** pt-BR / en / es.
+
+Purpose:
+- keep coordination/architecture vocabulary out of ordinary product UI;
+- establish one intentional product glossary;
+- remove accidental language mixing introduced by recent parallel development.
+
+Internal-only vocabulary normally forbidden in ordinary user workflows:
+- Wave / Wave 15;
+- canonical/canônico when used as architecture-authority jargon;
+- fail closed / falhar fechado;
+- E0/E1/E2/E3/E4/E5;
+- exact SHA/tree/branch/PR;
+- control plane;
+- C-* contract IDs;
+- validation harness / coordinator wording.
+
+Product/industrial terms requiring an explicit per-locale glossary decision:
+- Engineering;
+- Runtime;
+- TAG;
+- Driver;
+- Data Source;
+- Historian;
+- Script;
+- Popup;
+- Workspace;
+- Preview.
+
+Rules:
+1. backend/API/internal enum names do not need renaming merely for display copy;
+2. user-facing actions/statuses must be natural and consistent in the selected locale;
+3. shared concepts should use shared translation keys/glossary, not divergent component-local wording;
+4. no accidental English fallback in pt-BR/es for ordinary copy;
+5. accessibility labels/tooltips follow locale too;
+6. backend technical codes may remain available under diagnostic details, while primary message is localized/actionable;
+7. no blind string replacement: inventory + glossary + migration + regression first.
+
+Schedule:
+- after R2-A and R2-B structural changes integrate;
+- before the next integrated E3 + SECOND Preview/Audit.
+
+This sequencing avoids merge conflicts while ensuring the next Product Owner Preview evaluates a coherent multilingual UI.
 
 ### C-EDITOR-UX-R2-01 — shared Screen/Popup interaction model
 

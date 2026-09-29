@@ -145,6 +145,22 @@ public sealed class ReusableLibraryPackageTests
     }
 
     [Fact]
+    public void Inspect_AcceptsPreviousEngineeringSchemaVersion()
+    {
+        var (service, bytes) = CreateTemplateLibrary();
+        var modified = RewriteManifest(bytes, manifest => manifest with
+        {
+            EngineeringSchemaVersion = EngineeringExchangeService.CurrentSchemaVersion - 1
+        });
+
+        var inspection = service.Inspect(modified);
+
+        Assert.Equal(
+            EngineeringExchangeService.CurrentSchemaVersion - 1,
+            inspection.Manifest.EngineeringSchemaVersion);
+    }
+
+    [Fact]
     public void Inspect_RejectsUnsupportedEngineeringSchemaVersion()
     {
         var (service, bytes) = CreateTemplateLibrary();

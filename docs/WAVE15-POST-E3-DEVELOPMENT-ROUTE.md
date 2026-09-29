@@ -1,9 +1,9 @@
 # Wave 15 — Post-E3 Development Route
 
-**Status:** GATE0_GREEN / #373+#374+#376_INTEGRATED / #375_MAIN_RECOMPOSED_T1_ACTIVE / SHARED_CODEX_WAIT / R2_C0_DECLARED_NO_NEW_DEV_RELEASE  
+**Status:** GATE0_GREEN / GATE1_GREEN / #375_INTEGRATED / R2_C0_FROZEN / F0_WIRE_FOUNDATION_NEXT / SHARED_CODEX_WAIT / NO_BOOTSTRAP_RELEASED  
 **Coordinator issue:** #378  
 **Execution ledger:** #305  
-**Current integration baseline:** `wave15/corrections-integration@036e07743e7d3574d87af8ff99354b0665b88148` / tree `efd32e7bfb68603a966b96d54d85f4a0e0d0ba41`  
+**Current integration baseline:** `wave15/corrections-integration@bb946f9e7d6910d59a9ac172d71361e5badab4b1` / tree `75398319b8b4630b72a525fb9bdd235dc0d541a9`  
 **Current shared CODEX order:** `rev0120 / SHARED-CODEX-WAIT-AFTER-MAIN-REUSE-RECOMPOSE-101`
 
 GitHub live is authoritative. Every gate below must be revalidated against live branches, PR heads, CI and issue handoffs before execution.
@@ -16,8 +16,9 @@ The route is:
 
 ```text
 Gate0 complete: #373/#374/#376 integrated with final tree byte-identical to validated E3
-  -> #375 recomposed directly by Main on exact post-Gate0 base; wait exact-head T1, review, integrate
-  -> R2-C0 SHARED CONTRACT LAYER (#386) / freeze all mandatory external-test semantics
+  -> Gate1 complete: #375 recomposed by Main, exact-head T1 green, integrated
+  -> R2-C0 SHARED CONTRACT LAYER (#386) FROZEN
+  -> F0 SHARED WIRE FOUNDATION / additive DTO+schema hotspots only
   -> R2-A foundations: Engineering shell/theme + Historian capture + Data Query core + Portability core
   -> R2-B authoring: Editor UX + Branding + structured Engineering + Script authoring + Library/Fragment consumers
   -> R2-C historical consumers: Trend/Browser/Alarm View/Report query convergence + Playback
@@ -45,35 +46,27 @@ Therefore:
 
 The old pre-fix combined tree `3aaec957ce27c73bb8b7090b7cd9f412ba26b567` remains historical evidence only.
 
-## 3. Gate 1 — Reusable Objects R1 (#375)
+## 3. Gate 1 — COMPLETE / Reusable Objects R1 (#375)
 
-Gate0 is complete. Current binding Gate1 base is:
-- integration `036e07743e7d3574d87af8ff99354b0665b88148`;
-- tree `efd32e7bfb68603a966b96d54d85f4a0e0d0ba41`;
-- #375 Main-recomposed candidate `53f9524d098a0497acf95ad4669a2f1738742e00`, tree `75398319b8b4630b72a525fb9bdd235dc0d541a9`;
-- exact-head T1 run `36589349320` active;
-- shared CODEX rev0120 is WAIT to preserve capacity.
+Gate1 is complete:
+- #375 recomposed by Main on exact Gate0 base;
+- candidate `53f9524d098a0497acf95ad4669a2f1738742e00`;
+- candidate/final tree `75398319b8b4630b72a525fb9bdd235dc0d541a9`;
+- exact-head Wave 15 T1 `36589349320` SUCCESS;
+- merge `bb946f9e7d6910d59a9ac172d71361e5badab4b1`;
+- C-REUSE-01 is integrated/frozen.
 
-Now:
-- Main recomposition is complete and exact R1 scope was preserved;
-- wait for natural exact-head E2/T1 on `53f9524d098a0497acf95ad4669a2f1738742e00`;
-- Main reviews CI + exact diff/tree;
-- integrate #375 if accepted.
+No separate user-facing E3 was required because the recomposition preserved the accepted R1 behavior and only resolved the additive wire overlap.
 
 No new Round-2 correction branch should be based on the old pre-#375 integration checkpoint.
 
-## 4. Gate 2 — R2-C0 mandatory shared contract layer
+## 4. Gate 2 — COMPLETE / R2-C0 mandatory shared contract layer
 
-Before any new Round-2 implementation release, Main freezes the mandatory shared-contract layer tracked by #386 and `docs/WAVE15-R2-SHARED-CONTRACT-LAYER.md`.
+The mandatory shared-contract layer tracked by #386 and `docs/WAVE15-R2-SHARED-CONTRACT-LAYER.md` is frozen on the exact post-Gate1 base.
 
 C0 is now a **hard release gate** for the first third-party test candidate. #384 and #385 are mandatory product scope, not optional research.
 
-No new R2 DEV bootstrap is generated until:
-- Gate 0 closes;
-- #375 is recomposed/integrated;
-- exact post-#375 base is known;
-- every contract consumed by the intended package is `FROZEN_FOR_CONSUMERS`;
-- Main has checked file/authority overlap.
+Gate 0 and Gate 1 are complete; the exact post-#375 base is known; mandatory C0 contracts are `FROZEN_FOR_CONSUMERS`; Main has recorded package ownership/overlap. No DEV bootstrap is nevertheless generated automatically: the Product Owner still requests each release explicitly.
 
 The contract families below are part of C0.
 
@@ -175,6 +168,32 @@ C0 must also revalidate C-REUSE-01 on the exact post-#375 integrated base.
 
 No consumer may locally redefine a missing semantic; it returns:
 `BLOCKED_CONTRACT / <contract-id> / <missing semantic>`.
+
+## 4.5. F0 — shared wire foundation
+
+**State:** NEXT_IMPLEMENTATION_PACKAGE / OWNER_UNASSIGNED / NO_BOOTSTRAP_RELEASED.
+
+Purpose:
+- translate frozen C0 semantics into additive shared DTO/enums/schema/version types once;
+- prevent Historian Capture, Data Query and Portability lanes from concurrently rewriting shared Engineering contract/type hotspots.
+
+Owns only:
+- shared Engineering/public DTOs/enums for Historian Capture Profiles;
+- Data Query/Alarm View/retrieval definitions;
+- Engineering Fragment + Library provenance/update-state wire contracts;
+- required schema-version/migration additions;
+- matching Web Engineering type mirrors;
+- focused serialization/roundtrip tests.
+
+Forbidden:
+- domain behavior;
+- database query execution;
+- capture policy execution;
+- import/export mutation behavior;
+- UI;
+- Trend/Browser/Report/Playback implementation.
+
+While F0 is active, no other package may edit its frozen hotspot set. After F0 integration, R2-A behavioral foundations may parallelize according to the C0 ownership matrix.
 
 ## 5. Development Wave R2-A — foundations
 
@@ -700,7 +719,8 @@ Any consumer that finds an insufficient contract returns:
 |---|---|---|---|
 | Current | #375 Main recomposition / T1 | exact R1 11-file scope; shared CODEX WAIT | T1 active now |
 | Gate 1 | G / #375 recomposition | none required | E/F/H integration |
-| C0 Contract | Main / #386 | no product DEV required | post-#375 exact base |
+| C0 Contract | Main / #386 | complete / frozen | post-#375 exact base `bb946f9e...` |
+| F0 | Shared Wire Foundation / owner unassigned | none | C0 frozen + exact post-#375 base |
 | R2-A | I / Engineering density | K | frozen C-ENG-DENSITY-01 + C-PRODUCT-VERSION-01 + post-#375 base |
 | R2-A | K / Theme + contrast | I + O | frozen C-ENG-THEME-01 + post-#375 base |
 | R2-A | O / Historian capture | I + K + DATA-QUERY-CORE + PORTABILITY-CORE when ownership is clean | frozen C-HISTORIAN-CAPTURE-01 + post-#375 base + no material file overlap |
@@ -733,4 +753,4 @@ This route carries the following interaction rules across coordinator rotations:
 
 ## 15. Current disposition
 
-`GATE0_GREEN / #375_MAIN_RECOMPOSED_T1_ACTIVE / SHARED_CODEX_WAIT / C0_DECLARED_NO_NEW_DEV_RELEASE`.
+`GATE0_GREEN / GATE1_GREEN / C0_FROZEN / F0_NEXT / SHARED_CODEX_WAIT / NO_BOOTSTRAP_RELEASED`.

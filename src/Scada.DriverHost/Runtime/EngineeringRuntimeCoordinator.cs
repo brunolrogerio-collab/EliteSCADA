@@ -301,9 +301,14 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         await _activationGate.WaitAsync(cancellationToken);
         try
         {
-            var memoryCompilation = InternalMemoryRuntimePlanner.Compile(package);
+            var captureResolution = HistorianCaptureProfileRuntimeResolver.Resolve(package);
+            var effectivePackage = captureResolution.Package;
+            var memoryCompilation = InternalMemoryRuntimePlanner.Compile(effectivePackage);
             var compilation = _compiler.Compile(memoryCompilation.CommunicationPackage);
-            var compilationIssues = memoryCompilation.Issues.Concat(compilation.Issues).ToArray();
+            var compilationIssues = captureResolution.Issues
+                .Concat(memoryCompilation.Issues)
+                .Concat(compilation.Issues)
+                .ToArray();
             if (compilationIssues.Any(x => x.IsError))
             {
                 return new RuntimeActivationResult(
@@ -344,8 +349,8 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                         projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
                 }
 
-                RegisterAlarms(package, candidate, runtimeIssues);
-                RegisterCommands(package, candidate, runtimeIssues);
+                RegisterAlarms(effectivePackage, candidate, runtimeIssues);
+                RegisterCommands(effectivePackage, candidate, runtimeIssues);
                 if (runtimeIssues.Any(x => x.IsError))
                 {
                     await candidate.DisposeAsync();

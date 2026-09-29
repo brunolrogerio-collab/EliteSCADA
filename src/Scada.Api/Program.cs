@@ -22,6 +22,7 @@ using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.Gateways;
+using Scada.Engineering.Historian;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.ProjectPackages;
 using Scada.Engineering.Scripts;
@@ -50,6 +51,7 @@ builder.Services.AddSingleton(_ => new EngineeringWorkspace(seedDemo: false));
 builder.Services.AddSingleton<ITagRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Tags);
 builder.Services.AddSingleton<IAlarmEngine>(sp => sp.GetRequiredService<EngineeringWorkspace>().Alarms);
 builder.Services.AddSingleton<IDataSourceEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().DataSources);
+builder.Services.AddSingleton<IHistorianCaptureProfileEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().HistorianCaptureProfiles);
 builder.Services.AddSingleton<IEngineeringAssetRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Assets);
 builder.Services.AddSingleton<IEngineeringViewRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Views);
 var authorityConnectionString = builder.Configuration.GetConnectionString("EliteScada");
@@ -175,7 +177,10 @@ app.MapGet("/api/diagnostics/runtime", (ScadaRuntimeFacade runtime, IHistorian h
         {
             provider = HistorianConfiguration.DescribeProvider(historian),
             historian.WrittenSamples,
-            historian.PendingSamples
+            historian.PendingSamples,
+            historian.AcceptedSamples,
+            historian.SkippedSamples,
+            historian.CoalescedSamples
         },
         activeAlarms = descriptor.ActiveAlarmCount
     });

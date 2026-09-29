@@ -24,9 +24,13 @@ public sealed class TimescaleDbHistorian : IHistorian
     private readonly Task _initializeTask;
     private readonly Task _writer;
     private readonly int _batchSize;
+    private readonly HistorianCaptureAdmission _admission = new();
     private long _written;
     private long _pending;
     private long _dropped;
+    private long _accepted;
+    private long _skipped;
+    private long _coalesced;
     private Exception? _lastWriteError;
 
     public TimescaleDbHistorian(
@@ -56,6 +60,9 @@ public sealed class TimescaleDbHistorian : IHistorian
 
     public long WrittenSamples => Interlocked.Read(ref _written);
     public long PendingSamples => Math.Max(0, Interlocked.Read(ref _pending));
+    public long AcceptedSamples => Interlocked.Read(ref _accepted);
+    public long SkippedSamples => Interlocked.Read(ref _skipped);
+    public long CoalescedSamples => Interlocked.Read(ref _coalesced);
     public long DroppedSamples => Interlocked.Read(ref _dropped);
     public Exception? LastWriteError => Volatile.Read(ref _lastWriteError);
 
@@ -96,13 +103,23 @@ public sealed class TimescaleDbHistorian : IHistorian
 
     private ValueTask OnTagValueChangedAsync(TagValueChanged evt)
     {
-        if (!HistorianCapturePolicy.ShouldCapture(evt.Tag))
-            return ValueTask.CompletedTask;
-
-        if (_queue.Writer.TryWrite(new HistorianWriteSample(evt.Current, evt.Tag.DataType)))
-            Interlocked.Increment(ref _pending);
-        else
-            Interlocked.Increment(ref _dropped);
+        var decision = _admission.Evaluate(evt);
+        switch (decision.Disposition)
+        {
+            case HistorianCaptureDisposition.Accepted:
+                Interlocked.Increment(ref _accepted);
+                if (_queue.Writer.TryWrite(new HistorianWriteSample(evt.Current, evt.Tag.DataType)))
+                    Interlocked.Increment(ref _pending);
+                else
+                    Interlocked.Increment(ref _dropped);
+                break;
+            case HistorianCaptureDisposition.Skipped:
+                Interlocked.Increment(ref _skipped);
+                break;
+            case HistorianCaptureDisposition.Coalesced:
+                Interlocked.Increment(ref _coalesced);
+                break;
+        }
         return ValueTask.CompletedTask;
     }
 

@@ -840,6 +840,66 @@ Ownership split after freeze:
 - if either consumer discovers a missing asset semantic, return:
   `BLOCKED_CONTRACT / C-VISUAL-ASSET-02 / <missing semantic>`.
 
+### C-ENG-WORKFLOW-01 — task-oriented Engineering forms and entity workflows
+
+**State:** `PREPARED_DRAFT / FREEZE_AFTER_R2-A / BEFORE_CHAT_N`  
+**Owner:** Main + #380 workflow review  
+**Implementation consumer:** Chat N / DEV-ENG-WORKFLOW-FORMS  
+**Downstream consumer:** Chat M / UX-COPY-I18N.
+
+Core principle:
+`ENTITY_FIRST / TASK_FIRST / ONE_CONTEXT / PROGRESSIVE_DISCLOSURE`.
+
+Required semantics:
+1. one selected entity context drives normal single-entity operations;
+2. delete/contextual actions reuse the current selected entity instead of requiring duplicate selection;
+3. bulk edit is an explicit mode, not a permanently dominant secondary editor;
+4. bulk mode should reuse the primary entity list/multi-selection where practical rather than render a duplicate entity list;
+5. fields are grouped by user mental model instead of DTO/property order;
+6. required/common fields are primary; advanced/rare fields use progressive disclosure;
+7. conditionally irrelevant fields are hidden or disabled with concise explanation;
+8. non-obvious fields provide unit/example/range/helper information;
+9. empty states lead to the first useful creation action;
+10. destructive actions are secondary/contextual, with dependency/CAS safety preserved;
+11. Preview/Apply/Working/Published/Active semantics remain truthful and consume existing authority contracts;
+12. shared small form primitives are preferred over another large generic form framework;
+13. Screen/Popup graphical Editor internals remain owned by Chat J;
+14. Branding settings remain owned by Chat L but may consume the shared form grammar;
+15. no backend/API/DTO semantic change is authorized merely to make the UI look simpler.
+
+Initial structured surfaces:
+- Data Sources;
+- TAGs;
+- TAG Gateway;
+- Alarms;
+- Events;
+- Templates;
+- Equipment;
+- non-graphical Dynamo/library forms;
+- Historian;
+- Security/Engineering Lock settings;
+- Reports non-canvas settings;
+- Script metadata/entry points outside Monaco;
+- authoring/configuration diagnostics where applicable.
+
+Consumes:
+- integrated `C-ENG-DENSITY-01`;
+- integrated/frozen `C-ENG-THEME-01`;
+- `C-AUTHORITY-01`;
+- `C-SURFACE-01`;
+- `C-TEST-EVIDENCE-01`.
+
+Must preserve:
+- CAS/version checks;
+- dependency validation;
+- secured delete behavior;
+- bulk preview-before-apply;
+- Working/Published/Active authority;
+- existing entity stable IDs and API contracts.
+
+Any missing shared semantic returns:
+`BLOCKED_CONTRACT / C-ENG-WORKFLOW-01 / <missing semantic>`.
+
 ### C-BRANDING-01 — canonical client branding
 
 **State:** `PREPARED_DRAFT / WAIT_C-VISUAL-ASSET-02 / WAIT_C-ENG-DENSITY-01_INTEGRATED`  
@@ -878,7 +938,7 @@ Forbidden:
 **State:** `PREPARED_DRAFT / FREEZE_BEFORE_CHAT_K`  
 **Owner:** Main + shared CODEX contract review  
 **Implementation consumer:** Chat K / DEV-THEME-CONTRAST  
-**Consumers:** Report Designer, Script/Python editor, future specialized Engineering authoring surfaces.
+**Consumers:** Report Designer, Script/Python editor, shared structured Engineering forms/mutation panels, future specialized Engineering authoring surfaces.
 
 Purpose:
 - specialized editors must consume the same Engineering semantic theme authority;
@@ -888,11 +948,12 @@ Purpose:
 Required semantics:
 1. Engineering semantic tokens (`--eng-*` or a deliberately shared semantic layer) remain the source of truth for surrounding authoring chrome;
 2. generic fallbacks such as `--surface: #fff` / `--border: #d6dae2` must not silently override dark Engineering;
-3. document/paper-like content may intentionally remain light only when that light surface is semantically part of the authored artifact, e.g. report paper;
-4. embedded code editors must deliberately select a light/dark editor theme consistent with the active app theme;
-5. foreground/background contrast remains readable for normal, muted, disabled, hover, selected, focus-visible, warning, error and success states;
-6. theme correction must not alter report/script data models, lifecycle, Script capability rules or Runtime semantics;
-7. dark and light themes are both acceptance targets.
+3. shared structured forms/mutation panels must not hard-code light-only surfaces such as `#fff`, `#fafbfd`, `#eef2f7` when rendered inside dark Engineering; they must consume semantic theme tokens;
+4. document/paper-like content may intentionally remain light only when that light surface is semantically part of the authored artifact, e.g. report paper;
+5. embedded code editors must deliberately select a light/dark editor theme consistent with the active app theme;
+6. foreground/background contrast remains readable for normal, muted, disabled, hover, selected, focus-visible, warning, error and success states;
+7. theme correction must not alter report/script/entity data models, lifecycle, mutation semantics, Script capability rules or Runtime semantics;
+8. dark and light themes are both acceptance targets.
 
 ### R2 contract dependency matrix
 
@@ -902,6 +963,7 @@ Required semantics:
 | Chat K — THEME-CONTRAST | C-SURFACE-01, C-TEST-EVIDENCE-01, frozen C-ENG-THEME-01; consume existing Engineering semantic theme tokens |
 | Chat J — EDITOR-UX-R2 | C-ENG-DENSITY-01 integrated, C-VISUAL-IDENTITY-01, C-VISUAL-DYNAMIC-01, C-TAG-WRITE-01, C-REUSE-01 integrated/frozen, C-VISUAL-ASSET-02 frozen, C-SURFACE-01, C-TEST-EVIDENCE-01 |
 | Chat L — BRANDING | C-ENG-DENSITY-01 integrated, C-AUTHORITY-01, C-VISUAL-ASSET-02 frozen, C-BRANDING-01 frozen, C-SURFACE-01, C-TEST-EVIDENCE-01 |
+| Chat N — ENG-WORKFLOW-FORMS | C-ENG-DENSITY-01 integrated, C-ENG-THEME-01 integrated/frozen, frozen C-ENG-WORKFLOW-01, C-AUTHORITY-01, C-SURFACE-01, C-TEST-EVIDENCE-01 |
 
 ### Parallel release consequence
 
@@ -913,6 +975,6 @@ The planned R2 parallelism remains valid only after the dependency gates above:
 4. integrate I/K;
 5. freeze C-VISUAL-ASSET-02 and C-BRANDING-01 against the new base;
 6. ensure C-REUSE-01 is integrated/frozen;
-7. R2-B: J + L may run in parallel with explicit file/authority ownership.
+7. R2-B: J + L + N may run in parallel only with explicit file/authority ownership and after C-ENG-WORKFLOW-01 is frozen.
 
 If these conditions are not met, do not release the corresponding chat.

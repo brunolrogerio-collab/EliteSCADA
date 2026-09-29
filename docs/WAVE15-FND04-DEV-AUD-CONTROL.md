@@ -38,11 +38,11 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0116`
+`MAIN_ORDER_REV: 0117`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-29 — REV0115 INVALID FIXTURE / CORRECTED PRODUCT-GENERATED SCRIPT COMPLETION ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-29 — REV0116 TWEEN COMPLETION GAP / BRIDGE-LIFETIME DIAGNOSTIC ACTIVE`
 
-`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_CORRECTED_SCRIPT_COMPLETION_ACTIVE`
+`GLOBAL_GATE: FND04_VERIFIED_FROZEN / SHARED_CODEX_TWEEN_BRIDGE_DIAGNOSTIC_ACTIVE`
 
 Current situation:
 
@@ -70,11 +70,106 @@ Current CORRECTION-NOW integration baseline for the shared CODEX order is `wave1
 >
 > The shared CODEX executor is not the legacy FND-04 DEV lane.
 
-`SHARED_CODEX_ORDER_REV: 0116`
+`SHARED_CODEX_ORDER_REV: 0117`
 
-`ORDER_ID: FINAL-SEQUENTIAL-CODEX-SCRIPT-PYTHON-CORRECTED-FIXTURE-97`
+`ORDER_ID: FINAL-SEQUENTIAL-CODEX-SCRIPT-TWEEN-BRIDGE-DIAGNOSTIC-98`
 
-`ORDER_STATE: ACTIVE_DIAGNOSTIC / REV0115_INVALID_TEST_FIXTURE / #373_E3_ACCEPTED / #376_E3_ACCEPTED / #374_SINGLE_RESIDUAL_ONLY / NO_PRODUCT_MUTATION / NO_MERGE`
+`ORDER_STATE: ACTIVE_DIAGNOSTIC / REV0116_READ_WRITE_COMPLETED / TWEEN_REQUEST_APPLIED_NO_COMPLETION / #373_E3_ACCEPTED / #376_E3_ACCEPTED / #374_SINGLE_RESIDUAL_ONLY / NO_PRODUCT_MUTATION / NO_MERGE`
+
+### rev0116 disposition — Main processed
+
+Durable handoff:
+- Issue #305 comment `5883726822`.
+
+Exact unchanged product coordinates at processing:
+- integration `50b2750c73623b7ffef77f0ca93755c3e8278676`;
+- #373 `9079e3d41a51d603e82cb791247596fddda23771`;
+- #374 `687708551554886b1682e41a58ad72b4991d0f5a`;
+- #376 `4a5252abf008cb314f4494d48107be25a3643d0c`;
+- combined E3 commit `051cc0cdc71b85a7777c93893b0b7012bec4fcc0`;
+- combined validated tree target `3aaec957ce27c73bb8b7090b7cd9f412ba26b567`.
+
+rev0116 used the actual Script Assistant-generated snippets as required.
+
+Observed:
+- READ -> `execution-result.status=completed` / real `visualProperty.read`;
+- WRITE -> `execution-result.status=completed` / real `visualProperty.write`;
+- TWEEN -> real `visualTween.request` emitted; mounted target reached `left:420px`; **no Worker `execution-result` arrived** before the runtime hard-stop/recovery boundary;
+- a following READ completed after runtime recovery;
+- shutdown later surfaced Pyodide `Object has already been destroyed` / `PyProxy_getAttrs` / `gc_register_proxies`, recorded as evidence only, not yet accepted as TWEEN root cause.
+
+Main classification:
+`COMBINED_E3_NOT_GREEN / #374_TWEEN_COMPLETION_GAP / CAUSE_NOT_YET_LOCALIZED`.
+
+Source audit at the exact #374 candidate narrows the differential:
+- Client Visual Python handler budget is 250 ms with 50 ms hard-stop grace;
+- `visualTween.request` provider returns a `VisualTweenAccepted` acknowledgement synchronously when the tween is scheduled; it is not intended to wait for the 300 ms animation to finish;
+- READ/WRITE use scalar positional Python arguments;
+- TWEEN uniquely sends a Python dict/PyProxy through `normalizeBridgeValue()`, which calls `toJs(...)` and then destroys the original proxy;
+- this makes request-object/PyProxy lifetime and request/response delivery the first diagnostic seam, but **no product defect is yet attributed to that seam**.
+
+### CURRENT rev0117 mission
+
+Execute only:
+`FINAL-SEQUENTIAL-CODEX-SCRIPT-TWEEN-BRIDGE-DIAGNOSTIC-98`.
+
+Mode:
+`DIAGNOSTIC_ONLY / NO_TRACKED_PRODUCT_MUTATION / NO_TIMEOUT_CHANGE / NO_RETRY_MASKING / NO_MERGE`.
+
+Use the exact same combined product tree and normal mounted local Docker path. Do not rerun #373 HMI or #376 Gateway.
+
+Required proof, in this order:
+
+1. Reproduce only the minimal Script Assistant-generated TWEEN handler on the exact combined tree.
+2. Capture one correlated execution/request chain with exact IDs:
+   - dispatch requestId + executionId;
+   - Worker `api-request` requestId for `visualTween.request`;
+   - main-thread capability-provider return/throw;
+   - whether an `api-response` is actually posted back to the Worker for that same API requestId;
+   - whether Worker `handleApiResponse` consumes it;
+   - whether the pending bridge promise resolves/rejects;
+   - dispatcher-visible final status (`completed|faulted|timed-out|cancelled`).
+3. Explicitly discriminate:
+   - request-object/PyProxy conversion/lifetime;
+   - structured-clone/API-response delivery;
+   - Pyodide await/promise resumption;
+   - runtime hard-stop timing;
+   - unrelated animation-frame completion.
+4. Compare against the already-passing WRITE path, whose provider also returns an acknowledgement object, so response-object shape is not blamed without evidence.
+5. The 300 ms animation duration is **not** grounds to increase the 250 ms Script handler budget: the provider contract returns acceptance synchronously. Do not change timeout policy.
+6. Teardown-only PyProxy errors remain non-causal unless the same signature is captured on the live TWEEN request before hard-stop.
+
+Allowed:
+- disposable local instrumentation/logging;
+- browser/Worker message capture;
+- uncommitted diagnostic harness edits that are discarded before return;
+- focused existing tests needed to classify the seam.
+
+Forbidden:
+- tracked product/test/workflow commits;
+- changing Script Assistant snippet;
+- changing timeout/hard-stop policy;
+- retries that hide the first result;
+- HMI/Gateway rerun;
+- PR/merge/integration mutation.
+
+Return exactly one of:
+
+`TWEEN_DIAGNOSTIC / API_RESPONSE_NOT_POSTED / <causal evidence>`
+
+`TWEEN_DIAGNOSTIC / API_RESPONSE_POSTED_NOT_CONSUMED / <causal evidence>`
+
+`TWEEN_DIAGNOSTIC / API_RESPONSE_CONSUMED_AWAIT_NOT_RESUMED / <causal evidence>`
+
+`TWEEN_DIAGNOSTIC / OTHER_CAUSE / <causal evidence>`
+
+or, only if the exact minimal product-generated TWEEN unexpectedly completes under unchanged bytes and the discrepancy itself is causally explained:
+
+`TWEEN_DIAGNOSTIC / NONDETERMINISTIC_REPRO_NOT_ENOUGH_FOR_PASS / <evidence>`
+
+No Gate-0 PASS may be declared from rev0117. Main will issue a bounded correction or evidence order only after the causal seam is identified.
+
+---
 
 ### rev0115 disposition
 

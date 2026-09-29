@@ -873,12 +873,33 @@ Forbidden:
 - direct Working -> Runtime shell mutation;
 - independent shell branding state per page.
 
+### C-ENG-THEME-01 — specialized Engineering surface theme/contrast
+
+**State:** `PREPARED_DRAFT / FREEZE_BEFORE_CHAT_K`  
+**Owner:** Main + shared CODEX contract review  
+**Implementation consumer:** Chat K / DEV-THEME-CONTRAST  
+**Consumers:** Report Designer, Script/Python editor, future specialized Engineering authoring surfaces.
+
+Purpose:
+- specialized editors must consume the same Engineering semantic theme authority;
+- no accidental fallback to unrelated generic tokens or hard-coded light surfaces inside dark Engineering;
+- third-party/editor surfaces such as Monaco must track the active EliteSCADA theme deliberately.
+
+Required semantics:
+1. Engineering semantic tokens (`--eng-*` or a deliberately shared semantic layer) remain the source of truth for surrounding authoring chrome;
+2. generic fallbacks such as `--surface: #fff` / `--border: #d6dae2` must not silently override dark Engineering;
+3. document/paper-like content may intentionally remain light only when that light surface is semantically part of the authored artifact, e.g. report paper;
+4. embedded code editors must deliberately select a light/dark editor theme consistent with the active app theme;
+5. foreground/background contrast remains readable for normal, muted, disabled, hover, selected, focus-visible, warning, error and success states;
+6. theme correction must not alter report/script data models, lifecycle, Script capability rules or Runtime semantics;
+7. dark and light themes are both acceptance targets.
+
 ### R2 contract dependency matrix
 
 | Consumer | Required shared contracts before implementation |
 |---|---|
 | Chat I — ENG-DENSITY | C-AUTHORITY-01, C-SURFACE-01, C-TEST-EVIDENCE-01, frozen C-ENG-DENSITY-01, frozen C-PRODUCT-VERSION-01 |
-| Chat K — REPORT-THEME | C-SURFACE-01, C-TEST-EVIDENCE-01; consume existing Engineering semantic theme tokens |
+| Chat K — THEME-CONTRAST | C-SURFACE-01, C-TEST-EVIDENCE-01, frozen C-ENG-THEME-01; consume existing Engineering semantic theme tokens |
 | Chat J — EDITOR-UX-R2 | C-ENG-DENSITY-01 integrated, C-VISUAL-IDENTITY-01, C-VISUAL-DYNAMIC-01, C-TAG-WRITE-01, C-REUSE-01 integrated/frozen, C-VISUAL-ASSET-02 frozen, C-SURFACE-01, C-TEST-EVIDENCE-01 |
 | Chat L — BRANDING | C-ENG-DENSITY-01 integrated, C-AUTHORITY-01, C-VISUAL-ASSET-02 frozen, C-BRANDING-01 frozen, C-SURFACE-01, C-TEST-EVIDENCE-01 |
 

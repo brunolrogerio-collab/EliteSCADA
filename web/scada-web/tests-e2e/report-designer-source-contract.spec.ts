@@ -6,6 +6,7 @@ const root = process.cwd();
 const workspaceSource = fs.readFileSync(path.join(root, 'src/engineering/reports/ReportDesignerWorkspace.tsx'), 'utf8');
 const apiSource = fs.readFileSync(path.join(root, 'src/engineering/reports/reportApi.ts'), 'utf8');
 const modelSource = fs.readFileSync(path.join(root, 'src/engineering/reports/reportDesignerModel.ts'), 'utf8');
+const cssSource = fs.readFileSync(path.join(root, 'src/engineering/reports/report-designer.css'), 'utf8');
 
 test('Report Designer persists only through Engineering Preview/Apply authority', () => {
   expect(workspaceSource).toContain('previewEngineeringPackage(nextPackage)');
@@ -35,4 +36,15 @@ test('image presentation resolves only canonical Visual Asset IDs', () => {
   expect(workspaceSource).toContain('visualAssetContentUrl(control.assetId)');
   expect(workspaceSource).not.toContain('imageUrl');
   expect(workspaceSource).not.toContain('backgroundImageUrl');
+});
+
+
+test('Report Designer chrome follows Engineering theme while report paper stays semantically white', () => {
+  expect(cssSource).toContain('--report-surface: var(--eng-panel');
+  expect(cssSource).toContain('--report-focus: var(--eng-focus');
+  expect(cssSource).toContain('.report-page');
+  expect(cssSource).toContain('background: white');
+  expect(cssSource).toContain('color: #0f172a');
+  expect(cssSource).not.toContain('var(--panel, #fff)');
+  expect(cssSource).not.toContain('var(--line, #dbe3ec)');
 });

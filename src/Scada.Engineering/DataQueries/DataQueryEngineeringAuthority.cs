@@ -744,7 +744,7 @@ public sealed class DataQueryEngineeringExchangeDecorator : IEngineeringExchange
                 .Select(x => Issue(x.Code, x.Message, ImportEntityKind.DataQuery, definition.Key))
                 .ToList();
             if (definition.Id.HasValue && !seenQueryIds.Add(definition.Id.Value))
-                issues.Add(Issue("DATA_QUERY_ID_DUPLICATE", $"Data Query Id '{definition.Id:D}' is duplicated in the package.", ImportEntityKind.DataQuery, definition.Key));
+                issues.Add(Issue("DATA_QUERY_ID_DUPLICATE", $"Data Query Id '{definition.Id!.Value:D}' is duplicated in the package.", ImportEntityKind.DataQuery, definition.Key));
             if (!string.IsNullOrWhiteSpace(definition.Key) && !seenQueryKeys.Add(definition.Key.Trim()))
                 issues.Add(Issue("DATA_QUERY_KEY_DUPLICATE", $"Data Query key '{definition.Key}' is duplicated in the package.", ImportEntityKind.DataQuery, definition.Key));
 
@@ -775,7 +775,7 @@ public sealed class DataQueryEngineeringExchangeDecorator : IEngineeringExchange
                 .Select(x => Issue(x.Code, x.Message, ImportEntityKind.AlarmView, view.Key))
                 .ToList();
             if (view.Id.HasValue && !seenViewIds.Add(view.Id.Value))
-                issues.Add(Issue("ALARM_VIEW_ID_DUPLICATE", $"Alarm View Id '{view.Id:D}' is duplicated in the package.", ImportEntityKind.AlarmView, view.Key));
+                issues.Add(Issue("ALARM_VIEW_ID_DUPLICATE", $"Alarm View Id '{view.Id!.Value:D}' is duplicated in the package.", ImportEntityKind.AlarmView, view.Key));
             if (!string.IsNullOrWhiteSpace(view.Key) && !seenViewKeys.Add(view.Key.Trim()))
                 issues.Add(Issue("ALARM_VIEW_KEY_DUPLICATE", $"Alarm View key '{view.Key}' is duplicated in the package.", ImportEntityKind.AlarmView, view.Key));
 

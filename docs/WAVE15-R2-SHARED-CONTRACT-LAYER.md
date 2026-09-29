@@ -1,0 +1,298 @@
+# Wave 15 R2 — Shared Contract Layer (C0)
+
+**State:** MANDATORY / WAIT_GATE0_AND_GATE1 / NO_NEW_DEV_RELEASE  
+**Coordinator issue:** #386  
+**Parent correction route:** #378  
+**Control branch:** `coord/w15-correction-now-parallel-control`  
+**Product integration authority:** `wave15/corrections-integration`
+
+GitHub live is the only authority.
+
+## 1. Purpose
+
+C0 is the semantic layer between the current Gate 0/Gate 1 integration work and all remaining R2 product implementation.
+
+The first EliteSCADA build distributed to third-party testers must not be assembled from parallel lanes that each invent their own:
+- identity;
+- lifecycle;
+- event;
+- Historian/query;
+- import/export;
+- Library;
+- Script;
+- visual;
+- terminology semantics.
+
+The required path is:
+
+`Gate0 -> Gate1/#375 -> C0 freeze -> implementation packages -> integration -> E2/E3 -> SECOND Preview/Audit -> external-test candidate`.
+
+C0 does not authorize production mutation by itself.
+
+## 2. Freeze rule
+
+A consumer starts only when every shared contract it depends on is either:
+- `FROZEN_FOR_CONSUMERS`; or
+- explicitly integrated/frozen from an earlier gate.
+
+If implementation discovers an omitted shared semantic:
+
+`BLOCKED_CONTRACT / <contract-id> / <missing semantic>`
+
+No local architecture fork is allowed.
+
+## 3. Contract dependency groups
+
+### C0-A — Product authority and evidence
+
+- C-SURFACE-01
+- C-AUTHORITY-01
+- C-TRANSPORT-01 where consumed
+- C-TEST-EVIDENCE-01
+- C-PRODUCT-VERSION-01
+
+Freeze outcome:
+- one lifecycle/Runtime authority;
+- one evidence vocabulary;
+- one visible product-version authority.
+
+### C0-B — Engineering shell and visual foundations
+
+- C-ENG-DENSITY-01
+- C-ENG-THEME-01
+- C-VISUAL-IDENTITY-01
+- C-VISUAL-DYNAMIC-01
+- C-REUSE-01
+- C-VISUAL-ASSET-02
+- C-EDITOR-UX-R2-01
+
+Critical dependency:
+C-REUSE-01 is revalidated/frozen only after #375 is recomposed/integrated on the post-Gate0 base.
+
+### C0-C — Script authoring and events
+
+- C-SCRIPT-EVENT-LINK-01
+- C-SCRIPT-AUTHORING-R2-01
+- C-TAG-WRITE-01
+- C-AUTHORITY-01
+
+Must freeze:
+- visual context -> existing Script/handler linking;
+- continuous syntax guard;
+- reference diagnostics;
+- guided action/object/property discovery;
+- fault isolation;
+- public high-level action boundaries.
+
+### C0-D — Historian capture and query
+
+- C-HISTORIAN-CAPTURE-01
+- C-HISTORICAL-TIME-RANGE-01
+- C-DATA-QUERY-VIEW-01
+
+Permanent separation:
+`SOURCE ACQUISITION -> RAW CAPTURE -> RETENTION/DOWNSAMPLING -> QUERY/RETRIEVAL -> PRESENTATION`.
+
+Must freeze:
+- reusable capture profiles;
+- periodic/on-change/deadband/quality semantics;
+- relative/absolute time ranges;
+- typed reusable Query definitions;
+- Raw/Last/Before/After/Exact/Interpolated/FixedStep/Aggregate retrieval;
+- bounded query/result behavior;
+- shared Alarm filter/view vocabulary;
+- historical/current Trend splice rules.
+
+### C0-E — Historical Playback
+
+- C-HISTORICAL-PLAYBACK-01
+- consumes C-DATA-QUERY-VIEW-01 + C-HISTORICAL-TIME-RANGE-01 + C-AUTHORITY-01 + visual identity.
+
+Must freeze:
+- read-only past-state projection;
+- command/write disablement;
+- digital step vs analog historical semantics;
+- quality/gap truth;
+- explicit enter/exit behavior;
+- Trend/Browser historical context propagation.
+
+### C0-F — Engineering portability and reusable libraries
+
+- C-ENGINEERING-PORTABILITY-01
+- consumes C-REUSE-01 + visual/script/report/query identities + C-AUTHORITY-01.
+
+Permanent distinction:
+- `.escadapkg` = whole application/project;
+- Engineering Fragment = selected one-time transfer;
+- `.escadalib` = curated reusable definitions/version lifecycle.
+
+Must freeze:
+- Fragment schema/identity/dependency closure;
+- Preview/remap/conflict operations;
+- secret/reference policy;
+- CSV/XLSX vs structured Fragment responsibilities;
+- Library provenance/update states;
+- Compare/Upgrade/Keep/Fork semantics;
+- safe preservation of instance overrides;
+- visual preview/usage expectations;
+- component-bundle boundary.
+
+### C0-G — Structured workflow, branding and language
+
+- C-ENG-WORKFLOW-01
+- C-BRANDING-01
+- C-USER-COPY-I18N-01
+
+Must freeze before final UI cleanup:
+- task-first entity workflows;
+- bulk/edit/delete interaction boundary;
+- Branding asset authority;
+- pt-BR/en/es glossary;
+- no ordinary user-facing Monaco/Vite/React/Pyodide/Web Worker/Canvas implementation branding.
+
+## 4. Mandatory external-test capabilities and contract owners
+
+| Capability | Contract owner |
+|---|---|
+| Script syntax safety + guided authoring | C-SCRIPT-AUTHORING-R2-01 |
+| Screen/Popup/object event -> existing Script | C-SCRIPT-EVENT-LINK-01 |
+| Historian capture profiles/runtime enforcement | C-HISTORIAN-CAPTURE-01 |
+| Relative/absolute historical period | C-HISTORICAL-TIME-RANGE-01 |
+| Reusable typed Query | C-DATA-QUERY-VIEW-01 |
+| Rich historical retrieval/aggregation | C-DATA-QUERY-VIEW-01 |
+| Shared Alarm filter/view semantics | C-DATA-QUERY-VIEW-01 |
+| Historical/live Trend semantics | C-DATA-QUERY-VIEW-01 + C-HISTORICAL-TIME-RANGE-01 |
+| Browser/Report shared query behavior | C-DATA-QUERY-VIEW-01 |
+| Historical application Playback | C-HISTORICAL-PLAYBACK-01 |
+| Selected object/entity transfer | C-ENGINEERING-PORTABILITY-01 |
+| CSV/XLSX bulk exchange role | C-ENGINEERING-PORTABILITY-01 |
+| Library preview/version/update/fork | C-ENGINEERING-PORTABILITY-01 |
+| Template -> Equipment -> Dynamo reuse | C-REUSE-01 |
+| Editor Library/Dynamo consumption | C-EDITOR-UX-R2-01 + C-REUSE-01 |
+| Product-facing terminology/i18n | C-USER-COPY-I18N-01 |
+
+No item in this table is optional for the first external-test candidate unless the Product Owner explicitly changes scope.
+
+## 5. Implementation packages after C0
+
+These are **packages, not released chats**. Exact chat/branch ownership is assigned only after Gate1 and file-overlap review.
+
+### Package A — Engineering shell foundation
+Likely consumers: existing I + K.
+
+- density;
+- version/info hierarchy;
+- theme/contrast.
+
+### Package B — Historian capture foundation
+Likely consumer: existing O.
+
+- capture profiles;
+- runtime enforcement;
+- policy diagnostics;
+- API foundation for bulk assignment.
+
+### Package C — Data Query core
+Unassigned until C0 freeze.
+
+- reusable Query definition;
+- Historian retrieval modes;
+- aggregation/bounds;
+- Alarm filter/view typed model;
+- backend/provider foundation.
+
+Must not own Trend/Browser/Report layout.
+
+### Package D — Engineering Portability core
+Unassigned until C0 freeze.
+
+- Engineering Fragment;
+- dependency closure;
+- conflict/remap Preview;
+- Library provenance/update/compare/upgrade/fork backend semantics;
+- exchange profiles/format authority.
+
+Must consume post-#375 C-REUSE-01.
+
+### Package E — Editor / structured authoring
+Likely consumers: J + N, with exact ownership split after Package D APIs freeze.
+
+- Screen/Popup Editor UX;
+- Properties/Dynamics/Events;
+- Library/Dynamo visual consumption;
+- entity workflows;
+- Fragment/Library actions in normal Engineering surfaces.
+
+### Package F — Script authoring R2
+Unassigned until C0 freeze.
+
+- continuous syntax guard;
+- context browser;
+- guided actions;
+- generated snippets;
+- Script/event navigation.
+
+Must not reopen the current Gate0 Script bridge fix.
+
+### Package G — Branding
+Likely consumer: L.
+
+### Package H — Historical consumers
+Includes existing P plus additional ownership assigned after C0.
+
+- absolute/relative Trend period;
+- Automatic/historical/live Pen behavior;
+- Historical Data Browser convergence;
+- Alarm View consumers;
+- Report Query reuse;
+- bounded export/view behavior.
+
+### Package I — Historical Playback
+Unassigned until C0/Historical consumer integration.
+
+- read-only historical Screen/Popup/Dynamo projection;
+- playback controls/context;
+- command/write suppression.
+
+### Package J — UX copy/i18n
+Likely consumer: M.
+
+Runs after structural consumers stabilize.
+
+## 6. Parallelism rule
+
+Parallelism is based on **file + authority ownership**, not conceptual independence.
+
+Main records before release:
+- exact base SHA;
+- exact contract states;
+- owned paths/subsystems;
+- forbidden paths/subsystems;
+- upstream/downstream dependencies;
+- evidence tier required.
+
+Potential concurrency:
+- shell/theme may run with Historian/Query/Portability core when file overlap is clean;
+- Historian capture and Data Query may run in parallel only if storage/capture vs retrieval/provider ownership is explicit;
+- Portability core may run in parallel with data work after #375, but not with another lane mutating the same reuse/import/export kernels;
+- Editor and structured forms may run together only with strict hotspot separation;
+- Playback waits for query/time-range semantics and historical consumer primitives.
+
+## 7. External-test candidate gate
+
+The candidate is not ready merely because all branches merge.
+
+Required:
+1. every mandatory C0 capability implemented/integrated;
+2. exact integrated E2;
+3. exact integrated mounted E3 for user-facing paths;
+4. fresh CODEX black-box Preview;
+5. fresh Product Owner human Preview;
+6. independent technical audit;
+7. material findings corrected/rechecked;
+8. user-facing pt-BR/en/es pass;
+9. no known implementation-brand leakage;
+10. then record:
+   `CORRECTION PHASE ACCEPTED / THIRD-PARTY TEST CANDIDATE`.
+
+Only after that does the project return to deferred original Wave 15/productization flow.

@@ -865,7 +865,7 @@ Wave 16 direction:
 - installer install/repair/upgrade/uninstall with explicit non-destructive data retention and separate destructive purge;
 - local access to Engineering/Runtime after service readiness;
 - exact product version/build provenance;
-- reuse applicable work/evidence from preserved Wave 13 #205/#207 and installed-service contract #361, but do not resume or merge the stale Wave 13 product snapshot as the new release authority;
+- use #360/#362 local CODEX/workbench operational evidence, #208/#210 first real Preview evidence and installed-service contract #361 as primary host/productization inputs; Wave 13 #205/#207 is cancelled and may be inspected only as historical technique/reference;
 - signing/Authenticode remains a release-trust stage and must consume the new post-W15 Windows package;
 - customer installer/package must not contain internal development docs/materials.
 

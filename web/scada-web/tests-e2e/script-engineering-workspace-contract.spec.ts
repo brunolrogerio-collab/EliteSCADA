@@ -415,7 +415,7 @@ test('mounted specialized Engineering surfaces keep dark/light contrast and Mona
 
     const hover = page.getByTestId('theme-hover');
     const beforeHover = await hover.evaluate(element => getComputedStyle(element).backgroundColor);
-    await hover.hover();
+    await hover.hover({ force: true });
     const afterHover = await hover.evaluate(element => getComputedStyle(element).backgroundColor);
     expect(afterHover).not.toBe(beforeHover);
 

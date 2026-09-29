@@ -22,7 +22,6 @@ using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.DataQueries;
-using Scada.Engineering.DataQueries;
 using Scada.Engineering.Gateways;
 using Scada.Engineering.Historian;
 using Scada.Engineering.ImportExport;
@@ -54,8 +53,6 @@ builder.Services.AddSingleton<ITagRegistry>(sp => sp.GetRequiredService<Engineer
 builder.Services.AddSingleton<IAlarmEngine>(sp => sp.GetRequiredService<EngineeringWorkspace>().Alarms);
 builder.Services.AddSingleton<IDataSourceEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().DataSources);
 builder.Services.AddSingleton<IHistorianCaptureProfileEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().HistorianCaptureProfiles);
-builder.Services.AddSingleton<IDataQueryEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().DataQueries);
-builder.Services.AddSingleton<IAlarmViewEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().AlarmViews);
 builder.Services.AddSingleton<IDataQueryEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().DataQueries);
 builder.Services.AddSingleton<IAlarmViewEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().AlarmViews);
 builder.Services.AddSingleton<IEngineeringAssetRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Assets);

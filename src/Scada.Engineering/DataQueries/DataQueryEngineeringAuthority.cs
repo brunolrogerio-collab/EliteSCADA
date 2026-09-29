@@ -407,7 +407,7 @@ public sealed class InMemoryDataQueryEngineeringRegistry : IDataQueryEngineering
             if (_byKey.TryGetValue(key, out var otherId) && otherId != id)
                 throw new InvalidOperationException($"Data Query key '{key}' is already owned by stable Id '{otherId:D}'.");
 
-            if (_byId.TryGetValue(id.Value, out var previous) &&
+            if (_byId.TryGetValue(id, out var previous) &&
                 !previous.Key.Equals(key, StringComparison.OrdinalIgnoreCase))
                 _byKey.Remove(previous.Key);
 
@@ -418,8 +418,8 @@ public sealed class InMemoryDataQueryEngineeringRegistry : IDataQueryEngineering
                 Name = definition.Name.Trim(),
                 ProviderKey = definition.ProviderKey.Trim()
             };
-            _byId[id.Value] = normalized;
-            _byKey[key] = id.Value;
+            _byId[id] = normalized;
+            _byKey[key] = id;
         }
         _changed?.Invoke();
     }
@@ -501,13 +501,13 @@ public sealed class InMemoryAlarmViewEngineeringRegistry : IAlarmViewEngineering
             if (_byKey.TryGetValue(key, out var otherId) && otherId != id)
                 throw new InvalidOperationException($"Alarm View key '{key}' is already owned by stable Id '{otherId:D}'.");
 
-            if (_byId.TryGetValue(id.Value, out var previous) &&
+            if (_byId.TryGetValue(id, out var previous) &&
                 !previous.Key.Equals(key, StringComparison.OrdinalIgnoreCase))
                 _byKey.Remove(previous.Key);
 
             var normalized = view with { Id = id, Key = key, Name = view.Name.Trim() };
-            _byId[id.Value] = normalized;
-            _byKey[key] = id.Value;
+            _byId[id] = normalized;
+            _byKey[key] = id;
         }
         _changed?.Invoke();
     }

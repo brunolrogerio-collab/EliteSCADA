@@ -9,7 +9,6 @@ using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.DataQueries;
 using Scada.Engineering.Historian;
-using Scada.Engineering.DataQueries;
 using Scada.Engineering.Scripts;
 using Scada.Engineering.Security;
 using Scada.Engineering.Views;
@@ -83,8 +82,6 @@ public sealed class EngineeringWorkspace : IDisposable
             MarkDirty,
             profileId => Tags.Snapshot().Any(tag =>
                 HistorianCaptureProfileMetadata.ReadProfileId(tag.Metadata) == profileId));
-        DataQueries = new InMemoryDataQueryEngineeringRegistry(MarkDirty);
-        AlarmViews = new InMemoryAlarmViewEngineeringRegistry(MarkDirty);
         Assets = new InMemoryEngineeringAssetRegistry(MarkDirty);
         Views = new InMemoryEngineeringViewRegistry(MarkDirty);
         SecurityPolicies = new InMemorySecurityPolicyEngineeringRegistry(MarkDirty);
@@ -101,8 +98,6 @@ public sealed class EngineeringWorkspace : IDisposable
     public InMemoryDataQueryEngineeringRegistry DataQueries { get; }
     public InMemoryAlarmViewEngineeringRegistry AlarmViews { get; }
     public InMemoryHistorianCaptureProfileEngineeringRegistry HistorianCaptureProfiles { get; }
-    public InMemoryDataQueryEngineeringRegistry DataQueries { get; }
-    public InMemoryAlarmViewEngineeringRegistry AlarmViews { get; }
     public InMemoryEngineeringAssetRegistry Assets { get; }
     public InMemoryEngineeringViewRegistry Views { get; }
     public InMemorySecurityPolicyEngineeringRegistry SecurityPolicies { get; }
@@ -240,8 +235,6 @@ public sealed class EngineeringWorkspace : IDisposable
         DataQueries.Clear();
         AlarmViews.Clear();
         HistorianCaptureProfiles.Clear();
-        DataQueries.Clear();
-        AlarmViews.Clear();
         Assets.Clear();
         Views.Clear();
         SecurityPolicies.Clear();

@@ -99,9 +99,9 @@ public sealed class R2SharedWireContractTests
             AlarmViewMatchState.No,
             Assert.Single(parsed.AlarmViews!).Filter.Acknowledged);
 
-        Assert.Contains("\"strategy\":\"onChangeDeadbandMaxInterval\"", json, StringComparison.Ordinal);
-        Assert.Contains("\"mode\":\"sampledFixedStep\"", json, StringComparison.Ordinal);
-        Assert.Contains("\"historianCaptureProfileId\":\"11111111-1111-1111-1111-111111111111\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"strategy\":\"onChangeDeadbandMaxInterval\"", json);
+        Assert.Contains("\"mode\":\"sampledFixedStep\"", json);
+        Assert.Contains("\"historianCaptureProfileId\":\"11111111-1111-1111-1111-111111111111\"", json);
     }
 
     [Fact]
@@ -171,9 +171,9 @@ public sealed class R2SharedWireContractTests
             JsonOptions());
 
         Assert.Equal(".escadafrag", EngineeringFragmentContract.FileExtension);
-        Assert.Contains("\"schema\":\"scada.engineering.fragment\"", json, StringComparison.Ordinal);
-        Assert.Contains("\"operation\":\"reuseIdentical\"", json, StringComparison.Ordinal);
-        Assert.Contains("\"state\":\"updateAvailable\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"schema\":\"scada.engineering.fragment\"", json);
+        Assert.Contains("\"operation\":\"reuseIdentical\"", json);
+        Assert.Contains("\"state\":\"updateAvailable\"", json);
     }
 
     private static JsonSerializerOptions JsonOptions()

@@ -1,5 +1,7 @@
 using Scada.Core.Events;
 using Scada.Core.Tags;
+using Scada.Historian.Memory;
+using Scada.Historian.Policies;
 using Scada.Historian.TimescaleDb;
 
 namespace Scada.Historian.TimescaleDb.Tests;
@@ -76,4 +78,181 @@ public sealed class TimescaleDbHistorianTests
         Assert.Null(result[2].Value);
         Assert.Equal(TagQuality.BadCommunication, result[2].Quality);
     }
+    [Fact]
+    public async Task PeriodicCapture_OneHundredMillisecondObservationsPersistOnlyAcceptedRows()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var eventBus = new InMemoryScadaEventBus();
+        await using var historian = new TimescaleDbHistorian(eventBus, connectionString, batchSize: 50);
+        var tag = CreatePolicyTag(
+            TagDataType.Double,
+            strategy: "periodic",
+            periodMilliseconds: 60_000);
+        var origin = DateTimeOffset.UtcNow;
+
+        for (var i = 0; i <= 600; i++)
+        {
+            var timestamp = origin.AddMilliseconds(i * 100);
+            await eventBus.PublishAsync(new TagValueChanged(
+                tag,
+                null,
+                new TagValue(tag.Id, (double)i, timestamp, TagQuality.Good, "volume-test"),
+                timestamp));
+        }
+
+        await WaitForWritesAsync(historian, 2);
+
+        Assert.Equal(2, historian.AcceptedSamples);
+        Assert.Equal(0, historian.SkippedSamples);
+        Assert.Equal(599, historian.CoalescedSamples);
+        Assert.Equal(2, historian.WrittenSamples);
+        Assert.Equal(0, historian.DroppedSamples);
+        Assert.Null(historian.LastWriteError);
+
+        var persisted = historian.Query(tag.Id, origin.AddSeconds(-1), origin.AddSeconds(61), 100);
+        Assert.Equal(2, persisted.Count);
+        Assert.Equal(origin, persisted[0].Timestamp);
+        Assert.Equal(origin.AddSeconds(60), persisted[1].Timestamp);
+    }
+
+    [Fact]
+    public async Task MemoryAndTimescaleCapture_DecisionsAndPersistedSamplesAgree()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var eventBus = new InMemoryScadaEventBus();
+        await using var memory = new BufferedInMemoryHistorian(eventBus);
+        await using var timescale = new TimescaleDbHistorian(eventBus, connectionString, batchSize: 20);
+        var tag = CreatePolicyTag(
+            TagDataType.Double,
+            strategy: "onChangeDeadbandMaxInterval",
+            deadband: 1d,
+            maximumPeriodMilliseconds: 10_000);
+        var origin = DateTimeOffset.UtcNow;
+
+        var observations = new[]
+        {
+            new TagValue(tag.Id, 10d, origin, TagQuality.Good, "parity-test"),
+            new TagValue(tag.Id, 10.5d, origin.AddSeconds(1), TagQuality.Good, "parity-test"),
+            new TagValue(tag.Id, 10.5d, origin.AddSeconds(2), TagQuality.Uncertain, "parity-test"),
+            new TagValue(tag.Id, 11d, origin.AddSeconds(3), TagQuality.Uncertain, "parity-test"),
+            new TagValue(tag.Id, 11.5d, origin.AddSeconds(4), TagQuality.Uncertain, "parity-test"),
+            new TagValue(tag.Id, 11.5d, origin.AddSeconds(15), TagQuality.Uncertain, "parity-test")
+        };
+
+        foreach (var value in observations)
+            await eventBus.PublishAsync(new TagValueChanged(tag, null, value, value.Timestamp));
+
+        await WaitForWritesAsync(timescale, 4);
+        var memoryDeadline = DateTimeOffset.UtcNow.AddSeconds(2);
+        while (memory.WrittenSamples < 4 && DateTimeOffset.UtcNow < memoryDeadline)
+            await Task.Delay(10);
+
+        Assert.Equal(memory.AcceptedSamples, timescale.AcceptedSamples);
+        Assert.Equal(memory.SkippedSamples, timescale.SkippedSamples);
+        Assert.Equal(memory.CoalescedSamples, timescale.CoalescedSamples);
+        Assert.Equal(4, timescale.AcceptedSamples);
+        Assert.Equal(2, timescale.SkippedSamples);
+        Assert.Equal(0, timescale.CoalescedSamples);
+        Assert.Equal(0, timescale.DroppedSamples);
+
+        var from = origin.AddSeconds(-1);
+        var to = origin.AddSeconds(16);
+        var inMemory = memory.Query(tag.Id, from, to, 100);
+        var persisted = timescale.Query(tag.Id, from, to, 100);
+
+        Assert.Equal(inMemory.Count, persisted.Count);
+        Assert.Equal(
+            inMemory.Select(x => x.Timestamp),
+            persisted.Select(x => x.Timestamp));
+        Assert.Equal(
+            inMemory.Select(x => x.Quality),
+            persisted.Select(x => x.Quality));
+        Assert.Equal(
+            inMemory.Select(x => Convert.ToDouble(x.Value)),
+            persisted.Select(x => Convert.ToDouble(x.Value)));
+    }
+
+    [Fact]
+    public async Task TimescaleCapture_RestartAcceptsFirstNewObservationWithoutSyntheticHeartbeat()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var tag = CreatePolicyTag(TagDataType.Boolean, strategy: "onChange");
+        var origin = DateTimeOffset.UtcNow;
+
+        var firstBus = new InMemoryScadaEventBus();
+        await using (var first = new TimescaleDbHistorian(firstBus, connectionString, batchSize: 10))
+        {
+            await firstBus.PublishAsync(new TagValueChanged(
+                tag,
+                null,
+                new TagValue(tag.Id, true, origin, TagQuality.Good, "restart-test"),
+                origin));
+            await WaitForWritesAsync(first, 1);
+            Assert.Equal(1, first.AcceptedSamples);
+        }
+
+        var secondBus = new InMemoryScadaEventBus();
+        await using var second = new TimescaleDbHistorian(secondBus, connectionString, batchSize: 10);
+        var restartedObservation = origin.AddSeconds(5);
+        await secondBus.PublishAsync(new TagValueChanged(
+            tag,
+            null,
+            new TagValue(tag.Id, true, restartedObservation, TagQuality.Good, "restart-test"),
+            restartedObservation));
+        await WaitForWritesAsync(second, 1);
+
+        Assert.Equal(1, second.AcceptedSamples);
+        Assert.Equal(0, second.SkippedSamples);
+        var persisted = second.Query(tag.Id, origin.AddSeconds(-1), origin.AddSeconds(6), 10);
+        Assert.Equal(2, persisted.Count);
+        Assert.Equal(new[] { origin, restartedObservation }, persisted.Select(x => x.Timestamp));
+    }
+
+    private static TagDefinition CreatePolicyTag(
+        TagDataType dataType,
+        string strategy,
+        double? deadband = null,
+        int? periodMilliseconds = null,
+        int? maximumPeriodMilliseconds = null)
+    {
+        var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [HistorianCapturePolicy.EnabledMetadataKey] = "true",
+            [HistorianCapturePolicy.StrategyMetadataKey] = strategy
+        };
+        if (deadband.HasValue)
+            metadata[HistorianCapturePolicy.DeadbandMetadataKey] = deadband.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (periodMilliseconds.HasValue)
+            metadata[HistorianCapturePolicy.PeriodMetadataKey] = periodMilliseconds.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (maximumPeriodMilliseconds.HasValue)
+            metadata[HistorianCapturePolicy.MaximumPeriodMetadataKey] = maximumPeriodMilliseconds.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        return new TagDefinition(
+            Guid.NewGuid(),
+            "CaptureValue",
+            $"Integration.Capture.{Guid.NewGuid():N}",
+            dataType,
+            Source: "integration-test",
+            EngineeringUnit: null,
+            Description: null,
+            ReadOnly: false,
+            Metadata: metadata);
+    }
+
+    private static async Task WaitForWritesAsync(TimescaleDbHistorian historian, long expected)
+    {
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(10);
+        while (historian.WrittenSamples < expected && DateTimeOffset.UtcNow < deadline)
+            await Task.Delay(50);
+
+        Assert.Equal(expected, historian.WrittenSamples);
+        Assert.Null(historian.LastWriteError);
+    }
+
 }

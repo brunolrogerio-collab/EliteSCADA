@@ -1,3 +1,37 @@
+# R2 BOOTSTRAP RELEASE GUARD — 2026-09-29
+
+> This notice supersedes any inference from older bootstrap sections below.
+
+The planned post-E3 chats:
+- I — DEV-ENG-DENSITY;
+- K — DEV-THEME-CONTRAST;
+- J — DEV-EDITOR-UX-R2;
+- L — DEV-BRANDING;
+- N — DEV-ENG-WORKFLOW-FORMS;
+- M — DEV-UX-COPY-I18N;
+
+**DO NOT YET HAVE GENERATED BOOTSTRAP TEXTS.**
+
+This is deliberate.
+
+Do not copy/adapt an older B-H bootstrap and do not infer a new bootstrap from roadmap prose.
+
+Release rule:
+1. Main reaches the real lane release gate;
+2. Main revalidates GitHub live;
+3. required shared contracts are frozen/verified;
+4. exact live integration base and owned/forbidden boundaries are pinned;
+5. Product Owner explicitly asks Main to generate that lane's bootstrap;
+6. only then Main writes/provides the bootstrap for the Product Owner to open the chat.
+
+Until those conditions hold:
+`BOOTSTRAP_NOT_GENERATED / CHAT_NOT_RELEASED / PRODUCT_OWNER_ACTION = DO_NOT_OPEN`.
+
+Canonical route:
+`docs/WAVE15-POST-E3-DEVELOPMENT-ROUTE.md`.
+
+---
+
 # Wave 15 — CORRECTION-NOW Parallel Chat Bootstraps
 
 **Control branch:** `coord/w15-correction-now-parallel-control`

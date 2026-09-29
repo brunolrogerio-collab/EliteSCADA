@@ -661,6 +661,7 @@ Frozen semantics must define:
 - graphical Screen/Popup surfaces can opt into a wide/full-width section mode;
 - ordinary forms/lists retain readable widths;
 - no change to Working/Published/Active authority.
+- persistent security/lock controls follow `FEATURE_NAME_ON_DEMAND / CURRENT_STATE_PERSISTENT`: the compact header shows only a clear state + icon, while the full feature name/details remain in tooltip/aria-label/expanded management UI.
 
 Consumes:
 - `C-AUTHORITY-01`;

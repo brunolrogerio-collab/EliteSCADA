@@ -1,3 +1,26 @@
+# POST-PORTABILITY GATE UPDATE — WAIT CI #1611
+
+Portability #405 is now integrated.
+
+Candidate common post-Portability base:
+`wave15/corrections-integration@1d9e3f9123bea8e27c362ee680a4ba70f864becd`
+tree `512ef505924f3a0a709e8d5a73e2625531586e1c`.
+
+Current state:
+`J/L/N = WAIT_POST_PORTABILITY_CI_1611 / DO_NOT_EXECUTE`.
+
+Required final release gate:
+EliteSCADA CI #1611 / `36655606469` must be globally GREEN.
+
+When GREEN, Main must:
+1. reset/recreate all three prepared branches to exact `1d9e3f9123bea8e27c362ee680a4ba70f864becd`;
+2. update the creation-base values below to that exact SHA;
+3. issue synchronized ACTIVE orders.
+
+Until that happens, do not start J/L/N.
+
+---
+
 # PRODUCT OWNER SEQUENCING OVERRIDE — WAIT FOR POST-PORTABILITY BASE
 
 > This override supersedes the ACTIVE states below until Main explicitly re-releases J/L/N.

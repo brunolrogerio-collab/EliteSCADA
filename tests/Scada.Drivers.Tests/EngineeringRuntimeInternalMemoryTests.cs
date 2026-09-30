@@ -122,7 +122,13 @@ public sealed class EngineeringRuntimeInternalMemoryTests
         Assert.Equal("memory-project", descriptor.ProjectKey);
         Assert.Equal(7, descriptor.Revision);
         Assert.Equal(activatedAt, descriptor.ActivatedAtUtc);
-        Assert.Same(package, runtime.CaptureApplication());
+        var captured = Assert.IsType<EngineeringPackage>(runtime.CaptureApplication());
+        Assert.Equal(package.Schema, captured.Schema);
+        Assert.Equal(package.SchemaVersion, captured.SchemaVersion);
+        Assert.Equal(package.ExportedAt, captured.ExportedAt);
+        Assert.Equal(package.Tags, captured.Tags);
+        Assert.Equal(package.Alarms, captured.Alarms);
+        Assert.Equal(package.DataSources, captured.DataSources);
 
         var projected = Assert.Single(runtime.Tags());
         Assert.Equal(tagId, projected.Id);

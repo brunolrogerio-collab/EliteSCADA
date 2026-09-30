@@ -38,9 +38,9 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0126`
+`MAIN_ORDER_REV: 0127`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-30 — PR #441 DYNAMO THREE-STYLE PREVIEW / SHARED CODEX READ_ONLY_PREVIEW ACTIVE`
+`LAST_MAIN_UPDATE_BRT: 2026-09-30 — PR #441 HEAD 5808f44 T1 #302 GREEN / SHARED CODEX READ_ONLY_PREVIEW ACTIVE`
 
 `GLOBAL_GATE: FND04_VERIFIED_FROZEN / GATE0_GREEN / GATE1_GREEN / R2_C0_FROZEN / F0_INTEGRATED / PORTABILITY_INTEGRATED / SHARED_CODEX_VISUAL_PREVIEW_ACTIVE / NO_PRODUCT_MUTATION`
 
@@ -70,9 +70,9 @@ Current CORRECTION-NOW integration baseline is `wave15/corrections-integration@1
 >
 > The shared CODEX executor is not the legacy FND-04 DEV lane.
 
-`SHARED_CODEX_ORDER_REV: 0126`
+`SHARED_CODEX_ORDER_REV: 0127`
 
-`ORDER_ID: SHARED-CODEX-VISUAL-DYNAMO-PREVIEW-103`
+`ORDER_ID: SHARED-CODEX-VISUAL-DYNAMO-PREVIEW-104`
 
 `ORDER_STATE: ACTIVE / READ_ONLY_PREVIEW / PR_#441 / NO_TRACKED_PRODUCT_MUTATION / NO_MERGE`
 
@@ -86,14 +86,15 @@ show the actual PR #441 Dynamos **inside the mounted EliteSCADA product**, not t
 Exact candidate to preview:
 - PR #441;
 - branch `work/w15-visual-quality-dynamo-styles`;
-- exact head at order issuance: `98c40a935b94c5f9f8186a4c281cd4b73b93b685`;
+- exact head at order issuance: `5808f446e6c33064345bed6619989be41743da56`;
 - base: `wave15/corrections-integration@9a8dbf7238a2d1539955b5ede1ef7ac2dbd6c817`.
 
 Validation state at order issuance:
-- prior T1 #298 failed only on stale expectations created by the intended catalog expansion (10 -> 30) and an ambiguous blower selector after three style variants became legitimate;
-- those stale tests/selectors were corrected on the same PR;
-- replacement exact-head T1 #300 / `36753926078` is running;
-- CODEX may perform this visual preview while #300 runs, but must report its final live status before declaring the preview complete.
+- T1 #298 failed only on stale expectations created by the intended catalog expansion (10 -> 30) and an ambiguous blower selector after three style variants became legitimate;
+- T1 #300 then exposed one final stale preview-child count for the richer detailed blower (old 9 -> actual canonical 16);
+- that assertion was corrected without changing product geometry;
+- exact-head T1 #302 / `36755582968`: **SUCCESS**;
+- CODEX may now perform the visual preview against the green exact head.
 
 Mode:
 `READ_ONLY_PRODUCT_PREVIEW / DISPOSABLE_LOCAL_PROJECT_ALLOWED / NO_COMMIT / NO_PUSH / NO_PR_MUTATION / NO_MERGE`.
@@ -143,7 +144,7 @@ Do not:
 - use image generation as evidence.
 
 Return exactly:
-`DYNAMO_3STYLE_PREVIEW / <PASS_AS_PREVIEW|PREVIEW_WITH_VISUAL_GAPS|BLOCKED> / <exact PR #441 head> / <T1 #300 status> / <evidence summary>`
+`DYNAMO_3STYLE_PREVIEW / <PASS_AS_PREVIEW|PREVIEW_WITH_VISUAL_GAPS|BLOCKED> / <exact PR #441 head> / <T1 #302 status> / <evidence summary>`
 
 ### HISTORICAL rev0119 disposition — Main recomposed #375 directly / CODEX capacity preserved
 

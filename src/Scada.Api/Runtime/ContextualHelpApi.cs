@@ -790,7 +790,7 @@ public static class ContextualHelpCatalog
                 Pick(locale, "Contrato", "Contract", "Contrato"),
                 string.IsNullOrWhiteSpace(source.Description)
                     ? Pick(locale, "Fonte do catálogo canônico; não é driver de comunicação.", "Canonical-catalog source; it is not a communication driver.", "Fuente del catálogo canónico; no es driver de comunicación.")
-                    : source.Description)
+                    : CleanUserCopy(source.Description))
         });
 
     private static ContextualHelpTopic BuildDriverTopic(EngineeringDataSourceTypeView driver, string locale)
@@ -806,7 +806,7 @@ public static class ContextualHelpCatalog
         return new ContextualHelpTopic(
             $"driver.{driver.TypeKey}",
             "drivers",
-            driver.DisplayName,
+            CleanUserCopy(driver.DisplayName),
             Pick(locale,
                 "Driver de comunicação de produção registrado neste build.",
                 "Production communication driver registered in this build.",
@@ -815,7 +815,7 @@ public static class ContextualHelpCatalog
             {
                 new ContextualHelpSection(
                     Pick(locale, "Finalidade e perfil comprovado", "Proven purpose and profile", "Finalidad y perfil comprobado"),
-                    $"Type key: {driver.TypeKey}\n{(string.IsNullOrWhiteSpace(driver.Description) ? Pick(locale, "Sem descrição adicional no descriptor.", "No additional descriptor description.", "Sin descripción adicional en el descriptor.") : driver.Description)}\n{schemaIdentity}"),
+                    $"Type key: {driver.TypeKey}\n{(string.IsNullOrWhiteSpace(driver.Description) ? Pick(locale, "Sem descrição adicional no descriptor.", "No additional descriptor description.", "Sin descripción adicional en el descriptor.") : CleanUserCopy(driver.Description))}\n{schemaIdentity}"),
                 new ContextualHelpSection(
                     Pick(locale, "Configuração do Data Source", "Data Source configuration", "Configuración del Data Source"),
                     FormatFields(sourceFields, locale)),
@@ -942,7 +942,7 @@ public static class ContextualHelpCatalog
             else if (field.Minimum.HasValue || field.Maximum.HasValue)
                 invalid.Add($"{field.Key}=<outside {field.Minimum?.ToString() ?? "-∞"}..{field.Maximum?.ToString() ?? "+∞"}>");
             else if (!string.IsNullOrWhiteSpace(field.ExpectedFormat))
-                invalid.Add($"{field.Key}=<malformed; expected {field.ExpectedFormat}>");
+                invalid.Add($"{field.Key}=<malformed; expected {CleanUserCopy(field.ExpectedFormat)}>" );
         }
 
         var validText = valid.Length == 0
@@ -965,9 +965,9 @@ public static class ContextualHelpCatalog
     private static string FormatField(EngineeringDriverConfigurationFieldView field, string locale)
     {
         var required = field.Required ? Pick(locale, "obrigatório", "required", "obligatorio") : Pick(locale, "opcional", "optional", "opcional");
-        var parts = new List<string> { $"{field.Key} - {field.DisplayName} [{field.ValueKind}, {required}]" };
-        if (!string.IsNullOrWhiteSpace(field.Description)) parts.Add(field.Description);
-        if (!string.IsNullOrWhiteSpace(field.ExpectedFormat)) parts.Add($"{Pick(locale, "Formato", "Format", "Formato")}: {field.ExpectedFormat}");
+        var parts = new List<string> { $"{field.Key} - {CleanUserCopy(field.DisplayName)} [{field.ValueKind}, {required}]" };
+        if (!string.IsNullOrWhiteSpace(field.Description)) parts.Add(CleanUserCopy(field.Description));
+        if (!string.IsNullOrWhiteSpace(field.ExpectedFormat)) parts.Add($"{Pick(locale, "Formato", "Format", "Formato")}: {CleanUserCopy(field.ExpectedFormat)}");
         if (!string.IsNullOrWhiteSpace(field.DefaultValue)) parts.Add($"Default: {field.DefaultValue}");
         if (field.AllowedValues.Count > 0) parts.Add($"{Pick(locale, "Valores", "Values", "Valores")}: {string.Join(" | ", field.AllowedValues)}");
         if (field.Minimum.HasValue || field.Maximum.HasValue) parts.Add($"{Pick(locale, "Limites", "Limits", "Límites")}: {field.Minimum?.ToString() ?? "-∞"} .. {field.Maximum?.ToString() ?? "+∞"}");

@@ -381,6 +381,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       }
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
       setProjectSetupRequired(false);
+      if (!window.location.pathname.startsWith('/engineering')) {
+        window.location.assign('/engineering');
+      }
     } catch {
       setUnavailable(true);
     } finally {

@@ -180,7 +180,7 @@ public static partial class StaticSvgInspector
         }
 
         if (value.Contains("url(", StringComparison.OrdinalIgnoreCase) &&
-            !UrlFunctionRegex().Matches(value).Any())
+            UrlFunctionRegex().Matches(value).Count == 0)
             throw new InvalidDataException($"SVG attribute '{name}' contains an invalid url() reference.");
     }
 

@@ -1,9 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <ItemGroup>
-    <PackageReference Include="Npgsql" Version="10.0.3" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="../Scada.Engineering/Scada.Engineering.csproj" />
-    <ProjectReference Include="../Scada.Security/Scada.Security.csproj" />
-  </ItemGroup>
-</Project>

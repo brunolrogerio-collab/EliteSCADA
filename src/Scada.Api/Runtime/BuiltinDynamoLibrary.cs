@@ -748,13 +748,13 @@ public static class BuiltinDynamoLibrary
             StringComparer.Ordinal);
 
     private static int DefinitionSequence(int familySequence, VisualStyle style) =>
-        familySequence + style switch
+        familySequence + (style switch
         {
             VisualStyle.Detailed2D => 0,
             VisualStyle.DimensionalFront => 10,
             VisualStyle.HighPerformance => 20,
             _ => throw new ArgumentOutOfRangeException(nameof(style))
-        };
+        });
 
     private static int E(int familySequence, VisualStyle style, int localSequence) =>
         1000 + DefinitionSequence(familySequence, style) * 100 + localSequence;

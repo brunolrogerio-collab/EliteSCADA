@@ -422,6 +422,7 @@ function sectionCount(model: EngineeringPackageView, section: SectionId): number
     case 'historian': return model.tags.filter(tag => tag.historian?.enabled).length;
     case 'reports': return reportCollection(model).length;
     case 'security': return model.securityRoles?.length ?? 0;
+    case 'branding':
     case 'scripts':
     case 'libraries':
     case 'overview':

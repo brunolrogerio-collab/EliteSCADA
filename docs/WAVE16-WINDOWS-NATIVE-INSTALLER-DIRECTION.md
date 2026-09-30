@@ -195,6 +195,148 @@ Freeze these rules:
 
 A Wave 16 implementation that makes Linux/Edge support materially harder without a documented technical necessity is an architecture regression and must be reviewed before acceptance.
 
+
+
+## 2.2 Canonical immutable release payload + host executor — strategic north
+
+**Product Owner architecture north — 2026-09-30**
+
+Refine the previous container-native hypothesis into a higher-level product distribution model:
+
+`canonical EliteSCADA product -> architecture-specific immutable release payload -> host executor/adapter -> external durable state`.
+
+The **immutable release payload** is the primary product-distribution abstraction. OCI/container packaging is one valid representation/host profile of that payload, not the identity of EliteSCADA itself.
+
+Initial host/architecture profiles:
+
+- `win-x64`;
+- `linux-x64`;
+- `linux-arm64`.
+
+Possible future profiles remain evidence/homologation based.
+
+### Immutable payload
+
+For every supported target, Release Factory should produce an exact, self-contained, versioned product payload containing the application binaries/runtime and required static assets for that architecture.
+
+Conceptually:
+
+```text
+EliteSCADA canonical source
+        |
+        v
+Release Factory
+        |
+        +-- win-x64 immutable payload
+        +-- linux-x64 immutable payload
+        +-- linux-arm64 immutable payload
+        +-- OCI representation/profile where useful
+```
+
+Rules:
+
+- release payload is immutable after validation/signing;
+- exact product version/SHA/manifest/hash/provenance belong to the payload;
+- normal runtime must not mutate product/release files;
+- config, licenses, certificates, logs, project/application durable state and database files stay outside the replaceable payload;
+- upgrade installs a new payload side-by-side or atomically stages it, health-gates it, then changes the active-version pointer;
+- rollback returns to the previous valid payload without reconstructing old product bytes;
+- destructive purge is never implied by release replacement.
+
+### Host executor
+
+Each native host profile should provide a small host/deployment executor whose responsibility is operational, not domain/product semantics.
+
+Conceptually:
+
+```text
+Windows:
+SCM -> EliteSCADA.Host.exe -> active immutable win-x64 payload
+
+Linux:
+systemd -> elitescada-host -> active immutable linux-x64/linux-arm64 payload
+```
+
+Host executor responsibilities may include:
+
+- exact release selection;
+- manifest/hash/signature verification;
+- host path/config/secret projection;
+- host/deployment identity evidence collection;
+- child-process/service lifecycle;
+- readiness/liveness/startup gating;
+- graceful stop/restart;
+- upgrade/rollback coordination;
+- sanitized diagnostics and exact active-version reporting.
+
+Host executor must **not** become a second EliteSCADA domain authority. It must not own TAG/Alarm/Historian/Engineering/Runtime semantics, project state, Authority policy or commercial entitlement decisions.
+
+Licensing remains behind the canonical Machine Request Code / license-validation boundary. The host executor may collect homologated machine/deployment evidence but does not replace licensing authority.
+
+### .NET runtime packaging
+
+Normal native distributions should not require a separately preinstalled .NET runtime on the customer host when technically suitable.
+
+Preferred baseline:
+- architecture-specific **self-contained .NET publish** for the canonical product payload;
+- evaluate single-file/native-AOT only where they improve a bounded host component and do not constrain Drivers, reflection/dynamic loading, diagnostics or portability;
+- a small host executor may independently qualify for Native AOT, but the EliteSCADA product core must not be forced to Native AOT merely for packaging convenience.
+
+### Linux x64 / ARM64
+
+Linux x64 and ARM64 are first-class future host profiles of the same distribution contract, not separate EliteSCADA products.
+
+They must preserve:
+- the same Engineering/Runtime/Authority/licensing/package semantics;
+- systemd mapping of the same start/stop/restart/status/readiness intent used by Windows SCM;
+- architecture-specific self-contained payloads;
+- the same external durable-state boundary;
+- the same release/upgrade/rollback semantics;
+- explicit Driver/native-library compatibility matrix per architecture.
+
+Do not claim an industrial Driver supported on ARM64 unless every required native dependency/device-access contract is homologated there.
+
+ARM32 is not an initial target and may be considered later only by explicit homologation.
+
+### OCI relationship
+
+#363 is refined by this higher-level premise:
+
+`OCI is a supported package/host representation of an immutable EliteSCADA release payload where technically appropriate; OCI is not the canonical identity of the EliteSCADA product.`
+
+A future OCI profile may still be multi-arch (`linux/amd64`, `linux/arm64`) and signed/provenanced. Native Linux and native Windows profiles may coexist with OCI without creating product forks.
+
+## 2.3 Managed database distribution and licensing guardrail
+
+Database remains a **separate deployment service/profile**, never part of the immutable EliteSCADA application payload.
+
+The standard installed-product experience may provision a local managed PostgreSQL/TimescaleDB service alongside EliteSCADA, while retaining the #366 Local Managed / Remote topology boundary.
+
+Licensing/distribution guardrails:
+
+1. **PostgreSQL**
+   - PostgreSQL licensing is permissive and supports redistribution with required copyright/license notices;
+   - Release Factory may therefore bundle/provision a pinned supported PostgreSQL distribution for Local Managed profiles, subject to platform packaging/upgrade/support validation.
+
+2. **TimescaleDB Apache 2.0 components/edition**
+   - Apache 2.0-licensed TimescaleDB components may be redistributed under their Apache notice/license obligations;
+   - this is the preferred low-friction baseline for a bundled EliteSCADA Local Managed database if its feature set satisfies product needs.
+
+3. **TimescaleDB Community / TSL components**
+   - TSL-licensed binaries have additional conditions for redistribution with a Value Added Product, including customer-license notice requirements and restrictions around customer schema-definition interfaces;
+   - do not silently bundle TSL components merely because they are free for self-hosted use;
+   - any EliteSCADA distribution that includes TSL binaries requires explicit legal/license compliance review and a documented product-control model satisfying the applicable TSL terms, or a separate commercial agreement where appropriate.
+
+4. **Release manifest / third-party notices**
+   - every bundled database/runtime dependency must be represented in SBOM/third-party notices/license inventory;
+   - package build must fail closed when a requested database artifact/license profile is not approved for that target/release.
+
+5. **Platform support**
+   - permission to redistribute does not imply technical support on every OS/CPU;
+   - PostgreSQL/TimescaleDB versions and binaries must be pinned and homologated per `win-x64`, `linux-x64`, `linux-arm64` or other supported profile.
+
+This section records architecture/product direction, not legal advice. Final commercial releases must revalidate the exact third-party versions and license texts actually shipped.
+
 ## 3. Evidence hierarchy — do not restart from zero, but do not inherit stale assumptions
 
 Wave 13 is **cancelled** and is not a resumable implementation line.

@@ -1,3 +1,7 @@
+> **SUPERSEDED FOR CURRENT TAKEOVER — 2026-09-30**
+>
+> Read `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-09-30-PARALLEL-ACTIVE.md` first. This 2026-09-29 file is retained as historical coordination evidence only.
+
 > **PRODUCT OWNER SCOPE OVERRIDE — 2026-09-30**
 >
 > GitHub live remains authoritative. This override supersedes older wording below where it conflicts.

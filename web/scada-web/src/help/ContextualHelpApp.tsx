@@ -15,6 +15,7 @@ type HelpTopic = Readonly<{
   title: string;
   summary: string;
   sections: readonly HelpSection[];
+  relatedTopicIds?: readonly string[];
 }>;
 
 type HelpCatalog = Readonly<{
@@ -35,33 +36,33 @@ type HelpCatalog = Readonly<{
 const ui = {
   'pt-BR': {
     title: 'Ajuda do EliteSCADA',
-    subtitle: 'Manual local e contextual',
+    subtitle: 'Ajuda local e contextual',
     language: 'Idioma',
     topics: 'Tópicos',
     loading: 'Carregando ajuda local...',
-    error: 'Não foi possível carregar o manual local.',
+    error: 'Não foi possível carregar a ajuda local.',
     empty: 'Tópico de ajuda não encontrado.',
-    api: 'API de Server Script suportada nesta compilação', parameters: 'Parâmetros', result: 'Resultado', safety: 'Segurança'
+    api: 'API de Server Script suportada nesta compilação', parameters: 'Parâmetros', result: 'Resultado', safety: 'Segurança', related: 'Tópicos relacionados'
   },
   en: {
     title: 'EliteSCADA Help',
-    subtitle: 'Local contextual manual',
+    subtitle: 'Local contextual help',
     language: 'Language',
     topics: 'Topics',
     loading: 'Loading local help...',
-    error: 'The local manual could not be loaded.',
+    error: 'The local help could not be loaded.',
     empty: 'Help topic not found.',
-    api: 'Server Script API supported by this build', parameters: 'Parameters', result: 'Result', safety: 'Safety'
+    api: 'Server Script API supported by this build', parameters: 'Parameters', result: 'Result', safety: 'Safety', related: 'Related topics'
   },
   es: {
     title: 'Ayuda de EliteSCADA',
-    subtitle: 'Manual local y contextual',
+    subtitle: 'Ayuda local y contextual',
     language: 'Idioma',
     topics: 'Temas',
     loading: 'Cargando ayuda local...',
-    error: 'No fue posible cargar el manual local.',
+    error: 'No fue posible cargar la ayuda local.',
     empty: 'Tema de ayuda no encontrado.',
-    api: 'API de Server Script soportada en esta compilación', parameters: 'Parámetros', result: 'Resultado', safety: 'Seguridad'
+    api: 'API de Server Script soportada en esta compilación', parameters: 'Parámetros', result: 'Resultado', safety: 'Seguridad', related: 'Temas relacionados'
   }
 } as const;
 
@@ -91,10 +92,7 @@ export function ContextualHelpApp() {
 
   const selected = useMemo(() => {
     if (!catalog) return null;
-    if (requestedTopic) {
-      const match = catalog.topics.find(topic => topic.id === requestedTopic);
-      if (match) return match;
-    }
+    if (requestedTopic) return catalog.topics.find(topic => topic.id === requestedTopic) ?? null;
     return catalog.topics.find(topic => topic.id === 'runtime.overview') ?? catalog.topics[0] ?? null;
   }, [catalog, requestedTopic]);
 
@@ -155,6 +153,15 @@ export function ContextualHelpApp() {
                 {section.code ? <pre><code>{section.code}</code></pre> : null}
               </section>
             ))}
+            {selected.relatedTopicIds?.length ? <section>
+              <h3>{text.related}</h3>
+              <ul>
+                {selected.relatedTopicIds.map(topicId => {
+                  const related = catalog.topics.find(topic => topic.id === topicId);
+                  return related ? <li key={topicId}><a href={`/help?topic=${encodeURIComponent(topicId)}`}>{related.title}</a></li> : null;
+                })}
+              </ul>
+            </section> : null}
             {selected.id === 'scripts.server' ? <section>
               <h3>{text.api}</h3>
               {catalog.serverScriptApiDetails?.length ? <div className="help-page__script-api" data-testid="server-script-api-details">

@@ -10,7 +10,8 @@ public sealed record ContextualHelpTopic(
     string Category,
     string Title,
     string Summary,
-    IReadOnlyCollection<ContextualHelpSection> Sections);
+    IReadOnlyCollection<ContextualHelpSection> Sections,
+    IReadOnlyCollection<string>? RelatedTopicIds = null);
 
 public sealed record ContextualHelpScriptApi(
     string Name,
@@ -83,10 +84,30 @@ public static class ContextualHelpCatalog
         "recovery.backup-system-recovery",
         "diagnostics.overview",
         "troubleshooting.overview",
-        "libraries.reusable-resources"
+        "libraries.reusable-resources",
+        "getting-started.neutral-bootstrap",
+        "engineering.shell-navigation",
+        "drivers.overview",
+        "tags.copy-duplicate-sequential",
+        "visual.properties",
+        "visual.dynamics",
+        "visual.events",
+        "scripts.engineering",
+        "scripts.python-validation",
+        "engineering.object-browser",
+        "memory.client",
+        "security.scopes-authority",
+        "security.engineering-lock",
+        "licensing.generator",
+        "runtime.session-classes",
+        "application.export-import"
     };
 
-    private static readonly IReadOnlyCollection<TopicDefinition> ManualTopics = BuildManualTopics();
+    private static readonly IReadOnlyCollection<TopicDefinition> ManualTopics = BuildManualTopics()
+        .Concat(BuildPhase1TaskTopics())
+        .GroupBy(topic => topic.Id, StringComparer.Ordinal)
+        .Select(group => group.Last())
+        .ToArray();
 
     public static ContextualHelpCatalogView Build(string? requestedLocale)
     {
@@ -428,11 +449,255 @@ public static class ContextualHelpCatalog
             Tx("Troubleshooting", "Troubleshooting", "Troubleshooting"),
             Tx("Correção da causa genérica.", "Fixing the generic cause.", "Corrección de la causa genérica."),
             Tx(
-                "Reproduza o problema, identifique a camada que divergiu da autoridade canônica e corrija a causa. Não crie workaround de demo, não enfraqueça testes e não bypass Authority, Engineering Lock, licensing, lifecycle, packages ou Runtime. Em CI vermelho, diagnostique antes de rerun.",
-                "Reproduce the problem, identify the layer that diverged from canonical authority and fix the cause. Do not create demo workarounds, weaken tests, or bypass Authority, Engineering Lock, licensing, lifecycle, packages or Runtime. For red CI, diagnose before rerun.",
-                "Reproduzca el problema, identifique la capa que divergió de la autoridad canónica y corrija la causa. No cree workarounds de demo, debilite tests ni evite Authority, Engineering Lock, licensing, lifecycle, packages o Runtime. Con CI rojo, diagnostique antes de rerun.")),
+                "Reproduza o problema, identifique a primeira camada que divergiu do estado esperado e corrija a causa. Não contorne Authority, Engineering Lock, Licensing, lifecycle, packages ou Runtime. Registre a mensagem e o contexto antes de repetir a ação.",
+                "Reproduce the problem, identify the first layer that differs from the expected state, and fix the cause. Do not bypass Authority, Engineering Lock, Licensing, lifecycle, packages, or Runtime. Record the message and context before repeating the action.",
+                "Reproduzca el problema, identifique la primera capa que difiere del estado esperado y corrija la causa. No eluda Authority, Engineering Lock, Licensing, lifecycle, packages ni Runtime. Registre el mensaje y el contexto antes de repetir la acción.")),
 
         BuildReusableLibrariesTopic()
+    };
+
+
+    private static IReadOnlyCollection<TopicDefinition> BuildPhase1TaskTopics() => new[]
+    {
+        TaskGuide(
+            "engineering.lifecycle", "engineering",
+            Tx("Working, Save, Revision, Publish e Activate", "Working, Save, Revision, Publish and Activate", "Working, Save, Revision, Publish y Activate"),
+            Tx("Ciclo que leva uma edição de Working até a revisão executada no Runtime.", "Lifecycle that takes a Working edit to the revision executed by Runtime.", "Ciclo que lleva una edición de Working hasta la revisión ejecutada por Runtime."),
+            Tx("Use ao salvar trabalho, criar uma Revision, publicar ou ativar uma revisão.", "Use when saving work, creating a Revision, publishing, or activating a revision.", "Úselo al guardar trabajo, crear una Revision, publicar o activar una revisión."),
+            Tx("Tenha o projeto correto aberto, alterações de Working validadas e permissão para a transição desejada.", "Open the correct project, validate Working changes, and have permission for the intended transition.", "Abra el proyecto correcto, valide los cambios de Working y tenga permiso para la transición deseada."),
+            Tx("Edite em Working; use Save; crie a Revision; use Publish quando a revisão estiver pronta; use Activate somente quando ela deve assumir a operação.", "Edit in Working; use Save; create the Revision; use Publish when the revision is ready; use Activate only when it should take over operation.", "Edite en Working; use Save; cree la Revision; use Publish cuando la revisión esté lista; use Activate solo cuando deba asumir la operación."),
+            Tx("A alteração permanece em Working até as transições explícitas; Publish não ativa sozinho; Activate muda a revisão operacional.", "The change stays in Working until explicit transitions occur; Publish does not activate by itself; Activate changes the operational revision.", "El cambio permanece en Working hasta las transiciones explícitas; Publish no activa por sí solo; Activate cambia la revisión operativa."),
+            Tx("Ações desabilitadas, conflito de versão, validação pendente ou revisão diferente da esperada.", "Disabled actions, version conflict, pending validation, or a revision different from the expected one.", "Acciones deshabilitadas, conflicto de versión, validación pendiente o revisión diferente de la esperada."),
+            Tx("Confirme projeto e estado de Working, revise mensagens de validação e recarregue o estado antes de repetir uma transição rejeitada.", "Confirm the project and Working state, review validation messages, and reload state before repeating a rejected transition.", "Confirme el proyecto y el estado de Working, revise los mensajes de validación y recargue el estado antes de repetir una transición rechazada."),
+            "engineering.shell-navigation", "diagnostics.overview"),
+
+        TaskGuide(
+            "packages.escadapkg", "packages",
+            Tx("Pacotes .escadapkg", ".escadapkg packages", "Paquetes .escadapkg"),
+            Tx("Pacote portátil e autocontido de uma aplicação EliteSCADA.", "Portable self-contained package for an EliteSCADA application.", "Paquete portátil y autocontenido de una aplicación EliteSCADA."),
+            Tx("Use para transportar uma aplicação entre instalações ou manter um artefato de entrega.", "Use it to move an application between installations or keep a delivery artifact.", "Úselo para mover una aplicación entre instalaciones o conservar un artefacto de entrega."),
+            Tx("Tenha acesso de Engineering e preserve uma cópia segura do estado atual antes de aplicar um pacote em um projeto existente.", "Have Engineering access and keep a safe copy of the current state before applying a package to an existing project.", "Tenga acceso de Engineering y conserve una copia segura del estado actual antes de aplicar un paquete a un proyecto existente."),
+            Tx("Exporte quando precisar transportar; ao importar, inspecione o pacote, execute Preview e aplique somente se o resultado estiver correto.", "Export when portability is needed; on import, inspect the package, run Preview, and apply only when the result is correct.", "Exporte cuando necesite portabilidad; al importar, inspeccione el paquete, ejecute Preview y aplique solo si el resultado es correcto."),
+            Tx("O conteúdo validado entra no fluxo normal de Engineering; Apply não equivale a Activate.", "Validated content enters the normal Engineering flow; Apply is not Activate.", "El contenido validado entra en el flujo normal de Engineering; Apply no equivale a Activate."),
+            Tx("Pacote inválido, conflito com o projeto atual, referências ausentes ou Preview com erros.", "Invalid package, conflict with the current project, missing references, or Preview errors.", "Paquete inválido, conflicto con el proyecto actual, referencias ausentes o errores de Preview."),
+            Tx("Use Inspect e Preview para localizar o item rejeitado; corrija a origem ou a configuração do projeto antes de Apply.", "Use Inspect and Preview to locate the rejected item; fix the source or project configuration before Apply.", "Use Inspect y Preview para localizar el elemento rechazado; corrija el origen o la configuración del proyecto antes de Apply."),
+            "application.export-import", "engineering.lifecycle"),
+
+        TaskGuide(
+            "diagnostics.overview", "diagnostics",
+            Tx("Diagnostics", "Diagnostics", "Diagnostics"),
+            Tx("Ferramentas para localizar falhas por camada sem alterar a operação.", "Tools for locating failures by layer without changing operation.", "Herramientas para localizar fallas por capa sin alterar la operación."),
+            Tx("Use quando uma tela, TAG, Data Source, Driver, Script ou sessão não apresentar o resultado esperado.", "Use when a screen, TAG, Data Source, Driver, Script, or session does not show the expected result.", "Úselo cuando una pantalla, TAG, Data Source, Driver, Script o sesión no muestre el resultado esperado."),
+            Tx("Reproduza o problema e anote o recurso afetado, horário, usuário e ação que falhou.", "Reproduce the problem and note the affected resource, time, user, and failed action.", "Reproduzca el problema y anote el recurso afectado, la hora, el usuario y la acción fallida."),
+            Tx("Verifique sessão e permissões; depois Working/Active; Data Source e Driver; binding do TAG; quality/timestamp; por fim a apresentação. Use testes de conexão ou descoberta apenas quando disponíveis.", "Check session and permissions; then Working/Active; Data Source and Driver; TAG binding; quality/timestamp; finally presentation. Use connection tests or discovery only when available.", "Verifique sesión y permisos; después Working/Active; Data Source y Driver; binding del TAG; quality/timestamp; por último la presentación. Use pruebas de conexión o descubrimiento solo cuando estén disponibles."),
+            Tx("Você identifica a primeira camada que diverge do esperado e corrige a causa sem mascarar o erro.", "You identify the first layer that differs from the expected state and fix the cause without masking the error.", "Usted identifica la primera capa que difiere de lo esperado y corrige la causa sin ocultar el error."),
+            Tx("Permissão negada, fonte desconectada, configuração inválida, quality ruim, dado sem atualização ou estado de Working/Active diferente.", "Permission denied, disconnected source, invalid configuration, bad quality, stale data, or an unexpected Working/Active state.", "Permiso denegado, fuente desconectada, configuración inválida, quality deficiente, dato sin actualización o estado Working/Active inesperado."),
+            Tx("Comece pela mensagem mais próxima do usuário, confirme o estado no Diagnostics e avance para a fonte somente quando a camada anterior estiver correta.", "Start with the message closest to the user, confirm the state in Diagnostics, and move toward the source only after the previous layer is correct.", "Comience con el mensaje más cercano al usuario, confirme el estado en Diagnostics y avance hacia la fuente solo cuando la capa anterior esté correcta."),
+            "troubleshooting.overview", "sources.data-sources", "tags.overview"),
+
+        TaskGuide(
+            "recovery.backup-system-recovery", "recovery",
+            Tx("Backup e System Recovery", "Backup and System Recovery", "Backup y System Recovery"),
+            Tx("Fluxos protegidos para preservar e recuperar Application e Authority conforme o tipo de backup.", "Protected flows for preserving and recovering Application and Authority according to the backup type.", "Flujos protegidos para preservar y recuperar Application y Authority según el tipo de backup."),
+            Tx("Use antes de mudanças relevantes e quando precisar restaurar um estado previamente exportado pelo produto.", "Use before significant changes and when a state previously exported by the product must be restored.", "Úselo antes de cambios importantes y cuando deba restaurar un estado exportado previamente por el producto."),
+            Tx("Tenha acesso administrativo apropriado, o backup correto e a credencial de proteção quando o arquivo exigir.", "Have the appropriate administrative access, the correct backup, and the protection credential when the file requires it.", "Tenga el acceso administrativo adecuado, el backup correcto y la credencial de protección cuando el archivo la requiera."),
+            Tx("Crie ou selecione o backup pelo fluxo suportado; verifique o arquivo; execute a recuperação pelo produto; autentique novamente quando solicitado.", "Create or select the backup through the supported flow; verify the file; run recovery through the product; authenticate again when requested.", "Cree o seleccione el backup mediante el flujo soportado; verifique el archivo; ejecute la recuperación desde el producto; autentíquese nuevamente cuando se solicite."),
+            Tx("O estado é substituído de forma controlada e sessões antigas não ganham autoridade sobre o estado restaurado.", "State is replaced in a controlled way and old sessions do not gain authority over the restored state.", "El estado se reemplaza de forma controlada y las sesiones antiguas no obtienen autoridad sobre el estado restaurado."),
+            Tx("Arquivo incorreto, proteção inválida, backup corrompido ou tentativa de restaurar dados incompatíveis.", "Wrong file, invalid protection credential, corrupted backup, or an attempt to restore incompatible data.", "Archivo incorrecto, credencial de protección inválida, backup corrupto o intento de restaurar datos incompatibles."),
+            Tx("Interrompa a recuperação quando houver rejeição; confirme origem e tipo do backup e não edite stores, tokens ou material de assinatura manualmente.", "Stop recovery when it is rejected; confirm the backup source and type and do not manually edit stores, tokens, or signing material.", "Detenga la recuperación cuando sea rechazada; confirme el origen y el tipo del backup y no edite manualmente stores, tokens ni material de firma."),
+            "application.export-import", "security.users-roles-capabilities"),
+
+        TaskGuide(
+            "getting-started.neutral-bootstrap", "getting-started",
+            Tx("Inicialização neutra", "Neutral bootstrap", "Inicialización neutral"),
+            Tx("Estado inicial em que nenhuma aplicação é assumida automaticamente.", "Initial state where no application is assumed automatically.", "Estado inicial en el que no se asume automáticamente ninguna aplicación."),
+            Tx("Use quando o produto iniciar sem uma aplicação selecionada e oferecer criação, importação ou recuperação.", "Use when the product starts without a selected application and offers create, import, or recovery.", "Úselo cuando el producto inicie sin una aplicación seleccionada y ofrezca crear, importar o recuperar."),
+            Tx("Conclua autenticação ou bootstrap administrativo quando solicitado.", "Complete authentication or administrative bootstrap when requested.", "Complete la autenticación o el bootstrap administrativo cuando se solicite."),
+            Tx("Escolha a opção apresentada pelo produto: criar um projeto, importar uma aplicação ou recuperar um backup válido.", "Choose the option presented by the product: create a project, import an application, or recover a valid backup.", "Elija la opción presentada por el producto: crear un proyecto, importar una aplicación o recuperar un backup válido."),
+            Tx("Um Working explícito passa a existir; nada é tratado como Active sem a transição de lifecycle correspondente.", "An explicit Working state is created; nothing is treated as Active without the corresponding lifecycle transition.", "Se crea un estado Working explícito; nada se trata como Active sin la transición de lifecycle correspondiente."),
+            Tx("Opções ausentes, autenticação pendente ou artefato de importação/recuperação rejeitado.", "Missing options, pending authentication, or a rejected import/recovery artifact.", "Opciones ausentes, autenticación pendiente o artefacto de importación/recuperación rechazado."),
+            Tx("Confirme autenticação, permissões e saúde do serviço; valide o arquivo pela própria tela antes de tentar novamente.", "Confirm authentication, permissions, and service health; validate the file through the product screen before trying again.", "Confirme autenticación, permisos y salud del servicio; valide el archivo desde la propia pantalla antes de intentarlo nuevamente."),
+            "getting-started.startup-authentication", "engineering.lifecycle", "application.export-import"),
+
+        TaskGuide(
+            "engineering.shell-navigation", "engineering",
+            Tx("Área de Engineering", "Engineering workspace", "Área de Engineering"),
+            Tx("Área para navegar pelas tarefas de configuração, edição, segurança e diagnóstico do projeto.", "Workspace for navigating project configuration, editing, security, and diagnostic tasks.", "Área para navegar por tareas de configuración, edición, seguridad y diagnóstico del proyecto."),
+            Tx("Use durante configuração e manutenção do projeto.", "Use during project configuration and maintenance.", "Úsela durante la configuración y el mantenimiento del proyecto."),
+            Tx("Tenha uma sessão com acesso de Engineering e o projeto correto aberto.", "Have an Engineering-enabled session and the correct project open.", "Tenga una sesión con acceso de Engineering y el proyecto correcto abierto."),
+            Tx("Escolha a seção no menu; confira projeto e estado do Workspace no cabeçalho; execute a tarefa na área central; salve ou aplique somente quando a tela indicar.", "Choose a section in the menu; verify project and Workspace state in the header; perform the task in the main area; save or apply only when the screen indicates.", "Elija una sección en el menú; verifique proyecto y estado del Workspace en el encabezado; realice la tarea en el área central; guarde o aplique solo cuando la pantalla lo indique."),
+            Tx("A seção selecionada mostra dados e ações do projeto sem mudar silenciosamente o lifecycle.", "The selected section shows project data and actions without silently changing lifecycle state.", "La sección seleccionada muestra datos y acciones del proyecto sin cambiar silenciosamente el lifecycle."),
+            Tx("Seção indisponível, dados não carregados ou ação bloqueada por permissão/Engineering Lock.", "Unavailable section, unloaded data, or an action blocked by permission/Engineering Lock.", "Sección no disponible, datos no cargados o acción bloqueada por permiso/Engineering Lock."),
+            Tx("Confirme a sessão, o projeto e o estado do Engineering Lock; use Diagnostics para falhas de carregamento.", "Confirm the session, project, and Engineering Lock state; use Diagnostics for loading failures.", "Confirme la sesión, el proyecto y el estado de Engineering Lock; use Diagnostics para fallas de carga."),
+            "engineering.lifecycle", "diagnostics.overview"),
+
+        TaskGuide(
+            "drivers.overview", "drivers",
+            Tx("Drivers de comunicação", "Communication Drivers", "Drivers de comunicación"),
+            Tx("Integrações industriais que conectam Data Sources a protocolos e equipamentos suportados.", "Industrial integrations that connect Data Sources to supported protocols and equipment.", "Integraciones industriales que conectan Data Sources con protocolos y equipos soportados."),
+            Tx("Use ao criar uma Data Source que se comunica com equipamento ou software externo.", "Use when creating a Data Source that communicates with external equipment or software.", "Úselos al crear una Data Source que se comunica con equipos o software externo."),
+            Tx("Conheça o protocolo, endpoint e parâmetros exigidos pelo equipamento e tenha acesso de Engineering.", "Know the protocol, endpoint, and parameters required by the equipment and have Engineering access.", "Conozca el protocolo, endpoint y parámetros requeridos por el equipo y tenga acceso de Engineering."),
+            Tx("Escolha o Driver pelo catálogo; preencha somente os campos mostrados; salve; use Connection Test, Discovery, Browse, Import ou Reconcile apenas quando a tela disponibilizar.", "Choose the Driver from the catalog; fill only the fields shown; save; use Connection Test, Discovery, Browse, Import, or Reconcile only when the screen provides it.", "Elija el Driver del catálogo; complete solo los campos mostrados; guarde; use Connection Test, Discovery, Browse, Import o Reconcile solo cuando la pantalla lo ofrezca."),
+            Tx("A Data Source fica configurada e os TAGs podem usar o binding oferecido pelo Driver.", "The Data Source is configured and TAGs can use the binding offered by the Driver.", "La Data Source queda configurada y los TAGs pueden usar el binding ofrecido por el Driver."),
+            Tx("Endpoint inacessível, credencial/certificado inválido, campo obrigatório ausente ou binding incompatível.", "Unreachable endpoint, invalid credential/certificate, missing required field, or incompatible binding.", "Endpoint inaccesible, credencial/certificado inválido, campo obligatorio ausente o binding incompatible."),
+            Tx("Abra o tópico específico do Driver e siga seus campos, capacidades e diagnóstico; não copie sintaxe de outro protocolo.", "Open the Driver-specific topic and follow its fields, capabilities, and diagnostics; do not copy syntax from another protocol.", "Abra el tema específico del Driver y siga sus campos, capacidades y diagnóstico; no copie sintaxis de otro protocolo."),
+            "sources.data-sources", "tags.addressing", "diagnostics.overview"),
+
+        TaskGuide(
+            "tags.copy-duplicate-sequential", "tags",
+            Tx("Copiar, colar, duplicar e gerar TAGs em sequência", "Copy, paste, duplicate, and generate sequential TAGs", "Copiar, pegar, duplicar y generar TAGs en secuencia"),
+            Tx("Ferramentas para criar novos TAGs a partir de configuração existente sem copiar estado de Runtime.", "Tools for creating new TAGs from existing configuration without copying Runtime state.", "Herramientas para crear nuevos TAGs desde configuración existente sin copiar estado de Runtime."),
+            Tx("Use para repetir configurações semelhantes ou criar uma sequência Modbus.", "Use to repeat similar configurations or create a Modbus sequence.", "Úselas para repetir configuraciones similares o crear una secuencia Modbus."),
+            Tx("Selecione um ou mais TAGs; para sequência, selecione exatamente um TAG ligado a uma Data Source Modbus TCP.", "Select one or more TAGs; for a sequence, select exactly one TAG bound to a Modbus TCP Data Source.", "Seleccione uno o más TAGs; para una secuencia, seleccione exactamente un TAG ligado a una Data Source Modbus TCP."),
+            Tx("Use Copiar/Colar ou Duplicar; para sequência, defina quantidade e padrões; revise nomes, paths e endereços gerados; execute Preview; corrija colisões; use Apply somente após Preview válido.", "Use Copy/Paste or Duplicate; for a sequence, set count and patterns; review generated names, paths, and addresses; run Preview; fix collisions; use Apply only after a valid Preview.", "Use Copiar/Pegar o Duplicar; para secuencia, defina cantidad y patrones; revise nombres, paths y direcciones generadas; ejecute Preview; corrija colisiones; use Apply solo después de un Preview válido."),
+            Tx("Cada novo TAG recebe identidade própria; o TAG original permanece intacto; Runtime value, quality, timestamp, histórico, alarmes e diagnósticos não são copiados.", "Each new TAG receives its own identity; the original TAG remains unchanged; Runtime value, quality, timestamp, history, alarms, and diagnostics are not copied.", "Cada TAG nuevo recibe identidad propia; el TAG original permanece intacto; Runtime value, quality, timestamp, histórico, alarmas y diagnósticos no se copian."),
+            Tx("Seleção vazia, clipboard vazio, sequência em Driver não Modbus, path/nome/endereço duplicado ou Workspace alterado depois do Preview.", "Empty selection, empty clipboard, sequence on a non-Modbus Driver, duplicate path/name/address, or Workspace changed after Preview.", "Selección vacía, clipboard vacío, secuencia en Driver no Modbus, path/nombre/dirección duplicado o Workspace cambiado después del Preview."),
+            Tx("Corrija as colisões mostradas, gere novamente quando o Workspace mudar e repita Preview antes de Apply.", "Fix the reported collisions, regenerate when the Workspace changes, and repeat Preview before Apply.", "Corrija las colisiones mostradas, genere nuevamente cuando cambie el Workspace y repita Preview antes de Apply."),
+            "tags.overview", "tags.addressing", "sources.data-sources"),
+
+        TaskGuide(
+            "visual.properties", "visual",
+            Tx("Propriedades visuais", "Visual properties", "Propiedades visuales"),
+            Tx("Valores editáveis que controlam aparência, posição, tamanho e comportamento suportado de um objeto visual.", "Editable values that control the supported appearance, position, size, and behavior of a visual object.", "Valores editables que controlan apariencia, posición, tamaño y comportamiento soportado de un objeto visual."),
+            Tx("Use ao configurar um objeto selecionado no Editor de Tela ou Editor de Popup.", "Use when configuring a selected object in the Screen Editor or Popup Editor.", "Úselas al configurar un objeto seleccionado en el Editor de Pantalla o Editor de Popup."),
+            Tx("Selecione um objeto e mantenha o Working atual sem conflito.", "Select an object and keep the current Working state free of conflicts.", "Seleccione un objeto y mantenga el estado Working actual sin conflictos."),
+            Tx("Selecione o objeto; altere somente propriedades disponíveis; revise o resultado na área de edição; salve a alteração.", "Select the object; change only available properties; review the result in the editing area; save the change.", "Seleccione el objeto; cambie solo propiedades disponibles; revise el resultado en el área de edición; guarde el cambio."),
+            Tx("A propriedade é persistida no objeto selecionado e reaparece ao reabrir o Working.", "The property is persisted on the selected object and reappears when Working is reopened.", "La propiedad se persiste en el objeto seleccionado y reaparece al reabrir Working."),
+            Tx("Campo desabilitado, valor inválido, seleção perdida ou alteração que não aparece após reabrir.", "Disabled field, invalid value, lost selection, or a change that does not appear after reopening.", "Campo deshabilitado, valor inválido, selección perdida o cambio que no aparece después de reabrir."),
+            Tx("Confirme o objeto selecionado, corrija validações do campo e verifique se a alteração foi salva no Working correto.", "Confirm the selected object, fix field validation errors, and verify the change was saved in the correct Working state.", "Confirme el objeto seleccionado, corrija errores de validación del campo y verifique que el cambio se guardó en el Working correcto."),
+            "screens.overview", "popups.overview", "visual.dynamics"),
+
+        TaskGuide(
+            "visual.dynamics", "visual",
+            Tx("Dynamics", "Dynamics", "Dynamics"),
+            Tx("Regras que ligam dados do projeto a propriedades visuais suportadas.", "Rules that connect project data to supported visual properties.", "Reglas que conectan datos del proyecto con propiedades visuales soportadas."),
+            Tx("Use quando aparência ou comportamento visual deve responder a TAGs, Client Memory ou expressões suportadas.", "Use when visual appearance or behavior must respond to TAGs, Client Memory, or supported expressions.", "Úselas cuando la apariencia o el comportamiento visual deba responder a TAGs, Client Memory o expresiones soportadas."),
+            Tx("Tenha o objeto visual, a propriedade de destino e a referência de dados disponíveis no projeto.", "Have the visual object, target property, and data reference available in the project.", "Tenga el objeto visual, la propiedad de destino y la referencia de datos disponibles en el proyecto."),
+            Tx("Escolha a propriedade; adicione a Dynamic; selecione a referência; configure a transformação permitida; valide e salve.", "Choose the property; add the Dynamic; select the reference; configure the allowed transformation; validate and save.", "Elija la propiedad; agregue la Dynamic; seleccione la referencia; configure la transformación permitida; valide y guarde."),
+            Tx("No Runtime, a propriedade acompanha o valor de entrada conforme a regra configurada.", "In Runtime, the property follows the input value according to the configured rule.", "En Runtime, la propiedad sigue el valor de entrada según la regla configurada."),
+            Tx("Referência ausente, tipo incompatível, expressão inválida ou quality de entrada inadequada.", "Missing reference, incompatible type, invalid expression, or unsuitable input quality.", "Referencia ausente, tipo incompatible, expresión inválida o quality de entrada inadecuada."),
+            Tx("Verifique a referência no Object Browser, confira tipo/quality e reduza a regra até identificar a parte inválida.", "Verify the reference in the Object Browser, check type/quality, and simplify the rule until the invalid part is identified.", "Verifique la referencia en el Object Browser, compruebe tipo/quality y simplifique la regla hasta identificar la parte inválida."),
+            "visual.properties", "engineering.object-browser", "tags.quality"),
+
+        TaskGuide(
+            "visual.events", "visual",
+            Tx("Eventos visuais", "Visual events", "Eventos visuales"),
+            Tx("Ações configuradas para eventos suportados de objetos no Editor de Tela e Editor de Popup.", "Actions configured for supported object events in the Screen Editor and Popup Editor.", "Acciones configuradas para eventos soportados de objetos en el Editor de Pantalla y Editor de Popup."),
+            Tx("Use quando uma interação do usuário deve executar navegação, popup, comando ou Script suportado.", "Use when a user interaction must run supported navigation, popup, command, or Script behavior.", "Úselos cuando una interacción del usuario deba ejecutar navegación, popup, comando o Script soportado."),
+            Tx("Selecione um objeto que ofereça o evento e tenha o destino/ação já existente no projeto.", "Select an object that offers the event and have the destination/action already available in the project.", "Seleccione un objeto que ofrezca el evento y tenga el destino/acción ya disponible en el proyecto."),
+            Tx("Escolha o evento; selecione a ação suportada; configure o destino; valide referências; salve e teste no Runtime apropriado.", "Choose the event; select the supported action; configure the target; validate references; save and test in the appropriate Runtime.", "Elija el evento; seleccione la acción soportada; configure el destino; valide referencias; guarde y pruebe en el Runtime apropiado."),
+            Tx("A interação executa somente a ação configurada e continua sujeita às permissões da sessão.", "The interaction runs only the configured action and remains subject to session permissions.", "La interacción ejecuta solo la acción configurada y sigue sujeta a los permisos de la sesión."),
+            Tx("Evento sem destino, referência removida, ação não suportada ou comando bloqueado por permissão.", "Event without a target, removed reference, unsupported action, or command blocked by permission.", "Evento sin destino, referencia eliminada, acción no soportada o comando bloqueado por permiso."),
+            Tx("Confirme o evento no objeto, revalide o destino e use Diagnostics/Audit para ações rejeitadas.", "Confirm the event on the object, revalidate the target, and use Diagnostics/Audit for rejected actions.", "Confirme el evento en el objeto, revalide el destino y use Diagnostics/Audit para acciones rechazadas."),
+            "bindings-commands.overview", "scripts.engineering", "audit.overview"),
+
+        TaskGuide(
+            "scripts.engineering", "scripts",
+            Tx("Editor de Scripts", "Script Editor", "Editor de Scripts"),
+            Tx("Área de Engineering para criar, revisar e configurar Scripts e seus eventos.", "Engineering area for creating, reviewing, and configuring Scripts and their events.", "Área de Engineering para crear, revisar y configurar Scripts y sus eventos."),
+            Tx("Use para editar Script Server ou Client conforme as opções disponibilizadas pelo produto.", "Use to edit Server or Client Script according to the options provided by the product.", "Úselo para editar Script Server o Client según las opciones ofrecidas por el producto."),
+            Tx("Tenha permissão de Engineering, escolha o Script correto e configure trigger/evento e dependências exigidas.", "Have Engineering permission, choose the correct Script, and configure the required trigger/event and dependencies.", "Tenga permiso de Engineering, elija el Script correcto y configure el trigger/evento y las dependencias requeridas."),
+            Tx("Selecione o Script; configure escopo e evento; edite no Editor de código; use validação/diagnósticos; revise referências; salve e siga o lifecycle.", "Select the Script; configure scope and event; edit in the code editor; use validation/diagnostics; review references; save and follow lifecycle.", "Seleccione el Script; configure scope y evento; edite en el Editor de código; use validación/diagnósticos; revise referencias; guarde y siga el lifecycle."),
+            Tx("O Script salvo permanece associado ao Working e só participa da operação quando o lifecycle correspondente permitir.", "The saved Script remains associated with Working and only participates in operation when the corresponding lifecycle allows it.", "El Script guardado permanece asociado a Working y solo participa en operación cuando el lifecycle correspondiente lo permite."),
+            Tx("Erro de sintaxe, trigger incompleto, referência ausente, API não disponível ou execução bloqueada.", "Syntax error, incomplete trigger, missing reference, unavailable API, or blocked execution.", "Error de sintaxis, trigger incompleto, referencia ausente, API no disponible o ejecución bloqueada."),
+            Tx("Use os diagnósticos do editor, confira trigger e dependências e abra a referência de API correspondente antes de alterar a lógica.", "Use editor diagnostics, check trigger and dependencies, and open the corresponding API reference before changing logic.", "Use los diagnósticos del editor, compruebe trigger y dependencias y abra la referencia de API correspondiente antes de cambiar la lógica."),
+            "scripts.python-validation", "engineering.object-browser", "scripts.server"),
+
+        TaskGuide(
+            "scripts.python-validation", "scripts",
+            Tx("Validação e diagnósticos Python", "Python validation and diagnostics", "Validación y diagnósticos de Python"),
+            Tx("Feedback de edição que detecta problemas de sintaxe, referência e uso de APIs suportadas antes do lifecycle operacional.", "Editing feedback that detects syntax, reference, and supported-API problems before the operational lifecycle.", "Feedback de edición que detecta problemas de sintaxis, referencia y uso de APIs soportadas antes del lifecycle operacional."),
+            Tx("Use antes de salvar/aplicar um Script e sempre que o editor indicar diagnóstico.", "Use before saving/applying a Script and whenever the editor reports a diagnostic.", "Úselo antes de guardar/aplicar un Script y siempre que el editor muestre un diagnóstico."),
+            Tx("Abra o Script no Editor de código e mantenha as referências do projeto disponíveis.", "Open the Script in the code editor and keep project references available.", "Abra el Script en el Editor de código y mantenga disponibles las referencias del proyecto."),
+            Tx("Execute a validação disponível; leia cada diagnóstico; navegue até a linha/referência; corrija; valide novamente antes de salvar.", "Run the available validation; read each diagnostic; navigate to the line/reference; fix it; validate again before saving.", "Ejecute la validación disponible; lea cada diagnóstico; vaya a la línea/referencia; corríjalo; valide nuevamente antes de guardar."),
+            Tx("O editor fica sem erros bloqueantes conhecidos e o Script pode seguir para o fluxo normal de Engineering.", "The editor has no known blocking errors and the Script can continue through the normal Engineering flow.", "El editor queda sin errores bloqueantes conocidos y el Script puede seguir el flujo normal de Engineering."),
+            Tx("Sintaxe inválida, nome não resolvido, referência removida ou função fora da API suportada.", "Invalid syntax, unresolved name, removed reference, or a function outside the supported API.", "Sintaxis inválida, nombre no resuelto, referencia eliminada o función fuera de la API soportada."),
+            Tx("Corrija o primeiro diagnóstico relevante, valide de novo e use Object Browser/referência de API para confirmar identificadores.", "Fix the first relevant diagnostic, validate again, and use the Object Browser/API reference to confirm identifiers.", "Corrija el primer diagnóstico relevante, valide de nuevo y use Object Browser/referencia de API para confirmar identificadores."),
+            "scripts.engineering", "engineering.object-browser", "scripts.server"),
+
+        TaskGuide(
+            "engineering.object-browser", "engineering",
+            Tx("Object Browser e autoria guiada", "Object Browser and guided authoring", "Object Browser y autoría guiada"),
+            Tx("Navegação por objetos e referências existentes para inserir identificadores válidos sem digitação por tentativa.", "Navigation through existing objects and references so valid identifiers can be inserted without guesswork.", "Navegación por objetos y referencias existentes para insertar identificadores válidos sin escribir por prueba y error."),
+            Tx("Use ao configurar bindings, Dynamics, eventos ou Scripts que precisam referenciar recursos do projeto.", "Use when configuring bindings, Dynamics, events, or Scripts that need project references.", "Úselo al configurar bindings, Dynamics, eventos o Scripts que necesitan referencias del proyecto."),
+            Tx("Tenha o projeto carregado e o recurso de destino selecionado.", "Have the project loaded and the target resource selected.", "Tenga el proyecto cargado y el recurso de destino seleccionado."),
+            Tx("Abra o browser; filtre ou expanda a Structure; escolha o objeto/propriedade; insira a referência pela ação guiada; valide antes de salvar.", "Open the browser; filter or expand the Structure; choose the object/property; insert the reference through the guided action; validate before saving.", "Abra el browser; filtre o expanda la Estructura; elija el objeto/propiedad; inserte la referencia mediante la acción guiada; valide antes de guardar."),
+            Tx("A referência inserida corresponde a um objeto real do Working atual.", "The inserted reference corresponds to a real object in the current Working state.", "La referencia insertada corresponde a un objeto real del Working actual."),
+            Tx("Objeto não aparece, filtro oculta o item, referência ficou obsoleta após renomear/remover ou contexto errado foi selecionado.", "Object not shown, filter hides the item, reference became stale after rename/removal, or the wrong context was selected.", "Objeto no visible, filtro oculta el elemento, referencia quedó obsoleta tras renombrar/eliminar o se seleccionó el contexto incorrecto."),
+            Tx("Limpe filtros, confirme o Working e reinsira a referência a partir do browser em vez de editar o identificador por tentativa.", "Clear filters, confirm Working, and reinsert the reference from the browser instead of editing the identifier by guesswork.", "Limpie filtros, confirme Working y vuelva a insertar la referencia desde el browser en lugar de editar el identificador por prueba."),
+            "visual.dynamics", "scripts.engineering"),
+
+        TaskGuide(
+            "memory.client", "memory",
+            Tx("Client Memory", "Client Memory", "Client Memory"),
+            Tx("Memória não retentiva pertencente à sessão/cliente Runtime para estado local suportado.", "Non-retentive memory owned by the Runtime client/session for supported local state.", "Memoria no retentiva perteneciente a la sesión/cliente Runtime para estado local soportado."),
+            Tx("Use para estado local de interface que não precisa sobreviver como dado retentivo do servidor.", "Use for local interface state that does not need to survive as retentive server data.", "Úsela para estado local de interfaz que no necesita persistir como dato retentivo del servidor."),
+            Tx("Confirme que o dado é realmente local ao cliente e não é um valor de processo que precisa de Server Memory/TAG.", "Confirm the data is truly client-local and not a process value that requires Server Memory/TAG.", "Confirme que el dato sea realmente local al cliente y no un valor de proceso que requiera Server Memory/TAG."),
+            Tx("Crie/configure a referência Client Memory pela superfície oferecida; use-a em bindings/expressões suportados; teste reinício/reconexão de acordo com a necessidade.", "Create/configure the Client Memory reference through the provided surface; use it in supported bindings/expressions; test restart/reconnect behavior as needed.", "Cree/configure la referencia Client Memory desde la superficie ofrecida; úsela en bindings/expresiones soportados; pruebe reinicio/reconexión según sea necesario."),
+            Tx("O valor existe somente no contexto do cliente e pode ser perdido quando esse contexto termina.", "The value exists only in the client context and may be lost when that context ends.", "El valor existe solo en el contexto del cliente y puede perderse cuando ese contexto termina."),
+            Tx("Expectativa incorreta de retenção, referência inexistente ou uso de Client Memory para dado que deveria ser compartilhado.", "Incorrect retention expectation, missing reference, or use of Client Memory for data that should be shared.", "Expectativa incorrecta de retención, referencia inexistente o uso de Client Memory para dato que debería compartirse."),
+            Tx("Reavalie se o estado deve ser local ou retentivo; para estado compartilhado, use o recurso de servidor apropriado.", "Reassess whether the state should be local or retentive; for shared state, use the appropriate server resource.", "Reevalúe si el estado debe ser local o retentivo; para estado compartido, use el recurso de servidor adecuado."),
+            "sources.internal-memory", "bindings-commands.overview"),
+
+        TaskGuide(
+            "security.scopes-authority", "security",
+            Tx("Scopes e Authority", "Scopes and Authority", "Scopes y Authority"),
+            Tx("Regras que combinam identidade, roles, capabilities e escopo para determinar o que uma sessão pode fazer.", "Rules that combine identity, roles, capabilities, and scope to determine what a session can do.", "Reglas que combinan identidad, roles, capabilities y scope para determinar lo que una sesión puede hacer."),
+            Tx("Use ao revisar por que um usuário pode ou não executar uma ação em parte do sistema.", "Use when reviewing why a user can or cannot perform an action in part of the system.", "Úselo al revisar por qué un usuario puede o no realizar una acción en una parte del sistema."),
+            Tx("Tenha acesso administrativo autorizado e identifique o usuário, roles e recurso em questão.", "Have authorized administrative access and identify the user, roles, and resource in question.", "Tenga acceso administrativo autorizado e identifique el usuario, roles y recurso en cuestión."),
+            Tx("Revise as roles atribuídas; confira capabilities; verifique o scope/hierarquia; consulte a permissão efetiva; ajuste somente por fluxo administrativo suportado.", "Review assigned roles; check capabilities; verify scope/hierarchy; inspect effective permission; adjust only through the supported administration flow.", "Revise roles asignadas; compruebe capabilities; verifique scope/jerarquía; consulte el permiso efectivo; ajuste solo mediante el flujo administrativo soportado."),
+            Tx("A permissão efetiva reflete a combinação configurada e a ação continua sendo validada pelo serviço.", "Effective permission reflects the configured combination and the action continues to be validated by the service.", "El permiso efectivo refleja la combinación configurada y la acción sigue siendo validada por el servicio."),
+            Tx("Role atribuída sem capability necessária, scope que não inclui o recurso ou sessão antiga após mudança administrativa.", "Assigned role without the required capability, scope that does not include the resource, or an old session after an administrative change.", "Role asignada sin la capability necesaria, scope que no incluye el recurso o sesión antigua después de un cambio administrativo."),
+            Tx("Use a visão de permissão efetiva e Audit; não tente contornar a restrição alterando a UI.", "Use the effective-permission view and Audit; do not try to bypass the restriction by changing the UI.", "Use la vista de permiso efectivo y Audit; no intente eludir la restricción cambiando la UI."),
+            "security.users-roles-capabilities", "security.engineering-lock", "audit.overview"),
+
+        TaskGuide(
+            "security.engineering-lock", "security",
+            Tx("Engineering Lock", "Engineering Lock", "Engineering Lock"),
+            Tx("Proteção que controla quando alterações de Engineering são permitidas.", "Protection that controls when Engineering changes are allowed.", "Protección que controla cuándo se permiten cambios de Engineering."),
+            Tx("Use ao abrir uma sessão de edição protegida ou ao diagnosticar ações de Engineering bloqueadas.", "Use when opening a protected editing session or diagnosing blocked Engineering actions.", "Úselo al abrir una sesión de edición protegida o diagnosticar acciones de Engineering bloqueadas."),
+            Tx("Tenha identidade autorizada e a credencial/fluxo exigido pela configuração do produto.", "Have an authorized identity and the credential/flow required by product configuration.", "Tenga una identidad autorizada y la credencial/flujo exigido por la configuración del producto."),
+            Tx("Confira o estado do Lock; desbloqueie somente pelo controle fornecido; execute a tarefa; encerre/renove o estado conforme a política apresentada.", "Check Lock state; unlock only through the provided control; perform the task; end/renew the state according to the displayed policy.", "Compruebe el estado del Lock; desbloquee solo mediante el control proporcionado; realice la tarea; cierre/renueve el estado según la política mostrada."),
+            Tx("A edição fica disponível apenas durante o estado autorizado e ações protegidas continuam sujeitas às permissões da sessão.", "Editing is available only during the authorized state and protected actions remain subject to session permissions.", "La edición está disponible solo durante el estado autorizado y las acciones protegidas siguen sujetas a los permisos de la sesión."),
+            Tx("Lock ativo, credencial rejeitada, sessão expirada ou usuário sem capability necessária.", "Active Lock, rejected credential, expired session, or user without the required capability.", "Lock activo, credencial rechazada, sesión expirada o usuario sin la capability necesaria."),
+            Tx("Confirme identidade, estado do Lock e permissão efetiva; não edite arquivos/stores para contornar o bloqueio.", "Confirm identity, Lock state, and effective permission; do not edit files/stores to bypass the protection.", "Confirme identidad, estado del Lock y permiso efectivo; no edite archivos/stores para eludir la protección."),
+            "security.scopes-authority", "engineering.shell-navigation"),
+
+        TaskGuide(
+            "licensing.generator", "licensing",
+            Tx("License Generator", "License Generator", "License Generator"),
+            Tx("Ferramenta administrativa para criar artefatos de licença a partir de entitlements configurados.", "Administrative tool for creating license artifacts from configured entitlements.", "Herramienta administrativa para crear artefactos de licencia desde entitlements configurados."),
+            Tx("Use somente em fluxo administrativo autorizado para emitir uma licença destinada à instalação correta.", "Use only in an authorized administrative flow to issue a license for the correct installation.", "Úselo solo en un flujo administrativo autorizado para emitir una licencia para la instalación correcta."),
+            Tx("Tenha os dados de licença aprovados e acesso ao ambiente protegido de emissão; material privado de assinatura não deve ser copiado para a aplicação.", "Have approved license data and access to the protected issuing environment; private signing material must not be copied into the application.", "Tenga los datos de licencia aprobados y acceso al entorno protegido de emisión; el material privado de firma no debe copiarse a la aplicación."),
+            Tx("Preencha identidade/validade/limites e entitlements exibidos; valide os dados; gere o artefato; transfira somente o arquivo final pelo processo autorizado.", "Fill in the displayed identity/validity/limits and entitlements; validate the data; generate the artifact; transfer only the final file through the authorized process.", "Complete identidad/validez/límites y entitlements mostrados; valide los datos; genere el artefacto; transfiera solo el archivo final mediante el proceso autorizado."),
+            Tx("O artefato pode ser inspecionado/instalado pelo fluxo de Licensing sem expor segredo de assinatura.", "The artifact can be inspected/installed through Licensing without exposing signing secrets.", "El artefacto puede inspeccionarse/instalarse mediante Licensing sin exponer secretos de firma."),
+            Tx("Campo obrigatório ausente, entitlement incompatível, validade incorreta ou artefato rejeitado na inspeção.", "Missing required field, incompatible entitlement, incorrect validity, or artifact rejected during inspection.", "Campo obligatorio ausente, entitlement incompatible, validez incorrecta o artefacto rechazado en la inspección."),
+            Tx("Corrija os dados de emissão e gere um novo artefato; nunca copie chaves privadas, tokens ou segredos para o Help ou para o projeto.", "Correct issuance data and generate a new artifact; never copy private keys, tokens, or secrets into Help or the project.", "Corrija los datos de emisión y genere un nuevo artefacto; nunca copie claves privadas, tokens ni secretos en Help o en el proyecto."),
+            "licensing.overview", "runtime.session-classes"),
+
+        TaskGuide(
+            "runtime.session-classes", "runtime",
+            Tx("Runtime Interactive e View Only", "Runtime Interactive and View Only", "Runtime Interactive y View Only"),
+            Tx("Classes de sessão que definem o teto de interação permitido para uma sessão Runtime.", "Session classes that define the maximum interaction allowed for a Runtime session.", "Clases de sesión que definen el máximo de interacción permitido para una sesión Runtime."),
+            Tx("Use ao entender por que uma sessão permite interação ou fica somente para visualização.", "Use when understanding why a session allows interaction or is limited to viewing.", "Úselo para entender por qué una sesión permite interacción o queda limitada a visualización."),
+            Tx("Entre com identidade válida; a classe concedida depende de disponibilidade de licença e permissões efetivas.", "Sign in with a valid identity; the granted class depends on license availability and effective permissions.", "Ingrese con una identidad válida; la clase concedida depende de disponibilidad de licencia y permisos efectivos."),
+            Tx("Solicite a sessão pelo fluxo normal; confira a classe concedida; em View Only, use apenas visualização; para ações interativas, obtenha uma sessão Interactive autorizada.", "Request the session through the normal flow; check the granted class; in View Only, use viewing only; for interactive actions, obtain an authorized Interactive session.", "Solicite la sesión mediante el flujo normal; compruebe la clase concedida; en View Only, use solo visualización; para acciones interactivas, obtenga una sesión Interactive autorizada."),
+            Tx("A UI e o serviço refletem a classe concedida; View Only não realiza comandos ou escritas operacionais.", "The UI and service reflect the granted class; View Only does not perform operational commands or writes.", "La UI y el servicio reflejan la clase concedida; View Only no realiza comandos ni escrituras operacionales."),
+            Tx("Fallback para View Only, sessão expirada, limite Interactive atingido ou permissão insuficiente.", "Fallback to View Only, expired session, Interactive limit reached, or insufficient permission.", "Fallback a View Only, sesión expirada, límite Interactive alcanzado o permiso insuficiente."),
+            Tx("Confira status de Licensing e a permissão efetiva do usuário; renove a sessão quando necessário.", "Check Licensing status and the user's effective permission; renew the session when needed.", "Compruebe el estado de Licensing y el permiso efectivo del usuario; renueve la sesión cuando sea necesario."),
+            "licensing.overview", "security.scopes-authority", "runtime.overview"),
+
+        TaskGuide(
+            "application.export-import", "application",
+            Tx("Exportar e importar Application", "Export and import Application", "Exportar e importar Application"),
+            Tx("Fluxo para transportar a aplicação por pacote sem transformar importação em ativação automática.", "Flow for moving the application by package without turning import into automatic activation.", "Flujo para transportar la aplicación mediante paquete sin convertir importación en activación automática."),
+            Tx("Use para backup portátil da aplicação, migração controlada ou criação de outro Working a partir de pacote.", "Use for portable application backup, controlled migration, or creating another Working state from a package.", "Úselo para backup portátil de la aplicación, migración controlada o creación de otro Working desde un paquete."),
+            Tx("Tenha acesso de Engineering, confirme o projeto de origem/destino e proteja Authority por seu fluxo próprio quando ela também precisar ser preservada.", "Have Engineering access, confirm source/destination project, and protect Authority through its own flow when it also needs preservation.", "Tenga acceso de Engineering, confirme proyecto de origen/destino y proteja Authority mediante su propio flujo cuando también deba preservarse."),
+            Tx("Exporte a Application; no destino, selecione o arquivo; use Inspect/Preview; resolva erros; use Apply; depois siga Save/Revision/Publish/Activate conforme necessário.", "Export the Application; at the destination, select the file; use Inspect/Preview; resolve errors; use Apply; then follow Save/Revision/Publish/Activate as needed.", "Exporte la Application; en el destino, seleccione el archivo; use Inspect/Preview; resuelva errores; use Apply; luego siga Save/Revision/Publish/Activate según sea necesario."),
+            Tx("A aplicação importada entra como conteúdo de Engineering e não substitui Authority nem muda Active por conta própria.", "The imported application enters as Engineering content and does not replace Authority or change Active by itself.", "La aplicación importada entra como contenido de Engineering y no reemplaza Authority ni cambia Active por sí sola."),
+            Tx("Pacote inválido, Preview com conflitos, dependência ausente ou expectativa de que Authority/licença sejam transportadas junto com a Application.", "Invalid package, Preview conflicts, missing dependency, or expectation that Authority/license travels with the Application.", "Paquete inválido, conflictos de Preview, dependencia ausente o expectativa de que Authority/licencia viaje con la Application."),
+            Tx("Separe Application, Authority e Licensing como fluxos distintos; corrija o pacote ou o destino antes de Apply.", "Treat Application, Authority, and Licensing as separate flows; fix the package or destination before Apply.", "Trate Application, Authority y Licensing como flujos separados; corrija el paquete o el destino antes de Apply."),
+            "packages.escadapkg", "recovery.backup-system-recovery", "engineering.lifecycle")
     };
 
     private static TopicDefinition BuildServerScriptsTopic() => Detailed(
@@ -497,9 +762,9 @@ public static class ContextualHelpCatalog
         Tx("Reusable Resource Libraries", "Reusable Resource Libraries", "Reusable Resource Libraries"),
         Tx("Reuso seletivo em Engineering sem dependência externa de Runtime.", "Selective Engineering reuse without external Runtime dependency.", "Reutilización selectiva en Engineering sin dependencia externa de Runtime."),
         S(Tx("Criar e exportar .escadalib", "Create and export .escadalib", "Crear y exportar .escadalib"), Tx(
-            "A exportação cria .escadalib a partir de recursos selecionados do Working e inclui automaticamente o closure de dependências. O build exporta Equipment Template, Dynamo, Screen, Popup, Script e Visual Asset. O pacote contém manifest, hashes SHA-256 e limites de segurança; Inspect valida formato, manifest, arquivos, hashes e payloads antes do uso.",
+            "A exportação cria .escadalib a partir de recursos selecionados do Working e inclui automaticamente o closure de dependências. O build exporta Equipment Template, Dynamo, Screen, Popup, Script e Visual Asset. O pacote contém manifest, hashes de integridade e limites de segurança; Inspect valida formato, manifest, arquivos, hashes e payloads antes do uso.",
             "Export creates .escadalib from selected Working resources and automatically includes the dependency closure. The build exports Equipment Template, Dynamo, Screen, Popup, Script and Visual Asset. The package contains a manifest, SHA-256 hashes and safety limits; Inspect validates format, manifest, files, hashes and payloads before use.",
-            "Export crea .escadalib desde recursos seleccionados de Working e incluye automáticamente el closure de dependencias. El build exporta Equipment Template, Dynamo, Screen, Popup, Script y Visual Asset. El paquete contiene manifest, hashes SHA-256 y límites de seguridad; Inspect valida formato, manifest, archivos, hashes y payloads antes del uso.")),
+            "Export crea .escadalib desde recursos seleccionados de Working e incluye automáticamente el closure de dependencias. El build exporta Equipment Template, Dynamo, Screen, Popup, Script y Visual Asset. El paquete contiene manifest, hashes de integridad y límites de seguridad; Inspect valida formato, manifest, archivos, hashes y payloads antes del uso.")),
         S(Tx("Associar não é importar", "Association is not import", "Asociar no es importar"), Tx(
             ".escadalib é diferente de .escadapkg. Associar uma Library não importa conteúdo e, sozinho, não altera Working; apenas disponibiliza recursos compatíveis no catálogo de Engineering.",
             ".escadalib is different from .escadapkg. Associating a Library does not import content and, by itself, does not change Working; it only makes compatible resources available in the Engineering catalog.",
@@ -716,7 +981,67 @@ public static class ContextualHelpCatalog
         value.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
 
     private static TopicDefinition Basic(string id, string category, LocalizedText title, LocalizedText summary, LocalizedText body) =>
-        Detailed(id, category, title, summary, S(Tx("Guia", "Guide", "Guía"), body));
+        new(
+            id,
+            category,
+            title,
+            summary,
+            new[]
+            {
+                S(Tx("O que é?", "What is it?", "¿Qué es?"), summary),
+                S(Tx("Para que serve?", "What is it for?", "¿Para qué sirve?"), body),
+                S(Tx("Quando usar?", "When to use it?", "¿Cuándo usarlo?"), Tx(
+                    $"Use este tópico ao trabalhar com {title.Portuguese}.",
+                    $"Use this topic when working with {title.English}.",
+                    $"Use este tema al trabajar con {title.Spanish}.")),
+                S(Tx("Pré-requisitos", "Prerequisites", "Requisitos previos"), Tx(
+                    "Abra o projeto/recurso correto e use uma sessão com acesso suficiente para a tarefa.",
+                    "Open the correct project/resource and use a session with sufficient access for the task.",
+                    "Abra el proyecto/recurso correcto y use una sesión con acceso suficiente para la tarea.")),
+                S(Tx("Passos", "Steps", "Pasos"), body),
+                S(Tx("Resultado esperado", "Expected result", "Resultado esperado"), Tx(
+                    "A tela deve refletir o estado aceito pelo produto sem alterar outros recursos silenciosamente.",
+                    "The screen should reflect the state accepted by the product without silently changing unrelated resources.",
+                    "La pantalla debe reflejar el estado aceptado por el producto sin cambiar silenciosamente otros recursos.")),
+                S(Tx("Problemas comuns", "Common problems", "Problemas comunes"), Tx(
+                    "Permissão insuficiente, configuração inválida, referência ausente ou estado do projeto diferente do esperado.",
+                    "Insufficient permission, invalid configuration, missing reference, or project state different from what was expected.",
+                    "Permiso insuficiente, configuración inválida, referencia ausente o estado del proyecto diferente de lo esperado.")),
+                S(Tx("Como diagnosticar/corrigir", "How to diagnose/fix", "Cómo diagnosticar/corregir"), Tx(
+                    "Leia a mensagem apresentada, confirme sessão e estado do projeto, valide referências e use Diagnostics antes de repetir a ação.",
+                    "Read the displayed message, confirm session and project state, validate references, and use Diagnostics before repeating the action.",
+                    "Lea el mensaje mostrado, confirme sesión y estado del proyecto, valide referencias y use Diagnostics antes de repetir la acción."))
+            });
+
+    private static TopicDefinition TaskGuide(
+        string id,
+        string category,
+        LocalizedText title,
+        LocalizedText summary,
+        LocalizedText whenToUse,
+        LocalizedText prerequisites,
+        LocalizedText steps,
+        LocalizedText expectedResult,
+        LocalizedText commonProblems,
+        LocalizedText diagnostics,
+        params string[] relatedTopicIds) =>
+        new(
+            id,
+            category,
+            title,
+            summary,
+            new[]
+            {
+                S(Tx("O que é?", "What is it?", "¿Qué es?"), summary),
+                S(Tx("Para que serve?", "What is it for?", "¿Para qué sirve?"), summary),
+                S(Tx("Quando usar?", "When to use it?", "¿Cuándo usarlo?"), whenToUse),
+                S(Tx("Pré-requisitos", "Prerequisites", "Requisitos previos"), prerequisites),
+                S(Tx("Passos", "Steps", "Pasos"), steps),
+                S(Tx("Resultado esperado", "Expected result", "Resultado esperado"), expectedResult),
+                S(Tx("Problemas comuns", "Common problems", "Problemas comunes"), commonProblems),
+                S(Tx("Como diagnosticar/corrigir", "How to diagnose/fix", "Cómo diagnosticar/corregir"), diagnostics)
+            },
+            relatedTopicIds);
 
     private static TopicDefinition Detailed(string id, string category, LocalizedText title, LocalizedText summary, params SectionDefinition[] sections) =>
         new(id, category, title, summary, sections);
@@ -724,16 +1049,24 @@ public static class ContextualHelpCatalog
     private static SectionDefinition S(LocalizedText heading, LocalizedText body, string? code = null) => new(heading, body, code);
     private static LocalizedText Tx(string pt, string en, string es) => new(pt, en, es);
 
-    private static string Pick(string locale, string pt, string en, string es) => locale switch
-    {
-        "en" => en,
-        "es" => es,
-        _ => pt
-    };
+    private static string Pick(string locale, string pt, string en, string es) =>
+        CleanUserCopy(locale switch
+        {
+            "en" => en,
+            "es" => es,
+            _ => pt
+        });
+
+    private static string CleanUserCopy(string value) => value
+        .Replace("canônico", "do produto", StringComparison.OrdinalIgnoreCase)
+        .Replace("canônica", "do produto", StringComparison.OrdinalIgnoreCase)
+        .Replace("canonical", "product", StringComparison.OrdinalIgnoreCase)
+        .Replace("canónico", "del producto", StringComparison.OrdinalIgnoreCase)
+        .Replace("canónica", "del producto", StringComparison.OrdinalIgnoreCase);
 
     private sealed record LocalizedText(string Portuguese, string English, string Spanish)
     {
-        public string For(string locale) => locale switch { "en" => English, "es" => Spanish, _ => Portuguese };
+        public string For(string locale) => CleanUserCopy(locale switch { "en" => English, "es" => Spanish, _ => Portuguese });
     }
 
     private sealed record SectionDefinition(LocalizedText Heading, LocalizedText Body, string? Code)
@@ -746,14 +1079,16 @@ public static class ContextualHelpCatalog
         string Category,
         LocalizedText Title,
         LocalizedText Summary,
-        IReadOnlyCollection<SectionDefinition> Sections)
+        IReadOnlyCollection<SectionDefinition> Sections,
+        IReadOnlyCollection<string>? RelatedTopicIds = null)
     {
         public ContextualHelpTopic Build(string locale) => new(
             Id,
             Category,
             Title.For(locale),
             Summary.For(locale),
-            Sections.Select(section => section.Build(locale)).ToArray());
+            Sections.Select(section => section.Build(locale)).ToArray(),
+            RelatedTopicIds ?? Array.Empty<string>());
     }
 }
 

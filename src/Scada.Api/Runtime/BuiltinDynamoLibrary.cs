@@ -11,6 +11,8 @@ namespace Scada.Api.Runtime;
 /// </summary>
 public static class BuiltinDynamoLibrary
 {
+    public const string Version = "1.3.0";
+
     private enum VisualStyle
     {
         Detailed2D,
@@ -370,42 +372,138 @@ public static class BuiltinDynamoLibrary
         var sequence = DefinitionSequence(family, style);
         if (style == VisualStyle.HighPerformance)
         {
-            return Dynamo(sequence, "process.blower.centrifugal", "Soprador centrífugo", "compressor", style, 154, 108,
+            return Dynamo(sequence, "process.blower.centrifugal", "Soprador centrífugo", "compressor", style, 176, 132,
             [
-                FlatShape(E(family, style, 1), "casing", "core.ellipse", 28, 20, 70, 70, "#C5CDD3", "#374151", 2),
-                FlatShape(E(family, style, 2), "hub", "core.ellipse", 48, 40, 30, 30, "#F3F4F6", "#4B5563", 2),
-                FlatShape(E(family, style, 3), "inlet", "core.rectangle", 4, 45, 30, 18, "#A7B0B7", "#374151", 2, 3),
-                FlatShape(E(family, style, 4), "outlet-neck", "core.rectangle", 86, 18, 20, 30, "#A7B0B7", "#374151", 2, 3),
-                FlatShape(E(family, style, 5), "outlet", "core.rectangle", 96, 13, 42, 18, "#A7B0B7", "#374151", 2, 3),
-                FlatShape(E(family, style, 6), "base", "core.rectangle", 24, 90, 88, 8, "#6B7280", "#374151", 1, 2),
-                Text(E(family, style, 7), "label", "B", 51, 44, 24, 22, 11, "#111827"),
-                StateLamp(E(family, style, 8), "running", 5, 5, "#16A34A", "running", "{equipmentPath}.Running"),
-                StateLamp(E(family, style, 9), "fault", 130, 5, "#DC2626", "fault", "{equipmentPath}.Fault")
+                FlatShape(E(family, style, 1), "outlet-pipe", "core.rectangle", 114, 16, 48, 20, "#D8E0E8", "#263746", 2, 3),
+                FlatShape(E(family, style, 2), "outlet-neck", "core.rectangle", 101, 29, 25, 39, "#C5CFD9", "#263746", 2, 4),
+                FlatShape(E(family, style, 3), "outlet-flange", "core.rectangle", 154, 12, 10, 28, "#EEF2F6", "#263746", 2, 2),
+                FlatShape(E(family, style, 4), "inlet-pipe", "core.rectangle", 4, 66, 54, 20, "#D8E0E8", "#263746", 2, 3),
+                FlatShape(E(family, style, 5), "inlet-flange", "core.rectangle", 38, 59, 12, 34, "#EEF2F6", "#263746", 2, 2),
+                FlatShape(E(family, style, 6), "casing", "core.ellipse", 43, 30, 94, 94, "#D8E0E8", "#263746", 3),
+                FlatShape(E(family, style, 7), "casing-rim", "core.ellipse", 50, 37, 80, 80, "#F8FAFC", "#546879", 2),
+                FlatShape(E(family, style, 8), "impeller-recess", "core.ellipse", 60, 47, 60, 60, "#263746", "#17232D", 2),
+                RotorBlade(E(family, style, 9), "impeller-blade-1", 90, 77, 11, 26, 0, "#AEBBC7", "#263746", 1),
+                RotorBlade(E(family, style, 10), "impeller-blade-2", 90, 77, 11, 26, 60, "#AEBBC7", "#263746", 1),
+                RotorBlade(E(family, style, 11), "impeller-blade-3", 90, 77, 11, 26, 120, "#AEBBC7", "#263746", 1),
+                RotorBlade(E(family, style, 12), "impeller-blade-4", 90, 77, 11, 26, 180, "#AEBBC7", "#263746", 1),
+                RotorBlade(E(family, style, 13), "impeller-blade-5", 90, 77, 11, 26, 240, "#AEBBC7", "#263746", 1),
+                RotorBlade(E(family, style, 14), "impeller-blade-6", 90, 77, 11, 26, 300, "#AEBBC7", "#263746", 1),
+                FlatShape(E(family, style, 15), "hub", "core.ellipse", 78, 65, 24, 24, "#F8FAFC", "#263746", 2),
+                FlatShape(E(family, style, 16), "hub-cap", "core.ellipse", 85, 72, 10, 10, "#64748B", "#263746", 1),
+                FlatShape(E(family, style, 17), "base-left-foot", "core.rectangle", 57, 114, 17, 9, "#7B8996", "#263746", 1, 2),
+                FlatShape(E(family, style, 18), "base-right-foot", "core.rectangle", 106, 114, 17, 9, "#7B8996", "#263746", 1, 2),
+                FlatShape(E(family, style, 19), "base", "core.rectangle", 45, 122, 90, 8, "#445565", "#263746", 1, 2),
+                Polygon(E(family, style, 20), "outlet-flow-arrow", 135, 18, 12, 14, [(0d, 0d), (12d, 7d), (0d, 14d)], "#1877A8", "#125575", 1),
+                Text(E(family, style, 21), "label", "B", 81, 68, 18, 18, 10, "#17232D"),
+                StateLamp(E(family, style, 22), "running", 7, 7, "#16A34A", "running", "{equipmentPath}.Running"),
+                StateLamp(E(family, style, 23), "fault", 158, 7, "#DC2626", "fault", "{equipmentPath}.Fault")
             ],
             parameters: BlowerParameters());
         }
 
         var dimensional = style == VisualStyle.DimensionalFront;
-        return Dynamo(sequence, "process.blower.centrifugal", "Soprador centrífugo", "compressor", style, 176, 126,
+        if (dimensional)
+        {
+            return Dynamo(sequence, "process.blower.centrifugal", "Soprador centrífugo", "compressor", style, 196, 146,
+            [
+                MaterialShape(E(family, style, 1), "outlet-pipe", "core.rectangle", 123, 17, 58, 22, "#91A7B9", "#F8FAFC", "#30485A", 2, 5, true, "vertical", true),
+                MaterialShape(E(family, style, 2), "outlet-neck", "core.rectangle", 106, 30, 31, 45, "#7892A7", "#E4ECF2", "#30485A", 2, 6, true, "horizontal", true),
+                MaterialShape(E(family, style, 3), "outlet-flange", "core.rectangle", 174, 13, 12, 31, "#B6C5D1", "#F8FAFC", "#30485A", 2, 3, true, "horizontal"),
+                MaterialShape(E(family, style, 4), "inlet-pipe", "core.rectangle", 4, 70, 65, 22, "#91A7B9", "#F8FAFC", "#30485A", 2, 5, true, "vertical", true),
+                MaterialShape(E(family, style, 5), "inlet-flange", "core.rectangle", 48, 62, 15, 38, "#B6C5D1", "#F8FAFC", "#30485A", 2, 3, true, "horizontal"),
+                MaterialShape(E(family, style, 6), "volute-case", "core.ellipse", 44, 31, 102, 102, "#7892A7", "#E5EDF3", "#30485A", 3, 0, true, "diagonal-down", true),
+                MaterialShape(E(family, style, 7), "case-cover", "core.ellipse", 51, 38, 88, 88, "#B5C6D3", "#F8FAFC", "#597184", 2, 0, true, "diagonal-up"),
+                MaterialShape(E(family, style, 8), "impeller-recess", "core.ellipse", 62, 49, 66, 66, "#354E61", "#7892A7", "#30485A", 2, 0, true, "diagonal-down"),
+                RotorBlade(E(family, style, 9), "impeller-blade-1", 95, 82, 12, 29, 0, "#AFC4D2", "#243B4A", 1),
+                RotorBlade(E(family, style, 10), "impeller-blade-2", 95, 82, 12, 29, 60, "#AFC4D2", "#243B4A", 1),
+                RotorBlade(E(family, style, 11), "impeller-blade-3", 95, 82, 12, 29, 120, "#AFC4D2", "#243B4A", 1),
+                RotorBlade(E(family, style, 12), "impeller-blade-4", 95, 82, 12, 29, 180, "#AFC4D2", "#243B4A", 1),
+                RotorBlade(E(family, style, 13), "impeller-blade-5", 95, 82, 12, 29, 240, "#AFC4D2", "#243B4A", 1),
+                RotorBlade(E(family, style, 14), "impeller-blade-6", 95, 82, 12, 29, 300, "#AFC4D2", "#243B4A", 1),
+                MaterialShape(E(family, style, 15), "hub", "core.ellipse", 79, 66, 32, 32, "#CBD9E3", "#FFFFFF", "#30485A", 2, 0, true, "diagonal-down", true),
+                FlatShape(E(family, style, 16), "hub-cap", "core.ellipse", 89, 76, 12, 12, "#547084", "#243B4A", 1),
+                FlatShape(E(family, style, 17), "bolt-1", "core.ellipse", 88, 35, 5, 5, "#F8FAFC", "#526B7D", 1),
+                FlatShape(E(family, style, 18), "bolt-2", "core.ellipse", 125, 53, 5, 5, "#F8FAFC", "#526B7D", 1),
+                FlatShape(E(family, style, 19), "bolt-3", "core.ellipse", 126, 99, 5, 5, "#F8FAFC", "#526B7D", 1),
+                FlatShape(E(family, style, 20), "bolt-4", "core.ellipse", 89, 121, 5, 5, "#F8FAFC", "#526B7D", 1),
+                FlatShape(E(family, style, 21), "bolt-5", "core.ellipse", 54, 99, 5, 5, "#F8FAFC", "#526B7D", 1),
+                FlatShape(E(family, style, 22), "bolt-6", "core.ellipse", 53, 55, 5, 5, "#F8FAFC", "#526B7D", 1),
+                FlatShape(E(family, style, 23), "foot-left", "core.rectangle", 62, 125, 18, 9, "#667F91", "#30485A", 1, 2),
+                FlatShape(E(family, style, 24), "foot-right", "core.rectangle", 112, 125, 18, 9, "#667F91", "#30485A", 1, 2),
+                FlatShape(E(family, style, 25), "base", "core.rectangle", 49, 134, 96, 8, "#435B6D", "#30485A", 1, 2),
+                Polygon(E(family, style, 26), "outlet-flow-arrow", 145, 22, 15, 14, [(0d, 0d), (15d, 7d), (0d, 14d)], "#1687B4", "#125575", 1),
+                Text(E(family, style, 27), "label", "B", 84, 73, 22, 20, 11, "#243B4A"),
+                StateLamp(E(family, style, 28), "running", 7, 7, "#22C55E", "running", "{equipmentPath}.Running"),
+                StateLamp(E(family, style, 29), "fault", 177, 7, "#EF4444", "fault", "{equipmentPath}.Fault")
+            ],
+            parameters: BlowerParameters());
+        }
+
+        return Dynamo(sequence, "process.blower.centrifugal", "Soprador centrífugo", "compressor", style, 196, 146,
         [
-            MaterialShape(E(family, style, 1), "casing", "core.ellipse", 31, 26, 82, 82, "#AEBCC8", "#F8FAFC", "#334155", 3, 0, dimensional, "diagonal-down", dimensional),
-            MaterialShape(E(family, style, 2), "hub", "core.ellipse", 54, 49, 36, 36, "#DDE4EA", "#FFFFFF", "#475569", 2, 0, dimensional, "diagonal-up"),
-            FlatShape(E(family, style, 3), "blade-1", "core.rectangle", 68, 50, 7, 17, "#64748B", "#475569", 1, 2, 15),
-            FlatShape(E(family, style, 4), "blade-2", "core.rectangle", 74, 61, 7, 17, "#64748B", "#475569", 1, 2, 75),
-            FlatShape(E(family, style, 5), "blade-3", "core.rectangle", 62, 68, 7, 17, "#64748B", "#475569", 1, 2, 135),
-            MaterialShape(E(family, style, 6), "inlet", "core.rectangle", 4, 58, 35, 19, "#B8C4CF", "#F8FAFC", "#334155", 2, 4, dimensional, "vertical"),
-            MaterialShape(E(family, style, 7), "inlet-flange", "core.ellipse", 1, 53, 13, 29, "#94A3B8", "#DDE4EA", "#334155", 2, 0, dimensional, "horizontal"),
-            MaterialShape(E(family, style, 8), "outlet-neck", "core.rectangle", 99, 24, 24, 36, "#B8C4CF", "#F8FAFC", "#334155", 2, 4, dimensional, "horizontal"),
-            MaterialShape(E(family, style, 9), "outlet", "core.rectangle", 112, 13, 44, 19, "#B8C4CF", "#F8FAFC", "#334155", 2, 4, dimensional, "vertical"),
-            MaterialShape(E(family, style, 10), "outlet-flange", "core.ellipse", 149, 10, 14, 25, "#94A3B8", "#DDE4EA", "#334155", 2, 0, dimensional, "horizontal"),
-            FlatShape(E(family, style, 11), "foot-left", "core.rectangle", 48, 102, 18, 9, "#64748B", "#334155", 1, 2),
-            FlatShape(E(family, style, 12), "foot-right", "core.rectangle", 91, 102, 18, 9, "#64748B", "#334155", 1, 2),
-            FlatShape(E(family, style, 13), "base", "core.rectangle", 37, 111, 86, 8, "#475569", "#334155", 1, 2),
-            Text(E(family, style, 14), "label", "B", 61, 58, 22, 18, 10, "#1F2937"),
-            StateLamp(E(family, style, 15), "running", 5, 5, "#22C55E", "running", "{equipmentPath}.Running"),
-            StateLamp(E(family, style, 16), "fault", 151, 5, "#EF4444", "fault", "{equipmentPath}.Fault")
+            FlatShape(E(family, style, 1), "outlet-pipe", "core.rectangle", 123, 17, 58, 22, "#A8B4BF", "#273746", 2, 4),
+            FlatShape(E(family, style, 2), "outlet-neck", "core.rectangle", 106, 30, 31, 45, "#8799A8", "#273746", 2, 4),
+            FlatShape(E(family, style, 3), "outlet-flange", "core.rectangle", 174, 13, 12, 31, "#D3DCE4", "#273746", 2, 2),
+            FlatShape(E(family, style, 4), "inlet-pipe", "core.rectangle", 4, 70, 65, 22, "#A8B4BF", "#273746", 2, 4),
+            FlatShape(E(family, style, 5), "inlet-flange", "core.rectangle", 48, 62, 15, 38, "#D3DCE4", "#273746", 2, 2),
+            FlatShape(E(family, style, 6), "volute-case", "core.ellipse", 44, 31, 102, 102, "#8999A7", "#273746", 3),
+            FlatShape(E(family, style, 7), "case-cover", "core.ellipse", 51, 38, 88, 88, "#D3DCE4", "#526575", 2),
+            FlatShape(E(family, style, 8), "impeller-recess", "core.ellipse", 62, 49, 66, 66, "#405363", "#273746", 2),
+            RotorBlade(E(family, style, 9), "impeller-blade-1", 95, 82, 12, 29, 0, "#A8B4BF", "#273746", 1),
+            RotorBlade(E(family, style, 10), "impeller-blade-2", 95, 82, 12, 29, 60, "#A8B4BF", "#273746", 1),
+            RotorBlade(E(family, style, 11), "impeller-blade-3", 95, 82, 12, 29, 120, "#A8B4BF", "#273746", 1),
+            RotorBlade(E(family, style, 12), "impeller-blade-4", 95, 82, 12, 29, 180, "#A8B4BF", "#273746", 1),
+            RotorBlade(E(family, style, 13), "impeller-blade-5", 95, 82, 12, 29, 240, "#A8B4BF", "#273746", 1),
+            RotorBlade(E(family, style, 14), "impeller-blade-6", 95, 82, 12, 29, 300, "#A8B4BF", "#273746", 1),
+            FlatShape(E(family, style, 15), "hub", "core.ellipse", 79, 66, 32, 32, "#EEF2F6", "#273746", 2),
+            FlatShape(E(family, style, 16), "hub-cap", "core.ellipse", 89, 76, 12, 12, "#657A8A", "#273746", 1),
+            FlatShape(E(family, style, 17), "bolt-1", "core.ellipse", 88, 35, 5, 5, "#F8FAFC", "#526575", 1),
+            FlatShape(E(family, style, 18), "bolt-2", "core.ellipse", 125, 53, 5, 5, "#F8FAFC", "#526575", 1),
+            FlatShape(E(family, style, 19), "bolt-3", "core.ellipse", 126, 99, 5, 5, "#F8FAFC", "#526575", 1),
+            FlatShape(E(family, style, 20), "bolt-4", "core.ellipse", 89, 121, 5, 5, "#F8FAFC", "#526575", 1),
+            FlatShape(E(family, style, 21), "bolt-5", "core.ellipse", 54, 99, 5, 5, "#F8FAFC", "#526575", 1),
+            FlatShape(E(family, style, 22), "bolt-6", "core.ellipse", 53, 55, 5, 5, "#F8FAFC", "#526575", 1),
+            FlatShape(E(family, style, 23), "foot-left", "core.rectangle", 62, 125, 18, 9, "#647789", "#273746", 1, 2),
+            FlatShape(E(family, style, 24), "foot-right", "core.rectangle", 112, 125, 18, 9, "#647789", "#273746", 1, 2),
+            FlatShape(E(family, style, 25), "base", "core.rectangle", 49, 134, 96, 8, "#445767", "#273746", 1, 2),
+            Polygon(E(family, style, 26), "outlet-flow-arrow", 145, 22, 15, 14, [(0d, 0d), (15d, 7d), (0d, 14d)], "#13799D", "#125575", 1),
+            Text(E(family, style, 27), "label", "B", 84, 73, 22, 20, 11, "#243B4A"),
+            StateLamp(E(family, style, 28), "running", 7, 7, "#22C55E", "running", "{equipmentPath}.Running"),
+            StateLamp(E(family, style, 29), "fault", 177, 7, "#EF4444", "fault", "{equipmentPath}.Fault")
         ],
         parameters: BlowerParameters());
+    }
+
+    private static VisualElementEngineeringDto RotorBlade(
+        int sequence,
+        string key,
+        double centerX,
+        double centerY,
+        double innerRadius,
+        double outerRadius,
+        double angleDegrees,
+        string fill,
+        string stroke,
+        double strokeWidth)
+    {
+        var angle = angleDegrees * Math.PI / 180d;
+        var radialX = Math.Cos(angle);
+        var radialY = Math.Sin(angle);
+        var tangentX = -radialY;
+        var tangentY = radialX;
+        var points = new[]
+        {
+            (centerX + innerRadius * radialX - 4 * tangentX, centerY + innerRadius * radialY - 4 * tangentY),
+            (centerX + outerRadius * radialX - tangentX, centerY + outerRadius * radialY - tangentY),
+            (centerX + outerRadius * radialX + 4 * tangentX, centerY + outerRadius * radialY + 4 * tangentY),
+            (centerX + innerRadius * radialX + 4 * tangentX, centerY + innerRadius * radialY + 4 * tangentY)
+        };
+        var minX = points.Min(point => point.Item1);
+        var maxX = points.Max(point => point.Item1);
+        var minY = points.Min(point => point.Item2);
+        var maxY = points.Max(point => point.Item2);
+        var localPoints = points.Select(point => (point.Item1 - minX, point.Item2 - minY)).ToArray();
+        return Polygon(sequence, key, minX, minY, maxX - minX, maxY - minY, localPoints, fill, stroke, strokeWidth);
     }
 
     private static DynamoEngineeringDto ProcessIndicator(VisualStyle style)
@@ -454,8 +552,19 @@ public static class BuiltinDynamoLibrary
         int width,
         int height,
         IReadOnlyCollection<VisualElementEngineeringDto> elements,
-        IReadOnlyCollection<DynamoParameterDefinitionEngineeringDto>? parameters = null) =>
-        new(
+        IReadOnlyCollection<DynamoParameterDefinitionEngineeringDto>? parameters = null)
+    {
+        var originalElements = elements.ToArray();
+        var details = VisualEnhancements(familyKey, sequence, style, width, height);
+        var firstBoundElement = Array.FindIndex(originalElements, element => element.Bindings?.Count > 0);
+        if (firstBoundElement < 0) firstBoundElement = originalElements.Length;
+        var refinedElements = originalElements
+            .Take(firstBoundElement)
+            .Concat(details)
+            .Concat(originalElements.Skip(firstBoundElement))
+            .ToArray();
+
+        return new(
             DefinitionId(sequence),
             VariantKey(familyKey, style),
             VariantName(familyName, style),
@@ -465,7 +574,7 @@ public static class BuiltinDynamoLibrary
                 ["category"] = category,
                 ["defaultWidth"] = width.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["defaultHeight"] = height.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                ["libraryVersion"] = "1.2.0",
+                ["libraryVersion"] = Version,
                 ["visualStyle"] = StyleKey(style)
             },
             Context: new Dictionary<string, string>
@@ -486,7 +595,140 @@ public static class BuiltinDynamoLibrary
                 ["performanceProfile"] = style == VisualStyle.HighPerformance ? "high-performance" : "rich"
             },
             Parameters: parameters,
-            Elements: elements);
+            Elements: refinedElements);
+    }
+
+    private static IReadOnlyCollection<VisualElementEngineeringDto> VisualEnhancements(
+        string familyKey,
+        int sequence,
+        VisualStyle style,
+        int width,
+        int height)
+    {
+        var details = new List<VisualElementEngineeringDto>();
+        var localSequence = 70;
+
+        void Dot(string key, double x, double y, double size = 5, string fill = "#DCE7EF", string stroke = "#526879") =>
+            details.Add(FlatShape(1000 + sequence * 100 + localSequence++, $"detail-{key}", "core.ellipse",
+                x, y, size, size, fill, stroke, 1));
+
+        void Bar(string key, double x, double y, double barWidth, double barHeight, string fill = "#75899A", double rotation = 0) =>
+            details.Add(FlatShape(1000 + sequence * 100 + localSequence++, $"detail-{key}", "core.rectangle",
+                x, y, barWidth, barHeight, fill, "#526879", 0.6, 0.8, rotation));
+
+        void RadialBolts(string key, double centerX, double centerY, double radius, int count, double size = 5)
+        {
+            for (var index = 0; index < count; index++)
+            {
+                var angle = (index * 360d / count - 90) * Math.PI / 180d;
+                Dot($"{key}-{index + 1}", centerX + radius * Math.Cos(angle) - size / 2,
+                    centerY + radius * Math.Sin(angle) - size / 2, size);
+            }
+        }
+
+        switch (familyKey)
+        {
+            case "dynamo.pump.standard":
+                RadialBolts("casing-bolt", style == VisualStyle.HighPerformance ? 59 : 75,
+                    style == VisualStyle.HighPerformance ? 48 : 59,
+                    style == VisualStyle.HighPerformance ? 28 : 36, 6,
+                    style == VisualStyle.HighPerformance ? 4 : 5);
+                break;
+
+            case "process.pump.submersible":
+                var bodyLeft = style == VisualStyle.HighPerformance ? 27 : 37;
+                var bodyWidth = style == VisualStyle.HighPerformance ? 40 : 38;
+                var upperVentY = style == VisualStyle.HighPerformance ? 35 : 43;
+                var lowerVentY = style == VisualStyle.HighPerformance ? 83 : 105;
+                for (var index = 0; index < 4; index++)
+                {
+                    Bar($"upper-cooling-slot-{index + 1}", bodyLeft + index * (bodyWidth / 4d), upperVentY, 2.2, 9, "#64798B");
+                    Bar($"lower-cooling-slot-{index + 1}", bodyLeft + index * (bodyWidth / 4d), lowerVentY, 2.2, 9, "#64798B");
+                }
+                break;
+
+            case "process.motor.standard":
+                var motorLeft = style == VisualStyle.HighPerformance ? 27 : 36;
+                var motorRight = style == VisualStyle.HighPerformance ? 74 : 101;
+                var motorTop = style == VisualStyle.HighPerformance ? 27 : 34;
+                var motorVentHeight = style == VisualStyle.HighPerformance ? 34 : 31;
+                for (var index = 0; index < 3; index++)
+                {
+                    var x = motorLeft + index * 4;
+                    Bar($"cooling-rib-left-{index + 1}", x, motorTop, 1.8, motorVentHeight, "#73889A");
+                    Bar($"cooling-rib-right-{index + 1}", motorRight + index * 4, motorTop, 1.8, motorVentHeight, "#73889A");
+                }
+                break;
+
+            case "process.motor.vfd":
+                var vfdStart = style == VisualStyle.HighPerformance ? 96 : 142;
+                var vfdWidth = style == VisualStyle.HighPerformance ? 26 : 32;
+                var vfdY = style == VisualStyle.HighPerformance ? 59 : 74;
+                for (var index = 0; index < 3; index++)
+                    Dot($"drive-status-{index + 1}", vfdStart + index * 8, vfdY, 4,
+                        index == 0 ? "#22C55E" : "#94A3B8", "#334155");
+                for (var index = 0; index < 3; index++)
+                    Bar($"drive-vent-{index + 1}", vfdStart, vfdY + 7 + index * 3, vfdWidth, 1.4, "#718496");
+                break;
+
+            case "process.valve.onoff":
+            case "process.valve.control":
+                if (style == VisualStyle.HighPerformance)
+                {
+                    Dot("actuator-fastener-left", width * 0.43, style == VisualStyle.HighPerformance && familyKey == "process.valve.control" ? 20 : 16, 4);
+                    Dot("actuator-fastener-right", width * 0.58, style == VisualStyle.HighPerformance && familyKey == "process.valve.control" ? 20 : 16, 4);
+                    Bar("position-indicator", width * 0.47, style == VisualStyle.HighPerformance && familyKey == "process.valve.control" ? 37 : 24,
+                        width * 0.08, 2, "#1877A8");
+                }
+                else
+                {
+                    foreach (var x in new[] { 31d, width - 38d })
+                    foreach (var y in familyKey == "process.valve.control" ? new[] { 72d, 91d } : new[] { 49d, 67d })
+                        Dot($"flange-bolt-{x:0}-{y:0}", x, y, 4.5);
+                }
+                break;
+
+            case "process.tank.vertical":
+                var tankLeft = style == VisualStyle.HighPerformance ? 27d : 33d;
+                var tankWidth = style == VisualStyle.HighPerformance ? 54d : 62d;
+                foreach (var y in style == VisualStyle.HighPerformance ? new[] { 42d, 69d, 132d } : new[] { 50d, 77d, 151d })
+                    Bar($"shell-weld-{y:0}", tankLeft, y, tankWidth, 1.5, "#8295A5");
+                var glassX = style == VisualStyle.HighPerformance ? 94d : 108d;
+                var glassY = style == VisualStyle.HighPerformance ? 88d : 84d;
+                Bar("level-sight-glass", glassX, glassY, 4, style == VisualStyle.HighPerformance ? 38 : 43, "#1877A8");
+                Dot("sight-glass-upper", glassX - 1, glassY - 3, 6, "#DCE7EF", "#526879");
+                Dot("sight-glass-lower", glassX - 1, glassY + (style == VisualStyle.HighPerformance ? 37 : 42), 6, "#DCE7EF", "#526879");
+                break;
+
+            case "process.tank.horizontal":
+                var seamTop = style == VisualStyle.HighPerformance ? 28d : 34d;
+                var seamHeight = style == VisualStyle.HighPerformance ? 48d : 52d;
+                foreach (var x in style == VisualStyle.HighPerformance ? new[] { 55d, 113d } : new[] { 65d, 126d })
+                    Bar($"shell-seam-{x:0}", x, seamTop, 1.8, seamHeight, "#8295A5");
+                break;
+
+            case "process.instrument.indicator":
+                var gaugeX = style == VisualStyle.HighPerformance ? 14d : 16d;
+                var gaugeY = style == VisualStyle.HighPerformance ? 8d : 10d;
+                var gaugeDiameter = style == VisualStyle.HighPerformance ? 68d : 88d;
+                var gaugeCenterX = gaugeX + gaugeDiameter / 2;
+                var gaugeCenterY = gaugeY + gaugeDiameter / 2;
+                var radius = gaugeDiameter / 2 - 11;
+                var angles = style == VisualStyle.HighPerformance
+                    ? Enumerable.Range(0, 7).Select(index => -150d + index * 30).ToArray()
+                    : new[] { -160d, -115d, -70d, -25d };
+                foreach (var angleDegrees in angles)
+                {
+                    var angle = angleDegrees * Math.PI / 180d;
+                    var x = gaugeCenterX + radius * Math.Cos(angle);
+                    var y = gaugeCenterY + radius * Math.Sin(angle);
+                    Bar($"scale-tick-{angleDegrees:0}", x - 1.2, y - 4, 2.4, 8, "#475569", angleDegrees + 90);
+                }
+                break;
+        }
+
+        return details;
+    }
 
     private static VisualElementEngineeringDto FlatShape(
         int sequence,

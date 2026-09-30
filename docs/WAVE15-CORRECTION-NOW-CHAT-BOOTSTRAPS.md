@@ -1,3 +1,24 @@
+# LATEST PORTABILITY RESUME DELTA — 2026-09-30
+
+> This delta supersedes the old creation-base values in the ENGINEERING-PORTABILITY-CORE bootstrap below.
+
+PORTABILITY / #385 / PR #405 is now:
+`ACTIVE / RECOMPOSE_REQUIRED / NO_MERGE`.
+
+Exact required live base:
+`wave15/corrections-integration@5abfee03b3adaa5f900be79ad91a5257d0bfaf0e`
+tree `6228fb16518a2a2eeb629dbfb51471d59798df98`.
+
+Activation evidence:
+- EliteSCADA CI #1610 / `36649112219`: globally SUCCESS;
+- O Historian Capture integrated;
+- DataQuery + AlarmView canonical authority integrated;
+- old #405 candidate is currently 26 commits ahead / 86 behind the live integration and must be recomposed, not blindly merged.
+
+When the Product Owner sends only `SIGA` in the existing Engineering Portability Core chat, that DEV must re-read #385/#405 newest Main comments and execute the active recomposition order there. The old `3140ad20...` value below is historical creation-base evidence only.
+
+---
+
 # R2 BOOTSTRAP RELEASE GUARD — 2026-09-29
 
 > This notice supersedes any inference from older bootstrap sections below.

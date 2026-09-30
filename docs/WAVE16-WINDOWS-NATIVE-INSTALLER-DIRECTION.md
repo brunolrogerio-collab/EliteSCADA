@@ -564,17 +564,428 @@ The useful Wave 13-era outcome to preserve is historical learning and the path t
 
 ## 4. Trust/signing boundary
 
-Authenticode/signing remains required for a production Windows release, but packaging/runtime installation should be validated before coupling progress to external signing credentials.
+### 4.1 First Wave 16 Windows package — controlled unsigned evaluation build
 
-Required final release evidence should include:
-- authorized publisher identity;
-- SHA-256 Authenticode;
-- trusted timestamp;
-- deterministic signed-return verification;
-- installer and shipped executable signature verification;
-- dependency-license/SBOM review.
+**Product Owner decision — 2026-09-30**
 
-DNP3 commercial licensing remains an independent distribution gate if that dependency is shipped/enabled.
+The first Windows installer produced in Wave 16 may be distributed **without Code Signing**.
+
+That first installer is only for a controlled evaluation phase, distributed directly to known people/collaborators helping evaluate EliteSCADA.
+
+Therefore the first Wave 16 delivery must:
+
+- **not** block installer production on the absence of a Code Signing certificate;
+- **not** require certificate acquisition/activation only to release this first controlled build;
+- accept that Windows 10/11 may display unknown-publisher / Microsoft Defender SmartScreen warnings;
+- classify the package as a preview/evaluation build, not as the regular public/commercial distribution package;
+- still generate SHA-256 hashes for all release artifacts;
+- preserve exact product version, Git commit/SHA and release-artifact provenance;
+- prioritize validation of installer behavior, upgrade, prerequisites/dependencies, first-use experience and operation on real machines.
+
+This unsigned-preview decision is temporary and must **not** be interpreted as removing the future signed-release requirement.
+
+### 4.2 Future public/commercial Windows distribution — Authenticode required
+
+Before broad public distribution, commercial promotion or regular public availability, EliteSCADA Windows packages must be rebuilt/repackaged with the first-party binaries and installer digitally signed.
+
+The relevant Windows trust mechanism is:
+
+**Microsoft Authenticode / Code Signing**
+
+This is not a requirement for EliteSCADA to be separately “certified by Microsoft”.
+
+The signing stage is expected to provide:
+- Publisher identity;
+- file-integrity validation;
+- detection of post-signing modification;
+- association of the release artifact with the validated publishing identity;
+- removal of the ordinary “Unknown Publisher” state when Windows can validate the publisher;
+- participation in the Windows/SmartScreen reputation model.
+
+Important distinction:
+
+**a valid Authenticode signature and Microsoft Defender SmartScreen reputation are not the same thing.**
+
+A correctly signed new Publisher/product may still initially receive SmartScreen warnings. Lack of immediate SmartScreen silence is therefore not, by itself, evidence that the signature is invalid.
+
+### 4.3 Planned certificate profile
+
+For the future commercial/public release, the planned baseline is:
+
+**Organization Validated — OV Code Signing**
+
+The certificate should be issued in the name of the legal entity publishing EliteSCADA.
+
+There is no current product requirement to buy EV solely to try to suppress SmartScreen warnings.
+
+Supplier choice is intentionally not frozen now. Candidates already considered include Sectigo, GlobalSign (including Brazilian reseller/support channels such as KeySec) and DigiCert. Price, availability, token/HSM requirements and issuing conditions must be revalidated when procurement actually occurs.
+
+### 4.4 Existing Elite e-CNPJ is a separate certificate
+
+The existing Elite e-CNPJ must be treated as separate from the Code Signing certificate.
+
+Do not assume that a normal e-CNPJ is valid for Microsoft Authenticode.
+
+It is only technically suitable for Code Signing if it was explicitly issued with the Code Signing EKU:
+
+`1.3.6.1.5.5.7.3.3`
+
+Therefore:
+
+`Elite e-CNPJ != automatically EliteSCADA Code Signing certificate`
+
+Do not alter or repurpose the existing e-CNPJ workflow merely to satisfy software signing.
+
+### 4.5 Private-key storage and operator boundary
+
+For publicly trusted Code Signing, plan for the private key to remain protected by one of:
+
+- USB cryptographic token;
+- HSM;
+- compatible remote signing service.
+
+Preferred initial implementation for simplicity:
+
+**OV Code Signing + CA-compatible/provider-supplied USB token.**
+
+The signing automation must not receive or persist the token PIN/private-key material.
+
+Forbidden locations include:
+- Git repository;
+- `.env`;
+- JSON/config files;
+- PowerShell source;
+- Codex prompts or project documentation;
+- GitHub Secrets when they are unnecessary for the selected physical-token model.
+
+Initial controlled flow:
+
+```text
+Codex/scripts prepare exact release
+        ↓
+READY_FOR_SIGNING
+        ↓
+operator connects token
+        ↓
+operator unlocks token directly
+        ↓
+Codex/scripts continue signing/verification
+```
+
+If the token/middleware provides a secure one-time session unlock suitable for batch signing, that may be used so the operator authenticates once for the controlled release session. The session must be ended/revoked after signing completes.
+
+### 4.6 Signed release pipeline
+
+When signing is enabled, the release sequence is:
+
+```text
+checkout exact authorized SHA
+        ↓
+build
+        ↓
+tests
+        ↓
+publish
+        ↓
+identify first-party EliteSCADA binaries
+        ↓
+sign first-party EliteSCADA binaries
+        ↓
+verify signatures
+        ↓
+build installer
+        ↓
+sign installer
+        ↓
+RFC3161 timestamp
+        ↓
+final signature verification
+        ↓
+SHA-256
+        ↓
+Windows 10/11 installation tests
+        ↓
+release
+```
+
+Binding rule:
+
+**Sign first-party binaries before packaging them into the installer. Then build the installer and sign the installer itself.**
+
+Do not mutate binaries after signing.
+
+The packaging architecture must therefore preserve an explicit stage between `publish` and `package` for binary signing, plus a final installer-signing stage after package creation.
+
+### 4.7 First-party vs third-party signing policy
+
+Do **not** recursively sign every PE file found under a publish directory.
+
+Required classification:
+
+```text
+FIRST PARTY
+→ sign according to EliteSCADA release policy
+
+THIRD PARTY ALREADY SIGNED
+→ preserve original signature
+
+THIRD PARTY UNSIGNED
+→ evaluate explicitly; do not automatically sign as Elite
+```
+
+First-party candidates include:
+- primary EliteSCADA executable(s);
+- Windows Service executable/host;
+- launchers;
+- updater;
+- CLI tools;
+- other Elite-owned EXEs;
+- Elite-owned DLLs where the final signing policy deliberately includes them.
+
+Third-party binaries remain attributed to their own publisher/vendor and must not be re-signed as Elite merely because they are distributed with the product.
+
+### 4.8 Windows signing tool and cryptographic profile
+
+Initial implementation should use:
+
+**Microsoft SignTool (`signtool.exe`) from the Windows SDK.**
+
+Baseline signing profile:
+- Authenticode;
+- SHA-256 file digest;
+- RFC3161 timestamp;
+- SHA-256 timestamp digest.
+
+Conceptual command:
+
+```powershell
+signtool sign `
+  /sha1 "<CERTIFICATE_THUMBPRINT>" `
+  /fd SHA256 `
+  /tr "<RFC3161_TIMESTAMP_URL>" `
+  /td SHA256 `
+  "EliteSCADA.exe"
+```
+
+Prefer explicit certificate selection by trusted thumbprint rather than allowing SignTool to choose any matching certificate present on the release machine.
+
+### 4.9 Timestamp is mandatory for authenticated releases
+
+Signed public releases require a trusted RFC3161 timestamp from the selected CA/signing service.
+
+Purpose:
+- establish that the artifact was signed while the certificate was valid;
+- preserve verification semantics after normal certificate expiration.
+
+A future authenticated release is incomplete if its Authenticode signature validates but the expected timestamp is missing.
+
+### 4.10 Signature verification is a release gate
+
+After every signing stage, verify the artifact.
+
+Primary verification:
+
+```powershell
+signtool verify /pa /v "arquivo.exe"
+```
+
+Additional Windows verification may use:
+
+```powershell
+Get-AuthenticodeSignature "arquivo.exe"
+```
+
+Expected result:
+
+```text
+Status = Valid
+```
+
+A verification failure aborts the release. The pipeline must not continue to package/publish an artifact whose expected signature cannot be validated.
+
+### 4.11 Codex/repository automation target
+
+The long-term target is to automate almost the whole Windows release process with repository-owned scripts and Codex orchestration while keeping human control of secret-key unlocking.
+
+Expected automation responsibilities:
+
+1. confirm authorized branch/SHA;
+2. validate/clean the release workspace;
+3. build;
+4. test;
+5. publish;
+6. locate/validate SignTool;
+7. locate the authorized Code Signing certificate;
+8. validate certificate Subject;
+9. validate thumbprint;
+10. validate certificate validity;
+11. validate Code Signing EKU;
+12. validate presence/accessibility of the private key through the secure provider;
+13. inventory first-party binaries;
+14. sign binaries;
+15. timestamp;
+16. verify every signed binary;
+17. construct installer;
+18. sign installer;
+19. verify installer;
+20. compute SHA-256;
+21. generate release manifest;
+22. execute available automated installation/package checks;
+23. prepare the final release artifact set.
+
+Preferred repository shape:
+
+```text
+scripts/release/
+    Sign-WindowsRelease.ps1
+    Verify-WindowsRelease.ps1
+    Build-WindowsInstaller.ps1
+    Release-Windows.ps1
+```
+
+with a primary orchestration entry point similar to:
+
+```powershell
+.\scripts\release\Release-Windows.ps1
+```
+
+These names are planning targets and may be adjusted when Wave 16 implementation begins, but the separation of responsibilities is binding.
+
+### 4.12 GitHub Actions signing model
+
+For the first physical-token implementation, do **not** require the Code Signing operation to happen inside a GitHub-hosted runner.
+
+Initial model:
+
+```text
+GitHub CI
+   ↓
+CI green
+   ↓
+release candidate
+   ↓
+controlled Windows release machine
+   ↓
+Codex/repository release scripts
+   ↓
+OV token
+   ↓
+signed release
+```
+
+Possible later evolution:
+
+```text
+GitHub Actions
+   ↓
+Windows self-hosted runner
+   ↓
+HSM / remote signing service
+   ↓
+unattended signing
+```
+
+That future unattended model is optional and is not required for the first Wave 16 implementation.
+
+### 4.13 Release manifest for signed releases
+
+Release Factory should be able to generate a machine-readable manifest equivalent to:
+
+```json
+{
+  "product": "EliteSCADA",
+  "version": "...",
+  "gitCommit": "...",
+  "publisher": "...",
+  "certificateThumbprint": "...",
+  "certificateExpiration": "...",
+  "timestampAuthority": "...",
+  "artifacts": [
+    {
+      "file": "EliteSCADA.exe",
+      "authenticode": "Valid",
+      "sha256": "..."
+    },
+    {
+      "file": "EliteSCADA-Setup.exe",
+      "authenticode": "Valid",
+      "sha256": "..."
+    }
+  ]
+}
+```
+
+Do not store secrets in this manifest.
+
+Certificate Subject/thumbprint/expiration, timestamp authority, hashes and verification results are release provenance, not secret-key material.
+
+### 4.14 First unsigned installer must remain signing-ready
+
+Although the first Wave 16 installer is unsigned, its implementation must **not** create packaging decisions that make later signing difficult.
+
+The first implementation must therefore:
+- separate `build`, `test`, `publish`, `package`, `verify` and `release`;
+- reserve an explicit future `SIGN BINARIES` stage between publish and package;
+- reserve a final `SIGN INSTALLER` stage after installer construction;
+- maintain a first-party artifact inventory;
+- generate SHA-256 hashes;
+- derive release version/provenance from canonical product authority;
+- preserve exact Git SHA traceability;
+- avoid post-signing binary mutation by design.
+
+Current Wave 16 first-package flow:
+
+```text
+BUILD
+ ↓
+TEST
+ ↓
+PUBLISH
+ ↓
+PACKAGE
+ ↓
+VERIFY
+ ↓
+SHA-256
+ ↓
+TEST INSTALL
+ ↓
+EVALUATION RELEASE
+```
+
+Future public-release flow:
+
+```text
+BUILD
+ ↓
+TEST
+ ↓
+PUBLISH
+ ↓
+SIGN BINARIES
+ ↓
+VERIFY
+ ↓
+PACKAGE
+ ↓
+SIGN INSTALLER
+ ↓
+VERIFY
+ ↓
+SHA-256
+ ↓
+TEST INSTALL
+ ↓
+PUBLIC RELEASE
+```
+
+### 4.15 Final trust/signing disposition
+
+- **Wave 16 first package:** unsigned installer, private/controlled evaluation only.
+- **Future public distribution:** rebuild/repackage with first-party EliteSCADA binaries and installer authenticated with Microsoft Authenticode using an OV Code Signing certificate issued to the publishing legal entity, SHA-256, RFC3161 timestamp and automated verification.
+- Maximize Codex/script automation, but keep private-key/PIN control outside Codex and repository material.
+- Code Signing remains a detachable release-trust stage around the canonical immutable release payload; it must not mutate EliteSCADA product semantics.
+
 
 ## 5. EliteGO relationship
 

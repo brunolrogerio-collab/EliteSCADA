@@ -146,6 +146,46 @@ public sealed class SystemRecoveryAuthorityAdmissionTests
         Assert.Contains("does not match", admission.Reason, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Evaluate_AllowsRecoveryVersionRebindOnlyWhenAuthorityIdentitySetMatches()
+    {
+        var roleId = Guid.Parse("93000000-0000-0000-0000-000000000013");
+        var authority = new InMemoryAuthorityPolicyStore(
+        [
+            new SecurityRoleEngineeringDto(
+                roleId,
+                "developer",
+                "Developer",
+                Grants:
+                [
+                    new CapabilityGrantEngineeringDto(SecurityCapability.EngineeringModify),
+                    new CapabilityGrantEngineeringDto(SecurityCapability.UserRoleAdmin)
+                ])
+        ]).Snapshot();
+        var package = EmptyPackage() with
+        {
+            AuthorityPolicyReference = new AuthorityPolicyReferenceEngineeringDto(
+                AuthorityPolicyContract.Schema,
+                AuthorityPolicyContract.SchemaVersion,
+                authority.Version + 4,
+                [roleId],
+                [])
+        };
+
+        var deniedOutsideRecovery = SystemRecoveryAuthorityAdmissionEvaluator.Evaluate(
+            package,
+            Account("developer"),
+            authority);
+        var admittedForRecovery = SystemRecoveryAuthorityAdmissionEvaluator.Evaluate(
+            package,
+            Account("developer"),
+            authority,
+            allowRestoredAuthorityVersionRebind: true);
+
+        Assert.False(deniedOutsideRecovery.Allowed);
+        Assert.True(admittedForRecovery.Allowed);
+    }
+
     private static EngineeringPackage PackageWithRole(
         string roleKey,
         params SecurityCapability[] capabilities) =>

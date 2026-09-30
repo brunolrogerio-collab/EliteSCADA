@@ -1,3 +1,24 @@
+# PRODUCT OWNER SEQUENCING OVERRIDE — WAIT FOR POST-PORTABILITY BASE
+
+> This override supersedes the ACTIVE states below until Main explicitly re-releases J/L/N.
+
+State:
+`J/L/N = WAIT_POST_PORTABILITY_INTEGRATION / DO_NOT_EXECUTE`.
+
+Reason:
+the three prepared branches still have zero own commits and are identical to `5abfee03b3adaa5f900be79ad91a5257d0bfaf0e`. Product Owner chose to wait for Portability #405 to integrate so J/L/N can all start from one common post-Portability exact base and avoid unnecessary recomposition/merge friction.
+
+Release gate:
+1. #405 recomposed + exact-head T1 GREEN;
+2. Main audit + integration;
+3. post-Portability EliteSCADA CI globally GREEN;
+4. Main recreates/resets all three branches from the same new integration HEAD;
+5. Main issues new ACTIVE orders.
+
+Until then, the bootstrap text below is PREPARED ONLY and must not be executed.
+
+---
+
 # Wave 15 R2-B — J / L / N released bootstraps — 2026-09-30
 
 GitHub live is the sole authority. These bootstraps are valid only while their newest owner-issue/Main comments do not supersede them.

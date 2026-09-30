@@ -135,7 +135,7 @@ const ptBR = {
 export type TranslationKey = keyof typeof ptBR;
 
 const en: Record<TranslationKey, string> = {
-  'app.title': `EliteSCADA ${productTerm('es', 'engineering')}`,
+  'app.title': `EliteSCADA ${productTerm('en', 'engineering')}`,
   'app.subtitle': 'Engineering Environment',
   'app.runtime': productTerm('en', 'runtime'),
   'app.engineering': productTerm('en', 'engineering'),
@@ -228,7 +228,7 @@ const en: Record<TranslationKey, string> = {
 };
 
 const es: Record<TranslationKey, string> = {
-  'app.title': 'EliteSCADA Engineering',
+  'app.title': `EliteSCADA ${productTerm('es', 'engineering')}`,
   'app.subtitle': 'Entorno de Ingeniería',
   'app.runtime': productTerm('es', 'runtime'),
   'app.engineering': productTerm('es', 'engineering'),
@@ -244,7 +244,7 @@ const es: Record<TranslationKey, string> = {
   'nav.project': 'Proyecto',
   'nav.overview': 'Vista general',
   'nav.communication': 'Comunicación',
-  'nav.dataSources': 'Data Sources',
+  'nav.dataSources': 'Fuentes de datos',
   'nav.tags': 'TAGs',
   'nav.alarms': 'Alarmas',
   'nav.assets': 'Objetos',
@@ -273,7 +273,7 @@ const es: Record<TranslationKey, string> = {
   'overview.next': 'Próximos flujos del editor',
   'overview.nextHint': 'Edición, validación y vista previa usan el mismo proyecto antes de aplicar los cambios.',
   'overview.lifecycle': 'Ciclo del proyecto',
-  'overview.lifecycleHint': 'Working → Revision → Published → Active',
+  'overview.lifecycleHint': 'En edición → Revisión → Publicado → Activo',
   'section.empty': 'No hay elementos configurados en esta sección.',
   'section.readOnly': 'Vista de Ingeniería',
   'section.count': 'elementos',
@@ -311,7 +311,7 @@ const es: Record<TranslationKey, string> = {
   'diagnostics.contract': 'Formato del proyecto',
   'entity.tags': 'TAGs',
   'entity.alarms': 'Alarmas',
-  'entity.dataSources': 'Data Sources',
+  'entity.dataSources': 'Fuentes de datos',
   'entity.templates': 'Templates',
   'entity.equipment': 'Equipos',
   'entity.dynamos': 'Dínamos',

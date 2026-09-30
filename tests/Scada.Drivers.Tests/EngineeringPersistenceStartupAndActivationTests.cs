@@ -487,7 +487,10 @@ public sealed class EngineeringPersistenceStartupAndActivationTests
         var result = await EngineeringPersistenceApi.ActivatePublishedAsync(
             "project-b",
             new EngineeringActivateRequest("operator"),
-            configuredProjectKey: "project-a",
+            new EngineeringInstallationApplicationAuthority(
+                "project-a",
+                EngineeringInstallationBindingState.Attached,
+                UsesLegacyConfiguration: false),
             activation);
 
         var status = Assert.IsAssignableFrom<IStatusCodeHttpResult>(result);

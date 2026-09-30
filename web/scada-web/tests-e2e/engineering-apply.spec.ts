@@ -260,7 +260,7 @@ test('TAG Delete panel surfaces dependency conflict without removing the TAG', a
 
   await page.goto('/engineering');
   await page.getByRole('button', { name: /TAGs/ }).click();
-  await page.getByRole('button', { name: /Demo\\.P01\\.Frequency/ }).click();
+  await page.locator('.eng-editor-picker-list').getByRole('button').filter({ hasText: tag!.path }).click();
   const panel = page.getByTestId('engineering-entity-actions');
   await expect(panel).toBeVisible();
   await expect(panel.getByTestId('engineering-current-entity')).toContainText(tag!.path);

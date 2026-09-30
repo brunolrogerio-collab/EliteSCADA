@@ -337,7 +337,7 @@ export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
       x={contextMenu.x}
       y={contextMenu.y}
       canPaste={props.canPaste === true}
-      locale={props.locale}
+      locale={props.locale ?? 'pt-BR'}
       onMutationIntent={props.onMutationIntent}
       onKeyboardCommand={props.onKeyboardCommand}
       onInspectorTabRequest={props.onInspectorTabRequest}

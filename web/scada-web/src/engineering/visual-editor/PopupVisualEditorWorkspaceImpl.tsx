@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   applyEngineeringPackage,
+  importVisualAsset,
   loadEngineeringWorkspace,
   previewEngineeringPackage
 } from '../api';
@@ -22,12 +23,10 @@ import {
   resolvePopupLogicalPosition
 } from '../../runtime/visual-navigation/runtimePopupPosition';
 import { BUILTIN_VISUAL_OBJECT_TYPES } from '../../visual-runtime';
-import { BindingEditor } from './binding-editor';
 import { VisualEditorCanvas } from './canvas';
 import { DynamoAuthoringCatalogProvider } from './DynamoAuthoringCatalogContext';
-import { DynamicPropertyEditor } from './dynamic-property-editor';
-import { DynamoLibraryPalette } from './DynamoLibraryPalette';
-import { ObjectPalette } from './object-palette';
+import { VisualEditorAuthoringSidebar, type VisualEditorAuthoringTab } from './VisualEditorAuthoringSidebar';
+import { VisualEditorSelectionInspector, type VisualEditorInspectorTab } from './VisualEditorSelectionInspector';
 import {
   NEW_POPUP_IDENTITY,
   createPopupDraft,
@@ -40,7 +39,6 @@ import {
 } from './popupVisualAuthoringModel';
 import { popupEditorText } from './popupVisualEditorText';
 import { createCanonicalPolygon, updateCanonicalPolygonPoints } from './polygonCanonicalMutations';
-import { PropertyInspector } from './property-inspector';
 import { VisualEditorRegionToggle } from './VisualEditorRegionToggle';
 import {
   applyVisualEditorMutationIntent,
@@ -132,11 +130,15 @@ function PopupVisualEditorWorkspaceBody({
   const [screensCollapsed, setScreensCollapsed] = useState(false);
   const [paletteCollapsed, setPaletteCollapsed] = useState(false);
   const [propertiesCollapsed, setPropertiesCollapsed] = useState(false);
+  const [authoringTab, setAuthoringTab] = useState<VisualEditorAuthoringTab>('structure');
+  const [inspectorTab, setInspectorTab] = useState<VisualEditorInspectorTab>('properties');
+  const workspaceRef = useRef<HTMLDivElement | null>(null);
   const [preview, setPreview] = useState<ImportPreviewView | null>(null);
   const [candidate, setCandidate] = useState<ValidatedPopupCandidate | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [importingAsset, setImportingAsset] = useState(false);
   const [clientMemoryDefinitions, setClientMemoryDefinitions] = useState<readonly ClientMemoryDefinitionView[]>(Object.freeze([]));
 
   const replaceSession = (next: VisualEditorSessionState) => {
@@ -192,7 +194,6 @@ function PopupVisualEditorWorkspaceBody({
     () => selectedVisualElements(draftScreen, selectedObjectIds),
     [draftScreen, selectedObjectIds]
   );
-  const selectedElement = selectedElements.length === 1 ? selectedElements[0] : null;
   const projectReferences = useMemo(
     () => buildProjectReferenceCatalog(snapshot.package, clientMemoryDefinitions),
     [snapshot.package, clientMemoryDefinitions]
@@ -215,14 +216,14 @@ function PopupVisualEditorWorkspaceBody({
   ), [projectReferences]);
 
   useEffect(() => {
-    if (!changed && !applying) return undefined;
+    if (!changed && !applying && !importingAsset) return undefined;
     const beforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = '';
     };
     window.addEventListener('beforeunload', beforeUnload);
     return () => window.removeEventListener('beforeunload', beforeUnload);
-  }, [changed, applying]);
+  }, [changed, applying, importingAsset]);
 
   const choosePopup = (identity: string) => {
     if (identity === selectedIdentity) return;
@@ -320,6 +321,21 @@ function PopupVisualEditorWorkspaceBody({
     invalidateValidation();
   };
 
+  const showInspector = (tab: VisualEditorInspectorTab, focusRename = false) => {
+    setPropertiesCollapsed(false);
+    setInspectorTab(tab);
+    if (focusRename) {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        workspaceRef.current?.querySelector<HTMLInputElement>('[data-testid="visual-property-identity-key"]')?.focus();
+      }));
+    }
+  };
+
+  const showStructure = () => {
+    setPaletteCollapsed(false);
+    setAuthoringTab('structure');
+  };
+
   const validateDraft = async () => {
     setPreviewing(true);
     setError(null);
@@ -361,6 +377,23 @@ function PopupVisualEditorWorkspaceBody({
     }
   };
 
+  const importAsset = async (file: File) => {
+    if (changed) {
+      setError('Salve/aplique o rascunho do Popup antes de importar um asset visual.');
+      return;
+    }
+    setImportingAsset(true);
+    setError(null);
+    try {
+      await importVisualAsset(file, snapshot.workspace.changeVersion, { fileName: file.name });
+      await onApplied();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setImportingAsset(false);
+    }
+  };
+
   const issues = preview?.items.flatMap(item => item.issues ?? []) ?? [];
 
   const layoutClassName = [
@@ -370,7 +403,7 @@ function PopupVisualEditorWorkspaceBody({
     propertiesCollapsed ? 'visual-editor-workspace--properties-collapsed' : ''
   ].filter(Boolean).join(' ');
 
-  return <div className={layoutClassName} data-testid="popup-visual-editor-workspace">
+  return <div ref={workspaceRef} className={layoutClassName} data-testid="popup-visual-editor-workspace">
     <header className="visual-editor-header">
       <div><span>{text.eyebrow}</span><h1>{text.title}</h1><p>{text.description}</p></div>
       <div className="visual-editor-authority"><strong>{text.authorityTitle}</strong><span>{text.authorityHint}</span></div>
@@ -408,17 +441,24 @@ function PopupVisualEditorWorkspaceBody({
         <div className="visual-editor-composition">
           <aside className="visual-editor-slot visual-editor-palette-slot">
             <VisualEditorRegionToggle region="palette" collapsed={paletteCollapsed} locale={locale} onToggle={() => setPaletteCollapsed(value => !value)} />
-            <ObjectPalette onMutationIntent={handlePaletteIntent} />
-            <DynamoLibraryPalette
+            <VisualEditorAuthoringSidebar
+              screen={draftScreen}
+              selectedObjectIds={selectedObjectIds}
               definitions={snapshot.package.dynamos ?? []}
+              visualAssets={snapshot.package.visualAssets ?? []}
               locale={locale}
+              activeTab={authoringTab}
+              onActiveTabChange={setAuthoringTab}
+              onUiIntent={handleUiIntent}
               onMutationIntent={handlePaletteIntent}
+              onCommand={handleKeyboardCommand}
+              assetImport={{
+                busy: importingAsset,
+                disabled: changed || applying || previewing,
+                disabledHint: changed ? 'Aplique ou descarte o rascunho antes de importar um asset.' : undefined,
+                onFile: importAsset
+              }}
             />
-            <section className="visual-editor-asset-library">
-              <strong>{text.assets}</strong>
-              <span>{text.assetHint}</span>
-              <small>{snapshot.package.visualAssets?.length ?? 0} {text.assetsAvailable}</small>
-            </section>
           </aside>
 
           <section className="visual-editor-canvas-slot">
@@ -433,6 +473,9 @@ function PopupVisualEditorWorkspaceBody({
               canUndo={canUndoVisualEditorSession(session)}
               canRedo={canRedoVisualEditorSession(session)}
               canPaste={canPasteVisualEditorSession(session)}
+              onInsertObject={objectType => handlePaletteIntent({ kind: 'object.add', objectType })}
+              onInspectorTabRequest={showInspector}
+              onStructureRequest={showStructure}
               locale={locale}
               dynamoDefinitions={snapshot.package.dynamos}
               emptyLabel={text.emptyCanvas}
@@ -448,30 +491,18 @@ function PopupVisualEditorWorkspaceBody({
 
           <aside className="visual-editor-slot visual-editor-inspector-slot">
             <VisualEditorRegionToggle region="properties" collapsed={propertiesCollapsed} locale={locale} onToggle={() => setPropertiesCollapsed(value => !value)} />
-            <PropertyInspector
+            <VisualEditorSelectionInspector
+              screen={draftScreen}
               selectedElements={selectedElements}
+              selectedObjectIds={selectedObjectIds}
+              sourceCatalog={bindingSourceCatalog}
               visualAssets={snapshot.package.visualAssets ?? []}
-              onMutationIntent={handleMutationIntent}
-            />
-            {selectedElement?.id ? <DynamicPropertyEditor
-              element={selectedElement}
-              sourceCatalog={bindingSourceCatalog}
-              onBindingIntent={handleMutationIntent}
-              onSetExpression={configuration => handleMutationIntent({ kind: 'propertyExpression.set', objectId: selectedElement.id!, configuration })}
-              onRemoveExpression={propertyKey => handleMutationIntent({ kind: 'propertyExpression.remove', objectId: selectedElement.id!, propertyKey })}
-              onSetBooleanCondition={configuration => handleMutationIntent({ kind: 'booleanCondition.set', objectId: selectedElement.id!, configuration })}
-              onRemoveBooleanCondition={propertyKey => handleMutationIntent({ kind: 'booleanCondition.remove', objectId: selectedElement.id!, propertyKey })}
-              onSetAnalogFill={configuration => handleMutationIntent({ kind: 'analogFill.set', objectId: selectedElement.id!, configuration })}
-              onRemoveAnalogFill={() => handleMutationIntent({ kind: 'analogFill.remove', objectId: selectedElement.id! })}
-              onSetPropertyMap={configuration => handleMutationIntent({ kind: 'propertyMap.set', objectId: selectedElement.id!, configuration })}
-              onRemovePropertyMap={propertyKey => handleMutationIntent({ kind: 'propertyMap.remove', objectId: selectedElement.id!, propertyKey })}
-            /> : null}
-            {selectedElement ? <BindingEditor
-              element={selectedElement}
-              sourceCatalog={bindingSourceCatalog}
-              onMutationIntent={handleMutationIntent}
               locale={locale}
-            /> : <p className="visual-editor-selection-hint">{text.selectObject}</p>}
+              activeTab={inspectorTab}
+              onActiveTabChange={setInspectorTab}
+              onMutationIntent={handleMutationIntent}
+              onCommand={handleKeyboardCommand}
+            />
           </aside>
         </div>
 

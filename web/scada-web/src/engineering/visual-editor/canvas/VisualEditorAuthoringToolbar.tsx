@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import type { ScreenEngineering } from '../../types';
+import { BUILTIN_VISUAL_OBJECT_TYPES } from '../../../visual-runtime';
 import { useC07VisualEditorText } from '../c07VisualEditorI18n';
 import type {
   VisualEditorAuthoringOperation,
@@ -18,7 +19,8 @@ export function VisualEditorAuthoringToolbar({
   onKeyboardCommand,
   canUndo,
   canRedo,
-  canPaste
+  canPaste,
+  onInsertObject
 }: {
   screen: ScreenEngineering;
   selectedObjectIds: readonly string[];
@@ -27,8 +29,11 @@ export function VisualEditorAuthoringToolbar({
   canUndo?: boolean;
   canRedo?: boolean;
   canPaste?: boolean;
+  onInsertObject?: (objectType: string) => void;
 }) {
-  const text = useC07VisualEditorText().toolbar;
+  const editorText = useC07VisualEditorText();
+  const text = editorText.toolbar;
+  const palette = editorText.palette as Readonly<Record<string, string>>;
   const state = useMemo(
     () => buildVisualEditorAuthoringToolbarState(screen, selectedObjectIds),
     [screen, selectedObjectIds]
@@ -77,7 +82,26 @@ export function VisualEditorAuthoringToolbar({
     });
   };
 
+  const inserts = [
+    [BUILTIN_VISUAL_OBJECT_TYPES.rectangle, '▭', 'rectangle', 'Rectangle'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.ellipse, '◯', 'ellipse', 'Ellipse'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.text, 'T', 'text', 'Text'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.image, '▧', 'image', 'Image'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay, '#', 'valueDisplay', 'Value display'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.button, '▰', 'button', 'Button'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.numericInput, '123', 'numericInput', 'Numeric input']
+  ] as const;
+
   return <div className="visual-editor-authoring-toolbar" role="toolbar" aria-label={text.aria} data-testid="visual-editor-authoring-toolbar">
+    <ToolbarGroup label="Insert">
+      {inserts.map(([objectType, glyph, labelKey, fallbackLabel]) => <Tool
+        key={objectType}
+        label={palette[labelKey] ?? fallbackLabel}
+        disabled={!onInsertObject}
+        onClick={() => onInsertObject?.(objectType)}
+        dataObjectType={objectType}
+      >{glyph}</Tool>)}
+    </ToolbarGroup>
     <ToolbarGroup label={text.history}>
       <Tool label={text.undo} disabled={!onKeyboardCommand || canUndo === false} onClick={() => onKeyboardCommand?.({ kind: 'undo' })}>↶</Tool>
       <Tool label={text.redo} disabled={!onKeyboardCommand || canRedo === false} onClick={() => onKeyboardCommand?.({ kind: 'redo' })}>↷</Tool>
@@ -127,12 +151,14 @@ function Tool({
   label,
   disabled,
   onClick,
-  children
+  children,
+  dataObjectType
 }: {
   label: string;
   disabled: boolean;
   onClick: () => void;
   children: React.ReactNode;
+  dataObjectType?: string;
 }) {
-  return <button type="button" title={label} aria-label={label} disabled={disabled} onClick={onClick}>{children}</button>;
+  return <button type="button" title={label} aria-label={label} disabled={disabled} onClick={onClick} data-insert-object-type={dataObjectType}>{children}</button>;
 }

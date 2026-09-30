@@ -56,7 +56,47 @@ const ONE_PIXEL_PNG = Buffer.from(
   'base64'
 );
 
+test('W15 R2 editor mounts shared side surfaces, compact insertions, collapse/reopen and contextual productivity commands', async ({ page }) => {
+  await page.goto('/engineering');
+  await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
+
+  const workspace = page.getByTestId('visual-editor-workspace');
+  const authoringSidebar = page.getByTestId('visual-editor-authoring-sidebar');
+  const selectionInspector = page.getByTestId('visual-editor-selection-inspector');
+
+  await expect(workspace).toBeVisible();
+  await expect(page.getByTestId('visual-editor-canonical-renderer')).toBeVisible();
+  await expect(authoringSidebar).toBeVisible();
+  await expect(authoringSidebar.getByTestId('visual-editor-outliner')).toBeVisible();
+  await expect(authoringSidebar.getByTestId('visual-object-palette')).toBeVisible();
+  await expect(page.locator('.visual-editor-canvas-enhanced__canvas').getByTestId('visual-editor-outliner')).toHaveCount(0);
+  await expect(page.locator('[data-insert-object-type="core.image"]')).toBeVisible();
+
+  await expect(selectionInspector.getByTestId('visual-editor-inspector-tab-properties')).toBeVisible();
+  await expect(selectionInspector.getByTestId('visual-editor-inspector-tab-dynamics')).toBeVisible();
+  await expect(selectionInspector.getByTestId('visual-editor-inspector-tab-events')).toBeVisible();
+
+  const paletteToggle = page.getByTestId('visual-editor-palette-toggle');
+  await paletteToggle.click();
+  await expect(authoringSidebar).toBeHidden();
+  await expect(paletteToggle).toBeVisible();
+  await paletteToggle.click();
+  await expect(authoringSidebar).toBeVisible();
+
+  const canvasObject = page.locator('[data-canvas-object-id]').first();
+  await expect(canvasObject).toBeVisible();
+  await canvasObject.click({ button: 'right' });
+
+  const contextMenu = page.getByTestId('visual-editor-context-menu');
+  await expect(contextMenu).toBeVisible();
+  await expect(contextMenu.getByRole('menuitem', { name: 'Renomear', exact: true })).toBeVisible();
+  await expect(contextMenu.getByRole('menuitem', { name: 'Duplicar', exact: true })).toBeVisible();
+  await expect(contextMenu.getByRole('menuitem', { name: 'Propriedades', exact: true })).toBeVisible();
+});
+
 test('Wave 08 composes Canvas, palette, properties, project-source binding, image asset and canonical save/reopen', async ({ page, request }) => {
+  page.setDefaultTimeout(5_000);
+
   const originalResponse = await request.get('/api/engineering/export/json');
   expect(originalResponse.ok()).toBeTruthy();
   const originalPackage = await originalResponse.json() as ExportedPackage;

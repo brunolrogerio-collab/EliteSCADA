@@ -18,13 +18,10 @@ import type {
 } from '../types';
 import { initializeClientMemory } from '../../runtime/clientMemory';
 import { BUILTIN_VISUAL_OBJECT_TYPES } from '../../visual-runtime';
-import { BindingEditor } from './binding-editor';
 import { VisualEditorCanvas } from './canvas';
-import { DynamicPropertyEditor } from './dynamic-property-editor';
-import { DynamoLibraryPalette } from './DynamoLibraryPalette';
-import { ObjectPalette } from './object-palette';
+import { VisualEditorAuthoringSidebar, type VisualEditorAuthoringTab } from './VisualEditorAuthoringSidebar';
+import { VisualEditorSelectionInspector, type VisualEditorInspectorTab } from './VisualEditorSelectionInspector';
 import { createCanonicalPolygon, updateCanonicalPolygonPoints } from './polygonCanonicalMutations';
-import { PropertyInspector } from './property-inspector';
 import { VisualEditorRegionToggle } from './VisualEditorRegionToggle';
 import {
   NEW_SCREEN_IDENTITY,
@@ -93,6 +90,9 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
   const [screensCollapsed, setScreensCollapsed] = useState(false);
   const [paletteCollapsed, setPaletteCollapsed] = useState(false);
   const [propertiesCollapsed, setPropertiesCollapsed] = useState(false);
+  const [authoringTab, setAuthoringTab] = useState<VisualEditorAuthoringTab>('structure');
+  const [inspectorTab, setInspectorTab] = useState<VisualEditorInspectorTab>('properties');
+  const workspaceRef = useRef<HTMLDivElement | null>(null);
   const [clientMemoryDefinitions, setClientMemoryDefinitions] = useState<readonly ClientMemoryDefinitionView[]>(Object.freeze([]));
 
   const replaceSession = (next: VisualEditorSessionState) => {
@@ -150,7 +150,6 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
     () => selectedVisualElements(draft, selectedObjectIds),
     [draft, selectedObjectIds]
   );
-  const selectedElement = selectedElements.length === 1 ? selectedElements[0] : null;
   const projectReferences = useMemo(
     () => buildProjectReferenceCatalog(snapshot.package, clientMemoryDefinitions),
     [snapshot.package, clientMemoryDefinitions]
@@ -274,6 +273,21 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
     handleMutationIntent(intent);
   };
 
+  const showInspector = (tab: VisualEditorInspectorTab, focusRename = false) => {
+    setPropertiesCollapsed(false);
+    setInspectorTab(tab);
+    if (focusRename) {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        workspaceRef.current?.querySelector<HTMLInputElement>('[data-testid="visual-property-identity-key"]')?.focus();
+      }));
+    }
+  };
+
+  const showStructure = () => {
+    setPaletteCollapsed(false);
+    setAuthoringTab('structure');
+  };
+
   const validateDraft = async () => {
     setPreviewing(true);
     setError(null);
@@ -344,7 +358,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
     propertiesCollapsed ? 'visual-editor-workspace--properties-collapsed' : ''
   ].filter(Boolean).join(' ');
 
-  return <div className={layoutClassName} data-testid="visual-editor-workspace">
+  return <div ref={workspaceRef} className={layoutClassName} data-testid="visual-editor-workspace">
     <header className="visual-editor-header">
       <div><span>{text.eyebrow}</span><h1>{text.title}</h1><p>{text.description}</p></div>
       <div className="visual-editor-authority"><strong>{text.authorityTitle}</strong><span>{text.authorityHint}</span></div>
@@ -380,33 +394,24 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
         <div className="visual-editor-composition">
           <aside className="visual-editor-slot visual-editor-palette-slot">
             <VisualEditorRegionToggle region="palette" collapsed={paletteCollapsed} locale={locale} onToggle={() => setPaletteCollapsed(value => !value)} />
-            <ObjectPalette
-              onMutationIntent={handlePaletteIntent}
-              copy={{ title: text.objectsPanel, hint: text.objectsPanelHint, addLabel: text.addObject, labels: text.objectLabels }}
-            />
-            <DynamoLibraryPalette
+            <VisualEditorAuthoringSidebar
+              screen={draft}
+              selectedObjectIds={selectedObjectIds}
               definitions={snapshot.package.dynamos ?? []}
+              visualAssets={visualAssets}
               locale={locale}
+              activeTab={authoringTab}
+              onActiveTabChange={setAuthoringTab}
+              onUiIntent={handleUiIntent}
               onMutationIntent={handlePaletteIntent}
+              onCommand={handleKeyboardCommand}
+              assetImport={{
+                busy: importingAsset,
+                disabled: changed || applying || previewing,
+                disabledHint: changed ? text.assetImportRequiresCleanDraft : undefined,
+                onFile: importAsset
+              }}
             />
-            <section className="visual-editor-asset-library">
-              <strong>{text.assets}</strong>
-              <span>{text.assetHint}</span>
-              <label className="visual-editor-file-import">
-                <span>{importingAsset ? text.importingAsset : text.importAsset}</span>
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/bmp"
-                  disabled={changed || importingAsset || applying || previewing}
-                  onChange={event => {
-                    const file = event.currentTarget.files?.[0];
-                    event.currentTarget.value = '';
-                    if (file) void importAsset(file);
-                  }}
-                />
-              </label>
-              {changed ? <small>{text.assetImportRequiresCleanDraft}</small> : null}
-            </section>
           </aside>
 
           <section className="visual-editor-canvas-slot">
@@ -421,6 +426,9 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
               canUndo={canUndoVisualEditorSession(session)}
               canRedo={canRedoVisualEditorSession(session)}
               canPaste={canPasteVisualEditorSession(session)}
+              onInsertObject={objectType => handlePaletteIntent({ kind: 'object.add', objectType })}
+              onInspectorTabRequest={showInspector}
+              onStructureRequest={showStructure}
               locale={locale}
               dynamoDefinitions={snapshot.package.dynamos}
               emptyLabel={text.emptyCanvas}
@@ -431,66 +439,18 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
 
           <aside className="visual-editor-slot visual-editor-inspector-slot">
             <VisualEditorRegionToggle region="properties" collapsed={propertiesCollapsed} locale={locale} onToggle={() => setPropertiesCollapsed(value => !value)} />
-            <PropertyInspector
+            <VisualEditorSelectionInspector
+              screen={draft}
               selectedElements={selectedElements}
+              selectedObjectIds={selectedObjectIds}
+              sourceCatalog={bindingSourceCatalog}
               visualAssets={visualAssets}
+              locale={locale}
+              activeTab={inspectorTab}
+              onActiveTabChange={setInspectorTab}
               onMutationIntent={handleMutationIntent}
+              onCommand={handleKeyboardCommand}
             />
-
-            {selectedElement?.id ? (
-              <DynamicPropertyEditor
-                element={selectedElement}
-                sourceCatalog={bindingSourceCatalog}
-                onBindingIntent={handleMutationIntent}
-                onSetExpression={configuration => handleMutationIntent({
-                  kind: 'propertyExpression.set', objectId: selectedElement.id!, configuration
-                })}
-                onRemoveExpression={propertyKey => handleMutationIntent({
-                  kind: 'propertyExpression.remove', objectId: selectedElement.id!, propertyKey
-                })}
-                onSetBooleanCondition={configuration => handleMutationIntent({
-                  kind: 'booleanCondition.set', objectId: selectedElement.id!, configuration
-                })}
-                onRemoveBooleanCondition={propertyKey => handleMutationIntent({
-                  kind: 'booleanCondition.remove', objectId: selectedElement.id!, propertyKey
-                })}
-                onSetAnalogFill={configuration => handleMutationIntent({
-                  kind: 'analogFill.set', objectId: selectedElement.id!, configuration
-                })}
-                onRemoveAnalogFill={() => handleMutationIntent({
-                  kind: 'analogFill.remove', objectId: selectedElement.id!
-                })}
-                onSetPropertyMap={configuration => handleMutationIntent({
-                  kind: 'propertyMap.set', objectId: selectedElement.id!, configuration
-                })}
-                onRemovePropertyMap={propertyKey => handleMutationIntent({
-                  kind: 'propertyMap.remove', objectId: selectedElement.id!, propertyKey
-                })}
-              />
-            ) : null}
-
-            {selectedElement ? (
-              <BindingEditor
-                element={selectedElement}
-                sourceCatalog={bindingSourceCatalog}
-                onMutationIntent={handleMutationIntent}
-                locale={locale}
-                copy={{
-                  title: text.binding,
-                  destination: text.bindingDestination,
-                  source: text.bindingSource,
-                  apply: text.applyBinding,
-                  remove: text.removeBinding,
-                  noDestinations: text.noBindingDestinations,
-                  noSources: text.noBindingSources,
-                  current: text.currentBinding,
-                  browse: text.browseReferences,
-                  exactReference: text.exactReference,
-                  exactReferencePlaceholder: text.exactReferencePlaceholder,
-                  exactNotFound: text.exactNotFound
-                }}
-              />
-            ) : <p className="visual-editor-selection-hint">{text.selectBindingObject}</p>}
           </aside>
         </div>
 

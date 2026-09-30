@@ -14,3 +14,9 @@
 .visual-editor-outliner__lock.is-direct { background: #cbd5e1; color: #1e293b; }
 .visual-editor-outliner__empty { display: block; padding: 10px; color: #94a3b8; text-align: center; }
 @media (max-width: 900px) { .visual-editor-outliner { width: min(200px,46%); } }
+
+
+/* R2 editor: Structure is docked in the shared authoring sidebar, never over the canvas. */
+.visual-editor-authoring-sidebar .visual-editor-outliner{position:static;width:auto;max-height:none;border:0;border-radius:0;background:transparent;box-shadow:none}
+.visual-editor-authoring-sidebar .visual-editor-outliner>summary{position:sticky;top:0;z-index:1;background:var(--eng-panel-soft,#17212c)}
+.visual-editor-authoring-sidebar .visual-editor-outliner__tree{max-height:none;overflow:visible}

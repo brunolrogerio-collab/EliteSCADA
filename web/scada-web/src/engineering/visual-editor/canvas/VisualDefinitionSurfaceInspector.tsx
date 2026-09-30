@@ -32,7 +32,9 @@ export function VisualDefinitionSurfaceInspector({
 
   useEffect(() => setColorDraft(config.backgroundColor ?? ''), [config.backgroundColor]);
   useEffect(() => {
-    const wrapper = hostRef.current?.closest('.visual-editor-canvas-enhanced');
+    const directWrapper = hostRef.current?.closest('.visual-editor-canvas-enhanced');
+    const composition = hostRef.current?.closest('.visual-editor-composition');
+    const wrapper = directWrapper ?? composition?.querySelector<HTMLElement>('.visual-editor-canvas-enhanced') ?? null;
     setCanvasSurface(wrapper?.querySelector<HTMLElement>('.visual-editor-canvas__surface') ?? null);
   }, []);
 

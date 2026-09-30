@@ -1,3 +1,21 @@
+# LATEST COORDINATION DELTA — R2-B J/L/N RELEASED
+
+Portability #405 has been integrated. EliteSCADA CI #1611 / `36655606469` is globally GREEN on exact integration:
+`1d9e3f9123bea8e27c362ee680a4ba70f864becd` (tree `512ef505924f3a0a709e8d5a73e2625531586e1c`).
+
+The Product Owner's common-base sequencing gate is satisfied.
+
+J/L/N branches were aligned to the same exact integration SHA and are now ACTIVE in parallel:
+- J Editor UX;
+- L Branding;
+- N Structured Engineering Forms.
+
+Main owns audit/integration. Each lane must stay NO_MERGE and produce exact-head Wave 15 T1 evidence before handoff.
+
+M / P / TAG-D / Historical Playback / Script Authoring R2 remain HOLD unless a later Main order explicitly releases them.
+
+---
+
 # LATEST LIVE COORDINATION DELTA — 2026-09-30 — J/L/N PARKED FOR COMMON POST-PORTABILITY BASE
 
 Product Owner sequencing decision:

@@ -192,7 +192,7 @@ test('mounted TAG-D flow duplicates, multi-copies, previews 20 Modbus TAGs and a
   await expect(page.getByTestId('tag-generated-row')).toHaveCount(1);
   expect(previewCount).toBe(0);
   expect(applyCount).toBe(0);
-  await expect(page.getByLabel('Path 1')).toHaveValue('Plant.Motor.Speed_copy');
+  await expect(page.getByLabel('Path 1', { exact: true })).toHaveValue('Plant.Motor.Speed_copy');
 
   const singlePreviewRequest = page.waitForRequest(request =>
     request.method() === 'POST' && new URL(request.url()).pathname === '/api/engineering/import/json/preview');
@@ -231,25 +231,25 @@ test('mounted TAG-D flow duplicates, multi-copies, previews 20 Modbus TAGs and a
   await page.getByTestId('tag-sequence-toggle').click();
   await page.getByTestId('tag-sequence-generate').click();
   await expect(page.getByTestId('tag-generated-row')).toHaveCount(20);
-  await expect(page.getByLabel('Nome 1')).toHaveValue('Motor Speed_1');
-  await expect(page.getByLabel('Nome 20')).toHaveValue('Motor Speed_20');
-  await expect(page.getByLabel('Path 1')).toHaveValue('Plant.Motor.Speed_1');
-  await expect(page.getByLabel('Endereço 1')).toHaveValue('holding:11');
-  await expect(page.getByLabel('Endereço 20')).toHaveValue('holding:30');
+  await expect(page.getByLabel('Nome 1', { exact: true })).toHaveValue('Motor Speed_1');
+  await expect(page.getByLabel('Nome 20', { exact: true })).toHaveValue('Motor Speed_20');
+  await expect(page.getByLabel('Path 1', { exact: true })).toHaveValue('Plant.Motor.Speed_1');
+  await expect(page.getByLabel('Endereço 1', { exact: true })).toHaveValue('holding:11');
+  await expect(page.getByLabel('Endereço 20', { exact: true })).toHaveValue('holding:30');
   expect(applyCount).toBe(0);
 
   // Collision is visible locally and blocks server Preview.
   const previewsBeforeCollision = previewCount;
-  await page.getByLabel('Path 1').fill('Plant.Motor.Speed');
+  await page.getByLabel('Path 1', { exact: true }).fill('Plant.Motor.Speed');
   await expect(page.getByTestId('tag-duplication-collisions')).toContainText('Plant.Motor.Speed');
   await expect(page.getByTestId('tag-duplication-preview')).toBeDisabled();
   expect(previewCount).toBe(previewsBeforeCollision);
 
-  await page.getByLabel('Path 1').fill('Plant.Motor.Speed_1');
-  await page.getByLabel('Endereço 1').fill('holding:10');
+  await page.getByLabel('Path 1', { exact: true }).fill('Plant.Motor.Speed_1');
+  await page.getByLabel('Endereço 1', { exact: true }).fill('holding:10');
   await expect(page.getByTestId('tag-duplication-collisions')).toContainText('holding:10');
   await expect(page.getByTestId('tag-duplication-preview')).toBeDisabled();
-  await page.getByLabel('Endereço 1').fill('holding:11');
+  await page.getByLabel('Endereço 1', { exact: true }).fill('holding:11');
 
   const sequencePreviewRequest = page.waitForRequest(request =>
     request.method() === 'POST' && new URL(request.url()).pathname === '/api/engineering/import/json/preview');

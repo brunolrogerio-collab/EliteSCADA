@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Scada.Api.Engineering;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
+using Scada.Engineering.Branding;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Gateways;
 using Scada.Engineering.Persistence;
@@ -23,6 +24,8 @@ public static class EngineeringPersistenceApi
 
         builder.Services.TryAddSingleton<IVisualAssetEngineeringRegistry>(sp =>
             sp.GetRequiredService<EngineeringWorkspace>().VisualAssets);
+        builder.Services.TryAddSingleton<IApplicationBrandingEngineeringRegistry>(sp =>
+            sp.GetRequiredService<EngineeringWorkspace>().Branding);
         builder.Services.TryAddSingleton<IReportEngineeringRegistry>(sp =>
             new InMemoryReportEngineeringRegistry(
                 sp.GetRequiredService<EngineeringWorkspace>().MarkDirty));

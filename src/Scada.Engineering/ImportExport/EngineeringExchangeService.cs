@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Scada.Core.Alarms;
 using Scada.Core.Tags;
 using Scada.Engineering.Assets;
+using Scada.Engineering.Branding;
 using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
@@ -22,7 +23,7 @@ namespace Scada.Engineering.ImportExport;
 public sealed class EngineeringExchangeService : IEngineeringExchangeService
 {
     public const string CurrentSchema = "scada.engineering";
-    public const int CurrentSchemaVersion = 20;
+    public const int CurrentSchemaVersion = 21;
 
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
@@ -37,6 +38,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     private readonly IReportEngineeringRegistry _reports;
     private readonly IOperationalEventEngineeringRegistry _operationalEvents;
     private readonly IEngineeringLockRegistry _engineeringLock;
+    private readonly IApplicationBrandingEngineeringRegistry _branding;
     private readonly JsonSerializerOptions _json;
     private readonly EngineeringCsvExchange _csv;
     private readonly DataSourceEngineeringHandler _dataSourceHandler;
@@ -165,7 +167,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         IReportEngineeringRegistry? reports = null,
         IDataSourceConfigurationValidator? dataSourceConfigurationValidator = null,
         IOperationalEventEngineeringRegistry? operationalEvents = null,
-        IEngineeringLockRegistry? engineeringLock = null)
+        IEngineeringLockRegistry? engineeringLock = null,
+        IApplicationBrandingEngineeringRegistry? branding = null)
     {
         _tags = tags;
         _alarms = alarms;
@@ -182,6 +185,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             ?? (_scripts as IOperationalEventEngineeringRegistry)
             ?? new InMemoryOperationalEventEngineeringRegistry();
         _engineeringLock = engineeringLock ?? new InMemoryEngineeringLockRegistry();
+        _branding = branding ?? new InMemoryApplicationBrandingEngineeringRegistry();
         _json = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -256,7 +260,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
                 authoritySnapshot.Scopes.Select(scope => scope.Id).Order().ToArray()),
             HistorianCaptureProfiles: Array.Empty<HistorianCaptureProfileEngineeringDto>(),
             DataQueries: Array.Empty<DataQueryEngineeringDto>(),
-            AlarmViews: Array.Empty<AlarmViewEngineeringDto>());
+            AlarmViews: Array.Empty<AlarmViewEngineeringDto>(),
+            Branding: _branding.Snapshot());
     }
 
     public string ExportJson(bool indented = true)
@@ -364,6 +369,18 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _alarmHandler.Preview(package, mode, items);
         _assetHandler.Preview(package, mode, items);
         _visualAssetHandler.Preview(package, mode, items, context);
+        var brandingIssues = ApplicationBrandingEngineeringValidator.Validate(
+            package.Branding,
+            _visualAssets,
+            package.VisualAssets);
+        if (brandingIssues.Any(issue => issue.IsError))
+        {
+            items.Add(new ImportPreviewItem(
+                ImportEntityKind.Branding,
+                "application-branding",
+                ImportOperation.Error,
+                brandingIssues));
+        }
         _viewHandler.Preview(package, mode, items);
         _commandHandler.Preview(package, mode, items);
         _gatewayHandler.Preview(package, mode, items);
@@ -409,6 +426,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _alarmHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _assetHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _visualAssetHandler.Apply(package, mode, ref created, ref updated, ref skipped, context);
+        if (package.Branding is not null)
+            _branding.Replace(package.Branding);
         _viewHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         if ((package.Screens?.Count ?? 0) > 0 || package.StartupScreenId.HasValue)
             _views.SetStartupScreen(package.StartupScreenId);

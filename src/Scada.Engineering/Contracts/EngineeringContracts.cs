@@ -35,7 +35,8 @@ public enum ImportEntityKind
     SecurityScope,
     HistorianCaptureProfile,
     DataQuery,
-    AlarmView
+    AlarmView,
+    Branding
 }
 
 public enum SecurityScopeNodeKind
@@ -290,6 +291,26 @@ public sealed record PopupEngineeringDto(
 /// content stored in the project/revision asset blob boundary. Id is the stable
 /// project reference used by visual assetRef values.
 /// </summary>
+public enum ApplicationBrandingMode
+{
+    Default,
+    Text,
+    Image,
+    None
+}
+
+/// <summary>
+/// Canonical application branding configuration. Absence is intentionally
+/// equivalent to <see cref="ApplicationBrandingMode.Default"/> for legacy
+/// Engineering packages. IMAGE references the stable VisualAsset identity and
+/// never a filesystem/browser-local path.
+/// </summary>
+public sealed record ApplicationBrandingEngineeringDto(
+    ApplicationBrandingMode Mode = ApplicationBrandingMode.Default,
+    string? Text = null,
+    string? Subtitle = null,
+    Guid? VisualAssetId = null);
+
 public sealed record VisualAssetEngineeringDto(
     Guid? Id,
     string Key,
@@ -433,7 +454,8 @@ public sealed record EngineeringPackage(
     AuthorityPolicyReferenceEngineeringDto? AuthorityPolicyReference = null,
     IReadOnlyCollection<HistorianCaptureProfileEngineeringDto>? HistorianCaptureProfiles = null,
     IReadOnlyCollection<DataQueryEngineeringDto>? DataQueries = null,
-    IReadOnlyCollection<AlarmViewEngineeringDto>? AlarmViews = null);
+    IReadOnlyCollection<AlarmViewEngineeringDto>? AlarmViews = null,
+    ApplicationBrandingEngineeringDto? Branding = null);
 
 public sealed record ImportIssue(
     string Code,

@@ -80,8 +80,8 @@ public static class VisualAssetEndpoints
             try
             {
                 var content = await ReadAssetAsync(request, cancellationToken);
-                var inspection = RasterImageInspector.Inspect(content);
-                var payload = VisualAssetPayload.Create(inspection.MediaType, content);
+                var inspection = VisualAssetContentInspector.InspectAndCanonicalize(content);
+                var payload = VisualAssetPayload.Create(inspection.MediaType, inspection.CanonicalContent);
                 var id = Guid.NewGuid();
                 var normalizedKey = string.IsNullOrWhiteSpace(key) ? $"asset.{id:N}" : key.Trim();
                 var originalFileName = NormalizeFileName(fileName);
@@ -198,7 +198,7 @@ public static class VisualAssetEndpoints
                     "new",
                     new Dictionary<string, string>
                     {
-                        ["reason"] = "invalid-image",
+                        ["reason"] = "invalid-visual-asset",
                         ["errorType"] = ex.GetType().Name
                     });
                 return Results.BadRequest(new { error = ex.Message });

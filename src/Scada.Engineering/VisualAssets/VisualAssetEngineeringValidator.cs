@@ -13,7 +13,8 @@ public static partial class VisualAssetEngineeringValidator
     {
         "image/png",
         "image/jpeg",
-        "image/bmp"
+        "image/bmp",
+        VisualAssetContentInspector.SvgMediaType
     };
 
     public static IReadOnlyCollection<ImportIssue> Validate(
@@ -81,18 +82,29 @@ public static partial class VisualAssetEngineeringValidator
 
         try
         {
-            var inspection = RasterImageInspector.Inspect(payload.Content);
+            var inspection = VisualAssetContentInspector.InspectAndCanonicalize(payload.Content);
             if (!inspection.MediaType.Equals(asset.MediaType, StringComparison.OrdinalIgnoreCase) ||
                 !inspection.MediaType.Equals(payload.MediaType, StringComparison.OrdinalIgnoreCase))
             {
                 issues.Add(Error(
                     "VISUAL_ASSET_PAYLOAD_SIGNATURE_MISMATCH",
-                    "Visual asset detected raster format does not match canonical media metadata.",
+                    "Visual asset detected format does not match canonical media metadata.",
                     key));
             }
 
-            if ((asset.PixelWidth.HasValue && asset.PixelWidth.Value != inspection.PixelWidth) ||
-                (asset.PixelHeight.HasValue && asset.PixelHeight.Value != inspection.PixelHeight))
+            if (inspection.MediaType.Equals(VisualAssetContentInspector.SvgMediaType, StringComparison.OrdinalIgnoreCase) &&
+                !inspection.CanonicalContent.AsSpan().SequenceEqual(payload.Content))
+            {
+                issues.Add(Error(
+                    "VISUAL_ASSET_SVG_NOT_CANONICAL",
+                    "SVG payload is safe but is not stored in the canonical sanitized representation.",
+                    key));
+            }
+
+            if ((inspection.PixelWidth.HasValue && asset.PixelWidth.HasValue && asset.PixelWidth.Value != inspection.PixelWidth.Value) ||
+                (inspection.PixelHeight.HasValue && asset.PixelHeight.HasValue && asset.PixelHeight.Value != inspection.PixelHeight.Value) ||
+                (!inspection.PixelWidth.HasValue && asset.PixelWidth.HasValue) ||
+                (!inspection.PixelHeight.HasValue && asset.PixelHeight.HasValue))
             {
                 issues.Add(Error(
                     "VISUAL_ASSET_PAYLOAD_DIMENSIONS_MISMATCH",
@@ -104,7 +116,7 @@ public static partial class VisualAssetEngineeringValidator
         {
             issues.Add(Error(
                 "VISUAL_ASSET_PAYLOAD_INVALID",
-                $"Visual asset payload is not a structurally valid supported raster image: {ex.Message}",
+                $"Visual asset payload is not a structurally valid supported image: {ex.Message}",
                 key));
         }
 

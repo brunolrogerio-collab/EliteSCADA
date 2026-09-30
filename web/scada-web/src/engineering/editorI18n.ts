@@ -175,7 +175,7 @@ const es: Record<EditorTranslationKey, string> = {
   'editor.field.path': 'Path',
   'editor.field.key': 'Clave',
   'editor.field.type': 'Tipo de dato',
-  'editor.field.source': 'Data Source',
+  'editor.field.source': 'Fuente de datos',
   'editor.field.address': 'Dirección',
   'editor.field.unit': 'Unidad',
   'editor.field.description': 'Descripción',

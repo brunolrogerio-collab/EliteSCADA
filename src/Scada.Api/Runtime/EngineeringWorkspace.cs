@@ -7,6 +7,7 @@ using Scada.Engineering.Assets;
 using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
+using Scada.Engineering.DataQueries;
 using Scada.Engineering.Historian;
 using Scada.Engineering.Scripts;
 using Scada.Engineering.Security;
@@ -35,6 +36,8 @@ public sealed record EngineeringWorkspaceDescriptor(
     int SecurityRoleCount,
     int CommandCount,
     int VisualAssetCount = 0,
+    int DataQueryCount = 0,
+    int AlarmViewCount = 0,
     AuthorityPolicyReferenceEngineeringDto? AuthorityPolicyReference = null);
 
 public sealed class EngineeringWorkspaceVersionConflictException : InvalidOperationException
@@ -73,6 +76,8 @@ public sealed class EngineeringWorkspace : IDisposable
         Tags = new InMemoryTagRegistry(MarkDirty);
         Alarms = new InMemoryAlarmEngine(_eventBus, MarkDirty);
         DataSources = new InMemoryDataSourceEngineeringRegistry(MarkDirty);
+        DataQueries = new InMemoryDataQueryEngineeringRegistry(MarkDirty);
+        AlarmViews = new InMemoryAlarmViewEngineeringRegistry(MarkDirty);
         HistorianCaptureProfiles = new InMemoryHistorianCaptureProfileEngineeringRegistry(
             MarkDirty,
             profileId => Tags.Snapshot().Any(tag =>
@@ -90,6 +95,8 @@ public sealed class EngineeringWorkspace : IDisposable
     public InMemoryTagRegistry Tags { get; }
     public InMemoryAlarmEngine Alarms { get; }
     public InMemoryDataSourceEngineeringRegistry DataSources { get; }
+    public InMemoryDataQueryEngineeringRegistry DataQueries { get; }
+    public InMemoryAlarmViewEngineeringRegistry AlarmViews { get; }
     public InMemoryHistorianCaptureProfileEngineeringRegistry HistorianCaptureProfiles { get; }
     public InMemoryEngineeringAssetRegistry Assets { get; }
     public InMemoryEngineeringViewRegistry Views { get; }
@@ -120,7 +127,9 @@ public sealed class EngineeringWorkspace : IDisposable
                 Views.SnapshotPopups().Count,
                 SecurityPolicies.SnapshotRoles().Count,
                 Commands.Snapshot().Count,
-                VisualAssets.SnapshotAssets().Count);
+                VisualAssets.SnapshotAssets().Count,
+                DataQueries.Snapshot().Count,
+                AlarmViews.Snapshot().Count);
         }
     }
 
@@ -223,6 +232,8 @@ public sealed class EngineeringWorkspace : IDisposable
         Alarms.Clear();
         Tags.Clear();
         DataSources.Clear();
+        DataQueries.Clear();
+        AlarmViews.Clear();
         HistorianCaptureProfiles.Clear();
         Assets.Clear();
         Views.Clear();

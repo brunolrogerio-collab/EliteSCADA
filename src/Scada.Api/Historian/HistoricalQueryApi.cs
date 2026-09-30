@@ -4,6 +4,7 @@ using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Core.HistoricalQueries;
 using Scada.Core.Tags;
+using Scada.Engineering.DataQueries;
 using Scada.Security.Authorization;
 
 namespace Scada.Api.Historian;
@@ -11,6 +12,7 @@ namespace Scada.Api.Historian;
 public static class HistoricalQueryApi
 {
     public const string Route = "/api/historical/query";
+    public const string DataQueryRoute = "/api/historical/data-query/{key}";
     private const string LoggerCategory = "Scada.Api.Historian.HistoricalQueryApi";
 
     public static void AddHistoricalQueryApiCore(this WebApplicationBuilder builder)
@@ -19,6 +21,7 @@ public static class HistoricalQueryApi
         builder.Services.AddHttpContextAccessor();
         builder.Services.TryAddScoped<IHistoricalQueryAuthorizer, ApiHistoricalQueryAuthorizer>();
         builder.Services.TryAddScoped<IHistoricalQueryService, HistoricalQueryService>();
+        builder.Services.TryAddScoped<IDataQueryExecutionService, DataQueryExecutionService>();
     }
 
     public static RouteHandlerBuilder MapHistoricalQueryEndpoints(this WebApplication app)
@@ -32,6 +35,21 @@ public static class HistoricalQueryApi
                 ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
                 await ExecuteAsync(
+                    request,
+                    service,
+                    cancellationToken,
+                    loggerFactory.CreateLogger(LoggerCategory)));
+
+        app.MapPost(
+            DataQueryRoute,
+            async (
+                string key,
+                DataQueryExecutionRequest request,
+                IDataQueryExecutionService service,
+                ILoggerFactory loggerFactory,
+                CancellationToken cancellationToken) =>
+                await ExecuteDataQueryAsync(
+                    key,
                     request,
                     service,
                     cancellationToken,
@@ -101,6 +119,80 @@ public static class HistoricalQueryApi
                 ex,
                 "Unexpected historical query failure for dataset {Dataset}.",
                 request.Dataset);
+            return Results.Json(
+                new HistoricalQueryApiError(
+                    "historical_query_failed",
+                    "Historical query execution failed."),
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    public static async Task<IResult> ExecuteDataQueryAsync(
+        string key,
+        DataQueryExecutionRequest request,
+        IDataQueryExecutionService service,
+        CancellationToken cancellationToken = default,
+        ILogger? logger = null)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            return Results.BadRequest(new HistoricalQueryApiError("invalid_query", "Data Query key is required."));
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(service);
+
+        try
+        {
+            var response = await service.ExecuteAsync(key, request, cancellationToken);
+            return Results.Ok(response);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (DataQueryDefinitionNotFoundException)
+        {
+            return Results.NotFound(
+                new HistoricalQueryApiError("query_not_found", "Data Query definition was not found."));
+        }
+        catch (HistoricalQueryUnauthorizedException)
+        {
+            return Results.Unauthorized();
+        }
+        catch (HistoricalQueryForbiddenException)
+        {
+            return Results.Json(
+                new HistoricalQueryApiError("forbidden", "Forbidden."),
+                statusCode: StatusCodes.Status403Forbidden);
+        }
+        catch (HistoricalQueryCursorException)
+        {
+            return Results.BadRequest(
+                new HistoricalQueryApiError(
+                    "invalid_cursor",
+                    "Historical query cursor is invalid, expired, or does not match this request."));
+        }
+        catch (HistoricalQueryValidationException ex)
+        {
+            return Results.BadRequest(
+                new HistoricalQueryApiError("invalid_query", ex.Message));
+        }
+        catch (HistoricalQueryProviderException ex)
+        {
+            logger?.LogError(
+                ex,
+                "Data Query provider failure for definition {QueryKey}.",
+                key);
+            return Results.Json(
+                new HistoricalQueryApiError(
+                    "historical_unavailable",
+                    "Historical query provider is unavailable."),
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(
+                ex,
+                "Unexpected Data Query execution failure for definition {QueryKey}.",
+                key);
             return Results.Json(
                 new HistoricalQueryApiError(
                     "historical_query_failed",

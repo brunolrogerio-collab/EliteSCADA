@@ -8,7 +8,7 @@ using Scada.Core.Tags;
 
 namespace Scada.Historian.TimescaleDb;
 
-public sealed class TimescaleHistoricalQueryProvider : IHistoricalDatasetProvider, IAsyncDisposable
+public sealed partial class TimescaleHistoricalQueryProvider : IHistoricalDatasetProvider, IAsyncDisposable
 {
     private const long InfrastructureLockKey = 4993446713136202561;
     private const string InfrastructureSql = """

@@ -1,7 +1,9 @@
 using Scada.Core.Alarms;
 using Scada.Core.Events;
+using Scada.Core.HistoricalQueries;
 using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.DataQueries;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.VisualAssets;
@@ -283,6 +285,64 @@ public sealed class EngineeringProjectPersistenceServiceTests
         Assert.Null(await service.PublishRevisionAsync("missing", 99, "supervisor"));
         Assert.Null(await service.RecordActivationAsync("missing", 99, "operator"));
         Assert.Null(await service.LoadPublishedAsync("missing"));
+    }
+
+    [Fact]
+    public async Task DataQueryAndAlarmView_RoundTripThroughRevisionPreviewAndApply()
+    {
+        var tags = new InMemoryTagRegistry();
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var queries = new InMemoryDataQueryEngineeringRegistry();
+        var alarmViews = new InMemoryAlarmViewEngineeringRegistry();
+        IEngineeringExchangeService exchange = new EngineeringExchangeService(tags, alarms);
+        exchange = new DataQueryEngineeringExchangeDecorator(exchange, queries, alarmViews);
+
+        queries.Upsert(new DataQueryEngineeringDto(
+            null,
+            "history-default",
+            "History default",
+            DataQueryExecutionService.HistoricalProviderKey,
+            new HistoricalQueryRequest(
+                HistoricalDatasets.HistorianSamples,
+                HistoricalTimeRange.Relative(3600)),
+            HistorianRetrieval: new HistorianRetrievalEngineeringDto(HistorianRetrievalMode.Raw)));
+        alarmViews.Upsert(new AlarmViewEngineeringDto(
+            null,
+            "active-critical",
+            "Active critical",
+            new AlarmViewFilterEngineeringDto(
+                Priorities: [AlarmPriority.Critical],
+                Active: AlarmViewMatchState.Yes)));
+
+        var expectedQueryId = queries.Snapshot().Single().Id;
+        var expectedViewId = alarmViews.Snapshot().Single().Id;
+        var store = new FakeEngineeringProjectStore();
+        var service = new EngineeringProjectPersistenceService(exchange, store);
+        var saved = await service.SaveCurrentAsync("plant-a", "Plant A");
+
+        queries.Clear();
+        alarmViews.Clear();
+        var preview = await service.PreviewRevisionAsync(
+            "plant-a",
+            saved.Revision,
+            ImportMode.CreateAndUpdate);
+
+        Assert.NotNull(preview);
+        Assert.True(preview!.Preview.CanApply);
+        Assert.Contains(preview.Preview.Items, x =>
+            x.EntityKind == ImportEntityKind.DataQuery && x.Operation == ImportOperation.Create);
+        Assert.Contains(preview.Preview.Items, x =>
+            x.EntityKind == ImportEntityKind.AlarmView && x.Operation == ImportOperation.Create);
+
+        var applied = await service.ApplyRevisionAsync(
+            "plant-a",
+            saved.Revision,
+            ImportMode.CreateAndUpdate);
+
+        Assert.NotNull(applied);
+        Assert.DoesNotContain(applied!.Issues, x => x.IsError);
+        Assert.Equal(expectedQueryId, queries.Snapshot().Single().Id);
+        Assert.Equal(expectedViewId, alarmViews.Snapshot().Single().Id);
     }
 
     private sealed class TrackingEngineeringExchangeService(IEngineeringExchangeService inner)

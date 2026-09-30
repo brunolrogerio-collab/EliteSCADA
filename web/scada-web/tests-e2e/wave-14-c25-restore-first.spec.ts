@@ -114,8 +114,9 @@ test('restored local Administrator can recover application without creating disp
 
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Criar novo projeto' })).toBeVisible();
-  await page.getByRole('button', { name: 'Restaurar backup' }).click();
+  await page.getByRole('button', { name: 'Importar aplicação' }).click();
   await expect(page.getByTestId('restore-first-application')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Importar aplicação' })).toBeVisible();
 
   await page.getByTestId('recovery-application-file').setInputFiles({
     name: 'plant.escadapkg',
@@ -129,7 +130,7 @@ test('restored local Administrator can recover application without creating disp
   });
   await page.getByRole('button', { name: 'Validar aplicação' }).click();
   await expect(page.getByText('Pacote válido e compatível com esta recuperação.')).toBeVisible();
-  await page.getByRole('button', { name: 'Restaurar aplicação' }).click();
+  await page.getByRole('button', { name: 'Importar aplicação' }).click();
 
   await expect(page.getByText('A aplicação foi recuperada, mas a licença opcional não pôde ser instalada.')).toBeVisible();
   expect(applicationApplies).toBe(1);

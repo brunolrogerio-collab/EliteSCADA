@@ -260,9 +260,14 @@ test('mounted TAG-D flow duplicates, multi-copies, previews 20 Modbus TAGs and a
   expect(applyCount).toBe(0);
 
   // Apply is the first mutation and uses the exact validated Workspace version.
+  // Wait for the mocked Apply response rather than the current page load state:
+  // waitForLoadState() can resolve immediately before the async Apply request completes.
   await expect(page.getByTestId('tag-duplication-apply')).toBeEnabled();
+  const applyResponse = page.waitForResponse(response =>
+    response.request().method() === 'POST' &&
+    new URL(response.url()).pathname === '/api/engineering/import/json/apply');
   await page.getByTestId('tag-duplication-apply').click();
-  await page.waitForLoadState('domcontentloaded');
+  await applyResponse;
   expect(applyCount).toBe(1);
 
   // Reopen after Apply comes from the persisted canonical export, not panel/session state.

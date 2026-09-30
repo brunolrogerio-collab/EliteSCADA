@@ -84,6 +84,24 @@ test('Wave 08 composes Canvas, palette, properties, project-source binding, imag
     await expect(page.getByTestId('visual-editor-canonical-renderer')).toBeVisible();
     await expect(page.locator('.visual-editor-object-error')).toHaveCount(0);
 
+    const authoringSidebar = page.getByTestId('visual-editor-authoring-sidebar');
+    const selectionInspector = page.getByTestId('visual-editor-selection-inspector');
+    await expect(authoringSidebar).toBeVisible();
+    await expect(authoringSidebar.getByTestId('visual-editor-outliner')).toBeVisible();
+    await expect(authoringSidebar.getByTestId('visual-object-palette')).toBeVisible();
+    await expect(page.locator('.visual-editor-canvas-enhanced__canvas').getByTestId('visual-editor-outliner')).toHaveCount(0);
+    await expect(page.locator('[data-insert-object-type="core.image"]')).toBeVisible();
+    await expect(selectionInspector.getByTestId('visual-editor-inspector-tab-properties')).toBeVisible();
+    await expect(selectionInspector.getByTestId('visual-editor-inspector-tab-dynamics')).toBeVisible();
+    await expect(selectionInspector.getByTestId('visual-editor-inspector-tab-events')).toBeVisible();
+
+    const paletteToggle = page.getByTestId('visual-editor-palette-toggle');
+    await paletteToggle.click();
+    await expect(authoringSidebar).toBeHidden();
+    await expect(paletteToggle).toBeVisible();
+    await paletteToggle.click();
+    await expect(authoringSidebar).toBeVisible();
+
     const screenList = page.locator('.visual-editor-screen-list');
     await screenList.getByRole('button').filter({ hasText: originalScreen!.key }).click();
 
@@ -109,6 +127,14 @@ test('Wave 08 composes Canvas, palette, properties, project-source binding, imag
     const imageObject = page.locator('[data-canvas-object-type="core.image"]').last();
     await expect(imageObject).toBeVisible();
     await imageObject.click();
+
+    await imageObject.click({ button: 'right' });
+    const contextMenu = page.getByTestId('visual-editor-context-menu');
+    await expect(contextMenu).toBeVisible();
+    await expect(contextMenu.getByRole('menuitem', { name: 'Renomear', exact: true })).toBeVisible();
+    await expect(contextMenu.getByRole('menuitem', { name: 'Duplicar', exact: true })).toBeVisible();
+    await contextMenu.getByRole('menuitem', { name: 'Propriedades', exact: true }).click();
+    await expect(contextMenu).toHaveCount(0);
 
     const assetPicker = page.getByTestId('visual-editor-image-asset-picker').getByRole('combobox');
     await expect(assetPicker).toBeVisible();

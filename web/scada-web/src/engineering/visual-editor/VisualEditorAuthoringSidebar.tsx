@@ -56,27 +56,29 @@ export function VisualEditorAuthoringSidebar({
       >{text.tabs[tab]}</button>)}
     </div>
 
-    <div className="visual-editor-side-panel" role="tabpanel" data-authoring-tab={activeTab}>
-      {activeTab === 'structure' ? <VisualEditorOutliner
-        screen={screen}
-        selectedObjectIds={selectedObjectIds}
-        onSelection={(objectId, mode) => onUiIntent({
-          kind: 'selection.change',
-          objectIds: [objectId],
-          mode
-        })}
-      /> : null}
+    <div className="visual-editor-side-panel" data-authoring-tab={activeTab}>
+      <section className={`visual-editor-side-section${activeTab === 'structure' ? ' is-active' : ''}`} data-side-section="structure">
+        <VisualEditorOutliner
+          screen={screen}
+          selectedObjectIds={selectedObjectIds}
+          onSelection={(objectId, mode) => onUiIntent({
+            kind: 'selection.change',
+            objectIds: [objectId],
+            mode
+          })}
+        />
+      </section>
 
-      {activeTab === 'library' ? <>
+      <section className={`visual-editor-side-section${activeTab === 'library' ? ' is-active' : ''}`} data-side-section="library">
         <ObjectPalette onMutationIntent={onMutationIntent} />
         <DynamoLibraryPalette
           definitions={definitions}
           locale={locale}
           onMutationIntent={onMutationIntent}
         />
-      </> : null}
+      </section>
 
-      {activeTab === 'assets' ? <>
+      <section className={`visual-editor-side-section${activeTab === 'assets' ? ' is-active' : ''}`} data-side-section="assets">
         <section className="visual-editor-asset-library" data-testid="visual-editor-asset-library">
           <header>
             <strong>{text.assets}</strong>
@@ -109,7 +111,7 @@ export function VisualEditorAuthoringSidebar({
           </div>
         </section>
         <VisualDefinitionSurfaceInspector screen={screen} onCommand={onCommand} />
-      </> : null}
+      </section>
     </div>
   </div>;
 }

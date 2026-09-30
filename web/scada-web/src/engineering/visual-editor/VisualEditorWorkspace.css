@@ -119,3 +119,7 @@
   .visual-editor-workspace--palette-collapsed .visual-editor-composition,.visual-editor-workspace--properties-collapsed .visual-editor-composition,.visual-editor-workspace--palette-collapsed.visual-editor-workspace--properties-collapsed .visual-editor-composition{grid-template-columns:1fr}
   .visual-editor-workspace--palette-collapsed .visual-editor-palette-slot,.visual-editor-workspace--properties-collapsed .visual-editor-inspector-slot{min-height:28px}
 }
+
+.visual-editor-side-section,.visual-editor-inspector-section{display:grid;gap:8px;padding:6px 0;border-top:1px solid transparent}
+.visual-editor-side-section.is-active,.visual-editor-inspector-section.is-active{border-top-color:var(--eng-accent,#58a6d6)}
+.visual-editor-side-section[data-side-section="structure"]{min-height:90px}

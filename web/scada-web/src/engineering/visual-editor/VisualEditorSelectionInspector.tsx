@@ -61,8 +61,8 @@ export function VisualEditorSelectionInspector({
       >{text.tabs[tab]}</button>)}
     </div>
 
-    <div className="visual-editor-inspector-panel" role="tabpanel" data-inspector-tab={activeTab}>
-      {activeTab === 'properties' ? <>
+    <div className="visual-editor-inspector-panel" data-inspector-tab={activeTab}>
+      <section className={`visual-editor-inspector-section${activeTab === 'properties' ? ' is-active' : ''}`} data-inspector-section="properties">
         <p className="visual-editor-inspector-hint">{text.propertiesHint}</p>
         <PropertyInspector
           selectedElements={selectedElements}
@@ -75,9 +75,10 @@ export function VisualEditorSelectionInspector({
           selectedObjectIds={selectedObjectIds}
           onCommand={onCommand}
         />
-      </> : null}
+      </section>
 
-      {activeTab === 'dynamics' ? selectedElement?.id ? <>
+      <section className={`visual-editor-inspector-section${activeTab === 'dynamics' ? ' is-active' : ''}`} data-inspector-section="dynamics">
+        {selectedElement?.id ? <>
         <DynamicPropertyEditor
           element={selectedElement}
           sourceCatalog={sourceCatalog}
@@ -97,17 +98,20 @@ export function VisualEditorSelectionInspector({
           onMutationIntent={onMutationIntent}
           locale={locale}
         />
-      </> : <p className="visual-editor-selection-hint">{text.selectOne}</p> : null}
+      </> : <p className="visual-editor-selection-hint">{text.selectOne}</p>}
+      </section>
 
-      {activeTab === 'events' ? selectedElements.length <= 1 ? <>
-        <p className="visual-editor-inspector-hint">{selectedElement ? text.objectEvents : text.screenEvents}</p>
-        <EventsEditor
-          visualDefinitionId={screen.id}
-          visualObjectId={selectedElement?.id ?? null}
-          sourceCatalog={sourceCatalog}
-          disabled={!screen.id}
-        />
-      </> : <p className="visual-editor-selection-hint">{text.selectOne}</p> : null}
+      <section className={`visual-editor-inspector-section${activeTab === 'events' ? ' is-active' : ''}`} data-inspector-section="events">
+        {selectedElements.length <= 1 ? <>
+          <p className="visual-editor-inspector-hint">{selectedElement ? text.objectEvents : text.screenEvents}</p>
+          <EventsEditor
+            visualDefinitionId={screen.id}
+            visualObjectId={selectedElement?.id ?? null}
+            sourceCatalog={sourceCatalog}
+            disabled={!screen.id}
+          />
+        </> : <p className="visual-editor-selection-hint">{text.selectOne}</p>}
+      </section>
     </div>
   </div>;
 }

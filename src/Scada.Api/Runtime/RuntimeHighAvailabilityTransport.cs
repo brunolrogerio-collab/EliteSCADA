@@ -5,6 +5,8 @@ using System.Text.Json;
 using Scada.Api.Security;
 using Scada.Core.Product.Licensing;
 using Scada.Core.Tags;
+using Scada.Engineering.Contracts;
+using Scada.Security.Authorization;
 
 namespace Scada.Api.Runtime;
 
@@ -202,7 +204,9 @@ public sealed record RuntimeHaAuthoritativeStateSnapshot(
     IReadOnlyCollection<RuntimeHaMirroredTagValue> Tags,
     IReadOnlyCollection<RuntimeSessionLeaseContinuityEnvelope> Sessions,
     IReadOnlyCollection<RuntimeSessionLeaseContinuityTombstoneEnvelope> SessionTombstones,
-    DateTimeOffset CapturedAtUtc);
+    DateTimeOffset CapturedAtUtc,
+    EngineeringPackage? Application = null,
+    DateTimeOffset? RuntimeActivatedAtUtc = null);
 
 public sealed record RuntimeHaPeerReplicationEnvelope(
     string Schema,
@@ -786,6 +790,8 @@ public sealed class RuntimeHaPeerReplicationCoordinator
     private readonly RuntimeHaPeerTransportState _transportState;
     private readonly RuntimeHighAvailabilityService _highAvailability;
     private readonly ScadaRuntimeFacade _runtime;
+    private readonly HighAvailabilityRuntimeCoordinator _runtimeCoordinator;
+    private readonly IRuntimeSessionLeaseStore _sessionLeaseStore;
     private readonly IProductLicenseService _licensing;
     private readonly TimeProvider _timeProvider;
     private long _replicationSequence;
@@ -797,6 +803,8 @@ public sealed class RuntimeHaPeerReplicationCoordinator
         RuntimeHaPeerTransportState transportState,
         RuntimeHighAvailabilityService highAvailability,
         ScadaRuntimeFacade runtime,
+        HighAvailabilityRuntimeCoordinator runtimeCoordinator,
+        IRuntimeSessionLeaseStore sessionLeaseStore,
         IProductLicenseService licensing,
         TimeProvider timeProvider)
     {
@@ -806,6 +814,8 @@ public sealed class RuntimeHaPeerReplicationCoordinator
         _transportState = transportState;
         _highAvailability = highAvailability;
         _runtime = runtime;
+        _runtimeCoordinator = runtimeCoordinator;
+        _sessionLeaseStore = sessionLeaseStore;
         _licensing = licensing;
         _timeProvider = timeProvider;
     }
@@ -839,8 +849,10 @@ public sealed class RuntimeHaPeerReplicationCoordinator
                 StringComparison.OrdinalIgnoreCase))
         {
             var descriptor = _runtime.Describe();
+            var application = _runtimeCoordinator.CaptureApplication();
             if (descriptor.Revision.HasValue &&
                 !string.IsNullOrWhiteSpace(descriptor.ProjectKey) &&
+                application is not null &&
                 _highAvailability.CanOwnIndustrialEffects())
             {
                 var now = _timeProvider.GetUtcNow();
@@ -868,7 +880,9 @@ public sealed class RuntimeHaPeerReplicationCoordinator
                         .ToArray(),
                     sessions,
                     tombstones,
-                    now);
+                    now,
+                    application,
+                    descriptor.ActivatedAtUtc);
             }
         }
 
@@ -1006,21 +1020,50 @@ public sealed class RuntimeHaPeerReplicationCoordinator
                     envelope.ReplicationSequence);
             }
 
-            var sessionFailure = ApplySessionState(
-                envelope.SourceNodeId,
-                envelope.AuthoritativeState);
-            if (sessionFailure is not null)
-            {
-                _transportState.RecordFailure(sessionFailure);
-                return Conflict(sessionFailure, envelope.ReplicationSequence);
-            }
-
             var mirror = await _mirror.ApplyAsync(envelope, cancellationToken);
             if (!mirror.Accepted)
             {
                 _transportState.RecordFailure(mirror.ReasonCode);
                 RefreshLocalReadiness();
                 return Conflict(mirror.ReasonCode, envelope.ReplicationSequence);
+            }
+
+            var authoritativeState = envelope.AuthoritativeState;
+            if (authoritativeState.Application is null ||
+                !authoritativeState.Runtime.Revision.HasValue ||
+                string.IsNullOrWhiteSpace(authoritativeState.Runtime.ProjectKey))
+            {
+                _transportState.RecordFailure("peer-application-required");
+                RefreshLocalReadiness();
+                return Conflict("peer-application-required", envelope.ReplicationSequence);
+            }
+
+            var materialized = await _runtimeCoordinator.MaterializePassiveAsync(
+                envelope.SourceNodeId,
+                authoritativeState.Runtime.ProjectKey,
+                authoritativeState.Runtime.Revision.Value,
+                authoritativeState.Application,
+                authoritativeState.RuntimeActivatedAtUtc,
+                cancellationToken);
+            if (!materialized.Activated)
+            {
+                var reason = materialized.RuntimeIssues
+                    .FirstOrDefault(issue => issue.IsError)?.Code
+                    ?? "passive-runtime-materialization-failed";
+                _transportState.RecordFailure(reason);
+                RefreshLocalReadiness();
+                return Conflict(reason, envelope.ReplicationSequence);
+            }
+
+            var sessionFailure = await ApplySessionStateAsync(
+                envelope.SourceNodeId,
+                authoritativeState,
+                cancellationToken);
+            if (sessionFailure is not null)
+            {
+                _transportState.RecordFailure(sessionFailure);
+                RefreshLocalReadiness();
+                return Conflict(sessionFailure, envelope.ReplicationSequence);
             }
         }
 
@@ -1079,8 +1122,12 @@ public sealed class RuntimeHaPeerReplicationCoordinator
             mirror,
             localLicense,
             now);
-        var runtimeIdentity = mirror.AuthoritativeState?.Runtime
-            ?? new RuntimeHaRuntimeIdentity("unknown", null, null);
+        var localDescriptor = _runtime.Describe();
+        var runtimeIdentity =
+            localDescriptor.Revision.HasValue &&
+            !string.IsNullOrWhiteSpace(localDescriptor.ProjectKey)
+                ? RuntimeHaRuntimeIdentity.From(localDescriptor)
+                : new RuntimeHaRuntimeIdentity("unknown", null, null);
 
         _highAvailability.ObserveLocalReadiness(
             new RuntimeHaNodeReadinessEvidence(
@@ -1124,6 +1171,17 @@ public sealed class RuntimeHaPeerReplicationCoordinator
         }
         if (!RuntimeHaRuntimeIdentity.From(localRuntime).CompatibleWith(state.Runtime))
             return (false, "passive-runtime-not-compatible");
+        if (state.RuntimeActivatedAtUtc is null ||
+            localRuntime.ActivatedAtUtc is null ||
+            localRuntime.ActivatedAtUtc.Value.ToUniversalTime() !=
+                state.RuntimeActivatedAtUtc.Value.ToUniversalTime())
+        {
+            return (false, "passive-runtime-activation-identity-mismatch");
+        }
+        if (state.Application is null)
+            return (false, "peer-application-unavailable");
+        if (state.Application.Tags.Count != state.ProjectTagCount)
+            return (false, "peer-application-tag-count-mismatch");
 
         if (!state.License.LicenseValid)
             return (false, "peer-license-invalid");
@@ -1157,31 +1215,90 @@ public sealed class RuntimeHaPeerReplicationCoordinator
         return (true, null);
     }
 
-    private string? ApplySessionState(
+    private async Task<string?> ApplySessionStateAsync(
         string sourceNodeId,
-        RuntimeHaAuthoritativeStateSnapshot state)
+        RuntimeHaAuthoritativeStateSnapshot state,
+        CancellationToken cancellationToken)
     {
+        var clusterId = _highAvailability.ClusterId!;
+        var authority = await _sessionLeaseStore.GetAuthorityStateAsync(cancellationToken);
+        if (authority.TransitionPending)
+            return "authority-transition-pending";
+
         foreach (var tombstone in state.SessionTombstones)
         {
-            var applied = _highAvailability.SessionContinuity.ApplyPeerTombstone(
+            var mirrored = _highAvailability.SessionContinuity.ApplyPeerTombstone(
                 tombstone,
-                _highAvailability.ClusterId!,
+                clusterId,
                 sourceNodeId);
-            if (!applied.Accepted &&
-                applied.ReasonCode != "session-tombstone-not-newer")
+            if (!mirrored.Accepted &&
+                mirrored.ReasonCode != "session-tombstone-not-newer")
             {
-                return applied.ReasonCode;
+                return mirrored.ReasonCode;
             }
+
+            var canonical = await _sessionLeaseStore.ApplyReplicatedTombstoneAsync(
+                new RuntimeSessionLeaseTombstoneState(
+                    tombstone.ClusterId,
+                    tombstone.UserId,
+                    tombstone.ClientInstanceId,
+                    tombstone.SessionId,
+                    tombstone.Generation,
+                    tombstone.AuthorityRevision,
+                    tombstone.IssuedAtUtc,
+                    tombstone.SourceNodeId,
+                    tombstone.RecordedAtUtc,
+                    tombstone.ReasonCode),
+                clusterId,
+                sourceNodeId,
+                cancellationToken);
+            if (!canonical.Accepted)
+                return canonical.ReasonCode;
         }
+
+        var expectedRuntime = new RuntimeSessionRuntimeIdentity(
+            state.Runtime.Mode,
+            state.Runtime.ProjectKey,
+            state.Runtime.Revision,
+            state.RuntimeActivatedAtUtc);
 
         foreach (var lease in state.Sessions)
         {
-            var applied = _highAvailability.ApplyPeerSessionContinuity(lease);
-            if (!applied.Accepted &&
-                applied.ReasonCode != "session-state-not-newer")
+            var mirrored = _highAvailability.ApplyPeerSessionContinuity(lease);
+            if (!mirrored.Accepted &&
+                mirrored.ReasonCode != "session-state-not-newer")
             {
-                return applied.ReasonCode;
+                return mirrored.ReasonCode;
             }
+
+            var canonical = await _sessionLeaseStore.AdoptReplicatedAsync(
+                new RuntimeSessionLeaseState(
+                    lease.SessionId,
+                    lease.UserId,
+                    lease.ClientInstanceId,
+                    lease.ConnectionClass == RuntimeConnectionClass.Interactive
+                        ? "interactive"
+                        : "viewer",
+                    lease.Generation,
+                    lease.IssuedAtUtc,
+                    lease.LastHeartbeatUtc,
+                    lease.ExpiresAtUtc,
+                    new RuntimeSessionRuntimeIdentity(
+                        lease.Runtime.Mode,
+                        lease.Runtime.ProjectKey,
+                        lease.Runtime.Revision,
+                        lease.RuntimeActivatedAtUtc),
+                    sourceNodeId,
+                    clusterId,
+                    IsActive: true,
+                    lease.AuthorityRevision),
+                clusterId,
+                sourceNodeId,
+                expectedRuntime,
+                authority.AuthorityRevision,
+                cancellationToken);
+            if (!canonical.Accepted)
+                return canonical.ReasonCode;
         }
 
         return null;

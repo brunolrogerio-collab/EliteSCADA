@@ -369,6 +369,14 @@ test('mounted R2 generated snippet validates, Preview/Applies and reopens unchan
     ...generated.code.split('\n').map(line => `    ${line}`),
     ''
   ].join('\n');
+  // Monaco auto-indents after the function header while keyboard text is entered.
+  // Type the generated snippet without pre-indenting it; the persisted source below
+  // remains the canonical four-space-indented Python expected from the editor.
+  const typedSource = [
+    'async def generated_action():',
+    ...generated.code.split('\n'),
+    ''
+  ].join('\n');
 
   let createdId: string | null = null;
   try {
@@ -388,7 +396,7 @@ test('mounted R2 generated snippet validates, Preview/Applies and reopens unchan
     const pythonEditor = page.getByTestId('python-monaco-editor');
     await pythonEditor.locator('.monaco-editor').click();
     await page.keyboard.press('ControlOrMeta+A');
-    await page.keyboard.insertText(source);
+    await page.keyboard.insertText(typedSource);
 
     await expect(pythonEditor.getByText(/VALID · sintaxe válida/)).toBeVisible({ timeout: 45_000 });
     await expect(page.getByTestId('script-reference-diagnostics')).toBeVisible();

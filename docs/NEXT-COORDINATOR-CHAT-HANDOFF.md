@@ -1,3 +1,27 @@
+# CURRENT TAKEOVER POINTER — 2026-09-30 — PARALLEL ACTIVE / CI #1618 GREEN
+
+> **READ FIRST:** `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-09-30-PARALLEL-ACTIVE.md`
+>
+> This is the canonical successor takeover snapshot and supersedes older current-state wording below whenever there is a conflict.
+>
+> Exact product checkpoint:
+> - `wave15/corrections-integration@ed04cf7358ca00b34593970ea3c1ba1931b01014`;
+> - tree `b94c329ebf2eba1665d4120cd27bf8b841766911`;
+> - EliteSCADA CI #1618 / `36716809347` = GLOBAL SUCCESS;
+> - Script Authoring #419 + TAG-D #420 integrated;
+> - active common-base lanes: #383 P, #421 HA-D1, #422 Installation UX, #308 Visual Quality;
+> - active content/language lanes: #379 Multilingual, #424 Help, #425 Complete Manual;
+> - all seven active branches were still identical / ahead 0 / behind 0 / no open PR at snapshot time;
+> - #423 HA-D2 blocked by #421;
+> - Historical Playback blocked by #383;
+> - EliteGO separate client deferred indefinitely; HA remains Wave 15;
+> - EEE Simulation + real Modbus remain deliberately late immediately before final Preview;
+> - Shared CODEX remains PARKED.
+>
+> Revalidate GitHub live before every action.
+
+---
+
 > **PRODUCT OWNER SCOPE OVERRIDE — 2026-09-30**
 >
 > GitHub live remains authoritative. This override supersedes older wording below where it conflicts.

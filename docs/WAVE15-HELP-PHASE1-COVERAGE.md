@@ -31,25 +31,25 @@ No second Help system or external documentation dependency was added.
 | Communication Drivers | `drivers.overview` + `driver.<type>` | Data Sources + related links | yes | yes | yes | COVERED |
 | TAG fundamentals | `tags.overview` | `/engineering/tags` | yes | yes | yes | COVERED |
 | TAG addressing / quality / timestamps / writeability | existing `tags.*` topics | TAG entry + topic navigation | yes | yes | yes | COVERED |
-| TAG copy/paste/duplicate/sequential | `tags.copy-duplicate-sequential` | TAG entry + related link | yes | yes | yes | COVERED |
+| TAG copy/paste/duplicate/sequential | `tags.copy-duplicate-sequential` | TAG contextual entry + local topic navigation | yes | yes | yes | COVERED |
 | Screen Editor | `screens.overview` | `/engineering/screens` | yes | yes | yes | COVERED |
 | Popup Editor | `popups.overview` | `/engineering/popups` | yes | yes | yes | COVERED |
-| Visual properties | `visual.properties` | Screen/Popup topics | yes | yes | yes | COVERED |
-| Dynamics | `visual.dynamics` | Screen/Popup topics | yes | yes | yes | COVERED |
-| Visual Events | `visual.events` | Screen/Popup topics | yes | yes | yes | COVERED |
+| Visual properties | `visual.properties` | Screen/Popup contextual entry + local topic navigation | yes | yes | yes | COVERED |
+| Dynamics | `visual.dynamics` | Screen/Popup contextual entry + local topic navigation | yes | yes | yes | COVERED |
+| Visual Events | `visual.events` | Screen/Popup contextual entry + local topic navigation | yes | yes | yes | COVERED |
 | Reusable Library | `libraries.reusable-resources` | `/engineering/libraries` | yes | yes | yes | COVERED |
 | Dynamos | `dynamos.overview` | `/engineering/dynamos` | yes | yes | yes | COVERED |
 | Script Engineering | `scripts.engineering` | `/engineering/scripts` | yes | yes | yes | COVERED |
-| Python validation/diagnostics | `scripts.python-validation` | Scripts + related link | yes | yes | yes | COVERED |
-| Object Browser / guided authoring | `engineering.object-browser` | Script/Dynamics related links | yes | yes | yes | COVERED |
+| Python validation/diagnostics | `scripts.python-validation` | Scripts contextual entry + local topic navigation | yes | yes | yes | COVERED |
+| Object Browser / guided authoring | `engineering.object-browser` | Script/Dynamics topic navigation | yes | yes | yes | COVERED |
 | Server Script API/runtime | `scripts.server` | Scripts topic navigation | yes | yes | yes | COVERED |
-| Client Memory | `memory.client`, `sources.internal-memory` | related links | yes | yes | yes | COVERED |
+| Client Memory | `memory.client`, `sources.internal-memory` | local topic navigation | yes | yes | yes | COVERED |
 | Users / Roles / Capabilities | `security.users-roles-capabilities` | `/engineering/security` | yes | yes | yes | COVERED |
-| Scopes / Authority | `security.scopes-authority` | Security related link | yes | yes | yes | COVERED |
-| Engineering Lock | `security.engineering-lock` | Security related link | yes | yes | yes | COVERED |
+| Scopes / Authority | `security.scopes-authority` | Security contextual entry + local topic navigation | yes | yes | yes | COVERED |
+| Engineering Lock | `security.engineering-lock` | Security contextual entry + local topic navigation | yes | yes | yes | COVERED |
 | Licensing | `licensing.overview` | `/licensing` | yes | yes | yes | COVERED |
-| License Generator | `licensing.generator` | Licensing related link | yes | yes | yes | COVERED |
-| Runtime Interactive / View Only | `runtime.session-classes` | Runtime/Licensing related links | yes | yes | yes | COVERED |
+| License Generator | `licensing.generator` | Licensing contextual entry + local topic navigation | yes | yes | yes | COVERED |
+| Runtime Interactive / View Only | `runtime.session-classes` | Runtime/Licensing contextual entry + local topic navigation | yes | yes | yes | COVERED |
 | Diagnostics | `diagnostics.overview` | Engineering diagnostics routes | yes | yes | yes | COVERED |
 | Troubleshooting | `troubleshooting.overview` | topic navigation / diagnostics | yes | yes | yes | COVERED |
 | Alarm basics | `alarms.overview` | `/engineering/alarms` | yes | yes | yes | COVERED |

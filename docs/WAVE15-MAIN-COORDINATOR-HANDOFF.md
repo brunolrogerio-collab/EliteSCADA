@@ -1,3 +1,14 @@
+# LATEST MAIN COORDINATOR HANDOFF POINTER — 2026-09-29 — R2-B ACTIVE
+
+> Canonical current takeover:
+> `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-09-29-R2B-ACTIVE.md`
+>
+> GitHub live remains the sole authority. The linked handoff supersedes older current-state sections in this file whenever there is a conflict.
+>
+> Current checkpoint at pointer creation: integration `1d9e3f9123bea8e27c362ee680a4ba70f864becd`, tree `512ef505924f3a0a709e8d5a73e2625531586e1c`, CI #1611 GREEN, J/L/N ACTIVE on the same exact base with zero own commits/no PRs.
+
+---
+
 # LATEST PRODUCT OWNER DELTA — 2026-09-29 — WAVE 13 CANCELLED / WAVE 16 EVIDENCE AUTHORITY
 
 > This delta supersedes every older instruction that says Wave 13 #205/#207 is merely paused or should later resume.

@@ -337,6 +337,51 @@ Licensing/distribution guardrails:
 
 This section records architecture/product direction, not legal advice. Final commercial releases must revalidate the exact third-party versions and license texts actually shipped.
 
+
+
+### Current TimescaleDB 2.29.2 / PostgreSQL 18 feature-license audit — 2026-09-30
+
+Current EliteSCADA CI/development database image:
+`timescale/timescaledb:2.29.2-pg18`.
+
+Timescale publishes a separate Apache-only image:
+`timescale/timescaledb:2.29.2-pg18-oss`.
+
+The standard non-`-oss` image is built without `APACHE_ONLY` and is therefore capable of loading the TSL module; the `-oss` image is built with `-DAPACHE_ONLY=1`.
+
+Exact EliteSCADA source audit on `wave15/corrections-integration@1d9e3f9123bea8e27c362ee680a4ba70f864becd`:
+
+**Raw/current production Historian path**
+- `TimescaleDbHistorian` initializes only `TimescaleHistorianInfrastructure.EnsureRawAsync`;
+- raw infrastructure uses `CREATE EXTENSION timescaledb`, `create_hypertable`, ordinary table/index DDL, INSERT and SELECT;
+- TimescaleDB 2.29.2 source places `create_hypertable`/hypertable core and `time_bucket` implementation outside `tsl/` under Apache 2.0;
+- therefore the currently mounted raw Historian path appears compatible with the Apache-only TimescaleDB build, subject to an explicit product test before changing the pinned image.
+
+**Implemented retention/downsampling capability**
+`TimescaleDbHistorianRetentionDownsamplingStore` uses:
+- continuous aggregates via `WITH (timescaledb.continuous)`;
+- `refresh_continuous_aggregate`;
+- `add_continuous_aggregate_policy` / `remove_continuous_aggregate_policy`;
+- `add_retention_policy` / `remove_retention_policy`.
+
+TimescaleDB 2.29.2 source implements continuous aggregate creation/refresh and background retention/policy behavior in files under `tsl/`, explicitly licensed under the Timescale License. Timescale's own Apache-license regression test confirms continuous aggregates and `refresh_continuous_aggregate` are rejected when the extension runs under the Apache license.
+
+**Current production wiring**
+Repository search shows `IHistorianRetentionDownsamplingStore` / `TimescaleDbHistorianRetentionDownsamplingStore` currently referenced only by their implementation/abstraction and Timescale-focused tests; they are not registered in the normal API production composition. Thus:
+- TSL-dependent retention/downsampling is implemented/tested capability today;
+- it is not presently a mounted normal-runtime service;
+- the normal `TimescaleDbHistorian` raw capture/query path does not itself require those continuous-aggregate/policy features.
+
+Wave 16 packaging consequence:
+1. do not assume the current non-`-oss` CI image is legally equivalent to an Apache-only redistributable bundle;
+2. before Local Managed DB packaging, run the complete installed-product test matrix against `2.29.2-pg18-oss`;
+3. if raw Historian + required installed-product behavior pass without TSL, Apache-only is the preferred bundled baseline;
+4. if retention/downsampling becomes a required mounted product feature, either:
+   - redesign that feature using PostgreSQL/Apache-only mechanisms,
+   - accept TSL redistribution with explicit compliance/legal review and customer restrictions,
+   - or use a separately licensed/commercial Timescale distribution;
+5. CI may continue using the current Community/TSL-capable image for development evidence, but CI convenience must not silently define the commercial distribution license boundary.
+
 ## 3. Evidence hierarchy — do not restart from zero, but do not inherit stale assumptions
 
 Wave 13 is **cancelled** and is not a resumable implementation line.

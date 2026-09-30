@@ -353,7 +353,19 @@ test('secure first-run creates the initial local Administrator, first project an
         properties: { width: '640', height: '420' },
         context: { role: 'equipment-details' }
       }],
-      securityRoles: [],
+      securityRoles: [
+        {
+          id: authorityPolicy.body.roles.find((role: { key: string }) => role.key === 'developer').id,
+          key: 'developer',
+          name: 'Developer',
+          grants: [
+            { capability: 'view' },
+            { capability: 'engineeringModify' },
+            { capability: 'userRoleAdmin' }
+          ]
+        },
+        operatorRole
+      ],
       commands: [
         { id: '30000000-0000-0000-0000-000000000001', key: 'demo.p01.start', name: 'Start Pump P01', kind: 'writeTagValue', value: 'True', targetTagId: '10000000-0000-0000-0000-000000000002', targetTagPath: 'Demo.P01.Running', description: 'Starts the demo pump through the operational command domain.', area: 'Demo', equipmentPath: 'Demo.P01', enabled: true },
         { id: '30000000-0000-0000-0000-000000000002', key: 'demo.p01.stop', name: 'Stop Pump P01', kind: 'writeTagValue', value: 'False', targetTagId: '10000000-0000-0000-0000-000000000002', targetTagPath: 'Demo.P01.Running', description: 'Stops the demo pump through the operational command domain.', area: 'Demo', equipmentPath: 'Demo.P01', enabled: true }
@@ -457,7 +469,7 @@ test('secure first-run creates the initial local Administrator, first project an
     });
     expect(populatedWorkspace.status).toBe(200);
     expect(populatedWorkspace.body.tagCount).toBe(7);
-    expect(populatedWorkspace.body.securityRoleCount).toBe(1);
+    expect(populatedWorkspace.body.securityRoleCount).toBe(2);
     expect(populatedWorkspace.body.isDirty).toBe(false);
 
     // W15-INSTALLATION-UX mounted journey: preserve A, detach to true neutral,

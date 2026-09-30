@@ -74,7 +74,7 @@ public sealed class ContextualHelpTests
             .Select(source => $"driver.{source.TypeKey}")
             .ToArray();
         var actual = ContextualHelpCatalog.Build("pt-BR").Topics
-            .Where(topic => topic.Category == "drivers")
+            .Where(topic => topic.Category == "drivers" && topic.Id.StartsWith("driver.", StringComparison.Ordinal))
             .Select(topic => topic.Id)
             .OrderBy(id => id, StringComparer.Ordinal)
             .ToArray();

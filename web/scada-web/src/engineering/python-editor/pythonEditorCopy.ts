@@ -54,7 +54,7 @@ export function pythonEditorCopy(locale: EngineeringLocale) {
       diagnosticsRejected: 'diagnóstico(s) inválido(s) ignorado(s)',
       errors: 'errores',
       warnings: 'avisos',
-      entryPointContext: 'Handlers canónicos',
+      entryPointContext: 'Handlers disponibles',
       noEntryPoints: 'No hay entry points declarados.',
       apiHelp: 'Client Visual API v1',
       apiHelpHint: 'Capacidades públicas estables del bridge. El editor no inventa nombres privados de API.',

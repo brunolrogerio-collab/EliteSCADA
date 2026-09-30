@@ -147,6 +147,36 @@ test('Script create/update uses Preview and rejects stale Workspace CAS without 
   }
 });
 
+
+test('Server Script syntax validation uses isolated real parser without mutating Working', async ({ request }) => {
+  const before = await workspace(request);
+
+  const valid = await request.post('/api/engineering/scripts/python/validate', {
+    data: { source: 'def initialize():\n    return None\n' }
+  });
+  expect(valid.ok()).toBeTruthy();
+  expect(await valid.json()).toEqual({ diagnostics: [] });
+
+  const invalid = await request.post('/api/engineering/scripts/python/validate', {
+    data: { source: 'def broken(:\n    return None\n' }
+  });
+  expect(invalid.ok()).toBeTruthy();
+  const payload = await invalid.json() as {
+    diagnostics: Array<{ severity: string; code: string; line: number; column: number }>;
+  };
+  expect(payload.diagnostics).toEqual([
+    expect.objectContaining({
+      severity: 'error',
+      code: 'PY_SYNTAX',
+      line: 1,
+      column: expect.any(Number)
+    })
+  ]);
+
+  const after = await workspace(request);
+  expect(after.changeVersion).toBe(before.changeVersion);
+});
+
 test('Script mutation preserves backend authorization boundary', async ({ request }) => {
   const script = makeScript(crypto.randomUUID(), `scripts/auth-${Date.now()}.py`);
   const current = await workspace(request);

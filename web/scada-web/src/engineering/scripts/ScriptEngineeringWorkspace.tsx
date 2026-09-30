@@ -16,6 +16,7 @@ import {
   extractDeleteDependencies,
   loadScriptEngineeringContext,
   previewScriptMutation,
+  validateServerScriptPython,
   ScriptEngineeringApiError
 } from './scriptEngineeringApi';
 import {
@@ -185,26 +186,26 @@ export function ScriptEngineeringWorkspace({
     setNotice(null);
     setDeleteDependencies([]);
     try {
-      if (draft.scope === 'clientVisual') {
-        let compiled: PythonEditorDiagnosticSnapshot;
-        try {
-          compiled = await compileEngineeringClientVisualPython({
-            scriptId: draft.id,
-            source: draft.source,
-            handlerNames: pythonHandlerNames
-          });
-        } catch {
-          setPreviewToken(null);
-          setError(pythonCopy.compileUnavailable);
-          return;
-        }
+      let compiled: PythonEditorDiagnosticSnapshot;
+      try {
+        compiled = draft.scope === 'clientVisual'
+          ? await compileEngineeringClientVisualPython({
+              scriptId: draft.id,
+              source: draft.source,
+              handlerNames: pythonHandlerNames
+            })
+          : await validateServerScriptPython(draft.source);
+      } catch {
+        setPreviewToken(null);
+        setError(pythonCopy.compileUnavailable);
+        return;
+      }
 
-        setLocalPythonDiagnostics({ scriptId: draft.id, snapshot: compiled });
-        if (hasBlockingPythonDiagnostics(compiled.diagnostics)) {
-          setPreviewToken(null);
-          setNotice(pythonCopy.compileFailed);
-          return;
-        }
+      setLocalPythonDiagnostics({ scriptId: draft.id, snapshot: compiled });
+      if (hasBlockingPythonDiagnostics(compiled.diagnostics)) {
+        setPreviewToken(null);
+        setNotice(pythonCopy.compileFailed);
+        return;
       }
 
       const token = await previewScriptMutation(draft, context.visualEventReferences, mode);

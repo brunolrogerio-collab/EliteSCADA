@@ -241,6 +241,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 
                 // Static projection is materialized, but no Driver/ServerMemory source is
                 // started and no alarm input is evaluated on Standby.
+                RegisterPassiveTagProjection(candidate);
                 RegisterAlarms(effectivePackage, candidate, runtimeIssues);
                 RegisterCommands(effectivePackage, candidate, runtimeIssues);
                 if (runtimeIssues.Any(issue => issue.IsError))
@@ -666,6 +667,18 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
             drivers,
             serverMemorySources,
             memoryCompilation.ClientMemoryPlans);
+    }
+
+    private static void RegisterPassiveTagProjection(RuntimeState state)
+    {
+        foreach (var tag in state.Drivers.SelectMany(driver => driver.Tags)
+                     .Concat(state.ServerMemorySources.SelectMany(source => source.Tags))
+                     .GroupBy(tag => tag.Id)
+                     .Select(group => group.First()))
+        {
+            if (!state.Registry.TryGet(tag.Id, out _))
+                state.Registry.Register(tag);
+        }
     }
 
     private static async Task StartRuntimeSourcesAsync(RuntimeState state, CancellationToken cancellationToken)

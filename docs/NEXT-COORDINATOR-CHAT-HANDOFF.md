@@ -1,3 +1,21 @@
+# TAKEOVER POINTER — 2026-09-29 — R2-B ACTIVE / POST-PORTABILITY GREEN
+
+> **READ FIRST:** `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-09-29-R2B-ACTIVE.md`
+>
+> This is the canonical current Main Coordinator handoff and supersedes older current-state wording below whenever there is a conflict.
+>
+> Live checkpoint at pointer creation:
+> - `wave15/corrections-integration@1d9e3f9123bea8e27c362ee680a4ba70f864becd`;
+> - tree `512ef505924f3a0a709e8d5a73e2625531586e1c`;
+> - EliteSCADA CI #1611 / `36655606469` = GLOBAL SUCCESS;
+> - Portability #405 integrated;
+> - J/L/N ACTIVE on one exact common base and still 0 own commits / no PRs at handoff;
+> - J bootstrap delivered; L and N bootstraps requested by Product Owner but not yet delivered before coordinator transfer;
+> - Shared CODEX PARKED;
+> - M/P/TAG-D/Playback/Script Authoring R2 remain HOLD.
+
+---
+
 # TAKEOVER POINTER — 2026-09-29 — R2-A PARALLEL EXECUTION
 
 > **READ FIRST:** `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-09-29-R2A.md`

@@ -385,3 +385,110 @@
   outline: 2px solid var(--eng-focus);
   outline-offset: 2px;
 }
+
+
+/* R2 entity-first actions: destructive action follows the current entity; bulk is opt-in. */
+.eng-entity-actions {
+  margin-top: 16px;
+  padding: 0;
+}
+.eng-entity-actions__header,
+.eng-entity-actions__single,
+.eng-entity-actions__bulk {
+  padding: 13px 14px;
+}
+.eng-entity-actions__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--eng-border);
+}
+.eng-entity-actions__context {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.eng-entity-actions__context > span,
+.eng-entity-actions__single span,
+.eng-entity-actions__bulk header span {
+  color: var(--eng-muted);
+  font-size: .75rem;
+}
+.eng-entity-actions__context > strong { color: var(--eng-text); }
+.eng-entity-actions__context > code {
+  color: var(--eng-muted);
+  overflow-wrap: anywhere;
+}
+.eng-entity-actions button {
+  min-height: 2.2rem;
+  padding: .45rem .75rem;
+  border: 1px solid var(--eng-border);
+  border-radius: 8px;
+  background: var(--eng-panel-soft);
+  color: var(--eng-text);
+  cursor: pointer;
+}
+.eng-entity-actions button:not(:disabled):hover { background: var(--eng-hover); }
+.eng-entity-actions button:focus-visible {
+  outline: 2px solid var(--eng-focus);
+  outline-offset: 2px;
+}
+.eng-entity-actions button:disabled {
+  border-color: var(--eng-border-soft);
+  background: var(--eng-bg);
+  color: var(--eng-disabled);
+  cursor: default;
+}
+.eng-entity-actions button.danger {
+  border-color: var(--eng-danger);
+  background: var(--eng-danger-bg);
+  color: var(--eng-danger);
+  font-weight: 700;
+}
+.eng-entity-actions button.active {
+  border-color: var(--eng-accent);
+  background: var(--eng-selected);
+}
+.eng-entity-actions__single {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.eng-entity-actions__single > div {
+  display: grid;
+  gap: 3px;
+}
+.eng-entity-actions__bulk {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--eng-border-soft);
+  background: var(--eng-panel-soft);
+}
+.eng-entity-actions__bulk > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.eng-entity-actions__bulk > header > div {
+  display: grid;
+  gap: 3px;
+}
+.eng-entity-actions__mode {
+  align-self: start;
+  padding: 3px 7px;
+  border: 1px solid var(--eng-accent);
+  border-radius: 999px;
+  color: var(--eng-text) !important;
+}
+.eng-entity-actions .eng-mutation-error { margin: 0 14px 14px; }
+
+@media (max-width: 700px) {
+  .eng-entity-actions__header,
+  .eng-entity-actions__single,
+  .eng-entity-actions__bulk > header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

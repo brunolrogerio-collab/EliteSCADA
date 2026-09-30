@@ -260,9 +260,11 @@ test('TAG Delete panel surfaces dependency conflict without removing the TAG', a
 
   await page.goto('/engineering');
   await page.getByRole('button', { name: /TAGs/ }).click();
-  const panel = page.locator('.eng-mutation-panel').filter({ has: page.getByTestId('engineering-delete') });
+  await page.getByRole('button', { name: /Demo\\.P01\\.Frequency/ }).click();
+  const panel = page.getByTestId('engineering-entity-actions');
   await expect(panel).toBeVisible();
-  await panel.getByLabel('Entidade').selectOption(tag!.id!);
+  await expect(panel.getByTestId('engineering-current-entity')).toContainText(tag!.path);
+  await expect(panel.getByRole('combobox')).toHaveCount(0);
 
   page.once('dialog', dialog => dialog.accept());
   await panel.getByTestId('engineering-delete').click();
@@ -287,7 +289,10 @@ test('TAG Bulk panel gates Apply behind Preview and shows affected quantity', as
   try {
     await page.goto('/engineering');
     await page.getByRole('button', { name: /TAGs/ }).click();
-    const panel = page.locator('.eng-mutation-panel').filter({ has: page.getByTestId('engineering-bulk-preview') });
+    const panel = page.getByTestId('engineering-entity-actions');
+    await expect(panel.getByTestId('engineering-bulk-panel')).toHaveCount(0);
+    await panel.getByTestId('engineering-bulk-toggle').click();
+    await expect(panel.getByTestId('engineering-bulk-panel')).toBeVisible();
     const entity = panel.locator('.eng-bulk-entities label').filter({ hasText: tag!.path });
     await entity.getByRole('checkbox').check();
 

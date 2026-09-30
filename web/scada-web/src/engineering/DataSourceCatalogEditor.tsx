@@ -23,6 +23,8 @@ import {
 import { resolveDriverCatalogResource } from './driverCatalogI18n';
 import type { EngineeringLocale } from './i18n';
 import { OpcUaDataSourceDiscoveryAssistant } from './OpcUaDataSourceDiscoveryAssistant';
+import { EngineeringEntityActions } from './EngineeringEntityActions';
+import { WorkflowFormDisclosure, WorkflowFormSection } from './StructuredFormPrimitives';
 import type { DataSourceEngineering, EngineeringPackageView } from './types';
 import './structured-editors.css';
 
@@ -207,6 +209,9 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
   };
 
   const previewIssues = preview?.items.flatMap(item => item.issues ?? []) ?? [];
+  const configurationFields = currentType?.configurationSchema?.dataSourceFields ?? [];
+  const primaryFields = configurationFields.filter(field => !field.advanced);
+  const advancedFields = configurationFields.filter(field => field.advanced);
 
   return (
     <section className="eng-editor-shell" data-testid="schema-data-source-editor">
@@ -251,6 +256,7 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
 
         <section className="eng-editor-form-panel">
           {!draft ? <div className="eng-editor-empty">{copy.noSelection}</div> : <>
+            <WorkflowFormSection title={copy.identitySection} description={copy.identityHint}>
             <div className="eng-editor-form-grid">
               <Field label={copy.name}><input required value={draft.name} onChange={event => updateDraft({ ...draft, name: event.target.value })} /></Field>
               <Field label={copy.key}><input required className="mono" value={draft.key} onChange={event => updateDraft({ ...draft, key: event.target.value })} /></Field>
@@ -282,11 +288,11 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
                 </select>
               </Field>
             </div>
+            </WorkflowFormSection>
 
-            {currentType && <section className="eng-dictionary-editor">
-              <header><strong>{copy.settings}</strong><span>{copy.settingsHint}</span></header>
+            {currentType && <WorkflowFormSection title={copy.settings} description={copy.settingsHint}>
               <div className="eng-editor-form-grid">
-                {(currentType.configurationSchema?.dataSourceFields ?? []).map(field => (
+                {primaryFields.map(field => (
                   <ConfigurationField
                     key={field.key}
                     field={field}
@@ -296,9 +302,30 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
                     copy={copy}
                   />
                 ))}
-                {(currentType.configurationSchema?.dataSourceFields.length ?? 0) === 0 && <span>{copy.noSettings}</span>}
+                {configurationFields.length === 0 && <span>{copy.noSettings}</span>}
               </div>
-            </section>}
+            </WorkflowFormSection>}
+
+            {currentType && advancedFields.length > 0 && (
+              <WorkflowFormDisclosure
+                title={copy.advancedSettings}
+                description={copy.advancedSettingsHint}
+                testId="data-source-advanced-disclosure"
+              >
+                <div className="eng-editor-form-grid">
+                  {advancedFields.map(field => (
+                    <ConfigurationField
+                      key={field.key}
+                      field={field}
+                      value={(isProtectedReference(field.valueKind) ? draft.secretReferences : draft.settings)?.[field.key] ?? field.defaultValue ?? ''}
+                      onChange={value => changeSetting(field, value)}
+                      locale={locale}
+                      copy={copy}
+                    />
+                  ))}
+                </div>
+              </WorkflowFormDisclosure>
+            )}
 
             {currentType && <OpcUaDataSourceDiscoveryAssistant
               draft={draft}
@@ -351,6 +378,12 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
               </div>}
             </section>}
             {error && <pre className="eng-editor-error">{error}</pre>}
+            <EngineeringEntityActions
+              kind="data-source"
+              model={model}
+              locale={locale}
+              selectedEntity={selected?.id ? { id: selected.id, label: selected.key, detail: `${selected.name} · ${selected.driver}` } : null}
+            />
           </>}
         </section>
       </div>
@@ -439,11 +472,11 @@ function clientIssueMessage(issue: DataSourceDraftIssue, copy: EditorText): stri
 
 function text(locale: EngineeringLocale) {
   if (locale === 'en') return {
-    title: 'Data Source editor', description: 'Choose a source type from the backend catalog. Configuration fields come from that type schema.',
+    title: 'Data Source editor', description: 'Choose the source first, then configure only the protocol fields needed for this connection.',
     newSource: 'New Data Source', catalogLoading: 'Loading Data Source types…', catalogError: 'Could not load source type catalog', catalogEmpty: 'No Data Source types are available in this build.', catalogReload: 'Reload catalog', noSelection: 'Select or create a Data Source.',
     name: 'Name', key: 'Key', type: 'Data Source type', enabled: 'Enabled', yes: 'Yes', no: 'No', chooseType: 'Choose a type',
     unsupported: 'Unavailable type', unsupportedHint: 'This persisted type is not available in this build. Select a supported type explicitly; it will not be remapped silently.',
-    settings: 'Type configuration', settingsHint: 'Only fields declared by the selected backend schema are editable.', noSettings: 'This source type has no configuration fields.',
+    identitySection: 'Source identity', identityHint: 'Name the connection and choose its canonical backend type before protocol details.', settings: 'Connection settings', settingsHint: 'Common settings for the selected source type.', advancedSettings: 'Advanced protocol settings', advancedSettingsHint: 'Rare or tuning-specific fields are available only when needed.', noSettings: 'This source type has no configuration fields.',
     incompatibleTitle: 'Incompatible persisted settings', incompatibleHint: 'These keys are not valid for the selected source type. They are not reinterpreted automatically.', removeIncompatible: 'Remove incompatible settings', incompatibleField: 'This persisted setting does not belong to the selected source type.',
     preview: 'Validate draft', apply: 'Apply', valid: 'Valid candidate', invalid: 'Invalid candidate', errors: 'Errors', discard: 'Discard unsaved Data Source changes?',
     workspaceChanged: 'Engineering Workspace changed during validation. Reload and validate the draft again.', fixClientIssues: 'Correct the highlighted Data Source fields before backend validation.',
@@ -451,11 +484,11 @@ function text(locale: EngineeringLocale) {
     format: 'Format', example: 'Example', advanced: 'advanced'
   };
   if (locale === 'es') return {
-    title: 'Editor de Data Source', description: 'Seleccione un tipo del catálogo backend. Los campos provienen del schema de ese tipo.',
+    title: 'Editor de Data Source', description: 'Seleccione primero la fuente y configure solo los campos de protocolo necesarios para esta conexión.',
     newSource: 'Nueva Data Source', catalogLoading: 'Cargando tipos de Data Source…', catalogError: 'No se pudo cargar el catálogo de tipos', catalogEmpty: 'No hay tipos de Data Source disponibles en esta build.', catalogReload: 'Recargar catálogo', noSelection: 'Seleccione o cree una Data Source.',
     name: 'Nombre', key: 'Clave', type: 'Tipo de Data Source', enabled: 'Habilitado', yes: 'Sí', no: 'No', chooseType: 'Seleccione un tipo',
     unsupported: 'Tipo no disponible', unsupportedHint: 'El tipo persistido no existe en esta build. Seleccione otro explícitamente; no será reinterpretado.',
-    settings: 'Configuración del tipo', settingsHint: 'Solo los campos declarados por el schema backend son editables.', noSettings: 'Este tipo no tiene campos de configuración.',
+    identitySection: 'Identidad de la fuente', identityHint: 'Nombre la conexión y elija su tipo canónico antes de los detalles del protocolo.', settings: 'Configuración de conexión', settingsHint: 'Opciones comunes del tipo de fuente seleccionado.', advancedSettings: 'Opciones avanzadas del protocolo', advancedSettingsHint: 'Los campos raros o de ajuste aparecen solo cuando son necesarios.', noSettings: 'Este tipo no tiene campos de configuración.',
     incompatibleTitle: 'Configuraciones persistidas incompatibles', incompatibleHint: 'Estas claves no son válidas para el tipo seleccionado. No se reinterpretan automáticamente.', removeIncompatible: 'Eliminar configuraciones incompatibles', incompatibleField: 'Esta configuración persistida no pertenece al tipo seleccionado.',
     preview: 'Validar borrador', apply: 'Aplicar', valid: 'Candidato válido', invalid: 'Candidato inválido', errors: 'Errores', discard: '¿Descartar los cambios no guardados?',
     workspaceChanged: 'El Engineering Workspace cambió durante la validación. Recargue y valide el borrador nuevamente.', fixClientIssues: 'Corrija los campos indicados antes de la validación backend.',
@@ -463,11 +496,11 @@ function text(locale: EngineeringLocale) {
     format: 'Formato', example: 'Ejemplo', advanced: 'avanzado'
   };
   return {
-    title: 'Editor de Data Source', description: 'Escolha um tipo no catálogo do backend. Os campos de configuração vêm do schema desse tipo.',
+    title: 'Editor de Data Source', description: 'Escolha primeiro a fonte e configure somente os campos de protocolo necessários para esta conexão.',
     newSource: 'Nova Data Source', catalogLoading: 'Carregando tipos de Data Source…', catalogError: 'Não foi possível carregar o catálogo de tipos', catalogEmpty: 'Nenhum tipo de Data Source está disponível nesta build.', catalogReload: 'Recarregar catálogo', noSelection: 'Selecione ou crie uma Data Source.',
     name: 'Nome', key: 'Chave', type: 'Tipo de Data Source', enabled: 'Habilitado', yes: 'Sim', no: 'Não', chooseType: 'Escolha um tipo',
     unsupported: 'Tipo indisponível', unsupportedHint: 'O tipo persistido não existe nesta build. Selecione outro explicitamente; ele não será reinterpretado silenciosamente.',
-    settings: 'Configuração do tipo', settingsHint: 'Somente campos declarados pelo schema do backend podem ser editados.', noSettings: 'Este tipo não possui campos de configuração.',
+    identitySection: 'Identidade da fonte', identityHint: 'Nomeie a conexão e escolha o tipo canônico antes dos detalhes do protocolo.', settings: 'Configuração da conexão', settingsHint: 'Campos comuns do tipo de fonte selecionado.', advancedSettings: 'Configurações avançadas do protocolo', advancedSettingsHint: 'Campos raros ou de ajuste aparecem somente quando necessários.', noSettings: 'Este tipo não possui campos de configuração.',
     incompatibleTitle: 'Configurações persistidas incompatíveis', incompatibleHint: 'Estas chaves não pertencem ao tipo selecionado. Elas não são reinterpretadas automaticamente.', removeIncompatible: 'Remover configurações incompatíveis', incompatibleField: 'Esta configuração persistida não pertence ao tipo selecionado.',
     preview: 'Validar rascunho', apply: 'Aplicar', valid: 'Candidato válido', invalid: 'Candidato inválido', errors: 'Erros', discard: 'Descartar alterações não salvas da Data Source?',
     workspaceChanged: 'O Engineering Workspace mudou durante a validação. Recarregue e valide o rascunho novamente.', fixClientIssues: 'Corrija os campos indicados da Data Source antes da validação no backend.',

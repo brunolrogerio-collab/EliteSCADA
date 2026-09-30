@@ -97,6 +97,7 @@ export function VisualEditorSelectionInspector({
           sourceCatalog={sourceCatalog}
           onMutationIntent={onMutationIntent}
           locale={locale}
+          copy={bindingEditorCopy(locale)}
         />
       </> : <p className="visual-editor-selection-hint">{text.selectOne}</p>}
       </section>
@@ -114,6 +115,51 @@ export function VisualEditorSelectionInspector({
       </section>
     </div>
   </div>;
+}
+
+function bindingEditorCopy(locale: EngineeringLocale) {
+  if (locale === 'en') return {
+    title: 'Binding',
+    destination: 'Visual property',
+    source: 'Project source',
+    apply: 'Apply binding',
+    remove: 'Remove binding',
+    noDestinations: 'This object has no bindable visual properties.',
+    noSources: 'No compatible canonical project sources are available.',
+    current: 'Current binding',
+    browse: 'Browse project references',
+    exactReference: 'Exact reference',
+    exactReferencePlaceholder: 'Type the canonical TAG or variable reference',
+    exactNotFound: 'No compatible source matches this exact reference.'
+  };
+  if (locale === 'es') return {
+    title: 'Binding',
+    destination: 'Propiedad visual',
+    source: 'Fuente del proyecto',
+    apply: 'Aplicar binding',
+    remove: 'Eliminar binding',
+    noDestinations: 'Este objeto no tiene propiedades visuales enlazables.',
+    noSources: 'No hay fuentes canónicas compatibles disponibles.',
+    current: 'Binding actual',
+    browse: 'Explorar referencias del proyecto',
+    exactReference: 'Referencia exacta',
+    exactReferencePlaceholder: 'Escriba la referencia canónica del TAG o variable',
+    exactNotFound: 'Ninguna fuente compatible coincide con esta referencia.'
+  };
+  return {
+    title: 'Binding',
+    destination: 'Propriedade visual',
+    source: 'Fonte do projeto',
+    apply: 'Aplicar binding',
+    remove: 'Remover binding',
+    noDestinations: 'Este objeto não possui propriedades visuais com binding.',
+    noSources: 'Não há fontes canônicas compatíveis disponíveis.',
+    current: 'Binding atual',
+    browse: 'Procurar referências do projeto',
+    exactReference: 'Referência exata',
+    exactReferencePlaceholder: 'Digite a referência canônica do TAG ou variável',
+    exactNotFound: 'Nenhuma fonte compatível corresponde a esta referência.'
+  };
 }
 
 function inspectorText(locale: EngineeringLocale) {

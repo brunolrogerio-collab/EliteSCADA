@@ -507,6 +507,15 @@ export type VisualEngineeringAssetReference = Readonly<{
   assetId: string;
 }>;
 
+export type ApplicationBrandingMode = 'default' | 'text' | 'image' | 'none';
+
+export type ApplicationBrandingEngineering = Readonly<{
+  mode: ApplicationBrandingMode;
+  text?: string | null;
+  subtitle?: string | null;
+  visualAssetId?: string | null;
+}>;
+
 export type VisualAssetEngineering = {
   id?: string | null;
   key: string;
@@ -656,6 +665,7 @@ export type EngineeringPackageView = {
   historianCaptureProfiles?: HistorianCaptureProfileEngineering[];
   dataQueries?: DataQueryEngineering[];
   alarmViews?: AlarmViewEngineering[];
+  branding?: ApplicationBrandingEngineering | null;
   startupScreenId?: string | null;
   [key: string]: unknown;
 };

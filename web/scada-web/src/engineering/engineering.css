@@ -814,3 +814,22 @@
   .eng-body--navigation-collapsed { display: block; }
   .eng-body--navigation-collapsed .eng-sidebar { min-height: 42px; }
 }
+
+.branding-editor__grid { display:grid; grid-template-columns:minmax(300px,.85fr) minmax(320px,1.15fr); gap:16px; }
+.branding-editor__form { display:grid; align-content:start; gap:14px; }
+.branding-editor__form label { display:grid; gap:6px; color:var(--eng-muted); font-size:11px; }
+.branding-editor__form input,.branding-editor__form select { min-height:36px; border:1px solid var(--eng-border); border-radius:6px; background:var(--eng-input-bg,var(--eng-panel-soft)); color:var(--eng-text); padding:6px 9px; }
+.branding-editor__form input:focus-visible,.branding-editor__form select:focus-visible,.branding-editor__actions button:focus-visible { outline:2px solid var(--eng-focus,var(--eng-accent)); outline-offset:2px; }
+.branding-editor__actions { display:flex; flex-wrap:wrap; gap:8px; }
+.branding-editor__actions button { min-height:36px; border:1px solid var(--eng-border); border-radius:6px; background:var(--eng-panel-soft); color:var(--eng-text); padding:6px 12px; cursor:pointer; }
+.branding-editor__actions button:disabled { opacity:.55; cursor:not-allowed; }
+.branding-editor__issues { margin:0; padding-left:18px; color:var(--eng-danger); font-size:12px; line-height:1.45; }
+.branding-preview { min-height:220px; display:grid; align-content:center; justify-items:start; gap:14px; }
+.branding-preview__brand { min-height:54px; display:flex; align-items:center; gap:10px; max-width:100%; }
+.branding-preview__brand > b { width:36px; height:36px; display:grid; place-items:center; border:1px solid var(--eng-border); border-radius:7px; color:var(--eng-accent); }
+.branding-preview__brand > img { max-width:220px; max-height:64px; object-fit:contain; }
+.branding-preview__brand > span { display:grid; min-width:0; gap:2px; }
+.branding-preview__brand strong { overflow-wrap:anywhere; }
+.branding-preview__brand small { color:var(--eng-muted); }
+.branding-preview__lifecycle { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+@media (max-width:900px) { .branding-editor__grid { grid-template-columns:1fr; } }

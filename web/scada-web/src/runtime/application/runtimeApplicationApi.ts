@@ -1,4 +1,5 @@
 import type {
+  ApplicationBrandingEngineering,
   DynamoEngineering,
   PopupEngineering,
   ScreenEngineering,
@@ -22,6 +23,7 @@ export type RuntimeHmiEngineeringPackage = Readonly<{
   scripts: ScriptEngineeringDefinition[];
   scriptVisualEventReferences: ScriptVisualEventReference[];
   visualAssets: VisualAssetEngineering[];
+  branding?: ApplicationBrandingEngineering | null;
 }>;
 
 export type RuntimeApplicationProjection = Readonly<{

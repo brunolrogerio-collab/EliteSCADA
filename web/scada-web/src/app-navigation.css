@@ -75,3 +75,15 @@
   .app-shell-actions { padding-inline: 6px; }
   .runtime-view-navigation { padding-inline: 10px; }
 }
+
+.app-brand-image { max-width: 156px; max-height: 34px; width: auto; height: auto; object-fit: contain; flex: 0 1 auto; }
+.app-brand-diagnostic { max-width: 220px; color: var(--app-warning, #d6a958); font-size: 10px; line-height: 1.15; }
+.app-bar--branding-none { grid-template-columns: minmax(0, 1fr) minmax(250px, 1fr); }
+.app-bar--branding-none .app-navigation { justify-self: start; }
+.app-bar--branding-none.app-bar--runtime-only { grid-template-columns: minmax(0, 1fr) auto; }
+@media (max-width: 1180px) {
+  .app-brand-image { max-width: 42px; max-height: 30px; }
+  .app-brand-diagnostic { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+  .app-bar--branding-none { grid-template-columns: minmax(0, 1fr) auto; }
+}
+@media (max-width: 760px) { .app-brand-image { max-width: 34px; max-height: 28px; } }

@@ -4,6 +4,7 @@ using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.Api.Security;
 using Scada.Engineering.Assets;
+using Scada.Engineering.Branding;
 using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
@@ -88,6 +89,7 @@ public sealed class EngineeringWorkspace : IDisposable
         Commands = new InMemoryCommandEngineeringRegistry(MarkDirty);
         Scripts = new InMemoryScriptEngineeringRegistry(MarkDirty);
         VisualAssets = new InMemoryVisualAssetEngineeringRegistry(MarkDirty);
+        Branding = new InMemoryApplicationBrandingEngineeringRegistry(MarkDirty);
         if (seedDemo) SeedDemo();
     }
 
@@ -104,6 +106,7 @@ public sealed class EngineeringWorkspace : IDisposable
     public InMemoryCommandEngineeringRegistry Commands { get; }
     public InMemoryScriptEngineeringRegistry Scripts { get; }
     public InMemoryVisualAssetEngineeringRegistry VisualAssets { get; }
+    public InMemoryApplicationBrandingEngineeringRegistry Branding { get; }
 
     public EngineeringWorkspaceDescriptor Describe()
     {
@@ -241,6 +244,7 @@ public sealed class EngineeringWorkspace : IDisposable
         Commands.Clear();
         Scripts.Clear();
         VisualAssets.Clear();
+        Branding.Clear();
     }
 
     public void ResetToNeutral()

@@ -9,6 +9,7 @@ import {
   type TranslationKey
 } from './i18n';
 import { AlarmEditor } from './AlarmEditor';
+import { BrandingEngineeringWorkspace } from './BrandingEngineeringWorkspace';
 import { CommunicationDiagnosticsPanel } from './CommunicationDiagnosticsPanel';
 import { DevelopmentMonitorWorkspace } from './development-monitor/DevelopmentMonitorWorkspace';
 import { EngineeringTagMonitorWorkspace } from './diagnostics/EngineeringTagMonitorWorkspace';
@@ -29,6 +30,7 @@ import './engineering.css';
 
 type SectionId =
   | 'overview'
+  | 'branding'
   | 'scripts'
   | 'libraries'
   | 'dataSources'
@@ -58,6 +60,7 @@ const librariesPath = '/engineering/libraries';
 const navigation: NavGroup[] = [
   { label: 'nav.project', items: [
     { id: 'overview', label: 'nav.overview' },
+    { id: 'branding', literalLabel: { 'pt-BR': 'Branding', en: 'Branding', es: 'Branding' } },
     { id: 'scripts' },
     { id: 'libraries', literalLabel: { 'pt-BR': 'Bibliotecas', en: 'Libraries', es: 'Bibliotecas' } }
   ] },
@@ -235,6 +238,7 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, onR
 }) {
   const model = snapshot.package;
   if (section === 'overview') return <><Overview snapshot={snapshot} t={t}/><EngineeringLifecycleWorkspace locale={locale}/><EngineeringProjectManagementWorkspace locale={locale}/></>;
+  if (section === 'branding') return <BrandingEngineeringWorkspace snapshot={snapshot} onApplied={onReload}/>;
   if (section === 'scripts') return <ScriptEngineeringWorkspace locale={locale}/>;
   if (section === 'libraries') return <ReusableLibraryWorkspace locale={locale} snapshot={snapshot} onReload={onReload}/>;
   if (section === 'historian') return <HistorianSection model={model} t={t}/>;
@@ -418,6 +422,7 @@ function sectionCount(model: EngineeringPackageView, section: SectionId): number
     case 'historian': return model.tags.filter(tag => tag.historian?.enabled).length;
     case 'reports': return reportCollection(model).length;
     case 'security': return model.securityRoles?.length ?? 0;
+    case 'branding':
     case 'scripts':
     case 'libraries':
     case 'overview':
@@ -483,7 +488,7 @@ function formatDate(value: string, locale: EngineeringLocale) {
 }
 function scriptNavLabel(_locale: EngineeringLocale) { return 'Scripts'; }
 function NavIcon({ section }: { section: SectionId }) {
-  const symbols: Record<SectionId, string> = { overview: '⌂', scripts: '</>', libraries: '▱', dataSources: '⇄', gateway: '⇢', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯', information: 'ⓘ' };
+  const symbols: Record<SectionId, string> = { overview: '⌂', branding: '◐', scripts: '</>', libraries: '▱', dataSources: '⇄', gateway: '⇢', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯', information: 'ⓘ' };
   return <i aria-hidden="true">{symbols[section]}</i>;
 }
 

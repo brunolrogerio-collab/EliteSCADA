@@ -215,7 +215,7 @@ public sealed class SystemRecoveryApplicationServiceTests
     }
 
     [Fact]
-    public async Task ApplyAsync_BlockingReplacementPreviewRestoresPreviousWorkspaceAndDoesNotPersist()
+    public async Task ApplyAsync_BlockingPreflightDoesNotStartAttachOrPersist()
     {
         using var workspace = new EngineeringWorkspace();
         var gateways = new InMemoryGatewayEngineeringRegistry(workspace.MarkDirty);
@@ -257,9 +257,9 @@ public sealed class SystemRecoveryApplicationServiceTests
         Assert.False(result.Recovered);
         Assert.False(result.DurableRevisionSaved);
         Assert.Null(store.Snapshot);
-        Assert.Equal(1, binding.BeginAttachCalls);
+        Assert.Equal(0, binding.BeginAttachCalls);
         Assert.Equal(0, binding.CompleteAttachCalls);
-        Assert.Equal(1, binding.AbortAttachCalls);
+        Assert.Equal(0, binding.AbortAttachCalls);
         Assert.Equal(EngineeringInstallationBindingState.Neutral, binding.Snapshot.State);
         var after = exchange.ExportPackage();
         Assert.Equal(

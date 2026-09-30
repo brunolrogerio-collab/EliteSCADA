@@ -549,9 +549,85 @@ test('secure first-run creates the initial local Administrator, first project an
     await expect(page.locator('.eng-shell')).toBeVisible({ timeout: 15_000 });
 
     const bLifecycle = await page.evaluate(async currentProjectKey => {
-      const workspaceResponse = await fetch('/api/engineering/workspace');
+      const [workspaceResponse, engineeringResponse] = await Promise.all([
+        fetch('/api/engineering/workspace'),
+        fetch('/api/engineering/export/json')
+      ]);
       const workspace = await workspaceResponse.json();
-      const revision = workspace.baseRevision as number;
+      const engineering = await engineeringResponse.json();
+
+      // A fresh First Project is intentionally neutral Engineering content. Give B
+      // one canonical self-contained Server Memory source/TAG through the same
+      // Preview/Apply contract used by product CI so Publish -> Activate exercises
+      // a real Runtime instead of relying on any hidden Demo fallback.
+      const dataSourceId = '96000000-0000-0000-0000-000000000001';
+      const tagId = '96000000-0000-0000-0000-000000000002';
+      const activatableEngineering = {
+        ...engineering,
+        exportedAt: new Date().toISOString(),
+        dataSources: [{
+          id: dataSourceId,
+          key: 'installation.b.memory.server',
+          name: 'Installation B Server Memory',
+          driver: 'builtin.memory.server',
+          enabled: true,
+          metadata: { owner: 'w15-installation-e2e' }
+        }],
+        tags: [{
+          id: tagId,
+          name: 'Runtime Value',
+          path: 'Installation.B.RuntimeValue',
+          dataType: 'double',
+          source: 'installation.b.memory.server',
+          address: null,
+          engineeringUnit: '%',
+          description: 'Self-contained Runtime value for Installation B switching acceptance',
+          readOnly: false,
+          scaleMinimum: 0,
+          scaleMaximum: 100,
+          historian: {
+            enabled: false,
+            strategy: 'change',
+            deadband: null,
+            periodMilliseconds: null,
+            maximumPeriodMilliseconds: null
+          },
+          metadata: { owner: 'w15-installation-e2e' },
+          initialValue: { dataType: 'double', value: 42.5 },
+          dataSourceId
+        }],
+        alarms: [],
+        commands: [],
+        gateways: []
+      };
+
+      const preview = await fetch('/api/engineering/import/json/preview', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(activatableEngineering)
+      });
+      const previewBody = await preview.json();
+
+      const apply = await fetch('/api/engineering/import/json/apply', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-elitescada-workspace-version': String(workspace.changeVersion)
+        },
+        body: JSON.stringify(activatableEngineering)
+      });
+      const applyBody = await apply.json();
+
+      const save = await fetch(
+        `/api/engineering/persistence/${encodeURIComponent(currentProjectKey)}/save`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ projectName: 'E2E Plant B' })
+        });
+      const saveBody = await save.json();
+      const revision = saveBody.revision as number;
+
       const publish = await fetch(
         `/api/engineering/persistence/${encodeURIComponent(currentProjectKey)}/revisions/${revision}/publish`,
         {
@@ -559,6 +635,8 @@ test('secure first-run creates the initial local Administrator, first project an
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ publishedBy: 'installation-e2e-b' })
         });
+      const publishBody = await publish.json();
+
       const activate = await fetch(
         `/api/engineering/persistence/${encodeURIComponent(currentProjectKey)}/published/activate`,
         {
@@ -566,13 +644,29 @@ test('secure first-run creates the initial local Administrator, first project an
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ activatedBy: 'installation-e2e-b' })
         });
+      const activateBody = await activate.json();
+
       return {
+        previewStatus: preview.status,
+        previewBody,
+        applyStatus: apply.status,
+        applyBody,
+        saveStatus: save.status,
+        saveBody,
         revision,
         publishStatus: publish.status,
+        publishBody,
         activateStatus: activate.status,
-        activateBody: await activate.json()
+        activateBody
       };
     }, projectBKey);
+    expect(bLifecycle.previewStatus).toBe(200);
+    expect(bLifecycle.previewBody.canApply).toBe(true);
+    expect(bLifecycle.previewBody.errorCount ?? 0).toBe(0);
+    expect(bLifecycle.applyStatus).toBe(200);
+    expect((bLifecycle.applyBody.issues ?? []).some((issue: { isError?: boolean }) => issue.isError)).toBe(false);
+    expect(bLifecycle.saveStatus).toBe(200);
+    expect(bLifecycle.revision).toBeGreaterThan(0);
     expect(bLifecycle.publishStatus).toBe(200);
     expect(bLifecycle.activateStatus).toBe(200);
     expect(bLifecycle.activateBody.activated).toBe(true);

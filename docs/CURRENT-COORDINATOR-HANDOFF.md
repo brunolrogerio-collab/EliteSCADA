@@ -8,9 +8,8 @@ Current integration base:
 `wave15/corrections-integration@af24924ebcedec15e498457895e949bad6365832`
 (tree `e35a7c1c4648a3251071c0621808f6c1106044d7`).
 
-Temporary integration candidate:
-`coord/w15-recovery-handoff-2026-09-30@b9463dd3a92e3956b69f04f7e9e9c6f0fb936632`.
-It is pushed separately; it has not been merged into the integration branch.
+Temporary integration candidate is pushed on `coord/w15-recovery-handoff-2026-09-30`.
+Use the live GitHub ref for its exact HEAD; it has not been merged into the integration branch.
 
 Merged immediately before this checkpoint:
 - PR #442 Historical mounted-test reconciliation: merge `e75c0faca5d09d161670ab58f14cebffcb3e7ca2`;

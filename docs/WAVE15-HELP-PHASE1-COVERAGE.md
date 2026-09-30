@@ -67,6 +67,8 @@ No second Help system or external documentation dependency was added.
 
 ## Deterministic gates
 
+PR validation profile: `DOCS_I18N_HELP`.
+
 Phase 1 strengthens checks for:
 
 - required topic presence in every locale;

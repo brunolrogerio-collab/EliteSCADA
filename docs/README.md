@@ -2,6 +2,10 @@
 
 The repository contains stable architecture, product policy, current coordination records, historical Wave evidence and worker assignments. They do **not** have the same operational authority.
 
+## Product manual
+
+The long-form product manual lives under [`docs/manual/`](manual/README.md). Its coverage matrix separates stable product guidance from chapters that still depend on unfinished product surfaces; contextual Help remains the concise in-product companion rather than a duplicate manual.
+
 ## 1. Live repository and CI
 
 **Highest authority for what is actually implemented now.**

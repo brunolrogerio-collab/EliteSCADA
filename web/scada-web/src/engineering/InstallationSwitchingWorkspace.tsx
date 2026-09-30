@@ -18,7 +18,7 @@ type InstallationDetachRequest = {
   acknowledgeApplicationRemoval: boolean;
   acknowledgeAuthorityRemoval: boolean;
   acknowledgeHistorianPreserved: boolean;
-  licenseAction: LicenseAction;
+  licenseAction: 0 | 1 | 2;
   replacementLicenseCode: string | null;
 };
 
@@ -121,7 +121,7 @@ function emptyRequest(): InstallationDetachRequest {
     acknowledgeApplicationRemoval: false,
     acknowledgeAuthorityRemoval: false,
     acknowledgeHistorianPreserved: false,
-    licenseAction: 'Keep',
+    licenseAction: 0,
     replacementLicenseCode: null
   };
 }
@@ -240,7 +240,7 @@ export function InstallationSwitchingWorkspace({
       acknowledgeApplicationRemoval: ackApplication,
       acknowledgeAuthorityRemoval: ackAuthority,
       acknowledgeHistorianPreserved: ackHistorian,
-      licenseAction,
+      licenseAction: licenseAction === 'Keep' ? 0 : licenseAction === 'Remove' ? 1 : 2,
       replacementLicenseCode: licenseAction === 'Replace' ? replacementLicenseCode.trim() : null
     };
   }

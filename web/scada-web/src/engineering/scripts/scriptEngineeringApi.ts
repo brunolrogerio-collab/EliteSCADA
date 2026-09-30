@@ -1,3 +1,4 @@
+import type { PythonEditorDiagnosticSnapshot } from '../python-editor/pythonEditorDiagnostics';
 import {
   buildCanonicalScriptPackage,
   canonicalScriptPackageFingerprint,
@@ -46,6 +47,24 @@ export async function loadScriptEngineeringContext(): Promise<ScriptEngineeringC
 
 export async function loadScriptEngineeringWorkspace(): Promise<ScriptEngineeringWorkspaceDescriptor> {
   return await requestJson<ScriptEngineeringWorkspaceDescriptor>('/api/engineering/workspace');
+}
+
+export async function validateServerScriptPython(
+  source: string
+): Promise<PythonEditorDiagnosticSnapshot> {
+  const result = await requestJson<{ diagnostics: PythonEditorDiagnosticSnapshot['diagnostics'] }>(
+    '/api/engineering/scripts/python/validate',
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ source })
+    }
+  );
+
+  return {
+    source,
+    diagnostics: result.diagnostics ?? []
+  };
 }
 
 export async function previewScriptMutation(

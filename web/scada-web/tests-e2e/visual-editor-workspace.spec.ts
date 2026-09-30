@@ -79,7 +79,7 @@ test('W15 R2 editor mounts shared side surfaces, canonical Dynamo preview and co
   const dynamoLibrary = page.getByTestId('visual-dynamo-library');
   await expect(dynamoLibrary).toBeVisible();
   await expect(dynamoLibrary.getByTestId('dynamo-library-canonical-thumbnail').first()).toBeVisible();
-  const blower = dynamoLibrary.getByRole('listitem').filter({ hasText: 'process.blower.centrifugal' });
+  const blower = dynamoLibrary.locator('[data-dynamo-key="process.blower.centrifugal"]');
   await expect(blower).toBeVisible();
   await blower.click();
   const canonicalDynamoPreview = dynamoLibrary.getByTestId('dynamo-library-canonical-preview');

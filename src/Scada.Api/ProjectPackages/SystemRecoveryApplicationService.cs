@@ -96,7 +96,8 @@ public sealed class SystemRecoveryApplicationService(
             .Select(user => SystemRecoveryAuthorityAdmissionEvaluator.Evaluate(
                 inspection.Engineering,
                 user,
-                authoritySnapshot))
+                authoritySnapshot,
+                allowRestoredAuthorityVersionRebind: true))
             .ToArray();
         var compatibleAdministratorCount = admissions.Count(x => x.Allowed);
         var currentAdmission = currentUser is null
@@ -104,7 +105,8 @@ public sealed class SystemRecoveryApplicationService(
             : SystemRecoveryAuthorityAdmissionEvaluator.Evaluate(
                 inspection.Engineering,
                 currentUser,
-                authoritySnapshot);
+                authoritySnapshot,
+                allowRestoredAuthorityVersionRebind: true);
 
         var blockers = new List<string>();
         if (!catalogEmpty)
@@ -133,7 +135,10 @@ public sealed class SystemRecoveryApplicationService(
         var deferCurrentAuthorityReferenceMismatch =
             !requireCurrentUserAdmission &&
             applicationAuthority.BindingState == EngineeringInstallationBindingState.Neutral;
-        if (HasBlockingImportPreviewErrors(preview, deferCurrentAuthorityReferenceMismatch))
+        var importPreview = authoritySnapshot is null
+            ? preview
+            : packages.PreviewForAuthorityRecovery(packageBytes, ImportMode.CreateAndUpdate, authoritySnapshot);
+        if (HasBlockingImportPreviewErrors(importPreview, deferCurrentAuthorityReferenceMismatch))
             blockers.Add("The application package has blocking Engineering preview errors.");
         if (requireCurrentUserAdmission && currentAdmission?.Allowed != true)
             blockers.Add(currentAdmission?.Reason ?? "The current restored Authority identity is not admitted by the recovered application policy.");
@@ -142,7 +147,7 @@ public sealed class SystemRecoveryApplicationService(
 
         return new SystemRecoveryApplicationPreview(
             inspection.Manifest,
-            preview,
+            importPreview,
             applicationAuthority.ProjectKey,
             catalogEmpty,
             bindingMatches,
@@ -208,7 +213,13 @@ public sealed class SystemRecoveryApplicationService(
             // This is the definitive replacement preview. It runs after the old Working
             // model has been cleared, so package references cannot accidentally resolve
             // through seeded/demo content that is not present in the recovered package.
-            replacementPreview = packages.Preview(packageBytes, ImportMode.CreateAndUpdate);
+            var restoredAuthority = authorityPolicies?.Snapshot();
+            replacementPreview = restoredAuthority is null
+                ? packages.Preview(packageBytes, ImportMode.CreateAndUpdate)
+                : packages.PreviewForAuthorityRecovery(
+                    packageBytes,
+                    ImportMode.CreateAndUpdate,
+                    restoredAuthority);
             if (!replacementPreview.CanApply)
             {
                 RestoreBackup(backupPackage, backupContext, backupDescriptor);
@@ -233,7 +244,9 @@ public sealed class SystemRecoveryApplicationService(
                         .ToArray());
             }
 
-            applyResult = packages.Apply(packageBytes, ImportMode.CreateAndUpdate);
+            applyResult = restoredAuthority is null
+                ? packages.Apply(packageBytes, ImportMode.CreateAndUpdate)
+                : packages.ApplyForAuthorityRecovery(packageBytes, ImportMode.CreateAndUpdate, restoredAuthority);
             if (applyResult.Issues.Any(x => x.IsError))
             {
                 RestoreBackup(backupPackage, backupContext, backupDescriptor);

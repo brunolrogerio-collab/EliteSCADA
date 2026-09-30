@@ -17,7 +17,8 @@ public static class SystemRecoveryAuthorityAdmissionEvaluator
     public static SystemRecoveryAuthorityAdmission Evaluate(
         EngineeringPackage package,
         LocalUserAccount account,
-        AuthorityPolicySnapshot? authority = null)
+        AuthorityPolicySnapshot? authority = null,
+        bool allowRestoredAuthorityVersionRebind = false)
     {
         ArgumentNullException.ThrowIfNull(package);
         ArgumentNullException.ThrowIfNull(account);
@@ -50,7 +51,7 @@ public static class SystemRecoveryAuthorityAdmissionEvaluator
         var packageRoles = package.SecurityRoles ?? Array.Empty<SecurityRoleEngineeringDto>();
         if (package.AuthorityPolicyReference is { } reference)
         {
-            if (!IsExactAuthorityReference(reference, authority))
+            if (!IsExactAuthorityReference(reference, authority, allowRestoredAuthorityVersionRebind))
             {
                 return new SystemRecoveryAuthorityAdmission(
                     false,
@@ -131,12 +132,13 @@ public static class SystemRecoveryAuthorityAdmissionEvaluator
 
     private static bool IsExactAuthorityReference(
         AuthorityPolicyReferenceEngineeringDto reference,
-        AuthorityPolicySnapshot? authority)
+        AuthorityPolicySnapshot? authority,
+        bool allowRestoredAuthorityVersionRebind)
     {
         if (authority is null ||
             !string.Equals(reference.Contract, AuthorityPolicyContract.Schema, StringComparison.Ordinal) ||
             reference.ContractVersion != AuthorityPolicyContract.SchemaVersion ||
-            reference.PolicyVersion != authority.Version ||
+            (!allowRestoredAuthorityVersionRebind && reference.PolicyVersion != authority.Version) ||
             reference.RoleIds is null ||
             reference.ScopeIds is null ||
             reference.RoleIds.Any(id => id == Guid.Empty) ||

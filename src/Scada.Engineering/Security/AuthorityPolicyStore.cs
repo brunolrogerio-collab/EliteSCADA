@@ -191,6 +191,36 @@ internal static class AuthorityPolicyReferenceValidator
         return AuthorityPolicyReferenceValidation.Valid;
     }
 
+    /// <summary>
+    /// Validates the portable Authority identity set without comparing its local
+    /// optimistic-concurrency version. Used only by explicit recovery after the
+    /// separately protected Authority backup has been restored.
+    /// </summary>
+    public static AuthorityPolicyReferenceValidation ValidateRestoredIdentitySet(
+        AuthorityPolicyReferenceEngineeringDto? reference,
+        AuthorityPolicySnapshot authority)
+    {
+        var shape = ValidateShape(reference);
+        if (!shape.IsValid) return shape;
+
+        var expectedRoleIds = authority.Roles
+            .Where(role => role.Id.HasValue)
+            .Select(role => role.Id!.Value)
+            .ToHashSet();
+        var expectedScopeIds = authority.Scopes
+            .Select(scope => scope.Id)
+            .ToHashSet();
+        if (!reference!.RoleIds.ToHashSet().SetEquals(expectedRoleIds) ||
+            !reference.ScopeIds.ToHashSet().SetEquals(expectedScopeIds))
+        {
+            return Invalid(
+                "SECURITY_AUTHORITY_POLICY_REFERENCE_MISMATCH",
+                "Engineering package Authority identities do not match the separately restored canonical Security Authority.");
+        }
+
+        return AuthorityPolicyReferenceValidation.Valid;
+    }
+
     private static AuthorityPolicyReferenceValidation Invalid(string code, string message) =>
         new(false, code, message);
 }

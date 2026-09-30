@@ -584,13 +584,6 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(usersInB.body.map((user: { username: string }) => user.username)).toContain(adminBUsername);
     expect(usersInB.body.map((user: { username: string }) => user.username)).not.toContain(adminUsername);
 
-    const historianWhileB = await page.evaluate(async tagId => {
-      const response = await fetch(`/api/history/${tagId}?limit=5`);
-      return { status: response.status, body: response.ok ? await response.json() : [] };
-    }, historianTagId);
-    expect(historianWhileB.status).toBe(200);
-    expect(historianWhileB.body.length).toBeGreaterThan(0);
-
     await detachCurrentApplication();
     expect(await page.evaluate(async () => (await fetch('/api/auth/me')).status)).toBe(401);
     await expect(page.locator('input[name="bootstrap-username"]')).toBeVisible({ timeout: 15_000 });

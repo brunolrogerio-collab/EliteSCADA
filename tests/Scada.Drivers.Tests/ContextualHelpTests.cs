@@ -10,7 +10,7 @@ public sealed class ContextualHelpTests
     [Fact]
     public void RequiredManualTopics_ArePresentInEveryLocale()
     {
-        Assert.Equal(30, ContextualHelpCatalog.RequiredManualTopicIds.Count);
+        Assert.Equal(46, ContextualHelpCatalog.RequiredManualTopicIds.Count);
 
         foreach (var locale in ContextualHelpCatalog.SupportedLocales)
         {
@@ -74,7 +74,7 @@ public sealed class ContextualHelpTests
             .Select(source => $"driver.{source.TypeKey}")
             .ToArray();
         var actual = ContextualHelpCatalog.Build("pt-BR").Topics
-            .Where(topic => topic.Category == "drivers")
+            .Where(topic => topic.Category == "drivers" && topic.Id.StartsWith("driver.", StringComparison.Ordinal))
             .Select(topic => topic.Id)
             .OrderBy(id => id, StringComparer.Ordinal)
             .ToArray();
@@ -226,7 +226,7 @@ public sealed class ContextualHelpTests
         Assert.Contains("Popup", text, StringComparison.Ordinal);
         Assert.Contains("Script", text, StringComparison.Ordinal);
         Assert.Contains("Visual Asset", text, StringComparison.Ordinal);
-        Assert.Contains("SHA-256", text, StringComparison.Ordinal);
+        Assert.Contains("integrity hashes", text, StringComparison.Ordinal);
         Assert.Contains("Inspect validates", text, StringComparison.Ordinal);
     }
 
@@ -322,6 +322,113 @@ public sealed class ContextualHelpTests
         Assert.Contains("industrial-driver", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("secrets", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("sandbox enforcement must not depend on text scanning", text, StringComparison.OrdinalIgnoreCase);
+    }
+
+
+    [Fact]
+    public void TopicIds_AreUniqueAndRelatedTopicLinksResolveInEveryLocale()
+    {
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var catalog = ContextualHelpCatalog.Build(locale);
+            var ids = catalog.Topics.Select(topic => topic.Id).ToArray();
+            Assert.Equal(ids.Length, ids.Distinct(StringComparer.Ordinal).Count());
+
+            var idSet = ids.ToHashSet(StringComparer.Ordinal);
+            foreach (var topic in catalog.Topics)
+            {
+                foreach (var relatedId in topic.RelatedTopicIds ?? Array.Empty<string>())
+                    Assert.Contains(relatedId, idSet);
+            }
+        }
+    }
+
+    [Fact]
+    public void Phase1TaskTopics_HaveTaskGuidanceAndLocaleParity()
+    {
+        var taskTopicIds = new[]
+        {
+            "engineering.lifecycle",
+            "packages.escadapkg",
+            "diagnostics.overview",
+            "recovery.backup-system-recovery",
+            "getting-started.neutral-bootstrap",
+            "engineering.shell-navigation",
+            "drivers.overview",
+            "tags.copy-duplicate-sequential",
+            "visual.properties",
+            "visual.dynamics",
+            "visual.events",
+            "scripts.engineering",
+            "scripts.python-validation",
+            "engineering.object-browser",
+            "memory.client",
+            "security.scopes-authority",
+            "security.engineering-lock",
+            "licensing.generator",
+            "runtime.session-classes",
+            "application.export-import"
+        };
+        var headings = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["pt-BR"] = new[] { "O que é?", "Para que serve?", "Quando usar?", "Pré-requisitos", "Passos", "Resultado esperado", "Problemas comuns", "Como diagnosticar/corrigir" },
+            ["en"] = new[] { "What is it?", "What is it for?", "When to use it?", "Prerequisites", "Steps", "Expected result", "Common problems", "How to diagnose/fix" },
+            ["es"] = new[] { "¿Qué es?", "¿Para qué sirve?", "¿Cuándo usarlo?", "Requisitos previos", "Pasos", "Resultado esperado", "Problemas comunes", "Cómo diagnosticar/corregir" }
+        };
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var catalog = ContextualHelpCatalog.Build(locale);
+            foreach (var id in taskTopicIds)
+            {
+                var topic = Assert.Single(catalog.Topics, item => item.Id == id);
+                Assert.Equal(headings[locale], topic.Sections.Select(section => section.Heading).ToArray());
+                Assert.NotEmpty(topic.RelatedTopicIds ?? Array.Empty<string>());
+            }
+        }
+    }
+
+    [Fact]
+    public void UserFacingHelp_DoesNotExposeImplementationBrandsOrCoordinationJargon()
+    {
+        var forbiddenPhrases = new[]
+        {
+            "Wave 15",
+            "control plane",
+            "contract ID",
+            "fail-closed",
+            "fail closed",
+            "falhar fechado",
+            "test harness",
+            "Monaco",
+            "Vite",
+            "React",
+            "Pyodide",
+            "Web Worker",
+            "Canvas",
+            "canonical",
+            "canônico",
+            "canônica",
+            "canónico",
+            "canónica"
+        };
+        var forbiddenCoordinationTokens = new Regex(
+            @"(?<![\p{L}\p{N}_])(?:SHA(?!-256)|tree|branch|PR)(?![\p{L}\p{N}_])|(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        foreach (var locale in ContextualHelpCatalog.SupportedLocales)
+        {
+            var catalog = ContextualHelpCatalog.Build(locale);
+            var text = string.Join("\n", catalog.Topics.SelectMany(topic =>
+                new[] { topic.Title, topic.Summary }.Concat(topic.Sections.SelectMany(section => new[] { section.Heading, section.Body }))));
+
+            foreach (var term in forbiddenPhrases)
+                Assert.DoesNotContain(term, text, StringComparison.OrdinalIgnoreCase);
+
+            Assert.False(
+                forbiddenCoordinationTokens.IsMatch(text),
+                $"User-facing Help for {locale} contains a coordination identifier: {forbiddenCoordinationTokens.Match(text).Value}");
+        }
     }
 
     [Fact]

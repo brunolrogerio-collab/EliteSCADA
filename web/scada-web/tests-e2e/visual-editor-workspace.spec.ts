@@ -95,6 +95,8 @@ test('W15 R2 editor mounts shared side surfaces, compact insertions, collapse/re
 });
 
 test('Wave 08 composes Canvas, palette, properties, project-source binding, image asset and canonical save/reopen', async ({ page, request }) => {
+  page.setDefaultTimeout(5_000);
+
   const originalResponse = await request.get('/api/engineering/export/json');
   expect(originalResponse.ok()).toBeTruthy();
   const originalPackage = await originalResponse.json() as ExportedPackage;

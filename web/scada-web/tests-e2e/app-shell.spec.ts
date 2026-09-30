@@ -225,7 +225,7 @@ const brandingActiveProjection = (branding: unknown, visualAssets: unknown[] = [
   revision: 7,
   activatedAtUtc: '2026-09-29T22:00:00Z',
   package: {
-    schema: 'scada.engineering', schemaVersion: 21,
+    schema: 'scada.engineering', schemaVersion: 20,
     screens: [], popups: [], dynamos: [], scripts: [], scriptVisualEventReferences: [],
     visualAssets, branding
   }

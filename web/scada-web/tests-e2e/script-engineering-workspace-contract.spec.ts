@@ -366,16 +366,14 @@ test('mounted R2 generated snippet validates, Preview/Applies and reopens unchan
   expect(generated.enabled).toBeTruthy();
   const source = [
     'async def generated_action():',
-    ...generated.code.split('\n').map(line => `    ${line}`),
-    ''
+    ...generated.code.split('\n').map(line => `    ${line}`)
   ].join('\n');
   // Monaco auto-indents after the function header while keyboard text is entered.
-  // Type the generated snippet without pre-indenting it; the persisted source below
-  // remains the canonical four-space-indented Python expected from the editor.
+  // Type the generated snippet without pre-indenting it. Avoid a synthetic trailing
+  // blank line because Monaco correctly leaves the active indentation on that line.
   const typedSource = [
     'async def generated_action():',
-    ...generated.code.split('\n'),
-    ''
+    ...generated.code.split('\n')
   ].join('\n');
 
   let createdId: string | null = null;

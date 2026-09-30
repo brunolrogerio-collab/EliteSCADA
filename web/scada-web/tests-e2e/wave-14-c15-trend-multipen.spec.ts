@@ -219,3 +219,17 @@ function row(tagId: string, tagPath: string, timestamp: string, value: string, q
     quality: Object.freeze({ kind: 'enum' as const, value: quality })
   }) });
 }
+
+
+test('C15 canonical Trend sends the same absolute interval to every visible Pen', () => {
+  const request = buildTrendHistoricalQuery(fixturePens(), {
+    mode: 'absolute',
+    relativeAmount: 1,
+    relativeUnit: 'hours',
+    absoluteFromLocal: '2026-09-27T01:00:00',
+    absoluteToLocal: '2026-09-28T12:00:00'
+  });
+  expect(request.timeRange.kind).toBe('absolute');
+  expect(request.filters?.[0]).toMatchObject({ field: 'tag.id', operator: 'in' });
+  expect(request.filters?.[0].values).toHaveLength(2);
+});

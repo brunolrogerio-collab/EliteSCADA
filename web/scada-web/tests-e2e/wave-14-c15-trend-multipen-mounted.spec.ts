@@ -179,3 +179,56 @@ test('C15 live mode consumes canonical runtime TAG snapshot and WebSocket update
   await expect(page.getByTestId('visual-trend-legend')).toContainText('8.4 bar');
   expect(historicalRequests).toBe(0);
 });
+
+
+test('R2C-P mounted canonical Trend preserves the required absolute interval and never persists operator range', async ({ browser }) => {
+  const context = await browser.newContext({ timezoneId: 'America/Sao_Paulo', locale: 'pt-BR' });
+  const page = await context.newPage();
+  const requests: any[] = [];
+  let engineeringWrites = 0;
+
+  await page.route('**/api/engineering/**', async route => {
+    engineeringWrites += 1;
+    await route.abort();
+  });
+  await page.route('**/api/historical/query', async route => {
+    const request = route.request().postDataJSON();
+    requests.push(request);
+    await fulfillJson(route, {
+      version: 1,
+      datasetKey: 'historian.samples',
+      columns: [],
+      rows: [],
+      fromUtc: request.timeRange.kind === 'absolute' ? request.timeRange.fromUtc : '2026-09-30T11:00:00Z',
+      toUtc: request.timeRange.kind === 'absolute' ? request.timeRange.toUtc : '2026-09-30T12:00:00Z',
+      nextCursor: null,
+      pageSize: 0
+    });
+  });
+
+  await openHarness(page, '?locale=pt-BR&controls=on');
+  const controls = page.getByTestId('historical-time-range-controls');
+  await controls.getByLabel('Período').selectOption('absolute');
+  await controls.getByLabel('De').fill('2026-09-27T01:00:00');
+  await controls.getByLabel('Até').fill('2026-09-28T12:00:00');
+  await controls.getByRole('button', { name: 'Atualizar' }).click();
+
+  await expect.poll(() => requests.some(request => request.timeRange?.kind === 'absolute')).toBeTruthy();
+  const absolute = requests.find(request => request.timeRange?.kind === 'absolute');
+  expect(absolute.timeRange).toEqual({
+    kind: 'absolute',
+    fromUtc: '2026-09-27T04:00:00.000Z',
+    toUtc: '2026-09-28T15:00:00.000Z'
+  });
+  expect(absolute.filters[0].values.map((item: any) => item.value)).toEqual([tagOne, tagTwo]);
+
+  const countBeforeRefresh = requests.length;
+  await controls.getByRole('button', { name: 'Atualizar' }).click();
+  await expect.poll(() => requests.length).toBeGreaterThan(countBeforeRefresh);
+  expect(requests.at(-1).timeRange).toEqual(absolute.timeRange);
+
+  await controls.getByLabel('Período').selectOption('live');
+  await expect(page.getByTestId('visual-trend')).toHaveAttribute('data-trend-source', 'runtime-tags');
+  expect(engineeringWrites).toBe(0);
+  await context.close();
+});

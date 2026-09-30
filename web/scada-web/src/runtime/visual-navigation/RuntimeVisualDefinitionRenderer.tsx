@@ -139,6 +139,7 @@ export function RuntimeVisualDefinitionRenderer({
     if (!scriptContext || !visualDefinitionId.trim()) return;
     const target = event.target;
     if (!(target instanceof Element)) return;
+    if (target.closest('[data-runtime-session-control]')) return;
 
     let visualElement: HTMLElement | null = target.closest<HTMLElement>('[data-object-id]');
     while (visualElement && event.currentTarget.contains(visualElement)) {
@@ -172,6 +173,7 @@ export function RuntimeVisualDefinitionRenderer({
       onTagWrite={onTagWrite}
       visualAssetUrl={visualAssetUrl}
       showTechnicalFallbackText={false}
+      operatorTimeRangeControls
     />
     <RuntimeDynamoStateLayer
       indicators={dynamoStateIndicators}

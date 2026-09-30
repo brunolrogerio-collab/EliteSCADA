@@ -1,3 +1,22 @@
+# POST-PORTABILITY SYNCHRONIZED RELEASE — ACTIVE
+
+Portability #405 is integrated and EliteSCADA CI #1611 / `36655606469` is globally GREEN on:
+`wave15/corrections-integration@1d9e3f9123bea8e27c362ee680a4ba70f864becd`
+tree `512ef505924f3a0a709e8d5a73e2625531586e1c`.
+
+J/L/N were revalidated with zero own commits, force-aligned to this exact SHA, and rechecked as `identical / ahead 0 / behind 0`.
+
+Current executable state:
+- J `work/w15-r2-editor-ux` = `ACTIVE / R2_B_EDITOR_UX / NO_MERGE`;
+- L `work/w15-r2-branding` = `ACTIVE / R2_B_BRANDING / NO_MERGE`;
+- N `work/w15-r2-eng-workflow-forms` = `ACTIVE / R2_B_STRUCTURED_FORMS / NO_MERGE`.
+
+The earlier WAIT_POST_PORTABILITY / WAIT_CI_1611 headers below are historical and superseded by this release.
+
+All three lanes must run exact-head Wave 15 T1 and return handoff to Main; none may merge directly.
+
+---
+
 # POST-PORTABILITY GATE UPDATE — WAIT CI #1611
 
 Portability #405 is now integrated.

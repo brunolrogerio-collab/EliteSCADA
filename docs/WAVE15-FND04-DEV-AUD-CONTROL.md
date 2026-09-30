@@ -38,11 +38,11 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0125`
+`MAIN_ORDER_REV: 0126`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-29 — PORTABILITY #405 INTEGRATED / CI #1611 GREEN / R2-B J-L-N ACTIVE / SHARED CODEX PARKED`
+`LAST_MAIN_UPDATE_BRT: 2026-09-30 — PR #441 DYNAMO THREE-STYLE PREVIEW / SHARED CODEX READ_ONLY_PREVIEW ACTIVE`
 
-`GLOBAL_GATE: FND04_VERIFIED_FROZEN / GATE0_GREEN / GATE1_GREEN / R2_C0_FROZEN / F0_INTEGRATED / PORTABILITY_INTEGRATED / POST_PORTABILITY_CI_GREEN / R2_B_J_L_N_ACTIVE / SHARED_CODEX_PARKED`
+`GLOBAL_GATE: FND04_VERIFIED_FROZEN / GATE0_GREEN / GATE1_GREEN / R2_C0_FROZEN / F0_INTEGRATED / PORTABILITY_INTEGRATED / SHARED_CODEX_VISUAL_PREVIEW_ACTIVE / NO_PRODUCT_MUTATION`
 
 Current situation:
 
@@ -70,13 +70,82 @@ Current CORRECTION-NOW integration baseline is `wave15/corrections-integration@1
 >
 > The shared CODEX executor is not the legacy FND-04 DEV lane.
 
-`SHARED_CODEX_ORDER_REV: 0121`
+`SHARED_CODEX_ORDER_REV: 0126`
 
-`ORDER_ID: SHARED-CODEX-PARKED-AFTER-GATE1-C0-FREEZE-102`
+`ORDER_ID: SHARED-CODEX-VISUAL-DYNAMO-PREVIEW-103`
 
-`ORDER_STATE: PARKED / GATE1_GREEN / C0_FROZEN / PRESERVE_REMAINING_CAPACITY / NO_PRODUCT_MUTATION / NO_MERGE`
+`ORDER_STATE: ACTIVE / READ_ONLY_PREVIEW / PR_#441 / NO_TRACKED_PRODUCT_MUTATION / NO_MERGE`
 
-### rev0119 disposition — Main recomposed #375 directly / CODEX capacity preserved
+### CURRENT rev0126 mission — real EliteSCADA preview of the three Dynamo visual styles
+
+> This rev0126 mission **supersedes every older WAIT/PARKED/CURRENT shared-CODEX wording below**. Older sections are historical evidence only.
+
+Product Owner request:
+show the actual PR #441 Dynamos **inside the mounted EliteSCADA product**, not through generated/concept artwork.
+
+Exact candidate to preview:
+- PR #441;
+- branch `work/w15-visual-quality-dynamo-styles`;
+- exact head at order issuance: `98c40a935b94c5f9f8186a4c281cd4b73b93b685`;
+- base: `wave15/corrections-integration@9a8dbf7238a2d1539955b5ede1ef7ac2dbd6c817`.
+
+Validation state at order issuance:
+- prior T1 #298 failed only on stale expectations created by the intended catalog expansion (10 -> 30) and an ambiguous blower selector after three style variants became legitimate;
+- those stale tests/selectors were corrected on the same PR;
+- replacement exact-head T1 #300 / `36753926078` is running;
+- CODEX may perform this visual preview while #300 runs, but must report its final live status before declaring the preview complete.
+
+Mode:
+`READ_ONLY_PRODUCT_PREVIEW / DISPOSABLE_LOCAL_PROJECT_ALLOWED / NO_COMMIT / NO_PUSH / NO_PR_MUTATION / NO_MERGE`.
+
+Required preview:
+1. checkout/revalidate exact PR #441 head live; if the head changed after this order, stop and report `PREVIEW_HEAD_DRIFT` rather than silently previewing a different candidate;
+2. use the normal mounted EliteSCADA browser path (local Docker/dev/Playwright product stack is acceptable); do not create a separate renderer or external mock page;
+3. initialize a disposable local Engineering project only if needed to reach the normal Screen/Popup editor and built-in Dynamo Library;
+4. open the real Library/Dynamo browser and verify the 30 built-ins are exposed as 10 families x 3 styles:
+   - Detailed 2D;
+   - 3D frontal / dimensional;
+   - High Performance;
+5. capture **real product screenshots** from the canonical Library preview and/or an actual disposable Screen canvas;
+6. produce at least one side-by-side comparison in the mounted product for these representative families:
+   - centrifugal pump;
+   - standard motor;
+   - on/off valve;
+   - vertical tank;
+   - centrifugal blower;
+   - process indicator;
+7. if practical without product mutation, add a second screenshot covering the remaining families:
+   - submersible pump;
+   - motor + VFD;
+   - control valve;
+   - horizontal tank;
+8. for each family, place or select the three styles in this order:
+   `Detailed 2D | 3D frontal | High Performance`;
+9. ensure the 3D variant is front/orthographic, not isometric, and visually demonstrates the product's canonical gradient/shadow support;
+10. ensure High Performance stays intentionally neutral/simplified and does not rely on decorative gradient;
+11. do not edit source to beautify the result during preview. The purpose is to show exactly what PR #441 currently renders;
+12. record any renderer error, clipping, overlap, unreadable scaling, wrong style label, duplicate/ambiguous Library entry, or style that visually fails the requested quality bar.
+
+Preferred evidence package:
+- one screenshot of the Library cards/metadata proving style labels;
+- one screenshot with the six representative families in three columns;
+- optional second screenshot with the remaining four families;
+- exact PR head;
+- exact T1 #300 final status if available;
+- short visual finding: `PASS_AS_PREVIEW`, `PREVIEW_WITH_VISUAL_GAPS`, or `BLOCKED`.
+
+Do not:
+- commit preview-only fixtures/screens to Git;
+- alter PR #441;
+- weaken tests;
+- merge;
+- generate substitute concept art;
+- use image generation as evidence.
+
+Return exactly:
+`DYNAMO_3STYLE_PREVIEW / <PASS_AS_PREVIEW|PREVIEW_WITH_VISUAL_GAPS|BLOCKED> / <exact PR #441 head> / <T1 #300 status> / <evidence summary>`
+
+### HISTORICAL rev0119 disposition — Main recomposed #375 directly / CODEX capacity preserved
 
 Main detected that the shared CODEX executor was approaching its interaction/capacity limit and removed it from the Gate1 critical path.
 

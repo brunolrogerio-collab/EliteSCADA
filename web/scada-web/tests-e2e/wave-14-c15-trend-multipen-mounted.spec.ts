@@ -213,13 +213,22 @@ test('R2C-P mounted canonical Trend preserves the required absolute interval and
   await controls.getByLabel('Até', { exact: true }).fill('2026-09-28T12:00');
   await controls.getByRole('button', { name: 'Atualizar' }).click();
 
-  await expect.poll(() => requests.some(request => request.timeRange?.kind === 'absolute')).toBeTruthy();
-  const absolute = requests.find(request => request.timeRange?.kind === 'absolute');
-  expect(absolute.timeRange).toEqual({
+  const expectedAbsoluteRange = {
     kind: 'absolute',
     fromUtc: '2026-09-27T04:00:00.000Z',
     toUtc: '2026-09-28T15:00:00.000Z'
-  });
+  };
+  await expect.poll(() => requests.some(request =>
+    request.timeRange?.kind === expectedAbsoluteRange.kind &&
+    request.timeRange?.fromUtc === expectedAbsoluteRange.fromUtc &&
+    request.timeRange?.toUtc === expectedAbsoluteRange.toUtc
+  )).toBeTruthy();
+  const absolute = requests.find(request =>
+    request.timeRange?.kind === expectedAbsoluteRange.kind &&
+    request.timeRange?.fromUtc === expectedAbsoluteRange.fromUtc &&
+    request.timeRange?.toUtc === expectedAbsoluteRange.toUtc
+  );
+  expect(absolute.timeRange).toEqual(expectedAbsoluteRange);
   expect(absolute.filters[0].values.map((item: any) => item.value)).toEqual([tagOne, tagTwo]);
 
   const countBeforeRefresh = requests.length;

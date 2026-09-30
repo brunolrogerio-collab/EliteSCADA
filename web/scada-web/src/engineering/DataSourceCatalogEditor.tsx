@@ -248,7 +248,7 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
       <div className="eng-editor-layout">
         <aside className="eng-entity-picker">
           {sources.map(source => (
-            <button type="button" key={dataSourceIdentity(source)} className={dataSourceIdentity(source) === selectedIdentity ? 'selected' : ''} onClick={() => choose(dataSourceIdentity(source))}>
+            <button type="button" key={dataSourceIdentity(source)} className={dataSourceIdentity(source) === selectedIdentity ? 'selected' : ''} aria-current={dataSourceIdentity(source) === selectedIdentity ? 'true' : undefined} onClick={() => choose(dataSourceIdentity(source))}>
               <strong>{source.name || source.key}</strong><code>{source.key}</code><span>{source.driver}</span>
             </button>
           ))}

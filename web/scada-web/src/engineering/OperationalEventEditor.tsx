@@ -236,6 +236,7 @@ export function OperationalEventEditor({ model, locale, onApplied }: Props) {
                   type="button"
                   key={identity}
                   className={identity === selectedIdentity ? 'active' : ''}
+                  aria-current={identity === selectedIdentity ? 'true' : undefined}
                   onClick={() => choose(identity)}
                   disabled={busy}
                 >

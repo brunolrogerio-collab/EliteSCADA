@@ -126,7 +126,7 @@ export function TagEditor({ model, locale }: EditorProps) {
           {filtered.map(tag => {
             const identity = tagIdentity(tag);
             return (
-              <button type="button" className={identity === selectedIdentity ? 'selected' : ''} key={identity} onClick={() => chooseIdentity(identity)}>
+              <button type="button" className={identity === selectedIdentity ? 'selected' : ''} aria-current={identity === selectedIdentity ? 'true' : undefined} key={identity} onClick={() => chooseIdentity(identity)}>
                 <strong>{tag.name}</strong><code>{tag.path}</code><span>{tag.dataType} · {tag.source ?? '—'}</span>
               </button>
             );
@@ -267,7 +267,7 @@ export function DataSourceEditor({ model, locale }: EditorProps) {
           {filtered.map(source => {
             const identity = dataSourceIdentity(source);
             return (
-              <button type="button" className={identity === selectedIdentity ? 'selected' : ''} key={identity} onClick={() => chooseIdentity(identity)}>
+              <button type="button" className={identity === selectedIdentity ? 'selected' : ''} aria-current={identity === selectedIdentity ? 'true' : undefined} key={identity} onClick={() => chooseIdentity(identity)}>
                 <strong>{source.name}</strong><code>{source.key}</code><span>{source.driver}</span>
               </button>
             );
@@ -396,7 +396,7 @@ export function AlarmEditor({ model, locale }: EditorProps) {
           {filtered.map(alarm => {
             const identity = alarmIdentity(alarm);
             return (
-              <button type="button" className={identity === selectedIdentity ? 'selected' : ''} key={identity} onClick={() => chooseIdentity(identity)}>
+              <button type="button" className={identity === selectedIdentity ? 'selected' : ''} aria-current={identity === selectedIdentity ? 'true' : undefined} key={identity} onClick={() => chooseIdentity(identity)}>
                 <strong>{alarm.name}</strong><code>{alarm.tagPath ?? alarm.tagId ?? '—'}</code><span>{alarm.type} · {alarm.priority}</span>
               </button>
             );

@@ -3,6 +3,7 @@ using Scada.Core.Alarms;
 using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
+using Scada.Engineering.Historian;
 using Scada.Engineering.Security;
 using Scada.Engineering.Validation;
 
@@ -331,6 +332,11 @@ internal sealed class TagEngineeringHandler
         Set(result, "historian.deadband", dto.Historian?.Deadband);
         Set(result, "historian.periodMs", dto.Historian?.PeriodMilliseconds);
         Set(result, "historian.maxPeriodMs", dto.Historian?.MaximumPeriodMilliseconds);
+        if (dto.HistorianCaptureProfileId.HasValue)
+            result[HistorianCaptureProfileMetadata.ProfileIdMetadataKey] =
+                dto.HistorianCaptureProfileId.Value.ToString("D");
+        else
+            result.Remove(HistorianCaptureProfileMetadata.ProfileIdMetadataKey);
         MemoryEngineeringValueCodec.WriteToMetadata(result, dto.InitialValue);
         return result;
     }

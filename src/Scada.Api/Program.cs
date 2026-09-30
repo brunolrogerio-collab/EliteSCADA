@@ -107,11 +107,8 @@ builder.Services.AddSingleton<IGatewayRuntimeDiagnosticsProvider>(sp =>
     sp.GetRequiredService<HighAvailabilityRuntimeCoordinator>());
 
 builder.Services.AddSingleton<EngineeringExchangeService>();
-builder.Services.AddSingleton<IEngineeringExchangeService>(sp =>
-    new DataQueryEngineeringExchangeDecorator(
-        sp.GetRequiredService<EngineeringExchangeService>(),
-        sp.GetRequiredService<IDataQueryEngineeringRegistry>(),
-        sp.GetRequiredService<IAlarmViewEngineeringRegistry>()));
+builder.Services.AddSingleton<IEngineeringExchangeService>(
+    EngineeringExchangeProductionComposition.Create);
 builder.Services.AddSingleton<IProjectPackageService, ProjectPackageService>();
 builder.AddConfiguredRuntimeSessionLeaseStore();
 builder.Services.AddSingleton<ProductLicenseLifecycleCoordinator>();
@@ -987,3 +984,23 @@ static async Task<IResult> ApplyEngineeringImportAsync(
 
 public sealed record TagWriteRequest(object? Value);
 public sealed record AlarmAckRequest(string? User = null);
+
+
+internal static class EngineeringExchangeProductionComposition
+{
+    internal static IEngineeringExchangeService Create(IServiceProvider services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        IEngineeringExchangeService exchange =
+            services.GetRequiredService<EngineeringExchangeService>();
+        exchange = new HistorianCaptureProfileEngineeringExchangeDecorator(
+            exchange,
+            services.GetRequiredService<IHistorianCaptureProfileEngineeringRegistry>());
+
+        return new DataQueryEngineeringExchangeDecorator(
+            exchange,
+            services.GetRequiredService<IDataQueryEngineeringRegistry>(),
+            services.GetRequiredService<IAlarmViewEngineeringRegistry>());
+    }
+}

@@ -4,6 +4,7 @@ using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.Engineering.Branding;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.DataSources;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.VisualAssets;
 using Xunit;
@@ -25,6 +26,7 @@ public sealed class ApplicationBrandingEngineeringTests
         var source = new EngineeringExchangeService(
             new InMemoryTagRegistry(),
             sourceAlarms,
+            new InMemoryDataSourceEngineeringRegistry(),
             branding: sourceBranding);
 
         var json = source.ExportJson(indented: false);
@@ -39,6 +41,7 @@ public sealed class ApplicationBrandingEngineeringTests
         var target = new EngineeringExchangeService(
             new InMemoryTagRegistry(),
             targetAlarms,
+            new InMemoryDataSourceEngineeringRegistry(),
             branding: targetBranding);
 
         var result = target.Apply(package, ImportMode.CreateAndUpdate);

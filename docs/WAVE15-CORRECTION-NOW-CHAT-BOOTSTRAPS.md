@@ -1,3 +1,22 @@
+# LATEST R2-B RELEASE OVERRIDE — 2026-09-30
+
+The prior J/L/N release is now **PARKED before execution** by Product Owner sequencing decision.
+
+Current:
+- J = `WAIT_POST_PORTABILITY_INTEGRATION`;
+- L = `WAIT_POST_PORTABILITY_INTEGRATION`;
+- N = `WAIT_POST_PORTABILITY_INTEGRATION`.
+
+All three prepared branches have zero own commits. Do not send SIGA / do not implement.
+
+Portability #405 must integrate first. After its post-merge EliteSCADA CI is GREEN, Main will reset/recreate J/L/N from one common exact integration base and re-release them.
+
+The prepared detailed bootstraps remain in:
+`docs/WAVE15-R2B-J-L-N-BOOTSTRAPS-2026-09-30.md`
+but are not executable until the next Main ACTIVE order.
+
+---
+
 # LATEST R2-B RELEASE POINTER — 2026-09-30
 
 J/L/N are now RELEASED on exact integration `5abfee03b3adaa5f900be79ad91a5257d0bfaf0e`.

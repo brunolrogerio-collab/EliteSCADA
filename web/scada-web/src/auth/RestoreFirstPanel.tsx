@@ -28,8 +28,9 @@ type RecoveryResponse = {
 const text = {
   'pt-BR': {
     title: 'Restaurar backup',
+    importTitle: 'Importar aplicação',
     bootstrapIntro: 'Valide o backup da Authority e o pacote da aplicação antes de alterar o servidor. A senha abaixo protege somente o backup da Authority.',
-    applicationIntro: 'Valide o pacote da aplicação com a Authority restaurada antes de criar qualquer projeto novo.',
+    applicationIntro: 'Valide o pacote da Application com a Authority atual antes de importá-lo, salvar a revisão raiz, publicar e ativar pelo lifecycle normal.',
     application: 'Pacote da aplicação (.escadapkg)',
     authority: 'Backup da Authority (.json)',
     authorityPassword: 'Senha do backup da Authority',
@@ -42,10 +43,10 @@ const text = {
     applicationValid: 'Pacote válido e compatível com esta recuperação.',
     restoreAuthority: 'Restaurar Authority',
     restoringAuthority: 'Restaurando Authority…',
-    restoreApplication: 'Restaurar aplicação',
-    restoringApplication: 'Restaurando aplicação…',
+    restoreApplication: 'Importar aplicação',
+    restoringApplication: 'Importando aplicação…',
     authorityDone: 'Authority restaurada. Entre com um Administrador restaurado para continuar.',
-    applicationDone: 'Aplicação restaurada, publicada e ativada.',
+    applicationDone: 'Application importada, publicada e ativada.'.
     licenseFailed: 'A aplicação foi recuperada, mas a licença opcional não pôde ser instalada.',
     continueWithoutLicense: 'Continuar sem licença',
     separateData: 'Banco de dados e Historian permanecem uma etapa separada e devem usar o procedimento nativo suportado.',
@@ -55,8 +56,9 @@ const text = {
   },
   en: {
     title: 'Restore backup',
+    importTitle: 'Import application',
     bootstrapIntro: 'Validate the Authority backup and application package before changing the server. The password below protects only the Authority backup.',
-    applicationIntro: 'Validate the application package with the restored Authority before creating any new project.',
+    applicationIntro: 'Validate the Application package with the current Authority before importing it, saving the root revision, publishing, and activating through the normal lifecycle.',
     application: 'Application package (.escadapkg)',
     authority: 'Authority backup (.json)',
     authorityPassword: 'Authority backup password',
@@ -69,10 +71,10 @@ const text = {
     applicationValid: 'Package is valid and compatible with this recovery.',
     restoreAuthority: 'Restore Authority',
     restoringAuthority: 'Restoring Authority…',
-    restoreApplication: 'Restore application',
-    restoringApplication: 'Restoring application…',
+    restoreApplication: 'Import application',
+    restoringApplication: 'Importing application…',
     authorityDone: 'Authority restored. Sign in with a restored Administrator to continue.',
-    applicationDone: 'Application restored, published, and activated.',
+    applicationDone: 'Application imported, published, and activated.'.
     licenseFailed: 'The application was recovered, but the optional license could not be installed.',
     continueWithoutLicense: 'Continue without license',
     separateData: 'Database and Historian recovery remain a separate step and must use the supported native procedure.',
@@ -82,8 +84,9 @@ const text = {
   },
   es: {
     title: 'Restaurar backup',
+    importTitle: 'Importar aplicación',
     bootstrapIntro: 'Valide el backup de Authority y el paquete de la aplicación antes de modificar el servidor. La contraseña siguiente protege solamente el backup de Authority.',
-    applicationIntro: 'Valide el paquete de la aplicación con la Authority restaurada antes de crear un proyecto nuevo.',
+    applicationIntro: 'Valide el paquete de la Application con la Authority actual antes de importarlo, guardar la revisión raíz, publicar y activar mediante el ciclo normal.',
     application: 'Paquete de la aplicación (.escadapkg)',
     authority: 'Backup de Authority (.json)',
     authorityPassword: 'Contraseña del backup de Authority',
@@ -96,10 +99,10 @@ const text = {
     applicationValid: 'El paquete es válido y compatible con esta recuperación.',
     restoreAuthority: 'Restaurar Authority',
     restoringAuthority: 'Restaurando Authority…',
-    restoreApplication: 'Restaurar aplicación',
-    restoringApplication: 'Restaurando aplicación…',
+    restoreApplication: 'Importar aplicación',
+    restoringApplication: 'Importando aplicación…',
     authorityDone: 'Authority restaurada. Ingrese con un Administrador restaurado para continuar.',
-    applicationDone: 'Aplicación restaurada, publicada y activada.',
+    applicationDone: 'Application importada, publicada y activada.'.
     licenseFailed: 'La aplicación fue recuperada, pero la licencia opcional no pudo instalarse.',
     continueWithoutLicense: 'Continuar sin licencia',
     separateData: 'La recuperación de la base de datos y del Historian sigue siendo una etapa separada y debe usar el procedimiento nativo soportado.',
@@ -316,7 +319,7 @@ export function RestoreFirstPanel({
     <div className="auth-page">
       <div className="auth-card auth-card--recovery" data-testid={`restore-first-${mode}`}>
         <div className="auth-mark">E</div>
-        <h1>{t.title}</h1>
+        <h1>{mode === 'bootstrap' ? t.title : t.importTitle}</h1>
         <p>{mode === 'bootstrap' ? t.bootstrapIntro : t.applicationIntro}</p>
 
         <label>

@@ -59,6 +59,8 @@ export function DynamoLibraryPalette({
         role="listitem"
         className={`visual-dynamo-library__card${selected?.definition.key === entry.definition.key ? ' is-selected' : ''}`}
         aria-pressed={selected?.definition.key === entry.definition.key}
+        data-dynamo-key={entry.definition.key}
+        data-dynamo-style={entry.visualStyle}
         onClick={() => setSelectedKey(entry.definition.key)}
       >
         <CanonicalVisualPreview elements={entry.definition.elements} locale={locale} width={entry.width} height={entry.height}
@@ -66,7 +68,7 @@ export function DynamoLibraryPalette({
         <span className="visual-dynamo-library__card-copy">
           <strong>{entry.definition.name}</strong>
           <code>{entry.definition.key}</code>
-          <small>{categoryLabel(entry.category, text.categories)} · {entry.width}×{entry.height}</small>
+          <small>{categoryLabel(entry.category, text.categories)} · {visualStyleLabel(entry.visualStyle, locale)} · {entry.width}×{entry.height}</small>
         </span>
       </button>)}
     </div> : <p className="visual-dynamo-library__empty">{text.noResults}</p>}
@@ -80,6 +82,7 @@ export function DynamoLibraryPalette({
         <div><dt>{text.dimensions}</dt><dd>{selected.width}×{selected.height}</dd></div>
         <div><dt>{text.version}</dt><dd>{selected.definition.properties?.libraryVersion ?? '—'}</dd></div>
         <div><dt>{text.source}</dt><dd>{selected.definition.metadata?.builtinLibrary === 'true' ? text.builtIn : '—'}</dd></div>
+        <div><dt>{visualStyleHeading(locale)}</dt><dd>{visualStyleLabel(selected.visualStyle, locale)}</dd></div>
       </dl>
       <div className="visual-dynamo-library__interface">
         <span>{text.publicInterface}</span>
@@ -105,6 +108,31 @@ export function DynamoLibraryPalette({
       })}>{text.add}</button>
     </div> : null}
   </section>;
+}
+
+function visualStyleHeading(locale: 'pt-BR' | 'en' | 'es'): string {
+  return locale === 'pt-BR' ? 'Estilo' : locale === 'es' ? 'Estilo' : 'Style';
+}
+
+function visualStyleLabel(value: string, locale: 'pt-BR' | 'en' | 'es'): string {
+  const labels = {
+    'pt-BR': {
+      'detailed-2d': '2D detalhado',
+      'dimensional-front': '3D frontal',
+      'high-performance': 'High Performance'
+    },
+    en: {
+      'detailed-2d': 'Detailed 2D',
+      'dimensional-front': 'Front 3D',
+      'high-performance': 'High Performance'
+    },
+    es: {
+      'detailed-2d': '2D detallado',
+      'dimensional-front': '3D frontal',
+      'high-performance': 'High Performance'
+    }
+  } as const;
+  return labels[locale][value as keyof typeof labels['pt-BR']] ?? value;
 }
 
 function categoryLabel(

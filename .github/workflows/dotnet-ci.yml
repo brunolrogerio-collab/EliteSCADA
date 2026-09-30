@@ -219,7 +219,7 @@ jobs:
           assert workspace['isDirty'] is False
           assert workspace['lastSavedAtUtc'] is not None
           assert workspace['securityRoleCount'] == 1
-          assert workspace['dynamoCount'] == 10
+          assert workspace['dynamoCount'] == 30
           assert workspace['commandCount'] == 0
           PY
 

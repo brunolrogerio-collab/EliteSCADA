@@ -1,3 +1,28 @@
+> **CURRENT ROUTE CHECKPOINT — 2026-09-30 — CI #1618 GREEN**
+>
+> Exact product base: `wave15/corrections-integration@ed04cf7358ca00b34593970ea3c1ba1931b01014`, tree `b94c329ebf2eba1665d4120cd27bf8b841766911`, CI #1618 / `36716809347` GLOBAL SUCCESS.
+>
+> Current active common-base product lanes:
+> - #383 P / Historical Time Range;
+> - #421 HA-D1;
+> - #422 Installation UX;
+> - #308 Visual Quality.
+>
+> Current active content/language lanes:
+> - #379 Multilingual / Copy;
+> - #424 Contextual Help;
+> - #425 Complete Manual.
+>
+> Downstream:
+> - Historical Playback after #383;
+> - #423 HA-D2 after #421;
+> - multilingual final sweep after new surfaces stabilize;
+> - EEE Simulation + EEE real Modbus remain late immediately before final #300 Preview.
+>
+> EliteGO separate client remains deferred indefinitely; HA remains mandatory Wave 15.
+>
+> Canonical takeover: `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-09-30-PARALLEL-ACTIVE.md`.
+
 > **PRODUCT OWNER SCOPE OVERRIDE — 2026-09-30**
 >
 > GitHub live remains authoritative. This override supersedes older wording below where it conflicts.

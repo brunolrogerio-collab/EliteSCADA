@@ -5,7 +5,7 @@ import {
   previewEngineeringPackage
 } from './api';
 import { editorTranslator } from './editorI18n';
-import type { EngineeringLocale } from './i18n';
+import { productTerm, type EngineeringLocale } from './i18n';
 import { TagAddressEditor } from './TagAddressEditor';
 import { TagCommissioningPanel } from './TagCommissioningPanel';
 import { TagSourceSelector } from './TagSourceSelector';
@@ -356,7 +356,7 @@ export function DataSourceEditor({ model, locale }: EditorProps) {
     <EditorShell title={text('editor.dataSourcesTitle')} description={text('editor.dataSourcesDescription')} locale={locale}>
       <div className="eng-editor-layout">
         <EntityPicker
-          label="Data Sources"
+          label={productTerm(locale, 'dataSource')}
           query={query}
           onQuery={setQuery}
           searchLabel={text('editor.search')}

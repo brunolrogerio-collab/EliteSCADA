@@ -37,7 +37,7 @@ test('library model exposes category dimensions thumbnail and public-interface c
   const pump = entries.find(entry => entry.definition.key === 'dynamo.pump.standard');
 
   expect(pump).toMatchObject({ category: 'pump', width: 132, height: 92, parameterCount: 2 });
-  expect(pump?.glyph).toBeTruthy();
+  expect(pump).not.toHaveProperty('glyph');
   expect(listDynamoLibraryCategories(entries)).toEqual(['motor', 'pump', 'tank', 'valve']);
 });
 

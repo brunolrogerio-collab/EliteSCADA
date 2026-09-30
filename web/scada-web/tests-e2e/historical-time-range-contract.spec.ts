@@ -26,6 +26,22 @@ test('shared relative query is bounded and resolves deterministically at a suppl
   });
 });
 
+test('shared absolute range accepts minute precision and defaults missing seconds to zero', () => {
+  const range = {
+    mode: 'absolute' as const,
+    relativeAmount: 1,
+    relativeUnit: 'hours' as const,
+    absoluteFromLocal: '2026-08-29T18:00',
+    absoluteToLocal: '2026-08-29T19:00'
+  };
+
+  expect(validateHistoricalTimeRange(range).ok).toBe(true);
+  const query = historicalTimeRangeToQuery(range);
+  expect(query.kind).toBe('absolute');
+  if (query.kind !== 'absolute') throw new Error('Expected absolute range.');
+  expect(Date.parse(query.toUtc) - Date.parse(query.fromUtc)).toBe(60 * 60 * 1000);
+});
+
 test('shared validation blocks equal/reversed absolute boundaries and oversized ranges before query', () => {
   const equal = {
     mode: 'absolute' as const,

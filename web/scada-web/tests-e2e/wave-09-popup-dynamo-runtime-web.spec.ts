@@ -219,7 +219,7 @@ test('Dynamo Runtime rejects missing required, unknown, mismatched and nested pa
 test('canonical renderer expands Dynamo only when definitions are supplied and keeps definition identity separate from runtime identity', async () => {
   const renderer = await source('../src/engineering/visual-editor/CanonicalVisualRenderer.tsx');
 
-  expect(renderer).toContain('if (element.dynamoKey && dynamoDefinitions)');
+  expect(renderer).toContain('if ((element.dynamoDefinitionId || element.dynamoKey) && dynamoDefinitions)');
   expect(renderer).toContain('composeDynamoRuntime(element, definition)');
   expect(renderer).toContain('data-dynamo-definition-id={composition.definitionId}');
   expect(renderer).toContain('data-dynamo-instance-id={composition.instanceId}');

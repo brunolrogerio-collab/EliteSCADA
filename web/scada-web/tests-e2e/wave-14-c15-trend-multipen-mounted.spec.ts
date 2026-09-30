@@ -209,8 +209,8 @@ test('R2C-P mounted canonical Trend preserves the required absolute interval and
   await openHarness(page, '?locale=pt-BR&controls=on');
   const controls = page.getByTestId('historical-time-range-controls');
   await controls.getByLabel('Período').selectOption('absolute');
-  await controls.getByLabel('De').fill('2026-09-27T01:00:00');
-  await controls.getByLabel('Até').fill('2026-09-28T12:00:00');
+  await controls.getByLabel('De', { exact: true }).fill('2026-09-27T01:00');
+  await controls.getByLabel('Até', { exact: true }).fill('2026-09-28T12:00');
   await controls.getByRole('button', { name: 'Atualizar' }).click();
 
   await expect.poll(() => requests.some(request => request.timeRange?.kind === 'absolute')).toBeTruthy();

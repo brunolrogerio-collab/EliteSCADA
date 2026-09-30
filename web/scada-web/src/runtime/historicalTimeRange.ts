@@ -150,8 +150,12 @@ export function localTimeZoneLabel(): string {
 function parseLocalDateTime(value: string): Readonly<{ date: Date; ambiguous: boolean }> | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(value.trim());
   if (!match) return null;
-  const parts = match.slice(1).map(item => Number(item));
-  const [year, month, day, hour, minute, second = 0] = parts;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  const second = match[6] === undefined ? 0 : Number(match[6]);
   const date = new Date(year, month - 1, day, hour, minute, second, 0);
   if (!Number.isFinite(date.getTime()) || localKey(date) !== localKeyFromParts(year, month, day, hour, minute, second)) return null;
 

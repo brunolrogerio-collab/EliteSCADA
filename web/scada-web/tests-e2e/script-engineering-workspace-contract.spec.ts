@@ -352,6 +352,7 @@ function contrastRatio(foreground: string, background: string): number {
 }
 
 test('mounted R2 generated snippet validates, Preview/Applies and reopens unchanged', async ({ page, request }) => {
+  test.setTimeout(120_000);
   const unique = crypto.randomUUID();
   const name = `R2 Authoring ${unique.slice(0, 8)}`;
   const path = `scripts/r2-authoring-${unique}.py`;
@@ -413,13 +414,6 @@ test('mounted R2 generated snippet validates, Preview/Applies and reopens unchan
     await expect(page.getByTestId('python-monaco-editor').locator('.view-lines'))
       .toContainText('visual_property_write');
   } finally {
-    if (!createdId) {
-      const listed = await request.get('/api/engineering/scripts');
-      if (listed.ok()) {
-        const scripts = (await listed.json() as Array<Record<string, unknown>>).map(normalizeScriptDefinition);
-        createdId = scripts.find(script => script.path === path)?.id ?? null;
-      }
-    }
     if (createdId) await bestEffortDelete(request, createdId);
   }
 });

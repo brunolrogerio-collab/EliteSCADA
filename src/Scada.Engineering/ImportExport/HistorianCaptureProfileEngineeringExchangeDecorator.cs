@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Historian;
+using Scada.Engineering.VisualAssets;
 using Scada.Security.Authorization;
 
 namespace Scada.Engineering.ImportExport;

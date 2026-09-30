@@ -87,6 +87,53 @@ public sealed class EngineeringRuntimeInternalMemoryTests
     }
 
     [Fact]
+    public async Task MaterializePassiveAsync_ProjectsExactRuntimeWithoutStartingServerMemoryOrAlarmEffects()
+    {
+        var tagId = Guid.NewGuid();
+        var alarmId = Guid.NewGuid();
+        var activatedAt = DateTimeOffset.Parse("2026-09-30T18:30:00Z");
+        var bus = new InMemoryScadaEventBus();
+        var observedTagEvents = 0;
+        using var subscription = bus.Subscribe<TagValueChanged>(_ =>
+        {
+            Interlocked.Increment(ref observedTagEvents);
+            return ValueTask.CompletedTask;
+        });
+
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            bus,
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromSeconds(1),
+            new InMemoryServerMemoryRetentionStore());
+
+        var package = ServerPackage(
+            tagId,
+            alarmId,
+            "Plant.PassiveCounter",
+            5);
+        var result = await runtime.MaterializePassiveAsync(
+            "memory-project",
+            7,
+            package,
+            activatedAt);
+
+        Assert.True(result.Activated);
+        var descriptor = runtime.Describe();
+        Assert.Equal("memory-project", descriptor.ProjectKey);
+        Assert.Equal(7, descriptor.Revision);
+        Assert.Equal(activatedAt, descriptor.ActivatedAtUtc);
+        Assert.Same(package, runtime.CaptureApplication());
+
+        var projected = Assert.Single(runtime.Tags());
+        Assert.Equal(tagId, projected.Id);
+        Assert.False(runtime.TryGetCurrent(tagId, out _));
+        Assert.Empty(runtime.CurrentValues());
+        Assert.Contains(runtime.AlarmDefinitions(), alarm => alarm.Id == alarmId);
+        Assert.Empty(runtime.Alarms(activeOnly: true));
+        Assert.Equal(0, Volatile.Read(ref observedTagEvents));
+    }
+
+    [Fact]
     public async Task ActivateAsync_ClientMemoryOnlyDoesNotCreateServerGlobalTagState()
     {
         var tagId = Guid.NewGuid();

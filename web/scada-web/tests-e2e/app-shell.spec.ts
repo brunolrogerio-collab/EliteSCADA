@@ -216,3 +216,65 @@ test('Engineering keeps independent desktop scroll regions and intentional compa
   await expect.poll(() => page.locator('.eng-body').evaluate(element => getComputedStyle(element).display)).toBe('block');
   await expect.poll(() => page.locator('.eng-workspace').evaluate(element => getComputedStyle(element).overflowY)).toBe('visible');
 });
+
+
+const brandingActiveProjection = (branding: unknown, visualAssets: unknown[] = []) => ({
+  mode: 'engineering',
+  projectKey: 'branding-proof',
+  projectName: 'Branding Proof',
+  revision: 7,
+  activatedAtUtc: '2026-09-29T22:00:00Z',
+  package: {
+    schema: 'scada.engineering', schemaVersion: 21,
+    screens: [], popups: [], dynamos: [], scripts: [], scriptVisualEventReferences: [],
+    visualAssets, branding
+  }
+});
+
+test('Active branding mounts in shell while Working preview stays isolated, themed and responsive', async ({ page }) => {
+  await page.route('**/api/runtime/application', route => route.fulfill({
+    json: brandingActiveProjection({ mode: 'text', text: 'ACTIVE BRAND', subtitle: 'Operations' })
+  }));
+  await page.setViewportSize({ width: 1280, height: 760 });
+  await page.goto('/engineering/branding');
+
+  const brand = page.locator('.app-brand');
+  await expect(brand).toHaveAttribute('data-branding-mode', 'text');
+  await expect(brand).toContainText('ACTIVE BRAND');
+  await page.getByRole('combobox', { name: /Tema|Theme/ }).selectOption('light');
+  await expect(page.locator('html')).toHaveAttribute('data-app-theme', 'light');
+  await expect(brand).toBeVisible();
+
+  const editor = page.getByTestId('branding-editor');
+  await expect(editor).toBeVisible();
+  await editor.getByRole('combobox', { name: /Mode/i }).selectOption('text');
+  await editor.getByLabel('Application text').fill('WORKING BRAND');
+  await expect(page.getByTestId('branding-working-preview')).toContainText('WORKING BRAND');
+  await expect(brand).toContainText('ACTIVE BRAND');
+  await expect(brand).not.toContainText('WORKING BRAND');
+
+  await page.setViewportSize({ width: 700, height: 760 });
+  await expect(brand).toBeVisible();
+  const box = await brand.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(700);
+});
+
+test('NONE collapses shell brand slot and invalid Active IMAGE falls back explicitly', async ({ page }) => {
+  await page.route('**/api/runtime/application', route => route.fulfill({ json: brandingActiveProjection({ mode: 'none' }) }));
+  await page.goto('/engineering');
+  await expect(page.locator('.app-brand')).toHaveCount(0);
+  await expect(page.locator('.app-bar')).toHaveClass(/app-bar--branding-none/);
+
+  await page.unroute('**/api/runtime/application');
+  await page.route('**/api/runtime/application', route => route.fulfill({
+    json: brandingActiveProjection({ mode: 'image', visualAssetId: '0a86490c-2364-4e21-8a69-5cb332f77559' })
+  }));
+  await page.reload();
+
+  const brand = page.locator('.app-brand');
+  await expect(brand).toHaveAttribute('data-branding-mode', 'default');
+  await expect(brand).toContainText('EliteSCADA');
+  await expect(brand.getByRole('status')).toContainText(/missing.*Active application/i);
+});

@@ -382,6 +382,152 @@ Wave 16 packaging consequence:
    - or use a separately licensed/commercial Timescale distribution;
 5. CI may continue using the current Community/TSL-capable image for development evidence, but CI convenience must not silently define the commercial distribution license boundary.
 
+
+
+### Host prerequisites and offline bootstrap model — 2026-09-30
+
+Wave 16 must distinguish three dependency classes. This classification is binding for the release factory and host profiles.
+
+#### A. Bundled inside the immutable EliteSCADA payload
+
+These are product/runtime libraries and assets that ship with the architecture-specific self-contained product publish and do **not** receive separate machine-wide installers.
+
+Examples:
+- .NET runtime for the selected RID when using self-contained publish;
+- EliteSCADA managed assemblies;
+- Npgsql and other managed NuGet dependencies;
+- Web Runtime / Engineering static assets;
+- pinned Pyodide assets;
+- managed Drivers and product libraries;
+- approved native libraries that are intentionally app-local to the immutable payload.
+
+Npgsql is therefore a bundled application dependency, not a separately installed Windows/Linux component.
+
+Customer hosts must not require Node.js, npm, TypeScript, Visual Studio, .NET SDK or CPython merely to run an installed EliteSCADA release.
+
+#### B. Host-profile prerequisites
+
+A Host Profile owns operating-system prerequisites that cannot or should not be treated as normal EliteSCADA product files.
+
+For Debian/Ubuntu-family Linux profiles:
+- preflight must detect the exact supported distribution/architecture;
+- required native OS packages must be expressed by the profile;
+- the installer may use the distribution package manager (for example `apt`) when online/package sources are available;
+- offline packages/repository material must be part of an explicit offline host profile rather than silently depending on internet access;
+- do not use one generic unqualified Linux dependency list for all distributions.
+
+For Windows:
+- prerequisite handling must be deterministic and suitable for offline industrial installation;
+- approved prerequisite installers/binaries should be acquired and validated by Release Factory, then embedded in or shipped beside the signed offline setup;
+- setup must use `DETECT -> COMPARE -> INSTALL/REPAIR IF NEEDED -> VERIFY`;
+- do not download required prerequisites from the internet during normal customer installation;
+- prerequisite versions/hashes/signatures/licenses must be part of release evidence/SBOM.
+
+**Microsoft Visual C++ Redistributable**
+- if required by a supported Windows component/profile, use the official redistributable package rather than hand-copying CRT DLLs;
+- detect an already-installed compatible/newer runtime and reuse it;
+- otherwise run the approved redistributable silently with bounded restart handling;
+- never treat the VC++ runtime as EliteSCADA durable state;
+- Release Factory must retain the exact redistributable artifact, signature/hash and applicable redistribution-rights evidence used for that release.
+
+**OpenSSL**
+- OpenSSL required by a Windows Local Managed database profile belongs to that database/host dependency graph, not automatically to the EliteSCADA product core;
+- prefer an app-local/private runtime layout for the managed database stack if the exact PostgreSQL/TimescaleDB Windows build is validated to support it;
+- avoid modifying global PATH or creating an unbounded machine-wide OpenSSL authority merely to satisfy EliteSCADA;
+- if the homologated upstream distribution requires a machine-wide installation, that becomes an explicit Host/Database Profile prerequisite and must be detected, version-gated, installed and verified by the setup;
+- exact OpenSSL version and license evidence must be pinned in the release manifest/SBOM.
+
+Any other native prerequisite introduced later must be classified explicitly as:
+`BUNDLED_APP_LOCAL`, `HOST_PREREQUISITE`, or `DATABASE_PROFILE_PREREQUISITE`.
+Unclassified native dependencies fail release review.
+
+#### C. Components with their own service/lifecycle authority
+
+PostgreSQL/TimescaleDB Local Managed deployments are not ordinary payload files. They remain a separate Database Profile with their own service, version, persistent data, upgrade and rollback boundaries.
+
+Conceptually on Windows:
+
+```text
+EliteSCADA Offline Setup
+|
++-- bootstrapper
++-- prerequisites/
+|   +-- approved VC++ redistributable when required
+|   +-- approved OpenSSL/runtime material when required by Local Managed DB
++-- product/
+|   +-- immutable EliteSCADA win-x64 payload
++-- database/
+    +-- pinned PostgreSQL distribution
+    +-- approved TimescaleDB distribution/profile
+```
+
+Selecting `Remote` database mode must not force installation of Local Managed PostgreSQL/TimescaleDB/OpenSSL components that are not otherwise required.
+
+#### Offline-first industrial installation
+
+The primary Windows artifact should be capable of full installation without internet access.
+
+Release Factory, not the customer machine, owns acquisition of approved third-party prerequisites:
+
+`official upstream artifact -> verify provenance/signature/hash -> license/SBOM inventory -> include in release bundle -> install from local media`.
+
+A future optional Web/bootstrap installer may exist, but it must not become the only supported installation path.
+
+#### Reusable profile + bounded scripts
+
+Do not encode the whole distribution architecture in one-off PowerShell/Bash scripts.
+
+Each supported host should converge on a repository-owned declarative profile plus bounded adapters/scripts, conceptually:
+
+```text
+distribution/
+  profiles/
+    win-x64/
+      profile.*
+      preflight.ps1
+      install.ps1
+      configure.ps1
+      verify.ps1
+      upgrade.ps1
+      rollback.ps1
+      uninstall.ps1
+
+    linux-x64-<distro>/
+      profile.*
+      preflight.sh
+      install.sh
+      configure.sh
+      verify.sh
+      upgrade.sh
+      rollback.sh
+      uninstall.sh
+
+    linux-arm64-<distro>/
+      ...
+```
+
+The profile is the source of truth for:
+- architecture/RID;
+- supported OS/distro/version;
+- product payload type;
+- required host packages/prerequisites;
+- service manager;
+- Local Managed / Remote database capabilities;
+- prerequisite version ranges;
+- expected paths/permissions;
+- readiness/verification commands;
+- third-party license/SBOM classification.
+
+Scripts execute the profile; they must not become a second hidden product-definition authority.
+
+#### Standard install sequence
+
+All native profiles should map to the same high-level sequence:
+
+`DETECT -> PREFLIGHT -> SATISFY HOST PREREQUISITES -> INSTALL HOST EXECUTOR -> INSTALL IMMUTABLE PAYLOAD -> INSTALL OR CONNECT DATABASE -> CONFIGURE -> INITIALIZE/MIGRATE -> REGISTER SERVICE -> START -> READINESS -> VERIFY EXACT PRODUCT/DB IDENTITY`.
+
+This sequence must remain reusable across EliteSCADA versions for an already-supported host profile.
+
 ## 3. Evidence hierarchy — do not restart from zero, but do not inherit stale assumptions
 
 Wave 13 is **cancelled** and is not a resumable implementation line.

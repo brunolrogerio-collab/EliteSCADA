@@ -1,3 +1,21 @@
+# LATEST LIVE COORDINATION DELTA — 2026-09-30 — J/L/N PARKED FOR COMMON POST-PORTABILITY BASE
+
+Product Owner sequencing decision:
+- Portability #405 remains ACTIVE;
+- J / DEV-EDITOR-UX-R2 = WAIT;
+- L / DEV-BRANDING = WAIT;
+- N / DEV-ENG-WORKFLOW-FORMS = WAIT.
+
+The three prepared branches currently contain zero own commits and are identical to `5abfee03b3adaa5f900be79ad91a5257d0bfaf0e`.
+
+Do not start them from that base.
+
+After #405 is accepted/integrated and the post-Portability EliteSCADA CI is globally GREEN, Main must create/reset J/L/N from the **same exact new integration HEAD** and release them together. This intentionally trades a little parallel time for simpler integration and fewer recompositions.
+
+M/P/TAG-D/Playback/Script-Authoring-R2 remain HOLD as before.
+
+---
+
 # LATEST LIVE COORDINATION DELTA — 2026-09-30 — R2-B PARALLEL RELEASE
 
 Exact product base:

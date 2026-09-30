@@ -53,6 +53,7 @@ export type PropertyInspectorCopy = Readonly<{
 export type PropertyInspectorProps = VisualEditorPropertyInspectorContractProps & Readonly<{
   visualAssets?: readonly VisualAssetEngineering[];
   copy?: Partial<PropertyInspectorCopy>;
+  showEvents?: boolean;
 }>;
 
 const DEFAULT_COPY: PropertyInspectorCopy = {
@@ -95,7 +96,8 @@ export function PropertyInspector({
   selectedElements,
   onMutationIntent,
   visualAssets = [],
-  copy
+  copy,
+  showEvents = true
 }: PropertyInspectorProps) {
   const currentVisualText = useC07VisualEditorText();
   const locale = localeForVisualText(currentVisualText);
@@ -211,7 +213,7 @@ export function PropertyInspector({
       {selectedTrend ? <TrendPenEditor element={selectedTrend} onMutationIntent={onMutationIntent} /> : null}
       {selectedBrowser ? <BrowserConfigurationEditor element={selectedBrowser} locale={locale} onMutationIntent={onMutationIntent} /> : null}
 
-      {selectedElements.length === 1 && selectedElements[0].id ? (
+      {showEvents && selectedElements.length === 1 && selectedElements[0].id ? (
         <EventsEditor visualObjectId={selectedElements[0].id} />
       ) : null}
     </aside>

@@ -21,3 +21,8 @@
 .visual-editor-canvas__viewport { z-index: 2; }
 
 @media (max-width: 900px) { .visual-editor-surface-inspector { width: min(280px,56%); } }
+
+
+/* R2 editor: background authoring lives under Assets in the side surface. */
+.visual-editor-authoring-sidebar .visual-editor-surface-inspector{position:static;width:auto;max-width:none;border-color:var(--eng-border,#283544);background:var(--eng-panel,#121922);box-shadow:none;color:var(--eng-text,#e8edf3)}
+.visual-editor-authoring-sidebar .visual-editor-surface-inspector__field>span,.visual-editor-authoring-sidebar .visual-editor-surface-inspector>summary small,.visual-editor-authoring-sidebar .visual-editor-surface-inspector footer{color:var(--eng-muted,#a7b4c2)}

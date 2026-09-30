@@ -36,3 +36,8 @@
 .visual-editor-dynamo-parameter > footer { min-height: 22px; color: #64748b; font-size: 9px; }
 .visual-editor-dynamo-parameter > footer button { padding: 3px 6px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc; color: #475569; cursor: pointer; font: inherit; font-size: 9px; }
 @media (max-width: 900px) { .visual-editor-dynamo-inspector { width: min(260px,48%); } .visual-editor-dynamo-state-preview__grid { grid-template-columns: 1fr; } }
+
+
+/* R2 editor: Dynamo instance editing follows selected-object Properties rather than overlaying the canvas. */
+.visual-editor-inspector-slot .visual-editor-dynamo-inspector{position:static;width:auto;max-height:none;border-color:var(--eng-border,#283544);background:var(--eng-panel,#121922);box-shadow:none;color:var(--eng-text,#e8edf3)}
+.visual-editor-inspector-slot .visual-editor-dynamo-inspector__body{max-height:none}

@@ -3,6 +3,7 @@ import React, {
   useState,
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent
 } from 'react';
 import {
@@ -18,11 +19,9 @@ import {
   resolveVisualEditorKeyboardCommand,
   type VisualEditorKeyboardCommand
 } from '../visualEditorKeyboardModel';
-import { DynamoInstanceInspector } from './DynamoInstanceInspector';
-import { VisualDefinitionSurfaceInspector } from './VisualDefinitionSurfaceInspector';
 import { VisualEditorAuthoringToolbar } from './VisualEditorAuthoringToolbar';
+import { VisualEditorContextMenu } from './VisualEditorContextMenu';
 import { VisualEditorCanvas as LegacyVisualEditorCanvas, type VisualEditorCanvasProps } from './VisualEditorCanvas';
-import { VisualEditorOutliner } from './VisualEditorOutliner';
 import {
   DEFAULT_CANVAS_GRID_SIZE,
   clientDeltaToCanvas,
@@ -53,6 +52,9 @@ export type EnhancedVisualEditorCanvasProps = VisualEditorCanvasProps & Readonly
   canUndo?: boolean;
   canRedo?: boolean;
   canPaste?: boolean;
+  onInsertObject?: (objectType: string) => void;
+  onInspectorTabRequest?: (tab: 'properties' | 'dynamics' | 'events', focusRename?: boolean) => void;
+  onStructureRequest?: () => void;
 }>;
 
 type MarqueeDraft = Readonly<{
@@ -70,6 +72,8 @@ type GuideDrag = Readonly<{
   objectIds: readonly string[];
 }>;
 
+type ContextMenuState = Readonly<{ x: number; y: number; objectId: string }>;
+
 /**
  * C07 interaction wrapper around the established Canvas renderer. It adds
  * logical marquee selection, hierarchy Outliner, typed Dynamo inspection,
@@ -82,6 +86,7 @@ export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
   const [marquee, setMarquee] = useState<MarqueeDraft | null>(null);
   const [guideDrag, setGuideDrag] = useState<GuideDrag | null>(null);
   const [guidePreview, setGuidePreview] = useState<VisualEditorMoveGuideResult | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
   const beginCapture = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if (props.polygonToolActive || event.button !== 0 || event.altKey) return;
@@ -226,6 +231,23 @@ export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
     }
   };
 
+  const openContextMenu = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    const objectNode = target?.closest<HTMLElement>('[data-canvas-object-id]');
+    const objectId = objectNode?.dataset.canvasObjectId;
+    if (!objectId) {
+      setContextMenu(null);
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    if (!props.selectedObjectIds.includes(objectId)) {
+      props.onUiIntent({ kind: 'selection.change', objectIds: [objectId], mode: 'replace' });
+    }
+    const local = clientToWrapper(event.clientX, event.clientY, wrapperRef.current);
+    setContextMenu(Object.freeze({ x: local.x, y: local.y, objectId }));
+  };
+
   const keyCapture = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
     const target = event.target instanceof HTMLElement ? event.target : null;
     const targetIsEditable = Boolean(target?.closest('input,textarea,select,[contenteditable="true"]'));
@@ -293,6 +315,7 @@ export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
     onPointerUpCapture={finishCapture}
     onPointerCancelCapture={cancelCapture}
     onKeyDownCapture={keyCapture}
+    onContextMenu={openContextMenu}
   >
     <VisualEditorAuthoringToolbar
       screen={props.screen}
@@ -302,25 +325,25 @@ export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
       canUndo={props.canUndo}
       canRedo={props.canRedo}
       canPaste={props.canPaste}
+      onInsertObject={props.onInsertObject}
     />
     <div className="visual-editor-canvas-enhanced__canvas">
       <LegacyVisualEditorCanvas {...props} onMutationIntent={handleMutationIntent} />
-      <VisualEditorOutliner
-        screen={props.screen}
-        selectedObjectIds={props.selectedObjectIds}
-        onSelection={(objectId, mode) => props.onUiIntent({
-          kind: 'selection.change',
-          objectIds: [objectId],
-          mode
-        })}
-      />
-      <VisualDefinitionSurfaceInspector screen={props.screen} onCommand={props.onKeyboardCommand} />
-      <DynamoInstanceInspector
-        screen={props.screen}
-        selectedObjectIds={props.selectedObjectIds}
-        onCommand={props.onKeyboardCommand}
-      />
     </div>
+    {contextMenu ? <VisualEditorContextMenu
+      screen={props.screen}
+      objectId={contextMenu.objectId}
+      selectedObjectIds={props.selectedObjectIds}
+      x={contextMenu.x}
+      y={contextMenu.y}
+      canPaste={props.canPaste === true}
+      locale={props.locale}
+      onMutationIntent={props.onMutationIntent}
+      onKeyboardCommand={props.onKeyboardCommand}
+      onInspectorTabRequest={props.onInspectorTabRequest}
+      onStructureRequest={props.onStructureRequest}
+      onClose={() => setContextMenu(null)}
+    /> : null}
     {verticalGuideStyle ? <div
       className="visual-editor-smart-guide is-vertical"
       data-testid="visual-editor-smart-guide-vertical"

@@ -391,7 +391,30 @@ public sealed class ContextualHelpTests
     [Fact]
     public void UserFacingHelp_DoesNotExposeImplementationBrandsOrCoordinationJargon()
     {
-        var forbidden = new[] { "Wave 15", "control plane", "Monaco", "Vite", "React", "Pyodide", "Web Worker", "test harness" };
+        var forbiddenPhrases = new[]
+        {
+            "Wave 15",
+            "control plane",
+            "contract ID",
+            "fail-closed",
+            "fail closed",
+            "falhar fechado",
+            "test harness",
+            "Monaco",
+            "Vite",
+            "React",
+            "Pyodide",
+            "Web Worker",
+            "Canvas",
+            "canonical",
+            "canônico",
+            "canônica",
+            "canónico",
+            "canónica"
+        };
+        var forbiddenCoordinationTokens = new Regex(
+            @"(?<![\p{L}\p{N}_])(?:SHA(?:-256)?|tree|branch|PR)(?![\p{L}\p{N}_])",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
         foreach (var locale in ContextualHelpCatalog.SupportedLocales)
         {
@@ -399,8 +422,12 @@ public sealed class ContextualHelpTests
             var text = string.Join("\n", catalog.Topics.SelectMany(topic =>
                 new[] { topic.Title, topic.Summary }.Concat(topic.Sections.SelectMany(section => new[] { section.Heading, section.Body }))));
 
-            foreach (var term in forbidden)
+            foreach (var term in forbiddenPhrases)
                 Assert.DoesNotContain(term, text, StringComparison.OrdinalIgnoreCase);
+
+            Assert.False(
+                forbiddenCoordinationTokens.IsMatch(text),
+                $"User-facing Help for {locale} contains a coordination identifier: {forbiddenCoordinationTokens.Match(text).Value}");
         }
     }
 

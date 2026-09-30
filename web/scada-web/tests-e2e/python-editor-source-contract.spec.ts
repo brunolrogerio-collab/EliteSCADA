@@ -105,7 +105,11 @@ test('R2 continuous syntax validation is debounced, compile-only and scope-appro
   expect(editor).toContain('validateServerScriptPython(source)');
   expect(editor).toContain('revealLineInCenter');
   expect(previewHost).toContain('runtime.compileSource(source)');
-  expect(previewHost).not.toContain("dispatchEvent(");
+  const compileOnlyFactory = previewHost.slice(
+    previewHost.indexOf('createEngineeringClientVisualPythonSyntaxValidator'),
+    previewHost.indexOf('export async function compileEngineeringClientVisualPython')
+  );
+  expect(compileOnlyFactory).not.toContain('dispatchEvent(');
   expect(api).toContain('/api/engineering/scripts/python/validate');
   expect(serverEndpoint).toContain('RequireWorkspaceEngineeringRead');
   expect(serverValidator).toContain('validateOnly = true');

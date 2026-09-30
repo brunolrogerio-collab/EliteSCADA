@@ -6,6 +6,7 @@ using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.ProjectPackages;
 using Scada.Engineering.Reports;
+using Scada.Engineering.Security;
 using Scada.Security.Audit;
 using Scada.Security.Authentication;
 using Scada.Security.Authorization;
@@ -237,7 +238,8 @@ public static class SystemRecoveryApplicationEndpoints
             services.GetRequiredService<IReportEngineeringRegistry>(),
             services.GetRequiredService<InitialInstallationGate>(),
             services.GetRequiredService<IConfiguration>(),
-            services.GetService<IEngineeringInstallationBindingStore>());
+            services.GetService<IEngineeringInstallationBindingStore>(),
+            services.GetRequiredService<IAuthorityPolicyStore>());
     }
 
     private static async Task<(SecurityPrincipal? Principal, LocalUserAccount? Account, IResult? Failure)> ResolveLocalActorAsync(

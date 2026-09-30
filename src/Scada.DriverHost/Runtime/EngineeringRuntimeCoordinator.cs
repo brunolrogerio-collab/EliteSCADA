@@ -181,6 +181,131 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
     public bool IsServerMemoryTag(Guid tagId) =>
         Volatile.Read(ref _active).ServerMemoryByTagId.ContainsKey(tagId);
 
+    /// <summary>
+    /// Returns the exact Engineering Application from which the currently materialized
+    /// Runtime was built. This is a projection boundary only; callers cannot mutate
+    /// Working/Published/Active lifecycle state through the returned immutable record graph.
+    /// </summary>
+    public EngineeringPackage? CaptureApplication() => Volatile.Read(ref _active).Application;
+
+    /// <summary>
+    /// Materializes the peer-authoritative Application/revision into the same canonical
+    /// Runtime engine without starting any industrial source or enabling event forwarding.
+    /// The resulting Runtime is suitable for Standby projection/readiness only.
+    /// </summary>
+    public async Task<RuntimeActivationResult> MaterializePassiveAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        DateTimeOffset? authoritativeActivatedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(projectKey))
+            throw new ArgumentException("Project key is required.", nameof(projectKey));
+        if (revision < 1)
+            throw new ArgumentOutOfRangeException(nameof(revision));
+        ArgumentNullException.ThrowIfNull(package);
+
+        await _activationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var captureResolution = HistorianCaptureProfileRuntimeResolver.Resolve(package);
+            var effectivePackage = captureResolution.Package;
+            var memoryCompilation = InternalMemoryRuntimePlanner.Compile(effectivePackage);
+            var compilation = _compiler.Compile(memoryCompilation.CommunicationPackage);
+            var compilationIssues = captureResolution.Issues
+                .Concat(memoryCompilation.Issues)
+                .Concat(compilation.Issues)
+                .ToArray();
+            if (compilationIssues.Any(issue => issue.IsError))
+            {
+                return new RuntimeActivationResult(
+                    projectKey.Trim(),
+                    revision,
+                    false,
+                    compilationIssues,
+                    Array.Empty<RuntimeActivationIssue>());
+            }
+
+            var runtimeIssues = new List<RuntimeActivationIssue>();
+            RuntimeState? candidate = null;
+            try
+            {
+                candidate = BuildCandidate(
+                    projectKey.Trim(),
+                    revision,
+                    effectivePackage,
+                    compilation,
+                    memoryCompilation,
+                    runtimeIssues);
+
+                // Static projection is materialized, but no Driver/ServerMemory source is
+                // started and no alarm input is evaluated on Standby.
+                RegisterAlarms(effectivePackage, candidate, runtimeIssues);
+                RegisterCommands(effectivePackage, candidate, runtimeIssues);
+                if (runtimeIssues.Any(issue => issue.IsError))
+                {
+                    await candidate.DisposeAsync();
+                    return new RuntimeActivationResult(
+                        projectKey.Trim(),
+                        revision,
+                        false,
+                        compilationIssues,
+                        runtimeIssues);
+                }
+
+                candidate.ActivatedAtUtc = authoritativeActivatedAtUtc?.ToUniversalTime();
+
+                var previous = Volatile.Read(ref _active);
+                previous.EventGate.DisableForwarding();
+                Volatile.Write(ref _active, candidate);
+                // Deliberately do not enable candidate.EventGate. Passive Standby must
+                // never emit TAG/Alarm/Historian/Operational effects from materialization.
+                candidate = null;
+
+                try
+                {
+                    await previous.DisposeAsync();
+                }
+                catch (Exception ex)
+                {
+                    runtimeIssues.Add(new(
+                        "PREVIOUS_RUNTIME_STOP_FAILED",
+                        $"Passive Runtime materialized, but the previous Runtime reported an error while stopping: {ex.Message}",
+                        IsError: false));
+                }
+
+                return new RuntimeActivationResult(
+                    projectKey.Trim(),
+                    revision,
+                    true,
+                    compilationIssues,
+                    runtimeIssues,
+                    authoritativeActivatedAtUtc?.ToUniversalTime());
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                if (candidate is not null) await candidate.DisposeAsync();
+                throw;
+            }
+            catch (Exception ex)
+            {
+                if (candidate is not null) await candidate.DisposeAsync();
+                runtimeIssues.Add(new("PASSIVE_RUNTIME_MATERIALIZATION_FAILED", ex.Message));
+                return new RuntimeActivationResult(
+                    projectKey.Trim(),
+                    revision,
+                    false,
+                    compilationIssues,
+                    runtimeIssues);
+            }
+        }
+        finally
+        {
+            _activationGate.Release();
+        }
+    }
+
     public ValueTask<bool> AcknowledgeAlarmAsync(
         Guid alarmId,
         string user,
@@ -326,6 +451,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                 candidate = BuildCandidate(
                     projectKey.Trim(),
                     revision,
+                    effectivePackage,
                     compilation,
                     memoryCompilation,
                     runtimeIssues);
@@ -430,6 +556,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
     private RuntimeState BuildCandidate(
         string projectKey,
         long revision,
+        EngineeringPackage application,
         EngineeringDriverCompilation compilation,
         InternalMemoryRuntimeCompilation memoryCompilation,
         List<RuntimeActivationIssue> runtimeIssues)
@@ -530,6 +657,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         return new RuntimeState(
             projectKey,
             revision,
+            application,
             eventGate,
             registry,
             cache,
@@ -765,6 +893,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         public RuntimeState(
             string? projectKey,
             long? revision,
+            EngineeringPackage? application,
             RuntimeEventGate eventGate,
             InMemoryTagRegistry registry,
             CurrentTagCache cache,
@@ -776,6 +905,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         {
             ProjectKey = projectKey;
             Revision = revision;
+            Application = application;
             EventGate = eventGate;
             Registry = registry;
             Cache = cache;
@@ -794,6 +924,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 
         public string? ProjectKey { get; }
         public long? Revision { get; }
+        public EngineeringPackage? Application { get; }
         public DateTimeOffset? ActivatedAtUtc { get; set; }
         public RuntimeEventGate EventGate { get; }
         public InMemoryTagRegistry Registry { get; }
@@ -810,6 +941,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         {
             var eventGate = new RuntimeEventGate(externalEventBus, forwardingEnabled: true);
             return new RuntimeState(
+                null,
                 null,
                 null,
                 eventGate,

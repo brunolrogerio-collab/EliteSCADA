@@ -9,7 +9,7 @@ import type { EngineeringLocale } from './i18n';
 import { TagAddressEditor } from './TagAddressEditor';
 import { TagCommissioningPanel } from './TagCommissioningPanel';
 import { TagSourceSelector } from './TagSourceSelector';
-import { TagDuplicationPanel, type TagDuplicationPanelHandle } from './TagDuplicationPanel';
+import { TagDuplicationPanel, tagDuplicationText, type TagDuplicationPanelHandle } from './TagDuplicationPanel';
 import { EngineeringEntityActions } from './EngineeringEntityActions';
 import { WorkflowFormDisclosure, WorkflowFormSection } from './StructuredFormPrimitives';
 import { assignTagDataSource, type TagSourceAwareEngineering } from './TagSourceSelector.logic';
@@ -49,6 +49,7 @@ type MutationState = {
 export function TagEditor({ model, locale }: EditorProps) {
   const text = useMemo(() => editorTranslator(locale), [locale]);
   const mutation = useSecuredMutation(model, locale);
+  const duplicationCopy = useMemo(() => tagDuplicationText(locale), [locale]);
   const tags = model.tags;
   const [query, setQuery] = useState('');
   const duplicationRef = useRef<TagDuplicationPanelHandle>(null);
@@ -278,12 +279,12 @@ export function TagEditor({ model, locale }: EditorProps) {
           className="tag-context-menu"
           style={{ left: tagContextMenu.x, top: tagContextMenu.y }}
           role="menu"
-          aria-label="TAG actions"
+          aria-label={duplicationCopy.toolbarLabel}
           onClick={event => event.stopPropagation()}
         >
-          <button type="button" role="menuitem" onClick={() => { duplicationRef.current?.copySelected(); setTagContextMenu(null); }}>Copy selected <kbd>Ctrl/Cmd+C</kbd></button>
-          <button type="button" role="menuitem" onClick={() => { duplicationRef.current?.paste(); setTagContextMenu(null); }}>Paste <kbd>Ctrl/Cmd+V</kbd></button>
-          <button type="button" role="menuitem" onClick={() => { duplicationRef.current?.duplicateSelected(); setTagContextMenu(null); }}>Duplicate <kbd>Ctrl/Cmd+D</kbd></button>
+          <button type="button" role="menuitem" onClick={() => { duplicationRef.current?.copySelected(); setTagContextMenu(null); }}>{duplicationCopy.copy} <kbd>Ctrl/Cmd+C</kbd></button>
+          <button type="button" role="menuitem" onClick={() => { duplicationRef.current?.paste(); setTagContextMenu(null); }}>{duplicationCopy.paste} <kbd>Ctrl/Cmd+V</kbd></button>
+          <button type="button" role="menuitem" onClick={() => { duplicationRef.current?.duplicateSelected(); setTagContextMenu(null); }}>{duplicationCopy.duplicate} <kbd>Ctrl/Cmd+D</kbd></button>
         </div>
       )}
     </EditorShell>

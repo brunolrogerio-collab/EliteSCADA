@@ -269,3 +269,50 @@ test('typed property assistance validates against canonical registry metadata', 
   const invalidTween = buildScriptAssistantVisualValueSnippet(button.type, button.canonicalReference, 'visible', 'tween', 'true');
   expect(invalidTween).toMatchObject({ enabled: false, reason: 'Property is not animatable.' });
 });
+
+
+test('R2 guided authoring emits type-safe Toggle and visibility convenience snippets through public capabilities', () => {
+  const booleanPackage = {
+    ...engineeringPackage,
+    tags: [
+      {
+        ...(engineeringPackage.tags![0] as any),
+        dataType: 'Boolean',
+        readOnly: false
+      }
+    ]
+  } as unknown as EngineeringPackageView;
+  const booleanMemory: ClientMemorySourceDefinition[] = [{
+    ...clientMemorySources[0],
+    tags: [{
+      ...clientMemorySources[0].tags[0],
+      dataType: 'Boolean',
+      readOnly: false,
+      initialValue: false
+    }]
+  }];
+
+  const catalog = buildScriptAssistantCatalog(booleanPackage, booleanMemory);
+  const tagToggle = catalog.tags[0].snippets.find(snippet => snippet.kind === 'tag-toggle')!;
+  const memoryToggle = catalog.clientMemory[0].snippets.find(snippet => snippet.kind === 'client-memory-toggle')!;
+  const visible = catalog.screens[0].objects.find(object => object.id === 'button-1')!
+    .properties.find(property => property.key === 'visible')!;
+  const show = visible.snippets.find(snippet => snippet.kind === 'visual-show')!;
+  const hide = visible.snippets.find(snippet => snippet.kind === 'visual-hide')!;
+
+  expect(tagToggle).toMatchObject({ enabled: true });
+  expect(tagToggle.code).toContain('from elite_scada import tag_read, tag_write');
+  expect(tagToggle.code).toContain('not bool(_current)');
+  expect(memoryToggle).toMatchObject({ enabled: true });
+  expect(memoryToggle.code).toContain('from elite_scada import client_memory_read, client_memory_write');
+  expect(show).toMatchObject({ enabled: true });
+  expect(show.code).toContain('visual_property_write');
+  expect(show.code).toContain('True');
+  expect(hide).toMatchObject({ enabled: true });
+  expect(hide.code).toContain('False');
+
+  const nonBooleanToggle = buildScriptAssistantCatalog(engineeringPackage, clientMemorySources)
+    .tags.find(tag => tag.id === writableTagId)!
+    .snippets.find(snippet => snippet.kind === 'tag-toggle')!;
+  expect(nonBooleanToggle).toMatchObject({ enabled: false });
+});

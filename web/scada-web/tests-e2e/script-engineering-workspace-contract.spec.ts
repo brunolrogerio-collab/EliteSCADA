@@ -10,6 +10,7 @@ import {
   scriptMutationMode
 } from '../src/engineering/scripts/ScriptEngineeringWorkspace.logic';
 import { packageContainsOnlyScriptMutation } from '../src/engineering/scripts/scriptEngineeringApi';
+import { buildScriptAssistantVisualValueSnippet } from '../src/engineering/scripts/scriptAssistantModel';
 import type {
   AuthorityPolicyReferenceEngineering,
   CanonicalScriptPackage,
@@ -145,6 +146,36 @@ test('Script create/update uses Preview and rejects stale Workspace CAS without 
   } finally {
     if (exists) await bestEffortDelete(request, id);
   }
+});
+
+
+test('Server Script syntax validation uses isolated real parser without mutating Working', async ({ request }) => {
+  const before = await workspace(request);
+
+  const valid = await request.post('/api/engineering/scripts/python/validate', {
+    data: { source: 'def initialize():\n    return None\n' }
+  });
+  expect(valid.ok()).toBeTruthy();
+  expect(await valid.json()).toEqual({ diagnostics: [] });
+
+  const invalid = await request.post('/api/engineering/scripts/python/validate', {
+    data: { source: 'def broken(:\n    return None\n' }
+  });
+  expect(invalid.ok()).toBeTruthy();
+  const payload = await invalid.json() as {
+    diagnostics: Array<{ severity: string; code: string; line: number; column: number }>;
+  };
+  expect(payload.diagnostics).toEqual([
+    expect.objectContaining({
+      severity: 'error',
+      code: 'PY_SYNTAX',
+      line: 1,
+      column: expect.any(Number)
+    })
+  ]);
+
+  const after = await workspace(request);
+  expect(after.changeVersion).toBe(before.changeVersion);
 });
 
 test('Script mutation preserves backend authorization boundary', async ({ request }) => {
@@ -319,6 +350,79 @@ function contrastRatio(foreground: string, background: string): number {
   const second = relativeLuminance(background);
   return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
 }
+
+test('mounted R2 generated snippet validates, Preview/Applies and reopens unchanged', async ({ page, request }) => {
+  test.setTimeout(120_000);
+  const unique = crypto.randomUUID();
+  const name = `R2 Authoring ${unique.slice(0, 8)}`;
+  const path = `scripts/r2-authoring-${unique}.py`;
+  const generated = buildScriptAssistantVisualValueSnippet(
+    'core.button',
+    '00000000-0000-4000-8000-000000000001/00000000-0000-4000-8000-000000000002',
+    'visible',
+    'write',
+    'false'
+  );
+  expect(generated.enabled).toBeTruthy();
+  const source = [
+    'async def generated_action():',
+    ...generated.code.split('\n').map(line => `    ${line}`)
+  ].join('\n');
+  // Monaco auto-indents after the function header while keyboard text is entered.
+  // Type the generated snippet without pre-indenting it. Avoid a synthetic trailing
+  // blank line because Monaco correctly leaves the active indentation on that line.
+  const typedSource = [
+    'async def generated_action():',
+    ...generated.code.split('\n')
+  ].join('\n');
+
+  let createdId: string | null = null;
+  try {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('elitescada.engineering.locale', 'pt-BR');
+    });
+    await page.goto('/engineering');
+
+    const navigation = page.locator('.eng-nav');
+    await navigation.getByRole('button', { name: /Scripts/ }).click();
+    await page.getByRole('button', { name: 'Novo Script' }).click();
+
+    const editor = page.locator('main.script-editor');
+    await editor.getByLabel('Nome', { exact: true }).fill(name);
+    await editor.getByLabel('Path', { exact: true }).fill(path);
+
+    const pythonEditor = page.getByTestId('python-monaco-editor');
+    await pythonEditor.locator('.monaco-editor').click();
+    await page.keyboard.press('ControlOrMeta+A');
+    await page.keyboard.insertText(typedSource);
+
+    await expect(pythonEditor.getByText(/VALID · sintaxe válida/)).toBeVisible({ timeout: 45_000 });
+    await expect(page.getByTestId('script-reference-diagnostics')).toBeVisible();
+
+    await editor.getByRole('button', { name: 'Validar / Preview' }).click();
+    await expect(editor.getByText(/Preview válido/)).toBeVisible({ timeout: 45_000 });
+    await editor.getByRole('button', { name: 'Aplicar Preview' }).click();
+    await expect(page.getByText('Script criado no Working.')).toBeVisible({ timeout: 45_000 });
+
+    const listed = await request.get('/api/engineering/scripts');
+    expect(listed.ok()).toBeTruthy();
+    const scripts = (await listed.json() as Array<Record<string, unknown>>).map(normalizeScriptDefinition);
+    const created = scripts.find(script => script.path === path);
+    expect(created).toBeTruthy();
+    createdId = created!.id;
+    expect(created!.source).toBe(source);
+
+    await page.reload();
+    await page.locator('.eng-nav').getByRole('button', { name: /Scripts/ }).click();
+    await page.locator('.script-list').getByRole('button', { name: new RegExp(name) }).click();
+    await expect(page.getByTestId('python-monaco-editor').locator('.view-lines'))
+      .toContainText('async def generated_action()', { timeout: 30_000 });
+    await expect(page.getByTestId('python-monaco-editor').locator('.view-lines'))
+      .toContainText('visual_property_write');
+  } finally {
+    if (createdId) await bestEffortDelete(request, createdId);
+  }
+});
 
 test('mounted specialized Engineering surfaces keep dark/light contrast and Monaco follows active theme', async ({ page }) => {
   await page.addInitScript(() => {

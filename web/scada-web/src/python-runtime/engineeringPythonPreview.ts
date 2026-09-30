@@ -22,6 +22,54 @@ export type EngineeringPythonHandlerPreviewResult = ClientVisualPythonDispatchRe
   diagnostics: PythonEditorDiagnosticSnapshot;
 };
 
+export type EngineeringClientVisualPythonSyntaxValidationResult = Readonly<{
+  snapshot: PythonEditorDiagnosticSnapshot;
+  superseded: boolean;
+}>;
+
+export type EngineeringClientVisualPythonSyntaxValidator = Readonly<{
+  compile(source: string): Promise<EngineeringClientVisualPythonSyntaxValidationResult>;
+  dispose(): Promise<void>;
+}>;
+
+/**
+ * Keeps one isolated Client Visual Python engine alive while the code editor is open.
+ * This surface is compile-only: it never initializes handlers, dispatches events or
+ * composes Runtime capabilities. The worker's real Python compiler remains the syntax
+ * authority and can supersede an obsolete compile when a newer edit arrives.
+ */
+export function createEngineeringClientVisualPythonSyntaxValidator(
+  scriptId: string
+): EngineeringClientVisualPythonSyntaxValidator {
+  const runtime = createPreviewRuntime({
+    scriptId,
+    // ClientVisualPythonRuntime requires a non-empty canonical bootstrap source.
+    // This seed is never validated on the user's behalf and is never executed.
+    source: 'pass\n',
+    handlerNames: []
+  }, {});
+  let disposed = false;
+
+  return Object.freeze({
+    async compile(source: string) {
+      if (disposed) throw new Error('Python syntax validator is disposed.');
+      const result = await runtime.compileSource(source);
+      return {
+        snapshot: {
+          source,
+          diagnostics: result.diagnostics
+        },
+        superseded: result.superseded
+      };
+    },
+    async dispose() {
+      if (disposed) return;
+      disposed = true;
+      await runtime.dispose();
+    }
+  });
+}
+
 export async function compileEngineeringClientVisualPython(
   request: EngineeringPythonPreviewRequest
 ): Promise<PythonEditorDiagnosticSnapshot> {

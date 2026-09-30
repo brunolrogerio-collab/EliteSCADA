@@ -407,7 +407,11 @@ function VisualPropertyRow({
     () => buildScriptAssistantVisualValueSnippet(objectType, canonicalReference, property.key, 'tween', rawValue),
     [objectType, canonicalReference, property.key, rawValue]
   );
-  const staticSnippets = property.snippets.filter(snippet => snippet.kind === 'visual-property-read' || snippet.kind === 'visual-property-clear');
+  const staticSnippets = property.snippets.filter(snippet =>
+    snippet.kind === 'visual-property-read' ||
+    snippet.kind === 'visual-property-clear' ||
+    snippet.kind === 'visual-show' ||
+    snippet.kind === 'visual-hide');
   const valueControl = property.runtimeWritable && property.type !== 'assetRef'
     ? property.type === 'boolean'
       ? <select aria-label={`${copy.value}: ${property.key}`} value={rawValue} onChange={event => setRawValue(event.currentTarget.value)}><option value="true">true</option><option value="false">false</option></select>
@@ -499,7 +503,10 @@ function sourceStatusLabel(status: ScriptAssistantTag['sourceIdentityStatus'], c
 function snippetLabel(kind: ScriptAssistantSnippet['kind'], copy: ScriptAssistantCopy): string {
   if (kind.endsWith('-read')) return `${copy.insert} · ${copy.read}`;
   if (kind.endsWith('-write')) return `${copy.insert} · ${copy.write}`;
+  if (kind.endsWith('-toggle')) return `${copy.insert} · ${copy.toggle}`;
   if (kind === 'visual-property-clear') return `${copy.insert} · ${copy.clear}`;
+  if (kind === 'visual-show') return `${copy.insert} · ${copy.show}`;
+  if (kind === 'visual-hide') return `${copy.insert} · ${copy.hide}`;
   return `${copy.insert} · ${copy.tween}`;
 }
 

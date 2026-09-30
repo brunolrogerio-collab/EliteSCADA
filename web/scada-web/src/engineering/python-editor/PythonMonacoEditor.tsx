@@ -3,6 +3,11 @@ import * as monaco from 'monaco-editor';
 import EditorWorker from 'monaco-editor/editor/editor.worker?worker';
 import { useAppliedAppTheme } from '../../appTheme';
 import type { EngineeringLocale } from '../i18n';
+import {
+  createEngineeringClientVisualPythonSyntaxValidator,
+  type EngineeringClientVisualPythonSyntaxValidator
+} from '../../python-runtime/engineeringPythonPreview';
+import { validateServerScriptPython } from '../scripts/scriptEngineeringApi';
 import { PythonPreviewTestPanel } from '../scripts/PythonPreviewTestPanel';
 import { PythonScriptAssistant } from '../scripts/PythonScriptAssistant';
 import { PythonScriptReferenceDiagnostics } from '../scripts/PythonScriptReferenceDiagnostics';
@@ -77,6 +82,9 @@ export function PythonMonacoEditor({
   const entryPointsRef = useRef(entryPoints);
   const sourceRef = useRef(source);
   const lastInsertionIdRef = useRef<string | number | null>(null);
+  const syntaxValidatorRef = useRef<EngineeringClientVisualPythonSyntaxValidator | null>(null);
+  const syntaxGenerationRef = useRef(0);
+  const [continuousDiagnostics, setContinuousDiagnostics] = useState<PythonEditorDiagnosticState | null>(null);
   const [cursor, setCursor] = useState({ line: 1, column: 1 });
   const [editorError, setEditorError] = useState<string | null>(null);
   const [previewDiagnostics, setPreviewDiagnostics] = useState<PythonEditorDiagnosticSnapshot | null>(null);
@@ -87,7 +95,7 @@ export function PythonMonacoEditor({
 
   const effectiveDiagnostics: PythonEditorDiagnosticState = previewDiagnostics?.source === source
     ? { status: 'ready', diagnostics: previewDiagnostics.diagnostics }
-    : diagnostics;
+    : continuousDiagnostics ?? diagnostics;
 
   const projection = useMemo(
     () => effectiveDiagnostics.status === 'ready'
@@ -247,6 +255,63 @@ export function PythonMonacoEditor({
   }, [readOnly]);
 
   useEffect(() => {
+    syntaxGenerationRef.current++;
+    const generation = syntaxGenerationRef.current;
+    setContinuousDiagnostics(null);
+
+    if (readOnly || scope !== 'clientVisual') {
+      syntaxValidatorRef.current = null;
+      return;
+    }
+
+    const validator = createEngineeringClientVisualPythonSyntaxValidator(scriptId);
+    syntaxValidatorRef.current = validator;
+    return () => {
+      if (syntaxGenerationRef.current === generation) syntaxValidatorRef.current = null;
+      void validator.dispose();
+    };
+  }, [scriptId, scope, readOnly]);
+
+  useEffect(() => {
+    if (readOnly) {
+      setContinuousDiagnostics(null);
+      return;
+    }
+
+    const generation = ++syntaxGenerationRef.current;
+    setContinuousDiagnostics({ status: 'checking' });
+    const timer = globalThis.setTimeout(() => {
+      void (async () => {
+        try {
+          if (scope === 'clientVisual') {
+            const validator = syntaxValidatorRef.current;
+            if (!validator) {
+              if (generation === syntaxGenerationRef.current) {
+                setContinuousDiagnostics({ status: 'unavailable', message: copy.diagnosticsUnavailable });
+              }
+              return;
+            }
+            const result = await validator.compile(source);
+            if (generation !== syntaxGenerationRef.current || result.superseded) return;
+            setContinuousDiagnostics({ status: 'ready', diagnostics: result.snapshot.diagnostics });
+            return;
+          }
+
+          const snapshot = await validateServerScriptPython(source);
+          if (generation !== syntaxGenerationRef.current) return;
+          setContinuousDiagnostics({ status: 'ready', diagnostics: snapshot.diagnostics });
+        } catch {
+          if (generation === syntaxGenerationRef.current) {
+            setContinuousDiagnostics({ status: 'unavailable', message: copy.diagnosticsUnavailable });
+          }
+        }
+      })();
+    }, 350);
+
+    return () => globalThis.clearTimeout(timer);
+  }, [scriptId, scope, source, readOnly, copy.diagnosticsUnavailable]);
+
+  useEffect(() => {
     monaco.editor.setTheme(monacoTheme);
   }, [monacoTheme]);
 
@@ -316,7 +381,9 @@ export function PythonMonacoEditor({
 
       <footer className="python-editor__status">
         <span>{copy.sourceAuthority}</span>
-        {effectiveDiagnostics.status === 'ready' ? (
+        {effectiveDiagnostics.status === 'checking' ? (
+          <strong className="python-editor__muted">{copy.diagnosticsChecking}</strong>
+        ) : effectiveDiagnostics.status === 'ready' ? (
           <strong className={
             errorCount > 0
               ? 'python-editor__diagnostic-error'
@@ -324,7 +391,7 @@ export function PythonMonacoEditor({
                 ? 'python-editor__diagnostic-warning'
                 : 'python-editor__diagnostic-success'
           }>
-            {copy.diagnosticsReady}: {errorCount} {copy.errors}, {warningCount} {copy.warnings}
+            {errorCount > 0 ? copy.diagnosticsError : copy.diagnosticsValid}: {errorCount} {copy.errors}, {warningCount} {copy.warnings}
             {projection.rejectedCount > 0 ? ` · ${projection.rejectedCount} ${copy.diagnosticsRejected}` : ''}
           </strong>
         ) : effectiveDiagnostics.status === 'stale' ? (
@@ -335,6 +402,28 @@ export function PythonMonacoEditor({
           </strong>
         )}
       </footer>
+
+      {projection.markers.length > 0 && (
+        <div className="python-editor__diagnostic-list" aria-label={copy.diagnosticsList}>
+          {projection.markers.map((marker, index) => (
+            <button
+              type="button"
+              key={`${marker.code}-${marker.startLineNumber}-${marker.startColumn}-${index}`}
+              className={`python-editor__diagnostic-link python-editor__diagnostic-link--${marker.severity}`}
+              onClick={() => {
+                const editor = editorRef.current;
+                if (!editor) return;
+                editor.setPosition({ lineNumber: marker.startLineNumber, column: marker.startColumn });
+                editor.revealLineInCenter(marker.startLineNumber);
+                editor.focus();
+              }}
+            >
+              <code>{marker.startLineNumber}:{marker.startColumn}</code>
+              <span>{marker.message}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {scope === 'clientVisual' && !readOnly && (
         <PythonScriptReferenceDiagnostics

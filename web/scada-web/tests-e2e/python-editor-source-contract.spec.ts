@@ -89,3 +89,31 @@ test('Python editor chrome consumes Engineering semantic theme tokens without ge
   expect(css).not.toContain('var(--surface, #fff)');
   expect(css).not.toContain('var(--border, #d6dae2)');
 });
+
+
+test('R2 continuous syntax validation is debounced, compile-only and scope-appropriate', async () => {
+  const editor = await source('../src/engineering/python-editor/PythonMonacoEditor.tsx');
+  const previewHost = await source('../src/python-runtime/engineeringPythonPreview.ts');
+  const api = await source('../src/engineering/scripts/scriptEngineeringApi.ts');
+  const serverEndpoint = await source('../../../src/Scada.Api/Runtime/EngineeringMutationEndpoints.cs');
+  const serverValidator = await source('../../../src/Scada.Api/Runtime/ServerScriptSyntaxValidator.cs');
+  const runner = await source('../../../src/Scada.Api/Runtime/ServerScriptRunner.py');
+
+  expect(editor).toContain('setContinuousDiagnostics({ status: \'checking\' })');
+  expect(editor).toContain('}, 350)');
+  expect(editor).toContain('createEngineeringClientVisualPythonSyntaxValidator');
+  expect(editor).toContain('validateServerScriptPython(source)');
+  expect(editor).toContain('revealLineInCenter');
+  expect(previewHost).toContain('runtime.compileSource(source)');
+  const compileOnlyFactory = previewHost.slice(
+    previewHost.indexOf('createEngineeringClientVisualPythonSyntaxValidator'),
+    previewHost.indexOf('export async function compileEngineeringClientVisualPython')
+  );
+  expect(compileOnlyFactory).not.toContain('dispatchEvent(');
+  expect(api).toContain('/api/engineering/scripts/python/validate');
+  expect(serverEndpoint).toContain('RequireWorkspaceEngineeringRead');
+  expect(serverValidator).toContain('validateOnly = true');
+  expect(serverValidator).toContain('CancelAfter(TimeSpan.FromSeconds(2))');
+  expect(runner).toContain('ast.parse(source, mode="exec")');
+  expect(runner).toContain('payload.get("validateOnly") is True');
+});

@@ -66,11 +66,11 @@ Until then, the bootstrap text below is PREPARED ONLY and must not be executed.
 GitHub live is the sole authority. These bootstraps are valid only while their newest owner-issue/Main comments do not supersede them.
 
 Common exact release base:
-`wave15/corrections-integration@5abfee03b3adaa5f900be79ad91a5257d0bfaf0e`
-tree `6228fb16518a2a2eeb629dbfb51471d59798df98`.
+`wave15/corrections-integration@1d9e3f9123bea8e27c362ee680a4ba70f864becd`
+tree `512ef505924f3a0a709e8d5a73e2625531586e1c`.
 
 Release evidence:
-- EliteSCADA CI #1610 / `36649112219`: globally SUCCESS;
+- EliteSCADA CI #1611 / `36655606469`: globally SUCCESS;
 - I / Engineering Density integrated;
 - K / Theme + Contrast integrated;
 - C-REUSE-01 integrated/frozen;
@@ -114,7 +114,7 @@ Branch:
 `work/w15-r2-editor-ux`
 
 Exact creation base:
-`5abfee03b3adaa5f900be79ad91a5257d0bfaf0e`
+`1d9e3f9123bea8e27c362ee680a4ba70f864becd`
 
 Mission:
 - mature the single Screen/Popup WYSIWYG editor;
@@ -173,7 +173,7 @@ Branch:
 `work/w15-r2-branding`
 
 Exact creation base:
-`5abfee03b3adaa5f900be79ad91a5257d0bfaf0e`
+`1d9e3f9123bea8e27c362ee680a4ba70f864becd`
 
 Mission:
 - branding modes DEFAULT / TEXT / IMAGE / NONE;
@@ -227,7 +227,7 @@ Branch:
 `work/w15-r2-eng-workflow-forms`
 
 Exact creation base:
-`5abfee03b3adaa5f900be79ad91a5257d0bfaf0e`
+`1d9e3f9123bea8e27c362ee680a4ba70f864becd`
 
 Mission:
 convert structured/non-graphical Engineering to:

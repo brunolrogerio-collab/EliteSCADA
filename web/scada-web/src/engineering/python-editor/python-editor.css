@@ -175,6 +175,40 @@
 .python-editor__diagnostic-warning { color: var(--python-warning); }
 .python-editor__diagnostic-error { color: var(--python-danger); font-weight: 800; }
 
+.python-editor__diagnostic-list {
+  display: grid;
+  gap: .35rem;
+  padding: 0 .75rem;
+}
+
+.python-editor__diagnostic-link {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: .55rem;
+  align-items: start;
+  width: 100%;
+  padding: .4rem .5rem;
+  border: 1px solid var(--python-border);
+  border-radius: 6px;
+  background: var(--python-surface-soft);
+  color: var(--python-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.python-editor__diagnostic-link code {
+  color: var(--python-muted);
+}
+
+.python-editor__diagnostic-link--error { border-inline-start: 3px solid var(--python-danger); }
+.python-editor__diagnostic-link--warning { border-inline-start: 3px solid var(--python-warning); }
+.python-editor__diagnostic-link--info { border-inline-start: 3px solid var(--python-focus); }
+
+.python-editor__diagnostic-link:focus-visible {
+  outline: 2px solid var(--python-focus);
+  outline-offset: 2px;
+}
+
 .python-editor__error {
   margin: 0 .75rem;
   padding: .55rem .65rem;

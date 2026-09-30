@@ -511,20 +511,6 @@ test('secure first-run creates the initial local Administrator, first project an
     await detachCurrentApplication();
 
     expect(await page.evaluate(async () => (await fetch('/api/auth/me')).status)).toBe(401);
-    const neutralAfterA = await page.evaluate(async () => {
-      const response = await fetch('/api/runtime/application');
-      return { status: response.status, body: await response.json() };
-    });
-    expect(neutralAfterA.status).toBe(200);
-    expect(neutralAfterA.body.mode).toBe('neutral');
-    expect(neutralAfterA.body.projectKey).toBeNull();
-
-    const licenseAfterA = await page.evaluate(async () => {
-      const response = await fetch('/api/licensing/status');
-      return { status: response.status, body: await response.json() };
-    });
-    expect(licenseAfterA.status).toBe(200);
-    expect(licenseAfterA.body.license.state).toBe(licenseBeforeSwitch.body.license.state);
 
     // Reload proves that neutral is server/store-owned rather than React/session state.
     await page.reload();
@@ -540,6 +526,21 @@ test('secure first-run creates the initial local Administrator, first project an
 
     await expect(page.getByRole('heading', { name: 'Create New Project' })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('button', { name: 'Import application' })).toBeVisible();
+
+    const neutralAfterA = await page.evaluate(async () => {
+      const response = await fetch('/api/runtime/application');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(neutralAfterA.status).toBe(200);
+    expect(neutralAfterA.body.mode).toBe('neutral');
+    expect(neutralAfterA.body.projectKey).toBeNull();
+
+    const licenseAfterA = await page.evaluate(async () => {
+      const response = await fetch('/api/licensing/status');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(licenseAfterA.status).toBe(200);
+    expect(licenseAfterA.body.license.state).toBe(licenseBeforeSwitch.body.license.state);
 
     const projectBKey = 'e2e-plant-b';
     await page.locator('input[name="project-key"]').fill(projectBKey);

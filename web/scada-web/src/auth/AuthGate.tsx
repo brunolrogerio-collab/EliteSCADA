@@ -67,13 +67,14 @@ const messages = {
     passwordHint: (minimum: number) => `Use pelo menos ${minimum} caracteres.`,
     passwordMismatch: 'As senhas não conferem.',
     restoreBackup: 'Restaurar backup',
+    importApplication: 'Importar aplicação',
     recoverySignInRequired: 'Authority restaurada. Entre com um Administrador restaurado para continuar a recuperação da aplicação.',
     switchUserSignInRequired: 'Sessão anterior encerrada. Entre com o próximo usuário para continuar.',
     createAdministrator: 'Criar Administrador',
     creatingAdministrator: 'Criando Administrador…',
     bootstrapClosed: 'O Administrador inicial já foi criado ou o bootstrap seguro não está mais disponível.',
     firstProjectTitle: 'Criar novo projeto',
-    firstProject: 'Nenhum projeto persistido existe neste servidor. Restaure uma aplicação existente ou crie o primeiro projeto para iniciar o Working no Engineering.',
+    firstProject: 'Nenhum projeto persistido existe neste servidor. Crie um novo projeto ou importe uma Application (.escadapkg) usando a Authority atual. Para restaurar também usuários, credenciais, roles e scopes, volte ao estado neutro e use Restaurar backup.',
     projectKey: 'Chave do projeto',
     projectName: 'Nome do projeto',
     projectKeyHint: 'Identificador estável, por exemplo planta-piloto.',
@@ -100,13 +101,14 @@ const messages = {
     passwordHint: (minimum: number) => `Use at least ${minimum} characters.`,
     passwordMismatch: 'Passwords do not match.',
     restoreBackup: 'Restore backup',
+    importApplication: 'Import application',
     recoverySignInRequired: 'Authority restored. Sign in with a restored Administrator to continue application recovery.',
     switchUserSignInRequired: 'The previous session has ended. Sign in as the next user to continue.',
     createAdministrator: 'Create Administrator',
     creatingAdministrator: 'Creating Administrator…',
     bootstrapClosed: 'The initial Administrator already exists or secure bootstrap is no longer available.',
     firstProjectTitle: 'Create New Project',
-    firstProject: 'No persisted project exists on this server. Restore an existing application or create the first project to start a Working project in Engineering.',
+    firstProject: 'No persisted project exists on this server. Create a new project or import an Application (.escadapkg) using the current Authority. To restore users, credentials, roles and scopes too, return to neutral and use Restore backup.',
     projectKey: 'Project key',
     projectName: 'Project name',
     projectKeyHint: 'Stable identifier, for example pilot-plant.',
@@ -133,13 +135,14 @@ const messages = {
     passwordHint: (minimum: number) => `Use al menos ${minimum} caracteres.`,
     passwordMismatch: 'Las contraseñas no coinciden.',
     restoreBackup: 'Restaurar backup',
+    importApplication: 'Importar aplicación',
     recoverySignInRequired: 'Authority restaurada. Ingrese con un Administrador restaurado para continuar la recuperación de la aplicación.',
     switchUserSignInRequired: 'La sesión anterior terminó. Ingrese con el próximo usuario para continuar.',
     createAdministrator: 'Crear Administrador',
     creatingAdministrator: 'Creando Administrador…',
     bootstrapClosed: 'El Administrador inicial ya existe o el bootstrap seguro ya no está disponible.',
     firstProjectTitle: 'Crear nuevo proyecto',
-    firstProject: 'No existe ningún proyecto persistido en este servidor. Restaure una aplicación existente o cree el primer proyecto para iniciar el Working en Engineering.',
+    firstProject: 'No existe ningún proyecto persistido en este servidor. Cree un proyecto nuevo o importe una Application (.escadapkg) usando la Authority actual. Para restaurar también usuarios, credenciales, roles y scopes, vuelva al estado neutral y use Restaurar backup.',
     projectKey: 'Clave del proyecto',
     projectName: 'Nombre del proyecto',
     projectKeyHint: 'Identificador estable, por ejemplo planta-piloto.',
@@ -378,6 +381,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       }
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
       setProjectSetupRequired(false);
+      if (!window.location.pathname.startsWith('/engineering')) {
+        window.location.assign('/engineering');
+      }
     } catch {
       setUnavailable(true);
     } finally {
@@ -537,7 +543,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           {projectError && <div className="auth-error" role="alert">{projectError}</div>}
           <div className="auth-actions">
             <button type="button" className="auth-secondary" onClick={startApplicationRecovery} disabled={creatingProject}>
-              {t.restoreBackup}
+              {t.importApplication}
             </button>
             <button
               className="auth-primary"

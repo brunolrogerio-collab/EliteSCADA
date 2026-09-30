@@ -11,7 +11,7 @@ export type PythonScriptAssistantProps = Readonly<{
 }>;
 
 /**
- * Adapter between the Monaco editor and the canonical Script Engineering model.
+ * Adapter between the code editor and the canonical Script Engineering model.
  * The assistant never infers visual ownership from names or project layout; it
  * uses persisted ScriptVisualEventReference records for the selected script.
  */

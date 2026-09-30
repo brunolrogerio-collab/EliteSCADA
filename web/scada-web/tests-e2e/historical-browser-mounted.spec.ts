@@ -193,7 +193,9 @@ test('mounted Historical Browser keeps the required pt-BR absolute range determi
   });
 
   await openHarness(page, '?locale=pt-BR');
-  const rangeControls = page.getByTestId('historical-time-range-controls');
+  const rangeControls = page
+    .getByTestId('historical-data-browser-runtime')
+    .locator('.historical-browser__controls');
   await expect(rangeControls).toHaveCount(1);
   await rangeControls.getByLabel('Período absoluto', { exact: true }).check();
   await rangeControls.getByLabel('De', { exact: true }).fill('2026-09-27T01:00');

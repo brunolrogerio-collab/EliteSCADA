@@ -468,7 +468,7 @@ test('secure first-run creates the initial local Administrator, first project an
     });
     expect(populatedWorkspace.status).toBe(200);
     expect(populatedWorkspace.body.tagCount).toBe(7);
-    expect(populatedWorkspace.body.securityRoleCount).toBe(0);
+    expect(populatedWorkspace.body.securityRoleCount).toBe(1);
     expect(populatedWorkspace.body.isDirty).toBe(false);
 
     // W15-INSTALLATION-UX mounted journey: preserve A, detach to true neutral,

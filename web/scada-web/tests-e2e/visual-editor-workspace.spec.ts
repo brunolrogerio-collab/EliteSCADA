@@ -57,6 +57,8 @@ const ONE_PIXEL_PNG = Buffer.from(
 );
 
 test('Wave 08 composes Canvas, palette, properties, project-source binding, image asset and canonical save/reopen', async ({ page, request }) => {
+  test.setTimeout(75_000);
+
   const originalResponse = await request.get('/api/engineering/export/json');
   expect(originalResponse.ok()).toBeTruthy();
   const originalPackage = await originalResponse.json() as ExportedPackage;

@@ -76,17 +76,14 @@ public sealed class SystemRecoveryApplicationService(
     {
         var inspection = packages.Inspect(packageBytes);
         var preview = packages.Preview(packageBytes, ImportMode.CreateAndUpdate);
-        var configuredProjectKey = configuration["EngineeringRuntime:ProjectKey"]?.Trim();
-        var installation = installationBinding is null
-            ? null
-            : await installationBinding.GetAsync(cancellationToken);
-        var effectiveProjectKey = installation?.State == EngineeringInstallationBindingState.Attached
-            ? installation.ProjectKey
-            : configuredProjectKey;
+        var applicationAuthority = await EngineeringInstallationApplicationAuthorityResolver.ResolveAsync(
+            installationBinding,
+            configuration,
+            cancellationToken);
         var catalogEmpty = !await catalog.HasAnyAsync(cancellationToken);
-        var bindingMatches = installation?.State == EngineeringInstallationBindingState.Neutral ||
-            (!string.IsNullOrWhiteSpace(effectiveProjectKey) &&
-             effectiveProjectKey.Equals(inspection.Manifest.ProjectKey, StringComparison.OrdinalIgnoreCase));
+        var bindingMatches =
+            applicationAuthority.BindingState == EngineeringInstallationBindingState.Neutral ||
+            applicationAuthority.Matches(inspection.Manifest.ProjectKey);
 
         var users = await identities.ListAsync(cancellationToken);
         var admissions = users
@@ -100,10 +97,27 @@ public sealed class SystemRecoveryApplicationService(
         var blockers = new List<string>();
         if (!catalogEmpty)
             blockers.Add("A persisted Engineering project already exists. First-project System Recovery is closed.");
-        if (string.IsNullOrWhiteSpace(configuredProjectKey))
+        if (applicationAuthority.BindingState is EngineeringInstallationBindingState.AttachInProgress or
+            EngineeringInstallationBindingState.DetachInProgress)
+        {
+            blockers.Add($"Application recovery is unavailable while installation binding is '{applicationAuthority.BindingState}'.");
+        }
+        else if (applicationAuthority.UsesLegacyConfiguration &&
+                 string.IsNullOrWhiteSpace(applicationAuthority.ProjectKey))
+        {
             blockers.Add("EngineeringRuntime:ProjectKey must be configured before application recovery can activate Runtime.");
+        }
+        else if (applicationAuthority.BindingState == EngineeringInstallationBindingState.Attached &&
+                 string.IsNullOrWhiteSpace(applicationAuthority.ProjectKey))
+        {
+            blockers.Add("The durable Attached installation Application binding has no project identity.");
+        }
         else if (!bindingMatches)
-            blockers.Add($"This runtime instance is bound to project '{configuredProjectKey}', not package project '{inspection.Manifest.ProjectKey}'.");
+        {
+            blockers.Add(
+                $"This runtime instance is bound to project '{applicationAuthority.ProjectKey ?? "none"}', " +
+                $"not package project '{inspection.Manifest.ProjectKey}'.");
+        }
         if (!preview.CanApply)
             blockers.Add("The application package has blocking Engineering preview errors.");
         if (requireCurrentUserAdmission && currentAdmission?.Allowed != true)
@@ -114,7 +128,7 @@ public sealed class SystemRecoveryApplicationService(
         return new SystemRecoveryApplicationPreview(
             inspection.Manifest,
             preview,
-            effectiveProjectKey,
+            applicationAuthority.ProjectKey,
             catalogEmpty,
             bindingMatches,
             compatibleAdministratorCount,
@@ -132,15 +146,6 @@ public sealed class SystemRecoveryApplicationService(
         ArgumentNullException.ThrowIfNull(currentUser);
 
         await using var installationLease = await installationGate.EnterAsync(cancellationToken);
-        EngineeringInstallationBindingSnapshot? attachJournal = null;
-        if (installationBinding is not null)
-        {
-            var currentBinding = await installationBinding.GetAsync(cancellationToken);
-            if (currentBinding.State == EngineeringInstallationBindingState.Neutral)
-                attachJournal = await installationBinding.BeginAttachAsync(
-                    packages.Inspect(packageBytes).Manifest.ProjectKey,
-                    cancellationToken);
-        }
 
         var preflight = await PreviewAsync(
             packageBytes,
@@ -149,11 +154,22 @@ public sealed class SystemRecoveryApplicationService(
             cancellationToken);
         if (!preflight.CanApply)
         {
-            await AbortAttachBeforeDurableCheckpointAsync(attachJournal);
             return FailedBeforeMutation(
                 preflight,
                 "preflight",
                 preflight.Blockers);
+        }
+
+        EngineeringInstallationBindingSnapshot? attachJournal = null;
+        if (installationBinding is not null)
+        {
+            var currentBinding = await installationBinding.GetAsync(cancellationToken);
+            if (currentBinding.State == EngineeringInstallationBindingState.Neutral)
+            {
+                attachJournal = await installationBinding.BeginAttachAsync(
+                    preflight.Manifest.ProjectKey,
+                    cancellationToken);
+            }
         }
 
         await using var mutation = await workspace.AcquireMutationAsync(
@@ -260,8 +276,14 @@ public sealed class SystemRecoveryApplicationService(
             throw;
         }
 
-        // From this point onward a durable root revision exists. Do not fake rollback to
-        // an empty installation: any later failure is returned as explicit partial state.
+        // The durable root revision is the first honest Application checkpoint. Commit
+        // the FND-07 attach before publish/activate so Runtime authority never relies on
+        // AttachInProgress and later failures remain visible as Attached partial state.
+        if (attachJournal is not null && installationBinding is not null)
+            await installationBinding.CompleteAttachAsync(snapshot.ProjectKey, CancellationToken.None);
+
+        // From this point onward a durable root revision exists and the Application is
+        // Attached. Do not fake rollback to an empty installation on later failures.
         var publication = await persistence.PublishRevisionAsync(
             snapshot.ProjectKey,
             snapshot.Revision,
@@ -320,9 +342,6 @@ public sealed class SystemRecoveryApplicationService(
                 lifecycleAfterActivation,
                 ["Recovered application was saved and published, but the accepted Active Runtime revision was not established."]);
         }
-
-        if (attachJournal is not null && installationBinding is not null)
-            await installationBinding.CompleteAttachAsync(snapshot.ProjectKey, CancellationToken.None);
 
         return new SystemRecoveryApplicationApplyResult(
             true,

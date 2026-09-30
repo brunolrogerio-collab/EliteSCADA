@@ -158,6 +158,63 @@ public sealed class SystemRecoveryApplicationServiceTests
     }
 
     [Fact]
+    public async Task ApplyAsync_NeutralBindingUsesPackageIdentityInsteadOfStaleLegacyRuntimeKey()
+    {
+        using var workspace = new EngineeringWorkspace();
+        var gateways = new InMemoryGatewayEngineeringRegistry(workspace.MarkDirty);
+        var reports = new InMemoryReportEngineeringRegistry(workspace.MarkDirty);
+        var exchange = CreateExchange(workspace, gateways, reports);
+        var packages = new ProjectPackageService(exchange, workspace.VisualAssets);
+        var binding = new RecordingInstallationBindingStore();
+        var store = new InMemoryProjectStore();
+        var persistence = new EngineeringProjectPersistenceService(
+            exchange,
+            store,
+            workspace.VisualAssets,
+            binding);
+        var identities = new InMemoryLocalIdentityStore();
+        var actor = Account(LocalIdentityBootstrapService.InitialAdministratorRole);
+        await identities.CreateAsync(actor);
+
+        var packageBytes = BuildPackage(
+            "plant-b",
+            "Plant B",
+            LocalIdentityBootstrapService.InitialAdministratorRole,
+            SecurityCapability.EngineeringModify,
+            SecurityCapability.UserRoleAdmin);
+        var activation = new BindingAwareActivationService(persistence, binding);
+        var service = CreateService(
+            packages,
+            persistence,
+            new EmptyCatalog(store),
+            activation,
+            identities,
+            workspace,
+            exchange,
+            gateways,
+            reports,
+            "plant-a",
+            binding);
+
+        var preview = await service.PreviewAsync(
+            packageBytes,
+            actor,
+            requireCurrentUserAdmission: true);
+
+        Assert.True(preview.CanApply);
+        Assert.True(preview.RuntimeBindingMatches);
+        Assert.Null(preview.ConfiguredProjectKey);
+
+        var result = await service.ApplyAsync(packageBytes, actor, "recovery-test");
+
+        Assert.True(result.Recovered);
+        Assert.True(activation.SawAttachedBinding);
+        Assert.Equal(EngineeringInstallationBindingState.Attached, binding.Snapshot.State);
+        Assert.Equal("plant-b", binding.Snapshot.ProjectKey);
+        Assert.Equal("plant-b", result.Revision!.ProjectKey);
+    }
+
+    [Fact]
     public async Task ApplyAsync_BlockingReplacementPreviewRestoresPreviousWorkspaceAndDoesNotPersist()
     {
         using var workspace = new EngineeringWorkspace();
@@ -413,6 +470,27 @@ public sealed class SystemRecoveryApplicationServiceTests
 
         public Task<bool> HasAnyAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(store?.Snapshot is not null);
+    }
+
+    private sealed class BindingAwareActivationService(
+        IEngineeringProjectPersistenceService persistence,
+        RecordingInstallationBindingStore binding) : IPublishedRuntimeActivationService
+    {
+        public bool SawAttachedBinding { get; private set; }
+
+        public async Task<PublishedRuntimeActivationOutcome> ActivateAsync(
+            string projectKey,
+            string? activatedBy = null,
+            CancellationToken cancellationToken = default)
+        {
+            Assert.Equal(EngineeringInstallationBindingState.Attached, binding.Snapshot.State);
+            Assert.Equal(projectKey, binding.Snapshot.ProjectKey);
+            SawAttachedBinding = true;
+            return await new SuccessfulActivationService(persistence).ActivateAsync(
+                projectKey,
+                activatedBy,
+                cancellationToken);
+        }
     }
 
     private sealed class SuccessfulActivationService(IEngineeringProjectPersistenceService persistence) : IPublishedRuntimeActivationService

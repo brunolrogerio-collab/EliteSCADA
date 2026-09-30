@@ -577,6 +577,15 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(bLifecycle.activateStatus).toBe(200);
     expect(bLifecycle.activateBody.activated).toBe(true);
 
+    const runtimeB = await page.evaluate(async () => {
+      const response = await fetch('/api/runtime/application');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(runtimeB.status).toBe(200);
+    expect(runtimeB.body.mode).toBe('engineering');
+    expect(runtimeB.body.projectKey).toBe(projectBKey);
+    expect(runtimeB.body.revision).toBe(bLifecycle.revision);
+
     const usersInB = await page.evaluate(async () => {
       const response = await fetch('/api/auth/users');
       return { status: response.status, body: await response.json() };

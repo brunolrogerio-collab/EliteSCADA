@@ -17,7 +17,9 @@ public sealed record ServerScriptSyntaxDiagnostic(
 public sealed record ServerScriptSyntaxValidationResponse(
     IReadOnlyCollection<ServerScriptSyntaxDiagnostic> Diagnostics);
 
-public sealed class ServerScriptSyntaxValidatorUnavailableException(string message) : Exception(message);
+public sealed class ServerScriptSyntaxValidatorUnavailableException(string message) : Exception(message)
+{
+}
 
 public static class ServerScriptSyntaxValidator
 {

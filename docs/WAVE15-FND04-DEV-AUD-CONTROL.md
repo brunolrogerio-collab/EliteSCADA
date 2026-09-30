@@ -38,11 +38,11 @@ If this file conflicts with old chat memory, old handoffs or stale prompts, this
 
 ## 2. Global state
 
-`MAIN_ORDER_REV: 0124`
+`MAIN_ORDER_REV: 0125`
 
-`LAST_MAIN_UPDATE_BRT: 2026-09-29 — #389 MERGED / POSTMERGE CI #1593 NEUTRAL-FIXTURE BLOCKER / TAG C0 DELTA FROZEN / SHARED CODEX PARKED`
+`LAST_MAIN_UPDATE_BRT: 2026-09-29 — PORTABILITY #405 INTEGRATED / CI #1611 GREEN / R2-B J-L-N ACTIVE / SHARED CODEX PARKED`
 
-`GLOBAL_GATE: FND04_VERIFIED_FROZEN / GATE0_GREEN / GATE1_GREEN / R2_C0_FROZEN / F0_INTEGRATED / #389_MERGED / R2_A_HOLD_POSTMERGE_CI_FIXTURE / TAG_C0_DELTA_FROZEN / SHARED_CODEX_PARKED`
+`GLOBAL_GATE: FND04_VERIFIED_FROZEN / GATE0_GREEN / GATE1_GREEN / R2_C0_FROZEN / F0_INTEGRATED / PORTABILITY_INTEGRATED / POST_PORTABILITY_CI_GREEN / R2_B_J_L_N_ACTIVE / SHARED_CODEX_PARKED`
 
 Current situation:
 
@@ -61,7 +61,7 @@ Current situation:
 - Main performed the #375 Reuse R1 recomposition directly to preserve limited CODEX capacity. The shared CODEX executor is now WAIT and must not consume capacity unless Main issues a later environment-dependent order. Gate0 (#373/#374/#376) remains integrated and tree-proven. FND-04 remains frozen.
 - Any later change to this shared contract requires a new Main/Foundation delta; downstream lanes may not redefine it.
 
-Current CORRECTION-NOW integration baseline is `wave15/corrections-integration@45ddfe93e2e8b2cf4dc3051f6c44f964ee006ebd`, tree `788f0437d6b2a084879706e7d1cd113cd0f350ee`. Gate0 and Gate1 are green. R2 C0 contracts are frozen. F0 shared wire foundation #388 remains integrated. CI-only PR #389 is merged; its final head `9660196179865b0b499c9eaf0a719eeb5d9644b8` passed natural Wave 15 T1 `36598116875`. Post-merge EliteSCADA CI `36598484002` / #1593 still fails only in Runtime smoke after Build/Test success: the API reaches healthy state but the smoke observes a truthful neutral installation (`projectKey=null / tagCount=0 / historian.writtenSamples=0`) while the fixture still expects an active Demo/project. Do not increase startup timeout again and do not change product startup authority merely to satisfy the stale smoke assumption. R2-A remains HOLD until the smoke fixture explicitly creates/activates a disposable canonical project and post-merge CI is green. New mandatory first-external-test TAG contracts #390/#391 are frozen; #390 requires a bounded F0-D1 transient Driver `PointReadTest` wire before behavior. No future DEV bootstrap has been generated from this delta. Shared CODEX remains PARKED to preserve remaining capacity and has no active product mutation order.
+Current CORRECTION-NOW integration baseline is `wave15/corrections-integration@1d9e3f9123bea8e27c362ee680a4ba70f864becd`, tree `512ef505924f3a0a709e8d5a73e2625531586e1c`. EliteSCADA CI #1611 / `36655606469` is globally GREEN (Web, Backend build/test/smoke and Chromium). Portability PR #405 is integrated. R2-B J/L/N were synchronized to this exact post-Portability base and released ACTIVE / NO_MERGE; at the latest Main handoff all three still had zero own commits and no open PRs. Shared CODEX remains PARKED to preserve remaining capacity and has no active product mutation order. Do not send SIGA to shared CODEX merely because R2-B is active; current product execution belongs to J/L/N normal DEV chats. Canonical Main takeover is `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-09-29-R2B-ACTIVE.md` on the Main coordination branch.
 ---
 
 ## 2A. CURRENT SHARED CODEX ORDER — EXECUTION POINTER

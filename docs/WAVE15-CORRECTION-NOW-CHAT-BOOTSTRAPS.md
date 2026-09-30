@@ -1,3 +1,22 @@
+# LATEST R2-B RELEASE POINTER — 2026-09-30
+
+J/L/N are now RELEASED on exact integration `5abfee03b3adaa5f900be79ad91a5257d0bfaf0e`.
+
+Use the clean canonical bootstraps in:
+`docs/WAVE15-R2B-J-L-N-BOOTSTRAPS-2026-09-30.md`
+commit `7b1cd70f90d1e497a46f9c27aba0763b63b781e6`.
+
+This supersedes every older statement below saying J/L/N are not generated or not released.
+
+States:
+- J: `ACTIVE / R2_B_EDITOR_UX / NO_MERGE`;
+- L: `ACTIVE / R2_B_BRANDING / NO_MERGE`;
+- N: `ACTIVE / R2_B_STRUCTURED_FORMS / NO_MERGE`.
+
+M/P/TAG-D/Playback/Script-Authoring-R2 remain unreleased.
+
+---
+
 # LATEST PORTABILITY RESUME DELTA — 2026-09-30
 
 > This delta supersedes the old creation-base values in the ENGINEERING-PORTABILITY-CORE bootstrap below.

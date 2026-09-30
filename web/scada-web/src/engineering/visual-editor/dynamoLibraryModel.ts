@@ -6,6 +6,7 @@ export type DynamoLibraryEntry = Readonly<{
   width: number;
   height: number;
   parameterCount: number;
+  visualStyle: string;
   searchText: string;
 }>;
 
@@ -22,13 +23,15 @@ export function buildDynamoLibraryEntries(
     definitions
       .map(definition => {
         const category = normalizeCategory(definition.properties?.category);
+        const visualStyle = normalizeStyle(definition.properties?.visualStyle);
         return Object.freeze({
           definition,
           category,
           width: positiveDimension(definition.properties?.defaultWidth, 120),
           height: positiveDimension(definition.properties?.defaultHeight, 100),
           parameterCount: definition.parameters?.length ?? 0,
-          searchText: normalizeSearchText(`${definition.name} ${definition.key} ${category}`)
+          visualStyle,
+          searchText: normalizeSearchText(`${definition.name} ${definition.key} ${category} ${visualStyle}`)
         });
       })
       .sort((left, right) => left.definition.name.localeCompare(right.definition.name, locale))
@@ -62,6 +65,11 @@ function positiveDimension(value: string | undefined, fallback: number): number 
 function normalizeCategory(value: string | undefined): string {
   const category = value?.trim().toLocaleLowerCase('en-US');
   return category || 'other';
+}
+
+function normalizeStyle(value: string | undefined): string {
+  const style = value?.trim().toLocaleLowerCase('en-US');
+  return style || 'detailed-2d';
 }
 
 function normalizeSearchText(value: string): string {

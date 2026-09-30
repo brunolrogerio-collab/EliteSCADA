@@ -3,6 +3,11 @@ using Scada.Core.Alarms;
 using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.Engineering.Branding;
+using Scada.Engineering.Views;
+using Scada.Engineering.Security;
+using Scada.Engineering.Gateways;
+using Scada.Engineering.Commands;
+using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.ImportExport;
@@ -27,6 +32,11 @@ public sealed class ApplicationBrandingEngineeringTests
             new InMemoryTagRegistry(),
             sourceAlarms,
             new InMemoryDataSourceEngineeringRegistry(),
+            new InMemoryEngineeringAssetRegistry(),
+            new InMemoryEngineeringViewRegistry(),
+            new InMemorySecurityPolicyEngineeringRegistry(),
+            new InMemoryCommandEngineeringRegistry(),
+            new InMemoryGatewayEngineeringRegistry(),
             branding: sourceBranding);
 
         var json = source.ExportJson(indented: false);
@@ -42,6 +52,11 @@ public sealed class ApplicationBrandingEngineeringTests
             new InMemoryTagRegistry(),
             targetAlarms,
             new InMemoryDataSourceEngineeringRegistry(),
+            new InMemoryEngineeringAssetRegistry(),
+            new InMemoryEngineeringViewRegistry(),
+            new InMemorySecurityPolicyEngineeringRegistry(),
+            new InMemoryCommandEngineeringRegistry(),
+            new InMemoryGatewayEngineeringRegistry(),
             branding: targetBranding);
 
         var result = target.Apply(package, ImportMode.CreateAndUpdate);

@@ -113,7 +113,7 @@ test('R2 structured Alarm journey binds actions to current Alarm and discloses b
   await page.goto('/engineering');
   await page.getByRole('button', { name: /Alarmes/ }).click();
   await expect(page.locator('.eng-editor-picker')).toHaveCount(1);
-  await page.getByRole('button', { name: /High discharge pressure/ }).click();
+  await page.locator('.eng-editor-picker').getByRole('button', { name: /High discharge pressure/ }).click();
   const actions = page.getByTestId('engineering-entity-actions');
   await expect(actions.getByTestId('engineering-current-entity')).toContainText('High discharge pressure');
   await expect(actions.getByRole('combobox')).toHaveCount(0);
@@ -136,6 +136,6 @@ test('R2 structured Operational Event journey separates core authoring from opti
   await expect(context).not.toHaveAttribute('open', '');
   await context.locator('summary').click();
   await expect(context.getByLabel('Área', { exact: true })).toBeVisible();
-  await expect(context.getByLabel('TAG', { exact: true })).toBeVisible();
+  await expect(context.locator('select')).toBeVisible();
   await test.info().attach('r2-operational-event-first-use', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
 });

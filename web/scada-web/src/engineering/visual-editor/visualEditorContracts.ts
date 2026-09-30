@@ -74,6 +74,7 @@ export type VisualEditorMutationIntent =
   | Readonly<{
       kind: 'dynamo.add';
       dynamoKey: string;
+      dynamoDefinitionId?: string | null;
       equipmentPath?: string | null;
       at?: VisualEditorPoint | null;
       defaultWidth?: number;

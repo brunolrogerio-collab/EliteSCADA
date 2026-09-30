@@ -208,6 +208,7 @@ function addDynamoInstance(
     key: nextVisualElementKey(dynamoKey.split('.').at(-1) || 'dynamo', usedKeys),
     type: BUILTIN_VISUAL_OBJECT_TYPES.group,
     dynamoKey,
+    dynamoDefinitionId: intent.dynamoDefinitionId?.trim() || null,
     equipmentPath: intent.equipmentPath?.trim() || null,
     properties: {}
   };

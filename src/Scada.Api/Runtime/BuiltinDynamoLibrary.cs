@@ -15,6 +15,9 @@ public static class BuiltinDynamoLibrary
         [
             Shape(1, "body", "core.ellipse", 20, 12, 68, 68, "#D1D5DB", "#374151", 3),
             Shape(2, "outlet", "core.rectangle", 78, 37, 42, 18, "#D1D5DB", "#374151", 3),
+            Shape(101, "suction", "core.rectangle", 4, 37, 28, 18, "#CBD5E1", "#374151", 2, 3),
+            Shape(102, "impeller", "core.ellipse", 39, 29, 30, 30, "#F8FAFC", "#64748B", 2),
+            Shape(103, "base", "core.rectangle", 24, 78, 72, 8, "#64748B", "#374151", 1, 2),
             Text(3, "label", "P", 42, 31, 24, 24),
             StateLamp(4, "running", 4, 4, "#22C55E", "running", "{equipmentPath}.Running"),
             StateLamp(5, "fault", 104, 4, "#EF4444", "fault", "{equipmentPath}.Fault")
@@ -43,7 +46,10 @@ public static class BuiltinDynamoLibrary
 
         Dynamo(3, "process.motor.standard", "Motor padrão", "motor", 106, 92,
         [
-            Shape(20, "body", "core.ellipse", 17, 10, 72, 72, "#D1D5DB", "#374151", 3),
+            Shape(20, "body", "core.rectangle", 17, 16, 72, 60, "#D1D5DB", "#374151", 3, 24),
+            Shape(104, "shaft", "core.rectangle", 86, 40, 18, 10, "#94A3B8", "#374151", 1, 2),
+            Shape(105, "terminal", "core.rectangle", 38, 8, 30, 16, "#CBD5E1", "#374151", 1, 3),
+            Shape(106, "base", "core.rectangle", 24, 74, 60, 8, "#64748B", "#374151", 1, 2),
             Text(21, "label", "M", 39, 32, 28, 28),
             StateLamp(22, "running", 4, 4, "#22C55E", "running", "{equipmentPath}.Running"),
             StateLamp(23, "fault", 82, 4, "#EF4444", "fault", "{equipmentPath}.Fault")
@@ -79,6 +85,9 @@ public static class BuiltinDynamoLibrary
             Shape(40, "left", "core.rectangle", 29, 31, 38, 38, "#CBD5E1", "#334155", 2, rotation: 45),
             Shape(41, "right", "core.rectangle", 60, 31, 38, 38, "#CBD5E1", "#334155", 2, rotation: 45),
             Shape(42, "actuator", "core.rectangle", 49, 5, 30, 24, "#94A3B8", "#334155", 2, 4),
+            Shape(107, "pipe-left", "core.rectangle", 3, 46, 36, 10, "#94A3B8", "#475569", 1, 2),
+            Shape(108, "pipe-right", "core.rectangle", 90, 46, 35, 10, "#94A3B8", "#475569", 1, 2),
+            Shape(109, "stem", "core.rectangle", 61, 25, 5, 20, "#64748B", "#334155", 1),
             StateLamp(43, "open", 5, 5, "#22C55E", "open", "{equipmentPath}.Open"),
             StateLamp(44, "fault", 104, 5, "#EF4444", "fault", "{equipmentPath}.Fault")
         ],
@@ -111,6 +120,9 @@ public static class BuiltinDynamoLibrary
         [
             Shape(60, "vessel", "core.rectangle", 18, 8, 72, 140, "#E2E8F0", "#475569", 3, 18),
             Shape(61, "liquid", "core.rectangle", 23, 74, 62, 68, "#7DD3FC", "#0284C7", 1, 12),
+            Shape(110, "nozzle", "core.rectangle", 48, 2, 12, 10, "#94A3B8", "#475569", 1, 2),
+            Shape(111, "leg-left", "core.rectangle", 29, 144, 10, 10, "#64748B", "#475569", 1, 2),
+            Shape(112, "leg-right", "core.rectangle", 69, 144, 10, 10, "#64748B", "#475569", 1, 2),
             Text(62, "label", "TK", 39, 30, 30, 24),
             StateLamp(63, "high", 84, 10, "#F59E0B", "high", "{equipmentPath}.High"),
             StateLamp(64, "fault", 84, 132, "#EF4444", "fault", "{equipmentPath}.Fault")
@@ -125,15 +137,42 @@ public static class BuiltinDynamoLibrary
         [
             Shape(70, "vessel", "core.rectangle", 18, 18, 132, 66, "#E2E8F0", "#475569", 3, 30),
             Shape(71, "liquid", "core.rectangle", 24, 48, 120, 30, "#7DD3FC", "#0284C7", 1, 15),
+            Shape(113, "leg-left", "core.rectangle", 42, 80, 10, 12, "#64748B", "#475569", 1, 2),
+            Shape(114, "leg-right", "core.rectangle", 116, 80, 10, 12, "#64748B", "#475569", 1, 2),
             Text(72, "label", "TK", 68, 28, 32, 24),
             StateLamp(73, "high", 144, 10, "#F59E0B", "high", "{equipmentPath}.High"),
             StateLamp(74, "fault", 144, 74, "#EF4444", "fault", "{equipmentPath}.Fault")
         ],
         parameters: Parameters(
-            EquipmentPathParameter(),
-            TagParameter("processValue"),
-            TagParameter("high"),
-            TagParameter("fault")))
+            EquipmentPathParameter(), TagParameter("processValue"), TagParameter("high"), TagParameter("fault"))),
+
+        Dynamo(9, "process.blower.centrifugal", "Soprador centrífugo", "compressor", 154, 108,
+        [
+            Shape(80, "casing", "core.ellipse", 28, 20, 70, 70, "#D9DEE5", "#344151", 3),
+            Shape(81, "hub", "core.ellipse", 48, 40, 30, 30, "#F8FAFC", "#64748B", 2),
+            Shape(82, "inlet", "core.rectangle", 4, 45, 30, 18, "#CBD5E1", "#344151", 2, 3),
+            Shape(83, "outlet-neck", "core.rectangle", 86, 18, 20, 30, "#CBD5E1", "#344151", 2, 3),
+            Shape(84, "outlet", "core.rectangle", 96, 13, 42, 18, "#CBD5E1", "#344151", 2, 3),
+            Shape(85, "base", "core.rectangle", 24, 90, 88, 8, "#64748B", "#344151", 1, 2),
+            Text(86, "label", "B", 51, 44, 24, 22, 12),
+            StateLamp(87, "running", 5, 5, "#22C55E", "running", "{equipmentPath}.Running"),
+            StateLamp(88, "fault", 130, 5, "#EF4444", "fault", "{equipmentPath}.Fault")
+        ],
+        parameters: Parameters(
+            EquipmentPathParameter(), TagParameter("running"), TagParameter("fault"),
+            TagParameter("processValue"), CommandKeyParameter("startCommandKey"), CommandKeyParameter("stopCommandKey"))),
+
+        Dynamo(10, "process.instrument.indicator", "Indicador de processo", "instrument", 96, 112,
+        [
+            Shape(90, "stem", "core.rectangle", 44, 68, 8, 30, "#64748B", "#334155", 1, 2),
+            Shape(91, "face", "core.ellipse", 14, 8, 68, 68, "#F8FAFC", "#334155", 3),
+            Shape(92, "inner", "core.ellipse", 22, 16, 52, 52, "#E2E8F0", "#94A3B8", 1),
+            Text(93, "label", "PI", 32, 30, 32, 22, 12),
+            StateLamp(94, "fault", 72, 5, "#EF4444", "fault", "{equipmentPath}.Fault"),
+            Shape(95, "connection", "core.rectangle", 34, 96, 28, 8, "#94A3B8", "#334155", 1, 2)
+        ],
+        parameters: Parameters(
+            EquipmentPathParameter(), TagParameter("processValue"), TagParameter("fault")))
     ];
 
     private static DynamoEngineeringDto Dynamo(
@@ -156,12 +195,13 @@ public static class BuiltinDynamoLibrary
                 ["category"] = category,
                 ["defaultWidth"] = width.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["defaultHeight"] = height.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                ["libraryVersion"] = "1.0.0"
+                ["libraryVersion"] = "1.1.0"
             },
             Context: new Dictionary<string, string> { ["usage"] = "process-screen" },
             Metadata: new Dictionary<string, string>
             {
                 ["builtinLibrary"] = "true",
+                ["assetOrigin"] = "original-elitescada-vector",
                 ["equipmentPathBinding"] = "{equipmentPath}",
                 ["publicInterfaceVersion"] = "1",
                 ["stateModelVersion"] = "1"

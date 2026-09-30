@@ -25,10 +25,11 @@ type RuntimeSourceRequest = Readonly<{
 }>;
 
 export function useVisualBindingSamples(
-  elements: readonly VisualElementEngineering[] | null | undefined
+  elements: readonly VisualElementEngineering[] | null | undefined,
+  enabled = true
 ): ReadonlyMap<string, VisualLiveScalarSample> {
-  const bindings = useMemo(() => collectBindings(elements), [elements]);
-  const requests = useMemo(() => collectRuntimeSourceRequests(elements), [elements]);
+  const bindings = useMemo(() => enabled ? collectBindings(elements) : Object.freeze([]), [elements, enabled]);
+  const requests = useMemo(() => enabled ? collectRuntimeSourceRequests(elements) : Object.freeze([]), [elements, enabled]);
   const tagRequests = useMemo(() => requests.filter(request => request.kind === 'tag'), [requests]);
   const clientRequests = useMemo(() => requests.filter(request => request.kind === 'clientmemory'), [requests]);
   const [samples, setSamples] = useState<ReadonlyMap<string, VisualLiveScalarSample>>(() => new Map());

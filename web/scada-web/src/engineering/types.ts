@@ -556,7 +556,9 @@ export type VisualElementEngineering = {
   key: string;
   type: string;
   dynamoKey?: string | null;
+  dynamoDefinitionId?: string | null;
   equipmentPath?: string | null;
+  equipmentId?: string | null;
   bindings?: BindingEngineering[] | null;
   properties?: VisualEngineeringPropertyMap | null;
   context?: Record<string, string> | null;
@@ -582,6 +584,7 @@ export type EquipmentEngineering = {
   path: string;
   name: string;
   templateKey?: string;
+  templateId?: string | null;
   bindings?: BindingEngineering[];
 };
 
@@ -590,6 +593,7 @@ export type DynamoEngineering = {
   key: string;
   name: string;
   templateKey?: string;
+  templateId?: string | null;
   bindings?: BindingEngineering[];
   properties?: Record<string, string> | null;
   context?: Record<string, string> | null;
@@ -615,6 +619,7 @@ export type PopupEngineering = {
   key: string;
   name: string;
   templateKey?: string | null;
+  templateId?: string | null;
   elements?: VisualElementEngineering[] | null;
   properties?: Record<string, string> | null;
   context?: Record<string, string> | null;

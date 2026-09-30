@@ -1,3 +1,5 @@
+import type { DynamoEngineering, VisualElementEngineering } from './types';
+
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 const LIBRARY_MEDIA_TYPE = 'application/vnd.elitescada.resource-library';
 
@@ -27,6 +29,24 @@ export type ReusableLibraryResource = {
 export type ReusableLibraryResourceCatalog = {
   library: ReusableLibraryDescriptor;
   resources: ReusableLibraryResource[];
+};
+
+export type ReusableLibraryVisualPayload = {
+  id?: string | null;
+  key?: string | null;
+  name?: string | null;
+  properties?: Record<string, string> | null;
+  metadata?: Record<string, string> | null;
+  parameters?: DynamoEngineering['parameters'];
+  elements?: readonly VisualElementEngineering[] | null;
+};
+
+export type ReusableLibraryResourcePreview = {
+  library: ReusableLibraryDescriptor;
+  resource: ReusableLibraryResource;
+  payload: ReusableLibraryVisualPayload;
+  dynamos: DynamoEngineering[];
+  workingChanged: boolean;
 };
 
 export type ReusableLibraryAssociationResult = {
@@ -75,6 +95,19 @@ export async function loadReusableLibraryResources(libraryId: string): Promise<R
   return await requestJson<ReusableLibraryResourceCatalog>(
     `/api/engineering/libraries/${encodeURIComponent(libraryId)}/resources`
   );
+}
+
+export async function loadReusableLibraryResourcePreview(
+  libraryId: string,
+  resourceId: string
+): Promise<ReusableLibraryResourcePreview> {
+  return await requestJson<ReusableLibraryResourcePreview>(
+    `/api/engineering/libraries/${encodeURIComponent(libraryId)}/resources/${encodeURIComponent(resourceId)}/preview`
+  );
+}
+
+export function reusableLibraryAssetContentUrl(libraryId: string, assetId: string): string {
+  return `${API}/api/engineering/libraries/${encodeURIComponent(libraryId)}/assets/${encodeURIComponent(assetId)}/content`;
 }
 
 export async function associateReusableLibrary(file: Blob): Promise<ReusableLibraryAssociationResult> {

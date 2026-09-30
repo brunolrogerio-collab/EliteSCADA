@@ -56,7 +56,11 @@ const ONE_PIXEL_PNG = Buffer.from(
   'base64'
 );
 
-test('W15 R2 editor mounts shared side surfaces, compact insertions, collapse/reopen and contextual productivity commands', async ({ page }) => {
+test('W15 R2 editor mounts shared side surfaces, canonical Dynamo preview and contextual productivity commands', async ({ page, request }, testInfo) => {
+  const workspaceBeforeResponse = await request.get('/api/engineering/workspace');
+  expect(workspaceBeforeResponse.ok()).toBeTruthy();
+  const workspaceBefore = await workspaceBeforeResponse.json() as { changeVersion: number; isDirty: boolean };
+
   await page.goto('/engineering');
   await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
 
@@ -65,12 +69,33 @@ test('W15 R2 editor mounts shared side surfaces, compact insertions, collapse/re
   const selectionInspector = page.getByTestId('visual-editor-selection-inspector');
 
   await expect(workspace).toBeVisible();
-  await expect(page.getByTestId('visual-editor-canonical-renderer')).toBeVisible();
+  await expect(page.locator('.visual-editor-canvas-enhanced__canvas').getByTestId('visual-editor-canonical-renderer')).toBeVisible();
   await expect(authoringSidebar).toBeVisible();
   await expect(authoringSidebar.getByTestId('visual-editor-outliner')).toBeVisible();
   await expect(authoringSidebar.getByTestId('visual-object-palette')).toBeVisible();
   await expect(page.locator('.visual-editor-canvas-enhanced__canvas').getByTestId('visual-editor-outliner')).toHaveCount(0);
   await expect(page.locator('[data-insert-object-type="core.image"]')).toBeVisible();
+
+  const dynamoLibrary = page.getByTestId('visual-dynamo-library');
+  await expect(dynamoLibrary).toBeVisible();
+  await expect(dynamoLibrary.getByTestId('dynamo-library-canonical-thumbnail').first()).toBeVisible();
+  const blower = dynamoLibrary.getByRole('listitem').filter({ hasText: 'process.blower.centrifugal' });
+  await expect(blower).toBeVisible();
+  await blower.click();
+  const canonicalDynamoPreview = dynamoLibrary.getByTestId('dynamo-library-canonical-preview');
+  await expect(canonicalDynamoPreview).toBeVisible();
+  await expect(canonicalDynamoPreview.locator('[data-object-id]')).toHaveCount(9);
+  await expect(canonicalDynamoPreview.locator('.visual-editor-object-error')).toHaveCount(0);
+  await testInfo.attach('w15-visual-quality-dynamo-library-preview', {
+    body: await dynamoLibrary.screenshot(),
+    contentType: 'image/png'
+  });
+
+  const workspaceAfterPreviewResponse = await request.get('/api/engineering/workspace');
+  expect(workspaceAfterPreviewResponse.ok()).toBeTruthy();
+  const workspaceAfterPreview = await workspaceAfterPreviewResponse.json() as { changeVersion: number; isDirty: boolean };
+  expect(workspaceAfterPreview.changeVersion).toBe(workspaceBefore.changeVersion);
+  expect(workspaceAfterPreview.isDirty).toBe(workspaceBefore.isDirty);
 
   await expect(selectionInspector.getByTestId('visual-editor-inspector-tab-properties')).toBeVisible();
   await expect(selectionInspector.getByTestId('visual-editor-inspector-tab-dynamics')).toBeVisible();
@@ -121,7 +146,7 @@ test('Wave 08 composes Canvas, palette, properties, project-source binding, imag
     await expect(page.getByTestId('visual-editor-canvas')).toBeVisible();
     await expect(page.getByTestId('visual-object-palette')).toBeVisible();
     await expect(page.getByTestId('visual-property-inspector')).toBeVisible();
-    await expect(page.getByTestId('visual-editor-canonical-renderer')).toBeVisible();
+    await expect(page.getByTestId('visual-editor-canvas').getByTestId('visual-editor-canonical-renderer')).toBeVisible();
     await expect(page.locator('.visual-editor-object-error')).toHaveCount(0);
 
     const screenList = page.locator('.visual-editor-screen-list');

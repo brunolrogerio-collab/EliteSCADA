@@ -114,7 +114,11 @@ test('protected Runtime TAG/detail/history contracts expose the read-only inspec
   expect(detail.tag.path).toBe(selected!.path);
 
   const end = new Date();
-  const start = new Date(end.getTime() - 15 * 60_000);
+  // The explicit sample is seeded near suite startup, while this contract test
+  // may run after the full E2E suite has spent more than 15 minutes in earlier
+  // scenarios. Its assertions cover returned TAG identity/quality, not the
+  // Runtime UI's default 15-minute query range.
+  const start = new Date(end.getTime() - 24 * 60 * 60_000);
   let history: Array<{ tagId: string; timestamp: string; quality: string | number }> = [];
   await expect.poll(async () => {
     const response = await request.get(`/api/history/${selected!.id}?from=${encodeURIComponent(start.toISOString())}&to=${encodeURIComponent(new Date().toISOString())}&limit=50`);

@@ -9,7 +9,7 @@ Current integration base:
 (tree `e35a7c1c4648a3251071c0621808f6c1106044d7`).
 
 Temporary integration candidate is pushed on `coord/w15-recovery-handoff-2026-09-30`.
-Latest exact HEAD: `0839b6e8` (revalidate the live ref before any merge); it has not been merged into the integration branch.
+Latest exact HEAD: revalidate the live ref before any merge; it has not been merged into the integration branch.
 
 Merged immediately before this checkpoint:
 - PR #442 Historical mounted-test reconciliation: merge `e75c0faca5d09d161670ab58f14cebffcb3e7ca2`;
@@ -21,12 +21,12 @@ Broad CI #1623 / run `36772159732` on exact integration HEAD `af24924...`:
 - Chromium E2E: FAILURE after 31.5 minutes; overall run took 35m10s;
 - Playwright reported 717 tests, 688 passed, 23 failed, 6 did not run. It uses one worker; later progress numbers exceed 717 because retries are counted in the log.
 
-This is not a regression proven against PR #441: the preceding broad CI #1622 / run `36758425452` was already red on parent integration `1f53f3e52dc2da82823480e31c980fca447d742a`, before #441 merged. The report initially exposed stale C04 expectations (pt-BR/Spanish labels and a Data Sources tab selector in English). Follow-up review classified most remaining cases as stale localized UI expectations/selectors: Engineering/Engenharia, Data Sources/Fontes de dados, `Validar preview` versus the current Preview control, Path/Caminho, and a script-search label. Candidate `0839b6e8` aligns these to current accessible names or stable `data-testid` controls. Correction to the earlier triage: the two Runtime tests did not get zero TAGs. The page showed the explicit Demo active and the tests reached Historian queries; the query returned zero samples for the expected Frequency TAG despite `local-auth.spec.ts` claiming to seed one. This is a separate fixture/history-state investigation, not yet resolved and not waived by weakening the assertions.
+This is not a regression proven against PR #441: the preceding broad CI #1622 / run `36758425452` was already red on parent integration `1f53f3e52dc2da82823480e31c980fca447d742a`, before #441 merged. The report exposed stale C04/Engineering expectations and selectors in pt-BR (Engineering/Engenharia, Data Sources/Fontes de dados, `Validar preview` vs. the current Preview control, Path/Caminho, and a script-search label). Candidate updates align these tests to current accessible names or stable `data-testid` controls. The two Historian cases failed because the explicit sample was seeded near suite startup, but the broad suite reached these tests about 19 minutes later; both queried the default 15-minute window and got zero records. Candidate now gives these read-only contract assertions an explicit 24-hour query window. The product's 15-minute default is unchanged. Focused/full broad Chromium validation of these candidate changes is still pending.
 
 Installation UX exact-head T1 run `36783465631` on `be98503bc1f9483a8c8b8a7054315a1629fa2534` failed although Web build passed:
 - .NET: `EngineeringRuntimeCommunicationDiagnosticsTests.ActiveRuntime_ExposesEngineeringDataSourceIdentityAndIndependentFailureRecovery` hit `EndOfStreamException` during a write immediately after reconnect. The test observed Healthy before a successful post-disconnect read. Added a deterministic post-disconnect read gate (commit `2f0121a1` on #436; same fix is in candidate `0839b6e8`); the focused local test passed five consecutive repetitions.
 - Chromium: `runtime.spec.ts` expected `securityRoleCount = 1`, but AUTH-03 correctly yields zero project-local Authority-owned role rows. Corrected to zero (commit `2f0121a1` on #436; same fix is in candidate `0839b6e8`). That run had 70 passed and 1 failed.
-- New exact-head #436 T1 run `36784595152` is in progress on SHA `2f0121a1956dae5a0ac7b268ba83f9c6672c2d7c`; this is the evidence to await. Do not treat the failed prior run as green.
+- New exact-head #436 T1 run `36784595152` on SHA `2f0121a1956dae5a0ac7b268ba83f9c6672c2d7c` is fully SUCCESS: Focused .NET, focused Chromium (71/71), Web build, Common T1 sanity, final Wave 15 T1 gate. This supersedes the failed prior run for #436 only; the broad integration CI remains red.
 
 Do not increase Playwright workers as a quick CI-speed fix: the suite shares mutable Engineering state, so parallelism could create cross-test contamination. First isolate the remaining failing tests and improve test-state isolation. Avoid repeatedly launching the full 700+ E2E suite; use targeted tests while repairing, then run the broad gate once.
 
@@ -48,16 +48,16 @@ The local untracked `web/scada-web/test-results/` directory is preserved and exc
 ## Lane disposition
 
 - HA-D1 PR #434 remains DRAFT at `7b5b0dd3d0bd35a22fd90293f9e7ef6674ba4a27`; T1 run `36780671722` is fully SUCCESS (Focused .NET, focused Chromium, HA two-process, web build, Common, final T1). It is in the temporary integration candidate but not merged to `wave15/corrections-integration`.
-- Installation UX PR #436 remains DRAFT at `2f0121a1956dae5a0ac7b268ba83f9c6672c2d7c`; exact-head T1 run `36784595152` is in progress. Earlier runs exposed the recovery-authority defect now fixed on the candidate; wait for this exact-head run before disposition.
+- Installation UX PR #436 remains DRAFT at `2f0121a1956dae5a0ac7b268ba83f9c6672c2d7c`; exact-head T1 run `36784595152` is fully SUCCESS (71/71 Chromium). Recovery-authority version rebind and active Runtime restoration are covered.
 - Built-in Dynamo PR #441 is already integrated in base `af24924...`.
 - Help closeout PR #439 remains open/mergeable at `715676ada46a178c7edd34fc2f964c954382e8a9`; T1 run `36758570399` is SUCCESS. It is a separate ready candidate, not included in this editor recovery branch.
 - PR #418 is CONFLICTING; PR #362 remains a separate preview harness review and is not authorized by this handoff for merge.
 
 ## Next coordinator actions
 
-1. Wait for Installation UX T1 `36784595152`; inspect its exact job/step result before disposition.
-2. Once #434 and #436 are both exact-head T1 green, merge the validated candidates into a single current-base PR or merge sequentially, then run the final broad gate once.
-3. The prior broad E2E took 31.5 minutes and had 23 failures/6 not run; don't rerun until focused profile gates are clean and remaining failures are classified.
+1. #434 and #436 exact-head T1s are green. Finalize the candidate's focused E2E evidence for the localized selectors and 24-hour Historian fixture window, then open a single current-base integration PR.
+2. Run the broad gate once on that exact candidate. The previous broad E2E took 31.5 minutes and had 23 failures/6 not run; do not claim green until the rerun is fully green and report/artifacts reviewed.
+3. Only after the exact-base candidate CI is green should the validated changes be merged into `wave15/corrections-integration` and post-merge evidence captured.
 4. Do not hand off to a new coordinator until HA-D1, Installation UX, Dynamo baseline, Engineering/API candidate, and final broad CI evidence are recorded in GitHub.
 
 ---

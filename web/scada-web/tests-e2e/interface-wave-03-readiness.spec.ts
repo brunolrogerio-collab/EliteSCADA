@@ -97,7 +97,13 @@ test('Wave 03 readiness: Runtime stays operational while TAG/history diagnostics
   const historyTag = tags.find(tag => tag.path === 'Demo.P01.Frequency');
   expect(historyTag).toBeTruthy();
   expect(historyTag!.readOnly).toBeFalsy();
-  const historyResponse = await request.get(`/api/history/${historyTag!.id}?limit=5`);
+  // The explicit Historian sample is seeded by the Chromium prerequisite near
+  // suite startup. Broad E2E can reach this read-only check more than 15 minutes
+  // later, so bound the query explicitly without changing product defaults.
+  const historyFrom = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const historyTo = new Date().toISOString();
+  const historyResponse = await request.get(
+    `/api/history/${historyTag!.id}?from=${encodeURIComponent(historyFrom)}&to=${encodeURIComponent(historyTo)}&limit=5`);
   expect(historyResponse.ok()).toBeTruthy();
   const history = await historyResponse.json() as Array<{ timestamp: string; quality: unknown }>;
   expect(Array.isArray(history)).toBeTruthy();

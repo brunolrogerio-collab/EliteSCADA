@@ -57,7 +57,7 @@ test('primary shell keeps authorized application navigation coherent without Eng
 
   await page.goto('/engineering');
   navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
-  await expect(navigation.getByRole('link', { name: /Engineering/ })).toHaveAttribute('aria-current', 'page');
+  await expect(navigation.getByRole('link', { name: 'Engenharia' })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByText(/Gerenciamento do projeto|Project Management/, { exact: true })).toBeVisible();
   await expectCssToken(page.locator('.eng-shell'), 'background-color', '--app-bg');
   await expect(page.getByTestId('engineering-context-row')).toBeVisible();
@@ -99,6 +99,7 @@ test('shell uses shared locale, updates live from Engineering selector, and pres
   await page.goto('/engineering');
 
   const navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
+  await expect(navigation.getByRole('link', { name: 'Engineering' })).toBeVisible();
   await expect(navigation.getByRole('link', { name: /Audit/ })).toBeVisible();
   await expect(navigation.getByRole('link', { name: /Licensing/ })).toBeVisible();
   await expect(page.getByText('Industrial platform', { exact: true })).toBeVisible();
@@ -111,12 +112,14 @@ test('shell uses shared locale, updates live from Engineering selector, and pres
   const locale = page.locator('#engineering-locale');
   await locale.selectOption('es');
   await expect(page.getByText('Plataforma industrial', { exact: true })).toBeVisible();
+  await expect(navigation.getByRole('link', { name: 'Ingeniería' })).toBeVisible();
   await expect(navigation.getByRole('link', { name: /Auditoría/ })).toBeVisible();
   await expect(navigation.getByRole('link', { name: /Licenciamiento/ })).toBeVisible();
   await expect(page.getByRole('combobox', { name: 'Tema' })).toHaveValue('dark');
 
   await locale.selectOption('pt-BR');
   await expect(page.getByText('Plataforma industrial', { exact: true })).toBeVisible();
+  await expect(navigation.getByRole('link', { name: 'Engenharia' })).toBeVisible();
   await expect(navigation.getByRole('link', { name: /Auditoria/ })).toBeVisible();
   await expect(navigation.getByRole('link', { name: /Licenciamento/ })).toBeVisible();
 });

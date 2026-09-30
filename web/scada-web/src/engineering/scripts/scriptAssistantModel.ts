@@ -25,11 +25,15 @@ import type {
 export type ScriptAssistantSnippetKind =
   | 'tag-read'
   | 'tag-write'
+  | 'tag-toggle'
   | 'client-memory-read'
   | 'client-memory-write'
+  | 'client-memory-toggle'
   | 'visual-property-read'
   | 'visual-property-write'
   | 'visual-property-clear'
+  | 'visual-show'
+  | 'visual-hide'
   | 'visual-tween';
 
 export type ScriptAssistantSnippet = Readonly<{
@@ -261,6 +265,16 @@ function buildTag(
       : disabledSnippet('tag-write', `TAG data type '${tag.dataType}' has no safe scalar write sample.`));
   }
 
+  if (!canonicalReference) {
+    snippets.push(disabledSnippet('tag-toggle', 'TAG has no stable canonical identity.'));
+  } else if (tag.readOnly) {
+    snippets.push(disabledSnippet('tag-toggle', 'TAG is read-only.'));
+  } else if (isBooleanDataType(tag.dataType)) {
+    snippets.push(enabledSnippet('tag-toggle', tagToggleCode(canonicalReference)));
+  } else {
+    snippets.push(disabledSnippet('tag-toggle', 'Toggle is available only for writable Boolean TAGs.'));
+  }
+
   return Object.freeze({
     kind: 'tag',
     id,
@@ -389,6 +403,10 @@ function buildVisualProperty(
       ? disabledSnippet('visual-property-write', 'Property default cannot be represented as a safe Python scalar.')
       : enabledSnippet('visual-property-write', visualWriteCode(canonicalReference!, definition.key, literal)));
     snippets.push(enabledSnippet('visual-property-clear', visualClearCode(canonicalReference!, definition.key)));
+    if (definition.key === 'visible' && definition.type === 'boolean') {
+      snippets.push(enabledSnippet('visual-show', visualWriteCode(canonicalReference!, definition.key, 'True')));
+      snippets.push(enabledSnippet('visual-hide', visualWriteCode(canonicalReference!, definition.key, 'False')));
+    }
   } else {
     snippets.push(disabledSnippet('visual-property-write', 'Property is not runtime-script-writable.'));
     snippets.push(disabledSnippet('visual-property-clear', 'Property is not runtime-script-writable.'));
@@ -541,6 +559,14 @@ function buildClientMemory(
       : disabledSnippet('client-memory-write', `Client Memory data type '${tag.dataType}' has no safe sample.`));
   }
 
+  if (tag.readOnly) {
+    snippets.push(disabledSnippet('client-memory-toggle', 'Client Memory entry is read-only.'));
+  } else if (isBooleanDataType(tag.dataType)) {
+    snippets.push(enabledSnippet('client-memory-toggle', clientMemoryToggleCode(reference)));
+  } else {
+    snippets.push(disabledSnippet('client-memory-toggle', 'Toggle is available only for writable Boolean Client Memory.'));
+  }
+
   return Object.freeze({
     kind: 'client-memory',
     id: tag.id,
@@ -592,12 +618,28 @@ function tagWriteCode(reference: string, literal: string): string {
   return `from elite_scada import tag_write\nawait tag_write(${pythonString(reference)}, ${literal})`;
 }
 
+function tagToggleCode(reference: string): string {
+  return [
+    'from elite_scada import tag_read, tag_write',
+    `_current = await tag_read(${pythonString(reference)})`,
+    `await tag_write(${pythonString(reference)}, not bool(_current))`
+  ].join('\n');
+}
+
 function clientMemoryReadCode(reference: string): string {
   return `from elite_scada import client_memory_read\nvalue = await client_memory_read(${pythonString(reference)})`;
 }
 
 function clientMemoryWriteCode(reference: string, literal: string): string {
   return `from elite_scada import client_memory_write\nawait client_memory_write(${pythonString(reference)}, ${literal})`;
+}
+
+function clientMemoryToggleCode(reference: string): string {
+  return [
+    'from elite_scada import client_memory_read, client_memory_write',
+    `_current = await client_memory_read(${pythonString(reference)})`,
+    `await client_memory_write(${pythonString(reference)}, not bool(_current))`
+  ].join('\n');
 }
 
 function visualReadCode(reference: string, propertyKey: string): string {
@@ -633,6 +675,11 @@ function pythonLiteral(value: VisualPropertyValue): string | null {
   if (typeof value === 'number' && Number.isFinite(value)) return String(value);
   if (typeof value === 'string') return pythonString(value);
   return null;
+}
+
+function isBooleanDataType(dataType: string): boolean {
+  const normalized = dataType.trim().toLocaleLowerCase('en-US');
+  return normalized === 'boolean' || normalized === 'bool';
 }
 
 function samplePythonValueForDataType(dataType: string): { supported: true; literal: string } | { supported: false; literal: '' } {

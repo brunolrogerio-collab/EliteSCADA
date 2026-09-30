@@ -134,7 +134,7 @@ public static partial class StaticSvgInspector
             Encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)
         }))
         {
-            document.Root.Save(writer, SaveOptions.DisableFormatting);
+            document.Root.Save(writer);
         }
 
         var canonical = Encoding.UTF8.GetBytes(builder.ToString());

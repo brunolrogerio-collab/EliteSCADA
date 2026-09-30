@@ -64,7 +64,7 @@ export const TagDuplicationPanel = forwardRef<TagDuplicationPanelHandle, Props>(
   selectionMode,
   onToggleSelectionMode
 }, ref) {
-  const text = useMemo(() => duplicationText(locale), [locale]);
+  const text = useMemo(() => tagDuplicationText(locale), [locale]);
   const [clipboard, setClipboard] = useState<TagDuplicationDraft[]>([]);
   const [generated, setGenerated] = useState<TagDuplicationDraft[]>([]);
   const [generationKind, setGenerationKind] = useState<GenerationKind>('duplicate');
@@ -464,7 +464,7 @@ function errorMessage(reason: unknown): string {
   return reason instanceof Error ? reason.message : String(reason);
 }
 
-function duplicationText(locale: EngineeringLocale) {
+export function tagDuplicationText(locale: EngineeringLocale) {
   if (locale === 'en') return {
     eyebrow: 'TAG productivity', title: 'Copy, duplicate and generate', description: 'Prepare new TAG drafts, inspect every generated identity/address, then Preview and Apply through the canonical Workspace flow.',
     selected: 'Selected', selectMultiple: 'Select multiple', finishSelection: 'Finish selection', toolbarLabel: 'TAG copy and duplicate actions',

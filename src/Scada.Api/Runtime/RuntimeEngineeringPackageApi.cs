@@ -294,7 +294,8 @@ public static class RuntimeEngineeringPackageApi
         dynamos = ArrayProperty(root, "dynamos"),
         scripts = ArrayProperty(root, "scripts"),
         scriptVisualEventReferences = ArrayProperty(root, "scriptVisualEventReferences"),
-        visualAssets = ArrayProperty(root, "visualAssets")
+        visualAssets = ArrayProperty(root, "visualAssets"),
+        branding = OptionalObjectProperty(root, "branding")
     };
 
     private static string RequiredString(JsonElement root, string name)
@@ -315,6 +316,15 @@ public static class RuntimeEngineeringPackageApi
         root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
             ? value.GetString()
             : null;
+
+    private static JsonElement? OptionalObjectProperty(JsonElement root, string name)
+    {
+        if (!root.TryGetProperty(name, out var value) || value.ValueKind == JsonValueKind.Null)
+            return null;
+        if (value.ValueKind != JsonValueKind.Object)
+            throw new InvalidDataException($"Active Engineering payload property '{name}' must be an object when present.");
+        return value.Clone();
+    }
 
     private static JsonElement ArrayProperty(JsonElement root, string name)
     {

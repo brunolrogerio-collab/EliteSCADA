@@ -717,7 +717,8 @@ public sealed record RuntimeSessionLeaseContinuityEnvelope(
     RuntimeHaRuntimeIdentity Runtime,
     long Generation,
     long AuthorityRevision,
-    DateTimeOffset ReplicatedAtUtc);
+    DateTimeOffset ReplicatedAtUtc,
+    DateTimeOffset? RuntimeActivatedAtUtc = null);
 
 public sealed record RuntimeSessionContinuityResumeResult(
     bool Resumable,
@@ -774,7 +775,8 @@ public sealed partial class RuntimeSessionLeaseContinuityRegistry
                 lease.RuntimeRevision),
             lease.Generation,
             lease.AuthorityRevision,
-            now);
+            now,
+            lease.RuntimeActivatedAtUtc);
 
         lock (_gate)
         {

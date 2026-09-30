@@ -198,9 +198,24 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  ha-two-process:
+    name: HA two-process evidence
+    needs: classify
+    if: contains(needs.classify.outputs.effective_profiles, 'HA_DISTRIBUTED')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - run: dotnet restore src/Scada.Api/Scada.Api.csproj
+      - run: dotnet build src/Scada.Api/Scada.Api.csproj --no-restore --configuration Release
+      - name: Run real two-process HA evidence
+        run: python3 scripts/ci/ha_d1_two_process_evidence.py
+
   t1-gate:
     name: Wave 15 T1 gate
-    needs: [classify, common-sanity, web-semantic, dotnet-focused, chromium-focused]
+    needs: [classify, common-sanity, web-semantic, dotnet-focused, chromium-focused, ha-two-process]
     if: always()
     runs-on: ubuntu-latest
     env:
@@ -209,10 +224,12 @@ jobs:
       WEB: ${{ needs.web-semantic.result }}
       DOTNET: ${{ needs.dotnet-focused.result }}
       E2E: ${{ needs.chromium-focused.result }}
+      HA_TWO_PROCESS: ${{ needs.ha-two-process.result }}
       EXEMPT: ${{ needs.classify.outputs.coordination_exempt }}
       NEED_WEB: ${{ needs.classify.outputs.run_web }}
       NEED_DOTNET: ${{ needs.classify.outputs.run_dotnet }}
       NEED_E2E: ${{ needs.classify.outputs.run_e2e }}
+      NEED_HA_TWO_PROCESS: ${{ contains(needs.classify.outputs.effective_profiles, 'HA_DISTRIBUTED') }}
       PROFILES: ${{ needs.classify.outputs.effective_profiles }}
       DRIVER_GATE: ${{ needs.classify.outputs.driver_gate }}
     steps:
@@ -225,10 +242,11 @@ jobs:
           if [ "$NEED_WEB" = true ]; then test "$WEB" = success; fi
           if [ "$NEED_DOTNET" = true ]; then test "$DOTNET" = success; fi
           if [ "$NEED_E2E" = true ]; then test "$E2E" = success; fi
+          if [ "$NEED_HA_TWO_PROCESS" = true ]; then test "$HA_TWO_PROCESS" = success; fi
           {
             echo '## Wave 15 T1 gate';
             echo "Effective profiles: \`$PROFILES\`";
-            echo "Web: $WEB; .NET: $DOTNET; Chromium: $E2E";
+            echo "Web: $WEB; .NET: $DOTNET; Chromium: $E2E; HA two-process: $HA_TWO_PROCESS";
             echo "Driver/Seven-Driver/Interop: $DRIVER_GATE (specialized heavy gates are not claimed PASS by T1).";
             echo 'Universal integrated/main gate: REQUIRED NOW only for push checkpoint or main PR; otherwise UNCHANGED/TRUSTED.';
           } >> "$GITHUB_STEP_SUMMARY"

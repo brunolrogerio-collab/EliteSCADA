@@ -48,6 +48,20 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
                 is_active boolean NOT NULL DEFAULT true,
                 authority_revision bigint NOT NULL DEFAULT 1 CHECK (authority_revision > 0),
                 CHECK (expires_at_utc >= last_heartbeat_utc));
+            CREATE TABLE IF NOT EXISTS elitescada.runtime_session_lease_tombstones (
+                cluster_id text NOT NULL,
+                subject_id text NOT NULL,
+                client_instance_id varchar(128) NOT NULL,
+                session_id uuid NOT NULL,
+                generation bigint NOT NULL CHECK (generation > 0),
+                authority_revision bigint NOT NULL CHECK (authority_revision > 0),
+                issued_at_utc timestamptz NOT NULL,
+                source_node text NOT NULL,
+                recorded_at_utc timestamptz NOT NULL,
+                reason_code text NOT NULL,
+                PRIMARY KEY (cluster_id, subject_id, client_instance_id));
+            CREATE INDEX IF NOT EXISTS ix_runtime_session_lease_tombstones_session
+                ON elitescada.runtime_session_lease_tombstones (session_id);
             CREATE TABLE IF NOT EXISTS elitescada.runtime_session_authority_state (
                 singleton_id smallint PRIMARY KEY CHECK (singleton_id = 1),
                 authority_revision bigint NOT NULL CHECK (authority_revision > 0),
@@ -100,6 +114,9 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
             ON CONFLICT (migration_key) DO NOTHING;
             INSERT INTO elitescada.schema_migrations (migration_key)
             VALUES ('024_runtime_session_authority_transition_base_v1')
+            ON CONFLICT (migration_key) DO NOTHING;
+            INSERT INTO elitescada.schema_migrations (migration_key)
+            VALUES ('025_runtime_session_replication_adoption_v1')
             ON CONFLICT (migration_key) DO NOTHING;
             """;
 
@@ -383,6 +400,250 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
             if (await complete.ExecuteNonQueryAsync(cancellationToken) != 1)
                 throw new InvalidOperationException("Runtime authority transition changed before completion.");
             await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await RollbackQuietlyAsync(transaction);
+            throw;
+        }
+    }
+
+    public async Task<RuntimeSessionReplicationMutationResult> AdoptReplicatedAsync(
+        RuntimeSessionLeaseState lease,
+        string expectedClusterId,
+        string expectedSourceNode,
+        RuntimeSessionRuntimeIdentity expectedRuntime,
+        long expectedAuthorityRevision,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(lease);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedClusterId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedSourceNode);
+        ArgumentNullException.ThrowIfNull(expectedRuntime);
+
+        var normalized = NormalizeReplicatedLease(lease);
+        var validationFailure = ValidateReplicatedLease(
+            normalized,
+            expectedClusterId,
+            expectedSourceNode,
+            expectedRuntime,
+            DateTimeOffset.UtcNow);
+        if (validationFailure is not null)
+            return RuntimeSessionReplicationMutationResult.Reject(validationFailure);
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            await AcquireLeaseMutationLockAsync(connection, transaction, cancellationToken);
+            var authority = await LoadAuthorityStateForUpdateAsync(connection, transaction, cancellationToken);
+            if (authority.TransitionPending)
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return RuntimeSessionReplicationMutationResult.Reject("authority-transition-pending");
+            }
+            if (authority.AuthorityRevision != expectedAuthorityRevision ||
+                normalized.AuthorityRevision != expectedAuthorityRevision)
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return RuntimeSessionReplicationMutationResult.Reject("authority-revision-changed");
+            }
+
+            var tombstone = await LoadReplicationTombstoneAsync(
+                connection,
+                transaction,
+                normalized.ClusterId!,
+                normalized.SubjectId,
+                normalized.ClientInstanceId,
+                cancellationToken);
+            if (tombstone is not null)
+            {
+                if (tombstone.SessionId == normalized.SessionId)
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                    return RuntimeSessionReplicationMutationResult.Reject("session-resurrection-rejected");
+                }
+                if (normalized.IssuedAtUtc <= tombstone.IssuedAtUtc)
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                    return RuntimeSessionReplicationMutationResult.Reject("replicated-session-older-than-tombstone");
+                }
+            }
+
+            var sameSession = await LoadByIdForUpdateAsync(
+                connection,
+                transaction,
+                normalized.SessionId,
+                cancellationToken);
+            if (sameSession is not null)
+            {
+                if (!sameSession.IsActive)
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                    return RuntimeSessionReplicationMutationResult.Reject("session-resurrection-rejected");
+                }
+                if (!ReplicatedIdentityMatches(sameSession, normalized))
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                    return RuntimeSessionReplicationMutationResult.Reject("replicated-session-conflict");
+                }
+                if (normalized.Generation < sameSession.Generation)
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                    return RuntimeSessionReplicationMutationResult.Reject("replicated-session-stale-generation");
+                }
+                if (normalized.Generation == sameSession.Generation &&
+                    normalized.LastHeartbeatUtc <= sameSession.LastHeartbeatUtc &&
+                    normalized.ExpiresAtUtc <= sameSession.ExpiresAtUtc)
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                    return RuntimeSessionReplicationMutationResult.Accept(
+                        "replicated-session-already-current",
+                        sameSession);
+                }
+
+                if (!await UpdateAdoptedAsync(
+                        connection,
+                        transaction,
+                        normalized,
+                        sameSession.Generation,
+                        cancellationToken))
+                {
+                    throw new InvalidOperationException(
+                        "Replicated Runtime session changed during adoption.");
+                }
+
+                await transaction.CommitAsync(cancellationToken);
+                return RuntimeSessionReplicationMutationResult.Accept(
+                    "replicated-session-updated",
+                    normalized);
+            }
+
+            var logicalConflict = await LoadActiveByIdentityAsync(
+                connection,
+                transaction,
+                normalized.SubjectId,
+                normalized.ClientInstanceId,
+                cancellationToken);
+            if (logicalConflict is not null)
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return RuntimeSessionReplicationMutationResult.Reject(
+                    "replicated-logical-session-conflict");
+            }
+
+            await InsertAsync(
+                connection,
+                transaction,
+                normalized,
+                normalized.ExpiresAtUtc - normalized.LastHeartbeatUtc,
+                cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return RuntimeSessionReplicationMutationResult.Accept(
+                "replicated-session-adopted",
+                normalized);
+        }
+        catch
+        {
+            await RollbackQuietlyAsync(transaction);
+            throw;
+        }
+    }
+
+    public async Task<RuntimeSessionReplicationMutationResult> ApplyReplicatedTombstoneAsync(
+        RuntimeSessionLeaseTombstoneState tombstone,
+        string expectedClusterId,
+        string expectedSourceNode,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(tombstone);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedClusterId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedSourceNode);
+
+        var normalized = NormalizeReplicatedTombstone(tombstone);
+        var validationFailure = ValidateReplicatedTombstone(
+            normalized,
+            expectedClusterId,
+            expectedSourceNode);
+        if (validationFailure is not null)
+            return RuntimeSessionReplicationMutationResult.Reject(validationFailure);
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            await AcquireLeaseMutationLockAsync(connection, transaction, cancellationToken);
+            var authority = await LoadAuthorityStateForUpdateAsync(connection, transaction, cancellationToken);
+            if (authority.TransitionPending)
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return RuntimeSessionReplicationMutationResult.Reject("authority-transition-pending");
+            }
+            if (normalized.AuthorityRevision > authority.AuthorityRevision)
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return RuntimeSessionReplicationMutationResult.Reject("authority-revision-changed");
+            }
+
+            var current = await LoadReplicationTombstoneAsync(
+                connection,
+                transaction,
+                normalized.ClusterId,
+                normalized.SubjectId,
+                normalized.ClientInstanceId,
+                cancellationToken);
+            if (current is not null &&
+                (normalized.AuthorityRevision < current.AuthorityRevision ||
+                 (normalized.AuthorityRevision == current.AuthorityRevision &&
+                  normalized.Generation < current.Generation) ||
+                 (normalized.AuthorityRevision == current.AuthorityRevision &&
+                  normalized.Generation == current.Generation &&
+                  normalized.RecordedAtUtc <= current.RecordedAtUtc)))
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return RuntimeSessionReplicationMutationResult.Accept(
+                    "replicated-tombstone-already-current");
+            }
+
+            var lease = await LoadByIdForUpdateAsync(
+                connection,
+                transaction,
+                normalized.SessionId,
+                cancellationToken);
+            if (lease is { IsActive: true })
+            {
+                if (lease.AuthorityRevision > normalized.AuthorityRevision ||
+                    lease.Generation > normalized.Generation)
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                    return RuntimeSessionReplicationMutationResult.Reject(
+                        "replicated-tombstone-stale");
+                }
+
+                var terminalGeneration = Math.Max(
+                    checked(lease.Generation + 1),
+                    normalized.Generation);
+                if (!await DeactivateForTombstoneAsync(
+                        connection,
+                        transaction,
+                        lease.SessionId,
+                        lease.Generation,
+                        terminalGeneration,
+                        cancellationToken))
+                {
+                    throw new InvalidOperationException(
+                        "Runtime session changed while applying replicated tombstone.");
+                }
+            }
+
+            await UpsertReplicationTombstoneAsync(
+                connection,
+                transaction,
+                normalized,
+                cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return RuntimeSessionReplicationMutationResult.Accept(
+                "replicated-tombstone-applied");
         }
         catch
         {
@@ -874,6 +1135,79 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         return await reader.ReadAsync(cancellationToken) ? Read(reader) : null;
     }
 
+    private static async Task<RuntimeSessionLeaseTombstoneState?> LoadReplicationTombstoneAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string clusterId,
+        string subjectId,
+        string clientInstanceId,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT cluster_id, subject_id, client_instance_id, session_id, generation,
+                   authority_revision, issued_at_utc, source_node, recorded_at_utc, reason_code
+            FROM elitescada.runtime_session_lease_tombstones
+            WHERE cluster_id = @cluster_id
+              AND subject_id = @subject_id
+              AND client_instance_id = @client_instance_id
+            FOR UPDATE;
+            """;
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("cluster_id", clusterId);
+        command.Parameters.AddWithValue("subject_id", subjectId);
+        command.Parameters.AddWithValue("client_instance_id", clientInstanceId);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken)) return null;
+        return new RuntimeSessionLeaseTombstoneState(
+            reader.GetString(0),
+            reader.GetString(1),
+            reader.GetString(2),
+            reader.GetGuid(3),
+            reader.GetInt64(4),
+            reader.GetInt64(5),
+            reader.GetFieldValue<DateTimeOffset>(6),
+            reader.GetString(7),
+            reader.GetFieldValue<DateTimeOffset>(8),
+            reader.GetString(9));
+    }
+
+    private static async Task UpsertReplicationTombstoneAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        RuntimeSessionLeaseTombstoneState tombstone,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+            INSERT INTO elitescada.runtime_session_lease_tombstones (
+                cluster_id, subject_id, client_instance_id, session_id, generation,
+                authority_revision, issued_at_utc, source_node, recorded_at_utc, reason_code)
+            VALUES (
+                @cluster_id, @subject_id, @client_instance_id, @session_id, @generation,
+                @authority_revision, @issued_at_utc, @source_node, @recorded_at_utc, @reason_code)
+            ON CONFLICT (cluster_id, subject_id, client_instance_id)
+            DO UPDATE SET
+                session_id = EXCLUDED.session_id,
+                generation = EXCLUDED.generation,
+                authority_revision = EXCLUDED.authority_revision,
+                issued_at_utc = EXCLUDED.issued_at_utc,
+                source_node = EXCLUDED.source_node,
+                recorded_at_utc = EXCLUDED.recorded_at_utc,
+                reason_code = EXCLUDED.reason_code;
+            """;
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("cluster_id", tombstone.ClusterId);
+        command.Parameters.AddWithValue("subject_id", tombstone.SubjectId);
+        command.Parameters.AddWithValue("client_instance_id", tombstone.ClientInstanceId);
+        command.Parameters.AddWithValue("session_id", tombstone.SessionId);
+        command.Parameters.AddWithValue("generation", NpgsqlDbType.Bigint, tombstone.Generation);
+        command.Parameters.AddWithValue("authority_revision", NpgsqlDbType.Bigint, tombstone.AuthorityRevision);
+        command.Parameters.AddWithValue("issued_at_utc", NpgsqlDbType.TimestampTz, tombstone.IssuedAtUtc);
+        command.Parameters.AddWithValue("source_node", tombstone.SourceNode);
+        command.Parameters.AddWithValue("recorded_at_utc", NpgsqlDbType.TimestampTz, tombstone.RecordedAtUtc);
+        command.Parameters.AddWithValue("reason_code", tombstone.ReasonCode);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private static async Task InsertAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, RuntimeSessionLeaseState lease, TimeSpan duration, CancellationToken cancellationToken)
     {
         const string sql = """
@@ -890,6 +1224,31 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         BindLease(command, lease);
         command.Parameters.AddWithValue("lease_duration", NpgsqlDbType.Interval, duration);
         await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task<bool> UpdateAdoptedAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        RuntimeSessionLeaseState lease,
+        long expectedGeneration,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+            UPDATE elitescada.runtime_session_leases
+            SET generation = @generation,
+                last_heartbeat_utc = @last_heartbeat_utc,
+                expires_at_utc = @expires_at_utc
+            WHERE session_id = @session_id
+              AND is_active
+              AND generation = @expected_generation;
+            """;
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("generation", NpgsqlDbType.Bigint, lease.Generation);
+        command.Parameters.AddWithValue("last_heartbeat_utc", NpgsqlDbType.TimestampTz, lease.LastHeartbeatUtc);
+        command.Parameters.AddWithValue("expires_at_utc", NpgsqlDbType.TimestampTz, lease.ExpiresAtUtc);
+        command.Parameters.AddWithValue("session_id", lease.SessionId);
+        command.Parameters.AddWithValue("expected_generation", NpgsqlDbType.Bigint, expectedGeneration);
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
 
     private static async Task<bool> RenewAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, RuntimeSessionLeaseState lease, long expectedGeneration, CancellationToken cancellationToken)
@@ -933,6 +1292,26 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         await using var command = new NpgsqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("session_id", sessionId);
         command.Parameters.AddWithValue("expected_generation", NpgsqlDbType.Bigint, expectedGeneration);
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+    }
+
+    private static async Task<bool> DeactivateForTombstoneAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        Guid sessionId,
+        long expectedGeneration,
+        long terminalGeneration,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+            UPDATE elitescada.runtime_session_leases
+            SET is_active = false, generation = @terminal_generation
+            WHERE session_id = @session_id AND is_active AND generation = @expected_generation;
+            """;
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("session_id", sessionId);
+        command.Parameters.AddWithValue("expected_generation", NpgsqlDbType.Bigint, expectedGeneration);
+        command.Parameters.AddWithValue("terminal_generation", NpgsqlDbType.Bigint, terminalGeneration);
         return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
 
@@ -992,6 +1371,97 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         if (admission.LeaseDuration <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(admission), "Lease duration must be positive.");
     }
+
+    private static RuntimeSessionLeaseState NormalizeReplicatedLease(
+        RuntimeSessionLeaseState lease) =>
+        lease with
+        {
+            SubjectId = lease.SubjectId.Trim(),
+            ClientInstanceId = lease.ClientInstanceId.Trim(),
+            GrantedConnectionClass = IsViewOnlyConnectionClass(lease.GrantedConnectionClass)
+                ? "viewer"
+                : "interactive",
+            IssuedAtUtc = RuntimeDemoSessionAnchor.Normalize(lease.IssuedAtUtc),
+            LastHeartbeatUtc = RuntimeDemoSessionAnchor.Normalize(lease.LastHeartbeatUtc),
+            ExpiresAtUtc = RuntimeDemoSessionAnchor.Normalize(lease.ExpiresAtUtc),
+            Runtime = lease.Runtime.NormalizeStoragePrecision(),
+            ServerNode = NormalizeOptional(lease.ServerNode),
+            ClusterId = NormalizeOptional(lease.ClusterId),
+            IsActive = true
+        };
+
+    private static RuntimeSessionLeaseTombstoneState NormalizeReplicatedTombstone(
+        RuntimeSessionLeaseTombstoneState tombstone) =>
+        tombstone with
+        {
+            ClusterId = tombstone.ClusterId.Trim(),
+            SubjectId = tombstone.SubjectId.Trim(),
+            ClientInstanceId = tombstone.ClientInstanceId.Trim(),
+            SourceNode = tombstone.SourceNode.Trim(),
+            IssuedAtUtc = RuntimeDemoSessionAnchor.Normalize(tombstone.IssuedAtUtc),
+            RecordedAtUtc = RuntimeDemoSessionAnchor.Normalize(tombstone.RecordedAtUtc),
+            ReasonCode = tombstone.ReasonCode.Trim()
+        };
+
+    private static string? ValidateReplicatedLease(
+        RuntimeSessionLeaseState lease,
+        string expectedClusterId,
+        string expectedSourceNode,
+        RuntimeSessionRuntimeIdentity expectedRuntime,
+        DateTimeOffset now)
+    {
+        if (lease.SessionId == Guid.Empty) return "replicated-session-id-invalid";
+        if (string.IsNullOrWhiteSpace(lease.SubjectId)) return "replicated-session-subject-missing";
+        if (string.IsNullOrWhiteSpace(lease.ClientInstanceId) ||
+            lease.ClientInstanceId.Length > 128)
+            return "replicated-session-client-invalid";
+        if (lease.Generation < 1) return "replicated-session-generation-invalid";
+        if (lease.AuthorityRevision < 1) return "replicated-session-authority-revision-invalid";
+        if (lease.ExpiresAtUtc <= lease.LastHeartbeatUtc ||
+            lease.LastHeartbeatUtc < lease.IssuedAtUtc)
+            return "replicated-session-time-invalid";
+        if (lease.ExpiresAtUtc <= now) return "replicated-session-expired";
+        if (!string.Equals(lease.ClusterId, expectedClusterId.Trim(), StringComparison.OrdinalIgnoreCase))
+            return "replicated-session-cluster-mismatch";
+        if (!string.Equals(lease.ServerNode, expectedSourceNode.Trim(), StringComparison.OrdinalIgnoreCase))
+            return "replicated-session-source-mismatch";
+        if (!lease.Runtime.Matches(expectedRuntime))
+            return "replicated-session-runtime-mismatch";
+        return null;
+    }
+
+    private static string? ValidateReplicatedTombstone(
+        RuntimeSessionLeaseTombstoneState tombstone,
+        string expectedClusterId,
+        string expectedSourceNode)
+    {
+        if (tombstone.SessionId == Guid.Empty) return "replicated-tombstone-session-id-invalid";
+        if (string.IsNullOrWhiteSpace(tombstone.SubjectId) ||
+            string.IsNullOrWhiteSpace(tombstone.ClientInstanceId) ||
+            tombstone.ClientInstanceId.Length > 128)
+            return "replicated-tombstone-identity-invalid";
+        if (tombstone.Generation < 1 || tombstone.AuthorityRevision < 1)
+            return "replicated-tombstone-version-invalid";
+        if (string.IsNullOrWhiteSpace(tombstone.ReasonCode))
+            return "replicated-tombstone-reason-missing";
+        if (!tombstone.ClusterId.Equals(expectedClusterId.Trim(), StringComparison.OrdinalIgnoreCase))
+            return "replicated-tombstone-cluster-mismatch";
+        if (!tombstone.SourceNode.Equals(expectedSourceNode.Trim(), StringComparison.OrdinalIgnoreCase))
+            return "replicated-tombstone-source-mismatch";
+        return null;
+    }
+
+    private static bool ReplicatedIdentityMatches(
+        RuntimeSessionLeaseState left,
+        RuntimeSessionLeaseState right) =>
+        left.SubjectId.Equals(right.SubjectId, StringComparison.Ordinal) &&
+        left.ClientInstanceId.Equals(right.ClientInstanceId, StringComparison.Ordinal) &&
+        string.Equals(left.GrantedConnectionClass, right.GrantedConnectionClass, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(left.ServerNode, right.ServerNode, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(left.ClusterId, right.ClusterId, StringComparison.OrdinalIgnoreCase) &&
+        left.AuthorityRevision == right.AuthorityRevision &&
+        left.IssuedAtUtc == right.IssuedAtUtc &&
+        left.Runtime.Matches(right.Runtime);
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

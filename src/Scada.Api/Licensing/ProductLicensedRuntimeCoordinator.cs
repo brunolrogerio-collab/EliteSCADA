@@ -135,6 +135,69 @@ public sealed class ProductLicensedRuntimeCoordinator :
     public bool TryGetCommand(Guid commandId, out CommandDefinition? command) => Current.TryGetCommand(commandId, out command);
     public bool IsServerMemoryTag(Guid tagId) => Current.IsServerMemoryTag(tagId);
 
+    public EngineeringPackage? CaptureApplication() =>
+        Current is GatewayEngineeringRuntimeCoordinator gateway
+            ? gateway.CaptureApplication()
+            : null;
+
+    public async Task<RuntimeActivationResult> MaterializePassiveAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        DateTimeOffset? authoritativeActivatedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(projectKey))
+            throw new ArgumentException("Project key is required.", nameof(projectKey));
+        if (revision < 1)
+            throw new ArgumentOutOfRangeException(nameof(revision));
+        ArgumentNullException.ThrowIfNull(package);
+
+        await _activationGate.WaitAsync(cancellationToken);
+        try
+        {
+            ThrowIfDisposed();
+            if (ProcessEffectsFenced)
+            {
+                return DeniedActivation(
+                    projectKey.Trim(),
+                    revision,
+                    "Passive Runtime materialization is denied while installation detach is fenced.");
+            }
+
+            var decision = _entitlements.EvaluateRun(package.Tags.Count);
+            if (!decision.Allowed)
+            {
+                return DeniedActivation(
+                    projectKey.Trim(),
+                    revision,
+                    decision.Diagnostic ??
+                        "EliteSCADA product entitlement denied passive Runtime materialization.");
+            }
+
+            if (Current is not GatewayEngineeringRuntimeCoordinator gateway)
+            {
+                return DeniedActivation(
+                    projectKey.Trim(),
+                    revision,
+                    "Canonical Runtime does not expose passive materialization.");
+            }
+
+            // Passive Standby does not start Demo timers, release installation fences,
+            // or become a Product Run. It only reuses the canonical Runtime projection.
+            return await gateway.MaterializePassiveAsync(
+                projectKey,
+                revision,
+                package,
+                authoritativeActivatedAtUtc,
+                cancellationToken);
+        }
+        finally
+        {
+            _activationGate.Release();
+        }
+    }
+
     public IReadOnlyCollection<GatewayRouteRuntimeDiagnostic> GatewayDiagnostics() =>
         Current is IGatewayRuntimeDiagnosticsProvider diagnostics
             ? diagnostics.GatewayDiagnostics()

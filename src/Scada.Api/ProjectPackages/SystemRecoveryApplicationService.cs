@@ -68,6 +68,9 @@ public sealed class SystemRecoveryApplicationService(
     IConfiguration configuration,
     IEngineeringInstallationBindingStore? installationBinding = null)
 {
+    internal const string DeferredBootstrapAuthorityReferenceMismatchCode =
+        "SECURITY_AUTHORITY_POLICY_REFERENCE_MISMATCH";
+
     public async Task<SystemRecoveryApplicationPreview> PreviewAsync(
         ReadOnlyMemory<byte> packageBytes,
         LocalUserAccount? currentUser,
@@ -118,7 +121,10 @@ public sealed class SystemRecoveryApplicationService(
                 $"This runtime instance is bound to project '{applicationAuthority.ProjectKey ?? "none"}', " +
                 $"not package project '{inspection.Manifest.ProjectKey}'.");
         }
-        if (!preview.CanApply)
+        var deferCurrentAuthorityReferenceMismatch =
+            !requireCurrentUserAdmission &&
+            applicationAuthority.BindingState == EngineeringInstallationBindingState.Neutral;
+        if (HasBlockingImportPreviewErrors(preview, deferCurrentAuthorityReferenceMismatch))
             blockers.Add("The application package has blocking Engineering preview errors.");
         if (requireCurrentUserAdmission && currentAdmission?.Allowed != true)
             blockers.Add(currentAdmission?.Reason ?? "The current restored Authority identity is not admitted by the recovered application policy.");
@@ -358,6 +364,43 @@ public sealed class SystemRecoveryApplicationService(
             lifecycleAfterActivation,
             Array.Empty<string>());
     }
+
+    internal static bool HasBlockingImportPreviewErrors(
+        ImportPreview preview,
+        bool deferCurrentAuthorityReferenceMismatch)
+    {
+        if (preview.CanApply)
+            return false;
+
+        var errorItems = preview.Items
+            .Where(item => item.Operation == ImportOperation.Error)
+            .ToArray();
+        if (errorItems.Length == 0)
+            return true;
+
+        foreach (var item in errorItems)
+        {
+            var errors = item.Issues.Where(issue => issue.IsError).ToArray();
+            if (errors.Length == 0)
+                return true;
+
+            if (errors.Any(issue =>
+                    !deferCurrentAuthorityReferenceMismatch ||
+                    !IsDeferredBootstrapAuthorityReferenceMismatch(issue)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsDeferredBootstrapAuthorityReferenceMismatch(ImportIssue issue) =>
+        issue.Code.Equals(
+            DeferredBootstrapAuthorityReferenceMismatchCode,
+            StringComparison.Ordinal) &&
+        issue.EntityKind == ImportEntityKind.SecurityRole &&
+        issue.EntityKey.Equals("authority-policy", StringComparison.Ordinal);
 
     private async Task AbortAttachBeforeDurableCheckpointAsync(
         EngineeringInstallationBindingSnapshot? attachJournal)

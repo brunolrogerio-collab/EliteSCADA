@@ -61,6 +61,35 @@ public sealed class SystemRecoveryApplicationServiceTests
     }
 
     [Fact]
+    public void BootstrapPreview_DefersOnlyCurrentAuthorityReferenceMismatch()
+    {
+        var authorityMismatch = PreviewWithError(new ImportIssue(
+            SystemRecoveryApplicationService.DeferredBootstrapAuthorityReferenceMismatchCode,
+            "Current Authority does not yet match the recovery package.",
+            ImportEntityKind.SecurityRole,
+            "authority-policy",
+            IsError: true));
+
+        Assert.False(SystemRecoveryApplicationService.HasBlockingImportPreviewErrors(
+            authorityMismatch,
+            deferCurrentAuthorityReferenceMismatch: true));
+        Assert.True(SystemRecoveryApplicationService.HasBlockingImportPreviewErrors(
+            authorityMismatch,
+            deferCurrentAuthorityReferenceMismatch: false));
+
+        var unrelatedError = PreviewWithError(new ImportIssue(
+            "TAG_INVALID_FOR_RECOVERY",
+            "A non-Authority package error must remain blocking.",
+            ImportEntityKind.Tag,
+            "Plant.Invalid",
+            IsError: true));
+
+        Assert.True(SystemRecoveryApplicationService.HasBlockingImportPreviewErrors(
+            unrelatedError,
+            deferCurrentAuthorityReferenceMismatch: true));
+    }
+
+    [Fact]
     public async Task ApplyAsync_ReplacesWorkingSavesRootPublishesAndActivates()
     {
         using var workspace = new EngineeringWorkspace();
@@ -270,6 +299,21 @@ public sealed class SystemRecoveryApplicationServiceTests
         Assert.Equal(beforeDescriptor.BaseRevision, afterDescriptor.BaseRevision);
         Assert.Equal(beforeDescriptor.ChangeVersion, afterDescriptor.ChangeVersion);
     }
+
+    private static ImportPreview PreviewWithError(ImportIssue issue) =>
+        new(
+            ImportMode.CreateAndUpdate,
+            CreateCount: 0,
+            UpdateCount: 0,
+            SkipCount: 0,
+            ErrorCount: 1,
+            [
+                new ImportPreviewItem(
+                    issue.EntityKind,
+                    issue.EntityKey,
+                    ImportOperation.Error,
+                    [issue])
+            ]);
 
     private static SystemRecoveryApplicationService CreateService(
         IProjectPackageService packages,

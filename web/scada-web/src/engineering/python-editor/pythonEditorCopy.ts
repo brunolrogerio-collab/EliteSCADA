@@ -3,8 +3,16 @@ import type { EngineeringLocale } from '../i18n';
 export function pythonEditorCopy(locale: EngineeringLocale) {
   const copies = {
     'pt-BR': {
-      editorLabel: 'Editor Python',
+      editorLabel: 'Editor de código Python',
       diagnosticsReady: 'Diagnósticos conectados',
+      diagnosticsChecking: 'CHECKING · validando sintaxis…',
+      diagnosticsValid: 'VALID · sintaxis válida',
+      diagnosticsError: 'ERROR · error de sintaxis',
+      diagnosticsList: 'Diagnósticos de sintaxis con navegación por línea y columna',
+      diagnosticsChecking: 'CHECKING · verificando sintaxe…',
+      diagnosticsValid: 'VALID · sintaxe válida',
+      diagnosticsError: 'ERROR · erro de sintaxe',
+      diagnosticsList: 'Diagnósticos de sintaxe com navegação por linha e coluna',
       diagnosticsUnavailable: 'Diagnósticos de compilação ainda não conectados nesta composição. O Preview canônico continua obrigatório antes do Apply.',
       diagnosticsStale: 'A fonte mudou depois da última compilação. Os marcadores anteriores foram descartados até chegar um diagnóstico para este texto.',
       diagnosticsRejected: 'diagnóstico(s) inválido(s) ignorado(s)',
@@ -16,11 +24,15 @@ export function pythonEditorCopy(locale: EngineeringLocale) {
       apiHelpHint: 'Capacidades públicas estáveis do bridge. O nome final do módulo Python não é inventado pelo editor.',
       serverScopeHint: 'Scripts Server não usam a API Client Visual. Server Python permanece fora da Wave 06.',
       sourceAuthority: 'A fonte editada permanece no draft canônico e só entra no Working por Preview / Apply / CAS.',
-      editorUnavailable: 'O Monaco não pôde ser iniciado.'
+      editorUnavailable: 'O editor de código não pôde ser iniciado.'
     },
     en: {
-      editorLabel: 'Python Editor',
+      editorLabel: 'Python code editor',
       diagnosticsReady: 'Diagnostics connected',
+      diagnosticsChecking: 'CHECKING · validating syntax…',
+      diagnosticsValid: 'VALID · syntax is valid',
+      diagnosticsError: 'ERROR · syntax error',
+      diagnosticsList: 'Syntax diagnostics with line and column navigation',
       diagnosticsUnavailable: 'Compile diagnostics are not connected in this composition yet. Canonical Preview remains mandatory before Apply.',
       diagnosticsStale: 'Source changed after the last compile. Previous markers were discarded until diagnostics for this exact text arrive.',
       diagnosticsRejected: 'invalid diagnostic(s) ignored',
@@ -32,10 +44,10 @@ export function pythonEditorCopy(locale: EngineeringLocale) {
       apiHelpHint: 'Stable public bridge capabilities. The editor does not invent the final Python module name.',
       serverScopeHint: 'Server Scripts do not use the Client Visual API. Server Python remains outside Wave 06.',
       sourceAuthority: 'Edited source remains in the canonical draft and reaches Working only through Preview / Apply / CAS.',
-      editorUnavailable: 'Monaco could not be initialized.'
+      editorUnavailable: 'The code editor could not be initialized.'
     },
     es: {
-      editorLabel: 'Editor Python',
+      editorLabel: 'Editor de código Python',
       diagnosticsReady: 'Diagnósticos conectados',
       diagnosticsUnavailable: 'Los diagnósticos de compilación aún no están conectados en esta composición. El Preview canónico sigue siendo obligatorio antes de Apply.',
       diagnosticsStale: 'La fuente cambió después de la última compilación. Los marcadores anteriores se descartaron hasta recibir diagnósticos para este texto exacto.',

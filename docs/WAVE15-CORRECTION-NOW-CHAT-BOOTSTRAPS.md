@@ -1,3 +1,21 @@
+# LATEST R2-B CHAT RELEASE — J / L / N ACTIVE
+
+Release base:
+`wave15/corrections-integration@1d9e3f9123bea8e27c362ee680a4ba70f864becd`
+tree `512ef505924f3a0a709e8d5a73e2625531586e1c`.
+
+Gate evidence:
+EliteSCADA CI #1611 / `36655606469` = GLOBAL SUCCESS.
+
+Current chat states:
+- J = ACTIVE on `work/w15-r2-editor-ux`;
+- L = ACTIVE on `work/w15-r2-branding`;
+- N = ACTIVE on `work/w15-r2-eng-workflow-forms`.
+
+The previous WAIT_POST_PORTABILITY / WAIT_CI_1611 release override is superseded. Product Owner may send only `SIGA` in each existing J/L/N chat; detailed GitHub orders are already durable and authoritative.
+
+---
+
 # LATEST R2-B RELEASE OVERRIDE — 2026-09-30
 
 The prior J/L/N release is now **PARKED before execution** by Product Owner sequencing decision.

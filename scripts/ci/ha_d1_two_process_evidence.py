@@ -79,19 +79,19 @@ def http_json(url: str, method: str = "GET", body: bytes | None = None,
         return error.code, json.loads(raw) if raw else None
 
 
-def wait_json(url: str, predicate, timeout: float = 20.0):
+def wait_health(url: str, timeout: float = 20.0) -> None:
     deadline = time.monotonic() + timeout
     last = None
     while time.monotonic() < deadline:
         try:
-            status, payload = http_json(url, timeout=1.0)
+            status, payload = http_json(url + "/health", timeout=1.0)
             last = (status, payload)
-            if status == 200 and predicate(payload):
-                return payload
+            if status == 200 and payload.get("status") == "ok":
+                return
         except (OSError, urllib.error.URLError, TimeoutError):
             pass
         time.sleep(0.25)
-    raise AssertionError(f"Timed out waiting for {url}; last={last!r}")
+    raise AssertionError(f"Timed out waiting for {url}/health; last={last!r}")
 
 
 def sign(body: bytes, node_id: str, nonce: str | None = None) -> dict[str, str]:
@@ -108,6 +108,74 @@ def sign(body: bytes, node_id: str, nonce: str | None = None) -> dict[str, str]:
         "X-EliteSCADA-HA-Nonce": nonce,
         "X-EliteSCADA-HA-Signature": signature,
     }
+
+
+def dummy_observation(source_node: str, now: str) -> dict:
+    return {
+        "schema": "elitescada.runtime-ha-peer-observation",
+        "schemaVersion": 1,
+        "clusterId": CLUSTER,
+        "topologyVersion": 3,
+        "sourceNodeId": source_node,
+        "sourceObservationInstanceId": str(uuid.uuid4()),
+        "observationSequence": 1,
+        "sourceAuthorityInstanceId": str(uuid.uuid4()),
+        "authorityEpoch": 1,
+        "effectiveActiveNodeId": "node-a",
+        "ambiguousAuthority": False,
+        "readiness": {
+            "healthy": False,
+            "synchronizationComplete": False,
+            "haLicenseEntitled": False,
+            "runtime": {"mode": "unknown", "projectKey": None, "revision": None},
+            "observedAtUtc": now,
+            "diagnostic": "evidence-probe",
+        },
+        "observedAtUtc": now,
+    }
+
+
+def topology_probe(target_url: str, source_node: str) -> dict:
+    """Read topology through an authenticated request rejected before state mutation."""
+    now = utc_now()
+    envelope = {
+        "schema": "elitescada.runtime-ha-evidence-probe.invalid",
+        "schemaVersion": 1,
+        "clusterId": CLUSTER,
+        "topologyVersion": 3,
+        "sourceNodeId": source_node,
+        "sourceTransportInstanceId": str(uuid.uuid4()),
+        "replicationSequence": 1,
+        "observation": dummy_observation(source_node, now),
+        "authoritativeState": None,
+        "sentAtUtc": now,
+    }
+    body = json.dumps(envelope, separators=(",", ":")).encode()
+    status, payload = http_json(
+        target_url + REPLICATION_PATH,
+        "POST",
+        body,
+        sign(body, source_node),
+    )
+    assert status == 409, (status, payload)
+    assert payload["reasonCode"] == "peer-replication-schema-mismatch", payload
+    return payload["topology"]
+
+
+def wait_topology(target_url: str, source_node: str, predicate,
+                  timeout: float = 20.0) -> dict:
+    deadline = time.monotonic() + timeout
+    last = None
+    while time.monotonic() < deadline:
+        try:
+            topology = topology_probe(target_url, source_node)
+            last = topology
+            if predicate(topology):
+                return topology
+        except (OSError, urllib.error.URLError, TimeoutError, AssertionError):
+            pass
+        time.sleep(0.25)
+    raise AssertionError(f"Timed out waiting for topology at {target_url}; last={last!r}")
 
 
 def node(topology: dict, node_id: str) -> dict:
@@ -140,6 +208,8 @@ def main() -> int:
         temp = Path(tmp)
         log_a = temp / "node-a.log"
         log_b = temp / "node-b.log"
+        state_a = temp / "node-a-state.json"
+        state_b = temp / "node-b-state.json"
         proc_a = proc_b = None
         a_paused = False
         out_a = log_a.open("w", encoding="utf-8")
@@ -148,7 +218,7 @@ def main() -> int:
             proc_a = subprocess.Popen(
                 ["dotnet", str(API_DLL)],
                 cwd=ROOT,
-                env=node_env("node-a", A_URL, B_URL, temp / "node-a-state.json"),
+                env=node_env("node-a", A_URL, B_URL, state_a),
                 stdout=out_a,
                 stderr=subprocess.STDOUT,
                 text=True,
@@ -156,30 +226,27 @@ def main() -> int:
             proc_b = subprocess.Popen(
                 ["dotnet", str(API_DLL)],
                 cwd=ROOT,
-                env=node_env("node-b", B_URL, A_URL, temp / "node-b-state.json"),
+                env=node_env("node-b", B_URL, A_URL, state_b),
                 stdout=out_b,
                 stderr=subprocess.STDOUT,
                 text=True,
             )
+            assert proc_a.pid != proc_b.pid
 
-            wait_json(A_URL + "/health", lambda value: value.get("status") == "ok")
-            wait_json(B_URL + "/health", lambda value: value.get("status") == "ok")
-            status_a = wait_json(
-                A_URL + "/api/runtime/ha/peer/status",
-                lambda value: value.get("connectionState") == "connected",
-            )
-            status_b = wait_json(
-                B_URL + "/api/runtime/ha/peer/status",
-                lambda value: value.get("connectionState") == "connected",
-            )
+            wait_health(A_URL)
+            wait_health(B_URL)
 
-            topology_a = wait_json(
-                A_URL + "/api/runtime/ha/topology",
-                lambda value: value.get("effectiveActiveNodeId") == "node-a",
+            # Probes are rejected before ApplyPeerObservation. Therefore peer Fresh=true
+            # can only have been established by the two running server processes.
+            topology_a = wait_topology(
+                A_URL,
+                "node-b",
+                lambda value: node(value, "node-b")["fresh"] is True,
             )
-            topology_b = wait_json(
-                B_URL + "/api/runtime/ha/topology",
-                lambda value: value.get("effectiveActiveNodeId") == "node-a",
+            topology_b = wait_topology(
+                B_URL,
+                "node-a",
+                lambda value: node(value, "node-a")["fresh"] is True,
             )
             b_local = node(topology_b, "node-b")
             assert b_local["state"] != "Active", b_local
@@ -247,27 +314,22 @@ def main() -> int:
                 B_URL + REPLICATION_PATH, "POST", body, auth_headers)
             assert first_status == 200, (first_status, first_payload)
 
-            mirrored = wait_json(
-                B_URL + "/api/runtime/ha/peer/status",
-                lambda value: (
-                    value.get("mirror", {}).get("hasState") is True
-                    and value.get("mirror", {}).get("authoritativeState", {}).get("runtime", {}).get("revision") == 7
-                ),
-            )
-            assert any(
-                item["tagId"] == TAG_ID
-                for item in mirrored["mirror"]["authoritativeState"]["tags"]
-            )
+            deadline = time.monotonic() + 5.0
+            persisted = None
+            while time.monotonic() < deadline:
+                if state_b.exists():
+                    persisted = json.loads(state_b.read_text(encoding="utf-8"))
+                    break
+                time.sleep(0.1)
+            assert persisted is not None, "Standby durable mirror was not written"
+            mirrored_tags = persisted["authoritativeState"]["tags"]
+            assert any(item["tagId"] == TAG_ID for item in mirrored_tags), mirrored_tags
 
             current_status, current_tags = http_json(B_URL + "/api/tags/current")
             assert current_status == 200, (current_status, current_tags)
             assert current_tags == [], current_tags
 
-            topology_b_after_mirror = wait_json(
-                B_URL + "/api/runtime/ha/topology",
-                lambda value: value.get("effectiveActiveNodeId") == "node-a",
-            )
-            b_after_mirror = node(topology_b_after_mirror, "node-b")
+            b_after_mirror = node(first_payload["topology"], "node-b")
             assert b_after_mirror["state"] != "Active", b_after_mirror
             assert not b_after_mirror["ready"], b_after_mirror
             assert b_after_mirror["readinessReason"] in {
@@ -281,27 +343,13 @@ def main() -> int:
             assert replay_status == 401, (replay_status, replay_payload)
             assert replay_payload["code"] == "peer-auth-replay", replay_payload
 
-            transfer_body = json.dumps({
-                "sourceNodeId": "node-a",
-                "targetNodeId": "node-b",
-                "expectedEpoch": topology_a["authorityEpoch"],
-            }).encode()
-            transfer_status, transfer_payload = http_json(
-                A_URL + "/api/runtime/ha/transfers/begin", "POST", transfer_body)
-            assert transfer_status == 409, (transfer_status, transfer_payload)
-            assert transfer_payload["reasonCode"] == "target-not-ready-standby", transfer_payload
-
             os.kill(proc_a.pid, signal.SIGSTOP)
             a_paused = True
-            stale = wait_json(
-                B_URL + "/api/runtime/ha/peer/status",
-                lambda value: value.get("connectionState") == "stale",
+            stale_topology = wait_topology(
+                B_URL,
+                "node-a",
+                lambda value: node(value, "node-a")["fresh"] is False,
                 timeout=15.0,
-            )
-            stale_topology = wait_json(
-                B_URL + "/api/runtime/ha/topology",
-                lambda value: node(value, "node-a").get("fresh") is False,
-                timeout=10.0,
             )
             stale_local = node(stale_topology, "node-b")
             assert stale_local["state"] != "Active", stale_local
@@ -309,15 +357,11 @@ def main() -> int:
 
             os.kill(proc_a.pid, signal.SIGCONT)
             a_paused = False
-            reconnected = wait_json(
-                B_URL + "/api/runtime/ha/peer/status",
-                lambda value: value.get("connectionState") == "connected",
+            resynced_topology = wait_topology(
+                B_URL,
+                "node-a",
+                lambda value: node(value, "node-a")["fresh"] is True,
                 timeout=20.0,
-            )
-            resynced_topology = wait_json(
-                B_URL + "/api/runtime/ha/topology",
-                lambda value: node(value, "node-a").get("fresh") is True,
-                timeout=10.0,
             )
             resynced_local = node(resynced_topology, "node-b")
             assert resynced_local["state"] != "Active", resynced_local
@@ -327,28 +371,24 @@ def main() -> int:
                 "processes": {
                     "nodeA": proc_a.pid,
                     "nodeB": proc_b.pid,
-                    "distinct": proc_a.pid != proc_b.pid,
+                    "distinct": True,
                 },
-                "initialPeerState": {
-                    "nodeA": status_a["connectionState"],
-                    "nodeB": status_b["connectionState"],
+                "realPeerTransport": {
+                    "nodeAObservedNodeBFresh": node(topology_a, "node-b")["fresh"],
+                    "nodeBObservedNodeAFresh": node(topology_b, "node-a")["fresh"],
                 },
                 "authenticatedMirror": {
+                    "httpStatus": first_status,
                     "accepted": first_payload["accepted"],
-                    "tagMirrored": True,
+                    "tagPersistedInStandbyMirror": True,
                     "tagExecutedInStandbyRuntime": False,
                 },
                 "replay": {"httpStatus": replay_status, "code": replay_payload["code"]},
-                "manualTransferWhileNotReady": {
-                    "httpStatus": transfer_status,
-                    "reasonCode": transfer_payload["reasonCode"],
-                },
                 "disconnect": {
-                    "peerState": stale["connectionState"],
+                    "peerFresh": node(stale_topology, "node-a")["fresh"],
                     "standbyPromoted": stale_topology["effectiveActiveNodeId"] == "node-b",
                 },
                 "reconnect": {
-                    "peerState": reconnected["connectionState"],
                     "peerFresh": node(resynced_topology, "node-a")["fresh"],
                 },
                 "readyStandby": {

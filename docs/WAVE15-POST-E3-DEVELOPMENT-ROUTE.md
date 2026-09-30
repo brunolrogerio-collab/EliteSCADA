@@ -1,3 +1,19 @@
+> **PRODUCT OWNER SCOPE OVERRIDE — 2026-09-30**
+>
+> GitHub live remains authoritative. This override supersedes older wording below where it conflicts.
+>
+> - **EliteGO as a separate application/client is DEFERRED INDEFINITELY** and is not a Wave 15 or Wave 16 exit gate.
+> - **Redundancy / HA remains mandatory Wave 15 scope.** EliteGO would be only one future consumer; Web Runtime/current EliteSCADA and other future clients consume the same server-authoritative HA contracts.
+> - Wave 15 must finish the **EliteSCADA-side foundations needed by a future EliteGO**: public Runtime projection/rendering contracts, backend Authority/effective capabilities, client-neutral Runtime Session Lease/licensing, reconnect-safe identity, HA topology/effective-Active discovery, truthful freshness/reconnect semantics, topology-neutral package boundaries and no direct client Driver/database authority.
+> - Already integrated work must not be duplicated: Authority UX #346, Licensing UX/License Generator v2 #345, FND-05 HA authority/manual-transfer #347, FND-07 detach/neutral-bootstrap #348/#352/#353.
+> - Remaining original-W15 work no longer waits behind a blanket correction-phase barrier. After a green exact integrated base, disjoint packages may run in parallel with remaining R2 work.
+> - The next parallel batch should prioritize: R2-C historical/time-range, HA downstream, Installation UX, and remaining Visual Quality/Library maturity, subject to exact-base and file/contract overlap.
+> - Historical Playback follows Query/Time Range; M/copy+i18n follows stable structural/historical surfaces.
+> - **EEE Simulation instructional project and its real Modbus variant stay deliberately late**, finalized immediately before the last complete-product Preview so they exercise the final accepted product.
+> - Final Wave 15 acceptance still requires exact integrated validation, fresh final Preview and Product Owner audit.
+>
+> Canonical scope authorities: #297, #298, #299, #300, #305, #306.
+
 # LATEST COORDINATION DELTA — R2-B J/L/N RELEASED
 
 Portability #405 has been integrated. EliteSCADA CI #1611 / `36655606469` is globally GREEN on exact integration:

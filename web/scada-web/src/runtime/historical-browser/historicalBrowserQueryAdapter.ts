@@ -164,4 +164,3 @@ function historicalRowIdentity(cells: Readonly<Record<string, HistoricalQueryVal
   const timestamp = cells.timestamp?.value ?? 'no-time';
   return `${identity}:${timestamp}:${index}`;
 }
-

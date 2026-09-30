@@ -254,7 +254,7 @@ public sealed class PostgreSqlRuntimeSessionLeaseStoreTests
                         "interactive"),
                     capacity,
                     authority.AuthorityRevision));
-            Assert.True(resumed.IsAdmitted, resumed.ReasonCode);
+            Assert.True(resumed.IsAdmitted, resumed.ReasonCode.ToString());
             Assert.Equal(replicated.SessionId, resumed.Lease!.SessionId);
 
             var second = await store.AdmitWithCapacityAsync(

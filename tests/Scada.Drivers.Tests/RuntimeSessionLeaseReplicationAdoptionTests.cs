@@ -61,7 +61,7 @@ public sealed class RuntimeSessionLeaseReplicationAdoptionTests
                 capacity,
                 authority.AuthorityRevision));
 
-        Assert.True(resumed.IsAdmitted, resumed.ReasonCode);
+        Assert.True(resumed.IsAdmitted, resumed.ReasonCode.ToString());
         Assert.Equal(sessionId, resumed.Lease!.SessionId);
 
         var secondLogicalSession = await store.AdmitWithCapacityAsync(
@@ -215,7 +215,7 @@ public sealed class RuntimeSessionLeaseReplicationAdoptionTests
         var expired = await store.AdoptReplicatedAsync(
             lease with
             {
-                LastHeartbeatUtc = now.AddMinutes(-2),
+                LastHeartbeatUtc = now.AddSeconds(-30),
                 ExpiresAtUtc = now.AddSeconds(-1)
             },
             "cluster-a",

@@ -7,6 +7,14 @@ const workspaceSource = readFileSync(
   join(process.cwd(), 'src/engineering/visual-editor/PopupVisualEditorWorkspaceImpl.tsx'),
   'utf8'
 );
+const selectionInspectorSource = readFileSync(
+  join(process.cwd(), 'src/engineering/visual-editor/VisualEditorSelectionInspector.tsx'),
+  'utf8'
+);
+const authoringSidebarSource = readFileSync(
+  join(process.cwd(), 'src/engineering/visual-editor/VisualEditorAuthoringSidebar.tsx'),
+  'utf8'
+);
 
 test('Engineering Popups section routes to graphical authoring instead of read-only EntitySection', () => {
   expect(appSource).toContain("import { PopupVisualEditorWorkspace } from './visual-editor/PopupVisualEditorWorkspace';");
@@ -16,10 +24,12 @@ test('Engineering Popups section routes to graphical authoring instead of read-o
 
 test('Popup authoring reuses the canonical visual Canvas, inspectors, Dynamo library and Preview Apply lifecycle', () => {
   expect(workspaceSource).toContain('<VisualEditorCanvas');
-  expect(workspaceSource).toContain('<PropertyInspector');
-  expect(workspaceSource).toContain('<DynamicPropertyEditor');
-  expect(workspaceSource).toContain('<BindingEditor');
-  expect(workspaceSource).toContain('<DynamoLibraryPalette');
+  expect(workspaceSource).toContain('<VisualEditorSelectionInspector');
+  expect(selectionInspectorSource).toContain('<PropertyInspector');
+  expect(selectionInspectorSource).toContain('<DynamicPropertyEditor');
+  expect(selectionInspectorSource).toContain('<BindingEditor');
+  expect(workspaceSource).toContain('<VisualEditorAuthoringSidebar');
+  expect(authoringSidebarSource).toContain('<DynamoLibraryPalette');
   expect(workspaceSource).toContain('previewEngineeringPackage(nextPackage)');
   expect(workspaceSource).toContain('applyEngineeringPackage(candidate.package, candidate.changeVersion)');
 });

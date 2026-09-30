@@ -132,12 +132,12 @@ export type C04Text = Readonly<{
 
 const ptBR: C04Text = {
   tagSource: {
-    label: 'Data Source',
-    search: 'Pesquisar Data Sources configurados',
-    none: 'Sem Data Source',
-    legacy: 'Referência legada por chave. Preview/Apply migrará para a identidade estável do Source.',
+    label: 'Fonte de dados',
+    search: 'Pesquisar Fontes de dados configuradas',
+    none: 'Sem Fonte de dados',
+    legacy: 'Referência legada por chave. A pré-visualização/aplicação migrará para a identidade estável da fonte.',
     unresolved: 'Referência de Source inválida',
-    empty: 'Nenhum Data Source está configurado no projeto Working.'
+    empty: 'Nenhuma Fonte de dados está configurada na Área de trabalho.'
   },
   address: {
     address: 'Endereço',
@@ -151,7 +151,7 @@ const ptBR: C04Text = {
     area: 'Área de dados', reference: 'Referência', referenceBase: 'Base da referência', zeroBased: 'Offset base 0', oneBased: 'Referência base 1',
     unitId: 'Override de Unit ID', valueType: 'Tipo do valor', wordOrder: 'Ordem de words', scale: 'Escala', offset: 'Offset', bit: 'Índice do bit',
     auto: 'Inferir pelo TAG', defaultValue: 'Padrão do Driver', build: 'Usar endereço assistido', building: 'Montando...', canonical: 'Endereço canônico',
-    readOnlyWarning: 'Esta área Modbus é somente leitura. Marque o TAG como read-only antes do Preview/Apply.',
+    readOnlyWarning: 'Esta área Modbus é somente leitura. Marque o TAG como somente leitura antes da pré-visualização/aplicação.',
     integerRequired: 'valor inteiro obrigatório', integerInvalid: 'valor inteiro inválido', numberInvalid: 'valor numérico inválido'
   },
   generic: {
@@ -162,8 +162,8 @@ const ptBR: C04Text = {
     addressRequired: 'Informe um Endereço portátil antes de aplicar as configurações do binding.',
     schemaUnavailable: 'O schema backend de TAG binding não está disponível.',
     required: 'valor obrigatório', integer: 'inteiro inválido', number: 'número inválido', enumValue: 'valor não suportado',
-    protectedMaterial: 'material protegido pertence a secretReferences da Data Source',
-    protectedMaterialHint: 'Material protegido deve permanecer no limite secretReferences da Data Source.'
+    protectedMaterial: 'material protegido pertence às referências de segredo da Fonte de dados',
+    protectedMaterialHint: 'Material protegido deve permanecer nas referências protegidas da Fonte de dados.'
   },
   dnp3: {
     title: 'Assistente de endereço DNP3', help: 'Monta a identidade canônica do ponto DNP3 usada pelo Runtime. Variações avançadas e ajustes de comando permanecem no binding canônico.',
@@ -181,16 +181,16 @@ const ptBR: C04Text = {
     catalogMismatch: 'A opção selecionada não é mais permitida pelo catálogo IEC-104 atual.'
   },
   opcUa: {
-    title: 'Ferramentas OPC UA de Engineering', help: 'Teste a fonte configurada, descubra endpoints e navegue pelos nós sem alterar o Runtime. Os nós selecionados só viram TAGs por Preview/Apply.',
+    title: 'Ferramentas OPC UA de Engenharia', help: 'Teste a fonte configurada, descubra endpoints e navegue pelos nós sem alterar o Runtime. Os nós selecionados só viram TAGs após pré-visualização e aplicação.',
     test: 'Testar conexão', testing: 'Testando…', discover: 'Descobrir endpoints', discovering: 'Descobrindo…', browse: 'Navegar Objects', browsing: 'Navegando…',
     connectionOk: 'Teste de conexão concluído', connectionFailed: 'Teste de conexão falhou', objects: 'Objects', back: 'Voltar', nodes: 'nós',
     search: 'Pesquisar nós carregados', searchPlaceholder: 'Nome, NodeId ou endereço portátil', open: 'Abrir', useCurrent: 'Usar no TAG atual', loadMore: 'Carregar mais',
     bulkTitle: 'Criar TAGs dos nós selecionados', selected: 'selecionados', pathPrefix: 'Prefixo do path dos TAGs', preview: 'Pré-visualizar importação', previewing: 'Validando…',
-    apply: 'Aplicar importação', applying: 'Aplicando…', previewResult: 'Preview', create: 'criar', update: 'atualizar', errors: 'erros',
-    applyConfirm: 'Aplicar a importação OPC UA validada ao workspace de Engineering?',
-    stableIdRequired: 'Salve/aplique primeiro este Data Source para obter um Id estável antes de usar as ferramentas OPC UA.',
+    apply: 'Aplicar importação', applying: 'Aplicando…', previewResult: 'Pré-visualização', create: 'criar', update: 'atualizar', errors: 'erros',
+    applyConfirm: 'Aplicar a importação OPC UA validada à Área de trabalho de Engenharia?',
+    stableIdRequired: 'Salve/aplique primeiro esta Fonte de dados para obter um Id estável antes de usar as ferramentas OPC UA.',
     schemaMissing: 'O schema OPC UA autoritativo do backend não está disponível.', readWrite: 'leitura/escrita', readOnly: 'somente leitura', noAccess: 'sem leitura', unknownType: 'tipo desconhecido',
-    bulkStableIdRequired: 'A importação OPC UA exige um Id estável da Data Source.', bulkSchemaUnavailable: 'O schema de binding OPC UA não está disponível.',
+    bulkStableIdRequired: 'A importação OPC UA exige um Id estável da Fonte de dados.', bulkSchemaUnavailable: 'O schema de binding OPC UA não está disponível.',
     bulkSelectionRequired: 'Selecione ao menos uma variável navegável com endereço portátil.', pathPrefixRequired: 'Informe um prefixo de path para os TAGs.',
     uniquePathFailed: 'Não foi possível criar um path único para o TAG.'
   }
@@ -198,7 +198,7 @@ const ptBR: C04Text = {
 
 const en: C04Text = {
   tagSource: {
-    label: 'Data Source', search: 'Search configured Data Sources', none: 'No Data Source',
+    label: 'Fuente de datos', search: 'Search configured Data Sources', none: 'No Data Source',
     legacy: 'Legacy key reference. Preview/Apply will migrate it to stable Source identity.', unresolved: 'Invalid Source reference',
     empty: 'No Data Sources are configured in the Working project.'
   },
@@ -242,7 +242,7 @@ const en: C04Text = {
     connectionOk: 'Connection test succeeded', connectionFailed: 'Connection test failed', objects: 'Objects', back: 'Back', nodes: 'nodes', search: 'Search loaded nodes',
     searchPlaceholder: 'Name, NodeId or portable address', open: 'Open', useCurrent: 'Use for current TAG', loadMore: 'Load more',
     bulkTitle: 'Create TAGs from selected nodes', selected: 'selected', pathPrefix: 'TAG path prefix', preview: 'Preview import', previewing: 'Previewing…', apply: 'Apply import', applying: 'Applying…',
-    previewResult: 'Preview', create: 'create', update: 'update', errors: 'errors', applyConfirm: 'Apply the previewed OPC UA TAG import to the Engineering workspace?',
+    previewResult: 'Vista previa', create: 'create', update: 'update', errors: 'errors', applyConfirm: 'Apply the previewed OPC UA TAG import to the Engineering workspace?',
     stableIdRequired: 'Save/Apply this Data Source first so it has a stable Id before using OPC UA Engineering tools.', schemaMissing: 'The backend-authoritative OPC UA binding schema is unavailable.',
     readWrite: 'read/write', readOnly: 'read-only', noAccess: 'no read access', unknownType: 'unknown type',
     bulkStableIdRequired: 'OPC UA bulk import requires a stable Data Source Id.', bulkSchemaUnavailable: 'The OPC UA Driver binding schema is unavailable.',
@@ -253,9 +253,9 @@ const en: C04Text = {
 
 const es: C04Text = {
   tagSource: {
-    label: 'Data Source', search: 'Buscar Data Sources configurados', none: 'Sin Data Source',
-    legacy: 'Referencia heredada por clave. Preview/Apply la migrará a la identidad estable del Source.', unresolved: 'Referencia de Source inválida',
-    empty: 'No hay Data Sources configurados en el proyecto Working.'
+    label: 'Data Source', search: 'Buscar Fuentes de datos configuradas', none: 'Sin Fuente de datos',
+    legacy: 'Referencia heredada por clave. La vista previa/aplicación la migrará a la identidad estable de la fuente.', unresolved: 'Referencia de Source inválida',
+    empty: 'No hay Fuentes de datos configuradas en el Área de trabajo.'
   },
   address: {
     address: 'Dirección', manualHelp: 'Use el formato de dirección portátil requerido por el Driver seleccionado.',
@@ -267,14 +267,14 @@ const es: C04Text = {
     area: 'Área de datos', reference: 'Referencia', referenceBase: 'Base de referencia', zeroBased: 'Offset base 0', oneBased: 'Referencia base 1',
     unitId: 'Override Unit ID', valueType: 'Tipo de valor', wordOrder: 'Orden de palabras', scale: 'Escala', offset: 'Offset', bit: 'Índice de bit',
     auto: 'Inferir del TAG', defaultValue: 'Default del Driver', build: 'Usar dirección asistida', building: 'Construyendo...', canonical: 'Dirección canónica',
-    readOnlyWarning: 'Esta área Modbus es de solo lectura. Marque el TAG como read-only antes de Preview/Apply.',
+    readOnlyWarning: 'Esta área Modbus es de solo lectura. Marque el TAG como solo lectura antes de la vista previa/aplicación.',
     integerRequired: 'se requiere un valor entero', integerInvalid: 'valor entero inválido', numberInvalid: 'valor numérico inválido'
   },
   generic: {
     title: 'Configuración del binding del Driver', help: 'Los campos provienen del catálogo backend del Driver. La dirección portátil manual sigue siendo la identidad.',
     loading: 'Cargando schema de binding del Driver…', apply: 'Usar configuración de binding', addressRequired: 'Ingrese una dirección portátil antes de aplicar el binding.',
     schemaUnavailable: 'El schema backend de TAG binding no está disponible.', required: 'valor requerido', integer: 'entero inválido', number: 'número inválido', enumValue: 'valor no soportado',
-    protectedMaterial: 'el material protegido pertenece a secretReferences del Data Source', protectedMaterialHint: 'El material protegido debe permanecer en el límite secretReferences del Data Source.'
+    protectedMaterial: 'el material protegido pertenece a las referencias secretas de la Fuente de datos', protectedMaterialHint: 'El material protegido debe permanecer en las referencias protegidas de la Fuente de datos.'
   },
   dnp3: {
     title: 'Asistente de dirección DNP3', help: 'Construye la identidad canónica del punto DNP3 usada por Runtime. Variaciones avanzadas y comandos permanecen en el binding canónico.',
@@ -292,15 +292,15 @@ const es: C04Text = {
     catalogMismatch: 'La opción seleccionada ya no está permitida por el catálogo IEC-104 actual.'
   },
   opcUa: {
-    title: 'Herramientas OPC UA de Engineering', help: 'Prueba la fuente configurada, descubre endpoints y navega nodos sin cambiar Runtime. Los nodos seleccionados se vuelven TAGs solo mediante Preview/Apply.',
+    title: 'Herramientas OPC UA de Ingeniería', help: 'Prueba la fuente configurada, descubre endpoints y navega nodos sin cambiar Runtime. Los nodos seleccionados se vuelven TAGs solo después de la vista previa y aplicación.',
     test: 'Probar conexión', testing: 'Probando…', discover: 'Descubrir endpoints', discovering: 'Descubriendo…', browse: 'Navegar Objects', browsing: 'Navegando…',
     connectionOk: 'Prueba de conexión correcta', connectionFailed: 'Prueba de conexión fallida', objects: 'Objects', back: 'Volver', nodes: 'nodos', search: 'Buscar nodos cargados',
     searchPlaceholder: 'Nombre, NodeId o dirección portátil', open: 'Abrir', useCurrent: 'Usar en el TAG actual', loadMore: 'Cargar más',
-    bulkTitle: 'Crear TAGs desde nodos seleccionados', selected: 'seleccionados', pathPrefix: 'Prefijo de path de TAG', preview: 'Preview de importación', previewing: 'Validando…', apply: 'Aplicar importación', applying: 'Aplicando…',
-    previewResult: 'Preview', create: 'crear', update: 'actualizar', errors: 'errores', applyConfirm: '¿Aplicar la importación OPC UA validada al workspace de Engineering?',
-    stableIdRequired: 'Guarde/aplique primero este Data Source para obtener un Id estable antes de usar las herramientas OPC UA.', schemaMissing: 'El esquema OPC UA autoritativo del backend no está disponible.',
+    bulkTitle: 'Crear TAGs desde nodos seleccionados', selected: 'seleccionados', pathPrefix: 'Prefijo de path de TAG', preview: 'Vista previa de importación', previewing: 'Validando…', apply: 'Aplicar importación', applying: 'Aplicando…',
+    previewResult: 'Preview', create: 'crear', update: 'actualizar', errors: 'errores', applyConfirm: '¿Aplicar la importación OPC UA validada al Área de trabajo de Ingeniería?',
+    stableIdRequired: 'Guarde/aplique primero esta Fuente de datos para obtener un Id estable antes de usar las herramientas OPC UA.', schemaMissing: 'El esquema OPC UA autoritativo del backend no está disponible.',
     readWrite: 'lectura/escritura', readOnly: 'solo lectura', noAccess: 'sin lectura', unknownType: 'tipo desconocido',
-    bulkStableIdRequired: 'La importación masiva OPC UA requiere un Id estable del Data Source.', bulkSchemaUnavailable: 'El schema de binding OPC UA no está disponible.',
+    bulkStableIdRequired: 'La importación masiva OPC UA requiere un Id estable de la Fuente de datos.', bulkSchemaUnavailable: 'El schema de binding OPC UA no está disponible.',
     bulkSelectionRequired: 'Seleccione al menos una variable navegable con dirección portátil.', pathPrefixRequired: 'Se requiere un prefijo de path para los TAGs.',
     uniquePathFailed: 'No fue posible crear un path único para el TAG.'
   }

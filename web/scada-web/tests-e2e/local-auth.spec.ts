@@ -739,7 +739,8 @@ test('secure first-run creates the initial local Administrator, first project an
     await expect(page.getByRole('heading', { name: 'Import application' })).toBeVisible();
     await page.getByRole('button', { name: 'Validate application' }).click();
     await page.getByRole('button', { name: 'Import application' }).click();
-    await expect(page.locator('.eng-shell')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId('runtime-engineering-application')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId('runtime-engineering-canvas')).toBeVisible();
 
     const restoredA = await page.evaluate(async currentProjectKey => {
       const [workspaceResponse, runtimeResponse, usersResponse] = await Promise.all([

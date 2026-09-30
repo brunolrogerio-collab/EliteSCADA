@@ -389,7 +389,7 @@ test('mounted R2 generated snippet validates, Preview/Applies and reopens unchan
 
     const editor = page.locator('main.script-editor');
     await editor.getByLabel('Nome', { exact: true }).fill(name);
-    await editor.getByLabel('Path', { exact: true }).fill(path);
+    await editor.getByLabel('Caminho', { exact: true }).fill(path);
 
     const pythonEditor = page.getByTestId('python-monaco-editor');
     await pythonEditor.locator('.monaco-editor').click();
@@ -399,10 +399,10 @@ test('mounted R2 generated snippet validates, Preview/Applies and reopens unchan
     await expect(pythonEditor.getByText(/VALID · sintaxe válida/)).toBeVisible({ timeout: 45_000 });
     await expect(page.getByTestId('script-reference-diagnostics')).toBeVisible();
 
-    await editor.getByRole('button', { name: 'Validar / Preview' }).click();
-    await expect(editor.getByText(/Preview válido/)).toBeVisible({ timeout: 45_000 });
-    await editor.getByRole('button', { name: 'Aplicar Preview' }).click();
-    await expect(page.getByText('Script criado no Working.')).toBeVisible({ timeout: 45_000 });
+    await editor.getByRole('button', { name: 'Validar / Pré-visualizar' }).click();
+    await expect(editor.getByText(/Pré-visualização válida/)).toBeVisible({ timeout: 45_000 });
+    await editor.getByRole('button', { name: 'Aplicar pré-visualização' }).click();
+    await expect(page.getByText('Script criado na Área de trabalho.')).toBeVisible({ timeout: 45_000 });
 
     const listed = await request.get('/api/engineering/scripts');
     expect(listed.ok()).toBeTruthy();

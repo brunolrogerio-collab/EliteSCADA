@@ -4,7 +4,7 @@ test.use({ locale: 'pt-BR' });
 
 test('mounted Data Source editor rebuilds driver-specific fields instead of reusing incompatible settings', async ({ page }) => {
   await page.goto('/engineering');
-  await page.getByRole('button', { name: /Data Sources/ }).click();
+  await page.getByRole('button', { name: /Fontes de dados/ }).click();
 
   const editor = page.getByTestId('schema-data-source-editor');
   await expect(editor).toBeVisible();
@@ -39,7 +39,7 @@ test('mounted Data Source editor exposes catalog failure and recovers only after
   });
 
   await page.goto('/engineering');
-  await page.getByRole('button', { name: /Data Sources/ }).click();
+  await page.getByRole('button', { name: /Fontes de dados/ }).click();
 
   const editor = page.getByTestId('schema-data-source-editor');
   await expect(editor).toBeVisible();
@@ -94,9 +94,9 @@ test('R2 structured Data Source journey progressively reveals backend advanced f
   const advanced = type!.configurationSchema!.dataSourceFields!.find(field => field.advanced)!;
 
   await page.goto('/engineering');
-  await page.getByRole('button', { name: /Data Sources/ }).click();
+  await page.getByRole('button', { name: /Fontes de dados/ }).click();
   const editor = page.getByTestId('schema-data-source-editor');
-  await editor.getByRole('button', { name: 'Nova Data Source' }).click();
+  await editor.getByRole('button', { name: 'Nova Fonte de dados' }).click();
   await editor.getByTestId('data-source-type').selectOption(type!.typeKey);
   const advancedField = editor.getByTestId(`data-source-setting-${advanced.key}`);
   await expect(advancedField).not.toBeVisible();

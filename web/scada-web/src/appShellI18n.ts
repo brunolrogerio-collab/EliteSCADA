@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { resolveInitialLocale, type EngineeringLocale } from './engineering/i18n';
+import { productTerm, resolveInitialLocale, type EngineeringLocale } from './engineering/i18n';
 
 export type AppShellLocale = EngineeringLocale;
 
@@ -10,7 +10,7 @@ const ptBR = {
   runtimeDescription: 'Operação',
   runtimeOverview: 'Visão geral',
   runtimeHistory: 'Histórico',
-  engineering: 'Engineering',
+  engineering: productTerm('pt-BR', 'engineering'),
   engineeringDescription: 'Área de projeto',
   audit: 'Auditoria',
   auditDescription: 'Rastreabilidade',
@@ -26,8 +26,8 @@ const ptBR = {
   accessDenied: 'Você não possui permissão para acessar esta área.',
   capabilitiesUnavailable: 'Não foi possível carregar as permissões efetivas da sessão.',
   runtimeUnavailable: 'Runtime não disponível para esta sessão.',
-  runtimeNotActive: 'Nenhuma revisão Active selecionada.',
-  runtimeNotActiveDescription: 'O Runtime só exibe conteúdo de uma revisão Active do projeto. Crie um projeto e ative uma revisão para iniciar a operação.',
+  runtimeNotActive: 'Nenhuma revisão ativa selecionada.',
+  runtimeNotActiveDescription: 'O Runtime só exibe conteúdo de uma revisão ativa do projeto. Crie um projeto e ative uma revisão para iniciar a operação.',
   emptyVisual: 'Nenhum objeto visual.'
 } as const;
 
@@ -40,7 +40,7 @@ const en: Record<AppShellTextKey, string> = {
   runtimeDescription: 'Operations',
   runtimeOverview: 'Overview',
   runtimeHistory: 'History',
-  engineering: 'Engineering',
+  engineering: productTerm('en', 'engineering'),
   engineeringDescription: 'Project area',
   audit: 'Audit',
   auditDescription: 'Traceability',
@@ -68,7 +68,7 @@ const es: Record<AppShellTextKey, string> = {
   runtimeDescription: 'Operación',
   runtimeOverview: 'Vista general',
   runtimeHistory: 'Histórico',
-  engineering: 'Engineering',
+  engineering: productTerm('es', 'engineering'),
   engineeringDescription: 'Área de proyecto',
   audit: 'Auditoría',
   auditDescription: 'Trazabilidad',
@@ -84,8 +84,8 @@ const es: Record<AppShellTextKey, string> = {
   accessDenied: 'No tiene permiso para acceder a esta área.',
   capabilitiesUnavailable: 'No fue posible cargar los permisos efectivos de la sesión.',
   runtimeUnavailable: 'Runtime no está disponible para esta sesión.',
-  runtimeNotActive: 'No hay una revisión Active seleccionada.',
-  runtimeNotActiveDescription: 'Runtime solo muestra contenido de una revisión Active del proyecto. Cree un proyecto y active una revisión para iniciar la operación.',
+  runtimeNotActive: 'No hay una revisión activa seleccionada.',
+  runtimeNotActiveDescription: 'Runtime solo muestra contenido de una revisión activa del proyecto. Cree un proyecto y active una revisión para iniciar la operación.',
   emptyVisual: 'No hay objetos visuales.'
 };
 

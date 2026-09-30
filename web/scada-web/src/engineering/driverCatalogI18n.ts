@@ -41,7 +41,7 @@ const resources: Readonly<Record<string, Localized>> = {
     'pt-BR': 'Unit ID', en: 'Unit ID', es: 'Unit ID'
   },
   'driver.modbus.tcp.datasource.unitId.description': {
-    'pt-BR': 'Identificador Modbus Unit ID padrão da Data Source.', en: 'Default Modbus unit identifier.', es: 'Identificador Unit ID Modbus predeterminado de la Data Source.'
+    'pt-BR': 'Identificador Modbus Unit ID padrão da Fonte de dados.', en: 'Default Modbus unit identifier.', es: 'Identificador Unit ID Modbus predeterminado de la Fuente de datos.'
   },
 
   'driver.opcua.datasource.endpointUrl.label': {
@@ -81,9 +81,9 @@ const resources: Readonly<Record<string, Localized>> = {
     'pt-BR': 'Intervalo de publicação', en: 'Publishing interval', es: 'Intervalo de publicación'
   },
   'driver.opcua.datasource.trustUntrustedServerCertificateForSession.label': {
-    'pt-BR': 'Permitir certificado não confiável na sessão temporária de Engineering',
+    'pt-BR': 'Permitir certificado não confiável na sessão temporária de Engenharia',
     en: 'Allow untrusted certificate for temporary Engineering session',
-    es: 'Permitir certificado no confiable en la sesión temporal de Engineering'
+    es: 'Permitir certificado no confiable en la sesión temporal de Ingeniería'
   }
 };
 

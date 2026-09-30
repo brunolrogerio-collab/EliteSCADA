@@ -58,6 +58,7 @@ export type CanonicalVisualRendererProps = {
   onTagWrite?: SliderTagWrite;
   visualAssetUrl?: VisualAssetUrlResolver;
   showTechnicalFallbackText?: boolean;
+  liveBindings?: boolean;
 };
 
 const builtinVisualTypes = new Set<string>(Object.values(BUILTIN_VISUAL_OBJECT_TYPES));
@@ -71,14 +72,15 @@ export function CanonicalVisualRenderer({
   onVisualEvent,
   onTagWrite,
   visualAssetUrl = visualAssetContentUrl,
-  showTechnicalFallbackText = true
+  showTechnicalFallbackText = true,
+  liveBindings = true
 }: CanonicalVisualRendererProps) {
   const rootElements = elements ?? emptyElements;
   const runtimeBindingElements = React.useMemo(
     () => collectRuntimeBindingElements(rootElements, dynamoDefinitions),
     [rootElements, dynamoDefinitions]
   );
-  const liveSamples = useVisualBindingSamples(runtimeBindingElements);
+  const liveSamples = useVisualBindingSamples(runtimeBindingElements, liveBindings);
   if (rootElements.length === 0) return <div className="visual-editor-renderer-empty">{emptyLabel}</div>;
 
   return <div className="visual-editor-renderer-stage" data-testid="visual-editor-canonical-renderer">
@@ -117,7 +119,7 @@ function CanonicalElement({
   visualAssetUrl: VisualAssetUrlResolver;
   showTechnicalFallbackText: boolean;
 }) {
-  if (element.dynamoKey && dynamoDefinitions) {
+  if ((element.dynamoDefinitionId || element.dynamoKey) && dynamoDefinitions) {
     return <CanonicalDynamoElement
       element={element}
       locale={locale}
@@ -380,7 +382,7 @@ function CanonicalDynamoElement({
   showTechnicalFallbackText: boolean;
 }) {
   try {
-    const definition = resolveDynamoDefinition(dynamoDefinitions, element.dynamoKey!);
+    const definition = resolveDynamoDefinition(dynamoDefinitions, element.dynamoKey, element.dynamoDefinitionId);
     const composition = composeDynamoRuntime(element, definition);
     const schema = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.group);
     const baseValues: Readonly<Record<string, VisualPropertyValue>> = {

@@ -57,6 +57,7 @@ test('Dynamo library insertion creates a reusable instance with equipment contex
   const next = applyVisualEditorMutationIntent(original, {
     kind: 'dynamo.add',
     dynamoKey: 'process.motor.standard',
+    dynamoDefinitionId: '43000000-0000-0000-0000-000000000003',
     equipmentPath: ' Plant.M01 ',
     at: { x: 80, y: 96 },
     defaultWidth: 106,
@@ -69,6 +70,7 @@ test('Dynamo library insertion creates a reusable instance with equipment contex
     key: 'standard',
     type: BUILTIN_VISUAL_OBJECT_TYPES.group,
     dynamoKey: 'process.motor.standard',
+    dynamoDefinitionId: '43000000-0000-0000-0000-000000000003',
     equipmentPath: 'Plant.M01',
     properties: { x: 80, y: 96, width: 106, height: 92 }
   });

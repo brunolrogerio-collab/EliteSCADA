@@ -233,10 +233,42 @@ export function resolveMountedPopup(
 
 export function resolveDynamoDefinition(
   definitions: readonly DynamoEngineering[] | null | undefined,
-  dynamoKey: string
+  dynamoKey: string | null | undefined,
+  dynamoDefinitionId?: string | null
 ): CanonicalDynamoEngineering {
-  const catalog = indexByKey((definitions ?? []).map(asCanonicalDynamo), 'Dynamo');
-  return resolveCatalogEntity(catalog, dynamoKey, 'Dynamo', 'VISUAL_RUNTIME_DYNAMO_NOT_FOUND');
+  const canonical = (definitions ?? []).map(asCanonicalDynamo);
+  const stableId = dynamoDefinitionId?.trim();
+  if (stableId) {
+    const normalizedId = stableId.toLocaleLowerCase();
+    const byId = canonical.find(definition => definition.id?.trim().toLocaleLowerCase() === normalizedId);
+    if (!byId) {
+      throw new RuntimeVisualCompositionError(
+        'VISUAL_RUNTIME_DYNAMO_NOT_FOUND',
+        `Dynamo definition '${stableId}' was not found.`
+      );
+    }
+    const alias = dynamoKey?.trim();
+    if (alias) {
+      const aliasMatch = canonical.find(definition => equalsKey(definition.key, alias));
+      if (aliasMatch && aliasMatch.id?.trim().toLocaleLowerCase() !== normalizedId) {
+        throw new RuntimeVisualCompositionError(
+          'VISUAL_RUNTIME_DYNAMO_REFERENCE_MISMATCH',
+          `Dynamo alias '${alias}' resolves to a different stable definition.`
+        );
+      }
+    }
+    return byId;
+  }
+
+  const alias = dynamoKey?.trim();
+  if (!alias) {
+    throw new RuntimeVisualCompositionError(
+      'VISUAL_RUNTIME_DYNAMO_NOT_FOUND',
+      'Dynamo reference requires a stable definition ID or compatibility key.'
+    );
+  }
+  const catalog = indexByKey(canonical, 'Dynamo');
+  return resolveCatalogEntity(catalog, alias, 'Dynamo', 'VISUAL_RUNTIME_DYNAMO_NOT_FOUND');
 }
 
 export function composeDynamoRuntime(
@@ -245,7 +277,16 @@ export function composeDynamoRuntime(
 ): DynamoRuntimeCompositionView {
   const instance = asCanonicalVisualElement(instanceInput);
   const definition = asCanonicalDynamo(definitionInput);
-  if (!instance.dynamoKey || !equalsKey(instance.dynamoKey, definition.key)) {
+  const stableDefinitionId = instance.dynamoDefinitionId?.trim();
+  const definitionId = definition.id?.trim();
+  if (stableDefinitionId) {
+    if (!definitionId || stableDefinitionId.toLocaleLowerCase() !== definitionId.toLocaleLowerCase()) {
+      throw new RuntimeVisualCompositionError(
+        'VISUAL_RUNTIME_DYNAMO_REFERENCE_MISMATCH',
+        `Visual element '${instance.key}' does not reference Dynamo '${definition.key}' by stable identity.`
+      );
+    }
+  } else if (!instance.dynamoKey || !equalsKey(instance.dynamoKey, definition.key)) {
     throw new RuntimeVisualCompositionError(
       'VISUAL_RUNTIME_DYNAMO_REFERENCE_MISMATCH',
       `Visual element '${instance.key}' does not reference Dynamo '${definition.key}'.`

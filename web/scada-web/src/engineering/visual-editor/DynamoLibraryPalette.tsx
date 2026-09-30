@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import type { DynamoEngineering } from '../types';
 import type { VisualEditorMutationIntent } from './visualEditorContracts';
 import { c07VisualEditorText } from './c07VisualEditorI18n';
+import { CanonicalVisualPreview } from './CanonicalVisualPreview';
 import {
   buildDynamoLibraryEntries,
   filterDynamoLibraryEntries,
@@ -39,13 +40,8 @@ export function DynamoLibraryPalette({
     <div className="visual-dynamo-library__filters">
       <label>
         <span>{text.search}</span>
-        <input
-          type="search"
-          value={query}
-          placeholder={text.searchPlaceholder}
-          onChange={event => setQuery(event.currentTarget.value)}
-          data-testid="dynamo-library-search"
-        />
+        <input type="search" value={query} placeholder={text.searchPlaceholder}
+          onChange={event => setQuery(event.currentTarget.value)} data-testid="dynamo-library-search" />
       </label>
       <label>
         <span>{text.category}</span>
@@ -65,7 +61,8 @@ export function DynamoLibraryPalette({
         aria-pressed={selected?.definition.key === entry.definition.key}
         onClick={() => setSelectedKey(entry.definition.key)}
       >
-        <span className="visual-dynamo-library__thumbnail" aria-hidden="true">{entry.glyph}</span>
+        <CanonicalVisualPreview elements={entry.definition.elements} locale={locale} width={entry.width} height={entry.height}
+          emptyLabel={text.noVisual} variant="thumbnail" testId="dynamo-library-canonical-thumbnail" />
         <span className="visual-dynamo-library__card-copy">
           <strong>{entry.definition.name}</strong>
           <code>{entry.definition.key}</code>
@@ -76,14 +73,21 @@ export function DynamoLibraryPalette({
 
     {selected ? <div className="visual-dynamo-library__selection" data-testid="dynamo-library-selection">
       <div className="visual-dynamo-library__preview" aria-label={text.preview}>
-        <span aria-hidden="true">{selected.glyph}</span>
-        <div><strong>{selected.definition.name}</strong><small>{selected.width}×{selected.height}</small></div>
+        <CanonicalVisualPreview elements={selected.definition.elements} locale={locale} width={selected.width} height={selected.height}
+          emptyLabel={text.noVisual} variant="detail" testId="dynamo-library-canonical-preview" />
       </div>
+      <dl className="visual-dynamo-library__metadata">
+        <div><dt>{text.dimensions}</dt><dd>{selected.width}×{selected.height}</dd></div>
+        <div><dt>{text.version}</dt><dd>{selected.definition.properties?.libraryVersion ?? '—'}</dd></div>
+        <div><dt>{text.source}</dt><dd>{selected.definition.metadata?.builtinLibrary === 'true' ? text.builtIn : '—'}</dd></div>
+      </dl>
       <div className="visual-dynamo-library__interface">
         <span>{text.publicInterface}</span>
         <div>
-          {(selected.definition.parameters ?? []).slice(0, 6).map(parameter => <code key={parameter.key}>{parameter.key}</code>)}
-          {selected.parameterCount > 6 ? <small>+{selected.parameterCount - 6}</small> : null}
+          {(selected.definition.parameters ?? []).slice(0, 8).map(parameter => <code key={parameter.key}>
+            {parameter.key} · {parameter.kind}{parameter.required ? ` · ${text.required}` : ''}
+          </code>)}
+          {selected.parameterCount > 8 ? <small>+{selected.parameterCount - 8}</small> : null}
           {selected.parameterCount === 0 ? <small>{text.noParameters}</small> : null}
         </div>
       </div>
@@ -94,6 +98,7 @@ export function DynamoLibraryPalette({
       <button className="visual-dynamo-library__add" type="button" onClick={() => onMutationIntent({
         kind: 'dynamo.add',
         dynamoKey: selected.definition.key,
+        dynamoDefinitionId: selected.definition.id ?? null,
         equipmentPath: equipmentPath.trim() || null,
         defaultWidth: selected.width,
         defaultHeight: selected.height
@@ -104,7 +109,7 @@ export function DynamoLibraryPalette({
 
 function categoryLabel(
   value: string,
-  labels: Readonly<Record<'pump' | 'motor' | 'valve' | 'tank' | 'other', string>>
+  labels: Readonly<Record<'pump' | 'motor' | 'valve' | 'tank' | 'compressor' | 'instrument' | 'other', string>>
 ): string {
   return labels[value as keyof typeof labels] ?? value;
 }

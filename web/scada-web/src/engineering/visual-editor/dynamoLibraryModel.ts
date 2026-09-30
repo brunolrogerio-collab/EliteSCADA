@@ -6,7 +6,6 @@ export type DynamoLibraryEntry = Readonly<{
   width: number;
   height: number;
   parameterCount: number;
-  glyph: string;
   searchText: string;
 }>;
 
@@ -29,7 +28,6 @@ export function buildDynamoLibraryEntries(
           width: positiveDimension(definition.properties?.defaultWidth, 120),
           height: positiveDimension(definition.properties?.defaultHeight, 100),
           parameterCount: definition.parameters?.length ?? 0,
-          glyph: thumbnailGlyph(category, definition.key),
           searchText: normalizeSearchText(`${definition.name} ${definition.key} ${category}`)
         });
       })
@@ -72,12 +70,4 @@ function normalizeSearchText(value: string): string {
     .replace(/[\u0300-\u036f]/g, '')
     .trim()
     .toLocaleLowerCase('en-US');
-}
-
-function thumbnailGlyph(category: string, key: string): string {
-  if (category === 'pump') return '◉→';
-  if (category === 'motor') return key.includes('.vfd') ? 'Ⓜ▣' : 'Ⓜ';
-  if (category === 'valve') return '◇◇';
-  if (category === 'tank') return key.includes('.horizontal') ? '▭' : '▯';
-  return '◆';
 }

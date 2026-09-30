@@ -35,7 +35,7 @@ test('Engineering fallback is neutral for transport failure and does not synthes
 
   await expect(page.getByTestId('engineering-load-error')).toContainText('Transport unavailable while loading');
   await expect(page.getByTestId('engineering-project-identity')).toHaveText('Modelo indisponível');
-  await expect(page.getByTestId('engineering-workspace-bar')).toContainText('Modelo indisponível');
+  await expect(page.getByTestId('engineering-workspace-state')).toContainText('Modelo indisponível');
   await expect(page.getByRole('button', { name: /TAGs/ })).toBeDisabled();
   await expect(page.getByText('Demo Project', { exact: true })).toHaveCount(0);
 });
@@ -54,5 +54,5 @@ test('Engineering exposes actual HTTP status and accepts a real Demo Project aft
 
   await expect(page.getByTestId('engineering-project-identity')).toHaveText('Demo Project');
   await expect(page.getByRole('button', { name: /TAGs/ })).toBeEnabled();
-  await expect(page.getByTestId('engineering-workspace-bar')).toContainText('Sem alterações');
+  await expect(page.getByTestId('engineering-workspace-state')).toContainText('Sem alterações');
 });

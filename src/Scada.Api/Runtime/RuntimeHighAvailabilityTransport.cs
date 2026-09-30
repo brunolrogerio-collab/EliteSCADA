@@ -1038,32 +1038,37 @@ public sealed class RuntimeHaPeerReplicationCoordinator
                 return Conflict("peer-application-required", envelope.ReplicationSequence);
             }
 
-            var materialized = await _runtimeCoordinator.MaterializePassiveAsync(
-                envelope.SourceNodeId,
-                authoritativeState.Runtime.ProjectKey,
-                authoritativeState.Runtime.Revision.Value,
-                authoritativeState.Application,
-                authoritativeState.RuntimeActivatedAtUtc,
-                cancellationToken);
-            if (!materialized.Activated)
+            var localLicense = RuntimeHaPeerLicenseEvidence.From(
+                _licensing.CurrentVerification);
+            if (localLicense.LicenseValid && localLicense.HaRuntimeEntitled)
             {
-                var reason = materialized.RuntimeIssues
-                    .FirstOrDefault(issue => issue.IsError)?.Code
-                    ?? "passive-runtime-materialization-failed";
-                _transportState.RecordFailure(reason);
-                RefreshLocalReadiness();
-                return Conflict(reason, envelope.ReplicationSequence);
-            }
+                var materialized = await _runtimeCoordinator.MaterializePassiveAsync(
+                    envelope.SourceNodeId,
+                    authoritativeState.Runtime.ProjectKey,
+                    authoritativeState.Runtime.Revision.Value,
+                    authoritativeState.Application,
+                    authoritativeState.RuntimeActivatedAtUtc,
+                    cancellationToken);
+                if (!materialized.Activated)
+                {
+                    var reason = materialized.RuntimeIssues
+                        .FirstOrDefault(issue => issue.IsError)?.Code
+                        ?? "passive-runtime-materialization-failed";
+                    _transportState.RecordFailure(reason);
+                    RefreshLocalReadiness();
+                    return Conflict(reason, envelope.ReplicationSequence);
+                }
 
-            var sessionFailure = await ApplySessionStateAsync(
-                envelope.SourceNodeId,
-                authoritativeState,
-                cancellationToken);
-            if (sessionFailure is not null)
-            {
-                _transportState.RecordFailure(sessionFailure);
-                RefreshLocalReadiness();
-                return Conflict(sessionFailure, envelope.ReplicationSequence);
+                var sessionFailure = await ApplySessionStateAsync(
+                    envelope.SourceNodeId,
+                    authoritativeState,
+                    cancellationToken);
+                if (sessionFailure is not null)
+                {
+                    _transportState.RecordFailure(sessionFailure);
+                    RefreshLocalReadiness();
+                    return Conflict(sessionFailure, envelope.ReplicationSequence);
+                }
             }
         }
 

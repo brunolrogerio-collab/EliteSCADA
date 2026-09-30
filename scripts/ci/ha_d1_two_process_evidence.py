@@ -286,6 +286,20 @@ def main() -> int:
                 "authoritativeState": {
                     "runtime": {"mode": "engineering", "projectKey": "project-a", "revision": 7},
                     "projectTagCount": 1,
+                    "runtimeActivatedAtUtc": now,
+                    "application": {
+                        "schema": "scada.engineering",
+                        "schemaVersion": 20,
+                        "exportedAt": now,
+                        "tags": [{
+                            "id": TAG_ID,
+                            "name": "HA Evidence",
+                            "path": "HA.Evidence",
+                            "dataType": 2,
+                            "readOnly": True,
+                        }],
+                        "alarms": [],
+                    },
                     "license": {
                         "licenseValid": True,
                         "haRuntimeEntitled": True,

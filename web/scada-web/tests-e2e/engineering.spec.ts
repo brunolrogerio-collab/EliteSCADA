@@ -26,8 +26,12 @@ test('Engineering workspace renders the public model and switches locale without
 
   await expect(page.getByText('EliteSCADA Engineering')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Visão geral do projeto' })).toBeVisible();
-  await expect(page.getByText(`${engineering.schema} v${engineering.schemaVersion}`)).toBeVisible();
   await expect(page.getByText(String(engineering.tags.length), { exact: true }).first()).toBeVisible();
+
+  await page.getByRole('button', { name: /Informações/ }).click();
+  const technicalDetails = page.locator('details.eng-information__technical');
+  await technicalDetails.locator('summary').click();
+  await expect(page.getByText(`${engineering.schema} v${engineering.schemaVersion}`)).toBeVisible();
 
   await page.getByRole('button', { name: /TAGs/ }).click();
   await expect(page.getByRole('heading', { name: 'Editor estruturado de TAGs' })).toBeVisible();

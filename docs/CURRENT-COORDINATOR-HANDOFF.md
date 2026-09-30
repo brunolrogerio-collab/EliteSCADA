@@ -1,12 +1,16 @@
 # LATEST DELTA — 2026-09-30 — TEMPORARY MAIN RECOVERY / WAVE 15 HANDOFF
 
-> GitHub live state is authoritative. This delta records recovery after the Main coordinator and DEV chats HA-D1 / Installation UX stopped responding. It does not declare the Wave 15 integration globally green.
+> GitHub live state is authoritative. Temporary Main is actively integrating the lanes below; this is not a handoff-ready or globally green checkpoint yet.
 
 ## Integration baseline and broad CI
 
-Current integration at recovery:
+Current integration base:
 `wave15/corrections-integration@af24924ebcedec15e498457895e949bad6365832`
 (tree `e35a7c1c4648a3251071c0621808f6c1106044d7`).
+
+Temporary integration candidate:
+`coord/w15-recovery-handoff-2026-09-30@b9463dd3a92e3956b69f04f7e9e9c6f0fb936632`.
+It is pushed separately; it has not been merged into the integration branch.
 
 Merged immediately before this checkpoint:
 - PR #442 Historical mounted-test reconciliation: merge `e75c0faca5d09d161670ab58f14cebffcb3e7ca2`;
@@ -18,36 +22,39 @@ Broad CI #1623 / run `36772159732` on exact integration HEAD `af24924...`:
 - Chromium E2E: FAILURE after 31.5 minutes; overall run took 35m10s;
 - Playwright reported 717 tests, 688 passed, 23 failed, 6 did not run. It uses one worker; later progress numbers exceed 717 because retries are counted in the log.
 
-This is not a regression proven against PR #441: the preceding broad CI #1622 / run `36758425452` was already red on parent integration `1f53f3e52dc2da82823480e31c980fca447d742a`, before #441 merged. The first concrete failure inspected is a stale pt-BR accessibility expectation in `tests-e2e/c04-i18n-browser.spec.ts:92`: expected `Pesquisar Data Sources configurados`, actual `Pesquisar Fontes de dados configuradas`. The remaining failures span C04/Engineering navigation and editor-facing scenarios; inspect the uploaded Playwright report for each exact failure before product edits. Do not attribute all failures to one root cause without that review.
+This is not a regression proven against PR #441: the preceding broad CI #1622 / run `36758425452` was already red on parent integration `1f53f3e52dc2da82823480e31c980fca447d742a`, before #441 merged. The first concrete failure was stale C04 expectations: pt-BR and Spanish search labels, plus a Data Sources tab selector still in English. These test expectations/selectors have been corrected on the temporary candidate; the two C04 tests pass in focused local Chromium runs. The other broad-run failures still need exact classification before claiming the baseline green.
 
 Do not increase Playwright workers as a quick CI-speed fix: the suite shares mutable Engineering state, so parallelism could create cross-test contamination. First isolate the remaining failing tests and improve test-state isolation. Avoid repeatedly launching the full 700+ E2E suite; use targeted tests while repairing, then run the broad gate once.
 
 ## Engineering editor recovery candidate
 
-Temporary coordinator prepared a separate recovery branch from the exact integration base above. It contains the current W15 visual-editor UX/theme refinements plus a 30-second timeout on Engineering JSON reads so a stalled request surfaces an error/retry instead of an infinite spinner. Scope includes unified insert toolbar, removal of duplicate palette, resizable/collapsible columns, simplified properties, independently scrolling authoring panels and dark-surface fixes.
+Temporary coordinator's candidate includes the W15 visual-editor UX/theme refinements plus a 30-second timeout on Engineering JSON reads, Installation UX #436, and HA-D1 #434. Built-in Dynamo visual styles from #441 are already part of the integration base. Candidate also fixes System Recovery's authority admission to resolve modern package role references from the restored canonical Authority and reject stale/mismatched references.
 
-Local evidence on this candidate:
+Local evidence on the candidate:
 - `npm run build`: PASS;
 - targeted `visual-editor-workspace.spec.ts` Chromium test: PASS;
+- C04 search/address and Driver-resource focused browser scenarios: PASS after updating the stale labels/selectors;
+- focused recovery-authority and service tests: 13 PASS; passive-runtime package semantics: 1 PASS;
 - `git diff --check`: PASS;
+- full Chromium E2E remains unverified; local-auth is still intermittently timing out in the custom local harness, so exact GitHub T1 evidence remains authoritative;
 - broad integration CI remains RED as recorded above; do not describe this branch as globally verified until CI is repaired.
 
 The local untracked `web/scada-web/test-results/` directory is preserved and excluded from the recovery commit.
 
-## Open lane disposition — do not merge by assumption
+## Lane disposition
 
-- HA-D1 PR #434 remains DRAFT at `897a13542a3beb857034bbbb3ab49da9a3cdb14f`; T1 run `36759030086` failed Focused .NET evidence and HA two-process evidence. Preserve its branch and evidence; do not integrate/freeze.
-- Installation UX PR #436 remains DRAFT at `0f596d4894dd8127ea7c425b2f57b0a830cd2c5f`; T1 run `36759228771` failed Focused Chromium evidence. Preserve its branch and authority regression; do not integrate/freeze.
+- HA-D1 PR #434 remains DRAFT at `7b5b0dd3d0bd35a22fd90293f9e7ef6674ba4a27`; T1 run `36780671722` is fully SUCCESS (Focused .NET, focused Chromium, HA two-process, web build, Common, final T1). It is in the temporary integration candidate but not merged to `wave15/corrections-integration`.
+- Installation UX PR #436 remains DRAFT at `657bafdfc4b164337e7fa2b383fd6f94cb000f7d`; latest T1 run `36781769180` is still running. Earlier runs exposed the recovery-authority defect now fixed on the candidate; wait for exact-head T1 before disposition.
+- Built-in Dynamo PR #441 is already integrated in base `af24924...`.
 - Help closeout PR #439 remains open/mergeable at `715676ada46a178c7edd34fc2f964c954382e8a9`; T1 run `36758570399` is SUCCESS. It is a separate ready candidate, not included in this editor recovery branch.
 - PR #418 is CONFLICTING; PR #362 remains a separate preview harness review and is not authorized by this handoff for merge.
 
 ## Next coordinator actions
 
-1. Start from the pushed `coord/w15-recovery-handoff-2026-09-30` branch and read this delta before acting; it is a handoff candidate, not a replacement for the canonical integration branch.
-2. Inspect Playwright artifact for run `36772159732`; classify all 23 failures and fix verified stale test expectations separately from product regressions.
-3. Re-run the narrow failing specs first. Run the full CI gate only after the focused set is clean, and report the 30+ minute Chromium duration explicitly.
-4. Resume #434 and #436 only from their existing exact heads and evidence. Do not merge them until their owners' blockers are fixed and their T1 gates are green.
-5. Keep the accepted integration branch immutable until the next coordinator explicitly chooses which green candidates to merge.
+1. Wait for Installation UX T1 `36781769180`; investigate its exact job/step failure if it is red.
+2. Once #434 and #436 are both exact-head T1 green, merge the validated candidates into a single current-base PR or merge sequentially, then run the final broad gate once.
+3. The prior broad E2E took 31.5 minutes and had 23 failures/6 not run; don't rerun until focused profile gates are clean and remaining failures are classified.
+4. Do not hand off to a new coordinator until HA-D1, Installation UX, Dynamo baseline, Engineering/API candidate, and final broad CI evidence are recorded in GitHub.
 
 ---
 

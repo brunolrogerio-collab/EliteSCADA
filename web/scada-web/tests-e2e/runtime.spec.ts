@@ -84,8 +84,8 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(engineering.equipment[0].path).toBe('Demo.P01');
   expect(engineering.equipment[0].templateKey).toBe('pump.standard');
   expect(engineering.equipment[0].bindings.some(binding => binding.target === 'Demo.P01.Frequency')).toBeTruthy();
-  expect(engineering.dynamos).toHaveLength(10);
-  expect(engineering.dynamos.map(dynamo => dynamo.key).sort()).toEqual([
+  expect(engineering.dynamos).toHaveLength(30);
+  const builtinDynamoFamilyKeys = [
     'dynamo.pump.standard',
     'process.blower.centrifugal',
     'process.instrument.indicator',
@@ -96,7 +96,10 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
     'process.tank.vertical',
     'process.valve.control',
     'process.valve.onoff'
-  ]);
+  ];
+  expect(engineering.dynamos.map(dynamo => dynamo.key).sort()).toEqual(
+    builtinDynamoFamilyKeys.flatMap(key => [key, `${key}.front-3d`, `${key}.high-performance`]).sort()
+  );
   const standardPumpDynamo = engineering.dynamos.find(dynamo => dynamo.key === 'dynamo.pump.standard');
   expect(standardPumpDynamo).toBeTruthy();
   expect(standardPumpDynamo!.templateKey).toBeNull();

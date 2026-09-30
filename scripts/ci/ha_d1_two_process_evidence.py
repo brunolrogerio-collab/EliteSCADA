@@ -249,7 +249,7 @@ def main() -> int:
                 lambda value: node(value, "node-a")["fresh"] is True,
             )
             b_local = node(topology_b, "node-b")
-            assert b_local["state"] != "Active", b_local
+            assert b_local["state"] != 5, b_local
             assert not b_local["ready"], b_local
 
             now = utc_now()
@@ -330,10 +330,11 @@ def main() -> int:
             assert current_tags == [], current_tags
 
             b_after_mirror = node(first_payload["topology"], "node-b")
-            assert b_after_mirror["state"] != "Active", b_after_mirror
+            assert b_after_mirror["state"] != 5, b_after_mirror
             assert not b_after_mirror["ready"], b_after_mirror
             assert b_after_mirror["readinessReason"] in {
                 "local-license-invalid",
+                "ha-license-not-entitled",
                 "passive-runtime-not-materialized",
                 "passive-runtime-not-compatible",
             }, b_after_mirror
@@ -352,7 +353,7 @@ def main() -> int:
                 timeout=15.0,
             )
             stale_local = node(stale_topology, "node-b")
-            assert stale_local["state"] != "Active", stale_local
+            assert stale_local["state"] != 5, stale_local
             assert stale_topology["effectiveActiveNodeId"] != "node-b", stale_topology
 
             os.kill(proc_a.pid, signal.SIGCONT)
@@ -364,7 +365,7 @@ def main() -> int:
                 timeout=20.0,
             )
             resynced_local = node(resynced_topology, "node-b")
-            assert resynced_local["state"] != "Active", resynced_local
+            assert resynced_local["state"] != 5, resynced_local
             assert not resynced_local["ready"], resynced_local
 
             print(json.dumps({

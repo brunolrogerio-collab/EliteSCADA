@@ -292,7 +292,7 @@ public static class BuiltinDynamoLibrary
             return Dynamo(sequence, "process.tank.vertical", "Tanque vertical", "tank", style, 108, 158,
             [
                 FlatShape(E(family, style, 1), "vessel", "core.rectangle", 18, 8, 72, 140, "#D1D5DB", "#475569", 2, 18),
-                FlatShape(E(family, style, 2), "liquid", "core.rectangle", 23, 77, 62, 65, "#93C5FD", "#64748B", 1, 10),
+                FlatShape(E(family, style, 2), "liquid", "core.rectangle", 23, 77, 62, 65, "#AAB2B8", "#6B7280", 1, 10),
                 FlatShape(E(family, style, 3), "nozzle", "core.rectangle", 48, 2, 12, 10, "#9CA3AF", "#475569", 1, 2),
                 FlatShape(E(family, style, 4), "leg-left", "core.rectangle", 29, 144, 10, 10, "#6B7280", "#475569", 1, 2),
                 FlatShape(E(family, style, 5), "leg-right", "core.rectangle", 69, 144, 10, 10, "#6B7280", "#475569", 1, 2),
@@ -333,7 +333,7 @@ public static class BuiltinDynamoLibrary
             return Dynamo(sequence, "process.tank.horizontal", "Tanque horizontal", "tank", style, 168, 100,
             [
                 FlatShape(E(family, style, 1), "vessel", "core.rectangle", 18, 18, 132, 66, "#D1D5DB", "#475569", 2, 30),
-                FlatShape(E(family, style, 2), "liquid", "core.rectangle", 24, 50, 120, 28, "#93C5FD", "#64748B", 1, 14),
+                FlatShape(E(family, style, 2), "liquid", "core.rectangle", 24, 50, 120, 28, "#AAB2B8", "#6B7280", 1, 14),
                 FlatShape(E(family, style, 3), "leg-left", "core.rectangle", 42, 80, 10, 12, "#6B7280", "#475569", 1, 2),
                 FlatShape(E(family, style, 4), "leg-right", "core.rectangle", 116, 80, 10, 12, "#6B7280", "#475569", 1, 2),
                 Text(E(family, style, 5), "label", "TK", 68, 28, 32, 24, 11, "#111827"),

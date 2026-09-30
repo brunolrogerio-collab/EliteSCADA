@@ -413,7 +413,7 @@ public sealed class ContextualHelpTests
             "canónica"
         };
         var forbiddenCoordinationTokens = new Regex(
-            @"(?<![\p{L}\p{N}_])(?:SHA(?:-256)?|tree|branch|PR)(?![\p{L}\p{N}_])",
+            @"(?<![\p{L}\p{N}_])(?:SHA(?!-256)|tree|branch|PR)(?![\p{L}\p{N}_])|(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
         foreach (var locale in ContextualHelpCatalog.SupportedLocales)

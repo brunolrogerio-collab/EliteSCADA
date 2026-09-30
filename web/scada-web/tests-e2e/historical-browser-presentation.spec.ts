@@ -4,6 +4,7 @@ import {
   HISTORICAL_BROWSER_RELATIVE_PRESETS,
   createHistoricalBrowserDraft,
   formatHistoricalScalar,
+  historicalBrowserDurationSeconds,
   historicalDatasetLabel,
   historicalTimeSummary,
   validateHistoricalBrowserDraft
@@ -25,37 +26,57 @@ test('Historical Browser transient draft defaults to a bounded relative period w
   expect(draft).toMatchObject({
     datasetKey: 'historian.samples',
     timeMode: 'relative',
-    relativeDurationSeconds: 3600
+    relativeAmount: 1,
+    relativeUnit: 'hours'
   });
+  expect(historicalBrowserDurationSeconds(draft)).toBe(3600);
   expect(validateHistoricalBrowserDraft(draft)).toEqual({ ok: true, diagnostics: [] });
   expect(historicalTimeSummary(draft)).toBe('Last 1 h');
   expect(HISTORICAL_BROWSER_RELATIVE_PRESETS.map(item => item.seconds)).toEqual([
     900,
     3600,
-    28800,
+    21600,
     86400,
     604800
   ]);
 });
 
-test('Historical Browser preflight rejects invalid local periods before a future shared query request', () => {
+test('Historical Browser preflight validates custom, oversized and reversed ranges before request', () => {
   expect(validateHistoricalBrowserDraft({
     ...createHistoricalBrowserDraft(),
-    relativeDurationSeconds: 0
+    relativeAmount: 0
   })).toEqual({
     ok: false,
-    diagnostics: ['Relative period must be a positive whole number of seconds.']
+    diagnostics: ['Period amount must be a positive whole number.']
+  });
+
+  expect(validateHistoricalBrowserDraft({
+    ...createHistoricalBrowserDraft(),
+    relativeAmount: 32,
+    relativeUnit: 'days'
+  })).toEqual({
+    ok: false,
+    diagnostics: ['The period cannot exceed 31 days.']
   });
 
   expect(validateHistoricalBrowserDraft({
     ...createHistoricalBrowserDraft(),
     timeMode: 'absolute',
-    absoluteFromLocal: '2026-08-29T20:00',
-    absoluteToLocal: '2026-08-29T19:00'
+    absoluteFromLocal: '2026-08-29T20:00:00',
+    absoluteToLocal: '2026-08-29T19:00:00'
   })).toEqual({
     ok: false,
-    diagnostics: ['Absolute period start must be before end.']
+    diagnostics: ['From must be before To.']
   });
+});
+
+test('Historical Browser live and relative modes share deterministic bounded duration semantics', () => {
+  const live = { ...createHistoricalBrowserDraft(), timeMode: 'live' as const, relativeAmount: 15, relativeUnit: 'minutes' as const };
+  const relative = { ...live, timeMode: 'relative' as const };
+  expect(historicalBrowserDurationSeconds(live)).toBe(900);
+  expect(historicalBrowserDurationSeconds(relative)).toBe(900);
+  expect(validateHistoricalBrowserDraft(live).ok).toBe(true);
+  expect(validateHistoricalBrowserDraft(relative).ok).toBe(true);
 });
 
 test('Historical Browser preserves exact Int64 wire text without JavaScript Number precision loss', () => {

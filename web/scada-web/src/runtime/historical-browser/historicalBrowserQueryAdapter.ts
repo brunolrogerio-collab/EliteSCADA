@@ -11,7 +11,9 @@ import {
   historicalBrowserCopy,
   type HistoricalBrowserLocale
 } from './historicalBrowserI18n';
+import { historicalTimeRangeToQuery } from '../historicalTimeRange';
 import {
+  historicalBrowserTimeRange,
   validateHistoricalBrowserDraft,
   type HistoricalBrowserDraft
 } from './historicalBrowserPresentation';
@@ -59,17 +61,7 @@ export function buildHistoricalQueryRequest(
     throw new Error(`Historical search cannot exceed ${HISTORICAL_BROWSER_SEARCH_LIMIT} characters.`);
   }
 
-  const timeRange = draft.timeMode === 'relative'
-    ? Object.freeze({
-        kind: 'relative' as const,
-        durationSeconds: draft.relativeDurationSeconds,
-        anchor: 'now' as const
-      })
-    : Object.freeze({
-        kind: 'absolute' as const,
-        fromUtc: localDateTimeToUtc(draft.absoluteFromLocal),
-        toUtc: localDateTimeToUtc(draft.absoluteToLocal)
-      });
+  const timeRange = historicalTimeRangeToQuery(historicalBrowserTimeRange(draft));
 
   return Object.freeze({
     version: HISTORICAL_QUERY_VERSION,
@@ -173,8 +165,3 @@ function historicalRowIdentity(cells: Readonly<Record<string, HistoricalQueryVal
   return `${identity}:${timestamp}:${index}`;
 }
 
-function localDateTimeToUtc(value: string): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) throw new Error('Absolute period contains an invalid local date/time.');
-  return parsed.toISOString();
-}

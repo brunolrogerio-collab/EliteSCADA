@@ -66,8 +66,8 @@ function historicalResponse(datasetKey: 'historian.samples' | 'alarm.events', op
   };
 }
 
-async function openHarness(page: Page) {
-  await page.goto(harnessPath);
+async function openHarness(page: Page, query = '') {
+  await page.goto(harnessPath + query);
   await expect(page.getByTestId('historical-data-browser-runtime')).toBeVisible();
 }
 
@@ -179,4 +179,39 @@ test('mounted Historical Browser exposes forbidden state without fabricating emp
 
   await expect(page.getByRole('alert')).toContainText('Not authorized to query this historical dataset.');
   await expect(page.locator('tbody tr')).toHaveCount(0);
+});
+
+
+test('mounted Historical Browser keeps the required pt-BR absolute range deterministic across refresh', async ({ browser }) => {
+  const context = await browser.newContext({ timezoneId: 'America/Sao_Paulo', locale: 'pt-BR' });
+  const page = await context.newPage();
+  const requests: any[] = [];
+
+  await page.route('**/api/historical/query', async route => {
+    requests.push(route.request().postDataJSON());
+    await fulfillJson(route, historicalResponse('historian.samples'));
+  });
+
+  await openHarness(page, '?locale=pt-BR');
+  await page.getByLabel('Período absoluto').check();
+  await page.getByLabel('De').fill('2026-09-27T01:00:00');
+  await page.getByLabel('Até').fill('2026-09-28T12:00:00');
+  await page.getByRole('button', { name: 'Consultar', exact: true }).click();
+
+  await expect.poll(() => requests.length).toBe(1);
+  expect(requests[0].timeRange).toEqual({
+    kind: 'absolute',
+    fromUtc: '2026-09-27T04:00:00.000Z',
+    toUtc: '2026-09-28T15:00:00.000Z'
+  });
+
+  await page.getByRole('button', { name: 'Atualizar', exact: true }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1].timeRange).toEqual(requests[0].timeRange);
+
+  await page.getByLabel('De').fill('2026-09-28T12:00:00');
+  await expect(page.getByRole('button', { name: 'Consultar', exact: true })).toBeDisabled();
+  expect(requests).toHaveLength(2);
+
+  await context.close();
 });

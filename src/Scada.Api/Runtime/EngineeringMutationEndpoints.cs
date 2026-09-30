@@ -82,6 +82,33 @@ public static class EngineeringMutationEndpoints
                 "script",
                 () => BuildScriptDeletePlan(workspace, id)));
 
+        app.MapPost("/api/engineering/scripts/python/validate", async (
+            ServerScriptSyntaxValidationRequest request,
+            IConfiguration configuration,
+            HttpContext context) =>
+        {
+            if (request.Source is null)
+                return Results.BadRequest(new { error = "Python source is required." });
+
+            try
+            {
+                return Results.Ok(await ServerScriptSyntaxValidator.ValidateAsync(
+                    request.Source,
+                    configuration,
+                    context.RequestAborted));
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                return Results.BadRequest(new { error = "Python source exceeds the validation safety limit." });
+            }
+            catch (ServerScriptSyntaxValidatorUnavailableException exception)
+            {
+                return Results.Json(
+                    new { error = exception.Message },
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
+        }).RequireWorkspaceEngineeringRead();
+
         app.MapEngineeringBulkEndpoints();
     }
 

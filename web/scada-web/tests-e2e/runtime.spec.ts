@@ -260,9 +260,9 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
     expect(workspaceStatus.isDirty).toBeTruthy();
     expect(workspaceStatus.changeVersion).toBeGreaterThan(0);
     expect(workspaceStatus.tagCount).toBe(8);
-    // Roles are authority-owned in AUTH-03. The workspace only describes its
-    // local developer role; the canonical developer/operator policy is external.
-    expect(workspaceStatus.securityRoleCount).toBe(1);
+    // Roles are Authority-owned in AUTH-03; project Workspace carries no local
+    // role records. The canonical developer/operator policy remains external.
+    expect(workspaceStatus.securityRoleCount).toBe(0);
     expect(workspaceStatus.commandCount).toBe(2);
 
     const mutatedEngineeringResponse = await request.get('/api/engineering/export/json');

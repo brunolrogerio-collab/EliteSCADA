@@ -59,6 +59,8 @@ export function DynamoLibraryPalette({
         role="listitem"
         className={`visual-dynamo-library__card${selected?.definition.key === entry.definition.key ? ' is-selected' : ''}`}
         aria-pressed={selected?.definition.key === entry.definition.key}
+        data-dynamo-key={entry.definition.key}
+        data-dynamo-style={entry.visualStyle}
         onClick={() => setSelectedKey(entry.definition.key)}
       >
         <CanonicalVisualPreview elements={entry.definition.elements} locale={locale} width={entry.width} height={entry.height}

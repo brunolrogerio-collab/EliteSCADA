@@ -33,7 +33,7 @@ test('TAG editor only applies the exact candidate after a valid preview', async 
     await page.getByLabel('Descrição').fill(marker);
     await expect(apply).toBeDisabled();
 
-    await page.getByRole('button', { name: 'Validar preview' }).click();
+    await page.getByTestId('engineering-preview').click();
     await expect(page.getByText('Rascunho válido para aplicação', { exact: true })).toBeVisible();
     await expect(apply).toBeEnabled();
 
@@ -41,7 +41,7 @@ test('TAG editor only applies the exact candidate after a valid preview', async 
     await page.getByLabel('Descrição').fill(markerAfterEdit);
     await expect(apply).toBeDisabled();
 
-    await page.getByRole('button', { name: 'Validar preview' }).click();
+    await page.getByTestId('engineering-preview').click();
     await expect(apply).toBeEnabled();
     await apply.click();
 

@@ -67,7 +67,7 @@ test('Gateway Engineering config uses canonical Preview Apply and shows runtime 
   });
 
   await page.goto('/engineering');
-  const dataSourcesNav = page.locator('.eng-nav button').filter({ hasText: 'Data Sources' });
+  const dataSourcesNav = page.locator('.eng-nav button').filter({ hasText: /Fontes de dados|Data Sources/ });
   const gatewayNav = page.locator('.eng-nav button').filter({ hasText: 'TAG Gateway' });
   await expect(gatewayNav).toContainText('1');
   await dataSourcesNav.click();

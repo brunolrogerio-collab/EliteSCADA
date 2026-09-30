@@ -119,7 +119,7 @@ test('TAG Source selector sends stable Data Source identity through Preview with
   const previewRequest = page.waitForRequest(request =>
     request.method() === 'POST' &&
     new URL(request.url()).pathname === '/api/engineering/import/json/preview');
-  await page.getByRole('button', { name: 'Validar preview' }).click();
+  await page.getByTestId('engineering-preview').click();
   const previewCandidate = (await previewRequest).postDataJSON() as typeof engineeringPackage;
   await expect(page.getByText('Preview não altera o Workspace nem o runtime.', { exact: true })).toBeVisible();
 

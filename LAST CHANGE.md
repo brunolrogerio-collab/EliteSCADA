@@ -1,3 +1,22 @@
+# LAST CHANGE — 2026-09-29 — W15 R2-B ACTIVE / MAIN HANDOFF REFRESH
+
+GitHub live checkpoint at this change:
+- `wave15/corrections-integration@1d9e3f9123bea8e27c362ee680a4ba70f864becd`;
+- tree `512ef505924f3a0a709e8d5a73e2625531586e1c`;
+- EliteSCADA CI #1611 / `36655606469`: SUCCESS;
+- Portability #405 integrated;
+- J/L/N synchronized to the same exact base and released ACTIVE / NO_MERGE;
+- fresh revalidation: each J/L/N branch remains identical, ahead 0 / behind 0, with no open PR;
+- Shared CODEX remains PARKED;
+- M/P/TAG-D/Playback/Script Authoring R2 remain HOLD.
+
+Canonical replacement-Main handoff:
+`docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-09-29-R2B-ACTIVE.md`.
+
+Recent future Wave 16 architecture work is documented but is not current execution; Wave 15 R2-B remains the active product-development route.
+
+---
+
 # TAKEOVER POINTER — 2026-09-29 — R2-A PARALLEL EXECUTION
 
 > **READ FIRST:** `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-09-29-R2A.md`

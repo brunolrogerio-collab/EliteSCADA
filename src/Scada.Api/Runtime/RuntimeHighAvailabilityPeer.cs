@@ -59,6 +59,18 @@ public sealed record RuntimeSessionContinuityImportResult(
     string ReasonCode,
     RuntimeSessionLeaseContinuityEnvelope? Lease);
 
+public sealed record RuntimeSessionLeaseContinuityTombstoneEnvelope(
+    string ClusterId,
+    string UserId,
+    string ClientInstanceId,
+    Guid SessionId,
+    long Generation,
+    long AuthorityRevision,
+    DateTimeOffset IssuedAtUtc,
+    string SourceNodeId,
+    DateTimeOffset RecordedAtUtc,
+    string ReasonCode);
+
 public sealed partial class RuntimeHaAuthorityCoordinator
 {
     internal (RuntimeHaNodeReadinessEvidence Readiness, RuntimeHaTopologySnapshot Snapshot)
@@ -203,7 +215,7 @@ public sealed partial class RuntimeHaAuthorityCoordinator
 
 public sealed partial class RuntimeSessionLeaseContinuityRegistry
 {
-    private readonly Dictionary<string, PeerLeaseTombstone> _peerTombstones =
+    private readonly Dictionary<string, RuntimeSessionLeaseContinuityTombstoneEnvelope> _peerTombstones =
         new(StringComparer.Ordinal);
 
     public RuntimeSessionContinuityImportResult ImportPeerEnvelope(
@@ -344,36 +356,130 @@ public sealed partial class RuntimeSessionLeaseContinuityRegistry
         }
     }
 
+    public IReadOnlyCollection<RuntimeSessionLeaseContinuityTombstoneEnvelope>
+        TombstoneSnapshot(string clusterId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(clusterId);
+        lock (_gate)
+        {
+            ExpireLocked(_utcNow());
+            return _peerTombstones.Values
+                .Where(tombstone => tombstone.ClusterId.Equals(
+                    clusterId.Trim(),
+                    StringComparison.OrdinalIgnoreCase))
+                .OrderBy(tombstone => tombstone.UserId, StringComparer.Ordinal)
+                .ThenBy(tombstone => tombstone.ClientInstanceId, StringComparer.Ordinal)
+                .ToArray();
+        }
+    }
+
+    public RuntimeSessionContinuityImportResult ApplyPeerTombstone(
+        RuntimeSessionLeaseContinuityTombstoneEnvelope tombstone,
+        string expectedClusterId,
+        string expectedPeerNodeId)
+    {
+        ArgumentNullException.ThrowIfNull(tombstone);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedClusterId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedPeerNodeId);
+
+        if (!tombstone.ClusterId.Equals(
+                expectedClusterId.Trim(),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return new RuntimeSessionContinuityImportResult(
+                false,
+                "session-tombstone-cluster-mismatch",
+                null);
+        }
+        if (!tombstone.SourceNodeId.Equals(
+                expectedPeerNodeId.Trim(),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return new RuntimeSessionContinuityImportResult(
+                false,
+                "session-tombstone-source-node-mismatch",
+                null);
+        }
+
+        lock (_gate)
+        {
+            var key = LogicalKey(
+                tombstone.ClusterId,
+                tombstone.UserId,
+                tombstone.ClientInstanceId);
+            if (_peerTombstones.TryGetValue(key, out var current))
+            {
+                var sameSession = current.SessionId == tombstone.SessionId;
+                if ((sameSession &&
+                     current.Generation >= tombstone.Generation &&
+                     current.AuthorityRevision >= tombstone.AuthorityRevision) ||
+                    (!sameSession &&
+                     current.IssuedAtUtc >= tombstone.IssuedAtUtc))
+                {
+                    return new RuntimeSessionContinuityImportResult(
+                        false,
+                        "session-tombstone-not-newer",
+                        null);
+                }
+            }
+
+            if (_leases.TryGetValue(key, out var lease) &&
+                lease.SessionId == tombstone.SessionId)
+            {
+                if (lease.Generation > tombstone.Generation ||
+                    lease.AuthorityRevision > tombstone.AuthorityRevision)
+                {
+                    return new RuntimeSessionContinuityImportResult(
+                        false,
+                        "session-tombstone-stale",
+                        lease);
+                }
+                _leases.Remove(key);
+            }
+
+            _peerTombstones[key] = tombstone;
+            return new RuntimeSessionContinuityImportResult(
+                true,
+                "peer-session-tombstone-applied",
+                null);
+        }
+    }
+
     private void RecordPeerTombstoneLocked(
         string key,
         RuntimeSessionLeaseContinuityEnvelope lease,
         string reasonCode)
     {
-        if (_peerTombstones.TryGetValue(key, out var current) &&
-            current.Generation > lease.Generation)
+        if (_peerTombstones.TryGetValue(key, out var current))
         {
-            return;
+            if (current.SessionId == lease.SessionId &&
+                current.Generation > lease.Generation)
+            {
+                return;
+            }
+            if (current.SessionId != lease.SessionId &&
+                current.IssuedAtUtc >= lease.IssuedAtUtc)
+            {
+                return;
+            }
         }
 
-        _peerTombstones[key] = new PeerLeaseTombstone(
-            lease.SessionId,
-            lease.Generation,
-            lease.AuthorityRevision,
-            lease.IssuedAtUtc,
-            _utcNow(),
-            reasonCode);
+        _peerTombstones[key] =
+            new RuntimeSessionLeaseContinuityTombstoneEnvelope(
+                lease.ClusterId,
+                lease.UserId,
+                lease.ClientInstanceId,
+                lease.SessionId,
+                lease.Generation,
+                lease.AuthorityRevision,
+                lease.IssuedAtUtc,
+                lease.SourceNodeId,
+                _utcNow(),
+                reasonCode);
     }
 
     private void ClearPeerTombstoneForLocalAdmissionLocked(string key) =>
         _peerTombstones.Remove(key);
-
-    private sealed record PeerLeaseTombstone(
-        Guid SessionId,
-        long Generation,
-        long AuthorityRevision,
-        DateTimeOffset IssuedAtUtc,
-        DateTimeOffset RecordedAtUtc,
-        string ReasonCode);
 }
 
 public sealed partial class RuntimeHighAvailabilityService
@@ -381,6 +487,8 @@ public sealed partial class RuntimeHighAvailabilityService
     private readonly object _peerGate = new();
     private readonly Guid _peerObservationInstanceId = Guid.NewGuid();
     private readonly Dictionary<string, PeerObservationCursor> _peerObservations =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, HashSet<Guid>> _retiredPeerAuthorityInstances =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<Guid, PeerTransferCursor> _peerTransfers = new();
     private long _peerObservationSequence;
@@ -490,6 +598,18 @@ public sealed partial class RuntimeHighAvailabilityService
 
         lock (_peerGate)
         {
+            var local = _authority.Snapshot();
+            if (_retiredPeerAuthorityInstances.TryGetValue(
+                    envelope.SourceNodeId,
+                    out var retired) &&
+                retired.Contains(envelope.SourceAuthorityInstanceId))
+            {
+                return new RuntimeHaPeerApplyResult(
+                    false,
+                    "peer-authority-instance-stale",
+                    local);
+            }
+
             if (_peerObservations.TryGetValue(
                     envelope.SourceNodeId,
                     out var cursor))
@@ -501,22 +621,35 @@ public sealed partial class RuntimeHighAvailabilityService
                     return new RuntimeHaPeerApplyResult(
                         false,
                         "peer-observation-stale",
-                        _authority.Snapshot());
+                        local);
                 }
 
                 if (cursor.SourceAuthorityInstanceId !=
                     envelope.SourceAuthorityInstanceId)
                 {
-                    var ambiguous = _authority.MarkAmbiguousPeerAuthority(
-                        envelope.AuthorityEpoch);
-                    return new RuntimeHaPeerApplyResult(
-                        false,
-                        "peer-authority-instance-conflict",
-                        ambiguous);
+                    if (CanAcceptStandbyAuthorityRestart(envelope, local))
+                    {
+                        if (!_retiredPeerAuthorityInstances.TryGetValue(
+                                envelope.SourceNodeId,
+                                out retired))
+                        {
+                            retired = new HashSet<Guid>();
+                            _retiredPeerAuthorityInstances[
+                                envelope.SourceNodeId] = retired;
+                        }
+                        retired.Add(cursor.SourceAuthorityInstanceId);
+                    }
+                    else
+                    {
+                        var ambiguous = _authority.MarkAmbiguousPeerAuthority(
+                            envelope.AuthorityEpoch);
+                        return new RuntimeHaPeerApplyResult(
+                            false,
+                            "peer-authority-instance-conflict",
+                            ambiguous);
+                    }
                 }
             }
-
-            var local = _authority.Snapshot();
             if (envelope.AuthorityEpoch < local.AuthorityEpoch)
             {
                 return new RuntimeHaPeerApplyResult(
@@ -926,6 +1059,25 @@ public sealed partial class RuntimeHighAvailabilityService
             return "peer-evidence-stale";
         return null;
     }
+
+    private bool CanAcceptStandbyAuthorityRestart(
+        RuntimeHaPeerObservationEnvelope envelope,
+        RuntimeHaTopologySnapshot local) =>
+        LocalNodeId is not null &&
+        local.EffectiveActiveNodeId is not null &&
+        local.EffectiveActiveNodeId.Equals(
+            LocalNodeId,
+            StringComparison.OrdinalIgnoreCase) &&
+        envelope.EffectiveActiveNodeId is not null &&
+        envelope.EffectiveActiveNodeId.Equals(
+            local.EffectiveActiveNodeId,
+            StringComparison.OrdinalIgnoreCase) &&
+        !envelope.SourceNodeId.Equals(
+            local.EffectiveActiveNodeId,
+            StringComparison.OrdinalIgnoreCase) &&
+        !envelope.AmbiguousAuthority &&
+        envelope.AuthorityEpoch == local.AuthorityEpoch &&
+        !envelope.Readiness.SynchronizationComplete;
 
     private bool IsFreshPeerTime(DateTimeOffset observedAtUtc)
     {

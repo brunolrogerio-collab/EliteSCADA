@@ -15,7 +15,7 @@ public sealed class EngineeringFirstProjectBootstrapTests
     {
         var definitions = BuiltinDynamoLibrary.Create();
 
-        Assert.Equal(8, definitions.Count);
+        Assert.Equal(10, definitions.Count);
         Assert.All(definitions, definition => Assert.Null(definition.TemplateKey));
     }
 
@@ -54,7 +54,7 @@ public sealed class EngineeringFirstProjectBootstrapTests
         var savedPackage = exchange.ParseJson(snapshot.EngineeringJson);
         Assert.Empty(savedPackage.Templates ?? Array.Empty<EquipmentTemplateEngineeringDto>());
         var savedDynamos = savedPackage.Dynamos ?? Array.Empty<DynamoEngineeringDto>();
-        Assert.Equal(8, savedDynamos.Count);
+        Assert.Equal(10, savedDynamos.Count);
         Assert.All(savedDynamos, definition => Assert.Null(definition.TemplateKey));
 
         var result = await persistence.PublishRevisionAsync(

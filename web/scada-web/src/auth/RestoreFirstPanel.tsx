@@ -46,7 +46,7 @@ const text = {
     restoreApplication: 'Importar aplicação',
     restoringApplication: 'Importando aplicação…',
     authorityDone: 'Authority restaurada. Entre com um Administrador restaurado para continuar.',
-    applicationDone: 'Application importada, publicada e ativada.'.
+    applicationDone: 'Application importada, publicada e ativada.',
     licenseFailed: 'A aplicação foi recuperada, mas a licença opcional não pôde ser instalada.',
     continueWithoutLicense: 'Continuar sem licença',
     separateData: 'Banco de dados e Historian permanecem uma etapa separada e devem usar o procedimento nativo suportado.',
@@ -74,7 +74,7 @@ const text = {
     restoreApplication: 'Import application',
     restoringApplication: 'Importing application…',
     authorityDone: 'Authority restored. Sign in with a restored Administrator to continue.',
-    applicationDone: 'Application imported, published, and activated.'.
+    applicationDone: 'Application imported, published, and activated.',
     licenseFailed: 'The application was recovered, but the optional license could not be installed.',
     continueWithoutLicense: 'Continue without license',
     separateData: 'Database and Historian recovery remain a separate step and must use the supported native procedure.',
@@ -102,7 +102,7 @@ const text = {
     restoreApplication: 'Importar aplicación',
     restoringApplication: 'Importando aplicación…',
     authorityDone: 'Authority restaurada. Ingrese con un Administrador restaurado para continuar.',
-    applicationDone: 'Application importada, publicada y activada.'.
+    applicationDone: 'Application importada, publicada y activada.',
     licenseFailed: 'La aplicación fue recuperada, pero la licencia opcional no pudo instalarse.',
     continueWithoutLicense: 'Continuar sin licencia',
     separateData: 'La recuperación de la base de datos y del Historian sigue siendo una etapa separada y debe usar el procedimiento nativo soportado.',

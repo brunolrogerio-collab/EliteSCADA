@@ -220,6 +220,7 @@ test('C26.8 mounted Screen editor exposes truthful controls and completes basic 
     await canvasToolbar.getByRole('button', { name: 'Trazer para frente', exact: true }).click();
     await expect.poll(() => inlineNumber(rectangleA, 'zIndex')).toBeGreaterThan(await inlineNumber(rectangleC, 'zIndex'));
 
+    await page.getByTestId('visual-editor-inspector-tab-dynamics').click();
     const binding = page.getByTestId('visual-binding-editor');
     await binding.getByLabel('Propriedade visual').selectOption('visible');
     const source = binding.getByLabel('Fonte do projeto');

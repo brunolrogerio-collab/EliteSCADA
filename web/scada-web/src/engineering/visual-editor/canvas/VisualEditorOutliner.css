@@ -18,5 +18,12 @@
 
 /* R2 editor: Structure is docked in the shared authoring sidebar, never over the canvas. */
 .visual-editor-authoring-sidebar .visual-editor-outliner{position:static;width:auto;max-height:none;border:0;border-radius:0;background:transparent;box-shadow:none}
-.visual-editor-authoring-sidebar .visual-editor-outliner>summary{position:sticky;top:0;z-index:1;background:var(--eng-panel-soft,#17212c)}
+.visual-editor-authoring-sidebar .visual-editor-outliner>summary{position:static;z-index:auto;background:var(--eng-panel-soft,#17212c)}
 .visual-editor-authoring-sidebar .visual-editor-outliner__tree{max-height:none;overflow:visible}
+.eng-shell .visual-editor-authoring-sidebar .visual-editor-outliner>summary { color:var(--eng-text,#e8edf3); background:var(--eng-panel-soft,#17212c); border-color:var(--eng-border,#283544); }
+.eng-shell .visual-editor-outliner>summary span,.eng-shell .visual-editor-outliner__lock { color:var(--eng-text,#e8edf3); background:var(--eng-panel-soft,#17212c); }
+.eng-shell .visual-editor-outliner__row:hover { background:var(--eng-hover,#202c39); }
+.eng-shell .visual-editor-outliner__row.is-selected { background:var(--eng-selected,#173453); }
+.eng-shell .visual-editor-outliner__toggle,.eng-shell .visual-editor-outliner__select { color:var(--eng-text,#e8edf3); }
+.eng-shell .visual-editor-outliner__select code,.eng-shell .visual-editor-outliner__empty { color:var(--eng-muted,#a7b4c2); }
+.eng-shell .visual-editor-outliner__lock.is-direct { color:var(--eng-text,#e8edf3); background:var(--eng-border,#34465a); }

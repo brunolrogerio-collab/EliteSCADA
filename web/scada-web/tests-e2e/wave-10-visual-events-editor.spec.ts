@@ -54,7 +54,7 @@ test('mounted Events editor persists click and canonical timer/TAG-bit associati
     await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();
     await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: screen!.key }).click();
 
-    await page.locator('[data-object-type="core.rectangle"]').click();
+    await page.locator('[data-insert-object-type="core.rectangle"]').click();
     const rectangle = page.locator('[data-canvas-object-type="core.rectangle"]').last();
     await expect(rectangle).toBeVisible();
     await rectangle.click();

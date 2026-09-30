@@ -72,10 +72,12 @@ test('W15 R2 editor mounts shared side surfaces, canonical Dynamo preview and co
   await expect(page.locator('.visual-editor-canvas-enhanced__canvas').getByTestId('visual-editor-canonical-renderer')).toBeVisible();
   await expect(authoringSidebar).toBeVisible();
   await expect(authoringSidebar.getByTestId('visual-editor-outliner')).toBeVisible();
-  await expect(authoringSidebar.getByTestId('visual-object-palette')).toBeVisible();
+  await expect(authoringSidebar.getByTestId('visual-object-palette')).toHaveCount(0);
   await expect(page.locator('.visual-editor-canvas-enhanced__canvas').getByTestId('visual-editor-outliner')).toHaveCount(0);
   await expect(page.locator('[data-insert-object-type="core.image"]')).toBeVisible();
 
+  await authoringSidebar.getByTestId('visual-editor-side-tab-library').click();
+  await expect(authoringSidebar.getByTestId('visual-editor-outliner')).toBeHidden();
   const dynamoLibrary = page.getByTestId('visual-dynamo-library');
   await expect(dynamoLibrary).toBeVisible();
   await expect(dynamoLibrary.getByTestId('dynamo-library-canonical-thumbnail').first()).toBeVisible();
@@ -100,6 +102,14 @@ test('W15 R2 editor mounts shared side surfaces, canonical Dynamo preview and co
   await expect(selectionInspector.getByTestId('visual-editor-inspector-tab-properties')).toBeVisible();
   await expect(selectionInspector.getByTestId('visual-editor-inspector-tab-dynamics')).toBeVisible();
   await expect(selectionInspector.getByTestId('visual-editor-inspector-tab-events')).toBeVisible();
+
+  await authoringSidebar.getByTestId('visual-editor-side-tab-structure').click();
+  await expect(authoringSidebar.getByTestId('visual-editor-outliner')).toBeVisible();
+  const paletteSeparator = workspace.getByRole('separator', { name: /estrutura e dínamos/i });
+  const paletteWidth = Number(await paletteSeparator.getAttribute('aria-valuenow'));
+  await paletteSeparator.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(paletteSeparator).toHaveAttribute('aria-valuenow', String(paletteWidth + 12));
 
   const paletteToggle = page.getByTestId('visual-editor-palette-toggle');
   await paletteToggle.click();
@@ -144,7 +154,8 @@ test('Wave 08 composes Canvas, palette, properties, project-source binding, imag
     await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
     await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();
     await expect(page.getByTestId('visual-editor-canvas')).toBeVisible();
-    await expect(page.getByTestId('visual-object-palette')).toBeVisible();
+    await expect(page.getByTestId('visual-object-palette')).toHaveCount(0);
+    await expect(page.getByTestId('visual-editor-authoring-toolbar')).toBeVisible();
     await expect(page.getByTestId('visual-property-inspector')).toBeVisible();
     await expect(page.getByTestId('visual-editor-canvas').getByTestId('visual-editor-canonical-renderer')).toBeVisible();
     await expect(page.locator('.visual-editor-object-error')).toHaveCount(0);
@@ -155,6 +166,7 @@ test('Wave 08 composes Canvas, palette, properties, project-source binding, imag
     const route = page.getByRole('textbox', { name: 'Rota', exact: true });
     await expect(route).toHaveValue(originalScreen!.route ?? '');
 
+    await page.getByTestId('visual-editor-side-tab-assets').click();
     const assetInput = page.locator('.visual-editor-file-import input[type="file"]');
     await expect(assetInput).toBeEnabled();
     await assetInput.setInputFiles({ name: assetFileName, mimeType: 'image/png', buffer: ONE_PIXEL_PNG });
@@ -170,7 +182,7 @@ test('Wave 08 composes Canvas, palette, properties, project-source binding, imag
       return assets.find(asset => asset.originalFileName === assetFileName)!.id!;
     });
 
-    await page.locator('[data-object-type="core.image"]').click();
+    await page.locator('[data-insert-object-type="core.image"]').click();
     const imageObject = page.locator('[data-canvas-object-type="core.image"]').last();
     await expect(imageObject).toBeVisible();
     await imageObject.click();
@@ -190,6 +202,8 @@ test('Wave 08 composes Canvas, palette, properties, project-source binding, imag
     await canvasSurface.press('ArrowRight');
 
     const bindingEditor = page.getByTestId('visual-binding-editor');
+
+    await page.getByTestId('visual-editor-inspector-tab-dynamics').click();
     await expect(bindingEditor).toBeVisible();
     await bindingEditor.getByLabel('Propriedade visual').selectOption(bindingProperty);
     const sourceSelect = bindingEditor.getByLabel('Fonte do projeto');
@@ -267,11 +281,12 @@ test('FOLLOW-B mounted editor persists expression, Boolean Condition and Analog 
     await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
     await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: originalScreen!.key }).click();
 
-    await page.locator('[data-object-type="core.rectangle"]').click();
+    await page.locator('[data-insert-object-type="core.rectangle"]').click();
     const rectangle = page.locator('[data-canvas-object-type="core.rectangle"]').last();
     await expect(rectangle).toBeVisible();
     await rectangle.click();
 
+    await page.getByTestId('visual-editor-inspector-tab-dynamics').click();
     const dynamic = page.getByTestId('visual-dynamic-property-editor');
     await expect(dynamic).toBeVisible();
 
@@ -382,11 +397,12 @@ test('W15 Dynamic Text and Numeric Input are mounted, persisted and Design mode 
     await page.goto('/engineering');
     await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
     await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: originalScreen!.key }).click();
+    await page.getByTestId('visual-editor-inspector-tab-dynamics').click();
 
-    const palette = page.getByTestId('visual-object-palette');
+    const palette = page.getByTestId('visual-editor-authoring-toolbar');
     const bindingEditor = page.getByTestId('visual-binding-editor');
 
-    await palette.locator('[data-object-type="core.text"]').click();
+    await palette.locator('[data-insert-object-type="core.text"]').click();
     const textObject = page.locator('[data-canvas-object-type="core.text"]').last();
     await textObject.click();
     const textId = await textObject.getAttribute('data-canvas-object-id');
@@ -401,7 +417,7 @@ test('W15 Dynamic Text and Numeric Input are mounted, persisted and Design mode 
     await format.getByRole('textbox', { name: 'Prefix' }).fill('SP ');
     await bindingEditor.getByRole('button', { name: 'Aplicar binding' }).click();
 
-    await palette.locator('[data-object-type="core.numericInput"]').click();
+    await palette.locator('[data-insert-object-type="core.numericInput"]').click();
     const numericCanvas = page.locator('[data-canvas-object-type="core.numericInput"]').last();
     await numericCanvas.click();
     const numericId = await numericCanvas.getAttribute('data-canvas-object-id');
@@ -465,10 +481,10 @@ test('W15 first-user flow configures rectangle and Text through canonical WYSIWY
 
   async function exercise(kind: 'screen' | 'popup') {
     const root = kind === 'screen' ? page.getByTestId('visual-editor-workspace') : page.getByTestId('popup-visual-editor-workspace');
-    const palette = root.getByTestId('visual-object-palette');
+    const palette = root.getByTestId('visual-editor-authoring-toolbar');
     const inspector = root.getByTestId('visual-property-inspector');
 
-    await palette.locator('[data-object-type="core.rectangle"]').click();
+    await palette.locator('[data-insert-object-type="core.rectangle"]').click();
     const rectangle = root.locator('[data-canvas-object-type="core.rectangle"]').last();
     await rectangle.click();
     const rectangleId = await rectangle.getAttribute('data-canvas-object-id');
@@ -495,7 +511,7 @@ test('W15 first-user flow configures rectangle and Text through canonical WYSIWY
     await expect(rectangle).toHaveAttribute('data-canvas-object-id', rectangleId!);
     await expect(rectangle).toHaveAttribute('data-canvas-object-key', renamedRect);
 
-    await palette.locator('[data-object-type="core.text"]').click();
+    await palette.locator('[data-insert-object-type="core.text"]').click();
     const textObject = root.locator('[data-canvas-object-type="core.text"]').last();
     await textObject.click();
     const textId = await textObject.getAttribute('data-canvas-object-id');

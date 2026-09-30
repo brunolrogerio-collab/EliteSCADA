@@ -4,7 +4,6 @@ import type { EngineeringLocale } from '../i18n';
 import type { VisualEditorMutationIntent, VisualEditorUiIntent } from './visualEditorContracts';
 import type { VisualEditorKeyboardCommand } from './visualEditorKeyboardModel';
 import { DynamoLibraryPalette } from './DynamoLibraryPalette';
-import { ObjectPalette } from './object-palette';
 import { VisualDefinitionSurfaceInspector } from './canvas/VisualDefinitionSurfaceInspector';
 import { VisualEditorOutliner } from './canvas/VisualEditorOutliner';
 
@@ -47,9 +46,11 @@ export function VisualEditorAuthoringSidebar({
     <div className="visual-editor-side-tabs" role="tablist" aria-label={text.authoring}>
       {(['structure', 'library', 'assets'] as const).map(tab => <button
         key={tab}
+        id={`visual-editor-side-tab-${tab}`}
         type="button"
         role="tab"
         aria-selected={activeTab === tab}
+        aria-controls={`visual-editor-side-section-${tab}`}
         className={activeTab === tab ? 'is-active' : ''}
         onClick={() => onActiveTabChange(tab)}
         data-testid={`visual-editor-side-tab-${tab}`}
@@ -57,7 +58,7 @@ export function VisualEditorAuthoringSidebar({
     </div>
 
     <div className="visual-editor-side-panel" data-authoring-tab={activeTab}>
-      <section className={`visual-editor-side-section${activeTab === 'structure' ? ' is-active' : ''}`} data-side-section="structure">
+      <section id="visual-editor-side-section-structure" role="tabpanel" aria-labelledby="visual-editor-side-tab-structure" hidden={activeTab !== 'structure'} className={`visual-editor-side-section${activeTab === 'structure' ? ' is-active' : ''}`} data-side-section="structure">
         <VisualEditorOutliner
           screen={screen}
           selectedObjectIds={selectedObjectIds}
@@ -69,8 +70,7 @@ export function VisualEditorAuthoringSidebar({
         />
       </section>
 
-      <section className={`visual-editor-side-section${activeTab === 'library' ? ' is-active' : ''}`} data-side-section="library">
-        <ObjectPalette onMutationIntent={onMutationIntent} />
+      <section id="visual-editor-side-section-library" role="tabpanel" aria-labelledby="visual-editor-side-tab-library" hidden={activeTab !== 'library'} className={`visual-editor-side-section${activeTab === 'library' ? ' is-active' : ''}`} data-side-section="library">
         <DynamoLibraryPalette
           definitions={definitions}
           locale={locale}
@@ -78,7 +78,7 @@ export function VisualEditorAuthoringSidebar({
         />
       </section>
 
-      <section className={`visual-editor-side-section${activeTab === 'assets' ? ' is-active' : ''}`} data-side-section="assets">
+      <section id="visual-editor-side-section-assets" role="tabpanel" aria-labelledby="visual-editor-side-tab-assets" hidden={activeTab !== 'assets'} className={`visual-editor-side-section${activeTab === 'assets' ? ' is-active' : ''}`} data-side-section="assets">
         <section className="visual-editor-asset-library" data-testid="visual-editor-asset-library">
           <header>
             <strong>{text.assets}</strong>

@@ -51,8 +51,8 @@ test('Wave 08 creates a closed free polygon and a dynamic text binding through c
     await page.locator('.eng-nav').getByRole('button', { name: /^Telas\b/ }).click();
     await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: screen!.key }).click();
 
-    const palette = page.getByTestId('visual-object-palette');
-    await palette.locator('[data-object-type="core.polygon"]').click();
+    const palette = page.getByTestId('visual-editor-authoring-toolbar');
+    await palette.locator('[data-insert-object-type="core.polygon"]').click();
     const surface = page.locator('.visual-editor-canvas__surface');
     await expect(surface).toBeVisible();
 
@@ -68,11 +68,12 @@ test('Wave 08 creates a closed free polygon and a dynamic text binding through c
     await polygon.click();
     await expect(page.locator('.visual-editor-canvas__polygon-vertex')).toHaveCount(4);
 
-    await palette.locator('[data-object-type="core.text"]').click();
+    await palette.locator('[data-insert-object-type="core.text"]').click();
     const textObject = page.locator('[data-canvas-object-type="core.text"]').last();
     await expect(textObject).toBeVisible();
     await textObject.click();
 
+    await page.getByTestId('visual-editor-inspector-tab-dynamics').click();
     const binding = page.getByTestId('visual-binding-editor');
     await binding.getByLabel('Propriedade visual').selectOption('text');
     const source = binding.getByLabel('Fonte do projeto');

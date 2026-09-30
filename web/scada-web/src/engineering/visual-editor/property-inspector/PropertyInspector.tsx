@@ -159,7 +159,7 @@ export function PropertyInspector({
     <aside className="property-inspector" data-testid="visual-property-inspector">
       <header className="property-inspector__header">
         <strong>{text.title}</strong>
-        <span>{selectedElements.length === 1 ? selectedElements[0].key : text.selected(selectedElements.length)}</span>
+        {selectedElements.length > 1 ? <span>{text.selected(selectedElements.length)}</span> : null}
       </header>
 
       {model.diagnostic ? <p className="property-inspector__diagnostic" role="status">{model.diagnostic}</p> : null}
@@ -347,34 +347,34 @@ function IdentityEditor({
     onMutationIntent({ kind: 'object.rename', objectId: element.id, key });
   };
 
-  return <section className="property-inspector__identity" data-testid="visual-property-identity">
-    <header>
-      <strong>{text.identity}</strong>
-      <span>{text.renameHint}</span>
-    </header>
-    <label>
-      <span>{text.developerKey}</span>
-      <input
-        data-testid="visual-property-identity-key"
-        value={keyDraft}
-        onChange={event => { setKeyDraft(event.currentTarget.value); setError(null); }}
-        onBlur={commit}
-        onKeyDown={event => {
-          if (event.key === 'Enter') event.currentTarget.blur();
-          if (event.key === 'Escape') {
-            setKeyDraft(element.key);
-            setError(null);
-            event.currentTarget.blur();
-          }
-        }}
-      />
-    </label>
-    <div className="property-inspector__stable-id">
-      <span>{text.stableId}</span>
-      <code data-testid="visual-property-identity-id">{element.id}</code>
+  return <details className="property-inspector__identity" data-testid="visual-property-identity">
+    <summary><strong>{text.identity}</strong><code>{element.key}</code></summary>
+    <div className="property-inspector__identity-body">
+      <p>{text.renameHint}</p>
+      <label>
+        <span>{text.developerKey}</span>
+        <input
+          data-testid="visual-property-identity-key"
+          value={keyDraft}
+          onChange={event => { setKeyDraft(event.currentTarget.value); setError(null); }}
+          onBlur={commit}
+          onKeyDown={event => {
+            if (event.key === 'Enter') event.currentTarget.blur();
+            if (event.key === 'Escape') {
+              setKeyDraft(element.key);
+              setError(null);
+              event.currentTarget.blur();
+            }
+          }}
+        />
+      </label>
+      <div className="property-inspector__stable-id">
+        <span>{text.stableId}</span>
+        <code data-testid="visual-property-identity-id">{element.id}</code>
+      </div>
+      {error ? <p className="property-inspector__validation" role="alert">{error}</p> : null}
     </div>
-    {error ? <p className="property-inspector__validation" role="alert">{error}</p> : null}
-  </section>;
+  </details>;
 }
 
 export function humanizeVisualPropertyKey(propertyKey: string): string {

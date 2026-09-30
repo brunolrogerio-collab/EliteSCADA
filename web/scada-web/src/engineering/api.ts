@@ -15,12 +15,14 @@ const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
 export class EngineeringSnapshotLoadError extends Error {
   constructor(
-    public readonly kind: 'transport' | 'http' | 'response',
+    public readonly kind: 'transport' | 'http' | 'response' | 'timeout',
     public readonly path: string,
     public readonly status?: number,
     cause?: unknown
   ) {
-    const detail = kind === 'transport'
+    const detail = kind === 'timeout'
+      ? `Timed out while loading ${path}.`
+      : kind === 'transport'
       ? `Transport unavailable while loading ${path}.`
       : kind === 'http'
         ? `HTTP ${status ?? 'unknown'} response while loading ${path}.`
@@ -31,23 +33,31 @@ export class EngineeringSnapshotLoadError extends Error {
 }
 
 async function getJson<T>(path: string): Promise<T> {
-  let response: Response;
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 30_000);
   try {
-    response = await fetch(`${API}${path}`, {
-      headers: { accept: 'application/json' }
+    const response = await fetch(`${API}${path}`, {
+      headers: { accept: 'application/json' },
+      signal: controller.signal
     });
+
+    if (!response.ok) {
+      throw new EngineeringSnapshotLoadError('http', path, response.status);
+    }
+
+    try {
+      return await response.json() as T;
+    } catch (reason) {
+      throw new EngineeringSnapshotLoadError('response', path, response.status, reason);
+    }
   } catch (reason) {
+    if (reason instanceof EngineeringSnapshotLoadError) throw reason;
+    if (controller.signal.aborted) {
+      throw new EngineeringSnapshotLoadError('timeout', path, undefined, reason);
+    }
     throw new EngineeringSnapshotLoadError('transport', path, undefined, reason);
-  }
-
-  if (!response.ok) {
-    throw new EngineeringSnapshotLoadError('http', path, response.status);
-  }
-
-  try {
-    return await response.json() as T;
-  } catch (reason) {
-    throw new EngineeringSnapshotLoadError('response', path, response.status, reason);
+  } finally {
+    window.clearTimeout(timeoutId);
   }
 }
 

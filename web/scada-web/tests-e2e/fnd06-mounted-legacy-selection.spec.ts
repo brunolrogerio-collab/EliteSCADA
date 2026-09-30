@@ -57,10 +57,12 @@ test('FND-06 mounted Screen selection contains known legacy objects and preserve
       await expect(workspace).toBeVisible();
       await expect(inspector).toContainText(element.key);
       await expect(inspector.getByRole('status')).toContainText(`Compatibility mode for persisted legacy type: ${element.type}`);
+      await workspace.getByTestId('visual-editor-inspector-tab-dynamics').click();
       await expect(workspace.getByTestId('visual-dynamic-property-editor')).toBeVisible();
       await expect(workspace.getByTestId('visual-binding-editor')).toBeVisible();
     }
 
+    await workspace.getByTestId('visual-editor-inspector-tab-properties').click();
     await canvasObject(page, tank.id).click();
     const width = inspector.getByRole('spinbutton', { name: 'Width', exact: true });
     await width.fill('123');
@@ -81,7 +83,9 @@ test('FND-06 mounted Screen selection contains known legacy objects and preserve
 
     await outlinerEntry(outliner, unknown.key).click();
     await expect(workspace).toBeVisible();
+    await workspace.getByTestId('visual-editor-inspector-tab-properties').click();
     await expect(inspector.getByRole('alert')).toContainText('not registered for property editing');
+    await workspace.getByTestId('visual-editor-inspector-tab-dynamics').click();
     await expect(workspace.getByTestId('visual-dynamic-property-editor').getByRole('alert')).toContainText('Unknown built-in visual object type');
     await expect(workspace.getByTestId('visual-binding-editor')).toContainText("Visual object type 'vendor.unknown-x' is not a registered");
   } finally {
@@ -113,6 +117,7 @@ test('FND-06 mounted Popup selection contains legacy value and status without po
       await expect(workspace).toBeVisible();
       await expect(inspector).toContainText(element.key);
       await expect(inspector.getByRole('status')).toContainText(`Compatibility mode for persisted legacy type: ${element.type}`);
+      await workspace.getByTestId('visual-editor-inspector-tab-dynamics').click();
       await expect(workspace.getByTestId('visual-dynamic-property-editor')).toBeVisible();
       await expect(workspace.getByTestId('visual-binding-editor')).toBeVisible();
     }

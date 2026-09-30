@@ -41,3 +41,7 @@
 /* R2 editor: Dynamo instance editing follows selected-object Properties rather than overlaying the canvas. */
 .visual-editor-inspector-slot .visual-editor-dynamo-inspector{position:static;width:auto;max-height:none;border-color:var(--eng-border,#283544);background:var(--eng-panel,#121922);box-shadow:none;color:var(--eng-text,#e8edf3)}
 .visual-editor-inspector-slot .visual-editor-dynamo-inspector__body{max-height:none}
+.eng-shell .visual-editor-inspector-slot .visual-editor-dynamo-inspector__identity,.eng-shell .visual-editor-inspector-slot .visual-editor-dynamo-state-preview,.eng-shell .visual-editor-inspector-slot .visual-editor-dynamo-parameter { border-color:var(--eng-border,#283544); background:var(--eng-panel-soft,#17212c); color:var(--eng-text,#e8edf3); }
+.eng-shell .visual-editor-inspector-slot .visual-editor-dynamo-state-preview__grid select,.eng-shell .visual-editor-inspector-slot .visual-editor-dynamo-parameter input,.eng-shell .visual-editor-inspector-slot .visual-editor-dynamo-parameter select { border-color:var(--eng-border,#34465a); background:var(--eng-input-bg,#0b1016); color:var(--eng-text,#e8edf3); }
+.eng-shell .visual-editor-inspector-slot .visual-editor-dynamo-state-preview > footer strong { color:var(--eng-text,#e8edf3); }
+.eng-shell .visual-editor-inspector-slot .visual-editor-dynamo-parameter > footer button { border-color:var(--eng-border,#34465a); background:var(--eng-panel,#121922); color:var(--eng-text,#e8edf3); }

@@ -1116,6 +1116,15 @@ public sealed class RuntimeHaPeerReplicationCoordinator
         }
 
         var state = mirror.AuthoritativeState;
+        var localRuntime = _runtime.Describe();
+        if (!localRuntime.Revision.HasValue ||
+            string.IsNullOrWhiteSpace(localRuntime.ProjectKey))
+        {
+            return (false, "passive-runtime-not-materialized");
+        }
+        if (!RuntimeHaRuntimeIdentity.From(localRuntime).CompatibleWith(state.Runtime))
+            return (false, "passive-runtime-not-compatible");
+
         if (!state.License.LicenseValid)
             return (false, "peer-license-invalid");
         if (!state.License.HaRuntimeEntitled)

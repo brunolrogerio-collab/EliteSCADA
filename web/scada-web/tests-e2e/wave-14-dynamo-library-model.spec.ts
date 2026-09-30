@@ -6,7 +6,7 @@ import {
   listDynamoLibraryCategories
 } from '../src/engineering/visual-editor/dynamoLibraryModel';
 
-function dynamo(key: string, name: string, category: string, width: number, height: number): DynamoEngineering {
+function dynamo(key: string, name: string, category: string, width: number, height: number, visualStyle = 'detailed-2d'): DynamoEngineering {
   return {
     id: `${key}-id`,
     key,
@@ -14,7 +14,8 @@ function dynamo(key: string, name: string, category: string, width: number, heig
     properties: {
       category,
       defaultWidth: String(width),
-      defaultHeight: String(height)
+      defaultHeight: String(height),
+      visualStyle
     },
     parameters: [
       { key: 'equipmentPath', kind: 'EquipmentPath' },
@@ -29,14 +30,15 @@ const definitions = [
   dynamo('process.motor.standard', 'Motor padrão', 'motor', 106, 92),
   dynamo('process.motor.vfd', 'Motor com inversor', 'motor', 138, 96),
   dynamo('process.valve.onoff', 'Válvula abre/fecha', 'valve', 128, 92),
-  dynamo('process.tank.vertical', 'Tanque vertical', 'tank', 108, 158)
+  dynamo('process.tank.vertical', 'Tanque vertical', 'tank', 108, 158),
+  dynamo('process.tank.vertical.high-performance', 'Tanque vertical — High Performance', 'tank', 108, 158, 'high-performance')
 ] as const;
 
 test('library model exposes category dimensions thumbnail and public-interface count', () => {
   const entries = buildDynamoLibraryEntries(definitions, 'pt-BR');
   const pump = entries.find(entry => entry.definition.key === 'dynamo.pump.standard');
 
-  expect(pump).toMatchObject({ category: 'pump', width: 132, height: 92, parameterCount: 2 });
+  expect(pump).toMatchObject({ category: 'pump', width: 132, height: 92, parameterCount: 2, visualStyle: 'detailed-2d' });
   expect(pump).not.toHaveProperty('glyph');
   expect(listDynamoLibraryCategories(entries)).toEqual(['motor', 'pump', 'tank', 'valve']);
 });
@@ -50,4 +52,6 @@ test('library search is accent-insensitive and category filtering stays determin
     .toEqual(['process.motor.vfd']);
   expect(filterDynamoLibraryEntries(entries, { category: 'motor' }).map(entry => entry.definition.key).sort())
     .toEqual(['process.motor.standard', 'process.motor.vfd']);
+  expect(filterDynamoLibraryEntries(entries, { query: 'high-performance' }).map(entry => entry.definition.key))
+    .toEqual(['process.tank.vertical.high-performance']);
 });

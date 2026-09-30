@@ -7,6 +7,7 @@ using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.ProjectPackages;
 using Scada.Engineering.Reports;
+using Scada.Engineering.Security;
 using Scada.Engineering.VisualAssets;
 using Scada.Security.Authentication;
 
@@ -66,7 +67,8 @@ public sealed class SystemRecoveryApplicationService(
     IReportEngineeringRegistry reports,
     InitialInstallationGate installationGate,
     IConfiguration configuration,
-    IEngineeringInstallationBindingStore? installationBinding = null)
+    IEngineeringInstallationBindingStore? installationBinding = null,
+    IAuthorityPolicyStore? authorityPolicies = null)
 {
     internal const string DeferredBootstrapAuthorityReferenceMismatchCode =
         "SECURITY_AUTHORITY_POLICY_REFERENCE_MISMATCH";
@@ -89,13 +91,20 @@ public sealed class SystemRecoveryApplicationService(
             applicationAuthority.Matches(inspection.Manifest.ProjectKey);
 
         var users = await identities.ListAsync(cancellationToken);
+        var authoritySnapshot = authorityPolicies?.Snapshot();
         var admissions = users
-            .Select(user => SystemRecoveryAuthorityAdmissionEvaluator.Evaluate(inspection.Engineering, user))
+            .Select(user => SystemRecoveryAuthorityAdmissionEvaluator.Evaluate(
+                inspection.Engineering,
+                user,
+                authoritySnapshot))
             .ToArray();
         var compatibleAdministratorCount = admissions.Count(x => x.Allowed);
         var currentAdmission = currentUser is null
             ? null
-            : SystemRecoveryAuthorityAdmissionEvaluator.Evaluate(inspection.Engineering, currentUser);
+            : SystemRecoveryAuthorityAdmissionEvaluator.Evaluate(
+                inspection.Engineering,
+                currentUser,
+                authoritySnapshot);
 
         var blockers = new List<string>();
         if (!catalogEmpty)

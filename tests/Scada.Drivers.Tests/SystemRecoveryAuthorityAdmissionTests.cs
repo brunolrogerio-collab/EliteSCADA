@@ -1,5 +1,6 @@
 using Scada.Api.ProjectPackages;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Security;
 using Scada.Security.Authentication;
 using Scada.Security.Authorization;
 
@@ -73,6 +74,78 @@ public sealed class SystemRecoveryAuthorityAdmissionTests
         Assert.False(admission.Administration);
     }
 
+    [Fact]
+    public void Evaluate_ResolvesModernAuthorityReferenceAgainstRestoredCanonicalPolicy()
+    {
+        var roleId = Guid.Parse("93000000-0000-0000-0000-000000000011");
+        var authority = new InMemoryAuthorityPolicyStore(
+        [
+            new SecurityRoleEngineeringDto(
+                roleId,
+                "developer",
+                "Developer",
+                Grants:
+                [
+                    new CapabilityGrantEngineeringDto(SecurityCapability.EngineeringModify),
+                    new CapabilityGrantEngineeringDto(SecurityCapability.UserRoleAdmin)
+                ])
+        ]).Snapshot();
+        var package = EmptyPackage() with
+        {
+            AuthorityPolicyReference = new AuthorityPolicyReferenceEngineeringDto(
+                AuthorityPolicyContract.Schema,
+                AuthorityPolicyContract.SchemaVersion,
+                authority.Version,
+                [roleId],
+                []),
+            SecurityRoles = []
+        };
+
+        var admission = SystemRecoveryAuthorityAdmissionEvaluator.Evaluate(
+            package,
+            Account("developer"),
+            authority);
+
+        Assert.True(admission.Allowed);
+        Assert.True(admission.EngineeringModify);
+        Assert.True(admission.Administration);
+    }
+
+    [Fact]
+    public void Evaluate_RejectsModernAuthorityReferenceThatDoesNotMatchRestoredPolicy()
+    {
+        var roleId = Guid.Parse("93000000-0000-0000-0000-000000000012");
+        var authority = new InMemoryAuthorityPolicyStore(
+        [
+            new SecurityRoleEngineeringDto(
+                roleId,
+                "developer",
+                "Developer",
+                Grants:
+                [
+                    new CapabilityGrantEngineeringDto(SecurityCapability.EngineeringModify),
+                    new CapabilityGrantEngineeringDto(SecurityCapability.UserRoleAdmin)
+                ])
+        ]).Snapshot();
+        var package = EmptyPackage() with
+        {
+            AuthorityPolicyReference = new AuthorityPolicyReferenceEngineeringDto(
+                AuthorityPolicyContract.Schema,
+                AuthorityPolicyContract.SchemaVersion,
+                authority.Version + 1,
+                [roleId],
+                [])
+        };
+
+        var admission = SystemRecoveryAuthorityAdmissionEvaluator.Evaluate(
+            package,
+            Account("developer"),
+            authority);
+
+        Assert.False(admission.Allowed);
+        Assert.Contains("does not match", admission.Reason, StringComparison.Ordinal);
+    }
+
     private static EngineeringPackage PackageWithRole(
         string roleKey,
         params SecurityCapability[] capabilities) =>
@@ -92,6 +165,14 @@ public sealed class SystemRecoveryAuthorityAdmissionTests
                         .Select(capability => new CapabilityGrantEngineeringDto(capability))
                         .ToArray())
             ]);
+
+    private static EngineeringPackage EmptyPackage() =>
+        new(
+            "scada.engineering",
+            20,
+            new DateTimeOffset(2026, 9, 6, 4, 0, 0, TimeSpan.Zero),
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>());
 
     private static LocalUserAccount Account(params string[] roles)
     {

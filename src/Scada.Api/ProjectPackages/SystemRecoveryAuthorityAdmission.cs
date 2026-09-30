@@ -16,7 +16,8 @@ public static class SystemRecoveryAuthorityAdmissionEvaluator
 {
     public static SystemRecoveryAuthorityAdmission Evaluate(
         EngineeringPackage package,
-        LocalUserAccount account)
+        LocalUserAccount account,
+        AuthorityPolicySnapshot? authority = null)
     {
         ArgumentNullException.ThrowIfNull(package);
         ArgumentNullException.ThrowIfNull(account);
@@ -46,11 +47,31 @@ public static class SystemRecoveryAuthorityAdmissionEvaluator
                 $"The restored identity is not assigned the Authority bootstrap administrator role '{LocalIdentityBootstrapService.InitialAdministratorRole}'.");
         }
 
+        var packageRoles = package.SecurityRoles ?? Array.Empty<SecurityRoleEngineeringDto>();
+        if (package.AuthorityPolicyReference is { } reference)
+        {
+            if (!IsExactAuthorityReference(reference, authority))
+            {
+                return new SystemRecoveryAuthorityAdmission(
+                    false,
+                    true,
+                    false,
+                    false,
+                    "The recovered Application Authority reference does not match the restored Security Authority.");
+            }
+
+            // Modern Engineering packages intentionally carry only stable Authority
+            // identities. Resolve their grants from the restored canonical Authority;
+            // treating the empty package-owned SecurityRoles collection as policy would
+            // incorrectly reject every modern recovery Administrator.
+            packageRoles = authority!.Roles;
+        }
+
         IReadOnlyCollection<RolePolicy> policies;
         try
         {
             policies = SecurityPolicyCompiler.Compile(
-                package.SecurityRoles ?? Array.Empty<SecurityRoleEngineeringDto>());
+                packageRoles);
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
@@ -106,5 +127,32 @@ public static class SystemRecoveryAuthorityAdmissionEvaluator
             true,
             true,
             "The restored Authority bootstrap Administrator is authorized by the prospective project package policy.");
+    }
+
+    private static bool IsExactAuthorityReference(
+        AuthorityPolicyReferenceEngineeringDto reference,
+        AuthorityPolicySnapshot? authority)
+    {
+        if (authority is null ||
+            !string.Equals(reference.Contract, AuthorityPolicyContract.Schema, StringComparison.Ordinal) ||
+            reference.ContractVersion != AuthorityPolicyContract.SchemaVersion ||
+            reference.PolicyVersion != authority.Version ||
+            reference.RoleIds is null ||
+            reference.ScopeIds is null ||
+            reference.RoleIds.Any(id => id == Guid.Empty) ||
+            reference.ScopeIds.Any(id => id == Guid.Empty))
+        {
+            return false;
+        }
+
+        var authorityRoleIds = authority.Roles
+            .Where(role => role.Id.HasValue)
+            .Select(role => role.Id!.Value)
+            .ToHashSet();
+        var authorityScopeIds = authority.Scopes.Select(scope => scope.Id).ToHashSet();
+        return reference.RoleIds.Distinct().Count() == reference.RoleIds.Count &&
+               reference.ScopeIds.Distinct().Count() == reference.ScopeIds.Count &&
+               reference.RoleIds.ToHashSet().SetEquals(authorityRoleIds) &&
+               reference.ScopeIds.ToHashSet().SetEquals(authorityScopeIds);
     }
 }

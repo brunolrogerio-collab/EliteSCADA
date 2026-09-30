@@ -53,6 +53,15 @@ test('stable shell and structured editor copy uses locale-native glossary terms'
   expect(esEditor('editor.preview')).toBe('Validar vista previa');
 });
 
+function collectStringValues(value: unknown): string[] {
+  if (typeof value === 'string') return [value];
+  if (Array.isArray(value)) return value.flatMap(collectStringValues);
+  if (value && typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).flatMap(collectStringValues);
+  }
+  return [];
+}
+
 test('stable Script copy does not expose implementation brands or coordination jargon', () => {
   const forbidden = /Monaco|Pyodide|Web Worker|Wave 0?6|can[oô]nic|canónic/i;
 
@@ -62,7 +71,7 @@ test('stable Script copy does not expose implementation brands or coordination j
       scriptWorkspaceCopy(locale),
       scriptAssistantCopy(locale)
     ];
-    expect(JSON.stringify(visibleCopy)).not.toMatch(forbidden);
+    expect(collectStringValues(visibleCopy).join('\n')).not.toMatch(forbidden);
   }
 });
 

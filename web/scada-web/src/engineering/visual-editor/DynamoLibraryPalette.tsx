@@ -80,7 +80,7 @@ export function DynamoLibraryPalette({
         <div><dt>{text.dimensions}</dt><dd>{selected.width}×{selected.height}</dd></div>
         <div><dt>{text.version}</dt><dd>{selected.definition.properties?.libraryVersion ?? '—'}</dd></div>
         <div><dt>{text.source}</dt><dd>{selected.definition.metadata?.builtinLibrary === 'true' ? text.builtIn : '—'}</dd></div>
-        <div><dt>Style</dt><dd>{visualStyleLabel(selected.visualStyle, locale)}</dd></div>
+        <div><dt>{visualStyleHeading(locale)}</dt><dd>{visualStyleLabel(selected.visualStyle, locale)}</dd></div>
       </dl>
       <div className="visual-dynamo-library__interface">
         <span>{text.publicInterface}</span>
@@ -106,6 +106,10 @@ export function DynamoLibraryPalette({
       })}>{text.add}</button>
     </div> : null}
   </section>;
+}
+
+function visualStyleHeading(locale: 'pt-BR' | 'en' | 'es'): string {
+  return locale === 'pt-BR' ? 'Estilo' : locale === 'es' ? 'Estilo' : 'Style';
 }
 
 function visualStyleLabel(value: string, locale: 'pt-BR' | 'en' | 'es'): string {

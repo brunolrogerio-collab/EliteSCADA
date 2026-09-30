@@ -1,3 +1,35 @@
+# LATEST LIVE COORDINATION DELTA — 2026-09-30 — R2-B PARALLEL RELEASE
+
+Exact product base:
+`wave15/corrections-integration@5abfee03b3adaa5f900be79ad91a5257d0bfaf0e`
+tree `6228fb16518a2a2eeb629dbfb51471d59798df98`.
+
+Gate:
+EliteSCADA CI #1610 / `36649112219` globally GREEN.
+
+R2-B released concurrently:
+- J / DEV-EDITOR-UX-R2 -> `work/w15-r2-editor-ux`;
+- L / DEV-BRANDING -> `work/w15-r2-branding`;
+- N / DEV-ENG-WORKFLOW-FORMS -> `work/w15-r2-eng-workflow-forms`.
+
+Parallel ownership:
+- J owns Screen/Popup visual-editor UX internals;
+- L owns branding/settings/global shell and bounded canonical VisualAsset SVG extension if required;
+- N owns structured/non-graphical Engineering forms;
+- #405 Portability independently owns ImportExport/Libraries.
+
+Still HOLD:
+- M until structural UI integration;
+- P until authoring dependency is satisfied;
+- TAG-D until Portability/Fragment convergence;
+- Historical Playback until query/time-range/visual dependencies;
+- Script Authoring R2 intentionally not released in this cohort to avoid unnecessary visual/event overlap with J.
+
+Clean bootstraps:
+`docs/WAVE15-R2B-J-L-N-BOOTSTRAPS-2026-09-30.md`.
+
+---
+
 # LATEST LIVE COORDINATION DELTA — 2026-09-29/30 — R2-A INTEGRATION ADVANCED
 
 > GitHub live still overrides this delta. Older status tables below are historical snapshots when they conflict with this section.

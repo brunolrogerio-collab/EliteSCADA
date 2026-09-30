@@ -1,3 +1,38 @@
+# LATEST LIVE COORDINATION DELTA — 2026-09-29/30 — R2-A INTEGRATION ADVANCED
+
+> GitHub live still overrides this delta. Older status tables below are historical snapshots when they conflict with this section.
+
+Current integration authority after ENG-DENSITY E2E closeout:
+`wave15/corrections-integration@222c00006780ddca484c3a7744ecb6f7ca4cc6f0`
+tree `3b1c98b06507496a77f60a87c20ad8d341fdca00`.
+
+Integrated/accepted R2-A work:
+- TAG commissioning + optional/non-blocking product clarification: integrated and post-merge verified;
+- Product Version: integrated and post-merge verified; canonical display identity `EliteSCADA Alpha 0.15.2.1`;
+- F0-D2 Data Query target wire: integrated and post-merge verified;
+- O / #404 Historian Capture: integrated;
+- K / #402 Theme + Contrast: integrated;
+- I / #400 Engineering Density: integrated;
+- #410 ENG-DENSITY stale-E2E closeout: integrated; post-merge EliteSCADA CI #1609 is the current gate.
+
+Current active development:
+- DATA-QUERY-CORE / #384: ACTIVE on `work/w15-r2-data-query-core`; currently no PR yet;
+- Main pre-audit has confirmed explicit TargetUtc/range validation, Good-only synthesis, deterministic grid/buckets, AlarmView/DataQuery canonical registries and package lifecycle through `DataQueryEngineeringExchangeDecorator`.
+
+Current hold:
+- #405 Portability: T1-green core exists but remains HOLD until canonical Data Query/Alarm View authority is integrated, then it must recompose and remove temporary unsupported status for canonical portable kinds;
+- J/L/N/M/P and other future R2 lanes are not automatically released. Product Owner will explicitly request each bootstrap when desired;
+- Shared CODEX remains unavailable/parked and is not on the immediate critical path.
+
+CI economy rule:
+- independently audited, exact-head T1-green, disjoint PRs may be merged back-to-back before one final broad post-merge CI;
+- Actions `concurrency.cancel-in-progress: true` is relied on to cancel superseded intermediate push CIs;
+- RED gates still require causal diagnosis; no blind rerun.
+
+Wave 13 is CANCELLED / historical only. Post-W15 installed-product authority is Wave 16 / #408, now defined as a reusable Release Factory with `WINDOWS-FIRST / CROSS-PLATFORM-CORE`.
+
+---
+
 # Wave 15 — Post-E3 Development Route
 
 **Status:** GATE0_GREEN / GATE1_GREEN / R2_C0_FROZEN / F0_INTEGRATED / #389_MERGED_T1_GREEN / POSTMERGE_CI_1593_RUNTIME_NEUTRAL_BLOCKER / R2_A_HOLD / TAG_C0_DELTA_FROZEN / SHARED_CODEX_PARKED  

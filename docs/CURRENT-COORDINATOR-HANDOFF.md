@@ -1,3 +1,20 @@
+# CURRENT MAIN COORDINATOR POINTER — 2026-09-29 — R2-B ACTIVE
+
+Canonical takeover file:
+`docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-09-29-R2B-ACTIVE.md`
+
+This section supersedes older current-state wording below when there is a conflict.
+
+Current verified checkpoint at pointer creation:
+- integration `1d9e3f9123bea8e27c362ee680a4ba70f864becd`;
+- CI #1611 globally GREEN;
+- J/L/N ACTIVE from the same exact post-Portability base;
+- J/L/N currently 0 own commits / no PRs;
+- Shared CODEX PARKED;
+- Wave 16 direction documented but execution remains post-Wave15.
+
+---
+
 # TAKEOVER POINTER — 2026-09-29 — R2-A PARALLEL EXECUTION
 
 > **READ FIRST:** `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-09-29-R2A.md`

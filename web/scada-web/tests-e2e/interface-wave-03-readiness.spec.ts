@@ -146,7 +146,8 @@ test('Wave 03 readiness: Engineering exposes the configured domains, Gateway, di
 
   await engineeringNavigation.getByRole('button', { name: /TAGs/ }).click();
   await expect(page.getByRole('heading', { name: 'Editor estruturado de TAGs' })).toBeVisible();
-  await expect(page.locator('.engineering-entity-browser').getByRole('searchbox')).toBeVisible();
+  await expect(page.locator('.eng-editor-picker').getByRole('searchbox')).toBeVisible();
+  await expect(page.locator('.eng-editor-picker')).toHaveCount(1);
 
   const memoryResponse = await request.get('/api/internal-memory/client/definitions');
   expect(memoryResponse.ok()).toBeTruthy();

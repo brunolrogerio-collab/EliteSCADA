@@ -9,6 +9,8 @@ import type { EngineeringLocale } from './i18n';
 import { TagAddressEditor } from './TagAddressEditor';
 import { TagCommissioningPanel } from './TagCommissioningPanel';
 import { TagSourceSelector } from './TagSourceSelector';
+import { EngineeringEntityActions } from './EngineeringEntityActions';
+import { WorkflowFormDisclosure, WorkflowFormSection } from './StructuredFormPrimitives';
 import { assignTagDataSource, type TagSourceAwareEngineering } from './TagSourceSelector.logic';
 import type {
   AlarmEngineering,
@@ -124,7 +126,7 @@ export function TagEditor({ model, locale }: EditorProps) {
           {filtered.map(tag => {
             const identity = tagIdentity(tag);
             return (
-              <button type="button" className={identity === selectedIdentity ? 'selected' : ''} key={identity} onClick={() => chooseIdentity(identity)}>
+              <button type="button" className={identity === selectedIdentity ? 'selected' : ''} aria-current={identity === selectedIdentity ? 'true' : undefined} key={identity} onClick={() => chooseIdentity(identity)}>
                 <strong>{tag.name}</strong><code>{tag.path}</code><span>{tag.dataType} · {tag.source ?? '—'}</span>
               </button>
             );
@@ -135,6 +137,7 @@ export function TagEditor({ model, locale }: EditorProps) {
           {!draft || (!isNew && !selected) ? <div className="eng-editor-empty">{text('editor.noSelection')}</div> : (
             <>
               <EditorStatus original={selected} draft={draft} changed={changed} isNew={isNew} locale={locale} />
+              <WorkflowFormSection title={workflowText(locale).identity} description={workflowText(locale).tagIdentityHint}>
               <div className="eng-editor-form-grid">
                 <TextField label={text('editor.field.name')} value={draft.name} onChange={value => updateTag(setDraft, tag => ({ ...tag, name: value }))} />
                 <TextField label={text('editor.field.path')} value={draft.path} mono onChange={value => updateTag(setDraft, tag => ({ ...tag, path: value }))} />
@@ -162,15 +165,23 @@ export function TagEditor({ model, locale }: EditorProps) {
                 <NumberField label={text('editor.field.scaleMinimum')} value={draft.scaleMinimum} onChange={value => updateTag(setDraft, tag => ({ ...tag, scaleMinimum: value }))} />
                 <NumberField label={text('editor.field.scaleMaximum')} value={draft.scaleMaximum} onChange={value => updateTag(setDraft, tag => ({ ...tag, scaleMaximum: value }))} />
                 <BooleanField label={text('editor.field.readOnly')} checked={draft.readOnly} onChange={value => updateTag(setDraft, tag => ({ ...tag, readOnly: value }))} />
-                <BooleanField label={text('editor.field.historian')} checked={draft.historian?.enabled === true} onChange={value => updateTag(setDraft, tag => ({ ...tag, historian: { ...(tag.historian ?? {}), enabled: value } }))} />
-                <TextField label={text('editor.field.strategy')} value={draft.historian?.strategy ?? ''} onChange={value => updateTag(setDraft, tag => ({ ...tag, historian: { ...(tag.historian ?? {}), strategy: value } }))} />
-                <NumberField label={text('editor.field.deadband')} value={draft.historian?.deadband} onChange={value => updateTag(setDraft, tag => ({ ...tag, historian: { ...(tag.historian ?? {}), deadband: value } }))} />
-                <NumberField label={text('editor.field.period')} value={draft.historian?.periodMilliseconds} integer onChange={value => updateTag(setDraft, tag => ({ ...tag, historian: { ...(tag.historian ?? {}), periodMilliseconds: value } }))} />
-                <NumberField label={text('editor.field.maximumPeriod')} value={draft.historian?.maximumPeriodMilliseconds} integer onChange={value => updateTag(setDraft, tag => ({ ...tag, historian: { ...(tag.historian ?? {}), maximumPeriodMilliseconds: value } }))} />
                 <TextAreaField label={text('editor.field.description')} value={draft.description ?? ''} onChange={value => updateTag(setDraft, tag => ({ ...tag, description: emptyToNull(value) }))} />
               </div>
+              </WorkflowFormSection>
+              <WorkflowFormDisclosure title={workflowText(locale).historian} description={workflowText(locale).historianHint} testId="tag-historian-disclosure">
+                <div className="eng-editor-form-grid">
+                  <BooleanField label={text('editor.field.historian')} checked={draft.historian?.enabled === true} onChange={value => updateTag(setDraft, tag => ({ ...tag, historian: { ...(tag.historian ?? {}), enabled: value } }))} />
+                  {draft.historian?.enabled === true && <>
+                    <TextField label={text('editor.field.strategy')} value={draft.historian?.strategy ?? ''} onChange={value => updateTag(setDraft, tag => ({ ...tag, historian: { ...(tag.historian ?? {}), strategy: value } }))} />
+                    <NumberField label={text('editor.field.deadband')} value={draft.historian?.deadband} onChange={value => updateTag(setDraft, tag => ({ ...tag, historian: { ...(tag.historian ?? {}), deadband: value } }))} />
+                    <NumberField label={text('editor.field.period')} value={draft.historian?.periodMilliseconds} integer onChange={value => updateTag(setDraft, tag => ({ ...tag, historian: { ...(tag.historian ?? {}), periodMilliseconds: value } }))} />
+                    <NumberField label={text('editor.field.maximumPeriod')} value={draft.historian?.maximumPeriodMilliseconds} integer onChange={value => updateTag(setDraft, tag => ({ ...tag, historian: { ...(tag.historian ?? {}), maximumPeriodMilliseconds: value } }))} />
+                  </>}
+                </div>
+              </WorkflowFormDisclosure>
               <MutationActions changed={changed} mutation={mutation} onReset={reset} onPreview={() => void preview()} locale={locale} />
               <PreviewPanel mutation={mutation} locale={locale} />
+              <EngineeringEntityActions kind="tag" model={model} locale={locale} selectedEntity={selected?.id ? { id: selected.id, label: selected.path, detail: `${selected.name} · ${selected.dataType}` } : null} />
             </>
           )}
         </section>
@@ -256,7 +267,7 @@ export function DataSourceEditor({ model, locale }: EditorProps) {
           {filtered.map(source => {
             const identity = dataSourceIdentity(source);
             return (
-              <button type="button" className={identity === selectedIdentity ? 'selected' : ''} key={identity} onClick={() => chooseIdentity(identity)}>
+              <button type="button" className={identity === selectedIdentity ? 'selected' : ''} aria-current={identity === selectedIdentity ? 'true' : undefined} key={identity} onClick={() => chooseIdentity(identity)}>
                 <strong>{source.name}</strong><code>{source.key}</code><span>{source.driver}</span>
               </button>
             );
@@ -267,12 +278,15 @@ export function DataSourceEditor({ model, locale }: EditorProps) {
           {!draft || (!isNew && !selected) ? <div className="eng-editor-empty">{text('editor.noSelection')}</div> : (
             <>
               <EditorStatus original={selected} draft={draft} changed={changed} isNew={isNew} locale={locale} />
+              <WorkflowFormSection title={workflowText(locale).identity} description={workflowText(locale).dataSourceIdentityHint}>
               <div className="eng-editor-form-grid">
                 <TextField label={text('editor.field.name')} value={draft.name} onChange={value => updateDataSource(setDraft, source => ({ ...source, name: value }))} />
                 <TextField label={text('editor.field.key')} value={draft.key} mono onChange={value => updateDataSource(setDraft, source => ({ ...source, key: value }))} />
                 <TextField label={text('editor.field.driver')} value={draft.driver} mono onChange={value => updateDataSource(setDraft, source => ({ ...source, driver: value }))} />
                 <BooleanField label={text('editor.field.enabled')} checked={draft.enabled !== false} onChange={value => updateDataSource(setDraft, source => ({ ...source, enabled: value }))} />
               </div>
+              </WorkflowFormSection>
+              <WorkflowFormDisclosure title={workflowText(locale).advancedSettings} description={workflowText(locale).advancedSettingsHint}>
               <DictionaryEditor
                 title={text('editor.settings')}
                 hint={text('editor.settingsHint')}
@@ -284,8 +298,10 @@ export function DataSourceEditor({ model, locale }: EditorProps) {
                 onChange={settings => updateDataSource(setDraft, source => ({ ...source, settings }))}
               />
               <ReadOnlyDictionary title={text('editor.secretReferences')} hint={text('editor.secretReferencesHint')} value={draft.secretReferences ?? {}} />
+              </WorkflowFormDisclosure>
               <MutationActions changed={changed} mutation={mutation} onReset={reset} onPreview={() => void preview()} locale={locale} />
               <PreviewPanel mutation={mutation} locale={locale} />
+              <EngineeringEntityActions kind="data-source" model={model} locale={locale} selectedEntity={selected?.id ? { id: selected.id, label: selected.key, detail: `${selected.name} · ${selected.driver}` } : null} />
             </>
           )}
         </section>
@@ -380,7 +396,7 @@ export function AlarmEditor({ model, locale }: EditorProps) {
           {filtered.map(alarm => {
             const identity = alarmIdentity(alarm);
             return (
-              <button type="button" className={identity === selectedIdentity ? 'selected' : ''} key={identity} onClick={() => chooseIdentity(identity)}>
+              <button type="button" className={identity === selectedIdentity ? 'selected' : ''} aria-current={identity === selectedIdentity ? 'true' : undefined} key={identity} onClick={() => chooseIdentity(identity)}>
                 <strong>{alarm.name}</strong><code>{alarm.tagPath ?? alarm.tagId ?? '—'}</code><span>{alarm.type} · {alarm.priority}</span>
               </button>
             );
@@ -391,6 +407,7 @@ export function AlarmEditor({ model, locale }: EditorProps) {
           {!draft || (!isNew && !selected) ? <div className="eng-editor-empty">{text('editor.noSelection')}</div> : (
             <>
               <EditorStatus original={selected} draft={draft} changed={changed} isNew={isNew} locale={locale} />
+              <WorkflowFormSection title={workflowText(locale).alarmCondition} description={workflowText(locale).alarmConditionHint}>
               <div className="eng-editor-form-grid">
                 <TextField label={text('editor.field.name')} value={draft.name} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, name: value }))} />
                 <TextField label={text('editor.field.tagPath')} value={draft.tagPath ?? ''} mono onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, tagId: null, tagPath: emptyToNull(value) }))} />
@@ -400,14 +417,20 @@ export function AlarmEditor({ model, locale }: EditorProps) {
                 {draft.type === 'digital' && <BooleanField label={text('editor.field.digitalActiveValue')} checked={draft.digitalActiveValue !== false} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, digitalActiveValue: value }))} />}
                 <TextField label={text('editor.field.alarmClass')} value={draft.alarmClass ?? ''} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, alarmClass: emptyToNull(value) }))} />
                 <TextField label={text('editor.field.area')} value={draft.area ?? ''} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, area: emptyToNull(value) }))} />
-                <NumberField label={text('editor.field.activationDelay')} value={draft.activationDelayMilliseconds} integer onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, activationDelayMilliseconds: value }))} />
-                <BooleanField label={text('editor.field.enabled')} checked={draft.enabled !== false} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, enabled: value }))} />
-                <BooleanField label={text('editor.field.requiresAcknowledgement')} checked={draft.requiresAcknowledgement !== false} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, requiresAcknowledgement: value }))} />
-                <BooleanField label={text('editor.field.shelvingAllowed')} checked={draft.shelvingAllowed !== false} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, shelvingAllowed: value }))} />
                 <TextAreaField label={text('editor.field.message')} value={draft.message ?? ''} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, message: emptyToNull(value) }))} />
               </div>
+              </WorkflowFormSection>
+              <WorkflowFormDisclosure title={workflowText(locale).alarmBehavior} description={workflowText(locale).alarmBehaviorHint} testId="alarm-behavior-disclosure">
+                <div className="eng-editor-form-grid">
+                  <NumberField label={text('editor.field.activationDelay')} value={draft.activationDelayMilliseconds} integer onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, activationDelayMilliseconds: value }))} />
+                  <BooleanField label={text('editor.field.enabled')} checked={draft.enabled !== false} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, enabled: value }))} />
+                  <BooleanField label={text('editor.field.requiresAcknowledgement')} checked={draft.requiresAcknowledgement !== false} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, requiresAcknowledgement: value }))} />
+                  <BooleanField label={text('editor.field.shelvingAllowed')} checked={draft.shelvingAllowed !== false} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, shelvingAllowed: value }))} />
+                </div>
+              </WorkflowFormDisclosure>
               <MutationActions changed={changed} mutation={mutation} onReset={reset} onPreview={() => void preview()} locale={locale} />
               <PreviewPanel mutation={mutation} locale={locale} />
+              <EngineeringEntityActions kind="alarm" model={model} locale={locale} selectedEntity={selected?.id ? { id: selected.id, label: selected.name, detail: `${selected.tagPath ?? selected.tagId ?? '—'} · ${selected.priority}` } : null} />
             </>
           )}
         </section>
@@ -737,5 +760,48 @@ function mutationText(locale: EngineeringLocale) {
     previewGateHint: 'O Apply usa o pipeline público de Engineering e só é habilitado após preview válido. Qualquer mudança no Workspace invalida o candidato.',
     apply: 'Aplicar ao Workspace', applying: 'Aplicando...',
     workspaceChanged: 'O Engineering Workspace mudou durante a validação deste rascunho. Recarregue e valide novamente.'
+  };
+}
+
+
+function workflowText(locale: EngineeringLocale) {
+  if (locale === 'en') return {
+    identity: 'Identity and connection',
+    tagIdentityHint: 'Define what this TAG is and where its live value comes from.',
+    dataSourceIdentityHint: 'Define the source identity first; protocol-specific options remain secondary.',
+    historian: 'Historian capture',
+    historianHint: 'Enable and tune capture only when this TAG needs historical sampling.',
+    advancedSettings: 'Advanced source settings',
+    advancedSettingsHint: 'Low-frequency technical settings and secret references stay out of the primary setup task.',
+    alarmCondition: 'Alarm condition',
+    alarmConditionHint: 'Define the TAG, condition, priority and operator-facing context first.',
+    alarmBehavior: 'Alarm behavior',
+    alarmBehaviorHint: 'Timing, acknowledgement and shelving are secondary operational behavior.'
+  };
+  if (locale === 'es') return {
+    identity: 'Identidad y conexión',
+    tagIdentityHint: 'Defina qué es este TAG y de dónde proviene su valor en vivo.',
+    dataSourceIdentityHint: 'Defina primero la identidad de la fuente; las opciones específicas del protocolo son secundarias.',
+    historian: 'Captura del historiador',
+    historianHint: 'Habilite y ajuste la captura solo cuando este TAG necesite muestreo histórico.',
+    advancedSettings: 'Opciones avanzadas de la fuente',
+    advancedSettingsHint: 'Opciones técnicas poco frecuentes y referencias secretas quedan fuera de la tarea principal.',
+    alarmCondition: 'Condición de alarma',
+    alarmConditionHint: 'Defina primero el TAG, condición, prioridad y contexto del operador.',
+    alarmBehavior: 'Comportamiento de la alarma',
+    alarmBehaviorHint: 'Temporización, reconocimiento y shelving son comportamiento operativo secundario.'
+  };
+  return {
+    identity: 'Identidade e conexão',
+    tagIdentityHint: 'Defina o que este TAG representa e de onde vem seu valor ao vivo.',
+    dataSourceIdentityHint: 'Defina primeiro a identidade da fonte; opções específicas do protocolo ficam em segundo plano.',
+    historian: 'Captura do historiador',
+    historianHint: 'Habilite e ajuste a captura apenas quando este TAG precisar de histórico.',
+    advancedSettings: 'Configurações avançadas da fonte',
+    advancedSettingsHint: 'Opções técnicas pouco frequentes e referências secretas ficam fora da tarefa principal.',
+    alarmCondition: 'Condição do alarme',
+    alarmConditionHint: 'Defina primeiro TAG, condição, prioridade e contexto para o operador.',
+    alarmBehavior: 'Comportamento do alarme',
+    alarmBehaviorHint: 'Temporização, reconhecimento e shelving são comportamento operacional secundário.'
   };
 }

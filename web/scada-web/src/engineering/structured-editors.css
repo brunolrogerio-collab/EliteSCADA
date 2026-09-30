@@ -120,3 +120,67 @@
 .eng-add-setting:not(:disabled):hover {
   background: var(--eng-hover);
 }
+
+
+/* R2 structured authoring: task-first grouping and progressive disclosure. */
+.eng-workflow-section {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--eng-border);
+  border-radius: 9px;
+  background: var(--eng-panel-soft);
+}
+.eng-workflow-section > header {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 12px;
+}
+.eng-workflow-section > header strong {
+  color: var(--eng-text);
+  font-size: 12px;
+}
+.eng-workflow-section > header span {
+  color: var(--eng-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.eng-workflow-disclosure {
+  margin-top: 12px;
+  border: 1px solid var(--eng-border);
+  border-radius: 9px;
+  background: var(--eng-panel);
+  overflow: hidden;
+}
+.eng-workflow-disclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+  color: var(--eng-text);
+}
+.eng-workflow-disclosure > summary::-webkit-details-marker { display: none; }
+.eng-workflow-disclosure > summary > span {
+  display: grid;
+  gap: 3px;
+}
+.eng-workflow-disclosure > summary strong { font-size: 12px; }
+.eng-workflow-disclosure > summary small {
+  color: var(--eng-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+.eng-workflow-disclosure > summary b {
+  color: var(--eng-accent);
+  font-size: 16px;
+  transition: transform .15s ease;
+}
+.eng-workflow-disclosure[open] > summary b { transform: rotate(45deg); }
+.eng-workflow-disclosure[open] > summary {
+  border-bottom: 1px solid var(--eng-border-soft);
+  background: var(--eng-hover);
+}
+.eng-workflow-disclosure__body { padding: 14px; }
+.eng-workflow-disclosure:focus-within { border-color: var(--eng-focus); }

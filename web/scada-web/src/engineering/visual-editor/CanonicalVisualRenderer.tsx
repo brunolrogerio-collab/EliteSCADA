@@ -58,6 +58,7 @@ export type CanonicalVisualRendererProps = {
   onTagWrite?: SliderTagWrite;
   visualAssetUrl?: VisualAssetUrlResolver;
   showTechnicalFallbackText?: boolean;
+  operatorTimeRangeControls?: boolean;
 };
 
 const builtinVisualTypes = new Set<string>(Object.values(BUILTIN_VISUAL_OBJECT_TYPES));
@@ -71,7 +72,8 @@ export function CanonicalVisualRenderer({
   onVisualEvent,
   onTagWrite,
   visualAssetUrl = visualAssetContentUrl,
-  showTechnicalFallbackText = true
+  showTechnicalFallbackText = true,
+  operatorTimeRangeControls = false
 }: CanonicalVisualRendererProps) {
   const rootElements = elements ?? emptyElements;
   const runtimeBindingElements = React.useMemo(
@@ -92,6 +94,7 @@ export function CanonicalVisualRenderer({
       onTagWrite={onTagWrite}
       visualAssetUrl={visualAssetUrl}
       showTechnicalFallbackText={showTechnicalFallbackText}
+      operatorTimeRangeControls={operatorTimeRangeControls}
     />)}
   </div>;
 }
@@ -105,7 +108,8 @@ function CanonicalElement({
   runtimeIdentityPrefix,
   onTagWrite,
   visualAssetUrl,
-  showTechnicalFallbackText
+  showTechnicalFallbackText,
+  operatorTimeRangeControls
 }: {
   element: VisualElementEngineering;
   locale: EngineeringLocale;
@@ -116,6 +120,7 @@ function CanonicalElement({
   onTagWrite?: SliderTagWrite;
   visualAssetUrl: VisualAssetUrlResolver;
   showTechnicalFallbackText: boolean;
+  operatorTimeRangeControls: boolean;
 }) {
   if (element.dynamoKey && dynamoDefinitions) {
     return <CanonicalDynamoElement
@@ -127,6 +132,7 @@ function CanonicalElement({
       onTagWrite={onTagWrite}
       visualAssetUrl={visualAssetUrl}
       showTechnicalFallbackText={showTechnicalFallbackText}
+      operatorTimeRangeControls={operatorTimeRangeControls}
     />;
   }
 
@@ -139,6 +145,7 @@ function CanonicalElement({
       runtimeObjectId={runtimeObjectId}
       onClick={onClick}
       showTechnicalFallbackText={showTechnicalFallbackText}
+      operatorTimeRangeControls={operatorTimeRangeControls}
     />;
   }
 
@@ -181,6 +188,7 @@ function CanonicalElement({
           onTagWrite={onTagWrite}
           visualAssetUrl={visualAssetUrl}
           showTechnicalFallbackText={showTechnicalFallbackText}
+      operatorTimeRangeControls={operatorTimeRangeControls}
         />)}
       </div>;
     }
@@ -269,6 +277,7 @@ function CanonicalElement({
         title={elementTitle}
         locale={locale}
         enabled={enabled}
+        operatorTimeRangeControls={operatorTimeRangeControls}
         onClick={onClick}
       />;
     }
@@ -368,7 +377,8 @@ function CanonicalDynamoElement({
   onVisualEvent,
   onTagWrite,
   visualAssetUrl,
-  showTechnicalFallbackText
+  showTechnicalFallbackText,
+  operatorTimeRangeControls
 }: {
   element: VisualElementEngineering;
   locale: EngineeringLocale;
@@ -378,6 +388,7 @@ function CanonicalDynamoElement({
   onTagWrite?: SliderTagWrite;
   visualAssetUrl: VisualAssetUrlResolver;
   showTechnicalFallbackText: boolean;
+  operatorTimeRangeControls: boolean;
 }) {
   try {
     const definition = resolveDynamoDefinition(dynamoDefinitions, element.dynamoKey!);
@@ -425,6 +436,7 @@ function CanonicalDynamoElement({
         onTagWrite={onTagWrite}
         visualAssetUrl={visualAssetUrl}
         showTechnicalFallbackText={showTechnicalFallbackText}
+      operatorTimeRangeControls={operatorTimeRangeControls}
       />)}
     </div>;
   } catch (reason) {
@@ -496,6 +508,7 @@ function LegacyCompatibilityElement({
   runtimeObjectId?: string;
   onClick?: (event: React.MouseEvent) => void;
   showTechnicalFallbackText: boolean;
+  operatorTimeRangeControls: boolean;
 }) {
   const x = legacyNumber(element.properties?.x, 18);
   const y = legacyNumber(element.properties?.y, 18);

@@ -1,7 +1,8 @@
+import type { HistoricalTimeRangeMode } from './historicalTimeRange';
 import type { RuntimeTagEndpointIssue, RuntimeTagHistorySample, RuntimeTagListItem } from './tagInspectorTypes';
 
 export type BasicTrendLocale = 'pt-BR' | 'en' | 'es';
-export type BasicTrendMode = 'live' | 'historical';
+export type BasicTrendMode = HistoricalTimeRangeMode;
 export type BasicTrendWindow = '15m' | '1h' | '6h' | '24h';
 export type BasicTrendQualityTone = 'good' | 'attention' | 'bad' | 'unknown';
 

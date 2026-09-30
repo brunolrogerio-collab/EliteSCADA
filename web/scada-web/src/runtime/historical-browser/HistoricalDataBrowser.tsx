@@ -1,14 +1,18 @@
 import { useMemo, useState } from 'react';
+import { localTimeZoneLabel, type HistoricalTimeRangeUnit } from '../historicalTimeRange';
 import {
   HISTORICAL_BROWSER_DATASET_KEYS,
   HISTORICAL_BROWSER_RELATIVE_PRESETS,
+  applyHistoricalBrowserPreset,
   createHistoricalBrowserDraft,
   formatHistoricalScalar,
+  historicalBrowserPresetSeconds,
   historicalDatasetLabel,
   historicalTimeSummary,
   validateHistoricalBrowserDraft,
   type HistoricalBrowserDraft,
   type HistoricalBrowserDatasetKey,
+  type HistoricalBrowserTimeMode,
   type HistoricalScalarType
 } from './historicalBrowserPresentation';
 import {
@@ -68,6 +72,7 @@ export function HistoricalDataBrowser({
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const validation = useMemo(() => validateHistoricalBrowserDraft(draft, locale), [draft, locale]);
   const selectedRow = rows.find(row => row.id === selectedRowId) ?? null;
+  const presetSeconds = historicalBrowserPresetSeconds(draft);
 
   function updateDraft(next: HistoricalBrowserDraft) {
     setDraft(next);
@@ -77,6 +82,14 @@ export function HistoricalDataBrowser({
   function updateDataset(datasetKey: HistoricalBrowserDatasetKey) {
     updateDraft(Object.freeze({ ...draft, datasetKey }));
     setSelectedRowId(null);
+  }
+
+  function updateMode(timeMode: HistoricalBrowserTimeMode) {
+    updateDraft(Object.freeze({ ...draft, timeMode }));
+  }
+
+  function updateUnit(relativeUnit: HistoricalTimeRangeUnit) {
+    updateDraft(Object.freeze({ ...draft, relativeUnit }));
   }
 
   return (
@@ -108,38 +121,58 @@ export function HistoricalDataBrowser({
         <fieldset>
           <legend>{text.period}</legend>
           <label>
-            <input
-              type="radio"
-              name="historical-time-mode"
-              checked={draft.timeMode === 'relative'}
-              onChange={() => updateDraft(Object.freeze({ ...draft, timeMode: 'relative' }))}
-            />
+            <input type="radio" name="historical-time-mode" checked={draft.timeMode === 'live'} onChange={() => updateMode('live')} />
+            {text.live}
+          </label>
+          <label>
+            <input type="radio" name="historical-time-mode" checked={draft.timeMode === 'relative'} onChange={() => updateMode('relative')} />
             {text.relative}
           </label>
           <label>
-            <input
-              type="radio"
-              name="historical-time-mode"
-              checked={draft.timeMode === 'absolute'}
-              onChange={() => updateDraft(Object.freeze({ ...draft, timeMode: 'absolute' }))}
-            />
+            <input type="radio" name="historical-time-mode" checked={draft.timeMode === 'absolute'} onChange={() => updateMode('absolute')} />
             {text.absolute}
           </label>
         </fieldset>
 
-        {draft.timeMode === 'relative' ? (
-          <label>
-            {text.relativePeriod}
-            <select
-              aria-label={text.relativePeriod}
-              value={draft.relativeDurationSeconds}
-              onChange={event => updateDraft(Object.freeze({ ...draft, relativeDurationSeconds: Number(event.target.value) }))}
-            >
-              {HISTORICAL_BROWSER_RELATIVE_PRESETS.map(preset => (
-                <option key={preset.seconds} value={preset.seconds}>{preset.label}</option>
-              ))}
-            </select>
-          </label>
+        {draft.timeMode !== 'absolute' ? (
+          <>
+            <label>
+              {text.quickRange}
+              <select
+                aria-label={text.quickRange}
+                value={presetSeconds ?? ''}
+                onChange={event => {
+                  const seconds = Number(event.target.value);
+                  if (Number.isSafeInteger(seconds) && seconds > 0) updateDraft(applyHistoricalBrowserPreset(draft, seconds));
+                }}
+              >
+                <option value="">{text.select}</option>
+                {HISTORICAL_BROWSER_RELATIVE_PRESETS.map(preset => (
+                  <option key={preset.seconds} value={preset.seconds}>{preset.label}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              {text.customAmount}
+              <input
+                aria-label={text.customAmount}
+                type="number"
+                min={1}
+                step={1}
+                value={draft.relativeAmount}
+                onChange={event => updateDraft(Object.freeze({ ...draft, relativeAmount: Number(event.target.value) }))}
+              />
+            </label>
+            <label>
+              {text.unit}
+              <select aria-label={text.unit} value={draft.relativeUnit} onChange={event => updateUnit(event.target.value as HistoricalTimeRangeUnit)}>
+                <option value="seconds">{text.seconds}</option>
+                <option value="minutes">{text.minutes}</option>
+                <option value="hours">{text.hours}</option>
+                <option value="days">{text.days}</option>
+              </select>
+            </label>
+          </>
         ) : (
           <div className="historical-browser__absolute-period">
             <label>
@@ -147,6 +180,7 @@ export function HistoricalDataBrowser({
               <input
                 aria-label={text.start}
                 type="datetime-local"
+                step={1}
                 value={draft.absoluteFromLocal}
                 onChange={event => updateDraft(Object.freeze({ ...draft, absoluteFromLocal: event.target.value }))}
               />
@@ -156,6 +190,7 @@ export function HistoricalDataBrowser({
               <input
                 aria-label={text.end}
                 type="datetime-local"
+                step={1}
                 value={draft.absoluteToLocal}
                 onChange={event => updateDraft(Object.freeze({ ...draft, absoluteToLocal: event.target.value }))}
               />
@@ -163,11 +198,7 @@ export function HistoricalDataBrowser({
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={() => onQueryRequested?.(draft)}
-          disabled={!validation.ok || state === 'loading'}
-        >
+        <button type="button" onClick={() => onQueryRequested?.(draft)} disabled={!validation.ok || state === 'loading'}>
           {text.query}
         </button>
       </div>
@@ -175,6 +206,7 @@ export function HistoricalDataBrowser({
       <div className="historical-browser__summary" aria-live="polite">
         <strong>{historicalDatasetLabel(draft.datasetKey, locale)}</strong>
         <span>{historicalTimeSummary(draft, locale)}</span>
+        <span>{text.timezone}: {localTimeZoneLabel()}</span>
         {filterSummary.length > 0 && <span>{filterSummary.join(' · ')}</span>}
       </div>
 
@@ -184,21 +216,14 @@ export function HistoricalDataBrowser({
         </div>
       )}
 
-      <HistoricalBrowserResultState
-        state={state}
-        errorMessage={errorMessage}
-        rowCount={rows.length}
-        locale={locale}
-      />
+      <HistoricalBrowserResultState state={state} errorMessage={errorMessage} rowCount={rows.length} locale={locale} />
 
       {(state === 'ready' || (state === 'idle' && rows.length > 0)) && rows.length > 0 && (
         <div className="historical-browser__content">
           <div className="historical-browser__table-wrap">
             <table>
               <thead>
-                <tr>
-                  {columns.map(column => <th key={column.key} scope="col">{column.label}</th>)}
-                </tr>
+                <tr>{columns.map(column => <th key={column.key} scope="col">{column.label}</th>)}</tr>
               </thead>
               <tbody>
                 {rows.map(row => (
@@ -226,7 +251,7 @@ export function HistoricalDataBrowser({
               <p className="historical-browser__readonly-note">{text.readonlyNote}</p>
               <dl>
                 {selectedRow.detail.map((fact, index) => (
-                  <div key={`${fact.label}-${index}`}>
+                  <div key={fact.label + '-' + index}>
                     <dt>{fact.label}</dt>
                     <dd>{fact.value}</dd>
                   </div>

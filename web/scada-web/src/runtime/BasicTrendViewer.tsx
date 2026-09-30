@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BasicTrendApiError, loadTrendHistory, loadTrendTags } from './trendApi';
 import {
-  buildBasicTrendRange,
   buildTrendPlot,
   sortTrendSamples,
   summarizeTrendSamples,
   trendQualityTone
 } from './trendModel';
+import {
+  createHistoricalTimeRangeState,
+  resolveHistoricalTimeRange,
+  validateHistoricalTimeRange,
+  type HistoricalTimeRangeState
+} from './historicalTimeRange';
+import { HistoricalTimeRangeControls } from './HistoricalTimeRangeControls';
 import type {
   BasicTrendLocale,
-  BasicTrendMode,
-  BasicTrendWindow,
   RuntimeTagEndpointIssue,
   RuntimeTagHistorySample,
   RuntimeTagListItem
@@ -119,7 +123,6 @@ const copy: Record<BasicTrendLocale, Copy> = {
   }
 };
 
-const windows: BasicTrendWindow[] = ['15m', '1h', '6h', '24h'];
 
 function issueFrom(error: unknown): RuntimeTagEndpointIssue {
   return error instanceof BasicTrendApiError ? error.issue : 'unavailable';
@@ -147,11 +150,6 @@ function formatMoment(value: string | null | undefined, locale: BasicTrendLocale
   return new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'medium' }).format(date);
 }
 
-function inputDateTimeValue(date = new Date()) {
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 function qualityText(quality: string | number, text: Copy) {
   const tone = trendQualityTone(quality);
   if (tone === 'good') return text.good;
@@ -170,9 +168,9 @@ export function BasicTrendViewer({
   const text = copy[locale];
   const [tags, setTags] = useState<RuntimeTagListItem[]>([]);
   const [selectedId, setSelectedId] = useState<string>('');
-  const [mode, setMode] = useState<BasicTrendMode>('live');
-  const [window, setWindow] = useState<BasicTrendWindow>('15m');
-  const [historicalEnd, setHistoricalEnd] = useState(() => inputDateTimeValue());
+  const [timeRange, setTimeRange] = useState<HistoricalTimeRangeState>(() =>
+    createHistoricalTimeRangeState({ mode: 'live', durationSeconds: 15 * 60 })
+  );
   const [samples, setSamples] = useState<RuntimeTagHistorySample[]>([]);
   const [rangeLabel, setRangeLabel] = useState<{ from: string; to: string } | null>(null);
   const [tagIssue, setTagIssue] = useState<RuntimeTagEndpointIssue | null>(null);
@@ -237,8 +235,15 @@ export function BasicTrendViewer({
     setHistoryIssue(null);
     setLastHistoryRequestAt(new Date().toISOString());
 
-    const parsedEnd = mode === 'historical' ? new Date(historicalEnd) : null;
-    const range = buildBasicTrendRange(mode, window, parsedEnd && Number.isFinite(parsedEnd.getTime()) ? parsedEnd : null);
+    const validation = validateHistoricalTimeRange(timeRange);
+    if (!validation.ok) {
+      setSamples([]);
+      setRangeLabel(null);
+      setLoadingHistory(false);
+      return;
+    }
+
+    const range = resolveHistoricalTimeRange(timeRange);
     setRangeLabel(range);
 
     try {
@@ -256,17 +261,17 @@ export function BasicTrendViewer({
         setLoadingHistory(false);
       }
     }
-  }, [historicalEnd, historyLoader, mode, sampleLimit, selectedTag, window]);
+  }, [historyLoader, sampleLimit, selectedTag, timeRange]);
 
   useEffect(() => {
     void refreshHistory();
-    if (mode !== 'live' || refreshIntervalMs <= 0) return () => historyAbort.current?.abort();
+    if (timeRange.mode !== 'live' || refreshIntervalMs <= 0) return () => historyAbort.current?.abort();
     const timer = globalThis.setInterval(() => void refreshHistory(), refreshIntervalMs);
     return () => {
       globalThis.clearInterval(timer);
       historyAbort.current?.abort();
     };
-  }, [mode, refreshHistory, refreshIntervalMs]);
+  }, [refreshHistory, refreshIntervalMs, timeRange.mode]);
 
   if (loadingTags && tags.length === 0) {
     return <section className="basic-trend basic-trend-state" aria-label={text.title}>{text.loadingTags}</section>;
@@ -280,7 +285,7 @@ export function BasicTrendViewer({
           <h2>{text.title}</h2>
           <p>{text.description}</p>
         </div>
-        <button type="button" onClick={() => void refreshHistory()} disabled={!selectedTag || loadingHistory}>
+        <button type="button" onClick={() => void refreshHistory()} disabled={!selectedTag || loadingHistory || !validateHistoricalTimeRange(timeRange).ok}>
           {loadingHistory ? text.refreshing : text.refresh}
         </button>
       </header>
@@ -293,25 +298,13 @@ export function BasicTrendViewer({
             {tags.map(tag => <option key={tag.id} value={tag.id}>{tag.path}{tag.engineeringUnit ? ` · ${tag.engineeringUnit}` : ''}</option>)}
           </select>
         </label>
-        <label>
-          <span>{text.mode}</span>
-          <select value={mode} onChange={event => setMode(event.target.value as BasicTrendMode)}>
-            <option value="live">{text.live}</option>
-            <option value="historical">{text.historical}</option>
-          </select>
-        </label>
-        <label>
-          <span>{text.interval}</span>
-          <select value={window} onChange={event => setWindow(event.target.value as BasicTrendWindow)}>
-            {windows.map(value => <option key={value} value={value}>{value}</option>)}
-          </select>
-        </label>
-        {mode === 'historical' && (
-          <label>
-            <span>{text.historicalEnd}</span>
-            <input type="datetime-local" value={historicalEnd} onChange={event => setHistoricalEnd(event.target.value)} />
-          </label>
-        )}
+        <HistoricalTimeRangeControls
+          locale={locale}
+          value={timeRange}
+          onChange={setTimeRange}
+          disabled={loadingHistory}
+        />
+
       </div>
 
       {tagIssue && <div className="basic-trend-message basic-trend-error">{issueText(tagIssue, text)}</div>}
@@ -322,7 +315,7 @@ export function BasicTrendViewer({
           <div className="basic-trend-context">
             <div>
               <span>{text.currentContext}</span>
-              <strong>{mode === 'live' ? text.rollingWindow : text.frozenWindow}</strong>
+              <strong>{timeRange.mode === 'live' ? text.rollingWindow : timeRange.mode === 'relative' ? text.historical : text.frozenWindow}</strong>
             </div>
             <div>
               <span>{text.tag}</span>

@@ -10,6 +10,13 @@ import {
 } from '../../visual-runtime';
 import { executeHistoricalQuery } from '../../runtime/historical-browser/historicalQueryApi';
 import {
+  createHistoricalTimeRangeState,
+  historicalDurationSeconds,
+  validateHistoricalTimeRange,
+  type HistoricalTimeRangeState
+} from '../../runtime/historicalTimeRange';
+import { HistoricalTimeRangeControls } from '../../runtime/HistoricalTimeRangeControls';
+import {
   loadReadableRuntimeTags,
   openRuntimeTagSocket,
   parseRuntimeTagRealtimeMessage
@@ -38,6 +45,7 @@ export type TrendVisualElementProps = Readonly<{
   title?: string;
   locale: EngineeringLocale;
   enabled: boolean;
+  operatorTimeRangeControls?: boolean;
   onClick?: (event: React.MouseEvent) => void;
 }>;
 
@@ -84,6 +92,7 @@ export function TrendVisualElement({
   title,
   locale,
   enabled,
+  operatorTimeRangeControls = false,
   onClick
 }: TrendVisualElementProps) {
   const text = COPY[locale];
@@ -96,6 +105,17 @@ export function TrendVisualElement({
   const showGrid = booleanValue(values[VISUAL_PROPERTY_KEYS.trendGridVisible], true);
   const showAxes = booleanValue(values[VISUAL_PROPERTY_KEYS.trendAxesVisible], true);
   const showQuality = booleanValue(values[VISUAL_PROPERTY_KEYS.trendQualityVisible], true);
+  const engineeredTimeRange = React.useMemo(
+    () => createHistoricalTimeRangeState({
+      mode: mode === 'live' ? 'live' : 'relative',
+      durationSeconds: windowSeconds
+    }),
+    [mode, windowSeconds]
+  );
+  const [operatorTimeRange, setOperatorTimeRange] = React.useState<HistoricalTimeRangeState>(() => engineeredTimeRange);
+  const [refreshRevision, setRefreshRevision] = React.useState(0);
+  const activeTimeRange = operatorTimeRangeControls ? operatorTimeRange : engineeredTimeRange;
+  const activeDurationSeconds = historicalDurationSeconds(activeTimeRange);
   const [state, setState] = React.useState<LoadState>({ kind: 'idle', series: Object.freeze([]) });
 
   React.useEffect(() => {
@@ -103,8 +123,12 @@ export function TrendVisualElement({
       setState({ kind: 'idle', series: Object.freeze([]) });
       return;
     }
+    if (!validateHistoricalTimeRange(activeTimeRange).ok) {
+      setState(previous => ({ kind: 'error', series: previous.series, message: 'Invalid historical time range.' }));
+      return;
+    }
 
-    if (mode === 'live') {
+    if (activeTimeRange.mode === 'live') {
       let disposed = false;
       let buffers: TrendLiveBuffers = new Map();
       const controller = new AbortController();
@@ -112,11 +136,11 @@ export function TrendVisualElement({
 
       const publish = (now = Date.now()) => {
         if (disposed) return;
-        buffers = pruneTrendLiveBuffers(buffers, visiblePens, windowSeconds, now);
+        buffers = pruneTrendLiveBuffers(buffers, visiblePens, activeDurationSeconds, now);
         setState({
           kind: 'ready',
           series: buildTrendLiveSeries(visiblePens, buffers),
-          from: now - windowSeconds * 1000,
+          from: now - activeDurationSeconds * 1000,
           to: now
         });
       };
@@ -127,12 +151,12 @@ export function TrendVisualElement({
           if (disposed || controller.signal.aborted) return;
           const byId = new Map(tags.map(tag => [normalizeId(tag.id), tag]));
           const now = Date.now();
-          buffers = pruneTrendLiveBuffers(buffers, visiblePens, windowSeconds, now);
+          buffers = pruneTrendLiveBuffers(buffers, visiblePens, activeDurationSeconds, now);
           for (const pen of visiblePens) {
             const tag = byId.get(normalizeId(pen.tagId));
             if (!tag) continue;
             const sample = trendSampleFromRuntimeSnapshot(pen, tag);
-            if (sample) buffers = appendTrendLiveSample(buffers, pen, sample, windowSeconds, now);
+            if (sample) buffers = appendTrendLiveSample(buffers, pen, sample, activeDurationSeconds, now);
           }
           publish(now);
         } catch (reason) {
@@ -159,7 +183,7 @@ export function TrendVisualElement({
           const sample = trendSampleFromRuntimeMessage(pen, message);
           if (!sample) return;
           const now = Date.now();
-          buffers = appendTrendLiveSample(buffers, pen, sample, windowSeconds, now);
+          buffers = appendTrendLiveSample(buffers, pen, sample, activeDurationSeconds, now);
           publish(now);
         });
       } catch {
@@ -184,7 +208,7 @@ export function TrendVisualElement({
       setState(previous => ({ kind: 'loading', series: previous.series }));
       try {
         const response = await executeHistoricalQuery(
-          buildTrendHistoricalQuery(visiblePens, windowSeconds),
+          buildTrendHistoricalQuery(visiblePens, activeTimeRange),
           controller.signal
         );
         if (disposed || controller.signal.aborted || active !== controller) return;
@@ -206,20 +230,26 @@ export function TrendVisualElement({
     };
 
     void loadHistory();
+    if (activeTimeRange.mode === 'absolute') {
+      return () => {
+        disposed = true;
+        active?.abort();
+      };
+    }
     const interval = window.setInterval(() => { void loadHistory(); }, Math.max(1, refreshSeconds) * 1000);
     return () => {
       disposed = true;
       active?.abort();
       window.clearInterval(interval);
     };
-  }, [mode, refreshSeconds, visiblePens, windowSeconds]);
+  }, [activeDurationSeconds, activeTimeRange, refreshRevision, refreshSeconds, visiblePens]);
 
   const series = state.series;
   const hasSamples = series.some(item => item.samples.some(sample => isUsableTrendQuality(sample.quality)));
   const range = state.kind === 'ready'
     ? { from: state.from, to: state.to }
-    : inferRange(series, windowSeconds);
-  const isLive = mode === 'live';
+    : inferRange(series, activeDurationSeconds);
+  const isLive = activeTimeRange.mode === 'live';
 
   return <div
     className="visual-editor-object visual-editor-trend"
@@ -228,7 +258,9 @@ export function TrendVisualElement({
     data-object-id={element.id ?? undefined}
     data-runtime-object-id={runtimeObjectId}
     data-enabled={enabled}
-    data-trend-mode={mode}
+    data-trend-mode={activeTimeRange.mode}
+    data-trend-from={state.kind === 'ready' ? new Date(state.from).toISOString() : undefined}
+    data-trend-to={state.kind === 'ready' ? new Date(state.to).toISOString() : undefined}
     data-trend-source={isLive ? 'runtime-tags' : 'historian'}
     data-trend-quality-policy="good-only"
     data-trend-pen-count={visiblePens.length}
@@ -236,6 +268,14 @@ export function TrendVisualElement({
     title={combineTitle(title, state.kind === 'error' ? state.message : undefined)}
     onClick={onClick}
   >
+    {operatorTimeRangeControls ? <HistoricalTimeRangeControls
+      locale={locale}
+      value={operatorTimeRange}
+      onChange={setOperatorTimeRange}
+      onRefresh={() => setRefreshRevision(current => current + 1)}
+      disabled={!enabled || state.kind === 'loading'}
+      compact
+    /> : null}
     <svg width="100%" height="100%" viewBox="0 0 1000 400" preserveAspectRatio="none" role="img" aria-label={element.key}>
       <rect x="0" y="0" width="1000" height="400" fill="transparent" />
       {showGrid ? <TrendGrid /> : null}

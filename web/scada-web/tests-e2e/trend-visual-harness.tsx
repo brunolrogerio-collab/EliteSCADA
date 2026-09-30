@@ -19,6 +19,7 @@ const requestedLocale = params.get('locale');
 const locale: EngineeringLocale = requestedLocale === 'en' || requestedLocale === 'es' ? requestedLocale : 'pt-BR';
 const count = params.get('count') === '2' ? 2 : 1;
 const showQuality = params.get('quality') !== 'off';
+const operatorTimeRangeControls = params.get('controls') === 'on';
 
 const pressure = createTrendPen({
   id: tagOne,
@@ -85,6 +86,7 @@ createRoot(root).render(
       elements={elements}
       emptyLabel="No visual elements"
       locale={locale}
+      operatorTimeRangeControls={operatorTimeRangeControls}
     />
   </div>
 );

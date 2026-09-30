@@ -1,3 +1,8 @@
+import {
+  createHistoricalTimeRangeState,
+  historicalTimeRangeToQuery,
+  type HistoricalTimeRangeState
+} from './historicalTimeRange';
 import type { TrendVisualPen } from '../visual-runtime';
 import type {
   HistoricalQueryRequest,
@@ -21,21 +26,22 @@ export type TrendSeries = Readonly<{
 
 export function buildTrendHistoricalQuery(
   pens: readonly TrendVisualPen[],
-  windowSeconds: number,
+  rangeOrWindowSeconds: HistoricalTimeRangeState | number,
   limit = 200
 ): HistoricalQueryRequest {
   const tagIds = [...new Set(pens.filter(pen => pen.visible).map(pen => pen.tagId))];
   if (tagIds.length === 0) throw new Error('Trend requires at least one visible Pen before querying history.');
-  if (!Number.isSafeInteger(windowSeconds) || windowSeconds < 60 || windowSeconds > 604800) {
-    throw new Error('Trend windowSeconds must be an integer between 60 and 604800.');
-  }
+  const range = typeof rangeOrWindowSeconds === 'number'
+    ? createHistoricalTimeRangeState({ mode: 'relative', durationSeconds: rangeOrWindowSeconds })
+    : rangeOrWindowSeconds;
+  if (range.mode === 'live') throw new Error('Live Trend does not query Historical Query v1.');
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 200) {
     throw new Error('Trend query limit must be an integer between 1 and 200.');
   }
   return Object.freeze({
     datasetKey: 'historian.samples',
     version: 1,
-    timeRange: Object.freeze({ kind: 'relative', durationSeconds: windowSeconds, anchor: 'now' }),
+    timeRange: historicalTimeRangeToQuery(range),
     filters: Object.freeze([Object.freeze({
       field: 'tag.id',
       operator: 'in',

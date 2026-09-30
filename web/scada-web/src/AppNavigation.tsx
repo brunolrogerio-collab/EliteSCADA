@@ -7,6 +7,7 @@ import {
   useEffectiveCapabilities
 } from './auth/effectiveCapabilities';
 import { contextualHelpTopic } from './help/contextualHelpTopic';
+import { ApplicationBrand, useActiveApplicationBranding } from './branding/ApplicationBranding';
 import './app-navigation.css';
 
 type ShellLink = Readonly<{
@@ -26,6 +27,7 @@ export function AppNavigation() {
   const text = appShellText(locale);
   const { theme, selectTheme } = useAppTheme();
   const { capabilities, loading } = useEffectiveCapabilities();
+  const branding = useActiveApplicationBranding();
   const path = window.location.pathname;
   const access = resolveAppSurfaceAccess(capabilities);
 
@@ -61,13 +63,14 @@ export function AppNavigation() {
   return (
     <>
       <header
-        className={`app-bar${runtimeOnly ? ' app-bar--runtime-only' : ''}`}
+        className={`app-bar${runtimeOnly ? ' app-bar--runtime-only' : ''}${branding.mode === 'none' ? ' app-bar--branding-none' : ''}`}
         data-capabilities-loading={loading || undefined}
       >
-        <a className="app-brand" href={access.runtime ? '/' : access.engineering ? '/engineering' : access.licensing ? '/licensing' : '#'} aria-label="EliteSCADA">
-          <span className="app-brand-mark" aria-hidden="true">E</span>
-          <span className="app-brand-copy"><strong>EliteSCADA</strong><small>{text.subtitle}</small></span>
-        </a>
+        <ApplicationBrand
+          branding={branding}
+          defaultSubtitle={text.subtitle}
+          href={access.runtime ? '/' : access.engineering ? '/engineering' : access.licensing ? '/licensing' : '#'}
+        />
         <nav className="app-navigation" aria-label="EliteSCADA">
           {links.map(link => {
             const normalizedHref = link.href.startsWith('/help') ? '/help' : link.href;

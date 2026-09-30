@@ -193,9 +193,11 @@ test('mounted Historical Browser keeps the required pt-BR absolute range determi
   });
 
   await openHarness(page, '?locale=pt-BR');
-  await page.getByLabel('Período absoluto').check();
-  await page.getByLabel('De').fill('2026-09-27T01:00:00');
-  await page.getByLabel('Até').fill('2026-09-28T12:00:00');
+  const rangeControls = page.getByTestId('historical-time-range-controls');
+  await expect(rangeControls).toHaveCount(1);
+  await rangeControls.getByLabel('Período absoluto', { exact: true }).check();
+  await rangeControls.getByLabel('De', { exact: true }).fill('2026-09-27T01:00');
+  await rangeControls.getByLabel('Até', { exact: true }).fill('2026-09-28T12:00');
   await page.getByRole('button', { name: 'Consultar', exact: true }).click();
 
   await expect.poll(() => requests.length).toBe(1);
@@ -209,7 +211,7 @@ test('mounted Historical Browser keeps the required pt-BR absolute range determi
   await expect.poll(() => requests.length).toBe(2);
   expect(requests[1].timeRange).toEqual(requests[0].timeRange);
 
-  await page.getByLabel('De').fill('2026-09-28T12:00:00');
+  await rangeControls.getByLabel('De', { exact: true }).fill('2026-09-28T12:00');
   await expect(page.getByRole('button', { name: 'Consultar', exact: true })).toBeDisabled();
   expect(requests).toHaveLength(2);
 

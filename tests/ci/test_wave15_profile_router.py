@@ -26,6 +26,8 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         self.assertEqual(result["e2e_specs"], [
             "tests-e2e/app-shell.spec.ts",
             "tests-e2e/data-source-catalog-editor-mounted.spec.ts",
+            "tests-e2e/tag-duplication-model.spec.ts",
+            "tests-e2e/tag-duplication-mounted.spec.ts",
             "tests-e2e/visual-editor-authoring-model.spec.ts",
             "tests-e2e/visual-editor-selection-model.spec.ts",
             "tests-e2e/visual-editor-workspace.spec.ts",

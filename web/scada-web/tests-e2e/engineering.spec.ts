@@ -241,7 +241,7 @@ test('Alarm editor validates existing drafts and TAG references without mutating
 
   await page.goto('/engineering');
   await page.getByRole('button', { name: /Alarmes/ }).click();
-  await page.getByRole('button', { name: /High discharge pressure/ }).click();
+  await page.locator('.eng-editor-picker-list button').filter({ hasText: original!.name }).click();
   await expect(page.getByLabel('TAG associado')).toHaveValue('Demo.Discharge.Pressure');
 
   await page.getByLabel('Mensagem').fill('Pressure preview edit');

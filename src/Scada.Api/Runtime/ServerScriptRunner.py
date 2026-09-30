@@ -385,9 +385,38 @@ class SafeInterpreter:
         raise ScriptError("Unsupported comparison operator.")
 
 
+def _syntax_diagnostic(error):
+    line = error.lineno if isinstance(error.lineno, int) and error.lineno > 0 else 1
+    column = error.offset if isinstance(error.offset, int) and error.offset > 0 else 1
+    diagnostic = {
+        "severity": "error",
+        "code": "PY_SYNTAX",
+        "message": (error.msg or "Invalid Python syntax.")[:240],
+        "line": line,
+        "column": column,
+    }
+    if isinstance(getattr(error, "end_lineno", None), int) and error.end_lineno > 0:
+        diagnostic["endLine"] = error.end_lineno
+    if isinstance(getattr(error, "end_offset", None), int) and error.end_offset > 0:
+        diagnostic["endColumn"] = error.end_offset
+    return diagnostic
+
+
+def validate_syntax(source):
+    try:
+        ast.parse(source, mode="exec")
+        return {"diagnostics": []}
+    except SyntaxError as error:
+        return {"diagnostics": [_syntax_diagnostic(error)]}
+
+
 def main():
     try:
         payload = json.load(sys.stdin)
+        if payload.get("validateOnly") is True:
+            print(json.dumps(validate_syntax(payload.get("source", "")), separators=(",", ":")))
+            return
+
         interpreter = SafeInterpreter(
             payload.get("source", ""),
             payload.get("values") or {},

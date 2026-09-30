@@ -69,7 +69,7 @@ test('W15 R2 editor mounts shared side surfaces, canonical Dynamo preview and co
   const selectionInspector = page.getByTestId('visual-editor-selection-inspector');
 
   await expect(workspace).toBeVisible();
-  await expect(page.getByTestId('visual-editor-canonical-renderer')).toBeVisible();
+  await expect(page.locator('.visual-editor-canvas-enhanced__canvas').getByTestId('visual-editor-canonical-renderer')).toBeVisible();
   await expect(authoringSidebar).toBeVisible();
   await expect(authoringSidebar.getByTestId('visual-editor-outliner')).toBeVisible();
   await expect(authoringSidebar.getByTestId('visual-object-palette')).toBeVisible();

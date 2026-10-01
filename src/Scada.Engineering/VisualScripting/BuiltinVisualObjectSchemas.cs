@@ -68,6 +68,7 @@ public static class BuiltinVisualObjectSchemas
             .Concat(CommonVisualPropertyDefinitions.Text)
             .Concat(CommonVisualPropertyDefinitions.Image)
             .Concat(CommonVisualPropertyDefinitions.Slider)
+            .Concat(CommonVisualPropertyDefinitions.NumericInput)
             .Concat(TrendDefinitions)
             .ToDictionary(property => property.Key, StringComparer.Ordinal);
 
@@ -271,7 +272,8 @@ public static class BuiltinVisualObjectSchemas
                 VisualPropertyKeys.Minimum,
                 VisualPropertyKeys.Maximum,
                 VisualPropertyKeys.Step,
-                VisualPropertyKeys.InteractionEnabled
+                VisualPropertyKeys.InteractionEnabled,
+                VisualPropertyKeys.ShowApplyButton
             ]));
 
     public static IReadOnlyCollection<VisualObjectPropertySchema> All { get; } =

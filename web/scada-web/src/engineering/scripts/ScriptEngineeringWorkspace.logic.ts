@@ -271,6 +271,10 @@ export function validateVisualEventReference(reference: ScriptVisualEventReferen
   if (!reference.visualDefinitionId.trim()) issues.push('visualDefinitionId');
   if (!reference.scriptId.trim()) issues.push('scriptId');
   if (!reference.entryPoint.trim()) issues.push('entryPoint');
+  if (reference.eventKind === 'objectInteraction' &&
+      !['click', 'pointerenter', 'pointermove', 'pointerleave'].includes((reference.eventKey ?? 'click').trim().toLocaleLowerCase('en-US'))) {
+    issues.push('interactionEventKey');
+  }
   issues.push(...validateEventTarget(
     reference.eventKind,
     reference.targetReference,

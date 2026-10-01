@@ -1,0 +1,38 @@
+/* Runtime-only pointer feedback; it never changes the persisted visual definition. */
+.visual-editor-object[data-object-events] {
+  cursor: pointer;
+  transition: filter 120ms ease, box-shadow 120ms ease, translate 100ms ease, scale 100ms ease;
+}
+
+.visual-editor-object[data-object-events]:hover {
+  filter: brightness(1.08);
+}
+
+.visual-editor-button {
+  cursor: pointer;
+  transition: filter 100ms ease, translate 100ms ease, scale 100ms ease, box-shadow 100ms ease;
+}
+
+.visual-editor-button:hover:not(:disabled) {
+  filter: brightness(1.1);
+  box-shadow: 0 2px 7px rgba(0, 0, 0, .2);
+}
+
+.visual-editor-button:active:not(:disabled) {
+  filter: brightness(.9);
+  translate: 0 1px;
+  scale: .99;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, .28);
+}
+
+.visual-editor-button:focus-visible {
+  outline: 2px solid var(--eng-accent, #58a6d6);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .visual-editor-object[data-object-events],
+  .visual-editor-button {
+    transition: none;
+  }
+}

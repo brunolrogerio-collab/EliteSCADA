@@ -61,6 +61,8 @@ export type ScriptVisualEventReference = {
   visualDefinitionId: string;
   visualObjectId?: string | null;
   eventKind: ScriptEngineeringEventKind;
+  /** Defaults to click when reading references authored before interaction subtypes existed. */
+  eventKey?: string | null;
   scriptId: string;
   entryPoint: string;
   targetReference?: string | null;

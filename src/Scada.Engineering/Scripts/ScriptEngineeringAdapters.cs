@@ -109,6 +109,7 @@ public static class ScriptEngineeringAdapters
                 reference.VisualDefinitionId == visualDefinitionId &&
                 reference.VisualObjectId == visualObjectId)
             .OrderBy(reference => (int)reference.EventKind)
+            .ThenBy(reference => reference.EventKey, StringComparer.OrdinalIgnoreCase)
             .ThenBy(reference => reference.ScriptId)
             .ThenBy(reference => reference.EntryPoint, StringComparer.Ordinal)
             .ThenBy(reference => reference.TargetReference ?? string.Empty, StringComparer.Ordinal)

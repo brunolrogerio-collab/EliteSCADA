@@ -21,6 +21,13 @@ export type ClientVisualObjectInteractionRequest = Readonly<{
   visualDefinitionId: string;
   objectId: string;
   eventKey: string;
+  pointer?: Readonly<{
+    x: number;
+    y: number;
+    type: string;
+    button: number;
+    buttons: number;
+  }>;
   context: ScriptEngineeringContext;
 }>;
 
@@ -90,17 +97,15 @@ export class ClientVisualEventDispatcher {
       return Object.freeze([]);
     }
 
-    // Wave 10 canonical objectInteraction currently exposes Click only. Do not
-    // guess future interaction subtypes from an eventKind that cannot encode them.
-    if (request.eventKey.toLocaleLowerCase('en-US') !== 'click') {
-      return Object.freeze([]);
-    }
+    const eventKey = request.eventKey.trim().toLocaleLowerCase('en-US');
+    if (!['click', 'pointerenter', 'pointermove', 'pointerleave'].includes(eventKey)) return Object.freeze([]);
 
     const references = request.context.visualEventReferences
       .filter(reference =>
         reference.visualDefinitionId === request.visualDefinitionId &&
         reference.visualObjectId === request.objectId &&
-        reference.eventKind === 'objectInteraction')
+        reference.eventKind === 'objectInteraction' &&
+        (reference.eventKey ?? 'click').trim().toLocaleLowerCase('en-US') === eventKey)
       .sort(compareReferences);
 
     if (references.length === 0) return Object.freeze([]);
@@ -167,7 +172,8 @@ export class ClientVisualEventDispatcher {
           eventKey: request.eventKey,
           visualDefinitionId: request.visualDefinitionId,
           visualObjectId: request.objectId,
-          visualRuntimeInstanceId: instance.runtimeInstanceId
+          visualRuntimeInstanceId: instance.runtimeInstanceId,
+          pointer: request.pointer ? Object.freeze({ ...request.pointer }) : null
         })
       );
       return Object.freeze({ reference: cloneReference(reference), result: Object.freeze({ ...result }) });

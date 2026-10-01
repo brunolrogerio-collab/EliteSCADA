@@ -558,6 +558,12 @@ public sealed class ScriptEngineeringValidator
                     reference.TimerIntervalMs,
                     (code, message) => Add($"SCRIPT_VISUAL_{code}", message));
 
+            if (reference.EventKind == ScriptEngineeringEventKind.ObjectInteraction &&
+                !ScriptEngineeringInteractionEventKeys.IsSupported(reference.EventKey))
+            {
+                Add("SCRIPT_VISUAL_INTERACTION_EVENT_KEY_INVALID", $"Object interaction event key '{reference.EventKey}' is not supported.");
+            }
+
             if (reference.ScriptId == Guid.Empty)
                 Add("SCRIPT_VISUAL_SCRIPT_ID_REQUIRED", "Visual Script reference requires a Script stable ID.");
 
@@ -565,7 +571,7 @@ public sealed class ScriptEngineeringValidator
                 Add("SCRIPT_VISUAL_ENTRYPOINT_REQUIRED", "Visual Script reference requires an entry-point handler name.");
 
             var runtimeIdentity =
-                $"{entityKey}:{(int)reference.EventKind}:{reference.ScriptId:D}:{reference.EntryPoint}";
+                $"{entityKey}:{(int)reference.EventKind}:{(reference.EventKey ?? string.Empty).Trim().ToLowerInvariant()}:{reference.ScriptId:D}:{reference.EntryPoint}";
             if (!seenRuntimeHandlers.Add(runtimeIdentity))
             {
                 Add(

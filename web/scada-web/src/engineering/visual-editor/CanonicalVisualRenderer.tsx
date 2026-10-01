@@ -33,6 +33,7 @@ import {
 import { resolveVisualDynamicState } from './visualDynamicRuntime';
 import { SliderVisualElement, type SliderTagWrite } from './SliderVisualElement';
 import { NumericInputVisualElement } from './NumericInputVisualElement';
+import './CanonicalVisualInteraction.css';
 import { TrendVisualElement } from './TrendVisualElement';
 import {
   cssStrokeStyle,
@@ -318,6 +319,7 @@ function CanonicalElement({
         liveSamples={liveSamples}
         style={style}
         runtimeObjectId={runtimeObjectId}
+        locale={locale}
         title={elementTitle}
         onTagWrite={onTagWrite}
       />;

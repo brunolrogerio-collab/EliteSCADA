@@ -60,6 +60,8 @@ test('Numeric Input resolves only stable writable good-quality TAG sources', () 
 
 test('Numeric Input rejects invalid and out-of-range buffered values', () => {
   expect(validateNumericInputCandidate('12.5', 0, 20)).toBe(12.5);
+  expect(validateNumericInputCandidate('12.5', 0, 20, .5)).toBe(12.5);
+  expect(() => validateNumericInputCandidate('12.4', 0, 20, .5)).toThrow(/increments/);
   expect(() => validateNumericInputCandidate('', 0, 20)).toThrow(/required/);
   expect(() => validateNumericInputCandidate('NaN', 0, 20)).toThrow(/finite/);
   expect(() => validateNumericInputCandidate('21', 0, 20)).toThrow(/between/);

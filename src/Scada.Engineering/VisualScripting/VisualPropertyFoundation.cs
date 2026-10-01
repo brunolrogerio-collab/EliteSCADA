@@ -355,6 +355,7 @@ public static class VisualPropertyKeys
     public const string Step = "step";
     public const string Orientation = "orientation";
     public const string InteractionEnabled = "interactionEnabled";
+    public const string ShowApplyButton = "showApplyButton";
     public const string ReverseDirection = "reverseDirection";
     public const string TrackColor = "trackColor";
     public const string ThumbColor = "thumbColor";
@@ -460,6 +461,11 @@ public static class CommonVisualPropertyDefinitions
         Boolean(VisualPropertyKeys.ReverseDirection, false),
         Color(VisualPropertyKeys.TrackColor, "#6B7280", animatable: true),
         Color(VisualPropertyKeys.ThumbColor, "#E5E7EB", animatable: true)
+    ];
+
+    public static IReadOnlyList<VisualPropertyDefinition> NumericInput { get; } =
+    [
+        Boolean(VisualPropertyKeys.ShowApplyButton, true)
     ];
 
     private static VisualPropertyDefinition Boolean(string key, bool value) =>

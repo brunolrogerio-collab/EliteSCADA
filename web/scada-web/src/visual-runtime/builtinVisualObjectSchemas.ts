@@ -199,7 +199,8 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     VISUAL_PROPERTY_KEYS.minimum,
     VISUAL_PROPERTY_KEYS.maximum,
     VISUAL_PROPERTY_KEYS.step,
-    VISUAL_PROPERTY_KEYS.interactionEnabled
+    VISUAL_PROPERTY_KEYS.interactionEnabled,
+    VISUAL_PROPERTY_KEYS.showApplyButton
   ])]
 ]);
 

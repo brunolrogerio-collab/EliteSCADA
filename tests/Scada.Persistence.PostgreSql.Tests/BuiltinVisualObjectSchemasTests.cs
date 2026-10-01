@@ -54,6 +54,9 @@ public sealed class BuiltinVisualObjectSchemasTests
         Assert.True(BuiltinVisualObjectSchemas.Slider.Declares(VisualPropertyKeys.Maximum));
         Assert.True(BuiltinVisualObjectSchemas.Slider.Declares(VisualPropertyKeys.Step));
         Assert.True(BuiltinVisualObjectSchemas.Slider.Declares(VisualPropertyKeys.InteractionEnabled));
+
+        Assert.True(BuiltinVisualObjectSchemas.NumericInput.Declares(VisualPropertyKeys.ShowApplyButton));
+        Assert.False(BuiltinVisualObjectSchemas.Slider.Declares(VisualPropertyKeys.ShowApplyButton));
     }
 
     [Fact]

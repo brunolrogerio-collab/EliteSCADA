@@ -405,8 +405,7 @@ function PopupVisualEditorWorkspaceBody({
 
   return <div ref={workspaceRef} className={layoutClassName} data-testid="popup-visual-editor-workspace">
     <header className="visual-editor-header">
-      <div><span>{text.eyebrow}</span><h1>{text.title}</h1><p>{text.description}</p></div>
-      <div className="visual-editor-authority"><strong>{text.authorityTitle}</strong><span>{text.authorityHint}</span></div>
+      <div className="visual-editor-header-title"><h1>{text.title}</h1><details className="visual-editor-help"><summary>{text.help}</summary><p>{text.description}</p><div className="visual-editor-authority"><strong>{text.authorityTitle}</strong><span>{text.authorityHint}</span></div></details></div>
     </header>
 
     <div className="visual-editor-shell">

@@ -2,7 +2,7 @@ import type { EngineeringLocale } from '../i18n';
 
 export function popupEditorText(locale: EngineeringLocale) {
   if (locale === 'en') return {
-    eyebrow: 'Canonical graphical Engineering', title: 'Popup editor', description: 'Popups use the same canonical visual authoring contracts as Screens while retaining their own Popup identity and template reference.',
+    eyebrow: 'Canonical graphical Engineering', title: 'Popup editor', help: 'Editor help', description: 'Popups use the same canonical visual authoring contracts as Screens while retaining their own Popup identity and template reference.',
     authorityTitle: 'Preview required before Apply', authorityHint: 'Changes remain in the Working draft until validated and applied through Workspace CAS.',
     popupList: 'Popup list', popups: 'Popups', newPopup: 'New Popup', name: 'Name', key: 'Key', template: 'Template', standalone: 'Standalone', draft: 'Draft', newDraft: 'New', changed: 'Changed', unchanged: 'Unchanged', objects: 'objects',
     assets: 'Project image assets', assetHint: 'Object and background image references use stable canonical asset IDs.', assetsAvailable: 'assets available', interactiveCanvas: 'Interactive Popup Canvas', polygonDrawing: 'Polygon drawing mode', logicalBounds: 'logical bounds', runtimePosition: 'Runtime position', canonicalPreview: 'Runtime composition preview', canonicalPreviewHint: 'Uses the same logical stage, bounds, position clamp, surface and clipping contract as Runtime.', emptyCanvas: 'This Popup has no visual objects yet.', selectObject: 'Select one visual object to edit its bindings.',
@@ -10,7 +10,7 @@ export function popupEditorText(locale: EngineeringLocale) {
     discardConfirm: 'Discard the current Popup draft?', applyConfirm: 'Apply this validated Popup draft to the official Engineering Workspace?', workspaceChanged: 'The Engineering Workspace changed during validation. Reload and validate again.'
   };
   if (locale === 'es') return {
-    eyebrow: 'Ingeniería gráfica canónica', title: 'Editor de Popups', description: 'Los Popups usan los mismos contratos visuales canónicos que las Pantallas, conservando su identidad y referencia de plantilla.',
+    eyebrow: 'Ingeniería gráfica canónica', title: 'Editor de Popups', help: 'Ayuda', description: 'Los Popups usan los mismos contratos visuales canónicos que las Pantallas, conservando su identidad y referencia de plantilla.',
     authorityTitle: 'Preview obligatorio antes de Aplicar', authorityHint: 'Los cambios permanecen en el borrador Working hasta validarse y aplicarse mediante CAS.',
     popupList: 'Lista de Popups', popups: 'Popups', newPopup: 'Nuevo Popup', name: 'Nombre', key: 'Clave', template: 'Plantilla', standalone: 'Independiente', draft: 'Borrador', newDraft: 'Nuevo', changed: 'Modificado', unchanged: 'Sin cambios', objects: 'objetos',
     assets: 'Recursos de imagen', assetHint: 'Objetos y fondos usan IDs canónicos estables.', assetsAvailable: 'recursos disponibles', interactiveCanvas: 'Canvas interactivo del Popup', polygonDrawing: 'Modo polígono', logicalBounds: 'límites lógicos', runtimePosition: 'posición en Runtime', canonicalPreview: 'Preview de composición de Runtime', canonicalPreviewHint: 'Usa el mismo stage lógico, límites, ajuste de posición, superficie y clipping que Runtime.', emptyCanvas: 'Este Popup no tiene objetos visuales.', selectObject: 'Seleccione un objeto visual para editar bindings.',
@@ -18,7 +18,7 @@ export function popupEditorText(locale: EngineeringLocale) {
     discardConfirm: '¿Descartar el borrador actual del Popup?', applyConfirm: '¿Aplicar este Popup validado al Engineering Workspace oficial?', workspaceChanged: 'El Engineering Workspace cambió durante la validación. Recargue y valide nuevamente.'
   };
   return {
-    eyebrow: 'Engenharia gráfica canônica', title: 'Editor de Popups', description: 'Popups usam os mesmos contratos visuais canônicos das Telas, preservando sua identidade e referência de template.',
+    eyebrow: 'Engenharia gráfica canônica', title: 'Editor de Popups', help: 'Ajuda', description: 'Popups usam os mesmos contratos visuais canônicos das Telas, preservando sua identidade e referência de template.',
     authorityTitle: 'Preview obrigatório antes do Apply', authorityHint: 'As mudanças ficam no rascunho Working até validação e Apply protegido por CAS.',
     popupList: 'Lista de Popups', popups: 'Popups', newPopup: 'Novo Popup', name: 'Nome', key: 'Chave', template: 'Template', standalone: 'Independente', draft: 'Rascunho', newDraft: 'Novo', changed: 'Alterado', unchanged: 'Sem alterações', objects: 'objetos',
     assets: 'Assets de imagem do projeto', assetHint: 'Objetos e fundos usam IDs canônicos estáveis de asset.', assetsAvailable: 'assets disponíveis', interactiveCanvas: 'Canvas interativo do Popup', polygonDrawing: 'Modo de desenho de polígono', logicalBounds: 'limites lógicos', runtimePosition: 'posição no Runtime', canonicalPreview: 'Preview da composição de Runtime', canonicalPreviewHint: 'Usa o mesmo stage lógico, bounds, clamp de posição, superfície e clipping do Runtime.', emptyCanvas: 'Este Popup ainda não possui objetos visuais.', selectObject: 'Selecione um objeto visual para editar seus bindings.',

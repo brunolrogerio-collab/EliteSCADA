@@ -42,10 +42,10 @@
 }
 
 .script-workspace__header {
-  align-items: flex-start;
-  padding: .7rem .8rem;
-  border: 1px solid var(--script-border);
-  border-radius: 12px;
+  align-items: center;
+  padding: .25rem 0;
+  border: 0;
+  border-radius: 0;
   background: var(--script-surface);
   color: var(--script-text);
 }
@@ -58,6 +58,9 @@
 
 .script-workspace__eyebrow { display: none; }
 .script-workspace__header h2 { font-size: 1.15rem; }
+.script-workspace__help { position:relative; font-size:.75rem; }
+.script-workspace__help > summary { color:var(--script-accent); cursor:pointer; }
+.script-workspace__help[open] { z-index:20; }
 
 .script-workspace__header p,
 .script-collection-header p {

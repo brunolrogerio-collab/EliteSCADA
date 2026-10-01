@@ -102,7 +102,7 @@ export function scriptWorkspaceCopy(locale: EngineeringLocale) {
   const copy = copies[locale];
   if (locale === 'en') return {
     ...copy,
-    subtitle: 'Edit the draft and check it before applying to the Workspace. Save or publish from Overview to update Runtime.',
+    help: 'Help', subtitle: 'Edit the draft and check it before applying to the Workspace. Save or publish from Overview to update Runtime.',
     sourceHint: 'Code edits only the local draft. Check, then apply it to the Workspace.',
     preview: 'Check changes',
     apply: 'Apply to Workspace',
@@ -110,7 +110,7 @@ export function scriptWorkspaceCopy(locale: EngineeringLocale) {
   };
   if (locale === 'es') return {
     ...copy,
-    subtitle: 'Edite y verifique el borrador antes de aplicarlo al Workspace. Guarde o publique desde Overview para actualizar Runtime.',
+    help: 'Ayuda', subtitle: 'Edite y verifique el borrador antes de aplicarlo al Workspace. Guarde o publique desde Overview para actualizar Runtime.',
     sourceHint: 'El código solo modifica el borrador local. Verifique y luego aplíquelo al Workspace.',
     preview: 'Verificar cambios',
     apply: 'Aplicar al Workspace',
@@ -118,7 +118,7 @@ export function scriptWorkspaceCopy(locale: EngineeringLocale) {
   };
   return {
     ...copy,
-    subtitle: 'Edite e verifique o rascunho antes de aplicar ao Workspace. Salve ou publique em Visão geral para atualizar o Runtime.',
+    help: 'Ajuda', subtitle: 'Edite e verifique o rascunho antes de aplicar ao Workspace. Salve ou publique em Visão geral para atualizar o Runtime.',
     sourceHint: 'O código altera somente o rascunho local. Verifique as mudanças e aplique ao Workspace.',
     preview: 'Verificar alterações',
     apply: 'Aplicar ao Workspace',

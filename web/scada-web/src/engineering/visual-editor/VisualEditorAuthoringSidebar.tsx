@@ -13,7 +13,7 @@ export type VisualEditorAssetImport = Readonly<{
   busy: boolean;
   disabled: boolean;
   disabledHint?: string;
-  onFile: (file: File) => Promise<void> | void;
+  onFile: (file: File) => Promise<string | null | void> | string | null | void;
 }>;
 
 export function VisualEditorAuthoringSidebar({
@@ -88,7 +88,7 @@ export function VisualEditorAuthoringSidebar({
             <span>{assetImport.busy ? text.importing : text.importAsset}</span>
             <input
               type="file"
-              accept="image/png,image/jpeg,image/bmp"
+              accept="image/png,image/jpeg,image/bmp,image/svg+xml,.png,.jpg,.jpeg,.bmp,.svg"
               disabled={assetImport.disabled || assetImport.busy}
               onChange={event => {
                 const file = event.currentTarget.files?.[0];
@@ -110,7 +110,13 @@ export function VisualEditorAuthoringSidebar({
             </div>)}
           </div>
         </section>
-        <VisualDefinitionSurfaceInspector screen={screen} onCommand={onCommand} />
+        <VisualDefinitionSurfaceInspector
+          screen={screen}
+          onCommand={onCommand}
+          onImportAsset={assetImport?.onFile}
+          importDisabled={assetImport?.disabled}
+          importing={assetImport?.busy}
+        />
       </section>
     </div>
   </div>;

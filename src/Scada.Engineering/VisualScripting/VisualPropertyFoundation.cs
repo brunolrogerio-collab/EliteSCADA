@@ -349,6 +349,7 @@ public static class VisualPropertyKeys
     public const string ImageFit = "imageFit";
     public const string ImagePositionX = "imagePositionX";
     public const string ImagePositionY = "imagePositionY";
+    public const string ImageZoom = "imageZoom";
     public const string Value = "value";
     public const string Minimum = "minimum";
     public const string Maximum = "maximum";
@@ -447,7 +448,8 @@ public static class CommonVisualPropertyDefinitions
             presentationHint: "project-asset"),
         EnumString(VisualPropertyKeys.ImageFit, "contain", ["contain", "cover", "fill", "native"]),
         Number(VisualPropertyKeys.ImagePositionX, 0, minimum: 0, maximum: 1, animatable: true),
-        Number(VisualPropertyKeys.ImagePositionY, 0, minimum: 0, maximum: 1, animatable: true)
+        Number(VisualPropertyKeys.ImagePositionY, 0, minimum: 0, maximum: 1, animatable: true),
+        Number(VisualPropertyKeys.ImageZoom, 1, minimum: 1, maximum: 8, animatable: true)
     ];
 
     public static IReadOnlyList<VisualPropertyDefinition> Slider { get; } =

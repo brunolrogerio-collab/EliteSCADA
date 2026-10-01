@@ -21,7 +21,10 @@ export function VisualEditorSelectionInspector({
   activeTab,
   onActiveTabChange,
   onMutationIntent,
-  onCommand
+  onCommand,
+  onImportImage,
+  imageImportDisabled,
+  imageImportBusy
 }: {
   screen: ScreenEngineering;
   selectedElements: readonly VisualElementEngineering[];
@@ -33,6 +36,9 @@ export function VisualEditorSelectionInspector({
   onActiveTabChange: (tab: VisualEditorInspectorTab) => void;
   onMutationIntent: (intent: VisualEditorMutationIntent) => void;
   onCommand?: (command: VisualEditorKeyboardCommand) => void;
+  onImportImage?: (file: File) => Promise<string | null | void> | string | null | void;
+  imageImportDisabled?: boolean;
+  imageImportBusy?: boolean;
 }) {
   const text = inspectorText(locale);
   const selectedElement = selectedElements.length === 1 ? selectedElements[0] : null;
@@ -71,6 +77,9 @@ export function VisualEditorSelectionInspector({
           visualAssets={visualAssets}
           onMutationIntent={onMutationIntent}
           showEvents={false}
+          onImportImage={onImportImage}
+          imageImportDisabled={imageImportDisabled}
+          imageImportBusy={imageImportBusy}
         />
         <DynamoInstanceInspector
           screen={screen}

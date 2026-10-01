@@ -18,10 +18,16 @@ const FIT_OPTIONS: readonly VisualDefinitionBackgroundFit[] = Object.freeze([
 
 export function VisualDefinitionSurfaceInspector({
   screen,
-  onCommand
+  onCommand,
+  onImportAsset,
+  importDisabled = false,
+  importing = false
 }: {
   screen: ScreenEngineering;
   onCommand?: (command: VisualEditorKeyboardCommand) => void;
+  onImportAsset?: (file: File) => Promise<string | null | void> | string | null | void;
+  importDisabled?: boolean;
+  importing?: boolean;
 }) {
   const text = useC07VisualEditorText().surface;
   const hostRef = useRef<HTMLDetailsElement | null>(null);
@@ -29,6 +35,7 @@ export function VisualDefinitionSurfaceInspector({
   const catalog = useDynamoAuthoringCatalog();
   const config = useMemo(() => readVisualDefinitionSurfaceConfig(screen.properties), [screen.properties]);
   const [colorDraft, setColorDraft] = useState(config.backgroundColor ?? '');
+  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => setColorDraft(config.backgroundColor ?? ''), [config.backgroundColor]);
   useEffect(() => {
@@ -107,6 +114,24 @@ export function VisualDefinitionSurfaceInspector({
                 {asset.name} · {asset.pixelWidth ?? '?'}×{asset.pixelHeight ?? '?'}
               </option>)}
           </select>
+          {onImportAsset ? <>
+            <input
+              ref={fileInput}
+              type="file"
+              accept="image/png,image/jpeg,image/bmp,image/svg+xml,.png,.jpg,.jpeg,.bmp,.svg"
+              hidden
+              onChange={event => {
+                const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = '';
+                if (file) void Promise.resolve(onImportAsset(file)).then(id => {
+                  if (typeof id === 'string' && id) setSurface({ backgroundImageAssetId: id });
+                });
+              }}
+            />
+            <button type="button" disabled={!onCommand || importDisabled || importing} onClick={() => fileInput.current?.click()}>
+              {importing ? text.importingAsset : text.chooseImage}
+            </button>
+          </> : null}
         </label>
 
         <label className="visual-editor-surface-inspector__field">

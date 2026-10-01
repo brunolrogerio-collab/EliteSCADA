@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.IO.Compression;
+using System.Text;
 using System.Text.Json;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
@@ -172,6 +173,33 @@ public sealed class VisualAssetWave08Tests
     }
 
     [Fact]
+    public void ProjectPackageV2_RoundTripsSanitizedSvgBackgroundAsset()
+    {
+        const string svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"12\" height=\"8\" viewBox=\"0 0 12 8\"><rect width=\"12\" height=\"8\" fill=\"#123456\"/></svg>";
+        var inspected = StaticSvgInspector.InspectAndSanitize(Encoding.UTF8.GetBytes(svg));
+        var payload = VisualAssetPayload.Create(inspected.MediaType, inspected.CanonicalContent);
+        var sourceAssets = new InMemoryVisualAssetEngineeringRegistry();
+        var asset = CreateAsset(Guid.NewGuid(), "wallpaper", "Wallpaper", "wallpaper.svg", payload);
+        sourceAssets.PutPayload(payload);
+        sourceAssets.UpsertAsset(asset);
+
+        using var sourceAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var sourceExchange = CreateExchange(sourceAlarms, sourceAssets);
+        var bytes = new ProjectPackageService(sourceExchange, sourceAssets).Export("plant-svg", "Plant SVG");
+
+        var targetAssets = new InMemoryVisualAssetEngineeringRegistry();
+        using var targetAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var targetExchange = CreateExchange(targetAlarms, targetAssets);
+        var targetPackages = new ProjectPackageService(targetExchange, targetAssets);
+        var inspection = targetPackages.Inspect(bytes);
+        var applied = targetPackages.Apply(bytes, ImportMode.CreateAndUpdate);
+
+        Assert.Contains(inspection.Manifest.Files, x => x.MediaType == VisualAssetContentInspector.SvgMediaType);
+        Assert.DoesNotContain(applied.Issues, issue => issue.IsError);
+        Assert.Equal(payload.Content, targetAssets.FindPayload(payload.Sha256)!.Content);
+    }
+
+    [Fact]
     public void ProjectPackageV2_RejectsMissingAssetSidecar()
     {
         var assets = new InMemoryVisualAssetEngineeringRegistry();
@@ -223,7 +251,7 @@ public sealed class VisualAssetWave08Tests
         string originalFileName,
         VisualAssetPayload payload)
     {
-        var inspection = RasterImageInspector.Inspect(payload.Content);
+        var inspection = VisualAssetContentInspector.InspectAndCanonicalize(payload.Content);
         return new VisualAssetEngineeringDto(
             id,
             key,

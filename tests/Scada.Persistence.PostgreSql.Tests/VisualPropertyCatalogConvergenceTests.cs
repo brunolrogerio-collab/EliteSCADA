@@ -31,7 +31,7 @@ public sealed class VisualPropertyCatalogConvergenceTests
             "text", "textColor", "fontFamily", "fontSize", "fontWeight", "fontStyle",
             "underline", "textWrap", "lineHeight", "textOverflow",
             "horizontalAlignment", "verticalAlignment",
-            "assetRef", "imageFit", "imagePositionX", "imagePositionY",
+            "assetRef", "imageFit", "imagePositionX", "imagePositionY", "imageZoom",
             "value", "minimum", "maximum", "step", "orientation", "interactionEnabled",
             "reverseDirection", "trackColor", "thumbColor", "showApplyButton"
         ], keys);

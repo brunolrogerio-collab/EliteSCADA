@@ -127,5 +127,16 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   await expect(assetRef).toHaveAttribute('data-editor-hint', 'project-asset');
   const assetBrowser = assetRef.getByTestId('visual-editor-image-asset-picker');
   await expect(assetBrowser.getByRole('combobox', { name: 'Asset Ref' })).toBeVisible();
+  await expect(assetBrowser.getByRole('button', { name: 'Escolher imagem…' })).toBeVisible();
+  const imageZoom = inspector.locator('[data-property-key="imageZoom"]');
+  await expect(imageZoom.locator('input[type="range"]')).toBeVisible();
+  await expect(imageZoom.locator('input[type="range"]')).toHaveAttribute('min', '1');
+  await expect(imageZoom.locator('input[type="range"]')).toHaveAttribute('max', '8');
+  await expect(assetBrowser.locator('input[type="file"]')).toHaveAttribute('accept', /image\/svg\+xml/);
   await expect(assetRef.locator('input[type="text"]')).toHaveCount(0);
+
+  await page.getByTestId('visual-editor-side-tab-assets').click();
+  const background = page.getByTestId('visual-definition-surface-inspector');
+  await expect(background.locator('input[type="file"]')).toHaveAttribute('accept', /image\/svg\+xml/);
+  await expect(background.getByRole('button', { name: 'Escolher imagem…' })).toHaveCount(1);
 });

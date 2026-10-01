@@ -528,7 +528,7 @@ public sealed class ProjectPackageService : IProjectPackageService
                 throw new InvalidDataException($"Project asset entry '{assetEntry.Path}' path does not match its SHA-256.");
             if (assetEntry.Length <= 0 || assetEntry.Length > VisualAssetEngineeringValidator.MaximumPayloadBytes)
                 throw new InvalidDataException($"Project asset entry '{assetEntry.Path}' length is invalid.");
-            if (assetEntry.MediaType is not ("image/png" or "image/jpeg" or "image/bmp"))
+            if (assetEntry.MediaType is not ("image/png" or "image/jpeg" or "image/bmp" or VisualAssetContentInspector.SvgMediaType))
                 throw new InvalidDataException($"Project asset entry '{assetEntry.Path}' media type is unsupported.");
         }
     }

@@ -354,18 +354,20 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
     }
   };
 
-  const importAsset = async (file: File) => {
+  const importAsset = async (file: File): Promise<string | null> => {
     if (changed) {
       setError(text.assetImportRequiresCleanDraft);
-      return;
+      return null;
     }
     setImportingAsset(true);
     setError(null);
     try {
-      await importVisualAsset(file, snapshot.workspace.changeVersion, { fileName: file.name });
+      const imported = await importVisualAsset(file, snapshot.workspace.changeVersion, { fileName: file.name });
       await onApplied();
+      return imported.asset.id ?? null;
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
+      return null;
     } finally {
       setImportingAsset(false);
     }
@@ -477,6 +479,9 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
               onActiveTabChange={setInspectorTab}
               onMutationIntent={handleMutationIntent}
               onCommand={handleKeyboardCommand}
+              onImportImage={importAsset}
+              imageImportDisabled={changed || applying || previewing}
+              imageImportBusy={importingAsset}
             />
           </aside>
         </div>

@@ -377,18 +377,20 @@ function PopupVisualEditorWorkspaceBody({
     }
   };
 
-  const importAsset = async (file: File) => {
+  const importAsset = async (file: File): Promise<string | null> => {
     if (changed) {
       setError('Salve/aplique o rascunho do Popup antes de importar um asset visual.');
-      return;
+      return null;
     }
     setImportingAsset(true);
     setError(null);
     try {
-      await importVisualAsset(file, snapshot.workspace.changeVersion, { fileName: file.name });
+      const imported = await importVisualAsset(file, snapshot.workspace.changeVersion, { fileName: file.name });
       await onApplied();
+      return imported.asset.id ?? null;
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
+      return null;
     } finally {
       setImportingAsset(false);
     }
@@ -501,6 +503,9 @@ function PopupVisualEditorWorkspaceBody({
               onActiveTabChange={setInspectorTab}
               onMutationIntent={handleMutationIntent}
               onCommand={handleKeyboardCommand}
+              onImportImage={importAsset}
+              imageImportDisabled={changed || applying || previewing}
+              imageImportBusy={importingAsset}
             />
           </aside>
         </div>

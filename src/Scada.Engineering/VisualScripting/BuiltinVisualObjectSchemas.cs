@@ -182,7 +182,8 @@ public static class BuiltinVisualObjectSchemas
             VisualPropertyKeys.AssetRef,
             VisualPropertyKeys.ImageFit,
             VisualPropertyKeys.ImagePositionX,
-            VisualPropertyKeys.ImagePositionY
+            VisualPropertyKeys.ImagePositionY,
+            VisualPropertyKeys.ImageZoom
         ]));
 
     public static VisualObjectPropertySchema ValueDisplay { get; } = Create(

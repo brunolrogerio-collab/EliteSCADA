@@ -5,7 +5,7 @@ import {
   type KeyboardEvent
 } from 'react';
 import type { VisualAssetEngineering, VisualEngineeringPropertyValue } from '../../types';
-import type { VisualPropertyDefinition } from '../../../visual-runtime';
+import { VISUAL_PROPERTY_KEYS, type VisualPropertyDefinition } from '../../../visual-runtime';
 import { normalizeCanonicalStrokeStyle, svgStrokeDasharray } from '../visualStrokePresentation';
 import type { PropertyInspectorCopy } from './PropertyInspector';
 import {
@@ -19,6 +19,9 @@ export type PropertyEditorControlProps = Readonly<{
   row: PropertyInspectorRow;
   text: PropertyInspectorCopy;
   visualAssets: readonly VisualAssetEngineering[];
+  onImportImage?: (file: File) => Promise<string | null | void> | string | null | void;
+  imageImportDisabled?: boolean;
+  imageImportBusy?: boolean;
   commit: (value: VisualEngineeringPropertyValue) => boolean;
   setError: (message: string | null) => void;
 }>;
@@ -40,9 +43,16 @@ export function PropertyEditorControl({
   row,
   text,
   visualAssets,
+  onImportImage,
+  imageImportDisabled,
+  imageImportBusy,
   commit,
   setError
 }: PropertyEditorControlProps) {
+  if (definition.type === 'number' && [VISUAL_PROPERTY_KEYS.imagePositionX, VISUAL_PROPERTY_KEYS.imagePositionY, VISUAL_PROPERTY_KEYS.imageZoom].includes(definition.key as never)) {
+    return <ImageAdjustmentControl definition={definition} row={row} text={text} commit={commit} />;
+  }
+
   if (definition.type === 'boolean') {
     return <BooleanControl definition={definition} row={row} text={text} commit={commit} />;
   }
@@ -66,6 +76,9 @@ export function PropertyEditorControl({
       text={text}
       visualAssets={visualAssets}
       commit={commit}
+      onImportImage={onImportImage}
+      imageImportDisabled={imageImportDisabled}
+      imageImportBusy={imageImportBusy}
     />;
   }
 
@@ -163,9 +176,34 @@ function EnumControl({ definition, row, text, commit }: BasicEditorProps) {
       onChange={event => commit(event.currentTarget.value)}
     >
       {row.state === 'mixed' ? <option value="__mixed__" disabled>{text.mixed}</option> : null}
-      {definition.allowedValues.map(option => <option key={option} value={option}>{option}</option>)}
+      {definition.allowedValues.map(option => <option key={option} value={option}>{definition.key === VISUAL_PROPERTY_KEYS.imageFit ? text.fitOptions[option] ?? option : option}</option>)}
     </select>
   );
+}
+
+function ImageAdjustmentControl({ definition, row, commit }: BasicEditorProps) {
+  const isZoom = definition.key === VISUAL_PROPERTY_KEYS.imageZoom;
+  const value = Number(row.state === 'mixed' ? row.defaultValue : row.value ?? row.defaultValue);
+  const sliderValue = isZoom ? value : value * 100;
+  const minimum = isZoom ? 1 : 0;
+  const maximum = isZoom ? 8 : 100;
+  const step = isZoom ? 0.1 : 1;
+  return <div className="property-inspector__image-adjustment" data-property-editor="image-adjustment">
+    <input
+      id={`visual-property-${definition.key}`}
+      type="range"
+      min={minimum}
+      max={maximum}
+      step={step}
+      value={Number.isFinite(sliderValue) ? sliderValue : minimum}
+      disabled={!definition.engineeringEditable}
+      onChange={event => {
+        const next = Number(event.currentTarget.value);
+        commit(isZoom ? next : next / 100);
+      }}
+    />
+    <output>{isZoom ? `${sliderValue.toFixed(1)}×` : `${Math.round(sliderValue)}%`}</output>
+  </div>;
 }
 
 function AssetReferenceControl({
@@ -173,8 +211,12 @@ function AssetReferenceControl({
   row,
   text,
   visualAssets,
-  commit
-}: Pick<PropertyEditorControlProps, 'definition' | 'row' | 'text' | 'visualAssets' | 'commit'>) {
+  commit,
+  onImportImage,
+  imageImportDisabled = false,
+  imageImportBusy = false
+}: Pick<PropertyEditorControlProps, 'definition' | 'row' | 'text' | 'visualAssets' | 'commit' | 'onImportImage' | 'imageImportDisabled' | 'imageImportBusy'>) {
+  const fileInput = useRef<HTMLInputElement>(null);
   const current = row.state === 'mixed'
     ? '__mixed__'
     : formatPropertyInspectorValue(row.value ?? row.defaultValue);
@@ -203,6 +245,27 @@ function AssetReferenceControl({
           </option>
         ))}
       </select>
+      {onImportImage ? <>
+        <input
+          ref={fileInput}
+          type="file"
+          accept="image/png,image/jpeg,image/bmp,image/svg+xml,.png,.jpg,.jpeg,.bmp,.svg"
+          hidden
+          onChange={event => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = '';
+            if (file) void Promise.resolve(onImportImage(file)).then(id => {
+              if (typeof id === 'string' && id) commit({ assetId: id });
+            });
+          }}
+        />
+        <button
+          type="button"
+          className="property-inspector__asset-import"
+          disabled={!definition.engineeringEditable || imageImportDisabled || imageImportBusy}
+          onClick={() => fileInput.current?.click()}
+        >{imageImportBusy ? text.importingAsset : text.chooseImage}</button>
+      </> : null}
       <small>{text.assetBrowserHint}</small>
     </div>
   );

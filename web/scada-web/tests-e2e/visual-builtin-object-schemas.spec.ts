@@ -49,6 +49,7 @@ test('built-in schemas expose only relevant shared visual properties', () => {
   expect(image.declares(VISUAL_PROPERTY_KEYS.assetRef)).toBeTruthy();
   expect(image.declares(VISUAL_PROPERTY_KEYS.imageFit)).toBeTruthy();
   expect(image.declares(VISUAL_PROPERTY_KEYS.imagePositionX)).toBeTruthy();
+  expect(image.declares(VISUAL_PROPERTY_KEYS.imageZoom)).toBeTruthy();
   expect(image.declares(VISUAL_PROPERTY_KEYS.shadowEnabled)).toBeTruthy();
   expect(image.declares(VISUAL_PROPERTY_KEYS.text)).toBeFalsy();
 

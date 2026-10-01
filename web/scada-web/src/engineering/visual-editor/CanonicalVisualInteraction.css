@@ -1,4 +1,6 @@
 /* Runtime-only pointer feedback; it never changes the persisted visual definition. */
+.visual-editor-image { overflow: hidden; }
+
 .visual-editor-object[data-object-events] {
   cursor: pointer;
   transition: filter 120ms ease, box-shadow 120ms ease, translate 100ms ease, scale 100ms ease;

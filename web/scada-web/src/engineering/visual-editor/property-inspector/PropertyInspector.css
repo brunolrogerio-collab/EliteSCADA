@@ -219,6 +219,22 @@
   opacity: 0.45;
 }
 
+.property-inspector__asset-import {
+  justify-self: start;
+  min-height: 28px;
+  padding: 0.25rem 0.45rem;
+  border: 1px solid var(--border-color, #c7ced8);
+  border-radius: 0.35rem;
+  background: var(--panel-background, #fff);
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+.property-inspector__asset-import:disabled { cursor: default; opacity: 0.5; }
+.property-inspector__image-adjustment { display: flex; align-items: center; gap: 0.45rem; min-width: 0; }
+.property-inspector__image-adjustment input[type='range'] { flex: 1 1 auto; min-width: 3rem; }
+.property-inspector__image-adjustment output { min-width: 3.1rem; text-align: right; font-variant-numeric: tabular-nums; font-size: 0.75rem; }
+
 .property-inspector__reset {
   padding: 0;
   border: 0;

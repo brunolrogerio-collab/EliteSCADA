@@ -36,6 +36,7 @@ public sealed class BuiltinVisualObjectSchemasTests
         Assert.True(BuiltinVisualObjectSchemas.Image.Declares(VisualPropertyKeys.AssetRef));
         Assert.True(BuiltinVisualObjectSchemas.Image.Declares(VisualPropertyKeys.ImageFit));
         Assert.True(BuiltinVisualObjectSchemas.Image.Declares(VisualPropertyKeys.ImagePositionX));
+        Assert.True(BuiltinVisualObjectSchemas.Image.Declares(VisualPropertyKeys.ImageZoom));
         Assert.False(BuiltinVisualObjectSchemas.Image.Declares(VisualPropertyKeys.Text));
 
         Assert.True(BuiltinVisualObjectSchemas.Text.Declares(VisualPropertyKeys.FontFamily));

@@ -187,6 +187,14 @@
 @media (min-width:981px) {
   .visual-editor-composition { align-items:stretch; }
   .visual-editor-dock-resizer { display:block; }
+  /* Keep each panel anchored to its own track when a dock resizer is hidden.
+     Without explicit placement CSS Grid auto-places the canvas into the zero-width
+     resizer track and expands the following resizer into the reclaimed space. */
+  .visual-editor-workspace .visual-editor-composition > .visual-editor-palette-slot { grid-column:1; }
+  .visual-editor-workspace .visual-editor-composition > .visual-editor-dock-resizer:first-of-type { grid-column:2; }
+  .visual-editor-workspace .visual-editor-composition > .visual-editor-canvas-slot { grid-column:3; }
+  .visual-editor-workspace .visual-editor-composition > .visual-editor-dock-resizer:last-of-type { grid-column:4; }
+  .visual-editor-workspace .visual-editor-composition > .visual-editor-inspector-slot { grid-column:5; }
 }
 @media (max-width:980px) {
   .visual-editor-composition { height:auto; min-height:0; grid-template-columns:minmax(0,1fr); }
@@ -197,4 +205,22 @@
   .visual-editor-workspace--palette-collapsed .visual-editor-palette-slot,.visual-editor-workspace--properties-collapsed .visual-editor-inspector-slot { min-height:40px; height:40px; max-height:40px; }
   .visual-editor-workspace--screens-collapsed .visual-editor-shell { grid-template-columns:40px minmax(0,1fr); }
   .visual-editor-screen-form { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+
+/* Keep the screen identity browser quiet so the canvas remains the dominant area. */
+.visual-editor-screen-list { padding: 5px; gap: 3px; }
+.visual-editor-screen-list > button { padding: 7px 8px; gap: 2px; }
+.visual-editor-screen-list > button strong { font-size: 11px; }
+.visual-editor-screen-list > button code,
+.visual-editor-screen-list > button span { font-size: 10px; }
+.visual-editor-screens > header { padding: 9px 10px; }
+.visual-editor-screens > header > strong { font-size: 11px; }
+.visual-editor-draft-state { font-size: 10px; }
+@media (max-width: 520px) {
+  .visual-editor-workspace { gap: 4px; }
+  .visual-editor-header h1 { font-size: 16px; }
+  .visual-editor-header-status { display: none; }
+  .visual-editor-screen-form { grid-template-columns: minmax(0, 1fr); }
+  .visual-editor-palette-slot,
+  .visual-editor-inspector-slot { max-height: 32vh; }
 }

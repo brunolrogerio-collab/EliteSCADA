@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
 
 test.use({ locale: 'pt-BR' });
 test.describe.configure({ mode: 'serial' });
@@ -471,18 +472,35 @@ test('W15 Dynamic Text and Numeric Input are mounted, persisted and Design mode 
 });
 
 test('W15 first-user flow configures rectangle and Text through canonical WYSIWYG in Screen and Popup', async ({ page, request }, testInfo) => {
-  const originalResponse = await request.get('/api/engineering/export/json');
+  // This exercises two complete authoring/save/reopen cycles against the full
+  // canonical package; keep it above Playwright's short 30-second default.
+  test.setTimeout(90_000);
+  const apiBaseUrl = process.env.ELITESCADA_E2E_API_BASE_URL ?? 'http://127.0.0.1:5080';
+  const originalResponse = await page.request.get(`${apiBaseUrl}/api/engineering/export/json`);
   expect(originalResponse.ok()).toBeTruthy();
   const originalPackage = await originalResponse.json() as ExportedPackage;
-  const originalScreen = originalPackage.screens?.[0];
-  const originalPopup = originalPackage.popups?.[0];
-  expect(originalScreen).toBeTruthy();
-  expect(originalPopup).toBeTruthy();
+  const originalScreen = originalPackage.screens?.[0] ?? {
+    id: randomUUID(), key: 'e2e-wysiwyg-screen', name: 'E2E WYSIWYG Screen',
+    route: '/e2e-wysiwyg', elements: []
+  };
+  const originalPopup = originalPackage.popups?.[0] ?? {
+    id: randomUUID(), key: 'e2e-wysiwyg-popup', name: 'E2E WYSIWYG Popup', elements: []
+  };
 
   async function exercise(kind: 'screen' | 'popup') {
     const root = kind === 'screen' ? page.getByTestId('visual-editor-workspace') : page.getByTestId('popup-visual-editor-workspace');
     const palette = root.getByTestId('visual-editor-authoring-toolbar');
     const inspector = root.getByTestId('visual-property-inspector');
+
+    async function renameObject(key: string) {
+      const identity = inspector.getByTestId('visual-property-identity');
+      if (await identity.getAttribute('open') === null) {
+        await identity.locator('summary').click();
+      }
+      const keyInput = inspector.getByTestId('visual-property-identity-key');
+      await keyInput.fill(key);
+      await keyInput.press('Enter');
+    }
 
     await palette.locator('[data-insert-object-type="core.rectangle"]').click();
     const rectangle = root.locator('[data-canvas-object-type="core.rectangle"]').last();
@@ -506,8 +524,7 @@ test('W15 first-user flow configures rectangle and Text through canonical WYSIWY
     }))).toEqual({ fill: 'rgb(18, 52, 86)', stroke: 'rgb(101, 67, 33)', width: '5px' });
 
     const renamedRect = 'rect-' + kind + '-first-user';
-    await inspector.getByTestId('visual-property-identity-key').fill(renamedRect);
-    await inspector.getByTestId('visual-property-identity-key').press('Enter');
+    await renameObject(renamedRect);
     await expect(rectangle).toHaveAttribute('data-canvas-object-id', rectangleId!);
     await expect(rectangle).toHaveAttribute('data-canvas-object-key', renamedRect);
 
@@ -521,8 +538,7 @@ test('W15 first-user flow configures rectangle and Text through canonical WYSIWY
     await literalInput.fill(literal);
     await literalInput.press('Enter');
     const textKey = 'text-' + kind + '-first-user';
-    await inspector.getByTestId('visual-property-identity-key').fill(textKey);
-    await inspector.getByTestId('visual-property-identity-key').press('Enter');
+    await renameObject(textKey);
 
     const canonicalText = root.getByTestId('visual-editor-canonical-layer').locator('[data-object-id="' + textId + '"]');
     await expect(canonicalText).toContainText(literal);
@@ -540,6 +556,18 @@ test('W15 first-user flow configures rectangle and Text through canonical WYSIWY
   }
 
   try {
+    if (!originalPackage.screens?.length || !originalPackage.popups?.length) {
+      const seeded = await page.request.post(`${apiBaseUrl}/api/engineering/import/json/apply`, {
+        headers: { 'content-type': 'application/json; charset=utf-8' },
+        data: {
+          ...originalPackage,
+          screens: originalPackage.screens?.length ? originalPackage.screens : [originalScreen],
+          popups: originalPackage.popups?.length ? originalPackage.popups : [originalPopup]
+        }
+      });
+      expect(seeded.ok(), `could not prepare isolated Screen/Popup fixture (HTTP ${seeded.status()})`).toBeTruthy();
+    }
+
     await page.goto('/engineering');
     await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
     await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: originalScreen!.key }).click();
@@ -572,7 +600,7 @@ test('W15 first-user flow configures rectangle and Text through canonical WYSIWY
       contentType: 'image/png'
     });
 
-    const persistedResponse = await request.get('/api/engineering/export/json');
+    const persistedResponse = await page.request.get(`${apiBaseUrl}/api/engineering/export/json`);
     const persisted = await persistedResponse.json() as ExportedPackage;
     const screenAfter = persisted.screens?.find(item => item.id === originalScreen!.id || item.key === originalScreen!.key);
     const popupAfter = persisted.popups?.find(item => item.id === originalPopup!.id || item.key === originalPopup!.key);
@@ -583,7 +611,7 @@ test('W15 first-user flow configures rectangle and Text through canonical WYSIWY
       id: popupProof.textId, key: popupProof.textKey, properties: { text: popupProof.literal }
     });
   } finally {
-    const restore = await request.post('/api/engineering/import/json/apply', {
+    const restore = await page.request.post(`${apiBaseUrl}/api/engineering/import/json/apply`, {
       headers: { 'content-type': 'application/json; charset=utf-8' }, data: originalPackage
     });
     expect(restore.ok()).toBeTruthy();

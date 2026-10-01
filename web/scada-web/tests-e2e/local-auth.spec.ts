@@ -7,6 +7,7 @@ const adminPassword = 'E2Epass8';
 test.setTimeout(90_000);
 
 test('secure first-run creates the initial local Administrator, first project and durable local session', async ({ browser, baseURL, request }) => {
+  const apiBaseUrl = process.env.ELITESCADA_E2E_API_BASE_URL ?? 'http://127.0.0.1:5080';
   const context = await browser.newContext({
     baseURL: baseURL ?? 'http://127.0.0.1:5173',
     extraHTTPHeaders: { Authorization: '' }
@@ -155,28 +156,26 @@ test('secure first-run creates the initial local Administrator, first project an
 
     // The descriptor does not expose every canonical collection, so assert the
     // actual package that persistence/import/export use as the source of truth.
-    const canonicalProject = await page.evaluate(async () => {
-      const response = await fetch('/api/engineering/export/json');
-      return { status: response.status, body: await response.json() };
-    });
-    expect(canonicalProject.status).toBe(200);
-    expect(canonicalProject.body.tags).toHaveLength(0);
-    expect(canonicalProject.body.alarms).toHaveLength(0);
-    expect(canonicalProject.body.dataSources).toHaveLength(0);
-    expect(canonicalProject.body.templates).toHaveLength(0);
-    expect(canonicalProject.body.equipment).toHaveLength(0);
-    expect(canonicalProject.body.screens).toHaveLength(0);
-    expect(canonicalProject.body.popups).toHaveLength(0);
-    expect(canonicalProject.body.commands).toHaveLength(0);
-    expect(canonicalProject.body.gateways).toHaveLength(0);
-    expect(canonicalProject.body.scripts).toHaveLength(0);
-    expect(canonicalProject.body.scriptVisualEventReferences).toHaveLength(0);
-    expect(canonicalProject.body.visualAssets).toHaveLength(0);
-    expect(canonicalProject.body.reports).toHaveLength(0);
-    expect(canonicalProject.body.dynamos.length).toBeGreaterThan(0);
-    expect(canonicalProject.body.securityRoles).toHaveLength(0);
-    expect(canonicalProject.body.authorityPolicyReference).toBeTruthy();
-    expect(canonicalProject.body.authorityPolicyReference.roleIds).toEqual([
+    const canonicalProjectResponse = await page.request.get(`${apiBaseUrl}/api/engineering/export/json`);
+    expect(canonicalProjectResponse.status()).toBe(200);
+    const canonicalProject = await canonicalProjectResponse.json();
+    expect(canonicalProject.tags).toHaveLength(0);
+    expect(canonicalProject.alarms).toHaveLength(0);
+    expect(canonicalProject.dataSources).toHaveLength(0);
+    expect(canonicalProject.templates).toHaveLength(0);
+    expect(canonicalProject.equipment).toHaveLength(0);
+    expect(canonicalProject.screens).toHaveLength(0);
+    expect(canonicalProject.popups).toHaveLength(0);
+    expect(canonicalProject.commands).toHaveLength(0);
+    expect(canonicalProject.gateways).toHaveLength(0);
+    expect(canonicalProject.scripts).toHaveLength(0);
+    expect(canonicalProject.scriptVisualEventReferences).toHaveLength(0);
+    expect(canonicalProject.visualAssets).toHaveLength(0);
+    expect(canonicalProject.reports).toHaveLength(0);
+    expect(canonicalProject.dynamos.length).toBeGreaterThan(0);
+    expect(canonicalProject.securityRoles).toHaveLength(0);
+    expect(canonicalProject.authorityPolicyReference).toBeTruthy();
+    expect(canonicalProject.authorityPolicyReference.roleIds).toEqual([
       '46000000-0000-0000-0000-000000000002'
     ]);
 
@@ -279,16 +278,14 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(authorityUpdate.body.roles.map((role: { key: string }) => role.key).sort())
       .toEqual(['developer', 'operator']);
 
-    const fixtureBase = await page.evaluate(async () => {
-      const response = await fetch('/api/engineering/export/json');
-      return { status: response.status, body: await response.json() };
-    });
-    expect(fixtureBase.status).toBe(200);
-    expect(fixtureBase.body.securityRoles).toHaveLength(0);
-    expect(fixtureBase.body.authorityPolicyReference.roleIds).toHaveLength(2);
+    const fixtureBaseResponse = await page.request.get(`${apiBaseUrl}/api/engineering/export/json`);
+    expect(fixtureBaseResponse.status()).toBe(200);
+    const fixtureBase = await fixtureBaseResponse.json();
+    expect(fixtureBase.securityRoles).toHaveLength(0);
+    expect(fixtureBase.authorityPolicyReference.roleIds).toHaveLength(2);
 
     const demoFixture = {
-      ...fixtureBase.body,
+      ...fixtureBase,
       tags: [
         { id: '10000000-0000-0000-0000-000000000001', name: 'Tank Level', path: 'Demo.Tank01.Level', dataType: 'double', source: 'memory.server.e2e', dataSourceId: '40000000-0000-0000-0000-000000000001', engineeringUnit: '%', readOnly: true, initialValue: { dataType: 'double', value: 62.5 } },
         { id: '10000000-0000-0000-0000-000000000002', name: 'Pump Running', path: 'Demo.P01.Running', dataType: 'boolean', source: 'memory.server.e2e', dataSourceId: '40000000-0000-0000-0000-000000000001', readOnly: false, initialValue: { dataType: 'boolean', value: true } },
@@ -372,15 +369,11 @@ test('secure first-run creates the initial local Administrator, first project an
       startupScreenId: '44000000-0000-0000-0000-000000000001'
     };
 
-    const fixtureApply = await page.evaluate(async fixture => {
-      const response = await fetch('/api/engineering/import/json/apply', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(fixture)
-      });
-      return { status: response.status, body: await response.json() };
-    }, demoFixture);
-    expect(fixtureApply.status).toBe(200);
+    const fixtureApply = await page.request.post(`${apiBaseUrl}/api/engineering/import/json/apply`, {
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      data: demoFixture
+    });
+    expect(fixtureApply.status()).toBe(200);
 
     const fixtureSave = await page.evaluate(async currentProjectKey => {
       const response = await fetch(`/api/engineering/persistence/${encodeURIComponent(currentProjectKey)}/save`, {
@@ -559,118 +552,101 @@ test('secure first-run creates the initial local Administrator, first project an
     await page.locator('button[type="submit"]').click();
     await expect(page.locator('.eng-shell')).toBeVisible({ timeout: 15_000 });
 
-    const bLifecycle = await page.evaluate(async currentProjectKey => {
-      const [workspaceResponse, engineeringResponse] = await Promise.all([
-        fetch('/api/engineering/workspace'),
-        fetch('/api/engineering/export/json')
-      ]);
-      const workspace = await workspaceResponse.json();
-      const engineering = await engineeringResponse.json();
+    const bWorkspaceResponse = await page.request.get(`${apiBaseUrl}/api/engineering/workspace`);
+    expect(bWorkspaceResponse.status()).toBe(200);
+    const bWorkspace = await bWorkspaceResponse.json();
+    const engineeringResponse = await page.request.get(`${apiBaseUrl}/api/engineering/export/json`);
+    expect(engineeringResponse.status()).toBe(200);
+    const engineering = await engineeringResponse.json();
 
-      // A fresh First Project is intentionally neutral Engineering content. Give B
-      // one canonical self-contained Server Memory source/TAG through the same
-      // Preview/Apply contract used by product CI so Publish -> Activate exercises
-      // a real Runtime instead of relying on any hidden Demo fallback.
-      const dataSourceId = '96000000-0000-0000-0000-000000000001';
-      const tagId = '96000000-0000-0000-0000-000000000002';
-      const activatableEngineering = {
-        ...engineering,
-        exportedAt: new Date().toISOString(),
-        dataSources: [{
-          id: dataSourceId,
-          key: 'installation.b.memory.server',
-          name: 'Installation B Server Memory',
-          driver: 'builtin.memory.server',
-          enabled: true,
-          metadata: { owner: 'w15-installation-e2e' }
-        }],
-        tags: [{
-          id: tagId,
-          name: 'Runtime Value',
-          path: 'Installation.B.RuntimeValue',
-          dataType: 'double',
-          source: 'installation.b.memory.server',
-          address: null,
-          engineeringUnit: '%',
-          description: 'Self-contained Runtime value for Installation B switching acceptance',
-          readOnly: false,
-          scaleMinimum: 0,
-          scaleMaximum: 100,
-          historian: {
-            enabled: false,
-            strategy: 'change',
-            deadband: null,
-            periodMilliseconds: null,
-            maximumPeriodMilliseconds: null
-          },
-          metadata: { owner: 'w15-installation-e2e' },
-          initialValue: { dataType: 'double', value: 42.5 },
-          dataSourceId
-        }],
-        alarms: [],
-        commands: [],
-        gateways: []
-      };
-
-      const preview = await fetch('/api/engineering/import/json/preview', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(activatableEngineering)
-      });
-      const previewBody = await preview.json();
-
-      const apply = await fetch('/api/engineering/import/json/apply', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-elitescada-workspace-version': String(workspace.changeVersion)
+    // A fresh First Project is intentionally neutral Engineering content. Give B
+    // one canonical self-contained Server Memory source/TAG through the same
+    // Preview/Apply contract used by product CI so Publish -> Activate exercises
+    // a real Runtime instead of relying on any hidden Demo fallback. Keep this
+    // large package transfer off the development-server proxy on Windows.
+    const dataSourceId = '96000000-0000-0000-0000-000000000001';
+    const tagId = '96000000-0000-0000-0000-000000000002';
+    const activatableEngineering = {
+      ...engineering,
+      exportedAt: new Date().toISOString(),
+      dataSources: [{
+        id: dataSourceId,
+        key: 'installation.b.memory.server',
+        name: 'Installation B Server Memory',
+        driver: 'builtin.memory.server',
+        enabled: true,
+        metadata: { owner: 'w15-installation-e2e' }
+      }],
+      tags: [{
+        id: tagId,
+        name: 'Runtime Value',
+        path: 'Installation.B.RuntimeValue',
+        dataType: 'double',
+        source: 'installation.b.memory.server',
+        address: null,
+        engineeringUnit: '%',
+        description: 'Self-contained Runtime value for Installation B switching acceptance',
+        readOnly: false,
+        scaleMinimum: 0,
+        scaleMaximum: 100,
+        historian: {
+          enabled: false,
+          strategy: 'change',
+          deadband: null,
+          periodMilliseconds: null,
+          maximumPeriodMilliseconds: null
         },
-        body: JSON.stringify(activatableEngineering)
-      });
-      const applyBody = await apply.json();
+        metadata: { owner: 'w15-installation-e2e' },
+        initialValue: { dataType: 'double', value: 42.5 },
+        dataSourceId
+      }],
+      alarms: [],
+      commands: [],
+      gateways: []
+    };
 
-      const save = await fetch(
-        `/api/engineering/persistence/${encodeURIComponent(currentProjectKey)}/save`,
-        {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ projectName: 'E2E Plant B' })
-        });
-      const saveBody = await save.json();
-      const revision = saveBody.revision as number;
-
-      const publish = await fetch(
-        `/api/engineering/persistence/${encodeURIComponent(currentProjectKey)}/revisions/${revision}/publish`,
-        {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ publishedBy: 'installation-e2e-b' })
-        });
-      const publishBody = await publish.json();
-
-      const activate = await fetch(
-        `/api/engineering/persistence/${encodeURIComponent(currentProjectKey)}/published/activate`,
-        {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ activatedBy: 'installation-e2e-b' })
-        });
-      const activateBody = await activate.json();
-
-      return {
-        previewStatus: preview.status,
-        previewBody,
-        applyStatus: apply.status,
-        applyBody,
-        saveStatus: save.status,
-        saveBody,
-        revision,
-        publishStatus: publish.status,
-        publishBody,
-        activateStatus: activate.status,
-        activateBody
-      };
-    }, projectBKey);
+    const preview = await page.request.post(`${apiBaseUrl}/api/engineering/import/json/preview`, {
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      data: activatableEngineering
+    });
+    const previewBody = await preview.json();
+    const apply = await page.request.post(`${apiBaseUrl}/api/engineering/import/json/apply`, {
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+        'x-elitescada-workspace-version': String(bWorkspace.changeVersion)
+      },
+      data: activatableEngineering
+    });
+    const applyBody = await apply.json();
+    const save = await page.request.post(`${apiBaseUrl}/api/engineering/persistence/${encodeURIComponent(projectBKey)}/save`, {
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      data: { projectName: 'E2E Plant B' }
+    });
+    const saveBody = await save.json();
+    const revision = saveBody.revision as number;
+    const publish = await page.request.post(`${apiBaseUrl}/api/engineering/persistence/${encodeURIComponent(projectBKey)}/revisions/${revision}/publish`, {
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      data: { publishedBy: 'installation-e2e-b' }
+    });
+    const publishBody = await publish.json();
+    const activate = await page.request.post(`${apiBaseUrl}/api/engineering/persistence/${encodeURIComponent(projectBKey)}/published/activate`, {
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      data: { activatedBy: 'installation-e2e-b' }
+    });
+    const activateBody = await activate.json();
+    const bLifecycle = {
+      previewStatus: preview.status(),
+      previewBody,
+      applyStatus: apply.status(),
+      applyBody,
+      saveStatus: save.status(),
+      saveBody,
+      revision,
+      publishStatus: publish.status(),
+      publishBody,
+      activateStatus: activate.status(),
+      activateBody
+    };
     expect(bLifecycle.previewStatus).toBe(200);
     expect(bLifecycle.previewBody.canApply).toBe(true);
     expect(bLifecycle.previewBody.errorCount ?? 0).toBe(0);

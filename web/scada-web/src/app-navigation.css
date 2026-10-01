@@ -4,30 +4,30 @@
   display: grid;
   grid-template-columns: minmax(180px, 1fr) auto minmax(250px, 1fr);
   align-items: stretch;
-  border-bottom: 1px solid #26313b;
-  background: #0b1117;
-  color: #e7edf3;
+  border-bottom: 1px solid var(--app-divider);
+  background: var(--app-surface);
+  color: var(--app-text-primary);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 .app-bar.app-bar--runtime-only { min-height: 44px; height: 44px; }
 .app-brand { min-width: 0; display: flex; align-items: center; gap: 10px; padding: 8px 16px; color: inherit; text-decoration: none; }
-.app-brand-mark { width: 32px; height: 32px; flex: 0 0 auto; display: grid; place-items: center; border: 1px solid #3c5265; border-radius: 7px; background: #111c25; color: #71b4dc; font-weight: 800; }
+.app-brand-mark { width: 32px; height: 32px; flex: 0 0 auto; display: grid; place-items: center; border: 1px solid var(--app-border); border-radius: 7px; background: var(--app-surface-elevated); color: var(--app-accent); font-weight: 800; }
 .app-brand-copy { min-width: 0; display: grid; gap: 1px; }
 .app-brand-copy strong { font-size: 14px; letter-spacing: .01em; }
-.app-brand-copy small, .app-context span, .app-navigation a small { color: #7f8d9a; font-size: 10px; line-height: 1.15; letter-spacing: .045em; text-transform: uppercase; }
+.app-brand-copy small, .app-context span, .app-navigation a small { color: var(--app-text-secondary); font-size: 10px; line-height: 1.15; letter-spacing: .045em; text-transform: uppercase; }
 .app-navigation { display: flex; align-items: stretch; }
-.app-navigation a { min-width: 112px; display: grid; align-content: center; gap: 3px; padding: 6px 16px 5px; border-left: 1px solid transparent; border-right: 1px solid transparent; border-bottom: 2px solid transparent; color: #b9c5d0; text-decoration: none; transition: background-color .12s ease, color .12s ease, border-color .12s ease; }
+.app-navigation a { min-width: 112px; display: grid; align-content: center; gap: 3px; padding: 6px 16px 5px; border-left: 1px solid transparent; border-right: 1px solid transparent; border-bottom: 2px solid transparent; color: var(--app-text-secondary); text-decoration: none; transition: background-color .12s ease, color .12s ease, border-color .12s ease; }
 .app-navigation a > span { font-size: 12px; font-weight: 650; }
-.app-navigation a:hover, .app-navigation a:focus-visible { background: #111922; color: #eef4f8; outline: none; }
-.app-navigation a.active { border-left-color: #253544; border-right-color: #253544; border-bottom-color: #58a6d6; background: #111922; color: #f3f7fa; }
-.app-navigation a.active small { color: #9fc8df; }
+.app-navigation a:hover, .app-navigation a:focus-visible { background: var(--app-hover); color: var(--app-text-primary); outline: none; }
+.app-navigation a.active { border-left-color: var(--app-border); border-right-color: var(--app-border); border-bottom-color: var(--app-accent); background: var(--app-selected); color: var(--app-text-primary); }
+.app-navigation a.active small { color: var(--app-text-secondary); }
 .app-shell-actions { justify-self: end; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 8px; }
-.app-context { min-width: 96px; display: grid; align-content: center; justify-items: end; gap: 2px; padding-right: 10px; border-right: 1px solid #26313b; }
-.app-context strong { font-size: 12px; font-weight: 650; color: #dbe4eb; }
-.runtime-view-navigation { height: 46px; display: flex; align-items: center; gap: 4px; padding: 7px 16px; border-bottom: 1px solid #26313b; background: #0f161d; }
-.runtime-view-navigation a { padding: 6px 11px; border: 1px solid transparent; border-radius: 6px; color: #93a2af; font-size: 12px; font-weight: 650; text-decoration: none; }
-.runtime-view-navigation a:hover, .runtime-view-navigation a:focus-visible { color: #e7edf3; border-color: #304252; outline: none; }
-.runtime-view-navigation a.active { color: #eef6fb; border-color: #3c5b70; background: #16232d; }
+.app-context { min-width: 96px; display: grid; align-content: center; justify-items: end; gap: 2px; padding-right: 10px; border-right: 1px solid var(--app-divider); }
+.app-context strong { font-size: 12px; font-weight: 650; color: var(--app-text-primary); }
+.runtime-view-navigation { min-height: 46px; height: auto; display: flex; align-items: center; gap: 4px; padding: 7px 16px; border-bottom: 1px solid var(--app-divider); background: var(--app-panel); }
+.runtime-view-navigation a { padding: 6px 11px; border: 1px solid transparent; border-radius: 6px; color: var(--app-text-secondary); font-size: 12px; font-weight: 650; text-decoration: none; }
+.runtime-view-navigation a:hover, .runtime-view-navigation a:focus-visible { color: var(--app-text-primary); border-color: var(--app-border); outline: none; }
+.runtime-view-navigation a.active { color: var(--app-text-primary); border-color: var(--app-accent); background: var(--app-selected); }
 @media (max-width: 1180px) {
   .app-bar {
     grid-template-columns: auto minmax(0, 1fr) auto;
@@ -87,3 +87,38 @@
   .app-bar--branding-none { grid-template-columns: minmax(0, 1fr) auto; }
 }
 @media (max-width: 760px) { .app-brand-image { max-width: 34px; max-height: 28px; } }
+
+/* Narrow screens get separate brand/actions and navigation rows instead of compressing labels. */
+@media (max-width: 900px) {
+  .app-bar,
+  .app-bar.app-bar--runtime-only,
+  .app-bar--branding-none,
+  .app-bar--branding-none.app-bar--runtime-only {
+    height: auto;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "brand actions" "nav nav";
+    align-items: center;
+  }
+
+  .app-brand { grid-area: brand; min-width: 0; }
+  .app-navigation {
+    grid-area: nav;
+    justify-self: stretch;
+    justify-content: flex-start;
+    width: 100%;
+    border-top: 1px solid var(--app-divider);
+  }
+  .app-navigation a { flex: 0 0 auto; min-height: 40px; }
+  .app-shell-actions { grid-area: actions; justify-self: end; }
+  .app-context { display: none; }
+}
+
+@media (max-width: 520px) {
+  .app-brand { padding: 6px 8px; }
+  .app-brand-mark { width: 30px; height: 30px; }
+  .app-shell-actions { gap: 4px; padding-inline: 4px; }
+  .app-theme-control select { max-width: 92px; }
+  .app-navigation a { padding-inline: 9px; }
+  .runtime-view-navigation { overflow-x: auto; }
+}

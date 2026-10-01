@@ -4,12 +4,13 @@ test('mounted canonical click reaches Python tween and renders deterministic sta
   await page.goto('/');
 
   await page.evaluate(async () => {
-    // This test mounts a runtime harness over a page that also starts the real
-    // app runtime. Remove that app surface so its full-screen viewport cannot
-    // intercept clicks intended for the isolated harness.
-    document.querySelector('#root')?.remove();
+    // Use the app page only as a same-origin module host. Clear the whole body,
+    // not just #root: the app can leave portal surfaces mounted directly under
+    // body, where they intercept pointer input despite the root being removed.
+    document.body.replaceChildren();
     const host = document.createElement('div');
     host.id = 'wave10-runtime-acceptance-host';
+    host.className = 'runtime-visual-screen';
     Object.assign(host.style, {
       position: 'fixed', left: '16px', top: '16px', zIndex: '2147483647',
       width: '640px', height: '480px', pointerEvents: 'auto'

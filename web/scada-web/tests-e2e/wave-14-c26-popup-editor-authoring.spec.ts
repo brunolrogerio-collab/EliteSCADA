@@ -130,8 +130,13 @@ test('C26.9 mounted Popup editor exposes bounds in the canonical single-canvas a
     expect(heightAfterResize).toBeGreaterThan(130);
     await expect(canonicalLayer).toHaveCSS('width', `${widthAfterResize}px`);
     await expect(canonicalLayer).toHaveCSS('height', `${heightAfterResize}px`);
-    await expect(authoredBackground).toHaveCSS('width', `${widthAfterResize}px`);
-    await expect(authoredBackground).toHaveCSS('height', `${heightAfterResize}px`);
+    const renderedGridSize = await canvas.locator('.visual-editor-canvas__surface').evaluate(surface =>
+      Number.parseFloat(getComputedStyle(surface).getPropertyValue('--visual-editor-grid-size'))
+    );
+    const authoredWidth = await authoredBackground.evaluate(element => Number.parseFloat(getComputedStyle(element).width));
+    const authoredHeight = await authoredBackground.evaluate(element => Number.parseFloat(getComputedStyle(element).height));
+    expect(authoredWidth).toBeCloseTo(widthAfterResize * renderedGridSize / 16, 2);
+    expect(authoredHeight).toBeCloseTo(heightAfterResize * renderedGridSize / 16, 2);
     await expect(workspace.getByTestId('popup-authoring-bounds')).toContainText(`X ${1920 - widthAfterResize}, Y ${1080 - heightAfterResize}`);
 
     const canonicalMetrics = await canonicalLayer.evaluate(element => {

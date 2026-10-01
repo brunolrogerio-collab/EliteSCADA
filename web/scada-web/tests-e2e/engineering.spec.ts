@@ -190,7 +190,7 @@ test('Data Source editor uses the backend catalog and previews without mutating 
   const form = page.locator('.eng-editor-form-panel');
   await form.getByLabel('Nome').fill('Simulation preview edit');
   await page.getByTestId('data-source-preview').click();
-  await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
+  await expect(page.getByText('Pronto para aplicar', { exact: true })).toBeVisible();
 
   const workspaceAfterResponse = await request.get('/api/engineering/workspace');
   expect(workspaceAfterResponse.ok()).toBeTruthy();
@@ -217,7 +217,7 @@ test('Data Source editor rebuilds settings when source type changes and previews
   await expect(scanInterval).toHaveValue('500');
 
   await page.getByTestId('data-source-preview').click();
-  await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
+  await expect(page.getByText('Pronto para aplicar', { exact: true })).toBeVisible();
 
   const afterResponse = await request.get('/api/engineering/export/json');
   expect(afterResponse.ok()).toBeTruthy();

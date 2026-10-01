@@ -135,8 +135,11 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   await expect(assetBrowser.locator('input[type="file"]')).toHaveAttribute('accept', /image\/svg\+xml/);
   await expect(assetRef.locator('input[type="text"]')).toHaveCount(0);
 
+  // Project image assets are imported against a clean canonical Screen revision.
+  // This test only edits a draft, so discard it before exercising background upload.
+  await page.getByRole('button', { name: 'Restaurar rascunho', exact: true }).click();
   await page.getByTestId('visual-editor-side-tab-assets').click();
   const background = page.getByTestId('visual-definition-surface-inspector');
   await expect(background.locator('input[type="file"]')).toHaveAttribute('accept', /image\/svg\+xml/);
-  await expect(background.getByRole('button', { name: 'Escolher imagem…' })).toHaveCount(1);
+  await expect(background.getByRole('button', { name: 'Escolher imagem…' })).toBeEnabled();
 });

@@ -384,5 +384,9 @@ test('compact shell header separates navigation from actions and removes Help/Li
   const scriptListBox = await page.locator('.script-list').boundingBox();
   expect(scriptListBox).not.toBeNull();
   expect(scriptListBox!.width).toBeLessThanOrEqual(300);
+  await page.getByRole('button', { name: 'Novo Script' }).click();
+  await expect(page.getByRole('button', { name: 'Verificar alterações' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Aplicar ao Workspace' })).toBeVisible();
+  await expect(page.getByText(/O código altera somente o rascunho local/)).toBeVisible();
 
 });

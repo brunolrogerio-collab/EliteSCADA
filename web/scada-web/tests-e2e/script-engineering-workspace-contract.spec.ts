@@ -399,9 +399,9 @@ test('mounted R2 generated snippet validates, Preview/Applies and reopens unchan
     await expect(pythonEditor.getByText(/VALID · sintaxe válida/)).toBeVisible({ timeout: 45_000 });
     await expect(page.getByTestId('script-reference-diagnostics')).toBeVisible();
 
-    await editor.getByRole('button', { name: 'Validar / Pré-visualizar' }).click();
-    await expect(editor.getByText(/Pré-visualização válida/)).toBeVisible({ timeout: 45_000 });
-    await editor.getByRole('button', { name: 'Aplicar pré-visualização' }).click();
+    await editor.getByRole('button', { name: 'Verificar alterações' }).click();
+    await expect(editor.getByText(/Verificação concluída/)).toBeVisible({ timeout: 45_000 });
+    await editor.getByRole('button', { name: 'Aplicar ao Workspace' }).click();
     await expect(page.getByText('Script criado na Área de trabalho.')).toBeVisible({ timeout: 45_000 });
 
     const listed = await request.get('/api/engineering/scripts');

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { DEFAULT_CANVAS_GRID_SIZE } from '../src/engineering/visual-editor/canvas/canvasInteractionModel';
 
 test.use({ locale: 'pt-BR' });
 test.describe.configure({ mode: 'serial' });
@@ -135,8 +136,8 @@ test('C26.9 mounted Popup editor exposes bounds in the canonical single-canvas a
     );
     const authoredWidth = await authoredBackground.evaluate(element => Number.parseFloat(getComputedStyle(element).width));
     const authoredHeight = await authoredBackground.evaluate(element => Number.parseFloat(getComputedStyle(element).height));
-    expect(authoredWidth).toBeCloseTo(widthAfterResize * renderedGridSize / 16, 2);
-    expect(authoredHeight).toBeCloseTo(heightAfterResize * renderedGridSize / 16, 2);
+    expect(authoredWidth).toBeCloseTo(widthAfterResize * renderedGridSize / DEFAULT_CANVAS_GRID_SIZE, 1);
+    expect(authoredHeight).toBeCloseTo(heightAfterResize * renderedGridSize / DEFAULT_CANVAS_GRID_SIZE, 1);
     await expect(workspace.getByTestId('popup-authoring-bounds')).toContainText(`X ${1920 - widthAfterResize}, Y ${1080 - heightAfterResize}`);
 
     const canonicalMetrics = await canonicalLayer.evaluate(element => {

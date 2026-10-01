@@ -49,9 +49,9 @@ test('stable shell and structured editor copy uses locale-native glossary terms'
   const ptEditor = editorTranslator('pt-BR');
   const esEditor = editorTranslator('es');
   expect(ptEditor('editor.field.source')).toBe('Fonte de dados');
-  expect(ptEditor('editor.preview')).toBe('Validar pré-visualização');
+  expect(ptEditor('editor.preview')).toBe('Verificar alterações');
   expect(esEditor('editor.field.source')).toBe('Fuente de datos');
-  expect(esEditor('editor.preview')).toBe('Validar vista previa');
+  expect(esEditor('editor.preview')).toBe('Verificar cambios');
 });
 
 function collectStringValues(value: unknown): string[] {

@@ -140,7 +140,7 @@ test('Wave 03 readiness: Engineering exposes the configured domains, Gateway, di
   const engineeringNavigation = page.locator('.eng-nav');
 
   await engineeringNavigation.getByRole('button', { name: /Fontes de dados|Data Sources/ }).click();
-  await expect(page.getByRole('heading', { name: 'Editor de Data Source' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Editor.*Fonte[s]? de dados|Data Source editor/ })).toBeVisible();
   await expect(page.getByTestId('schema-data-source-editor')).toBeVisible();
   await expect(page.getByTestId('data-source-type')).toBeVisible();
   await expect(page.getByTestId('gateway-engineering-panel')).toHaveCount(0);

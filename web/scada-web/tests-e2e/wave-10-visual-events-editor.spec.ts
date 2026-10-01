@@ -95,6 +95,7 @@ test('mounted Events editor persists click and canonical timer/TAG-bit associati
     await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: screen!.key }).click();
     await page.locator(`[data-canvas-object-id="${visualObject.id}"]`).click();
 
+    await page.getByTestId('visual-editor-inspector-tab-events').click();
     const editor = page.getByTestId('visual-events-editor');
     await expect(editor).toBeVisible();
 
@@ -162,6 +163,7 @@ test('mounted Events editor persists click and canonical timer/TAG-bit associati
     await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
     await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: screen!.key }).click();
     await page.locator(`[data-canvas-object-id="${visualObject.id}"]`).click();
+    await page.getByTestId('visual-editor-inspector-tab-events').click();
     await expect(page.getByTestId('visual-events-editor')).toBeVisible();
 
     const persistedScript = await loadScript(request, script.id);

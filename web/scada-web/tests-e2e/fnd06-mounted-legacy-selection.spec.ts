@@ -56,6 +56,7 @@ test('FND-06 mounted Screen selection contains known legacy objects and preserve
       else await outlinerEntry(outliner, element.key).click();
       await expect(workspace).toBeVisible();
       await expect(inspector).toContainText(element.key);
+      await workspace.getByTestId('visual-editor-inspector-tab-properties').click();
       await expect(inspector.getByRole('status')).toContainText(`Compatibility mode for persisted legacy type: ${element.type}`);
       await workspace.getByTestId('visual-editor-inspector-tab-dynamics').click();
       await expect(workspace.getByTestId('visual-dynamic-property-editor')).toBeVisible();
@@ -116,6 +117,7 @@ test('FND-06 mounted Popup selection contains legacy value and status without po
       else await outlinerEntry(outliner, element.key).click();
       await expect(workspace).toBeVisible();
       await expect(inspector).toContainText(element.key);
+      await workspace.getByTestId('visual-editor-inspector-tab-properties').click();
       await expect(inspector.getByRole('status')).toContainText(`Compatibility mode for persisted legacy type: ${element.type}`);
       await workspace.getByTestId('visual-editor-inspector-tab-dynamics').click();
       await expect(workspace.getByTestId('visual-dynamic-property-editor')).toBeVisible();

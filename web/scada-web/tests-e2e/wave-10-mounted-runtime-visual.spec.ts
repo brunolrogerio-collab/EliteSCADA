@@ -4,8 +4,16 @@ test('mounted canonical click reaches Python tween and renders deterministic sta
   await page.goto('/');
 
   await page.evaluate(async () => {
+    // This test mounts a runtime harness over a page that also starts the real
+    // app runtime. Remove that app surface so its full-screen viewport cannot
+    // intercept clicks intended for the isolated harness.
+    document.querySelector('#root')?.remove();
     const host = document.createElement('div');
     host.id = 'wave10-runtime-acceptance-host';
+    Object.assign(host.style, {
+      position: 'fixed', left: '16px', top: '16px', zIndex: '2147483647',
+      width: '640px', height: '480px', pointerEvents: 'auto'
+    });
     document.body.append(host);
     const harness = await import('/tests-e2e/support/Wave10RuntimeAcceptanceHarness.tsx');
     harness.mountWave10RuntimeAcceptanceHarness(host);

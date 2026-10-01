@@ -121,7 +121,7 @@ test('TAG Source selector sends stable Data Source identity through Preview with
     new URL(request.url()).pathname === '/api/engineering/import/json/preview');
   await page.getByTestId('engineering-preview').click();
   const previewCandidate = (await previewRequest).postDataJSON() as typeof engineeringPackage;
-  await expect(page.getByText('Preview não altera o Workspace nem o runtime.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Verificar não altera o Workspace.', { exact: false })).toBeVisible();
 
   const previewedTag = previewCandidate!.tags.find(tag => tag.id === tagId);
   expect(previewedTag).toBeTruthy();

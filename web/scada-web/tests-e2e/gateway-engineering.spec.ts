@@ -67,8 +67,9 @@ test('Gateway Engineering config uses canonical Preview Apply and shows runtime 
   });
 
   await page.goto('/engineering');
-  const dataSourcesNav = page.locator('.eng-nav button').filter({ hasText: /Fontes de dados|Data Sources/ });
-  const gatewayNav = page.locator('.eng-nav button').filter({ hasText: 'TAG Gateway' });
+  const engineeringNavigation = page.getByRole('complementary', { name: 'Engineering' });
+  const dataSourcesNav = engineeringNavigation.getByRole('button', { name: /Fontes de dados|Fuentes de datos|Data Sources/ });
+  const gatewayNav = engineeringNavigation.getByRole('button', { name: /TAG Gateway/ });
   await expect(gatewayNav).toContainText('1');
   await dataSourcesNav.click();
   await expect(page.getByTestId('gateway-engineering-panel')).toHaveCount(0);

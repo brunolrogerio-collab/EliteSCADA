@@ -34,7 +34,7 @@ test('TAG editor only applies the exact candidate after a valid preview', async 
     await expect(apply).toBeDisabled();
 
     await page.getByTestId('engineering-preview').click();
-    await expect(page.getByText('Rascunho válido para aplicação', { exact: true })).toBeVisible();
+    await expect(page.getByText('Pronto para aplicar', { exact: true })).toBeVisible();
     await expect(apply).toBeEnabled();
 
     // Any post-preview draft edit invalidates the retained candidate before it can be applied.

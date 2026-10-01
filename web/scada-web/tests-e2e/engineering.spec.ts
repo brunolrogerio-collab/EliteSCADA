@@ -61,7 +61,7 @@ test('Engineering navigation exposes current domains and structured preview edit
   await page.goto('/engineering');
 
   const sections = [
-    { button: /Fontes de dados|Data Sources/, heading: 'Editor de Data Source', expected: 'builtin.memory.server' },
+    { button: /Fontes de dados|Data Sources/, heading: /Editor.*Fonte[s]? de dados|Data Source editor/, expected: 'builtin.memory.server' },
     { button: /Alarmes/, heading: 'Editor estruturado de Alarmes', expected: 'High discharge pressure' },
     { button: /Templates/, heading: 'Templates', expected: 'pump.standard' },
     { button: /Equipamentos/, heading: 'Equipamentos', expected: 'Demo.P01' },
@@ -97,8 +97,8 @@ test('TAG editor validates drafts without mutating Engineering Workspace', async
 
   await page.getByLabel('Nome').fill('Frequency preview edit');
   await page.getByTestId('engineering-preview').click();
-  await expect(page.getByText('Rascunho válido para aplicação', { exact: true })).toBeVisible();
-  await expect(page.getByText('Preview não altera o Workspace nem o runtime.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Pronto para aplicar', { exact: true })).toBeVisible();
+  await expect(page.getByText('Verificar não altera o Workspace.', { exact: false })).toBeVisible();
 
   const workspaceAfterResponse = await request.get('/api/engineering/workspace');
   expect(workspaceAfterResponse.ok()).toBeTruthy();
@@ -158,7 +158,7 @@ test('TAG editor previews a new TAG as a create without applying it', async ({ p
   await page.getByLabel('Caminho').fill('Demo.Preview.CreatedTag');
   await page.getByTestId('engineering-preview').click();
 
-  await expect(page.getByText('Rascunho válido para aplicação', { exact: true })).toBeVisible();
+  await expect(page.getByText('Pronto para aplicar', { exact: true })).toBeVisible();
   await expect(page.getByTestId('preview-create-count')).toContainText('1 criações');
 
   const afterResponse = await request.get('/api/engineering/export/json');
@@ -180,7 +180,7 @@ test('Data Source editor uses the backend catalog and previews without mutating 
 
   await page.goto('/engineering');
   await page.getByRole('button', { name: /Fontes de dados|Data Sources/ }).click();
-  await expect(page.getByRole('heading', { name: 'Editor de Data Source' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Editor.*Fonte[s]? de dados|Data Source editor/ })).toBeVisible();
 
   const typePicker = page.getByTestId('data-source-type');
   await expect(typePicker).toBeVisible();
@@ -205,7 +205,7 @@ test('Data Source editor rebuilds settings when source type changes and previews
 
   await page.goto('/engineering');
   await page.getByRole('button', { name: /Fontes de dados|Data Sources/ }).click();
-  await page.getByRole('button', { name: 'Nova Data Source' }).click();
+  await page.getByRole('button', { name: /Nova Fonte de dados|New Data Source|Nueva Fuente de datos/ }).click();
 
   const form = page.locator('.eng-editor-form-panel');
   await form.getByLabel('Nome').fill('Preview Simulation Source');
@@ -246,7 +246,7 @@ test('Alarm editor validates existing drafts and TAG references without mutating
 
   await page.getByLabel('Mensagem').fill('Pressure preview edit');
   await page.getByTestId('engineering-preview').click();
-  await expect(page.getByText('Rascunho válido para aplicação', { exact: true })).toBeVisible();
+  await expect(page.getByText('Pronto para aplicar', { exact: true })).toBeVisible();
 
   const workspaceAfterResponse = await request.get('/api/engineering/workspace');
   expect(workspaceAfterResponse.ok()).toBeTruthy();
@@ -284,7 +284,7 @@ test('Alarm editor previews a new alarm as a create without applying it', async 
   await page.getByLabel('Mensagem').fill('Preview-only pressure alarm');
   await page.getByTestId('engineering-preview').click();
 
-  await expect(page.getByText('Rascunho válido para aplicação', { exact: true })).toBeVisible();
+  await expect(page.getByText('Pronto para aplicar', { exact: true })).toBeVisible();
   await expect(page.getByTestId('preview-create-count')).toContainText('1 criações');
 
   const afterResponse = await request.get('/api/engineering/export/json');

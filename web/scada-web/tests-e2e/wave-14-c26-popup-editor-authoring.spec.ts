@@ -109,6 +109,12 @@ test('C26.9 mounted Popup editor exposes bounds in the canonical single-canvas a
     expect(widthAfterMove).toBeGreaterThan(280);
     await expect(canonicalLayer).toHaveCSS('width', `${widthAfterMove}px`);
 
+    // Keep the southeast handle inside the visible canvas. The compact authoring
+    // layout can make the logical canvas narrower than the popup after the move;
+    // without zooming out, the handle is visually clipped behind the inspector.
+    const zoomOut = canvas.getByRole('button', { name: 'Reduzir zoom', exact: true });
+    for (let step = 0; step < 4; step += 1) await zoomOut.click();
+
     const objectWidthBeforeResize = await inlineNumber(rectangle, 'width');
     const resizeHandle = rectangle.locator('[data-canvas-resize-handle="southEast"]');
     const handleBox = await resizeHandle.boundingBox();

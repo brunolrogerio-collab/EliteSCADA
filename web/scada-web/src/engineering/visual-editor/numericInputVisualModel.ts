@@ -63,13 +63,21 @@ export function resolveNumericInputConfiguration(
 export function validateNumericInputCandidate(
   raw: string,
   minimum: number,
-  maximum: number
+  maximum: number,
+  step?: number
 ): number {
   if (!raw.trim()) throw new Error('A numeric setpoint is required.');
   const value = Number(raw);
   if (!Number.isFinite(value)) throw new Error('Setpoint must be a finite number.');
   if (value < minimum || value > maximum) {
     throw new Error(`Setpoint must be between ${minimum} and ${maximum}.`);
+  }
+  if (step !== undefined) {
+    if (!Number.isFinite(step) || step <= 0) throw new Error('Setpoint step must be a positive finite number.');
+    const nearestStep = minimum + Math.round((value - minimum) / step) * step;
+    if (Math.abs(value - nearestStep) > Math.max(1, Math.abs(value)) * 1e-9) {
+      throw new Error(`Setpoint must use increments of ${step} from ${minimum}.`);
+    }
   }
   return value;
 }

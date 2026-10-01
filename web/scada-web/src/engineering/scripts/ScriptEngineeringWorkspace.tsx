@@ -300,7 +300,7 @@ export function ScriptEngineeringWorkspace({
         <div>
           <div className="script-workspace__eyebrow">PYTHON-WAVE-06</div>
           <h2>{copy.title}</h2>
-          <p>{copy.subtitle}</p>
+          <details className="script-workspace__help"><summary>{copy.help}</summary><p>{copy.subtitle}</p></details>
         </div>
         <div className="script-workspace__status">
           <span className="script-badge">{copy.working} v{context?.workspace.changeVersion ?? '—'}</span>

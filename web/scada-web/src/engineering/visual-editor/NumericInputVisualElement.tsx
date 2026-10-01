@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { VisualElementEngineering } from '../types';
+import type { EngineeringLocale } from '../i18n';
 import { VISUAL_PROPERTY_KEYS, type VisualPropertyValue } from '../../visual-runtime';
 import type { VisualDynamicDiagnostic, VisualDynamicSample } from './visualDynamicRuntime';
 import {
@@ -17,6 +18,7 @@ export type NumericInputVisualElementProps = Readonly<{
   liveSamples: ReadonlyMap<string, VisualDynamicSample>;
   style: CSSProperties;
   runtimeObjectId?: string;
+  locale?: EngineeringLocale;
   title?: string;
   onTagWrite?: SliderTagWrite;
 }>;
@@ -28,6 +30,7 @@ export function NumericInputVisualElement({
   liveSamples,
   style,
   runtimeObjectId,
+  locale = 'pt-BR',
   title,
   onTagWrite
 }: NumericInputVisualElementProps) {
@@ -36,6 +39,7 @@ export function NumericInputVisualElement({
     [element, values, diagnostics, liveSamples]
   );
   const enabled = values[VISUAL_PROPERTY_KEYS.enabled] !== false;
+  const showApplyButton = values[VISUAL_PROPERTY_KEYS.showApplyButton] !== false;
   const [draft, setDraft] = useState(() => formatNumericInputValue(config.value, config.precision));
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
@@ -91,7 +95,7 @@ export function NumericInputVisualElement({
     if (!canWrite || !config.tagId || !onTagWrite) return;
     let candidate: number;
     try {
-      candidate = validateNumericInputCandidate(draft, config.minimum, config.maximum);
+      candidate = validateNumericInputCandidate(draft, config.minimum, config.maximum, config.step);
     } catch (reason) {
       setWriteError(reason instanceof Error ? reason.message : String(reason));
       return;
@@ -129,6 +133,7 @@ export function NumericInputVisualElement({
     data-runtime-object-id={runtimeObjectId}
     data-enabled={enabled}
     data-numeric-input-state={state}
+    data-show-apply={showApplyButton}
     data-dynamic-state={config.sourceAvailable ? 'available' : 'unavailable'}
     title={effectiveTitle}
   >
@@ -157,12 +162,24 @@ export function NumericInputVisualElement({
       }}
     />
     {config.unit ? <span className="visual-editor-numeric-input__unit">{config.unit}</span> : null}
-    <button type="button" onClick={() => void commit()} disabled={!canWrite || !editing}>Apply</button>
+    {showApplyButton ? <button
+      type="button"
+      className="visual-editor-numeric-input__apply"
+      aria-label={applyLabel(locale)}
+      title={applyLabel(locale)}
+      aria-keyshortcuts="Enter"
+      onClick={() => void commit()}
+      disabled={!canWrite || !editing}
+    >↵</button> : null}
     <button type="button" onClick={cancel} disabled={!editing || pending || awaitingReadback}>Cancel</button>
     <span className="visual-editor-numeric-input__state" role={writeError ? 'alert' : 'status'} aria-live="polite">
       {statusText}
     </span>
   </div>;
+}
+
+function applyLabel(locale: EngineeringLocale): string {
+  return locale === 'en' ? 'Apply value' : locale === 'es' ? 'Aplicar valor' : 'Aplicar valor';
 }
 
 function stateLabel(state: string, unit: string): string {

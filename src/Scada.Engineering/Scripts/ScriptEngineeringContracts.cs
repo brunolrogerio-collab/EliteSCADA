@@ -22,6 +22,17 @@ public enum ScriptEngineeringEventKind
     ServerRuntimeEvent
 }
 
+public static class ScriptEngineeringInteractionEventKeys
+{
+    public const string Click = "click";
+    public const string PointerEnter = "pointerenter";
+    public const string PointerMove = "pointermove";
+    public const string PointerLeave = "pointerleave";
+
+    public static bool IsSupported(string? eventKey) => eventKey?.Trim().ToLowerInvariant() is
+        Click or PointerEnter or PointerMove or PointerLeave;
+}
+
 public enum ScriptEngineeringDependencyKind
 {
     Script,
@@ -125,7 +136,8 @@ public sealed record ScriptVisualEventReference(
     string EntryPoint,
     string? TargetReference = null,
     TagValueReference? TagReference = null,
-    int? TimerIntervalMs = null);
+    int? TimerIntervalMs = null,
+    string EventKey = ScriptEngineeringInteractionEventKeys.Click);
 
 public sealed class ScriptEngineeringModel
 {

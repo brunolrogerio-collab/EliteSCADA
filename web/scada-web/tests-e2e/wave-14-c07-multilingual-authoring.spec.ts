@@ -15,19 +15,27 @@ test('C07 visual authoring surfaces follow live pt-BR, en and es locale changes'
 
   await expect(toolbar.getByRole('button', { name: 'Desfazer' })).toBeVisible();
   await expect(outliner.getByText('Estrutura', { exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Assets' }).click();
   await expect(surface.getByText('Fundo', { exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Biblioteca' }).click();
   await expect(library.getByText('Biblioteca de dínamos', { exact: true })).toBeVisible();
 
   await page.getByLabel('Idioma').selectOption('en');
   await expect(toolbar.getByRole('button', { name: 'Undo' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Structure' }).click();
   await expect(outliner.getByText('Outliner', { exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Assets' }).click();
   await expect(surface.getByText('Background', { exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Library' }).click();
   await expect(library.getByText('Dynamo library', { exact: true })).toBeVisible();
 
   await page.getByLabel('Language').selectOption('es');
   await expect(toolbar.getByRole('button', { name: 'Deshacer' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Estructura' }).click();
   await expect(outliner.getByText('Estructura', { exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Assets' }).click();
   await expect(surface.getByText('Fondo', { exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Biblioteca' }).click();
   await expect(library.getByText('Biblioteca de dínamos', { exact: true })).toBeVisible();
 });
 

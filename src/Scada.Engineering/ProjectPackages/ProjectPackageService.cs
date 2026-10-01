@@ -37,6 +37,14 @@ public interface IProjectPackageService
     ProjectPackageInspection Inspect(ReadOnlyMemory<byte> packageBytes);
     ImportPreview Preview(ReadOnlyMemory<byte> packageBytes, ImportMode mode);
     ImportResult Apply(ReadOnlyMemory<byte> packageBytes, ImportMode mode);
+    ImportPreview PreviewForAuthorityRecovery(
+        ReadOnlyMemory<byte> packageBytes,
+        ImportMode mode,
+        AuthorityPolicySnapshot restoredAuthority);
+    ImportResult ApplyForAuthorityRecovery(
+        ReadOnlyMemory<byte> packageBytes,
+        ImportMode mode,
+        AuthorityPolicySnapshot restoredAuthority);
 }
 
 public sealed class ProjectPackageService : IProjectPackageService
@@ -194,6 +202,50 @@ public sealed class ProjectPackageService : IProjectPackageService
         if (!preview.CanApply)
             return new ImportResult(mode, 0, 0, preview.SkipCount, preview.Items.SelectMany(x => x.Issues).ToArray());
         return _engineering.Apply(parsed.Engineering, mode, parsed.ImportContext);
+    }
+
+    public ImportPreview PreviewForAuthorityRecovery(
+        ReadOnlyMemory<byte> packageBytes,
+        ImportMode mode,
+        AuthorityPolicySnapshot restoredAuthority)
+    {
+        ArgumentNullException.ThrowIfNull(restoredAuthority);
+        var parsed = ParsePackage(packageBytes);
+        var engineering = RebindRestoredAuthorityVersion(parsed.Engineering, restoredAuthority);
+        return _engineering.Preview(engineering, mode, parsed.ImportContext);
+    }
+
+    public ImportResult ApplyForAuthorityRecovery(
+        ReadOnlyMemory<byte> packageBytes,
+        ImportMode mode,
+        AuthorityPolicySnapshot restoredAuthority)
+    {
+        ArgumentNullException.ThrowIfNull(restoredAuthority);
+        var parsed = ParsePackage(packageBytes);
+        var engineering = RebindRestoredAuthorityVersion(parsed.Engineering, restoredAuthority);
+        var preview = _engineering.Preview(engineering, mode, parsed.ImportContext);
+        if (!preview.CanApply)
+            return new ImportResult(mode, 0, 0, preview.SkipCount, preview.Items.SelectMany(x => x.Issues).ToArray());
+        return _engineering.Apply(engineering, mode, parsed.ImportContext);
+    }
+
+    private static EngineeringPackage RebindRestoredAuthorityVersion(
+        EngineeringPackage engineering,
+        AuthorityPolicySnapshot restoredAuthority)
+    {
+        var validation = AuthorityPolicyReferenceValidator.ValidateRestoredIdentitySet(
+            engineering.AuthorityPolicyReference,
+            restoredAuthority);
+        if (!validation.IsValid || engineering.AuthorityPolicyReference is not { } reference)
+            return engineering;
+
+        // Authority versions are local concurrency tokens. A legitimate Authority
+        // restore increments the destination token; rebind only the package pointer,
+        // never the restored policy or its grants.
+        return engineering with
+        {
+            AuthorityPolicyReference = reference with { PolicyVersion = restoredAuthority.Version }
+        };
     }
 
     private ParsedProjectPackage ParsePackage(ReadOnlyMemory<byte> packageBytes)
@@ -476,7 +528,7 @@ public sealed class ProjectPackageService : IProjectPackageService
                 throw new InvalidDataException($"Project asset entry '{assetEntry.Path}' path does not match its SHA-256.");
             if (assetEntry.Length <= 0 || assetEntry.Length > VisualAssetEngineeringValidator.MaximumPayloadBytes)
                 throw new InvalidDataException($"Project asset entry '{assetEntry.Path}' length is invalid.");
-            if (assetEntry.MediaType is not ("image/png" or "image/jpeg" or "image/bmp"))
+            if (assetEntry.MediaType is not ("image/png" or "image/jpeg" or "image/bmp" or VisualAssetContentInspector.SvgMediaType))
                 throw new InvalidDataException($"Project asset entry '{assetEntry.Path}' media type is unsupported.");
         }
     }

@@ -521,7 +521,7 @@ export type VisualAssetEngineering = {
   key: string;
   name: string;
   originalFileName: string;
-  mediaType: 'image/png' | 'image/jpeg' | 'image/bmp' | string;
+    mediaType: 'image/png' | 'image/jpeg' | 'image/bmp' | 'image/svg+xml' | string;
   byteLength: number;
   sha256: string;
   pixelWidth?: number | null;

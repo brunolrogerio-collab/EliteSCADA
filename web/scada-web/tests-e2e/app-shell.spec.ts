@@ -125,6 +125,30 @@ test('shell uses shared locale, updates live from Engineering selector, and pres
 });
 
 test('Engineering visual workspace can reclaim constrained viewport without losing panels', async ({ page }) => {
+  await page.route('**/api/**', route => route.fulfill({ status: 404, contentType: 'application/json', body: '{}' }));
+  await page.route('**/api/auth/config', route => route.fulfill({ json: {
+    authenticationEnabled: false, localLoginEnabled: false,
+    initialAdministratorRequired: false, initialAdministratorSetupAvailable: false
+  } }));
+  await page.route('**/api/auth/effective-capabilities', route => route.fulfill({ json: {
+    authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
+    authenticationEnabled: false,
+    runtime: ['View', 'TrendUse', 'SystemAdmin'],
+    workspace: ['EngineeringView', 'EngineeringModify', 'UserRoleAdmin']
+  } }));
+  await page.route('**/api/engineering/lock/status', route => route.fulfill({ json: { configured: false, locked: false } }));
+  await page.route('**/api/engineering/workspace', route => route.fulfill({ json: {
+    projectKey: 'responsive-test', projectName: 'Responsive test', baseRevision: 1,
+    isDirty: false, changeVersion: 1, tagCount: 0, alarmCount: 0, dataSourceCount: 0,
+    templateCount: 0, equipmentCount: 0, dynamoCount: 0, screenCount: 0, popupCount: 0
+  } }));
+  await page.route('**/api/engineering/export/json', route => route.fulfill({ json: {
+    schema: 'scada.engineering', schemaVersion: 20, tags: [], alarms: [], dataSources: [],
+    templates: [], equipment: [], dynamos: [], screens: [], popups: [], securityRoles: [], gateways: [], visualAssets: []
+  } }));
+  await page.route('**/api/runtime/application', route => route.fulfill({
+    json: brandingActiveProjection({ mode: 'text', text: 'EliteSCADA' })
+  }));
   await page.setViewportSize({ width: 1024, height: 720 });
   await page.goto('/engineering');
 
@@ -280,4 +304,89 @@ test('NONE collapses shell brand slot and invalid Active IMAGE falls back explic
   await expect(brand).toHaveAttribute('data-branding-mode', 'default');
   await expect(brand).toContainText('EliteSCADA');
   await expect(brand.getByRole('status')).toContainText(/missing.*Active application/i);
+});
+
+test('compact shell header separates navigation from actions and removes Help/Licensing subtext', async ({ page }) => {
+  await page.route('**/api/**', route => route.fulfill({ status: 404, contentType: 'application/json', body: '{}' }));
+  await page.route('**/api/auth/config', route => route.fulfill({ json: {
+    authenticationEnabled: false, localLoginEnabled: false,
+    initialAdministratorRequired: false, initialAdministratorSetupAvailable: false
+  } }));
+  await page.route('**/api/auth/effective-capabilities', route => route.fulfill({ json: {
+    authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
+    authenticationEnabled: false,
+    runtime: ['View', 'TrendUse', 'SystemAdmin'],
+    workspace: ['EngineeringView', 'EngineeringModify', 'UserRoleAdmin']
+  } }));
+  await page.route('**/api/engineering/lock/status', route => route.fulfill({ json: { configured: false, locked: false } }));
+  await page.route('**/api/engineering/scripts', route => route.fulfill({ json: [] }));
+  await page.route('**/api/engineering/script-visual-event-references', route => route.fulfill({ json: [] }));
+  await page.route('**/api/engineering/workspace', route => route.fulfill({ json: {
+    projectKey: 'responsive-test', projectName: 'Responsive test', baseRevision: 1,
+    isDirty: false, changeVersion: 1, tagCount: 0, alarmCount: 0, dataSourceCount: 0,
+    templateCount: 0, equipmentCount: 0, dynamoCount: 0, screenCount: 0, popupCount: 0
+  } }));
+  await page.route('**/api/engineering/export/json', route => route.fulfill({ json: {
+    schema: 'scada.engineering', schemaVersion: 20, tags: [], alarms: [], dataSources: [],
+    templates: [], equipment: [], dynamos: [], screens: [], popups: [], securityRoles: [], gateways: [], visualAssets: []
+  } }));
+  await page.route('**/api/runtime/application', route => route.fulfill({
+    json: brandingActiveProjection({ mode: 'text', text: 'EliteSCADA' })
+  }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/engineering');
+  await page.getByRole('combobox', { name: /Tema|Theme/ }).selectOption('light');
+
+  const bar = page.locator('.app-bar');
+  const brand = page.locator('.app-brand');
+  const actions = page.locator('.app-shell-actions');
+  const nav = page.getByRole('navigation', { name: 'EliteSCADA' });
+  await expect(bar).toBeVisible();
+  await expect(nav.locator('a[href="/licensing"] small')).toHaveCount(0);
+  await expect(nav.locator('a[href^="/help"] small')).toHaveCount(0);
+  await expectCssToken(bar, 'background-color', '--app-surface');
+  await expectCssToken(page.locator('.eng-topbar'), 'background-color', '--app-surface');
+  await expectCssToken(page.locator('.eng-sidebar'), 'background-color', '--app-surface');
+  const protectionControl = page.getByTestId('engineering-lock-management');
+  await expectCssToken(protectionControl, 'background-color', '--app-surface');
+  await expectCssToken(protectionControl.locator('.eng-lock-management__state'), 'color', '--app-text-primary');
+
+  const boxes = await Promise.all([brand, actions, nav].map(locator => locator.boundingBox()));
+  expect(boxes.every(Boolean)).toBe(true);
+  const [brandBox, actionBox, navBox] = boxes;
+  expect(brandBox!.y + brandBox!.height).toBeLessThanOrEqual(navBox!.y + 1);
+  expect(actionBox!.y + actionBox!.height).toBeLessThanOrEqual(navBox!.y + 1);
+  expect(brandBox!.x + brandBox!.width).toBeLessThanOrEqual(actionBox!.x + 1);
+  expect(navBox!.x).toBeGreaterThanOrEqual(0);
+  expect(navBox!.x + navBox!.width).toBeLessThanOrEqual(390);
+
+  await page.locator('.eng-nav').getByRole('button', { name: /Telas/ }).click();
+  await expect(page.getByTestId('visual-editor-workspace')).toBeVisible();
+  await expectCssToken(page.locator('.visual-editor-shell'), 'background-color', '--app-surface');
+  await expectCssToken(page.locator('.visual-editor-canvas-slot'), 'background-color', '--app-bg');
+
+  await page.setViewportSize({ width: 1280, height: 844 });
+  await page.locator('.eng-nav').getByRole('button', { name: /Fontes de dados/ }).click();
+  await expect(page.locator('.eng-editor-shell')).toBeVisible();
+  const dataSourceList = page.locator('.eng-entity-picker');
+  const dataSourceListBox = await dataSourceList.boundingBox();
+  expect(dataSourceListBox).not.toBeNull();
+  expect(dataSourceListBox!.width).toBeLessThanOrEqual(260);
+
+  await page.locator('.eng-nav').getByRole('button', { name: /^TAGs/ }).click();
+  await expect(page.locator('.eng-editor-picker')).toBeVisible();
+  const tagListBox = await page.locator('.eng-editor-picker').boundingBox();
+  expect(tagListBox).not.toBeNull();
+  expect(tagListBox!.width).toBeLessThanOrEqual(260);
+
+  await page.locator('.eng-nav').getByRole('button', { name: /^Scripts/ }).click();
+  await expect(page.locator('.script-workspace__layout')).toBeVisible();
+  const scriptListBox = await page.locator('.script-list').boundingBox();
+  expect(scriptListBox).not.toBeNull();
+  expect(scriptListBox!.width).toBeLessThanOrEqual(300);
+  await page.getByRole('button', { name: 'Novo Script' }).click();
+  await expect(page.getByRole('button', { name: 'Verificar alterações' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Aplicar ao Workspace' })).toBeVisible();
+  await expect(page.getByText(/O código altera somente o rascunho local/)).toBeVisible();
+
 });

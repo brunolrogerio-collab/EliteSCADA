@@ -90,6 +90,8 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
   const [screensCollapsed, setScreensCollapsed] = useState(false);
   const [paletteCollapsed, setPaletteCollapsed] = useState(false);
   const [propertiesCollapsed, setPropertiesCollapsed] = useState(false);
+  const [paletteWidth, setPaletteWidth] = useState(250);
+  const [propertiesWidth, setPropertiesWidth] = useState(280);
   const [authoringTab, setAuthoringTab] = useState<VisualEditorAuthoringTab>('structure');
   const [inspectorTab, setInspectorTab] = useState<VisualEditorInspectorTab>('properties');
   const workspaceRef = useRef<HTMLDivElement | null>(null);
@@ -171,6 +173,27 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
       }))
   ), [projectReferences]);
   const visualAssets = snapshot.package.visualAssets ?? [];
+
+  const resizeDock = (region: 'palette' | 'properties', event: React.PointerEvent<HTMLButtonElement>) => {
+    if (event.type === 'pointerdown') {
+      event.currentTarget.setPointerCapture(event.pointerId);
+      return;
+    }
+    if (event.type !== 'pointermove' || !(event.currentTarget as HTMLButtonElement).hasPointerCapture(event.pointerId)) return;
+    const bounds = event.currentTarget.parentElement?.getBoundingClientRect();
+    if (!bounds) return;
+    if (region === 'palette') setPaletteWidth(Math.max(200, Math.min(380, Math.round(event.clientX - bounds.left))));
+    else setPropertiesWidth(Math.max(220, Math.min(440, Math.round(bounds.right - event.clientX))));
+  };
+
+  const resizeDockByKeyboard = (region: 'palette' | 'properties', event: React.KeyboardEvent<HTMLButtonElement>) => {
+    const direction = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+    if (!direction) return;
+    event.preventDefault();
+    const delta = direction * (event.shiftKey ? 32 : 12) * (region === 'palette' ? 1 : -1);
+    if (region === 'palette') setPaletteWidth(current => Math.max(200, Math.min(380, current + delta)));
+    else setPropertiesWidth(current => Math.max(220, Math.min(440, current + delta)));
+  };
 
   useEffect(() => {
     if (!changed && !applying && !importingAsset) return undefined;
@@ -331,18 +354,20 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
     }
   };
 
-  const importAsset = async (file: File) => {
+  const importAsset = async (file: File): Promise<string | null> => {
     if (changed) {
       setError(text.assetImportRequiresCleanDraft);
-      return;
+      return null;
     }
     setImportingAsset(true);
     setError(null);
     try {
-      await importVisualAsset(file, snapshot.workspace.changeVersion, { fileName: file.name });
+      const imported = await importVisualAsset(file, snapshot.workspace.changeVersion, { fileName: file.name });
       await onApplied();
+      return imported.asset.id ?? null;
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
+      return null;
     } finally {
       setImportingAsset(false);
     }
@@ -360,8 +385,8 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
 
   return <div ref={workspaceRef} className={layoutClassName} data-testid="visual-editor-workspace">
     <header className="visual-editor-header">
-      <div><span>{text.eyebrow}</span><h1>{text.title}</h1><p>{text.description}</p></div>
-      <div className="visual-editor-authority"><strong>{text.authorityTitle}</strong><span>{text.authorityHint}</span></div>
+      <div><h1>{text.title}</h1><details className="visual-editor-help"><summary>{locale === 'en' ? 'Editor guidance' : locale === 'es' ? 'Ayuda del editor' : 'Ajuda do editor'}</summary><p>{text.description}</p><div className="visual-editor-authority"><strong>{text.authorityTitle}</strong><span>{text.authorityHint}</span></div></details></div>
+      <span className="visual-editor-header-status">{objectCount} {text.objects}</span>
     </header>
 
     <div className="visual-editor-shell">
@@ -391,7 +416,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
           <div className="visual-editor-draft-state"><span>{text.draft}</span><strong>{isNew ? text.newDraft : changed ? text.changed : text.unchanged}</strong><small>{objectCount} {text.objects}</small></div>
         </div>
 
-        <div className="visual-editor-composition">
+        <div className="visual-editor-composition" style={{ '--visual-editor-palette-width': paletteCollapsed ? '40px' : `${paletteWidth}px`, '--visual-editor-properties-width': propertiesCollapsed ? '40px' : `${propertiesWidth}px` } as React.CSSProperties}>
           <aside className="visual-editor-slot visual-editor-palette-slot">
             <VisualEditorRegionToggle region="palette" collapsed={paletteCollapsed} locale={locale} onToggle={() => setPaletteCollapsed(value => !value)} />
             <VisualEditorAuthoringSidebar
@@ -413,6 +438,8 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
               }}
             />
           </aside>
+
+          <button type="button" className="visual-editor-dock-resizer" role="separator" aria-orientation="vertical" aria-label={locale === 'en' ? 'Resize object and Dynamo panel' : locale === 'es' ? 'Cambiar ancho de estructura y biblioteca' : 'Redimensionar coluna de estrutura e dínamos'} aria-valuemin={200} aria-valuemax={380} aria-valuenow={paletteWidth} tabIndex={0} onPointerDown={event => resizeDock('palette', event)} onPointerMove={event => resizeDock('palette', event)} onKeyDown={event => resizeDockByKeyboard('palette', event)} />
 
           <section className="visual-editor-canvas-slot">
             <header><div><strong>{draft.name || draft.key || text.untitled}</strong><code>{draft.route || text.noRoute}</code></div><span>{polygonToolActive ? text.polygonDrawing : text.interactiveCanvas}</span></header>
@@ -437,6 +464,8 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
             />
           </section>
 
+          <button type="button" className="visual-editor-dock-resizer" role="separator" aria-orientation="vertical" aria-label={locale === 'en' ? 'Resize properties panel' : locale === 'es' ? 'Cambiar ancho de propiedades' : 'Redimensionar coluna de propriedades'} aria-valuemin={220} aria-valuemax={440} aria-valuenow={propertiesWidth} tabIndex={0} onPointerDown={event => resizeDock('properties', event)} onPointerMove={event => resizeDock('properties', event)} onKeyDown={event => resizeDockByKeyboard('properties', event)} />
+
           <aside className="visual-editor-slot visual-editor-inspector-slot">
             <VisualEditorRegionToggle region="properties" collapsed={propertiesCollapsed} locale={locale} onToggle={() => setPropertiesCollapsed(value => !value)} />
             <VisualEditorSelectionInspector
@@ -450,6 +479,9 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied }: VisualEdi
               onActiveTabChange={setInspectorTab}
               onMutationIntent={handleMutationIntent}
               onCommand={handleKeyboardCommand}
+              onImportImage={importAsset}
+              imageImportDisabled={changed || applying || previewing}
+              imageImportBusy={importingAsset}
             />
           </aside>
         </div>

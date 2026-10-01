@@ -5,12 +5,12 @@ test.use({ locale: 'pt-BR' });
 test('Runtime exposes an entry to the Engineering workspace', async ({ page }) => {
   await page.goto('/');
 
-  const engineeringLink = page.getByRole('link', { name: 'Engineering' });
+  const engineeringLink = page.locator('a[href="/engineering"]');
   await expect(engineeringLink).toBeVisible();
   await engineeringLink.click();
 
   await expect(page).toHaveURL(/\/engineering$/);
-  await expect(page.getByText('EliteSCADA Engineering')).toBeVisible();
+  await expect(page.getByText('EliteSCADA Engenharia')).toBeVisible();
 });
 
 test('Engineering workspace renders the public model and switches locale without changing Engineering identifiers', async ({ page, request }) => {
@@ -24,7 +24,7 @@ test('Engineering workspace renders the public model and switches locale without
 
   await page.goto('/engineering');
 
-  await expect(page.getByText('EliteSCADA Engineering')).toBeVisible();
+  await expect(page.getByText('EliteSCADA Engenharia')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Visão geral do projeto' })).toBeVisible();
   await expect(page.getByText(String(engineering.tags.length), { exact: true }).first()).toBeVisible();
 
@@ -61,7 +61,7 @@ test('Engineering navigation exposes current domains and structured preview edit
   await page.goto('/engineering');
 
   const sections = [
-    { button: /Data Sources/, heading: 'Editor de Data Source', expected: 'builtin.memory.server' },
+    { button: /Fontes de dados|Data Sources/, heading: /Editor.*Fonte[s]? de dados|Data Source editor/, expected: 'builtin.memory.server' },
     { button: /Alarmes/, heading: 'Editor estruturado de Alarmes', expected: 'High discharge pressure' },
     { button: /Templates/, heading: 'Templates', expected: 'pump.standard' },
     { button: /Equipamentos/, heading: 'Equipamentos', expected: 'Demo.P01' },
@@ -96,9 +96,9 @@ test('TAG editor validates drafts without mutating Engineering Workspace', async
   await page.getByRole('button', { name: /Demo\.P01\.Frequency/ }).click();
 
   await page.getByLabel('Nome').fill('Frequency preview edit');
-  await page.getByRole('button', { name: 'Validar preview' }).click();
-  await expect(page.getByText('Rascunho válido para aplicação', { exact: true })).toBeVisible();
-  await expect(page.getByText('Preview não altera o Workspace nem o runtime.', { exact: true })).toBeVisible();
+  await page.getByTestId('engineering-preview').click();
+  await expect(page.getByText('Pronto para aplicar', { exact: true })).toBeVisible();
+  await expect(page.getByText('Verificar não altera o Workspace.', { exact: false })).toBeVisible();
 
   const workspaceAfterResponse = await request.get('/api/engineering/workspace');
   expect(workspaceAfterResponse.ok()).toBeTruthy();
@@ -114,8 +114,8 @@ test('TAG editor validates drafts without mutating Engineering Workspace', async
   expect(unchanged?.name).toBe(original!.name);
   expect(unchanged?.path).toBe(original!.path);
 
-  await page.getByLabel('Path').fill('Demo Invalid Path');
-  await page.getByRole('button', { name: 'Validar preview' }).click();
+  await page.getByLabel('Caminho').fill('Demo Invalid Path');
+  await page.getByTestId('engineering-preview').click();
   await expect(page.getByText('O rascunho possui erros', { exact: true })).toBeVisible();
   await expect(page.getByText('TAG_PATH_WHITESPACE', { exact: true })).toBeVisible();
 });
@@ -134,14 +134,14 @@ test('TAG editor protects changed drafts when switching entities', async ({ page
   });
   await page.getByRole('button', { name: /Demo\.Tank01\.Level/ }).click();
   await expect(page.getByLabel('Nome')).toHaveValue('Protected frequency draft');
-  await expect(page.getByLabel('Path')).toHaveValue('Demo.P01.Frequency');
+  await expect(page.getByLabel('Caminho')).toHaveValue('Demo.P01.Frequency');
 
   page.once('dialog', async dialog => {
     expect(dialog.type()).toBe('confirm');
     await dialog.accept();
   });
   await page.getByRole('button', { name: /Demo\.Tank01\.Level/ }).click();
-  await expect(page.getByLabel('Path')).toHaveValue('Demo.Tank01.Level');
+  await expect(page.getByLabel('Caminho')).toHaveValue('Demo.Tank01.Level');
 });
 
 test('TAG editor previews a new TAG as a create without applying it', async ({ page, request }) => {
@@ -155,10 +155,10 @@ test('TAG editor previews a new TAG as a create without applying it', async ({ p
   await expect(page.getByText('Novo', { exact: true })).toBeVisible();
 
   await page.getByLabel('Nome').fill('Preview Created Tag');
-  await page.getByLabel('Path').fill('Demo.Preview.CreatedTag');
-  await page.getByRole('button', { name: 'Validar preview' }).click();
+  await page.getByLabel('Caminho').fill('Demo.Preview.CreatedTag');
+  await page.getByTestId('engineering-preview').click();
 
-  await expect(page.getByText('Rascunho válido para aplicação', { exact: true })).toBeVisible();
+  await expect(page.getByText('Pronto para aplicar', { exact: true })).toBeVisible();
   await expect(page.getByTestId('preview-create-count')).toContainText('1 criações');
 
   const afterResponse = await request.get('/api/engineering/export/json');
@@ -179,8 +179,8 @@ test('Data Source editor uses the backend catalog and previews without mutating 
   expect(catalog.dataSourceTypes.length).toBeGreaterThan(0);
 
   await page.goto('/engineering');
-  await page.getByRole('button', { name: /Data Sources/ }).click();
-  await expect(page.getByRole('heading', { name: 'Editor de Data Source' })).toBeVisible();
+  await page.getByRole('button', { name: /Fontes de dados|Data Sources/ }).click();
+  await expect(page.getByRole('heading', { name: /Editor.*Fonte[s]? de dados|Data Source editor/ })).toBeVisible();
 
   const typePicker = page.getByTestId('data-source-type');
   await expect(typePicker).toBeVisible();
@@ -190,7 +190,7 @@ test('Data Source editor uses the backend catalog and previews without mutating 
   const form = page.locator('.eng-editor-form-panel');
   await form.getByLabel('Nome').fill('Simulation preview edit');
   await page.getByTestId('data-source-preview').click();
-  await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
+  await expect(page.getByText('Pronto para aplicar', { exact: true })).toBeVisible();
 
   const workspaceAfterResponse = await request.get('/api/engineering/workspace');
   expect(workspaceAfterResponse.ok()).toBeTruthy();
@@ -204,8 +204,8 @@ test('Data Source editor rebuilds settings when source type changes and previews
   const before = await beforeResponse.json() as { dataSources: Array<{ key: string }> };
 
   await page.goto('/engineering');
-  await page.getByRole('button', { name: /Data Sources/ }).click();
-  await page.getByRole('button', { name: 'Nova Data Source' }).click();
+  await page.getByRole('button', { name: /Fontes de dados|Data Sources/ }).click();
+  await page.getByRole('button', { name: /Nova Fonte de dados|New Data Source|Nueva Fuente de datos/ }).click();
 
   const form = page.locator('.eng-editor-form-panel');
   await form.getByLabel('Nome').fill('Preview Simulation Source');
@@ -217,7 +217,7 @@ test('Data Source editor rebuilds settings when source type changes and previews
   await expect(scanInterval).toHaveValue('500');
 
   await page.getByTestId('data-source-preview').click();
-  await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
+  await expect(page.getByText('Pronto para aplicar', { exact: true })).toBeVisible();
 
   const afterResponse = await request.get('/api/engineering/export/json');
   expect(afterResponse.ok()).toBeTruthy();
@@ -245,8 +245,8 @@ test('Alarm editor validates existing drafts and TAG references without mutating
   await expect(page.getByLabel('TAG associado')).toHaveValue('Demo.Discharge.Pressure');
 
   await page.getByLabel('Mensagem').fill('Pressure preview edit');
-  await page.getByRole('button', { name: 'Validar preview' }).click();
-  await expect(page.getByText('Rascunho válido para aplicação', { exact: true })).toBeVisible();
+  await page.getByTestId('engineering-preview').click();
+  await expect(page.getByText('Pronto para aplicar', { exact: true })).toBeVisible();
 
   const workspaceAfterResponse = await request.get('/api/engineering/workspace');
   expect(workspaceAfterResponse.ok()).toBeTruthy();
@@ -262,7 +262,7 @@ test('Alarm editor validates existing drafts and TAG references without mutating
   expect(unchanged?.message).toBe(original!.message);
 
   await page.getByLabel('TAG associado').fill('Demo.Missing.Tag');
-  await page.getByRole('button', { name: 'Validar preview' }).click();
+  await page.getByTestId('engineering-preview').click();
   await expect(page.getByText('O rascunho possui erros', { exact: true })).toBeVisible();
   await expect(page.getByText('ALARM_TAG_NOT_FOUND', { exact: true })).toBeVisible();
 });
@@ -282,9 +282,9 @@ test('Alarm editor previews a new alarm as a create without applying it', async 
   await page.getByLabel('Setpoint').fill('9.5');
   await page.getByLabel('Área').fill('Demo');
   await page.getByLabel('Mensagem').fill('Preview-only pressure alarm');
-  await page.getByRole('button', { name: 'Validar preview' }).click();
+  await page.getByTestId('engineering-preview').click();
 
-  await expect(page.getByText('Rascunho válido para aplicação', { exact: true })).toBeVisible();
+  await expect(page.getByText('Pronto para aplicar', { exact: true })).toBeVisible();
   await expect(page.getByTestId('preview-create-count')).toContainText('1 criações');
 
   const afterResponse = await request.get('/api/engineering/export/json');

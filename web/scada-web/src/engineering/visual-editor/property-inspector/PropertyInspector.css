@@ -219,6 +219,22 @@
   opacity: 0.45;
 }
 
+.property-inspector__asset-import {
+  justify-self: start;
+  min-height: 28px;
+  padding: 0.25rem 0.45rem;
+  border: 1px solid var(--border-color, #c7ced8);
+  border-radius: 0.35rem;
+  background: var(--panel-background, #fff);
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+.property-inspector__asset-import:disabled { cursor: default; opacity: 0.5; }
+.property-inspector__image-adjustment { display: flex; align-items: center; gap: 0.45rem; min-width: 0; }
+.property-inspector__image-adjustment input[type='range'] { flex: 1 1 auto; min-width: 3rem; }
+.property-inspector__image-adjustment output { min-width: 3.1rem; text-align: right; font-variant-numeric: tabular-nums; font-size: 0.75rem; }
+
 .property-inspector__reset {
   padding: 0;
   border: 0;
@@ -305,6 +321,22 @@
   border-color: var(--eng-border-soft, #202c39);
   background: rgba(11, 16, 22, 0.24);
 }
+.property-inspector { min-width:0; width:100%; box-sizing:border-box; }
+.property-inspector__identity { gap:6px; padding:6px 7px; border:1px solid var(--eng-border,var(--border-color,rgba(127,127,127,.28))); border-radius:6px; }
+.property-inspector__identity > summary { display:flex; align-items:center; justify-content:space-between; gap:6px; cursor:pointer; list-style:none; }
+.property-inspector__identity > summary::-webkit-details-marker { display:none; }
+.property-inspector__identity > summary::before { content:"›"; color:var(--eng-muted,#657080); }
+.property-inspector__identity[open] > summary::before { content:"⌄"; }
+.property-inspector__identity > summary code { min-width:0; overflow:hidden; color:var(--eng-muted,#657080); text-overflow:ellipsis; white-space:nowrap; }
+.property-inspector__identity-body { display:grid; gap:6px; padding-top:6px; }
+.property-inspector__identity-body > p { margin:0; color:var(--eng-muted,#657080); font-size:.7rem; }
+.property-inspector__identity-body .property-inspector__stable-id { display:none; }
+.property-inspector__field-label code { display:none; }
+.property-inspector__field-meta > span { display:none; }
+.property-inspector__state--default { display:none; }
+.eng-shell .property-inspector__group { background:var(--eng-panel,#121922); border-color:var(--eng-border,#283544); }
+.eng-shell .property-inspector__group-fields { background:var(--eng-panel,#121922); }
+.eng-shell .property-inspector__diagnostic { background:var(--eng-warning-bg,#3c2d10); color:var(--eng-text,#e8edf3); }
 .property-inspector__identity {
   display: grid;
   gap: 10px;

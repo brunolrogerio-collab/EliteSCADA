@@ -7,6 +7,7 @@ const adminPassword = 'E2Epass8';
 test.setTimeout(90_000);
 
 test('secure first-run creates the initial local Administrator, first project and durable local session', async ({ browser, baseURL, request }) => {
+  const apiBaseUrl = process.env.ELITESCADA_E2E_API_BASE_URL ?? 'http://127.0.0.1:5080';
   const context = await browser.newContext({
     baseURL: baseURL ?? 'http://127.0.0.1:5173',
     extraHTTPHeaders: { Authorization: '' }
@@ -155,28 +156,26 @@ test('secure first-run creates the initial local Administrator, first project an
 
     // The descriptor does not expose every canonical collection, so assert the
     // actual package that persistence/import/export use as the source of truth.
-    const canonicalProject = await page.evaluate(async () => {
-      const response = await fetch('/api/engineering/export/json');
-      return { status: response.status, body: await response.json() };
-    });
-    expect(canonicalProject.status).toBe(200);
-    expect(canonicalProject.body.tags).toHaveLength(0);
-    expect(canonicalProject.body.alarms).toHaveLength(0);
-    expect(canonicalProject.body.dataSources).toHaveLength(0);
-    expect(canonicalProject.body.templates).toHaveLength(0);
-    expect(canonicalProject.body.equipment).toHaveLength(0);
-    expect(canonicalProject.body.screens).toHaveLength(0);
-    expect(canonicalProject.body.popups).toHaveLength(0);
-    expect(canonicalProject.body.commands).toHaveLength(0);
-    expect(canonicalProject.body.gateways).toHaveLength(0);
-    expect(canonicalProject.body.scripts).toHaveLength(0);
-    expect(canonicalProject.body.scriptVisualEventReferences).toHaveLength(0);
-    expect(canonicalProject.body.visualAssets).toHaveLength(0);
-    expect(canonicalProject.body.reports).toHaveLength(0);
-    expect(canonicalProject.body.dynamos.length).toBeGreaterThan(0);
-    expect(canonicalProject.body.securityRoles).toHaveLength(0);
-    expect(canonicalProject.body.authorityPolicyReference).toBeTruthy();
-    expect(canonicalProject.body.authorityPolicyReference.roleIds).toEqual([
+    const canonicalProjectResponse = await page.request.get(`${apiBaseUrl}/api/engineering/export/json`);
+    expect(canonicalProjectResponse.status()).toBe(200);
+    const canonicalProject = await canonicalProjectResponse.json();
+    expect(canonicalProject.tags).toHaveLength(0);
+    expect(canonicalProject.alarms).toHaveLength(0);
+    expect(canonicalProject.dataSources).toHaveLength(0);
+    expect(canonicalProject.templates).toHaveLength(0);
+    expect(canonicalProject.equipment).toHaveLength(0);
+    expect(canonicalProject.screens).toHaveLength(0);
+    expect(canonicalProject.popups).toHaveLength(0);
+    expect(canonicalProject.commands).toHaveLength(0);
+    expect(canonicalProject.gateways).toHaveLength(0);
+    expect(canonicalProject.scripts).toHaveLength(0);
+    expect(canonicalProject.scriptVisualEventReferences).toHaveLength(0);
+    expect(canonicalProject.visualAssets).toHaveLength(0);
+    expect(canonicalProject.reports).toHaveLength(0);
+    expect(canonicalProject.dynamos.length).toBeGreaterThan(0);
+    expect(canonicalProject.securityRoles).toHaveLength(0);
+    expect(canonicalProject.authorityPolicyReference).toBeTruthy();
+    expect(canonicalProject.authorityPolicyReference.roleIds).toEqual([
       '46000000-0000-0000-0000-000000000002'
     ]);
 
@@ -257,7 +256,19 @@ test('secure first-run creates the initial local Administrator, first project an
           schema: policy.schema,
           schemaVersion: policy.schemaVersion,
           expectedVersion: policy.version,
-          roles: [...policy.roles, operator],
+          roles: [
+            ...policy.roles.map((role: { key: string; grants: Array<{ capability: string }> }) => role.key === 'developer'
+              ? {
+                ...role,
+                grants: [
+                  ...role.grants.filter(grant => !['engineeringModify', 'userRoleAdmin'].includes(grant.capability)),
+                  { capability: 'engineeringModify' },
+                  { capability: 'userRoleAdmin' }
+                ]
+              }
+              : role),
+            operator
+          ],
           scopes: policy.scopes
         })
       });
@@ -267,16 +278,14 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(authorityUpdate.body.roles.map((role: { key: string }) => role.key).sort())
       .toEqual(['developer', 'operator']);
 
-    const fixtureBase = await page.evaluate(async () => {
-      const response = await fetch('/api/engineering/export/json');
-      return { status: response.status, body: await response.json() };
-    });
-    expect(fixtureBase.status).toBe(200);
-    expect(fixtureBase.body.securityRoles).toHaveLength(0);
-    expect(fixtureBase.body.authorityPolicyReference.roleIds).toHaveLength(2);
+    const fixtureBaseResponse = await page.request.get(`${apiBaseUrl}/api/engineering/export/json`);
+    expect(fixtureBaseResponse.status()).toBe(200);
+    const fixtureBase = await fixtureBaseResponse.json();
+    expect(fixtureBase.securityRoles).toHaveLength(0);
+    expect(fixtureBase.authorityPolicyReference.roleIds).toHaveLength(2);
 
     const demoFixture = {
-      ...fixtureBase.body,
+      ...fixtureBase,
       tags: [
         { id: '10000000-0000-0000-0000-000000000001', name: 'Tank Level', path: 'Demo.Tank01.Level', dataType: 'double', source: 'memory.server.e2e', dataSourceId: '40000000-0000-0000-0000-000000000001', engineeringUnit: '%', readOnly: true, initialValue: { dataType: 'double', value: 62.5 } },
         { id: '10000000-0000-0000-0000-000000000002', name: 'Pump Running', path: 'Demo.P01.Running', dataType: 'boolean', source: 'memory.server.e2e', dataSourceId: '40000000-0000-0000-0000-000000000001', readOnly: false, initialValue: { dataType: 'boolean', value: true } },
@@ -353,7 +362,6 @@ test('secure first-run creates the initial local Administrator, first project an
         properties: { width: '640', height: '420' },
         context: { role: 'equipment-details' }
       }],
-      securityRoles: [],
       commands: [
         { id: '30000000-0000-0000-0000-000000000001', key: 'demo.p01.start', name: 'Start Pump P01', kind: 'writeTagValue', value: 'True', targetTagId: '10000000-0000-0000-0000-000000000002', targetTagPath: 'Demo.P01.Running', description: 'Starts the demo pump through the operational command domain.', area: 'Demo', equipmentPath: 'Demo.P01', enabled: true },
         { id: '30000000-0000-0000-0000-000000000002', key: 'demo.p01.stop', name: 'Stop Pump P01', kind: 'writeTagValue', value: 'False', targetTagId: '10000000-0000-0000-0000-000000000002', targetTagPath: 'Demo.P01.Running', description: 'Stops the demo pump through the operational command domain.', area: 'Demo', equipmentPath: 'Demo.P01', enabled: true }
@@ -361,15 +369,11 @@ test('secure first-run creates the initial local Administrator, first project an
       startupScreenId: '44000000-0000-0000-0000-000000000001'
     };
 
-    const fixtureApply = await page.evaluate(async fixture => {
-      const response = await fetch('/api/engineering/import/json/apply', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(fixture)
-      });
-      return { status: response.status, body: await response.json() };
-    }, demoFixture);
-    expect(fixtureApply.status).toBe(200);
+    const fixtureApply = await page.request.post(`${apiBaseUrl}/api/engineering/import/json/apply`, {
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      data: demoFixture
+    });
+    expect(fixtureApply.status()).toBe(200);
 
     const fixtureSave = await page.evaluate(async currentProjectKey => {
       const response = await fetch(`/api/engineering/persistence/${encodeURIComponent(currentProjectKey)}/save`, {
@@ -459,6 +463,285 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(populatedWorkspace.body.tagCount).toBe(7);
     expect(populatedWorkspace.body.securityRoleCount).toBe(1);
     expect(populatedWorkspace.body.isDirty).toBe(false);
+
+    // W15-INSTALLATION-UX mounted journey: preserve A, detach to true neutral,
+    // attach B through normal bootstrap/lifecycle, detach B, then restore A.
+    const authorityBackupPassword = 'Authority-A-backup-2026';
+    const applicationABackup = await page.evaluate(async ({ currentProjectKey, currentProjectName }) => {
+      const query = new URLSearchParams({ projectKey: currentProjectKey, projectName: currentProjectName });
+      const response = await fetch(`/api/project-package/export?${query.toString()}`);
+      return { status: response.status, bytes: Array.from(new Uint8Array(await response.arrayBuffer())) };
+    }, { currentProjectKey: projectKey, currentProjectName: 'E2E Explicit Demo Fixture' });
+    expect(applicationABackup.status).toBe(200);
+    expect(applicationABackup.bytes.length).toBeGreaterThan(100);
+
+    const authorityABackup = await page.evaluate(async password => {
+      const response = await fetch('/api/auth/authority-backup/export', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+      return { status: response.status, body: await response.json() };
+    }, authorityBackupPassword);
+    expect(authorityABackup.status).toBe(200);
+    expect(authorityABackup.body.backup).toContain('elitescada.authority-backup');
+
+    const licenseBeforeSwitch = await page.evaluate(async () => {
+      const response = await fetch('/api/licensing/status');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(licenseBeforeSwitch.status).toBe(200);
+
+    const detachCurrentApplication = async () => {
+      await page.goto('/engineering/installation');
+      await expect(page.getByTestId('installation-switching')).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByTestId('installation-current-state')).toBeVisible();
+      await page.getByRole('button', { name: 'Detach application from this installation' }).click();
+
+      await page.getByLabel(/Continue without exporting the Application now/).check();
+      await page.getByLabel(/Continue without exporting the Authority now/).check();
+      await page.getByLabel(/I understand this Application will stop being the one attached/).check();
+      await page.getByLabel(/I understand the current Authority will be detached/).check();
+      await page.getByLabel(/I understand Historian\/database data is preserved/).check();
+
+      const confirm = page.getByTestId('installation-detach-confirm');
+      await expect(confirm).toBeEnabled();
+      await Promise.all([
+        page.waitForURL(/\/$/),
+        confirm.click()
+      ]);
+    };
+
+    await detachCurrentApplication();
+
+    expect(await page.evaluate(async () => (await fetch('/api/auth/me')).status)).toBe(401);
+
+    // Reload proves that neutral is server/store-owned rather than React/session state.
+    await page.reload();
+    await expect(page.locator('input[name="bootstrap-username"]')).toBeVisible();
+
+    const adminBUsername = 'local-b-admin';
+    const adminBPassword = 'E2EBpass8';
+    await page.locator('input[name="bootstrap-username"]').fill(adminBUsername);
+    await page.locator('input[name="bootstrap-display-name"]').fill('Local B Administrator');
+    await page.locator('input[name="bootstrap-password"]').fill(adminBPassword);
+    await page.locator('input[name="bootstrap-password-confirmation"]').fill(adminBPassword);
+    await page.locator('button[type="submit"]').click();
+
+    await expect(page.getByRole('heading', { name: 'Create New Project' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('button', { name: 'Import application' })).toBeVisible();
+
+    const neutralAfterA = await page.evaluate(async () => {
+      const response = await fetch('/api/runtime/application');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(neutralAfterA.status).toBe(200);
+    expect(neutralAfterA.body.mode).toBe('neutral');
+    expect(neutralAfterA.body.projectKey).toBeNull();
+
+    const licenseAfterA = await page.evaluate(async () => {
+      const response = await fetch('/api/licensing/status');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(licenseAfterA.status).toBe(200);
+    expect(licenseAfterA.body.license.state).toBe(licenseBeforeSwitch.body.license.state);
+
+    const projectBKey = 'e2e-plant-b';
+    await page.locator('input[name="project-key"]').fill(projectBKey);
+    await page.locator('input[name="project-name"]').fill('E2E Plant B');
+    await page.locator('button[type="submit"]').click();
+    await expect(page.locator('.eng-shell')).toBeVisible({ timeout: 15_000 });
+
+    const bWorkspaceResponse = await page.request.get(`${apiBaseUrl}/api/engineering/workspace`);
+    expect(bWorkspaceResponse.status()).toBe(200);
+    const bWorkspace = await bWorkspaceResponse.json();
+    const engineeringResponse = await page.request.get(`${apiBaseUrl}/api/engineering/export/json`);
+    expect(engineeringResponse.status()).toBe(200);
+    const engineering = await engineeringResponse.json();
+
+    // A fresh First Project is intentionally neutral Engineering content. Give B
+    // one canonical self-contained Server Memory source/TAG through the same
+    // Preview/Apply contract used by product CI so Publish -> Activate exercises
+    // a real Runtime instead of relying on any hidden Demo fallback. Keep this
+    // large package transfer off the development-server proxy on Windows.
+    const dataSourceId = '96000000-0000-0000-0000-000000000001';
+    const tagId = '96000000-0000-0000-0000-000000000002';
+    const activatableEngineering = {
+      ...engineering,
+      exportedAt: new Date().toISOString(),
+      dataSources: [{
+        id: dataSourceId,
+        key: 'installation.b.memory.server',
+        name: 'Installation B Server Memory',
+        driver: 'builtin.memory.server',
+        enabled: true,
+        metadata: { owner: 'w15-installation-e2e' }
+      }],
+      tags: [{
+        id: tagId,
+        name: 'Runtime Value',
+        path: 'Installation.B.RuntimeValue',
+        dataType: 'double',
+        source: 'installation.b.memory.server',
+        address: null,
+        engineeringUnit: '%',
+        description: 'Self-contained Runtime value for Installation B switching acceptance',
+        readOnly: false,
+        scaleMinimum: 0,
+        scaleMaximum: 100,
+        historian: {
+          enabled: false,
+          strategy: 'change',
+          deadband: null,
+          periodMilliseconds: null,
+          maximumPeriodMilliseconds: null
+        },
+        metadata: { owner: 'w15-installation-e2e' },
+        initialValue: { dataType: 'double', value: 42.5 },
+        dataSourceId
+      }],
+      alarms: [],
+      commands: [],
+      gateways: []
+    };
+
+    const preview = await page.request.post(`${apiBaseUrl}/api/engineering/import/json/preview`, {
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      data: activatableEngineering
+    });
+    const previewBody = await preview.json();
+    const apply = await page.request.post(`${apiBaseUrl}/api/engineering/import/json/apply`, {
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+        'x-elitescada-workspace-version': String(bWorkspace.changeVersion)
+      },
+      data: activatableEngineering
+    });
+    const applyBody = await apply.json();
+    const save = await page.request.post(`${apiBaseUrl}/api/engineering/persistence/${encodeURIComponent(projectBKey)}/save`, {
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      data: { projectName: 'E2E Plant B' }
+    });
+    const saveBody = await save.json();
+    const revision = saveBody.revision as number;
+    const publish = await page.request.post(`${apiBaseUrl}/api/engineering/persistence/${encodeURIComponent(projectBKey)}/revisions/${revision}/publish`, {
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      data: { publishedBy: 'installation-e2e-b' }
+    });
+    const publishBody = await publish.json();
+    const activate = await page.request.post(`${apiBaseUrl}/api/engineering/persistence/${encodeURIComponent(projectBKey)}/published/activate`, {
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      data: { activatedBy: 'installation-e2e-b' }
+    });
+    const activateBody = await activate.json();
+    const bLifecycle = {
+      previewStatus: preview.status(),
+      previewBody,
+      applyStatus: apply.status(),
+      applyBody,
+      saveStatus: save.status(),
+      saveBody,
+      revision,
+      publishStatus: publish.status(),
+      publishBody,
+      activateStatus: activate.status(),
+      activateBody
+    };
+    expect(bLifecycle.previewStatus).toBe(200);
+    expect(bLifecycle.previewBody.canApply).toBe(true);
+    expect(bLifecycle.previewBody.errorCount ?? 0).toBe(0);
+    expect(bLifecycle.applyStatus).toBe(200);
+    expect((bLifecycle.applyBody.issues ?? []).some((issue: { isError?: boolean }) => issue.isError)).toBe(false);
+    expect(bLifecycle.saveStatus).toBe(200);
+    expect(bLifecycle.revision).toBeGreaterThan(0);
+    expect(bLifecycle.publishStatus).toBe(200);
+    expect(bLifecycle.activateStatus).toBe(200);
+    expect(bLifecycle.activateBody.activated).toBe(true);
+
+    const runtimeB = await page.evaluate(async () => {
+      const response = await fetch('/api/runtime/application');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(runtimeB.status).toBe(200);
+    expect(runtimeB.body.mode).toBe('engineering');
+    expect(runtimeB.body.projectKey).toBe(projectBKey);
+    expect(runtimeB.body.revision).toBe(bLifecycle.revision);
+
+    const usersInB = await page.evaluate(async () => {
+      const response = await fetch('/api/auth/users');
+      return { status: response.status, body: await response.json() };
+    });
+    expect(usersInB.status).toBe(200);
+    expect(usersInB.body.map((user: { username: string }) => user.username)).toContain(adminBUsername);
+    expect(usersInB.body.map((user: { username: string }) => user.username)).not.toContain(adminUsername);
+
+    await detachCurrentApplication();
+    expect(await page.evaluate(async () => (await fetch('/api/auth/me')).status)).toBe(401);
+    await expect(page.locator('input[name="bootstrap-username"]')).toBeVisible({ timeout: 15_000 });
+
+    // Restore A through the full neutral Restore path: Authority and Application remain
+    // two separate artifacts, and the restored Authority must authenticate before Apply.
+    await page.getByRole('button', { name: 'Restore backup' }).click();
+    await page.getByTestId('recovery-application-file').setInputFiles({
+      name: 'application-a.escadapkg',
+      mimeType: 'application/vnd.elitescada.project-package',
+      buffer: Buffer.from(applicationABackup.bytes)
+    });
+    await page.getByTestId('recovery-authority-file').setInputFiles({
+      name: 'authority-a.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(authorityABackup.body.backup)
+    });
+    await page.getByTestId('recovery-authority-password').fill(authorityBackupPassword);
+    await page.getByRole('button', { name: 'Validate backups' }).click();
+    await page.getByRole('button', { name: 'Restore Authority' }).click();
+
+    await expect(page.locator('input[name="username"]')).toBeVisible({ timeout: 15_000 });
+    const staleBLogin = await page.evaluate(async ({ username, password }) => {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      return response.status;
+    }, { username: adminBUsername, password: adminBPassword });
+    expect(staleBLogin).toBe(401);
+
+    await page.locator('input[name="username"]').fill(adminUsername);
+    await page.locator('input[name="password"]').fill(adminPassword);
+    await page.locator('button[type="submit"]').click();
+
+    await expect(page.getByTestId('restore-first-application')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: 'Import application' })).toBeVisible();
+    await page.getByRole('button', { name: 'Validate application' }).click();
+    await page.getByRole('button', { name: 'Import application' }).click();
+    await expect(page.getByTestId('runtime-engineering-application')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId('runtime-engineering-canvas')).toBeVisible();
+
+    const restoredA = await page.evaluate(async currentProjectKey => {
+      const [workspaceResponse, runtimeResponse, usersResponse] = await Promise.all([
+        fetch('/api/engineering/workspace'),
+        fetch(`/api/engineering/persistence/${encodeURIComponent(currentProjectKey)}/runtime`),
+        fetch('/api/auth/users')
+      ]);
+      return {
+        workspace: await workspaceResponse.json(),
+        runtime: await runtimeResponse.json(),
+        users: await usersResponse.json()
+      };
+    }, projectKey);
+    expect(restoredA.workspace.projectKey).toBe(projectKey);
+    expect(restoredA.runtime.consistent).toBe(true);
+    expect(restoredA.runtime.live.projectKey).toBe(projectKey);
+    expect(restoredA.users.map((user: { username: string }) => user.username)).toContain(adminUsername);
+    expect(restoredA.users.map((user: { username: string }) => user.username)).not.toContain(adminBUsername);
+
+    const historianAfterRestore = await page.evaluate(async tagId => {
+      const response = await fetch(`/api/history/${tagId}?limit=5`);
+      return { status: response.status, body: response.ok ? await response.json() : [] };
+    }, historianTagId);
+    expect(historianAfterRestore.status).toBe(200);
+    expect(historianAfterRestore.body.length).toBeGreaterThan(0);
 
     const logoutStatus = await page.evaluate(async () =>
       (await fetch('/api/auth/logout', { method: 'POST' })).status);

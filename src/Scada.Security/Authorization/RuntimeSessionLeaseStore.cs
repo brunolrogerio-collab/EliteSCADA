@@ -49,6 +49,37 @@ public sealed record RuntimeSessionLeaseState(
     bool IsActive,
     long AuthorityRevision = 1);
 
+/// <summary>
+/// Durable termination/expiry evidence imported from an authenticated HA peer. Tombstones
+/// live in the same canonical session ledger boundary so a replicated lease can never be
+/// resurrected through a separate HA-only quota store.
+/// </summary>
+public sealed record RuntimeSessionLeaseTombstoneState(
+    string ClusterId,
+    string SubjectId,
+    string ClientInstanceId,
+    Guid SessionId,
+    long Generation,
+    long AuthorityRevision,
+    DateTimeOffset IssuedAtUtc,
+    string SourceNode,
+    DateTimeOffset RecordedAtUtc,
+    string ReasonCode);
+
+public sealed record RuntimeSessionReplicationMutationResult(
+    bool Accepted,
+    string ReasonCode,
+    RuntimeSessionLeaseState? Lease = null)
+{
+    public static RuntimeSessionReplicationMutationResult Accept(
+        string reasonCode,
+        RuntimeSessionLeaseState? lease = null) =>
+        new(true, reasonCode, lease);
+
+    public static RuntimeSessionReplicationMutationResult Reject(string reasonCode) =>
+        new(false, reasonCode, null);
+}
+
 public sealed record RuntimeAuthorityState(
     long AuthorityRevision,
     bool TransitionPending,
@@ -201,6 +232,31 @@ public interface IRuntimeSessionLeaseStore : IAsyncDisposable
         RuntimeSessionLeaseCapacityAdmission admission,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Atomically adopts an authenticated peer lease as the exact same logical lease.
+    /// This does not perform admission or reserve a second seat.
+    /// </summary>
+    Task<RuntimeSessionReplicationMutationResult> AdoptReplicatedAsync(
+        RuntimeSessionLeaseState lease,
+        string expectedClusterId,
+        string expectedSourceNode,
+        RuntimeSessionRuntimeIdentity expectedRuntime,
+        long expectedAuthorityRevision,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(RuntimeSessionReplicationMutationResult.Reject(
+            "replicated-session-adoption-not-supported"));
+
+    /// <summary>
+    /// Applies peer termination/expiry evidence under the same canonical mutation boundary.
+    /// </summary>
+    Task<RuntimeSessionReplicationMutationResult> ApplyReplicatedTombstoneAsync(
+        RuntimeSessionLeaseTombstoneState tombstone,
+        string expectedClusterId,
+        string expectedSourceNode,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(RuntimeSessionReplicationMutationResult.Reject(
+            "replicated-session-tombstone-not-supported"));
+
     Task<RuntimeSessionLeaseStoreResult> ValidateAsync(
         Guid sessionId,
         string subjectId,
@@ -229,6 +285,8 @@ public interface IRuntimeSessionLeaseStore : IAsyncDisposable
 public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
 {
     private readonly Dictionary<Guid, RuntimeSessionLeaseState> _leases = new();
+    private readonly Dictionary<string, RuntimeSessionLeaseTombstoneState> _replicationTombstones =
+        new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Func<DateTimeOffset> _utcNow;
     private long _authorityRevision = 1;
@@ -564,6 +622,166 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
         }
     }
 
+    public async Task<RuntimeSessionReplicationMutationResult> AdoptReplicatedAsync(
+        RuntimeSessionLeaseState lease,
+        string expectedClusterId,
+        string expectedSourceNode,
+        RuntimeSessionRuntimeIdentity expectedRuntime,
+        long expectedAuthorityRevision,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(lease);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedClusterId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedSourceNode);
+        ArgumentNullException.ThrowIfNull(expectedRuntime);
+
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_transitionPending)
+                return RuntimeSessionReplicationMutationResult.Reject("authority-transition-pending");
+            if (_authorityRevision != expectedAuthorityRevision ||
+                lease.AuthorityRevision != expectedAuthorityRevision)
+            {
+                return RuntimeSessionReplicationMutationResult.Reject("authority-revision-changed");
+            }
+
+            var normalized = NormalizeReplicatedLease(lease);
+            var validationFailure = ValidateReplicatedLease(
+                normalized,
+                expectedClusterId,
+                expectedSourceNode,
+                expectedRuntime,
+                _utcNow());
+            if (validationFailure is not null)
+                return RuntimeSessionReplicationMutationResult.Reject(validationFailure);
+
+            var tombstoneKey = ReplicationTombstoneKey(
+                normalized.ClusterId!,
+                normalized.SubjectId,
+                normalized.ClientInstanceId);
+            if (_replicationTombstones.TryGetValue(tombstoneKey, out var tombstone))
+            {
+                if (tombstone.SessionId == normalized.SessionId)
+                    return RuntimeSessionReplicationMutationResult.Reject("session-resurrection-rejected");
+                if (normalized.IssuedAtUtc <= tombstone.IssuedAtUtc)
+                    return RuntimeSessionReplicationMutationResult.Reject("replicated-session-older-than-tombstone");
+            }
+
+            if (_leases.TryGetValue(normalized.SessionId, out var sameSession))
+            {
+                if (!sameSession.IsActive)
+                    return RuntimeSessionReplicationMutationResult.Reject("session-resurrection-rejected");
+                if (!ReplicatedIdentityMatches(sameSession, normalized))
+                    return RuntimeSessionReplicationMutationResult.Reject("replicated-session-conflict");
+                if (normalized.Generation < sameSession.Generation)
+                    return RuntimeSessionReplicationMutationResult.Reject("replicated-session-stale-generation");
+                if (normalized.Generation == sameSession.Generation &&
+                    normalized.LastHeartbeatUtc <= sameSession.LastHeartbeatUtc &&
+                    normalized.ExpiresAtUtc <= sameSession.ExpiresAtUtc)
+                {
+                    return RuntimeSessionReplicationMutationResult.Accept(
+                        "replicated-session-already-current",
+                        sameSession);
+                }
+
+                _leases[normalized.SessionId] = normalized;
+                return RuntimeSessionReplicationMutationResult.Accept(
+                    "replicated-session-updated",
+                    normalized);
+            }
+
+            var logicalConflict = _leases.Values.FirstOrDefault(candidate =>
+                candidate.IsActive &&
+                candidate.SubjectId.Equals(normalized.SubjectId, StringComparison.Ordinal) &&
+                candidate.ClientInstanceId.Equals(normalized.ClientInstanceId, StringComparison.Ordinal));
+            if (logicalConflict is not null)
+                return RuntimeSessionReplicationMutationResult.Reject("replicated-logical-session-conflict");
+
+            _leases.Add(normalized.SessionId, normalized);
+            return RuntimeSessionReplicationMutationResult.Accept(
+                "replicated-session-adopted",
+                normalized);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    public async Task<RuntimeSessionReplicationMutationResult> ApplyReplicatedTombstoneAsync(
+        RuntimeSessionLeaseTombstoneState tombstone,
+        string expectedClusterId,
+        string expectedSourceNode,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(tombstone);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedClusterId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedSourceNode);
+
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_transitionPending)
+                return RuntimeSessionReplicationMutationResult.Reject("authority-transition-pending");
+
+            var normalized = NormalizeReplicatedTombstone(tombstone);
+            var failure = ValidateReplicatedTombstone(
+                normalized,
+                expectedClusterId,
+                expectedSourceNode);
+            if (failure is not null)
+                return RuntimeSessionReplicationMutationResult.Reject(failure);
+            if (normalized.AuthorityRevision > _authorityRevision)
+                return RuntimeSessionReplicationMutationResult.Reject("authority-revision-changed");
+
+            var key = ReplicationTombstoneKey(
+                normalized.ClusterId,
+                normalized.SubjectId,
+                normalized.ClientInstanceId);
+            if (_replicationTombstones.TryGetValue(key, out var current))
+            {
+                if (normalized.AuthorityRevision < current.AuthorityRevision ||
+                    (normalized.AuthorityRevision == current.AuthorityRevision &&
+                     normalized.Generation < current.Generation) ||
+                    (normalized.AuthorityRevision == current.AuthorityRevision &&
+                     normalized.Generation == current.Generation &&
+                     normalized.RecordedAtUtc <= current.RecordedAtUtc))
+                {
+                    return RuntimeSessionReplicationMutationResult.Accept(
+                        "replicated-tombstone-already-current");
+                }
+            }
+
+            if (_leases.TryGetValue(normalized.SessionId, out var lease) &&
+                lease.IsActive)
+            {
+                if (lease.AuthorityRevision > normalized.AuthorityRevision ||
+                    lease.Generation > normalized.Generation)
+                {
+                    return RuntimeSessionReplicationMutationResult.Reject(
+                        "replicated-tombstone-stale");
+                }
+
+                _leases[lease.SessionId] = lease with
+                {
+                    Generation = Math.Max(
+                        checked(lease.Generation + 1),
+                        normalized.Generation),
+                    IsActive = false
+                };
+            }
+
+            _replicationTombstones[key] = normalized;
+            return RuntimeSessionReplicationMutationResult.Accept(
+                "replicated-tombstone-applied");
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     public async Task<RuntimeSessionLeaseStoreResult> ValidateAsync(
         Guid sessionId,
         string subjectId,
@@ -730,6 +948,105 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
         if (admission.LeaseDuration <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(admission), "Lease duration must be positive.");
     }
+
+    private static RuntimeSessionLeaseState NormalizeReplicatedLease(
+        RuntimeSessionLeaseState lease) =>
+        lease with
+        {
+            SubjectId = lease.SubjectId.Trim(),
+            ClientInstanceId = lease.ClientInstanceId.Trim(),
+            GrantedConnectionClass = IsViewOnlyConnectionClass(lease.GrantedConnectionClass)
+                ? "viewer"
+                : "interactive",
+            IssuedAtUtc = RuntimeDemoSessionAnchor.Normalize(lease.IssuedAtUtc),
+            LastHeartbeatUtc = RuntimeDemoSessionAnchor.Normalize(lease.LastHeartbeatUtc),
+            ExpiresAtUtc = RuntimeDemoSessionAnchor.Normalize(lease.ExpiresAtUtc),
+            Runtime = lease.Runtime.NormalizeStoragePrecision(),
+            ServerNode = NormalizeOptional(lease.ServerNode),
+            ClusterId = NormalizeOptional(lease.ClusterId),
+            IsActive = true
+        };
+
+    private static RuntimeSessionLeaseTombstoneState NormalizeReplicatedTombstone(
+        RuntimeSessionLeaseTombstoneState tombstone) =>
+        tombstone with
+        {
+            ClusterId = tombstone.ClusterId.Trim(),
+            SubjectId = tombstone.SubjectId.Trim(),
+            ClientInstanceId = tombstone.ClientInstanceId.Trim(),
+            SourceNode = tombstone.SourceNode.Trim(),
+            IssuedAtUtc = RuntimeDemoSessionAnchor.Normalize(tombstone.IssuedAtUtc),
+            RecordedAtUtc = RuntimeDemoSessionAnchor.Normalize(tombstone.RecordedAtUtc),
+            ReasonCode = tombstone.ReasonCode.Trim()
+        };
+
+    private static string? ValidateReplicatedLease(
+        RuntimeSessionLeaseState lease,
+        string expectedClusterId,
+        string expectedSourceNode,
+        RuntimeSessionRuntimeIdentity expectedRuntime,
+        DateTimeOffset now)
+    {
+        if (lease.SessionId == Guid.Empty) return "replicated-session-id-invalid";
+        if (string.IsNullOrWhiteSpace(lease.SubjectId)) return "replicated-session-subject-missing";
+        if (string.IsNullOrWhiteSpace(lease.ClientInstanceId) ||
+            lease.ClientInstanceId.Length > 128)
+            return "replicated-session-client-invalid";
+        if (lease.Generation < 1) return "replicated-session-generation-invalid";
+        if (lease.AuthorityRevision < 1) return "replicated-session-authority-revision-invalid";
+        if (lease.ExpiresAtUtc <= lease.LastHeartbeatUtc ||
+            lease.LastHeartbeatUtc < lease.IssuedAtUtc)
+            return "replicated-session-time-invalid";
+        if (lease.ExpiresAtUtc <= now) return "replicated-session-expired";
+        if (!string.Equals(lease.ClusterId, expectedClusterId.Trim(), StringComparison.OrdinalIgnoreCase))
+            return "replicated-session-cluster-mismatch";
+        if (!string.Equals(lease.ServerNode, expectedSourceNode.Trim(), StringComparison.OrdinalIgnoreCase))
+            return "replicated-session-source-mismatch";
+        if (!lease.Runtime.Matches(expectedRuntime))
+            return "replicated-session-runtime-mismatch";
+        return null;
+    }
+
+    private static string? ValidateReplicatedTombstone(
+        RuntimeSessionLeaseTombstoneState tombstone,
+        string expectedClusterId,
+        string expectedSourceNode)
+    {
+        if (tombstone.SessionId == Guid.Empty) return "replicated-tombstone-session-id-invalid";
+        if (string.IsNullOrWhiteSpace(tombstone.SubjectId) ||
+            string.IsNullOrWhiteSpace(tombstone.ClientInstanceId))
+            return "replicated-tombstone-identity-invalid";
+        if (tombstone.Generation < 1 || tombstone.AuthorityRevision < 1)
+            return "replicated-tombstone-version-invalid";
+        if (string.IsNullOrWhiteSpace(tombstone.ReasonCode))
+            return "replicated-tombstone-reason-missing";
+        if (!tombstone.ClusterId.Equals(expectedClusterId.Trim(), StringComparison.OrdinalIgnoreCase))
+            return "replicated-tombstone-cluster-mismatch";
+        if (!tombstone.SourceNode.Equals(expectedSourceNode.Trim(), StringComparison.OrdinalIgnoreCase))
+            return "replicated-tombstone-source-mismatch";
+        return null;
+    }
+
+    private static bool ReplicatedIdentityMatches(
+        RuntimeSessionLeaseState left,
+        RuntimeSessionLeaseState right) =>
+        left.SubjectId.Equals(right.SubjectId, StringComparison.Ordinal) &&
+        left.ClientInstanceId.Equals(right.ClientInstanceId, StringComparison.Ordinal) &&
+        string.Equals(left.GrantedConnectionClass, right.GrantedConnectionClass, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(left.ServerNode, right.ServerNode, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(left.ClusterId, right.ClusterId, StringComparison.OrdinalIgnoreCase) &&
+        left.AuthorityRevision == right.AuthorityRevision &&
+        left.IssuedAtUtc == right.IssuedAtUtc &&
+        left.Runtime.Matches(right.Runtime);
+
+    private static string ReplicationTombstoneKey(
+        string clusterId,
+        string subjectId,
+        string clientInstanceId) =>
+        string.Concat(
+            clusterId.Trim().ToUpperInvariant(), "\n",
+            subjectId.Trim(), "\n",
+            clientInstanceId.Trim());
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

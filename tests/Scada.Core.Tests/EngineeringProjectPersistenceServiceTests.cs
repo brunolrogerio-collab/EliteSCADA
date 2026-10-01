@@ -187,6 +187,34 @@ public sealed class EngineeringProjectPersistenceServiceTests
     }
 
     [Fact]
+    public async Task RecordActivation_FailsClosedWhileInstallationAttachIsInProgress()
+    {
+        var tags = new InMemoryTagRegistry();
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var exchange = new EngineeringExchangeService(tags, alarms);
+        var store = new FakeEngineeringProjectStore();
+        var binding = new FixedInstallationBindingStore(
+            EngineeringInstallationBindingState.AttachInProgress,
+            "plant-a");
+        var service = new EngineeringProjectPersistenceService(
+            exchange,
+            store,
+            visualAssets: null,
+            installationBinding: binding);
+
+        var revision = await service.SaveCurrentAsync("plant-a", "Plant A");
+        var published = await service.PublishRevisionAsync("plant-a", revision.Revision, "supervisor");
+        Assert.NotNull(published);
+        Assert.True(published!.Published);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.RecordActivationAsync("plant-a", revision.Revision, "operator"));
+
+        Assert.Contains("Attached", error.Message, StringComparison.Ordinal);
+        Assert.Null(await store.GetActivationAsync("plant-a"));
+    }
+
+    [Fact]
     public async Task LoadPublishedAsync_ReturnsPublishedSnapshotNotLatestDraft()
     {
         var tags = new InMemoryTagRegistry();
@@ -392,6 +420,50 @@ public sealed class EngineeringProjectPersistenceServiceTests
             ImportMode mode,
             EngineeringImportContext? context) =>
             inner.Apply(package, mode, context);
+    }
+
+    private sealed class FixedInstallationBindingStore(
+        EngineeringInstallationBindingState state,
+        string? projectKey) : IEngineeringInstallationBindingStore
+    {
+        private readonly EngineeringInstallationBindingSnapshot _snapshot =
+            new(state, projectKey, 1, DateTimeOffset.UtcNow);
+
+        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<EngineeringInstallationBindingSnapshot> GetAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(_snapshot);
+
+        public Task<EngineeringInstallationBindingSnapshot> AdoptLegacyAsync(
+            string? projectKey,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<EngineeringInstallationBindingSnapshot> BeginAttachAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<EngineeringInstallationBindingSnapshot> CompleteAttachAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<EngineeringInstallationBindingSnapshot> AbortAttachAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<EngineeringInstallationBindingSnapshot> BeginDetachAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<EngineeringInstallationBindingSnapshot> CompleteDetachAsync(
+            string projectKey,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FakeEngineeringProjectStore : IEngineeringProjectStore

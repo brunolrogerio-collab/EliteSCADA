@@ -16,6 +16,7 @@ public sealed class VisualPropertyCatalogConvergenceTests
             .Concat(CommonVisualPropertyDefinitions.Text)
             .Concat(CommonVisualPropertyDefinitions.Image)
             .Concat(CommonVisualPropertyDefinitions.Slider)
+            .Concat(CommonVisualPropertyDefinitions.NumericInput)
             .Select(property => property.Key)
             .ToArray();
 
@@ -30,9 +31,9 @@ public sealed class VisualPropertyCatalogConvergenceTests
             "text", "textColor", "fontFamily", "fontSize", "fontWeight", "fontStyle",
             "underline", "textWrap", "lineHeight", "textOverflow",
             "horizontalAlignment", "verticalAlignment",
-            "assetRef", "imageFit", "imagePositionX", "imagePositionY",
+            "assetRef", "imageFit", "imagePositionX", "imagePositionY", "imageZoom",
             "value", "minimum", "maximum", "step", "orientation", "interactionEnabled",
-            "reverseDirection", "trackColor", "thumbColor"
+            "reverseDirection", "trackColor", "thumbColor", "showApplyButton"
         ], keys);
 
         Assert.DoesNotContain(VisualPropertyKeys.ImageResourceId, keys);

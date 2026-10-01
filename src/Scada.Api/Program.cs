@@ -47,6 +47,7 @@ builder.Services.AddSingleton<TagRealtimeHub>();
 builder.AddConfiguredHistorian();
 builder.AddConfiguredServerMemoryRetention();
 builder.Services.AddSingleton<RuntimeHighAvailabilityService>();
+builder.Services.AddRuntimeHighAvailabilityPeerTransport();
 
 builder.Services.AddSingleton(_ => new EngineeringWorkspace(seedDemo: false));
 builder.Services.AddSingleton<ITagRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Tags);
@@ -162,6 +163,7 @@ app.MapProductIdentityEndpoints();
 app.MapRuntimeEngineeringPackageEndpoints();
 if (localIdentityEnabled) app.MapInstallationDetachEndpoints();
 app.MapRuntimeHighAvailabilityEndpoints();
+app.MapRuntimeHighAvailabilityPeerTransportEndpoints();
 if (historicalQueryEnabled) app.MapHistoricalQueryEndpoints();
 
 // Public health intentionally exposes no plant, driver, project or historian detail.

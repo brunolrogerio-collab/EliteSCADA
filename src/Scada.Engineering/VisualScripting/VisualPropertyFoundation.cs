@@ -349,12 +349,14 @@ public static class VisualPropertyKeys
     public const string ImageFit = "imageFit";
     public const string ImagePositionX = "imagePositionX";
     public const string ImagePositionY = "imagePositionY";
+    public const string ImageZoom = "imageZoom";
     public const string Value = "value";
     public const string Minimum = "minimum";
     public const string Maximum = "maximum";
     public const string Step = "step";
     public const string Orientation = "orientation";
     public const string InteractionEnabled = "interactionEnabled";
+    public const string ShowApplyButton = "showApplyButton";
     public const string ReverseDirection = "reverseDirection";
     public const string TrackColor = "trackColor";
     public const string ThumbColor = "thumbColor";
@@ -446,7 +448,8 @@ public static class CommonVisualPropertyDefinitions
             presentationHint: "project-asset"),
         EnumString(VisualPropertyKeys.ImageFit, "contain", ["contain", "cover", "fill", "native"]),
         Number(VisualPropertyKeys.ImagePositionX, 0, minimum: 0, maximum: 1, animatable: true),
-        Number(VisualPropertyKeys.ImagePositionY, 0, minimum: 0, maximum: 1, animatable: true)
+        Number(VisualPropertyKeys.ImagePositionY, 0, minimum: 0, maximum: 1, animatable: true),
+        Number(VisualPropertyKeys.ImageZoom, 1, minimum: 1, maximum: 8, animatable: true)
     ];
 
     public static IReadOnlyList<VisualPropertyDefinition> Slider { get; } =
@@ -460,6 +463,11 @@ public static class CommonVisualPropertyDefinitions
         Boolean(VisualPropertyKeys.ReverseDirection, false),
         Color(VisualPropertyKeys.TrackColor, "#6B7280", animatable: true),
         Color(VisualPropertyKeys.ThumbColor, "#E5E7EB", animatable: true)
+    ];
+
+    public static IReadOnlyList<VisualPropertyDefinition> NumericInput { get; } =
+    [
+        Boolean(VisualPropertyKeys.ShowApplyButton, true)
     ];
 
     private static VisualPropertyDefinition Boolean(string key, bool value) =>

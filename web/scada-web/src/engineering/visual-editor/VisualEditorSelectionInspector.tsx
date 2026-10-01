@@ -21,7 +21,10 @@ export function VisualEditorSelectionInspector({
   activeTab,
   onActiveTabChange,
   onMutationIntent,
-  onCommand
+  onCommand,
+  onImportImage,
+  imageImportDisabled,
+  imageImportBusy
 }: {
   screen: ScreenEngineering;
   selectedElements: readonly VisualElementEngineering[];
@@ -33,6 +36,9 @@ export function VisualEditorSelectionInspector({
   onActiveTabChange: (tab: VisualEditorInspectorTab) => void;
   onMutationIntent: (intent: VisualEditorMutationIntent) => void;
   onCommand?: (command: VisualEditorKeyboardCommand) => void;
+  onImportImage?: (file: File) => Promise<string | null | void> | string | null | void;
+  imageImportDisabled?: boolean;
+  imageImportBusy?: boolean;
 }) {
   const text = inspectorText(locale);
   const selectedElement = selectedElements.length === 1 ? selectedElements[0] : null;
@@ -52,9 +58,11 @@ export function VisualEditorSelectionInspector({
     <div className="visual-editor-inspector-tabs" role="tablist" aria-label={text.context}>
       {(['properties', 'dynamics', 'events'] as const).map(tab => <button
         key={tab}
+        id={`visual-editor-inspector-tab-${tab}`}
         type="button"
         role="tab"
         aria-selected={activeTab === tab}
+        aria-controls={`visual-editor-inspector-section-${tab}`}
         className={activeTab === tab ? 'is-active' : ''}
         onClick={() => onActiveTabChange(tab)}
         data-testid={`visual-editor-inspector-tab-${tab}`}
@@ -62,13 +70,16 @@ export function VisualEditorSelectionInspector({
     </div>
 
     <div className="visual-editor-inspector-panel" data-inspector-tab={activeTab}>
-      <section className={`visual-editor-inspector-section${activeTab === 'properties' ? ' is-active' : ''}`} data-inspector-section="properties">
+      <section id="visual-editor-inspector-section-properties" role="tabpanel" aria-labelledby="visual-editor-inspector-tab-properties" hidden={activeTab !== 'properties'} className={`visual-editor-inspector-section${activeTab === 'properties' ? ' is-active' : ''}`} data-inspector-section="properties">
         <p className="visual-editor-inspector-hint">{text.propertiesHint}</p>
         <PropertyInspector
           selectedElements={selectedElements}
           visualAssets={visualAssets}
           onMutationIntent={onMutationIntent}
           showEvents={false}
+          onImportImage={onImportImage}
+          imageImportDisabled={imageImportDisabled}
+          imageImportBusy={imageImportBusy}
         />
         <DynamoInstanceInspector
           screen={screen}
@@ -77,7 +88,7 @@ export function VisualEditorSelectionInspector({
         />
       </section>
 
-      <section className={`visual-editor-inspector-section${activeTab === 'dynamics' ? ' is-active' : ''}`} data-inspector-section="dynamics">
+      <section id="visual-editor-inspector-section-dynamics" role="tabpanel" aria-labelledby="visual-editor-inspector-tab-dynamics" hidden={activeTab !== 'dynamics'} className={`visual-editor-inspector-section${activeTab === 'dynamics' ? ' is-active' : ''}`} data-inspector-section="dynamics">
         {selectedElement?.id ? <>
         <DynamicPropertyEditor
           element={selectedElement}
@@ -102,7 +113,7 @@ export function VisualEditorSelectionInspector({
       </> : <p className="visual-editor-selection-hint">{text.selectOne}</p>}
       </section>
 
-      <section className={`visual-editor-inspector-section${activeTab === 'events' ? ' is-active' : ''}`} data-inspector-section="events">
+      <section id="visual-editor-inspector-section-events" role="tabpanel" aria-labelledby="visual-editor-inspector-tab-events" hidden={activeTab !== 'events'} className={`visual-editor-inspector-section${activeTab === 'events' ? ' is-active' : ''}`} data-inspector-section="events">
         {selectedElements.length <= 1 ? <>
           <p className="visual-editor-inspector-hint">{selectedElement ? text.objectEvents : text.screenEvents}</p>
           <EventsEditor

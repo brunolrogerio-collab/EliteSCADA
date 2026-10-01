@@ -82,7 +82,7 @@
 
 /* W15 R2 editor UX: shared docked authoring/inspection surfaces and near-zero collapse. */
 .visual-editor-authoring-sidebar,.visual-editor-selection-inspector{display:flex;min-height:0;flex-direction:column;gap:8px}
-.visual-editor-side-tabs,.visual-editor-inspector-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;position:sticky;top:34px;z-index:2;padding:3px;border:1px solid var(--eng-border,#283544);border-radius:7px;background:var(--eng-panel,#121922)}
+.visual-editor-side-tabs,.visual-editor-inspector-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;position:relative;z-index:1;padding:3px;border:1px solid var(--eng-border,#283544);border-radius:7px;background:var(--eng-panel,#121922)}
 .visual-editor-side-tabs button,.visual-editor-inspector-tabs button{min-width:0;min-height:30px;padding:4px 5px;border:0;border-radius:5px;background:transparent;color:var(--eng-muted,#a7b4c2);font:inherit;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .visual-editor-side-tabs button.is-active,.visual-editor-inspector-tabs button.is-active{background:var(--eng-panel-soft,#17212c);color:var(--eng-text,#e8edf3)}
 .visual-editor-side-panel,.visual-editor-inspector-panel{min-height:0;display:grid;gap:8px}
@@ -123,3 +123,104 @@
 .visual-editor-side-section,.visual-editor-inspector-section{display:grid;gap:8px;padding:6px 0;border-top:1px solid transparent}
 .visual-editor-side-section.is-active,.visual-editor-inspector-section.is-active{border-top-color:var(--eng-accent,#58a6d6)}
 .visual-editor-side-section[data-side-section="structure"]{min-height:90px}
+
+/* Compact, theme-safe editor chrome and truly docked/resizable side panels. */
+.visual-editor-workspace { gap: 6px; min-width: 0; }
+.visual-editor-header { min-height: 30px; align-items: center; }
+.visual-editor-header h1 { font-size: 18px; }
+.visual-editor-header-title,.visual-editor-header > div:first-child { display:flex; align-items:baseline; gap:10px; min-width:0; }
+.visual-editor-header > div:first-child > span { display:none; }
+.visual-editor-header-status { flex:0 0 auto; color:var(--eng-muted,#657080); font-size:11px; }
+.visual-editor-help { position:relative; font-size:11px; }
+.visual-editor-help > summary { color:var(--eng-accent,#2665a0); cursor:pointer; }
+.visual-editor-help[open] { z-index:20; }
+.visual-editor-help > p { max-width:560px; margin:6px 0; color:var(--eng-muted,#657080); }
+.visual-editor-help .visual-editor-authority { min-width:0; max-width:560px; padding:8px 10px; background:var(--eng-panel-soft,#f5f7fa); color:var(--eng-text,#243447); }
+.visual-editor-help .visual-editor-authority span { color:var(--eng-muted,#657080); }
+.visual-editor-shell { min-height:0; grid-template-columns:minmax(38px, var(--visual-editor-screens-width,220px)) minmax(0,1fr); background:var(--eng-panel,#fff); }
+.visual-editor-composition { grid-template-columns:var(--visual-editor-palette-width,250px) 8px minmax(0,1fr) 8px var(--visual-editor-properties-width,280px); min-height:min(74vh,740px); height:min(76vh,800px); }
+.visual-editor-slot { min-width:0; padding:8px; color:var(--eng-text,#243447); background:var(--eng-panel-soft,#f5f7fa); }
+.visual-editor-palette-slot,.visual-editor-inspector-slot { max-height:none; height:100%; overflow:hidden; }
+.visual-editor-authoring-sidebar { height:100%; min-width:0; overflow:hidden; overscroll-behavior:contain; }
+.visual-editor-selection-inspector { height:100%; min-width:0; overflow:auto; overscroll-behavior:contain; }
+.visual-editor-side-panel { flex:1; min-height:0; overflow:hidden; }
+.visual-editor-side-panel,.visual-editor-inspector-panel { display:flex; flex:1; min-height:0; flex-direction:column; overflow:hidden; }
+.visual-editor-side-section[hidden],.visual-editor-inspector-section[hidden] { display:none !important; }
+.visual-editor-side-section[data-side-section="structure"] { min-height:0; height:100%; }
+.visual-editor-side-section,.visual-editor-inspector-section { min-height:0; overflow:auto; overscroll-behavior:contain; }
+.visual-editor-side-section.is-active,.visual-editor-inspector-section.is-active { flex:1; }
+.visual-editor-side-section[data-side-section="structure"] > .visual-editor-outliner { height:100%; display:flex; min-height:0; flex-direction:column; }
+.visual-editor-side-section[data-side-section="structure"] .visual-editor-outliner__tree { min-height:0; max-height:none; flex:1; overflow:auto; overscroll-behavior:contain; scrollbar-gutter:stable; }
+.visual-editor-canvas-slot { min-height:0; background:var(--eng-bg,#eef1f4); }
+.visual-editor-canvas-slot > header { flex:0 0 auto; min-height:36px; background:var(--eng-panel,#fff); color:var(--eng-text,#243447); }
+.visual-editor-renderer-stage,.visual-editor-renderer-empty { min-height:0; margin:10px; }
+.visual-editor-dock-resizer { width:8px; min-width:8px; min-height:100%; margin:0; padding:0; border:0; border-inline:1px solid var(--eng-border,#d7dde5); background:var(--eng-panel-soft,#f5f7fa); cursor:col-resize; touch-action:none; }
+.visual-editor-dock-resizer:hover,.visual-editor-dock-resizer:focus-visible { background:var(--eng-accent-soft,#dceeff); outline:2px solid var(--eng-focus,#2665a0); outline-offset:-2px; }
+.visual-editor-workspace--palette-collapsed .visual-editor-composition { grid-template-columns:40px 0 minmax(0,1fr) 8px var(--visual-editor-properties-width,280px); }
+.visual-editor-workspace--properties-collapsed .visual-editor-composition { grid-template-columns:var(--visual-editor-palette-width,250px) 8px minmax(0,1fr) 0 40px; }
+.visual-editor-workspace--palette-collapsed.visual-editor-workspace--properties-collapsed .visual-editor-composition { grid-template-columns:40px 0 minmax(0,1fr) 0 40px; }
+.visual-editor-workspace--palette-collapsed .visual-editor-dock-resizer:first-of-type,.visual-editor-workspace--properties-collapsed .visual-editor-dock-resizer:last-of-type { display:none; }
+.visual-editor-workspace--palette-collapsed .visual-editor-palette-slot,.visual-editor-workspace--properties-collapsed .visual-editor-inspector-slot { display:flex; justify-content:center; padding:5px 0; overflow:hidden; }
+.visual-editor-workspace--palette-collapsed .visual-editor-palette-slot > :not(.visual-editor-region-toggle),.visual-editor-workspace--properties-collapsed .visual-editor-inspector-slot > :not(.visual-editor-region-toggle) { display:none !important; }
+.visual-editor-workspace--palette-collapsed .visual-editor-palette-slot > .visual-editor-region-toggle,.visual-editor-workspace--properties-collapsed .visual-editor-inspector-slot > .visual-editor-region-toggle { position:static; align-self:flex-start; width:30px; margin:0; }
+.visual-editor-workspace--screens-collapsed .visual-editor-shell { grid-template-columns:40px minmax(0,1fr); }
+.visual-editor-workspace--screens-collapsed .visual-editor-screens { display:flex; justify-content:flex-start; padding:5px 0; overflow:hidden; }
+.visual-editor-workspace--screens-collapsed .visual-editor-screens > header { display:block; padding:0; border:0; }
+.visual-editor-workspace--screens-collapsed .visual-editor-screens > header > strong,.visual-editor-workspace--screens-collapsed .visual-editor-screen-list,.visual-editor-workspace--screens-collapsed .visual-editor-region-actions > button:not(.visual-editor-region-toggle) { display:none; }
+.visual-editor-workspace--screens-collapsed .visual-editor-screens .visual-editor-region-toggle { position:static; transform:none; box-shadow:none; }
+.visual-editor-draft-state { min-width:110px; padding:5px 7px; }
+.visual-editor-screen-form { grid-template-columns:minmax(100px,1fr) minmax(90px,.7fr) minmax(100px,1fr) auto; gap:7px; }
+.visual-editor-region-toggle { background:var(--eng-panel,#fff); color:var(--eng-text,#243447); }
+.eng-shell .visual-editor-screens { background:var(--eng-panel-soft,#f5f7fa); color:var(--eng-text,#243447); }
+.eng-shell .visual-editor-screens > header,.eng-shell .visual-editor-screen-list > button.selected { background:var(--eng-panel,#fff); color:var(--eng-text,#243447); }
+.eng-shell .visual-editor-screens > header button,.eng-shell .visual-editor-screen-form input,.eng-shell .visual-editor-actions button.secondary { background:var(--eng-input-bg,#fff); color:var(--eng-text,#243447); border-color:var(--eng-border,#cbd3dc); }
+.eng-shell .visual-editor-screen-list > button:hover { background:var(--eng-hover,rgba(255,255,255,.75)); }
+.eng-shell .visual-editor-draft-state,.eng-shell .visual-editor-preview-panel,.eng-shell .visual-editor-preview-panel > header { background:var(--eng-panel,#fff); color:var(--eng-text,#243447); border-color:var(--eng-border,#d7dde5); }
+.eng-shell .visual-editor-preview-panel pre { background:var(--eng-bg,#0b1016); }
+.eng-shell .visual-editor-preview-panel strong.valid { color:var(--eng-success,#19703a); }
+.eng-shell .visual-editor-preview-panel strong.invalid,.eng-shell .visual-editor-preview-panel pre { color:var(--eng-danger,#a22b2b); }
+.eng-shell .visual-editor-issues > div.error { background:var(--eng-danger-bg,#fff1f1); color:var(--eng-danger,#8f2424); }
+.eng-shell .visual-editor-issues > div.warning { background:var(--eng-warning-bg,#fff8e6); color:var(--eng-text,#795915); }
+.eng-shell .visual-editor-legacy-placeholder { background:var(--eng-panel-soft,rgba(247,249,251,.94)); color:var(--eng-text,#243447); }
+.eng-shell .visual-editor-legacy-placeholder span { color:var(--eng-muted,#66717c); }
+
+@media (min-width:981px) {
+  .visual-editor-composition { align-items:stretch; }
+  .visual-editor-dock-resizer { display:block; }
+  /* Keep each panel anchored to its own track when a dock resizer is hidden.
+     Without explicit placement CSS Grid auto-places the canvas into the zero-width
+     resizer track and expands the following resizer into the reclaimed space. */
+  .visual-editor-workspace .visual-editor-composition > .visual-editor-palette-slot { grid-column:1; }
+  .visual-editor-workspace .visual-editor-composition > .visual-editor-dock-resizer:first-of-type { grid-column:2; }
+  .visual-editor-workspace .visual-editor-composition > .visual-editor-canvas-slot { grid-column:3; }
+  .visual-editor-workspace .visual-editor-composition > .visual-editor-dock-resizer:last-of-type { grid-column:4; }
+  .visual-editor-workspace .visual-editor-composition > .visual-editor-inspector-slot { grid-column:5; }
+}
+@media (max-width:980px) {
+  .visual-editor-composition { height:auto; min-height:0; grid-template-columns:minmax(0,1fr); }
+  .visual-editor-dock-resizer { display:none; }
+  .visual-editor-palette-slot,.visual-editor-inspector-slot { height:auto; max-height:40vh; overflow:auto; }
+  .visual-editor-canvas-slot { min-height:60vh; }
+  .visual-editor-workspace--palette-collapsed .visual-editor-composition,.visual-editor-workspace--properties-collapsed .visual-editor-composition,.visual-editor-workspace--palette-collapsed.visual-editor-workspace--properties-collapsed .visual-editor-composition { grid-template-columns:minmax(0,1fr); }
+  .visual-editor-workspace--palette-collapsed .visual-editor-palette-slot,.visual-editor-workspace--properties-collapsed .visual-editor-inspector-slot { min-height:40px; height:40px; max-height:40px; }
+  .visual-editor-workspace--screens-collapsed .visual-editor-shell { grid-template-columns:40px minmax(0,1fr); }
+  .visual-editor-screen-form { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+
+/* Keep the screen identity browser quiet so the canvas remains the dominant area. */
+.visual-editor-screen-list { padding: 5px; gap: 3px; }
+.visual-editor-screen-list > button { padding: 7px 8px; gap: 2px; }
+.visual-editor-screen-list > button strong { font-size: 11px; }
+.visual-editor-screen-list > button code,
+.visual-editor-screen-list > button span { font-size: 10px; }
+.visual-editor-screens > header { padding: 9px 10px; }
+.visual-editor-screens > header > strong { font-size: 11px; }
+.visual-editor-draft-state { font-size: 10px; }
+@media (max-width: 520px) {
+  .visual-editor-workspace { gap: 4px; }
+  .visual-editor-header h1 { font-size: 16px; }
+  .visual-editor-header-status { display: none; }
+  .visual-editor-screen-form { grid-template-columns: minmax(0, 1fr); }
+  .visual-editor-palette-slot,
+  .visual-editor-inspector-slot { max-height: 32vh; }
+}

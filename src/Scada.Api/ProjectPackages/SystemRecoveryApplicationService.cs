@@ -7,6 +7,7 @@ using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.ProjectPackages;
 using Scada.Engineering.Reports;
+using Scada.Engineering.Security;
 using Scada.Engineering.VisualAssets;
 using Scada.Security.Authentication;
 
@@ -66,8 +67,12 @@ public sealed class SystemRecoveryApplicationService(
     IReportEngineeringRegistry reports,
     InitialInstallationGate installationGate,
     IConfiguration configuration,
-    IEngineeringInstallationBindingStore? installationBinding = null)
+    IEngineeringInstallationBindingStore? installationBinding = null,
+    IAuthorityPolicyStore? authorityPolicies = null)
 {
+    internal const string DeferredBootstrapAuthorityReferenceMismatchCode =
+        "SECURITY_AUTHORITY_POLICY_REFERENCE_MISMATCH";
+
     public async Task<SystemRecoveryApplicationPreview> PreviewAsync(
         ReadOnlyMemory<byte> packageBytes,
         LocalUserAccount? currentUser,
@@ -76,35 +81,64 @@ public sealed class SystemRecoveryApplicationService(
     {
         var inspection = packages.Inspect(packageBytes);
         var preview = packages.Preview(packageBytes, ImportMode.CreateAndUpdate);
-        var configuredProjectKey = configuration["EngineeringRuntime:ProjectKey"]?.Trim();
-        var installation = installationBinding is null
-            ? null
-            : await installationBinding.GetAsync(cancellationToken);
-        var effectiveProjectKey = installation?.State == EngineeringInstallationBindingState.Attached
-            ? installation.ProjectKey
-            : configuredProjectKey;
+        var applicationAuthority = await EngineeringInstallationApplicationAuthorityResolver.ResolveAsync(
+            installationBinding,
+            configuration,
+            cancellationToken);
         var catalogEmpty = !await catalog.HasAnyAsync(cancellationToken);
-        var bindingMatches = installation?.State == EngineeringInstallationBindingState.Neutral ||
-            (!string.IsNullOrWhiteSpace(effectiveProjectKey) &&
-             effectiveProjectKey.Equals(inspection.Manifest.ProjectKey, StringComparison.OrdinalIgnoreCase));
+        var bindingMatches =
+            applicationAuthority.BindingState == EngineeringInstallationBindingState.Neutral ||
+            applicationAuthority.Matches(inspection.Manifest.ProjectKey);
 
         var users = await identities.ListAsync(cancellationToken);
+        var authoritySnapshot = authorityPolicies?.Snapshot();
         var admissions = users
-            .Select(user => SystemRecoveryAuthorityAdmissionEvaluator.Evaluate(inspection.Engineering, user))
+            .Select(user => SystemRecoveryAuthorityAdmissionEvaluator.Evaluate(
+                inspection.Engineering,
+                user,
+                authoritySnapshot,
+                allowRestoredAuthorityVersionRebind: true))
             .ToArray();
         var compatibleAdministratorCount = admissions.Count(x => x.Allowed);
         var currentAdmission = currentUser is null
             ? null
-            : SystemRecoveryAuthorityAdmissionEvaluator.Evaluate(inspection.Engineering, currentUser);
+            : SystemRecoveryAuthorityAdmissionEvaluator.Evaluate(
+                inspection.Engineering,
+                currentUser,
+                authoritySnapshot,
+                allowRestoredAuthorityVersionRebind: true);
 
         var blockers = new List<string>();
         if (!catalogEmpty)
             blockers.Add("A persisted Engineering project already exists. First-project System Recovery is closed.");
-        if (string.IsNullOrWhiteSpace(configuredProjectKey))
+        if (applicationAuthority.BindingState is EngineeringInstallationBindingState.AttachInProgress or
+            EngineeringInstallationBindingState.DetachInProgress)
+        {
+            blockers.Add($"Application recovery is unavailable while installation binding is '{applicationAuthority.BindingState}'.");
+        }
+        else if (applicationAuthority.UsesLegacyConfiguration &&
+                 string.IsNullOrWhiteSpace(applicationAuthority.ProjectKey))
+        {
             blockers.Add("EngineeringRuntime:ProjectKey must be configured before application recovery can activate Runtime.");
+        }
+        else if (applicationAuthority.BindingState == EngineeringInstallationBindingState.Attached &&
+                 string.IsNullOrWhiteSpace(applicationAuthority.ProjectKey))
+        {
+            blockers.Add("The durable Attached installation Application binding has no project identity.");
+        }
         else if (!bindingMatches)
-            blockers.Add($"This runtime instance is bound to project '{configuredProjectKey}', not package project '{inspection.Manifest.ProjectKey}'.");
-        if (!preview.CanApply)
+        {
+            blockers.Add(
+                $"This runtime instance is bound to project '{applicationAuthority.ProjectKey ?? "none"}', " +
+                $"not package project '{inspection.Manifest.ProjectKey}'.");
+        }
+        var deferCurrentAuthorityReferenceMismatch =
+            !requireCurrentUserAdmission &&
+            applicationAuthority.BindingState == EngineeringInstallationBindingState.Neutral;
+        var importPreview = authoritySnapshot is null
+            ? preview
+            : packages.PreviewForAuthorityRecovery(packageBytes, ImportMode.CreateAndUpdate, authoritySnapshot);
+        if (HasBlockingImportPreviewErrors(importPreview, deferCurrentAuthorityReferenceMismatch))
             blockers.Add("The application package has blocking Engineering preview errors.");
         if (requireCurrentUserAdmission && currentAdmission?.Allowed != true)
             blockers.Add(currentAdmission?.Reason ?? "The current restored Authority identity is not admitted by the recovered application policy.");
@@ -113,8 +147,8 @@ public sealed class SystemRecoveryApplicationService(
 
         return new SystemRecoveryApplicationPreview(
             inspection.Manifest,
-            preview,
-            effectiveProjectKey,
+            importPreview,
+            applicationAuthority.ProjectKey,
             catalogEmpty,
             bindingMatches,
             compatibleAdministratorCount,
@@ -132,15 +166,6 @@ public sealed class SystemRecoveryApplicationService(
         ArgumentNullException.ThrowIfNull(currentUser);
 
         await using var installationLease = await installationGate.EnterAsync(cancellationToken);
-        EngineeringInstallationBindingSnapshot? attachJournal = null;
-        if (installationBinding is not null)
-        {
-            var currentBinding = await installationBinding.GetAsync(cancellationToken);
-            if (currentBinding.State == EngineeringInstallationBindingState.Neutral)
-                attachJournal = await installationBinding.BeginAttachAsync(
-                    packages.Inspect(packageBytes).Manifest.ProjectKey,
-                    cancellationToken);
-        }
 
         var preflight = await PreviewAsync(
             packageBytes,
@@ -149,11 +174,22 @@ public sealed class SystemRecoveryApplicationService(
             cancellationToken);
         if (!preflight.CanApply)
         {
-            await AbortAttachBeforeDurableCheckpointAsync(attachJournal);
             return FailedBeforeMutation(
                 preflight,
                 "preflight",
                 preflight.Blockers);
+        }
+
+        EngineeringInstallationBindingSnapshot? attachJournal = null;
+        if (installationBinding is not null)
+        {
+            var currentBinding = await installationBinding.GetAsync(cancellationToken);
+            if (currentBinding.State == EngineeringInstallationBindingState.Neutral)
+            {
+                attachJournal = await installationBinding.BeginAttachAsync(
+                    preflight.Manifest.ProjectKey,
+                    cancellationToken);
+            }
         }
 
         await using var mutation = await workspace.AcquireMutationAsync(
@@ -177,7 +213,13 @@ public sealed class SystemRecoveryApplicationService(
             // This is the definitive replacement preview. It runs after the old Working
             // model has been cleared, so package references cannot accidentally resolve
             // through seeded/demo content that is not present in the recovered package.
-            replacementPreview = packages.Preview(packageBytes, ImportMode.CreateAndUpdate);
+            var restoredAuthority = authorityPolicies?.Snapshot();
+            replacementPreview = restoredAuthority is null
+                ? packages.Preview(packageBytes, ImportMode.CreateAndUpdate)
+                : packages.PreviewForAuthorityRecovery(
+                    packageBytes,
+                    ImportMode.CreateAndUpdate,
+                    restoredAuthority);
             if (!replacementPreview.CanApply)
             {
                 RestoreBackup(backupPackage, backupContext, backupDescriptor);
@@ -202,7 +244,9 @@ public sealed class SystemRecoveryApplicationService(
                         .ToArray());
             }
 
-            applyResult = packages.Apply(packageBytes, ImportMode.CreateAndUpdate);
+            applyResult = restoredAuthority is null
+                ? packages.Apply(packageBytes, ImportMode.CreateAndUpdate)
+                : packages.ApplyForAuthorityRecovery(packageBytes, ImportMode.CreateAndUpdate, restoredAuthority);
             if (applyResult.Issues.Any(x => x.IsError))
             {
                 RestoreBackup(backupPackage, backupContext, backupDescriptor);
@@ -260,8 +304,14 @@ public sealed class SystemRecoveryApplicationService(
             throw;
         }
 
-        // From this point onward a durable root revision exists. Do not fake rollback to
-        // an empty installation: any later failure is returned as explicit partial state.
+        // The durable root revision is the first honest Application checkpoint. Commit
+        // the FND-07 attach before publish/activate so Runtime authority never relies on
+        // AttachInProgress and later failures remain visible as Attached partial state.
+        if (attachJournal is not null && installationBinding is not null)
+            await installationBinding.CompleteAttachAsync(snapshot.ProjectKey, CancellationToken.None);
+
+        // From this point onward a durable root revision exists and the Application is
+        // Attached. Do not fake rollback to an empty installation on later failures.
         var publication = await persistence.PublishRevisionAsync(
             snapshot.ProjectKey,
             snapshot.Revision,
@@ -321,9 +371,6 @@ public sealed class SystemRecoveryApplicationService(
                 ["Recovered application was saved and published, but the accepted Active Runtime revision was not established."]);
         }
 
-        if (attachJournal is not null && installationBinding is not null)
-            await installationBinding.CompleteAttachAsync(snapshot.ProjectKey, CancellationToken.None);
-
         return new SystemRecoveryApplicationApplyResult(
             true,
             true,
@@ -339,6 +386,43 @@ public sealed class SystemRecoveryApplicationService(
             lifecycleAfterActivation,
             Array.Empty<string>());
     }
+
+    internal static bool HasBlockingImportPreviewErrors(
+        ImportPreview preview,
+        bool deferCurrentAuthorityReferenceMismatch)
+    {
+        if (preview.CanApply)
+            return false;
+
+        var errorItems = preview.Items
+            .Where(item => item.Operation == ImportOperation.Error)
+            .ToArray();
+        if (errorItems.Length == 0)
+            return true;
+
+        foreach (var item in errorItems)
+        {
+            var errors = item.Issues.Where(issue => issue.IsError).ToArray();
+            if (errors.Length == 0)
+                return true;
+
+            if (errors.Any(issue =>
+                    !deferCurrentAuthorityReferenceMismatch ||
+                    !IsDeferredBootstrapAuthorityReferenceMismatch(issue)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsDeferredBootstrapAuthorityReferenceMismatch(ImportIssue issue) =>
+        issue.Code.Equals(
+            DeferredBootstrapAuthorityReferenceMismatchCode,
+            StringComparison.Ordinal) &&
+        issue.EntityKind == ImportEntityKind.SecurityRole &&
+        issue.EntityKey.Equals("authority-policy", StringComparison.Ordinal);
 
     private async Task AbortAttachBeforeDurableCheckpointAsync(
         EngineeringInstallationBindingSnapshot? attachJournal)

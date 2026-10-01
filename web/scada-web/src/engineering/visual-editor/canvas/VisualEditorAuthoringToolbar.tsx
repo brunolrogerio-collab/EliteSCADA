@@ -83,12 +83,19 @@ export function VisualEditorAuthoringToolbar({
   };
 
   const inserts = [
+    [BUILTIN_VISUAL_OBJECT_TYPES.group, '⊞', 'group', 'Group'],
     [BUILTIN_VISUAL_OBJECT_TYPES.rectangle, '▭', 'rectangle', 'Rectangle'],
     [BUILTIN_VISUAL_OBJECT_TYPES.ellipse, '◯', 'ellipse', 'Ellipse'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.line, '╱', 'line', 'Line'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.polygon, '⬠', 'polygon', 'Polygon'],
     [BUILTIN_VISUAL_OBJECT_TYPES.text, 'T', 'text', 'Text'],
     [BUILTIN_VISUAL_OBJECT_TYPES.image, '▧', 'image', 'Image'],
     [BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay, '#', 'valueDisplay', 'Value display'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.trend, '⌁', 'trend', 'Trend'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser, '!', 'alarmBrowser', 'Alarm browser'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser, '≡', 'eventBrowser', 'Event browser'],
     [BUILTIN_VISUAL_OBJECT_TYPES.button, '▰', 'button', 'Button'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.slider, '☷', 'slider', 'Slider'],
     [BUILTIN_VISUAL_OBJECT_TYPES.numericInput, '123', 'numericInput', 'Numeric input']
   ] as const;
 

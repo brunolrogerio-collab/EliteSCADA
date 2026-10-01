@@ -38,6 +38,8 @@ export type PropertyInspectorCopy = Readonly<{
   falseLabel: string;
   noAsset: string;
   assetBrowserHint: string;
+  chooseImage: string;
+  importingAsset: string;
   transparent: string;
   alpha: string;
   fontFamilyPlaceholder: string;
@@ -47,6 +49,11 @@ export type PropertyInspectorCopy = Readonly<{
   filterLabel: string;
   filterPlaceholder: string;
   noMatches: string;
+  imageFitLabel: string;
+  imagePositionXLabel: string;
+  imagePositionYLabel: string;
+  imageZoomLabel: string;
+  fitOptions: Readonly<Record<string, string>>;
   category: Readonly<Record<string, string>>;
 }>;
 
@@ -54,6 +61,9 @@ export type PropertyInspectorProps = VisualEditorPropertyInspectorContractProps 
   visualAssets?: readonly VisualAssetEngineering[];
   copy?: Partial<PropertyInspectorCopy>;
   showEvents?: boolean;
+  onImportImage?: (file: File) => Promise<string | null | void> | string | null | void;
+  imageImportDisabled?: boolean;
+  imageImportBusy?: boolean;
 }>;
 
 const DEFAULT_COPY: PropertyInspectorCopy = {
@@ -72,6 +82,8 @@ const DEFAULT_COPY: PropertyInspectorCopy = {
   falseLabel: 'False',
   noAsset: 'No asset',
   assetBrowserHint: 'Project asset library',
+  chooseImage: 'Choose image…',
+  importingAsset: 'Importing…',
   transparent: 'Transparent',
   alpha: 'Alpha',
   fontFamilyPlaceholder: 'Choose or type a font family',
@@ -81,6 +93,11 @@ const DEFAULT_COPY: PropertyInspectorCopy = {
   filterLabel: 'Filter properties',
   filterPlaceholder: 'Name or canonical key',
   noMatches: 'No properties match this filter.',
+  imageFitLabel: 'Image fit',
+  imagePositionXLabel: 'Horizontal crop position',
+  imagePositionYLabel: 'Vertical crop position',
+  imageZoomLabel: 'Image zoom',
+  fitOptions: { contain: 'Contain', cover: 'Cover / crop', fill: 'Stretch', native: 'Original size' },
   category: {
     general: 'General',
     geometry: 'Geometry',
@@ -97,7 +114,10 @@ export function PropertyInspector({
   onMutationIntent,
   visualAssets = [],
   copy,
-  showEvents = true
+  showEvents = true,
+  onImportImage,
+  imageImportDisabled = false,
+  imageImportBusy = false
 }: PropertyInspectorProps) {
   const currentVisualText = useC07VisualEditorText();
   const locale = localeForVisualText(currentVisualText);
@@ -159,7 +179,7 @@ export function PropertyInspector({
     <aside className="property-inspector" data-testid="visual-property-inspector">
       <header className="property-inspector__header">
         <strong>{text.title}</strong>
-        <span>{selectedElements.length === 1 ? selectedElements[0].key : text.selected(selectedElements.length)}</span>
+        {selectedElements.length > 1 ? <span>{text.selected(selectedElements.length)}</span> : null}
       </header>
 
       {model.diagnostic ? <p className="property-inspector__diagnostic" role="status">{model.diagnostic}</p> : null}
@@ -204,6 +224,9 @@ export function PropertyInspector({
                 locale={locale}
                 visualAssets={visualAssets}
                 onMutationIntent={onMutationIntent}
+                onImportImage={onImportImage}
+                imageImportDisabled={imageImportDisabled}
+                imageImportBusy={imageImportBusy}
               />
             ))}
           </div> : null}
@@ -227,9 +250,12 @@ type PropertyFieldProps = Readonly<{
   locale: EngineeringLocale;
   visualAssets: readonly VisualAssetEngineering[];
   onMutationIntent: VisualEditorPropertyInspectorContractProps['onMutationIntent'];
+  onImportImage?: PropertyInspectorProps['onImportImage'];
+  imageImportDisabled: boolean;
+  imageImportBusy: boolean;
 }>;
 
-function PropertyField({ model, row, text, locale, visualAssets, onMutationIntent }: PropertyFieldProps) {
+function PropertyField({ model, row, text, locale, visualAssets, onMutationIntent, onImportImage, imageImportDisabled, imageImportBusy }: PropertyFieldProps) {
   const [error, setError] = useState<string | null>(null);
   const definition = row.definition;
   const localizedTrendLabel = trendPropertyLabel(locale, definition.key);
@@ -271,7 +297,7 @@ function PropertyField({ model, row, text, locale, visualAssets, onMutationInten
       <div className="property-inspector__field-heading">
         <div className="property-inspector__field-label">
           <label htmlFor={`visual-property-${definition.key}`}>
-            {localizedTrendLabel ?? humanizeVisualPropertyKey(definition.key)}
+            {localizedTrendLabel ?? visualPropertyLabel(definition.key, rowText)}
           </label>
           <code title="Canonical property key">{definition.key}</code>
         </div>
@@ -296,6 +322,9 @@ function PropertyField({ model, row, text, locale, visualAssets, onMutationInten
           row={row}
           text={rowText}
           visualAssets={visualAssets}
+          onImportImage={definition.key === VISUAL_PROPERTY_KEYS.assetRef ? onImportImage : undefined}
+          imageImportDisabled={imageImportDisabled}
+          imageImportBusy={imageImportBusy}
           commit={commit}
           setError={setError}
         />
@@ -347,40 +376,50 @@ function IdentityEditor({
     onMutationIntent({ kind: 'object.rename', objectId: element.id, key });
   };
 
-  return <section className="property-inspector__identity" data-testid="visual-property-identity">
-    <header>
-      <strong>{text.identity}</strong>
-      <span>{text.renameHint}</span>
-    </header>
-    <label>
-      <span>{text.developerKey}</span>
-      <input
-        data-testid="visual-property-identity-key"
-        value={keyDraft}
-        onChange={event => { setKeyDraft(event.currentTarget.value); setError(null); }}
-        onBlur={commit}
-        onKeyDown={event => {
-          if (event.key === 'Enter') event.currentTarget.blur();
-          if (event.key === 'Escape') {
-            setKeyDraft(element.key);
-            setError(null);
-            event.currentTarget.blur();
-          }
-        }}
-      />
-    </label>
-    <div className="property-inspector__stable-id">
-      <span>{text.stableId}</span>
-      <code data-testid="visual-property-identity-id">{element.id}</code>
+  return <details className="property-inspector__identity" data-testid="visual-property-identity">
+    <summary><strong>{text.identity}</strong><code>{element.key}</code></summary>
+    <div className="property-inspector__identity-body">
+      <p>{text.renameHint}</p>
+      <label>
+        <span>{text.developerKey}</span>
+        <input
+          data-testid="visual-property-identity-key"
+          value={keyDraft}
+          onChange={event => { setKeyDraft(event.currentTarget.value); setError(null); }}
+          onBlur={commit}
+          onKeyDown={event => {
+            if (event.key === 'Enter') event.currentTarget.blur();
+            if (event.key === 'Escape') {
+              setKeyDraft(element.key);
+              setError(null);
+              event.currentTarget.blur();
+            }
+          }}
+        />
+      </label>
+      <div className="property-inspector__stable-id">
+        <span>{text.stableId}</span>
+        <code data-testid="visual-property-identity-id">{element.id}</code>
+      </div>
+      {error ? <p className="property-inspector__validation" role="alert">{error}</p> : null}
     </div>
-    {error ? <p className="property-inspector__validation" role="alert">{error}</p> : null}
-  </section>;
+  </details>;
 }
 
 export function humanizeVisualPropertyKey(propertyKey: string): string {
   if (!propertyKey) return propertyKey;
   const words = propertyKey.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
   return `${words[0].toUpperCase()}${words.slice(1)}`;
+}
+
+function visualPropertyLabel(propertyKey: string, text: PropertyInspectorCopy): string {
+  switch (propertyKey) {
+    case VISUAL_PROPERTY_KEYS.imageFit: return text.imageFitLabel;
+    case VISUAL_PROPERTY_KEYS.imagePositionX: return text.imagePositionXLabel;
+    case VISUAL_PROPERTY_KEYS.imagePositionY: return text.imagePositionYLabel;
+    case VISUAL_PROPERTY_KEYS.imageZoom: return text.imageZoomLabel;
+    default: return humanizeVisualPropertyKey(propertyKey);
+  }
 }
 
 function filterPropertyRows(
@@ -426,6 +465,10 @@ function propertyInspectorChromeText(locale: EngineeringLocale) {
     stableId: 'Id estável',
     renameHint: 'Renomear altera apenas o Key de desenvolvimento. A identidade estável é preservada.',
     keyRequired: 'O Key de desenvolvimento é obrigatório.',
+    chooseImage: 'Escolher imagem…',
+    importingAsset: 'Importando…',
+    imageFitLabel: 'Ajuste da imagem', imagePositionXLabel: 'Posição horizontal do recorte', imagePositionYLabel: 'Posição vertical do recorte', imageZoomLabel: 'Zoom da imagem',
+    fitOptions: { contain: 'Conter inteira', cover: 'Cobrir e recortar', fill: 'Esticar', native: 'Tamanho original' },
     filterLabel: 'Filtrar propriedades',
     filterPlaceholder: 'Nome ou chave canônica',
     noMatches: 'Nenhuma propriedade corresponde ao filtro.'
@@ -436,6 +479,10 @@ function propertyInspectorChromeText(locale: EngineeringLocale) {
     stableId: 'Id estable',
     renameHint: 'Renombrar cambia solo el Key de desarrollo. La identidad estable se preserva.',
     keyRequired: 'El Key de desarrollo es obligatorio.',
+    chooseImage: 'Elegir imagen…',
+    importingAsset: 'Importando…',
+    imageFitLabel: 'Ajuste de imagen', imagePositionXLabel: 'Posición horizontal del recorte', imagePositionYLabel: 'Posición vertical del recorte', imageZoomLabel: 'Zoom de imagen',
+    fitOptions: { contain: 'Contener completa', cover: 'Cubrir y recortar', fill: 'Estirar', native: 'Tamaño original' },
     filterLabel: 'Filtrar propiedades',
     filterPlaceholder: 'Nombre o clave canónica',
     noMatches: 'Ninguna propiedad coincide con el filtro.'
@@ -446,6 +493,10 @@ function propertyInspectorChromeText(locale: EngineeringLocale) {
     stableId: 'Stable Id',
     renameHint: 'Rename changes the developer Key only. Stable identity is preserved.',
     keyRequired: 'Development Key is required.',
+    chooseImage: 'Choose image…',
+    importingAsset: 'Importing…',
+    imageFitLabel: 'Image fit', imagePositionXLabel: 'Horizontal crop position', imagePositionYLabel: 'Vertical crop position', imageZoomLabel: 'Image zoom',
+    fitOptions: { contain: 'Contain whole image', cover: 'Cover and crop', fill: 'Stretch', native: 'Original size' },
     filterLabel: 'Filter properties',
     filterPlaceholder: 'Name or canonical key',
     noMatches: 'No properties match this filter.'

@@ -33,15 +33,15 @@ test('TAG editor only applies the exact candidate after a valid preview', async 
     await page.getByLabel('Descrição').fill(marker);
     await expect(apply).toBeDisabled();
 
-    await page.getByRole('button', { name: 'Validar preview' }).click();
-    await expect(page.getByText('Rascunho válido para aplicação', { exact: true })).toBeVisible();
+    await page.getByTestId('engineering-preview').click();
+    await expect(page.getByText('Pronto para aplicar', { exact: true })).toBeVisible();
     await expect(apply).toBeEnabled();
 
     // Any post-preview draft edit invalidates the retained candidate before it can be applied.
     await page.getByLabel('Descrição').fill(markerAfterEdit);
     await expect(apply).toBeDisabled();
 
-    await page.getByRole('button', { name: 'Validar preview' }).click();
+    await page.getByTestId('engineering-preview').click();
     await expect(apply).toBeEnabled();
     await apply.click();
 

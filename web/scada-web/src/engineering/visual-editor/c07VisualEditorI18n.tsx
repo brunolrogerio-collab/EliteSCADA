@@ -13,7 +13,7 @@ const ptBR = {
     title: 'Estrutura', hierarchy: 'Hierarquia de objetos visuais', expand: 'Expandir', collapse: 'Recolher', locked: 'Bloqueado', lockedByParent: 'Bloqueado pelo grupo pai'
   },
   surface: {
-    background: 'Fundo', image: 'imagem', color: 'cor', default: 'padrão', colorLabel: 'Cor', clear: 'Limpar', imageAsset: 'Asset de imagem', noBackgroundImage: 'Sem imagem de fundo', imageFit: 'Ajuste da imagem', assetIdentityOnly: 'Somente identidade canônica do asset do projeto.', resetBackground: 'Restaurar fundo',
+    background: 'Fundo', image: 'imagem', color: 'cor', default: 'padrão', colorLabel: 'Cor', clear: 'Limpar', imageAsset: 'Asset de imagem', chooseImage: 'Escolher imagem…', importingAsset: 'Importando…', noBackgroundImage: 'Sem imagem de fundo', imageFit: 'Ajuste da imagem', assetIdentityOnly: 'Somente identidade canônica do asset do projeto.', resetBackground: 'Restaurar fundo',
     fit: { cover: 'Cobrir', contain: 'Conter', stretch: 'Esticar', center: 'Centralizar', tile: 'Repetir' }
   },
   palette: {
@@ -46,7 +46,7 @@ const en: C07VisualEditorText = {
     title: 'Outliner', hierarchy: 'Visual object hierarchy', expand: 'Expand', collapse: 'Collapse', locked: 'Locked', lockedByParent: 'Locked by parent group'
   },
   surface: {
-    background: 'Background', image: 'image', color: 'color', default: 'default', colorLabel: 'Color', clear: 'Clear', imageAsset: 'Image asset', noBackgroundImage: 'No background image', imageFit: 'Image fit', assetIdentityOnly: 'Canonical project asset identity only.', resetBackground: 'Reset background',
+    background: 'Background', image: 'image', color: 'color', default: 'default', colorLabel: 'Color', clear: 'Clear', imageAsset: 'Image asset', chooseImage: 'Choose image…', importingAsset: 'Importing…', noBackgroundImage: 'No background image', imageFit: 'Image fit', assetIdentityOnly: 'Canonical project asset identity only.', resetBackground: 'Reset background',
     fit: { cover: 'Cover', contain: 'Contain', stretch: 'Stretch', center: 'Center', tile: 'Tile' }
   },
   palette: {
@@ -76,7 +76,7 @@ const es: C07VisualEditorText = {
     title: 'Estructura', hierarchy: 'Jerarquía de objetos visuales', expand: 'Expandir', collapse: 'Contraer', locked: 'Bloqueado', lockedByParent: 'Bloqueado por el grupo padre'
   },
   surface: {
-    background: 'Fondo', image: 'imagen', color: 'color', default: 'predeterminado', colorLabel: 'Color', clear: 'Limpiar', imageAsset: 'Recurso de imagen', noBackgroundImage: 'Sin imagen de fondo', imageFit: 'Ajuste de imagen', assetIdentityOnly: 'Solo identidad canónica del recurso del proyecto.', resetBackground: 'Restablecer fondo',
+    background: 'Fondo', image: 'imagen', color: 'color', default: 'predeterminado', colorLabel: 'Color', clear: 'Limpiar', imageAsset: 'Recurso de imagen', chooseImage: 'Elegir imagen…', importingAsset: 'Importando…', noBackgroundImage: 'Sin imagen de fondo', imageFit: 'Ajuste de imagen', assetIdentityOnly: 'Solo identidad canónica del recurso del proyecto.', resetBackground: 'Restablecer fondo',
     fit: { cover: 'Cubrir', contain: 'Contener', stretch: 'Estirar', center: 'Centrar', tile: 'Repetir' }
   },
   palette: {

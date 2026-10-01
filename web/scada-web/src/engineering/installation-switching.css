@@ -1,0 +1,342 @@
+.installation-switching {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: grid;
+  gap: 18px;
+  color: var(--eng-text);
+}
+
+.installation-switching--loading {
+  min-height: 160px;
+  place-items: center;
+  color: var(--eng-muted);
+}
+
+.installation-switching__header,
+.installation-switching__entry,
+.installation-switching__confirmation-heading,
+.installation-switching__final-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.installation-switching__header h2,
+.installation-switching__confirmation h3 {
+  margin: 4px 0 6px;
+}
+
+.installation-switching__header p,
+.installation-switching__entry p,
+.installation-switching__confirmation p {
+  margin: 0;
+  color: var(--eng-muted);
+  line-height: 1.5;
+}
+
+.installation-switching__eyebrow,
+.installation-switching__fact > span,
+.installation-switching__preservation article > div > span {
+  color: var(--eng-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.installation-switching button,
+.installation-switching input,
+.installation-switching textarea {
+  font: inherit;
+}
+
+.installation-switching button {
+  border: 1px solid var(--eng-border);
+  background: var(--eng-panel-soft);
+  color: var(--eng-text);
+  border-radius: 7px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.installation-switching button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.installation-switching button:not(:disabled):hover {
+  border-color: #48657d;
+}
+
+.installation-switching__facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.installation-switching__fact {
+  min-width: 0;
+  border: 1px solid var(--eng-border);
+  border-radius: 8px;
+  background: var(--eng-panel);
+  padding: 12px;
+  display: grid;
+  gap: 5px;
+}
+
+.installation-switching__fact strong,
+.installation-switching__fact small {
+  overflow-wrap: anywhere;
+}
+
+.installation-switching__fact small {
+  color: var(--eng-muted);
+  line-height: 1.35;
+}
+
+.installation-switching__fact--attention {
+  border-color: var(--eng-warning);
+}
+
+.installation-switching__notice,
+.installation-switching__error,
+.installation-switching__warning,
+.installation-switching__historian-note,
+.installation-switching__blocking,
+.installation-switching__progress {
+  margin: 0;
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.installation-switching__notice {
+  border: 1px solid var(--eng-accent);
+  background: var(--eng-accent-soft);
+}
+
+.installation-switching__error,
+.installation-switching__blocking {
+  border: 1px solid var(--eng-danger);
+  background: rgba(212, 106, 106, .08);
+}
+
+.installation-switching__warning {
+  border: 1px solid var(--eng-warning);
+  background: rgba(214, 169, 88, .08);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 16px;
+  align-items: center;
+}
+
+.installation-switching__warning strong,
+.installation-switching__historian-note strong {
+  grid-column: 1;
+}
+
+.installation-switching__warning span,
+.installation-switching__historian-note span {
+  color: var(--eng-muted);
+  line-height: 1.45;
+}
+
+.installation-switching__warning button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.installation-switching__preservation {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.installation-switching__preservation article {
+  border: 1px solid var(--eng-border);
+  border-radius: 9px;
+  background: var(--eng-panel);
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.installation-switching__preservation h3 {
+  margin: 4px 0;
+}
+
+.installation-switching__preservation p {
+  margin: 0;
+  color: var(--eng-muted);
+  line-height: 1.45;
+}
+
+.installation-switching__preservation label,
+.installation-switching__license-code {
+  display: grid;
+  gap: 6px;
+  color: var(--eng-muted);
+  font-size: 12px;
+}
+
+.installation-switching__preservation input,
+.installation-switching__license-code textarea {
+  width: 100%;
+  border: 1px solid var(--eng-border);
+  border-radius: 6px;
+  background: #0f161e;
+  color: var(--eng-text);
+  padding: 8px;
+}
+
+.installation-switching__historian-note {
+  border: 1px solid var(--eng-border);
+  background: var(--eng-panel);
+  display: grid;
+  gap: 4px;
+}
+
+.installation-switching__entry {
+  border-top: 1px solid var(--eng-border);
+  padding-top: 18px;
+  align-items: center;
+}
+
+.installation-switching__danger {
+  border-color: var(--eng-danger) !important;
+  background: rgba(212, 106, 106, .12) !important;
+}
+
+.installation-switching__confirmation {
+  border: 1px solid var(--eng-border);
+  border-radius: 10px;
+  background: var(--eng-panel);
+  padding: 16px;
+  display: grid;
+  gap: 16px;
+}
+
+.installation-switching__confirmation fieldset {
+  margin: 0;
+  border: 1px solid var(--eng-border-soft);
+  border-radius: 8px;
+  padding: 12px;
+  display: grid;
+  gap: 9px;
+}
+
+.installation-switching__confirmation legend {
+  color: var(--eng-muted);
+  padding: 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.installation-switching__check,
+.installation-switching__radio {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  line-height: 1.45;
+}
+
+.installation-switching__check input,
+.installation-switching__radio input {
+  margin-top: 3px;
+}
+
+.installation-switching__radio > span {
+  display: grid;
+  gap: 2px;
+}
+
+.installation-switching__radio small {
+  color: var(--eng-muted);
+}
+
+.installation-switching__blocking ul,
+.installation-switching__diagnostic ul {
+  margin: 8px 0 0;
+}
+
+.installation-switching__progress {
+  border: 1px solid var(--eng-accent);
+  background: var(--eng-accent-soft);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.installation-switching__progress > div {
+  display: grid;
+  gap: 2px;
+}
+
+.installation-switching__progress span:last-child {
+  color: var(--eng-muted);
+}
+
+.installation-switching__spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--eng-border);
+  border-top-color: var(--eng-accent);
+  border-radius: 50%;
+  animation: installation-spin .8s linear infinite;
+}
+
+.installation-switching__diagnostic {
+  border: 1px solid var(--eng-border-soft);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--eng-muted);
+}
+
+.installation-switching__diagnostic summary {
+  cursor: pointer;
+  color: var(--eng-text);
+}
+
+.installation-switching__diagnostic > div {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+@keyframes installation-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 980px) {
+  .installation-switching__facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .installation-switching__preservation {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .installation-switching__header,
+  .installation-switching__entry,
+  .installation-switching__confirmation-heading,
+  .installation-switching__final-actions {
+    display: grid;
+  }
+
+  .installation-switching__facts {
+    grid-template-columns: 1fr;
+  }
+
+  .installation-switching__warning {
+    grid-template-columns: 1fr;
+  }
+
+  .installation-switching__warning button {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}

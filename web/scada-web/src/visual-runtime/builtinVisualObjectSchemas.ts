@@ -141,7 +141,8 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     VISUAL_PROPERTY_KEYS.assetRef,
     VISUAL_PROPERTY_KEYS.imageFit,
     VISUAL_PROPERTY_KEYS.imagePositionX,
-    VISUAL_PROPERTY_KEYS.imagePositionY
+    VISUAL_PROPERTY_KEYS.imagePositionY,
+    VISUAL_PROPERTY_KEYS.imageZoom
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay, schema(BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay, [
     ...BASE,
@@ -199,7 +200,8 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     VISUAL_PROPERTY_KEYS.minimum,
     VISUAL_PROPERTY_KEYS.maximum,
     VISUAL_PROPERTY_KEYS.step,
-    VISUAL_PROPERTY_KEYS.interactionEnabled
+    VISUAL_PROPERTY_KEYS.interactionEnabled,
+    VISUAL_PROPERTY_KEYS.showApplyButton
   ])]
 ]);
 

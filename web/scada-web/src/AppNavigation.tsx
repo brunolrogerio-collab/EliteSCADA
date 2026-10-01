@@ -13,7 +13,7 @@ import './app-navigation.css';
 type ShellLink = Readonly<{
   href: string;
   label: string;
-  description: string;
+  description?: string;
 }>;
 
 const helpText = {
@@ -35,12 +35,11 @@ export function AppNavigation() {
   if (access.runtime) links.push({ href: '/', label: text.runtime, description: text.runtimeDescription });
   if (access.engineering) links.push({ href: '/engineering', label: text.engineering, description: text.engineeringDescription });
   if (access.audit) links.push({ href: '/audit', label: text.audit, description: text.auditDescription });
-  if (access.licensing) links.push({ href: '/licensing', label: text.licensing, description: text.licensingDescription });
+  if (access.licensing) links.push({ href: '/licensing', label: text.licensing });
   if (access.runtime || access.engineering || access.audit || access.licensing) {
     links.push({
       href: `/help?topic=${contextualHelpTopic(path)}`,
-      label: helpText[locale].label,
-      description: helpText[locale].description
+      label: helpText[locale].label
     });
   }
 
@@ -55,7 +54,7 @@ export function AppNavigation() {
           : '/';
   const activeRuntimeHref = path.startsWith('/runtime/history') ? '/runtime/history' : '/';
   const active = activeHref === '/help'
-    ? { href: '/help', label: helpText[locale].label, description: helpText[locale].description }
+    ? { href: '/help', label: helpText[locale].label }
     : links.find(link => link.href === activeHref) ?? links[0];
   const privilegedShell = access.engineering || access.audit || access.licensing;
   const runtimeOnly = access.runtime && !privilegedShell;
@@ -80,7 +79,7 @@ export function AppNavigation() {
               href={link.href}
               className={isActive ? 'active' : undefined}
               aria-current={isActive ? 'page' : undefined}
-            ><span>{link.label}</span><small>{link.description}</small></a>;
+            ><span>{link.label}</span>{link.description ? <small>{link.description}</small> : null}</a>;
           })}
         </nav>
         <div className="app-shell-actions">

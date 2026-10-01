@@ -7,6 +7,10 @@
   padding: 4px;
 }
 
+.visual-editor-numeric-input[data-show-apply="false"] {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
 .visual-editor-numeric-input input {
   min-width: 0;
   width: 100%;
@@ -22,6 +26,14 @@
 .visual-editor-numeric-input button {
   min-height: 26px;
   font: 11px system-ui, sans-serif;
+}
+
+.visual-editor-numeric-input .visual-editor-numeric-input__apply {
+  width: 28px;
+  min-width: 28px;
+  padding: 0;
+  font-size: 17px;
+  line-height: 1;
 }
 
 .visual-editor-numeric-input__unit {

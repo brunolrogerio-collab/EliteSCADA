@@ -193,11 +193,14 @@ public static class EngineeringPersistenceApi
         {
             var persistence = Resolve(context);
             var catalog = ResolveCatalog(context);
+            var authority = await ResolveApplicationAuthorityAsync(context, cancellationToken);
             return Results.Ok(new
             {
                 enabled = persistence is not null,
                 provider = persistence is null ? null : "postgresql",
-                configuredProjectKey = ResolveConfiguredProjectKey(context),
+                configuredProjectKey = authority.ProjectKey,
+                applicationBindingState = authority.BindingState?.ToString(),
+                applicationBindingUsesLegacyConfiguration = authority.UsesLegacyConfiguration,
                 hasProjects = catalog is null ? (bool?)null : await catalog.HasAnyAsync(cancellationToken)
             });
         });
@@ -361,6 +364,7 @@ public static class EngineeringPersistenceApi
 
             var lifecycle = await persistence.GetLifecycleAsync(projectKey, cancellationToken);
             var live = runtime.Describe();
+            var authority = await ResolveApplicationAuthorityAsync(context, cancellationToken);
             var consistent = lifecycle.ActiveRevision.HasValue
                 ? live.ProjectKey?.Equals(projectKey, StringComparison.OrdinalIgnoreCase) == true &&
                   live.Revision == lifecycle.ActiveRevision
@@ -369,7 +373,8 @@ public static class EngineeringPersistenceApi
             return Results.Ok(new
             {
                 projectKey,
-                configuredProjectKey = ResolveConfiguredProjectKey(context),
+                configuredProjectKey = authority.ProjectKey,
+                applicationBindingState = authority.BindingState?.ToString(),
                 consistent,
                 durable = lifecycle,
                 live
@@ -380,12 +385,16 @@ public static class EngineeringPersistenceApi
             string projectKey,
             EngineeringActivateRequest request,
             HttpContext context,
-            CancellationToken cancellationToken) => await ActivatePublishedAsync(
+            CancellationToken cancellationToken) =>
+        {
+            var authority = await ResolveApplicationAuthorityAsync(context, cancellationToken);
+            return await ActivatePublishedAsync(
                 projectKey,
                 request,
-                ResolveConfiguredProjectKey(context),
+                authority,
                 ResolveActivation(context),
-                cancellationToken));
+                cancellationToken);
+        });
 
         group.MapGet("/{projectKey}/revisions", async (
             string projectKey,
@@ -635,25 +644,35 @@ public static class EngineeringPersistenceApi
     internal static async Task<IResult> ActivatePublishedAsync(
         string projectKey,
         EngineeringActivateRequest request,
-        string? configuredProjectKey,
+        EngineeringInstallationApplicationAuthority authority,
         IPublishedRuntimeActivationService? activationService,
         CancellationToken cancellationToken = default)
     {
         if (activationService is null) return Disabled();
 
-        if (string.IsNullOrWhiteSpace(configuredProjectKey))
+        if (string.IsNullOrWhiteSpace(authority.ProjectKey))
         {
+            if (authority.UsesLegacyConfiguration)
+            {
+                return Results.Conflict(new
+                {
+                    error = "EngineeringRuntime:ProjectKey must be configured before activating a persisted runtime."
+                });
+            }
+
             return Results.Conflict(new
             {
-                error = "EngineeringRuntime:ProjectKey must be configured before activating a persisted runtime."
+                error = $"Installation Application binding state '{authority.BindingState}' does not permit persisted Runtime activation.",
+                applicationBindingState = authority.BindingState?.ToString()
             });
         }
 
-        if (!configuredProjectKey.Equals(projectKey, StringComparison.OrdinalIgnoreCase))
+        if (!authority.Matches(projectKey))
         {
             return Results.Conflict(new
             {
-                error = $"This runtime instance is bound to project '{configuredProjectKey}', not '{projectKey}'."
+                error = $"This installation is bound to project '{authority.ProjectKey}', not '{projectKey}'.",
+                applicationBindingState = authority.BindingState?.ToString()
             });
         }
 
@@ -679,8 +698,13 @@ public static class EngineeringPersistenceApi
             : Results.Json(response, statusCode: StatusCodes.Status422UnprocessableEntity);
     }
 
-    private static string? ResolveConfiguredProjectKey(HttpContext context) =>
-        context.RequestServices.GetRequiredService<IConfiguration>()["EngineeringRuntime:ProjectKey"];
+    private static Task<EngineeringInstallationApplicationAuthority> ResolveApplicationAuthorityAsync(
+        HttpContext context,
+        CancellationToken cancellationToken) =>
+        EngineeringInstallationApplicationAuthorityResolver.ResolveAsync(
+            context.RequestServices.GetService<IEngineeringInstallationBindingStore>(),
+            context.RequestServices.GetRequiredService<IConfiguration>(),
+            cancellationToken);
 
     private static IResult Disabled() => Results.Json(
         new

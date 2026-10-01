@@ -99,7 +99,31 @@ export function scriptWorkspaceCopy(locale: EngineeringLocale) {
       title: 'Scripts de Ingeniería', subtitle: 'Scripts versionados con editor de código Python guiado. La ejecución se realiza en el entorno aislado del producto, no en el editor.', refresh: 'Actualizar', newScript: 'Nuevo Script', search: 'Buscar por nombre, ruta o descripción', empty: 'No hay Scripts configurados.', selectHint: 'Seleccione un Script o cree uno nuevo.', working: 'En edición', dirty: 'Cambios sin guardar', clean: 'Sin cambios pendientes', name: 'Nombre', path: 'Ruta', scope: 'Ámbito', enabled: 'Habilitado', disabled: 'Deshabilitado', description: 'Descripción', language: 'Lenguaje', source: 'Fuente Python', sourceHint: 'El editor de código modifica solamente la fuente del borrador. El Área de trabajo cambia solo después de una vista previa validada y de aplicar.', entryPoints: 'Entry points', entryPointsHint: 'Declara eventos y handlers del Script. Las asociaciones visuales existentes se conservan por separado.', addEntryPoint: 'Agregar entry point', event: 'Evento', handler: 'Handler', target: 'Referencia de destino opcional', dependencies: 'Dependencias', dependenciesHint: 'Use IDs/referencias estables del proyecto. El sistema valida existencia, ámbito y ciclos.', addDependency: 'Agregar dependencia', kind: 'Tipo', stableReference: 'Referencia estable', remove: 'Eliminar', visualReferences: 'Asociaciones visuales preservadas', visualReferencesHint: 'Estas referencias se reenvían al aplicar para evitar pérdidas silenciosas. Las asociaciones visuales se editan desde su superficie de autoría dedicada.', preview: 'Validar / Vista previa', apply: 'Aplicar vista previa', delete: 'Eliminar Script', cancel: 'Cancelar', confirmDelete: 'Confirmar eliminación', deleteWarning: 'La eliminación usa CAS y será rechazada si otro Script todavía depende de este.', previewReady: 'Vista previa válida. La aplicación usará exactamente el paquete y la versión del Área de trabajo validados.', previewInvalid: 'La vista previa contiene errores y no puede aplicarse.', previewExpired: 'El formulario cambió después de la vista previa. Valide nuevamente antes de aplicar.', previewCreate: 'Crear', previewUpdate: 'Actualizar', previewSkip: 'Omitir', previewErrors: 'Errores', created: 'Script creado en el Área de trabajo.', updated: 'Script actualizado en el Área de trabajo.', deleted: 'Script eliminado del Área de trabajo.', createMode: 'Creación', updateMode: 'Actualización', noExecution: 'El editor no tiene autoridad de ejecución', validationTitle: 'Corrija el formulario antes de la vista previa', validation: { id: 'Falta el ID estable.', name: 'El nombre es obligatorio.', path: "La ruta es obligatoria, debe estar recortada y usar '/' en lugar de '\\'.", source: 'La fuente Python no puede estar vacía.', languageVersion: 'La versión del lenguaje es obligatoria.', entryPoint: 'El handler debe ser un identificador Python válido.', entryPointDuplicate: 'Hay entry points duplicados.', entryPointScope: 'El evento seleccionado no es compatible con el ámbito de este Script.', timerIntervalMs: 'Timer requiere un intervalo entero de al menos 50 ms.', timerIntervalUnexpected: 'El intervalo de Timer solo es válido para el evento Timer.', tagReference: 'TAG modificada requiere una referencia estable por TagId.', tagReferenceUnexpected: 'La referencia TAG solo es válida para TAG modificada.', tagSelector: 'El selector TAG debe ser un bit con índice entero no negativo.', targetReference: 'Client Memory modificada requiere un ID estable de definición.', targetReferenceUnexpected: 'Este evento no acepta una referencia de destino en este campo.', dependency: 'La dependencia requiere una referencia estable.', dependencyDuplicate: 'Hay dependencias duplicadas.' }, errors: { unauthorized: 'La sesión falta o expiró. Inicie sesión nuevamente.', forbidden: 'Su usuario no tiene permiso de Ingeniería para esta operación.', conflict: 'El Área de trabajo cambió después de la vista previa. Actualice y valide de nuevo antes de aplicar.', deleteConflict: 'Este Script aún tiene dependencias y no puede eliminarse.', badRequest: 'El sistema rechazó la definición del Script. Revise los errores de la vista previa.', unavailable: 'La API de Ingeniería no está disponible.', generic: 'No se pudo completar la operación de Script.' }
     }
   } as const;
-  return copies[locale];
+  const copy = copies[locale];
+  if (locale === 'en') return {
+    ...copy,
+    help: 'Help', subtitle: 'Edit the draft and check it before applying to the Workspace. Save or publish from Overview to update Runtime.',
+    sourceHint: 'Code edits only the local draft. Check, then apply it to the Workspace.',
+    preview: 'Check changes',
+    apply: 'Apply to Workspace',
+    previewReady: 'Check passed. Apply updates the Workspace; save or publish from Overview to update Runtime.'
+  };
+  if (locale === 'es') return {
+    ...copy,
+    help: 'Ayuda', subtitle: 'Edite y verifique el borrador antes de aplicarlo al Workspace. Guarde o publique desde Overview para actualizar Runtime.',
+    sourceHint: 'El código solo modifica el borrador local. Verifique y luego aplíquelo al Workspace.',
+    preview: 'Verificar cambios',
+    apply: 'Aplicar al Workspace',
+    previewReady: 'Verificación correcta. Aplicar actualiza el Workspace; guarde o publique desde Overview para actualizar Runtime.'
+  };
+  return {
+    ...copy,
+    help: 'Ajuda', subtitle: 'Edite e verifique o rascunho antes de aplicar ao Workspace. Salve ou publique em Visão geral para atualizar o Runtime.',
+    sourceHint: 'O código altera somente o rascunho local. Verifique as mudanças e aplique ao Workspace.',
+    preview: 'Verificar alterações',
+    apply: 'Aplicar ao Workspace',
+    previewReady: 'Verificação concluída. Aplicar atualiza o Workspace; salve ou publique em Visão geral para atualizar o Runtime.'
+  };
 }
 
 export function scopeLabel(scope: ScriptEngineeringScope, locale: EngineeringLocale): string {

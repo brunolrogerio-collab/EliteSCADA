@@ -50,6 +50,44 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
     public bool TryGetCommand(Guid commandId, out CommandDefinition? command) => _inner.TryGetCommand(commandId, out command);
     public bool IsServerMemoryTag(Guid tagId) => _inner.IsServerMemoryTag(tagId);
 
+    public EngineeringPackage? CaptureApplication() => _inner.CaptureApplication();
+
+    public async Task<RuntimeActivationResult> MaterializePassiveAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        DateTimeOffset? authoritativeActivatedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(package);
+        await _activationGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(GatewayEngineeringRuntimeCoordinator));
+
+            // Gateway execution and Operational Event emission are Active-only process
+            // effects. Tear them down before replacing the canonical Runtime projection.
+            var previousGateway = Interlocked.Exchange(ref _gateway, null);
+            Volatile.Write(
+                ref _operationalEvents,
+                new Dictionary<Guid, OperationalEventDefinition>());
+            if (previousGateway is not null)
+                await previousGateway.DisposeAsync();
+
+            return await _inner.MaterializePassiveAsync(
+                projectKey,
+                revision,
+                package,
+                authoritativeActivatedAtUtc,
+                cancellationToken);
+        }
+        finally
+        {
+            _activationGate.Release();
+        }
+    }
+
     public IReadOnlyCollection<GatewayRouteRuntimeDiagnostic> GatewayDiagnostics() =>
         Volatile.Read(ref _gateway)?.Diagnostics() ?? Array.Empty<GatewayRouteRuntimeDiagnostic>();
 

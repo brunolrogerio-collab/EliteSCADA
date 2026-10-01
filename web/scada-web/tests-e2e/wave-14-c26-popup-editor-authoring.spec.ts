@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { DEFAULT_CANVAS_GRID_SIZE } from '../src/engineering/visual-editor/canvas/canvasInteractionModel';
 
 test.use({ locale: 'pt-BR' });
 test.describe.configure({ mode: 'serial' });
@@ -109,6 +110,12 @@ test('C26.9 mounted Popup editor exposes bounds in the canonical single-canvas a
     expect(widthAfterMove).toBeGreaterThan(280);
     await expect(canonicalLayer).toHaveCSS('width', `${widthAfterMove}px`);
 
+    // Keep the southeast handle inside the visible canvas. The compact authoring
+    // layout can make the logical canvas narrower than the popup after the move;
+    // without zooming out, the handle is visually clipped behind the inspector.
+    const zoomOut = canvas.getByRole('button', { name: 'Reduzir zoom', exact: true });
+    for (let step = 0; step < 4; step += 1) await zoomOut.click();
+
     const objectWidthBeforeResize = await inlineNumber(rectangle, 'width');
     const resizeHandle = rectangle.locator('[data-canvas-resize-handle="southEast"]');
     const handleBox = await resizeHandle.boundingBox();
@@ -124,8 +131,13 @@ test('C26.9 mounted Popup editor exposes bounds in the canonical single-canvas a
     expect(heightAfterResize).toBeGreaterThan(130);
     await expect(canonicalLayer).toHaveCSS('width', `${widthAfterResize}px`);
     await expect(canonicalLayer).toHaveCSS('height', `${heightAfterResize}px`);
-    await expect(authoredBackground).toHaveCSS('width', `${widthAfterResize}px`);
-    await expect(authoredBackground).toHaveCSS('height', `${heightAfterResize}px`);
+    const renderedGridSize = await canvas.locator('.visual-editor-canvas__surface').evaluate(surface =>
+      Number.parseFloat(getComputedStyle(surface).getPropertyValue('--visual-editor-grid-size'))
+    );
+    const authoredWidth = await authoredBackground.evaluate(element => Number.parseFloat(getComputedStyle(element).width));
+    const authoredHeight = await authoredBackground.evaluate(element => Number.parseFloat(getComputedStyle(element).height));
+    expect(authoredWidth).toBeCloseTo(widthAfterResize * renderedGridSize / DEFAULT_CANVAS_GRID_SIZE, 1);
+    expect(authoredHeight).toBeCloseTo(heightAfterResize * renderedGridSize / DEFAULT_CANVAS_GRID_SIZE, 1);
     await expect(workspace.getByTestId('popup-authoring-bounds')).toContainText(`X ${1920 - widthAfterResize}, Y ${1080 - heightAfterResize}`);
 
     const canonicalMetrics = await canonicalLayer.evaluate(element => {

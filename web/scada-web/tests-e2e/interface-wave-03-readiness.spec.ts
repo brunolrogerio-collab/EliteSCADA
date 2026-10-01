@@ -51,7 +51,7 @@ test('Wave 03 readiness: local session survives Runtime -> Engineering -> Audit 
     await expect(account).toBeVisible();
     await expect(account.locator('summary')).toHaveAttribute('aria-label', /Conta: Local Developer/);
 
-    await navigation.getByRole('link', { name: /Engineering/ }).click();
+    await navigation.locator('a[href="/engineering"]').click();
     await expect(page).toHaveURL(/\/engineering$/);
     await expect(page.locator('.eng-shell')).toBeVisible();
     await expect(page.locator('.user-session-menu')).toBeVisible();
@@ -97,7 +97,13 @@ test('Wave 03 readiness: Runtime stays operational while TAG/history diagnostics
   const historyTag = tags.find(tag => tag.path === 'Demo.P01.Frequency');
   expect(historyTag).toBeTruthy();
   expect(historyTag!.readOnly).toBeFalsy();
-  const historyResponse = await request.get(`/api/history/${historyTag!.id}?limit=5`);
+  // The explicit Historian sample is seeded by the Chromium prerequisite near
+  // suite startup. Broad E2E can reach this read-only check more than 15 minutes
+  // later, so bound the query explicitly without changing product defaults.
+  const historyFrom = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const historyTo = new Date().toISOString();
+  const historyResponse = await request.get(
+    `/api/history/${historyTag!.id}?from=${encodeURIComponent(historyFrom)}&to=${encodeURIComponent(historyTo)}&limit=5`);
   expect(historyResponse.ok()).toBeTruthy();
   const history = await historyResponse.json() as Array<{ timestamp: string; quality: unknown }>;
   expect(Array.isArray(history)).toBeTruthy();
@@ -133,8 +139,8 @@ test('Wave 03 readiness: Engineering exposes the configured domains, Gateway, di
 
   const engineeringNavigation = page.locator('.eng-nav');
 
-  await engineeringNavigation.getByRole('button', { name: /Data Sources/ }).click();
-  await expect(page.getByRole('heading', { name: 'Editor de Data Source' })).toBeVisible();
+  await engineeringNavigation.getByRole('button', { name: /Fontes de dados|Data Sources/ }).click();
+  await expect(page.getByRole('heading', { name: /Editor.*Fonte[s]? de dados|Data Source editor/ })).toBeVisible();
   await expect(page.getByTestId('schema-data-source-editor')).toBeVisible();
   await expect(page.getByTestId('data-source-type')).toBeVisible();
   await expect(page.getByTestId('gateway-engineering-panel')).toHaveCount(0);
@@ -226,7 +232,7 @@ for (const expected of localeExpectations) {
     await expect(page.getByRole('navigation', { name: 'Runtime views' }).getByRole('link', { name: expected.overview, exact: true })).toHaveAttribute('aria-current', 'page');
     await expect(page.locator('.user-session-menu')).toBeVisible();
 
-    const engineeringLink = runtimeNavigation.getByRole('link', { name: /Engineering/ });
+    const engineeringLink = runtimeNavigation.locator('a[href="/engineering"]');
     await expect(engineeringLink).toHaveAttribute('href', '/engineering');
     await engineeringLink.click();
     await expect(page).toHaveURL(/\/engineering$/);

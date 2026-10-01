@@ -10,7 +10,7 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   const firstScreen = page.locator('.visual-editor-screen-list').getByRole('button').first();
   await firstScreen.click();
 
-  await page.locator('[data-object-type="core.rectangle"]').click();
+  await page.locator('[data-insert-object-type="core.rectangle"]').click();
   const rectangle = page.locator('[data-canvas-object-type="core.rectangle"]').last();
   await expect(rectangle).toBeVisible();
   await rectangle.click();
@@ -91,7 +91,7 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   await expect(secondaryColor).toHaveAttribute('data-editor-type', 'color');
   await expect(secondaryColor.locator('input[type="color"]')).toBeVisible();
 
-  await page.locator('[data-object-type="core.text"]').click();
+  await page.locator('[data-insert-object-type="core.text"]').click();
   const textObject = page.locator('[data-canvas-object-type="core.text"]').last();
   await expect(textObject).toBeVisible();
   await textObject.click();
@@ -117,7 +117,7 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   await expect(textOverflow).toHaveAttribute('data-editor-type', 'enum');
   await expect(textOverflow.getByRole('combobox', { name: 'Text Overflow' }).locator('option')).toHaveText(['clip', 'ellipsis']);
 
-  await page.locator('[data-object-type="core.image"]').click();
+  await page.locator('[data-insert-object-type="core.image"]').click();
   const imageObject = page.locator('[data-canvas-object-type="core.image"]').last();
   await expect(imageObject).toBeVisible();
   await imageObject.click();
@@ -127,5 +127,20 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   await expect(assetRef).toHaveAttribute('data-editor-hint', 'project-asset');
   const assetBrowser = assetRef.getByTestId('visual-editor-image-asset-picker');
   await expect(assetBrowser.getByRole('combobox', { name: 'Asset Ref' })).toBeVisible();
+  await expect(assetBrowser.getByRole('button', { name: 'Escolher imagem…' })).toBeVisible();
+  const imageZoom = inspector.locator('[data-property-key="imageZoom"]');
+  await expect(imageZoom.locator('input[type="range"]')).toBeVisible();
+  await expect(imageZoom.locator('input[type="range"]')).toHaveAttribute('min', '1');
+  await expect(imageZoom.locator('input[type="range"]')).toHaveAttribute('max', '8');
+  await expect(assetBrowser.locator('input[type="file"]')).toHaveAttribute('accept', /image\/svg\+xml/);
   await expect(assetRef.locator('input[type="text"]')).toHaveCount(0);
+
+  // Project image assets are imported against a clean canonical Screen revision.
+  // This test only edits a draft, so discard it before exercising background upload.
+  await page.getByRole('button', { name: 'Restaurar rascunho', exact: true }).click();
+  await page.getByTestId('visual-editor-side-tab-assets').click();
+  const background = page.getByTestId('visual-definition-surface-inspector');
+  await background.locator('summary').click();
+  await expect(background.locator('input[type="file"]')).toHaveAttribute('accept', /image\/svg\+xml/);
+  await expect(background.getByRole('button', { name: 'Escolher imagem…' })).toBeEnabled();
 });

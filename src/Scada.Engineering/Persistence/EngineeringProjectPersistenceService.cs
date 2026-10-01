@@ -234,7 +234,7 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
         string? activatedBy = null,
         CancellationToken cancellationToken = default)
     {
-        await EnsureWritableBindingAsync(projectKey, cancellationToken);
+        await EnsureActivatableBindingAsync(projectKey, cancellationToken);
         return await _store.RecordActivationAsync(projectKey, revision, activatedBy, cancellationToken);
     }
 
@@ -363,6 +363,24 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
         {
             throw new InvalidOperationException(
                 $"Engineering project '{projectKey}' is not the current installation Application binding " +
+                $"(state '{binding.State}', project '{binding.ProjectKey ?? "none"}').");
+        }
+    }
+
+    private async Task EnsureActivatableBindingAsync(
+        string projectKey,
+        CancellationToken cancellationToken)
+    {
+        if (_installationBinding is null) return;
+
+        var binding = await _installationBinding.GetAsync(cancellationToken);
+        var allowed = binding.State == EngineeringInstallationBindingState.Legacy ||
+            (binding.State == EngineeringInstallationBindingState.Attached &&
+             string.Equals(binding.ProjectKey, projectKey?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (!allowed)
+        {
+            throw new InvalidOperationException(
+                $"Engineering project '{projectKey}' is not the current Attached installation Application binding " +
                 $"(state '{binding.State}', project '{binding.ProjectKey ?? "none"}').");
         }
     }

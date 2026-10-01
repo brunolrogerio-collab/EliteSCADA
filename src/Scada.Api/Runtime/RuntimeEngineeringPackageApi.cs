@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using Scada.Api.Persistence;
 using Scada.Api.Security;
 using Scada.Engineering.Persistence;
 using Scada.Security.Authorization;
@@ -100,7 +101,7 @@ public static class RuntimeEngineeringPackageApi
                 });
             }
 
-            var consistencyFailure = ValidateConfiguredProject(context, before);
+            var consistencyFailure = await ValidateApplicationAuthorityAsync(context, before, cancellationToken);
             if (consistencyFailure is not null) return consistencyFailure;
 
             var persistence = context.RequestServices.GetService<IEngineeringProjectPersistenceService>();
@@ -181,7 +182,7 @@ public static class RuntimeEngineeringPackageApi
             if (!IsEngineering(before))
                 return Results.NotFound();
 
-            var consistencyFailure = ValidateConfiguredProject(context, before);
+            var consistencyFailure = await ValidateApplicationAuthorityAsync(context, before, cancellationToken);
             if (consistencyFailure is not null) return consistencyFailure;
 
             var persistence = context.RequestServices.GetService<IEngineeringProjectPersistenceService>();
@@ -245,23 +246,41 @@ public static class RuntimeEngineeringPackageApi
         !string.IsNullOrWhiteSpace(descriptor.ProjectKey) &&
         descriptor.Revision.HasValue;
 
-    private static IResult? ValidateConfiguredProject(HttpContext context, ScadaRuntimeDescriptor live)
+    private static async Task<IResult?> ValidateApplicationAuthorityAsync(
+        HttpContext context,
+        ScadaRuntimeDescriptor live,
+        CancellationToken cancellationToken)
     {
-        var configured = context.RequestServices.GetRequiredService<IConfiguration>()["EngineeringRuntime:ProjectKey"];
-        if (string.IsNullOrWhiteSpace(configured))
+        var authority = await EngineeringInstallationApplicationAuthorityResolver.ResolveAsync(
+            context.RequestServices.GetService<IEngineeringInstallationBindingStore>(),
+            context.RequestServices.GetRequiredService<IConfiguration>(),
+            cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(authority.ProjectKey))
         {
+            if (authority.UsesLegacyConfiguration)
+            {
+                return Results.Conflict(new
+                {
+                    error = "An Engineering runtime is active but EngineeringRuntime:ProjectKey is not configured."
+                });
+            }
+
             return Results.Conflict(new
             {
-                error = "An Engineering runtime is active but EngineeringRuntime:ProjectKey is not configured."
+                error = $"Active Runtime projection is unavailable while installation Application binding is '{authority.BindingState}'.",
+                applicationBindingState = authority.BindingState?.ToString(),
+                liveProjectKey = live.ProjectKey
             });
         }
 
-        return configured.Equals(live.ProjectKey, StringComparison.OrdinalIgnoreCase)
+        return authority.Matches(live.ProjectKey)
             ? null
             : Results.Conflict(new
             {
-                error = "Configured Engineering project does not match the active Runtime project.",
-                configuredProjectKey = configured,
+                error = "Installation Application binding does not match the active Runtime project.",
+                configuredProjectKey = authority.ProjectKey,
+                applicationBindingState = authority.BindingState?.ToString(),
                 liveProjectKey = live.ProjectKey
             });
     }

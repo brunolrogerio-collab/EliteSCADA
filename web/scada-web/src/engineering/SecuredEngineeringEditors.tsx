@@ -686,8 +686,8 @@ function EditorShell({ title, description, locale, children }: { title: string; 
   return (
     <div className="eng-section eng-editor-section">
       <header className="eng-editor-header">
-        <div><span className="eng-editor-eyebrow">{extra.editing}</span><h1>{title}</h1><p>{description}</p></div>
-        <div className="eng-editor-safety-note"><strong>{extra.previewGate}</strong><span>{extra.previewGateHint}</span></div>
+        <div className="eng-editor-heading-group"><span className="eng-editor-eyebrow">{extra.editing}</span><h1>{title}</h1></div>
+        <details className="eng-editor-help"><summary>{extra.guidance}</summary><p>{description}</p><div className="eng-editor-safety-note"><strong>{extra.previewGate}</strong><span>{extra.previewGateHint}</span></div></details>
       </header>
       {children}
     </div>
@@ -842,23 +842,26 @@ function isRecord(value: unknown): value is Record<string, unknown> { return typ
 
 function mutationText(locale: EngineeringLocale) {
   if (locale === 'en') return {
+    guidance: 'Help',
     editing: 'Secured Engineering editing',
-    previewGate: 'Preview required before Apply',
-    previewGateHint: 'Apply uses the public Engineering import pipeline and is available only after a valid preview. A changed Workspace invalidates the candidate.',
+    previewGate: 'How changes reach Runtime',
+    previewGateHint: 'Preview checks only. Apply updates the Workspace; save or publish from Overview to update Runtime.',
     apply: 'Apply to Workspace', applying: 'Applying...',
     workspaceChanged: 'The Engineering Workspace changed while this draft was being validated. Reload and validate again.'
   };
   if (locale === 'es') return {
+    guidance: 'Ayuda',
     editing: 'Edición segura de Ingeniería',
-    previewGate: 'Preview obligatorio antes de Aplicar',
-    previewGateHint: 'Aplicar usa el pipeline público de Engineering y solo se habilita después de un preview válido. Un cambio del Workspace invalida el candidato.',
+    previewGate: 'Cómo llegan los cambios al Runtime',
+    previewGateHint: 'La vista previa solo verifica. Aplicar actualiza el Workspace; guarde o publique desde Overview para actualizar Runtime.',
     apply: 'Aplicar al Workspace', applying: 'Aplicando...',
     workspaceChanged: 'El Engineering Workspace cambió durante la validación. Recargue y valide nuevamente.'
   };
   return {
+    guidance: 'Ajuda',
     editing: 'Edição segura de Engenharia',
-    previewGate: 'Preview obrigatório antes do Apply',
-    previewGateHint: 'O Apply usa o pipeline público de Engineering e só é habilitado após preview válido. Qualquer mudança no Workspace invalida o candidato.',
+    previewGate: 'Como as alterações chegam ao Runtime',
+    previewGateHint: 'A prévia só verifica. Aplicar atualiza o Workspace; salve ou publique em Visão geral para atualizar o Runtime.',
     apply: 'Aplicar ao Workspace', applying: 'Aplicando...',
     workspaceChanged: 'O Engineering Workspace mudou durante a validação deste rascunho. Recarregue e valide novamente.'
   };

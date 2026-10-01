@@ -4,7 +4,8 @@ import React, {
   useMemo,
   useRef,
   useState,
-  type MouseEvent
+  type MouseEvent,
+  type PointerEvent
 } from 'react';
 import { createPortal } from 'react-dom';
 import type { ScriptEngineeringContext } from '../../engineering/scripts/scriptEngineeringTypes';
@@ -99,6 +100,19 @@ export function RuntimeVisualDefinitionRenderer({
     runtimeFactory,
     frameClock
   }), [visualDefinitionId, instances, runtimeFactory, frameClock]);
+  const interactionEventKeys = useMemo(() => {
+    const byObject = new Map<string, Set<string>>();
+    for (const reference of scriptContext?.visualEventReferences ?? []) {
+      if (reference.visualDefinitionId !== visualDefinitionId ||
+          reference.eventKind !== 'objectInteraction' || !reference.visualObjectId) continue;
+      const eventKey = (reference.eventKey ?? 'click').trim().toLocaleLowerCase('en-US');
+      const keys = byObject.get(reference.visualObjectId) ?? new Set<string>();
+      keys.add(eventKey);
+      byObject.set(reference.visualObjectId, keys);
+    }
+    return byObject;
+  }, [scriptContext, visualDefinitionId]);
+  const lastPointerMoveDispatch = useRef(new Map<string, number>());
 
   useEffect(() => () => dispatcher.dispose(), [dispatcher]);
 
@@ -130,12 +144,15 @@ export function RuntimeVisualDefinitionRenderer({
     const next = new Map<string, HTMLElement>();
     for (const node of root.querySelectorAll<HTMLElement>('[data-object-id]')) {
       const objectId = node.dataset.objectId?.trim();
+      const eventKeys = objectId ? interactionEventKeys.get(objectId) : undefined;
+      if (eventKeys?.size) node.dataset.objectEvents = [...eventKeys].join(' ');
+      else delete node.dataset.objectEvents;
       if (objectId && !next.has(objectId)) next.set(objectId, node);
     }
     setDynamoStateHosts(next);
-  }, [expandedDynamoElements]);
+  }, [expandedDynamoElements, interactionEventKeys]);
 
-  const captureObjectInteraction = (event: MouseEvent<HTMLDivElement>) => {
+  const captureObjectInteraction = (event: MouseEvent<HTMLDivElement> | PointerEvent<HTMLDivElement>, eventKey: string) => {
     if (!scriptContext || !visualDefinitionId.trim()) return;
     const target = event.target;
     if (!(target instanceof Element)) return;
@@ -144,14 +161,39 @@ export function RuntimeVisualDefinitionRenderer({
     let visualElement: HTMLElement | null = target.closest<HTMLElement>('[data-object-id]');
     while (visualElement && event.currentTarget.contains(visualElement)) {
       const objectId = visualElement.dataset.objectId?.trim();
-      if (objectId && instances.has(objectId)) {
+      const configured = objectId ? interactionEventKeys.get(objectId) : undefined;
+      const related = 'relatedTarget' in event && event.relatedTarget instanceof Node
+        ? event.relatedTarget
+        : null;
+      const crossingWithinObject = related !== null && visualElement.contains(related);
+      const enteringOrLeaving = eventKey === 'pointerenter' || eventKey === 'pointerleave';
+      const movingPointer = eventKey === 'pointermove';
+      const pointerType = 'pointerType' in event ? event.pointerType : 'mouse';
+      const isMousePointer = !('pointerType' in event) || pointerType === 'mouse';
+      if (objectId && configured?.has(eventKey) && instances.has(objectId) &&
+          (!enteringOrLeaving || !crossingWithinObject) && (!movingPointer || isMousePointer)) {
+        if (movingPointer) {
+          const now = globalThis.performance?.now?.() ?? Date.now();
+          const lastKey = `${objectId}:${eventKey}`;
+          if (now - (lastPointerMoveDispatch.current.get(lastKey) ?? Number.NEGATIVE_INFINITY) < 80) {
+            visualElement = visualElement.parentElement?.closest<HTMLElement>('[data-object-id]') ?? null;
+            continue;
+          }
+          lastPointerMoveDispatch.current.set(lastKey, now);
+        }
         void dispatcher.dispatchObjectInteraction({
           visualDefinitionId,
           objectId,
-          eventKey: 'click',
+          eventKey,
+          pointer: {
+            x: event.clientX,
+            y: event.clientY,
+            type: pointerType,
+            button: event.button,
+            buttons: event.buttons
+          },
           context: scriptContext
         }).then(records => onScriptDispatch?.(records));
-        return;
       }
       const parent = visualElement.parentElement;
       visualElement = parent?.closest<HTMLElement>('[data-object-id]') ?? null;
@@ -163,7 +205,10 @@ export function RuntimeVisualDefinitionRenderer({
     className="runtime-visual-definition"
     data-runtime-visual-definition-id={visualDefinitionId || undefined}
     data-runtime-visual-context-id={runtimeContextId}
-    onClickCapture={captureObjectInteraction}
+    onClickCapture={event => captureObjectInteraction(event, 'click')}
+    onPointerOverCapture={event => captureObjectInteraction(event, 'pointerenter')}
+    onPointerOutCapture={event => captureObjectInteraction(event, 'pointerleave')}
+    onPointerMoveCapture={event => captureObjectInteraction(event, 'pointermove')}
   >
     <CanonicalVisualRenderer
       elements={expandedDynamoElements}

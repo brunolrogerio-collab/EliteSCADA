@@ -32,10 +32,13 @@ type EventsEditorProps = {
   onApplied?: () => Promise<void> | void;
 };
 
-type EventChoice = 'click' | 'initialize' | 'dispose' | 'tagChanged' | 'clientMemoryChanged' | 'timer';
+type EventChoice = 'click' | 'pointerEnter' | 'pointerMove' | 'pointerLeave' | 'initialize' | 'dispose' | 'tagChanged' | 'clientMemoryChanged' | 'timer';
 
-const EVENT_CHOICES: ReadonlyArray<{ value: EventChoice; label: string; eventKind: ScriptEngineeringEventKind }> = [
-  { value: 'click', label: 'Click', eventKind: 'objectInteraction' },
+const EVENT_CHOICES: ReadonlyArray<{ value: EventChoice; label: string; eventKind: ScriptEngineeringEventKind; eventKey?: string }> = [
+  { value: 'click', label: 'Click', eventKind: 'objectInteraction', eventKey: 'click' },
+  { value: 'pointerEnter', label: 'Pointer enters object', eventKind: 'objectInteraction', eventKey: 'pointerenter' },
+  { value: 'pointerMove', label: 'Pointer moves over object', eventKind: 'objectInteraction', eventKey: 'pointermove' },
+  { value: 'pointerLeave', label: 'Pointer leaves object', eventKind: 'objectInteraction', eventKey: 'pointerleave' },
   { value: 'initialize', label: 'Initialize', eventKind: 'initialize' },
   { value: 'dispose', label: 'Dispose', eventKind: 'dispose' },
   { value: 'tagChanged', label: 'TAG value change', eventKind: 'tagChanged' },
@@ -65,6 +68,7 @@ export function EventsEditor({
   const [error, setError] = useState<string | null>(null);
 
   const eventKind = EVENT_CHOICES.find(item => item.value === choice)!.eventKind;
+  const eventKey = EVENT_CHOICES.find(item => item.value === choice)!.eventKey ?? 'click';
   const selectedScript = scripts.find(script => script.id === scriptId) ?? null;
   const matchingEntryPoints = useMemo(
     () => (selectedScript?.entryPoints ?? []).filter(item => item.eventKind === eventKind),
@@ -169,12 +173,13 @@ export function EventsEditor({
   const buildReference = (): ScriptVisualEventReference => {
     if (!resolvedVisualDefinitionId) throw new Error('Apply the visual definition before authoring events.');
     if (!selectedScript || !selectedEntryPoint) throw new Error('Select a valid Script entry point.');
-    if (choice === 'click' && !visualObjectId) throw new Error('Select one visual object for a Click event.');
+    if (eventKind === 'objectInteraction' && !visualObjectId) throw new Error('Select one visual object for an object interaction event.');
 
     const reference: ScriptVisualEventReference = {
       visualDefinitionId: resolvedVisualDefinitionId,
       visualObjectId: choice === 'initialize' || choice === 'dispose' || choice === 'timer' ? null : visualObjectId ?? null,
       eventKind,
+      ...(eventKind === 'objectInteraction' ? { eventKey } : {}),
       scriptId: selectedScript.id,
       entryPoint: selectedEntryPoint.handlerName,
       targetReference: null,
@@ -249,6 +254,7 @@ export function EventsEditor({
           item.visualDefinitionId === reference.visualDefinitionId &&
           (item.visualObjectId ?? null) === (reference.visualObjectId ?? null) &&
           item.eventKind === reference.eventKind &&
+          (item.eventKey ?? 'click').toLocaleLowerCase('en-US') === eventKey.toLocaleLowerCase('en-US') &&
           item.scriptId === reference.scriptId &&
           item.entryPoint === reference.entryPoint
         )),
@@ -333,7 +339,7 @@ export function EventsEditor({
       {previewToken ? <small>{previewToken.preview.canApply ? 'Validated Engineering candidate.' : 'Invalid Engineering candidate.'}</small> : null}
       <div className="visual-editor-events-list">
         {applicableReferences.map((reference, index) => <code key={`${reference.scriptId}:${reference.entryPoint}:${index}`}>
-          {reference.eventKind} → {reference.entryPoint}{formatTagSelector(reference)}
+          {reference.eventKind === 'objectInteraction' ? (reference.eventKey ?? 'click') : reference.eventKind} → {reference.entryPoint}{formatTagSelector(reference)}
         </code>)}
       </div>
     </>}

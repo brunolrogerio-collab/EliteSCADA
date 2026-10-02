@@ -3,7 +3,6 @@ import {
   request as playwrightRequest,
   test,
   type APIRequestContext,
-  type Locator,
   type Page
 } from '@playwright/test';
 import { createE2eJwt } from '../tests-e2e/jwt';

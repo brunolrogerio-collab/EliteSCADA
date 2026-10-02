@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Scada.Core.Persistence;
 using System.Text.Json;
 using Npgsql;
 using NpgsqlTypes;
@@ -139,13 +140,17 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         """;
 
     private readonly NpgsqlDataSource _dataSource;
+    private readonly IDurableWriteAdmission? _writeAdmission;
 
-    public PostgreSqlEngineeringProjectStore(string connectionString)
+    public PostgreSqlEngineeringProjectStore(
+        string connectionString,
+        IDurableWriteAdmission? writeAdmission = null)
     {
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new ArgumentException("PostgreSQL connection string is required.", nameof(connectionString));
 
         _dataSource = NpgsqlDataSource.Create(connectionString);
+        _writeAdmission = writeAdmission;
     }
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
@@ -208,6 +213,7 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         string? savedBy = null,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("engineering", cancellationToken);
         ValidateIdentity(projectKey, projectName, engineeringSchema, engineeringSchemaVersion);
         ValidateJson(engineeringJson);
         ArgumentNullException.ThrowIfNull(assets);
@@ -485,6 +491,7 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         string? publishedBy = null,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("engineering", cancellationToken);
         ValidateProjectKey(projectKey);
         if (revision < 1)
             throw new ArgumentOutOfRangeException(nameof(revision));
@@ -543,6 +550,7 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         string? activatedBy = null,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("engineering", cancellationToken);
         ValidateProjectKey(projectKey);
         if (revision < 1)
             throw new ArgumentOutOfRangeException(nameof(revision));
@@ -682,6 +690,7 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         string projectKey,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("engineering", cancellationToken);
         ValidateProjectKey(projectKey);
         var normalizedProjectKey = projectKey.Trim();
 

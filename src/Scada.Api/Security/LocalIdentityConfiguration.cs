@@ -1,3 +1,5 @@
+using Scada.Api.Persistence;
+using Scada.Core.Persistence;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.Security;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -103,7 +105,7 @@ public static class LocalIdentityConfiguration
 {
     public const string DefaultCookieName = "elitescada_access";
 
-    public static bool AddLocalIdentity(this WebApplicationBuilder builder, bool authenticationEnabled)
+    public static bool AddLocalIdentity(this WebApplicationBuilder builder, bool authenticationEnabled, DatabaseRuntimeConnectionSet? database = null)
     {
         builder.Services.AddSingleton<InitialInstallationGate>();
 
@@ -128,7 +130,7 @@ public static class LocalIdentityConfiguration
         if (cookieName.Any(char.IsWhiteSpace) || cookieName.Contains(';'))
             throw new InvalidOperationException("Authentication:Local:CookieName contains invalid characters.");
 
-        var connectionString = builder.Configuration.GetConnectionString("EliteScada");
+        var connectionString = database?.PrimaryConnectionString ?? builder.Configuration.GetConnectionString("EliteScada");
         var durableStore = !string.IsNullOrWhiteSpace(connectionString);
         var secureCookie = local.GetValue<bool?>("SecureCookie") ?? true;
         builder.Services.AddSingleton(new LocalIdentityRuntimeOptions(
@@ -137,16 +139,20 @@ public static class LocalIdentityConfiguration
             secureCookie,
             cookieName,
             durableStore));
-        builder.Services.AddSingleton<IAuthorityLifecycleStore>(_ =>
+        builder.Services.AddSingleton<IAuthorityLifecycleStore>(sp =>
             durableStore
-                ? new PostgreSqlAuthorityLifecycleStore(connectionString!)
+                ? new PostgreSqlAuthorityLifecycleStore(
+                    connectionString!,
+                    sp.GetService<IDurableWriteAdmission>())
                 : new InMemoryAuthorityLifecycleStore());
         builder.Services.AddSingleton<JwtTokenIssuer>();
         builder.Services.AddSingleton<LocalLoginAttemptLimiter>();
         builder.Services.AddSingleton<AuthorityBackupService>();
-        builder.Services.AddSingleton<ILocalIdentityStore>(_ =>
+        builder.Services.AddSingleton<ILocalIdentityStore>(sp =>
             durableStore
-                ? new PostgreSqlLocalIdentityStore(connectionString!)
+                ? new PostgreSqlLocalIdentityStore(
+                    connectionString!,
+                    sp.GetService<IDurableWriteAdmission>())
                 : new InMemoryLocalIdentityStore());
         builder.Services.AddSingleton<LocalIdentityBootstrapService>();
         builder.Services.AddSingleton(new AuthorityPolicyBootstrapOptions(

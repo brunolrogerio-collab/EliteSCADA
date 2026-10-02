@@ -179,6 +179,11 @@ public sealed class RuntimeHaHostConfigurationAuthority
         }
     }
 
+    // Only the untouched bootstrap generation may initialize an absent fencing reference.
+    // Any admin-persisted configuration must reconcile an existing compatible reference
+    // (or remain blocked) so a topology/reference edit can never manufacture authority.
+    public bool AllowsReferenceBootstrap => _running.Generation == 1;
+
     public RuntimeHaProtectionOptions CreateProtectionOptions()
     {
         var protection = _running.Protection;

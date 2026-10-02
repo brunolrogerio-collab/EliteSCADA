@@ -33,6 +33,14 @@ import { setRuntimeHistoricalPlaybackActive } from './runtimeHistoricalPlaybackG
 export type RuntimeTemporalMode = 'live' | 'historicalPlayback';
 export type HistoricalPlaybackLoadState = 'idle' | 'loading' | 'ready' | 'error';
 
+export type HistoricalPlaybackEngineeringPackage = Readonly<{
+  screens?: EngineeringPackageView['screens'];
+  popups?: EngineeringPackageView['popups'];
+  dynamos?: EngineeringPackageView['dynamos'];
+  templates?: EngineeringPackageView['templates'];
+  equipment?: EngineeringPackageView['equipment'];
+}>;
+
 export type HistoricalPlaybackContextValue = Readonly<{
   mode: RuntimeTemporalMode;
   timeRange: HistoricalTimeRangeState;
@@ -61,7 +69,7 @@ export function HistoricalPlaybackProvider({
   engineeringPackage,
   children
 }: Readonly<{
-  engineeringPackage: EngineeringPackageView;
+  engineeringPackage: HistoricalPlaybackEngineeringPackage;
   children: React.ReactNode;
 }>) {
   const [mode, setMode] = useState<RuntimeTemporalMode>('live');
@@ -233,7 +241,7 @@ export function useOptionalHistoricalPlayback(): HistoricalPlaybackContextValue 
 }
 
 export function collectHistoricalPlaybackRequests(
-  engineeringPackage: EngineeringPackageView
+  engineeringPackage: HistoricalPlaybackEngineeringPackage
 ): readonly RuntimeVisualSourceRequest[] {
   const collected: RuntimeVisualSourceRequest[] = [];
 

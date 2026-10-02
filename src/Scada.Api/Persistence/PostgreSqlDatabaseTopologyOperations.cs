@@ -510,7 +510,8 @@ public sealed class PostgreSqlDatabaseTopologyOperations(DatabaseTopologyOptions
         return QuoteIdentifier(schema) + "." + QuoteIdentifier(name);
     }
 
-    private static string QuoteIdentifier(string value) => """ + value.Replace(""", """", StringComparison.Ordinal) + """;
+    private static string QuoteIdentifier(string value) =>
+        string.Concat("\"", value.Replace("\"", "\"\"", StringComparison.Ordinal), "\"");
 
     private sealed record ColumnMetadata(string Name, string DataType, string UdtName, bool IsIdentity);
 }

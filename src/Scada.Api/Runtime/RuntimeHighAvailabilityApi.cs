@@ -48,6 +48,84 @@ public static class RuntimeHighAvailabilityApi
             return Results.Ok(highAvailability.Authority.Snapshot());
         });
 
+        endpoints.MapGet("/api/runtime/ha/configuration", async (
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            RuntimeHaHostConfigurationAuthority configuration,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.HighAvailabilityObserve,
+                cancellationToken: cancellationToken);
+            var failure = authorization.FailureResult();
+            return failure ?? Results.Ok(configuration.Snapshot());
+        });
+
+        endpoints.MapPut("/api/runtime/ha/configuration", async (
+            RuntimeHaHostConfigurationUpdateRequest request,
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            ApiAuditService audit,
+            RuntimeHighAvailabilityService highAvailability,
+            RuntimeHaHostConfigurationAuthority configuration,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.HighAvailabilityTransfer,
+                cancellationToken: cancellationToken);
+            var failure = authorization.FailureResult();
+            if (failure is not null)
+            {
+                await audit.RecordAuthorizationDeniedAsync(
+                    context,
+                    authorization,
+                    AuditActions.HighAvailabilityConfigurationUpdate,
+                    "ha-host-configuration",
+                    highAvailability.LocalNodeId ?? "standalone");
+                return failure;
+            }
+
+            var result = await configuration.UpdateAsync(request, cancellationToken);
+            var details = new Dictionary<string, string>
+            {
+                ["result"] = result.ReasonCode,
+                ["generation"] = result.Snapshot.Generation.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture),
+                ["topologyVersion"] = result.Snapshot.Desired.TopologyVersion.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture),
+                ["pendingRestart"] = result.Snapshot.PendingRestart.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture),
+                ["peerAuthenticationConfigured"] =
+                    result.Snapshot.Desired.PeerTransport.AuthenticationConfigured.ToString(
+                        System.Globalization.CultureInfo.InvariantCulture)
+            };
+            await audit.RecordAsync(
+                context,
+                authorization.Principal,
+                AuditActions.HighAvailabilityConfigurationUpdate,
+                result.Accepted ? AuditOutcome.Succeeded : AuditOutcome.Failed,
+                "ha-host-configuration",
+                highAvailability.LocalNodeId ?? "standalone",
+                details);
+
+            if (result.Accepted)
+            {
+                return result.Snapshot.PendingRestart
+                    ? Results.Accepted("/api/runtime/ha/configuration", result)
+                    : Results.Ok(result);
+            }
+
+            return result.ReasonCode == "host-configuration-generation-stale"
+                ? Results.Conflict(result)
+                : Results.BadRequest(result);
+        });
+
         endpoints.MapPost("/api/runtime/ha/transfers/begin", async (
             RuntimeHaManualTransferBeginRequest request,
             HttpContext context,
@@ -241,6 +319,7 @@ public static class RuntimeHighAvailabilityApi
             ApiAuthorizationService security,
             RuntimeHaProtectionCoordinator protection,
             RuntimeHaPeerReplicationCoordinator peer,
+            RuntimeHaHostConfigurationAuthority configuration,
             CancellationToken cancellationToken) =>
         {
             var authorization = await security.CheckRuntimeAsync(
@@ -257,6 +336,7 @@ public static class RuntimeHighAvailabilityApi
                 schemaVersion = 1,
                 protection = protection.Diagnostics(),
                 peer = peer.Diagnostics(),
+                configuration = configuration.Snapshot(),
                 operations = protection.Operations()
             });
         });

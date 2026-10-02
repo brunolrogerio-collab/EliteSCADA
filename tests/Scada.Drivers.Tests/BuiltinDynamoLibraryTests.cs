@@ -130,6 +130,53 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void MotorWithVfdStyles_KeepElectricalCabinetSeparateFromMechanicalShaft()
+    {
+        var variants = BuiltinDynamoLibrary.Create()
+            .Where(definition => definition.Metadata!["familyKey"] == "process.motor.vfd")
+            .ToArray();
+
+        Assert.Equal(3, variants.Length);
+        foreach (var variant in variants)
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            var motorKey = elements.ContainsKey("motor-body") ? "motor-body" : "motor";
+            Assert.Equal("core.polygon", elements[motorKey].Type);
+            foreach (var key in new[] { "shaft", "vfd", "terminal", "motor-base", "control-cable" })
+                Assert.Contains(key, elements.Keys);
+
+            var shaft = elements["shaft"].Properties!;
+            var vfd = elements["vfd"].Properties!;
+            var shaftRight = shaft["x"].GetDouble() + shaft["width"].GetDouble();
+            var cabinetLeft = vfd["x"].GetDouble();
+            Assert.True(shaftRight < cabinetLeft,
+                $"VFD variant '{variant.Key}' visually couples the mechanical shaft to the electrical cabinet.");
+
+            var motor = elements[motorKey].Properties!;
+            var terminal = elements["terminal"].Properties!;
+            Assert.True(terminal["y"].GetDouble() < motor["y"].GetDouble() + motor["height"].GetDouble() / 2d);
+        }
+    }
+
+    [Fact]
+    public void AgitatorStyles_UseMotorReducerStackInsteadOfGenericTopBox()
+    {
+        var variants = BuiltinDynamoLibrary.Create()
+            .Where(definition => definition.Metadata!["familyKey"] == "process.mixer.agitator")
+            .ToArray();
+
+        Assert.Equal(3, variants.Length);
+        Assert.All(variants, variant =>
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            Assert.Equal("core.bezier", elements["motor"].Type);
+            Assert.Contains("gearbox", elements.Keys);
+            Assert.True(elements["gearbox"].Properties!["y"].GetDouble() <
+                elements["vessel"].Properties!["y"].GetDouble());
+        });
+    }
+
+    [Fact]
     public void StandardMotorStyles_KeepIndustrialSideElevationAndAlignedShaftAxis()
     {
         var variants = BuiltinDynamoLibrary.Create()

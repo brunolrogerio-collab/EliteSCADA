@@ -240,6 +240,7 @@ export function DatabaseTopologyApp() {
   const operationId = status?.pendingOperationId ?? pending?.operationId ?? null;
   const displayPhase = pendingPhase ?? status?.lastOperation?.phase ?? null;
   const isCritical = pendingPhase != null && ['Quiescing', 'Copying', 'Copied', 'Verifying', 'Verified', 'Switching', 'Readiness', 'RollbackRequired'].includes(pendingPhase);
+  const configurationLocked = pendingPhase != null;
   const hasPrevious = Boolean(status?.previousTopology);
   const canRollback = Boolean(status?.recoveryRequired || pendingPhase === 'RollbackRequired' || hasPrevious);
   const primaryEndpoint = status?.activeTopology.primary;
@@ -255,7 +256,7 @@ export function DatabaseTopologyApp() {
 
   useEffect(() => {
     if (!autoRefreshActive) return;
-    const timer = window.setInterval(() => { void refresh(false, true); }, 3000);
+    const timer = window.setInterval(() => { void refresh(false, true); }, 5000);
     return () => window.clearInterval(timer);
   }, [autoRefreshActive, refresh]);
 
@@ -416,14 +417,14 @@ export function DatabaseTopologyApp() {
         {primaryEndpoint?.credentialConfigured ? <span className="db-topology-credential-state">{t.credentialsConfigured}</span> : null}
       </div>
 
-      <EndpointCoreFields value={draft.primary} prefix="Primary" disabled={isCritical} onChange={primary => {
+      <EndpointCoreFields value={draft.primary} prefix="Primary" disabled={configurationLocked} onChange={primary => {
         setDraft(current => ({ ...current, primary }));
         invalidateValidation();
       }} />
 
       <details className="db-topology-details db-topology-advanced">
         <summary><span>{t.advancedSettings}</span><small>{t.advancedSettingsHelp}</small></summary>
-        <EndpointAdvancedFields value={draft.primary} prefix="Primary" disabled={isCritical} onChange={primary => {
+        <EndpointAdvancedFields value={draft.primary} prefix="Primary" disabled={configurationLocked} onChange={primary => {
           setDraft(current => ({ ...current, primary }));
           invalidateValidation();
         }} />
@@ -431,7 +432,7 @@ export function DatabaseTopologyApp() {
           <input
             type="checkbox"
             checked={draft.historianUsesPrimary}
-            disabled={isCritical}
+            disabled={configurationLocked}
             onChange={event => {
               const usePrimary = event.target.checked;
               setDraft(current => ({
@@ -446,11 +447,11 @@ export function DatabaseTopologyApp() {
         </label>
         {!draft.historianUsesPrimary ? <div className="db-topology-override-editor">
           <h3>{t.historianOverride}</h3>
-          <EndpointCoreFields value={draft.historian} prefix="Historian" disabled={isCritical} onChange={historian => {
+          <EndpointCoreFields value={draft.historian} prefix="Historian" disabled={configurationLocked} onChange={historian => {
             setDraft(current => ({ ...current, historian }));
             invalidateValidation();
           }} />
-          <EndpointAdvancedFields value={draft.historian} prefix="Historian" disabled={isCritical} onChange={historian => {
+          <EndpointAdvancedFields value={draft.historian} prefix="Historian" disabled={configurationLocked} onChange={historian => {
             setDraft(current => ({ ...current, historian }));
             invalidateValidation();
           }} />
@@ -462,8 +463,8 @@ export function DatabaseTopologyApp() {
           <div><h3>{t.validation}</h3><p>{t.validateTargetHelp}</p></div>
         </div>
         <div className="db-topology-actions db-topology-actions--guided">
-          <button type="button" data-step="1" disabled={Boolean(busy) || isCritical} onClick={onValidateTarget}>{busy === 'validate' ? t.working : t.validateTarget}</button>
-          <button type="button" data-step="2" className="db-topology-primary-action" disabled={Boolean(busy) || isCritical || compatibility?.compatible !== true} onClick={onPrepare}>{busy === 'prepare' ? t.working : t.prepare}</button>
+          <button type="button" data-step="1" disabled={Boolean(busy) || configurationLocked} onClick={onValidateTarget}>{busy === 'validate' ? t.working : t.validateTarget}</button>
+          <button type="button" data-step="2" className="db-topology-primary-action" disabled={Boolean(busy) || configurationLocked || compatibility?.compatible !== true} onClick={onPrepare}>{busy === 'prepare' ? t.working : t.prepare}</button>
         </div>
 
         {validationHealth ? <div className="db-topology-result-summary" data-testid="database-validation-result">

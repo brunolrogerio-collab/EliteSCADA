@@ -50,6 +50,7 @@ public sealed class RuntimeHighAvailabilityConfigurationTests
             Assert.False(afterRestart.PendingRestart);
             Assert.False(afterRestart.IndustrialEffectsBlocked);
             Assert.True(restarted.AllowsIndustrialEffects);
+            Assert.False(restarted.AllowsReferenceBootstrap);
             Assert.Equal(4, afterRestart.Running.TopologyVersion);
             Assert.Contains(
                 afterRestart.Running.Nodes,

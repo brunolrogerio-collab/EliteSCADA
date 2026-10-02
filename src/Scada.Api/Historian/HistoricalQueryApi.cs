@@ -23,6 +23,8 @@ public static class HistoricalQueryApi
         builder.Services.TryAddScoped<IHistoricalQueryAuthorizer, ApiHistoricalQueryAuthorizer>();
         builder.Services.TryAddScoped<IHistoricalQueryService, HistoricalQueryService>();
         builder.Services.TryAddScoped<IDataQueryExecutionService, DataQueryExecutionService>();
+        builder.Services.TryAddScoped<ITransientDataQueryExecutionService>(services =>
+            (ITransientDataQueryExecutionService)services.GetRequiredService<IDataQueryExecutionService>());
     }
 
     public static RouteHandlerBuilder MapHistoricalQueryEndpoints(this WebApplication app)

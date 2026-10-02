@@ -2,6 +2,7 @@ using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.Drivers.Abstractions;
 using Scada.Drivers.Modbus;
+using System.Text.Json;
 
 namespace Scada.Drivers.Tests;
 
@@ -101,11 +102,13 @@ public sealed class ModbusTcpDriverTests
         Assert.Contains(server.Requests, x => x.Function == 0x04 && x.Address == 30 && x.Quantity == 1);
 
         await driver.WriteAsync(coilTag.Id, true);
-        await driver.WriteAsync(speedTag.Id, 37.5d);
+        using var jsonSpeed = JsonDocument.Parse("37.5");
+        await driver.WriteAsync(speedTag.Id, jsonSpeed.RootElement);
         await driver.WriteAsync(floatSetpointTag.Id, 42.25d);
 
         Assert.True(server.Coils[5]);
         Assert.Equal((ushort)75, server.HoldingRegisters[24]);
+        Assert.Equal(37.5d, Convert.ToDouble(Get(cache, speedTag.Id).Value));
         Assert.Contains(server.Requests, x => x.Function == 0x05 && x.Address == 5);
         Assert.Contains(server.Requests, x => x.Function == 0x06 && x.Address == 24);
         Assert.Contains(server.Requests, x => x.Function == 0x10 && x.Address == 20 && x.Quantity == 2);

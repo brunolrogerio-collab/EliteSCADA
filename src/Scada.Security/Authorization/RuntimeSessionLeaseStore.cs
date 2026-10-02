@@ -219,6 +219,18 @@ public interface IRuntimeSessionLeaseStore : IAsyncDisposable
         long authorityRevision,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Rebinds already-admitted HA logical leases to a newly committed Runtime authority
+    /// revision without creating a second seat or changing SessionId/ClientInstanceId.
+    /// </summary>
+    Task<int> RebindActiveClusterLeasesAsync(
+        Guid transitionId,
+        long authorityRevision,
+        string clusterId,
+        string serverNode,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(0);
+
     Task CompleteAuthorityTransitionAsync(
         Guid transitionId,
         long authorityRevision,
@@ -424,6 +436,39 @@ public sealed class InMemoryRuntimeSessionLeaseStore : IRuntimeSessionLeaseStore
                 };
             }
             return stale.Length;
+        }
+        finally { _gate.Release(); }
+    }
+
+    public async Task<int> RebindActiveClusterLeasesAsync(
+        Guid transitionId,
+        long authorityRevision,
+        string clusterId,
+        string serverNode,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(clusterId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(serverNode);
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            RequireTransitionLocked(transitionId, authorityRevision, revisionAlreadyAdvanced: true);
+            var candidates = _leases.Values
+                .Where(lease =>
+                    lease.IsActive &&
+                    lease.AuthorityRevision < authorityRevision &&
+                    string.Equals(lease.ClusterId, clusterId.Trim(), StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            foreach (var lease in candidates)
+            {
+                _leases[lease.SessionId] = lease with
+                {
+                    Generation = checked(lease.Generation + 1),
+                    ServerNode = serverNode.Trim(),
+                    AuthorityRevision = authorityRevision
+                };
+            }
+            return candidates.Length;
         }
         finally { _gate.Release(); }
     }

@@ -41,6 +41,7 @@ public static class AuditActions
     public const string ProductLicenseRemove = "product-license.remove";
     public const string HighAvailabilityTransferBegin = "ha.transfer.begin";
     public const string HighAvailabilityTransferComplete = "ha.transfer.complete";
+    public const string HighAvailabilityConfigurationUpdate = "ha.configuration.update";
     public const string AuditRead = "audit.read";
     public const string UserRoleManage = "user-role.manage";
     public const string AuthenticationLogin = "auth.login";

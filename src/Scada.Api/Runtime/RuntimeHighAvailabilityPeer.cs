@@ -610,6 +610,53 @@ public sealed partial class RuntimeHighAvailabilityService
                     local);
             }
 
+            if (_externalIndustrialFenceRequired)
+            {
+                if (_peerObservations.TryGetValue(
+                        envelope.SourceNodeId,
+                        out var protectedCursor))
+                {
+                    if (protectedCursor.ObservationInstanceId ==
+                            envelope.SourceObservationInstanceId &&
+                        envelope.ObservationSequence <= protectedCursor.Sequence)
+                    {
+                        return new RuntimeHaPeerApplyResult(
+                            false,
+                            "peer-observation-stale",
+                            local);
+                    }
+
+                    if (protectedCursor.SourceAuthorityInstanceId !=
+                        envelope.SourceAuthorityInstanceId)
+                    {
+                        if (!_retiredPeerAuthorityInstances.TryGetValue(
+                                envelope.SourceNodeId,
+                                out retired))
+                        {
+                            retired = new HashSet<Guid>();
+                            _retiredPeerAuthorityInstances[
+                                envelope.SourceNodeId] = retired;
+                        }
+                        retired.Add(protectedCursor.SourceAuthorityInstanceId);
+                    }
+                }
+
+                _peerObservations[envelope.SourceNodeId] =
+                    new PeerObservationCursor(
+                        envelope.SourceObservationInstanceId,
+                        envelope.ObservationSequence,
+                        envelope.SourceAuthorityInstanceId,
+                        envelope.AuthorityEpoch,
+                        envelope.ObservedAtUtc);
+                _authority.UpdateNodeReadiness(
+                    envelope.SourceNodeId,
+                    envelope.Readiness);
+                return new RuntimeHaPeerApplyResult(
+                    true,
+                    "peer-readiness-applied-reference-authority",
+                    _authority.Snapshot());
+            }
+
             if (_peerObservations.TryGetValue(
                     envelope.SourceNodeId,
                     out var cursor))

@@ -1,5 +1,32 @@
 
 
+## TWO PRODUCT OWNER UX LANES ACTIVE — 2026-10-02
+
+Exact common base:
+`wave15/corrections-integration@a213477b775c5d6f336f32d1a34bd937c02323b8`
+
+### Engineering Lifecycle UX
+- owner: #380;
+- contract: `C-ENG-LIFECYCLE-UX-02`;
+- order: `W15-ENG-LIFECYCLE-UX-SIMPLIFY-01`;
+- branch: `work/w15-engineering-lifecycle-ux`;
+- focus: one 1/2/3/4 lifecycle surface, remove duplicated cards/explanations/actions/confirmations;
+- backend lifecycle authority unchanged;
+- ACTIVE / NO_MERGE.
+
+### Runtime History / Fullscreen UX
+- owner: #384;
+- contract: `C-RUNTIME-HISTORY-UX-01`;
+- order: `W15-RUNTIME-HISTORY-UX-01`;
+- branch: `work/w15-runtime-history-ux`;
+- focus: fullscreen-safe in-context History + simplified operator browser + progressive disclosure;
+- Historian/Data Query authority unchanged;
+- Historical Playback #452 remains HOLD until UI convergence;
+- ACTIVE / NO_MERGE.
+
+Both branches were released byte-identical to the common base.
+
+
 ## ENGINEERING LIFECYCLE UX SIMPLIFICATION — 2026-10-02
 
 Contract:

@@ -158,13 +158,22 @@ public static class BuiltinDynamoLibrary
         {
             return Dynamo(sequence, "process.motor.standard", "Motor padrão", "motor", style, 106, 92,
             [
-                FlatShape(E(family, style, 1), "body", "core.rectangle", 17, 17, 69, 58, "#C5CDD3", "#374151", 2, 22),
-                FlatShape(E(family, style, 2), "shaft", "core.rectangle", 83, 39, 20, 10, "#9CA3AF", "#374151", 1, 2),
-                FlatShape(E(family, style, 3), "terminal", "core.rectangle", 38, 8, 28, 15, "#D1D5DB", "#374151", 1, 3),
-                FlatShape(E(family, style, 4), "base", "core.rectangle", 23, 75, 60, 8, "#6B7280", "#374151", 1, 2),
-                Text(E(family, style, 5), "label", "M", 38, 33, 28, 25, 13, "#111827"),
-                StateLamp(E(family, style, 6), "running", 4, 4, "#16A34A", "running", "{equipmentPath}.Running"),
-                StateLamp(E(family, style, 7), "fault", 82, 4, "#DC2626", "fault", "{equipmentPath}.Fault")
+                // Side-elevation silhouette follows the Product Owner coordinate scaffold:
+                // stepped shaft/front bearing, long cylindrical frame, top terminal box,
+                // rear fan cowl and two mounting feet. Geometry remains native/editable.
+                Polygon(E(family, style, 1), "body", 25, 20, 61, 50,
+                    [(7d, 0d), (51d, 0d), (61d, 8d), (61d, 42d), (51d, 50d), (7d, 50d), (0d, 42d), (0d, 8d)],
+                    "#C5CDD3", "#374151", 2),
+                FlatShape(E(family, style, 2), "end-bell-left", "core.ellipse", 15, 25, 22, 40, "#AEB7BE", "#374151", 1.5),
+                FlatShape(E(family, style, 3), "end-bell-right", "core.ellipse", 79, 27, 18, 36, "#AEB7BE", "#374151", 1.5),
+                FlatShape(E(family, style, 4), "shaft", "core.rectangle", 91, 41, 12, 8, "#8D989F", "#374151", 1, 2),
+                FlatShape(E(family, style, 5), "terminal", "core.rectangle", 48, 7, 26, 16, "#D1D5DB", "#374151", 1.5, 3),
+                FlatShape(E(family, style, 6), "foot-left", "core.rectangle", 35, 67, 16, 10, "#7D898F", "#374151", 1, 2),
+                FlatShape(E(family, style, 7), "foot-right", "core.rectangle", 68, 67, 16, 10, "#7D898F", "#374151", 1, 2),
+                FlatShape(E(family, style, 8), "base", "core.rectangle", 29, 76, 61, 7, "#5F6A70", "#374151", 1, 2),
+                Text(E(family, style, 9), "label", "M", 47, 35, 24, 20, 12, "#111827"),
+                StateLamp(E(family, style, 10), "running", 4, 4, "#16A34A", "running", "{equipmentPath}.Running"),
+                StateLamp(E(family, style, 11), "fault", 82, 4, "#DC2626", "fault", "{equipmentPath}.Fault")
             ],
             parameters: MotorParameters());
         }
@@ -172,23 +181,31 @@ public static class BuiltinDynamoLibrary
         var dimensional = style == VisualStyle.DimensionalFront;
         return Dynamo(sequence, "process.motor.standard", "Motor padrão", "motor", style, 150, 102,
         [
-            MaterialShape(E(family, style, 1), "body", "core.rectangle", 28, 23, 86, 58, "#AEBCC8", "#F8FAFC", "#334155", 3, 22, dimensional, "vertical", dimensional),
-            MaterialShape(E(family, style, 2), "end-bell-left", "core.ellipse", 20, 27, 24, 50, "#94A3B8", "#DDE4EA", "#334155", 2, 0, dimensional, "horizontal"),
-            MaterialShape(E(family, style, 3), "end-bell-right", "core.ellipse", 101, 27, 24, 50, "#94A3B8", "#DDE4EA", "#334155", 2, 0, dimensional, "horizontal"),
-            FlatShape(E(family, style, 4), "shaft", "core.rectangle", 118, 45, 27, 11, "#94A3B8", "#475569", 1, 2),
-            MaterialShape(E(family, style, 5), "terminal", "core.rectangle", 54, 9, 35, 22, "#CBD5E1", "#F8FAFC", "#334155", 2, 4, dimensional, "vertical"),
-            FlatShape(E(family, style, 6), "fin-1", "core.rectangle", 42, 31, 2, 42, "#64748B", "#64748B", 0),
-            FlatShape(E(family, style, 7), "fin-2", "core.rectangle", 51, 29, 2, 46, "#64748B", "#64748B", 0),
-            FlatShape(E(family, style, 8), "fin-3", "core.rectangle", 60, 29, 2, 46, "#64748B", "#64748B", 0),
-            FlatShape(E(family, style, 9), "fin-4", "core.rectangle", 69, 29, 2, 46, "#64748B", "#64748B", 0),
-            FlatShape(E(family, style, 10), "fin-5", "core.rectangle", 78, 29, 2, 46, "#64748B", "#64748B", 0),
-            FlatShape(E(family, style, 11), "fin-6", "core.rectangle", 87, 29, 2, 46, "#64748B", "#64748B", 0),
-            FlatShape(E(family, style, 12), "foot-left", "core.rectangle", 38, 76, 20, 11, "#64748B", "#334155", 1, 2),
-            FlatShape(E(family, style, 13), "foot-right", "core.rectangle", 88, 76, 20, 11, "#64748B", "#334155", 1, 2),
-            FlatShape(E(family, style, 14), "base", "core.rectangle", 31, 87, 84, 8, "#475569", "#334155", 1, 2),
-            Text(E(family, style, 15), "label", "M", 61, 41, 24, 22, 12, "#1F2937"),
-            StateLamp(E(family, style, 16), "running", 5, 4, "#22C55E", "running", "{equipmentPath}.Running"),
-            StateLamp(E(family, style, 17), "fault", 126, 4, "#EF4444", "fault", "{equipmentPath}.Fault")
+            Polygon(E(family, style, 1), "body", 38, 21, 78, 57,
+                [(9d, 0d), (67d, 0d), (78d, 10d), (78d, 47d), (67d, 57d), (9d, 57d), (0d, 47d), (0d, 10d)],
+                "#AEBCC8", "#334155", 3, dimensional ? "#F8FAFC" : null, "vertical", dimensional),
+            MaterialShape(E(family, style, 2), "end-bell-left", "core.ellipse", 23, 27, 29, 45,
+                "#94A3B8", "#E2E8ED", "#334155", 2, 0, dimensional, "horizontal"),
+            MaterialShape(E(family, style, 3), "end-bell-right", "core.ellipse", 105, 28, 27, 43,
+                "#94A3B8", "#DDE4EA", "#334155", 2, 0, dimensional, "horizontal"),
+            FlatShape(E(family, style, 4), "shaft", "core.rectangle", 124, 45, 22, 10, "#94A3B8", "#475569", 1, 2),
+            MaterialShape(E(family, style, 5), "terminal", "core.rectangle", 61, 8, 36, 20,
+                "#CBD5E1", "#F8FAFC", "#334155", 2, 4, dimensional, "vertical"),
+            FlatShape(E(family, style, 6), "fin-1", "core.rectangle", 49, 29, 2, 42, "#64748B", "#64748B", 0),
+            FlatShape(E(family, style, 7), "fin-2", "core.rectangle", 58, 27, 2, 46, "#64748B", "#64748B", 0),
+            FlatShape(E(family, style, 8), "fin-3", "core.rectangle", 67, 27, 2, 46, "#64748B", "#64748B", 0),
+            FlatShape(E(family, style, 9), "fin-4", "core.rectangle", 76, 27, 2, 46, "#64748B", "#64748B", 0),
+            FlatShape(E(family, style, 10), "fin-5", "core.rectangle", 85, 27, 2, 46, "#64748B", "#64748B", 0),
+            FlatShape(E(family, style, 11), "fin-6", "core.rectangle", 94, 29, 2, 42, "#64748B", "#64748B", 0),
+            FlatShape(E(family, style, 12), "foot-left", "core.rectangle", 46, 74, 19, 12, "#64748B", "#334155", 1, 2),
+            FlatShape(E(family, style, 13), "foot-right", "core.rectangle", 92, 74, 19, 12, "#64748B", "#334155", 1, 2),
+            FlatShape(E(family, style, 14), "base", "core.rectangle", 40, 85, 78, 8, "#475569", "#334155", 1, 2),
+            FlatShape(E(family, style, 15), "terminal-cover", "core.rectangle", 65, 4, 28, 6, "#94A3B8", "#334155", 1, 2),
+            FlatShape(E(family, style, 16), "cable-gland", "core.ellipse", 73, 1, 10, 8, "#71808A", "#334155", 1),
+            FlatShape(E(family, style, 17), "nameplate", "core.rectangle", 72, 40, 22, 13, "#E7ECEF", "#52606A", 1, 2),
+            Text(E(family, style, 18), "label", "M", 74, 40, 18, 13, 10, "#1F2937"),
+            StateLamp(E(family, style, 19), "running", 5, 4, "#22C55E", "running", "{equipmentPath}.Running"),
+            StateLamp(E(family, style, 20), "fault", 126, 4, "#EF4444", "fault", "{equipmentPath}.Fault")
         ],
         parameters: MotorParameters());
     }
@@ -1234,16 +1251,16 @@ public static class BuiltinDynamoLibrary
                 break;
 
             case "process.motor.standard":
-                var motorLeft = style == VisualStyle.HighPerformance ? 27 : 36;
-                var motorRight = style == VisualStyle.HighPerformance ? 74 : 101;
-                var motorTop = style == VisualStyle.HighPerformance ? 27 : 34;
-                var motorVentHeight = style == VisualStyle.HighPerformance ? 34 : 31;
+                // Keep family-specific details aligned with the redesigned side elevation.
+                // The central frame carries the cooling ribs; the end bells/cowl remain visually clean.
                 for (var index = 0; index < 3; index++)
                 {
-                    var x = motorLeft + index * 4;
-                    Bar($"cooling-rib-left-{index + 1}", x, motorTop, 1.8, motorVentHeight, "#73889A");
-                    Bar($"cooling-rib-right-{index + 1}", motorRight + index * 4, motorTop, 1.8, motorVentHeight, "#73889A");
+                    Bar($"cooling-rib-left-{index + 1}", 47 + index * 4, 33, 1.8, 31, "#73889A");
+                    Bar($"cooling-rib-right-{index + 1}", 92 + index * 4, 33, 1.8, 31, "#73889A");
                 }
+                Bar("fan-cowl-vent-upper", 29, 37, 13, 1.5, "#667B8B");
+                Bar("fan-cowl-vent-middle", 27, 48, 16, 1.5, "#667B8B");
+                Bar("fan-cowl-vent-lower", 29, 59, 13, 1.5, "#667B8B");
                 break;
 
             case "process.motor.vfd":

@@ -1,3 +1,153 @@
+# LATEST DELTA — 2026-10-02 — PR #444 MERGED / LOCAL EDITOR WORKTREE PRESERVED
+
+> GitHub live is the sole authority. This section supersedes older merge-status statements below.
+> Do **not** declare Wave 15 complete from PR #444. Remaining lanes and the Product Owner's
+> unpublished local editor work still require disposition.
+
+## Exact integration checkpoint
+
+PR #444 `feat(engineering): integrate user-validated product improvements` was revalidated and merged with exact-head protection.
+
+Accepted PR #444 head:
+`6062f865818ae229d9ced5aa246b61a7c0cfef9b`
+
+Exact-head Wave 15 T1:
+- run #352 / `36954843198`: **SUCCESS**;
+- Classify: SUCCESS;
+- Common sanity: SUCCESS;
+- Web semantic build: SUCCESS;
+- Focused .NET: SUCCESS;
+- Focused Chromium: SUCCESS;
+- HA two-process: SUCCESS;
+- final gate: SUCCESS.
+
+Integration merge commit:
+`50df4982da5790249f41c8b3cd2634466d8013a4`
+
+Post-merge broad CI:
+- EliteSCADA CI #1634 / `36957590249`;
+- exact head `50df4982...`;
+- Web SUCCESS and Backend still running at this handoff checkpoint;
+- revalidate live before acting.
+
+PR #444 includes the accepted product package, stable local Docker stack, E3 converter/documentation retention with no automatic E3 trial seeding, and the final test-contract fixes. Do not silently remove accepted behavior while handling later regressions.
+
+## Product Owner local editor worktree — UNPUBLISHED / PRESERVE
+
+A separate local workspace contains additional Screen/Popup/Template editor improvements which are **not committed to GitHub and are not part of #444**:
+
+`C:\Users\Bruno Rogerio\Documents\Codex\EliteSCADA-dynamo-preview-0126`
+
+Reported implemented delta:
+- Canvas grid: competing rule removed; checker/grid pattern consolidated on the surface.
+- New canvas toolbar toggle `ID` to show/hide technical object identities without hiding static text, bound Value Display output or Numeric Input reading.
+- Insertion controls regrouped into drawing / content+controls sections with wrapping; `Value display` remains the existing registry object.
+- Numeric Input:
+  - `strokeStyle` including `none`;
+  - background and border thickness/color;
+  - visible status indicator removed while retaining screen-reader state;
+  - configurable edit/good/failure colors.
+- Value Display:
+  - configurable Good/Bad colors;
+  - MM/DD and DD/MM date formats, with/without year;
+  - HH:mm / HH:mm:ss;
+  - combined date+time;
+  - configurable decimal precision;
+  - TS/.NET contract reportedly synchronized.
+- Bézier:
+  - drag-editable points when selected;
+  - unsupported SVG paths preserved;
+  - absolute M/L/Q/C/Z editing supported;
+  - canonical property Preview/persistence retained.
+- Context menu closes on outside click and Escape.
+
+Reported local validation:
+- `npm run build` PASS;
+- `dotnet build ScadaPlatform.sln --no-restore` PASS, zero warnings/errors;
+- `git diff --check` PASS.
+
+The previous recovery also reported many local tracked/untracked product files. Treat the workspace as valuable evidence, not a clean checkout.
+
+**Required next handling before any commit:**
+1. preserve the workspace; do not reset/clean it;
+2. exclude `web/scada-web/test-results/`;
+3. inventory all tracked + untracked files;
+4. compare against current integration `50df4982...` (or newer live head);
+5. isolate only the intentional editor delta above from unrelated residue;
+6. recompose onto the current integration base;
+7. re-run focused build/tests;
+8. publish one bounded PR; never bulk-commit the whole local tree.
+
+Detailed durable record: #357 comment `5944719865`.
+
+## New Wave 15 architecture owners from Product Owner findings
+
+Two UI options were intentionally **not** enabled because backend/runtime semantics are missing:
+
+### #446 — TAG Gateway source kinds
+
+`W15-GATEWAY-SOURCE-KINDS — Client Memory and Simulation as read/source endpoints`
+
+Current constraint:
+- Client Memory is Runtime-client/session local;
+- TAG Gateway is server-authoritative;
+- `builtin.simulation` is ignored by the current configurable endpoint compiler.
+
+Therefore Client Memory/Simulation cannot be enabled by dropdown alone. #446 owns the runtime/protocol/validation/Preview contract. Initial Product Owner direction is source/read only unless a later contract explicitly authorizes writes.
+
+### #447 — configurable Simulation TAG profiles
+
+`W15-SIMULATION-TAGS — configurable per-TAG simulation profiles and CurrentTime`
+
+Required direction:
+- Random;
+- Sine;
+- Square;
+- CurrentTime;
+- RampUp;
+- RampDown;
+- RampUpDown;
+- persisted per-TAG Engineering configuration;
+- deterministic runtime SimulationDriver behavior;
+- DateTime-capable value semantics for CurrentTime;
+- normal editor/Preview/Apply/Save/Reopen lifecycle.
+
+Do not fake either #446 or #447 through frontend-only controls.
+
+## Remaining Wave 15 lane state
+
+- #308 Visual Quality: **OPEN**. #444 carries the 72 built-ins / accepted product package, but final mounted Editor/Library review across all 72 cards/styles and concrete visual corrections remain.
+- #439 Contextual Help: valid separate green candidate; it was intentionally held behind #444. Recompose/revalidate it on the accepted post-#444 integration before merge.
+- #379 Multilingual: Phase 1 integrated; final sweep remains after final HA/Playback/new product surfaces.
+- #425 Manual: Phase 1 integrated; complete after final HA-D2/Playback/Help/EEE/screenshots.
+- #423 HA-D2: dependency HA-D1 is cleared; wait for exact post-#444 broad-green base before release.
+- #445 Historical Playback: wait for exact post-#444 broad-green base before release.
+- #446 Gateway source kinds: new architecture/implementation work.
+- #447 Simulation TAG profiles: new architecture/implementation work.
+- #306 Productization: remains open.
+- EEE Simulation + real-Modbus v15: deliberately late, immediately before final Preview.
+- #300 final fresh complete-product Preview: remains the Wave 15 exit gate.
+- EliteGO separate client: deferred indefinitely; Wave 15 must still preserve all reusable server-side foundations.
+
+## Immediate next coordinator sequence
+
+1. revalidate integration HEAD and broad CI #1634;
+2. if #1634 is red, diagnose the concrete failure without dropping accepted #444 features;
+3. if #1634 is green, use `50df4982...` (or the then-current exact green integration head) as the release base for downstream recomposition;
+4. triage/publish the local editor worktree safely;
+5. recompose #439 Help;
+6. complete #308 mounted 72-card review;
+7. release/execute #423 HA-D2 and #445 Historical Playback under exact-base control;
+8. schedule #446/#447 with architecture contracts before UI enablement;
+9. finish multilingual/manual/help convergence;
+10. finalize EEE Simulation + real-Modbus;
+11. run final #300 fresh Preview + Product Owner audit;
+12. only then consider Wave 15 acceptance.
+
+Do not use the Product Owner as a messenger between agents. Persist orders/handoffs in GitHub.
+
+---
+
 # LATEST DELTA — 2026-10-01 — COORDINATOR RECOVERY / WAVE 15 CHECKPOINT
 
 > Revalidated against GitHub live on 2026-10-01 (America/Sao_Paulo). This

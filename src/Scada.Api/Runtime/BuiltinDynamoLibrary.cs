@@ -628,6 +628,8 @@ public static class BuiltinDynamoLibrary
                 FlatShape(E(family, style, 1), "stem", "core.rectangle", 44, 68, 8, 30, "#6B7280", "#374151", 1, 2),
                 FlatShape(E(family, style, 2), "face", "core.ellipse", 14, 8, 68, 68, "#F9FAFB", "#374151", 2),
                 FlatShape(E(family, style, 3), "inner", "core.ellipse", 22, 16, 52, 52, "#E5E7EB", "#9CA3AF", 1),
+                ArcShape(E(family, style, 7), "scale-arc", 25, 19, 46, 46, 210, 510, "arc",
+                    "#00000000", "#68747C", 1.5),
                 Text(E(family, style, 4), "label", "PI", 32, 30, 32, 22, 11, "#111827"),
                 FlatShape(E(family, style, 5), "connection", "core.rectangle", 34, 96, 28, 8, "#9CA3AF", "#374151", 1, 2),
                 StateLamp(E(family, style, 6), "fault", 72, 5, "#DC2626", "fault", "{equipmentPath}.Fault")
@@ -640,6 +642,8 @@ public static class BuiltinDynamoLibrary
         [
             MaterialShape(E(family, style, 1), "outer-case", "core.ellipse", 16, 10, 88, 88, "#AEBCC8", "#F8FAFC", "#334155", 3, 0, dimensional, "diagonal-down", dimensional),
             MaterialShape(E(family, style, 2), "face", "core.ellipse", 24, 18, 72, 72, "#F8FAFC", "#FFFFFF", "#64748B", 2, 0, dimensional, "vertical"),
+            ArcShape(E(family, style, 13), "scale-arc", 30, 24, 60, 60, 210, 510, "arc",
+                "#00000000", dimensional ? "#526979" : "#64748B", 1.5),
             FlatShape(E(family, style, 3), "tick-1", "core.rectangle", 57, 21, 3, 10, "#475569", "#475569", 0, 1),
             FlatShape(E(family, style, 4), "tick-2", "core.rectangle", 81, 31, 3, 10, "#475569", "#475569", 0, 1, 45),
             FlatShape(E(family, style, 5), "tick-3", "core.rectangle", 88, 54, 3, 10, "#475569", "#475569", 0, 1, 90),
@@ -686,6 +690,10 @@ public static class BuiltinDynamoLibrary
         void Ellipse(string key, double x, double y, double w, double h, string fill, double stroke = 2) =>
             shapes.Add(MaterialShape(E(family, style, shapes.Count + 1), key, "core.ellipse", x, y, w, h,
                 fill, highPerformance ? fill : light, dark, stroke, 0, dimensional, "diagonal-down",
+                dimensional && PrimaryMass(key)));
+        void Bezier(string key, double x, double y, double w, double h, string path, string fill, double stroke = 2) =>
+            shapes.Add(BezierShape(E(family, style, shapes.Count + 1), key, x, y, w, h, path,
+                fill, dark, stroke, highPerformance ? null : light, "diagonal-down",
                 dimensional && PrimaryMass(key)));
         void Bar(string key, double x, double y, double w, double h, string fill, double rotation = 0) =>
             shapes.Add(FlatShape(E(family, style, shapes.Count + 1), key, "core.rectangle", x, y, w, h, fill, dark, 1.4, 1.5, rotation));
@@ -803,8 +811,12 @@ public static class BuiltinDynamoLibrary
                 break;
             case "electrical.transformer.power":
                 Rect("base", 20, height - 18, width - 40, 8, dark, 2);
-                Rect("tank", 39, 43, 72, 83, shell, 6, 2.5);
-                Rect("cover", 34, 36, 82, 12, light, 2);
+                Bezier("tank", 39, 43, 72, 83,
+                    "M 8 8 C 18 3 30 2 50 2 C 70 2 82 3 92 8 L 92 92 C 82 97 70 98 50 98 C 30 98 18 97 8 92 Z",
+                    shell, 2.5);
+                Bezier("cover", 34, 36, 82, 12,
+                    "M 4 35 C 15 10 28 3 50 3 C 72 3 85 10 96 35 L 96 85 C 74 95 26 95 4 85 Z",
+                    light, 2);
                 for (var index = 0; index < (highPerformance ? 3 : 5); index++)
                     Rect($"radiator-{index + 1}", 18 + index * (highPerformance ? 8 : 4), 59, 4, 52, accent, 1, 1);
                 for (var index = 0; index < (highPerformance ? 3 : 5); index++)
@@ -818,7 +830,9 @@ public static class BuiltinDynamoLibrary
                 Rect("base", 17, height - 18, width - 34, 8, dark, 2);
                 Rect("support-left", 33, 70, 10, 61, shell, 2);
                 Rect("support-right", 88, 70, 10, 61, shell, 2);
-                Rect("interrupter", 38, 37, 56, 50, light, 7, 2.5);
+                Bezier("interrupter", 38, 37, 56, 50,
+                    "M 12 6 C 22 2 35 2 50 2 C 65 2 78 2 88 6 C 95 20 96 35 96 50 C 96 65 95 80 88 94 C 78 98 65 98 50 98 C 35 98 22 98 12 94 C 5 80 4 65 4 50 C 4 35 5 20 12 6 Z",
+                    light, 2.5);
                 Bar("contact-left", 62, 17, 7, 25, dark);
                 Bar("contact-right", 73, 17, 7, 25, dark);
                 Ellipse("terminal-left", 56, 5, 18, 16, accent);

@@ -15,6 +15,12 @@ public sealed record RuntimeHaManualTransferCompleteRequest(
     string TargetNodeId,
     long ExpectedBreakEpoch);
 
+public sealed record RuntimeHaControlledSwitchRequest(string TargetNodeId);
+
+public sealed record RuntimeHaFailbackRequest(string? TargetNodeId = null);
+
+public sealed record RuntimeHaRecoveryRequest(string? TargetNodeId = null);
+
 public static class RuntimeHighAvailabilityApi
 {
     public static IEndpointRouteBuilder MapRuntimeHighAvailabilityEndpoints(
@@ -40,6 +46,82 @@ public static class RuntimeHighAvailabilityApi
                 runtime.Describe(),
                 licensing.CurrentVerification);
             return Results.Ok(highAvailability.Authority.Snapshot());
+        });
+
+        endpoints.MapGet("/api/runtime/ha/configuration", async (
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            RuntimeHaHostConfigurationAuthority configuration,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.HighAvailabilityObserve,
+                cancellationToken: cancellationToken);
+            var failure = authorization.FailureResult();
+            return failure ?? Results.Ok(configuration.Snapshot());
+        });
+
+        endpoints.MapPut("/api/runtime/ha/configuration", async (
+            RuntimeHaHostConfigurationUpdateRequest request,
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            ApiAuditService audit,
+            RuntimeHighAvailabilityService highAvailability,
+            RuntimeHaHostConfigurationAuthority configuration,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.HighAvailabilityTransfer,
+                cancellationToken: cancellationToken);
+            var failure = authorization.FailureResult();
+            if (failure is not null)
+            {
+                await audit.RecordAuthorizationDeniedAsync(
+                    context,
+                    authorization,
+                    AuditActions.HighAvailabilityConfigurationUpdate,
+                    "ha-host-configuration",
+                    highAvailability.LocalNodeId ?? "standalone");
+                return failure;
+            }
+
+            var result = await configuration.UpdateAsync(request, cancellationToken);
+            var details = new Dictionary<string, string>
+            {
+                ["result"] = result.ReasonCode,
+                ["generation"] = result.Snapshot.Generation.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture),
+                ["topologyVersion"] = result.Snapshot.Desired.TopologyVersion.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture),
+                ["pendingRestart"] = result.Snapshot.PendingRestart.ToString(),
+                ["peerAuthenticationConfigured"] =
+                    result.Snapshot.Desired.PeerTransport.AuthenticationConfigured.ToString()
+            };
+            await audit.RecordAsync(
+                context,
+                authorization.Principal,
+                AuditActions.HighAvailabilityConfigurationUpdate,
+                result.Accepted ? AuditOutcome.Succeeded : AuditOutcome.Failed,
+                "ha-host-configuration",
+                highAvailability.LocalNodeId ?? "standalone",
+                details);
+
+            if (result.Accepted)
+            {
+                return result.Snapshot.PendingRestart
+                    ? Results.Accepted("/api/runtime/ha/configuration", result)
+                    : Results.Ok(result);
+            }
+
+            return result.ReasonCode == "host-configuration-generation-stale"
+                ? Results.Conflict(result)
+                : Results.BadRequest(result);
         });
 
         endpoints.MapPost("/api/runtime/ha/transfers/begin", async (
@@ -185,7 +267,257 @@ public static class RuntimeHighAvailabilityApi
                 : Results.Conflict(ProjectTransfer(operation));
         });
 
+        endpoints.MapGet("/api/runtime/ha/authority", async (
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            RuntimeHighAvailabilityService highAvailability,
+            RuntimeHaProtectionCoordinator protection,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.View,
+                cancellationToken: cancellationToken);
+            var failure = authorization.FailureResult();
+            if (failure is not null) return failure;
+
+            var topology = highAvailability.Snapshot();
+            var active = topology.EffectiveActiveNodeId is null
+                ? null
+                : topology.Nodes.SingleOrDefault(node =>
+                    node.NodeId.Equals(
+                        topology.EffectiveActiveNodeId,
+                        StringComparison.OrdinalIgnoreCase));
+            var protectionState = protection.Diagnostics();
+            return Results.Ok(new
+            {
+                schema = "elitescada.runtime-ha-authority",
+                schemaVersion = 1,
+                topology.Enabled,
+                topology.ClusterId,
+                topology.TopologyVersion,
+                topology.AuthorityEpoch,
+                topology.EffectiveActiveNodeId,
+                topology.AmbiguousAuthority,
+                blocked = topology.AmbiguousAuthority ||
+                    topology.PendingTransfer is not null ||
+                    (protectionState.Enabled &&
+                     protectionState.Status is "blocked" or "degraded"),
+                activeEndpoints = active?.Endpoints ?? Array.Empty<RuntimeHaEndpoint>(),
+                protectionStatus = protectionState.Status,
+                generatedAtUtc = topology.GeneratedAtUtc
+            });
+        });
+
+        endpoints.MapGet("/api/runtime/ha/administration", async (
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            RuntimeHaProtectionCoordinator protection,
+            RuntimeHaPeerReplicationCoordinator peer,
+            RuntimeHaHostConfigurationAuthority configuration,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.HighAvailabilityObserve,
+                cancellationToken: cancellationToken);
+            var failure = authorization.FailureResult();
+            if (failure is not null) return failure;
+
+            return Results.Ok(new
+            {
+                schema = "elitescada.runtime-ha-administration",
+                schemaVersion = 1,
+                protection = protection.Diagnostics(),
+                peer = peer.Diagnostics(),
+                configuration = configuration.Snapshot(),
+                operations = protection.Operations()
+            });
+        });
+
+        endpoints.MapGet("/api/runtime/ha/operations/{operationId:guid}", async (
+            Guid operationId,
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            RuntimeHaProtectionCoordinator protection,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.HighAvailabilityObserve,
+                cancellationToken: cancellationToken);
+            var failure = authorization.FailureResult();
+            if (failure is not null) return failure;
+
+            var operation = protection.GetOperation(operationId);
+            return operation is null ? Results.NotFound() : Results.Ok(operation);
+        });
+
+        endpoints.MapPost("/api/runtime/ha/actions/switchover", async (
+            RuntimeHaControlledSwitchRequest request,
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            ApiAuditService audit,
+            RuntimeHighAvailabilityService highAvailability,
+            RuntimeHaProtectionCoordinator protection,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.HighAvailabilityTransfer,
+                cancellationToken: cancellationToken);
+            var failure = authorization.FailureResult();
+            if (failure is not null)
+            {
+                await audit.RecordAuthorizationDeniedAsync(
+                    context,
+                    authorization,
+                    AuditActions.HighAvailabilityTransferBegin,
+                    "ha-cluster",
+                    highAvailability.ClusterId ?? "standalone");
+                return failure;
+            }
+
+            var operation = await protection.RequestControlledSwitchAsync(
+                request.TargetNodeId,
+                "controlled-switchover",
+                cancellationToken);
+            await AuditProtectionOperationAsync(
+                audit,
+                context,
+                authorization.Principal,
+                highAvailability,
+                operation);
+            return operation.State == "completed"
+                ? Results.Accepted($"/api/runtime/ha/operations/{operation.OperationId:D}", operation)
+                : Results.Conflict(operation);
+        });
+
+        endpoints.MapPost("/api/runtime/ha/actions/failback", async (
+            RuntimeHaFailbackRequest request,
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            ApiAuditService audit,
+            RuntimeHighAvailabilityService highAvailability,
+            RuntimeHaProtectionCoordinator protection,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.HighAvailabilityTransfer,
+                cancellationToken: cancellationToken);
+            var failure = authorization.FailureResult();
+            if (failure is not null)
+            {
+                await audit.RecordAuthorizationDeniedAsync(
+                    context,
+                    authorization,
+                    AuditActions.HighAvailabilityTransferBegin,
+                    "ha-cluster",
+                    highAvailability.ClusterId ?? "standalone");
+                return failure;
+            }
+
+            var target = string.IsNullOrWhiteSpace(request.TargetNodeId)
+                ? highAvailability.Authority.Definition.InitialActiveNodeId
+                : request.TargetNodeId.Trim();
+            if (string.IsNullOrWhiteSpace(target))
+                return Results.BadRequest(new { error = "No failback target is configured." });
+
+            var operation = await protection.RequestControlledSwitchAsync(
+                target,
+                "explicit-failback",
+                cancellationToken);
+            await AuditProtectionOperationAsync(
+                audit,
+                context,
+                authorization.Principal,
+                highAvailability,
+                operation);
+            return operation.State == "completed"
+                ? Results.Accepted($"/api/runtime/ha/operations/{operation.OperationId:D}", operation)
+                : Results.Conflict(operation);
+        });
+
+        endpoints.MapPost("/api/runtime/ha/actions/recovery", async (
+            RuntimeHaRecoveryRequest request,
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            ApiAuditService audit,
+            RuntimeHighAvailabilityService highAvailability,
+            RuntimeHaProtectionCoordinator protection,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.HighAvailabilityTransfer,
+                cancellationToken: cancellationToken);
+            var failure = authorization.FailureResult();
+            if (failure is not null)
+            {
+                await audit.RecordAuthorizationDeniedAsync(
+                    context,
+                    authorization,
+                    AuditActions.HighAvailabilityTransferBegin,
+                    "ha-cluster",
+                    highAvailability.ClusterId ?? "standalone");
+                return failure;
+            }
+
+            var operation = await protection.RequestRecoveryAsync(
+                request.TargetNodeId,
+                cancellationToken);
+            await AuditProtectionOperationAsync(
+                audit,
+                context,
+                authorization.Principal,
+                highAvailability,
+                operation);
+            return operation.State == "completed"
+                ? Results.Accepted($"/api/runtime/ha/operations/{operation.OperationId:D}", operation)
+                : Results.Conflict(operation);
+        });
+
         return endpoints;
+    }
+
+    private static async Task AuditProtectionOperationAsync(
+        ApiAuditService audit,
+        HttpContext context,
+        SecurityPrincipal principal,
+        RuntimeHighAvailabilityService highAvailability,
+        RuntimeHaProtectionOperation operation)
+    {
+        var details = new Dictionary<string, string>
+        {
+            ["operationId"] = operation.OperationId.ToString("D"),
+            ["kind"] = operation.Kind,
+            ["state"] = operation.State,
+            ["sourceNodeId"] = operation.SourceNodeId ?? string.Empty,
+            ["targetNodeId"] = operation.TargetNodeId ?? string.Empty,
+            ["epoch"] = operation.Epoch?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+            ["result"] = operation.ReasonCode
+        };
+        await audit.RecordAsync(
+            context,
+            principal,
+            AuditActions.HighAvailabilityTransferComplete,
+            operation.State == "completed" ? AuditOutcome.Succeeded : AuditOutcome.Failed,
+            "ha-cluster",
+            highAvailability.ClusterId ?? "standalone",
+            details);
     }
 
     private static object ProjectTransfer(RuntimeHaPeerTransferResult operation) =>

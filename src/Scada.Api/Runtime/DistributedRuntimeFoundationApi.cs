@@ -63,6 +63,9 @@ public static class DistributedRuntimeFoundationApi
             if (admissionFailure is not null) return admissionFailure;
             if (decision is null) return Results.Forbid();
 
+            if (highAvailability.Enabled && !highAvailability.CanOwnIndustrialEffects())
+                return HaAuthorityRequired(highAvailability);
+
             for (var attempt = 0; attempt < MaximumAuthorityAdmissionAttempts; attempt++)
             {
                 var authority = await security.RuntimeSessions.GetAuthorityStateAsync(cancellationToken);
@@ -154,6 +157,9 @@ public static class DistributedRuntimeFoundationApi
                 cancellationToken: cancellationToken);
             var authorityFailure = currentAuthority.FailureResult();
             if (authorityFailure is not null) return authorityFailure;
+
+            if (highAvailability.Enabled && !highAvailability.CanOwnIndustrialEffects())
+                return HaAuthorityRequired(highAvailability);
 
             var validation = await security.RuntimeSessions.HeartbeatAsync(
                 sessionId,
@@ -367,6 +373,20 @@ public static class DistributedRuntimeFoundationApi
     private static IResult CapacityFailure(object reasonCode) => Results.Json(
         new { error = "Runtime session capacity is unavailable.", capacityReasonCode = reasonCode.ToString() },
         statusCode: StatusCodes.Status409Conflict);
+
+    private static IResult HaAuthorityRequired(RuntimeHighAvailabilityService highAvailability)
+    {
+        var topology = highAvailability.Snapshot();
+        return Results.Conflict(new
+        {
+            error = "Runtime Session admission/heartbeat requires the effective HA Active authority.",
+            code = "ha-effective-active-required",
+            topology.ClusterId,
+            topology.AuthorityEpoch,
+            topology.EffectiveActiveNodeId,
+            topology.AmbiguousAuthority
+        });
+    }
 
     private static bool SameRuntime(ScadaRuntimeDescriptor left, ScadaRuntimeDescriptor right) =>
         left.Revision == right.Revision &&

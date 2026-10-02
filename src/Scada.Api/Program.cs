@@ -46,8 +46,17 @@ builder.Services.Configure<JsonOptions>(options => options.SerializerOptions.Con
 builder.Services.AddSingleton<TagRealtimeHub>();
 builder.AddConfiguredHistorian();
 builder.AddConfiguredServerMemoryRetention();
-builder.Services.AddSingleton<RuntimeHighAvailabilityService>();
+builder.Services.AddSingleton<RuntimeHaHostConfigurationAuthority>();
+builder.Services.AddSingleton(sp =>
+{
+    var hostConfiguration = sp.GetRequiredService<RuntimeHaHostConfigurationAuthority>();
+    var topology = hostConfiguration.RunningTopology;
+    return new RuntimeHighAvailabilityService(
+        topology,
+        externalIndustrialFenceRequired: topology.Enabled);
+});
 builder.Services.AddRuntimeHighAvailabilityPeerTransport();
+builder.Services.AddRuntimeHighAvailabilityProtection();
 
 builder.Services.AddSingleton(_ => new EngineeringWorkspace(seedDemo: false));
 builder.Services.AddSingleton<ITagRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Tags);

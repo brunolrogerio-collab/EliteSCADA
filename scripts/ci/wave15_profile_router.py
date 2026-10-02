@@ -82,6 +82,7 @@ E2E_SPECS = {
     "LICENSING_UX": ("tests-e2e/effective-capabilities-contract.spec.ts",),
     "ELITEGO_RUNTIME": ("tests-e2e/runtime.spec.ts",),
     "INSTALLATION": ("tests-e2e/local-auth.spec.ts",),
+    "HA_DISTRIBUTED": ("tests-e2e/ha-admin-workspace.spec.ts",),
 }
 
 

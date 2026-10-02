@@ -354,6 +354,48 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         }
     }
 
+    public async Task<int> RebindActiveClusterLeasesAsync(
+        Guid transitionId,
+        long authorityRevision,
+        string clusterId,
+        string serverNode,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(clusterId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(serverNode);
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            await AcquireLeaseMutationLockAsync(connection, transaction, cancellationToken);
+            var state = await LoadAuthorityStateForUpdateAsync(connection, transaction, cancellationToken);
+            RequirePendingTransition(state, transitionId, authorityRevision);
+
+            const string sql = """
+                UPDATE elitescada.runtime_session_leases
+                SET authority_revision = @authority_revision,
+                    server_node = @server_node,
+                    generation = generation + 1
+                WHERE is_active
+                  AND authority_revision < @authority_revision
+                  AND cluster_id = @cluster_id;
+                """;
+            await using var command = new NpgsqlCommand(sql, connection, transaction);
+            command.Parameters.AddWithValue("authority_revision", NpgsqlDbType.Bigint, authorityRevision);
+            command.Parameters.AddWithValue("server_node", NpgsqlDbType.Text, serverNode.Trim());
+            command.Parameters.AddWithValue("cluster_id", NpgsqlDbType.Text, clusterId.Trim());
+            var changed = await command.ExecuteNonQueryAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return changed;
+        }
+        catch
+        {
+            await RollbackQuietlyAsync(transaction);
+            throw;
+        }
+    }
+
     public async Task CompleteAuthorityTransitionAsync(
         Guid transitionId,
         long authorityRevision,

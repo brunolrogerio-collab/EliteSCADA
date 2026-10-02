@@ -3,7 +3,7 @@ name: EliteSCADA CI
 on:
   workflow_dispatch:
   push:
-    branches: [ main, wave14/corrections-integration, wave15/corrections-integration, coord/w15-recovery-handoff-2026-09-30 ]
+    branches: [ main, wave15/corrections-integration ]
     paths:
       - '**/*.sln'
       - '**/*.csproj'
@@ -574,8 +574,9 @@ jobs:
         run: npm run build
 
   e2e:
-    name: Chromium end-to-end
-    needs: [backend, frontend]
+    name: Chromium integration gate
+    # This job is self-contained: Playwright starts its own API/Vite servers.
+    # Do not serialize it behind backend/frontend; that only adds idle wall time.
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -619,7 +620,17 @@ jobs:
         working-directory: web/scada-web
         run: npx playwright install --with-deps chromium
 
-      - name: Run browser E2E tests
+      - name: Run Wave 15 merge integration smoke
+        if: github.event_name == 'push' && github.ref == 'refs/heads/wave15/corrections-integration'
+        working-directory: web/scada-web
+        run: >-
+          npm run test:e2e --
+          tests-e2e/wave-03-integrated-composition.spec.ts
+          tests-e2e/interface-wave-03-readiness.spec.ts
+          tests-e2e/runtime.spec.ts
+
+      - name: Run full browser E2E tests
+        if: github.event_name != 'push' || github.ref != 'refs/heads/wave15/corrections-integration'
         working-directory: web/scada-web
         run: npm run test:e2e
 

@@ -202,7 +202,125 @@ test('account menu keeps its localized accessible name and actions in every supp
   }
 });
 
-test('Runtime session class shows requested/granted truth and explicitly ends its user-owned lease', async ({ page }) => {
+test('Runtime session panel is compact, localized and keeps the inactive state subordinate', async ({ page }, testInfo) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+
+  const expectations = [
+    { locale: 'pt-BR', viewOnly: 'Visualização', interactive: 'Interativa', inactive: 'Sem sessão Runtime ativa.' },
+    { locale: 'en', viewOnly: 'View only', interactive: 'Interactive', inactive: 'No Runtime session is active.' },
+    { locale: 'es', viewOnly: 'Visualización', interactive: 'Interactiva', inactive: 'No hay sesión Runtime activa.' }
+  ];
+
+  for (const expected of expectations) {
+    await page.addInitScript(locale => window.localStorage.setItem('elitescada.engineering.locale', locale), expected.locale);
+    await page.goto('/');
+    await page.getByTestId('session-menu-toggle').click();
+
+    const popup = page.getByTestId('session-menu-popup');
+    await expect(page.getByTestId('runtime-session-request-viewOnly')).toHaveText(expected.viewOnly);
+    await expect(page.getByTestId('runtime-session-request-interactive')).toHaveText(expected.interactive);
+
+    const inactive = page.getByTestId('runtime-session-empty');
+    await expect(inactive).toHaveText(expected.inactive);
+
+    const popupBox = await popup.boundingBox();
+    const viewOnlyBox = await page.getByTestId('runtime-session-request-viewOnly').boundingBox();
+    const interactiveBox = await page.getByTestId('runtime-session-request-interactive').boundingBox();
+    expect(popupBox).not.toBeNull();
+    expect(viewOnlyBox).not.toBeNull();
+    expect(interactiveBox).not.toBeNull();
+    expect(popupBox!.width).toBeLessThanOrEqual(280);
+    expect(Math.abs(viewOnlyBox!.y - interactiveBox!.y)).toBeLessThanOrEqual(1);
+
+    const colors = await inactive.evaluate(node => {
+      const panel = node.closest('.user-session-menu__panel');
+      return {
+        inactive: window.getComputedStyle(node).color,
+        panel: panel ? window.getComputedStyle(panel).color : ''
+      };
+    });
+    expect(colors.inactive).not.toBe(colors.panel);
+
+    if (expected.locale === 'pt-BR') {
+      await testInfo.attach('runtime-shell-phase-a-compact-pt-BR', {
+        body: await popup.screenshot(),
+        contentType: 'image/png'
+      });
+    }
+  }
+});
+
+test('Runtime session keeps an Interactive grant visible without promoting technical reason codes', async ({ page }, testInfo) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+
+  await page.route('**/api/runtime/sessions', route => {
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    return route.fulfill({ status: 201, json: {
+      sessionId: '00000000-0000-0000-0000-000000000789',
+      clientInstanceId: request.clientInstanceId,
+      requestedClass: request.connectionClass,
+      grantedClass: 'interactive',
+      admissionReasonCode: 'InteractiveGranted',
+      capacityReasonCode: 'InteractiveSeatReserved'
+    }});
+  });
+  await page.route('**/api/runtime/sessions/*/terminate', route => route.fulfill({ status: 204, body: '' }));
+
+  await page.goto('/');
+  await page.getByTestId('session-menu-toggle').click();
+  await page.getByTestId('runtime-session-request-interactive').click();
+
+  const status = page.getByTestId('runtime-session-status');
+  await expect(status.locator('dd')).toHaveText(['Interativa', 'Interativa']);
+  await expect(page.getByTestId('runtime-session-notice')).toHaveCount(0);
+
+  const diagnostics = page.getByTestId('runtime-session-diagnostics');
+  await expect(diagnostics).not.toHaveAttribute('open', '');
+  await expect(diagnostics.getByText('InteractiveGranted')).toBeHidden();
+
+  await testInfo.attach('runtime-shell-phase-a-interactive', {
+    body: await page.getByTestId('session-menu-popup').screenshot(),
+    contentType: 'image/png'
+  });
+});
+
+test('Runtime session keeps Interactive to View Only fallback explicit while diagnostics stay secondary', async ({ page }, testInfo) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+
+  await page.route('**/api/runtime/sessions', route => {
+    const request = route.request().postDataJSON() as { clientInstanceId: string; connectionClass: string };
+    return route.fulfill({ status: 201, json: {
+      sessionId: '00000000-0000-0000-0000-000000000790',
+      clientInstanceId: request.clientInstanceId,
+      requestedClass: request.connectionClass,
+      grantedClass: 'viewOnly',
+      admissionReasonCode: 'InteractiveDownscoped',
+      capacityReasonCode: 'InteractivePoolsExhausted'
+    }});
+  });
+  await page.route('**/api/runtime/sessions/*/terminate', route => route.fulfill({ status: 204, body: '' }));
+
+  await page.goto('/');
+  await page.getByTestId('session-menu-toggle').click();
+  await page.getByTestId('runtime-session-request-interactive').click();
+
+  await expect(page.getByTestId('runtime-session-status').locator('dd')).toHaveText(['Interativa', 'Visualização']);
+  await expect(page.getByTestId('runtime-session-notice')).toContainText('As vagas interativas estão indisponíveis');
+
+  const diagnostics = page.getByTestId('runtime-session-diagnostics');
+  await expect(diagnostics).not.toHaveAttribute('open', '');
+  await expect(diagnostics.getByText('InteractivePoolsExhausted')).toBeHidden();
+
+  await testInfo.attach('runtime-shell-phase-a-interactive-fallback', {
+    body: await page.getByTestId('session-menu-popup').screenshot(),
+    contentType: 'image/png'
+  });
+});
+
+test('Runtime session class shows requested/granted truth and explicitly ends its user-owned lease', async ({ page }, testInfo) => {
   await installSessionContract(page, administrator);
   await installEngineeringRuntimeProjection(page);
   let terminated = false;
@@ -222,8 +340,20 @@ test('Runtime session class shows requested/granted truth and explicitly ends it
   await page.getByTestId('session-menu-toggle').click();
   await page.getByTestId('runtime-session-request-viewOnly').click();
   const status = page.getByTestId('runtime-session-status');
-  await expect(status).toContainText('viewOnly');
-  await expect(status).toContainText('ExplicitViewOnly');
+  await expect(status.locator('dd')).toHaveText(['Visualização', 'Visualização']);
+
+  const diagnostics = page.getByTestId('runtime-session-diagnostics');
+  await expect(diagnostics).not.toHaveAttribute('open', '');
+  await expect(diagnostics.getByText('ExplicitViewOnly')).toBeHidden();
+
+  await testInfo.attach('runtime-shell-phase-a-view-only', {
+    body: await page.getByTestId('session-menu-popup').screenshot(),
+    contentType: 'image/png'
+  });
+
+  await diagnostics.locator('summary').click();
+  await expect(diagnostics.getByText('ExplicitViewOnly')).toBeVisible();
+
   await page.getByTestId('runtime-session-end').click();
   await expect.poll(() => terminated).toBe(true);
   await expect(page.getByTestId('runtime-session-status')).toHaveCount(0);
@@ -262,7 +392,7 @@ test('failed Runtime class replacement clears the terminated old session before 
   await page.goto('/');
   await page.getByTestId('session-menu-toggle').click();
   await page.getByTestId('runtime-session-request-viewOnly').click();
-  await expect(page.getByTestId('runtime-session-status')).toContainText('viewOnly');
+  await expect(page.getByTestId('runtime-session-status')).toContainText('Visualização');
 
   await page.getByTestId('runtime-session-request-interactive').click();
 

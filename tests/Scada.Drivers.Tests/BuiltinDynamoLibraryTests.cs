@@ -109,6 +109,27 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void CentrifugalPumpStyles_UseCanonicalBezierVoluteAndPreserveStateColorTarget()
+    {
+        var variants = BuiltinDynamoLibrary.Create()
+            .Where(definition => definition.Metadata!["familyKey"] == "dynamo.pump.standard")
+            .ToArray();
+
+        Assert.Equal(3, variants.Length);
+        foreach (var variant in variants)
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            var casing = elements["casing"];
+            Assert.Equal("core.bezier", casing.Type);
+            Assert.True(casing.Properties!.ContainsKey("bezierPath"));
+            Assert.Contains("impeller", elements.Keys);
+            Assert.Contains(elements.Keys, key => key is "suction" or "suction-pipe");
+            Assert.Contains(elements.Keys, key => key is "discharge" or "discharge-pipe");
+            Assert.Contains(casing.PropertyMaps!, map => map.PropertyKey == "fillColor");
+        }
+    }
+
+    [Fact]
     public void StandardMotorStyles_KeepIndustrialSideElevationAndAlignedShaftAxis()
     {
         var variants = BuiltinDynamoLibrary.Create()

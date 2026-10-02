@@ -78,14 +78,21 @@ public static class BuiltinDynamoLibrary
         {
             return Dynamo(sequence, "dynamo.pump.standard", "Bomba centrífuga", "pump", style, 132, 92,
             [
-                FlatShape(E(family, style, 1), "suction", "core.rectangle", 4, 38, 30, 16, "#A7B0B7", "#374151", 2, 3),
-                FlatShape(E(family, style, 2), "casing", "core.ellipse", 27, 16, 64, 64, "#C5CDD3", "#374151", 2),
-                FlatShape(E(family, style, 3), "impeller", "core.ellipse", 46, 35, 26, 26, "#F3F4F6", "#4B5563", 2),
-                FlatShape(E(family, style, 4), "discharge", "core.rectangle", 78, 30, 46, 16, "#A7B0B7", "#374151", 2, 3),
-                FlatShape(E(family, style, 5), "base", "core.rectangle", 27, 78, 72, 7, "#6B7280", "#374151", 1, 2),
-                Text(E(family, style, 6), "label", "P", 47, 38, 22, 20, 13, "#111827"),
-                StateLamp(E(family, style, 7), "running", 5, 5, "#16A34A", "running", "{equipmentPath}.Running"),
-                StateLamp(E(family, style, 8), "fault", 107, 5, "#DC2626", "fault", "{equipmentPath}.Fault")
+                FlatShape(E(family, style, 1), "suction", "core.rectangle", 4, 41, 31, 14, "#A7B0B7", "#374151", 2, 3),
+                FlatShape(E(family, style, 2), "suction-flange", "core.ellipse", 3, 35, 13, 26, "#B7C0C6", "#374151", 1.5),
+                BezierShape(E(family, style, 3), "casing", 28, 13, 65, 68,
+                    "M 6 55 C 6 28 22 9 48 7 C 72 5 91 19 94 39 C 97 57 86 76 69 87 C 53 98 30 95 17 82 C 9 74 6 65 6 55 Z",
+                    "#C5CDD3", "#374151", 2),
+                FlatShape(E(family, style, 4), "impeller", "core.ellipse", 48, 36, 25, 25, "#F3F4F6", "#4B5563", 2),
+                FlatShape(E(family, style, 5), "discharge-neck", "core.rectangle", 77, 19, 18, 28, "#A7B0B7", "#374151", 2, 4),
+                FlatShape(E(family, style, 6), "discharge", "core.rectangle", 89, 12, 35, 14, "#A7B0B7", "#374151", 2, 3),
+                FlatShape(E(family, style, 7), "discharge-flange", "core.ellipse", 118, 8, 12, 22, "#B7C0C6", "#374151", 1.5),
+                FlatShape(E(family, style, 8), "foot-left", "core.rectangle", 39, 73, 15, 8, "#6B7280", "#374151", 1, 2),
+                FlatShape(E(family, style, 9), "foot-right", "core.rectangle", 72, 73, 15, 8, "#6B7280", "#374151", 1, 2),
+                FlatShape(E(family, style, 10), "base", "core.rectangle", 31, 80, 64, 6, "#5B646B", "#374151", 1, 2),
+                Text(E(family, style, 11), "label", "P", 50, 39, 22, 18, 12, "#111827"),
+                StateLamp(E(family, style, 12), "running", 5, 5, "#16A34A", "running", "{equipmentPath}.Running"),
+                StateLamp(E(family, style, 13), "fault", 107, 5, "#DC2626", "fault", "{equipmentPath}.Fault")
             ],
             parameters: PumpParameters());
         }
@@ -93,18 +100,28 @@ public static class BuiltinDynamoLibrary
         var dimensional = style == VisualStyle.DimensionalFront;
         return Dynamo(sequence, "dynamo.pump.standard", "Bomba centrífuga", "pump", style, 160, 110,
         [
-            MaterialShape(E(family, style, 1), "suction-pipe", "core.rectangle", 1, 47, 37, 18, "#B8C4CF", "#F8FAFC", "#334155", 2, 4, dimensional, "vertical"),
-            MaterialShape(E(family, style, 2), "suction-flange", "core.ellipse", 4, 40, 16, 32, "#AAB8C5", "#F8FAFC", "#334155", 2, 0, dimensional, "horizontal"),
-            MaterialShape(E(family, style, 3), "casing", "core.ellipse", 34, 18, 82, 82, "#B8C4CF", "#F8FAFC", "#334155", 3, 0, dimensional, "diagonal-down", dimensional),
-            MaterialShape(E(family, style, 4), "casing-inner", "core.ellipse", 48, 32, 54, 54, "#DDE4EA", "#FFFFFF", "#64748B", 2, 0, dimensional, "diagonal-down"),
-            MaterialShape(E(family, style, 5), "impeller", "core.ellipse", 64, 48, 22, 22, "#64748B", "#CBD5E1", "#334155", 2, 0, dimensional, "diagonal-up"),
-            MaterialShape(E(family, style, 6), "discharge-neck", "core.rectangle", 99, 15, 23, 38, "#B8C4CF", "#F8FAFC", "#334155", 2, 5, dimensional, "horizontal"),
-            MaterialShape(E(family, style, 7), "discharge-pipe", "core.rectangle", 110, 8, 39, 18, "#B8C4CF", "#F8FAFC", "#334155", 2, 4, dimensional, "vertical"),
-            MaterialShape(E(family, style, 8), "discharge-flange", "core.ellipse", 142, 5, 14, 24, "#AAB8C5", "#F8FAFC", "#334155", 2, 0, dimensional, "horizontal"),
-            FlatShape(E(family, style, 9), "foot-left", "core.rectangle", 47, 91, 16, 8, "#64748B", "#334155", 1, 2),
+            MaterialShape(E(family, style, 1), "suction-pipe", "core.rectangle", 1, 49, 39, 17,
+                "#B8C4CF", "#F8FAFC", "#334155", 2, 4, dimensional, "vertical"),
+            MaterialShape(E(family, style, 2), "suction-flange", "core.ellipse", 4, 41, 16, 32,
+                "#AAB8C5", "#F8FAFC", "#334155", 2, 0, dimensional, "horizontal"),
+            BezierShape(E(family, style, 3), "casing", 34, 17, 87, 84,
+                "M 7 55 C 7 27 24 8 50 6 C 74 4 93 18 96 39 C 99 58 88 76 71 88 C 55 99 32 97 18 84 C 10 76 7 66 7 55 Z",
+                "#B8C4CF", "#334155", 3,
+                dimensional ? "#F8FAFC" : null, "diagonal-down", dimensional),
+            MaterialShape(E(family, style, 4), "casing-inner", "core.ellipse", 50, 34, 51, 51,
+                "#DDE4EA", "#FFFFFF", "#64748B", 2, 0, dimensional, "diagonal-down"),
+            MaterialShape(E(family, style, 5), "impeller", "core.ellipse", 64, 48, 23, 23,
+                "#64748B", "#CBD5E1", "#334155", 2, 0, dimensional, "diagonal-up"),
+            MaterialShape(E(family, style, 6), "discharge-neck", "core.rectangle", 100, 16, 23, 39,
+                "#B8C4CF", "#F8FAFC", "#334155", 2, 5, dimensional, "horizontal"),
+            MaterialShape(E(family, style, 7), "discharge-pipe", "core.rectangle", 111, 8, 39, 18,
+                "#B8C4CF", "#F8FAFC", "#334155", 2, 4, dimensional, "vertical"),
+            MaterialShape(E(family, style, 8), "discharge-flange", "core.ellipse", 143, 5, 14, 24,
+                "#AAB8C5", "#F8FAFC", "#334155", 2, 0, dimensional, "horizontal"),
+            FlatShape(E(family, style, 9), "foot-left", "core.rectangle", 48, 91, 16, 8, "#64748B", "#334155", 1, 2),
             FlatShape(E(family, style, 10), "foot-right", "core.rectangle", 90, 91, 16, 8, "#64748B", "#334155", 1, 2),
-            FlatShape(E(family, style, 11), "base", "core.rectangle", 34, 98, 85, 8, "#475569", "#334155", 1, 2),
-            Text(E(family, style, 12), "label", "P", 64, 50, 22, 18, 11, "#1F2937"),
+            FlatShape(E(family, style, 11), "base", "core.rectangle", 35, 99, 84, 7, "#475569", "#334155", 1, 2),
+            Text(E(family, style, 12), "label", "P", 65, 51, 22, 18, 11, "#1F2937"),
             StateLamp(E(family, style, 13), "running", 5, 5, "#22C55E", "running", "{equipmentPath}.Running"),
             StateLamp(E(family, style, 14), "fault", 137, 5, "#EF4444", "fault", "{equipmentPath}.Fault")
         ],
@@ -1083,7 +1100,7 @@ public static class BuiltinDynamoLibrary
         // Only the dimensional illustration style uses soft elevation. The IEC-like 2D
         // and high-performance variants stay crisp and flat for dense operating screens.
         if (style == VisualStyle.DimensionalFront &&
-            (element.Type is "core.rectangle" or "core.ellipse" or "core.polygon") &&
+            (element.Type is "core.rectangle" or "core.ellipse" or "core.polygon" or "core.bezier" or "core.arc") &&
             IsPrimaryDimensionalMass(element.Key) &&
             !properties.ContainsKey("shadowEnabled") &&
             properties.TryGetValue("width", out var shapeWidth) && shapeWidth.TryGetDouble(out var shapeWidthValue) &&
@@ -1526,6 +1543,81 @@ public static class BuiltinDynamoLibrary
             properties["cornerRadius"] = JsonSerializer.SerializeToElement(cornerRadius);
 
         return new(key, type, Properties: properties, Id: ElementId(sequence));
+    }
+
+    private static VisualElementEngineeringDto BezierShape(
+        int sequence,
+        string key,
+        double x,
+        double y,
+        double width,
+        double height,
+        string bezierPath,
+        string fill,
+        string stroke,
+        double strokeWidth,
+        string? secondaryFill = null,
+        string gradientDirection = "vertical",
+        bool shadow = false)
+    {
+        var properties = Properties(
+            ("x", x), ("y", y), ("width", width), ("height", height),
+            ("rotation", 0d),
+            ("bezierPath", bezierPath),
+            ("fillStyle", secondaryFill is null ? "solid" : "gradient"),
+            ("fillColor", fill),
+            ("strokeColor", stroke), ("strokeWidth", strokeWidth));
+
+        if (secondaryFill is not null)
+        {
+            properties["fillSecondaryColor"] = JsonSerializer.SerializeToElement(secondaryFill);
+            properties["gradientDirection"] = JsonSerializer.SerializeToElement(gradientDirection);
+        }
+
+        if (shadow)
+        {
+            properties["shadowEnabled"] = JsonSerializer.SerializeToElement(true);
+            properties["shadowColor"] = JsonSerializer.SerializeToElement("#0F172A44");
+            properties["shadowOffsetX"] = JsonSerializer.SerializeToElement(1d);
+            properties["shadowOffsetY"] = JsonSerializer.SerializeToElement(2d);
+            properties["shadowBlur"] = JsonSerializer.SerializeToElement(3d);
+        }
+
+        return new(key, "core.bezier", Properties: properties, Id: ElementId(sequence));
+    }
+
+    private static VisualElementEngineeringDto ArcShape(
+        int sequence,
+        string key,
+        double x,
+        double y,
+        double width,
+        double height,
+        double startAngle,
+        double endAngle,
+        string arcStyle,
+        string fill,
+        string stroke,
+        double strokeWidth,
+        string? secondaryFill = null,
+        string gradientDirection = "vertical")
+    {
+        var properties = Properties(
+            ("x", x), ("y", y), ("width", width), ("height", height),
+            ("rotation", 0d),
+            ("arcStartAngle", startAngle), ("arcEndAngle", endAngle),
+            ("arcStyle", arcStyle),
+            ("fillStyle", secondaryFill is null ? "solid" : "gradient"),
+            ("fillColor", fill),
+            ("strokeColor", stroke), ("strokeWidth", strokeWidth));
+
+        if (secondaryFill is not null)
+        {
+            properties["fillSecondaryColor"] = JsonSerializer.SerializeToElement(secondaryFill);
+            properties["gradientDirection"] = JsonSerializer.SerializeToElement(gradientDirection);
+        }
+
+        return new(key, "core.arc", Properties: properties, Id: ElementId(sequence));
     }
 
     private static VisualElementEngineeringDto Polygon(

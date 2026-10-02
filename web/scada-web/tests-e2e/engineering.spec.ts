@@ -64,7 +64,7 @@ test('Engineering navigation exposes current domains and structured preview edit
     { button: /Fontes de dados|Data Sources/, heading: /Editor.*Fonte[s]? de dados|Data Source editor/, expected: 'builtin.memory.server' },
     { button: /Alarmes/, heading: 'Editor estruturado de Alarmes', expected: 'High discharge pressure' },
     { button: /Templates/, heading: 'Templates', expected: 'pump.standard' },
-    { button: /Equipamentos/, heading: 'Equipamentos', expected: 'Demo.P01' },
+    { button: /Equipamentos/, heading: 'Instâncias de Equipamentos', expected: 'Demo.P01' },
     { button: /Dínamos/, heading: 'Dínamos', expected: 'dynamo.pump.standard' },
     { button: /Telas/, heading: 'Telas', expected: 'demo.overview' },
     { button: /Popups/, heading: 'Popups', expected: 'popup.pump.standard' },

@@ -83,29 +83,33 @@ type ValidatedPopupCandidate = Readonly<{
 export function PopupVisualEditorWorkspace({
   snapshot,
   locale,
-  onApplied
+  onApplied,
+  onAssetImported
 }: {
   snapshot: EngineeringSnapshot;
   locale: EngineeringLocale;
   onApplied: () => Promise<void>;
+  onAssetImported?: () => Promise<void>;
 }) {
   return <DynamoAuthoringCatalogProvider
     definitions={snapshot.package.dynamos ?? []}
     tags={snapshot.package.tags ?? []}
     visualAssets={snapshot.package.visualAssets ?? []}
   >
-    <PopupVisualEditorWorkspaceBody snapshot={snapshot} locale={locale} onApplied={onApplied} />
+    <PopupVisualEditorWorkspaceBody snapshot={snapshot} locale={locale} onApplied={onApplied} onAssetImported={onAssetImported} />
   </DynamoAuthoringCatalogProvider>;
 }
 
 function PopupVisualEditorWorkspaceBody({
   snapshot,
   locale,
-  onApplied
+  onApplied,
+  onAssetImported
 }: {
   snapshot: EngineeringSnapshot;
   locale: EngineeringLocale;
   onApplied: () => Promise<void>;
+  onAssetImported?: () => Promise<void>;
 }) {
   const text = useMemo(() => popupEditorText(locale), [locale]);
   const popups = snapshot.package.popups ?? [];
@@ -393,7 +397,7 @@ function PopupVisualEditorWorkspaceBody({
       if (currentWorkspace.changeVersion !== snapshot.workspace.changeVersion) throw new Error(text.workspaceChanged);
       const imported = await importVisualAsset(file, currentWorkspace.changeVersion, { fileName: file.name });
       preserveDraftAfterAssetImportRef.current = true;
-      await onApplied();
+      await (onAssetImported ?? onApplied)();
       return imported.asset.id ?? null;
     } catch (reason) {
       preserveDraftAfterAssetImportRef.current = false;

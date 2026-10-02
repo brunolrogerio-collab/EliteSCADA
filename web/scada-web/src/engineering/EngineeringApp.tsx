@@ -120,6 +120,10 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
     }
   }, []);
 
+  const refreshSnapshotInPlace = useCallback(async () => {
+    setSnapshot(await loadEngineeringSnapshot());
+  }, []);
+
   useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
@@ -225,7 +229,7 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
         >
           {loading && <div className="eng-state-card"><div className="eng-spinner"/><strong>{t('app.loading')}</strong></div>}
           {!loading && error && <div className="eng-state-card error" role="alert" data-testid="engineering-load-error"><strong>{t('app.loadError')}</strong><span>{error}</span><button type="button" onClick={() => void load()}>{t('app.retry')}</button></div>}
-          {!loading && snapshot && <EngineeringSection section={section} snapshot={snapshot} productIdentity={productIdentity} t={t} locale={locale} onReload={load}/>}
+          {!loading && snapshot && <EngineeringSection section={section} snapshot={snapshot} productIdentity={productIdentity} t={t} locale={locale} onReload={load} onSnapshotRefreshed={refreshSnapshotInPlace}/>}
         </section>
       </div>
     </main>
@@ -238,13 +242,14 @@ function editorNavigationLabel(locale: EngineeringLocale, collapsed: boolean): s
   return collapsed ? 'Mostrar navegação do Engineering' : 'Ocultar navegação do Engineering';
 }
 
-function EngineeringSection({ section, snapshot, productIdentity, t, locale, onReload }: {
+function EngineeringSection({ section, snapshot, productIdentity, t, locale, onReload, onSnapshotRefreshed }: {
   section: SectionId;
   snapshot: EngineeringSnapshot;
   productIdentity: ProductIdentityView | null;
   t: ReturnType<typeof translator>;
   locale: EngineeringLocale;
   onReload: () => Promise<void>;
+  onSnapshotRefreshed: () => Promise<void>;
 }) {
   const model = snapshot.package;
   if (section === 'overview') return <><Overview snapshot={snapshot} t={t}/><EngineeringLifecycleWorkspace locale={locale}/><EngineeringProjectManagementWorkspace locale={locale}/></>;
@@ -267,11 +272,11 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, onR
     case 'tags': return <TagEditor model={model} locale={locale}/>;
     case 'alarms': return <AlarmEditor model={model} locale={locale}/>;
     case 'operationalEvents': return <OperationalEventEditor model={model} locale={locale} onApplied={onReload}/>;
-    case 'templates': return <VisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload} definitionKind="template"/>;
+    case 'templates': return <VisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload} onAssetImported={onSnapshotRefreshed} definitionKind="template"/>;
     case 'equipment': return <EquipmentFaceplateWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
-    case 'dynamos': return <DynamoCatalogSection items={model.dynamos ?? []} snapshot={snapshot} locale={locale} onApplied={onReload}/>;
-    case 'screens': return <VisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
-    case 'popups': return <PopupVisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
+    case 'dynamos': return <DynamoCatalogSection items={model.dynamos ?? []} snapshot={snapshot} locale={locale} onApplied={onReload} onSnapshotRefreshed={onSnapshotRefreshed}/>;
+    case 'screens': return <VisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload} onAssetImported={onSnapshotRefreshed}/>;
+    case 'popups': return <PopupVisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload} onAssetImported={onSnapshotRefreshed}/>;
     default: return null;
   }
 }
@@ -405,14 +410,14 @@ function ObjectCollectionPage<T extends TemplateEngineering | EquipmentEngineeri
     actionHref="/engineering/screens" actionText={copy.openScreens}/>;
 }
 
-function DynamoCatalogSection({ items, snapshot, locale, onApplied }: { items: DynamoEngineering[]; snapshot: EngineeringSnapshot; locale: EngineeringLocale; onApplied: () => Promise<void> }) {
+function DynamoCatalogSection({ items, snapshot, locale, onApplied, onSnapshotRefreshed }: { items: DynamoEngineering[]; snapshot: EngineeringSnapshot; locale: EngineeringLocale; onApplied: () => Promise<void>; onSnapshotRefreshed: () => Promise<void> }) {
   const copy = objectCatalogCopy(locale);
   const [query, setQuery] = useState('');
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const editing = editingKey ? items.find(item => item.key === editingKey) : null;
   const visible = items.filter(item => !query.trim() || `${item.name} ${item.key} ${item.templateKey ?? ''}`.toLocaleLowerCase(locale).includes(query.trim().toLocaleLowerCase(locale)));
   if (editing) return <div className="dynamo-catalog__editor">
-    <VisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onApplied} definitionKind="dynamo" initialDefinitionKey={editingKey} onRequestClose={() => setEditingKey(null)}/>
+    <VisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onApplied} onAssetImported={onSnapshotRefreshed} definitionKind="dynamo" initialDefinitionKey={editingKey} onRequestClose={() => setEditingKey(null)}/>
   </div>;
   return <section className="eng-section" data-testid="dynamo-catalog">
     <header className="eng-section-header"><div><span className="eng-eyebrow">{copy.dynamos}</span><h1>{copy.dynamos}</h1><p>{copy.dynamoHint}</p></div><div className="eng-section-meta"><strong>{items.length} {copy.items}</strong></div></header>

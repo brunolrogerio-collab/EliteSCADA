@@ -12,6 +12,7 @@ export function VisualEditorWorkspace({
   snapshot,
   locale,
   onApplied,
+  onAssetImported,
   definitionKind = 'screen',
   initialDefinitionKey,
   onRequestClose
@@ -19,6 +20,7 @@ export function VisualEditorWorkspace({
   snapshot: EngineeringSnapshot;
   locale: EngineeringLocale;
   onApplied: () => Promise<void>;
+  onAssetImported?: () => Promise<void>;
   definitionKind?: 'screen' | 'template' | 'dynamo';
   initialDefinitionKey?: string | null;
   onRequestClose?: () => void;
@@ -43,7 +45,7 @@ export function VisualEditorWorkspace({
         tags={normalizedSnapshot.package.tags ?? []}
         visualAssets={normalizedSnapshot.package.visualAssets ?? []}
       >
-        <LegacyVisualEditorWorkspace snapshot={normalizedSnapshot} locale={locale} onApplied={onApplied} definitionKind={definitionKind} initialDefinitionKey={initialDefinitionKey} onRequestClose={onRequestClose} />
+        <LegacyVisualEditorWorkspace snapshot={normalizedSnapshot} locale={locale} onApplied={onApplied} onAssetImported={onAssetImported} definitionKind={definitionKind} initialDefinitionKey={initialDefinitionKey} onRequestClose={onRequestClose} />
       </DynamoAuthoringCatalogProvider>
     </C07VisualEditorI18nProvider>
 

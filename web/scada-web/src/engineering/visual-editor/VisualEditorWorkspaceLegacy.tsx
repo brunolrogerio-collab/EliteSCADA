@@ -66,6 +66,7 @@ type VisualEditorWorkspaceProps = {
   snapshot: EngineeringSnapshot;
   locale: EngineeringLocale;
   onApplied: () => Promise<void>;
+  onAssetImported?: () => Promise<void>;
   definitionKind?: 'screen' | 'template' | 'dynamo';
   initialDefinitionKey?: string | null;
   onRequestClose?: () => void;
@@ -75,7 +76,7 @@ type ValidatedCandidate = { package: EngineeringPackageView; changeVersion: numb
 
 const DEFAULT_VIEWPORT: VisualEditorViewport = Object.freeze({ zoom: 1, panX: 0, panY: 0 });
 
-export function VisualEditorWorkspace({ snapshot, locale, onApplied, definitionKind = 'screen', initialDefinitionKey, onRequestClose }: VisualEditorWorkspaceProps) {
+export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImported, definitionKind = 'screen', initialDefinitionKey, onRequestClose }: VisualEditorWorkspaceProps) {
   const text = useMemo(() => {
     const copy = visualEditorText(locale);
     if (definitionKind === 'dynamo') {
@@ -410,7 +411,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, definitionK
       if (currentWorkspace.changeVersion !== snapshot.workspace.changeVersion) throw new Error(text.workspaceChanged);
       const imported = await importVisualAsset(file, currentWorkspace.changeVersion, { fileName: file.name });
       preserveDraftAfterAssetImportRef.current = true;
-      await onApplied();
+      await (onAssetImported ?? onApplied)();
       return imported.asset.id ?? null;
     } catch (reason) {
       preserveDraftAfterAssetImportRef.current = false;

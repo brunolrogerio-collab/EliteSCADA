@@ -64,6 +64,7 @@ export type CanonicalVisualRendererProps = {
   visualAssetUrl?: VisualAssetUrlResolver;
   showTechnicalFallbackText?: boolean;
   liveBindings?: boolean;
+  bindingSamples?: ReadonlyMap<string, VisualLiveScalarSample>;
   operatorTimeRangeControls?: boolean;
 };
 
@@ -82,6 +83,7 @@ export function CanonicalVisualRenderer({
   visualAssetUrl = visualAssetContentUrl,
   showTechnicalFallbackText = true,
   liveBindings = true,
+  bindingSamples,
   operatorTimeRangeControls = false
 }: CanonicalVisualRendererProps) {
   const rootElements = elements ?? emptyElements;
@@ -89,7 +91,8 @@ export function CanonicalVisualRenderer({
     () => collectRuntimeBindingElements(rootElements, dynamoDefinitions, equipmentDefinitions, templateDefinitions),
     [rootElements, dynamoDefinitions, equipmentDefinitions, templateDefinitions]
   );
-  const liveSamples = useVisualBindingSamples(runtimeBindingElements, liveBindings);
+  const liveSamples = useVisualBindingSamples(runtimeBindingElements, liveBindings && bindingSamples === undefined);
+  const resolvedSamples = bindingSamples ?? liveSamples;
   if (rootElements.length === 0) return <div className="visual-editor-renderer-empty">{emptyLabel}</div>;
 
   return <div className="visual-editor-renderer-stage" data-testid="visual-editor-canonical-renderer">
@@ -97,7 +100,7 @@ export function CanonicalVisualRenderer({
       key={element.id ?? `${element.key}-${index}`}
       element={element}
       locale={locale}
-      liveSamples={liveSamples}
+      liveSamples={resolvedSamples}
       dynamoDefinitions={dynamoDefinitions}
       equipmentDefinitions={equipmentDefinitions}
       templateDefinitions={templateDefinitions}
@@ -141,7 +144,7 @@ function CanonicalElement({
     return <CanonicalDynamoElement
       element={element}
       locale={locale}
-      liveSamples={liveSamples}
+      liveSamples={resolvedSamples}
       dynamoDefinitions={dynamoDefinitions}
       equipmentDefinitions={equipmentDefinitions}
       templateDefinitions={templateDefinitions}
@@ -155,7 +158,7 @@ function CanonicalElement({
 
   if (element.equipmentId && equipmentDefinitions && templateDefinitions) {
     return <CanonicalEquipmentElement
-      element={element} locale={locale} liveSamples={liveSamples}
+      element={element} locale={locale} liveSamples={resolvedSamples}
       equipmentDefinitions={equipmentDefinitions} templateDefinitions={templateDefinitions}
       onVisualEvent={onVisualEvent} onTagWrite={onTagWrite} visualAssetUrl={visualAssetUrl}
       showTechnicalFallbackText={showTechnicalFallbackText}
@@ -208,7 +211,7 @@ function CanonicalElement({
           key={child.id ?? `${child.key}-${index}`}
           element={child}
           locale={locale}
-          liveSamples={liveSamples}
+          liveSamples={resolvedSamples}
           dynamoDefinitions={dynamoDefinitions}
           equipmentDefinitions={equipmentDefinitions}
           templateDefinitions={templateDefinitions}
@@ -423,7 +426,7 @@ function CanonicalElement({
         element={element}
         values={values}
         diagnostics={dynamic.diagnostics}
-        liveSamples={liveSamples}
+        liveSamples={resolvedSamples}
         style={style}
         runtimeObjectId={runtimeObjectId}
         title={elementTitle}
@@ -442,7 +445,7 @@ function CanonicalElement({
         element={element}
         values={values}
         diagnostics={dynamic.diagnostics}
-        liveSamples={liveSamples}
+        liveSamples={resolvedSamples}
         style={numericInputStyle}
         runtimeObjectId={runtimeObjectId}
         locale={locale}
@@ -582,7 +585,7 @@ function CanonicalDynamoElement({
         key={child.id ?? `${child.key}-${index}`}
         element={child}
         locale={locale}
-        liveSamples={liveSamples}
+        liveSamples={resolvedSamples}
         dynamoDefinitions={dynamoDefinitions}
         equipmentDefinitions={equipmentDefinitions}
         templateDefinitions={templateDefinitions}
@@ -648,7 +651,7 @@ function CanonicalEquipmentElement({
     onClick={visualClickHandler(element, onVisualEvent, instanceId)}>
     {children.map((child, index) => <CanonicalElement
       key={`${instanceId}:${child.id ?? `${child.key}-${index}`}`}
-      element={child} locale={locale} liveSamples={liveSamples}
+      element={child} locale={locale} liveSamples={resolvedSamples}
       equipmentDefinitions={equipmentDefinitions} templateDefinitions={templateDefinitions}
       onVisualEvent={onVisualEvent} runtimeIdentityPrefix={instanceId}
       onTagWrite={onTagWrite} visualAssetUrl={visualAssetUrl}

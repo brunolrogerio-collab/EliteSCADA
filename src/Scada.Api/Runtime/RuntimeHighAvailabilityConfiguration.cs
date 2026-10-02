@@ -634,22 +634,33 @@ public sealed class RuntimeHaHostConfigurationAuthority
             if (!ids.Contains(initialActive, StringComparer.OrdinalIgnoreCase))
                 throw new InvalidOperationException("initialActiveNodeId must identify one configured node.");
 
-            var advertised = new List<string>();
+            var advertisedOwners = new Dictionary<string, string>(
+                StringComparer.OrdinalIgnoreCase);
             foreach (var node in document.Nodes)
             {
-                advertised.Add(NormalizeRequiredEndpoint(
-                    node.LocalEndpoint,
-                    node.NodeId,
-                    "localEndpoint"));
-                advertised.Add(NormalizeRequiredEndpoint(
-                    node.RemoteEndpoint,
-                    node.NodeId,
-                    "remoteEndpoint"));
-            }
-            if (advertised.Distinct(StringComparer.OrdinalIgnoreCase).Count() != advertised.Count)
-            {
-                throw new InvalidOperationException(
-                    "Advertised Local/Remote endpoints must be unique across the HA topology.");
+                var addresses = new[]
+                {
+                    NormalizeRequiredEndpoint(
+                        node.LocalEndpoint,
+                        node.NodeId,
+                        "localEndpoint"),
+                    NormalizeRequiredEndpoint(
+                        node.RemoteEndpoint,
+                        node.NodeId,
+                        "remoteEndpoint")
+                };
+
+                foreach (var address in addresses.Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    if (advertisedOwners.TryGetValue(address, out var ownerNodeId) &&
+                        !ownerNodeId.Equals(node.NodeId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new InvalidOperationException(
+                            $"Advertised endpoint '{address}' cannot belong to both HA nodes.");
+                    }
+
+                    advertisedOwners[address] = node.NodeId;
+                }
             }
 
             if (document.PeerTransport.Enabled)

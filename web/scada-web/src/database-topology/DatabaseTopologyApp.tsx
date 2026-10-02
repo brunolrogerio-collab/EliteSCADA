@@ -305,7 +305,7 @@ export function DatabaseTopologyApp() {
               ? t.cutoverReady
               : compatibility?.compatible
                 ? t.targetReady
-                : remoteDraftStarted
+                : remoteDraftStarted || remoteEditorRequested
                   ? t.configureRemoteHint
                   : status?.activeTopology.mode === 'Remote'
                     ? t.remoteStable
@@ -508,7 +508,7 @@ export function DatabaseTopologyApp() {
     <section className="db-topology-panel" aria-labelledby="remote-profile-title">
       <div className="db-topology-section-heading">
         <div><h2 id="remote-profile-title">{t.remoteProfile}</h2><p>{status?.activeTopology.mode === 'Remote' ? t.remoteProfileChangeHelp : t.remoteProfileHelp}</p></div>
-        {primaryEndpoint?.credentialConfigured ? <span className="db-topology-credential-state">{t.credentialsConfigured}</span> : null}
+        {primaryEndpoint?.credentialConfigured && !showRemoteEditor ? <span className="db-topology-credential-state">{t.credentialsConfigured}</span> : null}
       </div>
 
       {!status ? <div className="db-topology-locked-state">{t.loadingStatus}</div> : !showRemoteEditor ? <div className="db-topology-collapsed-editor">

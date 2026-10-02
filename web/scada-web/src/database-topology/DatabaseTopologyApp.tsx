@@ -27,7 +27,7 @@ import {
 } from './types';
 import './database-topology.css';
 
-type Confirmation = 'cutover' | 'rollback' | null;
+type Confirmation = 'cutover' | 'rollback' | 'return-local' | null;
 type Notice = Readonly<{ tone: 'info' | 'success' | 'warning' | 'danger'; text: string }>;
 
 function endpointLabel(profile?: DatabaseProfileStatus | null) {
@@ -240,8 +240,13 @@ export function DatabaseTopologyApp() {
   const operationId = status?.pendingOperationId ?? pending?.operationId ?? null;
   const displayPhase = pendingPhase ?? status?.lastOperation?.phase ?? null;
   const configurationLocked = pendingPhase != null;
-  const hasPrevious = Boolean(status?.previousTopology);
-  const canRollback = Boolean(status?.recoveryRequired || pendingPhase === 'RollbackRequired' || hasPrevious);
+  const canRollback = Boolean(status?.recoveryRequired || pendingPhase === 'RollbackRequired');
+  const canReturnLocal = Boolean(
+    status?.activeTopology.mode === 'Remote' &&
+    status?.previousTopology?.mode === 'LocalManaged' &&
+    !pendingPhase &&
+    !status?.restartRequired
+  );
   const primaryEndpoint = status?.activeTopology.primary;
   const primaryHealth = status?.primaryHealth;
   const historianHealth = status?.historianHealth ?? (status?.activeTopology.historianUsesPrimary ? primaryHealth : null);
@@ -251,7 +256,7 @@ export function DatabaseTopologyApp() {
   const validationDiagnostic = compatibility?.diagnostic ?? testHealth?.diagnostic ?? null;
   const autoRefreshActive = Boolean(
     pendingPhase && ['Quiescing', 'Copying', 'Verifying', 'Switching', 'Readiness', 'RollbackRequired'].includes(pendingPhase)
-  ) || ['copy', 'verify', 'commit', 'rollback'].includes(busy ?? '');
+  ) || ['copy', 'verify', 'commit', 'rollback', 'return-local'].includes(busy ?? '');
 
   useEffect(() => {
     if (!autoRefreshActive) return;
@@ -361,11 +366,20 @@ export function DatabaseTopologyApp() {
   });
 
   const onRollback = () => run('rollback', async () => {
-    const result = await rollbackDatabaseTopology(operationId);
+    const result = await rollbackDatabaseTopology(null);
     setStatus(result.status);
     setPending(null);
     if (result.rolledBack) resetTransientEditor();
     setNotice({ tone: result.rolledBack ? 'success' : 'warning', text: phaseLabel(result.status.lastOperation?.phase, t) });
+    setConfirmation(null);
+  });
+
+  const onReturnLocal = () => run('return-local', async () => {
+    const result = await rollbackDatabaseTopology(null);
+    setStatus(result.status);
+    setPending(null);
+    if (result.rolledBack) resetTransientEditor();
+    setNotice({ tone: result.rolledBack ? 'success' : 'warning', text: result.rolledBack ? t.localManagedDefault : (result.diagnostic ?? t.errorServer) });
     setConfirmation(null);
   });
 
@@ -384,7 +398,7 @@ export function DatabaseTopologyApp() {
       </div>
 
       <div className="db-topology-status-strip">
-        <div><span>{t.currentMode}</span><strong>{status?.activeTopology.mode === 'Remote' ? t.remote : t.localManaged}</strong></div>
+        <div><span>{t.currentMode}</span><strong>{status?.activeTopology.mode === 'Remote' ? t.remote : t.localManagedDefault}</strong></div>
         <div><span>{t.primary}</span><strong>{endpointLabel(status?.activeTopology)}</strong></div>
         <div><span>{t.health}</span><ResultPill ok={healthOk(primaryHealth)}>{primaryHealth ? (healthOk(primaryHealth) ? t.healthy : t.degraded) : t.unknown}</ResultPill></div>
         <div><span>{t.historian}</span><strong>{status?.activeTopology.historianUsesPrimary ? t.usePrimary : t.override}</strong></div>
@@ -393,6 +407,9 @@ export function DatabaseTopologyApp() {
 
       {status?.restartRequired ? <div className="db-topology-alert db-topology-alert--warning" data-testid="database-restart-warning"><strong>{t.restartRequired}</strong><span>{t.restartPendingBody}</span></div> : null}
       {status?.recoveryRequired ? <div className="db-topology-alert db-topology-alert--danger"><strong>{t.recoveryRequired}</strong></div> : null}
+      {canReturnLocal ? <div className="db-topology-actions db-topology-return-local">
+        <button type="button" className="db-topology-secondary" disabled={Boolean(busy)} onClick={() => setConfirmation('return-local')}>{t.returnToLocal}</button>
+      </div> : null}
 
       <details className="db-topology-details">
         <summary>{t.technicalDetails}</summary>
@@ -402,8 +419,7 @@ export function DatabaseTopologyApp() {
         </div>
         <dl className="db-topology-meta-list">
           <div><dt>{t.previousTopology}</dt><dd>{status?.previousTopology ? endpointLabel(status.previousTopology) : t.notConfigured}</dd></div>
-          <div><dt>{t.operationId}</dt><dd className="db-topology-mono">{operationId ?? '—'}</dd></div>
-          <div><dt>{t.lastOperation}</dt><dd>{status?.lastOperation ? `${phaseLabel(status.lastOperation.phase, t)} · ${status.lastOperation.operationId}` : t.noLastOperation}</dd></div>
+          <div><dt>{t.lastOperation}</dt><dd>{status?.lastOperation ? phaseLabel(status.lastOperation.phase, t) : t.noLastOperation}</dd></div>
           {status?.lastOperation?.failureCode ? <div><dt>{t.diagnostic}</dt><dd>{status.lastOperation.diagnostic ?? status.lastOperation.failureCode}</dd></div> : null}
         </dl>
         <p className="db-topology-muted-note">{t.failClosed}</p>
@@ -503,7 +519,6 @@ export function DatabaseTopologyApp() {
         <details className="db-topology-inline-details">
           <summary>{t.technicalDetails}</summary>
           <dl className="db-topology-meta-list">
-            <div><dt>{t.operationId}</dt><dd className="db-topology-mono">{pending.plan.operationId}</dd></div>
             <div><dt>{t.durableDomains}</dt><dd>{pending.plan.durableDomains.join(', ')}</dd></div>
           </dl>
         </details>
@@ -525,16 +540,24 @@ export function DatabaseTopologyApp() {
 
     {confirmation ? <div className="db-topology-dialog-backdrop" role="presentation">
       <section role="dialog" aria-modal="true" aria-labelledby="database-confirm-title" className="db-topology-dialog">
-        <h2 id="database-confirm-title">{confirmation === 'cutover' ? t.cutoverConfirmTitle : t.rollbackConfirmTitle}</h2>
-        <p>{confirmation === 'cutover' ? t.cutoverConfirmBody : t.rollbackConfirmBody}</p>
+        <h2 id="database-confirm-title">
+          {confirmation === 'cutover' ? t.cutoverConfirmTitle : confirmation === 'return-local' ? t.returnToLocalConfirmTitle : t.rollbackConfirmTitle}
+        </h2>
+        <p>
+          {confirmation === 'cutover' ? t.cutoverConfirmBody : confirmation === 'return-local' ? t.returnToLocalConfirmBody : t.rollbackConfirmBody}
+        </p>
         <dl>
           <div><dt>{t.source}</dt><dd>{endpointLabel(status?.activeTopology)}</dd></div>
-          <div><dt>{t.target}</dt><dd>{confirmation === 'cutover' ? (pending?.candidate.primary ? `${pending.candidate.primary.host}:${pending.candidate.primary.port}/${pending.candidate.primary.database}` : t.remote) : endpointLabel(status?.previousTopology)}</dd></div>
-          <div><dt>{t.preserved}</dt><dd>{t.preserveLocal}</dd></div>
+          <div><dt>{t.target}</dt><dd>{confirmation === 'cutover' ? (pending?.candidate.primary ? `${pending.candidate.primary.host}:${pending.candidate.primary.port}/${pending.candidate.primary.database}` : t.remote) : confirmation === 'return-local' ? t.localManaged : endpointLabel(status?.previousTopology)}</dd></div>
+          <div><dt>{t.preserved}</dt><dd>{confirmation === 'return-local' ? t.returnToLocalPreserveRemote : t.preserveLocal}</dd></div>
         </dl>
         <div className="db-topology-actions">
           <button type="button" className="db-topology-secondary" onClick={() => setConfirmation(null)}>{t.cancel}</button>
-          <button type="button" className="db-topology-danger-action" onClick={confirmation === 'cutover' ? onCommit : onRollback}>{busy ? t.working : t.confirm}</button>
+          <button
+            type="button"
+            className="db-topology-danger-action"
+            onClick={confirmation === 'cutover' ? onCommit : confirmation === 'return-local' ? onReturnLocal : onRollback}
+          >{busy ? t.working : t.confirm}</button>
         </div>
       </section>
     </div> : null}

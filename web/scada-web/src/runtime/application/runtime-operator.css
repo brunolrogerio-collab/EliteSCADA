@@ -180,3 +180,54 @@
   .runtime-view-navigation--inline { margin-inline: 0 auto; }
   .runtime-operator-actions { margin-left: auto; }
 }
+
+
+.runtime-view-navigation--inline button {
+  padding: 6px 11px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--app-text-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.runtime-view-navigation--inline button:hover,
+.runtime-view-navigation--inline button:focus-visible {
+  color: var(--app-text-primary);
+  border-color: var(--app-border);
+  outline: none;
+}
+
+.runtime-view-navigation--inline button.active {
+  color: var(--app-text-primary);
+  border-color: var(--app-accent);
+  background: var(--app-selected);
+}
+
+.runtime-operator-overlay--history {
+  width: min(1080px, calc(100% - 16px));
+}
+
+.runtime-history-overlay-content {
+  padding: 12px;
+}
+
+.runtime-history-overlay-content [data-testid="historical-data-browser-runtime"] {
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .runtime-operator-overlay {
+    top: 76px;
+    right: 4px;
+    bottom: 4px;
+    width: calc(100% - 8px);
+  }
+
+  .runtime-history-overlay-content {
+    padding: 8px;
+  }
+}

@@ -93,8 +93,9 @@ the acceptance evidence for this iteration; automated Actions are additional
 regression evidence, not a substitute or veto of the visual/interaction review.
 
 The set comprises 132 modified tracked files plus new converter/catalog/editor
-files. It is being included in the follow-up integration PR, separately from
-the already-merged #443 checkpoint. Preserve the entire product delta and
+files. It is being included in the follow-up integration PR
+[#444](https://github.com/brunolrogerio-collab/EliteSCADA/pull/444), separately
+from the already-merged #443 checkpoint. Preserve the entire product delta and
 review the PR as the coordinator; do not reset or discard it. Exclude
 `web/scada-web/test-results/`, which is local test output. Any CI findings
 should be handled as regressions to fix while preserving the user-validated

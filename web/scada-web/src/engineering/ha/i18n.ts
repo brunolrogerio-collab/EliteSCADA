@@ -112,8 +112,20 @@ const pt = {
   showSaved: 'Valor salvo:',
   moreDetails: 'Mais detalhes',
   runningConfiguration: 'Configuração em execução',
-  desiredConfiguration: 'Configuração salva'
-} as const;
+  desiredConfiguration: 'Configuração salva',
+  haDeploymentState: 'Estado de implantação HA',
+  coldStartOnly: 'Alterado somente por configuração de implantação/cold start.',
+  automatic: 'Automático',
+  peerEndpointAutomatic: 'Endpoint automático',
+  peerEndpointAutomaticHint: 'O backend deriva o transporte HA a partir do endpoint anunciado do peer.',
+  overridePeerEndpoint: 'Sobrescrever endpoint',
+  useAutomaticPeerEndpoint: 'Usar endpoint automático',
+  replaceSecret: 'Trocar segredo',
+  cancelSecretChange: 'Cancelar troca',
+  topologyVersionManaged: 'Topology Version automática',
+  topologyVersionManagedHint: 'A UI incrementa a versão automaticamente quando a forma da topologia muda.',
+  requiresProtection: 'Requer proteção HA habilitada.',
+  chooseNode: 'Selecione um nó',} as const;
 
 type Key = keyof typeof pt;
 
@@ -229,8 +241,20 @@ const en: Record<Key, string> = {
   showSaved: 'Saved value:',
   moreDetails: 'More details',
   runningConfiguration: 'Running configuration',
-  desiredConfiguration: 'Saved configuration'
-};
+  desiredConfiguration: 'Saved configuration',
+  haDeploymentState: 'HA deployment state',
+  coldStartOnly: 'Changed only through deployment configuration/cold start.',
+  automatic: 'Automatic',
+  peerEndpointAutomatic: 'Automatic endpoint',
+  peerEndpointAutomaticHint: 'The backend derives HA transport from the peer advertised endpoint.',
+  overridePeerEndpoint: 'Override endpoint',
+  useAutomaticPeerEndpoint: 'Use automatic endpoint',
+  replaceSecret: 'Replace secret',
+  cancelSecretChange: 'Cancel replacement',
+  topologyVersionManaged: 'Automatic Topology Version',
+  topologyVersionManagedHint: 'The UI increments the version automatically when topology shape changes.',
+  requiresProtection: 'Requires HA protection to be enabled.',
+  chooseNode: 'Select a node',};
 
 const es: Record<Key, string> = {
   title: 'Alta Disponibilidad',
@@ -344,8 +368,20 @@ const es: Record<Key, string> = {
   showSaved: 'Valor guardado:',
   moreDetails: 'Más detalles',
   runningConfiguration: 'Configuración en ejecución',
-  desiredConfiguration: 'Configuración guardada'
-};
+  desiredConfiguration: 'Configuración guardada',
+  haDeploymentState: 'Estado de implementación HA',
+  coldStartOnly: 'Se cambia solo mediante configuración de implementación/cold start.',
+  automatic: 'Automático',
+  peerEndpointAutomatic: 'Endpoint automático',
+  peerEndpointAutomaticHint: 'El backend deriva el transporte HA desde el endpoint anunciado del peer.',
+  overridePeerEndpoint: 'Sobrescribir endpoint',
+  useAutomaticPeerEndpoint: 'Usar endpoint automático',
+  replaceSecret: 'Cambiar secreto',
+  cancelSecretChange: 'Cancelar cambio',
+  topologyVersionManaged: 'Topology Version automática',
+  topologyVersionManagedHint: 'La UI incrementa la versión automáticamente cuando cambia la forma de la topología.',
+  requiresProtection: 'Requiere protección HA habilitada.',
+  chooseNode: 'Seleccione un nodo',};
 
 const dictionaries = { 'pt-BR': pt, en, es };
 

@@ -182,20 +182,22 @@
 }
 
 
+.runtime-operator-application[data-runtime-temporal-mode="historical-playback"] {
+  grid-template-rows: minmax(38px, auto) auto minmax(0, 1fr);
+}
 .runtime-playback-panel {
-  position: absolute;
-  top: 44px;
-  left: 8px;
-  width: min(760px, calc(100% - 16px));
+  position: relative;
+  min-width: 0;
+  width: 100%;
   z-index: 28;
   display: grid;
   gap: 8px;
-  padding: 10px;
-  border: 1px solid var(--app-border);
-  border-radius: 8px;
+  padding: 8px 10px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--app-border);
   background: var(--app-surface-elevated);
   color: var(--app-text-primary);
-  box-shadow: 0 10px 28px var(--app-overlay);
+  box-shadow: 0 4px 12px var(--app-overlay);
 }
 .runtime-playback-panel__header {
   display: flex;
@@ -243,6 +245,5 @@
 }
 
 @media (max-width: 760px) {
-  .runtime-playback-panel { top: 78px; }
   .runtime-playback-position { grid-template-columns: 1fr; }
 }

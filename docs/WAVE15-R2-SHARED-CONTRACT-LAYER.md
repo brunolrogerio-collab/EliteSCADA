@@ -1,5 +1,36 @@
 
 
+## CI SLIMMING + HA/DB FINAL GATE — 2026-10-02
+
+Current integration:
+`wave15/corrections-integration@9b3e43b36efd2b58247d692270f97dc6d3b5278a`
+
+Integrated CI hygiene:
+- #465 post-merge gate slimming;
+- #466 T1 ownership/path routing slimming;
+- broad T2/T4 final intent preserved.
+
+HA + Remote DB:
+- PR #463;
+- branch `coord/w15-ha-db-convergence`;
+- exact candidate `a015741cc0d1c9f49f5a30aee5560db53fa16fcc`;
+- profile `HA_DISTRIBUTED, DATABASE_TOPOLOGY`;
+- T1 #584 failed only because Simulation TAG cleanup incorrectly expected additive JSON import to delete temporary entities; following runtime.spec inherited polluted Active state;
+- cleanup corrected through canonical CAS DELETE of the temporary TAG and Data Source, then Save/Publish/Activate;
+- replacement T1 #585 / `37077218173` active at bounded observation.
+
+Merge rule:
+- merge #463 only if #585 is GREEN on exact candidate above;
+- after merge, observe slim post-merge `EliteSCADA CI` no more than 2 minutes, stop watching, and later revalidate final result.
+
+After HA+DB:
+- recompose accepted Historical Playback #452 onto then-current History/Shell UX;
+- then #379 final i18n -> #425 Help/Manual -> #306 Productization -> #300 fresh Preview.
+
+Canonical successor handoff:
+`docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-10-02-CI-HA-DB-CLOSEOUT.md`
+
+
 ## WAVE 15 POST-MERGE CI HYGIENE — 2026-10-02
 
 Merged CI cleanup:

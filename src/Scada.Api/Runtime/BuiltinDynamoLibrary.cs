@@ -156,7 +156,8 @@ public static class BuiltinDynamoLibrary
                 FlatShape(E(family, style, 10), "cable-gland", "core.rectangle", 44, 7, 10, 11, "#6B7280", "#374151", 1, 2),
                 BezierShape(E(family, style, 11), "pump-housing", 25, 84, 54, 29,
                     "M 8 18 C 20 5 38 2 58 5 C 78 8 92 24 94 48 C 90 72 74 91 50 96 C 28 94 12 78 6 58 Z",
-                    "#AEB7BE", "#374151", 1.5)
+                    "#AEB7BE", "#374151", 1.5),
+                FlatShape(E(family, style, 12), "cable", "core.rectangle", 47, 0, 5, 9, "#374151", "#111827", 1, 2)
             ],
             parameters: PumpParameters());
         }
@@ -450,7 +451,12 @@ public static class BuiltinDynamoLibrary
                 Text(E(family, style, 6), "label", "TK", 39, 30, 30, 24, 11, "#111827"),
                 StateLamp(E(family, style, 7), "high", 84, 10, "#D97706", "high", "{equipmentPath}.High"),
                 StateLamp(E(family, style, 8), "fault", 84, 132, "#DC2626", "fault", "{equipmentPath}.Fault"),
-                FlatShape(E(family, style, 11), "nozzle-flange", "core.rectangle", 44, 0, 20, 4, "#AEB7BE", "#475569", 1, 1)
+                FlatShape(E(family, style, 11), "nozzle-flange", "core.rectangle", 44, 0, 20, 4, "#AEB7BE", "#475569", 1, 1),
+                FlatShape(E(family, style, 12), "liquid-line", "core.rectangle", 24, 76, 60, 2, "#6F7A82", "#6F7A82", 0, 1),
+                FlatShape(E(family, style, 13), "side-nozzle", "core.rectangle", 86, 66, 16, 10, "#9CA3AF", "#475569", 1, 2),
+                FlatShape(E(family, style, 14), "side-nozzle-flange", "core.rectangle", 99, 63, 5, 16, "#B7C0C6", "#475569", 1, 1),
+                FlatShape(E(family, style, 15), "foot-left", "core.rectangle", 25, 152, 18, 5, "#5B646B", "#475569", 1, 1),
+                FlatShape(E(family, style, 16), "foot-right", "core.rectangle", 65, 152, 18, 5, "#5B646B", "#475569", 1, 1)
             ],
             parameters: TankParameters());
         }
@@ -506,7 +512,8 @@ public static class BuiltinDynamoLibrary
                 FlatShape(E(family, style, 10), "top-nozzle", "core.rectangle", 78, 8, 13, 14, "#AEB7BE", "#475569", 1, 2),
                 FlatShape(E(family, style, 11), "top-nozzle-flange", "core.rectangle", 74, 5, 21, 4, "#C7CFD4", "#475569", 1, 1),
                 FlatShape(E(family, style, 12), "side-nozzle", "core.rectangle", 146, 45, 17, 10, "#AEB7BE", "#475569", 1, 2),
-                FlatShape(E(family, style, 13), "side-nozzle-flange", "core.rectangle", 160, 42, 5, 16, "#C7CFD4", "#475569", 1, 1)
+                FlatShape(E(family, style, 13), "side-nozzle-flange", "core.rectangle", 160, 42, 5, 16, "#C7CFD4", "#475569", 1, 1),
+                FlatShape(E(family, style, 14), "liquid-line", "core.rectangle", 29, 50, 110, 2, "#6F7A82", "#6F7A82", 0, 1)
             ],
             parameters: TankParameters());
         }
@@ -794,10 +801,11 @@ public static class BuiltinDynamoLibrary
                 Rect("head-right", 72, 17, 27, 11, light, 2, 1.5);
                 Rect("discharge", 91, 22, 37, 8, shell, 2, 1.5);
                 Rect("inlet", 20, 42, 27, 8, shell, 2, 1.5);
-                for (var index = 0; index < (highPerformance ? 1 : 2); index++)
+                for (var index = 0; index < 2; index++)
                 {
-                    Bar($"cooling-fin-left-{index + 1}", 49 + index * 7, 31, 1.4, 24, dark, -5);
-                    Bar($"cooling-fin-right-{index + 1}", 79 + index * 7, 31, 1.4, 24, dark, 5);
+                    var finWidth = highPerformance ? 1.1 : 1.4;
+                    Bar($"cooling-fin-left-{index + 1}", 49 + index * 7, 31, finWidth, 24, dark, -5);
+                    Bar($"cooling-fin-right-{index + 1}", 79 + index * 7, 31, finWidth, 24, dark, 5);
                 }
                 Label("C", 53, 70, 25, 18, 12);
                 Lamp("running", 5, 5, "running", "{equipmentPath}.Running", "#D92D20");
@@ -886,18 +894,18 @@ public static class BuiltinDynamoLibrary
                     shell, 2.5);
                 Arc("head-left", 18, 36, 28, 54, 90, 270, dark);
                 Arc("head-right", 118, 36, 28, 54, 270, 450, dark);
-                for (var index = 0; index < (highPerformance ? 3 : 5); index++)
-                    Bar($"tube-{index + 1}", 45, 49 + index * (highPerformance ? 14 : 8), 71, 1.2, dark);
+                for (var index = 0; index < 5; index++)
+                    Bar($"tube-{index + 1}", 45, 49 + index * 8, 71, highPerformance ? 0.9 : 1.2, dark);
                 Rect("nozzle-hot-in", 49, 15, 10, 24, accent, 2);
                 Rect("nozzle-hot-out", 100, 86, 10, 25, accent, 2);
                 Rect("nozzle-cold-in", 51, 87, 9, 25, shell, 2);
                 Rect("nozzle-cold-out", 101, 14, 9, 25, shell, 2);
+                Label("E", 70, 55, 24, 18, 12);
+                Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
                 Rect("nozzle-hot-in-flange", 45, 12, 18, 4, light, 1, 1);
                 Rect("nozzle-cold-out-flange", 97, 11, 17, 4, light, 1, 1);
                 Rect("nozzle-cold-in-flange", 47, 109, 17, 4, light, 1, 1);
                 Rect("nozzle-hot-out-flange", 96, 108, 18, 4, light, 1, 1);
-                Label("E", 70, 55, 24, 18, 12);
-                Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
                 Bar("tube-sheet-left", 42, 41, 2.5, 44, dark);
                 Bar("tube-sheet-right", 116, 41, 2.5, 44, dark);
                 Bar("baffle-upper", 68, 42, 2, 29, dark);
@@ -917,8 +925,8 @@ public static class BuiltinDynamoLibrary
                 Bezier("basket", 57, 48, 43, 53,
                     "M 18 2 C 31 4 45 10 58 20 L 97 73 C 88 87 74 96 59 98 L 9 39 C 3 28 6 13 18 2 Z",
                     light, 2);
-                for (var index = 0; index < (highPerformance ? 2 : 4); index++)
-                    Bar($"basket-slot-{index + 1}", 67 + index * (highPerformance ? 12 : 7), 65, 1.4, 23, dark, -32);
+                for (var index = 0; index < 4; index++)
+                    Bar($"basket-slot-{index + 1}", 67 + index * 7, 65, highPerformance ? 1 : 1.4, 23, dark, -32);
                 Ellipse("cap", 76, 94, 29, 10, accent);
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
                 Bar("basket-neck", 65, 43, 9, 25, shell, -36);
@@ -956,10 +964,10 @@ public static class BuiltinDynamoLibrary
                 Bezier("cover", 37, 37, 76, 13,
                     "M 5 35 C 17 10 31 4 50 4 C 69 4 83 10 95 35 L 95 88 L 5 88 Z",
                     light, 2);
-                for (var index = 0; index < (highPerformance ? 3 : 5); index++)
-                    Rect($"radiator-{index + 1}", 18 + index * (highPerformance ? 8 : 4), 61, 4, 49, accent, 1, 1);
-                for (var index = 0; index < (highPerformance ? 3 : 5); index++)
-                    Rect($"radiator-r-{index + 1}", 112 + index * (highPerformance ? 8 : 4), 61, 4, 49, accent, 1, 1);
+                for (var index = 0; index < 5; index++)
+                    Rect($"radiator-{index + 1}", 18 + index * 4, 61, highPerformance ? 2.5 : 4, 49, accent, 1, 1);
+                for (var index = 0; index < 5; index++)
+                    Rect($"radiator-r-{index + 1}", 112 + index * 4, 61, highPerformance ? 2.5 : 4, 49, accent, 1, 1);
                 Bezier("bushing-left", 51, 10, 13, 30,
                     "M 38 2 L 62 2 L 76 98 L 24 98 Z", light, 1.5);
                 Bezier("bushing-right", 84, 10, 13, 30,
@@ -1047,8 +1055,8 @@ public static class BuiltinDynamoLibrary
                 Ellipse("rotor", 27, 35, 28, 42, light, 2);
                 Ellipse("hub", 36, 49, 11, 14, accent, 1);
                 Rect("shaft", 111, 51, 31, 8, dark, 2);
-                for (var index = 0; index < (highPerformance ? 3 : 5); index++)
-                    Bar($"stator-slot-{index + 1}", 52 + index * (highPerformance ? 18 : 12), 36, 2, 39, dark);
+                for (var index = 0; index < 5; index++)
+                    Bar($"stator-slot-{index + 1}", 52 + index * 12, 36, highPerformance ? 1.3 : 2, 39, dark);
                 Label("G", 61, 47, 26, 18, 11);
                 Lamp("running", 5, 5, "running", "{equipmentPath}.Running", "#D92D20");
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
@@ -1718,6 +1726,7 @@ public static class BuiltinDynamoLibrary
                     Bar($"cooling-rib-left-{index + 1}", 49 + index * 6, 33, 1.8, 31, "#73889A");
                     Bar($"cooling-rib-right-{index + 1}", 92 + index * 6, 33, 1.8, 31, "#73889A");
                 }
+                localSequence += 2; // reserve historical cooling-rib-left/right-3 slots
                 Bar("fan-cowl-vent-upper", 29, 37, 13, 1.5, "#667B8B");
                 Bar("fan-cowl-vent-middle", 27, 48, 16, 1.5, "#667B8B");
                 Bar("fan-cowl-vent-lower", 29, 59, 13, 1.5, "#667B8B");
@@ -1777,6 +1786,7 @@ public static class BuiltinDynamoLibrary
 
             case "process.compressor.reciprocating":
                 RadialBolts("crankcase-fastener", 70, 79, 24, 4, 3.2);
+                localSequence += 7; // reserve 2 fastener + 5 cylinder-fin historical slots
                 Dot("crosshead-pin", 70, 76, 6, "#DCE5EB", "#526879");
                 Bar("connecting-rod", 81, 76, 3, 18, "#586D7D", -52);
                 Bar("discharge-manifold-seam", 94, 24, 28, 1.5, "#8295A5");
@@ -1784,6 +1794,7 @@ public static class BuiltinDynamoLibrary
 
             case "process.compressor.screw":
                 RadialBolts("housing-fastener", 80, 56, 42, 4, 3.2);
+                localSequence += 6; // reserve 4 fastener + 2 rotor-highlight historical slots
                 Bar("oil-sight-glass", 112, 67, 4, 9, "#4B9BB4");
                 Bar("housing-seam", 113, 37, 1.5, 38, "#8295A5");
                 break;
@@ -1810,8 +1821,9 @@ public static class BuiltinDynamoLibrary
                 break;
 
             case "process.exchanger.shell-tube":
-                foreach (var saddleX in new[] { 52d, 108d })
-                    Bar($"saddle-support-{saddleX:0}", saddleX, 91, 9, 19, "#526575");
+                Bar("saddle-support-1", 52, 91, 9, 19, "#526575");
+                localSequence++; // reserve historical saddle-support-2 slot
+                Bar("saddle-support-3", 108, 91, 9, 19, "#526575");
                 foreach (var boltY in new[] { 43d, 81d })
                 foreach (var boltX in new[] { 28d, 132d })
                     Dot($"channel-cover-bolt-{boltX:0}-{boltY:0}", boltX, boltY, 4,
@@ -1842,6 +1854,7 @@ public static class BuiltinDynamoLibrary
                     Bar($"left-radiator-channel-{index + 1}", 20 + index * 5, 64, 1.5, 43, "#526575");
                     Bar($"right-radiator-channel-{index + 1}", 114 + index * 5, 64, 1.5, 43, "#526575");
                 }
+                localSequence += 2; // reserve historical left/right-radiator-channel-5 slots
                 Dot("oil-level-window", 102, 54, 8, "#4B9BB4", "#526879");
                 Bar("nameplate", 55, 104, 39, 10, "#E7EEF3");
                 foreach (var bushingX in new[] { 52d, 68d, 83d })
@@ -1857,6 +1870,7 @@ public static class BuiltinDynamoLibrary
                     Bar($"left-post-rib-{index + 1}", 34, 78 + index * 12, 8, 2, "#F0F4F6");
                     Bar($"right-post-rib-{index + 1}", 89, 78 + index * 12, 8, 2, "#F0F4F6");
                 }
+                localSequence += 2; // reserve historical left/right-post-rib-5 slots
                 foreach (var terminalX in new[] { 58d, 78d })
                     Dot($"terminal-fastener-{terminalX:0}", terminalX, 10, 5, "#F0F4F6", "#526879");
                 break;
@@ -1882,6 +1896,7 @@ public static class BuiltinDynamoLibrary
 
             case "electrical.generator":
                 RadialBolts("end-shield-fastener", 41, 56, 15, 4, 3.2);
+                localSequence += 4; // reserve historical end-shield-fastener-5..8 slots
                 for (var index = 0; index < 4; index++)
                     Bar($"stator-vent-{index + 1}", 58 + index * 13, 37, 2, 37, "#526575");
                 break;
@@ -1889,8 +1904,9 @@ public static class BuiltinDynamoLibrary
             case "electrical.current-transformer":
                 for (var index = 0; index < 4; index++)
                     Bar($"winding-band-{index + 1}", 30, 50 + index * 12, 52, 1.4, "#8295A5");
-                Dot("secondary-terminal-left", 81, 98, 4, "#E7EEF3", "#526879");
-                Dot("secondary-terminal-right", 93, 98, 4, "#E7EEF3", "#526879");
+                localSequence++; // reserve historical winding-band-5 slot
+                Dot("secondary-terminal-20", 81, 98, 4, "#E7EEF3", "#526879");
+                Dot("secondary-terminal-84", 93, 98, 4, "#E7EEF3", "#526879");
                 break;
         }
 

@@ -262,7 +262,7 @@ public sealed class BuiltinDynamoLibraryTests
         Assert.All(variants, variant =>
         {
             var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
-            foreach (var key in new[] { "body", "pump-housing", "intake", "outlet", "outlet-neck", "outlet-flange", "top-cap", "cable-gland" })
+            foreach (var key in new[] { "body", "pump-housing", "intake", "outlet", "outlet-neck", "outlet-flange", "top-cap", "cable-gland", "cable" })
                 Assert.Contains(key, elements.Keys);
 
             var body = elements["body"].Properties!;
@@ -341,12 +341,19 @@ public sealed class BuiltinDynamoLibraryTests
     {
         var definitions = BuiltinDynamoLibrary.Create();
 
-        var tank = definitions.Single(definition =>
+        var horizontalTank = definitions.Single(definition =>
             definition.Metadata!["familyKey"] == "process.tank.horizontal" &&
             definition.Properties!["visualStyle"] == "high-performance");
-        var tankKeys = tank.Elements!.Select(element => element.Key).ToHashSet(StringComparer.Ordinal);
-        foreach (var key in new[] { "top-nozzle", "top-nozzle-flange", "side-nozzle", "side-nozzle-flange", "leg-left", "leg-right" })
-            Assert.Contains(key, tankKeys);
+        var horizontalKeys = horizontalTank.Elements!.Select(element => element.Key).ToHashSet(StringComparer.Ordinal);
+        foreach (var key in new[] { "top-nozzle", "top-nozzle-flange", "side-nozzle", "side-nozzle-flange", "leg-left", "leg-right", "liquid-line" })
+            Assert.Contains(key, horizontalKeys);
+
+        var verticalTank = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "process.tank.vertical" &&
+            definition.Properties!["visualStyle"] == "high-performance");
+        var verticalKeys = verticalTank.Elements!.Select(element => element.Key).ToHashSet(StringComparer.Ordinal);
+        foreach (var key in new[] { "side-nozzle", "side-nozzle-flange", "foot-left", "foot-right", "liquid-line" })
+            Assert.Contains(key, verticalKeys);
 
         var exchanger = definitions.Single(definition =>
             definition.Metadata!["familyKey"] == "process.exchanger.shell-tube" &&
@@ -1091,13 +1098,13 @@ public sealed class BuiltinDynamoLibraryTests
         var signatures = new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
             ["dynamo.pump.standard"] = ["casing", "impeller", "base"],
-            ["process.pump.submersible"] = ["body", "pump-housing", "intake", "outlet"],
+            ["process.pump.submersible"] = ["body", "pump-housing", "intake", "outlet", "cable"],
             ["process.motor.standard"] = ["body", "shaft", "terminal", "base"],
             ["process.motor.vfd"] = ["shaft", "vfd", "terminal", "motor-base"],
             ["process.valve.onoff"] = ["body-left", "body-right", "stem", "actuator"],
             ["process.valve.control"] = ["body-left", "body-right", "stem", "actuator"],
-            ["process.tank.vertical"] = ["vessel", "liquid"],
-            ["process.tank.horizontal"] = ["vessel", "liquid"],
+            ["process.tank.vertical"] = ["vessel", "liquid", "liquid-line", "foot-left", "foot-right"],
+            ["process.tank.horizontal"] = ["vessel", "liquid", "liquid-line"],
             ["process.blower.centrifugal"] = ["impeller-recess", "hub", "base"],
             ["process.instrument.indicator"] = ["face", "stem", "connection", "scale-arc"],
             ["process.compressor.reciprocating"] = ["crankcase", "cylinder-left", "cylinder-right", "base"],
@@ -1137,6 +1144,81 @@ public sealed class BuiltinDynamoLibraryTests
                     Assert.Contains(key, keys);
             });
         }
+    }
+
+    [Fact]
+    public void SurvivingArtworkDetails_KeepHistoricalElementIdsAfterDensityReduction()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        static Guid ElementId(int sequence) =>
+            Guid.Parse($"43100000-0000-0000-0000-{sequence:000000000000}");
+
+        void AssertDetailId(string familyKey, string style, string key, int expectedSequence)
+        {
+            var definition = definitions.Single(candidate =>
+                candidate.Metadata!["familyKey"] == familyKey &&
+                candidate.Properties!["visualStyle"] == style);
+            var element = definition.Elements!.Single(candidate => candidate.Key == key);
+            Assert.Equal(ElementId(expectedSequence), element.Id);
+        }
+
+        foreach (var (style, offset) in new[] { ("detailed-2d", 0), ("dimensional-front", 1000) })
+        {
+            AssertDetailId("process.compressor.reciprocating", style, "detail-crosshead-pin", 11181 + offset);
+            AssertDetailId("process.compressor.reciprocating", style, "detail-connecting-rod", 11182 + offset);
+
+            AssertDetailId("process.compressor.screw", style, "detail-oil-sight-glass", 14180 + offset);
+
+            AssertDetailId("process.exchanger.shell-tube", style, "detail-saddle-support-1", 26170 + offset);
+            AssertDetailId("process.exchanger.shell-tube", style, "detail-saddle-support-3", 26172 + offset);
+            AssertDetailId("process.exchanger.shell-tube", style, "detail-channel-cover-bolt-28-43", 26173 + offset);
+
+            AssertDetailId("electrical.transformer.power", style, "detail-oil-level-window", 35180 + offset);
+            AssertDetailId("electrical.transformer.power", style, "detail-nameplate", 35181 + offset);
+
+            AssertDetailId("electrical.breaker", style, "detail-terminal-fastener-58", 38180 + offset);
+            AssertDetailId("electrical.breaker", style, "detail-terminal-fastener-78", 38181 + offset);
+
+            AssertDetailId("electrical.generator", style, "detail-stator-vent-1", 47178 + offset);
+
+            AssertDetailId("electrical.current-transformer", style, "detail-secondary-terminal-20", 50175 + offset);
+            AssertDetailId("electrical.current-transformer", style, "detail-secondary-terminal-84", 50176 + offset);
+        }
+    }
+
+    [Fact]
+    public void HighPerformanceGeneratedFamilies_KeepHistoricalMainElementIds()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        static Guid ElementId(int sequence) =>
+            Guid.Parse($"43100000-0000-0000-0000-{sequence:000000000000}");
+
+        void AssertId(string familyKey, string key, int expectedSequence)
+        {
+            var definition = definitions.Single(candidate =>
+                candidate.Metadata!["familyKey"] == familyKey &&
+                candidate.Properties!["visualStyle"] == "high-performance");
+            var element = definition.Elements!.Single(candidate => candidate.Key == key);
+            Assert.Equal(ElementId(expectedSequence), element.Id);
+        }
+
+        AssertId("process.compressor.reciprocating", "running", 13114);
+        AssertId("process.compressor.reciprocating", "fault", 13115);
+
+        AssertId("process.exchanger.shell-tube", "nozzle-hot-in", 28109);
+        AssertId("process.exchanger.shell-tube", "fault", 28114);
+
+        AssertId("process.filter.strainer", "cap", 31109);
+        AssertId("process.filter.strainer", "fault", 31110);
+
+        AssertId("electrical.transformer.power", "bushing-left", 37114);
+        AssertId("electrical.transformer.power", "bushing-right", 37115);
+        AssertId("electrical.transformer.power", "fault", 37117);
+
+        AssertId("electrical.generator", "running", 49112);
+        AssertId("electrical.generator", "fault", 49113);
     }
 
     [Fact]

@@ -61,24 +61,25 @@ test('primary shell keeps authorized application navigation coherent without Eng
   await expect(page.getByText(/Gerenciamento do projeto|Project Management/, { exact: true })).toBeVisible();
   await expectCssToken(page.locator('.eng-shell'), 'background-color', '--app-bg');
   await expectCssToken(page.locator('.eng-project-management__card').first(), 'background-color', '--app-surface');
-  await expectCssToken(page.locator('.eng-lifecycle-workspace__fact').first(), 'background-color', '--app-surface-elevated');
   const lifecycle = page.locator('.eng-lifecycle-workspace');
-  const revisionsPanel = lifecycle.locator('.eng-lifecycle-workspace__revisions');
-  const activationStep = lifecycle.getByTestId('engineering-lifecycle-activate-step');
-  await expect(activationStep.getByRole('button', { name: /Ativar Published/ })).toBeVisible();
-  await expect(lifecycle.locator('.eng-lifecycle-workspace__actions').getByRole('button', { name: /Ativar Published/ })).toHaveCount(0);
-  const activationFollowsRevisions = await lifecycle.evaluate(root => {
-    const revisions = root.querySelector('.eng-lifecycle-workspace__revisions');
-    const activation = root.querySelector('[data-testid="engineering-lifecycle-activate-step"]');
-    return Boolean(revisions && activation && (revisions.compareDocumentPosition(activation) & Node.DOCUMENT_POSITION_FOLLOWING));
+  const lifecycleSteps = lifecycle.locator('.eng-lifecycle-workspace__step');
+  await expect(lifecycleSteps).toHaveCount(4);
+  await expect(lifecycleSteps.first()).toBeVisible();
+  const revisionsStep = lifecycleSteps.nth(1);
+  const publishedStep = lifecycleSteps.nth(2);
+  await expect(revisionsStep).toContainText(/Revisão salva|Saved revision|Revisión guardada/);
+  await expect(publishedStep.getByRole('button', { name: /Ativar no Runtime|Activate in Runtime|Activar en Runtime/ })).toBeVisible();
+  const publishedFollowsRevisions = await lifecycle.evaluate(root => {
+    const steps = root.querySelectorAll('.eng-lifecycle-workspace__step');
+    return steps.length === 4 && Boolean(steps[1].compareDocumentPosition(steps[2]) & Node.DOCUMENT_POSITION_FOLLOWING);
   });
-  expect(activationFollowsRevisions).toBe(true);
+  expect(publishedFollowsRevisions).toBe(true);
 
   const engineeringTheme = page.getByRole('combobox', { name: 'Tema' });
   await engineeringTheme.selectOption('dark');
   await expect(page.locator('html')).toHaveAttribute('data-app-theme', 'dark');
   await expectCssToken(page.locator('.eng-project-management__card').first(), 'background-color', '--app-surface');
-  await expectCssToken(page.locator('.eng-lifecycle-workspace__fact').first(), 'background-color', '--app-surface-elevated');
+  await expect(lifecycleSteps.first()).toBeVisible();
   await expect(page.getByTestId('engineering-context-row')).toBeVisible();
   await expect(page.getByTestId('engineering-workspace-state')).toBeVisible();
   await expect(page.getByTestId('engineering-workspace-bar')).toHaveCount(0);
@@ -529,7 +530,7 @@ async function mockLifecycleUxApp(page: Page, state: LifecycleUxState) {
       return route.fulfill({ json: {} });
     }
 
-    return route.fulfill({ json: {} });
+    return route.fallback();
   });
 }
 

@@ -265,8 +265,10 @@ test('mounted HA admin shows healthy Active/Ready Standby authority and peer fre
 
   await expect(page.getByText('node-a', { exact: true }).first()).toBeVisible();
   await expect(page.getByText(/Ready Standby/)).toBeVisible();
-  await expect(page.locator('.ha-card').filter({ hasText: 'Peer' })).toContainText('connected');
+  await expect(page.getByTestId('ha-peer-summary')).toContainText('connected');
   await expect(page.getByText('active', { exact: true })).toBeVisible();
+  await expect(page.locator('.ha-summary-card')).toHaveCount(4);
+  await expect(page.getByTestId('ha-advanced-settings')).not.toHaveAttribute('open', '');
   await evidence(page, testInfo, 'ha-active-standby-healthy');
 });
 
@@ -279,7 +281,7 @@ test('mounted HA admin exposes degraded/blocked fail-closed state without promot
   await mockHa(page, state);
   await open(page);
 
-  await expect(page.getByText('blocked', { exact: true })).toBeVisible();
+  await expect(page.getByText('Bloqueado', { exact: true })).toBeVisible();
   await expect(page.getByText(/reference-unavailable/)).toBeVisible();
   await expect(page.getByRole('button', { name: /force active/i })).toHaveCount(0);
   await evidence(page, testInfo, 'ha-degraded-blocked');
@@ -292,9 +294,23 @@ test('mounted HA admin surfaces ambiguous authority without inventing an Active 
   await mockHa(page, state);
   await open(page);
 
-  await expect(page.getByText('ambiguous', { exact: true })).toBeVisible();
+  await expect(page.getByText('Autoridade ambígua', { exact: true })).toBeVisible();
   await expect(page.getByText('Active efetivo').locator('..')).toContainText('—');
   await expect(page.getByRole('button', { name: /force active/i })).toHaveCount(0);
+});
+
+test('advanced HA tuning stays out of the primary configuration flow until requested', async ({ page }) => {
+  const state = healthyState();
+  await mockHa(page, state);
+  await open(page);
+
+  const advanced = page.getByTestId('ha-advanced-settings');
+  await expect(advanced).not.toHaveAttribute('open', '');
+  await expect(page.getByLabel('Versão da topologia')).toBeHidden();
+
+  await advanced.getByText('Configuração avançada', { exact: true }).click();
+  await expect(page.getByLabel('Versão da topologia')).toBeVisible();
+  await expect(page.getByText(/Versão lógica da topologia/)).toBeVisible();
 });
 
 test('configuration editing keeps peer secret write-only and truthfully shows restart-required', async ({ page }, testInfo) => {
@@ -304,6 +320,7 @@ test('configuration editing keeps peer secret write-only and truthfully shows re
 
   const secret = 'this-is-a-new-peer-shared-secret-with-40-bytes';
   await page.getByLabel('Novo peer shared secret').fill(secret);
+  await page.getByTestId('ha-advanced-settings').getByText('Configuração avançada', { exact: true }).click();
   await page.getByLabel('Versão da topologia').fill('8');
   const nodeB = page.locator('fieldset').filter({ hasText: 'node-b' });
   await nodeB.getByLabel('Endpoint Remote').fill('https://b2.example.test');
@@ -311,7 +328,7 @@ test('configuration editing keeps peer secret write-only and truthfully shows re
 
   await expect(page.getByTestId('ha-restart-required')).toBeVisible();
   await expect(page.getByTestId('ha-peer-secret')).toHaveValue('');
-  await expect(page.getByTestId('ha-authentication-state')).toHaveText('Authentication configured');
+  await expect(page.getByTestId('ha-authentication-state')).toContainText('Authentication configured');
   expect(state.lastConfigBody.peerTransport.peerSharedSecret).toBe(secret);
   expect(JSON.stringify(state.config)).not.toContain(secret);
   expect(await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } }))).not.toContain(secret);

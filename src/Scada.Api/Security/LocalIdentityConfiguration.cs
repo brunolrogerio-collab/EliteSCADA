@@ -1,4 +1,5 @@
 using Scada.Api.Persistence;
+using Scada.Core.Persistence;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.Security;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -138,16 +139,20 @@ public static class LocalIdentityConfiguration
             secureCookie,
             cookieName,
             durableStore));
-        builder.Services.AddSingleton<IAuthorityLifecycleStore>(_ =>
+        builder.Services.AddSingleton<IAuthorityLifecycleStore>(sp =>
             durableStore
-                ? new PostgreSqlAuthorityLifecycleStore(connectionString!)
+                ? new PostgreSqlAuthorityLifecycleStore(
+                    connectionString!,
+                    sp.GetService<IDurableWriteAdmission>())
                 : new InMemoryAuthorityLifecycleStore());
         builder.Services.AddSingleton<JwtTokenIssuer>();
         builder.Services.AddSingleton<LocalLoginAttemptLimiter>();
         builder.Services.AddSingleton<AuthorityBackupService>();
-        builder.Services.AddSingleton<ILocalIdentityStore>(_ =>
+        builder.Services.AddSingleton<ILocalIdentityStore>(sp =>
             durableStore
-                ? new PostgreSqlLocalIdentityStore(connectionString!)
+                ? new PostgreSqlLocalIdentityStore(
+                    connectionString!,
+                    sp.GetService<IDurableWriteAdmission>())
                 : new InMemoryLocalIdentityStore());
         builder.Services.AddSingleton<LocalIdentityBootstrapService>();
         builder.Services.AddSingleton(new AuthorityPolicyBootstrapOptions(

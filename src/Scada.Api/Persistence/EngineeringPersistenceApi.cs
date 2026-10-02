@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Scada.Core.Persistence;
 using Scada.Api.Engineering;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
@@ -33,12 +34,16 @@ public static class EngineeringPersistenceApi
         var connectionString = database?.PrimaryConnectionString ?? builder.Configuration.GetConnectionString("EliteScada");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
-        builder.Services.TryAddSingleton<IEngineeringProjectStore>(_ =>
-            new PostgreSqlEngineeringProjectStore(connectionString));
+        builder.Services.TryAddSingleton<IEngineeringProjectStore>(sp =>
+            new PostgreSqlEngineeringProjectStore(
+                connectionString,
+                sp.GetService<IDurableWriteAdmission>()));
         builder.Services.TryAddSingleton<IEngineeringProjectCatalog>(_ =>
             new PostgreSqlEngineeringProjectCatalog(connectionString));
-        builder.Services.TryAddSingleton<IEngineeringInstallationBindingStore>(_ =>
-            new PostgreSqlEngineeringInstallationBindingStore(connectionString));
+        builder.Services.TryAddSingleton<IEngineeringInstallationBindingStore>(sp =>
+            new PostgreSqlEngineeringInstallationBindingStore(
+                connectionString,
+                sp.GetService<IDurableWriteAdmission>()));
         builder.Services.TryAddSingleton<IEngineeringProjectPersistenceService, EngineeringProjectPersistenceService>();
         builder.Services.TryAddSingleton<IEngineeringWorkspaceCheckoutService, EngineeringWorkspaceCheckoutService>();
         builder.Services.TryAddSingleton<IEngineeringWorkingBootstrapService, EngineeringWorkingBootstrapService>();

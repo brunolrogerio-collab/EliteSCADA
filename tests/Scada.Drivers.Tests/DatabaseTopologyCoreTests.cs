@@ -192,6 +192,68 @@ public sealed class DatabaseTopologyCoreTests
     }
 
     [Fact]
+    public async Task RealDurableStores_RejectWritesWhileDatabaseMaintenanceIsActive()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var gate = new DatabaseMaintenanceGate();
+        await using var serverMemory = new PostgreSqlServerMemoryRetentionStore(connectionString, gate);
+        await using var alarmHistory = new PostgreSqlAlarmHistoryStore(connectionString, gate);
+        await using var operationalEvents = new PostgreSqlOperationalEventHistoryStore(connectionString, gate);
+        await using var audit = new PostgreSqlAuditStore(connectionString, writeAdmission: gate);
+        await using var runtimeSessions = new PostgreSqlRuntimeSessionLeaseStore(connectionString, gate);
+        await using var engineering = new PostgreSqlEngineeringProjectStore(connectionString, gate);
+        await using var binding = new PostgreSqlEngineeringInstallationBindingStore(connectionString, gate);
+        await using var localIdentity = new PostgreSqlLocalIdentityStore(connectionString, gate);
+        await using var authorityLifecycle = new PostgreSqlAuthorityLifecycleStore(connectionString, gate);
+        await using var authorityPolicy = new PostgreSqlAuthorityPolicyStore(connectionString, gate);
+
+        await serverMemory.InitializeAsync();
+        await alarmHistory.EnsureInitializedAsync();
+        await operationalEvents.EnsureInitializedAsync();
+        await audit.InitializeAsync();
+        await runtimeSessions.InitializeAsync();
+        await engineering.InitializeAsync();
+        await binding.InitializeAsync();
+        await localIdentity.InitializeAsync();
+        await authorityLifecycle.InitializeAsync();
+        await authorityPolicy.InitializeAsync();
+
+        var operationId = Guid.NewGuid();
+        await gate.EnterAsync(operationId, TimeSpan.FromMinutes(1));
+
+        await Assert.ThrowsAsync<DurableWriteQuiescedException>(
+            async () => await serverMemory.DeleteAsync(Guid.NewGuid()));
+        await Assert.ThrowsAsync<DurableWriteQuiescedException>(
+            async () => await alarmHistory.AppendAsync(null!, "quiesce.test"));
+        await Assert.ThrowsAsync<DurableWriteQuiescedException>(
+            async () => await operationalEvents.AppendAsync(null!));
+        await Assert.ThrowsAsync<DurableWriteQuiescedException>(
+            async () => await audit.ApplyRetentionBatchAsync(DateTimeOffset.UtcNow, 1));
+        await Assert.ThrowsAsync<DurableWriteQuiescedException>(
+            async () => await runtimeSessions.TerminateAsync(
+                Guid.NewGuid(),
+                "quiesce-subject",
+                "quiesce-client",
+                null!));
+        await Assert.ThrowsAsync<DurableWriteQuiescedException>(
+            async () => await engineering.DeleteProjectAsync("quiesce-test-project"));
+        await Assert.ThrowsAsync<DurableWriteQuiescedException>(
+            async () => await binding.BeginAttachAsync("quiesce-test-project"));
+        await Assert.ThrowsAsync<DurableWriteQuiescedException>(
+            async () => await localIdentity.ClearAllAsync());
+        await Assert.ThrowsAsync<DurableWriteQuiescedException>(
+            async () => await authorityLifecycle.MarkInvalidAsync());
+        await Assert.ThrowsAsync<DurableWriteQuiescedException>(
+            async () => await authorityPolicy.TryReplaceAsync(0, null!, null!));
+
+        Assert.Equal(0, gate.ActiveWriterCount);
+        Assert.True(gate.IsActive);
+        gate.Exit(operationId);
+    }
+
+    [Fact]
     public void LocalManaged_RemainsDefaultAndUsesExistingDeploymentConnection()
     {
         using var temp = new TemporaryDirectory();

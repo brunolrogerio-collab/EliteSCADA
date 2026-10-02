@@ -1,4 +1,5 @@
 using System.Text;
+using Scada.Core.Persistence;
 using Microsoft.AspNetCore.Http.Json;
 using Scada.Api.Historian;
 using Scada.Api.HostedServices;
@@ -60,10 +61,12 @@ builder.Services.AddSingleton<IAlarmViewEngineeringRegistry>(sp => sp.GetRequire
 builder.Services.AddSingleton<IEngineeringAssetRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Assets);
 builder.Services.AddSingleton<IEngineeringViewRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Views);
 var authorityConnectionString = databaseConnections.PrimaryConnectionString;
-builder.Services.AddSingleton<IAuthorityPolicyStore>(_ =>
+builder.Services.AddSingleton<IAuthorityPolicyStore>(sp =>
     string.IsNullOrWhiteSpace(authorityConnectionString)
         ? new InMemoryAuthorityPolicyStore()
-        : new PostgreSqlAuthorityPolicyStore(authorityConnectionString));
+        : new PostgreSqlAuthorityPolicyStore(
+            authorityConnectionString,
+            sp.GetService<IDurableWriteAdmission>()));
 builder.Services.AddSingleton<ISecurityPolicyEngineeringRegistry, AuthorityPolicyRegistryView>();
 builder.Services.AddSingleton(new AuthorityPolicyBootstrapOptions(builder.Configuration[AuthorityPolicyBootstrapOptions.ConfigurationPath]));
 builder.Services.AddSingleton(sp => new AuthorityPolicyBootstrapService(

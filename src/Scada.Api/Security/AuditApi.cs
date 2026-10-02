@@ -1,4 +1,5 @@
 using Scada.Api.Persistence;
+using Scada.Core.Persistence;
 using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -58,7 +59,10 @@ public static class AuditApi
         else
         {
             builder.Services.TryAddSingleton(sp =>
-                new PostgreSqlAuditStore(connectionString, sp.GetRequiredService<AuditQueryPolicy>()));
+                new PostgreSqlAuditStore(
+                    connectionString,
+                    sp.GetRequiredService<AuditQueryPolicy>(),
+                    sp.GetService<IDurableWriteAdmission>()));
             builder.Services.TryAddSingleton<IAuditStore>(sp => sp.GetRequiredService<PostgreSqlAuditStore>());
         }
 

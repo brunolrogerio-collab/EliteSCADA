@@ -1,4 +1,5 @@
 using Npgsql;
+using Scada.Core.Persistence;
 using NpgsqlTypes;
 using Scada.Security.Authentication;
 
@@ -12,12 +13,16 @@ public sealed class PostgreSqlAuthorityLifecycleStore : IAuthorityLifecycleStore
     private const long AuthorityOperationAdvisoryLock = 4993446713136202565;
     private const string StateKey = "authority-lifecycle-v1";
     private readonly NpgsqlDataSource _dataSource;
+    private readonly IDurableWriteAdmission? _writeAdmission;
 
-    public PostgreSqlAuthorityLifecycleStore(string connectionString)
+    public PostgreSqlAuthorityLifecycleStore(
+        string connectionString,
+        IDurableWriteAdmission? writeAdmission = null)
     {
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new ArgumentException("PostgreSQL connection string is required.", nameof(connectionString));
         _dataSource = NpgsqlDataSource.Create(connectionString);
+        _writeAdmission = writeAdmission;
     }
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
@@ -107,6 +112,7 @@ public sealed class PostgreSqlAuthorityLifecycleStore : IAuthorityLifecycleStore
 
     public async Task<AuthorityLifecycleSnapshot> MarkInvalidAsync(CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("authority-lifecycle", cancellationToken);
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         await AcquireAuthorityMutationLocksAsync(connection, transaction, cancellationToken);
@@ -170,6 +176,7 @@ public sealed class PostgreSqlAuthorityLifecycleStore : IAuthorityLifecycleStore
         AuthorityLifecycleState idempotentState,
         CancellationToken cancellationToken)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("authority-lifecycle", cancellationToken);
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         await AcquireAuthorityMutationLocksAsync(connection, transaction, cancellationToken);

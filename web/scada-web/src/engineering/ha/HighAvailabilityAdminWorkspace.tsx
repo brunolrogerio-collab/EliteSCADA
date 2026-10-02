@@ -39,6 +39,28 @@ function sameConfig(a: HaHostConfigurationView, b: HaHostConfigurationView) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
+function topologyShape(view: HaHostConfigurationView) {
+  return JSON.stringify({
+    enabled: view.enabled,
+    clusterId: view.clusterId || null,
+    localNodeId: view.localNodeId,
+    initialActiveNodeId: view.initialActiveNodeId || null,
+    freshnessSeconds: view.freshnessSeconds,
+    nodes: view.nodes
+  });
+}
+
+function runningHintWhenChanged(
+  label: string,
+  runningValue: unknown,
+  editedValue: unknown,
+  displayValue: React.ReactNode = runningValue as React.ReactNode
+) {
+  return JSON.stringify(runningValue ?? null) === JSON.stringify(editedValue ?? null)
+    ? null
+    : runningHint(label, displayValue);
+}
+
 function latestContact(snapshot: HaWorkspaceSnapshot) {
   const peer = snapshot.peer;
   const candidates = [peer.lastInboundAtUtc, peer.lastOutboundSuccessAtUtc].filter(Boolean) as string[];
@@ -75,6 +97,8 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
   const [failure, setFailure] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{ kind: HaActionKind; target?: string | null } | null>(null);
   const [activeOperation, setActiveOperation] = useState<HaProtectionOperation | null>(null);
+  const [showSecretEditor, setShowSecretEditor] = useState(false);
+  const [overridePeerEndpoint, setOverridePeerEndpoint] = useState(false);
 
   const load = useCallback(async (preserveDraft = false) => {
     setLoading(true);
@@ -82,7 +106,11 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
     try {
       const next = await haAdminApi.workspace();
       setSnapshot(next);
-      if (!preserveDraft) setDraft(asDraft(next.configuration.desired));
+      if (!preserveDraft) {
+        setDraft(asDraft(next.configuration.desired));
+        setShowSecretEditor(!next.configuration.desired.peerTransport.authenticationConfigured);
+        setOverridePeerEndpoint(Boolean(next.configuration.desired.peerTransport.peerEndpoint));
+      }
     } catch (error) {
       setFailure(error instanceof Error ? error.message : t.loadError);
     } finally {
@@ -129,20 +157,26 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
     setNotice(null);
 
     const secret = draft.peerSharedSecret;
+    const topologyChanged = topologyShape(draft) !== topologyShape(snapshot.configuration.desired);
+    const topologyVersion = topologyChanged
+      ? Math.max(snapshot.configuration.desired.topologyVersion + 1, draft.topologyVersion)
+      : snapshot.configuration.desired.topologyVersion;
+
     setDraft(current => current ? { ...current, peerSharedSecret: '' } : current);
+    setShowSecretEditor(false);
 
     const request: HaHostConfigurationUpdateRequest = {
       expectedGeneration: snapshot.configuration.generation,
-      enabled: draft.enabled,
+      enabled: snapshot.configuration.desired.enabled,
       clusterId: draft.clusterId || null,
       localNodeId: draft.localNodeId,
       initialActiveNodeId: draft.initialActiveNodeId || null,
-      topologyVersion: draft.topologyVersion,
+      topologyVersion,
       freshnessSeconds: draft.freshnessSeconds,
       nodes: draft.nodes.map(node => ({ ...node })),
       peerTransport: {
         enabled: draft.peerTransport.enabled,
-        peerEndpoint: draft.peerTransport.peerEndpoint || null,
+        peerEndpoint: overridePeerEndpoint ? (draft.peerTransport.peerEndpoint || null) : null,
         ...(secret ? { peerSharedSecret: secret } : {}),
         clearPeerSharedSecret: false
       },
@@ -312,22 +346,24 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
         </div>
 
         <div className="ha-form-grid ha-form-grid--essential">
-          <label className="ha-toggle-field">
-            <span>HA</span>
-            <input type="checkbox" checked={draft.enabled} onChange={e => setDraft({ ...draft, enabled: e.target.checked })} />
-            {runningHint(t.showCurrent, configuration.running.enabled ? t.enabled : t.disabled)}
-          </label>
+          <div className="ha-readonly-field" data-testid="ha-deployment-state">
+            <span>{t.haDeploymentState}</span>
+            <strong>{draft.enabled ? t.enabled : t.disabled}</strong>
+            <small>{t.coldStartOnly}</small>
+          </div>
 
           <label>
             {t.clusterId}
             <input value={draft.clusterId || ''} onChange={e => setDraft({ ...draft, clusterId: e.target.value })} />
-            {runningHint(t.showCurrent, configuration.running.clusterId)}
+            {runningHintWhenChanged(t.showCurrent, configuration.running.clusterId, draft.clusterId, configuration.running.clusterId)}
           </label>
 
           <label>
             {t.localNodeId}
-            <input value={draft.localNodeId} onChange={e => setDraft({ ...draft, localNodeId: e.target.value })} />
-            {runningHint(t.showCurrent, configuration.running.localNodeId)}
+            <select value={draft.localNodeId} onChange={e => setDraft({ ...draft, localNodeId: e.target.value })}>
+              {draft.nodes.map(node => <option key={node.nodeId} value={node.nodeId}>{node.nodeId}</option>)}
+            </select>
+            {runningHintWhenChanged(t.showCurrent, configuration.running.localNodeId, draft.localNodeId, configuration.running.localNodeId)}
           </label>
 
           <label className="ha-toggle-field">
@@ -335,9 +371,17 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
             <input
               type="checkbox"
               checked={draft.protection.automaticFailoverEnabled}
+              disabled={!draft.protection.enabled}
               onChange={e => setDraft({ ...draft, protection: { ...draft.protection, automaticFailoverEnabled: e.target.checked } })}
             />
-            {runningHint(t.showCurrent, configuration.running.protection.automaticFailoverEnabled ? t.enabled : t.disabled)}
+            {!draft.protection.enabled
+              ? <small className="ha-field-hint">{t.requiresProtection}</small>
+              : runningHintWhenChanged(
+                  t.showCurrent,
+                  configuration.running.protection.automaticFailoverEnabled,
+                  draft.protection.automaticFailoverEnabled,
+                  configuration.running.protection.automaticFailoverEnabled ? t.enabled : t.disabled
+                )}
           </label>
         </div>
 
@@ -357,17 +401,17 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
                 <label>
                   Node ID
                   <input value={node.nodeId} onChange={e => updateNode(index, 'nodeId', e.target.value)} />
-                  {runningHint(t.showCurrent, runningNode?.nodeId)}
+                  {runningHintWhenChanged(t.showCurrent, runningNode?.nodeId, node.nodeId, runningNode?.nodeId)}
                 </label>
                 <label>
                   {t.localEndpoint}
                   <input value={node.localEndpoint || ''} onChange={e => updateNode(index, 'localEndpoint', e.target.value)} />
-                  {runningHint(t.showCurrent, runningNode?.localEndpoint)}
+                  {runningHintWhenChanged(t.showCurrent, runningNode?.localEndpoint, node.localEndpoint, runningNode?.localEndpoint)}
                 </label>
                 <label>
                   {t.remoteEndpoint}
                   <input value={node.remoteEndpoint || ''} onChange={e => updateNode(index, 'remoteEndpoint', e.target.value)} />
-                  {runningHint(t.showCurrent, runningNode?.remoteEndpoint)}
+                  {runningHintWhenChanged(t.showCurrent, runningNode?.remoteEndpoint, node.remoteEndpoint, runningNode?.remoteEndpoint)}
                 </label>
               </fieldset>
             );
@@ -395,13 +439,56 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
             {runningHint(t.showCurrent, configuration.running.peerTransport.enabled ? t.enabled : t.disabled)}
           </label>
 
-          <label>
-            {t.peerEndpoint}
-            <input value={draft.peerTransport.peerEndpoint || ''} onChange={e => setDraft({ ...draft, peerTransport: { ...draft.peerTransport, peerEndpoint: e.target.value } })} />
-            <small className="ha-field-hint">{t.peerEndpointHelp} {t.showCurrent} {configuration.running.peerTransport.peerEndpoint || '—'}</small>
-          </label>
+          <div className="ha-managed-field" data-testid="ha-peer-endpoint-mode">
+            <span>{t.peerEndpoint}</span>
+            {overridePeerEndpoint ? (
+              <>
+                <input
+                  aria-label={t.peerEndpoint}
+                  value={draft.peerTransport.peerEndpoint || ''}
+                  onChange={e => setDraft({ ...draft, peerTransport: { ...draft.peerTransport, peerEndpoint: e.target.value } })}
+                />
+                <small className="ha-field-hint">{t.peerEndpointHelp}</small>
+                <button
+                  type="button"
+                  className="ha-link-button"
+                  onClick={() => {
+                    setOverridePeerEndpoint(false);
+                    setDraft({ ...draft, peerTransport: { ...draft.peerTransport, peerEndpoint: '' } });
+                  }}
+                >
+                  {t.useAutomaticPeerEndpoint}
+                </button>
+              </>
+            ) : (
+              <>
+                <strong>{t.peerEndpointAutomatic}</strong>
+                <small className="ha-field-hint">{t.peerEndpointAutomaticHint}</small>
+                <button type="button" className="ha-link-button" onClick={() => setOverridePeerEndpoint(true)}>
+                  {t.overridePeerEndpoint}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
 
-          <label className="ha-field--wide">
+        <div className="ha-auth-state" data-testid="ha-authentication-state">
+          <span>{t.authState}</span>
+          <strong>{draft.peerTransport.authenticationConfigured ? t.authenticationConfigured : t.authenticationNotConfigured}</strong>
+          <button
+            type="button"
+            className="ha-link-button"
+            onClick={() => {
+              setShowSecretEditor(value => !value);
+              if (showSecretEditor) setDraft({ ...draft, peerSharedSecret: '' });
+            }}
+          >
+            {showSecretEditor ? t.cancelSecretChange : t.replaceSecret}
+          </button>
+        </div>
+
+        {showSecretEditor && (
+          <label className="ha-secret-editor">
             {t.newSecret}
             <input
               data-testid="ha-peer-secret"
@@ -412,12 +499,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
             />
             <small className="ha-field-hint">{t.secretHint}</small>
           </label>
-        </div>
-
-        <div className="ha-auth-state" data-testid="ha-authentication-state">
-          <span>{t.authState}</span>
-          <strong>{draft.peerTransport.authenticationConfigured ? t.authenticationConfigured : t.authenticationNotConfigured}</strong>
-        </div>
+        )}
 
         <details className="ha-disclosure" data-testid="ha-advanced-settings">
           <summary>
@@ -429,15 +511,19 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
             <div className="ha-form-grid">
               <label>
                 {t.initialActiveNodeId}
-                <input value={draft.initialActiveNodeId || ''} onChange={e => setDraft({ ...draft, initialActiveNodeId: e.target.value })} />
-                <small className="ha-field-hint">{t.initialActiveHelp} {t.showCurrent} {configuration.running.initialActiveNodeId || '—'}</small>
+                <select value={draft.initialActiveNodeId || ''} onChange={e => setDraft({ ...draft, initialActiveNodeId: e.target.value })}>
+                  <option value="" disabled>{t.chooseNode}</option>
+                  {draft.nodes.map(node => <option key={node.nodeId} value={node.nodeId}>{node.nodeId}</option>)}
+                </select>
+                <small className="ha-field-hint">{t.initialActiveHelp}</small>
+                {runningHintWhenChanged(t.showCurrent, configuration.running.initialActiveNodeId, draft.initialActiveNodeId, configuration.running.initialActiveNodeId)}
               </label>
 
-              <label>
-                {t.topologyVersion}
-                <input type="number" min={1} value={draft.topologyVersion} onChange={e => setDraft({ ...draft, topologyVersion: Number(e.target.value) })} />
-                <small className="ha-field-hint">{t.topologyVersionHelp} {t.showCurrent} {configuration.running.topologyVersion}</small>
-              </label>
+              <div className="ha-readonly-field" data-testid="ha-topology-version-managed">
+                <span>{t.topologyVersionManaged}</span>
+                <strong>v{configuration.desired.topologyVersion}</strong>
+                <small>{t.topologyVersionManagedHint}</small>
+              </div>
 
               <label>
                 {t.freshnessSeconds}
@@ -450,49 +536,62 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
                 <input
                   type="checkbox"
                   checked={draft.protection.enabled}
-                  onChange={e => setDraft({ ...draft, protection: { ...draft.protection, enabled: e.target.checked } })}
+                  onChange={e => setDraft({
+                    ...draft,
+                    protection: {
+                      ...draft.protection,
+                      enabled: e.target.checked,
+                      automaticFailoverEnabled: e.target.checked ? draft.protection.automaticFailoverEnabled : false
+                    }
+                  })}
                 />
                 {runningHint(t.showCurrent, configuration.running.protection.enabled ? t.enabled : t.disabled)}
               </label>
             </div>
 
-            <div className="ha-reference-note">
-              <strong>{t.referenceStore}</strong>
-              <span>{t.referenceHint}</span>
-              <small>{configuration.referenceStoreRequirements.mode} · fail-closed: {configuration.referenceStoreRequirements.failClosedWhenUnavailable ? t.yes : t.no}</small>
+            {draft.protection.enabled && (
+              <>
+              <div className="ha-reference-note">
+                <strong>{t.referenceStore}</strong>
+                <span>{t.referenceHint}</span>
+                <small>{configuration.referenceStoreRequirements.mode} · fail-closed: {configuration.referenceStoreRequirements.failClosedWhenUnavailable ? t.yes : t.no}</small>
+              </div>
+  
+              <div className="ha-form-grid">
+                <label className="ha-field--wide">
+                  {t.referencePath}
+                  <input value={draft.protection.referencePath || ''} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, referencePath: e.target.value } })} />
+                  <small className="ha-field-hint">{t.referencePathHelp} {t.showCurrent} {configuration.running.protection.referencePath || '—'}</small>
+                </label>
+  
+                <label>
+                  {t.leaseSeconds}
+                  <input type="number" min={3} max={120} value={draft.protection.leaseSeconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, leaseSeconds: Number(e.target.value) } })} />
+                  <small className="ha-field-hint">{t.leaseHelp} {t.showCurrent} {configuration.running.protection.leaseSeconds}s</small>
+                </label>
+  
+                <label>
+                  {t.pollMilliseconds}
+                  <input type="number" min={100} max={10000} value={draft.protection.pollMilliseconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, pollMilliseconds: Number(e.target.value) } })} />
+                  <small className="ha-field-hint">{t.pollHelp} {t.showCurrent} {configuration.running.protection.pollMilliseconds}ms</small>
+                </label>
+  
+                <label>
+                  {t.witnessSeconds}
+                  <input type="number" min={draft.protection.leaseSeconds} max={600} value={draft.protection.readyWitnessMaximumAgeSeconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, readyWitnessMaximumAgeSeconds: Number(e.target.value) } })} />
+                  <small className="ha-field-hint">{t.witnessHelp} {t.showCurrent} {configuration.running.protection.readyWitnessMaximumAgeSeconds}s</small>
+                </label>
+  
+                <label>
+                  {t.skewSeconds}
+                  <input type="number" min={0} max={Math.floor(draft.protection.leaseSeconds / 3)} value={draft.protection.clockSkewSafetyMarginSeconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, clockSkewSafetyMarginSeconds: Number(e.target.value) } })} />
+                  <small className="ha-field-hint">{t.skewHelp} {t.showCurrent} {configuration.running.protection.clockSkewSafetyMarginSeconds}s</small>
+                </label>
+              </div>
             </div>
-
-            <div className="ha-form-grid">
-              <label className="ha-field--wide">
-                {t.referencePath}
-                <input value={draft.protection.referencePath || ''} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, referencePath: e.target.value } })} />
-                <small className="ha-field-hint">{t.referencePathHelp} {t.showCurrent} {configuration.running.protection.referencePath || '—'}</small>
-              </label>
-
-              <label>
-                {t.leaseSeconds}
-                <input type="number" min={3} max={120} value={draft.protection.leaseSeconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, leaseSeconds: Number(e.target.value) } })} />
-                <small className="ha-field-hint">{t.leaseHelp} {t.showCurrent} {configuration.running.protection.leaseSeconds}s</small>
-              </label>
-
-              <label>
-                {t.pollMilliseconds}
-                <input type="number" min={100} max={10000} value={draft.protection.pollMilliseconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, pollMilliseconds: Number(e.target.value) } })} />
-                <small className="ha-field-hint">{t.pollHelp} {t.showCurrent} {configuration.running.protection.pollMilliseconds}ms</small>
-              </label>
-
-              <label>
-                {t.witnessSeconds}
-                <input type="number" min={draft.protection.leaseSeconds} max={600} value={draft.protection.readyWitnessMaximumAgeSeconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, readyWitnessMaximumAgeSeconds: Number(e.target.value) } })} />
-                <small className="ha-field-hint">{t.witnessHelp} {t.showCurrent} {configuration.running.protection.readyWitnessMaximumAgeSeconds}s</small>
-              </label>
-
-              <label>
-                {t.skewSeconds}
-                <input type="number" min={0} max={Math.floor(draft.protection.leaseSeconds / 3)} value={draft.protection.clockSkewSafetyMarginSeconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, clockSkewSafetyMarginSeconds: Number(e.target.value) } })} />
-                <small className="ha-field-hint">{t.skewHelp} {t.showCurrent} {configuration.running.protection.clockSkewSafetyMarginSeconds}s</small>
-              </label>
-            </div>
+          </details>
+              </>
+            )}
           </div>
         </details>
 

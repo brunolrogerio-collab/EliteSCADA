@@ -15,6 +15,8 @@ namespace Scada.Api.Runtime;
 /// symbols (https://commons.wikimedia.org/wiki/Category:P%26ID_symbols) for
 /// process-symbol conventions. These are references only: retain original,
 /// editable EliteSCADA geometry and preserve equipment bindings/state behavior.
+/// C-DYNAMO-ARTWORK-02 keeps those public/runtime contracts stable while allowing
+/// the built-in silhouettes and per-style finish to evolve professionally.
 /// </summary>
 public static class BuiltinDynamoLibrary
 {

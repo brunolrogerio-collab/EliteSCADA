@@ -163,8 +163,7 @@ These are real future implementation lanes, not superseded old DEVs:
 
 ### E. Decision/residual items
 
-- #446 Client Memory as Gateway source remains an explicit Product Owner scope decision:
-  design/implement a real session/server bridge or defer it. Never UI-enable it without authority.
+- #446 Client Memory as Gateway source is **DEFERRED by Product Owner decision (2026-10-02)**. Do not create a server Gateway route/bridge in Wave 15. Client Memory remains browser/runtime-client-local. Client Visual Python already exposes `client_memory_read` / `client_memory_write`, while normal Runtime Python also exposes protected `tag_read` / `tag_write`; therefore an executing client Script may read Client Memory, transform the value in Python and write an authorized writable TAG without pretending Client Memory is a server-authoritative Gateway source. Engineering Preview keeps TAG writes disabled. This Script path is event/handler execution, not a continuous Gateway transport authority.
 - #447 Simulation TAG implementation is materially present in #450; no duplicate DEV.
 - #357/#364 and other older UX correction owners are mounted-residual rechecks only against the accepted product.
 - #379 final i18n, Help #424, Manual #425 run after the new final product surfaces stabilize.

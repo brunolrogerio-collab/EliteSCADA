@@ -180,3 +180,69 @@
   .runtime-view-navigation--inline { margin-inline: 0 auto; }
   .runtime-operator-actions { margin-left: auto; }
 }
+
+
+.runtime-playback-panel {
+  position: absolute;
+  top: 44px;
+  left: 8px;
+  width: min(760px, calc(100% - 16px));
+  z-index: 28;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: var(--app-surface-elevated);
+  color: var(--app-text-primary);
+  box-shadow: 0 10px 28px var(--app-overlay);
+}
+.runtime-playback-panel__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.runtime-playback-panel__header span,
+.runtime-playback-status {
+  color: var(--app-text-secondary);
+  font-size: 11px;
+}
+.runtime-playback-panel [data-testid="historical-time-range-controls"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 6px;
+}
+.runtime-playback-panel [data-testid="historical-time-range-controls"] label {
+  display: grid;
+  gap: 2px;
+  font-size: 10px;
+}
+.runtime-playback-panel [data-testid="historical-time-range-controls"] select,
+.runtime-playback-panel [data-testid="historical-time-range-controls"] input,
+.runtime-playback-panel [data-testid="historical-time-range-controls"] button {
+  min-height: 28px;
+}
+.runtime-playback-position {
+  display: grid;
+  grid-template-columns: auto minmax(140px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+}
+.runtime-playback-position output {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.runtime-playback-exit {
+  border-color: var(--app-warning, var(--app-border));
+}
+.runtime-operator-application[data-runtime-temporal-mode="historical-playback"] .runtime-engineering-canvas {
+  outline: 2px solid var(--app-warning, var(--app-focus));
+  outline-offset: -2px;
+}
+
+@media (max-width: 760px) {
+  .runtime-playback-panel { top: 78px; }
+  .runtime-playback-position { grid-template-columns: 1fr; }
+}

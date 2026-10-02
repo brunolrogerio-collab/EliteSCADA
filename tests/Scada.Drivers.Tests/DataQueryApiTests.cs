@@ -82,7 +82,7 @@ public sealed class DataQueryApiTests
             DataQueryExecutionService.HistoricalProviderKey,
             new HistoricalQueryRequest(
                 HistoricalDatasets.HistorianSamples,
-                new HistoricalTimeRange.Absolute(
+                HistoricalTimeRange.Absolute(
                     DateTimeOffset.UnixEpoch,
                     DateTimeOffset.UnixEpoch.AddHours(1))),
             Version: 1);

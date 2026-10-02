@@ -94,3 +94,22 @@ test('Historical Browser scalar presentation remains typed and fail-closed', () 
   expect(formatHistoricalScalar(null, 'String')).toBe('—');
   expect(formatHistoricalScalar('2026-08-29T23:00:00Z', 'DateTime')).toBe('2026-08-29T23:00:00Z');
 });
+
+
+test('Historical Browser keeps the simplified dataset vocabulary equivalent in pt-BR, en and es', () => {
+  expect([
+    historicalDatasetLabel('historian.samples', 'pt-BR'),
+    historicalDatasetLabel('alarm.events', 'pt-BR'),
+    historicalDatasetLabel('operational.events', 'pt-BR')
+  ]).toEqual(['Valores de TAGs', 'Alarmes', 'Eventos']);
+  expect([
+    historicalDatasetLabel('historian.samples', 'en'),
+    historicalDatasetLabel('alarm.events', 'en'),
+    historicalDatasetLabel('operational.events', 'en')
+  ]).toEqual(['TAG values', 'Alarms', 'Events']);
+  expect([
+    historicalDatasetLabel('historian.samples', 'es'),
+    historicalDatasetLabel('alarm.events', 'es'),
+    historicalDatasetLabel('operational.events', 'es')
+  ]).toEqual(['Valores de TAGs', 'Alarmas', 'Eventos']);
+});

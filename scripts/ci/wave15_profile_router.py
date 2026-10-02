@@ -14,7 +14,7 @@ VOCABULARY = (
     "SESSION_LICENSING", "SCRIPT_RUNTIME", "RUNTIME_RENDERER", "UI_EDITOR",
     "SCRIPT_ENGINEERING", "AUTHORITY_UX", "LICENSING_UX", "ELITEGO_RUNTIME",
     "INSTALLATION", "HA_DISTRIBUTED", "DOCS_I18N_HELP", "EEE_PACKAGE",
-    "DRIVER_PROTOCOL",
+    "CI_INFRA", "DRIVER_PROTOCOL",
 )
 ORDER = {profile: index for index, profile in enumerate(VOCABULARY)}
 
@@ -48,6 +48,7 @@ PATH_RULES = (
     ("EEE_PACKAGE", (".escadapkg", "projectpackage", "eee/", "export")),
     ("DRIVER_PROTOCOL", ("src/scada.drivers/", "driverhost", "gateway", "interop-lab/", "communication/")),
     ("DOCS_I18N_HELP", ("docs/", "readme", "i18n", "localization", "help")),
+    ("CI_INFRA", (".github/workflows/", "scripts/ci/", "tests/ci/")),
 )
 
 DOTNET_PROJECTS = {

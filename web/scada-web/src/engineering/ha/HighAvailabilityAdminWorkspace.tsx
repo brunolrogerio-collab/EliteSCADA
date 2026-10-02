@@ -397,6 +397,8 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
     { label: t.requirementReference, ok: !draft.protection.enabled || Boolean(draft.protection.referencePath?.trim()) }
   ];
   const haReadyForDeployment = requirements.every(requirement => requirement.ok);
+  const runningNodes = orderedNodes(configuration.running);
+  const currentOrigin = typeof window !== 'undefined' ? canonicalEndpoint(window.location.origin) : '';
   const friendlyNode = (nodeId?: string | null) => {
     if (!nodeId) return '—';
     return nodeId.toLowerCase() === topology.localNodeId.toLowerCase()
@@ -613,25 +615,19 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
         )}
 
         <fieldset className="ha-config-fieldset" disabled={!configurationEditable}>
+        <div className="ha-automation-strip" data-testid="ha-internal-automation">
+          <strong>{t.internalAutomation}</strong>
+          <span>{t.internalAutomationHint}</span>
+        </div>
+
         <div className="ha-form-grid ha-form-grid--essential">
-          <div className="ha-readonly-field" data-testid="ha-deployment-state">
-            <span>{t.haDeploymentState}</span>
-            <strong>{draft.enabled ? t.enabled : t.disabled}</strong>
-            <small>{t.coldStartOnly}</small>
-          </div>
-
           <label>
-            {t.clusterId}
-            <input value={draft.clusterId || ''} onChange={e => setDraft({ ...draft, clusterId: e.target.value })} />
-            {runningHintWhenChanged(t.showCurrent, configuration.running.clusterId, draft.clusterId, configuration.running.clusterId)}
-          </label>
-
-          <label>
-            {t.localNodeId}
-            <select value={draft.localNodeId} onChange={e => setDraft({ ...draft, localNodeId: e.target.value })}>
-              {draft.nodes.map(node => <option key={node.nodeId} value={node.nodeId}>{node.nodeId}</option>)}
+            {t.preferredServer}
+            <select value={preferredServer} onChange={e => setPreferredServer(e.target.value as 'local' | 'peer')}>
+              <option value="local">{t.currentServer}</option>
+              <option value="peer">{t.partnerServer}</option>
             </select>
-            {runningHintWhenChanged(t.showCurrent, configuration.running.localNodeId, draft.localNodeId, configuration.running.localNodeId)}
+            <small className="ha-field-hint">{t.preferredServerHint}</small>
           </label>
 
           <label className="ha-toggle-field">
@@ -661,25 +657,41 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
         </div>
 
         <div className="ha-node-grid">
-          {draft.nodes.map((node, index) => {
-            const runningNode = configuration.running.nodes[index];
+          {draft.nodes.slice(0, 2).map((node, index) => {
+            const runningNode = runningNodes[index];
+            const isCurrentServer = index === 0;
             return (
-              <fieldset key={index} className="ha-node">
-                <legend>{node.nodeId || 'Node ' + (index + 1)}</legend>
+              <fieldset key={index} className="ha-node ha-node--friendly">
+                <legend>{isCurrentServer ? t.currentServer : t.partnerServer}</legend>
                 <label>
-                  Node ID
-                  <input value={node.nodeId} onChange={e => updateNode(index, 'nodeId', e.target.value)} />
-                  {runningHintWhenChanged(t.showCurrent, runningNode?.nodeId, node.nodeId, runningNode?.nodeId)}
-                </label>
-                <label>
-                  {t.localEndpoint}
-                  <input value={node.localEndpoint || ''} onChange={e => updateNode(index, 'localEndpoint', e.target.value)} />
+                  {t.serverAddress}
+                  <input
+                    aria-label={(isCurrentServer ? t.currentServer : t.partnerServer) + ' · ' + t.serverAddress}
+                    value={node.localEndpoint || ''}
+                    onChange={e => updateNode(index, 'localEndpoint', e.target.value)}
+                  />
+                  <small className="ha-field-hint">
+                    {isCurrentServer && currentOrigin && canonicalEndpoint(node.localEndpoint) === currentOrigin
+                      ? t.currentAddressDetected
+                      : t.serverAddressHint}
+                  </small>
                   {runningHintWhenChanged(t.showCurrent, runningNode?.localEndpoint, node.localEndpoint, runningNode?.localEndpoint)}
                 </label>
                 <label>
-                  {t.remoteEndpoint}
-                  <input value={node.remoteEndpoint || ''} onChange={e => updateNode(index, 'remoteEndpoint', e.target.value)} />
-                  {runningHintWhenChanged(t.showCurrent, runningNode?.remoteEndpoint, node.remoteEndpoint, runningNode?.remoteEndpoint)}
+                  {t.externalAddress}
+                  <input
+                    aria-label={(isCurrentServer ? t.currentServer : t.partnerServer) + ' · ' + t.externalAddress}
+                    value={node.remoteEndpoint || ''}
+                    onChange={e => updateNode(index, 'remoteEndpoint', e.target.value)}
+                    placeholder={node.localEndpoint || ''}
+                  />
+                  <small className="ha-field-hint">{t.externalAddressHint}</small>
+                  {runningHintWhenChanged(
+                    t.showCurrent,
+                    runningNode?.remoteEndpoint,
+                    node.remoteEndpoint || node.localEndpoint,
+                    runningNode?.remoteEndpoint || runningNode?.localEndpoint
+                  )}
                 </label>
               </fieldset>
             );
@@ -691,21 +703,19 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
             <h3>{t.connectivity}</h3>
             <p>{t.connectivityHint}</p>
           </div>
-          <span className={peerAvailable ? 'ha-inline-status ha-inline-status--ok' : 'ha-inline-status ha-inline-status--warn'}>
-            {peerAvailable ? t.peerHealthy : t.peerUnavailable}
-          </span>
+          {topology.enabled && (
+            <span className={peerAvailable ? 'ha-inline-status ha-inline-status--ok' : 'ha-inline-status ha-inline-status--warn'}>
+              {peerAvailable ? t.peerHealthy : t.peerUnavailable}
+            </span>
+          )}
         </div>
 
         <div className="ha-form-grid">
-          <label className="ha-toggle-field">
-            <span>{t.peerTransport}</span>
-            <input
-              type="checkbox"
-              checked={draft.peerTransport.enabled}
-              onChange={e => setDraft({ ...draft, peerTransport: { ...draft.peerTransport, enabled: e.target.checked } })}
-            />
-            {runningHint(t.showCurrent, configuration.running.peerTransport.enabled ? t.enabled : t.disabled)}
-          </label>
+          <div className="ha-managed-field">
+            <span>{t.peerConnectionManaged}</span>
+            <strong>{t.automatic}</strong>
+            <small className="ha-field-hint">{t.peerConnectionManagedHint}</small>
+          </div>
 
           <div className="ha-managed-field" data-testid="ha-peer-endpoint-mode">
             <span>{t.peerEndpoint}</span>

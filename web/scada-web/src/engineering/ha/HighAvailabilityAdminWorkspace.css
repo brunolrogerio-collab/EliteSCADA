@@ -178,6 +178,147 @@
   background: linear-gradient(180deg, color-mix(in srgb, var(--ha-accent) 5%, var(--ha-panel)), var(--ha-panel));
 }
 
+.ha-topology-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.ha-running-mode {
+  border: 1px solid var(--ha-border);
+  border-radius: 9px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 3px;
+}
+
+.ha-running-mode > span,
+.ha-running-mode > small {
+  color: var(--ha-muted);
+  font-size: 10px;
+}
+
+.ha-running-mode > strong {
+  font-size: 16px;
+}
+
+.ha-running-mode--standalone {
+  border-color: color-mix(in srgb, var(--ha-ok) 45%, var(--ha-border));
+  background: color-mix(in srgb, var(--ha-ok) 7%, var(--ha-panel));
+}
+
+.ha-running-mode--ha {
+  border-color: color-mix(in srgb, var(--ha-accent) 55%, var(--ha-border));
+  background: color-mix(in srgb, var(--ha-accent) 7%, var(--ha-panel));
+}
+
+.ha-topology-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.ha-topology-option {
+  border: 1px solid var(--ha-border);
+  border-radius: 9px;
+  padding: 12px;
+  background: var(--ha-panel-2);
+  color: var(--ha-text);
+  text-align: left;
+  display: grid;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.ha-topology-option:hover:not(:disabled) {
+  border-color: var(--ha-accent);
+}
+
+.ha-topology-option:disabled {
+  cursor: default;
+  opacity: .68;
+}
+
+.ha-topology-option--selected {
+  border-color: color-mix(in srgb, var(--ha-accent) 70%, var(--ha-border));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ha-accent) 25%, transparent);
+}
+
+.ha-topology-option > strong { font-size: 13px; }
+.ha-topology-option > span { color: var(--ha-muted); font-size: 11px; line-height: 1.4; }
+.ha-topology-option > small { color: var(--ha-accent); font-size: 10px; }
+
+.ha-mode-note {
+  border-left: 3px solid var(--ha-border);
+  padding: 9px 11px;
+  background: var(--ha-panel-2);
+  display: grid;
+  gap: 3px;
+}
+
+.ha-mode-note > strong { font-size: 11px; }
+.ha-mode-note > span { color: var(--ha-muted); font-size: 10px; line-height: 1.4; }
+.ha-mode-note--locked { border-left-color: var(--ha-warn); }
+.ha-mode-note--planning { border-left-color: var(--ha-accent); }
+.ha-mode-note--preview { border-left-color: var(--ha-muted); margin-bottom: 12px; }
+
+.ha-readiness {
+  border: 1px solid var(--ha-border);
+  border-radius: 8px;
+  background: #0d141c;
+  padding: 11px;
+  display: grid;
+  gap: 9px;
+}
+
+.ha-readiness__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.ha-readiness__header > div {
+  display: grid;
+  gap: 2px;
+}
+
+.ha-readiness__header span { color: var(--ha-muted); font-size: 10px; }
+.ha-readiness__header strong { font-size: 12px; }
+
+.ha-readiness__items {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px 12px;
+}
+
+.ha-requirement {
+  color: var(--ha-muted);
+  font-size: 10px;
+}
+
+.ha-requirement--ok { color: var(--ha-ok); }
+
+.ha-cold-start-note {
+  border-top: 1px solid var(--ha-border);
+  padding-top: 8px;
+  display: grid;
+  gap: 3px;
+}
+
+.ha-cold-start-note strong { color: var(--ha-warn); font-size: 11px; }
+.ha-cold-start-note span { color: var(--ha-muted); font-size: 10px; line-height: 1.4; }
+
+.ha-config-fieldset {
+  border: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.ha-config-fieldset:disabled {
+  opacity: .72;
+}
+
 .ha-action-cards {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -640,6 +781,8 @@
   .ha-save-bar { align-items: stretch; flex-direction: column; }
   .ha-summary-grid,
   .ha-action-cards,
+  .ha-topology-options,
+  .ha-readiness__items,
   .ha-form-grid,
   .ha-form-grid--essential,
   .ha-node-grid,

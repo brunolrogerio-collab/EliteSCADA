@@ -21,7 +21,8 @@ const HA_STATE_NAMES = [
 ];
 
 function stateName(value: number | string) {
-  return typeof value === 'number' ? (HA_STATE_NAMES[value] ?? String(value)) : value;
+  if (typeof value === 'number') return HA_STATE_NAMES[value] ?? String(value);
+  return value.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
 }
 
 function asDraft(view: HaHostConfigurationView): Draft {

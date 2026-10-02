@@ -9,7 +9,8 @@ public sealed record RuntimeHaProtectionOptions(
     string? ReferencePath,
     TimeSpan LeaseDuration,
     TimeSpan PollInterval,
-    TimeSpan ReadyWitnessMaximumAge)
+    TimeSpan ReadyWitnessMaximumAge,
+    TimeSpan ClockSkewSafetyMargin)
 {
     public static RuntimeHaProtectionOptions FromConfiguration(IConfiguration configuration)
     {
@@ -20,6 +21,11 @@ public sealed record RuntimeHaProtectionOptions(
         var leaseSeconds = Math.Clamp(section.GetValue<int?>("LeaseSeconds") ?? 10, 3, 120);
         var pollMilliseconds = Math.Clamp(section.GetValue<int?>("PollMilliseconds") ?? 500, 100, 10_000);
         var witnessSeconds = Math.Clamp(section.GetValue<int?>("ReadyWitnessMaximumAgeSeconds") ?? 60, leaseSeconds, 600);
+        var maximumSkewSeconds = Math.Max(0, leaseSeconds / 3);
+        var skewSeconds = Math.Clamp(
+            section.GetValue<int?>("ClockSkewSafetyMarginSeconds") ?? 1,
+            0,
+            maximumSkewSeconds);
         var path = section["ReferencePath"];
         if (enabled && string.IsNullOrWhiteSpace(path))
         {
@@ -33,7 +39,8 @@ public sealed record RuntimeHaProtectionOptions(
             string.IsNullOrWhiteSpace(path) ? null : Path.GetFullPath(path.Trim()),
             TimeSpan.FromSeconds(leaseSeconds),
             TimeSpan.FromMilliseconds(pollMilliseconds),
-            TimeSpan.FromSeconds(witnessSeconds));
+            TimeSpan.FromSeconds(witnessSeconds),
+            TimeSpan.FromSeconds(skewSeconds));
     }
 }
 
@@ -208,8 +215,11 @@ public sealed class FileRuntimeHaReferenceAuthorityStore : IRuntimeHaReferenceAu
                     return new(false, "reference-epoch-stale", current);
 
                 var now = _utcNow();
-                if (current.IsLiveAt(now))
-                    return new(false, "reference-lease-still-live", current);
+                if (current.ActiveNodeId is not null &&
+                    current.LeaseUntilUtc + _options.ClockSkewSafetyMargin > now)
+                {
+                    return new(false, "reference-fence-safety-window-active", current);
+                }
                 if (current.Epoch == long.MaxValue)
                     return new(false, "reference-epoch-exhausted", current);
 
@@ -922,10 +932,12 @@ public sealed class RuntimeHaProtectionCoordinator
         }
 
         var localNodeId = _highAvailability.LocalNodeId;
+        var now = _utcNow();
         return committed &&
             localNodeId is not null &&
             reference is not null &&
-            reference.IsLiveAt(_utcNow()) &&
+            reference.ActiveNodeId is not null &&
+            reference.LeaseUntilUtc - _options.ClockSkewSafetyMargin > now &&
             reference.ActiveNodeId is not null &&
             reference.ActiveNodeId.Equals(localNodeId, StringComparison.OrdinalIgnoreCase) &&
             reference.Epoch == topology.AuthorityEpoch &&

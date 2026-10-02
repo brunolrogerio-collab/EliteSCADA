@@ -416,7 +416,8 @@ public static class BuiltinDynamoLibrary
                 FlatShape(E(family, style, 5), "leg-right", "core.rectangle", 69, 144, 10, 10, "#6B7280", "#475569", 1, 2),
                 Text(E(family, style, 6), "label", "TK", 39, 30, 30, 24, 11, "#111827"),
                 StateLamp(E(family, style, 7), "high", 84, 10, "#D97706", "high", "{equipmentPath}.High"),
-                StateLamp(E(family, style, 8), "fault", 84, 132, "#DC2626", "fault", "{equipmentPath}.Fault")
+                StateLamp(E(family, style, 8), "fault", 84, 132, "#DC2626", "fault", "{equipmentPath}.Fault"),
+                FlatShape(E(family, style, 11), "nozzle-flange", "core.rectangle", 44, 0, 20, 4, "#AEB7BE", "#475569", 1, 1)
             ],
             parameters: TankParameters());
         }
@@ -441,7 +442,9 @@ public static class BuiltinDynamoLibrary
             FlatShape(E(family, style, 11), "foot-right", "core.rectangle", 74, 176, 22, 6, "#475569", "#334155", 1, 1),
             Text(E(family, style, 12), "label", "TK", 48, 54, 32, 22, 11, "#1F2937"),
             StateLamp(E(family, style, 13), "high", 104, 19, "#F59E0B", "high", "{equipmentPath}.High"),
-            StateLamp(E(family, style, 14), "fault", 104, 147, "#EF4444", "fault", "{equipmentPath}.Fault")
+            StateLamp(E(family, style, 14), "fault", 104, 147, "#EF4444", "fault", "{equipmentPath}.Fault"),
+            FlatShape(E(family, style, 15), "top-nozzle-flange", "core.rectangle", 52, 0, 24, 5, "#AAB8C5", "#475569", 1, 1),
+            FlatShape(E(family, style, 16), "side-nozzle-flange", "core.rectangle", 117, 59, 5, 20, "#AAB8C5", "#475569", 1, 1)
         ],
         parameters: TankParameters());
     }
@@ -491,7 +494,9 @@ public static class BuiltinDynamoLibrary
             FlatShape(E(family, style, 11), "base-right", "core.rectangle", 116, 103, 39, 6, "#475569", "#334155", 1, 1),
             Text(E(family, style, 12), "label", "TK", 82, 37, 32, 22, 11, "#1F2937"),
             StateLamp(E(family, style, 13), "high", 171, 8, "#F59E0B", "high", "{equipmentPath}.High"),
-            StateLamp(E(family, style, 14), "fault", 171, 88, "#EF4444", "fault", "{equipmentPath}.Fault")
+            StateLamp(E(family, style, 14), "fault", 171, 88, "#EF4444", "fault", "{equipmentPath}.Fault"),
+            FlatShape(E(family, style, 15), "top-nozzle-flange", "core.rectangle", 87, 7, 24, 5, "#AAB8C5", "#475569", 1, 1),
+            FlatShape(E(family, style, 16), "side-nozzle-flange", "core.rectangle", 190, 49, 5, 22, "#AAB8C5", "#475569", 1, 1)
         ],
         parameters: TankParameters());
     }
@@ -843,6 +848,8 @@ public static class BuiltinDynamoLibrary
                 Ellipse("cap", 51, 91, 49, 12, accent);
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
                 Bar("basket-neck", 66, 45, 10, 25, shell, -32);
+                Rect("flange-left", 34, 27, 7, 26, light, 2, 1.5);
+                Rect("flange-right", 98, 27, 7, 26, light, 2, 1.5);
                 break;
             case "process.mixer.agitator":
                 Bezier("vessel", 26, 58, 79, 95,

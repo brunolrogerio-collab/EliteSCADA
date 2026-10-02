@@ -35,6 +35,36 @@ function asDraft(view: HaHostConfigurationView): Draft {
   };
 }
 
+function prepareHaDraft(view: Draft): Draft {
+  const localNodeId = view.localNodeId || view.nodes[0]?.nodeId || 'node-a';
+  const nodes = view.nodes.length >= 2
+    ? view.nodes.map(node => ({ ...node }))
+    : [
+        ...(view.nodes.length
+          ? view.nodes.map(node => ({ ...node }))
+          : [{ nodeId: localNodeId, localEndpoint: '', remoteEndpoint: '' }]),
+        { nodeId: 'peer', localEndpoint: '', remoteEndpoint: '' }
+      ];
+
+  return {
+    ...view,
+    localNodeId,
+    initialActiveNodeId: view.initialActiveNodeId || localNodeId,
+    nodes: nodes.slice(0, 2),
+    peerTransport: { ...view.peerTransport, enabled: true }
+  };
+}
+
+function isAbsoluteHttpEndpoint(value?: string | null) {
+  if (!value) return false;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 function sameConfig(a: HaHostConfigurationView, b: HaHostConfigurationView) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
@@ -80,6 +110,7 @@ function statusLabel(status: string, t: ReturnType<typeof haCopy>) {
   if (normalized === 'blocked') return t.blocked;
   if (normalized === 'degraded') return t.degraded;
   if (normalized === 'ambiguous') return t.ambiguous;
+  if (normalized === 'standalone') return t.standaloneMode;
   return status;
 }
 
@@ -99,6 +130,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
   const [activeOperation, setActiveOperation] = useState<HaProtectionOperation | null>(null);
   const [showSecretEditor, setShowSecretEditor] = useState(false);
   const [overridePeerEndpoint, setOverridePeerEndpoint] = useState(false);
+  const [deploymentChoice, setDeploymentChoice] = useState<'standalone' | 'ha'>('standalone');
 
   const load = useCallback(async (preserveDraft = false) => {
     setLoading(true);
@@ -108,8 +140,9 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
       setSnapshot(next);
       if (!preserveDraft) {
         setDraft(asDraft(next.configuration.desired));
-        setShowSecretEditor(!next.configuration.desired.peerTransport.authenticationConfigured);
+        setShowSecretEditor(next.topology.enabled && !next.configuration.desired.peerTransport.authenticationConfigured);
         setOverridePeerEndpoint(Boolean(next.configuration.desired.peerTransport.peerEndpoint));
+        setDeploymentChoice(next.topology.enabled ? 'ha' : 'standalone');
       }
     } catch (error) {
       setFailure(error instanceof Error ? error.message : t.loadError);
@@ -198,7 +231,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
     try {
       const result = await haAdminApi.updateConfiguration(request);
       setNotice(result.snapshot.pendingRestart ? t.savedNotActive : t.saved);
-      await load(false);
+      await load(!snapshot.topology.enabled && deploymentChoice === 'ha');
     } catch (error) {
       const http = error instanceof HaAdminHttpError ? error : null;
       setFailure([http?.message || t.configurationRejected, ...(http?.errors ?? [])].filter(Boolean).join(' · '));
@@ -240,14 +273,17 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
   if (loading && !snapshot) return <div className="ha-admin ha-admin--loading">{t.title}…</div>;
   if (!snapshot || !draft) return <div className="ha-admin ha-admin--error" role="alert">{failure || t.loadError}</div>;
 
-  const { topology, authority, administration, configuration, peer } = snapshot;
+  const { topology, authority, administration, configuration, peer, licensing } = snapshot;
   const protection = administration.protection;
+  const haLicensed = licensing.license.state === 'Valid' && licensing.license.haRuntime === true;
+  const configurationEditable = topology.enabled || (deploymentChoice === 'ha' && haLicensed);
   const nodes = topology.nodes;
   const local = nodes.find(node => node.nodeId.toLowerCase() === topology.localNodeId.toLowerCase());
   const peerNode = nodes.find(node => node.nodeId.toLowerCase() !== topology.localNodeId.toLowerCase());
-  const status = topology.ambiguousAuthority ? 'ambiguous'
-    : authority.blocked ? 'blocked'
-      : protection.status;
+  const status = !topology.enabled ? 'standalone'
+    : topology.ambiguousAuthority ? 'ambiguous'
+      : authority.blocked ? 'blocked'
+        : protection.status;
 
   const operations = activeOperation
     ? [activeOperation, ...administration.operations.filter(op => op.operationId !== activeOperation.operationId)]
@@ -255,6 +291,23 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
   const latestOperation = operations[0] ?? null;
   const suggestedTarget = peerNode?.nodeId ?? '';
   const peerAvailable = peer.connectionState === 'connected' && Boolean(peerNode?.fresh);
+  const nodeIds = draft.nodes.map(node => node.nodeId.trim()).filter(Boolean);
+  const nodeIdsUnique = nodeIds.length === 2 && new Set(nodeIds.map(value => value.toLowerCase())).size === 2;
+  const endpointsReady = draft.nodes.length === 2 && draft.nodes.every(node =>
+    isAbsoluteHttpEndpoint(node.localEndpoint) && isAbsoluteHttpEndpoint(node.remoteEndpoint));
+  const authenticationReady = draft.peerTransport.enabled &&
+    (draft.peerTransport.authenticationConfigured ||
+      new TextEncoder().encode(draft.peerSharedSecret).length >= 32);
+  const requirements = [
+    { label: t.requirementLicense, ok: haLicensed },
+    { label: t.requirementCluster, ok: Boolean(draft.clusterId?.trim()) },
+    { label: t.requirementNodes, ok: nodeIdsUnique && nodeIds.includes(draft.localNodeId) },
+    { label: t.requirementEndpoints, ok: endpointsReady },
+    { label: t.requirementInitialActive, ok: Boolean(draft.initialActiveNodeId) && nodeIds.includes(draft.initialActiveNodeId || '') },
+    { label: t.requirementAuthentication, ok: authenticationReady },
+    { label: t.requirementReference, ok: !draft.protection.enabled || Boolean(draft.protection.referencePath?.trim()) }
+  ];
+  const haReadyForDeployment = requirements.every(requirement => requirement.ok);
 
   return (
     <section className="ha-admin" data-testid="ha-admin-workspace">

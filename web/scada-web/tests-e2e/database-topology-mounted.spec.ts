@@ -331,8 +331,9 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
   await expect(page.getByText('Remote', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Restart required', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Completed', { exact: true }).first()).toBeVisible();
-  await expect(page.getByLabel('Primary Host / FQDN')).toHaveValue('');
+  await expect(page.getByLabel('Primary Host / FQDN')).toHaveCount(0);
   await expect(page.getByTestId('database-validation-result')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Configure another Remote' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Return to Local Managed' })).toHaveCount(0);
   await attachScreenshot(page, testInfo, '09-restart-required-completed');
 
@@ -350,6 +351,8 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
     }
   });
   await page.reload();
+  await expect(page.getByRole('button', { name: 'Configure another Remote' })).toBeVisible();
+  await expect(page.getByTestId('database-next-action')).toContainText('No action is required.');
   await expect(page.getByRole('button', { name: 'Return to Local Managed' })).toBeVisible();
   await expect(page.getByText('Operation ID', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Return to Local Managed' }).click();

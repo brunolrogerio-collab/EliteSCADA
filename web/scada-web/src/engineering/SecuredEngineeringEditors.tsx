@@ -5,6 +5,7 @@ import {
   previewEngineeringPackage
 } from './api';
 import { editorTranslator } from './editorI18n';
+import { backendReferenceFromName } from './backendReferenceFromName';
 import { productTerm, type EngineeringLocale } from './i18n';
 import { TagAddressEditor } from './TagAddressEditor';
 import { TagCommissioningPanel } from './TagCommissioningPanel';
@@ -193,6 +194,7 @@ export function TagEditor({ model, locale }: EditorProps) {
               <button
                 type="button"
                 className={classes}
+                aria-label={`${tag.name} (${tag.path})`}
                 aria-current={!duplicationSelectionMode && identity === selectedIdentity ? 'true' : undefined}
                 aria-pressed={duplicationSelectionMode ? multiSelected : undefined}
                 key={identity}
@@ -206,7 +208,7 @@ export function TagEditor({ model, locale }: EditorProps) {
                 }}
               >
                 {duplicationSelectionMode && <i className="tag-multi-check" aria-hidden="true">{multiSelected ? '✓' : ''}</i>}
-                <strong>{tag.name}</strong><code>{tag.path}</code><span>{tag.dataType} · {tag.source ?? '—'}</span>
+                <strong>{tag.name}</strong><span>{tag.dataType} · {tag.source ?? '—'}</span>
               </button>
             );
           })}
@@ -227,8 +229,7 @@ export function TagEditor({ model, locale }: EditorProps) {
               />
               <WorkflowFormSection title={workflowText(locale).identity} description={workflowText(locale).tagIdentityHint}>
               <div className="eng-editor-form-grid">
-                <TextField label={text('editor.field.name')} value={draft.name} onChange={value => updateTag(setDraft, tag => ({ ...tag, name: value }))} />
-                <TextField label={text('editor.field.path')} value={draft.path} mono onChange={value => updateTag(setDraft, tag => ({ ...tag, path: value }))} />
+                <TextField label={text('editor.field.tagName')} hint={text('editor.field.tagNameHint')} value={draft.name} onChange={value => updateTag(setDraft, tag => ({ ...tag, name: value, ...(isNew ? { path: backendReferenceFromName(value) } : {}) }))} />
                 <SelectField label={text('editor.field.type')} value={draft.dataType} options={tagDataTypes} onChange={value => updateTag(setDraft, tag => ({ ...tag, dataType: value }))} />
                 <TagSourceSelector
                   tag={draft as TagSourceAwareEngineering}
@@ -368,8 +369,8 @@ export function DataSourceEditor({ model, locale }: EditorProps) {
           {filtered.map(source => {
             const identity = dataSourceIdentity(source);
             return (
-              <button type="button" className={identity === selectedIdentity ? 'selected' : ''} aria-current={identity === selectedIdentity ? 'true' : undefined} key={identity} onClick={() => chooseIdentity(identity)}>
-                <strong>{source.name}</strong><code>{source.key}</code><span>{source.driver}</span>
+              <button type="button" className={identity === selectedIdentity ? 'selected' : ''} aria-label={`${source.name || source.key} (${source.key})`} aria-current={identity === selectedIdentity ? 'true' : undefined} key={identity} onClick={() => chooseIdentity(identity)}>
+                <strong>{source.name || source.key}</strong><span>{source.driver}</span>
               </button>
             );
           })}
@@ -381,8 +382,7 @@ export function DataSourceEditor({ model, locale }: EditorProps) {
               <EditorStatus original={selected} draft={draft} changed={changed} isNew={isNew} locale={locale} />
               <WorkflowFormSection title={workflowText(locale).identity} description={workflowText(locale).dataSourceIdentityHint}>
               <div className="eng-editor-form-grid">
-                <TextField label={text('editor.field.name')} value={draft.name} onChange={value => updateDataSource(setDraft, source => ({ ...source, name: value }))} />
-                <TextField label={text('editor.field.key')} value={draft.key} mono onChange={value => updateDataSource(setDraft, source => ({ ...source, key: value }))} />
+                <TextField label={text('editor.field.dataSourceName')} hint={text('editor.field.dataSourceNameHint')} value={draft.name} onChange={value => updateDataSource(setDraft, source => ({ ...source, name: value, ...(isNew ? { key: backendReferenceFromName(value) } : {}) }))} />
                 <TextField label={text('editor.field.driver')} value={draft.driver} mono onChange={value => updateDataSource(setDraft, source => ({ ...source, driver: value }))} />
                 <BooleanField label={text('editor.field.enabled')} checked={draft.enabled !== false} onChange={value => updateDataSource(setDraft, source => ({ ...source, enabled: value }))} />
               </div>
@@ -764,8 +764,8 @@ function ReadOnlyDictionary({ title, hint, value }: { title: string; hint: strin
   );
 }
 
-function TextField({ label, value, onChange, mono = false }: { label: string; value: string; onChange: (value: string) => void; mono?: boolean }) {
-  return <label className="eng-editor-field"><span>{label}</span><input className={mono ? 'mono' : ''} value={value} onChange={event => onChange(event.target.value)} /></label>;
+function TextField({ label, value, onChange, mono = false, hint }: { label: string; value: string; onChange: (value: string) => void; mono?: boolean; hint?: string }) {
+  return <label className="eng-editor-field"><span>{label}</span><input aria-description={hint} className={mono ? 'mono' : ''} value={value} onChange={event => onChange(event.target.value)} />{hint && <small aria-hidden="true">{hint}</small>}</label>;
 }
 
 function TextAreaField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {

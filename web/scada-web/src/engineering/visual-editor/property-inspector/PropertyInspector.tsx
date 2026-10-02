@@ -43,6 +43,8 @@ export type PropertyInspectorCopy = Readonly<{
   transparent: string;
   alpha: string;
   fontFamilyPlaceholder: string;
+  fontFamilyOptions: Readonly<Record<string, string>>;
+  fontWeightLabel: string;
   defaultState: string;
   engineeringState: string;
   mixedState: (explicitCount: number, selectionCount: number) => string;
@@ -69,10 +71,10 @@ export type PropertyInspectorProps = VisualEditorPropertyInspectorContractProps 
 const DEFAULT_COPY: PropertyInspectorCopy = {
   title: 'Properties',
   identity: 'Identity',
-  developerKey: 'Development name (Key)',
+  developerKey: 'Development identifier',
   stableId: 'Stable Id',
-  renameHint: 'Rename changes the developer Key only. Stable identity is preserved.',
-  keyRequired: 'Development Key is required.',
+  renameHint: 'Changing this updates only the development-facing identifier; stable identity is preserved.',
+  keyRequired: 'A development identifier is required.',
   noSelection: 'No selection',
   selectHint: 'Select a visual object to inspect its registered properties.',
   selected: count => `${count} selected`,
@@ -81,12 +83,21 @@ const DEFAULT_COPY: PropertyInspectorCopy = {
   trueLabel: 'True',
   falseLabel: 'False',
   noAsset: 'No asset',
-  assetBrowserHint: 'Project asset library',
-  chooseImage: 'Choose image…',
+  assetBrowserHint: 'Browse your computer and upload a PNG, JPG, BMP or SVG to this project.',
+  chooseImage: 'Browse computer and upload…',
   importingAsset: 'Importing…',
   transparent: 'Transparent',
   alpha: 'Alpha',
-  fontFamilyPlaceholder: 'Choose or type a font family',
+  fontFamilyPlaceholder: 'Choose a font family',
+  fontFamilyOptions: {
+    system: 'System default',
+    'Arimo Variable': 'Arimo — similar to Arial',
+    Lato: 'Lato — humanist sans serif',
+    Tinos: 'Tinos — similar to Times New Roman',
+    Cousine: 'Cousine — similar to Courier New',
+    custom: 'Custom…'
+  },
+  fontWeightLabel: 'Bold',
   defaultState: 'Default',
   engineeringState: 'Engineering',
   mixedState: (explicitCount, selectionCount) => `Mixed · ${explicitCount}/${selectionCount} explicit`,
@@ -132,7 +143,8 @@ export function PropertyInspector({
   const [collapsedCategories, setCollapsedCategories] = useState<ReadonlySet<string>>(() => new Set());
   const model = useMemo(() => buildPropertyInspectorModel(selectedElements), [selectedElements]);
   const filteredRows = useMemo(() => filterPropertyRows(model.rows, filter, text), [model.rows, filter, text]);
-  const groupedRows = useMemo(() => groupRows(filteredRows), [filteredRows]);
+  const isTextObject = selectedElements.length === 1 && selectedElements[0].type === BUILTIN_VISUAL_OBJECT_TYPES.text;
+  const groupedRows = useMemo(() => groupRows(filteredRows, isTextObject), [filteredRows, isTextObject]);
 
   const toggleCategory = (category: string) => {
     setCollapsedCategories(current => {
@@ -220,6 +232,7 @@ export function PropertyInspector({
                 key={row.definition.key}
                 model={model}
                 row={row}
+                objectType={selectedElements.length === 1 ? selectedElements[0].type : undefined}
                 text={text}
                 locale={locale}
                 visualAssets={visualAssets}
@@ -237,7 +250,11 @@ export function PropertyInspector({
       {selectedBrowser ? <BrowserConfigurationEditor element={selectedBrowser} locale={locale} onMutationIntent={onMutationIntent} /> : null}
 
       {showEvents && selectedElements.length === 1 && selectedElements[0].id ? (
-        <EventsEditor visualObjectId={selectedElements[0].id} />
+        <EventsEditor
+          visualObjectId={selectedElements[0].id}
+          element={selectedElements[0]}
+          onMutationIntent={onMutationIntent}
+        />
       ) : null}
     </aside>
   );
@@ -246,6 +263,7 @@ export function PropertyInspector({
 type PropertyFieldProps = Readonly<{
   model: PropertyInspectorModel;
   row: PropertyInspectorRow;
+  objectType?: string;
   text: PropertyInspectorCopy;
   locale: EngineeringLocale;
   visualAssets: readonly VisualAssetEngineering[];
@@ -255,7 +273,7 @@ type PropertyFieldProps = Readonly<{
   imageImportBusy: boolean;
 }>;
 
-function PropertyField({ model, row, text, locale, visualAssets, onMutationIntent, onImportImage, imageImportDisabled, imageImportBusy }: PropertyFieldProps) {
+function PropertyField({ model, row, text, locale, visualAssets, objectType, onMutationIntent, onImportImage, imageImportDisabled, imageImportBusy }: PropertyFieldProps) {
   const [error, setError] = useState<string | null>(null);
   const definition = row.definition;
   const localizedTrendLabel = trendPropertyLabel(locale, definition.key);
@@ -297,7 +315,7 @@ function PropertyField({ model, row, text, locale, visualAssets, onMutationInten
       <div className="property-inspector__field-heading">
         <div className="property-inspector__field-label">
           <label htmlFor={`visual-property-${definition.key}`}>
-            {localizedTrendLabel ?? visualPropertyLabel(definition.key, rowText)}
+            {localizedTrendLabel ?? visualPropertyLabel(definition.key, rowText, objectType, locale)}
           </label>
           <code title="Canonical property key">{definition.key}</code>
         </div>
@@ -331,7 +349,7 @@ function PropertyField({ model, row, text, locale, visualAssets, onMutationInten
       )}
 
       <div className="property-inspector__field-meta">
-        <span>{definition.type}{definition.unit ? ` · ${definition.unit}` : ''}</span>
+        {definition.key === VISUAL_PROPERTY_KEYS.fontWeight ? null : <span>{definition.type}{definition.unit ? ` · ${definition.unit}` : ''}</span>}
         <button
           type="button"
           className="property-inspector__reset"
@@ -341,6 +359,10 @@ function PropertyField({ model, row, text, locale, visualAssets, onMutationInten
           {rowText.useDefault}
         </button>
       </div>
+
+      {objectType === BUILTIN_VISUAL_OBJECT_TYPES.numericInput && definition.key === VISUAL_PROPERTY_KEYS.interactionEnabled ? (
+        <p className="property-inspector__field-hint">{numericWritePermissionHint(locale)}</p>
+      ) : null}
 
       {error ? <p className="property-inspector__validation" role="alert">{error}</p> : null}
     </div>
@@ -412,14 +434,44 @@ export function humanizeVisualPropertyKey(propertyKey: string): string {
   return `${words[0].toUpperCase()}${words.slice(1)}`;
 }
 
-function visualPropertyLabel(propertyKey: string, text: PropertyInspectorCopy): string {
+function visualPropertyLabel(propertyKey: string, text: PropertyInspectorCopy, objectType?: string, locale: EngineeringLocale = 'pt-BR'): string {
   switch (propertyKey) {
+    case VISUAL_PROPERTY_KEYS.arcStyle:
+      return locale === 'en' ? 'Arc style' : locale === 'es' ? 'Estilo del arco' : 'Estilo do arco';
+    case VISUAL_PROPERTY_KEYS.arcStartAngle:
+      return locale === 'en' ? 'Start angle' : locale === 'es' ? 'Ángulo inicial' : 'Ângulo inicial';
+    case VISUAL_PROPERTY_KEYS.arcEndAngle:
+      return locale === 'en' ? 'End angle' : locale === 'es' ? 'Ángulo final' : 'Ângulo final';
+    case VISUAL_PROPERTY_KEYS.bezierPath:
+      return locale === 'en' ? 'Curve path (SVG)' : locale === 'es' ? 'Ruta de la curva (SVG)' : 'Caminho da curva (SVG)';
+    case VISUAL_PROPERTY_KEYS.polygonFillRule:
+      return locale === 'en' ? 'Polygon fill rule' : locale === 'es' ? 'Regla de relleno del polígono' : 'Regra de preenchimento do polígono';
+    case VISUAL_PROPERTY_KEYS.interactionEnabled:
+      if (objectType === BUILTIN_VISUAL_OBJECT_TYPES.numericInput) {
+        return locale === 'en' ? 'Allow variable writes' : locale === 'es' ? 'Permitir escritura de variable' : 'Permitir escrita da variável';
+      }
+      return humanizeVisualPropertyKey(propertyKey);
+    case VISUAL_PROPERTY_KEYS.showSteppers:
+      return locale === 'en' ? 'Show increment/decrement buttons' : locale === 'es' ? 'Mostrar botones para aumentar/disminuir' : 'Mostrar botões de aumentar/diminuir';
+    case VISUAL_PROPERTY_KEYS.unit:
+      return locale === 'en' ? 'Unit' : locale === 'es' ? 'Unidad' : 'Unidade';
+    case VISUAL_PROPERTY_KEYS.decimalPlacesEnabled:
+      return locale === 'en' ? 'Show fixed decimal places' : locale === 'es' ? 'Mostrar decimales fijos' : 'Exibir casas decimais fixas';
+    case VISUAL_PROPERTY_KEYS.decimalPlaces:
+      return locale === 'en' ? 'Decimal places' : locale === 'es' ? 'Cantidad de decimales' : 'Quantidade de casas decimais';
+    case VISUAL_PROPERTY_KEYS.fontWeight: return text.fontWeightLabel;
     case VISUAL_PROPERTY_KEYS.imageFit: return text.imageFitLabel;
     case VISUAL_PROPERTY_KEYS.imagePositionX: return text.imagePositionXLabel;
     case VISUAL_PROPERTY_KEYS.imagePositionY: return text.imagePositionYLabel;
     case VISUAL_PROPERTY_KEYS.imageZoom: return text.imageZoomLabel;
     default: return humanizeVisualPropertyKey(propertyKey);
   }
+}
+
+function numericWritePermissionHint(locale: EngineeringLocale): string {
+  if (locale === 'en') return 'This enables the control only; the TAG write direction and the user\'s Runtime authorization are still required.';
+  if (locale === 'es') return 'Esto habilita el control; también se requiere dirección de escritura en el TAG y autorización Runtime del usuario.';
+  return 'Esta opção habilita o controle; a TAG também precisa aceitar escrita e o usuário precisa de autorização no Runtime.';
 }
 
 function filterPropertyRows(
@@ -439,7 +491,7 @@ function filterPropertyRows(
   });
 }
 
-function groupRows(rows: readonly PropertyInspectorRow[]): readonly [string, readonly PropertyInspectorRow[]][] {
+function groupRows(rows: readonly PropertyInspectorRow[], prioritizeText = false): readonly [string, readonly PropertyInspectorRow[]][] {
   const groups = new Map<string, PropertyInspectorRow[]>();
   for (const row of rows) {
     const category = row.definition.category ?? 'general';
@@ -447,7 +499,16 @@ function groupRows(rows: readonly PropertyInspectorRow[]): readonly [string, rea
     if (existing) existing.push(row);
     else groups.set(category, [row]);
   }
-  return [...groups.entries()];
+  const entries = [...groups.entries()];
+  if (prioritizeText) {
+    const textIndex = entries.findIndex(([category]) => category === 'text');
+    const geometryIndex = entries.findIndex(([category]) => category === 'geometry');
+    if (textIndex >= 0 && geometryIndex >= 0 && textIndex > geometryIndex) {
+      const [textGroup] = entries.splice(textIndex, 1);
+      entries.splice(geometryIndex, 0, textGroup);
+    }
+  }
+  return entries;
 }
 
 function stateLabel(row: PropertyInspectorRow, text: PropertyInspectorCopy): string {
@@ -461,44 +522,64 @@ function stateLabel(row: PropertyInspectorRow, text: PropertyInspectorCopy): str
 function propertyInspectorChromeText(locale: EngineeringLocale) {
   if (locale === 'pt-BR') return {
     identity: 'Identidade',
-    developerKey: 'Nome de desenvolvimento (Key)',
+    developerKey: 'Identificador de desenvolvimento',
     stableId: 'Id estável',
-    renameHint: 'Renomear altera apenas o Key de desenvolvimento. A identidade estável é preservada.',
-    keyRequired: 'O Key de desenvolvimento é obrigatório.',
-    chooseImage: 'Escolher imagem…',
+    renameHint: 'Alterar este campo atualiza apenas o identificador usado no desenvolvimento; a identidade estável é preservada.',
+    keyRequired: 'O identificador de desenvolvimento é obrigatório.',
+    assetBrowserHint: 'Procure no computador e envie um PNG, JPG, BMP ou SVG para este projeto.',
+    chooseImage: 'Procurar no computador e enviar…',
     importingAsset: 'Importando…',
+    fontFamilyPlaceholder: 'Escolha uma família de fontes',
+    fontFamilyOptions: {
+      system: 'Padrão do sistema', 'Arimo Variable': 'Arimo — semelhante à Arial', Lato: 'Lato — sem serifa humanista',
+      Tinos: 'Tinos — semelhante à Times New Roman', Cousine: 'Cousine — semelhante à Courier New', custom: 'Personalizada…'
+    },
+    fontWeightLabel: 'Negrito',
     imageFitLabel: 'Ajuste da imagem', imagePositionXLabel: 'Posição horizontal do recorte', imagePositionYLabel: 'Posição vertical do recorte', imageZoomLabel: 'Zoom da imagem',
     fitOptions: { contain: 'Conter inteira', cover: 'Cobrir e recortar', fill: 'Esticar', native: 'Tamanho original' },
     filterLabel: 'Filtrar propriedades',
-    filterPlaceholder: 'Nome ou chave canônica',
+    filterPlaceholder: 'Nome de exibição ou identificador canônico',
     noMatches: 'Nenhuma propriedade corresponde ao filtro.'
   };
   if (locale === 'es') return {
     identity: 'Identidad',
-    developerKey: 'Nombre de desarrollo (Key)',
+    developerKey: 'Identificador de desarrollo',
     stableId: 'Id estable',
-    renameHint: 'Renombrar cambia solo el Key de desarrollo. La identidad estable se preserva.',
-    keyRequired: 'El Key de desarrollo es obligatorio.',
-    chooseImage: 'Elegir imagen…',
+    renameHint: 'Cambiarlo actualiza solo el identificador visible para desarrollo; la identidad estable se conserva.',
+    keyRequired: 'El identificador de desarrollo es obligatorio.',
+    assetBrowserHint: 'Busque en el equipo y cargue un PNG, JPG, BMP o SVG a este proyecto.',
+    chooseImage: 'Buscar en el equipo y cargar…',
     importingAsset: 'Importando…',
+    fontFamilyPlaceholder: 'Elige una familia tipográfica',
+    fontFamilyOptions: {
+      system: 'Predeterminada del sistema', 'Arimo Variable': 'Arimo — similar a Arial', Lato: 'Lato — sans serif humanista',
+      Tinos: 'Tinos — similar a Times New Roman', Cousine: 'Cousine — similar a Courier New', custom: 'Personalizada…'
+    },
+    fontWeightLabel: 'Negrita',
     imageFitLabel: 'Ajuste de imagen', imagePositionXLabel: 'Posición horizontal del recorte', imagePositionYLabel: 'Posición vertical del recorte', imageZoomLabel: 'Zoom de imagen',
     fitOptions: { contain: 'Contener completa', cover: 'Cubrir y recortar', fill: 'Estirar', native: 'Tamaño original' },
     filterLabel: 'Filtrar propiedades',
-    filterPlaceholder: 'Nombre o clave canónica',
+    filterPlaceholder: 'Nombre visible o identificador canónico',
     noMatches: 'Ninguna propiedad coincide con el filtro.'
   };
   return {
     identity: 'Identity',
-    developerKey: 'Development name (Key)',
+    developerKey: 'Development identifier',
     stableId: 'Stable Id',
-    renameHint: 'Rename changes the developer Key only. Stable identity is preserved.',
-    keyRequired: 'Development Key is required.',
+    renameHint: 'Changing this updates only the development-facing identifier; stable identity is preserved.',
+    keyRequired: 'A development identifier is required.',
     chooseImage: 'Choose image…',
     importingAsset: 'Importing…',
+    fontFamilyPlaceholder: 'Choose a font family',
+    fontFamilyOptions: {
+      system: 'System default', 'Arimo Variable': 'Arimo — similar to Arial', Lato: 'Lato — humanist sans serif',
+      Tinos: 'Tinos — similar to Times New Roman', Cousine: 'Cousine — similar to Courier New', custom: 'Custom…'
+    },
+    fontWeightLabel: 'Bold',
     imageFitLabel: 'Image fit', imagePositionXLabel: 'Horizontal crop position', imagePositionYLabel: 'Vertical crop position', imageZoomLabel: 'Image zoom',
     fitOptions: { contain: 'Contain whole image', cover: 'Cover and crop', fill: 'Stretch', native: 'Original size' },
     filterLabel: 'Filter properties',
-    filterPlaceholder: 'Name or canonical key',
+    filterPlaceholder: 'Display name or canonical identifier',
     noMatches: 'No properties match this filter.'
   };
 }

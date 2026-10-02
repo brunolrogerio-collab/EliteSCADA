@@ -180,7 +180,9 @@ public sealed class DefaultMachineIdentityProvider : IMachineIdentityProvider
 {
     public string GetMachineFingerprint()
     {
-        var identity = TryReadWindowsMachineGuid() ?? TryReadLinuxMachineId();
+        var identity = TryReadWindowsMachineGuid()
+            ?? TryReadLinuxMachineId()
+            ?? Environment.GetEnvironmentVariable("ELITESCADA_MACHINE_ID");
         if (string.IsNullOrWhiteSpace(identity))
             throw new InvalidOperationException("A stable machine identity could not be resolved. License request generation fails closed.");
 

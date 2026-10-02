@@ -9,6 +9,8 @@ export const BUILTIN_VISUAL_OBJECT_TYPES = {
   rectangle: 'core.rectangle',
   ellipse: 'core.ellipse',
   line: 'core.line',
+  arc: 'core.arc',
+  bezier: 'core.bezier',
   polygon: 'core.polygon',
   text: 'core.text',
   image: 'core.image',
@@ -25,7 +27,8 @@ export type BuiltinVisualObjectType = typeof BUILTIN_VISUAL_OBJECT_TYPES[keyof t
 
 const ANALOG_FILL_CAPABLE_TYPES = new Set<string>([
   BUILTIN_VISUAL_OBJECT_TYPES.rectangle,
-  BUILTIN_VISUAL_OBJECT_TYPES.ellipse
+  BUILTIN_VISUAL_OBJECT_TYPES.ellipse,
+  BUILTIN_VISUAL_OBJECT_TYPES.bezier
 ]);
 
 const GEOMETRY: readonly CommonVisualPropertyKey[] = [
@@ -127,9 +130,24 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     ...BASE,
     ...STROKE
   ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.arc, schema(BUILTIN_VISUAL_OBJECT_TYPES.arc, [
+    ...BASE,
+    ...FILL,
+    ...STROKE,
+    VISUAL_PROPERTY_KEYS.arcStyle,
+    VISUAL_PROPERTY_KEYS.arcStartAngle,
+    VISUAL_PROPERTY_KEYS.arcEndAngle
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.bezier, schema(BUILTIN_VISUAL_OBJECT_TYPES.bezier, [
+    ...BASE,
+    ...FILL,
+    ...STROKE,
+    VISUAL_PROPERTY_KEYS.bezierPath
+  ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.polygon, schema(BUILTIN_VISUAL_OBJECT_TYPES.polygon, [
     ...BASE,
     ...FILL,
+    VISUAL_PROPERTY_KEYS.polygonFillRule,
     ...STROKE
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.text, schema(BUILTIN_VISUAL_OBJECT_TYPES.text, [
@@ -197,11 +215,16 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     VISUAL_PROPERTY_KEYS.fontWeight,
     VISUAL_PROPERTY_KEYS.horizontalAlignment,
     VISUAL_PROPERTY_KEYS.value,
+    VISUAL_PROPERTY_KEYS.unit,
+    VISUAL_PROPERTY_KEYS.decimalPlacesEnabled,
+    VISUAL_PROPERTY_KEYS.decimalPlaces,
     VISUAL_PROPERTY_KEYS.minimum,
     VISUAL_PROPERTY_KEYS.maximum,
     VISUAL_PROPERTY_KEYS.step,
     VISUAL_PROPERTY_KEYS.interactionEnabled,
-    VISUAL_PROPERTY_KEYS.showApplyButton
+    VISUAL_PROPERTY_KEYS.showApplyButton,
+    VISUAL_PROPERTY_KEYS.showCancelButton,
+    VISUAL_PROPERTY_KEYS.showSteppers
   ])]
 ]);
 

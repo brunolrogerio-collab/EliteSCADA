@@ -54,6 +54,7 @@ export type PythonMonacoEditorProps = {
   locale: EngineeringLocale;
   diagnostics: PythonEditorDiagnosticState;
   onSourceChange(source: string): void;
+  onAssistantEntryPointNeeded?(handlerName: string): void;
   insertion?: PythonEditorInsertion | null;
   readOnly?: boolean;
 };
@@ -69,6 +70,7 @@ export function PythonMonacoEditor({
   locale,
   diagnostics,
   onSourceChange,
+  onAssistantEntryPointNeeded,
   insertion = null,
   readOnly = false
 }: PythonMonacoEditorProps) {
@@ -130,10 +132,18 @@ export function PythonMonacoEditor({
 
     const selection = editor.getSelection() ?? new monaco.Selection(1, 1, 1, 1);
     const linePrefix = model.getLineContent(selection.startLineNumber).slice(0, Math.max(0, selection.startColumn - 1));
+    const endLine = model.getLineContent(selection.endLineNumber);
+    const lineSuffix = endLine.slice(Math.max(0, selection.endColumn - 1));
     const indentation = /^\s*/.exec(linePrefix)?.[0] ?? '';
-    const text = indentation && selection.startColumn > 1
-      ? rawText.replace(/\n/g, `\n${indentation}`)
-      : rawText;
+    const snippet = rawText.trim();
+    const indentedSnippet = indentation && selection.startColumn > 1
+      ? snippet.replace(/\n/g, `\n${indentation}`)
+      : snippet;
+    // Assistant entries are complete Python statements. Keep them separate from
+    // surrounding tokens so consecutive inserts cannot form e.g. `)pass`.
+    const before = linePrefix.trim() ? `\n${indentation}` : linePrefix;
+    const after = lineSuffix.trim() ? `\n${indentation}` : '';
+    const text = `${before}${indentedSnippet}${after}`;
 
     editor.pushUndoStop();
     editor.executeEdits('elitescada-script-assistant', [{
@@ -145,6 +155,16 @@ export function PythonMonacoEditor({
     editor.focus();
     return true;
   }, [readOnly]);
+
+  const insertAssistantSnippet = useCallback((rawText: string): boolean => {
+    if (!rawText.includes('await ') || entryPointsRef.current.length > 0) return insertAtCursor(rawText);
+    const model = modelRef.current;
+    if (!model) return false;
+    const handlerName = 'initialize';
+    onAssistantEntryPointNeeded?.(handlerName);
+    const body = rawText.trim().split('\n').map(line => `    ${line}`).join('\n');
+    return insertAtCursor(`async def ${handlerName}(event):\n${body}`);
+  }, [insertAtCursor, onAssistantEntryPointNeeded]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -436,7 +456,7 @@ export function PythonMonacoEditor({
         <PythonScriptAssistant
           locale={locale}
           scriptId={scriptId}
-          onInsert={insertAtCursor}
+          onInsert={insertAssistantSnippet}
         />
       )}
 

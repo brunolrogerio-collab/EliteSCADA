@@ -29,9 +29,11 @@
 .visual-editor-dynamo-parameter > header code { color: #64748b; font-size: 9px; }
 .visual-editor-dynamo-parameter > header sup { margin-left: 2px; color: #dc2626; }
 .visual-editor-dynamo-parameter input[type="text"],.visual-editor-dynamo-parameter input[type="number"],.visual-editor-dynamo-parameter select { width: 100%; min-width: 0; box-sizing: border-box; padding: 6px; border: 1px solid #cbd5e1; border-radius: 5px; background: #fff; font: inherit; }
+.visual-editor-dynamo-parameter input[type="color"] { width: 100%; height: 30px; padding: 2px 4px; border: 1px solid #cbd5e1; border-radius: 5px; background: #fff; }
 .visual-editor-dynamo-parameter input[aria-invalid="true"] { border-color: #dc2626; }
 .visual-editor-dynamo-parameter__scalar { display: grid; gap: 3px; }
 .visual-editor-dynamo-parameter__scalar small { color: #b91c1c; }
+.visual-editor-dynamo-parameter__hint { color: #526879; font-size: 10px; line-height: 1.35; }
 .visual-editor-dynamo-parameter__boolean { display: flex; align-items: center; gap: 7px; }
 .visual-editor-dynamo-parameter > footer { min-height: 22px; color: #64748b; font-size: 9px; }
 .visual-editor-dynamo-parameter > footer button { padding: 3px 6px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc; color: #475569; cursor: pointer; font: inherit; font-size: 9px; }
@@ -45,3 +47,4 @@
 .eng-shell .visual-editor-inspector-slot .visual-editor-dynamo-state-preview__grid select,.eng-shell .visual-editor-inspector-slot .visual-editor-dynamo-parameter input,.eng-shell .visual-editor-inspector-slot .visual-editor-dynamo-parameter select { border-color:var(--eng-border,#34465a); background:var(--eng-input-bg,#0b1016); color:var(--eng-text,#e8edf3); }
 .eng-shell .visual-editor-inspector-slot .visual-editor-dynamo-state-preview > footer strong { color:var(--eng-text,#e8edf3); }
 .eng-shell .visual-editor-inspector-slot .visual-editor-dynamo-parameter > footer button { border-color:var(--eng-border,#34465a); background:var(--eng-panel,#121922); color:var(--eng-text,#e8edf3); }
+.eng-shell .visual-editor-inspector-slot .visual-editor-dynamo-parameter__hint { color:var(--eng-muted,#a7b3c0); }

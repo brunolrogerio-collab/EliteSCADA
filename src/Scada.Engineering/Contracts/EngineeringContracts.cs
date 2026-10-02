@@ -200,7 +200,8 @@ public sealed record EquipmentTemplateEngineeringDto(
     IReadOnlyCollection<EngineeringBindingDto>? Bindings = null,
     Dictionary<string, string>? Properties = null,
     Dictionary<string, string>? Context = null,
-    Dictionary<string, string>? Metadata = null);
+    Dictionary<string, string>? Metadata = null,
+    IReadOnlyCollection<VisualElementEngineeringDto>? Elements = null);
 
 public sealed record EquipmentEngineeringDto(
     Guid? Id,

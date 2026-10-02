@@ -95,7 +95,7 @@ test('TAG editor validates drafts without mutating Engineering Workspace', async
   await page.getByRole('button', { name: /TAGs/ }).click();
   await page.getByRole('button', { name: /Demo\.P01\.Frequency/ }).click();
 
-  await page.getByLabel('Nome').fill('Frequency preview edit');
+  await page.getByLabel('Nome da TAG').fill('Frequency preview edit');
   await page.getByTestId('engineering-preview').click();
   await expect(page.getByText('Pronto para aplicar', { exact: true })).toBeVisible();
   await expect(page.getByText('Verificar não altera o Workspace.', { exact: false })).toBeVisible();
@@ -114,10 +114,7 @@ test('TAG editor validates drafts without mutating Engineering Workspace', async
   expect(unchanged?.name).toBe(original!.name);
   expect(unchanged?.path).toBe(original!.path);
 
-  await page.getByLabel('Caminho').fill('Demo Invalid Path');
-  await page.getByTestId('engineering-preview').click();
-  await expect(page.getByText('O rascunho possui erros', { exact: true })).toBeVisible();
-  await expect(page.getByText('TAG_PATH_WHITESPACE', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Caminho da TAG')).toHaveCount(0);
 });
 
 test('TAG editor protects changed drafts when switching entities', async ({ page }) => {
@@ -125,7 +122,7 @@ test('TAG editor protects changed drafts when switching entities', async ({ page
   await page.getByRole('button', { name: /TAGs/ }).click();
   await page.getByRole('button', { name: /Demo\.P01\.Frequency/ }).click();
 
-  await page.getByLabel('Nome').fill('Protected frequency draft');
+  await page.getByLabel('Nome da TAG').fill('Protected frequency draft');
 
   page.once('dialog', async dialog => {
     expect(dialog.type()).toBe('confirm');
@@ -133,15 +130,15 @@ test('TAG editor protects changed drafts when switching entities', async ({ page
     await dialog.dismiss();
   });
   await page.getByRole('button', { name: /Demo\.Tank01\.Level/ }).click();
-  await expect(page.getByLabel('Nome')).toHaveValue('Protected frequency draft');
-  await expect(page.getByLabel('Caminho')).toHaveValue('Demo.P01.Frequency');
+  await expect(page.getByLabel('Nome da TAG')).toHaveValue('Protected frequency draft');
+  await expect(page.getByLabel('Caminho da TAG')).toHaveCount(0);
 
   page.once('dialog', async dialog => {
     expect(dialog.type()).toBe('confirm');
     await dialog.accept();
   });
   await page.getByRole('button', { name: /Demo\.Tank01\.Level/ }).click();
-  await expect(page.getByLabel('Caminho')).toHaveValue('Demo.Tank01.Level');
+  await expect(page.getByLabel('Caminho da TAG')).toHaveCount(0);
 });
 
 test('TAG editor previews a new TAG as a create without applying it', async ({ page, request }) => {
@@ -154,9 +151,11 @@ test('TAG editor previews a new TAG as a create without applying it', async ({ p
   await page.getByRole('button', { name: 'Nova TAG' }).click();
   await expect(page.getByText('Novo', { exact: true })).toBeVisible();
 
-  await page.getByLabel('Nome').fill('Preview Created Tag');
-  await page.getByLabel('Caminho').fill('Demo.Preview.CreatedTag');
+  await page.getByLabel('Nome da TAG').fill('Preview Created Tag');
+  const previewRequest = page.waitForRequest(request => request.url().endsWith('/api/engineering/import/json/preview') && request.method() === 'POST');
   await page.getByTestId('engineering-preview').click();
+  const previewBody = JSON.parse((await previewRequest).postData() ?? '{}') as { tags: Array<{ name: string; path: string }> };
+  expect(previewBody.tags.some(tag => tag.name === 'Preview Created Tag' && tag.path === 'Preview_Created_Tag')).toBeTruthy();
 
   await expect(page.getByText('Pronto para aplicar', { exact: true })).toBeVisible();
   await expect(page.getByTestId('preview-create-count')).toContainText('1 criações');
@@ -188,7 +187,7 @@ test('Data Source editor uses the backend catalog and previews without mutating 
   expect(optionValues).toEqual(expect.arrayContaining(catalog.dataSourceTypes.map(type => type.typeKey)));
 
   const form = page.locator('.eng-editor-form-panel');
-  await form.getByLabel('Nome').fill('Simulation preview edit');
+  await form.getByLabel('Nome da fonte de dados').fill('Simulation preview edit');
   await page.getByTestId('data-source-preview').click();
   await expect(page.getByText('Pronto para aplicar', { exact: true })).toBeVisible();
 
@@ -208,8 +207,8 @@ test('Data Source editor rebuilds settings when source type changes and previews
   await page.getByRole('button', { name: /Nova Fonte de dados|New Data Source|Nueva Fuente de datos/ }).click();
 
   const form = page.locator('.eng-editor-form-panel');
-  await form.getByLabel('Nome').fill('Preview Simulation Source');
-  await form.getByLabel('Chave').fill('preview.simulation');
+  await form.getByLabel('Nome da fonte de dados').fill('Preview Simulation Source');
+  const previewRequest = page.waitForRequest(request => request.url().endsWith('/api/engineering/import/json/preview') && request.method() === 'POST');
   await page.getByTestId('data-source-type').selectOption('builtin.simulation');
   await expect(page.getByTestId('data-source-type')).toHaveValue('builtin.simulation');
   const scanInterval = page.getByTestId('data-source-setting-scanIntervalMilliseconds');
@@ -217,13 +216,15 @@ test('Data Source editor rebuilds settings when source type changes and previews
   await expect(scanInterval).toHaveValue('500');
 
   await page.getByTestId('data-source-preview').click();
+  const previewBody = JSON.parse((await previewRequest).postData() ?? '{}') as { dataSources: Array<{ name: string; key: string }> };
+  expect(previewBody.dataSources.some(source => source.name === 'Preview Simulation Source' && source.key === 'Preview_Simulation_Source')).toBeTruthy();
   await expect(page.getByText('Pronto para aplicar', { exact: true })).toBeVisible();
 
   const afterResponse = await request.get('/api/engineering/export/json');
   expect(afterResponse.ok()).toBeTruthy();
   const after = await afterResponse.json() as { dataSources: Array<{ key: string }> };
   expect(after.dataSources).toEqual(before.dataSources);
-  expect(after.dataSources.some(source => source.key === 'preview.simulation')).toBeFalsy();
+  expect(after.dataSources.some(source => source.key === 'Preview_Simulation_Source')).toBeFalsy();
 });
 
 test('Alarm editor validates existing drafts and TAG references without mutating Workspace', async ({ page, request }) => {

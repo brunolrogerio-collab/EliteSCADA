@@ -7,12 +7,64 @@ using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.ImportExport;
+using Scada.Engineering.VisualScripting;
 using Scada.Engineering.Views;
 
 namespace Scada.Core.Tests;
 
 public sealed class EngineeringViewExchangeTests
 {
+    [Fact]
+    public void EquipmentInstancesRemainLinkedWhenTheirCanonicalTemplateArtworkChanges()
+    {
+        var tags = new InMemoryTagRegistry();
+        var bus = new InMemoryScadaEventBus();
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var assets = new InMemoryEngineeringAssetRegistry();
+        var views = new InMemoryEngineeringViewRegistry();
+        var service = new EngineeringExchangeService(tags, alarms,
+            new InMemoryDataSourceEngineeringRegistry(), assets, views);
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>(),
+            Templates: [new EquipmentTemplateEngineeringDto(
+                null,
+                "pump.faceplate",
+                "Pump Faceplate",
+                Elements: [new VisualElementEngineeringDto("body", BuiltinVisualObjectSchemas.RectangleType)])],
+            Equipment: [new EquipmentEngineeringDto(null, "Plant.P01", "Pump 01", "pump.faceplate")]);
+
+        Assert.True(service.Preview(package, ImportMode.CreateAndUpdate).CanApply);
+        Assert.Empty(service.Apply(package, ImportMode.CreateAndUpdate).Issues);
+        var first = service.ParseJson(service.ExportJson());
+        var firstTemplate = Assert.Single(first.Templates!);
+        var firstEquipment = Assert.Single(first.Equipment!);
+        Assert.Equal(firstTemplate.Id, firstEquipment.TemplateId);
+        Assert.Equal(firstTemplate.Key, firstEquipment.TemplateKey);
+
+        var revised = first with
+        {
+            Templates = [firstTemplate with
+            {
+                Elements = [new VisualElementEngineeringDto("body-v2", BuiltinVisualObjectSchemas.EllipseType)]
+            }]
+        };
+        Assert.True(service.Preview(revised, ImportMode.CreateAndUpdate).CanApply);
+        Assert.Empty(service.Apply(revised, ImportMode.CreateAndUpdate).Issues);
+
+        var current = service.ParseJson(service.ExportJson());
+        var currentTemplate = Assert.Single(current.Templates!);
+        var currentEquipment = Assert.Single(current.Equipment!);
+        Assert.Equal(firstEquipment.Id, currentEquipment.Id);
+        Assert.Equal(firstTemplate.Id, currentEquipment.TemplateId);
+        Assert.Equal(firstTemplate.Key, currentEquipment.TemplateKey);
+        Assert.Equal("body-v2", Assert.Single(currentTemplate.Elements!).Key);
+        Assert.Equal(BuiltinVisualObjectSchemas.EllipseType, currentTemplate.Elements!.Single().Type);
+    }
+
     [Fact]
     public void CurrentSchema_RoundTripsScreenAndPopup()
     {

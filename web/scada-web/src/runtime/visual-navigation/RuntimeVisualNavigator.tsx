@@ -11,6 +11,8 @@ import type { ClientVisualEventDispatchRecord } from '../../python-runtime/clien
 import { RuntimeLogicalViewport } from './RuntimeLogicalViewport';
 import { resolveRuntimeLogicalSize } from './runtimeLogicalCanvas';
 import { executeRuntimeCommand, RuntimeCommandExecutionError } from './runtimeCommandApi';
+import { writeRuntimeTagValue } from '../runtimeTagWriteApi';
+import { loadReadableRuntimeTags } from '../liveTagTransport';
 import { resolvePopupLogicalBounds, resolvePopupLogicalPosition } from './runtimePopupPosition';
 import {
   createRuntimeVisualCatalog,
@@ -27,7 +29,7 @@ import {
 import { RuntimeVisualDefinitionRenderer } from './RuntimeVisualDefinitionRenderer';
 
 export type RuntimeVisualNavigatorProps = Readonly<{
-  engineeringPackage: Pick<EngineeringPackageView, 'screens' | 'popups' | 'dynamos'>;
+  engineeringPackage: Pick<EngineeringPackageView, 'screens' | 'popups' | 'dynamos' | 'equipment' | 'templates'>;
   initialScreenKey: string;
   locale?: EngineeringLocale;
   emptyLabel?: string;
@@ -44,7 +46,7 @@ type NavigationResolution = Readonly<{
 
 type OperationalVisualAction = Readonly<
   Omit<VisualNavigationActionEngineering, 'kind'> & {
-    kind: 'NavigateScreen' | 'OpenPopup' | 'ClosePopup' | 'ExecuteCommand';
+    kind: 'NavigateScreen' | 'OpenPopup' | 'ClosePopup' | 'ExecuteCommand' | 'SetTagValue' | 'ToggleTagBoolean';
     commandId?: string | null;
   }
 >;
@@ -112,6 +114,38 @@ export function RuntimeVisualNavigator({
         setDiagnostic(null);
         return;
       }
+      if (action.kind === 'SetTagValue') {
+        const tagId = action.targetKey?.trim();
+        const value = action.parameters?.value;
+        if (!tagId || !isRuntimeWriteValue(value)) {
+          throw new RuntimeVisualCompositionError(
+            'VISUAL_RUNTIME_TAG_WRITE_ACTION_INVALID',
+            `SetTagValue action '${action.eventKey}' requires a stable TAG ID and a primitive value.`
+          );
+        }
+        await writeRuntimeTagValue(tagId, value);
+        setDiagnostic(null);
+        return;
+      }
+      if (action.kind === 'ToggleTagBoolean') {
+        const tagId = action.targetKey?.trim();
+        if (!tagId) {
+          throw new RuntimeVisualCompositionError(
+            'VISUAL_RUNTIME_TAG_TOGGLE_ACTION_INVALID',
+            `ToggleTagBoolean action '${action.eventKey}' requires a stable TAG ID.`
+          );
+        }
+        const tag = (await loadReadableRuntimeTags()).find(item => item.id.toLocaleLowerCase() === tagId.toLocaleLowerCase());
+        if (!tag || typeof tag.current?.value !== 'boolean') {
+          throw new RuntimeVisualCompositionError(
+            'VISUAL_RUNTIME_TAG_BOOLEAN_REQUIRED',
+            `ToggleTagBoolean action '${action.eventKey}' requires a readable Boolean TAG with a current value.`
+          );
+        }
+        await writeRuntimeTagValue(tag.id, !tag.current.value);
+        setDiagnostic(null);
+        return;
+      }
 
       const next = executeVisualNavigationAction(
         catalog,
@@ -148,6 +182,8 @@ export function RuntimeVisualNavigator({
             emptyLabel={emptyLabel}
             locale={locale}
             dynamoDefinitions={engineeringPackage.dynamos}
+            equipmentDefinitions={engineeringPackage.equipment}
+            templateDefinitions={engineeringPackage.templates}
             scriptContext={scriptContext}
             onScriptDispatch={onScriptDispatch}
             onVisualEvent={event => { void dispatch(event); }}
@@ -202,6 +238,8 @@ export function RuntimeVisualNavigator({
                     emptyLabel={emptyLabel}
                     locale={locale}
                     dynamoDefinitions={engineeringPackage.dynamos}
+                    equipmentDefinitions={engineeringPackage.equipment}
+                    templateDefinitions={engineeringPackage.templates}
                     scriptContext={scriptContext}
                     onScriptDispatch={onScriptDispatch}
                     onVisualEvent={event => { void dispatch(event, mount.runtimeInstanceId); }}
@@ -236,6 +274,10 @@ function normalizeVisualActionWireKind(action: VisualNavigationActionEngineering
     case 'closePopup': kind = 'ClosePopup'; break;
     case 'ExecuteCommand':
     case 'executeCommand': kind = 'ExecuteCommand'; break;
+    case 'SetTagValue':
+    case 'setTagValue': kind = 'SetTagValue'; break;
+    case 'ToggleTagBoolean':
+    case 'toggleTagBoolean': kind = 'ToggleTagBoolean'; break;
     default:
       throw new RuntimeVisualCompositionError(
         'VISUAL_RUNTIME_ACTION_KIND_UNSUPPORTED',
@@ -243,6 +285,10 @@ function normalizeVisualActionWireKind(action: VisualNavigationActionEngineering
       );
   }
   return Object.freeze({ ...(action as unknown as OperationalVisualAction), kind });
+}
+
+function isRuntimeWriteValue(value: unknown): value is string | number | boolean {
+  return typeof value === 'boolean' || typeof value === 'string' || (typeof value === 'number' && Number.isFinite(value));
 }
 
 function resolveInitialNavigation(

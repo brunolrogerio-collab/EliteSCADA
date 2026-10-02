@@ -17,6 +17,8 @@ test('palette is derived from the complete registered built-in set', () => {
     BUILTIN_VISUAL_OBJECT_TYPES.rectangle,
     BUILTIN_VISUAL_OBJECT_TYPES.ellipse,
     BUILTIN_VISUAL_OBJECT_TYPES.line,
+    BUILTIN_VISUAL_OBJECT_TYPES.arc,
+    BUILTIN_VISUAL_OBJECT_TYPES.bezier,
     BUILTIN_VISUAL_OBJECT_TYPES.polygon,
     BUILTIN_VISUAL_OBJECT_TYPES.text,
     BUILTIN_VISUAL_OBJECT_TYPES.image,
@@ -74,6 +76,20 @@ test('object add intent delegates defaults and identity to canonical coordinator
   expect('id' in intent).toBe(false);
   expect('key' in intent).toBe(false);
   expect(Object.isFrozen(intent)).toBe(true);
+});
+
+test('Bezier is an editable first-class canvas shape with a path property', () => {
+  const bezier = listVisualObjectPaletteItems().find(item => item.objectType === BUILTIN_VISUAL_OBJECT_TYPES.bezier);
+  expect(bezier?.propertyKeys).toContain(VISUAL_PROPERTY_KEYS.bezierPath);
+  expect(createObjectAddIntent(BUILTIN_VISUAL_OBJECT_TYPES.bezier)).toMatchObject({
+    kind: 'object.add',
+    objectType: BUILTIN_VISUAL_OBJECT_TYPES.bezier,
+    initialProperties: {
+      width: 120,
+      height: 80,
+      bezierPath: 'M 0 50 C 20 0 80 0 100 50 C 80 100 20 100 0 50 Z'
+    }
+  });
 });
 
 test('palette fails closed for private/unknown object types and invalid placement data', () => {

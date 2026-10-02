@@ -9,6 +9,8 @@ export type UserSessionMenuLabels = {
   switchUser: string;
   switchingUser: string;
   switchUserFailed: string;
+  closeInterface: string;
+  closeBlocked: string;
   logout: string;
   loggingOut: string;
   logoutFailed: string;
@@ -29,6 +31,8 @@ const labelsByLocale: Record<SessionLocale, UserSessionMenuLabels> = {
     switchUser: 'Trocar usuário',
     switchingUser: 'Trocando usuário…',
     switchUserFailed: 'Não foi possível invalidar a sessão atual para trocar de usuário.',
+    closeInterface: 'Fechar interface',
+    closeBlocked: 'O navegador não permitiu fechar esta aba. Feche-a pelo botão X do navegador.',
     logout: 'Sair',
     loggingOut: 'Saindo…',
     logoutFailed: 'Não foi possível encerrar a sessão.'
@@ -40,6 +44,8 @@ const labelsByLocale: Record<SessionLocale, UserSessionMenuLabels> = {
     switchUser: 'Switch user',
     switchingUser: 'Switching user…',
     switchUserFailed: 'The current session could not be invalidated to switch user.',
+    closeInterface: 'Close interface',
+    closeBlocked: 'The browser did not allow this tab to close. Close it with the browser X button.',
     logout: 'Sign out',
     loggingOut: 'Signing out…',
     logoutFailed: 'The session could not be ended.'
@@ -51,6 +57,8 @@ const labelsByLocale: Record<SessionLocale, UserSessionMenuLabels> = {
     switchUser: 'Cambiar usuario',
     switchingUser: 'Cambiando usuario…',
     switchUserFailed: 'No fue posible invalidar la sesión actual para cambiar de usuario.',
+    closeInterface: 'Cerrar interfaz',
+    closeBlocked: 'El navegador no permitió cerrar esta pestaña. Ciérrela con el botón X del navegador.',
     logout: 'Salir',
     loggingOut: 'Saliendo…',
     logoutFailed: 'No fue posible cerrar la sesión.'
@@ -107,6 +115,13 @@ export function normalizeSessionRoles(roles: readonly string[]): string[] {
   }
 
   return normalized;
+}
+
+export function canCloseUserInterface(roles: readonly string[]): boolean {
+  return roles.some(role => {
+    const normalized = role.trim().toLocaleLowerCase().replace(/[ _-]+/g, '');
+    return ['admin', 'administrator', 'administrador', 'developer', 'desenvolvedor'].includes(normalized);
+  });
 }
 
 export function getSessionInitials(profile: AuthProfile): string {

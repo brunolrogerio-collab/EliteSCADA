@@ -359,8 +359,8 @@ export function ScriptEngineeringWorkspace({
               </div>
 
               <div className="script-grid script-grid--two">
-                <label>{copy.name}<input value={draft.name} onChange={event => patchDraft({ name: event.target.value })} /></label>
-                <label>{copy.path}<input value={draft.path} onChange={event => patchDraft({ path: event.target.value })} /></label>
+                <label>{copy.name}<input aria-description={copy.nameHint} value={draft.name} onChange={event => patchDraft({ name: event.target.value })} /><small aria-hidden="true">{copy.nameHint}</small></label>
+                <label>{copy.path}<input aria-description={copy.pathHint} value={draft.path} onChange={event => patchDraft({ path: event.target.value })} /><small aria-hidden="true">{copy.pathHint}</small></label>
                 <label>{copy.scope}
                   <select value={draft.scope} onChange={event => patchDraft({ scope: event.target.value as ScriptEngineeringDefinition['scope'] })}>
                     {SCRIPT_SCOPES.map(scope => <option key={scope} value={scope}>{scopeLabel(scope, locale)}</option>)}
@@ -384,6 +384,16 @@ export function ScriptEngineeringWorkspace({
                   locale={locale}
                   diagnostics={pythonDiagnostics}
                   onSourceChange={source => patchDraft({ source })}
+                  onAssistantEntryPointNeeded={handlerName => {
+                    const exists = draft.entryPoints.some(entry => entry.eventKind === 'initialize' && entry.handlerName === handlerName);
+                    if (!exists) patchDraft({ entryPoints: [...draft.entryPoints, {
+                      eventKind: 'initialize',
+                      handlerName,
+                      targetReference: null,
+                      tagReference: null,
+                      timerIntervalMs: null
+                    }] });
+                  }}
                 />
                 <small className="script-muted">{copy.sourceHint}</small>
               </div>

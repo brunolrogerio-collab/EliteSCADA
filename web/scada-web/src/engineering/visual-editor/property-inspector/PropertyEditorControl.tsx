@@ -2,6 +2,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type ChangeEvent,
   type KeyboardEvent
 } from 'react';
 import type { VisualAssetEngineering, VisualEngineeringPropertyValue } from '../../types';
@@ -26,17 +27,7 @@ export type PropertyEditorControlProps = Readonly<{
   setError: (message: string | null) => void;
 }>;
 
-const FONT_FAMILY_SUGGESTIONS = Object.freeze([
-  'system',
-  'Arial',
-  'Helvetica',
-  'Verdana',
-  'Tahoma',
-  'Georgia',
-  'Times New Roman',
-  'Courier New',
-  'monospace'
-]);
+const FONT_FAMILY_OPTIONS = Object.freeze(['system', 'Arimo Variable', 'Lato', 'Tinos', 'Cousine']);
 
 export function PropertyEditorControl({
   definition,
@@ -51,6 +42,10 @@ export function PropertyEditorControl({
 }: PropertyEditorControlProps) {
   if (definition.type === 'number' && [VISUAL_PROPERTY_KEYS.imagePositionX, VISUAL_PROPERTY_KEYS.imagePositionY, VISUAL_PROPERTY_KEYS.imageZoom].includes(definition.key as never)) {
     return <ImageAdjustmentControl definition={definition} row={row} text={text} commit={commit} />;
+  }
+
+  if (definition.type === 'number' && definition.key === VISUAL_PROPERTY_KEYS.fontWeight) {
+    return <BoldControl definition={definition} row={row} text={text} commit={commit} />;
   }
 
   if (definition.type === 'boolean') {
@@ -110,6 +105,30 @@ function BooleanControl({ definition, row, text, commit }: BasicEditorProps) {
         onChange={event => commit(event.currentTarget.checked)}
       />
       <span>{row.state === 'mixed' ? text.mixed : displayValue ? text.trueLabel : text.falseLabel}</span>
+    </label>
+  );
+}
+
+function BoldControl({ definition, row, text, commit }: BasicEditorProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const weight = Number(row.value ?? row.defaultValue ?? 400);
+  const checked = row.state !== 'mixed' && weight >= 600;
+
+  useEffect(() => {
+    if (inputRef.current) inputRef.current.indeterminate = row.state === 'mixed';
+  }, [row.state]);
+
+  return (
+    <label className="property-inspector__boolean-control">
+      <input
+        id={`visual-property-${definition.key}`}
+        ref={inputRef}
+        type="checkbox"
+        checked={checked}
+        disabled={!definition.engineeringEditable}
+        onChange={event => commit(event.currentTarget.checked ? 700 : 400)}
+      />
+      <span>{text.fontWeightLabel}</span>
     </label>
   );
 }
@@ -278,59 +297,74 @@ function FontFamilyControl({
   commit,
   setError
 }: Omit<PropertyEditorControlProps, 'visualAssets'>) {
-  const displayValue = row.state === 'mixed' ? '' : formatPropertyInspectorValue(row.value ?? row.defaultValue);
-  const [draft, setDraft] = useState(displayValue);
-  const [dirty, setDirty] = useState(false);
-  const listId = `visual-property-${definition.key}-fonts`;
+  const displayValue = row.state === 'mixed' ? '__mixed__' : formatPropertyInspectorValue(row.value ?? row.defaultValue);
+  const isKnownFamily = FONT_FAMILY_OPTIONS.includes(displayValue);
+  const [customDraft, setCustomDraft] = useState(isKnownFamily ? '' : displayValue === '__mixed__' ? '' : displayValue);
+  const [customMode, setCustomMode] = useState(!isKnownFamily);
 
   useEffect(() => {
-    setDraft(displayValue);
-    setDirty(false);
+    const known = FONT_FAMILY_OPTIONS.includes(displayValue);
+    setCustomDraft(known || displayValue === '__mixed__' ? '' : displayValue);
+    setCustomMode(!known && displayValue !== '__mixed__');
   }, [displayValue]);
 
-  const applyDraft = () => {
-    if (!dirty) return;
-    const parsed = parsePropertyInspectorInput(definition, draft);
+  const selectValue = row.state === 'mixed' ? '__mixed__' : customMode ? '__custom__' : displayValue;
+  const applyCustom = () => {
+    if (!customDraft.trim()) return;
+    const parsed = parsePropertyInspectorInput(definition, customDraft);
     if (!parsed.ok) {
       setError(parsed.error);
       return;
     }
-    if (commit(parsed.value)) setDirty(false);
+    setError(null);
+    commit(parsed.value);
   };
 
   return (
     <>
-      <input
+      <select
         id={`visual-property-${definition.key}`}
-        type="text"
-        list={listId}
-        value={draft}
-        placeholder={row.state === 'mixed' ? text.mixed : text.fontFamilyPlaceholder}
+        value={selectValue}
         disabled={!definition.engineeringEditable}
         onChange={event => {
-          setDraft(event.currentTarget.value);
-          setDirty(true);
+          const value = event.currentTarget.value;
+          if (value === '__mixed__') return;
+          if (value === '__custom__') {
+            setCustomMode(true);
+            if (!customDraft) setCustomDraft('');
+            return;
+          }
+          setCustomMode(false);
+          setError(null);
+          commit(value);
+        }}
+      >
+        {row.state === 'mixed' ? <option value="__mixed__" disabled>{text.mixed}</option> : null}
+        {FONT_FAMILY_OPTIONS.map(font => <option key={font} value={font}>{text.fontFamilyOptions[font] ?? font}</option>)}
+        <option value="__custom__">{text.fontFamilyOptions.custom ?? 'Custom…'}</option>
+      </select>
+      {customMode ? <input
+        type="text"
+        aria-label={text.fontFamilyPlaceholder}
+        value={customDraft}
+        placeholder={text.fontFamilyPlaceholder}
+        disabled={!definition.engineeringEditable}
+        onChange={event => {
+          setCustomDraft(event.currentTarget.value);
           setError(null);
         }}
-        onBlur={applyDraft}
-        onKeyDown={event => {
+        onBlur={applyCustom}
+        onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
           if (event.key === 'Enter') {
             event.preventDefault();
-            applyDraft();
             event.currentTarget.blur();
-          }
-          if (event.key === 'Escape') {
-            event.preventDefault();
-            setDraft(displayValue);
-            setDirty(false);
-            setError(null);
+          } else if (event.key === 'Escape') {
+            setCustomDraft(displayValue === '__mixed__' ? '' : displayValue);
+            setCustomMode(displayValue !== '__mixed__' && !FONT_FAMILY_OPTIONS.includes(displayValue));
             event.currentTarget.blur();
           }
         }}
-      />
-      <datalist id={listId}>
-        {FONT_FAMILY_SUGGESTIONS.map(font => <option key={font} value={font} />)}
-      </datalist>
+      /> : null}
     </>
   );
 }
@@ -479,7 +513,7 @@ function TextualControl({
     if (commit(parsed.value)) setDirty(false);
   };
 
-  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+  const onKeyDown = (event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if (event.key === 'Enter') {
       event.preventDefault();
       applyDraft();
@@ -494,25 +528,31 @@ function TextualControl({
     }
   };
 
-  return (
-    <input
-      id={`visual-property-${definition.key}`}
-      type={definition.type === 'number' ? 'number' : 'text'}
-      value={draft}
-      placeholder={row.state === 'mixed' ? text.mixed : undefined}
-      min={definition.type === 'number' ? definition.minimum : undefined}
-      max={definition.type === 'number' ? definition.maximum : undefined}
-      step={definition.type === 'number' ? (definition.integer ? 1 : 'any') : undefined}
-      disabled={!definition.engineeringEditable}
-      onChange={event => {
-        setDraft(event.currentTarget.value);
-        setDirty(true);
-        setError(null);
-      }}
-      onBlur={applyDraft}
-      onKeyDown={onKeyDown}
-    />
-  );
+  const sharedProps = {
+    id: `visual-property-${definition.key}`,
+    value: draft,
+    placeholder: row.state === 'mixed' ? text.mixed : undefined,
+    disabled: !definition.engineeringEditable,
+    onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      setDraft(event.currentTarget.value);
+      setDirty(true);
+      setError(null);
+    },
+    onBlur: applyDraft,
+    onKeyDown
+  };
+
+  if (definition.key === VISUAL_PROPERTY_KEYS.bezierPath) {
+    return <textarea {...sharedProps} rows={4} spellCheck={false} data-property-editor="bezier-path" />;
+  }
+
+  return <input
+    {...sharedProps}
+    type={definition.type === 'number' ? 'number' : 'text'}
+    min={definition.type === 'number' ? definition.minimum : undefined}
+    max={definition.type === 'number' ? definition.maximum : undefined}
+    step={definition.type === 'number' ? (definition.integer ? 1 : 'any') : undefined}
+  />;
 }
 
 function colorPickerValue(value: string): string {

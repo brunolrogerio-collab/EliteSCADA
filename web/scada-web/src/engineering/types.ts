@@ -577,6 +577,10 @@ export type TemplateEngineering = {
   key: string;
   name: string;
   bindings?: BindingEngineering[];
+  elements?: VisualElementEngineering[] | null;
+  properties?: Record<string, string> | null;
+  context?: Record<string, string> | null;
+  metadata?: Record<string, string> | null;
 };
 
 export type EquipmentEngineering = {

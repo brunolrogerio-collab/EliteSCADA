@@ -238,6 +238,7 @@ function ScalarParameterEditor({
   const effective = value?.value ?? parameter.defaultValue ?? '';
   const [draft, setDraft] = useState(String(effective ?? ''));
   const [invalid, setInvalid] = useState(false);
+  const colorParameter = parameter.kind === 'String' && /color$/i.test(parameter.key);
   useEffect(() => {
     setDraft(String(effective ?? ''));
     setInvalid(false);
@@ -261,6 +262,10 @@ function ScalarParameterEditor({
       return;
     }
     setInvalid(false);
+    if (colorParameter && !/^#[0-9a-f]{6}$/i.test(draft.trim())) {
+      setInvalid(true);
+      return;
+    }
     onSet({
       key: parameter.key,
       kind: parameter.kind,
@@ -271,7 +276,7 @@ function ScalarParameterEditor({
 
   return <div className="visual-editor-dynamo-parameter__scalar">
     <input
-      type={parameter.kind === 'Number' ? 'number' : 'text'}
+      type={colorParameter ? 'color' : parameter.kind === 'Number' ? 'number' : 'text'}
       value={draft}
       disabled={disabled}
       aria-invalid={invalid || undefined}
@@ -306,7 +311,8 @@ function TagParameterEditor({
 }) {
   const text = useC07VisualEditorText().dynamo;
   const currentTagId = value?.tagReference?.tagId ?? parameter.defaultTagReference?.tagId ?? '';
-  return <select
+  return <>
+  <select
     value={currentTagId}
     disabled={disabled}
     onChange={event => {
@@ -327,7 +333,9 @@ function TagParameterEditor({
     {tags.map(tag => <option key={tag.id!} value={tag.id!}>
       {tag.name} · {tag.path} · {tag.dataType}
     </option>)}
-  </select>;
+  </select>
+  {parameter.key === 'state' ? <small className="visual-editor-dynamo-parameter__hint">{text.stateTagHint}</small> : null}
+  </>;
 }
 
 function dynamoStateLabel(

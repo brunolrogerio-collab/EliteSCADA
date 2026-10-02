@@ -23,6 +23,8 @@
   color: var(--script-text);
 }
 
+.script-grid label small { color: var(--script-muted); font-size: 10px; line-height: 1.25; }
+
 .script-workspace__header,
 .script-workspace__toolbar,
 .script-editor__titlebar,

@@ -137,7 +137,7 @@ function visualStyleLabel(value: string, locale: 'pt-BR' | 'en' | 'es'): string 
 
 function categoryLabel(
   value: string,
-  labels: Readonly<Record<'pump' | 'motor' | 'valve' | 'tank' | 'compressor' | 'instrument' | 'other', string>>
+  labels: Readonly<Record<'pump' | 'motor' | 'valve' | 'tank' | 'compressor' | 'instrument' | 'process' | 'electrical' | 'substation' | 'other', string>>
 ): string {
   return labels[value as keyof typeof labels] ?? value;
 }

@@ -93,6 +93,8 @@
   display: grid;
   gap: .18rem;
   min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .reusable-library-workspace__inspection {
@@ -108,6 +110,9 @@
   display: grid;
   gap: .15rem;
   margin: .55rem 0 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .reusable-library-workspace__inspection dt { font-weight: 700; }

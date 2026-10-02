@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import {
   admitRuntimeSession,
   releaseRuntimeSession,
@@ -16,9 +17,18 @@ const copy: Record<EngineeringLocale, Copy> = {
   es: { title: 'Clase de sesión Runtime', viewOnly: 'Solicitar Solo visualización', interactive: 'Solicitar interactiva', end: 'Finalizar sesión', requested: 'Solicitada', granted: 'Concedida', admission: 'Motivo de admisión', capacity: 'Motivo de capacidad', unavailable: 'No hay sesión Runtime activa.', ending: 'Finalizando…', fallback: 'La capacidad interactiva no está disponible; el servidor abrió esta sesión como Solo visualización.', viewOnlyGranted: 'Sesión abierta como Solo visualización según lo solicitado.', rejected: 'No fue posible admitir la sesión Runtime.' }
 };
 
-/** A user-owned lease surface. It never turns a viewOnly grant into a mutation path. */
-export function RuntimeSessionClassPanel({ locale }: { locale: EngineeringLocale }) {
-  const text = copy[locale];
+type RuntimeSessionContextValue = {
+  outcome: RuntimeSessionAdmissionOutcome | null;
+  busy: RuntimeSessionConnectionClass | 'end' | null;
+  error: string | null;
+  notice: string | null;
+  request: (requestedClass: RuntimeSessionConnectionClass, locale: EngineeringLocale) => Promise<void>;
+  end: (locale: EngineeringLocale) => Promise<void>;
+};
+
+const RuntimeSessionContext = createContext<RuntimeSessionContextValue | null>(null);
+
+export function RuntimeSessionClassProvider({ children }: { children: ReactNode }) {
   const lease = useRef<RuntimeSessionAdmissionOutcome | null>(null);
   const [outcome, setOutcome] = useState<RuntimeSessionAdmissionOutcome | null>(null);
   const [busy, setBusy] = useState<RuntimeSessionConnectionClass | 'end' | null>(null);
@@ -30,7 +40,8 @@ export function RuntimeSessionClassPanel({ locale }: { locale: EngineeringLocale
     if (current) void releaseRuntimeSession(current);
   }, []);
 
-  async function request(requestedClass: RuntimeSessionConnectionClass) {
+  const request = useCallback(async (requestedClass: RuntimeSessionConnectionClass, locale: EngineeringLocale) => {
+    const text = copy[locale];
     setBusy(requestedClass); setError(null); setNotice(null);
     try {
       if (lease.current) {
@@ -50,9 +61,9 @@ export function RuntimeSessionClassPanel({ locale }: { locale: EngineeringLocale
         setError(reason instanceof Error ? reason.message : String(reason));
       }
     } finally { setBusy(null); }
-  }
+  }, []);
 
-  async function end() {
+  const end = useCallback(async (locale: EngineeringLocale) => {
     if (!lease.current) return;
     setBusy('end'); setError(null); setNotice(null);
     try {
@@ -61,24 +72,34 @@ export function RuntimeSessionClassPanel({ locale }: { locale: EngineeringLocale
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally { setBusy(null); }
-  }
+  }, []);
 
-  return <details className="runtime-session-class" data-testid="runtime-session-class">
-    <summary>{text.title}</summary>
-    <div className="runtime-session-class__popover">
-      <div className="runtime-session-class__controls">
-        <button type="button" className="runtime-operator-button" data-testid="runtime-session-request-viewOnly" disabled={busy !== null} onClick={() => void request('viewOnly')}>{text.viewOnly}</button>
-        <button type="button" className="runtime-operator-button" data-testid="runtime-session-request-interactive" disabled={busy !== null} onClick={() => void request('interactive')}>{text.interactive}</button>
-        {outcome ? <button type="button" className="runtime-operator-button" data-testid="runtime-session-end" disabled={busy !== null} onClick={() => void end()}>{busy === 'end' ? text.ending : text.end}</button> : null}
-      </div>
-      {notice ? <p className="runtime-session-class__notice" role="status" data-testid="runtime-session-notice">{notice}</p> : null}
-      {outcome ? <dl className="runtime-session-class__status" data-testid="runtime-session-status">
-        <dt>{text.requested}</dt><dd>{outcome.requestedClass ?? '—'}</dd>
-        <dt>{text.granted}</dt><dd>{outcome.grantedClass ?? '—'}</dd>
-        <dt>{text.admission}</dt><dd>{outcome.admissionReasonCode ?? '—'}</dd>
-        <dt>{text.capacity}</dt><dd>{outcome.capacityReasonCode ?? '—'}</dd>
-      </dl> : <p>{text.unavailable}</p>}
-      {error ? <p role="alert">{error}</p> : null}
+  return <RuntimeSessionContext.Provider value={{ outcome, busy, error, notice, request, end }}>
+    {children}
+  </RuntimeSessionContext.Provider>;
+}
+
+/** Shared user-owned controls: closing the account menu does not end the Runtime session. */
+export function RuntimeSessionClassPanel({ locale }: { locale: EngineeringLocale }) {
+  const text = copy[locale];
+  const session = useContext(RuntimeSessionContext);
+  if (!session) throw new Error('RuntimeSessionClassPanel requires RuntimeSessionClassProvider.');
+  const { outcome, busy, error, notice } = session;
+
+  return <div className="runtime-session-class" data-testid="runtime-session-class">
+    <strong className="runtime-session-class__title">{text.title}</strong>
+    <div className="runtime-session-class__controls">
+      <button type="button" className="runtime-operator-button" data-testid="runtime-session-request-viewOnly" disabled={busy !== null} onClick={() => void session.request('viewOnly', locale)}>{text.viewOnly}</button>
+      <button type="button" className="runtime-operator-button" data-testid="runtime-session-request-interactive" disabled={busy !== null} onClick={() => void session.request('interactive', locale)}>{text.interactive}</button>
+      {outcome ? <button type="button" className="runtime-operator-button" data-testid="runtime-session-end" disabled={busy !== null} onClick={() => void session.end(locale)}>{busy === 'end' ? text.ending : text.end}</button> : null}
     </div>
-  </details>;
+    {notice ? <p className="runtime-session-class__notice" role="status" data-testid="runtime-session-notice">{notice}</p> : null}
+    {outcome ? <dl className="runtime-session-class__status" data-testid="runtime-session-status">
+      <dt>{text.requested}</dt><dd>{outcome.requestedClass ?? '—'}</dd>
+      <dt>{text.granted}</dt><dd>{outcome.grantedClass ?? '—'}</dd>
+      <dt>{text.admission}</dt><dd>{outcome.admissionReasonCode ?? '—'}</dd>
+      <dt>{text.capacity}</dt><dd>{outcome.capacityReasonCode ?? '—'}</dd>
+    </dl> : <p>{text.unavailable}</p>}
+    {error ? <p role="alert">{error}</p> : null}
+  </div>;
 }

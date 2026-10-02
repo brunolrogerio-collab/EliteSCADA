@@ -20,6 +20,7 @@ import {
   type DataSourceDraftIssue,
   type DataSourceTypeDefinition
 } from './DataSourceCatalogEditor.logic';
+import { backendReferenceFromName } from './backendReferenceFromName';
 import { resolveDriverCatalogResource } from './driverCatalogI18n';
 import type { EngineeringLocale } from './i18n';
 import { OpcUaDataSourceDiscoveryAssistant } from './OpcUaDataSourceDiscoveryAssistant';
@@ -248,8 +249,8 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
       <div className="eng-editor-layout">
         <aside className="eng-entity-picker">
           {sources.map(source => (
-            <button type="button" key={dataSourceIdentity(source)} className={dataSourceIdentity(source) === selectedIdentity ? 'selected' : ''} aria-current={dataSourceIdentity(source) === selectedIdentity ? 'true' : undefined} onClick={() => choose(dataSourceIdentity(source))}>
-              <strong>{source.name || source.key}</strong><code>{source.key}</code><span>{source.driver}</span>
+            <button type="button" key={dataSourceIdentity(source)} className={dataSourceIdentity(source) === selectedIdentity ? 'selected' : ''} aria-label={`${source.name || source.key} (${source.key})`} aria-current={dataSourceIdentity(source) === selectedIdentity ? 'true' : undefined} onClick={() => choose(dataSourceIdentity(source))}>
+              <strong>{source.name || source.key}</strong><span>{source.driver}</span>
             </button>
           ))}
         </aside>
@@ -258,8 +259,7 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
           {!draft ? <div className="eng-editor-empty">{copy.noSelection}</div> : <>
             <WorkflowFormSection title={copy.identitySection} description={copy.identityHint}>
             <div className="eng-editor-form-grid">
-              <Field label={copy.name}><input required value={draft.name} onChange={event => updateDraft({ ...draft, name: event.target.value })} /></Field>
-              <Field label={copy.key}><input required className="mono" value={draft.key} onChange={event => updateDraft({ ...draft, key: event.target.value })} /></Field>
+              <Field label={copy.name}><input aria-description={copy.nameHint} required value={draft.name} onChange={event => { const name = event.target.value; updateDraft({ ...draft, name, ...(isNew ? { key: backendReferenceFromName(name) } : {}) }); }} /></Field>
               <Field label={copy.type}>
                 <select
                   data-testid="data-source-type"
@@ -475,9 +475,9 @@ function text(locale: EngineeringLocale) {
   if (locale === 'en') return {
     title: 'Data Source editor', description: 'Choose the source first, then configure only the protocol fields needed for this connection.',
     newSource: 'New Data Source', catalogLoading: 'Loading Data Source types…', catalogError: 'Could not load source type catalog', catalogEmpty: 'No Data Source types are available in this installation.', catalogReload: 'Reload catalog', noSelection: 'Select or create a Data Source.',
-    name: 'Name', key: 'Key', type: 'Data Source type', enabled: 'Enabled', yes: 'Yes', no: 'No', chooseType: 'Choose a type',
+    name: 'Data Source name', nameHint: 'For new sources, the internal identifier is generated from this name; existing identifiers are preserved.', key: 'Identifier', keyHint: 'Stable internal reference; it is not the displayed name.', type: 'Data Source type', enabled: 'Enabled', yes: 'Yes', no: 'No', chooseType: 'Choose a type',
     unsupported: 'Unavailable type', unsupportedHint: 'This persisted type is not available in this installation. Select a supported type explicitly; it will not be remapped silently.',
-    identitySection: 'Source identity', identityHint: 'Name the connection and choose its supported source type before protocol details.', settings: 'Connection settings', settingsHint: 'Common settings for the selected source type.', advancedSettings: 'Advanced protocol settings', advancedSettingsHint: 'Rare or tuning-specific fields are available only when needed.', noSettings: 'This source type has no configuration fields.',
+    identitySection: 'Source identity', identityHint: 'Enter one source name. New sources get an internal identifier from it; existing identifiers are kept unchanged.', settings: 'Connection settings', settingsHint: 'Common settings for the selected source type.', advancedSettings: 'Advanced protocol settings', advancedSettingsHint: 'Rare or tuning-specific fields are available only when needed.', noSettings: 'This source type has no configuration fields.',
     incompatibleTitle: 'Incompatible persisted settings', incompatibleHint: 'These keys are not valid for the selected source type. They are not reinterpreted automatically.', removeIncompatible: 'Remove incompatible settings', incompatibleField: 'This persisted setting does not belong to the selected source type.',
     preview: 'Check changes', apply: 'Apply to Workspace', valid: 'Ready to apply', invalid: 'Invalid candidate', errors: 'Errors', saveHint: 'Checking changes does not alter the Workspace. Apply updates it; save or publish from Overview to update Runtime.', discard: 'Discard unsaved Data Source changes?',
     workspaceChanged: 'The Workspace changed during validation. Reload and validate the draft again.', fixClientIssues: 'Correct the highlighted Data Source fields before validation.',
@@ -487,9 +487,9 @@ function text(locale: EngineeringLocale) {
   if (locale === 'es') return {
     title: 'Editor de Fuente de datos', description: 'Seleccione primero la fuente y configure solo los campos de protocolo necesarios para esta conexión.',
     newSource: 'Nueva Fuente de datos', catalogLoading: 'Cargando tipos de Fuente de datos…', catalogError: 'No se pudo cargar el catálogo de tipos', catalogEmpty: 'No hay tipos de Fuente de datos disponibles en esta instalación.', catalogReload: 'Recargar catálogo', noSelection: 'Seleccione o cree una Fuente de datos.',
-    name: 'Nombre', key: 'Clave', type: 'Tipo de Fuente de datos', enabled: 'Habilitado', yes: 'Sí', no: 'No', chooseType: 'Seleccione un tipo',
+    name: 'Nombre de la Fuente de datos', nameHint: 'En fuentes nuevas, el identificador interno se genera a partir de este nombre; se conservan los identificadores existentes.', key: 'Identificador', keyHint: 'Referencia interna estable; no es el nombre mostrado.', type: 'Tipo de Fuente de datos', enabled: 'Habilitado', yes: 'Sí', no: 'No', chooseType: 'Seleccione un tipo',
     unsupported: 'Tipo no disponible', unsupportedHint: 'El tipo persistido no está disponible en esta instalación. Seleccione otro explícitamente; no será reinterpretado.',
-    identitySection: 'Identidad de la fuente', identityHint: 'Nombre la conexión y elija el tipo de fuente antes de los detalles del protocolo.', settings: 'Configuración de conexión', settingsHint: 'Opciones comunes del tipo de fuente seleccionado.', advancedSettings: 'Opciones avanzadas del protocolo', advancedSettingsHint: 'Los campos raros o de ajuste aparecen solo cuando son necesarios.', noSettings: 'Este tipo no tiene campos de configuración.',
+    identitySection: 'Identidad de la fuente', identityHint: 'Ingrese un solo nombre. Las fuentes nuevas reciben un identificador interno generado a partir de él; los identificadores existentes se conservan.', settings: 'Configuración de conexión', settingsHint: 'Opciones comunes del tipo de fuente seleccionado.', advancedSettings: 'Opciones avanzadas del protocolo', advancedSettingsHint: 'Los campos raros o de ajuste aparecen solo cuando son necesarios.', noSettings: 'Este tipo no tiene campos de configuración.',
     incompatibleTitle: 'Configuraciones persistidas incompatibles', incompatibleHint: 'Estas claves no son válidas para el tipo seleccionado. No se reinterpretan automáticamente.', removeIncompatible: 'Eliminar configuraciones incompatibles', incompatibleField: 'Esta configuración persistida no pertenece al tipo seleccionado.',
     preview: 'Verificar cambios', apply: 'Aplicar al Workspace', valid: 'Listo para aplicar', invalid: 'Candidato inválido', errors: 'Errores', saveHint: 'Verificar no cambia el Workspace. Aplicar lo actualiza; guarde o publique desde Overview para actualizar Runtime.', discard: '¿Descartar los cambios no guardados?',
     workspaceChanged: 'El Área de trabajo de Ingeniería cambió durante la validación. Recargue y valide el borrador nuevamente.', fixClientIssues: 'Corrija los campos indicados antes de la validación.',
@@ -499,9 +499,9 @@ function text(locale: EngineeringLocale) {
   return {
     title: 'Editor de Fonte de dados', description: 'Escolha primeiro a fonte e configure somente os campos de protocolo necessários para esta conexão.',
     newSource: 'Nova Fonte de dados', catalogLoading: 'Carregando tipos de Fonte de dados…', catalogError: 'Não foi possível carregar o catálogo de tipos', catalogEmpty: 'Nenhum tipo de Fonte de dados está disponível nesta instalação.', catalogReload: 'Recarregar catálogo', noSelection: 'Selecione ou crie uma Fonte de dados.',
-    name: 'Nome', key: 'Chave', type: 'Tipo de Fonte de dados', enabled: 'Habilitado', yes: 'Sim', no: 'Não', chooseType: 'Escolha um tipo',
+    name: 'Nome da fonte de dados', nameHint: 'Em fontes novas, o identificador interno é gerado a partir deste nome; identificadores existentes são preservados.', key: 'Identificador', keyHint: 'Referência estável usada internamente; não é o nome exibido.', type: 'Tipo de Fonte de dados', enabled: 'Habilitado', yes: 'Sim', no: 'Não', chooseType: 'Escolha um tipo',
     unsupported: 'Tipo indisponível', unsupportedHint: 'O tipo persistido não está disponível nesta instalação. Selecione outro explicitamente; ele não será reinterpretado silenciosamente.',
-    identitySection: 'Identidade da fonte', identityHint: 'Nomeie a conexão e escolha o tipo da fonte antes dos detalhes do protocolo.', settings: 'Configuração da conexão', settingsHint: 'Campos comuns do tipo de fonte selecionado.', advancedSettings: 'Configurações avançadas do protocolo', advancedSettingsHint: 'Campos raros ou de ajuste aparecem somente quando necessários.', noSettings: 'Este tipo não possui campos de configuração.',
+    identitySection: 'Identidade da fonte', identityHint: 'Informe um único nome. Em fontes novas, o identificador interno é gerado a partir dele; identificadores existentes são preservados.', settings: 'Configuração da conexão', settingsHint: 'Campos comuns do tipo de fonte selecionado.', advancedSettings: 'Configurações avançadas do protocolo', advancedSettingsHint: 'Campos raros ou de ajuste aparecem somente quando necessários.', noSettings: 'Este tipo não possui campos de configuração.',
     incompatibleTitle: 'Configurações persistidas incompatíveis', incompatibleHint: 'Estas chaves não pertencem ao tipo selecionado. Elas não são reinterpretadas automaticamente.', removeIncompatible: 'Remover configurações incompatíveis', incompatibleField: 'Esta configuração persistida não pertence ao tipo selecionado.',
     preview: 'Verificar alterações', apply: 'Aplicar ao Workspace', valid: 'Pronto para aplicar', invalid: 'Candidato inválido', errors: 'Erros', saveHint: 'Verificar não altera o Workspace. Aplicar atualiza o Workspace; salve ou publique em Visão geral para atualizar o Runtime.', discard: 'Descartar alterações não salvas da Fonte de dados?',
     workspaceChanged: 'A Área de trabalho de Engenharia mudou durante a validação. Recarregue e valide o rascunho novamente.', fixClientIssues: 'Corrija os campos indicados da Fonte de dados antes da validação.',

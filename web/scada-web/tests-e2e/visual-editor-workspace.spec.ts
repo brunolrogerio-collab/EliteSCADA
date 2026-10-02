@@ -164,13 +164,21 @@ test('Wave 08 composes Canvas, palette, properties, project-source binding, imag
     const screenList = page.locator('.visual-editor-screen-list');
     await screenList.getByRole('button').filter({ hasText: originalScreen!.key }).click();
 
-    const route = page.getByRole('textbox', { name: 'Rota', exact: true });
+    const route = page.getByRole('textbox', { name: 'Endereço da tela', exact: true });
     await expect(route).toHaveValue(originalScreen!.route ?? '');
 
-    await page.getByTestId('visual-editor-side-tab-assets').click();
-    const assetInput = page.locator('.visual-editor-file-import input[type="file"]');
-    await expect(assetInput).toBeEnabled();
-    await assetInput.setInputFiles({ name: assetFileName, mimeType: 'image/png', buffer: ONE_PIXEL_PNG });
+    await page.locator('[data-insert-object-type="core.image"]').click();
+    const imageObject = page.locator('[data-canvas-object-type="core.image"]').last();
+    await expect(imageObject).toBeVisible();
+    await imageObject.click();
+
+    const assetBrowser = page.getByTestId('visual-editor-image-asset-picker');
+    const importImageButton = assetBrowser.getByRole('button', { name: 'Procurar no computador e enviar…' });
+    await expect(importImageButton).toBeEnabled();
+    const fileChooserPromise = page.waitForEvent('filechooser');
+    await importImageButton.click();
+    const fileChooser = await fileChooserPromise;
+    await fileChooser.setFiles({ name: assetFileName, mimeType: 'image/png', buffer: ONE_PIXEL_PNG });
 
     const importedAssetId = await expect.poll(async () => {
       const response = await request.get('/api/engineering/visual-assets');
@@ -183,14 +191,9 @@ test('Wave 08 composes Canvas, palette, properties, project-source binding, imag
       return assets.find(asset => asset.originalFileName === assetFileName)!.id!;
     });
 
-    await page.locator('[data-insert-object-type="core.image"]').click();
-    const imageObject = page.locator('[data-canvas-object-type="core.image"]').last();
-    await expect(imageObject).toBeVisible();
-    await imageObject.click();
-
-    const assetPicker = page.getByTestId('visual-editor-image-asset-picker').getByRole('combobox');
+    const assetPicker = assetBrowser.getByRole('combobox');
     await expect(assetPicker).toBeVisible();
-    await assetPicker.selectOption(importedAssetId);
+    await expect(assetPicker).toHaveValue(importedAssetId);
 
     const widthInput = page
       .getByTestId('visual-property-inspector')
@@ -424,8 +427,9 @@ test('W15 Dynamic Text and Numeric Input are mounted, persisted and Design mode 
     const numericId = await numericCanvas.getAttribute('data-canvas-object-id');
     expect(numericId).toBeTruthy();
 
-    await bindingEditor.getByLabel('Propriedade visual').selectOption('value');
-    await selectBindingSourceByPath(bindingEditor.getByLabel('Fonte do projeto'), numericTag!.path);
+    await page.getByTestId('visual-editor-inspector-tab-properties').click();
+    await bindingEditor.getByLabel('Valor numérico').selectOption('value');
+    await selectBindingSourceByPath(bindingEditor.getByLabel('TAG / variável'), numericTag!.path);
     await bindingEditor.getByRole('button', { name: 'Aplicar binding' }).click();
 
     const numericRendered = page.getByTestId('visual-editor-canonical-layer').locator('[data-object-id="' + numericId + '"]');

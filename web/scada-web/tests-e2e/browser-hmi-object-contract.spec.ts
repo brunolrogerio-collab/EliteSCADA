@@ -12,7 +12,7 @@ import {
   listVisualObjectPaletteItems
 } from '../src/engineering/visual-editor/object-palette/objectPaletteModel';
 import { c07VisualEditorText } from '../src/engineering/visual-editor/c07VisualEditorI18n';
-import { applyVisualEditorMutationIntent } from '../src/engineering/visual-editor/visualEditorCanonicalModel';
+import { applyVisualEditorMutationIntent, replaceDynamoInPackage } from '../src/engineering/visual-editor/visualEditorCanonicalModel';
 import { historicalBrowserCopy } from '../src/runtime/historical-browser/historicalBrowserI18n';
 import { formatHistoricalQueryValue } from '../src/runtime/historical-browser/historicalBrowserQueryAdapter';
 
@@ -77,6 +77,35 @@ test('browser configurations remain structured, independent and kind-specific', 
   expect(alarm.columns).not.toEqual(event.columns);
   expect(() => normalizeAlarmBrowserConfig({ ...DEFAULT_ALARM_BROWSER_CONFIG, columns: ['type'] })).toThrow();
   expect(() => normalizeEventBrowserConfig({ ...DEFAULT_EVENT_BROWSER_CONFIG, columns: ['state'] })).toThrow();
+});
+
+test('editing a Dynamo changes its drawing while preserving its stable link and parameter contract', () => {
+  const original = {
+    id: 'dynamo-id',
+    key: 'process.pump',
+    name: 'Pump',
+    bindings: [{ key: 'running', kind: 'tag', target: 'pump.running' }],
+    parameters: [{ key: 'running', dataType: 'boolean', defaultValue: false }],
+    elements: [{ id: 'old-shape', key: 'body', type: 'core.rectangle', properties: { x: 1, y: 2, width: 30, height: 20 } }]
+  } as const;
+  const model = { schema: 'elitescada.engineering', schemaVersion: 1, exportedAt: '2026-01-01T00:00:00Z', tags: [], alarms: [], dynamos: [original] } as never;
+  const draft = {
+    id: original.id,
+    key: original.key,
+    name: 'Pump polished',
+    elements: [{ id: 'new-shape', key: 'body', type: 'core.ellipse', properties: { x: 4, y: 5, width: 42, height: 26 } }]
+  } as never;
+
+  const result = replaceDynamoInPackage(model, original as never, draft);
+
+  expect(result.dynamos?.[0]).toMatchObject({
+    id: 'dynamo-id', key: 'process.pump', name: 'Pump polished',
+    bindings: original.bindings,
+    parameters: original.parameters,
+    elements: draft.elements
+  });
+  expect(original.name).toBe('Pump');
+  expect(original.elements[0].id).toBe('old-shape');
 });
 
 test('canonical property mutation changes only the selected Browser instance', () => {

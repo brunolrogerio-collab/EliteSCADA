@@ -1,0 +1,14 @@
+/* Bundled open fonts keep engineered text consistent across operator machines. */
+@import '@fontsource-variable/arimo/wght.css';
+@import '@fontsource/lato/latin-400.css';
+@import '@fontsource/lato/latin-700.css';
+@import '@fontsource/lato/latin-ext-400.css';
+@import '@fontsource/lato/latin-ext-700.css';
+@import '@fontsource/tinos/latin-400.css';
+@import '@fontsource/tinos/latin-700.css';
+@import '@fontsource/tinos/latin-ext-400.css';
+@import '@fontsource/tinos/latin-ext-700.css';
+@import '@fontsource/cousine/latin-400.css';
+@import '@fontsource/cousine/latin-700.css';
+@import '@fontsource/cousine/latin-ext-400.css';
+@import '@fontsource/cousine/latin-ext-700.css';

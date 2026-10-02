@@ -15,7 +15,35 @@ public static class VisualCompositionEngineeringValidation
         var key = string.IsNullOrWhiteSpace(dynamo.Key) ? dynamo.Name : dynamo.Key;
         ValidateParameterDefinitions(dynamo.Parameters, ImportEntityKind.Dynamo, key, issues);
         ValidateDefinitionElements(dynamo.Elements, key, issues, new HashSet<Guid>());
+        ValidateParameterizedDynamoStateSources(dynamo.Elements, dynamo.Parameters, key, issues);
         return issues;
+    }
+
+    private static void ValidateParameterizedDynamoStateSources(
+        IReadOnlyCollection<VisualElementEngineeringDto>? elements,
+        IReadOnlyCollection<DynamoParameterDefinitionEngineeringDto>? parameters,
+        string entityKey,
+        List<ImportIssue> issues)
+    {
+        foreach (var element in elements ?? Array.Empty<VisualElementEngineeringDto>())
+        {
+            if (element is null) continue;
+            if (element.Metadata?.TryGetValue("dynamoStateColorParameter", out var parameterKey) == true &&
+                !string.IsNullOrWhiteSpace(parameterKey) &&
+                !(parameters ?? Array.Empty<DynamoParameterDefinitionEngineeringDto>()).Any(parameter =>
+                    parameter is not null &&
+                    parameter.Kind == DynamoParameterKind.TagReference &&
+                    parameter.Key.Equals(parameterKey, StringComparison.OrdinalIgnoreCase)))
+            {
+                issues.Add(Error(
+                    "DYNAMO_STATE_COLOR_PARAMETER_NOT_FOUND",
+                    $"Dynamo state-color source '{parameterKey}' must reference a declared TagReference parameter.",
+                    ImportEntityKind.Dynamo,
+                    entityKey));
+            }
+
+            ValidateParameterizedDynamoStateSources(element.Children, parameters, entityKey, issues);
+        }
     }
 
     public static IReadOnlyCollection<ImportIssue> ValidateElement(
@@ -199,14 +227,26 @@ public static class VisualCompositionEngineeringValidation
             else if (duplicates.Contains(action.EventKey))
                 issues.Add(Error("VISUAL_ACTION_EVENT_DUPLICATE", $"Visual element '{elementKey}' has more than one navigation action for event '{action.EventKey}'.", kind, entityKey));
 
-            if (action.Kind is VisualNavigationActionKind.NavigateScreen or VisualNavigationActionKind.OpenPopup)
+            if (action.Kind is VisualNavigationActionKind.NavigateScreen or VisualNavigationActionKind.OpenPopup or
+                VisualNavigationActionKind.SetTagValue or VisualNavigationActionKind.ToggleTagBoolean)
             {
                 if (string.IsNullOrWhiteSpace(action.TargetKey))
-                    issues.Add(Error("VISUAL_ACTION_TARGET_REQUIRED", $"Navigation action '{action.EventKey}' requires a target key.", kind, entityKey));
+                    issues.Add(Error("VISUAL_ACTION_TARGET_REQUIRED", $"Visual action '{action.EventKey}' requires a target key.", kind, entityKey));
             }
             else if (action.Kind == VisualNavigationActionKind.ClosePopup && !string.IsNullOrWhiteSpace(action.TargetKey))
             {
                 issues.Add(Error("VISUAL_ACTION_TARGET_NOT_ALLOWED", $"ClosePopup action '{action.EventKey}' cannot declare a target key.", kind, entityKey));
+            }
+
+            if (action.Kind == VisualNavigationActionKind.SetTagValue &&
+                (action.Parameters is not { Count: 1 } || !action.Parameters.TryGetValue("value", out var value) ||
+                 value.ValueKind is not (JsonValueKind.True or JsonValueKind.False or JsonValueKind.Number or JsonValueKind.String)))
+            {
+                issues.Add(Error("VISUAL_ACTION_TAG_VALUE_REQUIRED", $"SetTagValue action '{action.EventKey}' requires one primitive 'value' parameter.", kind, entityKey));
+            }
+            if (action.Kind == VisualNavigationActionKind.ToggleTagBoolean && action.Parameters is { Count: > 0 })
+            {
+                issues.Add(Error("VISUAL_ACTION_TAG_TOGGLE_PARAMETERS_NOT_ALLOWED", $"ToggleTagBoolean action '{action.EventKey}' cannot declare parameters.", kind, entityKey));
             }
         }
     }

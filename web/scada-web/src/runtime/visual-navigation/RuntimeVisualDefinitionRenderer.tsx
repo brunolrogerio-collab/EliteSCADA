@@ -18,6 +18,8 @@ import {
 import { useVisualBindingSamples } from '../../engineering/visual-editor/visualEditorLiveValues';
 import type {
   DynamoEngineering,
+  EquipmentEngineering,
+  TemplateEngineering,
   VisualElementEngineering
 } from '../../engineering/types';
 import type { EngineeringLocale } from '../../engineering/i18n';
@@ -47,6 +49,8 @@ export type RuntimeVisualDefinitionRendererProps = Readonly<{
   emptyLabel: string;
   locale?: EngineeringLocale;
   dynamoDefinitions?: readonly DynamoEngineering[] | null;
+  equipmentDefinitions?: readonly EquipmentEngineering[] | null;
+  templateDefinitions?: readonly TemplateEngineering[] | null;
   scriptContext?: ScriptEngineeringContext | null;
   onVisualEvent?: (event: CanonicalVisualEvent) => void;
   onScriptDispatch?: (records: readonly ClientVisualEventDispatchRecord[]) => void;
@@ -74,6 +78,8 @@ export function RuntimeVisualDefinitionRenderer({
   emptyLabel,
   locale,
   dynamoDefinitions,
+  equipmentDefinitions,
+  templateDefinitions,
   scriptContext,
   onVisualEvent,
   onScriptDispatch,
@@ -214,6 +220,9 @@ export function RuntimeVisualDefinitionRenderer({
       elements={expandedDynamoElements}
       emptyLabel={emptyLabel}
       locale={runtimeLocale}
+      dynamoDefinitions={dynamoDefinitions}
+      equipmentDefinitions={equipmentDefinitions}
+      templateDefinitions={templateDefinitions}
       onVisualEvent={onVisualEvent}
       onTagWrite={onTagWrite}
       visualAssetUrl={visualAssetUrl}

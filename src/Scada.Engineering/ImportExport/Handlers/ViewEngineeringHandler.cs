@@ -263,6 +263,28 @@ internal sealed class ViewEngineeringHandler
             if (action is null || string.IsNullOrWhiteSpace(action.TargetKey))
                 continue;
 
+            if (action.Kind is VisualNavigationActionKind.SetTagValue or VisualNavigationActionKind.ToggleTagBoolean)
+            {
+                if (!Guid.TryParse(action.TargetKey, out var tagId) || tagId == Guid.Empty ||
+                    !TryResolveTagDataType(tagId, package, out var dataType))
+                {
+                    issues.Add(new("VISUAL_ACTION_TAG_NOT_FOUND", $"Visual action '{action.EventKey}' references a missing canonical TAG identity '{action.TargetKey}'.", kind, entityKey, true));
+                    continue;
+                }
+
+                var prospectiveTag = package.Tags.FirstOrDefault(tag => tag is not null && tag.Id == tagId);
+                var readOnly = prospectiveTag?.ReadOnly ?? (_tags.TryGet(tagId, out var registeredTag) && registeredTag?.ReadOnly == true);
+                if (readOnly)
+                    issues.Add(new("VISUAL_ACTION_TAG_READ_ONLY", $"Visual action '{action.EventKey}' cannot write read-only TAG '{action.TargetKey}'.", kind, entityKey, true));
+                if (action.Kind == VisualNavigationActionKind.ToggleTagBoolean && dataType != TagDataType.Boolean)
+                    issues.Add(new("VISUAL_ACTION_TAG_BOOLEAN_REQUIRED", $"ToggleTagBoolean action '{action.EventKey}' requires a Boolean TAG.", kind, entityKey, true));
+                if (action.Kind == VisualNavigationActionKind.SetTagValue &&
+                    action.Parameters is { } parameters && parameters.TryGetValue("value", out var value) &&
+                    !MatchesTagValueType(value, dataType))
+                    issues.Add(new("VISUAL_ACTION_TAG_VALUE_TYPE_MISMATCH", $"SetTagValue action '{action.EventKey}' value does not match TAG data type {dataType}.", kind, entityKey, true));
+                continue;
+            }
+
             var exists = action.Kind switch
             {
                 VisualNavigationActionKind.NavigateScreen => ScreenExists(action.TargetKey, package),
@@ -458,6 +480,16 @@ internal sealed class ViewEngineeringHandler
         dataType = default;
         return false;
     }
+
+    private static bool MatchesTagValueType(JsonElement value, TagDataType dataType) => dataType switch
+    {
+        TagDataType.Boolean => value.ValueKind is JsonValueKind.True or JsonValueKind.False,
+        TagDataType.Int16 or TagDataType.Int32 or TagDataType.Int64 or TagDataType.Float or TagDataType.Double =>
+            value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var number) && double.IsFinite(number),
+        TagDataType.String or TagDataType.DateTime => value.ValueKind == JsonValueKind.String,
+        TagDataType.Enum => value.ValueKind is JsonValueKind.Number or JsonValueKind.String,
+        _ => false
+    };
 
     private static VisualExpressionValueType? ToExpressionValueType(TagDataType dataType) => dataType switch
     {

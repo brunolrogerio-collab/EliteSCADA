@@ -9,6 +9,7 @@ import type {
   VisualPropertyExpressionEngineering,
   VisualPropertyMapEngineering
 } from '../types';
+import type { VisualNavigationActionEngineering } from '../../runtime/visual-navigation/runtimeVisualNavigationModel';
 
 /**
  * Shared Wave 08 integration contract between coordinator composition and visual
@@ -76,6 +77,15 @@ export type VisualEditorMutationIntent =
       dynamoKey: string;
       dynamoDefinitionId?: string | null;
       equipmentPath?: string | null;
+      at?: VisualEditorPoint | null;
+      defaultWidth?: number;
+      defaultHeight?: number;
+    }>
+  | Readonly<{
+      kind: 'equipment.add';
+      equipmentId: string;
+      equipmentPath: string;
+      equipmentName: string;
       at?: VisualEditorPoint | null;
       defaultWidth?: number;
       defaultHeight?: number;
@@ -176,6 +186,16 @@ export type VisualEditorMutationIntent =
       kind: 'propertyMap.remove';
       objectId: string;
       propertyKey: string;
+    }>
+  | Readonly<{
+      kind: 'visualAction.set';
+      objectId: string;
+      action: VisualNavigationActionEngineering;
+    }>
+  | Readonly<{
+      kind: 'visualAction.remove';
+      objectId: string;
+      eventKey: string;
     }>;
 
 export type VisualEditorBindingSelectorCapability = Readonly<{

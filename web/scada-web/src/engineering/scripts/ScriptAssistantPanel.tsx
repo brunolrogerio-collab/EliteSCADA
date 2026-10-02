@@ -86,6 +86,7 @@ export function ScriptAssistantPanel({
         <div>
           <strong>{copy.title}</strong>
           <span>{copy.subtitle}</span>
+          <span className="script-assistant__workflow-help">{copy.workflowHelp}</span>
         </div>
         <button type="button" className="secondary" onClick={() => void load()} disabled={loading}>{copy.refresh}</button>
       </header>

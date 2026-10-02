@@ -8,11 +8,13 @@ import { PopupVisualEditorWorkspace as PopupVisualEditorWorkspaceImpl } from './
 export function PopupVisualEditorWorkspace({
   snapshot,
   locale,
-  onApplied
+  onApplied,
+  onAssetImported
 }: {
   snapshot: EngineeringSnapshot;
   locale: EngineeringLocale;
   onApplied: () => Promise<void>;
+  onAssetImported?: () => Promise<void>;
 }) {
   const normalizedSnapshot = React.useMemo<EngineeringSnapshot>(() => ({
     ...snapshot,
@@ -23,6 +25,6 @@ export function PopupVisualEditorWorkspace({
   }), [snapshot]);
 
   return <C07VisualEditorI18nProvider locale={locale}>
-    <PopupVisualEditorWorkspaceImpl snapshot={normalizedSnapshot} locale={locale} onApplied={onApplied} />
+    <PopupVisualEditorWorkspaceImpl snapshot={normalizedSnapshot} locale={locale} onApplied={onApplied} onAssetImported={onAssetImported} />
   </C07VisualEditorI18nProvider>;
 }

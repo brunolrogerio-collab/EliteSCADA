@@ -1,6 +1,7 @@
 import React from 'react';
 import type { EngineeringLocale } from '../i18n';
 import type { ScreenEngineering, VisualAssetEngineering, VisualElementEngineering } from '../types';
+import { BUILTIN_VISUAL_OBJECT_TYPES, VISUAL_PROPERTY_KEYS } from '../../visual-runtime';
 import { BindingEditor } from './binding-editor';
 import { DynamoInstanceInspector } from './canvas/DynamoInstanceInspector';
 import { DynamicPropertyEditor } from './dynamic-property-editor';
@@ -81,6 +82,14 @@ export function VisualEditorSelectionInspector({
           imageImportDisabled={imageImportDisabled}
           imageImportBusy={imageImportBusy}
         />
+        {selectedElement?.id && selectedElement.type === BUILTIN_VISUAL_OBJECT_TYPES.numericInput ? <BindingEditor
+          element={selectedElement}
+          sourceCatalog={sourceCatalog}
+          onMutationIntent={onMutationIntent}
+          locale={locale}
+          preferredPropertyKey={VISUAL_PROPERTY_KEYS.value}
+          copy={numericInputBindingEditorCopy(locale)}
+        /> : null}
         <DynamoInstanceInspector
           screen={screen}
           selectedObjectIds={selectedObjectIds}
@@ -103,13 +112,13 @@ export function VisualEditorSelectionInspector({
           onSetPropertyMap={configuration => onMutationIntent({ kind: 'propertyMap.set', objectId: selectedElement.id!, configuration })}
           onRemovePropertyMap={propertyKey => onMutationIntent({ kind: 'propertyMap.remove', objectId: selectedElement.id!, propertyKey })}
         />
-        <BindingEditor
+        {selectedElement.type !== BUILTIN_VISUAL_OBJECT_TYPES.numericInput ? <BindingEditor
           element={selectedElement}
           sourceCatalog={sourceCatalog}
           onMutationIntent={onMutationIntent}
           locale={locale}
           copy={bindingEditorCopy(locale)}
-        />
+        /> : null}
       </> : <p className="visual-editor-selection-hint">{text.selectOne}</p>}
       </section>
 
@@ -119,13 +128,36 @@ export function VisualEditorSelectionInspector({
           <EventsEditor
             visualDefinitionId={screen.id}
             visualObjectId={selectedElement?.id ?? null}
+            element={selectedElement ?? undefined}
             sourceCatalog={sourceCatalog}
+            onMutationIntent={onMutationIntent}
             disabled={!screen.id}
           />
         </> : <p className="visual-editor-selection-hint">{text.selectOne}</p>}
       </section>
     </div>
   </div>;
+}
+
+function numericInputBindingEditorCopy(locale: EngineeringLocale) {
+  if (locale === 'en') return {
+    ...bindingEditorCopy(locale),
+    title: 'Variable binding',
+    destination: 'Numeric value',
+    source: 'TAG / variable'
+  };
+  if (locale === 'es') return {
+    ...bindingEditorCopy(locale),
+    title: 'Vincular variable',
+    destination: 'Valor numérico',
+    source: 'TAG / variable'
+  };
+  return {
+    ...bindingEditorCopy(locale),
+    title: 'Vincular variável',
+    destination: 'Valor numérico',
+    source: 'TAG / variável'
+  };
 }
 
 function bindingEditorCopy(locale: EngineeringLocale) {

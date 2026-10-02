@@ -24,6 +24,8 @@ const DEFAULT_LABELS: Readonly<Record<string, string>> = Object.freeze({
   rectangle: 'Rectangle',
   ellipse: 'Ellipse',
   line: 'Line',
+  arc: 'Arc',
+  bezier: 'Bezier curve',
   polygon: 'Polygon',
   text: 'Text',
   image: 'Image',

@@ -91,7 +91,7 @@ test('Gateway Engineering config uses canonical Preview Apply and shows runtime 
   await destination.selectOption(fanoutId);
 
   await page.getByTestId('gateway-key').fill('server-to-plc');
-  await panel.locator('.eng-mutation-card').first().locator('input').nth(1).fill('Server to PLC');
+  await expect(panel.locator('.eng-mutation-card').first().locator('input')).toHaveCount(1);
   await page.getByTestId('gateway-mode').selectOption('periodic');
   await page.getByTestId('gateway-period').fill('250');
   await page.getByTestId('gateway-preview').click();
@@ -100,6 +100,7 @@ test('Gateway Engineering config uses canonical Preview Apply and shows runtime 
   expect(previewBody.gateways[0].key).toBe('route-a');
   const createdRoute = previewBody.gateways.find((route: any) => route.key === 'server-to-plc');
   expect(createdRoute).toBeTruthy();
+  expect(createdRoute.name).toBe('server-to-plc');
   expect(createdRoute.sourceTagId).toBe(sourceId);
   expect(createdRoute.sourceTagPath).toBe('Server.Source');
   expect(createdRoute.destinationTagId).toBe(fanoutId);

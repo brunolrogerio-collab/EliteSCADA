@@ -27,6 +27,7 @@ export function applyProtectedVisualEditorMutationIntent(
       if (intent.parentObjectId) assertVisualElementsAuthoringEditable(screen, [intent.parentObjectId]);
       return applyLegacyVisualEditorMutationIntent(screen, intent, options);
     case 'dynamo.add':
+    case 'equipment.add':
       return applyLegacyVisualEditorMutationIntent(screen, intent, options);
     case 'object.move':
     case 'object.rotate':
@@ -47,6 +48,8 @@ export function applyProtectedVisualEditorMutationIntent(
     case 'analogFill.remove':
     case 'propertyMap.set':
     case 'propertyMap.remove':
+    case 'visualAction.set':
+    case 'visualAction.remove':
       assertVisualElementsAuthoringEditable(screen, [intent.objectId]);
       return applyLegacyVisualEditorMutationIntent(screen, intent, options);
     case 'object.duplicate': {

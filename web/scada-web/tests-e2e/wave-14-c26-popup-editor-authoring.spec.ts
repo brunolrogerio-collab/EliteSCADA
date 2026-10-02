@@ -52,6 +52,7 @@ test('C26.9 mounted Popup editor exposes bounds in the canonical single-canvas a
     expect(seedResponse.ok(), await seedResponse.text()).toBeTruthy();
     seeded = true;
 
+    await page.setViewportSize({ width: 1440, height: 1100 });
     await page.goto('/engineering');
     await page.locator('.eng-nav').getByRole('button', { name: /Popups/ }).click();
     await page.locator('.visual-editor-screen-list').getByRole('button').filter({ hasText: popupKey }).click();
@@ -62,11 +63,16 @@ test('C26.9 mounted Popup editor exposes bounds in the canonical single-canvas a
     const inspector = workspace.getByTestId('visual-property-inspector');
     const boundary = workspace.getByTestId('visual-editor-logical-boundary');
     const canonicalLayer = workspace.getByTestId('visual-editor-canonical-layer');
+    const composition = workspace.locator('.visual-editor-composition');
+    const canvasSurface = canvas.locator('.visual-editor-canvas__surface');
     const authoredBackground = canvas.locator('.visual-editor-canvas__authored-background');
     const toolbar = workspace.getByTestId('visual-editor-authoring-toolbar');
     const paste = toolbar.getByRole('button', { name: 'Colar', exact: true });
 
     await expect(boundary).toBeVisible();
+    await expect(workspace.locator('.visual-editor-canvas-slot > header')).toHaveCount(0);
+    await expect.poll(async () => (await composition.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(790);
+    await expect.poll(async () => (await canvasSurface.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(650);
     await expect(boundary).toHaveAttribute('data-logical-width', '200');
     await expect(boundary).toHaveAttribute('data-logical-height', '130');
     await expect(boundary).toContainText('limites lógicos: 200 × 130');

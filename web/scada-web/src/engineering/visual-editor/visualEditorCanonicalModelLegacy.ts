@@ -1,7 +1,9 @@
 import type {
   BindingEngineering,
   EngineeringPackageView,
+  DynamoEngineering,
   ScreenEngineering,
+  TemplateEngineering,
   VisualAnalogFillEngineering,
   VisualBooleanConditionEngineering,
   VisualElementEngineering,
@@ -73,6 +75,52 @@ export function replaceScreenInPackage(
   return candidate;
 }
 
+export function replaceTemplateInPackage(
+  model: EngineeringPackageView,
+  original: TemplateEngineering | null,
+  draft: ScreenEngineering
+): EngineeringPackageView {
+  const candidate = cloneEngineeringValue(model);
+  const templates = candidate.templates ?? [];
+  const template: TemplateEngineering = {
+    id: draft.id,
+    key: draft.key,
+    name: draft.name,
+    bindings: original?.bindings ?? [],
+    elements: cloneEngineeringValue(draft.elements ?? []),
+    properties: draft.properties ?? {},
+    context: draft.context ?? {},
+    metadata: draft.metadata ?? {}
+  };
+  candidate.templates = original === null
+    ? [...templates, template]
+    : templates.map(item => screenIdentity(item) === screenIdentity(original) ? template : item);
+  return candidate;
+}
+
+export function replaceDynamoInPackage(
+  model: EngineeringPackageView,
+  original: DynamoEngineering | null,
+  draft: ScreenEngineering
+): EngineeringPackageView {
+  if (!original) throw new Error('A Dynamo definition must be selected before editing.');
+  const candidate = cloneEngineeringValue(model);
+  const dynamos = candidate.dynamos ?? [];
+  const updated: DynamoEngineering = {
+    ...original,
+    id: original.id ?? draft.id,
+    key: original.key,
+    name: draft.name,
+    elements: cloneEngineeringValue(draft.elements ?? []),
+    properties: draft.properties ?? {},
+    context: draft.context ?? {},
+    metadata: draft.metadata ?? {}
+  };
+  const originalIdentity = original.id ? `id:${original.id}` : `key:${original.key}`;
+  candidate.dynamos = dynamos.map(item => (item.id ? `id:${item.id}` : `key:${item.key}`) === originalIdentity ? updated : item);
+  return candidate;
+}
+
 export function updateScreenElement(
   screen: ScreenEngineering,
   objectId: string,
@@ -119,6 +167,8 @@ export function applyVisualEditorMutationIntent(
       return renameVisualObject(screen, intent.objectId, intent.key);
     case 'dynamo.add':
       return addDynamoInstance(screen, intent, createObjectId);
+    case 'equipment.add':
+      return addEquipmentInstance(screen, intent, createObjectId);
     case 'object.move':
       return moveVisualObjects(screen, intent.objectIds, intent.delta);
     case 'object.resize':
@@ -158,6 +208,17 @@ export function applyVisualEditorMutationIntent(
       return setVisualPropertyMap(screen, intent.objectId, intent.configuration);
     case 'propertyMap.remove':
       return removeVisualPropertyMap(screen, intent.objectId, intent.propertyKey);
+    case 'visualAction.set':
+      return updateScreenElement(screen, intent.objectId, element => {
+        const actions = (element.actions ?? []).filter(action => action.eventKey.toLocaleLowerCase('en-US') !== intent.action.eventKey.toLocaleLowerCase('en-US'));
+        return { ...element, actions: [...actions, cloneEngineeringValue(intent.action)] };
+      });
+    case 'visualAction.remove':
+      return updateScreenElement(screen, intent.objectId, element => {
+        const actions = element.actions ?? [];
+        const next = actions.filter(action => action.eventKey.toLocaleLowerCase('en-US') !== intent.eventKey.toLocaleLowerCase('en-US'));
+        return next.length === actions.length ? element : { ...element, actions: next };
+      });
   }
 }
 
@@ -210,6 +271,35 @@ function addDynamoInstance(
     dynamoKey,
     dynamoDefinitionId: intent.dynamoDefinitionId?.trim() || null,
     equipmentPath: intent.equipmentPath?.trim() || null,
+    properties: {}
+  };
+  element = withValidatedProperties(element, schema, {
+    [VISUAL_PROPERTY_KEYS.x]: at.x,
+    [VISUAL_PROPERTY_KEYS.y]: at.y,
+    [VISUAL_PROPERTY_KEYS.width]: width,
+    [VISUAL_PROPERTY_KEYS.height]: height
+  });
+  return { ...screen, elements: [...(screen.elements ?? []), element] };
+}
+
+function addEquipmentInstance(
+  screen: ScreenEngineering,
+  intent: Extract<VisualEditorMutationIntent, { kind: 'equipment.add' }>,
+  createObjectId: () => string
+): ScreenEngineering {
+  if (!intent.equipmentId.trim() || !intent.equipmentPath.trim()) throw new Error('Equipment stable identity and path are required.');
+  const at = intent.at ?? { x: 24, y: 24 };
+  assertFinitePoint(at, 'Equipment placement');
+  const width = intent.defaultWidth ?? 260;
+  const height = intent.defaultHeight ?? 180;
+  if (!Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0) throw new Error('Equipment default dimensions must be positive finite values.');
+  const schema = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.group);
+  let element: VisualElementEngineering = {
+    id: requireGeneratedObjectId(createObjectId()),
+    key: nextVisualElementKey(intent.equipmentName.trim().replace(/\s+/g, '-') || 'equipment', collectVisualElementKeys(screen.elements)),
+    type: BUILTIN_VISUAL_OBJECT_TYPES.group,
+    equipmentId: intent.equipmentId,
+    equipmentPath: intent.equipmentPath,
     properties: {}
   };
   element = withValidatedProperties(element, schema, {

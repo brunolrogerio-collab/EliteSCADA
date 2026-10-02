@@ -33,6 +33,61 @@ public sealed class EngineeringWorkingBootstrapServiceTests
     }
 
     [Fact]
+    public async Task ExistingBuiltinLibraryIsUpgradedWithoutReplacingStableDynamoIds()
+    {
+        using var workspace = new EngineeringWorkspace(seedDemo: false);
+        var original = BuiltinDynamoLibrary.Create().First();
+        var originalId = Guid.NewGuid();
+        var oldProperties = new Dictionary<string, string>(original.Properties!, StringComparer.Ordinal)
+        {
+            ["libraryVersion"] = "1.3.0"
+        };
+        workspace.Assets.UpsertDynamo(original with { Id = originalId, Properties = oldProperties });
+        var importedOriginal = ImportedE3DynamoLibrary.Create().Single(dynamo => dynamo.Key == "e3.process.motor-1");
+        var importedOriginalId = Guid.NewGuid();
+        var oldImportedProperties = new Dictionary<string, string>(importedOriginal.Properties!, StringComparer.Ordinal)
+        {
+            ["libraryVersion"] = "1.0.0"
+        };
+        workspace.Assets.UpsertDynamo(importedOriginal with
+        {
+            Id = importedOriginalId,
+            Elements = importedOriginal.Elements!.Where(element => element.Type != "core.arc").ToArray(),
+            Properties = oldImportedProperties
+        });
+        var customCollisionSource = BuiltinDynamoLibrary.Create().Skip(1).First();
+        var customMetadata = new Dictionary<string, string>(customCollisionSource.Metadata!, StringComparer.Ordinal)
+        {
+            ["builtinLibrary"] = "false"
+        };
+        var customCollision = customCollisionSource with
+        {
+            Metadata = customMetadata,
+            Name = "Custom definition with a platform key"
+        };
+        workspace.Assets.UpsertDynamo(customCollision);
+        var checkout = new RecordingCheckout(workspace);
+
+        var result = await new EngineeringWorkingBootstrapService(
+                new Catalog(Entry("project-with-library", 4, T0)),
+                checkout,
+                workspace)
+            .BootstrapAsync(null, null, "project-with-library");
+
+        var upgraded = Assert.Single(workspace.Assets.SnapshotDynamos(), dynamo => dynamo.Key == original.Key);
+        Assert.Equal(originalId, upgraded.Id);
+        Assert.Equal(BuiltinDynamoLibrary.Version, upgraded.Properties!["libraryVersion"]);
+        Assert.Null(workspace.Assets.FindDynamoByKey(importedOriginal.Key));
+        Assert.DoesNotContain(workspace.Assets.SnapshotDynamos(), dynamo =>
+            dynamo.Metadata?.GetValueOrDefault("assetOrigin") == "elipse-e3-import");
+        Assert.Equal("Custom definition with a platform key", workspace.Assets.FindDynamoByKey(customCollision.Key)!.Name);
+        Assert.Equal(72, workspace.Assets.SnapshotDynamos().Count);
+        Assert.True(result.Workspace.IsDirty);
+        Assert.Equal(72, result.Workspace.DynamoCount);
+        Assert.Equal(4, result.Workspace.BaseRevision);
+    }
+
+    [Fact]
     public async Task ExplicitAlternateWorkingProjectAndRevisionOverrideRuntimeProject()
     {
         using var workspace = new EngineeringWorkspace(seedDemo: false);

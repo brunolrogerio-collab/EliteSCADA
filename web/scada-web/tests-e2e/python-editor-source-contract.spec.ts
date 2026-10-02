@@ -18,6 +18,8 @@ test('Monaco editor provides Python editing, markers, Script Assistant insertion
   expect(editor).toContain('setModelMarkers');
   expect(editor).toContain('buildEntryPointCompletions');
   expect(editor).toContain('PythonScriptAssistant');
+  expect(editor).toContain('async def ${handlerName}(event):');
+  expect(editor).toContain('onAssistantEntryPointNeeded?.(handlerName)');
   expect(editor).toContain("executeEdits('elitescada-script-assistant'");
   expect(editor).toContain('pushUndoStop()');
   expect(editor).not.toMatch(/from ['\"]pyodide['\"]/);

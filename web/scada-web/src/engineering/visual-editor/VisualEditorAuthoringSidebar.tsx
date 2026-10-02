@@ -1,9 +1,10 @@
 import React from 'react';
-import type { DynamoEngineering, ScreenEngineering, VisualAssetEngineering } from '../types';
+import type { DynamoEngineering, EquipmentEngineering, ScreenEngineering, TemplateEngineering, VisualAssetEngineering } from '../types';
 import type { EngineeringLocale } from '../i18n';
 import type { VisualEditorMutationIntent, VisualEditorUiIntent } from './visualEditorContracts';
 import type { VisualEditorKeyboardCommand } from './visualEditorKeyboardModel';
 import { DynamoLibraryPalette } from './DynamoLibraryPalette';
+import { EquipmentFaceplatePalette } from './EquipmentFaceplatePalette';
 import { VisualDefinitionSurfaceInspector } from './canvas/VisualDefinitionSurfaceInspector';
 import { VisualEditorOutliner } from './canvas/VisualEditorOutliner';
 
@@ -20,6 +21,8 @@ export function VisualEditorAuthoringSidebar({
   screen,
   selectedObjectIds,
   definitions,
+  equipment,
+  templates,
   visualAssets,
   locale,
   activeTab,
@@ -27,11 +30,14 @@ export function VisualEditorAuthoringSidebar({
   onUiIntent,
   onMutationIntent,
   onCommand,
-  assetImport
+  assetImport,
+  allowEquipmentInstances = true
 }: {
   screen: ScreenEngineering;
   selectedObjectIds: readonly string[];
   definitions: readonly DynamoEngineering[];
+  equipment: readonly EquipmentEngineering[];
+  templates: readonly TemplateEngineering[];
   visualAssets: readonly VisualAssetEngineering[];
   locale: EngineeringLocale;
   activeTab: VisualEditorAuthoringTab;
@@ -40,6 +46,7 @@ export function VisualEditorAuthoringSidebar({
   onMutationIntent: (intent: VisualEditorMutationIntent) => void;
   onCommand?: (command: VisualEditorKeyboardCommand) => void;
   assetImport?: VisualEditorAssetImport;
+  allowEquipmentInstances?: boolean;
 }) {
   const text = authoringText(locale);
   return <div className="visual-editor-authoring-sidebar" data-testid="visual-editor-authoring-sidebar">
@@ -76,6 +83,7 @@ export function VisualEditorAuthoringSidebar({
           locale={locale}
           onMutationIntent={onMutationIntent}
         />
+        {allowEquipmentInstances ? <EquipmentFaceplatePalette equipment={equipment} templates={templates} locale={locale} onMutationIntent={onMutationIntent}/> : null}
       </section>
 
       <section id="visual-editor-side-section-assets" role="tabpanel" aria-labelledby="visual-editor-side-tab-assets" hidden={activeTab !== 'assets'} className={`visual-editor-side-section${activeTab === 'assets' ? ' is-active' : ''}`} data-side-section="assets">

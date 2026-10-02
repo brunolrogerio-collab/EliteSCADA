@@ -43,6 +43,32 @@ function projectElement(
   return Object.freeze({
     ...element,
     bindings: bindings ? [...bindings] : element.bindings,
+    propertyMaps: element.propertyMaps?.map(propertyMap => {
+      const stateParameterKey = element.metadata?.dynamoStateColorParameter?.trim();
+      const stateParameter = stateParameterKey ? findParameter(parameters, stateParameterKey) : undefined;
+      const colorProfile = element.metadata?.dynamoStateColorProfile?.split(',').map(value => value.trim()) ?? [];
+      const rules = propertyMap.rules.map((rule, index) => {
+        const profileKey = colorProfile[index];
+        const colorParameter = profileKey ? findParameter(parameters, `${profileKey}Color`) : undefined;
+        const configuredColor = colorParameter?.kind === 'String' && typeof colorParameter.value === 'string'
+          ? colorParameter.value.trim()
+          : '';
+        return configuredColor && /^#[0-9a-f]{6}$/i.test(configuredColor)
+          ? Object.freeze({ ...rule, value: configuredColor })
+          : rule;
+      });
+      return Object.freeze({
+        ...propertyMap,
+        rules: Object.freeze(rules),
+        source: Object.freeze({
+          ...propertyMap.source,
+          target: substituteEquipmentPath(propertyMap.source.target ?? '', equipmentPath),
+          tagReference: stateParameter?.kind === 'TagReference' && stateParameter.tagReference
+            ? cloneTagReference(stateParameter.tagReference)
+            : propertyMap.source.tagReference ? cloneTagReference(propertyMap.source.tagReference) : propertyMap.source.tagReference
+        })
+      });
+    }),
     children: [...children]
   });
 }

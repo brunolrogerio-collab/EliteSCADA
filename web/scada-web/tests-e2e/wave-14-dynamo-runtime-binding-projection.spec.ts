@@ -116,3 +116,47 @@ test('runtime projection does not mutate shared definition internals', () => {
   expect(definitionElements[0]?.bindings?.[0]?.target).toBe(originalTarget);
   expect(definitionElements[0]?.bindings?.[0]?.tagReference).toBe(originalReference);
 });
+
+test('state color mapping follows the selected TAG and per-instance palette overrides', () => {
+  const stateElement: VisualElementEngineering = {
+    id: 'motor-body',
+    key: 'body',
+    type: 'core.rectangle',
+    metadata: {
+      dynamoStateColorParameter: 'state',
+      dynamoStateColorProfile: 'stopped,running,fault'
+    },
+    propertyMaps: [{
+      propertyKey: 'fillColor',
+      source: { kind: 'Tag', valueType: 'Number', target: '{equipmentPath}.State' },
+      rules: [
+        { value: '#8FBF98', minimum: 0, maximum: 1 },
+        { value: '#D98282', minimum: 1, maximum: 2 },
+        { value: '#D8B95F', minimum: 2, maximum: 3 }
+      ],
+      fallback: '#8FBF98'
+    }]
+  };
+  const projected = projectDynamoRuntimeElements(
+    [stateElement],
+    parameters(
+      { key: 'state', kind: 'TagReference', tagReference: { tagId: 'tag-state-id' } },
+      { key: 'stoppedColor', kind: 'String', value: '#21A34A' },
+      { key: 'runningColor', kind: 'String', value: '#C02D20' },
+      { key: 'faultColor', kind: 'String', value: '#EAB308' }
+    ),
+    'Area.M01'
+  );
+
+  expect(projected[0]?.propertyMaps?.[0]).toMatchObject({
+    source: {
+      target: 'Area.M01.State',
+      tagReference: { tagId: 'tag-state-id' }
+    },
+    rules: [
+      { value: '#21A34A' },
+      { value: '#C02D20' },
+      { value: '#EAB308' }
+    ]
+  });
+});

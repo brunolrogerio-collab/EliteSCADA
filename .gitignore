@@ -73,6 +73,7 @@ appsettings.*.Secrets.json
 **/.parcel-cache/
 **/.next/
 **/playwright-report/
+**/test-results/
 web/scada-web/public/pyodide/
 
 # OS files

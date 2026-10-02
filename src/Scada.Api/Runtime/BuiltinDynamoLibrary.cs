@@ -8,10 +8,17 @@ namespace Scada.Api.Runtime;
 /// canonical visual-object model. Every equipment family ships in three visual
 /// styles without introducing image-only assets or a second renderer:
 /// detailed 2D, front-facing dimensional (gradient/shadow) and high-performance HMI.
+///
+/// Artwork research references: Opto 22's Image Library/SVG Editors
+/// (https://www.opto22.com/support/resources-tools/image-library-svg-editors)
+/// for equipment illustration and recoloring ideas; Wikimedia Commons P&amp;ID
+/// symbols (https://commons.wikimedia.org/wiki/Category:P%26ID_symbols) for
+/// process-symbol conventions. These are references only: retain original,
+/// editable EliteSCADA geometry and preserve equipment bindings/state behavior.
 /// </summary>
 public static class BuiltinDynamoLibrary
 {
-    public const string Version = "1.3.0";
+    public const string Version = "1.9.0";
 
     private enum VisualStyle
     {
@@ -29,7 +36,7 @@ public static class BuiltinDynamoLibrary
 
     public static IReadOnlyCollection<DynamoEngineeringDto> Create()
     {
-        var definitions = new List<DynamoEngineeringDto>(30);
+        var definitions = new List<DynamoEngineeringDto>(72);
         foreach (var style in Styles)
         {
             definitions.Add(CentrifugalPump(style));
@@ -42,6 +49,20 @@ public static class BuiltinDynamoLibrary
             definitions.Add(HorizontalTank(style));
             definitions.Add(CentrifugalBlower(style));
             definitions.Add(ProcessIndicator(style));
+            definitions.Add(AdditionalFamily(style, 101, "process.compressor.reciprocating", "Compressor alternativo", "compressor", 150, 112));
+            definitions.Add(AdditionalFamily(style, 131, "process.compressor.screw", "Compressor de parafuso", "compressor", 164, 104));
+            definitions.Add(AdditionalFamily(style, 161, "process.valve.butterfly", "Válvula borboleta", "valve", 142, 112));
+            definitions.Add(AdditionalFamily(style, 191, "process.valve.ball", "Válvula esfera", "valve", 142, 112));
+            definitions.Add(AdditionalFamily(style, 221, "process.valve.gate", "Válvula gaveta", "valve", 142, 132));
+            definitions.Add(AdditionalFamily(style, 251, "process.exchanger.shell-tube", "Trocador casco e tubos", "process", 168, 126));
+            definitions.Add(AdditionalFamily(style, 281, "process.filter.strainer", "Filtro tipo Y", "process", 142, 122));
+            definitions.Add(AdditionalFamily(style, 311, "process.mixer.agitator", "Agitador de tanque", "process", 132, 174));
+            definitions.Add(AdditionalFamily(style, 341, "electrical.transformer.power", "Transformador de potência", "substation", 150, 150));
+            definitions.Add(AdditionalFamily(style, 371, "electrical.breaker", "Disjuntor de potência", "substation", 130, 148));
+            definitions.Add(AdditionalFamily(style, 401, "electrical.disconnector", "Seccionadora", "substation", 148, 126));
+            definitions.Add(AdditionalFamily(style, 431, "electrical.earthing-switch", "Chave de aterramento", "substation", 132, 126));
+            definitions.Add(AdditionalFamily(style, 461, "electrical.generator", "Gerador síncrono", "electrical", 154, 112));
+            definitions.Add(AdditionalFamily(style, 491, "electrical.current-transformer", "Transformador de corrente", "substation", 112, 154));
         }
 
         return definitions;
@@ -543,6 +564,352 @@ public static class BuiltinDynamoLibrary
         parameters: IndicatorParameters());
     }
 
+    private static DynamoEngineeringDto AdditionalFamily(
+        VisualStyle style,
+        int family,
+        string familyKey,
+        string name,
+        string category,
+        int width,
+        int height)
+    {
+        var sequence = DefinitionSequence(family, style);
+        var highPerformance = style == VisualStyle.HighPerformance;
+        var dimensional = style == VisualStyle.DimensionalFront;
+        var shell = highPerformance ? "#AEB7BE" : dimensional ? "#AFC0CC" : "#91A5B5";
+        var light = highPerformance ? "#D5DBDF" : dimensional ? "#E7EEF3" : "#C7D4DE";
+        var dark = highPerformance ? "#58636B" : "#34495A";
+        var accent = highPerformance ? "#7F8A91" : "#4785A6";
+        var shapes = new List<VisualElementEngineeringDto>();
+        var centerX = width / 2d;
+        var centerY = height / 2d;
+
+        void Rect(string key, double x, double y, double w, double h, string fill, double radius = 0, double stroke = 2) =>
+            shapes.Add(MaterialShape(E(family, style, shapes.Count + 1), key, "core.rectangle", x, y, w, h,
+                fill, highPerformance ? fill : light, dark, stroke, radius, dimensional, "diagonal-down", dimensional));
+        void Ellipse(string key, double x, double y, double w, double h, string fill, double stroke = 2) =>
+            shapes.Add(MaterialShape(E(family, style, shapes.Count + 1), key, "core.ellipse", x, y, w, h,
+                fill, highPerformance ? fill : light, dark, stroke, 0, dimensional, "diagonal-down", dimensional));
+        void Bar(string key, double x, double y, double w, double h, string fill, double rotation = 0) =>
+            shapes.Add(FlatShape(E(family, style, shapes.Count + 1), key, "core.rectangle", x, y, w, h, fill, dark, 1.4, 1.5, rotation));
+        void Label(string text, double x, double y, double w, double h, double size = 13) =>
+            shapes.Add(Text(E(family, style, shapes.Count + 1), "equipment-label", text, x, y, w, h, size, "#17232D"));
+        void Lamp(string key, double x, double y, string parameter, string target, string color) =>
+            shapes.Add(StateLamp(E(family, style, shapes.Count + 1), key, x, y, color, parameter, target));
+        void Triangle(string key, double x, double y, double w, double h, bool left, string fill) =>
+            shapes.Add(Polygon(E(family, style, shapes.Count + 1), key, x, y, w, h,
+                left ? [(0d, 0d), (w, h / 2), (0d, h)] : [(w, 0d), (0d, h / 2), (w, h)], fill, dark, 2,
+                dimensional ? light : null, "diagonal-down", dimensional));
+
+        switch (familyKey)
+        {
+            case "process.compressor.reciprocating":
+                Rect("base", 14, height - 20, width - 28, 9, dark, 2);
+                Rect("crankcase", 25, 62, 52, 32, shell, 7, 2.5);
+                Rect("cylinder-left", 34, 24, 20, 42, light, 4);
+                Rect("cylinder-right", 62, 24, 20, 42, shell, 4);
+                Ellipse("head-left", 31, 17, 26, 14, accent);
+                Ellipse("head-right", 59, 17, 26, 14, accent);
+                Rect("discharge", 79, 29, 39, 9, shell, 2);
+                Rect("inlet", 6, 39, 30, 9, shell, 2);
+                for (var index = 0; index < 4; index++) Bar($"cooling-fin-{index + 1}", 38 + index * 9, 29, 2, 24, dark);
+                Label("C", 41, 69, 25, 18, 12);
+                Lamp("running", 5, 5, "running", "{equipmentPath}.Running", "#D92D20");
+                Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
+                break;
+            case "process.compressor.screw":
+                Rect("base", 12, height - 18, width - 24, 8, dark, 2);
+                Rect("compressor-housing", 29, 25, 88, 62, shell, 15, 2.5);
+                Ellipse("rotor-left", 42, 36, 34, 38, light);
+                Ellipse("rotor-right", 68, 36, 34, 38, highPerformance ? "#8C969D" : "#A5B9C8");
+                Rect("inlet", 6, 46, 31, 10, shell, 2);
+                Rect("outlet", 108, 38, 45, 10, shell, 2);
+                Label("SC", 59, 79, 28, 15, 10);
+                Lamp("running", 5, 5, "running", "{equipmentPath}.Running", "#D92D20");
+                Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
+                break;
+            case "process.valve.butterfly":
+                Rect("pipe-left", 3, 51, 46, 10, shell, 2);
+                Rect("pipe-right", width - 48, 51, 45, 10, shell, 2);
+                Rect("flange-left", 30, 43, 8, 26, light, 1);
+                Rect("flange-right", width - 38, 43, 8, 26, light, 1);
+                Ellipse("body-ring", 39, 30, 64, 54, highPerformance ? "#E0E4E7" : shell, 3);
+                Ellipse("disc", 48, 35, 46, 44, accent, 2.5);
+                Bar("disc-edge", 68, 32, 6, 50, dark, -22);
+                Bar("shaft", 69, 16, 5, 19, dark);
+                Rect("actuator", 56, 4, 31, 15, light, 4);
+                Lamp("open", 5, 5, "open", "{equipmentPath}.Open", "#16A34A");
+                Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
+                break;
+            case "process.valve.ball":
+                Rect("pipe-left", 3, 51, 45, 10, shell, 2);
+                Rect("pipe-right", width - 48, 51, 45, 10, shell, 2);
+                Rect("flange-left", 30, 43, 8, 26, light, 1);
+                Rect("flange-right", width - 38, 43, 8, 26, light, 1);
+                Ellipse("body", centerX - 30, 33, 60, 46, shell, 2.5);
+                Ellipse("ball", centerX - 18, 39, 36, 34, highPerformance ? "#727D84" : accent, 2);
+                Bar("bore", centerX - 16.5, 54, 33, 5, "#F5F7F8");
+                Bar("stem", centerX - 2.5, 18, 5, 23, dark);
+                Bar("handle", centerX - 17, 13, 34, 6, accent, -20);
+                Lamp("open", 5, 5, "open", "{equipmentPath}.Open", "#16A34A");
+                Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
+                break;
+            case "process.valve.gate":
+                Rect("pipe-left", 3, 83, 45, 10, shell, 2);
+                Rect("pipe-right", width - 48, 83, 45, 10, shell, 2);
+                Rect("flange-left", 30, 75, 8, 26, light, 1);
+                Rect("flange-right", width - 38, 75, 8, 26, light, 1);
+                Triangle("body-left", centerX - 31, 69, 31, 38, true, shell);
+                Triangle("body-right", centerX, 69, 31, 38, false, shell);
+                Bar("stem", centerX - 2.5, 34, 5, 38, dark);
+                Ellipse("handwheel", centerX - 19, 4, 38, 32, highPerformance ? "#D5DBDF" : accent, 2);
+                Ellipse("handwheel-hub", centerX - 4, 16, 8, 8, light, 1);
+                Lamp("open", 5, 5, "open", "{equipmentPath}.Open", "#16A34A");
+                Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
+                break;
+            case "process.exchanger.shell-tube":
+                Rect("shell", 25, 35, 111, 56, shell, 22, 2.5);
+                Ellipse("head-left", 17, 35, 28, 56, light);
+                Ellipse("head-right", 119, 35, 28, 56, light);
+                for (var index = 0; index < 5; index++) Bar($"tube-{index + 1}", 45, 48 + index * 8, 71, 2, dark);
+                Rect("nozzle-hot-in", 49, 15, 10, 24, accent, 2);
+                Rect("nozzle-hot-out", 100, 86, 10, 25, accent, 2);
+                Rect("nozzle-cold-in", 51, 87, 9, 25, shell, 2);
+                Rect("nozzle-cold-out", 101, 14, 9, 25, shell, 2);
+                Label("E", 70, 55, 24, 18, 12);
+                Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
+                break;
+            case "process.filter.strainer":
+                Rect("pipe-left", 3, 35, 48, 10, shell, 2);
+                Rect("pipe-right", 94, 35, 45, 10, shell, 2);
+                Rect("filter-body", 39, 20, 61, 36, shell, 6, 2.5);
+                Triangle("basket", 54, 52, 43, 47, false, light);
+                for (var index = 0; index < 4; index++) Bar($"basket-slot-{index + 1}", 62 + index * 7, 65, 2, 24, dark, -22);
+                Ellipse("cap", 51, 91, 49, 12, accent);
+                Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
+                break;
+            case "process.mixer.agitator":
+                Rect("vessel", 26, 65, 79, 88, highPerformance ? "#D5DBDF" : shell, 18, 2.5);
+                Ellipse("tank-top", 26, 58, 79, 23, light, 2);
+                Rect("liquid", 33, 98, 65, 47, highPerformance ? "#AEB7BE" : "#74B6CC", 13, 1);
+                Rect("motor", 47, 15, 39, 27, accent, 5);
+                Rect("shaft", 64, 41, 5, 82, dark);
+                Bar("impeller", 43, 117, 49, 6, dark);
+                Bar("blade-left", 45, 111, 5, 24, dark, -28);
+                Bar("blade-right", 85, 111, 5, 24, dark, 28);
+                Label("MX", 51, 21, 31, 14, 10);
+                Lamp("running", 5, 5, "running", "{equipmentPath}.Running", "#D92D20");
+                Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
+                break;
+            case "electrical.transformer.power":
+                Rect("base", 20, height - 18, width - 40, 8, dark, 2);
+                Rect("tank", 39, 43, 72, 83, shell, 6, 2.5);
+                Rect("cover", 34, 36, 82, 12, light, 2);
+                for (var index = 0; index < 5; index++) Rect($"radiator-{index + 1}", 18 + index * 4, 59, 4, 52, accent, 1, 1);
+                for (var index = 0; index < 5; index++) Rect($"radiator-r-{index + 1}", 112 + index * 4, 59, 4, 52, accent, 1, 1);
+                Rect("bushing-left", 53, 10, 11, 29, light, 3);
+                Rect("bushing-right", 84, 10, 11, 29, light, 3);
+                Label("T", 59, 72, 31, 22, 15);
+                Lamp("fault", width - 22, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
+                break;
+            case "electrical.breaker":
+                Rect("base", 17, height - 18, width - 34, 8, dark, 2);
+                Rect("support-left", 33, 70, 10, 61, shell, 2);
+                Rect("support-right", 88, 70, 10, 61, shell, 2);
+                Rect("interrupter", 38, 37, 56, 50, light, 7, 2.5);
+                Bar("contact-left", 62, 17, 7, 25, dark);
+                Bar("contact-right", 73, 17, 7, 25, dark);
+                Ellipse("terminal-left", 56, 5, 18, 16, accent);
+                Ellipse("terminal-right", 71, 5, 18, 16, accent);
+                Label("52", 49, 50, 35, 18, 12);
+                Lamp("closed", 6, 5, "closed", "{equipmentPath}.Closed", "#16A34A");
+                Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
+                break;
+            case "electrical.disconnector":
+            case "electrical.earthing-switch":
+                Rect("support-left", 25, 64, 10, 49, shell, 2);
+                Rect("support-right", width - 36, 64, 10, 49, shell, 2);
+                Ellipse("insulator-left-top", 20, 53, 20, 15, light);
+                Ellipse("insulator-right-top", width - 41, 53, 20, 15, light);
+                Ellipse("contact-left", 26, 39, 16, 16, accent);
+                Ellipse("contact-right", width - 42, 39, 16, 16, accent);
+                Bar("blade", 34, 41, width - 61, 8, highPerformance ? "#646E75" : "#738D9F", familyKey.EndsWith("earthing-switch", StringComparison.Ordinal) ? 24 : -18);
+                Rect("base", 13, 113, width - 26, 8, dark, 2);
+                if (familyKey.EndsWith("earthing-switch", StringComparison.Ordinal))
+                {
+                    Bar("earth-lead", centerX - 3, 80, 6, 36, accent);
+                    Triangle("ground-1", centerX - 15, 94, 30, 12, true, accent);
+                    Triangle("ground-2", centerX - 10, 103, 20, 8, true, accent);
+                }
+                else
+                {
+                    Rect("operating-box", centerX - 17, 75, 34, 24, light, 3);
+                    Label("89", centerX - 15, 78, 30, 15, 10);
+                }
+                Lamp("closed", 5, 5, "closed", "{equipmentPath}.Closed", "#16A34A");
+                Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
+                break;
+            case "electrical.generator":
+                Rect("base", 23, height - 19, width - 43, 8, dark, 2);
+                Ellipse("stator", 24, 20, 90, 76, shell, 3);
+                Ellipse("rotor", 41, 34, 56, 48, light, 2);
+                Ellipse("hub", 59, 49, 20, 18, accent, 1);
+                Rect("shaft", 107, 53, 34, 9, dark, 2);
+                for (var index = 0; index < 5; index++) Bar($"stator-slot-{index + 1}", 40 + index * 12, 27, 3, 9, dark);
+                Label("G", 55, 48, 31, 20, 13);
+                Lamp("running", 5, 5, "running", "{equipmentPath}.Running", "#D92D20");
+                Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
+                break;
+            case "electrical.current-transformer":
+                Rect("primary-conductor", 51, 3, 10, height - 6, dark, 2);
+                Ellipse("core", 22, 43, 68, 68, highPerformance ? "#C6CDD2" : shell, 3);
+                Ellipse("core-window", 39, 60, 34, 34, "#F5F7F8", 2);
+                Rect("secondary-left", 13, 92, 23, 6, accent, 2);
+                Rect("secondary-right", 76, 92, 23, 6, accent, 2);
+                Label("TC", 39, 114, 34, 21, 10);
+                Lamp("fault", 5, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
+                break;
+        }
+
+        return Dynamo(sequence, familyKey, name, category, style, width, height, shapes,
+            Parameters(EquipmentPathParameter(),
+                TagParameter("running"), TagParameter("fault"), TagParameter("open"), TagParameter("closed"), CommandKeyParameter("commandKey")));
+    }
+
+    private static void AddDiscreteStateColorMap(
+        List<VisualElementEngineeringDto> elements,
+        string familyKey,
+        VisualStyle style,
+        string targetKey)
+    {
+        var index = elements.FindIndex(element => element.Key == targetKey);
+        if (index < 0 && familyKey == "process.motor.vfd")
+            index = elements.FindIndex(element => element.Key == "motor-body");
+        if (index < 0 && familyKey == "process.blower.centrifugal")
+            index = elements.FindIndex(element => element.Key == "volute-case");
+        if (index < 0) return;
+        var element = elements[index];
+        // Some family targets intentionally fall back to the same visual part
+        // (for example, both VFD aliases resolve to motor-body). Add the color
+        // map only once when aliases land on that shared element.
+        if (element.PropertyMaps?.Any(map => map.PropertyKey == "fillColor") == true)
+            return;
+        var properties = element.Properties is null ? new Dictionary<string, JsonElement>() : new Dictionary<string, JsonElement>(element.Properties);
+        var stopped = DefaultStoppedColor(style);
+        properties["fillColor"] = JsonSerializer.SerializeToElement(stopped);
+        var source = new VisualValueSourceEngineeringDto(
+            VisualValueSourceKind.Tag,
+            VisualExpressionValueType.Number,
+            Target: "{equipmentPath}.State");
+        var stateMap = new VisualPropertyMapEngineeringDto(
+            "fillColor",
+            source,
+            [
+                new(JsonSerializer.SerializeToElement(stopped), Minimum: 0, Maximum: 1),
+                new(JsonSerializer.SerializeToElement(DefaultRunningColor(style)), Minimum: 1, Maximum: 2),
+                new(JsonSerializer.SerializeToElement(DefaultFaultColor(style)), Minimum: 2, Maximum: 3)
+            ],
+            JsonSerializer.SerializeToElement(stopped));
+        var metadata = element.Metadata is null ? new Dictionary<string, string>() : new Dictionary<string, string>(element.Metadata);
+        metadata["dynamoStateColorParameter"] = "state";
+        metadata["dynamoStateColorProfile"] = "stopped,running,fault";
+        metadata["dynamoStateColorFamily"] = familyKey;
+        elements[index] = element with
+        {
+            Properties = properties,
+            PropertyMaps = [.. element.PropertyMaps ?? [], stateMap],
+            Metadata = metadata
+        };
+    }
+
+    /// <summary>
+    /// Centers each definition in its own logical viewBox and keeps a consistent
+    /// margin. Families use different canvas proportions, so fitting the full
+    /// assembly as a unit prevents clipping without distorting its components.
+    /// </summary>
+    private static void FitArtworkToCanvas(
+        List<VisualElementEngineeringDto> elements,
+        double canvasWidth,
+        double canvasHeight)
+    {
+        var bounds = new List<(int Index, double X, double Y, double Width, double Height)>();
+        for (var index = 0; index < elements.Count; index++)
+        {
+            var properties = elements[index].Properties;
+            if (properties is null || !TryNumber(properties, "x", out var x) || !TryNumber(properties, "y", out var y) ||
+                !TryNumber(properties, "width", out var width) || !TryNumber(properties, "height", out var height) || width <= 0 || height <= 0)
+                continue;
+
+            var rotation = TryNumber(properties, "rotation", out var angle) ? angle * Math.PI / 180 : 0;
+            var rotatedWidth = Math.Abs(width * Math.Cos(rotation)) + Math.Abs(height * Math.Sin(rotation));
+            var rotatedHeight = Math.Abs(width * Math.Sin(rotation)) + Math.Abs(height * Math.Cos(rotation));
+            var centerX = x + width / 2;
+            var centerY = y + height / 2;
+            bounds.Add((index, centerX - rotatedWidth / 2, centerY - rotatedHeight / 2, rotatedWidth, rotatedHeight));
+        }
+
+        if (bounds.Count == 0) return;
+        var left = bounds.Min(item => item.X);
+        var top = bounds.Min(item => item.Y);
+        var right = bounds.Max(item => item.X + item.Width);
+        var bottom = bounds.Max(item => item.Y + item.Height);
+        var artworkWidth = Math.Max(1, right - left);
+        var artworkHeight = Math.Max(1, bottom - top);
+        const double targetFill = 0.86;
+        var scale = Math.Min(canvasWidth * targetFill / artworkWidth, canvasHeight * targetFill / artworkHeight);
+        scale = Math.Min(scale, 1.15);
+        foreach (var item in bounds)
+        {
+            var element = elements[item.Index];
+            var properties = new Dictionary<string, JsonElement>(element.Properties!);
+            var x = properties["x"].GetDouble();
+            var y = properties["y"].GetDouble();
+            var width = properties["width"].GetDouble();
+            var height = properties["height"].GetDouble();
+            var centerX = x + width / 2;
+            var centerY = y + height / 2;
+            var nextWidth = width * scale;
+            var nextHeight = height * scale;
+            properties["x"] = JsonSerializer.SerializeToElement(canvasWidth / 2 + (centerX - canvasWidth / 2) * scale - nextWidth / 2);
+            properties["y"] = JsonSerializer.SerializeToElement(canvasHeight / 2 + (centerY - canvasHeight / 2) * scale - nextHeight / 2);
+            properties["width"] = JsonSerializer.SerializeToElement(nextWidth);
+            properties["height"] = JsonSerializer.SerializeToElement(nextHeight);
+
+            foreach (var property in new[] { "fontSize", "strokeWidth", "cornerRadius", "shadowOffsetX", "shadowOffsetY", "shadowBlur" })
+            {
+                if (TryNumber(properties, property, out var value))
+                    properties[property] = JsonSerializer.SerializeToElement(value * scale);
+            }
+
+            if (properties.TryGetValue("points", out var points) && points.ValueKind == JsonValueKind.Array)
+            {
+                var scaledPoints = points.EnumerateArray().Select(point => new Dictionary<string, double>
+                {
+                    ["x"] = point.TryGetProperty("x", out var pointX) && pointX.TryGetDouble(out var px) ? px * scale : 0,
+                    ["y"] = point.TryGetProperty("y", out var pointY) && pointY.TryGetDouble(out var py) ? py * scale : 0
+                }).ToArray();
+                properties["points"] = JsonSerializer.SerializeToElement(scaledPoints);
+            }
+
+            elements[item.Index] = element with { Properties = properties };
+        }
+    }
+
+    private static bool TryNumber(IReadOnlyDictionary<string, JsonElement> properties, string key, out double value)
+    {
+        if (properties.TryGetValue(key, out var json) && json.ValueKind == JsonValueKind.Number && json.TryGetDouble(out value))
+            return true;
+        value = 0;
+        return false;
+    }
+
+    private static string DefaultStoppedColor(VisualStyle style) => style == VisualStyle.HighPerformance ? "#8FBF98" : "#16A34A";
+    private static string DefaultRunningColor(VisualStyle style) => style == VisualStyle.HighPerformance ? "#D98282" : "#DC2626";
+    private static string DefaultFaultColor(VisualStyle style) => style == VisualStyle.HighPerformance ? "#D8B95F" : "#EAB308";
+
+    private static DynamoParameterDefinitionEngineeringDto StringParameter(string key, string defaultValue) =>
+        new(key, DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement(defaultValue));
+
     private static DynamoEngineeringDto Dynamo(
         int sequence,
         string familyKey,
@@ -564,6 +931,26 @@ public static class BuiltinDynamoLibrary
             .Concat(originalElements.Skip(firstBoundElement))
             .ToArray();
 
+        var visualElements = refinedElements.ToList();
+        FitArtworkToCanvas(visualElements, width, height);
+        visualElements = visualElements
+            .Select(element => ApplyArtworkFinish(element, style))
+            .ToList();
+        var stateColorTargets = StateColorTargets(familyKey);
+        if (stateColorTargets is not null)
+        {
+            foreach (var stateColorTarget in stateColorTargets)
+                AddDiscreteStateColorMap(visualElements, familyKey, style, stateColorTarget);
+        }
+        var publicParameters = (parameters ?? Array.Empty<DynamoParameterDefinitionEngineeringDto>()).ToList();
+        if (stateColorTargets is not null)
+        {
+            AddParameterIfMissing(publicParameters, TagParameter("state"));
+            AddParameterIfMissing(publicParameters, StringParameter("stoppedColor", DefaultStoppedColor(style)));
+            AddParameterIfMissing(publicParameters, StringParameter("runningColor", DefaultRunningColor(style)));
+            AddParameterIfMissing(publicParameters, StringParameter("faultColor", DefaultFaultColor(style)));
+        }
+
         return new(
             DefinitionId(sequence),
             VariantKey(familyKey, style),
@@ -575,7 +962,9 @@ public static class BuiltinDynamoLibrary
                 ["defaultWidth"] = width.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["defaultHeight"] = height.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["libraryVersion"] = Version,
-                ["visualStyle"] = StyleKey(style)
+                ["visualStyle"] = StyleKey(style),
+                ["visualFinish"] = FinishProfile(style).Key,
+                ["visualReferenceProfile"] = "pid-inspired-native-vector-v1"
             },
             Context: new Dictionary<string, string>
             {
@@ -592,11 +981,169 @@ public static class BuiltinDynamoLibrary
                 ["familyKey"] = familyKey,
                 ["visualStyle"] = StyleKey(style),
                 ["view"] = "front-orthographic",
-                ["performanceProfile"] = style == VisualStyle.HighPerformance ? "high-performance" : "rich"
+                ["performanceProfile"] = style == VisualStyle.HighPerformance ? "high-performance" : "rich",
+                ["visualFinish"] = FinishProfile(style).Key,
+                ["visualReferenceProfile"] = "pid-inspired-native-vector-v1",
+                ["visualReferencePolicy"] = "original-editable-geometry; third-party SVGs are not embedded",
+                ["stateTagProfile"] = stateColorTargets is null ? "none" : "0=stopped;1=running;2=fault",
+                ["stateColorsEditable"] = stateColorTargets is null ? "false" : "true"
             },
-            Parameters: parameters,
-            Elements: refinedElements);
+            Parameters: publicParameters,
+            Elements: visualElements);
     }
+
+    private sealed record ArtworkFinish(
+        string Key,
+        string Deepest,
+        string Dark,
+        string Mid,
+        string Shell,
+        string Light,
+        string Highlight,
+        string Outline,
+        string SoftOutline);
+
+    private static ArtworkFinish FinishProfile(VisualStyle style) => style switch
+    {
+        VisualStyle.Detailed2D => new(
+            "industrial-steel-2d-v4",
+            "#263746", "#435B6C", "#7C909E", "#B2C0C9", "#DCE5EA", "#F6F8FA", "#2D4352", "#70818D"),
+        VisualStyle.DimensionalFront => new(
+            "soft-machined-steel-v4",
+            "#22394A", "#465F70", "#8098A8", "#B5C7D1", "#E5EDF2", "#FBFCFD", "#2B4354", "#667E8D"),
+        _ => new(
+            "high-performance-neutral-v4",
+            "#303A40", "#4D5960", "#818C92", "#ADB7BC", "#D5DBDE", "#EEF1F2", "#37434A", "#6D787E")
+    };
+
+    private static VisualElementEngineeringDto ApplyArtworkFinish(
+        VisualElementEngineeringDto element,
+        VisualStyle style)
+    {
+        if (element.Properties is null) return element;
+
+        var finish = FinishProfile(style);
+        var properties = new Dictionary<string, JsonElement>(element.Properties);
+        foreach (var property in new[] { "fillColor", "fillSecondaryColor", "strokeColor" })
+        {
+            if (!properties.TryGetValue(property, out var value) ||
+                value.ValueKind != JsonValueKind.String ||
+                !TryParseArtworkColor(value.GetString(), out var red, out var green, out var blue) ||
+                !IsNeutralArtworkColor(red, green, blue))
+                continue;
+
+            var luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+            var normalized = property == "strokeColor"
+                ? luminance < 128 ? finish.Outline : finish.SoftOutline
+                : InterpolateArtworkMetal(finish, luminance);
+            properties[property] = JsonSerializer.SerializeToElement(normalized);
+        }
+
+        // Only the dimensional illustration style uses soft elevation. The IEC-like 2D
+        // and high-performance variants stay crisp and flat for dense operating screens.
+        if (style == VisualStyle.DimensionalFront &&
+            (element.Type is "core.rectangle" or "core.ellipse" or "core.polygon") &&
+            !properties.ContainsKey("shadowEnabled") &&
+            properties.TryGetValue("width", out var shapeWidth) && shapeWidth.TryGetDouble(out var shapeWidthValue) &&
+            properties.TryGetValue("height", out var shapeHeight) && shapeHeight.TryGetDouble(out var shapeHeightValue) &&
+            shapeWidthValue * shapeHeightValue >= 650)
+        {
+            properties["shadowEnabled"] = JsonSerializer.SerializeToElement(true);
+            properties["shadowColor"] = JsonSerializer.SerializeToElement("#1F34401F");
+            properties["shadowOffsetX"] = JsonSerializer.SerializeToElement(1d);
+            properties["shadowOffsetY"] = JsonSerializer.SerializeToElement(1.5d);
+            properties["shadowBlur"] = JsonSerializer.SerializeToElement(1.5d);
+        }
+
+        if (properties.TryGetValue("strokeWidth", out var strokeWidth) &&
+            strokeWidth.ValueKind == JsonValueKind.Number &&
+            strokeWidth.TryGetDouble(out var width) && width > 0)
+        {
+            // Keep intended visual hierarchy while avoiding inconsistent fractional hairlines
+            // and unusually heavy borders across the 72 library drawings.
+            var (minimumStroke, maximumStroke) = style switch
+            {
+                VisualStyle.HighPerformance => (0.75d, 2d),
+                VisualStyle.DimensionalFront => (0.75d, 2d),
+                _ => (0.75d, 2d)
+            };
+            var polishedWidth = Math.Round(Math.Clamp(width, minimumStroke, maximumStroke) * 2, MidpointRounding.AwayFromZero) / 2;
+            properties["strokeWidth"] = JsonSerializer.SerializeToElement(polishedWidth);
+        }
+
+        return element with { Properties = properties };
+    }
+
+    private static string InterpolateArtworkMetal(ArtworkFinish finish, double luminance)
+    {
+        var stops = new[]
+        {
+            (0d, finish.Deepest), (52d, finish.Dark), (104d, finish.Mid),
+            (156d, finish.Shell), (208d, finish.Light), (255d, finish.Highlight)
+        };
+        var upper = Array.FindIndex(stops, stop => stop.Item1 >= luminance);
+        if (upper <= 0) return upper == 0 ? stops[0].Item2 : stops[^1].Item2;
+
+        var (lowLuminance, lowColor) = stops[upper - 1];
+        var (highLuminance, highColor) = stops[upper];
+        if (!TryParseArtworkColor(lowColor, out var lowRed, out var lowGreen, out var lowBlue) ||
+            !TryParseArtworkColor(highColor, out var highRed, out var highGreen, out var highBlue))
+            return lowColor;
+
+        var ratio = (luminance - lowLuminance) / (highLuminance - lowLuminance);
+        var red = (int)Math.Round(lowRed + (highRed - lowRed) * ratio);
+        var green = (int)Math.Round(lowGreen + (highGreen - lowGreen) * ratio);
+        var blue = (int)Math.Round(lowBlue + (highBlue - lowBlue) * ratio);
+        return $"#{red:X2}{green:X2}{blue:X2}";
+    }
+
+    private static bool TryParseArtworkColor(
+        string? value,
+        out int red,
+        out int green,
+        out int blue)
+    {
+        red = green = blue = 0;
+        if (value is null || value.Length != 7 || value[0] != '#') return false;
+        if (!int.TryParse(value.AsSpan(1, 2), System.Globalization.NumberStyles.HexNumber, null, out red) ||
+            !int.TryParse(value.AsSpan(3, 2), System.Globalization.NumberStyles.HexNumber, null, out green) ||
+            !int.TryParse(value.AsSpan(5, 2), System.Globalization.NumberStyles.HexNumber, null, out blue))
+            return false;
+        return true;
+    }
+
+    private static bool IsNeutralArtworkColor(int red, int green, int blue) =>
+        Math.Max(red, Math.Max(green, blue)) - Math.Min(red, Math.Min(green, blue)) <= 64;
+
+    private static void AddParameterIfMissing(
+        List<DynamoParameterDefinitionEngineeringDto> parameters,
+        DynamoParameterDefinitionEngineeringDto parameter)
+    {
+        if (parameters.All(candidate => !candidate.Key.Equals(parameter.Key, StringComparison.OrdinalIgnoreCase)))
+            parameters.Add(parameter);
+    }
+
+    private static IReadOnlyList<string>? StateColorTargets(string familyKey) => familyKey switch
+    {
+        "dynamo.pump.standard" => ["casing"],
+        "process.pump.submersible" => ["body"],
+        "process.motor.standard" => ["body"],
+        "process.motor.vfd" => ["motor", "motor-body"],
+        "process.blower.centrifugal" => ["casing", "volute-case"],
+        "process.valve.onoff" or "process.valve.control" or "process.valve.gate" => ["body-left", "body-right"],
+        "process.valve.ball" => ["ball"],
+        "process.valve.butterfly" => ["disc"],
+        "process.filter.strainer" => ["filter-body"],
+        "process.compressor.reciprocating" => ["crankcase"],
+        "process.compressor.screw" => ["compressor-housing"],
+        "process.mixer.agitator" => ["vessel"],
+        "electrical.transformer.power" => ["tank"],
+        "electrical.breaker" => ["interrupter"],
+        "electrical.disconnector" => ["blade", "operating-box"],
+        "electrical.earthing-switch" => ["blade"],
+        "electrical.generator" => ["stator"],
+        _ => null
+    };
 
     private static IReadOnlyCollection<VisualElementEngineeringDto> VisualEnhancements(
         string familyKey,
@@ -606,7 +1153,14 @@ public static class BuiltinDynamoLibrary
         int height)
     {
         var details = new List<VisualElementEngineeringDto>();
+        // High-performance variants are intentionally sparse: the equipment
+        // silhouette and state binding carry the information, not decorative
+        // fasteners or machining marks.
+        if (style == VisualStyle.HighPerformance)
+            return details;
+
         var localSequence = 70;
+        var centerX = width / 2d;
 
         void Dot(string key, double x, double y, double size = 5, string fill = "#DCE7EF", string stroke = "#526879") =>
             details.Add(FlatShape(1000 + sequence * 100 + localSequence++, $"detail-{key}", "core.ellipse",
@@ -724,6 +1278,118 @@ public static class BuiltinDynamoLibrary
                     var y = gaugeCenterY + radius * Math.Sin(angle);
                     Bar($"scale-tick-{angleDegrees:0}", x - 1.2, y - 4, 2.4, 8, "#475569", angleDegrees + 90);
                 }
+                break;
+
+            case "process.compressor.reciprocating":
+                RadialBolts("crankcase-fastener", 51, 78, 22, style == VisualStyle.HighPerformance ? 4 : 6,
+                    style == VisualStyle.HighPerformance ? 3 : 4);
+                for (var index = 0; index < 5; index++)
+                    Bar($"cylinder-fin-{index + 1}", 37 + index * 10, 25, 2, 12,
+                        style == VisualStyle.HighPerformance ? "#66747D" : "#64798B");
+                Dot("crosshead-pin", 51, 76, 7, "#DCE5EB", "#526879");
+                Bar("connecting-rod", 53, 79, 3, 15, "#586D7D", 28);
+                break;
+
+            case "process.compressor.screw":
+                RadialBolts("housing-fastener", 73, 56, 39, style == VisualStyle.HighPerformance ? 4 : 8,
+                    style == VisualStyle.HighPerformance ? 3 : 4);
+                Bar("rotor-highlight-left", 48, 40, 3, 27, "#F0F4F6", -12);
+                Bar("rotor-highlight-right", 83, 40, 3, 27, "#DCE5EB", 12);
+                Bar("oil-sight-glass", 112, 70, 5, 10, "#4B9BB4");
+                break;
+
+            case "process.valve.butterfly":
+            case "process.valve.ball":
+                foreach (var flangeX in new[] { 32d, width - 38d })
+                foreach (var boltY in new[] { 47d, 64d })
+                    Dot($"flange-fastener-{flangeX:0}-{boltY:0}", flangeX, boltY, 4,
+                        "#E7EEF3", "#506575");
+                Dot("stem-bearing", centerX - 3, 31, 6, "#DCE5EB", "#526879");
+                Bar("actuator-indicator", centerX - 12, 8, 24, 2, "#F0F4F6");
+                break;
+
+            case "process.valve.gate":
+                foreach (var flangeX in new[] { 32d, width - 36d })
+                foreach (var boltY in new[] { 78d, 94d })
+                    Dot($"flange-fastener-{flangeX:0}-{boltY:0}", flangeX, boltY, 4,
+                        "#E7EEF3", "#506575");
+                Bar("handwheel-spoke-top", centerX - 1, 6, 2, 9, "#E7EEF3");
+                Bar("handwheel-spoke-bottom", centerX - 1, 25, 2, 9, "#E7EEF3");
+                Bar("handwheel-spoke-left", centerX - 14, 19, 9, 2, "#E7EEF3");
+                Bar("handwheel-spoke-right", centerX + 5, 19, 9, 2, "#E7EEF3");
+                break;
+
+            case "process.exchanger.shell-tube":
+                for (var index = 0; index < 3; index++)
+                    Bar($"saddle-support-{index + 1}", 51 + index * 38, 91, 8, 19, "#526575");
+                foreach (var boltY in new[] { 43d, 81d })
+                foreach (var boltX in new[] { 28d, 132d })
+                    Dot($"channel-cover-bolt-{boltX:0}-{boltY:0}", boltX, boltY, 4,
+                        "#F0F4F6", "#526879");
+                break;
+
+            case "process.filter.strainer":
+                foreach (var flangeX in new[] { 30d, width - 37d })
+                foreach (var boltY in new[] { 29d, 46d })
+                    Dot($"flange-fastener-{flangeX:0}-{boltY:0}", flangeX, boltY, 4,
+                        "#E7EEF3", "#506575");
+                Bar("drain-neck", 72, 91, 7, 15, "#526575");
+                Dot("drain-plug", 70, 102, 11, "#B6C4CE", "#526879");
+                break;
+
+            case "process.mixer.agitator":
+                for (var index = 0; index < 3; index++)
+                    Bar($"vessel-baffle-{index + 1}", 37 + index * 25, 91, 2, 45,
+                        style == VisualStyle.HighPerformance ? "#77838B" : "#8295A5");
+                foreach (var boltX in new[] { 40d, 60d, 80d, 100d })
+                    Dot($"cover-bolt-{boltX:0}", boltX, 66, 4, "#F0F4F6", "#526879");
+                Dot("gearbox-hub", centerX - 4, 23, 8, "#DCE5EB", "#526879");
+                break;
+
+            case "electrical.transformer.power":
+                for (var index = 0; index < 5; index++)
+                {
+                    Bar($"left-radiator-channel-{index + 1}", 19 + index * 4, 64, 1.5, 43, "#526575");
+                    Bar($"right-radiator-channel-{index + 1}", 113 + index * 4, 64, 1.5, 43, "#526575");
+                }
+                Dot("oil-level-window", 102, 54, 8, "#4B9BB4", "#526879");
+                Bar("nameplate", 55, 104, 39, 10, "#E7EEF3");
+                break;
+
+            case "electrical.breaker":
+                for (var index = 0; index < 5; index++)
+                {
+                    Bar($"left-post-rib-{index + 1}", 34, 76 + index * 10, 8, 2, "#F0F4F6");
+                    Bar($"right-post-rib-{index + 1}", 89, 76 + index * 10, 8, 2, "#F0F4F6");
+                }
+                foreach (var terminalX in new[] { 58d, 78d })
+                    Dot($"terminal-fastener-{terminalX:0}", terminalX, 10, 5, "#F0F4F6", "#526879");
+                break;
+
+            case "electrical.disconnector":
+            case "electrical.earthing-switch":
+                for (var index = 0; index < 4; index++)
+                {
+                    Bar($"left-insulator-rib-{index + 1}", 21, 68 + index * 9, 18, 2, "#F0F4F6");
+                    Bar($"right-insulator-rib-{index + 1}", width - 42, 68 + index * 9, 18, 2, "#F0F4F6");
+                }
+                Dot("blade-pivot", 31, 42, 8, "#DCE5EB", "#526879");
+                Dot("contact-jaw", width - 37, 39, 10, "#B6C4CE", "#526879");
+                break;
+
+            case "electrical.generator":
+                RadialBolts("end-shield-fastener", 69, 58, 37, style == VisualStyle.HighPerformance ? 4 : 8,
+                    style == VisualStyle.HighPerformance ? 3 : 4);
+                for (var index = 0; index < 5; index++)
+                    Bar($"stator-vent-{index + 1}", 36 + index * 12, 83, 5, 2, "#526575");
+                break;
+
+            case "electrical.current-transformer":
+                for (var index = 0; index < 5; index++)
+                    Bar($"winding-band-{index + 1}", 28, 53 + index * 8, 56, 2,
+                        style == VisualStyle.HighPerformance ? "#77838B" : "#8295A5");
+                foreach (var terminalX in new[] { 20d, 84d })
+                    Dot($"secondary-terminal-{terminalX:0}", terminalX, 88, 8, "#E7EEF3", "#526879");
                 break;
         }
 
@@ -874,7 +1540,7 @@ public static class BuiltinDynamoLibrary
             "core.text",
             Properties: Properties(
                 ("x", x), ("y", y), ("width", width), ("height", height),
-                ("text", text), ("fontSize", fontSize), ("fontWeight", 700),
+                ("text", text), ("fontSize", fontSize), ("fontWeight", 600),
                 ("horizontalAlignment", "center"), ("verticalAlignment", "middle"),
                 ("textColor", textColor)),
             Id: ElementId(sequence));
@@ -886,8 +1552,17 @@ public static class BuiltinDynamoLibrary
         double y,
         string color,
         string parameterKey,
-        string target) =>
-        new(
+        string target)
+    {
+        var semanticColor = parameterKey switch
+        {
+            "running" when color.Equals("#16A34A", StringComparison.OrdinalIgnoreCase) => "#C97B7B",
+            "running" => "#D92D20",
+            "fault" when color.Equals("#DC2626", StringComparison.OrdinalIgnoreCase) => "#D8B95F",
+            "fault" when color.Equals("#EF4444", StringComparison.OrdinalIgnoreCase) => "#EAB308",
+            _ => color
+        };
+        return new(
             key,
             "core.ellipse",
             Bindings:
@@ -905,9 +1580,10 @@ public static class BuiltinDynamoLibrary
             ],
             Properties: Properties(
                 ("x", x), ("y", y), ("width", 18), ("height", 18),
-                ("fillColor", color), ("strokeColor", "#111827"), ("strokeWidth", 1),
+                ("fillColor", semanticColor), ("strokeColor", "#111827"), ("strokeWidth", 1),
                 ("visible", false)),
             Id: ElementId(sequence));
+    }
 
     private static IReadOnlyCollection<DynamoParameterDefinitionEngineeringDto> PumpParameters() =>
         Parameters(

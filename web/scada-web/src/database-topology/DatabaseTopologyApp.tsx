@@ -297,6 +297,7 @@ export function DatabaseTopologyApp() {
     if (!operationId) return;
     const result = await commitDatabaseCutover(operationId);
     setStatus(result.status);
+    setPending(null);
     setNotice({ tone: result.succeeded ? 'success' : 'danger', text: result.succeeded ? t.phaseCompleted : (result.diagnostic ?? t.errorServer) });
     setConfirmation(null);
   });

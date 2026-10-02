@@ -47,10 +47,7 @@ test('mounted Dynamo Library renders and captures all 72 canonical previews', as
   // real product cards are visible in one evidence capture. Rendering itself
   // remains the production CanonicalVisualPreview/CanonicalVisualRenderer.
   await page.addStyleTag({
-    content: [
-      '.visual-dynamo-library__grid{max-height:none!important;overflow:visible!important;}',
-      '.visual-dynamo-library__selection{position:sticky;bottom:0;background:var(--eng-panel,#121922);z-index:3;}'
-    ].join('\n')
+    content: '.visual-dynamo-library__grid{max-height:none!important;overflow:visible!important;}'
   });
   await library.screenshot({ path: join(outputDir, '00-library-72-cards.png'), animations: 'disabled' });
 

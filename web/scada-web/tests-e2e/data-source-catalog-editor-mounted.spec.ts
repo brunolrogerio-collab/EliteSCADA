@@ -413,6 +413,12 @@ test('mounted Simulation TAG editor presents one canonical type-aware authoring 
     const restore = await request.post('/api/engineering/import/json/apply', { data: originalPackage });
     expect(restore.ok(), `Restore apply failed: ${restore.status()} ${await restore.text()}`).toBeTruthy();
     await savePublishActivate(request, projectKey, 'Simulation TAG UX convergence cleanup');
+    await expect.poll(async () => {
+      const response = await request.get('/api/tags');
+      if (!response.ok()) return true;
+      const tags = await response.json() as Array<{ name?: string; path?: string }>;
+      return tags.some(tag => tag.name === tagName || tag.path === 'Simulation_UX_Runtime_Value');
+    }, { timeout: 15_000 }).toBe(false);
   }
 });
 

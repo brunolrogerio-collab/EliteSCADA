@@ -22,7 +22,7 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
     throw new Error('The explicit E2E fixture must be Active before Runtime evidence begins.');
   expect(runtimeState.live.revision).toBe(fixtureActiveRevision);
 
-  await expect(page.getByRole('link', { name: /EliteSCADA/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'EliteSCADA', exact: true })).toBeVisible();
   await expect(page.getByTestId('runtime-engineering-application')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId('runtime-engineering-canvas')).toBeVisible();
   await expect(page.getByText('E2E Explicit Demo Fixture')).toBeVisible();

@@ -1,0 +1,66 @@
+name: Dynamo artwork mounted preview evidence
+
+on:
+  pull_request:
+    branches: [wave15/corrections-integration]
+    paths:
+      - src/Scada.Api/Runtime/BuiltinDynamoLibrary.cs
+      - tests/Scada.Drivers.Tests/BuiltinDynamoLibraryTests.cs
+      - web/scada-web/tests-e2e/dynamo-artwork-preview.spec.ts
+      - .github/workflows/dynamo-artwork-preview.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dynamo-artwork-preview-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mounted-preview:
+    name: Mount EliteSCADA and capture 72 Dynamo previews
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: timescale/timescaledb:2.29.2-pg18
+        env:
+          POSTGRES_DB: elitescada_e2e
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d elitescada_e2e"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ConnectionStrings__EliteScada: Host=127.0.0.1;Port=5432;Database=elitescada_e2e;Username=postgres;Password=postgres;Pooling=false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.400'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - run: dotnet restore ScadaPlatform.sln
+      - working-directory: web/scada-web
+        run: npm ci --no-audit --no-fund
+      - working-directory: web/scada-web
+        run: npx playwright install --with-deps chromium
+      - name: Mount product and capture canonical Dynamo Library evidence
+        working-directory: web/scada-web
+        run: npm run test:e2e -- tests-e2e/dynamo-artwork-preview.spec.ts
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dynamo-artwork-preview-72
+          path: web/scada-web/artifacts/dynamo-artwork-preview
+          if-no-files-found: error
+          retention-days: 14
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dynamo-artwork-preview-playwright-report
+          path: web/scada-web/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7

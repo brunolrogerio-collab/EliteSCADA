@@ -37,6 +37,27 @@ public sealed class SimulationDriverTests
         Assert.Equal("Demo.Fallback.Value", registry.Snapshot().Single().Path);
     }
 
+    [Fact]
+    public async Task Driver_CurrentTimePublishesUtcDateTimeValues()
+    {
+        var eventBus = new InMemoryScadaEventBus();
+        var cache = new CurrentTagCache(eventBus);
+        var registry = new InMemoryTagRegistry();
+        var tag = TagDefinition.Create("Clock", "Demo.Clock", TagDataType.DateTime, "builtin.simulation");
+        await using var driver = new SimulationDriver(
+            cache,
+            registry,
+            new[] { new SimulationPoint(tag, SimulationSignalType.CurrentTime) },
+            TimeSpan.FromMilliseconds(10));
+
+        await driver.StartAsync();
+        await WaitForAsync(() => cache.TryGet(tag.Id, out var value) && value?.Value is DateTimeOffset, TimeSpan.FromSeconds(1));
+
+        Assert.True(cache.TryGet(tag.Id, out var sample));
+        Assert.IsType<DateTimeOffset>(sample!.Value);
+        Assert.Equal(TagQuality.Good, sample.Quality);
+    }
+
     private static async Task WaitForAsync(Func<bool> predicate, TimeSpan timeout)
     {
         var deadline = DateTimeOffset.UtcNow + timeout;

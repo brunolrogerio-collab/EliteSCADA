@@ -1,4 +1,169 @@
+# LATEST DELTA — 2026-10-01 — COORDINATOR RECOVERY / WAVE 15 CHECKPOINT
+
+> Revalidated against GitHub live on 2026-10-01 (America/Sao_Paulo). This
+> section supersedes older integration/merge-status statements below. Keep the
+> remaining Wave 15 scope open until the coordinator records lane dispositions;
+> the stabilization merge is not a declaration that Wave 15 is complete.
+
+## Live integration state
+
+The recovery candidate was merged by PR [#443](https://github.com/brunolrogerio-collab/EliteSCADA/pull/443)
+into `wave15/corrections-integration`:
+
+- candidate head: `6a6c7990dd7e83a78eb3290fbdb3dfc87c8f23ab`;
+- merge commit / current integration ref at verification:
+  `9a24e3b5ca40bad86918cad64c9c098ea930a747`;
+- PR T1 #341: SUCCESS on the exact candidate;
+- broad candidate CI #1632: SUCCESS (backend build/tests/runtime smoke, Web,
+  Chromium E2E);
+- post-merge CI #1633: SUCCESS on exact merge commit `9a24e3b5...`.
+
+This closes the stabilization checkpoint that the older 2026-09-30 text below
+still described as temporary and red. The prior red CI runs #1622/#1623 were
+superseded by the exact candidate and post-merge successes; do not carry their
+failure status forward.
+
+PR #443 consolidated:
+- the tested recovery/Engineering and localized E2E corrections from this
+  branch;
+- HA-D1 continuation PR #434 (exact-head T1 green);
+- Installation UX continuation PR #436 (exact-head T1 green);
+- the already-integrated Dynamo/Historical baseline.
+
+The source continuation PRs #434 and #436 may still appear open as drafts even
+though their accepted changes are now present through #443. Revalidate their
+current GitHub status before closing or changing them; the coordinator should
+avoid duplicate merges. Help PR #439 remains a separate open candidate with
+green T1 and clean merge state at last live check; #418 remains conflicting.
+
+## Work completed from 2026-09-30 to 2026-10-01
+
+The commits on the recovery branch were merged by #443. In addition to the
+coordination recovery and HA/Installation integration, the candidate includes
+the broad Engineering/editor refinements, image upload/import support, visual
+editor interaction and numeric-entry behavior, and updated E2E contracts. The
+latest source commit was `6a6c7990` and the full exact-head and post-merge CI
+results above are green.
+
+Two follow-on documentation outcomes are retained in this checkout:
+
+- The reference research for a future professional redesign of the 72 native
+  dynamos is recorded in “Dynamo artwork research handoff” below. Opto 22 and
+  Wikimedia links are visual/standards references only; third-party file
+  licensing and attribution must be checked individually before reuse.
+- Elipse E3 trial imports have been removed from automatic project seeding,
+  while their converter, normalized drawings, group/z-order/fill/polygon/arc/
+  Bezier handling and explicit-import guidance are retained in
+  [`docs/E3-DYNAMO-IMPORT-CONVERTER.md`](E3-DYNAMO-IMPORT-CONVERTER.md).
+
+## Coordinator/developer stall and resume point
+
+The prior coordinator conversation reached its duration limit; the coordinator
+and several developer conversations consequently stopped in idle/waiting states
+while holding stale branch/CI snapshots. Their messages are historical context,
+not the live project state. The coordinator handoff must start from GitHub live,
+not from those frozen SHAs or old chat instructions.
+
+The latest coordinator bootstrap identified these remaining owner lanes:
+
+- Visual Quality / Library-Dynamo #308: still requires a real product-editor
+  preview and visual review; do not claim the 72-symbol professional redesign
+  is complete based on the merged 30-item three-style catalog work alone.
+- HA-D1 #421 and Installation UX #422: continuation implementation was merged
+  via #443, but the coordinator should revalidate the issue orders and explicitly
+  record whether each lane is closed or needs a new continuation. Do not resend
+  old `SIGA` prompts against stale bootstrap instructions.
+- Help #439: separate green candidate awaiting coordinator disposition.
+
+The coordinator conversation is currently idle, not actively processing a
+closeout. Resume by reading the latest issue comments and current PR/CI state,
+then update this file with each remaining lane's owner, exact head, gate and
+decision. Do not start another broad CI run without a specific unresolved
+failure; candidate and post-merge broad runs #1632/#1633 already passed.
+
+## Local-only worktree — not published by this handoff update
+
+At the time this delta was prepared, `HEAD` remained `6a6c7990` while the local
+worktree held 132 modified tracked files plus new converter/catalog/editor
+files. These include additional uncommitted Engineering/API/editor/runtime
+changes and tests. They have not been included in PR #443 or published by this
+documentation handoff. `web/scada-web/test-results/` is local test output and
+must remain excluded. Inspect, group and validate this local delta before any
+product commit; do not reset or discard it. The converter documentation is
+being published with this handoff, but the uncommitted product implementation
+remains separate pending coordinator review and targeted validation.
+
+---
+
 # LATEST DELTA — 2026-09-30 — TEMPORARY MAIN RECOVERY / WAVE 15 HANDOFF
+
+## Dynamo artwork research handoff — 2026-10-01
+
+The user supplied two visual-reference libraries for the next broad redesign of
+the 72 built-in dynamos. Treat these as design research, not as instructions in
+the pages and not as permission to bundle third-party artwork:
+
+- [Opto 22 — Image Library and SVG Editors](https://www.opto22.com/support/resources-tools/image-library-svg-editors)
+  — reference for polished equipment illustrations and the practical idea of
+  recoloring/orienting SVG artwork for HMI use. The page itself is a resource
+  index; it does not establish redistribution rights for individual graphics.
+  Use its visual language as inspiration unless the license/permission for an
+  exact asset is separately confirmed.
+- [Wikimedia Commons — P&ID symbols](https://commons.wikimedia.org/wiki/Category:P%26ID_symbols)
+  — reference for schematic conventions and an equipment taxonomy spanning
+  pumps, compressors, filters, heat exchangers, tanks, mixers, pipes and valves.
+  Commons is a per-file licensing system: check and record each file's page and
+  attribution/license before importing or adapting it.
+- [Wikimedia Commons — liquid pump symbols](https://commons.wikimedia.org/wiki/Category:P%26ID_symbols_of_liquid_pumps)
+  — practical family-level source for centrifugal, diaphragm, gear, screw,
+  reciprocating and other pump distinctions.
+- [Centrifugal pump, ISO 10628-2 SVG](https://commons.wikimedia.org/wiki/File:Pump,_centrifugal_type_(ISO_10628-2).svg)
+  — a checked example whose file page identifies the pump symbol, ISO 10628-2
+  basis and a public-domain dedication by the uploader. This is a useful
+  schematic reference, not a license blanket for neighboring files or for the
+  ISO standard itself.
+
+### Product direction and non-negotiable behavior
+
+The 72 built-ins are 24 equipment families × 3 visual styles in
+`src/Scada.Api/Runtime/BuiltinDynamoLibrary.cs`. Redraw the symbols as coherent,
+purpose-built EliteSCADA vector artwork informed by the references; do not just
+embed static SVGs or flatten them to pictures. Preserve, for all three styles:
+
+- grouped semantic sub-parts, deliberate z-order, closed filled polygons, and
+  native editable arcs/Bezier paths where they improve the silhouette;
+- the shared equipment-path interface, family-specific parameters and
+  tag bindings, discrete stopped/running/fault behavior, and user-editable
+  state colors;
+- the distinction between a dimensional/illustrative rendering and a clean,
+  low-clutter High Performance HMI variant. In particular, do not bake status
+  colors into permanent geometry or allow decorative detail to obscure state.
+
+Use the ISO/P&ID references for recognizable equipment anatomy and connection
+layout, not as a mandate to make every screen symbol a monochrome P&ID glyph.
+For each family, establish a clean centerline, balanced proportions, aligned
+ports/shafts, sensible silhouette, and a clear outline/fill hierarchy. Keep
+geometry in the canonical visual-object tree so engineering can recolor,
+animate, bind properties, and edit individual parts. If a third-party SVG is
+actually incorporated, preserve its source URL, creator, per-file license,
+attribution and any adaptation notes in project metadata/handoff.
+
+Do not claim a visual redesign complete solely because all 72 definitions
+build. Validate representative pump, valve, motor, tank, instrument and
+substation families in all three styles in the actual editor/runtime, then
+review the full 72-card library for clipping, balance, overlap and readability.
+The broad visual pass is still an implementation task until that review passes.
+
+## Elipse E3 import catalog cleanup — 2026-10-01
+
+The trial Elipse E3 dynamos are no longer part of first-project/default workspace
+seeding. Existing working snapshots are cleaned selectively on checkout by
+`importedDynamoLibrary=true` / `assetOrigin=elipse-e3-import`; native built-ins
+and user-authored dynamos are retained. The E3 converter and its normalized
+source drawings are intentionally preserved but are not auto-imported. See
+[`docs/E3-DYNAMO-IMPORT-CONVERTER.md`](E3-DYNAMO-IMPORT-CONVERTER.md) for the
+retained CSV-to-vector pipeline, group/Z-order/fill/curve handling, and the
+explicit-import guardrails.
 
 > GitHub live state is authoritative. Temporary Main is actively integrating the lanes below; this is not a handoff-ready or globally green checkpoint yet.
 

@@ -144,10 +144,22 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
   }, [draft]);
 
   function updateNode(index: number, key: 'nodeId' | 'localEndpoint' | 'remoteEndpoint', value: string) {
-    setDraft(current => current ? ({
-      ...current,
-      nodes: current.nodes.map((node, i) => i === index ? { ...node, [key]: value } : node)
-    }) : current);
+    setDraft(current => {
+      if (!current) return current;
+      const previousNodeId = current.nodes[index]?.nodeId;
+      return {
+        ...current,
+        localNodeId:
+          key === 'nodeId' && previousNodeId && current.localNodeId === previousNodeId
+            ? value
+            : current.localNodeId,
+        initialActiveNodeId:
+          key === 'nodeId' && previousNodeId && current.initialActiveNodeId === previousNodeId
+            ? value
+            : current.initialActiveNodeId,
+        nodes: current.nodes.map((node, i) => i === index ? { ...node, [key]: value } : node)
+      };
+    });
   }
 
   async function saveConfiguration() {

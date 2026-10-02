@@ -503,17 +503,25 @@ test('advanced HA tuning stays out of the primary configuration flow until reque
   await expect(page.getByText('Versão da topologia', { exact: true })).toBeVisible();
 });
 
-test('peer endpoint can be left automatic and only exposes an override on demand', async ({ page }) => {
+test('peer endpoint stays automatic until an expert explicitly opens the transport override', async ({ page }) => {
   const state = healthyState();
   state.config.running.peerTransport.peerEndpoint = null;
   state.config.desired.peerTransport.peerEndpoint = null;
   await mockHa(page, state);
   await open(page);
 
-  const mode = page.getByTestId('ha-peer-endpoint-mode');
-  await expect(mode).toContainText('Endpoint automático');
+  await expect(page.getByText('Conexão HA entre servidores', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Peer endpoint')).toHaveCount(0);
 
+  const advanced = page.getByTestId('ha-advanced-settings');
+  await advanced.getByText('Configuração avançada', { exact: true }).click();
+
+  const transport = page.getByTestId('ha-peer-transport-override');
+  await expect(transport).not.toHaveAttribute('open', '');
+  await transport.getByText('Sobrescrever transporte do peer', { exact: true }).click();
+
+  const mode = page.getByTestId('ha-peer-endpoint-mode');
+  await expect(mode).toContainText('Endpoint automático');
   await page.getByRole('button', { name: 'Sobrescrever endpoint' }).click();
   await expect(page.getByLabel('Peer endpoint')).toBeVisible();
   await page.getByRole('button', { name: 'Usar endpoint automático' }).click();

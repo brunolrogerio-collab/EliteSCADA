@@ -144,7 +144,7 @@ function CanonicalElement({
     return <CanonicalDynamoElement
       element={element}
       locale={locale}
-      liveSamples={resolvedSamples}
+      liveSamples={liveSamples}
       dynamoDefinitions={dynamoDefinitions}
       equipmentDefinitions={equipmentDefinitions}
       templateDefinitions={templateDefinitions}
@@ -158,7 +158,7 @@ function CanonicalElement({
 
   if (element.equipmentId && equipmentDefinitions && templateDefinitions) {
     return <CanonicalEquipmentElement
-      element={element} locale={locale} liveSamples={resolvedSamples}
+      element={element} locale={locale} liveSamples={liveSamples}
       equipmentDefinitions={equipmentDefinitions} templateDefinitions={templateDefinitions}
       onVisualEvent={onVisualEvent} onTagWrite={onTagWrite} visualAssetUrl={visualAssetUrl}
       showTechnicalFallbackText={showTechnicalFallbackText}
@@ -211,7 +211,7 @@ function CanonicalElement({
           key={child.id ?? `${child.key}-${index}`}
           element={child}
           locale={locale}
-          liveSamples={resolvedSamples}
+          liveSamples={liveSamples}
           dynamoDefinitions={dynamoDefinitions}
           equipmentDefinitions={equipmentDefinitions}
           templateDefinitions={templateDefinitions}
@@ -426,7 +426,7 @@ function CanonicalElement({
         element={element}
         values={values}
         diagnostics={dynamic.diagnostics}
-        liveSamples={resolvedSamples}
+        liveSamples={liveSamples}
         style={style}
         runtimeObjectId={runtimeObjectId}
         title={elementTitle}
@@ -445,7 +445,7 @@ function CanonicalElement({
         element={element}
         values={values}
         diagnostics={dynamic.diagnostics}
-        liveSamples={resolvedSamples}
+        liveSamples={liveSamples}
         style={numericInputStyle}
         runtimeObjectId={runtimeObjectId}
         locale={locale}
@@ -585,7 +585,7 @@ function CanonicalDynamoElement({
         key={child.id ?? `${child.key}-${index}`}
         element={child}
         locale={locale}
-        liveSamples={resolvedSamples}
+        liveSamples={liveSamples}
         dynamoDefinitions={dynamoDefinitions}
         equipmentDefinitions={equipmentDefinitions}
         templateDefinitions={templateDefinitions}
@@ -651,7 +651,7 @@ function CanonicalEquipmentElement({
     onClick={visualClickHandler(element, onVisualEvent, instanceId)}>
     {children.map((child, index) => <CanonicalElement
       key={`${instanceId}:${child.id ?? `${child.key}-${index}`}`}
-      element={child} locale={locale} liveSamples={resolvedSamples}
+      element={child} locale={locale} liveSamples={liveSamples}
       equipmentDefinitions={equipmentDefinitions} templateDefinitions={templateDefinitions}
       onVisualEvent={onVisualEvent} runtimeIdentityPrefix={instanceId}
       onTagWrite={onTagWrite} visualAssetUrl={visualAssetUrl}

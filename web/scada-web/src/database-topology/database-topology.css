@@ -147,6 +147,33 @@
   color: var(--app-text-muted, #9aa8b6);
 }
 
+.db-topology-collapsed-editor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--app-border, #34414e);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--app-panel-raised, #17222d) 70%, transparent);
+}
+
+.db-topology-collapsed-editor p {
+  margin: 0;
+  color: var(--app-text-muted, #9aa8b6);
+}
+
+.db-topology-collapsed-editor button {
+  flex: 0 0 auto;
+  min-height: 38px;
+  border: 1px solid var(--app-border, #405161);
+  border-radius: 8px;
+  padding: 8px 14px;
+  color: inherit;
+  cursor: pointer;
+}
+
 .db-topology-notice {
   margin-bottom: 14px;
   padding: 11px 13px;
@@ -555,6 +582,11 @@
 
   .db-topology-next-action {
     grid-template-columns: 1fr;
+  }
+
+  .db-topology-collapsed-editor {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .db-topology-status-strip,

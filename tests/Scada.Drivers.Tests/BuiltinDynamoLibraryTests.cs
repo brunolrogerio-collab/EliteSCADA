@@ -381,7 +381,14 @@ public sealed class BuiltinDynamoLibraryTests
         {
             var properties = element.Properties!;
             Assert.True(properties.TryGetValue("bezierPath", out var path));
-            Assert.StartsWith("M ", path.GetString());
+            var pathText = path.GetString()!;
+            Assert.StartsWith("M ", pathText);
+            var coordinates = System.Text.RegularExpressions.Regex
+                .Matches(pathText, @"-?\d+(?:\.\d+)?")
+                .Select(match => double.Parse(match.Value, System.Globalization.CultureInfo.InvariantCulture))
+                .ToArray();
+            Assert.NotEmpty(coordinates);
+            Assert.All(coordinates, coordinate => Assert.InRange(coordinate, 0d, 100d));
             Assert.True(properties["width"].GetDouble() > 0);
             Assert.True(properties["height"].GetDouble() > 0);
         });

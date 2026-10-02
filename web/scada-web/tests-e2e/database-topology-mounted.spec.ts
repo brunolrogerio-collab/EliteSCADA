@@ -298,7 +298,7 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
   await expect(page.getByTestId('database-validation-result')).toContainText('Compatible');
 
   await page.getByRole('button', { name: 'Prepare migration' }).click();
-  await expect(page.getByTestId('database-migration-plan')).toContainText('LocalManaged');
+  await expect(page.getByTestId('database-migration-plan')).toContainText('Local Managed');
   await expect(page.getByTestId('database-migration-plan')).toContainText('Remote');
   await expect(page.getByRole('status')).toContainText('Credentials configured');
   await expect(page.getByLabel('Primary Password / secret')).toHaveCount(0);

@@ -1,20 +1,24 @@
 import type { CSSProperties } from 'react';
 
 export const VISUAL_DEFINITION_SURFACE_KEYS = Object.freeze({
+  backgroundMode: 'backgroundMode',
   backgroundColor: 'backgroundColor',
   backgroundImageAssetId: 'backgroundImageAssetId',
   backgroundImageFit: 'backgroundImageFit'
 } as const);
 
 export type VisualDefinitionBackgroundFit = 'cover' | 'contain' | 'stretch' | 'center' | 'tile';
+export type VisualDefinitionBackgroundMode = 'theme' | 'color' | 'image';
 
 export type VisualDefinitionSurfaceConfig = Readonly<{
+  backgroundMode: VisualDefinitionBackgroundMode;
   backgroundColor: string | null;
   backgroundImageAssetId: string | null;
   backgroundImageFit: VisualDefinitionBackgroundFit;
 }>;
 
 export type VisualDefinitionSurfacePatch = Readonly<{
+  backgroundMode?: VisualDefinitionBackgroundMode | null;
   backgroundColor?: string | null;
   backgroundImageAssetId?: string | null;
   backgroundImageFit?: VisualDefinitionBackgroundFit | null;
@@ -25,8 +29,13 @@ export function readVisualDefinitionSurfaceConfig(
 ): VisualDefinitionSurfaceConfig {
   const color = normalizeBackgroundColor(properties?.[VISUAL_DEFINITION_SURFACE_KEYS.backgroundColor] ?? null);
   const assetId = normalizeStableText(properties?.[VISUAL_DEFINITION_SURFACE_KEYS.backgroundImageAssetId] ?? null);
+  const backgroundMode = normalizeBackgroundMode(
+    properties?.[VISUAL_DEFINITION_SURFACE_KEYS.backgroundMode] ?? null,
+    assetId,
+    color
+  );
   const fit = normalizeFit(properties?.[VISUAL_DEFINITION_SURFACE_KEYS.backgroundImageFit] ?? null);
-  return Object.freeze({ backgroundColor: color, backgroundImageAssetId: assetId, backgroundImageFit: fit });
+  return Object.freeze({ backgroundMode, backgroundColor: color, backgroundImageAssetId: assetId, backgroundImageFit: fit });
 }
 
 export function applyVisualDefinitionSurfacePatch<T extends Readonly<{
@@ -36,6 +45,10 @@ export function applyVisualDefinitionSurfacePatch<T extends Readonly<{
   patch: VisualDefinitionSurfacePatch
 ): T {
   const properties = { ...(definition.properties ?? {}) };
+  if (patch.backgroundMode !== undefined) {
+    if (patch.backgroundMode === null) delete properties[VISUAL_DEFINITION_SURFACE_KEYS.backgroundMode];
+    else properties[VISUAL_DEFINITION_SURFACE_KEYS.backgroundMode] = normalizeBackgroundMode(patch.backgroundMode, null, null);
+  }
   if (patch.backgroundColor !== undefined) {
     const color = normalizeBackgroundColor(patch.backgroundColor);
     if (color === null) delete properties[VISUAL_DEFINITION_SURFACE_KEYS.backgroundColor];
@@ -59,7 +72,15 @@ export function resolveVisualDefinitionSurfaceStyle(
 ): CSSProperties {
   const config = readVisualDefinitionSurfaceConfig(properties);
   const style: CSSProperties = {};
-  if (config.backgroundColor) style.backgroundColor = config.backgroundColor;
+  if (config.backgroundMode === 'theme') {
+    style.backgroundColor = 'var(--app-bg, #0b0f14)';
+    return style;
+  }
+  if (config.backgroundColor && config.backgroundMode === 'image') style.backgroundColor = config.backgroundColor;
+  if (config.backgroundMode === 'color') {
+    if (config.backgroundColor) style.backgroundColor = config.backgroundColor;
+    return style;
+  }
   if (!config.backgroundImageAssetId || !assetUrl) return style;
 
   const url = assetUrl(config.backgroundImageAssetId);
@@ -73,6 +94,21 @@ export function resolveVisualDefinitionSurfaceStyle(
     case 'tile': style.backgroundSize = 'auto'; style.backgroundRepeat = 'repeat'; break;
   }
   return style;
+}
+
+function normalizeBackgroundMode(
+  value: string | null | undefined,
+  assetId: string | null,
+  color: string | null
+): VisualDefinitionBackgroundMode {
+  const normalized = normalizeStableText(value)?.toLowerCase();
+  if (normalized === null || normalized === undefined) return assetId ? 'image' : color ? 'color' : 'theme';
+  switch (normalized) {
+    case 'theme': return 'theme';
+    case 'color': return 'color';
+    case 'image': return 'image';
+    default: throw new Error(`Unknown visual definition background mode '${value}'.`);
+  }
 }
 
 export function normalizeBackgroundColor(value: string | null | undefined): string | null {

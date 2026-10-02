@@ -28,6 +28,7 @@
 .runtime-view-navigation a { padding: 6px 11px; border: 1px solid transparent; border-radius: 6px; color: var(--app-text-secondary); font-size: 12px; font-weight: 650; text-decoration: none; }
 .runtime-view-navigation a:hover, .runtime-view-navigation a:focus-visible { color: var(--app-text-primary); border-color: var(--app-border); outline: none; }
 .runtime-view-navigation a.active { color: var(--app-text-primary); border-color: var(--app-accent); background: var(--app-selected); }
+.runtime-view-navigation--inline { min-height: 0; height: auto; padding: 0; border: 0; background: transparent; }
 @media (max-width: 1180px) {
   .app-bar {
     grid-template-columns: auto minmax(0, 1fr) auto;

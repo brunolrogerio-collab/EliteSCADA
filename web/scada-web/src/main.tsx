@@ -13,8 +13,10 @@ import { EngineeringLockGate } from './engineering/EngineeringLockGate';
 import { ContextualHelpApp } from './help/ContextualHelpApp';
 import { LicensingApp } from './licensing/LicensingApp';
 import { RuntimeApplicationMount } from './runtime/application/RuntimeApplicationMount';
+import { RuntimeSessionClassProvider } from './runtime/application/RuntimeSessionClassPanel';
 import { HistoricalDataBrowserRuntime } from './runtime/historical-browser/HistoricalDataBrowserRuntime';
 import './styles.css';
+import './visual-runtime/visual-editor-fonts.css';
 import './app-theme.css';
 import './engineering/engineering-control-states.css';
 import './runtime/application/runtime-operator.css';
@@ -72,14 +74,17 @@ function ApplicationSurface() {
     </main>;
   }
 
+  if (path === '/') return <RuntimeApplicationMount showHistoryNavigation={access.history} />;
   return <Surface />;
 }
 
 createRoot(document.getElementById('root')!).render(
   <AuthGate>
-    <>
-      <AppNavigation />
-      <ApplicationSurface />
-    </>
+    <RuntimeSessionClassProvider>
+      <>
+        <AppNavigation />
+        <ApplicationSurface />
+      </>
+    </RuntimeSessionClassProvider>
   </AuthGate>
 );

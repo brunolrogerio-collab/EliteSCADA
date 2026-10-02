@@ -4,6 +4,7 @@ const copy = {
   'pt-BR': {
     title: 'Assistente de Script / Objetos do Projeto',
     subtitle: 'Descubra objetos reais da Área de trabalho e insira Python compatível no cursor.',
+    workflowHelp: 'Use assim: pesquise um objeto → escolha a ação → insira no editor → corrija qualquer aviso de sintaxe antes do Preview.',
     search: 'Pesquisar TAG, tela, objeto, propriedade, Dynamo ou API',
     refresh: 'Atualizar projeto',
     loading: 'Carregando objetos do projeto…',
@@ -75,6 +76,7 @@ const copy = {
   en: {
     title: 'Script Assistant / Project Objects',
     subtitle: 'Discover real Workspace objects and insert compatible Python at the cursor.',
+    workflowHelp: 'How to use: search for an object → choose an action → insert it in the editor → resolve syntax warnings before Preview.',
     search: 'Search TAG, screen, object, property, Dynamo or API',
     refresh: 'Refresh project',
     loading: 'Loading project objects…',
@@ -146,6 +148,7 @@ const copy = {
   es: {
     title: 'Asistente de Script / Objetos del Proyecto',
     subtitle: 'Descubra objetos reales del Área de trabajo e inserte Python compatible en el cursor.',
+    workflowHelp: 'Cómo usar: busque un objeto → elija una acción → insértela en el editor → corrija avisos de sintaxis antes de Preview.',
     search: 'Buscar TAG, pantalla, objeto, propiedad, Dynamo o API',
     refresh: 'Actualizar proyecto',
     loading: 'Cargando objetos del proyecto…',

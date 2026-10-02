@@ -14,6 +14,10 @@ const expectedCommonKeys = [
   'width',
   'height',
   'rotation',
+  'arcStartAngle',
+  'arcEndAngle',
+  'arcStyle',
+  'bezierPath',
   'scaleX',
   'scaleY',
   'horizontalFlip',
@@ -55,12 +59,17 @@ const expectedCommonKeys = [
   'imagePositionY',
   'imageZoom',
   'value',
+  'unit',
+  'decimalPlacesEnabled',
+  'decimalPlaces',
   'minimum',
   'maximum',
   'step',
   'orientation',
   'interactionEnabled',
   'showApplyButton',
+  'showCancelButton',
+  'showSteppers',
   'reverseDirection',
   'trackColor',
   'thumbColor',
@@ -102,8 +111,14 @@ test('common registry exposes the converged visual property family and image fit
     .toMatchObject({ type: 'string', defaultValue: '', runtimeReadable: true });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.enabled))
     .toMatchObject({ type: 'boolean', defaultValue: true, runtimeWritable: true, supportsBinding: true });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.showCancelButton))
+    .toMatchObject({ type: 'boolean', defaultValue: true, engineeringEditable: true });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.showSteppers))
+    .toMatchObject({ type: 'boolean', defaultValue: true, engineeringEditable: true });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.fillStyle))
     .toMatchObject({ type: 'enum', defaultValue: 'solid', allowedValues: ['none', 'solid', 'gradient'] });
+  expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.fillColor))
+    .toMatchObject({ type: 'color', defaultValue: '#808080FF', animatable: true });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.fillSecondaryColor))
     .toMatchObject({ type: 'color', defaultValue: '#00000000', animatable: true });
   expect(COMMON_VISUAL_PROPERTY_REGISTRY.getRequired(VISUAL_PROPERTY_KEYS.gradientDirection))

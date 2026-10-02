@@ -33,6 +33,19 @@ export class EngineeringSnapshotLoadError extends Error {
 }
 
 async function getJson<T>(path: string): Promise<T> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await getJsonOnce<T>(path);
+    } catch (reason) {
+      const retryable = reason instanceof EngineeringSnapshotLoadError
+        && (reason.kind === 'transport' || reason.kind === 'response');
+      if (!retryable || attempt >= 1) throw reason;
+      await new Promise(resolve => window.setTimeout(resolve, 250));
+    }
+  }
+}
+
+async function getJsonOnce<T>(path: string): Promise<T> {
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), 30_000);
   try {
@@ -132,6 +145,30 @@ export async function importVisualAsset(
 
   if (!response.ok) throw await readError(response);
   return await response.json() as VisualAssetImportResult;
+}
+
+export async function renameVisualAsset(assetId: string, name: string, expectedChangeVersion: number): Promise<void> {
+  const response = await fetch(`${API}/api/engineering/visual-assets/${encodeURIComponent(assetId)}`, {
+    method: 'PUT',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json; charset=utf-8',
+      'x-elitescada-workspace-version': String(expectedChangeVersion)
+    },
+    body: JSON.stringify({ name })
+  });
+  if (!response.ok) throw await readError(response);
+}
+
+export async function deleteVisualAsset(assetId: string, expectedChangeVersion: number): Promise<void> {
+  const response = await fetch(`${API}/api/engineering/visual-assets/${encodeURIComponent(assetId)}`, {
+    method: 'DELETE',
+    headers: {
+      accept: 'application/json',
+      'x-elitescada-workspace-version': String(expectedChangeVersion)
+    }
+  });
+  if (!response.ok) throw await readError(response);
 }
 
 export function visualAssetContentUrl(assetId: string): string {

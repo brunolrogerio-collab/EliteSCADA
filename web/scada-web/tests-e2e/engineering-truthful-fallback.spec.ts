@@ -17,6 +17,20 @@ const engineeringPackage = {
 };
 
 async function routeSnapshot(page: Page, mode: 'transport' | 'http' | 'success') {
+  await page.route('**/api/**', route => route.fulfill({
+    status: 404, contentType: 'application/json', body: '{}'
+  }));
+  await page.route('**/api/auth/config', route => route.fulfill({ json: {
+    authenticationEnabled: false, localLoginEnabled: false,
+    initialAdministratorRequired: false, initialAdministratorSetupAvailable: false
+  } }));
+  await page.route('**/api/auth/effective-capabilities', route => route.fulfill({ json: {
+    authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
+    authenticationEnabled: false,
+    runtime: ['View', 'TrendUse', 'SystemAdmin'],
+    workspace: ['EngineeringView', 'EngineeringModify', 'UserRoleAdmin']
+  } }));
+  await page.route('**/api/engineering/lock/status', route => route.fulfill({ json: { configured: false, locked: false } }));
   await page.route('**/api/engineering/workspace', route => {
     if (mode === 'transport') return route.abort('failed');
     if (mode === 'http') return route.fulfill({ status: 503, body: 'maintenance' });
@@ -55,4 +69,45 @@ test('Engineering exposes actual HTTP status and accepts a real Demo Project aft
   await expect(page.getByTestId('engineering-project-identity')).toHaveText('Demo Project');
   await expect(page.getByRole('button', { name: /TAGs/ })).toBeEnabled();
   await expect(page.getByTestId('engineering-workspace-state')).toContainText('Sem alterações');
+});
+
+test('Engineering retries one interrupted model response without disabling the workspace', async ({ page }) => {
+  let exportAttempts = 0;
+  await routeSnapshot(page, 'success');
+  await page.unroute('**/api/engineering/export/json');
+  await page.route('**/api/engineering/workspace', route => route.fulfill({ json: workspace }));
+  await page.route('**/api/engineering/export/json', route => {
+    exportAttempts += 1;
+    if (exportAttempts === 1) return route.abort('connectionreset');
+    return route.fulfill({ json: engineeringPackage });
+  });
+
+  await page.goto('/engineering');
+
+  await expect(page.getByTestId('engineering-project-identity')).toHaveText('Demo Project');
+  await expect(page.getByRole('button', { name: /TAGs/ })).toBeEnabled();
+  expect(exportAttempts).toBe(2);
+});
+
+test('Engineering header reports loading instead of unavailable while the first snapshot is pending', async ({ page }) => {
+  await routeSnapshot(page, 'success');
+  await page.unroute('**/api/engineering/export/json');
+
+  let releaseExport: (() => void) | undefined;
+  let markExportRequested: (() => void) | undefined;
+  const exportRequested = new Promise<void>(resolve => { markExportRequested = resolve; });
+  await page.route('**/api/engineering/export/json', async route => {
+    await new Promise<void>(resolve => {
+      releaseExport = resolve;
+      markExportRequested?.();
+    });
+    await route.fulfill({ json: engineeringPackage });
+  });
+
+  await page.goto('/engineering');
+  await exportRequested;
+  await expect(page.getByTestId('engineering-project-identity')).toHaveText('Carregando modelo');
+
+  releaseExport?.();
+  await expect(page.getByTestId('engineering-project-identity')).toHaveText('Demo Project');
 });

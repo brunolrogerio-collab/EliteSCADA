@@ -279,7 +279,7 @@ export function ReusableLibraryWorkspace({
                   <div>
                     <span className="reusable-library-workspace__kind">{kindLabel(resource.kind, locale)}</span>
                     <strong>{resource.displayName}</strong>
-                    <code>{resource.sourceKey}</code>
+                    {resource.kind === 'visual-asset' ? null : <code>{resource.sourceKey}</code>}
                   </div>
                   <div className="reusable-library-workspace__dependencies">
                     <span>{copy.dependencies}: {resource.dependencies.length}</span>
@@ -290,7 +290,7 @@ export function ReusableLibraryWorkspace({
                   <details className="reusable-library-workspace__inspection" data-testid="reusable-library-resource-inspection">
                     <summary>{copy.inspect}</summary>
                     <dl>
-                      <dt>{copy.resourceId}</dt><dd><code>{resource.resourceId}</code></dd>
+                      {resource.kind !== 'visual-asset' ? <><dt>{copy.resourceId}</dt><dd><code>{resource.resourceId}</code></dd></> : null}
                       <dt>{copy.payload}</dt><dd><code>{resource.payloadPath}</code></dd>
                       <dt>{copy.preview}</dt><dd>{isVisualResource(resource) ? copy.canonicalPreview : copy.metadataPreview}</dd>
                     </dl>

@@ -18,12 +18,13 @@ type VisualElement = {
   id?: string | null;
   key: string;
   type: string;
+  actions?: Array<{ eventKey: string; kind: string; targetKey?: string; parameters?: Record<string, unknown> }>;
   children?: VisualElement[] | null;
 };
 
 type EngineeringPackage = {
   screens?: Array<{ id?: string | null; key: string; elements?: VisualElement[] | null }>;
-  tags?: Array<{ id?: string | null; path: string; dataType: string }>;
+  tags?: Array<{ id?: string | null; path: string; dataType: string; readOnly?: boolean }>;
   [key: string]: unknown;
 };
 
@@ -39,7 +40,7 @@ test('mounted Events editor persists click and canonical timer/TAG-bit associati
   const screen = originalProject.screens?.find(candidate => Boolean(candidate.id));
   expect(screen, 'seeded demo must expose one persisted Screen for Wave 10 acceptance').toBeTruthy();
 
-  const tag = originalProject.tags?.find(candidate => Boolean(candidate.id) && ['int16', 'int32', 'int64'].includes(candidate.dataType.toLowerCase()));
+  const tag = originalProject.tags?.find(candidate => Boolean(candidate.id) && candidate.readOnly !== true && ['int16', 'int32', 'int64'].includes(candidate.dataType.toLowerCase()));
   expect(tag, 'seeded demo must expose one stable-ID integral TAG for bit selector acceptance').toBeTruthy();
 
   const originalObjectIds = new Set(
@@ -98,6 +99,31 @@ test('mounted Events editor persists click and canonical timer/TAG-bit associati
     await page.getByTestId('visual-editor-inspector-tab-events').click();
     const editor = page.getByTestId('visual-events-editor');
     await expect(editor).toBeVisible();
+
+    // Automatic events are authored as visual draft mutations, without requiring a Python Script.
+    await editor.getByTestId('visual-events-quick-kind').selectOption('setValue');
+    await editor.getByTestId('visual-events-quick-target').selectOption(tag!.id!);
+    await editor.getByTestId('visual-events-quick-value').fill('1');
+    const quickAdd = editor.getByTestId('visual-events-quick-add');
+    await expect(quickAdd).toBeEnabled();
+    await quickAdd.click();
+    await expect(editor.locator('.visual-editor-events__configured')).toContainText('Set');
+
+    await page.getByTestId('visual-editor-preview').click();
+    await expect(page.getByText('Candidato válido', { exact: true })).toBeVisible();
+    await expect(visualApply).toBeEnabled();
+    page.once('dialog', dialog => dialog.accept());
+    await visualApply.click();
+    await expect.poll(async () => {
+      const response = await request.get('/api/engineering/export/json');
+      if (!response.ok()) return false;
+      const project = await response.json() as EngineeringPackage;
+      const persistedScreen = project.screens?.find(candidate => candidate.id === screen!.id);
+      const persistedObject = flatten(persistedScreen?.elements ?? []).find(element => element.id === visualObject.id);
+      return Boolean(persistedObject?.actions?.some(action => action.eventKey.toLocaleLowerCase('en-US') === 'click'));
+    }).toBe(true);
+
+    await editor.locator('.visual-editor-events__scripts > summary').click();
 
     await editor.getByTestId('visual-events-event').selectOption('click');
     await editor.getByTestId('visual-events-script').selectOption(script.id);

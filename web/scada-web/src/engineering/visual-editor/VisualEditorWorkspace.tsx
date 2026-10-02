@@ -11,11 +11,17 @@ import './VisualEditorLayoutControls.css';
 export function VisualEditorWorkspace({
   snapshot,
   locale,
-  onApplied
+  onApplied,
+  definitionKind = 'screen',
+  initialDefinitionKey,
+  onRequestClose
 }: {
   snapshot: EngineeringSnapshot;
   locale: EngineeringLocale;
   onApplied: () => Promise<void>;
+  definitionKind?: 'screen' | 'template' | 'dynamo';
+  initialDefinitionKey?: string | null;
+  onRequestClose?: () => void;
 }) {
   const normalizedSnapshot = React.useMemo<EngineeringSnapshot>(() => ({
     ...snapshot,
@@ -37,7 +43,7 @@ export function VisualEditorWorkspace({
         tags={normalizedSnapshot.package.tags ?? []}
         visualAssets={normalizedSnapshot.package.visualAssets ?? []}
       >
-        <LegacyVisualEditorWorkspace snapshot={normalizedSnapshot} locale={locale} onApplied={onApplied} />
+        <LegacyVisualEditorWorkspace snapshot={normalizedSnapshot} locale={locale} onApplied={onApplied} definitionKind={definitionKind} initialDefinitionKey={initialDefinitionKey} onRequestClose={onRequestClose} />
       </DynamoAuthoringCatalogProvider>
     </C07VisualEditorI18nProvider>
 

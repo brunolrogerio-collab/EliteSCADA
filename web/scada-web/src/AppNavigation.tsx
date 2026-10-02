@@ -95,10 +95,10 @@ export function AppNavigation() {
               <option value="light">{text.themeLight}</option>
             </select>
           </label>
-          <UserSessionMenu locale={locale} />
+          <UserSessionMenu locale={locale} includeRuntimeSessionControls={path === '/' || path.startsWith('/runtime/history')} />
         </div>
       </header>
-      {activeHref === '/' && access.runtime && access.history && (
+      {path.startsWith('/runtime/history') && access.runtime && access.history && (
         <nav className="runtime-view-navigation" aria-label="Runtime views">
           <a href="/" className={activeRuntimeHref === '/' ? 'active' : undefined} aria-current={activeRuntimeHref === '/' ? 'page' : undefined}>{text.runtimeOverview}</a>
           <a href="/runtime/history" className={activeRuntimeHref === '/runtime/history' ? 'active' : undefined} aria-current={activeRuntimeHref === '/runtime/history' ? 'page' : undefined}>{text.runtimeHistory}</a>

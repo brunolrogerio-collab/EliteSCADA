@@ -115,7 +115,7 @@ test('new OPC UA Source can discover, choose security settings and test the draf
   const sourceEditor = page.getByTestId('schema-data-source-editor');
   await sourceEditor.getByRole('button', { name: /Nova Fonte de dados|New Data Source|Nueva Fuente de datos/ }).click();
   await sourceEditor.getByRole('textbox', { name: 'Nome' }).fill('OPC UA Principal');
-  await sourceEditor.getByRole('textbox', { name: 'Chave' }).fill('opc-main');
+  await sourceEditor.getByRole('textbox', { name: 'Identificador' }).fill('opc-main');
   await sourceEditor.getByTestId('data-source-type').selectOption('opc-ua');
 
   await expect(sourceEditor.getByTestId('opcua-source-discovery-assistant')).toBeVisible();

@@ -12,13 +12,12 @@ import {
   type RuntimeApplicationProjection
 } from './runtimeApplicationApi';
 import { resolveRuntimeStartupScreen } from './runtimeStartupScreen';
-import { RuntimeSessionClassPanel } from './RuntimeSessionClassPanel';
 
 const REFRESH_INTERVAL_MS = 1500;
 const RETRYABLE_RUNTIME_PROJECTION_STATUSES = new Set([502, 503, 504]);
 const TRUNCATED_RESPONSE_SIGNATURE = 'content-length header of network response exceeds response body';
 
-export function RuntimeApplicationMount() {
+export function RuntimeApplicationMount({ showHistoryNavigation = false }: { showHistoryNavigation?: boolean } = {}) {
   const locale = useAppShellLocale();
   const text = appShellText(locale);
   const [projection, setProjection] = useState<RuntimeApplicationProjection | null>(null);
@@ -92,15 +91,17 @@ export function RuntimeApplicationMount() {
       </section>
     </main>;
   }
-  return <EngineeringRuntimeApplication projection={projection} locale={locale} />;
+  return <EngineeringRuntimeApplication projection={projection} locale={locale} showHistoryNavigation={showHistoryNavigation} />;
 }
 
 function EngineeringRuntimeApplication({
   projection,
-  locale
+  locale,
+  showHistoryNavigation
 }: {
   projection: RuntimeApplicationProjection;
   locale: ReturnType<typeof useAppShellLocale>;
+  showHistoryNavigation: boolean;
 }) {
   const text = appShellText(locale);
   const fullscreenRoot = useRef<HTMLElement>(null);
@@ -157,15 +158,18 @@ function EngineeringRuntimeApplication({
         <strong>{projection.projectName || projection.projectKey}</strong>
         <span>rev {projection.revision}</span>
       </div>
+      {showHistoryNavigation ? <nav className="runtime-view-navigation runtime-view-navigation--inline" aria-label="Runtime views">
+        <a href="/" className="active" aria-current="page">{text.runtimeOverview}</a>
+        <a href="/runtime/history">{text.runtimeHistory}</a>
+      </nav> : null}
       <div className="runtime-operator-actions">
-        <RuntimeSessionClassPanel locale={locale} />
         <button type="button" className="runtime-operator-button" aria-expanded={alarmsOpen} onClick={() => setAlarmsOpen(value => !value)}>
           {text.alarms}
         </button>
         <button type="button" className="runtime-operator-button" onClick={() => void toggleFullscreen()}>
           {isFullscreen ? text.exitFullscreen : text.fullscreen}
         </button>
-        {isFullscreen ? <UserSessionMenu locale={locale} /> : null}
+        {isFullscreen ? <UserSessionMenu locale={locale} includeRuntimeSessionControls /> : null}
       </div>
     </header>
 

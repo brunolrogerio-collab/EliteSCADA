@@ -20,6 +20,7 @@ public interface IEngineeringAssetRegistry
     void UpsertTemplate(EquipmentTemplateEngineeringDto template);
     void UpsertEquipment(EquipmentEngineeringDto equipment);
     void UpsertDynamo(DynamoEngineeringDto dynamo);
+    bool RemoveDynamo(string key);
 }
 
 public sealed class InMemoryEngineeringAssetRegistry : IEngineeringAssetRegistry
@@ -89,8 +90,18 @@ public sealed class InMemoryEngineeringAssetRegistry : IEngineeringAssetRegistry
     public void UpsertTemplate(EquipmentTemplateEngineeringDto template)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(template.Key);
-        var normalized = template with { Id = template.Id ?? Guid.NewGuid() };
-        lock (_sync) UpsertByKey(normalized, normalized.Id!.Value, normalized.Key, _templatesById, _templatesByKey, x => x.Key);
+        lock (_sync)
+        {
+            var existing = ResolveExisting(template.Id, template.Key, _templatesById, _templatesByKey);
+            var normalizedId = template.Id ?? existing?.Id ?? Guid.NewGuid();
+            var elements = VisualElementIdentity.Normalize(template.Elements, existing?.Elements);
+            var normalized = template with
+            {
+                Id = normalizedId,
+                Elements = VisualEngineeringPropertyMigration.NormalizeCurrentElements(elements)
+            };
+            UpsertByKey(normalized, normalizedId, normalized.Key, _templatesById, _templatesByKey, x => x.Key);
+        }
         _changed?.Invoke();
     }
 
@@ -122,6 +133,22 @@ public sealed class InMemoryEngineeringAssetRegistry : IEngineeringAssetRegistry
             UpsertByKey(normalized, normalizedId, normalized.Key, _dynamosById, _dynamosByKey, x => x.Key);
         }
         _changed?.Invoke();
+    }
+
+    public bool RemoveDynamo(string key)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        bool removed;
+        lock (_sync)
+        {
+            removed = _dynamosByKey.Remove(key, out var id);
+            if (removed)
+                _dynamosById.Remove(id);
+        }
+
+        if (removed)
+            _changed?.Invoke();
+        return removed;
     }
 
     public void Clear()

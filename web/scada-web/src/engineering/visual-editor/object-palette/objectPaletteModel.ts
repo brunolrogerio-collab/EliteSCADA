@@ -29,6 +29,8 @@ const PALETTE_ORDER: readonly BuiltinVisualObjectType[] = Object.freeze([
   BUILTIN_VISUAL_OBJECT_TYPES.rectangle,
   BUILTIN_VISUAL_OBJECT_TYPES.ellipse,
   BUILTIN_VISUAL_OBJECT_TYPES.line,
+  BUILTIN_VISUAL_OBJECT_TYPES.arc,
+  BUILTIN_VISUAL_OBJECT_TYPES.bezier,
   BUILTIN_VISUAL_OBJECT_TYPES.polygon,
   BUILTIN_VISUAL_OBJECT_TYPES.text,
   BUILTIN_VISUAL_OBJECT_TYPES.image,
@@ -49,6 +51,8 @@ const PALETTE_METADATA: Readonly<Record<BuiltinVisualObjectType, Readonly<{
   [BUILTIN_VISUAL_OBJECT_TYPES.rectangle]: { labelKey: 'rectangle', category: 'shape' },
   [BUILTIN_VISUAL_OBJECT_TYPES.ellipse]: { labelKey: 'ellipse', category: 'shape' },
   [BUILTIN_VISUAL_OBJECT_TYPES.line]: { labelKey: 'line', category: 'shape' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.arc]: { labelKey: 'arc', category: 'shape' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.bezier]: { labelKey: 'bezier', category: 'shape' },
   [BUILTIN_VISUAL_OBJECT_TYPES.polygon]: { labelKey: 'polygon', category: 'shape' },
   [BUILTIN_VISUAL_OBJECT_TYPES.text]: { labelKey: 'text', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.image]: { labelKey: 'image', category: 'content' },
@@ -83,7 +87,13 @@ export function createObjectAddIntent(
 
   const parentObjectId = normalizeOptionalIdentity(options.parentObjectId, 'parentObjectId');
   const at = normalizeOptionalPoint(options.at);
-  const initialProperties = objectType === BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser ||
+  const initialProperties = objectType === BUILTIN_VISUAL_OBJECT_TYPES.bezier
+    ? Object.freeze({
+        [VISUAL_PROPERTY_KEYS.width]: 120,
+        [VISUAL_PROPERTY_KEYS.height]: 80,
+        [VISUAL_PROPERTY_KEYS.bezierPath]: 'M 0 50 C 20 0 80 0 100 50 C 80 100 20 100 0 50 Z'
+      })
+    : objectType === BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser ||
     objectType === BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser
     ? Object.freeze({
         [VISUAL_PROPERTY_KEYS.width]: 720,

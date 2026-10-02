@@ -29,6 +29,8 @@ public static class AuditActions
     public const string EngineeringPublish = "engineering.publish";
     public const string EngineeringActivate = "engineering.activate";
     public const string EngineeringAssetImport = "engineering.asset.import";
+    public const string EngineeringAssetRename = "engineering.asset.rename";
+    public const string EngineeringAssetDelete = "engineering.asset.delete";
     public const string EngineeringLockConfigure = "engineering.lock.configure";
     public const string EngineeringLockLock = "engineering.lock.lock";
     public const string EngineeringLockUnlock = "engineering.lock.unlock";

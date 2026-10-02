@@ -133,6 +133,8 @@ function PopupVisualEditorWorkspaceBody({
   const [authoringTab, setAuthoringTab] = useState<VisualEditorAuthoringTab>('structure');
   const [inspectorTab, setInspectorTab] = useState<VisualEditorInspectorTab>('properties');
   const workspaceRef = useRef<HTMLDivElement | null>(null);
+  const selectedIdentityRef = useRef(selectedIdentity);
+  const preserveDraftAfterAssetImportRef = useRef(false);
   const [preview, setPreview] = useState<ImportPreviewView | null>(null);
   const [candidate, setCandidate] = useState<ValidatedPopupCandidate | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -172,6 +174,12 @@ function PopupVisualEditorWorkspaceBody({
   }, []);
 
   useEffect(() => {
+    const sameSelection = selectedIdentityRef.current === selectedIdentity;
+    selectedIdentityRef.current = selectedIdentity;
+    if (preserveDraftAfterAssetImportRef.current) {
+      preserveDraftAfterAssetImportRef.current = false;
+      if (sameSelection) return;
+    }
     setPolygonToolActive(false);
     const current = selectedIdentity === NEW_POPUP_IDENTITY
       ? createPopupDraft(popups, locale)
@@ -378,17 +386,17 @@ function PopupVisualEditorWorkspaceBody({
   };
 
   const importAsset = async (file: File): Promise<string | null> => {
-    if (changed) {
-      setError('Salve/aplique o rascunho do Popup antes de importar um asset visual.');
-      return null;
-    }
     setImportingAsset(true);
     setError(null);
     try {
-      const imported = await importVisualAsset(file, snapshot.workspace.changeVersion, { fileName: file.name });
+      const currentWorkspace = await loadEngineeringWorkspace();
+      if (currentWorkspace.changeVersion !== snapshot.workspace.changeVersion) throw new Error(text.workspaceChanged);
+      const imported = await importVisualAsset(file, currentWorkspace.changeVersion, { fileName: file.name });
+      preserveDraftAfterAssetImportRef.current = true;
       await onApplied();
       return imported.asset.id ?? null;
     } catch (reason) {
+      preserveDraftAfterAssetImportRef.current = false;
       setError(reason instanceof Error ? reason.message : String(reason));
       return null;
     } finally {
@@ -433,8 +441,8 @@ function PopupVisualEditorWorkspaceBody({
 
       <section className="visual-editor-main">
         <div className="visual-editor-screen-form">
-          <label><span>{text.name}</span><input value={draftScreen.name} onChange={event => updateDraftScreen(current => ({ ...current, name: event.target.value }))} /></label>
-          <label><span>{text.key}</span><input className="mono" value={draftScreen.key} onChange={event => updateDraftScreen(current => ({ ...current, key: event.target.value }))} /></label>
+          <label><span>{text.name}</span><input aria-description={text.nameHint} value={draftScreen.name} onChange={event => updateDraftScreen(current => ({ ...current, name: event.target.value }))} /><small aria-hidden="true">{text.nameHint}</small></label>
+          <label><span>{text.key}</span><input aria-description={text.keyHint} className="mono" value={draftScreen.key} onChange={event => updateDraftScreen(current => ({ ...current, key: event.target.value }))} /><small aria-hidden="true">{text.keyHint}</small></label>
           <label><span>{text.template}</span><input className="mono" value={frame.templateKey ?? ''} placeholder={text.standalone} onChange={event => updateTemplateKey(event.target.value)} /></label>
           <div className="visual-editor-draft-state"><span>{text.draft}</span><strong>{isNew ? text.newDraft : changed ? text.changed : text.unchanged}</strong><small>{countVisualElements(draftScreen.elements)} {text.objects}</small></div>
         </div>
@@ -446,6 +454,8 @@ function PopupVisualEditorWorkspaceBody({
               screen={draftScreen}
               selectedObjectIds={selectedObjectIds}
               definitions={snapshot.package.dynamos ?? []}
+              equipment={snapshot.package.equipment ?? []}
+              templates={snapshot.package.templates ?? []}
               visualAssets={snapshot.package.visualAssets ?? []}
               locale={locale}
               activeTab={authoringTab}
@@ -455,15 +465,16 @@ function PopupVisualEditorWorkspaceBody({
               onCommand={handleKeyboardCommand}
               assetImport={{
                 busy: importingAsset,
-                disabled: changed || applying || previewing,
-                disabledHint: changed ? 'Aplique ou descarte o rascunho antes de importar um asset.' : undefined,
+                disabled: applying || previewing,
                 onFile: importAsset
               }}
             />
           </aside>
 
-          <section className="visual-editor-canvas-slot">
-            <header><div><strong>{draftScreen.name || draftScreen.key}</strong><code>{frame.templateKey?.trim() ? `${text.template}: ${frame.templateKey}` : text.standalone}</code></div><span data-testid="popup-authoring-bounds">{polygonToolActive ? text.polygonDrawing : `${text.interactiveCanvas} · ${text.logicalBounds} ${popupBounds.width} × ${popupBounds.height} · ${text.runtimePosition} X ${popupPosition.x}, Y ${popupPosition.y}`}</span></header>
+          <section className="visual-editor-canvas-slot" aria-describedby={`popup-authoring-bounds-${draftScreen.id}`}>
+            <span id={`popup-authoring-bounds-${draftScreen.id}`} className="visual-editor-canvas-meta-sr-only" data-testid="popup-authoring-bounds">
+              {`${text.logicalBounds} ${popupBounds.width} × ${popupBounds.height} · ${text.runtimePosition} X ${popupPosition.x}, Y ${popupPosition.y}`}
+            </span>
             <VisualEditorCanvas
               screen={draftScreen}
               selectedObjectIds={selectedObjectIds}
@@ -504,7 +515,7 @@ function PopupVisualEditorWorkspaceBody({
               onMutationIntent={handleMutationIntent}
               onCommand={handleKeyboardCommand}
               onImportImage={importAsset}
-              imageImportDisabled={changed || applying || previewing}
+              imageImportDisabled={applying || previewing}
               imageImportBusy={importingAsset}
             />
           </aside>

@@ -40,6 +40,8 @@ export function NumericInputVisualElement({
   );
   const enabled = values[VISUAL_PROPERTY_KEYS.enabled] !== false;
   const showApplyButton = values[VISUAL_PROPERTY_KEYS.showApplyButton] !== false;
+  const showCancelButton = values[VISUAL_PROPERTY_KEYS.showCancelButton] !== false;
+  const showSteppers = values[VISUAL_PROPERTY_KEYS.showSteppers] !== false;
   const [draft, setDraft] = useState(() => formatNumericInputValue(config.value, config.precision));
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
@@ -134,6 +136,8 @@ export function NumericInputVisualElement({
     data-enabled={enabled}
     data-numeric-input-state={state}
     data-show-apply={showApplyButton}
+    data-show-cancel={showCancelButton}
+    data-show-steppers={showSteppers}
     data-dynamic-state={config.sourceAvailable ? 'available' : 'unavailable'}
     title={effectiveTitle}
   >
@@ -161,7 +165,7 @@ export function NumericInputVisualElement({
         }
       }}
     />
-    {config.unit ? <span className="visual-editor-numeric-input__unit">{config.unit}</span> : null}
+    {config.unit ? <span className="visual-editor-numeric-input__unit">{' '}{config.unit}</span> : null}
     {showApplyButton ? <button
       type="button"
       className="visual-editor-numeric-input__apply"
@@ -171,7 +175,15 @@ export function NumericInputVisualElement({
       onClick={() => void commit()}
       disabled={!canWrite || !editing}
     >↵</button> : null}
-    <button type="button" onClick={cancel} disabled={!editing || pending || awaitingReadback}>Cancel</button>
+    {showCancelButton ? <button
+      type="button"
+      className="visual-editor-numeric-input__cancel"
+      data-testid="numeric-input-cancel"
+      aria-label={cancelLabel(locale)}
+      title={cancelLabel(locale)}
+      onClick={cancel}
+      disabled={!editing || pending || awaitingReadback}
+    >×</button> : null}
     <span className="visual-editor-numeric-input__state" role={writeError ? 'alert' : 'status'} aria-live="polite">
       {statusText}
     </span>
@@ -180,6 +192,10 @@ export function NumericInputVisualElement({
 
 function applyLabel(locale: EngineeringLocale): string {
   return locale === 'en' ? 'Apply value' : locale === 'es' ? 'Aplicar valor' : 'Aplicar valor';
+}
+
+function cancelLabel(locale: EngineeringLocale): string {
+  return locale === 'en' ? 'Cancel editing' : locale === 'es' ? 'Cancelar edición' : 'Cancelar edição';
 }
 
 function stateLabel(state: string, unit: string): string {

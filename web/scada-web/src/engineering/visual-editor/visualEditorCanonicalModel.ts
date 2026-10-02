@@ -24,6 +24,8 @@ export {
   createScreenDraft,
   replaceScreenElements,
   replaceScreenInPackage,
+  replaceTemplateInPackage,
+  replaceDynamoInPackage,
   screenIdentity,
   updateScreenElement
 } from './visualEditorCanonicalModelLegacy';

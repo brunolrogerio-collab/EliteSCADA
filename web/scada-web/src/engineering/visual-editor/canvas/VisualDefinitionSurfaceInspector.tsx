@@ -8,7 +8,8 @@ import type { VisualEditorKeyboardCommand } from '../visualEditorKeyboardModel';
 import {
   readVisualDefinitionSurfaceConfig,
   resolveVisualDefinitionSurfaceStyle,
-  type VisualDefinitionBackgroundFit
+  type VisualDefinitionBackgroundFit,
+  type VisualDefinitionBackgroundMode
 } from '../visualDefinitionSurfaceModel';
 import './VisualDefinitionSurfaceInspector.css';
 
@@ -61,12 +62,23 @@ export function VisualDefinitionSurfaceInspector({
     <details ref={hostRef} className="visual-editor-surface-inspector" data-testid="visual-definition-surface-inspector">
       <summary>
         <strong>{text.background}</strong>
-        <small>{config.backgroundImageAssetId ? text.image : config.backgroundColor ? text.color : text.default}</small>
+        <small>{text.mode[config.backgroundMode]}</small>
       </summary>
       <div className="visual-editor-surface-inspector__body">
         <div className="visual-editor-surface-inspector__preview" style={previewStyle} aria-hidden="true" />
 
         <label className="visual-editor-surface-inspector__field">
+          <span>{text.modeLabel}</span>
+          <select
+            value={config.backgroundMode}
+            disabled={!onCommand}
+            onChange={event => setSurface({ backgroundMode: event.currentTarget.value as VisualDefinitionBackgroundMode })}
+          >
+            {(['theme', 'color', 'image'] as const).map(mode => <option key={mode} value={mode}>{text.mode[mode]}</option>)}
+          </select>
+        </label>
+
+        {config.backgroundMode === 'color' ? <label className="visual-editor-surface-inspector__field">
           <span>{text.colorLabel}</span>
           <div className="visual-editor-surface-inspector__color-row">
             <input
@@ -76,7 +88,7 @@ export function VisualDefinitionSurfaceInspector({
               onChange={event => {
                 const value = event.currentTarget.value.toUpperCase();
                 setColorDraft(value);
-                setSurface({ backgroundColor: value });
+                setSurface({ backgroundMode: 'color', backgroundColor: value });
               }}
             />
             <input
@@ -93,19 +105,19 @@ export function VisualDefinitionSurfaceInspector({
                 }
               }}
             />
-            <button type="button" disabled={!onCommand || !config.backgroundColor} onClick={() => {
+              <button type="button" disabled={!onCommand || !config.backgroundColor} onClick={() => {
               setColorDraft('');
-              setSurface({ backgroundColor: null });
+                setSurface({ backgroundMode: 'theme', backgroundColor: null });
             }}>{text.clear}</button>
           </div>
-        </label>
+        </label> : null}
 
-        <label className="visual-editor-surface-inspector__field">
+        {config.backgroundMode === 'image' ? <label className="visual-editor-surface-inspector__field">
           <span>{text.imageAsset}</span>
           <select
             value={config.backgroundImageAssetId ?? ''}
             disabled={!onCommand}
-            onChange={event => setSurface({ backgroundImageAssetId: event.currentTarget.value || null })}
+            onChange={event => setSurface({ backgroundMode: 'image', backgroundImageAssetId: event.currentTarget.value || null })}
           >
             <option value="">{text.noBackgroundImage}</option>
             {catalog.visualAssets
@@ -124,7 +136,7 @@ export function VisualDefinitionSurfaceInspector({
                 const file = event.currentTarget.files?.[0];
                 event.currentTarget.value = '';
                 if (file) void Promise.resolve(onImportAsset(file)).then(id => {
-                  if (typeof id === 'string' && id) setSurface({ backgroundImageAssetId: id });
+                  if (typeof id === 'string' && id) setSurface({ backgroundMode: 'image', backgroundImageAssetId: id });
                 });
               }}
             />
@@ -132,9 +144,9 @@ export function VisualDefinitionSurfaceInspector({
               {importing ? text.importingAsset : text.chooseImage}
             </button>
           </> : null}
-        </label>
+        </label> : null}
 
-        <label className="visual-editor-surface-inspector__field">
+        {config.backgroundMode === 'image' ? <label className="visual-editor-surface-inspector__field">
           <span>{text.imageFit}</span>
           <select
             value={config.backgroundImageFit}
@@ -143,16 +155,16 @@ export function VisualDefinitionSurfaceInspector({
           >
             {FIT_OPTIONS.map(fit => <option key={fit} value={fit}>{text.fit[fit]}</option>)}
           </select>
-        </label>
+        </label> : null}
 
         <footer>
-          <span>{selectedAsset ? `${selectedAsset.originalFileName} · ${selectedAsset.byteLength} bytes` : text.assetIdentityOnly}</span>
+          <span>{config.backgroundMode === 'image' && selectedAsset ? `${selectedAsset.originalFileName} · ${selectedAsset.byteLength} bytes` : text.assetIdentityOnly}</span>
           <button
             type="button"
-            disabled={!onCommand || (!config.backgroundColor && !config.backgroundImageAssetId)}
+            disabled={!onCommand || (config.backgroundMode === 'theme' && !config.backgroundColor && !config.backgroundImageAssetId)}
             onClick={() => {
               setColorDraft('');
-              setSurface({ backgroundColor: null, backgroundImageAssetId: null, backgroundImageFit: null });
+              setSurface({ backgroundMode: null, backgroundColor: null, backgroundImageAssetId: null, backgroundImageFit: null });
             }}
           >{text.resetBackground}</button>
         </footer>

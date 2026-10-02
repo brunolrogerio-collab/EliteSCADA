@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Scada.Engineering.Contracts;
 
 namespace Scada.Engineering.Views;
@@ -86,24 +87,57 @@ public static class DynamoRuntimeComposer
             resolved,
             SubstituteInstanceContext(
                 definition.Elements ?? Array.Empty<VisualElementEngineeringDto>(),
-                instance.EquipmentPath));
+                instance.EquipmentPath,
+                resolved));
     }
 
     private static IReadOnlyCollection<VisualElementEngineeringDto> SubstituteInstanceContext(
         IReadOnlyCollection<VisualElementEngineeringDto> elements,
-        string? equipmentPath)
+        string? equipmentPath,
+        IReadOnlyDictionary<string, DynamoParameterValueEngineeringDto> parameters)
     {
-        if (string.IsNullOrWhiteSpace(equipmentPath)) return elements;
-        var normalizedPath = equipmentPath.Trim();
+        var normalizedPath = equipmentPath?.Trim();
         return elements.Select(element => element with
         {
             Bindings = element.Bindings?.Select(binding => binding with
             {
-                Target = binding.Target.Replace("{equipmentPath}", normalizedPath, StringComparison.Ordinal)
+                Target = normalizedPath is null ? binding.Target : binding.Target.Replace("{equipmentPath}", normalizedPath, StringComparison.Ordinal)
+            }).ToArray(),
+            PropertyMaps = element.PropertyMaps?.Select(map =>
+            {
+                var stateParameterKey = element.Metadata?.GetValueOrDefault("dynamoStateColorParameter");
+                var stateParameter = stateParameterKey is not null && parameters.TryGetValue(stateParameterKey, out var stateValue)
+                    ? stateValue
+                    : null;
+                var profile = element.Metadata?.GetValueOrDefault("dynamoStateColorProfile")?.Split(',') ?? Array.Empty<string>();
+                var rules = map.Rules.Select((rule, index) =>
+                {
+                    var colorParameterKey = index < profile.Length ? $"{profile[index].Trim()}Color" : string.Empty;
+                    if (!parameters.TryGetValue(colorParameterKey, out var colorValue) ||
+                        colorValue.Kind != DynamoParameterKind.String || !colorValue.Value.HasValue ||
+                        colorValue.Value.Value.ValueKind != JsonValueKind.String)
+                        return rule;
+                    var color = colorValue.Value.Value.GetString();
+                    return color is not null && System.Text.RegularExpressions.Regex.IsMatch(color, "^#[0-9a-fA-F]{6}$")
+                        ? rule with { Value = JsonSerializer.SerializeToElement(color) }
+                        : rule;
+                }).ToArray();
+                return map with
+                {
+                    Source = map.Source with
+                    {
+                        Target = normalizedPath is null ? map.Source.Target : map.Source.Target?.Replace("{equipmentPath}", normalizedPath, StringComparison.Ordinal),
+                        TagReference = stateParameter?.Kind == DynamoParameterKind.TagReference
+                            ? stateParameter.TagReference
+                            : map.Source.TagReference
+                    },
+                    Rules = rules
+                };
             }).ToArray(),
             Children = SubstituteInstanceContext(
                 element.Children ?? Array.Empty<VisualElementEngineeringDto>(),
-                normalizedPath)
+                normalizedPath,
+                parameters)
         }).ToArray();
     }
 

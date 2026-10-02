@@ -310,6 +310,10 @@ public static class VisualPropertyKeys
     public const string Width = "width";
     public const string Height = "height";
     public const string Rotation = "rotation";
+    public const string ArcStartAngle = "arcStartAngle";
+    public const string ArcEndAngle = "arcEndAngle";
+    public const string ArcStyle = "arcStyle";
+    public const string BezierPath = "bezierPath";
     public const string ScaleX = "scaleX";
     public const string ScaleY = "scaleY";
     public const string HorizontalFlip = "horizontalFlip";
@@ -320,6 +324,7 @@ public static class VisualPropertyKeys
     public const string Tooltip = "tooltip";
     public const string Enabled = "enabled";
     public const string FillStyle = "fillStyle";
+    public const string PolygonFillRule = "polygonFillRule";
     public const string FillColor = "fillColor";
     public const string FillSecondaryColor = "fillSecondaryColor";
     public const string GradientDirection = "gradientDirection";
@@ -379,6 +384,8 @@ public static class CommonVisualPropertyDefinitions
     public static IReadOnlyList<VisualPropertyDefinition> Transform { get; } =
     [
         Number(VisualPropertyKeys.Rotation, 0, animatable: true, unit: "deg"),
+        Number(VisualPropertyKeys.ArcStartAngle, 0, unit: "deg"),
+        Number(VisualPropertyKeys.ArcEndAngle, 90, unit: "deg"),
         Number(VisualPropertyKeys.ScaleX, 1, minimum: 0, animatable: true),
         Number(VisualPropertyKeys.ScaleY, 1, minimum: 0, animatable: true),
         Boolean(VisualPropertyKeys.HorizontalFlip, false),
@@ -402,12 +409,27 @@ public static class CommonVisualPropertyDefinitions
         Color(VisualPropertyKeys.BackgroundColor, "#00000000", animatable: true)
     ];
 
+    public static IReadOnlyList<VisualPropertyDefinition> Polygon { get; } =
+    [
+        EnumString(VisualPropertyKeys.PolygonFillRule, "nonzero", ["evenodd", "nonzero"])
+    ];
+
     public static IReadOnlyList<VisualPropertyDefinition> Stroke { get; } =
     [
         Color(VisualPropertyKeys.StrokeColor, "#000000", animatable: true),
         Number(VisualPropertyKeys.StrokeWidth, 1, minimum: 0, animatable: true, unit: "px"),
         EnumString(VisualPropertyKeys.StrokeStyle, "solid", ["none", "solid", "dashed", "dotted", "dash-dot", "dash-dot-dot"]),
         Number(VisualPropertyKeys.CornerRadius, 0, minimum: 0, animatable: true, unit: "px")
+    ];
+
+    public static IReadOnlyList<VisualPropertyDefinition> Arc { get; } =
+    [
+        EnumString(VisualPropertyKeys.ArcStyle, "pie", ["arc", "chord", "pie"])
+    ];
+
+    public static IReadOnlyList<VisualPropertyDefinition> Bezier { get; } =
+    [
+        String(VisualPropertyKeys.BezierPath, "M 0 50 C 20 0 80 0 100 50 C 80 100 20 100 0 50 Z")
     ];
 
     public static IReadOnlyList<VisualPropertyDefinition> Effects { get; } =

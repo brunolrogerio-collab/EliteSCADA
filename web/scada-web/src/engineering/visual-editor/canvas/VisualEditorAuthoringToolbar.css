@@ -3,7 +3,7 @@
 .visual-editor-authoring-toolbar__group:last-child { border-right: 0; padding-right: 0; }
 .visual-editor-authoring-toolbar button { min-width: 28px; min-height: 27px; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 5px; background: #fff; color: #334155; font: inherit; font-size: 10px; cursor: pointer; }
 .visual-editor-authoring-toolbar button:hover:not(:disabled) { border-color: #64748b; background: #f1f5f9; }
-.visual-editor-authoring-toolbar button:disabled { opacity: .38; cursor: not-allowed; }
+.visual-editor-authoring-toolbar button:disabled { opacity: 1; cursor: not-allowed; }
 
 /* W15 compact icon-first authoring controls. Accessible names remain localized through aria-label/title. */
 .visual-editor-authoring-toolbar { gap: 4px; padding: 4px 6px; overflow-x: auto; flex-wrap: nowrap; }
@@ -13,3 +13,4 @@
 .eng-shell .visual-editor-authoring-toolbar__group { border-color:var(--eng-border,#283544); }
 .eng-shell .visual-editor-authoring-toolbar button { border-color:var(--eng-border,#34465a); background:var(--eng-panel,#121922); color:var(--eng-text,#e8edf3); }
 .eng-shell .visual-editor-authoring-toolbar button:hover:not(:disabled) { border-color:var(--eng-accent,#58a6d6); background:var(--eng-hover,#202c39); }
+.eng-shell .visual-editor-authoring-toolbar button:disabled { border-color:var(--eng-border,#cbd5e1); background:var(--eng-panel-soft,#f8fafc); color:var(--eng-muted,#52616d); opacity:1; }

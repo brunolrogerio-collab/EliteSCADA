@@ -202,6 +202,75 @@ public sealed class Wave09PopupDynamoNavigationEngineeringTests
     }
 
     [Fact]
+    public void PreviewApplyExport_AcceptsWritableTagActionsAndRejectsUnsafeBooleanToggle()
+    {
+        var tags = new InMemoryTagRegistry();
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var assets = new InMemoryEngineeringAssetRegistry();
+        var views = new InMemoryEngineeringViewRegistry();
+        var exchange = CreateExchange(tags, alarms, assets, views);
+        var booleanTagId = Guid.NewGuid();
+        var numberTagId = Guid.NewGuid();
+        var screenId = Guid.NewGuid();
+        var screen = new ScreenEngineeringDto(
+            screenId,
+            "screen.actions",
+            "Actions",
+            "/actions",
+            Elements:
+            [
+                new VisualElementEngineeringDto("set", "core.button", Actions:
+                [new VisualNavigationActionEngineeringDto("click", VisualNavigationActionKind.SetTagValue, booleanTagId.ToString("D"),
+                    new Dictionary<string, JsonElement> { ["value"] = JsonSerializer.SerializeToElement(true) })]),
+                new VisualElementEngineeringDto("toggle", "core.button", Actions:
+                [new VisualNavigationActionEngineeringDto("click", VisualNavigationActionKind.ToggleTagBoolean, booleanTagId.ToString("D"))]),
+                new VisualElementEngineeringDto("set-level", "core.button", Actions:
+                [new VisualNavigationActionEngineeringDto("click", VisualNavigationActionKind.SetTagValue, numberTagId.ToString("D"),
+                    new Dictionary<string, JsonElement> { ["value"] = JsonSerializer.SerializeToElement(21.5) })])
+            ]);
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            [
+                new TagEngineeringDto(booleanTagId, "Running", "Plant.Running", TagDataType.Boolean, ReadOnly: false),
+                new TagEngineeringDto(numberTagId, "Level", "Plant.Level", TagDataType.Int32, ReadOnly: false)
+            ],
+            Array.Empty<AlarmEngineeringDto>(),
+            Screens: [screen]);
+
+        var preview = exchange.Preview(package, ImportMode.CreateAndUpdate);
+        Assert.True(preview.CanApply);
+        Assert.True(exchange.Apply(package, ImportMode.CreateAndUpdate).Created > 0);
+        var exported = exchange.ParseJson(exchange.ExportJson(indented: false));
+        var actions = exported.Screens!.Single(item => item.Id == screenId).Elements!.SelectMany(item => item.Actions!).ToArray();
+        Assert.Contains(actions, item => item.Kind == VisualNavigationActionKind.SetTagValue && item.TargetKey == booleanTagId.ToString("D"));
+        Assert.Contains(actions, item => item.Kind == VisualNavigationActionKind.ToggleTagBoolean && item.TargetKey == booleanTagId.ToString("D"));
+        Assert.Contains(actions, item => item.Kind == VisualNavigationActionKind.SetTagValue && item.TargetKey == numberTagId.ToString("D") && item.Parameters!["value"].GetDouble() == 21.5);
+
+        var unsafePackage = package with
+        {
+            Tags = [new TagEngineeringDto(numberTagId, "Level", "Plant.Level", TagDataType.Int32, ReadOnly: true)],
+            Screens = [screen with
+            {
+                Id = Guid.NewGuid(),
+                Key = "screen.unsafe-actions",
+                Elements = [new VisualElementEngineeringDto("toggle", "core.button", Actions:
+                [new VisualNavigationActionEngineeringDto("click", VisualNavigationActionKind.ToggleTagBoolean, numberTagId.ToString("D"))]),
+                    new VisualElementEngineeringDto("wrong-value", "core.button", Actions:
+                [new VisualNavigationActionEngineeringDto("click", VisualNavigationActionKind.SetTagValue, numberTagId.ToString("D"),
+                    new Dictionary<string, JsonElement> { ["value"] = JsonSerializer.SerializeToElement(false) })])]
+            }]
+        };
+        var rejected = exchange.Preview(unsafePackage, ImportMode.CreateAndUpdate);
+        var issues = rejected.Items.SelectMany(item => item.Issues).ToArray();
+        Assert.False(rejected.CanApply);
+        Assert.Contains(issues, item => item.Code == "VISUAL_ACTION_TAG_READ_ONLY");
+        Assert.Contains(issues, item => item.Code == "VISUAL_ACTION_TAG_BOOLEAN_REQUIRED");
+        Assert.Contains(issues, item => item.Code == "VISUAL_ACTION_TAG_VALUE_TYPE_MISMATCH");
+    }
+
+    [Fact]
     public void RuntimeComposer_UsesStableCompositeIdentityAndCanonicalDefaults()
     {
         var definitionId = Guid.NewGuid();
@@ -232,6 +301,74 @@ public sealed class Wave09PopupDynamoNavigationEngineeringTests
         Assert.Equal("Tank", composition.Parameters["caption"].Value!.Value.GetString());
         Assert.Same(definition.Elements, composition.Elements);
         Assert.Equal($"{instanceId:D}/{elementId:D}", DynamoRuntimeComposer.RuntimeElementIdentity(instanceId, elementId));
+    }
+
+    [Fact]
+    public void RuntimeComposer_ProjectsStateTagAndEditableDynamoStateColors()
+    {
+        var stateTagId = Guid.NewGuid();
+        var definition = new DynamoEngineeringDto(
+            Guid.NewGuid(),
+            "motor.stateful",
+            "Stateful motor",
+            Parameters:
+            [
+                new DynamoParameterDefinitionEngineeringDto("state", DynamoParameterKind.TagReference),
+                new DynamoParameterDefinitionEngineeringDto("stoppedColor", DynamoParameterKind.String,
+                    DefaultValue: JsonSerializer.SerializeToElement("#8FBF98")),
+                new DynamoParameterDefinitionEngineeringDto("runningColor", DynamoParameterKind.String,
+                    DefaultValue: JsonSerializer.SerializeToElement("#D98282")),
+                new DynamoParameterDefinitionEngineeringDto("faultColor", DynamoParameterKind.String,
+                    DefaultValue: JsonSerializer.SerializeToElement("#D8B95F"))
+            ],
+            Elements:
+            [
+                new VisualElementEngineeringDto(
+                    "motor-body",
+                    "core.rectangle",
+                    Properties: new Dictionary<string, JsonElement>
+                    {
+                        ["fillColor"] = JsonSerializer.SerializeToElement("#8FBF98")
+                    },
+                    Metadata: new Dictionary<string, string>
+                    {
+                        ["dynamoStateColorParameter"] = "state",
+                        ["dynamoStateColorProfile"] = "stopped,running,fault"
+                    },
+                    PropertyMaps:
+                    [
+                        new VisualPropertyMapEngineeringDto(
+                            "fillColor",
+                            new VisualValueSourceEngineeringDto(VisualValueSourceKind.Tag, VisualExpressionValueType.Number,
+                                Target: "{equipmentPath}.State"),
+                            [
+                                new(JsonSerializer.SerializeToElement("#8FBF98"), Minimum: 0, Maximum: 1),
+                                new(JsonSerializer.SerializeToElement("#D98282"), Minimum: 1, Maximum: 2),
+                                new(JsonSerializer.SerializeToElement("#D8B95F"), Minimum: 2, Maximum: 3)
+                            ])
+                    ])
+            ]);
+        var instance = new VisualElementEngineeringDto(
+            "M01",
+            "dynamo",
+            DynamoKey: definition.Key,
+            EquipmentPath: "Area.M01",
+            Id: Guid.NewGuid(),
+            DynamoParameters:
+            [
+                new DynamoParameterValueEngineeringDto("state", DynamoParameterKind.TagReference,
+                    TagReference: new TagValueReference(stateTagId)),
+                new DynamoParameterValueEngineeringDto("runningColor", DynamoParameterKind.String,
+                    JsonSerializer.SerializeToElement("#C02D20"))
+            ]);
+
+        var composition = DynamoRuntimeComposer.Compose(instance, definition);
+        var element = Assert.Single(composition.Elements);
+        var map = Assert.Single(element.PropertyMaps!);
+
+        Assert.Equal("Area.M01.State", map.Source.Target);
+        Assert.Equal(stateTagId, map.Source.TagReference!.TagId);
+        Assert.Equal("#C02D20", map.Rules.ElementAt(1).Value.GetString());
     }
 
     [Fact]

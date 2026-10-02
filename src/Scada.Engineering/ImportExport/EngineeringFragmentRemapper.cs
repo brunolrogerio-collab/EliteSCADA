@@ -119,7 +119,14 @@ internal static class EngineeringFragmentRemapper
                 Actions = element.Actions is null
                     ? null
                     : element.Actions
-                        .Select(action => action with { CommandId = MapNullable(ImportEntityKind.Command, action.CommandId) })
+                        .Select(action => action with
+                        {
+                            CommandId = MapNullable(ImportEntityKind.Command, action.CommandId),
+                            TargetKey = (action.Kind is VisualNavigationActionKind.SetTagValue or VisualNavigationActionKind.ToggleTagBoolean) &&
+                                Guid.TryParse(action.TargetKey, out var tagId)
+                                    ? Map(ImportEntityKind.Tag, tagId).ToString("D")
+                                    : action.TargetKey
+                        })
                         .ToArray(),
                 Children = element.Children is null
                     ? null
@@ -224,7 +231,16 @@ internal static class EngineeringFragmentRemapper
                 .Select(source => source with { Id = MapNullable(ImportEntityKind.DataSource, source.Id) })
                 .ToArray(),
             Templates = (package.Templates ?? Array.Empty<EquipmentTemplateEngineeringDto>())
-                .Select(template => template with { Id = MapNullable(ImportEntityKind.Template, template.Id) })
+                .Select(template => template with
+                {
+                    Id = MapNullable(ImportEntityKind.Template, template.Id),
+                    Bindings = template.Bindings is null
+                        ? null
+                        : template.Bindings.Select(MapBinding).ToArray(),
+                    Elements = template.Elements is null
+                        ? null
+                        : template.Elements.Select(MapElement).ToArray()
+                })
                 .ToArray(),
             Equipment = (package.Equipment ?? Array.Empty<EquipmentEngineeringDto>())
                 .Select(equipment => equipment with

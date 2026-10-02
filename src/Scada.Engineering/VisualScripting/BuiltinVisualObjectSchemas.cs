@@ -11,6 +11,8 @@ public static class BuiltinVisualObjectSchemas
     public const string RectangleType = "core.rectangle";
     public const string EllipseType = "core.ellipse";
     public const string LineType = "core.line";
+    public const string ArcType = "core.arc";
+    public const string BezierType = "core.bezier";
     public const string PolygonType = "core.polygon";
     public const string TextType = "core.text";
     public const string ImageType = "core.image";
@@ -69,6 +71,9 @@ public static class BuiltinVisualObjectSchemas
             .Concat(CommonVisualPropertyDefinitions.Image)
             .Concat(CommonVisualPropertyDefinitions.Slider)
             .Concat(CommonVisualPropertyDefinitions.NumericInput)
+            .Concat(CommonVisualPropertyDefinitions.Arc)
+            .Concat(CommonVisualPropertyDefinitions.Bezier)
+            .Concat(CommonVisualPropertyDefinitions.Polygon)
             .Concat(TrendDefinitions)
             .ToDictionary(property => property.Key, StringComparer.Ordinal);
 
@@ -76,7 +81,8 @@ public static class BuiltinVisualObjectSchemas
         new(StringComparer.Ordinal)
         {
             RectangleType,
-            EllipseType
+            EllipseType,
+            BezierType
         };
 
     private static readonly string[] Base =
@@ -160,6 +166,15 @@ public static class BuiltinVisualObjectSchemas
         LineType,
         Base.Concat(Stroke));
 
+    public static VisualObjectPropertySchema Arc { get; } = Create(
+        ArcType,
+        Base.Concat(Fill).Concat(Stroke).Concat(CommonVisualPropertyDefinitions.Arc.Select(property => property.Key))
+            .Concat([VisualPropertyKeys.ArcStartAngle, VisualPropertyKeys.ArcEndAngle]));
+
+    public static VisualObjectPropertySchema Bezier { get; } = Create(
+        BezierType,
+        Base.Concat(Fill).Concat(Stroke).Concat(CommonVisualPropertyDefinitions.Bezier.Select(property => property.Key)));
+
     /// <summary>
     /// Polygon points are structural geometry owned by the core.polygon contract,
     /// not a scalar Visual Property Registry value. Only common transform/
@@ -169,6 +184,7 @@ public static class BuiltinVisualObjectSchemas
         PolygonType,
         Base
             .Concat(Fill)
+            .Concat(CommonVisualPropertyDefinitions.Polygon.Select(property => property.Key))
             .Concat(Stroke));
 
     public static VisualObjectPropertySchema Text { get; } = Create(
@@ -283,6 +299,8 @@ public static class BuiltinVisualObjectSchemas
         Rectangle,
         Ellipse,
         Line,
+        Arc,
+        Bezier,
         Polygon,
         Text,
         Image,

@@ -130,8 +130,8 @@ test('R2 structured Operational Event journey separates core authoring from opti
   await navigation.getByRole('button', { name: /Eventos Operacionais/ }).click();
   const editor = page.getByTestId('operational-event-engineering');
   await editor.getByTestId('operational-event-new').click();
-  await expect(editor.getByLabel('Nome', { exact: true })).toBeVisible();
-  await expect(editor.getByLabel('Chave', { exact: true })).toBeVisible();
+  await expect(editor.getByLabel('Nome da fonte de dados', { exact: true })).toBeVisible();
+  await expect(editor.getByLabel('Identificador', { exact: true })).toHaveCount(0);
   const context = editor.getByTestId('operational-event-context-disclosure');
   await expect(context).not.toHaveAttribute('open', '');
   await context.locator('summary').click();

@@ -87,6 +87,8 @@ export function VisualEditorAuthoringToolbar({
     [BUILTIN_VISUAL_OBJECT_TYPES.rectangle, '▭', 'rectangle', 'Rectangle'],
     [BUILTIN_VISUAL_OBJECT_TYPES.ellipse, '◯', 'ellipse', 'Ellipse'],
     [BUILTIN_VISUAL_OBJECT_TYPES.line, '╱', 'line', 'Line'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.arc, '◜', 'arc', 'Arc'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.bezier, '⌒', 'bezier', 'Bezier curve'],
     [BUILTIN_VISUAL_OBJECT_TYPES.polygon, '⬠', 'polygon', 'Polygon'],
     [BUILTIN_VISUAL_OBJECT_TYPES.text, 'T', 'text', 'Text'],
     [BUILTIN_VISUAL_OBJECT_TYPES.image, '▧', 'image', 'Image'],

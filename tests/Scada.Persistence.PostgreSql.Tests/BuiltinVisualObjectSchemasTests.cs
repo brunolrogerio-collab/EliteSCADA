@@ -13,6 +13,8 @@ public sealed class BuiltinVisualObjectSchemasTests
             "core.rectangle",
             "core.ellipse",
             "core.line",
+            "core.arc",
+            "core.bezier",
             "core.polygon",
             "core.text",
             "core.image",
@@ -32,6 +34,8 @@ public sealed class BuiltinVisualObjectSchemasTests
         Assert.True(BuiltinVisualObjectSchemas.Rectangle.Declares(VisualPropertyKeys.FillColor));
         Assert.True(BuiltinVisualObjectSchemas.Rectangle.Declares(VisualPropertyKeys.StrokeStyle));
         Assert.False(BuiltinVisualObjectSchemas.Rectangle.Declares(VisualPropertyKeys.AssetRef));
+        Assert.True(BuiltinVisualObjectSchemas.Bezier.Declares(VisualPropertyKeys.BezierPath));
+        Assert.True(BuiltinVisualObjectSchemas.SupportsAnalogFill(BuiltinVisualObjectSchemas.BezierType));
 
         Assert.True(BuiltinVisualObjectSchemas.Image.Declares(VisualPropertyKeys.AssetRef));
         Assert.True(BuiltinVisualObjectSchemas.Image.Declares(VisualPropertyKeys.ImageFit));

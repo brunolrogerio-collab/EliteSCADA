@@ -116,20 +116,25 @@ export function EngineeringLifecycleWorkspace({ locale }: { locale: EngineeringL
       </ol>
 
       <div className="eng-lifecycle-workspace__actions">
-        <div><h3>{copy.workingActions}</h3><p>{copy.workingActionsHint}</p></div>
+        <div className="eng-lifecycle-workspace__step-copy"><span className="eng-lifecycle-workspace__step-number">1</span><div><h3>{copy.workingActions}</h3><p>{copy.workingActionsHint}</p></div></div>
         <div className="eng-lifecycle-workspace__action-buttons">
           <button onClick={() => void perform('save')} disabled={busy || !canSaveWorkspace(state)}>{copy.saveRevision}</button>
-          <button onClick={() => setConfirmation({ action: 'activate' })} disabled={busy || !canActivatePublished(state)}>{copy.activatePublished}</button>
         </div>
       </div>
       {!canSaveWorkspace(state) && state.persistence.enabled && state.workspace.baseRevision && !state.workspace.isDirty && <p className="eng-lifecycle-workspace__hint">{copy.cleanSaveHint}</p>}
 
       <section className="eng-lifecycle-workspace__revisions" aria-label={copy.revisions}>
-        <div className="eng-lifecycle-workspace__section-heading"><div><h3>{copy.revisions}</h3><p>{copy.revisionsHint}</p></div><strong>{state.revisions.length}</strong></div>
+        <div className="eng-lifecycle-workspace__section-heading"><div className="eng-lifecycle-workspace__step-copy"><span className="eng-lifecycle-workspace__step-number">2</span><div><h3>{copy.revisions}</h3><p>{copy.revisionsHint}</p></div></div><strong>{state.revisions.length}</strong></div>
         {state.revisions.length === 0 ? <p className="eng-lifecycle-workspace__empty">{copy.noRevisions}</p> : <div className="eng-lifecycle-workspace__revision-list">{state.revisions.map(revision => <RevisionRow key={revision.revision} revision={revision} state={state} locale={locale} copy={copy} busy={busy} onCheckout={() => setConfirmation({ action: 'checkout', revision: revision.revision })} onPublish={() => setConfirmation({ action: 'publish', revision: revision.revision })} />)}</div>}
       </section>
+      {confirmation && (confirmation.action === 'publish' || confirmation.action === 'checkout') && <ConfirmationPanel confirmation={confirmation} locale={locale} cancelLabel={copy.cancel} busy={busy} onCancel={() => setConfirmation(null)} onConfirm={() => void perform(confirmation.action, confirmation.revision)} />}
 
-      {confirmation && <ConfirmationPanel confirmation={confirmation} locale={locale} cancelLabel={copy.cancel} busy={busy} onCancel={() => setConfirmation(null)} onConfirm={() => void perform(confirmation.action, confirmation.revision)} />}
+      <div className="eng-lifecycle-workspace__activate" data-testid="engineering-lifecycle-activate-step">
+        <div className="eng-lifecycle-workspace__step-copy"><span className="eng-lifecycle-workspace__step-number">3</span><div><h3>{copy.activatePublished}</h3><p>{activationStepHint(locale)}</p></div></div>
+        <button onClick={() => setConfirmation({ action: 'activate' })} disabled={busy || !canActivatePublished(state)}>{copy.activatePublished}</button>
+      </div>
+
+      {confirmation?.action === 'activate' && <ConfirmationPanel confirmation={confirmation} locale={locale} cancelLabel={copy.cancel} busy={busy} onCancel={() => setConfirmation(null)} onConfirm={() => void perform(confirmation.action)} />}
       <footer className="eng-lifecycle-workspace__authority"><strong>{copy.authorityTitle}</strong><span>{copy.authorityHint}</span></footer>
     </section>
   );
@@ -155,6 +160,12 @@ function revisionText(revision: number | null | undefined, copy: Copy) { return 
 function translate(value: string, map: Record<string, string>) { return map[value] ?? value; }
 function formatTimestamp(value: string | null | undefined, locale: EngineeringLocale, fallback: string) { if (!value) return fallback; const date = new Date(value); if (Number.isNaN(date.getTime())) return value; return new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : locale, { dateStyle: 'short', timeStyle: 'short' }).format(date); }
 function stepLabel(key: 'working' | 'revision' | 'published' | 'active', copy: Copy) { return { working: copy.working, revision: copy.savedRevision, published: copy.published, active: copy.active }[key]; }
+
+function activationStepHint(locale: EngineeringLocale) {
+  if (locale === 'en') return 'Step 3: switch Runtime to the Published revision. This becomes the version operators will use.';
+  if (locale === 'es') return 'Paso 3: cambia Runtime a la revisión Published. Esa será la versión utilizada por los operadores.';
+  return 'Etapa 3: muda o Runtime para a revisão Published. Essa será a versão usada pelos operadores.';
+}
 
 function lifecycleCopy(locale: EngineeringLocale) {
   const common = { published: 'Published', active: 'Active', none: '—' };

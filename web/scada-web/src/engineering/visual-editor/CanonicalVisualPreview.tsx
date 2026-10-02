@@ -4,7 +4,7 @@ import type { DynamoEngineering, VisualElementEngineering } from '../types';
 import { CanonicalVisualRenderer, type VisualAssetUrlResolver } from './CanonicalVisualRenderer';
 import './CanonicalVisualPreview.css';
 
-export type CanonicalVisualPreviewVariant = 'thumbnail' | 'detail';
+export type CanonicalVisualPreviewVariant = 'thumbnail' | 'catalog' | 'detail';
 
 export function CanonicalVisualPreview({
   elements, dynamoDefinitions, locale, width, height, emptyLabel, visualAssetUrl, variant = 'detail', testId
@@ -20,10 +20,17 @@ export function CanonicalVisualPreview({
   testId?: string;
 }>) {
   const authored = useMemo(() => previewSize(elements, width, height), [elements, width, height]);
-  const viewport = variant === 'thumbnail' ? { width: 66, height: 48 } : { width: 360, height: 220 };
+  // Leave room for outlines, SVG vector-effect strokes and soft shadows. Artwork
+  // often reaches the authored viewBox edge; scaling exactly to the viewport
+  // clips those pixels and makes otherwise aligned equipment look cut off.
+  const viewport = variant === 'thumbnail'
+    ? { width: 52, height: 36 }
+    : variant === 'catalog'
+      ? { width: 260, height: 140 }
+      : { width: 336, height: 196 };
   const scale = Math.min(viewport.width / authored.width, viewport.height / authored.height, variant === 'thumbnail' ? 1 : 2.25);
   return <div className={`canonical-visual-preview canonical-visual-preview--${variant}`}
-    data-testid={testId ?? `canonical-visual-preview-${variant}`} data-preview-width={authored.width} data-preview-height={authored.height}>
+    data-testid={testId ?? `canonical-visual-preview-${variant}`} data-preview-width={authored.width} data-preview-height={authored.height} data-preview-scale={scale}>
     <div className="canonical-visual-preview__scaled" style={{ width: authored.width * scale, height: authored.height * scale }}>
       <div className="canonical-visual-preview__frame" style={{ width: authored.width, height: authored.height, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
         <CanonicalVisualRenderer elements={elements} emptyLabel={emptyLabel} locale={locale} dynamoDefinitions={dynamoDefinitions}

@@ -71,6 +71,7 @@
   flex-direction: column;
   gap: .3rem;
 }
+.eng-mutation-field small { color: var(--eng-muted); font-size: 10px; line-height: 1.25; }
 
 .eng-mutation-field select,
 .eng-mutation-field input {

@@ -17,6 +17,9 @@ test('C07 visual authoring surfaces follow live pt-BR, en and es locale changes'
   await expect(outliner.getByText('Estrutura', { exact: true })).toBeVisible();
   await page.getByRole('tab', { name: 'Assets' }).click();
   await expect(surface.getByText('Fundo', { exact: true })).toBeVisible();
+  await surface.locator('summary').click();
+  await expect(surface.getByLabel('Usar')).toHaveValue('theme');
+  await expect(surface.locator('select').first().locator('option')).toHaveCount(3);
   await page.getByRole('tab', { name: 'Biblioteca' }).click();
   await expect(library.getByText('Biblioteca de dínamos', { exact: true })).toBeVisible();
 
@@ -40,6 +43,9 @@ test('C07 visual authoring surfaces follow live pt-BR, en and es locale changes'
 });
 
 test('C07 Runtime Dynamo semantic and error labels are localized without changing state keys', () => {
+  expect(c07VisualEditorText('pt-BR').surface.mode.theme).toBe('Tema atual (claro/escuro)');
+  expect(c07VisualEditorText('en').surface.mode.theme).toBe('Current theme (light/dark)');
+  expect(c07VisualEditorText('es').surface.mode.theme).toBe('Tema actual (claro/oscuro)');
   expect(c07VisualEditorText('pt-BR').runtimeState).toMatchObject({
     fault: 'FALHA', active: 'ATIVO', transition: 'TRANSIÇÃO', dynamoError: 'ERRO DE DÍNAMO'
   });

@@ -17,6 +17,9 @@
     <InternalsVisibleTo Include="Scada.Drivers.Tests" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Runtime/ImportedE3DynamoLibraryData.json" />
+  </ItemGroup>
+  <ItemGroup>
     <None Update="Runtime/ServerScriptRunner.py"
           TargetPath="ServerScriptRunner.py"
           CopyToOutputDirectory="PreserveNewest"

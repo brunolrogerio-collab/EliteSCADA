@@ -7,7 +7,7 @@ import type {
 } from 'react';
 import { BUILTIN_VISUAL_OBJECT_TYPES } from '../../../visual-runtime';
 import type { EngineeringLocale } from '../../i18n';
-import type { DynamoEngineering } from '../../types';
+import type { DynamoEngineering, EquipmentEngineering, TemplateEngineering } from '../../types';
 import { CanonicalVisualRenderer } from '../CanonicalVisualRenderer';
 import { updateCanonicalPolygonPoints } from '../polygonCanonicalMutations';
 import { applyVisualEditorMutationIntent } from '../visualEditorCanonicalModel';
@@ -73,6 +73,8 @@ const CANVAS_CONTENT_HEIGHT = 4000;
 export type VisualEditorCanvasProps = VisualEditorCanvasContractProps & Readonly<{
   locale?: EngineeringLocale;
   dynamoDefinitions?: readonly DynamoEngineering[] | null;
+  equipmentDefinitions?: readonly EquipmentEngineering[] | null;
+  templateDefinitions?: readonly TemplateEngineering[] | null;
   emptyLabel?: string;
 }>;
 
@@ -87,6 +89,8 @@ export function VisualEditorCanvas({
   logicalBoundary,
   locale = 'pt-BR',
   dynamoDefinitions,
+  equipmentDefinitions,
+  templateDefinitions,
   emptyLabel
 }: VisualEditorCanvasProps) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
@@ -470,6 +474,8 @@ export function VisualEditorCanvas({
             emptyLabel={emptyLabel ?? canvasText.empty}
             locale={locale}
             dynamoDefinitions={dynamoDefinitions}
+            equipmentDefinitions={equipmentDefinitions}
+            templateDefinitions={templateDefinitions}
             showTechnicalFallbackText
           />
         </div>

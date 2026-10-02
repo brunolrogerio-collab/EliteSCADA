@@ -372,6 +372,9 @@ internal sealed class EngineeringFragmentDependencyResolver
                     addByKey(ImportEntityKind.Screen, action.TargetKey, owner);
                 if (action.Kind == VisualNavigationActionKind.OpenPopup)
                     addByKey(ImportEntityKind.Popup, action.TargetKey, owner);
+                if ((action.Kind is VisualNavigationActionKind.SetTagValue or VisualNavigationActionKind.ToggleTagBoolean) &&
+                    Guid.TryParse(action.TargetKey, out var tagId))
+                    addById(ImportEntityKind.Tag, tagId, owner);
             }
 
             if (string.Equals(element.Type, "core.image", StringComparison.Ordinal) &&

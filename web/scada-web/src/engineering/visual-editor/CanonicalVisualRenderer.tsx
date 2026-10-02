@@ -4,6 +4,8 @@ import type { EngineeringLocale } from '../i18n';
 import type {
   BindingEngineering,
   DynamoEngineering,
+  EquipmentEngineering,
+  TemplateEngineering,
   VisualElementEngineering,
   VisualEngineeringPropertyValue
 } from '../types';
@@ -55,6 +57,8 @@ export type CanonicalVisualRendererProps = {
   emptyLabel: string;
   locale?: EngineeringLocale;
   dynamoDefinitions?: readonly DynamoEngineering[] | null;
+  equipmentDefinitions?: readonly EquipmentEngineering[] | null;
+  templateDefinitions?: readonly TemplateEngineering[] | null;
   onVisualEvent?: (event: CanonicalVisualEvent) => void;
   onTagWrite?: SliderTagWrite;
   visualAssetUrl?: VisualAssetUrlResolver;
@@ -71,6 +75,8 @@ export function CanonicalVisualRenderer({
   emptyLabel,
   locale = 'pt-BR',
   dynamoDefinitions,
+  equipmentDefinitions,
+  templateDefinitions,
   onVisualEvent,
   onTagWrite,
   visualAssetUrl = visualAssetContentUrl,
@@ -80,8 +86,8 @@ export function CanonicalVisualRenderer({
 }: CanonicalVisualRendererProps) {
   const rootElements = elements ?? emptyElements;
   const runtimeBindingElements = React.useMemo(
-    () => collectRuntimeBindingElements(rootElements, dynamoDefinitions),
-    [rootElements, dynamoDefinitions]
+    () => collectRuntimeBindingElements(rootElements, dynamoDefinitions, equipmentDefinitions, templateDefinitions),
+    [rootElements, dynamoDefinitions, equipmentDefinitions, templateDefinitions]
   );
   const liveSamples = useVisualBindingSamples(runtimeBindingElements, liveBindings);
   if (rootElements.length === 0) return <div className="visual-editor-renderer-empty">{emptyLabel}</div>;
@@ -93,6 +99,8 @@ export function CanonicalVisualRenderer({
       locale={locale}
       liveSamples={liveSamples}
       dynamoDefinitions={dynamoDefinitions}
+      equipmentDefinitions={equipmentDefinitions}
+      templateDefinitions={templateDefinitions}
       onVisualEvent={onVisualEvent}
       onTagWrite={onTagWrite}
       visualAssetUrl={visualAssetUrl}
@@ -107,6 +115,8 @@ function CanonicalElement({
   locale,
   liveSamples,
   dynamoDefinitions,
+  equipmentDefinitions,
+  templateDefinitions,
   onVisualEvent,
   runtimeIdentityPrefix,
   onTagWrite,
@@ -118,6 +128,8 @@ function CanonicalElement({
   locale: EngineeringLocale;
   liveSamples: ReadonlyMap<string, VisualLiveScalarSample>;
   dynamoDefinitions?: readonly DynamoEngineering[] | null;
+  equipmentDefinitions?: readonly EquipmentEngineering[] | null;
+  templateDefinitions?: readonly TemplateEngineering[] | null;
   onVisualEvent?: (event: CanonicalVisualEvent) => void;
   runtimeIdentityPrefix?: string;
   onTagWrite?: SliderTagWrite;
@@ -131,9 +143,21 @@ function CanonicalElement({
       locale={locale}
       liveSamples={liveSamples}
       dynamoDefinitions={dynamoDefinitions}
+      equipmentDefinitions={equipmentDefinitions}
+      templateDefinitions={templateDefinitions}
       onVisualEvent={onVisualEvent}
       onTagWrite={onTagWrite}
       visualAssetUrl={visualAssetUrl}
+      showTechnicalFallbackText={showTechnicalFallbackText}
+      operatorTimeRangeControls={operatorTimeRangeControls}
+    />;
+  }
+
+  if (element.equipmentId && equipmentDefinitions && templateDefinitions) {
+    return <CanonicalEquipmentElement
+      element={element} locale={locale} liveSamples={liveSamples}
+      equipmentDefinitions={equipmentDefinitions} templateDefinitions={templateDefinitions}
+      onVisualEvent={onVisualEvent} onTagWrite={onTagWrite} visualAssetUrl={visualAssetUrl}
       showTechnicalFallbackText={showTechnicalFallbackText}
       operatorTimeRangeControls={operatorTimeRangeControls}
     />;
@@ -186,6 +210,8 @@ function CanonicalElement({
           locale={locale}
           liveSamples={liveSamples}
           dynamoDefinitions={dynamoDefinitions}
+          equipmentDefinitions={equipmentDefinitions}
+          templateDefinitions={templateDefinitions}
           onVisualEvent={onVisualEvent}
           runtimeIdentityPrefix={runtimeIdentityPrefix}
           onTagWrite={onTagWrite}
@@ -228,6 +254,99 @@ function CanonicalElement({
       />;
     }
 
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.arc) {
+      const width = Math.max(numberValue(values[VISUAL_PROPERTY_KEYS.width], 1), 1);
+      const height = Math.max(numberValue(values[VISUAL_PROPERTY_KEYS.height], 1), 1);
+      const startAngle = numberValue(values[VISUAL_PROPERTY_KEYS.arcStartAngle], 0);
+      const endAngle = numberValue(values[VISUAL_PROPERTY_KEYS.arcEndAngle], 90);
+      const arcStyle = stringValue(values[VISUAL_PROPERTY_KEYS.arcStyle], 'pie');
+      const path = ellipseArcPath(width, height, startAngle, endAngle, arcStyle);
+      const strokeStyle = normalizeCanonicalStrokeStyle(values[VISUAL_PROPERTY_KEYS.strokeStyle]);
+      const strokeWidth = effectiveStrokeWidth(
+        strokeStyle,
+        numberValue(values[VISUAL_PROPERTY_KEYS.strokeWidth], 1)
+      );
+      const gradient = polygonGradient(values);
+      const gradientId = gradient
+        ? `visual-arc-gradient-${stableDomToken(runtimeObjectId ?? element.id ?? element.key)}`
+        : undefined;
+      const fill = arcStyle === 'arc'
+        ? 'none'
+        : stringValue(values[VISUAL_PROPERTY_KEYS.fillStyle], 'solid') === 'none'
+          ? 'none'
+          : gradientId ? `url(#${gradientId})` : polygonSolidFill(values);
+      return <div
+        className="visual-editor-object visual-editor-arc"
+        style={{ ...style, background: 'transparent', border: 0, overflow: 'visible' }}
+        data-object-id={element.id ?? undefined}
+        data-runtime-object-id={runtimeObjectId}
+        data-enabled={enabled}
+        title={elementTitle}
+        data-dynamic-state={diagnosticState}
+        onClick={onClick}
+      >
+        <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-label={element.key}>
+          {gradient && gradientId ? <defs>
+            <linearGradient id={gradientId} x1={gradient.x1} y1={gradient.y1} x2={gradient.x2} y2={gradient.y2}>
+              <stop offset="0%" stopColor={gradient.primary} />
+              <stop offset="100%" stopColor={gradient.secondary} />
+            </linearGradient>
+          </defs> : null}
+          <path
+            d={path}
+            fill={fill}
+            stroke={strokeStyle === 'none' ? 'none' : stringValue(values[VISUAL_PROPERTY_KEYS.strokeColor], '#000000')}
+            strokeWidth={strokeWidth}
+            strokeDasharray={svgStrokeDasharray(strokeStyle)}
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+      </div>;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.bezier) {
+      const path = safeBezierPath(stringValue(values[VISUAL_PROPERTY_KEYS.bezierPath]));
+      const strokeStyle = normalizeCanonicalStrokeStyle(values[VISUAL_PROPERTY_KEYS.strokeStyle]);
+      const strokeWidth = effectiveStrokeWidth(
+        strokeStyle,
+        numberValue(values[VISUAL_PROPERTY_KEYS.strokeWidth], 1)
+      );
+      const gradient = polygonGradient(values);
+      const gradientId = gradient
+        ? `visual-bezier-gradient-${stableDomToken(runtimeObjectId ?? element.id ?? element.key)}`
+        : undefined;
+      return <div
+        className="visual-editor-object visual-editor-bezier"
+        style={{ ...style, background: 'transparent', border: 0, overflow: 'visible' }}
+        data-object-id={element.id ?? undefined}
+        data-runtime-object-id={runtimeObjectId}
+        data-enabled={enabled}
+        title={elementTitle}
+        data-dynamic-state={diagnosticState}
+        onClick={onClick}
+      >
+        <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label={element.key}>
+          {gradient && gradientId ? <defs>
+            <linearGradient id={gradientId} x1={gradient.x1} y1={gradient.y1} x2={gradient.x2} y2={gradient.y2}>
+              <stop offset="0%" stopColor={gradient.primary} />
+              <stop offset="100%" stopColor={gradient.secondary} />
+            </linearGradient>
+          </defs> : null}
+          <path
+            d={path}
+            fill={stringValue(values[VISUAL_PROPERTY_KEYS.fillStyle], 'solid') === 'none'
+              ? 'none'
+              : gradientId ? `url(#${gradientId})` : polygonSolidFill(values)}
+            fillRule="evenodd"
+            stroke={strokeStyle === 'none' ? 'none' : stringValue(values[VISUAL_PROPERTY_KEYS.strokeColor], '#000000')}
+            strokeWidth={strokeWidth}
+            strokeDasharray={svgStrokeDasharray(strokeStyle)}
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+      </div>;
+    }
+
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.polygon) {
       const points = readPolygonPoints(element);
       if (points.length < 3) throw new Error(`Polygon '${element.key}' requires at least three valid vertices.`);
@@ -262,6 +381,7 @@ function CanonicalElement({
           <polygon
             points={polygonPointsAttribute(normalizedPoints)}
             fill={gradientId ? `url(#${gradientId})` : polygonSolidFill(values)}
+            fillRule={stringValue(values[VISUAL_PROPERTY_KEYS.polygonFillRule], 'nonzero') === 'evenodd' ? 'evenodd' : 'nonzero'}
             stroke={strokeStyle === 'none' ? 'none' : stringValue(values[VISUAL_PROPERTY_KEYS.strokeColor], '#000000')}
             strokeWidth={strokeWidth}
             strokeDasharray={svgStrokeDasharray(strokeStyle)}
@@ -378,6 +498,8 @@ function CanonicalDynamoElement({
   locale,
   liveSamples,
   dynamoDefinitions,
+  equipmentDefinitions,
+  templateDefinitions,
   onVisualEvent,
   onTagWrite,
   visualAssetUrl,
@@ -388,6 +510,8 @@ function CanonicalDynamoElement({
   locale: EngineeringLocale;
   liveSamples: ReadonlyMap<string, VisualLiveScalarSample>;
   dynamoDefinitions?: readonly DynamoEngineering[] | null;
+  equipmentDefinitions?: readonly EquipmentEngineering[] | null;
+  templateDefinitions?: readonly TemplateEngineering[] | null;
   onVisualEvent?: (event: CanonicalVisualEvent) => void;
   onTagWrite?: SliderTagWrite;
   visualAssetUrl: VisualAssetUrlResolver;
@@ -435,6 +559,8 @@ function CanonicalDynamoElement({
         locale={locale}
         liveSamples={liveSamples}
         dynamoDefinitions={dynamoDefinitions}
+        equipmentDefinitions={equipmentDefinitions}
+        templateDefinitions={templateDefinitions}
         onVisualEvent={onVisualEvent}
         runtimeIdentityPrefix={composition.instanceId}
         onTagWrite={onTagWrite}
@@ -455,6 +581,65 @@ function CanonicalDynamoElement({
       title={message}
     >{element.key || element.dynamoKey || 'invalid Dynamo'}</div>;
   }
+}
+
+function CanonicalEquipmentElement({
+  element, locale, liveSamples, equipmentDefinitions, templateDefinitions,
+  onVisualEvent, onTagWrite, visualAssetUrl, showTechnicalFallbackText, operatorTimeRangeControls
+}: {
+  element: VisualElementEngineering;
+  locale: EngineeringLocale;
+  liveSamples: ReadonlyMap<string, VisualLiveScalarSample>;
+  equipmentDefinitions: readonly EquipmentEngineering[];
+  templateDefinitions: readonly TemplateEngineering[];
+  onVisualEvent?: (event: CanonicalVisualEvent) => void;
+  onTagWrite?: SliderTagWrite;
+  visualAssetUrl: VisualAssetUrlResolver;
+  showTechnicalFallbackText: boolean;
+  operatorTimeRangeControls: boolean;
+}) {
+  const equipment = equipmentDefinitions.find(item => item.id === element.equipmentId);
+  const template = equipment && templateDefinitions.find(item =>
+    Boolean(equipment.templateId && item.id === equipment.templateId) ||
+    Boolean(equipment.templateKey && item.key === equipment.templateKey)
+  );
+  if (!equipment || !template) {
+    return <div className="visual-editor-object-error" data-testid="visual-runtime-equipment-diagnostic">
+      {equipment ? `Template não encontrado: ${equipment.templateKey ?? equipment.templateId ?? ''}` : 'Equipamento não encontrado'}
+    </div>;
+  }
+  const instanceId = `equipment:${equipment.id}`;
+  const schema = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.group);
+  const baseValues: Readonly<Record<string, VisualPropertyValue>> = {
+    ...schema.createDefaultValues(),
+    ...decodeVisualEngineeringProperties(registeredScalarProperties(element, schema), schema)
+  };
+  const dynamic = resolveVisualDynamicState(element, baseValues, liveSamples);
+  const children = bindTemplateElements(template.elements ?? [], equipment.path);
+  return <div className="visual-editor-object visual-editor-group visual-editor-equipment-instance"
+    style={elementStyle(dynamic.values)} data-object-id={element.id ?? undefined}
+    data-runtime-object-id={instanceId} data-equipment-id={equipment.id}
+    data-template-id={template.id} data-template-key={template.key} data-equipment-path={equipment.path}
+    onClick={visualClickHandler(element, onVisualEvent, instanceId)}>
+    {children.map((child, index) => <CanonicalElement
+      key={`${instanceId}:${child.id ?? `${child.key}-${index}`}`}
+      element={child} locale={locale} liveSamples={liveSamples}
+      equipmentDefinitions={equipmentDefinitions} templateDefinitions={templateDefinitions}
+      onVisualEvent={onVisualEvent} runtimeIdentityPrefix={instanceId}
+      onTagWrite={onTagWrite} visualAssetUrl={visualAssetUrl}
+      showTechnicalFallbackText={showTechnicalFallbackText}
+      operatorTimeRangeControls={operatorTimeRangeControls}
+    />)}
+  </div>;
+}
+
+function bindTemplateElements(elements: readonly VisualElementEngineering[], equipmentPath: string): VisualElementEngineering[] {
+  const substitute = (value: string) => value.replaceAll('{equipmentPath}', equipmentPath);
+  return elements.map(element => ({
+    ...element,
+    bindings: element.bindings?.map(binding => ({ ...binding, target: substitute(binding.target) })),
+    children: element.children ? bindTemplateElements(element.children, equipmentPath) : element.children
+  }));
 }
 
 function analogFillOverlay(
@@ -561,13 +746,30 @@ function runtimeElementIdentity(
 
 function collectRuntimeBindingElements(
   rootElements: readonly VisualElementEngineering[],
-  dynamoDefinitions: readonly DynamoEngineering[] | null | undefined
+  dynamoDefinitions: readonly DynamoEngineering[] | null | undefined,
+  equipmentDefinitions: readonly EquipmentEngineering[] | null | undefined,
+  templateDefinitions: readonly TemplateEngineering[] | null | undefined
 ): readonly VisualElementEngineering[] {
-  if (!dynamoDefinitions || dynamoDefinitions.length === 0) return rootElements;
-  const definitionElements = dynamoDefinitions.flatMap(definition =>
+  const dynamoElements = (dynamoDefinitions ?? []).flatMap(definition =>
     [...(asCanonicalDynamo(definition).elements ?? [])]
   );
-  return Object.freeze([...rootElements, ...definitionElements]);
+  const equipmentElements: VisualElementEngineering[] = [];
+  const addEquipmentTemplates = (elements: readonly VisualElementEngineering[]) => {
+    for (const element of elements) {
+      if (element.equipmentId) {
+        const equipment = equipmentDefinitions?.find(item => item.id === element.equipmentId);
+        const template = equipment && templateDefinitions?.find(item =>
+          Boolean(equipment.templateId && item.id === equipment.templateId) ||
+          Boolean(equipment.templateKey && item.key === equipment.templateKey)
+        );
+        if (equipment && template) equipmentElements.push(...bindTemplateElements(template.elements ?? [], equipment.path));
+      }
+      if (element.children) addEquipmentTemplates(element.children);
+    }
+  };
+  addEquipmentTemplates(rootElements);
+  if (dynamoDefinitions) addEquipmentTemplates(dynamoElements);
+  return Object.freeze([...rootElements, ...dynamoElements, ...equipmentElements]);
 }
 
 function elementStyle(values: Readonly<Record<string, VisualPropertyValue>>): CSSProperties {
@@ -634,11 +836,53 @@ function lineStyle(base: CSSProperties, values: Readonly<Record<string, VisualPr
   };
 }
 
+function ellipseArcPath(
+  width: number,
+  height: number,
+  startDegrees: number,
+  endDegrees: number,
+  arcStyle: string
+): string {
+  const normalize = (degrees: number) => ((degrees % 360) + 360) % 360;
+  const start = normalize(startDegrees);
+  const end = normalize(endDegrees);
+  let sweep = (end - start + 360) % 360;
+  if (Math.abs(endDegrees - startDegrees) >= 360) sweep = 359.999;
+  if (sweep < 0.001) return '';
+
+  const point = (degrees: number) => {
+    const radians = degrees * Math.PI / 180;
+    return {
+      x: width / 2 + (width / 2) * Math.cos(radians),
+      y: height / 2 - (height / 2) * Math.sin(radians)
+    };
+  };
+  const from = point(start);
+  const to = point(start + sweep);
+  const largeArc = sweep > 180 ? 1 : 0;
+  const arc = `M ${from.x} ${from.y} A ${width / 2} ${height / 2} 0 ${largeArc} 0 ${to.x} ${to.y}`;
+  if (arcStyle === 'chord') return `${arc} Z`;
+  if (arcStyle === 'pie') return `${arc} L ${width / 2} ${height / 2} Z`;
+  return arc;
+}
+
+function safeBezierPath(path: string): string {
+  const normalized = path.trim();
+  if (!normalized || !/^[MmLlHhVvCcSsQqTtAaZz0-9eE+\-.,\s]+$/.test(normalized)) {
+    return 'M 0 50 C 20 0 80 0 100 50 C 80 100 20 100 0 50 Z';
+  }
+  return normalized;
+}
+
 function fillBackground(values: Readonly<Record<string, VisualPropertyValue>>): string | undefined {
   const backgroundColor = stringValue(values[VISUAL_PROPERTY_KEYS.backgroundColor]);
-  if (backgroundColor) return backgroundColor;
+  if (backgroundColor && !isTransparentColor(backgroundColor)) return backgroundColor;
 
-  const primary = stringValue(values[VISUAL_PROPERTY_KEYS.fillColor]);
+  const hasFill = Object.prototype.hasOwnProperty.call(values, VISUAL_PROPERTY_KEYS.fillStyle) ||
+    Object.prototype.hasOwnProperty.call(values, VISUAL_PROPERTY_KEYS.fillColor);
+  if (!hasFill) return backgroundColor || undefined;
+
+  const primary = stringValue(values[VISUAL_PROPERTY_KEYS.fillColor], '#808080FF');
   if (!Object.prototype.hasOwnProperty.call(values, VISUAL_PROPERTY_KEYS.fillStyle)) return primary || undefined;
 
   const fillStyle = stringValue(values[VISUAL_PROPERTY_KEYS.fillStyle], 'solid');
@@ -646,7 +890,16 @@ function fillBackground(values: Readonly<Record<string, VisualPropertyValue>>): 
   if (fillStyle !== 'gradient') return primary || undefined;
 
   const secondary = stringValue(values[VISUAL_PROPERTY_KEYS.fillSecondaryColor], '#00000000');
-  return `linear-gradient(${gradientAngle(values[VISUAL_PROPERTY_KEYS.gradientDirection])}, ${primary || '#00000000'}, ${secondary})`;
+  return `linear-gradient(${gradientAngle(values[VISUAL_PROPERTY_KEYS.gradientDirection])}, ${primary}, ${secondary})`;
+}
+
+function isTransparentColor(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'transparent') return true;
+  if (/^#[\da-f]{4}$/.test(normalized)) return normalized.endsWith('0');
+  if (/^#[\da-f]{8}$/.test(normalized)) return normalized.endsWith('00');
+  const rgba = /^rgba\(\s*[^,]+\s*,\s*[^,]+\s*,\s*[^,]+\s*,\s*([\d.]+)\s*\)$/.exec(normalized);
+  return rgba?.[1] !== undefined && Number(rgba[1]) === 0;
 }
 
 function shadowFilter(values: Readonly<Record<string, VisualPropertyValue>>): string | undefined {
@@ -672,7 +925,7 @@ function polygonGradient(values: Readonly<Record<string, VisualPropertyValue>>):
   const direction = stringValue(values[VISUAL_PROPERTY_KEYS.gradientDirection], 'vertical');
   const coordinates = gradientCoordinates(direction);
   return {
-    primary: stringValue(values[VISUAL_PROPERTY_KEYS.fillColor], '#00000000'),
+    primary: stringValue(values[VISUAL_PROPERTY_KEYS.fillColor], '#808080FF'),
     secondary: stringValue(values[VISUAL_PROPERTY_KEYS.fillSecondaryColor], '#00000000'),
     ...coordinates
   };
@@ -680,7 +933,7 @@ function polygonGradient(values: Readonly<Record<string, VisualPropertyValue>>):
 
 function polygonSolidFill(values: Readonly<Record<string, VisualPropertyValue>>): string {
   if (stringValue(values[VISUAL_PROPERTY_KEYS.fillStyle], 'solid') === 'none') return 'none';
-  return stringValue(values[VISUAL_PROPERTY_KEYS.fillColor], '#00000000');
+  return stringValue(values[VISUAL_PROPERTY_KEYS.fillColor], '#808080FF');
 }
 
 function gradientAngle(value: VisualPropertyValue | undefined): string {

@@ -60,6 +60,25 @@ test('primary shell keeps authorized application navigation coherent without Eng
   await expect(navigation.getByRole('link', { name: 'Engenharia' })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByText(/Gerenciamento do projeto|Project Management/, { exact: true })).toBeVisible();
   await expectCssToken(page.locator('.eng-shell'), 'background-color', '--app-bg');
+  await expectCssToken(page.locator('.eng-project-management__card').first(), 'background-color', '--app-surface');
+  await expectCssToken(page.locator('.eng-lifecycle-workspace__fact').first(), 'background-color', '--app-surface-elevated');
+  const lifecycle = page.locator('.eng-lifecycle-workspace');
+  const revisionsPanel = lifecycle.locator('.eng-lifecycle-workspace__revisions');
+  const activationStep = lifecycle.getByTestId('engineering-lifecycle-activate-step');
+  await expect(activationStep.getByRole('button', { name: /Ativar Published/ })).toBeVisible();
+  await expect(lifecycle.locator('.eng-lifecycle-workspace__actions').getByRole('button', { name: /Ativar Published/ })).toHaveCount(0);
+  const activationFollowsRevisions = await lifecycle.evaluate(root => {
+    const revisions = root.querySelector('.eng-lifecycle-workspace__revisions');
+    const activation = root.querySelector('[data-testid="engineering-lifecycle-activate-step"]');
+    return Boolean(revisions && activation && (revisions.compareDocumentPosition(activation) & Node.DOCUMENT_POSITION_FOLLOWING));
+  });
+  expect(activationFollowsRevisions).toBe(true);
+
+  const engineeringTheme = page.getByRole('combobox', { name: 'Tema' });
+  await engineeringTheme.selectOption('dark');
+  await expect(page.locator('html')).toHaveAttribute('data-app-theme', 'dark');
+  await expectCssToken(page.locator('.eng-project-management__card').first(), 'background-color', '--app-surface');
+  await expectCssToken(page.locator('.eng-lifecycle-workspace__fact').first(), 'background-color', '--app-surface-elevated');
   await expect(page.getByTestId('engineering-context-row')).toBeVisible();
   await expect(page.getByTestId('engineering-workspace-state')).toBeVisible();
   await expect(page.getByTestId('engineering-workspace-bar')).toHaveCount(0);

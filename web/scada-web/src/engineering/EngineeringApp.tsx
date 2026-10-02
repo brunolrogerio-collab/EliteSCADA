@@ -26,8 +26,12 @@ import { GatewayEngineeringPanel } from './GatewayEngineeringPanel';
 import { UserAdministration } from './UserAdministration';
 import { PopupVisualEditorWorkspace } from './visual-editor/PopupVisualEditorWorkspace';
 import { VisualEditorWorkspace } from './visual-editor/VisualEditorWorkspace';
-import type { EngineeringPackageView, EngineeringSnapshot } from './types';
+import { VisualAssetManagementWorkspace } from './VisualAssetManagementWorkspace';
+import { EquipmentFaceplateWorkspace } from './EquipmentFaceplateWorkspace';
+import type { DynamoEngineering, EngineeringPackageView, EngineeringSnapshot, EquipmentEngineering, TemplateEngineering } from './types';
+import { CanonicalVisualPreview } from './visual-editor/CanonicalVisualPreview';
 import './engineering.css';
+import './object-catalog.css';
 
 type SectionId =
   | 'overview'
@@ -43,6 +47,7 @@ type SectionId =
   | 'templates'
   | 'equipment'
   | 'dynamos'
+  | 'visualAssets'
   | 'screens'
   | 'popups'
   | 'historian'
@@ -74,7 +79,7 @@ const navigation: NavGroup[] = [
     { id: 'alarms', label: 'nav.alarms' },
     { id: 'operationalEvents', literalLabel: { 'pt-BR': 'Eventos Operacionais', en: 'Operational Events', es: 'Eventos Operacionales' } }
   ] },
-  { label: 'nav.assets', items: [{ id: 'templates', label: 'nav.templates' }, { id: 'equipment', label: 'nav.equipment' }, { id: 'dynamos', label: 'nav.dynamos' }] },
+  { label: 'nav.assets', items: [{ id: 'templates', label: 'nav.templates' }, { id: 'equipment', label: 'nav.equipment' }, { id: 'dynamos', label: 'nav.dynamos' }, { id: 'visualAssets', literalLabel: { 'pt-BR': 'Assets visuais', en: 'Visual assets', es: 'Assets visuales' } }] },
   { label: 'nav.visualization', items: [{ id: 'screens', label: 'nav.screens' }, { id: 'popups', label: 'nav.popups' }] },
   { label: 'nav.historian', items: [
     { id: 'historian', label: 'nav.historian' },
@@ -98,6 +103,8 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
   const [navigationCollapsed, setNavigationCollapsed] = useState(false);
   const [productIdentity, setProductIdentity] = useState<ProductIdentityView | null>(null);
   const t = useMemo(() => translator(locale), [locale]);
+  const projectIdentity = snapshot?.workspace.projectName ?? snapshot?.workspace.projectKey
+    ?? (loading ? t('workspace.loading') : t('workspace.unavailable'));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -151,9 +158,9 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
           <span
             className="eng-context__project"
             data-testid="engineering-project-identity"
-            title={snapshot?.workspace.projectName ?? snapshot?.workspace.projectKey ?? t('workspace.unavailable')}
+            title={projectIdentity}
           >
-            {snapshot?.workspace.projectName ?? snapshot?.workspace.projectKey ?? t('workspace.unavailable')}
+            {projectIdentity}
           </span>
           <span
             className={snapshot?.workspace.isDirty ? 'eng-context__workspace eng-context__workspace--dirty' : 'eng-context__workspace'}
@@ -213,8 +220,8 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
         </aside>
 
         <section
-          className={section === 'screens' || section === 'popups' ? 'eng-workspace eng-workspace--wide-section' : 'eng-workspace'}
-          data-section-layout={section === 'screens' || section === 'popups' ? 'wide' : 'readable'}
+          className={section === 'screens' || section === 'popups' || section === 'dynamos' ? 'eng-workspace eng-workspace--wide-section' : 'eng-workspace'}
+          data-section-layout={section === 'screens' || section === 'popups' || section === 'dynamos' ? 'wide' : 'readable'}
         >
           {loading && <div className="eng-state-card"><div className="eng-spinner"/><strong>{t('app.loading')}</strong></div>}
           {!loading && error && <div className="eng-state-card error" role="alert" data-testid="engineering-load-error"><strong>{t('app.loadError')}</strong><span>{error}</span><button type="button" onClick={() => void load()}>{t('app.retry')}</button></div>}
@@ -243,6 +250,7 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, onR
   if (section === 'overview') return <><Overview snapshot={snapshot} t={t}/><EngineeringLifecycleWorkspace locale={locale}/><EngineeringProjectManagementWorkspace locale={locale}/></>;
   if (section === 'installation') return <InstallationSwitchingWorkspace locale={locale} onWorkspaceChanged={onReload}/>;
   if (section === 'branding') return <BrandingEngineeringWorkspace snapshot={snapshot} onApplied={onReload}/>;
+  if (section === 'visualAssets') return <VisualAssetManagementWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
   if (section === 'scripts') return <ScriptEngineeringWorkspace locale={locale}/>;
   if (section === 'libraries') return <ReusableLibraryWorkspace locale={locale} snapshot={snapshot} onReload={onReload}/>;
   if (section === 'historian') return <HistorianSection model={model} t={t}/>;
@@ -259,25 +267,9 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, onR
     case 'tags': return <TagEditor model={model} locale={locale}/>;
     case 'alarms': return <AlarmEditor model={model} locale={locale}/>;
     case 'operationalEvents': return <OperationalEventEditor model={model} locale={locale} onApplied={onReload}/>;
-    case 'templates': return <EntitySection title={t('nav.templates')} items={model.templates ?? []} t={t} columns={[
-      { key: 'key', title: t('table.key'), render: item => <Code>{item.key}</Code> },
-      { key: 'name', title: t('table.name'), render: item => item.name },
-      { key: 'bindings', title: t('table.bindings'), render: item => item.bindings?.length ?? 0 },
-      { key: 'inspect', title: t('section.inspect'), render: item => <BindingInspection bindings={item.bindings} t={t} /> }
-    ]}/>;
-    case 'equipment': return <EntitySection title={t('nav.equipment')} items={model.equipment ?? []} t={t} columns={[
-      { key: 'path', title: t('table.path'), render: item => <Code>{item.path}</Code> },
-      { key: 'name', title: t('table.name'), render: item => item.name },
-      { key: 'template', title: t('table.template'), render: item => item.templateKey ? <Code>{item.templateKey}</Code> : '—' },
-      { key: 'bindings', title: t('table.bindings'), render: item => item.bindings?.length ?? 0 },
-      { key: 'inspect', title: t('section.inspect'), render: item => <BindingInspection bindings={item.bindings} t={t} /> }
-    ]}/>;
-    case 'dynamos': return <EntitySection title={t('nav.dynamos')} items={model.dynamos ?? []} t={t} columns={[
-      { key: 'key', title: t('table.key'), render: item => <Code>{item.key}</Code> },
-      { key: 'name', title: t('table.name'), render: item => item.name },
-      { key: 'template', title: t('table.template'), render: item => item.templateKey ? <Code>{item.templateKey}</Code> : '—' },
-      { key: 'bindings', title: t('table.bindings'), render: item => item.bindings?.length ?? 0 }
-    ]}/>;
+    case 'templates': return <VisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload} definitionKind="template"/>;
+    case 'equipment': return <EquipmentFaceplateWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
+    case 'dynamos': return <DynamoCatalogSection items={model.dynamos ?? []} snapshot={snapshot} locale={locale} onApplied={onReload}/>;
     case 'screens': return <VisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
     case 'popups': return <PopupVisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
     default: return null;
@@ -306,6 +298,7 @@ function EngineeringInformation({ snapshot, productIdentity, t, locale }: {
       <details className="eng-panel eng-information__technical">
         <summary>{copy.technicalDetails}</summary>
         <div className="eng-diagnostic-grid">
+          <div className="eng-diagnostic-card eng-information__author-credit"><strong>SISTEMA DESENVOLVIDO POR BRUNO LUIZ ROGERIO</strong></div>
           <Diagnostic label={copy.schema} value={`${snapshot.package.schema} v${snapshot.package.schemaVersion}`} mono/>
           <Diagnostic label={copy.baseRevision} value={baseRevision}/>
           <Diagnostic label={copy.snapshot} value={formatDate(snapshot.package.exportedAt, locale)}/>
@@ -382,19 +375,69 @@ function DiagnosticsSection({ model, t, locale }: { model: EngineeringPackageVie
 }
 
 type TableColumn<T> = { key: string; title: string; render: (item: T) => React.ReactNode };
-function EntitySection<T>({ title, description, items, columns, t }: { title: string; description?: string; items: T[]; columns: Array<TableColumn<T>>; t: ReturnType<typeof translator> }) {
+function EntitySection<T>({ title, description, items, columns, t, emptyHint, actionHref, actionText }: { title: string; description?: string; items: T[]; columns: Array<TableColumn<T>>; t: ReturnType<typeof translator>; emptyHint?: string; actionHref?: string; actionText?: string }) {
   return (
     <div className="eng-section">
       <SectionHeader title={title} description={description} count={items.length} t={t}/>
       <section className="eng-panel eng-table-panel">
         {items.length === 0 ? (
-          <div className="eng-empty"><strong>{t('section.empty')}</strong><span>{t('section.future')}</span></div>
+          <div className="eng-empty"><strong>{t('section.empty')}</strong><span>{emptyHint ?? t('section.future')}</span>{actionHref && actionText ? <a className="secondary" href={actionHref}>{actionText}</a> : null}</div>
         ) : (
           <div className="eng-table-wrap"><table className="eng-table"><thead><tr>{columns.map(column => <th key={column.key}>{column.title}</th>)}</tr></thead><tbody>{items.map((item, index) => <tr key={index}>{columns.map(column => <td key={column.key}>{column.render(item)}</td>)}</tr>)}</tbody></table></div>
         )}
       </section>
     </div>
   );
+}
+
+function ObjectCollectionPage<T extends TemplateEngineering | EquipmentEngineering>({ title, items, columns, locale, kind }: {
+  title: string;
+  items: T[];
+  columns: Array<TableColumn<T>>;
+  locale: EngineeringLocale;
+  kind: 'templates' | 'equipment';
+}) {
+  const copy = objectCatalogCopy(locale);
+  const t = translator(locale);
+  return <EntitySection title={title} description={kind === 'templates' ? copy.templatesHint : copy.equipmentHint}
+    items={items} columns={columns} t={t}
+    emptyHint={kind === 'templates' ? copy.templatesEmpty : copy.equipmentEmpty}
+    actionHref="/engineering/screens" actionText={copy.openScreens}/>;
+}
+
+function DynamoCatalogSection({ items, snapshot, locale, onApplied }: { items: DynamoEngineering[]; snapshot: EngineeringSnapshot; locale: EngineeringLocale; onApplied: () => Promise<void> }) {
+  const copy = objectCatalogCopy(locale);
+  const [query, setQuery] = useState('');
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const editing = editingKey ? items.find(item => item.key === editingKey) : null;
+  const visible = items.filter(item => !query.trim() || `${item.name} ${item.key} ${item.templateKey ?? ''}`.toLocaleLowerCase(locale).includes(query.trim().toLocaleLowerCase(locale)));
+  if (editing) return <div className="dynamo-catalog__editor">
+    <VisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onApplied} definitionKind="dynamo" initialDefinitionKey={editingKey} onRequestClose={() => setEditingKey(null)}/>
+  </div>;
+  return <section className="eng-section" data-testid="dynamo-catalog">
+    <header className="eng-section-header"><div><span className="eng-eyebrow">{copy.dynamos}</span><h1>{copy.dynamos}</h1><p>{copy.dynamoHint}</p></div><div className="eng-section-meta"><strong>{items.length} {copy.items}</strong></div></header>
+    <div className="eng-panel dynamo-catalog__panel">
+      <label className="dynamo-catalog__search"><span>{copy.search}</span><input type="search" value={query} onChange={event => setQuery(event.currentTarget.value)}/></label>
+      {visible.length === 0 ? <div className="eng-empty"><strong>{items.length ? copy.noMatches : copy.noDynamos}</strong><span>{copy.dynamoAuthoringUnavailable}</span></div> : <div className="dynamo-catalog__grid">
+        {visible.map(item => <article className="dynamo-catalog__card" key={item.id ?? item.key}>
+          <CanonicalVisualPreview elements={item.elements ?? []} locale={locale} width={dynamoCanvasDimension(item, 'defaultWidth', 160)} height={dynamoCanvasDimension(item, 'defaultHeight', 110)} emptyLabel={copy.noPreview} variant="catalog"/>
+          <div><strong>{item.name}</strong><small>{item.elements?.length ?? 0} {copy.objects} · {(item.parameters ?? []).length} {copy.parameters}</small><button type="button" className="secondary" onClick={() => setEditingKey(item.key)}>{copy.editDynamo}</button></div>
+        </article>)}
+      </div>}
+      <p className="dynamo-catalog__notice">{copy.dynamoEditHint}</p>
+    </div>
+  </section>;
+}
+
+function dynamoCanvasDimension(item: DynamoEngineering, property: 'defaultWidth' | 'defaultHeight', fallback: number): number {
+  const value = Number(item.properties?.[property]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function objectCatalogCopy(locale: EngineeringLocale) {
+  if (locale === 'en') return { readOnlyCatalog: 'Project catalog', templatesHint: 'This page only displays existing definitions; this workspace does not currently create or edit templates.', equipmentHint: 'This page only displays existing equipment definitions; the editor does not currently create or edit equipment here.', templatesEmpty: 'No templates are configured. Template authoring is not available in this workspace yet.', equipmentEmpty: 'No equipment is configured. Equipment authoring is not available in this workspace yet.', dynamos: 'Dynamos', dynamoHint: 'Select a Dynamo to refine its visual definition. Changes are previewed and validated before applying.', dynamoAuthoringUnavailable: 'Dynamo editing is not available.', dynamoEditHint: 'Editing a definition updates the shared Dynamo; screen instances keep their link and reflect the new drawing.', editDynamo: 'Edit drawing', backToDynamos: '← Back to Dynamo library', noDynamos: 'No Dynamo definitions are configured.', noMatches: 'No matching Dynamos.', openScreens: 'Open screen editor', items: 'items', search: 'Search', objects: 'objects', parameters: 'parameters', noPreview: 'No visual preview' } as const;
+  if (locale === 'es') return { readOnlyCatalog: 'Catálogo del proyecto', templatesHint: 'Esta página solo muestra definiciones existentes; este espacio aún no permite crear ni editar plantillas.', equipmentHint: 'Esta página solo muestra equipos existentes; el editor aún no permite crearlos ni editarlos aquí.', templatesEmpty: 'No hay plantillas. La creación de plantillas todavía no está disponible en este espacio.', equipmentEmpty: 'No hay equipos. La creación de equipos todavía no está disponible en este espacio.', dynamos: 'Dínamos', dynamoHint: 'Seleccione un Dínamo para mejorar su diseño. Los cambios se validan antes de aplicarlos.', dynamoAuthoringUnavailable: 'La edición de Dínamos no está disponible.', dynamoEditHint: 'Editar una definición actualiza el Dínamo compartido; las instancias de pantalla conservan el vínculo.', editDynamo: 'Editar dibujo', backToDynamos: '← Volver a la biblioteca', noDynamos: 'No hay definiciones Dynamo.', noMatches: 'No hay Dínamos coincidentes.', openScreens: 'Abrir editor de pantallas', items: 'elementos', search: 'Buscar', objects: 'objetos', parameters: 'parámetros', noPreview: 'Vista previa no disponible' } as const;
+  return { readOnlyCatalog: 'Catálogo do projeto', templatesHint: 'Esta página apenas exibe definições existentes; este espaço ainda não cria nem edita templates.', equipmentHint: 'Esta página apenas exibe equipamentos existentes; o editor ainda não os cria nem edita por aqui.', templatesEmpty: 'Nenhum template configurado. A criação de templates ainda não está disponível neste espaço.', equipmentEmpty: 'Nenhum equipamento configurado. O editor ainda não cria nem edita equipamentos por aqui.', dynamos: 'Dínamos', dynamoHint: 'Escolha um dínamo para refinar o desenho pela interface. As alterações passam por preview e validação antes de aplicar.', dynamoAuthoringUnavailable: 'Edição de dínamos indisponível.', dynamoEditHint: 'Editar uma definição atualiza o dínamo compartilhado; as instâncias nas telas mantêm o vínculo e recebem o desenho atualizado.', editDynamo: 'Editar desenho', backToDynamos: '← Voltar à biblioteca de dínamos', noDynamos: 'Nenhuma definição de dínamo configurada.', noMatches: 'Nenhum dínamo corresponde à busca.', openScreens: 'Abrir editor de telas', items: 'itens', search: 'Buscar', objects: 'objetos', parameters: 'parâmetros', noPreview: 'Prévia indisponível' } as const;
 }
 
 function SectionHeader({ title, description, count, t }: { title: string; description?: string; count?: number; t: ReturnType<typeof translator> }) {
@@ -421,6 +464,7 @@ function sectionCount(model: EngineeringPackageView, section: SectionId): number
     case 'templates': return model.templates?.length ?? 0;
     case 'equipment': return model.equipment?.length ?? 0;
     case 'dynamos': return model.dynamos?.length ?? 0;
+    case 'visualAssets': return model.visualAssets?.length ?? 0;
     case 'screens': return model.screens?.length ?? 0;
     case 'popups': return model.popups?.length ?? 0;
     case 'historian': return model.tags.filter(tag => tag.historian?.enabled).length;
@@ -493,7 +537,7 @@ function formatDate(value: string, locale: EngineeringLocale) {
 }
 function scriptNavLabel(_locale: EngineeringLocale) { return 'Scripts'; }
 function NavIcon({ section }: { section: SectionId }) {
-  const symbols: Record<SectionId, string> = { overview: '⌂', installation: '⇆', branding: '◐', scripts: '</>', libraries: '▱', dataSources: '⇄', gateway: '⇢', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯', information: 'ⓘ' };
+  const symbols: Record<SectionId, string> = { overview: '⌂', installation: '⇆', branding: '◐', scripts: '</>', libraries: '▱', dataSources: '⇄', gateway: '⇢', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', visualAssets: '▧', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯', information: 'ⓘ' };
   return <i aria-hidden="true">{symbols[section]}</i>;
 }
 

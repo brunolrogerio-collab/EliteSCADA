@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { applyEngineeringPackage, previewEngineeringPackage, visualAssetContentUrl } from './api';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { applyEngineeringPackage, importVisualAsset, previewEngineeringPackage, visualAssetContentUrl } from './api';
 import type { ApplicationBrandingEngineering, ApplicationBrandingMode, EngineeringSnapshot, ImportPreviewView } from './types';
 
 const DEFAULT: ApplicationBrandingEngineering = { mode: 'default' };
@@ -10,6 +10,7 @@ export function BrandingEngineeringWorkspace({ snapshot, onApplied }: { snapshot
   const [previewSignature, setPreviewSignature] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setDraft(snapshot.package.branding ?? DEFAULT);
@@ -53,6 +54,27 @@ export function BrandingEngineeringWorkspace({ snapshot, onApplied }: { snapshot
     finally { setBusy(false); }
   }
 
+  async function uploadBrandImage(file: File) {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const result = await importVisualAsset(file, snapshot.workspace.changeVersion, {
+        fileName: file.name,
+        name: file.name.replace(/\.[^.]+$/, '')
+      });
+      await onApplied();
+      setDraft(current => ({ ...current, mode: 'image', visualAssetId: result.asset.id }));
+      setPreview(null);
+      setPreviewSignature('');
+      setMessage('Image uploaded to project assets. Validate and apply it to Working to use it in branding.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
+      if (fileInput.current) fileInput.current.value = '';
+    }
+  }
+
   return <div className="eng-section branding-editor" data-testid="branding-editor">
     <header className="eng-section-header"><div><span className="eng-eyebrow">Application</span><h1>Branding</h1>
       <p>Configure canonical application branding. This preview is Working-only; the global shell consumes only the Active revision.</p></div></header>
@@ -64,9 +86,17 @@ export function BrandingEngineeringWorkspace({ snapshot, onApplied }: { snapshot
         {(draft.mode === 'text' || draft.mode === 'image') && <><label><span>{draft.mode === 'text' ? 'Application text' : 'Accessible / optional image label'}</span>
           <input value={draft.text ?? ''} maxLength={128} onChange={e => update({ text: e.target.value })}/></label>
           <label><span>Subtitle (optional)</span><input value={draft.subtitle ?? ''} maxLength={256} onChange={e => update({ subtitle: e.target.value })}/></label></>}
-        {draft.mode === 'image' && <label><span>Canonical VisualAsset</span><select value={draft.visualAssetId ?? ''} onChange={e => update({ visualAssetId: e.target.value || null })}>
-          <option value="">Select asset…</option>{assets.map(a => a.id ? <option key={a.id} value={a.id}>{a.name} · {a.mediaType}</option> : null)}
-        </select></label>}
+        {draft.mode === 'image' && <div className="branding-editor__asset-picker">
+          <label><span>Project image</span><select value={draft.visualAssetId ?? ''} onChange={e => update({ visualAssetId: e.target.value || null })}>
+            <option value="">Select image…</option>{assets.map(a => a.id ? <option key={a.id} value={a.id}>{a.name} · {a.mediaType}</option> : null)}
+          </select></label>
+          <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/bmp,image/svg+xml,.png,.jpg,.jpeg,.bmp,.svg" hidden onChange={event => {
+            const file = event.currentTarget.files?.[0];
+            if (file) void uploadBrandImage(file);
+          }}/>
+          <button type="button" className="branding-editor__browse" onClick={() => fileInput.current?.click()} disabled={busy}>Browse computer and upload image…</button>
+          <small>PNG, JPG, BMP or SVG. The selected file is uploaded to project assets.</small>
+        </div>}
         <div className="branding-editor__actions"><button type="button" onClick={() => void validate()} disabled={busy}>Preview validation</button>
           <button type="button" onClick={() => void apply()} disabled={busy || !preview?.canApply || previewSignature !== signature}>Apply to Working</button></div>
         {message && <p role="status" className="branding-editor__message">{message}</p>}

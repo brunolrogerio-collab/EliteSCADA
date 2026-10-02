@@ -13,6 +13,7 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   await page.locator('[data-insert-object-type="core.rectangle"]').click();
   const rectangle = page.locator('[data-canvas-object-type="core.rectangle"]').last();
   await expect(rectangle).toBeVisible();
+  await expect(rectangle).toHaveCSS('background-color', 'rgba(128, 128, 128, 1)');
   await rectangle.click();
 
   const inspector = page.getByTestId('visual-property-inspector');
@@ -99,7 +100,22 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   const fontFamily = inspector.locator('[data-property-key="fontFamily"]');
   await expect(fontFamily).toHaveAttribute('data-editor-hint', 'font-family');
   const fontInput = fontFamily.getByRole('combobox', { name: 'Font Family' });
-  await expect(fontInput).toHaveAttribute('list', /-fonts$/);
+  await expect(fontInput.locator('option')).toHaveText(['Padrão do sistema', 'Arimo — semelhante à Arial', 'Lato — sem serifa humanista', 'Tinos — semelhante à Times New Roman', 'Cousine — semelhante à Courier New', 'Personalizada…']);
+  await fontInput.selectOption('Arimo Variable');
+  await page.evaluate(async () => { await document.fonts.load('16px "Arimo Variable"'); });
+
+  const textGroupOrder = await inspector.locator('.property-inspector__group').evaluateAll(groups => groups.map(group => {
+    if (group.classList.contains('property-inspector__group--text')) return 'text';
+    if (group.classList.contains('property-inspector__group--geometry')) return 'geometry';
+    return 'other';
+  }));
+  expect(textGroupOrder.indexOf('text')).toBeGreaterThanOrEqual(0);
+  expect(textGroupOrder.indexOf('text')).toBeLessThan(textGroupOrder.indexOf('geometry'));
+
+  const fontWeight = inspector.locator('[data-property-key="fontWeight"]');
+  await expect(fontWeight.getByRole('checkbox', { name: 'Negrito' })).not.toBeChecked();
+  await fontWeight.getByRole('checkbox', { name: 'Negrito' }).check();
+  await expect(fontWeight.getByRole('checkbox', { name: 'Negrito' })).toBeChecked();
 
   const underline = inspector.locator('[data-property-key="underline"]');
   await expect(underline).toHaveAttribute('data-editor-type', 'boolean');
@@ -135,8 +151,7 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   await expect(assetBrowser.locator('input[type="file"]')).toHaveAttribute('accept', /image\/svg\+xml/);
   await expect(assetRef.locator('input[type="text"]')).toHaveCount(0);
 
-  // Project image assets are imported against a clean canonical Screen revision.
-  // This test only edits a draft, so discard it before exercising background upload.
+  // Upload remains available while the Screen draft is edited; discard only before testing the background picker.
   await page.getByRole('button', { name: 'Restaurar rascunho', exact: true }).click();
   await page.getByTestId('visual-editor-side-tab-assets').click();
   const background = page.getByTestId('visual-definition-surface-inspector');

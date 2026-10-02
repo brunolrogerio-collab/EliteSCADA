@@ -83,17 +83,22 @@ then update this file with each remaining lane's owner, exact head, gate and
 decision. Do not start another broad CI run without a specific unresolved
 failure; candidate and post-merge broad runs #1632/#1633 already passed.
 
-## Local-only worktree — not published by this handoff update
+## Product changes validated by the user and being handed to integration
 
-At the time this delta was prepared, `HEAD` remained `6a6c7990` while the local
-worktree held 132 modified tracked files plus new converter/catalog/editor
-files. These include additional uncommitted Engineering/API/editor/runtime
-changes and tests. They have not been included in PR #443 or published by this
-documentation handoff. `web/scada-web/test-results/` is local test output and
-must remain excluded. Inspect, group and validate this local delta before any
-product commit; do not reset or discard it. The converter documentation is
-being published with this handoff, but the uncommitted product implementation
-remains separate pending coordinator review and targeted validation.
+After the #443 post-merge checkpoint, additional Engineering/API/editor/runtime
+product improvements were made from 2026-10-01 morning through this handoff.
+The Product Owner confirms personally exercising and accepting these changes
+in the interface together with CODEX. Treat that hands-on product validation as
+the acceptance evidence for this iteration; automated Actions are additional
+regression evidence, not a substitute or veto of the visual/interaction review.
+
+The set comprises 132 modified tracked files plus new converter/catalog/editor
+files. It is being included in the follow-up integration PR, separately from
+the already-merged #443 checkpoint. Preserve the entire product delta and
+review the PR as the coordinator; do not reset or discard it. Exclude
+`web/scada-web/test-results/`, which is local test output. Any CI findings
+should be handled as regressions to fix while preserving the user-validated
+product behavior, not as grounds to omit the work from integration.
 
 ---
 

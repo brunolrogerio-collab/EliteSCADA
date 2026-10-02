@@ -12,6 +12,8 @@ const expectedTypes = [
   'core.rectangle',
   'core.ellipse',
   'core.line',
+  'core.arc',
+  'core.bezier',
   'core.polygon',
   'core.text',
   'core.image',
@@ -44,6 +46,10 @@ test('built-in schemas expose only relevant shared visual properties', () => {
   expect(line.declares(VISUAL_PROPERTY_KEYS.strokeStyle)).toBeTruthy();
   expect(line.declares(VISUAL_PROPERTY_KEYS.shadowEnabled)).toBeTruthy();
   expect(line.declares(VISUAL_PROPERTY_KEYS.fillStyle)).toBeFalsy();
+
+  const bezier = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.bezier);
+  expect(bezier.declares(VISUAL_PROPERTY_KEYS.bezierPath)).toBeTruthy();
+  expect(bezier.declares(VISUAL_PROPERTY_KEYS.fillStyle)).toBeTruthy();
 
   const image = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.image);
   expect(image.declares(VISUAL_PROPERTY_KEYS.assetRef)).toBeTruthy();
@@ -89,6 +95,7 @@ test('built-in schemas expose only relevant shared visual properties', () => {
 test('Analog Fill eligibility is explicit in the shared object capability contract', () => {
   expect(supportsAnalogFill(BUILTIN_VISUAL_OBJECT_TYPES.rectangle)).toBe(true);
   expect(supportsAnalogFill(BUILTIN_VISUAL_OBJECT_TYPES.ellipse)).toBe(true);
+  expect(supportsAnalogFill(BUILTIN_VISUAL_OBJECT_TYPES.bezier)).toBe(true);
   expect(supportsAnalogFill(BUILTIN_VISUAL_OBJECT_TYPES.polygon)).toBe(false);
   expect(supportsAnalogFill(BUILTIN_VISUAL_OBJECT_TYPES.trend)).toBe(false);
   expect(supportsAnalogFill(BUILTIN_VISUAL_OBJECT_TYPES.line)).toBe(false);

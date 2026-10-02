@@ -99,6 +99,11 @@ export function GatewayEngineeringPanel({ model, locale }: Props) {
     invalidate();
   };
 
+  const changeRouteName = (value: string) => {
+    setDraft(current => ({ ...current, key: value, name: value }));
+    invalidate();
+  };
+
   const runPreview = async () => {
     setPreviewing(true);
     setError(null);
@@ -188,7 +193,7 @@ export function GatewayEngineeringPanel({ model, locale }: Props) {
                 disabled={previewing || applying}
                 data-testid="gateway-route-row"
               >
-                <span className="gateway-route-main"><strong>{route.key}</strong><small>{route.name}</small></span>
+                <span className="gateway-route-main"><strong>{route.name || route.key}</strong></span>
                 <code>{route.sourceTagPath || '—'} → {route.destinationTagPath || '—'}</code>
                 <span>{normalizeEnum(route.transferMode) === 'periodic' ? 'Periodic' : 'OnChange'}</span>
                 <span className={route.enabled === false ? 'gateway-route-state disabled' : 'gateway-route-state'}>{route.enabled === false ? text.disabled : text.enabledState}</span>
@@ -214,8 +219,7 @@ export function GatewayEngineeringPanel({ model, locale }: Props) {
               <span>{text.route}</span>
               <strong>{selected === 'new' ? text.newRouteDraft : draft.key || text.newRouteDraft}</strong>
             </div>
-            <label className="eng-mutation-field"><span>{text.key}</span><input value={draft.key} onChange={event => change('key', event.target.value)} data-testid="gateway-key" /></label>
-            <label className="eng-mutation-field"><span>{text.name}</span><input value={draft.name} onChange={event => change('name', event.target.value)} /></label>
+            <label className="eng-mutation-field"><span>{text.key}</span><input aria-description={text.keyHint} value={draft.key} onChange={event => changeRouteName(event.target.value)} data-testid="gateway-key" /><small aria-hidden="true">{text.keyHint}</small></label>
             <label className="eng-mutation-field">
               <span>{text.enabled}</span>
               <select value={draft.enabled ? 'true' : 'false'} onChange={event => change('enabled', event.target.value === 'true')}>
@@ -339,7 +343,7 @@ function emptyDraft(sources: TagEngineering[], destinations: TagEngineering[]): 
 
 function routeDraft(route: GatewayEngineering, sources: TagEngineering[], destinations: TagEngineering[]): Draft {
   return {
-    id: route.id ?? crypto.randomUUID(), key: route.key, name: route.name,
+    id: route.id ?? crypto.randomUUID(), key: route.key, name: route.key,
     sourceTagId: route.sourceTagId ?? sources.find(tag => tag.path === route.sourceTagPath)?.id ?? '',
     destinationTagId: route.destinationTagId ?? destinations.find(tag => tag.path === route.destinationTagPath)?.id ?? '',
     transferMode: normalizeEnum(route.transferMode) === 'periodic' ? 'periodic' : 'onChange',
@@ -409,7 +413,7 @@ function labels(locale: EngineeringLocale) {
     title: 'TAG Gateway', description: 'Route server-authoritative TAG values between Data Sources without coupling protocol drivers.', routes: 'routes',
     editorEyebrow: 'Canonical Engineering', editorTitle: 'Route configuration', editorHint: 'Preview and Apply use the public versioned Engineering package.',
     warning: 'Client Memory and built-in simulation are not valid server Gateway endpoints.', inventoryEyebrow: 'Working routes', inventoryTitle: 'Route inventory', inventoryHint: 'Each row is one independent TAG-to-TAG route. Select a route to edit it without replacing the others.', searchRoutes: 'Search routes', searchRoutesPlaceholder: 'Search by key, name or endpoint', noRoutes: 'No routes configured', noRouteMatches: 'No routes match this search', noRoutesHint: 'Use New route to add an independent TAG-to-TAG mapping.', enabledState: 'Enabled', disabled: 'Disabled', newRouteDraft: 'New unsaved route', route: 'Route', routeHint: 'Edit an existing route or create a new stable route.', newRoute: '+ New route',
-    key: 'Key', name: 'Name', enabled: 'Enabled', yes: 'Yes', no: 'No', endpoints: 'Endpoints', endpointsHint: 'Stable TAG IDs are runtime identity; paths remain portable context.', source: 'Source TAG', destination: 'Destination TAG', selectTag: 'Select TAG...', serverOnly: 'Only active server-owned TAGs are eligible.',
+    key: 'Route name', keyHint: 'Used as both the stable identifier and the display name.', name: 'Display name', nameHint: 'Label shown to people.', enabled: 'Enabled', yes: 'Yes', no: 'No', endpoints: 'Endpoints', endpointsHint: 'Stable TAG IDs are runtime identity; paths remain portable context.', source: 'Source TAG', destination: 'Destination TAG', selectTag: 'Select TAG...', serverOnly: 'Only active server-owned TAGs are eligible.',
     transfer: 'Transfer policy', transferHint: 'OnChange is change-driven; Periodic samples the latest Good value.', mode: 'Mode', startup: 'Startup', synchronize: 'Synchronize first acceptable value', waitNext: 'Wait for next acceptable value', deadband: 'Deadband', minimumInterval: 'Minimum interval (ms)', period: 'Period (ms)',
     conversion: 'Conversion', conversionHint: 'Exact is default. Numeric conversion must be explicit and checked.', policy: 'Policy', preview: 'Preview route', previewing: 'Previewing...', apply: 'Apply to Workspace', applying: 'Applying...', valid: 'Valid Engineering candidate', invalid: 'Invalid Engineering candidate', creates: 'Creates', updates: 'Updates', errors: 'Errors',
     runtimeEyebrow: 'Active Runtime', runtimeTitle: 'Route diagnostics', runtimeHint: 'Gateway failures are isolated from Data Source network diagnostics and source TAG quality.', refresh: 'Refresh diagnostics', loading: 'Loading...', noRuntimeRoutes: 'No active Gateway routes.', noRuntimeHint: 'Publish and activate a revision containing enabled routes to populate runtime diagnostics.', state: 'State', transfers: 'Transfers', skipped: 'Skipped / coalesced', failures: 'Write failures', lastError: 'Last error',
@@ -419,7 +423,7 @@ function labels(locale: EngineeringLocale) {
     title: 'TAG Gateway', description: 'Enruta valores de TAG autoritativos del servidor entre Data Sources sin acoplar drivers de protocolo.', routes: 'rutas',
     editorEyebrow: 'Engineering canónico', editorTitle: 'Configuración de ruta', editorHint: 'Preview y Apply usan el paquete público y versionado de Engineering.',
     warning: 'Client Memory y la simulación integrada no son endpoints válidos del Gateway de servidor.', inventoryEyebrow: 'Rutas Working', inventoryTitle: 'Inventario de rutas', inventoryHint: 'Cada fila es una ruta TAG-a-TAG independiente. Seleccione una ruta para editarla sin reemplazar las demás.', searchRoutes: 'Buscar rutas', searchRoutesPlaceholder: 'Buscar por clave, nombre o endpoint', noRoutes: 'No hay rutas configuradas', noRouteMatches: 'Ninguna ruta coincide con la búsqueda', noRoutesHint: 'Use Nueva ruta para agregar un mapeo TAG-a-TAG independiente.', enabledState: 'Habilitada', disabled: 'Deshabilitada', newRouteDraft: 'Nueva ruta sin guardar', route: 'Ruta', routeHint: 'Edite una ruta existente o cree una ruta estable.', newRoute: '+ Nueva ruta',
-    key: 'Clave', name: 'Nombre', enabled: 'Habilitada', yes: 'Sí', no: 'No', endpoints: 'Endpoints', endpointsHint: 'Los IDs estables de TAG son identidad de runtime; los paths mantienen contexto portable.', source: 'TAG origen', destination: 'TAG destino', selectTag: 'Seleccione TAG...', serverOnly: 'Solo TAGs activos y autoritativos del servidor son elegibles.',
+    key: 'Nombre de la ruta', keyHint: 'Se usa como identificador estable y nombre visible.', name: 'Nombre visible', nameHint: 'Etiqueta que se muestra a las personas.', enabled: 'Habilitada', yes: 'Sí', no: 'No', endpoints: 'Endpoints', endpointsHint: 'Los IDs estables de TAG son identidad de runtime; los paths mantienen contexto portable.', source: 'TAG origen', destination: 'TAG destino', selectTag: 'Seleccione TAG...', serverOnly: 'Solo TAGs activos y autoritativos del servidor son elegibles.',
     transfer: 'Política de transferencia', transferHint: 'OnChange responde a cambios; Periodic usa el último valor Good.', mode: 'Modo', startup: 'Inicio', synchronize: 'Sincronizar primer valor aceptable', waitNext: 'Esperar próximo valor aceptable', deadband: 'Deadband', minimumInterval: 'Intervalo mínimo (ms)', period: 'Período (ms)',
     conversion: 'Conversión', conversionHint: 'Exact es el valor por defecto. La conversión numérica debe ser explícita y checked.', policy: 'Política', preview: 'Preview de ruta', previewing: 'Validando...', apply: 'Aplicar al Workspace', applying: 'Aplicando...', valid: 'Candidato Engineering válido', invalid: 'Candidato Engineering inválido', creates: 'Creadas', updates: 'Actualizadas', errors: 'Errores',
     runtimeEyebrow: 'Runtime activo', runtimeTitle: 'Diagnóstico de rutas', runtimeHint: 'Las fallas del Gateway se aíslan de diagnósticos de red y de la calidad del TAG origen.', refresh: 'Actualizar diagnóstico', loading: 'Cargando...', noRuntimeRoutes: 'No hay rutas Gateway activas.', noRuntimeHint: 'Publique y active una revisión con rutas habilitadas para ver diagnóstico runtime.', state: 'Estado', transfers: 'Transferencias', skipped: 'Omitidas / coalescidas', failures: 'Fallas de escritura', lastError: 'Último error',
@@ -429,7 +433,7 @@ function labels(locale: EngineeringLocale) {
     title: 'TAG Gateway', description: 'Roteie valores de TAGs autoritativas do servidor entre Data Sources sem acoplar drivers de protocolo.', routes: 'rotas',
     editorEyebrow: 'Engineering canônico', editorTitle: 'Configuração de rota', editorHint: 'Preview e Apply usam o pacote público e versionado de Engineering.',
     warning: 'Client Memory e a simulação interna não são endpoints válidos do Gateway de servidor.', inventoryEyebrow: 'Rotas Working', inventoryTitle: 'Inventário de rotas', inventoryHint: 'Cada linha é uma rota TAG-a-TAG independente. Selecione uma rota para editá-la sem substituir as demais.', searchRoutes: 'Pesquisar rotas', searchRoutesPlaceholder: 'Pesquise por chave, nome ou endpoint', noRoutes: 'Nenhuma rota configurada', noRouteMatches: 'Nenhuma rota corresponde à pesquisa', noRoutesHint: 'Use Nova rota para adicionar um mapeamento TAG-a-TAG independente.', enabledState: 'Habilitada', disabled: 'Desabilitada', newRouteDraft: 'Nova rota ainda não salva', route: 'Rota', routeHint: 'Edite uma rota existente ou crie uma nova rota estável.', newRoute: '+ Nova rota',
-    key: 'Chave', name: 'Nome', enabled: 'Habilitada', yes: 'Sim', no: 'Não', endpoints: 'Endpoints', endpointsHint: 'IDs estáveis de TAG são a identidade runtime; paths mantêm contexto portável.', source: 'TAG origem', destination: 'TAG destino', selectTag: 'Selecione a TAG...', serverOnly: 'Somente TAGs ativas e autoritativas do servidor são elegíveis.',
+    key: 'Nome da rota', keyHint: 'Será usado como identificador estável e nome de exibição.', name: 'Nome de exibição', nameHint: 'Rótulo mostrado para as pessoas.', enabled: 'Habilitada', yes: 'Sim', no: 'Não', endpoints: 'Endpoints', endpointsHint: 'IDs estáveis de TAG são a identidade runtime; paths mantêm contexto portável.', source: 'TAG origem', destination: 'TAG destino', selectTag: 'Selecione a TAG...', serverOnly: 'Somente TAGs ativas e autoritativas do servidor são elegíveis.',
     transfer: 'Política de transferência', transferHint: 'OnChange reage a mudança real; Periodic usa o valor Good mais recente.', mode: 'Modo', startup: 'Inicialização', synchronize: 'Sincronizar primeiro valor aceitável', waitNext: 'Aguardar próximo valor aceitável', deadband: 'Deadband', minimumInterval: 'Intervalo mínimo (ms)', period: 'Período (ms)',
     conversion: 'Conversão', conversionHint: 'Exact é o padrão. Conversão numérica precisa ser explícita e checked.', policy: 'Política', preview: 'Preview da rota', previewing: 'Validando...', apply: 'Aplicar ao Workspace', applying: 'Aplicando...', valid: 'Candidato Engineering válido', invalid: 'Candidato Engineering inválido', creates: 'Criações', updates: 'Atualizações', errors: 'Erros',
     runtimeEyebrow: 'Runtime ativo', runtimeTitle: 'Diagnóstico das rotas', runtimeHint: 'Falhas do Gateway ficam separadas dos diagnósticos de rede e da qualidade da TAG origem.', refresh: 'Atualizar diagnóstico', loading: 'Carregando...', noRuntimeRoutes: 'Nenhuma rota Gateway ativa.', noRuntimeHint: 'Publique e ative uma revisão com rotas habilitadas para preencher o diagnóstico runtime.', state: 'Estado', transfers: 'Transferências', skipped: 'Ignoradas / coalescidas', failures: 'Falhas de escrita', lastError: 'Último erro',

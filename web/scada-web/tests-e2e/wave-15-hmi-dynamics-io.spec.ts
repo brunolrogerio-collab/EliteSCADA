@@ -33,6 +33,8 @@ test('Numeric Input resolves only stable writable good-quality TAG sources', () 
   const values = {
     ...getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.numericInput).createDefaultValues(),
     value: 42,
+    decimalPlacesEnabled: true,
+    decimalPlaces: 2,
     minimum: 0,
     maximum: 100,
     step: .5,
@@ -56,6 +58,12 @@ test('Numeric Input resolves only stable writable good-quality TAG sources', () 
   expect(resolved.precision).toBe(2);
   expect(resolved.unit).toBe('bar');
   expect(formatNumericInputValue(resolved.value, resolved.precision)).toBe('42.00');
+  const naturalPrecision = resolveNumericInputConfiguration(element, { ...values, decimalPlacesEnabled: false }, [], samples);
+  expect(formatNumericInputValue(naturalPrecision.value, naturalPrecision.precision)).toBe('42');
+  expect(formatNumericInputValue(42.25, naturalPrecision.precision)).toBe('42.25');
+  expect(resolveNumericInputConfiguration(element, { ...values, unit: '°C' }, [], samples).unit).toBe('°C');
+  expect(values.showApplyButton).toBe(true);
+  expect(values.showCancelButton).toBe(true);
 });
 
 test('Numeric Input rejects invalid and out-of-range buffered values', () => {

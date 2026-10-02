@@ -7,8 +7,16 @@
   padding: 4px;
 }
 
-.visual-editor-numeric-input[data-show-apply="false"] {
+.visual-editor-numeric-input[data-show-apply="false"][data-show-cancel="true"] {
   grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.visual-editor-numeric-input[data-show-apply="true"][data-show-cancel="false"] {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.visual-editor-numeric-input[data-show-apply="false"][data-show-cancel="false"] {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .visual-editor-numeric-input input {
@@ -23,6 +31,17 @@
   outline: none;
 }
 
+.visual-editor-numeric-input[data-show-steppers="false"] input {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.visual-editor-numeric-input[data-show-steppers="false"] input::-webkit-inner-spin-button,
+.visual-editor-numeric-input[data-show-steppers="false"] input::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
 .visual-editor-numeric-input button {
   min-height: 26px;
   font: 11px system-ui, sans-serif;
@@ -33,6 +52,14 @@
   min-width: 28px;
   padding: 0;
   font-size: 17px;
+  line-height: 1;
+}
+
+.visual-editor-numeric-input .visual-editor-numeric-input__cancel {
+  width: 28px;
+  min-width: 28px;
+  padding: 0;
+  font-size: 18px;
   line-height: 1;
 }
 

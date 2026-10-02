@@ -1,7 +1,9 @@
 import { expect, test } from '@playwright/test';
 import type { ScreenEngineering } from '../src/engineering/types';
+import type { EngineeringPackageView, TemplateEngineering } from '../src/engineering/types';
 import { BUILTIN_VISUAL_OBJECT_TYPES, VISUAL_PROPERTY_KEYS } from '../src/visual-runtime';
 import { applyVisualEditorMutationIntent } from '../src/engineering/visual-editor/visualEditorCanonicalModel';
+import { replaceTemplateInPackage } from '../src/engineering/visual-editor/visualEditorCanonicalModel';
 
 function screen(elements: ScreenEngineering['elements']): ScreenEngineering {
   return { key: 'screen', name: 'Screen', route: '/screen', elements };
@@ -50,6 +52,76 @@ test('canonical reducer adds registered objects without materializing unrelated 
   expect(() => applyVisualEditorMutationIntent(original, {
     kind: 'object.add', objectType: 'core.unknown'
   }, { createObjectId: idGenerator('object-2') })).toThrow(/Unknown built-in visual object type/);
+});
+
+test('equipment faceplate insertion stores only the stable equipment link, not copied template elements', () => {
+  const original = screen([]);
+  const next = applyVisualEditorMutationIntent(original, {
+    kind: 'equipment.add',
+    equipmentId: 'equipment-stable-id',
+    equipmentPath: 'Plant.Pump_01',
+    equipmentName: 'Pump 01',
+    at: { x: 80, y: 120 },
+    defaultWidth: 420,
+    defaultHeight: 280
+  }, { createObjectId: idGenerator('faceplate-instance') });
+
+  expect(original.elements).toEqual([]);
+  expect(next.elements).toHaveLength(1);
+  expect(next.elements?.[0]).toMatchObject({
+    id: 'faceplate-instance',
+    equipmentId: 'equipment-stable-id',
+    equipmentPath: 'Plant.Pump_01'
+  });
+  expect(next.elements?.[0]).not.toHaveProperty('children');
+  expect(next.elements?.[0].properties).toMatchObject({ x: 80, y: 120, width: 420, height: 280 });
+});
+
+test('editing a faceplate Template updates its canonical elements without breaking linked Equipment identities', () => {
+  const template: TemplateEngineering = {
+    id: 'template-id', key: 'pump.faceplate', name: 'Pump faceplate',
+    elements: [{ id: 'body', key: 'body', type: BUILTIN_VISUAL_OBJECT_TYPES.rectangle }]
+  };
+  const packageView = {
+    schema: 'scada.engineering', schemaVersion: 11, exportedAt: '2026-10-01T00:00:00Z',
+    tags: [], alarms: [], templates: [template],
+    equipment: [{ id: 'equipment-id', path: 'Plant.Pump_01', name: 'Pump 01', templateId: 'template-id', templateKey: 'pump.faceplate' }],
+    screens: [], popups: []
+  } as unknown as EngineeringPackageView;
+  const replacement: ScreenEngineering = {
+    id: 'template-id', key: 'pump.faceplate', name: 'Pump faceplate', route: null,
+    elements: [{ id: 'body-v2', key: 'body', type: BUILTIN_VISUAL_OBJECT_TYPES.ellipse }]
+  };
+
+  const updated = replaceTemplateInPackage(packageView, template, replacement);
+
+  expect(updated.templates?.[0].elements?.[0]).toMatchObject({ id: 'body-v2', type: BUILTIN_VISUAL_OBJECT_TYPES.ellipse });
+  expect(updated.equipment?.[0]).toMatchObject({ id: 'equipment-id', templateId: 'template-id', templateKey: 'pump.faceplate' });
+  expect(packageView.templates?.[0].elements?.[0]).toMatchObject({ id: 'body', type: BUILTIN_VISUAL_OBJECT_TYPES.rectangle });
+});
+
+test('quick visual event mutations immutably add, replace, and remove click actions', () => {
+  const original = screen([{ id: 'button-1', key: 'button', type: BUILTIN_VISUAL_OBJECT_TYPES.button }]);
+  const setValue = {
+    eventKey: 'click', kind: 'SetTagValue', targetKey: 'tag-1', parameters: { value: true }, version: 1
+  } as const;
+  const added = applyVisualEditorMutationIntent(original, {
+    kind: 'visualAction.set', objectId: 'button-1', action: setValue
+  });
+  expect(original.elements?.[0].actions).toBeUndefined();
+  expect(added.elements?.[0].actions).toEqual([setValue]);
+
+  const replaced = applyVisualEditorMutationIntent(added, {
+    kind: 'visualAction.set', objectId: 'button-1',
+    action: { eventKey: 'click', kind: 'OpenPopup', targetKey: 'popup.details', version: 1 }
+  });
+  expect(replaced.elements?.[0].actions).toHaveLength(1);
+  expect(replaced.elements?.[0].actions?.[0]).toMatchObject({ kind: 'OpenPopup', targetKey: 'popup.details' });
+
+  const removed = applyVisualEditorMutationIntent(replaced, {
+    kind: 'visualAction.remove', objectId: 'button-1', eventKey: 'click'
+  });
+  expect(removed.elements?.[0].actions).toEqual([]);
 });
 
 test('Dynamo library insertion creates a reusable instance with equipment context and canonical bounds', () => {

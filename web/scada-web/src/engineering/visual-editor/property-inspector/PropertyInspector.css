@@ -11,6 +11,31 @@
   color: inherit;
 }
 
+.visual-editor-events {
+  display: grid;
+  gap: .55rem;
+  padding: .65rem;
+  border: 1px solid var(--eng-border, var(--app-border, #bdc9d3));
+  border-radius: .5rem;
+  background: var(--eng-panel-soft, var(--app-surface-elevated, #f8fafc));
+  color: var(--eng-text, var(--app-text-primary, #15212b));
+  font-size: .82rem;
+}
+.visual-editor-events > header,
+.visual-editor-events__configured { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.visual-editor-events > header span,
+.visual-editor-events__quick > strong { color: var(--eng-muted, var(--app-text-secondary, #4d5f6d)); font-size: .74rem; }
+.visual-editor-events label { display: grid; gap: .2rem; min-width: 0; }
+.visual-editor-events label > span { color: var(--eng-muted, var(--app-text-secondary, #4d5f6d)); font-size: .73rem; }
+.visual-editor-events select,
+.visual-editor-events input { width: 100%; min-width: 0; box-sizing: border-box; }
+.visual-editor-events__quick { display: grid; gap: .45rem; padding-top: .5rem; border-top: 1px solid var(--eng-border, var(--app-border, #bdc9d3)); }
+.visual-editor-events__configured { padding: .35rem .45rem; border-radius: .35rem; background: var(--app-surface, #fff); }
+.visual-editor-events__configured code { overflow-wrap: anywhere; }
+.visual-editor-events__configured button { flex: 0 0 auto; }
+.visual-editor-events__scripts summary { cursor: pointer; color: var(--eng-muted, var(--app-text-secondary, #4d5f6d)); }
+.visual-editor-events__scripts[open] summary { margin-bottom: .5rem; }
+
 .property-inspector__header,
 .property-inspector__field-heading,
 .property-inspector__field-meta,
@@ -61,6 +86,13 @@
   border-bottom: 1px solid var(--border-color, #e5e9ef);
 }
 
+.property-inspector__field-hint {
+  margin: 5px 0 0;
+  color: var(--app-text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .property-inspector__field:last-child {
   border-bottom: 0;
 }
@@ -86,6 +118,7 @@
 
 .property-inspector__field input[type='text'],
 .property-inspector__field input[type='number'],
+.property-inspector__field textarea,
 .property-inspector__field select {
   width: 100%;
   box-sizing: border-box;
@@ -94,6 +127,12 @@
   border-radius: 0.35rem;
   background: inherit;
   color: inherit;
+}
+.property-inspector__field textarea {
+  min-height: 6rem;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.78rem;
 }
 
 .property-inspector__boolean-control {
@@ -279,7 +318,7 @@
 .property-inspector__field { gap: 0.25rem; padding-bottom: 0.4rem; }
 .property-inspector__field-heading { gap: 0.3rem; }
 .property-inspector__field-label code { font-size: 0.61rem; }
-.property-inspector__field input[type='text'], .property-inspector__field input[type='number'], .property-inspector__field select { min-height: 30px; padding: 0.25rem 0.4rem; }
+.property-inspector__field input[type='text'], .property-inspector__field input[type='number'], .property-inspector__field textarea, .property-inspector__field select { min-height: 30px; padding: 0.25rem 0.4rem; }
 .property-inspector__field-meta, .property-inspector__state { font-size: 0.66rem; }
 
 /* W15 first-user correction: the Inspector must remain readable inside the dark Engineering shell. */

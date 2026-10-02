@@ -38,6 +38,7 @@ export type BindingEditorCopy = Readonly<{
 export type BindingEditorProps = VisualEditorBindingEditorContractProps & Readonly<{
   copy?: Partial<BindingEditorCopy>;
   locale?: EngineeringLocale;
+  preferredPropertyKey?: string;
 }>;
 
 type Computed<T> = Readonly<{
@@ -67,7 +68,8 @@ export function BindingEditor({
   sourceCatalog,
   onMutationIntent,
   copy,
-  locale = 'pt-BR'
+  locale = 'pt-BR',
+  preferredPropertyKey
 }: BindingEditorProps) {
   const text: BindingEditorCopy = { ...DEFAULT_COPY, ...localizedBitCopy(locale), ...copy };
   const [actionError, setActionError] = useState<string | null>(null);
@@ -80,12 +82,12 @@ export function BindingEditor({
   const firstBoundDestination = destinations.find(item =>
     element.bindings?.some(binding => binding.key === item.key)
   )?.key;
-  const [propertyKey, setPropertyKey] = useState(firstBoundDestination ?? destinations[0]?.key ?? '');
+  const [propertyKey, setPropertyKey] = useState(firstBoundDestination ?? preferredPropertyKey ?? destinations[0]?.key ?? '');
 
   useEffect(() => {
     if (destinations.some(item => item.key === propertyKey)) return;
-    setPropertyKey(firstBoundDestination ?? destinations[0]?.key ?? '');
-  }, [destinations, firstBoundDestination, propertyKey]);
+    setPropertyKey(firstBoundDestination ?? preferredPropertyKey ?? destinations[0]?.key ?? '');
+  }, [destinations, firstBoundDestination, preferredPropertyKey, propertyKey]);
 
   const selectedDestination = destinations.find(item => item.key === propertyKey);
   const sourceResult = useMemo(

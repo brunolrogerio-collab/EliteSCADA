@@ -1,6 +1,6 @@
 .user-session-menu {
   position: relative;
-  color: #e8edf4;
+  color: var(--app-text-primary);
 }
 
 .user-session-menu > summary {
@@ -27,13 +27,13 @@
 
 .user-session-menu__trigger:hover,
 .user-session-menu[open] .user-session-menu__trigger {
-  border-color: #344453;
-  background: #1b242d;
+  border-color: var(--app-border);
+  background: var(--app-hover);
 }
 
 .user-session-menu__trigger:focus-visible,
 .user-session-menu__action:focus-visible {
-  outline: 2px solid #7fa7bf;
+  outline: 2px solid var(--app-focus);
   outline-offset: 2px;
 }
 
@@ -43,10 +43,10 @@
   display: inline-grid;
   place-items: center;
   flex: 0 0 auto;
-  border: 1px solid #455768;
+  border: 1px solid var(--app-border);
   border-radius: 50%;
-  background: #25313c;
-  color: #dce8f0;
+  background: var(--app-selected);
+  color: var(--app-accent);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: .04em;
@@ -69,7 +69,7 @@
 .user-session-menu__trigger-copy strong,
 .user-session-menu__identity strong {
   overflow: hidden;
-  color: #e8edf4;
+  color: var(--app-text-primary);
   font-size: 12px;
   font-weight: 700;
   text-overflow: ellipsis;
@@ -80,14 +80,14 @@
 .user-session-menu__identity span:not(.user-session-menu__avatar),
 .user-session-menu__empty-roles {
   overflow: hidden;
-  color: #8f9ba8;
+  color: var(--app-text-secondary);
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .user-session-menu__chevron {
-  color: #8f9ba8;
+  color: var(--app-text-secondary);
   font-size: 13px;
   transition: transform .12s ease;
 }
@@ -103,10 +103,11 @@
   z-index: 40;
   width: min(300px, calc(100vw - 24px));
   padding: 14px;
-  border: 1px solid #3a4652;
+  border: 1px solid var(--app-border);
   border-radius: 10px;
-  background: #171c22;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, .42);
+  background: var(--app-surface-elevated);
+  color: var(--app-text-primary);
+  box-shadow: 0 18px 48px var(--app-overlay);
 }
 
 .user-session-menu__identity {
@@ -114,17 +115,29 @@
   align-items: center;
   gap: 10px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #2a333d;
+  border-bottom: 1px solid var(--app-divider);
 }
 
 .user-session-menu__roles {
   padding: 12px 0;
 }
 
+.user-session-menu__runtime-controls {
+  margin: 0 0 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--app-divider);
+  border-bottom: 1px solid var(--app-divider);
+}
+
+.user-session-menu__panel {
+  max-height: min(80vh, 640px);
+  overflow-y: auto;
+}
+
 .user-session-menu__section-label {
   display: block;
   margin-bottom: 7px;
-  color: #8f9ba8;
+  color: var(--app-text-secondary);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: .08em;
@@ -144,10 +157,10 @@
   max-width: 100%;
   padding: 4px 7px;
   overflow: hidden;
-  border: 1px solid #344453;
+  border: 1px solid var(--app-border);
   border-radius: 999px;
-  background: #202832;
-  color: #c8d2dc;
+  background: var(--app-panel);
+  color: var(--app-text-primary);
   font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -156,11 +169,22 @@
 .user-session-menu__error {
   margin: 0 0 10px;
   padding: 8px 9px;
-  border: 1px solid #734149;
+  border: 1px solid var(--app-error);
   border-radius: 6px;
-  background: #2a1d20;
-  color: #dfb8bd;
+  background: var(--app-error-bg);
+  color: var(--app-error);
   font-size: 11px;
+}
+
+.user-session-menu__notice {
+  margin: 0 0 10px;
+  padding: 8px 9px;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  background: var(--app-panel);
+  color: var(--app-text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .user-session-menu__actions {
@@ -171,16 +195,27 @@
 .user-session-menu__action {
   width: 100%;
   padding: 8px 10px;
-  border: 1px solid #485766;
+  border: 1px solid var(--app-border);
   border-radius: 7px;
-  background: #232b34;
-  color: #e8edf4;
+  background: var(--app-input-bg);
+  color: var(--app-text-primary);
   cursor: pointer;
 }
 
 .user-session-menu__action:hover:not(:disabled) {
-  border-color: #64788a;
-  background: #2a3540;
+  border-color: var(--app-accent);
+  background: var(--app-hover);
+}
+
+.user-session-menu__action--danger {
+  border-color: var(--app-error);
+  color: var(--app-error);
+}
+
+.user-session-menu__action--danger:hover:not(:disabled) {
+  border-color: var(--app-error);
+  background: var(--app-error-bg);
+  color: var(--app-error);
 }
 
 .user-session-menu__action:disabled {

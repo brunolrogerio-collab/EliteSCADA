@@ -15,7 +15,7 @@ public sealed class EngineeringFirstProjectBootstrapTests
     {
         var definitions = BuiltinDynamoLibrary.Create();
 
-        Assert.Equal(30, definitions.Count);
+        Assert.Equal(72, definitions.Count);
         Assert.All(definitions, definition => Assert.Null(definition.TemplateKey));
     }
 
@@ -54,7 +54,8 @@ public sealed class EngineeringFirstProjectBootstrapTests
         var savedPackage = exchange.ParseJson(snapshot.EngineeringJson);
         Assert.Empty(savedPackage.Templates ?? Array.Empty<EquipmentTemplateEngineeringDto>());
         var savedDynamos = savedPackage.Dynamos ?? Array.Empty<DynamoEngineeringDto>();
-        Assert.Equal(30, savedDynamos.Count);
+        Assert.Equal(72, savedDynamos.Count);
+        Assert.DoesNotContain(savedDynamos, definition => definition.Metadata?.GetValueOrDefault("importedDynamoLibrary") == "true");
         Assert.All(savedDynamos, definition => Assert.Null(definition.TemplateKey));
 
         var result = await persistence.PublishRevisionAsync(
@@ -63,7 +64,10 @@ public sealed class EngineeringFirstProjectBootstrapTests
             "test");
 
         Assert.NotNull(result);
-        Assert.True(result!.Preview.CanApply);
+        Assert.True(result!.Preview.CanApply, string.Join("; ", result.Preview.Items
+            .Where(item => item.Operation == ImportOperation.Error)
+            .SelectMany(item => item.Issues)
+            .Select(issue => $"{issue.EntityKey} / {issue.Code}: {issue.Message}")));
         Assert.True(result.Published);
         Assert.NotNull(result.Publication);
         Assert.Equal(snapshot.Revision, result.Publication!.PublishedRevision);

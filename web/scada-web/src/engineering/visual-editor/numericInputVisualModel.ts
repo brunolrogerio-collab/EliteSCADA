@@ -41,7 +41,15 @@ export function resolveNumericInputConfiguration(
     ? liveSamples.get(visualTagSampleKey(tagId)) ?? (valueBinding?.target ? liveSamples.get(valueBinding.target) : undefined)
     : undefined;
   const valueDiagnostic = diagnostics.some(diagnostic => diagnostic.propertyKey === VISUAL_PROPERTY_KEYS.value);
-  const precision = parsePrecision(valueBinding?.metadata?.decimalPlaces);
+  const decimalPlacesEnabled = values[VISUAL_PROPERTY_KEYS.decimalPlacesEnabled] === true;
+  const configuredPrecision = values[VISUAL_PROPERTY_KEYS.decimalPlaces];
+  const precision = decimalPlacesEnabled
+    ? typeof configuredPrecision === 'number' && Number.isInteger(configuredPrecision) && configuredPrecision >= 0 && configuredPrecision <= 12
+      ? configuredPrecision
+      : 2
+    : null;
+  const configuredUnit = values[VISUAL_PROPERTY_KEYS.unit];
+  const unit = (typeof configuredUnit === 'string' ? configuredUnit.trim() : '') || valueBinding?.metadata?.engineeringUnit?.trim() || '';
 
   return Object.freeze({
     value,
@@ -55,7 +63,7 @@ export function resolveNumericInputConfiguration(
     sourceReadOnly: sample?.readOnly === true,
     writeDirection: hasWriteDirection(valueBinding?.direction),
     sampleTimestamp: sample?.timestamp ?? null,
-    unit: valueBinding?.metadata?.engineeringUnit?.trim() ?? '',
+    unit,
     precision
   });
 }
@@ -101,10 +109,4 @@ function isGoodSample(sample: VisualDynamicSample): boolean {
   if (sample.state && sample.state !== 'LocalSession') return false;
   if (sample.value === null || sample.value === undefined) return false;
   return sample.quality === undefined || sample.quality === null || sample.quality === 0 || String(sample.quality).toLowerCase() === 'good';
-}
-
-function parsePrecision(value: string | undefined): number | null {
-  if (value === undefined) return null;
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed >= 0 && parsed <= 12 ? parsed : null;
 }

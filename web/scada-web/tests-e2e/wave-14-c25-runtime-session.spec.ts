@@ -165,6 +165,7 @@ test('external identity does not expose local switch-user even when local login 
 
   await expect(page.getByTestId('session-switch-user')).toHaveCount(0);
   await expect(page.getByTestId('session-logout')).toBeVisible();
+  await expect(page.getByTestId('session-close-interface')).toBeVisible();
 });
 
 test('account menu closes with Escape and returns focus to its trigger', async ({ page }) => {
@@ -218,7 +219,7 @@ test('Runtime session class shows requested/granted truth and explicitly ends it
   });
 
   await page.goto('/');
-  await page.getByTestId('runtime-session-class').locator('summary').click();
+  await page.getByTestId('session-menu-toggle').click();
   await page.getByTestId('runtime-session-request-viewOnly').click();
   const status = page.getByTestId('runtime-session-status');
   await expect(status).toContainText('viewOnly');
@@ -259,7 +260,7 @@ test('failed Runtime class replacement clears the terminated old session before 
   });
 
   await page.goto('/');
-  await page.getByTestId('runtime-session-class').locator('summary').click();
+  await page.getByTestId('session-menu-toggle').click();
   await page.getByTestId('runtime-session-request-viewOnly').click();
   await expect(page.getByTestId('runtime-session-status')).toContainText('viewOnly');
 
@@ -334,6 +335,8 @@ test('switch-user invalidates first, blocks the shell until login, then reloads 
 
   await expect(page.locator('.app-bar')).toBeVisible();
   await expect(page.getByTestId('session-menu-toggle')).toContainText(runtimeOperator.username);
+  await page.getByTestId('session-menu-toggle').click();
+  await expect(page.getByTestId('session-close-interface')).toHaveCount(0);
   await expect(page.locator('.app-navigation a[href="/"]')).toBeVisible();
   await expect(page.locator('.app-navigation a[href="/engineering"]')).toHaveCount(0);
   await expect(page.locator('.app-navigation a[href="/audit"]')).toHaveCount(0);
@@ -351,6 +354,8 @@ test('fullscreen Runtime keeps the system-owned session controls reachable', asy
   await page.goto('/');
   const runtime = page.getByTestId('runtime-engineering-application');
   await expect(runtime).toBeVisible();
+  await expect(runtime.locator('.runtime-view-navigation')).toBeVisible();
+  await expect(page.locator('.runtime-view-navigation')).toHaveCount(1);
 
   await runtime.getByRole('button', { name: 'Tela cheia' }).click();
   await expect(runtime).toHaveAttribute('data-runtime-fullscreen', 'true');
@@ -361,6 +366,8 @@ test('fullscreen Runtime keeps the system-owned session controls reachable', asy
   await runtimeSession.click();
   await expect(runtime.getByTestId('session-switch-user')).toBeVisible();
   await expect(runtime.getByTestId('session-logout')).toBeVisible();
+  await expect(runtime.getByTestId('runtime-session-class')).toBeVisible();
+  await expect(runtime.getByTestId('session-close-interface')).toBeVisible();
 });
 
 test('successful sign-out removes the current client authority only after server invalidation succeeds', async ({ page }) => {

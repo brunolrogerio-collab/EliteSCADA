@@ -204,10 +204,10 @@ export function OperationalEventEditor({ model, locale, onApplied }: Props) {
     ?? '';
 
   return (
-    <div className="eng-section" data-testid="operational-event-engineering">
+    <div className="eng-section operational-event-editor" data-testid="operational-event-engineering">
       <header className="eng-section-header">
         <div>
-          <span className="eng-eyebrow">C14 / C19</span>
+          <span className="eng-eyebrow">{copy.listHeading}</span>
           <h1>{copy.title}</h1>
           <p>{copy.description}</p>
         </div>
@@ -406,10 +406,10 @@ function createStableId(): string {
 function operationalEventCopy(locale: EngineeringLocale) {
   if (locale === 'en') return {
     title: 'Operational Events', description: 'Author canonical process-event definitions through the protected Engineering Preview / Apply workflow.',
-    configured: 'configured', protectedFlow: 'Working → Preview → Apply', newEvent: 'New Operational Event', search: 'Search',
+    configured: 'configured', protectedFlow: 'Draft → Preview → Apply', listHeading: 'Event catalog', newEvent: 'New Operational Event', search: 'Search',
     searchPlaceholder: 'Name, key, type, category, source, area, equipment or TAG', listLabel: 'Operational Event definitions', noMatches: 'No matching definitions.',
     selectHint: 'Select a definition or create a new Operational Event.', emptyState: 'No Operational Events yet. Use New Operational Event to create the first definition.', identitySection: 'Event definition', identityHint: 'Define the event meaning and operator-facing message first.', contextSection: 'Optional context', contextHint: 'Add area, equipment or TAG association only when this event needs that context.', discardConfirm: 'Discard the current un-applied Operational Event draft?',
-    name: 'Name', key: 'Key', type: 'Type', category: 'Category', source: 'Source', area: 'Area', equipment: 'Equipment path', tag: 'TAG', noTag: 'No TAG',
+    name: 'Display name', key: 'Identifier', type: 'Type', category: 'Category', source: 'Source', area: 'Area', equipment: 'Equipment path', tag: 'TAG', noTag: 'No TAG',
     enabled: 'Enabled', message: 'Default message', reset: 'Reset', previewAction: 'Preview', previewing: 'Previewing…', applyAction: 'Apply', applying: 'Applying…',
     valid: 'Valid Engineering candidate', invalid: 'Invalid Engineering candidate', notValidated: 'Not validated', creates: 'Creates', updates: 'Updates', errors: 'Errors',
     workspaceUntouched: 'Preview does not mutate the official Working Engineering Workspace.', workspaceChanged: 'Engineering Workspace changed during Preview. Reload before applying.',
@@ -417,10 +417,10 @@ function operationalEventCopy(locale: EngineeringLocale) {
   };
   if (locale === 'es') return {
     title: 'Eventos Operacionales', description: 'Configure definiciones canónicas de eventos de proceso mediante el flujo protegido Preview / Apply de Engineering.',
-    configured: 'configurados', protectedFlow: 'Working → Preview → Apply', newEvent: 'Nuevo Evento Operacional', search: 'Buscar',
-    searchPlaceholder: 'Nombre, clave, tipo, categoría, origen, área, equipo o TAG', listLabel: 'Definiciones de Eventos Operacionales', noMatches: 'No hay definiciones coincidentes.',
+    configured: 'configurados', protectedFlow: 'Borrador → Preview → Aplicar', listHeading: 'Catálogo de eventos', newEvent: 'Nuevo Evento Operacional', search: 'Buscar',
+    searchPlaceholder: 'Nombre visible, identificador, tipo, categoría, origen, área, equipo o TAG', listLabel: 'Definiciones de Eventos Operacionales', noMatches: 'No hay definiciones coincidentes.',
     selectHint: 'Seleccione una definición o cree un nuevo Evento Operacional.', emptyState: 'Todavía no hay Eventos Operacionales. Use Nuevo Evento Operacional para crear la primera definición.', identitySection: 'Definición del evento', identityHint: 'Defina primero el significado del evento y el mensaje para el operador.', contextSection: 'Contexto opcional', contextHint: 'Agregue área, equipo o TAG solo cuando el evento necesite ese contexto.', discardConfirm: '¿Descartar el borrador no aplicado del Evento Operacional?',
-    name: 'Nombre', key: 'Clave', type: 'Tipo', category: 'Categoría', source: 'Origen', area: 'Área', equipment: 'Ruta del equipo', tag: 'TAG', noTag: 'Sin TAG',
+    name: 'Nombre visible', key: 'Identificador', type: 'Tipo', category: 'Categoría', source: 'Origen', area: 'Área', equipment: 'Ruta del equipo', tag: 'TAG', noTag: 'Sin TAG',
     enabled: 'Habilitado', message: 'Mensaje predeterminado', reset: 'Restablecer', previewAction: 'Preview', previewing: 'Validando…', applyAction: 'Aplicar', applying: 'Aplicando…',
     valid: 'Candidato de Engineering válido', invalid: 'Candidato de Engineering inválido', notValidated: 'No validado', creates: 'Crea', updates: 'Actualiza', errors: 'Errores',
     workspaceUntouched: 'Preview no modifica el Working Engineering Workspace oficial.', workspaceChanged: 'El Engineering Workspace cambió durante Preview. Recargue antes de aplicar.',
@@ -428,10 +428,10 @@ function operationalEventCopy(locale: EngineeringLocale) {
   };
   return {
     title: 'Eventos Operacionais', description: 'Configure definições canônicas de eventos de processo pelo fluxo protegido Preview / Apply do Engineering.',
-    configured: 'configurados', protectedFlow: 'Working → Preview → Apply', newEvent: 'Novo Evento Operacional', search: 'Pesquisar',
-    searchPlaceholder: 'Nome, chave, tipo, categoria, origem, área, equipamento ou TAG', listLabel: 'Definições de Eventos Operacionais', noMatches: 'Nenhuma definição correspondente.',
+    configured: 'configurados', protectedFlow: 'Rascunho → Preview → Aplicar', listHeading: 'Catálogo de eventos', newEvent: 'Novo Evento Operacional', search: 'Pesquisar',
+    searchPlaceholder: 'Nome de exibição, identificador, tipo, categoria, origem, área, equipamento ou TAG', listLabel: 'Definições de Eventos Operacionais', noMatches: 'Nenhuma definição correspondente.',
     selectHint: 'Selecione uma definição ou crie um novo Evento Operacional.', emptyState: 'Ainda não há Eventos Operacionais. Use Novo Evento Operacional para criar a primeira definição.', identitySection: 'Definição do evento', identityHint: 'Defina primeiro o significado do evento e a mensagem para o operador.', contextSection: 'Contexto opcional', contextHint: 'Adicione área, equipamento ou TAG somente quando o evento precisar desse contexto.', discardConfirm: 'Descartar o rascunho não aplicado do Evento Operacional?',
-    name: 'Nome', key: 'Chave', type: 'Tipo', category: 'Categoria', source: 'Origem', area: 'Área', equipment: 'Caminho do equipamento', tag: 'TAG', noTag: 'Sem TAG',
+    name: 'Nome de exibição', key: 'Identificador', type: 'Tipo', category: 'Categoria', source: 'Origem', area: 'Área', equipment: 'Caminho do equipamento', tag: 'TAG', noTag: 'Sem TAG',
     enabled: 'Habilitado', message: 'Mensagem padrão', reset: 'Restaurar', previewAction: 'Preview', previewing: 'Validando…', applyAction: 'Aplicar', applying: 'Aplicando…',
     valid: 'Candidato de Engineering válido', invalid: 'Candidato de Engineering inválido', notValidated: 'Não validado', creates: 'Cria', updates: 'Atualiza', errors: 'Erros',
     workspaceUntouched: 'O Preview não altera o Working Engineering Workspace oficial.', workspaceChanged: 'O Engineering Workspace mudou durante o Preview. Recarregue antes de aplicar.',

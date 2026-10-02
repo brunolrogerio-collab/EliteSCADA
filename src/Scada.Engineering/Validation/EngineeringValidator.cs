@@ -145,6 +145,7 @@ public static class EngineeringValidator
         if (template.Id == Guid.Empty)
             issues.Add(Error("TEMPLATE_ID_EMPTY", "Template stable identity cannot be empty.", ImportEntityKind.Template, key));
         issues.AddRange(ValidateBindings(template.Bindings, ImportEntityKind.Template, key, allowTagPlaceholders: true));
+        issues.AddRange(ValidateVisualElements(template.Elements, ImportEntityKind.Template, key, allowPlaceholders: true, new HashSet<Guid>()));
         return issues;
     }
 

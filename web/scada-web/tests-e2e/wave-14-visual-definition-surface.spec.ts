@@ -17,6 +17,7 @@ test('surface patch stores canonical color, asset identity and fit', () => {
     backgroundImageFit: 'contain'
   });
   expect(readVisualDefinitionSurfaceConfig(screen.properties)).toEqual({
+    backgroundMode: 'image',
     backgroundColor: '#AABBCC',
     backgroundImageAssetId: 'asset-1',
     backgroundImageFit: 'contain'
@@ -25,11 +26,13 @@ test('surface patch stores canonical color, asset identity and fit', () => {
 
 test('surface config treats absent fit as canonical cover without materializing it', () => {
   expect(readVisualDefinitionSurfaceConfig({})).toEqual({
+    backgroundMode: 'theme',
     backgroundColor: null,
     backgroundImageAssetId: null,
     backgroundImageFit: 'cover'
   });
   expect(readVisualDefinitionSurfaceConfig(undefined)).toEqual({
+    backgroundMode: 'theme',
     backgroundColor: null,
     backgroundImageAssetId: null,
     backgroundImageFit: 'cover'
@@ -61,6 +64,18 @@ test('surface style resolves a stable asset URL and deterministic fit', () => {
     backgroundRepeat: 'no-repeat',
     backgroundPosition: 'center'
   });
+});
+
+test('theme background follows the active light or dark application theme', () => {
+  const screen = applyVisualDefinitionSurfacePatch({ properties: {} }, { backgroundMode: 'theme' });
+  expect(screen.properties?.backgroundMode).toBe('theme');
+  expect(resolveVisualDefinitionSurfaceStyle(screen.properties)).toEqual({ backgroundColor: 'var(--app-bg, #0b0f14)' });
+});
+
+test('legacy definitions infer their prior authored background mode', () => {
+  expect(readVisualDefinitionSurfaceConfig({ backgroundColor: '#223344' }).backgroundMode).toBe('color');
+  expect(readVisualDefinitionSurfaceConfig({ backgroundImageAssetId: 'asset-1' }).backgroundMode).toBe('image');
+  expect(readVisualDefinitionSurfaceConfig({ backgroundMode: 'theme', backgroundColor: '#223344' }).backgroundMode).toBe('theme');
 });
 
 test('surface model rejects non-canonical background colors and unknown fit values', () => {

@@ -48,7 +48,7 @@
   --app-warning-bg: #fff7df;
   --app-success-bg: #eef9f2;
   --app-overlay: rgba(18, 29, 38, .45);
-  --app-runtime-letterbox: #11161a;
+  --app-runtime-letterbox: #edf2f6;
 }
 
 html, body, #root { min-height: 100%; }
@@ -111,6 +111,11 @@ body { background: var(--app-bg); color: var(--app-text-primary); }
   --eng-bg: var(--app-bg);
   --eng-panel: var(--app-surface);
   --eng-panel-soft: var(--app-surface-elevated);
+  --eng-panel-bg: var(--app-surface);
+  --eng-subtle-bg: var(--app-panel);
+  --eng-control-bg: var(--app-input-bg);
+  --eng-canvas: var(--app-panel);
+  --eng-shadow: 0 12px 32px color-mix(in srgb, var(--app-text-primary) 14%, transparent);
   --eng-border: var(--app-border);
   --eng-border-soft: var(--app-divider);
   --eng-text: var(--app-text-primary);

@@ -41,7 +41,9 @@ public enum VisualNavigationActionKind
     NavigateScreen,
     OpenPopup,
     ClosePopup,
-    ExecuteCommand
+    ExecuteCommand,
+    SetTagValue,
+    ToggleTagBoolean
 }
 
 /// <summary>

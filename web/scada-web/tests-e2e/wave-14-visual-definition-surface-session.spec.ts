@@ -37,6 +37,7 @@ test('surface authoring participates in Screen session undo and redo without rep
   let current = currentVisualEditorSessionScreen(session);
   expect(current.properties.retained).toBe('yes');
   expect(readVisualDefinitionSurfaceConfig(current.properties)).toEqual({
+    backgroundMode: 'image',
     backgroundColor: '#203040',
     backgroundImageAssetId: 'asset-process-map',
     backgroundImageFit: 'contain'
@@ -51,6 +52,7 @@ test('surface authoring participates in Screen session undo and redo without rep
   session = applyVisualEditorSessionKeyboardCommand(session, { kind: 'redo' });
   current = currentVisualEditorSessionScreen(session);
   expect(readVisualDefinitionSurfaceConfig(current.properties)).toEqual({
+    backgroundMode: 'image',
     backgroundColor: '#203040',
     backgroundImageAssetId: 'asset-process-map',
     backgroundImageFit: 'contain'
@@ -73,7 +75,8 @@ test('surface reset removes only C07 canonical surface keys', () => {
     patch: {
       backgroundColor: null,
       backgroundImageAssetId: null,
-      backgroundImageFit: null
+      backgroundImageFit: null,
+      backgroundMode: null
     }
   });
 

@@ -36,7 +36,9 @@ export type DynamoParameterValueEngineering = Readonly<{
 export type VisualNavigationActionKindEngineering =
   | 'NavigateScreen'
   | 'OpenPopup'
-  | 'ClosePopup';
+  | 'ClosePopup'
+  | 'SetTagValue'
+  | 'ToggleTagBoolean';
 
 export type VisualNavigationActionEngineering = Readonly<{
   eventKey: string;

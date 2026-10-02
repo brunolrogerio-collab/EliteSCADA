@@ -29,7 +29,10 @@ public static class VisualDynamicEngineeringValidation
 
         ValidatePropertyExpressions(element.PropertyExpressions, schema, occupied, entityKind, entityKey, issues);
         ValidateBooleanConditions(element.BooleanConditions, schema, occupied, entityKind, entityKey, issues);
-        ValidatePropertyMaps(element.PropertyMaps, schema, occupied, entityKind, entityKey, issues);
+        ValidatePropertyMaps(element.PropertyMaps, schema, occupied, entityKind, entityKey, issues,
+            allowParameterizedDynamoState: entityKind == ImportEntityKind.Dynamo &&
+                element.Metadata?.TryGetValue("dynamoStateColorParameter", out var stateParameterKey) == true &&
+                !string.IsNullOrWhiteSpace(stateParameterKey));
 
         if (element.AnalogFill is not null)
             ValidateAnalogFill(element.AnalogFill, schema, entityKind, entityKey, issues);
@@ -215,7 +218,8 @@ public static class VisualDynamicEngineeringValidation
         HashSet<string> occupied,
         ImportEntityKind kind,
         string key,
-        List<ImportIssue> issues)
+        List<ImportIssue> issues,
+        bool allowParameterizedDynamoState)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var map in maps ?? Array.Empty<VisualPropertyMapEngineeringDto>())
@@ -246,7 +250,14 @@ public static class VisualDynamicEngineeringValidation
             if (!definition.Animatable)
                 issues.Add(Error("VISUAL_PROPERTY_MAP_DESTINATION_NOT_ANIMATABLE", $"Visual property '{map.PropertyKey}' is not animatable.", kind, key));
 
-            ValidateSource(map.Source, kind, key, issues);
+            var usesDynamoStateParameter = allowParameterizedDynamoState &&
+                map.Source is
+                {
+                    Kind: VisualValueSourceKind.Tag,
+                    TagReference: null,
+                    Target: "{equipmentPath}.State"
+                };
+            ValidateSource(map.Source, kind, key, issues, usesDynamoStateParameter);
             if (map.Source is not null && map.Source.ValueType != VisualExpressionValueType.Number)
                 issues.Add(Error("VISUAL_PROPERTY_MAP_SOURCE_TYPE_INVALID", "Visual property maps require a numeric source.", kind, key));
 
@@ -330,7 +341,8 @@ public static class VisualDynamicEngineeringValidation
         VisualValueSourceEngineeringDto? source,
         ImportEntityKind kind,
         string key,
-        List<ImportIssue> issues)
+        List<ImportIssue> issues,
+        bool allowParameterizedDynamoState = false)
     {
         if (source is null)
         {
@@ -349,7 +361,7 @@ public static class VisualDynamicEngineeringValidation
 
         if (source.Kind is VisualValueSourceKind.Tag or VisualValueSourceKind.ClientMemory)
         {
-            if (source.TagReference is null)
+            if (source.TagReference is null && !allowParameterizedDynamoState)
                 issues.Add(Error("VISUAL_VALUE_SOURCE_REFERENCE_REQUIRED", $"{source.Kind} source requires a stable TagReference.", kind, key));
             if (source.Expression is not null)
                 issues.Add(Error("VISUAL_VALUE_SOURCE_EXPRESSION_UNEXPECTED", $"{source.Kind} source cannot also contain an expression.", kind, key));

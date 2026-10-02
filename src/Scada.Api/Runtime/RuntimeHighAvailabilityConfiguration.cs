@@ -146,12 +146,15 @@ public sealed class RuntimeHaHostConfigurationAuthority
         _bootstrapConfiguration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         _path = ResolveConfigurationPath(configuration);
 
-        var bootstrap = FromBootstrapConfiguration(configuration);
-        var running = File.Exists(_path)
+        var persisted = File.Exists(_path);
+        var running = persisted
             ? ReadPersisted(_path)
-            : bootstrap;
+            : FromBootstrapConfiguration(configuration);
 
-        ValidateDocument(running, enforceAdministrativeBounds: false, configurationPath: _path);
+        ValidateDocument(
+            running,
+            enforceAdministrativeBounds: persisted,
+            configurationPath: _path);
         _running = running;
         _desired = running;
     }

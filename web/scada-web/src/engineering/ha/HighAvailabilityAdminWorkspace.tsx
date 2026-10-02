@@ -378,23 +378,31 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
   const latestOperation = operations[0] ?? null;
   const suggestedTarget = peerNode?.nodeId ?? '';
   const peerAvailable = peer.connectionState === 'connected' && Boolean(peerNode?.fresh);
-  const nodeIds = draft.nodes.map(node => node.nodeId.trim()).filter(Boolean);
-  const nodeIdsUnique = nodeIds.length === 2 && new Set(nodeIds.map(value => value.toLowerCase())).size === 2;
-  const endpointsReady = draft.nodes.length === 2 && draft.nodes.every(node =>
-    isAbsoluteHttpEndpoint(node.localEndpoint) && isAbsoluteHttpEndpoint(node.remoteEndpoint));
-  const authenticationReady = draft.peerTransport.enabled &&
-    (draft.peerTransport.authenticationConfigured ||
-      new TextEncoder().encode(draft.peerSharedSecret).length >= 32);
+  const currentServerDraft = draft.nodes[0];
+  const partnerServerDraft = draft.nodes[1];
+  const currentServerReady = Boolean(currentServerDraft) &&
+    isAbsoluteHttpEndpoint(currentServerDraft.localEndpoint) &&
+    (!currentServerDraft.remoteEndpoint || isAbsoluteHttpEndpoint(currentServerDraft.remoteEndpoint));
+  const partnerServerReady = Boolean(partnerServerDraft) &&
+    isAbsoluteHttpEndpoint(partnerServerDraft.localEndpoint) &&
+    (!partnerServerDraft.remoteEndpoint || isAbsoluteHttpEndpoint(partnerServerDraft.remoteEndpoint));
+  const authenticationReady =
+    draft.peerTransport.authenticationConfigured ||
+    new TextEncoder().encode(draft.peerSharedSecret).length >= 32;
   const requirements = [
     { label: t.requirementLicense, ok: haLicensed },
-    { label: t.requirementCluster, ok: Boolean(draft.clusterId?.trim()) },
-    { label: t.requirementNodes, ok: nodeIdsUnique && nodeIds.includes(draft.localNodeId) },
-    { label: t.requirementEndpoints, ok: endpointsReady },
-    { label: t.requirementInitialActive, ok: Boolean(draft.initialActiveNodeId) && nodeIds.includes(draft.initialActiveNodeId || '') },
+    { label: t.requirementCurrentServer, ok: currentServerReady },
+    { label: t.requirementPartnerServer, ok: partnerServerReady },
     { label: t.requirementAuthentication, ok: authenticationReady },
     { label: t.requirementReference, ok: !draft.protection.enabled || Boolean(draft.protection.referencePath?.trim()) }
   ];
   const haReadyForDeployment = requirements.every(requirement => requirement.ok);
+  const friendlyNode = (nodeId?: string | null) => {
+    if (!nodeId) return '—';
+    return nodeId.toLowerCase() === topology.localNodeId.toLowerCase()
+      ? t.currentServer
+      : t.partnerServer;
+  };
 
   return (
     <section className="ha-admin" data-testid="ha-admin-workspace">
@@ -460,7 +468,11 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
             disabled={topology.enabled || !haLicensed}
             onClick={() => {
               setDeploymentChoice('ha');
-              setDraft(current => current ? prepareHaDraft(current) : current);
+              setPreferredServer('local');
+              setDraft(current => current ? prepareHaDraft(
+                current,
+                typeof window !== 'undefined' ? window.location.origin : ''
+              ) : current);
               setShowSecretEditor(false);
             }}
           >
@@ -521,19 +533,19 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
 
         <article className="ha-summary-card">
           <span>{topology.enabled ? t.effectiveActive : t.localNode}</span>
-          <strong>{topology.effectiveActiveNodeId || '—'}</strong>
-          <small>{t.epoch} {topology.authorityEpoch}</small>
+          <strong>{topology.enabled ? friendlyNode(topology.effectiveActiveNodeId) : t.currentServer}</strong>
+          <small>{topology.enabled ? `${t.epoch} ${topology.authorityEpoch}` : t.standaloneDescription}</small>
         </article>
 
         <article className="ha-summary-card" data-testid="ha-peer-summary">
           <span>{topology.enabled ? t.nodes : t.standaloneMode}</span>
           <div className="ha-node-summary">
-            <strong>{topology.localNodeId}</strong>
+            <strong>{t.currentServer}</strong>
             <small>{local ? stateName(local.state) : t.standaloneMode}</small>
           </div>
           {topology.enabled && (
             <div className="ha-node-summary">
-              <strong>{peer.peerNodeId || peerNode?.nodeId || '—'}</strong>
+              <strong>{t.partnerServer}</strong>
               <small>{peerNode ? stateName(peerNode.state) : '—'} · {peer.connectionState} · {relativeTime(latestContact(snapshot))}</small>
             </div>
           )}
@@ -574,7 +586,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
             <div className={'ha-latest-operation ha-latest-operation--' + latestOperation.state}>
               <span>{t.latestOperation}</span>
               <strong>{latestOperation.kind} · {latestOperation.state}</strong>
-              <small>{latestOperation.sourceNodeId || '—'} → {latestOperation.targetNodeId || '—'} · {latestOperation.reasonCode}</small>
+              <small>{friendlyNode(latestOperation.sourceNodeId)} → {friendlyNode(latestOperation.targetNodeId)} · {latestOperation.reasonCode}</small>
             </div>
           )}
         </section>

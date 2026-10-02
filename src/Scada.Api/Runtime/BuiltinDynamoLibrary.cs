@@ -18,7 +18,7 @@ namespace Scada.Api.Runtime;
 /// </summary>
 public static class BuiltinDynamoLibrary
 {
-    public const string Version = "1.9.0";
+    public const string Version = "2.0.0";
 
     private enum VisualStyle
     {
@@ -584,12 +584,19 @@ public static class BuiltinDynamoLibrary
         var centerX = width / 2d;
         var centerY = height / 2d;
 
+        bool PrimaryMass(string key) =>
+            key is "crankcase" or "compressor-housing" or "body-ring" or "body" or "shell" or
+                "filter-body" or "vessel" or "tank" or "interrupter" or "stator" or "core" or "operating-box" ||
+            key.StartsWith("support-", StringComparison.Ordinal);
+
         void Rect(string key, double x, double y, double w, double h, string fill, double radius = 0, double stroke = 2) =>
             shapes.Add(MaterialShape(E(family, style, shapes.Count + 1), key, "core.rectangle", x, y, w, h,
-                fill, highPerformance ? fill : light, dark, stroke, radius, dimensional, "diagonal-down", dimensional));
+                fill, highPerformance ? fill : light, dark, stroke, radius, dimensional, "diagonal-down",
+                dimensional && PrimaryMass(key)));
         void Ellipse(string key, double x, double y, double w, double h, string fill, double stroke = 2) =>
             shapes.Add(MaterialShape(E(family, style, shapes.Count + 1), key, "core.ellipse", x, y, w, h,
-                fill, highPerformance ? fill : light, dark, stroke, 0, dimensional, "diagonal-down", dimensional));
+                fill, highPerformance ? fill : light, dark, stroke, 0, dimensional, "diagonal-down",
+                dimensional && PrimaryMass(key)));
         void Bar(string key, double x, double y, double w, double h, string fill, double rotation = 0) =>
             shapes.Add(FlatShape(E(family, style, shapes.Count + 1), key, "core.rectangle", x, y, w, h, fill, dark, 1.4, 1.5, rotation));
         void Label(string text, double x, double y, double w, double h, double size = 13) =>
@@ -612,7 +619,8 @@ public static class BuiltinDynamoLibrary
                 Ellipse("head-right", 59, 17, 26, 14, accent);
                 Rect("discharge", 79, 29, 39, 9, shell, 2);
                 Rect("inlet", 6, 39, 30, 9, shell, 2);
-                for (var index = 0; index < 4; index++) Bar($"cooling-fin-{index + 1}", 38 + index * 9, 29, 2, 24, dark);
+                for (var index = 0; index < (highPerformance ? 2 : 4); index++)
+                    Bar($"cooling-fin-{index + 1}", 38 + index * (highPerformance ? 18 : 9), 29, 2, 24, dark);
                 Label("C", 41, 69, 25, 18, 12);
                 Lamp("running", 5, 5, "running", "{equipmentPath}.Running", "#D92D20");
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
@@ -671,7 +679,8 @@ public static class BuiltinDynamoLibrary
                 Rect("shell", 25, 35, 111, 56, shell, 22, 2.5);
                 Ellipse("head-left", 17, 35, 28, 56, light);
                 Ellipse("head-right", 119, 35, 28, 56, light);
-                for (var index = 0; index < 5; index++) Bar($"tube-{index + 1}", 45, 48 + index * 8, 71, 2, dark);
+                for (var index = 0; index < (highPerformance ? 3 : 5); index++)
+                    Bar($"tube-{index + 1}", 45, 48 + index * (highPerformance ? 14 : 8), 71, 2, dark);
                 Rect("nozzle-hot-in", 49, 15, 10, 24, accent, 2);
                 Rect("nozzle-hot-out", 100, 86, 10, 25, accent, 2);
                 Rect("nozzle-cold-in", 51, 87, 9, 25, shell, 2);
@@ -684,7 +693,8 @@ public static class BuiltinDynamoLibrary
                 Rect("pipe-right", 94, 35, 45, 10, shell, 2);
                 Rect("filter-body", 39, 20, 61, 36, shell, 6, 2.5);
                 Triangle("basket", 54, 52, 43, 47, false, light);
-                for (var index = 0; index < 4; index++) Bar($"basket-slot-{index + 1}", 62 + index * 7, 65, 2, 24, dark, -22);
+                for (var index = 0; index < (highPerformance ? 2 : 4); index++)
+                    Bar($"basket-slot-{index + 1}", 62 + index * (highPerformance ? 14 : 7), 65, 2, 24, dark, -22);
                 Ellipse("cap", 51, 91, 49, 12, accent);
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
                 break;
@@ -705,8 +715,10 @@ public static class BuiltinDynamoLibrary
                 Rect("base", 20, height - 18, width - 40, 8, dark, 2);
                 Rect("tank", 39, 43, 72, 83, shell, 6, 2.5);
                 Rect("cover", 34, 36, 82, 12, light, 2);
-                for (var index = 0; index < 5; index++) Rect($"radiator-{index + 1}", 18 + index * 4, 59, 4, 52, accent, 1, 1);
-                for (var index = 0; index < 5; index++) Rect($"radiator-r-{index + 1}", 112 + index * 4, 59, 4, 52, accent, 1, 1);
+                for (var index = 0; index < (highPerformance ? 3 : 5); index++)
+                    Rect($"radiator-{index + 1}", 18 + index * (highPerformance ? 8 : 4), 59, 4, 52, accent, 1, 1);
+                for (var index = 0; index < (highPerformance ? 3 : 5); index++)
+                    Rect($"radiator-r-{index + 1}", 112 + index * (highPerformance ? 8 : 4), 59, 4, 52, accent, 1, 1);
                 Rect("bushing-left", 53, 10, 11, 29, light, 3);
                 Rect("bushing-right", 84, 10, 11, 29, light, 3);
                 Label("T", 59, 72, 31, 22, 15);
@@ -755,7 +767,8 @@ public static class BuiltinDynamoLibrary
                 Ellipse("rotor", 41, 34, 56, 48, light, 2);
                 Ellipse("hub", 59, 49, 20, 18, accent, 1);
                 Rect("shaft", 107, 53, 34, 9, dark, 2);
-                for (var index = 0; index < 5; index++) Bar($"stator-slot-{index + 1}", 40 + index * 12, 27, 3, 9, dark);
+                for (var index = 0; index < (highPerformance ? 3 : 5); index++)
+                    Bar($"stator-slot-{index + 1}", 40 + index * (highPerformance ? 20 : 12), 27, 3, 9, dark);
                 Label("G", 55, 48, 31, 20, 13);
                 Lamp("running", 5, 5, "running", "{equipmentPath}.Running", "#D92D20");
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
@@ -830,7 +843,8 @@ public static class BuiltinDynamoLibrary
     private static void FitArtworkToCanvas(
         List<VisualElementEngineeringDto> elements,
         double canvasWidth,
-        double canvasHeight)
+        double canvasHeight,
+        VisualStyle style)
     {
         var bounds = new List<(int Index, double X, double Y, double Width, double Height)>();
         for (var index = 0; index < elements.Count; index++)
@@ -855,9 +869,15 @@ public static class BuiltinDynamoLibrary
         var bottom = bounds.Max(item => item.Y + item.Height);
         var artworkWidth = Math.Max(1, right - left);
         var artworkHeight = Math.Max(1, bottom - top);
-        const double targetFill = 0.86;
+        var targetFill = style switch
+        {
+            VisualStyle.HighPerformance => 0.92,
+            VisualStyle.DimensionalFront => 0.88,
+            _ => 0.90
+        };
         var scale = Math.Min(canvasWidth * targetFill / artworkWidth, canvasHeight * targetFill / artworkHeight);
-        scale = Math.Min(scale, 1.15);
+        var maximumScale = style == VisualStyle.DimensionalFront ? 1.12 : 1.18;
+        scale = Math.Min(scale, maximumScale);
         foreach (var item in bounds)
         {
             var element = elements[item.Index];
@@ -932,7 +952,7 @@ public static class BuiltinDynamoLibrary
             .ToArray();
 
         var visualElements = refinedElements.ToList();
-        FitArtworkToCanvas(visualElements, width, height);
+        FitArtworkToCanvas(visualElements, width, height, style);
         visualElements = visualElements
             .Select(element => ApplyArtworkFinish(element, style))
             .ToList();
@@ -964,7 +984,8 @@ public static class BuiltinDynamoLibrary
                 ["libraryVersion"] = Version,
                 ["visualStyle"] = StyleKey(style),
                 ["visualFinish"] = FinishProfile(style).Key,
-                ["visualReferenceProfile"] = "pid-inspired-native-vector-v1"
+                ["visualReferenceProfile"] = "pid-inspired-native-vector-v1",
+                ["artworkContract"] = "C-DYNAMO-ARTWORK-02"
             },
             Context: new Dictionary<string, string>
             {
@@ -985,6 +1006,7 @@ public static class BuiltinDynamoLibrary
                 ["visualFinish"] = FinishProfile(style).Key,
                 ["visualReferenceProfile"] = "pid-inspired-native-vector-v1",
                 ["visualReferencePolicy"] = "original-editable-geometry; third-party SVGs are not embedded",
+                ["artworkContract"] = "C-DYNAMO-ARTWORK-02",
                 ["stateTagProfile"] = stateColorTargets is null ? "none" : "0=stopped;1=running;2=fault",
                 ["stateColorsEditable"] = stateColorTargets is null ? "false" : "true"
             },
@@ -1006,14 +1028,14 @@ public static class BuiltinDynamoLibrary
     private static ArtworkFinish FinishProfile(VisualStyle style) => style switch
     {
         VisualStyle.Detailed2D => new(
-            "industrial-steel-2d-v4",
-            "#263746", "#435B6C", "#7C909E", "#B2C0C9", "#DCE5EA", "#F6F8FA", "#2D4352", "#70818D"),
+            "industrial-steel-2d-v5",
+            "#24333E", "#3D5362", "#718795", "#A9BAC4", "#D7E2E8", "#F7F9FA", "#263B49", "#6D7D87"),
         VisualStyle.DimensionalFront => new(
-            "soft-machined-steel-v4",
-            "#22394A", "#465F70", "#8098A8", "#B5C7D1", "#E5EDF2", "#FBFCFD", "#2B4354", "#667E8D"),
+            "soft-machined-steel-v5",
+            "#203747", "#405C6C", "#7993A4", "#B5C9D4", "#E4EDF2", "#FCFDFD", "#294253", "#617887"),
         _ => new(
-            "high-performance-neutral-v4",
-            "#303A40", "#4D5960", "#818C92", "#ADB7BC", "#D5DBDE", "#EEF1F2", "#37434A", "#6D787E")
+            "high-performance-neutral-v5",
+            "#2F373C", "#49545B", "#7B858B", "#A8B1B6", "#D1D6D9", "#ECEFF0", "#343F45", "#687278")
     };
 
     private static VisualElementEngineeringDto ApplyArtworkFinish(
@@ -1043,6 +1065,7 @@ public static class BuiltinDynamoLibrary
         // and high-performance variants stay crisp and flat for dense operating screens.
         if (style == VisualStyle.DimensionalFront &&
             (element.Type is "core.rectangle" or "core.ellipse" or "core.polygon") &&
+            IsPrimaryDimensionalMass(element.Key) &&
             !properties.ContainsKey("shadowEnabled") &&
             properties.TryGetValue("width", out var shapeWidth) && shapeWidth.TryGetDouble(out var shapeWidthValue) &&
             properties.TryGetValue("height", out var shapeHeight) && shapeHeight.TryGetDouble(out var shapeHeightValue) &&
@@ -1073,6 +1096,13 @@ public static class BuiltinDynamoLibrary
 
         return element with { Properties = properties };
     }
+
+    private static bool IsPrimaryDimensionalMass(string key) =>
+        key is "casing" or "body" or "motor" or "motor-body" or "tank" or "shell" or "vessel" or
+            "crankcase" or "compressor-housing" or "body-ring" or "filter-body" or "interrupter" or
+            "stator" or "core" or "outer-case" or "operating-box" ||
+        key.StartsWith("body-", StringComparison.Ordinal) ||
+        key.StartsWith("support-", StringComparison.Ordinal);
 
     private static string InterpolateArtworkMetal(ArtworkFinish finish, double luminance)
     {

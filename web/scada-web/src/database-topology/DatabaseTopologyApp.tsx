@@ -93,6 +93,10 @@ function healthOk(health?: DatabaseConnectionHealth | null) {
   return health ? health.reachable && !health.failureCode : null;
 }
 
+function tlsRequiresCa(mode: RemoteEndpointDraft['tlsMode']) {
+  return mode === 'VerifyCa' || mode === 'VerifyFull';
+}
+
 function migrationStageIndex(phase?: DatabaseMigrationPhase | null) {
   if (!phase) return -1;
   if (phase === 'Tested' || phase === 'Compatible') return 0;
@@ -157,7 +161,19 @@ function EndpointAdvancedFields({
   return <div className="db-topology-fields db-topology-fields--advanced">
     <label><span>{t.port}</span><input aria-label={`${prefix} ${t.port}`} inputMode="numeric" value={value.port} disabled={disabled} onChange={event => field('port', event.target.value)} /></label>
     <label><span>{t.tlsMode}</span>
-      <select aria-label={`${prefix} ${t.tlsMode}`} value={value.tlsMode} disabled={disabled} onChange={event => field('tlsMode', event.target.value as RemoteEndpointDraft['tlsMode'])}>
+      <select
+        aria-label={`${prefix} ${t.tlsMode}`}
+        value={value.tlsMode}
+        disabled={disabled}
+        onChange={event => {
+          const tlsMode = event.target.value as RemoteEndpointDraft['tlsMode'];
+          onChange({
+            ...value,
+            tlsMode,
+            rootCertificatePath: tlsRequiresCa(tlsMode) ? value.rootCertificatePath : ''
+          });
+        }}
+      >
         <option value="Disable">Disable</option>
         <option value="Prefer">Prefer</option>
         <option value="Require">Require</option>
@@ -166,7 +182,7 @@ function EndpointAdvancedFields({
       </select>
     </label>
     <label><span>{t.timeout}</span><input aria-label={`${prefix} ${t.timeout}`} inputMode="numeric" value={value.timeoutSeconds} disabled={disabled} onChange={event => field('timeoutSeconds', event.target.value)} /></label>
-    <label className="db-topology-field-wide"><span>{t.rootCertificatePath}</span><input aria-label={`${prefix} ${t.rootCertificatePath}`} value={value.rootCertificatePath} disabled={disabled} onChange={event => field('rootCertificatePath', event.target.value)} /></label>
+    {tlsRequiresCa(value.tlsMode) ? <label className="db-topology-field-wide"><span>{t.rootCertificatePath}</span><input aria-label={`${prefix} ${t.rootCertificatePath}`} value={value.rootCertificatePath} disabled={disabled} onChange={event => field('rootCertificatePath', event.target.value)} /></label> : null}
   </div>;
 }
 
@@ -202,15 +218,17 @@ export function DatabaseTopologyApp() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
 
-  const refresh = useCallback(async (refreshHealth = false) => {
-    setBusy(current => current ?? 'refresh');
-    setNotice(null);
+  const refresh = useCallback(async (refreshHealth = false, silent = false) => {
+    if (!silent) {
+      setBusy(current => current ?? 'refresh');
+      setNotice(null);
+    }
     try {
       setStatus(await loadDatabaseTopologyStatus(refreshHealth));
     } catch (error) {
-      setNotice({ tone: 'danger', text: apiErrorText(error, t) });
+      if (!silent) setNotice({ tone: 'danger', text: apiErrorText(error, t) });
     } finally {
-      setBusy(current => current === 'refresh' ? null : current);
+      if (!silent) setBusy(current => current === 'refresh' ? null : current);
     }
   }, [t]);
 
@@ -229,6 +247,29 @@ export function DatabaseTopologyApp() {
   const historianHealth = status?.historianHealth ?? (status?.activeTopology.historianUsesPrimary ? primaryHealth : null);
   const stageIndex = migrationStageIndex(displayPhase);
   const stages = [t.stepValidate, t.stepPrepare, t.stepCopy, t.stepVerify, t.stepCutover];
+  const validationHealth = compatibility?.primary ?? testHealth;
+  const validationDiagnostic = compatibility?.diagnostic ?? testHealth?.diagnostic ?? null;
+  const autoRefreshActive = Boolean(
+    pendingPhase && ['Quiescing', 'Copying', 'Verifying', 'Switching', 'Readiness', 'RollbackRequired'].includes(pendingPhase)
+  ) || ['copy', 'verify', 'commit', 'rollback'].includes(busy ?? '');
+
+  useEffect(() => {
+    if (!autoRefreshActive) return;
+    const timer = window.setInterval(() => { void refresh(false, true); }, 3000);
+    return () => window.clearInterval(timer);
+  }, [autoRefreshActive, refresh]);
+
+  const invalidateValidation = () => {
+    setTestHealth(null);
+    setCompatibility(null);
+    setNotice(null);
+  };
+
+  const resetTransientEditor = () => {
+    setDraft(emptyRemoteProfileDraft());
+    setTestHealth(null);
+    setCompatibility(null);
+  };
 
   const run = async (name: string, action: () => Promise<void>) => {
     if (busy) return;
@@ -243,24 +284,28 @@ export function DatabaseTopologyApp() {
     }
   };
 
-  const onTest = () => run('test', async () => {
-    if (!primaryDraftValid) {
+  const onValidateTarget = () => run('validate', async () => {
+    if (!primaryDraftValid || !profileRequest) {
       setNotice({ tone: 'warning', text: t.fieldRequired });
       return;
     }
+
+    setTestHealth(null);
+    setCompatibility(null);
+
     const health = await testDatabaseConnection(primaryDraftValid, draft.historianUsesPrimary);
     setTestHealth(health);
-    setNotice({ tone: health.reachable && !health.failureCode ? 'success' : 'warning', text: health.diagnostic ?? (health.reachable ? t.healthy : t.degraded) });
-  });
-
-  const onCompatibility = () => run('compatibility', async () => {
-    if (!profileRequest) {
-      setNotice({ tone: 'warning', text: t.fieldRequired });
+    if (!health.reachable || health.failureCode) {
+      setNotice({ tone: 'warning', text: health.diagnostic ?? t.degraded });
       return;
     }
+
     const result = await validateDatabaseCompatibility(profileRequest);
     setCompatibility(result);
-    setNotice({ tone: result.compatible ? 'success' : 'warning', text: result.diagnostic ?? (result.compatible ? t.compatible : t.incompatible) });
+    setNotice({
+      tone: result.compatible ? 'success' : 'warning',
+      text: result.diagnostic ?? (result.compatible ? t.compatible : t.incompatible)
+    });
   });
 
   const onPrepare = () => run('prepare', async () => {
@@ -301,6 +346,7 @@ export function DatabaseTopologyApp() {
     const result = await commitDatabaseCutover(operationId);
     setStatus(result.status);
     setPending(null);
+    if (result.succeeded) resetTransientEditor();
     setNotice({ tone: result.succeeded ? 'success' : 'danger', text: result.succeeded ? t.phaseCompleted : (result.diagnostic ?? t.errorServer) });
     setConfirmation(null);
   });
@@ -309,6 +355,7 @@ export function DatabaseTopologyApp() {
     const result = await rollbackDatabaseTopology(operationId);
     setStatus(result.status);
     setPending(null);
+    if (result.rolledBack) resetTransientEditor();
     setNotice({ tone: result.rolledBack ? 'success' : 'warning', text: phaseLabel(result.status.lastOperation?.phase, t) });
     setConfirmation(null);
   });
@@ -362,14 +409,14 @@ export function DatabaseTopologyApp() {
 
       <EndpointCoreFields value={draft.primary} prefix="Primary" disabled={isCritical} onChange={primary => {
         setDraft(current => ({ ...current, primary }));
-        setCompatibility(null);
+        invalidateValidation();
       }} />
 
       <details className="db-topology-details db-topology-advanced">
         <summary><span>{t.advancedSettings}</span><small>{t.advancedSettingsHelp}</small></summary>
         <EndpointAdvancedFields value={draft.primary} prefix="Primary" disabled={isCritical} onChange={primary => {
           setDraft(current => ({ ...current, primary }));
-          setCompatibility(null);
+          invalidateValidation();
         }} />
         <label className="db-topology-historian-toggle">
           <input
@@ -377,8 +424,13 @@ export function DatabaseTopologyApp() {
             checked={draft.historianUsesPrimary}
             disabled={isCritical}
             onChange={event => {
-              setDraft(current => ({ ...current, historianUsesPrimary: event.target.checked }));
-              setCompatibility(null);
+              const usePrimary = event.target.checked;
+              setDraft(current => ({
+                ...current,
+                historianUsesPrimary: usePrimary,
+                historian: usePrimary ? current.historian : { ...current.primary, password: '' }
+              }));
+              invalidateValidation();
             }}
           />
           <span>{t.historianUsePrimary}</span>
@@ -387,7 +439,7 @@ export function DatabaseTopologyApp() {
           <h3>{t.historianOverride}</h3>
           <EndpointCoreFields value={draft.historian} prefix="Historian" disabled={isCritical} onChange={historian => {
             setDraft(current => ({ ...current, historian }));
-            setCompatibility(null);
+            invalidateValidation();
           }} />
           <EndpointAdvancedFields value={draft.historian} prefix="Historian" disabled={isCritical} onChange={historian => {
             setDraft(current => ({ ...current, historian }));
@@ -397,31 +449,26 @@ export function DatabaseTopologyApp() {
       </details>
 
       <div className="db-topology-validation">
-        <div className="db-topology-section-heading"><h3>{t.validation}</h3></div>
+        <div className="db-topology-section-heading">
+          <div><h3>{t.validation}</h3><p>{t.validateTargetHelp}</p></div>
+        </div>
         <div className="db-topology-actions db-topology-actions--guided">
-          <button type="button" data-step="1" disabled={Boolean(busy) || isCritical} onClick={onTest}>{busy === 'test' ? t.working : t.testConnection}</button>
-          <button type="button" data-step="2" disabled={Boolean(busy) || isCritical} onClick={onCompatibility}>{busy === 'compatibility' ? t.working : t.validateCompatibility}</button>
-          <button type="button" data-step="3" className="db-topology-primary-action" disabled={Boolean(busy) || isCritical || compatibility?.compatible !== true} onClick={onPrepare}>{busy === 'prepare' ? t.working : t.prepare}</button>
+          <button type="button" data-step="1" disabled={Boolean(busy) || isCritical} onClick={onValidateTarget}>{busy === 'validate' ? t.working : t.validateTarget}</button>
+          <button type="button" data-step="2" className="db-topology-primary-action" disabled={Boolean(busy) || isCritical || compatibility?.compatible !== true} onClick={onPrepare}>{busy === 'prepare' ? t.working : t.prepare}</button>
         </div>
 
-        {testHealth ? <div className="db-topology-result-summary" data-testid="database-test-result">
-          <ResultPill ok={healthOk(testHealth)}>{healthOk(testHealth) ? t.healthy : t.degraded}</ResultPill>
-          <span>{t.postgresql} {testHealth.postgreSqlVersion ?? '—'}</span>
-          <span>{t.timescale} {testHealth.timescaleDbVersion ?? (testHealth.timescaleCapable ? t.available : t.unavailable)}</span>
-          {testHealth.diagnostic ? <strong>{testHealth.diagnostic}</strong> : null}
-          <details className="db-topology-inline-details"><summary>{t.technicalDetails}</summary><HealthTechnicalDetails title={t.primary} health={testHealth} /></details>
-        </div> : null}
-
-        {compatibility ? <div className="db-topology-result-summary" data-testid="database-compatibility-result">
-          <ResultPill ok={compatibility.compatible}>{compatibility.compatible ? t.compatible : t.incompatible}</ResultPill>
-          <span>{t.postgresql} {compatibility.primary.postgreSqlVersion ?? '—'}</span>
-          <span>{t.timescale} {compatibility.primary.timescaleDbVersion ?? (compatibility.primary.timescaleCapable ? t.available : t.unavailable)}</span>
-          {compatibility.diagnostic ? <strong>{compatibility.diagnostic}</strong> : null}
+        {validationHealth ? <div className="db-topology-result-summary" data-testid="database-validation-result">
+          <ResultPill ok={compatibility ? compatibility.compatible : healthOk(validationHealth)}>
+            {compatibility ? (compatibility.compatible ? t.compatible : t.incompatible) : (healthOk(validationHealth) ? t.healthy : t.degraded)}
+          </ResultPill>
+          <span>{t.postgresql} {validationHealth.postgreSqlVersion ?? '—'}</span>
+          <span>{t.timescale} {validationHealth.timescaleDbVersion ?? (validationHealth.timescaleCapable ? t.available : t.unavailable)}</span>
+          {validationDiagnostic ? <strong>{validationDiagnostic}</strong> : null}
           <details className="db-topology-inline-details">
             <summary>{t.technicalDetails}</summary>
             <div className="db-topology-technical-grid">
-              <HealthTechnicalDetails title={t.primary} health={compatibility.primary} />
-              {compatibility.historian ? <HealthTechnicalDetails title={t.historianOverride} health={compatibility.historian} /> : null}
+              <HealthTechnicalDetails title={t.primary} health={validationHealth} />
+              {compatibility?.historian ? <HealthTechnicalDetails title={t.historianOverride} health={compatibility.historian} /> : null}
             </div>
           </details>
         </div> : null}

@@ -271,6 +271,15 @@ export function DatabaseTopologyApp() {
     setCompatibility(null);
   };
 
+  useEffect(() => {
+    if (pendingPhase) return;
+    if (status?.lastOperation?.phase !== 'Completed' && status?.lastOperation?.phase !== 'RolledBack') return;
+    setPending(null);
+    setDraft(emptyRemoteProfileDraft());
+    setTestHealth(null);
+    setCompatibility(null);
+  }, [pendingPhase, status?.lastOperation?.operationId, status?.lastOperation?.phase]);
+
   const run = async (name: string, action: () => Promise<void>) => {
     if (busy) return;
     setBusy(name);
@@ -443,7 +452,7 @@ export function DatabaseTopologyApp() {
           }} />
           <EndpointAdvancedFields value={draft.historian} prefix="Historian" disabled={isCritical} onChange={historian => {
             setDraft(current => ({ ...current, historian }));
-            setCompatibility(null);
+            invalidateValidation();
           }} />
         </div> : null}
       </details>

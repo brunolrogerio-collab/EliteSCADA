@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { expect, test, type APIRequestContext, type Locator } from '@playwright/test';
+import { expect, test, type APIRequestContext } from '@playwright/test';
 
 const projectKey = 'e2e-wave11';
 const eventKey = 'c19.runtime.initialize';
@@ -94,8 +94,7 @@ test('C19 authors an Operational Event normally and Server Script Initialize emi
   const lifecycle = page.locator('.eng-lifecycle-workspace');
   await expect(lifecycle).toBeVisible();
 
-  const actions = lifecycle.locator('.eng-lifecycle-workspace__action-buttons');
-  const saveButton = actions.getByRole('button').first();
+  const saveButton = lifecycle.getByRole('button', { name: 'Salvar revisão' });
   await expect(saveButton).toBeEnabled();
   await saveButton.click();
 
@@ -109,7 +108,6 @@ test('C19 authors an Operational Event normally and Server Script Initialize emi
   const publishButton = revisionRow.locator('.eng-lifecycle-workspace__row-actions').getByRole('button').nth(1);
   await expect(publishButton).toBeEnabled();
   await publishButton.click();
-  await confirmLifecycleAction(lifecycle);
 
   await expect.poll(async () => {
     const response = await request.get(`/api/engineering/persistence/${projectKey}/lifecycle`);
@@ -117,10 +115,9 @@ test('C19 authors an Operational Event normally and Server Script Initialize emi
     return (await response.json() as { publishedRevision: number | null }).publishedRevision;
   }).toBe(savedRevision);
 
-  const activateButton = actions.getByRole('button').nth(1);
+  const activateButton = lifecycle.getByTestId('engineering-lifecycle-activate');
   await expect(activateButton).toBeEnabled();
   await activateButton.click();
-  await confirmLifecycleAction(lifecycle);
 
   await expect.poll(async () => {
     const response = await request.get('/api/runtime/application');
@@ -260,11 +257,6 @@ async function loadWorkspace(request: APIRequestContext): Promise<{ changeVersio
   return await response.json();
 }
 
-async function confirmLifecycleAction(lifecycle: Locator) {
-  const confirmation = lifecycle.locator('.eng-lifecycle-workspace__confirmation');
-  await expect(confirmation).toBeVisible();
-  await confirmation.locator('.eng-lifecycle-workspace__critical').click();
-}
 
 function flatten(elements: readonly any[]): any[] {
   const result: any[] = [];

@@ -336,10 +336,6 @@ function Overview({ snapshot, t }: { snapshot: EngineeringSnapshot; t: ReturnTyp
           <h2>{t('overview.entities')}</h2>
           <div className="eng-entity-grid">{entities.map(entity => <div className="eng-entity-card" key={entity.section}><strong>{entity.value}</strong><span>{t(entity.label)}</span></div>)}</div>
         </section>
-        <section className="eng-panel eng-wide-panel">
-          <h2>{t('overview.next')}</h2><p>{t('overview.nextHint')}</p>
-          <div className="eng-flow"><span>parse</span><b>→</b><span>validate</span><b>→</b><span>preview</span><b>→</b><span>apply</span></div>
-        </section>
       </div>
     </div>
   );

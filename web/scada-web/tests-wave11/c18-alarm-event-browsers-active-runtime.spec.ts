@@ -3,7 +3,6 @@ import {
   request as playwrightRequest,
   test,
   type APIRequestContext,
-  type Locator,
   type Page
 } from '@playwright/test';
 import { createE2eJwt } from '../tests-e2e/jwt';
@@ -125,8 +124,7 @@ test('C18 authors Alarm and Event Browser in Screen and Popup, then Save Publish
   await page.locator('.eng-nav button').first().click();
   const lifecycle = page.locator('.eng-lifecycle-workspace');
   await expect(lifecycle).toBeVisible();
-  const lifecycleActions = lifecycle.locator('.eng-lifecycle-workspace__action-buttons');
-  const saveButton = lifecycleActions.getByRole('button').first();
+  const saveButton = lifecycle.getByRole('button', { name: 'Salvar revisão' });
   await expect(saveButton).toBeEnabled();
   await saveButton.click();
 
@@ -147,7 +145,6 @@ test('C18 authors Alarm and Event Browser in Screen and Popup, then Save Publish
   const publishButton = revisionRow.locator('.eng-lifecycle-workspace__row-actions').getByRole('button').nth(1);
   await expect(publishButton).toBeEnabled();
   await publishButton.click();
-  await confirmLifecycleAction(lifecycle);
 
   await expect.poll(async () => {
     const response = await request.get(`/api/engineering/persistence/${projectKey}/lifecycle`);
@@ -155,10 +152,9 @@ test('C18 authors Alarm and Event Browser in Screen and Popup, then Save Publish
     return (await response.json() as { publishedRevision: number | null }).publishedRevision;
   }).toBe(savedRevision);
 
-  const activateButton = lifecycleActions.getByRole('button').nth(1);
+  const activateButton = lifecycle.getByTestId('engineering-lifecycle-activate');
   await expect(activateButton).toBeEnabled();
   await activateButton.click();
-  await confirmLifecycleAction(lifecycle);
 
   await expect.poll(async () => {
     const response = await request.get('/api/runtime/application');
@@ -311,11 +307,6 @@ async function previewAndApplyPopup(page: Page) {
   await apply.click();
 }
 
-async function confirmLifecycleAction(lifecycle: Locator) {
-  const confirmation = lifecycle.locator('.eng-lifecycle-workspace__confirmation');
-  await expect(confirmation).toBeVisible();
-  await confirmation.locator('.eng-lifecycle-workspace__critical').click();
-}
 
 async function loadWorking(request: APIRequestContext): Promise<any> {
   const response = await request.get('/api/engineering/export/json');

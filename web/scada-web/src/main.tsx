@@ -6,10 +6,12 @@ import { initializeAppTheme } from './appTheme';
 import { AuditApp } from './audit';
 import { AuthGate } from './auth/AuthGate';
 import {
+  hasRuntimeCapability,
   resolveAppSurfaceAccess,
   useEffectiveCapabilities
 } from './auth/effectiveCapabilities';
 import { EngineeringLockGate } from './engineering/EngineeringLockGate';
+import { DatabaseTopologyApp } from './database-topology';
 import { ContextualHelpApp } from './help/ContextualHelpApp';
 import { LicensingApp } from './licensing/LicensingApp';
 import { RuntimeApplicationMount } from './runtime/application/RuntimeApplicationMount';
@@ -44,11 +46,15 @@ function ApplicationSurface() {
   }
 
   const access = resolveAppSurfaceAccess(capabilities);
-  const anySurface = access.runtime || access.engineering || access.audit || access.licensing;
+  const databaseAdmin = hasRuntimeCapability(capabilities, 'SystemAdmin');
+  const anySurface = access.runtime || access.engineering || access.audit || access.licensing || databaseAdmin;
 
   let allowed = access.runtime;
   let Surface: React.ComponentType = RuntimeApplicationMount;
-  if (path.startsWith('/help')) {
+  if (path.startsWith('/admin/database')) {
+    allowed = databaseAdmin;
+    Surface = DatabaseTopologyApp;
+  } else if (path.startsWith('/help')) {
     allowed = anySurface;
     Surface = ContextualHelpApp;
   } else if (path.startsWith('/audit')) {

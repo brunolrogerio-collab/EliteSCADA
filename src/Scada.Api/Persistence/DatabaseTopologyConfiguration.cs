@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Npgsql;
+using Scada.Core.Persistence;
 
 namespace Scada.Api.Persistence;
 
@@ -236,6 +237,15 @@ public static class DatabaseTopologyConfiguration
 
         var topologyStore = new FileDatabaseTopologyStore(options.StatePath);
         var document = topologyStore.GetAsync().GetAwaiter().GetResult();
+        var maintenanceGate = new DatabaseMaintenanceGate();
+        if (document.Pending is { } recoveredPending &&
+            RequiresRecoveredMaintenance(recoveredPending.Phase))
+        {
+            maintenanceGate.Recover(
+                recoveredPending.OperationId,
+                recoveredPending.MaintenanceLeaseExpiresAtUtc);
+        }
+
         var localPrimary = builder.Configuration.GetConnectionString("EliteScada");
         var localHistorian = builder.Configuration.GetConnectionString("Historian") ?? localPrimary;
         var resolver = new DatabaseConnectionResolver(secretStore, localPrimary, localHistorian);
@@ -256,9 +266,20 @@ public static class DatabaseTopologyConfiguration
         builder.Services.TryAddSingleton(resolver);
         builder.Services.TryAddSingleton(runtime);
         builder.Services.TryAddSingleton<IDatabaseTopologyOperations, PostgreSqlDatabaseTopologyOperations>();
-        builder.Services.TryAddSingleton<DatabaseMaintenanceGate>();
+        builder.Services.TryAddSingleton(maintenanceGate);
+        builder.Services.TryAddSingleton<IDurableWriteAdmission>(maintenanceGate);
         builder.Services.TryAddSingleton<IDatabaseRuntimeRebinder, HostRestartDatabaseRuntimeRebinder>();
         builder.Services.TryAddSingleton<DatabaseTopologyAdministrationService>();
         return runtime;
     }
+
+    private static bool RequiresRecoveredMaintenance(DatabaseMigrationPhase phase) =>
+        phase is DatabaseMigrationPhase.Quiescing
+            or DatabaseMigrationPhase.Copying
+            or DatabaseMigrationPhase.Copied
+            or DatabaseMigrationPhase.Verifying
+            or DatabaseMigrationPhase.Verified
+            or DatabaseMigrationPhase.Switching
+            or DatabaseMigrationPhase.Readiness
+            or DatabaseMigrationPhase.RollbackRequired;
 }

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Scada.Api.Persistence;
+using Scada.Core.Persistence;
 
 namespace Scada.Drivers.Tests;
 
@@ -115,22 +116,78 @@ public sealed class DatabaseTopologyCoreTests
     }
 
     [Fact]
-    public void MaintenanceGate_RemainsActivePastLeaseDeadline_UntilExplicitExit()
+    public async Task MaintenanceGate_DrainsInflightWriter_AndRemainsActiveUntilExplicitExit()
     {
         var gate = new DatabaseMaintenanceGate();
         var operationId = Guid.NewGuid();
-        var expiresAtUtc = gate.Enter(operationId, TimeSpan.FromTicks(1));
+        await using var writer = await gate.AcquireAsync("test-writer");
 
-        Assert.True(SpinWait.SpinUntil(
-            () => DateTimeOffset.UtcNow > expiresAtUtc,
-            TimeSpan.FromSeconds(1)));
+        var entering = gate.EnterAsync(operationId, TimeSpan.FromTicks(1));
+        Assert.False(entering.IsCompleted);
+        Assert.True(gate.IsActive);
+        Assert.Equal(1, gate.ActiveWriterCount);
+        await Assert.ThrowsAsync<DurableWriteQuiescedException>(
+            async () => await gate.AcquireAsync("late-writer"));
+
+        await writer.DisposeAsync();
+        var expiresAtUtc = await entering;
+
+        Assert.True(DateTimeOffset.UtcNow >= expiresAtUtc);
         Assert.True(gate.IsActive);
         Assert.Equal(operationId, gate.OperationId);
+        Assert.Equal(0, gate.ActiveWriterCount);
 
         gate.Exit(operationId);
 
         Assert.False(gate.IsActive);
         Assert.Null(gate.OperationId);
+    }
+
+    [Fact]
+    public async Task PendingCriticalPhase_RecoversMaintenanceFailClosedAfterRestart()
+    {
+        using var temp = new TemporaryDirectory();
+        var store = new FileDatabaseTopologyStore(temp.TopologyPath);
+        var operationId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        await store.SaveAsync(DatabaseTopologyDocument.CreateDefault(now) with
+        {
+            Pending = new DatabasePendingMigration(
+                operationId,
+                DatabaseTopologyProfile.LocalManaged,
+                DatabaseMigrationPhase.Copying,
+                now,
+                now,
+                new DatabaseMigrationPlan(
+                    operationId,
+                    now,
+                    true,
+                    true,
+                    ["engineering"],
+                    "LocalManaged",
+                    "Remote"),
+                MaintenanceLeaseExpiresAtUtc: now.AddMinutes(5))
+        });
+
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            EnvironmentName = Environments.Development
+        });
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["DatabaseTopology:StateFile"] = temp.TopologyPath,
+            ["DatabaseTopology:Secrets:StoreFile"] = temp.SecretPath,
+            ["ConnectionStrings:EliteScada"] = "Host=local-db;Port=5432;Database=elitescada;Username=elite;Password=local"
+        });
+
+        _ = builder.AddDatabaseTopologyCore();
+        await using var app = builder.Build();
+        var recovered = app.Services.GetRequiredService<DatabaseMaintenanceGate>();
+
+        Assert.True(recovered.IsActive);
+        Assert.Equal(operationId, recovered.OperationId);
+        await Assert.ThrowsAsync<DurableWriteQuiescedException>(
+            async () => await recovered.AcquireAsync("restart-writer"));
     }
 
     [Fact]
@@ -173,7 +230,9 @@ public sealed class DatabaseTopologyCoreTests
         Assert.True(cutover.Succeeded);
         Assert.True(cutover.RestartRequired);
         Assert.True(fixture.Rebinder.RestartRequested);
-        Assert.False(fixture.Maintenance.IsActive);
+        Assert.True(fixture.Maintenance.IsActive);
+        await Assert.ThrowsAsync<DurableWriteQuiescedException>(
+            async () => await fixture.Maintenance.AcquireAsync("post-cutover-writer"));
 
         var document = await fixture.Store.GetAsync();
         Assert.Equal(DatabaseTopologyMode.Remote, document.Active.Mode);
@@ -200,7 +259,7 @@ public sealed class DatabaseTopologyCoreTests
         Assert.Equal(DatabaseTopologyMode.LocalManaged, document.Active.Mode);
         Assert.Equal(DatabaseMigrationPhase.RollbackRequired, document.Pending?.Phase);
         Assert.Equal("copy-failed", document.Pending?.FailureCode);
-        Assert.False(fixture.Maintenance.IsActive);
+        Assert.True(fixture.Maintenance.IsActive);
 
         var rollback = await fixture.Service.RollbackAsync(pending.OperationId);
         Assert.True(rollback.RolledBack);
@@ -220,7 +279,7 @@ public sealed class DatabaseTopologyCoreTests
         var document = await fixture.Store.GetAsync();
         Assert.Equal(DatabaseTopologyMode.LocalManaged, document.Active.Mode);
         Assert.Equal(DatabaseMigrationPhase.RollbackRequired, document.Pending?.Phase);
-        Assert.False(fixture.Maintenance.IsActive);
+        Assert.True(fixture.Maintenance.IsActive);
     }
 
     [Fact]
@@ -251,6 +310,10 @@ public sealed class DatabaseTopologyCoreTests
         await fixture.Service.StartMigrationAsync(pending.OperationId);
         await fixture.Service.VerifyAsync(pending.OperationId);
         await fixture.Service.CommitCutoverAsync(pending.OperationId);
+
+        // A real cutover exits only by process restart. Reset the in-memory gate/rebinder here
+        // to model the newly started process before exercising Remote -> Local rollback.
+        fixture.Maintenance.Exit(pending.OperationId);
         fixture.Rebinder.Clear();
 
         var rollback = await fixture.Service.RollbackAsync();
@@ -258,6 +321,9 @@ public sealed class DatabaseTopologyCoreTests
         Assert.True(rollback.RolledBack);
         Assert.True(rollback.RestartRequired);
         Assert.True(fixture.Rebinder.RestartRequested);
+        Assert.True(fixture.Maintenance.IsActive);
+        await Assert.ThrowsAsync<DurableWriteQuiescedException>(
+            async () => await fixture.Maintenance.AcquireAsync("rollback-window-writer"));
         Assert.Equal(DatabaseTopologyMode.LocalManaged, (await fixture.Store.GetAsync()).Active.Mode);
     }
 

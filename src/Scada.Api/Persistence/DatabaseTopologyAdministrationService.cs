@@ -164,17 +164,27 @@ public sealed class DatabaseTopologyAdministrationService
         try
         {
             var document = await RequirePendingAsync(operationId, DatabaseMigrationPhase.Prepared, cancellationToken);
-            var pending = document.Pending!;
-            var expires = _maintenance.Enter(
-                operationId,
-                TimeSpan.FromSeconds(_options.MaintenanceLeaseSeconds));
-            pending = pending with
+            var pending = document.Pending! with
             {
                 Phase = DatabaseMigrationPhase.Quiescing,
+                UpdatedAtUtc = DateTimeOffset.UtcNow
+            };
+            await _store.SaveAsync(
+                document with { Pending = pending, UpdatedAtUtc = pending.UpdatedAtUtc },
+                cancellationToken);
+
+            var expires = await _maintenance.EnterAsync(
+                operationId,
+                TimeSpan.FromSeconds(_options.MaintenanceLeaseSeconds),
+                cancellationToken);
+            pending = pending with
+            {
                 UpdatedAtUtc = DateTimeOffset.UtcNow,
                 MaintenanceLeaseExpiresAtUtc = expires
             };
-            await _store.SaveAsync(document with { Pending = pending, UpdatedAtUtc = pending.UpdatedAtUtc }, cancellationToken);
+            await _store.SaveAsync(
+                document with { Pending = pending, UpdatedAtUtc = pending.UpdatedAtUtc },
+                cancellationToken);
 
             try
             {
@@ -208,7 +218,6 @@ public sealed class DatabaseTopologyAdministrationService
                     Diagnostic = "Database copy failed. Active topology was not changed."
                 };
                 await _store.SaveAsync(document with { Pending = pending, UpdatedAtUtc = pending.UpdatedAtUtc }, CancellationToken.None);
-                _maintenance.Exit(operationId);
                 throw;
             }
         }
@@ -253,7 +262,6 @@ public sealed class DatabaseTopologyAdministrationService
                     Diagnostic = verification.Diagnostic
                 };
                 await _store.SaveAsync(document with { Pending = pending, UpdatedAtUtc = pending.UpdatedAtUtc }, cancellationToken);
-                if (!verification.Succeeded) _maintenance.Exit(operationId);
                 return verification;
             }
             catch
@@ -266,7 +274,6 @@ public sealed class DatabaseTopologyAdministrationService
                     Diagnostic = "Database migration verification failed. Active topology was not changed."
                 };
                 await _store.SaveAsync(document with { Pending = pending, UpdatedAtUtc = pending.UpdatedAtUtc }, CancellationToken.None);
-                _maintenance.Exit(operationId);
                 throw;
             }
         }
@@ -320,7 +327,6 @@ public sealed class DatabaseTopologyAdministrationService
                     UpdatedAtUtc = now
                 };
                 await _store.SaveAsync(completed, cancellationToken);
-                _maintenance.Exit(operationId);
                 _rebinder.RequestRestart();
                 var status = await GetStatusAsync(false, cancellationToken);
                 return new(true, false, true, status);
@@ -373,16 +379,43 @@ public sealed class DatabaseTopologyAdministrationService
             var current = document.Active;
             var previous = document.PreviousActive;
             var rollbackOperation = operationId ?? Guid.NewGuid();
-            var rolledBackActive = document with
+            await _maintenance.EnterAsync(
+                rollbackOperation,
+                TimeSpan.FromSeconds(_options.MaintenanceLeaseSeconds),
+                cancellationToken);
+
+            try
             {
-                Active = previous,
-                PreviousActive = current,
-                LastOperation = new(rollbackOperation, DatabaseMigrationPhase.RolledBack, now),
-                UpdatedAtUtc = now
-            };
-            await _store.SaveAsync(rolledBackActive, cancellationToken);
-            _rebinder.RequestRestart();
-            return new(false, true, true, await GetStatusAsync(false, cancellationToken));
+                var target = await _resolver.ResolveAsync(previous, true, cancellationToken);
+                EnsureDurable(target);
+                var readiness = await _operations.ValidateCompatibilityAsync(
+                    target.PrimaryConnectionString!,
+                    target.HistorianConnectionString ?? target.PrimaryConnectionString!,
+                    previous.Historian.UsePrimary,
+                    cancellationToken);
+                if (!readiness.Compatible)
+                {
+                    _maintenance.Exit(rollbackOperation);
+                    throw new InvalidOperationException("Previous database topology is not ready for rollback.");
+                }
+
+                var rolledBackActive = document with
+                {
+                    Active = previous,
+                    PreviousActive = current,
+                    LastOperation = new(rollbackOperation, DatabaseMigrationPhase.RolledBack, now),
+                    UpdatedAtUtc = now
+                };
+                await _store.SaveAsync(rolledBackActive, cancellationToken);
+                _rebinder.RequestRestart();
+                return new(false, true, true, await GetStatusAsync(false, cancellationToken));
+            }
+            catch
+            {
+                if (!_rebinder.RestartRequested)
+                    _maintenance.Exit(rollbackOperation);
+                throw;
+            }
         }
         finally
         {

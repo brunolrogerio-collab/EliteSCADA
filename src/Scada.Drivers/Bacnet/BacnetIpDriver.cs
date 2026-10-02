@@ -214,7 +214,11 @@ public sealed class BacnetIpDriver : ICommunicationDriver, ICommunicationDiagnos
             await _session.WriteAsync(point.Binding, encoded, cancellationToken).ConfigureAwait(false);
             RecordOperation(true, Stopwatch.GetElapsedTime(started), null, communicationEvidence: true);
             await TryRecreateCovSubscriptionsIfPendingAsync(cancellationToken).ConfigureAwait(false);
-            await PublishAsync(point, value, TagQuality.Good, cancellationToken).ConfigureAwait(false);
+            var normalizedValue = BacnetValueCodec.Decode(
+                encoded.Single(),
+                point.Tag.DataType,
+                point.Binding);
+            await PublishAsync(point, normalizedValue, TagQuality.Good, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

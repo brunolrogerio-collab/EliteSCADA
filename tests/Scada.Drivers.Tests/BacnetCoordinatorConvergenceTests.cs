@@ -192,24 +192,28 @@ public sealed class BacnetCoordinatorConvergenceTests
         Assert.Equal("0", details["covTagCount"]);
         Assert.Equal("1", details["polledTagCount"]);
 
-        await coordinator.WriteAsync(tagId, 43.75d);
+        await coordinator.WriteAsync(tagId, 0.1d);
 
         Assert.Equal(1, session.WriteCalls);
         Assert.NotNull(session.LastWriteBinding);
         Assert.Equal((byte)8, session.LastWriteBinding!.WritePriority);
         var written = Assert.Single(session.LastWriteValues!);
         Assert.Equal(BacnetApplicationTags.BACNET_APPLICATION_TAG_REAL, written.Tag);
-        Assert.Equal(43.75f, Assert.IsType<float>(written.Value));
+        Assert.Equal(0.1f, Assert.IsType<float>(written.Value));
+        var encodedEngineeringValue = (double)0.1f;
+
+        Assert.True(coordinator.TryGetCurrent(tagId, out var immediatelyAfterWrite));
+        Assert.Equal(encodedEngineeringValue, Assert.IsType<double>(immediatelyAfterWrite!.Value));
 
         using var convergenceTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         await WaitUntilAsync(
             () => coordinator.TryGetCurrent(tagId, out var current) &&
                   current?.Value is double value &&
-                  Math.Abs(value - 43.75d) < 0.000001d,
+                  value.Equals(encodedEngineeringValue),
             convergenceTimeout.Token);
 
         Assert.True(coordinator.TryGetCurrent(tagId, out var afterWrite));
-        Assert.Equal(43.75d, Assert.IsType<double>(afterWrite!.Value), precision: 6);
+        Assert.Equal(encodedEngineeringValue, Assert.IsType<double>(afterWrite!.Value));
         Assert.Equal(TagQuality.Good, afterWrite.Quality);
     }
 

@@ -1,5 +1,45 @@
 
 
+## CORE AUDIT ACCEPTED / ADMIN UI RELEASE — 2026-10-02
+
+### HA-D2A accepted core
+- PR #453 exact HEAD: `53b5b645cdc266afece5bfca0a39596bef6450d4`;
+- T1 #467 / `37047372955`: SUCCESS;
+- topology/configuration contract present;
+- peer secret persisted only as opaque reference;
+- protected HA secret envelopes use AES-256-GCM with deployment-owned key;
+- missing/invalid secret material fails closed;
+- no raw secret returned by public admin/status contracts.
+
+Released:
+- branch `work/w15-ha-d2-admin-ui`;
+- exact base `53b5b645cdc266afece5bfca0a39596bef6450d4`;
+- order `W15-HA-D2B-ADMIN-UI-01`.
+
+### DB-A accepted core
+- PR #454 exact HEAD: `c1ad37fa1268a006cc993a43ac8ad416fc727b73`;
+- T1 #468 / `37047735396`: SUCCESS;
+- real durable writers consume the shared DB maintenance admission boundary;
+- active writers drain before COPY;
+- maintenance remains closed through cutover/restart;
+- completed-topology rollback uses equivalent quiesce;
+- critical pending phases recover fail-closed on restart.
+
+Released:
+- branch `work/w15-db-remote-admin-ui`;
+- exact base `c1ad37fa1268a006cc993a43ac8ad416fc727b73`;
+- order `W15-DB-B-ADMIN-UI-01`.
+
+### Historical Playback
+- PR #452 exact HEAD `408b49a558d9a9fbbbb67797b5939194d5822603`;
+- T1 #462 / `37043028732`: SUCCESS;
+- Main audit accepted;
+- state `READY_FOR_INTEGRATION / NO_MERGE_BY_DEV`.
+
+No merge authorization is implied by these releases.
+
+
+
 ## MAIN AUDIT CHECKPOINT — 2026-10-02 — NON-DYNAMO CORE DELIVERIES
 
 Independent Main audit after the first HA/DB/Playback deliveries:

@@ -15,10 +15,11 @@ import {
   projectHistoricalQueryResponse,
   sortableHistoricalColumns
 } from './historicalBrowserQueryAdapter';
-import { summarizeHistoricalFilter } from './historicalBrowserFilters';
 import { createHistoricalBrowserDraft, type HistoricalBrowserDraft } from './historicalBrowserPresentation';
 import {
   historicalBrowserCopy,
+  historicalFieldLabel,
+  historicalOperatorLabel,
   type HistoricalBrowserLocale
 } from './historicalBrowserI18n';
 
@@ -168,63 +169,94 @@ export function HistoricalDataBrowserRuntime({
   }
 
   const filterSummary = useMemo(() => {
-    const summary: string[] = filters.map(summarizeHistoricalFilter);
-    if (searchable && search.trim()) summary.push(`${text.search}: ${search.trim()}`);
-    if (sortField) summary.push(`${text.sortField}: ${sortField} ${sortDirection === 'ascending' ? text.ascending : text.descending}`);
-    if (resolvedRange) summary.push(`${resolvedRange.fromUtc} → ${resolvedRange.toUtc}`);
-    summary.push(`${text.page} ${pageIndex + 1}`);
+    const summary: string[] = filters.map(filter =>
+      historicalFieldLabel(filter.field, locale) + ' ' +
+      historicalOperatorLabel(filter.operator, locale) + ' ' +
+      filter.values.map(value => value.value ?? '—').join(', ')
+    );
+    if (searchable && search.trim()) summary.push(text.search + ': ' + search.trim());
+    if (sortField) summary.push(
+      text.sortField + ': ' + historicalFieldLabel(sortField, locale) + ' ' +
+      (sortDirection === 'ascending' ? text.ascending : text.descending)
+    );
+    if (resolvedRange) summary.push(resolvedRange.fromUtc + ' → ' + resolvedRange.toUtc);
+    summary.push(text.page + ' ' + String(pageIndex + 1));
     return Object.freeze(summary);
-  }, [filters, pageIndex, resolvedRange, search, searchable, sortDirection, sortField, text]);
+  }, [filters, locale, pageIndex, resolvedRange, search, searchable, sortDirection, sortField, text]);
+
+  const advancedControls = (
+    <details className="historical-browser__advanced" data-testid="historical-browser-advanced">
+      <summary>{text.advancedFilters}</summary>
+      <div className="historical-browser__advanced-body">
+        {responseColumns.length === 0 ? (
+          <p className="historical-browser__advanced-note">{text.advancedDiscovery}</p>
+        ) : (
+          <>
+            <div className="historical-browser__query-tools">
+              {searchable ? (
+                <label>
+                  {text.search}
+                  <input
+                    aria-label={text.search}
+                    value={search}
+                    maxLength={200}
+                    disabled={state === 'loading'}
+                    placeholder={text.searchPlaceholder}
+                    onChange={event => setSearch(event.target.value)}
+                  />
+                </label>
+              ) : <p className="historical-browser__advanced-note">{text.searchUnavailable}</p>}
+              {sortableColumns.length > 0 ? (
+                <>
+                  <label>
+                    {text.sortField}
+                    <select
+                      aria-label={text.sortField}
+                      value={sortField}
+                      disabled={state === 'loading'}
+                      onChange={event => setSortField(event.target.value)}
+                    >
+                      <option value="">{text.serverDefault}</option>
+                      {sortableColumns.map(column => (
+                        <option key={column.field} value={column.field}>
+                          {historicalFieldLabel(column.field, locale)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {sortField ? (
+                    <label>
+                      {text.direction}
+                      <select
+                        aria-label={text.direction}
+                        value={sortDirection}
+                        disabled={state === 'loading'}
+                        onChange={event => setSortDirection(event.target.value as HistoricalSortDirection)}
+                      >
+                        <option value="descending">{text.descending}</option>
+                        <option value="ascending">{text.ascending}</option>
+                      </select>
+                    </label>
+                  ) : null}
+                </>
+              ) : <p className="historical-browser__advanced-note">{text.sortUnavailable}</p>}
+            </div>
+
+            <HistoricalFilterBuilder
+              locale={locale}
+              columns={responseColumns}
+              filters={filters}
+              disabled={state === 'loading'}
+              onFiltersChange={handleFiltersChange}
+            />
+          </>
+        )}
+      </div>
+    </details>
+  );
 
   return (
     <div data-testid="historical-data-browser-runtime">
-      <div className="historical-browser__query-tools">
-        <label>
-          {text.search}
-          <input
-            aria-label={text.search}
-            value={search}
-            maxLength={200}
-            disabled={!searchable || state === 'loading'}
-            placeholder={searchable ? text.searchPlaceholder : text.searchDiscovery}
-            onChange={event => setSearch(event.target.value)}
-          />
-        </label>
-        <label>
-          {text.sortField}
-          <select
-            aria-label={text.sortField}
-            value={sortField}
-            disabled={sortableColumns.length === 0 || state === 'loading'}
-            onChange={event => setSortField(event.target.value)}
-          >
-            <option value="">{text.serverDefault}</option>
-            {sortableColumns.map(column => <option key={column.field} value={column.field}>{column.field}</option>)}
-          </select>
-        </label>
-        <label>
-          {text.direction}
-          <select
-            aria-label={text.direction}
-            value={sortDirection}
-            disabled={!sortField || state === 'loading'}
-            onChange={event => setSortDirection(event.target.value as HistoricalSortDirection)}
-          >
-            <option value="descending">{text.descending}</option>
-            <option value="ascending">{text.ascending}</option>
-          </select>
-        </label>
-        <button type="button" disabled={state === 'loading'} onClick={() => runFirstPage()}>{text.applyQuery}</button>
-      </div>
-
-      <HistoricalFilterBuilder
-        locale={locale}
-        columns={responseColumns}
-        filters={filters}
-        disabled={state === 'loading'}
-        onFiltersChange={handleFiltersChange}
-      />
-
       <HistoricalDataBrowser
         locale={locale}
         columns={columns}
@@ -232,19 +264,21 @@ export function HistoricalDataBrowserRuntime({
         state={state}
         errorMessage={errorMessage}
         filterSummary={filterSummary}
+        advancedControls={advancedControls}
         onDraftChange={handleDraftChange}
         onQueryRequested={nextDraft => {
           handleDraftChange(nextDraft);
           runFirstPage(nextDraft);
         }}
-        onRefreshRequested={() => runFirstPage()}
       />
 
-      <nav className="historical-browser__paging" aria-label={`${text.title} · ${text.page}`}>
-        <button type="button" onClick={goPrevious} disabled={pageIndex === 0 || state === 'loading'}>{text.previousPage}</button>
-        <span>{text.page} {pageIndex + 1}</span>
-        <button type="button" onClick={goNext} disabled={!nextCursor || state === 'loading'}>{text.nextPage}</button>
-      </nav>
+      {(state === 'ready' || state === 'empty') && (
+        <nav className="historical-browser__paging" aria-label={text.title + ' · ' + text.page}>
+          <button type="button" onClick={goPrevious} disabled={pageIndex === 0 || state === 'loading'}>{text.previousPage}</button>
+          <span>{text.page} {pageIndex + 1}</span>
+          <button type="button" onClick={goNext} disabled={!nextCursor || state === 'loading'}>{text.nextPage}</button>
+        </nav>
+      )}
     </div>
   );
 }

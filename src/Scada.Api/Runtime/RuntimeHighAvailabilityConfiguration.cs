@@ -738,43 +738,29 @@ public sealed class RuntimeHaHostConfigurationAuthority
         RuntimeHaHostConfigurationDocument left,
         RuntimeHaHostConfigurationDocument right)
     {
-        var leftShape = left with
-        {
-            Generation = 1,
-            UpdatedAtUtc = DateTimeOffset.UnixEpoch,
-            TopologyVersion = 1,
-            PeerTransport = left.PeerTransport with
+        var leftShape = JsonSerializer.Serialize(
+            new
             {
-                Enabled = false,
-                PeerEndpoint = null,
-                SharedSecret = null
+                left.Enabled,
+                left.ClusterId,
+                left.LocalNodeId,
+                left.InitialActiveNodeId,
+                left.FreshnessSeconds,
+                left.Nodes
             },
-            Protection = left.Protection with
+            Json);
+        var rightShape = JsonSerializer.Serialize(
+            new
             {
-                Enabled = false,
-                AutomaticFailoverEnabled = false,
-                ReferencePath = null
-            }
-        };
-        var rightShape = right with
-        {
-            Generation = 1,
-            UpdatedAtUtc = DateTimeOffset.UnixEpoch,
-            TopologyVersion = 1,
-            PeerTransport = right.PeerTransport with
-            {
-                Enabled = false,
-                PeerEndpoint = null,
-                SharedSecret = null
+                right.Enabled,
+                right.ClusterId,
+                right.LocalNodeId,
+                right.InitialActiveNodeId,
+                right.FreshnessSeconds,
+                right.Nodes
             },
-            Protection = right.Protection with
-            {
-                Enabled = false,
-                AutomaticFailoverEnabled = false,
-                ReferencePath = null
-            }
-        };
-        return !EquivalentPayload(leftShape, rightShape);
+            Json);
+        return !leftShape.Equals(rightShape, StringComparison.Ordinal);
     }
 
     private static bool EquivalentPayload(

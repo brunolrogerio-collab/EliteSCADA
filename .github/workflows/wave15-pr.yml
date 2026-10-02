@@ -28,6 +28,7 @@ jobs:
       run_dotnet: ${{ steps.router.outputs.run_dotnet }}
       run_e2e: ${{ steps.router.outputs.run_e2e }}
       run_driver: ${{ steps.router.outputs.run_driver }}
+      run_ha_two_process: ${{ steps.router.outputs.run_ha_two_process }}
       effective_profiles: ${{ steps.router.outputs.effective_profiles }}
       dotnet_projects: ${{ steps.router.outputs.dotnet_projects }}
       e2e_specs: ${{ steps.router.outputs.e2e_specs }}
@@ -71,6 +72,8 @@ jobs:
     needs: classify
     if: needs.classify.outputs.run_common_sanity == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
@@ -97,11 +100,14 @@ jobs:
     needs: classify
     if: needs.classify.outputs.run_web == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24.19.0'
+          cache: npm
+          cache-dependency-path: web/scada-web/package-lock.json
       - working-directory: web/scada-web
         run: npm ci --no-audit --no-fund
       - working-directory: web/scada-web
@@ -112,6 +118,7 @@ jobs:
     needs: classify
     if: needs.classify.outputs.run_dotnet == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 18
     services:
       postgres:
         image: timescale/timescaledb:2.29.2-pg18
@@ -131,7 +138,6 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.400'
-      - run: dotnet restore ScadaPlatform.sln
       - name: Run owning focused test projects
         env:
           DOTNET_PROJECTS: ${{ needs.classify.outputs.dotnet_projects }}
@@ -143,7 +149,8 @@ jobs:
           print(*json.loads(os.environ['DOTNET_PROJECTS']), sep='\n')
           PY
           while IFS= read -r project; do
-            dotnet test "$project" --no-restore --configuration Release --verbosity normal
+            dotnet restore "$project"
+            dotnet test "$project" --no-restore --configuration Release --verbosity minimal
           done < /tmp/dotnet-projects.txt
 
   chromium-focused:
@@ -151,6 +158,7 @@ jobs:
     needs: classify
     if: needs.classify.outputs.run_e2e == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 18
     services:
       postgres:
         image: timescale/timescaledb:2.29.2-pg18
@@ -172,11 +180,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24.19.0'
-      - run: dotnet restore ScadaPlatform.sln
+          cache: npm
+          cache-dependency-path: web/scada-web/package-lock.json
+      - run: dotnet restore src/Scada.Api/Scada.Api.csproj
       - working-directory: web/scada-web
         run: npm ci --no-audit --no-fund
+      - name: Cache Playwright browser
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('web/scada-web/package-lock.json') }}
       - working-directory: web/scada-web
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install-deps chromium
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: web/scada-web
+        run: npx playwright install chromium
       - name: Run profile-owned specs
         working-directory: web/scada-web
         env:
@@ -201,8 +220,9 @@ jobs:
   ha-two-process:
     name: HA two-process evidence
     needs: classify
-    if: contains(needs.classify.outputs.effective_profiles, 'HA_DISTRIBUTED')
+    if: needs.classify.outputs.run_ha_two_process == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -218,6 +238,7 @@ jobs:
     needs: [classify, common-sanity, web-semantic, dotnet-focused, chromium-focused, ha-two-process]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     env:
       CLASSIFY: ${{ needs.classify.result }}
       COMMON: ${{ needs.common-sanity.result }}
@@ -229,7 +250,7 @@ jobs:
       NEED_WEB: ${{ needs.classify.outputs.run_web }}
       NEED_DOTNET: ${{ needs.classify.outputs.run_dotnet }}
       NEED_E2E: ${{ needs.classify.outputs.run_e2e }}
-      NEED_HA_TWO_PROCESS: ${{ contains(needs.classify.outputs.effective_profiles, 'HA_DISTRIBUTED') }}
+      NEED_HA_TWO_PROCESS: ${{ needs.classify.outputs.run_ha_two_process }}
       PROFILES: ${{ needs.classify.outputs.effective_profiles }}
       DRIVER_GATE: ${{ needs.classify.outputs.driver_gate }}
     steps:

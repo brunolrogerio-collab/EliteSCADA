@@ -1,5 +1,40 @@
 
 
+## MAIN AUDIT CHECKPOINT — 2026-10-02 — NON-DYNAMO CORE DELIVERIES
+
+Independent Main audit after the first HA/DB/Playback deliveries:
+
+### HA-D2A / #423 / PR #453
+- candidate: `552fa7b847bae4fba4cd651eb400ad53c24fead7`;
+- T1 #411 / `37028240806`: SUCCESS;
+- fencing/failover/session core materially advanced;
+- blocker: no privileged persisted host/deployment HA topology/peer configuration mutation contract exists yet, although the Product Owner requires normal HA configuration from Engineering/admin;
+- active follow-up: `W15-HA-D2A-ADMIN-CONFIG-CONTRACT-02`;
+- HA-D2B: HOLD.
+
+### DB-A / #366 / PR #454
+- candidate: `35087d54e91b8e9ec4f722a1f1f87f530c31c6ed`;
+- T1 #426 / `37032961495`: SUCCESS;
+- topology/secrets/migration core materially advanced;
+- blockers:
+  - maintenance gate currently covers mutating HTTP only, not all internal durable writers;
+  - successful cutover releases maintenance before host shutdown/rebind;
+  - active-topology rollback swaps topology and requests restart without equivalent full quiesce;
+- active follow-up: `W15-DB-REMOTE-QUIESCE-CUTOVER-02`;
+- DB-B: HOLD.
+
+### Historical Playback / #445 / PR #452
+- candidate: `19ab659615c07a95c9f6c11d3ad325b1adba6dc1`;
+- T1 #399 / `37026966706`: FAILURE;
+- bounded defects:
+  - TS2739 in RuntimeApplicationMount Playback package boundary;
+  - ambiguous Dynamo selector in focused Chromium test;
+- active follow-up: `W15-HISTORICAL-PLAYBACK-CORRECTION-02`.
+
+No integration/merge is authorized for #452/#453/#454 until their respective follow-ups close exact-head green.
+
+
+
 ## POST-MERGE BROAD CLOSEOUT — 2026-10-02
 
 The accepted integration base has now completed post-merge broad validation:

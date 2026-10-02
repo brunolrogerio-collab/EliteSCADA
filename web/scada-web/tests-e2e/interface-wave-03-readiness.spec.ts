@@ -229,7 +229,7 @@ for (const expected of localeExpectations) {
     await expect(page.getByText(expected.subtitle, { exact: true })).toBeVisible();
     await expect(page.locator('.app-context')).toContainText(expected.currentArea);
     await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
-    await expect(page.getByRole('navigation', { name: 'Runtime views' }).getByRole('link', { name: expected.overview, exact: true })).toHaveAttribute('aria-current', 'page');
+    await expect(page.locator('.runtime-operator-toolbar').getByRole('button', { name: expected.overview, exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('.user-session-menu')).toBeVisible();
 
     const engineeringLink = runtimeNavigation.locator('a[href="/engineering"]');

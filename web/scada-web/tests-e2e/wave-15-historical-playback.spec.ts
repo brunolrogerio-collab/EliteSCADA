@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 
 const ANALOG_ID = '11111111-1111-4111-8111-111111111111';
 const DIGITAL_ID = '22222222-2222-4222-8222-222222222222';
@@ -393,4 +394,17 @@ test('Playback mutation guard blocks TAG write and command before any Runtime le
   } finally {
     guard.setRuntimeHistoricalPlaybackActive(false);
   }
+});
+
+
+test('Playback reuses the canonical renderer and suppresses Client Visual Script interaction dispatch', async () => {
+  const renderer = await readFile(new URL('../src/runtime/visual-navigation/RuntimeVisualDefinitionRenderer.tsx', import.meta.url), 'utf8');
+  const canonical = await readFile(new URL('../src/engineering/visual-editor/CanonicalVisualRenderer.tsx', import.meta.url), 'utf8');
+  const guard = await readFile(new URL('../src/runtime/historical-playback/runtimeHistoricalPlaybackGuard.ts', import.meta.url), 'utf8');
+
+  expect(renderer).toContain('if (playbackActive) return;');
+  expect(renderer).toContain('tagWriter: playbackActive ? null : undefined');
+  expect(renderer).toContain('bindingSamples={playbackActive ? playback?.samples');
+  expect(canonical).toContain('const resolvedSamples = bindingSamples ?? liveSamples;');
+  expect(guard).toContain('assertRuntimeProcessMutationAllowed');
 });

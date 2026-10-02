@@ -95,6 +95,37 @@ public sealed class RuntimeHighAvailabilityTests
     }
 
     [Fact]
+    public void D2IndustrialFence_FailsClosedUntilExternalReferenceConfirmsLocalAuthority()
+    {
+        var clock = new MutableClock(DateTimeOffset.Parse("2026-10-02T12:00:00Z"));
+        var topology = CreateTopology("node-a");
+        var service = new RuntimeHighAvailabilityService(
+            topology,
+            () => clock.UtcNow,
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            externalIndustrialFenceRequired: true);
+
+        service.Authority.UpdateNodeReadiness(
+            "node-a",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+        service.Authority.UpdateNodeReadiness(
+            "node-b",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+
+        Assert.True(service.Authority.TryAcquireIndustrialAuthority("node-a").Allowed);
+        Assert.False(service.CanOwnIndustrialEffects());
+
+        service.AttachExternalIndustrialFence(_ => false);
+        Assert.False(service.CanOwnIndustrialEffects());
+
+        service.AttachExternalIndustrialFence(snapshot =>
+            snapshot.EffectiveActiveNodeId == "node-a" &&
+            snapshot.AuthorityEpoch == 1 &&
+            !snapshot.AmbiguousAuthority);
+        Assert.True(service.CanOwnIndustrialEffects());
+    }
+
+    [Fact]
     public void PeerLoss_DoesNotPromoteStandby()
     {
         var coordinator = CreateReadyPair(out _);
@@ -405,33 +436,36 @@ public sealed class RuntimeHighAvailabilityTests
         clock = new MutableClock(DateTimeOffset.Parse("2026-09-24T18:00:00Z"));
         var deterministicClock = clock;
         return new RuntimeHaAuthorityCoordinator(
-            new RuntimeHaTopologyDefinition(
-                Enabled: true,
-                ClusterId: "cluster-a",
-                LocalNodeId: localNodeId,
-                InitialActiveNodeId: "node-a",
-                TopologyVersion: 3,
-                FreshnessWindow: TimeSpan.FromSeconds(15),
-                Nodes: new[]
-                {
-                    new RuntimeHaNodeDefinition(
-                        "node-a",
-                        new[]
-                        {
-                            new RuntimeHaEndpoint(RuntimeHaEndpointKind.Local, "https://10.0.0.1:5001", 0),
-                            new RuntimeHaEndpoint(RuntimeHaEndpointKind.Remote, "https://a.example.test", 1)
-                        }),
-                    new RuntimeHaNodeDefinition(
-                        "node-b",
-                        new[]
-                        {
-                            new RuntimeHaEndpoint(RuntimeHaEndpointKind.Local, "https://10.0.0.2:5001", 0),
-                            new RuntimeHaEndpoint(RuntimeHaEndpointKind.Remote, "https://b.example.test", 1)
-                        })
-                }),
+            CreateTopology(localNodeId),
             () => deterministicClock.UtcNow,
             Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
     }
+
+    private static RuntimeHaTopologyDefinition CreateTopology(string localNodeId) =>
+        new(
+            Enabled: true,
+            ClusterId: "cluster-a",
+            LocalNodeId: localNodeId,
+            InitialActiveNodeId: "node-a",
+            TopologyVersion: 3,
+            FreshnessWindow: TimeSpan.FromSeconds(15),
+            Nodes: new[]
+            {
+                new RuntimeHaNodeDefinition(
+                    "node-a",
+                    new[]
+                    {
+                        new RuntimeHaEndpoint(RuntimeHaEndpointKind.Local, "https://10.0.0.1:5001", 0),
+                        new RuntimeHaEndpoint(RuntimeHaEndpointKind.Remote, "https://a.example.test", 1)
+                    }),
+                new RuntimeHaNodeDefinition(
+                    "node-b",
+                    new[]
+                    {
+                        new RuntimeHaEndpoint(RuntimeHaEndpointKind.Local, "https://10.0.0.2:5001", 0),
+                        new RuntimeHaEndpoint(RuntimeHaEndpointKind.Remote, "https://b.example.test", 1)
+                    })
+            });
 
     private static RuntimeHaNodeReadinessEvidence Evidence(
         DateTimeOffset observedAtUtc,

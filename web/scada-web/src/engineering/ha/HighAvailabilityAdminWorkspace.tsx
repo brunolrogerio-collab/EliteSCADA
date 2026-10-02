@@ -501,7 +501,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
           </div>
           <div className="ha-config-state">
             <span>{t.currentRunning}</span>
-            <strong>{configuration.running.clusterId || '—'}</strong>
+            <strong>{topology.enabled ? (configuration.running.clusterId || t.haMode) : t.standaloneMode}</strong>
             {configuration.pendingRestart && <small>{t.savedDesired}: {configuration.desired.clusterId || '—'}</small>}
           </div>
         </div>

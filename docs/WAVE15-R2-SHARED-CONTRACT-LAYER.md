@@ -1,5 +1,38 @@
 
 
+## ENGINEERING LIFECYCLE UX SIMPLIFICATION — 2026-10-02
+
+Contract:
+`C-ENG-LIFECYCLE-UX-02`
+
+Order:
+`W15-ENG-LIFECYCLE-UX-SIMPLIFY-01`
+
+Lane:
+`work/w15-engineering-lifecycle-ux`
+
+Exact release base:
+`a213477b775c5d6f336f32d1a34bd937c02323b8`
+
+Direction:
+- keep backend authority `Working -> Revision -> Published -> Active`;
+- make the 1/2/3/4 lifecycle strip the primary UI and action surface;
+- remove the obsolete Overview "Próximos fluxos do editor" parse/validate/preview/apply panel;
+- remove lifecycle hero/architecture explanation, duplicated seven-card fact grid and authority footer from the normal view;
+- integrate Save / Publish / Checkout / Activate into their corresponding lifecycle step;
+- remove redundant second confirmations for Save, Publish, Activate and clean Checkout;
+- allow confirmation only where Checkout can discard unsaved Working changes or another genuinely destructive condition exists;
+- hide technical `changeVersion` from the normal primary surface;
+- preserve existing backend API, CAS/conflict, persistence, authorization, audit and activation semantics.
+
+Ownership:
+- Engineering lifecycle workspace/logic/CSS/focused tests;
+- bounded removal of only the obsolete Overview flow block in `EngineeringApp.tsx`.
+
+State:
+`ACTIVE / UI_SIMPLIFICATION / NO_MERGE`.
+
+
 ## PR #458 BACNET VALUE CONVERGENCE INTEGRATED — 2026-10-02
 
 - Product Owner explicitly authorized approval and merge.

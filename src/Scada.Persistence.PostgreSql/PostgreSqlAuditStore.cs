@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Scada.Core.Persistence;
 using Npgsql;
 using NpgsqlTypes;
 using Scada.Security.Audit;
@@ -96,6 +97,7 @@ public sealed class PostgreSqlAuditStore : IAuditStore, IAsyncDisposable
         """;
 
     private readonly NpgsqlDataSource _dataSource;
+    private readonly IDurableWriteAdmission? _writeAdmission;
     private readonly AuditQueryPolicy _queryPolicy;
     private long _persistedCount;
     private long _appendFailureCount;
@@ -104,7 +106,10 @@ public sealed class PostgreSqlAuditStore : IAuditStore, IAsyncDisposable
     private long _lastRetentionRunUtcTicks;
     private int _lastRetentionDeletedCount;
 
-    public PostgreSqlAuditStore(string connectionString, AuditQueryPolicy? queryPolicy = null)
+    public PostgreSqlAuditStore(
+        string connectionString,
+        AuditQueryPolicy? queryPolicy = null,
+        IDurableWriteAdmission? writeAdmission = null)
     {
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new ArgumentException("PostgreSQL connection string is required.", nameof(connectionString));
@@ -112,6 +117,7 @@ public sealed class PostgreSqlAuditStore : IAuditStore, IAsyncDisposable
         _queryPolicy = queryPolicy ?? new AuditQueryPolicy();
         _queryPolicy.Validate();
         _dataSource = NpgsqlDataSource.Create(connectionString);
+        _writeAdmission = writeAdmission;
     }
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
@@ -128,6 +134,7 @@ public sealed class PostgreSqlAuditStore : IAuditStore, IAsyncDisposable
         AuditEvent auditEvent,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("audit", cancellationToken);
         var normalized = AuditSanitizer.Normalize(auditEvent);
         Validate(normalized);
 
@@ -300,6 +307,7 @@ public sealed class PostgreSqlAuditStore : IAuditStore, IAsyncDisposable
         int batchSize,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("audit-retention", cancellationToken);
         if (batchSize is < 1 or > 100000)
             throw new ArgumentOutOfRangeException(nameof(batchSize), "Audit retention batch size must be between 1 and 100000.");
 

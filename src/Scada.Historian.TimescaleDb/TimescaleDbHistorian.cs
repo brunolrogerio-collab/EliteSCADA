@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Scada.Core.Persistence;
 using System.Threading.Channels;
 using Npgsql;
 using NpgsqlTypes;
@@ -18,6 +19,7 @@ public sealed class TimescaleDbHistorian : IHistorian
         """;
 
     private readonly NpgsqlDataSource _dataSource;
+    private readonly IDurableWriteAdmission? _writeAdmission;
     private readonly Channel<HistorianWriteSample> _queue;
     private readonly IDisposable _subscription;
     private readonly CancellationTokenSource _cts = new();
@@ -37,7 +39,8 @@ public sealed class TimescaleDbHistorian : IHistorian
         IScadaEventBus eventBus,
         string connectionString,
         int capacity = 100_000,
-        int batchSize = 500)
+        int batchSize = 500,
+        IDurableWriteAdmission? writeAdmission = null)
     {
         ArgumentNullException.ThrowIfNull(eventBus);
         if (string.IsNullOrWhiteSpace(connectionString))
@@ -47,6 +50,7 @@ public sealed class TimescaleDbHistorian : IHistorian
 
         _batchSize = batchSize;
         _dataSource = NpgsqlDataSource.Create(connectionString);
+        _writeAdmission = writeAdmission;
         _queue = Channel.CreateBounded<HistorianWriteSample>(new BoundedChannelOptions(capacity)
         {
             FullMode = BoundedChannelFullMode.Wait,
@@ -170,6 +174,7 @@ public sealed class TimescaleDbHistorian : IHistorian
         IReadOnlyCollection<HistorianWriteSample> batch,
         CancellationToken cancellationToken)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("historian", cancellationToken);
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         await using var command = new NpgsqlCommand(InsertSql, connection, transaction);

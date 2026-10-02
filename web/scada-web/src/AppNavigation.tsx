@@ -3,11 +3,13 @@ import { appShellText, useAppShellLocale } from './appShellI18n';
 import { useAppTheme } from './appTheme';
 import { UserSessionMenu } from './auth/UserSessionMenu';
 import {
+  hasRuntimeCapability,
   resolveAppSurfaceAccess,
   useEffectiveCapabilities
 } from './auth/effectiveCapabilities';
 import { contextualHelpTopic } from './help/contextualHelpTopic';
 import { ApplicationBrand, useActiveApplicationBranding } from './branding/ApplicationBranding';
+import { databaseTopologyText } from './database-topology/i18n';
 import './app-navigation.css';
 
 type ShellLink = Readonly<{
@@ -30,6 +32,8 @@ export function AppNavigation() {
   const branding = useActiveApplicationBranding();
   const path = window.location.pathname;
   const access = resolveAppSurfaceAccess(capabilities);
+  const databaseAdmin = hasRuntimeCapability(capabilities, 'SystemAdmin');
+  const databaseText = databaseTopologyText(locale);
 
   if (path.startsWith('/runtime/history') && access.runtime && access.history) {
     return (
@@ -69,7 +73,8 @@ export function AppNavigation() {
   if (access.engineering) links.push({ href: '/engineering', label: text.engineering, description: text.engineeringDescription });
   if (access.audit) links.push({ href: '/audit', label: text.audit, description: text.auditDescription });
   if (access.licensing) links.push({ href: '/licensing', label: text.licensing });
-  if (access.runtime || access.engineering || access.audit || access.licensing) {
+  if (databaseAdmin) links.push({ href: '/admin/database', label: databaseText.title, description: databaseText.subtitle });
+  if (access.runtime || access.engineering || access.audit || access.licensing || databaseAdmin) {
     links.push({
       href: `/help?topic=${contextualHelpTopic(path)}`,
       label: helpText[locale].label
@@ -78,7 +83,9 @@ export function AppNavigation() {
 
   const activeHref = path.startsWith('/help')
     ? '/help'
-    : path.startsWith('/licensing')
+    : path.startsWith('/admin/database')
+      ? '/admin/database'
+      : path.startsWith('/licensing')
       ? '/licensing'
       : path.startsWith('/audit')
         ? '/audit'
@@ -89,7 +96,7 @@ export function AppNavigation() {
   const active = activeHref === '/help'
     ? { href: '/help', label: helpText[locale].label }
     : links.find(link => link.href === activeHref) ?? links[0];
-  const privilegedShell = access.engineering || access.audit || access.licensing;
+  const privilegedShell = access.engineering || access.audit || access.licensing || databaseAdmin;
   const runtimeOnly = access.runtime && !privilegedShell;
 
   return (
@@ -101,7 +108,7 @@ export function AppNavigation() {
         <ApplicationBrand
           branding={branding}
           defaultSubtitle={text.subtitle}
-          href={access.runtime ? '/' : access.engineering ? '/engineering' : access.licensing ? '/licensing' : '#'}
+          href={access.runtime ? '/' : access.engineering ? '/engineering' : access.licensing ? '/licensing' : databaseAdmin ? '/admin/database' : '#'}
         />
         <nav className="app-navigation" aria-label="EliteSCADA">
           {links.map(link => {

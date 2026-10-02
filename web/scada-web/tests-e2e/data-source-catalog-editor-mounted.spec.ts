@@ -252,13 +252,11 @@ test('Simulation TAG type changes converge metadata and retire legacy duplicate 
 
 test('mounted Simulation TAG editor presents one canonical type-aware authoring surface and drives Runtime', async ({ page, request }) => {
   test.setTimeout(60_000);
-  const originalResponse = await request.get('/api/engineering/export/json');
-  expect(originalResponse.ok()).toBeTruthy();
-  const originalPackage = await originalResponse.json() as any;
   const workspaceResponse = await request.get('/api/engineering/workspace');
   expect(workspaceResponse.ok()).toBeTruthy();
-  const workspace = await workspaceResponse.json() as { projectKey?: string | null };
+  const workspace = await workspaceResponse.json() as { projectKey?: string | null; projectName?: string | null };
   const projectKey = workspace.projectKey ?? 'e2e-wave03';
+  const originalProjectName = workspace.projectName ?? 'E2E Explicit Demo Fixture';
   const sourceName = 'Simulation UX Convergence Source';
   const tagName = 'Simulation UX Runtime Value';
 
@@ -410,9 +408,53 @@ test('mounted Simulation TAG editor presents one canonical type-aware authoring 
       return payload.current?.value ?? null;
     }, { timeout: 15_000 }).toBe(42.5);
   } finally {
-    const restore = await request.post('/api/engineering/import/json/apply', { data: originalPackage });
-    expect(restore.ok(), `Restore apply failed: ${restore.status()} ${await restore.text()}`).toBeTruthy();
-    await savePublishActivate(request, projectKey, 'Simulation TAG UX convergence cleanup');
+    // JSON import is additive/upsert and cannot restore entities by omission.
+    // Clean up through the canonical CAS-protected Engineering delete endpoints.
+    const currentExportResponse = await request.get('/api/engineering/export/json');
+    expect(currentExportResponse.ok()).toBeTruthy();
+    const currentExport = await currentExportResponse.json() as {
+      tags?: Array<{ id?: string; name?: string; path?: string }>;
+      dataSources?: Array<{ id?: string; name?: string }>;
+    };
+
+    const createdTag = currentExport.tags?.find(tag =>
+      tag.name === tagName || tag.path === 'Simulation_UX_Runtime_Value');
+    const createdSource = currentExport.dataSources?.find(source => source.name === sourceName);
+
+    if (createdTag?.id) {
+      const currentWorkspaceResponse = await request.get('/api/engineering/workspace');
+      expect(currentWorkspaceResponse.ok()).toBeTruthy();
+      const currentWorkspace = await currentWorkspaceResponse.json() as { changeVersion: number };
+      const deletion = await request.delete(`/api/engineering/tags/${createdTag.id}`, {
+        headers: { 'x-elitescada-workspace-version': String(currentWorkspace.changeVersion) }
+      });
+      expect(
+        deletion.ok() || deletion.status() === 404,
+        `TAG cleanup failed: ${deletion.status()} ${await deletion.text()}`
+      ).toBeTruthy();
+    }
+
+    if (createdSource?.id) {
+      const currentWorkspaceResponse = await request.get('/api/engineering/workspace');
+      expect(currentWorkspaceResponse.ok()).toBeTruthy();
+      const currentWorkspace = await currentWorkspaceResponse.json() as { changeVersion: number };
+      const deletion = await request.delete(`/api/engineering/data-sources/${createdSource.id}`, {
+        headers: { 'x-elitescada-workspace-version': String(currentWorkspace.changeVersion) }
+      });
+      expect(
+        deletion.ok() || deletion.status() === 404,
+        `Data Source cleanup failed: ${deletion.status()} ${await deletion.text()}`
+      ).toBeTruthy();
+    }
+
+    await savePublishActivate(request, projectKey, originalProjectName);
+
+    await expect.poll(async () => {
+      const response = await request.get('/api/tags');
+      if (!response.ok()) return true;
+      const tags = await response.json() as Array<{ name?: string; path?: string }>;
+      return tags.some(tag => tag.name === tagName || tag.path === 'Simulation_UX_Runtime_Value');
+    }, { timeout: 15_000 }).toBe(false);
   }
 });
 

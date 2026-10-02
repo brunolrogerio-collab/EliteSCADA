@@ -16,7 +16,7 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   const rectangleId = await rectangle.getAttribute('data-canvas-object-id');
   expect(rectangleId).toBeTruthy();
   const renderedRectangle = page.getByTestId('visual-editor-canonical-layer').locator(`[data-object-id="${rectangleId}"]`);
-  await expect(renderedRectangle).toHaveCSS('background-color', 'rgba(128, 128, 128, 1)');
+  await expect(renderedRectangle).toHaveCSS('background-color', 'rgb(128, 128, 128)');
   await rectangle.click();
 
   const inspector = page.getByTestId('visual-property-inspector');

@@ -30,20 +30,6 @@ import './database-topology.css';
 type Confirmation = 'cutover' | 'rollback' | null;
 type Notice = Readonly<{ tone: 'info' | 'success' | 'warning' | 'danger'; text: string }>;
 
-const PHASES: readonly DatabaseMigrationPhase[] = [
-  'Tested',
-  'Compatible',
-  'Prepared',
-  'Quiescing',
-  'Copying',
-  'Copied',
-  'Verifying',
-  'Verified',
-  'Switching',
-  'Readiness',
-  'Completed'
-];
-
 function endpointLabel(profile?: DatabaseProfileStatus | null) {
   const endpoint = profile?.primary;
   if (!endpoint) return 'Local Managed';
@@ -98,18 +84,26 @@ function phaseLabel(phase: DatabaseMigrationPhase | null | undefined, t: ReturnT
   return t[key] || phase;
 }
 
-function healthTone(health?: DatabaseConnectionHealth | null) {
-  if (!health) return 'unknown';
-  if (health.reachable && !health.failureCode) return 'healthy';
-  return 'danger';
-}
-
 function ResultPill({ ok, children }: { ok?: boolean | null; children: React.ReactNode }) {
   const tone = ok == null ? 'unknown' : ok ? 'healthy' : 'danger';
   return <span className={`db-topology-pill db-topology-pill--${tone}`}>{children}</span>;
 }
 
-function EndpointFields({
+function healthOk(health?: DatabaseConnectionHealth | null) {
+  return health ? health.reachable && !health.failureCode : null;
+}
+
+function migrationStageIndex(phase?: DatabaseMigrationPhase | null) {
+  if (!phase) return -1;
+  if (phase === 'Tested' || phase === 'Compatible') return 0;
+  if (phase === 'Prepared') return 1;
+  if (phase === 'Quiescing' || phase === 'Copying' || phase === 'Copied') return 2;
+  if (phase === 'Verifying' || phase === 'Verified') return 3;
+  if (phase === 'Switching' || phase === 'Readiness' || phase === 'Completed' || phase === 'RolledBack') return 4;
+  return -1;
+}
+
+function EndpointCoreFields({
   value,
   onChange,
   prefix,
@@ -125,12 +119,11 @@ function EndpointFields({
   const field = <K extends keyof RemoteEndpointDraft>(key: K, next: RemoteEndpointDraft[K]) =>
     onChange({ ...value, [key]: next });
 
-  return <div className="db-topology-fields" data-testid={`${prefix}-endpoint-fields`}>
+  return <div className="db-topology-fields db-topology-fields--core" data-testid={`${prefix}-endpoint-fields`}>
     <label><span>{t.host}</span><input aria-label={`${prefix} ${t.host}`} value={value.host} disabled={disabled} onChange={event => field('host', event.target.value)} /></label>
-    <label><span>{t.port}</span><input aria-label={`${prefix} ${t.port}`} inputMode="numeric" value={value.port} disabled={disabled} onChange={event => field('port', event.target.value)} /></label>
     <label><span>{t.database}</span><input aria-label={`${prefix} ${t.database}`} value={value.database} disabled={disabled} onChange={event => field('database', event.target.value)} /></label>
     <label><span>{t.username}</span><input aria-label={`${prefix} ${t.username}`} autoComplete="username" value={value.username} disabled={disabled} onChange={event => field('username', event.target.value)} /></label>
-    <label className="db-topology-field-wide">
+    <label>
       <span>{t.password}</span>
       <input
         aria-label={`${prefix} ${t.password}`}
@@ -142,6 +135,27 @@ function EndpointFields({
       />
       <small>{t.passwordHelp}</small>
     </label>
+  </div>;
+}
+
+function EndpointAdvancedFields({
+  value,
+  onChange,
+  prefix,
+  disabled
+}: {
+  value: RemoteEndpointDraft;
+  onChange: (next: RemoteEndpointDraft) => void;
+  prefix: string;
+  disabled?: boolean;
+}) {
+  const locale = useAppShellLocale();
+  const t = databaseTopologyText(locale);
+  const field = <K extends keyof RemoteEndpointDraft>(key: K, next: RemoteEndpointDraft[K]) =>
+    onChange({ ...value, [key]: next });
+
+  return <div className="db-topology-fields db-topology-fields--advanced">
+    <label><span>{t.port}</span><input aria-label={`${prefix} ${t.port}`} inputMode="numeric" value={value.port} disabled={disabled} onChange={event => field('port', event.target.value)} /></label>
     <label><span>{t.tlsMode}</span>
       <select aria-label={`${prefix} ${t.tlsMode}`} value={value.tlsMode} disabled={disabled} onChange={event => field('tlsMode', event.target.value as RemoteEndpointDraft['tlsMode'])}>
         <option value="Disable">Disable</option>
@@ -153,43 +167,26 @@ function EndpointFields({
     </label>
     <label><span>{t.timeout}</span><input aria-label={`${prefix} ${t.timeout}`} inputMode="numeric" value={value.timeoutSeconds} disabled={disabled} onChange={event => field('timeoutSeconds', event.target.value)} /></label>
     <label className="db-topology-field-wide"><span>{t.rootCertificatePath}</span><input aria-label={`${prefix} ${t.rootCertificatePath}`} value={value.rootCertificatePath} disabled={disabled} onChange={event => field('rootCertificatePath', event.target.value)} /></label>
-
   </div>;
 }
 
-function HealthCard({ title, health }: { title: string; health?: DatabaseConnectionHealth | null }) {
+function HealthTechnicalDetails({ title, health }: { title: string; health?: DatabaseConnectionHealth | null }) {
   const locale = useAppShellLocale();
   const t = databaseTopologyText(locale);
   const authOk = health ? health.failureCode !== 'authentication-failed' && health.reachable : null;
   const tlsOk = health ? health.failureCode !== 'tls-validation-failed' && health.reachable : null;
 
-  return <article className="db-topology-health" data-tone={healthTone(health)}>
-    <header><strong>{title}</strong><ResultPill ok={health ? health.reachable && !health.failureCode : null}>{health ? (health.reachable && !health.failureCode ? t.healthy : t.degraded) : t.unknown}</ResultPill></header>
+  return <article className="db-topology-health-detail">
+    <header><strong>{title}</strong><ResultPill ok={healthOk(health)}>{health ? (healthOk(health) ? t.healthy : t.degraded) : t.unknown}</ResultPill></header>
     <dl>
-      <div><dt>{t.reachable}</dt><dd><ResultPill ok={health?.reachable ?? null}>{health ? (health.reachable ? t.available : t.unavailable) : t.unknown}</ResultPill></dd></div>
-      <div><dt>{t.authentication}</dt><dd><ResultPill ok={authOk}>{authOk == null ? t.unknown : authOk ? t.available : t.unavailable}</ResultPill></dd></div>
-      <div><dt>{t.tls}</dt><dd><ResultPill ok={tlsOk}>{tlsOk == null ? t.unknown : tlsOk ? t.available : t.unavailable}</ResultPill></dd></div>
+      <div><dt>{t.reachable}</dt><dd>{health ? (health.reachable ? t.available : t.unavailable) : t.unknown}</dd></div>
+      <div><dt>{t.authentication}</dt><dd>{authOk == null ? t.unknown : authOk ? t.available : t.unavailable}</dd></div>
+      <div><dt>{t.tls}</dt><dd>{tlsOk == null ? t.unknown : tlsOk ? t.available : t.unavailable}</dd></div>
       <div><dt>{t.postgresql}</dt><dd>{health?.postgreSqlVersion ?? t.unknown}</dd></div>
-      <div><dt>{t.timescale}</dt><dd><ResultPill ok={health ? health.timescaleCapable : null}>{health?.timescaleDbVersion ?? (health ? (health.timescaleCapable ? t.available : t.unavailable) : t.unknown)}</ResultPill></dd></div>
-      <div><dt>{t.schema}</dt><dd><ResultPill ok={health ? health.schemaCompatible : null}>{health ? (health.schemaCompatible ? t.compatible : t.incompatible) : t.unknown}</ResultPill></dd></div>
+      <div><dt>{t.timescale}</dt><dd>{health?.timescaleDbVersion ?? (health?.timescaleCapable ? t.available : t.unknown)}</dd></div>
+      <div><dt>{t.schema}</dt><dd>{health ? (health.schemaCompatible ? t.compatible : t.incompatible) : t.unknown}</dd></div>
     </dl>
     {health?.diagnostic ? <p className="db-topology-diagnostic"><strong>{t.diagnostic}:</strong> {health.diagnostic}</p> : null}
-  </article>;
-}
-
-function ProfileSummary({ profile, title }: { profile?: DatabaseProfileStatus | null; title: string }) {
-  const locale = useAppShellLocale();
-  const t = databaseTopologyText(locale);
-  if (!profile) return <article className="db-topology-profile"><h3>{title}</h3><p>{t.notConfigured}</p></article>;
-  return <article className="db-topology-profile">
-    <h3>{title}</h3>
-    <dl>
-      <div><dt>{t.currentMode}</dt><dd>{profile.mode === 'Remote' ? t.remote : t.localManaged}</dd></div>
-      <div><dt>{t.endpoint}</dt><dd>{endpointLabel(profile)}</dd></div>
-      {profile.primary ? <div><dt>{t.status}</dt><dd>{profile.primary.credentialConfigured ? t.credentialsConfigured : t.credentialsNotConfigured}</dd></div> : null}
-      <div><dt>{t.historian}</dt><dd>{profile.historianUsesPrimary ? t.usePrimary : t.override}</dd></div>
-      {profile.historianOverride ? <div><dt>{t.historianOverride}</dt><dd>{profile.historianOverride.host}:{profile.historianOverride.port}/{profile.historianOverride.database}</dd></div> : null}
-    </dl>
   </article>;
 }
 
@@ -223,9 +220,15 @@ export function DatabaseTopologyApp() {
   const primaryDraftValid = useMemo(() => parseEndpoint(draft.primary), [draft.primary]);
   const pendingPhase = status?.pendingPhase ?? pending?.phase ?? null;
   const operationId = status?.pendingOperationId ?? pending?.operationId ?? null;
+  const displayPhase = pendingPhase ?? status?.lastOperation?.phase ?? null;
   const isCritical = pendingPhase != null && ['Quiescing', 'Copying', 'Copied', 'Verifying', 'Verified', 'Switching', 'Readiness', 'RollbackRequired'].includes(pendingPhase);
   const hasPrevious = Boolean(status?.previousTopology);
   const canRollback = Boolean(status?.recoveryRequired || pendingPhase === 'RollbackRequired' || hasPrevious);
+  const primaryEndpoint = status?.activeTopology.primary;
+  const primaryHealth = status?.primaryHealth;
+  const historianHealth = status?.historianHealth ?? (status?.activeTopology.historianUsesPrimary ? primaryHealth : null);
+  const stageIndex = migrationStageIndex(displayPhase);
+  const stages = [t.stepValidate, t.stepPrepare, t.stepCopy, t.stepVerify, t.stepCutover];
 
   const run = async (name: string, action: () => Promise<void>) => {
     if (busy) return;
@@ -310,8 +313,6 @@ export function DatabaseTopologyApp() {
     setConfirmation(null);
   });
 
-  const primaryEndpoint = status?.activeTopology.primary;
-
   return <main className="db-topology-shell" data-testid="database-topology-app">
     <header className="db-topology-header">
       <div><span>EliteSCADA · System / Storage</span><h1>{t.title}</h1><p>{t.subtitle}</p></div>
@@ -320,104 +321,149 @@ export function DatabaseTopologyApp() {
 
     {notice ? <div role="status" className={`db-topology-notice db-topology-notice--${notice.tone}`}>{notice.text}</div> : null}
 
-    <section className="db-topology-grid db-topology-grid--summary">
-      <ProfileSummary profile={status?.activeTopology} title={t.currentTopology} />
-      <ProfileSummary profile={status?.previousTopology} title={t.previousTopology} />
-      <article className="db-topology-profile db-topology-operation-card">
-        <h3>{t.pendingOperation}</h3>
-        <dl>
-          <div><dt>{t.phase}</dt><dd data-testid="database-pending-phase">{pendingPhase ? phaseLabel(pendingPhase, t) : t.noPending}</dd></div>
+    <section className="db-topology-panel db-topology-overview" aria-labelledby="database-overview-title">
+      <div className="db-topology-section-heading">
+        <h2 id="database-overview-title">{t.overview}</h2>
+        {status?.lastHealthCheckUtc ? <small>{new Date(status.lastHealthCheckUtc).toLocaleString(locale)}</small> : null}
+      </div>
+
+      <div className="db-topology-status-strip">
+        <div><span>{t.currentMode}</span><strong>{status?.activeTopology.mode === 'Remote' ? t.remote : t.localManaged}</strong></div>
+        <div><span>{t.primary}</span><strong>{endpointLabel(status?.activeTopology)}</strong></div>
+        <div><span>{t.health}</span><ResultPill ok={healthOk(primaryHealth)}>{primaryHealth ? (healthOk(primaryHealth) ? t.healthy : t.degraded) : t.unknown}</ResultPill></div>
+        <div><span>{t.historian}</span><strong>{status?.activeTopology.historianUsesPrimary ? t.usePrimary : t.override}</strong></div>
+        <div><span>{t.phase}</span><strong data-testid="database-pending-phase">{displayPhase ? phaseLabel(displayPhase, t) : t.noPending}</strong></div>
+      </div>
+
+      {status?.restartRequired ? <div className="db-topology-alert db-topology-alert--warning" data-testid="database-restart-warning"><strong>{t.restartRequired}</strong><span>{t.restartPendingBody}</span></div> : null}
+      {status?.recoveryRequired ? <div className="db-topology-alert db-topology-alert--danger"><strong>{t.recoveryRequired}</strong></div> : null}
+
+      <details className="db-topology-details">
+        <summary>{t.technicalDetails}</summary>
+        <div className="db-topology-technical-grid">
+          <HealthTechnicalDetails title={t.primary} health={primaryHealth} />
+          {!status?.activeTopology.historianUsesPrimary ? <HealthTechnicalDetails title={t.historianOverride} health={historianHealth} /> : null}
+        </div>
+        <dl className="db-topology-meta-list">
+          <div><dt>{t.previousTopology}</dt><dd>{status?.previousTopology ? endpointLabel(status.previousTopology) : t.notConfigured}</dd></div>
           <div><dt>{t.operationId}</dt><dd className="db-topology-mono">{operationId ?? '—'}</dd></div>
-          <div><dt>{t.restartRequired}</dt><dd><ResultPill ok={status ? !status.restartRequired : null}>{status?.restartRequired ? t.restartRequired : '—'}</ResultPill></dd></div>
-          <div><dt>{t.recoveryRequired}</dt><dd><ResultPill ok={status ? !status.recoveryRequired : null}>{status?.recoveryRequired ? t.recoveryRequired : '—'}</ResultPill></dd></div>
           <div><dt>{t.lastOperation}</dt><dd>{status?.lastOperation ? `${phaseLabel(status.lastOperation.phase, t)} · ${status.lastOperation.operationId}` : t.noLastOperation}</dd></div>
           {status?.lastOperation?.failureCode ? <div><dt>{t.diagnostic}</dt><dd>{status.lastOperation.diagnostic ?? status.lastOperation.failureCode}</dd></div> : null}
         </dl>
-      </article>
-    </section>
-
-    <section className="db-topology-panel" aria-labelledby="database-health-title">
-      <div className="db-topology-section-heading"><div><h2 id="database-health-title">{t.health}</h2><p>{status?.lastHealthCheckUtc ? new Date(status.lastHealthCheckUtc).toLocaleString(locale) : t.unknown}</p></div></div>
-      <div className="db-topology-grid db-topology-grid--health">
-        <HealthCard title={t.primary} health={status?.primaryHealth} />
-        <HealthCard title={status?.activeTopology.historianUsesPrimary ? `${t.historian} · ${t.usePrimary}` : `${t.historian} · ${t.override}`} health={status?.historianHealth ?? (status?.activeTopology.historianUsesPrimary ? status?.primaryHealth : null)} />
-      </div>
-      {status?.restartRequired ? <div className="db-topology-safety-strip" data-testid="database-restart-warning"><strong>{t.restartRequired}</strong><p>{t.restartPendingBody}</p></div> : null}
-      <div className="db-topology-safety-strip"><strong>{t.failClosed}</strong></div>
+        <p className="db-topology-muted-note">{t.failClosed}</p>
+      </details>
     </section>
 
     <section className="db-topology-panel" aria-labelledby="remote-profile-title">
-      <div className="db-topology-section-heading"><div><h2 id="remote-profile-title">{t.remoteProfile}</h2><p>{t.remoteProfileHelp}</p></div>{primaryEndpoint?.credentialConfigured ? <span className="db-topology-credential-state">{t.credentialsConfigured}</span> : null}</div>
-      <h3>{t.primary}</h3>
-      <EndpointFields value={draft.primary} prefix="Primary" disabled={isCritical} onChange={primary => {
+      <div className="db-topology-section-heading">
+        <div><h2 id="remote-profile-title">{t.remoteProfile}</h2><p>{t.remoteProfileHelp}</p></div>
+        {primaryEndpoint?.credentialConfigured ? <span className="db-topology-credential-state">{t.credentialsConfigured}</span> : null}
+      </div>
+
+      <EndpointCoreFields value={draft.primary} prefix="Primary" disabled={isCritical} onChange={primary => {
         setDraft(current => ({ ...current, primary }));
         setCompatibility(null);
       }} />
-      <label className="db-topology-historian-toggle">
-        <input
-          type="checkbox"
-          checked={draft.historianUsesPrimary}
-          disabled={isCritical}
-          onChange={event => {
-            setDraft(current => ({ ...current, historianUsesPrimary: event.target.checked }));
-            setCompatibility(null);
-          }}
-        />
-        <span>{t.historianUsePrimary}</span>
-      </label>
-      {!draft.historianUsesPrimary ? <>
-        <h3>{t.historianOverride}</h3>
-        <EndpointFields value={draft.historian} prefix="Historian" disabled={isCritical} onChange={historian => {
-          setDraft(current => ({ ...current, historian }));
+
+      <details className="db-topology-details db-topology-advanced">
+        <summary><span>{t.advancedSettings}</span><small>{t.advancedSettingsHelp}</small></summary>
+        <EndpointAdvancedFields value={draft.primary} prefix="Primary" disabled={isCritical} onChange={primary => {
+          setDraft(current => ({ ...current, primary }));
           setCompatibility(null);
         }} />
-      </> : null}
-      <div className="db-topology-actions">
-        <button type="button" disabled={Boolean(busy) || isCritical} onClick={onTest}>{busy === 'test' ? t.working : t.testConnection}</button>
-        <button type="button" disabled={Boolean(busy) || isCritical} onClick={onCompatibility}>{busy === 'compatibility' ? t.working : t.validateCompatibility}</button>
-        <button type="button" className="db-topology-primary-action" disabled={Boolean(busy) || isCritical || compatibility?.compatible !== true} onClick={onPrepare}>{busy === 'prepare' ? t.working : t.prepare}</button>
-      </div>
+        <label className="db-topology-historian-toggle">
+          <input
+            type="checkbox"
+            checked={draft.historianUsesPrimary}
+            disabled={isCritical}
+            onChange={event => {
+              setDraft(current => ({ ...current, historianUsesPrimary: event.target.checked }));
+              setCompatibility(null);
+            }}
+          />
+          <span>{t.historianUsePrimary}</span>
+        </label>
+        {!draft.historianUsesPrimary ? <div className="db-topology-override-editor">
+          <h3>{t.historianOverride}</h3>
+          <EndpointCoreFields value={draft.historian} prefix="Historian" disabled={isCritical} onChange={historian => {
+            setDraft(current => ({ ...current, historian }));
+            setCompatibility(null);
+          }} />
+          <EndpointAdvancedFields value={draft.historian} prefix="Historian" disabled={isCritical} onChange={historian => {
+            setDraft(current => ({ ...current, historian }));
+            setCompatibility(null);
+          }} />
+        </div> : null}
+      </details>
 
-      {testHealth ? <div className="db-topology-result" data-testid="database-test-result"><h3>{t.testResult}</h3><HealthCard title={t.primary} health={testHealth} /></div> : null}
-      {compatibility ? <div className="db-topology-result" data-testid="database-compatibility-result">
-        <div className="db-topology-section-heading">
-          <h3>{t.compatibilityResult}</h3>
-          <ResultPill ok={compatibility.compatible}>{compatibility.compatible ? t.compatible : t.incompatible}</ResultPill>
+      <div className="db-topology-validation">
+        <div className="db-topology-section-heading"><h3>{t.validation}</h3></div>
+        <div className="db-topology-actions db-topology-actions--guided">
+          <button type="button" data-step="1" disabled={Boolean(busy) || isCritical} onClick={onTest}>{busy === 'test' ? t.working : t.testConnection}</button>
+          <button type="button" data-step="2" disabled={Boolean(busy) || isCritical} onClick={onCompatibility}>{busy === 'compatibility' ? t.working : t.validateCompatibility}</button>
+          <button type="button" data-step="3" className="db-topology-primary-action" disabled={Boolean(busy) || isCritical || compatibility?.compatible !== true} onClick={onPrepare}>{busy === 'prepare' ? t.working : t.prepare}</button>
         </div>
-        <div className="db-topology-grid db-topology-grid--health"><HealthCard title={t.primary} health={compatibility.primary} />{compatibility.historian ? <HealthCard title={t.historianOverride} health={compatibility.historian} /> : null}</div>
-        {compatibility.diagnostic ? <p className="db-topology-diagnostic"><strong>{t.diagnostic}:</strong> {compatibility.diagnostic}</p> : null}
-      </div> : null}
+
+        {testHealth ? <div className="db-topology-result-summary" data-testid="database-test-result">
+          <ResultPill ok={healthOk(testHealth)}>{healthOk(testHealth) ? t.healthy : t.degraded}</ResultPill>
+          <span>{t.postgresql} {testHealth.postgreSqlVersion ?? '—'}</span>
+          <span>{t.timescale} {testHealth.timescaleDbVersion ?? (testHealth.timescaleCapable ? t.available : t.unavailable)}</span>
+          {testHealth.diagnostic ? <strong>{testHealth.diagnostic}</strong> : null}
+          <details className="db-topology-inline-details"><summary>{t.technicalDetails}</summary><HealthTechnicalDetails title={t.primary} health={testHealth} /></details>
+        </div> : null}
+
+        {compatibility ? <div className="db-topology-result-summary" data-testid="database-compatibility-result">
+          <ResultPill ok={compatibility.compatible}>{compatibility.compatible ? t.compatible : t.incompatible}</ResultPill>
+          <span>{t.postgresql} {compatibility.primary.postgreSqlVersion ?? '—'}</span>
+          <span>{t.timescale} {compatibility.primary.timescaleDbVersion ?? (compatibility.primary.timescaleCapable ? t.available : t.unavailable)}</span>
+          {compatibility.diagnostic ? <strong>{compatibility.diagnostic}</strong> : null}
+          <details className="db-topology-inline-details">
+            <summary>{t.technicalDetails}</summary>
+            <div className="db-topology-technical-grid">
+              <HealthTechnicalDetails title={t.primary} health={compatibility.primary} />
+              {compatibility.historian ? <HealthTechnicalDetails title={t.historianOverride} health={compatibility.historian} /> : null}
+            </div>
+          </details>
+        </div> : null}
+      </div>
     </section>
 
     <section className="db-topology-panel" aria-labelledby="migration-flow-title">
-      <div className="db-topology-section-heading"><div><h2 id="migration-flow-title">{t.migrationFlow}</h2><p>TEST → COMPATIBILITY → PREPARE → QUIESCE → COPY → VERIFY → CUTOVER → READINESS → RESTART → COMPLETE</p></div></div>
-      <ol className="db-topology-timeline">
-        {PHASES.map(phase => {
-          const currentIndex = pendingPhase ? PHASES.indexOf(pendingPhase) : -1;
-          const index = PHASES.indexOf(phase);
-          const reached = currentIndex >= 0 && index <= currentIndex;
-          const active = pendingPhase === phase;
-          return <li key={phase} data-active={active || undefined} data-reached={reached || undefined}><span>{index + 1}</span><strong>{phaseLabel(phase, t)}</strong></li>;
-        })}
+      <div className="db-topology-section-heading">
+        <div><h2 id="migration-flow-title">{t.migrationFlow}</h2><p>{displayPhase ? phaseLabel(displayPhase, t) : t.noPending}</p></div>
+      </div>
+
+      <ol className="db-topology-stepper" aria-label={t.migrationFlow}>
+        {stages.map((label, index) => <li key={label} data-active={stageIndex === index || undefined} data-reached={stageIndex >= index || undefined}><span>{index + 1}</span><strong>{label}</strong></li>)}
       </ol>
 
-      <div className="db-topology-maintenance" data-testid="database-maintenance-warning"><strong>{t.maintenanceTitle}</strong><p>{t.maintenanceBody}</p></div>
-      <div className="db-topology-preservation"><strong>{t.preserveLocal}</strong></div>
+      <div className="db-topology-safety-summary" data-testid="database-maintenance-warning">
+        <span>{t.maintenanceShort}</span>
+        <span>{t.preserveLocal}</span>
+      </div>
 
       {pending?.plan ? <article className="db-topology-plan" data-testid="database-migration-plan">
-        <h3>{t.plan}</h3>
-        <dl>
-          <div><dt>{t.currentToTarget}</dt><dd>{pending.plan.sourceMode} → {pending.plan.targetMode}</dd></div>
-          <div><dt>{t.operationId}</dt><dd className="db-topology-mono">{pending.plan.operationId}</dd></div>
-          <div><dt>{t.durableDomains}</dt><dd>{pending.plan.durableDomains.join(', ')}</dd></div>
-        </dl>
+        <div className="db-topology-plan-route"><span>{t.source}</span><strong>{pending.plan.sourceMode}</strong><span>→</span><span>{t.target}</span><strong>{pending.plan.targetMode}</strong></div>
+        <details className="db-topology-inline-details">
+          <summary>{t.technicalDetails}</summary>
+          <dl className="db-topology-meta-list">
+            <div><dt>{t.operationId}</dt><dd className="db-topology-mono">{pending.plan.operationId}</dd></div>
+            <div><dt>{t.durableDomains}</dt><dd>{pending.plan.durableDomains.join(', ')}</dd></div>
+          </dl>
+        </details>
       </article> : null}
 
+      <details className="db-topology-details db-topology-impact">
+        <summary>{t.maintenanceTitle}</summary>
+        <p>{t.maintenanceBody}</p>
+        <p>{t.failClosed}</p>
+      </details>
+
       <div className="db-topology-actions db-topology-actions--migration">
-        <button type="button" disabled={Boolean(busy) || pendingPhase !== 'Prepared' || !operationId} onClick={onStartMigration}>{busy === 'copy' ? t.working : t.startMigration}</button>
-        <button type="button" disabled={Boolean(busy) || pendingPhase !== 'Copied' || !operationId} onClick={onVerify}>{busy === 'verify' ? t.working : t.verify}</button>
-        <button type="button" className="db-topology-danger-action" disabled={Boolean(busy) || pendingPhase !== 'Verified' || !operationId} onClick={() => setConfirmation('cutover')}>{t.commitCutover}</button>
-        <button type="button" className="db-topology-secondary" disabled={Boolean(busy) || !canRollback} onClick={() => setConfirmation('rollback')}>{t.rollback}</button>
+        {pendingPhase === 'Prepared' && operationId ? <button type="button" className="db-topology-primary-action" disabled={Boolean(busy)} onClick={onStartMigration}>{busy === 'copy' ? t.working : t.startMigration}</button> : null}
+        {pendingPhase === 'Copied' && operationId ? <button type="button" className="db-topology-primary-action" disabled={Boolean(busy)} onClick={onVerify}>{busy === 'verify' ? t.working : t.verify}</button> : null}
+        {pendingPhase === 'Verified' && operationId ? <button type="button" className="db-topology-danger-action" disabled={Boolean(busy)} onClick={() => setConfirmation('cutover')}>{t.commitCutover}</button> : null}
+        {canRollback ? <button type="button" className="db-topology-secondary" disabled={Boolean(busy)} onClick={() => setConfirmation('rollback')}>{t.rollback}</button> : null}
       </div>
     </section>
 

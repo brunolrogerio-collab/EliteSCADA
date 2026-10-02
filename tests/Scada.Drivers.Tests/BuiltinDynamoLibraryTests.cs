@@ -214,6 +214,43 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void StaticEquipment_UsesCoherentNozzleAndFlangePairs()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        foreach (var familyKey in new[] { "process.tank.vertical", "process.tank.horizontal" })
+        {
+            var rich = definitions
+                .Where(definition => definition.Metadata!["familyKey"] == familyKey &&
+                    definition.Properties!["visualStyle"] != "high-performance")
+                .ToArray();
+
+            Assert.Equal(2, rich.Length);
+            Assert.All(rich, definition =>
+            {
+                var keys = definition.Elements!.Select(element => element.Key).ToHashSet(StringComparer.Ordinal);
+                Assert.Contains("top-nozzle", keys);
+                Assert.Contains("top-nozzle-flange", keys);
+                Assert.Contains("side-nozzle", keys);
+                Assert.Contains("side-nozzle-flange", keys);
+            });
+        }
+
+        var strainers = definitions
+            .Where(definition => definition.Metadata!["familyKey"] == "process.filter.strainer")
+            .ToArray();
+        Assert.Equal(3, strainers.Length);
+        Assert.All(strainers, definition =>
+        {
+            var keys = definition.Elements!.Select(element => element.Key).ToHashSet(StringComparer.Ordinal);
+            Assert.Contains("filter-body", keys);
+            Assert.Contains("basket-neck", keys);
+            Assert.Contains("flange-left", keys);
+            Assert.Contains("flange-right", keys);
+        });
+    }
+
+    [Fact]
     public void ValveAndTankFamilies_UseCanonicalCurvesWithoutChangingStateBindings()
     {
         var definitions = BuiltinDynamoLibrary.Create();

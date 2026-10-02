@@ -5,12 +5,16 @@
 - Product Owner local Docker validation produced a bounded four-file correction package.
 - GitHub reconciliation proved the patch base blobs exactly match current integration `015b0d5ae815fe1c8143aa22755e2c6ef91ec826`.
 - PR #457 carries the correction on `work/w15-local-modbus-numeric-input-fix`.
-- exact head: `f8abc12f7108bd6738a18ce0a85f100bec115c7d`.
+- exact product commit: `f8abc12f7108bd6738a18ce0a85f100bec115c7d`.
 - tree: `ff3fb810e13b7a246157fe3d30b60c358195f807`.
 - scope: Modbus JSON scalar normalization + regression test + Numeric Input validation/write/readback state correction.
 - project-instance max=1000 and Docker-specific `host.docker.internal` are not product defaults.
 - FC06 response validation remains strict; simulator echo mismatch stays a separate diagnostic item.
-- state: `DRAFT / AWAIT_EXACT_HEAD_CI / NO_MERGE_WITHOUT_PO_AUTHORITY`.
+- CI metadata head: `f5ea0d3d3b88f8465d42a841285beb4c92432331` (same product tree; empty CI/profile commit).
+- initial T1 #476 failed classification only because `VALIDATION_PROFILE` was missing.
+- PR now declares `DRIVER_PROTOCOL, UI_EDITOR`.
+- T1 #482 / `37058081717`: short observation shows profile classification + common sanity SUCCESS; Web, .NET and Chromium were still running when observation stopped per standing CI rule.
+- state: `DRAFT / T1_482_IN_PROGRESS_AT_LAST_CHECK / NO_MERGE_WITHOUT_PO_AUTHORITY`.
 
 
 ## CORE AUDIT ACCEPTED / ADMIN UI RELEASE — 2026-10-02

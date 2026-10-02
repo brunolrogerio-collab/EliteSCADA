@@ -445,6 +445,64 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void IndustrialGrammar_NormalizesDecorativeAccentColorsByFunctionalRole()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        var detailedBlower = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "process.blower.centrifugal" &&
+            definition.Properties!["visualStyle"] == "detailed-2d");
+        var blowerElements = detailedBlower.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+        Assert.Equal("#718795", blowerElements["outlet-flow-arrow"].Properties!["fillColor"].GetString());
+        Assert.Equal("secondary-detail", blowerElements["outlet-flow-arrow"].Metadata!["visualRole"]);
+
+        var transformer = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "electrical.transformer.power" &&
+            definition.Properties!["visualStyle"] == "detailed-2d");
+        var transformerElements = transformer.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+        Assert.Equal("#A9BAC4", transformerElements["tank"].Properties!["fillColor"].GetString());
+        Assert.Equal("primary-mass", transformerElements["tank"].Metadata!["visualRole"]);
+
+        var verticalTank = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "process.tank.vertical" &&
+            definition.Properties!["visualStyle"] == "detailed-2d");
+        var tankElements = verticalTank.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+        Assert.Equal("#7DD3FC", tankElements["liquid"].Properties!["fillColor"].GetString());
+        Assert.Equal("#0284C7", tankElements["liquid-line"].Properties!["fillColor"].GetString());
+    }
+
+    [Fact]
+    public void IndustrialEnhancements_KeepFunctionalDetailDensity()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        var exchanger = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "process.exchanger.shell-tube" &&
+            definition.Properties!["visualStyle"] == "detailed-2d");
+        Assert.Equal(2, exchanger.Elements!.Count(element =>
+            element.Key.StartsWith("detail-saddle-support-", StringComparison.Ordinal)));
+
+        var screw = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "process.compressor.screw" &&
+            definition.Properties!["visualStyle"] == "detailed-2d");
+        Assert.Equal(4, screw.Elements!.Count(element =>
+            element.Key.StartsWith("detail-housing-fastener-", StringComparison.Ordinal)));
+
+        var generator = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "electrical.generator" &&
+            definition.Properties!["visualStyle"] == "detailed-2d");
+        Assert.Equal(4, generator.Elements!.Count(element =>
+            element.Key.StartsWith("detail-end-shield-fastener-", StringComparison.Ordinal)));
+
+        var breaker = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "electrical.breaker" &&
+            definition.Properties!["visualStyle"] == "detailed-2d");
+        var breakerElements = breaker.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+        Assert.Equal("core.rectangle", breakerElements["terminal-left"].Type);
+        Assert.Equal("core.rectangle", breakerElements["terminal-right"].Type);
+    }
+
+    [Fact]
     public void StateAwareDynamos_ExposeTagAndEditableColorsWithHighPerformanceDefaults()
     {
         var definitions = BuiltinDynamoLibrary.Create();

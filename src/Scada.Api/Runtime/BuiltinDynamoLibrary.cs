@@ -899,8 +899,8 @@ public static class BuiltinDynamoLibrary
                     light, 2.5);
                 Bar("contact-left", 62, 17, 7, 25, dark);
                 Bar("contact-right", 73, 17, 7, 25, dark);
-                Ellipse("terminal-left", 56, 5, 18, 16, accent);
-                Ellipse("terminal-right", 71, 5, 18, 16, accent);
+                Rect("terminal-left", 56, 8, 18, 8, accent, 2, 1.5);
+                Rect("terminal-right", 72, 8, 18, 8, accent, 2, 1.5);
                 Label("52", 49, 50, 35, 18, 12);
                 Lamp("closed", 6, 5, "closed", "{equipmentPath}.Closed", "#16A34A");
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
@@ -1315,7 +1315,46 @@ public static class BuiltinDynamoLibrary
             : new Dictionary<string, string>(element.Metadata);
 
         metadata["visualGrammar"] = "industrial-orthographic-v1";
-        metadata["visualRole"] = IndustrialVisualRole(element.Key, element.Type);
+        var visualRole = IndustrialVisualRole(element.Key, element.Type);
+        metadata["visualRole"] = visualRole;
+
+        var finish = FinishProfile(style);
+        var preserveSemanticColor = PreserveSemanticArtworkColor(familyKey, element.Key);
+        if (!preserveSemanticColor &&
+            properties.TryGetValue("fillColor", out var authoredFill) &&
+            authoredFill.ValueKind == JsonValueKind.String)
+        {
+            var normalizedFill = visualRole switch
+            {
+                "primary-mass" => finish.Shell,
+                "process-connection" => finish.Mid,
+                "fastener-detail" => finish.Mid,
+                _ when TryParseArtworkColor(authoredFill.GetString(), out var red, out var green, out var blue) &&
+                    !IsNeutralArtworkColor(red, green, blue) => finish.Mid,
+                _ => null
+            };
+
+            if (normalizedFill is not null)
+                properties["fillColor"] = JsonSerializer.SerializeToElement(normalizedFill);
+        }
+
+        if (!preserveSemanticColor &&
+            properties.TryGetValue("strokeColor", out var authoredStroke) &&
+            authoredStroke.ValueKind == JsonValueKind.String &&
+            visualRole is "primary-mass" or "process-connection" or "fastener-detail")
+        {
+            properties["strokeColor"] = JsonSerializer.SerializeToElement(
+                visualRole == "primary-mass" ? finish.Outline : finish.SoftOutline);
+        }
+
+        if (style == VisualStyle.DimensionalFront &&
+            visualRole == "primary-mass" &&
+            properties.TryGetValue("fillStyle", out var primaryFillStyle) &&
+            primaryFillStyle.ValueKind == JsonValueKind.String &&
+            primaryFillStyle.GetString() == "gradient")
+        {
+            properties["fillSecondaryColor"] = JsonSerializer.SerializeToElement(finish.Highlight);
+        }
 
         // Embedded alphabetic equipment labels made the catalog read like mixed iconography.
         // Preserve the element identity but keep only instrumentation IDs and the standardized
@@ -1391,6 +1430,11 @@ public static class BuiltinDynamoLibrary
 
         return element with { Properties = properties, Metadata = metadata };
     }
+
+    private static bool PreserveSemanticArtworkColor(string familyKey, string key) =>
+        key is "running" or "fault" or "open" or "closed" or "high" or
+            "liquid" or "liquid-line" or "needle" ||
+        (familyKey == "process.instrument.indicator" && key is "face" or "inner");
 
     private static string IndustrialVisualRole(string key, string type)
     {
@@ -1547,10 +1591,7 @@ public static class BuiltinDynamoLibrary
         switch (familyKey)
         {
             case "dynamo.pump.standard":
-                RadialBolts("casing-bolt", style == VisualStyle.HighPerformance ? 59 : 75,
-                    style == VisualStyle.HighPerformance ? 48 : 59,
-                    style == VisualStyle.HighPerformance ? 28 : 36, 6,
-                    style == VisualStyle.HighPerformance ? 4 : 5);
+                RadialBolts("casing-bolt", 75, 59, 36, 4, 4);
                 break;
 
             case "process.pump.submersible":
@@ -1558,20 +1599,20 @@ public static class BuiltinDynamoLibrary
                 var bodyWidth = style == VisualStyle.HighPerformance ? 40 : 38;
                 var upperVentY = style == VisualStyle.HighPerformance ? 35 : 43;
                 var lowerVentY = style == VisualStyle.HighPerformance ? 83 : 105;
-                for (var index = 0; index < 4; index++)
+                for (var index = 0; index < 3; index++)
                 {
-                    Bar($"upper-cooling-slot-{index + 1}", bodyLeft + index * (bodyWidth / 4d), upperVentY, 2.2, 9, "#64798B");
-                    Bar($"lower-cooling-slot-{index + 1}", bodyLeft + index * (bodyWidth / 4d), lowerVentY, 2.2, 9, "#64798B");
+                    Bar($"upper-cooling-slot-{index + 1}", bodyLeft + index * (bodyWidth / 3d), upperVentY, 2.2, 9, "#64798B");
+                    Bar($"lower-cooling-slot-{index + 1}", bodyLeft + index * (bodyWidth / 3d), lowerVentY, 2.2, 9, "#64798B");
                 }
                 break;
 
             case "process.motor.standard":
                 // Keep family-specific details aligned with the redesigned side elevation.
                 // The central frame carries the cooling ribs; the end bells/cowl remain visually clean.
-                for (var index = 0; index < 3; index++)
+                for (var index = 0; index < 2; index++)
                 {
-                    Bar($"cooling-rib-left-{index + 1}", 47 + index * 4, 33, 1.8, 31, "#73889A");
-                    Bar($"cooling-rib-right-{index + 1}", 92 + index * 4, 33, 1.8, 31, "#73889A");
+                    Bar($"cooling-rib-left-{index + 1}", 49 + index * 6, 33, 1.8, 31, "#73889A");
+                    Bar($"cooling-rib-right-{index + 1}", 92 + index * 6, 33, 1.8, 31, "#73889A");
                 }
                 Bar("fan-cowl-vent-upper", 29, 37, 13, 1.5, "#667B8B");
                 Bar("fan-cowl-vent-middle", 27, 48, 16, 1.5, "#667B8B");
@@ -1645,18 +1686,15 @@ public static class BuiltinDynamoLibrary
                 break;
 
             case "process.compressor.reciprocating":
-                RadialBolts("crankcase-fastener", 51, 78, 22, style == VisualStyle.HighPerformance ? 4 : 6,
-                    style == VisualStyle.HighPerformance ? 3 : 4);
-                for (var index = 0; index < 5; index++)
-                    Bar($"cylinder-fin-{index + 1}", 37 + index * 10, 25, 2, 12,
-                        style == VisualStyle.HighPerformance ? "#66747D" : "#64798B");
+                RadialBolts("crankcase-fastener", 51, 78, 22, 4, 3.2);
+                for (var index = 0; index < 4; index++)
+                    Bar($"cylinder-fin-{index + 1}", 38 + index * 12, 25, 2, 12, "#64798B");
                 Dot("crosshead-pin", 51, 76, 7, "#DCE5EB", "#526879");
                 Bar("connecting-rod", 53, 79, 3, 15, "#586D7D", 28);
                 break;
 
             case "process.compressor.screw":
-                RadialBolts("housing-fastener", 73, 56, 39, style == VisualStyle.HighPerformance ? 4 : 8,
-                    style == VisualStyle.HighPerformance ? 3 : 4);
+                RadialBolts("housing-fastener", 73, 56, 39, 4, 3.2);
                 Bar("rotor-highlight-left", 48, 40, 3, 27, "#F0F4F6", -12);
                 Bar("rotor-highlight-right", 83, 40, 3, 27, "#DCE5EB", 12);
                 Bar("oil-sight-glass", 112, 70, 5, 10, "#4B9BB4");
@@ -1684,8 +1722,8 @@ public static class BuiltinDynamoLibrary
                 break;
 
             case "process.exchanger.shell-tube":
-                for (var index = 0; index < 3; index++)
-                    Bar($"saddle-support-{index + 1}", 51 + index * 38, 91, 8, 19, "#526575");
+                foreach (var saddleX in new[] { 52d, 108d })
+                    Bar($"saddle-support-{saddleX:0}", saddleX, 91, 9, 19, "#526575");
                 foreach (var boltY in new[] { 43d, 81d })
                 foreach (var boltX in new[] { 28d, 132d })
                     Dot($"channel-cover-bolt-{boltX:0}-{boltY:0}", boltX, boltY, 4,
@@ -1711,10 +1749,10 @@ public static class BuiltinDynamoLibrary
                 break;
 
             case "electrical.transformer.power":
-                for (var index = 0; index < 5; index++)
+                for (var index = 0; index < 4; index++)
                 {
-                    Bar($"left-radiator-channel-{index + 1}", 19 + index * 4, 64, 1.5, 43, "#526575");
-                    Bar($"right-radiator-channel-{index + 1}", 113 + index * 4, 64, 1.5, 43, "#526575");
+                    Bar($"left-radiator-channel-{index + 1}", 20 + index * 5, 64, 1.5, 43, "#526575");
+                    Bar($"right-radiator-channel-{index + 1}", 114 + index * 5, 64, 1.5, 43, "#526575");
                 }
                 Dot("oil-level-window", 102, 54, 8, "#4B9BB4", "#526879");
                 Bar("nameplate", 55, 104, 39, 10, "#E7EEF3");
@@ -1726,10 +1764,10 @@ public static class BuiltinDynamoLibrary
                 break;
 
             case "electrical.breaker":
-                for (var index = 0; index < 5; index++)
+                for (var index = 0; index < 4; index++)
                 {
-                    Bar($"left-post-rib-{index + 1}", 34, 76 + index * 10, 8, 2, "#F0F4F6");
-                    Bar($"right-post-rib-{index + 1}", 89, 76 + index * 10, 8, 2, "#F0F4F6");
+                    Bar($"left-post-rib-{index + 1}", 34, 78 + index * 12, 8, 2, "#F0F4F6");
+                    Bar($"right-post-rib-{index + 1}", 89, 78 + index * 12, 8, 2, "#F0F4F6");
                 }
                 foreach (var terminalX in new[] { 58d, 78d })
                     Dot($"terminal-fastener-{terminalX:0}", terminalX, 10, 5, "#F0F4F6", "#526879");
@@ -1737,28 +1775,34 @@ public static class BuiltinDynamoLibrary
 
             case "electrical.disconnector":
             case "electrical.earthing-switch":
+            {
+                var earthingSwitch = familyKey.EndsWith("earthing-switch", StringComparison.Ordinal);
                 for (var index = 0; index < 4; index++)
                 {
-                    Bar($"left-insulator-rib-{index + 1}", 21, 68 + index * 9, 18, 2, "#F0F4F6");
+                    Bar($"left-insulator-rib-{index + 1}",
+                        earthingSwitch ? 24 : 21,
+                        (earthingSwitch ? 83 : 68) + index * (earthingSwitch ? 7 : 9),
+                        earthingSwitch ? 16 : 18,
+                        2,
+                        "#F0F4F6");
                     Bar($"right-insulator-rib-{index + 1}", width - 42, 68 + index * 9, 18, 2, "#F0F4F6");
                 }
-                Dot("blade-pivot", 31, 42, 8, "#DCE5EB", "#526879");
-                Dot("contact-jaw", width - 37, 39, 10, "#B6C4CE", "#526879");
+                Dot("blade-pivot", earthingSwitch ? 30 : 31, earthingSwitch ? 60 : 42, 6, "#DCE5EB", "#526879");
+                Dot("contact-jaw", width - 37, 39, 7, "#B6C4CE", "#526879");
                 break;
+            }
 
             case "electrical.generator":
-                RadialBolts("end-shield-fastener", 69, 58, 37, style == VisualStyle.HighPerformance ? 4 : 8,
-                    style == VisualStyle.HighPerformance ? 3 : 4);
-                for (var index = 0; index < 5; index++)
-                    Bar($"stator-vent-{index + 1}", 36 + index * 12, 83, 5, 2, "#526575");
+                RadialBolts("end-shield-fastener", 69, 58, 37, 4, 3.2);
+                for (var index = 0; index < 4; index++)
+                    Bar($"stator-vent-{index + 1}", 40 + index * 15, 83, 5, 2, "#526575");
                 break;
 
             case "electrical.current-transformer":
-                for (var index = 0; index < 5; index++)
-                    Bar($"winding-band-{index + 1}", 28, 53 + index * 8, 56, 2,
-                        style == VisualStyle.HighPerformance ? "#77838B" : "#8295A5");
+                for (var index = 0; index < 4; index++)
+                    Bar($"winding-band-{index + 1}", 28, 56 + index * 10, 56, 2, "#8295A5");
                 foreach (var terminalX in new[] { 20d, 84d })
-                    Dot($"secondary-terminal-{terminalX:0}", terminalX, 88, 8, "#E7EEF3", "#526879");
+                    Dot($"secondary-terminal-{terminalX:0}", terminalX, 89, 5, "#E7EEF3", "#526879");
                 break;
         }
 

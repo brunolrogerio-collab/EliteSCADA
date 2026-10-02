@@ -12,7 +12,8 @@ public sealed record RuntimeHaHostNodeConfiguration(
 public sealed record RuntimeHaHostPeerTransportConfiguration(
     bool Enabled,
     string? PeerEndpoint,
-    string? SharedSecret);
+    string? SharedSecretReference,
+    bool AuthenticationConfigured);
 
 public sealed record RuntimeHaHostProtectionConfiguration(
     bool Enabled,
@@ -111,6 +112,7 @@ public sealed record RuntimeHaHostConfigurationUpdateResult(
 public sealed class RuntimeHaHostConfigurationAuthority
 {
     public const string ReferenceStoreModeSharedExternalFile = "shared-external-file";
+    public const string PeerSecretPurpose = "runtime-ha-peer-transport";
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -134,6 +136,9 @@ public sealed class RuntimeHaHostConfigurationAuthority
             });
 
     private readonly IConfiguration _bootstrapConfiguration;
+    private readonly IRuntimeHaDeploymentSecretStore _secretStore;
+    private readonly string? _bootstrapPeerSharedSecret;
+    private readonly string? _runningPeerSharedSecret;
     private readonly string _path;
     private readonly SemaphoreSlim _writeGate = new(1, 1);
     private readonly object _stateGate = new();
@@ -142,8 +147,21 @@ public sealed class RuntimeHaHostConfigurationAuthority
     private bool _pendingRestart;
 
     public RuntimeHaHostConfigurationAuthority(IConfiguration configuration)
+        : this(
+            configuration,
+            RuntimeHaEncryptedFileDeploymentSecretStore.FromConfiguration(configuration))
     {
-        _bootstrapConfiguration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+    }
+
+    public RuntimeHaHostConfigurationAuthority(
+        IConfiguration configuration,
+        IRuntimeHaDeploymentSecretStore secretStore)
+    {
+        _bootstrapConfiguration =
+            configuration ?? throw new ArgumentNullException(nameof(configuration));
+        _secretStore = secretStore ?? throw new ArgumentNullException(nameof(secretStore));
+        _bootstrapPeerSharedSecret =
+            configuration["HighAvailability:PeerTransport:SharedSecret"];
         _path = ResolveConfigurationPath(configuration);
 
         var persisted = File.Exists(_path);
@@ -155,6 +173,36 @@ public sealed class RuntimeHaHostConfigurationAuthority
             running,
             enforceAdministrativeBounds: persisted,
             configurationPath: _path);
+
+        string? runningPeerSharedSecret = null;
+        if (running.Enabled && running.PeerTransport.Enabled)
+        {
+            if (persisted)
+            {
+                if (string.IsNullOrWhiteSpace(
+                        running.PeerTransport.SharedSecretReference))
+                {
+                    throw new RuntimeHaDeploymentSecretStoreException(
+                        "Persisted HA peer authentication reference is unavailable.");
+                }
+
+                runningPeerSharedSecret = _secretStore.Resolve(
+                    PeerSecretPurpose,
+                    running.PeerTransport.SharedSecretReference);
+            }
+            else
+            {
+                runningPeerSharedSecret = _bootstrapPeerSharedSecret;
+            }
+
+            if (!HasStrongSharedSecret(runningPeerSharedSecret))
+            {
+                throw new RuntimeHaDeploymentSecretStoreException(
+                    "Enabled HA peer transport could not resolve valid protected authentication material.");
+            }
+        }
+
+        _runningPeerSharedSecret = runningPeerSharedSecret;
         _running = running;
         _desired = running;
     }
@@ -281,7 +329,7 @@ public sealed class RuntimeHaHostConfigurationAuthority
             topology.LocalNodeId,
             peer.NodeId,
             peerEndpoint,
-            _running.PeerTransport.SharedSecret,
+            _runningPeerSharedSecret,
             maxPayloadBytes,
             TimeSpan.FromSeconds(requestTimeoutSeconds),
             TimeSpan.FromMilliseconds(pollMilliseconds),
@@ -328,6 +376,12 @@ public sealed class RuntimeHaHostConfigurationAuthority
                     candidate,
                     enforceAdministrativeBounds: true,
                     configurationPath: _path);
+            }
+            catch (RuntimeHaDeploymentSecretStoreException ex)
+            {
+                return Rejected(
+                    "host-configuration-secret-store-failed",
+                    new[] { ex.Message });
             }
             catch (Exception ex) when (
                 ex is ArgumentException or
@@ -424,11 +478,42 @@ public sealed class RuntimeHaHostConfigurationAuthority
                 "peerSharedSecret and clearPeerSharedSecret cannot be supplied together.");
         }
 
-        var sharedSecret = request.PeerTransport.ClearPeerSharedSecret
-            ? null
-            : string.IsNullOrWhiteSpace(request.PeerTransport.PeerSharedSecret)
-                ? current.PeerTransport.SharedSecret
-                : request.PeerTransport.PeerSharedSecret.Trim();
+        string? secretReference = current.PeerTransport.SharedSecretReference;
+        var authenticationConfigured = current.PeerTransport.AuthenticationConfigured;
+
+        if (request.PeerTransport.ClearPeerSharedSecret)
+        {
+            secretReference = null;
+            authenticationConfigured = false;
+        }
+        else if (!string.IsNullOrWhiteSpace(request.PeerTransport.PeerSharedSecret))
+        {
+            var replacementSecret = request.PeerTransport.PeerSharedSecret.Trim();
+            if (!HasStrongSharedSecret(replacementSecret))
+            {
+                throw new InvalidOperationException(
+                    "Enabled HA peer transport requires a shared secret of at least 32 UTF-8 bytes.");
+            }
+
+            secretReference = _secretStore.Store(
+                PeerSecretPurpose,
+                replacementSecret);
+            authenticationConfigured = true;
+        }
+        else if (authenticationConfigured &&
+                 string.IsNullOrWhiteSpace(secretReference))
+        {
+            if (!HasStrongSharedSecret(_bootstrapPeerSharedSecret))
+            {
+                throw new RuntimeHaDeploymentSecretStoreException(
+                    "Bootstrap HA peer authentication material cannot be migrated into the protected deployment secret store.");
+            }
+
+            secretReference = _secretStore.Store(
+                PeerSecretPurpose,
+                _bootstrapPeerSharedSecret!);
+            authenticationConfigured = true;
+        }
 
         var nodes = request.Nodes
             .Select(node => new RuntimeHaHostNodeConfiguration(
@@ -460,7 +545,8 @@ public sealed class RuntimeHaHostConfigurationAuthority
             new RuntimeHaHostPeerTransportConfiguration(
                 request.PeerTransport.Enabled,
                 peerEndpoint,
-                sharedSecret),
+                secretReference,
+                authenticationConfigured),
             request.Protection with
             {
                 ReferenceStoreMode = request.Protection.ReferenceStoreMode?.Trim() ?? string.Empty,
@@ -494,7 +580,7 @@ public sealed class RuntimeHaHostConfigurationAuthority
             new RuntimeHaHostPeerTransportView(
                 document.PeerTransport.Enabled,
                 document.PeerTransport.PeerEndpoint,
-                HasStrongSharedSecret(document.PeerTransport.SharedSecret)),
+                document.PeerTransport.AuthenticationConfigured),
             document.Protection);
 
     private static RuntimeHaHostConfigurationDocument FromBootstrapConfiguration(
@@ -528,7 +614,9 @@ public sealed class RuntimeHaHostConfigurationAuthority
             new RuntimeHaHostPeerTransportConfiguration(
                 topology.Enabled && (peerSection.GetValue<bool?>("Enabled") ?? true),
                 NormalizeOptionalPeerEndpoint(peerSection["PeerEndpoint"]),
-                peerSection["SharedSecret"]),
+                SharedSecretReference: null,
+                AuthenticationConfigured:
+                    HasStrongSharedSecret(peerSection["SharedSecret"])),
             new RuntimeHaHostProtectionConfiguration(
                 protection.Enabled,
                 protection.AutomaticFailoverEnabled,
@@ -665,10 +753,28 @@ public sealed class RuntimeHaHostConfigurationAuthority
 
             if (document.PeerTransport.Enabled)
             {
-                if (!HasStrongSharedSecret(document.PeerTransport.SharedSecret))
+                if (!document.PeerTransport.AuthenticationConfigured)
                 {
                     throw new InvalidOperationException(
-                        "Enabled HA peer transport requires a shared secret of at least 32 UTF-8 bytes.");
+                        "Enabled HA peer transport requires protected authentication material.");
+                }
+
+                if (enforceAdministrativeBounds &&
+                    string.IsNullOrWhiteSpace(
+                        document.PeerTransport.SharedSecretReference))
+                {
+                    throw new InvalidOperationException(
+                        "Persisted HA peer transport requires an opaque protected secret reference.");
+                }
+
+                if (!string.IsNullOrWhiteSpace(
+                        document.PeerTransport.SharedSecretReference) &&
+                    !document.PeerTransport.SharedSecretReference.StartsWith(
+                        RuntimeHaEncryptedFileDeploymentSecretStore.ReferencePrefix,
+                        StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        "HA peer protected secret reference is incompatible.");
                 }
 
                 if (!string.IsNullOrWhiteSpace(document.PeerTransport.PeerEndpoint))
@@ -694,6 +800,14 @@ public sealed class RuntimeHaHostConfigurationAuthority
                             "peerEndpoint must not resolve to the configured local HA node.");
                     }
                 }
+            }
+
+            if (!document.PeerTransport.AuthenticationConfigured &&
+                !string.IsNullOrWhiteSpace(
+                    document.PeerTransport.SharedSecretReference))
+            {
+                throw new InvalidOperationException(
+                    "HA peer protected secret reference cannot exist when authentication is not configured.");
             }
 
             if (document.Protection.AutomaticFailoverEnabled && !document.Protection.Enabled)

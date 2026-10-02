@@ -239,7 +239,6 @@ export function DatabaseTopologyApp() {
   const pendingPhase = status?.pendingPhase ?? pending?.phase ?? null;
   const operationId = status?.pendingOperationId ?? pending?.operationId ?? null;
   const displayPhase = pendingPhase ?? status?.lastOperation?.phase ?? null;
-  const isCritical = pendingPhase != null && ['Quiescing', 'Copying', 'Copied', 'Verifying', 'Verified', 'Switching', 'Readiness', 'RollbackRequired'].includes(pendingPhase);
   const configurationLocked = pendingPhase != null;
   const hasPrevious = Boolean(status?.previousTopology);
   const canRollback = Boolean(status?.recoveryRequired || pendingPhase === 'RollbackRequired' || hasPrevious);

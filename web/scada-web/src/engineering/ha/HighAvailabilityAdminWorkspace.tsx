@@ -223,7 +223,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
         </article>
         <article className="ha-card"><span>{t.effectiveActive}</span><strong>{topology.effectiveActiveNodeId || '—'}</strong><small>{t.epoch}: {topology.authorityEpoch}</small></article>
         <article className="ha-card"><span>{t.localNode}</span><strong>{topology.localNodeId}</strong><small>{local ? stateName(local.state) : '—'} · {local?.fresh ? t.fresh : t.stale}</small></article>
-        <article className="ha-card"><span>{t.peerNode}</span><strong>{peer.peerNodeId || peerNode?.nodeId || '—'}</strong><small>{peer.connectionState} · {relativeTime(latestContact(snapshot))}</small></article>
+        <article className="ha-card"><span>{t.peerNode}</span><strong>{peer.peerNodeId || peerNode?.nodeId || '—'}</strong><small>{peerNode ? stateName(peerNode.state) : '—'} · {peer.connectionState} · {relativeTime(latestContact(snapshot))}</small></article>
         <article className="ha-card"><span>{t.topologyVersion}</span><strong>{topology.topologyVersion}</strong><small>state v{topology.stateVersion}</small></article>
         <article className="ha-card"><span>{t.generation}</span><strong>{configuration.generation}</strong><small>{configuration.pendingRestart ? t.restartRequired : configuration.applyMode}</small></article>
       </div>

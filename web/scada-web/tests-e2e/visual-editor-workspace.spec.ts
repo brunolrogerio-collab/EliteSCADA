@@ -164,7 +164,7 @@ test('Wave 08 composes Canvas, palette, properties, project-source binding, imag
     const screenList = page.locator('.visual-editor-screen-list');
     await screenList.getByRole('button').filter({ hasText: originalScreen!.key }).click();
 
-    const route = page.getByRole('textbox', { name: 'Rota', exact: true });
+    const route = page.getByRole('textbox', { name: 'Endereço da tela', exact: true });
     await expect(route).toHaveValue(originalScreen!.route ?? '');
 
     await page.locator('[data-insert-object-type="core.image"]').click();

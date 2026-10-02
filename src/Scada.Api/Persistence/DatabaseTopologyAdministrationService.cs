@@ -481,7 +481,9 @@ public sealed class DatabaseTopologyAdministrationService
             var bytes = Encoding.UTF8.GetBytes(request.Password);
             try
             {
-                reference = await _secrets.StoreAsync(reference, bytes, cancellationToken);
+                // Password updates always allocate a new opaque reference. This prevents a failed
+                // PREPARE from destroying or mutating a credential still owned by the active topology.
+                reference = await _secrets.StoreAsync(null, bytes, cancellationToken);
                 storedReferences.Add(reference);
             }
             finally

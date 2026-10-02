@@ -3,6 +3,11 @@ import { appShellText, useAppShellLocale } from '../../appShellI18n';
 import { UserSessionMenu } from '../../auth/UserSessionMenu';
 import type { ScriptEngineeringContext } from '../../engineering/scripts/scriptEngineeringTypes';
 import { RuntimeAlarmCenter } from '../RuntimeAlarmCenter';
+import { HistoricalTimeRangeControls } from '../HistoricalTimeRangeControls';
+import {
+  HistoricalPlaybackProvider,
+  useHistoricalPlayback
+} from '../historical-playback/HistoricalPlaybackContext';
 import { RuntimeVisualNavigator } from '../visual-navigation/RuntimeVisualNavigator';
 import {
   loadRuntimeApplicationProjection,
@@ -103,7 +108,27 @@ function EngineeringRuntimeApplication({
   locale: ReturnType<typeof useAppShellLocale>;
   showHistoryNavigation: boolean;
 }) {
+  return <HistoricalPlaybackProvider engineeringPackage={projection.package!}>
+    <EngineeringRuntimeApplicationContent
+      projection={projection}
+      locale={locale}
+      showHistoryNavigation={showHistoryNavigation}
+    />
+  </HistoricalPlaybackProvider>;
+}
+
+function EngineeringRuntimeApplicationContent({
+  projection,
+  locale,
+  showHistoryNavigation
+}: {
+  projection: RuntimeApplicationProjection;
+  locale: ReturnType<typeof useAppShellLocale>;
+  showHistoryNavigation: boolean;
+}) {
   const text = appShellText(locale);
+  const playback = useHistoricalPlayback();
+  const playbackText = historicalPlaybackCopy(locale);
   const fullscreenRoot = useRef<HTMLElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [alarmsOpen, setAlarmsOpen] = useState(false);
@@ -118,6 +143,10 @@ function EngineeringRuntimeApplication({
     document.addEventListener('fullscreenchange', changed);
     return () => document.removeEventListener('fullscreenchange', changed);
   }, []);
+
+  useEffect(() => {
+    if (playback.mode === 'historicalPlayback') setAlarmsOpen(false);
+  }, [playback.mode]);
 
   const scriptContext = useMemo<ScriptEngineeringContext>(() => ({
     workspace: {
@@ -152,6 +181,8 @@ function EngineeringRuntimeApplication({
     data-runtime-project-key={projection.projectKey ?? undefined}
     data-runtime-revision={projection.revision ?? undefined}
     data-runtime-fullscreen={isFullscreen || undefined}
+    data-runtime-temporal-mode={playback.mode === 'historicalPlayback' ? 'historical-playback' : 'live'}
+    data-runtime-historical-at={playback.atUtc ?? undefined}
   >
     <header className="runtime-operator-bar">
       <div className="runtime-operator-context">
@@ -163,7 +194,33 @@ function EngineeringRuntimeApplication({
         <a href="/runtime/history">{text.runtimeHistory}</a>
       </nav> : null}
       <div className="runtime-operator-actions">
-        <button type="button" className="runtime-operator-button" aria-expanded={alarmsOpen} onClick={() => setAlarmsOpen(value => !value)}>
+        {playback.mode === 'live' ? (
+          <button
+            type="button"
+            className="runtime-operator-button"
+            data-testid="runtime-enter-historical-playback"
+            onClick={playback.enterPlayback}
+          >
+            {playbackText.enter}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="runtime-operator-button runtime-playback-exit"
+            data-testid="runtime-exit-historical-playback"
+            onClick={playback.exitPlayback}
+          >
+            {playbackText.exit}
+          </button>
+        )}
+        <button
+          type="button"
+          className="runtime-operator-button"
+          aria-expanded={alarmsOpen}
+          disabled={playback.mode === 'historicalPlayback'}
+          title={playback.mode === 'historicalPlayback' ? playbackText.readOnly : undefined}
+          onClick={() => setAlarmsOpen(value => !value)}
+        >
           {text.alarms}
         </button>
         <button type="button" className="runtime-operator-button" onClick={() => void toggleFullscreen()}>
@@ -172,6 +229,49 @@ function EngineeringRuntimeApplication({
         {isFullscreen ? <UserSessionMenu locale={locale} includeRuntimeSessionControls /> : null}
       </div>
     </header>
+
+    {playback.mode === 'historicalPlayback' ? <section
+      className="runtime-playback-panel"
+      data-testid="runtime-historical-playback-panel"
+      data-runtime-session-control
+      aria-label={playbackText.title}
+    >
+      <div className="runtime-playback-panel__header">
+        <strong>{playbackText.title}</strong>
+        <span>{playbackText.readOnly}</span>
+      </div>
+      <HistoricalTimeRangeControls
+        locale={locale}
+        value={playback.timeRange}
+        onChange={playback.setTimeRange}
+        onRefresh={playback.refresh}
+      />
+      <label className="runtime-playback-position">
+        <span>{playbackText.instant}</span>
+        <input
+          type="range"
+          min={0}
+          max={1000}
+          step={1}
+          value={Math.round(playback.position * 1000)}
+          aria-label={playbackText.instant}
+          onChange={event => playback.setPosition(Number(event.target.value) / 1000)}
+        />
+        <output>{playback.atUtc ?? '—'}</output>
+      </label>
+      <div
+        className="runtime-playback-status"
+        role={playback.loadState === 'error' ? 'alert' : 'status'}
+        data-playback-load-state={playback.loadState}
+        data-playback-gap-count={playback.gapCount}
+      >
+        {playback.loadState === 'loading' ? playbackText.loading : null}
+        {playback.loadState === 'ready'
+          ? `${playbackText.ready}: ${playback.resolvedTagCount} · ${playbackText.gaps}: ${playback.gapCount}`
+          : null}
+        {playback.loadState === 'error' ? `${playbackText.error}: ${playback.error ?? ''}` : null}
+      </div>
+    </section> : null}
 
     <section className="runtime-engineering-canvas" data-testid="runtime-engineering-canvas">
       <RuntimeVisualNavigator
@@ -194,6 +294,54 @@ function EngineeringRuntimeApplication({
       </div>
     </aside> : null}
   </main>;
+}
+
+type HistoricalPlaybackCopy = Readonly<{
+  title: string;
+  enter: string;
+  exit: string;
+  instant: string;
+  readOnly: string;
+  loading: string;
+  ready: string;
+  gaps: string;
+  error: string;
+}>;
+
+function historicalPlaybackCopy(locale: ReturnType<typeof useAppShellLocale>): HistoricalPlaybackCopy {
+  if (locale === 'en') return Object.freeze({
+    title: 'Historical Playback',
+    enter: 'Historical Playback',
+    exit: 'Return to Live',
+    instant: 'Historical instant',
+    readOnly: 'Read-only · process actions blocked',
+    loading: 'Loading historical state…',
+    ready: 'Historical TAGs',
+    gaps: 'gaps',
+    error: 'Historical Playback error'
+  });
+  if (locale === 'es') return Object.freeze({
+    title: 'Reproducción histórica',
+    enter: 'Reproducción histórica',
+    exit: 'Volver a vivo',
+    instant: 'Instante histórico',
+    readOnly: 'Solo lectura · acciones de proceso bloqueadas',
+    loading: 'Cargando estado histórico…',
+    ready: 'TAGs históricos',
+    gaps: 'vacíos',
+    error: 'Error de reproducción histórica'
+  });
+  return Object.freeze({
+    title: 'Playback histórico',
+    enter: 'Playback histórico',
+    exit: 'Voltar ao Live',
+    instant: 'Instante histórico',
+    readOnly: 'Somente leitura · ações de processo bloqueadas',
+    loading: 'Carregando estado histórico…',
+    ready: 'TAGs históricos',
+    gaps: 'gaps',
+    error: 'Erro no Playback histórico'
+  });
 }
 
 function isRetryableRuntimeProjectionFailure(failure: Error): boolean {

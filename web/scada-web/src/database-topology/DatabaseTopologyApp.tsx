@@ -276,7 +276,7 @@ export function DatabaseTopologyApp() {
       primary: { ...current.primary, password: '' },
       historian: { ...current.historian, password: '' }
     }));
-    setNotice({ tone: 'success', text: t.passwordCleared });
+    setNotice({ tone: 'success', text: t.credentialsConfigured });
     await refresh(false);
   });
 

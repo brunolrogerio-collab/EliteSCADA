@@ -697,22 +697,31 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
                   </small>
                   {runningHintWhenChanged(t.showCurrent, runningNode?.localEndpoint, node.localEndpoint, runningNode?.localEndpoint)}
                 </label>
-                <label>
-                  {t.externalAddress}
-                  <input
-                    aria-label={(isCurrentServer ? t.currentServer : t.partnerServer) + ' · ' + t.externalAddress}
-                    value={node.remoteEndpoint || ''}
-                    onChange={e => updateNode(index, 'remoteEndpoint', e.target.value)}
-                    placeholder={node.localEndpoint || ''}
-                  />
-                  <small className="ha-field-hint">{t.externalAddressHint}</small>
-                  {runningHintWhenChanged(
-                    t.showCurrent,
-                    runningNode?.remoteEndpoint,
-                    node.remoteEndpoint || node.localEndpoint,
-                    runningNode?.remoteEndpoint || runningNode?.localEndpoint
+                <details
+                  className="ha-node-more"
+                  open={Boolean(
+                    node.remoteEndpoint &&
+                    canonicalEndpoint(node.remoteEndpoint) !== canonicalEndpoint(node.localEndpoint)
                   )}
-                </label>
+                >
+                  <summary>{t.externalOverride}</summary>
+                  <label>
+                    {t.externalAddress}
+                    <input
+                      aria-label={(isCurrentServer ? t.currentServer : t.partnerServer) + ' · ' + t.externalAddress}
+                      value={node.remoteEndpoint || ''}
+                      onChange={e => updateNode(index, 'remoteEndpoint', e.target.value)}
+                      placeholder={node.localEndpoint || ''}
+                    />
+                    <small className="ha-field-hint">{t.externalAddressHint}</small>
+                    {runningHintWhenChanged(
+                      t.showCurrent,
+                      runningNode?.remoteEndpoint,
+                      node.remoteEndpoint || node.localEndpoint,
+                      runningNode?.remoteEndpoint || runningNode?.localEndpoint
+                    )}
+                  </label>
+                </details>
               </fieldset>
             );
           })}
@@ -735,38 +744,6 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
             <span>{t.peerConnectionManaged}</span>
             <strong>{t.automatic}</strong>
             <small className="ha-field-hint">{t.peerConnectionManagedHint}</small>
-          </div>
-
-          <div className="ha-managed-field" data-testid="ha-peer-endpoint-mode">
-            <span>{t.peerEndpoint}</span>
-            {overridePeerEndpoint ? (
-              <>
-                <input
-                  aria-label={t.peerEndpoint}
-                  value={draft.peerTransport.peerEndpoint || ''}
-                  onChange={e => setDraft({ ...draft, peerTransport: { ...draft.peerTransport, peerEndpoint: e.target.value } })}
-                />
-                <small className="ha-field-hint">{t.peerEndpointHelp}</small>
-                <button
-                  type="button"
-                  className="ha-link-button"
-                  onClick={() => {
-                    setOverridePeerEndpoint(false);
-                    setDraft({ ...draft, peerTransport: { ...draft.peerTransport, peerEndpoint: '' } });
-                  }}
-                >
-                  {t.useAutomaticPeerEndpoint}
-                </button>
-              </>
-            ) : (
-              <>
-                <strong>{t.peerEndpointAutomatic}</strong>
-                <small className="ha-field-hint">{t.peerEndpointAutomaticHint}</small>
-                <button type="button" className="ha-link-button" onClick={() => setOverridePeerEndpoint(true)}>
-                  {t.overridePeerEndpoint}
-                </button>
-              </>
-            )}
           </div>
         </div>
 
@@ -860,6 +837,46 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
                 </div>
               </>
             )}
+
+            <details className="ha-subdisclosure" data-testid="ha-peer-transport-override">
+              <summary>
+                <span>{t.peerTransportOverride}</span>
+                <small>{t.peerTransportOverrideHint}</small>
+              </summary>
+              <div className="ha-subdisclosure__body">
+                <div className="ha-managed-field" data-testid="ha-peer-endpoint-mode">
+                  <span>{t.peerEndpoint}</span>
+                  {overridePeerEndpoint ? (
+                    <>
+                      <input
+                        aria-label={t.peerEndpoint}
+                        value={draft.peerTransport.peerEndpoint || ''}
+                        onChange={e => setDraft({ ...draft, peerTransport: { ...draft.peerTransport, peerEndpoint: e.target.value } })}
+                      />
+                      <small className="ha-field-hint">{t.peerEndpointHelp}</small>
+                      <button
+                        type="button"
+                        className="ha-link-button"
+                        onClick={() => {
+                          setOverridePeerEndpoint(false);
+                          setDraft({ ...draft, peerTransport: { ...draft.peerTransport, peerEndpoint: '' } });
+                        }}
+                      >
+                        {t.useAutomaticPeerEndpoint}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <strong>{t.peerEndpointAutomatic}</strong>
+                      <small className="ha-field-hint">{t.peerEndpointAutomaticHint}</small>
+                      <button type="button" className="ha-link-button" onClick={() => setOverridePeerEndpoint(true)}>
+                        {t.overridePeerEndpoint}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </details>
 
             <details className="ha-subdisclosure" data-testid="ha-safety-tuning">
               <summary>

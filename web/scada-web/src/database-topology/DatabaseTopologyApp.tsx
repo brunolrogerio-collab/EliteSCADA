@@ -424,8 +424,8 @@ export function DatabaseTopologyApp() {
   const onVerify = () => run('verify', async () => {
     if (!operationId) return;
     const result = await verifyDatabaseMigration(operationId);
+    await refresh(false, true);
     setNotice({ tone: result.succeeded ? 'success' : 'danger', text: result.diagnostic ?? (result.succeeded ? t.compatible : t.incompatible) });
-    await refresh(false);
   });
 
   const onCommit = () => run('commit', async () => {
@@ -563,7 +563,7 @@ export function DatabaseTopologyApp() {
           <div><h3>{t.validation}</h3><p>{t.validateTargetHelp}</p></div>
         </div>
         <div className="db-topology-actions db-topology-actions--guided">
-          <button type="button" data-step="1" disabled={Boolean(busy) || configurationLocked || !remoteCoreReady} onClick={onValidateTarget}>{busy === 'validate' ? t.working : t.validateTarget}</button>
+          <button type="button" data-step="1" disabled={Boolean(busy) || configurationLocked || !remoteCoreReady || !profileRequest} onClick={onValidateTarget}>{busy === 'validate' ? t.working : t.validateTarget}</button>
           <button type="button" data-step="2" className="db-topology-primary-action" disabled={Boolean(busy) || configurationLocked || compatibility?.compatible !== true} onClick={onPrepare}>{busy === 'prepare' ? t.working : t.prepare}</button>
         </div>
 

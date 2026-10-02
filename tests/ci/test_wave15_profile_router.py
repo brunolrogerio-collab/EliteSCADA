@@ -77,6 +77,12 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         result = self.classify(["src/Scada.Api/HighAvailability/State.cs"], "VALIDATION_PROFILE: UI_EDITOR")
         self.assertIn("HA_DISTRIBUTED", result["effective_profiles"])
 
+    def test_ha_distributed_owns_mounted_admin_browser_evidence(self):
+        result = self.classify([], "VALIDATION_PROFILE: HA_DISTRIBUTED")
+        self.assertTrue(result["run_dotnet"])
+        self.assertTrue(result["run_e2e"])
+        self.assertIn("tests-e2e/ha-admin-workspace.spec.ts", result["e2e_specs"])
+
     def test_unknown_profile_fails(self):
         with self.assertRaises(router.ProfileError):
             self.classify(["docs/a.md"], "VALIDATION_PROFILE: FASTEST")
@@ -158,6 +164,15 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         self.assertTrue(result["run_web"])
         self.assertTrue(result["run_e2e"])
         self.assertIn("Scada.Security.Tests", result["dotnet_projects"][0])
+        self.assertIn("tests-e2e/database-topology-mounted.spec.ts", result["e2e_specs"])
+
+    def test_database_topology_paths_infer_authority_ux(self):
+        result = self.classify(
+            ["web/scada-web/src/database-topology/DatabaseTopologyApp.tsx"],
+            "VALIDATION_PROFILE: AUTHORITY_UX",
+        )
+        self.assertIn("AUTHORITY_UX", result["effective_profiles"])
+        self.assertIn("tests-e2e/database-topology-mounted.spec.ts", result["e2e_specs"])
 
     def test_licensing_ux_has_backend_web_and_browser_evidence(self):
         result = self.classify([], "VALIDATION_PROFILE: LICENSING_UX")

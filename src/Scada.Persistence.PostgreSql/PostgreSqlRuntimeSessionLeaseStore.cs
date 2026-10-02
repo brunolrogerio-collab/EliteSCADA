@@ -1,4 +1,5 @@
 using Npgsql;
+using Scada.Core.Persistence;
 using NpgsqlTypes;
 using Scada.Security.Authorization;
 
@@ -12,12 +13,16 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
 {
     private const long LeaseMutationAdvisoryLock = 4993446713136202566;
     private readonly NpgsqlDataSource _dataSource;
+    private readonly IDurableWriteAdmission? _writeAdmission;
 
-    public PostgreSqlRuntimeSessionLeaseStore(string connectionString)
+    public PostgreSqlRuntimeSessionLeaseStore(
+        string connectionString,
+        IDurableWriteAdmission? writeAdmission = null)
     {
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new ArgumentException("PostgreSQL connection string is required.", nameof(connectionString));
         _dataSource = NpgsqlDataSource.Create(connectionString);
+        _writeAdmission = writeAdmission;
     }
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
@@ -151,6 +156,7 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         DateTimeOffset? expectedExistingStartedAtUtc,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("runtime-session", cancellationToken);
         requestedStartedAtUtc = RuntimeDemoSessionAnchor.Normalize(requestedStartedAtUtc);
         expectedExistingStartedAtUtc = expectedExistingStartedAtUtc is { } expectedAnchor
             ? RuntimeDemoSessionAnchor.Normalize(expectedAnchor)
@@ -202,6 +208,7 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         DateTimeOffset startedAtUtc,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("runtime-session", cancellationToken);
         ArgumentException.ThrowIfNullOrWhiteSpace(kind);
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
@@ -245,6 +252,7 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         long expectedBaseAuthorityRevision,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("runtime-session", cancellationToken);
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         try
@@ -284,6 +292,7 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         DateTimeOffset? demoStartedAtUtc,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("runtime-session", cancellationToken);
         demoStartedAtUtc = demoStartedAtUtc is { } anchor
             ? RuntimeDemoSessionAnchor.Normalize(anchor)
             : null;
@@ -329,6 +338,7 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         long authorityRevision,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("runtime-session", cancellationToken);
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         try
@@ -354,11 +364,55 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         }
     }
 
+    public async Task<int> RebindActiveClusterLeasesAsync(
+        Guid transitionId,
+        long authorityRevision,
+        string clusterId,
+        string serverNode,
+        CancellationToken cancellationToken = default)
+    {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("runtime-session", cancellationToken);
+        ArgumentException.ThrowIfNullOrWhiteSpace(clusterId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(serverNode);
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            await AcquireLeaseMutationLockAsync(connection, transaction, cancellationToken);
+            var state = await LoadAuthorityStateForUpdateAsync(connection, transaction, cancellationToken);
+            RequirePendingTransition(state, transitionId, authorityRevision);
+
+            const string sql = """
+                UPDATE elitescada.runtime_session_leases
+                SET authority_revision = @authority_revision,
+                    server_node = @server_node,
+                    generation = generation + 1
+                WHERE is_active
+                  AND authority_revision < @authority_revision
+                  AND cluster_id = @cluster_id;
+                """;
+            await using var command = new NpgsqlCommand(sql, connection, transaction);
+            command.Parameters.AddWithValue("authority_revision", NpgsqlDbType.Bigint, authorityRevision);
+            command.Parameters.AddWithValue("server_node", NpgsqlDbType.Text, serverNode.Trim());
+            command.Parameters.AddWithValue("cluster_id", NpgsqlDbType.Text, clusterId.Trim());
+            var changed = await command.ExecuteNonQueryAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return changed;
+        }
+        catch
+        {
+            await RollbackQuietlyAsync(transaction);
+            throw;
+        }
+    }
+
     public async Task CompleteAuthorityTransitionAsync(
         Guid transitionId,
         long authorityRevision,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("runtime-session", cancellationToken);
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         try
@@ -416,6 +470,7 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         long expectedAuthorityRevision,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("runtime-session", cancellationToken);
         ArgumentNullException.ThrowIfNull(lease);
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedClusterId);
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedSourceNode);
@@ -556,6 +611,7 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         string expectedSourceNode,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("runtime-session", cancellationToken);
         ArgumentNullException.ThrowIfNull(tombstone);
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedClusterId);
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedSourceNode);
@@ -656,6 +712,7 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         RuntimeSessionLeaseAdmission admission,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("runtime-session", cancellationToken);
         ValidateAdmission(admission);
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
@@ -727,6 +784,7 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         RuntimeSessionLeaseCapacityAdmission capacityAdmission,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("runtime-session", cancellationToken);
         ArgumentNullException.ThrowIfNull(capacityAdmission);
         var admission = capacityAdmission.Lease;
         ValidateAdmission(admission);
@@ -852,6 +910,7 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         string? clientInstanceId = null,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("runtime-session", cancellationToken);
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         try
@@ -877,6 +936,7 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         CancellationToken cancellationToken = default,
         long? expectedGeneration = null)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("runtime-session", cancellationToken);
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         try
@@ -926,6 +986,7 @@ public sealed class PostgreSqlRuntimeSessionLeaseStore : IRuntimeSessionLeaseSto
         CancellationToken cancellationToken = default,
         long? expectedGeneration = null)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("runtime-session", cancellationToken);
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         try

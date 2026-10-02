@@ -40,7 +40,7 @@ PATH_RULES = (
     )),
     ("RUNTIME_RENDERER", ("visual-runtime", "renderer", "src/scada.runtime/", "src/scada.api/runtime/", "web/scada-web/src/runtime/")),
     ("UI_EDITOR", ("web/scada-web/src/engineering/", "visual-editor", "screen-editor")),
-    ("AUTHORITY_UX", ("web/scada-web/src/security/", "effective-capabilities", "user-administration", "security.spec")),
+    ("AUTHORITY_UX", ("web/scada-web/src/security/", "web/scada-web/src/database-topology/", "effective-capabilities", "user-administration", "security.spec", "database-topology-mounted.spec")),
     ("LICENSING_UX", ("web/scada-web/src/licensing/", "license-generator", "licensing")),
     ("ELITEGO_RUNTIME", ("elitego",)),
     ("INSTALLATION", ("projectpackages", "systemrecovery", "installation", "persistedruntime")),
@@ -78,10 +78,11 @@ E2E_SPECS = {
     "SCRIPT_ENGINEERING": ("tests-e2e/script-engineering-workspace-contract.spec.ts",),
     "SCRIPT_RUNTIME": ("tests-e2e/python-runtime-host.spec.ts",),
     "RUNTIME_RENDERER": ("tests-e2e/runtime.spec.ts", "tests-e2e/wave-14-c25-runtime-session.spec.ts"),
-    "AUTHORITY_UX": ("tests-e2e/security.spec.ts",),
+    "AUTHORITY_UX": ("tests-e2e/security.spec.ts", "tests-e2e/database-topology-mounted.spec.ts"),
     "LICENSING_UX": ("tests-e2e/effective-capabilities-contract.spec.ts",),
     "ELITEGO_RUNTIME": ("tests-e2e/runtime.spec.ts",),
     "INSTALLATION": ("tests-e2e/local-auth.spec.ts",),
+    "HA_DISTRIBUTED": ("tests-e2e/ha-admin-workspace.spec.ts",),
 }
 
 

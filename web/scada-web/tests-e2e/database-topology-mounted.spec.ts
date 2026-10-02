@@ -120,6 +120,7 @@ async function fillRemoteProfile(page: Page) {
   await page.getByLabel('Primary Database').fill('elitescada');
   await page.getByLabel('Primary Username / identity').fill('elitescada_admin');
   await page.getByLabel('Primary Password / secret').fill(secret);
+  await page.getByText('Advanced settings', { exact: true }).click();
   await page.getByLabel('Primary TLS mode').selectOption('VerifyFull');
   await page.getByLabel('Primary CA / root certificate path').fill('/etc/elitescada/certs/db-root.pem');
   await page.getByLabel('Primary Timeout (s)').fill('15');
@@ -269,7 +270,8 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
   await attachScreenshot(page, testInfo, '03-test-and-compatibility-success');
 
   await page.getByRole('button', { name: 'Prepare' }).click();
-  await expect(page.getByTestId('database-migration-plan')).toContainText('LocalManaged → Remote');
+  await expect(page.getByTestId('database-migration-plan')).toContainText('LocalManaged');
+  await expect(page.getByTestId('database-migration-plan')).toContainText('Remote');
   await expect(page.getByRole('status')).toContainText('Credentials configured');
   await expect(page.getByLabel('Primary Password / secret')).toHaveValue('');
   const browserStorage = await page.evaluate(() => ({

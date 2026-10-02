@@ -775,7 +775,11 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
               if (showSecretEditor) setDraft({ ...draft, peerSharedSecret: '' });
             }}
           >
-            {showSecretEditor ? t.cancelSecretChange : t.replaceSecret}
+            {showSecretEditor
+              ? t.cancelSecretChange
+              : draft.peerTransport.authenticationConfigured
+                ? t.replaceSecret
+                : t.configureAuthentication}
           </button>
         </div>
 
@@ -963,7 +967,12 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
           <button
             type="button"
             className="ha-button ha-button--primary"
-            disabled={!desiredChanged || saving || validation.length > 0}
+            disabled={
+              !desiredChanged ||
+              saving ||
+              validation.length > 0 ||
+              (!topology.enabled && deploymentChoice === 'ha' && !haReadyForDeployment)
+            }
             onClick={() => void saveConfiguration()}
           >
             {saving ? t.saving : (!topology.enabled && deploymentChoice === 'ha' ? t.saveHaPreparation : t.save)}
@@ -979,7 +988,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
         </summary>
         <div className="ha-disclosure__body">
           <dl className="ha-diagnostics">
-            <div><dt>{t.fencing}</dt><dd>{protection.reference ? `${protection.reference.activeNodeId || 'fenced'} · epoch ${protection.reference.epoch}` : '—'}</dd></div>
+            <div><dt>{t.fencing}</dt><dd>{protection.reference ? `${protection.reference.activeNodeId ? friendlyNode(protection.reference.activeNodeId) : 'fenced'} · epoch ${protection.reference.epoch}` : '—'}</dd></div>
             <div><dt>{t.peerTransport}</dt><dd>{peer.connectionState} · {peer.authenticationConfigured ? t.authenticationConfigured : t.authenticationNotConfigured}</dd></div>
             <div><dt>Mirror</dt><dd>{peer.mirror.liveSynchronized ? 'live synchronized' : peer.mirror.reasonCode || 'not synchronized'}</dd></div>
             <div><dt>{t.topologyVersion}</dt><dd>{topology.topologyVersion} · state v{topology.stateVersion}</dd></div>
@@ -1000,8 +1009,8 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
               <article className={'ha-operation ha-operation--' + operation.state} key={operation.operationId}>
                 <div><strong>{operation.kind}</strong><span>{operation.state}</span></div>
                 <dl>
-                  <div><dt>{t.source}</dt><dd>{operation.sourceNodeId || '—'}</dd></div>
-                  <div><dt>{t.target}</dt><dd>{operation.targetNodeId || '—'}</dd></div>
+                  <div><dt>{t.source}</dt><dd>{friendlyNode(operation.sourceNodeId)}</dd></div>
+                  <div><dt>{t.target}</dt><dd>{friendlyNode(operation.targetNodeId)}</dd></div>
                   <div><dt>{t.epoch}</dt><dd>{operation.epoch ?? '—'}</dd></div>
                   <div><dt>{operation.state === 'completed' ? t.result : t.error}</dt><dd>{operation.reasonCode}</dd></div>
                 </dl>
@@ -1018,8 +1027,8 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
             <p>{t.confirmHint}</p>
             <dl>
               <div><dt>{t.requested}</dt><dd>{confirm.kind}</dd></div>
-              <div><dt>{t.source}</dt><dd>{topology.effectiveActiveNodeId || topology.localNodeId}</dd></div>
-              <div><dt>{t.target}</dt><dd>{confirm.target || 'backend default'}</dd></div>
+              <div><dt>{t.source}</dt><dd>{friendlyNode(topology.effectiveActiveNodeId || topology.localNodeId)}</dd></div>
+              <div><dt>{t.target}</dt><dd>{confirm.target ? friendlyNode(confirm.target) : 'backend default'}</dd></div>
               <div><dt>{t.epoch}</dt><dd>{topology.authorityEpoch}</dd></div>
             </dl>
             <div className="ha-modal__actions">

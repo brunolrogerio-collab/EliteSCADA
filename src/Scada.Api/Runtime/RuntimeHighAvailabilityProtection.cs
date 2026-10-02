@@ -661,6 +661,10 @@ public sealed class RuntimeHaProtectionCoordinator
             return;
         }
 
+        _highAvailability.Authority.ApplyReferencedAuthority(
+            activeNodeId: null,
+            referencedEpoch: reference.Epoch,
+            previousAuthorityFenced: true);
         await FenceLocalSessionsIfNeededAsync("ha-reference-expired", cancellationToken);
         SetReference(reference, false, "reference-lease-expired");
 

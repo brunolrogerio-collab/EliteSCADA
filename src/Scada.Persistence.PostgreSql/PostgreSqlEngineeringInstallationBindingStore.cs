@@ -1,4 +1,5 @@
 using Npgsql;
+using Scada.Core.Persistence;
 using NpgsqlTypes;
 using Scada.Engineering.Persistence;
 
@@ -9,12 +10,16 @@ public sealed class PostgreSqlEngineeringInstallationBindingStore : IEngineering
     private const long BindingMutationAdvisoryLock = 4993446713136202566;
     private const string StateKey = "engineering-installation-binding-v1";
     private readonly NpgsqlDataSource _dataSource;
+    private readonly IDurableWriteAdmission? _writeAdmission;
 
-    public PostgreSqlEngineeringInstallationBindingStore(string connectionString)
+    public PostgreSqlEngineeringInstallationBindingStore(
+        string connectionString,
+        IDurableWriteAdmission? writeAdmission = null)
     {
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new ArgumentException("PostgreSQL connection string is required.", nameof(connectionString));
         _dataSource = NpgsqlDataSource.Create(connectionString);
+        _writeAdmission = writeAdmission;
     }
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
@@ -133,6 +138,7 @@ public sealed class PostgreSqlEngineeringInstallationBindingStore : IEngineering
         bool advanceGeneration,
         CancellationToken cancellationToken)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("engineering-installation-binding", cancellationToken);
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         await using (var mutation = new NpgsqlCommand(

@@ -1,5 +1,18 @@
 
 
+## LOCAL BACNET VALUE CONVERGENCE CORRECTION — 2026-10-02
+
+- current integration base: `cf660606f79ec79651af379e85f2aed98305ab1a`.
+- supplied patch base blobs exactly matched live integration.
+- PR #458 carries the bounded two-file correction on `work/w15-local-bacnet-value-convergence`.
+- exact head: `042a068e38201748b455904c086ef53b6e353e89`.
+- tree: `ce8ed6ce707f98eab3066c4c5c58e55f4ea60cea`.
+- scope: post-write BACnet cache convergence to the actual encoded/decoded protocol value + regression coverage using non-exact REAL value `0.1`.
+- local evidence: 4 focused BACnet tests and 805 full driver tests passed.
+- limitation: only fake/simulated BACnet session was exercised; no external simulator or physical device proof yet.
+- state: `DRAFT / DRIVER_PROTOCOL_T1_PENDING / NO_MERGE_WITHOUT_PO_AUTHORITY`.
+
+
 ## PR #457 MODBUS / NUMERIC INPUT INTEGRATED — 2026-10-02
 
 - Product Owner explicitly authorized merge.

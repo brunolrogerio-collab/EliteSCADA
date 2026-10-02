@@ -254,8 +254,9 @@ test('mounted Simulation TAG editor presents one canonical type-aware authoring 
   test.setTimeout(60_000);
   const workspaceResponse = await request.get('/api/engineering/workspace');
   expect(workspaceResponse.ok()).toBeTruthy();
-  const workspace = await workspaceResponse.json() as { projectKey?: string | null };
+  const workspace = await workspaceResponse.json() as { projectKey?: string | null; projectName?: string | null };
   const projectKey = workspace.projectKey ?? 'e2e-wave03';
+  const originalProjectName = workspace.projectName ?? 'E2E Explicit Demo Fixture';
   const sourceName = 'Simulation UX Convergence Source';
   const tagName = 'Simulation UX Runtime Value';
 
@@ -446,7 +447,7 @@ test('mounted Simulation TAG editor presents one canonical type-aware authoring 
       ).toBeTruthy();
     }
 
-    await savePublishActivate(request, projectKey, 'Simulation TAG UX convergence cleanup');
+    await savePublishActivate(request, projectKey, originalProjectName);
 
     await expect.poll(async () => {
       const response = await request.get('/api/tags');

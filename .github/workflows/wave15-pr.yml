@@ -21,6 +21,7 @@ jobs:
   classify:
     name: Classify Wave 15 validation profile
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       coordination_exempt: ${{ steps.router.outputs.coordination_exempt }}
       run_common_sanity: ${{ steps.router.outputs.run_common_sanity }}
@@ -72,7 +73,6 @@ jobs:
     needs: classify
     if: needs.classify.outputs.run_common_sanity == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4

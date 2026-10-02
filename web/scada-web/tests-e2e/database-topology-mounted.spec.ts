@@ -270,6 +270,7 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
 
   await page.getByRole('button', { name: 'Prepare' }).click();
   await expect(page.getByTestId('database-migration-plan')).toContainText('LocalManaged → Remote');
+  await expect(page.getByRole('status')).toContainText('Credentials configured');
   await expect(page.getByLabel('Primary Password / secret')).toHaveValue('');
   const browserStorage = await page.evaluate(() => ({
     local: JSON.stringify(window.localStorage),

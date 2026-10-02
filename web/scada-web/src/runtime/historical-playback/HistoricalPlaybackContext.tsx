@@ -224,6 +224,10 @@ export function useHistoricalPlayback(): HistoricalPlaybackContextValue {
   return context;
 }
 
+export function useOptionalHistoricalPlayback(): HistoricalPlaybackContextValue | null {
+  return useContext(HistoricalPlaybackContext);
+}
+
 export function collectHistoricalPlaybackRequests(
   engineeringPackage: EngineeringPackageView
 ): readonly RuntimeVisualSourceRequest[] {

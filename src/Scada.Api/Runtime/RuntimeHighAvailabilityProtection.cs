@@ -470,6 +470,7 @@ public sealed class RuntimeHaProtectionCoordinator
     private readonly RuntimeHaPeerMirrorStore _mirror;
     private readonly HighAvailabilityRuntimeCoordinator _runtime;
     private readonly IRuntimeSessionLeaseStore _sessions;
+    private readonly RuntimeHaHostConfigurationAuthority? _hostConfiguration;
     private readonly Func<DateTimeOffset> _utcNow;
     private RuntimeHaReferenceAuthority? _lastReference;
     private RuntimeHaStandbyPromotionWitness? _lastReadyWitness;
@@ -484,7 +485,8 @@ public sealed class RuntimeHaProtectionCoordinator
         RuntimeHaPeerTransportState peerTransport,
         RuntimeHaPeerMirrorStore mirror,
         HighAvailabilityRuntimeCoordinator runtime,
-        IRuntimeSessionLeaseStore sessions)
+        IRuntimeSessionLeaseStore sessions,
+        RuntimeHaHostConfigurationAuthority? hostConfiguration = null)
         : this(
             options,
             highAvailability,
@@ -493,7 +495,8 @@ public sealed class RuntimeHaProtectionCoordinator
             mirror,
             runtime,
             sessions,
-            () => DateTimeOffset.UtcNow)
+            () => DateTimeOffset.UtcNow,
+            hostConfiguration)
     {
     }
 
@@ -505,7 +508,8 @@ public sealed class RuntimeHaProtectionCoordinator
         RuntimeHaPeerMirrorStore mirror,
         HighAvailabilityRuntimeCoordinator runtime,
         IRuntimeSessionLeaseStore sessions,
-        Func<DateTimeOffset> utcNow)
+        Func<DateTimeOffset> utcNow,
+        RuntimeHaHostConfigurationAuthority? hostConfiguration = null)
     {
         _options = options;
         _highAvailability = highAvailability;
@@ -514,6 +518,7 @@ public sealed class RuntimeHaProtectionCoordinator
         _mirror = mirror;
         _runtime = runtime;
         _sessions = sessions;
+        _hostConfiguration = hostConfiguration;
         _utcNow = utcNow;
 
         _highAvailability.AttachExternalIndustrialFence(CanOwnIndustrialEffects);
@@ -535,25 +540,30 @@ public sealed class RuntimeHaProtectionCoordinator
             reason = _reasonCode;
         }
 
+        var configurationPending = _hostConfiguration?.PendingRestart == true;
         var permitted = CanOwnIndustrialEffects(topology);
-        var status = !_options.Enabled
-            ? "disabled"
-            : topology.AmbiguousAuthority
-                ? "ambiguous"
-                : reference is null
-                    ? "blocked"
-                    : permitted
-                        ? "active"
-                        : reference.IsLiveAt(_utcNow())
-                            ? "standby"
-                            : "degraded";
+        var status = configurationPending
+            ? "blocked"
+            : !_options.Enabled
+                ? "disabled"
+                : topology.AmbiguousAuthority
+                    ? "ambiguous"
+                    : reference is null
+                        ? "blocked"
+                        : permitted
+                            ? "active"
+                            : reference.IsLiveAt(_utcNow())
+                                ? "standby"
+                                : "degraded";
 
         return new RuntimeHaProtectionDiagnostics(
             _options.Enabled,
             _options.AutomaticFailoverEnabled,
             permitted,
             status,
-            reason ?? (committed ? "local-takeover-committed" : null),
+            configurationPending
+                ? "host-configuration-restart-required"
+                : reason ?? (committed ? "local-takeover-committed" : null),
             reference,
             witness,
             topology);
@@ -979,6 +989,8 @@ public sealed class RuntimeHaProtectionCoordinator
 
     private bool CanOwnIndustrialEffects(RuntimeHaTopologySnapshot topology)
     {
+        if (_hostConfiguration?.AllowsIndustrialEffects == false)
+            return false;
         if (!_options.Enabled)
             return true;
 
@@ -1131,8 +1143,8 @@ public static class RuntimeHaProtectionComposition
         this IServiceCollection services)
     {
         services.AddSingleton(sp =>
-            RuntimeHaProtectionOptions.FromConfiguration(
-                sp.GetRequiredService<IConfiguration>()));
+            sp.GetRequiredService<RuntimeHaHostConfigurationAuthority>()
+                .CreateProtectionOptions());
         services.AddSingleton<IRuntimeHaReferenceAuthorityStore, FileRuntimeHaReferenceAuthorityStore>();
         services.AddSingleton<RuntimeHaProtectionCoordinator>();
         services.AddHostedService<RuntimeHaProtectionHostedService>();

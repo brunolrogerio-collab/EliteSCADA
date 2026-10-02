@@ -53,6 +53,18 @@ function relativeTime(value?: string | null) {
   return Math.round(age / 60_000) + 'm';
 }
 
+function statusLabel(status: string, t: ReturnType<typeof haCopy>) {
+  const normalized = status.toLowerCase();
+  if (normalized === 'blocked') return t.blocked;
+  if (normalized === 'degraded') return t.degraded;
+  if (normalized === 'ambiguous') return t.ambiguous;
+  return status;
+}
+
+function runningHint(label: string, value: React.ReactNode) {
+  return <small className="ha-field-hint"><span>{label}</span> {value || '—'}</small>;
+}
+
 export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
   const t = haCopy(locale);
   const [snapshot, setSnapshot] = useState<HaWorkspaceSnapshot | null>(null);
@@ -115,8 +127,10 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
     setSaving(true);
     setFailure(null);
     setNotice(null);
+
     const secret = draft.peerSharedSecret;
     setDraft(current => current ? { ...current, peerSharedSecret: '' } : current);
+
     const request: HaHostConfigurationUpdateRequest = {
       expectedGeneration: snapshot.configuration.generation,
       enabled: draft.enabled,
@@ -134,6 +148,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
       },
       protection: { ...draft.protection, referencePath: draft.protection.referencePath || null }
     };
+
     try {
       const result = await haAdminApi.updateConfiguration(request);
       setNotice(result.snapshot.pendingRestart ? t.savedNotActive : t.saved);
@@ -187,10 +202,13 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
   const status = topology.ambiguousAuthority ? 'ambiguous'
     : authority.blocked ? 'blocked'
       : protection.status;
+
   const operations = activeOperation
     ? [activeOperation, ...administration.operations.filter(op => op.operationId !== activeOperation.operationId)]
     : administration.operations;
+  const latestOperation = operations[0] ?? null;
   const suggestedTarget = peerNode?.nodeId ?? '';
+  const peerAvailable = peer.connectionState === 'connected' && Boolean(peerNode?.fresh);
 
   return (
     <section className="ha-admin" data-testid="ha-admin-workspace">
@@ -200,7 +218,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
           <h1>{t.title}</h1>
           <p>{t.subtitle}</p>
         </div>
-        <button type="button" className="ha-button" onClick={() => void load(false)}>{t.refresh}</button>
+        <button type="button" className="ha-button ha-button--quiet" onClick={() => void load(false)}>{t.refresh}</button>
       </header>
 
       {(failure || notice) && (
@@ -216,94 +234,309 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
         </div>
       )}
 
-      <div className="ha-admin__status-grid">
-        <article className="ha-card ha-card--status">
+      <div className="ha-summary-grid">
+        <article className="ha-summary-card">
           <span>{t.status}</span>
-          <strong className={'ha-state ha-state--' + status}>{status}</strong>
+          <strong className={'ha-state ha-state--' + status}>{statusLabel(status, t)}</strong>
           <small>{protection.reasonCode || peer.reasonCode || '—'}</small>
         </article>
-        <article className="ha-card"><span>{t.effectiveActive}</span><strong>{topology.effectiveActiveNodeId || '—'}</strong><small>{t.epoch}: {topology.authorityEpoch}</small></article>
-        <article className="ha-card"><span>{t.localNode}</span><strong>{topology.localNodeId}</strong><small>{local ? stateName(local.state) : '—'} · {local?.fresh ? t.fresh : t.stale}</small></article>
-        <article className="ha-card"><span>{t.peerNode}</span><strong>{peer.peerNodeId || peerNode?.nodeId || '—'}</strong><small>{peerNode ? stateName(peerNode.state) : '—'} · {peer.connectionState} · {relativeTime(latestContact(snapshot))}</small></article>
-        <article className="ha-card"><span>{t.topologyVersion}</span><strong>{topology.topologyVersion}</strong><small>state v{topology.stateVersion}</small></article>
-        <article className="ha-card"><span>{t.generation}</span><strong>{configuration.generation}</strong><small>{configuration.pendingRestart ? t.restartRequired : configuration.applyMode}</small></article>
+
+        <article className="ha-summary-card">
+          <span>{t.effectiveActive}</span>
+          <strong>{topology.effectiveActiveNodeId || '—'}</strong>
+          <small>{t.epoch} {topology.authorityEpoch}</small>
+        </article>
+
+        <article className="ha-summary-card" data-testid="ha-peer-summary">
+          <span>{t.nodes}</span>
+          <div className="ha-node-summary">
+            <strong>{topology.localNodeId}</strong>
+            <small>{local ? stateName(local.state) : '—'}</small>
+          </div>
+          <div className="ha-node-summary">
+            <strong>{peer.peerNodeId || peerNode?.nodeId || '—'}</strong>
+            <small>{peerNode ? stateName(peerNode.state) : '—'} · {peer.connectionState} · {relativeTime(latestContact(snapshot))}</small>
+          </div>
+        </article>
+
+        <article className="ha-summary-card">
+          <span>{t.applyState}</span>
+          <strong>{configuration.pendingRestart ? t.restartRequired : t.running}</strong>
+          <small>{t.generation} {configuration.generation} · topology v{topology.topologyVersion}</small>
+        </article>
       </div>
 
-      <div className="ha-admin__columns">
-        <section className="ha-panel">
-          <div className="ha-panel__title"><div><h2>{t.configuration}</h2><p>{t.running} ≠ {t.desired} quando há mudança aguardando restart.</p></div></div>
-          <div className="ha-config-compare">
-            <div className="ha-config-compare__running">
-              <h3>{t.running}</h3>
-              <code>{configuration.running.clusterId || '—'} · v{configuration.running.topologyVersion}</code>
-              <span>{configuration.running.peerTransport.authenticationConfigured ? t.authenticationConfigured : 'Authentication not configured'}</span>
-            </div>
-            <div className="ha-config-compare__desired">
-              <h3>{t.desired}</h3>
-              <code>{configuration.desired.clusterId || '—'} · v{configuration.desired.topologyVersion}</code>
-              <span>{configuration.desired.peerTransport.authenticationConfigured ? t.authenticationConfigured : 'Authentication not configured'}</span>
-            </div>
+      <section className="ha-panel ha-panel--actions">
+        <div className="ha-panel__title">
+          <div>
+            <h2>{t.clusterOperation}</h2>
+            <p>{t.clusterOperationHint}</p>
           </div>
+        </div>
 
-          <div className="ha-form-grid">
-            <label>{t.enabled}<input type="checkbox" checked={draft.enabled} onChange={e => setDraft({ ...draft, enabled: e.target.checked })} /></label>
-            <label>{t.clusterId}<input value={draft.clusterId || ''} onChange={e => setDraft({ ...draft, clusterId: e.target.value })} /></label>
-            <label>{t.localNodeId}<input value={draft.localNodeId} onChange={e => setDraft({ ...draft, localNodeId: e.target.value })} /></label>
-            <label>{t.initialActiveNodeId}<input value={draft.initialActiveNodeId || ''} onChange={e => setDraft({ ...draft, initialActiveNodeId: e.target.value })} /></label>
-            <label>{t.topologyVersion}<input type="number" min={1} value={draft.topologyVersion} onChange={e => setDraft({ ...draft, topologyVersion: Number(e.target.value) })} /></label>
-            <label>{t.freshnessSeconds}<input type="number" min={1} max={120} value={draft.freshnessSeconds} onChange={e => setDraft({ ...draft, freshnessSeconds: Number(e.target.value) })} /></label>
+        <div className="ha-action-cards">
+          <button type="button" className="ha-action-card" onClick={() => setConfirm({ kind: 'switchover', target: suggestedTarget })}>
+            <strong>{t.switchover}</strong>
+            <span>{t.switchoverHint}</span>
+          </button>
+          <button type="button" className="ha-action-card" onClick={() => setConfirm({ kind: 'failback', target: draft.initialActiveNodeId })}>
+            <strong>{t.failback}</strong>
+            <span>{t.failbackHint}</span>
+          </button>
+          <button type="button" className="ha-action-card" onClick={() => setConfirm({ kind: 'recovery', target: topology.localNodeId })}>
+            <strong>{t.recovery}</strong>
+            <span>{t.recoveryHint}</span>
+          </button>
+        </div>
+
+        {latestOperation && (
+          <div className={'ha-latest-operation ha-latest-operation--' + latestOperation.state}>
+            <span>{t.latestOperation}</span>
+            <strong>{latestOperation.kind} · {latestOperation.state}</strong>
+            <small>{latestOperation.sourceNodeId || '—'} → {latestOperation.targetNodeId || '—'} · {latestOperation.reasonCode}</small>
           </div>
+        )}
+      </section>
 
-          <h3>{t.nodes}</h3>
-          <div className="ha-node-grid">
-            {draft.nodes.map((node, index) => (
+      <section className="ha-panel">
+        <div className="ha-panel__title">
+          <div>
+            <h2>{t.basicSettings}</h2>
+            <p>{t.basicSettingsHint}</p>
+          </div>
+          <div className="ha-config-state">
+            <span>{t.currentRunning}</span>
+            <strong>{configuration.running.clusterId || '—'}</strong>
+            {configuration.pendingRestart && <small>{t.savedDesired}: {configuration.desired.clusterId || '—'}</small>}
+          </div>
+        </div>
+
+        <div className="ha-form-grid ha-form-grid--essential">
+          <label className="ha-toggle-field">
+            <span>HA</span>
+            <input type="checkbox" checked={draft.enabled} onChange={e => setDraft({ ...draft, enabled: e.target.checked })} />
+            {runningHint(t.showCurrent, configuration.running.enabled ? t.enabled : t.disabled)}
+          </label>
+
+          <label>
+            {t.clusterId}
+            <input value={draft.clusterId || ''} onChange={e => setDraft({ ...draft, clusterId: e.target.value })} />
+            {runningHint(t.showCurrent, configuration.running.clusterId)}
+          </label>
+
+          <label>
+            {t.localNodeId}
+            <input value={draft.localNodeId} onChange={e => setDraft({ ...draft, localNodeId: e.target.value })} />
+            {runningHint(t.showCurrent, configuration.running.localNodeId)}
+          </label>
+
+          <label className="ha-toggle-field">
+            <span>{t.automaticFailover}</span>
+            <input
+              type="checkbox"
+              checked={draft.protection.automaticFailoverEnabled}
+              onChange={e => setDraft({ ...draft, protection: { ...draft.protection, automaticFailoverEnabled: e.target.checked } })}
+            />
+            {runningHint(t.showCurrent, configuration.running.protection.automaticFailoverEnabled ? t.enabled : t.disabled)}
+          </label>
+        </div>
+
+        <div className="ha-section-heading">
+          <div>
+            <h3>{t.nodes}</h3>
+            <p>{t.nodeEndpointsHint}</p>
+          </div>
+        </div>
+
+        <div className="ha-node-grid">
+          {draft.nodes.map((node, index) => {
+            const runningNode = configuration.running.nodes[index];
+            return (
               <fieldset key={index} className="ha-node">
                 <legend>{node.nodeId || 'Node ' + (index + 1)}</legend>
-                <label>Node ID<input value={node.nodeId} onChange={e => updateNode(index, 'nodeId', e.target.value)} /></label>
-                <label>{t.localEndpoint}<input value={node.localEndpoint || ''} onChange={e => updateNode(index, 'localEndpoint', e.target.value)} /></label>
-                <label>{t.remoteEndpoint}<input value={node.remoteEndpoint || ''} onChange={e => updateNode(index, 'remoteEndpoint', e.target.value)} /></label>
+                <label>
+                  Node ID
+                  <input value={node.nodeId} onChange={e => updateNode(index, 'nodeId', e.target.value)} />
+                  {runningHint(t.showCurrent, runningNode?.nodeId)}
+                </label>
+                <label>
+                  {t.localEndpoint}
+                  <input value={node.localEndpoint || ''} onChange={e => updateNode(index, 'localEndpoint', e.target.value)} />
+                  {runningHint(t.showCurrent, runningNode?.localEndpoint)}
+                </label>
+                <label>
+                  {t.remoteEndpoint}
+                  <input value={node.remoteEndpoint || ''} onChange={e => updateNode(index, 'remoteEndpoint', e.target.value)} />
+                  {runningHint(t.showCurrent, runningNode?.remoteEndpoint)}
+                </label>
               </fieldset>
-            ))}
-          </div>
+            );
+          })}
+        </div>
 
-          <h3>{t.peerTransport}</h3>
-          <div className="ha-form-grid">
-            <label>{t.enabled}<input type="checkbox" checked={draft.peerTransport.enabled} onChange={e => setDraft({ ...draft, peerTransport: { ...draft.peerTransport, enabled: e.target.checked } })} /></label>
-            <label>{t.peerEndpoint}<input value={draft.peerTransport.peerEndpoint || ''} onChange={e => setDraft({ ...draft, peerTransport: { ...draft.peerTransport, peerEndpoint: e.target.value } })} /></label>
-            <label className="ha-field--wide">{t.newSecret}<input data-testid="ha-peer-secret" type="password" autoComplete="new-password" value={draft.peerSharedSecret} onChange={e => setDraft({ ...draft, peerSharedSecret: e.target.value })} /><small>{t.secretHint}</small></label>
+        <div className="ha-section-heading">
+          <div>
+            <h3>{t.connectivity}</h3>
+            <p>{t.connectivityHint}</p>
           </div>
-          <div className="ha-secret-state" data-testid="ha-authentication-state">{draft.peerTransport.authenticationConfigured ? t.authenticationConfigured : 'Authentication not configured'}</div>
+          <span className={peerAvailable ? 'ha-inline-status ha-inline-status--ok' : 'ha-inline-status ha-inline-status--warn'}>
+            {peerAvailable ? t.peerHealthy : t.peerUnavailable}
+          </span>
+        </div>
 
-          <h3>{t.protection}</h3>
-          <div className="ha-reference-note"><strong>{t.referenceStore}</strong><span>{t.referenceHint}</span><small>{configuration.referenceStoreRequirements.mode} · fail-closed: {configuration.referenceStoreRequirements.failClosedWhenUnavailable ? t.yes : t.no}</small></div>
-          <div className="ha-form-grid">
-            <label>{t.enabled}<input type="checkbox" checked={draft.protection.enabled} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, enabled: e.target.checked } })} /></label>
-            <label>{t.automaticFailover}<input type="checkbox" checked={draft.protection.automaticFailoverEnabled} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, automaticFailoverEnabled: e.target.checked } })} /></label>
-            <label className="ha-field--wide">{t.referencePath}<input value={draft.protection.referencePath || ''} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, referencePath: e.target.value } })} /></label>
-            <label>{t.leaseSeconds}<input type="number" min={3} max={120} value={draft.protection.leaseSeconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, leaseSeconds: Number(e.target.value) } })} /></label>
-            <label>{t.pollMilliseconds}<input type="number" min={100} max={10000} value={draft.protection.pollMilliseconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, pollMilliseconds: Number(e.target.value) } })} /></label>
-            <label>{t.witnessSeconds}<input type="number" min={draft.protection.leaseSeconds} max={600} value={draft.protection.readyWitnessMaximumAgeSeconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, readyWitnessMaximumAgeSeconds: Number(e.target.value) } })} /></label>
-            <label>{t.skewSeconds}<input type="number" min={0} max={Math.floor(draft.protection.leaseSeconds / 3)} value={draft.protection.clockSkewSafetyMarginSeconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, clockSkewSafetyMarginSeconds: Number(e.target.value) } })} /></label>
+        <div className="ha-form-grid">
+          <label className="ha-toggle-field">
+            <span>{t.peerTransport}</span>
+            <input
+              type="checkbox"
+              checked={draft.peerTransport.enabled}
+              onChange={e => setDraft({ ...draft, peerTransport: { ...draft.peerTransport, enabled: e.target.checked } })}
+            />
+            {runningHint(t.showCurrent, configuration.running.peerTransport.enabled ? t.enabled : t.disabled)}
+          </label>
+
+          <label>
+            {t.peerEndpoint}
+            <input value={draft.peerTransport.peerEndpoint || ''} onChange={e => setDraft({ ...draft, peerTransport: { ...draft.peerTransport, peerEndpoint: e.target.value } })} />
+            <small className="ha-field-hint">{t.peerEndpointHelp}</small>
+          </label>
+
+          <label className="ha-field--wide">
+            {t.newSecret}
+            <input
+              data-testid="ha-peer-secret"
+              type="password"
+              autoComplete="new-password"
+              value={draft.peerSharedSecret}
+              onChange={e => setDraft({ ...draft, peerSharedSecret: e.target.value })}
+            />
+            <small className="ha-field-hint">{t.secretHint}</small>
+          </label>
+        </div>
+
+        <div className="ha-auth-state" data-testid="ha-authentication-state">
+          <span>{t.authState}</span>
+          <strong>{draft.peerTransport.authenticationConfigured ? t.authenticationConfigured : t.authenticationNotConfigured}</strong>
+        </div>
+
+        <details className="ha-disclosure" data-testid="ha-advanced-settings">
+          <summary>
+            <span>{t.advancedSettings}</span>
+            <small>{t.advancedSettingsHint}</small>
+          </summary>
+
+          <div className="ha-disclosure__body">
+            <div className="ha-form-grid">
+              <label>
+                {t.initialActiveNodeId}
+                <input value={draft.initialActiveNodeId || ''} onChange={e => setDraft({ ...draft, initialActiveNodeId: e.target.value })} />
+                <small className="ha-field-hint">{t.initialActiveHelp}</small>
+              </label>
+
+              <label>
+                {t.topologyVersion}
+                <input type="number" min={1} value={draft.topologyVersion} onChange={e => setDraft({ ...draft, topologyVersion: Number(e.target.value) })} />
+                <small className="ha-field-hint">{t.topologyVersionHelp} {t.showCurrent} {configuration.running.topologyVersion}</small>
+              </label>
+
+              <label>
+                {t.freshnessSeconds}
+                <input type="number" min={1} max={120} value={draft.freshnessSeconds} onChange={e => setDraft({ ...draft, freshnessSeconds: Number(e.target.value) })} />
+                <small className="ha-field-hint">{t.freshnessHelp} {t.showCurrent} {configuration.running.freshnessSeconds}s</small>
+              </label>
+
+              <label className="ha-toggle-field">
+                <span>{t.protectionEnabled}</span>
+                <input
+                  type="checkbox"
+                  checked={draft.protection.enabled}
+                  onChange={e => setDraft({ ...draft, protection: { ...draft.protection, enabled: e.target.checked } })}
+                />
+                {runningHint(t.showCurrent, configuration.running.protection.enabled ? t.enabled : t.disabled)}
+              </label>
+            </div>
+
+            <div className="ha-reference-note">
+              <strong>{t.referenceStore}</strong>
+              <span>{t.referenceHint}</span>
+              <small>{configuration.referenceStoreRequirements.mode} · fail-closed: {configuration.referenceStoreRequirements.failClosedWhenUnavailable ? t.yes : t.no}</small>
+            </div>
+
+            <div className="ha-form-grid">
+              <label className="ha-field--wide">
+                {t.referencePath}
+                <input value={draft.protection.referencePath || ''} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, referencePath: e.target.value } })} />
+                <small className="ha-field-hint">{t.referencePathHelp}</small>
+              </label>
+
+              <label>
+                {t.leaseSeconds}
+                <input type="number" min={3} max={120} value={draft.protection.leaseSeconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, leaseSeconds: Number(e.target.value) } })} />
+                <small className="ha-field-hint">{t.leaseHelp}</small>
+              </label>
+
+              <label>
+                {t.pollMilliseconds}
+                <input type="number" min={100} max={10000} value={draft.protection.pollMilliseconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, pollMilliseconds: Number(e.target.value) } })} />
+                <small className="ha-field-hint">{t.pollHelp}</small>
+              </label>
+
+              <label>
+                {t.witnessSeconds}
+                <input type="number" min={draft.protection.leaseSeconds} max={600} value={draft.protection.readyWitnessMaximumAgeSeconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, readyWitnessMaximumAgeSeconds: Number(e.target.value) } })} />
+                <small className="ha-field-hint">{t.witnessHelp}</small>
+              </label>
+
+              <label>
+                {t.skewSeconds}
+                <input type="number" min={0} max={Math.floor(draft.protection.leaseSeconds / 3)} value={draft.protection.clockSkewSafetyMarginSeconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, clockSkewSafetyMarginSeconds: Number(e.target.value) } })} />
+                <small className="ha-field-hint">{t.skewHelp}</small>
+              </label>
+            </div>
           </div>
-          {validation.length > 0 && <div className="ha-validation" role="alert">{validation.join(' · ')}</div>}
-          <button type="button" className="ha-button ha-button--primary" disabled={!desiredChanged || saving || validation.length > 0} onClick={() => void saveConfiguration()}>{saving ? t.saving : t.save}</button>
-        </section>
+        </details>
 
-        <aside className="ha-panel">
-          <div className="ha-panel__title"><div><h2>{t.operations}</h2><p>Backend-authoritative, audited and fail-closed.</p></div></div>
-          <div className="ha-action-row">
-            <button type="button" className="ha-button" onClick={() => setConfirm({ kind: 'switchover', target: suggestedTarget })}>{t.switchover}</button>
-            <button type="button" className="ha-button" onClick={() => setConfirm({ kind: 'failback', target: draft.initialActiveNodeId })}>{t.failback}</button>
-            <button type="button" className="ha-button" onClick={() => setConfirm({ kind: 'recovery', target: topology.localNodeId })}>{t.recovery}</button>
+        {validation.length > 0 && <div className="ha-validation" role="alert">{validation.join(' · ')}</div>}
+
+        <div className="ha-save-bar">
+          <div>
+            <strong>{desiredChanged ? t.desired : t.noEdits}</strong>
+            <span>{t.saveHint}</span>
           </div>
+          <button
+            type="button"
+            className="ha-button ha-button--primary"
+            disabled={!desiredChanged || saving || validation.length > 0}
+            onClick={() => void saveConfiguration()}
+          >
+            {saving ? t.saving : t.save}
+          </button>
+        </div>
+      </section>
 
+      <details className="ha-panel ha-disclosure ha-disclosure--technical">
+        <summary>
+          <span>{t.diagnostics}</span>
+          <small>{t.diagnosticsHint}</small>
+        </summary>
+        <div className="ha-disclosure__body">
           <dl className="ha-diagnostics">
             <div><dt>{t.fencing}</dt><dd>{protection.reference ? `${protection.reference.activeNodeId || 'fenced'} · epoch ${protection.reference.epoch}` : '—'}</dd></div>
-            <div><dt>{t.peerTransport}</dt><dd>{peer.connectionState} · {peer.authenticationConfigured ? t.authenticationConfigured : 'auth unavailable'}</dd></div>
+            <div><dt>{t.peerTransport}</dt><dd>{peer.connectionState} · {peer.authenticationConfigured ? t.authenticationConfigured : t.authenticationNotConfigured}</dd></div>
             <div><dt>Mirror</dt><dd>{peer.mirror.liveSynchronized ? 'live synchronized' : peer.mirror.reasonCode || 'not synchronized'}</dd></div>
+            <div><dt>{t.topologyVersion}</dt><dd>{topology.topologyVersion} · state v{topology.stateVersion}</dd></div>
+            <div><dt>{t.generation}</dt><dd>{configuration.generation}</dd></div>
             <div><dt>{t.automaticFailover}</dt><dd>{protection.automaticFailoverEnabled ? t.enabled : t.disabled}</dd></div>
           </dl>
+        </div>
+      </details>
 
+      <details className="ha-panel ha-disclosure ha-disclosure--technical">
+        <summary>
+          <span>{t.operationHistory}</span>
+          <small>{operations.length ? `${operations.length} ${t.operations.toLowerCase()}` : t.noOperations}</small>
+        </summary>
+        <div className="ha-disclosure__body">
           <div className="ha-operation-list" data-testid="ha-operation-list">
             {operations.length === 0 ? <p>{t.noOperations}</p> : operations.map(operation => (
               <article className={'ha-operation ha-operation--' + operation.state} key={operation.operationId}>
@@ -317,8 +550,8 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
               </article>
             ))}
           </div>
-        </aside>
-      </div>
+        </div>
+      </details>
 
       {confirm && (
         <div className="ha-modal-backdrop" role="presentation">

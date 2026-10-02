@@ -388,8 +388,8 @@ test('mounted R2 generated snippet validates, Preview/Applies and reopens unchan
     await page.getByRole('button', { name: 'Novo Script' }).click();
 
     const editor = page.locator('main.script-editor');
-    await editor.getByLabel('Nome de exibição', { exact: true }).fill(name);
-    await editor.getByLabel('Caminho do script', { exact: true }).fill(path);
+    await page.getByRole('textbox', { name: 'Nome de exibição', exact: true }).fill(name);
+    await page.getByRole('textbox', { name: 'Caminho do script', exact: true }).fill(path);
 
     const pythonEditor = page.getByTestId('python-monaco-editor');
     await pythonEditor.locator('.monaco-editor').click();

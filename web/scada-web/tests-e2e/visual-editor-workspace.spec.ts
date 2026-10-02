@@ -173,7 +173,7 @@ test('Wave 08 composes Canvas, palette, properties, project-source binding, imag
     await imageObject.click();
 
     const assetBrowser = page.getByTestId('visual-editor-image-asset-picker');
-    const importImageButton = assetBrowser.getByRole('button', { name: 'Escolher imagem…' });
+    const importImageButton = assetBrowser.getByRole('button', { name: 'Procurar no computador e enviar…' });
     await expect(importImageButton).toBeEnabled();
     const fileChooserPromise = page.waitForEvent('filechooser');
     await importImageButton.click();

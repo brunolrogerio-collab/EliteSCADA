@@ -231,8 +231,8 @@ test('mounted TAG-D flow duplicates, multi-copies, previews 20 Modbus TAGs and a
   await page.getByTestId('tag-sequence-toggle').click();
   await page.getByTestId('tag-sequence-generate').click();
   await expect(page.getByTestId('tag-generated-row')).toHaveCount(20);
-  await expect(page.getByLabel('Nome 1', { exact: true })).toHaveValue('Motor Speed_1');
-  await expect(page.getByLabel('Nome 20', { exact: true })).toHaveValue('Motor Speed_20');
+  await expect(page.getByLabel('Nome de exibição 1', { exact: true })).toHaveValue('Motor Speed_1');
+  await expect(page.getByLabel('Nome de exibição 20', { exact: true })).toHaveValue('Motor Speed_20');
   await expect(page.getByLabel('Caminho da TAG 1', { exact: true })).toHaveValue('Plant.Motor.Speed_1');
   await expect(page.getByLabel('Endereço 1', { exact: true })).toHaveValue('holding:11');
   await expect(page.getByLabel('Endereço 20', { exact: true })).toHaveValue('holding:30');

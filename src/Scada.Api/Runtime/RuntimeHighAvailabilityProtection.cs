@@ -752,6 +752,46 @@ public sealed class RuntimeHaProtectionCoordinator
         return Complete(operation, "completed", assigned.ReasonCode, assigned.Authority.Epoch);
     }
 
+    public async Task<RuntimeHaProtectionOperation> RequestRecoveryAsync(
+        string? targetNodeId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var localNodeId = _highAvailability.LocalNodeId!;
+        var target = string.IsNullOrWhiteSpace(targetNodeId)
+            ? localNodeId
+            : targetNodeId.Trim();
+        var operation = AddOperation("explicit-recovery", target, _utcNow());
+
+        if (!target.Equals(localNodeId, StringComparison.OrdinalIgnoreCase))
+            return Complete(operation, "rejected", "recovery-must-be-requested-on-target-node", null);
+
+        var reference = await _reference.ReadAsync(cancellationToken);
+        if (reference is null)
+            return Complete(operation, "rejected", "reference-uninitialized", null);
+        if (reference.ActiveNodeId is not null || !reference.PreviousAuthorityFenced)
+            return Complete(operation, "rejected", "reference-break-required", reference.Epoch);
+
+        var witness = GetFreshWitness(_utcNow());
+        if (witness is null)
+            return Complete(operation, "rejected", "ready-standby-witness-required", reference.Epoch);
+
+        var assigned = await _reference.AssignAfterFenceAsync(
+            localNodeId,
+            reference.Epoch,
+            "explicit-recovery-grant",
+            cancellationToken);
+        if (!assigned.Accepted || assigned.Authority is null)
+            return Complete(operation, "rejected", assigned.ReasonCode, assigned.Authority?.Epoch);
+
+        await CompleteLocalTakeoverAsync(
+            assigned.Authority,
+            witness,
+            operation,
+            "explicit-recovery-completed",
+            cancellationToken);
+        return GetOperation(operation.OperationId)!;
+    }
+
     private async Task TryAutomaticFailoverAsync(
         RuntimeHaReferenceAuthority expiredReference,
         RuntimeHaStandbyPromotionWitness witness,
@@ -768,15 +808,34 @@ public sealed class RuntimeHaProtectionCoordinator
             return;
         }
 
-        SetReference(claimed.Authority, false, "automatic-failover-claimed");
+        await CompleteLocalTakeoverAsync(
+            claimed.Authority,
+            witness,
+            operation,
+            "automatic-failover-completed",
+            cancellationToken);
+    }
+
+    private async Task CompleteLocalTakeoverAsync(
+        RuntimeHaReferenceAuthority authority,
+        RuntimeHaStandbyPromotionWitness witness,
+        RuntimeHaProtectionOperation operation,
+        string successReasonCode,
+        CancellationToken cancellationToken)
+    {
+        SetReference(authority, false, authority.ReasonCode);
         var applied = _highAvailability.Authority.ApplyReferencedAuthority(
             _highAvailability.LocalNodeId!,
-            claimed.Authority.Epoch,
+            authority.Epoch,
             previousAuthorityFenced: true,
             witness);
         if (!applied.Accepted)
         {
-            Complete(operation, "failed", applied.ReasonCode, claimed.Authority.Epoch);
+            await FailClosedAfterClaimAsync(
+                authority,
+                operation,
+                applied.ReasonCode,
+                cancellationToken);
             return;
         }
 
@@ -788,7 +847,7 @@ public sealed class RuntimeHaProtectionCoordinator
             string.IsNullOrWhiteSpace(state.Runtime.ProjectKey))
         {
             await FailClosedAfterClaimAsync(
-                claimed.Authority,
+                authority,
                 operation,
                 "takeover-state-unavailable",
                 cancellationToken);
@@ -803,7 +862,7 @@ public sealed class RuntimeHaProtectionCoordinator
         if (!activation.Activated)
         {
             await FailClosedAfterClaimAsync(
-                claimed.Authority,
+                authority,
                 operation,
                 activation.RuntimeIssues.FirstOrDefault(issue => issue.IsError)?.Code
                     ?? "takeover-runtime-activation-failed",
@@ -818,15 +877,15 @@ public sealed class RuntimeHaProtectionCoordinator
         catch
         {
             await FailClosedAfterClaimAsync(
-                claimed.Authority,
+                authority,
                 operation,
                 "takeover-session-rebind-failed",
                 CancellationToken.None);
             return;
         }
 
-        SetReference(claimed.Authority, true, "automatic-failover-completed");
-        Complete(operation, "completed", "automatic-failover-completed", claimed.Authority.Epoch);
+        SetReference(authority, true, successReasonCode);
+        Complete(operation, "completed", successReasonCode, authority.Epoch);
     }
 
     private async Task FailClosedAfterClaimAsync(

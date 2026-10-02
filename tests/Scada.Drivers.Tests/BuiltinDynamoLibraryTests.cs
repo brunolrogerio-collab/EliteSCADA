@@ -175,6 +175,26 @@ public sealed class BuiltinDynamoLibraryTests
                 elements["vessel"].Properties!["y"].GetDouble());
         });
     }
+    [Fact]
+    public void AgitatorStyles_ExposeFunctionalDriveTrainDetails()
+    {
+        var variants = BuiltinDynamoLibrary.Create()
+            .Where(definition => definition.Metadata!["familyKey"] == "process.mixer.agitator")
+            .ToArray();
+
+        Assert.Equal(3, variants.Length);
+        Assert.All(variants, variant =>
+        {
+            var keys = variant.Elements!.Select(element => element.Key).ToHashSet(StringComparer.Ordinal);
+            foreach (var key in new[]
+            {
+                "motor", "motor-end-left", "motor-end-right", "motor-terminal",
+                "gearbox", "coupling", "shaft", "impeller", "impeller-hub"
+            })
+                Assert.Contains(key, keys);
+        });
+    }
+
 
     [Fact]
     public void SubmersiblePumpStyles_SeparateMotorHydraulicsAndLowerDischarge()
@@ -236,6 +256,29 @@ public sealed class BuiltinDynamoLibraryTests
                 Assert.Contains(variant.Elements!, element => element.Key.StartsWith("detail-fan-cowl-vent-", StringComparison.Ordinal));
             }
         }
+    }
+
+    [Fact]
+    public void StrainerStyles_FormAContinuousInlineBodyAndYBranch()
+    {
+        var variants = BuiltinDynamoLibrary.Create()
+            .Where(definition => definition.Metadata!["familyKey"] == "process.filter.strainer")
+            .ToArray();
+
+        Assert.Equal(3, variants.Length);
+        Assert.All(variants, variant =>
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            var body = elements["filter-body"].Properties!;
+            var basket = elements["basket"].Properties!;
+            var cap = elements["cap"].Properties!;
+            Assert.Equal("core.bezier", elements["filter-body"].Type);
+            Assert.Equal("core.bezier", elements["basket"].Type);
+            Assert.True(basket["y"].GetDouble() > body["y"].GetDouble());
+            Assert.True(basket["x"].GetDouble() + basket["width"].GetDouble() / 2d >
+                body["x"].GetDouble() + body["width"].GetDouble() / 2d);
+            Assert.True(cap["y"].GetDouble() > basket["y"].GetDouble() + basket["height"].GetDouble() / 2d);
+        });
     }
 
     [Fact]
@@ -434,6 +477,58 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void ScrewCompressorAndCurrentTransformer_UseFunctionalIndustrialAnatomy()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        foreach (var compressor in definitions.Where(definition =>
+            definition.Metadata!["familyKey"] == "process.compressor.screw"))
+        {
+            var elements = compressor.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            var upperRotor = elements["rotor-left"].Properties!;
+            var lowerRotor = elements["rotor-right"].Properties!;
+            Assert.Equal("core.rectangle", elements["rotor-left"].Type);
+            Assert.Equal("core.rectangle", elements["rotor-right"].Type);
+            Assert.True(upperRotor["width"].GetDouble() > upperRotor["height"].GetDouble() * 5);
+            Assert.True(lowerRotor["width"].GetDouble() > lowerRotor["height"].GetDouble() * 5);
+            Assert.InRange(upperRotor["cornerRadius"].GetDouble(), 2, 4.5);
+            Assert.InRange(lowerRotor["cornerRadius"].GetDouble(), 2, 4.5);
+        }
+
+        foreach (var transformer in definitions.Where(definition =>
+            definition.Metadata!["familyKey"] == "electrical.current-transformer"))
+        {
+            var elements = transformer.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            var conductor = elements["primary-conductor"].Properties!;
+            var core = elements["core"].Properties!;
+            Assert.True(conductor["width"].GetDouble() > conductor["height"].GetDouble() * 8);
+            Assert.True(conductor["y"].GetDouble() >
+                core["y"].GetDouble() &&
+                conductor["y"].GetDouble() < core["y"].GetDouble() + core["height"].GetDouble());
+            Assert.Contains("terminal-box", elements.Keys);
+            Assert.Contains("terminal-box-neck", elements.Keys);
+            Assert.True(elements["terminal-box"].Properties!["x"].GetDouble() >
+                core["x"].GetDouble() + core["width"].GetDouble() / 2d);
+        }
+    }
+
+    [Fact]
+    public void IndicatorStyles_KeepSharedDialNeedleMorphology()
+    {
+        var variants = BuiltinDynamoLibrary.Create()
+            .Where(definition => definition.Metadata!["familyKey"] == "process.instrument.indicator")
+            .ToArray();
+
+        Assert.Equal(3, variants.Length);
+        Assert.All(variants, variant =>
+        {
+            var keys = variant.Elements!.Select(element => element.Key).ToHashSet(StringComparer.Ordinal);
+            foreach (var key in new[] { "face", "scale-arc", "needle", "hub", "stem", "connection" })
+                Assert.Contains(key, keys);
+        });
+    }
+
+    [Fact]
     public void IndicatorAndSubstationRepresentatives_UseCanonicalCurvedGeometry()
     {
         var definitions = BuiltinDynamoLibrary.Create();
@@ -492,6 +587,29 @@ public sealed class BuiltinDynamoLibraryTests
         Assert.Contains("detail-flange-bolt-31-49", keys);
         Assert.Contains("detail-shell-weld-50", keys);
         Assert.Contains("detail-shell-seam-65", keys);
+    }
+
+    [Fact]
+    public void HiddenEquipmentLabels_DoNotDefineTheVisibleArtworkEnvelope()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        foreach (var definition in definitions)
+        {
+            var familyKey = definition.Metadata!["familyKey"];
+            var visibleText = definition.Elements!
+                .Where(element => element.Type == "core.text" &&
+                    !string.IsNullOrWhiteSpace(element.Properties!["text"].GetString()))
+                .ToArray();
+
+            if (familyKey == "process.instrument.indicator")
+                Assert.NotEmpty(visibleText);
+            else if (familyKey is "electrical.breaker" or "electrical.disconnector")
+                Assert.True(visibleText.Length <= 1);
+            else
+                Assert.DoesNotContain(visibleText, element =>
+                    element.Key is "label" or "equipment-label" or "motor-label" or "vfd-label");
+        }
     }
 
     [Fact]

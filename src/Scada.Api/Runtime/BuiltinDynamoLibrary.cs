@@ -679,7 +679,9 @@ public static class BuiltinDynamoLibrary
                     "#00000000", "#68747C", 1.5),
                 Text(E(family, style, 4), "label", "PI", 32, 30, 32, 22, 11, "#111827"),
                 FlatShape(E(family, style, 5), "connection", "core.rectangle", 34, 96, 28, 8, "#9CA3AF", "#374151", 1, 2),
-                StateLamp(E(family, style, 6), "fault", 72, 5, "#DC2626", "fault", "{equipmentPath}.Fault")
+                StateLamp(E(family, style, 6), "fault", 72, 5, "#DC2626", "fault", "{equipmentPath}.Fault"),
+                FlatShape(E(family, style, 8), "needle", "core.rectangle", 47, 27, 2, 20, "#5E6A72", "#374151", 1, 1, 35),
+                FlatShape(E(family, style, 9), "hub", "core.ellipse", 44, 38, 8, 8, "#5E6A72", "#374151", 1)
             ],
             parameters: IndicatorParameters());
         }
@@ -786,8 +788,8 @@ public static class BuiltinDynamoLibrary
                 Bezier("compressor-housing", 34, 27, 91, 59,
                     "M 8 9 C 20 3 80 3 92 9 L 92 91 C 80 97 20 97 8 91 C 3 76 2 24 8 9 Z",
                     shell, 2.5);
-                Bar("rotor-left", 48, 43, 59, 7, light, -4);
-                Bar("rotor-right", 48, 59, 59, 7, highPerformance ? "#8C969D" : "#A5B9C8", 4);
+                Rect("rotor-left", 48, 42, 59, 9, light, 4, 1.2);
+                Rect("rotor-right", 48, 58, 59, 9, highPerformance ? "#8C969D" : "#A5B9C8", 4, 1.2);
                 Rect("inlet", 11, 39, 29, 10, shell, 2, 1.5);
                 Rect("outlet", 119, 47, 36, 10, shell, 2, 1.5);
                 Label("SC", 64, 73, 28, 15, 10);
@@ -798,8 +800,8 @@ public static class BuiltinDynamoLibrary
                 Rect("end-cover", 111, 34, 9, 45, light, 3, 1.5);
                 for (var index = 0; index < (highPerformance ? 2 : 3); index++)
                 {
-                    Bar($"helix-upper-{index + 1}", 58 + index * 18, 41, 10, 10, dark, 35);
-                    Bar($"helix-lower-{index + 1}", 58 + index * 18, 57, 10, 10, dark, -35);
+                    Bar($"helix-upper-{index + 1}", 60 + index * 18, 40, 2, 14, dark, 28);
+                    Bar($"helix-lower-{index + 1}", 60 + index * 18, 56, 2, 14, dark, -28);
                 }
                 break;
             case "process.valve.butterfly":
@@ -868,19 +870,19 @@ public static class BuiltinDynamoLibrary
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
                 break;
             case "process.filter.strainer":
-                Rect("pipe-left", 3, 35, 48, 10, shell, 2);
-                Rect("pipe-right", 94, 35, 45, 10, shell, 2);
-                Bezier("filter-body", 39, 20, 61, 36,
-                    "M 6 16 C 18 5 34 2 50 2 C 66 2 82 5 94 16 L 94 84 C 82 95 66 98 50 98 C 34 98 18 95 6 84 Z",
+                Rect("pipe-left", 3, 35, 45, 10, shell, 2);
+                Rect("pipe-right", 98, 35, 41, 10, shell, 2);
+                Bezier("filter-body", 39, 22, 62, 34,
+                    "M 8 12 C 20 4 80 4 92 12 L 92 88 C 80 96 20 96 8 88 Z",
                     shell, 2.5);
-                Bezier("basket", 54, 52, 43, 47,
-                    "M 82 4 C 68 16 54 31 35 53 L 8 82 C 20 91 35 96 49 97 L 70 70 C 82 53 90 34 94 17 Z",
+                Bezier("basket", 57, 48, 43, 53,
+                    "M 18 2 C 31 4 45 10 58 20 L 97 73 C 88 87 74 96 59 98 L 9 39 C 3 28 6 13 18 2 Z",
                     light, 2);
                 for (var index = 0; index < (highPerformance ? 2 : 4); index++)
-                    Bar($"basket-slot-{index + 1}", 63 + index * (highPerformance ? 14 : 7), 66, 1.4, 22, dark, -25);
-                Ellipse("cap", 51, 91, 49, 12, accent);
+                    Bar($"basket-slot-{index + 1}", 67 + index * (highPerformance ? 12 : 7), 65, 1.4, 23, dark, -32);
+                Ellipse("cap", 76, 94, 29, 10, accent);
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
-                Bar("basket-neck", 66, 45, 10, 25, shell, -32);
+                Bar("basket-neck", 65, 43, 9, 25, shell, -36);
                 Rect("flange-left", 34, 27, 7, 26, light, 2, 1.5);
                 Rect("flange-right", 98, 27, 7, 26, light, 2, 1.5);
                 break;
@@ -901,6 +903,11 @@ public static class BuiltinDynamoLibrary
                 Lamp("running", 5, 5, "running", "{equipmentPath}.Running", "#D92D20");
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
                 Rect("gearbox", 54, 36, 25, 16, light, 4, 1.5);
+                Ellipse("motor-end-left", 43, 17, 11, 17, light, 1.2);
+                Ellipse("motor-end-right", 79, 17, 11, 17, light, 1.2);
+                Rect("motor-terminal", 57, 5, 20, 10, light, 3, 1.2);
+                Ellipse("coupling", 61, 45, 11, 9, dark, 1);
+                Ellipse("impeller-hub", 61, 113, 10, 10, dark, 1);
                 break;
             case "electrical.transformer.power":
                 Rect("base", 20, height - 18, width - 40, 8, dark, 2);
@@ -1004,14 +1011,16 @@ public static class BuiltinDynamoLibrary
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
                 break;
             case "electrical.current-transformer":
-                Rect("primary-conductor", 51, 3, 10, height - 6, dark, 2);
-                Ellipse("core", 22, 43, 68, 68, highPerformance ? "#C6CDD2" : shell, 3);
-                Ellipse("core-window", 39, 60, 34, 34, "#F5F7F8", 2);
-                Rect("secondary-left", 13, 92, 23, 6, accent, 2);
-                Rect("secondary-right", 76, 92, 23, 6, accent, 2);
-                Label("TC", 39, 114, 34, 21, 10);
+                Rect("primary-conductor", 5, 68, width - 10, 9, dark, 2, 1.5);
+                Ellipse("core", 24, 38, 64, 64, highPerformance ? "#C6CDD2" : shell, 3);
+                Ellipse("core-window", 41, 55, 30, 30, "#F5F7F8", 2);
+                Rect("secondary-left", 79, 96, 9, 7, accent, 2, 1);
+                Rect("secondary-right", 91, 96, 9, 7, accent, 2, 1);
+                Label("TC", 39, 108, 34, 18, 9);
                 Lamp("fault", 5, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
-                Rect("base", 27, height - 13, 58, 7, dark, 2, 1.5);
+                Rect("base", 24, height - 13, 64, 7, dark, 2, 1.5);
+                Rect("terminal-box", 74, 87, 31, 22, light, 3, 1.5);
+                Bar("terminal-box-neck", 73, 82, 7, 10, shell);
                 break;
         }
 
@@ -1079,12 +1088,17 @@ public static class BuiltinDynamoLibrary
         List<VisualElementEngineeringDto> elements,
         double canvasWidth,
         double canvasHeight,
-        VisualStyle style)
+        VisualStyle style,
+        string familyKey)
     {
         var bounds = new List<(int Index, double X, double Y, double Width, double Height)>();
         for (var index = 0; index < elements.Count; index++)
         {
-            var properties = elements[index].Properties;
+            var candidate = elements[index];
+            if (candidate.Type == "core.text" && !PreserveIndustrialText(familyKey, candidate))
+                continue;
+
+            var properties = candidate.Properties;
             if (properties is null || !TryNumber(properties, "x", out var x) || !TryNumber(properties, "y", out var y) ||
                 !TryNumber(properties, "width", out var width) || !TryNumber(properties, "height", out var height) || width <= 0 || height <= 0)
                 continue;
@@ -1187,7 +1201,7 @@ public static class BuiltinDynamoLibrary
             .ToArray();
 
         var visualElements = refinedElements.ToList();
-        FitArtworkToCanvas(visualElements, width, height, style);
+        FitArtworkToCanvas(visualElements, width, height, style, familyKey);
         visualElements = visualElements
             .Select(element => ApplyIndustrialVisualGrammar(
                 ApplyArtworkFinish(element, style),
@@ -1399,9 +1413,7 @@ public static class BuiltinDynamoLibrary
         if (element.Type == "core.text" &&
             properties.ContainsKey("text"))
         {
-            var preserveText = familyKey == "process.instrument.indicator" ||
-                (element.Key == "equipment-label" &&
-                    familyKey is "electrical.breaker" or "electrical.disconnector");
+            var preserveText = PreserveIndustrialText(familyKey, element);
 
             if (!preserveText && element.Key is "label" or "equipment-label" or "motor-label" or "vfd-label")
                 properties["text"] = JsonSerializer.SerializeToElement(string.Empty);
@@ -1469,6 +1481,12 @@ public static class BuiltinDynamoLibrary
 
         return element with { Properties = properties, Metadata = metadata };
     }
+
+    private static bool PreserveIndustrialText(string familyKey, VisualElementEngineeringDto element) =>
+        element.Type == "core.text" &&
+        (familyKey == "process.instrument.indicator" ||
+         (element.Key == "equipment-label" &&
+            familyKey is "electrical.breaker" or "electrical.disconnector"));
 
     private static bool PreserveSemanticArtworkColor(string familyKey, string key) =>
         key is "running" or "fault" or "open" or "closed" or "high" or
@@ -1758,8 +1776,8 @@ public static class BuiltinDynamoLibrary
                 foreach (var boltY in new[] { 29d, 46d })
                     Dot($"flange-fastener-{flangeX:0}-{boltY:0}", flangeX, boltY, 4,
                         "#E7EEF3", "#506575");
-                Bar("drain-neck", 72, 91, 7, 15, "#526575");
-                Dot("drain-plug", 70, 102, 11, "#B6C4CE", "#526879");
+                Bar("drain-neck", 86, 92, 6, 13, "#526575", -18);
+                Dot("drain-plug", 84, 101, 8, "#B6C4CE", "#526879");
                 break;
 
             case "process.mixer.agitator":
@@ -1823,9 +1841,9 @@ public static class BuiltinDynamoLibrary
 
             case "electrical.current-transformer":
                 for (var index = 0; index < 4; index++)
-                    Bar($"winding-band-{index + 1}", 28, 56 + index * 10, 56, 2, "#8295A5");
-                foreach (var terminalX in new[] { 20d, 84d })
-                    Dot($"secondary-terminal-{terminalX:0}", terminalX, 89, 5, "#E7EEF3", "#526879");
+                    Bar($"winding-band-{index + 1}", 30, 50 + index * 12, 52, 1.4, "#8295A5");
+                Dot("secondary-terminal-left", 81, 98, 4, "#E7EEF3", "#526879");
+                Dot("secondary-terminal-right", 93, 98, 4, "#E7EEF3", "#526879");
                 break;
         }
 

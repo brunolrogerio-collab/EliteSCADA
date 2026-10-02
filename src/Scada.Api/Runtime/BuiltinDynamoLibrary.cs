@@ -140,7 +140,9 @@ public static class BuiltinDynamoLibrary
         {
             return Dynamo(sequence, "process.pump.submersible", "Bomba submersível", "pump", style, 94, 132,
             [
-                FlatShape(E(family, style, 1), "body", "core.rectangle", 22, 22, 50, 86, "#C5CDD3", "#374151", 2, 10),
+                BezierShape(E(family, style, 1), "body", 22, 22, 50, 86,
+                    "M 18 4 C 30 1 70 1 82 4 C 91 18 94 35 94 50 C 94 65 91 82 82 96 C 70 99 30 99 18 96 C 9 82 6 65 6 50 C 6 35 9 18 18 4 Z",
+                    "#C5CDD3", "#374151", 2),
                 FlatShape(E(family, style, 2), "intake", "core.ellipse", 27, 88, 40, 25, "#9CA3AF", "#374151", 2),
                 FlatShape(E(family, style, 3), "outlet", "core.rectangle", 69, 28, 20, 14, "#A7B0B7", "#374151", 2, 3),
                 Text(E(family, style, 4), "label", "BS", 33, 51, 28, 22, 11, "#111827"),
@@ -153,7 +155,9 @@ public static class BuiltinDynamoLibrary
         var dimensional = style == VisualStyle.DimensionalFront;
         return Dynamo(sequence, "process.pump.submersible", "Bomba submersível", "pump", style, 112, 160,
         [
-            MaterialShape(E(family, style, 1), "body", "core.rectangle", 29, 30, 54, 100, "#AEBCC8", "#F8FAFC", "#334155", 3, 13, dimensional, "horizontal", dimensional),
+            BezierShape(E(family, style, 1), "body", 29, 30, 54, 100,
+                "M 17 3 C 30 1 70 1 83 3 C 92 19 95 35 95 50 C 95 65 92 81 83 97 C 70 99 30 99 17 97 C 8 81 5 65 5 50 C 5 35 8 19 17 3 Z",
+                "#AEBCC8", "#334155", 3, dimensional ? "#F8FAFC" : null, "horizontal", dimensional),
             MaterialShape(E(family, style, 2), "top-cap", "core.rectangle", 34, 22, 44, 18, "#CBD5E1", "#FFFFFF", "#334155", 2, 8, dimensional, "vertical"),
             FlatShape(E(family, style, 3), "cable-gland", "core.rectangle", 43, 10, 12, 15, "#64748B", "#334155", 2, 3),
             FlatShape(E(family, style, 4), "cable", "core.rectangle", 16, 6, 7, 58, "#374151", "#111827", 1, 3, -18),
@@ -239,7 +243,9 @@ public static class BuiltinDynamoLibrary
         {
             return Dynamo(sequence, "process.motor.vfd", "Motor com inversor", "motor", style, 138, 96,
             [
-                FlatShape(E(family, style, 1), "motor", "core.ellipse", 8, 15, 66, 66, "#C5CDD3", "#374151", 2),
+                BezierShape(E(family, style, 1), "motor", 8, 15, 66, 66,
+                    "M 14 7 C 28 2 72 2 86 7 C 94 18 97 34 97 50 C 97 66 94 82 86 93 C 72 98 28 98 14 93 C 6 82 3 66 3 50 C 3 34 6 18 14 7 Z",
+                    "#C5CDD3", "#374151", 2),
                 FlatShape(E(family, style, 2), "shaft", "core.rectangle", 69, 43, 18, 8, "#9CA3AF", "#374151", 1, 2),
                 FlatShape(E(family, style, 3), "vfd", "core.rectangle", 89, 17, 41, 58, "#D1D5DB", "#374151", 2, 4),
                 Text(E(family, style, 4), "motor-label", "M", 28, 35, 26, 22, 12, "#111827"),
@@ -253,7 +259,9 @@ public static class BuiltinDynamoLibrary
         var dimensional = style == VisualStyle.DimensionalFront;
         return Dynamo(sequence, "process.motor.vfd", "Motor com inversor", "motor", style, 196, 112,
         [
-            MaterialShape(E(family, style, 1), "motor-body", "core.rectangle", 19, 29, 83, 57, "#AEBCC8", "#F8FAFC", "#334155", 3, 22, dimensional, "vertical", dimensional),
+            BezierShape(E(family, style, 1), "motor-body", 19, 29, 83, 57,
+                "M 12 5 C 25 2 75 2 88 5 C 95 18 98 34 98 50 C 98 66 95 82 88 95 C 75 98 25 98 12 95 C 5 82 2 66 2 50 C 2 34 5 18 12 5 Z",
+                "#AEBCC8", "#334155", 3, dimensional ? "#F8FAFC" : null, "vertical", dimensional),
             MaterialShape(E(family, style, 2), "motor-end", "core.ellipse", 12, 33, 22, 49, "#94A3B8", "#DDE4EA", "#334155", 2, 0, dimensional, "horizontal"),
             FlatShape(E(family, style, 3), "shaft", "core.rectangle", 98, 51, 24, 9, "#94A3B8", "#475569", 1, 2),
             FlatShape(E(family, style, 4), "motor-base", "core.rectangle", 31, 88, 76, 8, "#475569", "#334155", 1, 2),
@@ -490,7 +498,9 @@ public static class BuiltinDynamoLibrary
                 FlatShape(E(family, style, 3), "outlet-flange", "core.rectangle", 154, 12, 10, 28, "#EEF2F6", "#263746", 2, 2),
                 FlatShape(E(family, style, 4), "inlet-pipe", "core.rectangle", 4, 66, 54, 20, "#D8E0E8", "#263746", 2, 3),
                 FlatShape(E(family, style, 5), "inlet-flange", "core.rectangle", 38, 59, 12, 34, "#EEF2F6", "#263746", 2, 2),
-                FlatShape(E(family, style, 6), "casing", "core.ellipse", 43, 30, 94, 94, "#D8E0E8", "#263746", 3),
+                BezierShape(E(family, style, 6), "casing", 43, 30, 94, 94,
+                    "M 8 58 C 7 29 25 8 53 6 C 78 4 95 20 96 43 C 98 65 84 84 63 94 C 42 103 20 94 11 78 C 8 72 7 65 8 58 Z",
+                    "#D8E0E8", "#263746", 3),
                 FlatShape(E(family, style, 7), "casing-rim", "core.ellipse", 50, 37, 80, 80, "#F8FAFC", "#546879", 2),
                 FlatShape(E(family, style, 8), "impeller-recess", "core.ellipse", 60, 47, 60, 60, "#263746", "#17232D", 2),
                 RotorBlade(E(family, style, 9), "impeller-blade-1", 90, 77, 11, 26, 0, "#AEBBC7", "#263746", 1),
@@ -522,7 +532,9 @@ public static class BuiltinDynamoLibrary
                 MaterialShape(E(family, style, 3), "outlet-flange", "core.rectangle", 174, 13, 12, 31, "#B6C5D1", "#F8FAFC", "#30485A", 2, 3, true, "horizontal"),
                 MaterialShape(E(family, style, 4), "inlet-pipe", "core.rectangle", 4, 70, 65, 22, "#91A7B9", "#F8FAFC", "#30485A", 2, 5, true, "vertical", true),
                 MaterialShape(E(family, style, 5), "inlet-flange", "core.rectangle", 48, 62, 15, 38, "#B6C5D1", "#F8FAFC", "#30485A", 2, 3, true, "horizontal"),
-                MaterialShape(E(family, style, 6), "volute-case", "core.ellipse", 44, 31, 102, 102, "#7892A7", "#E5EDF3", "#30485A", 3, 0, true, "diagonal-down", true),
+                BezierShape(E(family, style, 6), "volute-case", 44, 31, 102, 102,
+                    "M 8 58 C 7 29 25 8 53 6 C 78 4 95 20 96 43 C 98 65 84 84 63 94 C 42 103 20 94 11 78 C 8 72 7 65 8 58 Z",
+                    "#7892A7", "#30485A", 3, "#E5EDF3", "diagonal-down", true),
                 MaterialShape(E(family, style, 7), "case-cover", "core.ellipse", 51, 38, 88, 88, "#B5C6D3", "#F8FAFC", "#597184", 2, 0, true, "diagonal-up"),
                 MaterialShape(E(family, style, 8), "impeller-recess", "core.ellipse", 62, 49, 66, 66, "#354E61", "#7892A7", "#30485A", 2, 0, true, "diagonal-down"),
                 RotorBlade(E(family, style, 9), "impeller-blade-1", 95, 82, 12, 29, 0, "#AFC4D2", "#243B4A", 1),
@@ -557,7 +569,9 @@ public static class BuiltinDynamoLibrary
             FlatShape(E(family, style, 3), "outlet-flange", "core.rectangle", 174, 13, 12, 31, "#D3DCE4", "#273746", 2, 2),
             FlatShape(E(family, style, 4), "inlet-pipe", "core.rectangle", 4, 70, 65, 22, "#A8B4BF", "#273746", 2, 4),
             FlatShape(E(family, style, 5), "inlet-flange", "core.rectangle", 48, 62, 15, 38, "#D3DCE4", "#273746", 2, 2),
-            FlatShape(E(family, style, 6), "volute-case", "core.ellipse", 44, 31, 102, 102, "#8999A7", "#273746", 3),
+            BezierShape(E(family, style, 6), "volute-case", 44, 31, 102, 102,
+                "M 8 58 C 7 29 25 8 53 6 C 78 4 95 20 96 43 C 98 65 84 84 63 94 C 42 103 20 94 11 78 C 8 72 7 65 8 58 Z",
+                "#8999A7", "#273746", 3),
             FlatShape(E(family, style, 7), "case-cover", "core.ellipse", 51, 38, 88, 88, "#D3DCE4", "#526575", 2),
             FlatShape(E(family, style, 8), "impeller-recess", "core.ellipse", 62, 49, 66, 66, "#405363", "#273746", 2),
             RotorBlade(E(family, style, 9), "impeller-blade-1", 95, 82, 12, 29, 0, "#A8B4BF", "#273746", 1),
@@ -695,6 +709,9 @@ public static class BuiltinDynamoLibrary
             shapes.Add(BezierShape(E(family, style, shapes.Count + 1), key, x, y, w, h, path,
                 fill, dark, stroke, highPerformance ? null : light, "diagonal-down",
                 dimensional && PrimaryMass(key)));
+        void Arc(string key, double x, double y, double w, double h, double start, double end, string strokeFill, double stroke = 1.5) =>
+            shapes.Add(ArcShape(E(family, style, shapes.Count + 1), key, x, y, w, h, start, end, "arc",
+                "#00000000", strokeFill, stroke));
         void Bar(string key, double x, double y, double w, double h, string fill, double rotation = 0) =>
             shapes.Add(FlatShape(E(family, style, shapes.Count + 1), key, "core.rectangle", x, y, w, h, fill, dark, 1.4, 1.5, rotation));
         void Label(string text, double x, double y, double w, double h, double size = 13) =>
@@ -710,7 +727,9 @@ public static class BuiltinDynamoLibrary
         {
             case "process.compressor.reciprocating":
                 Rect("base", 14, height - 20, width - 28, 9, dark, 2);
-                Rect("crankcase", 25, 62, 52, 32, shell, 7, 2.5);
+                Bezier("crankcase", 25, 62, 52, 32,
+                    "M 8 12 C 18 4 32 2 50 2 C 68 2 82 4 92 12 L 92 88 C 82 96 68 98 50 98 C 32 98 18 96 8 88 Z",
+                    shell, 2.5);
                 Rect("cylinder-left", 34, 24, 20, 42, light, 4);
                 Rect("cylinder-right", 62, 24, 20, 42, shell, 4);
                 Ellipse("head-left", 31, 17, 26, 14, accent);
@@ -725,7 +744,9 @@ public static class BuiltinDynamoLibrary
                 break;
             case "process.compressor.screw":
                 Rect("base", 12, height - 18, width - 24, 8, dark, 2);
-                Rect("compressor-housing", 29, 25, 88, 62, shell, 15, 2.5);
+                Bezier("compressor-housing", 29, 25, 88, 62,
+                    "M 10 8 C 24 3 76 3 90 8 C 96 20 98 34 98 50 C 98 66 96 80 90 92 C 76 97 24 97 10 92 C 4 80 2 66 2 50 C 2 34 4 20 10 8 Z",
+                    shell, 2.5);
                 Ellipse("rotor-left", 42, 36, 34, 38, light);
                 Ellipse("rotor-right", 68, 36, 34, 38, highPerformance ? "#8C969D" : "#A5B9C8");
                 Rect("inlet", 6, 46, 31, 10, shell, 2);
@@ -752,7 +773,9 @@ public static class BuiltinDynamoLibrary
                 Rect("pipe-right", width - 48, 51, 45, 10, shell, 2);
                 Rect("flange-left", 30, 43, 8, 26, light, 1);
                 Rect("flange-right", width - 38, 43, 8, 26, light, 1);
-                Ellipse("body", centerX - 30, 33, 60, 46, shell, 2.5);
+                Bezier("body", centerX - 30, 33, 60, 46,
+                    "M 8 20 C 22 7 36 3 50 3 C 64 3 78 7 92 20 L 92 80 C 78 93 64 97 50 97 C 36 97 22 93 8 80 Z",
+                    shell, 2.5);
                 Ellipse("ball", centerX - 18, 39, 36, 34, highPerformance ? "#727D84" : accent, 2);
                 Bar("bore", centerX - 16.5, 54, 33, 5, "#F5F7F8");
                 Bar("stem", centerX - 2.5, 18, 5, 23, dark);
@@ -765,8 +788,10 @@ public static class BuiltinDynamoLibrary
                 Rect("pipe-right", width - 48, 83, 45, 10, shell, 2);
                 Rect("flange-left", 30, 75, 8, 26, light, 1);
                 Rect("flange-right", width - 38, 75, 8, 26, light, 1);
-                Triangle("body-left", centerX - 31, 69, 31, 38, true, shell);
-                Triangle("body-right", centerX, 69, 31, 38, false, shell);
+                Bezier("body-left", centerX - 31, 69, 31, 38,
+                    "M 0 8 C 28 8 48 26 100 50 C 48 74 28 92 0 92 Z", shell, 2);
+                Bezier("body-right", centerX, 69, 31, 38,
+                    "M 100 8 C 72 8 52 26 0 50 C 52 74 72 92 100 92 Z", shell, 2);
                 Bar("stem", centerX - 2.5, 34, 5, 38, dark);
                 Ellipse("handwheel", centerX - 19, 4, 38, 32, highPerformance ? "#D5DBDF" : accent, 2);
                 Ellipse("handwheel-hub", centerX - 4, 16, 8, 8, light, 1);
@@ -774,9 +799,11 @@ public static class BuiltinDynamoLibrary
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
                 break;
             case "process.exchanger.shell-tube":
-                Rect("shell", 25, 35, 111, 56, shell, 22, 2.5);
-                Ellipse("head-left", 17, 35, 28, 56, light);
-                Ellipse("head-right", 119, 35, 28, 56, light);
+                Bezier("shell", 17, 35, 130, 56,
+                    "M 10 4 C 4 12 2 25 2 50 C 2 75 4 88 10 96 L 90 96 C 96 88 98 75 98 50 C 98 25 96 12 90 4 Z",
+                    shell, 2.5);
+                Arc("head-left", 18, 36, 28, 54, 90, 270, dark);
+                Arc("head-right", 118, 36, 28, 54, 270, 450, dark);
                 for (var index = 0; index < (highPerformance ? 3 : 5); index++)
                     Bar($"tube-{index + 1}", 45, 48 + index * (highPerformance ? 14 : 8), 71, 2, dark);
                 Rect("nozzle-hot-in", 49, 15, 10, 24, accent, 2);
@@ -789,16 +816,22 @@ public static class BuiltinDynamoLibrary
             case "process.filter.strainer":
                 Rect("pipe-left", 3, 35, 48, 10, shell, 2);
                 Rect("pipe-right", 94, 35, 45, 10, shell, 2);
-                Rect("filter-body", 39, 20, 61, 36, shell, 6, 2.5);
-                Triangle("basket", 54, 52, 43, 47, false, light);
+                Bezier("filter-body", 39, 20, 61, 36,
+                    "M 6 16 C 18 5 34 2 50 2 C 66 2 82 5 94 16 L 94 84 C 82 95 66 98 50 98 C 34 98 18 95 6 84 Z",
+                    shell, 2.5);
+                Bezier("basket", 54, 52, 43, 47,
+                    "M 86 4 C 70 18 52 38 8 88 C 24 92 38 95 52 96 C 66 78 80 52 94 18 Z",
+                    light, 2);
                 for (var index = 0; index < (highPerformance ? 2 : 4); index++)
                     Bar($"basket-slot-{index + 1}", 62 + index * (highPerformance ? 14 : 7), 65, 2, 24, dark, -22);
                 Ellipse("cap", 51, 91, 49, 12, accent);
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
                 break;
             case "process.mixer.agitator":
-                Rect("vessel", 26, 65, 79, 88, highPerformance ? "#D5DBDF" : shell, 18, 2.5);
-                Ellipse("tank-top", 26, 58, 79, 23, light, 2);
+                Bezier("vessel", 26, 58, 79, 95,
+                    "M 10 10 C 20 3 32 1 50 1 C 68 1 80 3 90 10 L 90 90 C 80 97 68 99 50 99 C 32 99 20 97 10 90 Z",
+                    highPerformance ? "#D5DBDF" : shell, 2.5);
+                Arc("tank-top", 27, 59, 77, 22, 180, 360, dark);
                 Rect("liquid", 33, 98, 65, 47, highPerformance ? "#AEB7BE" : "#74B6CC", 13, 1);
                 Rect("motor", 47, 15, 39, 27, accent, 5);
                 Rect("shaft", 64, 41, 5, 82, dark);

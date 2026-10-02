@@ -8,9 +8,7 @@ Current integration after PR #444:
 
 PR #444 exact-head T1 #352 / `36954843198`: SUCCESS across Classify, Common, Web, .NET, Chromium, HA two-process and final gate.
 
-Post-merge broad CI:
-EliteSCADA CI #1634 / `36957590249`.
-At this docs checkpoint Web is SUCCESS and Backend is still running; revalidate live before action.
+Post-merge broad CI #1634 / `36957590249` is RED only in one stale visual-property catalog test. Accepted `arcStartAngle` / `arcEndAngle` product semantics remain. Test-only PR #449 at `d136732c...` is the active closeout; T1 #354 / `36957855581` is running. Revalidate live before action.
 
 Important unpublished local workspace:
 `C:\Users\Bruno Rogerio\Documents\Codex\EliteSCADA-dynamo-preview-0126`.

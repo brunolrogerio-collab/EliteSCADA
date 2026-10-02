@@ -87,6 +87,11 @@ public sealed class PostgreSqlDatabaseTopologyOperations(DatabaseTopologyOptions
         "elitescada.runtime_session_authority_state"
     ];
 
+    private static readonly string[] HistorianSeedStateTables =
+    [
+        "elitescada.historian_storage_policy_state"
+    ];
+
     public async Task<DatabaseConnectionHealth> TestAsync(
         string connectionString,
         bool requireTimescale,
@@ -188,11 +193,10 @@ public sealed class PostgreSqlDatabaseTopologyOperations(DatabaseTopologyOptions
         CancellationToken cancellationToken = default)
     {
         EnsureDifferentDatabase(sourceConnectionString, targetConnectionString, "primary");
-        if (!historianUsesPrimary)
-            EnsureDifferentDatabase(historianSourceConnectionString, historianTargetConnectionString, "historian");
+        var historianTarget = historianUsesPrimary ? targetConnectionString : historianTargetConnectionString;
+        EnsureDifferentDatabase(historianSourceConnectionString, historianTarget, "historian");
 
         await EnsureNoExistingRowsAsync(targetConnectionString, MeaningfulMainTables, cancellationToken);
-        var historianTarget = historianUsesPrimary ? targetConnectionString : historianTargetConnectionString;
         await EnsureNoExistingRowsAsync(historianTarget, HistorianTables, cancellationToken);
 
         await PostgreSqlDeploymentDatabasePreparation.InitializeCoreAsync(targetConnectionString, cancellationToken);
@@ -218,9 +222,9 @@ public sealed class PostgreSqlDatabaseTopologyOperations(DatabaseTopologyOptions
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(plan);
-        await CopyTableSetAsync(sourceConnectionString, targetConnectionString, MainTables, clearSeedState: true, cancellationToken);
+        await CopyTableSetAsync(sourceConnectionString, targetConnectionString, MainTables, SeedStateTables, cancellationToken);
         var historianTarget = plan.HistorianUsesPrimary ? targetConnectionString : historianTargetConnectionString;
-        await CopyTableSetAsync(historianSourceConnectionString, historianTarget, HistorianTables, clearSeedState: false, cancellationToken);
+        await CopyTableSetAsync(historianSourceConnectionString, historianTarget, HistorianTables, HistorianSeedStateTables, cancellationToken);
         await ResetEngineeringRevisionSequenceAsync(targetConnectionString, cancellationToken);
     }
 
@@ -251,25 +255,31 @@ public sealed class PostgreSqlDatabaseTopologyOperations(DatabaseTopologyOptions
         var mismatches = sourceRows
             .Where(pair => targetRows.TryGetValue(pair.Key, out var target) && target != pair.Value)
             .Select(pair => pair.Key)
-            .ToArray();
-        var (projectKey, revision) = await ReadActiveRevisionAsync(targetConnectionString, cancellationToken);
-        var succeeded = mismatches.Length == 0;
+            .ToList();
+        var sourceActive = await ReadActiveRevisionAsync(sourceConnectionString, cancellationToken);
+        var targetActive = await ReadActiveRevisionAsync(targetConnectionString, cancellationToken);
+        if (!string.Equals(sourceActive.ProjectKey, targetActive.ProjectKey, StringComparison.Ordinal) ||
+            sourceActive.Revision != targetActive.Revision)
+        {
+            mismatches.Add("active-project-revision");
+        }
 
+        var succeeded = mismatches.Count == 0;
         return new(
             succeeded,
             sourceRows,
             targetRows,
-            projectKey,
-            revision,
-            succeeded ? null : "migration-count-mismatch",
-            succeeded ? null : "Row-count verification failed for: " + string.Join(", ", mismatches));
+            targetActive.ProjectKey,
+            targetActive.Revision,
+            succeeded ? null : "migration-integrity-mismatch",
+            succeeded ? null : "Migration verification failed for: " + string.Join(", ", mismatches));
     }
 
     private static async Task CopyTableSetAsync(
         string sourceConnectionString,
         string targetConnectionString,
         IEnumerable<string> tables,
-        bool clearSeedState,
+        IEnumerable<string> seedStateTables,
         CancellationToken cancellationToken)
     {
         await using var sourceDataSource = NpgsqlDataSource.Create(sourceConnectionString);
@@ -278,14 +288,11 @@ public sealed class PostgreSqlDatabaseTopologyOperations(DatabaseTopologyOptions
         await using var target = await targetDataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await target.BeginTransactionAsync(cancellationToken);
 
-        if (clearSeedState)
+        foreach (var table in seedStateTables)
         {
-            foreach (var table in SeedStateTables)
-            {
-                if (!await TableExistsAsync(target, table, cancellationToken)) continue;
-                await using var delete = new NpgsqlCommand($"DELETE FROM {QuoteQualified(table)};", target, transaction);
-                await delete.ExecuteNonQueryAsync(cancellationToken);
-            }
+            if (!await TableExistsAsync(target, table, cancellationToken)) continue;
+            await using var delete = new NpgsqlCommand($"DELETE FROM {QuoteQualified(table)};", target, transaction);
+            await delete.ExecuteNonQueryAsync(cancellationToken);
         }
 
         foreach (var table in tables)

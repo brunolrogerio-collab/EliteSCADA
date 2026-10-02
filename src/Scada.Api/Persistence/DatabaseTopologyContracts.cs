@@ -71,10 +71,10 @@ public sealed record DatabaseRemoteEndpoint(
                 "TLS VerifyCa/VerifyFull requires a host-owned root CA path.",
                 nameof(RootCertificatePath));
         }
-        if (TlsMode is DatabaseTlsMode.Disable && TrustServerCertificate)
-            throw new ArgumentException("TrustServerCertificate cannot be enabled when TLS is disabled.");
-        if (TlsMode is DatabaseTlsMode.VerifyCa or DatabaseTlsMode.VerifyFull && TrustServerCertificate)
-            throw new ArgumentException("TrustServerCertificate cannot bypass VerifyCa/VerifyFull validation.");
+        if (TrustServerCertificate)
+            throw new ArgumentException(
+                "TrustServerCertificate bypass is not supported. Configure VerifyCa/VerifyFull with a host-owned root CA instead.",
+                nameof(TrustServerCertificate));
     }
 }
 

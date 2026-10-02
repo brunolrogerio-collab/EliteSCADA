@@ -115,6 +115,25 @@ public sealed class DatabaseTopologyCoreTests
     }
 
     [Fact]
+    public void MaintenanceGate_RemainsActivePastLeaseDeadline_UntilExplicitExit()
+    {
+        var gate = new DatabaseMaintenanceGate();
+        var operationId = Guid.NewGuid();
+        var expiresAtUtc = gate.Enter(operationId, TimeSpan.FromTicks(1));
+
+        Assert.True(SpinWait.SpinUntil(
+            () => DateTimeOffset.UtcNow > expiresAtUtc,
+            TimeSpan.FromSeconds(1)));
+        Assert.True(gate.IsActive);
+        Assert.Equal(operationId, gate.OperationId);
+
+        gate.Exit(operationId);
+
+        Assert.False(gate.IsActive);
+        Assert.Null(gate.OperationId);
+    }
+
+    [Fact]
     public void LocalManaged_RemainsDefaultAndUsesExistingDeploymentConnection()
     {
         using var temp = new TemporaryDirectory();

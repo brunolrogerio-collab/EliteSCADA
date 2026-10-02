@@ -333,6 +333,98 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
         </div>
       )}
 
+      <section className="ha-panel ha-topology-panel" data-testid="ha-topology-choice">
+        <div className={topology.enabled ? 'ha-running-mode ha-running-mode--ha' : 'ha-running-mode ha-running-mode--standalone'} data-testid="ha-running-mode">
+          <span>{t.runningMode}</span>
+          <strong>{topology.enabled ? t.haMode : t.standaloneMode}</strong>
+          <small>{topology.enabled ? t.haDescription : t.standaloneDescription}</small>
+        </div>
+
+        <div className="ha-panel__title">
+          <div>
+            <h2>{t.topologyChoice}</h2>
+            <p>{t.topologyChoiceHint}</p>
+          </div>
+          <span className={haLicensed ? 'ha-inline-status ha-inline-status--ok' : 'ha-inline-status ha-inline-status--warn'}>
+            {haLicensed ? t.haLicensed : t.haNotLicensed}
+          </span>
+        </div>
+
+        <div className="ha-topology-options">
+          <button
+            type="button"
+            className={deploymentChoice === 'standalone' && !topology.enabled ? 'ha-topology-option ha-topology-option--selected' : 'ha-topology-option'}
+            disabled={topology.enabled}
+            onClick={() => {
+              setDeploymentChoice('standalone');
+              setDraft(asDraft(configuration.desired));
+              setShowSecretEditor(false);
+              setOverridePeerEndpoint(Boolean(configuration.desired.peerTransport.peerEndpoint));
+            }}
+          >
+            <strong>{t.standaloneMode}</strong>
+            <span>{t.standaloneDescription}</span>
+            {!topology.enabled && <small>{t.running}</small>}
+          </button>
+
+          <button
+            type="button"
+            className={topology.enabled || deploymentChoice === 'ha' ? 'ha-topology-option ha-topology-option--selected' : 'ha-topology-option'}
+            disabled={topology.enabled || !haLicensed}
+            onClick={() => {
+              setDeploymentChoice('ha');
+              setDraft(current => current ? prepareHaDraft(current) : current);
+              setShowSecretEditor(false);
+            }}
+          >
+            <strong>{t.haMode}</strong>
+            <span>{t.haDescription}</span>
+            <small>{topology.enabled ? t.running : haLicensed ? t.selectHa : t.haNotLicensed}</small>
+          </button>
+        </div>
+
+        {!haLicensed && !topology.enabled && (
+          <div className="ha-mode-note ha-mode-note--locked">
+            <strong>{licensing.license.state === 'Demo' ? t.demoStandaloneHint : t.haNotLicensedHint}</strong>
+            <span>{t.previewOnlyHint}</span>
+          </div>
+        )}
+
+        {!topology.enabled && deploymentChoice === 'ha' && (
+          <div className="ha-mode-note ha-mode-note--planning" data-testid="ha-preparing-mode">
+            <strong>{t.preparingHa}</strong>
+            <span>{t.preparingHaHint}</span>
+          </div>
+        )}
+
+        {(topology.enabled || deploymentChoice === 'ha') && (
+          <div className="ha-readiness" data-testid="ha-readiness">
+            <div className="ha-readiness__header">
+              <div>
+                <span>{t.haReadiness}</span>
+                <strong>{haReadyForDeployment ? t.haReady : t.haIncomplete}</strong>
+              </div>
+              <span className={haReadyForDeployment ? 'ha-inline-status ha-inline-status--ok' : 'ha-inline-status ha-inline-status--warn'}>
+                {requirements.filter(requirement => requirement.ok).length}/{requirements.length}
+              </span>
+            </div>
+            <div className="ha-readiness__items">
+              {requirements.map(requirement => (
+                <span key={requirement.label} className={requirement.ok ? 'ha-requirement ha-requirement--ok' : 'ha-requirement'}>
+                  {requirement.ok ? '✓' : '○'} {requirement.label}
+                </span>
+              ))}
+            </div>
+            {!topology.enabled && (
+              <div className="ha-cold-start-note">
+                <strong>{t.coldStartActivation}</strong>
+                <span>{t.coldStartActivationHint}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
       <div className="ha-summary-grid">
         <article className="ha-summary-card">
           <span>{t.status}</span>
@@ -341,21 +433,23 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
         </article>
 
         <article className="ha-summary-card">
-          <span>{t.effectiveActive}</span>
+          <span>{topology.enabled ? t.effectiveActive : t.localNode}</span>
           <strong>{topology.effectiveActiveNodeId || '—'}</strong>
           <small>{t.epoch} {topology.authorityEpoch}</small>
         </article>
 
         <article className="ha-summary-card" data-testid="ha-peer-summary">
-          <span>{t.nodes}</span>
+          <span>{topology.enabled ? t.nodes : t.standaloneMode}</span>
           <div className="ha-node-summary">
             <strong>{topology.localNodeId}</strong>
-            <small>{local ? stateName(local.state) : '—'}</small>
+            <small>{local ? stateName(local.state) : t.standaloneMode}</small>
           </div>
-          <div className="ha-node-summary">
-            <strong>{peer.peerNodeId || peerNode?.nodeId || '—'}</strong>
-            <small>{peerNode ? stateName(peerNode.state) : '—'} · {peer.connectionState} · {relativeTime(latestContact(snapshot))}</small>
-          </div>
+          {topology.enabled && (
+            <div className="ha-node-summary">
+              <strong>{peer.peerNodeId || peerNode?.nodeId || '—'}</strong>
+              <small>{peerNode ? stateName(peerNode.state) : '—'} · {peer.connectionState} · {relativeTime(latestContact(snapshot))}</small>
+            </div>
+          )}
         </article>
 
         <article className="ha-summary-card">
@@ -365,37 +459,39 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
         </article>
       </div>
 
-      <section className="ha-panel ha-panel--actions">
-        <div className="ha-panel__title">
-          <div>
-            <h2>{t.clusterOperation}</h2>
-            <p>{t.clusterOperationHint}</p>
+      {topology.enabled && (
+        <section className="ha-panel ha-panel--actions">
+          <div className="ha-panel__title">
+            <div>
+              <h2>{t.clusterOperation}</h2>
+              <p>{t.clusterOperationHint}</p>
+            </div>
           </div>
-        </div>
-
-        <div className="ha-action-cards">
-          <button type="button" className="ha-action-card" onClick={() => setConfirm({ kind: 'switchover', target: suggestedTarget })}>
-            <strong>{t.switchover}</strong>
-            <span>{t.switchoverHint}</span>
-          </button>
-          <button type="button" className="ha-action-card" onClick={() => setConfirm({ kind: 'failback', target: draft.initialActiveNodeId })}>
-            <strong>{t.failback}</strong>
-            <span>{t.failbackHint}</span>
-          </button>
-          <button type="button" className="ha-action-card" onClick={() => setConfirm({ kind: 'recovery', target: topology.localNodeId })}>
-            <strong>{t.recovery}</strong>
-            <span>{t.recoveryHint}</span>
-          </button>
-        </div>
-
-        {latestOperation && (
-          <div className={'ha-latest-operation ha-latest-operation--' + latestOperation.state}>
-            <span>{t.latestOperation}</span>
-            <strong>{latestOperation.kind} · {latestOperation.state}</strong>
-            <small>{latestOperation.sourceNodeId || '—'} → {latestOperation.targetNodeId || '—'} · {latestOperation.reasonCode}</small>
+  
+          <div className="ha-action-cards">
+            <button type="button" className="ha-action-card" onClick={() => setConfirm({ kind: 'switchover', target: suggestedTarget })}>
+              <strong>{t.switchover}</strong>
+              <span>{t.switchoverHint}</span>
+            </button>
+            <button type="button" className="ha-action-card" onClick={() => setConfirm({ kind: 'failback', target: draft.initialActiveNodeId })}>
+              <strong>{t.failback}</strong>
+              <span>{t.failbackHint}</span>
+            </button>
+            <button type="button" className="ha-action-card" onClick={() => setConfirm({ kind: 'recovery', target: topology.localNodeId })}>
+              <strong>{t.recovery}</strong>
+              <span>{t.recoveryHint}</span>
+            </button>
           </div>
-        )}
-      </section>
+  
+          {latestOperation && (
+            <div className={'ha-latest-operation ha-latest-operation--' + latestOperation.state}>
+              <span>{t.latestOperation}</span>
+              <strong>{latestOperation.kind} · {latestOperation.state}</strong>
+              <small>{latestOperation.sourceNodeId || '—'} → {latestOperation.targetNodeId || '—'} · {latestOperation.reasonCode}</small>
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="ha-panel">
         <div className="ha-panel__title">
@@ -410,6 +506,14 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
           </div>
         </div>
 
+        {!configurationEditable && (
+          <div className="ha-mode-note ha-mode-note--preview">
+            <strong>{t.previewOnly}</strong>
+            <span>{t.previewOnlyHint}</span>
+          </div>
+        )}
+
+        <fieldset className="ha-config-fieldset" disabled={!configurationEditable}>
         <div className="ha-form-grid ha-form-grid--essential">
           <div className="ha-readonly-field" data-testid="ha-deployment-state">
             <span>{t.haDeploymentState}</span>
@@ -674,7 +778,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
         <div className="ha-save-bar">
           <div>
             <strong>{desiredChanged ? t.desired : t.noEdits}</strong>
-            <span>{t.saveHint}</span>
+            <span>{!topology.enabled && deploymentChoice === 'ha' ? t.preparingHaHint : t.saveHint}</span>
           </div>
           <button
             type="button"
@@ -682,9 +786,10 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
             disabled={!desiredChanged || saving || validation.length > 0}
             onClick={() => void saveConfiguration()}
           >
-            {saving ? t.saving : t.save}
+            {saving ? t.saving : (!topology.enabled && deploymentChoice === 'ha' ? t.saveHaPreparation : t.save)}
           </button>
         </div>
+        </fieldset>
       </section>
 
       <details className="ha-panel ha-disclosure ha-disclosure--technical">

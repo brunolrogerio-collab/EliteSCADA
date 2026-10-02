@@ -1,5 +1,30 @@
 
 
+## POST-MERGE BROAD CLOSEOUT — 2026-10-02
+
+The accepted integration base has now completed post-merge broad validation:
+
+- `wave15/corrections-integration@015b0d5ae815fe1c8143aa22755e2c6ef91ec826`;
+- EliteSCADA CI #1646 / `37018896955`: SUCCESS;
+- Web build: SUCCESS;
+- Backend build/test/smoke: SUCCESS;
+- Chromium end-to-end: SUCCESS.
+
+This closes the post-#450 integration gate.
+
+Current released branches:
+- `work/w15-ha-d2-core`;
+- `work/w15-db-remote-topology`;
+- `work/w15-historical-playback`;
+- `work/w15-dynamo-artwork-r2`.
+
+At this checkpoint they are still identical to integration with no DEV commits/PRs yet.
+
+Coordination cleanup:
+- obsolete docs-only PR #448 closed without merge;
+- Help Phase-1 PR #439 remains useful but is DRAFT/HOLD until HA/DB/Playback/final Visual surfaces stabilize.
+
+
 ## ACCEPTED POST-RECOVERY BASE — 2026-10-02
 
 Product Owner explicitly authorized merge of PR #450 after exact-head green validation.

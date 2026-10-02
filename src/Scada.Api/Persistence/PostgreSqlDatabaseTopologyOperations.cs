@@ -81,6 +81,7 @@ public sealed class PostgreSqlDatabaseTopologyOperations(DatabaseTopologyOptions
 
     private static readonly string[] SeedStateTables =
     [
+        "elitescada.schema_migrations",
         "elitescada.engineering_installation_binding",
         "elitescada.authority_policy_state",
         "elitescada.authority_lifecycle_state",
@@ -313,56 +314,36 @@ public sealed class PostgreSqlDatabaseTopologyOperations(DatabaseTopologyOptions
         string table,
         CancellationToken cancellationToken)
     {
+        _ = transaction;
         var (schema, name) = SplitQualifiedName(table);
         await using var metadata = new NpgsqlCommand("""
-            SELECT column_name, data_type, udt_name, is_identity
+            SELECT column_name
             FROM information_schema.columns
-            WHERE table_schema = @schema AND table_name = @name
+            WHERE table_schema = @schema
+              AND table_name = @name
+              AND is_generated = 'NEVER'
             ORDER BY ordinal_position;
             """, source);
         metadata.Parameters.AddWithValue("schema", schema);
         metadata.Parameters.AddWithValue("name", name);
 
-        var columns = new List<ColumnMetadata>();
+        var columns = new List<string>();
         await using (var reader = await metadata.ExecuteReaderAsync(cancellationToken))
         {
             while (await reader.ReadAsync(cancellationToken))
-                columns.Add(new(reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3) == "YES"));
+                columns.Add(reader.GetString(0));
         }
         if (columns.Count == 0) return;
 
-        var quotedColumns = string.Join(", ", columns.Select(column => QuoteIdentifier(column.Name)));
-        await using var select = new NpgsqlCommand($"SELECT {quotedColumns} FROM {QuoteQualified(table)};", source);
-        await using var sourceReader = await select.ExecuteReaderAsync(cancellationToken);
-
-        var values = string.Join(", ", columns.Select((column, index) =>
-            column.DataType is "json" or "jsonb" ? $"@p{index}::{column.DataType}" : $"@p{index}"));
-        var overrideIdentity = columns.Any(column => column.IsIdentity) ? " OVERRIDING SYSTEM VALUE" : string.Empty;
-        var insertSql =
-            $"INSERT INTO {QuoteQualified(table)} ({quotedColumns}){overrideIdentity} VALUES ({values}) ON CONFLICT DO NOTHING;";
-
-        while (await sourceReader.ReadAsync(cancellationToken))
-        {
-            await using var insert = new NpgsqlCommand(insertSql, target, transaction);
-            for (var index = 0; index < columns.Count; index++)
-            {
-                object value;
-                if (sourceReader.IsDBNull(index))
-                {
-                    value = DBNull.Value;
-                }
-                else if (columns[index].DataType is "json" or "jsonb")
-                {
-                    value = sourceReader.GetString(index);
-                }
-                else
-                {
-                    value = sourceReader.GetValue(index);
-                }
-                insert.Parameters.AddWithValue("p" + index, value);
-            }
-            await insert.ExecuteNonQueryAsync(cancellationToken);
-        }
+        var quotedColumns = string.Join(", ", columns.Select(QuoteIdentifier));
+        var qualified = QuoteQualified(table);
+        await using var exporter = await source.BeginRawBinaryCopyAsync(
+            $"COPY {qualified} ({quotedColumns}) TO STDOUT (FORMAT BINARY)",
+            cancellationToken);
+        await using var importer = await target.BeginRawBinaryCopyAsync(
+            $"COPY {qualified} ({quotedColumns}) FROM STDIN (FORMAT BINARY)",
+            cancellationToken);
+        await exporter.CopyToAsync(importer, 81920, cancellationToken);
     }
 
     private static async Task ResetEngineeringRevisionSequenceAsync(
@@ -520,5 +501,4 @@ public sealed class PostgreSqlDatabaseTopologyOperations(DatabaseTopologyOptions
     private static string QuoteIdentifier(string value) =>
         string.Concat("\"", value.Replace("\"", "\"\"", StringComparison.Ordinal), "\"");
 
-    private sealed record ColumnMetadata(string Name, string DataType, string UdtName, bool IsIdentity);
 }

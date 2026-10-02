@@ -1,3 +1,5 @@
+using Npgsql;
+using Scada.Persistence.PostgreSql;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
@@ -103,7 +105,8 @@ public sealed class DatabaseTopologyCoreTests
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["DatabaseTopology:StateFile"] = temp.TopologyPath,
-            ["DatabaseTopology:Secrets:StoreFile"] = temp.SecretPath
+            ["DatabaseTopology:Secrets:StoreFile"] = temp.SecretPath,
+            ["ConnectionStrings:EliteScada"] = ""
         });
 
         var error = Assert.Throws<InvalidOperationException>(() => builder.AddDatabaseTopologyCore());
@@ -271,6 +274,163 @@ public sealed class DatabaseTopologyCoreTests
         Assert.Equal(DatabaseTopologyMode.Remote, status.ActiveTopology.Mode);
         Assert.Equal(false, status.PrimaryHealth?.Reachable);
         Assert.NotNull(status.LastHealthCheckUtc);
+    }
+
+
+    [Fact]
+    public async Task PostgreSqlOperations_ValidateConnectivityVersionTimescaleAuthHostAndTls()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var baseOptions = new DatabaseTopologyOptions("unused", "unused", 18, 18, 2, 300);
+        var operations = new PostgreSqlDatabaseTopologyOperations(baseOptions);
+        var valid = await operations.TestAsync(connectionString, requireTimescale: true);
+        Assert.True(valid.Reachable);
+        Assert.Null(valid.FailureCode);
+        Assert.Equal(18, valid.PostgreSqlMajor);
+        Assert.True(valid.TimescaleCapable);
+
+        var incompatiblePg = await new PostgreSqlDatabaseTopologyOperations(
+            baseOptions with { MinimumPostgreSqlMajor = 99, MaximumPostgreSqlMajor = 99 })
+            .TestAsync(connectionString, requireTimescale: false);
+        Assert.True(incompatiblePg.Reachable);
+        Assert.Equal("database-incompatible", incompatiblePg.FailureCode);
+
+        var incompatibleTimescale = await new PostgreSqlDatabaseTopologyOperations(
+            baseOptions with { MinimumTimescaleMajor = 99 })
+            .TestAsync(connectionString, requireTimescale: true);
+        Assert.True(incompatibleTimescale.Reachable);
+        Assert.Equal("database-incompatible", incompatibleTimescale.FailureCode);
+
+        var auth = new NpgsqlConnectionStringBuilder(connectionString)
+        {
+            Password = "definitely-wrong-" + Guid.NewGuid().ToString("N"),
+            Pooling = false,
+            Timeout = 2
+        };
+        var invalidAuth = await operations.TestAsync(auth.ConnectionString, requireTimescale: false);
+        Assert.False(invalidAuth.Reachable);
+        Assert.Equal("authentication-failed", invalidAuth.FailureCode);
+
+        var host = new NpgsqlConnectionStringBuilder(connectionString)
+        {
+            Host = "does-not-exist.invalid",
+            Pooling = false,
+            Timeout = 1
+        };
+        var invalidHost = await operations.TestAsync(host.ConnectionString, requireTimescale: false);
+        Assert.False(invalidHost.Reachable);
+        Assert.NotNull(invalidHost.FailureCode);
+
+        var tls = new NpgsqlConnectionStringBuilder(connectionString)
+        {
+            SslMode = SslMode.VerifyFull,
+            RootCertificate = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                "missing-elitescada-ca-" + Guid.NewGuid().ToString("N") + ".pem"),
+            Pooling = false,
+            Timeout = 2
+        };
+        var invalidTls = await operations.TestAsync(tls.ConnectionString, requireTimescale: false);
+        Assert.False(invalidTls.Reachable);
+        Assert.NotNull(invalidTls.FailureCode);
+    }
+
+    [Fact]
+    public async Task PostgreSqlOperations_MigratePreparedCore_AndPreserveSourceDatabase()
+    {
+        var seed = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(seed)) return;
+
+        var sourceDatabase = "elitescada_db_source_" + Guid.NewGuid().ToString("N")[..12];
+        var targetDatabase = "elitescada_db_target_" + Guid.NewGuid().ToString("N")[..12];
+        var admin = new NpgsqlConnectionStringBuilder(seed)
+        {
+            Database = "postgres",
+            Pooling = false
+        };
+        var source = new NpgsqlConnectionStringBuilder(seed)
+        {
+            Database = sourceDatabase,
+            Pooling = false
+        };
+        var target = new NpgsqlConnectionStringBuilder(seed)
+        {
+            Database = targetDatabase,
+            Pooling = false
+        };
+
+        await CreateDatabaseAsync(admin.ConnectionString, sourceDatabase);
+        await CreateDatabaseAsync(admin.ConnectionString, targetDatabase);
+        try
+        {
+            await PostgreSqlDeploymentDatabasePreparation.InitializeCoreAsync(source.ConnectionString);
+
+            var options = new DatabaseTopologyOptions("unused", "unused", 18, 18, 2, 300);
+            var operations = new PostgreSqlDatabaseTopologyOperations(options);
+            var plan = await operations.PrepareAsync(
+                source.ConnectionString,
+                target.ConnectionString,
+                source.ConnectionString,
+                target.ConnectionString,
+                historianUsesPrimary: true);
+
+            await operations.CopyAsync(
+                plan,
+                source.ConnectionString,
+                target.ConnectionString,
+                source.ConnectionString,
+                target.ConnectionString);
+
+            var verification = await operations.VerifyAsync(
+                plan,
+                source.ConnectionString,
+                target.ConnectionString,
+                source.ConnectionString,
+                target.ConnectionString);
+
+            Assert.True(verification.Succeeded);
+            Assert.True(await TableExistsAsync(source.ConnectionString, "elitescada.authority_lifecycle_state"));
+            Assert.True(await TableExistsAsync(target.ConnectionString, "elitescada.authority_lifecycle_state"));
+        }
+        finally
+        {
+            await DropDatabaseAsync(admin.ConnectionString, sourceDatabase);
+            await DropDatabaseAsync(admin.ConnectionString, targetDatabase);
+        }
+    }
+
+    private static async Task CreateDatabaseAsync(string adminConnectionString, string database)
+    {
+        await using var connection = new NpgsqlConnection(adminConnectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand($"CREATE DATABASE \"{database}\";", connection);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task DropDatabaseAsync(string adminConnectionString, string database)
+    {
+        await using var connection = new NpgsqlConnection(adminConnectionString);
+        await connection.OpenAsync();
+        await using (var terminate = new NpgsqlCommand(
+            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = @database AND pid <> pg_backend_pid();",
+            connection))
+        {
+            terminate.Parameters.AddWithValue("database", database);
+            await terminate.ExecuteNonQueryAsync();
+        }
+        await using var drop = new NpgsqlCommand($"DROP DATABASE IF EXISTS \"{database}\";", connection);
+        await drop.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<bool> TableExistsAsync(string connectionString, string table)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand("SELECT to_regclass(@table) IS NOT NULL;", connection);
+        command.Parameters.AddWithValue("table", table);
+        return (bool)(await command.ExecuteScalarAsync() ?? false);
     }
 
     private static DatabaseRemoteProfileRequest RemoteRequest() =>

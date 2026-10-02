@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { appShellText, useAppShellLocale } from '../../appShellI18n';
 import { UserSessionMenu } from '../../auth/UserSessionMenu';
+import { ApplicationBrand, resolveApplicationBranding } from '../../branding/ApplicationBranding';
 import type { ScriptEngineeringContext } from '../../engineering/scripts/scriptEngineeringTypes';
 import { RuntimeAlarmCenter } from '../RuntimeAlarmCenter';
 import { HistoricalDataBrowserRuntime } from '../historical-browser/HistoricalDataBrowserRuntime';
@@ -19,7 +20,15 @@ const REFRESH_INTERVAL_MS = 1500;
 const RETRYABLE_RUNTIME_PROJECTION_STATUSES = new Set([502, 503, 504]);
 const TRUNCATED_RESPONSE_SIGNATURE = 'content-length header of network response exceeds response body';
 
-export function RuntimeApplicationMount({ showHistoryNavigation = false }: { showHistoryNavigation?: boolean } = {}) {
+export type RuntimeApplicationMountProps = {
+  showHistoryNavigation?: boolean;
+  showFullscreenControl?: boolean;
+};
+
+export function RuntimeApplicationMount({
+  showHistoryNavigation = false,
+  showFullscreenControl = false
+}: RuntimeApplicationMountProps = {}) {
   const locale = useAppShellLocale();
   const text = appShellText(locale);
   const [projection, setProjection] = useState<RuntimeApplicationProjection | null>(null);
@@ -93,17 +102,19 @@ export function RuntimeApplicationMount({ showHistoryNavigation = false }: { sho
       </section>
     </main>;
   }
-  return <EngineeringRuntimeApplication projection={projection} locale={locale} showHistoryNavigation={showHistoryNavigation} />;
+  return <EngineeringRuntimeApplication projection={projection} locale={locale} showHistoryNavigation={showHistoryNavigation} showFullscreenControl={showFullscreenControl} />;
 }
 
 function EngineeringRuntimeApplication({
   projection,
   locale,
-  showHistoryNavigation
+  showHistoryNavigation,
+  showFullscreenControl
 }: {
   projection: RuntimeApplicationProjection;
   locale: ReturnType<typeof useAppShellLocale>;
   showHistoryNavigation: boolean;
+  showFullscreenControl: boolean;
 }) {
   const text = appShellText(locale);
   const historyText = historicalBrowserCopy(locale);
@@ -115,6 +126,14 @@ function EngineeringRuntimeApplication({
   const startup = useMemo(
     () => resolveRuntimeStartupScreen(engineeringPackage),
     [engineeringPackage]
+  );
+  const branding = useMemo(
+    () => resolveApplicationBranding(
+      engineeringPackage.branding,
+      engineeringPackage.visualAssets ?? [],
+      runtimeVisualAssetContentUrl
+    ),
+    [engineeringPackage.branding, engineeringPackage.visualAssets]
   );
 
   useEffect(() => {
@@ -148,6 +167,11 @@ function EngineeringRuntimeApplication({
     });
   };
 
+  const showOverview = () => {
+    setHistoryOpen(false);
+    setAlarmsOpen(false);
+  };
+
   const toggleHistory = () => {
     setHistoryOpen(current => {
       const next = !current;
@@ -173,28 +197,49 @@ function EngineeringRuntimeApplication({
     data-runtime-revision={projection.revision ?? undefined}
     data-runtime-fullscreen={isFullscreen || undefined}
   >
-    <header className="runtime-operator-bar">
-      <div className="runtime-operator-context">
+    <header className={`runtime-operator-bar${isFullscreen ? ' runtime-operator-bar--fullscreen' : ''}`}>
+      {isFullscreen ? <div className="runtime-operator-brand">
+        <ApplicationBrand
+          branding={branding}
+          defaultSubtitle={text.subtitle}
+          href="/"
+        />
+      </div> : null}
+      <div className="runtime-operator-context" title={projection.projectName || projection.projectKey || text.runtime}>
         <strong>{projection.projectName || projection.projectKey}</strong>
-        <span>rev {projection.revision}</span>
+        {!isFullscreen ? <span>rev {projection.revision}</span> : null}
       </div>
-      {showHistoryNavigation ? <nav className="runtime-view-navigation runtime-view-navigation--inline" aria-label="Runtime views">
-        <a href="/" className={!historyOpen ? 'active' : undefined} aria-current={!historyOpen ? 'page' : undefined}>{text.runtimeOverview}</a>
-        <button
-          type="button"
-          className={historyOpen ? 'active' : undefined}
-          aria-expanded={historyOpen}
-          aria-controls="runtime-history-overlay"
-          onClick={toggleHistory}
-        >{text.runtimeHistory}</button>
-      </nav> : null}
       <div className="runtime-operator-actions">
-        <button type="button" className="runtime-operator-button" aria-expanded={alarmsOpen} onClick={toggleAlarms}>
-          {text.alarms}
-        </button>
-        <button type="button" className="runtime-operator-button" onClick={() => void toggleFullscreen()}>
-          {isFullscreen ? text.exitFullscreen : text.fullscreen}
-        </button>
+        <div className="runtime-operator-toolbar" role="toolbar" aria-label={text.runtime}>
+          <RuntimeOperatorTool
+            label={text.runtimeOverview}
+            icon="overview"
+            active={!historyOpen && !alarmsOpen}
+            onClick={showOverview}
+          />
+          {showHistoryNavigation ? <RuntimeOperatorTool
+            label={text.runtimeHistory}
+            icon="history"
+            active={historyOpen}
+            expanded={historyOpen}
+            controls="runtime-history-overlay"
+            onClick={toggleHistory}
+          /> : null}
+          <RuntimeOperatorTool
+            label={text.alarms}
+            icon="alarms"
+            active={alarmsOpen}
+            expanded={alarmsOpen}
+            controls="runtime-alarm-overlay"
+            onClick={toggleAlarms}
+          />
+          {(showFullscreenControl || isFullscreen) ? <RuntimeOperatorTool
+            label={isFullscreen ? text.exitFullscreen : text.fullscreen}
+            icon={isFullscreen ? 'exitFullscreen' : 'fullscreen'}
+            active={isFullscreen}
+            onClick={() => void toggleFullscreen()}
+          /> : null}
+        </div>
         {isFullscreen ? <UserSessionMenu locale={locale} includeRuntimeSessionControls /> : null}
       </div>
     </header>
@@ -220,7 +265,7 @@ function EngineeringRuntimeApplication({
       </div>
     </aside> : null}
 
-    {alarmsOpen ? <aside className="runtime-operator-overlay" aria-label={text.alarms}>
+    {alarmsOpen ? <aside id="runtime-alarm-overlay" className="runtime-operator-overlay" aria-label={text.alarms}>
       <div className="runtime-operator-overlay-header">
         <strong>{text.alarms}</strong>
         <button type="button" className="runtime-operator-button" onClick={() => setAlarmsOpen(false)}>{text.closeAlarms}</button>
@@ -230,6 +275,68 @@ function EngineeringRuntimeApplication({
       </div>
     </aside> : null}
   </main>;
+}
+
+type RuntimeOperatorIconName = 'overview' | 'history' | 'alarms' | 'fullscreen' | 'exitFullscreen';
+
+function RuntimeOperatorTool({
+  label,
+  icon,
+  active,
+  expanded,
+  controls,
+  onClick
+}: {
+  label: string;
+  icon: RuntimeOperatorIconName;
+  active: boolean;
+  expanded?: boolean;
+  controls?: string;
+  onClick: () => void;
+}) {
+  return <button
+    type="button"
+    className={`runtime-operator-tool${active ? ' active' : ''}`}
+    aria-label={label}
+    aria-pressed={active}
+    aria-expanded={expanded}
+    aria-controls={controls}
+    title={label}
+    data-tooltip={label}
+    onClick={onClick}
+  >
+    <RuntimeOperatorIcon name={icon} />
+    <span className="sr-only">{label}</span>
+  </button>;
+}
+
+function RuntimeOperatorIcon({ name }: { name: RuntimeOperatorIconName }) {
+  if (name === 'overview') {
+    return <svg className="runtime-operator-tool__icon" viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M3.5 9.2 10 3.8l6.5 5.4v6.3a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1Z" />
+      <path d="M8 16.5v-5h4v5" />
+    </svg>;
+  }
+  if (name === 'history') {
+    return <svg className="runtime-operator-tool__icon" viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M4.2 6.1A7 7 0 1 1 3 10" />
+      <path d="M3.2 3.8v3.1h3.1M10 6.2V10l2.6 1.6" />
+    </svg>;
+  }
+  if (name === 'alarms') {
+    return <svg className="runtime-operator-tool__icon" viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M5.2 13.7h9.6l-1.2-1.8V8.7a3.6 3.6 0 0 0-7.2 0v3.2Z" />
+      <path d="M8.2 15.1a1.9 1.9 0 0 0 3.6 0" />
+    </svg>;
+  }
+  if (name === 'fullscreen') {
+    return <svg className="runtime-operator-tool__icon" viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M7.2 3.5H3.5v3.7M12.8 3.5h3.7v3.7M7.2 16.5H3.5v-3.7M12.8 16.5h3.7v-3.7" />
+    </svg>;
+  }
+  return <svg className="runtime-operator-tool__icon" viewBox="0 0 20 20" aria-hidden="true">
+    <path d="M3.5 7.2h3.7V3.5M16.5 7.2h-3.7V3.5M3.5 12.8h3.7v3.7M16.5 12.8h-3.7v3.7" />
+  </svg>;
 }
 
 function isRetryableRuntimeProjectionFailure(failure: Error): boolean {

@@ -9,12 +9,72 @@ import {
 } from '../runtimeSessionAdmissionApi';
 import type { EngineeringLocale } from '../../engineering/i18n';
 
-type Copy = { title: string; viewOnly: string; interactive: string; end: string; requested: string; granted: string; admission: string; capacity: string; unavailable: string; ending: string; fallback: string; viewOnlyGranted: string; rejected: string };
+type Copy = {
+  title: string;
+  viewOnly: string;
+  interactive: string;
+  end: string;
+  requested: string;
+  granted: string;
+  admission: string;
+  capacity: string;
+  technicalDetails: string;
+  unavailable: string;
+  ending: string;
+  fallback: string;
+  viewOnlyGranted: string;
+  rejected: string;
+};
 
 const copy: Record<EngineeringLocale, Copy> = {
-  'pt-BR': { title: 'Classe da sessão Runtime', viewOnly: 'Solicitar somente visualização', interactive: 'Solicitar interativa', end: 'Encerrar sessão', requested: 'Solicitada', granted: 'Concedida', admission: 'Motivo de admissão', capacity: 'Motivo de capacidade', unavailable: 'Sem sessão Runtime ativa.', ending: 'Encerrando…', fallback: 'As vagas interativas estão indisponíveis; o servidor abriu esta sessão em Somente visualização.', viewOnlyGranted: 'Sessão aberta em Somente visualização conforme solicitado.', rejected: 'A sessão Runtime não pôde ser admitida.' },
-  en: { title: 'Runtime session class', viewOnly: 'Request View Only', interactive: 'Request Interactive', end: 'End session', requested: 'Requested', granted: 'Granted', admission: 'Admission reason', capacity: 'Capacity reason', unavailable: 'No Runtime session is active.', ending: 'Ending…', fallback: 'Interactive capacity is unavailable; the server opened this session as View Only.', viewOnlyGranted: 'Session opened as View Only as requested.', rejected: 'The Runtime session could not be admitted.' },
-  es: { title: 'Clase de sesión Runtime', viewOnly: 'Solicitar Solo visualización', interactive: 'Solicitar interactiva', end: 'Finalizar sesión', requested: 'Solicitada', granted: 'Concedida', admission: 'Motivo de admisión', capacity: 'Motivo de capacidad', unavailable: 'No hay sesión Runtime activa.', ending: 'Finalizando…', fallback: 'La capacidad interactiva no está disponible; el servidor abrió esta sesión como Solo visualización.', viewOnlyGranted: 'Sesión abierta como Solo visualización según lo solicitado.', rejected: 'No fue posible admitir la sesión Runtime.' }
+  'pt-BR': {
+    title: 'Classe da sessão Runtime',
+    viewOnly: 'Visualização',
+    interactive: 'Interativa',
+    end: 'Encerrar sessão',
+    requested: 'Solicitada',
+    granted: 'Concedida',
+    admission: 'Motivo de admissão',
+    capacity: 'Motivo de capacidade',
+    technicalDetails: 'Detalhes técnicos',
+    unavailable: 'Sem sessão Runtime ativa.',
+    ending: 'Encerrando…',
+    fallback: 'As vagas interativas estão indisponíveis; o servidor abriu esta sessão em Somente visualização.',
+    viewOnlyGranted: 'Sessão aberta em Somente visualização conforme solicitado.',
+    rejected: 'A sessão Runtime não pôde ser admitida.'
+  },
+  en: {
+    title: 'Runtime session class',
+    viewOnly: 'View only',
+    interactive: 'Interactive',
+    end: 'End session',
+    requested: 'Requested',
+    granted: 'Granted',
+    admission: 'Admission reason',
+    capacity: 'Capacity reason',
+    technicalDetails: 'Technical details',
+    unavailable: 'No Runtime session is active.',
+    ending: 'Ending…',
+    fallback: 'Interactive capacity is unavailable; the server opened this session as View Only.',
+    viewOnlyGranted: 'Session opened as View Only as requested.',
+    rejected: 'The Runtime session could not be admitted.'
+  },
+  es: {
+    title: 'Clase de sesión Runtime',
+    viewOnly: 'Visualización',
+    interactive: 'Interactiva',
+    end: 'Finalizar sesión',
+    requested: 'Solicitada',
+    granted: 'Concedida',
+    admission: 'Motivo de admisión',
+    capacity: 'Motivo de capacidad',
+    technicalDetails: 'Detalles técnicos',
+    unavailable: 'No hay sesión Runtime activa.',
+    ending: 'Finalizando…',
+    fallback: 'La capacidad interactiva no está disponible; el servidor abrió esta sesión como Solo visualización.',
+    viewOnlyGranted: 'Sesión abierta como Solo visualización según lo solicitado.',
+    rejected: 'No fue posible admitir la sesión Runtime.'
+  }
 };
 
 type RuntimeSessionContextValue = {
@@ -79,6 +139,12 @@ export function RuntimeSessionClassProvider({ children }: { children: ReactNode 
   </RuntimeSessionContext.Provider>;
 }
 
+function sessionClassLabel(value: RuntimeSessionConnectionClass | null | undefined, text: Copy) {
+  if (value === 'viewOnly') return text.viewOnly;
+  if (value === 'interactive') return text.interactive;
+  return '—';
+}
+
 /** Shared user-owned controls: closing the account menu does not end the Runtime session. */
 export function RuntimeSessionClassPanel({ locale }: { locale: EngineeringLocale }) {
   const text = copy[locale];
@@ -91,15 +157,22 @@ export function RuntimeSessionClassPanel({ locale }: { locale: EngineeringLocale
     <div className="runtime-session-class__controls">
       <button type="button" className="runtime-operator-button" data-testid="runtime-session-request-viewOnly" disabled={busy !== null} onClick={() => void session.request('viewOnly', locale)}>{text.viewOnly}</button>
       <button type="button" className="runtime-operator-button" data-testid="runtime-session-request-interactive" disabled={busy !== null} onClick={() => void session.request('interactive', locale)}>{text.interactive}</button>
-      {outcome ? <button type="button" className="runtime-operator-button" data-testid="runtime-session-end" disabled={busy !== null} onClick={() => void session.end(locale)}>{busy === 'end' ? text.ending : text.end}</button> : null}
+      {outcome ? <button type="button" className="runtime-operator-button runtime-session-class__end" data-testid="runtime-session-end" disabled={busy !== null} onClick={() => void session.end(locale)}>{busy === 'end' ? text.ending : text.end}</button> : null}
     </div>
     {notice ? <p className="runtime-session-class__notice" role="status" data-testid="runtime-session-notice">{notice}</p> : null}
-    {outcome ? <dl className="runtime-session-class__status" data-testid="runtime-session-status">
-      <dt>{text.requested}</dt><dd>{outcome.requestedClass ?? '—'}</dd>
-      <dt>{text.granted}</dt><dd>{outcome.grantedClass ?? '—'}</dd>
-      <dt>{text.admission}</dt><dd>{outcome.admissionReasonCode ?? '—'}</dd>
-      <dt>{text.capacity}</dt><dd>{outcome.capacityReasonCode ?? '—'}</dd>
-    </dl> : <p>{text.unavailable}</p>}
-    {error ? <p role="alert">{error}</p> : null}
+    {outcome ? <>
+      <dl className="runtime-session-class__status" data-testid="runtime-session-status">
+        <dt>{text.requested}</dt><dd>{sessionClassLabel(outcome.requestedClass, text)}</dd>
+        <dt>{text.granted}</dt><dd>{sessionClassLabel(outcome.grantedClass, text)}</dd>
+      </dl>
+      {(outcome.admissionReasonCode || outcome.capacityReasonCode) ? <details className="runtime-session-class__diagnostics" data-testid="runtime-session-diagnostics">
+        <summary>{text.technicalDetails}</summary>
+        <dl>
+          <dt>{text.admission}</dt><dd>{outcome.admissionReasonCode ?? '—'}</dd>
+          <dt>{text.capacity}</dt><dd>{outcome.capacityReasonCode ?? '—'}</dd>
+        </dl>
+      </details> : null}
+    </> : <p className="runtime-session-class__empty" data-testid="runtime-session-empty">{text.unavailable}</p>}
+    {error ? <p className="runtime-session-class__error" role="alert">{error}</p> : null}
   </div>;
 }

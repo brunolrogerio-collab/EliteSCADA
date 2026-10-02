@@ -952,7 +952,13 @@ public static class BuiltinDynamoLibrary
             return;
         var properties = element.Properties is null ? new Dictionary<string, JsonElement>() : new Dictionary<string, JsonElement>(element.Properties);
         var stopped = DefaultStoppedColor(style);
-        properties["fillColor"] = JsonSerializer.SerializeToElement(stopped);
+        var neutralPreviewFill = properties.TryGetValue("fillColor", out var authoredFill) &&
+            authoredFill.ValueKind == JsonValueKind.String
+            ? authoredFill
+            : JsonSerializer.SerializeToElement(FinishProfile(style).Shell);
+        // Library/Editor previews without a live state sample stay neutral. Runtime still
+        // maps 0/1/2 to the same stopped/running/fault colors and public parameters.
+        properties["fillColor"] = neutralPreviewFill;
         var source = new VisualValueSourceEngineeringDto(
             VisualValueSourceKind.Tag,
             VisualExpressionValueType.Number,
@@ -965,11 +971,12 @@ public static class BuiltinDynamoLibrary
                 new(JsonSerializer.SerializeToElement(DefaultRunningColor(style)), Minimum: 1, Maximum: 2),
                 new(JsonSerializer.SerializeToElement(DefaultFaultColor(style)), Minimum: 2, Maximum: 3)
             ],
-            JsonSerializer.SerializeToElement(stopped));
+            neutralPreviewFill);
         var metadata = element.Metadata is null ? new Dictionary<string, string>() : new Dictionary<string, string>(element.Metadata);
         metadata["dynamoStateColorParameter"] = "state";
         metadata["dynamoStateColorProfile"] = "stopped,running,fault";
         metadata["dynamoStateColorFamily"] = familyKey;
+        metadata["dynamoStateColorPreview"] = "neutral-unbound";
         elements[index] = element with
         {
             Properties = properties,
@@ -1097,7 +1104,10 @@ public static class BuiltinDynamoLibrary
         var visualElements = refinedElements.ToList();
         FitArtworkToCanvas(visualElements, width, height, style);
         visualElements = visualElements
-            .Select(element => ApplyArtworkFinish(element, style))
+            .Select(element => ApplyIndustrialVisualGrammar(
+                ApplyArtworkFinish(element, style),
+                familyKey,
+                style))
             .ToList();
         var stateColorTargets = StateColorTargets(familyKey);
         if (stateColorTargets is not null)
@@ -1128,6 +1138,8 @@ public static class BuiltinDynamoLibrary
                 ["visualStyle"] = StyleKey(style),
                 ["visualFinish"] = FinishProfile(style).Key,
                 ["visualReferenceProfile"] = "pid-inspired-native-vector-v1",
+                ["visualGrammar"] = "industrial-orthographic-v1",
+                ["visualGrammarGroup"] = VisualGrammarGroup(familyKey),
                 ["artworkContract"] = "C-DYNAMO-ARTWORK-02"
             },
             Context: new Dictionary<string, string>
@@ -1149,6 +1161,8 @@ public static class BuiltinDynamoLibrary
                 ["visualFinish"] = FinishProfile(style).Key,
                 ["visualReferenceProfile"] = "pid-inspired-native-vector-v1",
                 ["visualReferencePolicy"] = "original-editable-geometry; third-party SVGs are not embedded",
+                ["visualGrammar"] = "industrial-orthographic-v1",
+                ["visualGrammarGroup"] = VisualGrammarGroup(familyKey),
                 ["artworkContract"] = "C-DYNAMO-ARTWORK-02",
                 ["stateTagProfile"] = stateColorTargets is null ? "none" : "0=stopped;1=running;2=fault",
                 ["stateColorsEditable"] = stateColorTargets is null ? "false" : "true"
@@ -1239,6 +1253,128 @@ public static class BuiltinDynamoLibrary
 
         return element with { Properties = properties };
     }
+
+    private static VisualElementEngineeringDto ApplyIndustrialVisualGrammar(
+        VisualElementEngineeringDto element,
+        string familyKey,
+        VisualStyle style)
+    {
+        if (element.Properties is null) return element;
+
+        var properties = new Dictionary<string, JsonElement>(element.Properties);
+        var metadata = element.Metadata is null
+            ? new Dictionary<string, string>()
+            : new Dictionary<string, string>(element.Metadata);
+
+        metadata["visualGrammar"] = "industrial-orthographic-v1";
+        metadata["visualRole"] = IndustrialVisualRole(element.Key, element.Type);
+
+        // Embedded alphabetic equipment labels made the catalog read like mixed iconography.
+        // Preserve the element identity but keep only instrumentation IDs and the standardized
+        // ANSI device numbers used by substation equipment.
+        if (element.Type == "core.text" &&
+            properties.ContainsKey("text"))
+        {
+            var preserveText = familyKey == "process.instrument.indicator" ||
+                (element.Key == "equipment-label" &&
+                    familyKey is "electrical.breaker" or "electrical.disconnector");
+
+            if (!preserveText && element.Key is "label" or "equipment-label" or "motor-label" or "vfd-label")
+                properties["text"] = JsonSerializer.SerializeToElement(string.Empty);
+
+            if (preserveText && properties.TryGetValue("fontSize", out var fontSize) &&
+                fontSize.TryGetDouble(out var fontSizeValue))
+            {
+                var maximum = familyKey == "process.instrument.indicator" ? 10d : 8d;
+                properties["fontSize"] = JsonSerializer.SerializeToElement(Math.Min(fontSizeValue, maximum));
+                properties["fontWeight"] = JsonSerializer.SerializeToElement(600);
+            }
+        }
+
+        if (element.Type == "core.rectangle" &&
+            properties.TryGetValue("cornerRadius", out var radius) &&
+            radius.TryGetDouble(out var radiusValue))
+        {
+            var maximumRadius = element.Key switch
+            {
+                var key when key.Contains("pipe", StringComparison.Ordinal) ||
+                    key.Contains("shaft", StringComparison.Ordinal) ||
+                    key.Contains("stem", StringComparison.Ordinal) => 2d,
+                var key when key.Contains("base", StringComparison.Ordinal) ||
+                    key.Contains("foot", StringComparison.Ordinal) => 2d,
+                var key when key.Contains("vfd", StringComparison.Ordinal) ||
+                    key.Contains("actuator", StringComparison.Ordinal) ||
+                    key.Contains("terminal", StringComparison.Ordinal) => 4d,
+                _ => 6d
+            };
+            properties["cornerRadius"] = JsonSerializer.SerializeToElement(Math.Min(radiusValue, maximumRadius));
+        }
+
+        // Dimensional Front uses gradients only on masses that actually describe volume.
+        // Small brackets, flanges, pipes and details stay flat so the catalog reads as one
+        // industrial drawing system instead of many independently shaded icons.
+        if (style == VisualStyle.DimensionalFront &&
+            properties.TryGetValue("width", out var widthJson) && widthJson.TryGetDouble(out var width) &&
+            properties.TryGetValue("height", out var heightJson) && heightJson.TryGetDouble(out var height) &&
+            width * height < 700 &&
+            !IsPrimaryDimensionalMass(element.Key) &&
+            properties.TryGetValue("fillStyle", out var fillStyle) &&
+            fillStyle.ValueKind == JsonValueKind.String &&
+            fillStyle.GetString() == "gradient")
+        {
+            properties["fillStyle"] = JsonSerializer.SerializeToElement("solid");
+            properties.Remove("fillSecondaryColor");
+            properties.Remove("gradientDirection");
+        }
+
+        if (properties.TryGetValue("strokeWidth", out var strokeWidthJson) &&
+            strokeWidthJson.TryGetDouble(out var strokeWidth))
+        {
+            var role = metadata["visualRole"];
+            var normalizedStroke = role switch
+            {
+                "primary-mass" => Math.Clamp(strokeWidth, 1.5, 2),
+                "fastener-detail" => Math.Clamp(strokeWidth, 0.75, 1),
+                "process-connection" => Math.Clamp(strokeWidth, 1, 1.5),
+                _ => Math.Clamp(strokeWidth, 0.75, 1.5)
+            };
+            properties["strokeWidth"] = JsonSerializer.SerializeToElement(normalizedStroke);
+        }
+
+        return element with { Properties = properties, Metadata = metadata };
+    }
+
+    private static string IndustrialVisualRole(string key, string type)
+    {
+        if (IsPrimaryDimensionalMass(key) ||
+            key is "volute-case" or "motor-end" or "case-cover" or "rotor" or "outer-case")
+            return "primary-mass";
+        if (key.StartsWith("detail-", StringComparison.Ordinal) &&
+            (key.Contains("bolt", StringComparison.Ordinal) ||
+             key.Contains("fastener", StringComparison.Ordinal)))
+            return "fastener-detail";
+        if (key.Contains("pipe", StringComparison.Ordinal) ||
+            key.Contains("flange", StringComparison.Ordinal) ||
+            key.Contains("nozzle", StringComparison.Ordinal) ||
+            key.Contains("inlet", StringComparison.Ordinal) ||
+            key.Contains("outlet", StringComparison.Ordinal))
+            return "process-connection";
+        if (type == "core.text") return "annotation";
+        return "secondary-detail";
+    }
+
+    private static string VisualGrammarGroup(string familyKey) => familyKey switch
+    {
+        "dynamo.pump.standard" or "process.pump.submersible" or "process.motor.standard" or
+        "process.motor.vfd" or "process.blower.centrifugal" or "process.compressor.reciprocating" or
+        "process.compressor.screw" or "process.mixer.agitator" or "electrical.generator" => "rotating-machinery",
+        "process.valve.onoff" or "process.valve.control" or "process.valve.butterfly" or
+        "process.valve.ball" or "process.valve.gate" => "inline-valve",
+        "process.tank.vertical" or "process.tank.horizontal" or "process.exchanger.shell-tube" or
+        "process.filter.strainer" => "static-process-equipment",
+        "process.instrument.indicator" => "instrumentation",
+        _ => "substation-electrical"
+    };
 
     private static bool IsPrimaryDimensionalMass(string key) =>
         key is "casing" or "body" or "motor" or "motor-body" or "tank" or "shell" or "vessel" or
@@ -1335,9 +1471,16 @@ public static class BuiltinDynamoLibrary
         var localSequence = 70;
         var centerX = width / 2d;
 
-        void Dot(string key, double x, double y, double size = 5, string fill = "#DCE7EF", string stroke = "#526879") =>
+        void Dot(string key, double x, double y, double size = 5, string fill = "#DCE7EF", string stroke = "#526879")
+        {
+            var fastener = key.Contains("bolt", StringComparison.Ordinal) ||
+                key.Contains("fastener", StringComparison.Ordinal);
+            var actualSize = fastener ? Math.Min(size, 3.2) : size;
+            var actualFill = fastener ? "#8EA0AD" : fill;
             details.Add(FlatShape(1000 + sequence * 100 + localSequence++, $"detail-{key}", "core.ellipse",
-                x, y, size, size, fill, stroke, 1));
+                x + (size - actualSize) / 2, y + (size - actualSize) / 2,
+                actualSize, actualSize, actualFill, stroke, fastener ? 0.8 : 1));
+        }
 
         void Bar(string key, double x, double y, double barWidth, double barHeight, string fill = "#75899A", double rotation = 0) =>
             details.Add(FlatShape(1000 + sequence * 100 + localSequence++, $"detail-{key}", "core.rectangle",

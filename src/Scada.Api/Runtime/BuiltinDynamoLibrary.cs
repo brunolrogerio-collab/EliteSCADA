@@ -896,21 +896,41 @@ public static class BuiltinDynamoLibrary
                 break;
             case "electrical.disconnector":
             case "electrical.earthing-switch":
-                Bezier("support-left", 25, 64, 10, 49,
+            {
+                var earthingSwitch = familyKey.EndsWith("earthing-switch", StringComparison.Ordinal);
+                Bezier("support-left",
+                    earthingSwitch ? 28 : 25,
+                    earthingSwitch ? 78 : 64,
+                    10,
+                    earthingSwitch ? 35 : 49,
                     "M 30 2 C 42 8 58 8 70 2 L 86 98 L 14 98 Z", shell, 2);
                 Bezier("support-right", width - 36, 64, 10, 49,
                     "M 30 2 C 42 8 58 8 70 2 L 86 98 L 14 98 Z", shell, 2);
-                Ellipse("insulator-left-top", 20, 53, 20, 15, light);
+                Ellipse("insulator-left-top",
+                    earthingSwitch ? 23 : 20,
+                    earthingSwitch ? 68 : 53,
+                    earthingSwitch ? 18 : 20,
+                    earthingSwitch ? 13 : 15,
+                    light);
                 Ellipse("insulator-right-top", width - 41, 53, 20, 15, light);
-                Ellipse("contact-left", 26, 39, 16, 16, accent);
+                Ellipse("contact-left",
+                    earthingSwitch ? 27 : 26,
+                    earthingSwitch ? 58 : 39,
+                    16, 16, accent);
                 Ellipse("contact-right", width - 42, 39, 16, 16, accent);
-                Bar("blade", 34, 41, width - 61, 8, highPerformance ? "#646E75" : "#738D9F", familyKey.EndsWith("earthing-switch", StringComparison.Ordinal) ? 24 : -18);
+                Bar("blade",
+                    earthingSwitch ? 35 : 34,
+                    earthingSwitch ? 55 : 41,
+                    width - 61,
+                    8,
+                    highPerformance ? "#646E75" : "#738D9F",
+                    earthingSwitch ? -28 : -18);
                 Rect("base", 13, 113, width - 26, 8, dark, 2);
-                if (familyKey.EndsWith("earthing-switch", StringComparison.Ordinal))
+                if (earthingSwitch)
                 {
-                    Bar("earth-lead", centerX - 3, 80, 6, 36, accent);
-                    Triangle("ground-1", centerX - 15, 94, 30, 12, true, accent);
-                    Triangle("ground-2", centerX - 10, 103, 20, 8, true, accent);
+                    Bar("earth-lead", 31, 84, 5, 30, accent);
+                    Triangle("ground-1", 20, 96, 28, 10, true, accent);
+                    Triangle("ground-2", 24, 104, 20, 7, true, accent);
                 }
                 else
                 {
@@ -920,6 +940,7 @@ public static class BuiltinDynamoLibrary
                 Lamp("closed", 5, 5, "closed", "{equipmentPath}.Closed", "#16A34A");
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
                 break;
+            }
             case "electrical.generator":
                 Rect("base", 23, height - 19, width - 43, 8, dark, 2);
                 Bezier("stator", 24, 20, 90, 76,

@@ -1,3 +1,4 @@
+using Scada.Api.Persistence;
 using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -13,12 +14,12 @@ public static class AuditApi
 {
     public const string NextCursorHeader = "X-EliteSCADA-Audit-Next-Cursor";
 
-    public static bool AddConfiguredAudit(this WebApplicationBuilder builder)
+    public static bool AddConfiguredAudit(this WebApplicationBuilder builder, DatabaseRuntimeConnectionSet? database = null)
     {
         var authenticationEnabled = builder.Configuration
             .GetSection("Authentication")
             .GetValue<bool>("Enabled");
-        var localIdentityEnabled = builder.AddLocalIdentity(authenticationEnabled);
+        var localIdentityEnabled = builder.AddLocalIdentity(authenticationEnabled, database);
 
         var queryPolicy = new AuditQueryPolicy(
             builder.Configuration.GetValue<int?>("Audit:Query:MaximumPageSize") ?? 1000);
@@ -47,7 +48,7 @@ public static class AuditApi
         builder.Services.TryAddSingleton(retentionPolicy);
         builder.Services.TryAddSingleton(bufferPolicy);
 
-        var connectionString = builder.Configuration.GetConnectionString("EliteScada");
+        var connectionString = database?.PrimaryConnectionString ?? builder.Configuration.GetConnectionString("EliteScada");
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             builder.Services.TryAddSingleton(sp =>

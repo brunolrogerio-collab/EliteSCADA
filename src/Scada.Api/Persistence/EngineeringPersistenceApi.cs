@@ -18,7 +18,7 @@ public static class EngineeringPersistenceApi
 {
     private static readonly SemaphoreSlim FirstProjectGate = new(1, 1);
 
-    public static void AddOptionalEngineeringPersistence(this WebApplicationBuilder builder)
+    public static void AddOptionalEngineeringPersistence(this WebApplicationBuilder builder, DatabaseRuntimeConnectionSet? database = null)
     {
         builder.AddEngineeringDriverCatalog();
 
@@ -30,7 +30,7 @@ public static class EngineeringPersistenceApi
             new InMemoryReportEngineeringRegistry(
                 sp.GetRequiredService<EngineeringWorkspace>().MarkDirty));
 
-        var connectionString = builder.Configuration.GetConnectionString("EliteScada");
+        var connectionString = database?.PrimaryConnectionString ?? builder.Configuration.GetConnectionString("EliteScada");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
         builder.Services.TryAddSingleton<IEngineeringProjectStore>(_ =>

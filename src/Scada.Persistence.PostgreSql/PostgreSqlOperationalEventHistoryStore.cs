@@ -82,6 +82,9 @@ public sealed class PostgreSqlOperationalEventHistoryStore : IHistoricalDatasetP
 
     public string Dataset => HistoricalDatasets.OperationalEvents;
 
+    public Task EnsureInitializedAsync(CancellationToken cancellationToken = default) =>
+        _initializeTask.WaitAsync(cancellationToken);
+
     public async Task AppendAsync(
         OperationalEventOccurred occurrence,
         CancellationToken cancellationToken = default)

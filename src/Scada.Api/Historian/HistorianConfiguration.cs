@@ -1,3 +1,4 @@
+using Scada.Api.Persistence;
 using Scada.Core.Abstractions;
 using Scada.Historian.Abstractions;
 using Scada.Historian.Memory;
@@ -10,7 +11,7 @@ public static class HistorianConfiguration
     public const string MemoryProvider = "memory";
     public const string TimescaleDbProvider = "timescaledb";
 
-    public static void AddConfiguredHistorian(this WebApplicationBuilder builder)
+    public static void AddConfiguredHistorian(this WebApplicationBuilder builder, DatabaseRuntimeConnectionSet? database = null)
     {
         var provider = (builder.Configuration["Historian:Provider"] ?? MemoryProvider)
             .Trim()
@@ -23,7 +24,8 @@ public static class HistorianConfiguration
                 break;
 
             case TimescaleDbProvider:
-                var connectionString = builder.Configuration.GetConnectionString("Historian")
+                var connectionString = database?.HistorianConnectionString
+                    ?? builder.Configuration.GetConnectionString("Historian")
                     ?? builder.Configuration.GetConnectionString("EliteScada");
                 if (string.IsNullOrWhiteSpace(connectionString))
                     throw new InvalidOperationException(

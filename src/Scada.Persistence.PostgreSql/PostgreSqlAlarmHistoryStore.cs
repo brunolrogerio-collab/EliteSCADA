@@ -68,6 +68,9 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
 
     public string Dataset => HistoricalDatasets.AlarmEvents;
 
+    public Task EnsureInitializedAsync(CancellationToken cancellationToken = default) =>
+        _initializeTask.WaitAsync(cancellationToken);
+
     public async Task AppendAsync(
         AlarmStateChanged stateChanged,
         string tagPath,

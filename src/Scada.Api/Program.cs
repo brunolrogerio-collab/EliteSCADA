@@ -40,12 +40,13 @@ var builder = WebApplication.CreateBuilder(args);
 var authenticationEnabled = builder.AddEliteScadaJwtAuthentication();
 builder.AddConfiguredProductLicensing();
 builder.AddTimingPolicyV1();
+var databaseConnections = builder.AddDatabaseTopologyCore();
 
 builder.Services.AddSingleton<IScadaEventBus, InMemoryScadaEventBus>();
 builder.Services.Configure<JsonOptions>(options => options.SerializerOptions.Converters.Add(new SecurityCapabilityJsonConverter()));
 builder.Services.AddSingleton<TagRealtimeHub>();
-builder.AddConfiguredHistorian();
-builder.AddConfiguredServerMemoryRetention();
+builder.AddConfiguredHistorian(databaseConnections);
+builder.AddConfiguredServerMemoryRetention(databaseConnections);
 builder.Services.AddSingleton<RuntimeHighAvailabilityService>();
 builder.Services.AddRuntimeHighAvailabilityPeerTransport();
 
@@ -58,7 +59,7 @@ builder.Services.AddSingleton<IDataQueryEngineeringRegistry>(sp => sp.GetRequire
 builder.Services.AddSingleton<IAlarmViewEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().AlarmViews);
 builder.Services.AddSingleton<IEngineeringAssetRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Assets);
 builder.Services.AddSingleton<IEngineeringViewRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Views);
-var authorityConnectionString = builder.Configuration.GetConnectionString("EliteScada");
+var authorityConnectionString = databaseConnections.PrimaryConnectionString;
 builder.Services.AddSingleton<IAuthorityPolicyStore>(_ =>
     string.IsNullOrWhiteSpace(authorityConnectionString)
         ? new InMemoryAuthorityPolicyStore()
@@ -111,7 +112,7 @@ builder.Services.AddSingleton<EngineeringExchangeService>();
 builder.Services.AddSingleton<IEngineeringExchangeService>(
     EngineeringExchangeProductionComposition.Create);
 builder.Services.AddSingleton<IProjectPackageService, ProjectPackageService>();
-builder.AddConfiguredRuntimeSessionLeaseStore();
+builder.AddConfiguredRuntimeSessionLeaseStore(databaseConnections);
 builder.Services.AddSingleton<ProductLicenseLifecycleCoordinator>();
 builder.Services.AddSingleton<ApiAuthorizationService>(sp =>
     new ApiAuthorizationService(
@@ -119,8 +120,8 @@ builder.Services.AddSingleton<ApiAuthorizationService>(sp =>
         sp.GetRequiredService<IAuthorityPolicyStore>(),
         sp.GetRequiredService<IConfiguration>(),
         sp.GetRequiredService<IRuntimeSessionLeaseStore>()));
-builder.AddOptionalEngineeringPersistence();
-var localIdentityEnabled = builder.AddConfiguredAudit();
+builder.AddOptionalEngineeringPersistence(databaseConnections);
+var localIdentityEnabled = builder.AddConfiguredAudit(databaseConnections);
 if (localIdentityEnabled)
     builder.Services.AddSingleton<InstallationDetachService>();
 builder.Services.AddOpenApi();
@@ -132,7 +133,7 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
         .WithExposedHeaders(TimingCorrelationMiddleware.CorrelationResponseHeader)));
 
 builder.Services.AddSingleton<ScadaRuntimeFacade>();
-var historicalQueryEnabled = builder.AddConfiguredHistoricalQuery();
+var historicalQueryEnabled = builder.AddConfiguredHistoricalQuery(databaseConnections);
 
 var app = builder.Build();
 
@@ -146,6 +147,7 @@ await app.Services.GetRequiredService<ProductLicenseLifecycleCoordinator>().Reco
 await app.InitializeInstallationFoundationAsync();
 
 app.UseMiddleware<TimingCorrelationMiddleware>();
+app.UseMiddleware<DatabaseMaintenanceMiddleware>();
 app.UseCors();
 if (authenticationEnabled) app.UseAuthentication();
 app.UseWebSockets();
@@ -160,6 +162,7 @@ app.MapCommandEndpoints();
 app.MapInternalMemoryEndpoints();
 app.MapProductLicensingEndpoints();
 app.MapProductIdentityEndpoints();
+app.MapDatabaseTopologyEndpoints();
 app.MapRuntimeEngineeringPackageEndpoints();
 if (localIdentityEnabled) app.MapInstallationDetachEndpoints();
 app.MapRuntimeHighAvailabilityEndpoints();

@@ -6,9 +6,9 @@ namespace Scada.Api.Persistence;
 
 public static class ServerMemoryRetentionConfiguration
 {
-    public static void AddConfiguredServerMemoryRetention(this WebApplicationBuilder builder)
+    public static void AddConfiguredServerMemoryRetention(this WebApplicationBuilder builder, DatabaseRuntimeConnectionSet? database = null)
     {
-        var connectionString = builder.Configuration.GetConnectionString("EliteScada");
+        var connectionString = database?.PrimaryConnectionString ?? builder.Configuration.GetConnectionString("EliteScada");
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             builder.Services.TryAddSingleton<IServerMemoryRetentionStore, InMemoryServerMemoryRetentionStore>();

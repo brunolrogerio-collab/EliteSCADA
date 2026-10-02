@@ -1,3 +1,4 @@
+using Scada.Api.Persistence;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.Security;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -103,7 +104,7 @@ public static class LocalIdentityConfiguration
 {
     public const string DefaultCookieName = "elitescada_access";
 
-    public static bool AddLocalIdentity(this WebApplicationBuilder builder, bool authenticationEnabled)
+    public static bool AddLocalIdentity(this WebApplicationBuilder builder, bool authenticationEnabled, DatabaseRuntimeConnectionSet? database = null)
     {
         builder.Services.AddSingleton<InitialInstallationGate>();
 
@@ -128,7 +129,7 @@ public static class LocalIdentityConfiguration
         if (cookieName.Any(char.IsWhiteSpace) || cookieName.Contains(';'))
             throw new InvalidOperationException("Authentication:Local:CookieName contains invalid characters.");
 
-        var connectionString = builder.Configuration.GetConnectionString("EliteScada");
+        var connectionString = database?.PrimaryConnectionString ?? builder.Configuration.GetConnectionString("EliteScada");
         var durableStore = !string.IsNullOrWhiteSpace(connectionString);
         var secureCookie = local.GetValue<bool?>("SecureCookie") ?? true;
         builder.Services.AddSingleton(new LocalIdentityRuntimeOptions(

@@ -1,3 +1,4 @@
+using Scada.Api.Persistence;
 using System.Security.Cryptography;
 using Scada.Api.Reports;
 using Scada.Api.Runtime;
@@ -15,7 +16,7 @@ public static class HistoricalQueryConfiguration
     public const string EnabledKey = "HistoricalQuery:Enabled";
     public const string CursorKeyBase64Key = "HistoricalQuery:CursorKeyBase64";
 
-    public static bool AddConfiguredHistoricalQuery(this WebApplicationBuilder builder)
+    public static bool AddConfiguredHistoricalQuery(this WebApplicationBuilder builder, DatabaseRuntimeConnectionSet? database = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
@@ -29,7 +30,8 @@ public static class HistoricalQueryConfiguration
             throw new InvalidOperationException(
                 "Historical Query requires Historian:Provider=timescaledb so historian.samples has a durable query provider.");
 
-        var connectionString = builder.Configuration.GetConnectionString("Historian")
+        var connectionString = database?.HistorianConnectionString
+            ?? builder.Configuration.GetConnectionString("Historian")
             ?? builder.Configuration.GetConnectionString("EliteScada");
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new InvalidOperationException(

@@ -740,7 +740,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
         </div>
 
         <div className="ha-form-grid">
-          <div className="ha-managed-field">
+          <div className="ha-managed-field ha-field--wide">
             <span>{t.peerConnectionManaged}</span>
             <strong>{t.automatic}</strong>
             <small className="ha-field-hint">{t.peerConnectionManagedHint}</small>

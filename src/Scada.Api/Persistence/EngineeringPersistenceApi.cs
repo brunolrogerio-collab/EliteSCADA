@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Scada.Core.Persistence;
 using Scada.Api.Engineering;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
@@ -18,7 +19,7 @@ public static class EngineeringPersistenceApi
 {
     private static readonly SemaphoreSlim FirstProjectGate = new(1, 1);
 
-    public static void AddOptionalEngineeringPersistence(this WebApplicationBuilder builder)
+    public static void AddOptionalEngineeringPersistence(this WebApplicationBuilder builder, DatabaseRuntimeConnectionSet? database = null)
     {
         builder.AddEngineeringDriverCatalog();
 
@@ -30,15 +31,19 @@ public static class EngineeringPersistenceApi
             new InMemoryReportEngineeringRegistry(
                 sp.GetRequiredService<EngineeringWorkspace>().MarkDirty));
 
-        var connectionString = builder.Configuration.GetConnectionString("EliteScada");
+        var connectionString = database?.PrimaryConnectionString ?? builder.Configuration.GetConnectionString("EliteScada");
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
-        builder.Services.TryAddSingleton<IEngineeringProjectStore>(_ =>
-            new PostgreSqlEngineeringProjectStore(connectionString));
+        builder.Services.TryAddSingleton<IEngineeringProjectStore>(sp =>
+            new PostgreSqlEngineeringProjectStore(
+                connectionString,
+                sp.GetService<IDurableWriteAdmission>()));
         builder.Services.TryAddSingleton<IEngineeringProjectCatalog>(_ =>
             new PostgreSqlEngineeringProjectCatalog(connectionString));
-        builder.Services.TryAddSingleton<IEngineeringInstallationBindingStore>(_ =>
-            new PostgreSqlEngineeringInstallationBindingStore(connectionString));
+        builder.Services.TryAddSingleton<IEngineeringInstallationBindingStore>(sp =>
+            new PostgreSqlEngineeringInstallationBindingStore(
+                connectionString,
+                sp.GetService<IDurableWriteAdmission>()));
         builder.Services.TryAddSingleton<IEngineeringProjectPersistenceService, EngineeringProjectPersistenceService>();
         builder.Services.TryAddSingleton<IEngineeringWorkspaceCheckoutService, EngineeringWorkspaceCheckoutService>();
         builder.Services.TryAddSingleton<IEngineeringWorkingBootstrapService, EngineeringWorkingBootstrapService>();

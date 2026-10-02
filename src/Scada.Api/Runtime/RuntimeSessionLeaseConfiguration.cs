@@ -1,3 +1,5 @@
+using Scada.Api.Persistence;
+using Scada.Core.Persistence;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Scada.Persistence.PostgreSql;
 using Scada.Security.Authorization;
@@ -6,13 +8,15 @@ namespace Scada.Api.Runtime;
 
 public static class RuntimeSessionLeaseConfiguration
 {
-    public static void AddConfiguredRuntimeSessionLeaseStore(this WebApplicationBuilder builder)
+    public static void AddConfiguredRuntimeSessionLeaseStore(this WebApplicationBuilder builder, DatabaseRuntimeConnectionSet? database = null)
     {
-        var connectionString = builder.Configuration.GetConnectionString("EliteScada");
-        builder.Services.TryAddSingleton<IRuntimeSessionLeaseStore>(_ =>
+        var connectionString = database?.PrimaryConnectionString ?? builder.Configuration.GetConnectionString("EliteScada");
+        builder.Services.TryAddSingleton<IRuntimeSessionLeaseStore>(sp =>
             string.IsNullOrWhiteSpace(connectionString)
                 ? new InMemoryRuntimeSessionLeaseStore()
-                : new PostgreSqlRuntimeSessionLeaseStore(connectionString));
+                : new PostgreSqlRuntimeSessionLeaseStore(
+                    connectionString,
+                    sp.GetService<IDurableWriteAdmission>()));
     }
 
     public static Task InitializeRuntimeSessionLeaseStoreAsync(

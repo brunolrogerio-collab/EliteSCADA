@@ -764,7 +764,9 @@ public static class BuiltinDynamoLibrary
                 Ellipse("disc", 48, 35, 46, 44, accent, 2.5);
                 Bar("disc-edge", 68, 32, 6, 50, dark, -22);
                 Bar("shaft", 69, 16, 5, 19, dark);
-                Rect("actuator", 56, 4, 31, 15, light, 4);
+                Bezier("actuator", 56, 4, 31, 15,
+                    "M 8 18 C 8 7 22 3 50 3 C 78 3 92 7 92 18 L 92 82 C 92 93 78 97 50 97 C 22 97 8 93 8 82 Z",
+                    light, 2);
                 Lamp("open", 5, 5, "open", "{equipmentPath}.Open", "#16A34A");
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
                 break;
@@ -876,8 +878,10 @@ public static class BuiltinDynamoLibrary
                 break;
             case "electrical.disconnector":
             case "electrical.earthing-switch":
-                Rect("support-left", 25, 64, 10, 49, shell, 2);
-                Rect("support-right", width - 36, 64, 10, 49, shell, 2);
+                Bezier("support-left", 25, 64, 10, 49,
+                    "M 30 2 C 42 8 58 8 70 2 L 86 98 L 14 98 Z", shell, 2);
+                Bezier("support-right", width - 36, 64, 10, 49,
+                    "M 30 2 C 42 8 58 8 70 2 L 86 98 L 14 98 Z", shell, 2);
                 Ellipse("insulator-left-top", 20, 53, 20, 15, light);
                 Ellipse("insulator-right-top", width - 41, 53, 20, 15, light);
                 Ellipse("contact-left", 26, 39, 16, 16, accent);
@@ -900,7 +904,9 @@ public static class BuiltinDynamoLibrary
                 break;
             case "electrical.generator":
                 Rect("base", 23, height - 19, width - 43, 8, dark, 2);
-                Ellipse("stator", 24, 20, 90, 76, shell, 3);
+                Bezier("stator", 24, 20, 90, 76,
+                    "M 12 5 C 24 2 76 2 88 5 C 96 18 98 34 98 50 C 98 66 96 82 88 95 C 76 98 24 98 12 95 C 4 82 2 66 2 50 C 2 34 4 18 12 5 Z",
+                    shell, 3);
                 Ellipse("rotor", 41, 34, 56, 48, light, 2);
                 Ellipse("hub", 59, 49, 20, 18, accent, 1);
                 Rect("shaft", 107, 53, 34, 9, dark, 2);

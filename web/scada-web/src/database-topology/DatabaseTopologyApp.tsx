@@ -511,7 +511,7 @@ export function DatabaseTopologyApp() {
         {primaryEndpoint?.credentialConfigured && !showRemoteEditor ? <span className="db-topology-credential-state">{t.credentialsConfigured}</span> : null}
       </div>
 
-      {!status ? <div className="db-topology-locked-state">{t.loadingStatus}</div> : !showRemoteEditor ? <div className="db-topology-collapsed-editor">
+      {!status ? <div className="db-topology-locked-state">{t.loadingStatus}</div> : status.restartRequired ? <div className="db-topology-locked-state">{t.restartToFinish}</div> : !showRemoteEditor ? <div className="db-topology-collapsed-editor">
         <p>{t.remoteProfileChangeHelp}</p>
         <button type="button" className="db-topology-secondary" onClick={() => setRemoteEditorRequested(true)}>{t.configureAnotherRemote}</button>
       </div> : configurationLocked ? <div className="db-topology-locked-state">{t.configurationLockedHelp}</div> : <>

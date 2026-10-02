@@ -209,7 +209,7 @@ public static class BuiltinVisualObjectSchemas
             .Concat(Stroke)
             .Concat([VisualPropertyKeys.CornerRadius])
             .Concat(TextProperties)
-            .Concat([VisualPropertyKeys.ValueFormat, VisualPropertyKeys.TextColorGood, VisualPropertyKeys.TextColorBad])
+            .Concat([VisualPropertyKeys.ValueFormat, VisualPropertyKeys.ShowEngineeringUnit, VisualPropertyKeys.TextColorGood, VisualPropertyKeys.TextColorBad])
             .Concat([VisualPropertyKeys.DecimalPlacesEnabled, VisualPropertyKeys.DecimalPlaces]));
 
     /// <summary>
@@ -281,6 +281,7 @@ public static class BuiltinVisualObjectSchemas
             [
                 VisualPropertyKeys.StrokeColor,
                 VisualPropertyKeys.StrokeWidth,
+                VisualPropertyKeys.StrokeStyle,
                 VisualPropertyKeys.CornerRadius,
                 VisualPropertyKeys.TextColor,
                 VisualPropertyKeys.TextColorEditing,
@@ -293,11 +294,14 @@ public static class BuiltinVisualObjectSchemas
                 VisualPropertyKeys.FontWeight,
                 VisualPropertyKeys.HorizontalAlignment,
                 VisualPropertyKeys.Value,
+                VisualPropertyKeys.Unit,
                 VisualPropertyKeys.Minimum,
                 VisualPropertyKeys.Maximum,
                 VisualPropertyKeys.Step,
                 VisualPropertyKeys.InteractionEnabled,
-                VisualPropertyKeys.ShowApplyButton
+                VisualPropertyKeys.ShowApplyButton,
+                VisualPropertyKeys.ShowCancelButton,
+                VisualPropertyKeys.ShowSteppers
             ]));
 
     public static IReadOnlyCollection<VisualObjectPropertySchema> All { get; } =

@@ -378,7 +378,7 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
   await expect(page.getByTestId('database-pending-phase')).toHaveText('Rollback Required');
   await attachScreenshot(page, testInfo, '12-rollback-required');
 
-  await page.getByRole('button', { name: 'Rollback', exact: true }).click();
+  await page.getByRole('button', { name: 'Roll back operation', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('previous topology');
   await attachScreenshot(page, testInfo, '13-rollback-confirmation');
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm' }).click();

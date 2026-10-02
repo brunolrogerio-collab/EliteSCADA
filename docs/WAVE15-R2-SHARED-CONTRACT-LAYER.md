@@ -1,5 +1,18 @@
 
 
+## LOCAL DOCKER MODBUS / NUMERIC INPUT CORRECTION — 2026-10-02
+
+- Product Owner local Docker validation produced a bounded four-file correction package.
+- GitHub reconciliation proved the patch base blobs exactly match current integration `015b0d5ae815fe1c8143aa22755e2c6ef91ec826`.
+- PR #457 carries the correction on `work/w15-local-modbus-numeric-input-fix`.
+- exact head: `f8abc12f7108bd6738a18ce0a85f100bec115c7d`.
+- tree: `ff3fb810e13b7a246157fe3d30b60c358195f807`.
+- scope: Modbus JSON scalar normalization + regression test + Numeric Input validation/write/readback state correction.
+- project-instance max=1000 and Docker-specific `host.docker.internal` are not product defaults.
+- FC06 response validation remains strict; simulator echo mismatch stays a separate diagnostic item.
+- state: `DRAFT / AWAIT_EXACT_HEAD_CI / NO_MERGE_WITHOUT_PO_AUTHORITY`.
+
+
 ## CORE AUDIT ACCEPTED / ADMIN UI RELEASE — 2026-10-02
 
 ### HA-D2A accepted core

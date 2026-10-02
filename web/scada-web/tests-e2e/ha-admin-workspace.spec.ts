@@ -265,7 +265,7 @@ test('mounted HA admin shows healthy Active/Ready Standby authority and peer fre
 
   await expect(page.getByText('node-a', { exact: true }).first()).toBeVisible();
   await expect(page.getByText(/Ready Standby/)).toBeVisible();
-  await expect(page.getByText(/connected/)).toBeVisible();
+  await expect(page.locator('.ha-card').filter({ hasText: 'Peer' })).toContainText('connected');
   await expect(page.getByText('active', { exact: true })).toBeVisible();
   await evidence(page, testInfo, 'ha-active-standby-healthy');
 });

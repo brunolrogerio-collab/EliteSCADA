@@ -4,7 +4,8 @@ import {
   buildLifecycleSteps,
   canActivatePublished,
   canSaveWorkspace,
-  confirmationText,
+  checkoutConfirmationText,
+  checkoutRequiresConfirmation,
   lifecycleErrorText,
   projectLifecycleName,
   runtimeLifecycleName
@@ -113,8 +114,10 @@ test.describe('Engineering Lifecycle Workspace contract', () => {
     expect(canSaveWorkspace(state({ persistence: { enabled: false, configuredProjectKey: 'demo' } }))).toBe(false);
   });
 
-  test('activation requires a Published revision and exact configured Runtime project binding', () => {
-    expect(canActivatePublished(state())).toBe(true);
+  test('activation requires a Published revision different from Active and exact configured Runtime project binding', () => {
+    const ready = state({ lifecycle: { ...state().lifecycle!, publishedRevision: 4, activeRevision: 3 } });
+    expect(canActivatePublished(ready)).toBe(true);
+    expect(canActivatePublished(state())).toBe(false);
     expect(canActivatePublished(state({ persistence: { enabled: true, configuredProjectKey: null } }))).toBe(false);
     expect(canActivatePublished(state({ persistence: { enabled: true, configuredProjectKey: 'other' } }))).toBe(false);
     expect(canActivatePublished(state({ lifecycle: { ...state().lifecycle!, publishedRevision: null } }))).toBe(false);
@@ -132,10 +135,13 @@ test.describe('Engineering Lifecycle Workspace contract', () => {
     expect(steps.find(step => step.key === 'published')?.revision).toBe(3);
   });
 
-  test('critical lifecycle operations provide explicit localized confirmation text', () => {
-    expect(confirmationText('checkout', 'pt-BR', 4).description).toContain('4');
-    expect(confirmationText('publish', 'en', 4).description).toContain('does not activate Runtime');
-    expect(confirmationText('activate', 'es').description).toContain('Runtime Active');
+  test('only dirty checkout requires a data-loss confirmation', () => {
+    expect(checkoutRequiresConfirmation(state())).toBe(false);
+    expect(checkoutRequiresConfirmation(state({ workspace: { ...state().workspace, isDirty: true } }))).toBe(true);
+
+    expect(checkoutConfirmationText('pt-BR', 4).description).toContain('4');
+    expect(checkoutConfirmationText('en', 4).title).toContain('Discard');
+    expect(checkoutConfirmationText('es', 4).confirm).toContain('Descartar');
   });
 
   test('maps authorization, conflict, validation and unavailable statuses to understandable messages', () => {

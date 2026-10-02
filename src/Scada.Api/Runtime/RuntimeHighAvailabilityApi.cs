@@ -189,6 +189,50 @@ public static class RuntimeHighAvailabilityApi
                 : Results.Conflict(ProjectTransfer(operation));
         });
 
+        endpoints.MapGet("/api/runtime/ha/authority", async (
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            RuntimeHighAvailabilityService highAvailability,
+            RuntimeHaProtectionCoordinator protection,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.View,
+                cancellationToken: cancellationToken);
+            var failure = authorization.FailureResult();
+            if (failure is not null) return failure;
+
+            var topology = highAvailability.Snapshot();
+            var active = topology.EffectiveActiveNodeId is null
+                ? null
+                : topology.Nodes.SingleOrDefault(node =>
+                    node.NodeId.Equals(
+                        topology.EffectiveActiveNodeId,
+                        StringComparison.OrdinalIgnoreCase));
+            var protectionState = protection.Diagnostics();
+            return Results.Ok(new
+            {
+                schema = "elitescada.runtime-ha-authority",
+                schemaVersion = 1,
+                topology.Enabled,
+                topology.ClusterId,
+                topology.TopologyVersion,
+                topology.AuthorityEpoch,
+                topology.EffectiveActiveNodeId,
+                topology.AmbiguousAuthority,
+                blocked = topology.AmbiguousAuthority ||
+                    topology.PendingTransfer is not null ||
+                    (protectionState.Enabled &&
+                     protectionState.Status is "blocked" or "degraded"),
+                activeEndpoints = active?.Endpoints ?? Array.Empty<RuntimeHaEndpoint>(),
+                protectionStatus = protectionState.Status,
+                generatedAtUtc = topology.GeneratedAtUtc
+            });
+        });
+
         endpoints.MapGet("/api/runtime/ha/administration", async (
             HttpContext context,
             ScadaRuntimeFacade runtime,

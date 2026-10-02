@@ -604,7 +604,8 @@ public sealed class RuntimeHaProtectionCoordinator
             return;
         }
 
-        if (reference is null)
+        if (reference is null &&
+            (_hostConfiguration?.AllowsReferenceBootstrap ?? true))
         {
             var topology = _highAvailability.Snapshot();
             if (topology.AuthorityEpoch == 1 &&

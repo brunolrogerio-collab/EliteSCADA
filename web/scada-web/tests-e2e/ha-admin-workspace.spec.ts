@@ -123,6 +123,8 @@ type MockState = {
   peer: any;
   protectionStatus: string;
   blocked: boolean;
+  licenseState: 'Demo' | 'Valid' | 'Invalid';
+  haEntitled: boolean | null;
   operationMode?: 'completed' | 'rejected';
   lastConfigBody?: any;
   operations: any[];
@@ -135,9 +137,80 @@ function healthyState(): MockState {
     peer: peer(),
     protectionStatus: 'active',
     blocked: false,
+    licenseState: 'Valid',
+    haEntitled: true,
     operationMode: 'completed',
     operations: []
   };
+}
+
+function standaloneState(haEntitled = false): MockState {
+  const state = healthyState();
+  state.licenseState = haEntitled ? 'Valid' : 'Demo';
+  state.haEntitled = haEntitled ? true : null;
+  state.protectionStatus = 'disabled';
+  state.blocked = false;
+  state.topology = topology({
+    enabled: false,
+    clusterId: null,
+    topologyVersion: 1,
+    stateVersion: 1,
+    authorityEpoch: 1,
+    localNodeId: 'standalone',
+    effectiveActiveNodeId: 'standalone',
+    ambiguousAuthority: false,
+    nodes: [{
+      nodeId: 'standalone',
+      role: 'Local',
+      state: 'Standalone',
+      ready: true,
+      healthy: true,
+      synchronizationComplete: true,
+      haLicenseEntitled: false,
+      runtime: { projectKey: 'plant', revision: 22, mode: 'engineering' },
+      lastObservedAtUtc: '2026-10-02T19:39:59Z',
+      fresh: true,
+      readinessReason: null,
+      endpoints: []
+    }]
+  });
+  state.config = configuration(false);
+  for (const key of ['running', 'desired'] as const) {
+    state.config[key] = {
+      ...state.config[key],
+      enabled: false,
+      clusterId: null,
+      localNodeId: 'standalone',
+      initialActiveNodeId: 'standalone',
+      topologyVersion: 1,
+      nodes: [{ nodeId: 'standalone', localEndpoint: null, remoteEndpoint: null }],
+      peerTransport: { enabled: false, peerEndpoint: null, authenticationConfigured: false },
+      protection: {
+        ...state.config[key].protection,
+        enabled: false,
+        automaticFailoverEnabled: false,
+        referencePath: null
+      }
+    };
+  }
+  state.peer = {
+    ...peer('disabled'),
+    authenticationConfigured: false,
+    localNodeId: 'standalone',
+    peerNodeId: null,
+    peerEndpoint: null,
+    mirror: {
+      hasState: false,
+      liveSynchronized: false,
+      sourceNodeId: null,
+      sourceTransportInstanceId: null,
+      replicationSequence: null,
+      authoritativeState: null,
+      receivedAtUtc: null,
+      reasonCode: 'ha-disabled'
+    }
+  };
+  return state;
 }
 
 function administration(state: MockState) {
@@ -145,12 +218,12 @@ function administration(state: MockState) {
     schema: 'elitescada.runtime-ha-administration',
     schemaVersion: 1,
     protection: {
-      enabled: true,
-      automaticFailoverEnabled: true,
+      enabled: state.config.running.protection.enabled,
+      automaticFailoverEnabled: state.config.running.protection.automaticFailoverEnabled,
       industrialEffectsPermitted: !state.blocked,
       status: state.protectionStatus,
       reasonCode: state.blocked ? 'reference-unavailable' : 'local-takeover-committed',
-      reference: {
+      reference: state.topology.enabled ? {
         schema: 'elitescada.runtime-ha-reference-authority',
         schemaVersion: 1,
         clusterId: 'plant-ha',
@@ -162,7 +235,7 @@ function administration(state: MockState) {
         updatedAtUtc: '2026-10-02T19:40:00Z',
         previousAuthorityFenced: true,
         reasonCode: state.blocked ? 'reference-unavailable' : 'reference-local-active'
-      },
+      } : null,
       lastReadyStandbyWitness: {
         nodeId: 'node-b',
         readiness: { healthy: true, synchronizationComplete: true, haLicenseEntitled: true, observedAtUtc: '2026-10-02T19:39:59Z' },
@@ -191,6 +264,26 @@ function operation(kind: string, state: 'completed' | 'rejected', target: string
 }
 
 async function mockHa(page: Page, state: MockState) {
+  await page.route('**/api/licensing/status', async route => {
+    await route.fulfill({
+      json: {
+        license: {
+          state: state.licenseState,
+          tier: state.licenseState === 'Valid' ? 'Tags500' : null,
+          schemaVersion: state.licenseState === 'Valid' ? 2 : null,
+          haRuntime: state.haEntitled,
+          diagnostic: null
+        },
+        runtime: {
+          state: state.licenseState === 'Demo' ? 'DemoRunning' : 'Idle',
+          activeLicenseState: state.licenseState,
+          activeTier: state.licenseState === 'Valid' ? 'Tags500' : null,
+          lastDiagnostic: null
+        }
+      }
+    });
+  });
+
   await page.route('**/api/runtime/ha/**', async (route: Route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -236,7 +329,7 @@ async function mockHa(page: Page, state: MockState) {
 
     if (path === '/api/runtime/ha/topology') return route.fulfill({ json: state.topology });
     if (path === '/api/runtime/ha/authority') return route.fulfill({ json: {
-      schema: 'elitescada.runtime-ha-authority', schemaVersion: 1, enabled: true, clusterId: 'plant-ha',
+      schema: 'elitescada.runtime-ha-authority', schemaVersion: 1, enabled: state.topology.enabled, clusterId: state.topology.clusterId,
       topologyVersion: state.topology.topologyVersion, authorityEpoch: state.topology.authorityEpoch,
       effectiveActiveNodeId: state.topology.effectiveActiveNodeId, ambiguousAuthority: state.topology.ambiguousAuthority,
       blocked: state.blocked, activeEndpoints: state.blocked ? [] : state.topology.nodes[0].endpoints,
@@ -257,6 +350,36 @@ async function open(page: Page, locale = 'pt-BR') {
 async function evidence(page: Page, testInfo: TestInfo, name: string) {
   await testInfo.attach(name, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
 }
+
+test('Standalone is the explicit default and Demo keeps HA visible but gated', async ({ page }, testInfo) => {
+  const state = standaloneState(false);
+  await mockHa(page, state);
+  await open(page);
+
+  await expect(page.getByTestId('ha-running-mode')).toContainText('Standalone');
+  await expect(page.getByTestId('ha-topology-choice')).toContainText('Modo Demo opera em Standalone');
+  await expect(page.getByRole('button', { name: /^High Availability/ })).toBeDisabled();
+  await expect(page.getByLabel('Cluster ID')).toBeDisabled();
+  await expect(page.getByText('Visualização dos campos HA')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Switchover/ })).toHaveCount(0);
+  await evidence(page, testInfo, 'ha-standalone-demo-default');
+});
+
+test('licensed Standalone can prepare HA but still reports Standalone running until cold start', async ({ page }, testInfo) => {
+  const state = standaloneState(true);
+  await mockHa(page, state);
+  await open(page);
+
+  await expect(page.getByTestId('ha-running-mode')).toContainText('Standalone');
+  await page.getByRole('button', { name: /^High Availability/ }).click();
+
+  await expect(page.getByTestId('ha-preparing-mode')).toContainText('continua rodando em Standalone');
+  await expect(page.getByTestId('ha-readiness')).toContainText('Configuração HA incompleta');
+  await expect(page.getByTestId('ha-readiness')).toContainText('Ativação HA requer implantação/cold start');
+  await expect(page.getByLabel('Cluster ID')).toBeEnabled();
+  await expect(page.getByTestId('ha-running-mode')).toContainText('Standalone');
+  await evidence(page, testInfo, 'ha-standalone-licensed-preparation');
+});
 
 test('mounted HA admin shows healthy Active/Ready Standby authority and peer freshness', async ({ page }, testInfo) => {
   const state = healthyState();

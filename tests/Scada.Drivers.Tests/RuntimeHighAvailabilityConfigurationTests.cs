@@ -25,7 +25,8 @@ public sealed class RuntimeHighAvailabilityConfigurationTests
                 CreateUpdate(
                     before.Generation,
                     topologyVersion: 4,
-                    nodeBRemoteEndpoint: "https://b2.example.test"));
+                    nodeBRemoteEndpoint: "https://b2.example.test",
+                    referencePath: before.Desired.Protection.ReferencePath!));
 
             Assert.True(result.Accepted);
             Assert.Equal(
@@ -75,7 +76,8 @@ public sealed class RuntimeHighAvailabilityConfigurationTests
                 CreateUpdate(
                     before.Generation,
                     topologyVersion: before.Desired.TopologyVersion,
-                    nodeBRemoteEndpoint: "https://b2.example.test"));
+                    nodeBRemoteEndpoint: "https://b2.example.test",
+                    referencePath: before.Desired.Protection.ReferencePath!));
 
             Assert.False(result.Accepted);
             Assert.Equal("topology-version-must-increase", result.ReasonCode);
@@ -101,7 +103,8 @@ public sealed class RuntimeHighAvailabilityConfigurationTests
             var update = CreateUpdate(
                 before.Generation,
                 topologyVersion: 4,
-                nodeBRemoteEndpoint: "https://b2.example.test");
+                nodeBRemoteEndpoint: "https://b2.example.test",
+                referencePath: before.Desired.Protection.ReferencePath!);
             update = update with
             {
                 Nodes = new[]
@@ -145,7 +148,8 @@ public sealed class RuntimeHighAvailabilityConfigurationTests
             var update = CreateUpdate(
                 before.Generation,
                 topologyVersion: before.Desired.TopologyVersion,
-                nodeBRemoteEndpoint: "https://b.example.test");
+                nodeBRemoteEndpoint: "https://b.example.test",
+                referencePath: before.Desired.Protection.ReferencePath!);
             update = update with
             {
                 PeerTransport = update.PeerTransport! with
@@ -173,7 +177,8 @@ public sealed class RuntimeHighAvailabilityConfigurationTests
     private static RuntimeHaHostConfigurationUpdateRequest CreateUpdate(
         long generation,
         long topologyVersion,
-        string nodeBRemoteEndpoint) =>
+        string nodeBRemoteEndpoint,
+        string referencePath) =>
         new(
             generation,
             Enabled: true,
@@ -201,7 +206,7 @@ public sealed class RuntimeHighAvailabilityConfigurationTests
                 AutomaticFailoverEnabled: true,
                 ReferenceStoreMode:
                     RuntimeHaHostConfigurationAuthority.ReferenceStoreModeSharedExternalFile,
-                ReferencePath: null,
+                ReferencePath: referencePath,
                 LeaseSeconds: 10,
                 PollMilliseconds: 500,
                 ReadyWitnessMaximumAgeSeconds: 60,

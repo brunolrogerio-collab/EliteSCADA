@@ -185,6 +185,29 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void CentrifugalPumpStyles_ExposeWearRingAndVoluteTongue()
+    {
+        var variants = BuiltinDynamoLibrary.Create()
+            .Where(definition => definition.Metadata!["familyKey"] == "dynamo.pump.standard")
+            .ToArray();
+
+        Assert.Equal(3, variants.Length);
+        Assert.All(variants, variant =>
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            Assert.Contains("wear-ring", elements.Keys);
+            Assert.Contains("volute-tongue", elements.Keys);
+            Assert.Equal("core.ellipse", elements["wear-ring"].Type);
+            Assert.Equal("core.bezier", elements["volute-tongue"].Type);
+
+            var casing = elements["casing"].Properties!;
+            var wearRing = elements["wear-ring"].Properties!;
+            Assert.True(wearRing["x"].GetDouble() > casing["x"].GetDouble());
+            Assert.True(wearRing["y"].GetDouble() > casing["y"].GetDouble());
+        });
+    }
+
+    [Fact]
     public void MotorWithVfdStyles_KeepElectricalCabinetSeparateFromMechanicalShaft()
     {
         var variants = BuiltinDynamoLibrary.Create()
@@ -197,7 +220,7 @@ public sealed class BuiltinDynamoLibraryTests
             var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
             var motorKey = elements.ContainsKey("motor-body") ? "motor-body" : "motor";
             Assert.Equal("core.polygon", elements[motorKey].Type);
-            foreach (var key in new[] { "shaft", "vfd", "terminal", "motor-base", "control-cable" })
+            foreach (var key in new[] { "shaft", "vfd", "terminal", "motor-base", "control-cable", "vfd-screen", "vfd-cable-gland", "vfd-mounting-rail" })
                 Assert.Contains(key, elements.Keys);
 
             var shaft = elements["shaft"].Properties!;
@@ -210,6 +233,14 @@ public sealed class BuiltinDynamoLibraryTests
             var motor = elements[motorKey].Properties!;
             var terminal = elements["terminal"].Properties!;
             Assert.True(terminal["y"].GetDouble() < motor["y"].GetDouble() + motor["height"].GetDouble() / 2d);
+
+            var screen = elements["vfd-screen"].Properties!;
+            Assert.True(screen["x"].GetDouble() > vfd["x"].GetDouble());
+            Assert.True(screen["y"].GetDouble() > vfd["y"].GetDouble());
+            Assert.True(screen["x"].GetDouble() + screen["width"].GetDouble() <
+                vfd["x"].GetDouble() + vfd["width"].GetDouble());
+            Assert.True(screen["y"].GetDouble() + screen["height"].GetDouble() <
+                vfd["y"].GetDouble() + vfd["height"].GetDouble());
         }
     }
 
@@ -432,6 +463,38 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void OnOffAndControlValveStyles_ExposeActualClosureMembers()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        Assert.All(definitions.Where(definition =>
+            definition.Metadata!["familyKey"] == "process.valve.onoff"), variant =>
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            Assert.Contains("seat-ring", elements.Keys);
+            Assert.Contains("closure-member", elements.Keys);
+            var seat = elements["seat-ring"].Properties!;
+            var closure = elements["closure-member"].Properties!;
+            var seatCenter = seat["x"].GetDouble() + seat["width"].GetDouble() / 2d;
+            var closureCenter = closure["x"].GetDouble() + closure["width"].GetDouble() / 2d;
+            Assert.InRange(Math.Abs(seatCenter - closureCenter), 0, 1.5);
+        });
+
+        Assert.All(definitions.Where(definition =>
+            definition.Metadata!["familyKey"] == "process.valve.control"), variant =>
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            Assert.Contains("seat-ring", elements.Keys);
+            Assert.Contains("plug", elements.Keys);
+            var plug = elements["plug"].Properties!;
+            var stem = elements["stem"].Properties!;
+            var plugCenter = plug["x"].GetDouble() + plug["width"].GetDouble() / 2d;
+            var stemCenter = stem["x"].GetDouble() + stem["width"].GetDouble() / 2d;
+            Assert.InRange(Math.Abs(plugCenter - stemCenter), 0, 2.5);
+        });
+    }
+
+    [Fact]
     public void ValveAndTankFamilies_UseCanonicalCurvesWithoutChangingStateBindings()
     {
         var definitions = BuiltinDynamoLibrary.Create();
@@ -491,11 +554,36 @@ public sealed class BuiltinDynamoLibraryTests
             Assert.Contains("earth-lead", earthingElements.Keys);
             Assert.Contains("ground-1", earthingElements.Keys);
             Assert.Contains("ground-2", earthingElements.Keys);
+            Assert.Contains("ground-3", earthingElements.Keys);
+            Assert.Equal("core.rectangle", earthingElements["ground-1"].Type);
+            Assert.Equal("core.rectangle", earthingElements["ground-2"].Type);
+            Assert.Equal("core.rectangle", earthingElements["ground-3"].Type);
 
             Assert.True(
                 earthingElements["support-left"].Properties!["y"].GetDouble() >
                 disconnectorElements["support-left"].Properties!["y"].GetDouble(),
                 $"Earthing switch '{earthing.Key}' must keep its grounded pivot lower than the disconnector support.");
+        }
+    }
+
+    [Fact]
+    public void RichSwitchStyles_UseContactJawInsteadOfDecorativeBubble()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        foreach (var familyKey in new[] { "electrical.disconnector", "electrical.earthing-switch" })
+        {
+            var rich = definitions.Where(definition =>
+                definition.Metadata!["familyKey"] == familyKey &&
+                definition.Properties!["visualStyle"] != "high-performance");
+
+            Assert.All(rich, variant =>
+            {
+                var jaw = variant.Elements!.Single(element => element.Key == "detail-contact-jaw");
+                Assert.Equal("core.rectangle", jaw.Type);
+                var jawProperties = jaw.Properties!;
+                Assert.True(jawProperties["width"].GetDouble() > jawProperties["height"].GetDouble());
+            });
         }
     }
 
@@ -642,6 +730,30 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void CurrentTransformerRichStyles_KeepLaminationMarksOutOfTheWindow()
+    {
+        var variants = BuiltinDynamoLibrary.Create()
+            .Where(definition =>
+                definition.Metadata!["familyKey"] == "electrical.current-transformer" &&
+                definition.Properties!["visualStyle"] != "high-performance")
+            .ToArray();
+
+        Assert.Equal(2, variants.Length);
+        Assert.All(variants, variant =>
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            var window = elements["core-window"].Properties!;
+            var maximumBandWidth = window["width"].GetDouble() * 0.6;
+
+            for (var index = 1; index <= 4; index++)
+            {
+                var band = elements[$"detail-winding-band-{index}"].Properties!;
+                Assert.True(band["width"].GetDouble() <= maximumBandWidth);
+            }
+        });
+    }
+
+    [Fact]
     public void GateValveAndSubstationFamilies_UseFunctionalTerminations()
     {
         var definitions = BuiltinDynamoLibrary.Create();
@@ -679,6 +791,32 @@ public sealed class BuiltinDynamoLibraryTests
                 Assert.Equal("core.rectangle", elements["contact-right"].Type);
             });
         }
+    }
+
+    [Fact]
+    public void GateValveStyles_ExposeActualGateAndPackingGland()
+    {
+        var variants = BuiltinDynamoLibrary.Create()
+            .Where(definition => definition.Metadata!["familyKey"] == "process.valve.gate")
+            .ToArray();
+
+        Assert.Equal(3, variants.Length);
+        Assert.All(variants, variant =>
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            Assert.Contains("gate-plate", elements.Keys);
+            Assert.Contains("packing-gland", elements.Keys);
+            Assert.Equal("core.bezier", elements["gate-plate"].Type);
+            Assert.Equal("core.ellipse", elements["packing-gland"].Type);
+
+            var plate = elements["gate-plate"].Properties!;
+            var bodyLeft = elements["body-left"].Properties!;
+            var bodyRight = elements["body-right"].Properties!;
+            var bodyLeftEdge = bodyLeft["x"].GetDouble();
+            var bodyRightEdge = bodyRight["x"].GetDouble() + bodyRight["width"].GetDouble();
+            var plateCenter = plate["x"].GetDouble() + plate["width"].GetDouble() / 2d;
+            Assert.InRange(plateCenter, bodyLeftEdge, bodyRightEdge);
+        });
     }
 
     [Fact]
@@ -1097,12 +1235,12 @@ public sealed class BuiltinDynamoLibraryTests
         var definitions = BuiltinDynamoLibrary.Create();
         var signatures = new Dictionary<string, string[]>(StringComparer.Ordinal)
         {
-            ["dynamo.pump.standard"] = ["casing", "impeller", "base"],
+            ["dynamo.pump.standard"] = ["casing", "impeller", "wear-ring", "volute-tongue", "base"],
             ["process.pump.submersible"] = ["body", "pump-housing", "intake", "outlet", "cable"],
             ["process.motor.standard"] = ["body", "shaft", "terminal", "base"],
-            ["process.motor.vfd"] = ["shaft", "vfd", "terminal", "motor-base"],
-            ["process.valve.onoff"] = ["body-left", "body-right", "stem", "actuator"],
-            ["process.valve.control"] = ["body-left", "body-right", "stem", "actuator"],
+            ["process.motor.vfd"] = ["shaft", "vfd", "vfd-screen", "vfd-cable-gland", "vfd-mounting-rail", "terminal", "motor-base", "control-cable"],
+            ["process.valve.onoff"] = ["body-left", "body-right", "stem", "actuator", "closure-member"],
+            ["process.valve.control"] = ["body-left", "body-right", "stem", "actuator", "plug"],
             ["process.tank.vertical"] = ["vessel", "liquid", "liquid-line", "foot-left", "foot-right"],
             ["process.tank.horizontal"] = ["vessel", "liquid", "liquid-line"],
             ["process.blower.centrifugal"] = ["impeller-recess", "hub", "base"],
@@ -1111,16 +1249,16 @@ public sealed class BuiltinDynamoLibraryTests
             ["process.compressor.screw"] = ["compressor-housing", "rotor-left", "rotor-right", "base"],
             ["process.valve.butterfly"] = ["body-ring", "disc", "shaft", "actuator"],
             ["process.valve.ball"] = ["body", "ball", "stem", "handle"],
-            ["process.valve.gate"] = ["body-left", "body-right", "stem", "handwheel", "bonnet"],
+            ["process.valve.gate"] = ["body-left", "body-right", "stem", "handwheel", "bonnet", "gate-plate", "packing-gland"],
             ["process.exchanger.shell-tube"] = ["shell", "head-left", "head-right", "tube-1"],
             ["process.filter.strainer"] = ["filter-body", "basket", "pipe-left", "pipe-right"],
             ["process.mixer.agitator"] = ["vessel", "motor", "shaft", "impeller", "gearbox"],
-            ["electrical.transformer.power"] = ["tank", "bushing-left", "bushing-right", "base"],
-            ["electrical.breaker"] = ["interrupter", "support-left", "support-right", "base"],
+            ["electrical.transformer.power"] = ["tank", "bushing-left", "bushing-center", "bushing-right", "conservator", "base"],
+            ["electrical.breaker"] = ["interrupter", "interrupter-cap-left", "interrupter-cap-right", "mechanism-box", "support-left", "support-right", "base"],
             ["electrical.disconnector"] = ["support-left", "support-right", "blade", "base", "operating-box"],
-            ["electrical.earthing-switch"] = ["support-left", "support-right", "blade", "base", "earth-lead"],
-            ["electrical.generator"] = ["stator", "rotor", "shaft", "base"],
-            ["electrical.current-transformer"] = ["primary-conductor", "core", "core-window", "base"]
+            ["electrical.earthing-switch"] = ["support-left", "support-right", "blade", "base", "earth-lead", "ground-1", "ground-2", "ground-3"],
+            ["electrical.generator"] = ["stator", "rotor", "shaft", "end-bell-right", "terminal-box", "foot-left", "foot-right", "base"],
+            ["electrical.current-transformer"] = ["primary-conductor", "core", "core-window", "terminal-box", "base"]
         };
 
         Assert.Equal(24, signatures.Count);
@@ -1250,8 +1388,27 @@ public sealed class BuiltinDynamoLibraryTests
             {
                 var hasFamilyFinish = definition.Elements!.Any(element =>
                     element.Key.StartsWith("detail-", StringComparison.Ordinal));
+
                 if (family.Key == "process.blower.centrifugal")
-                    hasFamilyFinish |= definition.Elements!.Any(element => element.Key.StartsWith("impeller-blade-", StringComparison.Ordinal));
+                    hasFamilyFinish |= definition.Elements!.Any(element =>
+                        element.Key.StartsWith("impeller-blade-", StringComparison.Ordinal));
+
+                if (family.Key == "process.instrument.indicator" &&
+                    definition.Properties!["visualStyle"] != "high-performance")
+                {
+                    var indicatorKeys = definition.Elements!
+                        .Select(element => element.Key)
+                        .ToHashSet(StringComparer.Ordinal);
+                    var hasAuthoredInstrumentAnatomy =
+                        indicatorKeys.Contains("scale-arc") &&
+                        indicatorKeys.Contains("needle") &&
+                        indicatorKeys.Contains("hub") &&
+                        indicatorKeys.Any(key => key.StartsWith("tick-", StringComparison.Ordinal));
+                    Assert.True(hasAuthoredInstrumentAnatomy,
+                        $"Indicator variant '{definition.Key}' must keep authored scale/tick/needle/hub anatomy.");
+                    hasFamilyFinish |= hasAuthoredInstrumentAnatomy;
+                }
+
                 if (definition.Properties!["visualStyle"] == "high-performance")
                     Assert.False(definition.Elements!.Any(element => element.Key.StartsWith("detail-", StringComparison.Ordinal)),
                         $"High-performance family '{family.Key}' should stay visually sparse.");

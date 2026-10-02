@@ -57,6 +57,16 @@ Two follow-on documentation outcomes are retained in this checkout:
   while their converter, normalized drawings, group/z-order/fill/polygon/arc/
   Bezier handling and explicit-import guidance are retained in
   [`docs/E3-DYNAMO-IMPORT-CONVERTER.md`](E3-DYNAMO-IMPORT-CONVERTER.md).
+- A local Docker Compose package now builds this accepted source version
+  (including the removal of seeded E3 trial dynamos) and runs Web, API and
+  TimescaleDB as one restartable stack. It uses loopback-only host ports
+  18080/15080/15432 and a persistent named database volume. The detailed
+  first-run, backup/persistence and stop/start steps are in
+  [`docs/LOCAL-DOCKER-STABLE.md`](LOCAL-DOCKER-STABLE.md). Live validation on
+  2026-10-01: all three services healthy; Web `/healthz` and API `/health`
+  returned 200 before and after a full Compose restart. The container's
+  licensing identity is supplied with a unique stable `ELITESCADA_MACHINE_ID`
+  from the ignored local `.env`; keep it unchanged when upgrading this install.
 
 ## Coordinator/developer stall and resume point
 

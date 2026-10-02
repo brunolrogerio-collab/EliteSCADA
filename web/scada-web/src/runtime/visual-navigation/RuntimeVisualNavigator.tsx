@@ -75,6 +75,8 @@ export function RuntimeVisualNavigator({
   );
   const [state, setState] = useState<RuntimeVisualNavigationState | null>(initialResolution.state);
   const [diagnostic, setDiagnostic] = useState<RuntimeVisualCompositionError | null>(initialResolution.diagnostic);
+  const playback = useOptionalHistoricalPlayback();
+  const playbackActive = playback?.mode === 'historicalPlayback';
 
   useEffect(() => {
     const next = resolveInitialNavigation(catalog, initialScreenKey);
@@ -97,8 +99,6 @@ export function RuntimeVisualNavigator({
   }
 
   const designSize = resolveRuntimeLogicalSize();
-  const playback = useOptionalHistoricalPlayback();
-  const playbackActive = playback?.mode === 'historicalPlayback';
 
   const dispatch = async (event: CanonicalVisualEvent, popupRuntimeInstanceId?: string) => {
     try {

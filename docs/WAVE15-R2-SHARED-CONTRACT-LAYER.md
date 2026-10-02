@@ -1,5 +1,34 @@
 
 
+## UX BATCH MERGED / HA+DB CONVERGENCE — 2026-10-02
+
+Current integration:
+`wave15/corrections-integration@ce8bd48e3575ae89d67f834d70517d5738202360`
+
+Merged batch:
+- #461 Engineering Lifecycle UX, validated `e629c3794b286bb1353305fb051c749758d2310e`, T1 #559 SUCCESS, merged `59bc99d55e0415f271561c6246e5e558ebdf7f98`;
+- #462 Simulation TAG UX, validated `2b05304b951045a743a1ed8657d892ffed8b5a44`, T1 #573 SUCCESS, merged `7b30aea8b624370a44eefdc5b04d0981fbdbe73b`;
+- #460 Runtime History UX, validated `250f9ba8363a02ba34966d71d62865fad0f6ac28`, T1 #572 SUCCESS, merged `ce8bd48e3575ae89d67f834d70517d5738202360`.
+
+Runtime Shell:
+- Phase A reconciled onto current integration;
+- branch head `f6839a0486fc163dc9977ae5240aee8a20acbaf8`;
+- Phase B released; Product Owner must send SIGA in existing #459 DEV chat.
+
+HA + Remote DB:
+- stale PRs #453/#455/#454/#456 are not directly mergeable against current integration;
+- Main created PR #463 on `coord/w15-ha-db-convergence`;
+- exact head `abd8a64f1046f41b356dfac082d1fd1b8c1c09ba`;
+- tree `058d891e2e525d4706730ad1a27745cfdac0ca72`;
+- source: final green HA + DB cores/UIs plus Main-owned mounts;
+- shared Program/router/session-lease changes explicitly reconciled;
+- HA `RebindActiveClusterLeasesAsync` is guarded by DB `IDurableWriteAdmission("runtime-session")`;
+- broad combined T1 #574 / `37072623748`: queued at bounded observation;
+- NO_MERGE until exact-head combined T1 passes.
+
+Historical Playback #452 remains HOLD until Runtime Shell Phase B acceptance.
+
+
 ## SIMULATION TAG UX CONVERGENCE — 2026-10-02
 
 Owner:

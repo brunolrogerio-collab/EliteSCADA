@@ -56,7 +56,7 @@
 
 .db-topology-status-strip {
   display: grid;
-  grid-template-columns: 0.8fr 1.6fr 0.8fr 1fr 1fr;
+  grid-template-columns: 0.85fr 1.8fr 0.85fr;
   gap: 1px;
   margin-top: 16px;
   overflow: hidden;
@@ -101,6 +101,50 @@
 
 .db-topology-alert--danger {
   border-color: #a95d5d;
+}
+
+.db-topology-auto-state {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+  color: var(--app-text-muted, #9aa8b6);
+  font-size: 0.78rem;
+}
+
+.db-topology-auto-state strong {
+  color: var(--app-text, #e8edf2);
+  font-size: 0.82rem;
+}
+
+.db-topology-next-action {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px 14px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--app-accent, #6db4ff) 45%, var(--app-border, #405161));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--app-accent, #6db4ff) 6%, var(--app-panel-raised, #17222d));
+}
+
+.db-topology-next-action > span,
+.db-topology-next-action > small {
+  color: var(--app-text-muted, #9aa8b6);
+  font-size: 0.8rem;
+}
+
+.db-topology-next-action > strong {
+  line-height: 1.4;
+}
+
+.db-topology-locked-state {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--app-accent, #6db4ff);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--app-accent, #6db4ff) 6%, transparent);
+  color: var(--app-text-muted, #9aa8b6);
 }
 
 .db-topology-notice {
@@ -153,11 +197,11 @@
 }
 
 .db-topology-fields--core {
-  grid-template-columns: 1.35fr 1fr 1fr 1.2fr;
+  grid-template-columns: 1.45fr 1fr 1.25fr;
 }
 
 .db-topology-fields--advanced {
-  grid-template-columns: 0.55fr 0.9fr 0.65fr 1.6fr;
+  grid-template-columns: 1.15fr 0.55fr 0.9fr 0.65fr;
   margin-top: 14px;
 }
 
@@ -185,7 +229,7 @@
 }
 
 .db-topology-field-wide {
-  grid-column: auto;
+  grid-column: 1 / -1;
 }
 
 .db-topology-details {
@@ -503,6 +547,14 @@
   .db-topology-section-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .db-topology-auto-state {
+    justify-items: start;
+  }
+
+  .db-topology-next-action {
+    grid-template-columns: 1fr;
   }
 
   .db-topology-status-strip,

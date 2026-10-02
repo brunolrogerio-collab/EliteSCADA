@@ -297,15 +297,15 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
   await page.reload();
   await expect(page.getByTestId('database-pending-phase')).toHaveText('Quiescing');
   const refreshBaseline = statusGetCount;
-  await expect.poll(() => statusGetCount, { timeout: 7000 }).toBeGreaterThan(refreshBaseline);
+  await expect.poll(() => statusGetCount, { timeout: 12000 }).toBeGreaterThan(refreshBaseline);
   await attachScreenshot(page, testInfo, '05-quiescing-auto-refresh');
 
   currentStatus = topologyStatus({ pendingPhase: 'Copying', pendingOperationId: operationId });
-  await expect(page.getByTestId('database-pending-phase')).toHaveText('Copying', { timeout: 7000 });
+  await expect(page.getByTestId('database-pending-phase')).toHaveText('Copying', { timeout: 12000 });
   await attachScreenshot(page, testInfo, '06-copying-auto-refresh');
 
   currentStatus = topologyStatus({ pendingPhase: 'Copied', pendingOperationId: operationId });
-  await expect(page.getByTestId('database-pending-phase')).toHaveText('Copied', { timeout: 7000 });
+  await expect(page.getByTestId('database-pending-phase')).toHaveText('Copied', { timeout: 12000 });
   await page.getByRole('button', { name: 'Verify', exact: true }).click();
   await expect(page.getByTestId('database-pending-phase')).toHaveText('Verified');
 

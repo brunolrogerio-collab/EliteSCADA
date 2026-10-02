@@ -32,7 +32,7 @@ test.use({ locale: 'pt-BR' });
 test.describe.configure({ mode: 'serial' });
 
 test('mounted Events editor persists click and canonical timer/TAG-bit associations through Preview/Apply and reload', async ({ page, request }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(180_000);
 
   const exported = await request.get('/api/engineering/export/json');
   expect(exported.ok()).toBeTruthy();

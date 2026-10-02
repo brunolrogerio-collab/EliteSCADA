@@ -40,9 +40,11 @@ The optimization target is **when and how often CI runs**, not what the final pr
 - **T3:** specialized risk-sensitive workflows (Driver/Interop, licensing preview and equivalent labs), manually or checkpoint-triggered when their risk applies.
 - **T4:** universal `dotnet-ci.yml` PR acceptance for `main` and release/final integration evidence.
 
-The T1 vocabulary is: `FOUNDATION_LIFECYCLE`, `FOUNDATION_TIMING`, `AUTHORITY_CORE`, `SESSION_LICENSING`, `SCRIPT_RUNTIME`, `RUNTIME_RENDERER`, `UI_EDITOR`, `SCRIPT_ENGINEERING`, `AUTHORITY_UX`, `LICENSING_UX`, `ELITEGO_RUNTIME`, `INSTALLATION`, `HA_DISTRIBUTED`, `DOCS_I18N_HELP`, `EEE_PACKAGE`, `DRIVER_PROTOCOL`.
+The T1 vocabulary is: `FOUNDATION_LIFECYCLE`, `FOUNDATION_TIMING`, `AUTHORITY_CORE`, `SESSION_LICENSING`, `SCRIPT_RUNTIME`, `RUNTIME_RENDERER`, `APP_SHELL`, `UI_EDITOR`, `SCRIPT_ENGINEERING`, `AUTHORITY_UX`, `LICENSING_UX`, `ELITEGO_RUNTIME`, `DATABASE_TOPOLOGY`, `INSTALLATION`, `HA_DISTRIBUTED`, `DOCS_I18N_HELP`, `EEE_PACKAGE`, `DRIVER_PROTOCOL`.
 
-T1 does not delete or reduce coverage. It assigns focused evidence to the changed risk. The Coordinator may always escalate a PR to any heavier/specialized gate. A declared inexpensive profile never suppresses an inferred profile.
+T1 does not delete required product evidence. It assigns focused evidence to the changed risk. Browser specs are routed by the files that own them rather than by broad directory ancestry: HA Admin does not pull the visual-editor suite, database topology does not pull installation/local-auth, and backend-only changes do not start Web/Chromium unless a web owner changed. HA two-process evidence is reserved for HA core/protocol changes, not HA UI-only changes. The Coordinator may always escalate a PR to any heavier/specialized gate. A declared inexpensive profile never suppresses an inferred profile.
+
+T1 setup must also remain proportional: .NET restores only selected owning projects; Chromium restores only the API project it boots; npm and Playwright browser downloads use dependency-keyed caches where safe. T2/T4 remain the broad integrated/final matrix and are not replaced by this routing.
 
 ### Workers — DEV 1 / DEV 2 / DEV 3
 

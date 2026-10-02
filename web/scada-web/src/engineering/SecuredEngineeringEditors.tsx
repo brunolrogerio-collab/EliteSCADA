@@ -14,6 +14,16 @@ import { TagDuplicationPanel, tagDuplicationText, type TagDuplicationPanelHandle
 import { EngineeringEntityActions } from './EngineeringEntityActions';
 import { WorkflowFormDisclosure, WorkflowFormSection } from './StructuredFormPrimitives';
 import { assignTagDataSource, type TagSourceAwareEngineering } from './TagSourceSelector.logic';
+import {
+  SIMULATION_DRIVER_TYPE,
+  normalizeSimulationProfile,
+  simulationFieldVisibility,
+  simulationSignalForTag,
+  simulationSignalOptions,
+  updateSimulationDataType,
+  updateSimulationMetadataNumber,
+  updateSimulationSignal
+} from './SimulationTagEditor.logic';
 import type {
   AlarmEngineering,
   DataSourceEngineering,
@@ -51,6 +61,7 @@ export function TagEditor({ model, locale }: EditorProps) {
   const text = useMemo(() => editorTranslator(locale), [locale]);
   const mutation = useSecuredMutation(model, locale);
   const duplicationCopy = useMemo(() => tagDuplicationText(locale), [locale]);
+  const simulationCopy = useMemo(() => simulationText(locale), [locale]);
   const tags = model.tags;
   const [query, setQuery] = useState('');
   const duplicationRef = useRef<TagDuplicationPanelHandle>(null);
@@ -63,7 +74,7 @@ export function TagEditor({ model, locale }: EditorProps) {
     ? tags.find(tag => tagIdentity(tag) === selectedIdentity) ?? null
     : null;
   const [draft, setDraft] = useState<TagEngineering | null>(() => selected ? clone(selected) : null);
-  const simulationSource = draft ? (model.dataSources ?? []).find(source => source.key === draft.source)?.driver === 'builtin.simulation' : false;
+  const simulationSource = draft ? (model.dataSources ?? []).find(source => source.key === draft.source)?.driver.trim().toLowerCase() === SIMULATION_DRIVER_TYPE : false;
 
   useEffect(() => {
     if (selectedIdentity === NEW_TAG_IDENTITY) {
@@ -82,6 +93,12 @@ export function TagEditor({ model, locale }: EditorProps) {
   }, [selectedIdentity, tags]);
 
   useEffect(() => mutation.invalidate(), [draft]);
+
+  useEffect(() => {
+    if (!draft || !simulationSource) return;
+    const normalized = normalizeSimulationProfile(draft as TagSourceAwareEngineering);
+    if (JSON.stringify(normalized) !== JSON.stringify(draft)) setDraft(normalized);
+  }, [simulationSource, draft?.dataType, draft?.metadata]);
 
   useEffect(() => {
     const available = new Set(tags.map(tagIdentity));
@@ -169,6 +186,8 @@ export function TagEditor({ model, locale }: EditorProps) {
     `${tag.path} ${tag.name} ${tag.source ?? ''} ${tag.address ?? ''}`
       .toLowerCase()
       .includes(query.trim().toLowerCase()));
+  const simulationSignal = draft ? simulationSignalForTag(draft as TagSourceAwareEngineering) : 'Sine';
+  const simulationFields = simulationFieldVisibility(simulationSignal);
 
   return (
     <EditorShell title={text('editor.tagsTitle')} description={text('editor.tagsDescription')} locale={locale}>
@@ -231,7 +250,15 @@ export function TagEditor({ model, locale }: EditorProps) {
               <WorkflowFormSection title={workflowText(locale).identity} description={workflowText(locale).tagIdentityHint}>
               <div className="eng-editor-form-grid">
                 <TextField label={text('editor.field.tagName')} hint={text('editor.field.tagNameHint')} value={draft.name} onChange={value => updateTag(setDraft, tag => ({ ...tag, name: value, ...(isNew ? { path: backendReferenceFromName(value) } : {}) }))} />
-                <SelectField label={text('editor.field.type')} value={draft.dataType} options={tagDataTypes} onChange={value => updateTag(setDraft, tag => ({ ...tag, dataType: value }))} />
+                <SelectField
+                  label={text('editor.field.type')}
+                  value={draft.dataType}
+                  options={tagDataTypes}
+                  testId="tag-data-type"
+                  onChange={value => updateTag(setDraft, tag => simulationSource
+                    ? updateSimulationDataType(tag as TagSourceAwareEngineering, value)
+                    : { ...tag, dataType: value })}
+                />
                 <TagSourceSelector
                   tag={draft as TagSourceAwareEngineering}
                   sources={model.dataSources ?? []}
@@ -258,19 +285,21 @@ export function TagEditor({ model, locale }: EditorProps) {
                 <TextAreaField label={text('editor.field.description')} value={draft.description ?? ''} onChange={value => updateTag(setDraft, tag => ({ ...tag, description: emptyToNull(value) }))} />
               </div>
               </WorkflowFormSection>
-              {simulationSource ? <WorkflowFormDisclosure title="Simulação do TAG" description="Configure a forma como este TAG de demonstração varia durante o Runtime." testId="tag-simulation-disclosure">
+              {simulationSource ? <WorkflowFormDisclosure title={simulationCopy.title} description={simulationCopy.description} testId="tag-simulation-disclosure">
                 <div className="eng-editor-form-grid">
-                  <SelectField label="Comportamento" value={draft.metadata?.['simulation.signalType'] ?? (draft.dataType === 'dateTime' ? 'CurrentTime' : draft.dataType === 'boolean' ? 'BooleanToggle' : 'Sine')} options={[
-                    'Constant', 'Random', 'Sine', 'Square', 'RampUp', 'RampDown', 'RampUpDown', 'Counter', 'BooleanToggle', 'Manual', ...(draft.dataType === 'dateTime' ? ['CurrentTime'] : [])
-                  ]} onChange={value => updateTag(setDraft, tag => ({ ...tag, metadata: { ...(tag.metadata ?? {}), 'simulation.signalType': value } }))} />
-                  {draft.dataType !== 'dateTime' && <>
-                    <NumberField label="Mínimo" value={metadataNumber(draft, 'simulation.minimum', 0)} onChange={value => updateSimulationNumber(setDraft, 'simulation.minimum', value)} />
-                    <NumberField label="Máximo" value={metadataNumber(draft, 'simulation.maximum', 100)} onChange={value => updateSimulationNumber(setDraft, 'simulation.maximum', value)} />
-                    <NumberField label="Período (segundos)" value={metadataNumber(draft, 'simulation.periodSeconds', 10)} onChange={value => updateSimulationNumber(setDraft, 'simulation.periodSeconds', value)} />
-                    <NumberField label="Valor constante / inicial" value={metadataNumber(draft, 'simulation.constantValue', 0)} onChange={value => updateSimulationNumber(setDraft, 'simulation.constantValue', value)} />
-                    <NumberField label="Passo do contador" value={metadataNumber(draft, 'simulation.step', 1)} onChange={value => updateSimulationNumber(setDraft, 'simulation.step', value)} />
-                  </>}
-                  {draft.dataType === 'dateTime' && <p className="eng-editor-hint">CurrentTime publica a data e hora UTC atual como valor DateTime.</p>}
+                  <SelectField
+                    label={simulationCopy.behavior}
+                    value={simulationSignal}
+                    options={simulationSignalOptions(draft.dataType)}
+                    testId="simulation-signal-type"
+                    onChange={value => updateTag(setDraft, tag => updateSimulationSignal(tag as TagSourceAwareEngineering, value))}
+                  />
+                  {simulationFields.minimum && <NumberField testId="simulation-minimum" label={simulationCopy.minimum} value={metadataNumber(draft, 'simulation.minimum', 0)} onChange={value => updateTag(setDraft, tag => updateSimulationMetadataNumber(tag as TagSourceAwareEngineering, 'simulation.minimum', value))} />}
+                  {simulationFields.maximum && <NumberField testId="simulation-maximum" label={simulationCopy.maximum} value={metadataNumber(draft, 'simulation.maximum', 100)} onChange={value => updateTag(setDraft, tag => updateSimulationMetadataNumber(tag as TagSourceAwareEngineering, 'simulation.maximum', value))} />}
+                  {simulationFields.periodSeconds && <NumberField testId="simulation-period" label={simulationCopy.period} value={metadataNumber(draft, 'simulation.periodSeconds', 10)} onChange={value => updateTag(setDraft, tag => updateSimulationMetadataNumber(tag as TagSourceAwareEngineering, 'simulation.periodSeconds', value))} />}
+                  {simulationFields.constantValue && <NumberField testId="simulation-constant-value" label={simulationCopy.constantValue} value={metadataNumber(draft, 'simulation.constantValue', 0)} onChange={value => updateTag(setDraft, tag => updateSimulationMetadataNumber(tag as TagSourceAwareEngineering, 'simulation.constantValue', value))} />}
+                  {simulationFields.step && <NumberField testId="simulation-step" label={simulationCopy.step} value={metadataNumber(draft, 'simulation.step', 1)} onChange={value => updateTag(setDraft, tag => updateSimulationMetadataNumber(tag as TagSourceAwareEngineering, 'simulation.step', value))} />}
+                  {draft.dataType === 'dateTime' && <p className="eng-editor-hint">{simulationCopy.currentTimeHint}</p>}
                 </div>
               </WorkflowFormDisclosure> : null}
               <WorkflowFormDisclosure title={workflowText(locale).historian} description={workflowText(locale).historianHint} testId="tag-historian-disclosure">
@@ -788,13 +817,13 @@ function TextAreaField({ label, value, onChange }: { label: string; value: strin
   return <label className="eng-editor-field eng-editor-field-wide"><span>{label}</span><textarea rows={3} value={value} onChange={event => onChange(event.target.value)} /></label>;
 }
 
-function SelectField({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
+function SelectField({ label, value, options, onChange, testId }: { label: string; value: string; options: string[]; onChange: (value: string) => void; testId?: string }) {
   const effective = options.includes(value) ? options : [value, ...options];
-  return <label className="eng-editor-field"><span>{label}</span><select value={value} onChange={event => onChange(event.target.value)}>{effective.map(option => <option key={option} value={option}>{option}</option>)}</select></label>;
+  return <label className="eng-editor-field"><span>{label}</span><select data-testid={testId} value={value} onChange={event => onChange(event.target.value)}>{effective.map(option => <option key={option} value={option}>{option}</option>)}</select></label>;
 }
 
-function NumberField({ label, value, onChange, integer = false }: { label: string; value?: number | null; onChange: (value: number | null) => void; integer?: boolean }) {
-  return <label className="eng-editor-field"><span>{label}</span><input type="number" step={integer ? 1 : 'any'} value={value ?? ''} onChange={event => onChange(parseNullableNumber(event.target.value, integer))} /></label>;
+function NumberField({ label, value, onChange, integer = false, testId }: { label: string; value?: number | null; onChange: (value: number | null) => void; integer?: boolean; testId?: string }) {
+  return <label className="eng-editor-field"><span>{label}</span><input data-testid={testId} type="number" step={integer ? 1 : 'any'} value={value ?? ''} onChange={event => onChange(parseNullableNumber(event.target.value, integer))} /></label>;
 }
 
 function BooleanField({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
@@ -836,18 +865,6 @@ function metadataNumber(tag: TagEngineering, key: string, fallback: number): num
   return Number.isFinite(value) ? value : fallback;
 }
 
-function updateSimulationNumber(
-  setter: React.Dispatch<React.SetStateAction<TagEngineering | null>>,
-  key: string,
-  value: number | null
-) {
-  updateTag(setter, tag => {
-    const metadata = { ...(tag.metadata ?? {}) };
-    if (value === null) delete metadata[key];
-    else metadata[key] = String(value);
-    return { ...tag, metadata };
-  });
-}
 function updateDataSource(setter: React.Dispatch<React.SetStateAction<DataSourceEngineering | null>>, update: (current: DataSourceEngineering) => DataSourceEngineering) {
   setter(current => current ? update(current) : current);
 }
@@ -902,6 +919,43 @@ function mutationText(locale: EngineeringLocale) {
   };
 }
 
+
+
+function simulationText(locale: EngineeringLocale) {
+  if (locale === 'en') return {
+    title: 'TAG simulation',
+    description: 'Choose how this Simulation TAG publishes values at Runtime.',
+    behavior: 'Behavior',
+    minimum: 'Minimum',
+    maximum: 'Maximum',
+    period: 'Period (seconds)',
+    constantValue: 'Constant / initial value',
+    step: 'Counter step',
+    currentTimeHint: 'CurrentTime publishes the current UTC date and time as a DateTime value.'
+  };
+  if (locale === 'es') return {
+    title: 'Simulación del TAG',
+    description: 'Defina cómo este TAG de Simulación publica valores durante el Runtime.',
+    behavior: 'Comportamiento',
+    minimum: 'Mínimo',
+    maximum: 'Máximo',
+    period: 'Período (segundos)',
+    constantValue: 'Valor constante / inicial',
+    step: 'Paso del contador',
+    currentTimeHint: 'CurrentTime publica la fecha y hora UTC actual como valor DateTime.'
+  };
+  return {
+    title: 'Simulação do TAG',
+    description: 'Defina como esta TAG de Simulação publica valores durante o Runtime.',
+    behavior: 'Comportamento',
+    minimum: 'Mínimo',
+    maximum: 'Máximo',
+    period: 'Período (segundos)',
+    constantValue: 'Valor constante / inicial',
+    step: 'Passo do contador',
+    currentTimeHint: 'CurrentTime publica a data e hora UTC atual como valor DateTime.'
+  };
+}
 
 function workflowText(locale: EngineeringLocale) {
   if (locale === 'en') return {

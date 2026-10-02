@@ -365,6 +365,43 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void CurvedArtwork_UsesOnlyCanonicalArcAndBezierProperties()
+    {
+        var elements = BuiltinDynamoLibrary.Create()
+            .SelectMany(definition => definition.Elements!)
+            .ToArray();
+
+        var beziers = elements.Where(element => element.Type == "core.bezier").ToArray();
+        var arcs = elements.Where(element => element.Type == "core.arc").ToArray();
+
+        Assert.NotEmpty(beziers);
+        Assert.NotEmpty(arcs);
+
+        Assert.All(beziers, element =>
+        {
+            var properties = element.Properties!;
+            Assert.True(properties.TryGetValue("bezierPath", out var path));
+            Assert.StartsWith("M ", path.GetString());
+            Assert.True(properties["width"].GetDouble() > 0);
+            Assert.True(properties["height"].GetDouble() > 0);
+        });
+
+        Assert.All(arcs, element =>
+        {
+            var properties = element.Properties!;
+            Assert.True(properties["arcStartAngle"].ValueKind == System.Text.Json.JsonValueKind.Number);
+            Assert.True(properties["arcEndAngle"].ValueKind == System.Text.Json.JsonValueKind.Number);
+            Assert.Contains(properties["arcStyle"].GetString(), new[] { "arc", "chord", "pie" });
+            Assert.True(properties["width"].GetDouble() > 0);
+            Assert.True(properties["height"].GetDouble() > 0);
+        });
+
+        Assert.DoesNotContain(elements, element =>
+            element.Type.Contains("svg", StringComparison.OrdinalIgnoreCase) ||
+            element.Properties?.Keys.Any(key => key.Contains("svg", StringComparison.OrdinalIgnoreCase)) == true);
+    }
+
+    [Fact]
     public void EveryBuiltinDynamo_PassesParameterizedStateSourceValidation()
     {
         var definitions = BuiltinDynamoLibrary.Create();

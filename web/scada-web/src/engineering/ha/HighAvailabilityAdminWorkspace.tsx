@@ -322,7 +322,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
     try {
       const result = await haAdminApi.updateConfiguration(request);
       setNotice(result.snapshot.pendingRestart ? t.savedNotActive : t.saved);
-      await load(!snapshot.topology.enabled && deploymentChoice === 'ha');
+      await load(false);
     } catch (error) {
       const http = error instanceof HaAdminHttpError ? error : null;
       setFailure([http?.message || t.configurationRejected, ...(http?.errors ?? [])].filter(Boolean).join(' · '));

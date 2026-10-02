@@ -241,7 +241,10 @@ test('operator controls keep alarms and history in-context during native fullscr
     .toBe('runtime-engineering-application');
   await expect(navigator).toHaveAttribute('data-active-screen-key', activeScreenBeforeHistory ?? '');
   expect(await page.locator('.runtime-visual-popup').count()).toBe(popupCountBeforeHistory);
-  await page.screenshot({ path: testInfo.outputPath('runtime-history-fullscreen.png'), fullPage: true });
+  await testInfo.attach('runtime-history-fullscreen.png', {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: 'image/png'
+  });
 
   await alarmsButton.click();
   await expect(historyOverlay).toHaveCount(0);

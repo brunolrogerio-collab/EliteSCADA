@@ -143,6 +143,11 @@ const runtimeProjection = {
 } as const;
 
 async function installShell(page: Page) {
+  await page.routeWebSocket('**/ws/tags', () => {
+    // Keep the canonical Live socket open. Historical assertions are driven by
+    // deterministic HTTP fixtures; an unrelated socket close must not mark
+    // otherwise valid Live samples as Disconnected.
+  });
   await page.route('**/api/auth/config', route => route.fulfill({
     json: {
       authenticationEnabled: true, localLoginEnabled: true,

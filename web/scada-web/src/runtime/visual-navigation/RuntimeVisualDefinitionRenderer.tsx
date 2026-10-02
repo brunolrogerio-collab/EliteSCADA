@@ -57,7 +57,7 @@ export type RuntimeVisualDefinitionRendererProps = Readonly<{
   onScriptDispatch?: (records: readonly ClientVisualEventDispatchRecord[]) => void;
   runtimeFactory?: ClientVisualPythonRuntimeFactory;
   frameClock?: VisualTweenFrameClock;
-  onTagWrite?: SliderTagWrite | null;
+  onTagWrite?: SliderTagWrite;
   visualAssetUrl?: VisualAssetUrlResolver;
 }>;
 

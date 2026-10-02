@@ -16,6 +16,7 @@ import { OpcUaTagBrowser } from './OpcUaTagBrowser';
 import { Dnp3TagAddressAssistant } from './Dnp3TagAddressAssistant';
 import { Iec104TagAddressAssistant } from './Iec104TagAddressAssistant';
 import { GenericTagBindingAssistant } from './GenericTagBindingAssistant';
+import { SIMULATION_DRIVER_TYPE } from './SimulationTagEditor.logic';
 
 type Props = {
   tag: TagSourceAwareEngineering;
@@ -89,6 +90,11 @@ export function TagAddressEditor({ tag, sources, locale, onChange }: Props) {
     sourceTypeResolved,
     sourceKind
   })) return null;
+
+  // Simulation TAGs are authored exclusively by the canonical simulation editor.
+  // Their runtime planner consumes simulation.* metadata and does not require a
+  // user-authored portable Address/CommunicationBinding.
+  if (driverType === SIMULATION_DRIVER_TYPE) return null;
 
   const specialized = driverType ? specializedAssistants[driverType] : undefined;
   const manualHelp = driverType ? manualHelpForDriver(driverType, text) : text.manualHelp;

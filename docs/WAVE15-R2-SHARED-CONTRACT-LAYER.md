@@ -1,5 +1,17 @@
 
 
+## PR #458 BACNET VALUE CONVERGENCE INTEGRATED — 2026-10-02
+
+- Product Owner explicitly authorized approval and merge.
+- exact validated head: `042a068e38201748b455904c086ef53b6e353e89`.
+- T1 #488 / `37059827224`: SUCCESS.
+- merge commit / current integration: `a213477b775c5d6f336f32d1a34bd937c02323b8`.
+- merge tree: `ce8ed6ce707f98eab3066c4c5c58e55f4ea60cea`, exactly matching the validated candidate tree.
+- integrated scope remains the bounded two-file BACnet write/cache convergence correction.
+- external simulator/physical-device BACnet validation remains recommended evidence, not a blocker for the source merge.
+- state: `MERGED / POST_MERGE_CI_REVALIDATE_LATER`.
+
+
 ## LOCAL BACNET VALUE CONVERGENCE CORRECTION — 2026-10-02
 
 - current integration base: `cf660606f79ec79651af379e85f2aed98305ab1a`.

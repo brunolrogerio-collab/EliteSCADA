@@ -387,6 +387,11 @@ test('FOLLOW-B mounted editor persists expression, Boolean Condition and Analog 
 });
 
 test('W15 Dynamic Text and Numeric Input are mounted, persisted and Design mode never writes', async ({ page, request }, testInfo) => {
+  // The full editor flow includes source browsing, candidate validation,
+  // canonical apply, reload and restoration of the original project package.
+  // It regularly exceeds Playwright's 30-second default in the focused CI suite.
+  test.setTimeout(90_000);
+
   const originalResponse = await request.get('/api/engineering/export/json');
   expect(originalResponse.ok()).toBeTruthy();
   const originalPackage = await originalResponse.json() as ExportedPackage;
@@ -473,10 +478,16 @@ test('W15 Dynamic Text and Numeric Input are mounted, persisted and Design mode 
       target: numericTag!.path, direction: 'readWrite'
     });
   } finally {
-    const restore = await request.post('/api/engineering/import/json/apply', {
-      headers: { 'content-type': 'application/json; charset=utf-8' }, data: originalPackage
-    });
-    expect(restore.ok()).toBeTruthy();
+    try {
+      const restore = await request.post('/api/engineering/import/json/apply', {
+        headers: { 'content-type': 'application/json; charset=utf-8' }, data: originalPackage
+      });
+      if (!restore.ok() && testInfo.errors.length === 0) expect(restore.ok()).toBeTruthy();
+    } catch (restoreError) {
+      // Keep the first failure visible if Playwright has already closed the
+      // request context due to a test timeout or another earlier assertion.
+      if (testInfo.status === 'passed' && testInfo.errors.length === 0) throw restoreError;
+    }
   }
 });
 

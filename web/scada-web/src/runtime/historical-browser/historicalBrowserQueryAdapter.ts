@@ -9,6 +9,7 @@ import {
 } from './historicalQueryApi';
 import {
   historicalBrowserCopy,
+  historicalFieldLabel,
   type HistoricalBrowserLocale
 } from './historicalBrowserI18n';
 import { historicalTimeRangeToQuery } from '../historicalTimeRange';
@@ -80,7 +81,7 @@ export function projectHistoricalQueryResponse(
 ): HistoricalBrowserProjectedPage {
   const columns = response.columns.map(column => Object.freeze({
     key: column.field,
-    label: historicalFieldLabel(column),
+    label: historicalFieldLabel(column.field, locale),
     filterable: column.filterable,
     sortable: column.sortable,
     searchable: column.searchable
@@ -92,7 +93,7 @@ export function projectHistoricalQueryResponse(
     for (const column of response.columns) {
       const formatted = formatHistoricalQueryValue(row.cells[column.field], locale);
       cells[column.field] = formatted;
-      detail.push(Object.freeze({ label: historicalFieldLabel(column), value: formatted }));
+      detail.push(Object.freeze({ label: historicalFieldLabel(column.field, locale), value: formatted }));
     }
     return Object.freeze({
       id: historicalRowIdentity(row.cells, rowIndex),
@@ -149,14 +150,6 @@ export function canSearchHistoricalColumns(columns: readonly HistoricalColumn[])
 
 export function sortableHistoricalColumns(columns: readonly HistoricalColumn[]): readonly HistoricalColumn[] {
   return columns.filter(column => column.sortable);
-}
-
-function historicalFieldLabel(column: Pick<HistoricalColumn, 'field'>): string {
-  return column.field
-    .split('.')
-    .map(part => part.replace(/([a-z0-9])([A-Z])/g, '$1 $2'))
-    .join(' / ')
-    .replace(/^./, value => value.toUpperCase());
 }
 
 function historicalRowIdentity(cells: Readonly<Record<string, HistoricalQueryValue>>, index: number): string {

@@ -1,9 +1,7 @@
 import {
-  HISTORICAL_TIME_RANGE_PRESETS,
   applyHistoricalPreset,
   createHistoricalTimeRangeState,
   historicalDurationSeconds,
-  historicalPresetSeconds,
   localTimeZoneLabel,
   validateHistoricalTimeRange,
   type HistoricalTimeRangeMode,
@@ -21,9 +19,15 @@ export const HISTORICAL_BROWSER_DATASET_KEYS = [
   'operational.events'
 ] as const;
 
+export const HISTORICAL_BROWSER_RELATIVE_PRESETS = Object.freeze([
+  Object.freeze({ seconds: 15 * 60, label: '15 min' }),
+  Object.freeze({ seconds: 60 * 60, label: '1 h' }),
+  Object.freeze({ seconds: 8 * 60 * 60, label: '8 h' }),
+  Object.freeze({ seconds: 24 * 60 * 60, label: '24 h' })
+] as const);
+
 export type HistoricalBrowserDatasetKey = typeof HISTORICAL_BROWSER_DATASET_KEYS[number];
-export type HistoricalBrowserTimeMode = HistoricalTimeRangeMode;
-export const HISTORICAL_BROWSER_RELATIVE_PRESETS = HISTORICAL_TIME_RANGE_PRESETS;
+export type HistoricalBrowserTimeMode = Exclude<HistoricalTimeRangeMode, 'live'>;
 
 /**
  * Transient view state only. It is deliberately not a Historical Query DTO and
@@ -58,7 +62,7 @@ export function createHistoricalBrowserDraft(): HistoricalBrowserDraft {
   const range = createHistoricalTimeRangeState({ mode: 'relative', durationSeconds: 60 * 60 });
   return Object.freeze({
     datasetKey: 'historian.samples',
-    timeMode: range.mode,
+    timeMode: 'relative',
     relativeAmount: range.relativeAmount,
     relativeUnit: range.relativeUnit,
     absoluteFromLocal: range.absoluteFromLocal,
@@ -80,16 +84,22 @@ export function applyHistoricalBrowserPreset(
   draft: HistoricalBrowserDraft,
   seconds: number
 ): HistoricalBrowserDraft {
-  const range = applyHistoricalPreset(historicalBrowserTimeRange(draft), seconds);
+  const range = applyHistoricalPreset(
+    Object.freeze({ ...historicalBrowserTimeRange(draft), mode: 'relative' }),
+    seconds
+  );
   return Object.freeze({
     ...draft,
+    timeMode: 'relative',
     relativeAmount: range.relativeAmount,
     relativeUnit: range.relativeUnit
   });
 }
 
 export function historicalBrowserPresetSeconds(draft: HistoricalBrowserDraft): number | null {
-  return historicalPresetSeconds(historicalBrowserTimeRange(draft));
+  if (draft.timeMode !== 'relative') return null;
+  const seconds = historicalBrowserDurationSeconds(draft);
+  return HISTORICAL_BROWSER_RELATIVE_PRESETS.some(item => item.seconds === seconds) ? seconds : null;
 }
 
 export function historicalBrowserDurationSeconds(draft: HistoricalBrowserDraft): number {
@@ -167,11 +177,11 @@ export function historicalTimeSummary(
   locale: HistoricalBrowserLocale = 'en'
 ): string {
   const text = historicalBrowserCopy(locale);
-  if (draft.timeMode === 'live' || draft.timeMode === 'relative') {
+  if (draft.timeMode === 'relative') {
     const seconds = historicalBrowserDurationSeconds(draft);
     const preset = HISTORICAL_BROWSER_RELATIVE_PRESETS.find(item => item.seconds === seconds);
     const duration = preset?.label ?? String(draft.relativeAmount) + ' ' + unitLabel(draft.relativeUnit, text);
-    return (draft.timeMode === 'live' ? text.live + ' · ' : text.last + ' ') + duration;
+    return text.last + ' ' + duration;
   }
 
   if (!draft.absoluteFromLocal || !draft.absoluteToLocal) return text.absoluteNotSelected;

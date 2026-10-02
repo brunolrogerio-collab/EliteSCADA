@@ -6,11 +6,13 @@ import {
   createHistoricalFilterDraft,
   filterableHistoricalColumns,
   operatorsForHistoricalField,
-  summarizeHistoricalFilter,
   type HistoricalFilterDraft
 } from './historicalBrowserFilters';
 import {
   historicalBrowserCopy,
+  historicalFieldLabel,
+  historicalOperatorLabel,
+  historicalScalarKindLabel,
   type HistoricalBrowserCopy,
   type HistoricalBrowserLocale
 } from './historicalBrowserI18n';
@@ -58,6 +60,14 @@ export function HistoricalFilterBuilder({
     }
   }
 
+  if (columns.length === 0) {
+    return <p className="historical-browser__advanced-note">{text.advancedDiscovery}</p>;
+  }
+
+  if (filterableColumns.length === 0) {
+    return <p className="historical-browser__advanced-note">{text.filterUnavailable}</p>;
+  }
+
   return (
     <section className="historical-browser__filters" aria-label={text.filters}>
       <div className="historical-browser__filter-controls">
@@ -66,15 +76,18 @@ export function HistoricalFilterBuilder({
           <select
             aria-label={text.filterField}
             value={draft.field}
-            disabled={disabled || filterableColumns.length === 0}
+            disabled={disabled}
             onChange={event => {
               const field = event.target.value;
               const nextOperators = operatorsForHistoricalField(columns, field);
               updateDraft({ field, operator: nextOperators[0] ?? '', valueText: '' });
             }}
           >
-            {filterableColumns.length === 0 && <option value="">{text.discoverFilterFields}</option>}
-            {filterableColumns.map(column => <option key={column.field} value={column.field}>{column.field}</option>)}
+            {filterableColumns.map(column => (
+              <option key={column.field} value={column.field}>
+                {historicalFieldLabel(column.field, locale)}
+              </option>
+            ))}
           </select>
         </label>
 
@@ -86,7 +99,9 @@ export function HistoricalFilterBuilder({
             disabled={disabled || operators.length === 0}
             onChange={event => updateDraft({ operator: event.target.value as HistoricalFilterDraft['operator'] })}
           >
-            {operators.map(operator => <option key={operator} value={operator}>{operator}</option>)}
+            {operators.map(operator => (
+              <option key={operator} value={operator}>{historicalOperatorLabel(operator, locale)}</option>
+            ))}
           </select>
         </label>
 
@@ -99,7 +114,9 @@ export function HistoricalFilterBuilder({
               disabled={disabled}
               onChange={event => updateDraft({ scalarKind: event.target.value as HistoricalFilterDraft['scalarKind'], valueText: '' })}
             >
-              {HISTORICAL_SCALAR_FILTER_KINDS.map(kind => <option key={kind} value={kind}>{kind}</option>)}
+              {HISTORICAL_SCALAR_FILTER_KINDS.map(kind => (
+                <option key={kind} value={kind}>{historicalScalarKindLabel(kind, locale)}</option>
+              ))}
             </select>
           </label>
         )}
@@ -123,8 +140,11 @@ export function HistoricalFilterBuilder({
       {filters.length > 0 && (
         <ul className="historical-browser__filter-list">
           {filters.map((filter, index) => (
-            <li key={`${filter.field}-${filter.operator}-${index}`}>
-              <span>{summarizeHistoricalFilter(filter)}</span>
+            <li key={filter.field + '-' + filter.operator + '-' + index}>
+              <span>
+                {historicalFieldLabel(filter.field, locale)} {historicalOperatorLabel(filter.operator, locale)}{' '}
+                {filter.values.map(value => value.value ?? '—').join(', ')}
+              </span>
               <button
                 type="button"
                 disabled={disabled}

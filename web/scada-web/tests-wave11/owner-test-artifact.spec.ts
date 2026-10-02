@@ -190,7 +190,7 @@ test('runtime-only operator sees only permitted application surfaces and backend
   }
 });
 
-test('operator controls keep alarms as an overlay and support native fullscreen on the Active Runtime', async ({ page }) => {
+test('operator controls keep alarms and history in-context during native fullscreen', async ({ page }, testInfo) => {
   await page.goto('/');
   const application = page.getByTestId('runtime-engineering-application');
   const canvas = page.getByTestId('runtime-engineering-canvas');
@@ -216,6 +216,50 @@ test('operator controls keep alarms as an overlay and support native fullscreen 
   await expect(application).toHaveAttribute('data-runtime-fullscreen', 'true');
   await expect.poll(async () => page.evaluate(() => document.fullscreenElement?.getAttribute('data-testid') ?? null))
     .toBe('runtime-engineering-application');
+
+  const navigator = page.getByTestId('runtime-visual-navigator');
+  const activeScreenBeforeHistory = await navigator.getAttribute('data-active-screen-key');
+  const popupCountBeforeHistory = await page.locator('.runtime-visual-popup').count();
+
+  const historyButton = page.getByRole('button', { name: /History|Histórico/ }).first();
+  await historyButton.click();
+  const historyOverlay = page.getByTestId('runtime-history-overlay');
+  await expect(historyOverlay).toBeVisible();
+  await expect(historyOverlay.getByRole('button', { name: /TAG values|Valores de TAGs/ })).toBeVisible();
+  await expect(historyOverlay.getByRole('button', { name: /Alarms|Alarmes|Alarmas/ })).toBeVisible();
+  await expect(historyOverlay.getByRole('button', { name: /Events|Eventos/ })).toBeVisible();
+  await expect(historyOverlay.getByRole('button', { name: '15 min' })).toBeVisible();
+  await expect(historyOverlay.getByRole('button', { name: '1 h' })).toBeVisible();
+  await expect(historyOverlay.getByRole('button', { name: '8 h' })).toBeVisible();
+  await expect(historyOverlay.getByRole('button', { name: '24 h' })).toBeVisible();
+  await expect(historyOverlay.getByRole('button', { name: /Query|Consultar/ })).toHaveCount(1);
+  await expect(historyOverlay.getByRole('button', { name: /Apply query|Aplicar consulta/ })).toHaveCount(0);
+  await expect(historyOverlay.getByText(/^(Live|Ao vivo|En vivo)$/)).toHaveCount(0);
+  expect(await historyOverlay.getByTestId('historical-browser-advanced').getAttribute('open')).toBeNull();
+  await expect(application).toHaveAttribute('data-runtime-fullscreen', 'true');
+  await expect.poll(async () => page.evaluate(() => document.fullscreenElement?.getAttribute('data-testid') ?? null))
+    .toBe('runtime-engineering-application');
+  await expect(navigator).toHaveAttribute('data-active-screen-key', activeScreenBeforeHistory ?? '');
+  expect(await page.locator('.runtime-visual-popup').count()).toBe(popupCountBeforeHistory);
+  await testInfo.attach('runtime-history-fullscreen.png', {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: 'image/png'
+  });
+
+  await alarmsButton.click();
+  await expect(historyOverlay).toHaveCount(0);
+  const fullscreenAlarmOverlay = page.locator('.runtime-operator-overlay:not(.runtime-operator-overlay--history)');
+  await expect(fullscreenAlarmOverlay).toBeVisible();
+
+  await historyButton.click();
+  await expect(fullscreenAlarmOverlay).toHaveCount(0);
+  await expect(historyOverlay).toBeVisible();
+
+  await page.getByRole('button', { name: /Close history|Fechar histórico|Cerrar histórico/ }).click();
+  await expect(historyOverlay).toHaveCount(0);
+  await expect(application).toHaveAttribute('data-runtime-fullscreen', 'true');
+  await expect(navigator).toHaveAttribute('data-active-screen-key', activeScreenBeforeHistory ?? '');
+  expect(await page.locator('.runtime-visual-popup').count()).toBe(popupCountBeforeHistory);
 
   const exitFullscreen = page.getByRole('button', { name: /Exit fullscreen|Sair da tela cheia|Salir de pantalla completa/ }).first();
   await exitFullscreen.click();

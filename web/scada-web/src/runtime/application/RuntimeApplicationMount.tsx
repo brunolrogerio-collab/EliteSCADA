@@ -3,6 +3,8 @@ import { appShellText, useAppShellLocale } from '../../appShellI18n';
 import { UserSessionMenu } from '../../auth/UserSessionMenu';
 import type { ScriptEngineeringContext } from '../../engineering/scripts/scriptEngineeringTypes';
 import { RuntimeAlarmCenter } from '../RuntimeAlarmCenter';
+import { HistoricalDataBrowserRuntime } from '../historical-browser/HistoricalDataBrowserRuntime';
+import { historicalBrowserCopy } from '../historical-browser/historicalBrowserI18n';
 import { RuntimeVisualNavigator } from '../visual-navigation/RuntimeVisualNavigator';
 import {
   loadRuntimeApplicationProjection,
@@ -104,9 +106,11 @@ function EngineeringRuntimeApplication({
   showHistoryNavigation: boolean;
 }) {
   const text = appShellText(locale);
+  const historyText = historicalBrowserCopy(locale);
   const fullscreenRoot = useRef<HTMLElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [alarmsOpen, setAlarmsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const engineeringPackage = projection.package!;
   const startup = useMemo(
     () => resolveRuntimeStartupScreen(engineeringPackage),
@@ -136,6 +140,22 @@ function EngineeringRuntimeApplication({
     else await fullscreenRoot.current?.requestFullscreen();
   };
 
+  const toggleAlarms = () => {
+    setAlarmsOpen(current => {
+      const next = !current;
+      if (next) setHistoryOpen(false);
+      return next;
+    });
+  };
+
+  const toggleHistory = () => {
+    setHistoryOpen(current => {
+      const next = !current;
+      if (next) setAlarmsOpen(false);
+      return next;
+    });
+  };
+
   if (!startup.screenKey) {
     return <main className="shell" data-testid="runtime-engineering-application">
       <section className="runtime-visual-diagnostic" role="alert" data-diagnostic-code={startup.diagnosticCode ?? undefined}>
@@ -159,11 +179,17 @@ function EngineeringRuntimeApplication({
         <span>rev {projection.revision}</span>
       </div>
       {showHistoryNavigation ? <nav className="runtime-view-navigation runtime-view-navigation--inline" aria-label="Runtime views">
-        <a href="/" className="active" aria-current="page">{text.runtimeOverview}</a>
-        <a href="/runtime/history">{text.runtimeHistory}</a>
+        <a href="/" className={!historyOpen ? 'active' : undefined} aria-current={!historyOpen ? 'page' : undefined}>{text.runtimeOverview}</a>
+        <button
+          type="button"
+          className={historyOpen ? 'active' : undefined}
+          aria-expanded={historyOpen}
+          aria-controls="runtime-history-overlay"
+          onClick={toggleHistory}
+        >{text.runtimeHistory}</button>
       </nav> : null}
       <div className="runtime-operator-actions">
-        <button type="button" className="runtime-operator-button" aria-expanded={alarmsOpen} onClick={() => setAlarmsOpen(value => !value)}>
+        <button type="button" className="runtime-operator-button" aria-expanded={alarmsOpen} onClick={toggleAlarms}>
           {text.alarms}
         </button>
         <button type="button" className="runtime-operator-button" onClick={() => void toggleFullscreen()}>
@@ -183,6 +209,16 @@ function EngineeringRuntimeApplication({
         visualAssetUrl={runtimeVisualAssetContentUrl}
       />
     </section>
+
+    {historyOpen ? <aside id="runtime-history-overlay" className="runtime-operator-overlay runtime-operator-overlay--history" aria-label={historyText.title} data-testid="runtime-history-overlay">
+      <div className="runtime-operator-overlay-header">
+        <strong>{historyText.title}</strong>
+        <button type="button" className="runtime-operator-button" onClick={() => setHistoryOpen(false)}>{historyText.closeHistory}</button>
+      </div>
+      <div className="runtime-operator-overlay-content runtime-history-overlay-content">
+        <HistoricalDataBrowserRuntime locale={locale} />
+      </div>
+    </aside> : null}
 
     {alarmsOpen ? <aside className="runtime-operator-overlay" aria-label={text.alarms}>
       <div className="runtime-operator-overlay-header">

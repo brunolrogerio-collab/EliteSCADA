@@ -35,9 +35,8 @@ test('Historical Browser transient draft defaults to a bounded relative period w
   expect(HISTORICAL_BROWSER_RELATIVE_PRESETS.map(item => item.seconds)).toEqual([
     900,
     3600,
-    21600,
-    86400,
-    604800
+    28800,
+    86400
   ]);
 });
 
@@ -70,13 +69,12 @@ test('Historical Browser preflight validates custom, oversized and reversed rang
   });
 });
 
-test('Historical Browser live and relative modes share deterministic bounded duration semantics', () => {
-  const live = { ...createHistoricalBrowserDraft(), timeMode: 'live' as const, relativeAmount: 15, relativeUnit: 'minutes' as const };
-  const relative = { ...live, timeMode: 'relative' as const };
-  expect(historicalBrowserDurationSeconds(live)).toBe(900);
+test('Historical Browser keeps history ranges relative or custom and does not expose Live', () => {
+  const relative = { ...createHistoricalBrowserDraft(), relativeAmount: 15, relativeUnit: 'minutes' as const };
   expect(historicalBrowserDurationSeconds(relative)).toBe(900);
-  expect(validateHistoricalBrowserDraft(live).ok).toBe(true);
   expect(validateHistoricalBrowserDraft(relative).ok).toBe(true);
+  expect(JSON.stringify(relative)).not.toContain('"live"');
+  expect(HISTORICAL_BROWSER_RELATIVE_PRESETS.map(item => item.label)).toEqual(['15 min', '1 h', '8 h', '24 h']);
 });
 
 test('Historical Browser preserves exact Int64 wire text without JavaScript Number precision loss', () => {
@@ -95,4 +93,23 @@ test('Historical Browser scalar presentation remains typed and fail-closed', () 
   expect(formatHistoricalScalar(Number.POSITIVE_INFINITY, 'Double')).toBe('Unavailable');
   expect(formatHistoricalScalar(null, 'String')).toBe('—');
   expect(formatHistoricalScalar('2026-08-29T23:00:00Z', 'DateTime')).toBe('2026-08-29T23:00:00Z');
+});
+
+
+test('Historical Browser keeps the simplified dataset vocabulary equivalent in pt-BR, en and es', () => {
+  expect([
+    historicalDatasetLabel('historian.samples', 'pt-BR'),
+    historicalDatasetLabel('alarm.events', 'pt-BR'),
+    historicalDatasetLabel('operational.events', 'pt-BR')
+  ]).toEqual(['Valores de TAGs', 'Alarmes', 'Eventos']);
+  expect([
+    historicalDatasetLabel('historian.samples', 'en'),
+    historicalDatasetLabel('alarm.events', 'en'),
+    historicalDatasetLabel('operational.events', 'en')
+  ]).toEqual(['TAG values', 'Alarms', 'Events']);
+  expect([
+    historicalDatasetLabel('historian.samples', 'es'),
+    historicalDatasetLabel('alarm.events', 'es'),
+    historicalDatasetLabel('operational.events', 'es')
+  ]).toEqual(['Valores de TAGs', 'Alarmas', 'Eventos']);
 });

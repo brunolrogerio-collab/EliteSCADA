@@ -138,6 +138,7 @@ public sealed class ModbusTcpDriver : ICommunicationDriver, ICommunicationDiagno
             throw new KeyNotFoundException($"Modbus TAG '{tagId}' was not found in driver '{DriverId}'.");
         if (!point.Writable)
             throw new InvalidOperationException($"Modbus TAG '{point.Tag.Path}' is not writable.");
+        value = ModbusValueCodec.NormalizeEngineeringValue(value);
 
         await _writeGate.WaitAsync(cancellationToken);
         try

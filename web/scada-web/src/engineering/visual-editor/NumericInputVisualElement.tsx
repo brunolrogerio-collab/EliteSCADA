@@ -48,11 +48,29 @@ export function NumericInputVisualElement({
   const [awaitingReadback, setAwaitingReadback] = useState(false);
   const [readbackStart, setReadbackStart] = useState<string | null>(null);
   const [writeError, setWriteError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [failedWriteReadback, setFailedWriteReadback] = useState<{
+    value: number;
+    sampleTimestamp: string | null;
+  } | null>(null);
   const [unauthorized, setUnauthorized] = useState(false);
   const authoritative = formatNumericInputValue(config.value, config.precision);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (
+      failedWriteReadback &&
+      config.sampleTimestamp !== null &&
+      config.sampleTimestamp !== failedWriteReadback.sampleTimestamp &&
+      config.value === failedWriteReadback.value
+    ) {
+      setFailedWriteReadback(null);
+      setWriteError(null);
+      setUnauthorized(false);
+      setDraft(authoritative);
+      setEditing(false);
+      return;
+    }
     if (awaitingReadback && config.sampleTimestamp !== readbackStart) {
       setAwaitingReadback(false);
       setReadbackStart(null);
@@ -61,7 +79,16 @@ export function NumericInputVisualElement({
       return;
     }
     if (!editing && !pending && !awaitingReadback) setDraft(authoritative);
-  }, [authoritative, awaitingReadback, config.sampleTimestamp, editing, pending, readbackStart]);
+  }, [
+    authoritative,
+    awaitingReadback,
+    config.sampleTimestamp,
+    config.value,
+    editing,
+    failedWriteReadback,
+    pending,
+    readbackStart
+  ]);
 
   const runtimeWriteAvailable = Boolean(onTagWrite);
   const canWrite = enabled &&
@@ -90,6 +117,8 @@ export function NumericInputVisualElement({
     setDraft(authoritative);
     setEditing(false);
     setWriteError(null);
+    setValidationError(null);
+    setFailedWriteReadback(null);
     setUnauthorized(false);
   };
 
@@ -99,15 +128,17 @@ export function NumericInputVisualElement({
     try {
       candidate = validateNumericInputCandidate(draft, config.minimum, config.maximum, config.step);
     } catch (reason) {
-      setWriteError(reason instanceof Error ? reason.message : String(reason));
+      setValidationError(reason instanceof Error ? reason.message : String(reason));
       return;
     }
 
     setPending(true);
     setWriteError(null);
+    setValidationError(null);
+    setFailedWriteReadback(null);
     setUnauthorized(false);
+    const startedAt = config.sampleTimestamp;
     try {
-      const startedAt = config.sampleTimestamp;
       await onTagWrite(config.tagId, candidate);
       setReadbackStart(startedAt);
       setAwaitingReadback(true);
@@ -116,7 +147,9 @@ export function NumericInputVisualElement({
       const status = reason && typeof reason === 'object' && 'status' in reason
         ? Number((reason as { status?: unknown }).status)
         : undefined;
-      setUnauthorized(status === 401 || status === 403);
+      const denied = status === 401 || status === 403;
+      setUnauthorized(denied);
+      setFailedWriteReadback(denied ? null : { value: candidate, sampleTimestamp: startedAt });
       setWriteError(reason instanceof Error ? reason.message : String(reason));
       setDraft(authoritative);
       setEditing(false);
@@ -125,7 +158,7 @@ export function NumericInputVisualElement({
     }
   };
 
-  const effectiveTitle = [title, writeError].filter(Boolean).join('\n') || undefined;
+  const effectiveTitle = [title, validationError, writeError].filter(Boolean).join('\n') || undefined;
   const statusText = stateLabel(state, config.unit);
 
   return <div
@@ -152,9 +185,23 @@ export function NumericInputVisualElement({
       value={draft}
       readOnly={!canWrite}
       aria-readonly={!canWrite}
-      aria-invalid={!config.sourceAvailable || Boolean(writeError)}
-      onFocus={() => { if (canWrite) { setEditing(true); setWriteError(null); setUnauthorized(false); } }}
-      onChange={event => { if (canWrite) { setEditing(true); setDraft(event.currentTarget.value); } }}
+      aria-invalid={!config.sourceAvailable || Boolean(validationError || writeError)}
+      onFocus={() => {
+        if (canWrite) {
+          setEditing(true);
+          setWriteError(null);
+          setValidationError(null);
+          setFailedWriteReadback(null);
+          setUnauthorized(false);
+        }
+      }}
+      onChange={event => {
+        if (canWrite) {
+          setEditing(true);
+          setDraft(event.currentTarget.value);
+          setValidationError(null);
+        }
+      }}
       onKeyDown={event => {
         if (event.key === 'Enter') {
           event.preventDefault();
@@ -185,8 +232,12 @@ export function NumericInputVisualElement({
       onClick={cancel}
       disabled={!editing || pending || awaitingReadback}
     >×</button> : null}
-    <span className="visual-editor-numeric-input__state" role={writeError ? 'alert' : 'status'} aria-live="polite">
-      {statusText}
+    <span
+      className="visual-editor-numeric-input__state"
+      role={writeError || validationError ? 'alert' : 'status'}
+      aria-live="polite"
+    >
+      {validationError ?? writeError ?? statusText}
     </span>
   </div>;
 }

@@ -5,6 +5,7 @@ import type {
   HaHostConfigurationSnapshot,
   HaHostConfigurationUpdateRequest,
   HaHostConfigurationUpdateResult,
+  HaLicensingSnapshot,
   HaPeerDiagnostics,
   HaProtectionOperation,
   HaTopologySnapshot,
@@ -101,6 +102,7 @@ const loadAuthority = () => requestJson<HaAuthoritySnapshot>('/api/runtime/ha/au
 const loadAdministration = () => requestJson<HaAdministrationSnapshot>('/api/runtime/ha/administration');
 const loadConfiguration = () => requestJson<HaHostConfigurationSnapshot>('/api/runtime/ha/configuration');
 const loadPeerStatus = () => requestJson<HaPeerDiagnostics>('/api/runtime/ha/peer/status');
+const loadLicensing = () => requestJson<HaLicensingSnapshot>('/api/licensing/status');
 
 export const haAdminApi = {
   topology: loadTopology,
@@ -108,6 +110,7 @@ export const haAdminApi = {
   administration: loadAdministration,
   configuration: loadConfiguration,
   peerStatus: loadPeerStatus,
+  licensing: loadLicensing,
   operation: (operationId: string) =>
     requestJson<HaProtectionOperation>('/api/runtime/ha/operations/' + encodeURIComponent(operationId)),
   updateConfiguration: (request: HaHostConfigurationUpdateRequest) =>
@@ -122,13 +125,14 @@ export const haAdminApi = {
     return requestOperation('/api/runtime/ha/actions/' + kind, body);
   },
   async workspace(): Promise<HaWorkspaceSnapshot> {
-    const [topology, authority, administration, configuration, peer] = await Promise.all([
+    const [topology, authority, administration, configuration, peer, licensing] = await Promise.all([
       loadTopology(),
       loadAuthority(),
       loadAdministration(),
       loadConfiguration(),
-      loadPeerStatus()
+      loadPeerStatus(),
+      loadLicensing()
     ]);
-    return { topology, authority, administration, configuration, peer };
+    return { topology, authority, administration, configuration, peer, licensing };
   }
 };

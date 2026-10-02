@@ -124,6 +124,7 @@ async function fillRemoteProfile(page: Page) {
 test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, restart and rollback', async ({ page }, testInfo) => {
   let currentStatus: any = topologyStatus();
   let statusGetCount = 0;
+  let rollbackRequestCount = 0;
 
   await page.route('**/api/admin/database-topology/**', async route => {
     const url = new URL(route.request().url());
@@ -221,6 +222,9 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
     }
 
     if (method === 'POST' && path === '/api/admin/database-topology/rollback') {
+      rollbackRequestCount += 1;
+      const request = route.request().postDataJSON();
+      expect(request.operationId).toBeNull();
       currentStatus = topologyStatus({
         activeTopology: profile('LocalManaged'),
         previousTopology: profile('Remote'),
@@ -320,7 +324,35 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
   await expect(page.getByText('Completed', { exact: true }).first()).toBeVisible();
   await expect(page.getByLabel('Primary Host / FQDN')).toHaveValue('');
   await expect(page.getByTestId('database-validation-result')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Return to Local Managed' })).toHaveCount(0);
   await attachScreenshot(page, testInfo, '08-restart-required-completed');
+
+  currentStatus = topologyStatus({
+    activeTopology: profile('Remote'),
+    previousTopology: profile('LocalManaged'),
+    primaryHealth: health(),
+    restartRequired: false,
+    lastOperation: {
+      operationId,
+      phase: 'Completed',
+      completedAtUtc: '2026-10-02T18:22:00Z',
+      failureCode: null,
+      diagnostic: null
+    }
+  });
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Return to Local Managed' })).toBeVisible();
+  await expect(page.getByText('Operation ID', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Return to Local Managed' }).click();
+  await expect(page.getByRole('dialog')).toContainText('No internal identifier is required.');
+  await expect(page.getByRole('dialog')).toContainText('The current Remote database will not be deleted');
+  await expect(page.getByRole('dialog')).toContainText('Local Managed');
+  await attachScreenshot(page, testInfo, '09-return-to-local-confirmation');
+  await page.getByRole('dialog').getByRole('button', { name: 'Confirm' }).click();
+  await expect(page.getByText('Local Managed · default', { exact: true })).toBeVisible();
+  await expect(page.getByText('Restart required', { exact: true }).first()).toBeVisible();
+  expect(rollbackRequestCount).toBe(1);
+  await attachScreenshot(page, testInfo, '10-return-to-local-completed');
 
   currentStatus = topologyStatus({
     activeTopology: profile('Remote'),
@@ -332,14 +364,15 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
   });
   await page.reload();
   await expect(page.getByTestId('database-pending-phase')).toHaveText('Rollback Required');
-  await attachScreenshot(page, testInfo, '09-rollback-required');
+  await attachScreenshot(page, testInfo, '11-rollback-required');
 
   await page.getByRole('button', { name: 'Rollback', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('previous topology');
-  await attachScreenshot(page, testInfo, '10-rollback-confirmation');
+  await attachScreenshot(page, testInfo, '12-rollback-confirmation');
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm' }).click();
   await expect(page.getByText('Rolled Back', { exact: true }).first()).toBeVisible();
-  await attachScreenshot(page, testInfo, '11-rollback-result-local-preserved');
+  expect(rollbackRequestCount).toBe(2);
+  await attachScreenshot(page, testInfo, '13-rollback-result-local-preserved');
 });
 
 test('DB-B exposes sanitized auth/TLS failures and incompatible PostgreSQL without fabricating readiness', async ({ page }, testInfo) => {

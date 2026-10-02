@@ -164,6 +164,10 @@ export function RuntimeVisualDefinitionRenderer({
   }, [expandedDynamoElements, interactionEventKeys]);
 
   const captureObjectInteraction = (event: MouseEvent<HTMLDivElement> | PointerEvent<HTMLDivElement>, eventKey: string) => {
+    // Playback is an inspection surface. Suppress Client Visual Script interaction
+    // dispatch entirely so a script cannot mix Live reads into the historical
+    // projection; tagWriter:null remains defense in depth at the sandbox boundary.
+    if (playbackActive) return;
     if (!scriptContext || !visualDefinitionId.trim()) return;
     const target = event.target;
     if (!(target instanceof Element)) return;

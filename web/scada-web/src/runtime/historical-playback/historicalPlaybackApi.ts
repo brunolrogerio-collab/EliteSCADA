@@ -68,7 +68,12 @@ export async function loadHistoricalPlaybackSamples(
       .map(sample => sample.tagId?.trim().toLocaleLowerCase())
       .filter((value): value is string => Boolean(value))
   );
-  let gaps = [...sampleMap.values()].filter(sample => sample.state === 'Gap' || sample.state === 'Unavailable').length;
+  const historicalGaps = new Set(
+    [...sampleMap.values()]
+      .filter(sample => sample.state === 'Gap' || sample.state === 'Unavailable')
+      .map(sample => sample.tagId?.trim().toLocaleLowerCase() || sample.reference)
+  );
+  let gaps = historicalGaps.size;
 
   for (const request of requests.filter(item => item.kind === 'tag')) {
     const resolvedTag = findCatalogTag(request, catalog);
@@ -87,7 +92,8 @@ export async function loadHistoricalPlaybackSamples(
     });
     if (path) sampleMap.set(path, gap);
     if (id) sampleMap.set(visualTagSampleKey(id), gap);
-    gaps += 1;
+    historicalGaps.add(id?.trim().toLocaleLowerCase() || path);
+    gaps = historicalGaps.size;
   }
 
   return Object.freeze({

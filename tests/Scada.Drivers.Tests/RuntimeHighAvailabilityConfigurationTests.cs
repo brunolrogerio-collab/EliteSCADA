@@ -154,7 +154,7 @@ public sealed class RuntimeHighAvailabilityConfigurationTests
             Assert.Equal("host-configuration-invalid", result.ReasonCode);
             Assert.Contains(
                 result.Errors,
-                error => error.Contains("must be unique", StringComparison.OrdinalIgnoreCase));
+                error => error.Contains("both HA nodes", StringComparison.OrdinalIgnoreCase));
             Assert.False(result.Snapshot.PendingRestart);
             Assert.True(authority.AllowsIndustrialEffects);
         }

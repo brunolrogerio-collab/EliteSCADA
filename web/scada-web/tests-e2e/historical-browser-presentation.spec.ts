@@ -35,9 +35,8 @@ test('Historical Browser transient draft defaults to a bounded relative period w
   expect(HISTORICAL_BROWSER_RELATIVE_PRESETS.map(item => item.seconds)).toEqual([
     900,
     3600,
-    21600,
-    86400,
-    604800
+    28800,
+    86400
   ]);
 });
 
@@ -70,13 +69,12 @@ test('Historical Browser preflight validates custom, oversized and reversed rang
   });
 });
 
-test('Historical Browser live and relative modes share deterministic bounded duration semantics', () => {
-  const live = { ...createHistoricalBrowserDraft(), timeMode: 'live' as const, relativeAmount: 15, relativeUnit: 'minutes' as const };
-  const relative = { ...live, timeMode: 'relative' as const };
-  expect(historicalBrowserDurationSeconds(live)).toBe(900);
+test('Historical Browser keeps history ranges relative or custom and does not expose Live', () => {
+  const relative = { ...createHistoricalBrowserDraft(), relativeAmount: 15, relativeUnit: 'minutes' as const };
   expect(historicalBrowserDurationSeconds(relative)).toBe(900);
-  expect(validateHistoricalBrowserDraft(live).ok).toBe(true);
   expect(validateHistoricalBrowserDraft(relative).ok).toBe(true);
+  expect(JSON.stringify(relative)).not.toContain('"live"');
+  expect(HISTORICAL_BROWSER_RELATIVE_PRESETS.map(item => item.label)).toEqual(['15 min', '1 h', '8 h', '24 h']);
 });
 
 test('Historical Browser preserves exact Int64 wire text without JavaScript Number precision loss', () => {

@@ -264,6 +264,70 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void IndustrialGrammar_KeepsUnboundPreviewNeutralAndRemovesIconLikeEquipmentLetters()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        Assert.Equal(72, definitions.Count);
+        Assert.All(definitions, definition =>
+        {
+            Assert.Equal("industrial-orthographic-v1", definition.Properties!["visualGrammar"]);
+            Assert.Equal("industrial-orthographic-v1", definition.Metadata!["visualGrammar"]);
+            Assert.False(string.IsNullOrWhiteSpace(definition.Properties["visualGrammarGroup"]));
+            Assert.Equal(definition.Properties["visualGrammarGroup"], definition.Metadata["visualGrammarGroup"]);
+
+            foreach (var element in definition.Elements!)
+            {
+                Assert.Equal("industrial-orthographic-v1", element.Metadata!["visualGrammar"]);
+                Assert.False(string.IsNullOrWhiteSpace(element.Metadata["visualRole"]));
+            }
+        });
+
+        var stateAware = definitions
+            .SelectMany(definition => definition.Elements!
+                .Where(element => element.Metadata?.ContainsKey("dynamoStateColorProfile") == true)
+                .Select(element => (definition, element)))
+            .ToArray();
+        Assert.NotEmpty(stateAware);
+        Assert.All(stateAware, pair =>
+        {
+            var map = Assert.Single(pair.element.PropertyMaps!, candidate => candidate.PropertyKey == "fillColor");
+            var authoredPreviewFill = pair.element.Properties!["fillColor"].GetString();
+            Assert.NotNull(authoredPreviewFill);
+            Assert.NotEqual(map.Rules.First().Value.GetString(), authoredPreviewFill);
+            Assert.Equal("neutral-unbound", pair.element.Metadata!["dynamoStateColorPreview"]);
+        });
+
+        foreach (var definition in definitions)
+        {
+            var familyKey = definition.Metadata!["familyKey"];
+            foreach (var element in definition.Elements!.Where(element => element.Type == "core.text"))
+            {
+                if (familyKey == "process.instrument.indicator")
+                    continue;
+                if (familyKey is "electrical.breaker" or "electrical.disconnector" &&
+                    element.Key == "equipment-label")
+                    continue;
+                if (element.Key is "label" or "equipment-label" or "motor-label" or "vfd-label")
+                    Assert.Equal(string.Empty, element.Properties!["text"].GetString());
+            }
+        }
+
+        var fasteners = definitions
+            .SelectMany(definition => definition.Elements!)
+            .Where(element => element.Key.StartsWith("detail-", StringComparison.Ordinal) &&
+                (element.Key.Contains("bolt", StringComparison.Ordinal) ||
+                 element.Key.Contains("fastener", StringComparison.Ordinal)))
+            .ToArray();
+        Assert.NotEmpty(fasteners);
+        Assert.All(fasteners, element =>
+        {
+            Assert.InRange(element.Properties!["width"].GetDouble(), 0, 3.8);
+            Assert.InRange(element.Properties["height"].GetDouble(), 0, 3.8);
+        });
+    }
+
+    [Fact]
     public void StateAwareDynamos_ExposeTagAndEditableColorsWithHighPerformanceDefaults()
     {
         var definitions = BuiltinDynamoLibrary.Create();

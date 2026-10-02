@@ -238,7 +238,7 @@ function collectBindings(elements: readonly VisualElementEngineering[] | null | 
   return Object.freeze(result);
 }
 
-function collectRuntimeVisualSourceRequests(elements: readonly VisualElementEngineering[] | null | undefined): readonly RuntimeVisualSourceRequest[] {
+export function collectRuntimeVisualSourceRequests(elements: readonly VisualElementEngineering[] | null | undefined): readonly RuntimeVisualSourceRequest[] {
   const result: RuntimeVisualSourceRequest[] = [];
   const addExpression = (expression: VisualExpressionEngineering | null | undefined) => {
     for (const dependency of expression?.dependencies ?? []) {

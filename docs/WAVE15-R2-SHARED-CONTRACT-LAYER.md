@@ -1,5 +1,32 @@
 
 
+## WAVE 15 POST-MERGE CI HYGIENE — 2026-10-02
+
+Merged CI cleanup:
+`fd694ab77db9f717c30325a68e15b58c6370ed7f`
+
+PR:
+`#465 — ci(w15): slim post-merge integration gate`
+
+Policy:
+- PR T1 owns profile-specific/focused domain evidence;
+- Wave 15 integration push owns a fast integrated checkpoint;
+- full browser catalog remains for main/manual validation.
+
+Wave 15 post-merge browser smoke:
+- `tests-e2e/wave-03-integrated-composition.spec.ts`
+- `tests-e2e/interface-wave-03-readiness.spec.ts`
+- `tests-e2e/runtime.spec.ts`
+
+Other changes:
+- Chromium runs in parallel with backend/web;
+- obsolete Wave 14/recovery push branches removed from `dotnet-ci.yml`;
+- backend universal build/tests/runtime smoke retained;
+- new `CI_INFRA` validation profile covers CI-only changes with common sanity/router tests only.
+
+Do not restore the full Playwright catalog to every Wave 15 merge without a demonstrated integration gap.
+
+
 ## UX BATCH MERGED / HA+DB CONVERGENCE — 2026-10-02
 
 Current integration:

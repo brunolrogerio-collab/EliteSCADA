@@ -202,6 +202,37 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void IndicatorAndSubstationRepresentatives_UseCanonicalCurvedGeometry()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        var indicators = definitions
+            .Where(definition => definition.Metadata!["familyKey"] == "process.instrument.indicator")
+            .ToArray();
+        Assert.Equal(3, indicators.Length);
+        Assert.All(indicators, indicator =>
+        {
+            var scaleArc = Assert.Single(indicator.Elements!, element => element.Key == "scale-arc");
+            Assert.Equal("core.arc", scaleArc.Type);
+            Assert.Equal("arc", scaleArc.Properties!["arcStyle"].GetString());
+        });
+
+        foreach (var familyKey in new[] { "electrical.transformer.power", "electrical.breaker" })
+        {
+            var variants = definitions.Where(definition => definition.Metadata!["familyKey"] == familyKey).ToArray();
+            Assert.Equal(3, variants.Length);
+            Assert.All(variants, variant =>
+            {
+                var targetKey = familyKey == "electrical.transformer.power" ? "tank" : "interrupter";
+                var target = Assert.Single(variant.Elements!, element => element.Key == targetKey);
+                Assert.Equal("core.bezier", target.Type);
+                Assert.True(target.Properties!.ContainsKey("bezierPath"));
+                Assert.Contains(target.PropertyMaps!, map => map.PropertyKey == "fillColor");
+            });
+        }
+    }
+
+    [Fact]
     public void AllOtherBuiltinDynamoFamilies_ReceiveVersionedFamilySpecificVisualDetails()
     {
         var definitions = BuiltinDynamoLibrary.Create()

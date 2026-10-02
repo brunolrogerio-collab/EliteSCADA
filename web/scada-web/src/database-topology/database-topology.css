@@ -1,0 +1,367 @@
+.db-topology-shell {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 32px;
+  color: var(--app-text, #e8edf2);
+}
+
+.db-topology-header,
+.db-topology-section-heading,
+.db-topology-health header,
+.db-topology-actions,
+.db-topology-historian-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.db-topology-header {
+  margin-bottom: 22px;
+}
+
+.db-topology-header h1,
+.db-topology-panel h2,
+.db-topology-panel h3,
+.db-topology-profile h3 {
+  margin: 0;
+}
+
+.db-topology-header span,
+.db-topology-section-heading p,
+.db-topology-field-wide small,
+.db-topology-disabled-option small {
+  color: var(--app-text-muted, #9aa8b6);
+}
+
+.db-topology-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.db-topology-grid--summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 18px;
+}
+
+.db-topology-grid--health {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.db-topology-panel,
+.db-topology-profile,
+.db-topology-health,
+.db-topology-plan,
+.db-topology-dialog {
+  border: 1px solid var(--app-border, #34414e);
+  border-radius: 14px;
+  background: var(--app-panel, #121a22);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 12%);
+}
+
+.db-topology-panel {
+  margin: 18px 0;
+  padding: 20px;
+}
+
+.db-topology-profile,
+.db-topology-health,
+.db-topology-plan {
+  padding: 18px;
+}
+
+.db-topology-profile dl,
+.db-topology-health dl,
+.db-topology-plan dl,
+.db-topology-dialog dl {
+  margin: 14px 0 0;
+}
+
+.db-topology-profile dl > div,
+.db-topology-health dl > div,
+.db-topology-plan dl > div,
+.db-topology-dialog dl > div {
+  display: grid;
+  grid-template-columns: minmax(125px, 0.8fr) minmax(0, 1.4fr);
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--app-border, #34414e) 55%, transparent);
+}
+
+.db-topology-profile dt,
+.db-topology-health dt,
+.db-topology-plan dt,
+.db-topology-dialog dt {
+  color: var(--app-text-muted, #9aa8b6);
+}
+
+.db-topology-profile dd,
+.db-topology-health dd,
+.db-topology-plan dd,
+.db-topology-dialog dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.db-topology-fields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 14px 0 18px;
+}
+
+.db-topology-fields label {
+  display: grid;
+  gap: 7px;
+  align-content: start;
+}
+
+.db-topology-fields input,
+.db-topology-fields select {
+  min-height: 40px;
+  border: 1px solid var(--app-border, #405161);
+  border-radius: 9px;
+  background: var(--app-input, #0e151c);
+  color: inherit;
+  padding: 8px 10px;
+}
+
+.db-topology-fields input:focus,
+.db-topology-fields select:focus {
+  outline: 2px solid var(--app-accent, #6db4ff);
+  outline-offset: 1px;
+}
+
+.db-topology-field-wide {
+  grid-column: span 2;
+}
+
+.db-topology-disabled-option {
+  opacity: 0.72;
+}
+
+.db-topology-historian-toggle {
+  justify-content: flex-start;
+  margin: 8px 0 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--app-border, #34414e);
+  border-radius: 10px;
+}
+
+.db-topology-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.db-topology-actions button,
+.db-topology-header button {
+  min-height: 40px;
+  border: 1px solid var(--app-border, #405161);
+  border-radius: 9px;
+  padding: 8px 14px;
+  background: var(--app-panel-raised, #1b2834);
+  color: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.db-topology-actions button:disabled,
+.db-topology-header button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.db-topology-primary-action {
+  border-color: color-mix(in srgb, var(--app-accent, #6db4ff) 60%, var(--app-border, #405161)) !important;
+}
+
+.db-topology-danger-action {
+  border-color: #b76565 !important;
+}
+
+.db-topology-secondary {
+  background: transparent !important;
+}
+
+.db-topology-pill {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 26px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--app-border, #405161);
+  font-size: 0.85rem;
+}
+
+.db-topology-pill--healthy {
+  border-color: #4f8c70;
+}
+
+.db-topology-pill--danger {
+  border-color: #b76565;
+}
+
+.db-topology-pill--unknown {
+  opacity: 0.75;
+}
+
+.db-topology-health[data-tone="danger"],
+.db-topology-notice--danger {
+  border-color: #a95d5d;
+}
+
+.db-topology-health[data-tone="healthy"],
+.db-topology-notice--success {
+  border-color: #4f8c70;
+}
+
+.db-topology-notice {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--app-border, #405161);
+  border-radius: 10px;
+  background: var(--app-panel, #121a22);
+}
+
+.db-topology-notice--warning {
+  border-color: #9f874d;
+}
+
+.db-topology-diagnostic,
+.db-topology-safety-strip,
+.db-topology-maintenance,
+.db-topology-preservation,
+.db-topology-credential-state {
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.db-topology-diagnostic {
+  background: color-mix(in srgb, #9f874d 12%, transparent);
+}
+
+.db-topology-safety-strip {
+  margin-top: 16px;
+  border: 1px solid #9f874d;
+}
+
+.db-topology-maintenance {
+  margin: 18px 0;
+  border: 1px solid #9f874d;
+  background: color-mix(in srgb, #9f874d 10%, transparent);
+}
+
+.db-topology-maintenance p {
+  margin: 7px 0 0;
+}
+
+.db-topology-preservation {
+  border: 1px solid #4f8c70;
+  margin-bottom: 16px;
+}
+
+.db-topology-credential-state {
+  border: 1px solid #4f8c70;
+  padding-block: 7px;
+}
+
+.db-topology-result {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--app-border, #34414e);
+}
+
+.db-topology-timeline {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  padding: 0;
+  margin: 18px 0;
+}
+
+.db-topology-timeline li {
+  min-height: 70px;
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--app-border, #405161);
+  border-radius: 10px;
+}
+
+.db-topology-timeline li span {
+  color: var(--app-text-muted, #9aa8b6);
+  font-size: 0.8rem;
+}
+
+.db-topology-timeline li[data-reached] {
+  border-color: #4f8c70;
+}
+
+.db-topology-timeline li[data-active] {
+  outline: 2px solid var(--app-accent, #6db4ff);
+  outline-offset: 2px;
+}
+
+.db-topology-mono {
+  font-family: "Cousine", ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.88rem;
+}
+
+.db-topology-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 58%);
+  z-index: 1000;
+}
+
+.db-topology-dialog {
+  width: min(650px, 100%);
+  padding: 22px;
+}
+
+.db-topology-dialog p {
+  line-height: 1.55;
+}
+
+@media (max-width: 1100px) {
+  .db-topology-grid--summary,
+  .db-topology-grid--health {
+    grid-template-columns: 1fr;
+  }
+
+  .db-topology-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .db-topology-timeline {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .db-topology-shell {
+    padding: 18px;
+  }
+
+  .db-topology-header,
+  .db-topology-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .db-topology-fields,
+  .db-topology-timeline {
+    grid-template-columns: 1fr;
+  }
+
+  .db-topology-field-wide {
+    grid-column: span 1;
+  }
+}

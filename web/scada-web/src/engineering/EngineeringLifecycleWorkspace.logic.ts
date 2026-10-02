@@ -1,5 +1,4 @@
 import type {
-  EngineeringLifecycleAction,
   EngineeringLifecycleState,
   EngineeringProjectLifecycle,
   EngineeringRevisionMetadata
@@ -32,9 +31,14 @@ export function canSaveWorkspace(state: EngineeringLifecycleState): boolean {
 
 export function canActivatePublished(state: EngineeringLifecycleState): boolean {
   if (!state.persistence.enabled || !state.projectKey || !state.lifecycle?.publishedRevision) return false;
+  if (state.lifecycle.activeRevision === state.lifecycle.publishedRevision) return false;
   const configured = state.persistence.configuredProjectKey?.trim();
   if (!configured) return false;
   return configured.toLocaleLowerCase() === state.projectKey.toLocaleLowerCase();
+}
+
+export function checkoutRequiresConfirmation(state: EngineeringLifecycleState): boolean {
+  return state.workspace.isDirty;
 }
 
 export function isRevisionPublished(revision: EngineeringRevisionMetadata, lifecycle: EngineeringProjectLifecycle | null): boolean { return lifecycle?.publishedRevision === revision.revision; }
@@ -64,12 +68,13 @@ export function lifecycleErrorText(error: unknown, locale: EngineeringLocale): s
   return error instanceof Error ? error.message : messages.generic;
 }
 
-export function confirmationText(action: EngineeringLifecycleAction, locale: EngineeringLocale, revision?: number): { title: string; description: string; confirm: string } {
-  const copy = confirmationCopy(locale);
-  if (action === 'checkout') return { title: copy.checkoutTitle, description: copy.checkoutDescription.replace('{revision}', String(revision ?? '—')), confirm: copy.checkoutConfirm };
-  if (action === 'publish') return { title: copy.publishTitle, description: copy.publishDescription.replace('{revision}', String(revision ?? '—')), confirm: copy.publishConfirm };
-  if (action === 'activate') return { title: copy.activateTitle, description: copy.activateDescription, confirm: copy.activateConfirm };
-  return { title: copy.saveTitle, description: copy.saveDescription, confirm: copy.saveConfirm };
+export function checkoutConfirmationText(locale: EngineeringLocale, revision: number): { title: string; description: string; confirm: string } {
+  const copy = checkoutConfirmationCopy(locale);
+  return {
+    title: copy.title,
+    description: copy.description.replace('{revision}', String(revision)),
+    confirm: copy.confirm
+  };
 }
 
 function isApiError(error: unknown): error is ApiErrorLike {
@@ -82,8 +87,20 @@ function errorCopy(locale: EngineeringLocale) {
   return { unauthorized: 'É necessário autenticar para usar as operações do ciclo de Engineering.', forbidden: 'Seu papel atual não está autorizado a modificar o ciclo de Engineering.', conflict: 'A operação entra em conflito com o estado atual do projeto/runtime.', validation: 'A operação foi validada, mas não pôde ser concluída.', unavailable: 'A persistência de Engineering está indisponível. Verifique PostgreSQL/configuração.', generic: 'A operação do ciclo de Engineering falhou.' };
 }
 
-function confirmationCopy(locale: EngineeringLocale) {
-  if (locale === 'en') return { checkoutTitle: 'Checkout revision?', checkoutDescription: 'Revision {revision} will replace the current Working workspace. Unsaved changes in Working can be lost.', checkoutConfirm: 'Checkout revision', publishTitle: 'Publish revision?', publishDescription: 'Revision {revision} will become the durable Published revision. This does not activate Runtime by itself.', publishConfirm: 'Publish revision', activateTitle: 'Activate Published revision?', activateDescription: 'The Published revision will be staged and validated before replacing the Active Runtime. Activation changes the running application.', activateConfirm: 'Activate Published', saveTitle: 'Save revision?', saveDescription: 'The current Working state will be persisted as a new immutable revision.', saveConfirm: 'Save revision' };
-  if (locale === 'es') return { checkoutTitle: '¿Hacer checkout de la revisión?', checkoutDescription: 'La revisión {revision} reemplazará el Working actual. Los cambios no guardados pueden perderse.', checkoutConfirm: 'Hacer checkout', publishTitle: '¿Publicar la revisión?', publishDescription: 'La revisión {revision} pasará a ser la revisión Published durable. Esto no activa Runtime por sí solo.', publishConfirm: 'Publicar revisión', activateTitle: '¿Activar la revisión Published?', activateDescription: 'La revisión Published será preparada y validada antes de reemplazar el Runtime Active. La activación cambia la aplicación en ejecución.', activateConfirm: 'Activar Published', saveTitle: '¿Guardar revisión?', saveDescription: 'El estado Working actual se persistirá como una nueva revisión inmutable.', saveConfirm: 'Guardar revisión' };
-  return { checkoutTitle: 'Fazer checkout da revisão?', checkoutDescription: 'A revisão {revision} substituirá o Working atual. Alterações não salvas no Working podem ser perdidas.', checkoutConfirm: 'Fazer checkout', publishTitle: 'Publicar a revisão?', publishDescription: 'A revisão {revision} passará a ser a revisão Published durável. Isso não ativa o Runtime por si só.', publishConfirm: 'Publicar revisão', activateTitle: 'Ativar a revisão Published?', activateDescription: 'A revisão Published será preparada e validada antes de substituir o Runtime Active. A ativação altera a aplicação em execução.', activateConfirm: 'Ativar Published', saveTitle: 'Salvar revisão?', saveDescription: 'O estado Working atual será persistido como uma nova revisão imutável.', saveConfirm: 'Salvar revisão' };
+function checkoutConfirmationCopy(locale: EngineeringLocale) {
+  if (locale === 'en') return {
+    title: 'Discard unsaved Working changes?',
+    description: 'Using revision {revision} in Working will replace the current unsaved changes.',
+    confirm: 'Discard changes and use revision'
+  };
+  if (locale === 'es') return {
+    title: '¿Descartar cambios de Working sin guardar?',
+    description: 'Usar la revisión {revision} en Working reemplazará los cambios actuales sin guardar.',
+    confirm: 'Descartar cambios y usar revisión'
+  };
+  return {
+    title: 'Descartar alterações não salvas do Working?',
+    description: 'Usar a revisão {revision} no Working substituirá as alterações atuais não salvas.',
+    confirm: 'Descartar alterações e usar revisão'
+  };
 }

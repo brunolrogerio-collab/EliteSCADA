@@ -528,7 +528,8 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
               <label>
                 {t.freshnessSeconds}
                 <input type="number" min={1} max={120} value={draft.freshnessSeconds} onChange={e => setDraft({ ...draft, freshnessSeconds: Number(e.target.value) })} />
-                <small className="ha-field-hint">{t.freshnessHelp} {t.showCurrent} {configuration.running.freshnessSeconds}s</small>
+                {runningHintWhenChanged(t.showCurrent, configuration.running.freshnessSeconds, draft.freshnessSeconds, configuration.running.freshnessSeconds + 's')}
+                <small className="ha-field-hint">{t.freshnessHelp}</small>
               </label>
 
               <label className="ha-toggle-field">
@@ -545,51 +546,59 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
                     }
                   })}
                 />
-                {runningHint(t.showCurrent, configuration.running.protection.enabled ? t.enabled : t.disabled)}
+                {runningHintWhenChanged(
+                  t.showCurrent,
+                  configuration.running.protection.enabled,
+                  draft.protection.enabled,
+                  configuration.running.protection.enabled ? t.enabled : t.disabled
+                )}
               </label>
             </div>
 
             {draft.protection.enabled && (
               <>
-              <div className="ha-reference-note">
-                <strong>{t.referenceStore}</strong>
-                <span>{t.referenceHint}</span>
-                <small>{configuration.referenceStoreRequirements.mode} · fail-closed: {configuration.referenceStoreRequirements.failClosedWhenUnavailable ? t.yes : t.no}</small>
-              </div>
-  
-              <div className="ha-form-grid">
-                <label className="ha-field--wide">
-                  {t.referencePath}
-                  <input value={draft.protection.referencePath || ''} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, referencePath: e.target.value } })} />
-                  <small className="ha-field-hint">{t.referencePathHelp} {t.showCurrent} {configuration.running.protection.referencePath || '—'}</small>
-                </label>
-  
-                <label>
-                  {t.leaseSeconds}
-                  <input type="number" min={3} max={120} value={draft.protection.leaseSeconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, leaseSeconds: Number(e.target.value) } })} />
-                  <small className="ha-field-hint">{t.leaseHelp} {t.showCurrent} {configuration.running.protection.leaseSeconds}s</small>
-                </label>
-  
-                <label>
-                  {t.pollMilliseconds}
-                  <input type="number" min={100} max={10000} value={draft.protection.pollMilliseconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, pollMilliseconds: Number(e.target.value) } })} />
-                  <small className="ha-field-hint">{t.pollHelp} {t.showCurrent} {configuration.running.protection.pollMilliseconds}ms</small>
-                </label>
-  
-                <label>
-                  {t.witnessSeconds}
-                  <input type="number" min={draft.protection.leaseSeconds} max={600} value={draft.protection.readyWitnessMaximumAgeSeconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, readyWitnessMaximumAgeSeconds: Number(e.target.value) } })} />
-                  <small className="ha-field-hint">{t.witnessHelp} {t.showCurrent} {configuration.running.protection.readyWitnessMaximumAgeSeconds}s</small>
-                </label>
-  
-                <label>
-                  {t.skewSeconds}
-                  <input type="number" min={0} max={Math.floor(draft.protection.leaseSeconds / 3)} value={draft.protection.clockSkewSafetyMarginSeconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, clockSkewSafetyMarginSeconds: Number(e.target.value) } })} />
-                  <small className="ha-field-hint">{t.skewHelp} {t.showCurrent} {configuration.running.protection.clockSkewSafetyMarginSeconds}s</small>
-                </label>
-              </div>
-            </div>
-          </details>
+                <div className="ha-reference-note">
+                  <strong>{t.referenceStore}</strong>
+                  <span>{t.referenceHint}</span>
+                  <small>{configuration.referenceStoreRequirements.mode} · fail-closed: {configuration.referenceStoreRequirements.failClosedWhenUnavailable ? t.yes : t.no}</small>
+                </div>
+
+                <div className="ha-form-grid">
+                  <label className="ha-field--wide">
+                    {t.referencePath}
+                    <input value={draft.protection.referencePath || ''} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, referencePath: e.target.value } })} />
+                    {runningHintWhenChanged(t.showCurrent, configuration.running.protection.referencePath, draft.protection.referencePath, configuration.running.protection.referencePath || '—')}
+                    <small className="ha-field-hint">{t.referencePathHelp}</small>
+                  </label>
+
+                  <label>
+                    {t.leaseSeconds}
+                    <input type="number" min={3} max={120} value={draft.protection.leaseSeconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, leaseSeconds: Number(e.target.value) } })} />
+                    {runningHintWhenChanged(t.showCurrent, configuration.running.protection.leaseSeconds, draft.protection.leaseSeconds, configuration.running.protection.leaseSeconds + 's')}
+                    <small className="ha-field-hint">{t.leaseHelp}</small>
+                  </label>
+
+                  <label>
+                    {t.pollMilliseconds}
+                    <input type="number" min={100} max={10000} value={draft.protection.pollMilliseconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, pollMilliseconds: Number(e.target.value) } })} />
+                    {runningHintWhenChanged(t.showCurrent, configuration.running.protection.pollMilliseconds, draft.protection.pollMilliseconds, configuration.running.protection.pollMilliseconds + 'ms')}
+                    <small className="ha-field-hint">{t.pollHelp}</small>
+                  </label>
+
+                  <label>
+                    {t.witnessSeconds}
+                    <input type="number" min={draft.protection.leaseSeconds} max={600} value={draft.protection.readyWitnessMaximumAgeSeconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, readyWitnessMaximumAgeSeconds: Number(e.target.value) } })} />
+                    {runningHintWhenChanged(t.showCurrent, configuration.running.protection.readyWitnessMaximumAgeSeconds, draft.protection.readyWitnessMaximumAgeSeconds, configuration.running.protection.readyWitnessMaximumAgeSeconds + 's')}
+                    <small className="ha-field-hint">{t.witnessHelp}</small>
+                  </label>
+
+                  <label>
+                    {t.skewSeconds}
+                    <input type="number" min={0} max={Math.floor(draft.protection.leaseSeconds / 3)} value={draft.protection.clockSkewSafetyMarginSeconds} onChange={e => setDraft({ ...draft, protection: { ...draft.protection, clockSkewSafetyMarginSeconds: Number(e.target.value) } })} />
+                    {runningHintWhenChanged(t.showCurrent, configuration.running.protection.clockSkewSafetyMarginSeconds, draft.protection.clockSkewSafetyMarginSeconds, configuration.running.protection.clockSkewSafetyMarginSeconds + 's')}
+                    <small className="ha-field-hint">{t.skewHelp}</small>
+                  </label>
+                </div>
               </>
             )}
           </div>

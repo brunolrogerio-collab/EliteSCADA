@@ -463,7 +463,7 @@ public sealed class PostgreSqlDatabaseTopologyOperations(DatabaseTopologyOptions
 
     private static int ParseMajor(string version)
     {
-        var token = version.Split('.', '-', '+', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        var token = version.Split(new[] { '.', '-', '+' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
         return int.TryParse(token, out var major) ? major : 0;
     }
 

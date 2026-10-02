@@ -716,8 +716,11 @@ public sealed class RuntimeHaProtectionCoordinator
             activeNodeId: null,
             referencedEpoch: fenced.Authority.Epoch,
             previousAuthorityFenced: true);
+        await FenceLocalSessionsIfNeededAsync(
+            "ha-" + kind + "-break",
+            cancellationToken,
+            force: true);
         SetReference(fenced.Authority, false, "controlled-break");
-        await FenceLocalSessionsIfNeededAsync("ha-" + kind + "-break", cancellationToken);
 
         var assigned = await _reference.AssignAfterFenceAsync(
             target.NodeId,
@@ -865,8 +868,18 @@ public sealed class RuntimeHaProtectionCoordinator
 
     private async Task FenceLocalSessionsIfNeededAsync(
         string transitionKind,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool force = false)
     {
+        if (!force)
+        {
+            lock (_gate)
+            {
+                if (!_localTakeoverCommitted)
+                    return;
+            }
+        }
+
         var authority = await _sessions.GetAuthorityStateAsync(cancellationToken);
         if (authority.TransitionPending)
             return;

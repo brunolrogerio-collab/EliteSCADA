@@ -116,6 +116,34 @@ Replacement T1:
   - focused jobs queued/running;
 - Main stopped watching per standing CI rule.
 
+
+## 3A. Known post-merge smoke correction — PR #467
+
+Last slim post-merge run on `fd694ab77db9f717c30325a68e15b58c6370ed7f`:
+- EliteSCADA CI #1653 / `37075517710`;
+- Backend: SUCCESS;
+- Web: SUCCESS;
+- Chromium integration gate: FAILURE.
+
+Failure was stale test shape, not a product defect:
+- `interface-wave-03-readiness.spec.ts` still searched:
+  `Runtime views -> link Overview -> aria-current=page`;
+- accepted Runtime Shell #464 now uses:
+  `.runtime-operator-toolbar -> button Overview -> aria-pressed=true`.
+
+Correction:
+- PR #467;
+- branch `coord/w15-postmerge-runtime-shell-smoke-fix`;
+- exact head `30eb68a78822d7f2c93512012d12b67bb5e0dd7a`;
+- T1 #586 / `37077454052` queued/running at bounded observation.
+
+Preferred safe order:
+1. integrate #467 after its exact-head T1 is green;
+2. revalidate/rebase #463 if the base moved;
+3. require #585 or a replacement exact-head T1 green;
+4. merge #463;
+5. observe the resulting slim post-merge CI.
+
 ## 4. Immediate successor action
 
 FIRST action:

@@ -29,8 +29,7 @@
 
 .db-topology-header span,
 .db-topology-section-heading p,
-.db-topology-field-wide small,
-.db-topology-disabled-option small {
+.db-topology-field-wide small {
   color: var(--app-text-muted, #9aa8b6);
 }
 
@@ -136,9 +135,6 @@
   grid-column: span 2;
 }
 
-.db-topology-disabled-option {
-  opacity: 0.72;
-}
 
 .db-topology-historian-toggle {
   justify-content: flex-start;

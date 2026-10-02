@@ -249,6 +249,39 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void EarthingSwitchAndDisconnector_RemainVisuallyDistinctIndustrialDevices()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        foreach (var style in new[] { "detailed-2d", "dimensional-front", "high-performance" })
+        {
+            var disconnector = definitions.Single(definition =>
+                definition.Metadata!["familyKey"] == "electrical.disconnector" &&
+                definition.Properties!["visualStyle"] == style);
+            var earthing = definitions.Single(definition =>
+                definition.Metadata!["familyKey"] == "electrical.earthing-switch" &&
+                definition.Properties!["visualStyle"] == style);
+
+            var disconnectorElements = disconnector.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            var earthingElements = earthing.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+
+            Assert.Contains("operating-box", disconnectorElements.Keys);
+            Assert.DoesNotContain("earth-lead", disconnectorElements.Keys);
+            Assert.DoesNotContain("ground-1", disconnectorElements.Keys);
+
+            Assert.DoesNotContain("operating-box", earthingElements.Keys);
+            Assert.Contains("earth-lead", earthingElements.Keys);
+            Assert.Contains("ground-1", earthingElements.Keys);
+            Assert.Contains("ground-2", earthingElements.Keys);
+
+            Assert.True(
+                earthingElements["support-left"].Properties!["y"].GetDouble() >
+                disconnectorElements["support-left"].Properties!["y"].GetDouble(),
+                $"Earthing switch '{earthing.Key}' must keep its grounded pivot lower than the disconnector support.");
+        }
+    }
+
+    [Fact]
     public void IndicatorAndSubstationRepresentatives_UseCanonicalCurvedGeometry()
     {
         var definitions = BuiltinDynamoLibrary.Create();

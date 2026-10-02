@@ -971,10 +971,7 @@ public static class BuiltinDynamoLibrary
             return;
         var properties = element.Properties is null ? new Dictionary<string, JsonElement>() : new Dictionary<string, JsonElement>(element.Properties);
         var stopped = DefaultStoppedColor(style);
-        var neutralPreviewFill = properties.TryGetValue("fillColor", out var authoredFill) &&
-            authoredFill.ValueKind == JsonValueKind.String
-            ? authoredFill
-            : JsonSerializer.SerializeToElement(FinishProfile(style).Shell);
+        var neutralPreviewFill = JsonSerializer.SerializeToElement(FinishProfile(style).Shell);
         // Library/Editor previews without a live state sample stay neutral. Runtime still
         // maps 0/1/2 to the same stopped/running/fault colors and public parameters.
         properties["fillColor"] = neutralPreviewFill;

@@ -143,6 +143,9 @@ export function HistoricalPlaybackProvider({
   }, [mode, requests, resolvedRange, atUtc, refreshRevision]);
 
   const enterPlayback = useCallback(() => {
+    // Close the mutable Runtime boundary synchronously with the user intent;
+    // the effect below keeps the guard aligned for every subsequent render.
+    setRuntimeHistoricalPlaybackActive(true);
     setAnchorUtc(new Date());
     setPositionState(DEFAULT_POSITION);
     setMode('historicalPlayback');
@@ -150,6 +153,7 @@ export function HistoricalPlaybackProvider({
 
   const exitPlayback = useCallback(() => {
     generation.current += 1;
+    setRuntimeHistoricalPlaybackActive(false);
     setMode('live');
     setLoadState('idle');
     setError(null);

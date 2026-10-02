@@ -98,17 +98,15 @@ test('Wave 03 integrated composition publishes without bypassing the runtime bin
   // editor surface before its snapshot renders. Keep this UI assertion
   // independent of that one-time development-server compilation cost.
   await expect(lifecycle).toBeVisible({ timeout: 45_000 });
-  await expect(lifecycle.getByRole('heading', { name: 'Ciclo do Engineering' })).toBeVisible();
+  await expect(lifecycle).not.toContainText('Ciclo do Engineering');
+  await expect(lifecycle.locator('.eng-lifecycle-workspace__step')).toHaveCount(4);
   await expect(lifecycle).toContainText('Wave 03 E2E');
   await expect(lifecycle).toContainText(/r\d+/);
 
   const publish = lifecycle.getByRole('button', { name: 'Publicar', exact: true }).first();
   await expect(publish).toBeEnabled();
   await publish.click();
-
-  const publishConfirmation = lifecycle.getByRole('dialog');
-  await expect(publishConfirmation).toContainText('Publicar a revisão?');
-  await publishConfirmation.getByRole('button', { name: 'Publicar revisão' }).click();
+  await expect(lifecycle.getByRole('dialog')).toHaveCount(0);
   // "Published" is also a static lifecycle label, so wait for the backend
   // state rather than accepting the label as evidence that publication ended.
   await expect.poll(async () => {
@@ -118,15 +116,13 @@ test('Wave 03 integrated composition publishes without bypassing the runtime bin
     return persistedLifecycle.publishedRevision ?? null;
   }, { timeout: 10_000 }).not.toBeNull();
 
-  const activate = lifecycle.getByRole('button', { name: 'Ativar Published' });
+  const activate = lifecycle.getByRole('button', { name: 'Ativar no Runtime' });
   // The prerequisite creates the canonical local-auth project and the E2E host
   // binds the runtime to that exact project. The browser may therefore request
   // activation, while the backend remains the authority that applies it.
   await expect(activate).toBeEnabled();
   await activate.click();
-  const activationConfirmation = lifecycle.getByRole('dialog');
-  await expect(activationConfirmation).toContainText('Ativar a revisão Published?');
-  await activationConfirmation.getByRole('button', { name: 'Ativar Published' }).click();
+  await expect(lifecycle.getByRole('dialog')).toHaveCount(0);
 
   await expect.poll(async () => {
     const runtimeState = await request.get(`/api/engineering/persistence/${projectKey}/runtime`);

@@ -344,7 +344,6 @@ public static class VisualPropertyKeys
     public const string TextColorGood = "textColorGood";
     public const string TextColorBad = "textColorBad";
     public const string ValueFormat = "valueFormat";
-    public const string ShowEngineeringUnit = "showEngineeringUnit";
     public const string FontFamily = "fontFamily";
     public const string FontSize = "fontSize";
     public const string FontWeight = "fontWeight";
@@ -361,15 +360,12 @@ public static class VisualPropertyKeys
     public const string ImagePositionY = "imagePositionY";
     public const string ImageZoom = "imageZoom";
     public const string Value = "value";
-    public const string Unit = "unit";
     public const string Minimum = "minimum";
     public const string Maximum = "maximum";
     public const string Step = "step";
     public const string Orientation = "orientation";
     public const string InteractionEnabled = "interactionEnabled";
     public const string ShowApplyButton = "showApplyButton";
-    public const string ShowCancelButton = "showCancelButton";
-    public const string ShowSteppers = "showSteppers";
     public const string DecimalPlacesEnabled = "decimalPlacesEnabled";
     public const string DecimalPlaces = "decimalPlaces";
     public const string ReverseDirection = "reverseDirection";
@@ -413,7 +409,7 @@ public static class CommonVisualPropertyDefinitions
     public static IReadOnlyList<VisualPropertyDefinition> Fill { get; } =
     [
         EnumString(VisualPropertyKeys.FillStyle, "solid", ["none", "solid", "gradient"]),
-        Color(VisualPropertyKeys.FillColor, "#808080FF", animatable: true),
+        Color(VisualPropertyKeys.FillColor, "#00000000", animatable: true),
         Color(VisualPropertyKeys.FillSecondaryColor, "#00000000", animatable: true),
         EnumString(VisualPropertyKeys.GradientDirection, "vertical", ["horizontal", "vertical", "diagonal-down", "diagonal-up"]),
         Color(VisualPropertyKeys.BackgroundColor, "#00000000", animatable: true)
@@ -459,7 +455,6 @@ public static class CommonVisualPropertyDefinitions
         Color(VisualPropertyKeys.TextColorGood, "#000000", animatable: false),
         Color(VisualPropertyKeys.TextColorBad, "#C62828", animatable: false),
         EnumString(VisualPropertyKeys.ValueFormat, "default", ["default", "numeric", "MM/DD", "DD/MM", "MM/DD/YYYY", "DD/MM/YYYY", "HH:mm", "HH:mm:ss", "dateTime"]),
-        Boolean(VisualPropertyKeys.ShowEngineeringUnit, true),
         String(VisualPropertyKeys.FontFamily, "system", presentationHint: "font-family"),
         Number(VisualPropertyKeys.FontSize, 14, minimum: 1, animatable: true, unit: "px"),
         Integer(VisualPropertyKeys.FontWeight, 400, minimum: 100, maximum: 900),
@@ -504,10 +499,7 @@ public static class CommonVisualPropertyDefinitions
 
     public static IReadOnlyList<VisualPropertyDefinition> NumericInput { get; } =
     [
-        String(VisualPropertyKeys.Unit, string.Empty),
         Boolean(VisualPropertyKeys.ShowApplyButton, true),
-        Boolean(VisualPropertyKeys.ShowCancelButton, true),
-        Boolean(VisualPropertyKeys.ShowSteppers, true),
         Boolean(VisualPropertyKeys.DecimalPlacesEnabled, false),
         Integer(VisualPropertyKeys.DecimalPlaces, 2, minimum: 0, maximum: 12)
     ];

@@ -815,10 +815,6 @@ public static class BuiltinDynamoLibrary
             shapes.Add(Text(E(family, style, shapes.Count + 1), "equipment-label", text, x, y, w, h, size, "#17232D"));
         void Lamp(string key, double x, double y, string parameter, string target, string color) =>
             shapes.Add(StateLamp(E(family, style, shapes.Count + 1), key, x, y, color, parameter, target));
-        void Triangle(string key, double x, double y, double w, double h, bool left, string fill) =>
-            shapes.Add(Polygon(E(family, style, shapes.Count + 1), key, x, y, w, h,
-                left ? [(0d, 0d), (w, h / 2), (0d, h)] : [(w, 0d), (0d, h / 2), (w, h)], fill, dark, 2,
-                dimensional ? light : null, "diagonal-down", dimensional));
 
         switch (familyKey)
         {

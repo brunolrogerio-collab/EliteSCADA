@@ -264,7 +264,8 @@
 
 .ha-field--wide { grid-column: 1 / -1; }
 
-.ha-admin input:not([type=checkbox]) {
+.ha-admin input:not([type=checkbox]),
+.ha-admin select {
   width: 100%;
   min-height: 37px;
   border: 1px solid var(--ha-border);
@@ -274,7 +275,8 @@
   padding: 8px 10px;
 }
 
-.ha-admin input:focus {
+.ha-admin input:focus,
+.ha-admin select:focus {
   outline: 1px solid var(--ha-accent);
   border-color: var(--ha-accent);
 }
@@ -283,6 +285,65 @@
   color: var(--ha-muted);
   font-size: 10px;
   line-height: 1.4;
+}
+
+.ha-readonly-field,
+.ha-managed-field {
+  min-height: 66px;
+  padding: 9px 10px;
+  border: 1px solid var(--ha-border);
+  border-radius: 7px;
+  background: #0d141c;
+  display: grid;
+  gap: 4px;
+  align-content: start;
+}
+
+.ha-readonly-field > span,
+.ha-managed-field > span {
+  color: var(--ha-muted);
+  font-size: 11px;
+}
+
+.ha-readonly-field > strong,
+.ha-managed-field > strong {
+  color: var(--ha-text);
+  font-size: 12px;
+}
+
+.ha-readonly-field > small {
+  color: var(--ha-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.ha-link-button {
+  width: max-content;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ha-accent);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ha-link-button:hover {
+  text-decoration: underline;
+}
+
+.ha-secret-editor {
+  margin-top: 10px;
+  padding: 11px;
+  border: 1px solid var(--ha-border);
+  border-radius: 7px;
+  background: #0d141c;
+  color: var(--ha-muted);
+  font-size: 11px;
+  display: grid;
+  gap: 5px;
 }
 
 .ha-field-hint > span {
@@ -349,6 +410,7 @@
   display: flex;
   gap: 8px;
   align-items: baseline;
+  flex-wrap: wrap;
   font-size: 11px;
 }
 

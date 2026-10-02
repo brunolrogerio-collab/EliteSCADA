@@ -1,4 +1,5 @@
 using Npgsql;
+using Scada.Core.Persistence;
 using NpgsqlTypes;
 using Scada.Security.Authentication;
 
@@ -53,12 +54,16 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
         """;
 
     private readonly NpgsqlDataSource _dataSource;
+    private readonly IDurableWriteAdmission? _writeAdmission;
 
-    public PostgreSqlLocalIdentityStore(string connectionString)
+    public PostgreSqlLocalIdentityStore(
+        string connectionString,
+        IDurableWriteAdmission? writeAdmission = null)
     {
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new ArgumentException("PostgreSQL connection string is required.", nameof(connectionString));
         _dataSource = NpgsqlDataSource.Create(connectionString);
+        _writeAdmission = writeAdmission;
     }
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
@@ -141,6 +146,7 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
 
     public async Task CreateAsync(LocalUserAccount account, CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("local-identity", cancellationToken);
         Validate(account);
         await using var command = _dataSource.CreateCommand(InsertSql);
         Bind(command, account);
@@ -149,6 +155,7 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
 
     public async Task UpdateAsync(LocalUserAccount account, CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("local-identity", cancellationToken);
         Validate(account);
         const string sql = """
             UPDATE elitescada.local_users
@@ -173,6 +180,7 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
         IReadOnlyCollection<LocalUserAccount> accounts,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("local-identity", cancellationToken);
         var replacement = PrepareReplacement(accounts);
 
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
@@ -214,6 +222,7 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
 
     public async Task ClearAllAsync(CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("local-identity", cancellationToken);
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         try
@@ -235,6 +244,7 @@ public sealed class PostgreSqlLocalIdentityStore : ILocalIdentityStore, IAsyncDi
         IReadOnlyCollection<LocalUserAccount> accounts,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("local-identity", cancellationToken);
         var replacement = PrepareReplacement(accounts);
 
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);

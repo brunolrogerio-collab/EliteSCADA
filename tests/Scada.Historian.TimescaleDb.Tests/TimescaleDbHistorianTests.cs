@@ -1,4 +1,5 @@
 using Scada.Core.Events;
+using Scada.Core.Persistence;
 using Scada.Core.Tags;
 using Scada.Historian.Memory;
 using Scada.Historian.Policies;
@@ -44,6 +45,43 @@ public sealed class TimescaleDbHistorianTests
         Assert.Equal(7.50d, Convert.ToDouble(result[1].Value));
         Assert.Equal(TagQuality.Uncertain, result[1].Quality);
         Assert.Equal("integration-test", result[2].Source);
+    }
+
+    [Fact]
+    public async Task Historian_DurableWriteIsRejectedWhileMaintenanceAdmissionIsClosed()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        var operationId = Guid.NewGuid();
+        var admission = new RejectingDurableWriteAdmission(operationId);
+        var eventBus = new InMemoryScadaEventBus();
+        await using var historian = new TimescaleDbHistorian(
+            eventBus,
+            connectionString,
+            batchSize: 1,
+            writeAdmission: admission);
+
+        var tag = TagDefinition.Create(
+            "Quiesce",
+            $"Integration.Quiesce.{Guid.NewGuid():N}",
+            TagDataType.Double);
+        var now = DateTimeOffset.UtcNow;
+        await eventBus.PublishAsync(new TagValueChanged(
+            tag,
+            null,
+            new TagValue(tag.Id, 42d, now, TagQuality.Good, "quiesce-test"),
+            now));
+
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(5);
+        while (historian.LastWriteError is null && DateTimeOffset.UtcNow < deadline)
+            await Task.Delay(25);
+
+        var error = Assert.IsType<DurableWriteQuiescedException>(historian.LastWriteError);
+        Assert.Equal(operationId, error.OperationId);
+        Assert.Equal("historian", error.Writer);
+        Assert.Equal(0, historian.WrittenSamples);
+        Assert.Equal(1, historian.PendingSamples);
     }
 
     [Fact]
@@ -249,6 +287,18 @@ public sealed class TimescaleDbHistorianTests
             Description: null,
             ReadOnly: false,
             Metadata: metadata);
+    }
+
+    private sealed class RejectingDurableWriteAdmission(Guid operationId) : IDurableWriteAdmission
+    {
+        public ValueTask<IAsyncDisposable> AcquireAsync(
+            string writer,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromException<IAsyncDisposable>(
+                new DurableWriteQuiescedException(writer, operationId));
+        }
     }
 
     private static async Task WaitForWritesAsync(TimescaleDbHistorian historian, long expected)

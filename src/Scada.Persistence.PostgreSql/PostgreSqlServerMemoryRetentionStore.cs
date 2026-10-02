@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Scada.Core.Persistence;
 using Npgsql;
 using NpgsqlTypes;
 using Scada.Core.InternalMemory;
@@ -37,13 +38,17 @@ public sealed class PostgreSqlServerMemoryRetentionStore : IServerMemoryRetentio
         """;
 
     private readonly NpgsqlDataSource _dataSource;
+    private readonly IDurableWriteAdmission? _writeAdmission;
 
-    public PostgreSqlServerMemoryRetentionStore(string connectionString)
+    public PostgreSqlServerMemoryRetentionStore(
+        string connectionString,
+        IDurableWriteAdmission? writeAdmission = null)
     {
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new ArgumentException("PostgreSQL connection string is required.", nameof(connectionString));
 
         _dataSource = NpgsqlDataSource.Create(connectionString);
+        _writeAdmission = writeAdmission;
     }
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
@@ -107,6 +112,7 @@ public sealed class PostgreSqlServerMemoryRetentionStore : IServerMemoryRetentio
         RetainedMemoryValue value,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("server-memory", cancellationToken);
         ArgumentNullException.ThrowIfNull(value);
         var json = JsonSerializer.Serialize(value.TypedValue.Value, value.TypedValue.Value.GetType());
 
@@ -137,6 +143,7 @@ public sealed class PostgreSqlServerMemoryRetentionStore : IServerMemoryRetentio
 
     public async ValueTask DeleteAsync(Guid tagId, CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("server-memory", cancellationToken);
         const string sql = """
             DELETE FROM elitescada.server_memory_retained_values
             WHERE tag_id = @tag_id;

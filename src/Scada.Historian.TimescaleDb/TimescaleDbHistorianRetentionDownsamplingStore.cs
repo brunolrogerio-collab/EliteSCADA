@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Scada.Core.Persistence;
 using Npgsql;
 using NpgsqlTypes;
 using Scada.Core.Tags;
@@ -11,12 +12,16 @@ namespace Scada.Historian.TimescaleDb;
 public sealed class TimescaleDbHistorianRetentionDownsamplingStore : IHistorianRetentionDownsamplingStore
 {
     private readonly NpgsqlDataSource _dataSource;
+    private readonly IDurableWriteAdmission? _writeAdmission;
 
-    public TimescaleDbHistorianRetentionDownsamplingStore(string connectionString)
+    public TimescaleDbHistorianRetentionDownsamplingStore(
+        string connectionString,
+        IDurableWriteAdmission? writeAdmission = null)
     {
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new ArgumentException("TimescaleDB connection string is required.", nameof(connectionString));
         _dataSource = NpgsqlDataSource.Create(connectionString);
+        _writeAdmission = writeAdmission;
     }
 
     public Task EnsureInfrastructureAsync(CancellationToken cancellationToken = default) =>
@@ -43,6 +48,7 @@ public sealed class TimescaleDbHistorianRetentionDownsamplingStore : IHistorianR
         HistorianPolicyApplyOptions? options = null,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("historian-policy", cancellationToken);
         ArgumentNullException.ThrowIfNull(policy);
         policy.Validate();
         options ??= new HistorianPolicyApplyOptions();
@@ -114,6 +120,7 @@ public sealed class TimescaleDbHistorianRetentionDownsamplingStore : IHistorianR
         DateTimeOffset to,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("historian-aggregate-refresh", cancellationToken);
         if (to <= from)
             throw new ArgumentException("Aggregate refresh end must be greater than start.");
         await EnsureInfrastructureAsync(cancellationToken);

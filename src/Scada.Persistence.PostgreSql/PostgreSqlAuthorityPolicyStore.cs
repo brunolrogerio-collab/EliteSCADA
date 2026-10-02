@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Scada.Core.Persistence;
 using Npgsql;
 using NpgsqlTypes;
 using Scada.Engineering.Contracts;
@@ -13,12 +14,16 @@ public sealed class PostgreSqlAuthorityPolicyStore : IAuthorityPolicyStore, IAsy
     private const string StateKey = "canonical-policy-v1";
     private readonly object _sync = new();
     private readonly NpgsqlDataSource _dataSource;
+    private readonly IDurableWriteAdmission? _writeAdmission;
     private AuthorityPolicySnapshot _snapshot = new(0, Array.Empty<SecurityRoleEngineeringDto>(), Array.Empty<SecurityScopeEngineeringDto>());
 
-    public PostgreSqlAuthorityPolicyStore(string connectionString)
+    public PostgreSqlAuthorityPolicyStore(
+        string connectionString,
+        IDurableWriteAdmission? writeAdmission = null)
     {
         if (string.IsNullOrWhiteSpace(connectionString)) throw new ArgumentException("PostgreSQL connection string is required.", nameof(connectionString));
         _dataSource = NpgsqlDataSource.Create(connectionString);
+        _writeAdmission = writeAdmission;
     }
 
     public AuthorityPolicySnapshot Snapshot()
@@ -53,6 +58,7 @@ public sealed class PostgreSqlAuthorityPolicyStore : IAuthorityPolicyStore, IAsy
 
     public async Task<AuthorityPolicyWriteResult> TryReplaceAsync(long expectedVersion, IReadOnlyCollection<SecurityRoleEngineeringDto> roles, IReadOnlyCollection<SecurityScopeEngineeringDto> scopes, CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("authority-policy", cancellationToken);
         InMemoryAuthorityPolicyStore.Validate(roles, scopes);
         var candidate = InMemoryAuthorityPolicyStore.Copy(checked(expectedVersion + 1), roles, scopes);
         await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);

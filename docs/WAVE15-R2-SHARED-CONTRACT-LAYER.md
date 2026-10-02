@@ -1,5 +1,16 @@
 
 
+## PR #457 MODBUS / NUMERIC INPUT INTEGRATED — 2026-10-02
+
+- Product Owner explicitly authorized merge.
+- exact validated head: `f5ea0d3d3b88f8465d42a841285beb4c92432331`.
+- T1 #482 / `37058081717`: SUCCESS.
+- merge commit / current integration: `cf660606f79ec79651af379e85f2aed98305ab1a`.
+- merge tree: `ff3fb810e13b7a246157fe3d30b60c358195f807`, exactly matching the validated product tree.
+- integrated scope remains the bounded four-file Modbus/Numeric Input correction only.
+- state: `MERGED / POST_MERGE_CI_REVALIDATE_LATER`.
+
+
 ## DYNAMO ARTWORK R2 CANCELLED BY PRODUCT OWNER — 2026-10-02
 
 - PR #451 was rejected for insufficient visual quality; Product Owner judged the resulting Dynamos worse than the accepted baseline.

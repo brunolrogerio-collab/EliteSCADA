@@ -23,17 +23,19 @@ public sealed class VisualPropertyCatalogConvergenceTests
         Assert.Equal(
         [
             "x", "y", "width", "height", "zIndex",
-            "rotation", "scaleX", "scaleY", "horizontalFlip", "verticalFlip",
+            "rotation", "arcStartAngle", "arcEndAngle", "scaleX", "scaleY", "horizontalFlip", "verticalFlip",
             "visible", "opacity", "tooltip", "enabled",
             "fillStyle", "fillColor", "fillSecondaryColor", "gradientDirection", "backgroundColor",
             "strokeColor", "strokeWidth", "strokeStyle", "cornerRadius",
             "shadowEnabled", "shadowColor", "shadowOffsetX", "shadowOffsetY", "shadowBlur",
-            "text", "textColor", "fontFamily", "fontSize", "fontWeight", "fontStyle",
+            "text", "textColor", "textColorEditing", "textColorGood", "textColorBad", "valueFormat",
+            "fontFamily", "fontSize", "fontWeight", "fontStyle",
             "underline", "textWrap", "lineHeight", "textOverflow",
             "horizontalAlignment", "verticalAlignment",
             "assetRef", "imageFit", "imagePositionX", "imagePositionY", "imageZoom",
             "value", "minimum", "maximum", "step", "orientation", "interactionEnabled",
-            "reverseDirection", "trackColor", "thumbColor", "showApplyButton"
+            "reverseDirection", "trackColor", "thumbColor",
+            "showApplyButton", "decimalPlacesEnabled", "decimalPlaces"
         ], keys);
 
         Assert.DoesNotContain(VisualPropertyKeys.ImageResourceId, keys);

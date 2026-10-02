@@ -250,64 +250,181 @@ test('Simulation TAG type changes converge metadata and retire legacy duplicate 
   expect(normalized.communicationBinding).toBeNull();
 });
 
-test('mounted Simulation TAG editor presents one canonical type-aware authoring surface', async ({ page, request }) => {
-  const packageResponse = await request.get('/api/engineering/export/json');
-  expect(packageResponse.ok()).toBeTruthy();
-  const engineering = await packageResponse.json() as {
-    dataSources?: Array<{ id?: string; key: string; driver: string }>;
-  };
-  const simulationSource = engineering.dataSources?.find(source =>
-    source.driver.trim().toLowerCase() === 'builtin.simulation');
-  test.skip(!simulationSource, 'Mounted package does not contain a builtin.simulation Data Source.');
+test('mounted Simulation TAG editor presents one canonical type-aware authoring surface and drives Runtime', async ({ page, request }) => {
+  test.setTimeout(60_000);
+  const originalResponse = await request.get('/api/engineering/export/json');
+  expect(originalResponse.ok()).toBeTruthy();
+  const originalPackage = await originalResponse.json() as any;
+  const workspaceResponse = await request.get('/api/engineering/workspace');
+  expect(workspaceResponse.ok()).toBeTruthy();
+  const workspace = await workspaceResponse.json() as { projectKey?: string | null };
+  const projectKey = workspace.projectKey ?? 'e2e-wave03';
+  const sourceName = 'Simulation UX Convergence Source';
+  const tagName = 'Simulation UX Runtime Value';
 
-  await page.goto('/engineering');
-  await page.getByRole('button', { name: /TAGs/ }).click();
-  await page.getByRole('button', { name: 'Nova TAG' }).click();
-  await page.getByLabel('Nome da TAG').fill('Simulation UX convergence');
+  try {
+    await page.goto('/engineering');
+    await page.getByRole('button', { name: /Fontes de dados/ }).click();
+    const sourceEditor = page.getByTestId('schema-data-source-editor');
+    await expect(sourceEditor).toBeVisible();
+    await sourceEditor.getByRole('button', { name: 'Nova Fonte de dados' }).click();
+    await sourceEditor.locator('.eng-editor-form-grid').first().locator('input').first().fill(sourceName);
+    await sourceEditor.getByTestId('data-source-type').selectOption('builtin.simulation');
+    await sourceEditor.getByTestId('data-source-preview').click();
+    await expect(sourceEditor.getByTestId('data-source-apply')).toBeEnabled();
+    await sourceEditor.getByTestId('data-source-apply').click();
 
-  const sourceIdentity = simulationSource!.id ? `id:${simulationSource!.id}` : `key:${simulationSource!.key}`;
-  await page.getByTestId('tag-source-select').selectOption(sourceIdentity);
+    const simulationSource = await expect.poll(async () => {
+      const response = await request.get('/api/engineering/export/json');
+      if (!response.ok()) return null;
+      const engineering = await response.json() as {
+        dataSources?: Array<{ id?: string; key: string; name: string; driver: string }>;
+      };
+      return engineering.dataSources?.find(source =>
+        source.name === sourceName && source.driver.trim().toLowerCase() === 'builtin.simulation') ?? null;
+    }).not.toBeNull().then(async () => {
+      const response = await request.get('/api/engineering/export/json');
+      const engineering = await response.json() as {
+        dataSources?: Array<{ id?: string; key: string; name: string; driver: string }>;
+      };
+      return engineering.dataSources!.find(source => source.name === sourceName)!;
+    });
 
-  await expect(page.getByTestId('tag-address-manual')).toHaveCount(0);
-  await expect(page.getByTestId('generic-tag-binding-assistant')).toHaveCount(0);
+    await page.goto('/engineering');
+    await page.getByRole('button', { name: /TAGs/ }).click();
+    await page.getByRole('button', { name: 'Nova TAG' }).click();
+    await page.getByLabel('Nome da TAG').fill(tagName);
+    const sourceIdentity = simulationSource.id ? `id:${simulationSource.id}` : `key:${simulationSource.key}`;
+    await page.getByTestId('tag-source-select').selectOption(sourceIdentity);
 
-  const simulationEditor = page.getByTestId('tag-simulation-disclosure');
-  await expect(simulationEditor).toBeVisible();
-  await simulationEditor.locator('summary').click();
+    await expect(page.getByTestId('tag-address-manual')).toHaveCount(0);
+    await expect(page.getByTestId('generic-tag-binding-assistant')).toHaveCount(0);
 
-  const type = page.getByTestId('tag-data-type');
-  const signal = page.getByTestId('simulation-signal-type');
-  await expect(type).toHaveValue('double');
-  await expect(signal).toHaveValue('Sine');
-  await expect(page.getByTestId('simulation-minimum')).toBeVisible();
-  await expect(page.getByTestId('simulation-maximum')).toBeVisible();
-  await expect(page.getByTestId('simulation-period')).toBeVisible();
-  await expect(page.getByTestId('simulation-constant-value')).toHaveCount(0);
-  await expect(page.getByTestId('simulation-step')).toHaveCount(0);
+    const simulationEditor = page.getByTestId('tag-simulation-disclosure');
+    await expect(simulationEditor).toBeVisible();
+    await simulationEditor.locator('summary').click();
 
-  await type.selectOption('dateTime');
-  await expect(signal).toHaveValue('CurrentTime');
-  expect(await signal.locator('option').allTextContents()).toEqual(['CurrentTime']);
-  await expect(page.getByTestId('simulation-minimum')).toHaveCount(0);
-  await expect(page.getByTestId('simulation-maximum')).toHaveCount(0);
-  await expect(page.getByTestId('simulation-period')).toHaveCount(0);
-  await expect(page.getByTestId('simulation-constant-value')).toHaveCount(0);
-  await expect(page.getByTestId('simulation-step')).toHaveCount(0);
+    const type = page.getByTestId('tag-data-type');
+    const signal = page.getByTestId('simulation-signal-type');
+    await expect(type).toHaveValue('double');
+    await expect(signal).toHaveValue('Sine');
+    await expect(page.getByTestId('simulation-minimum')).toBeVisible();
+    await expect(page.getByTestId('simulation-maximum')).toBeVisible();
+    await expect(page.getByTestId('simulation-period')).toBeVisible();
 
-  await type.selectOption('boolean');
-  await expect(signal).toHaveValue('BooleanToggle');
-  expect(await signal.locator('option').allTextContents()).toEqual(['BooleanToggle', 'Constant', 'Manual']);
-  await expect(page.getByTestId('simulation-period')).toBeVisible();
-  await expect(page.getByTestId('simulation-minimum')).toHaveCount(0);
-  await expect(page.getByTestId('simulation-maximum')).toHaveCount(0);
+    await type.selectOption('dateTime');
+    await expect(signal).toHaveValue('CurrentTime');
+    expect(await signal.locator('option').allTextContents()).toEqual(['CurrentTime']);
+    await expect(page.getByTestId('simulation-minimum')).toHaveCount(0);
+    await expect(page.getByTestId('simulation-maximum')).toHaveCount(0);
+    await expect(page.getByTestId('simulation-period')).toHaveCount(0);
+    await expect(page.getByTestId('simulation-constant-value')).toHaveCount(0);
+    await expect(page.getByTestId('simulation-step')).toHaveCount(0);
 
-  await type.selectOption('double');
-  await expect(signal).toHaveValue('Sine');
-  expect(await signal.locator('option').allTextContents()).not.toContain('CurrentTime');
-  expect(await signal.locator('option').allTextContents()).not.toContain('BooleanToggle');
+    await type.selectOption('boolean');
+    await expect(signal).toHaveValue('BooleanToggle');
+    expect(await signal.locator('option').allTextContents()).toEqual(['BooleanToggle', 'Constant', 'Manual']);
+    await expect(page.getByTestId('simulation-period')).toBeVisible();
+    await expect(page.getByTestId('simulation-minimum')).toHaveCount(0);
+    await expect(page.getByTestId('simulation-maximum')).toHaveCount(0);
 
-  await page.getByLabel('Idioma').selectOption('en');
-  await expect(simulationEditor.locator('summary')).toContainText('TAG simulation');
-  await page.getByLabel('Language').selectOption('es');
-  await expect(simulationEditor.locator('summary')).toContainText('Simulación del TAG');
+    await type.selectOption('double');
+    await expect(signal).toHaveValue('Sine');
+    expect(await signal.locator('option').allTextContents()).not.toContain('CurrentTime');
+    expect(await signal.locator('option').allTextContents()).not.toContain('BooleanToggle');
+
+    await signal.selectOption('Constant');
+    await expect(page.getByTestId('simulation-constant-value')).toBeVisible();
+    await page.getByTestId('simulation-constant-value').fill('42.5');
+    await expect(page.getByTestId('simulation-minimum')).toHaveCount(0);
+    await expect(page.getByTestId('simulation-maximum')).toHaveCount(0);
+    await expect(page.getByTestId('simulation-period')).toHaveCount(0);
+    await expect(page.getByTestId('simulation-step')).toHaveCount(0);
+
+    await page.getByLabel('Idioma').selectOption('en');
+    await expect(simulationEditor.locator('summary')).toContainText('TAG simulation');
+    await page.getByLabel('Language').selectOption('es');
+    await expect(simulationEditor.locator('summary')).toContainText('Simulación del TAG');
+    await page.getByLabel('Idioma').selectOption('pt-BR');
+
+    await page.getByTestId('engineering-preview').click();
+    await expect(page.getByTestId('engineering-apply')).toBeEnabled();
+    await page.getByTestId('engineering-apply').click();
+
+    const persistedTag = await expect.poll(async () => {
+      const response = await request.get('/api/engineering/export/json');
+      if (!response.ok()) return null;
+      const engineering = await response.json() as {
+        tags?: Array<{
+          id?: string;
+          name: string;
+          path: string;
+          source?: string | null;
+          address?: string | null;
+          communicationBinding?: unknown;
+          metadata?: Record<string, string> | null;
+        }>;
+      };
+      return engineering.tags?.find(tag => tag.name === tagName) ?? null;
+    }).not.toBeNull().then(async () => {
+      const response = await request.get('/api/engineering/export/json');
+      const engineering = await response.json() as {
+        tags?: Array<{
+          id?: string;
+          name: string;
+          path: string;
+          source?: string | null;
+          address?: string | null;
+          communicationBinding?: unknown;
+          metadata?: Record<string, string> | null;
+        }>;
+      };
+      return engineering.tags!.find(tag => tag.name === tagName)!;
+    });
+
+    expect(persistedTag.source).toBe(simulationSource.key);
+    expect(persistedTag.address ?? null).toBeNull();
+    expect(persistedTag.communicationBinding ?? null).toBeNull();
+    expect(persistedTag.metadata?.['simulation.signalType']).toBe('Constant');
+    expect(persistedTag.metadata?.['simulation.constantValue']).toBe('42.5');
+    expect(persistedTag.metadata?.['simulation.minimum']).toBeUndefined();
+    expect(persistedTag.metadata?.['simulation.maximum']).toBeUndefined();
+    expect(persistedTag.metadata?.['simulation.periodSeconds']).toBeUndefined();
+    expect(persistedTag.metadata?.['simulation.step']).toBeUndefined();
+
+    await page.goto('/engineering');
+    await page.getByRole('button', { name: /TAGs/ }).click();
+    await page.getByRole('button', { name: new RegExp(tagName) }).click();
+    const reopenedSimulationEditor = page.getByTestId('tag-simulation-disclosure');
+    await reopenedSimulationEditor.locator('summary').click();
+    await expect(page.getByTestId('simulation-signal-type')).toHaveValue('Constant');
+    await expect(page.getByTestId('simulation-constant-value')).toHaveValue('42.5');
+    await expect(page.getByTestId('tag-address-manual')).toHaveCount(0);
+    await expect(page.getByTestId('generic-tag-binding-assistant')).toHaveCount(0);
+
+    await savePublishActivate(request, projectKey, 'Simulation TAG UX convergence');
+    await expect.poll(async () => {
+      const response = await request.get(`/api/tags/by-path/${encodeURIComponent(persistedTag.path)}`);
+      if (!response.ok()) return null;
+      const payload = await response.json() as { current?: { value?: unknown } | null };
+      return payload.current?.value ?? null;
+    }, { timeout: 15_000 }).toBe(42.5);
+  } finally {
+    const restore = await request.post('/api/engineering/import/json/apply', { data: originalPackage });
+    expect(restore.ok(), `Restore apply failed: ${restore.status()} ${await restore.text()}`).toBeTruthy();
+    await savePublishActivate(request, projectKey, 'Simulation TAG UX convergence cleanup');
+  }
 });
+
+
+async function savePublishActivate(request: any, projectKey: string, projectName: string) {
+  const save = await request.post(`/api/engineering/persistence/${projectKey}/save`, { data: { projectName } });
+  expect(save.ok(), `Save failed: ${save.status()} ${await save.text()}`).toBeTruthy();
+  const saved = await save.json() as { revision: number };
+
+  const publish = await request.post(`/api/engineering/persistence/${projectKey}/revisions/${saved.revision}/publish`, { data: {} });
+  expect(publish.ok(), `Publish failed: ${publish.status()} ${await publish.text()}`).toBeTruthy();
+
+  const activate = await request.post(`/api/engineering/persistence/${projectKey}/published/activate`, { data: {} });
+  expect(activate.ok(), `Activate failed: ${activate.status()} ${await activate.text()}`).toBeTruthy();
+}

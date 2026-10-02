@@ -1,3 +1,36 @@
+
+
+## ACCEPTED POST-RECOVERY BASE — 2026-10-02
+
+Product Owner explicitly authorized merge of PR #450 after exact-head green validation.
+
+Merged:
+- PR #450;
+- merge commit / current integration base:
+  `wave15/corrections-integration@015b0d5ae815fe1c8143aa22755e2c6ef91ec826`;
+- accepted PR head:
+  `c30819f3f6ac9517c266a709d4e48ab892702ffc`;
+- merge tree and accepted PR-head tree are identical:
+  `48b15c61423b98413a86d8899a22061c9c8dfa6a`;
+- T1 #385 / `37010514243`: SUCCESS;
+- broad EliteSCADA CI #1645 / `37010507885`: SUCCESS.
+
+This integration SHA is now the mandatory base for newly released Wave 15 closeout work.
+
+Released branches/orders:
+- #423: `work/w15-ha-d2-core` / `W15-HA-D2A-CORE-01`;
+- #366: `work/w15-db-remote-topology` / `W15-DB-REMOTE-CORE-01`;
+- #445: `work/w15-historical-playback` / `W15-HISTORICAL-PLAYBACK-01`;
+- #308: `work/w15-dynamo-artwork-r2` / `W15-DYNAMO-ARTWORK-02`.
+
+HA admin UI and DB admin UI remain intentionally unreleased until their respective core lanes freeze a public contract.
+
+Post-merge workflow observation:
+- initial exact-merge check found no workflow run yet associated with merge commit `015b0d5a...`;
+- per Product Owner rule, Main stopped watching instead of polling beyond the bounded observation window;
+- future coordination must revalidate any final post-merge run from GitHub live before relying on it.
+
+
 # Wave 15 R2 — Shared Contract Layer (C0)
 
 **State:** POST_CODEX_RECONCILED / PR450_VALIDATION_GATE / NO_DUPLICATE_DEVS / NO_MERGE  

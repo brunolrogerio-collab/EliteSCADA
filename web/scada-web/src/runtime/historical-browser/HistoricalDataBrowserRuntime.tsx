@@ -274,9 +274,9 @@ export function HistoricalDataBrowserRuntime({
 
       {(state === 'ready' || state === 'empty') && (
         <nav className="historical-browser__paging" aria-label={text.title + ' · ' + text.page}>
-          <button type="button" onClick={goPrevious} disabled={pageIndex === 0 || state === 'loading'}>{text.previousPage}</button>
+          <button type="button" onClick={goPrevious} disabled={pageIndex === 0}>{text.previousPage}</button>
           <span>{text.page} {pageIndex + 1}</span>
-          <button type="button" onClick={goNext} disabled={!nextCursor || state === 'loading'}>{text.nextPage}</button>
+          <button type="button" onClick={goNext} disabled={!nextCursor}>{text.nextPage}</button>
         </nav>
       )}
     </div>

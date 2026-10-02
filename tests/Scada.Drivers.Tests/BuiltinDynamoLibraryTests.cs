@@ -219,7 +219,8 @@ public sealed class BuiltinDynamoLibraryTests
         {
             var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
             var motorKey = elements.ContainsKey("motor-body") ? "motor-body" : "motor";
-            Assert.Equal("core.polygon", elements[motorKey].Type);
+            Assert.Equal("core.bezier", elements[motorKey].Type);
+            Assert.True(elements[motorKey].Properties!.ContainsKey("bezierPath"));
             foreach (var key in new[] { "shaft", "vfd", "terminal", "motor-base", "control-cable", "vfd-screen", "vfd-cable-gland", "vfd-mounting-rail" })
                 Assert.Contains(key, elements.Keys);
 
@@ -241,6 +242,30 @@ public sealed class BuiltinDynamoLibraryTests
                 vfd["x"].GetDouble() + vfd["width"].GetDouble());
             Assert.True(screen["y"].GetDouble() + screen["height"].GetDouble() <
                 vfd["y"].GetDouble() + vfd["height"].GetDouble());
+        }
+    }
+
+    [Fact]
+    public void StandardAndVfdMotorFamilies_ShareCurvedCasingGrammar()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        foreach (var familyKey in new[] { "process.motor.standard", "process.motor.vfd" })
+        {
+            var variants = definitions.Where(definition =>
+                definition.Metadata!["familyKey"] == familyKey).ToArray();
+            Assert.Equal(3, variants.Length);
+
+            Assert.All(variants, variant =>
+            {
+                var casing = variant.Elements!.Single(element =>
+                    element.Key is "body" or "motor" or "motor-body");
+                Assert.Equal("core.bezier", casing.Type);
+                var path = casing.Properties!["bezierPath"].GetString();
+                Assert.NotNull(path);
+                Assert.Contains(" C ", path!, StringComparison.Ordinal);
+                Assert.Contains(" Z", path!, StringComparison.Ordinal);
+            });
         }
     }
 
@@ -320,6 +345,8 @@ public sealed class BuiltinDynamoLibraryTests
             var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
             foreach (var key in new[] { "body", "end-bell-left", "end-bell-right", "shaft", "terminal", "terminal-cover", "cable-gland", "fan-cowl-ring", "foot-left", "foot-right", "base" })
                 Assert.True(elements.ContainsKey(key), $"Motor variant '{variant.Key}' is missing industrial anatomy element '{key}'.");
+            Assert.Equal("core.bezier", elements["body"].Type);
+            Assert.True(elements["body"].Properties!.ContainsKey("bezierPath"));
 
             var axisCenters = new[] { "body", "end-bell-left", "end-bell-right", "shaft" }
                 .Select(key =>
@@ -1019,6 +1046,70 @@ public sealed class BuiltinDynamoLibraryTests
         var indicatorElements = indicator.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
         Assert.Equal("instrument-detail", indicatorElements["hub"].Metadata!["visualRole"]);
         Assert.Equal("#3D5362", indicatorElements["hub"].Properties!["fillColor"].GetString());
+    }
+
+    [Fact]
+    public void IndustrialGrammar_NormalizesBasesFeetAndSaddlesAsSupportStructures()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        var detailedMotor = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "process.motor.standard" &&
+            definition.Properties!["visualStyle"] == "detailed-2d");
+        var motorElements = detailedMotor.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+        foreach (var key in new[] { "base", "foot-left", "foot-right" })
+        {
+            Assert.Equal("support-structure", motorElements[key].Metadata!["visualRole"]);
+            Assert.Equal("#3D5362", motorElements[key].Properties!["fillColor"].GetString());
+            Assert.Equal(1.5, motorElements[key].Properties["strokeWidth"].GetDouble(), precision: 6);
+        }
+
+        var hpTank = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "process.tank.horizontal" &&
+            definition.Properties!["visualStyle"] == "high-performance");
+        var tankElements = hpTank.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+        foreach (var key in new[] { "leg-left", "leg-right" })
+        {
+            Assert.Equal("support-structure", tankElements[key].Metadata!["visualRole"]);
+            Assert.Equal("#49545B", tankElements[key].Properties!["fillColor"].GetString());
+            Assert.Equal(1, tankElements[key].Properties["strokeWidth"].GetDouble(), precision: 6);
+        }
+
+        var hpExchanger = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "process.exchanger.shell-tube" &&
+            definition.Properties!["visualStyle"] == "high-performance");
+        var exchangerElements = hpExchanger.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+        Assert.Equal("support-structure", exchangerElements["saddle-left"].Metadata!["visualRole"]);
+        Assert.Equal("support-structure", exchangerElements["saddle-right"].Metadata!["visualRole"]);
+    }
+
+    [Fact]
+    public void IndustrialGrammar_NormalizesAuxiliaryEnclosuresAsOneLightSubassemblyClass()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        var detailedVfd = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "process.motor.vfd" &&
+            definition.Properties!["visualStyle"] == "detailed-2d");
+        var vfdElements = detailedVfd.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+        Assert.Equal("auxiliary-enclosure", vfdElements["vfd"].Metadata!["visualRole"]);
+        Assert.Equal("#D7E2E8", vfdElements["vfd"].Properties!["fillColor"].GetString());
+        Assert.Equal(1.5, vfdElements["vfd"].Properties["strokeWidth"].GetDouble(), precision: 6);
+
+        var hpOnOff = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "process.valve.onoff" &&
+            definition.Properties!["visualStyle"] == "high-performance");
+        var valveElements = hpOnOff.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+        Assert.Equal("auxiliary-enclosure", valveElements["actuator"].Metadata!["visualRole"]);
+        Assert.Equal("#D1D6D9", valveElements["actuator"].Properties!["fillColor"].GetString());
+        Assert.Equal(1, valveElements["actuator"].Properties["strokeWidth"].GetDouble(), precision: 6);
+
+        var detailedBreaker = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "electrical.breaker" &&
+            definition.Properties!["visualStyle"] == "detailed-2d");
+        var breakerElements = detailedBreaker.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+        Assert.Equal("auxiliary-enclosure", breakerElements["mechanism-box"].Metadata!["visualRole"]);
+        Assert.Equal("#D7E2E8", breakerElements["mechanism-box"].Properties!["fillColor"].GetString());
     }
 
     [Fact]

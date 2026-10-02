@@ -211,8 +211,8 @@ public static class BuiltinDynamoLibrary
                 // Side-elevation silhouette follows the Product Owner coordinate scaffold:
                 // stepped shaft/front bearing, long cylindrical frame, top terminal box,
                 // rear fan cowl and two mounting feet. Geometry remains native/editable.
-                Polygon(E(family, style, 1), "body", 25, 20, 61, 50,
-                    [(7d, 0d), (51d, 0d), (61d, 8d), (61d, 42d), (51d, 50d), (7d, 50d), (0d, 42d), (0d, 8d)],
+                BezierShape(E(family, style, 1), "body", 25, 20, 61, 50,
+                    "M 10 5 C 18 2 82 2 90 5 L 98 18 C 100 26 100 74 98 82 L 90 95 C 82 98 18 98 10 95 L 2 82 C 0 74 0 26 2 18 Z",
                     "#C5CDD3", "#374151", 2),
                 FlatShape(E(family, style, 18), "end-bell-left", "core.ellipse", 15, 25, 22, 40, "#AEB7BE", "#374151", 1.5),
                 FlatShape(E(family, style, 19), "end-bell-right", "core.ellipse", 79, 27, 18, 36, "#AEB7BE", "#374151", 1.5),
@@ -237,8 +237,8 @@ public static class BuiltinDynamoLibrary
         var dimensional = style == VisualStyle.DimensionalFront;
         return Dynamo(sequence, "process.motor.standard", "Motor padrão", "motor", style, 150, 102,
         [
-            Polygon(E(family, style, 1), "body", 38, 21, 78, 57,
-                [(9d, 0d), (67d, 0d), (78d, 10d), (78d, 47d), (67d, 57d), (9d, 57d), (0d, 47d), (0d, 10d)],
+            BezierShape(E(family, style, 1), "body", 38, 21, 78, 57,
+                "M 10 5 C 18 2 82 2 90 5 L 98 18 C 100 26 100 74 98 82 L 90 95 C 82 98 18 98 10 95 L 2 82 C 0 74 0 26 2 18 Z",
                 "#AEBCC8", "#334155", 3, dimensional ? "#F8FAFC" : null, "vertical", dimensional),
             MaterialShape(E(family, style, 2), "end-bell-left", "core.ellipse", 23, 27, 29, 45,
                 "#94A3B8", "#E2E8ED", "#334155", 2, 0, dimensional, "horizontal"),
@@ -276,8 +276,8 @@ public static class BuiltinDynamoLibrary
         {
             return Dynamo(sequence, "process.motor.vfd", "Motor com inversor", "motor", style, 138, 96,
             [
-                Polygon(E(family, style, 1), "motor", 12, 20, 66, 52,
-                    [(8d, 0d), (56d, 0d), (66d, 8d), (66d, 44d), (56d, 52d), (8d, 52d), (0d, 44d), (0d, 8d)],
+                BezierShape(E(family, style, 1), "motor", 12, 20, 66, 52,
+                    "M 10 5 C 18 2 82 2 90 5 L 98 18 C 100 26 100 74 98 82 L 90 95 C 82 98 18 98 10 95 L 2 82 C 0 74 0 26 2 18 Z",
                     "#C5CDD3", "#374151", 2),
                 FlatShape(E(family, style, 2), "shaft", "core.rectangle", 76, 42, 12, 8, "#9CA3AF", "#374151", 1, 2),
                 FlatShape(E(family, style, 3), "vfd", "core.rectangle", 99, 10, 32, 48, "#D1D5DB", "#374151", 2, 4),
@@ -303,8 +303,8 @@ public static class BuiltinDynamoLibrary
         var dimensional = style == VisualStyle.DimensionalFront;
         return Dynamo(sequence, "process.motor.vfd", "Motor com inversor", "motor", style, 196, 112,
         [
-            Polygon(E(family, style, 1), "motor-body", 24, 29, 78, 57,
-                [(9d, 0d), (67d, 0d), (78d, 10d), (78d, 47d), (67d, 57d), (9d, 57d), (0d, 47d), (0d, 10d)],
+            BezierShape(E(family, style, 1), "motor-body", 24, 29, 78, 57,
+                "M 10 5 C 18 2 82 2 90 5 L 98 18 C 100 26 100 74 98 82 L 90 95 C 82 98 18 98 10 95 L 2 82 C 0 74 0 26 2 18 Z",
                 "#AEBCC8", "#334155", 3, dimensional ? "#F8FAFC" : null, "vertical", dimensional),
             MaterialShape(E(family, style, 2), "motor-end", "core.ellipse", 12, 34, 25, 47, "#94A3B8", "#DDE4EA", "#334155", 2, 0, dimensional, "horizontal"),
             FlatShape(E(family, style, 3), "shaft", "core.rectangle", 99, 51, 14, 9, "#94A3B8", "#475569", 1, 2),
@@ -1470,6 +1470,8 @@ public static class BuiltinDynamoLibrary
             var normalizedFill = visualRole switch
             {
                 "primary-mass" => finish.Shell,
+                "support-structure" => finish.Dark,
+                "auxiliary-enclosure" => finish.Light,
                 "process-connection" => finish.Mid,
                 "fastener-detail" => finish.Mid,
                 "functional-internal"
@@ -1488,7 +1490,7 @@ public static class BuiltinDynamoLibrary
         if (!preserveSemanticColor &&
             properties.TryGetValue("strokeColor", out var authoredStroke) &&
             authoredStroke.ValueKind == JsonValueKind.String &&
-            visualRole is "primary-mass" or "process-connection" or "fastener-detail" or "functional-internal")
+            visualRole is "primary-mass" or "support-structure" or "auxiliary-enclosure" or "process-connection" or "fastener-detail" or "functional-internal")
         {
             properties["strokeColor"] = JsonSerializer.SerializeToElement(
                 visualRole == "primary-mass" ? finish.Outline : finish.SoftOutline);
@@ -1567,6 +1569,8 @@ public static class BuiltinDynamoLibrary
             var normalizedStroke = role switch
             {
                 "primary-mass" => Math.Clamp(strokeWidth, 1.5, 2),
+                "support-structure" => style == VisualStyle.HighPerformance ? 1d : 1.5d,
+                "auxiliary-enclosure" => style == VisualStyle.HighPerformance ? 1d : 1.5d,
                 "fastener-detail" => 1d,
                 "process-connection" => Math.Clamp(strokeWidth, 1, 1.5),
                 "functional-internal" => style == VisualStyle.HighPerformance ? 1d : 1.5d,
@@ -1600,6 +1604,16 @@ public static class BuiltinDynamoLibrary
             (key.Contains("bolt", StringComparison.Ordinal) ||
              key.Contains("fastener", StringComparison.Ordinal)))
             return "fastener-detail";
+        if (key == "base" ||
+            key.EndsWith("-base", StringComparison.Ordinal) ||
+            key.StartsWith("foot-", StringComparison.Ordinal) ||
+            key.StartsWith("leg-", StringComparison.Ordinal) ||
+            key.StartsWith("saddle-", StringComparison.Ordinal) ||
+            key.Contains("mounting-rail", StringComparison.Ordinal))
+            return "support-structure";
+        if (key is "vfd" or "actuator" or "terminal" or "terminal-box" or "mechanism-box" or
+            "gearbox" or "bonnet" or "terminal-cover")
+            return "auxiliary-enclosure";
         if (key.Contains("pipe", StringComparison.Ordinal) ||
             key.Contains("flange", StringComparison.Ordinal) ||
             key.Contains("nozzle", StringComparison.Ordinal) ||

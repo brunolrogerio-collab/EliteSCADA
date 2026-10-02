@@ -1,3 +1,242 @@
+# LATEST DELTA — 2026-10-02 — OUTGOING MAIN / CODEX PRODUCT AUTHORITY / CI HANDOFF
+
+> This section supersedes older current-state statements below when they conflict.
+> GitHub live remains the only authority.
+>
+> The outgoing coordinator was explicitly instructed **not to investigate the
+> latest broad CI failure** because the conversation is being replaced. The next
+> coordinator must diagnose that failure fresh.
+
+## Product authority — mandatory rule
+
+The current Wave 15 product authority is the product that the **Product Owner
+personally validated locally with CODEX and CODEX delivered to GitHub**.
+
+The earlier coordinator/parallel-DEV state became unreliable. After that, the
+Product Owner and CODEX performed roughly a dozen further local product
+corrections and validated the result interactively. Those delivered product
+bytes are the current branch of truth for Wave 15.
+
+Automated CI is now validating that product. It is not permission to redefine it.
+
+Mandatory rule:
+
+`CODEX-delivered product -> tests validate product`
+
+not:
+
+`failing test -> change product until test passes`.
+
+If a test is stale/brittle/obsolete relative to the accepted product, fix the
+test. If a test proves a genuine product defect, record a blocker/finding and
+wait for explicit Product Owner authorization before changing product bytes.
+
+## Live state at outgoing handoff
+
+Revalidated immediately before this handoff:
+
+- integration:
+  `wave15/corrections-integration@9ff26a3dfeb3a6b4962a8b9120c2e8f575c01878`
+- current recovery/validation carrier:
+  PR #450 — `feat(visual-editor): surface properties and simulation controls`
+- PR #450:
+  `OPEN / DRAFT / NO_MERGE`
+- exact head:
+  `b56516a4aa4e6683a45d929f5f9207eb308da66b`
+- base:
+  `9ff26a3dfeb3a6b4962a8b9120c2e8f575c01878`
+- exact-head T1 #383 / run `37005646674`:
+  **SUCCESS**
+- broad EliteSCADA CI #1644 / run `37005642135`:
+  **FAILURE**
+
+The outgoing coordinator intentionally did **not** inspect CI #1644 logs after
+the Product Owner reported the failure. Do not inherit a guessed diagnosis.
+Inspect the run fresh in the next coordinator chat.
+
+No merge is authorized. PR #450 must remain DRAFT until the Product Owner
+explicitly changes the instruction.
+
+## What Main changed during CI reconciliation
+
+There was one coordinator mistake during this session: Main briefly changed
+three product files while interpreting CI failures. The Product Owner clarified
+that product must remain untouched for test validation. Main then restored
+those files exactly to the CODEX-delivered bytes and recorded the correction.
+
+After restoration, the coordinator limited changes to:
+- E2E/integration test contracts;
+- test expectations/selectors/fixtures/timeouts;
+- temporary CI workflow plumbing needed to run broad validation on the recovery
+  branch.
+
+Before continuing, the next coordinator should compare the current branch
+against the restored CODEX-product checkpoint and confirm that post-restoration
+deltas remain test/CI-only.
+
+## Remaining Wave 15 work
+
+Reconstruct each item against GitHub live. Do not blindly trust old open PRs or
+old coordinator messages.
+
+### 1. Current CI validation
+
+First diagnose broad CI #1644 on exact head `b56516a4...`.
+
+Rules:
+- no product changes merely to get green;
+- no blind broad rerun;
+- correct stale tests only after proving accepted product behavior;
+- real product defect -> blocker/finding, not unauthorized patch;
+- **NO MERGE**.
+
+### 2. HA-D2 — issue #423 — mandatory
+
+HA-D2 remains a Wave 15 requirement.
+
+It must cover:
+- conservative automatic failover;
+- failback;
+- fencing / epoch / reference authority;
+- never promote solely because communication was lost;
+- no duplicate writes/commands;
+- no duplicate Server Scripts;
+- no duplicate Alarm evaluation;
+- no duplicate Historian ingestion;
+- no duplicate Operational Events;
+- Runtime Session continuity without double seat;
+- Web Runtime re-discovery of effective Active using public product contracts;
+- adversarial two-process evidence.
+
+**Product Owner clarification added 2026-10-02:** HA-D2 must also ship an
+Engineering/admin interface for HA operations. It is not enough to have only the
+backend algorithm.
+
+That surface must allow authorized users to:
+- configure HA topology / peer identity and supported node settings;
+- inspect local/peer role, effective Active, health and topology;
+- see actionable degraded/blocked/split diagnostics;
+- issue controlled privileged switchover/failback/role-transition commands where
+  the authority contract permits;
+- confirm authority-changing actions;
+- never bypass fencing/epoch/reference rules from the UI.
+
+Issue #423 comment `5952748508` records this requirement.
+
+EliteGO application remains deferred and is not an HA-D2 gate.
+
+### 3. Remote database — issue #366 — mandatory
+
+Remote database use still must be developed/closed in Wave 15 using #366 as the
+architecture authority.
+
+Required product outcome:
+- local managed PostgreSQL/TimescaleDB remains the normal/default profile;
+- Engineering/admin UI can configure a supported remote DB endpoint;
+- test connection / compatibility before cutover;
+- supported migrate/copy flow;
+- primary DB plus optional Historian override under the accepted topology;
+- maintenance boundary;
+- verify/readiness;
+- atomic switch;
+- rollback/recovery;
+- local DB/data preserved unless explicit purge;
+- credentials handled as deployment secrets;
+- remote DB lifecycle remains external and is never silently uninstalled;
+- HA consumes DB topology and does not use a shared DB as an authority bypass.
+
+Issue #366 comment `5952749151` records this requirement.
+
+### 4. Historical Playback
+
+The explicit historical read-only past-state/playback contract remains to be
+closed and validated. Reuse the integrated Historian/Data Query/Historical Time
+Range foundation. Do not invent a second Historian API.
+
+### 5. Visual Quality / Dynamos / Library — #308
+
+The built-ins and later CODEX product work must be revalidated in the real
+product. Close only with actual editor/runtime evidence:
+- preview quality;
+- no clipping/truncation;
+- 2D;
+- dimensional/front 3D;
+- High Performance;
+- insertion matches preview;
+- Runtime uses the same canonical representation.
+
+### 6. Help / i18n / Manual
+
+After product behavior stabilizes:
+- Help final convergence, including HA, Installation, remote DB and Historical
+  behavior;
+- final pt-BR / en / es convergence on changed surfaces;
+- complete Manual #425, including final workflows, troubleshooting, screenshots
+  and examples.
+
+### 7. Productization #306
+
+Late-stage only:
+- EEE Simulation instructional project v15;
+- EEE real Modbus variant;
+- obey `docs/WAVE14-C11-EEE-REAL-REFERENCE-MAPPING.md`;
+- do not invent PLC scaling/write semantics;
+- produce normal `.escadapkg`;
+- checksum/provenance;
+- final Help/manual/i18n;
+- declare PREVIEW-READY only when the actual final product is ready.
+
+### 8. Final Preview #300
+
+After PREVIEW-READY:
+- fresh environment on the exact final SHA;
+- do not reuse stale Codespace/runtime state;
+- Product Owner human audit;
+- real project creation and use across Engineering, TAG/Data Source,
+  Screens/Popups, Scripts, Dynamos, Historian/Trend/Playback,
+  Security/Authority, Licensing, Installation, HA, restart/reconnect/recovery;
+- resolve residuals;
+- only then decide the external-evaluator candidate.
+
+## Wave 16 boundary
+
+Do not divert Wave 15 into installer implementation.
+
+Wave 16 remains the release-factory/installer wave. Its planning already
+includes:
+- controlled installer/package for project supporters/evaluators;
+- commercial-expansion-ready architecture without making W16 a public
+  commercial launch;
+- Windows/Linux profile architecture;
+- CEF Desktop Host;
+- local/remote server modes;
+- local/remote DB deployment model;
+- licensing/EULA/compliance/SBOM;
+- first Wave 16 operational gate to exclude coordination/development material
+  from distributable packages and preserve that process in future handoffs.
+
+## First actions for the next coordinator
+
+1. Read latest #305 comments, especially outgoing handoff comment
+   `5952754472`.
+2. Read this newest section completely.
+3. Revalidate integration ref and PR #450 exact head.
+4. Confirm PR #450 remains DRAFT and unmerged.
+5. Inspect broad CI #1644 / run `37005642135` fresh.
+6. Do not use the outgoing coordinator's older CI hypotheses as diagnosis.
+7. Keep CODEX-delivered product bytes frozen while classifying CI.
+8. Then rebuild the Wave 15 closeout plan from:
+   `issue requirement -> current product bytes -> current tests -> residual`.
+9. Explicitly retain HA-D2 UI/config/commands and remote DB #366 in the Wave 15
+   remaining scope.
+10. Do not merge unless the Product Owner later authorizes it.
+
+Disposition:
+
+`OUTGOING_HANDOFF / CODEX_PRODUCT_AUTHORITY / PR450_DRAFT_NO_MERGE / T1_383_GREEN / BROAD_1644_RED_UNINVESTIGATED / HA_D2_UI_REQUIRED / REMOTE_DB_REQUIRED`
+
+---
+
 # LATEST DELTA — 2026-10-01 — COORDINATOR RECOVERY / WAVE 15 CHECKPOINT
 
 > Revalidated against GitHub live on 2026-10-01 (America/Sao_Paulo). This

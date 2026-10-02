@@ -48,6 +48,7 @@ builder.AddConfiguredHistorian();
 builder.AddConfiguredServerMemoryRetention();
 builder.Services.AddSingleton<RuntimeHighAvailabilityService>();
 builder.Services.AddRuntimeHighAvailabilityPeerTransport();
+builder.Services.AddRuntimeHighAvailabilityProtection();
 
 builder.Services.AddSingleton(_ => new EngineeringWorkspace(seedDemo: false));
 builder.Services.AddSingleton<ITagRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Tags);

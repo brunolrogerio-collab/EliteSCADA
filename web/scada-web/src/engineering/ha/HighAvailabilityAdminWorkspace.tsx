@@ -224,8 +224,11 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
       const next = await haAdminApi.workspace();
       setSnapshot(next);
       if (!preserveDraft) {
-        const nextDraft = asDraft(next.configuration.desired);
+        const baseDraft = asDraft(next.configuration.desired);
         const prepared = next.topology.enabled || hasPreparedHa(next.configuration.desired);
+        const nextDraft = !next.topology.enabled && !prepared
+          ? prepareHaDraft(baseDraft, typeof window !== 'undefined' ? window.location.origin : '')
+          : baseDraft;
         setDraft(nextDraft);
         setShowSecretEditor(false);
         setOverridePeerEndpoint(Boolean(next.configuration.desired.peerTransport.peerEndpoint));
@@ -248,6 +251,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
 
   const desiredChanged = useMemo(() => {
     if (!snapshot || !draft) return false;
+    if (!snapshot.topology.enabled && deploymentChoice === 'standalone') return false;
     const resolved = deploymentChoice === 'ha'
       ? resolveInternalConfiguration(draft, snapshot.configuration.desired, preferredServer)
       : draft;
@@ -454,7 +458,15 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
             disabled={topology.enabled}
             onClick={() => {
               setDeploymentChoice('standalone');
-              setDraft(asDraft(configuration.desired));
+              setPreferredServer('local');
+              setDraft(
+                topology.enabled
+                  ? asDraft(configuration.desired)
+                  : prepareHaDraft(
+                      asDraft(configuration.desired),
+                      typeof window !== 'undefined' ? window.location.origin : ''
+                    )
+              );
               setShowSecretEditor(false);
               setOverridePeerEndpoint(Boolean(configuration.desired.peerTransport.peerEndpoint));
             }}
@@ -603,7 +615,9 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
           <div className="ha-config-state">
             <span>{t.currentRunning}</span>
             <strong>{topology.enabled ? (configuration.running.clusterId || t.haMode) : t.standaloneMode}</strong>
-            {configuration.pendingRestart && <small>{t.savedDesired}: {configuration.desired.clusterId || '—'}</small>}
+            {configuration.pendingRestart && (
+              <small>{t.savedDesired}: {configuration.desired.enabled || hasPreparedHa(configuration.desired) ? t.haMode : t.standaloneMode}</small>
+            )}
           </div>
         </div>
 

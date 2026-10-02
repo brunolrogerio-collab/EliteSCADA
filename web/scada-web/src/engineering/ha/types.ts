@@ -230,12 +230,31 @@ export type HaAdministrationSnapshot = {
   operations: HaProtectionOperation[];
 };
 
+export type HaLicenseStatus = {
+  state: string;
+  tier?: string | null;
+  schemaVersion?: number | null;
+  haRuntime?: boolean | null;
+  diagnostic?: string | null;
+};
+
+export type HaLicensingSnapshot = {
+  license: HaLicenseStatus;
+  runtime: {
+    state: string;
+    activeLicenseState?: string | null;
+    activeTier?: string | null;
+    lastDiagnostic?: string | null;
+  };
+};
+
 export type HaWorkspaceSnapshot = {
   topology: HaTopologySnapshot;
   authority: HaAuthoritySnapshot;
   administration: HaAdministrationSnapshot;
   configuration: HaHostConfigurationSnapshot;
   peer: HaPeerDiagnostics;
+  licensing: HaLicensingSnapshot;
 };
 
 export type HaActionKind = 'switchover' | 'failback' | 'recovery';

@@ -64,6 +64,33 @@ public sealed class RuntimeHighAvailabilityConfigurationTests
     }
 
     [Fact]
+    public void HostConfiguration_AllowsSameNodeToAdvertiseSameLocalAndRemoteEndpoint()
+    {
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            var values = CreateConfigurationValues(root);
+            values["HighAvailability:Nodes:0:RemoteEndpoint"] =
+                values["HighAvailability:Nodes:0:LocalEndpoint"];
+            values["HighAvailability:Nodes:1:RemoteEndpoint"] =
+                values["HighAvailability:Nodes:1:LocalEndpoint"];
+
+            var authority = new RuntimeHaHostConfigurationAuthority(
+                new ConfigurationBuilder()
+                    .AddInMemoryCollection(values)
+                    .Build());
+
+            var snapshot = authority.Snapshot();
+            Assert.False(snapshot.PendingRestart);
+            Assert.Equal(2, snapshot.Running.Nodes.Count);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task HostConfiguration_TopologyShapeChangeRequiresNewerVersion()
     {
         var root = CreateTemporaryDirectory();
@@ -213,9 +240,14 @@ public sealed class RuntimeHighAvailabilityConfigurationTests
                 ReadyWitnessMaximumAgeSeconds: 60,
                 ClockSkewSafetyMarginSeconds: 1));
 
-    private static IConfiguration CreateConfiguration(string root)
+    private static IConfiguration CreateConfiguration(string root) =>
+        new ConfigurationBuilder()
+            .AddInMemoryCollection(CreateConfigurationValues(root))
+            .Build();
+
+    private static Dictionary<string, string?> CreateConfigurationValues(string root)
     {
-        var values = new Dictionary<string, string?>
+        return new Dictionary<string, string?>
         {
             ["HighAvailability:Enabled"] = "true",
             ["HighAvailability:ClusterId"] = "cluster-a",
@@ -241,10 +273,6 @@ public sealed class RuntimeHighAvailabilityConfigurationTests
             ["HighAvailability:Administration:ConfigurationPath"] =
                 ConfigurationPath(root)
         };
-
-        return new ConfigurationBuilder()
-            .AddInMemoryCollection(values)
-            .Build();
     }
 
     private static string ConfigurationPath(string root) =>

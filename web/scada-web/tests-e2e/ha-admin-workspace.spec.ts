@@ -410,7 +410,7 @@ test('licensed Standalone auto-resolves technical HA identifiers when preparatio
   await page.getByRole('button', { name: 'Configurar autenticação' }).click();
 
   const secret = 'standalone-preparation-secret-with-more-than-32-bytes';
-  await page.getByLabel('Novo peer shared secret').fill(secret);
+  await page.getByLabel('Novo segredo compartilhado').fill(secret);
 
   await expect(page.getByTestId('ha-readiness')).toContainText('Configuração HA pronta para implantação');
   await page.getByRole('button', { name: 'Salvar preparação HA' }).click();
@@ -536,7 +536,7 @@ test('configuration editing keeps peer secret write-only and truthfully shows re
   const secret = 'this-is-a-new-peer-shared-secret-with-40-bytes';
   await expect(page.getByTestId('ha-peer-secret')).toHaveCount(0);
   await page.getByRole('button', { name: 'Trocar segredo' }).click();
-  await page.getByLabel('Novo peer shared secret').fill(secret);
+  await page.getByLabel('Novo segredo compartilhado').fill(secret);
   await page.getByLabel('Servidor parceiro · Endereço externo (opcional)').fill('https://b2.example.test');
   await page.getByRole('button', { name: 'Salvar configuração desejada' }).click();
 

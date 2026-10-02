@@ -311,6 +311,16 @@ test('W15 Historical Playback projects past state read-only across Screen Popup 
 
   const dynamo = page.locator(`[data-object-id="${DYNAMO_INSTANCE_ID}"]`);
   await expect(dynamo).toContainText(/12[,.]5/);
+  await expect(dynamo).toHaveAttribute('data-dynamic-state', 'available');
+
+  // This fixture intentionally has no public Dynamo state parameter. The
+  // rendered historical value is Good/available, while the semantic state
+  // overlay must remain fail-closed because it cannot infer a public state
+  // sample. Preserve that truthful boundary instead of hiding the indicator.
+  const dynamoIndicator = dynamo.getByTestId('runtime-dynamo-state-indicator');
+  await expect(dynamoIndicator).toHaveAttribute('data-dynamo-quality', 'unknown');
+  await expect(dynamoIndicator).toHaveAttribute('data-dynamo-state', 'bad-quality');
+  await expect(dynamoIndicator).toContainText('BAD QUALITY');
 
   await page.getByRole('button', { name: 'Abrir popup' }).click();
   const popup = navigator.locator('[data-popup-key="details"]');

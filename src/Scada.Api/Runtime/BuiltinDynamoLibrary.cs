@@ -243,15 +243,21 @@ public static class BuiltinDynamoLibrary
         {
             return Dynamo(sequence, "process.motor.vfd", "Motor com inversor", "motor", style, 138, 96,
             [
-                BezierShape(E(family, style, 1), "motor", 8, 15, 66, 66,
-                    "M 14 7 C 28 2 72 2 86 7 C 94 18 97 34 97 50 C 97 66 94 82 86 93 C 72 98 28 98 14 93 C 6 82 3 66 3 50 C 3 34 6 18 14 7 Z",
+                Polygon(E(family, style, 1), "motor", 12, 20, 66, 52,
+                    [(8d, 0d), (56d, 0d), (66d, 8d), (66d, 44d), (56d, 52d), (8d, 52d), (0d, 44d), (0d, 8d)],
                     "#C5CDD3", "#374151", 2),
-                FlatShape(E(family, style, 2), "shaft", "core.rectangle", 69, 43, 18, 8, "#9CA3AF", "#374151", 1, 2),
-                FlatShape(E(family, style, 3), "vfd", "core.rectangle", 89, 17, 41, 58, "#D1D5DB", "#374151", 2, 4),
+                FlatShape(E(family, style, 2), "shaft", "core.rectangle", 76, 42, 12, 8, "#9CA3AF", "#374151", 1, 2),
+                FlatShape(E(family, style, 3), "vfd", "core.rectangle", 97, 14, 35, 62, "#D1D5DB", "#374151", 2, 4),
                 Text(E(family, style, 4), "motor-label", "M", 28, 35, 26, 22, 12, "#111827"),
                 Text(E(family, style, 5), "vfd-label", "VFD", 94, 37, 31, 18, 9, "#111827"),
                 StateLamp(E(family, style, 6), "running", 4, 4, "#16A34A", "running", "{equipmentPath}.Running"),
-                StateLamp(E(family, style, 7), "fault", 114, 4, "#DC2626", "fault", "{equipmentPath}.Fault")
+                StateLamp(E(family, style, 7), "fault", 114, 4, "#DC2626", "fault", "{equipmentPath}.Fault"),
+                FlatShape(E(family, style, 8), "motor-end", "core.ellipse", 5, 25, 20, 42, "#AEB7BE", "#374151", 1.5),
+                FlatShape(E(family, style, 9), "terminal", "core.rectangle", 35, 9, 25, 15, "#D1D5DB", "#374151", 1.5, 3),
+                FlatShape(E(family, style, 10), "foot-left", "core.rectangle", 25, 69, 15, 9, "#7D898F", "#374151", 1, 2),
+                FlatShape(E(family, style, 11), "foot-right", "core.rectangle", 58, 69, 15, 9, "#7D898F", "#374151", 1, 2),
+                FlatShape(E(family, style, 12), "motor-base", "core.rectangle", 18, 77, 64, 6, "#5F6A70", "#374151", 1, 2),
+                FlatShape(E(family, style, 13), "control-cable", "core.rectangle", 76, 24, 25, 3, "#58636B", "#374151", 0.75, 1, -24)
             ],
             parameters: VfdMotorParameters());
         }
@@ -259,13 +265,13 @@ public static class BuiltinDynamoLibrary
         var dimensional = style == VisualStyle.DimensionalFront;
         return Dynamo(sequence, "process.motor.vfd", "Motor com inversor", "motor", style, 196, 112,
         [
-            BezierShape(E(family, style, 1), "motor-body", 19, 29, 83, 57,
-                "M 12 5 C 25 2 75 2 88 5 C 95 18 98 34 98 50 C 98 66 95 82 88 95 C 75 98 25 98 12 95 C 5 82 2 66 2 50 C 2 34 5 18 12 5 Z",
+            Polygon(E(family, style, 1), "motor-body", 24, 29, 78, 57,
+                [(9d, 0d), (67d, 0d), (78d, 10d), (78d, 47d), (67d, 57d), (9d, 57d), (0d, 47d), (0d, 10d)],
                 "#AEBCC8", "#334155", 3, dimensional ? "#F8FAFC" : null, "vertical", dimensional),
-            MaterialShape(E(family, style, 2), "motor-end", "core.ellipse", 12, 33, 22, 49, "#94A3B8", "#DDE4EA", "#334155", 2, 0, dimensional, "horizontal"),
-            FlatShape(E(family, style, 3), "shaft", "core.rectangle", 98, 51, 24, 9, "#94A3B8", "#475569", 1, 2),
-            FlatShape(E(family, style, 4), "motor-base", "core.rectangle", 31, 88, 76, 8, "#475569", "#334155", 1, 2),
-            MaterialShape(E(family, style, 5), "vfd", "core.rectangle", 132, 16, 52, 76, "#D8E0E8", "#FFFFFF", "#334155", 2, 6, dimensional, "horizontal", dimensional),
+            MaterialShape(E(family, style, 2), "motor-end", "core.ellipse", 12, 34, 25, 47, "#94A3B8", "#DDE4EA", "#334155", 2, 0, dimensional, "horizontal"),
+            FlatShape(E(family, style, 3), "shaft", "core.rectangle", 99, 51, 14, 9, "#94A3B8", "#475569", 1, 2),
+            FlatShape(E(family, style, 4), "motor-base", "core.rectangle", 31, 91, 78, 7, "#475569", "#334155", 1, 2),
+            MaterialShape(E(family, style, 5), "vfd", "core.rectangle", 133, 14, 51, 80, "#D8E0E8", "#FFFFFF", "#334155", 2, 5, dimensional, "horizontal", dimensional),
             FlatShape(E(family, style, 6), "vfd-screen", "core.rectangle", 142, 27, 32, 18, "#334155", "#0F172A", 1, 2),
             FlatShape(E(family, style, 7), "vfd-key-1", "core.rectangle", 144, 52, 8, 7, "#94A3B8", "#475569", 1, 1),
             FlatShape(E(family, style, 8), "vfd-key-2", "core.rectangle", 156, 52, 8, 7, "#94A3B8", "#475569", 1, 1),
@@ -273,7 +279,12 @@ public static class BuiltinDynamoLibrary
             Text(E(family, style, 10), "motor-label", "M", 49, 45, 24, 20, 11, "#1F2937"),
             Text(E(family, style, 11), "vfd-label", "VFD", 142, 66, 32, 16, 9, "#1F2937"),
             StateLamp(E(family, style, 12), "running", 4, 4, "#22C55E", "running", "{equipmentPath}.Running"),
-            StateLamp(E(family, style, 13), "fault", 173, 4, "#EF4444", "fault", "{equipmentPath}.Fault")
+            StateLamp(E(family, style, 13), "fault", 173, 4, "#EF4444", "fault", "{equipmentPath}.Fault"),
+            MaterialShape(E(family, style, 14), "terminal", "core.rectangle", 52, 11, 34, 20,
+                "#CBD5E1", "#F8FAFC", "#334155", 1.5, 4, dimensional, "vertical"),
+            FlatShape(E(family, style, 15), "foot-left", "core.rectangle", 42, 82, 18, 11, "#64748B", "#334155", 1, 2),
+            FlatShape(E(family, style, 16), "foot-right", "core.rectangle", 86, 82, 18, 11, "#64748B", "#334155", 1, 2),
+            FlatShape(E(family, style, 17), "control-cable", "core.rectangle", 102, 28, 39, 3, "#526575", "#334155", 0.75, 1, -20)
         ],
         parameters: VfdMotorParameters());
     }
@@ -839,14 +850,17 @@ public static class BuiltinDynamoLibrary
                     highPerformance ? "#D5DBDF" : shell, 2.5);
                 Arc("tank-top", 27, 59, 77, 22, 180, 360, dark);
                 Rect("liquid", 33, 98, 65, 47, highPerformance ? "#AEB7BE" : "#74B6CC", 13, 1);
-                Rect("motor", 47, 15, 39, 27, accent, 5);
-                Rect("shaft", 64, 41, 5, 82, dark);
+                Bezier("motor", 47, 13, 39, 25,
+                    "M 10 8 C 22 3 78 3 90 8 L 90 92 C 78 97 22 97 10 92 C 4 75 4 25 10 8 Z",
+                    accent, 2);
+                Rect("shaft", 64, 48, 5, 75, dark);
                 Bar("impeller", 43, 117, 49, 6, dark);
                 Bar("blade-left", 45, 111, 5, 24, dark, -28);
                 Bar("blade-right", 85, 111, 5, 24, dark, 28);
                 Label("MX", 51, 21, 31, 14, 10);
                 Lamp("running", 5, 5, "running", "{equipmentPath}.Running", "#D92D20");
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
+                Rect("gearbox", 54, 36, 25, 16, light, 4, 1.5);
                 break;
             case "electrical.transformer.power":
                 Rect("base", 20, height - 18, width - 40, 8, dark, 2);

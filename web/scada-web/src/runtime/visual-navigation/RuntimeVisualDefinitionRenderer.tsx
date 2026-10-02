@@ -40,6 +40,7 @@ import {
   type RuntimeDynamoStateIndicator
 } from './runtimeDynamoVisualProjection';
 import { writeRuntimeTagValue } from '../runtimeTagWriteApi';
+import { useOptionalHistoricalPlayback } from '../historical-playback/HistoricalPlaybackContext';
 import type { SliderTagWrite } from '../../engineering/visual-editor/SliderVisualElement';
 
 export type RuntimeVisualDefinitionRendererProps = Readonly<{
@@ -89,6 +90,8 @@ export function RuntimeVisualDefinitionRenderer({
   visualAssetUrl
 }: RuntimeVisualDefinitionRendererProps) {
   const runtimeLocale = locale ?? 'pt-BR';
+  const playback = useOptionalHistoricalPlayback();
+  const playbackActive = playback?.mode === 'historicalPlayback';
   const runtimeText = c07VisualEditorText(runtimeLocale).runtimeState;
   const [revision, setRevision] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -104,8 +107,9 @@ export function RuntimeVisualDefinitionRenderer({
     instances,
     onVisualStateChanged: () => setRevision(current => current + 1),
     runtimeFactory,
-    frameClock
-  }), [visualDefinitionId, instances, runtimeFactory, frameClock]);
+    frameClock,
+    tagWriter: playbackActive ? null : undefined
+  }), [visualDefinitionId, instances, runtimeFactory, frameClock, playbackActive]);
   const interactionEventKeys = useMemo(() => {
     const byObject = new Map<string, Set<string>>();
     for (const reference of scriptContext?.visualEventReferences ?? []) {
@@ -134,7 +138,8 @@ export function RuntimeVisualDefinitionRenderer({
     () => collectRuntimeDynamoStateBindingElements(expandedDynamoElements),
     [expandedDynamoElements]
   );
-  const dynamoStateSamples = useVisualBindingSamples(dynamoStateBindingElements);
+  const liveDynamoStateSamples = useVisualBindingSamples(dynamoStateBindingElements, !playbackActive);
+  const dynamoStateSamples = playbackActive ? playback?.samples ?? new Map() : liveDynamoStateSamples;
   const dynamoStateIndicators = useMemo(
     () => resolveRuntimeDynamoStateIndicators(expandedDynamoElements, dynamoStateSamples, runtimeLocale),
     [expandedDynamoElements, dynamoStateSamples, runtimeLocale]
@@ -159,6 +164,10 @@ export function RuntimeVisualDefinitionRenderer({
   }, [expandedDynamoElements, interactionEventKeys]);
 
   const captureObjectInteraction = (event: MouseEvent<HTMLDivElement> | PointerEvent<HTMLDivElement>, eventKey: string) => {
+    // Playback is an inspection surface. Suppress Client Visual Script interaction
+    // dispatch entirely so a script cannot mix Live reads into the historical
+    // projection; tagWriter:null remains defense in depth at the sandbox boundary.
+    if (playbackActive) return;
     if (!scriptContext || !visualDefinitionId.trim()) return;
     const target = event.target;
     if (!(target instanceof Element)) return;
@@ -224,7 +233,9 @@ export function RuntimeVisualDefinitionRenderer({
       equipmentDefinitions={equipmentDefinitions}
       templateDefinitions={templateDefinitions}
       onVisualEvent={onVisualEvent}
-      onTagWrite={onTagWrite}
+      onTagWrite={playbackActive ? undefined : onTagWrite}
+      liveBindings={!playbackActive}
+      bindingSamples={playbackActive ? playback?.samples ?? new Map() : undefined}
       visualAssetUrl={visualAssetUrl}
       showTechnicalFallbackText={false}
       operatorTimeRangeControls

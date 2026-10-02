@@ -17,7 +17,7 @@ import { visualTagSampleKey, type VisualDynamicSample } from './visualDynamicRun
 
 export type VisualLiveScalarSample = VisualDynamicSample;
 
-type RuntimeSourceRequest = Readonly<{
+export type RuntimeVisualSourceRequest = Readonly<{
   kind: 'tag' | 'clientmemory';
   target: string;
   tagReference?: TagValueReferenceEngineering | null;
@@ -29,7 +29,7 @@ export function useVisualBindingSamples(
   enabled = true
 ): ReadonlyMap<string, VisualLiveScalarSample> {
   const bindings = useMemo(() => enabled ? collectBindings(elements) : Object.freeze([]), [elements, enabled]);
-  const requests = useMemo(() => enabled ? collectRuntimeSourceRequests(elements) : Object.freeze([]), [elements, enabled]);
+  const requests = useMemo(() => enabled ? collectRuntimeVisualSourceRequests(elements) : Object.freeze([]), [elements, enabled]);
   const tagRequests = useMemo(() => requests.filter(request => request.kind === 'tag'), [requests]);
   const clientRequests = useMemo(() => requests.filter(request => request.kind === 'clientmemory'), [requests]);
   const [samples, setSamples] = useState<ReadonlyMap<string, VisualLiveScalarSample>>(() => new Map());
@@ -238,8 +238,8 @@ function collectBindings(elements: readonly VisualElementEngineering[] | null | 
   return Object.freeze(result);
 }
 
-function collectRuntimeSourceRequests(elements: readonly VisualElementEngineering[] | null | undefined): readonly RuntimeSourceRequest[] {
-  const result: RuntimeSourceRequest[] = [];
+export function collectRuntimeVisualSourceRequests(elements: readonly VisualElementEngineering[] | null | undefined): readonly RuntimeVisualSourceRequest[] {
+  const result: RuntimeVisualSourceRequest[] = [];
   const addExpression = (expression: VisualExpressionEngineering | null | undefined) => {
     for (const dependency of expression?.dependencies ?? []) {
       result.push(Object.freeze({
@@ -285,9 +285,9 @@ function collectRuntimeSourceRequests(elements: readonly VisualElementEngineerin
   return Object.freeze(uniqueRequests(result));
 }
 
-function uniqueRequests(requests: readonly RuntimeSourceRequest[]): readonly RuntimeSourceRequest[] {
+function uniqueRequests(requests: readonly RuntimeVisualSourceRequest[]): readonly RuntimeVisualSourceRequest[] {
   const seen = new Set<string>();
-  const result: RuntimeSourceRequest[] = [];
+  const result: RuntimeVisualSourceRequest[] = [];
   for (const request of requests) {
     const key = `${request.kind}|${request.tagReference?.tagId?.toLocaleLowerCase() ?? ''}|${request.target}`;
     if (seen.has(key)) continue;
@@ -301,14 +301,14 @@ function bindingDataType(bindings: readonly BindingEngineering[], reference: str
   return bindings.find(binding => binding.target === reference)?.metadata?.sourceDataType ?? 'String';
 }
 
-function requestDataType(requests: readonly RuntimeSourceRequest[], tagId: string, path: string): string {
+function requestDataType(requests: readonly RuntimeVisualSourceRequest[], tagId: string, path: string): string {
   const normalizedId = tagId.trim().toLocaleLowerCase();
   return requests.find(request => request.tagReference?.tagId?.trim().toLocaleLowerCase() === normalizedId || request.target === path)?.dataType ?? 'String';
 }
 
 function markRequestsUnavailable(
   setter: (value: (current: ReadonlyMap<string, VisualLiveScalarSample>) => ReadonlyMap<string, VisualLiveScalarSample>) => void,
-  requests: readonly RuntimeSourceRequest[],
+  requests: readonly RuntimeVisualSourceRequest[],
   bindings: readonly BindingEngineering[],
   disconnected = false
 ) {

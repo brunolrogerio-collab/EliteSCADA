@@ -11,6 +11,7 @@ import type { ClientVisualEventDispatchRecord } from '../../python-runtime/clien
 import { RuntimeLogicalViewport } from './RuntimeLogicalViewport';
 import { resolveRuntimeLogicalSize } from './runtimeLogicalCanvas';
 import { executeRuntimeCommand, RuntimeCommandExecutionError } from './runtimeCommandApi';
+import { useOptionalHistoricalPlayback } from '../historical-playback/HistoricalPlaybackContext';
 import { writeRuntimeTagValue } from '../runtimeTagWriteApi';
 import { loadReadableRuntimeTags } from '../liveTagTransport';
 import { resolvePopupLogicalBounds, resolvePopupLogicalPosition } from './runtimePopupPosition';
@@ -74,6 +75,8 @@ export function RuntimeVisualNavigator({
   );
   const [state, setState] = useState<RuntimeVisualNavigationState | null>(initialResolution.state);
   const [diagnostic, setDiagnostic] = useState<RuntimeVisualCompositionError | null>(initialResolution.diagnostic);
+  const playback = useOptionalHistoricalPlayback();
+  const playbackActive = playback?.mode === 'historicalPlayback';
 
   useEffect(() => {
     const next = resolveInitialNavigation(catalog, initialScreenKey);
@@ -102,6 +105,13 @@ export function RuntimeVisualNavigator({
       const rawAction = resolveVisualNavigationAction(event.element, event.eventKey);
       if (!rawAction) return;
       const action = normalizeVisualActionWireKind(rawAction);
+      if (playbackActive &&
+          (action.kind === 'ExecuteCommand' || action.kind === 'SetTagValue' || action.kind === 'ToggleTagBoolean')) {
+        throw new RuntimeVisualCompositionError(
+          'HISTORICAL_PLAYBACK_READ_ONLY',
+          `Runtime action '${action.kind}' is blocked while Historical Playback is active.`
+        );
+      }
       if (action.kind === 'ExecuteCommand') {
         const commandId = action.commandId?.trim();
         if (!commandId) {
@@ -167,6 +177,8 @@ export function RuntimeVisualNavigator({
     className="runtime-visual-navigator"
     data-testid="runtime-visual-navigator"
     data-active-screen-key={state.activeScreenKey}
+    data-runtime-temporal-mode={playbackActive ? 'historical-playback' : 'live'}
+    data-runtime-historical-at={playbackActive ? playback?.atUtc ?? undefined : undefined}
   >
     <RuntimeLogicalViewport designSize={designSize}>
       <div className="runtime-logical-composition">

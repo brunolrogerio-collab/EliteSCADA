@@ -40,6 +40,7 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         self.assertEqual(result["e2e_specs"], [
             "tests-e2e/runtime.spec.ts",
             "tests-e2e/wave-14-c25-runtime-session.spec.ts",
+            "tests-e2e/wave-15-historical-playback.spec.ts",
         ])
 
     def test_installation_profile_owns_fresh_install_browser_evidence(self):

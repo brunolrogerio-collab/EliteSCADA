@@ -72,6 +72,69 @@ public sealed class DataQueryApiTests
         Assert.DoesNotContain(protectedDetail, error.Error);
     }
 
+    [Fact]
+    public async Task ExecuteTransientDataQueryAsync_UsesCanonicalDataQueryAuthority_AndSanitizesFailures()
+    {
+        var definition = new DataQueryEngineeringDto(
+            Guid.NewGuid(),
+            "runtime-playback",
+            "Runtime Playback",
+            DataQueryExecutionService.HistoricalProviderKey,
+            new HistoricalQueryRequest(
+                HistoricalDatasets.HistorianSamples,
+                HistoricalTimeRange.Absolute(
+                    DateTimeOffset.UnixEpoch,
+                    DateTimeOffset.UnixEpoch.AddHours(1))),
+            Version: 1);
+        var response = new DataQueryExecutionResponse(
+            1,
+            definition.Id!.Value,
+            definition.Key,
+            HistoricalDatasets.HistorianSamples,
+            HistorianRetrievalMode.AtOrBefore,
+            Array.Empty<HistoricalColumn>(),
+            Array.Empty<DataQueryExecutionRow>(),
+            DateTimeOffset.UnixEpoch,
+            DateTimeOffset.UnixEpoch.AddHours(1),
+            null,
+            1);
+        var request = new TransientDataQueryExecutionRequest(definition);
+
+        var ok = await HistoricalQueryApi.ExecuteTransientDataQueryAsync(
+            request,
+            new StubTransientService((actual, _, _) =>
+            {
+                Assert.Same(definition, actual);
+                return Task.FromResult(response);
+            }));
+        Assert.Equal(StatusCodes.Status200OK, Assert.IsAssignableFrom<IStatusCodeHttpResult>(ok).StatusCode);
+
+        const string protectedDetail = "provider connection detail";
+        var unavailable = await HistoricalQueryApi.ExecuteTransientDataQueryAsync(
+            request,
+            new StubTransientService((_, _, _) => Task.FromException<DataQueryExecutionResponse>(
+                new HistoricalQueryProviderException(
+                    "provider",
+                    new InvalidOperationException(protectedDetail)))));
+        Assert.Equal(
+            StatusCodes.Status503ServiceUnavailable,
+            Assert.IsAssignableFrom<IStatusCodeHttpResult>(unavailable).StatusCode);
+        var error = Assert.IsType<HistoricalQueryApiError>(
+            Assert.IsAssignableFrom<IValueHttpResult>(unavailable).Value);
+        Assert.DoesNotContain(protectedDetail, error.Error);
+    }
+
+    private sealed class StubTransientService(
+        Func<DataQueryEngineeringDto, DataQueryExecutionRequest, CancellationToken, Task<DataQueryExecutionResponse>> execute)
+        : ITransientDataQueryExecutionService
+    {
+        public Task<DataQueryExecutionResponse> ExecuteTransientAsync(
+            DataQueryEngineeringDto definition,
+            DataQueryExecutionRequest? request = null,
+            CancellationToken cancellationToken = default) =>
+            execute(definition, request ?? new DataQueryExecutionRequest(), cancellationToken);
+    }
+
     private sealed class StubService(
         Func<string, DataQueryExecutionRequest, CancellationToken, Task<DataQueryExecutionResponse>> execute)
         : IDataQueryExecutionService

@@ -223,7 +223,13 @@ public static class BuiltinDynamoLibrary
                 FlatShape(E(family, style, 4), "base", "core.rectangle", 29, 76, 61, 7, "#5F6A70", "#374151", 1, 2),
                 Text(E(family, style, 5), "label", "M", 47, 35, 24, 20, 12, "#111827"),
                 StateLamp(E(family, style, 6), "running", 4, 4, "#16A34A", "running", "{equipmentPath}.Running"),
-                StateLamp(E(family, style, 7), "fault", 82, 4, "#DC2626", "fault", "{equipmentPath}.Fault")
+                StateLamp(E(family, style, 7), "fault", 82, 4, "#DC2626", "fault", "{equipmentPath}.Fault"),
+                FlatShape(E(family, style, 22), "fan-cowl-ring", "core.ellipse", 11, 22, 30, 46,
+                    "#00000000", "#66737C", 1.2),
+                FlatShape(E(family, style, 23), "terminal-cover", "core.rectangle", 51, 4, 20, 5,
+                    "#A7B0B7", "#374151", 1, 2),
+                FlatShape(E(family, style, 24), "cable-gland", "core.ellipse", 57, 1, 8, 7,
+                    "#7B878F", "#374151", 1)
             ],
             parameters: MotorParameters());
         }
@@ -253,6 +259,8 @@ public static class BuiltinDynamoLibrary
             FlatShape(E(family, style, 18), "terminal-cover", "core.rectangle", 65, 4, 28, 6, "#94A3B8", "#334155", 1, 2),
             FlatShape(E(family, style, 19), "cable-gland", "core.ellipse", 73, 1, 10, 8, "#71808A", "#334155", 1),
             FlatShape(E(family, style, 20), "nameplate", "core.rectangle", 72, 40, 22, 13, "#E7ECEF", "#52606A", 1, 2),
+            FlatShape(E(family, style, 21), "fan-cowl-ring", "core.ellipse", 18, 24, 38, 51,
+                "#00000000", dimensional ? "#5C7484" : "#64748B", 1.3),
             Text(E(family, style, 15), "label", "M", 74, 40, 18, 13, 10, "#1F2937"),
             StateLamp(E(family, style, 16), "running", 5, 4, "#22C55E", "running", "{equipmentPath}.Running"),
             StateLamp(E(family, style, 17), "fault", 126, 4, "#EF4444", "fault", "{equipmentPath}.Fault")
@@ -1450,7 +1458,7 @@ public static class BuiltinDynamoLibrary
             : new Dictionary<string, string>(element.Metadata);
 
         metadata["visualGrammar"] = "industrial-orthographic-v1";
-        var visualRole = IndustrialVisualRole(element.Key, element.Type);
+        var visualRole = IndustrialVisualRole(familyKey, element.Key, element.Type);
         metadata["visualRole"] = visualRole;
 
         var finish = FinishProfile(style);
@@ -1464,6 +1472,10 @@ public static class BuiltinDynamoLibrary
                 "primary-mass" => finish.Shell,
                 "process-connection" => finish.Mid,
                 "fastener-detail" => finish.Mid,
+                "functional-internal"
+                    when TryParseArtworkColor(authoredFill.GetString(), out _, out _, out _) => finish.Mid,
+                "instrument-detail"
+                    when TryParseArtworkColor(authoredFill.GetString(), out _, out _, out _) => finish.Dark,
                 _ when TryParseArtworkColor(authoredFill.GetString(), out var red, out var green, out var blue) &&
                     !IsNeutralArtworkColor(red, green, blue) => finish.Mid,
                 _ => null
@@ -1476,7 +1488,7 @@ public static class BuiltinDynamoLibrary
         if (!preserveSemanticColor &&
             properties.TryGetValue("strokeColor", out var authoredStroke) &&
             authoredStroke.ValueKind == JsonValueKind.String &&
-            visualRole is "primary-mass" or "process-connection" or "fastener-detail")
+            visualRole is "primary-mass" or "process-connection" or "fastener-detail" or "functional-internal")
         {
             properties["strokeColor"] = JsonSerializer.SerializeToElement(
                 visualRole == "primary-mass" ? finish.Outline : finish.SoftOutline);
@@ -1555,8 +1567,10 @@ public static class BuiltinDynamoLibrary
             var normalizedStroke = role switch
             {
                 "primary-mass" => Math.Clamp(strokeWidth, 1.5, 2),
-                "fastener-detail" => Math.Clamp(strokeWidth, 1, 1),
+                "fastener-detail" => 1d,
                 "process-connection" => Math.Clamp(strokeWidth, 1, 1.5),
+                "functional-internal" => style == VisualStyle.HighPerformance ? 1d : 1.5d,
+                "instrument-detail" => 1d,
                 _ => Math.Clamp(strokeWidth, 1, 1.5)
             };
             normalizedStroke = Math.Round(normalizedStroke * 2, MidpointRounding.AwayFromZero) / 2;
@@ -1577,7 +1591,7 @@ public static class BuiltinDynamoLibrary
             "liquid" or "liquid-line" or "needle" ||
         (familyKey == "process.instrument.indicator" && key is "face" or "inner");
 
-    private static string IndustrialVisualRole(string key, string type)
+    private static string IndustrialVisualRole(string familyKey, string key, string type)
     {
         if (IsPrimaryDimensionalMass(key) ||
             key is "volute-case" or "motor-end" or "case-cover" or "rotor" or "outer-case")
@@ -1592,9 +1606,25 @@ public static class BuiltinDynamoLibrary
             key.Contains("inlet", StringComparison.Ordinal) ||
             key.Contains("outlet", StringComparison.Ordinal))
             return "process-connection";
+        if (familyKey == "process.instrument.indicator" &&
+            (key is "scale-arc" or "needle" or "hub" ||
+             key.StartsWith("tick-", StringComparison.Ordinal)))
+            return "instrument-detail";
+        if (IsFunctionalInternalKey(key))
+            return "functional-internal";
         if (type == "core.text") return "annotation";
         return "secondary-detail";
     }
+
+    private static bool IsFunctionalInternalKey(string key) =>
+        key is "wear-ring" or "volute-tongue" or "impeller" or "impeller-eye-ring" or
+            "seat-ring" or "closure-member" or "plug" or "gate-plate" or "packing-gland" or
+            "bore" or "disc" or "disc-edge" or "ball" or "core-window" ||
+        key is "rotor-left" or "rotor-right" ||
+        key.StartsWith("tube-sheet-", StringComparison.Ordinal) ||
+        key.StartsWith("baffle-", StringComparison.Ordinal) ||
+        key.StartsWith("winding-band-", StringComparison.Ordinal) ||
+        key.StartsWith("ground-", StringComparison.Ordinal);
 
     private static string VisualGrammarGroup(string familyKey) => familyKey switch
     {

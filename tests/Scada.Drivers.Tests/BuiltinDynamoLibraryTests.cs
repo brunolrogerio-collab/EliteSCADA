@@ -318,7 +318,7 @@ public sealed class BuiltinDynamoLibraryTests
         foreach (var variant in variants)
         {
             var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
-            foreach (var key in new[] { "body", "end-bell-left", "end-bell-right", "shaft", "terminal", "foot-left", "foot-right", "base" })
+            foreach (var key in new[] { "body", "end-bell-left", "end-bell-right", "shaft", "terminal", "terminal-cover", "cable-gland", "fan-cowl-ring", "foot-left", "foot-right", "base" })
                 Assert.True(elements.ContainsKey(key), $"Motor variant '{variant.Key}' is missing industrial anatomy element '{key}'.");
 
             var axisCenters = new[] { "body", "end-bell-left", "end-bell-right", "shaft" }
@@ -336,8 +336,6 @@ public sealed class BuiltinDynamoLibraryTests
 
             if (variant.Properties!["visualStyle"] != "high-performance")
             {
-                Assert.Contains("terminal-cover", elements.Keys);
-                Assert.Contains("cable-gland", elements.Keys);
                 Assert.Contains("nameplate", elements.Keys);
                 Assert.Contains(variant.Elements!, element => element.Key.StartsWith("detail-fan-cowl-vent-", StringComparison.Ordinal));
             }
@@ -968,6 +966,62 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void IndustrialGrammar_SeparatesFunctionalInternalsFromInstrumentDetails()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        var detailedPump = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "dynamo.pump.standard" &&
+            definition.Properties!["visualStyle"] == "detailed-2d");
+        var pumpElements = detailedPump.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+        Assert.Equal("functional-internal", pumpElements["wear-ring"].Metadata!["visualRole"]);
+        Assert.Equal("functional-internal", pumpElements["volute-tongue"].Metadata!["visualRole"]);
+        Assert.Equal(1.5, pumpElements["wear-ring"].Properties!["strokeWidth"].GetDouble(), precision: 6);
+
+        var hpControlValve = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "process.valve.control" &&
+            definition.Properties!["visualStyle"] == "high-performance");
+        var hpControlElements = hpControlValve.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+        Assert.Equal("functional-internal", hpControlElements["plug"].Metadata!["visualRole"]);
+        Assert.Equal(1, hpControlElements["plug"].Properties!["strokeWidth"].GetDouble(), precision: 6);
+
+        var indicator = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "process.instrument.indicator" &&
+            definition.Properties!["visualStyle"] == "detailed-2d");
+        var indicatorElements = indicator.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+        Assert.Equal("instrument-detail", indicatorElements["scale-arc"].Metadata!["visualRole"]);
+        Assert.Equal("instrument-detail", indicatorElements["needle"].Metadata!["visualRole"]);
+        Assert.Equal(1, indicatorElements["scale-arc"].Properties!["strokeWidth"].GetDouble(), precision: 6);
+    }
+
+    [Fact]
+    public void IndustrialGrammar_NormalizesFunctionalInternalFillWithoutFillingOutlineRings()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        var detailedBall = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "process.valve.ball" &&
+            definition.Properties!["visualStyle"] == "detailed-2d");
+        var ballElements = detailedBall.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+        Assert.Equal("functional-internal", ballElements["ball"].Metadata!["visualRole"]);
+        Assert.Equal("#718795", ballElements["ball"].Properties!["fillColor"].GetString());
+
+        var detailedPump = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "dynamo.pump.standard" &&
+            definition.Properties!["visualStyle"] == "detailed-2d");
+        var pumpElements = detailedPump.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+        Assert.Equal("#00000000", pumpElements["wear-ring"].Properties!["fillColor"].GetString());
+        Assert.Equal("#718795", pumpElements["volute-tongue"].Properties!["fillColor"].GetString());
+
+        var indicator = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "process.instrument.indicator" &&
+            definition.Properties!["visualStyle"] == "detailed-2d");
+        var indicatorElements = indicator.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+        Assert.Equal("instrument-detail", indicatorElements["hub"].Metadata!["visualRole"]);
+        Assert.Equal("#3D5362", indicatorElements["hub"].Properties!["fillColor"].GetString());
+    }
+
+    [Fact]
     public void IndustrialGrammar_NormalizesDecorativeAccentColorsByFunctionalRole()
     {
         var definitions = BuiltinDynamoLibrary.Create();
@@ -1237,7 +1291,7 @@ public sealed class BuiltinDynamoLibraryTests
         {
             ["dynamo.pump.standard"] = ["casing", "impeller", "wear-ring", "volute-tongue", "base"],
             ["process.pump.submersible"] = ["body", "pump-housing", "intake", "outlet", "cable"],
-            ["process.motor.standard"] = ["body", "shaft", "terminal", "base"],
+            ["process.motor.standard"] = ["body", "end-bell-left", "end-bell-right", "shaft", "terminal", "terminal-cover", "cable-gland", "fan-cowl-ring", "foot-left", "foot-right", "base"],
             ["process.motor.vfd"] = ["shaft", "vfd", "vfd-screen", "vfd-cable-gland", "vfd-mounting-rail", "terminal", "motor-base", "control-cable"],
             ["process.valve.onoff"] = ["body-left", "body-right", "stem", "actuator", "closure-member"],
             ["process.valve.control"] = ["body-left", "body-right", "stem", "actuator", "plug"],

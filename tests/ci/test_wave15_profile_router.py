@@ -13,6 +13,26 @@ class Wave15ProfileRouterTests(unittest.TestCase):
     def classify(self, paths, body="VALIDATION_PROFILE: DOCS_I18N_HELP", override="", mode="pr"):
         return router.classify(paths, body, override, mode)
 
+    def test_ci_infra_runs_only_common_sanity(self):
+        result = self.classify(
+            [".github/workflows/dotnet-ci.yml"],
+            "VALIDATION_PROFILE: CI_INFRA",
+        )
+        self.assertIn("CI_INFRA", result["effective_profiles"])
+        self.assertTrue(result["run_common_sanity"])
+        self.assertFalse(result["run_web"])
+        self.assertFalse(result["run_dotnet"])
+        self.assertFalse(result["run_e2e"])
+        self.assertFalse(result["run_driver"])
+
+    def test_ci_paths_infer_ci_infra_without_hiding_declared_product_risk(self):
+        result = self.classify(
+            ["scripts/ci/ha_d1_two_process_evidence.py"],
+            "VALIDATION_PROFILE: HA_DISTRIBUTED",
+        )
+        self.assertEqual(result["effective_profiles"], ["HA_DISTRIBUTED", "CI_INFRA"])
+        self.assertTrue(result["run_dotnet"])
+
     def test_docs_only_has_no_backend_browser_or_driver_job(self):
         result = self.classify(["docs/guide.md"])
         self.assertFalse(result["run_dotnet"])

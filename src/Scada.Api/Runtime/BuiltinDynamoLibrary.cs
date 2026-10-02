@@ -312,10 +312,10 @@ public static class BuiltinDynamoLibrary
             [
                 FlatShape(E(family, style, 1), "pipe-left", "core.rectangle", 3, 44, 32, 9, "#9CA3AF", "#4B5563", 1, 2),
                 BezierShape(E(family, style, 2), "body-left", 31, 31, 34, 34,
-                    "M 0 24 C 20 10 50 8 100 28 L 100 72 C 50 92 20 90 0 76 Z",
+                    "M 0 35 L 22 26 C 42 18 68 14 100 20 L 100 80 C 68 86 42 82 22 74 L 0 65 Z",
                     "#C5CDD3", "#374151", 2),
                 BezierShape(E(family, style, 3), "body-right", 63, 31, 34, 34,
-                    "M 100 24 C 80 10 50 8 0 28 L 0 72 C 50 92 80 90 100 76 Z",
+                    "M 100 35 L 78 26 C 58 18 32 14 0 20 L 0 80 C 32 86 58 82 78 74 L 100 65 Z",
                     "#C5CDD3", "#374151", 2),
                 FlatShape(E(family, style, 4), "pipe-right", "core.rectangle", 94, 44, 31, 9, "#9CA3AF", "#4B5563", 1, 2),
                 FlatShape(E(family, style, 5), "stem", "core.rectangle", 61, 20, 5, 17, "#6B7280", "#374151", 1),
@@ -326,7 +326,8 @@ public static class BuiltinDynamoLibrary
                 StateLamp(E(family, style, 7), "open", 5, 5, "#16A34A", "open", "{equipmentPath}.Open"),
                 StateLamp(E(family, style, 8), "fault", 104, 5, "#DC2626", "fault", "{equipmentPath}.Fault"),
                 FlatShape(E(family, style, 10), "flange-left", "core.rectangle", 28, 37, 7, 23, "#B7C0C6", "#374151", 1.5, 1),
-                FlatShape(E(family, style, 11), "flange-right", "core.rectangle", 94, 37, 7, 23, "#B7C0C6", "#374151", 1.5, 1)
+                FlatShape(E(family, style, 11), "flange-right", "core.rectangle", 94, 37, 7, 23, "#B7C0C6", "#374151", 1.5, 1),
+                FlatShape(E(family, style, 12), "seat-ring", "core.ellipse", 59, 36, 10, 25, "#AEB7BE", "#374151", 1.2)
             ],
             parameters: OnOffValveParameters());
         }
@@ -337,10 +338,10 @@ public static class BuiltinDynamoLibrary
             MaterialShape(E(family, style, 1), "pipe-left", "core.rectangle", 2, 54, 43, 12, "#AAB8C5", "#F8FAFC", "#475569", 1, 3, dimensional, "vertical"),
             MaterialShape(E(family, style, 2), "flange-left", "core.rectangle", 29, 46, 10, 28, "#94A3B8", "#DDE4EA", "#334155", 2, 2, dimensional, "horizontal"),
             BezierShape(E(family, style, 3), "body-left", 39, 38, 43, 43,
-                "M 0 24 C 20 10 50 8 100 28 L 100 72 C 50 92 20 90 0 76 Z",
+                "M 0 35 L 22 26 C 42 18 68 14 100 20 L 100 80 C 68 86 42 82 22 74 L 0 65 Z",
                 "#B8C4CF", "#334155", 2, dimensional ? "#F8FAFC" : null, "diagonal-down", dimensional),
             BezierShape(E(family, style, 4), "body-right", 80, 38, 43, 43,
-                "M 100 24 C 80 10 50 8 0 28 L 0 72 C 50 92 80 90 100 76 Z",
+                "M 100 35 L 78 26 C 58 18 32 14 0 20 L 0 80 C 32 86 58 82 78 74 L 100 65 Z",
                 "#B8C4CF", "#334155", 2, dimensional ? "#F8FAFC" : null, "diagonal-up", dimensional),
             MaterialShape(E(family, style, 5), "flange-right", "core.rectangle", 124, 46, 10, 28, "#94A3B8", "#DDE4EA", "#334155", 2, 2, dimensional, "horizontal"),
             MaterialShape(E(family, style, 6), "pipe-right", "core.rectangle", 132, 54, 30, 12, "#AAB8C5", "#F8FAFC", "#475569", 1, 3, dimensional, "vertical"),
@@ -352,7 +353,9 @@ public static class BuiltinDynamoLibrary
             MaterialShape(E(family, style, 12), "bonnet", "core.ellipse", 71, 24, 21, 13,
                 "#AAB8C5", "#E4EBEF", "#334155", 1.5, 0, dimensional, "vertical"),
             StateLamp(E(family, style, 10), "open", 5, 5, "#22C55E", "open", "{equipmentPath}.Open"),
-            StateLamp(E(family, style, 11), "fault", 140, 5, "#EF4444", "fault", "{equipmentPath}.Fault")
+            StateLamp(E(family, style, 11), "fault", 140, 5, "#EF4444", "fault", "{equipmentPath}.Fault"),
+            MaterialShape(E(family, style, 13), "seat-ring", "core.ellipse", 76, 45, 13, 30,
+                "#AAB8C5", "#E4EBEF", "#334155", 1.2, 0, dimensional, "vertical")
         ],
         parameters: OnOffValveParameters());
     }
@@ -367,10 +370,10 @@ public static class BuiltinDynamoLibrary
             [
                 FlatShape(E(family, style, 1), "pipe-left", "core.rectangle", 3, 60, 31, 9, "#9CA3AF", "#4B5563", 1, 2),
                 BezierShape(E(family, style, 2), "body-left", 31, 47, 34, 34,
-                    "M 0 30 C 22 12 54 8 100 18 L 100 82 C 54 92 22 88 0 70 Z",
+                    "M 0 42 C 25 38 50 24 100 12 L 100 88 C 50 76 25 62 0 58 Z",
                     "#C5CDD3", "#374151", 2),
                 BezierShape(E(family, style, 3), "body-right", 63, 47, 34, 34,
-                    "M 100 30 C 78 12 46 8 0 18 L 0 82 C 46 92 78 88 100 70 Z",
+                    "M 100 42 C 75 38 50 24 0 12 L 0 88 C 50 76 75 62 100 58 Z",
                     "#C5CDD3", "#374151", 2),
                 FlatShape(E(family, style, 4), "pipe-right", "core.rectangle", 94, 60, 31, 9, "#9CA3AF", "#4B5563", 1, 2),
                 FlatShape(E(family, style, 5), "stem", "core.rectangle", 61, 29, 5, 24, "#6B7280", "#374151", 1),
@@ -381,7 +384,10 @@ public static class BuiltinDynamoLibrary
                 FlatShape(E(family, style, 9), "bonnet", "core.ellipse", 55, 26, 18, 11, "#AEB7BE", "#374151", 1),
                 StateLamp(E(family, style, 8), "fault", 104, 5, "#DC2626", "fault", "{equipmentPath}.Fault"),
                 FlatShape(E(family, style, 10), "flange-left", "core.rectangle", 28, 53, 7, 23, "#B7C0C6", "#374151", 1.5, 1),
-                FlatShape(E(family, style, 11), "flange-right", "core.rectangle", 94, 53, 7, 23, "#B7C0C6", "#374151", 1.5, 1)
+                FlatShape(E(family, style, 11), "flange-right", "core.rectangle", 94, 53, 7, 23, "#B7C0C6", "#374151", 1.5, 1),
+                FlatShape(E(family, style, 12), "seat-ring", "core.ellipse", 59, 52, 10, 27, "#AEB7BE", "#374151", 1.2),
+                FlatShape(E(family, style, 13), "yoke-left", "core.rectangle", 51, 29, 4, 22, "#89959D", "#374151", 1, 1),
+                FlatShape(E(family, style, 14), "yoke-right", "core.rectangle", 73, 29, 4, 22, "#89959D", "#374151", 1, 1)
             ],
             parameters: ControlValveParameters());
         }
@@ -392,10 +398,10 @@ public static class BuiltinDynamoLibrary
             MaterialShape(E(family, style, 1), "pipe-left", "core.rectangle", 2, 78, 44, 12, "#AAB8C5", "#F8FAFC", "#475569", 1, 3, dimensional, "vertical"),
             MaterialShape(E(family, style, 2), "flange-left", "core.rectangle", 30, 69, 10, 30, "#94A3B8", "#DDE4EA", "#334155", 2, 2, dimensional, "horizontal"),
             BezierShape(E(family, style, 3), "body-left", 39, 60, 43, 43,
-                "M 0 30 C 22 12 54 8 100 18 L 100 82 C 54 92 22 88 0 70 Z",
+                "M 0 42 C 25 38 50 24 100 12 L 100 88 C 50 76 25 62 0 58 Z",
                 "#B8C4CF", "#334155", 2, dimensional ? "#F8FAFC" : null, "diagonal-down", dimensional),
             BezierShape(E(family, style, 4), "body-right", 80, 60, 43, 43,
-                "M 100 30 C 78 12 46 8 0 18 L 0 82 C 46 92 78 88 100 70 Z",
+                "M 100 42 C 75 38 50 24 0 12 L 0 88 C 50 76 75 62 100 58 Z",
                 "#B8C4CF", "#334155", 2, dimensional ? "#F8FAFC" : null, "diagonal-up", dimensional),
             MaterialShape(E(family, style, 5), "flange-right", "core.rectangle", 124, 69, 10, 30, "#94A3B8", "#DDE4EA", "#334155", 2, 2, dimensional, "horizontal"),
             MaterialShape(E(family, style, 6), "pipe-right", "core.rectangle", 132, 78, 32, 12, "#AAB8C5", "#F8FAFC", "#475569", 1, 3, dimensional, "vertical"),
@@ -407,7 +413,11 @@ public static class BuiltinDynamoLibrary
             MaterialShape(E(family, style, 12), "bonnet", "core.ellipse", 71, 42, 21, 14,
                 "#AAB8C5", "#E4EBEF", "#334155", 1.5, 0, dimensional, "vertical"),
             Text(E(family, style, 10), "label", "%", 70, 17, 24, 18, 10, "#1F2937"),
-            StateLamp(E(family, style, 11), "fault", 140, 5, "#EF4444", "fault", "{equipmentPath}.Fault")
+            StateLamp(E(family, style, 11), "fault", 140, 5, "#EF4444", "fault", "{equipmentPath}.Fault"),
+            MaterialShape(E(family, style, 13), "seat-ring", "core.ellipse", 75, 67, 14, 31,
+                "#AAB8C5", "#E4EBEF", "#334155", 1.2, 0, dimensional, "vertical"),
+            FlatShape(E(family, style, 14), "yoke-left", "core.rectangle", 64, 43, 4, 24, "#738391", "#334155", 1, 1),
+            FlatShape(E(family, style, 15), "yoke-right", "core.rectangle", 96, 43, 4, 24, "#738391", "#334155", 1, 1)
         ],
         parameters: ControlValveParameters());
     }
@@ -849,6 +859,7 @@ public static class BuiltinDynamoLibrary
                 Lamp("open", 5, 5, "open", "{equipmentPath}.Open", "#16A34A");
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
                 Rect("bonnet", centerX - 14, 58, 28, 17, light, 4, 1.5);
+                Ellipse("handwheel-inner", centerX - 11, 10, 22, 20, "#F5F7F8", 1);
                 break;
             case "process.exchanger.shell-tube":
                 Bezier("shell", 17, 35, 130, 56,
@@ -930,6 +941,8 @@ public static class BuiltinDynamoLibrary
                 Bezier("conservator", 103, 24, 34, 16,
                     "M 8 8 C 20 2 80 2 92 8 L 92 92 C 80 98 20 98 8 92 Z", light, 1.5);
                 Bar("conservator-neck", 108, 37, 5, 12, dark);
+                Bezier("bushing-center", 68, 8, 13, 32,
+                    "M 38 2 L 62 2 L 76 98 L 24 98 Z", light, 1.5);
                 break;
             case "electrical.breaker":
                 Rect("base", 18, height - 18, width - 36, 8, dark, 2);
@@ -948,6 +961,8 @@ public static class BuiltinDynamoLibrary
                 Rect("mechanism-box", 49, 80, 34, 28, shell, 3, 1.5);
                 Bar("linkage-left", 43, 69, 11, 4, dark, 28);
                 Bar("linkage-right", 81, 69, 11, 4, dark, -28);
+                Ellipse("interrupter-cap-left", 35, 51, 12, 24, light, 1.2);
+                Ellipse("interrupter-cap-right", 87, 51, 12, 24, light, 1.2);
                 break;
             case "electrical.disconnector":
             case "electrical.earthing-switch":
@@ -968,11 +983,11 @@ public static class BuiltinDynamoLibrary
                     earthingSwitch ? 13 : 15,
                     light);
                 Ellipse("insulator-right-top", width - 41, 53, 20, 15, light);
-                Ellipse("contact-left",
-                    earthingSwitch ? 27 : 26,
-                    earthingSwitch ? 58 : 39,
-                    16, 16, accent);
-                Ellipse("contact-right", width - 42, 39, 16, 16, accent);
+                Rect("contact-left",
+                    earthingSwitch ? 28 : 27,
+                    earthingSwitch ? 60 : 41,
+                    14, 8, accent, 2, 1.2);
+                Rect("contact-right", width - 40, 41, 14, 8, accent, 2, 1.2);
                 Bar("blade",
                     earthingSwitch ? 35 : 34,
                     earthingSwitch ? 55 : 41,
@@ -997,18 +1012,22 @@ public static class BuiltinDynamoLibrary
                 break;
             }
             case "electrical.generator":
-                Rect("base", 23, height - 19, width - 43, 8, dark, 2);
-                Bezier("stator", 24, 20, 90, 76,
-                    "M 12 5 C 24 2 76 2 88 5 C 96 18 98 34 98 50 C 98 66 96 82 88 95 C 76 98 24 98 12 95 C 4 82 2 66 2 50 C 2 34 4 18 12 5 Z",
+                Rect("base", 22, height - 17, width - 38, 7, dark, 2);
+                Bezier("stator", 36, 30, 78, 52,
+                    "M 10 5 C 22 2 78 2 90 5 L 96 18 L 96 82 L 90 95 C 78 98 22 98 10 95 L 4 82 L 4 18 Z",
                     shell, 3);
-                Ellipse("rotor", 41, 34, 56, 48, light, 2);
-                Ellipse("hub", 59, 49, 20, 18, accent, 1);
-                Rect("shaft", 107, 53, 34, 9, dark, 2);
+                Ellipse("rotor", 27, 35, 28, 42, light, 2);
+                Ellipse("hub", 36, 49, 11, 14, accent, 1);
+                Rect("shaft", 111, 51, 31, 8, dark, 2);
                 for (var index = 0; index < (highPerformance ? 3 : 5); index++)
-                    Bar($"stator-slot-{index + 1}", 40 + index * (highPerformance ? 20 : 12), 27, 3, 9, dark);
-                Label("G", 55, 48, 31, 20, 13);
+                    Bar($"stator-slot-{index + 1}", 52 + index * (highPerformance ? 18 : 12), 36, 2, 39, dark);
+                Label("G", 61, 47, 26, 18, 11);
                 Lamp("running", 5, 5, "running", "{equipmentPath}.Running", "#D92D20");
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
+                Ellipse("end-bell-right", 104, 35, 19, 42, light, 1.5);
+                Rect("terminal-box", 61, 16, 29, 15, light, 4, 1.5);
+                Rect("foot-left", 48, 80, 18, 12, shell, 2, 1.2);
+                Rect("foot-right", 91, 80, 18, 12, shell, 2, 1.2);
                 break;
             case "electrical.current-transformer":
                 Rect("primary-conductor", 5, 68, width - 10, 9, dark, 2, 1.5);
@@ -1797,7 +1816,7 @@ public static class BuiltinDynamoLibrary
                 }
                 Dot("oil-level-window", 102, 54, 8, "#4B9BB4", "#526879");
                 Bar("nameplate", 55, 104, 39, 10, "#E7EEF3");
-                foreach (var bushingX in new[] { 52d, 83d })
+                foreach (var bushingX in new[] { 52d, 68d, 83d })
                 {
                     Bar($"bushing-rib-upper-{bushingX:0}", bushingX - 2, 18, 15, 2, "#8295A5");
                     Bar($"bushing-rib-lower-{bushingX:0}", bushingX - 2, 27, 15, 2, "#8295A5");
@@ -1834,9 +1853,9 @@ public static class BuiltinDynamoLibrary
             }
 
             case "electrical.generator":
-                RadialBolts("end-shield-fastener", 69, 58, 37, 4, 3.2);
+                RadialBolts("end-shield-fastener", 41, 56, 15, 4, 3.2);
                 for (var index = 0; index < 4; index++)
-                    Bar($"stator-vent-{index + 1}", 40 + index * 15, 83, 5, 2, "#526575");
+                    Bar($"stator-vent-{index + 1}", 58 + index * 13, 37, 2, 37, "#526575");
                 break;
 
             case "electrical.current-transformer":

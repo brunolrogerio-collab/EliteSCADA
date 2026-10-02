@@ -319,6 +319,35 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void OnOffAndControlValveStyles_ExposeCastBodySeatAndActuatorSupport()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        foreach (var familyKey in new[] { "process.valve.onoff", "process.valve.control" })
+        {
+            var variants = definitions.Where(definition => definition.Metadata!["familyKey"] == familyKey).ToArray();
+            Assert.Equal(3, variants.Length);
+            Assert.All(variants, variant =>
+            {
+                var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+                Assert.Contains("seat-ring", elements.Keys);
+                var seat = elements["seat-ring"].Properties!;
+                var left = elements["body-left"].Properties!;
+                var right = elements["body-right"].Properties!;
+                var seatCenter = seat["x"].GetDouble() + seat["width"].GetDouble() / 2d;
+                var bodyCenter = (left["x"].GetDouble() + left["width"].GetDouble() + right["x"].GetDouble()) / 2d;
+                Assert.InRange(Math.Abs(seatCenter - bodyCenter), 0, 2.5);
+
+                if (familyKey == "process.valve.control")
+                {
+                    Assert.Contains("yoke-left", elements.Keys);
+                    Assert.Contains("yoke-right", elements.Keys);
+                }
+            });
+        }
+    }
+
+    [Fact]
     public void ValveAndTankFamilies_UseCanonicalCurvesWithoutChangingStateBindings()
     {
         var definitions = BuiltinDynamoLibrary.Create();
@@ -526,6 +555,46 @@ public sealed class BuiltinDynamoLibraryTests
             foreach (var key in new[] { "face", "scale-arc", "needle", "hub", "stem", "connection" })
                 Assert.Contains(key, keys);
         });
+    }
+
+    [Fact]
+    public void GateValveAndSubstationFamilies_UseFunctionalTerminations()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        Assert.All(definitions.Where(definition =>
+            definition.Metadata!["familyKey"] == "process.valve.gate"), variant =>
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            Assert.Contains("handwheel-inner", elements.Keys);
+            Assert.Equal("core.ellipse", elements["handwheel-inner"].Type);
+        });
+
+        Assert.All(definitions.Where(definition =>
+            definition.Metadata!["familyKey"] == "electrical.transformer.power"), variant =>
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            foreach (var key in new[] { "bushing-left", "bushing-center", "bushing-right" })
+                Assert.Contains(key, elements.Keys);
+        });
+
+        Assert.All(definitions.Where(definition =>
+            definition.Metadata!["familyKey"] == "electrical.breaker"), variant =>
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            Assert.Contains("interrupter-cap-left", elements.Keys);
+            Assert.Contains("interrupter-cap-right", elements.Keys);
+        });
+
+        foreach (var familyKey in new[] { "electrical.disconnector", "electrical.earthing-switch" })
+        {
+            Assert.All(definitions.Where(definition => definition.Metadata!["familyKey"] == familyKey), variant =>
+            {
+                var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+                Assert.Equal("core.rectangle", elements["contact-left"].Type);
+                Assert.Equal("core.rectangle", elements["contact-right"].Type);
+            });
+        }
     }
 
     [Fact]
@@ -737,6 +806,29 @@ public sealed class BuiltinDynamoLibraryTests
         Assert.Contains("basket", strainerKeys);
         Assert.Equal(4, strainer.Elements!.Count(element =>
             element.Key.StartsWith("basket-slot-", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public void GeneratorStyles_UseHorizontalRotatingMachineSideElevation()
+    {
+        var variants = BuiltinDynamoLibrary.Create()
+            .Where(definition => definition.Metadata!["familyKey"] == "electrical.generator")
+            .ToArray();
+
+        Assert.Equal(3, variants.Length);
+        Assert.All(variants, variant =>
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            foreach (var key in new[] { "stator", "rotor", "hub", "shaft", "end-bell-right", "terminal-box", "foot-left", "foot-right", "base" })
+                Assert.Contains(key, elements.Keys);
+
+            var stator = elements["stator"].Properties!;
+            var shaft = elements["shaft"].Properties!;
+            Assert.True(stator["width"].GetDouble() > stator["height"].GetDouble());
+            Assert.True(shaft["x"].GetDouble() >
+                stator["x"].GetDouble() + stator["width"].GetDouble() * 0.7);
+            Assert.True(elements["terminal-box"].Properties!["y"].GetDouble() < stator["y"].GetDouble());
+        });
     }
 
     [Fact]

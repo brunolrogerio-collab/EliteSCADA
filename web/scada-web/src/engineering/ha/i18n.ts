@@ -155,7 +155,24 @@ const pt = {
   requirementReference: 'Reference Store informado quando Protection está habilitada',
   previewOnly: 'Visualização dos campos HA',
   previewOnlyHint: 'Disponível para conhecer o produto. Selecione Preparar HA com uma licença válida para editar.',
-  saveHaPreparation: 'Salvar preparação HA',} as const;
+  saveHaPreparation: 'Salvar preparação HA',
+  currentServer: 'Este servidor',
+  partnerServer: 'Servidor parceiro',
+  serverAddress: 'Endereço principal',
+  serverAddressHint: 'Endereço HTTP(S) usado pelo HA para alcançar este servidor.',
+  externalAddress: 'Endereço externo (opcional)',
+  externalAddressHint: 'Se ficar vazio, usa automaticamente o endereço principal.',
+  preferredServer: 'Servidor preferencial ao iniciar',
+  preferredServerHint: 'Por padrão, este servidor. A identidade técnica é resolvida internamente.',
+  internalAutomation: 'Identidades e versionamento automáticos',
+  internalAutomationHint: 'Cluster ID, Node IDs, Local Node ID e Topology Version são gerenciados internamente.',
+  peerConnectionManaged: 'Conexão HA entre servidores',
+  peerConnectionManagedHint: 'Ativada automaticamente em HA. O transporte usa o endereço anunciado do servidor parceiro.',
+  safetyTuning: 'Ajustes técnicos de segurança',
+  safetyTuningHint: 'Os valores recomendados já estão preenchidos. Altere somente quando houver necessidade operacional.',
+  requirementCurrentServer: 'Endereço deste servidor',
+  requirementPartnerServer: 'Endereço do servidor parceiro',
+  currentAddressDetected: 'Endereço atual detectado automaticamente',} as const;
 
 type Key = keyof typeof pt;
 
@@ -314,7 +331,24 @@ const en: Record<Key, string> = {
   requirementReference: 'Reference Store provided when Protection is enabled',
   previewOnly: 'HA field preview',
   previewOnlyHint: 'Visible for product discovery. Select Prepare HA with a valid license to edit.',
-  saveHaPreparation: 'Save HA preparation',};
+  saveHaPreparation: 'Save HA preparation',
+  currentServer: 'This server',
+  partnerServer: 'Partner server',
+  serverAddress: 'Primary address',
+  serverAddressHint: 'HTTP(S) address HA uses to reach this server.',
+  externalAddress: 'External address (optional)',
+  externalAddressHint: 'When empty, the primary address is used automatically.',
+  preferredServer: 'Preferred server at startup',
+  preferredServerHint: 'Defaults to this server. Technical identity is resolved internally.',
+  internalAutomation: 'Automatic identities and versioning',
+  internalAutomationHint: 'Cluster ID, Node IDs, Local Node ID and Topology Version are managed internally.',
+  peerConnectionManaged: 'HA connection between servers',
+  peerConnectionManagedHint: 'Enabled automatically for HA. Transport uses the partner server advertised address.',
+  safetyTuning: 'Technical safety tuning',
+  safetyTuningHint: 'Recommended values are already populated. Change only for a clear operational need.',
+  requirementCurrentServer: 'This server address',
+  requirementPartnerServer: 'Partner server address',
+  currentAddressDetected: 'Current address detected automatically',};
 
 const es: Record<Key, string> = {
   title: 'Alta Disponibilidad',
@@ -471,7 +505,24 @@ const es: Record<Key, string> = {
   requirementReference: 'Reference Store informado cuando Protection está habilitada',
   previewOnly: 'Vista previa de campos HA',
   previewOnlyHint: 'Visible para conocer el producto. Seleccione Preparar HA con una licencia válida para editar.',
-  saveHaPreparation: 'Guardar preparación HA',};
+  saveHaPreparation: 'Guardar preparación HA',
+  currentServer: 'Este servidor',
+  partnerServer: 'Servidor asociado',
+  serverAddress: 'Dirección principal',
+  serverAddressHint: 'Dirección HTTP(S) que HA usa para alcanzar este servidor.',
+  externalAddress: 'Dirección externa (opcional)',
+  externalAddressHint: 'Si queda vacía, se usa automáticamente la dirección principal.',
+  preferredServer: 'Servidor preferido al iniciar',
+  preferredServerHint: 'De forma predeterminada, este servidor. La identidad técnica se resuelve internamente.',
+  internalAutomation: 'Identidades y versionado automáticos',
+  internalAutomationHint: 'Cluster ID, Node IDs, Local Node ID y Topology Version se administran internamente.',
+  peerConnectionManaged: 'Conexión HA entre servidores',
+  peerConnectionManagedHint: 'Se habilita automáticamente en HA. El transporte usa la dirección anunciada del servidor asociado.',
+  safetyTuning: 'Ajustes técnicos de seguridad',
+  safetyTuningHint: 'Los valores recomendados ya están configurados. Cambie solo por una necesidad operativa clara.',
+  requirementCurrentServer: 'Dirección de este servidor',
+  requirementPartnerServer: 'Dirección del servidor asociado',
+  currentAddressDetected: 'Dirección actual detectada automáticamente',};
 
 const dictionaries = { 'pt-BR': pt, en, es };
 

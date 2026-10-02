@@ -167,6 +167,41 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void ValveAndTankFamilies_UseCanonicalCurvesWithoutChangingStateBindings()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        foreach (var familyKey in new[] { "process.valve.onoff", "process.valve.control" })
+        {
+            var variants = definitions.Where(definition => definition.Metadata!["familyKey"] == familyKey).ToArray();
+            Assert.Equal(3, variants.Length);
+            foreach (var variant in variants)
+            {
+                var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+                Assert.Equal("core.bezier", elements["body-left"].Type);
+                Assert.Equal("core.bezier", elements["body-right"].Type);
+                Assert.True(elements["body-left"].Properties!.ContainsKey("bezierPath"));
+                Assert.True(elements["body-right"].Properties!.ContainsKey("bezierPath"));
+                Assert.Contains(elements["body-left"].PropertyMaps!, map => map.PropertyKey == "fillColor");
+                Assert.Contains(elements["body-right"].PropertyMaps!, map => map.PropertyKey == "fillColor");
+            }
+        }
+
+        foreach (var familyKey in new[] { "process.tank.vertical", "process.tank.horizontal" })
+        {
+            var variants = definitions.Where(definition => definition.Metadata!["familyKey"] == familyKey).ToArray();
+            Assert.Equal(3, variants.Length);
+            foreach (var variant in variants)
+            {
+                var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+                Assert.Equal("core.bezier", elements["vessel"].Type);
+                Assert.True(elements["vessel"].Properties!.ContainsKey("bezierPath"));
+                Assert.Contains(variant.Elements!, element => element.Type == "core.arc" && element.Properties!["arcStyle"].GetString() == "arc");
+            }
+        }
+    }
+
+    [Fact]
     public void AllOtherBuiltinDynamoFamilies_ReceiveVersionedFamilySpecificVisualDetails()
     {
         var definitions = BuiltinDynamoLibrary.Create()

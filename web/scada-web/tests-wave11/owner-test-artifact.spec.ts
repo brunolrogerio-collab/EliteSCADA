@@ -225,6 +225,17 @@ test('operator controls keep alarms and history in-context during native fullscr
   await historyButton.click();
   const historyOverlay = page.getByTestId('runtime-history-overlay');
   await expect(historyOverlay).toBeVisible();
+  await expect(historyOverlay.getByRole('button', { name: /TAG values|Valores de TAGs/ })).toBeVisible();
+  await expect(historyOverlay.getByRole('button', { name: /Alarms|Alarmes|Alarmas/ })).toBeVisible();
+  await expect(historyOverlay.getByRole('button', { name: /Events|Eventos/ })).toBeVisible();
+  await expect(historyOverlay.getByRole('button', { name: '15 min' })).toBeVisible();
+  await expect(historyOverlay.getByRole('button', { name: '1 h' })).toBeVisible();
+  await expect(historyOverlay.getByRole('button', { name: '8 h' })).toBeVisible();
+  await expect(historyOverlay.getByRole('button', { name: '24 h' })).toBeVisible();
+  await expect(historyOverlay.getByRole('button', { name: /Query|Consultar/ })).toHaveCount(1);
+  await expect(historyOverlay.getByRole('button', { name: /Apply query|Aplicar consulta/ })).toHaveCount(0);
+  await expect(historyOverlay.getByText(/^(Live|Ao vivo|En vivo)$/)).toHaveCount(0);
+  expect(await historyOverlay.getByTestId('historical-browser-advanced').getAttribute('open')).toBeNull();
   await expect(application).toHaveAttribute('data-runtime-fullscreen', 'true');
   await expect.poll(async () => page.evaluate(() => document.fullscreenElement?.getAttribute('data-testid') ?? null))
     .toBe('runtime-engineering-application');

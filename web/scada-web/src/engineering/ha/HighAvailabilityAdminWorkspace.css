@@ -558,6 +558,33 @@
   font-size: 12px;
 }
 
+.ha-node-more {
+  align-self: start;
+  border-top: 1px solid var(--ha-border);
+  padding-top: 7px;
+}
+
+.ha-node-more > summary {
+  list-style: none;
+  cursor: pointer;
+  color: var(--ha-accent);
+  font-size: 10px;
+}
+
+.ha-node-more > summary::-webkit-details-marker { display: none; }
+
+.ha-node-more > summary::before {
+  content: '+ ';
+}
+
+.ha-node-more[open] > summary::before {
+  content: '– ';
+}
+
+.ha-node-more > label {
+  margin-top: 8px;
+}
+
 .ha-inline-status {
   flex: 0 0 auto;
   padding: 4px 8px;

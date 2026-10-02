@@ -116,7 +116,6 @@ async function attachScreenshot(page: Page, testInfo: TestInfo, name: string) {
 
 async function fillRemoteProfile(page: Page) {
   await page.getByLabel('Primary Host / FQDN').fill('db-primary.example.internal');
-  await page.getByLabel('Primary Database').fill('elitescada');
   await page.getByLabel('Primary Username / identity').fill('elitescada_admin');
   await page.getByLabel('Primary Password / secret').fill(secret);
 }
@@ -169,6 +168,16 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
     }
 
     if (method === 'POST' && path.endsWith('/copy')) {
+      currentStatus = topologyStatus({
+        pendingPhase: 'Quiescing',
+        pendingOperationId: operationId
+      });
+      await new Promise(resolve => setTimeout(resolve, 5500));
+      currentStatus = topologyStatus({
+        pendingPhase: 'Copying',
+        pendingOperationId: operationId
+      });
+      await new Promise(resolve => setTimeout(resolve, 5500));
       currentStatus = topologyStatus({
         pendingPhase: 'Copied',
         pendingOperationId: operationId
@@ -256,10 +265,14 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
 
   await page.goto(harnessPath + '?locale=en');
   await expect(page.getByTestId('database-topology-app')).toBeVisible();
-  await expect(page.getByText('Local Managed', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Local Managed · default', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('database-next-action')).toContainText('No Remote configuration is required.');
+  await expect(page.getByRole('heading', { name: 'Migration', exact: true })).toHaveCount(0);
   await attachScreenshot(page, testInfo, '01-local-managed-healthy');
 
   await fillRemoteProfile(page);
+  await expect(page.getByText('Automatic defaults:', { exact: false })).toContainText('Database elitescada');
+  await expect(page.getByText('Automatic defaults:', { exact: false })).toContainText('Port 5432');
   await attachScreenshot(page, testInfo, '02-remote-profile-write-only');
 
   await page.getByText('Advanced settings', { exact: true }).click();
@@ -278,17 +291,18 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
   await expect(page.getByTestId('database-validation-result')).toContainText('2.29.2');
   await attachScreenshot(page, testInfo, '03-target-validation-success');
 
-  await page.getByLabel('Primary Database').fill('elitescada_changed');
+  await page.getByLabel('Primary Host / FQDN').fill('db-primary-2.example.internal');
   await expect(page.getByTestId('database-validation-result')).toHaveCount(0);
-  await page.getByLabel('Primary Database').fill('elitescada');
+  await page.getByLabel('Primary Host / FQDN').fill('db-primary.example.internal');
   await page.getByRole('button', { name: 'Validate target' }).click();
   await expect(page.getByTestId('database-validation-result')).toContainText('Compatible');
 
-  await page.getByRole('button', { name: 'Prepare' }).click();
+  await page.getByRole('button', { name: 'Prepare migration' }).click();
   await expect(page.getByTestId('database-migration-plan')).toContainText('LocalManaged');
   await expect(page.getByTestId('database-migration-plan')).toContainText('Remote');
   await expect(page.getByRole('status')).toContainText('Credentials configured');
-  await expect(page.getByLabel('Primary Password / secret')).toHaveValue('');
+  await expect(page.getByLabel('Primary Password / secret')).toHaveCount(0);
+  await expect(page.getByText('Configuration is locked because the backend already created the plan.', { exact: false })).toBeVisible();
   const browserStorage = await page.evaluate(() => ({
     local: JSON.stringify(window.localStorage),
     session: JSON.stringify(window.sessionStorage)
@@ -297,26 +311,21 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
   expect(browserStorage.session).not.toContain(secret);
   await attachScreenshot(page, testInfo, '04-prepared-plan');
 
-  currentStatus = topologyStatus({ pendingPhase: 'Quiescing', pendingOperationId: operationId });
-  await page.reload();
-  await expect(page.getByTestId('database-pending-phase')).toHaveText('Quiescing');
   const refreshBaseline = statusGetCount;
-  await expect.poll(() => statusGetCount, { timeout: 12000 }).toBeGreaterThan(refreshBaseline);
+  await page.getByRole('button', { name: 'Start migration' }).click();
+  await expect(page.getByTestId('database-pending-phase')).toHaveText('Quiescing', { timeout: 7000 });
   await attachScreenshot(page, testInfo, '05-quiescing-auto-refresh');
-
-  currentStatus = topologyStatus({ pendingPhase: 'Copying', pendingOperationId: operationId });
-  await expect(page.getByTestId('database-pending-phase')).toHaveText('Copying', { timeout: 12000 });
+  await expect(page.getByTestId('database-pending-phase')).toHaveText('Copying', { timeout: 8000 });
   await attachScreenshot(page, testInfo, '06-copying-auto-refresh');
+  await expect.poll(() => statusGetCount, { timeout: 12000 }).toBeGreaterThan(refreshBaseline);
+  await expect(page.getByTestId('database-pending-phase')).toHaveText('Verified', { timeout: 8000 });
+  await expect(page.getByRole('button', { name: 'Verify now' })).toHaveCount(0);
+  await attachScreenshot(page, testInfo, '07-verified-automatically');
 
-  currentStatus = topologyStatus({ pendingPhase: 'Copied', pendingOperationId: operationId });
-  await expect(page.getByTestId('database-pending-phase')).toHaveText('Copied', { timeout: 12000 });
-  await page.getByRole('button', { name: 'Verify', exact: true }).click();
-  await expect(page.getByTestId('database-pending-phase')).toHaveText('Verified');
-
-  await page.getByRole('button', { name: 'Commit Cutover' }).click();
+  await page.getByRole('button', { name: 'Activate Remote database' }).click();
   await expect(page.getByRole('dialog')).toContainText('previous database will not be deleted');
   await expect(page.getByRole('dialog')).toContainText('Local Managed');
-  await attachScreenshot(page, testInfo, '07-cutover-confirmation');
+  await attachScreenshot(page, testInfo, '08-cutover-confirmation');
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm' }).click();
 
   await expect(page.getByText('Remote', { exact: true }).first()).toBeVisible();
@@ -325,7 +334,7 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
   await expect(page.getByLabel('Primary Host / FQDN')).toHaveValue('');
   await expect(page.getByTestId('database-validation-result')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Return to Local Managed' })).toHaveCount(0);
-  await attachScreenshot(page, testInfo, '08-restart-required-completed');
+  await attachScreenshot(page, testInfo, '09-restart-required-completed');
 
   currentStatus = topologyStatus({
     activeTopology: profile('Remote'),
@@ -347,12 +356,12 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
   await expect(page.getByRole('dialog')).toContainText('No internal identifier is required.');
   await expect(page.getByRole('dialog')).toContainText('The current Remote database will not be deleted');
   await expect(page.getByRole('dialog')).toContainText('Local Managed');
-  await attachScreenshot(page, testInfo, '09-return-to-local-confirmation');
+  await attachScreenshot(page, testInfo, '10-return-to-local-confirmation');
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm' }).click();
   await expect(page.getByLabel('Current status').getByText('Local Managed · default', { exact: true })).toBeVisible();
   await expect(page.getByText('Restart required', { exact: true }).first()).toBeVisible();
   expect(rollbackRequestCount).toBe(1);
-  await attachScreenshot(page, testInfo, '10-return-to-local-completed');
+  await attachScreenshot(page, testInfo, '11-return-to-local-completed');
 
   currentStatus = topologyStatus({
     activeTopology: profile('Remote'),
@@ -364,15 +373,15 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
   });
   await page.reload();
   await expect(page.getByTestId('database-pending-phase')).toHaveText('Rollback Required');
-  await attachScreenshot(page, testInfo, '11-rollback-required');
+  await attachScreenshot(page, testInfo, '12-rollback-required');
 
   await page.getByRole('button', { name: 'Rollback', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('previous topology');
-  await attachScreenshot(page, testInfo, '12-rollback-confirmation');
+  await attachScreenshot(page, testInfo, '13-rollback-confirmation');
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm' }).click();
   await expect(page.getByText('Rolled Back', { exact: true }).first()).toBeVisible();
   expect(rollbackRequestCount).toBe(2);
-  await attachScreenshot(page, testInfo, '13-rollback-result-local-preserved');
+  await attachScreenshot(page, testInfo, '14-rollback-result-local-preserved');
 });
 
 test('DB-B exposes sanitized auth/TLS failures and incompatible PostgreSQL without fabricating readiness', async ({ page }, testInfo) => {
@@ -462,7 +471,7 @@ test('DB-B exposes sanitized auth/TLS failures and incompatible PostgreSQL witho
   await page.getByRole('button', { name: 'Validate target' }).click();
   await expect(page.getByTestId('database-validation-result')).toContainText('16.9');
   await expect(page.getByTestId('database-validation-result')).toContainText('Incompatible');
-  await expect(page.getByRole('button', { name: 'Prepare' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Prepare migration' })).toBeDisabled();
   await attachScreenshot(page, testInfo, '14-postgresql-version-incompatible');
 });
 

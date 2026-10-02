@@ -393,8 +393,9 @@ public sealed class BuiltinDynamoLibraryTests
             var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
             Assert.Equal("core.rectangle", elements["rotor-left"].Type);
             Assert.Equal("core.rectangle", elements["rotor-right"].Type);
-            Assert.True(elements["rotor-left"].Properties!["width"].GetDouble() >
-                elements["rotor-left"].Properties["height"].GetDouble() * 4);
+            var rotorProperties = elements["rotor-left"].Properties!;
+            Assert.True(rotorProperties["width"].GetDouble() >
+                rotorProperties["height"].GetDouble() * 4);
             Assert.Contains("end-cover", elements.Keys);
         }
     }
@@ -607,7 +608,7 @@ public sealed class BuiltinDynamoLibraryTests
             "nozzle-cold-in-flange", "nozzle-cold-out-flange"
         })
             Assert.Contains(key, exchangerKeys);
-        Assert.Equal(5, exchanger.Elements.Count(element =>
+        Assert.Equal(5, exchanger.Elements!.Count(element =>
             element.Key.StartsWith("tube-", StringComparison.Ordinal)));
 
         var strainer = definitions.Single(definition =>
@@ -616,7 +617,7 @@ public sealed class BuiltinDynamoLibraryTests
         var strainerKeys = strainer.Elements!.Select(element => element.Key).ToHashSet(StringComparer.Ordinal);
         Assert.Contains("basket-neck", strainerKeys);
         Assert.Contains("basket", strainerKeys);
-        Assert.Equal(4, strainer.Elements.Count(element =>
+        Assert.Equal(4, strainer.Elements!.Count(element =>
             element.Key.StartsWith("basket-slot-", StringComparison.Ordinal)));
     }
 

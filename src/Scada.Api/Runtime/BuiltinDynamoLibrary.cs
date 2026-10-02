@@ -911,9 +911,9 @@ public static class BuiltinDynamoLibrary
                     "M 5 35 C 17 10 31 4 50 4 C 69 4 83 10 95 35 L 95 88 L 5 88 Z",
                     light, 2);
                 for (var index = 0; index < (highPerformance ? 3 : 5); index++)
-                    Rect($"radiator-{index + 1}", 18 + index * (highPerformance ? 8 : 4), 61, 3, 49, accent, 1, 1);
+                    Rect($"radiator-{index + 1}", 18 + index * (highPerformance ? 8 : 4), 61, 4, 49, accent, 1, 1);
                 for (var index = 0; index < (highPerformance ? 3 : 5); index++)
-                    Rect($"radiator-r-{index + 1}", 112 + index * (highPerformance ? 8 : 4), 61, 3, 49, accent, 1, 1);
+                    Rect($"radiator-r-{index + 1}", 112 + index * (highPerformance ? 8 : 4), 61, 4, 49, accent, 1, 1);
                 Bezier("bushing-left", 51, 10, 13, 30,
                     "M 38 2 L 62 2 L 76 98 L 24 98 Z", light, 1.5);
                 Bezier("bushing-right", 84, 10, 13, 30,

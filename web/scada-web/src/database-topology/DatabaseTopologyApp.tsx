@@ -257,6 +257,7 @@ export function DatabaseTopologyApp() {
   const primaryEndpoint = status?.activeTopology.primary;
   const primaryHealth = status?.primaryHealth;
   const historianHealth = status?.historianHealth ?? (status?.activeTopology.historianUsesPrimary ? primaryHealth : null);
+  const activeHealthFailed = primaryHealth ? healthOk(primaryHealth) === false : false;
   const stageIndex = migrationStageIndex(displayPhase);
   const stages = [t.stepValidate, t.stepPrepare, t.stepCopy, t.stepVerify, t.stepCutover];
   const validationHealth = compatibility?.primary ?? testHealth;
@@ -303,7 +304,9 @@ export function DatabaseTopologyApp() {
             ? t.migrationRunning
             : pendingPhase === 'Verified'
               ? t.cutoverReady
-              : compatibility?.compatible
+              : activeHealthFailed
+                ? t.healthAttention
+                : compatibility?.compatible
                 ? t.targetReady
                 : remoteDraftStarted || remoteEditorRequested
                   ? t.configureRemoteHint

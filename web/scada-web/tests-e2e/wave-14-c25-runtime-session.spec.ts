@@ -128,7 +128,11 @@ async function installSessionContract(
   };
 }
 
-async function installEngineeringRuntimeProjection(page: Page) {
+async function installEngineeringRuntimeProjection(
+  page: Page,
+  branding?: unknown,
+  visualAssets: unknown[] = []
+) {
   await page.route('**/api/runtime/application', route => route.fulfill({
     json: {
       mode: 'engineering',
@@ -150,7 +154,8 @@ async function installEngineeringRuntimeProjection(page: Page) {
         dynamos: [],
         scripts: [],
         scriptVisualEventReferences: [],
-        visualAssets: []
+        visualAssets,
+        branding
       }
     }
   }));
@@ -199,6 +204,45 @@ test('account menu keeps its localized accessible name and actions in every supp
     await expect(page.getByTestId('session-menu-popup')).toHaveAttribute('aria-label', expected.account);
     await expect(page.getByTestId('session-switch-user')).toHaveText(expected.switchUser);
     await expect(page.getByTestId('session-logout')).toHaveText(expected.logout);
+  }
+});
+
+test('Runtime toolbar keeps icon controls localized, labeled and keyboard discoverable', async ({ page }, testInfo) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page);
+
+  const expectations = [
+    { locale: 'pt-BR', overview: 'Visão geral', history: 'Histórico', alarms: 'Alarmes', fullscreen: 'Tela cheia' },
+    { locale: 'en', overview: 'Overview', history: 'History', alarms: 'Alarms', fullscreen: 'Fullscreen' },
+    { locale: 'es', overview: 'Vista general', history: 'Histórico', alarms: 'Alarmas', fullscreen: 'Pantalla completa' }
+  ];
+
+  for (const expected of expectations) {
+    await page.addInitScript(locale => window.localStorage.setItem('elitescada.engineering.locale', locale), expected.locale);
+    await page.goto('/');
+
+    const runtime = page.getByTestId('runtime-engineering-application');
+    const toolbar = runtime.getByRole('toolbar', { name: 'Runtime' });
+    await expect(toolbar).toBeVisible();
+
+    for (const label of [expected.overview, expected.history, expected.alarms, expected.fullscreen]) {
+      const control = toolbar.getByRole('button', { name: label });
+      await expect(control).toBeVisible();
+      await expect(control).toHaveAttribute('title', label);
+      await expect(control).toHaveAttribute('data-tooltip', label);
+    }
+
+    const overview = toolbar.getByRole('button', { name: expected.overview });
+    await expect(overview).toHaveAttribute('aria-pressed', 'true');
+    await overview.focus();
+    await expect(overview).toBeFocused();
+
+    if (expected.locale === 'pt-BR') {
+      await testInfo.attach('runtime-shell-phase-b-toolbar-pt-BR', {
+        body: await runtime.locator('.runtime-operator-bar').screenshot(),
+        contentType: 'image/png'
+      });
+    }
   }
 });
 
@@ -477,27 +521,103 @@ test('switch-user invalidates first, blocks the shell until login, then reloads 
   expect(contract.runtimeCapabilityRequests).toBeGreaterThanOrEqual(2);
 });
 
-test('fullscreen Runtime keeps the system-owned session controls reachable', async ({ page }) => {
-  await installSessionContract(page, administrator);
+test('Runtime-only effective surface access does not expose a redundant fullscreen transition', async ({ page }) => {
+  await installSessionContract(page, runtimeOperator);
   await installEngineeringRuntimeProjection(page);
 
   await page.goto('/');
   const runtime = page.getByTestId('runtime-engineering-application');
   await expect(runtime).toBeVisible();
-  await expect(runtime.locator('.runtime-view-navigation')).toBeVisible();
-  await expect(page.locator('.runtime-view-navigation')).toHaveCount(1);
 
-  await runtime.getByRole('button', { name: 'Tela cheia' }).click();
+  const toolbar = runtime.getByRole('toolbar', { name: 'Runtime' });
+  await expect(toolbar.getByRole('button', { name: 'Visão geral' })).toBeVisible();
+  await expect(toolbar.getByRole('button', { name: 'Alarmes' })).toBeVisible();
+  await expect(toolbar.getByRole('button', { name: 'Histórico' })).toHaveCount(0);
+  await expect(toolbar.getByRole('button', { name: 'Tela cheia' })).toHaveCount(0);
+});
+
+test('fullscreen Runtime uses compact branded shell while preserving History, Alarm and session behavior', async ({ page }, testInfo) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page, {
+    mode: 'text',
+    text: 'RUNTIME BRAND',
+    subtitle: 'Operations'
+  });
+
+  await page.goto('/');
+  const runtime = page.getByTestId('runtime-engineering-application');
+  await expect(runtime).toBeVisible();
+
+  const toolbar = runtime.getByRole('toolbar', { name: 'Runtime' });
+  const overview = toolbar.getByRole('button', { name: 'Visão geral' });
+  const history = toolbar.getByRole('button', { name: 'Histórico' });
+  const alarms = toolbar.getByRole('button', { name: 'Alarmes' });
+  const fullscreen = toolbar.getByRole('button', { name: 'Tela cheia' });
+
+  await expect(overview).toHaveAttribute('aria-pressed', 'true');
+  await history.click();
+  await expect(runtime.getByTestId('runtime-history-overlay')).toBeVisible();
+  await expect(history).toHaveAttribute('aria-pressed', 'true');
+  await expect(overview).toHaveAttribute('aria-pressed', 'false');
+
+  await alarms.click();
+  await expect(runtime.getByTestId('runtime-history-overlay')).toHaveCount(0);
+  await expect(runtime.locator('.runtime-operator-overlay:not(.runtime-operator-overlay--history)')).toBeVisible();
+  await expect(alarms).toHaveAttribute('aria-pressed', 'true');
+
+  await overview.click();
+  await expect(runtime.locator('.runtime-operator-overlay')).toHaveCount(0);
+  await expect(overview).toHaveAttribute('aria-pressed', 'true');
+
+  const toolbarBox = await toolbar.boundingBox();
+  expect(toolbarBox).not.toBeNull();
+  expect(toolbarBox!.width).toBeLessThanOrEqual(150);
+
+  await fullscreen.click();
   await expect(runtime).toHaveAttribute('data-runtime-fullscreen', 'true');
+
+  const fullscreenHeader = runtime.locator('.runtime-operator-bar--fullscreen');
+  await expect(fullscreenHeader).toBeVisible();
+  const fullscreenBrand = fullscreenHeader.locator('.runtime-operator-brand .app-brand');
+  await expect(fullscreenBrand).toHaveAttribute('data-branding-mode', 'text');
+  await expect(fullscreenBrand).toContainText('RUNTIME BRAND');
+
+  const projectContext = fullscreenHeader.locator('.runtime-operator-context');
+  await expect(projectContext).toHaveText('C25 Session Runtime');
+  await expect(fullscreenHeader).not.toContainText('rev 7');
+
+  const headerBox = await fullscreenHeader.boundingBox();
+  const contextBox = await projectContext.boundingBox();
+  expect(headerBox).not.toBeNull();
+  expect(contextBox).not.toBeNull();
+  const headerCenter = headerBox!.x + headerBox!.width / 2;
+  const contextCenter = contextBox!.x + contextBox!.width / 2;
+  expect(Math.abs(contextCenter - headerCenter)).toBeLessThanOrEqual(2);
+
+  const exitFullscreen = fullscreenHeader.getByRole('button', { name: 'Sair da tela cheia' });
+  await expect(exitFullscreen).toHaveAttribute('title', 'Sair da tela cheia');
 
   const runtimeSession = runtime.getByTestId('session-menu-toggle');
   await expect(runtimeSession).toBeVisible();
   await expect(runtimeSession).toContainText('Administrador Local');
+  const sessionBox = await runtimeSession.boundingBox();
+  expect(sessionBox).not.toBeNull();
+  expect(sessionBox!.height).toBeLessThanOrEqual(38);
+
   await runtimeSession.click();
   await expect(runtime.getByTestId('session-switch-user')).toBeVisible();
   await expect(runtime.getByTestId('session-logout')).toBeVisible();
   await expect(runtime.getByTestId('runtime-session-class')).toBeVisible();
   await expect(runtime.getByTestId('session-close-interface')).toBeVisible();
+
+  await testInfo.attach('runtime-shell-phase-b-fullscreen', {
+    body: await runtime.screenshot(),
+    contentType: 'image/png'
+  });
+
+  await runtimeSession.click();
+  await exitFullscreen.click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
 });
 
 test('successful sign-out removes the current client authority only after server invalidation succeeds', async ({ page }) => {

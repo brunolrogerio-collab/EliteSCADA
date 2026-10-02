@@ -291,21 +291,33 @@ async function mockHa(page: Page, state: MockState) {
 
     if (path === '/api/runtime/ha/configuration' && request.method() === 'PUT') {
       state.lastConfigBody = request.postDataJSON();
-      state.config = configuration(true);
-      state.config.desired = {
-        ...state.config.desired,
-        clusterId: state.lastConfigBody.clusterId,
-        localNodeId: state.lastConfigBody.localNodeId,
-        initialActiveNodeId: state.lastConfigBody.initialActiveNodeId,
-        topologyVersion: state.lastConfigBody.topologyVersion,
-        freshnessSeconds: state.lastConfigBody.freshnessSeconds,
-        nodes: state.lastConfigBody.nodes,
-        peerTransport: {
-          enabled: state.lastConfigBody.peerTransport.enabled,
-          peerEndpoint: state.lastConfigBody.peerTransport.peerEndpoint,
-          authenticationConfigured: true
-        },
-        protection: state.lastConfigBody.protection
+      const previous = state.config;
+      state.config = {
+        ...previous,
+        generation: previous.generation + 1,
+        updatedAtUtc: '2026-10-02T19:41:00Z',
+        pendingRestart: true,
+        applyMode: 'restart-required',
+        industrialEffectsBlocked: true,
+        desired: {
+          ...previous.desired,
+          enabled: state.lastConfigBody.enabled,
+          clusterId: state.lastConfigBody.clusterId,
+          localNodeId: state.lastConfigBody.localNodeId,
+          initialActiveNodeId: state.lastConfigBody.initialActiveNodeId,
+          topologyVersion: state.lastConfigBody.topologyVersion,
+          freshnessSeconds: state.lastConfigBody.freshnessSeconds,
+          nodes: state.lastConfigBody.nodes,
+          peerTransport: {
+            enabled: state.lastConfigBody.peerTransport.enabled,
+            peerEndpoint: state.lastConfigBody.peerTransport.peerEndpoint,
+            authenticationConfigured: Boolean(
+              state.lastConfigBody.peerTransport.peerSharedSecret ||
+              previous.desired.peerTransport.authenticationConfigured
+            )
+          },
+          protection: state.lastConfigBody.protection
+        }
       };
       await route.fulfill({ status: 202, json: { accepted: true, reasonCode: 'host-configuration-persisted-restart-required', snapshot: state.config, errors: [] } });
       return;
@@ -359,7 +371,10 @@ test('Standalone is the explicit default and Demo keeps HA visible but gated', a
   await expect(page.getByTestId('ha-running-mode')).toContainText('Standalone');
   await expect(page.getByTestId('ha-topology-choice')).toContainText('Modo Demo opera em Standalone');
   await expect(page.getByRole('button', { name: /^High Availability/ })).toBeDisabled();
-  await expect(page.getByLabel('Cluster ID')).toBeDisabled();
+  await expect(page.getByLabel('Este servidor · Endereço principal')).toBeDisabled();
+  await expect(page.getByLabel('Servidor parceiro · Endereço principal')).toBeDisabled();
+  await expect(page.getByText('Cluster ID', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Node ID', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Visualização dos campos HA')).toBeVisible();
   await expect(page.getByRole('button', { name: /^Switchover/ })).toHaveCount(0);
   await evidence(page, testInfo, 'ha-standalone-demo-default');
@@ -376,7 +391,11 @@ test('licensed Standalone can prepare HA but still reports Standalone running un
   await expect(page.getByTestId('ha-preparing-mode')).toContainText('continua rodando em Standalone');
   await expect(page.getByTestId('ha-readiness')).toContainText('Configuração HA incompleta');
   await expect(page.getByTestId('ha-readiness')).toContainText('Ativação HA requer implantação/cold start');
-  await expect(page.getByLabel('Cluster ID')).toBeEnabled();
+  await expect(page.getByLabel('Este servidor · Endereço principal')).toBeEnabled();
+  await expect(page.getByLabel('Este servidor · Endereço principal')).not.toHaveValue('');
+  await expect(page.getByLabel('Servidor parceiro · Endereço principal')).toBeEnabled();
+  await expect(page.getByText('Cluster ID', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Node ID', { exact: true })).toHaveCount(0);
   await expect(page.getByTestId('ha-running-mode')).toContainText('Standalone');
   await evidence(page, testInfo, 'ha-standalone-licensed-preparation');
 });
@@ -386,7 +405,10 @@ test('mounted HA admin shows healthy Active/Ready Standby authority and peer fre
   await mockHa(page, state);
   await open(page);
 
-  await expect(page.getByText('node-a', { exact: true }).first()).toBeVisible();
+  await expect(page.getByTestId('ha-peer-summary')).toContainText('Este servidor');
+  await expect(page.getByTestId('ha-peer-summary')).toContainText('Servidor parceiro');
+  await expect(page.getByText('node-a', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('node-b', { exact: true })).toHaveCount(0);
   await expect(page.getByText(/Ready Standby/)).toBeVisible();
   await expect(page.getByTestId('ha-peer-summary')).toContainText('connected');
   await expect(page.getByText('active', { exact: true })).toBeVisible();

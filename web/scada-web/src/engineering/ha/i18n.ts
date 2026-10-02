@@ -172,7 +172,8 @@ const pt = {
   safetyTuningHint: 'Os valores recomendados já estão preenchidos. Altere somente quando houver necessidade operacional.',
   requirementCurrentServer: 'Endereço deste servidor',
   requirementPartnerServer: 'Endereço do servidor parceiro',
-  currentAddressDetected: 'Endereço atual detectado automaticamente',} as const;
+  currentAddressDetected: 'Endereço atual detectado automaticamente',
+  configureAuthentication: 'Configurar autenticação',} as const;
 
 type Key = keyof typeof pt;
 
@@ -348,7 +349,8 @@ const en: Record<Key, string> = {
   safetyTuningHint: 'Recommended values are already populated. Change only for a clear operational need.',
   requirementCurrentServer: 'This server address',
   requirementPartnerServer: 'Partner server address',
-  currentAddressDetected: 'Current address detected automatically',};
+  currentAddressDetected: 'Current address detected automatically',
+  configureAuthentication: 'Configure authentication',};
 
 const es: Record<Key, string> = {
   title: 'Alta Disponibilidad',
@@ -522,7 +524,8 @@ const es: Record<Key, string> = {
   safetyTuningHint: 'Los valores recomendados ya están configurados. Cambie solo por una necesidad operativa clara.',
   requirementCurrentServer: 'Dirección de este servidor',
   requirementPartnerServer: 'Dirección del servidor asociado',
-  currentAddressDetected: 'Dirección actual detectada automáticamente',};
+  currentAddressDetected: 'Dirección actual detectada automáticamente',
+  configureAuthentication: 'Configurar autenticación',};
 
 const dictionaries = { 'pt-BR': pt, en, es };
 

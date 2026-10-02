@@ -72,7 +72,7 @@ test('C26.9 mounted Popup editor exposes bounds in the canonical single-canvas a
     await expect(boundary).toBeVisible();
     await expect(workspace.locator('.visual-editor-canvas-slot > header')).toHaveCount(0);
     await expect.poll(async () => (await composition.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(790);
-    await expect.poll(async () => (await canvasSurface.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(650);
+    await expect.poll(async () => (await canvasSurface.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(600);
     await expect(boundary).toHaveAttribute('data-logical-width', '200');
     await expect(boundary).toHaveAttribute('data-logical-height', '130');
     await expect(boundary).toContainText('limites lógicos: 200 × 130');

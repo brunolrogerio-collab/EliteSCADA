@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { expect, test, type APIRequestContext, type Locator } from '@playwright/test';
+import { expect, test, type APIRequestContext } from '@playwright/test';
 
 const projectKey = 'e2e-wave11';
 const eventKey = 'c19.runtime.initialize';

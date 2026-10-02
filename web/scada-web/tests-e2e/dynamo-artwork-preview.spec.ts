@@ -41,6 +41,7 @@ test('mounted Dynamo Library renders and captures all 72 canonical previews', as
     style: string;
     name: string;
     previewFile: string;
+    thumbnailFile: string;
   }> = [];
 
   // Product grid evidence: remove only the scroll cap in the test DOM so all
@@ -58,6 +59,13 @@ test('mounted Dynamo Library renders and captures all 72 canonical previews', as
     if (!key || !style) throw new Error(`Dynamo card ${index} is missing key/style evidence attributes.`);
 
     const name = (await card.locator('strong').first().innerText()).trim();
+
+    const thumbnailFile = `${String(index + 1).padStart(2, '0')}-${safeFileName(baseFamilyKey(key))}-${safeFileName(style)}-thumbnail.png`;
+    await card.getByTestId('dynamo-library-canonical-thumbnail').screenshot({
+      path: join(outputDir, thumbnailFile),
+      animations: 'disabled'
+    });
+
     await card.click();
 
     const preview = library.getByTestId('dynamo-library-canonical-preview');
@@ -77,7 +85,8 @@ test('mounted Dynamo Library renders and captures all 72 canonical previews', as
       familyKey: baseFamilyKey(key),
       style,
       name,
-      previewFile: fileName
+      previewFile: fileName,
+      thumbnailFile
     });
   }
 

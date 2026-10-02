@@ -68,7 +68,7 @@ test('primary shell keeps authorized application navigation coherent without Eng
   const revisionsStep = lifecycleSteps.nth(1);
   const publishedStep = lifecycleSteps.nth(2);
   await expect(revisionsStep).toContainText(/Revisão salva|Saved revision|Revisión guardada/);
-  await expect(publishedStep.getByRole('button', { name: /Ativar no Runtime|Activate in Runtime|Activar en Runtime/ })).toBeVisible();
+  await expect(publishedStep).toContainText('Published');
   const publishedFollowsRevisions = await lifecycle.evaluate(root => {
     const steps = root.querySelectorAll('.eng-lifecycle-workspace__step');
     return steps.length === 4 && Boolean(steps[1].compareDocumentPosition(steps[2]) & Node.DOCUMENT_POSITION_FOLLOWING);

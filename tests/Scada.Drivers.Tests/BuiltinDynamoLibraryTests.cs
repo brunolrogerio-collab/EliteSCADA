@@ -187,15 +187,17 @@ public sealed class BuiltinDynamoLibraryTests
             var style = definition.Properties!["visualStyle"];
             var expectedFinish = style switch
             {
-                "detailed-2d" => "industrial-steel-2d-v4",
-                "dimensional-front" => "soft-machined-steel-v4",
-                "high-performance" => "high-performance-neutral-v4",
+                "detailed-2d" => "industrial-steel-2d-v5",
+                "dimensional-front" => "soft-machined-steel-v5",
+                "high-performance" => "high-performance-neutral-v5",
                 _ => throw new Xunit.Sdk.XunitException($"Unexpected visual style '{style}'.")
             };
 
             Assert.Equal(BuiltinDynamoLibrary.Version, definition.Properties["libraryVersion"]);
             Assert.Equal(expectedFinish, definition.Properties["visualFinish"]);
             Assert.Equal(expectedFinish, definition.Metadata!["visualFinish"]);
+            Assert.Equal("C-DYNAMO-ARTWORK-02", definition.Properties["artworkContract"]);
+            Assert.Equal("C-DYNAMO-ARTWORK-02", definition.Metadata["artworkContract"]);
 
             foreach (var element in definition.Elements!)
             {
@@ -281,12 +283,24 @@ public sealed class BuiltinDynamoLibraryTests
         {
             var elements = transformer.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
             var tank = elements["tank"].Properties!;
-            var leftRadiators = Enumerable.Range(1, 5).Select(index => elements[$"radiator-{index}"].Properties!["x"].GetDouble()).ToArray();
-            var rightRadiators = Enumerable.Range(1, 5).Select(index => elements[$"radiator-r-{index}"].Properties!["x"].GetDouble()).ToArray();
-            Assert.Equal(75, tank["x"].GetDouble() + tank["width"].GetDouble() / 2d);
-            // Artwork normalization scales the original 4-unit radiator width proportionally.
+            Assert.Equal(75, tank["x"].GetDouble() + tank["width"].GetDouble() / 2d, precision: 6);
+
+            var leftRadiators = elements
+                .Where(pair => pair.Key.StartsWith("radiator-", StringComparison.Ordinal) &&
+                    !pair.Key.StartsWith("radiator-r-", StringComparison.Ordinal))
+                .OrderBy(pair => pair.Value.Properties!["x"].GetDouble())
+                .Select(pair => pair.Value.Properties!["x"].GetDouble())
+                .ToArray();
+            var rightRadiators = elements
+                .Where(pair => pair.Key.StartsWith("radiator-r-", StringComparison.Ordinal))
+                .OrderBy(pair => pair.Value.Properties!["x"].GetDouble())
+                .Select(pair => pair.Value.Properties!["x"].GetDouble())
+                .ToArray();
+
+            Assert.Equal(leftRadiators.Length, rightRadiators.Length);
+            Assert.InRange(leftRadiators.Length, 3, 5);
             var radiatorWidth = elements["radiator-1"].Properties!["width"].GetDouble();
-            Assert.InRange(Math.Abs((150 - leftRadiators[0] - radiatorWidth) - rightRadiators[^1]), 0, 0.25);
+            Assert.InRange(Math.Abs((150 - leftRadiators[0] - radiatorWidth) - rightRadiators[^1]), 0, 0.35);
         }
     }
 

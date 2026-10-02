@@ -1,5 +1,45 @@
 
 
+## RUNTIME SHELL UX — 2026-10-02
+
+Issue:
+`#459 — W15-RUNTIME-SHELL-UX`
+
+Contract:
+`C-RUNTIME-SHELL-UX-01`
+
+Order:
+`W15-RUNTIME-SHELL-UX-01`
+
+Branch:
+`work/w15-runtime-shell-ux`
+
+Exact release base:
+`a213477b775c5d6f336f32d1a34bd937c02323b8`
+
+Release state:
+`ACTIVE_PHASE_A / WAIT_HISTORY_HANDOFF_FOR_PHASE_B / NO_MERGE`
+
+Phase A:
+- compact User Session panel;
+- pt-BR Runtime session class actions become `Visualização` / `Interativa`;
+- preserve session admission/licensing/Auth semantics.
+
+Phase B after accepted #384 History handoff:
+- compact icon-first Overview/History/Alarms/Fullscreen Runtime action group;
+- capability-aware action visibility;
+- fullscreen uses configured branding on the left;
+- project name centered;
+- revision removed from primary fullscreen header;
+- no literal role-name authorization;
+- reuse existing branding/effective-capability authority.
+
+Concurrency:
+- #384 owns History behavior/fullscreen-safe History until handoff;
+- #459 may not edit shared Runtime header composition during Phase A;
+- Main will release #459 Phase B on a reconciled base after #384 handoff.
+
+
 ## TWO PRODUCT OWNER UX LANES ACTIVE — 2026-10-02
 
 Exact common base:

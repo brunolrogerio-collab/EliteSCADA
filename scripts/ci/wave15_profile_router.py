@@ -26,6 +26,7 @@ COORDINATION_ONLY = {
 }
 
 PATH_RULES = (
+    # CI_INFRA intentionally owns CI plumbing without borrowing a product validation profile.
     ("AUTHORITY_CORE", ("src/scada.security/", "src/scada.api/security/", "tests/scada.security.tests/")),
     ("SESSION_LICENSING", ("licensing/", "runtimesession", "runtime-session", "license")),
     ("SCRIPT_RUNTIME", (

@@ -349,7 +349,7 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
   await expect(page.getByRole('dialog')).toContainText('Local Managed');
   await attachScreenshot(page, testInfo, '09-return-to-local-confirmation');
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm' }).click();
-  await expect(page.getByText('Local Managed · default', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Current status').getByText('Local Managed · default', { exact: true })).toBeVisible();
   await expect(page.getByText('Restart required', { exact: true }).first()).toBeVisible();
   expect(rollbackRequestCount).toBe(1);
   await attachScreenshot(page, testInfo, '10-return-to-local-completed');

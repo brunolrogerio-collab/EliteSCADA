@@ -1,3 +1,24 @@
+# CURRENT TAKEOVER POINTER — 2026-10-02 — CI SLIMMED / HA+DB FINAL GATE
+
+> **READ FIRST:** `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-10-02-CI-HA-DB-CLOSEOUT.md`
+>
+> This is the canonical successor snapshot and supersedes all older current-state wording below whenever there is a conflict.
+>
+> Live product integration at pointer creation:
+> - `wave15/corrections-integration@9b3e43b36efd2b58247d692270f97dc6d3b5278a`;
+> - #465 post-merge CI slimming integrated;
+> - #466 T1 routing slimming integrated;
+> - #463 HA+Remote DB convergence exact candidate `a015741cc0d1c9f49f5a30aee5560db53fa16fcc`;
+> - replacement T1 #585 / `37077218173` active at bounded observation;
+> - do not merge #463 unless that exact-head T1 is green;
+> - after a green merge, observe the slim post-merge CI briefly and revalidate final result later;
+> - Historical Playback #452 is the next major functional reconciliation after HA+DB stability;
+> - then final i18n -> Help/Manual -> Productization -> fresh Preview.
+>
+> GitHub live remains the only authority.
+
+---
+
 # CURRENT TAKEOVER POINTER — 2026-09-30 — PARALLEL ACTIVE / CI #1618 GREEN
 
 > **READ FIRST:** `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-09-30-PARALLEL-ACTIVE.md`

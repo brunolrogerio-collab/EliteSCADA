@@ -169,6 +169,8 @@
 .visual-editor-canvas__polygon-draft circle { fill:var(--surface-color,#fff); stroke:currentColor; stroke-width:2; vector-effect:non-scaling-stroke; }
 .visual-editor-canvas__polygon-vertex { position:absolute; z-index:5; width:11px; height:11px; min-width:0!important; min-height:0!important; padding:0; border:2px solid currentColor; border-radius:50%; background:var(--surface-color,#fff); transform:translate(-50%,-50%); pointer-events:auto; cursor:crosshair; }
 .visual-editor-canvas__polygon-vertex.is-selected { box-shadow:0 0 0 3px rgba(59,130,246,.24); }
+.visual-editor-canvas__bezier-point { position:absolute; z-index:5; width:11px; height:11px; min-width:0!important; min-height:0!important; padding:0; border:2px solid #7c3aed; border-radius:50%; background:var(--surface-color,#fff); transform:translate(-50%,-50%); pointer-events:auto; cursor:crosshair; }
+.visual-editor-canvas__bezier-point.is-selected { box-shadow:0 0 0 3px rgba(124,58,237,.24); }
 
 .visual-editor-canvas__adorners { position: absolute; inset: 0; pointer-events: none; }
 
@@ -286,6 +288,8 @@
 .visual-editor-canvas__object.has-identity-issue > .visual-editor-canvas__object-label {
   opacity: 1;
 }
+
+.visual-editor-canvas[data-identities-visible='true'] .visual-editor-canvas__object-label { opacity: 1; }
 
 .visual-editor-canvas__polygon-shape {
   display: none;

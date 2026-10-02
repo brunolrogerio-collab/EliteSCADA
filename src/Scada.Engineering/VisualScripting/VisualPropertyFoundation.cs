@@ -340,6 +340,10 @@ public static class VisualPropertyKeys
     public const string ShadowBlur = "shadowBlur";
     public const string Text = "text";
     public const string TextColor = "textColor";
+    public const string TextColorEditing = "textColorEditing";
+    public const string TextColorGood = "textColorGood";
+    public const string TextColorBad = "textColorBad";
+    public const string ValueFormat = "valueFormat";
     public const string FontFamily = "fontFamily";
     public const string FontSize = "fontSize";
     public const string FontWeight = "fontWeight";
@@ -362,6 +366,8 @@ public static class VisualPropertyKeys
     public const string Orientation = "orientation";
     public const string InteractionEnabled = "interactionEnabled";
     public const string ShowApplyButton = "showApplyButton";
+    public const string DecimalPlacesEnabled = "decimalPlacesEnabled";
+    public const string DecimalPlaces = "decimalPlaces";
     public const string ReverseDirection = "reverseDirection";
     public const string TrackColor = "trackColor";
     public const string ThumbColor = "thumbColor";
@@ -445,6 +451,10 @@ public static class CommonVisualPropertyDefinitions
     [
         String(VisualPropertyKeys.Text, string.Empty),
         Color(VisualPropertyKeys.TextColor, "#000000", animatable: true),
+        Color(VisualPropertyKeys.TextColorEditing, "#1565C0", animatable: false),
+        Color(VisualPropertyKeys.TextColorGood, "#000000", animatable: false),
+        Color(VisualPropertyKeys.TextColorBad, "#C62828", animatable: false),
+        EnumString(VisualPropertyKeys.ValueFormat, "default", ["default", "numeric", "MM/DD", "DD/MM", "MM/DD/YYYY", "DD/MM/YYYY", "HH:mm", "HH:mm:ss", "dateTime"]),
         String(VisualPropertyKeys.FontFamily, "system", presentationHint: "font-family"),
         Number(VisualPropertyKeys.FontSize, 14, minimum: 1, animatable: true, unit: "px"),
         Integer(VisualPropertyKeys.FontWeight, 400, minimum: 100, maximum: 900),
@@ -489,7 +499,9 @@ public static class CommonVisualPropertyDefinitions
 
     public static IReadOnlyList<VisualPropertyDefinition> NumericInput { get; } =
     [
-        Boolean(VisualPropertyKeys.ShowApplyButton, true)
+        Boolean(VisualPropertyKeys.ShowApplyButton, true),
+        Boolean(VisualPropertyKeys.DecimalPlacesEnabled, false),
+        Integer(VisualPropertyKeys.DecimalPlaces, 2, minimum: 0, maximum: 12)
     ];
 
     private static VisualPropertyDefinition Boolean(string key, bool value) =>

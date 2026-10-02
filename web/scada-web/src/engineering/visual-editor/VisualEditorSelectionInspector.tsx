@@ -7,6 +7,7 @@ import { DynamoInstanceInspector } from './canvas/DynamoInstanceInspector';
 import { DynamicPropertyEditor } from './dynamic-property-editor';
 import { EventsEditor } from './events-editor/EventsEditor';
 import { PropertyInspector } from './property-inspector';
+import { VisualDefinitionSurfaceInspector } from './canvas/VisualDefinitionSurfaceInspector';
 import type { VisualEditorBindingSourceCatalogItem, VisualEditorMutationIntent } from './visualEditorContracts';
 import type { VisualEditorKeyboardCommand } from './visualEditorKeyboardModel';
 
@@ -73,6 +74,13 @@ export function VisualEditorSelectionInspector({
     <div className="visual-editor-inspector-panel" data-inspector-tab={activeTab}>
       <section id="visual-editor-inspector-section-properties" role="tabpanel" aria-labelledby="visual-editor-inspector-tab-properties" hidden={activeTab !== 'properties'} className={`visual-editor-inspector-section${activeTab === 'properties' ? ' is-active' : ''}`} data-inspector-section="properties">
         <p className="visual-editor-inspector-hint">{text.propertiesHint}</p>
+        {selectedElements.length === 0 ? <VisualDefinitionSurfaceInspector
+          screen={screen}
+          onCommand={onCommand}
+          onImportAsset={onImportImage}
+          importDisabled={imageImportDisabled}
+          importing={imageImportBusy}
+        /> : null}
         <PropertyInspector
           selectedElements={selectedElements}
           visualAssets={visualAssets}

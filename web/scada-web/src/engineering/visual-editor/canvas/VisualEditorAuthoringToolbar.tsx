@@ -102,8 +102,17 @@ export function VisualEditorAuthoringToolbar({
   ] as const;
 
   return <div className="visual-editor-authoring-toolbar" role="toolbar" aria-label={text.aria} data-testid="visual-editor-authoring-toolbar">
-    <ToolbarGroup label="Insert">
-      {inserts.map(([objectType, glyph, labelKey, fallbackLabel]) => <Tool
+    <ToolbarGroup label="Draw">
+      {inserts.slice(0, 7).map(([objectType, glyph, labelKey, fallbackLabel]) => <Tool
+        key={objectType}
+        label={palette[labelKey] ?? fallbackLabel}
+        disabled={!onInsertObject}
+        onClick={() => onInsertObject?.(objectType)}
+        dataObjectType={objectType}
+      >{glyph}</Tool>)}
+    </ToolbarGroup>
+    <ToolbarGroup label="Display and controls">
+      {inserts.slice(7).map(([objectType, glyph, labelKey, fallbackLabel]) => <Tool
         key={objectType}
         label={palette[labelKey] ?? fallbackLabel}
         disabled={!onInsertObject}

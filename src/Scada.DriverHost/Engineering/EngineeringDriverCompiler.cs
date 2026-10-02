@@ -62,9 +62,6 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
 
         foreach (var dataSource in dataSources.Where(x => x.Enabled))
         {
-            if (dataSource.Driver.Equals(SimulationDriverKey, StringComparison.OrdinalIgnoreCase))
-                continue;
-
             var plannerPackage = EngineeringTagDataSourceAssociation.NormalizeForPlanner(package, dataSource);
 
             if (dataSource.Driver.Equals(ModbusTcpDriverKey, StringComparison.OrdinalIgnoreCase))

@@ -63,6 +63,7 @@ export function TagEditor({ model, locale }: EditorProps) {
     ? tags.find(tag => tagIdentity(tag) === selectedIdentity) ?? null
     : null;
   const [draft, setDraft] = useState<TagEngineering | null>(() => selected ? clone(selected) : null);
+  const simulationSource = draft ? (model.dataSources ?? []).find(source => source.key === draft.source)?.driver === 'builtin.simulation' : false;
 
   useEffect(() => {
     if (selectedIdentity === NEW_TAG_IDENTITY) {
@@ -257,6 +258,21 @@ export function TagEditor({ model, locale }: EditorProps) {
                 <TextAreaField label={text('editor.field.description')} value={draft.description ?? ''} onChange={value => updateTag(setDraft, tag => ({ ...tag, description: emptyToNull(value) }))} />
               </div>
               </WorkflowFormSection>
+              {simulationSource ? <WorkflowFormDisclosure title="Simulação do TAG" description="Configure a forma como este TAG de demonstração varia durante o Runtime." testId="tag-simulation-disclosure">
+                <div className="eng-editor-form-grid">
+                  <SelectField label="Comportamento" value={draft.metadata?.['simulation.signalType'] ?? (draft.dataType === 'dateTime' ? 'CurrentTime' : draft.dataType === 'boolean' ? 'BooleanToggle' : 'Sine')} options={[
+                    'Constant', 'Random', 'Sine', 'Square', 'RampUp', 'RampDown', 'RampUpDown', 'Counter', 'BooleanToggle', 'Manual', ...(draft.dataType === 'dateTime' ? ['CurrentTime'] : [])
+                  ]} onChange={value => updateTag(setDraft, tag => ({ ...tag, metadata: { ...(tag.metadata ?? {}), 'simulation.signalType': value } }))} />
+                  {draft.dataType !== 'dateTime' && <>
+                    <NumberField label="Mínimo" value={metadataNumber(draft, 'simulation.minimum', 0)} onChange={value => updateSimulationNumber(setDraft, 'simulation.minimum', value)} />
+                    <NumberField label="Máximo" value={metadataNumber(draft, 'simulation.maximum', 100)} onChange={value => updateSimulationNumber(setDraft, 'simulation.maximum', value)} />
+                    <NumberField label="Período (segundos)" value={metadataNumber(draft, 'simulation.periodSeconds', 10)} onChange={value => updateSimulationNumber(setDraft, 'simulation.periodSeconds', value)} />
+                    <NumberField label="Valor constante / inicial" value={metadataNumber(draft, 'simulation.constantValue', 0)} onChange={value => updateSimulationNumber(setDraft, 'simulation.constantValue', value)} />
+                    <NumberField label="Passo do contador" value={metadataNumber(draft, 'simulation.step', 1)} onChange={value => updateSimulationNumber(setDraft, 'simulation.step', value)} />
+                  </>}
+                  {draft.dataType === 'dateTime' && <p className="eng-editor-hint">CurrentTime publica a data e hora UTC atual como valor DateTime.</p>}
+                </div>
+              </WorkflowFormDisclosure> : null}
               <WorkflowFormDisclosure title={workflowText(locale).historian} description={workflowText(locale).historianHint} testId="tag-historian-disclosure">
                 <div className="eng-editor-form-grid">
                   <BooleanField label={text('editor.field.historian')} checked={draft.historian?.enabled === true} onChange={value => updateTag(setDraft, tag => ({ ...tag, historian: { ...(tag.historian ?? {}), enabled: value } }))} />
@@ -812,6 +828,25 @@ function newAlarmDraft(): AlarmEngineering {
 
 function updateTag(setter: React.Dispatch<React.SetStateAction<TagEngineering | null>>, update: (current: TagEngineering) => TagEngineering) {
   setter(current => current ? update(current) : current);
+}
+
+function metadataNumber(tag: TagEngineering, key: string, fallback: number): number {
+  const raw = tag.metadata?.[key];
+  const value = raw === undefined ? fallback : Number(raw);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function updateSimulationNumber(
+  setter: React.Dispatch<React.SetStateAction<TagEngineering | null>>,
+  key: string,
+  value: number | null
+) {
+  updateTag(setter, tag => {
+    const metadata = { ...(tag.metadata ?? {}) };
+    if (value === null) delete metadata[key];
+    else metadata[key] = String(value);
+    return { ...tag, metadata };
+  });
 }
 function updateDataSource(setter: React.Dispatch<React.SetStateAction<DataSourceEngineering | null>>, update: (current: DataSourceEngineering) => DataSourceEngineering) {
   setter(current => current ? update(current) : current);

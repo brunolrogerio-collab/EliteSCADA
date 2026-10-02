@@ -25,7 +25,15 @@ public sealed class SimulationDriverDescriptorProvider : ICommunicationDriverDes
                     Description: "Simulation update interval in milliseconds.",
                     DefaultValue: "500")
             },
-            TagBindingFields: Array.Empty<DriverConfigurationFieldDescriptor>()),
+            TagBindingFields: new[]
+            {
+                new DriverConfigurationFieldDescriptor("simulation.signalType", DriverConfigurationValueKind.Enum, DisplayName: "Simulation behavior", DefaultValue: "Sine", AllowedValues: new[] { "Constant", "Random", "Sine", "Square", "RampUp", "RampDown", "RampUpDown", "Counter", "BooleanToggle", "Manual", "CurrentTime" }),
+                new DriverConfigurationFieldDescriptor("simulation.minimum", DriverConfigurationValueKind.Number, DisplayName: "Minimum", DefaultValue: "0"),
+                new DriverConfigurationFieldDescriptor("simulation.maximum", DriverConfigurationValueKind.Number, DisplayName: "Maximum", DefaultValue: "100"),
+                new DriverConfigurationFieldDescriptor("simulation.periodSeconds", DriverConfigurationValueKind.Number, DisplayName: "Period (s)", DefaultValue: "10", Minimum: 0.001),
+                new DriverConfigurationFieldDescriptor("simulation.constantValue", DriverConfigurationValueKind.Number, DisplayName: "Constant value", DefaultValue: "0"),
+                new DriverConfigurationFieldDescriptor("simulation.step", DriverConfigurationValueKind.Number, DisplayName: "Step", DefaultValue: "1")
+            }),
         Description: "Built-in deterministic simulation driver for development and testing.");
 
     public CommunicationDriverTypeDescriptor Descriptor => SharedDescriptor;

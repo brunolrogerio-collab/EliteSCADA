@@ -167,7 +167,12 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     VISUAL_PROPERTY_KEYS.backgroundColor,
     ...STROKE,
     VISUAL_PROPERTY_KEYS.cornerRadius,
-    ...TEXT
+    ...TEXT,
+    VISUAL_PROPERTY_KEYS.valueFormat,
+    VISUAL_PROPERTY_KEYS.textColorGood,
+    VISUAL_PROPERTY_KEYS.textColorBad,
+    VISUAL_PROPERTY_KEYS.decimalPlacesEnabled,
+    VISUAL_PROPERTY_KEYS.decimalPlaces
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.trend, schema(BUILTIN_VISUAL_OBJECT_TYPES.trend, [
     ...BASE,
@@ -208,8 +213,12 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     VISUAL_PROPERTY_KEYS.backgroundColor,
     VISUAL_PROPERTY_KEYS.strokeColor,
     VISUAL_PROPERTY_KEYS.strokeWidth,
+    VISUAL_PROPERTY_KEYS.strokeStyle,
     VISUAL_PROPERTY_KEYS.cornerRadius,
     VISUAL_PROPERTY_KEYS.textColor,
+    VISUAL_PROPERTY_KEYS.textColorEditing,
+    VISUAL_PROPERTY_KEYS.textColorGood,
+    VISUAL_PROPERTY_KEYS.textColorBad,
     VISUAL_PROPERTY_KEYS.fontFamily,
     VISUAL_PROPERTY_KEYS.fontSize,
     VISUAL_PROPERTY_KEYS.fontWeight,

@@ -168,7 +168,9 @@ export function useVisualBindingSamples(
 export function formatVisualScalarText(
   sample: VisualLiveScalarSample | undefined,
   binding: BindingEngineering,
-  locale: EngineeringLocale
+  locale: EngineeringLocale,
+  valueFormat = 'default',
+  configuredDecimals?: number
 ): Readonly<{ text: string; available: boolean; state: string }> {
   if (!sample) return Object.freeze({ text: '—', available: false, state: unavailableLabel(locale) });
   const state = qualityState(sample);
@@ -186,11 +188,14 @@ export function formatVisualScalarText(
       ? localizedBoolean(sample.value, locale)
       : String(sample.value);
   } else if (['int16', 'int32', 'int64', 'enum'].includes(normalizedType)) {
-    text = typeof sample.value === 'string' ? sample.value : String(sample.value);
+    const numeric = typeof sample.value === 'number' ? sample.value : Number(sample.value);
+    text = Number.isFinite(numeric) && configuredDecimals !== undefined
+      ? new Intl.NumberFormat(locale, { minimumFractionDigits: configuredDecimals, maximumFractionDigits: configuredDecimals, useGrouping: false }).format(numeric)
+      : typeof sample.value === 'string' ? sample.value : String(sample.value);
   } else if (['float', 'double'].includes(normalizedType)) {
     const numeric = typeof sample.value === 'number' ? sample.value : Number(sample.value);
     if (!Number.isFinite(numeric)) return Object.freeze({ text: '—', available: false, state: state.label });
-    const decimalPlaces = parseDecimalPlaces(binding.metadata?.decimalPlaces);
+    const decimalPlaces = configuredDecimals ?? parseDecimalPlaces(binding.metadata?.decimalPlaces);
     text = new Intl.NumberFormat(locale, {
       maximumFractionDigits: decimalPlaces ?? 6,
       minimumFractionDigits: decimalPlaces ?? 0,
@@ -198,9 +203,7 @@ export function formatVisualScalarText(
     }).format(numeric);
   } else if (normalizedType === 'datetime') {
     const date = new Date(String(sample.value));
-    text = Number.isNaN(date.getTime())
-      ? String(sample.value)
-      : new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'medium' }).format(date);
+    text = Number.isNaN(date.getTime()) ? String(sample.value) : formatDateTime(date, valueFormat, locale);
   } else {
     text = String(sample.value);
   }
@@ -209,6 +212,19 @@ export function formatVisualScalarText(
   const suffix = binding.metadata?.suffix ?? '';
   const joined = `${prefix}${text}${unit ? ` ${unit}` : ''}${suffix}`;
   return Object.freeze({ text: joined, available: true, state: state.label });
+}
+
+function formatDateTime(date: Date, format: string, locale: EngineeringLocale): string {
+  const optionsByFormat: Record<string, Intl.DateTimeFormatOptions> = {
+    'MM/DD': { month: '2-digit', day: '2-digit' },
+    'DD/MM': { day: '2-digit', month: '2-digit' },
+    'MM/DD/YYYY': { month: '2-digit', day: '2-digit', year: 'numeric' },
+    'DD/MM/YYYY': { day: '2-digit', month: '2-digit', year: 'numeric' },
+    'HH:mm': { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' },
+    'HH:mm:ss': { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' },
+    dateTime: { dateStyle: 'short', timeStyle: 'medium' }
+  };
+  return new Intl.DateTimeFormat(locale, optionsByFormat[format] ?? { dateStyle: 'short', timeStyle: 'medium' }).format(date);
 }
 
 function collectBindings(elements: readonly VisualElementEngineering[] | null | undefined): readonly BindingEngineering[] {

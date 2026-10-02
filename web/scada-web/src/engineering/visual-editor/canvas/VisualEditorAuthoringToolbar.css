@@ -6,7 +6,7 @@
 .visual-editor-authoring-toolbar button:disabled { opacity: 1; cursor: not-allowed; }
 
 /* W15 compact icon-first authoring controls. Accessible names remain localized through aria-label/title. */
-.visual-editor-authoring-toolbar { gap: 4px; padding: 4px 6px; overflow-x: auto; flex-wrap: nowrap; }
+.visual-editor-authoring-toolbar { gap: 4px; padding: 4px 6px; overflow-x: visible; flex-wrap: wrap; }
 .visual-editor-authoring-toolbar__group { flex: 0 0 auto; gap: 2px; padding-right: 4px; }
 .visual-editor-authoring-toolbar button { width: 28px; min-width: 28px; height: 28px; min-height: 28px; padding: 0; font-size: 13px; line-height: 1; }
 .eng-shell .visual-editor-authoring-toolbar { border-color:var(--eng-border,#283544); background:var(--eng-panel-soft,#17212c); color:var(--eng-text,#e8edf3); }

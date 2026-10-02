@@ -353,14 +353,12 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
             if (string.IsNullOrWhiteSpace(dto.Source) || !dataSources.TryGetValue(dto.Source, out var dataSource))
                 continue;
 
-            // Client Memory has no server-authoritative scalar value and the built-in
-            // simulation source is not part of the active Engineering runtime. All other
-            // enabled server-owned sources remain protocol-neutral here: unsupported
+            // Client Memory has no server-authoritative scalar value. Simulation is
+            // server-owned and may be read by a Gateway route, but is not a destination.
+            // All other enabled server-owned sources remain protocol-neutral here: unsupported
             // communication drivers are rejected by the normal runtime compiler, while
             // future supported drivers become Gateway-eligible without editing this class.
-            var sharedRuntimeSource =
-                !InternalMemoryRuntimePlanner.IsClientMemoryDriver(dataSource.Driver) &&
-                !dataSource.Driver.Equals(EngineeringDriverCompiler.SimulationDriverKey, StringComparison.OrdinalIgnoreCase);
+            var sharedRuntimeSource = !InternalMemoryRuntimePlanner.IsClientMemoryDriver(dataSource.Driver);
             if (!sharedRuntimeSource)
                 continue;
 
@@ -388,7 +386,7 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
                 metadata,
                 access);
             registry.Register(tag);
-            if (!tag.ReadOnly)
+            if (!tag.ReadOnly && !dataSource.Driver.Equals(EngineeringDriverCompiler.SimulationDriverKey, StringComparison.OrdinalIgnoreCase))
                 writableTagIds.Add(tag.Id);
         }
 

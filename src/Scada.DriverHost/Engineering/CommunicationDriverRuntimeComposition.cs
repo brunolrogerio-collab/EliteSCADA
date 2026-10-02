@@ -7,6 +7,7 @@ using Scada.Drivers.Iec60870;
 using Scada.Drivers.Mqtt;
 using Scada.Drivers.OpcUa;
 using Scada.Drivers.SiemensS7Iso;
+using Scada.Drivers.Simulation;
 
 namespace Scada.DriverHost.Engineering;
 
@@ -31,6 +32,10 @@ public static class CommunicationDriverRuntimeComposition
         var protectedMaterialResolver = hostProtectedMaterialResolver
             ?? EnvironmentCommunicationDriverProtectedMaterialResolver.CreateDeterministicScopedEnvironment();
         var registry = new CommunicationDriverRuntimeComponentRegistry();
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new SimulationCommunicationRuntimePlanner(),
+            new SimulationCommunicationRuntimeFactory(),
+            SimulationDriverDescriptorProvider.SharedDescriptor));
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new MqttCommunicationRuntimePlanner(),
             new HostProtectedMaterialRuntimeFactory(

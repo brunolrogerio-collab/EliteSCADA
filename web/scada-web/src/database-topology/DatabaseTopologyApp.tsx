@@ -125,7 +125,6 @@ function EndpointCoreFields({
 
   return <div className="db-topology-fields db-topology-fields--core" data-testid={`${prefix}-endpoint-fields`}>
     <label><span>{t.host}</span><input aria-label={`${prefix} ${t.host}`} value={value.host} disabled={disabled} onChange={event => field('host', event.target.value)} /></label>
-    <label><span>{t.database}</span><input aria-label={`${prefix} ${t.database}`} value={value.database} disabled={disabled} onChange={event => field('database', event.target.value)} /></label>
     <label><span>{t.username}</span><input aria-label={`${prefix} ${t.username}`} autoComplete="username" value={value.username} disabled={disabled} onChange={event => field('username', event.target.value)} /></label>
     <label>
       <span>{t.password}</span>
@@ -159,6 +158,7 @@ function EndpointAdvancedFields({
     onChange({ ...value, [key]: next });
 
   return <div className="db-topology-fields db-topology-fields--advanced">
+    <label><span>{t.database}</span><input aria-label={`${prefix} ${t.database}`} value={value.database} disabled={disabled} onChange={event => field('database', event.target.value)} /></label>
     <label><span>{t.port}</span><input aria-label={`${prefix} ${t.port}`} inputMode="numeric" value={value.port} disabled={disabled} onChange={event => field('port', event.target.value)} /></label>
     <label><span>{t.tlsMode}</span>
       <select
@@ -254,13 +254,45 @@ export function DatabaseTopologyApp() {
   const stages = [t.stepValidate, t.stepPrepare, t.stepCopy, t.stepVerify, t.stepCutover];
   const validationHealth = compatibility?.primary ?? testHealth;
   const validationDiagnostic = compatibility?.diagnostic ?? testHealth?.diagnostic ?? null;
+  const remoteDraftStarted = Boolean(draft.primary.host.trim() || draft.primary.username.trim() || draft.primary.password);
   const autoRefreshActive = Boolean(
     pendingPhase && ['Quiescing', 'Copying', 'Verifying', 'Switching', 'Readiness', 'RollbackRequired'].includes(pendingPhase)
-  ) || ['copy', 'verify', 'commit', 'rollback', 'return-local'].includes(busy ?? '');
+  ) || ['migrate', 'verify', 'commit', 'rollback', 'return-local'].includes(busy ?? '');
+  const showMigrationPanel = Boolean(
+    pendingPhase ||
+    pending?.plan ||
+    canRollback ||
+    (status?.restartRequired && status?.lastOperation?.phase === 'Completed')
+  );
+  const nextActionText = status?.restartRequired
+    ? t.restartToFinish
+    : canRollback
+      ? t.recoveryNext
+      : pendingPhase === 'Prepared'
+        ? t.preparedReady
+        : pendingPhase === 'Copied'
+          ? t.verificationAutomatic
+          : pendingPhase && ['Quiescing', 'Copying', 'Verifying', 'Switching', 'Readiness'].includes(pendingPhase)
+            ? t.migrationRunning
+            : pendingPhase === 'Verified'
+              ? t.cutoverReady
+              : compatibility?.compatible
+                ? t.targetReady
+                : remoteDraftStarted
+                  ? t.configureRemoteHint
+                  : status?.activeTopology.mode === 'Remote'
+                    ? t.remoteStable
+                    : t.localStable;
 
   useEffect(() => {
     if (!autoRefreshActive) return;
     const timer = window.setInterval(() => { void refresh(false, true); }, 5000);
+    return () => window.clearInterval(timer);
+  }, [autoRefreshActive, refresh]);
+
+  useEffect(() => {
+    if (autoRefreshActive) return;
+    const timer = window.setInterval(() => { void refresh(true, true); }, 60000);
     return () => window.clearInterval(timer);
   }, [autoRefreshActive, refresh]);
 
@@ -342,10 +374,22 @@ export function DatabaseTopologyApp() {
     setNotice({ tone: 'success', text: t.credentialsConfigured });
   });
 
-  const onStartMigration = () => run('copy', async () => {
+  const onStartMigration = () => run('migrate', async () => {
     if (!operationId) return;
-    setPending(await startDatabaseMigration(operationId));
-    await refresh(false);
+    const copied = await startDatabaseMigration(operationId);
+    setPending(copied);
+    if (copied.phase !== 'Copied') {
+      await refresh(false, true);
+      return;
+    }
+
+    setBusy('verify');
+    const verification = await verifyDatabaseMigration(operationId);
+    await refresh(false, true);
+    setNotice({
+      tone: verification.succeeded ? 'success' : 'danger',
+      text: verification.diagnostic ?? (verification.succeeded ? t.compatible : t.incompatible)
+    });
   });
 
   const onVerify = () => run('verify', async () => {
@@ -386,7 +430,10 @@ export function DatabaseTopologyApp() {
   return <main className="db-topology-shell" data-testid="database-topology-app">
     <header className="db-topology-header">
       <div><span>EliteSCADA · System / Storage</span><h1>{t.title}</h1><p>{t.subtitle}</p></div>
-      <button type="button" className="db-topology-secondary" disabled={Boolean(busy)} onClick={() => void refresh(true)}>{t.refresh}</button>
+      <div className="db-topology-auto-state">
+        <strong>{t.automaticRefresh}</strong>
+        {status?.lastHealthCheckUtc ? <small>{new Date(status.lastHealthCheckUtc).toLocaleString(locale)}</small> : null}
+      </div>
     </header>
 
     {notice ? <div role="status" className={`db-topology-notice db-topology-notice--${notice.tone}`}>{notice.text}</div> : null}
@@ -394,15 +441,18 @@ export function DatabaseTopologyApp() {
     <section className="db-topology-panel db-topology-overview" aria-labelledby="database-overview-title">
       <div className="db-topology-section-heading">
         <h2 id="database-overview-title">{t.overview}</h2>
-        {status?.lastHealthCheckUtc ? <small>{new Date(status.lastHealthCheckUtc).toLocaleString(locale)}</small> : null}
       </div>
 
       <div className="db-topology-status-strip">
         <div><span>{t.currentMode}</span><strong>{status?.activeTopology.mode === 'Remote' ? t.remote : t.localManagedDefault}</strong></div>
         <div><span>{t.primary}</span><strong>{endpointLabel(status?.activeTopology)}</strong></div>
         <div><span>{t.health}</span><ResultPill ok={healthOk(primaryHealth)}>{primaryHealth ? (healthOk(primaryHealth) ? t.healthy : t.degraded) : t.unknown}</ResultPill></div>
-        <div><span>{t.historian}</span><strong>{status?.activeTopology.historianUsesPrimary ? t.usePrimary : t.override}</strong></div>
-        <div><span>{t.phase}</span><strong data-testid="database-pending-phase">{displayPhase ? phaseLabel(displayPhase, t) : t.noPending}</strong></div>
+      </div>
+
+      <div className="db-topology-next-action" data-testid="database-next-action">
+        <span>{t.nextAction}</span>
+        <strong>{nextActionText}</strong>
+        {pendingPhase ? <small data-testid="database-pending-phase">{phaseLabel(pendingPhase, t)}</small> : null}
       </div>
 
       {status?.restartRequired ? <div className="db-topology-alert db-topology-alert--warning" data-testid="database-restart-warning"><strong>{t.restartRequired}</strong><span>{t.restartPendingBody}</span></div> : null}
@@ -428,17 +478,21 @@ export function DatabaseTopologyApp() {
 
     <section className="db-topology-panel" aria-labelledby="remote-profile-title">
       <div className="db-topology-section-heading">
-        <div><h2 id="remote-profile-title">{t.remoteProfile}</h2><p>{t.remoteProfileHelp}</p></div>
+        <div><h2 id="remote-profile-title">{t.remoteProfile}</h2><p>{status?.activeTopology.mode === 'Remote' ? t.remoteProfileChangeHelp : t.remoteProfileHelp}</p></div>
         {primaryEndpoint?.credentialConfigured ? <span className="db-topology-credential-state">{t.credentialsConfigured}</span> : null}
       </div>
 
-      <EndpointCoreFields value={draft.primary} prefix="Primary" disabled={configurationLocked} onChange={primary => {
+      {configurationLocked ? <div className="db-topology-locked-state">{t.configurationLockedHelp}</div> : <>
+      <EndpointCoreFields value={draft.primary} prefix="Primary" disabled={false} onChange={primary => {
         setDraft(current => ({ ...current, primary }));
         invalidateValidation();
       }} />
 
       <details className="db-topology-details db-topology-advanced">
-        <summary><span>{t.advancedSettings}</span><small>{t.advancedSettingsHelp}</small></summary>
+        <summary>
+          <span>{t.advancedSettings}</span>
+          <small>{t.automaticDefaults}: {t.database} {draft.primary.database} · {t.port} {draft.primary.port} · TLS {draft.primary.tlsMode} · {t.timeout} {draft.primary.timeoutSeconds}s · {draft.historianUsesPrimary ? t.usePrimary : t.override}</small>
+        </summary>
         <EndpointAdvancedFields value={draft.primary} prefix="Primary" disabled={configurationLocked} onChange={primary => {
           setDraft(current => ({ ...current, primary }));
           invalidateValidation();
@@ -498,9 +552,10 @@ export function DatabaseTopologyApp() {
           </details>
         </div> : null}
       </div>
+      </>}
     </section>
 
-    <section className="db-topology-panel" aria-labelledby="migration-flow-title">
+    {showMigrationPanel ? <section className="db-topology-panel" aria-labelledby="migration-flow-title">
       <div className="db-topology-section-heading">
         <div><h2 id="migration-flow-title">{t.migrationFlow}</h2><p>{displayPhase ? phaseLabel(displayPhase, t) : t.noPending}</p></div>
       </div>
@@ -516,12 +571,6 @@ export function DatabaseTopologyApp() {
 
       {pending?.plan ? <article className="db-topology-plan" data-testid="database-migration-plan">
         <div className="db-topology-plan-route"><span>{t.source}</span><strong>{pending.plan.sourceMode}</strong><span>→</span><span>{t.target}</span><strong>{pending.plan.targetMode}</strong></div>
-        <details className="db-topology-inline-details">
-          <summary>{t.technicalDetails}</summary>
-          <dl className="db-topology-meta-list">
-            <div><dt>{t.durableDomains}</dt><dd>{pending.plan.durableDomains.join(', ')}</dd></div>
-          </dl>
-        </details>
       </article> : null}
 
       <details className="db-topology-details db-topology-impact">
@@ -531,12 +580,12 @@ export function DatabaseTopologyApp() {
       </details>
 
       <div className="db-topology-actions db-topology-actions--migration">
-        {pendingPhase === 'Prepared' && operationId ? <button type="button" className="db-topology-primary-action" disabled={Boolean(busy)} onClick={onStartMigration}>{busy === 'copy' ? t.working : t.startMigration}</button> : null}
-        {pendingPhase === 'Copied' && operationId ? <button type="button" className="db-topology-primary-action" disabled={Boolean(busy)} onClick={onVerify}>{busy === 'verify' ? t.working : t.verify}</button> : null}
+        {pendingPhase === 'Prepared' && operationId ? <button type="button" className="db-topology-primary-action" disabled={Boolean(busy)} onClick={onStartMigration}>{busy === 'migrate' || busy === 'verify' ? t.working : t.startMigration}</button> : null}
+        {pendingPhase === 'Copied' && operationId && !busy ? <button type="button" className="db-topology-secondary" onClick={onVerify}>{t.verify}</button> : null}
         {pendingPhase === 'Verified' && operationId ? <button type="button" className="db-topology-danger-action" disabled={Boolean(busy)} onClick={() => setConfirmation('cutover')}>{t.commitCutover}</button> : null}
         {canRollback ? <button type="button" className="db-topology-secondary" disabled={Boolean(busy)} onClick={() => setConfirmation('rollback')}>{t.rollback}</button> : null}
       </div>
-    </section>
+    </section> : null}
 
     {confirmation ? <div className="db-topology-dialog-backdrop" role="presentation">
       <section role="dialog" aria-modal="true" aria-labelledby="database-confirm-title" className="db-topology-dialog">

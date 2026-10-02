@@ -104,7 +104,7 @@ test('C26.7 Engineering fields expose readable editable, placeholder, readonly a
   await expect(page.getByRole('heading', { name: 'Scripts de Engenharia' })).toBeVisible();
   await page.getByRole('button', { name: 'Novo Script' }).click();
 
-  const scriptName = page.getByLabel('Nome', { exact: true });
+  const scriptName = page.getByLabel('Nome de exibição', { exact: true });
   const scriptLanguage = page.getByLabel('Linguagem');
   const scriptSearch = page.getByLabel('Buscar por nome, caminho ou descrição');
   await expect(scriptName).toBeVisible();

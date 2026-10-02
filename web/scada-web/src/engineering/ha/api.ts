@@ -102,7 +102,16 @@ const loadAuthority = () => requestJson<HaAuthoritySnapshot>('/api/runtime/ha/au
 const loadAdministration = () => requestJson<HaAdministrationSnapshot>('/api/runtime/ha/administration');
 const loadConfiguration = () => requestJson<HaHostConfigurationSnapshot>('/api/runtime/ha/configuration');
 const loadPeerStatus = () => requestJson<HaPeerDiagnostics>('/api/runtime/ha/peer/status');
-const loadLicensing = () => requestJson<HaLicensingSnapshot>('/api/licensing/status');
+const loadLicensing = async (): Promise<HaLicensingSnapshot> => {
+  try {
+    return await requestJson<HaLicensingSnapshot>('/api/licensing/status');
+  } catch {
+    return {
+      license: { state: 'Unavailable', haRuntime: false, diagnostic: 'license-status-unavailable' },
+      runtime: { state: 'Unavailable', activeLicenseState: null, activeTier: null, lastDiagnostic: 'license-status-unavailable' }
+    };
+  }
+};
 
 export const haAdminApi = {
   topology: loadTopology,

@@ -177,6 +177,31 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void SubmersiblePumpStyles_SeparateMotorHydraulicsAndLowerDischarge()
+    {
+        var variants = BuiltinDynamoLibrary.Create()
+            .Where(definition => definition.Metadata!["familyKey"] == "process.pump.submersible")
+            .ToArray();
+
+        Assert.Equal(3, variants.Length);
+        Assert.All(variants, variant =>
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            foreach (var key in new[] { "body", "pump-housing", "intake", "outlet", "outlet-neck", "outlet-flange", "top-cap", "cable-gland" })
+                Assert.Contains(key, elements.Keys);
+
+            var body = elements["body"].Properties!;
+            var outlet = elements["outlet"].Properties!;
+            var intake = elements["intake"].Properties!;
+            Assert.True(outlet["y"].GetDouble() > body["y"].GetDouble() + body["height"].GetDouble() / 2d,
+                $"Submersible outlet in '{variant.Key}' must leave the lower hydraulic section.");
+            Assert.True(intake["y"].GetDouble() > body["y"].GetDouble(),
+                $"Submersible intake in '{variant.Key}' must remain below the motor body.");
+            Assert.Contains(elements["body"].PropertyMaps!, map => map.PropertyKey == "fillColor");
+        });
+    }
+
+    [Fact]
     public void StandardMotorStyles_KeepIndustrialSideElevationAndAlignedShaftAxis()
     {
         var variants = BuiltinDynamoLibrary.Create()
@@ -319,6 +344,95 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void CompressorRichStyles_KeepEnhancementsAlignedToRedesignedMasses()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        foreach (var variant in definitions.Where(definition =>
+            definition.Metadata!["familyKey"] == "process.compressor.reciprocating" &&
+            definition.Properties!["visualStyle"] != "high-performance"))
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            Assert.Contains("detail-crosshead-pin", elements.Keys);
+            Assert.Contains("detail-connecting-rod", elements.Keys);
+            Assert.DoesNotContain(elements.Keys, key => key.StartsWith("detail-cylinder-fin-", StringComparison.Ordinal));
+        }
+
+        foreach (var variant in definitions.Where(definition =>
+            definition.Metadata!["familyKey"] == "process.compressor.screw" &&
+            definition.Properties!["visualStyle"] != "high-performance"))
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            Assert.Contains("detail-housing-seam", elements.Keys);
+            Assert.Contains("detail-oil-sight-glass", elements.Keys);
+            Assert.DoesNotContain("detail-rotor-highlight-left", elements.Keys);
+            Assert.DoesNotContain("detail-rotor-highlight-right", elements.Keys);
+        }
+    }
+
+    [Fact]
+    public void CompressorStyles_UseMechanicalAssembliesInsteadOfFaceLikeRotorLayouts()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        foreach (var variant in definitions.Where(definition =>
+            definition.Metadata!["familyKey"] == "process.compressor.reciprocating"))
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            Assert.Equal("core.rectangle", elements["head-left"].Type);
+            Assert.Equal("core.rectangle", elements["head-right"].Type);
+            Assert.Contains("flywheel", elements.Keys);
+            Assert.Contains("manifold", elements.Keys);
+            Assert.True(elements["cylinder-left"].Properties!["rotation"].GetDouble() < 0);
+            Assert.True(elements["cylinder-right"].Properties!["rotation"].GetDouble() > 0);
+        }
+
+        foreach (var variant in definitions.Where(definition =>
+            definition.Metadata!["familyKey"] == "process.compressor.screw"))
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            Assert.Equal("core.rectangle", elements["rotor-left"].Type);
+            Assert.Equal("core.rectangle", elements["rotor-right"].Type);
+            Assert.True(elements["rotor-left"].Properties!["width"].GetDouble() >
+                elements["rotor-left"].Properties["height"].GetDouble() * 4);
+            Assert.Contains("end-cover", elements.Keys);
+        }
+    }
+
+    [Fact]
+    public void TransformerAndBreakerStyles_ExposeRecognizableSubstationAnatomy()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        foreach (var transformer in definitions.Where(definition =>
+            definition.Metadata!["familyKey"] == "electrical.transformer.power"))
+        {
+            var elements = transformer.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            Assert.Equal("core.bezier", elements["tank"].Type);
+            Assert.Equal("core.bezier", elements["bushing-left"].Type);
+            Assert.Equal("core.bezier", elements["bushing-right"].Type);
+            Assert.Contains("conservator", elements.Keys);
+            Assert.Contains("conservator-neck", elements.Keys);
+            var radiatorCount = elements.Keys.Count(key =>
+                key.StartsWith("radiator-", StringComparison.Ordinal) &&
+                !key.StartsWith("radiator-r-", StringComparison.Ordinal));
+            Assert.InRange(radiatorCount, 3, 5);
+        }
+
+        foreach (var breaker in definitions.Where(definition =>
+            definition.Metadata!["familyKey"] == "electrical.breaker"))
+        {
+            var elements = breaker.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            Assert.Equal("core.bezier", elements["interrupter"].Type);
+            Assert.Contains("mechanism-box", elements.Keys);
+            Assert.Contains("linkage-left", elements.Keys);
+            Assert.Contains("linkage-right", elements.Keys);
+            Assert.True(elements["mechanism-box"].Properties!["y"].GetDouble() >
+                elements["interrupter"].Properties!["y"].GetDouble());
+        }
+    }
+
+    [Fact]
     public void IndicatorAndSubstationRepresentatives_UseCanonicalCurvedGeometry()
     {
         var definitions = BuiltinDynamoLibrary.Create();
@@ -357,10 +471,10 @@ public sealed class BuiltinDynamoLibraryTests
             .Where(definition => definition.Metadata!["familyKey"] is
                 "dynamo.pump.standard" or "process.pump.submersible" or "process.motor.standard" or
                 "process.motor.vfd" or "process.valve.onoff" or "process.valve.control" or
-                "process.tank.vertical" or "process.tank.horizontal" or "process.instrument.indicator")
+                "process.tank.vertical" or "process.tank.horizontal")
             .ToArray();
 
-        Assert.Equal(18, definitions.Length);
+        Assert.Equal(16, definitions.Length);
         Assert.All(definitions, definition =>
         {
             Assert.Equal(BuiltinDynamoLibrary.Version, definition.Properties!["libraryVersion"]);
@@ -377,7 +491,6 @@ public sealed class BuiltinDynamoLibraryTests
         Assert.Contains("detail-flange-bolt-31-49", keys);
         Assert.Contains("detail-shell-weld-50", keys);
         Assert.Contains("detail-shell-seam-65", keys);
-        Assert.Contains("detail-scale-tick--160", keys);
     }
 
     [Fact]
@@ -454,7 +567,7 @@ public sealed class BuiltinDynamoLibraryTests
             definition.Properties!["visualStyle"] == "detailed-2d");
         var blowerElements = detailedBlower.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
         Assert.Equal("#718795", blowerElements["outlet-flow-arrow"].Properties!["fillColor"].GetString());
-        Assert.Equal("secondary-detail", blowerElements["outlet-flow-arrow"].Metadata!["visualRole"]);
+        Assert.Equal("process-connection", blowerElements["outlet-flow-arrow"].Metadata!["visualRole"]);
 
         var transformer = definitions.Single(definition =>
             definition.Metadata!["familyKey"] == "electrical.transformer.power" &&
@@ -469,6 +582,42 @@ public sealed class BuiltinDynamoLibraryTests
         var tankElements = verticalTank.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
         Assert.Equal("#7DD3FC", tankElements["liquid"].Properties!["fillColor"].GetString());
         Assert.Equal("#0284C7", tankElements["liquid-line"].Properties!["fillColor"].GetString());
+    }
+
+    [Fact]
+    public void IndicatorExchangerAndStrainer_AvoidDuplicateOrDisconnectedDetails()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        var indicator = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "process.instrument.indicator" &&
+            definition.Properties!["visualStyle"] == "detailed-2d");
+        Assert.DoesNotContain(indicator.Elements!, element =>
+            element.Key.StartsWith("detail-scale-tick-", StringComparison.Ordinal));
+        Assert.Equal(4, indicator.Elements!.Count(element =>
+            element.Key.StartsWith("tick-", StringComparison.Ordinal)));
+
+        var exchanger = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "process.exchanger.shell-tube" &&
+            definition.Properties!["visualStyle"] == "detailed-2d");
+        var exchangerKeys = exchanger.Elements!.Select(element => element.Key).ToHashSet(StringComparer.Ordinal);
+        foreach (var key in new[]
+        {
+            "nozzle-hot-in-flange", "nozzle-hot-out-flange",
+            "nozzle-cold-in-flange", "nozzle-cold-out-flange"
+        })
+            Assert.Contains(key, exchangerKeys);
+        Assert.Equal(5, exchanger.Elements.Count(element =>
+            element.Key.StartsWith("tube-", StringComparison.Ordinal)));
+
+        var strainer = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "process.filter.strainer" &&
+            definition.Properties!["visualStyle"] == "detailed-2d");
+        var strainerKeys = strainer.Elements!.Select(element => element.Key).ToHashSet(StringComparer.Ordinal);
+        Assert.Contains("basket-neck", strainerKeys);
+        Assert.Contains("basket", strainerKeys);
+        Assert.Equal(4, strainer.Elements.Count(element =>
+            element.Key.StartsWith("basket-slot-", StringComparison.Ordinal)));
     }
 
     [Fact]
@@ -579,7 +728,7 @@ public sealed class BuiltinDynamoLibraryTests
             definition.Key == "process.blower.centrifugal");
         Assert.Contains(detailedBlower.Elements!, element =>
             element.Key == "outlet-flow-arrow" &&
-            element.Properties!["fillColor"].GetString() == "#13799D");
+            element.Properties!["fillColor"].GetString() == "#718795");
 
         var highPerformanceMotor = definitions.Single(definition =>
             definition.Key == "process.motor.standard.high-performance");

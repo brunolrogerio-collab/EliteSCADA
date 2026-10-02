@@ -138,39 +138,52 @@ public static class BuiltinDynamoLibrary
         var sequence = DefinitionSequence(family, style);
         if (style == VisualStyle.HighPerformance)
         {
-            return Dynamo(sequence, "process.pump.submersible", "Bomba submersível", "pump", style, 94, 132,
+            return Dynamo(sequence, "process.pump.submersible", "Bomba submersível", "pump", style, 104, 136,
             [
-                BezierShape(E(family, style, 1), "body", 22, 22, 50, 86,
-                    "M 18 4 C 30 1 70 1 82 4 C 91 18 94 35 94 50 C 94 65 91 82 82 96 C 70 99 30 99 18 96 C 9 82 6 65 6 50 C 6 35 9 18 18 4 Z",
+                // Vertical motor over a lower hydraulic section. The discharge leaves the
+                // pump housing, not the motor body, so the silhouette reads as submersible machinery.
+                BezierShape(E(family, style, 1), "body", 30, 22, 44, 72,
+                    "M 14 4 C 26 1 74 1 86 4 L 86 82 C 76 94 24 94 14 82 Z",
                     "#C5CDD3", "#374151", 2),
-                FlatShape(E(family, style, 2), "intake", "core.ellipse", 27, 88, 40, 25, "#9CA3AF", "#374151", 2),
-                FlatShape(E(family, style, 3), "outlet", "core.rectangle", 69, 28, 20, 14, "#A7B0B7", "#374151", 2, 3),
-                Text(E(family, style, 4), "label", "BS", 33, 51, 28, 22, 11, "#111827"),
+                FlatShape(E(family, style, 2), "intake", "core.rectangle", 29, 101, 46, 18, "#9CA3AF", "#374151", 2, 4),
+                FlatShape(E(family, style, 3), "outlet", "core.rectangle", 78, 79, 22, 13, "#A7B0B7", "#374151", 2, 2),
+                Text(E(family, style, 4), "label", "BS", 38, 51, 28, 22, 11, "#111827"),
                 StateLamp(E(family, style, 5), "running", 6, 5, "#16A34A", "running", "{equipmentPath}.Running"),
-                StateLamp(E(family, style, 6), "fault", 70, 5, "#DC2626", "fault", "{equipmentPath}.Fault")
+                StateLamp(E(family, style, 6), "fault", 80, 5, "#DC2626", "fault", "{equipmentPath}.Fault"),
+                FlatShape(E(family, style, 7), "top-cap", "core.rectangle", 35, 16, 34, 10, "#B7C0C6", "#374151", 1.5, 3),
+                FlatShape(E(family, style, 8), "outlet-neck", "core.rectangle", 69, 72, 15, 22, "#A7B0B7", "#374151", 1.5, 3),
+                FlatShape(E(family, style, 9), "outlet-flange", "core.rectangle", 96, 75, 6, 21, "#B7C0C6", "#374151", 1.5, 1),
+                FlatShape(E(family, style, 10), "cable-gland", "core.rectangle", 44, 7, 10, 11, "#6B7280", "#374151", 1, 2),
+                BezierShape(E(family, style, 11), "pump-housing", 25, 84, 54, 29,
+                    "M 8 18 C 20 5 38 2 58 5 C 78 8 92 24 94 48 C 90 72 74 91 50 96 C 28 94 12 78 6 58 Z",
+                    "#AEB7BE", "#374151", 1.5)
             ],
             parameters: PumpParameters());
         }
 
         var dimensional = style == VisualStyle.DimensionalFront;
-        return Dynamo(sequence, "process.pump.submersible", "Bomba submersível", "pump", style, 112, 160,
+        return Dynamo(sequence, "process.pump.submersible", "Bomba submersível", "pump", style, 122, 166,
         [
-            BezierShape(E(family, style, 1), "body", 29, 30, 54, 100,
-                "M 17 3 C 30 1 70 1 83 3 C 92 19 95 35 95 50 C 95 65 92 81 83 97 C 70 99 30 99 17 97 C 8 81 5 65 5 50 C 5 35 8 19 17 3 Z",
+            BezierShape(E(family, style, 1), "body", 36, 31, 48, 84,
+                "M 14 4 C 26 1 74 1 86 4 L 86 82 C 76 94 24 94 14 82 Z",
                 "#AEBCC8", "#334155", 3, dimensional ? "#F8FAFC" : null, "horizontal", dimensional),
-            MaterialShape(E(family, style, 2), "top-cap", "core.rectangle", 34, 22, 44, 18, "#CBD5E1", "#FFFFFF", "#334155", 2, 8, dimensional, "vertical"),
-            FlatShape(E(family, style, 3), "cable-gland", "core.rectangle", 43, 10, 12, 15, "#64748B", "#334155", 2, 3),
-            FlatShape(E(family, style, 4), "cable", "core.rectangle", 16, 6, 7, 58, "#374151", "#111827", 1, 3, -18),
-            MaterialShape(E(family, style, 5), "outlet-neck", "core.rectangle", 78, 31, 16, 27, "#B8C4CF", "#F8FAFC", "#334155", 2, 4, dimensional, "horizontal"),
-            MaterialShape(E(family, style, 6), "outlet", "core.rectangle", 91, 28, 18, 16, "#B8C4CF", "#F8FAFC", "#334155", 2, 3, dimensional, "vertical"),
-            MaterialShape(E(family, style, 7), "intake", "core.ellipse", 34, 115, 44, 28, "#94A3B8", "#DDE4EA", "#334155", 2, 0, dimensional, "vertical"),
-            FlatShape(E(family, style, 8), "grille-1", "core.rectangle", 39, 126, 4, 13, "#475569", "#334155", 0, 1),
-            FlatShape(E(family, style, 9), "grille-2", "core.rectangle", 48, 126, 4, 14, "#475569", "#334155", 0, 1),
-            FlatShape(E(family, style, 10), "grille-3", "core.rectangle", 57, 126, 4, 14, "#475569", "#334155", 0, 1),
-            FlatShape(E(family, style, 11), "grille-4", "core.rectangle", 66, 126, 4, 13, "#475569", "#334155", 0, 1),
-            Text(E(family, style, 12), "label", "BS", 42, 70, 28, 22, 11, "#1F2937"),
+            MaterialShape(E(family, style, 2), "top-cap", "core.rectangle", 40, 23, 40, 15, "#CBD5E1", "#FFFFFF", "#334155", 2, 5, dimensional, "vertical"),
+            FlatShape(E(family, style, 3), "cable-gland", "core.rectangle", 49, 11, 11, 14, "#64748B", "#334155", 1.5, 3),
+            FlatShape(E(family, style, 4), "cable", "core.rectangle", 52, 1, 5, 13, "#374151", "#111827", 1, 2),
+            MaterialShape(E(family, style, 5), "outlet-neck", "core.rectangle", 78, 91, 18, 25, "#B8C4CF", "#F8FAFC", "#334155", 2, 4, dimensional, "horizontal"),
+            MaterialShape(E(family, style, 6), "outlet", "core.rectangle", 92, 86, 23, 16, "#B8C4CF", "#F8FAFC", "#334155", 2, 2, dimensional, "vertical"),
+            MaterialShape(E(family, style, 7), "intake", "core.rectangle", 34, 130, 50, 20, "#94A3B8", "#DDE4EA", "#334155", 2, 4, dimensional, "vertical"),
+            FlatShape(E(family, style, 8), "grille-1", "core.rectangle", 40, 133, 3, 14, "#475569", "#334155", 0),
+            FlatShape(E(family, style, 9), "grille-2", "core.rectangle", 50, 133, 3, 14, "#475569", "#334155", 0),
+            FlatShape(E(family, style, 10), "grille-3", "core.rectangle", 61, 133, 3, 14, "#475569", "#334155", 0),
+            FlatShape(E(family, style, 11), "grille-4", "core.rectangle", 72, 133, 3, 14, "#475569", "#334155", 0),
+            Text(E(family, style, 12), "label", "BS", 46, 67, 28, 22, 11, "#1F2937"),
             StateLamp(E(family, style, 13), "running", 6, 5, "#22C55E", "running", "{equipmentPath}.Running"),
-            StateLamp(E(family, style, 14), "fault", 88, 5, "#EF4444", "fault", "{equipmentPath}.Fault")
+            StateLamp(E(family, style, 14), "fault", 98, 5, "#EF4444", "fault", "{equipmentPath}.Fault"),
+            BezierShape(E(family, style, 15), "pump-housing", 29, 103, 61, 34,
+                "M 8 18 C 20 5 38 2 58 5 C 78 8 92 24 94 48 C 90 72 74 91 50 96 C 28 94 12 78 6 58 Z",
+                "#94A3B8", "#334155", 2, dimensional ? "#DDE4EA" : null, "diagonal-down", dimensional),
+            FlatShape(E(family, style, 16), "outlet-flange", "core.rectangle", 111, 83, 6, 22, "#AAB8C5", "#475569", 1.5, 1)
         ],
         parameters: PumpParameters());
     }
@@ -678,10 +691,10 @@ public static class BuiltinDynamoLibrary
             MaterialShape(E(family, style, 2), "face", "core.ellipse", 24, 18, 72, 72, "#F8FAFC", "#FFFFFF", "#64748B", 2, 0, dimensional, "vertical"),
             ArcShape(E(family, style, 13), "scale-arc", 30, 24, 60, 60, 210, 510, "arc",
                 "#00000000", dimensional ? "#526979" : "#64748B", 1.5),
-            FlatShape(E(family, style, 3), "tick-1", "core.rectangle", 57, 21, 3, 10, "#475569", "#475569", 0, 1),
-            FlatShape(E(family, style, 4), "tick-2", "core.rectangle", 81, 31, 3, 10, "#475569", "#475569", 0, 1, 45),
-            FlatShape(E(family, style, 5), "tick-3", "core.rectangle", 88, 54, 3, 10, "#475569", "#475569", 0, 1, 90),
-            FlatShape(E(family, style, 6), "tick-4", "core.rectangle", 35, 31, 3, 10, "#475569", "#475569", 0, 1, -45),
+            FlatShape(E(family, style, 3), "tick-1", "core.rectangle", 58, 23, 2, 7, "#475569", "#475569", 0),
+            FlatShape(E(family, style, 4), "tick-2", "core.rectangle", 81, 33, 2, 7, "#475569", "#475569", 0, 0, 45),
+            FlatShape(E(family, style, 5), "tick-3", "core.rectangle", 89, 55, 2, 7, "#475569", "#475569", 0, 0, 90),
+            FlatShape(E(family, style, 6), "tick-4", "core.rectangle", 36, 33, 2, 7, "#475569", "#475569", 0, 0, -45),
             FlatShape(E(family, style, 7), "needle", "core.rectangle", 58, 51, 3, 29, "#DC2626", "#991B1B", 1, 1, 35),
             FlatShape(E(family, style, 8), "hub", "core.ellipse", 54, 54, 11, 11, "#475569", "#1F2937", 1),
             Text(E(family, style, 9), "label", "PI", 44, 68, 32, 16, 10, "#1F2937"),
@@ -746,36 +759,48 @@ public static class BuiltinDynamoLibrary
         switch (familyKey)
         {
             case "process.compressor.reciprocating":
-                Rect("base", 14, height - 20, width - 28, 9, dark, 2);
-                Bezier("crankcase", 25, 62, 52, 32,
-                    "M 8 12 C 18 4 32 2 50 2 C 68 2 82 4 92 12 L 92 88 C 82 96 68 98 50 98 C 32 98 18 96 8 88 Z",
+                Rect("base", 20, height - 18, width - 40, 8, dark, 2);
+                Bezier("crankcase", 39, 64, 63, 30,
+                    "M 7 12 C 18 4 32 2 50 2 C 68 2 82 4 93 12 L 93 88 C 82 96 68 98 50 98 C 32 98 18 96 7 88 Z",
                     shell, 2.5);
-                Rect("cylinder-left", 34, 24, 20, 42, light, 4);
-                Rect("cylinder-right", 62, 24, 20, 42, shell, 4);
-                Ellipse("head-left", 31, 17, 26, 14, accent);
-                Ellipse("head-right", 59, 17, 26, 14, accent);
-                Rect("discharge", 79, 29, 39, 9, shell, 2);
-                Rect("inlet", 6, 39, 30, 9, shell, 2);
-                for (var index = 0; index < (highPerformance ? 2 : 4); index++)
-                    Bar($"cooling-fin-{index + 1}", 38 + index * (highPerformance ? 18 : 9), 29, 2, 24, dark);
-                Label("C", 41, 69, 25, 18, 12);
+                Bar("cylinder-left", 45, 27, 18, 39, light, -5);
+                Bar("cylinder-right", 75, 27, 18, 39, shell, 5);
+                Rect("head-left", 40, 17, 27, 11, light, 2, 1.5);
+                Rect("head-right", 72, 17, 27, 11, light, 2, 1.5);
+                Rect("discharge", 91, 22, 37, 8, shell, 2, 1.5);
+                Rect("inlet", 20, 42, 27, 8, shell, 2, 1.5);
+                for (var index = 0; index < (highPerformance ? 1 : 2); index++)
+                {
+                    Bar($"cooling-fin-left-{index + 1}", 49 + index * 7, 31, 1.4, 24, dark, -5);
+                    Bar($"cooling-fin-right-{index + 1}", 79 + index * 7, 31, 1.4, 24, dark, 5);
+                }
+                Label("C", 53, 70, 25, 18, 12);
                 Lamp("running", 5, 5, "running", "{equipmentPath}.Running", "#D92D20");
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
+                Ellipse("flywheel", 96, 66, 27, 27, light, 1.5);
+                Ellipse("flywheel-hub", 105, 75, 9, 9, dark, 1);
+                Rect("manifold", 50, 50, 45, 6, dark, 2, 1);
                 break;
             case "process.compressor.screw":
-                Rect("base", 12, height - 18, width - 24, 8, dark, 2);
-                Bezier("compressor-housing", 29, 25, 88, 62,
-                    "M 10 8 C 24 3 76 3 90 8 C 96 20 98 34 98 50 C 98 66 96 80 90 92 C 76 97 24 97 10 92 C 4 80 2 66 2 50 C 2 34 4 20 10 8 Z",
+                Rect("base", 18, height - 17, width - 36, 8, dark, 2);
+                Bezier("compressor-housing", 34, 27, 91, 59,
+                    "M 8 9 C 20 3 80 3 92 9 L 92 91 C 80 97 20 97 8 91 C 3 76 2 24 8 9 Z",
                     shell, 2.5);
-                Ellipse("rotor-left", 42, 36, 34, 38, light);
-                Ellipse("rotor-right", 68, 36, 34, 38, highPerformance ? "#8C969D" : "#A5B9C8");
-                Rect("inlet", 6, 46, 31, 10, shell, 2);
-                Rect("outlet", 108, 38, 45, 10, shell, 2);
-                Label("SC", 59, 79, 28, 15, 10);
+                Bar("rotor-left", 48, 43, 59, 7, light, -4);
+                Bar("rotor-right", 48, 59, 59, 7, highPerformance ? "#8C969D" : "#A5B9C8", 4);
+                Rect("inlet", 11, 39, 29, 10, shell, 2, 1.5);
+                Rect("outlet", 119, 47, 36, 10, shell, 2, 1.5);
+                Label("SC", 64, 73, 28, 15, 10);
                 Lamp("running", 5, 5, "running", "{equipmentPath}.Running", "#D92D20");
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
-                Rect("inlet-flange", 31, 40, 7, 22, light, 2, 1.5);
-                Rect("outlet-flange", 108, 32, 7, 22, light, 2, 1.5);
+                Rect("inlet-flange", 35, 33, 7, 22, light, 2, 1.5);
+                Rect("outlet-flange", 117, 41, 7, 22, light, 2, 1.5);
+                Rect("end-cover", 111, 34, 9, 45, light, 3, 1.5);
+                for (var index = 0; index < (highPerformance ? 2 : 3); index++)
+                {
+                    Bar($"helix-upper-{index + 1}", 58 + index * 18, 41, 10, 10, dark, 35);
+                    Bar($"helix-lower-{index + 1}", 58 + index * 18, 57, 10, 10, dark, -35);
+                }
                 break;
             case "process.valve.butterfly":
                 Rect("pipe-left", 3, 51, 46, 10, shell, 2);
@@ -830,11 +855,15 @@ public static class BuiltinDynamoLibrary
                 Arc("head-left", 18, 36, 28, 54, 90, 270, dark);
                 Arc("head-right", 118, 36, 28, 54, 270, 450, dark);
                 for (var index = 0; index < (highPerformance ? 3 : 5); index++)
-                    Bar($"tube-{index + 1}", 45, 48 + index * (highPerformance ? 14 : 8), 71, 2, dark);
+                    Bar($"tube-{index + 1}", 45, 49 + index * (highPerformance ? 14 : 8), 71, 1.2, dark);
                 Rect("nozzle-hot-in", 49, 15, 10, 24, accent, 2);
                 Rect("nozzle-hot-out", 100, 86, 10, 25, accent, 2);
                 Rect("nozzle-cold-in", 51, 87, 9, 25, shell, 2);
                 Rect("nozzle-cold-out", 101, 14, 9, 25, shell, 2);
+                Rect("nozzle-hot-in-flange", 45, 12, 18, 4, light, 1, 1);
+                Rect("nozzle-cold-out-flange", 97, 11, 17, 4, light, 1, 1);
+                Rect("nozzle-cold-in-flange", 47, 109, 17, 4, light, 1, 1);
+                Rect("nozzle-hot-out-flange", 96, 108, 18, 4, light, 1, 1);
                 Label("E", 70, 55, 24, 18, 12);
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
                 break;
@@ -845,10 +874,10 @@ public static class BuiltinDynamoLibrary
                     "M 6 16 C 18 5 34 2 50 2 C 66 2 82 5 94 16 L 94 84 C 82 95 66 98 50 98 C 34 98 18 95 6 84 Z",
                     shell, 2.5);
                 Bezier("basket", 54, 52, 43, 47,
-                    "M 86 4 C 70 18 52 38 8 88 C 24 92 38 95 52 96 C 66 78 80 52 94 18 Z",
+                    "M 82 4 C 68 16 54 31 35 53 L 8 82 C 20 91 35 96 49 97 L 70 70 C 82 53 90 34 94 17 Z",
                     light, 2);
                 for (var index = 0; index < (highPerformance ? 2 : 4); index++)
-                    Bar($"basket-slot-{index + 1}", 62 + index * (highPerformance ? 14 : 7), 65, 2, 24, dark, -22);
+                    Bar($"basket-slot-{index + 1}", 63 + index * (highPerformance ? 14 : 7), 66, 1.4, 22, dark, -25);
                 Ellipse("cap", 51, 91, 49, 12, accent);
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
                 Bar("basket-neck", 66, 45, 10, 25, shell, -32);
@@ -875,35 +904,43 @@ public static class BuiltinDynamoLibrary
                 break;
             case "electrical.transformer.power":
                 Rect("base", 20, height - 18, width - 40, 8, dark, 2);
-                Bezier("tank", 39, 43, 72, 83,
-                    "M 8 8 C 18 3 30 2 50 2 C 70 2 82 3 92 8 L 92 92 C 82 97 70 98 50 98 C 30 98 18 97 8 92 Z",
+                Bezier("tank", 42, 46, 66, 78,
+                    "M 7 3 L 93 3 C 97 3 99 7 99 11 L 99 89 C 99 95 96 97 91 97 L 9 97 C 4 97 1 94 1 89 L 1 11 C 1 6 3 3 7 3 Z",
                     shell, 2.5);
-                Bezier("cover", 34, 36, 82, 12,
-                    "M 4 35 C 15 10 28 3 50 3 C 72 3 85 10 96 35 L 96 85 C 74 95 26 95 4 85 Z",
+                Bezier("cover", 37, 37, 76, 13,
+                    "M 5 35 C 17 10 31 4 50 4 C 69 4 83 10 95 35 L 95 88 L 5 88 Z",
                     light, 2);
                 for (var index = 0; index < (highPerformance ? 3 : 5); index++)
-                    Rect($"radiator-{index + 1}", 18 + index * (highPerformance ? 8 : 4), 59, 4, 52, accent, 1, 1);
+                    Rect($"radiator-{index + 1}", 18 + index * (highPerformance ? 8 : 4), 61, 3, 49, accent, 1, 1);
                 for (var index = 0; index < (highPerformance ? 3 : 5); index++)
-                    Rect($"radiator-r-{index + 1}", 112 + index * (highPerformance ? 8 : 4), 59, 4, 52, accent, 1, 1);
-                Rect("bushing-left", 53, 10, 11, 29, light, 3);
-                Rect("bushing-right", 84, 10, 11, 29, light, 3);
+                    Rect($"radiator-r-{index + 1}", 112 + index * (highPerformance ? 8 : 4), 61, 3, 49, accent, 1, 1);
+                Bezier("bushing-left", 51, 10, 13, 30,
+                    "M 38 2 L 62 2 L 76 98 L 24 98 Z", light, 1.5);
+                Bezier("bushing-right", 84, 10, 13, 30,
+                    "M 38 2 L 62 2 L 76 98 L 24 98 Z", light, 1.5);
                 Label("T", 59, 72, 31, 22, 15);
                 Lamp("fault", width - 22, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
+                Bezier("conservator", 103, 24, 34, 16,
+                    "M 8 8 C 20 2 80 2 92 8 L 92 92 C 80 98 20 98 8 92 Z", light, 1.5);
+                Bar("conservator-neck", 108, 37, 5, 12, dark);
                 break;
             case "electrical.breaker":
-                Rect("base", 17, height - 18, width - 34, 8, dark, 2);
-                Rect("support-left", 33, 70, 10, 61, shell, 2);
-                Rect("support-right", 88, 70, 10, 61, shell, 2);
-                Bezier("interrupter", 38, 37, 56, 50,
-                    "M 12 6 C 22 2 35 2 50 2 C 65 2 78 2 88 6 C 95 20 96 35 96 50 C 96 65 95 80 88 94 C 78 98 65 98 50 98 C 35 98 22 98 12 94 C 5 80 4 65 4 50 C 4 35 5 20 12 6 Z",
+                Rect("base", 18, height - 18, width - 36, 8, dark, 2);
+                Rect("support-left", 34, 78, 9, 52, shell, 2);
+                Rect("support-right", 88, 78, 9, 52, shell, 2);
+                Bezier("interrupter", 39, 48, 55, 30,
+                    "M 7 12 C 18 3 82 3 93 12 L 93 88 C 82 97 18 97 7 88 Z",
                     light, 2.5);
-                Bar("contact-left", 62, 17, 7, 25, dark);
-                Bar("contact-right", 73, 17, 7, 25, dark);
-                Rect("terminal-left", 56, 8, 18, 8, accent, 2, 1.5);
-                Rect("terminal-right", 72, 8, 18, 8, accent, 2, 1.5);
-                Label("52", 49, 50, 35, 18, 12);
+                Bar("contact-left", 53, 22, 6, 29, dark);
+                Bar("contact-right", 77, 22, 6, 29, dark);
+                Rect("terminal-left", 47, 12, 17, 8, accent, 2, 1.5);
+                Rect("terminal-right", 71, 12, 17, 8, accent, 2, 1.5);
+                Label("52", 51, 86, 30, 16, 10);
                 Lamp("closed", 6, 5, "closed", "{equipmentPath}.Closed", "#16A34A");
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
+                Rect("mechanism-box", 49, 80, 34, 28, shell, 3, 1.5);
+                Bar("linkage-left", 43, 69, 11, 4, dark, 28);
+                Bar("linkage-right", 81, 69, 11, 4, dark, -28);
                 break;
             case "electrical.disconnector":
             case "electrical.earthing-switch":
@@ -1415,16 +1452,18 @@ public static class BuiltinDynamoLibrary
         }
 
         if (properties.TryGetValue("strokeWidth", out var strokeWidthJson) &&
-            strokeWidthJson.TryGetDouble(out var strokeWidth))
+            strokeWidthJson.TryGetDouble(out var strokeWidth) &&
+            strokeWidth > 0)
         {
             var role = metadata["visualRole"];
             var normalizedStroke = role switch
             {
                 "primary-mass" => Math.Clamp(strokeWidth, 1.5, 2),
-                "fastener-detail" => Math.Clamp(strokeWidth, 0.75, 1),
+                "fastener-detail" => Math.Clamp(strokeWidth, 1, 1),
                 "process-connection" => Math.Clamp(strokeWidth, 1, 1.5),
-                _ => Math.Clamp(strokeWidth, 0.75, 1.5)
+                _ => Math.Clamp(strokeWidth, 1, 1.5)
             };
+            normalizedStroke = Math.Round(normalizedStroke * 2, MidpointRounding.AwayFromZero) / 2;
             properties["strokeWidth"] = JsonSerializer.SerializeToElement(normalizedStroke);
         }
 
@@ -1667,37 +1706,21 @@ public static class BuiltinDynamoLibrary
                 break;
 
             case "process.instrument.indicator":
-                var gaugeX = style == VisualStyle.HighPerformance ? 14d : 16d;
-                var gaugeY = style == VisualStyle.HighPerformance ? 8d : 10d;
-                var gaugeDiameter = style == VisualStyle.HighPerformance ? 68d : 88d;
-                var gaugeCenterX = gaugeX + gaugeDiameter / 2;
-                var gaugeCenterY = gaugeY + gaugeDiameter / 2;
-                var radius = gaugeDiameter / 2 - 11;
-                var angles = style == VisualStyle.HighPerformance
-                    ? Enumerable.Range(0, 7).Select(index => -150d + index * 30).ToArray()
-                    : new[] { -160d, -115d, -70d, -25d };
-                foreach (var angleDegrees in angles)
-                {
-                    var angle = angleDegrees * Math.PI / 180d;
-                    var x = gaugeCenterX + radius * Math.Cos(angle);
-                    var y = gaugeCenterY + radius * Math.Sin(angle);
-                    Bar($"scale-tick-{angleDegrees:0}", x - 1.2, y - 4, 2.4, 8, "#475569", angleDegrees + 90);
-                }
+                // The authored face already contains the primary scale ticks.
+                // Additional ticks doubled the visual weight and made the gauge look icon-like.
                 break;
 
             case "process.compressor.reciprocating":
-                RadialBolts("crankcase-fastener", 51, 78, 22, 4, 3.2);
-                for (var index = 0; index < 4; index++)
-                    Bar($"cylinder-fin-{index + 1}", 38 + index * 12, 25, 2, 12, "#64798B");
-                Dot("crosshead-pin", 51, 76, 7, "#DCE5EB", "#526879");
-                Bar("connecting-rod", 53, 79, 3, 15, "#586D7D", 28);
+                RadialBolts("crankcase-fastener", 70, 79, 24, 4, 3.2);
+                Dot("crosshead-pin", 70, 76, 6, "#DCE5EB", "#526879");
+                Bar("connecting-rod", 81, 76, 3, 18, "#586D7D", -52);
+                Bar("discharge-manifold-seam", 94, 24, 28, 1.5, "#8295A5");
                 break;
 
             case "process.compressor.screw":
-                RadialBolts("housing-fastener", 73, 56, 39, 4, 3.2);
-                Bar("rotor-highlight-left", 48, 40, 3, 27, "#F0F4F6", -12);
-                Bar("rotor-highlight-right", 83, 40, 3, 27, "#DCE5EB", 12);
-                Bar("oil-sight-glass", 112, 70, 5, 10, "#4B9BB4");
+                RadialBolts("housing-fastener", 80, 56, 42, 4, 3.2);
+                Bar("oil-sight-glass", 112, 67, 4, 9, "#4B9BB4");
+                Bar("housing-seam", 113, 37, 1.5, 38, "#8295A5");
                 break;
 
             case "process.valve.butterfly":

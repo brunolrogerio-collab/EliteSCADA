@@ -400,6 +400,40 @@ test('licensed Standalone can prepare HA but still reports Standalone running un
   await evidence(page, testInfo, 'ha-standalone-licensed-preparation');
 });
 
+test('licensed Standalone auto-resolves technical HA identifiers when preparation is complete', async ({ page }, testInfo) => {
+  const state = standaloneState(true);
+  await mockHa(page, state);
+  await open(page);
+
+  await page.getByRole('button', { name: /^High Availability/ }).click();
+  await page.getByLabel('Servidor parceiro · Endereço principal').fill('https://peer.example.test');
+  await page.getByRole('button', { name: 'Configurar autenticação' }).click();
+
+  const secret = 'standalone-preparation-secret-with-more-than-32-bytes';
+  await page.getByLabel('Novo peer shared secret').fill(secret);
+
+  await expect(page.getByTestId('ha-readiness')).toContainText('Configuração HA pronta para implantação');
+  await page.getByRole('button', { name: 'Salvar preparação HA' }).click();
+
+  expect(state.lastConfigBody.enabled).toBe(false);
+  expect(state.lastConfigBody.clusterId).toMatch(/^ha-/);
+  expect(state.lastConfigBody.nodes).toHaveLength(2);
+  expect(state.lastConfigBody.nodes[0].nodeId).toMatch(/^ha-node-/);
+  expect(state.lastConfigBody.nodes[1].nodeId).toMatch(/^ha-node-/);
+  expect(state.lastConfigBody.nodes[0].nodeId).not.toBe(state.lastConfigBody.nodes[1].nodeId);
+  expect(state.lastConfigBody.localNodeId).toBe(state.lastConfigBody.nodes[0].nodeId);
+  expect(state.lastConfigBody.initialActiveNodeId).toBe(state.lastConfigBody.nodes[0].nodeId);
+  expect(state.lastConfigBody.nodes[0].remoteEndpoint).toBe(state.lastConfigBody.nodes[0].localEndpoint);
+  expect(state.lastConfigBody.nodes[1].remoteEndpoint).toBe(state.lastConfigBody.nodes[1].localEndpoint);
+  expect(state.lastConfigBody.peerTransport.enabled).toBe(true);
+  expect(state.lastConfigBody.peerTransport.peerEndpoint).toBeNull();
+  expect(state.lastConfigBody.peerTransport.peerSharedSecret).toBe(secret);
+  expect(state.lastConfigBody.topologyVersion).toBe(2);
+
+  await expect(page.getByTestId('ha-running-mode')).toContainText('Standalone');
+  await evidence(page, testInfo, 'ha-standalone-automatic-internal-identities');
+});
+
 test('mounted HA admin shows healthy Active/Ready Standby authority and peer freshness', async ({ page }, testInfo) => {
   const state = healthyState();
   await mockHa(page, state);
@@ -449,16 +483,24 @@ test('advanced HA tuning stays out of the primary configuration flow until reque
   await mockHa(page, state);
   await open(page);
 
+  await expect(page.getByTestId('ha-internal-automation')).toContainText('Identidades e versionamento automáticos');
+  await expect(page.getByLabel('Servidor preferencial ao iniciar')).toHaveValue('local');
+  await expect(page.getByText('Cluster ID', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Node ID', { exact: true })).toHaveCount(0);
+
   const advanced = page.getByTestId('ha-advanced-settings');
+  const safety = page.getByTestId('ha-safety-tuning');
   await expect(advanced).not.toHaveAttribute('open', '');
-  await expect(page.getByTestId('ha-topology-version-managed')).toBeHidden();
-  await expect(page.getByTestId('ha-deployment-state')).toContainText('Habilitado');
-  await expect(page.getByRole('checkbox', { name: 'HA', exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('Freshness (s)')).toBeHidden();
 
   await advanced.getByText('Configuração avançada', { exact: true }).click();
-  await expect(page.getByTestId('ha-topology-version-managed')).toBeVisible();
-  await expect(page.getByTestId('ha-topology-version-managed')).toContainText('automática');
-  await expect(page.getByLabel('Initial Active Node ID')).toHaveValue('node-a');
+  await expect(page.getByLabel('Proteção HA habilitada')).toBeVisible();
+  await expect(safety).not.toHaveAttribute('open', '');
+  await safety.getByText('Ajustes técnicos de segurança', { exact: true }).click();
+  await expect(page.getByLabel('Freshness (s)')).toBeVisible();
+
+  await page.getByText('Diagnóstico técnico', { exact: true }).click();
+  await expect(page.getByText('Versão da topologia', { exact: true })).toBeVisible();
 });
 
 test('peer endpoint can be left automatic and only exposes an override on demand', async ({ page }) => {
@@ -487,8 +529,7 @@ test('configuration editing keeps peer secret write-only and truthfully shows re
   await expect(page.getByTestId('ha-peer-secret')).toHaveCount(0);
   await page.getByRole('button', { name: 'Trocar segredo' }).click();
   await page.getByLabel('Novo peer shared secret').fill(secret);
-  const nodeB = page.locator('fieldset').filter({ hasText: 'node-b' });
-  await nodeB.getByLabel('Endpoint Remote').fill('https://b2.example.test');
+  await page.getByLabel('Servidor parceiro · Endereço externo (opcional)').fill('https://b2.example.test');
   await page.getByRole('button', { name: 'Salvar configuração desejada' }).click();
 
   await expect(page.getByTestId('ha-restart-required')).toBeVisible();
@@ -508,8 +549,10 @@ test('controlled switchover requires confirmation and shows completed operation 
 
   await page.getByRole('button', { name: /^Switchover/ }).click();
   const dialog = page.getByRole('dialog');
-  await expect(dialog).toContainText('node-a');
-  await expect(dialog).toContainText('node-b');
+  await expect(dialog).toContainText('Este servidor');
+  await expect(dialog).toContainText('Servidor parceiro');
+  await expect(dialog).not.toContainText('node-a');
+  await expect(dialog).not.toContainText('node-b');
   await page.getByTestId('ha-confirm-action').click();
 
   await expect(page.getByTestId('ha-operation-list')).toContainText('switchover-completed');

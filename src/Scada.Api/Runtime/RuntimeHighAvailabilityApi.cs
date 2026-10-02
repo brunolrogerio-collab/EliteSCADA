@@ -331,7 +331,7 @@ public static class RuntimeHighAvailabilityApi
     private static async Task AuditProtectionOperationAsync(
         ApiAuditService audit,
         HttpContext context,
-        Scada.Security.Authorization.ApiPrincipal principal,
+        SecurityPrincipal principal,
         RuntimeHighAvailabilityService highAvailability,
         RuntimeHaProtectionOperation operation)
     {

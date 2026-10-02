@@ -306,11 +306,31 @@ test('advanced HA tuning stays out of the primary configuration flow until reque
 
   const advanced = page.getByTestId('ha-advanced-settings');
   await expect(advanced).not.toHaveAttribute('open', '');
-  await expect(page.getByLabel('Versão da topologia')).toBeHidden();
+  await expect(page.getByTestId('ha-topology-version-managed')).toBeHidden();
+  await expect(page.getByTestId('ha-deployment-state')).toContainText('Habilitado');
+  await expect(page.getByRole('checkbox', { name: 'HA', exact: true })).toHaveCount(0);
 
   await advanced.getByText('Configuração avançada', { exact: true }).click();
-  await expect(page.getByLabel('Versão da topologia')).toBeVisible();
-  await expect(page.getByText(/Versão lógica da topologia/)).toBeVisible();
+  await expect(page.getByTestId('ha-topology-version-managed')).toBeVisible();
+  await expect(page.getByTestId('ha-topology-version-managed')).toContainText('automática');
+  await expect(page.getByLabel('Initial Active Node ID')).toHaveValue('node-a');
+});
+
+test('peer endpoint can be left automatic and only exposes an override on demand', async ({ page }) => {
+  const state = healthyState();
+  state.config.running.peerTransport.peerEndpoint = null;
+  state.config.desired.peerTransport.peerEndpoint = null;
+  await mockHa(page, state);
+  await open(page);
+
+  const mode = page.getByTestId('ha-peer-endpoint-mode');
+  await expect(mode).toContainText('Endpoint automático');
+  await expect(page.getByLabel('Peer endpoint')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Sobrescrever endpoint' }).click();
+  await expect(page.getByLabel('Peer endpoint')).toBeVisible();
+  await page.getByRole('button', { name: 'Usar endpoint automático' }).click();
+  await expect(page.getByLabel('Peer endpoint')).toHaveCount(0);
 });
 
 test('configuration editing keeps peer secret write-only and truthfully shows restart-required', async ({ page }, testInfo) => {
@@ -319,17 +339,18 @@ test('configuration editing keeps peer secret write-only and truthfully shows re
   await open(page);
 
   const secret = 'this-is-a-new-peer-shared-secret-with-40-bytes';
+  await expect(page.getByTestId('ha-peer-secret')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Trocar segredo' }).click();
   await page.getByLabel('Novo peer shared secret').fill(secret);
-  await page.getByTestId('ha-advanced-settings').getByText('Configuração avançada', { exact: true }).click();
-  await page.getByLabel('Versão da topologia').fill('8');
   const nodeB = page.locator('fieldset').filter({ hasText: 'node-b' });
   await nodeB.getByLabel('Endpoint Remote').fill('https://b2.example.test');
   await page.getByRole('button', { name: 'Salvar configuração desejada' }).click();
 
   await expect(page.getByTestId('ha-restart-required')).toBeVisible();
-  await expect(page.getByTestId('ha-peer-secret')).toHaveValue('');
+  await expect(page.getByTestId('ha-peer-secret')).toHaveCount(0);
   await expect(page.getByTestId('ha-authentication-state')).toContainText('Authentication configured');
   expect(state.lastConfigBody.peerTransport.peerSharedSecret).toBe(secret);
+  expect(state.lastConfigBody.topologyVersion).toBe(8);
   expect(JSON.stringify(state.config)).not.toContain(secret);
   expect(await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } }))).not.toContain(secret);
   await evidence(page, testInfo, 'ha-config-restart-required-secret-write-only');
@@ -340,7 +361,7 @@ test('controlled switchover requires confirmation and shows completed operation 
   await mockHa(page, state);
   await open(page);
 
-  await page.getByRole('button', { name: 'Switchover', exact: true }).click();
+  await page.getByRole('button', { name: /^Switchover/ }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText('node-a');
   await expect(dialog).toContainText('node-b');
@@ -357,7 +378,7 @@ test('backend rejection remains visible as fail-closed operation result', async 
   await mockHa(page, state);
   await open(page);
 
-  await page.getByRole('button', { name: 'Switchover', exact: true }).click();
+  await page.getByRole('button', { name: /^Switchover/ }).click();
   await page.getByTestId('ha-confirm-action').click();
 
   await expect(page.getByTestId('ha-operation-list')).toContainText('rejected');
@@ -371,7 +392,7 @@ test('failback and recovery are explicit confirmed backend operations', async ({
   await open(page);
 
   for (const label of ['Failback', 'Recovery']) {
-    await page.getByRole('button', { name: label, exact: true }).click();
+    await page.getByRole('button', { name: new RegExp('^' + label) }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await page.getByTestId('ha-confirm-action').click();
     await expect(page.getByTestId('ha-operation-list')).toContainText(label.toLowerCase());

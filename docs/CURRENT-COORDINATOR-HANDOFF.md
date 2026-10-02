@@ -4,6 +4,8 @@
 > section supersedes older integration/merge-status statements below. Keep the
 > remaining Wave 15 scope open until the coordinator records lane dispositions;
 > the stabilization merge is not a declaration that Wave 15 is complete.
+>
+> Validation scope for this documentation-only handoff: `DOCS_I18N_HELP`.
 
 ## Live integration state
 

@@ -109,6 +109,43 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void StandardMotorStyles_KeepIndustrialSideElevationAndAlignedShaftAxis()
+    {
+        var variants = BuiltinDynamoLibrary.Create()
+            .Where(definition => definition.Metadata!["familyKey"] == "process.motor.standard")
+            .ToArray();
+
+        Assert.Equal(3, variants.Length);
+        foreach (var variant in variants)
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            foreach (var key in new[] { "body", "end-bell-left", "end-bell-right", "shaft", "terminal", "foot-left", "foot-right", "base" })
+                Assert.True(elements.ContainsKey(key), $"Motor variant '{variant.Key}' is missing industrial anatomy element '{key}'.");
+
+            var axisCenters = new[] { "body", "end-bell-left", "end-bell-right", "shaft" }
+                .Select(key =>
+                {
+                    var properties = elements[key].Properties!;
+                    return properties["y"].GetDouble() + properties["height"].GetDouble() / 2d;
+                })
+                .ToArray();
+            Assert.InRange(axisCenters.Max() - axisCenters.Min(), 0, 1.5);
+
+            Assert.Contains(variant.Elements!, element =>
+                element.Key == "body" &&
+                element.PropertyMaps?.Any(map => map.PropertyKey == "fillColor") == true);
+
+            if (variant.Properties!["visualStyle"] != "high-performance")
+            {
+                Assert.Contains("terminal-cover", elements.Keys);
+                Assert.Contains("cable-gland", elements.Keys);
+                Assert.Contains("nameplate", elements.Keys);
+                Assert.Contains(variant.Elements!, element => element.Key.StartsWith("detail-fan-cowl-vent-", StringComparison.Ordinal));
+            }
+        }
+    }
+
+    [Fact]
     public void AllOtherBuiltinDynamoFamilies_ReceiveVersionedFamilySpecificVisualDetails()
     {
         var definitions = BuiltinDynamoLibrary.Create()

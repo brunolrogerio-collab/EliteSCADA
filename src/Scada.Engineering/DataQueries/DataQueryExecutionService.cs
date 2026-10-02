@@ -51,9 +51,27 @@ public interface IDataQueryExecutionService
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Runtime-only execution envelope for a Data Query definition that is not persisted
+/// into Working/Active Engineering. Historical Playback uses this path so arbitrary
+/// visual TAG bindings can reuse the canonical #384 query/retrieval authority without
+/// manufacturing saved Data Query resources.
+/// </summary>
+public sealed record TransientDataQueryExecutionRequest(
+    DataQueryEngineeringDto Definition,
+    DataQueryExecutionRequest? Execution = null);
+
+public interface ITransientDataQueryExecutionService
+{
+    Task<DataQueryExecutionResponse> ExecuteTransientAsync(
+        DataQueryEngineeringDto definition,
+        DataQueryExecutionRequest? request = null,
+        CancellationToken cancellationToken = default);
+}
+
 public sealed class DataQueryDefinitionNotFoundException(string message) : KeyNotFoundException(message);
 
-public sealed class DataQueryExecutionService : IDataQueryExecutionService
+public sealed class DataQueryExecutionService : IDataQueryExecutionService, ITransientDataQueryExecutionService
 {
     public const string HistoricalProviderKey = "historical";
 
@@ -106,6 +124,18 @@ public sealed class DataQueryExecutionService : IDataQueryExecutionService
         var definition = _registry.Find(queryId)
             ?? throw new DataQueryDefinitionNotFoundException($"Data Query '{queryId:D}' was not found.");
         return ExecuteDefinitionAsync(definition, request ?? new DataQueryExecutionRequest(), cancellationToken);
+    }
+
+    public Task<DataQueryExecutionResponse> ExecuteTransientAsync(
+        DataQueryEngineeringDto definition,
+        DataQueryExecutionRequest? request = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        return ExecuteDefinitionAsync(
+            definition,
+            request ?? new DataQueryExecutionRequest(),
+            cancellationToken);
     }
 
     private async Task<DataQueryExecutionResponse> ExecuteDefinitionAsync(

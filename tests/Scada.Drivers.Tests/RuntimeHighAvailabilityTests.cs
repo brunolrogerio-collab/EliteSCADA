@@ -2,6 +2,7 @@ using Scada.Api.Runtime;
 using Scada.Core.Abstractions;
 using Scada.Core.Events;
 using Scada.DriverHost.Runtime;
+using Scada.Security.Authorization;
 
 namespace Scada.Drivers.Tests;
 
@@ -91,6 +92,37 @@ public sealed class RuntimeHighAvailabilityTests
         Assert.Equal("node-a", ready.EffectiveActiveNodeId);
         Assert.Equal(RuntimeHaState.Active, Node(ready, "node-a").State);
         Assert.True(coordinator.TryAcquireIndustrialAuthority("node-a").Allowed);
+    }
+
+    [Fact]
+    public void D2IndustrialFence_FailsClosedUntilExternalReferenceConfirmsLocalAuthority()
+    {
+        var clock = new MutableClock(DateTimeOffset.Parse("2026-10-02T12:00:00Z"));
+        var topology = CreateTopology("node-a");
+        var service = new RuntimeHighAvailabilityService(
+            topology,
+            () => clock.UtcNow,
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            externalIndustrialFenceRequired: true);
+
+        service.Authority.UpdateNodeReadiness(
+            "node-a",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+        service.Authority.UpdateNodeReadiness(
+            "node-b",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+
+        Assert.True(service.Authority.TryAcquireIndustrialAuthority("node-a").Allowed);
+        Assert.False(service.CanOwnIndustrialEffects());
+
+        service.AttachExternalIndustrialFence(_ => false);
+        Assert.False(service.CanOwnIndustrialEffects());
+
+        service.AttachExternalIndustrialFence(snapshot =>
+            snapshot.EffectiveActiveNodeId == "node-a" &&
+            snapshot.AuthorityEpoch == 1 &&
+            !snapshot.AmbiguousAuthority);
+        Assert.True(service.CanOwnIndustrialEffects());
     }
 
     [Fact]
@@ -218,6 +250,140 @@ public sealed class RuntimeHighAvailabilityTests
         Assert.Equal(0, registry.ActiveLogicalLeaseCount("cluster-a"));
     }
 
+
+    [Fact]
+    public void ReferencedAuthority_LocalPromotionRequiresPreFailureReadyStandbyWitness()
+    {
+        var coordinator = CreateCoordinator("node-b", out var clock);
+        coordinator.UpdateNodeReadiness(
+            "node-a",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+        coordinator.UpdateNodeReadiness(
+            "node-b",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+
+        var witness = coordinator.CaptureStandbyPromotionWitness("node-b");
+        Assert.NotNull(witness);
+
+        var afterLoss = coordinator.ReportNodeUnavailable("node-a");
+        Assert.Null(afterLoss.EffectiveActiveNodeId);
+        Assert.Equal(RuntimeHaState.Isolated, Node(afterLoss, "node-b").State);
+
+        var withoutWitness = coordinator.ApplyReferencedAuthority(
+            "node-b",
+            afterLoss.AuthorityEpoch,
+            previousAuthorityFenced: true);
+        Assert.False(withoutWitness.Accepted);
+        Assert.Equal("reference-promotion-ready-standby-witness-required", withoutWitness.ReasonCode);
+        Assert.Null(withoutWitness.Snapshot.EffectiveActiveNodeId);
+
+        var promoted = coordinator.ApplyReferencedAuthority(
+            "node-b",
+            afterLoss.AuthorityEpoch,
+            previousAuthorityFenced: true,
+            witness);
+        Assert.True(promoted.Accepted);
+        Assert.Equal("node-b", promoted.Snapshot.EffectiveActiveNodeId);
+        Assert.True(coordinator.TryAcquireIndustrialAuthority("node-b").Allowed);
+    }
+
+    [Fact]
+    public void ReferencedAuthority_RejectsStaleEpochAndCannotRecoverAmbiguityWithoutNewerExplicitReference()
+    {
+        var coordinator = CreateReadyPair(out _);
+        var before = coordinator.Snapshot();
+        var standbyWitness = coordinator.CaptureStandbyPromotionWitness("node-b");
+        Assert.NotNull(standbyWitness);
+        var token = coordinator.TryAcquireIndustrialAuthority("node-a").Token!;
+
+        var stale = coordinator.ApplyReferencedAuthority(
+            "node-b",
+            before.AuthorityEpoch - 1,
+            previousAuthorityFenced: true);
+        Assert.False(stale.Accepted);
+        Assert.Equal("reference-epoch-stale", stale.ReasonCode);
+        Assert.True(coordinator.ValidateIndustrialAuthority(token));
+
+        var ambiguous = coordinator.ObserveAuthorityClaim(
+            "node-b",
+            before.AuthorityEpoch,
+            claimsActive: true);
+        Assert.True(ambiguous.AmbiguousAuthority);
+        Assert.False(coordinator.ValidateIndustrialAuthority(token));
+
+        var sameEpochRecovery = coordinator.ApplyReferencedAuthority(
+            "node-a",
+            before.AuthorityEpoch,
+            previousAuthorityFenced: true,
+            allowAmbiguityRecovery: true);
+        Assert.False(sameEpochRecovery.Accepted);
+        Assert.Equal("reference-epoch-stale", sameEpochRecovery.ReasonCode);
+
+        var recovered = coordinator.ApplyReferencedAuthority(
+            "node-b",
+            checked(ambiguous.AuthorityEpoch + 1),
+            previousAuthorityFenced: true,
+            standbyWitness,
+            allowAmbiguityRecovery: true);
+        Assert.True(recovered.Accepted);
+        Assert.False(recovered.Snapshot.AmbiguousAuthority);
+        Assert.Equal("node-b", recovered.Snapshot.EffectiveActiveNodeId);
+    }
+
+    [Fact]
+    public async Task RuntimeSessionAuthorityTakeover_RebindsSameLogicalSeatWithoutSecondAdmission()
+    {
+        var now = DateTimeOffset.Parse("2026-10-02T12:00:00Z");
+        await using var store = new InMemoryRuntimeSessionLeaseStore(() => now);
+        var runtime = new RuntimeSessionRuntimeIdentity(
+            "engineering",
+            "project-a",
+            7,
+            now.AddMinutes(-1));
+
+        var admitted = await store.AdmitAsync(new RuntimeSessionLeaseAdmission(
+            "operator",
+            "elitego-1",
+            "interactive",
+            runtime,
+            TimeSpan.FromMinutes(2),
+            ServerNode: "node-a",
+            ClusterId: "cluster-a"));
+
+        var transition = await store.BeginAuthorityTransitionAsync("ha-takeover", now);
+        var authority = await store.CommitAuthorityChangeAsync(
+            transition.TransitionId,
+            transition.BaseAuthorityRevision,
+            now,
+            demoStartedAtUtc: null);
+
+        var rebound = await store.RebindActiveClusterLeasesAsync(
+            transition.TransitionId,
+            authority.AuthorityRevision,
+            "cluster-a",
+            "node-b");
+        Assert.Equal(1, rebound);
+
+        await store.FenceLeasesBeforeAuthorityRevisionAsync(
+            transition.TransitionId,
+            authority.AuthorityRevision);
+        await store.CompleteAuthorityTransitionAsync(
+            transition.TransitionId,
+            authority.AuthorityRevision);
+
+        var validation = await store.ValidateAsync(
+            admitted.SessionId,
+            "operator",
+            runtime,
+            "elitego-1");
+        Assert.True(validation.IsValid);
+        Assert.NotNull(validation.Lease);
+        Assert.Equal(admitted.SessionId, validation.Lease!.SessionId);
+        Assert.Equal("node-b", validation.Lease.ServerNode);
+        Assert.Equal(authority.AuthorityRevision, validation.Lease.AuthorityRevision);
+        Assert.Equal(admitted.Generation + 1, validation.Lease.Generation);
+    }
+
     [Fact]
     public async Task RuntimeEventGate_StopsAlarmHistorianScriptEventFanoutWhenAuthorityIsLost()
     {
@@ -263,38 +429,46 @@ public sealed class RuntimeHighAvailabilityTests
         return coordinator;
     }
 
-    private static RuntimeHaAuthorityCoordinator CreateCoordinator(out MutableClock clock)
+    private static RuntimeHaAuthorityCoordinator CreateCoordinator(out MutableClock clock) =>
+        CreateCoordinator("node-a", out clock);
+
+    private static RuntimeHaAuthorityCoordinator CreateCoordinator(
+        string localNodeId,
+        out MutableClock clock)
     {
         clock = new MutableClock(DateTimeOffset.Parse("2026-09-24T18:00:00Z"));
         var deterministicClock = clock;
         return new RuntimeHaAuthorityCoordinator(
-            new RuntimeHaTopologyDefinition(
-                Enabled: true,
-                ClusterId: "cluster-a",
-                LocalNodeId: "node-a",
-                InitialActiveNodeId: "node-a",
-                TopologyVersion: 3,
-                FreshnessWindow: TimeSpan.FromSeconds(15),
-                Nodes: new[]
-                {
-                    new RuntimeHaNodeDefinition(
-                        "node-a",
-                        new[]
-                        {
-                            new RuntimeHaEndpoint(RuntimeHaEndpointKind.Local, "https://10.0.0.1:5001", 0),
-                            new RuntimeHaEndpoint(RuntimeHaEndpointKind.Remote, "https://a.example.test", 1)
-                        }),
-                    new RuntimeHaNodeDefinition(
-                        "node-b",
-                        new[]
-                        {
-                            new RuntimeHaEndpoint(RuntimeHaEndpointKind.Local, "https://10.0.0.2:5001", 0),
-                            new RuntimeHaEndpoint(RuntimeHaEndpointKind.Remote, "https://b.example.test", 1)
-                        })
-                }),
+            CreateTopology(localNodeId),
             () => deterministicClock.UtcNow,
             Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
     }
+
+    private static RuntimeHaTopologyDefinition CreateTopology(string localNodeId) =>
+        new(
+            Enabled: true,
+            ClusterId: "cluster-a",
+            LocalNodeId: localNodeId,
+            InitialActiveNodeId: "node-a",
+            TopologyVersion: 3,
+            FreshnessWindow: TimeSpan.FromSeconds(15),
+            Nodes: new[]
+            {
+                new RuntimeHaNodeDefinition(
+                    "node-a",
+                    new[]
+                    {
+                        new RuntimeHaEndpoint(RuntimeHaEndpointKind.Local, "https://10.0.0.1:5001", 0),
+                        new RuntimeHaEndpoint(RuntimeHaEndpointKind.Remote, "https://a.example.test", 1)
+                    }),
+                new RuntimeHaNodeDefinition(
+                    "node-b",
+                    new[]
+                    {
+                        new RuntimeHaEndpoint(RuntimeHaEndpointKind.Local, "https://10.0.0.2:5001", 0),
+                        new RuntimeHaEndpoint(RuntimeHaEndpointKind.Remote, "https://b.example.test", 1)
+                    })
+            });
 
     private static RuntimeHaNodeReadinessEvidence Evidence(
         DateTimeOffset observedAtUtc,

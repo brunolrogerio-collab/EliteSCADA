@@ -1554,10 +1554,10 @@ public static class RuntimeHighAvailabilityPeerTransportComposition
         this IServiceCollection services)
     {
         services.AddSingleton(sp =>
-            RuntimeHaPeerTransportOptions.FromConfiguration(
-                sp.GetRequiredService<IConfiguration>(),
-                sp.GetRequiredService<RuntimeHighAvailabilityService>()
-                    .Authority.Definition));
+            sp.GetRequiredService<RuntimeHaHostConfigurationAuthority>()
+                .CreatePeerTransportOptions(
+                    sp.GetRequiredService<RuntimeHighAvailabilityService>()
+                        .Authority.Definition));
         services.AddSingleton<RuntimeHaPeerAuthenticator>();
         services.AddSingleton<RuntimeHaPeerMirrorStore>();
         services.AddSingleton<RuntimeHaPeerTransportState>();

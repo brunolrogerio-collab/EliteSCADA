@@ -27,8 +27,14 @@ Integration merge commit:
 Post-merge broad CI:
 - EliteSCADA CI #1634 / `36957590249`;
 - exact head `50df4982...`;
-- Web SUCCESS and Backend still running at this handoff checkpoint;
-- revalidate live before acting.
+- Web SUCCESS;
+- Backend FAILURE in one stale convergence test;
+- Chromium skipped downstream;
+- failure: `VisualPropertyCatalogConvergenceTests.CommonCatalog_ExposesTheCurrentCanonicalCrossLanguagePropertyKeys`;
+- accepted product exposes `arcStartAngle` / `arcEndAngle`, while the test still expected the older catalog;
+- classification: `STALE_TEST_CONTRACT / NO_PRODUCT_ROLLBACK`;
+- test-only closeout PR #449, head `d136732c421d3a37b27c98e8a7f17df32fa7ae80`;
+- T1 #354 / `36957855581` running at this handoff checkpoint.
 
 PR #444 includes the accepted product package, stable local Docker stack, E3 converter/documentation retention with no automatic E3 trial seeding, and the final test-contract fixes. Do not silently remove accepted behavior while handling later regressions.
 

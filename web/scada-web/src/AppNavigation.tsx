@@ -31,6 +31,39 @@ export function AppNavigation() {
   const path = window.location.pathname;
   const access = resolveAppSurfaceAccess(capabilities);
 
+  if (path.startsWith('/runtime/history') && access.runtime && access.history) {
+    return (
+      <header
+        className={`app-bar app-bar--runtime-only${branding.mode === 'none' ? ' app-bar--branding-none' : ''}`}
+        data-capabilities-loading={loading || undefined}
+      >
+        <ApplicationBrand
+          branding={branding}
+          defaultSubtitle={text.subtitle}
+          href="/"
+        />
+        <nav className="app-navigation" aria-label="Runtime views">
+          <a href="/"><span>{text.runtimeOverview}</span></a>
+          <a href="/runtime/history" className="active" aria-current="page"><span>{text.runtimeHistory}</span></a>
+        </nav>
+        <div className="app-shell-actions">
+          <label className="app-theme-control">
+            <span className="sr-only">{text.theme}</span>
+            <select
+              aria-label={text.theme}
+              value={theme}
+              onChange={event => selectTheme(event.target.value === 'light' ? 'light' : 'dark')}
+            >
+              <option value="dark">{text.themeDark}</option>
+              <option value="light">{text.themeLight}</option>
+            </select>
+          </label>
+          <UserSessionMenu locale={locale} includeRuntimeSessionControls />
+        </div>
+      </header>
+    );
+  }
+
   const links: ShellLink[] = [];
   if (access.runtime) links.push({ href: '/', label: text.runtime, description: text.runtimeDescription });
   if (access.engineering) links.push({ href: '/engineering', label: text.engineering, description: text.engineeringDescription });

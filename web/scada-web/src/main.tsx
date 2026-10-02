@@ -48,6 +48,7 @@ function ApplicationSurface() {
   const access = resolveAppSurfaceAccess(capabilities);
   const databaseAdmin = hasRuntimeCapability(capabilities, 'SystemAdmin');
   const anySurface = access.runtime || access.engineering || access.audit || access.licensing || databaseAdmin;
+  const privilegedShell = access.engineering || access.audit || access.licensing || databaseAdmin;
 
   let allowed = access.runtime;
   let Surface: React.ComponentType = RuntimeApplicationMount;
@@ -80,7 +81,10 @@ function ApplicationSurface() {
     </main>;
   }
 
-  if (path === '/') return <RuntimeApplicationMount showHistoryNavigation={access.history} />;
+  if (path === '/') return <RuntimeApplicationMount
+    showHistoryNavigation={access.history}
+    showFullscreenControl={privilegedShell}
+  />;
   return <Surface />;
 }
 

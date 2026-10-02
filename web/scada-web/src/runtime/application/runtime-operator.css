@@ -14,21 +14,114 @@
 .runtime-operator-bar {
   position: relative;
   min-width: 0;
-  display: flex;
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 3px 8px 3px 12px;
+  gap: 8px;
+  padding: 3px 7px 3px 10px;
   border-bottom: 1px solid var(--app-divider);
   background: var(--app-surface);
   color: var(--app-text-primary);
   z-index: 30;
 }
-.runtime-operator-context { min-width: 0; display: flex; align-items: baseline; gap: 8px; }
-.runtime-operator-context strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.runtime-operator-context span { color: var(--app-text-secondary); font-size: 11px; }
-.runtime-operator-actions { display: flex; align-items: center; gap: 6px; }
-.runtime-view-navigation--inline { flex: 0 0 auto; margin-inline: 12px auto; }
+.runtime-operator-bar--fullscreen {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  padding-inline: 8px;
+}
+.runtime-operator-brand { min-width: 0; justify-self: start; overflow: hidden; }
+.runtime-operator-brand .app-brand { min-width: 0; max-width: 100%; gap: 6px; padding: 2px 4px; }
+.runtime-operator-brand .app-brand-mark { width: 26px; height: 26px; border-radius: 6px; font-size: 12px; }
+.runtime-operator-brand .app-brand-image { max-width: 132px; max-height: 26px; }
+.runtime-operator-brand .app-brand-copy { display: grid; }
+.runtime-operator-brand .app-brand-copy strong { font-size: 12px; }
+.runtime-operator-brand .app-brand-copy small { font-size: 9px; }
+.runtime-operator-brand .app-brand-diagnostic { max-width: 160px; font-size: 9px; }
+.runtime-operator-context { min-width: 0; display: flex; align-items: baseline; gap: 7px; }
+.runtime-operator-context strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.runtime-operator-context span { color: var(--app-text-secondary); font-size: 10px; }
+.runtime-operator-bar--fullscreen .runtime-operator-context {
+  grid-column: 2;
+  justify-self: center;
+  max-width: min(44vw, 560px);
+  text-align: center;
+}
+.runtime-operator-bar--fullscreen .runtime-operator-context span { display: none; }
+.runtime-operator-actions { justify-self: end; display: flex; align-items: center; gap: 5px; }
+.runtime-operator-bar--fullscreen .runtime-operator-actions { grid-column: 3; }
+.runtime-operator-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--app-border);
+  border-radius: 7px;
+  background: var(--app-panel);
+}
+.runtime-operator-tool {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+}
+.runtime-operator-tool:hover {
+  border-color: var(--app-border);
+  background: var(--app-hover);
+  color: var(--app-text-primary);
+}
+.runtime-operator-tool.active,
+.runtime-operator-tool[aria-pressed="true"] {
+  border-color: var(--app-accent);
+  background: var(--app-selected);
+  color: var(--app-text-primary);
+}
+.runtime-operator-tool:focus-visible {
+  outline: 2px solid var(--app-focus);
+  outline-offset: 1px;
+  z-index: 2;
+}
+.runtime-operator-tool::after {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  z-index: 60;
+  max-width: 180px;
+  padding: 4px 6px;
+  border: 1px solid var(--app-border);
+  border-radius: 5px;
+  background: var(--app-surface-elevated);
+  color: var(--app-text-primary);
+  box-shadow: 0 6px 18px var(--app-overlay);
+  content: attr(data-tooltip);
+  font-size: 10px;
+  line-height: 1.2;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -2px);
+  transition: opacity .1s ease, transform .1s ease;
+  white-space: nowrap;
+}
+.runtime-operator-tool:hover::after,
+.runtime-operator-tool:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.runtime-operator-tool__icon {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
 .runtime-session-class { display: grid; gap: 10px; color: var(--app-text-primary); }
 .runtime-session-class__title { font-size: 14px; }
 .runtime-session-class__controls { display: grid; gap: 6px; }
@@ -175,36 +268,24 @@
 .runtime-operator-application[data-runtime-fullscreen="true"] .runtime-engineering-canvas { min-height: 0; }
 
 @media (max-width: 760px) {
-  .runtime-operator-bar { flex-wrap: wrap; gap: 4px 8px; padding: 5px 8px; }
-  .runtime-operator-context { flex: 1 1 auto; }
-  .runtime-view-navigation--inline { margin-inline: 0 auto; }
-  .runtime-operator-actions { margin-left: auto; }
-}
-
-
-.runtime-view-navigation--inline button {
-  padding: 6px 11px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--app-text-secondary);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.runtime-view-navigation--inline button:hover,
-.runtime-view-navigation--inline button:focus-visible {
-  color: var(--app-text-primary);
-  border-color: var(--app-border);
-  outline: none;
-}
-
-.runtime-view-navigation--inline button.active {
-  color: var(--app-text-primary);
-  border-color: var(--app-accent);
-  background: var(--app-selected);
+  .runtime-operator-bar { gap: 4px; padding: 4px 6px; }
+  .runtime-operator-context strong { max-width: 36vw; }
+  .runtime-operator-bar--fullscreen {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .runtime-operator-bar--fullscreen .runtime-operator-brand .app-brand-copy,
+  .runtime-operator-bar--fullscreen .runtime-operator-brand .app-brand-diagnostic {
+    display: none;
+  }
+  .runtime-operator-bar--fullscreen .runtime-operator-brand .app-brand-image {
+    max-width: 34px;
+    max-height: 26px;
+  }
+  .runtime-operator-bar--fullscreen .runtime-operator-context {
+    max-width: 30vw;
+  }
+  .runtime-operator-toolbar { gap: 1px; padding: 1px; }
+  .runtime-operator-tool { width: 28px; height: 28px; }
 }
 
 .runtime-operator-overlay--history {
@@ -221,7 +302,7 @@
 
 @media (max-width: 760px) {
   .runtime-operator-overlay {
-    top: 76px;
+    top: 44px;
     right: 4px;
     bottom: 4px;
     width: calc(100% - 8px);

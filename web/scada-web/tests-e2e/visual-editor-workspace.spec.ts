@@ -429,7 +429,7 @@ test('W15 Dynamic Text and Numeric Input are mounted, persisted and Design mode 
 
     await page.getByTestId('visual-editor-inspector-tab-properties').click();
     await bindingEditor.getByLabel('Valor numérico').selectOption('value');
-    await selectBindingSourceByPath(bindingEditor.getByLabel('Fonte do projeto'), numericTag!.path);
+    await selectBindingSourceByPath(bindingEditor.getByLabel('TAG / variável'), numericTag!.path);
     await bindingEditor.getByRole('button', { name: 'Aplicar binding' }).click();
 
     const numericRendered = page.getByTestId('visual-editor-canonical-layer').locator('[data-object-id="' + numericId + '"]');

@@ -7,6 +7,7 @@ import { DynamoInstanceInspector } from './canvas/DynamoInstanceInspector';
 import { DynamicPropertyEditor } from './dynamic-property-editor';
 import { EventsEditor } from './events-editor/EventsEditor';
 import { PropertyInspector } from './property-inspector';
+import { VisualDefinitionSurfaceInspector } from './canvas/VisualDefinitionSurfaceInspector';
 import type { VisualEditorBindingSourceCatalogItem, VisualEditorMutationIntent } from './visualEditorContracts';
 import type { VisualEditorKeyboardCommand } from './visualEditorKeyboardModel';
 
@@ -73,6 +74,13 @@ export function VisualEditorSelectionInspector({
     <div className="visual-editor-inspector-panel" data-inspector-tab={activeTab}>
       <section id="visual-editor-inspector-section-properties" role="tabpanel" aria-labelledby="visual-editor-inspector-tab-properties" hidden={activeTab !== 'properties'} className={`visual-editor-inspector-section${activeTab === 'properties' ? ' is-active' : ''}`} data-inspector-section="properties">
         <p className="visual-editor-inspector-hint">{text.propertiesHint}</p>
+        {selectedElements.length === 0 ? <VisualDefinitionSurfaceInspector
+          screen={screen}
+          onCommand={onCommand}
+          onImportAsset={onImportImage}
+          importDisabled={imageImportDisabled}
+          importing={imageImportBusy}
+        /> : null}
         <PropertyInspector
           selectedElements={selectedElements}
           visualAssets={visualAssets}
@@ -82,13 +90,13 @@ export function VisualEditorSelectionInspector({
           imageImportDisabled={imageImportDisabled}
           imageImportBusy={imageImportBusy}
         />
-        {selectedElement?.id && selectedElement.type === BUILTIN_VISUAL_OBJECT_TYPES.numericInput ? <BindingEditor
+        {selectedElement?.id && isValueBindingControl(selectedElement.type) ? <BindingEditor
           element={selectedElement}
           sourceCatalog={sourceCatalog}
           onMutationIntent={onMutationIntent}
           locale={locale}
-          preferredPropertyKey={VISUAL_PROPERTY_KEYS.value}
-          copy={numericInputBindingEditorCopy(locale)}
+          preferredPropertyKey={valueBindingProperty(selectedElement.type)}
+          copy={valueBindingEditorCopy(locale, selectedElement.type)}
         /> : null}
         <DynamoInstanceInspector
           screen={screen}
@@ -112,7 +120,7 @@ export function VisualEditorSelectionInspector({
           onSetPropertyMap={configuration => onMutationIntent({ kind: 'propertyMap.set', objectId: selectedElement.id!, configuration })}
           onRemovePropertyMap={propertyKey => onMutationIntent({ kind: 'propertyMap.remove', objectId: selectedElement.id!, propertyKey })}
         />
-        {selectedElement.type !== BUILTIN_VISUAL_OBJECT_TYPES.numericInput ? <BindingEditor
+        {!isValueBindingControl(selectedElement.type) ? <BindingEditor
           element={selectedElement}
           sourceCatalog={sourceCatalog}
           onMutationIntent={onMutationIntent}
@@ -139,24 +147,29 @@ export function VisualEditorSelectionInspector({
   </div>;
 }
 
-function numericInputBindingEditorCopy(locale: EngineeringLocale) {
-  if (locale === 'en') return {
-    ...bindingEditorCopy(locale),
-    title: 'Variable binding',
-    destination: 'Numeric value',
-    source: 'TAG / variable'
-  };
-  if (locale === 'es') return {
-    ...bindingEditorCopy(locale),
-    title: 'Vincular variable',
-    destination: 'Valor numérico',
-    source: 'TAG / variable'
-  };
+function isValueBindingControl(objectType: string): boolean {
+  return objectType === BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay ||
+    objectType === BUILTIN_VISUAL_OBJECT_TYPES.slider ||
+    objectType === BUILTIN_VISUAL_OBJECT_TYPES.numericInput;
+}
+
+function valueBindingProperty(objectType: string): string {
+  return objectType === BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay
+    ? VISUAL_PROPERTY_KEYS.text
+    : VISUAL_PROPERTY_KEYS.value;
+}
+
+function valueBindingEditorCopy(locale: EngineeringLocale, objectType: string) {
+  const destination = objectType === BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay
+    ? locale === 'en' ? 'Displayed value' : locale === 'es' ? 'Valor mostrado' : 'Valor exibido'
+    : objectType === BUILTIN_VISUAL_OBJECT_TYPES.slider
+      ? locale === 'en' ? 'Slider value' : locale === 'es' ? 'Valor del slider' : 'Valor do slider'
+      : locale === 'en' ? 'Numeric value' : locale === 'es' ? 'Valor numérico' : 'Valor numérico';
   return {
     ...bindingEditorCopy(locale),
-    title: 'Vincular variável',
-    destination: 'Valor numérico',
-    source: 'TAG / variável'
+    title: locale === 'en' ? 'TAG / variable value' : locale === 'es' ? 'Valor de TAG / variable' : 'Vincular valor à TAG / variável',
+    destination,
+    source: locale === 'en' ? 'TAG / variable' : locale === 'es' ? 'TAG / variable' : 'TAG / variável'
   };
 }
 

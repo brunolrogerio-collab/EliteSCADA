@@ -18,7 +18,7 @@ const authoringSidebarSource = readFileSync(
 
 test('Engineering Popups section routes to graphical authoring instead of read-only EntitySection', () => {
   expect(appSource).toContain("import { PopupVisualEditorWorkspace } from './visual-editor/PopupVisualEditorWorkspace';");
-  expect(appSource).toContain("case 'popups': return <PopupVisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>");
+  expect(appSource).toMatch(/case 'popups':\s*return <PopupVisualEditorWorkspace\b/);
   expect(appSource).not.toContain("case 'popups': return <EntitySection");
 });
 

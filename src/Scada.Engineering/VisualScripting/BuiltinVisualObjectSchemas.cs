@@ -208,7 +208,9 @@ public static class BuiltinVisualObjectSchemas
             .Concat([VisualPropertyKeys.BackgroundColor])
             .Concat(Stroke)
             .Concat([VisualPropertyKeys.CornerRadius])
-            .Concat(TextProperties));
+            .Concat(TextProperties)
+            .Concat([VisualPropertyKeys.ValueFormat, VisualPropertyKeys.TextColorGood, VisualPropertyKeys.TextColorBad])
+            .Concat([VisualPropertyKeys.DecimalPlacesEnabled, VisualPropertyKeys.DecimalPlaces]));
 
     /// <summary>
     /// Trend pens are structural payload owned by core.trend and are deliberately
@@ -281,6 +283,11 @@ public static class BuiltinVisualObjectSchemas
                 VisualPropertyKeys.StrokeWidth,
                 VisualPropertyKeys.CornerRadius,
                 VisualPropertyKeys.TextColor,
+                VisualPropertyKeys.TextColorEditing,
+                VisualPropertyKeys.TextColorGood,
+                VisualPropertyKeys.TextColorBad,
+                VisualPropertyKeys.DecimalPlacesEnabled,
+                VisualPropertyKeys.DecimalPlaces,
                 VisualPropertyKeys.FontFamily,
                 VisualPropertyKeys.FontSize,
                 VisualPropertyKeys.FontWeight,

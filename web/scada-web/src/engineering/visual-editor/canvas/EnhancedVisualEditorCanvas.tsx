@@ -1,4 +1,5 @@
 import React, {
+  useEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -88,12 +89,30 @@ export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
   const [guidePreview, setGuidePreview] = useState<VisualEditorMoveGuideResult | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
+  useEffect(() => {
+    if (!contextMenu) return undefined;
+    const dismissOutside = (event: PointerEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest('[data-testid="visual-editor-context-menu"]')) return;
+      setContextMenu(null);
+    };
+    const dismissEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setContextMenu(null);
+    };
+    document.addEventListener('pointerdown', dismissOutside, true);
+    document.addEventListener('keydown', dismissEscape, true);
+    return () => {
+      document.removeEventListener('pointerdown', dismissOutside, true);
+      document.removeEventListener('keydown', dismissEscape, true);
+    };
+  }, [contextMenu]);
+
   const beginCapture = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if (props.polygonToolActive || event.button !== 0 || event.altKey) return;
     const target = event.target instanceof HTMLElement ? event.target : null;
     if (!target) return;
 
-    const manipulationHandle = target.closest('[data-canvas-resize-handle],[data-canvas-rotate-handle],[data-polygon-vertex-index]');
+    const manipulationHandle = target.closest('[data-canvas-resize-handle],[data-canvas-rotate-handle],[data-polygon-vertex-index],[data-bezier-point-index]');
     const objectNode = target.closest<HTMLElement>('[data-canvas-object-id]');
     if (objectNode) {
       const objectId = objectNode.dataset.canvasObjectId;

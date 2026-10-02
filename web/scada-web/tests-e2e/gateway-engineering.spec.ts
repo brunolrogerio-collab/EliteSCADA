@@ -79,7 +79,7 @@ test('Gateway Engineering config uses canonical Preview Apply and shows runtime 
   await expect(panel).toBeVisible();
   await expect(page.getByTestId('gateway-diagnostics')).toContainText('active.route');
   await expect(page.getByTestId('gateway-diagnostics')).toContainText('Running');
-  await expect(page.getByTestId('gateway-route-inventory')).toContainText('route-a');
+  await expect(page.getByTestId('gateway-route-inventory')).toContainText('Route A');
   await expect(page.getByTestId('gateway-route-count')).toContainText('1');
   await page.getByTestId('gateway-new-route').click();
 

@@ -5,7 +5,6 @@ import type { VisualEditorMutationIntent, VisualEditorUiIntent } from './visualE
 import type { VisualEditorKeyboardCommand } from './visualEditorKeyboardModel';
 import { DynamoLibraryPalette } from './DynamoLibraryPalette';
 import { EquipmentFaceplatePalette } from './EquipmentFaceplatePalette';
-import { VisualDefinitionSurfaceInspector } from './canvas/VisualDefinitionSurfaceInspector';
 import { VisualEditorOutliner } from './canvas/VisualEditorOutliner';
 
 export type VisualEditorAuthoringTab = 'structure' | 'library' | 'assets';
@@ -118,13 +117,6 @@ export function VisualEditorAuthoringSidebar({
             </div>)}
           </div>
         </section>
-        <VisualDefinitionSurfaceInspector
-          screen={screen}
-          onCommand={onCommand}
-          onImportAsset={assetImport?.onFile}
-          importDisabled={assetImport?.disabled}
-          importing={assetImport?.busy}
-        />
       </section>
     </div>
   </div>;

@@ -40,14 +40,20 @@ test('Alarm Browser and Event Browser are first-class authoring palette objects'
 
 test('browser insertion labels follow the shared Screen and Popup visual-editor locale', () => {
   expect(c07VisualEditorText('pt-BR').palette).toEqual({
+    arc: 'Arco',
+    bezier: 'Curva Bézier',
     alarmBrowser: 'Browser de Alarmes',
     eventBrowser: 'Browser de Eventos'
   });
   expect(c07VisualEditorText('en').palette).toEqual({
+    arc: 'Arc',
+    bezier: 'Bezier curve',
     alarmBrowser: 'Alarm Browser',
     eventBrowser: 'Event Browser'
   });
   expect(c07VisualEditorText('es').palette).toEqual({
+    arc: 'Arco',
+    bezier: 'Curva Bézier',
     alarmBrowser: 'Browser de Alarmas',
     eventBrowser: 'Browser de Eventos'
   });

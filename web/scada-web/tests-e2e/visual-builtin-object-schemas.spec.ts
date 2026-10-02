@@ -82,6 +82,11 @@ test('built-in schemas expose only relevant shared visual properties', () => {
   expect(button.declares(VISUAL_PROPERTY_KEYS.enabled)).toBeTruthy();
   expect(button.declares(VISUAL_PROPERTY_KEYS.fillStyle)).toBeFalsy();
 
+  const valueDisplay = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay);
+  expect(valueDisplay.declares(VISUAL_PROPERTY_KEYS.text)).toBeTruthy();
+  expect(valueDisplay.declares(VISUAL_PROPERTY_KEYS.showEngineeringUnit)).toBeTruthy();
+  expect(valueDisplay.getRequired(VISUAL_PROPERTY_KEYS.showEngineeringUnit).defaultValue).toBe(true);
+
   const slider = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.slider);
   expect(slider.declares(VISUAL_PROPERTY_KEYS.value)).toBeTruthy();
   expect(slider.declares(VISUAL_PROPERTY_KEYS.minimum)).toBeTruthy();

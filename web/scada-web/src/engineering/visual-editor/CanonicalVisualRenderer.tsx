@@ -432,12 +432,18 @@ function CanonicalElement({
     }
 
     if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.numericInput) {
+      const numericInputStyle = {
+        ...style,
+        '--numeric-input-color-editing': stringValue(values[VISUAL_PROPERTY_KEYS.textColorEditing], '#1565C0'),
+        '--numeric-input-color-good': stringValue(values[VISUAL_PROPERTY_KEYS.textColorGood], stringValue(values[VISUAL_PROPERTY_KEYS.textColor], '#000000')),
+        '--numeric-input-color-bad': stringValue(values[VISUAL_PROPERTY_KEYS.textColorBad], '#C62828')
+      } as CSSProperties;
       return <NumericInputVisualElement
         element={element}
         values={values}
         diagnostics={dynamic.diagnostics}
         liveSamples={liveSamples}
-        style={style}
+        style={numericInputStyle}
         runtimeObjectId={runtimeObjectId}
         locale={locale}
         title={elementTitle}
@@ -448,8 +454,22 @@ function CanonicalElement({
     const staticText = stringValue(values[VISUAL_PROPERTY_KEYS.text]);
     const textBinding = dynamicTextBinding(element.bindings);
     const textSample = textBinding ? bindingSample(liveSamples, textBinding) : undefined;
+    const valueFormat = element.type === BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay
+      ? stringValue(values[VISUAL_PROPERTY_KEYS.valueFormat], 'default')
+      : undefined;
+    const configuredDecimals = element.type === BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay
+      && values[VISUAL_PROPERTY_KEYS.decimalPlacesEnabled] === true
+      ? numberValue(values[VISUAL_PROPERTY_KEYS.decimalPlaces], 2)
+      : undefined;
     const dynamicText = textBinding
-      ? formatVisualScalarText(textSample, textBinding, locale)
+      ? formatVisualScalarText(
+        textSample,
+        textBinding,
+        locale,
+        valueFormat,
+        configuredDecimals,
+        element.type !== BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay || values[VISUAL_PROPERTY_KEYS.showEngineeringUnit] !== false
+      )
       : null;
     const className = `visual-editor-object visual-editor-${element.type.replace('core.', '')}${dynamicText && !dynamicText.available ? ' visual-editor-dynamic-unavailable' : ''}`;
     const content = dynamicText?.text || staticText || (showTechnicalFallbackText ? element.key : '');
@@ -475,9 +495,14 @@ function CanonicalElement({
         {fill}{content}
       </button>;
     }
+    const dynamicValueStyle = element.type === BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay && dynamicText
+      ? { ...style, color: dynamicText.available
+        ? stringValue(values[VISUAL_PROPERTY_KEYS.textColorGood], stringValue(values[VISUAL_PROPERTY_KEYS.textColor], '#000000'))
+        : stringValue(values[VISUAL_PROPERTY_KEYS.textColorBad], '#C62828') }
+      : style;
     return <div
       className={className}
-      style={style}
+      style={dynamicValueStyle}
       data-object-id={element.id ?? undefined}
       data-runtime-object-id={runtimeObjectId}
       data-enabled={enabled}

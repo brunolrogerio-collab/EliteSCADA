@@ -473,10 +473,16 @@ test('W15 Dynamic Text and Numeric Input are mounted, persisted and Design mode 
       target: numericTag!.path, direction: 'readWrite'
     });
   } finally {
-    const restore = await request.post('/api/engineering/import/json/apply', {
-      headers: { 'content-type': 'application/json; charset=utf-8' }, data: originalPackage
-    });
-    expect(restore.ok()).toBeTruthy();
+    try {
+      const restore = await request.post('/api/engineering/import/json/apply', {
+        headers: { 'content-type': 'application/json; charset=utf-8' }, data: originalPackage
+      });
+      if (!restore.ok() && testInfo.errors.length === 0) expect(restore.ok()).toBeTruthy();
+    } catch (restoreError) {
+      // Keep the first failure visible if Playwright has already closed the
+      // request context due to a test timeout or another earlier assertion.
+      if (testInfo.status === 'passed' && testInfo.errors.length === 0) throw restoreError;
+    }
   }
 });
 

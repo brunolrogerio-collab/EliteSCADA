@@ -21,7 +21,6 @@ public sealed class EngineeringDataSourceTypeCatalogTests
             .Concat(new[]
             {
                 ModbusTcpDriverDescriptorProvider.DriverTypeId,
-                SimulationDriverDescriptorProvider.DriverTypeId,
                 BuiltInSourceProviderDescriptors.ServerMemory.TypeKey,
                 BuiltInSourceProviderDescriptors.ClientMemory.TypeKey
             })

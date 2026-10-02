@@ -174,21 +174,28 @@ public sealed class EngineeringDriverCompilerTests
     }
 
     [Fact]
-    public void Compile_IgnoresBuiltInSimulationButRejectsUnknownEnabledDrivers()
+    public void Compile_PlansBuiltInSimulationAndRejectsUnknownEnabledDrivers()
     {
         var simulation = new DataSourceEngineeringDto(null, "builtin.simulation", "Simulation", "builtin.simulation");
+        var simulatedTag = new TagEngineeringDto(Guid.NewGuid(), "Clock", "Demo.Clock", TagDataType.DateTime,
+            Source: "builtin.simulation", Metadata: new Dictionary<string, string> { ["simulation.signalType"] = "CurrentTime" });
         var unsupported = new DataSourceEngineeringDto(null, "opc.legacy", "Legacy OPC", "opc.da");
 
         var result = new EngineeringDriverCompiler().Compile(Package(
-            Array.Empty<TagEngineeringDto>(),
+            new[] { simulatedTag },
             new[] { simulation, unsupported }));
 
         Assert.False(result.CanActivate);
         Assert.Empty(result.ModbusTcpPlans);
-        var issue = Assert.Single(result.Issues);
+        var issue = Assert.Single(result.Issues, x => x.IsError);
         Assert.Equal("DRIVER_UNSUPPORTED", issue.Code);
         Assert.Equal("opc.legacy", issue.DataSourceKey);
+        var plan = Assert.IsType<SimulationCommunicationRuntimePlan>(Assert.Single(result.CommunicationPlans));
+        Assert.Equal("builtin.simulation", plan.DataSourceKey);
+        Assert.Equal(SCADA_DATE_TIME, Assert.Single(plan.Points).Tag.DataType);
     }
+
+    private const TagDataType SCADA_DATE_TIME = TagDataType.DateTime;
 
     private static DataSourceEngineeringDto DataSource() => new(
         Id: null,

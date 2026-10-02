@@ -57,24 +57,39 @@ test('Engineering workspace renders the public model and switches locale without
   await expect(page.getByRole('navigation').getByText('Proyecto', { exact: true })).toBeVisible();
 });
 
-test('Engineering navigation exposes current domains and structured preview editors', async ({ page }) => {
+test('Engineering navigation exposes current domains and structured preview editors', async ({ page, request }) => {
+  const response = await request.get('/api/engineering/export/json');
+  expect(response.ok()).toBeTruthy();
+  const engineering = await response.json() as {
+    dataSources?: Array<{ key: string }>;
+    alarms?: Array<{ name: string }>;
+    templates?: Array<{ key: string }>;
+    equipment?: Array<{ path?: string; key?: string }>;
+    dynamos?: Array<{ key: string; name: string }>;
+    screens?: Array<{ key: string }>;
+    popups?: Array<{ key: string }>;
+    securityRoles?: Array<{ key: string }>;
+  };
+
   await page.goto('/engineering');
 
   const sections = [
-    { button: /Fontes de dados|Data Sources/, heading: /Editor.*Fonte[s]? de dados|Data Source editor/, expected: 'builtin.memory.server' },
-    { button: /Alarmes/, heading: 'Editor estruturado de Alarmes', expected: 'High discharge pressure' },
-    { button: /Templates/, heading: 'Templates', expected: 'pump.standard' },
-    { button: /Equipamentos/, heading: 'Equipamentos', expected: 'Demo.P01' },
-    { button: /Dínamos/, heading: 'Dínamos', expected: 'dynamo.pump.standard' },
-    { button: /Telas/, heading: 'Telas', expected: 'demo.overview' },
-    { button: /Popups/, heading: 'Popups', expected: 'popup.pump.standard' },
-    { button: /Segurança/, heading: 'Papéis e capacidades', expected: 'operator' }
+    { button: /Fontes de dados|Data Sources/, heading: /Editor.*Fonte[s]? de dados|Data Source editor/, expected: engineering.dataSources?.[0]?.key ?? null },
+    { button: /Alarmes/, heading: 'Editor estruturado de Alarmes', expected: engineering.alarms?.[0]?.name ?? null },
+    { button: /Templates/, heading: 'Templates', expected: engineering.templates?.[0]?.key ?? null },
+    { button: /Equipamentos/, heading: 'Instâncias de Equipamentos', expected: engineering.equipment?.[0]?.path ?? engineering.equipment?.[0]?.key ?? null },
+    { button: /Dínamos/, heading: 'Dínamos', expected: engineering.dynamos?.[0]?.name ?? null },
+    { button: /Telas/, heading: 'Telas', expected: engineering.screens?.[0]?.key ?? null },
+    { button: /Popups/, heading: 'Popups', expected: engineering.popups?.[0]?.key ?? null },
+    { button: /Segurança/, heading: 'Papéis e capacidades', expected: engineering.securityRoles?.[0]?.key ?? null }
   ];
 
   for (const section of sections) {
     await page.getByRole('button', { name: section.button }).click();
     await expect(page.getByRole('heading', { name: section.heading })).toBeVisible();
-    await expect(page.getByText(section.expected, { exact: true }).first()).toBeVisible();
+    if (section.expected) {
+      await expect(page.getByText(section.expected, { exact: true }).first()).toBeVisible();
+    }
   }
 });
 

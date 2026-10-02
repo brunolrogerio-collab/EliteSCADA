@@ -13,7 +13,10 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   await page.locator('[data-insert-object-type="core.rectangle"]').click();
   const rectangle = page.locator('[data-canvas-object-type="core.rectangle"]').last();
   await expect(rectangle).toBeVisible();
-  await expect(rectangle).toHaveCSS('background-color', 'rgba(128, 128, 128, 1)');
+  const rectangleId = await rectangle.getAttribute('data-canvas-object-id');
+  expect(rectangleId).toBeTruthy();
+  const renderedRectangle = page.getByTestId('visual-editor-canonical-layer').locator(`[data-object-id="${rectangleId}"]`);
+  await expect(renderedRectangle).toHaveCSS('background-color', 'rgb(128, 128, 128)');
   await rectangle.click();
 
   const inspector = page.getByTestId('visual-property-inspector');
@@ -143,7 +146,7 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   await expect(assetRef).toHaveAttribute('data-editor-hint', 'project-asset');
   const assetBrowser = assetRef.getByTestId('visual-editor-image-asset-picker');
   await expect(assetBrowser.getByRole('combobox', { name: 'Asset Ref' })).toBeVisible();
-  await expect(assetBrowser.getByRole('button', { name: 'Escolher imagem…' })).toBeVisible();
+  await expect(assetBrowser.getByRole('button', { name: 'Procurar no computador e enviar…' })).toBeVisible();
   const imageZoom = inspector.locator('[data-property-key="imageZoom"]');
   await expect(imageZoom.locator('input[type="range"]')).toBeVisible();
   await expect(imageZoom.locator('input[type="range"]')).toHaveAttribute('min', '1');
@@ -156,6 +159,7 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   await page.getByTestId('visual-editor-side-tab-assets').click();
   const background = page.getByTestId('visual-definition-surface-inspector');
   await background.locator('summary').click();
+  await background.locator('select').first().selectOption('image');
   await expect(background.locator('input[type="file"]')).toHaveAttribute('accept', /image\/svg\+xml/);
   await expect(background.getByRole('button', { name: 'Escolher imagem…' })).toBeEnabled();
 });

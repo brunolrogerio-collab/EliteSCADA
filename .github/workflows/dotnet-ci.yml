@@ -3,7 +3,7 @@ name: EliteSCADA CI
 on:
   workflow_dispatch:
   push:
-    branches: [ main, wave14/corrections-integration, wave15/corrections-integration ]
+    branches: [ main, wave14/corrections-integration, wave15/corrections-integration, coord/w15-recovery-handoff-2026-09-30 ]
     paths:
       - '**/*.sln'
       - '**/*.csproj'
@@ -219,7 +219,9 @@ jobs:
           assert workspace['isDirty'] is False
           assert workspace['lastSavedAtUtc'] is not None
           assert workspace['securityRoleCount'] == 1
-          assert workspace['dynamoCount'] == 30
+          # First-project setup seeds the current 72-item native library.
+          # Keep the smoke contract aligned with EngineeringFirstProjectBootstrapTests.
+          assert workspace['dynamoCount'] == 72
           assert workspace['commandCount'] == 0
           PY
 

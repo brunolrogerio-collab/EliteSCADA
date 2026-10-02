@@ -10,6 +10,10 @@ const inspectorCss = readFileSync(
   join(process.cwd(), 'src/engineering/visual-editor/canvas/VisualDefinitionSurfaceInspector.css'),
   'utf8'
 );
+const canvasCss = readFileSync(
+  join(process.cwd(), 'src/engineering/visual-editor/canvas/visual-editor-canvas.css'),
+  'utf8'
+);
 
 test('authored background is projected into the established Canvas surface rather than a second canvas', () => {
   expect(inspectorSource).toContain("closest('.visual-editor-canvas-enhanced')");
@@ -18,12 +22,12 @@ test('authored background is projected into the established Canvas surface rathe
   expect(inspectorSource).toContain('visual-editor-canvas__authored-background');
 });
 
-test('canvas layer order keeps authored background below grid and visual objects', () => {
+test('canvas keeps the grid on the established surface and projects authored background below visual objects', () => {
+  expect(canvasCss).toContain('.visual-editor-canvas__surface.has-grid');
+  expect(canvasCss).toContain('background-image:');
   expect(inspectorCss).toContain('.visual-editor-canvas__authored-background');
   expect(inspectorCss).toContain('z-index: 0');
-  expect(inspectorCss).toContain('.visual-editor-canvas__surface.has-grid::after');
-  expect(inspectorCss).toContain('z-index: 1');
-  expect(inspectorCss).toContain('.visual-editor-canvas__viewport { z-index: 2; }');
+  expect(inspectorCss).toContain('.visual-editor-canvas__viewport { z-index: 1; }');
 });
 
 test('authored background follows logical canvas pan and zoom variables', () => {

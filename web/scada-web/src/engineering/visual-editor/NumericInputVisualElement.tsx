@@ -140,6 +140,7 @@ export function NumericInputVisualElement({
     data-show-steppers={showSteppers}
     data-dynamic-state={config.sourceAvailable ? 'available' : 'unavailable'}
     title={effectiveTitle}
+    aria-label={`${element.key}: ${statusText}`}
   >
     <input
       ref={inputRef}

@@ -43,7 +43,7 @@ type Draft = {
 export function GatewayEngineeringPanel({ model, locale }: Props) {
   const text = labels(locale);
   const eligibleTags = useMemo(() => collectEligibleTags(model), [model]);
-  const writableTags = useMemo(() => eligibleTags.filter(tag => !tag.readOnly), [eligibleTags]);
+  const writableTags = useMemo(() => eligibleTags.filter(tag => !tag.readOnly && !isSimulationTag(model, tag)), [eligibleTags, model]);
   const routes = model.gateways ?? [];
   const [selected, setSelected] = useState<string>('new');
   const [routeQuery, setRouteQuery] = useState('');
@@ -329,8 +329,15 @@ function collectEligibleTags(model: EngineeringPackageView): TagEngineering[] {
     const source = sources.get(tag.source.toLowerCase());
     if (!source || source.enabled === false) return false;
     const driver = source.driver.toLowerCase();
-    return driver !== CLIENT_MEMORY_DRIVER && driver !== SIMULATION_DRIVER;
+    // Client Memory belongs to an individual browser session and cannot be read
+    // by the server-side Gateway. Simulation is server-runtime owned and is a
+    // valid read source, but never a Gateway destination.
+    return driver !== CLIENT_MEMORY_DRIVER;
   }).sort((left, right) => left.path.localeCompare(right.path));
+}
+
+function isSimulationTag(model: EngineeringPackageView, tag: TagEngineering): boolean {
+  return (model.dataSources ?? []).some(source => source.key.toLowerCase() === (tag.source ?? '').toLowerCase() && source.driver.toLowerCase() === SIMULATION_DRIVER);
 }
 
 function emptyDraft(sources: TagEngineering[], destinations: TagEngineering[]): Draft {

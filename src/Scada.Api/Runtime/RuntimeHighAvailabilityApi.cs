@@ -99,11 +99,9 @@ public static class RuntimeHighAvailabilityApi
                     System.Globalization.CultureInfo.InvariantCulture),
                 ["topologyVersion"] = result.Snapshot.Desired.TopologyVersion.ToString(
                     System.Globalization.CultureInfo.InvariantCulture),
-                ["pendingRestart"] = result.Snapshot.PendingRestart.ToString(
-                    System.Globalization.CultureInfo.InvariantCulture),
+                ["pendingRestart"] = result.Snapshot.PendingRestart.ToString(),
                 ["peerAuthenticationConfigured"] =
-                    result.Snapshot.Desired.PeerTransport.AuthenticationConfigured.ToString(
-                        System.Globalization.CultureInfo.InvariantCulture)
+                    result.Snapshot.Desired.PeerTransport.AuthenticationConfigured.ToString()
             };
             await audit.RecordAsync(
                 context,

@@ -285,6 +285,18 @@ test('mounted HA admin exposes degraded/blocked fail-closed state without promot
   await evidence(page, testInfo, 'ha-degraded-blocked');
 });
 
+test('mounted HA admin surfaces ambiguous authority without inventing an Active node', async ({ page }) => {
+  const state = healthyState();
+  state.protectionStatus = 'ambiguous';
+  state.topology = topology({ ambiguousAuthority: true, effectiveActiveNodeId: null });
+  await mockHa(page, state);
+  await open(page);
+
+  await expect(page.getByText('ambiguous', { exact: true })).toBeVisible();
+  await expect(page.getByText('Active efetivo').locator('..')).toContainText('—');
+  await expect(page.getByRole('button', { name: /force active/i })).toHaveCount(0);
+});
+
 test('configuration editing keeps peer secret write-only and truthfully shows restart-required', async ({ page }, testInfo) => {
   const state = healthyState();
   await mockHa(page, state);

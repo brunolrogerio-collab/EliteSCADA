@@ -97,20 +97,28 @@ public sealed class PostgreSqlDatabaseTopologyOperations(DatabaseTopologyOptions
         {
             await using var dataSource = NpgsqlDataSource.Create(connectionString);
             await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
-            await using var command = new NpgsqlCommand("""
+            string version;
+            int versionNumber;
+            string timescale;
+            await using (var command = new NpgsqlCommand("""
                 SELECT
                     current_setting('server_version'),
                     current_setting('server_version_num')::integer,
-                    COALESCE((SELECT extversion FROM pg_extension WHERE extname = 'timescaledb'), '');
-                """, connection);
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            if (!await reader.ReadAsync(cancellationToken))
-                throw new InvalidDataException("PostgreSQL compatibility probe returned no row.");
+                    COALESCE(
+                        (SELECT extversion FROM pg_extension WHERE extname = 'timescaledb'),
+                        (SELECT default_version FROM pg_available_extensions WHERE name = 'timescaledb'),
+                        '');
+                """, connection))
+            await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+            {
+                if (!await reader.ReadAsync(cancellationToken))
+                    throw new InvalidDataException("PostgreSQL compatibility probe returned no row.");
+                version = reader.GetString(0);
+                versionNumber = reader.GetInt32(1);
+                timescale = reader.GetString(2);
+            }
 
-            var version = reader.GetString(0);
-            var versionNumber = reader.GetInt32(1);
-            var major = versionNumber >= 100000 ? versionNumber / 10000 : versionNumber / 10000;
-            var timescale = reader.GetString(2);
+            var major = versionNumber / 10000;
             var timescaleCapable = !string.IsNullOrWhiteSpace(timescale);
             var schemaCompatible = await HasCompatibleSchemaAsync(connection, cancellationToken);
             var postgresCompatible = major >= options.MinimumPostgreSqlMajor && major <= options.MaximumPostgreSqlMajor;
@@ -129,7 +137,11 @@ public sealed class PostgreSqlDatabaseTopologyOperations(DatabaseTopologyOptions
                 compatible ? null : "database-incompatible",
                 compatible ? null : BuildCompatibilityDiagnostic(major, timescale, requireTimescale, schemaCompatible));
         }
-        catch (Exception ex) when (ex is NpgsqlException or TimeoutException or IOException or InvalidDataException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
         {
             var code = Classify(ex);
             return new(
@@ -473,6 +485,7 @@ public sealed class PostgreSqlDatabaseTopologyOperations(DatabaseTopologyOptions
         PostgresException postgres when postgres.SqlState == "28000" => "authentication-failed",
         NpgsqlException npgsql when npgsql.InnerException is System.Security.Authentication.AuthenticationException => "tls-validation-failed",
         TimeoutException => "connection-timeout",
+        FileNotFoundException => "tls-validation-failed",
         _ => "connection-failed"
     };
 

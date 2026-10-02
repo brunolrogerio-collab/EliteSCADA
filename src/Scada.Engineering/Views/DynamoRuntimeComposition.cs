@@ -97,6 +97,14 @@ public static class DynamoRuntimeComposer
         IReadOnlyDictionary<string, DynamoParameterValueEngineeringDto> parameters)
     {
         var normalizedPath = equipmentPath?.Trim();
+
+        // Preserve the canonical definition element collection when this instance
+        // has no context that can alter the projection. Besides avoiding needless
+        // allocations, callers historically rely on this identity to distinguish
+        // an untouched canonical definition from an instance-specific projection.
+        if (normalizedPath is null && !RequiresInstanceProjection(elements))
+            return elements;
+
         return elements.Select(element => element with
         {
             Bindings = element.Bindings?.Select(binding => binding with
@@ -140,6 +148,13 @@ public static class DynamoRuntimeComposer
                 parameters)
         }).ToArray();
     }
+
+    private static bool RequiresInstanceProjection(
+        IReadOnlyCollection<VisualElementEngineeringDto> elements) =>
+        elements.Any(element =>
+            element.Metadata?.ContainsKey("dynamoStateColorParameter") == true ||
+            element.Metadata?.ContainsKey("dynamoStateColorProfile") == true ||
+            (element.Children is { Count: > 0 } && RequiresInstanceProjection(element.Children)));
 
     public static string RuntimeElementIdentity(Guid instanceId, Guid definitionElementId) =>
         $"{instanceId:D}/{definitionElementId:D}";

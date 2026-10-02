@@ -25,32 +25,116 @@ function stateName(value: number | string) {
   return value.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
 }
 
+function orderedNodes(view: HaHostConfigurationView) {
+  const nodes = view.nodes.map(node => ({ ...node }));
+  const localIndex = nodes.findIndex(node =>
+    node.nodeId.toLowerCase() === view.localNodeId.toLowerCase());
+  if (localIndex > 0) {
+    const [localNode] = nodes.splice(localIndex, 1);
+    nodes.unshift(localNode);
+  }
+  return nodes;
+}
+
 function asDraft(view: HaHostConfigurationView): Draft {
   return {
     ...view,
-    nodes: view.nodes.map(node => ({ ...node })),
+    nodes: orderedNodes(view),
     peerTransport: { ...view.peerTransport },
     protection: { ...view.protection },
     peerSharedSecret: ''
   };
 }
 
-function prepareHaDraft(view: Draft): Draft {
-  const localNodeId = view.localNodeId || view.nodes[0]?.nodeId || 'node-a';
-  const nodes = view.nodes.length >= 2
-    ? view.nodes.map(node => ({ ...node }))
-    : [
-        ...(view.nodes.length
-          ? view.nodes.map(node => ({ ...node }))
-          : [{ nodeId: localNodeId, localEndpoint: '', remoteEndpoint: '' }]),
-        { nodeId: 'peer', localEndpoint: '', remoteEndpoint: '' }
-      ];
+function prepareHaDraft(view: Draft, currentOrigin: string): Draft {
+  const currentNode = view.nodes[0] ?? {
+    nodeId: view.localNodeId || 'standalone',
+    localEndpoint: '',
+    remoteEndpoint: ''
+  };
+  const partnerNode = view.nodes[1] ?? {
+    nodeId: 'peer',
+    localEndpoint: '',
+    remoteEndpoint: ''
+  };
 
   return {
     ...view,
+    nodes: [
+      {
+        ...currentNode,
+        localEndpoint: currentNode.localEndpoint || currentOrigin,
+        remoteEndpoint: currentNode.remoteEndpoint || null
+      },
+      { ...partnerNode }
+    ],
+    peerTransport: { ...view.peerTransport, enabled: true }
+  };
+}
+
+function hasPreparedHa(view: HaHostConfigurationView) {
+  return Boolean(view.clusterId) && view.nodes.length === 2;
+}
+
+function canonicalEndpoint(value?: string | null) {
+  if (!value) return '';
+  try {
+    const url = new URL(value.trim());
+    const path = url.pathname === '/' ? '' : url.pathname.replace(/\/$/, '');
+    return (url.protocol + '//' + url.host.toLowerCase() + path).replace(/\/$/, '');
+  } catch {
+    return value.trim().replace(/\/$/, '');
+  }
+}
+
+function stableToken(seed: string) {
+  let a = 0x811c9dc5;
+  let b = 0x9e3779b9;
+  for (let index = 0; index < seed.length; index += 1) {
+    const code = seed.charCodeAt(index);
+    a = Math.imul(a ^ code, 0x01000193);
+    b = Math.imul(b ^ code, 0x85ebca6b) ^ (b >>> 13);
+  }
+  return (a >>> 0).toString(36) + (b >>> 0).toString(36);
+}
+
+function resolveInternalConfiguration(
+  view: Draft,
+  existing: HaHostConfigurationView,
+  preferredServer: 'local' | 'peer'
+): HaHostConfigurationView {
+  const nodes = view.nodes.slice(0, 2).map(node => {
+    const localEndpoint = canonicalEndpoint(node.localEndpoint);
+    const remoteEndpoint = canonicalEndpoint(node.remoteEndpoint) || localEndpoint;
+    return { ...node, localEndpoint, remoteEndpoint };
+  });
+  const existingNodes = orderedNodes(existing);
+  const preserveIdentities = Boolean(existing.clusterId) &&
+    existingNodes.length === 2 &&
+    existingNodes.every(node => !['standalone', 'peer'].includes(node.nodeId.toLowerCase()));
+
+  const nodeIds = preserveIdentities
+    ? existingNodes.map(node => node.nodeId)
+    : nodes.map((node, index) => {
+        const seed = canonicalEndpoint(node.remoteEndpoint) || canonicalEndpoint(node.localEndpoint) || String(index);
+        return 'ha-node-' + stableToken(seed);
+      });
+
+  const clusterSeed = nodes
+    .flatMap(node => [canonicalEndpoint(node.localEndpoint), canonicalEndpoint(node.remoteEndpoint)])
+    .filter(Boolean)
+    .sort()
+    .join('|');
+  const clusterId = existing.clusterId || ('ha-' + stableToken(clusterSeed || nodeIds.join('|')));
+  const localNodeId = nodeIds[0];
+  const initialActiveNodeId = preferredServer === 'peer' ? nodeIds[1] : nodeIds[0];
+
+  return {
+    ...view,
+    clusterId,
     localNodeId,
-    initialActiveNodeId: view.initialActiveNodeId || localNodeId,
-    nodes: nodes.slice(0, 2),
+    initialActiveNodeId,
+    nodes: nodes.map((node, index) => ({ ...node, nodeId: nodeIds[index] })),
     peerTransport: { ...view.peerTransport, enabled: true }
   };
 }
@@ -131,6 +215,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
   const [showSecretEditor, setShowSecretEditor] = useState(false);
   const [overridePeerEndpoint, setOverridePeerEndpoint] = useState(false);
   const [deploymentChoice, setDeploymentChoice] = useState<'standalone' | 'ha'>('standalone');
+  const [preferredServer, setPreferredServer] = useState<'local' | 'peer'>('local');
 
   const load = useCallback(async (preserveDraft = false) => {
     setLoading(true);
@@ -139,10 +224,18 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
       const next = await haAdminApi.workspace();
       setSnapshot(next);
       if (!preserveDraft) {
-        setDraft(asDraft(next.configuration.desired));
-        setShowSecretEditor(next.topology.enabled && !next.configuration.desired.peerTransport.authenticationConfigured);
+        const nextDraft = asDraft(next.configuration.desired);
+        const prepared = next.topology.enabled || hasPreparedHa(next.configuration.desired);
+        setDraft(nextDraft);
+        setShowSecretEditor(false);
         setOverridePeerEndpoint(Boolean(next.configuration.desired.peerTransport.peerEndpoint));
-        setDeploymentChoice(next.topology.enabled ? 'ha' : 'standalone');
+        setDeploymentChoice(prepared ? 'ha' : 'standalone');
+        setPreferredServer(
+          nextDraft.nodes[1] &&
+          next.configuration.desired.initialActiveNodeId?.toLowerCase() === nextDraft.nodes[1].nodeId.toLowerCase()
+            ? 'peer'
+            : 'local'
+        );
       }
     } catch (error) {
       setFailure(error instanceof Error ? error.message : t.loadError);
@@ -155,9 +248,12 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
 
   const desiredChanged = useMemo(() => {
     if (!snapshot || !draft) return false;
-    const { peerSharedSecret: _secret, ...view } = draft;
+    const resolved = deploymentChoice === 'ha'
+      ? resolveInternalConfiguration(draft, snapshot.configuration.desired, preferredServer)
+      : draft;
+    const { peerSharedSecret: _secret, ...view } = resolved as Draft;
     return !sameConfig(view, snapshot.configuration.desired) || draft.peerSharedSecret.length > 0;
-  }, [snapshot, draft]);
+  }, [snapshot, draft, deploymentChoice, preferredServer]);
 
   const validation = useMemo(() => {
     if (!draft) return [] as string[];
@@ -176,23 +272,11 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
     return errors;
   }, [draft]);
 
-  function updateNode(index: number, key: 'nodeId' | 'localEndpoint' | 'remoteEndpoint', value: string) {
-    setDraft(current => {
-      if (!current) return current;
-      const previousNodeId = current.nodes[index]?.nodeId;
-      return {
-        ...current,
-        localNodeId:
-          key === 'nodeId' && previousNodeId && current.localNodeId === previousNodeId
-            ? value
-            : current.localNodeId,
-        initialActiveNodeId:
-          key === 'nodeId' && previousNodeId && current.initialActiveNodeId === previousNodeId
-            ? value
-            : current.initialActiveNodeId,
-        nodes: current.nodes.map((node, i) => i === index ? { ...node, [key]: value } : node)
-      };
-    });
+  function updateNode(index: number, key: 'localEndpoint' | 'remoteEndpoint', value: string) {
+    setDraft(current => current ? ({
+      ...current,
+      nodes: current.nodes.map((node, i) => i === index ? { ...node, [key]: value } : node)
+    }) : current);
   }
 
   async function saveConfiguration() {
@@ -202,9 +286,12 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
     setNotice(null);
 
     const secret = draft.peerSharedSecret;
-    const topologyChanged = topologyShape(draft) !== topologyShape(snapshot.configuration.desired);
+    const resolved = deploymentChoice === 'ha'
+      ? resolveInternalConfiguration(draft, snapshot.configuration.desired, preferredServer)
+      : draft;
+    const topologyChanged = topologyShape(resolved) !== topologyShape(snapshot.configuration.desired);
     const topologyVersion = topologyChanged
-      ? Math.max(snapshot.configuration.desired.topologyVersion + 1, draft.topologyVersion)
+      ? Math.max(snapshot.configuration.desired.topologyVersion + 1, resolved.topologyVersion)
       : snapshot.configuration.desired.topologyVersion;
 
     setDraft(current => current ? { ...current, peerSharedSecret: '' } : current);
@@ -213,19 +300,19 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
     const request: HaHostConfigurationUpdateRequest = {
       expectedGeneration: snapshot.configuration.generation,
       enabled: snapshot.configuration.desired.enabled,
-      clusterId: draft.clusterId || null,
-      localNodeId: draft.localNodeId,
-      initialActiveNodeId: draft.initialActiveNodeId || null,
+      clusterId: resolved.clusterId || null,
+      localNodeId: resolved.localNodeId,
+      initialActiveNodeId: resolved.initialActiveNodeId || null,
       topologyVersion,
-      freshnessSeconds: draft.freshnessSeconds,
-      nodes: draft.nodes.map(node => ({ ...node })),
+      freshnessSeconds: resolved.freshnessSeconds,
+      nodes: resolved.nodes.map(node => ({ ...node })),
       peerTransport: {
-        enabled: draft.peerTransport.enabled,
-        peerEndpoint: overridePeerEndpoint ? (draft.peerTransport.peerEndpoint || null) : null,
+        enabled: deploymentChoice === 'ha' ? true : resolved.peerTransport.enabled,
+        peerEndpoint: overridePeerEndpoint ? (resolved.peerTransport.peerEndpoint || null) : null,
         ...(secret ? { peerSharedSecret: secret } : {}),
         clearPeerSharedSecret: false
       },
-      protection: { ...draft.protection, referencePath: draft.protection.referencePath || null }
+      protection: { ...resolved.protection, referencePath: resolved.protection.referencePath || null }
     };
 
     try {

@@ -19,3 +19,20 @@ public sealed class DurableWriteQuiescedException : InvalidOperationException
     public string Writer { get; }
     public Guid OperationId { get; }
 }
+
+public static class DurableWriteAdmissionExtensions
+{
+    public static async ValueTask<IAsyncDisposable?> AcquireOptionalAsync(
+        this IDurableWriteAdmission? admission,
+        string writer,
+        CancellationToken cancellationToken = default)
+    {
+        if (admission is null)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return null;
+        }
+
+        return await admission.AcquireAsync(writer, cancellationToken);
+    }
+}

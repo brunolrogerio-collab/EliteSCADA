@@ -1,4 +1,5 @@
 using System.Globalization;
+using Scada.Core.Persistence;
 using System.Text;
 using Npgsql;
 using NpgsqlTypes;
@@ -55,14 +56,18 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
         """;
 
     private readonly NpgsqlDataSource _dataSource;
+    private readonly IDurableWriteAdmission? _writeAdmission;
     private readonly Task _initializeTask;
 
-    public PostgreSqlAlarmHistoryStore(string connectionString)
+    public PostgreSqlAlarmHistoryStore(
+        string connectionString,
+        IDurableWriteAdmission? writeAdmission = null)
     {
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new ArgumentException("PostgreSQL connection string is required.", nameof(connectionString));
 
         _dataSource = NpgsqlDataSource.Create(connectionString);
+        _writeAdmission = writeAdmission;
         _initializeTask = InitializeAsync();
     }
 
@@ -76,6 +81,7 @@ public sealed class PostgreSqlAlarmHistoryStore : IHistoricalDatasetProvider, IA
         string tagPath,
         CancellationToken cancellationToken = default)
     {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("alarm-history", cancellationToken);
         ArgumentNullException.ThrowIfNull(stateChanged);
         if (string.IsNullOrWhiteSpace(tagPath))
             throw new ArgumentException("Canonical TAG path is required for alarm history.", nameof(tagPath));

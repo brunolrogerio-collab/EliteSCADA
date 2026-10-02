@@ -1,4 +1,5 @@
 using Npgsql;
+using Microsoft.Extensions.DependencyInjection;
 using Scada.Persistence.PostgreSql;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;

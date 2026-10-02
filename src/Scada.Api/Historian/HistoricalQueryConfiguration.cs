@@ -1,4 +1,5 @@
 using Scada.Api.Persistence;
+using Scada.Core.Persistence;
 using System.Security.Cryptography;
 using Scada.Api.Reports;
 using Scada.Api.Runtime;
@@ -73,12 +74,16 @@ public static class HistoricalQueryConfiguration
         builder.Services.AddSingleton<IHistoricalRetrievalProvider>(sp =>
             sp.GetRequiredService<TimescaleHistoricalQueryProvider>());
 
-        builder.Services.AddSingleton<PostgreSqlAlarmHistoryStore>(_ =>
-            new PostgreSqlAlarmHistoryStore(connectionString));
+        builder.Services.AddSingleton<PostgreSqlAlarmHistoryStore>(sp =>
+            new PostgreSqlAlarmHistoryStore(
+                connectionString,
+                sp.GetService<IDurableWriteAdmission>()));
         builder.Services.AddSingleton<IHistoricalDatasetProvider, AlarmHistoryDatasetProviderAdapter>();
 
-        builder.Services.AddSingleton<PostgreSqlOperationalEventHistoryStore>(_ =>
-            new PostgreSqlOperationalEventHistoryStore(connectionString));
+        builder.Services.AddSingleton<PostgreSqlOperationalEventHistoryStore>(sp =>
+            new PostgreSqlOperationalEventHistoryStore(
+                connectionString,
+                sp.GetService<IDurableWriteAdmission>()));
         builder.Services.AddSingleton<IHistoricalDatasetProvider>(sp =>
             sp.GetRequiredService<PostgreSqlOperationalEventHistoryStore>());
 

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Scada.Core.Persistence;
 using Scada.Core.InternalMemory;
 using Scada.Persistence.PostgreSql;
 
@@ -15,8 +16,10 @@ public static class ServerMemoryRetentionConfiguration
             return;
         }
 
-        builder.Services.TryAddSingleton<IServerMemoryRetentionStore>(_ =>
-            new PostgreSqlServerMemoryRetentionStore(connectionString));
+        builder.Services.TryAddSingleton<IServerMemoryRetentionStore>(sp =>
+            new PostgreSqlServerMemoryRetentionStore(
+                connectionString,
+                sp.GetService<IDurableWriteAdmission>()));
     }
 
     public static async Task InitializeServerMemoryRetentionAsync(

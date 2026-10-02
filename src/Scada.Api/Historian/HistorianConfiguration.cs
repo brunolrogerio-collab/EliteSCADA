@@ -1,4 +1,5 @@
 using Scada.Api.Persistence;
+using Scada.Core.Persistence;
 using Scada.Core.Abstractions;
 using Scada.Historian.Abstractions;
 using Scada.Historian.Memory;
@@ -34,7 +35,8 @@ public static class HistorianConfiguration
                 builder.Services.AddSingleton<IHistorian>(sp =>
                     new TimescaleDbHistorian(
                         sp.GetRequiredService<IScadaEventBus>(),
-                        connectionString));
+                        connectionString,
+                        writeAdmission: sp.GetService<IDurableWriteAdmission>()));
                 break;
 
             default:

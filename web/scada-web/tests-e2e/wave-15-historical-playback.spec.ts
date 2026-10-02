@@ -309,7 +309,7 @@ test('W15 Historical Playback projects past state read-only across Screen Popup 
   await expect(page.locator('[data-object-id="10000000-0000-4000-8000-000000000003"]')).toContainText('—');
   await expect(panel.locator('[data-playback-gap-count]')).toHaveAttribute('data-playback-gap-count', /[1-9]\d*/);
 
-  const dynamo = page.locator(`[data-dynamo-instance-id="${DYNAMO_INSTANCE_ID}"]`);
+  const dynamo = page.locator(`[data-object-id="${DYNAMO_INSTANCE_ID}"]`);
   await expect(dynamo).toContainText(/12[,.]5/);
 
   await page.getByRole('button', { name: 'Abrir popup' }).click();

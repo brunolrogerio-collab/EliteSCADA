@@ -1,12 +1,189 @@
 # Wave 15 R2 — Shared Contract Layer (C0)
 
-**State:** C0_FROZEN / F0_INTEGRATED / F0_D1_INTEGRATED_VERIFIED / TAG_C_ACTIVE / R2_A_PARALLEL_RELEASED / NO_MERGE  
+**State:** POST_CODEX_RECONCILED / PR450_VALIDATION_GATE / NO_DUPLICATE_DEVS / NO_MERGE  
 **Coordinator issue:** #386  
 **Parent correction route:** #378  
 **Control branch:** `coord/w15-correction-now-parallel-control`  
 **Product integration authority:** `wave15/corrections-integration`
 
 GitHub live is the only authority.
+
+
+## LATEST OVERRIDE — 2026-10-02 — POST-CODEX IMPLEMENTATION CONTRACT RECONCILIATION
+
+This section supersedes older package/release-state wording below whenever it conflicts.
+
+The Product Owner and CODEX performed a broad local recovery/improvement round after the earlier
+parallel-DEV/coordinator state became unreliable. The accepted product was delivered through the
+#444/#450 recovery chain. Therefore old R2 package descriptions are no longer sufficient evidence
+that an implementation lane is still missing.
+
+Current rule:
+
+`ISSUE REQUIREMENT -> ACCEPTED CURRENT PRODUCT -> RESIDUAL GAP -> SMALLEST NEW LANE`
+
+not:
+
+`OPEN ISSUE -> RESTART OLD DEV ORDER`.
+
+Until the current PR #450 validation gate is accepted by the Product Owner:
+- do not release new product implementation from old R2 branches/bases;
+- do not merge PR #450;
+- keep CODEX-delivered product bytes authoritative for validation;
+- new product work starts only from the later Product Owner-authorized accepted base.
+
+### A. Contracts already implemented/integrated — no duplicate implementation DEV
+
+| Contract / issue | Reconciled implementation state | Future action |
+|---|---|---|
+| C-TAG-COMMISSIONING-01 / #390 | IMPLEMENTED / INTEGRATED / POST-MERGE VERIFIED through #401 + closeout #406 | Mounted regression only; Test Read remains optional/non-blocking |
+| C-TAG-DUPLICATION-01 / #391 | IMPLEMENTED / INTEGRATED through #420; current product also carries TagDuplicationPanel | No new TAG-D lane; correct only concrete regressions |
+| C-SCRIPT-AUTHORING-R2-01 + C-SCRIPT-EVENT-LINK-01 / #369 | IMPLEMENTED / INTEGRATED through #419; #444 further carries Script Assistant/Object+Property discovery | No fresh broad Script lane; mounted residual/help/i18n only unless a real gap is proven |
+| C-ENGINEERING-PORTABILITY-01 / #385 | IMPLEMENTED / INTEGRATED through #405 | No new portability core; consume existing Fragment/Library authority |
+| C-ENG-WORKFLOW-01 / #380 | IMPLEMENTED / INTEGRATED through #411 + post-merge evidence closeout #415 | No restart of structured-forms DEV |
+| C-HISTORIAN-CAPTURE-01 / #382 | IMPLEMENTED / INTEGRATED through #404 | No new capture-policy implementation |
+| C-DATA-QUERY-VIEW-01 core / #384 | IMPLEMENTED / INTEGRATED through #409 | Historical consumers must reuse this authority |
+| C-HISTORICAL-TIME-RANGE-01 / #383 | COMPLETE / INTEGRATED through #429 | Playback consumes it; do not create another time-range model |
+| C-USER-COPY-I18N-01 Phase 1 / #379 | INTEGRATED; final cross-product sweep remains | Final sweep after HA/DB/Playback/Visual surfaces stabilize |
+
+### B. Contracts materially advanced by CODEX/#444/#450 — residual-first, not restart-first
+
+#### C-REUSE-01 / #365
+
+The current product already has substantial normal-product workflow:
+- Equipment authoring tied to Template identity through canonical Preview/Apply;
+- Dynamo Library thumbnail/detail canonical preview;
+- metadata/public-interface inspection;
+- Equipment path context and insertion into Screen/Popup authoring;
+- reusable-library visual preview and incorporation flows.
+
+Therefore #365 is now:
+`IMPLEMENTATION_MATERIALLY_PRESENT / MOUNTED_END_TO_END_RESIDUAL_AUDIT`.
+
+Do not release a broad Template/Equipment/Dynamo rewrite. After the #450 base gate, mount the accepted
+product and prove Template -> Equipment -> Dynamo -> Screen/Popup -> Runtime. Only surviving concrete
+workflow gaps become bounded implementation.
+
+#### Visual Assets / Editor / Runtime renderer
+
+#444/#450 materially advanced:
+- project visual-asset import/use, including SVG-capable upload paths;
+- canonical visual preview and renderer;
+- Screen/Popup surface background authoring;
+- editor usability, Numeric Input/Value Display, Bezier and related visual-property work.
+
+These are existing authorities. Future Dynamo work consumes them and must not create a second SVG renderer,
+a browser-only object model or a static-image-only Dynamo path.
+
+### C. NEW REFINED VISUAL IMPLEMENTATION CONTRACT — C-DYNAMO-ARTWORK-02 / #308
+
+The prior #308 disposition "only concrete mounted corrections / no broad redesign reset" is now refined.
+
+What remains forbidden is a reset of **semantics/identity/renderer architecture**.
+A substantial professional redraw of the **visual geometry/artwork** of the 72 built-ins is authorized
+after the current product base gate, because the Product Owner explicitly considers the present artwork
+an intermediate baseline.
+
+Scope:
+- exactly the existing 24 equipment families x 3 styles = 72 built-ins;
+- preserve stable Dynamo definition identity/key relationships and deterministic instance/reference behavior;
+- preserve public parameters, equipment-path contract, TAG bindings, stopped/running/fault semantics,
+  user-editable state colors and Runtime projection;
+- preserve canonical editable visual-object geometry; no second renderer;
+- preserve three distinct intents:
+  - Detailed 2D: recognizable industrial equipment, clean technical illustration;
+  - Dimensional Front: deliberate front/dimensional depth without excessive decorative noise;
+  - High Performance: low-clutter neutral HMI geometry where abnormal/process state carries emphasis;
+- use semantic subparts, deliberate z-order, aligned connection ports/shafts, balanced proportions,
+  closed filled geometry, arcs/Bezier where they improve the silhouette;
+- insertion preview and Runtime must resolve the same canonical definition.
+
+Reference sources recorded by the CODEX handoff:
+- Opto 22 Image Library/SVG Editors:
+  https://www.opto22.com/support/resources-tools/image-library-svg-editors
+- Wikimedia Commons P&ID symbols:
+  https://commons.wikimedia.org/wiki/Category:P%26ID_symbols
+- Wikimedia Commons P&ID liquid-pump family:
+  https://commons.wikimedia.org/wiki/Category:P%26ID_symbols_of_liquid_pumps
+- checked centrifugal-pump reference:
+  https://commons.wikimedia.org/wiki/File:Pump,_centrifugal_type_(ISO_10628-2).svg
+
+Reference/licensing rule:
+- external libraries are design/anatomy references by default, not blanket redistribution authority;
+- every exact third-party file considered for incorporation must have its own source page/license checked;
+- if bytes or a traceable adaptation are incorporated, record source URL, creator, license/attribution and
+  adaptation notes;
+- do not infer that an entire category or ISO standard is public domain because one file is;
+- prefer purpose-built EliteSCADA canonical vector geometry informed by the references;
+- built-in Dynamos must not become opaque static SVG/image assets merely to improve appearance.
+
+Default file ownership for a future visual-artwork lane:
+- primary: `src/Scada.Api/Runtime/BuiltinDynamoLibrary.cs` and focused builtin-library tests;
+- read-only dependencies by default: canonical renderer, visual schemas, Library/Dynamo preview UI,
+  Runtime navigation, reusable-library kernel;
+- edits outside the primary artwork generator require a concrete mounted defect and Main ownership approval.
+
+Acceptance:
+1. deterministic catalog remains 24 x 3 = 72 with existing identity/interface semantics;
+2. representative pump, valve, motor, tank, instrument and substation families inspected in all 3 styles;
+3. full 72-card mounted Library pass for clipping, overlap, proportions, readability and thumbnail quality;
+4. detail preview is useful before insertion;
+5. inserted Editor representation == Library canonical preview == Runtime representation;
+6. resize/zoom/normal editor composition does not create clipping or broken ports;
+7. running/fault/stopped and user state-color behavior remains functional;
+8. no third-party asset without recorded license/provenance;
+9. focused tests + exact-head T1; no DEV merge.
+
+Release state:
+`PREPARED_CONTRACT / WAIT_ACCEPTED_PR450_BASE / NO_BRANCH_YET / NO_MERGE`.
+
+### D. Fresh substantive implementation still required
+
+These are real future implementation lanes, not superseded old DEVs:
+
+1. **HA-D2 / #423**
+   - conservative failover/failback, fencing/epoch/reference and no duplicate industrial effects;
+   - mandatory Engineering/admin HA topology/status/diagnostics/switchover/failback UX;
+   - UI never bypasses Authority/fencing.
+
+2. **Remote database / #366**
+   - Local Managed default + Remote PostgreSQL/TimescaleDB administrative profile;
+   - connection/compatibility validation, migrate/copy, quiesce/verify, atomic cutover, readiness,
+     rollback/recovery and local preservation until explicit purge;
+   - remote DB lifecycle remains external;
+   - HA consumes DB topology but shared DB is never an authority shortcut.
+
+3. **Historical Playback / #445**
+   - read-only historical Runtime projection over existing #384 Data Query + #383 Time Range;
+   - no second Historian API or second renderer;
+   - writes/commands/operational mutations blocked while Playback is active.
+
+4. **Visual artwork / #308**
+   - C-DYNAMO-ARTWORK-02 above after the accepted base is established.
+
+### E. Decision/residual items
+
+- #446 Client Memory as Gateway source remains an explicit Product Owner scope decision:
+  design/implement a real session/server bridge or defer it. Never UI-enable it without authority.
+- #447 Simulation TAG implementation is materially present in #450; no duplicate DEV.
+- #357/#364 and other older UX correction owners are mounted-residual rechecks only against the accepted product.
+- #379 final i18n, Help #424, Manual #425 run after the new final product surfaces stabilize.
+- #306 Productization and #300 final fresh Preview remain late-stage gates.
+- Wave 16 installer/release-factory implementation is not pulled into this contract map.
+
+### F. New implementation-release rule
+
+For every future DEV bootstrap:
+1. revalidate GitHub live;
+2. use the Product Owner-authorized accepted post-#450 base, never a stale historical base;
+3. compare required issue behavior with current product before assigning work;
+4. name exact owned files/subsystems and forbidden overlap;
+5. if behavior is already present, convert the lane to mounted residual validation instead of implementation;
+6. only a proven residual may widen scope;
+7. CI/T1 observation rule: observe a launched run for at most 2 minutes, then stop watching and
+   revalidate the final GitHub result later;
+8. DEV never merges itself.
+
 
 
 ## LIVE R2-A PARALLEL RELEASE — 2026-09-29

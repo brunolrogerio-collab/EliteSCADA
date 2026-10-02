@@ -109,6 +109,61 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void ButterflyBallAndExchanger_UseFunctionalInternalAnatomy()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        Assert.All(definitions.Where(definition =>
+            definition.Metadata!["familyKey"] == "process.valve.butterfly"), variant =>
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            Assert.Contains("seat-ring", elements.Keys);
+            Assert.Contains("actuator-coupling", elements.Keys);
+            Assert.True(elements["disc"].Properties!["width"].GetDouble() <
+                elements["body-ring"].Properties!["width"].GetDouble());
+        });
+
+        Assert.All(definitions.Where(definition =>
+            definition.Metadata!["familyKey"] == "process.valve.ball"), variant =>
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            foreach (var key in new[] { "ball", "bore", "seat-left", "seat-right", "packing-gland" })
+                Assert.Contains(key, elements.Keys);
+        });
+
+        Assert.All(definitions.Where(definition =>
+            definition.Metadata!["familyKey"] == "process.exchanger.shell-tube"), variant =>
+        {
+            var keys = variant.Elements!.Select(element => element.Key).ToHashSet(StringComparer.Ordinal);
+            foreach (var key in new[] { "tube-sheet-left", "tube-sheet-right", "baffle-upper", "baffle-lower" })
+                Assert.Contains(key, keys);
+        });
+    }
+
+    [Fact]
+    public void MotorVfdAndBlower_KeepElectricalAndRotatingDetailsCoherent()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        Assert.All(definitions.Where(definition =>
+            definition.Metadata!["familyKey"] == "process.motor.vfd"), variant =>
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            Assert.Equal("core.bezier", elements["control-cable"].Type);
+            Assert.Contains("vfd-cable-gland", elements.Keys);
+        });
+
+        Assert.All(definitions.Where(definition =>
+            definition.Metadata!["familyKey"] == "process.blower.centrifugal"), variant =>
+        {
+            var elements = variant.Elements!.ToDictionary(element => element.Key, StringComparer.Ordinal);
+            Assert.Contains("impeller-eye-ring", elements.Keys);
+            Assert.Equal(6, elements.Keys.Count(key =>
+                key.StartsWith("impeller-blade-", StringComparison.Ordinal)));
+        });
+    }
+
+    [Fact]
     public void CentrifugalPumpStyles_UseCanonicalBezierVoluteAndPreserveStateColorTarget()
     {
         var variants = BuiltinDynamoLibrary.Create()
@@ -279,6 +334,28 @@ public sealed class BuiltinDynamoLibraryTests
                 body["x"].GetDouble() + body["width"].GetDouble() / 2d);
             Assert.True(cap["y"].GetDouble() > basket["y"].GetDouble() + basket["height"].GetDouble() / 2d);
         });
+    }
+
+    [Fact]
+    public void HighPerformanceStaticEquipment_KeepsEssentialProcessAnatomy()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+
+        var tank = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "process.tank.horizontal" &&
+            definition.Properties!["visualStyle"] == "high-performance");
+        var tankKeys = tank.Elements!.Select(element => element.Key).ToHashSet(StringComparer.Ordinal);
+        foreach (var key in new[] { "top-nozzle", "top-nozzle-flange", "side-nozzle", "side-nozzle-flange", "leg-left", "leg-right" })
+            Assert.Contains(key, tankKeys);
+
+        var exchanger = definitions.Single(definition =>
+            definition.Metadata!["familyKey"] == "process.exchanger.shell-tube" &&
+            definition.Properties!["visualStyle"] == "high-performance");
+        var exchangerKeys = exchanger.Elements!.Select(element => element.Key).ToHashSet(StringComparer.Ordinal);
+        Assert.Contains("saddle-left", exchangerKeys);
+        Assert.Contains("saddle-right", exchangerKeys);
+        Assert.Contains("tube-sheet-left", exchangerKeys);
+        Assert.Contains("tube-sheet-right", exchangerKeys);
     }
 
     [Fact]
@@ -1005,6 +1082,61 @@ public sealed class BuiltinDynamoLibraryTests
         Assert.DoesNotContain(elements, element =>
             element.Type.Contains("svg", StringComparison.OrdinalIgnoreCase) ||
             element.Properties?.Keys.Any(key => key.Contains("svg", StringComparison.OrdinalIgnoreCase)) == true);
+    }
+
+    [Fact]
+    public void EveryBuiltinFamily_KeepsOneIndustrialSignatureAcrossAllThreeStyles()
+    {
+        var definitions = BuiltinDynamoLibrary.Create();
+        var signatures = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["dynamo.pump.standard"] = ["casing", "impeller", "base"],
+            ["process.pump.submersible"] = ["body", "pump-housing", "intake", "outlet"],
+            ["process.motor.standard"] = ["body", "shaft", "terminal", "base"],
+            ["process.motor.vfd"] = ["shaft", "vfd", "terminal", "motor-base"],
+            ["process.valve.onoff"] = ["body-left", "body-right", "stem", "actuator"],
+            ["process.valve.control"] = ["body-left", "body-right", "stem", "actuator"],
+            ["process.tank.vertical"] = ["vessel", "liquid"],
+            ["process.tank.horizontal"] = ["vessel", "liquid"],
+            ["process.blower.centrifugal"] = ["impeller-recess", "hub", "base"],
+            ["process.instrument.indicator"] = ["face", "stem", "connection", "scale-arc"],
+            ["process.compressor.reciprocating"] = ["crankcase", "cylinder-left", "cylinder-right", "base"],
+            ["process.compressor.screw"] = ["compressor-housing", "rotor-left", "rotor-right", "base"],
+            ["process.valve.butterfly"] = ["body-ring", "disc", "shaft", "actuator"],
+            ["process.valve.ball"] = ["body", "ball", "stem", "handle"],
+            ["process.valve.gate"] = ["body-left", "body-right", "stem", "handwheel", "bonnet"],
+            ["process.exchanger.shell-tube"] = ["shell", "head-left", "head-right", "tube-1"],
+            ["process.filter.strainer"] = ["filter-body", "basket", "pipe-left", "pipe-right"],
+            ["process.mixer.agitator"] = ["vessel", "motor", "shaft", "impeller", "gearbox"],
+            ["electrical.transformer.power"] = ["tank", "bushing-left", "bushing-right", "base"],
+            ["electrical.breaker"] = ["interrupter", "support-left", "support-right", "base"],
+            ["electrical.disconnector"] = ["support-left", "support-right", "blade", "base", "operating-box"],
+            ["electrical.earthing-switch"] = ["support-left", "support-right", "blade", "base", "earth-lead"],
+            ["electrical.generator"] = ["stator", "rotor", "shaft", "base"],
+            ["electrical.current-transformer"] = ["primary-conductor", "core", "core-window", "base"]
+        };
+
+        Assert.Equal(24, signatures.Count);
+        foreach (var (familyKey, signature) in signatures)
+        {
+            var variants = definitions
+                .Where(definition => definition.Metadata!["familyKey"] == familyKey)
+                .ToArray();
+
+            Assert.Equal(3, variants.Length);
+            Assert.Equal(
+                new[] { "detailed-2d", "dimensional-front", "high-performance" },
+                variants.Select(variant => variant.Properties!["visualStyle"])
+                    .OrderBy(style => style, StringComparer.Ordinal)
+                    .ToArray());
+
+            Assert.All(variants, variant =>
+            {
+                var keys = variant.Elements!.Select(element => element.Key).ToHashSet(StringComparer.Ordinal);
+                foreach (var key in signature)
+                    Assert.Contains(key, keys);
+            });
+        }
     }
 
     [Fact]

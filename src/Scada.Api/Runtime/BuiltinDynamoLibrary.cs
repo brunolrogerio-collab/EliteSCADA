@@ -270,7 +270,10 @@ public static class BuiltinDynamoLibrary
                 FlatShape(E(family, style, 10), "foot-left", "core.rectangle", 25, 69, 15, 9, "#7D898F", "#374151", 1, 2),
                 FlatShape(E(family, style, 11), "foot-right", "core.rectangle", 58, 69, 15, 9, "#7D898F", "#374151", 1, 2),
                 FlatShape(E(family, style, 12), "motor-base", "core.rectangle", 18, 77, 64, 6, "#5F6A70", "#374151", 1, 2),
-                FlatShape(E(family, style, 13), "control-cable", "core.rectangle", 76, 24, 25, 3, "#58636B", "#374151", 0.75, 1, -24)
+                BezierShape(E(family, style, 13), "control-cable", 76, 21, 25, 22,
+                    "M 3 18 C 32 4 66 5 97 26 L 97 38 C 66 18 32 17 3 30 Z",
+                    "#58636B", "#374151", 0.8),
+                FlatShape(E(family, style, 14), "vfd-cable-gland", "core.ellipse", 94, 20, 8, 8, "#8A969E", "#374151", 1)
             ],
             parameters: VfdMotorParameters());
         }
@@ -297,7 +300,10 @@ public static class BuiltinDynamoLibrary
                 "#CBD5E1", "#F8FAFC", "#334155", 1.5, 4, dimensional, "vertical"),
             FlatShape(E(family, style, 15), "foot-left", "core.rectangle", 42, 82, 18, 11, "#64748B", "#334155", 1, 2),
             FlatShape(E(family, style, 16), "foot-right", "core.rectangle", 86, 82, 18, 11, "#64748B", "#334155", 1, 2),
-            FlatShape(E(family, style, 17), "control-cable", "core.rectangle", 102, 28, 39, 3, "#526575", "#334155", 0.75, 1, -20)
+            BezierShape(E(family, style, 17), "control-cable", 102, 24, 39, 27,
+                "M 3 20 C 30 5 65 5 97 27 L 97 39 C 65 18 30 18 3 32 Z",
+                "#526575", "#334155", 0.8),
+            FlatShape(E(family, style, 18), "vfd-cable-gland", "core.ellipse", 128, 22, 10, 10, "#8798A6", "#334155", 1)
         ],
         parameters: VfdMotorParameters());
     }
@@ -492,11 +498,15 @@ public static class BuiltinDynamoLibrary
                     "#00000000", "#77838B", 1),
                 ArcShape(E(family, style, 9), "head-right-seam", 115, 20, 35, 62, 270, 450, "arc",
                     "#00000000", "#77838B", 1),
-                FlatShape(E(family, style, 3), "leg-left", "core.rectangle", 42, 80, 10, 12, "#6B7280", "#475569", 1, 2),
-                FlatShape(E(family, style, 4), "leg-right", "core.rectangle", 116, 80, 10, 12, "#6B7280", "#475569", 1, 2),
+                FlatShape(E(family, style, 3), "leg-left", "core.rectangle", 38, 79, 18, 13, "#6B7280", "#475569", 1, 3),
+                FlatShape(E(family, style, 4), "leg-right", "core.rectangle", 112, 79, 18, 13, "#6B7280", "#475569", 1, 3),
                 Text(E(family, style, 5), "label", "TK", 68, 28, 32, 24, 11, "#111827"),
                 StateLamp(E(family, style, 6), "high", 144, 10, "#D97706", "high", "{equipmentPath}.High"),
-                StateLamp(E(family, style, 7), "fault", 144, 74, "#DC2626", "fault", "{equipmentPath}.Fault")
+                StateLamp(E(family, style, 7), "fault", 144, 74, "#DC2626", "fault", "{equipmentPath}.Fault"),
+                FlatShape(E(family, style, 10), "top-nozzle", "core.rectangle", 78, 8, 13, 14, "#AEB7BE", "#475569", 1, 2),
+                FlatShape(E(family, style, 11), "top-nozzle-flange", "core.rectangle", 74, 5, 21, 4, "#C7CFD4", "#475569", 1, 1),
+                FlatShape(E(family, style, 12), "side-nozzle", "core.rectangle", 146, 45, 17, 10, "#AEB7BE", "#475569", 1, 2),
+                FlatShape(E(family, style, 13), "side-nozzle-flange", "core.rectangle", 160, 42, 5, 16, "#C7CFD4", "#475569", 1, 1)
             ],
             parameters: TankParameters());
         }
@@ -546,12 +556,12 @@ public static class BuiltinDynamoLibrary
                     "#D8E0E8", "#263746", 3),
                 FlatShape(E(family, style, 7), "casing-rim", "core.ellipse", 50, 37, 80, 80, "#F8FAFC", "#546879", 2),
                 FlatShape(E(family, style, 8), "impeller-recess", "core.ellipse", 60, 47, 60, 60, "#263746", "#17232D", 2),
-                RotorBlade(E(family, style, 9), "impeller-blade-1", 90, 77, 11, 26, 0, "#AEBBC7", "#263746", 1),
-                RotorBlade(E(family, style, 10), "impeller-blade-2", 90, 77, 11, 26, 60, "#AEBBC7", "#263746", 1),
-                RotorBlade(E(family, style, 11), "impeller-blade-3", 90, 77, 11, 26, 120, "#AEBBC7", "#263746", 1),
-                RotorBlade(E(family, style, 12), "impeller-blade-4", 90, 77, 11, 26, 180, "#AEBBC7", "#263746", 1),
-                RotorBlade(E(family, style, 13), "impeller-blade-5", 90, 77, 11, 26, 240, "#AEBBC7", "#263746", 1),
-                RotorBlade(E(family, style, 14), "impeller-blade-6", 90, 77, 11, 26, 300, "#AEBBC7", "#263746", 1),
+                RotorBlade(E(family, style, 9), "impeller-blade-1", 90, 77, 8, 21, 0, "#AEBBC7", "#263746", 1),
+                RotorBlade(E(family, style, 10), "impeller-blade-2", 90, 77, 8, 21, 60, "#AEBBC7", "#263746", 1),
+                RotorBlade(E(family, style, 11), "impeller-blade-3", 90, 77, 8, 21, 120, "#AEBBC7", "#263746", 1),
+                RotorBlade(E(family, style, 12), "impeller-blade-4", 90, 77, 8, 21, 180, "#AEBBC7", "#263746", 1),
+                RotorBlade(E(family, style, 13), "impeller-blade-5", 90, 77, 8, 21, 240, "#AEBBC7", "#263746", 1),
+                RotorBlade(E(family, style, 14), "impeller-blade-6", 90, 77, 8, 21, 300, "#AEBBC7", "#263746", 1),
                 FlatShape(E(family, style, 15), "hub", "core.ellipse", 78, 65, 24, 24, "#F8FAFC", "#263746", 2),
                 FlatShape(E(family, style, 16), "hub-cap", "core.ellipse", 85, 72, 10, 10, "#64748B", "#263746", 1),
                 FlatShape(E(family, style, 17), "base-left-foot", "core.rectangle", 57, 114, 17, 9, "#7B8996", "#263746", 1, 2),
@@ -560,7 +570,8 @@ public static class BuiltinDynamoLibrary
                 Polygon(E(family, style, 20), "outlet-flow-arrow", 135, 18, 12, 14, [(0d, 0d), (12d, 7d), (0d, 14d)], "#1877A8", "#125575", 1),
                 Text(E(family, style, 21), "label", "B", 81, 68, 18, 18, 10, "#17232D"),
                 StateLamp(E(family, style, 22), "running", 7, 7, "#16A34A", "running", "{equipmentPath}.Running"),
-                StateLamp(E(family, style, 23), "fault", 158, 7, "#DC2626", "fault", "{equipmentPath}.Fault")
+                StateLamp(E(family, style, 23), "fault", 158, 7, "#DC2626", "fault", "{equipmentPath}.Fault"),
+                FlatShape(E(family, style, 24), "impeller-eye-ring", "core.ellipse", 69, 56, 42, 42, "#00000000", "#596872", 1.5)
             ],
             parameters: BlowerParameters());
         }
@@ -580,12 +591,12 @@ public static class BuiltinDynamoLibrary
                     "#7892A7", "#30485A", 3, "#E5EDF3", "diagonal-down", true),
                 MaterialShape(E(family, style, 7), "case-cover", "core.ellipse", 51, 38, 88, 88, "#B5C6D3", "#F8FAFC", "#597184", 2, 0, true, "diagonal-up"),
                 MaterialShape(E(family, style, 8), "impeller-recess", "core.ellipse", 62, 49, 66, 66, "#354E61", "#7892A7", "#30485A", 2, 0, true, "diagonal-down"),
-                RotorBlade(E(family, style, 9), "impeller-blade-1", 95, 82, 12, 29, 0, "#AFC4D2", "#243B4A", 1),
-                RotorBlade(E(family, style, 10), "impeller-blade-2", 95, 82, 12, 29, 60, "#AFC4D2", "#243B4A", 1),
-                RotorBlade(E(family, style, 11), "impeller-blade-3", 95, 82, 12, 29, 120, "#AFC4D2", "#243B4A", 1),
-                RotorBlade(E(family, style, 12), "impeller-blade-4", 95, 82, 12, 29, 180, "#AFC4D2", "#243B4A", 1),
-                RotorBlade(E(family, style, 13), "impeller-blade-5", 95, 82, 12, 29, 240, "#AFC4D2", "#243B4A", 1),
-                RotorBlade(E(family, style, 14), "impeller-blade-6", 95, 82, 12, 29, 300, "#AFC4D2", "#243B4A", 1),
+                RotorBlade(E(family, style, 9), "impeller-blade-1", 95, 82, 9, 23, 0, "#AFC4D2", "#243B4A", 1),
+                RotorBlade(E(family, style, 10), "impeller-blade-2", 95, 82, 9, 23, 60, "#AFC4D2", "#243B4A", 1),
+                RotorBlade(E(family, style, 11), "impeller-blade-3", 95, 82, 9, 23, 120, "#AFC4D2", "#243B4A", 1),
+                RotorBlade(E(family, style, 12), "impeller-blade-4", 95, 82, 9, 23, 180, "#AFC4D2", "#243B4A", 1),
+                RotorBlade(E(family, style, 13), "impeller-blade-5", 95, 82, 9, 23, 240, "#AFC4D2", "#243B4A", 1),
+                RotorBlade(E(family, style, 14), "impeller-blade-6", 95, 82, 9, 23, 300, "#AFC4D2", "#243B4A", 1),
                 MaterialShape(E(family, style, 15), "hub", "core.ellipse", 79, 66, 32, 32, "#CBD9E3", "#FFFFFF", "#30485A", 2, 0, true, "diagonal-down", true),
                 FlatShape(E(family, style, 16), "hub-cap", "core.ellipse", 89, 76, 12, 12, "#547084", "#243B4A", 1),
                 FlatShape(E(family, style, 17), "bolt-1", "core.ellipse", 88.9, 35.9, 3.2, 3.2, "#F8FAFC", "#526B7D", 1),
@@ -600,7 +611,8 @@ public static class BuiltinDynamoLibrary
                 Polygon(E(family, style, 26), "outlet-flow-arrow", 145, 22, 15, 14, [(0d, 0d), (15d, 7d), (0d, 14d)], "#1687B4", "#125575", 1),
                 Text(E(family, style, 27), "label", "B", 84, 73, 22, 20, 11, "#243B4A"),
                 StateLamp(E(family, style, 28), "running", 7, 7, "#22C55E", "running", "{equipmentPath}.Running"),
-                StateLamp(E(family, style, 29), "fault", 177, 7, "#EF4444", "fault", "{equipmentPath}.Fault")
+                StateLamp(E(family, style, 29), "fault", 177, 7, "#EF4444", "fault", "{equipmentPath}.Fault"),
+                FlatShape(E(family, style, 30), "impeller-eye-ring", "core.ellipse", 74, 61, 42, 42, "#00000000", "#526B7D", 1.5)
             ],
             parameters: BlowerParameters());
         }
@@ -617,12 +629,12 @@ public static class BuiltinDynamoLibrary
                 "#8999A7", "#273746", 3),
             FlatShape(E(family, style, 7), "case-cover", "core.ellipse", 51, 38, 88, 88, "#D3DCE4", "#526575", 2),
             FlatShape(E(family, style, 8), "impeller-recess", "core.ellipse", 62, 49, 66, 66, "#405363", "#273746", 2),
-            RotorBlade(E(family, style, 9), "impeller-blade-1", 95, 82, 12, 29, 0, "#A8B4BF", "#273746", 1),
-            RotorBlade(E(family, style, 10), "impeller-blade-2", 95, 82, 12, 29, 60, "#A8B4BF", "#273746", 1),
-            RotorBlade(E(family, style, 11), "impeller-blade-3", 95, 82, 12, 29, 120, "#A8B4BF", "#273746", 1),
-            RotorBlade(E(family, style, 12), "impeller-blade-4", 95, 82, 12, 29, 180, "#A8B4BF", "#273746", 1),
-            RotorBlade(E(family, style, 13), "impeller-blade-5", 95, 82, 12, 29, 240, "#A8B4BF", "#273746", 1),
-            RotorBlade(E(family, style, 14), "impeller-blade-6", 95, 82, 12, 29, 300, "#A8B4BF", "#273746", 1),
+            RotorBlade(E(family, style, 9), "impeller-blade-1", 95, 82, 9, 23, 0, "#A8B4BF", "#273746", 1),
+            RotorBlade(E(family, style, 10), "impeller-blade-2", 95, 82, 9, 23, 60, "#A8B4BF", "#273746", 1),
+            RotorBlade(E(family, style, 11), "impeller-blade-3", 95, 82, 9, 23, 120, "#A8B4BF", "#273746", 1),
+            RotorBlade(E(family, style, 12), "impeller-blade-4", 95, 82, 9, 23, 180, "#A8B4BF", "#273746", 1),
+            RotorBlade(E(family, style, 13), "impeller-blade-5", 95, 82, 9, 23, 240, "#A8B4BF", "#273746", 1),
+            RotorBlade(E(family, style, 14), "impeller-blade-6", 95, 82, 9, 23, 300, "#A8B4BF", "#273746", 1),
             FlatShape(E(family, style, 15), "hub", "core.ellipse", 79, 66, 32, 32, "#EEF2F6", "#273746", 2),
             FlatShape(E(family, style, 16), "hub-cap", "core.ellipse", 89, 76, 12, 12, "#657A8A", "#273746", 1),
             FlatShape(E(family, style, 17), "bolt-1", "core.ellipse", 88.9, 35.9, 3.2, 3.2, "#F8FAFC", "#526575", 1),
@@ -637,7 +649,8 @@ public static class BuiltinDynamoLibrary
             Polygon(E(family, style, 26), "outlet-flow-arrow", 145, 22, 15, 14, [(0d, 0d), (15d, 7d), (0d, 14d)], "#13799D", "#125575", 1),
             Text(E(family, style, 27), "label", "B", 84, 73, 22, 20, 11, "#243B4A"),
             StateLamp(E(family, style, 28), "running", 7, 7, "#22C55E", "running", "{equipmentPath}.Running"),
-            StateLamp(E(family, style, 29), "fault", 177, 7, "#EF4444", "fault", "{equipmentPath}.Fault")
+            StateLamp(E(family, style, 29), "fault", 177, 7, "#EF4444", "fault", "{equipmentPath}.Fault"),
+            FlatShape(E(family, style, 30), "impeller-eye-ring", "core.ellipse", 74, 61, 42, 42, "#00000000", "#526575", 1.5)
         ],
         parameters: BlowerParameters());
     }
@@ -820,14 +833,17 @@ public static class BuiltinDynamoLibrary
                 Rect("flange-left", 30, 43, 8, 26, light, 1);
                 Rect("flange-right", width - 38, 43, 8, 26, light, 1);
                 Ellipse("body-ring", 39, 30, 64, 54, highPerformance ? "#E0E4E7" : shell, 3);
-                Ellipse("disc", 48, 35, 46, 44, accent, 2.5);
-                Bar("disc-edge", 68, 32, 6, 50, dark, -22);
-                Bar("shaft", 69, 16, 5, 19, dark);
+                Ellipse("disc", 54, 36, 34, 42, accent, 2.2);
+                Bar("disc-edge", 68, 35, 5, 44, dark, -18);
+                Bar("shaft", 69, 16, 5, 21, dark);
                 Bezier("actuator", 56, 4, 31, 15,
                     "M 8 18 C 8 7 22 3 50 3 C 78 3 92 7 92 18 L 92 82 C 92 93 78 97 50 97 C 22 97 8 93 8 82 Z",
                     light, 2);
                 Lamp("open", 5, 5, "open", "{equipmentPath}.Open", "#16A34A");
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
+                shapes.Add(FlatShape(E(family, style, shapes.Count + 1), "seat-ring", "core.ellipse",
+                    45, 33, 52, 48, "#00000000", dark, 1.4));
+                Rect("actuator-coupling", 64, 15, 15, 8, light, 3, 1.2);
                 break;
             case "process.valve.ball":
                 Rect("pipe-left", 3, 51, 45, 10, shell, 2);
@@ -837,12 +853,15 @@ public static class BuiltinDynamoLibrary
                 Bezier("body", centerX - 30, 33, 60, 46,
                     "M 8 20 C 22 7 36 3 50 3 C 64 3 78 7 92 20 L 92 80 C 78 93 64 97 50 97 C 36 97 22 93 8 80 Z",
                     shell, 2.5);
-                Ellipse("ball", centerX - 18, 39, 36, 34, highPerformance ? "#727D84" : accent, 2);
-                Bar("bore", centerX - 16.5, 54, 33, 5, "#F5F7F8");
-                Bar("stem", centerX - 2.5, 18, 5, 23, dark);
-                Bar("handle", centerX - 17, 13, 34, 6, accent, -20);
+                Ellipse("ball", centerX - 16, 40, 32, 32, highPerformance ? "#727D84" : accent, 2);
+                Bar("bore", centerX - 14, 54, 28, 4, "#F5F7F8");
+                Bar("stem", centerX - 2.5, 18, 5, 24, dark);
+                Bar("handle", centerX - 18, 12, 36, 6, accent, -18);
                 Lamp("open", 5, 5, "open", "{equipmentPath}.Open", "#16A34A");
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
+                Rect("seat-left", centerX - 22, 42, 5, 28, light, 2, 1.2);
+                Rect("seat-right", centerX + 17, 42, 5, 28, light, 2, 1.2);
+                Ellipse("packing-gland", centerX - 7, 33, 14, 10, light, 1.2);
                 break;
             case "process.valve.gate":
                 Rect("pipe-left", 3, 83, 45, 10, shell, 2);
@@ -879,6 +898,15 @@ public static class BuiltinDynamoLibrary
                 Rect("nozzle-hot-out-flange", 96, 108, 18, 4, light, 1, 1);
                 Label("E", 70, 55, 24, 18, 12);
                 Lamp("fault", width - 23, 5, "fault", "{equipmentPath}.Fault", "#EAB308");
+                Bar("tube-sheet-left", 42, 41, 2.5, 44, dark);
+                Bar("tube-sheet-right", 116, 41, 2.5, 44, dark);
+                Bar("baffle-upper", 68, 42, 2, 29, dark);
+                Bar("baffle-lower", 92, 57, 2, 29, dark);
+                if (highPerformance)
+                {
+                    Rect("saddle-left", 49, 89, 18, 16, dark, 3, 1);
+                    Rect("saddle-right", 105, 89, 18, 16, dark, 3, 1);
+                }
                 break;
             case "process.filter.strainer":
                 Rect("pipe-left", 3, 35, 45, 10, shell, 2);

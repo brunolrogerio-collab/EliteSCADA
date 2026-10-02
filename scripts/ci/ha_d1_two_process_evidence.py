@@ -33,7 +33,7 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def node_env(node_id: str, own_url: str, peer_url: str, state_path: Path) -> dict[str, str]:
+def node_env(node_id: str, own_url: str, peer_url: str, state_path: Path, reference_path: Path) -> dict[str, str]:
     env = os.environ.copy()
     env.update({
         "ASPNETCORE_URLS": own_url,
@@ -58,6 +58,12 @@ def node_env(node_id: str, own_url: str, peer_url: str, state_path: Path) -> dic
         "HighAvailability__PeerTransport__RequestTimeoutSeconds": "1",
         "HighAvailability__PeerTransport__MaximumRetrySeconds": "2",
         "HighAvailability__PeerTransport__AuthenticationFreshnessSeconds": "10",
+        "HighAvailability__Protection__Enabled": "true",
+        "HighAvailability__Protection__AutomaticFailoverEnabled": "true",
+        "HighAvailability__Protection__ReferencePath": str(reference_path),
+        "HighAvailability__Protection__LeaseSeconds": "4",
+        "HighAvailability__Protection__PollMilliseconds": "250",
+        "HighAvailability__Protection__ReadyWitnessMaximumAgeSeconds": "20",
         "Logging__LogLevel__Default": "Warning",
     })
     return env
@@ -210,6 +216,7 @@ def main() -> int:
         log_b = temp / "node-b.log"
         state_a = temp / "node-a-state.json"
         state_b = temp / "node-b-state.json"
+        reference = temp / "ha-reference.json"
         proc_a = proc_b = None
         a_paused = False
         out_a = log_a.open("w", encoding="utf-8")
@@ -218,7 +225,7 @@ def main() -> int:
             proc_a = subprocess.Popen(
                 ["dotnet", str(API_DLL)],
                 cwd=ROOT,
-                env=node_env("node-a", A_URL, B_URL, state_a),
+                env=node_env("node-a", A_URL, B_URL, state_a, reference),
                 stdout=out_a,
                 stderr=subprocess.STDOUT,
                 text=True,
@@ -226,7 +233,7 @@ def main() -> int:
             proc_b = subprocess.Popen(
                 ["dotnet", str(API_DLL)],
                 cwd=ROOT,
-                env=node_env("node-b", B_URL, A_URL, state_b),
+                env=node_env("node-b", B_URL, A_URL, state_b, reference),
                 stdout=out_b,
                 stderr=subprocess.STDOUT,
                 text=True,
@@ -235,6 +242,18 @@ def main() -> int:
 
             wait_health(A_URL)
             wait_health(B_URL)
+
+            reference_deadline = time.monotonic() + 10.0
+            reference_state = None
+            while time.monotonic() < reference_deadline:
+                if reference.exists():
+                    reference_state = json.loads(reference.read_text(encoding="utf-8"))
+                    if reference_state.get("activeNodeId") == "node-a":
+                        break
+                time.sleep(0.1)
+            assert reference_state is not None, "HA-D2 reference authority was not initialized"
+            assert reference_state["activeNodeId"] == "node-a", reference_state
+            assert reference_state["epoch"] == 1, reference_state
 
             # Probes are rejected before ApplyPeerObservation. Therefore peer Fresh=true
             # can only have been established by the two running server processes.
@@ -370,6 +389,27 @@ def main() -> int:
             assert stale_local["state"] != 5, stale_local
             assert stale_topology["effectiveActiveNodeId"] != "node-b", stale_topology
 
+            lease_deadline = time.monotonic() + 10.0
+            expired_reference = None
+            while time.monotonic() < lease_deadline:
+                current_reference = json.loads(reference.read_text(encoding="utf-8"))
+                lease_until = datetime.fromisoformat(
+                    current_reference["leaseUntilUtc"].replace("Z", "+00:00"))
+                if lease_until <= datetime.now(timezone.utc):
+                    expired_reference = current_reference
+                    break
+                time.sleep(0.1)
+            assert expired_reference is not None, "HA-D2 reference lease did not expire"
+            assert expired_reference["activeNodeId"] == "node-a", expired_reference
+
+            post_expiry = wait_topology(
+                B_URL,
+                "node-a",
+                lambda value: value["effectiveActiveNodeId"] != "node-b",
+                timeout=5.0,
+            )
+            assert post_expiry["effectiveActiveNodeId"] != "node-b", post_expiry
+
             os.kill(proc_a.pid, signal.SIGCONT)
             a_paused = False
             resynced_topology = wait_topology(
@@ -402,6 +442,8 @@ def main() -> int:
                 "disconnect": {
                     "peerFresh": node(stale_topology, "node-a")["fresh"],
                     "standbyPromoted": stale_topology["effectiveActiveNodeId"] == "node-b",
+                    "referenceLeaseExpired": expired_reference is not None,
+                    "promotionWithoutReadyWitness": post_expiry["effectiveActiveNodeId"] == "node-b",
                 },
                 "reconnect": {
                     "peerFresh": node(resynced_topology, "node-a")["fresh"],

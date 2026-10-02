@@ -292,6 +292,8 @@ public sealed class RuntimeHighAvailabilityTests
     {
         var coordinator = CreateReadyPair(out _);
         var before = coordinator.Snapshot();
+        var standbyWitness = coordinator.CaptureStandbyPromotionWitness("node-b");
+        Assert.NotNull(standbyWitness);
         var token = coordinator.TryAcquireIndustrialAuthority("node-a").Token!;
 
         var stale = coordinator.ApplyReferencedAuthority(
@@ -318,13 +320,14 @@ public sealed class RuntimeHighAvailabilityTests
         Assert.Equal("reference-epoch-stale", sameEpochRecovery.ReasonCode);
 
         var recovered = coordinator.ApplyReferencedAuthority(
-            "node-a",
+            "node-b",
             checked(ambiguous.AuthorityEpoch + 1),
             previousAuthorityFenced: true,
+            standbyWitness,
             allowAmbiguityRecovery: true);
         Assert.True(recovered.Accepted);
         Assert.False(recovered.Snapshot.AmbiguousAuthority);
-        Assert.Equal("node-a", recovered.Snapshot.EffectiveActiveNodeId);
+        Assert.Equal("node-b", recovered.Snapshot.EffectiveActiveNodeId);
     }
 
     [Fact]

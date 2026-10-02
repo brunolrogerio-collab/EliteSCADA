@@ -1,5 +1,17 @@
 
 
+## DYNAMO ARTWORK R2 CANCELLED BY PRODUCT OWNER — 2026-10-02
+
+- PR #451 was rejected for insufficient visual quality; Product Owner judged the resulting Dynamos worse than the accepted baseline.
+- PR #451 closed without merge.
+- rejected last head before cancellation: `b79d63fc07bfe5732b914bb8eed7d14653ee59de`.
+- `work/w15-dynamo-artwork-r2` was reset to `015b0d5ae815fe1c8143aa22755e2c6ef91ec826`, producing zero delta versus current integration.
+- no commit/artwork from the rejected lane may be cherry-picked or otherwise incorporated.
+- accepted Dynamo baseline remains the version already present in current integration.
+- future artwork rework is deferred for a new CODEX attempt from the accepted baseline.
+- state: `PO_REJECTED / CLOSE_WITHOUT_MERGE / BRANCH_NEUTRALIZED / DO_NOT_INCORPORATE / FUTURE_CODEX_REWORK`.
+
+
 ## LOCAL DOCKER MODBUS / NUMERIC INPUT CORRECTION — 2026-10-02
 
 - Product Owner local Docker validation produced a bounded four-file correction package.

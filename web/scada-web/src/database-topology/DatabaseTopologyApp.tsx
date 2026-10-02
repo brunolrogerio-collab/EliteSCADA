@@ -223,6 +223,7 @@ export function DatabaseTopologyApp() {
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
+  const [remoteEditorRequested, setRemoteEditorRequested] = useState(false);
 
   const refresh = useCallback(async (refreshHealth = false, silent = false) => {
     if (!silent) {
@@ -261,6 +262,24 @@ export function DatabaseTopologyApp() {
   const validationHealth = compatibility?.primary ?? testHealth;
   const validationDiagnostic = compatibility?.diagnostic ?? testHealth?.diagnostic ?? null;
   const remoteDraftStarted = Boolean(draft.primary.host.trim() || draft.primary.username.trim() || draft.primary.password);
+  const remoteCoreReady = Boolean(
+    draft.primary.host.trim() &&
+    draft.primary.username.trim() &&
+    draft.primary.password &&
+    (draft.historianUsesPrimary || (
+      draft.historian.host.trim() &&
+      draft.historian.username.trim() &&
+      draft.historian.password
+    ))
+  );
+  const showRemoteEditor = Boolean(
+    status && (
+      configurationLocked ||
+      status.activeTopology.mode !== 'Remote' ||
+      remoteEditorRequested ||
+      remoteDraftStarted
+    )
+  );
   const autoRefreshActive = Boolean(
     pendingPhase && ['Quiescing', 'Copying', 'Verifying', 'Switching', 'Readiness', 'RollbackRequired'].includes(pendingPhase)
   ) || ['migrate', 'verify', 'commit', 'rollback', 'return-local'].includes(busy ?? '');
@@ -314,6 +333,7 @@ export function DatabaseTopologyApp() {
     setDraft(emptyRemoteProfileDraft());
     setTestHealth(null);
     setCompatibility(null);
+    setRemoteEditorRequested(false);
   };
 
   useEffect(() => {
@@ -323,6 +343,7 @@ export function DatabaseTopologyApp() {
     setDraft(emptyRemoteProfileDraft());
     setTestHealth(null);
     setCompatibility(null);
+    setRemoteEditorRequested(false);
   }, [pendingPhase, status?.lastOperation?.operationId, status?.lastOperation?.phase]);
 
   const run = async (name: string, action: () => Promise<void>) => {
@@ -490,7 +511,10 @@ export function DatabaseTopologyApp() {
         {primaryEndpoint?.credentialConfigured ? <span className="db-topology-credential-state">{t.credentialsConfigured}</span> : null}
       </div>
 
-      {configurationLocked ? <div className="db-topology-locked-state">{t.configurationLockedHelp}</div> : <>
+      {!status ? <div className="db-topology-locked-state">{t.loadingStatus}</div> : !showRemoteEditor ? <div className="db-topology-collapsed-editor">
+        <p>{t.remoteProfileChangeHelp}</p>
+        <button type="button" className="db-topology-secondary" onClick={() => setRemoteEditorRequested(true)}>{t.configureAnotherRemote}</button>
+      </div> : configurationLocked ? <div className="db-topology-locked-state">{t.configurationLockedHelp}</div> : <>
       <EndpointCoreFields value={draft.primary} prefix="Primary" disabled={false} onChange={primary => {
         setDraft(current => ({ ...current, primary }));
         invalidateValidation();
@@ -540,7 +564,7 @@ export function DatabaseTopologyApp() {
           <div><h3>{t.validation}</h3><p>{t.validateTargetHelp}</p></div>
         </div>
         <div className="db-topology-actions db-topology-actions--guided">
-          <button type="button" data-step="1" disabled={Boolean(busy) || configurationLocked} onClick={onValidateTarget}>{busy === 'validate' ? t.working : t.validateTarget}</button>
+          <button type="button" data-step="1" disabled={Boolean(busy) || configurationLocked || !remoteCoreReady} onClick={onValidateTarget}>{busy === 'validate' ? t.working : t.validateTarget}</button>
           <button type="button" data-step="2" className="db-topology-primary-action" disabled={Boolean(busy) || configurationLocked || compatibility?.compatible !== true} onClick={onPrepare}>{busy === 'prepare' ? t.working : t.prepare}</button>
         </div>
 

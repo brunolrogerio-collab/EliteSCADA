@@ -9,6 +9,217 @@
 GitHub live is the only authority.
 
 
+
+
+## WAVE 15 CLOSEOUT EXECUTION ROUTE — 2026-10-02 — AFTER #450 GREEN GATE
+
+Current product candidate gate:
+- PR #450: OPEN / DRAFT / NO_MERGE;
+- exact head: `c30819f3f6ac9517c266a709d4e48ab892702ffc`;
+- Wave 15 T1 #385 / `37010514243`: SUCCESS;
+- EliteSCADA CI #1645 / `37010507885`: SUCCESS;
+  - Web: SUCCESS;
+  - Backend build/test/smoke: SUCCESS;
+  - Chromium: SUCCESS.
+
+The accepted CODEX product bytes are therefore green on the exact current #450 head.
+The standing Product Owner rule still forbids Main from merging #450 without explicit merge authorization.
+
+### Closeout scheduling principle
+
+Development may be **prepared** now, but product implementation branches must start from the
+Product Owner-authorized accepted post-#450 base, never from a stale pre-recovery integration SHA.
+
+Once that exact base exists, the remaining Wave 15 implementation is organized as four disjoint lanes:
+
+#### Lane HA-D2A — HA protocol / authority / failover core — #423
+
+Prepared branch name:
+`work/w15-ha-d2-core`
+
+Primary ownership:
+- `src/Scada.Api/Runtime/HighAvailabilityRuntimeCoordinator.cs`;
+- `src/Scada.Api/Runtime/RuntimeHighAvailability*.cs`;
+- narrowly required HA-specific session-lease/fencing coordination;
+- HA deterministic two-process/adversarial evidence;
+- HA-focused tests/workflow routing.
+
+Mission:
+- conservative failover/failback;
+- epoch/fencing/reference acceptance;
+- explicit self-demotion / ambiguous-state fail-closed behavior;
+- never promote only because peer communication disappeared;
+- single effective industrial authority;
+- no duplicated writes/commands, Server Scripts, Alarm evaluation, Historian ingestion,
+  Operational Events or Runtime Session seats;
+- public status/config/command contract consumed later by HA Admin UI;
+- Web Runtime can rediscover the effective Active without becoming election authority.
+
+Forbidden without Main contract approval:
+- DB topology implementation (#366);
+- AppNavigation / EngineeringApp;
+- visual/editor/Dynamo work;
+- second Runtime/Authority model;
+- Driver-owned election semantics.
+
+#### Lane HA-D2B — HA Engineering/admin UX — #423
+
+Prepared branch name:
+`work/w15-ha-d2-admin-ui`
+
+Starts only after HA-D2A publishes/freeze its public status/config/command contract.
+
+Primary ownership:
+- new HA administration API client/types under `web/scada-web/src/engineering/**`;
+- new HA administration workspace/component/CSS/i18n;
+- focused mounted browser evidence.
+
+Main-only hotspots:
+- `web/scada-web/src/AppNavigation.tsx`;
+- `web/scada-web/src/main.tsx`;
+- `web/scada-web/src/engineering/EngineeringApp.tsx`.
+
+Mission:
+- configure supported topology/peer identity;
+- show local/remote role, effective Active, health, epoch/fencing/reference diagnostics;
+- controlled privileged switchover/failback/recovery commands;
+- truthful transition progress/result/error;
+- never expose an unconditional force-Active bypass.
+
+#### Lane DB-A — Remote DB topology / migration / cutover core — #366
+
+Prepared branch name:
+`work/w15-db-remote-topology`
+
+Primary ownership:
+- new deployment-level DB topology/configuration services under `src/Scada.Api/Persistence/**`
+  or a deliberately extracted deployment namespace;
+- narrowly required PostgreSQL/TimescaleDB migration/copy/readiness services;
+- focused tests.
+
+Mandatory contract:
+- topology is deployment/host configuration, never canonical Engineering;
+- topology state survives target-DB unavailability;
+- credentials are protected deployment secrets and never round-trip plaintext;
+- no secret in Engineering, `.escadapkg`, logs or diagnostics;
+- current local profile remains preserved until explicit later purge;
+- test -> compatibility -> prepare -> bounded quiesce -> copy/migrate -> verify -> atomic switch ->
+  health/readiness -> rollback;
+- remote DB lifecycle remains external;
+- no silent in-memory production fallback.
+
+Current repository does **not** expose a general writable host-level secret store suitable for this UI.
+The existing communication-driver protected-material resolver is read-oriented and driver-scoped.
+Therefore DB-A must provide or deliberately reuse a host/deployment secret-store seam appropriate for
+database credentials; it may not persist a password in plain JSON or inside the DB being switched.
+
+Forbidden:
+- installer/Release Factory work (Wave 16);
+- HA election/fencing implementation;
+- Engineering schema/project revision changes merely to store deployment topology.
+
+#### Lane DB-B — Remote DB administration UX — #366
+
+Prepared branch name:
+`work/w15-db-remote-admin-ui`
+
+Starts after DB-A freezes its safe public profile/status/migration contract.
+
+Primary ownership:
+- new DB administration API client/types/workspace/CSS/i18n under `web/scada-web/src/engineering/**`;
+- mounted admin journeys.
+
+Main-only hotspots:
+- AppNavigation/main/EngineeringApp shared shell files.
+
+Mission:
+- Local Managed | Remote;
+- structured host/port/database/user/TLS/trust/timeout;
+- optional Historian override;
+- no plaintext secret display after submit;
+- test connection / compatibility;
+- migration/cutover preview;
+- progress/readiness/rollback/recovery diagnostics.
+
+#### Lane HIST-PB — Historical Playback — #445
+
+Prepared branch name:
+`work/w15-historical-playback`
+
+Primary ownership:
+- Playback context/controller/UI under Runtime historical/visual navigation;
+- reuse existing #384 Data Query / Historian retrieval and #383 time-range semantics;
+- focused Runtime/Chromium tests.
+
+Forbidden:
+- second Historian API;
+- second visual renderer;
+- mutation of Historian capture policy;
+- process writes/commands while Playback is active.
+
+Acceptance:
+- explicit enter/exit historical mode;
+- point-in-time read-only Screen/Popup/Dynamo state projection;
+- analog interpolation/digital step semantics from existing query authority;
+- quality/gap truth;
+- commands/write/setpoint suppressed in Playback;
+- return to live state without stale historical residue.
+
+#### Lane VIS-72 — 72 Dynamo professional artwork — #308 / C-DYNAMO-ARTWORK-02
+
+Prepared branch name:
+`work/w15-dynamo-artwork-r2`
+
+Primary ownership:
+- `src/Scada.Api/Runtime/BuiltinDynamoLibrary.cs`;
+- focused built-in library tests/evidence.
+
+Read-only by default:
+- canonical renderer;
+- schemas;
+- Library/Dynamo preview UI;
+- Runtime navigation;
+- reusable-library kernel.
+
+Mission and licensing/provenance rules remain those already frozen in C-DYNAMO-ARTWORK-02.
+
+### Parallelism / integration order
+
+After the accepted post-#450 base exists:
+- HA-D2A, DB-A, HIST-PB and VIS-72 may execute concurrently because primary file/authority ownership is disjoint;
+- HA-D2B waits for HA-D2A public contracts;
+- DB-B waits for DB-A public contracts;
+- Main owns shared shell/navigation integration.
+
+Preferred integration order:
+1. HIST-PB;
+2. VIS-72;
+3. DB-A + DB-B as one reviewed database capability;
+4. HA-D2A + HA-D2B after DB topology is available for final interoperability proof.
+
+HA core may be developed before DB finishes, but final HA acceptance must prove that shared/remote DB topology
+does not bypass fencing or duplicate industrial effects.
+
+Each lane:
+- DEV never merges itself;
+- focused tests first;
+- exact-head Wave 15 T1;
+- when CI/T1 is launched, observe at most 2 minutes, then stop watching;
+- Main later revalidates final GitHub result;
+- broad CI is deliberate after accepted integration, never a blind rerun.
+
+### After the four functional lanes
+
+Then, and only then:
+1. #379 final pt-BR/en/es sweep;
+2. Help + Manual #425, including HA/Remote DB/Playback/Dynamo/diagnostics/troubleshooting;
+3. Productization #306: EEE Simulation v15, real Modbus from Wave14 C11 mapping, `.escadapkg`,
+   checksum/provenance, PREVIEW-READY;
+4. fresh environment #300 on the final SHA;
+5. Product Owner human final Preview/audit;
+6. only after that decide the external candidate.
+
+
 ## LATEST OVERRIDE — 2026-10-02 — POST-CODEX IMPLEMENTATION CONTRACT RECONCILIATION
 
 This section supersedes older package/release-state wording below whenever it conflicts.

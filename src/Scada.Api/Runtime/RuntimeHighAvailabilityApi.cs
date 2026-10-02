@@ -19,6 +19,8 @@ public sealed record RuntimeHaControlledSwitchRequest(string TargetNodeId);
 
 public sealed record RuntimeHaFailbackRequest(string? TargetNodeId = null);
 
+public sealed record RuntimeHaRecoveryRequest(string? TargetNodeId = null);
+
 public static class RuntimeHighAvailabilityApi
 {
     public static IEndpointRouteBuilder MapRuntimeHighAvailabilityEndpoints(
@@ -357,6 +359,47 @@ public static class RuntimeHighAvailabilityApi
             var operation = await protection.RequestControlledSwitchAsync(
                 target,
                 "explicit-failback",
+                cancellationToken);
+            await AuditProtectionOperationAsync(
+                audit,
+                context,
+                authorization.Principal,
+                highAvailability,
+                operation);
+            return operation.State == "completed"
+                ? Results.Accepted($"/api/runtime/ha/operations/{operation.OperationId:D}", operation)
+                : Results.Conflict(operation);
+        });
+
+        endpoints.MapPost("/api/runtime/ha/actions/recovery", async (
+            RuntimeHaRecoveryRequest request,
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            ApiAuditService audit,
+            RuntimeHighAvailabilityService highAvailability,
+            RuntimeHaProtectionCoordinator protection,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await security.CheckRuntimeAsync(
+                context,
+                runtime,
+                SecurityCapability.HighAvailabilityTransfer,
+                cancellationToken: cancellationToken);
+            var failure = authorization.FailureResult();
+            if (failure is not null)
+            {
+                await audit.RecordAuthorizationDeniedAsync(
+                    context,
+                    authorization,
+                    AuditActions.HighAvailabilityTransferBegin,
+                    "ha-cluster",
+                    highAvailability.ClusterId ?? "standalone");
+                return failure;
+            }
+
+            var operation = await protection.RequestRecoveryAsync(
+                request.TargetNodeId,
                 cancellationToken);
             await AuditProtectionOperationAsync(
                 audit,

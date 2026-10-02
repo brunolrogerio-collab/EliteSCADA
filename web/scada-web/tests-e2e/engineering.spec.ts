@@ -65,7 +65,7 @@ test('Engineering navigation exposes current domains and structured preview edit
     alarms?: Array<{ name: string }>;
     templates?: Array<{ key: string }>;
     equipment?: Array<{ path?: string; key?: string }>;
-    dynamos?: Array<{ key: string }>;
+    dynamos?: Array<{ key: string; name: string }>;
     screens?: Array<{ key: string }>;
     popups?: Array<{ key: string }>;
     securityRoles?: Array<{ key: string }>;
@@ -78,7 +78,7 @@ test('Engineering navigation exposes current domains and structured preview edit
     { button: /Alarmes/, heading: 'Editor estruturado de Alarmes', expected: engineering.alarms?.[0]?.name ?? null },
     { button: /Templates/, heading: 'Templates', expected: engineering.templates?.[0]?.key ?? null },
     { button: /Equipamentos/, heading: 'Instâncias de Equipamentos', expected: engineering.equipment?.[0]?.path ?? engineering.equipment?.[0]?.key ?? null },
-    { button: /Dínamos/, heading: 'Dínamos', expected: engineering.dynamos?.[0]?.key ?? null },
+    { button: /Dínamos/, heading: 'Dínamos', expected: engineering.dynamos?.[0]?.name ?? null },
     { button: /Telas/, heading: 'Telas', expected: engineering.screens?.[0]?.key ?? null },
     { button: /Popups/, heading: 'Popups', expected: engineering.popups?.[0]?.key ?? null },
     { button: /Segurança/, heading: 'Papéis e capacidades', expected: engineering.securityRoles?.[0]?.key ?? null }

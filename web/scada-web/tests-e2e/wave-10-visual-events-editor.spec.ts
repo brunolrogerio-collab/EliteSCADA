@@ -123,6 +123,9 @@ test('mounted Events editor persists click and canonical timer/TAG-bit associati
       return Boolean(persistedObject?.actions?.some(action => action.eventKey.toLocaleLowerCase('en-US') === 'click'));
     }).toBe(true);
 
+    await page.locator('.visual-editor-outliner__select').filter({ hasText: visualObject.key }).first().click();
+    await page.getByTestId('visual-editor-inspector-tab-events').click();
+    await expect(editor).toBeVisible();
     await editor.locator('.visual-editor-events__scripts > summary').click();
 
     await editor.getByTestId('visual-events-event').selectOption('click');

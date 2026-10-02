@@ -146,7 +146,7 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   await expect(assetRef).toHaveAttribute('data-editor-hint', 'project-asset');
   const assetBrowser = assetRef.getByTestId('visual-editor-image-asset-picker');
   await expect(assetBrowser.getByRole('combobox', { name: 'Asset Ref' })).toBeVisible();
-  await expect(assetBrowser.getByRole('button', { name: 'Escolher imagem…' })).toBeVisible();
+  await expect(assetBrowser.getByRole('button', { name: 'Procurar no computador e enviar…' })).toBeVisible();
   const imageZoom = inspector.locator('[data-property-key="imageZoom"]');
   await expect(imageZoom.locator('input[type="range"]')).toBeVisible();
   await expect(imageZoom.locator('input[type="range"]')).toHaveAttribute('min', '1');

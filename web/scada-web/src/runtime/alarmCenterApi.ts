@@ -1,3 +1,4 @@
+import { assertRuntimeProcessMutationAllowed } from './historical-playback/runtimeHistoricalPlaybackGuard';
 import type {
   RuntimeAlarmAcknowledgeResult,
   RuntimeAlarmCenterEndpoint,
@@ -34,6 +35,7 @@ export async function acknowledgeRuntimeAlarm(
   definitionId: string,
   signal?: AbortSignal
 ): Promise<RuntimeAlarmAcknowledgeResult> {
+  assertRuntimeProcessMutationAllowed('Alarm acknowledgement');
   if (!definitionId.trim()) return { ok: false, error: 'Alarm definition ID is required.' };
 
   try {

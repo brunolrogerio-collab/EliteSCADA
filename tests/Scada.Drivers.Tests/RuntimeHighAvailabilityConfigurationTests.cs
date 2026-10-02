@@ -13,7 +13,9 @@ public sealed class RuntimeHighAvailabilityConfigurationTests
         try
         {
             var configuration = CreateConfiguration(root);
-            var authority = new RuntimeHaHostConfigurationAuthority(configuration);
+            var authority = new RuntimeHaHostConfigurationAuthority(
+                configuration,
+                CreateSecretStore(root));
             var before = authority.Snapshot();
 
             Assert.False(before.PendingRestart);
@@ -45,7 +47,9 @@ public sealed class RuntimeHighAvailabilityConfigurationTests
             Assert.DoesNotContain(SharedSecret, serialized, StringComparison.Ordinal);
             Assert.True(File.Exists(ConfigurationPath(root)));
 
-            var restarted = new RuntimeHaHostConfigurationAuthority(configuration);
+            var restarted = new RuntimeHaHostConfigurationAuthority(
+                configuration,
+                CreateSecretStore(root));
             var afterRestart = restarted.Snapshot();
             Assert.False(afterRestart.PendingRestart);
             Assert.False(afterRestart.IndustrialEffectsBlocked);
@@ -78,7 +82,8 @@ public sealed class RuntimeHighAvailabilityConfigurationTests
             var authority = new RuntimeHaHostConfigurationAuthority(
                 new ConfigurationBuilder()
                     .AddInMemoryCollection(values)
-                    .Build());
+                    .Build(),
+                CreateSecretStore(root));
 
             var snapshot = authority.Snapshot();
             Assert.False(snapshot.PendingRestart);
@@ -96,8 +101,7 @@ public sealed class RuntimeHighAvailabilityConfigurationTests
         var root = CreateTemporaryDirectory();
         try
         {
-            var authority = new RuntimeHaHostConfigurationAuthority(
-                CreateConfiguration(root));
+            var authority = CreateAuthority(root);
             var before = authority.Snapshot();
 
             var result = await authority.UpdateAsync(
@@ -125,8 +129,7 @@ public sealed class RuntimeHighAvailabilityConfigurationTests
         var root = CreateTemporaryDirectory();
         try
         {
-            var authority = new RuntimeHaHostConfigurationAuthority(
-                CreateConfiguration(root));
+            var authority = CreateAuthority(root);
             var before = authority.Snapshot();
             var update = CreateUpdate(
                 before.Generation,
@@ -170,8 +173,7 @@ public sealed class RuntimeHighAvailabilityConfigurationTests
         var root = CreateTemporaryDirectory();
         try
         {
-            var authority = new RuntimeHaHostConfigurationAuthority(
-                CreateConfiguration(root));
+            var authority = CreateAuthority(root);
             var before = authority.Snapshot();
             var update = CreateUpdate(
                 before.Generation,
@@ -195,6 +197,190 @@ public sealed class RuntimeHighAvailabilityConfigurationTests
                 SharedSecret,
                 JsonSerializer.Serialize(before),
                 StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task HostConfiguration_PersistedStateContainsOnlyOpaqueProtectedSecretReference()
+    {
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            var configuration = CreateConfiguration(root);
+            var secretStore = CreateSecretStore(root);
+            var authority = new RuntimeHaHostConfigurationAuthority(
+                configuration,
+                secretStore);
+            var before = authority.Snapshot();
+            var update = CreateUpdate(
+                before.Generation,
+                topologyVersion: before.Desired.TopologyVersion,
+                nodeBRemoteEndpoint: "https://b.example.test",
+                referencePath: before.Desired.Protection.ReferencePath!);
+            update = update with
+            {
+                PeerTransport = update.PeerTransport! with
+                {
+                    PeerSharedSecret = ReplacementSecret
+                }
+            };
+
+            var result = await authority.UpdateAsync(update);
+
+            Assert.True(result.Accepted);
+            Assert.True(result.Snapshot.PendingRestart);
+
+            var persisted = File.ReadAllText(ConfigurationPath(root));
+            Assert.DoesNotContain(SharedSecret, persisted, StringComparison.Ordinal);
+            Assert.DoesNotContain(ReplacementSecret, persisted, StringComparison.Ordinal);
+
+            using var document = JsonDocument.Parse(persisted);
+            var peerTransport = document.RootElement.GetProperty("peerTransport");
+            Assert.False(peerTransport.TryGetProperty("sharedSecret", out _));
+            Assert.True(peerTransport.GetProperty("authenticationConfigured").GetBoolean());
+            var reference = peerTransport
+                .GetProperty("sharedSecretReference")
+                .GetString();
+            Assert.NotNull(reference);
+            Assert.StartsWith(
+                RuntimeHaEncryptedFileDeploymentSecretStore.ReferencePrefix,
+                reference,
+                StringComparison.Ordinal);
+
+            var secretFiles = Directory.GetFiles(SecretStorePath(root), "*.json");
+            Assert.NotEmpty(secretFiles);
+            foreach (var secretFile in secretFiles)
+            {
+                var encryptedEnvelope = File.ReadAllText(secretFile);
+                Assert.DoesNotContain(
+                    ReplacementSecret,
+                    encryptedEnvelope,
+                    StringComparison.Ordinal);
+                Assert.DoesNotContain(
+                    SharedSecret,
+                    encryptedEnvelope,
+                    StringComparison.Ordinal);
+            }
+
+            var restarted = new RuntimeHaHostConfigurationAuthority(
+                configuration,
+                CreateSecretStore(root));
+            var options = restarted.CreatePeerTransportOptions(
+                restarted.RunningTopology);
+            Assert.Equal(ReplacementSecret, options.SharedSecret);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task HostConfiguration_RestartFailsClosedWhenProtectedPeerSecretCannotBeDecrypted()
+    {
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            var configuration = CreateConfiguration(root);
+            var authority = new RuntimeHaHostConfigurationAuthority(
+                configuration,
+                CreateSecretStore(root));
+            var before = authority.Snapshot();
+            var update = CreateUpdate(
+                before.Generation,
+                topologyVersion: before.Desired.TopologyVersion,
+                nodeBRemoteEndpoint: "https://b.example.test",
+                referencePath: before.Desired.Protection.ReferencePath!);
+            update = update with
+            {
+                PeerTransport = update.PeerTransport! with
+                {
+                    PeerSharedSecret = ReplacementSecret
+                }
+            };
+
+            var result = await authority.UpdateAsync(update);
+            Assert.True(result.Accepted);
+
+            var wrongKey = Enumerable.Repeat((byte)0xA5, 32).ToArray();
+            Assert.Throws<RuntimeHaDeploymentSecretStoreException>(
+                () => new RuntimeHaHostConfigurationAuthority(
+                    configuration,
+                    new RuntimeHaEncryptedFileDeploymentSecretStore(
+                        SecretStorePath(root),
+                        wrongKey)));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task HostConfiguration_ReplacingSecretRetainsRunningReferenceUntilRestart()
+    {
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            var configuration = CreateConfiguration(root);
+            var store = CreateSecretStore(root);
+            var bootstrapAuthority = new RuntimeHaHostConfigurationAuthority(
+                configuration,
+                store);
+            var bootstrap = bootstrapAuthority.Snapshot();
+
+            var firstPersist = await bootstrapAuthority.UpdateAsync(
+                CreateUpdate(
+                    bootstrap.Generation,
+                    topologyVersion: bootstrap.Desired.TopologyVersion,
+                    nodeBRemoteEndpoint: "https://b.example.test",
+                    referencePath: bootstrap.Desired.Protection.ReferencePath!));
+            Assert.True(firstPersist.Accepted);
+
+            var firstReference = ReadPersistedSecretReference(root);
+            Assert.Equal(
+                SharedSecret,
+                store.Resolve(
+                    RuntimeHaHostConfigurationAuthority.PeerSecretPurpose,
+                    firstReference));
+
+            var running = new RuntimeHaHostConfigurationAuthority(
+                configuration,
+                store);
+            var runningSnapshot = running.Snapshot();
+            var replacement = CreateUpdate(
+                runningSnapshot.Generation,
+                topologyVersion: runningSnapshot.Desired.TopologyVersion,
+                nodeBRemoteEndpoint: "https://b.example.test",
+                referencePath: runningSnapshot.Desired.Protection.ReferencePath!);
+            replacement = replacement with
+            {
+                PeerTransport = replacement.PeerTransport! with
+                {
+                    PeerSharedSecret = ReplacementSecret
+                }
+            };
+
+            var replaced = await running.UpdateAsync(replacement);
+            Assert.True(replaced.Accepted);
+            Assert.True(replaced.Snapshot.PendingRestart);
+
+            var replacementReference = ReadPersistedSecretReference(root);
+            Assert.NotEqual(firstReference, replacementReference);
+            Assert.Equal(
+                SharedSecret,
+                store.Resolve(
+                    RuntimeHaHostConfigurationAuthority.PeerSecretPurpose,
+                    firstReference));
+            Assert.Equal(
+                ReplacementSecret,
+                store.Resolve(
+                    RuntimeHaHostConfigurationAuthority.PeerSecretPurpose,
+                    replacementReference));
         }
         finally
         {
@@ -240,6 +426,29 @@ public sealed class RuntimeHighAvailabilityConfigurationTests
                 ReadyWitnessMaximumAgeSeconds: 60,
                 ClockSkewSafetyMarginSeconds: 1));
 
+    private static RuntimeHaHostConfigurationAuthority CreateAuthority(string root) =>
+        new(
+            CreateConfiguration(root),
+            CreateSecretStore(root));
+
+    private static RuntimeHaEncryptedFileDeploymentSecretStore CreateSecretStore(
+        string root) =>
+        new(
+            SecretStorePath(root),
+            TestProtectionKey);
+
+    private static string ReadPersistedSecretReference(string root)
+    {
+        using var document = JsonDocument.Parse(
+            File.ReadAllText(ConfigurationPath(root)));
+        return document.RootElement
+            .GetProperty("peerTransport")
+            .GetProperty("sharedSecretReference")
+            .GetString()
+            ?? throw new InvalidOperationException(
+                "Persisted peer secret reference is missing.");
+    }
+
     private static IConfiguration CreateConfiguration(string root) =>
         new ConfigurationBuilder()
             .AddInMemoryCollection(CreateConfigurationValues(root))
@@ -281,6 +490,9 @@ public sealed class RuntimeHighAvailabilityConfigurationTests
     private static string ReferencePath(string root) =>
         Path.Combine(root, "shared-reference.json");
 
+    private static string SecretStorePath(string root) =>
+        Path.Combine(root, "protected-secrets");
+
     private static string CreateTemporaryDirectory()
     {
         var path = Path.Combine(
@@ -290,6 +502,13 @@ public sealed class RuntimeHighAvailabilityConfigurationTests
         return path;
     }
 
+    private static readonly byte[] TestProtectionKey =
+        Convert.FromHexString(
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+
     private const string SharedSecret =
         "0123456789abcdef0123456789abcdef0123456789abcdef";
+
+    private const string ReplacementSecret =
+        "fedcba9876543210fedcba9876543210fedcba9876543210";
 }

@@ -159,6 +159,7 @@ test('schema-driven Property Inspector mounts type-appropriate editors without p
   await page.getByTestId('visual-editor-side-tab-assets').click();
   const background = page.getByTestId('visual-definition-surface-inspector');
   await background.locator('summary').click();
+  await background.locator('select').first().selectOption('image');
   await expect(background.locator('input[type="file"]')).toHaveAttribute('accept', /image\/svg\+xml/);
   await expect(background.getByRole('button', { name: 'Escolher imagem…' })).toBeEnabled();
 });

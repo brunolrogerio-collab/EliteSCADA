@@ -116,18 +116,14 @@ async function attachScreenshot(page: Page, testInfo: TestInfo, name: string) {
 
 async function fillRemoteProfile(page: Page) {
   await page.getByLabel('Primary Host / FQDN').fill('db-primary.example.internal');
-  await page.getByLabel('Primary Port').fill('5432');
   await page.getByLabel('Primary Database').fill('elitescada');
   await page.getByLabel('Primary Username / identity').fill('elitescada_admin');
   await page.getByLabel('Primary Password / secret').fill(secret);
-  await page.getByText('Advanced settings', { exact: true }).click();
-  await page.getByLabel('Primary TLS mode').selectOption('VerifyFull');
-  await page.getByLabel('Primary CA / root certificate path').fill('/etc/elitescada/certs/db-root.pem');
-  await page.getByLabel('Primary Timeout (s)').fill('15');
 }
 
 test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, restart and rollback', async ({ page }, testInfo) => {
   let currentStatus: any = topologyStatus();
+  let statusGetCount = 0;
 
   await page.route('**/api/admin/database-topology/**', async route => {
     const url = new URL(route.request().url());
@@ -135,6 +131,7 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
     const path = url.pathname;
 
     if (method === 'GET' && path === '/api/admin/database-topology/') {
+      statusGetCount += 1;
       await fulfillJson(route, currentStatus);
       return;
     }
@@ -261,13 +258,27 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
   await fillRemoteProfile(page);
   await attachScreenshot(page, testInfo, '02-remote-profile-write-only');
 
-  await page.getByRole('button', { name: 'Test Connection' }).click();
-  await expect(page.getByTestId('database-test-result')).toContainText('18.1');
-  await expect(page.getByTestId('database-test-result')).toContainText('2.29.2');
+  await page.getByText('Advanced settings', { exact: true }).click();
+  await expect(page.getByLabel('Primary CA / root certificate path')).toHaveCount(0);
+  await page.getByLabel('Historian uses Primary').uncheck();
+  await expect(page.getByLabel('Historian Host / FQDN')).toHaveValue('db-primary.example.internal');
+  await expect(page.getByLabel('Historian Database')).toHaveValue('elitescada');
+  await expect(page.getByLabel('Historian Username / identity')).toHaveValue('elitescada_admin');
+  await expect(page.getByLabel('Historian Password / secret')).toHaveValue('');
+  await page.getByLabel('Historian uses Primary').check();
+  await page.getByText('Advanced settings', { exact: true }).click();
 
-  await page.getByRole('button', { name: 'Compatibility' }).click();
-  await expect(page.getByTestId('database-compatibility-result')).toContainText('Compatible');
-  await attachScreenshot(page, testInfo, '03-test-and-compatibility-success');
+  await page.getByRole('button', { name: 'Validate target' }).click();
+  await expect(page.getByTestId('database-validation-result')).toContainText('Compatible');
+  await expect(page.getByTestId('database-validation-result')).toContainText('18.1');
+  await expect(page.getByTestId('database-validation-result')).toContainText('2.29.2');
+  await attachScreenshot(page, testInfo, '03-target-validation-success');
+
+  await page.getByLabel('Primary Database').fill('elitescada_changed');
+  await expect(page.getByTestId('database-validation-result')).toHaveCount(0);
+  await page.getByLabel('Primary Database').fill('elitescada');
+  await page.getByRole('button', { name: 'Validate target' }).click();
+  await expect(page.getByTestId('database-validation-result')).toContainText('Compatible');
 
   await page.getByRole('button', { name: 'Prepare' }).click();
   await expect(page.getByTestId('database-migration-plan')).toContainText('LocalManaged');
@@ -285,15 +296,16 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
   currentStatus = topologyStatus({ pendingPhase: 'Quiescing', pendingOperationId: operationId });
   await page.reload();
   await expect(page.getByTestId('database-pending-phase')).toHaveText('Quiescing');
-  await attachScreenshot(page, testInfo, '05-quiescing');
+  const refreshBaseline = statusGetCount;
+  await expect.poll(() => statusGetCount, { timeout: 7000 }).toBeGreaterThan(refreshBaseline);
+  await attachScreenshot(page, testInfo, '05-quiescing-auto-refresh');
 
   currentStatus = topologyStatus({ pendingPhase: 'Copying', pendingOperationId: operationId });
-  await page.reload();
-  await expect(page.getByTestId('database-pending-phase')).toHaveText('Copying');
-  await attachScreenshot(page, testInfo, '06-copying');
+  await expect(page.getByTestId('database-pending-phase')).toHaveText('Copying', { timeout: 7000 });
+  await attachScreenshot(page, testInfo, '06-copying-auto-refresh');
 
   currentStatus = topologyStatus({ pendingPhase: 'Copied', pendingOperationId: operationId });
-  await page.reload();
+  await expect(page.getByTestId('database-pending-phase')).toHaveText('Copied', { timeout: 7000 });
   await page.getByRole('button', { name: 'Verify', exact: true }).click();
   await expect(page.getByTestId('database-pending-phase')).toHaveText('Verified');
 
@@ -306,6 +318,8 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
   await expect(page.getByText('Remote', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Restart required', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Completed', { exact: true }).first()).toBeVisible();
+  await expect(page.getByLabel('Primary Host / FQDN')).toHaveValue('');
+  await expect(page.getByTestId('database-validation-result')).toHaveCount(0);
   await attachScreenshot(page, testInfo, '08-restart-required-completed');
 
   currentStatus = topologyStatus({
@@ -329,7 +343,7 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
 });
 
 test('DB-B exposes sanitized auth/TLS failures and incompatible PostgreSQL without fabricating readiness', async ({ page }, testInfo) => {
-  let connectionCase: 'auth' | 'tls' = 'auth';
+  let connectionCase: 'auth' | 'tls' | 'ok' = 'auth';
   let compatibilityMode: 'ok' | 'version' = 'version';
 
   await page.route('**/api/admin/database-topology/**', async route => {
@@ -351,7 +365,7 @@ test('DB-B exposes sanitized auth/TLS failures and incompatible PostgreSQL witho
           failureCode: 'authentication-failed',
           diagnostic: 'Database authentication failed.'
         }));
-      } else {
+      } else if (connectionCase === 'tls') {
         await fulfillJson(route, health({
           reachable: false,
           postgreSqlVersion: null,
@@ -362,6 +376,8 @@ test('DB-B exposes sanitized auth/TLS failures and incompatible PostgreSQL witho
           failureCode: 'tls-validation-failed',
           diagnostic: 'Database TLS/trust validation failed.'
         }));
+      } else {
+        await fulfillJson(route, health());
       }
       return;
     }
@@ -394,18 +410,25 @@ test('DB-B exposes sanitized auth/TLS failures and incompatible PostgreSQL witho
   await page.goto(harnessPath + '?locale=en');
   await fillRemoteProfile(page);
 
-  await page.getByRole('button', { name: 'Test Connection' }).click();
-  await expect(page.getByTestId('database-test-result')).toContainText('Database authentication failed.');
+  await page.getByRole('button', { name: 'Validate target' }).click();
+  await expect(page.getByTestId('database-validation-result')).toContainText('Database authentication failed.');
   await attachScreenshot(page, testInfo, '12-auth-failure');
 
+  await page.getByText('Advanced settings', { exact: true }).click();
+  await expect(page.getByLabel('Primary CA / root certificate path')).toHaveCount(0);
+  await page.getByLabel('Primary TLS mode').selectOption('VerifyFull');
+  await expect(page.getByLabel('Primary CA / root certificate path')).toBeVisible();
+  await page.getByLabel('Primary CA / root certificate path').fill('/etc/elitescada/certs/db-root.pem');
+
   connectionCase = 'tls';
-  await page.getByRole('button', { name: 'Test Connection' }).click();
-  await expect(page.getByTestId('database-test-result')).toContainText('Database TLS/trust validation failed.');
+  await page.getByRole('button', { name: 'Validate target' }).click();
+  await expect(page.getByTestId('database-validation-result')).toContainText('Database TLS/trust validation failed.');
   await attachScreenshot(page, testInfo, '13-tls-failure');
 
-  await page.getByRole('button', { name: 'Compatibility' }).click();
-  await expect(page.getByTestId('database-compatibility-result')).toContainText('16.9');
-  await expect(page.getByTestId('database-compatibility-result')).toContainText('Incompatible');
+  connectionCase = 'ok';
+  await page.getByRole('button', { name: 'Validate target' }).click();
+  await expect(page.getByTestId('database-validation-result')).toContainText('16.9');
+  await expect(page.getByTestId('database-validation-result')).toContainText('Incompatible');
   await expect(page.getByRole('button', { name: 'Prepare' })).toBeDisabled();
   await attachScreenshot(page, testInfo, '14-postgresql-version-incompatible');
 });

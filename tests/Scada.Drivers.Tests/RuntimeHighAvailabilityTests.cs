@@ -315,11 +315,11 @@ public sealed class RuntimeHighAvailabilityTests
             previousAuthorityFenced: true,
             allowAmbiguityRecovery: true);
         Assert.False(sameEpochRecovery.Accepted);
-        Assert.Equal("ambiguous-authority", sameEpochRecovery.ReasonCode);
+        Assert.Equal("reference-epoch-stale", sameEpochRecovery.ReasonCode);
 
         var recovered = coordinator.ApplyReferencedAuthority(
             "node-a",
-            checked(before.AuthorityEpoch + 1),
+            checked(ambiguous.AuthorityEpoch + 1),
             previousAuthorityFenced: true,
             allowAmbiguityRecovery: true);
         Assert.True(recovered.Accepted);

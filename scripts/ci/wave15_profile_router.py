@@ -77,7 +77,11 @@ E2E_SPECS = {
     ),
     "SCRIPT_ENGINEERING": ("tests-e2e/script-engineering-workspace-contract.spec.ts",),
     "SCRIPT_RUNTIME": ("tests-e2e/python-runtime-host.spec.ts",),
-    "RUNTIME_RENDERER": ("tests-e2e/runtime.spec.ts", "tests-e2e/wave-14-c25-runtime-session.spec.ts"),
+    "RUNTIME_RENDERER": (
+        "tests-e2e/runtime.spec.ts",
+        "tests-e2e/wave-14-c25-runtime-session.spec.ts",
+        "tests-e2e/wave-15-historical-playback.spec.ts",
+    ),
     "AUTHORITY_UX": ("tests-e2e/security.spec.ts",),
     "LICENSING_UX": ("tests-e2e/effective-capabilities-contract.spec.ts",),
     "ELITEGO_RUNTIME": ("tests-e2e/runtime.spec.ts",),

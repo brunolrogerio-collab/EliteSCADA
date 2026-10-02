@@ -115,7 +115,6 @@ test('new OPC UA Source can discover, choose security settings and test the draf
   const sourceEditor = page.getByTestId('schema-data-source-editor');
   await sourceEditor.getByRole('button', { name: /Nova Fonte de dados|New Data Source|Nueva Fuente de datos/ }).click();
   await sourceEditor.getByRole('textbox', { name: 'Nome' }).fill('OPC UA Principal');
-  await sourceEditor.getByRole('textbox', { name: 'Identificador' }).fill('opc-main');
   await sourceEditor.getByTestId('data-source-type').selectOption('opc-ua');
 
   await expect(sourceEditor.getByTestId('opcua-source-discovery-assistant')).toBeVisible();
@@ -124,7 +123,7 @@ test('new OPC UA Source can discover, choose security settings and test the draf
 
   expect(discoveryRequest).toMatchObject({
     dataSource: {
-      sourceKey: 'opc-main', sourceName: 'OPC UA Principal', driverType: 'opc-ua'
+      sourceKey: 'OPC_UA_Principal', sourceName: 'OPC UA Principal', driverType: 'opc-ua'
     },
     parameters: { discoveryUrl: 'opc.tcp://discovery.example:4840' },
     maximumResults: 100
@@ -145,7 +144,7 @@ test('new OPC UA Source can discover, choose security settings and test the draf
   await sourceEditor.getByTestId('opcua-source-test').click();
   await expect(sourceEditor.getByTestId('opcua-source-test-result')).toContainText('opc.tcp://plc.example:4840');
   expect(connectionRequest).toMatchObject({
-    sourceKey: 'opc-main', sourceName: 'OPC UA Principal', driverType: 'opc-ua',
+    sourceKey: 'OPC_UA_Principal', sourceName: 'OPC UA Principal', driverType: 'opc-ua',
     settings: {
       endpointUrl: 'opc.tcp://plc.example:4840',
       securityMode: 'SignAndEncrypt',
@@ -165,7 +164,7 @@ test('new OPC UA Source can discover, choose security settings and test the draf
   expect(previewCandidate).not.toBeNull();
   expect(previewCandidate.dataSources).toHaveLength(1);
   expect(previewCandidate.dataSources[0]).toMatchObject({
-    key: 'opc-main', driver: 'opc-ua',
+    key: 'OPC_UA_Principal', driver: 'opc-ua',
     settings: {
       endpointUrl: 'opc.tcp://plc.example:4840',
       securityMode: 'SignAndEncrypt',

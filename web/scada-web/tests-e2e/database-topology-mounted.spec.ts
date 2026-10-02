@@ -488,10 +488,12 @@ test('DB-B renders pt-BR and es from the shared product locale without storing d
     await expect(page.getByTestId('database-topology-app')).toBeVisible();
     if (locale === 'pt-BR') {
       await expect(page.getByRole('heading', { name: 'Topologia de Banco de Dados' })).toBeVisible();
-      await expect(page.getByText('A migração não apaga o Local Managed anterior.', { exact: false })).toBeVisible();
+      await expect(page.getByTestId('database-next-action')).toContainText('Local Managed está ativo. Nenhuma configuração Remote é necessária.');
+      await expect(page.getByText('Local Managed · padrão', { exact: true })).toBeVisible();
     } else {
       await expect(page.getByRole('heading', { name: 'Topología de Base de Datos' })).toBeVisible();
-      await expect(page.getByText('La migración no elimina la base Local Managed anterior.', { exact: false })).toBeVisible();
+      await expect(page.getByTestId('database-next-action')).toContainText('Local Managed está activo. No se requiere configuración Remote.');
+      await expect(page.getByText('Local Managed · predeterminado', { exact: true })).toBeVisible();
     }
 
     await page.getByLabel(locale === 'pt-BR' ? 'Primary Password / secret' : 'Primary Password / secret').fill(secret);

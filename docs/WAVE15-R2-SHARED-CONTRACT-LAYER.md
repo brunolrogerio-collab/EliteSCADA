@@ -1,5 +1,40 @@
 
 
+## SIMULATION TAG UX CONVERGENCE — 2026-10-02
+
+Owner:
+`#447 — W15-SIMULATION-TAGS`
+
+Contract:
+`C-SIMULATION-TAG-UX-02`
+
+Order:
+`W15-SIMULATION-TAG-UX-CONVERGE-01`
+
+Branch:
+`work/w15-simulation-tag-ux-convergence`
+
+Exact base:
+`a213477b775c5d6f336f32d1a34bd937c02323b8`
+
+Finding:
+- Simulation TAG currently exposes two competing authoring surfaces:
+  - generic Driver tag-binding assistant from descriptor TagBindingFields;
+  - canonical #447 per-TAG Simulation editor using simulation.* metadata.
+- DateTime exposes the contradiction: generic upper panel still shows Sine numeric defaults while canonical lower panel resolves to CurrentTime.
+
+Direction:
+- one visible canonical Simulation TAG editor;
+- type-aware behavior/fields;
+- no duplicate `Usar configurações de binding` cycle for Simulation;
+- preserve descriptor/runtime compatibility;
+- keep GenericTagBindingAssistant unchanged for other drivers;
+- DateTime -> CurrentTime without stale numeric controls.
+
+State:
+`ACTIVE / NO_MERGE`.
+
+
 ## RUNTIME SHELL UX — 2026-10-02
 
 Issue:

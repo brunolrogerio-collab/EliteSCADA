@@ -77,6 +77,12 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         result = self.classify(["src/Scada.Api/HighAvailability/State.cs"], "VALIDATION_PROFILE: UI_EDITOR")
         self.assertIn("HA_DISTRIBUTED", result["effective_profiles"])
 
+    def test_ha_distributed_owns_mounted_admin_browser_evidence(self):
+        result = self.classify([], "VALIDATION_PROFILE: HA_DISTRIBUTED")
+        self.assertTrue(result["run_dotnet"])
+        self.assertTrue(result["run_e2e"])
+        self.assertIn("tests-e2e/ha-admin-workspace.spec.ts", result["e2e_specs"])
+
     def test_unknown_profile_fails(self):
         with self.assertRaises(router.ProfileError):
             self.classify(["docs/a.md"], "VALIDATION_PROFILE: FASTEST")

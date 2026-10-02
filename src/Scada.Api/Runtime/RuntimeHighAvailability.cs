@@ -221,10 +221,20 @@ public sealed record RuntimeHaTransitionResult(
     RuntimeHaTransferOperation? Transfer,
     RuntimeHaTopologySnapshot Snapshot);
 
+public sealed record RuntimeHaStandbyPromotionWitness(
+    string NodeId,
+    RuntimeHaNodeReadinessEvidence Readiness,
+    DateTimeOffset ReadyAtUtc);
+
+public sealed record RuntimeHaReferencedAuthorityResult(
+    bool Accepted,
+    string ReasonCode,
+    RuntimeHaTopologySnapshot Snapshot);
+
 /// <summary>
-/// Server-owned HA authority state machine. It intentionally contains no peer transport and
-/// performs no automatic promotion. A future replication/fencing transport can publish the
-/// same state contract without moving authority into Drivers or clients.
+/// Server-owned HA authority state machine. Peer loss is never an election input. D2 may only
+/// reconcile a different effective Active from independently validated fencing/reference
+/// evidence; Drivers and Runtime clients remain consumers of this authority, never electors.
 /// </summary>
 public sealed partial class RuntimeHaAuthorityCoordinator
 {
@@ -283,6 +293,135 @@ public sealed partial class RuntimeHaAuthorityCoordinator
         lock (_gate)
         {
             return ResolveNodeLocked(nodeId).Evidence;
+        }
+    }
+
+    public RuntimeHaStandbyPromotionWitness? CaptureStandbyPromotionWitness(string nodeId)
+    {
+        lock (_gate)
+        {
+            var node = ResolveNodeLocked(nodeId);
+            return node.State == RuntimeHaState.ReadyStandby &&
+                   node.Evidence is not null &&
+                   node.LastReadyStandbyAtUtc is { } readyAtUtc
+                ? new RuntimeHaStandbyPromotionWitness(
+                    node.Definition.NodeId,
+                    node.Evidence,
+                    readyAtUtc)
+                : null;
+        }
+    }
+
+    /// <summary>
+    /// Reconciles server HA state with an independently fenced reference/quorum decision.
+    /// The caller must validate the external evidence. A local promotion additionally requires
+    /// a previously captured ReadyStandby witness so loss of peer communication alone can never
+    /// manufacture readiness.
+    /// </summary>
+    public RuntimeHaReferencedAuthorityResult ApplyReferencedAuthority(
+        string? activeNodeId,
+        long referencedEpoch,
+        bool previousAuthorityFenced,
+        RuntimeHaStandbyPromotionWitness? standbyWitness = null,
+        bool allowAmbiguityRecovery = false)
+    {
+        lock (_gate)
+        {
+            if (!_topology.Enabled)
+                return new(false, "ha-disabled", SnapshotLocked());
+            if (referencedEpoch < _authorityEpoch)
+                return new(false, "reference-epoch-stale", SnapshotLocked());
+            if (_pendingTransfer is not null)
+                return new(false, "transfer-in-progress", SnapshotLocked());
+            if (_ambiguousAuthority &&
+                !(allowAmbiguityRecovery && referencedEpoch > _authorityEpoch))
+            {
+                return new(false, "ambiguous-authority", SnapshotLocked());
+            }
+
+            if (string.IsNullOrWhiteSpace(activeNodeId))
+            {
+                _authorityEpoch = Math.Max(_authorityEpoch, referencedEpoch);
+                _effectiveActiveNodeId = null;
+                _pendingTransfer = null;
+                if (allowAmbiguityRecovery)
+                    _ambiguousAuthority = false;
+                foreach (var node in _nodes.Values)
+                {
+                    if (node.State != RuntimeHaState.Faulted)
+                        node.State = RuntimeHaState.Isolated;
+                }
+                _stateVersion = checked(_stateVersion + 1);
+                return new(true, "reference-fenced-no-active", SnapshotLocked());
+            }
+
+            if (!previousAuthorityFenced)
+                return new(false, "reference-previous-authority-not-fenced", SnapshotLocked());
+
+            var target = ResolveNodeLocked(activeNodeId);
+            var localPromotion =
+                target.Definition.NodeId.Equals(
+                    _topology.LocalNodeId,
+                    StringComparison.OrdinalIgnoreCase) &&
+                (_effectiveActiveNodeId is null ||
+                 !_effectiveActiveNodeId.Equals(
+                     target.Definition.NodeId,
+                     StringComparison.OrdinalIgnoreCase) ||
+                 referencedEpoch != _authorityEpoch);
+
+            if (localPromotion)
+            {
+                if (standbyWitness is null ||
+                    !standbyWitness.NodeId.Equals(
+                        target.Definition.NodeId,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return new(false, "reference-promotion-ready-standby-witness-required", SnapshotLocked());
+                }
+
+                var witnessed = standbyWitness.Readiness;
+                var current = target.Evidence;
+                if (!witnessed.Healthy ||
+                    !witnessed.SynchronizationComplete ||
+                    !witnessed.HaLicenseEntitled ||
+                    !witnessed.Runtime.Revision.HasValue ||
+                    current is null ||
+                    !current.Healthy ||
+                    !current.HaLicenseEntitled ||
+                    !current.Runtime.CompatibleWith(witnessed.Runtime))
+                {
+                    return new(false, "reference-promotion-witness-invalid", SnapshotLocked());
+                }
+            }
+
+            _authorityEpoch = referencedEpoch;
+            _effectiveActiveNodeId = target.Definition.NodeId;
+            _pendingTransfer = null;
+            _ambiguousAuthority = false;
+
+            foreach (var node in _nodes.Values)
+            {
+                if (ReferenceEquals(node, target))
+                {
+                    node.State = RuntimeHaState.Active;
+                    continue;
+                }
+
+                if (node.Evidence is not null && !node.Evidence.Healthy)
+                {
+                    node.State = RuntimeHaState.Faulted;
+                    continue;
+                }
+
+                node.State = IsStandbyReadyAgainst(node.Evidence, target.Evidence)
+                    ? RuntimeHaState.ReadyStandby
+                    : RuntimeHaState.Synchronizing;
+                if (node.State == RuntimeHaState.ReadyStandby)
+                    node.LastReadyStandbyAtUtc = _utcNow();
+            }
+
+            _stateVersion = checked(_stateVersion + 1);
+            return new(true, "reference-authority-applied", SnapshotLocked());
         }
     }
 
@@ -660,6 +799,8 @@ public sealed partial class RuntimeHaAuthorityCoordinator
             node.State = IsStandbyReadyAgainst(node.Evidence, active.Evidence)
                 ? RuntimeHaState.ReadyStandby
                 : RuntimeHaState.Synchronizing;
+            if (node.State == RuntimeHaState.ReadyStandby)
+                node.LastReadyStandbyAtUtc = _utcNow();
         }
     }
 
@@ -699,6 +840,7 @@ public sealed partial class RuntimeHaAuthorityCoordinator
         public RuntimeHaNodeDefinition Definition { get; } = definition;
         public RuntimeHaNodeReadinessEvidence? Evidence { get; set; }
         public RuntimeHaState State { get; set; } = RuntimeHaState.Synchronizing;
+        public DateTimeOffset? LastReadyStandbyAtUtc { get; set; }
     }
 }
 
@@ -889,19 +1031,27 @@ public sealed partial class RuntimeHighAvailabilityService
 {
     private readonly RuntimeHaAuthorityCoordinator _authority;
     private readonly Func<DateTimeOffset> _utcNow;
+    private readonly bool _externalIndustrialFenceRequired;
+    private Func<RuntimeHaTopologySnapshot, bool>? _externalIndustrialFence;
 
     public RuntimeHighAvailabilityService(IConfiguration configuration)
-        : this(RuntimeHaTopologyDefinition.FromConfiguration(configuration))
+        : this(
+            RuntimeHaTopologyDefinition.FromConfiguration(configuration),
+            externalIndustrialFenceRequired:
+                configuration.GetSection("HighAvailability:Protection")
+                    .GetValue<bool?>("Enabled") ?? false)
     {
     }
 
     public RuntimeHighAvailabilityService(
         RuntimeHaTopologyDefinition topology,
         Func<DateTimeOffset>? utcNow = null,
-        Guid? authorityInstanceId = null)
+        Guid? authorityInstanceId = null,
+        bool externalIndustrialFenceRequired = false)
     {
         _utcNow = utcNow ?? (() => DateTimeOffset.UtcNow);
         _authority = new RuntimeHaAuthorityCoordinator(topology, _utcNow, authorityInstanceId);
+        _externalIndustrialFenceRequired = topology.Enabled && externalIndustrialFenceRequired;
         SessionContinuity = new RuntimeSessionLeaseContinuityRegistry(_utcNow);
     }
 
@@ -910,6 +1060,13 @@ public sealed partial class RuntimeHighAvailabilityService
     public string? LocalNodeId => Enabled ? _authority.Definition.LocalNodeId : null;
     public RuntimeHaAuthorityCoordinator Authority => _authority;
     public RuntimeSessionLeaseContinuityRegistry SessionContinuity { get; }
+    public bool ExternalIndustrialFenceRequired => _externalIndustrialFenceRequired;
+
+    public void AttachExternalIndustrialFence(Func<RuntimeHaTopologySnapshot, bool> fence)
+    {
+        ArgumentNullException.ThrowIfNull(fence);
+        Volatile.Write(ref _externalIndustrialFence, fence);
+    }
 
     public RuntimeHaIndustrialAuthorityDecision PrepareLocalActivation(
         string projectKey,
@@ -953,8 +1110,28 @@ public sealed partial class RuntimeHighAvailabilityService
     public bool CanOwnIndustrialEffects()
     {
         if (!Enabled) return true;
-        return _authority.TryAcquireIndustrialAuthority(
-            _authority.Definition.LocalNodeId).Allowed;
+        if (!_authority.TryAcquireIndustrialAuthority(
+                _authority.Definition.LocalNodeId).Allowed)
+        {
+            return false;
+        }
+
+        if (!_externalIndustrialFenceRequired)
+            return true;
+
+        var fence = Volatile.Read(ref _externalIndustrialFence);
+        if (fence is null)
+            return false;
+
+        try
+        {
+            return fence(_authority.Snapshot());
+        }
+        catch
+        {
+            // A broken reference/fencing observer must never fail open.
+            return false;
+        }
     }
 
     public void RefreshLocalReadiness(

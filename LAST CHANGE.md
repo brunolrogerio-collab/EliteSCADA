@@ -1,3 +1,39 @@
+# LATEST DELTA — 2026-10-02 — POST-#444 HANDOFF
+
+> GitHub live is authoritative. This section supersedes older current-state text below.
+> Read `docs/CURRENT-COORDINATOR-HANDOFF.md` first for the full checkpoint.
+
+Current integration after PR #444:
+`wave15/corrections-integration@50df4982da5790249f41c8b3cd2634466d8013a4`.
+
+PR #444 exact-head T1 #352 / `36954843198`: SUCCESS across Classify, Common, Web, .NET, Chromium, HA two-process and final gate.
+
+Post-merge broad CI:
+EliteSCADA CI #1634 / `36957590249`.
+At this docs checkpoint Web is SUCCESS and Backend is still running; revalidate live before action.
+
+Important unpublished local workspace:
+`C:\Users\Bruno Rogerio\Documents\Codex\EliteSCADA-dynamo-preview-0126`.
+It contains additional Screen/Popup/Template editor product work that is **not in GitHub** and must be preserved, inventoried, compared against the current integration and recomposed before any bounded PR. Exclude `web/scada-web/test-results/`.
+
+New Wave 15 architecture owners:
+- #446 — Client Memory/Simulation as TAG Gateway source/read kinds; backend/runtime/protocol contract required before UI enablement.
+- #447 — per-TAG configurable Simulation profiles + CurrentTime/DateTime.
+
+Still open:
+- #308 final mounted 72-card visual review;
+- #439 Help recomposition after #444;
+- #423 HA-D2;
+- #445 Historical Playback;
+- #379 final multilingual sweep;
+- #425 final manual completion;
+- #306 Productization + late EEE Simulation/Modbus;
+- #300 final fresh Preview.
+
+Do not declare Wave 15 closed from #444 alone.
+
+---
+
 # LATEST DELTA — 2026-09-27 — CHAT HANDOFF / #362 REVIEW PENDING / CONTAINER-NATIVE CORE DIRECTION
 
 > This delta supersedes older current-state wording below when there is a conflict. GitHub live remains the sole authority.

@@ -542,13 +542,19 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
         <article className="ha-summary-card">
           <span>{t.status}</span>
           <strong className={'ha-state ha-state--' + status}>{statusLabel(status, t)}</strong>
-          <small>{protection.reasonCode || peer.reasonCode || '—'}</small>
+          <small>{
+            status === 'standalone'
+              ? t.standaloneDescription
+              : ['active', 'standby', 'ready-standby'].includes(status.toLowerCase())
+                ? t.healthy
+                : protection.reasonCode || peer.reasonCode || '—'
+          }</small>
         </article>
 
         <article className="ha-summary-card">
           <span>{topology.enabled ? t.effectiveActive : t.localNode}</span>
           <strong>{topology.enabled ? friendlyNode(topology.effectiveActiveNodeId) : t.currentServer}</strong>
-          <small>{topology.enabled ? `${t.epoch} ${topology.authorityEpoch}` : t.standaloneDescription}</small>
+          <small>{topology.enabled ? stateName(local?.state ?? '—') : t.standaloneDescription}</small>
         </article>
 
         <article className="ha-summary-card" data-testid="ha-peer-summary">
@@ -568,7 +574,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
         <article className="ha-summary-card">
           <span>{t.applyState}</span>
           <strong>{configuration.pendingRestart ? t.restartRequired : t.running}</strong>
-          <small>{t.generation} {configuration.generation} · topology v{topology.topologyVersion}</small>
+          <small>{configuration.pendingRestart ? t.savedNotActive : t.noEdits}</small>
         </article>
       </div>
 
@@ -991,6 +997,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
             <div><dt>{t.fencing}</dt><dd>{protection.reference ? `${protection.reference.activeNodeId ? friendlyNode(protection.reference.activeNodeId) : 'fenced'} · epoch ${protection.reference.epoch}` : '—'}</dd></div>
             <div><dt>{t.peerTransport}</dt><dd>{peer.connectionState} · {peer.authenticationConfigured ? t.authenticationConfigured : t.authenticationNotConfigured}</dd></div>
             <div><dt>Mirror</dt><dd>{peer.mirror.liveSynchronized ? 'live synchronized' : peer.mirror.reasonCode || 'not synchronized'}</dd></div>
+            <div><dt>{t.epoch}</dt><dd>{topology.authorityEpoch}</dd></div>
             <div><dt>{t.topologyVersion}</dt><dd>{topology.topologyVersion} · state v{topology.stateVersion}</dd></div>
             <div><dt>{t.generation}</dt><dd>{configuration.generation}</dd></div>
             <div><dt>{t.automaticFailover}</dt><dd>{protection.automaticFailoverEnabled ? t.enabled : t.disabled}</dd></div>

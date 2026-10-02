@@ -31,7 +31,6 @@ export function resolveSliderConfiguration(
   if (minimum >= maximum) throw new Error('Slider minimum must be less than maximum.');
   if (step <= 0) throw new Error('Slider step must be greater than zero.');
 
-  const value = quantizeAndClamp(requiredNumber(values[VISUAL_PROPERTY_KEYS.value], 'value'), minimum, maximum, step);
   const orientationValue = values[VISUAL_PROPERTY_KEYS.orientation];
   const orientation = orientationValue === 'vertical' ? 'vertical' : 'horizontal';
   const valueBinding = (element.bindings ?? []).find(binding =>
@@ -44,6 +43,13 @@ export function resolveSliderConfiguration(
     ? liveSamples.get(visualTagSampleKey(tagId)) ?? (valueBinding?.target ? liveSamples.get(valueBinding.target) : undefined)
     : undefined;
   const valueDiagnostic = diagnostics.some(diagnostic => diagnostic.propertyKey === VISUAL_PROPERTY_KEYS.value);
+  const sampleValue = sample && !valueDiagnostic && isGoodSample(sample) ? finiteNumericValue(sample.value) : null;
+  const value = quantizeAndClamp(
+    sampleValue ?? requiredNumber(values[VISUAL_PROPERTY_KEYS.value], 'value'),
+    minimum,
+    maximum,
+    step
+  );
 
   return Object.freeze({
     value,
@@ -90,4 +96,9 @@ function isGoodSample(sample: VisualDynamicSample): boolean {
   if (sample.state && sample.state !== 'LocalSession') return false;
   if (sample.value === null || sample.value === undefined) return false;
   return sample.quality === undefined || sample.quality === null || sample.quality === 0 || String(sample.quality).toLowerCase() === 'good';
+}
+
+function finiteNumericValue(value: unknown): number | null {
+  const numeric = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : Number.NaN;
+  return Number.isFinite(numeric) ? numeric : null;
 }

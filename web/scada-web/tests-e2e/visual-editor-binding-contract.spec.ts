@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { BUILTIN_VISUAL_OBJECT_TYPES } from '../src/visual-runtime/builtinVisualObjectSchemas';
 import { VISUAL_PROPERTY_KEYS } from '../src/visual-runtime/visualPropertyRegistry';
 import type { VisualElementEngineering } from '../src/engineering/types';
+import { formatVisualScalarText } from '../src/engineering/visual-editor/visualEditorLiveValues';
 import {
   bindingSourceIdentity,
   compatibleBindingSources,
@@ -60,6 +61,21 @@ test('bindable destinations come only from the registered schema supportsBinding
   const imageDestinations = listBindableVisualProperties({ type: BUILTIN_VISUAL_OBJECT_TYPES.image });
   expect(imageDestinations.map(item => item.key)).not.toContain(VISUAL_PROPERTY_KEYS.assetRef);
   expect(imageDestinations.map(item => item.key)).toContain(VISUAL_PROPERTY_KEYS.visible);
+
+  expect(listBindableVisualProperties({ type: BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay }).map(item => item.key))
+    .toContain(VISUAL_PROPERTY_KEYS.text);
+  expect(listBindableVisualProperties({ type: BUILTIN_VISUAL_OBJECT_TYPES.slider }).map(item => item.key))
+    .toContain(VISUAL_PROPERTY_KEYS.value);
+  expect(listBindableVisualProperties({ type: BUILTIN_VISUAL_OBJECT_TYPES.numericInput }).map(item => item.key))
+    .toContain(VISUAL_PROPERTY_KEYS.value);
+});
+
+test('value display unit is optional and keeps a separating space when enabled', () => {
+  const sample = { reference: 'Plant.Level', value: 12.5, dataType: 'Double', quality: 'Good' };
+  const binding = { key: 'text', kind: 'Tag', target: 'Plant.Level', metadata: { engineeringUnit: 'm' } };
+
+  expect(formatVisualScalarText(sample, binding, 'pt-BR').text).toBe('12,5 m');
+  expect(formatVisualScalarText(sample, binding, 'pt-BR', 'default', undefined, false).text).toBe('12,5');
 });
 
 test('binding.set uses canonical destination/source fields and stable object identity', () => {

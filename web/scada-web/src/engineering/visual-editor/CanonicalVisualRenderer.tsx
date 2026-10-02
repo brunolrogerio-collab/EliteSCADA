@@ -462,7 +462,14 @@ function CanonicalElement({
       ? numberValue(values[VISUAL_PROPERTY_KEYS.decimalPlaces], 2)
       : undefined;
     const dynamicText = textBinding
-      ? formatVisualScalarText(textSample, textBinding, locale, valueFormat, configuredDecimals)
+      ? formatVisualScalarText(
+        textSample,
+        textBinding,
+        locale,
+        valueFormat,
+        configuredDecimals,
+        element.type !== BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay || values[VISUAL_PROPERTY_KEYS.showEngineeringUnit] !== false
+      )
       : null;
     const className = `visual-editor-object visual-editor-${element.type.replace('core.', '')}${dynamicText && !dynamicText.available ? ' visual-editor-dynamic-unavailable' : ''}`;
     const content = dynamicText?.text || staticText || (showTechnicalFallbackText ? element.key : '');

@@ -169,6 +169,7 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     VISUAL_PROPERTY_KEYS.cornerRadius,
     ...TEXT,
     VISUAL_PROPERTY_KEYS.valueFormat,
+    VISUAL_PROPERTY_KEYS.showEngineeringUnit,
     VISUAL_PROPERTY_KEYS.textColorGood,
     VISUAL_PROPERTY_KEYS.textColorBad,
     VISUAL_PROPERTY_KEYS.decimalPlacesEnabled,

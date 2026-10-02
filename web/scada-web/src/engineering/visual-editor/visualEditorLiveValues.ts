@@ -170,13 +170,14 @@ export function formatVisualScalarText(
   binding: BindingEngineering,
   locale: EngineeringLocale,
   valueFormat = 'default',
-  configuredDecimals?: number
+  configuredDecimals?: number,
+  showEngineeringUnit = true
 ): Readonly<{ text: string; available: boolean; state: string }> {
   if (!sample) return Object.freeze({ text: '—', available: false, state: unavailableLabel(locale) });
   const state = qualityState(sample);
   const available = state.available;
   const sourceType = binding.metadata?.sourceDataType || sample.dataType || 'String';
-  const unit = binding.metadata?.engineeringUnit?.trim() || '';
+  const unit = showEngineeringUnit ? binding.metadata?.engineeringUnit?.trim() || '' : '';
   if (!available || sample.value === null || sample.value === undefined) {
     return Object.freeze({ text: '—', available: false, state: state.label });
   }

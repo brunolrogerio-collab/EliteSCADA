@@ -455,6 +455,8 @@ function visualPropertyLabel(propertyKey: string, text: PropertyInspectorCopy, o
       return locale === 'en' ? 'Show increment/decrement buttons' : locale === 'es' ? 'Mostrar botones para aumentar/disminuir' : 'Mostrar botões de aumentar/diminuir';
     case VISUAL_PROPERTY_KEYS.unit:
       return locale === 'en' ? 'Unit' : locale === 'es' ? 'Unidad' : 'Unidade';
+    case VISUAL_PROPERTY_KEYS.showEngineeringUnit:
+      return locale === 'en' ? 'Show TAG engineering unit' : locale === 'es' ? 'Mostrar unidad de ingeniería del TAG' : 'Exibir unidade de engenharia da TAG';
     case VISUAL_PROPERTY_KEYS.decimalPlacesEnabled:
       return locale === 'en' ? 'Show fixed decimal places' : locale === 'es' ? 'Mostrar decimales fijos' : 'Exibir casas decimais fixas';
     case VISUAL_PROPERTY_KEYS.decimalPlaces:

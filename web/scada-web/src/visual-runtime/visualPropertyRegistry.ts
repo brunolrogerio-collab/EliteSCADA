@@ -56,6 +56,7 @@ export const VISUAL_PROPERTY_KEYS = {
   textColorGood: 'textColorGood',
   textColorBad: 'textColorBad',
   valueFormat: 'valueFormat',
+  showEngineeringUnit: 'showEngineeringUnit',
   fontFamily: 'fontFamily',
   fontSize: 'fontSize',
   fontWeight: 'fontWeight',
@@ -375,6 +376,7 @@ const COMMON_VISUAL_PROPERTY_DEFINITIONS: readonly VisualPropertyDefinition[] = 
   colorProperty(VISUAL_PROPERTY_KEYS.textColorGood, '#000000', 'text'),
   colorProperty(VISUAL_PROPERTY_KEYS.textColorBad, '#C62828', 'text'),
   enumProperty(VISUAL_PROPERTY_KEYS.valueFormat, 'default', ['default', 'numeric', 'MM/DD', 'DD/MM', 'MM/DD/YYYY', 'DD/MM/YYYY', 'HH:mm', 'HH:mm:ss', 'dateTime'], 'text'),
+  booleanProperty(VISUAL_PROPERTY_KEYS.showEngineeringUnit, true, 'text'),
   {
     key: VISUAL_PROPERTY_KEYS.fontFamily,
     type: 'string',

@@ -265,3 +265,17 @@
   .visual-editor-palette-slot,
   .visual-editor-inspector-slot { max-height: 32vh; }
 }
+
+/* Compact definition metadata so Screens, Pop-ups and Templates give the canvas
+   more of the available viewport height without hiding the identity fields. */
+.visual-editor-screen-form { margin-bottom: 4px; gap: 6px; }
+.visual-editor-screen-form label { gap: 2px; }
+.visual-editor-screen-form label small { display: none; }
+.visual-editor-screen-form input { height: 30px; }
+.visual-editor-draft-state { padding: 3px 6px; line-height: 1.15; }
+@media (min-width: 981px) {
+  .visual-editor-composition {
+    height: clamp(680px, calc(100dvh - 250px), 1120px);
+    min-height: 680px;
+  }
+}

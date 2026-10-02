@@ -11,7 +11,7 @@ public sealed class DatabaseMaintenanceGate
         get
         {
             lock (_gate)
-                return _operationId.HasValue && _expiresAtUtc > DateTimeOffset.UtcNow;
+                return IsActiveUnsafe();
         }
     }
 
@@ -45,8 +45,9 @@ public sealed class DatabaseMaintenanceGate
         }
     }
 
-    private bool IsActiveUnsafe() =>
-        _operationId.HasValue && _expiresAtUtc > DateTimeOffset.UtcNow;
+    // The lease deadline is progress/status metadata, not an automatic unquiesce trigger.
+    // COPY duration is unbounded; only the owning operation may release the mutation boundary.
+    private bool IsActiveUnsafe() => _operationId.HasValue;
 }
 
 public sealed class DatabaseMaintenanceMiddleware(

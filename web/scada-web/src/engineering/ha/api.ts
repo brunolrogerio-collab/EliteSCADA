@@ -96,12 +96,18 @@ async function requestOperation(path: string, body: unknown): Promise<HaProtecti
   return payload as HaProtectionOperation;
 }
 
+const loadTopology = () => requestJson<HaTopologySnapshot>('/api/runtime/ha/topology');
+const loadAuthority = () => requestJson<HaAuthoritySnapshot>('/api/runtime/ha/authority');
+const loadAdministration = () => requestJson<HaAdministrationSnapshot>('/api/runtime/ha/administration');
+const loadConfiguration = () => requestJson<HaHostConfigurationSnapshot>('/api/runtime/ha/configuration');
+const loadPeerStatus = () => requestJson<HaPeerDiagnostics>('/api/runtime/ha/peer/status');
+
 export const haAdminApi = {
-  topology: () => requestJson<HaTopologySnapshot>('/api/runtime/ha/topology'),
-  authority: () => requestJson<HaAuthoritySnapshot>('/api/runtime/ha/authority'),
-  administration: () => requestJson<HaAdministrationSnapshot>('/api/runtime/ha/administration'),
-  configuration: () => requestJson<HaHostConfigurationSnapshot>('/api/runtime/ha/configuration'),
-  peerStatus: () => requestJson<HaPeerDiagnostics>('/api/runtime/ha/peer/status'),
+  topology: loadTopology,
+  authority: loadAuthority,
+  administration: loadAdministration,
+  configuration: loadConfiguration,
+  peerStatus: loadPeerStatus,
   operation: (operationId: string) =>
     requestJson<HaProtectionOperation>('/api/runtime/ha/operations/' + encodeURIComponent(operationId)),
   updateConfiguration: (request: HaHostConfigurationUpdateRequest) =>
@@ -117,11 +123,11 @@ export const haAdminApi = {
   },
   async workspace(): Promise<HaWorkspaceSnapshot> {
     const [topology, authority, administration, configuration, peer] = await Promise.all([
-      this.topology(),
-      this.authority(),
-      this.administration(),
-      this.configuration(),
-      this.peerStatus()
+      loadTopology(),
+      loadAuthority(),
+      loadAdministration(),
+      loadConfiguration(),
+      loadPeerStatus()
     ]);
     return { topology, authority, administration, configuration, peer };
   }

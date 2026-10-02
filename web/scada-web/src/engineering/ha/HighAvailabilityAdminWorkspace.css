@@ -143,6 +143,11 @@
   color: var(--ha-ok);
 }
 
+.ha-state--standalone {
+  background: color-mix(in srgb, var(--ha-ok) 12%, transparent);
+  color: var(--ha-ok);
+}
+
 .ha-state--blocked,
 .ha-state--ambiguous {
   background: color-mix(in srgb, var(--ha-danger) 16%, transparent);

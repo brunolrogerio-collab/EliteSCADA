@@ -36,6 +36,12 @@ function endpointLabel(profile?: DatabaseProfileStatus | null) {
   return `${endpoint.host}:${endpoint.port}/${endpoint.database}`;
 }
 
+function modeLabel(mode: string | null | undefined, t: ReturnType<typeof databaseTopologyText>) {
+  if (mode === 'LocalManaged') return t.localManaged;
+  if (mode === 'Remote') return t.remote;
+  return mode || t.unknown;
+}
+
 function parseEndpoint(draft: RemoteEndpointDraft): DatabaseRemoteEndpointRequest | null {
   const port = Number(draft.port);
   const timeoutSeconds = Number(draft.timeoutSeconds);
@@ -264,7 +270,9 @@ export function DatabaseTopologyApp() {
     canRollback ||
     (status?.restartRequired && status?.lastOperation?.phase === 'Completed')
   );
-  const nextActionText = status?.restartRequired
+  const nextActionText = !status
+    ? t.loadingStatus
+    : status.restartRequired
     ? t.restartToFinish
     : canRollback
       ? t.recoveryNext
@@ -444,8 +452,8 @@ export function DatabaseTopologyApp() {
       </div>
 
       <div className="db-topology-status-strip">
-        <div><span>{t.currentMode}</span><strong>{status?.activeTopology.mode === 'Remote' ? t.remote : t.localManagedDefault}</strong></div>
-        <div><span>{t.primary}</span><strong>{endpointLabel(status?.activeTopology)}</strong></div>
+        <div><span>{t.currentMode}</span><strong>{status ? (status.activeTopology.mode === 'Remote' ? t.remote : t.localManagedDefault) : t.unknown}</strong></div>
+        <div><span>{t.primary}</span><strong>{status ? endpointLabel(status.activeTopology) : '—'}</strong></div>
         <div><span>{t.health}</span><ResultPill ok={healthOk(primaryHealth)}>{primaryHealth ? (healthOk(primaryHealth) ? t.healthy : t.degraded) : t.unknown}</ResultPill></div>
       </div>
 
@@ -570,7 +578,7 @@ export function DatabaseTopologyApp() {
       </div>
 
       {pending?.plan ? <article className="db-topology-plan" data-testid="database-migration-plan">
-        <div className="db-topology-plan-route"><span>{t.source}</span><strong>{pending.plan.sourceMode}</strong><span>→</span><span>{t.target}</span><strong>{pending.plan.targetMode}</strong></div>
+        <div className="db-topology-plan-route"><span>{t.source}</span><strong>{modeLabel(pending.plan.sourceMode, t)}</strong><span>→</span><span>{t.target}</span><strong>{modeLabel(pending.plan.targetMode, t)}</strong></div>
       </article> : null}
 
       <details className="db-topology-details db-topology-impact">

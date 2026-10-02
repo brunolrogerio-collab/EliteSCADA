@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { expect, test, type Page, type Route, type TestInfo } from '@playwright/test';
 
 const harness = '/tests-e2e/ha-admin-harness.html';
@@ -177,7 +178,7 @@ function administration(state: MockState) {
 
 function operation(kind: string, state: 'completed' | 'rejected', target: string) {
   return {
-    operationId: crypto.randomUUID(),
+    operationId: randomUUID(),
     kind,
     state,
     sourceNodeId: 'node-a',

@@ -467,7 +467,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
               <p>{t.clusterOperationHint}</p>
             </div>
           </div>
-  
+
           <div className="ha-action-cards">
             <button type="button" className="ha-action-card" onClick={() => setConfirm({ kind: 'switchover', target: suggestedTarget })}>
               <strong>{t.switchover}</strong>
@@ -482,7 +482,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
               <span>{t.recoveryHint}</span>
             </button>
           </div>
-  
+
           {latestOperation && (
             <div className={'ha-latest-operation ha-latest-operation--' + latestOperation.state}>
               <span>{t.latestOperation}</span>

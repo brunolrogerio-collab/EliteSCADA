@@ -311,7 +311,9 @@ public static class BuiltinDynamoLibrary
                     "#D1D5DB", "#374151", 2),
                 FlatShape(E(family, style, 9), "bonnet", "core.ellipse", 56, 18, 15, 10, "#AEB7BE", "#374151", 1),
                 StateLamp(E(family, style, 7), "open", 5, 5, "#16A34A", "open", "{equipmentPath}.Open"),
-                StateLamp(E(family, style, 8), "fault", 104, 5, "#DC2626", "fault", "{equipmentPath}.Fault")
+                StateLamp(E(family, style, 8), "fault", 104, 5, "#DC2626", "fault", "{equipmentPath}.Fault"),
+                FlatShape(E(family, style, 10), "flange-left", "core.rectangle", 28, 37, 7, 23, "#B7C0C6", "#374151", 1.5, 1),
+                FlatShape(E(family, style, 11), "flange-right", "core.rectangle", 94, 37, 7, 23, "#B7C0C6", "#374151", 1.5, 1)
             ],
             parameters: OnOffValveParameters());
         }
@@ -364,7 +366,9 @@ public static class BuiltinDynamoLibrary
                     "#D1D5DB", "#374151", 2),
                 Text(E(family, style, 7), "label", "%", 51, 8, 26, 20, 10, "#111827"),
                 FlatShape(E(family, style, 9), "bonnet", "core.ellipse", 55, 26, 18, 11, "#AEB7BE", "#374151", 1),
-                StateLamp(E(family, style, 8), "fault", 104, 5, "#DC2626", "fault", "{equipmentPath}.Fault")
+                StateLamp(E(family, style, 8), "fault", 104, 5, "#DC2626", "fault", "{equipmentPath}.Fault"),
+                FlatShape(E(family, style, 10), "flange-left", "core.rectangle", 28, 53, 7, 23, "#B7C0C6", "#374151", 1.5, 1),
+                FlatShape(E(family, style, 11), "flange-right", "core.rectangle", 94, 53, 7, 23, "#B7C0C6", "#374151", 1.5, 1)
             ],
             parameters: ControlValveParameters());
         }

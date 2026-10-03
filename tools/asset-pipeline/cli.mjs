@@ -35,10 +35,19 @@ async function build() {
   const tax = await taxonomy();
   const taxErrors = validateTaxonomy(tax);
   if (taxErrors.length) throw new Error(taxErrors.join('\n'));
-  let batches;
   const batchArg = value('--batch');
-  if (batchArg) batches = [resolve(repoRoot, batchArg)];
-  else if (flag('--all') || !batchArg) batches = await findBatchFiles(join(repoRoot, 'assets/sources'));
+  if (batchArg && flag('--all')) throw new Error('build accepts either --all or --batch, not both');
+  if (batchArg) {
+    const selected = resolve(repoRoot, batchArg);
+    const result = await processBatches({ repoRoot, batchFiles: [selected], taxonomy: tax, writeOutputs: false });
+    if (flag('--check-duplicates') && result.duplicates.length) {
+      console.error(JSON.stringify(result.duplicates, null, 2));
+      process.exitCode = 2;
+    }
+    console.log(JSON.stringify({ mode: 'batch-validation', mutatesGlobalOutputs: false, assets: result.catalog.assets.length, batches: 1, duplicates: result.duplicates, generatedFiles: 0 }, null, 2));
+    return;
+  }
+  const batches = await findBatchFiles(join(repoRoot, 'assets/sources'));
   if (!batches.length) throw new Error('No *.batch.json files found.');
   await cleanGenerated(repoRoot);
   const result = await processBatches({ repoRoot, batchFiles: batches, taxonomy: tax, writeOutputs: true });
@@ -47,7 +56,7 @@ async function build() {
     console.error(JSON.stringify(result.duplicates, null, 2));
     process.exitCode = 2;
   }
-  console.log(JSON.stringify({ assets: result.catalog.assets.length, batches: batches.length, duplicates: result.duplicates, generatedFiles: result.generated.length }, null, 2));
+  console.log(JSON.stringify({ mode: 'full-build', mutatesGlobalOutputs: true, assets: result.catalog.assets.length, batches: batches.length, duplicates: result.duplicates, generatedFiles: result.generated.length }, null, 2));
 }
 
 async function check() {
@@ -76,6 +85,8 @@ async function scaffold() {
   const category = value('--category');
   const out = value('--out');
   if (!input || !category || !out) throw new Error('scaffold requires --input, --category and --out');
+  const tax = await taxonomy();
+  if (!(tax.categories ?? []).some(item => item.id === category)) throw new Error(`unknown taxonomy path: ${category}`);
   const batch = await scaffoldBatch({ repoRoot, inputDir: resolve(repoRoot, input), categoryPath: category, outputFile: resolve(repoRoot, out), author: value('--author', 'EliteSCADA') });
   console.log(JSON.stringify({ output: out, assets: batch.assets.length }, null, 2));
 }

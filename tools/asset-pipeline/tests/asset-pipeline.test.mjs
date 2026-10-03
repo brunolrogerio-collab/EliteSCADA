@@ -11,6 +11,7 @@ import {
   detectDuplicates,
   processBatches,
   sanitizeAndNormalizeSvg,
+  scaffoldBatch,
   searchIndex,
   sha256,
   validateCatalog,
@@ -249,4 +250,61 @@ test('21. cleanGenerated removes stale built-in SVG while preserving non-generat
   await cleanGenerated(root);
   assert.equal(await readFile(join(root, 'assets', 'builtin', 'README.md'), 'utf8'), 'keep');
   await assert.rejects(readFile(join(staleDir, 'stale.svg'), 'utf8'));
+});
+
+
+test('22. batch file itself cannot escape assets/sources', async () => {
+  const root = await regressionRoot();
+  const path = join(root, 'outside.batch.json');
+  await writeFile(path, JSON.stringify(regressionBatch()));
+  await assert.rejects(
+    processBatches({ repoRoot: root, batchFiles: [path], taxonomy: REGRESSION_TAXONOMY, writeOutputs: false }),
+    /batch file must remain under assets\/sources/
+  );
+});
+
+test('23. derivative filenames stay unique when keys share the same final segment', async () => {
+  const root = await regressionRoot();
+  await writeFile(
+    join(root, 'assets', 'sources', 'batch', 'other.svg'),
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="3"/></svg>'
+  );
+  const batch = regressionBatch();
+  batch.assets = [
+    { ...batch.assets[0], id: 'builtin.asset.one', key: 'generic.symbols.one.basic', sourceFile: 'assets/sources/batch/ok.svg' },
+    { ...batch.assets[0], id: 'builtin.asset.two', key: 'generic.symbols.two.basic', sourceFile: 'assets/sources/batch/other.svg' }
+  ];
+  const batchFile = await regressionBatchFile(root, batch);
+  const result = await processBatches({ repoRoot: root, batchFiles: [batchFile], taxonomy: REGRESSION_TAXONOMY, writeOutputs: true });
+  assert.equal(result.generated.length, 4);
+  assert.equal(new Set(result.generated).size, 4);
+});
+
+test('24. scaffold stays under assets/sources and produces a consumable source path', async () => {
+  const root = await regressionRoot();
+  const input = join(root, 'assets', 'sources', 'scaffold');
+  await mkdir(input, { recursive: true });
+  await writeFile(join(input, 'thing.svg'), REGRESSION_SVG);
+  const output = join(root, 'assets', 'sources', 'scaffold.batch.json');
+  const batch = await scaffoldBatch({ repoRoot: root, inputDir: input, categoryPath: 'generic/symbols', outputFile: output });
+  assert.equal(batch.assets[0].sourceFile, 'assets/sources/scaffold/thing.svg');
+  await assert.rejects(
+    scaffoldBatch({ repoRoot: root, inputDir: tmpdir(), categoryPath: 'generic/symbols', outputFile: output }),
+    /scaffold input must remain under assets\/sources/
+  );
+  await assert.rejects(
+    scaffoldBatch({ repoRoot: root, inputDir: input, categoryPath: 'generic/symbols', outputFile: join(root, 'outside.batch.json') }),
+    /scaffold output must remain under assets\/sources/
+  );
+});
+
+test('25. CLI single-batch build is validation-only and cannot clean or publish global outputs', async () => {
+  const cliSource = await readFile(join(repoRoot, 'tools/asset-pipeline/cli.mjs'), 'utf8');
+  const start = cliSource.indexOf('if (batchArg) {');
+  const end = cliSource.indexOf('const batches = await findBatchFiles', start);
+  assert.ok(start >= 0 && end > start);
+  const batchBranch = cliSource.slice(start, end);
+  assert.match(batchBranch, /writeOutputs: false/);
+  assert.match(batchBranch, /mutatesGlobalOutputs: false/);
+  assert.doesNotMatch(batchBranch, /cleanGenerated|writeCatalogOutputs/);
 });

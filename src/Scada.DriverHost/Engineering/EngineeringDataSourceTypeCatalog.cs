@@ -1,7 +1,6 @@
 using System.Globalization;
 using Scada.Core.Sources;
 using Scada.Drivers.Abstractions;
-using Scada.Drivers.Modbus;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Validation;
 
@@ -90,7 +89,6 @@ public sealed class EngineeringDataSourceTypeCatalog : IDataSourceConfigurationV
             .Select(registration => EngineeringDataSourceTypeDefinition.ForDriver(registration.Descriptor))
             .Concat(new[]
             {
-                EngineeringDataSourceTypeDefinition.ForDriver(ModbusTcpDriverDescriptorProvider.SharedDescriptor),
                 EngineeringDataSourceTypeDefinition.ForSource(
                     BuiltInSourceProviderDescriptors.ServerMemory,
                     "Server Memory",

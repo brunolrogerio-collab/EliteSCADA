@@ -578,8 +578,9 @@ function parseHoldingRanges(value: string): RangeRow[] {
   return rows.length > 0 ? rows : [{ start: '0', end: '999' }];
 }
 
-function formatHoldingRanges(rows: readonly RangeRow[]): string =>
-  `v1:${rows.map(row => `${row.start}-${row.end}`).join(';')}`;
+function formatHoldingRanges(rows: readonly RangeRow[]): string {
+  return `v1:${rows.map(row => `${row.start}-${row.end}`).join(';')}`;
+}
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return <label className="eng-editor-field"><span>{label}</span>{children}{hint && <small>{hint}</small>}</label>;

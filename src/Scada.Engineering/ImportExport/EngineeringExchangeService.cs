@@ -549,6 +549,21 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
 
                 if (action.Kind == VisualNavigationActionKind.ExecuteCommand)
                 {
+                    var portableDynamoCommand = kind == ImportEntityKind.Dynamo &&
+                        !string.IsNullOrWhiteSpace(action.CommandParameterKey) &&
+                        !action.CommandId.HasValue;
+                    if (portableDynamoCommand)
+                    {
+                        if (!string.IsNullOrWhiteSpace(action.TargetKey) || action.Parameters is { Count: > 0 })
+                            issues.Add(new ImportIssue(
+                                "VISUAL_ACTION_COMMAND_PARAMETER_SHAPE_INVALID",
+                                $"Parameterized ExecuteCommand action '{action.EventKey}' cannot declare TargetKey or Parameters.",
+                                kind,
+                                entityKey,
+                                true));
+                        continue;
+                    }
+
                     if (!action.CommandId.HasValue || action.CommandId == Guid.Empty)
                     {
                         issues.Add(new ImportIssue(

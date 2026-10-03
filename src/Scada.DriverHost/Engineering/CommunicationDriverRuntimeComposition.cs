@@ -38,6 +38,10 @@ public static class CommunicationDriverRuntimeComposition
             ?? new HostSerialBusCoordinator(new SystemHostSerialPortProvider());
         var registry = new CommunicationDriverRuntimeComponentRegistry();
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new ModbusTcpCommunicationRuntimePlanner(),
+            new ModbusTcpCommunicationRuntimeFactory(),
+            ModbusTcpDriverDescriptorProvider.SharedDescriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new SimulationCommunicationRuntimePlanner(),
             new SimulationCommunicationRuntimeFactory(),
             SimulationDriverDescriptorProvider.SharedDescriptor));

@@ -81,13 +81,15 @@ export function applySvgInstancePaint(
     const normalizedStroke = normalizeSvgColor(sourceStroke);
     const fill = slotOverride?.fill ?? (normalizedFill ? overrides.palette?.[normalizedFill] : undefined) ?? globalFill;
     const stroke = slotOverride?.stroke ?? (normalizedStroke ? overrides.palette?.[normalizedStroke] : undefined) ?? globalStroke;
-    const strokeWidth = slotOverride?.strokeWidth ?? (Number.isFinite(globalWidth) ? globalWidth : null);
+    const strokeWidth = slotOverride?.strokeWidth ?? (globalWidth !== null && Number.isFinite(globalWidth) ? globalWidth : null);
+    const explicitFillBlocksOverride = sourceFill?.toLowerCase() === 'none' || sourceFill?.toLowerCase().startsWith('url(');
+    const explicitStrokeBlocksOverride = sourceStroke?.toLowerCase().startsWith('url(');
 
-    if (fill && sourceFill && sourceFill.toLowerCase() !== 'none' && !sourceFill.toLowerCase().startsWith('url('))
+    if (fill && !explicitFillBlocksOverride && isFillCapable(node))
       setPresentationValue(node, 'fill', fill);
-    if (stroke && sourceStroke && sourceStroke.toLowerCase() !== 'none' && !sourceStroke.toLowerCase().startsWith('url('))
+    if (stroke && !explicitStrokeBlocksOverride && isStrokeCapable(node))
       setPresentationValue(node, 'stroke', stroke);
-    if (strokeWidth !== null && sourceStroke && sourceStroke.toLowerCase() !== 'none')
+    if (strokeWidth !== null && !explicitStrokeBlocksOverride && (sourceStroke?.toLowerCase() !== 'none' || Boolean(stroke)))
       setPresentationValue(node, 'stroke-width', String(strokeWidth));
   }
 
@@ -103,6 +105,14 @@ function semanticSlot(node: Element): string | null {
     if (slot) return slot;
   }
   return null;
+}
+
+function isFillCapable(node: SVGElement): boolean {
+  return /^(path|rect|circle|ellipse|polygon|polyline|text|tspan|use)$/i.test(node.localName);
+}
+
+function isStrokeCapable(node: SVGElement): boolean {
+  return /^(path|rect|circle|ellipse|line|polygon|polyline|text|tspan|use)$/i.test(node.localName);
 }
 
 function presentationValue(node: SVGElement, property: string): string | null {

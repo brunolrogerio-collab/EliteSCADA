@@ -96,17 +96,20 @@ public sealed class HistoricalPlaybackScopeResolverTests
     }
 
     [Fact]
-    public void Resolve_ExpandsEquipmentTemplateReferencesWithoutUserConfiguredPlaybackIds()
+    public void Resolve_ExpandsEquipmentTemplateBindingsPerEquipmentPathWithoutPlaybackIds()
     {
-        var tagId = Guid.Parse("30000000-0000-0000-0000-000000000001");
-        var templateId = Guid.Parse("30000000-0000-0000-0000-000000000002");
-        var equipmentId = Guid.Parse("30000000-0000-0000-0000-000000000003");
+        var firstTagId = Guid.Parse("30000000-0000-0000-0000-000000000001");
+        var secondTagId = Guid.Parse("30000000-0000-0000-0000-000000000002");
+        var templateId = Guid.Parse("30000000-0000-0000-0000-000000000003");
+        var firstEquipmentId = Guid.Parse("30000000-0000-0000-0000-000000000004");
+        var secondEquipmentId = Guid.Parse("30000000-0000-0000-0000-000000000005");
 
         using var document = JsonDocument.Parse($$"""
         {
           "runtimePresentation": { "historicalPlaybackEnabled": true, "version": 1 },
           "tags": [
-            { "id": "{{tagId}}", "path": "Plant.Pump01.Speed", "dataType": "double" }
+            { "id": "{{firstTagId}}", "path": "Plant.Pump01.Speed", "dataType": "double" },
+            { "id": "{{secondTagId}}", "path": "Plant.Pump02.Speed", "dataType": "double" }
           ],
           "screens": [
             {
@@ -115,8 +118,14 @@ public sealed class HistoricalPlaybackScopeResolverTests
                 {
                   "key": "pump-01",
                   "type": "core.group",
-                  "equipmentId": "{{equipmentId}}",
+                  "equipmentId": "{{firstEquipmentId}}",
                   "equipmentPath": "Plant.Pump01"
+                },
+                {
+                  "key": "pump-02",
+                  "type": "core.group",
+                  "equipmentId": "{{secondEquipmentId}}",
+                  "equipmentPath": "Plant.Pump02"
                 }
               ]
             }
@@ -125,8 +134,14 @@ public sealed class HistoricalPlaybackScopeResolverTests
           "dynamos": [],
           "equipment": [
             {
-              "id": "{{equipmentId}}",
+              "id": "{{firstEquipmentId}}",
               "path": "Plant.Pump01",
+              "templateId": "{{templateId}}",
+              "templateKey": "pump"
+            },
+            {
+              "id": "{{secondEquipmentId}}",
+              "path": "Plant.Pump02",
               "templateId": "{{templateId}}",
               "templateKey": "pump"
             }
@@ -143,8 +158,7 @@ public sealed class HistoricalPlaybackScopeResolverTests
                     {
                       "key": "text",
                       "kind": "tag",
-                      "target": "Plant.Pump01.Speed",
-                      "tagReference": { "tagId": "{{tagId}}" }
+                      "target": "{equipmentPath}.Speed"
                     }
                   ]
                 }
@@ -158,10 +172,15 @@ public sealed class HistoricalPlaybackScopeResolverTests
             document.RootElement,
             new HistoricalPlaybackScopeRequest("overview"));
 
-        var tag = Assert.Single(result.Tags);
-        Assert.Equal(tagId, tag.Id);
-        Assert.Equal("Plant.Pump01.Speed", tag.Path);
-        Assert.Equal("interpolated", tag.RetrievalMode);
+        Assert.Equal(2, result.Tags.Count);
+        Assert.Contains(result.Tags, x =>
+            x.Id == firstTagId &&
+            x.Path == "Plant.Pump01.Speed" &&
+            x.RetrievalMode == "interpolated");
+        Assert.Contains(result.Tags, x =>
+            x.Id == secondTagId &&
+            x.Path == "Plant.Pump02.Speed" &&
+            x.RetrievalMode == "interpolated");
         Assert.Empty(result.UnresolvedReferences);
     }
 

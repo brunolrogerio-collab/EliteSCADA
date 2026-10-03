@@ -16,6 +16,7 @@ public static class VisualCompositionEngineeringValidation
         ValidateParameterDefinitions(dynamo.Parameters, ImportEntityKind.Dynamo, key, issues);
         ValidateDefinitionElements(dynamo.Elements, key, issues, new HashSet<Guid>());
         ValidateParameterizedDynamoStateSources(dynamo.Elements, dynamo.Parameters, key, issues);
+        ValidateParameterizedCommandActions(dynamo.Elements, dynamo.Parameters, key, issues);
         ValidateDynamoParameterSources(dynamo.Elements, dynamo.Parameters, key, issues);
         return issues;
     }
@@ -105,6 +106,45 @@ public static class VisualCompositionEngineeringValidation
             yield return element.AnalogFill.Source;
     }
 
+    private static void ValidateParameterizedCommandActions(
+        IReadOnlyCollection<VisualElementEngineeringDto>? elements,
+        IReadOnlyCollection<DynamoParameterDefinitionEngineeringDto>? parameters,
+        string entityKey,
+        List<ImportIssue> issues)
+    {
+        var declared = (parameters ?? Array.Empty<DynamoParameterDefinitionEngineeringDto>())
+            .Where(parameter => parameter is not null && !string.IsNullOrWhiteSpace(parameter.Key))
+            .ToDictionary(parameter => parameter.Key, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var element in elements ?? Array.Empty<VisualElementEngineeringDto>())
+        {
+            if (element is null) continue;
+            foreach (var action in element.Actions ?? Array.Empty<VisualNavigationActionEngineeringDto>())
+            {
+                if (action is null || action.Kind != VisualNavigationActionKind.ExecuteCommand ||
+                    string.IsNullOrWhiteSpace(action.CommandParameterKey))
+                    continue;
+
+                if (action.CommandId.HasValue)
+                    issues.Add(Error(
+                        "DYNAMO_COMMAND_ACTION_ID_NOT_PORTABLE",
+                        $"Dynamo action '{action.EventKey}' must not combine CommandParameterKey with a concrete CommandId.",
+                        ImportEntityKind.Dynamo,
+                        entityKey));
+
+                if (!declared.TryGetValue(action.CommandParameterKey, out var parameter) ||
+                    parameter.Kind != DynamoParameterKind.Command)
+                    issues.Add(Error(
+                        "DYNAMO_COMMAND_PARAMETER_NOT_FOUND",
+                        $"Dynamo action '{action.EventKey}' references Command parameter '{action.CommandParameterKey}', which is not declared as Command.",
+                        ImportEntityKind.Dynamo,
+                        entityKey));
+            }
+
+            ValidateParameterizedCommandActions(element.Children, parameters, entityKey, issues);
+        }
+    }
+
     private static void ValidateParameterizedDynamoStateSources(
         IReadOnlyCollection<VisualElementEngineeringDto>? elements,
         IReadOnlyCollection<DynamoParameterDefinitionEngineeringDto>? parameters,
@@ -179,6 +219,7 @@ public static class VisualCompositionEngineeringValidation
                 definition.Kind,
                 definition.DefaultValue,
                 definition.DefaultTagReference,
+                commandId: null,
                 allowMissing: true,
                 kind,
                 entityKey,
@@ -226,6 +267,7 @@ public static class VisualCompositionEngineeringValidation
                 value.Kind,
                 value.Value,
                 value.TagReference,
+                value.CommandId,
                 allowMissing: false,
                 kind,
                 entityKey,
@@ -239,12 +281,29 @@ public static class VisualCompositionEngineeringValidation
         DynamoParameterKind parameterKind,
         JsonElement? value,
         Scada.Core.Tags.TagValueReference? tagReference,
+        Guid? commandId,
         bool allowMissing,
         ImportEntityKind kind,
         string entityKey,
         List<ImportIssue> issues,
         string role)
     {
+        if (parameterKind == DynamoParameterKind.Command)
+        {
+            if (value.HasValue || tagReference is not null)
+                issues.Add(Error("DYNAMO_PARAMETER_SHAPE_INVALID", $"Dynamo parameter {role} '{key}' of kind Command cannot carry a scalar value or TAG reference.", kind, entityKey));
+            if (!commandId.HasValue || commandId == Guid.Empty)
+            {
+                if (!allowMissing)
+                    issues.Add(Error("DYNAMO_PARAMETER_COMMAND_REQUIRED", $"Dynamo parameter {role} '{key}' requires a stable Command identity.", kind, entityKey));
+                return;
+            }
+            return;
+        }
+
+        if (commandId.HasValue)
+            issues.Add(Error("DYNAMO_PARAMETER_SHAPE_INVALID", $"Dynamo parameter {role} '{key}' of kind {parameterKind} cannot carry a Command identity.", kind, entityKey));
+
         if (parameterKind == DynamoParameterKind.TagReference)
         {
             if (value.HasValue)
@@ -322,6 +381,26 @@ public static class VisualCompositionEngineeringValidation
             else if (action.Kind == VisualNavigationActionKind.ClosePopup && !string.IsNullOrWhiteSpace(action.TargetKey))
             {
                 issues.Add(Error("VISUAL_ACTION_TARGET_NOT_ALLOWED", $"ClosePopup action '{action.EventKey}' cannot declare a target key.", kind, entityKey));
+            }
+
+            if (action.Kind == VisualNavigationActionKind.ExecuteCommand)
+            {
+                var hasCommandId = action.CommandId.HasValue && action.CommandId != Guid.Empty;
+                var hasParameter = !string.IsNullOrWhiteSpace(action.CommandParameterKey);
+                if (hasCommandId == hasParameter)
+                    issues.Add(Error(
+                        "VISUAL_ACTION_COMMAND_REFERENCE_INVALID",
+                        $"ExecuteCommand action '{action.EventKey}' requires exactly one CommandId or CommandParameterKey.",
+                        kind,
+                        entityKey));
+            }
+            else if (!string.IsNullOrWhiteSpace(action.CommandParameterKey))
+            {
+                issues.Add(Error(
+                    "VISUAL_ACTION_COMMAND_PARAMETER_NOT_ALLOWED",
+                    $"Visual action '{action.EventKey}' of kind {action.Kind} cannot carry CommandParameterKey.",
+                    kind,
+                    entityKey));
             }
 
             if (action.Kind == VisualNavigationActionKind.SetTagValue &&

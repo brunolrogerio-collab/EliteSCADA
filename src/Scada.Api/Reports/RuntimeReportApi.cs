@@ -30,7 +30,11 @@ public sealed record RuntimeReportDefinition(
     ReportTimeRangeEngineeringDto? TimeRange,
     ReportDataResolutionEngineeringDto? Resolution,
     IReadOnlyCollection<ReportVariableEngineeringDto> Variables,
-    ReportTableLayout TableLayout);
+    ReportTableLayout TableLayout,
+    ReportPageEngineeringDto? Page,
+    IReadOnlyCollection<ReportSectionEngineeringDto> Sections,
+    IReadOnlyCollection<ReportGroupEngineeringDto> Groups,
+    IReadOnlyCollection<ReportAggregateEngineeringDto> Aggregates);
 
 public sealed record RuntimeReportGenerateRequest(
     IReadOnlyDictionary<string, ReportParameterValue>? Parameters = null,
@@ -399,7 +403,11 @@ public static class RuntimeReportApi
             report.TimeRange,
             report.Resolution,
             report.Variables ?? Array.Empty<ReportVariableEngineeringDto>(),
-            report.TableLayout);
+            report.TableLayout,
+            report.Page,
+            report.Sections ?? Array.Empty<ReportSectionEngineeringDto>(),
+            report.Groups ?? Array.Empty<ReportGroupEngineeringDto>(),
+            report.Aggregates ?? Array.Empty<ReportAggregateEngineeringDto>());
 
     private static async Task<IResult?> RuntimeViewAsync(
         HttpContext context,

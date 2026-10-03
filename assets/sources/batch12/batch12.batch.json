@@ -1,0 +1,5585 @@
+{
+  "schema": "elitescada.asset-batch",
+  "schemaVersion": 1,
+  "defaults": {
+    "author": "EliteSCADA",
+    "styleFamily": "sector-minimal-v12",
+    "license": {
+      "identifier": "Proprietary-EliteSCADA-Original",
+      "reference": "assets/licenses/ELITESCADA-ORIGINAL-ASSET-NOTICE.md",
+      "attributionRequired": false,
+      "commercialRedistributionAllowed": true,
+      "modificationAllowed": true
+    }
+  },
+  "assets": [
+    {
+      "id": "builtin.asset.sector.open-pit-shovel.minimal",
+      "key": "sectors.mining.extraction.open-pit-shovel.minimal",
+      "displayName": "Open-pit shovel - minimal",
+      "sourceFile": "assets/sources/batch12/open-pit-shovel-minimal.svg",
+      "categoryPath": "sectors/mining/extraction",
+      "tags": [
+        "sector",
+        "mining",
+        "open-pit-shovel",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "open-pit shovel",
+        "sector-minimal-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "boom",
+          "kind": "stroke"
+        },
+        {
+          "id": "bucket",
+          "kind": "stroke"
+        },
+        {
+          "id": "track",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.open-pit-shovel.flat",
+      "key": "sectors.mining.extraction.open-pit-shovel.flat",
+      "displayName": "Open-pit shovel - flat",
+      "sourceFile": "assets/sources/batch12/open-pit-shovel-flat.svg",
+      "categoryPath": "sectors/mining/extraction",
+      "tags": [
+        "sector",
+        "mining",
+        "open-pit-shovel",
+        "flat"
+      ],
+      "searchKeywords": [
+        "open-pit shovel",
+        "sector-flat-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "boom",
+          "kind": "stroke"
+        },
+        {
+          "id": "bucket",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "track",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.open-pit-shovel.technical",
+      "key": "sectors.mining.extraction.open-pit-shovel.technical",
+      "displayName": "Open-pit shovel - technical",
+      "sourceFile": "assets/sources/batch12/open-pit-shovel-technical.svg",
+      "categoryPath": "sectors/mining/extraction",
+      "tags": [
+        "sector",
+        "mining",
+        "open-pit-shovel",
+        "technical"
+      ],
+      "searchKeywords": [
+        "open-pit shovel",
+        "sector-technical-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "boom",
+          "kind": "stroke"
+        },
+        {
+          "id": "bucket",
+          "kind": "stroke"
+        },
+        {
+          "id": "ground",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "track",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.open-pit-shovel.complex",
+      "key": "sectors.mining.extraction.open-pit-shovel.complex",
+      "displayName": "Open-pit shovel - complex",
+      "sourceFile": "assets/sources/batch12/open-pit-shovel-complex.svg",
+      "categoryPath": "sectors/mining/extraction",
+      "tags": [
+        "sector",
+        "mining",
+        "open-pit-shovel",
+        "complex"
+      ],
+      "searchKeywords": [
+        "open-pit shovel",
+        "sector-complex-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "boom",
+          "kind": "stroke"
+        },
+        {
+          "id": "bucket",
+          "kind": "stroke"
+        },
+        {
+          "id": "ground",
+          "kind": "stroke"
+        },
+        {
+          "id": "reference",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "track",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.haul-truck.minimal",
+      "key": "sectors.mining.extraction.haul-truck.minimal",
+      "displayName": "Mining haul truck - minimal",
+      "sourceFile": "assets/sources/batch12/haul-truck-minimal.svg",
+      "categoryPath": "sectors/mining/extraction",
+      "tags": [
+        "sector",
+        "mining",
+        "haul-truck",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "mining haul truck",
+        "sector-minimal-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "bed",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "wheel",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.haul-truck.flat",
+      "key": "sectors.mining.extraction.haul-truck.flat",
+      "displayName": "Mining haul truck - flat",
+      "sourceFile": "assets/sources/batch12/haul-truck-flat.svg",
+      "categoryPath": "sectors/mining/extraction",
+      "tags": [
+        "sector",
+        "mining",
+        "haul-truck",
+        "flat"
+      ],
+      "searchKeywords": [
+        "mining haul truck",
+        "sector-flat-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "bed",
+          "kind": "fill"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "wheel",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.haul-truck.technical",
+      "key": "sectors.mining.extraction.haul-truck.technical",
+      "displayName": "Mining haul truck - technical",
+      "sourceFile": "assets/sources/batch12/haul-truck-technical.svg",
+      "categoryPath": "sectors/mining/extraction",
+      "tags": [
+        "sector",
+        "mining",
+        "haul-truck",
+        "technical"
+      ],
+      "searchKeywords": [
+        "mining haul truck",
+        "sector-technical-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "bed",
+          "kind": "fill"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "ground",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "wheel",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.haul-truck.complex",
+      "key": "sectors.mining.extraction.haul-truck.complex",
+      "displayName": "Mining haul truck - complex",
+      "sourceFile": "assets/sources/batch12/haul-truck-complex.svg",
+      "categoryPath": "sectors/mining/extraction",
+      "tags": [
+        "sector",
+        "mining",
+        "haul-truck",
+        "complex"
+      ],
+      "searchKeywords": [
+        "mining haul truck",
+        "sector-complex-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "bed",
+          "kind": "fill"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "ground",
+          "kind": "stroke"
+        },
+        {
+          "id": "reference",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "wheel",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.dragline.minimal",
+      "key": "sectors.mining.extraction.dragline.minimal",
+      "displayName": "Dragline excavator - minimal",
+      "sourceFile": "assets/sources/batch12/dragline-minimal.svg",
+      "categoryPath": "sectors/mining/extraction",
+      "tags": [
+        "sector",
+        "mining",
+        "dragline",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "dragline excavator",
+        "sector-minimal-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "boom",
+          "kind": "stroke"
+        },
+        {
+          "id": "bucket",
+          "kind": "stroke"
+        },
+        {
+          "id": "cable",
+          "kind": "stroke"
+        },
+        {
+          "id": "mast",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.dragline.flat",
+      "key": "sectors.mining.extraction.dragline.flat",
+      "displayName": "Dragline excavator - flat",
+      "sourceFile": "assets/sources/batch12/dragline-flat.svg",
+      "categoryPath": "sectors/mining/extraction",
+      "tags": [
+        "sector",
+        "mining",
+        "dragline",
+        "flat"
+      ],
+      "searchKeywords": [
+        "dragline excavator",
+        "sector-flat-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "boom",
+          "kind": "stroke"
+        },
+        {
+          "id": "bucket",
+          "kind": "fill"
+        },
+        {
+          "id": "cable",
+          "kind": "stroke"
+        },
+        {
+          "id": "mast",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.dragline.technical",
+      "key": "sectors.mining.extraction.dragline.technical",
+      "displayName": "Dragline excavator - technical",
+      "sourceFile": "assets/sources/batch12/dragline-technical.svg",
+      "categoryPath": "sectors/mining/extraction",
+      "tags": [
+        "sector",
+        "mining",
+        "dragline",
+        "technical"
+      ],
+      "searchKeywords": [
+        "dragline excavator",
+        "sector-technical-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "boom",
+          "kind": "stroke"
+        },
+        {
+          "id": "bucket",
+          "kind": "fill"
+        },
+        {
+          "id": "cable",
+          "kind": "stroke"
+        },
+        {
+          "id": "ground",
+          "kind": "stroke"
+        },
+        {
+          "id": "mast",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.dragline.complex",
+      "key": "sectors.mining.extraction.dragline.complex",
+      "displayName": "Dragline excavator - complex",
+      "sourceFile": "assets/sources/batch12/dragline-complex.svg",
+      "categoryPath": "sectors/mining/extraction",
+      "tags": [
+        "sector",
+        "mining",
+        "dragline",
+        "complex"
+      ],
+      "searchKeywords": [
+        "dragline excavator",
+        "sector-complex-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "boom",
+          "kind": "stroke"
+        },
+        {
+          "id": "bucket",
+          "kind": "fill"
+        },
+        {
+          "id": "cable",
+          "kind": "stroke"
+        },
+        {
+          "id": "ground",
+          "kind": "stroke"
+        },
+        {
+          "id": "mast",
+          "kind": "stroke"
+        },
+        {
+          "id": "reference",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.underground-loader.minimal",
+      "key": "sectors.mining.extraction.underground-loader.minimal",
+      "displayName": "Underground loader - minimal",
+      "sourceFile": "assets/sources/batch12/underground-loader-minimal.svg",
+      "categoryPath": "sectors/mining/extraction",
+      "tags": [
+        "sector",
+        "mining",
+        "underground-loader",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "underground loader",
+        "sector-minimal-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "arm",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "bucket",
+          "kind": "stroke"
+        },
+        {
+          "id": "wheel",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.underground-loader.flat",
+      "key": "sectors.mining.extraction.underground-loader.flat",
+      "displayName": "Underground loader - flat",
+      "sourceFile": "assets/sources/batch12/underground-loader-flat.svg",
+      "categoryPath": "sectors/mining/extraction",
+      "tags": [
+        "sector",
+        "mining",
+        "underground-loader",
+        "flat"
+      ],
+      "searchKeywords": [
+        "underground loader",
+        "sector-flat-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "arm",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "bucket",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "wheel",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.underground-loader.technical",
+      "key": "sectors.mining.extraction.underground-loader.technical",
+      "displayName": "Underground loader - technical",
+      "sourceFile": "assets/sources/batch12/underground-loader-technical.svg",
+      "categoryPath": "sectors/mining/extraction",
+      "tags": [
+        "sector",
+        "mining",
+        "underground-loader",
+        "technical"
+      ],
+      "searchKeywords": [
+        "underground loader",
+        "sector-technical-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "arm",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "bucket",
+          "kind": "fill"
+        },
+        {
+          "id": "ground",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "wheel",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.underground-loader.complex",
+      "key": "sectors.mining.extraction.underground-loader.complex",
+      "displayName": "Underground loader - complex",
+      "sourceFile": "assets/sources/batch12/underground-loader-complex.svg",
+      "categoryPath": "sectors/mining/extraction",
+      "tags": [
+        "sector",
+        "mining",
+        "underground-loader",
+        "complex"
+      ],
+      "searchKeywords": [
+        "underground loader",
+        "sector-complex-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "arm",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "bucket",
+          "kind": "fill"
+        },
+        {
+          "id": "ground",
+          "kind": "stroke"
+        },
+        {
+          "id": "reference",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "wheel",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.crusher-station.minimal",
+      "key": "sectors.mining.processing.crusher-station.minimal",
+      "displayName": "Crusher station - minimal",
+      "sourceFile": "assets/sources/batch12/crusher-station-minimal.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "crusher-station",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "crusher station",
+        "sector-minimal-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "jaw",
+          "kind": "stroke"
+        },
+        {
+          "id": "plant",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.crusher-station.flat",
+      "key": "sectors.mining.processing.crusher-station.flat",
+      "displayName": "Crusher station - flat",
+      "sourceFile": "assets/sources/batch12/crusher-station-flat.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "crusher-station",
+        "flat"
+      ],
+      "searchKeywords": [
+        "crusher station",
+        "sector-flat-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "jaw",
+          "kind": "fill"
+        },
+        {
+          "id": "plant",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.crusher-station.technical",
+      "key": "sectors.mining.processing.crusher-station.technical",
+      "displayName": "Crusher station - technical",
+      "sourceFile": "assets/sources/batch12/crusher-station-technical.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "crusher-station",
+        "technical"
+      ],
+      "searchKeywords": [
+        "crusher station",
+        "sector-technical-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "ground",
+          "kind": "stroke"
+        },
+        {
+          "id": "jaw",
+          "kind": "fill"
+        },
+        {
+          "id": "plant",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.crusher-station.complex",
+      "key": "sectors.mining.processing.crusher-station.complex",
+      "displayName": "Crusher station - complex",
+      "sourceFile": "assets/sources/batch12/crusher-station-complex.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "crusher-station",
+        "complex"
+      ],
+      "searchKeywords": [
+        "crusher station",
+        "sector-complex-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "ground",
+          "kind": "stroke"
+        },
+        {
+          "id": "jaw",
+          "kind": "fill"
+        },
+        {
+          "id": "plant",
+          "kind": "fill"
+        },
+        {
+          "id": "reference",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.screening-plant.minimal",
+      "key": "sectors.mining.processing.screening-plant.minimal",
+      "displayName": "Screening plant - minimal",
+      "sourceFile": "assets/sources/batch12/screening-plant-minimal.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "screening-plant",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "screening plant",
+        "sector-minimal-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "plant",
+          "kind": "stroke"
+        },
+        {
+          "id": "screen",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.screening-plant.flat",
+      "key": "sectors.mining.processing.screening-plant.flat",
+      "displayName": "Screening plant - flat",
+      "sourceFile": "assets/sources/batch12/screening-plant-flat.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "screening-plant",
+        "flat"
+      ],
+      "searchKeywords": [
+        "screening plant",
+        "sector-flat-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "plant",
+          "kind": "fill"
+        },
+        {
+          "id": "screen",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.screening-plant.technical",
+      "key": "sectors.mining.processing.screening-plant.technical",
+      "displayName": "Screening plant - technical",
+      "sourceFile": "assets/sources/batch12/screening-plant-technical.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "screening-plant",
+        "technical"
+      ],
+      "searchKeywords": [
+        "screening plant",
+        "sector-technical-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "ground",
+          "kind": "stroke"
+        },
+        {
+          "id": "plant",
+          "kind": "fill"
+        },
+        {
+          "id": "screen",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.screening-plant.complex",
+      "key": "sectors.mining.processing.screening-plant.complex",
+      "displayName": "Screening plant - complex",
+      "sourceFile": "assets/sources/batch12/screening-plant-complex.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "screening-plant",
+        "complex"
+      ],
+      "searchKeywords": [
+        "screening plant",
+        "sector-complex-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "ground",
+          "kind": "stroke"
+        },
+        {
+          "id": "plant",
+          "kind": "fill"
+        },
+        {
+          "id": "reference",
+          "kind": "stroke"
+        },
+        {
+          "id": "screen",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.ore-silo.minimal",
+      "key": "sectors.mining.processing.ore-silo.minimal",
+      "displayName": "Ore silo - minimal",
+      "sourceFile": "assets/sources/batch12/ore-silo-minimal.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "ore-silo",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "ore silo",
+        "sector-minimal-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "silo",
+          "kind": "stroke"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.ore-silo.flat",
+      "key": "sectors.mining.processing.ore-silo.flat",
+      "displayName": "Ore silo - flat",
+      "sourceFile": "assets/sources/batch12/ore-silo-flat.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "ore-silo",
+        "flat"
+      ],
+      "searchKeywords": [
+        "ore silo",
+        "sector-flat-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "silo",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.ore-silo.technical",
+      "key": "sectors.mining.processing.ore-silo.technical",
+      "displayName": "Ore silo - technical",
+      "sourceFile": "assets/sources/batch12/ore-silo-technical.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "ore-silo",
+        "technical"
+      ],
+      "searchKeywords": [
+        "ore silo",
+        "sector-technical-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "ground",
+          "kind": "stroke"
+        },
+        {
+          "id": "silo",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.ore-silo.complex",
+      "key": "sectors.mining.processing.ore-silo.complex",
+      "displayName": "Ore silo - complex",
+      "sourceFile": "assets/sources/batch12/ore-silo-complex.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "ore-silo",
+        "complex"
+      ],
+      "searchKeywords": [
+        "ore silo",
+        "sector-complex-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "ground",
+          "kind": "stroke"
+        },
+        {
+          "id": "reference",
+          "kind": "stroke"
+        },
+        {
+          "id": "silo",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.thickener.minimal",
+      "key": "sectors.mining.processing.thickener.minimal",
+      "displayName": "Mining thickener - minimal",
+      "sourceFile": "assets/sources/batch12/thickener-minimal.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "thickener",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "mining thickener",
+        "sector-minimal-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "bridge",
+          "kind": "stroke"
+        },
+        {
+          "id": "hub",
+          "kind": "fill"
+        },
+        {
+          "id": "rake",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.thickener.flat",
+      "key": "sectors.mining.processing.thickener.flat",
+      "displayName": "Mining thickener - flat",
+      "sourceFile": "assets/sources/batch12/thickener-flat.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "thickener",
+        "flat"
+      ],
+      "searchKeywords": [
+        "mining thickener",
+        "sector-flat-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "bridge",
+          "kind": "stroke"
+        },
+        {
+          "id": "hub",
+          "kind": "fill"
+        },
+        {
+          "id": "rake",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.thickener.technical",
+      "key": "sectors.mining.processing.thickener.technical",
+      "displayName": "Mining thickener - technical",
+      "sourceFile": "assets/sources/batch12/thickener-technical.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "thickener",
+        "technical"
+      ],
+      "searchKeywords": [
+        "mining thickener",
+        "sector-technical-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "bridge",
+          "kind": "stroke"
+        },
+        {
+          "id": "ground",
+          "kind": "stroke"
+        },
+        {
+          "id": "hub",
+          "kind": "fill"
+        },
+        {
+          "id": "rake",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.thickener.complex",
+      "key": "sectors.mining.processing.thickener.complex",
+      "displayName": "Mining thickener - complex",
+      "sourceFile": "assets/sources/batch12/thickener-complex.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "thickener",
+        "complex"
+      ],
+      "searchKeywords": [
+        "mining thickener",
+        "sector-complex-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "bridge",
+          "kind": "stroke"
+        },
+        {
+          "id": "ground",
+          "kind": "stroke"
+        },
+        {
+          "id": "hub",
+          "kind": "fill"
+        },
+        {
+          "id": "rake",
+          "kind": "stroke"
+        },
+        {
+          "id": "reference",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.flotation-cell.minimal",
+      "key": "sectors.mining.processing.flotation-cell.minimal",
+      "displayName": "Flotation cell - minimal",
+      "sourceFile": "assets/sources/batch12/flotation-cell-minimal.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "flotation-cell",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "flotation cell",
+        "sector-minimal-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "cell",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        },
+        {
+          "id": "rotor",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.flotation-cell.flat",
+      "key": "sectors.mining.processing.flotation-cell.flat",
+      "displayName": "Flotation cell - flat",
+      "sourceFile": "assets/sources/batch12/flotation-cell-flat.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "flotation-cell",
+        "flat"
+      ],
+      "searchKeywords": [
+        "flotation cell",
+        "sector-flat-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "cell",
+          "kind": "fill"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        },
+        {
+          "id": "rotor",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.flotation-cell.technical",
+      "key": "sectors.mining.processing.flotation-cell.technical",
+      "displayName": "Flotation cell - technical",
+      "sourceFile": "assets/sources/batch12/flotation-cell-technical.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "flotation-cell",
+        "technical"
+      ],
+      "searchKeywords": [
+        "flotation cell",
+        "sector-technical-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "cell",
+          "kind": "fill"
+        },
+        {
+          "id": "ground",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        },
+        {
+          "id": "rotor",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.flotation-cell.complex",
+      "key": "sectors.mining.processing.flotation-cell.complex",
+      "displayName": "Flotation cell - complex",
+      "sourceFile": "assets/sources/batch12/flotation-cell-complex.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "flotation-cell",
+        "complex"
+      ],
+      "searchKeywords": [
+        "flotation cell",
+        "sector-complex-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "cell",
+          "kind": "fill"
+        },
+        {
+          "id": "ground",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        },
+        {
+          "id": "reference",
+          "kind": "stroke"
+        },
+        {
+          "id": "rotor",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.tailings-pump.minimal",
+      "key": "sectors.mining.processing.tailings-pump.minimal",
+      "displayName": "Tailings pump - minimal",
+      "sourceFile": "assets/sources/batch12/tailings-pump-minimal.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "tailings-pump",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "tailings pump",
+        "sector-minimal-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "impeller",
+          "kind": "stroke"
+        },
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "pump",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.tailings-pump.flat",
+      "key": "sectors.mining.processing.tailings-pump.flat",
+      "displayName": "Tailings pump - flat",
+      "sourceFile": "assets/sources/batch12/tailings-pump-flat.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "tailings-pump",
+        "flat"
+      ],
+      "searchKeywords": [
+        "tailings pump",
+        "sector-flat-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "impeller",
+          "kind": "fill"
+        },
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "pump",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.tailings-pump.technical",
+      "key": "sectors.mining.processing.tailings-pump.technical",
+      "displayName": "Tailings pump - technical",
+      "sourceFile": "assets/sources/batch12/tailings-pump-technical.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "tailings-pump",
+        "technical"
+      ],
+      "searchKeywords": [
+        "tailings pump",
+        "sector-technical-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "ground",
+          "kind": "stroke"
+        },
+        {
+          "id": "impeller",
+          "kind": "fill"
+        },
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "pump",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.tailings-pump.complex",
+      "key": "sectors.mining.processing.tailings-pump.complex",
+      "displayName": "Tailings pump - complex",
+      "sourceFile": "assets/sources/batch12/tailings-pump-complex.svg",
+      "categoryPath": "sectors/mining/processing",
+      "tags": [
+        "sector",
+        "mining",
+        "tailings-pump",
+        "complex"
+      ],
+      "searchKeywords": [
+        "tailings pump",
+        "sector-complex-v12",
+        "mining"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "ground",
+          "kind": "stroke"
+        },
+        {
+          "id": "impeller",
+          "kind": "fill"
+        },
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "pump",
+          "kind": "fill"
+        },
+        {
+          "id": "reference",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.grain-mill.minimal",
+      "key": "sectors.food-beverage.processing.grain-mill.minimal",
+      "displayName": "Grain mill - minimal",
+      "sourceFile": "assets/sources/batch12/grain-mill-minimal.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "grain-mill",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "grain mill",
+        "sector-minimal-v12",
+        "food"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "mill",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.grain-mill.flat",
+      "key": "sectors.food-beverage.processing.grain-mill.flat",
+      "displayName": "Grain mill - flat",
+      "sourceFile": "assets/sources/batch12/grain-mill-flat.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "grain-mill",
+        "flat"
+      ],
+      "searchKeywords": [
+        "grain mill",
+        "sector-flat-v12",
+        "food"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "mill",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.grain-mill.technical",
+      "key": "sectors.food-beverage.processing.grain-mill.technical",
+      "displayName": "Grain mill - technical",
+      "sourceFile": "assets/sources/batch12/grain-mill-technical.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "grain-mill",
+        "technical"
+      ],
+      "searchKeywords": [
+        "grain mill",
+        "sector-technical-v12",
+        "food"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "mill",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.grain-mill.complex",
+      "key": "sectors.food-beverage.processing.grain-mill.complex",
+      "displayName": "Grain mill - complex",
+      "sourceFile": "assets/sources/batch12/grain-mill-complex.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "grain-mill",
+        "complex"
+      ],
+      "searchKeywords": [
+        "grain mill",
+        "sector-complex-v12",
+        "food"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "hygienic-zone",
+          "kind": "stroke"
+        },
+        {
+          "id": "mill",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.dough-mixer.minimal",
+      "key": "sectors.food-beverage.processing.dough-mixer.minimal",
+      "displayName": "Dough mixer - minimal",
+      "sourceFile": "assets/sources/batch12/dough-mixer-minimal.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "dough-mixer",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "dough mixer",
+        "sector-minimal-v12",
+        "food"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "agitator",
+          "kind": "stroke"
+        },
+        {
+          "id": "bowl",
+          "kind": "stroke"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.dough-mixer.flat",
+      "key": "sectors.food-beverage.processing.dough-mixer.flat",
+      "displayName": "Dough mixer - flat",
+      "sourceFile": "assets/sources/batch12/dough-mixer-flat.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "dough-mixer",
+        "flat"
+      ],
+      "searchKeywords": [
+        "dough mixer",
+        "sector-flat-v12",
+        "food"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "agitator",
+          "kind": "stroke"
+        },
+        {
+          "id": "bowl",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.dough-mixer.technical",
+      "key": "sectors.food-beverage.processing.dough-mixer.technical",
+      "displayName": "Dough mixer - technical",
+      "sourceFile": "assets/sources/batch12/dough-mixer-technical.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "dough-mixer",
+        "technical"
+      ],
+      "searchKeywords": [
+        "dough mixer",
+        "sector-technical-v12",
+        "food"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "agitator",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "bowl",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.dough-mixer.complex",
+      "key": "sectors.food-beverage.processing.dough-mixer.complex",
+      "displayName": "Dough mixer - complex",
+      "sourceFile": "assets/sources/batch12/dough-mixer-complex.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "dough-mixer",
+        "complex"
+      ],
+      "searchKeywords": [
+        "dough mixer",
+        "sector-complex-v12",
+        "food"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "agitator",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "bowl",
+          "kind": "fill"
+        },
+        {
+          "id": "hygienic-zone",
+          "kind": "stroke"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.industrial-oven.minimal",
+      "key": "sectors.food-beverage.processing.industrial-oven.minimal",
+      "displayName": "Industrial oven - minimal",
+      "sourceFile": "assets/sources/batch12/industrial-oven-minimal.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "industrial-oven",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "industrial oven",
+        "sector-minimal-v12",
+        "food"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "chamber",
+          "kind": "stroke"
+        },
+        {
+          "id": "heat",
+          "kind": "stroke"
+        },
+        {
+          "id": "oven",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.industrial-oven.flat",
+      "key": "sectors.food-beverage.processing.industrial-oven.flat",
+      "displayName": "Industrial oven - flat",
+      "sourceFile": "assets/sources/batch12/industrial-oven-flat.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "industrial-oven",
+        "flat"
+      ],
+      "searchKeywords": [
+        "industrial oven",
+        "sector-flat-v12",
+        "food"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "chamber",
+          "kind": "stroke"
+        },
+        {
+          "id": "heat",
+          "kind": "stroke"
+        },
+        {
+          "id": "oven",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.industrial-oven.technical",
+      "key": "sectors.food-beverage.processing.industrial-oven.technical",
+      "displayName": "Industrial oven - technical",
+      "sourceFile": "assets/sources/batch12/industrial-oven-technical.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "industrial-oven",
+        "technical"
+      ],
+      "searchKeywords": [
+        "industrial oven",
+        "sector-technical-v12",
+        "food"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "chamber",
+          "kind": "stroke"
+        },
+        {
+          "id": "heat",
+          "kind": "stroke"
+        },
+        {
+          "id": "oven",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.industrial-oven.complex",
+      "key": "sectors.food-beverage.processing.industrial-oven.complex",
+      "displayName": "Industrial oven - complex",
+      "sourceFile": "assets/sources/batch12/industrial-oven-complex.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "industrial-oven",
+        "complex"
+      ],
+      "searchKeywords": [
+        "industrial oven",
+        "sector-complex-v12",
+        "food"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "chamber",
+          "kind": "stroke"
+        },
+        {
+          "id": "heat",
+          "kind": "stroke"
+        },
+        {
+          "id": "hygienic-zone",
+          "kind": "stroke"
+        },
+        {
+          "id": "oven",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.mixing-vat.minimal",
+      "key": "sectors.food-beverage.processing.mixing-vat.minimal",
+      "displayName": "Mixing vat - minimal",
+      "sourceFile": "assets/sources/batch12/mixing-vat-minimal.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "mixing-vat",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "mixing vat",
+        "sector-minimal-v12",
+        "food"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "blade",
+          "kind": "stroke"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "vessel",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.mixing-vat.flat",
+      "key": "sectors.food-beverage.processing.mixing-vat.flat",
+      "displayName": "Mixing vat - flat",
+      "sourceFile": "assets/sources/batch12/mixing-vat-flat.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "mixing-vat",
+        "flat"
+      ],
+      "searchKeywords": [
+        "mixing vat",
+        "sector-flat-v12",
+        "food"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "blade",
+          "kind": "stroke"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "vessel",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.mixing-vat.technical",
+      "key": "sectors.food-beverage.processing.mixing-vat.technical",
+      "displayName": "Mixing vat - technical",
+      "sourceFile": "assets/sources/batch12/mixing-vat-technical.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "mixing-vat",
+        "technical"
+      ],
+      "searchKeywords": [
+        "mixing vat",
+        "sector-technical-v12",
+        "food"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "blade",
+          "kind": "stroke"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "vessel",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.mixing-vat.complex",
+      "key": "sectors.food-beverage.processing.mixing-vat.complex",
+      "displayName": "Mixing vat - complex",
+      "sourceFile": "assets/sources/batch12/mixing-vat-complex.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "mixing-vat",
+        "complex"
+      ],
+      "searchKeywords": [
+        "mixing vat",
+        "sector-complex-v12",
+        "food"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "blade",
+          "kind": "stroke"
+        },
+        {
+          "id": "hygienic-zone",
+          "kind": "stroke"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "vessel",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.pasteurizer.minimal",
+      "key": "sectors.food-beverage.processing.pasteurizer.minimal",
+      "displayName": "Pasteurizer - minimal",
+      "sourceFile": "assets/sources/batch12/pasteurizer-minimal.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "pasteurizer",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "pasteurizer",
+        "sector-minimal-v12",
+        "food"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "tube",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.pasteurizer.flat",
+      "key": "sectors.food-beverage.processing.pasteurizer.flat",
+      "displayName": "Pasteurizer - flat",
+      "sourceFile": "assets/sources/batch12/pasteurizer-flat.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "pasteurizer",
+        "flat"
+      ],
+      "searchKeywords": [
+        "pasteurizer",
+        "sector-flat-v12",
+        "food"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "tube",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.pasteurizer.technical",
+      "key": "sectors.food-beverage.processing.pasteurizer.technical",
+      "displayName": "Pasteurizer - technical",
+      "sourceFile": "assets/sources/batch12/pasteurizer-technical.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "pasteurizer",
+        "technical"
+      ],
+      "searchKeywords": [
+        "pasteurizer",
+        "sector-technical-v12",
+        "food"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "tube",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.pasteurizer.complex",
+      "key": "sectors.food-beverage.processing.pasteurizer.complex",
+      "displayName": "Pasteurizer - complex",
+      "sourceFile": "assets/sources/batch12/pasteurizer-complex.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "pasteurizer",
+        "complex"
+      ],
+      "searchKeywords": [
+        "pasteurizer",
+        "sector-complex-v12",
+        "food"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "hygienic-zone",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "tube",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.homogenizer.minimal",
+      "key": "sectors.food-beverage.processing.homogenizer.minimal",
+      "displayName": "Homogenizer - minimal",
+      "sourceFile": "assets/sources/batch12/homogenizer-minimal.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "homogenizer",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "homogenizer",
+        "sector-minimal-v12",
+        "food"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "piston",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.homogenizer.flat",
+      "key": "sectors.food-beverage.processing.homogenizer.flat",
+      "displayName": "Homogenizer - flat",
+      "sourceFile": "assets/sources/batch12/homogenizer-flat.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "homogenizer",
+        "flat"
+      ],
+      "searchKeywords": [
+        "homogenizer",
+        "sector-flat-v12",
+        "food"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "piston",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.homogenizer.technical",
+      "key": "sectors.food-beverage.processing.homogenizer.technical",
+      "displayName": "Homogenizer - technical",
+      "sourceFile": "assets/sources/batch12/homogenizer-technical.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "homogenizer",
+        "technical"
+      ],
+      "searchKeywords": [
+        "homogenizer",
+        "sector-technical-v12",
+        "food"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "piston",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.homogenizer.complex",
+      "key": "sectors.food-beverage.processing.homogenizer.complex",
+      "displayName": "Homogenizer - complex",
+      "sourceFile": "assets/sources/batch12/homogenizer-complex.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "homogenizer",
+        "complex"
+      ],
+      "searchKeywords": [
+        "homogenizer",
+        "sector-complex-v12",
+        "food"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "hygienic-zone",
+          "kind": "stroke"
+        },
+        {
+          "id": "piston",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.fermentation-vessel.minimal",
+      "key": "sectors.food-beverage.processing.fermentation-vessel.minimal",
+      "displayName": "Fermentation vessel - minimal",
+      "sourceFile": "assets/sources/batch12/fermentation-vessel-minimal.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "fermentation-vessel",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "fermentation vessel",
+        "sector-minimal-v12",
+        "food"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "liquid",
+          "kind": "fill"
+        },
+        {
+          "id": "sample",
+          "kind": "stroke"
+        },
+        {
+          "id": "vessel",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.fermentation-vessel.flat",
+      "key": "sectors.food-beverage.processing.fermentation-vessel.flat",
+      "displayName": "Fermentation vessel - flat",
+      "sourceFile": "assets/sources/batch12/fermentation-vessel-flat.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "fermentation-vessel",
+        "flat"
+      ],
+      "searchKeywords": [
+        "fermentation vessel",
+        "sector-flat-v12",
+        "food"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "liquid",
+          "kind": "fill"
+        },
+        {
+          "id": "sample",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "vessel",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.fermentation-vessel.technical",
+      "key": "sectors.food-beverage.processing.fermentation-vessel.technical",
+      "displayName": "Fermentation vessel - technical",
+      "sourceFile": "assets/sources/batch12/fermentation-vessel-technical.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "fermentation-vessel",
+        "technical"
+      ],
+      "searchKeywords": [
+        "fermentation vessel",
+        "sector-technical-v12",
+        "food"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        },
+        {
+          "id": "sample",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "vessel",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.fermentation-vessel.complex",
+      "key": "sectors.food-beverage.processing.fermentation-vessel.complex",
+      "displayName": "Fermentation vessel - complex",
+      "sourceFile": "assets/sources/batch12/fermentation-vessel-complex.svg",
+      "categoryPath": "sectors/food-beverage/processing",
+      "tags": [
+        "sector",
+        "food",
+        "fermentation-vessel",
+        "complex"
+      ],
+      "searchKeywords": [
+        "fermentation vessel",
+        "sector-complex-v12",
+        "food"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "hygienic-zone",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "fill"
+        },
+        {
+          "id": "sample",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "vessel",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.bottle-filler.minimal",
+      "key": "sectors.food-beverage.packaging.bottle-filler.minimal",
+      "displayName": "Bottle filler - minimal",
+      "sourceFile": "assets/sources/batch12/bottle-filler-minimal.svg",
+      "categoryPath": "sectors/food-beverage/packaging",
+      "tags": [
+        "sector",
+        "food",
+        "bottle-filler",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "bottle filler",
+        "sector-minimal-v12",
+        "food"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "bottle",
+          "kind": "stroke"
+        },
+        {
+          "id": "conveyor",
+          "kind": "stroke"
+        },
+        {
+          "id": "frame",
+          "kind": "stroke"
+        },
+        {
+          "id": "nozzle",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.bottle-filler.flat",
+      "key": "sectors.food-beverage.packaging.bottle-filler.flat",
+      "displayName": "Bottle filler - flat",
+      "sourceFile": "assets/sources/batch12/bottle-filler-flat.svg",
+      "categoryPath": "sectors/food-beverage/packaging",
+      "tags": [
+        "sector",
+        "food",
+        "bottle-filler",
+        "flat"
+      ],
+      "searchKeywords": [
+        "bottle filler",
+        "sector-flat-v12",
+        "food"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "bottle",
+          "kind": "stroke"
+        },
+        {
+          "id": "conveyor",
+          "kind": "stroke"
+        },
+        {
+          "id": "frame",
+          "kind": "fill"
+        },
+        {
+          "id": "nozzle",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.bottle-filler.technical",
+      "key": "sectors.food-beverage.packaging.bottle-filler.technical",
+      "displayName": "Bottle filler - technical",
+      "sourceFile": "assets/sources/batch12/bottle-filler-technical.svg",
+      "categoryPath": "sectors/food-beverage/packaging",
+      "tags": [
+        "sector",
+        "food",
+        "bottle-filler",
+        "technical"
+      ],
+      "searchKeywords": [
+        "bottle filler",
+        "sector-technical-v12",
+        "food"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "bottle",
+          "kind": "stroke"
+        },
+        {
+          "id": "conveyor",
+          "kind": "stroke"
+        },
+        {
+          "id": "frame",
+          "kind": "fill"
+        },
+        {
+          "id": "nozzle",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.bottle-filler.complex",
+      "key": "sectors.food-beverage.packaging.bottle-filler.complex",
+      "displayName": "Bottle filler - complex",
+      "sourceFile": "assets/sources/batch12/bottle-filler-complex.svg",
+      "categoryPath": "sectors/food-beverage/packaging",
+      "tags": [
+        "sector",
+        "food",
+        "bottle-filler",
+        "complex"
+      ],
+      "searchKeywords": [
+        "bottle filler",
+        "sector-complex-v12",
+        "food"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "bottle",
+          "kind": "stroke"
+        },
+        {
+          "id": "conveyor",
+          "kind": "stroke"
+        },
+        {
+          "id": "frame",
+          "kind": "fill"
+        },
+        {
+          "id": "hygienic-zone",
+          "kind": "stroke"
+        },
+        {
+          "id": "nozzle",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.can-seamer.minimal",
+      "key": "sectors.food-beverage.packaging.can-seamer.minimal",
+      "displayName": "Can seamer - minimal",
+      "sourceFile": "assets/sources/batch12/can-seamer-minimal.svg",
+      "categoryPath": "sectors/food-beverage/packaging",
+      "tags": [
+        "sector",
+        "food",
+        "can-seamer",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "can seamer",
+        "sector-minimal-v12",
+        "food"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "can",
+          "kind": "stroke"
+        },
+        {
+          "id": "head",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.can-seamer.flat",
+      "key": "sectors.food-beverage.packaging.can-seamer.flat",
+      "displayName": "Can seamer - flat",
+      "sourceFile": "assets/sources/batch12/can-seamer-flat.svg",
+      "categoryPath": "sectors/food-beverage/packaging",
+      "tags": [
+        "sector",
+        "food",
+        "can-seamer",
+        "flat"
+      ],
+      "searchKeywords": [
+        "can seamer",
+        "sector-flat-v12",
+        "food"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "can",
+          "kind": "stroke"
+        },
+        {
+          "id": "head",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.can-seamer.technical",
+      "key": "sectors.food-beverage.packaging.can-seamer.technical",
+      "displayName": "Can seamer - technical",
+      "sourceFile": "assets/sources/batch12/can-seamer-technical.svg",
+      "categoryPath": "sectors/food-beverage/packaging",
+      "tags": [
+        "sector",
+        "food",
+        "can-seamer",
+        "technical"
+      ],
+      "searchKeywords": [
+        "can seamer",
+        "sector-technical-v12",
+        "food"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "can",
+          "kind": "stroke"
+        },
+        {
+          "id": "head",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.can-seamer.complex",
+      "key": "sectors.food-beverage.packaging.can-seamer.complex",
+      "displayName": "Can seamer - complex",
+      "sourceFile": "assets/sources/batch12/can-seamer-complex.svg",
+      "categoryPath": "sectors/food-beverage/packaging",
+      "tags": [
+        "sector",
+        "food",
+        "can-seamer",
+        "complex"
+      ],
+      "searchKeywords": [
+        "can seamer",
+        "sector-complex-v12",
+        "food"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "can",
+          "kind": "stroke"
+        },
+        {
+          "id": "head",
+          "kind": "fill"
+        },
+        {
+          "id": "hygienic-zone",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.cip-skid-food.minimal",
+      "key": "sectors.food-beverage.packaging.cip-skid-food.minimal",
+      "displayName": "Food CIP skid - minimal",
+      "sourceFile": "assets/sources/batch12/cip-skid-food-minimal.svg",
+      "categoryPath": "sectors/food-beverage/packaging",
+      "tags": [
+        "sector",
+        "food",
+        "cip-skid-food",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "food cip skid",
+        "sector-minimal-v12",
+        "food"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "pump",
+          "kind": "stroke"
+        },
+        {
+          "id": "skid",
+          "kind": "stroke"
+        },
+        {
+          "id": "tank",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.cip-skid-food.flat",
+      "key": "sectors.food-beverage.packaging.cip-skid-food.flat",
+      "displayName": "Food CIP skid - flat",
+      "sourceFile": "assets/sources/batch12/cip-skid-food-flat.svg",
+      "categoryPath": "sectors/food-beverage/packaging",
+      "tags": [
+        "sector",
+        "food",
+        "cip-skid-food",
+        "flat"
+      ],
+      "searchKeywords": [
+        "food cip skid",
+        "sector-flat-v12",
+        "food"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "pump",
+          "kind": "stroke"
+        },
+        {
+          "id": "skid",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "tank",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.cip-skid-food.technical",
+      "key": "sectors.food-beverage.packaging.cip-skid-food.technical",
+      "displayName": "Food CIP skid - technical",
+      "sourceFile": "assets/sources/batch12/cip-skid-food-technical.svg",
+      "categoryPath": "sectors/food-beverage/packaging",
+      "tags": [
+        "sector",
+        "food",
+        "cip-skid-food",
+        "technical"
+      ],
+      "searchKeywords": [
+        "food cip skid",
+        "sector-technical-v12",
+        "food"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "pump",
+          "kind": "stroke"
+        },
+        {
+          "id": "skid",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "tank",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.cip-skid-food.complex",
+      "key": "sectors.food-beverage.packaging.cip-skid-food.complex",
+      "displayName": "Food CIP skid - complex",
+      "sourceFile": "assets/sources/batch12/cip-skid-food-complex.svg",
+      "categoryPath": "sectors/food-beverage/packaging",
+      "tags": [
+        "sector",
+        "food",
+        "cip-skid-food",
+        "complex"
+      ],
+      "searchKeywords": [
+        "food cip skid",
+        "sector-complex-v12",
+        "food"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "hygienic-zone",
+          "kind": "stroke"
+        },
+        {
+          "id": "pump",
+          "kind": "stroke"
+        },
+        {
+          "id": "skid",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "tank",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.bioreactor.minimal",
+      "key": "sectors.pharma-clean-process.process.bioreactor.minimal",
+      "displayName": "Bioreactor - minimal",
+      "sourceFile": "assets/sources/batch12/bioreactor-minimal.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "bioreactor",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "bioreactor",
+        "sector-minimal-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "agitator",
+          "kind": "stroke"
+        },
+        {
+          "id": "probe",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "vessel",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.bioreactor.flat",
+      "key": "sectors.pharma-clean-process.process.bioreactor.flat",
+      "displayName": "Bioreactor - flat",
+      "sourceFile": "assets/sources/batch12/bioreactor-flat.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "bioreactor",
+        "flat"
+      ],
+      "searchKeywords": [
+        "bioreactor",
+        "sector-flat-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "agitator",
+          "kind": "stroke"
+        },
+        {
+          "id": "probe",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "vessel",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.bioreactor.technical",
+      "key": "sectors.pharma-clean-process.process.bioreactor.technical",
+      "displayName": "Bioreactor - technical",
+      "sourceFile": "assets/sources/batch12/bioreactor-technical.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "bioreactor",
+        "technical"
+      ],
+      "searchKeywords": [
+        "bioreactor",
+        "sector-technical-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "agitator",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "probe",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "vessel",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.bioreactor.complex",
+      "key": "sectors.pharma-clean-process.process.bioreactor.complex",
+      "displayName": "Bioreactor - complex",
+      "sourceFile": "assets/sources/batch12/bioreactor-complex.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "bioreactor",
+        "complex"
+      ],
+      "searchKeywords": [
+        "bioreactor",
+        "sector-complex-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "agitator",
+          "kind": "stroke"
+        },
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "clean-zone",
+          "kind": "stroke"
+        },
+        {
+          "id": "probe",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "vessel",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.clean-process-vessel.minimal",
+      "key": "sectors.pharma-clean-process.process.clean-process-vessel.minimal",
+      "displayName": "Clean process vessel - minimal",
+      "sourceFile": "assets/sources/batch12/clean-process-vessel-minimal.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "clean-process-vessel",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "clean process vessel",
+        "sector-minimal-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "inlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "vessel",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.clean-process-vessel.flat",
+      "key": "sectors.pharma-clean-process.process.clean-process-vessel.flat",
+      "displayName": "Clean process vessel - flat",
+      "sourceFile": "assets/sources/batch12/clean-process-vessel-flat.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "clean-process-vessel",
+        "flat"
+      ],
+      "searchKeywords": [
+        "clean process vessel",
+        "sector-flat-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "inlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "vessel",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.clean-process-vessel.technical",
+      "key": "sectors.pharma-clean-process.process.clean-process-vessel.technical",
+      "displayName": "Clean process vessel - technical",
+      "sourceFile": "assets/sources/batch12/clean-process-vessel-technical.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "clean-process-vessel",
+        "technical"
+      ],
+      "searchKeywords": [
+        "clean process vessel",
+        "sector-technical-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "inlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "vessel",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.clean-process-vessel.complex",
+      "key": "sectors.pharma-clean-process.process.clean-process-vessel.complex",
+      "displayName": "Clean process vessel - complex",
+      "sourceFile": "assets/sources/batch12/clean-process-vessel-complex.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "clean-process-vessel",
+        "complex"
+      ],
+      "searchKeywords": [
+        "clean process vessel",
+        "sector-complex-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "clean-zone",
+          "kind": "stroke"
+        },
+        {
+          "id": "inlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "outlet",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "vessel",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.buffer-tank.minimal",
+      "key": "sectors.pharma-clean-process.process.buffer-tank.minimal",
+      "displayName": "Buffer tank - minimal",
+      "sourceFile": "assets/sources/batch12/buffer-tank-minimal.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "buffer-tank",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "buffer tank",
+        "sector-minimal-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "liquid",
+          "kind": "stroke"
+        },
+        {
+          "id": "tank",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.buffer-tank.flat",
+      "key": "sectors.pharma-clean-process.process.buffer-tank.flat",
+      "displayName": "Buffer tank - flat",
+      "sourceFile": "assets/sources/batch12/buffer-tank-flat.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "buffer-tank",
+        "flat"
+      ],
+      "searchKeywords": [
+        "buffer tank",
+        "sector-flat-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "liquid",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "tank",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.buffer-tank.technical",
+      "key": "sectors.pharma-clean-process.process.buffer-tank.technical",
+      "displayName": "Buffer tank - technical",
+      "sourceFile": "assets/sources/batch12/buffer-tank-technical.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "buffer-tank",
+        "technical"
+      ],
+      "searchKeywords": [
+        "buffer tank",
+        "sector-technical-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "tank",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.buffer-tank.complex",
+      "key": "sectors.pharma-clean-process.process.buffer-tank.complex",
+      "displayName": "Buffer tank - complex",
+      "sourceFile": "assets/sources/batch12/buffer-tank-complex.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "buffer-tank",
+        "complex"
+      ],
+      "searchKeywords": [
+        "buffer tank",
+        "sector-complex-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "clean-zone",
+          "kind": "stroke"
+        },
+        {
+          "id": "liquid",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "tank",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.tablet-press.minimal",
+      "key": "sectors.pharma-clean-process.process.tablet-press.minimal",
+      "displayName": "Tablet press - minimal",
+      "sourceFile": "assets/sources/batch12/tablet-press-minimal.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "tablet-press",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "tablet press",
+        "sector-minimal-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "feed",
+          "kind": "stroke"
+        },
+        {
+          "id": "turret",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.tablet-press.flat",
+      "key": "sectors.pharma-clean-process.process.tablet-press.flat",
+      "displayName": "Tablet press - flat",
+      "sourceFile": "assets/sources/batch12/tablet-press-flat.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "tablet-press",
+        "flat"
+      ],
+      "searchKeywords": [
+        "tablet press",
+        "sector-flat-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "feed",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "turret",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.tablet-press.technical",
+      "key": "sectors.pharma-clean-process.process.tablet-press.technical",
+      "displayName": "Tablet press - technical",
+      "sourceFile": "assets/sources/batch12/tablet-press-technical.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "tablet-press",
+        "technical"
+      ],
+      "searchKeywords": [
+        "tablet press",
+        "sector-technical-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "feed",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "turret",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.tablet-press.complex",
+      "key": "sectors.pharma-clean-process.process.tablet-press.complex",
+      "displayName": "Tablet press - complex",
+      "sourceFile": "assets/sources/batch12/tablet-press-complex.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "tablet-press",
+        "complex"
+      ],
+      "searchKeywords": [
+        "tablet press",
+        "sector-complex-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "clean-zone",
+          "kind": "stroke"
+        },
+        {
+          "id": "feed",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "turret",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.capsule-filler.minimal",
+      "key": "sectors.pharma-clean-process.process.capsule-filler.minimal",
+      "displayName": "Capsule filler - minimal",
+      "sourceFile": "assets/sources/batch12/capsule-filler-minimal.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "capsule-filler",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "capsule filler",
+        "sector-minimal-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "capsule",
+          "kind": "stroke"
+        },
+        {
+          "id": "feed",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.capsule-filler.flat",
+      "key": "sectors.pharma-clean-process.process.capsule-filler.flat",
+      "displayName": "Capsule filler - flat",
+      "sourceFile": "assets/sources/batch12/capsule-filler-flat.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "capsule-filler",
+        "flat"
+      ],
+      "searchKeywords": [
+        "capsule filler",
+        "sector-flat-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "capsule",
+          "kind": "stroke"
+        },
+        {
+          "id": "feed",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.capsule-filler.technical",
+      "key": "sectors.pharma-clean-process.process.capsule-filler.technical",
+      "displayName": "Capsule filler - technical",
+      "sourceFile": "assets/sources/batch12/capsule-filler-technical.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "capsule-filler",
+        "technical"
+      ],
+      "searchKeywords": [
+        "capsule filler",
+        "sector-technical-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "capsule",
+          "kind": "stroke"
+        },
+        {
+          "id": "feed",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.capsule-filler.complex",
+      "key": "sectors.pharma-clean-process.process.capsule-filler.complex",
+      "displayName": "Capsule filler - complex",
+      "sourceFile": "assets/sources/batch12/capsule-filler-complex.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "capsule-filler",
+        "complex"
+      ],
+      "searchKeywords": [
+        "capsule filler",
+        "sector-complex-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "capsule",
+          "kind": "stroke"
+        },
+        {
+          "id": "clean-zone",
+          "kind": "stroke"
+        },
+        {
+          "id": "feed",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.cleanroom-isolator.minimal",
+      "key": "sectors.pharma-clean-process.process.cleanroom-isolator.minimal",
+      "displayName": "Cleanroom isolator - minimal",
+      "sourceFile": "assets/sources/batch12/cleanroom-isolator-minimal.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "cleanroom-isolator",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "cleanroom isolator",
+        "sector-minimal-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "glove",
+          "kind": "stroke"
+        },
+        {
+          "id": "isolator",
+          "kind": "stroke"
+        },
+        {
+          "id": "window",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.cleanroom-isolator.flat",
+      "key": "sectors.pharma-clean-process.process.cleanroom-isolator.flat",
+      "displayName": "Cleanroom isolator - flat",
+      "sourceFile": "assets/sources/batch12/cleanroom-isolator-flat.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "cleanroom-isolator",
+        "flat"
+      ],
+      "searchKeywords": [
+        "cleanroom isolator",
+        "sector-flat-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "glove",
+          "kind": "stroke"
+        },
+        {
+          "id": "isolator",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "window",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.cleanroom-isolator.technical",
+      "key": "sectors.pharma-clean-process.process.cleanroom-isolator.technical",
+      "displayName": "Cleanroom isolator - technical",
+      "sourceFile": "assets/sources/batch12/cleanroom-isolator-technical.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "cleanroom-isolator",
+        "technical"
+      ],
+      "searchKeywords": [
+        "cleanroom isolator",
+        "sector-technical-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "glove",
+          "kind": "stroke"
+        },
+        {
+          "id": "isolator",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "window",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.cleanroom-isolator.complex",
+      "key": "sectors.pharma-clean-process.process.cleanroom-isolator.complex",
+      "displayName": "Cleanroom isolator - complex",
+      "sourceFile": "assets/sources/batch12/cleanroom-isolator-complex.svg",
+      "categoryPath": "sectors/pharma-clean-process/process",
+      "tags": [
+        "sector",
+        "pharma",
+        "cleanroom-isolator",
+        "complex"
+      ],
+      "searchKeywords": [
+        "cleanroom isolator",
+        "sector-complex-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "clean-zone",
+          "kind": "stroke"
+        },
+        {
+          "id": "glove",
+          "kind": "stroke"
+        },
+        {
+          "id": "isolator",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "window",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.autoclave.minimal",
+      "key": "sectors.pharma-clean-process.clean-utilities.autoclave.minimal",
+      "displayName": "Autoclave - minimal",
+      "sourceFile": "assets/sources/batch12/autoclave-minimal.svg",
+      "categoryPath": "sectors/pharma-clean-process/clean-utilities",
+      "tags": [
+        "sector",
+        "pharma",
+        "autoclave",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "autoclave",
+        "sector-minimal-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "steam",
+          "kind": "stroke"
+        },
+        {
+          "id": "vent",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.autoclave.flat",
+      "key": "sectors.pharma-clean-process.clean-utilities.autoclave.flat",
+      "displayName": "Autoclave - flat",
+      "sourceFile": "assets/sources/batch12/autoclave-flat.svg",
+      "categoryPath": "sectors/pharma-clean-process/clean-utilities",
+      "tags": [
+        "sector",
+        "pharma",
+        "autoclave",
+        "flat"
+      ],
+      "searchKeywords": [
+        "autoclave",
+        "sector-flat-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "steam",
+          "kind": "stroke"
+        },
+        {
+          "id": "vent",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.autoclave.technical",
+      "key": "sectors.pharma-clean-process.clean-utilities.autoclave.technical",
+      "displayName": "Autoclave - technical",
+      "sourceFile": "assets/sources/batch12/autoclave-technical.svg",
+      "categoryPath": "sectors/pharma-clean-process/clean-utilities",
+      "tags": [
+        "sector",
+        "pharma",
+        "autoclave",
+        "technical"
+      ],
+      "searchKeywords": [
+        "autoclave",
+        "sector-technical-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "steam",
+          "kind": "stroke"
+        },
+        {
+          "id": "vent",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.autoclave.complex",
+      "key": "sectors.pharma-clean-process.clean-utilities.autoclave.complex",
+      "displayName": "Autoclave - complex",
+      "sourceFile": "assets/sources/batch12/autoclave-complex.svg",
+      "categoryPath": "sectors/pharma-clean-process/clean-utilities",
+      "tags": [
+        "sector",
+        "pharma",
+        "autoclave",
+        "complex"
+      ],
+      "searchKeywords": [
+        "autoclave",
+        "sector-complex-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "clean-zone",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "steam",
+          "kind": "stroke"
+        },
+        {
+          "id": "vent",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.lyophilizer.minimal",
+      "key": "sectors.pharma-clean-process.clean-utilities.lyophilizer.minimal",
+      "displayName": "Lyophilizer - minimal",
+      "sourceFile": "assets/sources/batch12/lyophilizer-minimal.svg",
+      "categoryPath": "sectors/pharma-clean-process/clean-utilities",
+      "tags": [
+        "sector",
+        "pharma",
+        "lyophilizer",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "lyophilizer",
+        "sector-minimal-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "stroke"
+        },
+        {
+          "id": "chamber",
+          "kind": "stroke"
+        },
+        {
+          "id": "vacuum",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.lyophilizer.flat",
+      "key": "sectors.pharma-clean-process.clean-utilities.lyophilizer.flat",
+      "displayName": "Lyophilizer - flat",
+      "sourceFile": "assets/sources/batch12/lyophilizer-flat.svg",
+      "categoryPath": "sectors/pharma-clean-process/clean-utilities",
+      "tags": [
+        "sector",
+        "pharma",
+        "lyophilizer",
+        "flat"
+      ],
+      "searchKeywords": [
+        "lyophilizer",
+        "sector-flat-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "chamber",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "vacuum",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.lyophilizer.technical",
+      "key": "sectors.pharma-clean-process.clean-utilities.lyophilizer.technical",
+      "displayName": "Lyophilizer - technical",
+      "sourceFile": "assets/sources/batch12/lyophilizer-technical.svg",
+      "categoryPath": "sectors/pharma-clean-process/clean-utilities",
+      "tags": [
+        "sector",
+        "pharma",
+        "lyophilizer",
+        "technical"
+      ],
+      "searchKeywords": [
+        "lyophilizer",
+        "sector-technical-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "chamber",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "vacuum",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.lyophilizer.complex",
+      "key": "sectors.pharma-clean-process.clean-utilities.lyophilizer.complex",
+      "displayName": "Lyophilizer - complex",
+      "sourceFile": "assets/sources/batch12/lyophilizer-complex.svg",
+      "categoryPath": "sectors/pharma-clean-process/clean-utilities",
+      "tags": [
+        "sector",
+        "pharma",
+        "lyophilizer",
+        "complex"
+      ],
+      "searchKeywords": [
+        "lyophilizer",
+        "sector-complex-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "chamber",
+          "kind": "stroke"
+        },
+        {
+          "id": "clean-zone",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "vacuum",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.wfi-skid.minimal",
+      "key": "sectors.pharma-clean-process.clean-utilities.wfi-skid.minimal",
+      "displayName": "WFI skid - minimal",
+      "sourceFile": "assets/sources/batch12/wfi-skid-minimal.svg",
+      "categoryPath": "sectors/pharma-clean-process/clean-utilities",
+      "tags": [
+        "sector",
+        "pharma",
+        "wfi-skid",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "wfi skid",
+        "sector-minimal-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "filter",
+          "kind": "stroke"
+        },
+        {
+          "id": "loop",
+          "kind": "stroke"
+        },
+        {
+          "id": "pump",
+          "kind": "stroke"
+        },
+        {
+          "id": "skid",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.wfi-skid.flat",
+      "key": "sectors.pharma-clean-process.clean-utilities.wfi-skid.flat",
+      "displayName": "WFI skid - flat",
+      "sourceFile": "assets/sources/batch12/wfi-skid-flat.svg",
+      "categoryPath": "sectors/pharma-clean-process/clean-utilities",
+      "tags": [
+        "sector",
+        "pharma",
+        "wfi-skid",
+        "flat"
+      ],
+      "searchKeywords": [
+        "wfi skid",
+        "sector-flat-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "filter",
+          "kind": "stroke"
+        },
+        {
+          "id": "loop",
+          "kind": "stroke"
+        },
+        {
+          "id": "pump",
+          "kind": "stroke"
+        },
+        {
+          "id": "skid",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.wfi-skid.technical",
+      "key": "sectors.pharma-clean-process.clean-utilities.wfi-skid.technical",
+      "displayName": "WFI skid - technical",
+      "sourceFile": "assets/sources/batch12/wfi-skid-technical.svg",
+      "categoryPath": "sectors/pharma-clean-process/clean-utilities",
+      "tags": [
+        "sector",
+        "pharma",
+        "wfi-skid",
+        "technical"
+      ],
+      "searchKeywords": [
+        "wfi skid",
+        "sector-technical-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "filter",
+          "kind": "stroke"
+        },
+        {
+          "id": "loop",
+          "kind": "stroke"
+        },
+        {
+          "id": "pump",
+          "kind": "stroke"
+        },
+        {
+          "id": "skid",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.wfi-skid.complex",
+      "key": "sectors.pharma-clean-process.clean-utilities.wfi-skid.complex",
+      "displayName": "WFI skid - complex",
+      "sourceFile": "assets/sources/batch12/wfi-skid-complex.svg",
+      "categoryPath": "sectors/pharma-clean-process/clean-utilities",
+      "tags": [
+        "sector",
+        "pharma",
+        "wfi-skid",
+        "complex"
+      ],
+      "searchKeywords": [
+        "wfi skid",
+        "sector-complex-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "clean-zone",
+          "kind": "stroke"
+        },
+        {
+          "id": "filter",
+          "kind": "stroke"
+        },
+        {
+          "id": "loop",
+          "kind": "stroke"
+        },
+        {
+          "id": "pump",
+          "kind": "stroke"
+        },
+        {
+          "id": "skid",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.cip-sip-skid.minimal",
+      "key": "sectors.pharma-clean-process.clean-utilities.cip-sip-skid.minimal",
+      "displayName": "CIP/SIP skid - minimal",
+      "sourceFile": "assets/sources/batch12/cip-sip-skid-minimal.svg",
+      "categoryPath": "sectors/pharma-clean-process/clean-utilities",
+      "tags": [
+        "sector",
+        "pharma",
+        "cip-sip-skid",
+        "minimal"
+      ],
+      "searchKeywords": [
+        "cip/sip skid",
+        "sector-minimal-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-minimal-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "cip",
+          "kind": "stroke"
+        },
+        {
+          "id": "sip",
+          "kind": "stroke"
+        },
+        {
+          "id": "skid",
+          "kind": "stroke"
+        },
+        {
+          "id": "valve",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.cip-sip-skid.flat",
+      "key": "sectors.pharma-clean-process.clean-utilities.cip-sip-skid.flat",
+      "displayName": "CIP/SIP skid - flat",
+      "sourceFile": "assets/sources/batch12/cip-sip-skid-flat.svg",
+      "categoryPath": "sectors/pharma-clean-process/clean-utilities",
+      "tags": [
+        "sector",
+        "pharma",
+        "cip-sip-skid",
+        "flat"
+      ],
+      "searchKeywords": [
+        "cip/sip skid",
+        "sector-flat-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-flat-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "cip",
+          "kind": "stroke"
+        },
+        {
+          "id": "sip",
+          "kind": "stroke"
+        },
+        {
+          "id": "skid",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "valve",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.cip-sip-skid.technical",
+      "key": "sectors.pharma-clean-process.clean-utilities.cip-sip-skid.technical",
+      "displayName": "CIP/SIP skid - technical",
+      "sourceFile": "assets/sources/batch12/cip-sip-skid-technical.svg",
+      "categoryPath": "sectors/pharma-clean-process/clean-utilities",
+      "tags": [
+        "sector",
+        "pharma",
+        "cip-sip-skid",
+        "technical"
+      ],
+      "searchKeywords": [
+        "cip/sip skid",
+        "sector-technical-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-technical-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "cip",
+          "kind": "stroke"
+        },
+        {
+          "id": "sip",
+          "kind": "stroke"
+        },
+        {
+          "id": "skid",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "valve",
+          "kind": "stroke"
+        }
+      ]
+    },
+    {
+      "id": "builtin.asset.sector.cip-sip-skid.complex",
+      "key": "sectors.pharma-clean-process.clean-utilities.cip-sip-skid.complex",
+      "displayName": "CIP/SIP skid - complex",
+      "sourceFile": "assets/sources/batch12/cip-sip-skid-complex.svg",
+      "categoryPath": "sectors/pharma-clean-process/clean-utilities",
+      "tags": [
+        "sector",
+        "pharma",
+        "cip-sip-skid",
+        "complex"
+      ],
+      "searchKeywords": [
+        "cip/sip skid",
+        "sector-complex-v12",
+        "pharma"
+      ],
+      "styleFamily": "sector-complex-v12",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original EliteSCADA sector-pack SVG; no third-party or rejected PR #451 artwork used."
+      },
+      "editablePaintSlots": [
+        {
+          "id": "base",
+          "kind": "stroke"
+        },
+        {
+          "id": "cip",
+          "kind": "stroke"
+        },
+        {
+          "id": "clean-zone",
+          "kind": "stroke"
+        },
+        {
+          "id": "sip",
+          "kind": "stroke"
+        },
+        {
+          "id": "skid",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        },
+        {
+          "id": "valve",
+          "kind": "stroke"
+        }
+      ]
+    }
+  ]
+}

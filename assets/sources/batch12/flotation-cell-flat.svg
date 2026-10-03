@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="18" y="36" width="92" height="58" rx="6" fill="#E5E7EB" stroke="#374151" stroke-width="5" data-elitescada-slot="cell" />
+  <rect x="24" y="68" width="80" height="20" rx="0" fill="#D1D5DB" data-elitescada-slot="liquid" />
+  <circle cx="64" cy="58" r="12" fill="none" stroke="#374151" stroke-width="3" data-elitescada-slot="rotor" />
+  <circle cx="106" cy="26" r="4" fill="#9CA3AF" data-elitescada-slot="status" />
+</svg>

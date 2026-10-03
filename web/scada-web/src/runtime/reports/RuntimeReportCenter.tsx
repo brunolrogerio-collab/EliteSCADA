@@ -276,6 +276,8 @@ function ReportViewer({ locale, t, report, generation, page, setPage, zoom, setZ
         generation={generation}
         query={query}
         rows={visibleRows}
+        allRows={rows}
+        rowOffset={(currentPage - 1) * rowsPerPage}
         locale={locale}
         page={currentPage}
         pages={pages}
@@ -290,11 +292,13 @@ function ReportViewer({ locale, t, report, generation, page, setPage, zoom, setZ
   </main>;
 }
 
-function GeneratedReportPage({ report, generation, query, rows, locale, page, pages }: {
+function GeneratedReportPage({ report, generation, query, rows, allRows, rowOffset, locale, page, pages }: {
   report: ReportEngineeringDto;
   generation: Generation;
   query: ReportExecutionResult['queries'][number] | undefined;
   rows: readonly { cells: Readonly<Record<string, HistoricalQueryValue>> }[];
+  allRows: readonly { cells: Readonly<Record<string, HistoricalQueryValue>> }[];
+  rowOffset: number;
   locale: Locale;
   page: number;
   pages: number;
@@ -316,8 +320,9 @@ function GeneratedReportPage({ report, generation, query, rows, locale, page, pa
     {header.map(section => <RuntimeSection key={section.key} report={report} section={section} generation={generation} locale={locale} />)}
     {pageHeader.map(section => <RuntimeSection key={section.key} report={report} section={section} generation={generation} locale={locale} />)}
     {rows.map((row, rowIndex) => {
-      const previous = rowIndex > 0 ? rows[rowIndex - 1] : undefined;
-      const next = rowIndex + 1 < rows.length ? rows[rowIndex + 1] : undefined;
+      const globalIndex = rowOffset + rowIndex;
+      const previous = globalIndex > 0 ? allRows[globalIndex - 1] : undefined;
+      const next = globalIndex + 1 < allRows.length ? allRows[globalIndex + 1] : undefined;
       return <React.Fragment key={rowIndex}>
         {(report.groups ?? []).flatMap(group =>
           groupValueChanged(previous, row, group.field)

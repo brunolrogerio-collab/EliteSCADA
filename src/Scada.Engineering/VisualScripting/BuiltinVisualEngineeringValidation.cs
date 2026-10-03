@@ -67,6 +67,10 @@ public static class BuiltinVisualEngineeringValidation
 
             if (!schema.Declares(binding.Key))
             {
+                if (element.Type.Equals(BuiltinVisualObjectSchemas.SvgSymbolType, StringComparison.Ordinal) &&
+                    SvgSemanticPaintEngineering.TryParse(binding.Key, out _))
+                    continue;
+
                 issues.Add(Error(
                     "VISUAL_BINDING_PROPERTY_UNKNOWN",
                     $"Binding '{binding.Key}' on visual element '{element.Key}' targets a property not declared by '{element.Type}'.",

@@ -76,21 +76,29 @@ export function resolveVisualDynamicState(
   samples: ReadonlyMap<string, VisualDynamicSample>
 ): VisualDynamicResolution {
   const values: Record<string, VisualPropertyValue> = { ...baseValues };
-  seedSvgSemanticDynamicValues(element, values);
   const diagnostics: VisualDynamicDiagnostic[] = [];
 
   for (const binding of element.bindings ?? []) {
     const kind = binding.kind?.trim().toLowerCase();
     if (kind !== 'tag' && kind !== 'clientmemory') continue;
-    if (binding.key === 'text' || !(binding.key in values)) continue;
+    const semantic = element.type === 'core.svgSymbol'
+      ? parseSvgSemanticDynamicPropertyKey(binding.key)
+      : null;
+    if (binding.key === 'text' || (!(binding.key in values) && !semantic)) continue;
 
-    const resolved = resolveBinding(binding, values[binding.key], samples);
+    const fallback = binding.key in values
+      ? values[binding.key]
+      : semantic?.type === 'number' ? 1 : '#000000';
+    const resolved = resolveBinding(binding, fallback, samples);
     if (resolved.ok) values[binding.key] = resolved.value;
     else diagnostics.push(Object.freeze({ propertyKey: binding.key, sourceKind: 'Binding', message: resolved.message }));
   }
 
   for (const configured of element.propertyExpressions ?? []) {
-    if (!(configured.propertyKey in values)) continue;
+    const semantic = element.type === 'core.svgSymbol'
+      ? parseSvgSemanticDynamicPropertyKey(configured.propertyKey)
+      : null;
+    if (!(configured.propertyKey in values) && !semantic) continue;
     const resolved = resolveExpression(configured.expression, samples);
     if (resolved.ok) values[configured.propertyKey] = resolved.value;
     else diagnostics.push(Object.freeze({ propertyKey: configured.propertyKey, sourceKind: 'Expression', message: resolved.message }));
@@ -104,7 +112,10 @@ export function resolveVisualDynamicState(
   }
 
   for (const propertyMap of element.propertyMaps ?? []) {
-    if (!(propertyMap.propertyKey in values)) continue;
+    const semantic = element.type === 'core.svgSymbol'
+      ? parseSvgSemanticDynamicPropertyKey(propertyMap.propertyKey)
+      : null;
+    if (!(propertyMap.propertyKey in values) && !semantic) continue;
     const resolved = resolvePropertyMap(element, propertyMap, samples);
     if (resolved.ok) values[propertyMap.propertyKey] = resolved.value;
     else diagnostics.push(Object.freeze({ propertyKey: propertyMap.propertyKey, sourceKind: 'PropertyMap', message: resolved.message }));
@@ -122,22 +133,6 @@ export function resolveVisualDynamicState(
     analogFill,
     diagnostics: Object.freeze(diagnostics)
   });
-}
-
-function seedSvgSemanticDynamicValues(
-  element: VisualElementEngineering,
-  values: Record<string, VisualPropertyValue>
-): void {
-  if (element.type !== 'core.svgSymbol') return;
-  const keys = new Set<string>();
-  for (const binding of element.bindings ?? []) keys.add(binding.key);
-  for (const expression of element.propertyExpressions ?? []) keys.add(expression.propertyKey);
-  for (const map of element.propertyMaps ?? []) keys.add(map.propertyKey);
-  for (const key of keys) {
-    const semantic = parseSvgSemanticDynamicPropertyKey(key);
-    if (!semantic || Object.prototype.hasOwnProperty.call(values, key)) continue;
-    values[key] = semantic.type === 'number' ? 1 : '#000000';
-  }
 }
 
 function validateSvgSemanticDynamicValue(

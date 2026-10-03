@@ -77,7 +77,7 @@ export function buildLibraryCatalogEntries(
       description: firstString(metadata?.description),
       version: firstString(properties?.libraryVersion, metadata?.version),
       readOnly: origin === 'builtin',
-      projectOwned: true,
+      projectOwned: origin !== 'builtin',
       resourceId: definition.id ?? null,
       dynamo: definition
     }));
@@ -99,7 +99,7 @@ export function buildLibraryCatalogEntries(
       description: firstString(asset.description, metadata?.description),
       version: firstString(metadata?.version),
       readOnly: origin === 'builtin',
-      projectOwned: true,
+      projectOwned: origin !== 'builtin',
       resourceId: asset.id ?? null,
       visualAsset: asset
     }));
@@ -218,7 +218,7 @@ function addGenericProjectResources(
       description: firstString(item.description, metadata?.description),
       version: firstString(properties?.version, metadata?.version),
       readOnly: origin === 'builtin',
-      projectOwned: true,
+      projectOwned: origin !== 'builtin',
       resourceId: id
     }));
   }

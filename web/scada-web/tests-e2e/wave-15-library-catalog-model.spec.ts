@@ -119,6 +119,7 @@ test('unified catalog separates built-in, project and associated-library authori
 
   expect(filterLibraryCatalogEntries(entries, { origin: 'builtin' }).map(entry => entry.name))
     .toEqual(['Built-in Pump']);
+  expect(entries.find(entry => entry.origin === 'builtin')?.projectOwned).toBe(false);
   expect(filterLibraryCatalogEntries(entries, { origin: 'project', kind: 'visual-asset' }).map(entry => entry.name))
     .toEqual(['User Arrow']);
   expect(filterLibraryCatalogEntries(entries, { origin: 'associated' }).map(entry => entry.name))

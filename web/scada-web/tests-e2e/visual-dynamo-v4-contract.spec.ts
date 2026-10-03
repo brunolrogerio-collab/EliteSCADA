@@ -194,7 +194,7 @@ test('R2 semantic SVG slot destinations come only from canonical asset metadata 
     byteLength: 10,
     sha256: 'abc',
     metadata: {
-      'svg.slots.v1': JSON.stringify([
+      'elitescada.svg.slots': JSON.stringify([
         { name: 'body', fill: true, stroke: false, strokeWidth: false },
         { name: 'outline', fill: false, stroke: true, strokeWidth: true }
       ])
@@ -269,6 +269,9 @@ test('R3 portable Command parameter resolves definition action to canonical proj
     commandId,
     commandParameterKey: null
   });
+
+  expect(() => projectDynamoRuntimeElements([element], new Map(), null))
+    .toThrow(/requires mapped Command parameter 'startCommand'/);
 });
 
 test('new Dynamo authoring persists the existing public parameter contract and SVG composition', () => {

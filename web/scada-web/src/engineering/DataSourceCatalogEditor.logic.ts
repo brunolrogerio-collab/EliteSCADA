@@ -47,6 +47,13 @@ export type DataSourceTypeDefinition = {
   } | null;
   tagBindingSchemaId?: string | null;
   tagBindingSchemaVersion?: number | null;
+  integrationDomains?: Array<'industrial' | 'building' | 'residential' | 'ioT' | 'cloud' | string>;
+  connectionModel?: 'directNetwork' | 'hostSerial' | 'hostRadio' | 'localBridge' | 'cloud' | string | null;
+  externalDependencies?: Array<{
+    kind: 'builtIn' | 'optionalSidecar' | 'thirdPartyAccount' | 'thirdPartySubscription' | 'externalGateway' | 'certifiedHardware' | 'hostResource' | string;
+    requirement?: string | null;
+    description?: string | null;
+  }>;
 };
 
 export type DataSourceDraftIssue = {

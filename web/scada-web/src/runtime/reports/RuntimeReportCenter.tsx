@@ -104,6 +104,10 @@ export function RuntimeReportCenter({ locale }: { locale: Locale }) {
       setSelected(report);
       setRangeKind(report.timeRange?.defaultKind ?? 'relative');
       setDuration(report.timeRange?.defaultRelativeDurationSeconds ?? 24 * 60 * 60);
+      if (report.timeRange?.defaultFromUtc)
+        setFromLocal(localInput(new Date(report.timeRange.defaultFromUtc)));
+      if (report.timeRange?.defaultToUtc)
+        setToLocal(localInput(new Date(report.timeRange.defaultToUtc)));
       setParameters(Object.fromEntries((report.parameters ?? []).map(p => [p.key, p.defaultValue.value])));
     } catch (err) {
       setError(message(err, t.error));
@@ -311,8 +315,26 @@ function GeneratedReportPage({ report, generation, query, rows, locale, page, pa
   return <article className="report-generated-page" style={pageStyle} data-testid="generated-report-page">
     {header.map(section => <RuntimeSection key={section.key} report={report} section={section} generation={generation} locale={locale} />)}
     {pageHeader.map(section => <RuntimeSection key={section.key} report={report} section={section} generation={generation} locale={locale} />)}
-    {rows.map((row, rowIndex) => details.map(section =>
-      <RuntimeSection key={`${section.key}-${rowIndex}`} report={report} section={section} row={row} generation={generation} locale={locale} />))}
+    {rows.map((row, rowIndex) => {
+      const previous = rowIndex > 0 ? rows[rowIndex - 1] : undefined;
+      const next = rowIndex + 1 < rows.length ? rows[rowIndex + 1] : undefined;
+      return <React.Fragment key={rowIndex}>
+        {(report.groups ?? []).flatMap(group =>
+          groupValueChanged(previous, row, group.field)
+            ? sections
+                .filter(section => section.kind === 'groupHeader' && section.groupKey === group.key)
+                .map(section => <RuntimeSection key={`${section.key}-header-${rowIndex}`} report={report} section={section} row={row} generation={generation} locale={locale} />)
+            : [])}
+        {details.map(section =>
+          <RuntimeSection key={`${section.key}-${rowIndex}`} report={report} section={section} row={row} generation={generation} locale={locale} />)}
+        {(report.groups ?? []).flatMap(group =>
+          groupValueChanged(row, next, group.field)
+            ? sections
+                .filter(section => section.kind === 'groupFooter' && section.groupKey === group.key)
+                .map(section => <RuntimeSection key={`${section.key}-footer-${rowIndex}`} report={report} section={section} row={row} generation={generation} locale={locale} />)
+            : [])}
+      </React.Fragment>;
+    })}
     {details.length === 0 && <section className="report-runtime-fallback">
       <h1>{report.name}</h1>
       {query && <p>{new Date(query.fromUtc).toLocaleString(locale)} — {new Date(query.toUtc).toLocaleString(locale)}</p>}
@@ -392,6 +414,16 @@ function RuntimeChart({ style, report, generation, queryKey, field }: {
   return <svg className="report-runtime-control chart" style={style} viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label={valueField ?? 'chart'}>
     <polyline points={points} fill="none" stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
   </svg>;
+}
+
+function groupValueChanged(
+  previous: { cells: Readonly<Record<string, HistoricalQueryValue>> } | undefined,
+  current: { cells: Readonly<Record<string, HistoricalQueryValue>> } | undefined,
+  field: string
+) {
+  const before = previous?.cells[field]?.value ?? null;
+  const after = current?.cells[field]?.value ?? null;
+  return before !== after;
 }
 
 function rowsPerGeneratedPage(report: ReportEngineeringDto) {

@@ -91,21 +91,35 @@ public sealed class EngineeringDriverToolProviderFactoryRegistry
     private readonly IReadOnlyDictionary<string, IEngineeringDriverToolProviderFactory> _byDriverType;
 
     public EngineeringDriverToolProviderFactoryRegistry(
-        IEnumerable<IEngineeringDriverToolProviderFactory> factories)
+        IEnumerable<IEngineeringDriverToolProviderFactory> factories,
+        CommunicationDriverRuntimeComponentRegistry runtimeComponents)
     {
         ArgumentNullException.ThrowIfNull(factories);
+        ArgumentNullException.ThrowIfNull(runtimeComponents);
         var map = new Dictionary<string, IEngineeringDriverToolProviderFactory>(StringComparer.OrdinalIgnoreCase);
         foreach (var factory in factories)
         {
             ArgumentNullException.ThrowIfNull(factory);
             if (string.IsNullOrWhiteSpace(factory.DriverType))
                 throw new InvalidOperationException("Engineering driver tooling factory must declare a DriverType.");
-            if (!map.TryAdd(factory.DriverType.Trim(), factory))
+
+            var driverType = factory.DriverType.Trim();
+            if (!runtimeComponents.TryGet(driverType, out var runtime) || runtime is null)
                 throw new InvalidOperationException(
-                    $"Engineering driver tooling factory for '{factory.DriverType}' is already registered.");
+                    $"Engineering driver tooling factory for '{driverType}' has no matching Runtime product registration.");
+            if (!string.Equals(runtime.Descriptor.DriverType, driverType, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException(
+                    $"Engineering driver tooling factory type '{driverType}' does not match Runtime descriptor '{runtime.Descriptor.DriverType}'.");
+
+            if (!map.TryAdd(driverType, factory))
+                throw new InvalidOperationException(
+                    $"Engineering driver tooling factory for '{driverType}' is already registered.");
         }
         _byDriverType = map;
     }
+
+    public IReadOnlyCollection<string> DriverTypes =>
+        _byDriverType.Keys.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
 
     public bool TryGet(string? driverType, out IEngineeringDriverToolProviderFactory? factory)
     {

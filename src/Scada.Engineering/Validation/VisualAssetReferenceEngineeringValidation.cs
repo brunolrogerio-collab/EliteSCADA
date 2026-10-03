@@ -143,7 +143,7 @@ internal static class VisualAssetReferenceEngineeringValidation
 
         foreach (var destinationKey in DynamicSemanticDestinations(element))
         {
-            if (!SvgSemanticPaintEngineering.TryParse(destinationKey, out var destination))
+            if (!SvgSemanticDynamicDestinations.TryParse(destinationKey, out var destination))
                 continue;
 
             if (!declared.TryGetValue(destination.Slot, out var capabilities))
@@ -159,9 +159,9 @@ internal static class VisualAssetReferenceEngineeringValidation
 
             var propertyName = destination.Property switch
             {
-                SvgSemanticPaintEngineering.PaintProperty.Fill => "fill",
-                SvgSemanticPaintEngineering.PaintProperty.Stroke => "stroke",
-                SvgSemanticPaintEngineering.PaintProperty.StrokeWidth => "strokeWidth",
+                SvgSemanticDynamicPaintProperty.Fill => "fill",
+                SvgSemanticDynamicPaintProperty.Stroke => "stroke",
+                SvgSemanticDynamicPaintProperty.StrokeWidth => "strokeWidth",
                 _ => string.Empty
             };
             if (Supports(capabilities, propertyName))

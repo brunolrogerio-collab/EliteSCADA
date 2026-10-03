@@ -6,6 +6,7 @@ import type { VisualEditorKeyboardCommand } from './visualEditorKeyboardModel';
 import { DynamoLibraryPalette } from './DynamoLibraryPalette';
 import { EquipmentFaceplatePalette } from './EquipmentFaceplatePalette';
 import { VisualEditorOutliner } from './canvas/VisualEditorOutliner';
+import { BUILTIN_VISUAL_OBJECT_TYPES, VISUAL_PROPERTY_KEYS } from '../../visual-runtime';
 
 export type VisualEditorAuthoringTab = 'structure' | 'library' | 'assets';
 
@@ -113,7 +114,21 @@ export function VisualEditorAuthoringSidebar({
             >
               <strong>{asset.name}</strong>
               <small>{asset.originalFileName}</small>
-              <code>{asset.pixelWidth ?? '?'}×{asset.pixelHeight ?? '?'}</code>
+              <code>{asset.mediaType === 'image/svg+xml' ? 'SVG' : `${asset.pixelWidth ?? '?'}×${asset.pixelHeight ?? '?'}`}</code>
+              {asset.id ? <button
+                type="button"
+                onClick={() => onMutationIntent({
+                  kind: 'object.add',
+                  objectType: asset.mediaType === 'image/svg+xml'
+                    ? BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol
+                    : BUILTIN_VISUAL_OBJECT_TYPES.image,
+                  initialProperties: {
+                    [VISUAL_PROPERTY_KEYS.assetRef]: { assetId: asset.id! },
+                    [VISUAL_PROPERTY_KEYS.width]: asset.pixelWidth ?? 120,
+                    [VISUAL_PROPERTY_KEYS.height]: asset.pixelHeight ?? 120
+                  }
+                })}
+              >{asset.mediaType === 'image/svg+xml' ? text.addSvg : text.addImage}</button> : null}
             </div>)}
           </div>
         </section>
@@ -130,7 +145,9 @@ function authoringText(locale: EngineeringLocale) {
     assetHint: 'Canonical project assets for image objects and surface backgrounds.',
     importAsset: 'Import image',
     importing: 'Importing…',
-    noAssets: 'No visual assets in this project.'
+    noAssets: 'No visual assets in this project.',
+    addSvg: 'Add editable SVG',
+    addImage: 'Add image'
   };
   if (locale === 'es') return {
     authoring: 'Superficie de autoría',
@@ -139,7 +156,9 @@ function authoringText(locale: EngineeringLocale) {
     assetHint: 'Assets canónicos del proyecto para imágenes y fondos.',
     importAsset: 'Importar imagen',
     importing: 'Importando…',
-    noAssets: 'No hay assets visuales en este proyecto.'
+    noAssets: 'No hay assets visuales en este proyecto.',
+    addSvg: 'Agregar SVG editable',
+    addImage: 'Agregar imagen'
   };
   return {
     authoring: 'Superfície de autoria',
@@ -148,6 +167,8 @@ function authoringText(locale: EngineeringLocale) {
     assetHint: 'Assets canônicos do projeto para objetos de imagem e fundos.',
     importAsset: 'Importar imagem',
     importing: 'Importando…',
-    noAssets: 'Nenhum asset visual neste projeto.'
+    noAssets: 'Nenhum asset visual neste projeto.',
+    addSvg: 'Adicionar SVG editável',
+    addImage: 'Adicionar imagem'
   };
 }

@@ -14,6 +14,7 @@ export const BUILTIN_VISUAL_OBJECT_TYPES = {
   polygon: 'core.polygon',
   text: 'core.text',
   image: 'core.image',
+  svgSymbol: 'core.svgSymbol',
   valueDisplay: 'core.valueDisplay',
   trend: 'core.trend',
   alarmBrowser: 'core.alarmBrowser',
@@ -161,6 +162,13 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     VISUAL_PROPERTY_KEYS.imagePositionX,
     VISUAL_PROPERTY_KEYS.imagePositionY,
     VISUAL_PROPERTY_KEYS.imageZoom
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol, schema(BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.assetRef,
+    VISUAL_PROPERTY_KEYS.fillColor,
+    VISUAL_PROPERTY_KEYS.strokeColor,
+    VISUAL_PROPERTY_KEYS.strokeWidth
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay, schema(BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay, [
     ...BASE,

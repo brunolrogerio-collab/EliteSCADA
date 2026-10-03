@@ -506,7 +506,8 @@ internal sealed class ViewEngineeringHandler
         List<ImportIssue> issues)
     {
         if (package.SchemaVersion < 13 ||
-            !element.Type.Equals("core.image", StringComparison.Ordinal) ||
+            (!element.Type.Equals("core.image", StringComparison.Ordinal) &&
+             !element.Type.Equals("core.svgSymbol", StringComparison.Ordinal)) ||
             element.Properties is null ||
             !element.Properties.TryGetValue("assetRef", out var serialized) ||
             serialized.ValueKind == JsonValueKind.Null)
@@ -540,21 +541,34 @@ internal sealed class ViewEngineeringHandler
             return;
         }
 
-        if (VisualAssetExists(assetId, package))
+        var asset = FindVisualAsset(assetId, package);
+        if (asset is null)
+        {
+            issues.Add(new ImportIssue(
+                "VISUAL_ASSET_REFERENCE_NOT_FOUND",
+                $"Visual element '{element.Key}' references Visual Asset '{reference}', which does not exist in the prospective Engineering model.",
+                kind,
+                entityKey,
+                true));
             return;
+        }
 
-        issues.Add(new ImportIssue(
-            "VISUAL_ASSET_REFERENCE_NOT_FOUND",
-            $"Visual element '{element.Key}' references Visual Asset '{reference}', which does not exist in the prospective Engineering model.",
-            kind,
-            entityKey,
-            true));
+        if (element.Type.Equals("core.svgSymbol", StringComparison.Ordinal) &&
+            !asset.MediaType.Equals(VisualAssetContentInspector.SvgMediaType, StringComparison.OrdinalIgnoreCase))
+        {
+            issues.Add(new ImportIssue(
+                "VISUAL_SVG_ASSET_MEDIA_INVALID",
+                $"SVG symbol '{element.Key}' must reference an image/svg+xml Visual Asset.",
+                kind,
+                entityKey,
+                true));
+        }
     }
 
-    private bool VisualAssetExists(Guid id, EngineeringPackage package) =>
-        _visualAssets.FindAsset(id) is not null ||
+    private VisualAssetEngineeringDto? FindVisualAsset(Guid id, EngineeringPackage package) =>
+        _visualAssets.FindAsset(id) ??
         (package.VisualAssets ?? Array.Empty<VisualAssetEngineeringDto>())
-            .Any(x => x is not null && x.Id == id);
+            .FirstOrDefault(x => x is not null && x.Id == id);
 
     private PopupEngineeringDto NormalizePopupReferences(PopupEngineeringDto popup)
     {

@@ -182,7 +182,11 @@ public static class VisualAssetEndpoints
                     ByteLength: payload.ByteLength,
                     Sha256: payload.Sha256,
                     PixelWidth: inspection.PixelWidth,
-                    PixelHeight: inspection.PixelHeight);
+                    PixelHeight: inspection.PixelHeight,
+                    Metadata: inspection.CanonicalMetadata?.ToDictionary(
+                        pair => pair.Key,
+                        pair => pair.Value,
+                        StringComparer.Ordinal));
 
                 var validationContext = new EngineeringImportContext(
                     new Dictionary<string, VisualAssetPayload>(StringComparer.OrdinalIgnoreCase)

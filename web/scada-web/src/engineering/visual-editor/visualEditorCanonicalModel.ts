@@ -15,7 +15,12 @@ import {
 import type { VisualEditorMutationIntent } from './visualEditorContracts';
 import { applyProtectedVisualEditorMutationIntent } from './visualEditorProtectedMutationModel';
 import { updateCanonicalTrendPens } from './trendCanonicalMutations';
-import type { VisualEditorMutationOptions } from './visualEditorCanonicalModelLegacy';
+import { updateScreenElement, type VisualEditorMutationOptions } from './visualEditorCanonicalModelLegacy';
+import {
+  SVG_PAINT_OVERRIDES_PROPERTY,
+  normalizeSvgPaintOverrides,
+  svgPaintOverridesAsEngineeringValue
+} from './svgSymbolModel';
 
 export {
   NEW_SCREEN_IDENTITY,
@@ -47,6 +52,22 @@ export function applyVisualEditorMutationIntent(
     }
     assertVisualElementsAuthoringEditable(screen, intent.objectIds);
     return updateCanonicalTrendPens(screen, intent.objectIds[0], normalizeTrendPens(intent.value));
+  }
+
+  if (intent.kind === 'property.set' && intent.propertyKey === SVG_PAINT_OVERRIDES_PROPERTY) {
+    if (intent.objectIds.length !== 1 || typeof intent.value !== 'object' || intent.value === null || Array.isArray(intent.value)) {
+      throw new Error('SVG paint overrides require exactly one SVG symbol and a JSON object value.');
+    }
+    assertVisualElementsAuthoringEditable(screen, intent.objectIds);
+    const objectId = intent.objectIds[0];
+    const element = findElement(screen.elements ?? [], objectId);
+    if (!element || element.type !== BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol)
+      throw new Error(`Visual object '${objectId}' does not own svgPaintOverrides.`);
+    const value = svgPaintOverridesAsEngineeringValue(normalizeSvgPaintOverrides(intent.value));
+    return updateScreenElement(screen, objectId, current => ({
+      ...current,
+      properties: { ...(current.properties ?? {}), [SVG_PAINT_OVERRIDES_PROPERTY]: value }
+    }));
   }
 
   if (intent.kind === 'property.set' && intent.propertyKey === BROWSER_CONFIG_PROPERTY) {

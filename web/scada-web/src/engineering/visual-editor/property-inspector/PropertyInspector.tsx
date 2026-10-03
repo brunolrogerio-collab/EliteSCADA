@@ -4,6 +4,7 @@ import type { VisualEditorPropertyInspectorContractProps } from '../visualEditor
 import type { VisualAssetEngineering, VisualElementEngineering, VisualEngineeringPropertyValue } from '../../types';
 import { BUILTIN_VISUAL_OBJECT_TYPES, VISUAL_PROPERTY_KEYS } from '../../../visual-runtime';
 import { BrowserConfigurationEditor } from '../BrowserConfigurationEditor';
+import { SvgPaintOverrideEditor } from '../SvgPaintOverrideEditor';
 import { EventsEditor } from '../events-editor/EventsEditor';
 import { TrendPenEditor } from '../TrendPenEditor';
 import { c07VisualEditorText, useC07VisualEditorText } from '../c07VisualEditorI18n';
@@ -186,6 +187,10 @@ export function PropertyInspector({
     selectedElements[0].type === BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser ||
     selectedElements[0].type === BUILTIN_VISUAL_OBJECT_TYPES.eventBrowser
   ) ? selectedElements[0] : null;
+  const selectedSvg = selectedElements.length === 1 &&
+    selectedElements[0].type === BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol
+      ? selectedElements[0]
+      : null;
 
   return (
     <aside className="property-inspector" data-testid="visual-property-inspector">
@@ -246,6 +251,12 @@ export function PropertyInspector({
         </section>;
       })}
 
+      {selectedSvg ? <SvgPaintOverrideEditor
+        element={selectedSvg}
+        visualAssets={visualAssets}
+        locale={locale}
+        onMutationIntent={onMutationIntent}
+      /> : null}
       {selectedTrend ? <TrendPenEditor element={selectedTrend} onMutationIntent={onMutationIntent} /> : null}
       {selectedBrowser ? <BrowserConfigurationEditor element={selectedBrowser} locale={locale} onMutationIntent={onMutationIntent} /> : null}
 

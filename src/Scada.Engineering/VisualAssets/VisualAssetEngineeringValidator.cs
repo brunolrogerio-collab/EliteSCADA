@@ -101,6 +101,8 @@ public static partial class VisualAssetEngineeringValidator
                     key));
             }
 
+            ValidateSvgMetadata(asset, inspection, issues, key);
+
             if ((inspection.PixelWidth.HasValue && asset.PixelWidth.HasValue && asset.PixelWidth.Value != inspection.PixelWidth.Value) ||
                 (inspection.PixelHeight.HasValue && asset.PixelHeight.HasValue && asset.PixelHeight.Value != inspection.PixelHeight.Value) ||
                 (!inspection.PixelWidth.HasValue && asset.PixelWidth.HasValue) ||
@@ -121,6 +123,32 @@ public static partial class VisualAssetEngineeringValidator
         }
 
         return issues;
+    }
+
+    private static void ValidateSvgMetadata(
+        VisualAssetEngineeringDto asset,
+        VisualAssetContentInspection inspection,
+        ICollection<ImportIssue> issues,
+        string key)
+    {
+        var reserved = (asset.Metadata ?? new Dictionary<string, string>(StringComparer.Ordinal))
+            .Where(pair => pair.Key.StartsWith(StaticSvgInspector.MetadataPrefix, StringComparison.Ordinal))
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+
+        if (!inspection.MediaType.Equals(VisualAssetContentInspector.SvgMediaType, StringComparison.OrdinalIgnoreCase))
+        {
+            if (reserved.Count > 0)
+                issues.Add(Error("VISUAL_ASSET_SVG_METADATA_ON_RASTER", "Raster assets cannot carry reserved SVG metadata.", key));
+            return;
+        }
+
+        if (reserved.Count == 0)
+            return; // Legacy SVG imported before V2 remains valid.
+
+        var expected = inspection.CanonicalMetadata ?? new Dictionary<string, string>(StringComparer.Ordinal);
+        if (reserved.Count != expected.Count ||
+            expected.Any(pair => !reserved.TryGetValue(pair.Key, out var value) || !value.Equals(pair.Value, StringComparison.Ordinal)))
+            issues.Add(Error("VISUAL_ASSET_SVG_METADATA_MISMATCH", "SVG paint metadata does not match the canonical sanitized payload.", key));
     }
 
     private static ImportIssue Error(string code, string message, string key) =>

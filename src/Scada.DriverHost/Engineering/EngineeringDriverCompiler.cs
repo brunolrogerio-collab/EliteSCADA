@@ -20,7 +20,54 @@ public sealed record ModbusTcpRuntimePlan(
     TimeSpan ScanRate,
     TimeSpan RequestTimeout,
     int MaxGapElements,
-    IReadOnlyCollection<ModbusPoint> Points);
+    IReadOnlyCollection<ModbusPoint> Points) : ICommunicationDriverRuntimePlan
+{
+    public string DriverType => ModbusTcpDriverDescriptorProvider.DriverTypeId;
+    public IReadOnlyCollection<TagDefinition> Tags => Points.Select(point => point.Tag).ToArray();
+}
+
+public sealed class ModbusTcpCommunicationRuntimePlanner : ICommunicationDriverRuntimePlanner
+{
+    public string DriverType => ModbusTcpDriverDescriptorProvider.DriverTypeId;
+
+    public CommunicationDriverRuntimePlanningResult Plan(
+        EngineeringPackage package,
+        DataSourceEngineeringDto dataSource)
+    {
+        var plans = new List<ModbusTcpRuntimePlan>();
+        var issues = new List<EngineeringDriverIssue>();
+        EngineeringDriverCompiler.CompileModbusTcp(package, dataSource, plans, issues);
+        return new CommunicationDriverRuntimePlanningResult(plans.SingleOrDefault(), issues);
+    }
+}
+
+public sealed class ModbusTcpCommunicationRuntimeFactory : ICommunicationDriverRuntimeFactory
+{
+    public string DriverType => ModbusTcpDriverDescriptorProvider.DriverTypeId;
+
+    public ICommunicationDriver Create(
+        ICommunicationDriverRuntimePlan plan,
+        CommunicationDriverRuntimeServices services)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        ArgumentNullException.ThrowIfNull(services);
+        services.Validate();
+        if (plan is not ModbusTcpRuntimePlan modbus)
+            throw new ArgumentException($"Expected {nameof(ModbusTcpRuntimePlan)}.", nameof(plan));
+
+        return new ModbusTcpDriver(
+            $"modbus.tcp:{modbus.DataSourceKey}",
+            modbus.Name,
+            modbus.Host,
+            services.Cache,
+            services.Registry,
+            modbus.Points,
+            modbus.Port,
+            modbus.ScanRate,
+            modbus.RequestTimeout,
+            modbus.MaxGapElements);
+    }
+}
 
 public sealed record EngineeringDriverCompilation(
     IReadOnlyCollection<ModbusTcpRuntimePlan> ModbusTcpPlans,
@@ -64,18 +111,16 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
         {
             var plannerPackage = EngineeringTagDataSourceAssociation.NormalizeForPlanner(package, dataSource);
 
-            if (dataSource.Driver.Equals(ModbusTcpDriverKey, StringComparison.OrdinalIgnoreCase))
-            {
-                CompileModbusTcp(plannerPackage, dataSource, plans, issues);
-                continue;
-            }
-
             if (_communicationComponents.TryGet(dataSource.Driver, out var registration) && registration is not null)
             {
                 var result = registration.Planner.Plan(plannerPackage, dataSource);
                 issues.AddRange(result.Issues);
                 if (result.CanActivate && result.Plan is not null)
+                {
                     communicationPlans.Add(result.Plan);
+                    if (result.Plan is ModbusTcpRuntimePlan modbusTcpPlan)
+                        plans.Add(modbusTcpPlan);
+                }
                 continue;
             }
 
@@ -188,7 +233,7 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
         }
     }
 
-    private static void CompileModbusTcp(
+    internal static void CompileModbusTcp(
         EngineeringPackage package,
         DataSourceEngineeringDto dataSource,
         List<ModbusTcpRuntimePlan> plans,

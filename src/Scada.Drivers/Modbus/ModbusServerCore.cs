@@ -369,9 +369,8 @@ public sealed class ModbusServerProtocolHandler
     {
         if (pdu.Length != 5)
             throw new ModbusServerRequestException(0x03, ModbusServerRequestFailure.IllegalValue, "FC03 request PDU must contain address and quantity.");
-        var span = pdu.Span;
-        var address = BinaryPrimitives.ReadUInt16BigEndian(span[1..3]);
-        var quantity = BinaryPrimitives.ReadUInt16BigEndian(span[3..5]);
+        var address = BinaryPrimitives.ReadUInt16BigEndian(pdu.Span.Slice(1, 2));
+        var quantity = BinaryPrimitives.ReadUInt16BigEndian(pdu.Span.Slice(3, 2));
         var values = await _map.ReadAsync(address, quantity, cancellationToken);
         var response = new byte[2 + values.Length * 2];
         response[0] = ModbusPduCodec.ReadHoldingRegisters;
@@ -387,9 +386,8 @@ public sealed class ModbusServerProtocolHandler
     {
         if (pdu.Length != 5)
             throw new ModbusServerRequestException(0x03, ModbusServerRequestFailure.IllegalValue, "FC06 request PDU must contain address and value.");
-        var span = pdu.Span;
-        var address = BinaryPrimitives.ReadUInt16BigEndian(span[1..3]);
-        var value = BinaryPrimitives.ReadUInt16BigEndian(span[3..5]);
+        var address = BinaryPrimitives.ReadUInt16BigEndian(pdu.Span.Slice(1, 2));
+        var value = BinaryPrimitives.ReadUInt16BigEndian(pdu.Span.Slice(3, 2));
         var updates = await _map.WriteClientAsync(address, new[] { value }, cancellationToken);
         await _publishExternalUpdates(updates, cancellationToken);
         return new ModbusServerProtocolResult(pdu.ToArray(), ModbusServerOperationKind.Write);
@@ -401,16 +399,15 @@ public sealed class ModbusServerProtocolHandler
     {
         if (pdu.Length < 6)
             throw new ModbusServerRequestException(0x03, ModbusServerRequestFailure.IllegalValue, "FC16 request PDU is truncated.");
-        var span = pdu.Span;
-        var address = BinaryPrimitives.ReadUInt16BigEndian(span[1..3]);
-        var quantity = BinaryPrimitives.ReadUInt16BigEndian(span[3..5]);
-        var byteCount = span[5];
+        var address = BinaryPrimitives.ReadUInt16BigEndian(pdu.Span.Slice(1, 2));
+        var quantity = BinaryPrimitives.ReadUInt16BigEndian(pdu.Span.Slice(3, 2));
+        var byteCount = pdu.Span[5];
         if (quantity is < 1 or > 123 || byteCount != quantity * 2 || pdu.Length != 6 + byteCount)
             throw new ModbusServerRequestException(0x03, ModbusServerRequestFailure.IllegalValue, "FC16 quantity/byte count is invalid.");
 
         var values = new ushort[quantity];
         for (var index = 0; index < values.Length; index++)
-            values[index] = BinaryPrimitives.ReadUInt16BigEndian(span.Slice(6 + index * 2, 2));
+            values[index] = BinaryPrimitives.ReadUInt16BigEndian(pdu.Span.Slice(6 + index * 2, 2));
 
         var updates = await _map.WriteClientAsync(address, values, cancellationToken);
         await _publishExternalUpdates(updates, cancellationToken);

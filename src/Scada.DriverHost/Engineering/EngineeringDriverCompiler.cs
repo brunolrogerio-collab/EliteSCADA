@@ -86,11 +86,34 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
         }
 
         ValidateModbusSerialOwnership(communicationPlans, issues);
+        ValidateModbusTcpServerEndpoints(communicationPlans, issues);
 
         return new EngineeringDriverCompilation(plans, issues)
         {
             CommunicationPlans = communicationPlans
         };
+    }
+
+    private static void ValidateModbusTcpServerEndpoints(
+        IReadOnlyCollection<ICommunicationDriverRuntimePlan> plans,
+        List<EngineeringDriverIssue> issues)
+    {
+        var servers = plans.OfType<ModbusTcpServerCommunicationRuntimePlan>().ToArray();
+        for (var leftIndex = 0; leftIndex < servers.Length; leftIndex++)
+        {
+            for (var rightIndex = leftIndex + 1; rightIndex < servers.Length; rightIndex++)
+            {
+                var left = servers[leftIndex];
+                var right = servers[rightIndex];
+                if (!ModbusTcpServerDriver.EndpointsConflict(left.BindAddress, left.Port, right.BindAddress, right.Port))
+                    continue;
+
+                issues.Add(new EngineeringDriverIssue(
+                    "MODBUS_TCP_SERVER_ENDPOINT_CONFLICT",
+                    $"Modbus TCP Server endpoint '{left.BindAddress}:{left.Port}' conflicts with Data Source '{right.DataSourceKey}' endpoint '{right.BindAddress}:{right.Port}'.",
+                    right.DataSourceKey));
+            }
+        }
     }
 
     private static void ValidateModbusSerialOwnership(

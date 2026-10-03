@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
@@ -273,9 +274,9 @@ public sealed class ModbusTcpServerDriver :
             var task = HandleClientAsync(client, cancellationToken);
             _clients[id] = task;
             _ = task.ContinueWith(
-                _ =>
+                completed =>
                 {
-                    _clients.TryRemove(id, out _);
+                    _clients.TryRemove(id, out var _);
                     _clientSlots.Release();
                 },
                 CancellationToken.None,

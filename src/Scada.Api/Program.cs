@@ -18,6 +18,7 @@ using Scada.Core.InternalMemory;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
+using Scada.Drivers.Abstractions;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;

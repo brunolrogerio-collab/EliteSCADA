@@ -1,3 +1,36 @@
+# LATEST DELTA — 2026-10-03 — BATCH 3 CLOSED / NEXT BATCH ACTIVE / MAIN HANDOFF
+
+> GitHub live remains the sole authority. This delta supersedes older current-state wording below when there is a conflict.
+
+Accepted Batch-3 product checkpoint:
+`9b596286a40b1649564075626e817cc61e32e7bc`
+
+Batch-3 exact combined T1 #619 / run `37092144575`: SUCCESS.
+Post-merge slim on the product checkpoint: Web SUCCESS / Backend SUCCESS / Chromium SUCCESS.
+
+Roadmap consolidation then advanced integration documentation-only to:
+`aca641501302edb04f32b83b04adf0726d7e8a96`
+
+Active next batch released from that exact base:
+- #482 Visual Library Catalog V1 — `work/w15-visual-library-catalog` — ahead 0 / behind 0 / no PR;
+- #483 HOME/BUILDING H0 — `work/w15-home-building-h0` — ahead 0 / behind 0 / no PR;
+- #484 Asset Curation Batch 1 — `content/w15-builtin-asset-curation-b1` — WIP head `055deb4df30eaf3e8af4d33fdc8739cf3d1b9df4`, tree `bca34cc2ea3b12124db703244ed715ebced9e0f9`, ahead 1 / behind 0, 86 draft assets, no PR/handoff yet.
+
+Canonical full successor snapshot:
+`docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-10-03-NEXT-BATCH-ACTIVE.md`
+
+Still blocked:
+- SVG-first/core.svgSymbol V2 until #482 disposition;
+- HOME/BUILDING H1-H6 until #483 disposition;
+- every protocol-specific HOME/BUILDING driver;
+- no CODEX mission now.
+
+Permanent visual rule: PR #451 artwork is rejected and must not be reused.
+
+Final Wave 15 closure still requires #379 final i18n, #424 Help, #425 Manual, #308 visual acceptance, #306 Productization/EEE and #300 final fresh Preview.
+
+---
+
 # LATEST DELTA — 2026-09-27 — CHAT HANDOFF / #362 REVIEW PENDING / CONTAINER-NATIVE CORE DIRECTION
 
 > This delta supersedes older current-state wording below when there is a conflict. GitHub live remains the sole authority.

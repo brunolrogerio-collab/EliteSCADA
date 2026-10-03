@@ -312,3 +312,34 @@
     padding: 8px;
   }
 }
+
+.runtime-playback-badge {
+  max-width: min(48vw, 380px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--app-accent) !important;
+  font-weight: 700;
+}
+.runtime-playback-overlay { width: min(520px, calc(100% - 16px)); }
+.runtime-playback-overlay-content { display: grid; align-content: start; gap: 14px; padding: 14px; }
+.runtime-playback-hint { margin: 0; color: var(--app-text-secondary); font-size: 12px; line-height: 1.4; }
+.runtime-playback-quick { display: flex; flex-wrap: wrap; gap: 6px; }
+.runtime-playback-quick button {
+  min-height: 30px; padding: 0 10px; border: 1px solid var(--app-border); border-radius: 5px;
+  background: var(--app-input-bg); color: var(--app-text-primary); cursor: pointer;
+}
+.runtime-playback-quick button.active { border-color: var(--app-accent); background: var(--app-selected); }
+.runtime-playback-custom { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.runtime-playback-custom label, .runtime-playback-instant label { display: grid; gap: 5px; font-size: 11px; }
+.runtime-playback-custom input { min-width: 0; padding: 6px; border: 1px solid var(--app-border); border-radius: 5px; background: var(--app-input-bg); color: var(--app-text-primary); }
+.runtime-playback-instant { display: grid; gap: 5px; }
+.runtime-playback-instant output { font-variant-numeric: tabular-nums; color: var(--app-text-secondary); font-size: 11px; }
+.runtime-playback-status { min-height: 18px; color: var(--app-text-secondary); font-size: 11px; }
+.runtime-playback-status [role="alert"] { color: var(--app-error); }
+.runtime-playback-actions { display: flex; gap: 8px; }
+.runtime-playback-exit { border-color: var(--app-accent); }
+@media (max-width:760px) {
+  .runtime-playback-badge { max-width: 34vw; }
+  .runtime-playback-custom { grid-template-columns: 1fr; }
+}

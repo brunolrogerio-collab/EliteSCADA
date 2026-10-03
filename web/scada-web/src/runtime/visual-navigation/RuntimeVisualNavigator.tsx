@@ -27,6 +27,7 @@ import {
   type VisualNavigationActionEngineering
 } from './runtimeVisualNavigationModel';
 import { RuntimeVisualDefinitionRenderer } from './RuntimeVisualDefinitionRenderer';
+import { useOptionalHistoricalPlayback } from '../historical-playback/HistoricalPlaybackContext';
 
 export type RuntimeVisualNavigatorProps = Readonly<{
   engineeringPackage: Pick<EngineeringPackageView, 'screens' | 'popups' | 'dynamos' | 'equipment' | 'templates'>;
@@ -37,6 +38,7 @@ export type RuntimeVisualNavigatorProps = Readonly<{
   scriptContext?: ScriptEngineeringContext | null;
   onScriptDispatch?: (records: readonly ClientVisualEventDispatchRecord[]) => void;
   visualAssetUrl?: VisualAssetUrlResolver;
+  onVisualContextChange?: (context: Readonly<{ screenKey: string; popupKeys: readonly string[] }>) => void;
 }>;
 
 type NavigationResolution = Readonly<{
@@ -65,8 +67,10 @@ export function RuntimeVisualNavigator({
   popupIdFactory,
   scriptContext,
   onScriptDispatch,
-  visualAssetUrl
+  visualAssetUrl,
+  onVisualContextChange
 }: RuntimeVisualNavigatorProps) {
+  const playback = useOptionalHistoricalPlayback();
   const catalog = useMemo(() => createRuntimeVisualCatalog(engineeringPackage), [engineeringPackage]);
   const initialResolution = useMemo(
     () => resolveInitialNavigation(catalog, initialScreenKey),
@@ -80,6 +84,19 @@ export function RuntimeVisualNavigator({
     setState(next.state);
     setDiagnostic(next.diagnostic);
   }, [catalog, initialScreenKey]);
+
+  useEffect(() => {
+    if (!state || !onVisualContextChange) return;
+    try {
+      const popupKeys = state.popups.map(mount => resolveMountedPopup(catalog, mount).key);
+      onVisualContextChange(Object.freeze({
+        screenKey: state.activeScreenKey,
+        popupKeys: Object.freeze(popupKeys)
+      }));
+    } catch {
+      // The normal Runtime diagnostic path reports invalid composition.
+    }
+  }, [catalog, state, onVisualContextChange]);
 
   if (!state) {
     return <RuntimeDiagnostic diagnostic={diagnostic ?? new RuntimeVisualCompositionError(
@@ -167,6 +184,8 @@ export function RuntimeVisualNavigator({
     className="runtime-visual-navigator"
     data-testid="runtime-visual-navigator"
     data-active-screen-key={state.activeScreenKey}
+    data-runtime-temporal-mode={playback?.mode === 'historicalPlayback' ? 'historical-playback' : 'live'}
+    data-runtime-historical-at={playback?.atUtc ?? undefined}
   >
     <RuntimeLogicalViewport designSize={designSize}>
       <div className="runtime-logical-composition">

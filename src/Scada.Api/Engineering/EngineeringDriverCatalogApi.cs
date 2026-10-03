@@ -7,6 +7,7 @@ using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
 using Scada.Drivers.Abstractions;
 using Scada.Drivers.Modbus;
+using Scada.Drivers.Serial;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.Validation;
@@ -30,14 +31,18 @@ public static class EngineeringDriverCatalogApi
     {
         builder.Services.TryAddSingleton<ICommunicationDriverProtectedMaterialResolver>(_ =>
             EnvironmentCommunicationDriverProtectedMaterialResolver.CreateDeterministicScopedEnvironment());
+        builder.Services.TryAddSingleton<IHostSerialPortProvider, SystemHostSerialPortProvider>();
+        builder.Services.TryAddSingleton<HostSerialBusCoordinator>();
         builder.Services.AddSingleton(sp => CommunicationDriverRuntimeComposition.BuildForCurrentSchema(
-            hostProtectedMaterialResolver: sp.GetRequiredService<ICommunicationDriverProtectedMaterialResolver>()));
+            hostProtectedMaterialResolver: sp.GetRequiredService<ICommunicationDriverProtectedMaterialResolver>(),
+            serialBusCoordinator: sp.GetRequiredService<HostSerialBusCoordinator>()));
         builder.Services.AddSingleton<EngineeringDataSourceTypeCatalog>(sp =>
             EngineeringDataSourceTypeCatalog.BuildForCurrentSchema(
                 sp.GetRequiredService<CommunicationDriverRuntimeComponentRegistry>()));
         builder.Services.AddSingleton<IDataSourceConfigurationValidator>(sp =>
             sp.GetRequiredService<EngineeringDataSourceTypeCatalog>());
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, ModbusEngineeringDriverToolProviderFactory>();
+        builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, ModbusRtuEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, S7IsoEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, OpcUaEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<EngineeringDriverToolProviderFactoryRegistry>();
@@ -47,6 +52,14 @@ public static class EngineeringDriverCatalogApi
     {
         app.MapGet("/api/engineering/data-source-types", (EngineeringDataSourceTypeCatalog catalog) =>
             Results.Ok(catalog.Describe()))
+            .RequireWorkspaceEngineeringRead();
+
+        app.MapGet("/api/engineering/host/serial-ports", (IHostSerialPortProvider serialPorts) =>
+            Results.Ok(new
+            {
+                authority = "eliteScadaServer",
+                ports = serialPorts.ListVisiblePorts()
+            }))
             .RequireWorkspaceEngineeringRead();
 
         app.MapPost("/api/engineering/tag-address/modbus/build", (ModbusTagAddressBuildRequest request) =>

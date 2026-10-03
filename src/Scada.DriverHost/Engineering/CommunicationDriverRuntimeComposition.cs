@@ -5,6 +5,8 @@ using Scada.Drivers.Bacnet;
 using Scada.Drivers.Dnp3;
 using Scada.Drivers.Iec60870;
 using Scada.Drivers.Mqtt;
+using Scada.Drivers.Modbus;
+using Scada.Drivers.Serial;
 using Scada.Drivers.OpcUa;
 using Scada.Drivers.SiemensS7Iso;
 using Scada.Drivers.Simulation;
@@ -27,15 +29,22 @@ public static class CommunicationDriverRuntimeComposition
         ILogixProtocolClientFactory? logixClientFactory = null,
         Func<OpcUaRuntimeConnectionOptions, IOpcUaRuntimeSecurityMaterialProvider, IOpcUaRuntimeSessionFactory>? opcUaSessionFactoryBuilder = null,
         IDnp3MasterSessionFactory? dnp3SessionFactory = null,
-        IBacnetSessionFactory? bacnetSessionFactory = null)
+        IBacnetSessionFactory? bacnetSessionFactory = null,
+        HostSerialBusCoordinator? serialBusCoordinator = null)
     {
         var protectedMaterialResolver = hostProtectedMaterialResolver
             ?? EnvironmentCommunicationDriverProtectedMaterialResolver.CreateDeterministicScopedEnvironment();
+        var serialCoordinator = serialBusCoordinator
+            ?? new HostSerialBusCoordinator(new SystemHostSerialPortProvider());
         var registry = new CommunicationDriverRuntimeComponentRegistry();
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new SimulationCommunicationRuntimePlanner(),
             new SimulationCommunicationRuntimeFactory(),
             SimulationDriverDescriptorProvider.SharedDescriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new ModbusRtuCommunicationRuntimePlanner(),
+            new ModbusRtuCommunicationRuntimeFactory(serialCoordinator),
+            ModbusRtuDriverDescriptorProvider.SharedDescriptor));
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new MqttCommunicationRuntimePlanner(),
             new HostProtectedMaterialRuntimeFactory(

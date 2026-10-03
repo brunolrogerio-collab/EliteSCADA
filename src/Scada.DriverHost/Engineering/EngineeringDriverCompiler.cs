@@ -85,10 +85,58 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
                 dataSource.Key));
         }
 
+        ValidateModbusSerialOwnership(communicationPlans, issues);
+
         return new EngineeringDriverCompilation(plans, issues)
         {
             CommunicationPlans = communicationPlans
         };
+    }
+
+    private static void ValidateModbusSerialOwnership(
+        IReadOnlyCollection<ICommunicationDriverRuntimePlan> plans,
+        List<EngineeringDriverIssue> issues)
+    {
+        var rtuPlans = plans.OfType<ModbusRtuCommunicationRuntimePlan>().ToArray();
+        foreach (var group in rtuPlans.GroupBy(
+                     plan => plan.SerialSettings.PhysicalPortKey,
+                     OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal))
+        {
+            var first = group.First();
+            foreach (var candidate in group.Skip(1))
+            {
+                if (candidate.SerialSettings.BaudRate != first.SerialSettings.BaudRate ||
+                    candidate.SerialSettings.DataBits != first.SerialSettings.DataBits ||
+                    candidate.SerialSettings.Parity != first.SerialSettings.Parity ||
+                    candidate.SerialSettings.StopBits != first.SerialSettings.StopBits)
+                {
+                    issues.Add(new EngineeringDriverIssue(
+                        "MODBUS_RTU_SERIAL_CONFIGURATION_CONFLICT",
+                        $"Serial port '{candidate.SerialSettings.PortName}' is configured with incompatible line settings by '{first.DataSourceKey}' and '{candidate.DataSourceKey}'.",
+                        candidate.DataSourceKey));
+                }
+            }
+
+            var owners = new Dictionary<byte, string>();
+            foreach (var plan in group)
+            {
+                foreach (var unitId in plan.Points.Select(point => point.UnitId).Distinct())
+                {
+                    if (owners.TryGetValue(unitId, out var existing) &&
+                        !string.Equals(existing, plan.DataSourceKey, StringComparison.OrdinalIgnoreCase))
+                    {
+                        issues.Add(new EngineeringDriverIssue(
+                            "MODBUS_RTU_UNIT_ID_CONFLICT",
+                            $"Serial port '{plan.SerialSettings.PortName}' Unit ID {unitId} is already owned by Data Source '{existing}'.",
+                            plan.DataSourceKey));
+                    }
+                    else
+                    {
+                        owners[unitId] = plan.DataSourceKey;
+                    }
+                }
+            }
+        }
     }
 
     private static void CompileModbusTcp(
@@ -126,7 +174,7 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
         foreach (var tag in sourceTags)
         {
             var before = issues.Count;
-            var point = CompilePoint(dataSource.Key, tag, defaultUnitId, issues);
+            var point = CompileModbusPoint(dataSource.Key, tag, defaultUnitId, issues);
             if (point is not null && issues.Skip(before).All(x => !x.IsError))
                 points.Add(point);
         }
@@ -145,7 +193,7 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
             points));
     }
 
-    private static ModbusPoint? CompilePoint(
+    internal static ModbusPoint? CompileModbusPoint(
         string dataSourceKey,
         TagEngineeringDto dto,
         int defaultUnitId,

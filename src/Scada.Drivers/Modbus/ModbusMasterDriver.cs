@@ -267,14 +267,17 @@ public class ModbusMasterDriver : ICommunicationDriver, ICommunicationDiagnostic
 
     public ModbusTcpDiagnosticSnapshot GetModbusDiagnostics()
     {
-        var transport = _transport.GetDiagnostics();
+        if (_transport is not ModbusTcpTransport tcp)
+            throw new NotSupportedException("TCP-specific diagnostics are available only for Modbus TCP transports.");
+
+        var transport = tcp.GetDiagnostics();
         lock (_diagnosticsGate)
         {
             return new ModbusTcpDiagnosticSnapshot(
-                _transport.Host,
-                _transport.Port,
+                tcp.Host,
+                tcp.Port,
                 ScanRate,
-                _transport.RequestTimeout,
+                tcp.RequestTimeout,
                 _pollBlocks.Count,
                 _points.Select(x => x.UnitId).Distinct().OrderBy(x => x).ToArray(),
                 _successfulPollBlocks,

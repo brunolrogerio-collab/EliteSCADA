@@ -38,8 +38,9 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
         ArgumentNullException.ThrowIfNull(request.Report);
         cancellationToken.ThrowIfCancellationRequested();
 
-        ValidateRuntimeRange(request.TimeRange);
-        var report = ApplyRuntimeRangeAndVariables(request.Report, request.TimeRange);
+        var effectiveTimeRange = request.TimeRange ?? DefaultRuntimeRange(request.Report.TimeRange);
+        ValidateRuntimeRange(effectiveTimeRange);
+        var report = ApplyRuntimeRangeAndVariables(request.Report, effectiveTimeRange);
 
         var usesV3Retrieval =
             report.Resolution is { Mode: not ReportDataResolutionMode.Raw } ||
@@ -59,7 +60,7 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
                 report,
                 request.Parameters,
                 request.ResolvedDataQueries,
-                request.TimeRange,
+                effectiveTimeRange,
                 cancellationToken);
         }
 
@@ -609,6 +610,23 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
         ReportParameterType.Enum => DataQueryParameterType.Enum,
         _ => throw new HistoricalQueryValidationException($"Unsupported report parameter type '{type}'.")
     };
+
+    private static ReportRuntimeTimeRange? DefaultRuntimeRange(ReportTimeRangeEngineeringDto? definition)
+    {
+        if (definition is null) return null;
+        if (definition.DefaultKind == HistoricalTimeRangeKind.Relative)
+            return new ReportRuntimeTimeRange(
+                HistoricalTimeRangeKind.Relative,
+                DurationSeconds: definition.DefaultRelativeDurationSeconds);
+
+        if (!definition.DefaultFromUtc.HasValue || !definition.DefaultToUtc.HasValue)
+            return null;
+
+        return new ReportRuntimeTimeRange(
+            HistoricalTimeRangeKind.Absolute,
+            FromUtc: definition.DefaultFromUtc,
+            ToUtc: definition.DefaultToUtc);
+    }
 
     private static HistoricalTimeRange ToHistoricalRange(ReportRuntimeTimeRange range) => range.Kind switch
     {

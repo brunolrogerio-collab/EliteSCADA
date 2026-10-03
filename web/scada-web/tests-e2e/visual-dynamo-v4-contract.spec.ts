@@ -6,7 +6,6 @@ import {
   resolveVisualDynamicState,
   visualTagSampleKey
 } from '../src/engineering/visual-editor/visualDynamicRuntime';
-import { resolveVisualDynamicState } from '../src/engineering/visual-editor/visualDynamicRuntime';
 import { projectDynamoRuntimeElements } from '../src/runtime/visual-navigation/dynamoRuntimeBindingProjection';
 import type {
   DynamoParameterDefinitionEngineering,

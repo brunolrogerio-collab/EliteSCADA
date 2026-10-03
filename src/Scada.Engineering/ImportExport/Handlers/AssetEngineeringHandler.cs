@@ -149,7 +149,6 @@ internal sealed class AssetEngineeringHandler
             EngineeringHandlerSupport.ValidateConcreteTagBindings(
                 _tags, dto.Bindings, ImportEntityKind.Dynamo, dto.Key, package, issues);
             ValidateDynamoParameterReferences(dto, package, issues);
-            ValidateDynamoDynamicParameterSources(dto, issues);
             ValidateDynamoVisualElements(dto.Elements, dto.Key, package, issues);
 
             EngineeringHandlerSupport.AddPreview(
@@ -192,67 +191,6 @@ internal sealed class AssetEngineeringHandler
         }
     }
 
-
-    private static void ValidateDynamoDynamicParameterSources(
-        DynamoEngineeringDto dynamo,
-        List<ImportIssue> issues)
-    {
-        var parameters = (dynamo.Parameters ?? Array.Empty<DynamoParameterDefinitionEngineeringDto>())
-            .Where(parameter => parameter is not null && !string.IsNullOrWhiteSpace(parameter.Key))
-            .ToDictionary(parameter => parameter.Key, StringComparer.OrdinalIgnoreCase);
-
-        void ValidateSource(VisualValueSourceEngineeringDto? source, string elementKey, string role)
-        {
-            if (source?.Target is null) return;
-            var match = System.Text.RegularExpressions.Regex.Match(
-                source.Target,
-                @"^{dynamoParameter:([A-Za-z][A-Za-z0-9._-]{0,63})}$",
-                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
-            if (!match.Success) return;
-
-            var parameterKey = match.Groups[1].Value;
-            if (!parameters.TryGetValue(parameterKey, out var parameter))
-            {
-                issues.Add(new(
-                    "DYNAMO_DYNAMIC_PARAMETER_NOT_FOUND",
-                    $"Dynamo element '{elementKey}' {role} references undeclared public parameter '{parameterKey}'.",
-                    ImportEntityKind.Dynamo,
-                    dynamo.Key,
-                    true));
-                return;
-            }
-
-            var expected = source.ValueType == VisualExpressionValueType.Boolean
-                ? DynamoParameterKind.Boolean
-                : DynamoParameterKind.Number;
-            if (parameter.Kind != expected)
-            {
-                issues.Add(new(
-                    "DYNAMO_DYNAMIC_PARAMETER_TYPE_MISMATCH",
-                    $"Dynamo element '{elementKey}' {role} requires {expected} parameter '{parameterKey}' but the public interface declares {parameter.Kind}.",
-                    ImportEntityKind.Dynamo,
-                    dynamo.Key,
-                    true));
-            }
-        }
-
-        void Walk(IReadOnlyCollection<VisualElementEngineeringDto>? elements)
-        {
-            foreach (var element in elements ?? Array.Empty<VisualElementEngineeringDto>())
-            {
-                if (element is null) continue;
-                foreach (var condition in element.BooleanConditions ?? Array.Empty<VisualBooleanConditionEngineeringDto>())
-                    if (condition is not null) ValidateSource(condition.Source, element.Key, "BooleanCondition");
-                foreach (var map in element.PropertyMaps ?? Array.Empty<VisualPropertyMapEngineeringDto>())
-                    if (map is not null) ValidateSource(map.Source, element.Key, "PropertyMap");
-                if (element.AnalogFill is not null)
-                    ValidateSource(element.AnalogFill.Source, element.Key, "AnalogFill");
-                Walk(element.Children);
-            }
-        }
-
-        Walk(dynamo.Elements);
-    }
 
     private void ValidateDynamoParameterReferences(
         DynamoEngineeringDto dynamo,

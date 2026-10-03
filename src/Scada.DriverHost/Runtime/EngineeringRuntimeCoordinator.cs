@@ -672,7 +672,8 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
             projectKey,
             cache,
             registry,
-            _protectedMaterialResolver);
+            _protectedMaterialResolver,
+            () => eventGate.ForwardingEnabled && _industrialEffectAuthority());
 
         foreach (var plan in compilation.CommunicationPlans)
         {

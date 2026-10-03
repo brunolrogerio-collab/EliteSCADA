@@ -26,6 +26,7 @@ public sealed class ModbusTcpServerDriver :
     private readonly int _maxClients;
     private readonly TimeSpan _clientIdleTimeout;
     private readonly SemaphoreSlim _clientSlots;
+    private readonly Func<bool> _externalEffectAuthority;
     private readonly ConcurrentDictionary<long, Task> _clients = new();
     private readonly object _diagnosticsGate = new();
     private readonly string _runtimeInstanceId = Guid.NewGuid().ToString("N");
@@ -64,7 +65,8 @@ public sealed class ModbusTcpServerDriver :
         ICurrentTagCache cache,
         ITagRegistry registry,
         int maxClients = 16,
-        TimeSpan? clientIdleTimeout = null)
+        TimeSpan? clientIdleTimeout = null,
+        Func<bool>? externalEffectAuthority = null)
     {
         if (string.IsNullOrWhiteSpace(driverId)) throw new ArgumentException("Driver ID is required.", nameof(driverId));
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Driver name is required.", nameof(name));
@@ -80,6 +82,7 @@ public sealed class ModbusTcpServerDriver :
         _maxClients = maxClients;
         _clientIdleTimeout = clientIdleTimeout ?? TimeSpan.FromSeconds(30);
         if (_clientIdleTimeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(clientIdleTimeout));
+        _externalEffectAuthority = externalEffectAuthority ?? (() => true);
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _points = (points ?? throw new ArgumentNullException(nameof(points))).ToArray();
@@ -306,8 +309,14 @@ public sealed class ModbusTcpServerDriver :
             try
             {
                 var stream = client.GetStream();
+                if (!_externalEffectAuthority())
+                    return;
+
                 while (!serverCancellation.IsCancellationRequested)
                 {
+                    if (!_externalEffectAuthority())
+                        break;
+
                     using var requestTimeout = CancellationTokenSource.CreateLinkedTokenSource(serverCancellation);
                     requestTimeout.CancelAfter(_clientIdleTimeout);
 
@@ -327,9 +336,14 @@ public sealed class ModbusTcpServerDriver :
 
                     var pdu = new byte[length - 1];
                     await stream.ReadExactlyAsync(pdu, requestTimeout.Token);
+                    if (!_externalEffectAuthority())
+                        break;
+
                     var started = Stopwatch.GetTimestamp();
                     var result = await _handler.HandleAsync(unit, pdu, requestTimeout.Token);
                     RecordProtocolResult(result, Stopwatch.GetElapsedTime(started));
+                    if (!_externalEffectAuthority())
+                        break;
 
                     var response = new byte[7 + result.ResponsePdu.Length];
                     BinaryPrimitives.WriteUInt16BigEndian(response.AsSpan(0, 2), transaction);

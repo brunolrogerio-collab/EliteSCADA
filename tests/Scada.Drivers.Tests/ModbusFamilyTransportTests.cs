@@ -276,6 +276,122 @@ public sealed class ModbusFamilyTransportTests
         probe.Stop();
     }
 
+    [Fact]
+    public async Task RuntimeActivation_TcpServerDoesNotServeBeforeCommitSwap()
+    {
+        var port = ReserveFreeTcpPort();
+        var package = TcpServerPackage(port);
+        var runtime = new EngineeringRuntimeCoordinator(
+            new InMemoryScadaEventBus(),
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromSeconds(2));
+
+        var servedBeforeSwap = true;
+        try
+        {
+            var activation = await runtime.ActivateAsync(
+                "modbus-server-staging",
+                1,
+                package,
+                async (_, cancellationToken) =>
+                {
+                    servedBeforeSwap = await ProbeTcpResponseAsync(
+                        port,
+                        ReadRequest(10, 1),
+                        TimeSpan.FromMilliseconds(400),
+                        cancellationToken);
+                });
+
+            Assert.True(activation.Activated, string.Join("; ", activation.RuntimeIssues.Select(issue => issue.Message)));
+            Assert.False(servedBeforeSwap);
+
+            var activeResponse = await SendTcpRequestAsync(port, 11, 1, ReadRequest(10, 1));
+            Assert.Equal(new byte[] { 0x03, 0x02, 0x00, 0x00 }, activeResponse);
+        }
+        finally
+        {
+            await runtime.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task RtuServer_DiscardsFramesUntilExternalEffectAuthority()
+    {
+        var effectsActive = false;
+        var line = new HostSerialLineSettings("/dev/ttyS-stage");
+        var connection = new ScriptedSerialConnection(line);
+        await using var coordinator = new HostSerialBusCoordinator(new ScriptedSerialProvider(connection));
+        var cache = new CurrentTagCache(new InMemoryScadaEventBus());
+        var registry = new InMemoryTagRegistry();
+        var serverPoint = ServerPoint("RTU Stage", "Server.Rtu.Stage", 10);
+
+        await using var driver = new ModbusRtuServerDriver(
+            "modbus.rtu.server:stage",
+            "RTU Stage",
+            coordinator,
+            line,
+            1,
+            new[] { new ModbusHoldingRegisterRange(0, 100) },
+            new[] { serverPoint },
+            cache,
+            registry,
+            TimeSpan.FromMilliseconds(250),
+            () => Volatile.Read(ref effectsActive));
+
+        await driver.StartAsync();
+        await driver.WriteAsync(serverPoint.Point.Tag.Id, 55);
+
+        await connection.InjectIncomingAsync(ModbusRtuCrc.Frame(1, ReadRequest(10, 1)));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            await connection.ReadOutgoingExactlyAsync(7, TimeSpan.FromMilliseconds(150)));
+
+        await Task.Delay(50);
+        Volatile.Write(ref effectsActive, true);
+        await connection.InjectIncomingAsync(ModbusRtuCrc.Frame(1, ReadRequest(10, 1)));
+        var response = await connection.ReadOutgoingExactlyAsync(7, TimeSpan.FromSeconds(1));
+
+        Assert.True(ModbusRtuCrc.IsValid(response));
+        Assert.Equal(new byte[] { 0x03, 0x02, 0x00, 0x37 }, response.AsSpan(1, 4).ToArray());
+    }
+
+    private static async Task<bool> ProbeTcpResponseAsync(
+        int port,
+        byte[] pdu,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        using var client = new TcpClient();
+        await client.ConnectAsync(IPAddress.Loopback, port, cancellationToken);
+        var stream = client.GetStream();
+        var request = new byte[7 + pdu.Length];
+        BinaryPrimitives.WriteUInt16BigEndian(request.AsSpan(0, 2), 99);
+        BinaryPrimitives.WriteUInt16BigEndian(request.AsSpan(2, 2), 0);
+        BinaryPrimitives.WriteUInt16BigEndian(request.AsSpan(4, 2), checked((ushort)(pdu.Length + 1)));
+        request[6] = 1;
+        pdu.CopyTo(request, 7);
+        await stream.WriteAsync(request, cancellationToken);
+
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(timeout);
+        var buffer = new byte[1];
+        try
+        {
+            return await stream.ReadAsync(buffer, deadline.Token) > 0;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (SocketException)
+        {
+            return false;
+        }
+    }
+
     private static byte[]? NormalMasterResponse(byte[] request)
     {
         Assert.True(ModbusRtuCrc.IsValid(request));

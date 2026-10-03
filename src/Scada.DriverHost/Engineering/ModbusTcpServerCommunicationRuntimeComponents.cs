@@ -207,6 +207,7 @@ public sealed class ModbusTcpServerCommunicationRuntimeFactory : ICommunicationD
             services.Cache,
             services.Registry,
             server.MaxClients,
-            server.ClientIdleTimeout);
+            server.ClientIdleTimeout,
+            services.EffectAuthority);
     }
 }

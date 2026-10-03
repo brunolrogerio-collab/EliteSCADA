@@ -15,6 +15,7 @@ public sealed class ModbusRtuServerDriver :
     private readonly HostSerialBusCoordinator _coordinator;
     private readonly HostSerialLineSettings _serialSettings;
     private readonly TimeSpan _frameTimeout;
+    private readonly Func<bool> _externalEffectAuthority;
     private readonly ICurrentTagCache _cache;
     private readonly ITagRegistry _registry;
     private readonly IReadOnlyList<ModbusServerPoint> _points;
@@ -54,7 +55,8 @@ public sealed class ModbusRtuServerDriver :
         IEnumerable<ModbusServerPoint> points,
         ICurrentTagCache cache,
         ITagRegistry registry,
-        TimeSpan? frameTimeout = null)
+        TimeSpan? frameTimeout = null,
+        Func<bool>? externalEffectAuthority = null)
     {
         if (string.IsNullOrWhiteSpace(driverId)) throw new ArgumentException("Driver ID is required.", nameof(driverId));
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Driver name is required.", nameof(name));
@@ -66,6 +68,7 @@ public sealed class ModbusRtuServerDriver :
         _serialSettings.Validate();
         _frameTimeout = frameTimeout ?? TimeSpan.FromSeconds(1);
         if (_frameTimeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(frameTimeout));
+        _externalEffectAuthority = externalEffectAuthority ?? (() => true);
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _points = (points ?? throw new ArgumentNullException(nameof(points))).ToArray();
@@ -245,11 +248,30 @@ public sealed class ModbusRtuServerDriver :
             {
                 var lease = _lease;
                 if (lease is null) break;
+
+                if (!_externalEffectAuthority())
+                {
+                    await lease.ExecuteSerializedAsync(
+                        static (connection, _) =>
+                        {
+                            connection.DiscardInput();
+                            return ValueTask.CompletedTask;
+                        },
+                        cancellationToken);
+                    await Task.Delay(20, cancellationToken);
+                    continue;
+                }
+
                 await lease.ExecuteSerializedAsync(
                     async (connection, token) =>
                     {
                         var frame = await ReadRequestFrameAsync(connection, token);
                         if (frame is null) return;
+                        if (!_externalEffectAuthority())
+                        {
+                            connection.DiscardInput();
+                            return;
+                        }
                         if (!ModbusRtuCrc.IsValid(frame))
                         {
                             lock (_diagnosticsGate)
@@ -270,6 +292,9 @@ public sealed class ModbusRtuServerDriver :
                         var started = Stopwatch.GetTimestamp();
                         var result = await _handler.HandleAsync(unit, pdu, token);
                         RecordProtocolResult(result, Stopwatch.GetElapsedTime(started));
+                        if (!_externalEffectAuthority())
+                            return;
+
                         var response = ModbusRtuCrc.Frame(unit, result.ResponsePdu);
                         await connection.WriteAsync(response, token);
                         await connection.FlushAsync(token);

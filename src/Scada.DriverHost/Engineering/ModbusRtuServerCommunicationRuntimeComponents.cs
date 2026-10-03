@@ -211,6 +211,7 @@ public sealed class ModbusRtuServerCommunicationRuntimeFactory : ICommunicationD
             server.Points,
             services.Cache,
             services.Registry,
-            server.FrameTimeout);
+            server.FrameTimeout,
+            services.EffectAuthority);
     }
 }

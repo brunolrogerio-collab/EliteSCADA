@@ -281,7 +281,9 @@ public static class EngineeringMutationEndpoints
         if (source is null) return null;
 
         var dependencies = workspace.Tags.Snapshot()
-            .Where(tag => string.Equals(tag.Source, source.Key, StringComparison.OrdinalIgnoreCase))
+            .Where(tag => tag.DataSourceId.HasValue
+                ? tag.DataSourceId == source.Id
+                : string.Equals(tag.Source, source.Key, StringComparison.OrdinalIgnoreCase))
             .Select(tag => new EngineeringDependency(
                 "tag",
                 tag.Id.ToString(),

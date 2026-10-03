@@ -176,8 +176,7 @@ public static class ReusableDynamoDependencyAnalyzer
     private static IReadOnlyCollection<ReusableLibraryDependency> Analyze(
         DynamoEngineeringDto dynamo,
         ReusableLibraryDependency? templateDependency,
-        Func<Guid, string, ReusableLibraryDependency> resolveAsset,
-        IReadOnlyDictionary<string, DynamoParameterKind> parameterKinds)
+        Func<Guid, string, ReusableLibraryDependency> resolveAsset)
     {
         var dependencies = new Dictionary<(string Kind, Guid ResourceId), ReusableLibraryDependency>();
         ValidatePortableBindings(dynamo.Bindings, $"Dynamo '{dynamo.Key}'");
@@ -213,7 +212,8 @@ public static class ReusableDynamoDependencyAnalyzer
         string ownerKey,
         IReadOnlyCollection<VisualElementEngineeringDto>? elements,
         IDictionary<(string Kind, Guid ResourceId), ReusableLibraryDependency> dependencies,
-        Func<Guid, string, ReusableLibraryDependency> resolveAsset)
+        Func<Guid, string, ReusableLibraryDependency> resolveAsset,
+        IReadOnlyDictionary<string, DynamoParameterKind> parameterKinds)
     {
         foreach (var element in elements ?? Array.Empty<VisualElementEngineeringDto>())
         {
@@ -235,6 +235,9 @@ public static class ReusableDynamoDependencyAnalyzer
                 if (parameter?.TagReference is { TagId: var tagId } && tagId != Guid.Empty)
                     throw new InvalidDataException(
                         $"Dynamo '{ownerKey}' element '{element.Key}' parameter '{parameter.Key}' carries a concrete TAG reference. Reusable Dynamos must keep project TAG references parameterized.");
+                if (parameter?.CommandId is { } commandId && commandId != Guid.Empty)
+                    throw new InvalidDataException(
+                        $"Dynamo '{ownerKey}' element '{element.Key}' parameter '{parameter.Key}' carries a concrete Command identity. Reusable Dynamos must bind Commands on the project instance.");
             }
 
             ValidatePortableActions(element.Actions, ownerKey, element.Key, parameterKinds);
@@ -312,6 +315,9 @@ public static class ReusableDynamoDependencyAnalyzer
 
         foreach (var condition in element.BooleanConditions ?? Array.Empty<VisualBooleanConditionEngineeringDto>())
             ValidatePortableSource(condition?.Source, ownerKey, element.Key);
+
+        foreach (var map in element.PropertyMaps ?? Array.Empty<VisualPropertyMapEngineeringDto>())
+            ValidatePortableSource(map?.Source, ownerKey, element.Key);
 
         if (element.AnalogFill is not null)
             ValidatePortableSource(element.AnalogFill.Source, ownerKey, element.Key);

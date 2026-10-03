@@ -633,3 +633,119 @@ test('pt-BR/en/es stay equivalent and 1366/1440/1920 desktop widths do not overf
   await expect(page.getByText('Revisión guardada', { exact: true })).toBeVisible();
   await expect(page.getByText('Runtime activo', { exact: true })).toBeVisible();
 });
+
+
+test('mounted Runtime Report Center generates one snapshot and exposes viewer/export controls', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
+  await page.route('**/api/**', route => route.fulfill({ status: 404, contentType: 'application/json', body: '{}' }));
+  await page.route('**/api/auth/config', route => route.fulfill({ json: {
+    authenticationEnabled: false, localLoginEnabled: false,
+    initialAdministratorRequired: false, initialAdministratorSetupAvailable: false
+  } }));
+  await page.route('**/api/auth/effective-capabilities', route => route.fulfill({ json: {
+    authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
+    authenticationEnabled: false,
+    runtime: ['View', 'TrendUse'],
+    workspace: []
+  } }));
+  await page.route('**/api/runtime/application', route => route.fulfill({ json: brandingActiveProjection({ mode: 'text', text: 'EliteSCADA' }) }));
+  await page.route('**/api/runtime/reports', route => route.fulfill({ json: [
+    { id: '11111111-2222-3333-4444-555555555555', key: 'process.summary', name: 'Process Summary', category: 'Process', description: '5-minute process summary' }
+  ] }));
+  await page.route('**/api/runtime/reports/process.summary', route => route.fulfill({ json: {
+    id: '11111111-2222-3333-4444-555555555555',
+    key: 'process.summary',
+    name: 'Process Summary',
+    category: 'Process',
+    description: '5-minute process summary',
+    parameters: [{ key: 'shift', name: 'Turno', type: 'string', defaultValue: { type: 'string', value: 'A' } }],
+    timeRange: { defaultKind: 'relative', defaultRelativeDurationSeconds: 86400, allowRelative: true, allowAbsolute: true },
+    resolution: { mode: 'sampledFixedStep', intervalMilliseconds: 300000, bucketAlignment: 'utcDuration' },
+    variables: [{ tagId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', path: 'Area.Temp', name: 'Temperature', dataType: 'Double', engineeringUnit: '°C', visible: true, order: 0, unitMode: 'automatic' }],
+    tableLayout: 'wide'
+  } }));
+  await page.route('**/api/runtime/reports/process.summary/generate', route => route.fulfill({ json: {
+    executionId: '99999999-8888-7777-6666-555555555555',
+    reportKey: 'process.summary',
+    reportName: 'Process Summary',
+    generatedAtUtc: '2026-10-03T12:00:00Z',
+    timeRange: { kind: 'relative', durationSeconds: 86400 },
+    result: {
+      reportId: '11111111-2222-3333-4444-555555555555',
+      reportKey: 'process.summary',
+      generatedAtUtc: '2026-10-03T12:00:00Z',
+      parameters: { shift: { type: 'string', value: 'A' } },
+      queries: [{
+        queryKey: 'main', dataset: 'historian.samples', retrievalMode: 'sampledFixedStep',
+        columns: [{ field: 'timestamp', type: 'dateTime', filterable: false, sortable: false, searchable: false }, { field: 'v:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', type: 'number', filterable: false, sortable: false, searchable: false }],
+        rows: Array.from({ length: 30 }, (_, index) => ({ cells: {
+          timestamp: { kind: 'dateTime', value: new Date(Date.UTC(2026, 9, 3, 10, index * 5)).toISOString() },
+          'v:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee': { kind: 'double', value: String(20 + index / 10) }
+        } })),
+        fromUtc: '2026-10-02T12:00:00Z', toUtc: '2026-10-03T12:00:00Z'
+      }]
+    }
+  } }));
+  await page.route('**/api/runtime/reports/executions/*/export/pdf', route => route.fulfill({
+    status: 200, contentType: 'application/pdf',
+    headers: { 'Content-Disposition': 'attachment; filename="Process_Summary.pdf"' },
+    body: '%PDF-1.4 test'
+  }));
+
+  await page.goto('/runtime/reports?report=process.summary');
+  await expect(page.getByRole('heading', { name: 'Relatórios' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Process Summary' })).toBeVisible();
+  await expect(page.getByText(/Intervalo fixo · 5 min/)).toBeVisible();
+  await page.getByRole('button', { name: 'Gerar relatório' }).click();
+
+  await expect(page.getByRole('button', { name: 'Exportar PDF' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Exportar Excel' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Exportar CSV' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Imprimir' })).toBeVisible();
+  await expect(page.getByText(/Página 1 \/ 2/)).toBeVisible();
+  await expect(page.getByText(/shift=A/)).toBeVisible();
+
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Exportar PDF' }).click();
+  expect((await download).suggestedFilename()).toBe('Process_Summary.pdf');
+});
+
+test('mounted Report Designer uses canonical Project Reference Browser for multiple stable TAG variables', async ({ page }) => {
+  const pkg = {
+    schema: 'scada.engineering', schemaVersion: 20, exportedAt: '2026-10-03T12:00:00Z',
+    tags: [
+      { id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', name: 'Pressure', path: 'Area.Pressure', dataType: 'Double', engineeringUnit: 'kPa', source: 'modbus.tcp' },
+      { id: 'bbbbbbbb-cccc-dddd-eeee-ffffffffffff', name: 'Temperature', path: 'Area.Temperature', dataType: 'Double', engineeringUnit: '°C', source: 'opcua' }
+    ],
+    alarms: [], dataSources: [], templates: [], equipment: [], dynamos: [], screens: [], popups: [],
+    securityRoles: [], gateways: [], visualAssets: [], reports: []
+  };
+  await page.addInitScript(() => localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
+  await page.route('**/api/**', route => route.fulfill({ status: 404, contentType: 'application/json', body: '{}' }));
+  await page.route('**/api/auth/config', route => route.fulfill({ json: { authenticationEnabled: false, localLoginEnabled: false } }));
+  await page.route('**/api/auth/effective-capabilities', route => route.fulfill({ json: {
+    authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
+    authenticationEnabled: false,
+    runtime: ['View', 'TrendUse'], workspace: ['EngineeringView', 'EngineeringModify']
+  } }));
+  await page.route('**/api/engineering/lock/status', route => route.fulfill({ json: { configured: false, locked: false } }));
+  await page.route('**/api/engineering/workspace', route => route.fulfill({ json: {
+    projectKey: 'report-v3', projectName: 'Report V3', baseRevision: 1, isDirty: false, changeVersion: 1,
+    tagCount: 2, alarmCount: 0, dataSourceCount: 0, templateCount: 0, equipmentCount: 0, dynamoCount: 0, screenCount: 0, popupCount: 0
+  } }));
+  await page.route('**/api/engineering/export/json', route => route.fulfill({ json: pkg }));
+  await page.route('**/api/runtime/application', route => route.fulfill({ json: brandingActiveProjection({ mode: 'text', text: 'EliteSCADA' }) }));
+
+  await page.goto('/engineering');
+  await page.locator('.eng-nav').getByRole('button', { name: /Relatórios/ }).click();
+  const designer = page.getByTestId('report-designer-workspace');
+  await expect(designer.getByTestId('project-reference-browser')).toBeVisible();
+  await designer.getByTestId('project-reference-browser').getByRole('button', { name: /Pressure/ }).click();
+  await designer.getByTestId('project-reference-browser').getByRole('button', { name: /Temperature/ }).click();
+
+  const variables = designer.locator('.report-variable-card');
+  await expect(variables).toHaveCount(2);
+  await expect(variables.nth(0)).toContainText('kPa');
+  await variables.nth(0).getByRole('combobox', { name: 'Unidade' }).selectOption('hidden');
+  await expect(variables.nth(0).getByRole('combobox', { name: 'Unidade' })).toHaveValue('hidden');
+});

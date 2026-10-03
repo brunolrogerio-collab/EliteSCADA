@@ -7,6 +7,11 @@ import {
 } from '../api';
 import type { EngineeringLocale } from '../i18n';
 import type { EngineeringPackageView, EngineeringSnapshot, ImportPreviewView } from '../types';
+import { ProjectReferenceBrowser } from '../project-reference/ProjectReferenceBrowser';
+import {
+  buildProjectReferenceCatalog,
+  type ProjectReferenceDescriptor
+} from '../project-reference/projectReferenceModel';
 import { previewReportExecution, ReportPreviewApiError } from './reportApi';
 import type {
   HistoricalQueryRow,
@@ -14,7 +19,8 @@ import type {
   ReportEngineeringDto,
   ReportExecutionResult,
   ReportParameterValue,
-  ReportSectionEngineeringDto
+  ReportSectionEngineeringDto,
+  ReportVariableEngineeringDto
 } from './reportContracts';
 import {
   NEW_REPORT_IDENTITY,
@@ -78,6 +84,11 @@ export function ReportDesignerWorkspace({ snapshot, locale, onApplied }: ReportD
   const selectedSection = draft.sections?.find(section => section.key === selectedSectionKey) ?? null;
   const selectedControl = selectedSection?.controls?.find(control => control.key === selectedControlKey) ?? null;
   const primaryQuery = draft.queries?.[0] ?? null;
+  const dataQueries = snapshot.package.dataQueries ?? [];
+  const reportReferences = useMemo(
+    () => buildProjectReferenceCatalog(snapshot.package)
+      .filter(reference => reference.family === 'tag' && Boolean(reference.tagReference?.tagId)),
+    [snapshot.package]);
   const pageWidth = (draft.page?.orientation ?? 'portrait') === 'landscape'
     ? A4_LANDSCAPE_WIDTH_MM
     : A4_PORTRAIT_WIDTH_MM;
@@ -318,18 +329,119 @@ export function ReportDesignerWorkspace({ snapshot, locale, onApplied }: ReportD
           <aside className="report-designer-left">
             <section className="report-designer-panel" data-testid="report-query-editor">
               <h2>{text.query}</h2>
+              <label><span>{text.savedDataQuery}</span><select value={primaryQuery?.dataQueryId ?? ''} onChange={event => {
+                const saved = dataQueries.find(item => item.id === event.target.value);
+                updateDraft(current => ({
+                  ...current,
+                  queries: (current.queries ?? []).map((query, index) => index === 0
+                    ? { ...query, dataQueryId: saved?.id ?? null, dataQueryKey: saved?.key ?? null }
+                    : query)
+                }));
+              }}>
+                <option value="">{text.embeddedQuery}</option>
+                {dataQueries.filter(item => Boolean(item.id)).map(item => <option key={item.id!} value={item.id!}>{item.name} · {item.key}</option>)}
+              </select></label>
               <label><span>{text.dataset}</span><select value={primaryQuery?.query.datasetKey ?? 'historian.samples'} onChange={event => updateDraft(current => updatePrimaryQueryDataset(current, event.target.value as 'historian.samples' | 'alarm.events'))}>
                 <option value="historian.samples">historian.samples</option>
                 <option value="alarm.events">alarm.events</option>
               </select></label>
-              <label><span>{text.defaultPeriod}</span><input type="number" min="1" value={readDefaultPeriod(draft)} onChange={event => updateDraft(current => updateRelativeDuration(current, Number(event.target.value)))}/></label>
-              <label><span>{text.runtimePeriod}</span><input type="number" min="1" value={runtimePeriodSeconds} onChange={event => { setRuntimePeriodSeconds(event.target.value); setExecution(null); setMode('design'); }}/></label>
+              <DurationEditor label={text.defaultPeriod} seconds={readDefaultPeriod(draft)} locale={locale} onChange={value => updateDraft(current => updateRelativeDuration(current, value))}/>
+              <DurationEditor label={text.runtimePeriod} seconds={runtimePeriodSeconds} locale={locale} onChange={value => { setRuntimePeriodSeconds(String(value)); setExecution(null); setMode('design'); }}/>
+              <label><span>{text.resolution}</span><select value={draft.resolution?.mode ?? 'raw'} onChange={event => updateDraft(current => ({
+                ...current,
+                resolution: resolutionForMode(event.target.value as 'raw' | 'sampledFixedStep' | 'aggregate', current.resolution)
+              }))}>
+                <option value="raw">{text.raw}</option>
+                <option value="sampledFixedStep">{text.fixedInterval}</option>
+                <option value="aggregate">{text.summary}</option>
+              </select></label>
+              {(draft.resolution?.mode ?? 'raw') === 'sampledFixedStep' ? <label><span>{text.interval}</span><select value={draft.resolution?.intervalMilliseconds ?? 300000} onChange={event => updateDraft(current => ({
+                ...current, resolution: { ...(current.resolution ?? {}), mode: 'sampledFixedStep', intervalMilliseconds: Number(event.target.value), maximumGapMilliseconds: current.resolution?.maximumGapMilliseconds ?? 300000, bucketAlignment: 'utcDuration' }
+              }))}>{intervalOptions().map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label> : null}
+              {(draft.resolution?.mode ?? 'raw') === 'aggregate' ? <>
+                <label><span>{text.aggregate}</span><select value={draft.resolution?.aggregateFunction ?? 'average'} onChange={event => updateDraft(current => ({
+                  ...current, resolution: { ...(current.resolution ?? {}), mode: 'aggregate', aggregateFunction: event.target.value as NonNullable<ReportEngineeringDto['resolution']>['aggregateFunction'], bucketMilliseconds: current.resolution?.bucketMilliseconds ?? 3600000, bucketAlignment: 'utcDuration' }
+                }))}>
+                  <option value="average">{text.average}</option><option value="minimum">{text.minimum}</option><option value="maximum">{text.maximum}</option><option value="sum">{text.sum}</option><option value="count">{text.count}</option><option value="first">First</option><option value="last">Last</option>
+                </select></label>
+                <label><span>{text.bucket}</span><select value={draft.resolution?.bucketMilliseconds ?? 3600000} onChange={event => updateDraft(current => ({
+                  ...current, resolution: { ...(current.resolution ?? {}), mode: 'aggregate', aggregateFunction: current.resolution?.aggregateFunction ?? 'average', bucketMilliseconds: Number(event.target.value), bucketAlignment: 'utcDuration' }
+                }))}>{bucketOptions().map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+              </> : null}
+              <label><span>{text.tableLayout}</span><select value={draft.tableLayout ?? 'long'} onChange={event => updateDraft(current => ({ ...current, tableLayout: event.target.value as 'long' | 'wide' }))}>
+                <option value="long">{text.longTable}</option>
+                <option value="wide" disabled={(draft.resolution?.mode ?? 'raw') === 'raw'}>{text.wideTable}</option>
+              </select></label>
               <label><span>{text.pageLimit}</span><input type="number" min="1" max="200" value={primaryQuery?.query.page?.limit ?? 50} onChange={event => updateDraft(current => updatePrimaryPageLimit(current, Number(event.target.value)))}/></label>
               <div className="report-preview-actions">
                 <button type="button" className="primary" onClick={() => void executePreview()} disabled={previewing || applying}>{previewing ? text.previewing : text.runPreview}</button>
                 {previewing ? <button type="button" onClick={cancelPreview}>{text.cancel}</button> : null}
               </div>
               <small>{text.queryHint}</small>
+            </section>
+
+            <section className="report-designer-panel report-variable-panel" data-testid="report-variable-editor">
+              <h2>{text.variables}</h2>
+              <p>{text.variablesHint}</p>
+              <ProjectReferenceBrowser
+                references={reportReferences}
+                locale={locale}
+                title={text.addVariables}
+                isSelectable={reference => Boolean(reference.tagReference?.tagId)}
+                onSelect={reference => updateDraft(current => addReportVariable(current, reference))}
+              />
+              <div className="report-variable-list">
+                {(draft.variables ?? []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map(variable =>
+                  <VariableEditor
+                    key={variable.tagId}
+                    variable={variable}
+                    text={text}
+                    onChange={update => updateDraft(current => updateReportVariable(current, variable.tagId, update))}
+                    onMove={direction => updateDraft(current => moveReportVariable(current, variable.tagId, direction))}
+                    onRemove={() => updateDraft(current => ({ ...current, variables: (current.variables ?? []).filter(item => item.tagId !== variable.tagId) }))}
+                  />)}
+              </div>
+            </section>
+
+            <section className="report-designer-panel" data-testid="report-group-summary-editor">
+              <h2>{text.groupsAndSummaries}</h2>
+              <p>{text.groupsHint}</p>
+              <div className="report-group-list">
+                {(draft.groups ?? []).map(group => <article key={group.key} className="report-group-card">
+                  <strong>{group.key}</strong>
+                  <label><span>{text.groupField}</span><select value={group.field} onChange={event => updateDraft(current => ({
+                    ...current,
+                    groups: (current.groups ?? []).map(item => item.key === group.key ? { ...item, field: event.target.value } : item)
+                  }))}>{reportFieldOptions(draft).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+                  <label><span>{text.order}</span><select value={group.direction ?? 'ascending'} onChange={event => updateDraft(current => ({
+                    ...current,
+                    groups: (current.groups ?? []).map(item => item.key === group.key ? { ...item, direction: event.target.value as 'ascending' | 'descending' } : item)
+                  }))}><option value="ascending">{text.ascending}</option><option value="descending">{text.descending}</option></select></label>
+                  <button type="button" className="danger" onClick={() => updateDraft(current => ({ ...current, groups: (current.groups ?? []).filter(item => item.key !== group.key) }))}>{text.remove}</button>
+                </article>)}
+              </div>
+              <button type="button" onClick={() => updateDraft(current => addReportGroup(current))}>+ {text.addGroup}</button>
+              <div className="report-summary-list">
+                {(draft.aggregates ?? []).map(aggregate => <article key={aggregate.key} className="report-group-card">
+                  <strong>{aggregate.key}</strong>
+                  <label><span>{text.aggregate}</span><select value={aggregate.function} onChange={event => updateDraft(current => ({
+                    ...current,
+                    aggregates: (current.aggregates ?? []).map(item => item.key === aggregate.key ? { ...item, function: event.target.value as typeof item.function } : item)
+                  }))}>
+                    <option value="average">{text.average}</option><option value="minimum">{text.minimum}</option><option value="maximum">{text.maximum}</option><option value="sum">{text.sum}</option><option value="count">{text.count}</option><option value="first">First</option><option value="last">Last</option>
+                  </select></label>
+                  <label><span>{text.summaryField}</span><select value={aggregate.field ?? ''} onChange={event => updateDraft(current => ({
+                    ...current,
+                    aggregates: (current.aggregates ?? []).map(item => item.key === aggregate.key ? { ...item, field: event.target.value || null } : item)
+                  }))}><option value="">{text.allRows}</option>{reportFieldOptions(draft).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+                  <label><span>{text.scope}</span><select value={aggregate.groupKey ?? ''} onChange={event => updateDraft(current => ({
+                    ...current,
+                    aggregates: (current.aggregates ?? []).map(item => item.key === aggregate.key ? { ...item, groupKey: event.target.value || null } : item)
+                  }))}><option value="">{text.reportScope}</option>{(draft.groups ?? []).map(group => <option key={group.key} value={group.key}>{group.key}</option>)}</select></label>
+                  <button type="button" className="danger" onClick={() => updateDraft(current => ({ ...current, aggregates: (current.aggregates ?? []).filter(item => item.key !== aggregate.key) }))}>{text.remove}</button>
+                </article>)}
+              </div>
+              <button type="button" onClick={() => updateDraft(current => addReportAggregate(current))}>+ {text.addSummary}</button>
             </section>
 
             <section className="report-designer-panel">
@@ -502,6 +614,165 @@ function ControlInspector({ report, section, control, text, onChange, onDelete }
   </div>;
 }
 
+function reportFieldOptions(report: ReportEngineeringDto) {
+  const dataset = report.queries?.[0]?.query.datasetKey;
+  const base = dataset === 'alarm.events'
+    ? [
+        { value: 'timestamp', label: 'Timestamp' },
+        { value: 'priority', label: 'Priority' },
+        { value: 'state', label: 'State' },
+        { value: 'source', label: 'Source' }
+      ]
+    : [
+        { value: 'timestamp', label: 'Timestamp' },
+        { value: 'variable', label: 'Variable' },
+        { value: 'value', label: 'Value' },
+        { value: 'quality', label: 'Quality' }
+      ];
+  const variables = (report.variables ?? []).filter(item => item.visible !== false).map(item => ({
+    value: `v:${item.tagId}`,
+    label: item.displayLabel || item.name
+  }));
+  return [...base, ...variables];
+}
+
+function addReportGroup(report: ReportEngineeringDto): ReportEngineeringDto {
+  const queryKey = report.queries?.[0]?.key ?? 'main';
+  const index = (report.groups?.length ?? 0) + 1;
+  const field = reportFieldOptions(report)[0]?.value ?? 'timestamp';
+  return {
+    ...report,
+    groups: [...(report.groups ?? []), { key: `group-${index}`, queryKey, field, direction: 'ascending' }]
+  };
+}
+
+function addReportAggregate(report: ReportEngineeringDto): ReportEngineeringDto {
+  const queryKey = report.queries?.[0]?.key ?? 'main';
+  const index = (report.aggregates?.length ?? 0) + 1;
+  return {
+    ...report,
+    aggregates: [...(report.aggregates ?? []), { key: `summary-${index}`, queryKey, function: 'average', field: 'value', groupKey: null }]
+  };
+}
+
+function VariableEditor({ variable, text, onChange, onMove, onRemove }: {
+  variable: ReportVariableEngineeringDto;
+  text: ReturnType<typeof copy>;
+  onChange: (update: (current: ReportVariableEngineeringDto) => ReportVariableEngineeringDto) => void;
+  onMove: (direction: -1 | 1) => void;
+  onRemove: () => void;
+}) {
+  return <article className="report-variable-card">
+    <header><strong>{variable.name}</strong><code>{variable.path}</code></header>
+    <small>{variable.dataType}{variable.engineeringUnit ? ` · ${variable.engineeringUnit}` : ''}{variable.source ? ` · ${variable.source}` : ''}</small>
+    <label><input type="checkbox" checked={variable.visible !== false} onChange={event => onChange(current => ({ ...current, visible: event.target.checked }))}/><span>{text.visible}</span></label>
+    <label><span>{text.displayLabel}</span><input value={variable.displayLabel ?? ''} onChange={event => onChange(current => ({ ...current, displayLabel: emptyToNull(event.target.value) }))}/></label>
+    <label><span>{text.unit}</span><select value={variable.unitMode ?? 'automatic'} onChange={event => onChange(current => ({ ...current, unitMode: event.target.value as ReportVariableEngineeringDto['unitMode'] }))}>
+      <option value="automatic">{text.unitAutomatic}</option><option value="hidden">{text.unitHidden}</option><option value="labelOverride">{text.unitOverride}</option>
+    </select></label>
+    {variable.unitMode === 'labelOverride' ? <label><span>{text.unitLabel}</span><input value={variable.unitLabel ?? ''} onChange={event => onChange(current => ({ ...current, unitLabel: event.target.value }))}/></label> : null}
+    <label><span>{text.decimals}</span><input type="number" min="0" max="15" value={variable.decimalPlaces ?? ''} onChange={event => onChange(current => ({ ...current, decimalPlaces: event.target.value === '' ? null : Number(event.target.value) }))}/></label>
+    <label><span>{text.numericFormat}</span><select value={variable.numericFormat ?? 'standard'} onChange={event => onChange(current => ({ ...current, numericFormat: event.target.value }))}>
+      <option value="standard">{text.formatStandard}</option><option value="fixed">{text.formatFixed}</option><option value="scientific">{text.formatScientific}</option>
+    </select></label>
+    <label><span>{text.dateTimeFormat}</span><select value={variable.dateTimeFormat ?? 'local'} onChange={event => onChange(current => ({ ...current, dateTimeFormat: event.target.value }))}>
+      <option value="local">{text.dateTimeLocal}</option><option value="date">{text.dateOnly}</option><option value="time">{text.timeOnly}</option><option value="iso">ISO 8601</option>
+    </select></label>
+    <div className="report-variable-boolean-labels">
+      <label><span>{text.booleanTrue}</span><input value={variable.booleanTrueLabel ?? ''} onChange={event => onChange(current => ({ ...current, booleanTrueLabel: emptyToNull(event.target.value) }))}/></label>
+      <label><span>{text.booleanFalse}</span><input value={variable.booleanFalseLabel ?? ''} onChange={event => onChange(current => ({ ...current, booleanFalseLabel: emptyToNull(event.target.value) }))}/></label>
+    </div>
+    <div className="report-variable-actions"><button type="button" onClick={() => onMove(-1)} aria-label={text.moveUp}>↑</button><button type="button" onClick={() => onMove(1)} aria-label={text.moveDown}>↓</button><button type="button" className="danger" onClick={onRemove}>{text.remove}</button></div>
+  </article>;
+}
+
+function addReportVariable(report: ReportEngineeringDto, reference: ProjectReferenceDescriptor): ReportEngineeringDto {
+  const tagId = reference.tagReference?.tagId;
+  if (!tagId || (report.variables ?? []).some(variable => variable.tagId.toLowerCase() === tagId.toLowerCase())) return report;
+  const variables = [...(report.variables ?? []), {
+    tagId,
+    path: reference.reference,
+    name: reference.label,
+    dataType: reference.dataType,
+    engineeringUnit: reference.engineeringUnit ?? null,
+    source: reference.providerIdentity ?? null,
+    displayLabel: reference.label,
+    visible: true,
+    order: report.variables?.length ?? 0,
+    unitMode: 'automatic' as const
+  }];
+  return { ...report, variables };
+}
+
+function updateReportVariable(
+  report: ReportEngineeringDto,
+  tagId: string,
+  update: (current: ReportVariableEngineeringDto) => ReportVariableEngineeringDto
+): ReportEngineeringDto {
+  return { ...report, variables: (report.variables ?? []).map(variable => variable.tagId === tagId ? update(variable) : variable) };
+}
+
+function moveReportVariable(report: ReportEngineeringDto, tagId: string, direction: -1 | 1): ReportEngineeringDto {
+  const variables = [...(report.variables ?? [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const index = variables.findIndex(variable => variable.tagId === tagId);
+  const target = index + direction;
+  if (index < 0 || target < 0 || target >= variables.length) return report;
+  [variables[index], variables[target]] = [variables[target], variables[index]];
+  return { ...report, variables: variables.map((variable, order) => ({ ...variable, order })) };
+}
+
+function resolutionForMode(
+  mode: 'raw' | 'sampledFixedStep' | 'aggregate',
+  current: ReportEngineeringDto['resolution']
+): NonNullable<ReportEngineeringDto['resolution']> {
+  if (mode === 'raw') return { mode: 'raw', bucketAlignment: 'utcDuration' };
+  if (mode === 'sampledFixedStep') return { mode, intervalMilliseconds: current?.intervalMilliseconds ?? 300000, maximumGapMilliseconds: current?.maximumGapMilliseconds ?? 300000, bucketAlignment: 'utcDuration' };
+  return { mode, aggregateFunction: current?.aggregateFunction ?? 'average', bucketMilliseconds: current?.bucketMilliseconds ?? 3600000, bucketAlignment: 'utcDuration' };
+}
+
+function intervalOptions() {
+  return [
+    { value: 60000, label: '1 min' }, { value: 300000, label: '5 min' }, { value: 900000, label: '15 min' },
+    { value: 1800000, label: '30 min' }, { value: 3600000, label: '1 h' }
+  ];
+}
+
+function bucketOptions() {
+  return [
+    { value: 60000, label: '1 min' }, { value: 300000, label: '5 min' }, { value: 900000, label: '15 min' },
+    { value: 3600000, label: '1 h' }, { value: 86400000, label: '24 h (UTC)' }, { value: 604800000, label: '7 d (UTC)' }
+  ];
+}
+
+function DurationEditor({ label, seconds, locale, onChange }: {
+  label: string;
+  seconds: string;
+  locale: EngineeringLocale;
+  onChange: (seconds: number) => void;
+}) {
+  const numeric = Math.max(1, Number(seconds) || 1);
+  const presets = [
+    { seconds: 900, label: '15 min' }, { seconds: 3600, label: '1 h' }, { seconds: 28800, label: '8 h' },
+    { seconds: 86400, label: '24 h' }, { seconds: 604800, label: locale === 'en' ? '7 days' : locale === 'es' ? '7 días' : '7 dias' }
+  ];
+  const known = presets.some(item => item.seconds === numeric);
+  return <label><span>{label}</span><select value={known ? numeric : 'custom'} onChange={event => {
+    if (event.target.value !== 'custom') onChange(Number(event.target.value));
+  }}>
+    {presets.map(item => <option key={item.seconds} value={item.seconds}>{item.label}</option>)}
+    {!known ? <option value="custom">{formatDuration(numeric, locale)}</option> : null}
+  </select>
+  {!known ? <input aria-label={label} type="number" min="1" value={numeric} onChange={event => onChange(Math.max(1, Number(event.target.value) || 1))}/> : null}
+  </label>;
+}
+
+function formatDuration(seconds: number, locale: EngineeringLocale) {
+  if (seconds % 86400 === 0) return `${seconds / 86400} ${locale === 'en' ? 'days' : locale === 'es' ? 'días' : 'dias'}`;
+  if (seconds % 3600 === 0) return `${seconds / 3600} h`;
+  if (seconds % 60 === 0) return `${seconds / 60} min`;
+  return `${seconds} s`;
+}
+
 function NumberField({ label, value, min = 0, onChange }: { label: string; value: number; min?: number; onChange: (value: number) => void }) {
   return <label><span>{label}</span><input type="number" min={min} step="0.5" value={value} onChange={event => onChange(Number(event.target.value))}/></label>;
 }
@@ -551,13 +822,13 @@ function sectionLabel(kind: ReportSectionEngineeringDto['kind'], text: ReportCop
 function copy(locale: EngineeringLocale) {
   const pt = {
     eyebrow: 'Engineering · Reporting', title: 'Designer de Relatórios', description: 'Edite Report Engineering canônico em milímetros, valide pelo ciclo Engineering e visualize dados pelo Report Execution protegido.',
-    authorityTitle: 'Autoridade canônica', authorityHint: 'Layout é ReportEngineeringDto. Preview é derivado e não altera Engineering.', reportList: 'Relatórios', reports: 'Relatórios', newReport: 'Novo', noReports: 'Nenhum relatório salvo.', sections: 'seções', name: 'Nome de exibição', key: 'Identificador', descriptionLabel: 'Descrição', orientation: 'Orientação', portrait: 'Retrato', landscape: 'Paisagem', design: 'Design', previewMode: 'Preview', reset: 'Reverter', validate: 'Validar', validating: 'Validando…', apply: 'Aplicar', applying: 'Aplicando…', validationPassed: 'Validação aprovada', validationFailed: 'Validação encontrou problemas', workspaceChanged: 'O Engineering Workspace mudou durante a validação. Recarregue e valide novamente.', applyConfirm: 'Aplicar este Report Engineering validado ao workspace?', discardConfirm: 'Descartar alterações não aplicadas neste relatório?', error: 'Erro', query: 'Consulta', dataset: 'Dataset', defaultPeriod: 'Período padrão (s)', runtimePeriod: 'Período do Preview (s)', runtimePeriodInvalid: 'O período do Preview deve ser um número positivo.', pageLimit: 'Linhas por página', runPreview: 'Executar Preview', previewing: 'Executando Preview…', cancel: 'Cancelar', queryHint: 'A consulta permanece Historical Query v1. Este editor não aceita SQL livre.', controls: 'controles', sectionHeight: 'Altura da seção (mm)', addLabel: '+ Label', addField: '+ Campo', contentWidth: 'de largura útil', emptyPreview: 'Consulta sem linhas', emptyPreviewHint: 'Header/footer continuam válidos; Detail não recebeu dados.', inspector: 'Propriedades', selectControl: 'Selecione um controle no layout.', controlKey: 'Identificador do controle', widthMm: 'Largura (mm)', heightMm: 'Altura (mm)', text: 'Texto', queryKey: 'Consulta', field: 'Campo', fieldHint: 'O campo deve existir no dataset canônico selecionado.', asset: 'Visual Asset', noAsset: 'Sem asset', deleteControl: 'Excluir controle', previewSummary: 'Resumo do Preview', previewNotRun: 'O Preview ainda não foi executado.', rows: 'linhas', unauthorized: 'Autenticação necessária para executar o Preview.', forbidden: 'O usuário atual não possui autorização para consultar os dados deste relatório.', reportHeader: 'Report Header', reportFooter: 'Report Footer', pageHeader: 'Page Header', pageFooter: 'Page Footer', groupHeader: 'Group Header', detail: 'Detail', groupFooter: 'Group Footer'
+    authorityTitle: 'Autoridade canônica', authorityHint: 'Layout é ReportEngineeringDto. Preview é derivado e não altera Engineering.', reportList: 'Relatórios', reports: 'Relatórios', newReport: 'Novo', noReports: 'Nenhum relatório salvo.', sections: 'seções', name: 'Nome de exibição', key: 'Identificador', descriptionLabel: 'Descrição', orientation: 'Orientação', portrait: 'Retrato', landscape: 'Paisagem', design: 'Design', previewMode: 'Preview', reset: 'Reverter', validate: 'Validar', validating: 'Validando…', apply: 'Aplicar', applying: 'Aplicando…', validationPassed: 'Validação aprovada', validationFailed: 'Validação encontrou problemas', workspaceChanged: 'O Engineering Workspace mudou durante a validação. Recarregue e valide novamente.', applyConfirm: 'Aplicar este Report Engineering validado ao workspace?', discardConfirm: 'Descartar alterações não aplicadas neste relatório?', error: 'Erro', query: 'Consulta', savedDataQuery: 'Consulta de Dados salva', embeddedQuery: 'Consulta incorporada do relatório', dataset: 'Fonte de dados', defaultPeriod: 'Período padrão', runtimePeriod: 'Período do Preview', resolution: 'Resolução', raw: 'Dados brutos', fixedInterval: 'Intervalo fixo', summary: 'Resumo', interval: 'Intervalo', aggregate: 'Agregação', average: 'Média', minimum: 'Mínimo', maximum: 'Máximo', sum: 'Soma', count: 'Contagem', bucket: 'Agrupar a cada', tableLayout: 'Apresentação', longTable: 'Longa / amostras', wideTable: 'Larga / intervalos', variables: 'Dados do relatório', groupsAndSummaries: 'Grupos e resumos', groupsHint: 'Configure agrupamentos e totais sem script. O agrupamento temporal vem da Resolução acima.', groupField: 'Agrupar por', order: 'Ordem', ascending: 'Crescente', descending: 'Decrescente', addGroup: 'Adicionar grupo', summaryField: 'Campo do resumo', scope: 'Escopo', allRows: 'Todas as linhas', reportScope: 'Relatório inteiro', addSummary: 'Adicionar resumo', variablesHint: 'Selecione TAGs canônicas. A identidade estável é persistida; label e unidade são apenas apresentação.', addVariables: 'Adicionar variáveis', visible: 'Mostrar coluna', displayLabel: 'Label de apresentação', unit: 'Unidade', unitAutomatic: 'Automática', unitHidden: 'Ocultar', unitOverride: 'Alterar label', unitLabel: 'Texto da unidade', decimals: 'Casas decimais', numericFormat: 'Formato numérico', formatStandard: 'Padrão', formatFixed: 'Fixo', formatScientific: 'Científico', dateTimeFormat: 'Formato de data/hora', dateTimeLocal: 'Data e hora local', dateOnly: 'Somente data', timeOnly: 'Somente hora', booleanTrue: 'Texto para Verdadeiro', booleanFalse: 'Texto para Falso', moveUp: 'Mover para cima', moveDown: 'Mover para baixo', remove: 'Remover', runtimePeriodInvalid: 'O período do Preview deve ser um número positivo.', pageLimit: 'Linhas por página', runPreview: 'Executar Preview', previewing: 'Executando Preview…', cancel: 'Cancelar', queryHint: 'A consulta permanece Historical Query v1. Este editor não aceita SQL livre.', controls: 'controles', sectionHeight: 'Altura da seção (mm)', addLabel: '+ Label', addField: '+ Campo', contentWidth: 'de largura útil', emptyPreview: 'Consulta sem linhas', emptyPreviewHint: 'Header/footer continuam válidos; Detail não recebeu dados.', inspector: 'Propriedades', selectControl: 'Selecione um controle no layout.', controlKey: 'Identificador do controle', widthMm: 'Largura (mm)', heightMm: 'Altura (mm)', text: 'Texto', queryKey: 'Consulta', field: 'Campo', fieldHint: 'O campo deve existir no dataset canônico selecionado.', asset: 'Visual Asset', noAsset: 'Sem asset', deleteControl: 'Excluir controle', previewSummary: 'Resumo do Preview', previewNotRun: 'O Preview ainda não foi executado.', rows: 'linhas', unauthorized: 'Autenticação necessária para executar o Preview.', forbidden: 'O usuário atual não possui autorização para consultar os dados deste relatório.', reportHeader: 'Report Header', reportFooter: 'Report Footer', pageHeader: 'Page Header', pageFooter: 'Page Footer', groupHeader: 'Group Header', detail: 'Detail', groupFooter: 'Group Footer'
   };
   const en = {
-    ...pt, eyebrow: 'Engineering · Reporting', title: 'Report Designer', description: 'Edit canonical Report Engineering in millimeters, validate through the Engineering lifecycle, and preview data through protected Report Execution.', authorityTitle: 'Canonical authority', authorityHint: 'Layout is ReportEngineeringDto. Preview is derived and never mutates Engineering.', reportList: 'Reports', reports: 'Reports', newReport: 'New', noReports: 'No saved reports.', sections: 'sections', name: 'Display name', key: 'Identifier', descriptionLabel: 'Description', orientation: 'Orientation', portrait: 'Portrait', landscape: 'Landscape', design: 'Design', previewMode: 'Preview', reset: 'Reset', validate: 'Validate', validating: 'Validating…', apply: 'Apply', applying: 'Applying…', validationPassed: 'Validation passed', validationFailed: 'Validation found problems', workspaceChanged: 'Engineering Workspace changed during validation. Reload and validate again.', applyConfirm: 'Apply this validated Report Engineering to the workspace?', discardConfirm: 'Discard unapplied changes to this report?', error: 'Error', query: 'Query', dataset: 'Dataset', defaultPeriod: 'Default period (s)', runtimePeriod: 'Preview period (s)', runtimePeriodInvalid: 'Preview period must be a positive number.', pageLimit: 'Rows per page', runPreview: 'Run Preview', previewing: 'Running Preview…', cancel: 'Cancel', queryHint: 'The query remains Historical Query v1. This editor never accepts free-form SQL.', controls: 'controls', sectionHeight: 'Section height (mm)', addLabel: '+ Label', addField: '+ Field', contentWidth: 'content width', emptyPreview: 'Query returned no rows', emptyPreviewHint: 'Header/footer remain valid; Detail received no data.', inspector: 'Properties', selectControl: 'Select a control in the layout.', controlKey: 'Control identifier', widthMm: 'Width (mm)', heightMm: 'Height (mm)', text: 'Text', queryKey: 'Query', field: 'Field', fieldHint: 'The field must exist in the selected canonical dataset.', asset: 'Visual Asset', noAsset: 'No asset', deleteControl: 'Delete control', previewSummary: 'Preview summary', previewNotRun: 'Preview has not been executed.', rows: 'rows', unauthorized: 'Authentication is required to execute Preview.', forbidden: 'The current user is not authorized to query this report data.'
+    ...pt, eyebrow: 'Engineering · Reporting', title: 'Report Designer', description: 'Edit canonical Report Engineering in millimeters, validate through the Engineering lifecycle, and preview data through protected Report Execution.', authorityTitle: 'Canonical authority', authorityHint: 'Layout is ReportEngineeringDto. Preview is derived and never mutates Engineering.', reportList: 'Reports', reports: 'Reports', newReport: 'New', noReports: 'No saved reports.', sections: 'sections', name: 'Display name', key: 'Identifier', descriptionLabel: 'Description', orientation: 'Orientation', portrait: 'Portrait', landscape: 'Landscape', design: 'Design', previewMode: 'Preview', reset: 'Reset', validate: 'Validate', validating: 'Validating…', apply: 'Apply', applying: 'Applying…', validationPassed: 'Validation passed', validationFailed: 'Validation found problems', workspaceChanged: 'Engineering Workspace changed during validation. Reload and validate again.', applyConfirm: 'Apply this validated Report Engineering to the workspace?', discardConfirm: 'Discard unapplied changes to this report?', error: 'Error', query: 'Query', savedDataQuery: 'Saved Data Query', embeddedQuery: 'Embedded report query', dataset: 'Data source', defaultPeriod: 'Default period', runtimePeriod: 'Preview period', resolution: 'Resolution', raw: 'Raw data', fixedInterval: 'Fixed interval', summary: 'Summary', interval: 'Interval', aggregate: 'Aggregation', average: 'Average', minimum: 'Minimum', maximum: 'Maximum', sum: 'Sum', count: 'Count', bucket: 'Bucket', tableLayout: 'Presentation', longTable: 'Long / samples', wideTable: 'Wide / intervals', variables: 'Report data', groupsAndSummaries: 'Groups and summaries', groupsHint: 'Configure grouping and totals without scripts. Time grouping comes from Resolution above.', groupField: 'Group by', order: 'Order', ascending: 'Ascending', descending: 'Descending', addGroup: 'Add group', summaryField: 'Summary field', scope: 'Scope', allRows: 'All rows', reportScope: 'Whole report', addSummary: 'Add summary', variablesHint: 'Select canonical TAGs. Stable identity is persisted; labels and units are presentation only.', addVariables: 'Add variables', visible: 'Show column', displayLabel: 'Display label', unit: 'Unit', unitAutomatic: 'Automatic', unitHidden: 'Hidden', unitOverride: 'Label override', unitLabel: 'Unit text', decimals: 'Decimal places', numericFormat: 'Numeric format', formatStandard: 'Standard', formatFixed: 'Fixed', formatScientific: 'Scientific', dateTimeFormat: 'Date/time format', dateTimeLocal: 'Local date and time', dateOnly: 'Date only', timeOnly: 'Time only', booleanTrue: 'True label', booleanFalse: 'False label', moveUp: 'Move up', moveDown: 'Move down', remove: 'Remove', runtimePeriodInvalid: 'Preview period must be a positive number.', pageLimit: 'Rows per page', runPreview: 'Run Preview', previewing: 'Running Preview…', cancel: 'Cancel', queryHint: 'The query remains Historical Query v1. This editor never accepts free-form SQL.', controls: 'controls', sectionHeight: 'Section height (mm)', addLabel: '+ Label', addField: '+ Field', contentWidth: 'content width', emptyPreview: 'Query returned no rows', emptyPreviewHint: 'Header/footer remain valid; Detail received no data.', inspector: 'Properties', selectControl: 'Select a control in the layout.', controlKey: 'Control identifier', widthMm: 'Width (mm)', heightMm: 'Height (mm)', text: 'Text', queryKey: 'Query', field: 'Field', fieldHint: 'The field must exist in the selected canonical dataset.', asset: 'Visual Asset', noAsset: 'No asset', deleteControl: 'Delete control', previewSummary: 'Preview summary', previewNotRun: 'Preview has not been executed.', rows: 'rows', unauthorized: 'Authentication is required to execute Preview.', forbidden: 'The current user is not authorized to query this report data.'
   };
   const es = {
-    ...pt, title: 'Diseñador de Informes', description: 'Edite Report Engineering canónico en milímetros, valide por el ciclo Engineering y previsualice datos mediante Report Execution protegido.', authorityTitle: 'Autoridad canónica', authorityHint: 'El layout es ReportEngineeringDto. El Preview es derivado y no modifica Engineering.', reportList: 'Informes', reports: 'Informes', newReport: 'Nuevo', noReports: 'No hay informes guardados.', sections: 'secciones', name: 'Nombre visible', key: 'Identificador', descriptionLabel: 'Descripción', orientation: 'Orientación', portrait: 'Vertical', landscape: 'Horizontal', design: 'Diseño', reset: 'Revertir', validate: 'Validar', validating: 'Validando…', apply: 'Aplicar', applying: 'Aplicando…', validationPassed: 'Validación aprobada', validationFailed: 'La validación encontró problemas', query: 'Consulta', defaultPeriod: 'Período predeterminado (s)', runtimePeriod: 'Período del Preview (s)', runtimePeriodInvalid: 'El período del Preview debe ser un número positivo.', pageLimit: 'Filas por página', runPreview: 'Ejecutar Preview', previewing: 'Ejecutando Preview…', cancel: 'Cancelar', queryHint: 'La consulta sigue siendo Historical Query v1. Este editor no acepta SQL libre.', controls: 'controles', sectionHeight: 'Altura de sección (mm)', addLabel: '+ Etiqueta', addField: '+ Campo', contentWidth: 'de ancho útil', emptyPreview: 'La consulta no devolvió filas', emptyPreviewHint: 'Header/footer siguen válidos; Detail no recibió datos.', inspector: 'Propiedades', selectControl: 'Seleccione un control en el layout.', controlKey: 'Identificador del control', widthMm: 'Ancho (mm)', heightMm: 'Alto (mm)', text: 'Texto', queryKey: 'Consulta', field: 'Campo', fieldHint: 'El campo debe existir en el dataset canónico seleccionado.', asset: 'Visual Asset', noAsset: 'Sin asset', deleteControl: 'Eliminar control', previewSummary: 'Resumen del Preview', previewNotRun: 'El Preview todavía no fue ejecutado.', rows: 'filas', unauthorized: 'Se requiere autenticación para ejecutar el Preview.', forbidden: 'El usuario actual no está autorizado para consultar los datos de este informe.'
+    ...pt, title: 'Diseñador de Informes', description: 'Edite Report Engineering canónico en milímetros, valide por el ciclo Engineering y previsualice datos mediante Report Execution protegido.', authorityTitle: 'Autoridad canónica', authorityHint: 'El layout es ReportEngineeringDto. El Preview es derivado y no modifica Engineering.', reportList: 'Informes', reports: 'Informes', newReport: 'Nuevo', noReports: 'No hay informes guardados.', sections: 'secciones', name: 'Nombre visible', key: 'Identificador', descriptionLabel: 'Descripción', orientation: 'Orientación', portrait: 'Vertical', landscape: 'Horizontal', design: 'Diseño', reset: 'Revertir', validate: 'Validar', validating: 'Validando…', apply: 'Aplicar', applying: 'Aplicando…', validationPassed: 'Validación aprobada', validationFailed: 'La validación encontró problemas', query: 'Consulta', savedDataQuery: 'Consulta de Datos guardada', embeddedQuery: 'Consulta incorporada del informe', dataset: 'Fuente de datos', defaultPeriod: 'Período predeterminado', runtimePeriod: 'Período del Preview', resolution: 'Resolución', raw: 'Datos brutos', fixedInterval: 'Intervalo fijo', summary: 'Resumen', interval: 'Intervalo', aggregate: 'Agregación', average: 'Promedio', minimum: 'Mínimo', maximum: 'Máximo', sum: 'Suma', count: 'Conteo', bucket: 'Agrupar cada', tableLayout: 'Presentación', longTable: 'Larga / muestras', wideTable: 'Ancha / intervalos', variables: 'Datos del informe', groupsAndSummaries: 'Grupos y resúmenes', groupsHint: 'Configure agrupaciones y totales sin scripts. La agrupación temporal viene de Resolución.', groupField: 'Agrupar por', order: 'Orden', ascending: 'Ascendente', descending: 'Descendente', addGroup: 'Agregar grupo', summaryField: 'Campo del resumen', scope: 'Ámbito', allRows: 'Todas las filas', reportScope: 'Informe completo', addSummary: 'Agregar resumen', variablesHint: 'Seleccione TAGs canónicos. La identidad estable se persiste; labels y unidades son solo presentación.', addVariables: 'Agregar variables', visible: 'Mostrar columna', displayLabel: 'Label visible', unit: 'Unidad', unitAutomatic: 'Automática', unitHidden: 'Ocultar', unitOverride: 'Cambiar label', unitLabel: 'Texto de unidad', decimals: 'Decimales', numericFormat: 'Formato numérico', formatStandard: 'Estándar', formatFixed: 'Fijo', formatScientific: 'Científico', dateTimeFormat: 'Formato de fecha/hora', dateTimeLocal: 'Fecha y hora local', dateOnly: 'Solo fecha', timeOnly: 'Solo hora', booleanTrue: 'Texto Verdadero', booleanFalse: 'Texto Falso', moveUp: 'Mover arriba', moveDown: 'Mover abajo', remove: 'Quitar', runtimePeriodInvalid: 'El período del Preview debe ser un número positivo.', pageLimit: 'Filas por página', runPreview: 'Ejecutar Preview', previewing: 'Ejecutando Preview…', cancel: 'Cancelar', queryHint: 'La consulta sigue siendo Historical Query v1. Este editor no acepta SQL libre.', controls: 'controles', sectionHeight: 'Altura de sección (mm)', addLabel: '+ Etiqueta', addField: '+ Campo', contentWidth: 'de ancho útil', emptyPreview: 'La consulta no devolvió filas', emptyPreviewHint: 'Header/footer siguen válidos; Detail no recibió datos.', inspector: 'Propiedades', selectControl: 'Seleccione un control en el layout.', controlKey: 'Identificador del control', widthMm: 'Ancho (mm)', heightMm: 'Alto (mm)', text: 'Texto', queryKey: 'Consulta', field: 'Campo', fieldHint: 'El campo debe existir en el dataset canónico seleccionado.', asset: 'Visual Asset', noAsset: 'Sin asset', deleteControl: 'Eliminar control', previewSummary: 'Resumen del Preview', previewNotRun: 'El Preview todavía no fue ejecutado.', rows: 'filas', unauthorized: 'Se requiere autenticación para ejecutar el Preview.', forbidden: 'El usuario actual no está autorizado para consultar los datos de este informe.'
   };
   return locale === 'en' ? en : locale === 'es' ? es : pt;
 }

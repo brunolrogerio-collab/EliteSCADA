@@ -1,7 +1,10 @@
 using System.IO.Compression;
 using System.Text;
+using System.Text.Json;
 using Scada.Api.Reports;
 using Scada.Core.HistoricalQueries;
+using Scada.Engineering.Contracts;
+using Scada.Engineering.DataQueries;
 using Scada.Engineering.Reports;
 
 namespace Scada.Drivers.Tests;
@@ -118,6 +121,94 @@ public sealed class ReportingV3Tests
         Assert.False(store.TryGet(snapshot.ExecutionId, "operator-b", out _));
     }
 
+    [Fact]
+    public void ResolvedDataQueries_AreServerOnlyAndNeverAcceptedFromWireJson()
+    {
+        var definition = SavedQuery(
+            Guid.Parse("22222222-3333-4444-5555-666666666666"),
+            "active.saved",
+            HistoricalDatasets.HistorianSamples,
+            HistoricalTimeRange.Relative(7200));
+        var request = new ReportExecutionRequest(
+            Report(),
+            TimeRange: new ReportRuntimeTimeRange(HistoricalTimeRangeKind.Relative, DurationSeconds: 3600),
+            ResolvedDataQueries: [definition]);
+
+        var json = JsonSerializer.Serialize(request, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.DoesNotContain("resolvedDataQueries", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("active.saved", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SavedDataQuery_UsesServerResolvedActiveDefinitionAndExplicitRuntimeRange()
+    {
+        var id = Guid.Parse("22222222-3333-4444-5555-666666666666");
+        var workingDefinition = SavedQuery(
+            id,
+            "active.saved",
+            HistoricalDatasets.AlarmEvents,
+            HistoricalTimeRange.Relative(60));
+        var activeDefinition = SavedQuery(
+            id,
+            "active.saved",
+            HistoricalDatasets.HistorianSamples,
+            HistoricalTimeRange.Relative(7200));
+
+        var workingRegistry = new InMemoryDataQueryEngineeringRegistry();
+        workingRegistry.Upsert(workingDefinition);
+        var transient = new RecordingTransientExecutionService();
+        var legacy = new ReportExecutionService(new RejectHistoricalQueryService());
+        var service = new ReportV3ExecutionService(legacy, workingRegistry, transient);
+
+        var from = new DateTimeOffset(2026, 10, 3, 10, 0, 0, TimeSpan.Zero);
+        var to = from.AddHours(2);
+        var report = Report() with
+        {
+            Queries =
+            [
+                new ReportQueryEngineeringDto(
+                    "main",
+                    new HistoricalQueryRequest(
+                        HistoricalDatasets.HistorianSamples,
+                        HistoricalTimeRange.Relative(300),
+                        Page: new HistoricalPageRequest(100)),
+                    DataQueryId: id,
+                    DataQueryKey: "active.saved")
+            ]
+        };
+
+        await service.ExecuteAsync(new ReportExecutionRequest(
+            report,
+            TimeRange: new ReportRuntimeTimeRange(
+                HistoricalTimeRangeKind.Absolute,
+                FromUtc: from,
+                ToUtc: to),
+            ResolvedDataQueries: [activeDefinition]));
+
+        var executed = Assert.IsType<DataQueryEngineeringDto>(transient.Definition);
+        Assert.Equal(HistoricalDatasets.HistorianSamples, executed.Query.Dataset);
+        Assert.Equal(HistoricalTimeRangeKind.Absolute, executed.Query.Range.Kind);
+        Assert.Equal(from, executed.Query.Range.FromUtc);
+        Assert.Equal(to, executed.Query.Range.ToUtc);
+        Assert.NotEqual(workingDefinition.Query.Dataset, executed.Query.Dataset);
+    }
+
+    private static DataQueryEngineeringDto SavedQuery(
+        Guid id,
+        string key,
+        string dataset,
+        HistoricalTimeRange range) =>
+        new(
+            id,
+            key,
+            key,
+            DataQueryExecutionService.HistoricalProviderKey,
+            new HistoricalQueryRequest(
+                dataset,
+                range,
+                Page: new HistoricalPageRequest(100)));
+
     private static ReportEngineeringDto Report() =>
         new(
             Guid.Parse("11111111-2222-3333-4444-555555555555"),
@@ -150,4 +241,40 @@ public sealed class ReportingV3Tests
 
     private static HistoricalColumn Column(string field, HistoricalFieldType type) =>
         new(field, type, Array.Empty<HistoricalFilterOperator>(), false, false, false);
+
+    private sealed class RejectHistoricalQueryService : IHistoricalQueryService
+    {
+        public Task<HistoricalQueryResponse> QueryAsync(
+            HistoricalQueryRequest request,
+            CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("Legacy Historical Query path must not execute for a saved Data Query.");
+    }
+
+    private sealed class RecordingTransientExecutionService : ITransientDataQueryExecutionService
+    {
+        public DataQueryEngineeringDto? Definition { get; private set; }
+
+        public Task<DataQueryExecutionResponse> ExecuteTransientAsync(
+            DataQueryEngineeringDto definition,
+            DataQueryExecutionRequest? request = null,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Definition = definition;
+            var from = definition.Query.Range.FromUtc ?? new DateTimeOffset(2026, 10, 3, 10, 0, 0, TimeSpan.Zero);
+            var to = definition.Query.Range.ToUtc ?? from.AddHours(1);
+            return Task.FromResult(new DataQueryExecutionResponse(
+                1,
+                definition.Id ?? Guid.NewGuid(),
+                definition.Key,
+                definition.Query.Dataset,
+                definition.HistorianRetrieval?.Mode ?? HistorianRetrievalMode.Raw,
+                HistoricalQueryCatalog.Require(definition.Query.Dataset).Columns,
+                Array.Empty<DataQueryExecutionRow>(),
+                from,
+                to,
+                null,
+                100));
+        }
+    }
 }

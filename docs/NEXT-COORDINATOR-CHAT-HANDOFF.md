@@ -1,3 +1,32 @@
+# LATEST DELTA — 2026-10-03 — NEXT BATCH ACTIVE / COORDINATOR ROTATION
+
+> This section supersedes older current-state wording below when there is a conflict.
+> GitHub live remains the only authority.
+
+Canonical successor handoff:
+`docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-10-03-NEXT-BATCH-ACTIVE.md`
+
+Accepted product checkpoint:
+`9b596286a40b1649564075626e817cc61e32e7bc`
+
+Release base of the active next batch:
+`aca641501302edb04f32b83b04adf0726d7e8a96`
+
+Current active lanes at outgoing revalidation:
+- #482 `work/w15-visual-library-catalog` — ahead 0 / behind 0 / no PR;
+- #483 `work/w15-home-building-h0` — ahead 0 / behind 0 / no PR;
+- #484 `content/w15-builtin-asset-curation-b1` — WIP at `055deb4df30eaf3e8af4d33fdc8739cf3d1b9df4`, tree `bca34cc2ea3b12124db703244ed715ebced9e0f9`, ahead 1 / behind 0, 86 draft assets in the batch manifest, no PR/handoff yet.
+
+CODEX is parked.
+Protocol-driver fan-out remains blocked.
+SVG-first/core.svgSymbol V2 waits #482.
+HOME/BUILDING H1-H6 waits #483.
+Rejected PR #451 remains permanently excluded.
+
+Read the canonical successor handoff above and latest #305/#482/#483/#484 GitHub live state before any action.
+
+---
+
 # LATEST DELTA — 2026-09-27 — CHAT HANDOFF / #362 REVIEW PENDING / CONTAINER-NATIVE CORE DIRECTION
 
 > This delta supersedes older current-state wording below when there is a conflict. GitHub live remains the sole authority.

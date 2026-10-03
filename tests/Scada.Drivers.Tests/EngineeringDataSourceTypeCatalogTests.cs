@@ -20,7 +20,6 @@ public sealed class EngineeringDataSourceTypeCatalogTests
         var expected = runtime.Registrations.Select(x => x.Descriptor.DriverType)
             .Concat(new[]
             {
-                ModbusTcpDriverDescriptorProvider.DriverTypeId,
                 BuiltInSourceProviderDescriptors.ServerMemory.TypeKey,
                 BuiltInSourceProviderDescriptors.ClientMemory.TypeKey
             })
@@ -33,6 +32,43 @@ public sealed class EngineeringDataSourceTypeCatalogTests
             Assert.Contains(catalog.DataSourceTypes, entry =>
                 entry.TypeKey.Equals(registration.Descriptor.DriverType, StringComparison.OrdinalIgnoreCase) &&
                 entry.DisplayName == registration.Descriptor.DisplayName));
+    }
+
+    [Fact]
+    public void Catalog_ProjectsIntegrationMetadataWithoutDriverSpecificFrontendKnowledge()
+    {
+        var catalog = BuildCatalog().Describe();
+
+        var modbusRtu = Assert.Single(catalog.DataSourceTypes, x => x.TypeKey == ModbusRtuDriverDescriptorProvider.DriverTypeId);
+        Assert.Contains("industrial", modbusRtu.IntegrationDomains);
+        Assert.Equal("hostSerial", modbusRtu.ConnectionModel);
+        Assert.Contains(modbusRtu.ExternalDependencies, dependency =>
+            dependency.Kind == "hostResource" && dependency.Requirement == "serialPort");
+
+        var bacnet = Assert.Single(catalog.DataSourceTypes, x => x.TypeKey == BacnetDriverDescriptor.DriverType);
+        Assert.Contains("building", bacnet.IntegrationDomains);
+        Assert.Contains("industrial", bacnet.IntegrationDomains);
+
+        var mqtt = Assert.Single(catalog.DataSourceTypes, x => x.TypeKey == Scada.Drivers.Mqtt.MqttDriverDescriptorProvider.DriverType);
+        Assert.Contains("industrial", mqtt.IntegrationDomains);
+        Assert.Contains("ioT", mqtt.IntegrationDomains);
+    }
+
+    [Fact]
+    public void Catalog_LegacyDescriptorMetadataFallsBackSafely()
+    {
+        var descriptor = new CommunicationDriverTypeDescriptor(
+            "legacy.driver",
+            "Legacy Driver",
+            1,
+            DriverCapabilities.Read,
+            DriverEngineeringCapabilities.None,
+            new[] { DriverAcquisitionMode.Polling },
+            new DriverConfigurationSchemaDescriptor("legacy.driver", 1, [], []));
+
+        Assert.Null(descriptor.ConnectionModel);
+        Assert.Null(descriptor.IntegrationDomains);
+        Assert.Null(descriptor.ExternalDependencies);
     }
 
     [Fact]

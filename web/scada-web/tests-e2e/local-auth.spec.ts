@@ -712,9 +712,13 @@ test('secure first-run creates the initial local Administrator, first project an
     await page.locator('button[type="submit"]').click();
 
     await expect(page.getByTestId('restore-first-application')).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole('heading', { name: 'Import application' })).toBeVisible();
-    await page.getByRole('button', { name: 'Validate application' }).click();
-    await page.getByRole('button', { name: 'Import application' }).click();
+    await expect(page.getByRole('heading', { name: 'Continue recovery' })).toBeVisible();
+    await expect(page.getByTestId('recovery-continuation-summary')).toContainText('application-a.escadapkg');
+    await expect(page.getByTestId('recovery-application-file')).toHaveCount(0);
+    await expect(page.getByTestId('recovery-license-file')).toHaveCount(0);
+    await expect(page.getByTestId('recovery-authority-password')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Continue recovery' }).click();
+    await page.getByRole('button', { name: 'Import selected application' }).click();
     await expect(page.getByTestId('runtime-engineering-application')).toBeVisible({ timeout: 20_000 });
     await expect(page.getByTestId('runtime-engineering-canvas')).toBeVisible();
 
@@ -808,4 +812,49 @@ test('secure first-run creates the initial local Administrator, first project an
   } finally {
     await context.close();
   }
+});
+
+
+test('auth system chrome follows semantic Light and Dark themes including password and file inputs', async ({ page }) => {
+  const config = {
+    authenticationEnabled: true,
+    localLoginEnabled: true,
+    initialAdministratorRequired: true,
+    initialAdministratorSetupAvailable: true,
+    initialAdministratorBlockedReason: null,
+    passwordPolicy: { minimumLength: 8, maximumLength: 1024 }
+  };
+  await page.route('**/api/auth/config', route => route.fulfill({ json: config }));
+  await page.route('**/api/auth/me', route => route.fulfill({ status: 401 }));
+
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('elitescada.app.theme'))
+      localStorage.setItem('elitescada.app.theme', 'light');
+  });
+  await page.goto('/');
+  await expect(page.locator('html')).toHaveAttribute('data-app-theme', 'light');
+
+  const light = await page.locator('.auth-card').evaluate(element => ({
+    card: getComputedStyle(element).backgroundColor,
+    password: getComputedStyle(document.querySelector('input[name="bootstrap-password"]')!).backgroundColor
+  }));
+  await page.getByRole('button', { name: /Restore backup|Restaurar backup|Restaurar backup/i }).click();
+  const lightFile = await page.getByTestId('recovery-application-file')
+    .evaluate(element => getComputedStyle(element).backgroundColor);
+
+  await page.evaluate(() => localStorage.setItem('elitescada.app.theme', 'dark'));
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-app-theme', 'dark');
+
+  const dark = await page.locator('.auth-card').evaluate(element => ({
+    card: getComputedStyle(element).backgroundColor,
+    password: getComputedStyle(document.querySelector('input[name="bootstrap-password"]')!).backgroundColor
+  }));
+  await page.getByRole('button', { name: /Restore backup|Restaurar backup|Restaurar backup/i }).click();
+  const darkFile = await page.getByTestId('recovery-application-file')
+    .evaluate(element => getComputedStyle(element).backgroundColor);
+
+  expect(light.card).not.toBe(dark.card);
+  expect(light.password).not.toBe(dark.password);
+  expect(lightFile).not.toBe(darkFile);
 });

@@ -8,10 +8,34 @@ export type RecoverySelection = {
   licenseFile?: File;
 };
 
+export type RecoveryArtifactIdentity = {
+  name: string;
+  size: number;
+};
+
+export type RecoveryContinuation = {
+  version: 1;
+  authorityRestored: true;
+  application: RecoveryArtifactIdentity;
+  license?: RecoveryArtifactIdentity;
+};
+
+export function recoveryContinuationFromSelection(selection: RecoverySelection): RecoveryContinuation {
+  return {
+    version: 1,
+    authorityRestored: true,
+    application: { name: selection.applicationFile.name, size: selection.applicationFile.size },
+    ...(selection.licenseFile
+      ? { license: { name: selection.licenseFile.name, size: selection.licenseFile.size } }
+      : {})
+  };
+}
+
 type Props = {
   mode: 'bootstrap' | 'application';
   locale: RecoveryLocale;
   selection?: RecoverySelection | null;
+  continuation?: RecoveryContinuation | null;
   onAuthorityRestored?: (selection: RecoverySelection) => Promise<void> | void;
   onApplicationRecovered?: () => Promise<void> | void;
   onCancel: () => void;
@@ -31,6 +55,17 @@ const text = {
     importTitle: 'Importar aplicação',
     bootstrapIntro: 'Valide o backup da Authority e o pacote da aplicação antes de alterar o servidor. A senha abaixo protege somente o backup da Authority.',
     applicationIntro: 'Valide o pacote da Application com a Authority atual antes de importá-lo, salvar a revisão raiz, publicar e ativar pelo lifecycle normal.',
+    continuationTitle: 'Continuar recuperação',
+    continuationIntro: 'A Authority já foi restaurada. Continue com os mesmos arquivos selecionados antes da restauração; o servidor fará uma nova validação canônica da Application antes do Apply.',
+    selectedArtifacts: 'Arquivos já selecionados',
+    lockedSource: 'A origem está bloqueada nesta continuação normal. Não é necessário selecionar a Application ou a licença novamente.',
+    resumeRequired: 'A Authority já foi restaurada, mas o navegador perdeu os arquivos selecionados. Selecione novamente para retomar; um novo Preview será obrigatório antes de qualquer Apply.',
+    reselectApplication: 'Selecionar novamente o pacote da aplicação (.escadapkg)',
+    reselectLicense: 'Selecionar novamente a licença escolhida anteriormente',
+    noLicenseSelected: 'Nenhuma licença opcional foi selecionada.',
+    continueRecovery: 'Continuar recuperação',
+    importSelectedApplication: 'Importar aplicação selecionada',
+    invalidLicenseFile: 'O arquivo de licença selecionado está vazio.',
     application: 'Pacote da aplicação (.escadapkg)',
     authority: 'Backup da Authority (.json)',
     authorityPassword: 'Senha do backup da Authority',
@@ -59,6 +94,17 @@ const text = {
     importTitle: 'Import application',
     bootstrapIntro: 'Validate the Authority backup and application package before changing the server. The password below protects only the Authority backup.',
     applicationIntro: 'Validate the Application package with the current Authority before importing it, saving the root revision, publishing, and activating through the normal lifecycle.',
+    continuationTitle: 'Continue recovery',
+    continuationIntro: 'Authority has already been restored. Continue with the same files selected before restore; the server will run a new canonical Application validation before Apply.',
+    selectedArtifacts: 'Already selected files',
+    lockedSource: 'The source is locked for this normal continuation. You do not need to select the Application or license again.',
+    resumeRequired: 'Authority has already been restored, but the browser lost the selected files. Reselect them to resume; a new Preview is required before any Apply.',
+    reselectApplication: 'Reselect application package (.escadapkg)',
+    reselectLicense: 'Reselect the previously chosen license',
+    noLicenseSelected: 'No optional license was selected.',
+    continueRecovery: 'Continue recovery',
+    importSelectedApplication: 'Import selected application',
+    invalidLicenseFile: 'The selected license file is empty.',
     application: 'Application package (.escadapkg)',
     authority: 'Authority backup (.json)',
     authorityPassword: 'Authority backup password',
@@ -87,6 +133,17 @@ const text = {
     importTitle: 'Importar aplicación',
     bootstrapIntro: 'Valide el backup de Authority y el paquete de la aplicación antes de modificar el servidor. La contraseña siguiente protege solamente el backup de Authority.',
     applicationIntro: 'Valide el paquete de la Application con la Authority actual antes de importarlo, guardar la revisión raíz, publicar y activar mediante el ciclo normal.',
+    continuationTitle: 'Continuar recuperación',
+    continuationIntro: 'Authority ya fue restaurada. Continúe con los mismos archivos seleccionados antes de la restauración; el servidor hará una nueva validación canónica de la Application antes del Apply.',
+    selectedArtifacts: 'Archivos ya seleccionados',
+    lockedSource: 'El origen queda bloqueado en esta continuación normal. No es necesario seleccionar nuevamente la Application ni la licencia.',
+    resumeRequired: 'Authority ya fue restaurada, pero el navegador perdió los archivos seleccionados. Selecciónelos nuevamente para retomar; un nuevo Preview será obligatorio antes de cualquier Apply.',
+    reselectApplication: 'Seleccionar nuevamente el paquete de la aplicación (.escadapkg)',
+    reselectLicense: 'Seleccionar nuevamente la licencia elegida anteriormente',
+    noLicenseSelected: 'No se seleccionó ninguna licencia opcional.',
+    continueRecovery: 'Continuar recuperación',
+    importSelectedApplication: 'Importar aplicación seleccionada',
+    invalidLicenseFile: 'El archivo de licencia seleccionado está vacío.',
     application: 'Paquete de la aplicación (.escadapkg)',
     authority: 'Backup de Authority (.json)',
     authorityPassword: 'Contraseña del backup de Authority',
@@ -132,10 +189,17 @@ async function postPackage(path: string, applicationFile: File): Promise<Respons
   });
 }
 
+function formatFileSize(size: number, locale: RecoveryLocale): string {
+  if (size < 1024) return `${size.toLocaleString(locale)} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toLocaleString(locale, { maximumFractionDigits: 1 })} KB`;
+  return `${(size / (1024 * 1024)).toLocaleString(locale, { maximumFractionDigits: 1 })} MB`;
+}
+
 export function RestoreFirstPanel({
   mode,
   locale,
   selection,
+  continuation,
   onAuthorityRestored,
   onApplicationRecovered,
   onCancel
@@ -152,6 +216,8 @@ export function RestoreFirstPanel({
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [licenseWarning, setLicenseWarning] = useState(false);
+  const stagedContinuation = mode === 'application' && Boolean(selection);
+  const resumedContinuation = mode === 'application' && !selection && Boolean(continuation);
 
   useEffect(() => {
     setApplicationFile(selection?.applicationFile ?? null);
@@ -175,6 +241,16 @@ export function RestoreFirstPanel({
     setStatus(null);
   };
 
+  const chooseLicense = (file: File | null) => {
+    setLicenseFile(file);
+    if (mode === 'bootstrap') {
+      setAuthorityValid(false);
+      setApplicationValid(false);
+    }
+    setError(null);
+    setStatus(null);
+  };
+
   const validateBootstrap = async () => {
     if (!applicationFile || !authorityFile || !authorityPassword) {
       setError(t.chooseFiles);
@@ -186,6 +262,9 @@ export function RestoreFirstPanel({
     setAuthorityValid(false);
     setApplicationValid(false);
     try {
+      if (licenseFile && !(await licenseFile.text()).trim())
+        throw new Error(t.invalidLicenseFile);
+
       const authorityBackup = await authorityFile.text();
       const authorityResponse = await fetch(`${API}/api/auth/bootstrap/authority-backup/preview`, {
         method: 'POST',
@@ -319,19 +398,42 @@ export function RestoreFirstPanel({
     <div className="auth-page">
       <div className="auth-card auth-card--recovery" data-testid={`restore-first-${mode}`}>
         <div className="auth-mark">E</div>
-        <h1>{mode === 'bootstrap' ? t.title : t.importTitle}</h1>
-        <p>{mode === 'bootstrap' ? t.bootstrapIntro : t.applicationIntro}</p>
+        <h1>{mode === 'bootstrap' ? t.title : stagedContinuation || resumedContinuation ? t.continuationTitle : t.importTitle}</h1>
+        <p>{mode === 'bootstrap' ? t.bootstrapIntro : stagedContinuation || resumedContinuation ? t.continuationIntro : t.applicationIntro}</p>
 
-        <label>
-          <span>{t.application}</span>
-          <input
-            data-testid="recovery-application-file"
-            type="file"
-            accept=".escadapkg,application/vnd.elitescada.project-package"
-            onChange={event => chooseApplication(event.target.files?.[0] ?? null)}
-          />
-          {applicationFile && <small className="auth-hint">{applicationFile.name}</small>}
-        </label>
+        {(stagedContinuation || resumedContinuation) && (
+          <div className="auth-recovery-summary" data-testid="recovery-continuation-summary">
+            <strong>{t.selectedArtifacts}</strong>
+            <div>
+              <span>{t.application}</span>
+              <b>{selection?.applicationFile.name ?? continuation?.application.name}</b>
+              <small>{formatFileSize(selection?.applicationFile.size ?? continuation?.application.size ?? 0, locale)}</small>
+            </div>
+            {(selection?.licenseFile || continuation?.license) ? (
+              <div>
+                <span>{t.license}</span>
+                <b>{selection?.licenseFile?.name ?? continuation?.license?.name}</b>
+                <small>{formatFileSize(selection?.licenseFile?.size ?? continuation?.license?.size ?? 0, locale)}</small>
+              </div>
+            ) : (
+              <small className="auth-hint">{t.noLicenseSelected}</small>
+            )}
+            <small className="auth-hint">{stagedContinuation ? t.lockedSource : t.resumeRequired}</small>
+          </div>
+        )}
+
+        {!stagedContinuation && (
+          <label>
+            <span>{resumedContinuation ? t.reselectApplication : t.application}</span>
+            <input
+              data-testid="recovery-application-file"
+              type="file"
+              accept=".escadapkg,application/vnd.elitescada.project-package"
+              onChange={event => chooseApplication(event.target.files?.[0] ?? null)}
+            />
+            {applicationFile && <small className="auth-hint">{applicationFile.name}</small>}
+          </label>
+        )}
 
         {mode === 'bootstrap' && (
           <>
@@ -362,15 +464,17 @@ export function RestoreFirstPanel({
           </>
         )}
 
-        <label>
-          <span>{t.license}</span>
-          <input
-            data-testid="recovery-license-file"
-            type="file"
-            onChange={event => setLicenseFile(event.target.files?.[0] ?? null)}
-          />
-          <small className="auth-hint">{licenseFile ? licenseFile.name : t.licenseHint}</small>
-        </label>
+        {!stagedContinuation && (!resumedContinuation || continuation?.license) && (
+          <label>
+            <span>{resumedContinuation ? t.reselectLicense : t.license}</span>
+            <input
+              data-testid="recovery-license-file"
+              type="file"
+              onChange={event => chooseLicense(event.target.files?.[0] ?? null)}
+            />
+            <small className="auth-hint">{licenseFile ? licenseFile.name : resumedContinuation ? continuation?.license?.name : t.licenseHint}</small>
+          </label>
+        )}
 
         {status && <div className="auth-status" role="status">{status}</div>}
         {error && <div className="auth-error" role="alert">{error}</div>}
@@ -384,9 +488,11 @@ export function RestoreFirstPanel({
         )}
 
         <div className="auth-actions">
-          <button type="button" className="auth-secondary" onClick={onCancel} disabled={validating || applying}>
-            {t.cancel}
-          </button>
+          {(mode === 'bootstrap' || (!stagedContinuation && !resumedContinuation)) && (
+            <button type="button" className="auth-secondary" onClick={onCancel} disabled={validating || applying}>
+              {t.cancel}
+            </button>
+          )}
           {mode === 'bootstrap' ? (
             <>
               <button
@@ -414,7 +520,7 @@ export function RestoreFirstPanel({
                 onClick={() => void validateApplication()}
                 disabled={validating || applying || !applicationFile}
               >
-                {validating ? t.validating : t.validateApplication}
+                {validating ? t.validating : stagedContinuation || resumedContinuation ? t.continueRecovery : t.validateApplication}
               </button>
               <button
                 type="button"
@@ -422,7 +528,7 @@ export function RestoreFirstPanel({
                 onClick={() => void restoreApplication()}
                 disabled={applying || validating || !applicationValid || licenseWarning}
               >
-                {applying ? t.restoringApplication : t.restoreApplication}
+                {applying ? t.restoringApplication : stagedContinuation || resumedContinuation ? t.importSelectedApplication : t.restoreApplication}
               </button>
             </>
           )}

@@ -3,6 +3,7 @@ using Scada.Core.Alarms;
 using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
+using Scada.Drivers.Abstractions;
 using Scada.Drivers.Modbus;
 using Scada.Drivers.Serial;
 using Scada.Engineering.Contracts;

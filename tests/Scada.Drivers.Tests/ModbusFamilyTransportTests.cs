@@ -557,7 +557,7 @@ public sealed class ModbusFamilyTransportTests
             SchemaVersion: 5,
             ExportedAt: DateTimeOffset.UtcNow,
             Tags: new[] { tag },
-            Alarms: Array.Empty<Scada.Core.Alarms.AlarmEngineeringDto>(),
+            Alarms: Array.Empty<AlarmEngineeringDto>(),
             DataSources: new[] { source });
     }
 

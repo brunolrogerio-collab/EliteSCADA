@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.VisualScripting;
 
 namespace Scada.Engineering.Validation;
 

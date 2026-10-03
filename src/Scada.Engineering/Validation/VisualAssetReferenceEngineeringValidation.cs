@@ -104,50 +104,101 @@ internal static class VisualAssetReferenceEngineeringValidation
         string entityKey,
         ICollection<ImportIssue> issues)
     {
-        if (element.Properties is null ||
-            !element.Properties.TryGetValue(BuiltinVisualObjectSchemas.SvgPaintOverridesProperty, out var overrides) ||
-            overrides.ValueKind != JsonValueKind.Object ||
-            !overrides.TryGetProperty("slots", out var slots) ||
-            slots.ValueKind != JsonValueKind.Object)
-            return;
-
         var declared = ReadDeclaredSlots(asset);
-        foreach (var slot in slots.EnumerateObject())
+
+        if (element.Properties is not null &&
+            element.Properties.TryGetValue(BuiltinVisualObjectSchemas.SvgPaintOverridesProperty, out var overrides) &&
+            overrides.ValueKind == JsonValueKind.Object &&
+            overrides.TryGetProperty("slots", out var slots) &&
+            slots.ValueKind == JsonValueKind.Object)
         {
-            if (!declared.TryGetValue(slot.Name, out var capabilities))
+            foreach (var slot in slots.EnumerateObject())
+            {
+                if (!declared.TryGetValue(slot.Name, out var capabilities))
+                {
+                    issues.Add(new(
+                        "VISUAL_SVG_SLOT_UNKNOWN",
+                        $"SVG symbol '{element.Key}' paint override references semantic slot '{slot.Name}', which is not declared by Visual Asset '{asset.Key}'.",
+                        kind,
+                        entityKey,
+                        true));
+                    continue;
+                }
+
+                if (slot.Value.ValueKind != JsonValueKind.Object)
+                    continue;
+
+                foreach (var property in slot.Value.EnumerateObject())
+                {
+                    if (Supports(capabilities, property.Name)) continue;
+                    issues.Add(new(
+                        "VISUAL_SVG_SLOT_PROPERTY_UNSUPPORTED",
+                        $"SVG symbol '{element.Key}' semantic slot '{slot.Name}' does not expose '{property.Name}' in canonical Visual Asset metadata.",
+                        kind,
+                        entityKey,
+                        true));
+                }
+            }
+        }
+
+        foreach (var destinationKey in DynamicSemanticDestinations(element))
+        {
+            if (!SvgSemanticPaintEngineering.TryParse(destinationKey, out var destination))
+                continue;
+
+            if (!declared.TryGetValue(destination.Slot, out var capabilities))
             {
                 issues.Add(new(
                     "VISUAL_SVG_SLOT_UNKNOWN",
-                    $"SVG symbol '{element.Key}' paint override references semantic slot '{slot.Name}', which is not declared by Visual Asset '{asset.Key}'.",
+                    $"SVG symbol '{element.Key}' dynamic destination '{destinationKey}' references semantic slot '{destination.Slot}', which is not declared by Visual Asset '{asset.Key}'.",
                     kind,
                     entityKey,
                     true));
                 continue;
             }
 
-            if (slot.Value.ValueKind != JsonValueKind.Object)
-                continue;
-
-            foreach (var property in slot.Value.EnumerateObject())
+            var propertyName = destination.Property switch
             {
-                var supported = property.Name switch
-                {
-                    "fill" => capabilities.Fill,
-                    "stroke" => capabilities.Stroke,
-                    "strokeWidth" => capabilities.StrokeWidth,
-                    _ => true // Structural validation owns unknown fields.
-                };
-                if (supported) continue;
+                SvgSemanticPaintEngineering.PaintProperty.Fill => "fill",
+                SvgSemanticPaintEngineering.PaintProperty.Stroke => "stroke",
+                SvgSemanticPaintEngineering.PaintProperty.StrokeWidth => "strokeWidth",
+                _ => string.Empty
+            };
+            if (Supports(capabilities, propertyName))
+                continue;
 
-                issues.Add(new(
-                    "VISUAL_SVG_SLOT_PROPERTY_UNSUPPORTED",
-                    $"SVG symbol '{element.Key}' semantic slot '{slot.Name}' does not expose '{property.Name}' in canonical Visual Asset metadata.",
-                    kind,
-                    entityKey,
-                    true));
-            }
+            issues.Add(new(
+                "VISUAL_SVG_SLOT_PROPERTY_UNSUPPORTED",
+                $"SVG symbol '{element.Key}' dynamic destination '{destinationKey}' is not supported by semantic slot '{destination.Slot}' in canonical Visual Asset metadata.",
+                kind,
+                entityKey,
+                true));
         }
     }
+
+    private static IEnumerable<string> DynamicSemanticDestinations(VisualElementEngineeringDto element)
+    {
+        foreach (var binding in element.Bindings ?? Array.Empty<EngineeringBindingDto>())
+            if (binding is not null && !string.IsNullOrWhiteSpace(binding.Key))
+                yield return binding.Key;
+        foreach (var map in element.PropertyMaps ?? Array.Empty<VisualPropertyMapEngineeringDto>())
+            if (map is not null && !string.IsNullOrWhiteSpace(map.PropertyKey))
+                yield return map.PropertyKey;
+        foreach (var expression in element.PropertyExpressions ?? Array.Empty<VisualPropertyExpressionEngineeringDto>())
+            if (expression is not null && !string.IsNullOrWhiteSpace(expression.PropertyKey))
+                yield return expression.PropertyKey;
+        foreach (var condition in element.BooleanConditions ?? Array.Empty<VisualBooleanConditionEngineeringDto>())
+            if (condition is not null && !string.IsNullOrWhiteSpace(condition.PropertyKey))
+                yield return condition.PropertyKey;
+    }
+
+    private static bool Supports(SvgSlotCapabilities capabilities, string property) => property switch
+    {
+        "fill" => capabilities.Fill,
+        "stroke" => capabilities.Stroke,
+        "strokeWidth" => capabilities.StrokeWidth,
+        _ => false
+    };
 
     private static IReadOnlyDictionary<string, SvgSlotCapabilities> ReadDeclaredSlots(VisualAssetEngineeringDto asset)
     {

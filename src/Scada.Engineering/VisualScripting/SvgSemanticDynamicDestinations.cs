@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Scada.Engineering.VisualScripting;
 
 internal enum SvgSemanticDynamicPaintProperty
@@ -13,6 +15,7 @@ internal sealed record SvgSemanticDynamicDestination(
     SvgSemanticDynamicPaintProperty Property)
 {
     public bool IsColor => Property is SvgSemanticDynamicPaintProperty.Fill or SvgSemanticDynamicPaintProperty.Stroke;
+    public bool IsNumber => Property == SvgSemanticDynamicPaintProperty.StrokeWidth;
 }
 
 internal static class SvgSemanticDynamicDestinations
@@ -47,6 +50,26 @@ internal static class SvgSemanticDynamicDestinations
         destination = new(key, slot, property.Value);
         return true;
     }
+
+    public static bool ValidateMappedValue(SvgSemanticDynamicDestination destination, JsonElement value)
+    {
+        if (destination.IsColor)
+        {
+            return value.ValueKind == JsonValueKind.String &&
+                HexColor(value.GetString());
+        }
+
+        return value.ValueKind == JsonValueKind.Number &&
+            value.TryGetDouble(out var width) &&
+            double.IsFinite(width) &&
+            width >= 0 &&
+            width <= 10_000;
+    }
+
+    private static bool HexColor(string? value) =>
+        value is { Length: 7 or 9 } &&
+        value[0] == '#' &&
+        value.Skip(1).All(Uri.IsHexDigit);
 
     private static bool ValidSlot(string slot)
     {

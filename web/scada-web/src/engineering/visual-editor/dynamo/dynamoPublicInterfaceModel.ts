@@ -18,7 +18,8 @@ export type DynamoParameterEditorKind =
   | 'number'
   | 'text'
   | 'equipment-path'
-  | 'tag-reference';
+  | 'tag-reference'
+  | 'command';
 
 export class DynamoPublicInterfaceError extends Error {
   constructor(
@@ -82,6 +83,7 @@ export function resolveDynamoParameterEditorKind(
     case 'String': return 'text';
     case 'EquipmentPath': return 'equipment-path';
     case 'TagReference': return 'tag-reference';
+    case 'Command': return 'command';
   }
 }
 
@@ -200,6 +202,16 @@ function indexDefinitions(
 }
 
 function validateParameterValue(value: DynamoParameterValueEngineering): void {
+  if (value.kind === 'Command') {
+    if (value.value !== undefined || value.tagReference || !value.commandId?.trim()) {
+      throw new DynamoPublicInterfaceError(
+        'DYNAMO_PUBLIC_PARAMETER_VALUE_INVALID',
+        `Command parameter '${value.key}' requires a stable Command identity and cannot carry scalar/TAG data.`
+      );
+    }
+    return;
+  }
+
   if (value.kind === 'TagReference') {
     if (value.value !== undefined || !value.tagReference?.tagId?.trim()) {
       throw new DynamoPublicInterfaceError(
@@ -210,7 +222,7 @@ function validateParameterValue(value: DynamoParameterValueEngineering): void {
     return;
   }
 
-  if (value.tagReference) {
+  if (value.tagReference || value.commandId) {
     throw new DynamoPublicInterfaceError(
       'DYNAMO_PUBLIC_PARAMETER_VALUE_INVALID',
       `Scalar Dynamo parameter '${value.key}' cannot carry a TAG reference.`

@@ -17,6 +17,7 @@ import type {
   VisualValueSourceEngineering
 } from '../types';
 import { getVisualSchemaForEngineering, type VisualPropertyValue } from '../../visual-runtime';
+import { parseSvgSemanticDynamicPropertyKey } from './svgSymbolModel';
 import {
   computeAnalogFillPresentation,
   type AnalogFillPresentation
@@ -75,6 +76,7 @@ export function resolveVisualDynamicState(
   samples: ReadonlyMap<string, VisualDynamicSample>
 ): VisualDynamicResolution {
   const values: Record<string, VisualPropertyValue> = { ...baseValues };
+  seedSvgSemanticDynamicValues(element, values);
   const diagnostics: VisualDynamicDiagnostic[] = [];
 
   for (const binding of element.bindings ?? []) {
@@ -120,6 +122,36 @@ export function resolveVisualDynamicState(
     analogFill,
     diagnostics: Object.freeze(diagnostics)
   });
+}
+
+function seedSvgSemanticDynamicValues(
+  element: VisualElementEngineering,
+  values: Record<string, VisualPropertyValue>
+): void {
+  if (element.type !== 'core.svgSymbol') return;
+  const keys = new Set<string>();
+  for (const binding of element.bindings ?? []) keys.add(binding.key);
+  for (const expression of element.propertyExpressions ?? []) keys.add(expression.propertyKey);
+  for (const map of element.propertyMaps ?? []) keys.add(map.propertyKey);
+  for (const key of keys) {
+    const semantic = parseSvgSemanticDynamicPropertyKey(key);
+    if (!semantic || Object.prototype.hasOwnProperty.call(values, key)) continue;
+    values[key] = semantic.type === 'number' ? 1 : '#000000';
+  }
+}
+
+function validateSvgSemanticDynamicValue(
+  type: 'color' | 'number',
+  value: unknown
+): Readonly<{ ok: true; value: VisualPropertyValue }> | Readonly<{ ok: false; code: string }> {
+  if (type === 'number') {
+    return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 10_000
+      ? Object.freeze({ ok: true as const, value })
+      : Object.freeze({ ok: false as const, code: 'svg.slot.strokeWidth.invalid' });
+  }
+  return typeof value === 'string' && /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(value)
+    ? Object.freeze({ ok: true as const, value: value.toUpperCase() })
+    : Object.freeze({ ok: false as const, code: 'svg.slot.color.invalid' });
 }
 
 function resolveBinding(
@@ -221,6 +253,17 @@ function resolvePropertyMap(
   }
 
   try {
+    const semantic = element.type === 'core.svgSymbol'
+      ? parseSvgSemanticDynamicPropertyKey(map.propertyKey)
+      : null;
+    if (semantic) {
+      const validation = validateSvgSemanticDynamicValue(semantic.type, candidate);
+      if (!validation.ok) {
+        return Object.freeze({ ok: false, message: `Mapped value for '${map.propertyKey}' is invalid (${validation.code}).` });
+      }
+      return Object.freeze({ ok: true, value: validation.value });
+    }
+
     const schema = getVisualSchemaForEngineering(element.type);
     const validation = schema.validate(map.propertyKey, candidate);
     if (!validation.ok) {

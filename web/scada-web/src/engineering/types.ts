@@ -462,6 +462,12 @@ export type VisualValueSourceEngineering = Readonly<{
   target?: string | null;
   tagReference?: TagValueReferenceEngineering | null;
   expression?: VisualExpressionEngineering | null;
+  /**
+   * Runtime-only Dynamo projection. Never authored or persisted: the instance
+   * compositor materializes Boolean/Number public parameters here so the shared
+   * dynamic resolver can consume them without fabricating a live TAG sample.
+   */
+  projectedValue?: boolean | number;
   version?: number;
 }>;
 

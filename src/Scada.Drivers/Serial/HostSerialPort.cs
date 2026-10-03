@@ -198,6 +198,12 @@ public sealed class HostSerialBusCoordinator : IAsyncDisposable
         CancellationToken cancellationToken = default) =>
         AcquireAsync(ownerId, settings, HostSerialBusUsage.ExclusiveServer, Array.Empty<byte>(), cancellationToken);
 
+    public ValueTask<HostSerialBusLease> AcquireEngineeringMasterAsync(
+        string ownerId,
+        HostSerialLineSettings settings,
+        CancellationToken cancellationToken = default) =>
+        AcquireAsync(ownerId, settings, HostSerialBusUsage.SharedMaster, Array.Empty<byte>(), cancellationToken);
+
     private async ValueTask<HostSerialBusLease> AcquireAsync(
         string ownerId,
         HostSerialLineSettings settings,

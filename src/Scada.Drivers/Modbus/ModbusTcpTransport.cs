@@ -4,7 +4,7 @@ using System.Net.Sockets;
 
 namespace Scada.Drivers.Modbus;
 
-public sealed class ModbusTcpTransport : IAsyncDisposable
+public sealed class ModbusTcpTransport : IModbusMasterTransport
 {
     private const ushort ProtocolId = 0;
     private readonly string _host;
@@ -40,6 +40,37 @@ public sealed class ModbusTcpTransport : IAsyncDisposable
     public int Port => _port;
     public TimeSpan RequestTimeout => _requestTimeout;
     public bool IsConnected => _client?.Connected == true;
+    public string Endpoint => $"{_host}:{_port}";
+    public IReadOnlyDictionary<string, string> ProtocolDetails => new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["transport"] = "tcp",
+        ["host"] = _host,
+        ["port"] = _port.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        ["requestTimeoutMs"] = _requestTimeout.TotalMilliseconds.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)
+    };
+
+    public ModbusMasterTransportDiagnosticSnapshot GetMasterDiagnostics()
+    {
+        var snapshot = GetDiagnostics();
+        return new ModbusMasterTransportDiagnosticSnapshot(
+            Endpoint,
+            snapshot.RequestTimeout,
+            snapshot.IsConnected,
+            snapshot.ConnectionCount,
+            snapshot.DisconnectionCount,
+            snapshot.ReconnectCount,
+            snapshot.RequestAttempts,
+            snapshot.SuccessfulRequestAttempts,
+            snapshot.FailedRequestAttempts,
+            snapshot.TimeoutCount,
+            0,
+            0,
+            snapshot.LastRequestDuration,
+            snapshot.AverageRequestDuration,
+            snapshot.LastConnectedAt,
+            snapshot.LastDisconnectedAt,
+            ProtocolDetails);
+    }
 
     public ModbusTcpTransportDiagnosticSnapshot GetDiagnostics()
     {

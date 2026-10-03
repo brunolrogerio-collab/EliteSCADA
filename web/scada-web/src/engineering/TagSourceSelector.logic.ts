@@ -1,19 +1,6 @@
-import type { DataSourceEngineering, TagEngineering } from './types';
+import type { CommunicationTagBindingEngineering, DataSourceEngineering, TagEngineering } from './types';
 
-export type TagPhysicalValueTransformEngineering = Readonly<{
-  contractVersion?: number;
-  byteSwap?: boolean;
-  wordSwap?: boolean;
-}>;
-
-export type CommunicationTagBindingEngineering = Readonly<{
-  contractVersion: number;
-  schemaId: string;
-  schemaVersion: number;
-  portableAddress: string;
-  settings?: Record<string, string> | null;
-  valueTransform?: TagPhysicalValueTransformEngineering | null;
-}>;
+export type { CommunicationTagBindingEngineering, TagPhysicalValueTransformEngineering } from './types';
 
 export type TagSourceReference = Readonly<{
   status: 'none' | 'resolved' | 'legacy-resolved' | 'unresolved';
@@ -21,10 +8,7 @@ export type TagSourceReference = Readonly<{
   reference: string | null;
 }>;
 
-export type TagSourceAwareEngineering = TagEngineering & {
-  dataSourceId?: string | null;
-  communicationBinding?: CommunicationTagBindingEngineering | null;
-};
+export type TagSourceAwareEngineering = TagEngineering;
 
 export function resolveTagDataSource(
   tag: TagSourceAwareEngineering,

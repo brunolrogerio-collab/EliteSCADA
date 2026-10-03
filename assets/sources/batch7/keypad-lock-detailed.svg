@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="36" y="22" width="56" height="84" rx="6" fill="#E5E7EB" stroke="#374151" stroke-width="4" data-elitescada-slot="body" />
+  <circle cx="50" cy="40" r="4" fill="#9CA3AF" data-elitescada-slot="key" />
+  <circle cx="64" cy="40" r="4" fill="#9CA3AF" data-elitescada-slot="key" />
+  <circle cx="78" cy="40" r="4" fill="#9CA3AF" data-elitescada-slot="key" />
+  <circle cx="50" cy="58" r="4" fill="#9CA3AF" data-elitescada-slot="key" />
+  <circle cx="64" cy="58" r="4" fill="#9CA3AF" data-elitescada-slot="key" />
+  <circle cx="78" cy="58" r="4" fill="#9CA3AF" data-elitescada-slot="key" />
+  <circle cx="50" cy="76" r="4" fill="#9CA3AF" data-elitescada-slot="key" />
+  <circle cx="64" cy="76" r="4" fill="#9CA3AF" data-elitescada-slot="key" />
+  <circle cx="78" cy="76" r="4" fill="#9CA3AF" data-elitescada-slot="key" />
+  <circle cx="88" cy="30" r="4" fill="#9CA3AF" data-elitescada-slot="status" />
+</svg>

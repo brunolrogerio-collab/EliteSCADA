@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="18" y="28" width="92" height="72" rx="3" fill="#E5E7EB" stroke="#374151" stroke-width="5" data-elitescada-slot="track" />
+  <rect x="50" y="50" width="28" height="22" rx="5" fill="#9CA3AF" stroke="#374151" stroke-width="3" data-elitescada-slot="motor" />
+  <line x1="24" y1="36" x2="104" y2="36" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="rail" />
+</svg>

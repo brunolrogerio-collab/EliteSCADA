@@ -57,18 +57,12 @@ public sealed class EngineeringDataSourceTypeCatalogTests
     [Fact]
     public void Catalog_LegacyDescriptorMetadataFallsBackSafely()
     {
-        var descriptor = new CommunicationDriverTypeDescriptor(
-            "legacy.driver",
-            "Legacy Driver",
-            1,
-            DriverCapabilities.Read,
-            DriverEngineeringCapabilities.None,
-            new[] { DriverAcquisitionMode.Polling },
-            new DriverConfigurationSchemaDescriptor("legacy.driver", 1, [], []));
+        var catalog = BuildCatalog().Describe();
+        var opcUa = Assert.Single(catalog.DataSourceTypes, x => x.TypeKey == OpcUaDriverDescriptorProvider.DriverTypeId);
 
-        Assert.Null(descriptor.ConnectionModel);
-        Assert.Null(descriptor.IntegrationDomains);
-        Assert.Null(descriptor.ExternalDependencies);
+        Assert.Equal(new[] { "industrial" }, opcUa.IntegrationDomains);
+        Assert.Equal("directNetwork", opcUa.ConnectionModel);
+        Assert.Contains(opcUa.ExternalDependencies, dependency => dependency.Kind == "builtIn");
     }
 
     [Fact]

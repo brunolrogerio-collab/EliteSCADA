@@ -333,21 +333,6 @@ public static class VisualDynamicEngineeringValidation
             return;
         }
 
-        if (schema.ObjectTypeKey.Equals(BuiltinVisualObjectSchemas.SvgSymbolType, StringComparison.Ordinal) &&
-            SvgSemanticDynamicDestinations.TryParse(propertyKey, out var semantic))
-        {
-            var valid = semantic.IsColor
-                ? value.ValueKind == System.Text.Json.JsonValueKind.String &&
-                    HexColor(value.GetString())
-                : value.ValueKind == System.Text.Json.JsonValueKind.Number &&
-                    value.TryGetDouble(out var width) &&
-                    double.IsFinite(width) &&
-                    width is >= 0 and <= 10_000;
-            if (!valid)
-                issues.Add(Error("VISUAL_PROPERTY_MAP_VALUE_INVALID", $"Mapped value for SVG semantic destination '{propertyKey}' is invalid.", kind, key));
-            return;
-        }
-
         try
         {
             VisualEngineeringPropertyCodec.Decode(

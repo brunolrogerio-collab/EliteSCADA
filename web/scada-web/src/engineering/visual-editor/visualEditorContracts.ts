@@ -215,6 +215,8 @@ export type VisualEditorBindingSourceCatalogItem = Readonly<{
   bindable?: boolean;
   tagReference?: TagValueReferenceEngineering | null;
   selectorCapability?: VisualEditorBindingSelectorCapability | null;
+  /** Authoring-only marker: source resolves from the enclosing Dynamo public parameter. */
+  dynamoParameterKey?: string | null;
 }>;
 
 export type VisualEditorCanvasContractProps = Readonly<{

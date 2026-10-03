@@ -89,6 +89,18 @@ Discovery candidate flow should distinguish read-only discovery from network mut
 
 When #469/F4 is revalidated, host resource identity should support both local physical resources and managed remote controller endpoints (for example a wired Ethernet Zigbee coordinator) without treating a browser-local endpoint as authority.
 
+### RESEARCH_CONTRACT_DELTA_REQUIRED — MEMORY-DATASOURCE-STABLE-ID-01
+
+Internal Memory runtime planning should converge from legacy Source-key matching to the same stable DataSourceId authority already used by communication planning.
+
+### RESEARCH_CONTRACT_DELTA_REQUIRED — DRIVER-TRANSIENT-EVENT-01
+
+Event-only device capabilities such as Button, Zigbee/Z2M action and Z-Wave Central Scene need a canonical Active-Runtime event projection rather than fabricated persistent TAG state.
+
+### RESEARCH_CONTRACT_DELTA_REQUIRED — RICH-COMMAND-BINDING-01
+
+If an accepted process capability genuinely requires a parameterized non-stateful action, define a versioned protocol-neutral Command/Action binding instead of allowing UI/scripts to invoke driver methods directly.
+
 ## Common proposed first-release guardrails
 
 Where protocols provide no normative application-size limit, these are **PROPOSED ELITESCADA LIMITS**, not protocol facts:
@@ -103,6 +115,7 @@ Exact numeric limits should be measured in L2/L3 load tests before implementatio
 
 ## Documents
 
+- [EliteSCADA driver/TAG/Memory/Script integration wiring](ELITESCADA-INTEGRATION-WIRING-RESEARCH.md)
 - [Native Zigbee](NATIVE-ZIGBEE-RESEARCH.md)
 - [Zigbee2MQTT Bridge](ZIGBEE2MQTT-BRIDGE-RESEARCH.md)
 - [DALI](DALI-RESEARCH.md)

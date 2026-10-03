@@ -191,6 +191,11 @@ test('normal Data Source flow has no hardcoded driver catalog and uses Preview/A
   expect(editor).toContain('data-testid="data-source-type"');
   expect(editor).toContain('resolveDriverCatalogResource(locale, type.displayNameResourceKey, type.displayName)');
   expect(editor).toContain('switchDataSourceType(draft, type)');
+  expect(logic).toContain('integrationDomains?:');
+  expect(logic).toContain('connectionModel?:');
+  expect(logic).toContain('externalDependencies?:');
+  expect(logic).not.toContain("typeKey === 'modbus.rtu'");
+  expect(logic).not.toContain("typeKey === 'bacnet.ip'");
   expect(editor).toContain('removeIncompatibleDataSourceConfiguration(draft, currentType)');
   expect(editor).toContain('const before = await loadEngineeringWorkspace()');
   expect(editor).toContain('const after = await loadEngineeringWorkspace()');

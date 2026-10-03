@@ -87,11 +87,16 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var definition = ResolveDefinition(report, reportQuery);
-            var executionParameters = parameters.ToDictionary(
-                pair => pair.Key,
-                pair => ToDataQueryValue(pair.Value),
-                StringComparer.OrdinalIgnoreCase);
+            var definition = ResolveDefinition(report, reportQuery, parameters);
+            var dataQueryParameterKeys = (definition.Parameters ?? Array.Empty<DataQueryParameterEngineeringDto>())
+                .Select(parameter => parameter.Key)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var executionParameters = parameters
+                .Where(pair => dataQueryParameterKeys.Contains(pair.Key))
+                .ToDictionary(
+                    pair => pair.Key,
+                    pair => ToDataQueryValue(pair.Value),
+                    StringComparer.OrdinalIgnoreCase);
 
             var response = await _dataQueries.ExecuteTransientAsync(
                 definition,
@@ -128,7 +133,8 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
 
     private DataQueryEngineeringDto ResolveDefinition(
         ReportEngineeringDto report,
-        ReportQueryEngineeringDto reportQuery)
+        ReportQueryEngineeringDto reportQuery,
+        IReadOnlyDictionary<string, ReportParameterValue> parameters)
     {
         DataQueryEngineeringDto? saved = null;
         if (reportQuery.DataQueryId.HasValue)
@@ -142,14 +148,20 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
                     "REPORT_DATA_QUERY_NOT_FOUND",
                     $"Report query '{reportQuery.Key}' references a saved Data Query that was not found.")]);
 
+        var embeddedQuery = ApplyReportBindings(reportQuery, parameters);
         var source = saved ?? new DataQueryEngineeringDto(
             StableTransientId(report, reportQuery),
             $"report.{report.Key}.{reportQuery.Key}",
             $"{report.Name} / {reportQuery.Key}",
             DataQueryExecutionService.HistoricalProviderKey,
-            reportQuery.Query);
+            embeddedQuery);
 
-        var query = ApplyTagFilter(source.Query, report.Variables);
+        // A saved Data Query remains the query-definition authority. Reporting only
+        // overlays the effective runtime period on its transient execution copy.
+        var effectiveSourceQuery = saved is null
+            ? source.Query
+            : source.Query with { Range = reportQuery.Query.Range };
+        var query = ApplyTagFilter(effectiveSourceQuery, report.Variables);
         var retrieval = saved?.HistorianRetrieval ?? MapRetrieval(report.Resolution);
 
         // Report-level resolution is an explicit presentation contract. When it is
@@ -433,6 +445,121 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
                         "REPORT_PARAMETER_UNKNOWN",
                         $"Report parameter '{suppliedKey}' is not declared by the report.")]);
         return result;
+    }
+
+    private static HistoricalQueryRequest ApplyReportBindings(
+        ReportQueryEngineeringDto definition,
+        IReadOnlyDictionary<string, ReportParameterValue> parameters)
+    {
+        var query = definition.Query with
+        {
+            Filters = (definition.Query.Filters ?? Array.Empty<HistoricalFilter>())
+                .Select(filter => filter with { Values = filter.Values.ToArray() }).ToArray(),
+            OrderBy = definition.Query.OrderBy?.ToArray(),
+            Page = new HistoricalPageRequest(
+                definition.Query.Page?.Size ?? HistoricalQueryValidator.DefaultPageSize)
+        };
+
+        foreach (var binding in definition.ParameterBindings ?? Array.Empty<ReportQueryParameterBindingEngineeringDto>())
+        {
+            if (!parameters.TryGetValue(binding.ParameterKey, out var parameter))
+                throw new ReportExecutionValidationException(
+                    [new ReportEngineeringProblem(
+                        "REPORT_PARAMETER_UNRESOLVED",
+                        $"Report query '{definition.Key}' references unresolved parameter '{binding.ParameterKey}'.")]);
+
+            query = binding.Target switch
+            {
+                ReportQueryParameterTarget.AbsoluteFromUtc => query with
+                {
+                    Range = query.Range with { FromUtc = parameter.AsDateTimeUtc() }
+                },
+                ReportQueryParameterTarget.AbsoluteToUtc => query with
+                {
+                    Range = query.Range with { ToUtc = parameter.AsDateTimeUtc() }
+                },
+                ReportQueryParameterTarget.RelativeDurationSeconds => query with
+                {
+                    Range = query.Range with { DurationSeconds = parameter.AsDurationSeconds() }
+                },
+                ReportQueryParameterTarget.Search => query with { Search = parameter.Value },
+                ReportQueryParameterTarget.FilterValue =>
+                    BindReportFilterValue(definition.Key, query, binding, parameter),
+                _ => throw new ReportExecutionValidationException(
+                    [new ReportEngineeringProblem(
+                        "REPORT_PARAMETER_TARGET_UNSUPPORTED",
+                        $"Report query '{definition.Key}' contains an unsupported parameter binding target.")])
+            };
+        }
+
+        return query;
+    }
+
+    private static HistoricalQueryRequest BindReportFilterValue(
+        string queryKey,
+        HistoricalQueryRequest query,
+        ReportQueryParameterBindingEngineeringDto binding,
+        ReportParameterValue parameter)
+    {
+        var filters = (query.Filters ?? Array.Empty<HistoricalFilter>()).ToArray();
+        if (!binding.FilterIndex.HasValue || binding.FilterIndex < 0 || binding.FilterIndex >= filters.Length)
+            throw new ReportExecutionValidationException(
+                [new ReportEngineeringProblem(
+                    "REPORT_PARAMETER_FILTER_INDEX_INVALID",
+                    $"Report query '{queryKey}' parameter binding has an invalid FilterIndex.")]);
+
+        var filterIndex = binding.FilterIndex.Value;
+        var values = filters[filterIndex].Values.ToArray();
+        if (!binding.ValueIndex.HasValue || binding.ValueIndex < 0 || binding.ValueIndex >= values.Length)
+            throw new ReportExecutionValidationException(
+                [new ReportEngineeringProblem(
+                    "REPORT_PARAMETER_VALUE_INDEX_INVALID",
+                    $"Report query '{queryKey}' parameter binding has an invalid ValueIndex.")]);
+
+        var valueIndex = binding.ValueIndex.Value;
+        values[valueIndex] = ToHistoricalValue(values[valueIndex].Kind, parameter);
+        filters[filterIndex] = filters[filterIndex] with { Values = values };
+        return query with { Filters = filters };
+    }
+
+    private static HistoricalQueryValue ToHistoricalValue(
+        HistoricalValueKind kind,
+        ReportParameterValue parameter) => kind switch
+    {
+        HistoricalValueKind.Guid => HistoricalQueryValue.FromGuid(parameter.AsGuid()),
+        HistoricalValueKind.String => HistoricalQueryValue.FromString(parameter.Value),
+        HistoricalValueKind.Enum => HistoricalQueryValue.FromEnum(parameter.Value),
+        HistoricalValueKind.Boolean => HistoricalQueryValue.FromBoolean(parameter.AsBoolean()),
+        HistoricalValueKind.DateTime => HistoricalQueryValue.FromDateTime(parameter.AsDateTimeUtc()),
+        HistoricalValueKind.Int64 => HistoricalQueryValue.FromInt64(parameter.AsInt64()),
+        HistoricalValueKind.Int16 => HistoricalQueryValue.FromInt16(ToInt16(parameter.AsNumber())),
+        HistoricalValueKind.Int32 => HistoricalQueryValue.FromInt32(ToInt32(parameter.AsNumber())),
+        HistoricalValueKind.Float => HistoricalQueryValue.FromFloat(ToFloat(parameter.AsNumber())),
+        HistoricalValueKind.Double => HistoricalQueryValue.FromDouble(parameter.AsNumber()),
+        HistoricalValueKind.Number => HistoricalQueryValue.FromNumber(parameter.AsNumber()),
+        _ => throw new InvalidOperationException(
+            $"Historical Query value kind '{kind}' cannot be parameter-bound by Reporting.")
+    };
+
+    private static short ToInt16(double value)
+    {
+        if (!double.IsFinite(value) || Math.Truncate(value) != value || value < short.MinValue || value > short.MaxValue)
+            throw new ArgumentOutOfRangeException(nameof(value), "Report numeric parameter cannot be represented as Int16.");
+        return (short)value;
+    }
+
+    private static int ToInt32(double value)
+    {
+        if (!double.IsFinite(value) || Math.Truncate(value) != value || value < int.MinValue || value > int.MaxValue)
+            throw new ArgumentOutOfRangeException(nameof(value), "Report numeric parameter cannot be represented as Int32.");
+        return (int)value;
+    }
+
+    private static float ToFloat(double value)
+    {
+        if (!double.IsFinite(value) || value < -float.MaxValue || value > float.MaxValue)
+            throw new ArgumentOutOfRangeException(nameof(value), "Report numeric parameter cannot be represented as Float.");
+        return (float)value;
     }
 
     private static DataQueryParameterValue ToDataQueryValue(ReportParameterValue value) =>

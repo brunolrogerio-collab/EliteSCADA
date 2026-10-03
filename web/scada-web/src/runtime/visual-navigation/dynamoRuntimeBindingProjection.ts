@@ -1,7 +1,8 @@
 import type {
   BindingEngineering,
   TagValueReferenceEngineering,
-  VisualElementEngineering
+  VisualElementEngineering,
+  VisualValueSourceEngineering
 } from '../../engineering/types';
 import type { DynamoParameterValueEngineering } from './runtimeVisualNavigationModel';
 
@@ -37,12 +38,28 @@ function projectElement(
   parameters: ReadonlyMap<string, DynamoParameterValueEngineering>,
   equipmentPath: string | null
 ): VisualElementEngineering {
-  const bindings = element.bindings?.map(binding => projectBinding(binding, parameters, equipmentPath));
+  const properties: Record<string, string | number | boolean | object | null> = {
+    ...(element.properties ?? {})
+  };
+  const bindings: BindingEngineering[] = [];
+
+  for (const binding of element.bindings ?? []) {
+    const parameterKey = binding.metadata?.dynamoParameter?.trim();
+    const parameter = parameterKey ? findParameter(parameters, parameterKey) : undefined;
+    const scalarValue = scalarParameterValue(parameter);
+    if (parameter && parameter.kind !== 'TagReference' && scalarValue !== undefined) {
+      properties[binding.key] = scalarValue;
+      continue;
+    }
+    bindings.push(projectBinding(binding, parameters, equipmentPath));
+  }
+
   const children = projectDynamoRuntimeElements(element.children ?? [], parameters, equipmentPath);
 
   return Object.freeze({
     ...element,
-    bindings: bindings ? [...bindings] : element.bindings,
+    properties,
+    bindings: element.bindings ? Object.freeze(bindings) : element.bindings,
     propertyMaps: element.propertyMaps?.map(propertyMap => {
       const stateParameterKey = element.metadata?.dynamoStateColorParameter?.trim();
       const stateParameter = stateParameterKey ? findParameter(parameters, stateParameterKey) : undefined;
@@ -60,15 +77,22 @@ function projectElement(
       return Object.freeze({
         ...propertyMap,
         rules: Object.freeze(rules),
-        source: Object.freeze({
-          ...propertyMap.source,
-          target: substituteEquipmentPath(propertyMap.source.target ?? '', equipmentPath),
-          tagReference: stateParameter?.kind === 'TagReference' && stateParameter.tagReference
-            ? cloneTagReference(stateParameter.tagReference)
-            : propertyMap.source.tagReference ? cloneTagReference(propertyMap.source.tagReference) : propertyMap.source.tagReference
-        })
+        source: projectValueSource(
+          stateParameter?.kind === 'TagReference' && stateParameter.tagReference
+            ? Object.freeze({ ...propertyMap.source, tagReference: cloneTagReference(stateParameter.tagReference) })
+            : propertyMap.source,
+          parameters,
+          equipmentPath)
       });
     }),
+    booleanConditions: element.booleanConditions?.map(condition => Object.freeze({
+      ...condition,
+      source: projectValueSource(condition.source, parameters, equipmentPath)
+    })),
+    analogFill: element.analogFill ? Object.freeze({
+      ...element.analogFill,
+      source: projectValueSource(element.analogFill.source, parameters, equipmentPath)
+    }) : element.analogFill,
     children: [...children]
   });
 }
@@ -95,6 +119,38 @@ function projectBinding(
     target,
     tagReference: cloneTagReference(parameter.tagReference)
   });
+}
+
+function projectValueSource(
+  source: VisualValueSourceEngineering,
+  parameters: ReadonlyMap<string, DynamoParameterValueEngineering>,
+  equipmentPath: string | null
+): VisualValueSourceEngineering {
+  const target = substituteEquipmentPath(source.target ?? '', equipmentPath);
+  const parameterKey = dynamoParameterFromTarget(target);
+  const parameter = parameterKey ? findParameter(parameters, parameterKey) : undefined;
+  return Object.freeze({
+    ...source,
+    target,
+    tagReference: parameter?.kind === 'TagReference' && parameter.tagReference
+      ? cloneTagReference(parameter.tagReference)
+      : source.tagReference ? cloneTagReference(source.tagReference) : source.tagReference
+  });
+}
+
+function scalarParameterValue(
+  parameter: DynamoParameterValueEngineering | undefined
+): string | number | boolean | undefined {
+  if (!parameter) return undefined;
+  if (parameter.kind === 'Boolean' && typeof parameter.value === 'boolean') return parameter.value;
+  if (parameter.kind === 'Number' && typeof parameter.value === 'number' && Number.isFinite(parameter.value)) return parameter.value;
+  if ((parameter.kind === 'String' || parameter.kind === 'EquipmentPath') && typeof parameter.value === 'string') return parameter.value;
+  return undefined;
+}
+
+function dynamoParameterFromTarget(target: string): string | null {
+  const match = /^\{dynamoParameter:([^{}]+)\}$/.exec(target.trim());
+  return match?.[1]?.trim() || null;
 }
 
 function substituteEquipmentPath(target: string, equipmentPath: string | null): string {

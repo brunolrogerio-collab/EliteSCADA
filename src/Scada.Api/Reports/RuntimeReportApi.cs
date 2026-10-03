@@ -20,6 +20,18 @@ public sealed record RuntimeReportListItem(
     string? Category,
     string? Description);
 
+public sealed record RuntimeReportDefinition(
+    Guid Id,
+    string Key,
+    string Name,
+    string? Category,
+    string? Description,
+    IReadOnlyCollection<ReportParameterEngineeringDto> Parameters,
+    ReportTimeRangeEngineeringDto? TimeRange,
+    ReportDataResolutionEngineeringDto? Resolution,
+    IReadOnlyCollection<ReportVariableEngineeringDto> Variables,
+    ReportTableLayout TableLayout);
+
 public sealed record RuntimeReportGenerateRequest(
     IReadOnlyDictionary<string, ReportParameterValue>? Parameters = null,
     ReportRuntimeTimeRange? TimeRange = null);
@@ -39,6 +51,24 @@ public sealed record ReportGeneratedSnapshot(
     ReportRuntimeTimeRange? TimeRange,
     ReportExecutionResult Result,
     DateTimeOffset GeneratedAtUtc);
+
+public sealed class ReportGenerationGate
+{
+    public const int MaximumConcurrentJobs = 2;
+    private readonly SemaphoreSlim _slots = new(MaximumConcurrentJobs, MaximumConcurrentJobs);
+
+    public async Task<IDisposable> EnterAsync(CancellationToken cancellationToken)
+    {
+        await _slots.WaitAsync(cancellationToken);
+        return new Lease(_slots);
+    }
+
+    private sealed class Lease(SemaphoreSlim slots) : IDisposable
+    {
+        private SemaphoreSlim? _slots = slots;
+        public void Dispose() => Interlocked.Exchange(ref _slots, null)?.Release();
+    }
+}
 
 public sealed class ReportGeneratedExecutionStore
 {
@@ -136,6 +166,21 @@ public sealed class RuntimeReportCatalog(
         (await ListAuthorizedAsync(cancellationToken))
         .FirstOrDefault(report => report.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
 
+    public async Task<HistoricalAuthorizationOutcome> AuthorizeSnapshotAsync(
+        ReportEngineeringDto report,
+        CancellationToken cancellationToken)
+    {
+        foreach (var dataset in (report.Queries ?? Array.Empty<ReportQueryEngineeringDto>())
+                     .Select(q => q.Query.Dataset)
+                     .Distinct(StringComparer.Ordinal))
+        {
+            var decision = await historicalAuthorization.AuthorizeAsync(dataset, cancellationToken);
+            if (decision.Outcome != HistoricalAuthorizationOutcome.Allowed)
+                return decision.Outcome;
+        }
+        return HistoricalAuthorizationOutcome.Allowed;
+    }
+
     private async Task<EngineeringPackage?> ActivePackageAsync(CancellationToken cancellationToken)
     {
         var descriptor = runtime.Describe();
@@ -157,6 +202,7 @@ public static class RuntimeReportApi
     public const string GenerateRoute = "/api/runtime/reports/{key}/generate";
     public const string ExecutionRoute = "/api/runtime/reports/executions/{executionId:guid}";
     public const string ExportRoute = "/api/runtime/reports/executions/{executionId:guid}/export/{format}";
+    public const string PrintRoute = "/api/runtime/reports/executions/{executionId:guid}/print";
 
     public static void MapRuntimeReportEndpoints(this WebApplication app)
     {
@@ -187,7 +233,7 @@ public static class RuntimeReportApi
             var report = await catalog.FindAuthorizedAsync(key, ct);
             return report is null
                 ? Results.NotFound(new ReportExecutionApiError("report_not_found", "Report was not found or is not authorized."))
-                : Results.Ok(report);
+                : Results.Ok(ToDefinition(report));
         });
 
         app.MapPost(GenerateRoute, async (
@@ -197,6 +243,7 @@ public static class RuntimeReportApi
             RuntimeReportCatalog catalog,
             IReportExecutionService execution,
             ReportGeneratedExecutionStore store,
+            ReportGenerationGate generationGate,
             ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
             CancellationToken ct) =>
@@ -211,6 +258,7 @@ public static class RuntimeReportApi
             {
                 using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 timeout.CancelAfter(TimeSpan.FromSeconds(30));
+                using var generationLease = await generationGate.EnterAsync(timeout.Token);
                 var result = await execution.ExecuteAsync(
                     new ReportExecutionRequest(report, request.Parameters, request.TimeRange),
                     timeout.Token);
@@ -256,6 +304,7 @@ public static class RuntimeReportApi
             Guid executionId,
             HttpContext context,
             ReportGeneratedExecutionStore store,
+            RuntimeReportCatalog catalog,
             ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
             CancellationToken ct) =>
@@ -263,9 +312,13 @@ public static class RuntimeReportApi
             var access = await RuntimeViewAsync(context, runtime, security, ct);
             if (access is not null) return access;
             var owner = security.AuthenticationEnabled ? security.GetPrincipal(context).SubjectId : null;
-            return store.TryGet(executionId, owner, out var snapshot) && snapshot is not null
-                ? Results.Ok(snapshot)
-                : Results.NotFound(new ReportExecutionApiError("execution_not_found", "Generated report snapshot was not found or expired."));
+            if (!store.TryGet(executionId, owner, out var snapshot) || snapshot is null)
+                return Results.NotFound(new ReportExecutionApiError("execution_not_found", "Generated report snapshot was not found or expired."));
+            var dataAccess = await catalog.AuthorizeSnapshotAsync(snapshot.Report, ct);
+            if (dataAccess == HistoricalAuthorizationOutcome.Unauthenticated) return Results.Unauthorized();
+            if (dataAccess != HistoricalAuthorizationOutcome.Allowed)
+                return Results.Json(new ReportExecutionApiError("forbidden", "Forbidden."), statusCode: StatusCodes.Status403Forbidden);
+            return Results.Ok(snapshot);
         });
 
         app.MapGet(ExportRoute, async (
@@ -273,6 +326,7 @@ public static class RuntimeReportApi
             string format,
             HttpContext context,
             ReportGeneratedExecutionStore store,
+            RuntimeReportCatalog catalog,
             ReportArtifactRenderer renderer,
             ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
@@ -283,13 +337,69 @@ public static class RuntimeReportApi
             var owner = security.AuthenticationEnabled ? security.GetPrincipal(context).SubjectId : null;
             if (!store.TryGet(executionId, owner, out var snapshot) || snapshot is null)
                 return Results.NotFound(new ReportExecutionApiError("execution_not_found", "Generated report snapshot was not found or expired."));
+            var dataAccess = await catalog.AuthorizeSnapshotAsync(snapshot.Report, ct);
+            if (dataAccess == HistoricalAuthorizationOutcome.Unauthenticated) return Results.Unauthorized();
+            if (dataAccess != HistoricalAuthorizationOutcome.Allowed)
+                return Results.Json(new ReportExecutionApiError("forbidden", "Forbidden."), statusCode: StatusCodes.Status403Forbidden);
 
-            var artifact = renderer.Render(snapshot, format);
-            return artifact is null
-                ? Results.BadRequest(new ReportExecutionApiError("export_format", "Supported formats are pdf, xlsx and csv."))
-                : Results.File(artifact.Content, artifact.ContentType, artifact.FileName);
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                var artifact = renderer.Render(snapshot, format);
+                return artifact is null
+                    ? Results.BadRequest(new ReportExecutionApiError("export_format", "Supported formats are pdf, xlsx and csv."))
+                    : Results.File(artifact.Content, artifact.ContentType, artifact.FileName);
+            }
+            catch (ReportExecutionLimitException ex)
+            {
+                return Results.BadRequest(new ReportExecutionApiError("report_limit", ex.Message));
+            }
+        });
+
+        app.MapGet(PrintRoute, async (
+            Guid executionId,
+            HttpContext context,
+            ReportGeneratedExecutionStore store,
+            RuntimeReportCatalog catalog,
+            ReportArtifactRenderer renderer,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            CancellationToken ct) =>
+        {
+            var access = await RuntimeViewAsync(context, runtime, security, ct);
+            if (access is not null) return access;
+            var owner = security.AuthenticationEnabled ? security.GetPrincipal(context).SubjectId : null;
+            if (!store.TryGet(executionId, owner, out var snapshot) || snapshot is null)
+                return Results.NotFound(new ReportExecutionApiError("execution_not_found", "Generated report snapshot was not found or expired."));
+            var dataAccess = await catalog.AuthorizeSnapshotAsync(snapshot.Report, ct);
+            if (dataAccess == HistoricalAuthorizationOutcome.Unauthenticated) return Results.Unauthorized();
+            if (dataAccess != HistoricalAuthorizationOutcome.Allowed)
+                return Results.Json(new ReportExecutionApiError("forbidden", "Forbidden."), statusCode: StatusCodes.Status403Forbidden);
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                var artifact = renderer.Render(snapshot, "pdf")!;
+                return Results.File(artifact.Content, artifact.ContentType);
+            }
+            catch (ReportExecutionLimitException ex)
+            {
+                return Results.BadRequest(new ReportExecutionApiError("report_limit", ex.Message));
+            }
         });
     }
+
+    private static RuntimeReportDefinition ToDefinition(ReportEngineeringDto report) =>
+        new(
+            report.Id ?? Guid.Empty,
+            report.Key,
+            report.Name,
+            report.Category,
+            report.Description,
+            report.Parameters ?? Array.Empty<ReportParameterEngineeringDto>(),
+            report.TimeRange,
+            report.Resolution,
+            report.Variables ?? Array.Empty<ReportVariableEngineeringDto>(),
+            report.TableLayout);
 
     private static async Task<IResult?> RuntimeViewAsync(
         HttpContext context,

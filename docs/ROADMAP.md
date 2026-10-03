@@ -14,6 +14,40 @@ Generic coordinator rotation prompt: `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`.
 
 > GitHub live always wins for exact branch/SHA/PR/CI state. Historical Wave 14 documents remain evidence, not current sequencing authority. While Wave 15 is active, `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` is a live operational document, not a historical snapshot.
 
+## Live current gate — 2026-10-03 — NEXT BATCH ACTIVE
+
+This section supersedes the 2026-10-02 current-gate wording below for current sequencing only.
+
+Accepted Batch-3 product checkpoint:
+`9b596286a40b1649564075626e817cc61e32e7bc`
+
+Post-merge slim evidence on that product SHA:
+- Web SUCCESS;
+- Backend build/test/smoke SUCCESS;
+- Chromium SUCCESS.
+
+Roadmap-only integration head used to release the next batch:
+`aca641501302edb04f32b83b04adf0726d7e8a96`
+
+Active bounded batch:
+- #482 — Visual Library Catalog V1 — `work/w15-visual-library-catalog`;
+- #483 — HOME/BUILDING H0 P0 convergence — `work/w15-home-building-h0`;
+- #484 — Built-in Asset Curation Batch 1 — `content/w15-builtin-asset-curation-b1`.
+
+Outgoing revalidation:
+- #482: ahead 0 / behind 0 / no PR;
+- #483: ahead 0 / behind 0 / no PR;
+- #484: ahead 1 / behind 0 at `055deb4df30eaf3e8af4d33fdc8739cf3d1b9df4`, tree `bca34cc2ea3b12124db703244ed715ebced9e0f9`; manifest currently contains 86 draft assets; no PR/handoff yet.
+
+Current concurrency guard:
+- do not open V2 SVG-first/core.svgSymbol before #482 disposition;
+- do not open HOME/BUILDING H1-H6 before #483 disposition;
+- do not open protocol drivers yet;
+- CODEX parked.
+
+Canonical successor snapshot:
+`docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-10-03-NEXT-BATCH-ACTIVE.md`
+
 ## Live current gate — 2026-10-02
 
 This section supersedes the older live-status sections below for **current sequencing only**. Historical foundation/FC0 material remains useful as execution record.

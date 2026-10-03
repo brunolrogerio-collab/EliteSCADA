@@ -41,6 +41,7 @@ public enum DriverConfigurationValueKind
     Duration,
     Host,
     Port,
+    SerialPort,
     Identifier,
     Enum,
     SecretReference,

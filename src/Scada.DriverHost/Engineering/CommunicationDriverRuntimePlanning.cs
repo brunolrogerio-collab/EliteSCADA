@@ -36,8 +36,11 @@ public sealed record CommunicationDriverRuntimeServices(
     string ProjectKey,
     ICurrentTagCache Cache,
     ITagRegistry Registry,
-    ICommunicationDriverProtectedMaterialResolver? ProtectedMaterialResolver = null)
+    ICommunicationDriverProtectedMaterialResolver? ProtectedMaterialResolver = null,
+    Func<bool>? EffectAuthority = null)
 {
+    public bool CanOwnExternalEffects => EffectAuthority?.Invoke() ?? true;
+
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(ProjectKey))

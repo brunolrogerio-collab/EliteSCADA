@@ -288,6 +288,7 @@ public sealed class EngineeringDataSourceTypeCatalog : IDataSourceConfigurationV
             DriverConfigurationValueKind.Duration => "[d.]hh:mm:ss[.fffffff]",
             DriverConfigurationValueKind.Host => "DNS name, IPv4 or IPv6 address",
             DriverConfigurationValueKind.Port => NumericFormat("TCP/UDP port", field.Minimum ?? 1, field.Maximum ?? 65535),
+            DriverConfigurationValueKind.SerialPort => "Server-visible serial device name or path",
             DriverConfigurationValueKind.Identifier => "Stable protocol identifier",
             DriverConfigurationValueKind.Enum when field.AllowedValues is { Count: > 0 } => string.Join(" | ", field.AllowedValues),
             DriverConfigurationValueKind.SecretReference => "Protected-material secret reference key",
@@ -314,6 +315,7 @@ public sealed class EngineeringDataSourceTypeCatalog : IDataSourceConfigurationV
             {
                 DriverConfigurationValueKind.Host => "192.168.1.10",
                 DriverConfigurationValueKind.Port => "502",
+                DriverConfigurationValueKind.SerialPort => OperatingSystem.IsWindows() ? "COM3" : "/dev/ttyUSB0",
                 DriverConfigurationValueKind.Identifier => "device-1",
                 DriverConfigurationValueKind.Duration => "00:00:05",
                 DriverConfigurationValueKind.Boolean => "true",

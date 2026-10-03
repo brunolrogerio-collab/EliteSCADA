@@ -57,6 +57,8 @@ public sealed class ModbusTcpDriverDescriptorProvider : ICommunicationDriverDesc
                 Advanced: true)
         };
 
+    internal static IReadOnlyCollection<DriverConfigurationFieldDescriptor> SharedTagBindingFields => TagBindingFields;
+
     public static CommunicationDriverTypeDescriptor SharedDescriptor { get; } = new(
         DriverType: DriverTypeId,
         DisplayName: "Modbus TCP",

@@ -609,7 +609,7 @@ export type EquipmentEngineering = {
   id?: string;
   path: string;
   name: string;
-  templateKey?: string;
+  templateKey?: string | null;
   templateId?: string | null;
   bindings?: BindingEngineering[];
 };

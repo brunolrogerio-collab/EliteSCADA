@@ -121,7 +121,7 @@ public static class VisualDynamicEngineeringValidation
         if (!schema.Declares(propertyKey))
         {
             if (schema.ObjectTypeKey.Equals(BuiltinVisualObjectSchemas.SvgSymbolType, StringComparison.Ordinal) &&
-                SvgSemanticPaintEngineering.TryParse(propertyKey, out var semantic))
+                SvgSemanticDynamicDestinations.TryParse(propertyKey, out var semantic))
             {
                 if (!semantic.IsNumber)
                     issues.Add(Error("VISUAL_DYNAMIC_PROPERTY_TYPE_UNSUPPORTED", $"SVG semantic paint destination '{propertyKey}' cannot receive a Boolean/numeric expression.", kind, key));
@@ -155,7 +155,7 @@ public static class VisualDynamicEngineeringValidation
         if (!schema.Declares(propertyKey))
         {
             if (schema.ObjectTypeKey.Equals(BuiltinVisualObjectSchemas.SvgSymbolType, StringComparison.Ordinal) &&
-                SvgSemanticPaintEngineering.TryParse(propertyKey, out _))
+                SvgSemanticDynamicDestinations.TryParse(propertyKey, out _))
             {
                 issues.Add(Error("VISUAL_BOOLEAN_CONDITION_DESTINATION_INVALID", $"SVG semantic paint destination '{propertyKey}' is not Boolean.", kind, key));
                 return;
@@ -259,7 +259,7 @@ public static class VisualDynamicEngineeringValidation
                 issues.Add(Error("VISUAL_DYNAMIC_PROPERTY_SOURCE_CONFLICT", $"Visual property '{map.PropertyKey}' already has another Binding/Expression/Condition source.", kind, key));
             var semanticDestination =
                 schema.ObjectTypeKey.Equals(BuiltinVisualObjectSchemas.SvgSymbolType, StringComparison.Ordinal) &&
-                SvgSemanticPaintEngineering.TryParse(map.PropertyKey, out var parsedSemantic)
+                SvgSemanticDynamicDestinations.TryParse(map.PropertyKey, out var parsedSemantic)
                     ? parsedSemantic
                     : null;
             if (!schema.Declares(map.PropertyKey) && semanticDestination is null)
@@ -326,9 +326,9 @@ public static class VisualDynamicEngineeringValidation
         List<ImportIssue> issues)
     {
         if (schema.ObjectTypeKey.Equals(BuiltinVisualObjectSchemas.SvgSymbolType, StringComparison.Ordinal) &&
-            SvgSemanticPaintEngineering.TryParse(propertyKey, out var semantic))
+            SvgSemanticDynamicDestinations.TryParse(propertyKey, out var semantic))
         {
-            if (!SvgSemanticPaintEngineering.ValidateMappedValue(semantic, value))
+            if (!SvgSemanticDynamicDestinations.ValidateMappedValue(semantic, value))
                 issues.Add(Error("VISUAL_PROPERTY_MAP_VALUE_INVALID", $"Mapped value for SVG semantic paint destination '{propertyKey}' is invalid.", kind, key));
             return;
         }

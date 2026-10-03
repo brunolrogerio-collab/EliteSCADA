@@ -102,7 +102,7 @@ public sealed class HistoricalPlaybackScopeResolverTests
         var templateId = Guid.Parse("30000000-0000-0000-0000-000000000002");
         var equipmentId = Guid.Parse("30000000-0000-0000-0000-000000000003");
 
-        using var document = JsonDocument.Parse($"""
+        using var document = JsonDocument.Parse($$"""
         {
           "runtimePresentation": { "historicalPlaybackEnabled": true, "version": 1 },
           "tags": [

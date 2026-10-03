@@ -130,9 +130,15 @@ function projectValueSource(
   const target = substituteEquipmentPath(source.target ?? '', equipmentPath);
   const parameterKey = dynamoParameterFromTarget(target);
   const parameter = parameterKey ? findParameter(parameters, parameterKey) : undefined;
+  const projectedValue = parameter?.kind === 'Boolean' && typeof parameter.value === 'boolean'
+    ? parameter.value
+    : parameter?.kind === 'Number' && typeof parameter.value === 'number' && Number.isFinite(parameter.value)
+      ? parameter.value
+      : undefined;
   return Object.freeze({
     ...source,
     target,
+    ...(projectedValue !== undefined ? { projectedValue } : {}),
     tagReference: parameter?.kind === 'TagReference' && parameter.tagReference
       ? cloneTagReference(parameter.tagReference)
       : source.tagReference ? cloneTagReference(source.tagReference) : source.tagReference

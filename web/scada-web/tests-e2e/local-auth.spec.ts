@@ -827,7 +827,10 @@ test('auth system chrome follows semantic Light and Dark themes including passwo
   await page.route('**/api/auth/config', route => route.fulfill({ json: config }));
   await page.route('**/api/auth/me', route => route.fulfill({ status: 401 }));
 
-  await page.addInitScript(() => localStorage.setItem('elitescada.app.theme', 'light'));
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('elitescada.app.theme'))
+      localStorage.setItem('elitescada.app.theme', 'light');
+  });
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('data-app-theme', 'light');
 

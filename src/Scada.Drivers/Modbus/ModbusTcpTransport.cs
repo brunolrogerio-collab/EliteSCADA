@@ -79,19 +79,13 @@ public sealed class ModbusTcpTransport : IAsyncDisposable
             throw new ArgumentException("Bit reads require Coil or DiscreteInput area.", nameof(area));
         if (quantity is < 1 or > 2000) throw new ArgumentOutOfRangeException(nameof(quantity));
 
-        var function = area == ModbusDataArea.Coil ? (byte)0x01 : (byte)0x02;
-        var response = await SendRequestAsync(unitId, BuildReadPdu(function, address, quantity), retryOnConnectionFailure: true, cancellationToken);
-        ValidateFunction(response, function);
-        if (response.Length < 2) throw new IOException("Modbus bit response is truncated.");
-        var byteCount = response[1];
-        var expectedBytes = (quantity + 7) / 8;
-        if (byteCount != expectedBytes || response.Length != byteCount + 2)
-            throw new IOException("Modbus bit response byte count is invalid.");
-
-        var result = new bool[quantity];
-        for (var i = 0; i < result.Length; i++)
-            result[i] = (response[2 + i / 8] & (1 << (i % 8))) != 0;
-        return result;
+        var function = area == ModbusDataArea.Coil ? ModbusPduCodec.ReadCoils : ModbusPduCodec.ReadDiscreteInputs;
+        var response = await SendRequestAsync(
+            unitId,
+            ModbusPduCodec.BuildReadRequest(function, address, quantity),
+            retryOnConnectionFailure: true,
+            cancellationToken);
+        return ModbusPduCodec.DecodeBitReadResponse(response, function, quantity);
     }
 
     public async Task<ushort[]> ReadRegistersAsync(
@@ -105,18 +99,13 @@ public sealed class ModbusTcpTransport : IAsyncDisposable
             throw new ArgumentException("Register reads require HoldingRegister or InputRegister area.", nameof(area));
         if (quantity is < 1 or > 125) throw new ArgumentOutOfRangeException(nameof(quantity));
 
-        var function = area == ModbusDataArea.HoldingRegister ? (byte)0x03 : (byte)0x04;
-        var response = await SendRequestAsync(unitId, BuildReadPdu(function, address, quantity), retryOnConnectionFailure: true, cancellationToken);
-        ValidateFunction(response, function);
-        if (response.Length < 2) throw new IOException("Modbus register response is truncated.");
-        var byteCount = response[1];
-        if (byteCount != quantity * 2 || response.Length != byteCount + 2)
-            throw new IOException("Modbus register response byte count is invalid.");
-
-        var result = new ushort[quantity];
-        for (var i = 0; i < result.Length; i++)
-            result[i] = BinaryPrimitives.ReadUInt16BigEndian(response.AsSpan(2 + i * 2, 2));
-        return result;
+        var function = area == ModbusDataArea.HoldingRegister ? ModbusPduCodec.ReadHoldingRegisters : ModbusPduCodec.ReadInputRegisters;
+        var response = await SendRequestAsync(
+            unitId,
+            ModbusPduCodec.BuildReadRequest(function, address, quantity),
+            retryOnConnectionFailure: true,
+            cancellationToken);
+        return ModbusPduCodec.DecodeRegisterReadResponse(response, function, quantity);
     }
 
     public async Task WriteSingleCoilAsync(
@@ -125,12 +114,9 @@ public sealed class ModbusTcpTransport : IAsyncDisposable
         bool value,
         CancellationToken cancellationToken = default)
     {
-        var pdu = new byte[5];
-        pdu[0] = 0x05;
-        BinaryPrimitives.WriteUInt16BigEndian(pdu.AsSpan(1, 2), address);
-        BinaryPrimitives.WriteUInt16BigEndian(pdu.AsSpan(3, 2), value ? (ushort)0xFF00 : (ushort)0x0000);
+        var pdu = ModbusPduCodec.BuildWriteSingleCoilRequest(address, value);
         var response = await SendRequestAsync(unitId, pdu, retryOnConnectionFailure: false, cancellationToken);
-        ValidateWriteEcho(response, pdu, 0x05);
+        ModbusPduCodec.ValidateWriteEchoResponse(response, pdu, ModbusPduCodec.WriteSingleCoil);
     }
 
     public async Task WriteSingleRegisterAsync(
@@ -139,12 +125,9 @@ public sealed class ModbusTcpTransport : IAsyncDisposable
         ushort value,
         CancellationToken cancellationToken = default)
     {
-        var pdu = new byte[5];
-        pdu[0] = 0x06;
-        BinaryPrimitives.WriteUInt16BigEndian(pdu.AsSpan(1, 2), address);
-        BinaryPrimitives.WriteUInt16BigEndian(pdu.AsSpan(3, 2), value);
+        var pdu = ModbusPduCodec.BuildWriteSingleRegisterRequest(address, value);
         var response = await SendRequestAsync(unitId, pdu, retryOnConnectionFailure: false, cancellationToken);
-        ValidateWriteEcho(response, pdu, 0x06);
+        ModbusPduCodec.ValidateWriteEchoResponse(response, pdu, ModbusPduCodec.WriteSingleRegister);
     }
 
     public async Task WriteMultipleRegistersAsync(
@@ -156,20 +139,9 @@ public sealed class ModbusTcpTransport : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(values);
         if (values.Count is < 1 or > 123) throw new ArgumentOutOfRangeException(nameof(values));
 
-        var pdu = new byte[6 + values.Count * 2];
-        pdu[0] = 0x10;
-        BinaryPrimitives.WriteUInt16BigEndian(pdu.AsSpan(1, 2), address);
-        BinaryPrimitives.WriteUInt16BigEndian(pdu.AsSpan(3, 2), checked((ushort)values.Count));
-        pdu[5] = checked((byte)(values.Count * 2));
-        for (var i = 0; i < values.Count; i++)
-            BinaryPrimitives.WriteUInt16BigEndian(pdu.AsSpan(6 + i * 2, 2), values[i]);
-
+        var pdu = ModbusPduCodec.BuildWriteMultipleRegistersRequest(address, values);
         var response = await SendRequestAsync(unitId, pdu, retryOnConnectionFailure: false, cancellationToken);
-        ValidateFunction(response, 0x10);
-        if (response.Length != 5 ||
-            BinaryPrimitives.ReadUInt16BigEndian(response.AsSpan(1, 2)) != address ||
-            BinaryPrimitives.ReadUInt16BigEndian(response.AsSpan(3, 2)) != values.Count)
-            throw new IOException("Modbus FC16 response does not match the request.");
+        ModbusPduCodec.ValidateWriteMultipleResponse(response, address, checked((ushort)values.Count));
     }
 
     public async Task DisconnectAsync()
@@ -249,11 +221,7 @@ public sealed class ModbusTcpTransport : IAsyncDisposable
 
         var response = new byte[length - 1];
         await stream.ReadExactlyAsync(response, cancellationToken);
-        if ((response[0] & 0x80) != 0)
-        {
-            var exceptionCode = response.Length > 1 ? response[1] : (byte)0;
-            throw new ModbusProtocolException((byte)(response[0] & 0x7F), exceptionCode);
-        }
+        ModbusPduCodec.ThrowIfException(response);
         return response;
     }
 
@@ -274,28 +242,6 @@ public sealed class ModbusTcpTransport : IAsyncDisposable
             client.Dispose();
             throw;
         }
-    }
-
-    private static byte[] BuildReadPdu(byte function, ushort address, ushort quantity)
-    {
-        var pdu = new byte[5];
-        pdu[0] = function;
-        BinaryPrimitives.WriteUInt16BigEndian(pdu.AsSpan(1, 2), address);
-        BinaryPrimitives.WriteUInt16BigEndian(pdu.AsSpan(3, 2), quantity);
-        return pdu;
-    }
-
-    private static void ValidateFunction(byte[] response, byte expectedFunction)
-    {
-        if (response.Length == 0 || response[0] != expectedFunction)
-            throw new IOException($"Unexpected Modbus function code in response. Expected 0x{expectedFunction:X2}.");
-    }
-
-    private static void ValidateWriteEcho(byte[] response, byte[] requestPdu, byte function)
-    {
-        ValidateFunction(response, function);
-        if (response.Length != requestPdu.Length || !response.AsSpan().SequenceEqual(requestPdu))
-            throw new IOException($"Modbus FC{function:X2} response does not match the request.");
     }
 
     private void RecordRequest(bool success, bool timeout, TimeSpan duration)

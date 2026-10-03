@@ -526,12 +526,11 @@ public sealed class FileHostProtectedMaterialAuthority :
         envelope.SchemaVersion == EnvelopeVersion &&
         string.Equals(envelope.Algorithm, Algorithm, StringComparison.Ordinal) &&
         IsValidReference(envelope.Reference) &&
-        envelope.ScopeHash.Length == 64 &&
+        envelope.ScopeHash is { Length: 64 } &&
         envelope.ScopeHash.All(Uri.IsHexDigit) &&
-        envelope.Nonce.Length == NonceBytes &&
-        envelope.Ciphertext.Length > 0 &&
-        envelope.Ciphertext.Length <= MaximumMaterialBytes &&
-        envelope.Tag.Length == TagBytes;
+        envelope.Nonce is { Length: NonceBytes } &&
+        envelope.Ciphertext is { Length: > 0 and <= MaximumMaterialBytes } &&
+        envelope.Tag is { Length: TagBytes };
 
     private static void ValidateMutation(
         ProtectedMaterialScope scope,

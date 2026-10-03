@@ -152,18 +152,29 @@ public static class HistoricalPlaybackScopeResolver
 
         void AddTag(Guid? tagId, string? path)
         {
+            var normalizedPath = string.IsNullOrWhiteSpace(path) ? null : path.Trim();
             TagCatalogEntry? tag = null;
+
+            // Stable TAG identity is authoritative. If a stable ID is present but
+            // does not resolve in the Active package, never silently retarget by path.
             if (tagId.HasValue && tagId.Value != Guid.Empty)
-                tagsById.TryGetValue(tagId.Value, out tag);
-            if (tag is null && !string.IsNullOrWhiteSpace(path))
-                tagsByPath.TryGetValue(path.Trim(), out tag);
+            {
+                if (!tagsById.TryGetValue(tagId.Value, out tag))
+                {
+                    unresolved[$"id:{tagId.Value:D}"] =
+                        new HistoricalPlaybackUnresolvedReference(tagId, normalizedPath);
+                    return;
+                }
+            }
+            else if (normalizedPath is not null)
+            {
+                tagsByPath.TryGetValue(normalizedPath, out tag);
+            }
+
             if (tag is null)
             {
-                var normalizedPath = string.IsNullOrWhiteSpace(path) ? null : path.Trim();
-                var key = tagId is { } id && id != Guid.Empty
-                    ? $"id:{id:D}"
-                    : $"path:{normalizedPath ?? "<unknown>"}";
-                unresolved[key] = new HistoricalPlaybackUnresolvedReference(tagId, normalizedPath);
+                unresolved[$"path:{normalizedPath ?? "<unknown>"}"] =
+                    new HistoricalPlaybackUnresolvedReference(null, normalizedPath);
                 return;
             }
 

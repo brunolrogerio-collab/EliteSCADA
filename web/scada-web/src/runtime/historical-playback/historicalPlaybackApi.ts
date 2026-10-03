@@ -66,7 +66,7 @@ export async function loadHistoricalPlaybackSamples(
       dataType: 'unknown',
       quality: null,
       readOnly: true,
-      state: 'Gap',
+      state: 'NotHistorical',
       timestamp: atUtc
     });
     if (path) sampleMap.set(path, gap);

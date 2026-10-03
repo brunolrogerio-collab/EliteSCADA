@@ -12,6 +12,7 @@ public sealed class HistoricalPlaybackScopeResolverTests
         var discreteId = Guid.Parse("10000000-0000-0000-0000-000000000002");
         var ignoredId = Guid.Parse("10000000-0000-0000-0000-000000000003");
         var missingId = Guid.Parse("10000000-0000-0000-0000-000000000004");
+        var conflictingPathId = Guid.Parse("10000000-0000-0000-0000-000000000005");
         var dynamoId = Guid.Parse("20000000-0000-0000-0000-000000000001");
 
         using var document = JsonDocument.Parse($$"""
@@ -20,7 +21,8 @@ public sealed class HistoricalPlaybackScopeResolverTests
           "tags": [
             { "id": "{{analogId}}", "path": "Plant.Analog", "dataType": "double" },
             { "id": "{{discreteId}}", "path": "Plant.Run", "dataType": "boolean" },
-            { "id": "{{ignoredId}}", "path": "Plant.Other", "dataType": "double" }
+            { "id": "{{ignoredId}}", "path": "Plant.Other", "dataType": "double" },
+            { "id": "{{conflictingPathId}}", "path": "Plant.NotHistorical", "dataType": "double" }
           ],
           "screens": [
             {
@@ -87,6 +89,7 @@ public sealed class HistoricalPlaybackScopeResolverTests
         var discrete = Assert.Single(result.Tags, x => x.Id == discreteId);
         Assert.Equal("atOrBefore", discrete.RetrievalMode);
         Assert.DoesNotContain(result.Tags, x => x.Id == ignoredId);
+        Assert.DoesNotContain(result.Tags, x => x.Id == conflictingPathId);
         var unresolved = Assert.Single(result.UnresolvedReferences);
         Assert.Equal(missingId, unresolved.Id);
         Assert.Equal("Plant.NotHistorical", unresolved.Path);

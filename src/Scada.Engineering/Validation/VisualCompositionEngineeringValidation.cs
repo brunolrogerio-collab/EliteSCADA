@@ -16,7 +16,93 @@ public static class VisualCompositionEngineeringValidation
         ValidateParameterDefinitions(dynamo.Parameters, ImportEntityKind.Dynamo, key, issues);
         ValidateDefinitionElements(dynamo.Elements, key, issues, new HashSet<Guid>());
         ValidateParameterizedDynamoStateSources(dynamo.Elements, dynamo.Parameters, key, issues);
+        ValidateDynamoParameterSources(dynamo.Elements, dynamo.Parameters, key, issues);
         return issues;
+    }
+
+    private static void ValidateDynamoParameterSources(
+        IReadOnlyCollection<VisualElementEngineeringDto>? elements,
+        IReadOnlyCollection<DynamoParameterDefinitionEngineeringDto>? parameters,
+        string entityKey,
+        List<ImportIssue> issues)
+    {
+        var definitions = (parameters ?? Array.Empty<DynamoParameterDefinitionEngineeringDto>())
+            .Where(parameter => parameter is not null && !string.IsNullOrWhiteSpace(parameter.Key))
+            .ToDictionary(parameter => parameter.Key, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var element in elements ?? Array.Empty<VisualElementEngineeringDto>())
+        {
+            if (element is null) continue;
+
+            foreach (var binding in element.Bindings ?? Array.Empty<EngineeringBindingDto>())
+            {
+                if (binding is null) continue;
+                var metadataKey = binding.Metadata?.TryGetValue("dynamoParameter", out var declaredKey) == true
+                    ? declaredKey
+                    : null;
+                var targetKey = VisualDynamicEngineeringValidation.TryDynamoParameterTarget(binding.Target, out var parsedBindingKey)
+                    ? parsedBindingKey
+                    : null;
+                var parameterKey = !string.IsNullOrWhiteSpace(metadataKey) ? metadataKey : targetKey;
+                if (string.IsNullOrWhiteSpace(parameterKey)) continue;
+
+                if (!definitions.ContainsKey(parameterKey))
+                {
+                    issues.Add(Error(
+                        "DYNAMO_DYNAMIC_PARAMETER_NOT_FOUND",
+                        $"Dynamo binding '{binding.Key}' on '{element.Key}' references undeclared public parameter '{parameterKey}'.",
+                        ImportEntityKind.Dynamo,
+                        entityKey));
+                }
+            }
+
+            foreach (var source in DynamicSources(element))
+            {
+                if (!VisualDynamicEngineeringValidation.TryDynamoParameterTarget(source.Target, out var parameterKey))
+                    continue;
+
+                if (!definitions.TryGetValue(parameterKey, out var parameter))
+                {
+                    issues.Add(Error(
+                        "DYNAMO_DYNAMIC_PARAMETER_NOT_FOUND",
+                        $"Dynamo visual source on '{element.Key}' references undeclared public parameter '{parameterKey}'.",
+                        ImportEntityKind.Dynamo,
+                        entityKey));
+                    continue;
+                }
+
+                var compatible = source.ValueType switch
+                {
+                    VisualExpressionValueType.Boolean =>
+                        parameter.Kind is DynamoParameterKind.Boolean or DynamoParameterKind.TagReference,
+                    VisualExpressionValueType.Number =>
+                        parameter.Kind is DynamoParameterKind.Number or DynamoParameterKind.TagReference,
+                    _ => false
+                };
+                if (!compatible)
+                {
+                    issues.Add(Error(
+                        "DYNAMO_DYNAMIC_PARAMETER_TYPE_MISMATCH",
+                        $"Dynamo visual source on '{element.Key}' expects {source.ValueType} but public parameter '{parameter.Key}' is {parameter.Kind}.",
+                        ImportEntityKind.Dynamo,
+                        entityKey));
+                }
+            }
+
+            ValidateDynamoParameterSources(element.Children, parameters, entityKey, issues);
+        }
+    }
+
+    private static IEnumerable<VisualValueSourceEngineeringDto> DynamicSources(VisualElementEngineeringDto element)
+    {
+        foreach (var condition in element.BooleanConditions ?? Array.Empty<VisualBooleanConditionEngineeringDto>())
+            if (condition?.Source is not null)
+                yield return condition.Source;
+        foreach (var map in element.PropertyMaps ?? Array.Empty<VisualPropertyMapEngineeringDto>())
+            if (map?.Source is not null)
+                yield return map.Source;
+        if (element.AnalogFill?.Source is not null)
+            yield return element.AnalogFill.Source;
     }
 
     private static void ValidateParameterizedDynamoStateSources(

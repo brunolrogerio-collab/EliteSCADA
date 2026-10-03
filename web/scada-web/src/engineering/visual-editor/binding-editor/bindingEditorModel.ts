@@ -83,6 +83,7 @@ export function normalizeBindingSourceCatalog(
       ...(item.family !== undefined ? { family: item.family } : {}),
       ...(tagReference !== undefined ? { tagReference } : {}),
       ...(selectorCapability !== undefined ? { selectorCapability } : {}),
+      ...(item.dynamoParameterKey !== undefined ? { dynamoParameterKey: item.dynamoParameterKey } : {}),
       bindable: true
     }));
   }
@@ -108,6 +109,9 @@ export function isBindingSourceCompatible(
   const destinationKey = typeof destination === 'string' ? '' : destination.key;
 
   if (source.dataType === undefined || source.dataType === null || !source.dataType.trim()) {
+    if (source.dynamoParameterKey?.trim() && source.kind === 'Tag') {
+      return destinationType !== 'assetRef';
+    }
     return source.kind !== 'Tag' && source.kind !== 'ClientMemory';
   }
 
@@ -218,6 +222,11 @@ export function findBindingSourceForBinding(
   sourceCatalog: readonly VisualEditorBindingSourceCatalogItem[]
 ): VisualEditorBindingSourceCatalogItem | undefined {
   const normalized = normalizeBindingSourceCatalog(sourceCatalog);
+  const parameterKey = binding.metadata?.dynamoParameter?.trim();
+  if (parameterKey) {
+    const normalizedKey = parameterKey.toLocaleLowerCase('en-US');
+    return normalized.find(source => source.dynamoParameterKey?.trim().toLocaleLowerCase('en-US') === normalizedKey);
+  }
   if (binding.kind === 'Tag' && binding.tagReference?.tagId) {
     const tagId = binding.tagReference.tagId.toLocaleLowerCase();
     return normalized.find(source =>
@@ -264,20 +273,22 @@ export function createBindingSetIntent(
       : undefined)
   );
   const scalarText = propertyKey === 'text' && source.dataType != null;
+  const metadata = {
+    ...(scalarText ? {
+      presentationMode: 'scalar-text',
+      sourceDataType: source.dataType!,
+      ...(source.engineeringUnit ? { engineeringUnit: source.engineeringUnit } : {})
+    } : {}),
+    ...(source.dynamoParameterKey?.trim() ? { dynamoParameter: source.dynamoParameterKey.trim() } : {}),
+    ...(presentationMetadata ?? {})
+  };
 
   const binding: BindingEngineering = {
     key: propertyKey,
     kind,
     target,
     ...(normalizedDirection !== undefined ? { direction: normalizedDirection } : {}),
-    ...(scalarText ? {
-      metadata: {
-        presentationMode: 'scalar-text',
-        sourceDataType: source.dataType!,
-        ...(source.engineeringUnit ? { engineeringUnit: source.engineeringUnit } : {}),
-        ...(presentationMetadata ?? {})
-      }
-    } : {}),
+    ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
     ...(tagReference !== undefined ? { tagReference } : {})
   };
 

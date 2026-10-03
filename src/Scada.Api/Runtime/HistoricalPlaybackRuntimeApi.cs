@@ -185,11 +185,22 @@ public static class HistoricalPlaybackScopeResolver
                 IsAnalog(tag.DataType) ? "interpolated" : "atOrBefore");
         }
 
-        void Walk(JsonElement node)
+        string? ResolveBindingTarget(string? path, string? equipmentPath)
+        {
+            if (string.IsNullOrWhiteSpace(path)) return null;
+            var normalized = path.Trim();
+            if (string.IsNullOrWhiteSpace(equipmentPath)) return normalized;
+            return normalized.Replace(
+                "{equipmentPath}",
+                equipmentPath.Trim(),
+                StringComparison.Ordinal);
+        }
+
+        void Walk(JsonElement node, string? equipmentPath = null)
         {
             if (node.ValueKind == JsonValueKind.Array)
             {
-                foreach (var item in node.EnumerateArray()) Walk(item);
+                foreach (var item in node.EnumerateArray()) Walk(item, equipmentPath);
                 return;
             }
             if (node.ValueKind != JsonValueKind.Object) return;
@@ -205,15 +216,18 @@ public static class HistoricalPlaybackScopeResolver
                          reference.ValueKind == JsonValueKind.Object
                     ? ReadGuid(reference, "tagId")
                     : null;
-                AddTag(id, TryString(node, "target", out var target) ? target : null);
+                var target = TryString(node, "target", out var rawTarget)
+                    ? ResolveBindingTarget(rawTarget, equipmentPath)
+                    : null;
+                AddTag(id, target);
             }
 
-            FollowDefinition(node, "dynamoDefinitionId", "dynamoKey", "dynamo", dynamos, "key");
-            FollowDefinition(node, "equipmentId", "equipmentPath", "equipment", equipment, "path");
-            FollowDefinition(node, "templateId", "templateKey", "template", templates, "key");
+            FollowDefinition(node, "dynamoDefinitionId", "dynamoKey", "dynamo", dynamos, "key", equipmentPath);
+            FollowEquipmentDefinition(node, equipmentPath);
+            FollowDefinition(node, "templateId", "templateKey", "template", templates, "key", equipmentPath);
 
             foreach (var property in node.EnumerateObject())
-                Walk(property.Value);
+                Walk(property.Value, equipmentPath);
         }
 
         void FollowDefinition(
@@ -222,20 +236,48 @@ public static class HistoricalPlaybackScopeResolver
             string keyProperty,
             string kind,
             IReadOnlyList<JsonElement> catalog,
-            string catalogKeyProperty)
+            string catalogKeyProperty,
+            string? equipmentPath)
         {
             var id = ReadGuid(node, idProperty);
+            var hasId = id.HasValue && id.Value != Guid.Empty;
             var key = TryString(node, keyProperty, out var keyValue) ? keyValue : null;
-            if ((!id.HasValue || id.Value == Guid.Empty) && string.IsNullOrWhiteSpace(key))
+            if (!hasId && string.IsNullOrWhiteSpace(key))
                 return;
 
-            var token = $"{kind}:{id?.ToString("D") ?? key}";
+            var identity = hasId ? id!.Value.ToString("D") : key!;
+            var token = $"{kind}:{identity}:{equipmentPath ?? string.Empty}";
             if (!visitedDefinitions.Add(token)) return;
 
-            JsonElement? definition = id.HasValue
-                ? FindById(catalog, id.Value)
+            JsonElement? definition = hasId
+                ? FindById(catalog, id!.Value)
                 : FindByProperty(catalog, catalogKeyProperty, key!);
-            if (definition.HasValue) Walk(definition.Value);
+            if (definition.HasValue) Walk(definition.Value, equipmentPath);
+        }
+
+        void FollowEquipmentDefinition(JsonElement node, string? equipmentPath)
+        {
+            var id = ReadGuid(node, "equipmentId");
+            var hasId = id.HasValue && id.Value != Guid.Empty;
+            var path = TryString(node, "equipmentPath", out var pathValue) ? pathValue : null;
+            if (!hasId && string.IsNullOrWhiteSpace(path))
+                return;
+
+            JsonElement? definition = hasId
+                ? FindById(equipment, id!.Value)
+                : FindByProperty(equipment, "path", path!);
+            if (!definition.HasValue) return;
+
+            var resolvedEquipmentPath =
+                TryString(definition.Value, "path", out var definitionPath) &&
+                !string.IsNullOrWhiteSpace(definitionPath)
+                    ? definitionPath.Trim()
+                    : ResolveBindingTarget(path, equipmentPath);
+            var identity = hasId ? id!.Value.ToString("D") : path!;
+            var token = $"equipment:{identity}:{resolvedEquipmentPath ?? string.Empty}";
+            if (!visitedDefinitions.Add(token)) return;
+
+            Walk(definition.Value, resolvedEquipmentPath ?? equipmentPath);
         }
 
         Walk(screen);

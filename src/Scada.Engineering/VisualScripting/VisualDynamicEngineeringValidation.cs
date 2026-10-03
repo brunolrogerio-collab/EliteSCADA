@@ -361,7 +361,10 @@ public static class VisualDynamicEngineeringValidation
 
         if (source.Kind is VisualValueSourceKind.Tag or VisualValueSourceKind.ClientMemory)
         {
-            if (source.TagReference is null && !allowParameterizedDynamoState)
+            var dynamoParameterPlaceholder = kind == ImportEntityKind.Dynamo &&
+                source.Kind == VisualValueSourceKind.Tag &&
+                IsDynamoParameterTarget(source.Target);
+            if (source.TagReference is null && !allowParameterizedDynamoState && !dynamoParameterPlaceholder)
                 issues.Add(Error("VISUAL_VALUE_SOURCE_REFERENCE_REQUIRED", $"{source.Kind} source requires a stable TagReference.", kind, key));
             if (source.Expression is not null)
                 issues.Add(Error("VISUAL_VALUE_SOURCE_EXPRESSION_UNEXPECTED", $"{source.Kind} source cannot also contain an expression.", kind, key));
@@ -421,6 +424,13 @@ public static class VisualDynamicEngineeringValidation
                 issues.Add(Error("VISUAL_EXPRESSION_DEPENDENCY_REFERENCE_REQUIRED", $"Dependency '{dependency.Symbol}' requires a stable non-empty TagReference.", kind, key));
         }
     }
+
+    private static bool IsDynamoParameterTarget(string? target) =>
+        target is not null &&
+        System.Text.RegularExpressions.Regex.IsMatch(
+            target,
+            @"^{dynamoParameter:[A-Za-z][A-Za-z0-9._-]{0,63}}$",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
     private static VisualExpressionValueType? PropertyType(VisualPropertyValueKind kind) => kind switch
     {

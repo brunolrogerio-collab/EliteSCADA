@@ -406,6 +406,12 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _securityScopeHandler.Preview(package, mode, items);
         _securityPolicyHandler.Preview(package, mode, items);
         PreviewOperationalHmiReferences(package, items);
+        var requestedRuntimePresentation = package.RuntimePresentation ?? new RuntimePresentationEngineeringDto();
+        items.Add(new ImportPreviewItem(
+            ImportEntityKind.RuntimePresentation,
+            "runtime-presentation",
+            requestedRuntimePresentation == _runtimePresentation ? ImportOperation.Skip : ImportOperation.Update,
+            Array.Empty<ImportIssue>()));
 
         return new ImportPreview(
             mode,
@@ -444,7 +450,13 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _visualAssetHandler.Apply(package, mode, ref created, ref updated, ref skipped, context);
         if (package.Branding is not null)
             _branding.Replace(package.Branding);
-        _runtimePresentation = package.RuntimePresentation ?? new RuntimePresentationEngineeringDto();
+        var requestedRuntimePresentation = package.RuntimePresentation ?? new RuntimePresentationEngineeringDto();
+        if (requestedRuntimePresentation == _runtimePresentation) skipped++;
+        else
+        {
+            _runtimePresentation = requestedRuntimePresentation;
+            updated++;
+        }
         _viewHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         if ((package.Screens?.Count ?? 0) > 0 || package.StartupScreenId.HasValue)
             _views.SetStartupScreen(package.StartupScreenId);

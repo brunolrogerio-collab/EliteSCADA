@@ -68,7 +68,7 @@ public static class BuiltinVisualEngineeringValidation
             if (!schema.Declares(binding.Key))
             {
                 if (element.Type.Equals(BuiltinVisualObjectSchemas.SvgSymbolType, StringComparison.Ordinal) &&
-                    SvgSemanticPaintEngineering.TryParse(binding.Key, out _))
+                    SvgSemanticDynamicDestinations.TryParse(binding.Key, out _))
                     continue;
 
                 issues.Add(Error(

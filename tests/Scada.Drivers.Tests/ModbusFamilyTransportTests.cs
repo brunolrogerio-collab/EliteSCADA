@@ -343,7 +343,9 @@ public sealed class ModbusFamilyTransportTests
 
         await connection.InjectIncomingAsync(ModbusRtuCrc.Frame(1, ReadRequest(10, 1)));
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-            await connection.ReadOutgoingExactlyAsync(7, TimeSpan.FromMilliseconds(150)));
+        {
+            await connection.ReadOutgoingExactlyAsync(7, TimeSpan.FromMilliseconds(150));
+        });
 
         await Task.Delay(50);
         Volatile.Write(ref effectsActive, true);

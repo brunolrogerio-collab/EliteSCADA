@@ -32,8 +32,12 @@ public sealed class ProtectedMaterialAuthorityTests
             Assert.DoesNotContain(SecretA, persisted, StringComparison.Ordinal);
             Assert.Contains(FileHostProtectedMaterialAuthority.Algorithm, persisted, StringComparison.Ordinal);
 
-            await using var lease = await authority.ResolveAsync(scope, stored.Reference);
-            Assert.Equal(SecretA, Encoding.UTF8.GetString(lease.Material.Span));
+            var lease = await authority.ResolveAsync(scope, stored.Reference);
+            var leasedMemory = lease.Material;
+            Assert.Equal(SecretA, Encoding.UTF8.GetString(leasedMemory.Span));
+            await lease.DisposeAsync();
+            Assert.True(leasedMemory.Span.ToArray().All(value => value == 0));
+            Assert.True(lease.Material.IsEmpty);
 
             var wrongResource = await Assert.ThrowsAsync<ProtectedMaterialException>(async () =>
                 await authority.ResolveAsync(scope with { ResourceId = "CAMERA-02" }, stored.Reference));
@@ -135,14 +139,25 @@ public sealed class ProtectedMaterialAuthorityTests
                     Encoding.UTF8.GetBytes(SecretA),
                     Admin())).Reference;
 
-                var replacement = await firstHost.ReplaceAsync(
+                var replacementTask = firstHost.ReplaceAsync(
                     scope,
                     firstReference,
                     Encoding.UTF8.GetBytes(SecretB),
-                    Admin());
+                    Admin()).AsTask();
+                var concurrentOldResolves = Enumerable.Range(0, 8)
+                    .Select(async _ =>
+                    {
+                        await using var lease = await firstHost.ResolveAsync(scope, firstReference);
+                        return Encoding.UTF8.GetString(lease.Material.Span);
+                    })
+                    .ToArray();
+
+                var replacement = await replacementTask;
                 replacementReference = replacement.Reference;
                 Assert.Equal(firstReference, replacement.SupersededReference);
                 Assert.NotEqual(firstReference, replacementReference);
+                var oldValues = await Task.WhenAll(concurrentOldResolves);
+                Assert.All(oldValues, value => Assert.Equal(SecretA, value));
 
                 await using var oldLease = await firstHost.ResolveAsync(scope, firstReference);
                 Assert.Equal(SecretA, Encoding.UTF8.GetString(oldLease.Material.Span));

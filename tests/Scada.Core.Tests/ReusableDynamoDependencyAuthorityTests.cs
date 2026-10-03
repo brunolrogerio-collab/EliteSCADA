@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Text.Json;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
@@ -179,6 +180,115 @@ public sealed class ReusableDynamoDependencyAuthorityTests
             () => ReusableDynamoDependencyAnalyzer.AnalyzeWorking(dynamo, assets, visualAssets));
 
         Assert.Contains("not image/svg+xml", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Export_AllowsPortableCommandParametersWithoutCapturingProjectCommandIdentity()
+    {
+        var assets = new InMemoryEngineeringAssetRegistry();
+        var visualAssets = new InMemoryVisualAssetEngineeringRegistry();
+        var dynamoId = Guid.NewGuid();
+        var forbiddenProjectCommandId = Guid.NewGuid();
+        var dynamo = new DynamoEngineeringDto(
+            dynamoId,
+            "dynamo.portable-command",
+            "Portable Command Dynamo",
+            Parameters:
+            [
+                new DynamoParameterDefinitionEngineeringDto(
+                    "startCommand",
+                    DynamoParameterKind.Command,
+                    Required: true),
+                new DynamoParameterDefinitionEngineeringDto(
+                    "stopCommand",
+                    DynamoParameterKind.Command,
+                    Required: true)
+            ],
+            Elements:
+            [
+                new VisualElementEngineeringDto(
+                    "start",
+                    "core.button",
+                    Actions:
+                    [
+                        new VisualNavigationActionEngineeringDto(
+                            "click",
+                            VisualNavigationActionKind.ExecuteCommand,
+                            CommandParameterKey: "startCommand")
+                    ]),
+                new VisualElementEngineeringDto(
+                    "stop",
+                    "core.button",
+                    Actions:
+                    [
+                        new VisualNavigationActionEngineeringDto(
+                            "click",
+                            VisualNavigationActionKind.ExecuteCommand,
+                            CommandParameterKey: "stopCommand")
+                    ])
+            ]);
+        assets.UpsertDynamo(dynamo);
+
+        var packages = new ReusableLibraryPackageService(assets, visualAssets);
+        var bytes = packages.Export(new ReusableLibraryExportRequest(
+            Guid.NewGuid(),
+            "Portable Command Library",
+            "1.0.0",
+            [new(ReusableLibraryResourceKinds.Dynamo, dynamoId)]));
+        var inspection = packages.Inspect(bytes);
+        var resource = Assert.Single(
+            inspection.Manifest.Resources,
+            candidate => candidate.Kind == ReusableLibraryResourceKinds.Dynamo &&
+                candidate.ResourceId == dynamoId);
+
+        Assert.Empty(resource.Dependencies);
+        using var stream = new MemoryStream(bytes);
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+        var payload = archive.GetEntry(resource.PayloadPath);
+        Assert.NotNull(payload);
+        using var reader = new StreamReader(payload!.Open());
+        var json = reader.ReadToEnd();
+
+        Assert.Contains("startCommand", json, StringComparison.Ordinal);
+        Assert.Contains("stopCommand", json, StringComparison.Ordinal);
+        Assert.DoesNotContain(forbiddenProjectCommandId.ToString("D"), json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AnalyzeWorking_RejectsConcreteCommandIdentityInsideReusableDynamo()
+    {
+        var assets = new InMemoryEngineeringAssetRegistry();
+        var visualAssets = new InMemoryVisualAssetEngineeringRegistry();
+        var commandId = Guid.NewGuid();
+        var dynamo = new DynamoEngineeringDto(
+            Guid.NewGuid(),
+            "dynamo.bound-command",
+            "Bound Command Dynamo",
+            Parameters:
+            [
+                new DynamoParameterDefinitionEngineeringDto(
+                    "startCommand",
+                    DynamoParameterKind.Command,
+                    Required: true)
+            ],
+            Elements:
+            [
+                new VisualElementEngineeringDto(
+                    "start",
+                    "core.button",
+                    Actions:
+                    [
+                        new VisualNavigationActionEngineeringDto(
+                            "click",
+                            VisualNavigationActionKind.ExecuteCommand,
+                            CommandId: commandId)
+                    ])
+            ]);
+
+        var error = Assert.Throws<InvalidDataException>(
+            () => ReusableDynamoDependencyAnalyzer.AnalyzeWorking(dynamo, assets, visualAssets));
+
+        Assert.Contains("non-portable action", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

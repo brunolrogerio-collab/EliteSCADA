@@ -35,7 +35,14 @@ public sealed class ModbusRtuServerDriverDescriptorProvider : ICommunicationDriv
         TagBindingSchemaId: ModbusTcpDriverDescriptorProvider.SharedDescriptor.TagBindingSchemaId
             ?? ModbusTcpDriverDescriptorProvider.SharedDescriptor.ConfigurationSchema.SchemaId,
         TagBindingSchemaVersion: ModbusTcpDriverDescriptorProvider.SharedDescriptor.TagBindingSchemaVersion
-            ?? ModbusTcpDriverDescriptorProvider.SharedDescriptor.ConfigurationSchema.SchemaVersion);
+            ?? ModbusTcpDriverDescriptorProvider.SharedDescriptor.ConfigurationSchema.SchemaVersion,
+        IntegrationDomains: new[] { IntegrationDomain.Industrial },
+        ConnectionModel: DriverConnectionModel.HostSerial,
+        ExternalDependencies: new[]
+        {
+            new DriverExternalDependencyDescriptor(DriverExternalDependencyKind.BuiltIn),
+            new DriverExternalDependencyDescriptor(DriverExternalDependencyKind.HostResource, "serialPort")
+        });
 
     public CommunicationDriverTypeDescriptor Descriptor => SharedDescriptor;
 }

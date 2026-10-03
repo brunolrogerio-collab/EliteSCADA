@@ -6,6 +6,7 @@ import {
 } from './api';
 import type { EngineeringLocale } from './i18n';
 import type { EngineeringPackageView, ImportPreviewView, TagEngineering } from './types';
+import { resolveTagDataSource } from './TagSourceSelector.logic';
 import './engineering-mutations.css';
 
 const CLIENT_MEMORY_DRIVER = 'builtin.memory.client';
@@ -207,12 +208,12 @@ export function MemoryTagSettingsPanel({ model, locale }: Props) {
 }
 
 function collectMemoryTags(model: EngineeringPackageView): MemoryTagView[] {
-  const sources = new Map(
-    (model.dataSources ?? []).map(source => [source.key.toLowerCase(), source]));
+  const sources = model.dataSources ?? [];
 
   return model.tags
     .map(tag => {
-      const source = tag.source ? sources.get(tag.source.toLowerCase()) : undefined;
+      const resolved = resolveTagDataSource(tag, sources);
+      const source = resolved.source;
       if (!source) return null;
       const driver = source.driver.toLowerCase();
       if (driver !== CLIENT_MEMORY_DRIVER && driver !== SERVER_MEMORY_DRIVER) return null;

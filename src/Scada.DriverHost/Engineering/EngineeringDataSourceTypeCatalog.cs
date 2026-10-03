@@ -1,7 +1,6 @@
 using System.Globalization;
 using Scada.Core.Sources;
 using Scada.Drivers.Abstractions;
-using Scada.Drivers.Modbus;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Validation;
 
@@ -37,6 +36,11 @@ public sealed record EngineeringDriverConfigurationSchemaView(
     IReadOnlyCollection<EngineeringDriverConfigurationFieldView> DataSourceFields,
     IReadOnlyCollection<EngineeringDriverConfigurationFieldView> TagBindingFields);
 
+public sealed record EngineeringExternalDependencyView(
+    string Kind,
+    string? Requirement,
+    string? Description);
+
 public sealed record EngineeringDataSourceTypeView(
     string TypeKey,
     string DisplayName,
@@ -45,7 +49,10 @@ public sealed record EngineeringDataSourceTypeView(
     EngineeringDriverCapabilityView Capabilities,
     EngineeringDriverConfigurationSchemaView? ConfigurationSchema,
     string? TagBindingSchemaId,
-    int? TagBindingSchemaVersion);
+    int? TagBindingSchemaVersion,
+    IReadOnlyCollection<string> IntegrationDomains,
+    string? ConnectionModel,
+    IReadOnlyCollection<EngineeringExternalDependencyView> ExternalDependencies);
 
 public sealed record EngineeringDataSourceTypeCatalogView(
     IReadOnlyCollection<EngineeringDataSourceTypeView> DataSourceTypes);
@@ -82,7 +89,6 @@ public sealed class EngineeringDataSourceTypeCatalog : IDataSourceConfigurationV
             .Select(registration => EngineeringDataSourceTypeDefinition.ForDriver(registration.Descriptor))
             .Concat(new[]
             {
-                EngineeringDataSourceTypeDefinition.ForDriver(ModbusTcpDriverDescriptorProvider.SharedDescriptor),
                 EngineeringDataSourceTypeDefinition.ForSource(
                     BuiltInSourceProviderDescriptors.ServerMemory,
                     "Server Memory",
@@ -245,7 +251,31 @@ public sealed class EngineeringDataSourceTypeCatalog : IDataSourceConfigurationV
                 descriptor?.SupportsSharedTransportInfrastructure ?? false),
             descriptor is null ? null : ToView(descriptor.ConfigurationSchema),
             tagBindingSchemaId,
-            tagBindingSchemaVersion);
+            tagBindingSchemaVersion,
+            descriptor is null
+                ? Array.Empty<string>()
+                : (descriptor.IntegrationDomains is { Count: > 0 }
+                    ? descriptor.IntegrationDomains.Select(domain => ToCamelCase(domain.ToString())).ToArray()
+                    : new[] { "industrial" }),
+            descriptor is null
+                ? null
+                : ToCamelCase((descriptor.ConnectionModel ?? DriverConnectionModel.DirectNetwork).ToString()),
+            descriptor is null
+                ? Array.Empty<EngineeringExternalDependencyView>()
+                : (descriptor.ExternalDependencies is { Count: > 0 }
+                    ? descriptor.ExternalDependencies
+                        .Select(dependency => new EngineeringExternalDependencyView(
+                            ToCamelCase(dependency.Kind.ToString()),
+                            dependency.Requirement,
+                            dependency.Description))
+                        .ToArray()
+                    : new[]
+                    {
+                        new EngineeringExternalDependencyView(
+                            ToCamelCase(DriverExternalDependencyKind.BuiltIn.ToString()),
+                            null,
+                            null)
+                    }));
     }
 
     private static EngineeringDriverConfigurationSchemaView ToView(DriverConfigurationSchemaDescriptor schema) => new(

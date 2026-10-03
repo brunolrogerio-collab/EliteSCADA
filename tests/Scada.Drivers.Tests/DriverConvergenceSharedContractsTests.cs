@@ -1,4 +1,5 @@
 using Scada.DriverHost.Engineering;
+using Scada.Drivers.Modbus;
 using Scada.Drivers.Abstractions;
 using Scada.Engineering.Contracts;
 
@@ -38,6 +39,29 @@ public sealed class DriverConvergenceSharedContractsTests
         var error = Assert.Throws<InvalidOperationException>(registration.Validate);
 
         Assert.Contains(nameof(CommunicationDriverModuleRegistration.PointReadTester), error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CurrentRuntimeProductRegistry_ContainsAllModbusFamilyRegistrationsExactlyOnce()
+    {
+        var registry = CommunicationDriverRuntimeComposition.BuildForCurrentSchema();
+        var expected = new[]
+        {
+            ModbusTcpDriverDescriptorProvider.DriverTypeId,
+            ModbusRtuDriverDescriptorProvider.DriverTypeId,
+            ModbusTcpServerDriverDescriptorProvider.DriverTypeId,
+            ModbusRtuServerDriverDescriptorProvider.DriverTypeId
+        };
+
+        foreach (var driverType in expected)
+        {
+            var registration = Assert.Single(
+                registry.Registrations,
+                candidate => candidate.DriverType.Equals(driverType, StringComparison.OrdinalIgnoreCase));
+            Assert.Equal(driverType, registration.Planner.DriverType, ignoreCase: true);
+            Assert.Equal(driverType, registration.Factory.DriverType, ignoreCase: true);
+            Assert.Equal(driverType, registration.Descriptor.DriverType, ignoreCase: true);
+        }
     }
 
     [Fact]

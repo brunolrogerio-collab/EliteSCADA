@@ -50,7 +50,10 @@ public sealed class ModbusTcpServerDriverDescriptorProvider : ICommunicationDriv
         TagBindingSchemaId: ModbusTcpDriverDescriptorProvider.SharedDescriptor.TagBindingSchemaId
             ?? ModbusTcpDriverDescriptorProvider.SharedDescriptor.ConfigurationSchema.SchemaId,
         TagBindingSchemaVersion: ModbusTcpDriverDescriptorProvider.SharedDescriptor.TagBindingSchemaVersion
-            ?? ModbusTcpDriverDescriptorProvider.SharedDescriptor.ConfigurationSchema.SchemaVersion);
+            ?? ModbusTcpDriverDescriptorProvider.SharedDescriptor.ConfigurationSchema.SchemaVersion,
+        IntegrationDomains: new[] { IntegrationDomain.Industrial },
+        ConnectionModel: DriverConnectionModel.DirectNetwork,
+        ExternalDependencies: new[] { new DriverExternalDependencyDescriptor(DriverExternalDependencyKind.BuiltIn) });
 
     public CommunicationDriverTypeDescriptor Descriptor => SharedDescriptor;
 }

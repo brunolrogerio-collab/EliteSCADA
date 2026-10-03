@@ -643,31 +643,6 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         var commands = new InMemoryCommandRegistry();
         var drivers = new List<ICommunicationDriver>();
 
-        foreach (var plan in compilation.ModbusTcpPlans)
-        {
-            if (plan.Points.Count == 0)
-            {
-                runtimeIssues.Add(new(
-                    "RUNTIME_DATASOURCE_NO_POINTS",
-                    $"Data source '{plan.DataSourceKey}' has no Modbus points and will not create a runtime driver.",
-                    plan.DataSourceKey,
-                    IsError: false));
-                continue;
-            }
-
-            drivers.Add(new ModbusTcpDriver(
-                $"modbus.tcp:{plan.DataSourceKey}",
-                plan.Name,
-                plan.Host,
-                cache,
-                registry,
-                plan.Points,
-                plan.Port,
-                plan.ScanRate,
-                plan.RequestTimeout,
-                plan.MaxGapElements));
-        }
-
         var communicationServices = new CommunicationDriverRuntimeServices(
             projectKey,
             cache,

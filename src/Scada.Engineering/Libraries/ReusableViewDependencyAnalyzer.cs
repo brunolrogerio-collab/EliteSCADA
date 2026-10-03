@@ -157,7 +157,8 @@ public static class ReusableViewDependencyAnalyzer
             else if (dynamoByKey is not null)
                 Add(dependencies, dynamoByKey);
 
-            if (string.Equals(element.Type, "core.image", StringComparison.Ordinal) &&
+            if ((string.Equals(element.Type, "core.image", StringComparison.Ordinal) ||
+                 string.Equals(element.Type, "core.svgSymbol", StringComparison.Ordinal)) &&
                 element.Properties is not null &&
                 element.Properties.TryGetValue("assetRef", out var assetReference) &&
                 assetReference.ValueKind != JsonValueKind.Null)

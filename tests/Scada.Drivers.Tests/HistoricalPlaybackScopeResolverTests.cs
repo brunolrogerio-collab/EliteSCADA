@@ -81,10 +81,10 @@ public sealed class HistoricalPlaybackScopeResolverTests
 
         Assert.Equal("overview", result.ScreenKey);
         Assert.Equal(2, result.Tags.Count);
-        var analog = Assert.Single(result.Tags.Where(x => x.Id == analogId));
+        var analog = Assert.Single(result.Tags, x => x.Id == analogId);
         Assert.Equal("Plant.Analog", analog.Path);
         Assert.Equal("interpolated", analog.RetrievalMode);
-        var discrete = Assert.Single(result.Tags.Where(x => x.Id == discreteId));
+        var discrete = Assert.Single(result.Tags, x => x.Id == discreteId);
         Assert.Equal("atOrBefore", discrete.RetrievalMode);
         Assert.DoesNotContain(result.Tags, x => x.Id == ignoredId);
         var unresolved = Assert.Single(result.UnresolvedReferences);

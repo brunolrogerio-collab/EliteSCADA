@@ -43,6 +43,8 @@ public static class EngineeringDriverCatalogApi
             sp.GetRequiredService<EngineeringDataSourceTypeCatalog>());
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, ModbusEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, ModbusRtuEngineeringDriverToolProviderFactory>();
+        builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, ModbusTcpServerEngineeringDriverToolProviderFactory>();
+        builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, ModbusRtuServerEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, S7IsoEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, OpcUaEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<EngineeringDriverToolProviderFactoryRegistry>();

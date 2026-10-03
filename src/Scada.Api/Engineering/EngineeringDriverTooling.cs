@@ -175,6 +175,56 @@ public sealed class ModbusRtuEngineeringDriverToolProviderFactory : IEngineering
     }
 }
 
+public sealed class ModbusTcpServerEngineeringDriverToolProviderFactory : IEngineeringDriverToolProviderFactory
+{
+    public string DriverType => ModbusTcpServerDriverDescriptorProvider.DriverTypeId;
+
+    public ValueTask<EngineeringDriverToolProviderLease> CreateAsync(
+        string? projectKey,
+        DataSourceEngineeringDto dataSource,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(dataSource);
+        if (!string.Equals(dataSource.Driver, DriverType, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"Modbus TCP Server Engineering tooling cannot open Data Source driver '{dataSource.Driver}'.", nameof(dataSource));
+
+        var tester = new ModbusTcpServerConnectionTester();
+        var registration = new CommunicationDriverModuleRegistration(tester, ConnectionTester: tester);
+        registration.Validate();
+        return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));
+    }
+}
+
+public sealed class ModbusRtuServerEngineeringDriverToolProviderFactory : IEngineeringDriverToolProviderFactory
+{
+    private readonly Scada.Drivers.Serial.HostSerialBusCoordinator _coordinator;
+
+    public ModbusRtuServerEngineeringDriverToolProviderFactory(
+        Scada.Drivers.Serial.HostSerialBusCoordinator coordinator)
+    {
+        _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+    }
+
+    public string DriverType => ModbusRtuServerDriverDescriptorProvider.DriverTypeId;
+
+    public ValueTask<EngineeringDriverToolProviderLease> CreateAsync(
+        string? projectKey,
+        DataSourceEngineeringDto dataSource,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(dataSource);
+        if (!string.Equals(dataSource.Driver, DriverType, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"Modbus RTU Server Engineering tooling cannot open Data Source driver '{dataSource.Driver}'.", nameof(dataSource));
+
+        var tester = new ModbusRtuServerConnectionTester(_coordinator);
+        var registration = new CommunicationDriverModuleRegistration(tester, ConnectionTester: tester);
+        registration.Validate();
+        return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));
+    }
+}
+
 public sealed class S7IsoEngineeringDriverToolProviderFactory : IEngineeringDriverToolProviderFactory
 {
     public string DriverType => "siemens.s7.iso";

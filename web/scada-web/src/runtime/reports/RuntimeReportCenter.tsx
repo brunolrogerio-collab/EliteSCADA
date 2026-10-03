@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   HistoricalQueryValue,
   ReportEngineeringDto,
@@ -23,7 +23,7 @@ const copy = {
   'pt-BR': {
     title: 'Relatórios', search: 'Buscar relatório', empty: 'Nenhum relatório autorizado disponível.',
     period: 'Período', relative: 'Últimas', absolute: 'De / Até', from: 'De', to: 'Até',
-    generate: 'Gerar relatório', generating: 'Gerando…', back: 'Voltar', refresh: 'Gerar novamente',
+    generate: 'Gerar relatório', generating: 'Gerando…', cancel: 'Cancelar', cancelled: 'Geração cancelada.', back: 'Voltar', refresh: 'Gerar novamente',
     pdf: 'Exportar PDF', xlsx: 'Exportar Excel', csv: 'Exportar CSV', print: 'Imprimir',
     previous: 'Página anterior', next: 'Próxima página', fitPage: 'Ajustar página', fitWidth: 'Ajustar largura',
     page: 'Página', generated: 'Gerado em', params: 'Parâmetros usados', error: 'Não foi possível gerar o relatório.',
@@ -32,7 +32,7 @@ const copy = {
   en: {
     title: 'Reports', search: 'Search reports', empty: 'No authorized reports are available.',
     period: 'Period', relative: 'Last', absolute: 'From / To', from: 'From', to: 'To',
-    generate: 'Generate report', generating: 'Generating…', back: 'Back', refresh: 'Regenerate',
+    generate: 'Generate report', generating: 'Generating…', cancel: 'Cancel', cancelled: 'Generation cancelled.', back: 'Back', refresh: 'Regenerate',
     pdf: 'Export PDF', xlsx: 'Export Excel', csv: 'Export CSV', print: 'Print',
     previous: 'Previous page', next: 'Next page', fitPage: 'Fit page', fitWidth: 'Fit width',
     page: 'Page', generated: 'Generated at', params: 'Parameters used', error: 'Could not generate the report.',
@@ -41,7 +41,7 @@ const copy = {
   es: {
     title: 'Informes', search: 'Buscar informe', empty: 'No hay informes autorizados disponibles.',
     period: 'Período', relative: 'Últimas', absolute: 'Desde / Hasta', from: 'Desde', to: 'Hasta',
-    generate: 'Generar informe', generating: 'Generando…', back: 'Volver', refresh: 'Generar de nuevo',
+    generate: 'Generar informe', generating: 'Generando…', cancel: 'Cancelar', cancelled: 'Generación cancelada.', back: 'Volver', refresh: 'Generar de nuevo',
     pdf: 'Exportar PDF', xlsx: 'Exportar Excel', csv: 'Exportar CSV', print: 'Imprimir',
     previous: 'Página anterior', next: 'Página siguiente', fitPage: 'Ajustar página', fitWidth: 'Ajustar ancho',
     page: 'Página', generated: 'Generado el', params: 'Parámetros usados', error: 'No se pudo generar el informe.',
@@ -72,9 +72,23 @@ export function RuntimeReportCenter({ locale }: { locale: Locale }) {
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [zoom, setZoom] = useState(100);
+  const generationAbort = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    void api<readonly ListItem[]>('/api/runtime/reports').then(setReports).catch(err => setError(message(err, t.error)));
+    let active = true;
+    void api<readonly ListItem[]>('/api/runtime/reports').then(items => {
+      if (!active) return;
+      setReports(items);
+      const requested = new URLSearchParams(window.location.search).get('report');
+      const target = requested ? items.find(item => item.key.toLocaleLowerCase() === requested.toLocaleLowerCase()) : undefined;
+      if (target) void choose(target);
+    }).catch(err => {
+      if (active) setError(message(err, t.error));
+    });
+    return () => {
+      active = false;
+      generationAbort.current?.abort();
+    };
   }, [t.error]);
 
   const visible = useMemo(() => reports.filter(report => {
@@ -98,6 +112,9 @@ export function RuntimeReportCenter({ locale }: { locale: Locale }) {
 
   async function generate() {
     if (!selected) return;
+    generationAbort.current?.abort();
+    const controller = new AbortController();
+    generationAbort.current = controller;
     setBusy(true);
     setError('');
     try {
@@ -113,16 +130,26 @@ export function RuntimeReportCenter({ locale }: { locale: Locale }) {
       const generated = await api<Generation>(`/api/runtime/reports/${encodeURIComponent(selected.key)}/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ parameters: typed, timeRange })
+        body: JSON.stringify({ parameters: typed, timeRange }),
+        signal: controller.signal
       });
       setGeneration(generated);
       setPage(1);
       setZoom(100);
     } catch (err) {
-      setError(message(err, t.error));
+      setError(controller.signal.aborted ? t.cancelled : message(err, t.error));
     } finally {
-      setBusy(false);
+      if (generationAbort.current === controller) generationAbort.current = null;
+      if (!controller.signal.aborted) setBusy(false);
+      else setBusy(false);
     }
+  }
+
+  function cancelGeneration() {
+    generationAbort.current?.abort();
+    generationAbort.current = null;
+    setBusy(false);
+    setError(t.cancelled);
   }
 
   if (generation && selected) {
@@ -167,9 +194,18 @@ export function RuntimeReportCenter({ locale }: { locale: Locale }) {
               <button type="button" className={rangeKind === 'absolute' ? 'active' : ''} onClick={() => setRangeKind('absolute')} disabled={selected.timeRange?.allowAbsolute === false}>{t.absolute}</button>
             </div>
             {rangeKind === 'relative'
-              ? <select aria-label={t.relative} value={duration} onChange={e => setDuration(Number(e.target.value))}>
-                  {relativePresets.map(p => <option key={p.seconds} value={p.seconds}>{p.label}</option>)}
-                </select>
+              ? <div className="report-center__relative">
+                  <select aria-label={t.relative} value={relativePresets.some(p => p.seconds === duration) ? duration : 'custom'} onChange={e => {
+                    if (e.target.value !== 'custom') setDuration(Number(e.target.value));
+                  }}>
+                    {relativePresets.map(p => <option key={p.seconds} value={p.seconds}>{p.label}</option>)}
+                    <option value="custom">{locale === 'pt-BR' ? 'Personalizado' : locale === 'es' ? 'Personalizado' : 'Custom'}</option>
+                  </select>
+                  {!relativePresets.some(p => p.seconds === duration) && <DurationInput seconds={duration} locale={locale} onChange={setDuration} />}
+                  {relativePresets.some(p => p.seconds === duration) && <button type="button" onClick={() => setDuration(duration + 1)}>
+                    {locale === 'pt-BR' ? 'Personalizar' : locale === 'es' ? 'Personalizar' : 'Custom'}
+                  </button>}
+                </div>
               : <div className="report-center__absolute">
                   <label>{t.from}<input type="datetime-local" step="1" value={fromLocal} onChange={e => setFromLocal(e.target.value)} /></label>
                   <label>{t.to}<input type="datetime-local" step="1" value={toLocal} onChange={e => setToLocal(e.target.value)} /></label>
@@ -181,7 +217,10 @@ export function RuntimeReportCenter({ locale }: { locale: Locale }) {
                 <input value={parameters[def.key] ?? ''} onChange={e => setParameters(current => ({ ...current, [def.key]: e.target.value }))} />
               </label>)}</div>
           </fieldset>}
-          <button className="report-center__generate" onClick={() => void generate()} disabled={busy}>{busy ? t.generating : t.generate}</button>
+          <div className="report-center__generate-actions">
+            <button className="report-center__generate" onClick={() => void generate()} disabled={busy}>{busy ? t.generating : t.generate}</button>
+            {busy && <button type="button" onClick={cancelGeneration}>{t.cancel}</button>}
+          </div>
         </> : <p>{locale === 'pt-BR' ? 'Selecione um relatório.' : locale === 'es' ? 'Seleccione un informe.' : 'Select a report.'}</p>}
       </section>
     </div>
@@ -210,12 +249,13 @@ function ReportViewer({ locale, t, report, generation, page, setPage, zoom, setZ
         <button title={t.pdf} aria-label={t.pdf} onClick={() => window.location.assign(exportUrl('pdf'))}>PDF</button>
         <button title={t.xlsx} aria-label={t.xlsx} onClick={() => window.location.assign(exportUrl('xlsx'))}>XLSX</button>
         <button title={t.csv} aria-label={t.csv} onClick={() => window.location.assign(exportUrl('csv'))}>CSV</button>
-        <button title={t.print} aria-label={t.print} onClick={() => window.print()}>⌘P</button>
+        <button title={t.print} aria-label={t.print} onClick={() => window.open(`/api/runtime/reports/executions/${generation.executionId}/print`, '_blank', 'noopener,noreferrer')}>⌘P</button>
       </div>
     </header>
     <section className="report-viewer__meta">
       <span>{t.generated}: {new Date(generation.generatedAtUtc).toLocaleString(locale)}</span>
       {query && <span>{new Date(query.fromUtc).toLocaleString(locale)} — {new Date(query.toUtc).toLocaleString(locale)}</span>}
+      <span>{t.params}: {effectiveParameters(generation.result.parameters)}</span>
       <button onClick={onRegenerate}>{t.refresh}</button>
     </section>
     <nav className="report-viewer__pagination" aria-label={t.page}>
@@ -260,6 +300,28 @@ function resolutionLabel(report: ReportEngineeringDto, locale: Locale) {
   if (!resolution || resolution.mode === 'raw') return locale === 'pt-BR' ? 'Dados brutos' : locale === 'es' ? 'Datos brutos' : 'Raw';
   if (resolution.mode === 'sampledFixedStep') return `${locale === 'pt-BR' ? 'Intervalo fixo' : locale === 'es' ? 'Intervalo fijo' : 'Fixed interval'} · ${formatMs(resolution.intervalMilliseconds)}`;
   return `${resolution.aggregateFunction ?? 'aggregate'} · ${formatMs(resolution.bucketMilliseconds)}`;
+}
+
+function DurationInput({ seconds, locale, onChange }: { seconds: number; locale: Locale; onChange: (seconds: number) => void }) {
+  const initialUnit = seconds % 86400 === 0 ? 86400 : seconds % 3600 === 0 ? 3600 : 60;
+  const [unit, setUnit] = useState(initialUnit);
+  const value = Math.max(1, Math.round(seconds / unit));
+  return <span className="report-center__duration-input">
+    <input type="number" min="1" value={value} onChange={event => onChange(Math.max(1, Number(event.target.value) || 1) * unit)} />
+    <select aria-label={locale === 'pt-BR' ? 'Unidade do período' : locale === 'es' ? 'Unidad del período' : 'Period unit'} value={unit} onChange={event => {
+      const next = Number(event.target.value);
+      setUnit(next);
+      onChange(value * next);
+    }}>
+      <option value={60}>min</option><option value={3600}>h</option><option value={86400}>{locale === 'en' ? 'days' : locale === 'es' ? 'días' : 'dias'}</option>
+    </select>
+  </span>;
+}
+
+function effectiveParameters(parameters: Readonly<Record<string, ReportParameterValue>>) {
+  const entries = Object.entries(parameters);
+  if (entries.length === 0) return '—';
+  return entries.map(([key, value]) => `${key}=${value.value}`).join(' · ');
 }
 
 function formatMs(value?: number | null) {

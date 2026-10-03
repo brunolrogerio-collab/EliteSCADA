@@ -42,5 +42,8 @@ public static class BacnetDriverDescriptor
                 new("writePriority", DriverConfigurationValueKind.Integer, Required: false, DisplayName: "BACnet write priority", Minimum: 1, Maximum: 16, Advanced: true)
             }),
         SupportsSharedTransportInfrastructure: true,
-        Description: "BACnet/IP over UDP. BACnet Secure Connect is deliberately not advertised by this driver type.");
+        Description: "BACnet/IP over UDP. BACnet Secure Connect is deliberately not advertised by this driver type.",
+        IntegrationDomains: new[] { IntegrationDomain.Building, IntegrationDomain.Industrial },
+        ConnectionModel: DriverConnectionModel.DirectNetwork,
+        ExternalDependencies: new[] { new DriverExternalDependencyDescriptor(DriverExternalDependencyKind.BuiltIn) });
 }

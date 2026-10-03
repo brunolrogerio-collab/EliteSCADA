@@ -249,13 +249,30 @@ export type TagValueReferenceEngineering = Readonly<{
   selector?: TagValueSelectorEngineering | null;
 }>;
 
+export type TagPhysicalValueTransformEngineering = Readonly<{
+  contractVersion?: number;
+  byteSwap?: boolean;
+  wordSwap?: boolean;
+}>;
+
+export type CommunicationTagBindingEngineering = Readonly<{
+  contractVersion: number;
+  schemaId: string;
+  schemaVersion: number;
+  portableAddress: string;
+  settings?: Record<string, string> | null;
+  valueTransform?: TagPhysicalValueTransformEngineering | null;
+}>;
+
 export type TagEngineering = {
   id?: string;
   name: string;
   path: string;
   dataType: string;
+  dataSourceId?: string | null;
   source?: string | null;
   address?: string | null;
+  communicationBinding?: CommunicationTagBindingEngineering | null;
   engineeringUnit?: string | null;
   description?: string | null;
   readOnly: boolean;

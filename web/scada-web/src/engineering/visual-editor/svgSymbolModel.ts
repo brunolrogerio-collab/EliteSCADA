@@ -6,6 +6,7 @@ import type {
 } from '../types';
 
 export const SVG_PAINT_OVERRIDES_PROPERTY = 'svgPaintOverrides';
+export const SVG_SLOT_DYNAMIC_PREFIX = 'svg.slot.';
 export const SVG_METADATA = Object.freeze({
   version: 'elitescada.svg.version',
   palette: 'elitescada.svg.palette',
@@ -38,6 +39,64 @@ export type SvgPaintSlotMetadata = Readonly<{
   stroke: boolean;
   strokeWidth: boolean;
 }>;
+
+export type SvgSemanticDynamicProperty = 'fill' | 'stroke' | 'strokeWidth';
+
+export type SvgSemanticDynamicDestination = Readonly<{
+  key: string;
+  slot: string;
+  property: SvgSemanticDynamicProperty;
+  type: 'color' | 'number';
+}>;
+
+export function svgSemanticDynamicPropertyKey(
+  slot: string,
+  property: SvgSemanticDynamicProperty
+): string {
+  if (!/^[A-Za-z][A-Za-z0-9._-]{0,63}$/.test(slot)) throw new Error('Invalid SVG semantic slot name.');
+  return `${SVG_SLOT_DYNAMIC_PREFIX}${slot}.${property}`;
+}
+
+export function parseSvgSemanticDynamicPropertyKey(
+  key: string
+): SvgSemanticDynamicDestination | null {
+  const match = /^svg\.slot\.([A-Za-z][A-Za-z0-9._-]{0,63})\.(fill|stroke|strokeWidth)$/.exec(key.trim());
+  if (!match) return null;
+  const property = match[2] as SvgSemanticDynamicProperty;
+  return Object.freeze({
+    key: key.trim(),
+    slot: match[1],
+    property,
+    type: property === 'strokeWidth' ? 'number' : 'color'
+  });
+}
+
+export function listSvgSemanticDynamicDestinations(
+  asset: VisualAssetEngineering | null | undefined
+): readonly SvgSemanticDynamicDestination[] {
+  const result: SvgSemanticDynamicDestination[] = [];
+  for (const slot of readSvgPaintMetadata(asset).slots) {
+    if (slot.fill) result.push(Object.freeze({
+      key: svgSemanticDynamicPropertyKey(slot.name, 'fill'),
+      slot: slot.name,
+      property: 'fill',
+      type: 'color'
+    }));
+    if (slot.stroke) result.push(Object.freeze({
+      key: svgSemanticDynamicPropertyKey(slot.name, 'stroke'),
+      slot: slot.name,
+      property: 'stroke',
+      type: 'color'
+    }));
+    if (slot.strokeWidth) result.push(Object.freeze({
+      key: svgSemanticDynamicPropertyKey(slot.name, 'strokeWidth'),
+      slot: slot.name,
+      property: 'strokeWidth',
+      type: 'number'
+    }));
+  }
+  return Object.freeze(result);
+}
 
 export function readSvgPaintOverrides(element: VisualElementEngineering): SvgPaintOverrides {
   return normalizeSvgPaintOverrides(element.properties?.[SVG_PAINT_OVERRIDES_PROPERTY]);

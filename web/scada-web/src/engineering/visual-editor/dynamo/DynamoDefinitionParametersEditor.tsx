@@ -17,7 +17,8 @@ const KINDS: readonly DynamoParameterKindEngineering[] = Object.freeze([
   'Boolean',
   'Number',
   'String',
-  'EquipmentPath'
+  'EquipmentPath',
+  'Command'
 ]);
 
 export function DynamoDefinitionParametersEditor({
@@ -141,6 +142,13 @@ function DefaultValueEditor({
   onChange: (parameter: DynamoParameterDefinitionEngineering) => void;
 }>) {
   const text = copy(locale);
+  if (parameter.kind === 'Command') {
+    return <div className="visual-editor-dynamo-definition-parameter__default">
+      <span>{text.defaultValue}</span>
+      <small>{text.commandHint}</small>
+    </div>;
+  }
+
   if (parameter.kind === 'TagReference') {
     return <div className="visual-editor-dynamo-definition-parameter__default">
       <span>{text.defaultValue}</span>
@@ -221,6 +229,7 @@ function kindLabel(kind: DynamoParameterKindEngineering, locale: EngineeringLoca
       case 'Number': return 'Numérico';
       case 'String': return 'Texto';
       case 'EquipmentPath': return 'Ruta de equipo';
+      case 'Command': return 'Comando';
     }
   }
   switch (kind) {
@@ -229,6 +238,7 @@ function kindLabel(kind: DynamoParameterKindEngineering, locale: EngineeringLoca
     case 'Number': return 'Numérico';
     case 'String': return 'Texto';
     case 'EquipmentPath': return 'Caminho de equipamento';
+    case 'Command': return 'Comando';
   }
 }
 
@@ -244,6 +254,7 @@ function copy(locale: EngineeringLocale) {
     defaultValue: 'Default',
     none: 'No default',
     tagHint: 'TAG defaults are intentionally not authored here; assign the TAG on each Dynamo instance.',
+    commandHint: 'Reusable Dynamo definitions never embed a project Command ID; map the Command on each instance.',
     remove: 'Remove'
   };
   if (locale === 'es') return {
@@ -257,6 +268,7 @@ function copy(locale: EngineeringLocale) {
     defaultValue: 'Predeterminado',
     none: 'Sin predeterminado',
     tagHint: 'Los TAG no se fijan como predeterminado aquí; asigne el TAG en cada instancia del Dínamo.',
+    commandHint: 'La definición reutilizable no incorpora un ID de Comando del proyecto; asigne el Comando en cada instancia.',
     remove: 'Eliminar'
   };
   return {
@@ -270,6 +282,7 @@ function copy(locale: EngineeringLocale) {
     defaultValue: 'Padrão',
     none: 'Sem padrão',
     tagHint: 'TAG não é fixado como padrão aqui; atribua o TAG em cada instância do Dínamo.',
+    commandHint: 'A definição reutilizável não incorpora ID de Command do projeto; mapeie o Command em cada instância.',
     remove: 'Remover'
   };
 }

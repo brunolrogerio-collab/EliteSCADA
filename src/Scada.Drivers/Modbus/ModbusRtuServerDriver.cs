@@ -9,7 +9,8 @@ namespace Scada.Drivers.Modbus;
 public sealed class ModbusRtuServerDriver :
     ICommunicationDriver,
     ICommunicationDiagnosticsSource,
-    ICommunicationDriverReadinessSource
+    ICommunicationDriverReadinessSource,
+    ICommunicationDriverResourceClaimSource
 {
     private readonly HostSerialBusCoordinator _coordinator;
     private readonly HostSerialLineSettings _serialSettings;
@@ -87,6 +88,16 @@ public sealed class ModbusRtuServerDriver :
     public DriverCapabilities Capabilities => DriverCapabilities.Read | DriverCapabilities.Write | DriverCapabilities.Diagnostics;
     public DriverStatus Status { get; private set; }
     public IReadOnlyCollection<TagDefinition> Tags => _points.Select(point => point.Point.Tag).ToArray();
+    public IReadOnlyCollection<CommunicationDriverResourceClaim> ResourceClaims => new[]
+    {
+        new CommunicationDriverResourceClaim(
+            "serial-port",
+            string.Empty,
+            _serialSettings.PhysicalPortKey,
+            DriverId,
+            $"{_serialSettings.BaudRate}|{_serialSettings.DataBits}|{_serialSettings.Parity}|{_serialSettings.StopBits}",
+            Exclusive: true)
+    };
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {

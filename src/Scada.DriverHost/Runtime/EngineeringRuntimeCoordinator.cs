@@ -447,6 +447,46 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 
             var runtimeIssues = new List<RuntimeActivationIssue>();
             RuntimeState? candidate = null;
+            var previous = Volatile.Read(ref _active);
+            IReadOnlyCollection<ICommunicationDriver> stoppedPreviousDrivers = Array.Empty<ICommunicationDriver>();
+
+            async Task RollbackPreviousAsync()
+            {
+                if (stoppedPreviousDrivers.Count == 0) return;
+                foreach (var driver in stoppedPreviousDrivers)
+                {
+                    try
+                    {
+                        await driver.StartAsync(CancellationToken.None);
+                    }
+                    catch (Exception ex)
+                    {
+                        runtimeIssues.Add(new RuntimeActivationIssue(
+                            "RUNTIME_HANDOVER_ROLLBACK_FAILED",
+                            $"Previous Runtime resource owner '{driver.DriverId}' could not be restarted after candidate failure: {ex.Message}",
+                            driver.DriverId));
+                    }
+                }
+                stoppedPreviousDrivers = Array.Empty<ICommunicationDriver>();
+            }
+
+            async Task DisposeCandidateAndRollbackAsync()
+            {
+                if (candidate is not null)
+                {
+                    try { await candidate.DisposeAsync(); }
+                    catch (Exception ex)
+                    {
+                        runtimeIssues.Add(new RuntimeActivationIssue(
+                            "RUNTIME_CANDIDATE_STOP_FAILED",
+                            $"Candidate Runtime reported an error while releasing resources: {ex.Message}",
+                            IsError: false));
+                    }
+                    candidate = null;
+                }
+                await RollbackPreviousAsync();
+            }
+
             try
             {
                 candidate = BuildCandidate(
@@ -458,12 +498,43 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                     runtimeIssues);
                 if (runtimeIssues.Any(x => x.IsError))
                 {
-                    await candidate.DisposeAsync();
+                    await DisposeCandidateAndRollbackAsync();
                     return new RuntimeActivationResult(
                         projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
                 }
 
-                await StartRuntimeSourcesAsync(candidate, cancellationToken);
+                var handover = ResolveResourceHandover(previous, candidate);
+
+                await StartRuntimeSourcesAsync(
+                    candidate,
+                    cancellationToken,
+                    handover.CandidateDrivers);
+
+                var preHandoverReady = await WaitUntilReadyAsync(
+                    candidate,
+                    cancellationToken,
+                    handover.CandidateDrivers,
+                    allowEmpty: true);
+                if (!preHandoverReady)
+                {
+                    runtimeIssues.Add(new(
+                        "RUNTIME_CANDIDATE_NOT_READY",
+                        $"Candidate Runtime did not reach pre-handover readiness within {_activationTimeout}.",
+                        IsError: true));
+                    await DisposeCandidateAndRollbackAsync();
+                    return new RuntimeActivationResult(
+                        projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
+                }
+
+                if (handover.PreviousDrivers.Count > 0)
+                {
+                    stoppedPreviousDrivers = await StopDriversForHandoverAsync(
+                        handover.PreviousDrivers,
+                        cancellationToken);
+                }
+
+                await StartDriversAsync(handover.CandidateDrivers, cancellationToken);
+
                 var ready = await WaitUntilReadyAsync(candidate, cancellationToken);
                 if (!ready)
                 {
@@ -471,7 +542,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                         "RUNTIME_CANDIDATE_NOT_READY",
                         $"Candidate runtime did not reach protocol readiness and required Good TAG quality within {_activationTimeout}.",
                         IsError: true));
-                    await candidate.DisposeAsync();
+                    await DisposeCandidateAndRollbackAsync();
                     return new RuntimeActivationResult(
                         projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
                 }
@@ -480,7 +551,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                 RegisterCommands(effectivePackage, candidate, runtimeIssues);
                 if (runtimeIssues.Any(x => x.IsError))
                 {
-                    await candidate.DisposeAsync();
+                    await DisposeCandidateAndRollbackAsync();
                     return new RuntimeActivationResult(
                         projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
                 }
@@ -503,17 +574,17 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                         runtimeIssues.Add(new(
                             "RUNTIME_ACTIVATION_COMMIT_FAILED",
                             $"Candidate runtime was ready, but activation could not be committed: {ex.Message}"));
-                        await candidate.DisposeAsync();
+                        await DisposeCandidateAndRollbackAsync();
                         return new RuntimeActivationResult(
                             projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
                     }
                 }
 
-                var previous = Volatile.Read(ref _active);
                 previous.EventGate.DisableForwarding();
                 Volatile.Write(ref _active, candidate);
                 candidate.EventGate.EnableForwarding();
                 candidate = null;
+                stoppedPreviousDrivers = Array.Empty<ICommunicationDriver>();
 
                 try
                 {
@@ -537,12 +608,12 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                if (candidate is not null) await candidate.DisposeAsync();
+                await DisposeCandidateAndRollbackAsync();
                 throw;
             }
             catch (Exception ex)
             {
-                if (candidate is not null) await candidate.DisposeAsync();
+                await DisposeCandidateAndRollbackAsync();
                 runtimeIssues.Add(new("RUNTIME_ACTIVATION_FAILED", ex.Message));
                 return new RuntimeActivationResult(
                     projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
@@ -681,21 +752,106 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         }
     }
 
-    private static async Task StartRuntimeSourcesAsync(RuntimeState state, CancellationToken cancellationToken)
+    private static async Task StartRuntimeSourcesAsync(
+        RuntimeState state,
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<ICommunicationDriver>? excludedDrivers = null)
     {
         foreach (var source in state.ServerMemorySources)
             await source.ActivateAsync(cancellationToken);
 
+        var excluded = excludedDrivers is null
+            ? null
+            : new HashSet<ICommunicationDriver>(excludedDrivers, ReferenceEqualityComparer.Instance);
         foreach (var driver in state.Drivers)
+        {
+            if (excluded?.Contains(driver) == true) continue;
+            await driver.StartAsync(cancellationToken);
+        }
+    }
+
+    private static async Task StartDriversAsync(
+        IReadOnlyCollection<ICommunicationDriver> drivers,
+        CancellationToken cancellationToken)
+    {
+        foreach (var driver in drivers)
             await driver.StartAsync(cancellationToken);
     }
 
-    private async Task<bool> WaitUntilReadyAsync(RuntimeState state, CancellationToken cancellationToken)
+    private static async Task<IReadOnlyCollection<ICommunicationDriver>> StopDriversForHandoverAsync(
+        IReadOnlyCollection<ICommunicationDriver> drivers,
+        CancellationToken cancellationToken)
     {
-        var readinessSources = state.Drivers
+        var stopped = new List<ICommunicationDriver>(drivers.Count);
+        try
+        {
+            foreach (var driver in drivers)
+            {
+                await driver.StopAsync(cancellationToken);
+                stopped.Add(driver);
+            }
+            return stopped;
+        }
+        catch
+        {
+            foreach (var driver in stopped.AsEnumerable().Reverse())
+            {
+                try { await driver.StartAsync(CancellationToken.None); }
+                catch { }
+            }
+            throw;
+        }
+    }
+
+    private static RuntimeResourceHandover ResolveResourceHandover(
+        RuntimeState previous,
+        RuntimeState candidate)
+    {
+        var previousDrivers = new HashSet<ICommunicationDriver>(ReferenceEqualityComparer.Instance);
+        var candidateDrivers = new HashSet<ICommunicationDriver>(ReferenceEqualityComparer.Instance);
+
+        foreach (var candidateDriver in candidate.Drivers)
+        {
+            if (candidateDriver is not ICommunicationDriverResourceClaimSource candidateClaims)
+                continue;
+            foreach (var candidateClaim in candidateClaims.ResourceClaims)
+            {
+                candidateClaim.Validate();
+                foreach (var previousDriver in previous.Drivers)
+                {
+                    if (previousDriver is not ICommunicationDriverResourceClaimSource previousClaims)
+                        continue;
+                    if (!previousClaims.ResourceClaims.Any(previousClaim => candidateClaim.ConflictsWith(previousClaim)))
+                        continue;
+
+                    candidateDrivers.Add(candidateDriver);
+                    previousDrivers.Add(previousDriver);
+                }
+            }
+        }
+
+        return new RuntimeResourceHandover(
+            previousDrivers.ToArray(),
+            candidateDrivers.ToArray());
+    }
+
+    private async Task<bool> WaitUntilReadyAsync(
+        RuntimeState state,
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<ICommunicationDriver>? ignoredDrivers = null,
+        bool allowEmpty = false)
+    {
+        var ignored = ignoredDrivers is null
+            ? null
+            : new HashSet<ICommunicationDriver>(ignoredDrivers, ReferenceEqualityComparer.Instance);
+        var activeDrivers = state.Drivers
+            .Where(driver => ignored?.Contains(driver) != true)
+            .ToArray();
+
+        var readinessSources = activeDrivers
             .OfType<ICommunicationDriverReadinessSource>()
             .ToArray();
-        var expectedTagIds = state.Drivers
+        var expectedTagIds = activeDrivers
             .Where(driver => driver is not ICommunicationDriverReadinessSource)
             .SelectMany(x => x.Tags)
             .Select(x => x.Id)
@@ -704,11 +860,11 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
             .ToArray();
 
         if (expectedTagIds.Length == 0 && readinessSources.Length == 0)
-            return state.ClientMemoryPlans.SelectMany(x => x.Tags).Any();
+            return allowEmpty || state.ClientMemoryPlans.SelectMany(x => x.Tags).Any();
 
         bool IsReady()
         {
-            if (state.Drivers.Any(x => x.Status.State == DriverState.Faulted))
+            if (activeDrivers.Any(x => x.Status.State == DriverState.Faulted))
                 return false;
 
             var protocolSnapshots = readinessSources
@@ -733,6 +889,10 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 
         return IsReady();
     }
+
+    private sealed record RuntimeResourceHandover(
+        IReadOnlyCollection<ICommunicationDriver> PreviousDrivers,
+        IReadOnlyCollection<ICommunicationDriver> CandidateDrivers);
 
     private static void RegisterAlarms(
         EngineeringPackage package,

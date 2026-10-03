@@ -1,10 +1,12 @@
 using Scada.Core.Tags;
+using Scada.Drivers.Abstractions;
 using Scada.Drivers.Serial;
 
 namespace Scada.Drivers.Modbus;
 
-public sealed class ModbusRtuDriver : ModbusMasterDriver
+public sealed class ModbusRtuDriver : ModbusMasterDriver, ICommunicationDriverResourceClaimSource
 {
+    private readonly HostSerialLineSettings _serialSettings;
     public ModbusRtuDriver(
         string driverId,
         string name,
@@ -57,5 +59,17 @@ public sealed class ModbusRtuDriver : ModbusMasterDriver
             scanRate,
             maxGapElements)
     {
+        _serialSettings = settings;
     }
+
+    public IReadOnlyCollection<CommunicationDriverResourceClaim> ResourceClaims => new[]
+    {
+        new CommunicationDriverResourceClaim(
+            "serial-port",
+            string.Empty,
+            _serialSettings.PhysicalPortKey,
+            DriverId,
+            $"{_serialSettings.BaudRate}|{_serialSettings.DataBits}|{_serialSettings.Parity}|{_serialSettings.StopBits}",
+            Exclusive: false)
+    };
 }

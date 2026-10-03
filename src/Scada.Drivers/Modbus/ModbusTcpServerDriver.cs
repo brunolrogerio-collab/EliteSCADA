@@ -12,7 +12,8 @@ namespace Scada.Drivers.Modbus;
 public sealed class ModbusTcpServerDriver :
     ICommunicationDriver,
     ICommunicationDiagnosticsSource,
-    ICommunicationDriverReadinessSource
+    ICommunicationDriverReadinessSource,
+    ICommunicationDriverResourceClaimSource
 {
     private readonly ICurrentTagCache _cache;
     private readonly ITagRegistry _registry;
@@ -102,6 +103,16 @@ public sealed class ModbusTcpServerDriver :
     public DriverStatus Status { get; private set; }
     public IReadOnlyCollection<TagDefinition> Tags => _points.Select(point => point.Point.Tag).ToArray();
     public string BindEndpoint => $"{FormatAddress(_bindAddress)}:{_port}";
+    public IReadOnlyCollection<CommunicationDriverResourceClaim> ResourceClaims => new[]
+    {
+        new CommunicationDriverResourceClaim(
+            "tcp-listener",
+            _port.ToString(CultureInfo.InvariantCulture),
+            _bindAddress.ToString(),
+            DriverId,
+            Exclusive: true,
+            WildcardIdentity: _bindAddress.Equals(IPAddress.Any) || _bindAddress.Equals(IPAddress.IPv6Any))
+    };
 
     public Task StartAsync(CancellationToken cancellationToken = default)
     {

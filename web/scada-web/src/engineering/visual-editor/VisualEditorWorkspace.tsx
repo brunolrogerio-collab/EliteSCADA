@@ -43,6 +43,7 @@ export function VisualEditorWorkspace({
       <DynamoAuthoringCatalogProvider
         definitions={normalizedSnapshot.package.dynamos ?? []}
         tags={normalizedSnapshot.package.tags ?? []}
+        commands={normalizedSnapshot.package.commands ?? []}
         visualAssets={normalizedSnapshot.package.visualAssets ?? []}
       >
         <LegacyVisualEditorWorkspace snapshot={normalizedSnapshot} locale={locale} onApplied={onApplied} onAssetImported={onAssetImported} definitionKind={definitionKind} initialDefinitionKey={initialDefinitionKey} onRequestClose={onRequestClose} />

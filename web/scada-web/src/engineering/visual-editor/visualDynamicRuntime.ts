@@ -17,6 +17,7 @@ import type {
   VisualValueSourceEngineering
 } from '../types';
 import { getVisualSchemaForEngineering, type VisualPropertyValue } from '../../visual-runtime';
+import { parseSvgSemanticDynamicPropertyKey } from './svgSymbolModel';
 import {
   computeAnalogFillPresentation,
   type AnalogFillPresentation
@@ -80,15 +81,24 @@ export function resolveVisualDynamicState(
   for (const binding of element.bindings ?? []) {
     const kind = binding.kind?.trim().toLowerCase();
     if (kind !== 'tag' && kind !== 'clientmemory') continue;
-    if (binding.key === 'text' || !(binding.key in values)) continue;
+    const semantic = element.type === 'core.svgSymbol'
+      ? parseSvgSemanticDynamicPropertyKey(binding.key)
+      : null;
+    if (binding.key === 'text' || (!(binding.key in values) && !semantic)) continue;
 
-    const resolved = resolveBinding(binding, values[binding.key], samples);
+    const fallback = binding.key in values
+      ? values[binding.key]
+      : semantic?.type === 'number' ? 1 : '#000000';
+    const resolved = resolveBinding(binding, fallback, samples);
     if (resolved.ok) values[binding.key] = resolved.value;
     else diagnostics.push(Object.freeze({ propertyKey: binding.key, sourceKind: 'Binding', message: resolved.message }));
   }
 
   for (const configured of element.propertyExpressions ?? []) {
-    if (!(configured.propertyKey in values)) continue;
+    const semantic = element.type === 'core.svgSymbol'
+      ? parseSvgSemanticDynamicPropertyKey(configured.propertyKey)
+      : null;
+    if (!(configured.propertyKey in values) && !semantic) continue;
     const resolved = resolveExpression(configured.expression, samples);
     if (resolved.ok) values[configured.propertyKey] = resolved.value;
     else diagnostics.push(Object.freeze({ propertyKey: configured.propertyKey, sourceKind: 'Expression', message: resolved.message }));
@@ -102,7 +112,10 @@ export function resolveVisualDynamicState(
   }
 
   for (const propertyMap of element.propertyMaps ?? []) {
-    if (!(propertyMap.propertyKey in values)) continue;
+    const semantic = element.type === 'core.svgSymbol'
+      ? parseSvgSemanticDynamicPropertyKey(propertyMap.propertyKey)
+      : null;
+    if (!(propertyMap.propertyKey in values) && !semantic) continue;
     const resolved = resolvePropertyMap(element, propertyMap, samples);
     if (resolved.ok) values[propertyMap.propertyKey] = resolved.value;
     else diagnostics.push(Object.freeze({ propertyKey: propertyMap.propertyKey, sourceKind: 'PropertyMap', message: resolved.message }));
@@ -120,6 +133,20 @@ export function resolveVisualDynamicState(
     analogFill,
     diagnostics: Object.freeze(diagnostics)
   });
+}
+
+function validateSvgSemanticDynamicValue(
+  type: 'color' | 'number',
+  value: unknown
+): Readonly<{ ok: true; value: VisualPropertyValue }> | Readonly<{ ok: false; code: string }> {
+  if (type === 'number') {
+    return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 10_000
+      ? Object.freeze({ ok: true as const, value })
+      : Object.freeze({ ok: false as const, code: 'svg.slot.strokeWidth.invalid' });
+  }
+  return typeof value === 'string' && /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(value)
+    ? Object.freeze({ ok: true as const, value: value.toUpperCase() })
+    : Object.freeze({ ok: false as const, code: 'svg.slot.color.invalid' });
 }
 
 function resolveBinding(
@@ -221,6 +248,17 @@ function resolvePropertyMap(
   }
 
   try {
+    const semantic = element.type === 'core.svgSymbol'
+      ? parseSvgSemanticDynamicPropertyKey(map.propertyKey)
+      : null;
+    if (semantic) {
+      const validation = validateSvgSemanticDynamicValue(semantic.type, candidate);
+      if (!validation.ok) {
+        return Object.freeze({ ok: false, message: `Mapped value for '${map.propertyKey}' is invalid (${validation.code}).` });
+      }
+      return Object.freeze({ ok: true, value: validation.value });
+    }
+
     const schema = getVisualSchemaForEngineering(element.type);
     const validation = schema.validate(map.propertyKey, candidate);
     if (!validation.ok) {
@@ -283,6 +321,14 @@ function resolveValueSource(
   source: VisualValueSourceEngineering,
   samples: ReadonlyMap<string, VisualDynamicSample>
 ): SourceResult {
+  if (source.projectedValue !== undefined) {
+    return typedSourceValue(
+      source.projectedValue,
+      source.valueType,
+      source.target ?? '{dynamoParameter}'
+    );
+  }
+
   const kind = normalizeVisualValueSourceKind(source.kind);
   if (!kind.ok) return kind;
 

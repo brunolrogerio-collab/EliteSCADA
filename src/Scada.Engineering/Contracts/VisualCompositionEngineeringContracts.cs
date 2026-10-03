@@ -18,7 +18,8 @@ public enum DynamoParameterKind
     Number,
     String,
     EquipmentPath,
-    TagReference
+    TagReference,
+    Command
 }
 
 public sealed record DynamoParameterDefinitionEngineeringDto(
@@ -34,7 +35,8 @@ public sealed record DynamoParameterValueEngineeringDto(
     DynamoParameterKind Kind,
     JsonElement? Value = null,
     TagValueReference? TagReference = null,
-    int Version = VisualCompositionEngineeringVersions.Current);
+    int Version = VisualCompositionEngineeringVersions.Current,
+    Guid? CommandId = null);
 
 public enum VisualNavigationActionKind
 {
@@ -58,4 +60,5 @@ public sealed record VisualNavigationActionEngineeringDto(
     string? TargetKey = null,
     Dictionary<string, JsonElement>? Parameters = null,
     int Version = VisualCompositionEngineeringVersions.Current,
-    Guid? CommandId = null);
+    Guid? CommandId = null,
+    string? CommandParameterKey = null);

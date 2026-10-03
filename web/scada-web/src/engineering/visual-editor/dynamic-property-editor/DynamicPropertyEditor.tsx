@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type {
   VisualAnalogFillEngineering,
+  VisualAssetEngineering,
   VisualBooleanConditionEngineering,
   VisualElementEngineering,
   VisualExpressionDependencyEngineering,
@@ -36,6 +37,7 @@ import './DynamicPropertyEditor.css';
 
 export type DynamicPropertyEditorProps = Readonly<{
   element: VisualElementEngineering;
+  visualAsset?: VisualAssetEngineering | null;
   sourceCatalog: readonly VisualEditorBindingSourceCatalogItem[];
   onBindingIntent: (intent: VisualEditorMutationIntent) => void;
   onSetExpression: (configuration: VisualPropertyExpressionEngineering) => void;
@@ -60,17 +62,17 @@ const EMPTY_EXPRESSION: ExpressionDraft = Object.freeze({ text: '', dependencies
  * Apply callbacks emit only the shared canonical Engineering DTOs/intents.
  */
 export function DynamicPropertyEditor(props: DynamicPropertyEditorProps) {
-  const { element } = props;
+  const { element, visualAsset } = props;
   const destinationResult = useMemo(() => {
     try {
-      return { destinations: listDynamicPropertyDestinations(element), error: null } as const;
+      return { destinations: listDynamicPropertyDestinations(element, visualAsset), error: null } as const;
     } catch (cause) {
       return {
         destinations: Object.freeze([]) as readonly DynamicPropertyDestination[],
         error: cause instanceof Error ? cause.message : String(cause)
       } as const;
     }
-  }, [element]);
+  }, [element, visualAsset]);
   const destinations = destinationResult.destinations;
   const [propertyKey, setPropertyKey] = useState(() => destinations[0]?.propertyKey ?? '');
   const destination = destinations.find(item => item.propertyKey === propertyKey) ?? destinations[0] ?? null;

@@ -208,9 +208,9 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             views,
             commands);
         _alarmHandler = new AlarmEngineeringHandler(alarms, _tagHandler);
-        _assetHandler = new AssetEngineeringHandler(assets, tags);
+        _assetHandler = new AssetEngineeringHandler(assets, tags, _visualAssets);
         _visualAssetHandler = new VisualAssetEngineeringHandler(_visualAssets);
-        _viewHandler = new ViewEngineeringHandler(views, assets, tags, _visualAssets);
+        _viewHandler = new ViewEngineeringHandler(views, assets, tags, _visualAssets, commands);
         _securityPolicyHandler = new SecurityPolicyEngineeringHandler(securityPolicies, _securityScopeHandler);
         _commandHandler = new CommandEngineeringHandler(commands, tags, dataSources);
         _gatewayHandler = new GatewayEngineeringHandler(gateways, tags, dataSources);
@@ -549,6 +549,21 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
 
                 if (action.Kind == VisualNavigationActionKind.ExecuteCommand)
                 {
+                    var portableDynamoCommand = kind == ImportEntityKind.Dynamo &&
+                        !string.IsNullOrWhiteSpace(action.CommandParameterKey) &&
+                        !action.CommandId.HasValue;
+                    if (portableDynamoCommand)
+                    {
+                        if (!string.IsNullOrWhiteSpace(action.TargetKey) || action.Parameters is { Count: > 0 })
+                            issues.Add(new ImportIssue(
+                                "VISUAL_ACTION_COMMAND_PARAMETER_SHAPE_INVALID",
+                                $"Parameterized ExecuteCommand action '{action.EventKey}' cannot declare TargetKey or Parameters.",
+                                kind,
+                                entityKey,
+                                true));
+                        continue;
+                    }
+
                     if (!action.CommandId.HasValue || action.CommandId == Guid.Empty)
                     {
                         issues.Add(new ImportIssue(

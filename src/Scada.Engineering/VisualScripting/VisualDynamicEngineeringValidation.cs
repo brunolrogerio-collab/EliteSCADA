@@ -120,6 +120,16 @@ public static class VisualDynamicEngineeringValidation
     {
         if (!schema.Declares(propertyKey))
         {
+            if (schema.ObjectTypeKey.Equals(BuiltinVisualObjectSchemas.SvgSymbolType, StringComparison.Ordinal) &&
+                SvgSemanticDynamicDestinations.TryParse(propertyKey, out var semantic))
+            {
+                if (!semantic.IsNumber)
+                    issues.Add(Error("VISUAL_DYNAMIC_PROPERTY_TYPE_UNSUPPORTED", $"SVG semantic paint destination '{propertyKey}' cannot receive a Boolean/numeric expression.", kind, key));
+                else if (resultType.HasValue && resultType.Value != VisualExpressionValueType.Number)
+                    issues.Add(Error("VISUAL_DYNAMIC_PROPERTY_TYPE_MISMATCH", $"SVG semantic paint destination '{propertyKey}' requires Number.", kind, key));
+                return;
+            }
+
             issues.Add(Error("VISUAL_DYNAMIC_PROPERTY_UNKNOWN", $"Visual expression targets undeclared property '{propertyKey}'.", kind, key));
             return;
         }
@@ -144,6 +154,13 @@ public static class VisualDynamicEngineeringValidation
     {
         if (!schema.Declares(propertyKey))
         {
+            if (schema.ObjectTypeKey.Equals(BuiltinVisualObjectSchemas.SvgSymbolType, StringComparison.Ordinal) &&
+                SvgSemanticDynamicDestinations.TryParse(propertyKey, out _))
+            {
+                issues.Add(Error("VISUAL_BOOLEAN_CONDITION_DESTINATION_INVALID", $"SVG semantic paint destination '{propertyKey}' is not Boolean.", kind, key));
+                return;
+            }
+
             issues.Add(Error("VISUAL_DYNAMIC_PROPERTY_UNKNOWN", $"Boolean Condition targets undeclared property '{propertyKey}'.", kind, key));
             return;
         }
@@ -240,15 +257,23 @@ public static class VisualDynamicEngineeringValidation
                 issues.Add(Error("VISUAL_PROPERTY_MAP_DUPLICATE", $"Visual property '{map.PropertyKey}' has more than one property map.", kind, key));
             if (occupied.Contains(map.PropertyKey))
                 issues.Add(Error("VISUAL_DYNAMIC_PROPERTY_SOURCE_CONFLICT", $"Visual property '{map.PropertyKey}' already has another Binding/Expression/Condition source.", kind, key));
-            if (!schema.Declares(map.PropertyKey))
+            var semanticDestination =
+                schema.ObjectTypeKey.Equals(BuiltinVisualObjectSchemas.SvgSymbolType, StringComparison.Ordinal) &&
+                SvgSemanticDynamicDestinations.TryParse(map.PropertyKey, out var parsedSemantic)
+                    ? parsedSemantic
+                    : null;
+            if (!schema.Declares(map.PropertyKey) && semanticDestination is null)
             {
                 issues.Add(Error("VISUAL_PROPERTY_MAP_DESTINATION_INVALID", $"Visual property '{map.PropertyKey}' is not declared by '{schema.ObjectTypeKey}'.", kind, key));
                 continue;
             }
 
-            var definition = schema.GetRequired(map.PropertyKey);
-            if (!definition.Animatable)
-                issues.Add(Error("VISUAL_PROPERTY_MAP_DESTINATION_NOT_ANIMATABLE", $"Visual property '{map.PropertyKey}' is not animatable.", kind, key));
+            if (semanticDestination is null)
+            {
+                var definition = schema.GetRequired(map.PropertyKey);
+                if (!definition.Animatable)
+                    issues.Add(Error("VISUAL_PROPERTY_MAP_DESTINATION_NOT_ANIMATABLE", $"Visual property '{map.PropertyKey}' is not animatable.", kind, key));
+            }
 
             var usesDynamoStateParameter = allowParameterizedDynamoState &&
                 map.Source is
@@ -300,6 +325,14 @@ public static class VisualDynamicEngineeringValidation
         string key,
         List<ImportIssue> issues)
     {
+        if (schema.ObjectTypeKey.Equals(BuiltinVisualObjectSchemas.SvgSymbolType, StringComparison.Ordinal) &&
+            SvgSemanticDynamicDestinations.TryParse(propertyKey, out var semantic))
+        {
+            if (!SvgSemanticDynamicDestinations.ValidateMappedValue(semantic, value))
+                issues.Add(Error("VISUAL_PROPERTY_MAP_VALUE_INVALID", $"Mapped value for SVG semantic paint destination '{propertyKey}' is invalid.", kind, key));
+            return;
+        }
+
         try
         {
             VisualEngineeringPropertyCodec.Decode(
@@ -361,7 +394,10 @@ public static class VisualDynamicEngineeringValidation
 
         if (source.Kind is VisualValueSourceKind.Tag or VisualValueSourceKind.ClientMemory)
         {
-            if (source.TagReference is null && !allowParameterizedDynamoState)
+            var dynamoParameterPlaceholder = kind == ImportEntityKind.Dynamo &&
+                source.Kind == VisualValueSourceKind.Tag &&
+                IsDynamoParameterTarget(source.Target);
+            if (source.TagReference is null && !allowParameterizedDynamoState && !dynamoParameterPlaceholder)
                 issues.Add(Error("VISUAL_VALUE_SOURCE_REFERENCE_REQUIRED", $"{source.Kind} source requires a stable TagReference.", kind, key));
             if (source.Expression is not null)
                 issues.Add(Error("VISUAL_VALUE_SOURCE_EXPRESSION_UNEXPECTED", $"{source.Kind} source cannot also contain an expression.", kind, key));
@@ -420,6 +456,34 @@ public static class VisualDynamicEngineeringValidation
             if (dependency.TagReference is null || dependency.TagReference.TagId == Guid.Empty)
                 issues.Add(Error("VISUAL_EXPRESSION_DEPENDENCY_REFERENCE_REQUIRED", $"Dependency '{dependency.Symbol}' requires a stable non-empty TagReference.", kind, key));
         }
+    }
+
+    private static bool IsDynamoParameterTarget(string? target) =>
+        target is not null &&
+        System.Text.RegularExpressions.Regex.IsMatch(
+            target,
+            @"^{dynamoParameter:[A-Za-z][A-Za-z0-9._-]{0,63}}$",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    internal static bool TryDynamoParameterTarget(string? target, out string parameterKey)
+    {
+        parameterKey = string.Empty;
+        if (string.IsNullOrWhiteSpace(target) ||
+            !target.StartsWith("{dynamoParameter:", StringComparison.Ordinal) ||
+            !target.EndsWith('}'))
+            return false;
+
+        var value = target["{dynamoParameter:".Length..^1];
+        if (value.Length is < 1 or > 64 || !char.IsAsciiLetter(value[0]))
+            return false;
+        foreach (var ch in value)
+        {
+            if (!(char.IsAsciiLetterOrDigit(ch) || ch is '.' or '_' or '-'))
+                return false;
+        }
+
+        parameterKey = value;
+        return true;
     }
 
     private static VisualExpressionValueType? PropertyType(VisualPropertyValueKind kind) => kind switch

@@ -49,6 +49,11 @@ import {
   selectedVisualElements
 } from './visualEditorIntegrationModel';
 import type { VisualEditorKeyboardCommand } from './visualEditorKeyboardModel';
+import { DynamoDefinitionParametersEditor } from './dynamo/DynamoDefinitionParametersEditor';
+import type {
+  DynamoParameterDefinitionEngineering,
+  DynamoParameterKindEngineering
+} from '../../runtime/visual-navigation/runtimeVisualNavigationModel';
 import {
   applyVisualEditorSessionKeyboardCommand,
   canPasteVisualEditorSession,
@@ -113,6 +118,9 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
   const selectedDynamo = definitionKind === 'dynamo' && selected ? dynamos.find(item => (item.id ? `id:${item.id}` : `key:${item.key}`) === screenIdentity(selected)) ?? null : null;
   const initialDraft = selected ? cloneEngineeringValue(selected) : createDraft(screens, locale, definitionKind);
   const [session, setSessionState] = useState<VisualEditorSessionState>(() => createVisualEditorSession(initialDraft));
+  const [dynamoParameters, setDynamoParameters] = useState<readonly DynamoParameterDefinitionEngineering[]>(
+    () => Object.freeze([...(selectedDynamo?.parameters ?? [])])
+  );
   const sessionRef = useRef(session);
   const draft = currentVisualEditorSessionScreen(session);
   const selectedObjectIds = session.selectedObjectIds;
@@ -177,6 +185,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
     setPolygonToolActive(false);
     if (selectedIdentity === NEW_SCREEN_IDENTITY) {
       replaceSession(createVisualEditorSession(createDraft(screens, locale, definitionKind)));
+      setDynamoParameters(Object.freeze([]));
       setViewport(DEFAULT_VIEWPORT);
       invalidateValidation();
       return;
@@ -184,6 +193,11 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
     const current = screens.find(screen => matchesScreenIdentity(screen, selectedIdentity)) ?? null;
     if (current) {
       replaceSession(createVisualEditorSession(cloneEngineeringValue(current)));
+      if (definitionKind === 'dynamo') {
+        const currentDynamo = dynamos.find(item =>
+          (item.id ? `id:${item.id}` : `key:${item.key}`) === screenIdentity(current)) ?? null;
+        setDynamoParameters(Object.freeze([...(currentDynamo?.parameters ?? [])]));
+      }
       setViewport(DEFAULT_VIEWPORT);
       invalidateValidation();
       return;
@@ -192,7 +206,10 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
     else setSelectedIdentity(NEW_SCREEN_IDENTITY);
   }, [selectedIdentity, snapshot.package, definitionKind]);
 
-  const changed = isNew ? definitionKind !== 'dynamo' : selected !== null && JSON.stringify(selected) !== JSON.stringify(draft);
+  const visualDefinitionChanged = selected !== null && JSON.stringify(selected) !== JSON.stringify(draft);
+  const publicInterfaceChanged = definitionKind === 'dynamo' &&
+    JSON.stringify(selectedDynamo?.parameters ?? []) !== JSON.stringify(dynamoParameters);
+  const changed = isNew ? true : visualDefinitionChanged || publicInterfaceChanged;
   const selectedElements = useMemo(
     () => selectedVisualElements(draft, selectedObjectIds),
     [draft, selectedObjectIds]
@@ -201,8 +218,8 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
     () => buildProjectReferenceCatalog(snapshot.package, clientMemoryDefinitions),
     [snapshot.package, clientMemoryDefinitions]
   );
-  const bindingSourceCatalog = useMemo<readonly VisualEditorBindingSourceCatalogItem[]>(() => Object.freeze(
-    projectReferences
+  const bindingSourceCatalog = useMemo<readonly VisualEditorBindingSourceCatalogItem[]>(() => {
+    const projectSources = projectReferences
       .filter(reference => reference.bindingKind === 'Tag' || reference.bindingKind === 'ClientMemory')
       .map(reference => Object.freeze({
         kind: reference.bindingKind!,
@@ -215,8 +232,23 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
         tagReference: reference.tagReference ?? null,
         selectorCapability: reference.selectorCapability ?? null,
         bindable: true
-      }))
-  ), [projectReferences]);
+      }));
+
+    if (definitionKind !== 'dynamo') return Object.freeze(projectSources);
+
+    const parameterSources = dynamoParameters
+      .filter(parameter => parameter.kind !== 'Command')
+      .map(parameter => Object.freeze({
+      kind: parameter.kind === 'TagReference' ? 'Tag' as const : 'Property' as const,
+      target: `{dynamoParameter:${parameter.key}}`,
+      label: `Dynamo · ${parameter.key}`,
+      dataType: parameterDataType(parameter.kind),
+      writable: false,
+      bindable: true,
+      dynamoParameterKey: parameter.key
+    }));
+    return Object.freeze([...parameterSources, ...projectSources]);
+  }, [projectReferences, definitionKind, dynamoParameters]);
   const visualAssets = snapshot.package.visualAssets ?? [];
 
   const resizeDock = (region: 'palette' | 'properties', event: React.PointerEvent<HTMLButtonElement>) => {
@@ -267,6 +299,9 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
 
   const resetDraft = () => {
     replaceSession(createVisualEditorSession(selected ? cloneEngineeringValue(selected) : createDraft(screens, locale, definitionKind)));
+    if (definitionKind === 'dynamo') {
+      setDynamoParameters(Object.freeze([...(selectedDynamo?.parameters ?? [])]));
+    }
     setViewport(DEFAULT_VIEWPORT);
     setPolygonToolActive(false);
     invalidateValidation();
@@ -365,7 +400,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
       const nextPackage = definitionKind === 'template'
         ? replaceTemplateInPackage(snapshot.package, selectedTemplate, draft)
         : definitionKind === 'dynamo'
-          ? replaceDynamoInPackage(snapshot.package, selectedDynamo, draft)
+          ? replaceDynamoInPackage(snapshot.package, selectedDynamo, draft, dynamoParameters)
           : replaceScreenInPackage(snapshot.package, selected, draft);
       const before = await loadEngineeringWorkspace();
       const nextPreview = await previewEngineeringPackage(nextPackage);
@@ -444,7 +479,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
         <header>
           <strong>{text.screens}</strong>
           <div className="visual-editor-region-actions">
-          {definitionKind !== 'dynamo' ? <button type="button" className={isNew ? 'active' : ''} onClick={() => chooseScreen(NEW_SCREEN_IDENTITY)}>+ {text.newScreen}</button> : null}
+          <button type="button" className={isNew ? 'active' : ''} onClick={() => chooseScreen(NEW_SCREEN_IDENTITY)}>+ {text.newScreen}</button>
             <VisualEditorRegionToggle region="screens" collapsed={screensCollapsed} locale={locale} onToggle={() => setScreensCollapsed(value => !value)} />
           </div>
         </header>
@@ -461,10 +496,20 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
       <section className="visual-editor-main">
         <div className="visual-editor-screen-form">
           <label><span>{text.name}</span><input aria-description={text.nameHint} value={draft.name} onChange={event => updateDraft(current => ({ ...current, name: event.target.value }))} /><small aria-hidden="true">{text.nameHint}</small></label>
-          <label><span>{text.key}</span><input aria-description={text.keyHint} className="mono" value={draft.key} readOnly={definitionKind === 'dynamo'} onChange={event => updateDraft(current => ({ ...current, key: event.target.value }))} /><small aria-hidden="true">{text.keyHint}</small></label>
+          <label><span>{text.key}</span><input aria-description={text.keyHint} className="mono" value={draft.key} readOnly={definitionKind === 'dynamo' && !isNew} onChange={event => updateDraft(current => ({ ...current, key: event.target.value }))} /><small aria-hidden="true">{text.keyHint}</small></label>
           {definitionKind === 'screen' ? <label><span>{text.route}</span><input aria-description={text.routeHint} className="mono" value={draft.route ?? ''} placeholder="/overview" onChange={event => updateDraft(current => ({ ...current, route: emptyToNull(event.target.value) }))} /><small aria-hidden="true">{text.routeHint}</small></label> : <div className="visual-editor-draft-state"><span>{text.route}</span><strong>{draft.key}</strong><small>{text.routeHint}</small></div>}
           <div className="visual-editor-draft-state"><span>{text.draft}</span><strong>{isNew ? text.newDraft : changed ? text.changed : text.unchanged}</strong><small>{objectCount} {text.objects}</small></div>
         </div>
+
+        {definitionKind === 'dynamo' ? <DynamoDefinitionParametersEditor
+          parameters={dynamoParameters}
+          locale={locale}
+          disabled={previewing || applying}
+          onChange={parameters => {
+            setDynamoParameters(Object.freeze([...parameters]));
+            invalidateValidation();
+          }}
+        /> : null}
 
         <div className="visual-editor-composition" style={{ '--visual-editor-palette-width': paletteCollapsed ? '40px' : `${paletteWidth}px`, '--visual-editor-properties-width': propertiesCollapsed ? '40px' : `${propertiesWidth}px` } as React.CSSProperties}>
           <aside className="visual-editor-slot visual-editor-palette-slot">
@@ -535,6 +580,9 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
               onImportImage={importAsset}
               imageImportDisabled={applying || previewing}
               imageImportBusy={importingAsset}
+              dynamoCommandParameters={definitionKind === 'dynamo'
+                ? dynamoParameters.filter(parameter => parameter.kind === 'Command').map(parameter => parameter.key)
+                : undefined}
             />
           </aside>
         </div>
@@ -592,6 +640,17 @@ function createDraft(existing: readonly ScreenEngineering[], locale: Engineering
   return { ...draft, key: draft.key.replace(/^screen-/, prefix), name: draft.name.replace(/^(Screen|Pantalla|Tela) /, namePrefix), route: null };
 }
 function emptyToNull(value: string): string | null { return value.trim().length === 0 ? null : value; }
+
+function parameterDataType(kind: DynamoParameterKindEngineering): string | null {
+  switch (kind) {
+    case 'Boolean': return 'Boolean';
+    case 'Number': return 'Double';
+    case 'String': return 'String';
+    case 'EquipmentPath': return 'String';
+    case 'TagReference': return null;
+    case 'Command': return null;
+  }
+}
 
 function visualEditorText(locale: EngineeringLocale) {
   if (locale === 'en') return {

@@ -111,6 +111,22 @@ public static class DynamoRuntimeComposer
             {
                 Target = normalizedPath is null ? binding.Target : binding.Target.Replace("{equipmentPath}", normalizedPath, StringComparison.Ordinal)
             }).ToArray(),
+            Actions = element.Actions?.Select(action =>
+            {
+                if (string.IsNullOrWhiteSpace(action.CommandParameterKey))
+                    return action;
+                if (!parameters.TryGetValue(action.CommandParameterKey, out var commandValue) ||
+                    commandValue.Kind != DynamoParameterKind.Command ||
+                    !commandValue.CommandId.HasValue ||
+                    commandValue.CommandId == Guid.Empty)
+                    throw new InvalidOperationException(
+                        $"Dynamo action '{action.EventKey}' requires mapped Command parameter '{action.CommandParameterKey}'.");
+                return action with
+                {
+                    CommandId = commandValue.CommandId,
+                    CommandParameterKey = null
+                };
+            }).ToArray(),
             PropertyMaps = element.PropertyMaps?.Select(map =>
             {
                 var stateParameterKey = element.Metadata?.GetValueOrDefault("dynamoStateColorParameter");
@@ -154,6 +170,7 @@ public static class DynamoRuntimeComposer
         elements.Any(element =>
             element.Metadata?.ContainsKey("dynamoStateColorParameter") == true ||
             element.Metadata?.ContainsKey("dynamoStateColorProfile") == true ||
+            element.Actions?.Any(action => !string.IsNullOrWhiteSpace(action?.CommandParameterKey)) == true ||
             (element.Children is { Count: > 0 } && RequiresInstanceProjection(element.Children)));
 
     public static string RuntimeElementIdentity(Guid instanceId, Guid definitionElementId) =>

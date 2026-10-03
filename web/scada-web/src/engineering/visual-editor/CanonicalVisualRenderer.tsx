@@ -37,6 +37,7 @@ import { SliderVisualElement, type SliderTagWrite } from './SliderVisualElement'
 import { NumericInputVisualElement } from './NumericInputVisualElement';
 import './CanonicalVisualInteraction.css';
 import { TrendVisualElement } from './TrendVisualElement';
+import { SvgSymbolVisualElement } from './SvgSymbolVisualElement';
 import {
   cssStrokeStyle,
   effectiveStrokeWidth,
@@ -222,6 +223,26 @@ function CanonicalElement({
           showTechnicalFallbackText={showTechnicalFallbackText}
       operatorTimeRangeControls={operatorTimeRangeControls}
         />)}
+      </div>;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol) {
+      const assetId = assetReferenceId(values[VISUAL_PROPERTY_KEYS.assetRef]);
+      return <div
+        className="visual-editor-object visual-editor-svg-symbol"
+        style={style}
+        data-object-id={element.id ?? undefined}
+        data-runtime-object-id={runtimeObjectId}
+        data-enabled={enabled}
+        title={elementTitle}
+        data-dynamic-state={diagnosticState}
+        onClick={onClick}
+      >
+        {assetId ? <SvgSymbolVisualElement
+          element={element}
+          values={values}
+          assetUrl={visualAssetUrl(assetId)}
+        /> : showTechnicalFallbackText ? <span className="visual-editor-image-placeholder">{element.key}</span> : null}
       </div>;
     }
 

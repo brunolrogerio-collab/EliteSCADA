@@ -282,21 +282,25 @@ public sealed class ModbusServerRegisterMap
                 ModbusServerRequestFailure.IllegalAddress,
                 "Client write includes one or more Holding Registers that are not mapped to a Server TAG.");
 
+        var incoming = values as ushort[] ?? values.ToArray();
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            for (var index = 0; index < values.Count; index++)
-                _registers[address + index] = values[index];
-
+            // Decode every logical TAG from the proposed raw image before mutating
+            // the live register map. A conversion/scale failure must not leave raw
+            // registers changed while canonical TAG/cache state remains unchanged.
             var updates = new List<ModbusServerTagUpdate>(touched.Length);
             foreach (var serverPoint in touched)
             {
                 var point = serverPoint.Point;
-                var span = _registers.AsSpan(point.Address, point.RegisterCount);
+                var offset = point.Address - address;
+                var proposed = incoming.AsSpan(offset, point.RegisterCount);
                 updates.Add(new ModbusServerTagUpdate(
                     point.Tag,
-                    ModbusValueCodec.DecodeRegisters(point, span)));
+                    ModbusValueCodec.DecodeRegisters(point, proposed)));
             }
+
+            incoming.AsSpan().CopyTo(_registers.AsSpan(address, incoming.Length));
             return updates;
         }
         finally

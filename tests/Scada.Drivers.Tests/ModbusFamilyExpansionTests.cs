@@ -239,6 +239,28 @@ public sealed class ModbusFamilyExpansionTests
         var hole = await sparseHandler.HandleAsync(1, WriteMultipleRequest(20, new ushort[] { 1, 2 }));
         Assert.Equal(ModbusServerOperationKind.Rejected, hole.Kind);
         Assert.Equal(ModbusServerRequestFailure.IllegalAddress, hole.Failure);
+
+        var conversionPoint = ServerPoint(
+            "Conversion",
+            "Server.Conversion",
+            30,
+            ModbusValueType.UInt16,
+            ModbusServerClientAccess.ReadWrite);
+        var conversionMap = new ModbusServerRegisterMap(
+            new[] { new ModbusHoldingRegisterRange(0, 100) },
+            new[] { conversionPoint });
+        await conversionMap.WriteInternalAsync(conversionPoint.Point.Tag.Id, 7);
+        var conversionHandler = new ModbusServerProtocolHandler(
+            1,
+            conversionMap,
+            (_, _) => ValueTask.CompletedTask);
+
+        var invalidEngineering = await conversionHandler.HandleAsync(
+            1,
+            WriteSingleRequest(30, ushort.MaxValue));
+        Assert.Equal(ModbusServerOperationKind.Rejected, invalidEngineering.Kind);
+        Assert.Equal(ModbusServerRequestFailure.ServerFailure, invalidEngineering.Failure);
+        Assert.Equal((ushort)7, Assert.Single(await conversionMap.ReadAsync(30, 1)));
     }
 
     [Fact]

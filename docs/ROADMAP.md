@@ -14,6 +14,169 @@ Generic coordinator rotation prompt: `docs/NEXT-COORDINATOR-CHAT-HANDOFF.md`.
 
 > GitHub live always wins for exact branch/SHA/PR/CI state. Historical Wave 14 documents remain evidence, not current sequencing authority. While Wave 15 is active, `docs/WAVE15-MAIN-COORDINATOR-HANDOFF.md` is a live operational document, not a historical snapshot.
 
+## Live current gate — 2026-10-02
+
+This section supersedes the older live-status sections below for **current sequencing only**. Historical foundation/FC0 material remains useful as execution record.
+
+### Exact current integration / convergence
+
+- current integration authority: `wave15/corrections-integration@056224d1498b217ccb9a7cf5d13e0a2eb27d27bb`;
+- Main batch-3 convergence branch: `coord/w15-batch3-convergence`;
+- validation PR: #480;
+- convergence HEAD: `f6ed7d8f3ac24a54673885d8be5c10f0dbf03e3f`;
+- composed exact candidates:
+  - Historical Playback #470 @ `dd4263a565625072b5ecf1b53504443772c4db56`;
+  - Asset Factory #474 @ `9942e36a8a261cb5591dd60177e3d01db1544b4a`;
+  - Modbus Family / Host Serial #476/#469 @ `edab8a99b5058b6c971f3ffa07e1c77cd73772a0`.
+- Asset Factory exact-head tooling validation: **26/26 PASS**, full build exit 0, catalog check valid.
+- combined T1 #619 / `37092144575`: in progress at this roadmap update; classify/common/Web/.NET already green, Chromium/final gate still pending.
+- do not release the next coding batch until #480 is accepted/merged and the post-merge slim gate is revalidated.
+
+Canonical detailed remaining-plan note: #305 comment `5964985657`.
+
+### Remaining Wave 15 — Stage 1: Visual Library / Asset product foundation
+
+Owners:
+- #473 — Visual Library / SVG-first;
+- #474 — Asset Factory;
+- #308 — visual-quality acceptance gate.
+
+The rejected Dynamo artwork PR #451 remains permanently excluded. The accepted implementation path is now:
+
+`#474 Asset Factory -> #473 Library Catalog UI -> #473 SVG-first authoring -> curated built-in asset expansion -> SVG-backed Dynamos/visuals -> #308 visual acceptance`
+
+Required slices:
+
+1. **Library Catalog Product UI**
+   - EliteSCADA Built-in / Project-User / Associated Library separation;
+   - hierarchical categories;
+   - resource-kind filters;
+   - tags/search;
+   - preview and scalable browsing;
+   - consume #474 manifest/taxonomy;
+   - preserve `.escadalib` Associate != Import semantics.
+
+2. **SVG-first authoring**
+   - safe first-class vector object, preferred `core.svgSymbol` subject to contract audit;
+   - canvas placement, resize/rotate/flip/opacity;
+   - palette/fill/stroke overrides;
+   - semantic paint slots;
+   - canonical property/binding/animation integration;
+   - no arbitrary SVG DOM/script authority.
+
+3. **Built-in static asset content expansion**
+   - large, curated, license/provenance-audited catalog;
+   - preferred SVG;
+   - Industrial, P&ID, Sanitation, Electrical, Process, Building, Residential, Navigation, UI/HMI, Indicators, Flow/Connectors and Generic/Layout;
+   - navigation/action/indicator assets are first-class static system assets, not forced Dynamos.
+
+4. **SVG-backed Dynamo composition**
+   - high-quality vector artwork + canonical TAG/Command parameters;
+   - primitive geometry remains available but is no longer mandatory for complex artwork.
+
+### Remaining Wave 15 — Stage 2: HOME/BUILDING common foundation
+
+Owner:
+- #472.
+
+Research authority:
+- #475.
+
+Preserve the single Runtime spine:
+
+`Driver/Data Source -> TAG/Command/Equipment -> Cache/Event -> Historian/Alarm/Gateway/Scripts/Realtime`
+
+Friendly projection:
+
+`Location -> Equipment(Device) -> Capability -> TAG/Command`
+
+Required foundation before protocol-specific automatic materialization:
+
+- canonical frontend `DataSourceId` + `CommunicationBinding`;
+- Memory ownership by stable DataSource ID;
+- Equipment independent from mandatory Template/Faceplate;
+- unified Driver product/module registration;
+- Integration Catalog metadata;
+- protected material / secret references;
+- transient device-event semantics;
+- protocol-neutral rich Action/Command only if required;
+- physical topology `Site -> Building -> Floor -> Area/Room -> Zone`;
+- protocol-neutral Device/Capability model;
+- Host Resource generalization from the actual #469 Host Serial result;
+- common LocalBridge lifecycle;
+- Integrations/Locations/Devices UX;
+- composite discovery candidates;
+- privileged/audited pair/include/commission/remove/heal/address/restore boundary.
+
+No second residential Runtime/TAG/Historian/Alarm/Gateway/automation engine.
+
+### Remaining Wave 15 — Stage 3: HOME/BUILDING driver execution
+
+Protocol DEV branches open only after the minimum shared foundation required by each one is frozen.
+
+Planned families:
+
+- Shelly RPC;
+- ESPHome Native;
+- Home Assistant Bridge;
+- Zigbee2MQTT Bridge;
+- Native Zigbee;
+- DALI through selected documented gateway first;
+- KNX/IP;
+- Z-Wave JS Bridge;
+- Matter Controller when maturity/certification gate is acceptable;
+- BTHome receive-first after Bluetooth Host Resource.
+
+Binding distinctions:
+
+- Zigbee2MQTT and Native Zigbee are separate integrations;
+- Zigbee2MQTT GPL code is not embedded/copied into the proprietary core;
+- native DALI is not first release;
+- native Z-Wave is not first release;
+- Tuya/Intelbras remain explicit cloud/commercial decisions.
+
+### Remaining Wave 15 — Stage 4: final product coherence
+
+Do not restart already completed Phase-1 work.
+
+- #379 — final pt-BR/en/es cross-product sweep after new surfaces stabilize;
+- #424 — contextual Help recomposition/finalization;
+- #425 — Manual final completion, screenshots and new workflows;
+- #308 — final visual maturity acceptance through #473/#474 route.
+
+### Remaining Wave 15 — Stage 5: Productization / Preview
+
+#306 remains PREVIEW-READY aggregator:
+
+- final localization/help/manual;
+- accepted visual/library gate;
+- selected HOME/BUILDING surfaces;
+- EEE Simulation v15;
+- EEE real-Modbus v15;
+- package/checksum/provenance evidence;
+- exact integrated validation.
+
+Then #300 final fresh Preview:
+
+1. CODEX black-box Preview when capacity permits;
+2. independent Product Owner human Preview;
+3. correlate findings;
+4. concrete residual correction only;
+5. exact candidate revalidation;
+6. final Wave 15 acceptance.
+
+EliteGO remains deferred after Wave 16 per Product Owner decision.
+
+### Current scheduling guard
+
+Immediate gate:
+
+`PR #480 combined T1 -> Main acceptance -> merge -> slim post-merge -> new integration checkpoint`
+
+No new implementation branch is released by this roadmap update.
+
+After that checkpoint, Main may restore bounded parallelism only after path/contract ownership audit. Shared foundations precede protocol fan-out.
+
 ## Live current gate — 2026-09-24
 
 This section supersedes older execution-status prose below when describing the **current** Wave 15 gate. Historical slice descriptions remain useful as execution record but are not current authorization.

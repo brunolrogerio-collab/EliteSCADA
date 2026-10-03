@@ -580,6 +580,9 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
               onImportImage={importAsset}
               imageImportDisabled={applying || previewing}
               imageImportBusy={importingAsset}
+              dynamoCommandParameters={definitionKind === 'dynamo'
+                ? dynamoParameters.filter(parameter => parameter.kind === 'Command').map(parameter => parameter.key)
+                : undefined}
             />
           </aside>
         </div>

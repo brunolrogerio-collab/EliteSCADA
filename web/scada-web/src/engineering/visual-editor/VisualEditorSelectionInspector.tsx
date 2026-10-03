@@ -44,6 +44,9 @@ export function VisualEditorSelectionInspector({
 }) {
   const text = inspectorText(locale);
   const selectedElement = selectedElements.length === 1 ? selectedElements[0] : null;
+  const selectedVisualAsset = selectedElement?.type === BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol
+    ? findVisualAsset(selectedElement, visualAssets)
+    : null;
   const contextLabel = selectedElement
     ? selectedElement.key
     : selectedElements.length > 1
@@ -109,6 +112,7 @@ export function VisualEditorSelectionInspector({
         {selectedElement?.id ? <>
         <DynamicPropertyEditor
           element={selectedElement}
+          visualAsset={selectedVisualAsset}
           sourceCatalog={sourceCatalog}
           onBindingIntent={onMutationIntent}
           onSetExpression={configuration => onMutationIntent({ kind: 'propertyExpression.set', objectId: selectedElement.id!, configuration })}
@@ -145,6 +149,18 @@ export function VisualEditorSelectionInspector({
       </section>
     </div>
   </div>;
+}
+
+function findVisualAsset(
+  element: VisualElementEngineering,
+  visualAssets: readonly VisualAssetEngineering[]
+): VisualAssetEngineering | null {
+  const reference = element.properties?.assetRef;
+  if (!reference || typeof reference !== 'object' || Array.isArray(reference) || !('assetId' in reference)) return null;
+  const raw = typeof reference.assetId === 'string' ? reference.assetId.trim() : '';
+  const id = raw.startsWith('asset:') ? raw.slice('asset:'.length) : raw;
+  if (!id) return null;
+  return visualAssets.find(asset => asset.id?.trim().toLocaleLowerCase() === id.toLocaleLowerCase()) ?? null;
 }
 
 function isValueBindingControl(objectType: string): boolean {

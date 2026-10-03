@@ -29,6 +29,7 @@ type EventsEditorProps = {
   visualDefinitionId?: string | null;
   visualObjectId?: string | null;
   sourceCatalog?: readonly VisualEditorBindingSourceCatalogItem[];
+  commandParameterKeys?: readonly string[];
   element?: VisualElementEngineering;
   onMutationIntent?: (intent: VisualEditorMutationIntent) => void;
   disabled?: boolean;
@@ -53,6 +54,7 @@ export function EventsEditor({
   visualDefinitionId,
   visualObjectId,
   sourceCatalog,
+  commandParameterKeys = Object.freeze([]),
   element,
   onMutationIntent,
   disabled = false,
@@ -63,7 +65,7 @@ export function EventsEditor({
   const [resolvedVisualDefinitionId, setResolvedVisualDefinitionId] = useState<string | null>(visualDefinitionId ?? null);
   const [resolvedSourceCatalog, setResolvedSourceCatalog] = useState<readonly VisualEditorBindingSourceCatalogItem[]>(sourceCatalog ?? Object.freeze([]));
   const [visualTargets, setVisualTargets] = useState<Readonly<{ screens: readonly { key: string; name: string }[]; popups: readonly { key: string; name: string }[] }>>({ screens: [], popups: [] });
-  const [quickActionKind, setQuickActionKind] = useState<'setValue' | 'toggleBoolean' | 'setTrue' | 'setFalse' | 'openPopup' | 'openScreen'>('setValue');
+  const [quickActionKind, setQuickActionKind] = useState<'setValue' | 'toggleBoolean' | 'setTrue' | 'setFalse' | 'openPopup' | 'openScreen' | 'executeCommand'>('setValue');
   const [quickTargetId, setQuickTargetId] = useState('');
   const [quickValue, setQuickValue] = useState('');
   const [choice, setChoice] = useState<EventChoice>('click');
@@ -336,6 +338,15 @@ export function EventsEditor({
         if (!quickTargetId) return;
         action = { eventKey: 'click', kind: 'NavigateScreen', targetKey: quickTargetId, version: 1 };
         break;
+      case 'executeCommand':
+        if (!quickTargetId || !commandParameterKeys.includes(quickTargetId)) return;
+        action = {
+          eventKey: 'click',
+          kind: 'ExecuteCommand',
+          commandParameterKey: quickTargetId,
+          version: 1
+        };
+        break;
     }
     onMutationIntent({ kind: 'visualAction.set', objectId: element.id, action });
     setQuickTargetId('');
@@ -354,8 +365,12 @@ export function EventsEditor({
           <option value="setFalse">Set Boolean false</option>
           <option value="openPopup">Open popup</option>
           <option value="openScreen">Open screen</option>
+          {commandParameterKeys.length > 0 ? <option value="executeCommand">Execute Command parameter</option> : null}
         </select></label>
-        {quickActionKind === 'openPopup' || quickActionKind === 'openScreen' ? <label><span>{quickActionKind === 'openPopup' ? 'Popup' : 'Screen'}</span><select value={quickTargetId} onChange={event => setQuickTargetId(event.currentTarget.value)} data-testid="visual-events-quick-target">
+        {quickActionKind === 'executeCommand' ? <label><span>Command parameter</span><select value={quickTargetId} onChange={event => setQuickTargetId(event.currentTarget.value)} data-testid="visual-events-quick-target">
+          <option value="">Select Command parameter</option>
+          {commandParameterKeys.map(key => <option key={key} value={key}>{key}</option>)}
+        </select></label> : quickActionKind === 'openPopup' || quickActionKind === 'openScreen' ? <label><span>{quickActionKind === 'openPopup' ? 'Popup' : 'Screen'}</span><select value={quickTargetId} onChange={event => setQuickTargetId(event.currentTarget.value)} data-testid="visual-events-quick-target">
           <option value="">Select destination</option>
           {quickNavigationTargets.map(target => <option key={target.key} value={target.key}>{target.name}</option>)}
         </select></label> : <>
@@ -368,7 +383,7 @@ export function EventsEditor({
             : <input value={quickValue} onChange={event => setQuickValue(event.currentTarget.value)} inputMode={isNumericDataType(selectedQuickTag.dataType) ? 'decimal' : 'text'} data-testid="visual-events-quick-value" />}</label> : null}
         </>}
         <small>One automatic action per trigger. This wizard uses Click. After adding, use the editor&apos;s Preview and Apply actions below to save it.</small>
-        <button type="button" className="secondary" disabled={!onMutationIntent || !element?.id || (quickActionKind === 'openPopup' || quickActionKind === 'openScreen' ? !quickTargetId : !selectedQuickTag?.tagReference?.tagId || (quickActionKind === 'setValue' && parseTagValue(quickValue, selectedQuickTag?.dataType) === undefined))} onClick={addQuickAction} data-testid="visual-events-quick-add">{configuredActions.some(action => action.eventKey.toLocaleLowerCase('en-US') === 'click') ? 'Replace click event' : 'Add event'}</button>
+        <button type="button" className="secondary" disabled={!onMutationIntent || !element?.id || (quickActionKind === 'executeCommand' || quickActionKind === 'openPopup' || quickActionKind === 'openScreen' ? !quickTargetId : !selectedQuickTag?.tagReference?.tagId || (quickActionKind === 'setValue' && parseTagValue(quickValue, selectedQuickTag?.dataType) === undefined))} onClick={addQuickAction} data-testid="visual-events-quick-add">{configuredActions.some(action => action.eventKey.toLocaleLowerCase('en-US') === 'click') ? 'Replace click event' : 'Add event'}</button>
         {configuredActions.map((action, index) => <div className="visual-editor-events__configured" key={`${action.eventKey}:${index}`}>
           <code>{formatQuickAction(action, resolvedSourceCatalog, visualTargets.screens, visualTargets.popups)}</code>
           <button type="button" aria-label={`Remove ${action.eventKey} event`} disabled={!onMutationIntent || !element?.id} onClick={() => onMutationIntent?.({ kind: 'visualAction.remove', objectId: element!.id!, eventKey: action.eventKey })}>Remove</button>
@@ -464,6 +479,8 @@ function formatQuickAction(
       : catalog.find(item => item.tagReference?.tagId === action.targetKey)?.label ?? action.targetKey ?? '';
   if (kind === 'toggletagboolean') return `Click → Toggle ${name}`;
   if (kind === 'settagvalue') return `Click → Set ${name} = ${String(action.parameters?.value ?? '')}`;
+  if (kind === 'executecommand' && action.commandParameterKey) return `Click → Execute Command parameter ${action.commandParameterKey}`;
+  if (kind === 'executecommand' && action.commandId) return `Click → Execute Command ${action.commandId}`;
   return `Click → ${kind === 'openpopup' ? 'Open popup' : kind === 'navigatescreen' ? 'Open screen' : action.kind} ${name}`;
 }
 

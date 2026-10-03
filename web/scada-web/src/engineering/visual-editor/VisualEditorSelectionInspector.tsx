@@ -26,7 +26,8 @@ export function VisualEditorSelectionInspector({
   onCommand,
   onImportImage,
   imageImportDisabled,
-  imageImportBusy
+  imageImportBusy,
+  dynamoCommandParameters
 }: {
   screen: ScreenEngineering;
   selectedElements: readonly VisualElementEngineering[];
@@ -41,6 +42,7 @@ export function VisualEditorSelectionInspector({
   onImportImage?: (file: File) => Promise<string | null | void> | string | null | void;
   imageImportDisabled?: boolean;
   imageImportBusy?: boolean;
+  dynamoCommandParameters?: readonly string[];
 }) {
   const text = inspectorText(locale);
   const selectedElement = selectedElements.length === 1 ? selectedElements[0] : null;
@@ -142,6 +144,7 @@ export function VisualEditorSelectionInspector({
             visualObjectId={selectedElement?.id ?? null}
             element={selectedElement ?? undefined}
             sourceCatalog={sourceCatalog}
+            commandParameterKeys={dynamoCommandParameters}
             onMutationIntent={onMutationIntent}
             disabled={!screen.id}
           />

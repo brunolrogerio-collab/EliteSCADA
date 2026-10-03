@@ -157,6 +157,72 @@ export function readSvgPaintMetadata(asset: VisualAssetEngineering | null | unde
   });
 }
 
+export type SvgSemanticPaintProperty = 'fill' | 'stroke' | 'strokeWidth';
+
+export type SvgSemanticDynamicDestination = Readonly<{
+  propertyKey: string;
+  slot: string;
+  paint: SvgSemanticPaintProperty;
+  propertyType: 'color' | 'number';
+}>;
+
+export function svgSemanticPaintDestinationKey(
+  slot: string,
+  paint: SvgSemanticPaintProperty
+): string {
+  if (!/^[A-Za-z][A-Za-z0-9._-]{0,63}$/.test(slot)) {
+    throw new Error(`Invalid SVG semantic slot '${slot}'.`);
+  }
+  return `svg.slot.${slot}.${paint}`;
+}
+
+export function parseSvgSemanticPaintDestination(
+  key: string
+): Readonly<{ slot: string; paint: SvgSemanticPaintProperty }> | null {
+  const match = /^svg\.slot\.([A-Za-z][A-Za-z0-9._-]{0,63})\.(fill|stroke|strokeWidth)$/.exec(key);
+  if (!match) return null;
+  return Object.freeze({
+    slot: match[1]!,
+    paint: match[2]! as SvgSemanticPaintProperty
+  });
+}
+
+export function listSvgSemanticDynamicDestinations(
+  element: VisualElementEngineering,
+  assets: readonly VisualAssetEngineering[]
+): readonly SvgSemanticDynamicDestination[] {
+  if (element.type !== 'core.svgSymbol') return Object.freeze([]);
+  const reference = element.properties?.assetRef;
+  if (!isRecord(reference) || typeof reference.assetId !== 'string') return Object.freeze([]);
+  const rawId = reference.assetId.trim();
+  const stableId = rawId.startsWith('asset:') ? rawId.slice('asset:'.length) : rawId;
+  const asset = assets.find(candidate => candidate.id?.toLocaleLowerCase() === stableId.toLocaleLowerCase());
+  if (!asset || asset.mediaType.toLowerCase() !== 'image/svg+xml') return Object.freeze([]);
+
+  const result: SvgSemanticDynamicDestination[] = [];
+  for (const slot of readSvgPaintMetadata(asset).slots) {
+    if (slot.fill) result.push(Object.freeze({
+      propertyKey: svgSemanticPaintDestinationKey(slot.name, 'fill'),
+      slot: slot.name,
+      paint: 'fill',
+      propertyType: 'color'
+    }));
+    if (slot.stroke) result.push(Object.freeze({
+      propertyKey: svgSemanticPaintDestinationKey(slot.name, 'stroke'),
+      slot: slot.name,
+      paint: 'stroke',
+      propertyType: 'color'
+    }));
+    if (slot.strokeWidth) result.push(Object.freeze({
+      propertyKey: svgSemanticPaintDestinationKey(slot.name, 'strokeWidth'),
+      slot: slot.name,
+      paint: 'strokeWidth',
+      propertyType: 'number'
+    }));
+  }
+  return Object.freeze(result);
+}
+
 export function svgSymbolPropertyIsDriven(element: VisualElementEngineering, key: string): boolean {
   if (element.properties && Object.hasOwn(element.properties, key)) return true;
   if (element.bindings?.some(binding => binding.key === key)) return true;

@@ -6,8 +6,11 @@ import { CanonicalVisualPreview } from './CanonicalVisualPreview';
 import {
   buildDynamoLibraryEntries,
   filterDynamoLibraryEntries,
-  listDynamoLibraryCategories
+  listDynamoLibraryCategoryPaths
 } from './dynamoLibraryModel';
+import {
+  libraryCatalogCategoryPathLabel
+} from '../libraryCatalogTaxonomy';
 import './DynamoLibraryPalette.css';
 
 export function DynamoLibraryPalette({
@@ -21,14 +24,15 @@ export function DynamoLibraryPalette({
 }) {
   const text = c07VisualEditorText(locale).library;
   const entries = useMemo(() => buildDynamoLibraryEntries(definitions, locale), [definitions, locale]);
-  const categories = useMemo(() => listDynamoLibraryCategories(entries), [entries]);
+  const categoryPaths = useMemo(() => listDynamoLibraryCategoryPaths(entries), [entries]);
   const [selectedKey, setSelectedKey] = useState(entries[0]?.definition.key ?? '');
   const [equipmentPath, setEquipmentPath] = useState('');
   const [query, setQuery] = useState('');
-  const [category, setCategory] = useState('');
+  const [categoryPath, setCategoryPath] = useState('');
+  const [source, setSource] = useState<'builtin' | 'project' | ''>('');
   const visible = useMemo(
-    () => filterDynamoLibraryEntries(entries, { query, category }),
-    [entries, query, category]
+    () => filterDynamoLibraryEntries(entries, { query, categoryPath, source }),
+    [entries, query, categoryPath, source]
   );
   const selected = visible.find(entry => entry.definition.key === selectedKey) ?? visible[0] ?? null;
 
@@ -45,9 +49,25 @@ export function DynamoLibraryPalette({
       </label>
       <label>
         <span>{text.category}</span>
-        <select value={category} onChange={event => setCategory(event.currentTarget.value)}>
+        <select
+          value={categoryPath}
+          onChange={event => setCategoryPath(event.currentTarget.value)}
+          data-testid="dynamo-library-category-path"
+        >
           <option value="">{text.allCategories}</option>
-          {categories.map(value => <option key={value} value={value}>{categoryLabel(value, text.categories)}</option>)}
+          {categoryPaths.map(value => <option key={value} value={value}>{libraryCatalogCategoryPathLabel(value, locale)}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>{sourceHeading(locale)}</span>
+        <select
+          value={source}
+          onChange={event => setSource(event.currentTarget.value as 'builtin' | 'project' | '')}
+          data-testid="dynamo-library-source"
+        >
+          <option value="">{sourceLabel('', locale)}</option>
+          <option value="builtin">{sourceLabel('builtin', locale)}</option>
+          <option value="project">{sourceLabel('project', locale)}</option>
         </select>
       </label>
     </div>
@@ -68,7 +88,7 @@ export function DynamoLibraryPalette({
         <span className="visual-dynamo-library__card-copy">
           <strong>{entry.definition.name}</strong>
           <code>{entry.definition.key}</code>
-          <small>{categoryLabel(entry.category, text.categories)} · {visualStyleLabel(entry.visualStyle, locale)} · {entry.width}×{entry.height}</small>
+          <small>{libraryCatalogCategoryPathLabel(entry.categoryPath, locale)} · {visualStyleLabel(entry.visualStyle, locale)} · {entry.width}×{entry.height}</small>
         </span>
       </button>)}
     </div> : <p className="visual-dynamo-library__empty">{text.noResults}</p>}
@@ -81,7 +101,7 @@ export function DynamoLibraryPalette({
       <dl className="visual-dynamo-library__metadata">
         <div><dt>{text.dimensions}</dt><dd>{selected.width}×{selected.height}</dd></div>
         <div><dt>{text.version}</dt><dd>{selected.definition.properties?.libraryVersion ?? '—'}</dd></div>
-        <div><dt>{text.source}</dt><dd>{selected.definition.metadata?.builtinLibrary === 'true' ? text.builtIn : '—'}</dd></div>
+        <div><dt>{text.source}</dt><dd>{sourceLabel(selected.source, locale)}</dd></div>
         <div><dt>{visualStyleHeading(locale)}</dt><dd>{visualStyleLabel(selected.visualStyle, locale)}</dd></div>
       </dl>
       <div className="visual-dynamo-library__interface">
@@ -135,9 +155,12 @@ function visualStyleLabel(value: string, locale: 'pt-BR' | 'en' | 'es'): string 
   return labels[locale][value as keyof typeof labels['pt-BR']] ?? value;
 }
 
-function categoryLabel(
-  value: string,
-  labels: Readonly<Record<'pump' | 'motor' | 'valve' | 'tank' | 'compressor' | 'instrument' | 'process' | 'electrical' | 'substation' | 'other', string>>
-): string {
-  return labels[value as keyof typeof labels] ?? value;
+function sourceHeading(locale: 'pt-BR' | 'en' | 'es'): string {
+  return locale === 'pt-BR' ? 'Origem' : locale === 'es' ? 'Origen' : 'Origin';
+}
+
+function sourceLabel(value: 'builtin' | 'project' | '', locale: 'pt-BR' | 'en' | 'es'): string {
+  if (!value) return locale === 'pt-BR' ? 'Todas as origens' : locale === 'es' ? 'Todos los orígenes' : 'All origins';
+  if (value === 'builtin') return 'EliteSCADA Built-in';
+  return locale === 'pt-BR' ? 'Projeto / Usuário' : locale === 'es' ? 'Proyecto / Usuario' : 'Project / User';
 }

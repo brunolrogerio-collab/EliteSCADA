@@ -219,6 +219,22 @@ test('library association stays non-mutating, selective use advances Working, an
   expect(contract.changeVersion).toBe(4);
   expect(contract.dirty).toBe(false);
 
+  const unifiedCatalog = page.getByTestId('library-catalog-browser');
+  await expect(unifiedCatalog).toBeVisible();
+  await unifiedCatalog.getByTestId('library-catalog-origin-filter').selectOption('associated');
+  await expect(unifiedCatalog.getByTestId('library-catalog-entry')).toHaveCount(2);
+  const catalogPump = unifiedCatalog.getByTestId('library-catalog-entry').filter({ hasText: 'Pump Dynamo' });
+  await catalogPump.click();
+  const catalogUse = unifiedCatalog.getByTestId('library-catalog-use');
+  await expect(catalogUse).toBeDisabled();
+  await unifiedCatalog.getByTestId('library-catalog-load-preview').click();
+  await expect(unifiedCatalog.getByTestId('library-catalog-associated-preview')).toBeVisible();
+  await expect(catalogUse).toBeEnabled();
+  await expect(page.getByTestId('reusable-library-workspace')).toContainText('Working: v4');
+  expect(contract.changeVersion).toBe(4);
+  expect(contract.dirty).toBe(false);
+  expect(contract.incorporateRequests).toBe(0);
+
   const pump = page.getByTestId('reusable-library-resource').filter({ hasText: 'Pump Dynamo' });
   await pump.getByTestId('reusable-library-preview').click();
   const visualPreview = page.getByTestId('reusable-library-visual-preview');

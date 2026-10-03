@@ -25,7 +25,7 @@ public static class ReusableDynamoDependencyAnalyzer
         return Analyze(
             dynamo,
             ResolveWorkingTemplateDependency(dynamo, assets),
-            assetId =>
+            (assetId, elementType) =>
             {
                 var asset = visualAssets.FindAsset(assetId)
                     ?? throw new InvalidDataException(
@@ -33,6 +33,10 @@ public static class ReusableDynamoDependencyAnalyzer
                 if (!asset.Id.HasValue || asset.Id == Guid.Empty)
                     throw new InvalidDataException(
                         $"Dynamo '{dynamo.Key}' visual asset dependency '{assetId:D}' does not have stable identity.");
+                if (string.Equals(elementType, "core.svgSymbol", StringComparison.Ordinal) &&
+                    !asset.MediaType.Equals(VisualAssetContentInspector.SvgMediaType, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException(
+                        $"Dynamo '{dynamo.Key}' core.svgSymbol references Visual Asset '{asset.Key}' with media type '{asset.MediaType}', not image/svg+xml.");
                 return new ReusableLibraryDependency(
                     ReusableLibraryResourceKinds.VisualAsset,
                     asset.Id.Value);
@@ -66,7 +70,7 @@ public static class ReusableDynamoDependencyAnalyzer
         return Analyze(
             dynamo,
             ResolveManifestTemplateDependency(dynamo, manifest),
-            assetId =>
+            (assetId, _) =>
             {
                 var resource = ResolveById(ReusableLibraryResourceKinds.VisualAsset, assetId);
                 return new ReusableLibraryDependency(resource.Kind, resource.ResourceId);
@@ -172,7 +176,7 @@ public static class ReusableDynamoDependencyAnalyzer
     private static IReadOnlyCollection<ReusableLibraryDependency> Analyze(
         DynamoEngineeringDto dynamo,
         ReusableLibraryDependency? templateDependency,
-        Func<Guid, ReusableLibraryDependency> resolveAsset)
+        Func<Guid, string, ReusableLibraryDependency> resolveAsset)
     {
         var dependencies = new Dictionary<(string Kind, Guid ResourceId), ReusableLibraryDependency>();
         ValidatePortableBindings(dynamo.Bindings, $"Dynamo '{dynamo.Key}'");
@@ -203,7 +207,7 @@ public static class ReusableDynamoDependencyAnalyzer
         string ownerKey,
         IReadOnlyCollection<VisualElementEngineeringDto>? elements,
         IDictionary<(string Kind, Guid ResourceId), ReusableLibraryDependency> dependencies,
-        Func<Guid, ReusableLibraryDependency> resolveAsset)
+        Func<Guid, string, ReusableLibraryDependency> resolveAsset)
     {
         foreach (var element in elements ?? Array.Empty<VisualElementEngineeringDto>())
         {
@@ -246,7 +250,9 @@ public static class ReusableDynamoDependencyAnalyzer
                 element.Properties.TryGetValue("assetRef", out var assetReference) &&
                 assetReference.ValueKind != JsonValueKind.Null)
             {
-                Add(dependencies, resolveAsset(ParseVisualAssetReference(assetReference, ownerKey, element.Key)));
+                Add(dependencies, resolveAsset(
+                    ParseVisualAssetReference(assetReference, ownerKey, element.Key),
+                    element.Type));
             }
 
             AnalyzeElements(ownerKey, element.Children, dependencies, resolveAsset);

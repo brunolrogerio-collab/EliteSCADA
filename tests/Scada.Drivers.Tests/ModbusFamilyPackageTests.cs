@@ -102,7 +102,7 @@ public sealed class ModbusFamilyPackageTests
         Assert.Equal("COM9", targetDataSources.FindByKey("rtu-server")!.Settings!["serialPort"]);
         Assert.Equal("v1:100-199", targetDataSources.FindByKey("rtu-server")!.Settings!["holdingRanges"]);
         Assert.True(targetTags.TryGetByPath("Server.Tcp.Export", out var restored));
-        Assert.Equal("holding:100", restored!.Metadata["address"]);
-        Assert.Equal("ReadOnly", restored!.Metadata["modbus.server.clientAccess"]);
+        Assert.Equal("holding:100", restored!.Metadata!["address"]);
+        Assert.Equal("ReadOnly", restored.Metadata!["modbus.server.clientAccess"]);
     }
 }

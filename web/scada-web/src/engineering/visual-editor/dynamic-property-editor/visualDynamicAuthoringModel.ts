@@ -161,6 +161,19 @@ export function createValueSource(
   valueType: VisualExpressionValueTypeEngineering,
   source: VisualEditorBindingSourceCatalogItem
 ): VisualValueSourceEngineering {
+  if (source.dynamoParameterKey?.trim()) {
+    const target = requireTarget(source.target);
+    if (!/^\{dynamoParameter:[A-Za-z][A-Za-z0-9._-]{0,63}\}$/.test(target)) {
+      throw new Error('Dynamo parameter source must use the canonical {dynamoParameter:key} target.');
+    }
+    return Object.freeze({
+      kind: 'Tag',
+      valueType,
+      target,
+      version: 1
+    });
+  }
+
   const normalized = normalizeDynamicValueSource(source);
   if (!normalized.tagReference?.tagId) {
     throw new Error(

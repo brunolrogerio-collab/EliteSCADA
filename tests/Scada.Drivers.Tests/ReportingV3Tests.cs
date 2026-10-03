@@ -141,6 +141,30 @@ public sealed class ReportingV3Tests
     }
 
     [Fact]
+    public async Task ReportTimeRangeDefault_IsAppliedServerSideWithoutRuntimeOverride()
+    {
+        var historical = new RecordingHistoricalQueryService();
+        var legacy = new ReportExecutionService(historical);
+        var service = new ReportV3ExecutionService(
+            legacy,
+            new InMemoryDataQueryEngineeringRegistry(),
+            new RecordingTransientExecutionService());
+
+        var report = Report() with
+        {
+            TimeRange = new ReportTimeRangeEngineeringDto(
+                HistoricalTimeRangeKind.Relative,
+                DefaultRelativeDurationSeconds: 8 * 60 * 60)
+        };
+
+        await service.ExecuteAsync(new ReportExecutionRequest(report));
+
+        var request = Assert.Single(historical.Requests);
+        Assert.Equal(HistoricalTimeRangeKind.Relative, request.Range.Kind);
+        Assert.Equal(8 * 60 * 60, request.Range.DurationSeconds);
+    }
+
+    [Fact]
     public async Task SavedDataQuery_UsesServerResolvedActiveDefinitionAndExplicitRuntimeRange()
     {
         var id = Guid.Parse("22222222-3333-4444-5555-666666666666");
@@ -241,6 +265,30 @@ public sealed class ReportingV3Tests
 
     private static HistoricalColumn Column(string field, HistoricalFieldType type) =>
         new(field, type, Array.Empty<HistoricalFilterOperator>(), false, false, false);
+
+    private sealed class RecordingHistoricalQueryService : IHistoricalQueryService
+    {
+        public List<HistoricalQueryRequest> Requests { get; } = [];
+
+        public Task<HistoricalQueryResponse> QueryAsync(
+            HistoricalQueryRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Requests.Add(request);
+            var from = new DateTimeOffset(2026, 10, 3, 10, 0, 0, TimeSpan.Zero);
+            var to = from.AddHours(1);
+            return Task.FromResult(new HistoricalQueryResponse(
+                HistoricalQueryContract.Version,
+                request.Dataset,
+                HistoricalQueryCatalog.Require(request.Dataset).Columns,
+                Array.Empty<HistoricalQueryRow>(),
+                from,
+                to,
+                null,
+                request.Page?.Size ?? 100));
+        }
+    }
 
     private sealed class RejectHistoricalQueryService : IHistoricalQueryService
     {

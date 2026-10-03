@@ -5,6 +5,7 @@ import type {
 } from '../../types';
 import { getVisualSchemaForEngineering } from '../../../visual-runtime';
 import type { VisualPropertyDefinition, VisualPropertyType } from '../../../visual-runtime/visualPropertyTypes';
+import { parseSvgSemanticDynamicPropertyKey } from '../svgSymbolModel';
 import type {
   VisualEditorBindingSelectorCapability,
   VisualEditorBindingSourceCatalogItem,
@@ -387,6 +388,23 @@ function normalizeSelectorCapability(
 }
 
 function requireBindableDestination(objectType: string, propertyKey: string): VisualPropertyDefinition {
+  const semantic = objectType === 'core.svgSymbol'
+    ? parseSvgSemanticDynamicPropertyKey(propertyKey)
+    : null;
+  if (semantic) {
+    return Object.freeze({
+      key: semantic.key,
+      type: semantic.type,
+      defaultValue: semantic.type === 'number' ? 1 : '#000000',
+      engineeringEditable: false,
+      runtimeReadable: true,
+      runtimeWritable: false,
+      supportsBinding: true,
+      animatable: true,
+      category: 'svg-semantic-slot'
+    }) as unknown as VisualPropertyDefinition;
+  }
+
   const schema = requireBuiltinSchema(objectType);
   if (!schema.declares(propertyKey)) {
     throw new VisualBindingEditorError(

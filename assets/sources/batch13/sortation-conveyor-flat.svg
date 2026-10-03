@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <line x1="18" y1="54" x2="110" y2="54" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round" data-elitescada-slot="conveyor" />
+  <line x1="18" y1="78" x2="110" y2="78" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round" data-elitescada-slot="conveyor" />
+  <polygon points="30,48 40,54 30,60" fill="#9CA3AF" stroke="#374151" stroke-width="2" stroke-linejoin="round" data-elitescada-slot="diverter" />
+  <polygon points="47,48 57,54 47,60" fill="#9CA3AF" stroke="#374151" stroke-width="2" stroke-linejoin="round" data-elitescada-slot="diverter" />
+  <polygon points="64,48 74,54 64,60" fill="#9CA3AF" stroke="#374151" stroke-width="2" stroke-linejoin="round" data-elitescada-slot="diverter" />
+  <polygon points="81,48 91,54 81,60" fill="#9CA3AF" stroke="#374151" stroke-width="2" stroke-linejoin="round" data-elitescada-slot="diverter" />
+  <polygon points="98,48 108,54 98,60" fill="#9CA3AF" stroke="#374151" stroke-width="2" stroke-linejoin="round" data-elitescada-slot="diverter" />
+  <circle cx="108" cy="24" r="4" fill="#9CA3AF" data-elitescada-slot="status" />
+</svg>

@@ -1892,7 +1892,17 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        }
+      ]
     },
     {
       "id": "builtin.asset.industrial.process.tank.basic",
@@ -1919,7 +1929,17 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "outline",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.industrial.process.conveyor.basic",
@@ -1945,7 +1965,21 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "roller",
+          "kind": "fill"
+        },
+        {
+          "id": "support",
+          "kind": "stroke"
+        }
+      ]
     },
     {
       "id": "builtin.asset.sanitation.intake.water-intake",
@@ -1970,7 +2004,21 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "liquid",
+          "kind": "fill"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        }
+      ]
     },
     {
       "id": "builtin.asset.sanitation.intake.well",
@@ -1994,7 +2042,21 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "outline",
+          "kind": "stroke"
+        },
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        }
+      ]
     },
     {
       "id": "builtin.asset.sanitation.lift-station.basic",
@@ -2022,7 +2084,21 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "outline",
+          "kind": "stroke"
+        },
+        {
+          "id": "pump",
+          "kind": "fill"
+        },
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        }
+      ]
     },
     {
       "id": "builtin.asset.sanitation.clarifier.basic",
@@ -2047,7 +2123,17 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "outline",
+          "kind": "stroke"
+        },
+        {
+          "id": "scraper",
+          "kind": "stroke"
+        }
+      ]
     },
     {
       "id": "builtin.asset.sanitation.chemical-dosing.basic",
@@ -2073,7 +2159,25 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "pump",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.electrical.motor.generic",
@@ -2098,7 +2202,21 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "terminal",
+          "kind": "stroke"
+        },
+        {
+          "id": "outline",
+          "kind": "stroke"
+        },
+        {
+          "id": "winding",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.electrical.transformer.basic",
@@ -2123,7 +2241,17 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "terminal",
+          "kind": "stroke"
+        },
+        {
+          "id": "winding",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.electrical.contactor.basic",

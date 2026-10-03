@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="24" y="20" width="80" height="88" rx="5" fill="#E5E7EB" stroke="#374151" stroke-width="5" data-elitescada-slot="body" />
+  <circle cx="64" cy="50" r="18" fill="#D1D5DB" stroke="#374151" stroke-width="4" data-elitescada-slot="dial" />
+  <line x1="64" y1="50" x2="76" y2="40" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" data-elitescada-slot="needle" />
+  <circle cx="42" cy="84" r="5" fill="#9CA3AF" data-elitescada-slot="status" />
+  <circle cx="64" cy="84" r="5" fill="#9CA3AF" data-elitescada-slot="status" />
+  <circle cx="86" cy="84" r="5" fill="#9CA3AF" data-elitescada-slot="status" />
+  <line x1="36" y1="100" x2="92" y2="100" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" data-elitescada-slot="terminal" />
+</svg>

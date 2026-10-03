@@ -14,7 +14,8 @@ export type DynamoParameterKindEngineering =
   | 'Number'
   | 'String'
   | 'EquipmentPath'
-  | 'TagReference';
+  | 'TagReference'
+  | 'Command';
 
 export type DynamoParameterDefinitionEngineering = Readonly<{
   key: string;
@@ -30,6 +31,7 @@ export type DynamoParameterValueEngineering = Readonly<{
   kind: DynamoParameterKindEngineering;
   value?: unknown;
   tagReference?: TagValueReferenceEngineering | null;
+  commandId?: string | null;
   version?: number;
 }>;
 
@@ -48,6 +50,7 @@ export type VisualNavigationActionEngineering = Readonly<{
   parameters?: Readonly<Record<string, unknown>> | null;
   version?: number;
   commandId?: string | null;
+  commandParameterKey?: string | null;
 }>;
 
 export type CanonicalVisualElementEngineering = VisualElementEngineering & Readonly<{
@@ -478,6 +481,26 @@ function uniqueParameterValues(
 }
 
 function validateParameterPayload(value: DynamoParameterValueEngineering, allowMissing: boolean): void {
+  if (value.kind === 'Command') {
+    if (value.value !== undefined || value.tagReference) {
+      throw new RuntimeVisualCompositionError(
+        'VISUAL_RUNTIME_DYNAMO_PARAMETER_SHAPE_INVALID',
+        `Dynamo parameter '${value.key}' of kind Command cannot carry a scalar or TAG reference.`
+      );
+    }
+    if (!value.commandId?.trim()) {
+      if (!allowMissing) {
+        throw new RuntimeVisualCompositionError(
+          'VISUAL_RUNTIME_DYNAMO_PARAMETER_COMMAND_REQUIRED',
+          `Dynamo parameter '${value.key}' requires a stable Command identity.`
+        );
+      }
+      return;
+    }
+    requireStableText(value.commandId, 'Command identity', 'VISUAL_RUNTIME_DYNAMO_PARAMETER_COMMAND_ID_INVALID');
+    return;
+  }
+
   if (value.kind === 'TagReference') {
     if (value.value !== undefined) {
       throw new RuntimeVisualCompositionError(
@@ -498,7 +521,7 @@ function validateParameterPayload(value: DynamoParameterValueEngineering, allowM
     return;
   }
 
-  if (value.tagReference) {
+  if (value.tagReference || value.commandId) {
     throw new RuntimeVisualCompositionError(
       'VISUAL_RUNTIME_DYNAMO_PARAMETER_SHAPE_INVALID',
       `Dynamo parameter '${value.key}' of kind ${value.kind} cannot carry a TAG reference.`

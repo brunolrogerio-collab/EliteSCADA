@@ -29,6 +29,7 @@ public static class ReportExecutionApi
                 services.GetRequiredService<ITransientDataQueryExecutionService>(),
                 services.GetRequiredService<ReportExecutionPolicy>()));
         builder.Services.TryAddSingleton<ReportGeneratedExecutionStore>();
+        builder.Services.TryAddSingleton<ReportGenerationGate>();
         builder.Services.TryAddScoped<RuntimeReportCatalog>();
         builder.Services.TryAddScoped<ReportArtifactRenderer>();
     }

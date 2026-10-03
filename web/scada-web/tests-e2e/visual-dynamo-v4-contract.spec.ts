@@ -2,6 +2,10 @@ import { expect, test } from '@playwright/test';
 import type { EngineeringPackageView, VisualAssetEngineering, VisualElementEngineering } from '../src/engineering/types';
 import { replaceDynamoInPackage } from '../src/engineering/visual-editor/visualEditorCanonicalModel';
 import { listDynamicPropertyDestinations } from '../src/engineering/visual-editor/dynamic-property-editor/visualDynamicAuthoringModel';
+import {
+  resolveVisualDynamicState,
+  visualTagSampleKey
+} from '../src/engineering/visual-editor/visualDynamicRuntime';
 import { resolveVisualDynamicState } from '../src/engineering/visual-editor/visualDynamicRuntime';
 import { projectDynamoRuntimeElements } from '../src/runtime/visual-navigation/dynamoRuntimeBindingProjection';
 import type {
@@ -320,4 +324,215 @@ test('Dynamo authoring stays on canonical editor and renderer surfaces', async (
   expect(dynamoPalette).toContain("kind: 'dynamo.add'");
   expect(renderer).toContain('<SvgSymbolVisualElement');
   expect(workspace).not.toContain('DynamoSvgRenderer');
+});
+
+
+test('Boolean Dynamo scalar parameter drives canonical BooleanCondition without a live TAG sample', () => {
+  const element: VisualElementEngineering = {
+    id: '74000000-0000-0000-0000-000000000001',
+    key: 'status',
+    type: 'core.rectangle',
+    properties: { x: 0, y: 0, width: 20, height: 20, visible: false },
+    booleanConditions: [{
+      propertyKey: 'visible',
+      kind: 'Direct',
+      source: {
+        kind: 'Tag',
+        valueType: 'Boolean',
+        target: '{dynamoParameter:running}',
+        version: 1
+      },
+      negate: false,
+      version: 1
+    }]
+  };
+  const parameters = new Map<string, DynamoParameterValueEngineering>([
+    ['running', { key: 'running', kind: 'Boolean', value: true, version: 1 }]
+  ]);
+  const projected = projectDynamoRuntimeElements([element], parameters, null)[0]!;
+  const resolved = resolveVisualDynamicState(projected, { visible: false }, new Map());
+
+  expect(projected.booleanConditions?.[0]?.source.projectedValue).toBe(true);
+  expect(resolved.values.visible).toBe(true);
+  expect(resolved.diagnostics).toEqual([]);
+});
+
+test('Number Dynamo scalar parameter drives semantic SVG PropertyMap without fake TAG samples', () => {
+  const element: VisualElementEngineering = {
+    ...svgElement,
+    bindings: [],
+    propertyMaps: [{
+      propertyKey: 'svg.slot.body.fill',
+      source: {
+        kind: 'Tag',
+        valueType: 'Number',
+        target: '{dynamoParameter:level}',
+        version: 1
+      },
+      rules: [
+        { minimum: 0, maximum: 50, minimumInclusive: true, maximumInclusive: false, value: '#777777' },
+        { minimum: 50, maximum: 100, minimumInclusive: true, maximumInclusive: true, value: '#00AA00' }
+      ],
+      fallback: '#777777',
+      version: 1
+    }, {
+      propertyKey: 'svg.slot.outline.strokeWidth',
+      source: {
+        kind: 'Tag',
+        valueType: 'Number',
+        target: '{dynamoParameter:level}',
+        version: 1
+      },
+      rules: [
+        { minimum: 0, maximum: 50, minimumInclusive: true, maximumInclusive: false, value: 1 },
+        { minimum: 50, maximum: 100, minimumInclusive: true, maximumInclusive: true, value: 4 }
+      ],
+      fallback: 1,
+      version: 1
+    }]
+  };
+  const parameters = new Map<string, DynamoParameterValueEngineering>([
+    ['level', { key: 'level', kind: 'Number', value: 75, version: 1 }]
+  ]);
+  const projected = projectDynamoRuntimeElements([element], parameters, null)[0]!;
+  const resolved = resolveVisualDynamicState(projected, {}, new Map());
+
+  expect(projected.propertyMaps?.[0]?.source.projectedValue).toBe(75);
+  expect(resolved.values['svg.slot.body.fill']).toBe('#00AA00');
+  expect(resolved.values['svg.slot.outline.strokeWidth']).toBe(4);
+  expect(resolved.diagnostics).toEqual([]);
+});
+
+test('Number Dynamo scalar parameter drives canonical AnalogFill', () => {
+  const element: VisualElementEngineering = {
+    id: '75000000-0000-0000-0000-000000000001',
+    key: 'tank-body',
+    type: 'core.rectangle',
+    properties: { x: 0, y: 0, width: 100, height: 200 },
+    analogFill: {
+      source: {
+        kind: 'Tag',
+        valueType: 'Number',
+        target: '{dynamoParameter:level}',
+        version: 1
+      },
+      inputMinimum: 0,
+      inputMaximum: 100,
+      fillColor: '#0088FF',
+      clamp: true,
+      invertScale: false,
+      direction: 'BottomToTop',
+      version: 1
+    }
+  };
+  const parameters = new Map<string, DynamoParameterValueEngineering>([
+    ['level', { key: 'level', kind: 'Number', value: 25, version: 1 }]
+  ]);
+  const projected = projectDynamoRuntimeElements([element], parameters, null)[0]!;
+  const resolved = resolveVisualDynamicState(projected, {}, new Map());
+
+  expect(projected.analogFill?.source.projectedValue).toBe(25);
+  expect(resolved.analogFill?.presentation.fraction).toBeCloseTo(0.25);
+  expect(resolved.diagnostics).toEqual([]);
+});
+
+test('TagReference Dynamo parameter remains a live dynamic source', () => {
+  const tagId = '76000000-0000-0000-0000-000000000001';
+  const element: VisualElementEngineering = {
+    ...svgElement,
+    bindings: [],
+    propertyMaps: [{
+      propertyKey: 'svg.slot.body.fill',
+      source: {
+        kind: 'Tag',
+        valueType: 'Number',
+        target: '{dynamoParameter:levelTag}',
+        version: 1
+      },
+      rules: [
+        { minimum: 0, maximum: 10, minimumInclusive: true, maximumInclusive: true, value: '#777777' },
+        { minimum: 10, maximum: 100, minimumInclusive: false, maximumInclusive: true, value: '#00AA00' }
+      ],
+      fallback: '#777777',
+      version: 1
+    }]
+  };
+  const parameters = new Map<string, DynamoParameterValueEngineering>([
+    ['levelTag', {
+      key: 'levelTag',
+      kind: 'TagReference',
+      tagReference: { tagId },
+      version: 1
+    }]
+  ]);
+  const projected = projectDynamoRuntimeElements([element], parameters, null)[0]!;
+  const samples = new Map([[
+    visualTagSampleKey(tagId),
+    { reference: 'Level', tagId, value: 80, dataType: 'Double', quality: 'Good' }
+  ]]);
+  const resolved = resolveVisualDynamicState(projected, {}, samples);
+
+  expect(projected.propertyMaps?.[0]?.source.tagReference?.tagId).toBe(tagId);
+  expect(projected.propertyMaps?.[0]?.source.projectedValue).toBeUndefined();
+  expect(resolved.values['svg.slot.body.fill']).toBe('#00AA00');
+});
+
+test('semantic SVG destinations are exposed only from canonical asset slot metadata', () => {
+  const visualAsset = {
+    id: '72000000-0000-0000-0000-000000000001',
+    key: 'asset.pump',
+    name: 'Pump',
+    originalFileName: 'pump.svg',
+    mediaType: 'image/svg+xml',
+    byteLength: 100,
+    sha256: 'a'.repeat(64),
+    metadata: {
+      'elitescada.svg.slots': JSON.stringify([
+        { name: 'body', fill: true, stroke: false, strokeWidth: false },
+        { name: 'outline', fill: false, stroke: true, strokeWidth: true }
+      ])
+    }
+  };
+  const destinations = listDynamicPropertyDestinations(svgElement, visualAsset);
+  const keys = destinations.map(item => item.propertyKey);
+
+  expect(keys).toContain('svg.slot.body.fill');
+  expect(keys).toContain('svg.slot.outline.stroke');
+  expect(keys).toContain('svg.slot.outline.strokeWidth');
+  expect(keys).not.toContain('svg.slot.body.strokeWidth');
+  expect(keys.some(key => key.includes('selector'))).toBeFalsy();
+});
+
+test('portable Command parameter projects ExecuteCommand only at the Dynamo instance', () => {
+  const commandId = '77000000-0000-0000-0000-000000000001';
+  const element: VisualElementEngineering = {
+    id: '77000000-0000-0000-0000-000000000002',
+    key: 'start-button',
+    type: 'core.button',
+    properties: { x: 0, y: 0, width: 100, height: 40, text: 'Start' },
+    actions: [{
+      eventKey: 'click',
+      kind: 'ExecuteCommand',
+      commandId: null,
+      commandParameterKey: 'startCommand',
+      version: 1
+    }]
+  };
+  const parameters = new Map<string, DynamoParameterValueEngineering>([
+    ['startCommand', {
+      key: 'startCommand',
+      kind: 'Command',
+      commandId,
+      version: 1
+    }]
+  ]);
+  const projected = projectDynamoRuntimeElements([element], parameters, null)[0]!;
+
+  expect(element.actions?.[0]?.commandId ?? null).toBeNull();
+  expect(element.actions?.[0]?.commandParameterKey).toBe('startCommand');
+  expect(projected.actions?.[0]?.commandId).toBe(commandId);
+  expect(projected.actions?.[0]?.commandParameterKey ?? null).toBeNull();
+
+  expect(() => projectDynamoRuntimeElements([element], new Map(), null))
+    .toThrow(/requires mapped Command parameter 'startCommand'/);
 });

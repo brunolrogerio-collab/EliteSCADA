@@ -48,7 +48,7 @@ export function listDynamicPropertyDestinations(
       (definition.type === 'boolean' || definition.type === 'number' || definition.animatable))
     .map(definition => {
       const modes: DynamicPropertySourceMode[] = ['Constant'];
-      if (definition.type === 'boolean' || definition.type === 'number') modes.push('DirectBinding');
+      if (definition.type !== 'assetRef') modes.push('DirectBinding');
       if (definition.type === 'boolean') modes.push('BooleanCondition');
       if (definition.type === 'boolean' || definition.type === 'number') modes.push('Expression');
       if (definition.animatable) modes.push('RangeMap');

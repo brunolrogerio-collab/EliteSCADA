@@ -1,11 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { applyEngineeringPackage, importVisualAsset, previewEngineeringPackage, visualAssetContentUrl } from './api';
-import type { ApplicationBrandingEngineering, ApplicationBrandingMode, EngineeringSnapshot, ImportPreviewView } from './types';
+import type { ApplicationBrandingEngineering, ApplicationBrandingMode, EngineeringSnapshot, ImportPreviewView, RuntimePresentationEngineering } from './types';
+import type { EngineeringLocale } from './i18n';
 
 const DEFAULT: ApplicationBrandingEngineering = { mode: 'default' };
+const DEFAULT_RUNTIME: RuntimePresentationEngineering = { historicalPlaybackEnabled: false, version: 1 };
 
-export function BrandingEngineeringWorkspace({ snapshot, onApplied }: { snapshot: EngineeringSnapshot; onApplied: () => Promise<void> }) {
+export function BrandingEngineeringWorkspace({ snapshot, onApplied, locale = 'pt-BR' }: { snapshot: EngineeringSnapshot; onApplied: () => Promise<void>; locale?: EngineeringLocale }) {
   const [draft, setDraft] = useState<ApplicationBrandingEngineering>(snapshot.package.branding ?? DEFAULT);
+  const [runtimeDraft, setRuntimeDraft] = useState<RuntimePresentationEngineering>(snapshot.package.runtimePresentation ?? DEFAULT_RUNTIME);
   const [preview, setPreview] = useState<ImportPreviewView | null>(null);
   const [previewSignature, setPreviewSignature] = useState('');
   const [busy, setBusy] = useState(false);
@@ -14,12 +17,13 @@ export function BrandingEngineeringWorkspace({ snapshot, onApplied }: { snapshot
 
   useEffect(() => {
     setDraft(snapshot.package.branding ?? DEFAULT);
+    setRuntimeDraft(snapshot.package.runtimePresentation ?? DEFAULT_RUNTIME);
     setPreview(null);
     setPreviewSignature('');
     setMessage(null);
-  }, [snapshot.workspace.changeVersion, snapshot.package.branding]);
+  }, [snapshot.workspace.changeVersion, snapshot.package.branding, snapshot.package.runtimePresentation]);
 
-  const signature = useMemo(() => JSON.stringify(draft), [draft]);
+  const signature = useMemo(() => JSON.stringify({ draft, runtimeDraft }), [draft, runtimeDraft]);
   const assets = snapshot.package.visualAssets ?? [];
   const selectedAsset = draft.visualAssetId ? assets.find(a => a.id?.toLowerCase() === draft.visualAssetId?.toLowerCase()) : undefined;
 
@@ -29,7 +33,7 @@ export function BrandingEngineeringWorkspace({ snapshot, onApplied }: { snapshot
     setPreviewSignature('');
     setMessage(null);
   };
-  const candidate = () => ({ ...snapshot.package, branding: draft });
+  const candidate = () => ({ ...snapshot.package, branding: draft, runtimePresentation: runtimeDraft });
 
   async function validate() {
     setBusy(true); setMessage(null);
@@ -97,6 +101,8 @@ export function BrandingEngineeringWorkspace({ snapshot, onApplied }: { snapshot
           <button type="button" className="branding-editor__browse" onClick={() => fileInput.current?.click()} disabled={busy}>Browse computer and upload image…</button>
           <small>PNG, JPG, BMP or SVG. The selected file is uploaded to project assets.</small>
         </div>}
+        <RuntimePlaybackProjectSetting locale={locale} value={runtimeDraft.historicalPlaybackEnabled}
+          onChange={value => { setRuntimeDraft({ historicalPlaybackEnabled: value, version: 1 }); setPreview(null); setPreviewSignature(''); setMessage(null); }} />
         <div className="branding-editor__actions"><button type="button" onClick={() => void validate()} disabled={busy}>Preview validation</button>
           <button type="button" onClick={() => void apply()} disabled={busy || !preview?.canApply || previewSignature !== signature}>Apply to Working</button></div>
         {message && <p role="status" className="branding-editor__message">{message}</p>}
@@ -112,4 +118,17 @@ export function BrandingEngineeringWorkspace({ snapshot, onApplied }: { snapshot
       </section>
     </div>
   </div>;
+}
+
+function RuntimePlaybackProjectSetting({ locale, value, onChange }: { locale: EngineeringLocale; value: boolean; onChange: (value:boolean)=>void }) {
+  const copy = locale === 'en'
+    ? { title:'Runtime', label:'Make Historical Playback available in Runtime', help:'Hidden by default. When enabled, authorized operators get a compact Playback tool in Runtime.' }
+    : locale === 'es'
+      ? { title:'Runtime', label:'Habilitar Playback histórico en Runtime', help:'Oculto por defecto. Al habilitarlo, operadores autorizados reciben una herramienta compacta de Playback.' }
+      : { title:'Runtime', label:'Disponibilizar Playback histórico no Runtime', help:'Oculto por padrão. Ao habilitar, operadores autorizados recebem uma ferramenta compacta de Playback no Runtime.' };
+  return <fieldset className="eng-panel" data-testid="runtime-playback-project-setting">
+    <legend>{copy.title}</legend>
+    <label><input type="checkbox" checked={value} onChange={e=>onChange(e.target.checked)} /> <span>{copy.label}</span></label>
+    <small>{copy.help}</small>
+  </fieldset>;
 }

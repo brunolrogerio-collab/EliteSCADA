@@ -9,6 +9,7 @@ import {
 import type { VisualTweenFrameClock } from '../visual-runtime/runtimeVisualTween';
 import {
   createClientVisualPythonCapabilityProvider,
+  type ClientVisualPythonTagWriter,
   type ClientVisualPythonVisualPropertyProvider
 } from './createClientVisualPythonCapabilityProvider';
 import {
@@ -51,6 +52,7 @@ export type ClientVisualEventDispatcherOptions = Readonly<{
   onVisualStateChanged?: () => void;
   frameClock?: VisualTweenFrameClock;
   runtimeFactory?: ClientVisualPythonRuntimeFactory;
+  tagWriter?: ClientVisualPythonTagWriter | null;
 }>;
 
 /**
@@ -69,12 +71,14 @@ export class ClientVisualEventDispatcher {
   private readonly visualDefinitionId: string;
   private readonly visualProviders = new Map<string, ClientVisualPythonVisualPropertyProvider>();
   private readonly runtimeFactory: ClientVisualPythonRuntimeFactory;
+  private readonly tagWriter: ClientVisualPythonTagWriter | null | undefined;
   private sequence = 0;
 
   constructor(options: ClientVisualEventDispatcherOptions) {
     this.instances = options.instances;
     this.visualDefinitionId = options.visualDefinitionId.trim();
     this.runtimeFactory = options.runtimeFactory ?? (runtimeOptions => new ClientVisualPythonRuntime(runtimeOptions));
+    this.tagWriter = options.tagWriter;
 
     const notify = options.onVisualStateChanged ?? (() => undefined);
     const baseClock = options.frameClock ?? browserFrameClock();
@@ -159,7 +163,8 @@ export class ClientVisualEventDispatcher {
       handlerNames: [...new Set(script.entryPoints.map(entryPoint => entryPoint.handlerName).filter(Boolean))],
       capabilityProvider: createClientVisualPythonCapabilityProvider({
         visualPropertyProvider: visualProvider,
-        tagDependencies: script.dependencies
+        tagDependencies: script.dependencies,
+        tagWriter: this.tagWriter
       })
     });
 

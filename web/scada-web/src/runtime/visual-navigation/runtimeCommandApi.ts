@@ -1,4 +1,5 @@
 import { admitInteractiveRuntimeSession } from '../runtimeSessionAdmissionApi';
+import { assertRuntimeProcessMutationAllowed } from '../historical-playback/runtimeHistoricalPlaybackGuard';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 
@@ -21,6 +22,7 @@ export async function executeRuntimeCommand(
   commandId: string,
   fetcher: RuntimeCommandFetch = fetch
 ): Promise<void> {
+  assertRuntimeProcessMutationAllowed('Operational Command');
   const normalized = commandId.trim();
   if (!normalized) throw new RuntimeCommandExecutionError(400, 'Operational Command identity is required.');
 

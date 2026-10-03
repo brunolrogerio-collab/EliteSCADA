@@ -41,6 +41,15 @@ const specializedAssistants: Readonly<Record<string, AssistantRenderer>> = {
   'modbus.tcp': ({ tag, locale, onChange }) => (
     <ModbusAssistant tag={tag} locale={locale} onChange={onChange} />
   ),
+  'modbus.rtu': ({ tag, locale, onChange }) => (
+    <ModbusAssistant tag={tag} locale={locale} onChange={onChange} />
+  ),
+  'modbus.tcp.server': ({ tag, locale, onChange }) => (
+    <ModbusAssistant tag={tag} locale={locale} onChange={onChange} serverOnly />
+  ),
+  'modbus.rtu.server': ({ tag, locale, onChange }) => (
+    <ModbusAssistant tag={tag} locale={locale} onChange={onChange} serverOnly />
+  ),
   'opc-ua': ({ tag, source, locale, onChange }) => (
     <OpcUaTagBrowser tag={tag} source={source} locale={locale} onChange={onChange} />
   ),
@@ -127,6 +136,9 @@ export function TagAddressEditor({ tag, sources, locale, onChange }: Props) {
 function manualHelpForDriver(driverType: string, text: C04Text['address']): string {
   const byDriver: Readonly<Record<string, string>> = {
     'modbus.tcp': text.modbusManualHelp,
+    'modbus.rtu': text.modbusManualHelp,
+    'modbus.tcp.server': text.modbusManualHelp,
+    'modbus.rtu.server': text.modbusManualHelp,
     'opc-ua': text.opcUaManualHelp,
     'dnp3.master': text.dnp3ManualHelp,
     'iec60870.5.104': text.iec104ManualHelp
@@ -134,15 +146,16 @@ function manualHelpForDriver(driverType: string, text: C04Text['address']): stri
   return byDriver[driverType] ?? text.manualHelp;
 }
 
-function ModbusAssistant({ tag, locale, onChange }: {
+function ModbusAssistant({ tag, locale, onChange, serverOnly = false }: {
   tag: TagSourceAwareEngineering;
   locale: EngineeringLocale;
   onChange: (tag: TagSourceAwareEngineering) => void;
+  serverOnly?: boolean;
 }) {
   const text = useMemo(() => c04Text(locale).address, [locale]);
   const areaLabels = useMemo(() => c04ProtocolLabels(locale).modbusArea, [locale]);
   const canonical = parseCanonicalModbusAddress(tag.address);
-  const [area, setArea] = useState(canonical?.area ?? 'holding');
+  const [area, setArea] = useState(serverOnly ? 'holding' : (canonical?.area ?? 'holding'));
   const [reference, setReference] = useState(canonical?.reference ?? '0');
   const [referenceBase, setReferenceBase] = useState<'zeroBased' | 'oneBased'>('zeroBased');
   const [unitId, setUnitId] = useState(metadataValue(tag, 'modbus.unitId'));
@@ -158,7 +171,7 @@ function ModbusAssistant({ tag, locale, onChange }: {
   useEffect(() => {
     const parsed = parseCanonicalModbusAddress(tag.address);
     if (parsed) {
-      setArea(parsed.area);
+      setArea(serverOnly ? 'holding' : parsed.area);
       if (referenceBase === 'zeroBased') setReference(parsed.reference);
     }
     setUnitId(metadataValue(tag, 'modbus.unitId'));
@@ -200,6 +213,15 @@ function ModbusAssistant({ tag, locale, onChange }: {
 
   const areaReadOnly = area === 'discrete' || area === 'input';
   const bitAllowed = area === 'holding' || area === 'input';
+  const clientAccess = metadataValue(tag, 'modbus.server.clientAccess') || 'ReadOnly';
+  const accessText = modbusServerAccessText(locale);
+
+  const changeClientAccess = (next: string) => {
+    const metadata = { ...(tag.metadata ?? {}) };
+    if (next === 'ReadOnly') delete metadata['modbus.server.clientAccess'];
+    else metadata['modbus.server.clientAccess'] = next;
+    onChange({ ...tag, metadata });
+  };
 
   return (
     <section className="eng-dictionary-editor eng-editor-field-wide" data-testid="modbus-address-assistant">
@@ -211,10 +233,10 @@ function ModbusAssistant({ tag, locale, onChange }: {
         <label className="eng-editor-field">
           <span>{text.area}</span>
           <select value={area} onChange={event => setArea(event.target.value as typeof area)} data-testid="modbus-area">
-            <option value="coil">{areaLabels.coil}</option>
-            <option value="discrete">{areaLabels.discrete}</option>
+            {!serverOnly && <option value="coil">{areaLabels.coil}</option>}
+            {!serverOnly && <option value="discrete">{areaLabels.discrete}</option>}
             <option value="holding">{areaLabels.holding}</option>
-            <option value="input">{areaLabels.input}</option>
+            {!serverOnly && <option value="input">{areaLabels.input}</option>}
           </select>
         </label>
         <label className="eng-editor-field">
@@ -244,6 +266,14 @@ function ModbusAssistant({ tag, locale, onChange }: {
         <OptionalNumber label={text.scale} value={scale} onChange={setScale} />
         <OptionalNumber label={text.offset} value={offset} onChange={setOffset} />
         {bitAllowed && <OptionalNumber label={text.bit} value={bitIndex} onChange={setBitIndex} integer />}
+        {serverOnly && <label className="eng-editor-field">
+          <span>{accessText.label}</span>
+          <select value={clientAccess} onChange={event => changeClientAccess(event.target.value)} data-testid="modbus-server-client-access">
+            <option value="ReadOnly">{accessText.readOnly}</option>
+            <option value="ReadWrite">{accessText.readWrite}</option>
+          </select>
+          <small>{accessText.hint}</small>
+        </label>}
       </div>
       <div className="eng-editor-actions">
         <button type="button" className="secondary" onClick={() => void apply()} disabled={busy} data-testid="modbus-address-build">
@@ -255,6 +285,27 @@ function ModbusAssistant({ tag, locale, onChange }: {
       {error && <pre className="eng-preview-error" role="alert">{error}</pre>}
     </section>
   );
+}
+
+function modbusServerAccessText(locale: EngineeringLocale) {
+  if (locale === 'en') return {
+    label: 'External client access',
+    readOnly: 'Read only',
+    readWrite: 'Read / write',
+    hint: 'This controls external Modbus clients only. Internal TAG Gateway writes remain separate.'
+  };
+  if (locale === 'es') return {
+    label: 'Acceso del cliente externo',
+    readOnly: 'Solo lectura',
+    readWrite: 'Lectura / escritura',
+    hint: 'Controla solo clientes Modbus externos. Las escrituras internas por TAG Gateway son independientes.'
+  };
+  return {
+    label: 'Acesso do cliente externo',
+    readOnly: 'Somente leitura',
+    readWrite: 'Leitura / escrita',
+    hint: 'Controla somente clientes Modbus externos. Escritas internas pelo TAG Gateway são independentes.'
+  };
 }
 
 function OptionalNumber({ label, value, onChange, integer = false }: {

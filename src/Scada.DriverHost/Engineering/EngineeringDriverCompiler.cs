@@ -85,10 +85,107 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
                 dataSource.Key));
         }
 
+        ValidateModbusSerialOwnership(communicationPlans, issues);
+        ValidateModbusTcpServerEndpoints(communicationPlans, issues);
+
         return new EngineeringDriverCompilation(plans, issues)
         {
             CommunicationPlans = communicationPlans
         };
+    }
+
+    private static void ValidateModbusTcpServerEndpoints(
+        IReadOnlyCollection<ICommunicationDriverRuntimePlan> plans,
+        List<EngineeringDriverIssue> issues)
+    {
+        var servers = plans.OfType<ModbusTcpServerCommunicationRuntimePlan>().ToArray();
+        for (var leftIndex = 0; leftIndex < servers.Length; leftIndex++)
+        {
+            for (var rightIndex = leftIndex + 1; rightIndex < servers.Length; rightIndex++)
+            {
+                var left = servers[leftIndex];
+                var right = servers[rightIndex];
+                if (!ModbusTcpServerDriver.EndpointsConflict(left.BindAddress, left.Port, right.BindAddress, right.Port))
+                    continue;
+
+                issues.Add(new EngineeringDriverIssue(
+                    "MODBUS_TCP_SERVER_ENDPOINT_CONFLICT",
+                    $"Modbus TCP Server endpoint '{left.BindAddress}:{left.Port}' conflicts with Data Source '{right.DataSourceKey}' endpoint '{right.BindAddress}:{right.Port}'.",
+                    right.DataSourceKey));
+            }
+        }
+    }
+
+    private static void ValidateModbusSerialOwnership(
+        IReadOnlyCollection<ICommunicationDriverRuntimePlan> plans,
+        List<EngineeringDriverIssue> issues)
+    {
+        var masters = plans.OfType<ModbusRtuCommunicationRuntimePlan>().ToArray();
+        var servers = plans.OfType<ModbusRtuServerCommunicationRuntimePlan>().ToArray();
+        var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+
+        foreach (var group in masters.GroupBy(plan => plan.SerialSettings.PhysicalPortKey, comparer))
+        {
+            var first = group.First();
+            foreach (var candidate in group.Skip(1))
+            {
+                if (candidate.SerialSettings.BaudRate != first.SerialSettings.BaudRate ||
+                    candidate.SerialSettings.DataBits != first.SerialSettings.DataBits ||
+                    candidate.SerialSettings.Parity != first.SerialSettings.Parity ||
+                    candidate.SerialSettings.StopBits != first.SerialSettings.StopBits)
+                {
+                    issues.Add(new EngineeringDriverIssue(
+                        "MODBUS_RTU_SERIAL_CONFIGURATION_CONFLICT",
+                        $"Serial port '{candidate.SerialSettings.PortName}' is configured with incompatible line settings by '{first.DataSourceKey}' and '{candidate.DataSourceKey}'.",
+                        candidate.DataSourceKey));
+                }
+            }
+
+            var owners = new Dictionary<byte, string>();
+            foreach (var plan in group)
+            {
+                foreach (var unitId in plan.Points.Select(point => point.UnitId).Distinct())
+                {
+                    if (owners.TryGetValue(unitId, out var existing) &&
+                        !string.Equals(existing, plan.DataSourceKey, StringComparison.OrdinalIgnoreCase))
+                    {
+                        issues.Add(new EngineeringDriverIssue(
+                            "MODBUS_RTU_UNIT_ID_CONFLICT",
+                            $"Serial port '{plan.SerialSettings.PortName}' Unit ID {unitId} is already owned by Data Source '{existing}'.",
+                            plan.DataSourceKey));
+                    }
+                    else
+                    {
+                        owners[unitId] = plan.DataSourceKey;
+                    }
+                }
+            }
+        }
+
+        for (var serverIndex = 0; serverIndex < servers.Length; serverIndex++)
+        {
+            var server = servers[serverIndex];
+            foreach (var master in masters)
+            {
+                if (!comparer.Equals(server.SerialSettings.PhysicalPortKey, master.SerialSettings.PhysicalPortKey))
+                    continue;
+                issues.Add(new EngineeringDriverIssue(
+                    "MODBUS_RTU_SERVER_PORT_EXCLUSIVE",
+                    $"Serial port '{server.SerialSettings.PortName}' is exclusive to RTU Server '{server.DataSourceKey}' and cannot also be used by RTU Master '{master.DataSourceKey}'.",
+                    server.DataSourceKey));
+            }
+
+            for (var otherIndex = serverIndex + 1; otherIndex < servers.Length; otherIndex++)
+            {
+                var other = servers[otherIndex];
+                if (!comparer.Equals(server.SerialSettings.PhysicalPortKey, other.SerialSettings.PhysicalPortKey))
+                    continue;
+                issues.Add(new EngineeringDriverIssue(
+                    "MODBUS_RTU_SERVER_PORT_EXCLUSIVE",
+                    $"Serial port '{server.SerialSettings.PortName}' cannot be owned by both RTU Server '{server.DataSourceKey}' and '{other.DataSourceKey}'.",
+                    other.DataSourceKey));
+            }
+        }
     }
 
     private static void CompileModbusTcp(
@@ -126,7 +223,7 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
         foreach (var tag in sourceTags)
         {
             var before = issues.Count;
-            var point = CompilePoint(dataSource.Key, tag, defaultUnitId, issues);
+            var point = CompileModbusPoint(dataSource.Key, tag, defaultUnitId, issues);
             if (point is not null && issues.Skip(before).All(x => !x.IsError))
                 points.Add(point);
         }
@@ -145,7 +242,7 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
             points));
     }
 
-    private static ModbusPoint? CompilePoint(
+    internal static ModbusPoint? CompileModbusPoint(
         string dataSourceKey,
         TagEngineeringDto dto,
         int defaultUnitId,

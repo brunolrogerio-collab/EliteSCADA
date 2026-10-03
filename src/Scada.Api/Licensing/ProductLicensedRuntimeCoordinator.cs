@@ -1020,6 +1020,7 @@ public static class ProductLicensedRuntimeConfiguration
                         sp.GetRequiredService<IEngineeringDriverCompiler>(),
                         activationTimeout,
                         sp.GetRequiredService<IServerMemoryRetentionStore>(),
+                        communicationComponents: sp.GetRequiredService<CommunicationDriverRuntimeComponentRegistry>(),
                         protectedMaterialResolver: sp.GetService<ICommunicationDriverProtectedMaterialResolver>(),
                         industrialEffectAuthority: () =>
                             sp.GetRequiredService<RuntimeHighAvailabilityService>().CanOwnIndustrialEffects()),

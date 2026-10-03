@@ -18,6 +18,7 @@ using Scada.Core.InternalMemory;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
+using Scada.Drivers.Abstractions;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Commands;
 using Scada.Engineering.Contracts;
@@ -105,6 +106,8 @@ builder.Services.AddSingleton<GatewayEngineeringRuntimeCoordinator>(sp =>
                 1,
                 builder.Configuration.GetValue<double?>("EngineeringRuntime:ActivationTimeoutSeconds") ?? 10)),
             sp.GetRequiredService<IServerMemoryRetentionStore>(),
+            communicationComponents: sp.GetRequiredService<CommunicationDriverRuntimeComponentRegistry>(),
+            protectedMaterialResolver: sp.GetService<ICommunicationDriverProtectedMaterialResolver>(),
             industrialEffectAuthority: () =>
                 sp.GetRequiredService<RuntimeHighAvailabilityService>().CanOwnIndustrialEffects()),
         sp.GetRequiredService<IScadaEventBus>()));

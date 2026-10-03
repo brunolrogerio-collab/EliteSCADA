@@ -730,9 +730,8 @@ public sealed class ReportArtifactRenderer
         for (var i = 0; i < values.Length; i++)
         {
             var px = x + width * i / Math.Max(1, values.Length - 1);
-            var pyTop = y + height - (values[i].Value - min) / span * height;
-            var py = snapshot.Report.Page?.Orientation == ReportPageOrientation.Landscape ? pyTop : pyTop;
-            sb.Append(FormattableString.Invariant($"{px:0.###} {PdfY(py, snapshot.Report.Page):0.###} {(i == 0 ? "m" : "l")} "));
+            var py = y + height - (values[i].Value - min) / span * height;
+            sb.Append(FormattableString.Invariant($"{px:0.###} {py:0.###} {(i == 0 ? "m" : "l")} "));
         }
         sb.Append("S Q");
         commands.Add(sb.ToString());
@@ -764,12 +763,13 @@ public sealed class ReportArtifactRenderer
         var ry = height / 2;
         var cx = x + rx;
         var cy = yTop + ry;
-        commands.Add(FormattableString.Invariant(
-            $"q {lineWidth:0.###} w {cx + rx:0.###} {cy:0.###} m " +
-            $"{cx + rx:0.###} {cy + k * ry:0.###} {cx + k * rx:0.###} {cy + ry:0.###} {cx:0.###} {cy + ry:0.###} c " +
-            $"{cx - k * rx:0.###} {cy + ry:0.###} {cx - rx:0.###} {cy + k * ry:0.###} {cx - rx:0.###} {cy:0.###} c " +
-            $"{cx - rx:0.###} {cy - k * ry:0.###} {cx - k * rx:0.###} {cy - ry:0.###} {cx:0.###} {cy - ry:0.###} c " +
-            $"{cx + k * rx:0.###} {cy - ry:0.###} {cx + rx:0.###} {cy - k * ry:0.###} {cx + rx:0.###} {cy:0.###} c S Q"));
+        var command =
+            FormattableString.Invariant($"q {lineWidth:0.###} w {cx + rx:0.###} {cy:0.###} m ") +
+            FormattableString.Invariant($"{cx + rx:0.###} {cy + k * ry:0.###} {cx + k * rx:0.###} {cy + ry:0.###} {cx:0.###} {cy + ry:0.###} c ") +
+            FormattableString.Invariant($"{cx - k * rx:0.###} {cy + ry:0.###} {cx - rx:0.###} {cy + k * ry:0.###} {cx - rx:0.###} {cy:0.###} c ") +
+            FormattableString.Invariant($"{cx - rx:0.###} {cy - k * ry:0.###} {cx - k * rx:0.###} {cy - ry:0.###} {cx:0.###} {cy - ry:0.###} c ") +
+            FormattableString.Invariant($"{cx + k * rx:0.###} {cy - ry:0.###} {cx + rx:0.###} {cy - k * ry:0.###} {cx + rx:0.###} {cy:0.###} c S Q");
+        commands.Add(command);
     }
 
     private static string PdfAlignment(ReportTextAlignment? alignment) => alignment switch

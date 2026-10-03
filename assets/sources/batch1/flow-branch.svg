@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <path d="M 20 64 L 64 64 L 104 28 M 64 64 L 104 100" fill="none" stroke="#374151" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
-  <circle cx="20" cy="64" r="6" fill="#E5E7EB" stroke="#374151" stroke-width="3" />
-  <circle cx="108" cy="26" r="6" fill="#E5E7EB" stroke="#374151" stroke-width="3" />
-  <circle cx="108" cy="102" r="6" fill="#E5E7EB" stroke="#374151" stroke-width="3" />
-  <circle cx="64" cy="64" r="7" fill="#9CA3AF" stroke="#374151" stroke-width="3" />
+  <path d="M 20 64 L 64 64 L 104 28 M 64 64 L 104 100" fill="none" stroke="#374151" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"  data-elitescada-slot="link" />
+  <circle cx="20" cy="64" r="6" fill="#E5E7EB" stroke="#374151" stroke-width="3"  data-elitescada-slot="node" />
+  <circle cx="108" cy="26" r="6" fill="#E5E7EB" stroke="#374151" stroke-width="3"  data-elitescada-slot="node" />
+  <circle cx="108" cy="102" r="6" fill="#E5E7EB" stroke="#374151" stroke-width="3"  data-elitescada-slot="node" />
+  <circle cx="64" cy="64" r="7" fill="#9CA3AF" stroke="#374151" stroke-width="3"  data-elitescada-slot="node" />
 </svg>

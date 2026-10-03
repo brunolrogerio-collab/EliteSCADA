@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <polygon points="64,20 110,104 18,104" fill="#E5E7EB" stroke="#374151" stroke-width="6" stroke-linejoin="round" />
-  <line x1="64" y1="48" x2="64" y2="76" fill="none" stroke="#374151" stroke-width="7" stroke-linecap="round" />
-  <circle cx="64" cy="90" r="4" fill="#9CA3AF" stroke="#374151" stroke-width="2" />
+  <polygon points="64,20 110,104 18,104" fill="#E5E7EB" stroke="#374151" stroke-width="6" stroke-linejoin="round"  data-elitescada-slot="body" />
+  <line x1="64" y1="48" x2="64" y2="76" fill="none" stroke="#374151" stroke-width="7" stroke-linecap="round"  data-elitescada-slot="outline" />
+  <circle cx="64" cy="90" r="4" fill="#9CA3AF" stroke="#374151" stroke-width="2"  data-elitescada-slot="status" />
 </svg>

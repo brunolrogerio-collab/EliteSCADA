@@ -1,3 +1,4 @@
+import { assertRuntimeProcessMutationAllowed } from './historical-playback/runtimeHistoricalPlaybackGuard';
 import {
   admitInteractiveRuntimeSession,
   type RuntimeSessionFetch
@@ -22,6 +23,7 @@ export async function writeRuntimeTagValue(
   value: RuntimeTagWriteValue,
   fetcher: RuntimeSessionFetch = fetch
 ): Promise<void> {
+  assertRuntimeProcessMutationAllowed('TAG write');
   const normalizedTagId = tagId.trim();
   if (!normalizedTagId) throw new RuntimeTagWriteError('A stable TAG identity is required.');
   if (!isRuntimeTagWriteValue(value)) {

@@ -803,11 +803,43 @@
       }
     },
     {
+      "id": "sectors/data-center/cooling-power",
+      "labels": {
+        "pt-BR": "Energia e refrigeração",
+        "en": "Cooling & Power",
+        "es": "Energía y refrigeración"
+      }
+    },
+    {
+      "id": "sectors/data-center/it-infrastructure",
+      "labels": {
+        "pt-BR": "Infraestrutura de TI",
+        "en": "IT Infrastructure",
+        "es": "Infraestructura de TI"
+      }
+    },
+    {
       "id": "sectors/food-beverage",
       "labels": {
         "pt-BR": "Alimentos e bebidas",
         "en": "Food & Beverage",
         "es": "Alimentos y bebidas"
+      }
+    },
+    {
+      "id": "sectors/food-beverage/packaging",
+      "labels": {
+        "pt-BR": "Envase e embalagem",
+        "en": "Filling & Packaging",
+        "es": "Llenado y embalaje"
+      }
+    },
+    {
+      "id": "sectors/food-beverage/processing",
+      "labels": {
+        "pt-BR": "Processamento",
+        "en": "Processing",
+        "es": "Procesamiento"
       }
     },
     {
@@ -819,6 +851,22 @@
       }
     },
     {
+      "id": "sectors/logistics/automation",
+      "labels": {
+        "pt-BR": "Automação logística",
+        "en": "Logistics Automation",
+        "es": "Automatización logística"
+      }
+    },
+    {
+      "id": "sectors/logistics/warehouse",
+      "labels": {
+        "pt-BR": "Armazém",
+        "en": "Warehouse",
+        "es": "Almacén"
+      }
+    },
+    {
       "id": "sectors/mining",
       "labels": {
         "pt-BR": "Mineração",
@@ -827,11 +875,43 @@
       }
     },
     {
+      "id": "sectors/mining/extraction",
+      "labels": {
+        "pt-BR": "Extração",
+        "en": "Extraction",
+        "es": "Extracción"
+      }
+    },
+    {
+      "id": "sectors/mining/processing",
+      "labels": {
+        "pt-BR": "Processamento mineral",
+        "en": "Mineral Processing",
+        "es": "Procesamiento mineral"
+      }
+    },
+    {
       "id": "sectors/pharma-clean-process",
       "labels": {
         "pt-BR": "Farmacêutico e processo limpo",
         "en": "Pharma / Clean Process",
         "es": "Farmacéutico / Proceso limpio"
+      }
+    },
+    {
+      "id": "sectors/pharma-clean-process/clean-utilities",
+      "labels": {
+        "pt-BR": "Utilidades limpas",
+        "en": "Clean Utilities",
+        "es": "Servicios limpios"
+      }
+    },
+    {
+      "id": "sectors/pharma-clean-process/process",
+      "labels": {
+        "pt-BR": "Processo farmacêutico",
+        "en": "Pharma Process",
+        "es": "Proceso farmacéutico"
       }
     },
     {

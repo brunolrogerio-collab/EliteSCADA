@@ -39,6 +39,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     private readonly IOperationalEventEngineeringRegistry _operationalEvents;
     private readonly IEngineeringLockRegistry _engineeringLock;
     private readonly IApplicationBrandingEngineeringRegistry _branding;
+    private RuntimePresentationEngineeringDto _runtimePresentation = new();
     private readonly JsonSerializerOptions _json;
     private readonly EngineeringCsvExchange _csv;
     private readonly DataSourceEngineeringHandler _dataSourceHandler;
@@ -261,7 +262,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             HistorianCaptureProfiles: Array.Empty<HistorianCaptureProfileEngineeringDto>(),
             DataQueries: Array.Empty<DataQueryEngineeringDto>(),
             AlarmViews: Array.Empty<AlarmViewEngineeringDto>(),
-            Branding: _branding.Snapshot());
+            Branding: _branding.Snapshot(),
+            RuntimePresentation: _runtimePresentation);
     }
 
     public string ExportJson(bool indented = true)
@@ -313,7 +315,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             VisualAssets = package.VisualAssets ?? Array.Empty<VisualAssetEngineeringDto>(),
             Reports = package.Reports ?? Array.Empty<ReportEngineeringDto>(),
             OperationalEvents = package.OperationalEvents ?? Array.Empty<OperationalEventEngineeringDto>(),
-            EngineeringLock = EngineeringLockContract.Normalize(package.EngineeringLock)
+            EngineeringLock = EngineeringLockContract.Normalize(package.EngineeringLock),
+            RuntimePresentation = package.RuntimePresentation ?? new RuntimePresentationEngineeringDto()
         };
         return AuthorityScopeEngineeringMigration.Normalize(normalized);
     }
@@ -337,6 +340,19 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     {
         _ = EngineeringLockContract.Normalize(package.EngineeringLock);
         var items = new List<ImportPreviewItem>();
+        if (package.RuntimePresentation is { Version: not 1 })
+        {
+            items.Add(new ImportPreviewItem(
+                ImportEntityKind.RuntimePresentation,
+                "runtime-presentation",
+                ImportOperation.Error,
+                [new ImportIssue(
+                    "RUNTIME_PRESENTATION_VERSION_UNSUPPORTED",
+                    $"Runtime presentation version {package.RuntimePresentation.Version} is unsupported; expected 1.",
+                    ImportEntityKind.RuntimePresentation,
+                    "runtime-presentation",
+                    true)]));
+        }
         if (_securityPolicies is IAuthorityPolicyEngineeringRegistryView authorityView)
         {
             var reference = AuthorityPolicyReferenceValidator.ValidateExact(
@@ -428,6 +444,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _visualAssetHandler.Apply(package, mode, ref created, ref updated, ref skipped, context);
         if (package.Branding is not null)
             _branding.Replace(package.Branding);
+        _runtimePresentation = package.RuntimePresentation ?? new RuntimePresentationEngineeringDto();
         _viewHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         if ((package.Screens?.Count ?? 0) > 0 || package.StartupScreenId.HasValue)
             _views.SetStartupScreen(package.StartupScreenId);
@@ -581,7 +598,11 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     }
 
     private EngineeringPackage EmptyWithCurrentAuthorityReference() =>
-        Empty() with { AuthorityPolicyReference = ExportPackage().AuthorityPolicyReference };
+        Empty() with
+        {
+            AuthorityPolicyReference = ExportPackage().AuthorityPolicyReference,
+            RuntimePresentation = _runtimePresentation
+        };
 
     private EngineeringPackage Empty() => new(
         CurrentSchema,

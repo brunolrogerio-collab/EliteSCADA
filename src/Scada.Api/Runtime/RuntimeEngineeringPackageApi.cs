@@ -13,6 +13,7 @@ public static class RuntimeEngineeringPackageApi
     {
         endpoints.MapDistributedRuntimeFoundationEndpoints();
         endpoints.MapContextualHelpEndpoints();
+        endpoints.MapHistoricalPlaybackRuntimeEndpoints();
 
         endpoints.MapGet("/api/auth/effective-capabilities", async (
             HttpContext context,
@@ -314,7 +315,8 @@ public static class RuntimeEngineeringPackageApi
         scripts = ArrayProperty(root, "scripts"),
         scriptVisualEventReferences = ArrayProperty(root, "scriptVisualEventReferences"),
         visualAssets = ArrayProperty(root, "visualAssets"),
-        branding = OptionalObjectProperty(root, "branding")
+        branding = OptionalObjectProperty(root, "branding"),
+        runtimePresentation = OptionalObjectProperty(root, "runtimePresentation")
     };
 
     private static string RequiredString(JsonElement root, string name)

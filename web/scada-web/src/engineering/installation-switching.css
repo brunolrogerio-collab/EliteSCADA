@@ -65,7 +65,22 @@
 }
 
 .installation-switching button:not(:disabled):hover {
-  border-color: #48657d;
+  border-color: var(--eng-accent);
+  background: var(--eng-hover);
+}
+
+.installation-switching button:focus-visible,
+.installation-switching input:focus-visible,
+.installation-switching textarea:focus-visible {
+  outline: 2px solid var(--eng-focus);
+  outline-offset: 2px;
+}
+
+.installation-switching input:disabled,
+.installation-switching textarea:disabled {
+  background: var(--eng-subtle-bg);
+  color: var(--eng-disabled);
+  cursor: not-allowed;
 }
 
 .installation-switching__facts {
@@ -117,12 +132,12 @@
 .installation-switching__error,
 .installation-switching__blocking {
   border: 1px solid var(--eng-danger);
-  background: rgba(212, 106, 106, .08);
+  background: var(--eng-danger-bg);
 }
 
 .installation-switching__warning {
   border: 1px solid var(--eng-warning);
-  background: rgba(214, 169, 88, .08);
+  background: var(--eng-warning-bg);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 5px 16px;
@@ -184,7 +199,7 @@
   width: 100%;
   border: 1px solid var(--eng-border);
   border-radius: 6px;
-  background: #0f161e;
+  background: var(--eng-input-bg);
   color: var(--eng-text);
   padding: 8px;
 }
@@ -204,7 +219,7 @@
 
 .installation-switching__danger {
   border-color: var(--eng-danger) !important;
-  background: rgba(212, 106, 106, .12) !important;
+  background: var(--eng-danger-bg) !important;
 }
 
 .installation-switching__confirmation {

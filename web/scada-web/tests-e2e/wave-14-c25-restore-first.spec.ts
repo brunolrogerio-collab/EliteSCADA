@@ -141,3 +141,165 @@ test('restored local Administrator can recover application without creating disp
   await expect(page.getByTestId('restore-first-application')).toHaveCount(0);
   expect(firstProjectPosts).toBe(0);
 });
+
+
+test('restore-first keeps the prevalidated Application and optional license bound through restored Administrator login', async ({ page }) => {
+  let authorityRestored = false;
+  let loggedIn = false;
+  let canonicalApplicationPreviews = 0;
+  let applicationApplies = 0;
+  let licenseInstalls = 0;
+
+  await page.route('**/api/auth/config', route => route.fulfill({ json: authConfig(!authorityRestored) }));
+  await page.route('**/api/auth/me', route => route.fulfill(loggedIn ? { json: localProfile } : { status: 401 }));
+  await page.route('**/api/auth/login', async route => {
+    loggedIn = true;
+    await route.fulfill({ json: localProfile });
+  });
+  await page.route('**/api/engineering/persistence/status', route => route.fulfill({
+    json: { enabled: true, hasProjects: false }
+  }));
+  await page.route('**/api/auth/bootstrap/authority-backup/preview', route => route.fulfill({
+    json: { userCount: 1, enabledAdministratorCount: 1 }
+  }));
+  await page.route('**/api/system-recovery/bootstrap/application/preview', route => route.fulfill({
+    json: { canApply: true, blockers: [] }
+  }));
+  await page.route('**/api/auth/bootstrap/authority-backup/apply', async route => {
+    authorityRestored = true;
+    await route.fulfill({ json: { applied: true, signInRequired: true } });
+  });
+  await page.route('**/api/system-recovery/application/preview', async route => {
+    canonicalApplicationPreviews++;
+    expect(route.request().postDataBuffer()?.toString()).toBe('application-package');
+    await route.fulfill({
+      json: {
+        canApply: true,
+        projectCatalogEmpty: true,
+        runtimeBindingMatches: true,
+        blockers: [],
+        currentUserAdmission: { allowed: true }
+      }
+    });
+  });
+  await page.route('**/api/system-recovery/application/apply', async route => {
+    applicationApplies++;
+    expect(route.request().postDataBuffer()?.toString()).toBe('application-package');
+    await route.fulfill({ json: { recovered: true, stage: 'complete', issues: [] } });
+  });
+  await page.route('**/api/licensing/install', async route => {
+    licenseInstalls++;
+    expect(route.request().postDataJSON()).toEqual({ licenseCode: 'OPTIONAL-LICENSE-CODE' });
+    await route.fulfill({ json: { installed: true } });
+  });
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Restaurar backup' }).click();
+  await page.getByTestId('recovery-application-file').setInputFiles({
+    name: 'plant.escadapkg',
+    mimeType: 'application/vnd.elitescada.project-package',
+    buffer: Buffer.from('application-package')
+  });
+  await page.getByTestId('recovery-authority-file').setInputFiles({
+    name: 'authority.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from('{"backup":true}')
+  });
+  await page.getByTestId('recovery-license-file').setInputFiles({
+    name: 'license.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('OPTIONAL-LICENSE-CODE')
+  });
+  await page.getByTestId('recovery-authority-password').fill('authority-secret');
+
+  await page.getByRole('button', { name: 'Validar backups' }).click();
+  await page.getByRole('button', { name: 'Restaurar Authority' }).click();
+
+  await page.getByLabel('Usuário').fill('administrator');
+  await page.getByLabel('Senha').fill('restored-secret');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+
+  await expect(page.getByTestId('restore-first-application')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Continuar recuperação' })).toBeVisible();
+  await expect(page.getByTestId('recovery-continuation-summary')).toContainText('plant.escadapkg');
+  await expect(page.getByTestId('recovery-continuation-summary')).toContainText('license.txt');
+  await expect(page.getByTestId('recovery-application-file')).toHaveCount(0);
+  await expect(page.getByTestId('recovery-license-file')).toHaveCount(0);
+  await expect(page.getByTestId('recovery-authority-password')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Continuar recuperação' }).click();
+  expect(canonicalApplicationPreviews).toBe(1);
+
+  await page.getByRole('button', { name: 'Importar aplicação selecionada' }).click();
+  await expect(page.getByTestId('restore-first-application')).toHaveCount(0);
+  expect(applicationApplies).toBe(1);
+  expect(licenseInstalls).toBe(1);
+});
+
+test('interrupted post-Authority recovery is explicit about browser file loss and requires reselect before fresh Preview', async ({ page }) => {
+  await page.addInitScript(() => {
+    sessionStorage.setItem('elitescada.auth.restore-first-continuation', JSON.stringify({
+      version: 1,
+      authorityRestored: true,
+      application: { name: 'plant.escadapkg', size: 19 },
+      license: { name: 'license.txt', size: 21 }
+    }));
+  });
+  await page.route('**/api/auth/config', route => route.fulfill({ json: authConfig(false) }));
+  await page.route('**/api/auth/me', route => route.fulfill({ json: localProfile }));
+  await page.route('**/api/auth/local-session', route => route.fulfill({
+    json: { authenticated: true, username: 'administrator' }
+  }));
+  await page.route('**/api/engineering/persistence/status', route => route.fulfill({
+    json: { enabled: true, hasProjects: false }
+  }));
+
+  await page.goto('/');
+
+  await expect(page.getByRole('heading', { name: 'Continuar recuperação' })).toBeVisible();
+  await expect(page.getByTestId('recovery-continuation-summary')).toContainText('plant.escadapkg');
+  await expect(page.getByText(/navegador perdeu os arquivos selecionados/i)).toBeVisible();
+  await expect(page.getByTestId('recovery-application-file')).toBeVisible();
+  await expect(page.getByTestId('recovery-license-file')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Importar aplicação selecionada' })).toBeDisabled();
+});
+
+test('auth and restore system surfaces consume the active semantic theme in Light and Dark', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('elitescada.app.theme'))
+      localStorage.setItem('elitescada.app.theme', 'light');
+  });
+  await page.route('**/api/auth/config', route => route.fulfill({ json: authConfig(true) }));
+  await page.route('**/api/auth/me', route => route.fulfill({ status: 401 }));
+
+  await page.goto('/');
+  await expect(page.locator('html')).toHaveAttribute('data-app-theme', 'light');
+
+  const light = await page.locator('.auth-card').evaluate(element => ({
+    card: getComputedStyle(element).backgroundColor,
+    page: getComputedStyle(document.querySelector('.auth-page')!).backgroundColor,
+    input: getComputedStyle(document.querySelector('input[name="bootstrap-username"]')!).backgroundColor
+  }));
+
+  await page.getByRole('button', { name: 'Restaurar backup' }).click();
+  await expect(page.getByTestId('recovery-application-file')).toBeVisible();
+  const lightFile = await page.getByTestId('recovery-application-file').evaluate(element => getComputedStyle(element).backgroundColor);
+
+  await page.evaluate(() => localStorage.setItem('elitescada.app.theme', 'dark'));
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-app-theme', 'dark');
+
+  const dark = await page.locator('.auth-card').evaluate(element => ({
+    card: getComputedStyle(element).backgroundColor,
+    page: getComputedStyle(document.querySelector('.auth-page')!).backgroundColor,
+    input: getComputedStyle(document.querySelector('input[name="bootstrap-username"]')!).backgroundColor
+  }));
+
+  expect(light.card).not.toBe(dark.card);
+  expect(light.page).not.toBe(dark.page);
+  expect(light.input).not.toBe(dark.input);
+
+  await page.getByRole('button', { name: 'Restaurar backup' }).click();
+  const darkFile = await page.getByTestId('recovery-application-file').evaluate(element => getComputedStyle(element).backgroundColor);
+  expect(lightFile).not.toBe(darkFile);
+});

@@ -1,5 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { RestoreFirstPanel, type RecoverySelection } from './RestoreFirstPanel';
+import {
+  RestoreFirstPanel,
+  recoveryContinuationFromSelection,
+  type RecoveryContinuation,
+  type RecoverySelection
+} from './RestoreFirstPanel';
 import './auth.css';
 
 type AuthConfiguration = {
@@ -51,7 +56,42 @@ const AuthContext = createContext<AuthContextValue>({
 
 const API = (import.meta.env.VITE_SCADA_API ?? '').replace(/\/$/, '');
 const localeKey = 'elitescada.engineering.locale';
+const recoveryContinuationKey = 'elitescada.auth.restore-first-continuation';
 type AuthLocale = 'pt-BR' | 'en' | 'es';
+
+function readRecoveryContinuation(): RecoveryContinuation | null {
+  try {
+    const raw = window.sessionStorage.getItem(recoveryContinuationKey);
+    if (!raw) return null;
+    const value = JSON.parse(raw) as Partial<RecoveryContinuation>;
+    const validArtifact = (artifact: unknown): artifact is { name: string; size: number } => {
+      if (!artifact || typeof artifact !== 'object') return false;
+      const candidate = artifact as { name?: unknown; size?: unknown };
+      return typeof candidate.name === 'string' && typeof candidate.size === 'number' && candidate.size >= 0;
+    };
+    if (
+      value.version !== 1 ||
+      value.authorityRestored !== true ||
+      !validArtifact(value.application) ||
+      (value.license !== undefined && !validArtifact(value.license))
+    ) {
+      window.sessionStorage.removeItem(recoveryContinuationKey);
+      return null;
+    }
+    return value as RecoveryContinuation;
+  } catch {
+    window.sessionStorage.removeItem(recoveryContinuationKey);
+    return null;
+  }
+}
+
+function persistRecoveryContinuation(continuation: RecoveryContinuation | null) {
+  if (continuation) {
+    window.sessionStorage.setItem(recoveryContinuationKey, JSON.stringify(continuation));
+  } else {
+    window.sessionStorage.removeItem(recoveryContinuationKey);
+  }
+}
 
 const messages = {
   'pt-BR': {
@@ -237,7 +277,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [projectError, setProjectError] = useState<string | null>(null);
   const [recoveryMode, setRecoveryMode] = useState<RecoveryMode>(null);
   const [recoverySelection, setRecoverySelection] = useState<RecoverySelection | null>(null);
-  const [recoverySignInRequired, setRecoverySignInRequired] = useState(false);
+  const [recoveryContinuation, setRecoveryContinuation] = useState<RecoveryContinuation | null>(() => readRecoveryContinuation());
+  const [recoverySignInRequired, setRecoverySignInRequired] = useState(() => recoveryContinuation !== null);
   const [switchUserSignInRequired, setSwitchUserSignInRequired] = useState(false);
 
   const acceptAuthenticatedProfile = useCallback(async (nextProfile: AuthProfile | null) => {
@@ -346,7 +387,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       setPassword('');
       await acceptAuthenticatedProfile(await response.json() as AuthProfile);
       setSwitchUserSignInRequired(false);
-      if (recoverySelection) {
+      if (recoverySelection || recoveryContinuation) {
         setRecoverySignInRequired(false);
         setRecoveryMode('application');
       }
@@ -398,18 +439,21 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   };
 
   const startApplicationRecovery = () => {
-    setRecoverySelection(null);
+    if (!recoveryContinuation) setRecoverySelection(null);
     setRecoverySignInRequired(false);
     setRecoveryMode('application');
   };
 
   const cancelRecovery = () => {
     setRecoveryMode(null);
-    setRecoverySelection(null);
+    if (!recoveryContinuation) setRecoverySelection(null);
     setRecoverySignInRequired(false);
   };
 
   const authorityRestored = async (selection: RecoverySelection) => {
+    const continuation = recoveryContinuationFromSelection(selection);
+    persistRecoveryContinuation(continuation);
+    setRecoveryContinuation(continuation);
     setRecoverySelection(selection);
     setRecoveryMode(null);
     setRecoverySignInRequired(true);
@@ -423,6 +467,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   };
 
   const applicationRecovered = async () => {
+    persistRecoveryContinuation(null);
+    setRecoveryContinuation(null);
     setRecoveryMode(null);
     setRecoverySelection(null);
     setRecoverySignInRequired(false);
@@ -501,12 +547,16 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (recoveryMode === 'application' && profile) {
+  if (
+    profile &&
+    (recoveryMode === 'application' || (projectSetupRequired && recoveryContinuation !== null))
+  ) {
     return (
       <RestoreFirstPanel
         mode="application"
         locale={locale}
         selection={recoverySelection}
+        continuation={recoverySelection ? null : recoveryContinuation}
         onApplicationRecovered={applicationRecovered}
         onCancel={cancelRecovery}
       />

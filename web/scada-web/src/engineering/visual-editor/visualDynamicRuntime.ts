@@ -283,6 +283,14 @@ function resolveValueSource(
   source: VisualValueSourceEngineering,
   samples: ReadonlyMap<string, VisualDynamicSample>
 ): SourceResult {
+  if (source.projectedValue !== undefined) {
+    return typedSourceValue(
+      source.projectedValue,
+      source.valueType,
+      source.target ?? '{dynamoParameter}'
+    );
+  }
+
   const kind = normalizeVisualValueSourceKind(source.kind);
   if (!kind.ok) return kind;
 

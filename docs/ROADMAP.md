@@ -1,3 +1,27 @@
+# FINAL REVALIDATION CORRECTION — 2026-10-03
+
+> Supersedes the active-lane status in earlier 2026-10-03 handoff text below.
+> GitHub live remains authoritative.
+
+Current integration after the first handoff-doc merge:
+`e606d3f5dd50617fb5948372f909a5553dd97c36`
+
+Active branches were released from:
+`aca641501302edb04f32b83b04adf0726d7e8a96`
+
+The resulting `behind 7` against current integration is documentation-only. Do not require DEV rebases merely for those handoff docs.
+
+Final outgoing lane state:
+- #482 `work/w15-visual-library-catalog`: still no implementation commit, no PR; `ahead 0 / behind 0` vs release base.
+- #483 `work/w15-home-building-h0@9b2cea1293e8bdd0ab250a28446bd53cee8d8697`, tree `8fbd95cfeed9e95ca296957e1d5855d2eab78eb8`; one WIP commit touching `web/scada-web/src/engineering/types.ts`; no PR/handoff yet.
+- #484 `content/w15-builtin-asset-curation-b1@055deb4df30eaf3e8af4d33fdc8739cf3d1b9df4`, tree `bca34cc2ea3b12124db703244ed715ebced9e0f9`; 86 draft assets in current batch manifest; no PR/handoff yet.
+
+#483 and #484 are WIP, not Main-accepted.
+CODEX remains parked.
+Protocol-driver fan-out remains blocked.
+
+---
+
 # EliteSCADA Roadmap — Wave 15
 
 **Status date:** 2026-09-24 (BRT)  

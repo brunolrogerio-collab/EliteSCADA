@@ -149,7 +149,7 @@ test('R1 scalar Dynamo parameters drive BooleanCondition PropertyMap and AnalogF
   const resolved = resolveVisualDynamicState(projected, projected.properties ?? {}, new Map());
   expect(resolved.values.visible).toBe(false);
   expect(resolved.values.fillColor).toBe('#00AA00');
-  expect(resolved.analogFill?.percent).toBeCloseTo(0.5, 5);
+  expect(resolved.analogFill?.presentation.normalized).toBeCloseTo(0.5, 5);
   expect(resolved.diagnostics).toEqual([]);
 });
 
@@ -434,7 +434,7 @@ test('Number Dynamo scalar parameter drives canonical AnalogFill', () => {
   const resolved = resolveVisualDynamicState(projected, {}, new Map());
 
   expect(projected.analogFill?.source.projectedValue).toBe(25);
-  expect(resolved.analogFill?.presentation.fraction).toBeCloseTo(0.25);
+  expect(resolved.analogFill?.presentation.normalized).toBeCloseTo(0.25);
   expect(resolved.diagnostics).toEqual([]);
 });
 

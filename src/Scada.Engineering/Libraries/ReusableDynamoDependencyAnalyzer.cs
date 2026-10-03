@@ -176,7 +176,8 @@ public static class ReusableDynamoDependencyAnalyzer
     private static IReadOnlyCollection<ReusableLibraryDependency> Analyze(
         DynamoEngineeringDto dynamo,
         ReusableLibraryDependency? templateDependency,
-        Func<Guid, string, ReusableLibraryDependency> resolveAsset)
+        Func<Guid, string, ReusableLibraryDependency> resolveAsset,
+        IReadOnlyDictionary<string, DynamoParameterKind> parameterKinds)
     {
         var dependencies = new Dictionary<(string Kind, Guid ResourceId), ReusableLibraryDependency>();
         ValidatePortableBindings(dynamo.Bindings, $"Dynamo '{dynamo.Key}'");
@@ -191,11 +192,16 @@ public static class ReusableDynamoDependencyAnalyzer
                     $"Dynamo '{dynamo.Key}' parameter '{parameter.Key}' has a concrete TAG default. Reusable Dynamos must keep project TAG references parameterized.");
         }
 
+        var parameterKinds = (dynamo.Parameters ?? Array.Empty<DynamoParameterDefinitionEngineeringDto>())
+            .Where(parameter => parameter is not null && !string.IsNullOrWhiteSpace(parameter.Key))
+            .ToDictionary(parameter => parameter.Key, parameter => parameter.Kind, StringComparer.OrdinalIgnoreCase);
+
         AnalyzeElements(
             dynamo.Key,
             dynamo.Elements,
             dependencies,
-            resolveAsset);
+            resolveAsset,
+            parameterKinds);
 
         return dependencies.Values
             .OrderBy(dependency => dependency.Kind, StringComparer.Ordinal)
@@ -231,9 +237,7 @@ public static class ReusableDynamoDependencyAnalyzer
                         $"Dynamo '{ownerKey}' element '{element.Key}' parameter '{parameter.Key}' carries a concrete TAG reference. Reusable Dynamos must keep project TAG references parameterized.");
             }
 
-            if ((element.Actions?.Count ?? 0) > 0)
-                throw new InvalidDataException(
-                    $"Dynamo '{ownerKey}' element '{element.Key}' contains navigation/command actions. Action target dependencies are not reusable-library enabled in the Dynamo slice yet.");
+            ValidatePortableActions(element.Actions, ownerKey, element.Key, parameterKinds);
 
             if (!string.IsNullOrWhiteSpace(element.DynamoKey) || element.DynamoDefinitionId.HasValue)
             {
@@ -255,7 +259,30 @@ public static class ReusableDynamoDependencyAnalyzer
                     element.Type));
             }
 
-            AnalyzeElements(ownerKey, element.Children, dependencies, resolveAsset);
+            AnalyzeElements(ownerKey, element.Children, dependencies, resolveAsset, parameterKinds);
+        }
+    }
+
+    private static void ValidatePortableActions(
+        IReadOnlyCollection<VisualNavigationActionEngineeringDto>? actions,
+        string ownerKey,
+        string elementKey,
+        IReadOnlyDictionary<string, DynamoParameterKind> parameterKinds)
+    {
+        foreach (var action in actions ?? Array.Empty<VisualNavigationActionEngineeringDto>())
+        {
+            if (action is null) continue;
+            if (action.Kind == VisualNavigationActionKind.ExecuteCommand &&
+                !string.IsNullOrWhiteSpace(action.CommandParameterKey) &&
+                !action.CommandId.HasValue &&
+                string.IsNullOrWhiteSpace(action.TargetKey) &&
+                action.Parameters is not { Count: > 0 } &&
+                parameterKinds.TryGetValue(action.CommandParameterKey, out var parameterKind) &&
+                parameterKind == DynamoParameterKind.Command)
+                continue;
+
+            throw new InvalidDataException(
+                $"Dynamo '{ownerKey}' element '{elementKey}' contains a non-portable action. Reusable Dynamos only permit ExecuteCommand through a declared Command parameter and never a concrete project Command identity.");
         }
     }
 

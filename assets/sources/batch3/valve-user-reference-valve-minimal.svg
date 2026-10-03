@@ -1,8 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <line x1="10" y1="64" x2="30" y2="64" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" data-elitescada-slot="pipe" />
-  <line x1="98" y1="64" x2="118" y2="64" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" data-elitescada-slot="pipe" />
-  <polygon points="30,42 64,64 30,86" fill="none" stroke="#374151" stroke-width="4" stroke-linejoin="round" data-elitescada-slot="body" />
-  <polygon points="98,42 64,64 98,86" fill="none" stroke="#374151" stroke-width="4" stroke-linejoin="round" data-elitescada-slot="body" />
-  <line x1="64" y1="64" x2="64" y2="30" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" data-elitescada-slot="stem" />
-  <line x1="48" y1="30" x2="80" y2="30" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" data-elitescada-slot="handle" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <path d="M 15 30 L 50 50 L 15 70 Z M 85 30 L 50 50 L 85 70 Z" fill="none" stroke="#374151" stroke-width="3" stroke-linejoin="round" data-elitescada-slot="body" />
+  <line x1="15" y1="30" x2="15" y2="70" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" data-elitescada-slot="outline" />
+  <line x1="85" y1="30" x2="85" y2="70" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" data-elitescada-slot="outline" />
 </svg>

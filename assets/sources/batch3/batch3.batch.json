@@ -1005,18 +1005,6 @@
         {
           "id": "body",
           "kind": "fill"
-        },
-        {
-          "id": "shaft",
-          "kind": "stroke"
-        },
-        {
-          "id": "base",
-          "kind": "stroke"
-        },
-        {
-          "id": "terminal",
-          "kind": "fill"
         }
       ],
       "provenance": {
@@ -1054,14 +1042,6 @@
         {
           "id": "shaft",
           "kind": "stroke"
-        },
-        {
-          "id": "base",
-          "kind": "stroke"
-        },
-        {
-          "id": "terminal",
-          "kind": "fill"
         }
       ],
       "provenance": {
@@ -1103,14 +1083,6 @@
         {
           "id": "base",
           "kind": "stroke"
-        },
-        {
-          "id": "terminal",
-          "kind": "fill"
-        },
-        {
-          "id": "accent",
-          "kind": "fill"
         }
       ],
       "provenance": {
@@ -3539,19 +3511,11 @@
       "status": "draft",
       "editablePaintSlots": [
         {
-          "id": "pipe",
-          "kind": "stroke"
-        },
-        {
           "id": "body",
           "kind": "fill"
         },
         {
-          "id": "stem",
-          "kind": "stroke"
-        },
-        {
-          "id": "handle",
+          "id": "outline",
           "kind": "stroke"
         }
       ],
@@ -3584,7 +3548,11 @@
       "status": "draft",
       "editablePaintSlots": [
         {
-          "id": "pipe",
+          "id": "stem",
+          "kind": "stroke"
+        },
+        {
+          "id": "handle",
           "kind": "stroke"
         },
         {
@@ -3592,11 +3560,7 @@
           "kind": "fill"
         },
         {
-          "id": "stem",
-          "kind": "stroke"
-        },
-        {
-          "id": "handle",
+          "id": "outline",
           "kind": "stroke"
         }
       ],
@@ -3629,7 +3593,11 @@
       "status": "draft",
       "editablePaintSlots": [
         {
-          "id": "pipe",
+          "id": "stem",
+          "kind": "stroke"
+        },
+        {
+          "id": "handle",
           "kind": "stroke"
         },
         {
@@ -3637,11 +3605,7 @@
           "kind": "fill"
         },
         {
-          "id": "stem",
-          "kind": "stroke"
-        },
-        {
-          "id": "handle",
+          "id": "outline",
           "kind": "stroke"
         },
         {

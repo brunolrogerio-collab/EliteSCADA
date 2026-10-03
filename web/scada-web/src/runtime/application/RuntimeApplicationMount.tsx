@@ -276,6 +276,7 @@ function EngineeringRuntimeApplicationContent({
             active={alarmsOpen}
             expanded={alarmsOpen}
             controls="runtime-alarm-overlay"
+            disabled={playback.mode === 'historicalPlayback'}
             onClick={toggleAlarms}
           />
           {playbackAvailable ? <RuntimeOperatorTool
@@ -341,6 +342,7 @@ function RuntimeOperatorTool({
   active,
   expanded,
   controls,
+  disabled = false,
   onClick
 }: {
   label: string;
@@ -348,6 +350,7 @@ function RuntimeOperatorTool({
   active: boolean;
   expanded?: boolean;
   controls?: string;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return <button
@@ -357,6 +360,8 @@ function RuntimeOperatorTool({
     aria-pressed={active}
     aria-expanded={expanded}
     aria-controls={controls}
+    aria-disabled={disabled || undefined}
+    disabled={disabled}
     title={label}
     data-tooltip={label}
     onClick={onClick}

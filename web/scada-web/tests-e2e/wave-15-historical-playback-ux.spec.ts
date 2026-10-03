@@ -132,6 +132,7 @@ test('compact Playback overlay stays Live until explicit entry and preserves ins
  await panel.getByRole('button',{name:/Entrar no Playback|Enter Playback|Entrar en Playback/i}).click();
  await expect(runtime).toHaveAttribute('data-runtime-temporal-mode','historical-playback');
  await expect(panel.locator('.runtime-playback-overlay-content')).toHaveAttribute('data-playback-load-state','ready');
+ await expect(runtime.getByRole('button',{name:/Alarmes|Alarms|Alarmas/i})).toBeDisabled();
  const firstAt=await runtime.getAttribute('data-runtime-historical-at'); expect(firstAt).toBeTruthy();
  await expect(page.locator('[data-object-id="10000000-0000-4000-8000-000000000001"]')).toContainText(/12[,.]5/);
  await expect(page.locator(`[data-object-id="${DYNAMO_INSTANCE_ID}"]`)).toContainText(/12[,.]5/);
@@ -164,6 +165,7 @@ test('compact Playback overlay stays Live until explicit entry and preserves ins
  await expect(runtime).toHaveAttribute('data-runtime-historical-at',changedAt!);
  await page.getByRole('button',{name:/Voltar ao Live|Return to Live|Volver a Live/i}).first().click();
  await expect(runtime).toHaveAttribute('data-runtime-temporal-mode','live');
+ await expect(runtime.getByRole('button',{name:/Alarmes|Alarms|Alarmas/i})).toBeEnabled();
 });
 
 test('Playback mutation guard rejects before Runtime lease/fetch',async()=>{

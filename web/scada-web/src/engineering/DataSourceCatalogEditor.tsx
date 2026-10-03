@@ -31,6 +31,7 @@ import './structured-editors.css';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 type CatalogResponse = { dataSourceTypes: DataSourceTypeDefinition[] };
+type SerialPortCatalogResponse = { authority: string; ports: Array<{ deviceName: string }> };
 type CatalogStatus = 'loading' | 'ready' | 'error';
 type Props = { model: EngineeringPackageView; locale: EngineeringLocale };
 
@@ -413,7 +414,11 @@ function ConfigurationField({ field, value, onChange, locale, copy }: {
   ].filter(Boolean).join(' · ');
 
   return <Field label={label} hint={detail || undefined}>
-    {field.valueKind === 'boolean' ? (
+    {field.key === 'holdingRanges' ? (
+      <HoldingRegisterRangesInput value={value} onChange={onChange} copy={copy} />
+    ) : field.valueKind === 'serialPort' ? (
+      <ServerSerialPortInput value={value} onChange={onChange} copy={copy} fieldKey={field.key} />
+    ) : field.valueKind === 'boolean' ? (
       <select {...common} data-testid={`data-source-setting-${field.key}`}><option value="">—</option><option value="true">{copy.yes}</option><option value="false">{copy.no}</option></select>
     ) : field.valueKind === 'enum' ? (
       <select {...common} data-testid={`data-source-setting-${field.key}`}><option value="">—</option>{field.allowedValues.map(option => <option key={option} value={option}>{option}</option>)}</select>
@@ -439,6 +444,142 @@ function ConfigurationField({ field, value, onChange, locale, copy }: {
     <small><code>{field.key}</code>{field.advanced ? ` · ${copy.advanced}` : ''}</small>
   </Field>;
 }
+
+function ServerSerialPortInput({ value, onChange, copy, fieldKey }: {
+  value: string;
+  onChange: (value: string) => void;
+  copy: EditorText;
+  fieldKey: string;
+}) {
+  const [ports, setPorts] = useState<string[]>([]);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'unavailable'>('loading');
+  const listId = `server-serial-ports-${fieldKey.replace(/[^a-z0-9_-]/gi, '-')}`;
+
+  useEffect(() => {
+    let alive = true;
+    setStatus('loading');
+    void fetch(`${API}/api/engineering/host/serial-ports`, { headers: { accept: 'application/json' } })
+      .then(async response => {
+        if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+        return await response.json() as SerialPortCatalogResponse;
+      })
+      .then(result => {
+        if (!alive) return;
+        setPorts((result.ports ?? []).map(port => port.deviceName).filter(Boolean));
+        setStatus('ready');
+      })
+      .catch(() => {
+        if (!alive) return;
+        setPorts([]);
+        setStatus('unavailable');
+      });
+    return () => { alive = false; };
+  }, [fieldKey]);
+
+  return <>
+    <input
+      list={listId}
+      value={value}
+      onChange={event => onChange(event.target.value)}
+      placeholder={copy.serialPortExample}
+      data-testid={`data-source-setting-${fieldKey}`}
+      autoComplete="off"
+    />
+    <datalist id={listId}>
+      {ports.map(port => <option value={port} key={port} />)}
+    </datalist>
+    <small data-testid="server-serial-port-authority">
+      {copy.serialPortAuthority}
+      {status === 'loading' ? ` · ${copy.serialPortLoading}` : ''}
+      {status === 'unavailable' ? ` · ${copy.serialPortUnavailable}` : ''}
+      {status === 'ready' && ports.length === 0 ? ` · ${copy.serialPortNoneVisible}` : ''}
+    </small>
+  </>;
+}
+
+type RangeRow = { start: string; end: string };
+
+function HoldingRegisterRangesInput({ value, onChange, copy }: {
+  value: string;
+  onChange: (value: string) => void;
+  copy: EditorText;
+}) {
+  const [rows, setRows] = useState<RangeRow[]>(() => parseHoldingRanges(value));
+
+  useEffect(() => {
+    const formatted = formatHoldingRanges(rows);
+    if (formatted !== value) setRows(parseHoldingRanges(value));
+  }, [value]);
+
+  const commit = (next: RangeRow[]) => {
+    setRows(next);
+    onChange(formatHoldingRanges(next));
+  };
+
+  return <div className="eng-dictionary-editor" data-testid="holding-register-ranges-editor">
+    {rows.map((row, index) => (
+      <div className="eng-editor-form-grid" key={index}>
+        <label className="eng-editor-field">
+          <span>{copy.rangeStart}</span>
+          <input
+            type="number"
+            min={0}
+            max={65535}
+            step={1}
+            value={row.start}
+            onChange={event => commit(rows.map((candidate, rowIndex) => rowIndex === index ? { ...candidate, start: event.target.value } : candidate))}
+            data-testid={`holding-range-start-${index}`}
+          />
+        </label>
+        <label className="eng-editor-field">
+          <span>{copy.rangeEnd}</span>
+          <input
+            type="number"
+            min={0}
+            max={65535}
+            step={1}
+            value={row.end}
+            onChange={event => commit(rows.map((candidate, rowIndex) => rowIndex === index ? { ...candidate, end: event.target.value } : candidate))}
+            data-testid={`holding-range-end-${index}`}
+          />
+        </label>
+        <button
+          type="button"
+          className="secondary"
+          disabled={rows.length <= 1}
+          onClick={() => commit(rows.filter((_, rowIndex) => rowIndex !== index))}
+          data-testid={`holding-range-remove-${index}`}
+        >
+          {copy.removeRange}
+        </button>
+      </div>
+    ))}
+    <button
+      type="button"
+      className="secondary"
+      onClick={() => commit([...rows, { start: '', end: '' }])}
+      data-testid="holding-range-add"
+    >
+      {copy.addRange}
+    </button>
+    <small>{copy.rangeHint}</small>
+  </div>;
+}
+
+function parseHoldingRanges(value: string): RangeRow[] {
+  const body = value.trim().replace(/^v1:/i, '');
+  const rows = body.split(';')
+    .map(entry => entry.trim())
+    .filter(Boolean)
+    .map(entry => {
+      const [start = '', end = ''] = entry.split('-', 2);
+      return { start, end };
+    });
+  return rows.length > 0 ? rows : [{ start: '0', end: '999' }];
+}
+
+function formatHoldingRanges(rows: readonly RangeRow[]): string =>
+  `v1:${rows.map(row => `${row.start}-${row.end}`).join(';')}`;
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return <label className="eng-editor-field"><span>{label}</span>{children}{hint && <small>{hint}</small>}</label>;
@@ -482,7 +623,9 @@ function text(locale: EngineeringLocale) {
     preview: 'Check changes', apply: 'Apply to Workspace', valid: 'Ready to apply', invalid: 'Invalid candidate', errors: 'Errors', saveHint: 'Checking changes does not alter the Workspace. Apply updates it; save or publish from Overview to update Runtime.', discard: 'Discard unsaved Data Source changes?',
     workspaceChanged: 'The Workspace changed during validation. Reload and validate the draft again.', fixClientIssues: 'Correct the highlighted Data Source fields before validation.',
     clientValidation: 'Fields to correct', expected: 'Expected', required: 'This field is required', integer: 'Enter a whole number', number: 'Enter a valid number', duration: 'Enter a valid duration', enumValue: 'Choose one of the supported values', minimum: 'Value is below the allowed minimum', maximum: 'Value is above the allowed maximum',
-    format: 'Format', example: 'Example', advanced: 'advanced'
+    format: 'Format', example: 'Example', advanced: 'advanced',
+    serialPortAuthority: 'Ports are enumerated on the EliteSCADA server, not in this browser.', serialPortLoading: 'loading server ports', serialPortUnavailable: 'enumeration unavailable; manual device names are still allowed', serialPortNoneVisible: 'no server ports are visible right now', serialPortExample: 'COM3 or /dev/ttyUSB0',
+    rangeStart: 'Start', rangeEnd: 'End', addRange: 'Add range', removeRange: 'Remove', rangeHint: 'Ranges are 0-based, may not overlap, and are stored in the canonical versioned format.'
   };
   if (locale === 'es') return {
     title: 'Editor de Fuente de datos', description: 'Seleccione primero la fuente y configure solo los campos de protocolo necesarios para esta conexión.',
@@ -494,7 +637,9 @@ function text(locale: EngineeringLocale) {
     preview: 'Verificar cambios', apply: 'Aplicar al Workspace', valid: 'Listo para aplicar', invalid: 'Candidato inválido', errors: 'Errores', saveHint: 'Verificar no cambia el Workspace. Aplicar lo actualiza; guarde o publique desde Overview para actualizar Runtime.', discard: '¿Descartar los cambios no guardados?',
     workspaceChanged: 'El Área de trabajo de Ingeniería cambió durante la validación. Recargue y valide el borrador nuevamente.', fixClientIssues: 'Corrija los campos indicados antes de la validación.',
     clientValidation: 'Campos a corregir', expected: 'Esperado', required: 'Este campo es obligatorio', integer: 'Ingrese un número entero', number: 'Ingrese un número válido', duration: 'Ingrese una duración válida', enumValue: 'Seleccione uno de los valores permitidos', minimum: 'El valor está por debajo del mínimo permitido', maximum: 'El valor supera el máximo permitido',
-    format: 'Formato', example: 'Ejemplo', advanced: 'avanzado'
+    format: 'Formato', example: 'Ejemplo', advanced: 'avanzado',
+    serialPortAuthority: 'Los puertos se enumeran en el servidor EliteSCADA, no en este navegador.', serialPortLoading: 'cargando puertos del servidor', serialPortUnavailable: 'enumeración no disponible; se permite escribir el dispositivo manualmente', serialPortNoneVisible: 'no hay puertos del servidor visibles ahora', serialPortExample: 'COM3 o /dev/ttyUSB0',
+    rangeStart: 'Inicio', rangeEnd: 'Fin', addRange: 'Agregar rango', removeRange: 'Quitar', rangeHint: 'Los rangos son base 0, no pueden superponerse y se guardan en el formato canónico versionado.'
   };
   return {
     title: 'Editor de Fonte de dados', description: 'Escolha primeiro a fonte e configure somente os campos de protocolo necessários para esta conexão.',
@@ -506,6 +651,8 @@ function text(locale: EngineeringLocale) {
     preview: 'Verificar alterações', apply: 'Aplicar ao Workspace', valid: 'Pronto para aplicar', invalid: 'Candidato inválido', errors: 'Erros', saveHint: 'Verificar não altera o Workspace. Aplicar atualiza o Workspace; salve ou publique em Visão geral para atualizar o Runtime.', discard: 'Descartar alterações não salvas da Fonte de dados?',
     workspaceChanged: 'A Área de trabalho de Engenharia mudou durante a validação. Recarregue e valide o rascunho novamente.', fixClientIssues: 'Corrija os campos indicados da Fonte de dados antes da validação.',
     clientValidation: 'Campos a corrigir', expected: 'Esperado', required: 'Este campo é obrigatório', integer: 'Informe um número inteiro', number: 'Informe um número válido', duration: 'Informe uma duração válida', enumValue: 'Escolha um dos valores permitidos', minimum: 'O valor está abaixo do mínimo permitido', maximum: 'O valor está acima do máximo permitido',
-    format: 'Formato', example: 'Exemplo', advanced: 'avançado'
+    format: 'Formato', example: 'Exemplo', advanced: 'avançado',
+    serialPortAuthority: 'As portas são enumeradas no servidor EliteSCADA, não neste navegador.', serialPortLoading: 'carregando portas do servidor', serialPortUnavailable: 'enumeração indisponível; ainda é possível informar o dispositivo manualmente', serialPortNoneVisible: 'nenhuma porta do servidor está visível agora', serialPortExample: 'COM3 ou /dev/ttyUSB0',
+    rangeStart: 'Início', rangeEnd: 'Fim', addRange: 'Adicionar range', removeRange: 'Remover', rangeHint: 'Os ranges são base 0, não podem se sobrepor e são salvos no formato canônico versionado.'
   };
 }

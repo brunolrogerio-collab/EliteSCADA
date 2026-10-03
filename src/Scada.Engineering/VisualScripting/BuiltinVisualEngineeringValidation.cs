@@ -93,6 +93,8 @@ public static class BuiltinVisualEngineeringValidation
         if (element.Type.Equals(BuiltinVisualObjectSchemas.AlarmBrowserType, StringComparison.Ordinal) ||
             element.Type.Equals(BuiltinVisualObjectSchemas.EventBrowserType, StringComparison.Ordinal))
             issues.AddRange(ValidateBrowserConfiguration(element, entityKind, entityKey));
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.SvgSymbolType, StringComparison.Ordinal))
+            issues.AddRange(ValidateSvgPaintOverrides(element, entityKind, entityKey));
         return issues;
     }
 
@@ -358,6 +360,123 @@ public static class BuiltinVisualEngineeringValidation
         string key) =>
         Error(code, $"Browser '{element.Key}' {detail}", kind, key);
 
+    private static IEnumerable<ImportIssue> ValidateSvgPaintOverrides(
+        VisualElementEngineeringDto element,
+        ImportEntityKind entityKind,
+        string entityKey)
+    {
+        if (element.Properties is null ||
+            !element.Properties.TryGetValue(BuiltinVisualObjectSchemas.SvgPaintOverridesProperty, out var overrides))
+            yield break;
+
+        if (overrides.ValueKind != JsonValueKind.Object)
+        {
+            yield return SvgPaintError(element, "svgPaintOverrides must be a JSON object.", entityKind, entityKey);
+            yield break;
+        }
+
+        var allowedTop = new HashSet<string>(["version", "palette", "slots"], StringComparer.Ordinal);
+        foreach (var field in overrides.EnumerateObject())
+        {
+            if (!allowedTop.Contains(field.Name))
+            {
+                yield return SvgPaintError(element, $"unknown top-level field '{field.Name}'.", entityKind, entityKey);
+                yield break;
+            }
+        }
+
+        if (!overrides.TryGetProperty("version", out var version) ||
+            version.ValueKind != JsonValueKind.Number ||
+            !version.TryGetInt32(out var versionNumber) ||
+            versionNumber != 1)
+        {
+            yield return SvgPaintError(element, "version must be exactly 1.", entityKind, entityKey);
+            yield break;
+        }
+
+        if (overrides.TryGetProperty("palette", out var palette))
+        {
+            if (palette.ValueKind != JsonValueKind.Object)
+            {
+                yield return SvgPaintError(element, "palette must be a JSON object.", entityKind, entityKey);
+                yield break;
+            }
+            foreach (var entry in palette.EnumerateObject())
+            {
+                if (!IsCanonicalSvgColor(entry.Name) ||
+                    entry.Value.ValueKind != JsonValueKind.String ||
+                    !IsCanonicalSvgColor(entry.Value.GetString()))
+                {
+                    yield return SvgPaintError(element, "palette keys and values must use #RRGGBB or #RRGGBBAA colors.", entityKind, entityKey);
+                    yield break;
+                }
+            }
+        }
+
+        if (overrides.TryGetProperty("slots", out var slots))
+        {
+            if (slots.ValueKind != JsonValueKind.Object)
+            {
+                yield return SvgPaintError(element, "slots must be a JSON object.", entityKind, entityKey);
+                yield break;
+            }
+            foreach (var slot in slots.EnumerateObject())
+            {
+                if (!IsSvgSlotName(slot.Name) || slot.Value.ValueKind != JsonValueKind.Object)
+                {
+                    yield return SvgPaintError(element, $"slot '{slot.Name}' is invalid.", entityKind, entityKey);
+                    yield break;
+                }
+                foreach (var paint in slot.Value.EnumerateObject())
+                {
+                    if (paint.Name is "fill" or "stroke")
+                    {
+                        if (paint.Value.ValueKind != JsonValueKind.String || !IsCanonicalSvgColor(paint.Value.GetString()))
+                        {
+                            yield return SvgPaintError(element, $"slot '{slot.Name}' {paint.Name} must use #RRGGBB or #RRGGBBAA.", entityKind, entityKey);
+                            yield break;
+                        }
+                    }
+                    else if (paint.Name == "strokeWidth")
+                    {
+                        if (paint.Value.ValueKind != JsonValueKind.Number ||
+                            !paint.Value.TryGetDouble(out var width) ||
+                            !double.IsFinite(width) || width < 0 || width > 10_000)
+                        {
+                            yield return SvgPaintError(element, $"slot '{slot.Name}' strokeWidth must be between 0 and 10000.", entityKind, entityKey);
+                            yield break;
+                        }
+                    }
+                    else
+                    {
+                        yield return SvgPaintError(element, $"slot '{slot.Name}' contains unsupported field '{paint.Name}'.", entityKind, entityKey);
+                        yield break;
+                    }
+                }
+            }
+        }
+    }
+
+    private static bool IsCanonicalSvgColor(string? value) =>
+        value is { Length: 7 or 9 } &&
+        value[0] == '#' &&
+        value.Skip(1).All(Uri.IsHexDigit);
+
+    private static bool IsSvgSlotName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Length > 64 || !char.IsLetter(value[0]))
+            return false;
+        return value.Skip(1).All(character =>
+            char.IsLetterOrDigit(character) || character is '.' or '_' or '-');
+    }
+
+    private static ImportIssue SvgPaintError(
+        VisualElementEngineeringDto element,
+        string detail,
+        ImportEntityKind kind,
+        string key) =>
+        Error("VISUAL_SVG_PAINT_OVERRIDES_INVALID", $"SVG symbol '{element.Key}' {detail}", kind, key);
+
     private static double ReadNumber(
         VisualElementEngineeringDto element,
         string key,
@@ -394,6 +513,7 @@ public static class BuiltinVisualEngineeringValidation
             BuiltinVisualObjectSchemas.TrendType => BuiltinVisualObjectSchemas.TrendPensProperty,
             BuiltinVisualObjectSchemas.AlarmBrowserType => BuiltinVisualObjectSchemas.BrowserConfigProperty,
             BuiltinVisualObjectSchemas.EventBrowserType => BuiltinVisualObjectSchemas.BrowserConfigProperty,
+            BuiltinVisualObjectSchemas.SvgSymbolType => BuiltinVisualObjectSchemas.SvgPaintOverridesProperty,
             _ => null
         };
 

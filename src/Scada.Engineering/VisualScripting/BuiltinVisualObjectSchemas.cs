@@ -16,6 +16,7 @@ public static class BuiltinVisualObjectSchemas
     public const string PolygonType = "core.polygon";
     public const string TextType = "core.text";
     public const string ImageType = "core.image";
+    public const string SvgSymbolType = "core.svgSymbol";
     public const string ValueDisplayType = "core.valueDisplay";
     public const string TrendType = "core.trend";
     public const string AlarmBrowserType = "core.alarmBrowser";
@@ -25,6 +26,7 @@ public static class BuiltinVisualObjectSchemas
     public const string NumericInputType = "core.numericInput";
     public const string TrendPensProperty = "pens";
     public const string BrowserConfigProperty = "browserConfig";
+    public const string SvgPaintOverridesProperty = "svgPaintOverrides";
 
     private const string TrendModeProperty = "trendMode";
     private const string TrendWindowSecondsProperty = "trendWindowSeconds";
@@ -202,6 +204,16 @@ public static class BuiltinVisualObjectSchemas
             VisualPropertyKeys.ImageZoom
         ]));
 
+    public static VisualObjectPropertySchema SvgSymbol { get; } = Create(
+        SvgSymbolType,
+        Base.Concat(
+        [
+            VisualPropertyKeys.AssetRef,
+            VisualPropertyKeys.FillColor,
+            VisualPropertyKeys.StrokeColor,
+            VisualPropertyKeys.StrokeWidth
+        ]));
+
     public static VisualObjectPropertySchema ValueDisplay { get; } = Create(
         ValueDisplayType,
         Base
@@ -311,6 +323,7 @@ public static class BuiltinVisualObjectSchemas
         Polygon,
         Text,
         Image,
+        SvgSymbol,
         ValueDisplay,
         Trend,
         AlarmBrowser,

@@ -39,8 +39,9 @@ public static class InternalMemoryRuntimePlanner
         {
             var definitions = new List<MemoryTagDefinition>();
             var sourceTags = package.Tags
-                .Where(x => string.Equals(x.Source, dataSource.Key, StringComparison.OrdinalIgnoreCase))
-                .OrderBy(x => x.Path, StringComparer.OrdinalIgnoreCase)
+                .Where(tag => EngineeringTagDataSourceAssociation.IsAssociated(tag, dataSource))
+                .Select(tag => EngineeringTagDataSourceAssociation.NormalizeTagForPlanner(tag, dataSource))
+                .OrderBy(tag => tag.Path, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
             if (sourceTags.Length == 0)

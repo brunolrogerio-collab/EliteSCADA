@@ -77,6 +77,69 @@ public sealed class InternalMemoryRuntimePlannerTests
     }
 
     [Fact]
+    public void Compile_StableDataSourceIdSurvivesMemorySourceRename()
+    {
+        var sourceId = Guid.NewGuid();
+        var tagId = Guid.NewGuid();
+        var package = Package(
+            new[]
+            {
+                Tag(tagId, "Plant.Counter", TagDataType.Int32, "memory.old", 1, dataSourceId: sourceId)
+            },
+            new[]
+            {
+                new DataSourceEngineeringDto(sourceId, "memory.renamed", "Server Memory", InternalMemoryRuntimePlanner.ServerMemoryDriverKey)
+            });
+
+        var result = InternalMemoryRuntimePlanner.Compile(package);
+
+        Assert.True(result.CanActivate);
+        var tag = Assert.Single(Assert.Single(result.ServerMemoryPlans).Tags).Tag;
+        Assert.Equal("memory.renamed", tag.Source);
+    }
+
+    [Fact]
+    public void Compile_OrphanedStableDataSourceIdDoesNotRetargetToRecreatedMemoryKey()
+    {
+        var originalSourceId = Guid.NewGuid();
+        var replacementSourceId = Guid.NewGuid();
+        var package = Package(
+            new[]
+            {
+                Tag(Guid.NewGuid(), "Plant.Counter", TagDataType.Int32, "memory.shared", 1, dataSourceId: originalSourceId)
+            },
+            new[]
+            {
+                new DataSourceEngineeringDto(replacementSourceId, "memory.shared", "Replacement Memory", InternalMemoryRuntimePlanner.ServerMemoryDriverKey)
+            });
+
+        var result = InternalMemoryRuntimePlanner.Compile(package);
+
+        Assert.True(result.CanActivate);
+        Assert.Empty(Assert.Single(result.ServerMemoryPlans).Tags);
+        Assert.Contains(result.Issues, issue => issue.Code == "MEMORY_DATASOURCE_NO_TAGS" && !issue.IsError);
+    }
+
+    [Fact]
+    public void Compile_LegacyMemorySourceKeyRemainsSupportedWithoutStableDataSourceId()
+    {
+        var package = Package(
+            new[]
+            {
+                Tag(Guid.NewGuid(), "Plant.Counter", TagDataType.Int32, "memory.legacy", 1)
+            },
+            new[]
+            {
+                new DataSourceEngineeringDto(Guid.NewGuid(), "memory.legacy", "Legacy Memory", InternalMemoryRuntimePlanner.ServerMemoryDriverKey)
+            });
+
+        var result = InternalMemoryRuntimePlanner.Compile(package);
+
+        Assert.True(result.CanActivate);
+        Assert.Single(Assert.Single(result.ServerMemoryPlans).Tags);
+    }
+
+    [Fact]
     public void Compile_RejectsMemoryTagWithoutStableId()
     {
         var package = Package(
@@ -108,7 +171,8 @@ public sealed class InternalMemoryRuntimePlannerTests
         TagDataType type,
         string source,
         object value,
-        HistorianSettingsDto? historian = null) => new(
+        HistorianSettingsDto? historian = null,
+        Guid? dataSourceId = null) => new(
         id,
         path.Split('.').Last(),
         path,
@@ -116,7 +180,8 @@ public sealed class InternalMemoryRuntimePlannerTests
         Source: source,
         ReadOnly: false,
         Historian: historian,
-        InitialValue: Initial(type, value));
+        InitialValue: Initial(type, value),
+        DataSourceId: dataSourceId);
 
     private static MemoryInitialValueDto Initial(TagDataType type, object value) =>
         new(type, JsonSerializer.SerializeToElement(value, value.GetType()));

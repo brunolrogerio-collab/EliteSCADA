@@ -17,8 +17,8 @@ const svgElement: VisualElementEngineering = {
     y: 0,
     width: 120,
     height: 90,
-    fill: '#777777',
-    stroke: '#222222',
+    fillColor: '#777777',
+    strokeColor: '#222222',
     strokeWidth: 1,
     opacity: 1,
     assetRef: { assetId: 'asset:72000000-0000-0000-0000-000000000001' }

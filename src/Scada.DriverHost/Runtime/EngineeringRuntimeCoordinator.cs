@@ -808,32 +808,28 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         RuntimeState previous,
         RuntimeState candidate)
     {
-        var previousDrivers = new HashSet<ICommunicationDriver>(ReferenceEqualityComparer.Instance);
-        var candidateDrivers = new HashSet<ICommunicationDriver>(ReferenceEqualityComparer.Instance);
+        // Resource-owning communication drivers form one revision-scoped handover
+        // cohort. Even when two revisions use different endpoints/Unit IDs, the
+        // candidate must not open a listener/bus while the previous Active revision
+        // still owns its resource cohort. This keeps physical resource authority
+        // aligned with revision activation rather than only preventing direct
+        // endpoint collisions.
+        var previousDrivers = previous.Drivers
+            .Where(driver => driver is ICommunicationDriverResourceClaimSource)
+            .ToArray();
+        var candidateDrivers = candidate.Drivers
+            .Where(driver => driver is ICommunicationDriverResourceClaimSource)
+            .ToArray();
 
-        foreach (var candidateDriver in candidate.Drivers)
+        foreach (var source in previousDrivers
+                     .Concat(candidateDrivers)
+                     .OfType<ICommunicationDriverResourceClaimSource>())
         {
-            if (candidateDriver is not ICommunicationDriverResourceClaimSource candidateClaims)
-                continue;
-            foreach (var candidateClaim in candidateClaims.ResourceClaims)
-            {
-                candidateClaim.Validate();
-                foreach (var previousDriver in previous.Drivers)
-                {
-                    if (previousDriver is not ICommunicationDriverResourceClaimSource previousClaims)
-                        continue;
-                    if (!previousClaims.ResourceClaims.Any(previousClaim => candidateClaim.ConflictsWith(previousClaim)))
-                        continue;
-
-                    candidateDrivers.Add(candidateDriver);
-                    previousDrivers.Add(previousDriver);
-                }
-            }
+            foreach (var claim in source.ResourceClaims)
+                claim.Validate();
         }
 
-        return new RuntimeResourceHandover(
-            previousDrivers.ToArray(),
-            candidateDrivers.ToArray());
+        return new RuntimeResourceHandover(previousDrivers, candidateDrivers);
     }
 
     private async Task<bool> WaitUntilReadyAsync(

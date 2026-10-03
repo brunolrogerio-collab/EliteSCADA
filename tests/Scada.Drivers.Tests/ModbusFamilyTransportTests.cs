@@ -277,6 +277,58 @@ public sealed class ModbusFamilyTransportTests
     }
 
     [Fact]
+    public async Task RuntimeActivation_TransfersResourceCohortBeforeStartingNewEndpoint()
+    {
+        var oldPort = ReserveFreeTcpPort();
+        var newPort = ReserveFreeTcpPort();
+        var runtime = new EngineeringRuntimeCoordinator(
+            new InMemoryScadaEventBus(),
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromSeconds(2));
+
+        var oldEndpointReleasedBeforeCommit = false;
+        try
+        {
+            var first = await runtime.ActivateAsync(
+                "modbus-server-resource-cohort",
+                1,
+                TcpServerPackage(oldPort));
+            Assert.True(first.Activated, string.Join("; ", first.RuntimeIssues.Select(issue => issue.Message)));
+
+            var second = await runtime.ActivateAsync(
+                "modbus-server-resource-cohort",
+                2,
+                TcpServerPackage(newPort),
+                (_, _) =>
+                {
+                    using var probe = new TcpListener(IPAddress.Loopback, oldPort);
+                    probe.Start();
+                    oldEndpointReleasedBeforeCommit = true;
+                    probe.Stop();
+                    return Task.CompletedTask;
+                });
+
+            Assert.True(second.Activated, string.Join("; ", second.RuntimeIssues.Select(issue => issue.Message)));
+            Assert.True(oldEndpointReleasedBeforeCommit);
+
+            using var oldProbe = new TcpListener(IPAddress.Loopback, oldPort);
+            oldProbe.Start();
+            oldProbe.Stop();
+
+            var activeResponse = await SendTcpRequestAsync(
+                newPort,
+                12,
+                1,
+                ReadRequest(10, 1));
+            Assert.Equal(new byte[] { 0x03, 0x02, 0x00, 0x00 }, activeResponse);
+        }
+        finally
+        {
+            await runtime.DisposeAsync();
+        }
+    }
+
+    [Fact]
     public async Task RuntimeActivation_TcpServerDoesNotServeBeforeCommitSwap()
     {
         var port = ReserveFreeTcpPort();

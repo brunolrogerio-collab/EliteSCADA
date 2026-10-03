@@ -25,7 +25,9 @@ export function HistoricalPlaybackOverlay({ locale, onClose }: { locale: Enginee
       <strong>{text.title}</strong>
       <button type="button" className="runtime-operator-button" onClick={onClose}>{text.close}</button>
     </div>
-    <div className="runtime-operator-overlay-content runtime-playback-overlay-content" data-runtime-session-control>
+    <div className="runtime-operator-overlay-content runtime-playback-overlay-content" data-runtime-session-control
+      data-playback-mode={playback.mode} data-playback-load-state={playback.loadState}
+      data-playback-gap-count={playback.gapCount} data-playback-position={playback.position}>
       {playback.mode === 'live' ? <p className="runtime-playback-hint">{text.liveHint}</p> : null}
       <div className="runtime-playback-quick" role="group" aria-label={text.title}>
         {QUICK.map(seconds => <button type="button" key={seconds}

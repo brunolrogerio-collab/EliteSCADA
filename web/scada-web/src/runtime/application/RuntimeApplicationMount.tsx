@@ -247,9 +247,12 @@ function EngineeringRuntimeApplicationContent({
       <div className="runtime-operator-context" title={projection.projectName || projection.projectKey || text.runtime}>
         <strong>{projection.projectName || projection.projectKey}</strong>
         {!isFullscreen ? <span>rev {projection.revision}</span> : null}
-        {playback.mode === 'historicalPlayback' && playback.atUtc ? <span className="runtime-playback-badge">
-          {playbackText.playback} · {new Intl.DateTimeFormat(locale,{hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date(playback.atUtc))} · {playbackText.readOnly}
-        </span> : null}
+        {playback.mode === 'historicalPlayback' && playback.atUtc ? <>
+          <span className="runtime-playback-badge">
+            {playbackText.playback} · {new Intl.DateTimeFormat(locale,{hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date(playback.atUtc))} · {playbackText.readOnly}
+          </span>
+          <button type="button" className="runtime-playback-live-shortcut" onClick={playback.exitPlayback}>{playbackText.backLive}</button>
+        </> : null}
       </div>
       <div className="runtime-operator-actions">
         <div className="runtime-operator-toolbar" role="toolbar" aria-label={text.runtime}>

@@ -343,3 +343,9 @@
   .runtime-playback-badge { max-width: 34vw; }
   .runtime-playback-custom { grid-template-columns: 1fr; }
 }
+
+.runtime-playback-live-shortcut {
+  min-height: 24px; padding: 0 7px; border: 1px solid var(--app-accent); border-radius: 5px;
+  background: transparent; color: var(--app-text-primary); font: inherit; font-size: 10px; cursor: pointer;
+}
+.runtime-playback-live-shortcut:hover { background: var(--app-selected); }

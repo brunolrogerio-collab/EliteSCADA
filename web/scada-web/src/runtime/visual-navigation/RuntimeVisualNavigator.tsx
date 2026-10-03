@@ -28,6 +28,7 @@ import {
 } from './runtimeVisualNavigationModel';
 import { RuntimeVisualDefinitionRenderer } from './RuntimeVisualDefinitionRenderer';
 import { useOptionalHistoricalPlayback } from '../historical-playback/HistoricalPlaybackContext';
+import { RuntimeHistoricalPlaybackReadOnlyError } from '../historical-playback/runtimeHistoricalPlaybackGuard';
 
 export type RuntimeVisualNavigatorProps = Readonly<{
   engineeringPackage: Pick<EngineeringPackageView, 'screens' | 'popups' | 'dynamos' | 'equipment' | 'templates'>;
@@ -338,6 +339,12 @@ function RuntimeDiagnostic({ diagnostic }: { diagnostic: RuntimeVisualCompositio
 
 function asRuntimeDiagnostic(reason: unknown): RuntimeVisualCompositionError {
   if (reason instanceof RuntimeVisualCompositionError) return reason;
+  if (reason instanceof RuntimeHistoricalPlaybackReadOnlyError) {
+    return new RuntimeVisualCompositionError(
+      'HISTORICAL_PLAYBACK_READ_ONLY',
+      reason.message
+    );
+  }
   if (reason instanceof RuntimeCommandExecutionError) {
     return new RuntimeVisualCompositionError(
       'VISUAL_RUNTIME_COMMAND_EXECUTION_FAILED',

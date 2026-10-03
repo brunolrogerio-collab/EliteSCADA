@@ -2,6 +2,7 @@ import type {
   BindingEngineering,
   TagValueReferenceEngineering,
   VisualElementEngineering,
+  VisualEngineeringPropertyValue,
   VisualValueSourceEngineering
 } from '../../engineering/types';
 import type { DynamoParameterValueEngineering } from './runtimeVisualNavigationModel';
@@ -38,7 +39,7 @@ function projectElement(
   parameters: ReadonlyMap<string, DynamoParameterValueEngineering>,
   equipmentPath: string | null
 ): VisualElementEngineering {
-  const properties: Record<string, string | number | boolean | object | null> = {
+  const properties: Record<string, VisualEngineeringPropertyValue> = {
     ...(element.properties ?? {})
   };
   const bindings: BindingEngineering[] = [];

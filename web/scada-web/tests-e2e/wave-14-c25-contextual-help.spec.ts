@@ -1,3 +1,4 @@
+import { contextualHelpTopic } from '../src/help/contextualHelpTopic';
 import { expect, test, type Page } from '@playwright/test';
 
 test.use({ locale: 'pt-BR' });
@@ -52,7 +53,16 @@ async function installHelpContract(page: Page) {
             category: 'drivers',
             title: text.title,
             summary: text.summary,
-            sections: [{ heading: 'Type key', body: 'modbus.tcp' }]
+            sections: [{ heading: 'Type key', body: 'modbus.tcp' }],
+            relatedTopicIds: ['sources.data-sources']
+          },
+          {
+            id: 'sources.data-sources',
+            category: 'sources',
+            title: locale === 'en' ? 'Data Sources' : locale === 'es' ? 'Data Sources' : 'Data Sources',
+            summary: 'Data Sources',
+            sections: [{ heading: 'Guide', body: 'Data Sources' }],
+            relatedTopicIds: []
           },
           {
             id: 'runtime.overview',
@@ -97,4 +107,44 @@ test('contextual Help renders the structured Server Script API contract', async 
   await expect(api).toBeVisible();
   await expect(api.getByText('read_tag(tag_id)')).toBeVisible();
   await expect(api.getByText('declared dependency')).toBeVisible();
+});
+
+
+test('contextual Help renders related local topics and keeps an unknown topic explicit', async ({ page }) => {
+  await installHelpContract(page);
+
+  await page.goto('/help?topic=driver.modbus.tcp');
+  await expect(page.getByRole('heading', { name: /Tópicos relacionados/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Data Sources' }).last()).toHaveAttribute('href', '/help?topic=sources.data-sources');
+
+  await page.goto('/help?topic=missing.topic');
+  await expect(page.getByText('Tópico de ajuda não encontrado.')).toBeVisible();
+  await expect(page.locator('[data-help-topic="runtime.overview"]')).toHaveCount(0);
+});
+
+test('contextual entry routes resolve stable Phase 1 topic IDs', () => {
+  const cases: Array<[string, string]> = [
+    ['/engineering/scripts', 'scripts.engineering'],
+    ['/engineering/libraries', 'libraries.reusable-resources'],
+    ['/engineering/dataSources', 'sources.data-sources'],
+    ['/engineering/tags', 'tags.overview'],
+    ['/engineering/gateway', 'gateway.overview'],
+    ['/engineering/alarms', 'alarms.overview'],
+    ['/engineering/operationalEvents', 'operational-events.overview'],
+    ['/engineering/dynamos', 'dynamos.overview'],
+    ['/engineering/screens', 'screens.overview'],
+    ['/engineering/popups', 'popups.overview'],
+    ['/engineering/historian', 'historian.overview'],
+    ['/engineering/reports', 'reports.overview'],
+    ['/engineering/security', 'security.users-roles-capabilities'],
+    ['/engineering/diagnostics/tag-monitor', 'diagnostics.overview'],
+    ['/engineering', 'engineering.shell-navigation'],
+    ['/audit', 'audit.overview'],
+    ['/licensing', 'licensing.overview'],
+    ['/runtime/history', 'runtime.history'],
+    ['/', 'runtime.overview']
+  ];
+
+  for (const [path, topic] of cases)
+    expect(contextualHelpTopic(path)).toBe(topic);
 });

@@ -50,6 +50,10 @@ public static class CommunicationDriverRuntimeComposition
             new ModbusTcpServerCommunicationRuntimeFactory(),
             ModbusTcpServerDriverDescriptorProvider.SharedDescriptor));
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new ModbusRtuServerCommunicationRuntimePlanner(),
+            new ModbusRtuServerCommunicationRuntimeFactory(serialCoordinator),
+            ModbusRtuServerDriverDescriptorProvider.SharedDescriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new MqttCommunicationRuntimePlanner(),
             new HostProtectedMaterialRuntimeFactory(
                 new MqttCommunicationRuntimeFactory(mqttTransportFactory),

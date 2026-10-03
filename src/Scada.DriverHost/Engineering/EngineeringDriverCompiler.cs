@@ -120,10 +120,11 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
         IReadOnlyCollection<ICommunicationDriverRuntimePlan> plans,
         List<EngineeringDriverIssue> issues)
     {
-        var rtuPlans = plans.OfType<ModbusRtuCommunicationRuntimePlan>().ToArray();
-        foreach (var group in rtuPlans.GroupBy(
-                     plan => plan.SerialSettings.PhysicalPortKey,
-                     OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal))
+        var masters = plans.OfType<ModbusRtuCommunicationRuntimePlan>().ToArray();
+        var servers = plans.OfType<ModbusRtuServerCommunicationRuntimePlan>().ToArray();
+        var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+
+        foreach (var group in masters.GroupBy(plan => plan.SerialSettings.PhysicalPortKey, comparer))
         {
             var first = group.First();
             foreach (var candidate in group.Skip(1))
@@ -158,6 +159,31 @@ public sealed class EngineeringDriverCompiler : IEngineeringDriverCompiler
                         owners[unitId] = plan.DataSourceKey;
                     }
                 }
+            }
+        }
+
+        for (var serverIndex = 0; serverIndex < servers.Length; serverIndex++)
+        {
+            var server = servers[serverIndex];
+            foreach (var master in masters)
+            {
+                if (!comparer.Equals(server.SerialSettings.PhysicalPortKey, master.SerialSettings.PhysicalPortKey))
+                    continue;
+                issues.Add(new EngineeringDriverIssue(
+                    "MODBUS_RTU_SERVER_PORT_EXCLUSIVE",
+                    $"Serial port '{server.SerialSettings.PortName}' is exclusive to RTU Server '{server.DataSourceKey}' and cannot also be used by RTU Master '{master.DataSourceKey}'.",
+                    server.DataSourceKey));
+            }
+
+            for (var otherIndex = serverIndex + 1; otherIndex < servers.Length; otherIndex++)
+            {
+                var other = servers[otherIndex];
+                if (!comparer.Equals(server.SerialSettings.PhysicalPortKey, other.SerialSettings.PhysicalPortKey))
+                    continue;
+                issues.Add(new EngineeringDriverIssue(
+                    "MODBUS_RTU_SERVER_PORT_EXCLUSIVE",
+                    $"Serial port '{server.SerialSettings.PortName}' cannot be owned by both RTU Server '{server.DataSourceKey}' and '{other.DataSourceKey}'.",
+                    other.DataSourceKey));
             }
         }
     }

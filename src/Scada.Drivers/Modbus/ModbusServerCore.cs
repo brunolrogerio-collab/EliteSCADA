@@ -270,6 +270,18 @@ public sealed class ModbusServerRegisterMap
                 throw new ModbusServerRequestException(0x03, ModbusServerRequestFailure.ReadOnly, $"TAG '{point.Tag.Path}' is read-only to external Modbus clients.");
         }
 
+        var covered = new bool[values.Count];
+        foreach (var serverPoint in touched)
+        {
+            for (var register = serverPoint.Point.Address; register < serverPoint.Point.EndAddressExclusive; register++)
+                covered[register - address] = true;
+        }
+        if (covered.Any(isCovered => !isCovered))
+            throw new ModbusServerRequestException(
+                0x02,
+                ModbusServerRequestFailure.IllegalAddress,
+                "Client write includes one or more Holding Registers that are not mapped to a Server TAG.");
+
         await _gate.WaitAsync(cancellationToken);
         try
         {

@@ -171,6 +171,31 @@ const resources: Readonly<Record<string, Localized>> = {
     es: 'Controla si clientes Modbus externos pueden escribir esta TAG; las escrituras internas permanecen separadas.'
   },
 
+  'driver.modbus.tcp.server.datasource.maxClients.label': {
+    'pt-BR': 'Máximo de clientes', en: 'Maximum clients', es: 'Máximo de clientes'
+  },
+  'driver.modbus.tcp.server.datasource.maxClients.description': {
+    'pt-BR': 'Quantidade máxima de clientes TCP simultâneos.',
+    en: 'Maximum number of simultaneous TCP clients.',
+    es: 'Cantidad máxima de clientes TCP simultáneos.'
+  },
+  'driver.modbus.tcp.server.datasource.clientIdleTimeoutMilliseconds.label': {
+    'pt-BR': 'Timeout de cliente ocioso (ms)', en: 'Client idle timeout (ms)', es: 'Timeout de cliente inactivo (ms)'
+  },
+  'driver.modbus.tcp.server.datasource.clientIdleTimeoutMilliseconds.description': {
+    'pt-BR': 'Espera máxima limitada pela próxima requisição do cliente.',
+    en: 'Bounded maximum wait for the next client request.',
+    es: 'Espera máxima limitada para la siguiente solicitud del cliente.'
+  },
+  'driver.modbus.rtu.server.datasource.frameTimeoutMilliseconds.label': {
+    'pt-BR': 'Timeout de frame (ms)', en: 'Frame timeout (ms)', es: 'Timeout de trama (ms)'
+  },
+  'driver.modbus.rtu.server.datasource.frameTimeoutMilliseconds.description': {
+    'pt-BR': 'Tempo máximo para receber o restante de um frame RTU após o início do tráfego.',
+    en: 'Maximum time to receive the remainder of an RTU frame after traffic starts.',
+    es: 'Tiempo máximo para recibir el resto de una trama RTU después de iniciar el tráfico.'
+  },
+
   'driver.opcua.datasource.endpointUrl.label': {
     'pt-BR': 'URL do endpoint', en: 'Endpoint URL', es: 'URL del endpoint'
   },

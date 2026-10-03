@@ -103,7 +103,10 @@ public class ModbusMasterDriver : ICommunicationDriver, ICommunicationDiagnostic
 
         Status = new DriverStatus(DriverId, Name, DriverState.Starting, DateTimeOffset.UtcNow);
         TransitionCommunicationState(CommunicationDriverOperationalState.Starting);
-        foreach (var point in _points) _registry.Register(point.Tag);
+        foreach (var point in _points)
+            if (!_registry.TryGet(point.Tag.Id, out _))
+                _registry.Register(point.Tag);
+        _cts?.Dispose();
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _loop = RunAsync(_cts.Token);
         Status = new DriverStatus(DriverId, Name, DriverState.Running, DateTimeOffset.UtcNow);

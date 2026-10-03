@@ -21,6 +21,7 @@ public sealed class ModbusRtuTransport : IModbusMasterTransport
     private readonly IReadOnlyCollection<byte> _unitIds;
     private readonly bool _engineeringLease;
     private readonly object _diagnosticsGate = new();
+    private readonly SemaphoreSlim _leaseGate = new(1, 1);
     private HostSerialBusCoordinator.HostSerialBusLease? _lease;
     private long _connectionCount;
     private long _disconnectionCount;
@@ -190,15 +191,24 @@ public sealed class ModbusRtuTransport : IModbusMasterTransport
     private async ValueTask<HostSerialBusCoordinator.HostSerialBusLease> EnsureLeaseAsync(CancellationToken cancellationToken)
     {
         if (_lease is not null) return _lease;
-        _lease = _engineeringLease
-            ? await _coordinator.AcquireEngineeringMasterAsync(_ownerId, _settings, cancellationToken)
-            : await _coordinator.AcquireMasterAsync(_ownerId, _settings, _unitIds, cancellationToken);
-        lock (_diagnosticsGate)
+        await _leaseGate.WaitAsync(cancellationToken);
+        try
         {
-            _connectionCount++;
-            _lastConnectedAt = DateTimeOffset.UtcNow;
+            if (_lease is not null) return _lease;
+            _lease = _engineeringLease
+                ? await _coordinator.AcquireEngineeringMasterAsync(_ownerId, _settings, cancellationToken)
+                : await _coordinator.AcquireMasterAsync(_ownerId, _settings, _unitIds, cancellationToken);
+            lock (_diagnosticsGate)
+            {
+                _connectionCount++;
+                _lastConnectedAt = DateTimeOffset.UtcNow;
+            }
+            return _lease;
         }
-        return _lease;
+        finally
+        {
+            _leaseGate.Release();
+        }
     }
 
     private static async ValueTask<byte[]> ReadResponseFrameAsync(IHostSerialConnection connection, CancellationToken cancellationToken)
@@ -262,5 +272,9 @@ public sealed class ModbusRtuTransport : IModbusMasterTransport
         }
     }
 
-    public async ValueTask DisposeAsync() => await DisconnectAsync();
+    public async ValueTask DisposeAsync()
+    {
+        await DisconnectAsync();
+        _leaseGate.Dispose();
+    }
 }

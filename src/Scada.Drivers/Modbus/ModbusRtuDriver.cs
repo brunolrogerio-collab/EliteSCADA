@@ -7,6 +7,7 @@ namespace Scada.Drivers.Modbus;
 public sealed class ModbusRtuDriver : ModbusMasterDriver, ICommunicationDriverResourceClaimSource
 {
     private readonly HostSerialLineSettings _serialSettings;
+    private readonly IReadOnlyCollection<byte> _unitIds;
     public ModbusRtuDriver(
         string driverId,
         string name,
@@ -60,16 +61,26 @@ public sealed class ModbusRtuDriver : ModbusMasterDriver, ICommunicationDriverRe
             maxGapElements)
     {
         _serialSettings = settings;
+        _unitIds = points.Select(point => point.UnitId).Distinct().OrderBy(unitId => unitId).ToArray();
     }
 
-    public IReadOnlyCollection<CommunicationDriverResourceClaim> ResourceClaims => new[]
-    {
-        new CommunicationDriverResourceClaim(
-            "serial-port",
-            string.Empty,
-            _serialSettings.PhysicalPortKey,
-            DriverId,
-            $"{_serialSettings.BaudRate}|{_serialSettings.DataBits}|{_serialSettings.Parity}|{_serialSettings.StopBits}",
-            Exclusive: false)
-    };
+    public IReadOnlyCollection<CommunicationDriverResourceClaim> ResourceClaims =>
+        new[]
+        {
+            new CommunicationDriverResourceClaim(
+                "serial-port",
+                string.Empty,
+                _serialSettings.PhysicalPortKey,
+                DriverId,
+                $"{_serialSettings.BaudRate}|{_serialSettings.DataBits}|{_serialSettings.Parity}|{_serialSettings.StopBits}",
+                Exclusive: false)
+        }
+        .Concat(_unitIds.Select(unitId =>
+            new CommunicationDriverResourceClaim(
+                "serial-unit",
+                _serialSettings.PhysicalPortKey,
+                unitId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                DriverId,
+                Exclusive: true)))
+        .ToArray();
 }

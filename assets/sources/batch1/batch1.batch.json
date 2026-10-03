@@ -1,0 +1,2193 @@
+{
+  "schema": "elitescada.asset-batch",
+  "schemaVersion": 1,
+  "defaults": {
+    "author": "EliteSCADA",
+    "styleFamily": "simple-flat-v1",
+    "license": {
+      "identifier": "Proprietary-EliteSCADA-Original",
+      "reference": "assets/licenses/ELITESCADA-ORIGINAL-ASSET-NOTICE.md",
+      "attributionRequired": false,
+      "commercialRedistributionAllowed": true,
+      "modificationAllowed": true
+    }
+  },
+  "assets": [
+    {
+      "id": "builtin.asset.navigation.arrow.left",
+      "key": "navigation.arrow.left",
+      "displayName": "Arrow left",
+      "sourceFile": "assets/sources/batch1/navigation-arrow-left.svg",
+      "categoryPath": "navigation/arrows",
+      "tags": [
+        "navigation",
+        "arrow",
+        "left",
+        "arrows",
+        "back",
+        "previous",
+        "seta",
+        "esquerda"
+      ],
+      "searchKeywords": [
+        "navigation",
+        "direction"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.navigation.arrow.up",
+      "key": "navigation.arrow.up",
+      "displayName": "Arrow up",
+      "sourceFile": "assets/sources/batch1/navigation-arrow-up.svg",
+      "categoryPath": "navigation/arrows",
+      "tags": [
+        "navigation",
+        "arrow",
+        "up",
+        "arrows",
+        "seta",
+        "cima"
+      ],
+      "searchKeywords": [
+        "navigation",
+        "direction"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.navigation.arrow.down",
+      "key": "navigation.arrow.down",
+      "displayName": "Arrow down",
+      "sourceFile": "assets/sources/batch1/navigation-arrow-down.svg",
+      "categoryPath": "navigation/arrows",
+      "tags": [
+        "navigation",
+        "arrow",
+        "down",
+        "arrows",
+        "seta",
+        "baixo"
+      ],
+      "searchKeywords": [
+        "navigation",
+        "direction"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.navigation.arrow.up-left",
+      "key": "navigation.arrow.up-left",
+      "displayName": "Arrow up-left",
+      "sourceFile": "assets/sources/batch1/navigation-arrow-up-left.svg",
+      "categoryPath": "navigation/arrows",
+      "tags": [
+        "navigation",
+        "arrow",
+        "up-left",
+        "arrows",
+        "diagonal",
+        "northwest"
+      ],
+      "searchKeywords": [
+        "navigation",
+        "direction"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.navigation.arrow.up-right",
+      "key": "navigation.arrow.up-right",
+      "displayName": "Arrow up-right",
+      "sourceFile": "assets/sources/batch1/navigation-arrow-up-right.svg",
+      "categoryPath": "navigation/arrows",
+      "tags": [
+        "navigation",
+        "arrow",
+        "up-right",
+        "arrows",
+        "diagonal",
+        "northeast"
+      ],
+      "searchKeywords": [
+        "navigation",
+        "direction"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.navigation.arrow.down-left",
+      "key": "navigation.arrow.down-left",
+      "displayName": "Arrow down-left",
+      "sourceFile": "assets/sources/batch1/navigation-arrow-down-left.svg",
+      "categoryPath": "navigation/arrows",
+      "tags": [
+        "navigation",
+        "arrow",
+        "down-left",
+        "arrows",
+        "diagonal",
+        "southwest"
+      ],
+      "searchKeywords": [
+        "navigation",
+        "direction"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.navigation.arrow.down-right",
+      "key": "navigation.arrow.down-right",
+      "displayName": "Arrow down-right",
+      "sourceFile": "assets/sources/batch1/navigation-arrow-down-right.svg",
+      "categoryPath": "navigation/arrows",
+      "tags": [
+        "navigation",
+        "arrow",
+        "down-right",
+        "arrows",
+        "diagonal",
+        "southeast"
+      ],
+      "searchKeywords": [
+        "navigation",
+        "direction"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.navigation.chevron.right",
+      "key": "navigation.chevron.right",
+      "displayName": "Chevron right",
+      "sourceFile": "assets/sources/batch1/navigation-chevron-right.svg",
+      "categoryPath": "navigation/chevrons",
+      "tags": [
+        "navigation",
+        "chevron",
+        "right",
+        "chevrons"
+      ],
+      "searchKeywords": [
+        "direction"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.navigation.chevron.left",
+      "key": "navigation.chevron.left",
+      "displayName": "Chevron left",
+      "sourceFile": "assets/sources/batch1/navigation-chevron-left.svg",
+      "categoryPath": "navigation/chevrons",
+      "tags": [
+        "navigation",
+        "chevron",
+        "left",
+        "chevrons"
+      ],
+      "searchKeywords": [
+        "direction"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.navigation.chevron.up",
+      "key": "navigation.chevron.up",
+      "displayName": "Chevron up",
+      "sourceFile": "assets/sources/batch1/navigation-chevron-up.svg",
+      "categoryPath": "navigation/chevrons",
+      "tags": [
+        "navigation",
+        "chevron",
+        "up",
+        "chevrons"
+      ],
+      "searchKeywords": [
+        "direction"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.navigation.chevron.down",
+      "key": "navigation.chevron.down",
+      "displayName": "Chevron down",
+      "sourceFile": "assets/sources/batch1/navigation-chevron-down.svg",
+      "categoryPath": "navigation/chevrons",
+      "tags": [
+        "navigation",
+        "chevron",
+        "down",
+        "chevrons"
+      ],
+      "searchKeywords": [
+        "direction"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.navigation.chevron.double-right",
+      "key": "navigation.chevron.double-right",
+      "displayName": "Double chevron right",
+      "sourceFile": "assets/sources/batch1/navigation-double-chevron-right.svg",
+      "categoryPath": "navigation/chevrons",
+      "tags": [
+        "navigation",
+        "chevron",
+        "double-right",
+        "chevrons",
+        "double"
+      ],
+      "searchKeywords": [
+        "fast navigation"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.navigation.chevron.double-left",
+      "key": "navigation.chevron.double-left",
+      "displayName": "Double chevron left",
+      "sourceFile": "assets/sources/batch1/navigation-double-chevron-left.svg",
+      "categoryPath": "navigation/chevrons",
+      "tags": [
+        "navigation",
+        "chevron",
+        "double-left",
+        "chevrons",
+        "double"
+      ],
+      "searchKeywords": [
+        "fast navigation"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.navigation.chevron.double-up",
+      "key": "navigation.chevron.double-up",
+      "displayName": "Double chevron up",
+      "sourceFile": "assets/sources/batch1/navigation-double-chevron-up.svg",
+      "categoryPath": "navigation/chevrons",
+      "tags": [
+        "navigation",
+        "chevron",
+        "double-up",
+        "chevrons",
+        "double"
+      ],
+      "searchKeywords": [
+        "fast navigation"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.navigation.chevron.double-down",
+      "key": "navigation.chevron.double-down",
+      "displayName": "Double chevron down",
+      "sourceFile": "assets/sources/batch1/navigation-double-chevron-down.svg",
+      "categoryPath": "navigation/chevrons",
+      "tags": [
+        "navigation",
+        "chevron",
+        "double-down",
+        "chevrons",
+        "double"
+      ],
+      "searchKeywords": [
+        "fast navigation"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.navigation.control.home",
+      "key": "navigation.control.home",
+      "displayName": "Home",
+      "sourceFile": "assets/sources/batch1/navigation-home.svg",
+      "categoryPath": "navigation/controls",
+      "tags": [
+        "navigation",
+        "control",
+        "home",
+        "controls",
+        "house"
+      ],
+      "searchKeywords": [
+        "inicio",
+        "start page"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.navigation.control.menu",
+      "key": "navigation.control.menu",
+      "displayName": "Menu",
+      "sourceFile": "assets/sources/batch1/navigation-menu.svg",
+      "categoryPath": "navigation/controls",
+      "tags": [
+        "navigation",
+        "control",
+        "menu",
+        "controls",
+        "hamburger"
+      ],
+      "searchKeywords": [
+        "navigation controls"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.navigation.control.refresh",
+      "key": "navigation.control.refresh",
+      "displayName": "Refresh",
+      "sourceFile": "assets/sources/batch1/navigation-refresh.svg",
+      "categoryPath": "navigation/controls",
+      "tags": [
+        "navigation",
+        "control",
+        "refresh",
+        "controls",
+        "reload",
+        "rotate"
+      ],
+      "searchKeywords": [
+        "atualizar",
+        "recarregar"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.navigation.control.zoom-in",
+      "key": "navigation.control.zoom-in",
+      "displayName": "Zoom in",
+      "sourceFile": "assets/sources/batch1/navigation-zoom-in.svg",
+      "categoryPath": "navigation/controls",
+      "tags": [
+        "navigation",
+        "control",
+        "zoom-in",
+        "controls",
+        "zoom",
+        "plus"
+      ],
+      "searchKeywords": [
+        "magnify",
+        "increase"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.navigation.control.zoom-out",
+      "key": "navigation.control.zoom-out",
+      "displayName": "Zoom out",
+      "sourceFile": "assets/sources/batch1/navigation-zoom-out.svg",
+      "categoryPath": "navigation/controls",
+      "tags": [
+        "navigation",
+        "control",
+        "zoom-out",
+        "controls",
+        "zoom",
+        "minus"
+      ],
+      "searchKeywords": [
+        "magnify",
+        "decrease"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.media.pause",
+      "key": "ui.media.pause",
+      "displayName": "Pause",
+      "sourceFile": "assets/sources/batch1/ui-pause.svg",
+      "categoryPath": "ui/media",
+      "tags": [
+        "ui",
+        "media",
+        "pause"
+      ],
+      "searchKeywords": [
+        "hmi control"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.media.stop",
+      "key": "ui.media.stop",
+      "displayName": "Stop",
+      "sourceFile": "assets/sources/batch1/ui-stop.svg",
+      "categoryPath": "ui/media",
+      "tags": [
+        "ui",
+        "media",
+        "stop"
+      ],
+      "searchKeywords": [
+        "hmi control"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.media.restart",
+      "key": "ui.media.restart",
+      "displayName": "Restart",
+      "sourceFile": "assets/sources/batch1/ui-restart.svg",
+      "categoryPath": "ui/media",
+      "tags": [
+        "ui",
+        "media",
+        "restart",
+        "reset"
+      ],
+      "searchKeywords": [
+        "run again"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.media.step-forward",
+      "key": "ui.media.step-forward",
+      "displayName": "Step forward",
+      "sourceFile": "assets/sources/batch1/ui-step-forward.svg",
+      "categoryPath": "ui/media",
+      "tags": [
+        "ui",
+        "media",
+        "step-forward",
+        "step",
+        "forward"
+      ],
+      "searchKeywords": [
+        "single step"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.media.fast-forward",
+      "key": "ui.media.fast-forward",
+      "displayName": "Fast forward",
+      "sourceFile": "assets/sources/batch1/ui-fast-forward.svg",
+      "categoryPath": "ui/media",
+      "tags": [
+        "ui",
+        "media",
+        "fast-forward",
+        "fast",
+        "forward"
+      ],
+      "searchKeywords": [
+        "media"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.media.rewind",
+      "key": "ui.media.rewind",
+      "displayName": "Rewind",
+      "sourceFile": "assets/sources/batch1/ui-rewind.svg",
+      "categoryPath": "ui/media",
+      "tags": [
+        "ui",
+        "media",
+        "rewind",
+        "back"
+      ],
+      "searchKeywords": [
+        "media"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.action.acknowledge",
+      "key": "ui.action.acknowledge",
+      "displayName": "Acknowledge",
+      "sourceFile": "assets/sources/batch1/ui-acknowledge.svg",
+      "categoryPath": "ui/actions",
+      "tags": [
+        "ui",
+        "action",
+        "acknowledge",
+        "actions",
+        "ack",
+        "alarm"
+      ],
+      "searchKeywords": [
+        "acknowledge alarm",
+        "confirm"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.action.mute",
+      "key": "ui.action.mute",
+      "displayName": "Mute",
+      "sourceFile": "assets/sources/batch1/ui-mute.svg",
+      "categoryPath": "ui/actions",
+      "tags": [
+        "ui",
+        "action",
+        "mute",
+        "actions",
+        "silence"
+      ],
+      "searchKeywords": [
+        "sound off",
+        "alarm silence"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.action.reset",
+      "key": "ui.action.reset",
+      "displayName": "Reset",
+      "sourceFile": "assets/sources/batch1/ui-reset.svg",
+      "categoryPath": "ui/actions",
+      "tags": [
+        "ui",
+        "action",
+        "reset",
+        "actions",
+        "clear"
+      ],
+      "searchKeywords": [
+        "restore"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.editing.add",
+      "key": "ui.editing.add",
+      "displayName": "Add",
+      "sourceFile": "assets/sources/batch1/ui-add.svg",
+      "categoryPath": "ui/editing",
+      "tags": [
+        "ui",
+        "editing",
+        "add",
+        "plus"
+      ],
+      "searchKeywords": [
+        "create",
+        "new"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.editing.edit",
+      "key": "ui.editing.edit",
+      "displayName": "Edit",
+      "sourceFile": "assets/sources/batch1/ui-edit.svg",
+      "categoryPath": "ui/editing",
+      "tags": [
+        "ui",
+        "editing",
+        "edit",
+        "pencil"
+      ],
+      "searchKeywords": [
+        "modify"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.editing.copy",
+      "key": "ui.editing.copy",
+      "displayName": "Copy",
+      "sourceFile": "assets/sources/batch1/ui-copy.svg",
+      "categoryPath": "ui/editing",
+      "tags": [
+        "ui",
+        "editing",
+        "copy",
+        "duplicate"
+      ],
+      "searchKeywords": [
+        "clipboard"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.editing.delete",
+      "key": "ui.editing.delete",
+      "displayName": "Delete",
+      "sourceFile": "assets/sources/batch1/ui-delete.svg",
+      "categoryPath": "ui/editing",
+      "tags": [
+        "ui",
+        "editing",
+        "delete",
+        "trash"
+      ],
+      "searchKeywords": [
+        "remove"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.action.confirm",
+      "key": "ui.action.confirm",
+      "displayName": "Confirm",
+      "sourceFile": "assets/sources/batch1/ui-confirm.svg",
+      "categoryPath": "ui/actions",
+      "tags": [
+        "ui",
+        "action",
+        "confirm",
+        "actions",
+        "apply",
+        "check"
+      ],
+      "searchKeywords": [
+        "ok",
+        "success"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.action.save",
+      "key": "ui.action.save",
+      "displayName": "Save",
+      "sourceFile": "assets/sources/batch1/ui-save.svg",
+      "categoryPath": "ui/actions",
+      "tags": [
+        "ui",
+        "action",
+        "save",
+        "actions",
+        "disk"
+      ],
+      "searchKeywords": [
+        "persist"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.action.cancel",
+      "key": "ui.action.cancel",
+      "displayName": "Cancel",
+      "sourceFile": "assets/sources/batch1/ui-cancel.svg",
+      "categoryPath": "ui/actions",
+      "tags": [
+        "ui",
+        "action",
+        "cancel",
+        "actions",
+        "close"
+      ],
+      "searchKeywords": [
+        "abort"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.action.close",
+      "key": "ui.action.close",
+      "displayName": "Close",
+      "sourceFile": "assets/sources/batch1/ui-close.svg",
+      "categoryPath": "ui/actions",
+      "tags": [
+        "ui",
+        "action",
+        "close",
+        "actions",
+        "x"
+      ],
+      "searchKeywords": [
+        "dismiss"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.system.lock",
+      "key": "ui.system.lock",
+      "displayName": "Lock",
+      "sourceFile": "assets/sources/batch1/ui-lock.svg",
+      "categoryPath": "ui/system",
+      "tags": [
+        "ui",
+        "system",
+        "lock",
+        "security"
+      ],
+      "searchKeywords": [
+        "locked",
+        "permission"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.system.unlock",
+      "key": "ui.system.unlock",
+      "displayName": "Unlock",
+      "sourceFile": "assets/sources/batch1/ui-unlock.svg",
+      "categoryPath": "ui/system",
+      "tags": [
+        "ui",
+        "system",
+        "unlock",
+        "security"
+      ],
+      "searchKeywords": [
+        "unlocked",
+        "permission"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.system.settings",
+      "key": "ui.system.settings",
+      "displayName": "Settings",
+      "sourceFile": "assets/sources/batch1/ui-settings.svg",
+      "categoryPath": "ui/system",
+      "tags": [
+        "ui",
+        "system",
+        "settings",
+        "gear"
+      ],
+      "searchKeywords": [
+        "configuration",
+        "tools"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.system.search",
+      "key": "ui.system.search",
+      "displayName": "Search",
+      "sourceFile": "assets/sources/batch1/ui-search.svg",
+      "categoryPath": "ui/system",
+      "tags": [
+        "ui",
+        "system",
+        "search",
+        "find"
+      ],
+      "searchKeywords": [
+        "lookup"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.ui.system.filter",
+      "key": "ui.system.filter",
+      "displayName": "Filter",
+      "sourceFile": "assets/sources/batch1/ui-filter.svg",
+      "categoryPath": "ui/system",
+      "tags": [
+        "ui",
+        "system",
+        "filter",
+        "funnel"
+      ],
+      "searchKeywords": [
+        "query",
+        "refine"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.indicator.status.circle",
+      "key": "indicator.status.circle",
+      "displayName": "Status lamp circle",
+      "sourceFile": "assets/sources/batch1/indicator-status-circle.svg",
+      "categoryPath": "indicators/status",
+      "tags": [
+        "indicator",
+        "status",
+        "circle",
+        "indicators",
+        "lamp"
+      ],
+      "searchKeywords": [
+        "state indicator"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.indicator.status.square",
+      "key": "indicator.status.square",
+      "displayName": "Status lamp square",
+      "sourceFile": "assets/sources/batch1/indicator-status-square.svg",
+      "categoryPath": "indicators/status",
+      "tags": [
+        "indicator",
+        "status",
+        "square",
+        "indicators",
+        "lamp"
+      ],
+      "searchKeywords": [
+        "state indicator"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.indicator.status.check",
+      "key": "indicator.status.check",
+      "displayName": "Check",
+      "sourceFile": "assets/sources/batch1/indicator-check.svg",
+      "categoryPath": "indicators/status",
+      "tags": [
+        "indicator",
+        "status",
+        "check",
+        "indicators",
+        "success",
+        "good"
+      ],
+      "searchKeywords": [
+        "ok"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.indicator.status.cross",
+      "key": "indicator.status.cross",
+      "displayName": "Cross",
+      "sourceFile": "assets/sources/batch1/indicator-cross.svg",
+      "categoryPath": "indicators/status",
+      "tags": [
+        "indicator",
+        "status",
+        "cross",
+        "indicators",
+        "bad",
+        "error"
+      ],
+      "searchKeywords": [
+        "x",
+        "failure"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.indicator.status.warning",
+      "key": "indicator.status.warning",
+      "displayName": "Warning triangle",
+      "sourceFile": "assets/sources/batch1/indicator-warning.svg",
+      "categoryPath": "indicators/status",
+      "tags": [
+        "indicator",
+        "status",
+        "warning",
+        "indicators",
+        "triangle"
+      ],
+      "searchKeywords": [
+        "attention",
+        "alarm"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.indicator.status.info",
+      "key": "indicator.status.info",
+      "displayName": "Information",
+      "sourceFile": "assets/sources/batch1/indicator-info.svg",
+      "categoryPath": "indicators/status",
+      "tags": [
+        "indicator",
+        "status",
+        "info",
+        "indicators",
+        "information"
+      ],
+      "searchKeywords": [
+        "help",
+        "status"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.indicator.communication.connected",
+      "key": "indicator.communication.connected",
+      "displayName": "Connected",
+      "sourceFile": "assets/sources/batch1/indicator-connected.svg",
+      "categoryPath": "indicators/communication",
+      "tags": [
+        "indicator",
+        "communication",
+        "connected",
+        "indicators",
+        "link"
+      ],
+      "searchKeywords": [
+        "communication",
+        "online"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.indicator.communication.disconnected",
+      "key": "indicator.communication.disconnected",
+      "displayName": "Disconnected",
+      "sourceFile": "assets/sources/batch1/indicator-disconnected.svg",
+      "categoryPath": "indicators/communication",
+      "tags": [
+        "indicator",
+        "communication",
+        "disconnected",
+        "indicators",
+        "link",
+        "fault"
+      ],
+      "searchKeywords": [
+        "communication",
+        "offline"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.indicator.status.battery",
+      "key": "indicator.status.battery",
+      "displayName": "Battery",
+      "sourceFile": "assets/sources/batch1/indicator-battery.svg",
+      "categoryPath": "indicators/status",
+      "tags": [
+        "indicator",
+        "status",
+        "battery",
+        "indicators",
+        "power"
+      ],
+      "searchKeywords": [
+        "charge",
+        "level"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.indicator.status.clock",
+      "key": "indicator.status.clock",
+      "displayName": "Clock",
+      "sourceFile": "assets/sources/batch1/indicator-clock.svg",
+      "categoryPath": "indicators/status",
+      "tags": [
+        "indicator",
+        "status",
+        "clock",
+        "indicators",
+        "time"
+      ],
+      "searchKeywords": [
+        "schedule"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.flow.connector.straight",
+      "key": "flow.connector.straight",
+      "displayName": "Straight connector",
+      "sourceFile": "assets/sources/batch1/flow-connector-straight.svg",
+      "categoryPath": "flow/connectors",
+      "tags": [
+        "flow",
+        "connector",
+        "straight",
+        "connectors"
+      ],
+      "searchKeywords": [
+        "flow line"
+      ],
+      "styleFamily": "technical-symbol-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.flow.connector.elbow",
+      "key": "flow.connector.elbow",
+      "displayName": "Elbow connector",
+      "sourceFile": "assets/sources/batch1/flow-connector-elbow.svg",
+      "categoryPath": "flow/connectors",
+      "tags": [
+        "flow",
+        "connector",
+        "elbow",
+        "connectors"
+      ],
+      "searchKeywords": [
+        "right angle"
+      ],
+      "styleFamily": "technical-symbol-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.flow.connector.curved",
+      "key": "flow.connector.curved",
+      "displayName": "Curved connector",
+      "sourceFile": "assets/sources/batch1/flow-connector-curved.svg",
+      "categoryPath": "flow/connectors",
+      "tags": [
+        "flow",
+        "connector",
+        "curved",
+        "connectors"
+      ],
+      "searchKeywords": [
+        "bezier"
+      ],
+      "styleFamily": "technical-symbol-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.flow.connector.dashed",
+      "key": "flow.connector.dashed",
+      "displayName": "Dashed connector",
+      "sourceFile": "assets/sources/batch1/flow-connector-dashed.svg",
+      "categoryPath": "flow/connectors",
+      "tags": [
+        "flow",
+        "connector",
+        "dashed",
+        "connectors"
+      ],
+      "searchKeywords": [
+        "flow line"
+      ],
+      "styleFamily": "technical-symbol-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.flow.connector.junction",
+      "key": "flow.connector.junction",
+      "displayName": "Junction",
+      "sourceFile": "assets/sources/batch1/flow-junction.svg",
+      "categoryPath": "flow/connectors",
+      "tags": [
+        "flow",
+        "connector",
+        "junction",
+        "connectors",
+        "node"
+      ],
+      "searchKeywords": [
+        "cross connector"
+      ],
+      "styleFamily": "technical-symbol-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.flow.connector.branch",
+      "key": "flow.connector.branch",
+      "displayName": "Branch",
+      "sourceFile": "assets/sources/batch1/flow-branch.svg",
+      "categoryPath": "flow/connectors",
+      "tags": [
+        "flow",
+        "connector",
+        "branch",
+        "connectors",
+        "split"
+      ],
+      "searchKeywords": [
+        "connector",
+        "tee"
+      ],
+      "styleFamily": "technical-symbol-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.valve.globe",
+      "key": "pid.valve.globe",
+      "displayName": "P&ID globe valve",
+      "sourceFile": "assets/sources/batch1/pid-globe-valve.svg",
+      "categoryPath": "pid/valves",
+      "tags": [
+        "pid",
+        "valve",
+        "globe",
+        "valves"
+      ],
+      "searchKeywords": [
+        "process",
+        "control"
+      ],
+      "styleFamily": "technical-symbol-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.valve.ball",
+      "key": "pid.valve.ball",
+      "displayName": "P&ID ball valve",
+      "sourceFile": "assets/sources/batch1/pid-ball-valve.svg",
+      "categoryPath": "pid/valves",
+      "tags": [
+        "pid",
+        "valve",
+        "ball",
+        "valves"
+      ],
+      "searchKeywords": [
+        "process",
+        "isolation"
+      ],
+      "styleFamily": "technical-symbol-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.valve.butterfly",
+      "key": "pid.valve.butterfly",
+      "displayName": "P&ID butterfly valve",
+      "sourceFile": "assets/sources/batch1/pid-butterfly-valve.svg",
+      "categoryPath": "pid/valves",
+      "tags": [
+        "pid",
+        "valve",
+        "butterfly",
+        "valves"
+      ],
+      "searchKeywords": [
+        "process",
+        "isolation"
+      ],
+      "styleFamily": "technical-symbol-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.valve.check",
+      "key": "pid.valve.check",
+      "displayName": "P&ID check valve",
+      "sourceFile": "assets/sources/batch1/pid-check-valve.svg",
+      "categoryPath": "pid/valves",
+      "tags": [
+        "pid",
+        "valve",
+        "check",
+        "valves"
+      ],
+      "searchKeywords": [
+        "non return",
+        "process"
+      ],
+      "styleFamily": "technical-symbol-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.valve.control",
+      "key": "pid.valve.control",
+      "displayName": "P&ID control valve",
+      "sourceFile": "assets/sources/batch1/pid-control-valve.svg",
+      "categoryPath": "pid/valves",
+      "tags": [
+        "pid",
+        "valve",
+        "control",
+        "valves"
+      ],
+      "searchKeywords": [
+        "actuated",
+        "process"
+      ],
+      "styleFamily": "technical-symbol-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.pump.generic",
+      "key": "pid.pump.generic",
+      "displayName": "P&ID pump",
+      "sourceFile": "assets/sources/batch1/pid-pump-generic.svg",
+      "categoryPath": "pid/pumps",
+      "tags": [
+        "pid",
+        "pump",
+        "generic",
+        "pumps"
+      ],
+      "searchKeywords": [
+        "process",
+        "rotating equipment"
+      ],
+      "styleFamily": "technical-symbol-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.vessel.tank",
+      "key": "pid.vessel.tank",
+      "displayName": "P&ID vessel tank",
+      "sourceFile": "assets/sources/batch1/pid-vessel-tank.svg",
+      "categoryPath": "pid/vessels",
+      "tags": [
+        "pid",
+        "vessel",
+        "tank",
+        "vessels"
+      ],
+      "searchKeywords": [
+        "process",
+        "storage"
+      ],
+      "styleFamily": "technical-symbol-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.pid.exchanger.basic",
+      "key": "pid.exchanger.basic",
+      "displayName": "P&ID heat exchanger",
+      "sourceFile": "assets/sources/batch1/pid-heat-exchanger.svg",
+      "categoryPath": "pid/exchangers",
+      "tags": [
+        "pid",
+        "exchanger",
+        "basic",
+        "exchangers",
+        "heat exchanger"
+      ],
+      "searchKeywords": [
+        "process",
+        "thermal"
+      ],
+      "styleFamily": "technical-symbol-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.industrial.rotating.motor.generic",
+      "key": "industrial.rotating.motor.generic",
+      "displayName": "Industrial motor",
+      "sourceFile": "assets/sources/batch1/industrial-motor.svg",
+      "categoryPath": "industrial/rotating/motors",
+      "tags": [
+        "industrial",
+        "rotating",
+        "motor",
+        "generic",
+        "motors"
+      ],
+      "searchKeywords": [
+        "rotating equipment"
+      ],
+      "styleFamily": "industrial-2d-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.industrial.rotating.vfd.generic",
+      "key": "industrial.rotating.vfd.generic",
+      "displayName": "Variable frequency drive",
+      "sourceFile": "assets/sources/batch1/industrial-vfd.svg",
+      "categoryPath": "industrial/rotating/vfds",
+      "tags": [
+        "industrial",
+        "rotating",
+        "vfd",
+        "generic",
+        "vfds",
+        "drive",
+        "inverter"
+      ],
+      "searchKeywords": [
+        "motor control"
+      ],
+      "styleFamily": "industrial-2d-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.industrial.rotating.compressor.generic",
+      "key": "industrial.rotating.compressor.generic",
+      "displayName": "Industrial compressor",
+      "sourceFile": "assets/sources/batch1/industrial-compressor.svg",
+      "categoryPath": "industrial/rotating/compressors",
+      "tags": [
+        "industrial",
+        "rotating",
+        "compressor",
+        "generic",
+        "compressors"
+      ],
+      "searchKeywords": [
+        "rotating equipment",
+        "air"
+      ],
+      "styleFamily": "industrial-2d-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.industrial.process.tank.basic",
+      "key": "industrial.process.tank.basic",
+      "displayName": "Industrial tank",
+      "sourceFile": "assets/sources/batch1/industrial-tank.svg",
+      "categoryPath": "industrial/process/tanks-vessels",
+      "tags": [
+        "industrial",
+        "process",
+        "tank",
+        "basic",
+        "tanks-vessels",
+        "vessel"
+      ],
+      "searchKeywords": [
+        "process",
+        "storage"
+      ],
+      "styleFamily": "industrial-2d-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.industrial.process.conveyor.basic",
+      "key": "industrial.process.conveyor.basic",
+      "displayName": "Industrial conveyor",
+      "sourceFile": "assets/sources/batch1/industrial-conveyor.svg",
+      "categoryPath": "industrial/process/piping",
+      "tags": [
+        "industrial",
+        "process",
+        "conveyor",
+        "basic",
+        "piping",
+        "machine"
+      ],
+      "searchKeywords": [
+        "material handling"
+      ],
+      "styleFamily": "industrial-2d-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.sanitation.intake.water-intake",
+      "key": "sanitation.intake.water-intake",
+      "displayName": "Water intake",
+      "sourceFile": "assets/sources/batch1/sanitation-water-intake.svg",
+      "categoryPath": "sanitation/intake",
+      "tags": [
+        "sanitation",
+        "intake",
+        "water-intake",
+        "water"
+      ],
+      "searchKeywords": [
+        "raw water",
+        "captação"
+      ],
+      "styleFamily": "industrial-2d-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.sanitation.intake.well",
+      "key": "sanitation.intake.well",
+      "displayName": "Well",
+      "sourceFile": "assets/sources/batch1/sanitation-well.svg",
+      "categoryPath": "sanitation/intake",
+      "tags": [
+        "sanitation",
+        "intake",
+        "well",
+        "water"
+      ],
+      "searchKeywords": [
+        "groundwater"
+      ],
+      "styleFamily": "industrial-2d-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.sanitation.lift-station.basic",
+      "key": "sanitation.lift-station.basic",
+      "displayName": "Lift station",
+      "sourceFile": "assets/sources/batch1/sanitation-lift-station.svg",
+      "categoryPath": "sanitation/lift-stations",
+      "tags": [
+        "sanitation",
+        "lift-station",
+        "basic",
+        "lift-stations",
+        "lift station",
+        "pump",
+        "wastewater"
+      ],
+      "searchKeywords": [
+        "sewage",
+        "elevatória"
+      ],
+      "styleFamily": "industrial-2d-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.sanitation.clarifier.basic",
+      "key": "sanitation.clarifier.basic",
+      "displayName": "Clarifier",
+      "sourceFile": "assets/sources/batch1/sanitation-clarifier.svg",
+      "categoryPath": "sanitation/clarifiers",
+      "tags": [
+        "sanitation",
+        "clarifier",
+        "basic",
+        "clarifiers"
+      ],
+      "searchKeywords": [
+        "water treatment",
+        "sedimentation"
+      ],
+      "styleFamily": "industrial-2d-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.sanitation.chemical-dosing.basic",
+      "key": "sanitation.chemical-dosing.basic",
+      "displayName": "Chemical dosing",
+      "sourceFile": "assets/sources/batch1/sanitation-chemical-dosing.svg",
+      "categoryPath": "sanitation/chemical-dosing",
+      "tags": [
+        "sanitation",
+        "chemical-dosing",
+        "basic",
+        "chemical",
+        "dosing"
+      ],
+      "searchKeywords": [
+        "chlorination",
+        "treatment"
+      ],
+      "styleFamily": "industrial-2d-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.electrical.motor.generic",
+      "key": "electrical.motor.generic",
+      "displayName": "Electrical motor",
+      "sourceFile": "assets/sources/batch1/electrical-motor.svg",
+      "categoryPath": "electrical/motors",
+      "tags": [
+        "electrical",
+        "motor",
+        "generic",
+        "motors"
+      ],
+      "searchKeywords": [
+        "single line",
+        "rotating"
+      ],
+      "styleFamily": "technical-symbol-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.electrical.transformer.basic",
+      "key": "electrical.transformer.basic",
+      "displayName": "Transformer",
+      "sourceFile": "assets/sources/batch1/electrical-transformer.svg",
+      "categoryPath": "electrical/transformers",
+      "tags": [
+        "electrical",
+        "transformer",
+        "basic",
+        "transformers"
+      ],
+      "searchKeywords": [
+        "single line",
+        "power"
+      ],
+      "styleFamily": "technical-symbol-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.electrical.contactor.basic",
+      "key": "electrical.contactor.basic",
+      "displayName": "Contactor",
+      "sourceFile": "assets/sources/batch1/electrical-contactor.svg",
+      "categoryPath": "electrical/contactors",
+      "tags": [
+        "electrical",
+        "contactor",
+        "basic",
+        "contactors"
+      ],
+      "searchKeywords": [
+        "switchgear",
+        "control"
+      ],
+      "styleFamily": "technical-symbol-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.electrical.battery.basic",
+      "key": "electrical.battery.basic",
+      "displayName": "Electrical battery",
+      "sourceFile": "assets/sources/batch1/electrical-battery.svg",
+      "categoryPath": "electrical/batteries",
+      "tags": [
+        "electrical",
+        "battery",
+        "basic",
+        "batteries"
+      ],
+      "searchKeywords": [
+        "dc",
+        "power"
+      ],
+      "styleFamily": "technical-symbol-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.building.hvac.chiller",
+      "key": "building.hvac.chiller",
+      "displayName": "Chiller",
+      "sourceFile": "assets/sources/batch1/building-chiller.svg",
+      "categoryPath": "building/hvac",
+      "tags": [
+        "building",
+        "hvac",
+        "chiller"
+      ],
+      "searchKeywords": [
+        "cooling"
+      ],
+      "styleFamily": "industrial-2d-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.building.hvac.damper",
+      "key": "building.hvac.damper",
+      "displayName": "HVAC damper",
+      "sourceFile": "assets/sources/batch1/building-damper.svg",
+      "categoryPath": "building/hvac",
+      "tags": [
+        "building",
+        "hvac",
+        "damper"
+      ],
+      "searchKeywords": [
+        "duct",
+        "air"
+      ],
+      "styleFamily": "technical-symbol-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.building.fire.smoke-detector",
+      "key": "building.fire.smoke-detector",
+      "displayName": "Smoke detector",
+      "sourceFile": "assets/sources/batch1/building-smoke-detector.svg",
+      "categoryPath": "building/fire",
+      "tags": [
+        "building",
+        "fire",
+        "smoke-detector",
+        "smoke"
+      ],
+      "searchKeywords": [
+        "detector",
+        "alarm"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.residential.lighting.switch",
+      "key": "residential.lighting.switch",
+      "displayName": "Light switch",
+      "sourceFile": "assets/sources/batch1/residential-switch.svg",
+      "categoryPath": "residential/lighting",
+      "tags": [
+        "residential",
+        "lighting",
+        "switch",
+        "light"
+      ],
+      "searchKeywords": [
+        "home automation"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.residential.security.lock",
+      "key": "residential.security.lock",
+      "displayName": "Door lock",
+      "sourceFile": "assets/sources/batch1/residential-lock.svg",
+      "categoryPath": "residential/locks",
+      "tags": [
+        "residential",
+        "security",
+        "lock",
+        "locks",
+        "door"
+      ],
+      "searchKeywords": [
+        "security",
+        "access"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    },
+    {
+      "id": "builtin.asset.residential.climate.thermostat",
+      "key": "residential.climate.thermostat",
+      "displayName": "Thermostat",
+      "sourceFile": "assets/sources/batch1/residential-thermostat.svg",
+      "categoryPath": "residential/climate",
+      "tags": [
+        "residential",
+        "climate",
+        "thermostat"
+      ],
+      "searchKeywords": [
+        "temperature",
+        "hvac"
+      ],
+      "styleFamily": "simple-flat-v1",
+      "status": "draft",
+      "provenance": {
+        "classification": "generated/original",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
+      }
+    }
+  ]
+}

@@ -96,6 +96,76 @@ public sealed class HistoricalPlaybackScopeResolverTests
     }
 
     [Fact]
+    public void Resolve_ExpandsEquipmentTemplateReferencesWithoutUserConfiguredPlaybackIds()
+    {
+        var tagId = Guid.Parse("30000000-0000-0000-0000-000000000001");
+        var templateId = Guid.Parse("30000000-0000-0000-0000-000000000002");
+        var equipmentId = Guid.Parse("30000000-0000-0000-0000-000000000003");
+
+        using var document = JsonDocument.Parse($"""
+        {
+          "runtimePresentation": { "historicalPlaybackEnabled": true, "version": 1 },
+          "tags": [
+            { "id": "{{tagId}}", "path": "Plant.Pump01.Speed", "dataType": "double" }
+          ],
+          "screens": [
+            {
+              "key": "overview",
+              "elements": [
+                {
+                  "key": "pump-01",
+                  "type": "core.group",
+                  "equipmentId": "{{equipmentId}}",
+                  "equipmentPath": "Plant.Pump01"
+                }
+              ]
+            }
+          ],
+          "popups": [],
+          "dynamos": [],
+          "equipment": [
+            {
+              "id": "{{equipmentId}}",
+              "path": "Plant.Pump01",
+              "templateId": "{{templateId}}",
+              "templateKey": "pump"
+            }
+          ],
+          "templates": [
+            {
+              "id": "{{templateId}}",
+              "key": "pump",
+              "elements": [
+                {
+                  "key": "speed",
+                  "type": "core.valueDisplay",
+                  "bindings": [
+                    {
+                      "key": "text",
+                      "kind": "tag",
+                      "target": "Plant.Pump01.Speed",
+                      "tagReference": { "tagId": "{{tagId}}" }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+        """);
+
+        var result = HistoricalPlaybackScopeResolver.Resolve(
+            document.RootElement,
+            new HistoricalPlaybackScopeRequest("overview"));
+
+        var tag = Assert.Single(result.Tags);
+        Assert.Equal(tagId, tag.Id);
+        Assert.Equal("Plant.Pump01.Speed", tag.Path);
+        Assert.Equal("interpolated", tag.RetrievalMode);
+        Assert.Empty(result.UnresolvedReferences);
+    }
+
+    [Fact]
     public void IsEnabled_DefaultsLegacyPackageToHidden()
     {
         using var legacy = JsonDocument.Parse("{\"screens\":[]}");

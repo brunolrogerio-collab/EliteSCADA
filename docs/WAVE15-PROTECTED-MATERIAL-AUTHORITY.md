@@ -1,6 +1,6 @@
 # Wave 15 Protected Material Authority
 
-Contract: `C-PROTECTED-MATERIAL-AUTHORITY-01`  
+Contract: `C-PROTECTED-MATERIAL-AUTHORITY-01`
 Order: `W15-FND-PROTECTED-MATERIAL-01`
 
 ## Decision

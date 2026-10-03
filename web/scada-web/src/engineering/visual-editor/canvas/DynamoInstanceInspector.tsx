@@ -119,6 +119,7 @@ function DynamoInspectorBody({
           value={value}
           instance={instance}
           tags={tagOptions}
+          commands={commands}
           disabled={locked || !onCommand}
           onSet={setValue}
           onRemove={() => removeValue(parameter.key)}

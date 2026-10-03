@@ -55,7 +55,12 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
         }
         else
         {
-            result = await ExecuteV3Async(report, request.Parameters, cancellationToken);
+            result = await ExecuteV3Async(
+                report,
+                request.Parameters,
+                request.ResolvedDataQueries,
+                request.TimeRange,
+                cancellationToken);
         }
 
         var projected = result.Queries
@@ -77,6 +82,8 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
     private async Task<ReportExecutionResult> ExecuteV3Async(
         ReportEngineeringDto report,
         IReadOnlyDictionary<string, ReportParameterValue>? suppliedParameters,
+        IReadOnlyCollection<DataQueryEngineeringDto>? resolvedDataQueries,
+        ReportRuntimeTimeRange? runtimeTimeRange,
         CancellationToken cancellationToken)
     {
         var parameters = ResolveParameters(report, suppliedParameters);
@@ -87,7 +94,12 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var definition = ResolveDefinition(report, reportQuery, parameters);
+            var definition = ResolveDefinition(
+                report,
+                reportQuery,
+                parameters,
+                resolvedDataQueries,
+                runtimeTimeRange);
             var dataQueryParameterKeys = (definition.Parameters ?? Array.Empty<DataQueryParameterEngineeringDto>())
                 .Select(parameter => parameter.Key)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -134,13 +146,29 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
     private DataQueryEngineeringDto ResolveDefinition(
         ReportEngineeringDto report,
         ReportQueryEngineeringDto reportQuery,
-        IReadOnlyDictionary<string, ReportParameterValue> parameters)
+        IReadOnlyDictionary<string, ReportParameterValue> parameters,
+        IReadOnlyCollection<DataQueryEngineeringDto>? resolvedDataQueries,
+        ReportRuntimeTimeRange? runtimeTimeRange)
     {
         DataQueryEngineeringDto? saved = null;
-        if (reportQuery.DataQueryId.HasValue)
-            saved = _dataQueryRegistry.Find(reportQuery.DataQueryId.Value);
-        if (saved is null && !string.IsNullOrWhiteSpace(reportQuery.DataQueryKey))
-            saved = _dataQueryRegistry.FindByKey(reportQuery.DataQueryKey);
+        if (resolvedDataQueries is not null)
+        {
+            if (reportQuery.DataQueryId.HasValue)
+                saved = resolvedDataQueries.FirstOrDefault(definition => definition.Id == reportQuery.DataQueryId.Value);
+            if (saved is null && !string.IsNullOrWhiteSpace(reportQuery.DataQueryKey))
+                saved = resolvedDataQueries.FirstOrDefault(definition =>
+                    definition.Key.Equals(reportQuery.DataQueryKey, StringComparison.OrdinalIgnoreCase));
+        }
+        else
+        {
+            // Engineering Preview may resolve Working definitions through the canonical
+            // registry. Runtime passes Active-revision definitions explicitly and never
+            // falls back to this Working authority.
+            if (reportQuery.DataQueryId.HasValue)
+                saved = _dataQueryRegistry.Find(reportQuery.DataQueryId.Value);
+            if (saved is null && !string.IsNullOrWhiteSpace(reportQuery.DataQueryKey))
+                saved = _dataQueryRegistry.FindByKey(reportQuery.DataQueryKey);
+        }
 
         if ((reportQuery.DataQueryId.HasValue || !string.IsNullOrWhiteSpace(reportQuery.DataQueryKey)) && saved is null)
             throw new ReportExecutionValidationException(
@@ -149,6 +177,9 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
                     $"Report query '{reportQuery.Key}' references a saved Data Query that was not found.")]);
 
         var embeddedQuery = ApplyReportBindings(reportQuery, parameters);
+        if (runtimeTimeRange is not null)
+            embeddedQuery = embeddedQuery with { Range = ToHistoricalRange(runtimeTimeRange) };
+
         var source = saved ?? new DataQueryEngineeringDto(
             StableTransientId(report, reportQuery),
             $"report.{report.Key}.{reportQuery.Key}",
@@ -156,11 +187,12 @@ public sealed class ReportV3ExecutionService : IReportExecutionService
             DataQueryExecutionService.HistoricalProviderKey,
             embeddedQuery);
 
-        // A saved Data Query remains the query-definition authority. Reporting only
-        // overlays the effective runtime period on its transient execution copy.
-        var effectiveSourceQuery = saved is null
+        // A saved Data Query remains the query-definition authority. Reporting overlays
+        // only the explicit runtime period on the transient copy. This keeps runtime
+        // session state out of Active/Working Engineering.
+        var effectiveSourceQuery = saved is null || runtimeTimeRange is null
             ? source.Query
-            : source.Query with { Range = reportQuery.Query.Range };
+            : source.Query with { Range = ToHistoricalRange(runtimeTimeRange) };
         var query = ApplyTagFilter(effectiveSourceQuery, report.Variables);
         var retrieval = saved?.HistorianRetrieval ?? MapRetrieval(report.Resolution);
 

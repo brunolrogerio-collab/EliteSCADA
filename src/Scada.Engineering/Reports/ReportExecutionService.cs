@@ -1,5 +1,7 @@
 using System.Globalization;
+using System.Text.Json.Serialization;
 using Scada.Core.HistoricalQueries;
+using Scada.Engineering.Contracts;
 
 namespace Scada.Engineering.Reports;
 
@@ -22,7 +24,8 @@ public sealed record ReportExecutionPolicy(
 public sealed record ReportExecutionRequest(
     ReportEngineeringDto Report,
     IReadOnlyDictionary<string, ReportParameterValue>? Parameters = null,
-    ReportRuntimeTimeRange? TimeRange = null);
+    ReportRuntimeTimeRange? TimeRange = null,
+    [property: JsonIgnore] IReadOnlyCollection<DataQueryEngineeringDto>? ResolvedDataQueries = null);
 
 public sealed record ReportQueryExecutionResult(
     string QueryKey,

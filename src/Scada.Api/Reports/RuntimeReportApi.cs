@@ -6,6 +6,7 @@ using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Core.HistoricalQueries;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.DataQueries;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.Reports;
@@ -133,6 +134,10 @@ public sealed class ReportGeneratedExecutionStore
     }
 }
 
+public sealed record AuthorizedRuntimeReport(
+    ReportEngineeringDto Report,
+    IReadOnlyCollection<DataQueryEngineeringDto> ResolvedDataQueries);
+
 public sealed class RuntimeReportCatalog(
     IEngineeringProjectPersistenceService persistence,
     IEngineeringExchangeService exchange,
@@ -144,38 +149,40 @@ public sealed class RuntimeReportCatalog(
     {
         var package = await ActivePackageAsync(cancellationToken);
         if (package is null) return Array.Empty<ReportEngineeringDto>();
+
         var reports = new List<ReportEngineeringDto>();
         foreach (var report in package.Reports ?? Array.Empty<ReportEngineeringDto>())
         {
-            var allowed = true;
-            foreach (var dataset in (report.Queries ?? Array.Empty<ReportQueryEngineeringDto>())
-                         .Select(q => q.Query.Dataset)
-                         .Distinct(StringComparer.Ordinal))
-            {
-                var decision = await historicalAuthorization.AuthorizeAsync(dataset, cancellationToken);
-                if (decision.Outcome != HistoricalAuthorizationOutcome.Allowed)
-                {
-                    allowed = false;
-                    break;
-                }
-            }
-            if (allowed) reports.Add(report);
+            var authority = await AuthorizeReportAsync(package, report, cancellationToken);
+            if (authority is not null) reports.Add(authority.Report);
         }
         return reports.OrderBy(x => x.Category).ThenBy(x => x.Name).ToArray();
+    }
+
+    public async Task<AuthorizedRuntimeReport?> FindAuthorityAsync(
+        string key,
+        CancellationToken cancellationToken)
+    {
+        var package = await ActivePackageAsync(cancellationToken);
+        if (package is null) return null;
+        var report = (package.Reports ?? Array.Empty<ReportEngineeringDto>())
+            .FirstOrDefault(candidate => candidate.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+        return report is null
+            ? null
+            : await AuthorizeReportAsync(package, report, cancellationToken);
     }
 
     public async Task<ReportEngineeringDto?> FindAuthorizedAsync(
         string key,
         CancellationToken cancellationToken) =>
-        (await ListAuthorizedAsync(cancellationToken))
-        .FirstOrDefault(report => report.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+        (await FindAuthorityAsync(key, cancellationToken))?.Report;
 
-    public async Task<HistoricalAuthorizationOutcome> AuthorizeSnapshotAsync(
-        ReportEngineeringDto report,
+    public async Task<HistoricalAuthorizationOutcome> AuthorizeResultAsync(
+        ReportExecutionResult result,
         CancellationToken cancellationToken)
     {
-        foreach (var dataset in (report.Queries ?? Array.Empty<ReportQueryEngineeringDto>())
-                     .Select(q => q.Query.Dataset)
+        foreach (var dataset in result.Queries
+                     .Select(query => query.Dataset)
                      .Distinct(StringComparer.Ordinal))
         {
             var decision = await historicalAuthorization.AuthorizeAsync(dataset, cancellationToken);
@@ -183,6 +190,68 @@ public sealed class RuntimeReportCatalog(
                 return decision.Outcome;
         }
         return HistoricalAuthorizationOutcome.Allowed;
+    }
+
+    private async Task<AuthorizedRuntimeReport?> AuthorizeReportAsync(
+        EngineeringPackage package,
+        ReportEngineeringDto report,
+        CancellationToken cancellationToken)
+    {
+        if (!TryResolveDataQueries(package, report, out var resolved, out var datasets))
+            return null;
+
+        foreach (var dataset in datasets)
+        {
+            var decision = await historicalAuthorization.AuthorizeAsync(dataset, cancellationToken);
+            if (decision.Outcome != HistoricalAuthorizationOutcome.Allowed)
+                return null;
+        }
+
+        return new AuthorizedRuntimeReport(report, resolved);
+    }
+
+    private static bool TryResolveDataQueries(
+        EngineeringPackage package,
+        ReportEngineeringDto report,
+        out IReadOnlyCollection<DataQueryEngineeringDto> resolved,
+        out IReadOnlyCollection<string> datasets)
+    {
+        var available = package.DataQueries ?? Array.Empty<DataQueryEngineeringDto>();
+        var definitions = new List<DataQueryEngineeringDto>();
+        var effectiveDatasets = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var reportQuery in report.Queries ?? Array.Empty<ReportQueryEngineeringDto>())
+        {
+            var hasSavedReference =
+                reportQuery.DataQueryId.HasValue ||
+                !string.IsNullOrWhiteSpace(reportQuery.DataQueryKey);
+            if (!hasSavedReference)
+            {
+                effectiveDatasets.Add(reportQuery.Query.Dataset);
+                continue;
+            }
+
+            DataQueryEngineeringDto? saved = null;
+            if (reportQuery.DataQueryId.HasValue)
+                saved = available.FirstOrDefault(definition => definition.Id == reportQuery.DataQueryId.Value);
+            if (saved is null && !string.IsNullOrWhiteSpace(reportQuery.DataQueryKey))
+                saved = available.FirstOrDefault(definition =>
+                    definition.Key.Equals(reportQuery.DataQueryKey, StringComparison.OrdinalIgnoreCase));
+            if (saved is null)
+            {
+                resolved = Array.Empty<DataQueryEngineeringDto>();
+                datasets = Array.Empty<string>();
+                return false;
+            }
+
+            if (!definitions.Any(definition => definition.Id == saved.Id))
+                definitions.Add(saved);
+            effectiveDatasets.Add(saved.Query.Dataset);
+        }
+
+        resolved = definitions;
+        datasets = effectiveDatasets;
+        return true;
     }
 
     private async Task<EngineeringPackage?> ActivePackageAsync(CancellationToken cancellationToken)
@@ -199,7 +268,6 @@ public sealed class RuntimeReportCatalog(
             : null;
     }
 }
-
 public static class RuntimeReportApi
 {
     public const string CatalogRoute = "/api/runtime/reports";
@@ -254,9 +322,10 @@ public static class RuntimeReportApi
         {
             var access = await RuntimeViewAsync(context, runtime, security, ct);
             if (access is not null) return access;
-            var report = await catalog.FindAuthorizedAsync(key, ct);
-            if (report is null)
+            var authority = await catalog.FindAuthorityAsync(key, ct);
+            if (authority is null)
                 return Results.NotFound(new ReportExecutionApiError("report_not_found", "Report was not found or is not authorized."));
+            var report = authority.Report;
 
             try
             {
@@ -264,7 +333,11 @@ public static class RuntimeReportApi
                 timeout.CancelAfter(TimeSpan.FromSeconds(30));
                 using var generationLease = await generationGate.EnterAsync(timeout.Token);
                 var result = await execution.ExecuteAsync(
-                    new ReportExecutionRequest(report, request.Parameters, request.TimeRange),
+                    new ReportExecutionRequest(
+                        report,
+                        request.Parameters,
+                        request.TimeRange,
+                        authority.ResolvedDataQueries),
                     timeout.Token);
                 var owner = security.AuthenticationEnabled ? security.GetPrincipal(context).SubjectId : null;
                 var snapshot = store.Add(owner, report, request.TimeRange, result);
@@ -318,7 +391,7 @@ public static class RuntimeReportApi
             var owner = security.AuthenticationEnabled ? security.GetPrincipal(context).SubjectId : null;
             if (!store.TryGet(executionId, owner, out var snapshot) || snapshot is null)
                 return Results.NotFound(new ReportExecutionApiError("execution_not_found", "Generated report snapshot was not found or expired."));
-            var dataAccess = await catalog.AuthorizeSnapshotAsync(snapshot.Report, ct);
+            var dataAccess = await catalog.AuthorizeResultAsync(snapshot.Result, ct);
             if (dataAccess == HistoricalAuthorizationOutcome.Unauthenticated) return Results.Unauthorized();
             if (dataAccess != HistoricalAuthorizationOutcome.Allowed)
                 return Results.Json(new ReportExecutionApiError("forbidden", "Forbidden."), statusCode: StatusCodes.Status403Forbidden);
@@ -341,7 +414,7 @@ public static class RuntimeReportApi
             var owner = security.AuthenticationEnabled ? security.GetPrincipal(context).SubjectId : null;
             if (!store.TryGet(executionId, owner, out var snapshot) || snapshot is null)
                 return Results.NotFound(new ReportExecutionApiError("execution_not_found", "Generated report snapshot was not found or expired."));
-            var dataAccess = await catalog.AuthorizeSnapshotAsync(snapshot.Report, ct);
+            var dataAccess = await catalog.AuthorizeResultAsync(snapshot.Result, ct);
             if (dataAccess == HistoricalAuthorizationOutcome.Unauthenticated) return Results.Unauthorized();
             if (dataAccess != HistoricalAuthorizationOutcome.Allowed)
                 return Results.Json(new ReportExecutionApiError("forbidden", "Forbidden."), statusCode: StatusCodes.Status403Forbidden);
@@ -375,7 +448,7 @@ public static class RuntimeReportApi
             var owner = security.AuthenticationEnabled ? security.GetPrincipal(context).SubjectId : null;
             if (!store.TryGet(executionId, owner, out var snapshot) || snapshot is null)
                 return Results.NotFound(new ReportExecutionApiError("execution_not_found", "Generated report snapshot was not found or expired."));
-            var dataAccess = await catalog.AuthorizeSnapshotAsync(snapshot.Report, ct);
+            var dataAccess = await catalog.AuthorizeResultAsync(snapshot.Result, ct);
             if (dataAccess == HistoricalAuthorizationOutcome.Unauthenticated) return Results.Unauthorized();
             if (dataAccess != HistoricalAuthorizationOutcome.Allowed)
                 return Results.Json(new ReportExecutionApiError("forbidden", "Forbidden."), statusCode: StatusCodes.Status403Forbidden);

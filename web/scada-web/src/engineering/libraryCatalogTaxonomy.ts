@@ -1,4 +1,4 @@
-import taxonomyDocument from '../../../../assets/catalog/taxonomy.v1.json';
+import taxonomyDocument from '../../../../assets/catalog/taxonomy.v1.json' with { type: 'json' };
 
 export type LibraryCatalogLocale = 'pt-BR' | 'en' | 'es';
 

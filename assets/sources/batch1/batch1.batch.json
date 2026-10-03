@@ -2276,7 +2276,21 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "terminal",
+          "kind": "stroke"
+        },
+        {
+          "id": "contact",
+          "kind": "fill"
+        },
+        {
+          "id": "coil",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.electrical.battery.basic",
@@ -2301,7 +2315,13 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "terminal",
+          "kind": "stroke"
+        }
+      ]
     },
     {
       "id": "builtin.asset.building.hvac.chiller",
@@ -2324,7 +2344,21 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "fan",
+          "kind": "fill"
+        },
+        {
+          "id": "blade",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.building.hvac.damper",
@@ -2348,7 +2382,21 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "actuator",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.building.fire.smoke-detector",
@@ -2373,7 +2421,13 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "outline",
+          "kind": "stroke"
+        }
+      ]
     },
     {
       "id": "builtin.asset.residential.lighting.switch",
@@ -2397,7 +2451,21 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.residential.security.lock",
@@ -2423,7 +2491,21 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "outline",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.residential.climate.thermostat",
@@ -2447,7 +2529,21 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "tick",
+          "kind": "stroke"
+        }
+      ]
     }
   ]
 }

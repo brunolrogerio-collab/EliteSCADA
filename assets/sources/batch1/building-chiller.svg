@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <rect x="22" y="28" width="84" height="72" rx="4" fill="#E5E7EB" stroke="#374151" stroke-width="5" />
-  <circle cx="48" cy="64" r="18" fill="none" stroke="#374151" stroke-width="4" />
-  <circle cx="80" cy="64" r="18" fill="none" stroke="#374151" stroke-width="4" />
-  <line x1="48" y1="46" x2="48" y2="82" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" />
-  <line x1="30" y1="64" x2="66" y2="64" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" />
-  <line x1="80" y1="46" x2="80" y2="82" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" />
-  <line x1="62" y1="64" x2="98" y2="64" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" />
+  <rect x="22" y="28" width="84" height="72" rx="4" fill="#E5E7EB" stroke="#374151" stroke-width="5"  data-elitescada-slot="body" />
+  <circle cx="48" cy="64" r="18" fill="none" stroke="#374151" stroke-width="4"  data-elitescada-slot="fan" />
+  <circle cx="80" cy="64" r="18" fill="none" stroke="#374151" stroke-width="4"  data-elitescada-slot="fan" />
+  <line x1="48" y1="46" x2="48" y2="82" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round"  data-elitescada-slot="blade" />
+  <line x1="30" y1="64" x2="66" y2="64" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round"  data-elitescada-slot="blade" />
+  <line x1="80" y1="46" x2="80" y2="82" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round"  data-elitescada-slot="blade" />
+  <line x1="62" y1="64" x2="98" y2="64" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round"  data-elitescada-slot="blade" />
 </svg>

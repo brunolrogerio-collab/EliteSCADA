@@ -106,7 +106,7 @@ async function historical(route:Route){
 test('Playback hidden when project setting is disabled',async({page})=>{
  await installShell(page,false); await page.goto('/');
  await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
- await expect(page.getByRole('button',{name:'Playback histórico'})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:/Playback histórico|Historical Playback/i})).toHaveCount(0);
 });
 
 test('compact Playback overlay stays Live until explicit entry and preserves instant across visual navigation',async({page})=>{
@@ -118,9 +118,9 @@ test('compact Playback overlay stays Live until explicit entry and preserves ins
  await page.goto('/');
  const runtime=page.getByTestId('runtime-engineering-application');
  await expect(runtime).toHaveAttribute('data-runtime-temporal-mode','live');
- await runtime.getByRole('button',{name:'Tela cheia'}).click();
+ await runtime.getByRole('button',{name:/Tela cheia|Fullscreen|Pantalla completa/i}).click();
  await expect(runtime).toHaveAttribute('data-runtime-fullscreen','true');
- const playbackTool=page.getByRole('button',{name:'Playback histórico'});
+ const playbackTool=page.getByRole('button',{name:/Playback histórico|Historical Playback/i});
  await expect(playbackTool).toBeVisible();
  await playbackTool.click();
  const panel=page.getByTestId('runtime-playback-overlay');
@@ -129,7 +129,7 @@ test('compact Playback overlay stays Live until explicit entry and preserves ins
  await expect(runtime).toHaveAttribute('data-runtime-temporal-mode','live');
  await expect(panel.locator('.runtime-playback-overlay-content')).toHaveAttribute('data-playback-position','1');
 
- await panel.getByRole('button',{name:'Entrar no Playback'}).click();
+ await panel.getByRole('button',{name:/Entrar no Playback|Enter Playback|Entrar en Playback/i}).click();
  await expect(runtime).toHaveAttribute('data-runtime-temporal-mode','historical-playback');
  await expect(panel.locator('.runtime-playback-overlay-content')).toHaveAttribute('data-playback-load-state','ready');
  const firstAt=await runtime.getAttribute('data-runtime-historical-at'); expect(firstAt).toBeTruthy();
@@ -138,12 +138,12 @@ test('compact Playback overlay stays Live until explicit entry and preserves ins
  await expect(page.locator('[data-object-id="10000000-0000-4000-8000-000000000006"]')).toContainText('—');
  await expect(panel.locator('.runtime-playback-overlay-content')).toHaveAttribute('data-playback-gap-count',/[1-9]\d*/);
 
- const instant=panel.getByRole('slider',{name:'Instante'});
+ const instant=panel.getByRole('slider',{name:/Instante|Instant/i});
  await instant.fill('750');
  await expect.poll(async()=>runtime.getAttribute('data-runtime-historical-at')).not.toBe(firstAt);
  const changedAt=await runtime.getAttribute('data-runtime-historical-at'); expect(changedAt).toBeTruthy();
 
- await panel.getByRole('button',{name:'Fechar'}).click();
+ await panel.getByRole('button',{name:/Fechar|Close|Cerrar/i}).click();
  await expect(panel).toHaveCount(0);
  await expect(runtime).toHaveAttribute('data-runtime-temporal-mode','historical-playback');
  await playbackTool.click();
@@ -162,7 +162,7 @@ test('compact Playback overlay stays Live until explicit entry and preserves ins
  await page.getByRole('button',{name:'Ir secundária'}).click();
  await expect(page.getByTestId('runtime-visual-navigator')).toHaveAttribute('data-active-screen-key','secondary');
  await expect(runtime).toHaveAttribute('data-runtime-historical-at',changedAt!);
- await page.getByRole('button',{name:'Voltar ao Live'}).first().click();
+ await page.getByRole('button',{name:/Voltar ao Live|Return to Live|Volver a Live/i}).first().click();
  await expect(runtime).toHaveAttribute('data-runtime-temporal-mode','live');
 });
 

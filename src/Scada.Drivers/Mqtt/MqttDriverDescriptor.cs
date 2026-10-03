@@ -55,5 +55,8 @@ public sealed class MqttDriverDescriptorProvider : ICommunicationDriverDescripto
                 new("mqtt.publishQos", DriverConfigurationValueKind.Enum, DefaultValue: "1", AllowedValues: ["0", "1", "2"]),
                 new("mqtt.publishRetain", DriverConfigurationValueKind.Boolean, DefaultValue: "false")
             ]),
-        Description: "Event-driven raw MQTT 5.0/3.1.1 industrial data source with exact Topic-to-TAG mappings.");
+        Description: "Event-driven raw MQTT 5.0/3.1.1 industrial data source with exact Topic-to-TAG mappings.",
+        IntegrationDomains: new[] { IntegrationDomain.Industrial, IntegrationDomain.IoT },
+        ConnectionModel: DriverConnectionModel.DirectNetwork,
+        ExternalDependencies: new[] { new DriverExternalDependencyDescriptor(DriverExternalDependencyKind.BuiltIn) });
 }

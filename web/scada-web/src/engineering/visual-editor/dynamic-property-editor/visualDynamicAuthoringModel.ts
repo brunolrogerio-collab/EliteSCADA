@@ -8,6 +8,7 @@ import type {
   TagValueReferenceEngineering,
   VisualAnalogFillDirectionEngineering,
   VisualAnalogFillEngineering,
+  VisualAssetEngineering,
   VisualBooleanConditionEngineering,
   VisualElementEngineering,
   VisualExpressionDependencyEngineering,
@@ -19,6 +20,10 @@ import type {
   VisualValueSourceEngineering
 } from '../../types';
 import type { VisualEditorBindingSourceCatalogItem } from '../visualEditorContracts';
+import {
+  listSvgSemanticDynamicDestinations,
+  parseSvgSemanticDynamicPropertyKey
+} from '../svgSymbolModel';
 import {
   createTagBitBindingSource,
   normalizeBindingSourceCatalog,
@@ -40,10 +45,11 @@ export type DynamicAuthoringValidation = Readonly<{
 }>;
 
 export function listDynamicPropertyDestinations(
-  element: Pick<VisualElementEngineering, 'type'>
+  element: Pick<VisualElementEngineering, 'type'>,
+  visualAsset?: VisualAssetEngineering | null
 ): readonly DynamicPropertyDestination[] {
   const schema = getVisualSchemaForEngineering(element.type);
-  return Object.freeze(schema.definitions()
+  const standard = schema.definitions()
     .filter(definition => definition.supportsBinding &&
       (definition.type === 'boolean' || definition.type === 'number' || definition.animatable))
     .map(definition => {
@@ -57,7 +63,22 @@ export function listDynamicPropertyDestinations(
         propertyType: definition.type,
         sourceModes: Object.freeze(modes)
       });
-    }));
+    });
+
+  const semantic = element.type === 'core.svgSymbol'
+    ? listSvgSemanticDynamicDestinations(visualAsset).map(destination => Object.freeze({
+        propertyKey: destination.key,
+        propertyType: destination.type,
+        sourceModes: Object.freeze([
+          'Constant',
+          'DirectBinding',
+          ...(destination.type === 'number' ? ['Expression'] as const : []),
+          'RangeMap'
+        ] as DynamicPropertySourceMode[])
+      }))
+    : [];
+
+  return Object.freeze([...standard, ...semantic]);
 }
 
 export function resolveDynamicAuthoringSource(
@@ -261,8 +282,11 @@ export function createPropertyMapEngineering(
 ): VisualPropertyMapEngineering {
   if (source.valueType !== 'Number') throw new Error('Visual property maps require a Number source.');
   const schema = getVisualSchemaForEngineering(element.type);
-  const definition = schema.getRequired(propertyKey);
-  if (!definition.animatable) throw new Error(`Visual property '${propertyKey}' is not animatable.`);
+  const semantic = element.type === 'core.svgSymbol'
+    ? parseSvgSemanticDynamicPropertyKey(propertyKey)
+    : null;
+  const definition = semantic ? null : schema.getRequired(propertyKey);
+  if (!semantic && !definition!.animatable) throw new Error(`Visual property '${propertyKey}' is not animatable.`);
   if (!rules.length) throw new Error('Visual property map requires at least one ordered rule.');
 
   const normalizedRules = rules.map(rule => {
@@ -272,9 +296,11 @@ export function createPropertyMapEngineering(
     if (minimum !== null && !Number.isFinite(minimum)) throw new Error('Range-map minimum must be finite.');
     if (maximum !== null && !Number.isFinite(maximum)) throw new Error('Range-map maximum must be finite.');
     if (minimum !== null && maximum !== null && minimum > maximum) throw new Error('Range-map minimum cannot exceed maximum.');
-    const validation = schema.validate(propertyKey, rule.value);
+    const validation = semantic
+      ? validateSemanticMappedValue(semantic.type, rule.value)
+      : schema.validate(propertyKey, rule.value);
     if (!validation.ok) throw new Error(`Mapped value for '${propertyKey}' is invalid (${validation.code}).`);
-    const mappedValue = definition.type === 'color' && typeof validation.value === 'string'
+    const mappedValue = (semantic?.type === 'color' || definition?.type === 'color') && typeof validation.value === 'string'
       ? validation.value.toUpperCase()
       : validation.value;
     return Object.freeze({
@@ -288,9 +314,11 @@ export function createPropertyMapEngineering(
 
   let normalizedFallback: VisualPropertyMapEngineering['fallback'];
   if (fallback !== undefined && fallback !== null && fallback !== '') {
-    const validation = schema.validate(propertyKey, fallback);
+    const validation = semantic
+      ? validateSemanticMappedValue(semantic.type, fallback)
+      : schema.validate(propertyKey, fallback);
     if (!validation.ok) throw new Error(`Fallback value for '${propertyKey}' is invalid (${validation.code}).`);
-    normalizedFallback = definition.type === 'color' && typeof validation.value === 'string'
+    normalizedFallback = (semantic?.type === 'color' || definition?.type === 'color') && typeof validation.value === 'string'
       ? validation.value.toUpperCase()
       : validation.value;
   }
@@ -334,6 +362,20 @@ export function createAnalogFillEngineering(
     direction: options.direction ?? 'BottomToTop',
     version: 1
   });
+}
+
+function validateSemanticMappedValue(
+  type: 'color' | 'number',
+  value: unknown
+): Readonly<{ ok: true; value: string | number }> | Readonly<{ ok: false; code: string }> {
+  if (type === 'number') {
+    return typeof value === 'number' && Number.isFinite(value) && value >= 0
+      ? Object.freeze({ ok: true as const, value })
+      : Object.freeze({ ok: false as const, code: 'svg.slot.strokeWidth.invalid' });
+  }
+  return typeof value === 'string' && /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(value)
+    ? Object.freeze({ ok: true as const, value })
+    : Object.freeze({ ok: false as const, code: 'svg.slot.color.invalid' });
 }
 
 function normalizeDynamicValueSource(source: VisualEditorBindingSourceCatalogItem): Readonly<{

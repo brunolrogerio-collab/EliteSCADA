@@ -105,7 +105,7 @@ internal static class VisualAssetReferenceEngineeringValidation
         ICollection<ImportIssue> issues)
     {
         if (element.Properties is null ||
-            !element.Properties.TryGetValue(BuiltinVisualEngineeringValidation.SvgPaintOverridesProperty, out var overrides) ||
+            !element.Properties.TryGetValue(BuiltinVisualObjectSchemas.SvgPaintOverridesProperty, out var overrides) ||
             overrides.ValueKind != JsonValueKind.Object ||
             !overrides.TryGetProperty("slots", out var slots) ||
             slots.ValueKind != JsonValueKind.Object)

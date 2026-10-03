@@ -1,3 +1,58 @@
+# FINAL REVALIDATION CORRECTION — 2026-10-03 — ACTIVE BRANCHES MOVED DURING HANDOFF
+
+> This correction supersedes the active-lane status inside the 2026-10-03 rotation text below.
+> GitHub live remains the only authority.
+
+Current integration after the first documentation-only handoff merge:
+`e606d3f5dd50617fb5948372f909a5553dd97c36`
+
+Important: the active implementation/content branches were released from:
+`aca641501302edb04f32b83b04adf0726d7e8a96`
+
+The seven commits by which they are now behind current integration are coordination/documentation-only. Do NOT require a rebase merely to consume those handoff docs.
+
+Final outgoing revalidation:
+
+## #482 Visual Library Catalog
+- branch: `work/w15-visual-library-catalog`
+- relative to release base `aca64150...`: `ahead 0 / behind 0`
+- relative to current integration `e606d3f5...`: `ahead 0 / behind 7`
+- no implementation commit
+- no PR
+
+## #483 HOME/BUILDING H0
+The branch moved while the handoff was being written.
+
+- branch: `work/w15-home-building-h0`
+- exact HEAD: `9b2cea1293e8bdd0ab250a28446bd53cee8d8697`
+- exact tree: `8fbd95cfeed9e95ca296957e1d5855d2eab78eb8`
+- commit: `fix(w15-h0): make tag datasource identity canonical`
+- changed path in that commit: `web/scada-web/src/engineering/types.ts`
+- relative to release base `aca64150...`: `ahead 1 / behind 0`
+- relative to current integration `e606d3f5...`: `ahead 1 / behind 7`
+- no PR
+- no formal DEV handoff comment yet
+
+Therefore #483 is ACTIVE/WIP. Do not treat the one published commit as an H0 handoff or as Main-accepted.
+
+## #484 Asset Curation Batch 1
+- branch: `content/w15-builtin-asset-curation-b1`
+- exact HEAD: `055deb4df30eaf3e8af4d33fdc8739cf3d1b9df4`
+- exact tree: `bca34cc2ea3b12124db703244ed715ebced9e0f9`
+- commit: `content(assets): add Wave 15 Batch 1 SVG curation`
+- relative to release base `aca64150...`: `ahead 1 / behind 0`
+- relative to current integration `e606d3f5...`: `ahead 1 / behind 7`
+- 88 changed files
+- current batch manifest contains 86 draft assets
+- no PR
+- no formal DEV handoff yet
+
+#482/#483/#484 remain the complete active batch.
+CODEX remains PARKED.
+Protocol fan-out remains BLOCKED.
+
+---
+
 # Wave 15 Main Coordinator Handoff — 2026-10-03 — NEXT BATCH ACTIVE
 
 > GitHub live is the sole authority. Revalidate every exact SHA/branch/PR/CI state before acting.

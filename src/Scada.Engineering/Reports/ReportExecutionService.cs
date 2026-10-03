@@ -21,7 +21,8 @@ public sealed record ReportExecutionPolicy(
 
 public sealed record ReportExecutionRequest(
     ReportEngineeringDto Report,
-    IReadOnlyDictionary<string, ReportParameterValue>? Parameters = null);
+    IReadOnlyDictionary<string, ReportParameterValue>? Parameters = null,
+    ReportRuntimeTimeRange? TimeRange = null);
 
 public sealed record ReportQueryExecutionResult(
     string QueryKey,
@@ -29,13 +30,16 @@ public sealed record ReportQueryExecutionResult(
     IReadOnlyList<HistoricalColumn> Columns,
     IReadOnlyList<HistoricalQueryRow> Rows,
     DateTimeOffset FromUtc,
-    DateTimeOffset ToUtc);
+    DateTimeOffset ToUtc,
+    string RetrievalMode = "raw",
+    IReadOnlyList<Scada.Engineering.DataQueries.DataQueryExecutionProvenance?>? Provenance = null);
 
 public sealed record ReportExecutionResult(
     Guid? ReportId,
     string ReportKey,
     IReadOnlyDictionary<string, ReportParameterValue> Parameters,
-    IReadOnlyList<ReportQueryExecutionResult> Queries);
+    IReadOnlyList<ReportQueryExecutionResult> Queries,
+    DateTimeOffset? GeneratedAtUtc = null);
 
 public sealed class ReportExecutionValidationException : InvalidOperationException
 {

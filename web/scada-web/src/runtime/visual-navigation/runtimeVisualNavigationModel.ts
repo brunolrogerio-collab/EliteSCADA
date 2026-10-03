@@ -37,6 +37,7 @@ export type VisualNavigationActionKindEngineering =
   | 'NavigateScreen'
   | 'OpenPopup'
   | 'ClosePopup'
+  | 'ExecuteCommand'
   | 'SetTagValue'
   | 'ToggleTagBoolean';
 
@@ -46,6 +47,7 @@ export type VisualNavigationActionEngineering = Readonly<{
   targetKey?: string | null;
   parameters?: Readonly<Record<string, unknown>> | null;
   version?: number;
+  commandId?: string | null;
 }>;
 
 export type CanonicalVisualElementEngineering = VisualElementEngineering & Readonly<{

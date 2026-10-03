@@ -236,7 +236,9 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
 
     if (definitionKind !== 'dynamo') return Object.freeze(projectSources);
 
-    const parameterSources = dynamoParameters.map(parameter => Object.freeze({
+    const parameterSources = dynamoParameters
+      .filter(parameter => parameter.kind !== 'Command')
+      .map(parameter => Object.freeze({
       kind: parameter.kind === 'TagReference' ? 'Tag' as const : 'Property' as const,
       target: `{dynamoParameter:${parameter.key}}`,
       label: `Dynamo · ${parameter.key}`,
@@ -643,6 +645,7 @@ function parameterDataType(kind: DynamoParameterKindEngineering): string | null 
     case 'String': return 'String';
     case 'EquipmentPath': return 'String';
     case 'TagReference': return null;
+    case 'Command': return null;
   }
 }
 

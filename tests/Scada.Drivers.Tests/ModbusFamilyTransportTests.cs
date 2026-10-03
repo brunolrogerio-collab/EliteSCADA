@@ -65,7 +65,9 @@ public sealed class ModbusFamilyTransportTests
             return ModbusRtuCrc.Frame(request[0], new byte[] { (byte)(function | 0x80), 0x02 });
         };
         var protocol = await Assert.ThrowsAsync<ModbusProtocolException>(async () =>
-            await transport.ReadRegistersAsync(1, ModbusDataArea.HoldingRegister, 0, 1));
+        {
+            await transport.ReadRegistersAsync(1, ModbusDataArea.HoldingRegister, 0, 1);
+        });
         Assert.Equal((byte)0x02, protocol.ExceptionCode);
 
         connection.Responder = request =>
@@ -75,11 +77,15 @@ public sealed class ModbusFamilyTransportTests
             return response;
         };
         await Assert.ThrowsAsync<ModbusRtuCrcException>(async () =>
-            await transport.ReadRegistersAsync(1, ModbusDataArea.HoldingRegister, 0, 1));
+        {
+            await transport.ReadRegistersAsync(1, ModbusDataArea.HoldingRegister, 0, 1);
+        });
 
         connection.Responder = _ => null;
         await Assert.ThrowsAsync<TimeoutException>(async () =>
-            await transport.ReadRegistersAsync(1, ModbusDataArea.HoldingRegister, 0, 1));
+        {
+            await transport.ReadRegistersAsync(1, ModbusDataArea.HoldingRegister, 0, 1);
+        });
 
         connection.Responder = NormalMasterResponse;
         var recovered = await transport.ReadRegistersAsync(1, ModbusDataArea.HoldingRegister, 0, 1);

@@ -241,7 +241,8 @@ function LibraryCatalogInspection({
 
   const associatedVisual = entry.origin === 'associated' && isCanonicalVisualKind(entry.kind);
   const previewMatches = associatedVisual
-    && associatedPreview?.library.libraryId === entry.library?.libraryId
+    && associatedPreview !== null
+    && associatedPreview.library.libraryId === entry.library?.libraryId
     && associatedPreview.resource.resourceId === entry.resourceId;
   const directAssociatedAsset = entry.origin === 'associated'
     && entry.kind === 'visual-asset'

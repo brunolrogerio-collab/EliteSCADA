@@ -25,7 +25,7 @@ const svgElement: VisualElementEngineering = {
   },
   bindings: [
     {
-      key: 'fill',
+      key: 'fillColor',
       kind: 'Property',
       target: '{dynamoParameter:runningColor}',
       metadata: { dynamoParameter: 'runningColor' }
@@ -37,7 +37,7 @@ const svgElement: VisualElementEngineering = {
       metadata: { dynamoParameter: 'lineWidth' }
     },
     {
-      key: 'stroke',
+      key: 'strokeColor',
       kind: 'Tag',
       target: '{dynamoParameter:strokeTag}',
       metadata: { dynamoParameter: 'strokeTag' }
@@ -61,12 +61,12 @@ test('SVG-backed Dynamo runtime projects scalar public parameters without a para
   const symbol = projected[0]!;
 
   expect(symbol.type).toBe('core.svgSymbol');
-  expect(symbol.properties?.fill).toBe('#00AA00');
+  expect(symbol.properties?.fillColor).toBe('#00AA00');
   expect(symbol.properties?.strokeWidth).toBe(4);
   expect(symbol.properties?.assetRef).toEqual(svgElement.properties?.assetRef);
   expect(symbol.bindings).toHaveLength(1);
   expect(symbol.bindings?.[0]).toMatchObject({
-    key: 'stroke',
+    key: 'strokeColor',
     kind: 'Tag',
     tagReference: { tagId: '73000000-0000-0000-0000-000000000001' }
   });
@@ -76,8 +76,8 @@ test('SVG scalar paint properties are offered through the canonical dynamic-prop
   const destinations = listDynamicPropertyDestinations(svgElement);
   const byKey = new Map(destinations.map(destination => [destination.propertyKey, destination]));
 
-  expect(byKey.get('fill')?.sourceModes).toContain('DirectBinding');
-  expect(byKey.get('stroke')?.sourceModes).toContain('DirectBinding');
+  expect(byKey.get('fillColor')?.sourceModes).toContain('DirectBinding');
+  expect(byKey.get('strokeColor')?.sourceModes).toContain('DirectBinding');
   expect(byKey.get('strokeWidth')?.sourceModes).toContain('DirectBinding');
   expect(byKey.get('opacity')?.sourceModes).toContain('DirectBinding');
   expect(byKey.get('assetRef')).toBeUndefined();
@@ -121,6 +121,10 @@ test('Dynamo authoring stays on canonical editor and renderer surfaces', async (
     new URL('../src/engineering/visual-editor/VisualEditorAuthoringSidebar.tsx', import.meta.url),
     'utf8'
   );
+  const dynamoPalette = await fs.readFile(
+    new URL('../src/engineering/visual-editor/DynamoLibraryPalette.tsx', import.meta.url),
+    'utf8'
+  );
   const renderer = await fs.readFile(
     new URL('../src/engineering/visual-editor/CanonicalVisualRenderer.tsx', import.meta.url),
     'utf8'
@@ -128,7 +132,8 @@ test('Dynamo authoring stays on canonical editor and renderer surfaces', async (
 
   expect(workspace).toContain('<DynamoDefinitionParametersEditor');
   expect(workspace).toContain('dynamoParameterKey: parameter.key');
-  expect(sidebar).toContain("kind: 'dynamo.add'");
+  expect(sidebar).toContain('<DynamoLibraryPalette');
+  expect(dynamoPalette).toContain("kind: 'dynamo.add'");
   expect(renderer).toContain('<SvgSymbolVisualElement');
   expect(workspace).not.toContain('DynamoSvgRenderer');
 });

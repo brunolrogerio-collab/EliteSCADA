@@ -179,6 +179,7 @@ test.describe('backend-driven Data Source form logic', () => {
 
 test('normal Data Source flow has no hardcoded driver catalog and uses Preview/Apply CAS', async () => {
   const editor = await readFile(new URL('../src/engineering/DataSourceCatalogEditor.tsx', import.meta.url), 'utf8');
+  const logic = await readFile(new URL('../src/engineering/DataSourceCatalogEditor.logic.ts', import.meta.url), 'utf8');
   const structured = await readFile(new URL('../src/engineering/StructuredEditors.tsx', import.meta.url), 'utf8');
   const dataSourceSection = structured.slice(
     structured.indexOf('export function DataSourceEditor'),

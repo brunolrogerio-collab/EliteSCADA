@@ -495,61 +495,334 @@ public sealed class ReportArtifactRenderer
 
     private static ReportArtifact Pdf(ReportGeneratedSnapshot snapshot)
     {
-        const int rowsPerPage = 42;
-        var lines = new List<string>
-        {
-            snapshot.Report.Name,
-            $"Generated At: {snapshot.GeneratedAtUtc:O}"
-        };
-        foreach (var query in snapshot.Result.Queries)
-        {
-            lines.Add($"{query.QueryKey} | {query.FromUtc:O} - {query.ToUtc:O} | {query.RetrievalMode}");
-            var fields = query.Columns.Take(8).Select(c => c.Field).ToArray();
-            lines.Add(string.Join(" | ", fields));
-            foreach (var row in query.Rows)
-                lines.Add(string.Join(" | ", fields.Select(f => Truncate(row.Cells.TryGetValue(f, out var v) ? v.Value : null, 18))));
-        }
-        var pages = Math.Max(1, (int)Math.Ceiling(lines.Count / (double)rowsPerPage));
-        if (pages > MaximumPdfPages)
+        var page = PdfPageGeometry(snapshot.Report.Page);
+        var pages = BuildPdfPages(snapshot, page);
+        if (pages.Count > MaximumPdfPages)
             throw new ReportExecutionLimitException($"PDF export exceeds the maximum page count ({MaximumPdfPages}).");
 
-        var bytes = SimplePdf(lines, rowsPerPage, snapshot.Report.Page?.Orientation == ReportPageOrientation.Landscape);
+        var bytes = SimplePdf(pages, page.WidthPoints, page.HeightPoints);
         return new ReportArtifact(bytes, "application/pdf", SafeName(snapshot.Report.Name) + ".pdf");
     }
 
-    private static byte[] SimplePdf(IReadOnlyList<string> lines, int rowsPerPage, bool landscape)
+    private sealed record PdfPageSpec(IReadOnlyList<string> Commands);
+    private sealed record PdfGeometry(double WidthPoints, double HeightPoints, double ContentLeftPoints, double ContentTopPoints, double ContentWidthPoints, double ContentHeightPoints);
+
+    private static PdfGeometry PdfPageGeometry(ReportPageEngineeringDto? page)
     {
-        var width = landscape ? 842 : 595;
-        var height = landscape ? 595 : 842;
+        var key = (page?.PaperSizeKey ?? "A4").Trim().ToUpperInvariant();
+        var portraitMillimeters = key switch
+        {
+            "A3" => (Width: 297d, Height: 420d),
+            "LETTER" => (Width: 215.9d, Height: 279.4d),
+            _ => (Width: 210d, Height: 297d)
+        };
+        var size = page?.Orientation == ReportPageOrientation.Landscape
+            ? (Width: portraitMillimeters.Height, Height: portraitMillimeters.Width)
+            : portraitMillimeters;
+        var left = Mm(page?.MarginLeftMillimeters ?? 10);
+        var right = Mm(page?.MarginRightMillimeters ?? 10);
+        var top = Mm(page?.MarginTopMillimeters ?? 10);
+        var bottom = Mm(page?.MarginBottomMillimeters ?? 10);
+        return new PdfGeometry(
+            Mm(size.Width),
+            Mm(size.Height),
+            left,
+            top,
+            Math.Max(Mm(20), Mm(size.Width) - left - right),
+            Math.Max(Mm(20), Mm(size.Height) - top - bottom));
+    }
+
+    private static IReadOnlyList<PdfPageSpec> BuildPdfPages(ReportGeneratedSnapshot snapshot, PdfGeometry page)
+    {
+        var report = snapshot.Report;
+        var sections = report.Sections ?? Array.Empty<ReportSectionEngineeringDto>();
+        var reportHeader = sections.Where(section => section.Kind == ReportSectionKind.ReportHeader).ToArray();
+        var pageHeader = sections.Where(section => section.Kind == ReportSectionKind.PageHeader).ToArray();
+        var details = sections.Where(section => section.Kind == ReportSectionKind.Detail).ToArray();
+        var pageFooter = sections.Where(section => section.Kind == ReportSectionKind.PageFooter).ToArray();
+        var reportFooter = sections.Where(section => section.Kind == ReportSectionKind.ReportFooter).ToArray();
+        var groupHeaders = sections.Where(section => section.Kind == ReportSectionKind.GroupHeader).ToArray();
+        var groupFooters = sections.Where(section => section.Kind == ReportSectionKind.GroupFooter).ToArray();
+
+        if (details.Length == 0)
+            return [BuildFallbackPdfPage(snapshot, page)];
+
+        var primary = snapshot.Result.Queries.FirstOrDefault();
+        var rows = primary?.Rows ?? Array.Empty<HistoricalQueryRow>();
+        var detailHeight = Math.Max(Mm(1), details.Sum(section => Mm(section.HeightMillimeters)));
+        var fixedHeight = pageHeader.Sum(section => Mm(section.HeightMillimeters)) +
+                          pageFooter.Sum(section => Mm(section.HeightMillimeters));
+        var firstExtra = reportHeader.Sum(section => Mm(section.HeightMillimeters));
+        var lastExtra = reportFooter.Sum(section => Mm(section.HeightMillimeters));
+        var rowsPerPage = Math.Max(1, (int)Math.Floor((page.ContentHeightPoints - fixedHeight - Math.Max(firstExtra, lastExtra)) / detailHeight));
+        var totalPages = Math.Max(1, (int)Math.Ceiling(rows.Count / (double)rowsPerPage));
+        var output = new List<PdfPageSpec>(totalPages);
+
+        for (var pageIndex = 0; pageIndex < totalPages; pageIndex++)
+        {
+            var commands = new List<string>();
+            var y = page.ContentTopPoints;
+            if (pageIndex == 0)
+                foreach (var section in reportHeader)
+                    y = RenderPdfSection(commands, snapshot, section, null, page, y);
+
+            foreach (var section in pageHeader)
+                y = RenderPdfSection(commands, snapshot, section, null, page, y);
+
+            var pageRows = rows.Skip(pageIndex * rowsPerPage).Take(rowsPerPage).ToArray();
+            HistoricalQueryRow? previous = pageIndex == 0 || pageIndex * rowsPerPage == 0 ? null : rows[pageIndex * rowsPerPage - 1];
+
+            foreach (var row in pageRows)
+            {
+                foreach (var group in report.Groups ?? Array.Empty<ReportGroupEngineeringDto>())
+                {
+                    var currentValue = PdfCell(row, group.Field);
+                    var previousValue = previous is null ? null : PdfCell(previous, group.Field);
+                    if (previous is null || !string.Equals(currentValue, previousValue, StringComparison.Ordinal))
+                    {
+                        foreach (var section in groupHeaders.Where(section => string.Equals(section.GroupKey, group.Key, StringComparison.OrdinalIgnoreCase)))
+                            y = RenderPdfSection(commands, snapshot, section, row, page, y);
+                    }
+                }
+
+                foreach (var section in details)
+                    y = RenderPdfSection(commands, snapshot, section, row, page, y);
+
+                previous = row;
+            }
+
+            if (pageRows.Length > 0)
+            {
+                var last = pageRows[^1];
+                foreach (var group in report.Groups ?? Array.Empty<ReportGroupEngineeringDto>())
+                {
+                    var globalIndex = pageIndex * rowsPerPage + pageRows.Length;
+                    var next = globalIndex < rows.Count ? rows[globalIndex] : null;
+                    if (next is null || !string.Equals(PdfCell(last, group.Field), PdfCell(next, group.Field), StringComparison.Ordinal))
+                    {
+                        foreach (var section in groupFooters.Where(section => string.Equals(section.GroupKey, group.Key, StringComparison.OrdinalIgnoreCase)))
+                            y = RenderPdfSection(commands, snapshot, section, last, page, y);
+                    }
+                }
+            }
+
+            foreach (var section in pageFooter)
+                RenderPdfSection(commands, snapshot, section, null, page, page.ContentTopPoints + page.ContentHeightPoints - pageFooter.Sum(item => Mm(item.HeightMillimeters)));
+
+            if (pageIndex == totalPages - 1)
+            {
+                var footerY = page.ContentTopPoints + page.ContentHeightPoints - pageFooter.Sum(item => Mm(item.HeightMillimeters)) - reportFooter.Sum(item => Mm(item.HeightMillimeters));
+                foreach (var section in reportFooter)
+                    footerY = RenderPdfSection(commands, snapshot, section, null, page, footerY);
+            }
+
+            if (report.Page?.ShowPageNumbers != false)
+                DrawPdfText(commands, $"{pageIndex + 1} / {totalPages}", page.WidthPoints / 2 - 10, page.HeightPoints - Mm(5), 8, "center");
+
+            output.Add(new PdfPageSpec(commands));
+        }
+
+        return output;
+    }
+
+    private static PdfPageSpec BuildFallbackPdfPage(ReportGeneratedSnapshot snapshot, PdfGeometry page)
+    {
+        var commands = new List<string>();
+        var y = page.ContentTopPoints;
+        DrawPdfText(commands, snapshot.Report.Name, page.ContentLeftPoints, y, 14, "left");
+        y += 18;
+        DrawPdfText(commands, $"Generated At: {snapshot.GeneratedAtUtc:O}", page.ContentLeftPoints, y, 8, "left");
+        y += 14;
+        foreach (var query in snapshot.Result.Queries)
+        {
+            DrawPdfText(commands, $"{query.QueryKey} | {query.FromUtc:O} - {query.ToUtc:O} | {query.RetrievalMode}", page.ContentLeftPoints, y, 8, "left");
+            y += 12;
+            var fields = query.Columns.Take(8).Select(column => column.Field).ToArray();
+            DrawPdfText(commands, string.Join(" | ", fields), page.ContentLeftPoints, y, 7, "left");
+            y += 10;
+            foreach (var row in query.Rows.Take(45))
+            {
+                DrawPdfText(commands, string.Join(" | ", fields.Select(field => Truncate(PdfCell(row, field), 18))), page.ContentLeftPoints, y, 7, "left");
+                y += 9;
+                if (y > page.ContentTopPoints + page.ContentHeightPoints - 10) break;
+            }
+        }
+        return new PdfPageSpec(commands);
+    }
+
+    private static double RenderPdfSection(
+        List<string> commands,
+        ReportGeneratedSnapshot snapshot,
+        ReportSectionEngineeringDto section,
+        HistoricalQueryRow? row,
+        PdfGeometry page,
+        double top)
+    {
+        var sectionHeight = Mm(section.HeightMillimeters);
+        foreach (var control in section.Controls ?? Array.Empty<ReportControlEngineeringDto>())
+        {
+            if (control.Kind == ReportControlKind.PageBreak) continue;
+            var x = page.ContentLeftPoints + Mm(control.XMillimeters);
+            var y = top + Mm(control.YMillimeters);
+            var width = Mm(control.WidthMillimeters);
+            var height = Mm(control.HeightMillimeters);
+            var border = Math.Max(0, control.Style?.BorderWidth ?? 0);
+
+            switch (control.Kind)
+            {
+                case ReportControlKind.Line:
+                    DrawPdfLine(commands, x, y + height / 2, x + width, y + height / 2, Math.Max(0.5, border));
+                    break;
+                case ReportControlKind.Rectangle:
+                case ReportControlKind.RoundedRectangle:
+                    DrawPdfRectangle(commands, x, y, width, height, Math.Max(0.5, border));
+                    break;
+                case ReportControlKind.Ellipse:
+                    DrawPdfEllipse(commands, x, y, width, height, Math.Max(0.5, border));
+                    break;
+                case ReportControlKind.Chart:
+                    DrawPdfChart(commands, snapshot, control, x, y, width, height);
+                    break;
+                case ReportControlKind.Image:
+                    // Active-revision image bytes are not stored inside the report snapshot.
+                    // Draw a deterministic bounded placeholder rather than reading Working
+                    // Engineering or an arbitrary filesystem path.
+                    DrawPdfRectangle(commands, x, y, width, height, Math.Max(0.5, border));
+                    DrawPdfText(commands, control.Text ?? "Image", x + 2, y + Math.Min(height - 2, 10), 7, "left");
+                    break;
+                default:
+                    var text = control.Kind is ReportControlKind.DataField or ReportControlKind.BooleanState or ReportControlKind.Barcode
+                        ? PdfCell(row, control.Field)
+                        : control.Text ?? control.Key;
+                    var size = Math.Clamp(control.Style?.FontSizePoints ?? 9, 5, 72);
+                    DrawPdfText(commands, Truncate(text, Math.Max(8, (int)(width / Math.Max(3, size * 0.45)))), x, y + Math.Min(height - 1, size + 1), size, PdfAlignment(control.Style?.TextAlignment));
+                    if (border > 0)
+                        DrawPdfRectangle(commands, x, y, width, height, border);
+                    break;
+            }
+        }
+        return top + sectionHeight;
+    }
+
+    private static void DrawPdfChart(
+        List<string> commands,
+        ReportGeneratedSnapshot snapshot,
+        ReportControlEngineeringDto control,
+        double x,
+        double y,
+        double width,
+        double height)
+    {
+        var query = snapshot.Result.Queries.FirstOrDefault(item =>
+                        string.Equals(item.QueryKey, control.QueryKey, StringComparison.OrdinalIgnoreCase))
+                    ?? snapshot.Result.Queries.FirstOrDefault();
+        if (query is null || string.IsNullOrWhiteSpace(control.Field)) return;
+        var values = query.Rows
+            .Select((row, index) => (Index: index, Text: PdfCell(row, control.Field)))
+            .Select(point => (point.Index, Value: double.TryParse(point.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : double.NaN))
+            .Where(point => double.IsFinite(point.Value))
+            .ToArray();
+        if (values.Length < 2) return;
+        var min = values.Min(point => point.Value);
+        var max = values.Max(point => point.Value);
+        var span = max == min ? 1 : max - min;
+        var sb = new StringBuilder("q 0.8 w ");
+        for (var i = 0; i < values.Length; i++)
+        {
+            var px = x + width * i / Math.Max(1, values.Length - 1);
+            var pyTop = y + height - (values[i].Value - min) / span * height;
+            var py = snapshot.Report.Page?.Orientation == ReportPageOrientation.Landscape ? pyTop : pyTop;
+            sb.Append(FormattableString.Invariant($"{px:0.###} {PdfY(py, snapshot.Report.Page):0.###} {(i == 0 ? "m" : "l")} "));
+        }
+        sb.Append("S Q");
+        commands.Add(sb.ToString());
+    }
+
+    private static void DrawPdfText(List<string> commands, string? text, double x, double yTop, double size, string alignment)
+    {
+        var safe = PdfEscape(text);
+        var estimatedWidth = safe.Length * size * 0.5;
+        var drawX = alignment switch
+        {
+            "right" => x - estimatedWidth,
+            "center" => x - estimatedWidth / 2,
+            _ => x
+        };
+        commands.Add(FormattableString.Invariant($"BT /F1 {size:0.###} Tf {drawX:0.###} {yTop:0.###} Td ({safe}) Tj ET"));
+    }
+
+    private static void DrawPdfLine(List<string> commands, double x1, double y1Top, double x2, double y2Top, double width) =>
+        commands.Add(FormattableString.Invariant($"q {width:0.###} w {x1:0.###} {-y1Top:0.###} m {x2:0.###} {-y2Top:0.###} l S Q"));
+
+    private static void DrawPdfRectangle(List<string> commands, double x, double yTop, double width, double height, double lineWidth) =>
+        commands.Add(FormattableString.Invariant($"q {lineWidth:0.###} w {x:0.###} {-yTop-height:0.###} {width:0.###} {height:0.###} re S Q"));
+
+    private static void DrawPdfEllipse(List<string> commands, double x, double yTop, double width, double height, double lineWidth)
+    {
+        var k = 0.5522847498;
+        var rx = width / 2;
+        var ry = height / 2;
+        var cx = x + rx;
+        var cy = -yTop - ry;
+        commands.Add(FormattableString.Invariant(
+            $"q {lineWidth:0.###} w {cx + rx:0.###} {cy:0.###} m " +
+            $"{cx + rx:0.###} {cy + k * ry:0.###} {cx + k * rx:0.###} {cy + ry:0.###} {cx:0.###} {cy + ry:0.###} c " +
+            $"{cx - k * rx:0.###} {cy + ry:0.###} {cx - rx:0.###} {cy + k * ry:0.###} {cx - rx:0.###} {cy:0.###} c " +
+            $"{cx - rx:0.###} {cy - k * ry:0.###} {cx - k * rx:0.###} {cy - ry:0.###} {cx:0.###} {cy - ry:0.###} c " +
+            $"{cx + k * rx:0.###} {cy - ry:0.###} {cx + rx:0.###} {cy - k * ry:0.###} {cx + rx:0.###} {cy:0.###} c S Q"));
+    }
+
+    private static string PdfAlignment(ReportTextAlignment? alignment) => alignment switch
+    {
+        ReportTextAlignment.Center => "center",
+        ReportTextAlignment.Right => "right",
+        _ => "left"
+    };
+
+    private static string PdfCell(HistoricalQueryRow? row, string? field)
+    {
+        if (row is null || string.IsNullOrWhiteSpace(field) || !row.Cells.TryGetValue(field, out var value))
+            return string.Empty;
+        return value.Value ?? string.Empty;
+    }
+
+    private static double Mm(double value) => value * 72d / 25.4d;
+
+    private static double PdfY(double yTop, ReportPageEngineeringDto? page)
+    {
+        var geometry = PdfPageGeometry(page);
+        return geometry.HeightPoints - yTop;
+    }
+
+    private static byte[] SimplePdf(IReadOnlyList<PdfPageSpec> pages, double width, double height)
+    {
         var objects = new List<byte[]>();
-        var pages = new List<int>();
-        var fontObject = 3;
-        objects.Add(Array.Empty<byte>()); // catalog
-        objects.Add(Array.Empty<byte>()); // pages root
+        var pageObjects = new List<int>();
+        const int fontObject = 3;
+        objects.Add(Array.Empty<byte>());
+        objects.Add(Array.Empty<byte>());
         objects.Add(Ascii("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"));
 
-        for (var pageIndex = 0; pageIndex * rowsPerPage < Math.Max(lines.Count, 1); pageIndex++)
+        foreach (var page in pages)
         {
-            var slice = lines.Skip(pageIndex * rowsPerPage).Take(rowsPerPage).ToArray();
-            var content = new StringBuilder("BT /F1 9 Tf 36 " + (height - 42) + " Td 11 TL\n");
-            if (slice.Length == 0) slice = [string.Empty];
-            foreach (var line in slice)
-                content.Append("(").Append(PdfEscape(line)).Append(") Tj T*\n");
-            content.Append("ET");
-            var contentBytes = Ascii(content.ToString());
+            var transformed = $"q 1 0 0 -1 0 {height.ToString("0.###", CultureInfo.InvariantCulture)} cm\n" +
+                              string.Join("\n", page.Commands) +
+                              "\nQ";
+            var contentBytes = Ascii(transformed);
             var contentNumber = objects.Count + 1;
             objects.Add(Ascii($"<< /Length {contentBytes.Length} >>\nstream\n{Encoding.ASCII.GetString(contentBytes)}\nendstream"));
             var pageNumber = objects.Count + 1;
-            objects.Add(Ascii($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {width} {height}] /Resources << /Font << /F1 {fontObject} 0 R >> >> /Contents {contentNumber} 0 R >>"));
-            pages.Add(pageNumber);
+            objects.Add(Ascii(FormattableString.Invariant(
+                $"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {width:0.###} {height:0.###}] /Resources << /Font << /F1 {fontObject} 0 R >> >> /Contents {contentNumber} 0 R >>")));
+            pageObjects.Add(pageNumber);
         }
 
-        objects[1] = Ascii($"<< /Type /Pages /Kids [{string.Join(" ", pages.Select(p => $"{p} 0 R"))}] /Count {pages.Count} >>");
+        objects[1] = Ascii($"<< /Type /Pages /Kids [{string.Join(" ", pageObjects.Select(number => $"{number} 0 R"))}] /Count {pageObjects.Count} >>");
         objects[0] = Ascii("<< /Type /Catalog /Pages 2 0 R >>");
 
         using var output = new MemoryStream();
         WriteAscii(output, "%PDF-1.4\n%");
-        output.Write([0xE2,0xE3,0xCF,0xD3]);
+        output.Write([0xE2, 0xE3, 0xCF, 0xD3]);
         WriteAscii(output, "\n");
         var offsets = new List<long> { 0 };
         for (var i = 0; i < objects.Count; i++)

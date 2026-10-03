@@ -43,7 +43,9 @@ Body:
 - `parameters`: runtime values for this generation only;
 - `timeRange`: relative or absolute UTC query authority.
 
-Runtime overrides do not mutate Working Engineering.
+Runtime overrides do not mutate Working Engineering. If `timeRange` is omitted, the server applies the Report Engineering default (relative or absolute) when configured; existing Wave 09 reports without V3 time metadata continue using their embedded query range.
+
+Saved Data Query references are resolved by stable ID/key from the **same Active project revision** as the Report. The resolved definition is server-only execution state and is never accepted from browser JSON. Working Data Query state cannot override Runtime generation.
 
 Successful generation returns an `executionId`, effective generation timestamp and the bounded generated result. The server keeps a short-lived owner-bound snapshot. Subsequent viewer/export actions use that same snapshot and do not run a second query.
 
@@ -55,7 +57,7 @@ The normal viewer is the Runtime Report Center. A generated execution can also b
 
 `GET /api/runtime/reports/executions/{executionId}`
 
-The endpoint rechecks Runtime access, snapshot ownership and dataset authorization.
+The endpoint rechecks Runtime access, snapshot ownership and authorization against the datasets actually present in the generated execution result.
 
 ## Export and print
 
@@ -66,7 +68,7 @@ Derived from the same execution snapshot:
 - `GET /api/runtime/reports/executions/{executionId}/export/csv`
 - `GET /api/runtime/reports/executions/{executionId}/print`
 
-All routes reauthorize. No route accepts an arbitrary server path.
+All routes reauthorize against the datasets actually executed. No route accepts an arbitrary server path.
 
 ## Failure semantics
 

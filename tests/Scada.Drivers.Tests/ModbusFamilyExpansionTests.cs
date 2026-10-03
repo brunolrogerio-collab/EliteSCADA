@@ -92,19 +92,25 @@ public sealed class ModbusFamilyExpansionTests
         await using var master = await coordinator.AcquireMasterAsync("source-a", settings, new byte[] { 7 });
 
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
             await coordinator.AcquireMasterAsync(
                 "source-b",
                 settings with { BaudRate = 19200 },
-                new byte[] { 8 }));
+                new byte[] { 8 });
+        });
 
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
             await coordinator.AcquireMasterAsync(
                 "source-b",
                 settings,
-                new byte[] { 7 }));
+                new byte[] { 7 });
+        });
 
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await coordinator.AcquireServerAsync("server-a", settings));
+        {
+            await coordinator.AcquireServerAsync("server-a", settings);
+        });
 
         Assert.Equal(1, provider.OpenCount);
     }
@@ -119,10 +125,14 @@ public sealed class ModbusFamilyExpansionTests
         await using var server = await coordinator.AcquireServerAsync("server-a", settings);
 
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await coordinator.AcquireMasterAsync("master-a", settings, new byte[] { 1 }));
+        {
+            await coordinator.AcquireMasterAsync("master-a", settings, new byte[] { 1 });
+        });
 
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await coordinator.AcquireServerAsync("server-b", settings));
+        {
+            await coordinator.AcquireServerAsync("server-b", settings);
+        });
     }
 
     [Fact]
@@ -137,10 +147,12 @@ public sealed class ModbusFamilyExpansionTests
         Assert.Equal("v1:0-999;2000-2099", ModbusServerRangeCodec.Format(ranges));
 
         Assert.False(ModbusServerRangeCodec.TryParse("v1:0-10;10-20", out _, out var overlap));
-        Assert.Contains("overlap", overlap, StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(overlap);
+        Assert.Contains("overlap", overlap!, StringComparison.OrdinalIgnoreCase);
 
         Assert.False(ModbusServerRangeCodec.TryParse("0-10", out _, out var unversioned));
-        Assert.Contains("versioned", unversioned, StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(unversioned);
+        Assert.Contains("versioned", unversioned!, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

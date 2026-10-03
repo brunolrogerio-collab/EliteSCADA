@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import {
   buildSearchIndex,
+  cleanGenerated,
   createThumbnailSvg,
   detectDuplicates,
   processBatches,
@@ -172,4 +174,79 @@ test('18. representative seed fully passes source -> SVG -> manifest -> taxonomy
   const roots = new Set(result.catalog.assets.map(x => x.categoryPath.split('/')[0]));
   for (const required of ['industrial', 'pid', 'sanitation', 'electrical', 'building', 'residential', 'navigation', 'ui', 'indicators', 'flow']) assert.ok(roots.has(required), `missing seed root ${required}`);
   assert.ok(result.catalog.assets.every(x => x.status === 'draft'));
+});
+
+
+const REGRESSION_TAXONOMY = {
+  schema: 'elitescada.asset-taxonomy',
+  schemaVersion: 1,
+  categories: [
+    { id: 'generic', labels: { 'pt-BR': 'Generico', en: 'Generic' } },
+    { id: 'generic/symbols', labels: { 'pt-BR': 'Simbolos', en: 'Symbols' } }
+  ]
+};
+const REGRESSION_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8"/></svg>';
+const REGRESSION_LICENSE = { identifier: 'Test', reference: 'LICENSE', attributionRequired: false, commercialRedistributionAllowed: true, modificationAllowed: true };
+
+async function regressionRoot() {
+  const root = await mkdtemp(join(tmpdir(), 'asset-factory-'));
+  await mkdir(join(root, 'assets', 'sources', 'batch'), { recursive: true });
+  await mkdir(join(root, 'assets', 'builtin'), { recursive: true });
+  await writeFile(join(root, 'assets', 'builtin', 'README.md'), 'keep');
+  await writeFile(join(root, 'assets', 'sources', 'batch', 'ok.svg'), REGRESSION_SVG);
+  return root;
+}
+
+function regressionBatch(sourceFile = 'assets/sources/batch/ok.svg', categoryPath = 'generic/symbols') {
+  return {
+    schema: 'elitescada.asset-batch',
+    schemaVersion: 1,
+    defaults: { styleFamily: 'test', license: REGRESSION_LICENSE },
+    assets: [{
+      id: 'builtin.asset.generic.symbols.test',
+      key: 'generic.symbols.test',
+      displayName: 'Test',
+      sourceFile,
+      categoryPath,
+      tags: [],
+      searchKeywords: [],
+      status: 'draft',
+      provenance: { classification: 'original-elitescada', author: 'test', sourceUrl: null, derivationNote: 'test' }
+    }]
+  };
+}
+
+async function regressionBatchFile(root, batch) {
+  const path = join(root, 'assets', 'sources', 'batch', 'test.batch.json');
+  await writeFile(path, JSON.stringify(batch));
+  return path;
+}
+
+test('19. sourceFile cannot escape assets/sources', async () => {
+  const root = await regressionRoot();
+  const batchFile = await regressionBatchFile(root, regressionBatch('../../../../etc/passwd'));
+  await assert.rejects(
+    processBatches({ repoRoot: root, batchFiles: [batchFile], taxonomy: REGRESSION_TAXONOMY, writeOutputs: false }),
+    /must remain under assets\/sources/
+  );
+});
+
+test('20. invalid category cannot traverse derivative output directories', async () => {
+  const root = await regressionRoot();
+  const batchFile = await regressionBatchFile(root, regressionBatch('assets/sources/batch/ok.svg', '../../outside'));
+  await assert.rejects(
+    processBatches({ repoRoot: root, batchFiles: [batchFile], taxonomy: REGRESSION_TAXONOMY, writeOutputs: true }),
+    /unknown taxonomy path/
+  );
+  await assert.rejects(readFile(join(root, 'outside', 'test.svg'), 'utf8'));
+});
+
+test('21. cleanGenerated removes stale built-in SVG while preserving non-generated README', async () => {
+  const root = await regressionRoot();
+  const staleDir = join(root, 'assets', 'builtin', 'generic', 'symbols');
+  await mkdir(staleDir, { recursive: true });
+  await writeFile(join(staleDir, 'stale.svg'), REGRESSION_SVG);
+  await cleanGenerated(root);
+  assert.equal(await readFile(join(root, 'assets', 'builtin', 'README.md'), 'utf8'), 'keep');
+  await assert.rejects(readFile(join(staleDir, 'stale.svg'), 'utf8'));
 });

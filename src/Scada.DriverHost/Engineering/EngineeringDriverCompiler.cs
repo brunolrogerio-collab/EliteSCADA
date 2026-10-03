@@ -1,5 +1,6 @@
 using System.Globalization;
 using Scada.Core.Tags;
+using Scada.Drivers.Abstractions;
 using Scada.Drivers.Modbus;
 using Scada.Engineering.Contracts;
 

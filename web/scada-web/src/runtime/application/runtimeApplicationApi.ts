@@ -1,8 +1,11 @@
 import type {
   ApplicationBrandingEngineering,
   DynamoEngineering,
+  EquipmentEngineering,
   PopupEngineering,
   ScreenEngineering,
+  RuntimePresentationEngineering,
+  TemplateEngineering,
   VisualAssetEngineering
 } from '../../engineering/types';
 import type {
@@ -20,10 +23,13 @@ export type RuntimeHmiEngineeringPackage = Readonly<{
   screens: ScreenEngineering[];
   popups: PopupEngineering[];
   dynamos: DynamoEngineering[];
+  equipment: EquipmentEngineering[];
+  templates: TemplateEngineering[];
   scripts: ScriptEngineeringDefinition[];
   scriptVisualEventReferences: ScriptVisualEventReference[];
   visualAssets: VisualAssetEngineering[];
   branding?: ApplicationBrandingEngineering | null;
+  runtimePresentation?: RuntimePresentationEngineering | null;
 }>;
 
 export type RuntimeApplicationProjection = Readonly<{

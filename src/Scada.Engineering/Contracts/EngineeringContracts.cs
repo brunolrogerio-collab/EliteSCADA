@@ -36,7 +36,8 @@ public enum ImportEntityKind
     HistorianCaptureProfile,
     DataQuery,
     AlarmView,
-    Branding
+    Branding,
+    RuntimePresentation
 }
 
 public enum SecurityScopeNodeKind
@@ -312,6 +313,14 @@ public sealed record ApplicationBrandingEngineeringDto(
     string? Subtitle = null,
     Guid? VisualAssetId = null);
 
+/// <summary>
+/// Typed project-level Runtime presentation policy. Absence in legacy packages is
+/// equivalent to Version 1 with Historical Playback disabled.
+/// </summary>
+public sealed record RuntimePresentationEngineeringDto(
+    bool HistoricalPlaybackEnabled = false,
+    int Version = 1);
+
 public sealed record VisualAssetEngineeringDto(
     Guid? Id,
     string Key,
@@ -456,7 +465,8 @@ public sealed record EngineeringPackage(
     IReadOnlyCollection<HistorianCaptureProfileEngineeringDto>? HistorianCaptureProfiles = null,
     IReadOnlyCollection<DataQueryEngineeringDto>? DataQueries = null,
     IReadOnlyCollection<AlarmViewEngineeringDto>? AlarmViews = null,
-    ApplicationBrandingEngineeringDto? Branding = null);
+    ApplicationBrandingEngineeringDto? Branding = null,
+    RuntimePresentationEngineeringDto? RuntimePresentation = null);
 
 public sealed record ImportIssue(
     string Code,

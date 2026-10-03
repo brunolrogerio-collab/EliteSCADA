@@ -13,6 +13,7 @@ public static class RuntimeEngineeringPackageApi
     {
         endpoints.MapDistributedRuntimeFoundationEndpoints();
         endpoints.MapContextualHelpEndpoints();
+        endpoints.MapHistoricalPlaybackRuntimeEndpoints();
 
         endpoints.MapGet("/api/auth/effective-capabilities", async (
             HttpContext context,
@@ -311,10 +312,13 @@ public static class RuntimeEngineeringPackageApi
         screens = ArrayProperty(root, "screens"),
         popups = ArrayProperty(root, "popups"),
         dynamos = ArrayProperty(root, "dynamos"),
+        equipment = ArrayProperty(root, "equipment"),
+        templates = ArrayProperty(root, "templates"),
         scripts = ArrayProperty(root, "scripts"),
         scriptVisualEventReferences = ArrayProperty(root, "scriptVisualEventReferences"),
         visualAssets = ArrayProperty(root, "visualAssets"),
-        branding = OptionalObjectProperty(root, "branding")
+        branding = OptionalObjectProperty(root, "branding"),
+        runtimePresentation = OptionalObjectProperty(root, "runtimePresentation")
     };
 
     private static string RequiredString(JsonElement root, string name)

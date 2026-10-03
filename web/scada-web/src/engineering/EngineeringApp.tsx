@@ -259,7 +259,7 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, onR
   const model = snapshot.package;
   if (section === 'overview') return <><Overview snapshot={snapshot} t={t}/><EngineeringLifecycleWorkspace locale={locale}/><EngineeringProjectManagementWorkspace locale={locale}/></>;
   if (section === 'installation') return <InstallationSwitchingWorkspace locale={locale} onWorkspaceChanged={onReload}/>;
-  if (section === 'branding') return <BrandingEngineeringWorkspace snapshot={snapshot} onApplied={onReload}/>;
+  if (section === 'branding') return <BrandingEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
   if (section === 'visualAssets') return <VisualAssetManagementWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
   if (section === 'scripts') return <ScriptEngineeringWorkspace locale={locale}/>;
   if (section === 'libraries') return <ReusableLibraryWorkspace locale={locale} snapshot={snapshot} onReload={onReload}/>;

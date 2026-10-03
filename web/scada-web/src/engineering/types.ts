@@ -516,6 +516,11 @@ export type ApplicationBrandingEngineering = Readonly<{
   visualAssetId?: string | null;
 }>;
 
+export type RuntimePresentationEngineering = Readonly<{
+  historicalPlaybackEnabled: boolean;
+  version: number;
+}>;
+
 export type VisualAssetEngineering = {
   id?: string | null;
   key: string;
@@ -675,6 +680,7 @@ export type EngineeringPackageView = {
   dataQueries?: DataQueryEngineering[];
   alarmViews?: AlarmViewEngineering[];
   branding?: ApplicationBrandingEngineering | null;
+  runtimePresentation?: RuntimePresentationEngineering | null;
   startupScreenId?: string | null;
   [key: string]: unknown;
 };

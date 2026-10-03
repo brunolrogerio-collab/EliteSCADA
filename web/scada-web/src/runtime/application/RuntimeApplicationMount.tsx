@@ -1,11 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { appShellText, useAppShellLocale } from '../../appShellI18n';
 import { UserSessionMenu } from '../../auth/UserSessionMenu';
+import { hasRuntimeCapability, useEffectiveCapabilities } from '../../auth/effectiveCapabilities';
 import { ApplicationBrand, resolveApplicationBranding } from '../../branding/ApplicationBranding';
 import type { ScriptEngineeringContext } from '../../engineering/scripts/scriptEngineeringTypes';
 import { RuntimeAlarmCenter } from '../RuntimeAlarmCenter';
 import { HistoricalDataBrowserRuntime } from '../historical-browser/HistoricalDataBrowserRuntime';
 import { historicalBrowserCopy } from '../historical-browser/historicalBrowserI18n';
+import { HistoricalPlaybackProvider, useHistoricalPlayback } from '../historical-playback/HistoricalPlaybackContext';
+import { HistoricalPlaybackOverlay } from '../historical-playback/HistoricalPlaybackOverlay';
+import { historicalPlaybackCopy } from '../historical-playback/historicalPlaybackI18n';
 import { RuntimeVisualNavigator } from '../visual-navigation/RuntimeVisualNavigator';
 import {
   loadRuntimeApplicationProjection,
@@ -105,7 +109,16 @@ export function RuntimeApplicationMount({
   return <EngineeringRuntimeApplication projection={projection} locale={locale} showHistoryNavigation={showHistoryNavigation} showFullscreenControl={showFullscreenControl} />;
 }
 
-function EngineeringRuntimeApplication({
+function EngineeringRuntimeApplication(props: {
+  projection: RuntimeApplicationProjection;
+  locale: ReturnType<typeof useAppShellLocale>;
+  showHistoryNavigation: boolean;
+  showFullscreenControl: boolean;
+}) {
+  return <HistoricalPlaybackProvider><EngineeringRuntimeApplicationContent {...props} /></HistoricalPlaybackProvider>;
+}
+
+function EngineeringRuntimeApplicationContent({
   projection,
   locale,
   showHistoryNavigation,
@@ -117,12 +130,20 @@ function EngineeringRuntimeApplication({
   showFullscreenControl: boolean;
 }) {
   const text = appShellText(locale);
+  const playback = useHistoricalPlayback();
+  const playbackText = historicalPlaybackCopy(locale);
+  const { capabilities } = useEffectiveCapabilities();
   const historyText = historicalBrowserCopy(locale);
   const fullscreenRoot = useRef<HTMLElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [alarmsOpen, setAlarmsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [playbackOpen, setPlaybackOpen] = useState(false);
   const engineeringPackage = projection.package!;
+  const playbackConfigured = engineeringPackage.runtimePresentation?.historicalPlaybackEnabled === true;
+  const playbackAvailable = playbackConfigured &&
+    hasRuntimeCapability(capabilities, 'View') &&
+    hasRuntimeCapability(capabilities, 'TrendUse');
   const startup = useMemo(
     () => resolveRuntimeStartupScreen(engineeringPackage),
     [engineeringPackage]
@@ -141,6 +162,13 @@ function EngineeringRuntimeApplication({
     document.addEventListener('fullscreenchange', changed);
     return () => document.removeEventListener('fullscreenchange', changed);
   }, []);
+
+  useEffect(() => {
+    if (!playbackAvailable) {
+      setPlaybackOpen(false);
+      if (playback.mode === 'historicalPlayback') playback.exitPlayback();
+    }
+  }, [playbackAvailable, playback.mode, playback.exitPlayback]);
 
   const scriptContext = useMemo<ScriptEngineeringContext>(() => ({
     workspace: {
@@ -162,7 +190,7 @@ function EngineeringRuntimeApplication({
   const toggleAlarms = () => {
     setAlarmsOpen(current => {
       const next = !current;
-      if (next) setHistoryOpen(false);
+      if (next) { setHistoryOpen(false); setPlaybackOpen(false); }
       return next;
     });
   };
@@ -170,12 +198,21 @@ function EngineeringRuntimeApplication({
   const showOverview = () => {
     setHistoryOpen(false);
     setAlarmsOpen(false);
+    setPlaybackOpen(false);
   };
 
   const toggleHistory = () => {
     setHistoryOpen(current => {
       const next = !current;
-      if (next) setAlarmsOpen(false);
+      if (next) { setAlarmsOpen(false); setPlaybackOpen(false); }
+      return next;
+    });
+  };
+
+  const togglePlayback = () => {
+    setPlaybackOpen(current => {
+      const next = !current;
+      if (next) { setHistoryOpen(false); setAlarmsOpen(false); }
       return next;
     });
   };
@@ -196,6 +233,8 @@ function EngineeringRuntimeApplication({
     data-runtime-project-key={projection.projectKey ?? undefined}
     data-runtime-revision={projection.revision ?? undefined}
     data-runtime-fullscreen={isFullscreen || undefined}
+    data-runtime-temporal-mode={playback.mode === 'historicalPlayback' ? 'historical-playback' : 'live'}
+    data-runtime-historical-at={playback.atUtc ?? undefined}
   >
     <header className={`runtime-operator-bar${isFullscreen ? ' runtime-operator-bar--fullscreen' : ''}`}>
       {isFullscreen ? <div className="runtime-operator-brand">
@@ -208,6 +247,12 @@ function EngineeringRuntimeApplication({
       <div className="runtime-operator-context" title={projection.projectName || projection.projectKey || text.runtime}>
         <strong>{projection.projectName || projection.projectKey}</strong>
         {!isFullscreen ? <span>rev {projection.revision}</span> : null}
+        {playback.mode === 'historicalPlayback' && playback.atUtc ? <>
+          <span className="runtime-playback-badge">
+            {playbackText.playback} · {new Intl.DateTimeFormat(locale,{hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date(playback.atUtc))} · {playbackText.readOnly}
+          </span>
+          <button type="button" className="runtime-playback-live-shortcut" onClick={playback.exitPlayback}>{playbackText.backLive}</button>
+        </> : null}
       </div>
       <div className="runtime-operator-actions">
         <div className="runtime-operator-toolbar" role="toolbar" aria-label={text.runtime}>
@@ -231,8 +276,17 @@ function EngineeringRuntimeApplication({
             active={alarmsOpen}
             expanded={alarmsOpen}
             controls="runtime-alarm-overlay"
+            disabled={playback.mode === 'historicalPlayback'}
             onClick={toggleAlarms}
           />
+          {playbackAvailable ? <RuntimeOperatorTool
+            label={playbackText.title}
+            icon="playback"
+            active={playback.mode === 'historicalPlayback'}
+            expanded={playbackOpen}
+            controls="runtime-playback-overlay"
+            onClick={togglePlayback}
+          /> : null}
           {(showFullscreenControl || isFullscreen) ? <RuntimeOperatorTool
             label={isFullscreen ? text.exitFullscreen : text.fullscreen}
             icon={isFullscreen ? 'exitFullscreen' : 'fullscreen'}
@@ -252,6 +306,7 @@ function EngineeringRuntimeApplication({
         scriptContext={scriptContext}
         emptyLabel={text.emptyVisual}
         visualAssetUrl={runtimeVisualAssetContentUrl}
+        onVisualContextChange={playback.setVisualScope}
       />
     </section>
 
@@ -265,6 +320,8 @@ function EngineeringRuntimeApplication({
       </div>
     </aside> : null}
 
+    {playbackOpen && playbackAvailable ? <HistoricalPlaybackOverlay locale={locale} onClose={() => setPlaybackOpen(false)} /> : null}
+
     {alarmsOpen ? <aside id="runtime-alarm-overlay" className="runtime-operator-overlay" aria-label={text.alarms}>
       <div className="runtime-operator-overlay-header">
         <strong>{text.alarms}</strong>
@@ -277,7 +334,7 @@ function EngineeringRuntimeApplication({
   </main>;
 }
 
-type RuntimeOperatorIconName = 'overview' | 'history' | 'alarms' | 'fullscreen' | 'exitFullscreen';
+type RuntimeOperatorIconName = 'overview' | 'history' | 'alarms' | 'playback' | 'fullscreen' | 'exitFullscreen';
 
 function RuntimeOperatorTool({
   label,
@@ -285,6 +342,7 @@ function RuntimeOperatorTool({
   active,
   expanded,
   controls,
+  disabled = false,
   onClick
 }: {
   label: string;
@@ -292,6 +350,7 @@ function RuntimeOperatorTool({
   active: boolean;
   expanded?: boolean;
   controls?: string;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return <button
@@ -301,6 +360,8 @@ function RuntimeOperatorTool({
     aria-pressed={active}
     aria-expanded={expanded}
     aria-controls={controls}
+    aria-disabled={disabled || undefined}
+    disabled={disabled}
     title={label}
     data-tooltip={label}
     onClick={onClick}
@@ -327,6 +388,11 @@ function RuntimeOperatorIcon({ name }: { name: RuntimeOperatorIconName }) {
     return <svg className="runtime-operator-tool__icon" viewBox="0 0 20 20" aria-hidden="true">
       <path d="M5.2 13.7h9.6l-1.2-1.8V8.7a3.6 3.6 0 0 0-7.2 0v3.2Z" />
       <path d="M8.2 15.1a1.9 1.9 0 0 0 3.6 0" />
+    </svg>;
+  }
+  if (name === 'playback') {
+    return <svg className="runtime-operator-tool__icon" viewBox="0 0 20 20" aria-hidden="true">
+      <circle cx="10" cy="10" r="6.5" /><path d="M8.2 6.8 13 10l-4.8 3.2Z" />
     </svg>;
   }
   if (name === 'fullscreen') {

@@ -312,6 +312,8 @@ public static class RuntimeEngineeringPackageApi
         screens = ArrayProperty(root, "screens"),
         popups = ArrayProperty(root, "popups"),
         dynamos = ArrayProperty(root, "dynamos"),
+        equipment = ArrayProperty(root, "equipment"),
+        templates = ArrayProperty(root, "templates"),
         scripts = ArrayProperty(root, "scripts"),
         scriptVisualEventReferences = ArrayProperty(root, "scriptVisualEventReferences"),
         visualAssets = ArrayProperty(root, "visualAssets"),

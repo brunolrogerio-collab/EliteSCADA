@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <line x1="14" y1="64" x2="36" y2="64" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round" />
-  <polygon points="36,42 76,64 36,86" fill="none" stroke="#374151" stroke-width="5" stroke-linejoin="round" />
-  <line x1="82" y1="40" x2="82" y2="88" fill="none" stroke="#374151" stroke-width="6" stroke-linecap="round" />
-  <line x1="82" y1="64" x2="114" y2="64" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round" />
+  <line x1="14" y1="64" x2="36" y2="64" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round"  data-elitescada-slot="pipe" />
+  <polygon points="36,42 76,64 36,86" fill="none" stroke="#374151" stroke-width="5" stroke-linejoin="round"  data-elitescada-slot="body" />
+  <line x1="82" y1="40" x2="82" y2="88" fill="none" stroke="#374151" stroke-width="6" stroke-linecap="round"  data-elitescada-slot="actuator" />
+  <line x1="82" y1="64" x2="114" y2="64" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round"  data-elitescada-slot="pipe" />
 </svg>

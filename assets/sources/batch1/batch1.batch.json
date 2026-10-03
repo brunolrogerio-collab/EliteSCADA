@@ -1506,7 +1506,21 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.pid.valve.ball",
@@ -1531,7 +1545,21 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.pid.valve.butterfly",
@@ -1556,7 +1584,21 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "actuator",
+          "kind": "stroke"
+        }
+      ]
     },
     {
       "id": "builtin.asset.pid.valve.check",
@@ -1581,7 +1623,21 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "actuator",
+          "kind": "stroke"
+        }
+      ]
     },
     {
       "id": "builtin.asset.pid.valve.control",
@@ -1606,7 +1662,21 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "actuator",
+          "kind": "stroke"
+        }
+      ]
     },
     {
       "id": "builtin.asset.pid.pump.generic",
@@ -1631,7 +1701,21 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        },
+        {
+          "id": "outline",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.pid.vessel.tank",
@@ -1656,7 +1740,17 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "outline",
+          "kind": "stroke"
+        },
+        {
+          "id": "body",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.pid.exchanger.basic",
@@ -1682,7 +1776,17 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "outline",
+          "kind": "stroke"
+        },
+        {
+          "id": "pipe",
+          "kind": "stroke"
+        }
+      ]
     },
     {
       "id": "builtin.asset.industrial.rotating.motor.generic",
@@ -1707,7 +1811,21 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "outline",
+          "kind": "stroke"
+        },
+        {
+          "id": "accent",
+          "kind": "fill"
+        },
+        {
+          "id": "shaft",
+          "kind": "stroke"
+        }
+      ]
     },
     {
       "id": "builtin.asset.industrial.rotating.vfd.generic",
@@ -1734,7 +1852,21 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "body",
+          "kind": "fill"
+        },
+        {
+          "id": "display",
+          "kind": "stroke"
+        },
+        {
+          "id": "status",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.industrial.rotating.compressor.generic",

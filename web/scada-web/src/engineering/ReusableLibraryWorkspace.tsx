@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { EngineeringLocale } from './i18n';
 import type { EngineeringSnapshot } from './types';
 import { CanonicalVisualPreview } from './visual-editor/CanonicalVisualPreview';
+import { LibraryCatalogBrowser } from './LibraryCatalogBrowser';
+import { buildLibraryCatalogEntries, type LibraryCatalogEntry } from './libraryCatalogModel';
 import {
   associateReusableLibrary,
   disassociateReusableLibrary,
@@ -43,6 +45,7 @@ export function ReusableLibraryWorkspace({
   const [libraries, setLibraries] = useState<ReusableLibraryDescriptor[]>([]);
   const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(null);
   const [resources, setResources] = useState<ReusableLibraryResource[]>([]);
+  const [resourcesByLibrary, setResourcesByLibrary] = useState<Record<string, ReusableLibraryResource[]>>({});
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,6 +59,17 @@ export function ReusableLibraryWorkspace({
   const [previewError, setPreviewError] = useState<string | null>(null);
 
   const exportCandidates = useMemo(() => collectExportCandidates(snapshot), [snapshot]);
+  const associatedCatalogSources = useMemo(
+    () => libraries.map(library => ({
+      library,
+      resources: resourcesByLibrary[library.libraryId] ?? []
+    })),
+    [libraries, resourcesByLibrary]
+  );
+  const catalogEntries = useMemo(
+    () => buildLibraryCatalogEntries(snapshot, associatedCatalogSources),
+    [snapshot, associatedCatalogSources]
+  );
   const provenance = useMemo(
     () => exportCandidates.filter(candidate => candidate.metadata?.[`${ORIGIN_PREFIX}libraryId`]),
     [exportCandidates]
@@ -66,18 +80,19 @@ export function ReusableLibraryWorkspace({
     setError(null);
     try {
       const next = await loadReusableLibraries();
+      const catalogs = await Promise.all(next.map(async library => {
+        const catalog = await loadReusableLibraryResources(library.libraryId);
+        return [library.libraryId, catalog.resources ?? []] as const;
+      }));
+      const nextResourcesByLibrary = Object.fromEntries(catalogs) as Record<string, ReusableLibraryResource[]>;
       setLibraries(next);
+      setResourcesByLibrary(nextResourcesByLibrary);
       const requested = preferredLibraryId ?? selectedLibraryId;
       const selected = next.find(item => item.libraryId === requested)?.libraryId ?? next[0]?.libraryId ?? null;
       setSelectedLibraryId(selected);
       setSelectedPreview(null);
       setPreviewError(null);
-      if (!selected) {
-        setResources([]);
-      } else {
-        const catalog = await loadReusableLibraryResources(selected);
-        setResources(catalog.resources ?? []);
-      }
+      setResources(selected ? (nextResourcesByLibrary[selected] ?? []) : []);
     } catch (cause) {
       setError(errorText(cause));
     } finally {
@@ -95,8 +110,15 @@ export function ReusableLibraryWorkspace({
     setError(null);
     setNotice(null);
     try {
-      const catalog = await loadReusableLibraryResources(libraryId);
-      setResources(catalog.resources ?? []);
+      const cached = resourcesByLibrary[libraryId];
+      if (cached) {
+        setResources(cached);
+      } else {
+        const catalog = await loadReusableLibraryResources(libraryId);
+        const nextResources = catalog.resources ?? [];
+        setResources(nextResources);
+        setResourcesByLibrary(previous => ({ ...previous, [libraryId]: nextResources }));
+      }
     } catch (cause) {
       setError(errorText(cause));
       setResources([]);
@@ -124,12 +146,12 @@ export function ReusableLibraryWorkspace({
     });
   }
 
-  async function previewResource(resource: ReusableLibraryResource) {
-    if (!selectedLibraryId || !isVisualResource(resource)) return;
+  async function previewResource(resource: ReusableLibraryResource, libraryId = selectedLibraryId) {
+    if (!libraryId || !isVisualResource(resource)) return;
     setPreviewBusy(resource.resourceId);
     setPreviewError(null);
     try {
-      const result = await loadReusableLibraryResourcePreview(selectedLibraryId, resource.resourceId);
+      const result = await loadReusableLibraryResourcePreview(libraryId, resource.resourceId);
       if (result.workingChanged) throw new Error(copy.previewMutationError);
       if (result.resource.resourceId !== resource.resourceId || result.resource.kind !== resource.kind)
         throw new Error(copy.previewIdentityError);
@@ -142,11 +164,11 @@ export function ReusableLibraryWorkspace({
     }
   }
 
-  async function useResource(resource: ReusableLibraryResource) {
-    if (!selectedLibraryId) return;
+  async function useResource(resource: ReusableLibraryResource, libraryId = selectedLibraryId) {
+    if (!libraryId) return;
     await perform(`use:${resource.kind}:${resource.resourceId}`, async () => {
       const result = await incorporateReusableLibraryResource(
-        selectedLibraryId,
+        libraryId,
         resource,
         snapshot.workspace.changeVersion
       );
@@ -212,6 +234,22 @@ export function ReusableLibraryWorkspace({
         <strong>{copy.boundaryTitle}</strong>
         <p>{copy.boundaryText}</p>
       </section>
+
+      <LibraryCatalogBrowser
+        locale={locale}
+        entries={catalogEntries}
+        associatedPreview={selectedPreview}
+        previewBusy={previewBusy}
+        actionBusy={busy}
+        onPreviewAssociated={(entry: LibraryCatalogEntry) => {
+          if (!entry.library || !entry.associatedResource) return;
+          void previewResource(entry.associatedResource, entry.library.libraryId);
+        }}
+        onUseAssociated={(entry: LibraryCatalogEntry) => {
+          if (!entry.library || !entry.associatedResource) return;
+          void useResource(entry.associatedResource, entry.library.libraryId);
+        }}
+      />
 
       <div className="reusable-library-workspace__grid">
         <section className="eng-panel reusable-library-workspace__catalog">
@@ -312,7 +350,7 @@ export function ReusableLibraryWorkspace({
             })}
           </div>
           {previewError ? <p className="reusable-library-workspace__error" role="alert">{previewError}</p> : null}
-          {selectedPreview && selectedLibraryId ? <section className="reusable-library-workspace__visual-preview" data-testid="reusable-library-visual-preview">
+          {selectedPreview ? <section className="reusable-library-workspace__visual-preview" data-testid="reusable-library-visual-preview">
             <header>
               <div>
                 <span className="reusable-library-workspace__kind">{kindLabel(selectedPreview.resource.kind, locale)}</span>
@@ -326,7 +364,7 @@ export function ReusableLibraryWorkspace({
               dynamoDefinitions={selectedPreview.dynamos}
               locale={locale}
               emptyLabel={copy.previewUnavailable}
-              visualAssetUrl={assetId => reusableLibraryAssetContentUrl(selectedLibraryId, assetId)}
+              visualAssetUrl={assetId => reusableLibraryAssetContentUrl(selectedPreview.library.libraryId, assetId)}
               variant="detail"
               testId="reusable-library-canonical-preview"
             />

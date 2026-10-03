@@ -1,6 +1,7 @@
 # Wave 15 Reporting V3 public contract
 
-Owner: #494 / C-REPORTING-V3-01  
+Owner: #494 / C-REPORTING-V3-01
+
 Consumer: #496 W15-VISUAL-UTILITY-OBJECTS
 
 This document freezes the public seam that future visual launchers may consume. A consumer must not depend on SQL, PostgreSQL, Historical Query internals, Data Query implementation details, report renderer internals, or server filesystem paths.

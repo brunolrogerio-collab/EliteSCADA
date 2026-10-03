@@ -32,6 +32,40 @@ public enum DriverAcquisitionMode
     Hybrid
 }
 
+public enum IntegrationDomain
+{
+    Industrial,
+    Building,
+    Residential,
+    IoT,
+    Cloud
+}
+
+public enum DriverConnectionModel
+{
+    DirectNetwork,
+    HostSerial,
+    HostRadio,
+    LocalBridge,
+    Cloud
+}
+
+public enum DriverExternalDependencyKind
+{
+    BuiltIn,
+    OptionalSidecar,
+    ThirdPartyAccount,
+    ThirdPartySubscription,
+    ExternalGateway,
+    CertifiedHardware,
+    HostResource
+}
+
+public sealed record DriverExternalDependencyDescriptor(
+    DriverExternalDependencyKind Kind,
+    string? Requirement = null,
+    string? Description = null);
+
 public enum DriverConfigurationValueKind
 {
     String,
@@ -117,7 +151,10 @@ public sealed record CommunicationDriverTypeDescriptor(
     string? DisplayNameResourceKey = null,
     string? DescriptionResourceKey = null,
     string? TagBindingSchemaId = null,
-    int? TagBindingSchemaVersion = null);
+    int? TagBindingSchemaVersion = null,
+    IReadOnlyCollection<IntegrationDomain>? IntegrationDomains = null,
+    DriverConnectionModel? ConnectionModel = null,
+    IReadOnlyCollection<DriverExternalDependencyDescriptor>? ExternalDependencies = null);
 
 /// <summary>
 /// Non-authoritative snapshot passed to protected Engineering tooling. Settings

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <circle cx="52" cy="64" r="28" fill="#D1D5DB" stroke="#374151" stroke-width="3" data-elitescada-slot="body" />
+  <path d="M 50 44 C 72 45 84 54 96 64 L 110 64" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" data-elitescada-slot="outline" />
+  <line x1="14" y1="64" x2="24" y2="64" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" data-elitescada-slot="inlet" />
+  <polygon points="44,50 74,64 44,78" fill="#9CA3AF" stroke="#374151" stroke-width="3" stroke-linejoin="round" data-elitescada-slot="impeller" />
+  <circle cx="52" cy="64" r="5" fill="#9CA3AF" stroke="#374151" stroke-width="2" data-elitescada-slot="accent" />
+  <line x1="30" y1="98" x2="94" y2="98" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="base" />
+  <line x1="40" y1="90" x2="36" y2="104" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="support" />
+  <line x1="86" y1="90" x2="90" y2="104" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="support" />
+  <line x1="34" y1="44" x2="70" y2="84" fill="none" stroke="#374151" stroke-width="2" stroke-linecap="round" data-elitescada-slot="detail" />
+  <line x1="34" y1="84" x2="70" y2="44" fill="none" stroke="#374151" stroke-width="2" stroke-linecap="round" data-elitescada-slot="detail" />
+</svg>

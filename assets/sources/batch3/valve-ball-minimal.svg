@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <line x1="10" y1="64" x2="30" y2="64" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" data-elitescada-slot="pipe" />
+  <line x1="98" y1="64" x2="118" y2="64" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" data-elitescada-slot="pipe" />
+  <polygon points="30,42 64,64 30,86" fill="none" stroke="#374151" stroke-width="4" stroke-linejoin="round" data-elitescada-slot="body" />
+  <polygon points="98,42 64,64 98,86" fill="none" stroke="#374151" stroke-width="4" stroke-linejoin="round" data-elitescada-slot="body" />
+  <circle cx="64" cy="64" r="10" fill="#9CA3AF" stroke="#374151" stroke-width="4" data-elitescada-slot="ball" />
+</svg>

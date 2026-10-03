@@ -159,6 +159,95 @@ public sealed class VisualDynamoSvgValidationTests
         Assert.Empty(issues);
     }
 
+    [Fact]
+    public void SvgSymbol_DynamicUnknownSemanticSlot_FailsClosed()
+    {
+        var (asset, registry) = AssetWithSlots(
+            "[{\"name\":\"body\",\"fill\":true,\"stroke\":false,\"strokeWidth\":false}]");
+        var element = DynamicBindingElement(asset.Id!.Value, "svg.slot.unknown.fill");
+
+        var issues = VisualAssetReferenceEngineeringValidation.Validate(
+            element,
+            ImportEntityKind.Dynamo,
+            "dynamo.dynamic-slot",
+            Package(asset),
+            registry);
+
+        Assert.Contains(issues, issue => issue.Code == "VISUAL_SVG_SLOT_UNKNOWN" && issue.IsError);
+    }
+
+    [Fact]
+    public void SvgSymbol_DynamicUnsupportedSemanticProperty_FailsClosed()
+    {
+        var (asset, registry) = AssetWithSlots(
+            "[{\"name\":\"body\",\"fill\":true,\"stroke\":false,\"strokeWidth\":false}]");
+        var element = DynamicBindingElement(asset.Id!.Value, "svg.slot.body.strokeWidth");
+
+        var issues = VisualAssetReferenceEngineeringValidation.Validate(
+            element,
+            ImportEntityKind.Dynamo,
+            "dynamo.dynamic-slot",
+            Package(asset),
+            registry);
+
+        Assert.Contains(issues, issue => issue.Code == "VISUAL_SVG_SLOT_PROPERTY_UNSUPPORTED" && issue.IsError);
+    }
+
+    [Fact]
+    public void SvgSymbol_DynamicDeclaredSemanticProperty_IsAccepted()
+    {
+        var (asset, registry) = AssetWithSlots(
+            "[{\"name\":\"body\",\"fill\":true,\"stroke\":false,\"strokeWidth\":false}]");
+        var element = DynamicBindingElement(asset.Id!.Value, "svg.slot.body.fill");
+
+        var issues = VisualAssetReferenceEngineeringValidation.Validate(
+            element,
+            ImportEntityKind.Dynamo,
+            "dynamo.dynamic-slot",
+            Package(asset),
+            registry);
+
+        Assert.Empty(issues);
+    }
+
+    private static VisualElementEngineeringDto DynamicBindingElement(Guid assetId, string destination) => new(
+        "symbol",
+        BuiltinVisualObjectSchemas.SvgSymbolType,
+        Bindings:
+        [
+            new EngineeringBindingDto(
+                destination,
+                EngineeringBindingKind.Property,
+                "{dynamoParameter:paint}")
+        ],
+        Properties: new Dictionary<string, JsonElement>
+        {
+            [VisualPropertyKeys.AssetRef] =
+                JsonSerializer.SerializeToElement(new { assetId = $"asset:{assetId:D}" })
+        });
+
+    private static (VisualAssetEngineeringDto Asset, InMemoryVisualAssetEngineeringRegistry Registry) AssetWithSlots(string slots)
+    {
+        var assetId = Guid.NewGuid();
+        var payload = VisualAssetPayload.Create("image/svg+xml", "<svg/>"u8);
+        var registry = new InMemoryVisualAssetEngineeringRegistry();
+        registry.PutPayload(payload);
+        var asset = new VisualAssetEngineeringDto(
+            assetId,
+            "asset.dynamic-slots",
+            "Dynamic Slots",
+            "dynamic-slots.svg",
+            payload.MediaType,
+            payload.ByteLength,
+            payload.Sha256,
+            Metadata: new Dictionary<string, string>
+            {
+                [StaticSvgInspector.MetadataSlotsKey] = slots
+            });
+        registry.UpsertAsset(asset);
+        return (asset, registry);
+    }
+
     private static EngineeringPackage Package(VisualAssetEngineeringDto asset) => new(
         "scada.engineering",
         20,

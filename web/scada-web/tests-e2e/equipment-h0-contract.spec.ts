@@ -109,6 +109,8 @@ test('Equipment can be created without Template and attach/detach preserves iden
   expect(applied[1].equipment[0].templateId).toBe(templateId);
   expect(applied[1].equipment[0].templateKey).toBe('sensor.standard');
 
+  // Re-open again after the attach save/reload before detaching the optional Template.
+  await panel.getByRole('button', { name: /Sensor Sala/i }).click();
   await panel.locator('select').selectOption('');
   await panel.getByRole('button', { name: /Salvar alterações|Save changes|Guardar cambios/i }).click();
 

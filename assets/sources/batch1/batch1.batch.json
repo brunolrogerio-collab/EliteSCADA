@@ -740,7 +740,13 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "glyph",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.ui.media.step-forward",
@@ -765,7 +771,13 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "glyph",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.ui.media.fast-forward",
@@ -790,7 +802,13 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "glyph",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.ui.media.rewind",
@@ -814,7 +832,13 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "glyph",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.ui.action.acknowledge",
@@ -841,7 +865,13 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "glyph",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.ui.action.mute",
@@ -867,7 +897,13 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "glyph",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.ui.action.reset",
@@ -892,7 +928,13 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "glyph",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.ui.editing.add",
@@ -917,7 +959,17 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "outline",
+          "kind": "stroke"
+        },
+        {
+          "id": "glyph",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.ui.editing.edit",
@@ -941,7 +993,13 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "glyph",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.ui.editing.copy",
@@ -965,7 +1023,13 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "glyph",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.ui.editing.delete",
@@ -989,7 +1053,13 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "glyph",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.ui.action.confirm",
@@ -1016,7 +1086,17 @@
         "sourceUrl": null,
         "author": "EliteSCADA",
         "derivationNote": "Original Batch 1 SVG geometry generated for EliteSCADA; no vendor, third-party library, or rejected PR #451 artwork was copied. Main visual review is required before approval."
-      }
+      },
+      "editablePaintSlots": [
+        {
+          "id": "outline",
+          "kind": "stroke"
+        },
+        {
+          "id": "glyph",
+          "kind": "fill"
+        }
+      ]
     },
     {
       "id": "builtin.asset.ui.action.save",

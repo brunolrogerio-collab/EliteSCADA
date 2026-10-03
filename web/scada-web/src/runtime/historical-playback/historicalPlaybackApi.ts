@@ -1,6 +1,7 @@
 import type { VisualLiveScalarSample } from '../../engineering/visual-editor/visualEditorLiveValues';
 import { visualTagSampleKey } from '../../engineering/visual-editor/visualDynamicRuntime';
 
+const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 const RESOLVE_ROUTE = '/api/runtime/historical-playback/resolve';
 const TRANSIENT_DATA_QUERY_ROUTE = '/api/historical/data-query';
 const PLAYBACK_QUERY_VERSION = 1;
@@ -26,7 +27,15 @@ type ResolvedTag = Readonly<{
   dataType: string;
   retrievalMode: 'interpolated' | 'atOrBefore';
 }>;
-type ScopeResponse = Readonly<{ tags?: readonly ResolvedTag[] }>;
+type UnresolvedReference = Readonly<{ id?: string | null; path?: string | null }>;
+type ScopeResponse = Readonly<{
+  tags?: readonly ResolvedTag[];
+  unresolvedReferences?: readonly UnresolvedReference[];
+}>;
+type ResolvedScope = Readonly<{
+  tags: readonly ResolvedTag[];
+  unresolvedReferences: readonly UnresolvedReference[];
+}>;
 type DataQueryValue = Readonly<{ kind: string; value: string | null }>;
 type DataQueryRow = Readonly<{
   data?: Readonly<{ cells?: Readonly<Record<string, DataQueryValue>> }>;
@@ -40,15 +49,34 @@ export async function loadHistoricalPlaybackSamples(
   atUtc: string,
   signal?: AbortSignal
 ): Promise<HistoricalPlaybackSampleLoad> {
-  const resolved = await resolveVisualScope(scope, signal);
+  const resolvedScope = await resolveVisualScope(scope, signal);
+  const resolved = resolvedScope.tags;
   const sampleMap = new Map<string, VisualLiveScalarSample>();
   await queryBatches(resolved.filter(x => x.retrievalMode === 'interpolated'), 'interpolated', range, atUtc, sampleMap, signal);
   await queryBatches(resolved.filter(x => x.retrievalMode === 'atOrBefore'), 'atOrBefore', range, atUtc, sampleMap, signal);
 
+  let gaps = 0;
+  for (const unresolved of resolvedScope.unresolvedReferences) {
+    const id = unresolved.id?.trim() || null;
+    const path = unresolved.path?.trim() || null;
+    const gap = Object.freeze({
+      reference: path ?? id ?? 'unresolved',
+      tagId: id,
+      value: null,
+      dataType: 'unknown',
+      quality: null,
+      readOnly: true,
+      state: 'Gap',
+      timestamp: atUtc
+    });
+    if (path) sampleMap.set(path, gap);
+    if (id) sampleMap.set(visualTagSampleKey(id), gap);
+    gaps += 1;
+  }
+
   const returned = new Set([...sampleMap.values()]
     .map(sample => sample.tagId?.trim().toLocaleLowerCase())
     .filter((value): value is string => Boolean(value)));
-  let gaps = 0;
   for (const tag of resolved) {
     if (returned.has(tag.id.toLocaleLowerCase())) continue;
     const gap = Object.freeze({
@@ -69,8 +97,8 @@ export async function loadHistoricalPlaybackSamples(
   return Object.freeze({ samples: sampleMap, gaps, resolvedTags: resolved.length });
 }
 
-async function resolveVisualScope(scope: HistoricalPlaybackVisualScope, signal?: AbortSignal): Promise<readonly ResolvedTag[]> {
-  const response = await fetch(RESOLVE_ROUTE, {
+async function resolveVisualScope(scope: HistoricalPlaybackVisualScope, signal?: AbortSignal): Promise<ResolvedScope> {
+  const response = await fetch(`${API}${RESOLVE_ROUTE}`, {
     method: 'POST',
     credentials: 'same-origin',
     headers: { accept: 'application/json', 'content-type': 'application/json' },
@@ -79,7 +107,10 @@ async function resolveVisualScope(scope: HistoricalPlaybackVisualScope, signal?:
   });
   if (!response.ok) throw new Error(await response.text() || `Historical Playback scope resolution failed with HTTP ${response.status}.`);
   const payload = await response.json() as ScopeResponse;
-  return Object.freeze([...(payload.tags ?? [])]);
+  return Object.freeze({
+    tags: Object.freeze([...(payload.tags ?? [])]),
+    unresolvedReferences: Object.freeze([...(payload.unresolvedReferences ?? [])])
+  });
 }
 
 async function queryBatches(
@@ -133,7 +164,7 @@ function createPlaybackDefinition(
 }
 
 async function executeTransientDataQuery(definition: Readonly<Record<string, unknown>>, signal?: AbortSignal): Promise<DataQueryResponse> {
-  const response = await fetch(TRANSIENT_DATA_QUERY_ROUTE, {
+  const response = await fetch(`${API}${TRANSIENT_DATA_QUERY_ROUTE}`, {
     method: 'POST', credentials: 'same-origin',
     headers: { accept: 'application/json', 'content-type': 'application/json' },
     body: JSON.stringify({ definition, execution: {} }), signal

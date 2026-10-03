@@ -16,10 +16,15 @@ public sealed record HistoricalPlaybackResolvedTag(
     string DataType,
     string RetrievalMode);
 
+public sealed record HistoricalPlaybackUnresolvedReference(
+    Guid? Id,
+    string? Path);
+
 public sealed record HistoricalPlaybackScopeResponse(
     string ScreenKey,
     IReadOnlyCollection<string> PopupKeys,
-    IReadOnlyCollection<HistoricalPlaybackResolvedTag> Tags);
+    IReadOnlyCollection<HistoricalPlaybackResolvedTag> Tags,
+    IReadOnlyCollection<HistoricalPlaybackUnresolvedReference> UnresolvedReferences);
 
 public static class HistoricalPlaybackRuntimeApi
 {
@@ -142,6 +147,7 @@ public static class HistoricalPlaybackScopeResolver
         var equipment = ReadArray(root, "equipment");
         var templates = ReadArray(root, "templates");
         var resolved = new Dictionary<Guid, HistoricalPlaybackResolvedTag>();
+        var unresolved = new Dictionary<string, HistoricalPlaybackUnresolvedReference>(StringComparer.OrdinalIgnoreCase);
         var visitedDefinitions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         void AddTag(Guid? tagId, string? path)
@@ -151,7 +157,15 @@ public static class HistoricalPlaybackScopeResolver
                 tagsById.TryGetValue(tagId.Value, out tag);
             if (tag is null && !string.IsNullOrWhiteSpace(path))
                 tagsByPath.TryGetValue(path.Trim(), out tag);
-            if (tag is null) return;
+            if (tag is null)
+            {
+                var normalizedPath = string.IsNullOrWhiteSpace(path) ? null : path.Trim();
+                var key = tagId is { } id && id != Guid.Empty
+                    ? $"id:{id:D}"
+                    : $"path:{normalizedPath ?? "<unknown>"}";
+                unresolved[key] = new HistoricalPlaybackUnresolvedReference(tagId, normalizedPath);
+                return;
+            }
 
             resolved[tag.Id] = new HistoricalPlaybackResolvedTag(
                 tag.Id,
@@ -219,7 +233,10 @@ public static class HistoricalPlaybackScopeResolver
         return new HistoricalPlaybackScopeResponse(
             screenKey,
             requestedPopupKeys,
-            resolved.Values.OrderBy(x => x.Path, StringComparer.OrdinalIgnoreCase).ToArray());
+            resolved.Values.OrderBy(x => x.Path, StringComparer.OrdinalIgnoreCase).ToArray(),
+            unresolved.Values
+                .OrderBy(x => x.Path ?? x.Id?.ToString("D"), StringComparer.OrdinalIgnoreCase)
+                .ToArray());
     }
 
     private static IReadOnlyList<TagCatalogEntry> ReadTagCatalog(JsonElement root)

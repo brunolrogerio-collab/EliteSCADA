@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <polygon points="22,28 106,28 76,62 76,98 52,108 52,62" fill="#9CA3AF" stroke="#374151" stroke-width="4" stroke-linejoin="round" data-elitescada-slot="body" />
+  <circle cx="104" cy="24" r="4" fill="#9CA3AF" data-elitescada-slot="status" />
+</svg>

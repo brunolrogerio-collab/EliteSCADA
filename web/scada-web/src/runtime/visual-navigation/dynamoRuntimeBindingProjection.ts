@@ -60,7 +60,7 @@ function projectElement(
   return Object.freeze({
     ...element,
     properties,
-    bindings: element.bindings ? Object.freeze(bindings) : element.bindings,
+    bindings: element.bindings ? [...bindings] : element.bindings,
     propertyMaps: element.propertyMaps?.map(propertyMap => {
       const stateParameterKey = element.metadata?.dynamoStateColorParameter?.trim();
       const stateParameter = stateParameterKey ? findParameter(parameters, stateParameterKey) : undefined;

@@ -748,14 +748,14 @@ public sealed class ReportArtifactRenderer
             "center" => x - estimatedWidth / 2,
             _ => x
         };
-        commands.Add(FormattableString.Invariant($"BT /F1 {size:0.###} Tf {drawX:0.###} {yTop:0.###} Td ({safe}) Tj ET"));
+        commands.Add(FormattableString.Invariant($"BT /F1 {size:0.###} Tf 1 0 0 -1 {drawX:0.###} {yTop:0.###} Tm ({safe}) Tj ET"));
     }
 
     private static void DrawPdfLine(List<string> commands, double x1, double y1Top, double x2, double y2Top, double width) =>
-        commands.Add(FormattableString.Invariant($"q {width:0.###} w {x1:0.###} {-y1Top:0.###} m {x2:0.###} {-y2Top:0.###} l S Q"));
+        commands.Add(FormattableString.Invariant($"q {width:0.###} w {x1:0.###} {y1Top:0.###} m {x2:0.###} {y2Top:0.###} l S Q"));
 
     private static void DrawPdfRectangle(List<string> commands, double x, double yTop, double width, double height, double lineWidth) =>
-        commands.Add(FormattableString.Invariant($"q {lineWidth:0.###} w {x:0.###} {-yTop-height:0.###} {width:0.###} {height:0.###} re S Q"));
+        commands.Add(FormattableString.Invariant($"q {lineWidth:0.###} w {x:0.###} {yTop:0.###} {width:0.###} {height:0.###} re S Q"));
 
     private static void DrawPdfEllipse(List<string> commands, double x, double yTop, double width, double height, double lineWidth)
     {
@@ -763,7 +763,7 @@ public sealed class ReportArtifactRenderer
         var rx = width / 2;
         var ry = height / 2;
         var cx = x + rx;
-        var cy = -yTop - ry;
+        var cy = yTop + ry;
         commands.Add(FormattableString.Invariant(
             $"q {lineWidth:0.###} w {cx + rx:0.###} {cy:0.###} m " +
             $"{cx + rx:0.###} {cy + k * ry:0.###} {cx + k * rx:0.###} {cy + ry:0.###} {cx:0.###} {cy + ry:0.###} c " +
@@ -787,12 +787,6 @@ public sealed class ReportArtifactRenderer
     }
 
     private static double Mm(double value) => value * 72d / 25.4d;
-
-    private static double PdfY(double yTop, ReportPageEngineeringDto? page)
-    {
-        var geometry = PdfPageGeometry(page);
-        return geometry.HeightPoints - yTop;
-    }
 
     private static byte[] SimplePdf(IReadOnlyList<PdfPageSpec> pages, double width, double height)
     {

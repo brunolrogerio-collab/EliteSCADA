@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <path d="M 18 52 L 48 52 C 54 52 58 58 58 64 C 58 70 54 76 48 76 L 18 76 M 110 52 L 80 52 C 74 52 70 58 70 64 C 70 70 74 76 80 76 L 110 76" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" data-elitescada-slot="tube" />
+  <circle cx="64" cy="64" r="8" fill="#9CA3AF" stroke="#374151" stroke-width="2" data-elitescada-slot="sensor" />
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <line x1="20" y1="28" x2="108" y2="28" fill="none" stroke="#374151" stroke-width="6" stroke-linecap="round" data-elitescada-slot="gantry" />
+  <line x1="34" y1="28" x2="34" y2="98" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round" data-elitescada-slot="column" />
+  <line x1="96" y1="28" x2="96" y2="98" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round" data-elitescada-slot="column" />
+  <rect x="54" y="24" width="20" height="14" rx="3" fill="#D1D5DB" stroke="#374151" stroke-width="3" data-elitescada-slot="carriage" />
+  <line x1="64" y1="38" x2="64" y2="78" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round" data-elitescada-slot="axis" />
+  <circle cx="106" cy="24" r="4" fill="#9CA3AF" data-elitescada-slot="status" />
+  <line x1="24" y1="110" x2="104" y2="110" fill="none" stroke="#374151" stroke-width="2" stroke-linecap="round" data-elitescada-slot="floor" />
+  <rect x="10" y="10" width="108" height="108" rx="4" fill="none" stroke="#374151" stroke-width="2" data-elitescada-slot="guard" />
+</svg>

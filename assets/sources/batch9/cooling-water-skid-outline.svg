@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="16" y="30" width="96" height="66" rx="6" fill="none" stroke="#374151" stroke-width="5" data-elitescada-slot="skid" />
+  <line x1="24" y1="102" x2="104" y2="102" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" data-elitescada-slot="base" />
+  <circle cx="44" cy="62" r="16" fill="none" stroke="#374151" stroke-width="3" data-elitescada-slot="pump" />
+  <rect x="72" y="44" width="24" height="36" rx="4" fill="none" stroke="#374151" stroke-width="3" data-elitescada-slot="exchanger" />
+  <line x1="60" y1="62" x2="72" y2="62" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" data-elitescada-slot="water" />
+</svg>

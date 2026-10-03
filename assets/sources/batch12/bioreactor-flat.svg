@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="34" y="24" width="60" height="84" rx="14" fill="#E5E7EB" stroke="#374151" stroke-width="5" data-elitescada-slot="vessel" />
+  <line x1="64" y1="14" x2="64" y2="70" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round" data-elitescada-slot="shaft" />
+  <circle cx="64" cy="72" r="14" fill="none" stroke="#374151" stroke-width="3" data-elitescada-slot="agitator" />
+  <circle cx="86" cy="42" r="5" fill="#9CA3AF" data-elitescada-slot="probe" />
+  <circle cx="106" cy="26" r="4" fill="#9CA3AF" data-elitescada-slot="status" />
+</svg>

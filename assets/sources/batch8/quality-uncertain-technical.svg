@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <path d="M 18 60 C 44 30 84 30 110 60" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" data-elitescada-slot="signal" />
+  <path d="M 34 76 C 52 56 76 56 94 76" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" data-elitescada-slot="signal" />
+  <path d="M 48 90 C 58 80 70 80 80 90" fill="none" stroke="#374151" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" data-elitescada-slot="signal" />
+  <polygon points="96,84 112,108 80,108" fill="#9CA3AF" stroke="#374151" stroke-width="3" stroke-linejoin="round" data-elitescada-slot="status" />
+  <circle cx="96" cy="102" r="3" fill="#9CA3AF" data-elitescada-slot="accent" />
+  <circle cx="64" cy="104" r="5" fill="#9CA3AF" data-elitescada-slot="node" />
+  <path d="M 14 28 L 14 14 L 28 14 M 100 14 L 114 14 L 114 28 M 14 100 L 14 114 L 28 114 M 100 114 L 114 114 L 114 100" fill="none" stroke="#374151" stroke-width="2" stroke-linecap="round" data-elitescada-slot="reference" />
+</svg>

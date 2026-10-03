@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="18" y="24" width="92" height="84" rx="6" fill="none" stroke="#374151" stroke-width="3" data-elitescada-slot="body" />
+  <rect x="26" y="18" width="22" height="18" rx="4" fill="none" stroke="#374151" stroke-width="2" data-elitescada-slot="tab" />
+  <rect x="52" y="18" width="22" height="18" rx="4" fill="none" stroke="#374151" stroke-width="2" data-elitescada-slot="tab" />
+  <rect x="78" y="18" width="22" height="18" rx="4" fill="none" stroke="#374151" stroke-width="2" data-elitescada-slot="tab" />
+</svg>

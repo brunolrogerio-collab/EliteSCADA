@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="34" y="18" width="60" height="92" rx="6" fill="#E5E7EB" stroke="#374151" stroke-width="5" data-elitescada-slot="body" />
+  <circle cx="46" cy="28" r="3" fill="#9CA3AF" data-elitescada-slot="terminal" />
+  <circle cx="46" cy="100" r="3" fill="#9CA3AF" data-elitescada-slot="terminal" />
+  <circle cx="64" cy="28" r="3" fill="#9CA3AF" data-elitescada-slot="terminal" />
+  <circle cx="64" cy="100" r="3" fill="#9CA3AF" data-elitescada-slot="terminal" />
+  <circle cx="82" cy="28" r="3" fill="#9CA3AF" data-elitescada-slot="terminal" />
+  <circle cx="82" cy="100" r="3" fill="#9CA3AF" data-elitescada-slot="terminal" />
+  <line x1="44" y1="76" x2="82" y2="42" fill="none" stroke="#374151" stroke-width="6" stroke-linecap="round" data-elitescada-slot="handle" />
+  <circle cx="42" cy="86" r="4" fill="#9CA3AF" data-elitescada-slot="pivot" />
+  <line x1="44" y1="36" x2="84" y2="36" fill="none" stroke="#374151" stroke-width="2" stroke-linecap="round" data-elitescada-slot="accent" />
+</svg>

@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <path d="M 18 88 L 64 88 L 64 30 L 104 30" fill="none" stroke="#374151" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" data-elitescada-slot="vent" />
+  <polygon points="86,23 98,30 86,37" fill="#9CA3AF" stroke="#374151" stroke-width="2" stroke-linejoin="round" data-elitescada-slot="flow" />
+</svg>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <line x1="14" y1="64" x2="38" y2="64" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round" data-elitescada-slot="pipe" />
+  <rect x="38" y="42" width="52" height="44" rx="5" fill="none" stroke="#374151" stroke-width="5" data-elitescada-slot="station" />
+  <line x1="90" y1="64" x2="114" y2="64" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round" data-elitescada-slot="pipe" />
+  <polygon points="52,52 64,64 52,76" fill="none" stroke="#374151" stroke-width="3" stroke-linejoin="round" data-elitescada-slot="valve" />
+  <polygon points="76,52 64,64 76,76" fill="none" stroke="#374151" stroke-width="3" stroke-linejoin="round" data-elitescada-slot="valve" />
+</svg>

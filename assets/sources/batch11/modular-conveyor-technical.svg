@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <line x1="18" y1="52" x2="110" y2="52" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round" data-elitescada-slot="belt" />
+  <line x1="18" y1="78" x2="110" y2="78" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round" data-elitescada-slot="belt" />
+  <rect x="22" y="56" width="8" height="18" rx="2" fill="#9CA3AF" stroke="#374151" stroke-width="2" data-elitescada-slot="module" />
+  <rect x="34" y="56" width="8" height="18" rx="2" fill="#9CA3AF" stroke="#374151" stroke-width="2" data-elitescada-slot="module" />
+  <rect x="46" y="56" width="8" height="18" rx="2" fill="#9CA3AF" stroke="#374151" stroke-width="2" data-elitescada-slot="module" />
+  <rect x="58" y="56" width="8" height="18" rx="2" fill="#9CA3AF" stroke="#374151" stroke-width="2" data-elitescada-slot="module" />
+  <rect x="70" y="56" width="8" height="18" rx="2" fill="#9CA3AF" stroke="#374151" stroke-width="2" data-elitescada-slot="module" />
+  <rect x="82" y="56" width="8" height="18" rx="2" fill="#9CA3AF" stroke="#374151" stroke-width="2" data-elitescada-slot="module" />
+  <rect x="94" y="56" width="8" height="18" rx="2" fill="#9CA3AF" stroke="#374151" stroke-width="2" data-elitescada-slot="module" />
+  <polygon points="82,42 100,52 82,62" fill="#9CA3AF" stroke="#374151" stroke-width="2" stroke-linejoin="round" data-elitescada-slot="flow" />
+  <line x1="28" y1="88" x2="28" y2="106" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="support" />
+  <line x1="98" y1="88" x2="98" y2="106" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="support" />
+</svg>

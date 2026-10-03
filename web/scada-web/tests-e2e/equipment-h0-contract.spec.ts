@@ -97,6 +97,9 @@ test('Equipment can be created without Template and attach/detach preserves iden
   const stablePath = applied[0].equipment[0].path;
 
   await expect(panel.locator('select option')).toHaveCount(2);
+  // Re-open the persisted Equipment before attaching the optional Template.
+  // This exercises the required save/reopen flow and does not rely on editor-local selection state.
+  await panel.getByRole('button', { name: /Sensor Sala/i }).click();
   await panel.locator('select').selectOption(templateId);
   await panel.getByRole('button', { name: /Salvar alterações|Save changes|Guardar cambios/i }).click();
 

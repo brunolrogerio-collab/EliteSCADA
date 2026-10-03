@@ -240,7 +240,8 @@ public static class ReusableDynamoDependencyAnalyzer
                     $"Dynamo '{ownerKey}' element '{element.Key}' nests Dynamo '{nestedReference}'. Canonical Dynamo composition version 1 does not support nested Dynamos, so reusable libraries cannot enable that composition implicitly.");
             }
 
-            if (string.Equals(element.Type, "core.image", StringComparison.Ordinal) &&
+            if ((string.Equals(element.Type, "core.image", StringComparison.Ordinal) ||
+                 string.Equals(element.Type, "core.svgSymbol", StringComparison.Ordinal)) &&
                 element.Properties is not null &&
                 element.Properties.TryGetValue("assetRef", out var assetReference) &&
                 assetReference.ValueKind != JsonValueKind.Null)

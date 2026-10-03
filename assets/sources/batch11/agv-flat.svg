@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="26" y="46" width="76" height="42" rx="10" fill="#E5E7EB" stroke="#374151" stroke-width="5" data-elitescada-slot="body" />
+  <circle cx="42" cy="92" r="9" fill="none" stroke="#374151" stroke-width="3" data-elitescada-slot="wheel" />
+  <circle cx="86" cy="92" r="9" fill="none" stroke="#374151" stroke-width="3" data-elitescada-slot="wheel" />
+  <circle cx="64" cy="60" r="8" fill="#9CA3AF" stroke="#374151" stroke-width="2" data-elitescada-slot="sensor" />
+  <path d="M 40 34 C 52 22 76 22 88 34" fill="none" stroke="#374151" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-elitescada-slot="signal" />
+  <circle cx="106" cy="28" r="4" fill="#9CA3AF" data-elitescada-slot="status" />
+</svg>

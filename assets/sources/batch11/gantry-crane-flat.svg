@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <line x1="20" y1="28" x2="108" y2="28" fill="none" stroke="#374151" stroke-width="6" stroke-linecap="round" data-elitescada-slot="beam" />
+  <line x1="28" y1="28" x2="20" y2="104" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round" data-elitescada-slot="column" />
+  <line x1="100" y1="28" x2="108" y2="104" fill="none" stroke="#374151" stroke-width="5" stroke-linecap="round" data-elitescada-slot="column" />
+  <rect x="54" y="24" width="20" height="14" rx="3" fill="#E5E7EB" stroke="#374151" stroke-width="3" data-elitescada-slot="trolley" />
+  <line x1="64" y1="38" x2="64" y2="78" fill="none" stroke="#374151" stroke-width="3" stroke-linecap="round" data-elitescada-slot="cable" />
+  <circle cx="106" cy="28" r="4" fill="#9CA3AF" data-elitescada-slot="status" />
+</svg>

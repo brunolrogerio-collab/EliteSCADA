@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="28" y="22" width="72" height="84" rx="6" fill="none" stroke="#374151" stroke-width="5" data-elitescada-slot="body" />
+  <circle cx="52" cy="60" r="16" fill="none" stroke="#374151" stroke-width="3" data-elitescada-slot="primary" />
+  <circle cx="76" cy="60" r="16" fill="none" stroke="#374151" stroke-width="3" data-elitescada-slot="secondary" />
+</svg>

@@ -94,6 +94,19 @@ function projectElement(
       ...element.analogFill,
       source: projectValueSource(element.analogFill.source, parameters, equipmentPath)
     }) : element.analogFill,
+    actions: element.actions?.map(action => {
+      const parameterKey = action.commandParameterKey?.trim();
+      if (!parameterKey) return action;
+      const parameter = findParameter(parameters, parameterKey);
+      if (!parameter || parameter.kind !== 'Command' || !parameter.commandId?.trim()) {
+        throw new Error(`Dynamo ExecuteCommand action '${action.eventKey}' requires mapped Command parameter '${parameterKey}'.`);
+      }
+      return Object.freeze({
+        ...action,
+        commandId: parameter.commandId,
+        commandParameterKey: null
+      });
+    }) ?? element.actions,
     children: [...children]
   });
 }

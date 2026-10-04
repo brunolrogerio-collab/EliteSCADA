@@ -17,6 +17,7 @@ import { LicensingApp } from './licensing/LicensingApp';
 import { RuntimeApplicationMount } from './runtime/application/RuntimeApplicationMount';
 import { RuntimeSessionClassProvider } from './runtime/application/RuntimeSessionClassPanel';
 import { HistoricalDataBrowserRuntime } from './runtime/historical-browser/HistoricalDataBrowserRuntime';
+import { RuntimeReportCenter } from './runtime/reports/RuntimeReportCenter';
 import './styles.css';
 import './visual-runtime/visual-editor-fonts.css';
 import './app-theme.css';
@@ -32,6 +33,11 @@ function RuntimeHistoricalBrowserApp() {
       <HistoricalDataBrowserRuntime locale={locale} />
     </main>
   );
+}
+
+function RuntimeReportsApp() {
+  const locale = useAppShellLocale();
+  return <RuntimeReportCenter locale={locale} />;
 }
 
 function ApplicationSurface() {
@@ -72,6 +78,9 @@ function ApplicationSurface() {
   } else if (path.startsWith('/runtime/history')) {
     allowed = access.runtime && access.history;
     Surface = RuntimeHistoricalBrowserApp;
+  } else if (path.startsWith('/runtime/reports')) {
+    allowed = access.runtime && access.history;
+    Surface = RuntimeReportsApp;
   }
 
   if (!allowed) {

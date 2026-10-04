@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Scada.Api.Security;
 using Scada.Core.HistoricalQueries;
 using Scada.Engineering.Reports;
+using Scada.Engineering.DataQueries;
 
 namespace Scada.Api.Reports;
 
@@ -16,12 +17,27 @@ public static class ReportExecutionApi
     public static void AddReportExecutionApiCore(this WebApplicationBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        builder.Services.TryAddScoped<IReportExecutionService, ReportExecutionService>();
+        builder.Services.TryAddSingleton(new ReportExecutionPolicy());
+        builder.Services.TryAddScoped<ReportExecutionService>(services =>
+            new ReportExecutionService(
+                services.GetRequiredService<IHistoricalQueryService>(),
+                services.GetRequiredService<ReportExecutionPolicy>()));
+        builder.Services.TryAddScoped<IReportExecutionService>(services =>
+            new ReportV3ExecutionService(
+                services.GetRequiredService<ReportExecutionService>(),
+                services.GetRequiredService<IDataQueryEngineeringRegistry>(),
+                services.GetRequiredService<ITransientDataQueryExecutionService>(),
+                services.GetRequiredService<ReportExecutionPolicy>()));
+        builder.Services.TryAddSingleton<ReportGeneratedExecutionStore>();
+        builder.Services.TryAddSingleton<ReportGenerationGate>();
+        builder.Services.TryAddScoped<RuntimeReportCatalog>();
+        builder.Services.TryAddScoped<ReportArtifactRenderer>();
     }
 
     public static RouteHandlerBuilder MapReportExecutionEndpoints(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
+        app.MapRuntimeReportEndpoints();
         return app.MapPost(
                 PreviewRoute,
                 async (

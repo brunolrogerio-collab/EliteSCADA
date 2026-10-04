@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json.Serialization;
 using Scada.Core.HistoricalQueries;
 
 namespace Scada.Engineering.Reports;
@@ -149,7 +150,9 @@ public sealed record ReportQueryParameterBindingEngineeringDto(
 public sealed record ReportQueryEngineeringDto(
     string Key,
     HistoricalQueryRequest Query,
-    IReadOnlyCollection<ReportQueryParameterBindingEngineeringDto>? ParameterBindings = null);
+    IReadOnlyCollection<ReportQueryParameterBindingEngineeringDto>? ParameterBindings = null,
+    Guid? DataQueryId = null,
+    string? DataQueryKey = null);
 
 public sealed record ReportPageEngineeringDto(
     string PaperSizeKey = "A4",
@@ -216,6 +219,69 @@ public sealed record ReportAggregateEngineeringDto(
 /// First-class canonical Report Engineering entity. Generated PDF/XLSX/print output
 /// is derived runtime output and is intentionally absent from this model.
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter<ReportUnitMode>))]
+public enum ReportUnitMode
+{
+    [JsonStringEnumMemberName("automatic")] Automatic,
+    [JsonStringEnumMemberName("hidden")] Hidden,
+    [JsonStringEnumMemberName("labelOverride")] LabelOverride
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter<ReportTableLayout>))]
+public enum ReportTableLayout
+{
+    [JsonStringEnumMemberName("long")] Long,
+    [JsonStringEnumMemberName("wide")] Wide
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter<ReportDataResolutionMode>))]
+public enum ReportDataResolutionMode
+{
+    [JsonStringEnumMemberName("raw")] Raw,
+    [JsonStringEnumMemberName("sampledFixedStep")] SampledFixedStep,
+    [JsonStringEnumMemberName("aggregate")] Aggregate
+}
+
+public sealed record ReportVariableEngineeringDto(
+    Guid TagId,
+    string Path,
+    string Name,
+    string DataType,
+    string? EngineeringUnit = null,
+    string? Source = null,
+    string? DisplayLabel = null,
+    bool Visible = true,
+    int Order = 0,
+    int? DecimalPlaces = null,
+    string? NumericFormat = null,
+    string? DateTimeFormat = null,
+    string? BooleanTrueLabel = null,
+    string? BooleanFalseLabel = null,
+    ReportUnitMode UnitMode = ReportUnitMode.Automatic,
+    string? UnitLabel = null);
+
+public sealed record ReportTimeRangeEngineeringDto(
+    HistoricalTimeRangeKind DefaultKind = HistoricalTimeRangeKind.Relative,
+    int DefaultRelativeDurationSeconds = 3600,
+    DateTimeOffset? DefaultFromUtc = null,
+    DateTimeOffset? DefaultToUtc = null,
+    bool AllowRelative = true,
+    bool AllowAbsolute = true);
+
+public sealed record ReportDataResolutionEngineeringDto(
+    ReportDataResolutionMode Mode = ReportDataResolutionMode.Raw,
+    int? IntervalMilliseconds = null,
+    ReportAggregateFunction? AggregateFunction = null,
+    int? BucketMilliseconds = null,
+    int? MaximumGapMilliseconds = 300000,
+    string BucketAlignment = "utcDuration");
+
+public sealed record ReportRuntimeTimeRange(
+    HistoricalTimeRangeKind Kind,
+    int? DurationSeconds = null,
+    DateTimeOffset? FromUtc = null,
+    DateTimeOffset? ToUtc = null);
+
 public sealed record ReportEngineeringDto(
     Guid? Id,
     string Key,
@@ -228,4 +294,8 @@ public sealed record ReportEngineeringDto(
     IReadOnlyCollection<ReportSectionEngineeringDto>? Sections = null,
     IReadOnlyCollection<ReportGroupEngineeringDto>? Groups = null,
     IReadOnlyCollection<ReportAggregateEngineeringDto>? Aggregates = null,
-    Dictionary<string, string>? Metadata = null);
+    Dictionary<string, string>? Metadata = null,
+    IReadOnlyCollection<ReportVariableEngineeringDto>? Variables = null,
+    ReportTimeRangeEngineeringDto? TimeRange = null,
+    ReportDataResolutionEngineeringDto? Resolution = null,
+    ReportTableLayout TableLayout = ReportTableLayout.Long);

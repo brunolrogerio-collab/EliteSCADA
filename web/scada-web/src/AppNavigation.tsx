@@ -35,7 +35,7 @@ export function AppNavigation() {
   const databaseAdmin = hasRuntimeCapability(capabilities, 'SystemAdmin');
   const databaseText = databaseTopologyText(locale);
 
-  if (path.startsWith('/runtime/history') && access.runtime && access.history) {
+  if ((path.startsWith('/runtime/history') || path.startsWith('/runtime/reports')) && access.runtime && access.history) {
     return (
       <header
         className={`app-bar app-bar--runtime-only${branding.mode === 'none' ? ' app-bar--branding-none' : ''}`}
@@ -48,7 +48,8 @@ export function AppNavigation() {
         />
         <nav className="app-navigation" aria-label="Runtime views">
           <a href="/"><span>{text.runtimeOverview}</span></a>
-          <a href="/runtime/history" className="active" aria-current="page"><span>{text.runtimeHistory}</span></a>
+          <a href="/runtime/history" className={path.startsWith('/runtime/history') ? 'active' : undefined} aria-current={path.startsWith('/runtime/history') ? 'page' : undefined}><span>{text.runtimeHistory}</span></a>
+          <a href="/runtime/reports" className={path.startsWith('/runtime/reports') ? 'active' : undefined} aria-current={path.startsWith('/runtime/reports') ? 'page' : undefined}><span>{locale === 'pt-BR' ? 'Relatórios' : locale === 'es' ? 'Informes' : 'Reports'}</span></a>
         </nav>
         <div className="app-shell-actions">
           <label className="app-theme-control">
@@ -92,7 +93,7 @@ export function AppNavigation() {
         : path.startsWith('/engineering')
           ? '/engineering'
           : '/';
-  const activeRuntimeHref = path.startsWith('/runtime/history') ? '/runtime/history' : '/';
+  const activeRuntimeHref = path.startsWith('/runtime/reports') ? '/runtime/reports' : path.startsWith('/runtime/history') ? '/runtime/history' : '/';
   const active = activeHref === '/help'
     ? { href: '/help', label: helpText[locale].label }
     : links.find(link => link.href === activeHref) ?? links[0];
@@ -135,13 +136,14 @@ export function AppNavigation() {
               <option value="light">{text.themeLight}</option>
             </select>
           </label>
-          <UserSessionMenu locale={locale} includeRuntimeSessionControls={path === '/' || path.startsWith('/runtime/history')} />
+          <UserSessionMenu locale={locale} includeRuntimeSessionControls={path === '/' || path.startsWith('/runtime/history') || path.startsWith('/runtime/reports')} />
         </div>
       </header>
-      {path.startsWith('/runtime/history') && access.runtime && access.history && (
+      {(path.startsWith('/runtime/history') || path.startsWith('/runtime/reports')) && access.runtime && access.history && (
         <nav className="runtime-view-navigation" aria-label="Runtime views">
           <a href="/" className={activeRuntimeHref === '/' ? 'active' : undefined} aria-current={activeRuntimeHref === '/' ? 'page' : undefined}>{text.runtimeOverview}</a>
           <a href="/runtime/history" className={activeRuntimeHref === '/runtime/history' ? 'active' : undefined} aria-current={activeRuntimeHref === '/runtime/history' ? 'page' : undefined}>{text.runtimeHistory}</a>
+          <a href="/runtime/reports" className={activeRuntimeHref === '/runtime/reports' ? 'active' : undefined} aria-current={activeRuntimeHref === '/runtime/reports' ? 'page' : undefined}>{locale === 'pt-BR' ? 'Relatórios' : locale === 'es' ? 'Informes' : 'Reports'}</a>
         </nav>
       )}
     </>

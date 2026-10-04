@@ -4,6 +4,7 @@ import { VISUAL_PROPERTY_KEYS, type VisualPropertyValue } from '../../visual-run
 import {
   normalizeSvgColor,
   readSvgPaintOverrides,
+  svgSemanticDynamicPropertyKey,
   svgSymbolPropertyIsDriven
 } from './svgSymbolModel';
 
@@ -79,9 +80,23 @@ export function applySvgInstancePaint(
 
     const normalizedFill = normalizeSvgColor(sourceFill);
     const normalizedStroke = normalizeSvgColor(sourceStroke);
-    const fill = slotOverride?.fill ?? (normalizedFill ? overrides.palette?.[normalizedFill] : undefined) ?? globalFill;
-    const stroke = slotOverride?.stroke ?? (normalizedStroke ? overrides.palette?.[normalizedStroke] : undefined) ?? globalStroke;
-    const strokeWidth = slotOverride?.strokeWidth ?? (globalWidth !== null && Number.isFinite(globalWidth) ? globalWidth : null);
+    const dynamicFill = slot
+      ? normalizeSvgColor(String(values[svgSemanticDynamicPropertyKey(slot, 'fill')] ?? ''))
+      : null;
+    const dynamicStroke = slot
+      ? normalizeSvgColor(String(values[svgSemanticDynamicPropertyKey(slot, 'stroke')] ?? ''))
+      : null;
+    const dynamicStrokeWidthValue = slot
+      ? values[svgSemanticDynamicPropertyKey(slot, 'strokeWidth')]
+      : undefined;
+    const dynamicStrokeWidth = typeof dynamicStrokeWidthValue === 'number' &&
+      Number.isFinite(dynamicStrokeWidthValue) &&
+      dynamicStrokeWidthValue >= 0
+      ? dynamicStrokeWidthValue
+      : null;
+    const fill = dynamicFill ?? slotOverride?.fill ?? (normalizedFill ? overrides.palette?.[normalizedFill] : undefined) ?? globalFill;
+    const stroke = dynamicStroke ?? slotOverride?.stroke ?? (normalizedStroke ? overrides.palette?.[normalizedStroke] : undefined) ?? globalStroke;
+    const strokeWidth = dynamicStrokeWidth ?? slotOverride?.strokeWidth ?? (globalWidth !== null && Number.isFinite(globalWidth) ? globalWidth : null);
     const explicitFillBlocksOverride = sourceFill?.toLowerCase() === 'none' || sourceFill?.toLowerCase().startsWith('url(');
     const explicitStrokeBlocksOverride = sourceStroke?.toLowerCase().startsWith('url(');
 

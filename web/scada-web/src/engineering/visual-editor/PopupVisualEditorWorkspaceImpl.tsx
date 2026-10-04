@@ -94,6 +94,7 @@ export function PopupVisualEditorWorkspace({
   return <DynamoAuthoringCatalogProvider
     definitions={snapshot.package.dynamos ?? []}
     tags={snapshot.package.tags ?? []}
+    commands={snapshot.package.commands ?? []}
     visualAssets={snapshot.package.visualAssets ?? []}
   >
     <PopupVisualEditorWorkspaceBody snapshot={snapshot} locale={locale} onApplied={onApplied} onAssetImported={onAssetImported} />

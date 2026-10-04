@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type {
+  CommandEngineering,
   DynamoEngineering,
   ScreenEngineering,
   TagEngineering,
@@ -54,6 +55,7 @@ export function DynamoInstanceInspector({
     instance={instance}
     definition={definition}
     tags={catalog.tags}
+    commands={catalog.commands}
     onCommand={onCommand}
   />;
 }
@@ -63,12 +65,14 @@ function DynamoInspectorBody({
   instance,
   definition,
   tags,
+  commands,
   onCommand
 }: {
   screen: ScreenEngineering;
   instance: VisualElementEngineering & { id: string };
   definition: DynamoEngineering;
   tags: readonly TagEngineering[];
+  commands: readonly CommandEngineering[];
   onCommand?: (command: VisualEditorKeyboardCommand) => void;
 }) {
   const text = useC07VisualEditorText().dynamo;
@@ -115,6 +119,7 @@ function DynamoInspectorBody({
           value={value}
           instance={instance}
           tags={tagOptions}
+          commands={commands}
           disabled={locked || !onCommand}
           onSet={setValue}
           onRemove={() => removeValue(parameter.key)}
@@ -160,6 +165,7 @@ function ParameterEditor({
   value,
   instance,
   tags,
+  commands,
   disabled,
   onSet,
   onRemove
@@ -168,6 +174,7 @@ function ParameterEditor({
   value: DynamoParameterValueEngineering | undefined;
   instance: VisualElementEngineering;
   tags: readonly TagEngineering[];
+  commands: readonly CommandEngineering[];
   disabled: boolean;
   onSet: (value: DynamoParameterValueEngineering) => void;
   onRemove: () => void;
@@ -207,6 +214,13 @@ function ParameterEditor({
       disabled={disabled}
       onSet={onSet}
       onRemove={onRemove}
+    /> : editor === 'command' ? <CommandParameterEditor
+      parameter={parameter}
+      value={value}
+      commands={commands}
+      disabled={disabled}
+      onSet={onSet}
+      onRemove={onRemove}
     /> : <ScalarParameterEditor
       parameter={parameter}
       value={value}
@@ -219,6 +233,47 @@ function ParameterEditor({
       {removeAllowed && editor !== 'tag-reference' ? <button type="button" onClick={onRemove}>{text.reset}</button> : null}
     </footer>
   </div>;
+}
+
+function CommandParameterEditor({
+  parameter,
+  value,
+  commands,
+  disabled,
+  onSet,
+  onRemove
+}: {
+  parameter: DynamoParameterDefinitionEngineering;
+  value: DynamoParameterValueEngineering | undefined;
+  commands: readonly CommandEngineering[];
+  disabled: boolean;
+  onSet: (value: DynamoParameterValueEngineering) => void;
+  onRemove: () => void;
+}) {
+  const text = useC07VisualEditorText().dynamo;
+  const current = value?.commandId ?? '';
+  return <select
+    value={current}
+    disabled={disabled}
+    onChange={event => {
+      const commandId = event.currentTarget.value;
+      if (!commandId) {
+        if (parameter.required !== true) onRemove();
+        return;
+      }
+      onSet({
+        key: parameter.key,
+        kind: 'Command',
+        commandId,
+        version: parameter.version
+      });
+    }}
+  >
+    <option value="">{parameter.required ? text.selectCommand : text.notAssigned}</option>
+    {commands.map(command => <option key={command.id!} value={command.id!}>
+      {command.name} · {command.key}
+    </option>)}
+  </select>;
 }
 
 function ScalarParameterEditor({

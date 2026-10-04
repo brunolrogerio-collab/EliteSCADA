@@ -25,7 +25,7 @@ public static class ReusableDynamoDependencyAnalyzer
         return Analyze(
             dynamo,
             ResolveWorkingTemplateDependency(dynamo, assets),
-            assetId =>
+            (assetId, elementType) =>
             {
                 var asset = visualAssets.FindAsset(assetId)
                     ?? throw new InvalidDataException(
@@ -33,6 +33,10 @@ public static class ReusableDynamoDependencyAnalyzer
                 if (!asset.Id.HasValue || asset.Id == Guid.Empty)
                     throw new InvalidDataException(
                         $"Dynamo '{dynamo.Key}' visual asset dependency '{assetId:D}' does not have stable identity.");
+                if (string.Equals(elementType, "core.svgSymbol", StringComparison.Ordinal) &&
+                    !asset.MediaType.Equals(VisualAssetContentInspector.SvgMediaType, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException(
+                        $"Dynamo '{dynamo.Key}' core.svgSymbol references Visual Asset '{asset.Key}' with media type '{asset.MediaType}', not image/svg+xml.");
                 return new ReusableLibraryDependency(
                     ReusableLibraryResourceKinds.VisualAsset,
                     asset.Id.Value);
@@ -66,7 +70,7 @@ public static class ReusableDynamoDependencyAnalyzer
         return Analyze(
             dynamo,
             ResolveManifestTemplateDependency(dynamo, manifest),
-            assetId =>
+            (assetId, _) =>
             {
                 var resource = ResolveById(ReusableLibraryResourceKinds.VisualAsset, assetId);
                 return new ReusableLibraryDependency(resource.Kind, resource.ResourceId);
@@ -172,7 +176,7 @@ public static class ReusableDynamoDependencyAnalyzer
     private static IReadOnlyCollection<ReusableLibraryDependency> Analyze(
         DynamoEngineeringDto dynamo,
         ReusableLibraryDependency? templateDependency,
-        Func<Guid, ReusableLibraryDependency> resolveAsset)
+        Func<Guid, string, ReusableLibraryDependency> resolveAsset)
     {
         var dependencies = new Dictionary<(string Kind, Guid ResourceId), ReusableLibraryDependency>();
         ValidatePortableBindings(dynamo.Bindings, $"Dynamo '{dynamo.Key}'");
@@ -187,11 +191,16 @@ public static class ReusableDynamoDependencyAnalyzer
                     $"Dynamo '{dynamo.Key}' parameter '{parameter.Key}' has a concrete TAG default. Reusable Dynamos must keep project TAG references parameterized.");
         }
 
+        var parameterKinds = (dynamo.Parameters ?? Array.Empty<DynamoParameterDefinitionEngineeringDto>())
+            .Where(parameter => parameter is not null && !string.IsNullOrWhiteSpace(parameter.Key))
+            .ToDictionary(parameter => parameter.Key, parameter => parameter.Kind, StringComparer.OrdinalIgnoreCase);
+
         AnalyzeElements(
             dynamo.Key,
             dynamo.Elements,
             dependencies,
-            resolveAsset);
+            resolveAsset,
+            parameterKinds);
 
         return dependencies.Values
             .OrderBy(dependency => dependency.Kind, StringComparer.Ordinal)
@@ -203,7 +212,8 @@ public static class ReusableDynamoDependencyAnalyzer
         string ownerKey,
         IReadOnlyCollection<VisualElementEngineeringDto>? elements,
         IDictionary<(string Kind, Guid ResourceId), ReusableLibraryDependency> dependencies,
-        Func<Guid, ReusableLibraryDependency> resolveAsset)
+        Func<Guid, string, ReusableLibraryDependency> resolveAsset,
+        IReadOnlyDictionary<string, DynamoParameterKind> parameterKinds)
     {
         foreach (var element in elements ?? Array.Empty<VisualElementEngineeringDto>())
         {
@@ -225,11 +235,12 @@ public static class ReusableDynamoDependencyAnalyzer
                 if (parameter?.TagReference is { TagId: var tagId } && tagId != Guid.Empty)
                     throw new InvalidDataException(
                         $"Dynamo '{ownerKey}' element '{element.Key}' parameter '{parameter.Key}' carries a concrete TAG reference. Reusable Dynamos must keep project TAG references parameterized.");
+                if (parameter?.CommandId is { } commandId && commandId != Guid.Empty)
+                    throw new InvalidDataException(
+                        $"Dynamo '{ownerKey}' element '{element.Key}' parameter '{parameter.Key}' carries a concrete Command identity. Reusable Dynamos must bind Commands on the project instance.");
             }
 
-            if ((element.Actions?.Count ?? 0) > 0)
-                throw new InvalidDataException(
-                    $"Dynamo '{ownerKey}' element '{element.Key}' contains navigation/command actions. Action target dependencies are not reusable-library enabled in the Dynamo slice yet.");
+            ValidatePortableActions(element.Actions, ownerKey, element.Key, parameterKinds);
 
             if (!string.IsNullOrWhiteSpace(element.DynamoKey) || element.DynamoDefinitionId.HasValue)
             {
@@ -246,10 +257,35 @@ public static class ReusableDynamoDependencyAnalyzer
                 element.Properties.TryGetValue("assetRef", out var assetReference) &&
                 assetReference.ValueKind != JsonValueKind.Null)
             {
-                Add(dependencies, resolveAsset(ParseVisualAssetReference(assetReference, ownerKey, element.Key)));
+                Add(dependencies, resolveAsset(
+                    ParseVisualAssetReference(assetReference, ownerKey, element.Key),
+                    element.Type));
             }
 
-            AnalyzeElements(ownerKey, element.Children, dependencies, resolveAsset);
+            AnalyzeElements(ownerKey, element.Children, dependencies, resolveAsset, parameterKinds);
+        }
+    }
+
+    private static void ValidatePortableActions(
+        IReadOnlyCollection<VisualNavigationActionEngineeringDto>? actions,
+        string ownerKey,
+        string elementKey,
+        IReadOnlyDictionary<string, DynamoParameterKind> parameterKinds)
+    {
+        foreach (var action in actions ?? Array.Empty<VisualNavigationActionEngineeringDto>())
+        {
+            if (action is null) continue;
+            if (action.Kind == VisualNavigationActionKind.ExecuteCommand &&
+                !string.IsNullOrWhiteSpace(action.CommandParameterKey) &&
+                !action.CommandId.HasValue &&
+                string.IsNullOrWhiteSpace(action.TargetKey) &&
+                action.Parameters is not { Count: > 0 } &&
+                parameterKinds.TryGetValue(action.CommandParameterKey, out var parameterKind) &&
+                parameterKind == DynamoParameterKind.Command)
+                continue;
+
+            throw new InvalidDataException(
+                $"Dynamo '{ownerKey}' element '{elementKey}' contains a non-portable action. Reusable Dynamos only permit ExecuteCommand through a declared Command parameter and never a concrete project Command identity.");
         }
     }
 
@@ -279,6 +315,9 @@ public static class ReusableDynamoDependencyAnalyzer
 
         foreach (var condition in element.BooleanConditions ?? Array.Empty<VisualBooleanConditionEngineeringDto>())
             ValidatePortableSource(condition?.Source, ownerKey, element.Key);
+
+        foreach (var map in element.PropertyMaps ?? Array.Empty<VisualPropertyMapEngineeringDto>())
+            ValidatePortableSource(map?.Source, ownerKey, element.Key);
 
         if (element.AnalogFill is not null)
             ValidatePortableSource(element.AnalogFill.Source, ownerKey, element.Key);

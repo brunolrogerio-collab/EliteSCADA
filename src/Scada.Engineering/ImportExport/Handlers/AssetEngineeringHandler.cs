@@ -3,6 +3,7 @@ using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Validation;
 using Scada.Engineering.VisualScripting;
+using Scada.Engineering.VisualAssets;
 
 namespace Scada.Engineering.ImportExport.Handlers;
 
@@ -10,11 +11,16 @@ internal sealed class AssetEngineeringHandler
 {
     private readonly IEngineeringAssetRegistry _assets;
     private readonly ITagRegistry _tags;
+    private readonly IVisualAssetEngineeringRegistry _visualAssets;
 
-    public AssetEngineeringHandler(IEngineeringAssetRegistry assets, ITagRegistry tags)
+    public AssetEngineeringHandler(
+        IEngineeringAssetRegistry assets,
+        ITagRegistry tags,
+        IVisualAssetEngineeringRegistry visualAssets)
     {
         _assets = assets;
         _tags = tags;
+        _visualAssets = visualAssets;
     }
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
@@ -168,6 +174,12 @@ internal sealed class AssetEngineeringHandler
                 element,
                 ImportEntityKind.Dynamo,
                 entityKey));
+            issues.AddRange(VisualAssetReferenceEngineeringValidation.Validate(
+                element,
+                ImportEntityKind.Dynamo,
+                entityKey,
+                package,
+                _visualAssets));
             EngineeringHandlerSupport.ValidateConcreteTagBindings(
                 _tags,
                 element.Bindings,
@@ -178,6 +190,7 @@ internal sealed class AssetEngineeringHandler
             ValidateDynamoVisualElements(element.Children, entityKey, package, issues);
         }
     }
+
 
     private void ValidateDynamoParameterReferences(
         DynamoEngineeringDto dynamo,

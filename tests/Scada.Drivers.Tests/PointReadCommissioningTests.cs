@@ -246,6 +246,7 @@ public sealed class PointReadCommissioningTests
         Assert.Equal("1234", sample.Raw!.Hex);
         Assert.Equal((short)0x1234, Convert.ToInt16(sample.Decoded!.Value));
         Assert.Equal((short)0x1234, Convert.ToInt16(sample.Engineering!.Value));
+        Assert.Equal(0, server.WriteCount);
     }
 
     [Fact]

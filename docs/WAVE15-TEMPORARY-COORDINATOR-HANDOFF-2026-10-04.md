@@ -37,7 +37,7 @@ Continuation after the first checkpoint fixed two additional runtime gaps: conta
 
 ### Explicitly incomplete — do not call #501 done
 
-- Lamp source modes beyond numeric TAG state: expression, inverted Boolean and Boolean-result script binding are not implemented in this checkpoint.
+- Lamps now accept typed numeric TAG or numeric-expression sources through a dedicated authoring control and runtime projection; inverted Boolean and Boolean-result script binding remain unimplemented.
 - Motor/valve state selection is still a single numeric state TAG. Independent Boolean signals/expressions and configurable per-signal conflict resolution remain incomplete. Quality is surfaced through the runtime state indicator; prove the end-to-end bad-quality rendering and palette behavior in mounted Runtime.
 - Per-state text parameters are declared but not yet rendered; command mappings for motors/valves are not wired to canonical interactions.
 - Button released/pressed artwork is currently driven by a numeric state mapping. Momentary interaction feedback, robust failure feedback, and the script-authoring wizard are not implemented.
@@ -49,18 +49,24 @@ Do not silently shrink the issue criteria. Main should either release a bounded 
 
 ## Validation recorded on this branch
 
-- Backend `Scada.Drivers.Tests`: 886 passed.
-- Focused catalog/runtime projection and state-resolution Chromium specs: 22 passed at `c5c368e8`.
+- Backend `Scada.Drivers.Tests`: 900/900 passed locally on the branch including #504.
+- Focused `PointRead`/reachability .NET selection: 17/17 passed; one RTU write-authority timeout from a broader concurrent selection passed when isolated and remains classified as likely contention, not fixed.
+- Focused Dynamo catalog/runtime-model Chromium specs on this continuation: 13/13 passed in the Dynamo model-only Playwright profile, including typed TAG/expression value-source projection and mismatch validation. The independent geometry PR #505 has 24 focused model tests passed locally.
+- `Wave09PopupDynamoNavigationEngineeringTests`: 8/8 passed locally; `BuiltinDynamoLibraryTests`: 18/18 passed locally.
 - Web production build: passed; existing large-chunk warning only.
-- `git diff --check`: clean at checkpoint.
-- The standard mounted Playwright E2E bootstrap could not start in this local checkout because its expected durable PostgreSQL/test-service topology and `IEngineeringProjectCatalog` registration are unavailable. This is infrastructure-not-run, not a product test pass.
-- Draft PR #502 remains OPEN / DRAFT / NOT MERGED. Do not monitor its T1 or merge CI continuously. No exact-head T1 result has been claimed for `c5c368e8`.
+- The standard mounted Playwright E2E bootstrap was attempted but could not start: the local API requires durable PostgreSQL, and this checkout does not start the test database or register its engineering project catalog in this profile. This is infrastructure-not-run, not a product test pass.
+- Draft PR #502 remains OPEN / DRAFT / NOT MERGED; live head at the start of this continuation was `6bb2521566abdd409d70dab126cb9a353705e575`. Its first T1 failed at profile classification and skipped product test jobs; no exact-head product T1 result exists. The branch is being advanced by merging the current integration base and applying only the Dynamo source commit; keep geometry from #505 out of #502.
 
 ## Other product lanes still open
 
-- [#495 — Media Source Core](https://github.com/brunolrogerio-collab/EliteSCADA/issues/495) is OPEN. Canonical local PDF/video resources, network media sources, protected credentials, camera relay, package fidelity and bounded failure/reconnect behavior are not complete.
+PR #505 now declares `VALIDATION_PROFILE: UI_EDITOR`; its first T1 predates that correction, failed profile classification and skipped product jobs. Geometry local evidence is 24 focused model tests, separate from Dynamo-specific model coverage.
+
+- [#495 — Media Source Core](https://github.com/brunolrogerio-collab/EliteSCADA/issues/495) is OPEN and was unblocked after #497 integration. No consumer implementation has been published yet; canonical local PDF/video resources, network media sources, protected credentials, camera relay, package fidelity and bounded failure/reconnect behavior remain incomplete.
 - [#496 — Visual utility objects](https://github.com/brunolrogerio-collab/EliteSCADA/issues/496) is OPEN and explicitly gated on #492 V4, #495 media foundation and #494 report toolbar/launcher reconciliation. Video/IP-camera and PDF objects must not be claimed complete based on #498 reporting.
-- [#500 — Driver diagnostics convergence](https://github.com/brunolrogerio-collab/EliteSCADA/issues/500) is OPEN. The reported Runtime-GOOD / Modbus PointReadTest HTTP 400 still requires reproduction with sanitized request/response/server evidence before a safe correction; driver/host health and server-side network probes are also outstanding.
+- [#500 — Driver diagnostics convergence](https://github.com/brunolrogerio-collab/EliteSCADA/issues/500) remains OPEN pending acceptance/review despite PR #504 being merged at `407b37ad`. Local `Scada.Drivers.Tests` reported 900/900 previously; the current targeted PointRead/reachability selection passed 17/17. A broader selection also included one RTU server write-authority timeout, which passed on isolated rerun (likely test contention; not called fixed).
+- Product Owner reproduction is now correlated to the running Docker bundle: Engineering's persisted `testemodbus` TAG has a stable ID and configured Modbus source ID, `int16`, `holding:0`; the Runtime and Engineering tabs are open against the same active project. API logs record the 400 at `POST /api/engineering/driver-tools/point-read-test` (555-byte request) at `2026-10-04T05:30:31Z`. The containers started `2026-10-03T23:52Z`, before #504 merged at `2026-10-04T06:28Z`, but the image has no source-revision label, so exact bundle ancestry is unproven. Current source routes persisted TAGs with stable source IDs to `/api/engineering/data-sources/{id}/driver-tools/point-read-test`, while retaining the draft route for unpersisted changes. The observed request route is therefore consistent with the pre-fix persisted/draft selection path and is a strong lead, not a closed root-cause proof. Acceptance still requires rebuilding from the merged code and testing the same persisted TAG, then confirming a successful or appropriately classified response. No live device write was issued.
+- Remaining #500 evidence includes the broader per-provider failure/quality/timeout/protected-material/cancellation matrix and OPC UA against a real test server (current positive unit case uses the canonical session seam); do not describe those as complete. The canceled intermediate post-merge CI is not the requested final CI. The stable Docker stack has not yet been updated.
+- [#503 — Editor/Runtime responsive backlog](https://github.com/brunolrogerio-collab/EliteSCADA/issues/503) is OPEN. Bézier anchor add/remove and thin-line hit-target/selection-frame support are in draft PR #505 (`work/w15-editor-geometry-authoring-20261004`), with local build and 24 model tests green. The profile declaration is now fixed, but its exact-head T1 still needs a rerun. Runtime header controls, responsive desktop scaling and mobile orientation/screen variants remain backlog work.
 - Residential automation-driver implementation remains gated by the common driver-diagnostics foundation; do not begin protocol fan-out until Main explicitly releases it.
 
 The Opto 22 [SVG library/editors](https://www.opto22.com/support/resources-tools/image-library-svg-editors) and Wikimedia [P&ID symbol category](https://commons.wikimedia.org/wiki/Category:P%26ID_symbols) are research references only. Use only assets with confirmed redistribution rights. The present 26 replacement symbols are original EliteSCADA geometry, not copied site artwork.

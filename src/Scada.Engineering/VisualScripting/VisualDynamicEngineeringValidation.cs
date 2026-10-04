@@ -370,7 +370,7 @@ public static class VisualDynamicEngineeringValidation
             issues.Add(Error("VISUAL_ANALOG_FILL_DIRECTION_INVALID", $"Unsupported Analog Fill direction '{fill.Direction}'.", kind, key));
     }
 
-    private static void ValidateSource(
+    internal static void ValidateSource(
         VisualValueSourceEngineeringDto? source,
         ImportEntityKind kind,
         string key,

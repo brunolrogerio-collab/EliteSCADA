@@ -163,7 +163,7 @@ public static class BuiltinDynamoCatalogV1
         const bool stateful = true;
         var parameters = new List<DynamoParameterDefinitionEngineeringDto>
         {
-            new("state", DynamoParameterKind.TagReference),
+            new("state", DynamoParameterKind.ValueSource, ValueSourceType: VisualExpressionValueType.Number),
             new("offColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#46535C")),
             new("runningColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#16A34A")),
             new("faultColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#EAB308")),
@@ -174,7 +174,7 @@ public static class BuiltinDynamoCatalogV1
         };
         var metadata = Metadata("indicator.lamp", shape);
         metadata["stateProfile"] = "0=off;1..4=user-configurable";
-        metadata["implementedSourceModes"] = stateful ? "numeric-tag-state" : "fixed-artwork";
+        metadata["implementedSourceModes"] = stateful ? "numeric-tag-or-expression-state" : "fixed-artwork";
         metadata["outlineIndependent"] = "true";
         var mapped = x.LastOrDefault(e => e.Key == "lens") ?? x.LastOrDefault(e => e.Key == "green-lens");
         if (mapped is not null)

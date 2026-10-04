@@ -1,10 +1,11 @@
 import { expect, test } from '@playwright/test';
-import type { VisualElementEngineering } from '../src/engineering/types';
-import type { DynamoParameterValueEngineering } from '../src/runtime/visual-navigation/runtimeVisualNavigationModel';
+import type { DynamoEngineering, VisualElementEngineering } from '../src/engineering/types';
+import { composeDynamoRuntime, type DynamoParameterValueEngineering } from '../src/runtime/visual-navigation/runtimeVisualNavigationModel';
 import {
   projectDynamoRuntimeElements,
   resolveDynamoRuntimeEquipmentPath
 } from '../src/runtime/visual-navigation/dynamoRuntimeBindingProjection';
+import { resolveDynamoParameterEditorKind } from '../src/engineering/visual-editor/dynamo/dynamoPublicInterfaceModel';
 
 function parameters(...values: DynamoParameterValueEngineering[]) {
   return new Map(values.map(value => [value.key, value]));
@@ -61,6 +62,81 @@ test('typed equipmentPath overrides legacy instance field', () => {
 test('legacy equipmentPath remains the fallback for existing instances', () => {
   expect(resolveDynamoRuntimeEquipmentPath(' Legacy.P101 ', new Map())).toBe('Legacy.P101');
   expect(resolveDynamoRuntimeEquipmentPath(null, new Map())).toBeNull();
+});
+
+test('typed Dynamo value-source parameters project TAG expressions into canonical behavior', () => {
+  const firstTagId = '11111111-1111-4111-8111-111111111111';
+  const secondTagId = '22222222-2222-4222-8222-222222222222';
+  const element: VisualElementEngineering = {
+    key: 'running-indicator',
+    type: 'core.rectangle',
+    booleanConditions: [{
+      propertyKey: 'visible',
+      kind: 'Direct',
+      source: { kind: 'Tag', valueType: 'Boolean', target: '{dynamoParameter:running}' }
+    }]
+  };
+  const valueSource = {
+    kind: 'Expression' as const,
+    valueType: 'Boolean' as const,
+    expression: {
+      text: 'running and permitted',
+      resultType: 'Boolean' as const,
+      dependencies: [
+        { symbol: 'running', kind: 'Tag' as const, valueType: 'Boolean' as const, tagReference: { tagId: firstTagId } },
+        { symbol: 'permitted', kind: 'Tag' as const, valueType: 'Boolean' as const, tagReference: { tagId: secondTagId } }
+      ]
+    }
+  };
+  const projected = projectDynamoRuntimeElements(
+    [element],
+    parameters({ key: 'running', kind: 'ValueSource', valueSource }),
+    null
+  );
+  const source = projected[0].booleanConditions?.[0].source;
+
+  expect(source?.kind).toBe('Expression');
+  expect(source?.expression?.text).toBe('running and permitted');
+  expect(source?.expression?.dependencies?.map(dependency => dependency.tagReference.tagId))
+    .toEqual([firstTagId, secondTagId]);
+});
+
+test('Dynamo composition applies typed value-source defaults and rejects a mismatched result type', () => {
+  const source = {
+    kind: 'Expression' as const,
+    valueType: 'Number' as const,
+    expression: {
+      text: 'status',
+      resultType: 'Number' as const,
+      dependencies: [{
+        symbol: 'status', kind: 'Tag' as const, valueType: 'Number' as const,
+        tagReference: { tagId: '33333333-3333-4333-8333-333333333333' }
+      }]
+    }
+  };
+  const definition: DynamoEngineering = {
+    id: 'dynamo-definition',
+    key: 'indicator.lamp.round',
+    name: 'Round signal lamp',
+    parameters: [{ key: 'state', kind: 'ValueSource', required: true, valueSourceType: 'Number', defaultValueSource: source }],
+    elements: []
+  };
+  const instance: VisualElementEngineering = {
+    id: 'lamp-instance', key: 'lamp-instance', type: 'dynamo', dynamoKey: definition.key
+  };
+  const composed = composeDynamoRuntime(instance, definition);
+
+  expect(composed.parameters.get('state')?.valueSource?.expression?.text).toBe('status');
+  expect(() => composeDynamoRuntime({
+    ...instance,
+    dynamoParameters: [{ key: 'state', kind: 'ValueSource', valueSource: {
+      kind: 'Expression', valueType: 'Boolean', expression: { text: 'ready', resultType: 'Boolean' }
+    } }]
+  }, definition)).toThrow(/requires a Number visual value source/);
+});
+
+test('typed value-source parameters use the dedicated TAG/expression authoring editor', () => {
+  expect(resolveDynamoParameterEditorKind('ValueSource')).toBe('value-source');
 });
 
 test('public TagReference overrides the opted-in internal binding and preserves selector', () => {

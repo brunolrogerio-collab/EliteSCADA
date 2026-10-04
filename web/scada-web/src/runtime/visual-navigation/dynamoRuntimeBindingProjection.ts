@@ -127,6 +127,8 @@ function projectElement(
       });
       const overriddenStateSource = stateParameter?.kind === 'TagReference' && stateParameter.tagReference
         ? Object.freeze({ ...propertyMap.source, target: null, tagReference: cloneTagReference(stateParameter.tagReference) })
+        : stateParameter?.kind === 'ValueSource' && stateParameter.valueSource
+          ? Object.freeze({ ...propertyMap.source, target: `{dynamoParameter:${stateParameterKey}}`, tagReference: null })
         : propertyMap.source;
       return Object.freeze({
         ...propertyMap,
@@ -225,6 +227,27 @@ function projectValueSource(
     : substituteEquipmentPath(source.target, equipmentPath);
   const parameterKey = dynamoParameterFromTarget(target ?? '');
   const parameter = parameterKey ? findParameter(parameters, parameterKey) : undefined;
+  if (parameter?.kind === 'ValueSource' && parameter.valueSource) {
+    const replacement = parameter.valueSource;
+    if (replacement.valueType !== source.valueType) {
+      throw new Error(`Dynamo value-source parameter '${parameter.key}' produces ${replacement.valueType}, but the visual behavior requires ${source.valueType}.`);
+    }
+    return Object.freeze({
+      ...replacement,
+      target: substituteEquipmentPath(replacement.target ?? '', equipmentPath) || replacement.target,
+      tagReference: replacement.tagReference ? cloneTagReference(replacement.tagReference) : replacement.tagReference,
+      expression: replacement.expression ? Object.freeze({
+        ...replacement.expression,
+        dependencies: replacement.expression.dependencies
+          ? Object.freeze(replacement.expression.dependencies.map(dependency => Object.freeze({
+              ...dependency,
+              tagReference: cloneTagReference(dependency.tagReference),
+              target: substituteEquipmentPath(dependency.target ?? '', equipmentPath) || dependency.target
+            })))
+          : replacement.expression.dependencies
+      }) : replacement.expression
+    });
+  }
   const projectedValue = parameter?.kind === 'Boolean' && typeof parameter.value === 'boolean'
     ? parameter.value
     : parameter?.kind === 'Number' && typeof parameter.value === 'number' && Number.isFinite(parameter.value)

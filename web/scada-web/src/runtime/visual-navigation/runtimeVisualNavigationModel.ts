@@ -4,7 +4,8 @@ import type {
   PopupEngineering,
   ScreenEngineering,
   TagValueReferenceEngineering,
-  VisualElementEngineering
+  VisualElementEngineering,
+  VisualValueSourceEngineering
 } from '../../engineering/types';
 
 export const VISUAL_COMPOSITION_RUNTIME_VERSION = 1 as const;
@@ -15,6 +16,7 @@ export type DynamoParameterKindEngineering =
   | 'String'
   | 'EquipmentPath'
   | 'TagReference'
+  | 'ValueSource'
   | 'Command';
 
 export type DynamoParameterDefinitionEngineering = Readonly<{
@@ -23,6 +25,8 @@ export type DynamoParameterDefinitionEngineering = Readonly<{
   required?: boolean;
   defaultValue?: unknown;
   defaultTagReference?: TagValueReferenceEngineering | null;
+  defaultValueSource?: VisualValueSourceEngineering | null;
+  valueSourceType?: 'Boolean' | 'Number' | null;
   version?: number;
 }>;
 
@@ -31,6 +35,7 @@ export type DynamoParameterValueEngineering = Readonly<{
   kind: DynamoParameterKindEngineering;
   value?: unknown;
   tagReference?: TagValueReferenceEngineering | null;
+  valueSource?: VisualValueSourceEngineering | null;
   commandId?: string | null;
   version?: number;
 }>;
@@ -318,6 +323,13 @@ export function composeDynamoRuntime(
           `Dynamo parameter '${parameter.key}' expects ${parameter.kind} but instance '${instance.key}' supplies ${suppliedValue.kind}.`
         );
       }
+      if (parameter.kind === 'ValueSource' && parameter.valueSourceType &&
+          suppliedValue.valueSource?.valueType !== parameter.valueSourceType) {
+        throw new RuntimeVisualCompositionError(
+          'VISUAL_RUNTIME_DYNAMO_PARAMETER_VALUE_SOURCE_TYPE_MISMATCH',
+          `Dynamo parameter '${parameter.key}' requires a ${parameter.valueSourceType} visual value source.`
+        );
+      }
       validateParameterPayload(suppliedValue, false);
       resolved.set(parameter.key, freezeParameterValue(suppliedValue));
       continue;
@@ -328,6 +340,24 @@ export function composeDynamoRuntime(
         key: parameter.key,
         kind: parameter.kind,
         tagReference: cloneTagReference(parameter.defaultTagReference),
+        version: VISUAL_COMPOSITION_RUNTIME_VERSION
+      };
+      validateParameterPayload(value, false);
+      resolved.set(parameter.key, freezeParameterValue(value));
+      continue;
+    }
+
+    if (parameter.kind === 'ValueSource' && parameter.defaultValueSource) {
+      if (parameter.valueSourceType && parameter.defaultValueSource.valueType !== parameter.valueSourceType) {
+        throw new RuntimeVisualCompositionError(
+          'VISUAL_RUNTIME_DYNAMO_PARAMETER_VALUE_SOURCE_TYPE_MISMATCH',
+          `Dynamo parameter '${parameter.key}' default requires a ${parameter.valueSourceType} visual value source.`
+        );
+      }
+      const value: DynamoParameterValueEngineering = {
+        key: parameter.key,
+        kind: parameter.kind,
+        valueSource: parameter.defaultValueSource,
         version: VISUAL_COMPOSITION_RUNTIME_VERSION
       };
       validateParameterPayload(value, false);
@@ -482,7 +512,7 @@ function uniqueParameterValues(
 
 function validateParameterPayload(value: DynamoParameterValueEngineering, allowMissing: boolean): void {
   if (value.kind === 'Command') {
-    if (value.value !== undefined || value.tagReference) {
+    if (value.value !== undefined || value.tagReference || value.valueSource) {
       throw new RuntimeVisualCompositionError(
         'VISUAL_RUNTIME_DYNAMO_PARAMETER_SHAPE_INVALID',
         `Dynamo parameter '${value.key}' of kind Command cannot carry a scalar or TAG reference.`
@@ -502,7 +532,7 @@ function validateParameterPayload(value: DynamoParameterValueEngineering, allowM
   }
 
   if (value.kind === 'TagReference') {
-    if (value.value !== undefined) {
+    if (value.value !== undefined || value.valueSource) {
       throw new RuntimeVisualCompositionError(
         'VISUAL_RUNTIME_DYNAMO_PARAMETER_SHAPE_INVALID',
         `Dynamo parameter '${value.key}' of kind TagReference cannot carry a scalar value.`
@@ -521,7 +551,27 @@ function validateParameterPayload(value: DynamoParameterValueEngineering, allowM
     return;
   }
 
-  if (value.tagReference || value.commandId) {
+  if (value.kind === 'ValueSource') {
+    if (value.value !== undefined || value.tagReference || value.commandId) {
+      throw new RuntimeVisualCompositionError(
+        'VISUAL_RUNTIME_DYNAMO_PARAMETER_SHAPE_INVALID',
+        `Dynamo parameter '${value.key}' of kind ValueSource cannot carry scalar, TAG, or Command payloads.`
+      );
+    }
+    if (!value.valueSource) {
+      if (!allowMissing) {
+        throw new RuntimeVisualCompositionError(
+          'VISUAL_RUNTIME_DYNAMO_PARAMETER_VALUE_SOURCE_REQUIRED',
+          `Dynamo parameter '${value.key}' requires a typed visual value source.`
+        );
+      }
+      return;
+    }
+    validateVisualValueSource(value.valueSource, value.key);
+    return;
+  }
+
+  if (value.tagReference || value.commandId || value.valueSource) {
     throw new RuntimeVisualCompositionError(
       'VISUAL_RUNTIME_DYNAMO_PARAMETER_SHAPE_INVALID',
       `Dynamo parameter '${value.key}' of kind ${value.kind} cannot carry a TAG reference.`
@@ -556,8 +606,37 @@ function freezeParameterValue(value: DynamoParameterValueEngineering): DynamoPar
   return Object.freeze({
     ...value,
     value: value.value === undefined ? undefined : cloneJsonValue(value.value),
-    tagReference: value.tagReference ? cloneTagReference(value.tagReference) : value.tagReference
+    tagReference: value.tagReference ? cloneTagReference(value.tagReference) : value.tagReference,
+    valueSource: value.valueSource ? cloneJsonValue(value.valueSource) : value.valueSource
   });
+}
+
+function validateVisualValueSource(source: VisualValueSourceEngineering, parameterKey: string): void {
+  if (!['Tag', 'ClientMemory', 'Expression'].includes(source.kind) || !['Boolean', 'Number'].includes(source.valueType)) {
+    throw new RuntimeVisualCompositionError(
+      'VISUAL_RUNTIME_DYNAMO_PARAMETER_VALUE_SOURCE_INVALID',
+      `Dynamo parameter '${parameterKey}' carries an unsupported value source.`
+    );
+  }
+  if (source.kind === 'Expression') {
+    if (!source.expression || source.expression.resultType !== source.valueType || !source.expression.text.trim()) {
+      throw new RuntimeVisualCompositionError(
+        'VISUAL_RUNTIME_DYNAMO_PARAMETER_VALUE_SOURCE_INVALID',
+        `Dynamo parameter '${parameterKey}' requires a matching typed expression.`
+      );
+    }
+    for (const dependency of source.expression.dependencies ?? []) {
+      requireStableText(dependency.tagReference?.tagId ?? '', 'TAG identity', 'VISUAL_RUNTIME_DYNAMO_PARAMETER_VALUE_SOURCE_INVALID');
+    }
+  } else {
+    requireStableText(source.tagReference?.tagId ?? '', 'TAG identity', 'VISUAL_RUNTIME_DYNAMO_PARAMETER_VALUE_SOURCE_INVALID');
+    if (source.expression) {
+      throw new RuntimeVisualCompositionError(
+        'VISUAL_RUNTIME_DYNAMO_PARAMETER_VALUE_SOURCE_INVALID',
+        `Dynamo parameter '${parameterKey}' direct source cannot also carry an expression.`
+      );
+    }
+  }
 }
 
 function assertNoNestedDynamo(elements: readonly CanonicalVisualElementEngineering[]): void {

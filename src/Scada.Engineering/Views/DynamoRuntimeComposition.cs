@@ -51,6 +51,10 @@ public static class DynamoRuntimeComposer
         {
             if (supplied.TryGetValue(parameter.Key, out var value))
             {
+                if (parameter.Kind == DynamoParameterKind.ValueSource && parameter.ValueSourceType.HasValue &&
+                    value.ValueSource?.ValueType != parameter.ValueSourceType.Value)
+                    throw new InvalidOperationException(
+                        $"Dynamo parameter '{parameter.Key}' requires a {parameter.ValueSourceType.Value} visual value source.");
                 resolved[parameter.Key] = value;
                 continue;
             }
@@ -61,6 +65,18 @@ public static class DynamoRuntimeComposer
                     parameter.Key,
                     parameter.Kind,
                     TagReference: parameter.DefaultTagReference);
+                continue;
+            }
+
+            if (parameter.Kind == DynamoParameterKind.ValueSource && parameter.DefaultValueSource is not null)
+            {
+                if (parameter.ValueSourceType.HasValue && parameter.DefaultValueSource.ValueType != parameter.ValueSourceType.Value)
+                    throw new InvalidOperationException(
+                        $"Dynamo parameter '{parameter.Key}' default requires a {parameter.ValueSourceType.Value} visual value source.");
+                resolved[parameter.Key] = new DynamoParameterValueEngineeringDto(
+                    parameter.Key,
+                    parameter.Kind,
+                    ValueSource: parameter.DefaultValueSource);
                 continue;
             }
 
@@ -141,6 +157,8 @@ public static class DynamoRuntimeComposer
                 var source = ProjectValueSource(map.Source, normalizedPath, parameters);
                 if (stateParameter?.Kind == DynamoParameterKind.TagReference && stateParameter.TagReference is not null)
                     source = source with { Target = null, TagReference = stateParameter.TagReference };
+                else if (stateParameter?.Kind == DynamoParameterKind.ValueSource && stateParameter.ValueSource is not null && stateParameterKey is not null)
+                    source = ProjectValueSource(source with { Target = $"{{dynamoParameter:{stateParameterKey}}}", TagReference = null }, normalizedPath, parameters);
                 return map with { Source = source, Rules = rules };
             }).ToArray() : null,
             Children = SubstituteInstanceContext(
@@ -253,10 +271,31 @@ public static class DynamoRuntimeComposer
         if (target is not null && equipmentPath is not null)
             target = target.Replace("{equipmentPath}", equipmentPath, StringComparison.Ordinal);
         if (Scada.Engineering.VisualScripting.VisualDynamicEngineeringValidation.TryDynamoParameterTarget(target, out var parameterKey) &&
-            parameters.TryGetValue(parameterKey, out var parameter) && parameter.Kind == DynamoParameterKind.TagReference &&
-            parameter.TagReference is not null)
+            parameters.TryGetValue(parameterKey, out var parameter))
         {
-            return source with { Target = null, TagReference = parameter.TagReference };
+            if (parameter.Kind == DynamoParameterKind.TagReference && parameter.TagReference is not null)
+                return source with { Target = null, TagReference = parameter.TagReference };
+            if (parameter.Kind == DynamoParameterKind.ValueSource && parameter.ValueSource is not null)
+            {
+                if (parameter.ValueSource.ValueType != source.ValueType)
+                    throw new InvalidOperationException(
+                        $"Dynamo value-source parameter '{parameter.Key}' produces {parameter.ValueSource.ValueType}, but the visual behavior requires {source.ValueType}.");
+                return parameter.ValueSource with
+                {
+                    Target = parameter.ValueSource.Target is not null && equipmentPath is not null
+                        ? parameter.ValueSource.Target.Replace("{equipmentPath}", equipmentPath, StringComparison.Ordinal)
+                        : parameter.ValueSource.Target,
+                    Expression = parameter.ValueSource.Expression is null ? null : parameter.ValueSource.Expression with
+                    {
+                        Dependencies = parameter.ValueSource.Expression.Dependencies?.Select(dependency => dependency with
+                        {
+                            Target = dependency.Target is not null && equipmentPath is not null
+                                ? dependency.Target.Replace("{equipmentPath}", equipmentPath, StringComparison.Ordinal)
+                                : dependency.Target
+                        }).ToArray()
+                    }
+                };
+            }
         }
         return source with { Target = target };
     }

@@ -45,6 +45,9 @@ export function normalizeDynamoParameterKind(
     case 'Command':
     case 'command':
       return 'Command';
+    case 'ValueSource':
+    case 'valueSource':
+      return 'ValueSource';
     default:
       throw new DynamoParameterWireContractError(
         'VISUAL_RUNTIME_DYNAMO_PARAMETER_KIND_UNSUPPORTED',
@@ -73,7 +76,8 @@ export function normalizeDynamoParameterDefinition(
             ? Object.freeze({ ...parameter.defaultTagReference.selector })
             : parameter.defaultTagReference.selector
         })
-      : parameter.defaultTagReference
+      : parameter.defaultTagReference,
+    defaultValueSource: parameter.defaultValueSource ? normalizeValueSource(parameter.defaultValueSource) : parameter.defaultValueSource
   });
 }
 
@@ -99,7 +103,32 @@ export function normalizeDynamoParameterValue(
             ? Object.freeze({ ...parameter.tagReference.selector })
             : parameter.tagReference.selector
         })
-      : parameter.tagReference
+      : parameter.tagReference,
+    valueSource: parameter.valueSource ? normalizeValueSource(parameter.valueSource) : parameter.valueSource
+  });
+}
+
+function normalizeValueSource(source: NonNullable<DynamoParameterValueEngineering['valueSource']>) {
+  return Object.freeze({
+    ...source,
+    tagReference: source.tagReference
+      ? Object.freeze({
+          ...source.tagReference,
+          selector: source.tagReference.selector ? Object.freeze({ ...source.tagReference.selector }) : source.tagReference.selector
+        })
+      : source.tagReference,
+    expression: source.expression ? Object.freeze({
+      ...source.expression,
+      dependencies: source.expression.dependencies
+        ? Object.freeze(source.expression.dependencies.map(dependency => Object.freeze({
+            ...dependency,
+            tagReference: Object.freeze({
+              ...dependency.tagReference,
+              selector: dependency.tagReference.selector ? Object.freeze({ ...dependency.tagReference.selector }) : dependency.tagReference.selector
+            })
+          })))
+        : source.expression.dependencies
+    }) : source.expression
   });
 }
 

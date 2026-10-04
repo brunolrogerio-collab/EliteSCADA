@@ -4,7 +4,8 @@ import type {
   DynamoEngineering,
   ScreenEngineering,
   TagEngineering,
-  VisualElementEngineering
+  VisualElementEngineering,
+  VisualValueSourceEngineering
 } from '../../types';
 import type {
   DynamoParameterDefinitionEngineering,
@@ -186,7 +187,7 @@ function ParameterEditor({
     || (parameter.kind === 'EquipmentPath' && instance.equipmentPath?.trim())
   );
   const requiredMissing = parameter.required === true && value === undefined
-    && parameter.defaultValue === undefined && !parameter.defaultTagReference;
+    && parameter.defaultValue === undefined && !parameter.defaultTagReference && !parameter.defaultValueSource;
   const removeAllowed = hasStoredValue && parameter.required !== true && !disabled;
 
   return <div className={`visual-editor-dynamo-parameter${requiredMissing ? ' is-required-missing' : ''}`}>
@@ -214,6 +215,13 @@ function ParameterEditor({
       disabled={disabled}
       onSet={onSet}
       onRemove={onRemove}
+    /> : editor === 'value-source' ? <ValueSourceParameterEditor
+      parameter={parameter}
+      value={value}
+      tags={tags}
+      disabled={disabled}
+      onSet={onSet}
+      onRemove={onRemove}
     /> : editor === 'command' ? <CommandParameterEditor
       parameter={parameter}
       value={value}
@@ -233,6 +241,104 @@ function ParameterEditor({
       {removeAllowed && editor !== 'tag-reference' ? <button type="button" onClick={onRemove}>{text.reset}</button> : null}
     </footer>
   </div>;
+}
+
+function ValueSourceParameterEditor({
+  parameter,
+  value,
+  tags,
+  disabled,
+  onSet,
+  onRemove
+}: {
+  parameter: DynamoParameterDefinitionEngineering;
+  value: DynamoParameterValueEngineering | undefined;
+  tags: readonly TagEngineering[];
+  disabled: boolean;
+  onSet: (value: DynamoParameterValueEngineering) => void;
+  onRemove: () => void;
+}) {
+  const text = useC07VisualEditorText().dynamo;
+  const source = value?.valueSource ?? parameter.defaultValueSource ?? undefined;
+  const [mode, setMode] = useState<'Tag' | 'Expression'>(source?.kind === 'Expression' ? 'Expression' : 'Tag');
+  const [tagId, setTagId] = useState(source?.kind === 'Expression'
+    ? source.expression?.dependencies?.[0]?.tagReference.tagId ?? ''
+    : source?.tagReference?.tagId ?? '');
+  const [expressionText, setExpressionText] = useState(source?.expression?.text ?? 'source');
+  const [resultType, setResultType] = useState<'Boolean' | 'Number'>(parameter.valueSourceType ?? source?.valueType ?? 'Boolean');
+  const selectedTag = tags.find(tag => tag.id === tagId);
+
+  useEffect(() => {
+    const next = value?.valueSource ?? parameter.defaultValueSource ?? undefined;
+    setMode(next?.kind === 'Expression' ? 'Expression' : 'Tag');
+    setTagId(next?.kind === 'Expression'
+      ? next.expression?.dependencies?.[0]?.tagReference.tagId ?? ''
+      : next?.tagReference?.tagId ?? '');
+    setExpressionText(next?.expression?.text ?? 'source');
+    setResultType(parameter.valueSourceType ?? next?.valueType ?? 'Boolean');
+  }, [parameter.key, parameter.defaultValueSource, value?.valueSource]);
+
+  const save = () => {
+    if (disabled || !selectedTag?.id) return;
+    const valueType = parameter.valueSourceType ?? (mode === 'Expression' ? resultType : tagValueType(selectedTag.dataType));
+    let valueSource: VisualValueSourceEngineering;
+    if (mode === 'Expression') {
+      valueSource = {
+        kind: 'Expression',
+        valueType,
+        expression: {
+          text: expressionText.trim() || 'source',
+          resultType: valueType,
+          dependencies: [{
+            symbol: 'source',
+            kind: 'Tag',
+            valueType: tagValueType(selectedTag.dataType),
+            tagReference: { tagId: selectedTag.id },
+            target: selectedTag.path
+          }]
+        }
+      };
+    } else {
+      valueSource = {
+        kind: 'Tag',
+        valueType,
+        target: selectedTag.path,
+        tagReference: { tagId: selectedTag.id }
+      };
+    }
+    onSet({ key: parameter.key, kind: 'ValueSource', valueSource, version: parameter.version });
+  };
+
+  return <div className="visual-editor-dynamo-parameter__scalar">
+    <label>
+      <span>{text.valueSource}</span>
+      <select value={mode} disabled={disabled} onChange={event => setMode(event.currentTarget.value as 'Tag' | 'Expression')}>
+        <option value="Tag">TAG</option>
+        <option value="Expression">{text.expression}</option>
+      </select>
+    </label>
+    <select value={tagId} disabled={disabled} onChange={event => setTagId(event.currentTarget.value)}>
+      <option value="">{text.selectTag}</option>
+      {tags.map(tag => <option key={tag.id!} value={tag.id!}>{tag.name} · {tag.path} · {tag.dataType}</option>)}
+    </select>
+    {mode === 'Expression' ? <>
+      {parameter.valueSourceType ? <small>{text.sourceResult}: {parameter.valueSourceType}</small> : <label>
+          <span>{text.sourceResult}</span>
+          <select value={resultType} disabled={disabled} onChange={event => setResultType(event.currentTarget.value as 'Boolean' | 'Number')}>
+            <option value="Boolean">Boolean</option>
+            <option value="Number">Number</option>
+          </select>
+        </label>}
+      <input value={expressionText} disabled={disabled} onChange={event => setExpressionText(event.currentTarget.value)} aria-label={text.expression} />
+      <small>{text.expressionHint}</small>
+    </> : null}
+    <button type="button" className="secondary" disabled={disabled || !selectedTag || (mode === 'Tag' && parameter.valueSourceType != null && parameter.valueSourceType !== tagValueType(selectedTag.dataType))} onClick={save}>{text.valueSource}</button>
+    {value?.valueSource && parameter.required !== true ? <button type="button" className="secondary" disabled={disabled} onClick={onRemove}>{text.reset}</button> : null}
+  </div>;
+}
+
+function tagValueType(dataType: string): 'Boolean' | 'Number' {
+  return /bool/i.test(dataType) ? 'Boolean' : 'Number';
 }
 
 function CommandParameterEditor({

@@ -107,6 +107,40 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void ReplacementSignalLamp_ProjectsTypedNumericExpressionStateSource()
+    {
+        var lamp = BuiltinDynamoCatalogV1.Create().Single(definition => definition.Key == "indicator.lamp.round");
+        var sourceTagId = Guid.NewGuid();
+        var stateSource = new VisualValueSourceEngineeringDto(
+            VisualValueSourceKind.Expression,
+            VisualExpressionValueType.Number,
+            Expression: new VisualExpressionEngineeringDto(
+                "statusWord",
+                VisualExpressionValueType.Number,
+                [new("statusWord", VisualExpressionDependencyKind.Tag, VisualExpressionValueType.Number,
+                    new Scada.Core.Tags.TagValueReference(sourceTagId))]));
+        var instance = new VisualElementEngineeringDto("lamp-1", "dynamo", DynamoKey: lamp.Key, Id: Guid.NewGuid(),
+            DynamoParameters: [new("state", DynamoParameterKind.ValueSource, ValueSource: stateSource)]);
+
+        var projected = DynamoRuntimeComposer.Compose(instance, lamp);
+        var stateMap = Assert.Single(projected.Elements.SelectMany(element => element.PropertyMaps ?? []));
+
+        Assert.Equal(VisualValueSourceKind.Expression, stateMap.Source.Kind);
+        Assert.Equal("statusWord", stateMap.Source.Expression!.Text);
+        Assert.Equal(sourceTagId, Assert.Single(stateMap.Source.Expression.Dependencies!).TagReference.TagId);
+        Assert.Empty(VisualCompositionEngineeringValidation.ValidateDynamo(lamp));
+
+        var wrongTypeInstance = instance with
+        {
+            DynamoParameters =
+            [new("state", DynamoParameterKind.ValueSource, ValueSource: new VisualValueSourceEngineeringDto(
+                VisualValueSourceKind.Tag, VisualExpressionValueType.Boolean,
+                TagReference: new Scada.Core.Tags.TagValueReference(Guid.NewGuid())))]
+        };
+        Assert.Throws<InvalidOperationException>(() => DynamoRuntimeComposer.Compose(wrongTypeInstance, lamp));
+    }
+
+    [Fact]
     public void ReplacementCatalogV1_EquipmentStatesAreNumericTagMapsAndKeepLegacyLibrarySeparate()
     {
         var replacement = BuiltinDynamoCatalogV1.Create();

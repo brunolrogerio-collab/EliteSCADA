@@ -175,7 +175,7 @@ public static class BuiltinDynamoCatalogV1
         };
         var metadata = Metadata("indicator.lamp", shape);
         metadata["stateProfile"] = "0=off;1..4=user-configurable";
-        metadata["implementedSourceModes"] = stateful ? "numeric-tag-or-expression-state" : "fixed-artwork";
+        metadata["implementedSourceModes"] = stateful ? "numeric-tag-or-expression-or-boolean-tag-or-expression-state" : "fixed-artwork";
         metadata["outlineIndependent"] = "true";
         var mapped = x.LastOrDefault(e => e.Key == "lens") ?? x.LastOrDefault(e => e.Key == "green-lens");
         if (mapped is not null)
@@ -261,7 +261,7 @@ public static class BuiltinDynamoCatalogV1
         var parameters = new List<DynamoParameterDefinitionEngineeringDto>
         {
             new("equipmentPath", DynamoParameterKind.EquipmentPath),
-            new("state", DynamoParameterKind.TagReference),
+            new("state", DynamoParameterKind.ValueSource, ValueSourceType: VisualExpressionValueType.Number),
             new(family == "valve" ? "closedColor" : family == "electrical" ? "openColor" : "stoppedColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement(family == "electrical" ? "#526879" : "#93B99A")),
             new(family == "valve" ? "openColor" : family == "electrical" ? "closedColor" : "runningColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#16A34A")),
             new("faultColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#DC2626")),
@@ -285,7 +285,7 @@ public static class BuiltinDynamoCatalogV1
                 {
                     Actions = [new VisualNavigationActionEngineeringDto("click", VisualNavigationActionKind.ExecuteCommand, CommandParameterKey: "command")]
                 };
-            metadata["stateSource"] = "numeric-tag-enum";
+            metadata["stateSource"] = "numeric-value-source-enum";
             metadata["statePriority"] = "one-exclusive-state-per-enum-value; invalid-or-missing-sample-uses-base-state";
         }
         else
@@ -314,7 +314,7 @@ public static class BuiltinDynamoCatalogV1
                 x[geometryIndex] = existing with { PropertyMaps = properties, Metadata = elementMetadata };
             }
             metadata["stateProfile"] = "0=open;1=closed";
-            metadata["stateSource"] = "numeric-tag-enum";
+            metadata["stateSource"] = "numeric-value-source-enum";
             metadata["statePriority"] = "0=open;1=closed;invalid-or-bad-quality-preserves-open-artwork";
             metadata["animationContract"] = "canonical numeric PropertyMaps for contact color and blade rotation";
         }

@@ -260,6 +260,47 @@ test('state color mapping follows the selected TAG and per-instance palette over
   });
 });
 
+test('equipment state expression source projects consistently to color maps and state labels', () => {
+  const source = {
+    kind: 'Expression',
+    valueType: 'Number',
+    expression: {
+      text: 'motorState',
+      resultType: 'Number',
+      dependencies: [{
+        symbol: 'motorState', kind: 'Tag', valueType: 'Number', tagReference: { tagId: 'tag-state-id' }
+      }]
+    }
+  } as const;
+  const body: VisualElementEngineering = {
+    id: 'motor-body', key: 'state-body', type: 'core.svgSymbol',
+    metadata: { dynamoStateColorParameter: 'state', dynamoStateColorProfile: 'stopped,running,fault' },
+    propertyMaps: [{
+      propertyKey: 'svg.slot.state.fill',
+      source: { kind: 'Tag', valueType: 'Number', target: '{equipmentPath}.State' },
+      rules: [{ value: '#777777', minimum: 0, maximum: 1 }]
+    }]
+  };
+  const label: VisualElementEngineering = {
+    id: 'motor-label-1', key: 'state-label-1', type: 'core.text',
+    metadata: { dynamoStateLabelIndex: '1' },
+    booleanConditions: [{
+      propertyKey: 'visible', kind: 'NumericInterval',
+      source: { kind: 'Tag', valueType: 'Number', target: '{dynamoParameter:state}' }, minimum: 1, maximum: 2
+    }]
+  };
+
+  const projected = projectDynamoRuntimeElements([body, label], parameters(
+    { key: 'state', kind: 'ValueSource', valueSource: source }
+  ), 'Area.M01');
+  expect(projected[0]?.propertyMaps?.[0]?.source).toMatchObject({
+    kind: 'Expression', valueType: 'Number', expression: { text: 'motorState' }
+  });
+  expect(projected[1]?.booleanConditions?.[0]?.source).toMatchObject({
+    kind: 'Expression', valueType: 'Number', expression: { text: 'motorState' }
+  });
+});
+
 test('button Dynamo action tokens resolve to canonical TAG identity and typed scalar values', () => {
   const button: VisualElementEngineering = {
     id: 'button', key: 'button', type: 'core.rectangle',

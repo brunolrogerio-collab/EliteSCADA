@@ -69,7 +69,8 @@ public sealed class BuiltinDynamoLibraryTests
     {
         var contact = BuiltinDynamoCatalogV1.Create().Single(definition => definition.Key == "electrical.contact-tri-horizontal");
         Assert.Equal("0=open;1=closed", contact.Metadata!["stateProfile"]);
-        Assert.Contains(contact.Parameters!, parameter => parameter.Key == "state" && parameter.Kind == DynamoParameterKind.TagReference);
+        Assert.Contains(contact.Parameters!, parameter => parameter.Key == "state" && parameter.Kind == DynamoParameterKind.ValueSource &&
+            parameter.ValueSourceType == VisualExpressionValueType.Number);
         Assert.Contains(contact.Parameters!, parameter => parameter.Key == "openColor");
         Assert.Contains(contact.Parameters!, parameter => parameter.Key == "closedColor");
 
@@ -238,6 +239,54 @@ public sealed class BuiltinDynamoLibraryTests
         {
             Assert.Equal(tagId, map.Source.TagReference!.TagId);
             Assert.Null(map.Source.Target);
+        });
+    }
+
+    [Fact]
+    public void ReplacementEquipment_AcceptsTypedNumericTagOrExpressionStateSources()
+    {
+        var definitions = BuiltinDynamoCatalogV1.Create()
+            .Where(definition => definition.Metadata!["familyKey"] is "equipment.motor" or "equipment.valve" or "equipment.electrical")
+            .ToArray();
+        Assert.Equal(18, definitions.Length);
+        Assert.All(definitions, definition =>
+        {
+            var state = Assert.Single(definition.Parameters!, parameter => parameter.Key == "state");
+            Assert.Equal(DynamoParameterKind.ValueSource, state.Kind);
+            Assert.Equal(VisualExpressionValueType.Number, state.ValueSourceType);
+        });
+
+        var motor = definitions.Single(definition => definition.Key == "motor.tefc");
+        var tagId = Guid.NewGuid();
+        var expressionSource = new VisualValueSourceEngineeringDto(
+            VisualValueSourceKind.Expression,
+            VisualExpressionValueType.Number,
+            Expression: new VisualExpressionEngineeringDto(
+                "motorState",
+                VisualExpressionValueType.Number,
+                [new VisualExpressionDependencyEngineeringDto(
+                    "motorState", VisualExpressionDependencyKind.Tag, VisualExpressionValueType.Number, new(tagId))]));
+        var expressionInstance = new VisualElementEngineeringDto(
+            "motor-expression-1", "dynamo", DynamoKey: motor.Key, Id: Guid.NewGuid(),
+            DynamoParameters:
+            [
+                new("state", DynamoParameterKind.ValueSource, ValueSource: expressionSource),
+                new("command", DynamoParameterKind.Command, CommandId: Guid.NewGuid())
+            ]);
+
+        var projected = DynamoRuntimeComposer.Compose(expressionInstance, motor);
+        var stateMap = Assert.Single(projected.Elements.SelectMany(element => element.PropertyMaps ?? []),
+            map => map.PropertyKey == "svg.slot.state.fill");
+        Assert.Equal(VisualValueSourceKind.Expression, stateMap.Source.Kind);
+        Assert.Equal("motorState", stateMap.Source.Expression!.Text);
+        var labelConditions = projected.Elements
+            .Where(element => element.Metadata?.ContainsKey("dynamoStateLabelIndex") == true)
+            .SelectMany(element => element.BooleanConditions ?? []).ToArray();
+        Assert.Equal(5, labelConditions.Length);
+        Assert.All(labelConditions, condition =>
+        {
+            Assert.Equal(VisualValueSourceKind.Expression, condition.Source.Kind);
+            Assert.Equal("motorState", condition.Source.Expression!.Text);
         });
     }
 

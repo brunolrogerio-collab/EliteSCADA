@@ -138,6 +138,7 @@ builder.Services.AddSingleton<ApiAuthorizationService>(sp =>
         sp.GetRequiredService<IRuntimeSessionLeaseStore>()));
 builder.AddOptionalEngineeringPersistence(databaseConnections);
 var localIdentityEnabled = builder.AddConfiguredAudit(databaseConnections);
+builder.AddHostProtectedMaterialAuthority();
 if (localIdentityEnabled)
     builder.Services.AddSingleton<InstallationDetachService>();
 builder.Services.AddOpenApi();

@@ -31,6 +31,7 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
     public byte ReadReturnCode { get; set; } = S7IsoProtocol.ReturnCodeSuccess;
     public byte WriteReturnCode { get; set; } = S7IsoProtocol.ReturnCodeSuccess;
     public int? DropBeforeDataRequestNumber { get; set; }
+    public TimeSpan ResponseDelay { get; set; }
 
     public void SetBytes(S7IsoArea area, ushort dbNumber, int byteOffset, ReadOnlySpan<byte> data)
     {
@@ -132,6 +133,8 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
             switch (request[17])
             {
                 case 0x04:
+                    if (ResponseDelay > TimeSpan.Zero)
+                        await Task.Delay(ResponseDelay, cancellationToken);
                     await WritePacketAsync(stream, HandleRead(reference, request), cancellationToken);
                     break;
                 case 0x05:

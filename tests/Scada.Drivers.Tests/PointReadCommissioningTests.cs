@@ -248,6 +248,54 @@ public sealed class PointReadCommissioningTests
     }
 
     [Fact]
+    public async Task S7_PointRead_UsesRequestTimeoutEvenWhenDataSourceTimeoutIsLonger()
+    {
+        await using var server = new TestS7IsoServer { ResponseDelay = TimeSpan.FromMilliseconds(500) };
+        server.SetBytes(S7IsoArea.DataBlock, 1, 0, new byte[] { 0x12, 0x34 });
+
+        var point = new S7IsoTagBinding(
+            S7IsoTagBinding.CurrentSchemaVersion,
+            S7IsoArea.DataBlock,
+            0,
+            S7IsoValueType.Int16,
+            DbNumber: 1);
+        var binding = new CommunicationTagBinding(
+            CommunicationTagBinding.CurrentContractVersion,
+            S7IsoCommunicationBindingProjection.SchemaId,
+            S7IsoCommunicationBindingProjection.SchemaVersion,
+            S7IsoCommunicationBindingProjection.ToCanonicalPortableAddress(point),
+            S7IsoCommunicationBindingProjection.ToCanonicalSettings(point));
+        var request = new DriverPointReadTestRequest(
+            new DriverEngineeringDataSourceContext(
+                "plc.s7.timeout",
+                "S7 timeout",
+                new S7IsoEngineeringAdapter().Descriptor.DriverType,
+                new Dictionary<string, string>
+                {
+                    ["host"] = "127.0.0.1",
+                    ["port"] = server.Port.ToString(),
+                    ["cpuFamily"] = nameof(S7CpuFamily.S71200),
+                    ["connectionMode"] = nameof(S7IsoConnectionMode.RackSlot),
+                    ["connectionRole"] = nameof(S7IsoConnectionRole.OperatorPanel),
+                    ["rack"] = "0",
+                    ["slot"] = "1",
+                    ["requestTimeoutMs"] = "2000"
+                },
+                new Dictionary<string, string>()),
+            binding,
+            TagDataType.Int16,
+            TimeoutMilliseconds: 100);
+
+        var result = await new S7IsoPointReadTester().TestPointReadAsync(request);
+
+        Assert.Equal(DriverPointReadTestStatus.Bad, result.Status);
+        var sample = Assert.Single(result.Samples);
+        Assert.True(sample.Quality == TagQuality.BadCommunication,
+            $"Unexpected quality {sample.Quality}: {string.Join("; ", sample.Issues?.Select(issue => $"{issue.Code}: {issue.Message}") ?? Array.Empty<string>())}");
+        Assert.Contains(sample.Issues!, issue => issue.Code == "S7_POINT_READ_COMMUNICATION_FAILED");
+    }
+
+    [Fact]
     public async Task OpcUa_PointRead_RejectsPhysicalSwapBeforeOpeningProtectedSession()
     {
         var tester = new OpcUaPointReadTester(new ThrowingSecurityMaterialProvider());
@@ -325,6 +373,64 @@ public sealed class PointReadCommissioningTests
         Assert.Equal(0, session.WriteCount);
     }
 
+    [Fact]
+    public async Task OpcUa_PointRead_EnforcesRequestTimeoutAsBadCommunication()
+    {
+        var session = new CaptureOpcUaPointReadSession(
+            new OpcUaRuntimeDataValue(Guid.NewGuid(), 22.5d, TagQuality.Good),
+            TimeSpan.FromSeconds(1));
+        var tester = new OpcUaPointReadTester(
+            new ThrowingSecurityMaterialProvider(),
+            _ => new CaptureOpcUaPointReadSessionFactory(session));
+
+        var result = await tester.TestPointReadAsync(OpcUaRequest(timeoutMilliseconds: 100));
+
+        Assert.Equal(DriverPointReadTestStatus.Bad, result.Status);
+        var sample = Assert.Single(result.Samples);
+        Assert.True(sample.Quality == TagQuality.BadCommunication,
+            $"Unexpected quality {sample.Quality}: {string.Join("; ", sample.Issues?.Select(issue => $"{issue.Code}: {issue.Message}") ?? Array.Empty<string>())}");
+        Assert.Contains(sample.Issues!, issue => issue.Code == "OPCUA_POINT_READ_TIMEOUT");
+    }
+
+    [Fact]
+    public async Task OpcUa_PointRead_PropagatesCallerCancellationInsteadOfReportingDeviceQuality()
+    {
+        var session = new CaptureOpcUaPointReadSession(
+            new OpcUaRuntimeDataValue(Guid.NewGuid(), 22.5d, TagQuality.Good),
+            TimeSpan.FromSeconds(1));
+        var tester = new OpcUaPointReadTester(
+            new ThrowingSecurityMaterialProvider(),
+            _ => new CaptureOpcUaPointReadSessionFactory(session));
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            await tester.TestPointReadAsync(OpcUaRequest(timeoutMilliseconds: 5000), cancellation.Token));
+    }
+
+    private static DriverPointReadTestRequest OpcUaRequest(int timeoutMilliseconds) =>
+        new(
+            new DriverEngineeringDataSourceContext(
+                "opc.main",
+                "OPC Main",
+                OpcUaDriverDescriptorProvider.DriverTypeId,
+                new Dictionary<string, string>
+                {
+                    ["endpointUrl"] = "opc.tcp://127.0.0.1:4840",
+                    ["securityMode"] = "None",
+                    ["securityPolicyUri"] = "http://opcfoundation.org/UA/SecurityPolicy#None",
+                    ["authenticationMode"] = "Anonymous"
+                },
+                new Dictionary<string, string>()),
+            new CommunicationTagBinding(
+                CommunicationTagBinding.CurrentContractVersion,
+                OpcUaDriverDescriptorProvider.Definition.TagBindingSchemaId ??
+                    OpcUaDriverDescriptorProvider.Definition.ConfigurationSchema.SchemaId,
+                OpcUaDriverDescriptorProvider.Definition.TagBindingSchemaVersion ??
+                    OpcUaDriverDescriptorProvider.Definition.ConfigurationSchema.SchemaVersion,
+                new OpcUaNodeIdentity("ns=2;s=Line1.Pressure").PortableAddress),
+            TagDataType.Double,
+            TimeoutMilliseconds: timeoutMilliseconds);
+
     private static DriverPointReadTestRequest ModbusRequest(
         int port,
         string address,
@@ -378,18 +484,22 @@ public sealed class PointReadCommissioningTests
         }
     }
 
-    private sealed class CaptureOpcUaPointReadSession(OpcUaRuntimeDataValue value) : IOpcUaRuntimeSession
+    private sealed class CaptureOpcUaPointReadSession(
+        OpcUaRuntimeDataValue value,
+        TimeSpan? readDelay = null) : IOpcUaRuntimeSession
     {
         public OpcUaRuntimeBinding? ReadBinding { get; private set; }
         public int WriteCount { get; private set; }
 
-        public Task<OpcUaRuntimeDataValue> ReadAsync(
+        public async Task<OpcUaRuntimeDataValue> ReadAsync(
             OpcUaRuntimeBinding binding,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             ReadBinding = binding;
-            return Task.FromResult(value with { TagId = binding.Tag.Id });
+            if (readDelay is not null)
+                await Task.Delay(readDelay.Value, cancellationToken);
+            return value with { TagId = binding.Tag.Id };
         }
 
         public Task WriteAsync(OpcUaRuntimeBinding binding, object value, CancellationToken cancellationToken)

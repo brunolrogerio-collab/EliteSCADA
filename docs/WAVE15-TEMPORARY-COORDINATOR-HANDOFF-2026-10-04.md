@@ -54,7 +54,7 @@ Do not silently shrink the issue criteria. Main should either release a bounded 
 - Focused Dynamo catalog/runtime-model Chromium specs on this continuation: 13/13 passed in the Dynamo model-only Playwright profile, including typed TAG/expression value-source projection and mismatch validation. The independent geometry PR #505 has 24 focused model tests passed locally.
 - `Wave09PopupDynamoNavigationEngineeringTests`: 8/8 passed locally; `BuiltinDynamoLibraryTests`: 18/18 passed locally.
 - Web production build: passed; existing large-chunk warning only.
-- The standard mounted Playwright E2E bootstrap was attempted but could not start: the local API requires durable PostgreSQL, and this checkout does not start the test database or register its engineering project catalog in this profile. This is infrastructure-not-run, not a product test pass.
+- The focused mounted Playwright E2E spec passed 15/15 after provisioning the repository's disposable PostgreSQL service on host port 15433 (including the local-auth setup dependency). The earlier attempt without PostgreSQL aborted before tests; the stable Docker database on port 15432 was not touched. No full Wave 15 T1 or exact-head PR validation is claimed.
 - Draft PR #502 remains OPEN / DRAFT / NOT MERGED; its current head is `6327ab5b715b3ba61e98da1c15f353a16f5939ac`, advanced from the prior `6bb2521566abdd409d70dab126cb9a353705e575` by merging current integration base `407b37ad` and applying only the typed Dynamo source commit. Its first T1 failed at profile classification and skipped product jobs; no exact-head product T1 result exists. Geometry from #505 remains separate.
 
 ## Other product lanes still open

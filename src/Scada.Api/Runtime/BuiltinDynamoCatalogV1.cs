@@ -225,7 +225,11 @@ public static class BuiltinDynamoCatalogV1
                 new Dictionary<string, JsonElement> { ["value"] = JsonSerializer.SerializeToElement("{booleanValue}") })
         };
         buttonElement = x.Single(element => element.Key == "button");
-        x[x.IndexOf(buttonElement)] = buttonElement with { Actions = [clickAction] };
+        var buttonMetadata = buttonElement.Metadata is null
+            ? new Dictionary<string, string>(StringComparer.Ordinal)
+            : new Dictionary<string, string>(buttonElement.Metadata, StringComparer.Ordinal);
+        buttonMetadata["dynamoInteraction"] = "momentary-button";
+        x[x.IndexOf(buttonElement)] = buttonElement with { Actions = [clickAction], Metadata = buttonMetadata };
         return Definition($"operator.button.{style}", $"Botão {ButtonName(style)}", "controls", 110, 84, x, parameters, metadata);
     }
 

@@ -198,6 +198,8 @@ public sealed class BuiltinDynamoLibraryTests
         Assert.Equal(VisualNavigationActionKind.SetTagValue, action.Kind);
         Assert.Equal(targetTagId.ToString("D"), action.TargetKey);
         Assert.Equal(24.5, action.Parameters!["value"].GetDouble());
+        Assert.Contains(projected.Elements, element => element.Type == "core.svgSymbol" &&
+            element.Metadata?.GetValueOrDefault("dynamoInteraction") == "momentary-button");
 
         var toggleButton = definitions.Single(definition => definition.Key == "operator.button.guarded");
         var toggleInstance = instance with

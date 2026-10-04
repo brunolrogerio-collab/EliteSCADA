@@ -114,31 +114,43 @@ public sealed class OpcUaPointReadTester :
 
         var endpoint = SanitizeEndpoint(options.EndpointUrl);
         var samples = new List<DriverPointReadSample>(request.SampleCount);
+        using var pointReadTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        pointReadTimeout.CancelAfter(request.TimeoutMilliseconds);
 
         try
         {
             var factory = _sessionFactoryFactory(options);
             await using var session = await factory
-                .ConnectAsync(new[] { runtimeBinding }, cancellationToken)
+                .ConnectAsync(new[] { runtimeBinding }, pointReadTimeout.Token)
                 .ConfigureAwait(false);
 
             for (var sampleIndex = 0; sampleIndex < request.SampleCount; sampleIndex++)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                pointReadTimeout.Token.ThrowIfCancellationRequested();
                 if (sampleIndex > 0 && request.SampleIntervalMilliseconds > 0)
-                    await Task.Delay(request.SampleIntervalMilliseconds, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(request.SampleIntervalMilliseconds, pointReadTimeout.Token).ConfigureAwait(false);
 
                 samples.Add(await ReadSampleAsync(
                     session,
                     runtimeBinding,
                     request,
                     transform,
-                    cancellationToken).ConfigureAwait(false));
+                    pointReadTimeout.Token).ConfigureAwait(false));
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
+        }
+        catch (OperationCanceledException) when (pointReadTimeout.IsCancellationRequested)
+        {
+            samples.Add(FailureSample(
+                DriverPointReadTestStatus.Bad,
+                TagQuality.BadCommunication,
+                null,
+                transform,
+                "OPCUA_POINT_READ_TIMEOUT",
+                "The OPC UA Point Read exceeded its configured timeout."));
         }
         catch
         {

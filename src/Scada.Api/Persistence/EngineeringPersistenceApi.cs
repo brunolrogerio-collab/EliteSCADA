@@ -191,6 +191,7 @@ public static class EngineeringPersistenceApi
     public static void MapEngineeringPersistenceEndpoints(this WebApplication app)
     {
         app.MapEngineeringDriverCatalogEndpoints();
+        app.MapNetworkReachabilityDiagnostics();
 
         var group = app.MapGroup("/api/engineering/persistence");
 

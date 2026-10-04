@@ -137,6 +137,57 @@ public sealed class PointReadCommissioningTests
     }
 
     [Fact]
+    public async Task S7_PointRead_ReportsCanonicalRawAndDecodedValueFromTheConfiguredPoint()
+    {
+        await using var server = new TestS7IsoServer();
+        server.SetBytes(S7IsoArea.Merker, 0, 0, new byte[] { 0x12, 0x34 });
+
+        var adapter = new S7IsoEngineeringAdapter();
+        var tester = new S7IsoPointReadTester();
+        var point = new S7IsoTagBinding(
+            S7IsoTagBinding.CurrentSchemaVersion,
+            S7IsoArea.Merker,
+            0,
+            S7IsoValueType.Int16);
+        var binding = new CommunicationTagBinding(
+            CommunicationTagBinding.CurrentContractVersion,
+            S7IsoCommunicationBindingProjection.SchemaId,
+            S7IsoCommunicationBindingProjection.SchemaVersion,
+            S7IsoCommunicationBindingProjection.ToCanonicalPortableAddress(point),
+            S7IsoCommunicationBindingProjection.ToCanonicalSettings(point));
+        var request = new DriverPointReadTestRequest(
+            new DriverEngineeringDataSourceContext(
+                "plc.s7.point-read",
+                "S7 Point Read",
+                adapter.Descriptor.DriverType,
+                new Dictionary<string, string>
+                {
+                    ["host"] = "127.0.0.1",
+                    ["port"] = server.Port.ToString(),
+                    ["cpuFamily"] = nameof(S7CpuFamily.S71200),
+                    ["connectionMode"] = nameof(S7IsoConnectionMode.RackSlot),
+                    ["rack"] = "0",
+                    ["slot"] = "1",
+                    ["connectionRole"] = nameof(S7IsoConnectionRole.OperatorPanel),
+                    ["requestTimeoutMs"] = "1000"
+                },
+                new Dictionary<string, string>()),
+            binding,
+            TagDataType.Int16,
+            EngineeringUnit: "raw",
+            TimeoutMilliseconds: 2000);
+
+        var result = await tester.TestPointReadAsync(request);
+
+        Assert.Equal(DriverPointReadTestStatus.Good, result.Status);
+        var sample = Assert.Single(result.Samples);
+        Assert.Equal(TagQuality.Good, sample.Quality);
+        Assert.Equal("1234", sample.Raw!.Hex);
+        Assert.Equal((short)0x1234, Convert.ToInt16(sample.Decoded!.Value));
+        Assert.Equal((short)0x1234, Convert.ToInt16(sample.Engineering!.Value));
+    }
+
+    [Fact]
     public async Task OpcUa_PointRead_RejectsPhysicalSwapBeforeOpeningProtectedSession()
     {
         var tester = new OpcUaPointReadTester(new ThrowingSecurityMaterialProvider());

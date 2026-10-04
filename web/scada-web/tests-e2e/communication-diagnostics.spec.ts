@@ -6,6 +6,14 @@ const runtimeInstanceA = '11111111111111111111111111111111';
 const runtimeInstanceB = '22222222222222222222222222222222';
 
 test('Engineering diagnostics prioritizes communication health, filters sources and exposes technical drill-down', async ({ page }) => {
+  await page.route('**/api/engineering/diagnostics/driver-host', async route => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+      status: 'Healthy', service: 'EliteSCADA API / DriverHost', nodeIdentity: 'node-a',
+      observedAtUtc: '2026-08-27T11:00:05Z', freshForSeconds: 30, uptime: '01:00:00',
+      activeRuntimeAvailable: true, activeRevision: 13
+    }) });
+  });
+
   await page.route('**/api/diagnostics/runtime', async route => {
     await route.fulfill({
       status: 200,
@@ -21,10 +29,21 @@ test('Engineering diagnostics prioritizes communication health, filters sources 
     });
   });
 
+  let probeRequest: unknown;
+  await page.route('**/api/engineering/diagnostics/network-probe', async route => {
+    probeRequest = route.request().postDataJSON();
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+      authority: 'EliteSCADA.Api.DriverHost', observedAtUtc: '2026-08-27T11:00:05Z', host: '10.0.0.1', port: 502,
+      tcp: { status: 'Connected', address: '10.0.0.1', elapsedMilliseconds: 3.2, detail: 'PORT_REACHABLE; protocol health was not tested.' },
+      icmp: { status: 'Unavailable', address: '10.0.0.1', elapsedMilliseconds: 5, detail: 'ICMP is blocked.' }
+    }) });
+  });
+
   await page.goto('/engineering');
   await page.getByRole('button', { name: /Diagnósticos/ }).click();
 
   await expect(page.getByRole('heading', { name: 'Comunicação ativa' })).toBeVisible();
+  await expect(page.getByTestId('driver-host-health')).toContainText('Host API / DriverHost');
   await expect(page.getByText('Atenção', { exact: true })).toBeVisible();
 
   const sourceCards = page.locator('.eng-comm-source');
@@ -52,6 +71,12 @@ test('Engineering diagnostics prioritizes communication health, filters sources 
   await expect(sourceCards).toHaveCount(1);
   await expect(sourceCards.nth(0)).toContainText('PLC A');
   await expect(page.getByRole('heading', { name: 'PLC A' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Testar alcance' }).click();
+  await expect(page.getByTestId('network-probe-result')).toContainText('Connected');
+  await expect(page.getByTestId('network-probe-result')).toContainText('Unavailable');
+  expect(probeRequest).toEqual({ host: '10.0.0.1', port: 502, timeoutMilliseconds: 3000 });
+  await expect(page.getByText(/Porta alcançável não significa protocolo saudável/)).toBeVisible();
 
   await page.getByLabel('Idioma').selectOption('en');
   await expect(page.getByRole('heading', { name: 'Active communication' })).toBeVisible();

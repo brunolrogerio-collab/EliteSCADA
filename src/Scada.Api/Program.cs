@@ -1,7 +1,11 @@
 using System.Text;
+using System.Security.Claims;
+using System.Threading.RateLimiting;
 using Scada.Core.Persistence;
 using Microsoft.AspNetCore.Http.Json;
+using Microsoft.AspNetCore.RateLimiting;
 using Scada.Api.Historian;
+using Scada.Api.Engineering;
 using Scada.Api.HostedServices;
 using Scada.Api.Licensing;
 using Scada.Api.Persistence;
@@ -142,6 +146,24 @@ builder.AddHostProtectedMaterialAuthority();
 if (localIdentityEnabled)
     builder.Services.AddSingleton<InstallationDetachService>();
 builder.Services.AddOpenApi();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(NetworkReachabilityDiagnosticsApi.RateLimitPolicy, context =>
+    {
+        var principal = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "anonymous";
+        var address = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(
+            $"{principal}|{address}",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 6,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            });
+    });
+});
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
     policy
         .AllowAnyOrigin()
@@ -167,6 +189,7 @@ app.UseMiddleware<TimingCorrelationMiddleware>();
 app.UseMiddleware<DatabaseMaintenanceMiddleware>();
 app.UseCors();
 if (authenticationEnabled) app.UseAuthentication();
+app.UseRateLimiter();
 app.UseWebSockets();
 app.MapOpenApi();
 app.MapTimingPolicyV1Endpoints();

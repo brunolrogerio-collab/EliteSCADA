@@ -229,12 +229,14 @@ public static class BuiltinDynamoCatalogV1
         var metadata = Metadata("operator.button", style);
         metadata["interactionContract"] = "canonical-authorized-visual-action";
         metadata["pressFeedback"] = "tag-state-mapped-released/pressed";
+        metadata["stateSourceModes"] = "numeric-or-boolean-tag-or-expression";
         var parameters = new[]
         {
             new DynamoParameterDefinitionEngineeringDto("equipmentPath", DynamoParameterKind.EquipmentPath),
             new DynamoParameterDefinitionEngineeringDto("targetTag", DynamoParameterKind.TagReference),
             new DynamoParameterDefinitionEngineeringDto("command", DynamoParameterKind.Command),
-            new DynamoParameterDefinitionEngineeringDto("state", DynamoParameterKind.TagReference),
+            new DynamoParameterDefinitionEngineeringDto("state", DynamoParameterKind.ValueSource),
+            new DynamoParameterDefinitionEngineeringDto("invertBoolean", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(false)),
             new DynamoParameterDefinitionEngineeringDto("releasedColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#7B8E9B")),
             new DynamoParameterDefinitionEngineeringDto("pressedColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#1687C9")),
             new DynamoParameterDefinitionEngineeringDto("analogValue", DynamoParameterKind.Number),
@@ -258,6 +260,7 @@ public static class BuiltinDynamoCatalogV1
             ? new Dictionary<string, string>(StringComparer.Ordinal)
             : new Dictionary<string, string>(buttonElement.Metadata, StringComparer.Ordinal);
         buttonMetadata["dynamoInteraction"] = "momentary-button";
+        buttonMetadata["dynamoBooleanStateInvertParameter"] = "invertBoolean";
         x[x.IndexOf(buttonElement)] = buttonElement with { Actions = [clickAction], Metadata = buttonMetadata };
         return Definition($"operator.button.{style}", $"Botão {ButtonName(style)}", "controls", 110, 84, x, parameters, metadata);
     }

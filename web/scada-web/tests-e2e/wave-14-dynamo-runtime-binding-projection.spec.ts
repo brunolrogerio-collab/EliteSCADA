@@ -338,6 +338,34 @@ test('button Dynamo action tokens resolve to canonical TAG identity and typed sc
   });
 });
 
+test('button pressed feedback accepts an inverted Boolean expression source', () => {
+  const button: VisualElementEngineering = {
+    id: 'button-feedback', key: 'artwork', type: 'core.svgSymbol',
+    metadata: {
+      dynamoStateColorParameter: 'state', dynamoStateColorProfile: 'released,pressed',
+      dynamoBooleanStateInvertParameter: 'invertBoolean'
+    },
+    propertyMaps: [{
+      propertyKey: 'svg.slot.state.fill',
+      source: { kind: 'Tag', valueType: 'Number', target: '{equipmentPath}.State' },
+      rules: [{ value: '#7B8E9B', minimum: 0, maximum: 1 }, { value: '#1687C9', minimum: 1, maximum: 2 }]
+    }]
+  };
+  const projected = projectDynamoRuntimeElements([button], parameters(
+    { key: 'state', kind: 'ValueSource', valueSource: {
+      kind: 'Expression', valueType: 'Boolean',
+      expression: { text: 'isPressed', resultType: 'Boolean', dependencies: [{
+        symbol: 'isPressed', kind: 'Tag', valueType: 'Boolean', tagReference: { tagId: 'tag-pressed' }
+      }] }
+    } },
+    { key: 'invertBoolean', kind: 'Boolean', value: true }
+  ), null);
+
+  expect(projected[0]?.propertyMaps?.[0]?.source).toMatchObject({
+    kind: 'Expression', valueType: 'Number', expression: { text: 'number(not (isPressed))' }
+  });
+});
+
 test('animated SVG Dynamo can pin one state and preserve it as a static paint override', () => {
   const symbol: VisualElementEngineering = {
     id: 'symbol', key: 'artwork', type: 'core.svgSymbol',

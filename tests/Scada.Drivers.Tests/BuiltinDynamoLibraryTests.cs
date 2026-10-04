@@ -365,6 +365,37 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void ReplacementButton_PressedFeedbackAcceptsBooleanExpressionAndOptionalInversion()
+    {
+        var button = BuiltinDynamoCatalogV1.Create().Single(definition => definition.Key == "operator.button.illuminated");
+        var stateTagId = Guid.NewGuid();
+        var state = new VisualValueSourceEngineeringDto(
+            VisualValueSourceKind.Expression,
+            VisualExpressionValueType.Boolean,
+            Expression: new VisualExpressionEngineeringDto(
+                "isPressed",
+                VisualExpressionValueType.Boolean,
+                [new VisualExpressionDependencyEngineeringDto(
+                    "isPressed", VisualExpressionDependencyKind.Tag, VisualExpressionValueType.Boolean, new(stateTagId))]));
+        var instance = new VisualElementEngineeringDto(
+            "button-feedback", "dynamo", DynamoKey: button.Key, Id: Guid.NewGuid(),
+            DynamoParameters:
+            [
+                new("state", DynamoParameterKind.ValueSource, ValueSource: state),
+                new("invertBoolean", DynamoParameterKind.Boolean, System.Text.Json.JsonSerializer.SerializeToElement(true)),
+                new("targetTag", DynamoParameterKind.TagReference, TagReference: new(Guid.NewGuid())),
+                new("command", DynamoParameterKind.Command, CommandId: Guid.NewGuid())
+            ]);
+
+        var projected = DynamoRuntimeComposer.Compose(instance, button);
+        var feedback = Assert.Single(projected.Elements.SelectMany(element => element.PropertyMaps ?? []),
+            map => map.PropertyKey == "svg.slot.state.fill");
+        Assert.Equal(VisualExpressionValueType.Number, feedback.Source.ValueType);
+        Assert.Equal("number(not (isPressed))", feedback.Source.Expression!.Text);
+        Assert.Equal(stateTagId, Assert.Single(feedback.Source.Expression.Dependencies!).TagReference.TagId);
+    }
+
+    [Fact]
     public void ReplacementEquipmentCanPinAConfiguredStateWithoutRuntimeAnimation()
     {
         var motor = BuiltinDynamoCatalogV1.Create().Single(definition => definition.Key == "motor.tefc");

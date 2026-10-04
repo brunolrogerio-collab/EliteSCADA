@@ -20,7 +20,7 @@ import type {
   VisualEditorViewport
 } from '../visualEditorContracts';
 import { polygonBounds, polygonPointsAttribute, readPolygonPoints } from '../polygonGeometry';
-import { readEditableBezierPath, writeBezierPathPoint } from '../bezierGeometry';
+import { insertBezierAnchor, readEditableBezierPath, removeBezierAnchor, writeBezierPathPoint } from '../bezierGeometry';
 import {
   DEFAULT_CANVAS_GRID_SIZE,
   clientDeltaToCanvas,
@@ -381,6 +381,16 @@ export function VisualEditorCanvas({
     setSelectedVertex(Object.freeze({ objectId: selectedProjection.objectId, index: index + 1 }));
   };
 
+  const updateSelectedBezier = (operation: 'insert' | 'remove'): void => {
+    if (!selectedProjection?.objectId || selectedProjection.element.type !== BUILTIN_VISUAL_OBJECT_TYPES.bezier) return;
+    const path = selectedProjection.element.properties?.[VISUAL_PROPERTY_KEYS.bezierPath];
+    if (typeof path !== 'string') return;
+    const nextPath = operation === 'insert' ? insertBezierAnchor(path) : removeBezierAnchor(path);
+    if (nextPath && nextPath !== path) {
+      onMutationIntent({ kind: 'property.set', objectIds: [selectedProjection.objectId], propertyKey: VISUAL_PROPERTY_KEYS.bezierPath, value: nextPath });
+    }
+  };
+
   const removePolygonVertex = (): void => {
     if (!selectedProjection?.objectId || selectedPolygonPoints.length <= 3 || selectedVertex?.objectId !== selectedProjection.objectId) return;
     const points = selectedPolygonPoints.filter((_, index) => index !== selectedVertex.index);
@@ -462,9 +472,9 @@ export function VisualEditorCanvas({
       />) : null}
       {selected && objectId !== null && !authoringLocked && bezierModel ? bezierPoints.map((point, index) => <button
         key={`bezier-point-${index}`} type="button"
-        className={`visual-editor-canvas__bezier-point${interaction?.kind === 'bezier-point' && interaction.objectId === objectId && interaction.pointIndex === index ? ' is-selected' : ''}`}
+        className={`visual-editor-canvas__bezier-point${bezierModel.anchorIndexes.includes(index) ? ' is-anchor' : ' is-handle'}${interaction?.kind === 'bezier-point' && interaction.objectId === objectId && interaction.pointIndex === index ? ' is-selected' : ''}`}
         style={{ left: `${point.x * geometry.width / 100}px`, top: `${point.y * geometry.height / 100}px` }}
-        aria-label={`Bezier control point ${index + 1}`} data-bezier-point-index={index}
+        aria-label={`Bezier ${bezierModel.anchorIndexes.includes(index) ? 'anchor' : 'handle'} ${index + 1}`} data-bezier-point-index={index} data-bezier-point-kind={bezierModel.anchorIndexes.includes(index) ? 'anchor' : 'handle'}
         onPointerDown={event => beginBezierPoint(event, projection, index, bezierModel.points)}
       />) : null}
 
@@ -491,6 +501,10 @@ export function VisualEditorCanvas({
       {!polygonToolActive && selectedProjection?.element.type === BUILTIN_VISUAL_OBJECT_TYPES.polygon ? <>
         <button type="button" title={canvasText.addVertex} aria-label={canvasText.addVertex} onClick={addPolygonVertex}>◇+</button>
         <button type="button" title={canvasText.removeVertex} aria-label={canvasText.removeVertex} disabled={!selectedVertex || selectedPolygonPoints.length <= 3} onClick={removePolygonVertex}>◇−</button>
+      </> : null}
+      {!polygonToolActive && selectedProjection?.element.type === BUILTIN_VISUAL_OBJECT_TYPES.bezier ? <>
+        <button type="button" title={canvasText.addBezierAnchor} aria-label={canvasText.addBezierAnchor} onClick={() => updateSelectedBezier('insert')} data-testid="bezier-anchor-add">⌒+</button>
+        <button type="button" title={canvasText.removeBezierAnchor} aria-label={canvasText.removeBezierAnchor} disabled={removeBezierAnchor(String(selectedProjection.element.properties?.[VISUAL_PROPERTY_KEYS.bezierPath] ?? '')) === null} onClick={() => updateSelectedBezier('remove')} data-testid="bezier-anchor-remove">⌒−</button>
       </> : null}
       <button type="button" title={canvasText.identities} aria-label={canvasText.identities} aria-pressed={identitiesVisible} onClick={() => setIdentitiesVisible(value => !value)} data-testid="canvas-identities-toggle">ID</button>
       <span className="visual-editor-canvas__toolbar-spacer" />
@@ -594,6 +608,7 @@ function canvasControlText(locale: EngineeringLocale) {
     controls: 'Canvas controls', zoomOut: 'Zoom out', resetViewport: 'Reset viewport', zoomIn: 'Zoom in', identities: 'Show object identities',
     grid: 'Grid', snap: 'Snap', polygon: 'Polygon points', finishPolygon: 'Finish polygon', cancelPolygon: 'Cancel polygon',
     addVertex: 'Add polygon vertex', removeVertex: 'Remove polygon vertex', duplicate: 'Duplicate selection',
+    addBezierAnchor: 'Split the final Bezier segment to add an anchor', removeBezierAnchor: 'Remove the final Bezier anchor',
     deleteSelection: 'Delete selection', sendToBack: 'Send to back', sendBackward: 'Send backward',
     bringForward: 'Bring forward', bringToFront: 'Bring to front', selected: 'selected',
     polygonDrawing: 'polygon drawing', empty: 'This visual surface has no objects yet.'
@@ -602,6 +617,7 @@ function canvasControlText(locale: EngineeringLocale) {
     controls: 'Controles del canvas', zoomOut: 'Alejar', resetViewport: 'Restablecer vista', zoomIn: 'Acercar', identities: 'Mostrar identidades de objetos',
     grid: 'Cuadrícula', snap: 'Ajuste', polygon: 'Puntos del polígono', finishPolygon: 'Finalizar polígono', cancelPolygon: 'Cancelar polígono',
     addVertex: 'Agregar vértice', removeVertex: 'Eliminar vértice', duplicate: 'Duplicar selección',
+    addBezierAnchor: 'Dividir el último segmento Bézier para agregar un punto', removeBezierAnchor: 'Eliminar el último punto Bézier',
     deleteSelection: 'Eliminar selección', sendToBack: 'Enviar al fondo', sendBackward: 'Enviar atrás',
     bringForward: 'Traer adelante', bringToFront: 'Traer al frente', selected: 'seleccionados',
     polygonDrawing: 'dibujando polígono', empty: 'Esta superficie visual todavía no tiene objetos.'
@@ -610,6 +626,7 @@ function canvasControlText(locale: EngineeringLocale) {
     controls: 'Controles do canvas', zoomOut: 'Reduzir zoom', resetViewport: 'Restaurar visualização', zoomIn: 'Aumentar zoom', identities: 'Mostrar identificadores dos objetos',
     grid: 'Grade', snap: 'Ajuste à grade', polygon: 'Pontos do polígono', finishPolygon: 'Finalizar polígono', cancelPolygon: 'Cancelar polígono',
     addVertex: 'Adicionar vértice', removeVertex: 'Remover vértice', duplicate: 'Duplicar seleção',
+    addBezierAnchor: 'Dividir o último segmento Bézier para adicionar um ponto', removeBezierAnchor: 'Remover o último ponto Bézier',
     deleteSelection: 'Excluir seleção', sendToBack: 'Enviar para trás', sendBackward: 'Recuar uma camada',
     bringForward: 'Avançar uma camada', bringToFront: 'Trazer para frente', selected: 'selecionados',
     polygonDrawing: 'desenhando polígono', empty: 'Esta superfície visual ainda não possui objetos.'

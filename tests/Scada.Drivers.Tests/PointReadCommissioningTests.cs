@@ -407,6 +407,42 @@ public sealed class PointReadCommissioningTests
             await tester.TestPointReadAsync(OpcUaRequest(timeoutMilliseconds: 5000), cancellation.Token));
     }
 
+    [Theory]
+    [InlineData(TagQuality.Good, DriverPointReadTestStatus.Good)]
+    [InlineData(TagQuality.Uncertain, DriverPointReadTestStatus.IntermittentOrUncertain)]
+    [InlineData(TagQuality.Bad, DriverPointReadTestStatus.Bad)]
+    [InlineData(TagQuality.Unavailable, DriverPointReadTestStatus.NoData)]
+    public async Task OpcUa_PointRead_PreservesProtocolQualityInItsDiagnosticStatus(
+        TagQuality quality,
+        DriverPointReadTestStatus expectedStatus)
+    {
+        var session = new CaptureOpcUaPointReadSession(
+            new OpcUaRuntimeDataValue(Guid.NewGuid(), 22.5d, quality));
+        var tester = new OpcUaPointReadTester(
+            new ThrowingSecurityMaterialProvider(),
+            _ => new CaptureOpcUaPointReadSessionFactory(session));
+
+        var result = await tester.TestPointReadAsync(OpcUaRequest(timeoutMilliseconds: 5000));
+
+        Assert.Equal(expectedStatus, result.Status);
+        Assert.Equal(quality, Assert.Single(result.Samples).Quality);
+    }
+
+    [Fact]
+    public async Task OpcUa_PointRead_MapsNullValueToNoData()
+    {
+        var session = new CaptureOpcUaPointReadSession(
+            new OpcUaRuntimeDataValue(Guid.NewGuid(), null, TagQuality.Unavailable));
+        var tester = new OpcUaPointReadTester(
+            new ThrowingSecurityMaterialProvider(),
+            _ => new CaptureOpcUaPointReadSessionFactory(session));
+
+        var result = await tester.TestPointReadAsync(OpcUaRequest(timeoutMilliseconds: 5000));
+
+        Assert.Equal(DriverPointReadTestStatus.NoData, result.Status);
+        Assert.Equal(TagQuality.Unavailable, Assert.Single(result.Samples).Quality);
+    }
+
     private static DriverPointReadTestRequest OpcUaRequest(int timeoutMilliseconds) =>
         new(
             new DriverEngineeringDataSourceContext(

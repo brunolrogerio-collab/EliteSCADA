@@ -62,6 +62,37 @@ function projectElement(
       Object.assign(properties, { x, y, width, height });
     }
   }
+  const outlineColorKey = element.metadata?.dynamoOutlineColorParameter?.trim();
+  const outlineColor = outlineColorKey ? findParameter(parameters, outlineColorKey) : undefined;
+  if (outlineColor?.kind === 'String' && typeof outlineColor.value === 'string' && outlineColor.value.trim()) {
+    if (element.type === 'core.svgSymbol') {
+      const currentOverrides = recordValue(properties.svgPaintOverrides);
+      const currentSlots = recordValue(currentOverrides?.slots);
+      const bezel = recordValue(currentSlots?.bezel);
+      const state = recordValue(currentSlots?.state);
+      properties.svgPaintOverrides = Object.freeze({
+        version: 1,
+        palette: Object.freeze(recordValue(currentOverrides?.palette) ?? {}),
+        slots: Object.freeze({
+          ...(currentSlots ?? {}),
+          bezel: Object.freeze({ ...(bezel ?? {}), stroke: outlineColor.value }),
+          state: Object.freeze({ ...(state ?? {}), stroke: outlineColor.value })
+        })
+      });
+    } else {
+      properties.strokeColor = outlineColor.value;
+    }
+  }
+  const depthEffectKey = element.metadata?.dynamo3dEffectParameter?.trim();
+  const depthEffect = depthEffectKey ? findParameter(parameters, depthEffectKey) : undefined;
+  if (depthEffect?.kind === 'Boolean' && typeof depthEffect.value === 'boolean') {
+    properties.shadowEnabled = depthEffect.value;
+    if (depthEffect.value) {
+      Object.assign(properties, {
+        shadowColor: '#24374699', shadowOffsetX: 1, shadowOffsetY: 2, shadowBlur: 2
+      });
+    }
+  }
   if (!animationEnabled) {
     const stateParameterKey = element.metadata?.dynamoFixedStateParameter?.trim();
     const stateParameter = stateParameterKey ? findParameter(parameters, stateParameterKey) : undefined;
@@ -346,4 +377,10 @@ function cloneTagReference(reference: TagValueReferenceEngineering): TagValueRef
 
 function normalizeKey(value: string): string {
   return value.trim().toLocaleLowerCase('en-US');
+}
+
+function recordValue(value: VisualEngineeringPropertyValue | undefined): Readonly<Record<string, VisualEngineeringPropertyValue>> | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Readonly<Record<string, VisualEngineeringPropertyValue>>
+    : null;
 }

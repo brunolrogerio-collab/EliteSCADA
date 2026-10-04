@@ -52,6 +52,14 @@ public sealed class BuiltinDynamoLibraryTests
             {
                 var artwork = Assert.Single(definition.Elements!, element => element.Type == "core.svgSymbol");
                 Assert.Equal(asset.Id!.Value.ToString("D"), artwork.Properties!["assetRef"].GetProperty("assetId").GetString());
+                if (definition.Metadata!["familyKey"] == "indicator.lamp")
+                {
+                    Assert.Equal("bezelColor", artwork.Metadata!["dynamoOutlineColorParameter"]);
+                    Assert.Equal("bezel3d", artwork.Metadata["dynamo3dEffectParameter"]);
+                    var svg = System.Text.Encoding.UTF8.GetString(payload.Content);
+                    Assert.Contains("data-elitescada-slot=\"bezel\"", svg, StringComparison.Ordinal);
+                    Assert.Contains("data-elitescada-slot=\"state\"", svg, StringComparison.Ordinal);
+                }
             }
             Assert.Equal("image/svg+xml", payload.MediaType);
             Assert.Equal(payload.Sha256, asset.Sha256);
@@ -288,6 +296,38 @@ public sealed class BuiltinDynamoLibraryTests
             Assert.Equal(VisualValueSourceKind.Expression, condition.Source.Kind);
             Assert.Equal("motorState", condition.Source.Expression!.Text);
         });
+    }
+
+    [Fact]
+    public void ReplacementLamps_ExposeStableBezelColorAndOptionalThreeDimensionalDepth()
+    {
+        var lamps = BuiltinDynamoCatalogV1.Create()
+            .Where(definition => definition.Metadata!["familyKey"] == "indicator.lamp")
+            .ToArray();
+        Assert.Equal(4, lamps.Length);
+        Assert.All(lamps, lamp =>
+        {
+            Assert.Contains(lamp.Parameters!, parameter => parameter.Key == "bezelColor" && parameter.Kind == DynamoParameterKind.String);
+            Assert.Contains(lamp.Parameters!, parameter => parameter.Key == "bezel3d" && parameter.Kind == DynamoParameterKind.Boolean);
+        });
+
+        var lamp = lamps.Single(definition => definition.Key == "indicator.lamp.round");
+        var instance = new VisualElementEngineeringDto(
+            "lamp-1", "dynamo", DynamoKey: lamp.Key, Id: Guid.NewGuid(),
+            DynamoParameters:
+            [
+                new("bezelColor", DynamoParameterKind.String, System.Text.Json.JsonSerializer.SerializeToElement("#26485A")),
+                new("bezel3d", DynamoParameterKind.Boolean, System.Text.Json.JsonSerializer.SerializeToElement(true))
+            ]);
+
+        var projected = DynamoRuntimeComposer.Compose(instance, lamp);
+        var outlinedElements = projected.Elements.Where(element => element.Metadata?.ContainsKey("dynamoOutlineColorParameter") == true).ToArray();
+        var artwork = Assert.Single(outlinedElements);
+        Assert.True(artwork.Properties!["shadowEnabled"].GetBoolean());
+        Assert.Equal(2, artwork.Properties["shadowBlur"].GetDouble());
+        var slots = artwork.Properties["svgPaintOverrides"].GetProperty("slots");
+        Assert.Equal("#26485A", slots.GetProperty("bezel").GetProperty("stroke").GetString());
+        Assert.Equal("#26485A", slots.GetProperty("state").GetProperty("stroke").GetString());
     }
 
     [Fact]

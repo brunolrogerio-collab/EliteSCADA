@@ -260,6 +260,25 @@ test('state color mapping follows the selected TAG and per-instance palette over
   });
 });
 
+test('lamp outline color stays independent from state paint and can add a 3D depth effect', () => {
+  const bezel: VisualElementEngineering = {
+    id: 'lamp-bezel', key: 'artwork', type: 'core.svgSymbol',
+    properties: { svgPaintOverrides: { version: 1, palette: {}, slots: { state: { fill: '#16A34A' } } }, shadowEnabled: false },
+    metadata: { dynamoOutlineColorParameter: 'bezelColor', dynamo3dEffectParameter: 'bezel3d' }
+  };
+  const projected = projectDynamoRuntimeElements([bezel], parameters(
+    { key: 'bezelColor', kind: 'String', value: '#26485A' },
+    { key: 'bezel3d', kind: 'Boolean', value: true }
+  ), null);
+
+  expect(projected[0]?.properties).toMatchObject({
+    shadowEnabled: true, shadowColor: '#24374699', shadowOffsetX: 1, shadowOffsetY: 2, shadowBlur: 2,
+    svgPaintOverrides: { slots: {
+      bezel: { stroke: '#26485A' }, state: { fill: '#16A34A', stroke: '#26485A' }
+    } }
+  });
+});
+
 test('equipment state expression source projects consistently to color maps and state labels', () => {
   const source = {
     kind: 'Expression',

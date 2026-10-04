@@ -281,6 +281,51 @@ public static class DynamoRuntimeComposer
             properties["width"] = JsonSerializer.SerializeToElement(width);
             properties["height"] = JsonSerializer.SerializeToElement(height);
         }
+
+        if (element.Metadata?.TryGetValue("dynamoOutlineColorParameter", out var outlineParameterKey) == true &&
+            parameters.TryGetValue(outlineParameterKey, out var outlineColor) && outlineColor.Kind == DynamoParameterKind.String &&
+            outlineColor.Value is { ValueKind: JsonValueKind.String } outlineColorValue &&
+            !string.IsNullOrWhiteSpace(outlineColorValue.GetString()))
+        {
+            if (element.Type == "core.svgSymbol")
+            {
+                var slots = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+                if (properties.TryGetValue("svgPaintOverrides", out var paintOverrides) &&
+                    paintOverrides.ValueKind == JsonValueKind.Object && paintOverrides.TryGetProperty("slots", out var existingSlots) &&
+                    existingSlots.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var slot in existingSlots.EnumerateObject())
+                        slots[slot.Name] = slot.Value.Clone();
+                }
+                foreach (var slotName in new[] { "bezel", "state" })
+                {
+                    var slotProperties = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+                    if (slots.TryGetValue(slotName, out var existingSlot) && existingSlot.ValueKind == JsonValueKind.Object)
+                    {
+                        foreach (var property in existingSlot.EnumerateObject())
+                            slotProperties[property.Name] = property.Value.Clone();
+                    }
+                    slotProperties["stroke"] = outlineColorValue.Clone();
+                    slots[slotName] = JsonSerializer.SerializeToElement(slotProperties);
+                }
+                properties["svgPaintOverrides"] = JsonSerializer.SerializeToElement(new { version = 1, palette = new { }, slots });
+            }
+            else
+            {
+                properties["strokeColor"] = outlineColorValue.Clone();
+            }
+        }
+
+        if (element.Metadata?.TryGetValue("dynamo3dEffectParameter", out var depthParameterKey) == true &&
+            parameters.TryGetValue(depthParameterKey, out var depthEffect) && depthEffect.Kind == DynamoParameterKind.Boolean &&
+            depthEffect.Value is { ValueKind: JsonValueKind.True } )
+        {
+            properties["shadowEnabled"] = JsonSerializer.SerializeToElement(true);
+            properties["shadowColor"] = JsonSerializer.SerializeToElement("#24374699");
+            properties["shadowOffsetX"] = JsonSerializer.SerializeToElement(1d);
+            properties["shadowOffsetY"] = JsonSerializer.SerializeToElement(2d);
+            properties["shadowBlur"] = JsonSerializer.SerializeToElement(2d);
+        }
         return properties;
     }
 

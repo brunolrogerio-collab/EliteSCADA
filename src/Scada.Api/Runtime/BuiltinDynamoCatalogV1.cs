@@ -80,6 +80,11 @@ public static class BuiltinDynamoCatalogV1
         var metadata = stateElement?.Metadata is null
             ? new Dictionary<string, string>(StringComparer.Ordinal)
             : new Dictionary<string, string>(stateElement.Metadata, StringComparer.Ordinal);
+        foreach (var parameterKey in new[] { "dynamoOutlineColorParameter", "dynamo3dEffectParameter" })
+        {
+            if (definition.Metadata?.TryGetValue(parameterKey, out var parameter) == true)
+                metadata[parameterKey] = parameter;
+        }
         var symbol = new VisualElementEngineeringDto(
             "artwork", "core.svgSymbol", Properties: svgProperties,
             Metadata: metadata, PropertyMaps: maps,
@@ -115,7 +120,10 @@ public static class BuiltinDynamoCatalogV1
                 new XAttribute("fill", fill), new XAttribute("stroke", stroke), new XAttribute("stroke-width", FormattableString.Invariant($"{strokeWidth:0.###}")),
                 new XAttribute("vector-effect", "non-scaling-stroke")
             };
-            if (stateElementKey(definition) == element.Key) attributes.Add(new XAttribute("data-elitescada-slot", "state"));
+            if (stateElementKey(definition) == element.Key)
+                attributes.Add(new XAttribute("data-elitescada-slot", "state"));
+            else if (element.Key is "bezel" or "lens" or "red-lens" or "amber-lens" or "green-lens")
+                attributes.Add(new XAttribute("data-elitescada-slot", "bezel"));
             if (rotated) attributes.Add(new XAttribute("transform", FormattableString.Invariant($"rotate({angle:0.###} {cx:0.###} {cy:0.###})")));
             XElement? shape = element.Type switch
             {
@@ -170,6 +178,8 @@ public static class BuiltinDynamoCatalogV1
             new("faultColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#EAB308")),
             new("communicationBadColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#DC2626")),
             new("inhibitedColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#1687C9")),
+            new("bezelColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement(Outline)),
+            new("bezel3d", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(false)),
             new("animationEnabled", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(true)),
             new("fixedState", DynamoParameterKind.Number, DefaultValue: JsonSerializer.SerializeToElement(1))
         };
@@ -177,6 +187,8 @@ public static class BuiltinDynamoCatalogV1
         metadata["stateProfile"] = "0=off;1..4=user-configurable";
         metadata["implementedSourceModes"] = stateful ? "numeric-tag-or-expression-or-boolean-tag-or-expression-state" : "fixed-artwork";
         metadata["outlineIndependent"] = "true";
+        metadata["dynamoOutlineColorParameter"] = "bezelColor";
+        metadata["dynamo3dEffectParameter"] = "bezel3d";
         var mapped = x.LastOrDefault(e => e.Key == "lens") ?? x.LastOrDefault(e => e.Key == "green-lens");
         if (mapped is not null)
         {
@@ -186,6 +198,15 @@ public static class BuiltinDynamoCatalogV1
                 ["dynamoBooleanStateInvertParameter"] = "invertBoolean"
             };
             x[x.IndexOf(mapped)] = stateMapped with { Metadata = stateMetadata };
+        }
+        foreach (var outlineElement in x.Where(element => element.Key is "bezel" or "lens" or "red-lens" or "amber-lens" or "green-lens").ToArray())
+        {
+            var elementMetadata = new Dictionary<string, string>(outlineElement.Metadata ?? new Dictionary<string, string>(), StringComparer.Ordinal)
+            {
+                ["dynamoOutlineColorParameter"] = "bezelColor",
+                ["dynamo3dEffectParameter"] = "bezel3d"
+            };
+            x[x.IndexOf(outlineElement)] = outlineElement with { Metadata = elementMetadata };
         }
         return Definition($"indicator.lamp.{shape}", $"Sinalizador {LampName(shape)}", "indicators", w, h, x, parameters, metadata);
     }

@@ -139,6 +139,41 @@ public sealed class ModbusTcpTransport : IModbusMasterTransport
         return ModbusPduCodec.DecodeRegisterReadResponse(response, function, quantity);
     }
 
+    /// <summary>
+    /// Sends Modbus Encapsulated Interface Read Device Identification (MEI 0x0E,
+    /// basic device ID). This is a bounded, read-only protocol probe and does not
+    /// depend on an application TAG address.
+    /// </summary>
+    public async Task<ModbusDeviceIdentificationResponse> ReadDeviceIdentificationAsync(
+        byte unitId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await SendRequestAsync(
+            unitId,
+            new byte[] { 0x2B, 0x0E, 0x01, 0x00 },
+            retryOnConnectionFailure: false,
+            cancellationToken);
+
+        if (response.Length < 7 || response[0] != 0x2B || response[1] != 0x0E || response[2] != 0x01)
+            throw new IOException("Modbus device-identification response header is invalid.");
+        if (response[4] is not (0 or 0xFF))
+            throw new IOException("Modbus device-identification continuation flag is invalid.");
+
+        var objectCount = response[6];
+        var offset = 7;
+        for (var index = 0; index < objectCount; index++)
+        {
+            if (offset + 2 > response.Length) throw new IOException("Modbus device-identification object header is truncated.");
+            var valueLength = response[offset + 1];
+            offset += 2;
+            if (offset + valueLength > response.Length) throw new IOException("Modbus device-identification object value is truncated.");
+            offset += valueLength;
+        }
+        if (offset != response.Length) throw new IOException("Modbus device-identification response has trailing data.");
+
+        return new ModbusDeviceIdentificationResponse(objectCount);
+    }
+
     public async Task WriteSingleCoilAsync(
         byte unitId,
         ushort address,
@@ -321,6 +356,8 @@ public sealed class ModbusTcpTransport : IModbusMasterTransport
         _gate.Dispose();
     }
 }
+
+public sealed record ModbusDeviceIdentificationResponse(int ObjectCount);
 
 public sealed class ModbusProtocolException : IOException
 {

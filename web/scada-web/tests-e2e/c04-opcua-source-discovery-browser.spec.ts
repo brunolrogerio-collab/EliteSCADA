@@ -141,8 +141,8 @@ test('new OPC UA Source can discover, choose security settings and test the draf
   await expect(sourceEditor.getByTestId('data-source-setting-serverCertificateSha256')).toHaveValue('AABBCCDDEEFF');
   await expect(sourceEditor.getByTestId('data-source-setting-authenticationMode')).toHaveValue('Anonymous');
 
-  await sourceEditor.getByTestId('opcua-source-test').click();
-  await expect(sourceEditor.getByTestId('opcua-source-test-result')).toContainText('opc.tcp://plc.example:4840');
+  await sourceEditor.getByTestId('data-source-connection-test').getByRole('button', { name: 'Testar conexão' }).click();
+  await expect(sourceEditor.getByTestId('data-source-connection-result')).toContainText('opc.tcp://plc.example:4840');
   expect(connectionRequest).toMatchObject({
     sourceKey: 'OPC_UA_Principal', sourceName: 'OPC UA Principal', driverType: 'opc-ua',
     settings: {

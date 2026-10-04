@@ -33,13 +33,15 @@ The artwork is generated as first-party SVG from native geometry, registered as 
 
 The current initial runtime behavior includes numeric TAG-state paint maps for lamps, motors and valves, configurable color parameters, a fixed-state option, semantic SVG paint slots, and buttons that project to existing authorized command / TAG-write actions. The SVG semantic-slot mechanism also supports dynamic paint on a placed static SVG without wrapping it as a Dynamo; verify the complete mounted screen/runtime path as part of acceptance.
 
+Continuation after the first checkpoint fixed two additional runtime gaps: contact-blade geometry now changes its fill and rotation from the selected state TAG, and the C07 state indicator now resolves the public `state` TAG through the same canonical `PropertyMap` source used by rendering. Numeric profiles now classify running/open, fault, communication-failure and inhibited states; quality/fault/alarm/uncertain/inhibited/command precedence is deterministic. Button artwork has accessible keyboard and pressed feedback. Latest local exact HEAD: `c5c368e8` (pushed to the existing draft PR #502). Focused Dynamo model/state specs are now 22 passing; production web build passes.
+
 ### Explicitly incomplete — do not call #501 done
 
 - Lamp source modes beyond numeric TAG state: expression, inverted Boolean and Boolean-result script binding are not implemented in this checkpoint.
-- Motor/valve state selection is currently a single numeric state TAG. Independent signals, bad-quality priority and deterministic conflict resolution still need implementation and tests.
+- Motor/valve state selection is still a single numeric state TAG. Independent Boolean signals/expressions and configurable per-signal conflict resolution remain incomplete. Quality is surfaced through the runtime state indicator; prove the end-to-end bad-quality rendering and palette behavior in mounted Runtime.
 - Per-state text parameters are declared but not yet rendered; command mappings for motors/valves are not wired to canonical interactions.
 - Button released/pressed artwork is currently driven by a numeric state mapping. Momentary interaction feedback, robust failure feedback, and the script-authoring wizard are not implemented.
-- Contact symbols currently have static artwork only; contact-state animation/semantics remain to be done.
+- Contact symbols now animate canonical blade color/rotation from their selected two-state TAG, but broader electrical semantics and user-configurable per-pole state configuration remain to be done.
 - Professional visual review of all 26 symbols and mounted editor/runtime parity have not been completed.
 - Test coverage so far is focused contract/model coverage, not the full issue acceptance matrix: package/export-import round trip, save/reopen, copy/paste, screen/popup/template parity, security, and exact-head T1 remain required.
 
@@ -48,11 +50,11 @@ Do not silently shrink the issue criteria. Main should either release a bounded 
 ## Validation recorded on this branch
 
 - Backend `Scada.Drivers.Tests`: 886 passed.
-- Focused catalog/runtime projection Chromium specs: 12 passed.
+- Focused catalog/runtime projection and state-resolution Chromium specs: 22 passed at `c5c368e8`.
 - Web production build: passed; existing large-chunk warning only.
 - `git diff --check`: clean at checkpoint.
 - The standard mounted Playwright E2E bootstrap could not start in this local checkout because its expected durable PostgreSQL/test-service topology and `IEngineeringProjectCatalog` registration are unavailable. This is infrastructure-not-run, not a product test pass.
-- No exact-head GitHub T1 has been run for this branch. No PR exists yet at checkpoint.
+- Draft PR #502 remains OPEN / DRAFT / NOT MERGED. Do not monitor its T1 or merge CI continuously. No exact-head T1 result has been claimed for `c5c368e8`.
 
 ## Other product lanes still open
 

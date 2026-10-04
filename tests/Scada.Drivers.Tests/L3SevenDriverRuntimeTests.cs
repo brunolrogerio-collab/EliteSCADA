@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Security.Cryptography.X509Certificates;
 using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
@@ -215,6 +216,86 @@ public sealed class L3SevenDriverRuntimeTests
 
         Assert.Equal(7, runtime.Tags().Select(tag => tag.Source).Distinct(StringComparer.OrdinalIgnoreCase).Count());
         Assert.Equal(7, runtime.Tags().Select(tag => tag.Id).Distinct().Count());
+    }
+
+    [Fact]
+    [Trait("Category", "L3PointReadIntegration")]
+    public async Task S7AndOpcUa_PointReadUsesTheSameRealProtocolPeersAsRuntime()
+    {
+        if (!TryGetLab(out var lab)) return;
+
+        var s7Point = new S7IsoTagBinding(
+            S7IsoTagBinding.CurrentSchemaVersion,
+            S7IsoArea.DataBlock,
+            0,
+            S7IsoValueType.Int16,
+            DbNumber: 1,
+            Writable: true);
+        var s7Binding = S7Binding(s7Point);
+        var s7Request = new DriverPointReadTestRequest(
+            new DriverEngineeringDataSourceContext(
+                "l3.s7.point-read",
+                "L3 S7 Point Read",
+                S7IsoCommunicationRuntimePlan.DriverTypeKey,
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["host"] = lab.S7Host,
+                    ["port"] = lab.S7Port.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ["cpuFamily"] = nameof(S7CpuFamily.S71500),
+                    ["connectionMode"] = nameof(S7IsoConnectionMode.RackSlot),
+                    ["rack"] = "0",
+                    ["slot"] = "1",
+                    ["connectionRole"] = nameof(S7IsoConnectionRole.Basic),
+                    ["writeEnabled"] = "true",
+                    ["sourceTsap"] = "0x0100",
+                    ["connectTimeoutMs"] = "2000",
+                    ["requestTimeoutMs"] = "2000",
+                    ["reconnectDelayMs"] = "100",
+                    ["requestedPduSize"] = "480"
+                },
+                new Dictionary<string, string>()),
+            s7Binding,
+            TagDataType.Int16,
+            TimeoutMilliseconds: 5000);
+
+        var s7Result = await new S7IsoPointReadTester().TestPointReadAsync(s7Request);
+        Assert.Equal(DriverPointReadTestStatus.Good, s7Result.Status);
+        Assert.Equal(TagQuality.Good, Assert.Single(s7Result.Samples).Quality);
+
+        var opcUaIdentity = new OpcUaNodeIdentity(
+            "ns=2;s=Lab.Temperature",
+            "urn:elitescada:interop:opcua");
+        var opcUaDescriptor = OpcUaDriverDescriptorProvider.Definition;
+        var opcUaBinding = new CommunicationTagBinding(
+            CommunicationTagBinding.CurrentContractVersion,
+            opcUaDescriptor.TagBindingSchemaId ?? opcUaDescriptor.ConfigurationSchema.SchemaId,
+            opcUaDescriptor.TagBindingSchemaVersion ?? opcUaDescriptor.ConfigurationSchema.SchemaVersion,
+            opcUaIdentity.PortableAddress);
+        var opcUaRequest = new DriverPointReadTestRequest(
+            new DriverEngineeringDataSourceContext(
+                "l3.opcua.point-read",
+                "L3 OPC UA Point Read",
+                OpcUaDriverDescriptorProvider.DriverTypeId,
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["endpointUrl"] = lab.OpcUaEndpoint,
+                    ["securityMode"] = "None",
+                    ["securityPolicyUri"] = OpcUaSecurityPolicyNone,
+                    ["authenticationMode"] = "Anonymous",
+                    ["sessionTimeout"] = "00:00:30",
+                    ["publishingInterval"] = "00:00:00.100"
+                },
+                new Dictionary<string, string>()),
+            opcUaBinding,
+            TagDataType.Double,
+            TimeoutMilliseconds: 5000);
+
+        var opcUaResult = await new OpcUaPointReadTester(new NoOpcUaSecretsExpectedProvider())
+            .TestPointReadAsync(opcUaRequest);
+        Assert.Equal(DriverPointReadTestStatus.Good, opcUaResult.Status);
+        var opcUaSample = Assert.Single(opcUaResult.Samples);
+        Assert.Equal(TagQuality.Good, opcUaSample.Quality);
+        Assert.Equal(21.5d, Convert.ToDouble(opcUaSample.Engineering!.Value), precision: 3);
     }
 
     private static TagEngineeringDto Tag(
@@ -456,4 +537,15 @@ public sealed class L3SevenDriverRuntimeTests
         string S7Host,
         int S7Port,
         string NodeRedUrl);
+
+    private sealed class NoOpcUaSecretsExpectedProvider : IOpcUaRuntimeSecurityMaterialProvider
+    {
+        public ValueTask<string> ResolveSecretAsync(string secretReference, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("Anonymous L3 OPC UA PointRead must not resolve secret material.");
+
+        public ValueTask<X509Certificate2> ResolveCertificateAsync(
+            string certificateReference,
+            CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("SecurityPolicy None L3 OPC UA PointRead must not resolve certificates.");
+    }
 }

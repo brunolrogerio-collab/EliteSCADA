@@ -49,6 +49,8 @@ export type ClientVisualPythonRuntimeFactory = (
 export type ClientVisualEventDispatcherOptions = Readonly<{
   visualDefinitionId: string;
   instances: ReadonlyMap<string, RuntimeVisualInstance>;
+  /** Dynamo roots render as transient groups but do not own a visual-property instance. */
+  eventOnlyObjectIds?: ReadonlySet<string>;
   onVisualStateChanged?: () => void;
   frameClock?: VisualTweenFrameClock;
   runtimeFactory?: ClientVisualPythonRuntimeFactory;
@@ -68,6 +70,7 @@ export type ClientVisualEventDispatcherOptions = Readonly<{
  */
 export class ClientVisualEventDispatcher {
   private readonly instances: ReadonlyMap<string, RuntimeVisualInstance>;
+  private readonly eventOnlyObjectIds: ReadonlySet<string>;
   private readonly visualDefinitionId: string;
   private readonly visualProviders = new Map<string, ClientVisualPythonVisualPropertyProvider>();
   private readonly runtimeFactory: ClientVisualPythonRuntimeFactory;
@@ -76,6 +79,7 @@ export class ClientVisualEventDispatcher {
 
   constructor(options: ClientVisualEventDispatcherOptions) {
     this.instances = options.instances;
+    this.eventOnlyObjectIds = new Set(options.eventOnlyObjectIds ?? []);
     this.visualDefinitionId = options.visualDefinitionId.trim();
     this.runtimeFactory = options.runtimeFactory ?? (runtimeOptions => new ClientVisualPythonRuntime(runtimeOptions));
     this.tagWriter = options.tagWriter;
@@ -116,7 +120,8 @@ export class ClientVisualEventDispatcher {
 
     const instance = this.instances.get(request.objectId);
     const visualProvider = this.visualProviders.get(request.objectId);
-    if (!instance || !visualProvider || instance.isDisposed) {
+    const eventOnly = !instance && this.eventOnlyObjectIds.has(request.objectId);
+    if ((!instance && !eventOnly) || (instance && instance.isDisposed) || (instance && !visualProvider)) {
       return Object.freeze(references.map(reference => faultedRecord(
         reference,
         'Canonical Runtime Visual Instance is unavailable for this interaction.'
@@ -138,8 +143,8 @@ export class ClientVisualEventDispatcher {
   private async dispatchReference(
     request: ClientVisualObjectInteractionRequest,
     reference: ScriptVisualEventReference,
-    instance: RuntimeVisualInstance,
-    visualProvider: ClientVisualPythonVisualPropertyProvider
+    instance: RuntimeVisualInstance | undefined,
+    visualProvider: ClientVisualPythonVisualPropertyProvider | undefined
   ): Promise<ClientVisualEventDispatchRecord> {
     const script = request.context.scripts.find(candidate => candidate.id === reference.scriptId);
     if (!script || !script.enabled || script.scope !== 'clientVisual') {
@@ -153,16 +158,17 @@ export class ClientVisualEventDispatcher {
       return faultedRecord(reference, 'Referenced Python entry point is not declared for objectInteraction.');
     }
 
+    const runtimeInstanceId = instance?.runtimeInstanceId ?? `visual-event-only-${this.visualDefinitionId}-${request.objectId}`;
     const runtime = this.runtimeFactory({
       identity: {
         scriptId: script.id,
-        runtimeInstanceId: `visual-event-${instance.runtimeInstanceId}-${++this.sequence}`,
-        visualRuntimeInstanceId: instance.runtimeInstanceId
+        runtimeInstanceId: `visual-event-${runtimeInstanceId}-${++this.sequence}`,
+        visualRuntimeInstanceId: runtimeInstanceId
       },
       source: script.source,
       handlerNames: [...new Set(script.entryPoints.map(entryPoint => entryPoint.handlerName).filter(Boolean))],
       capabilityProvider: createClientVisualPythonCapabilityProvider({
-        visualPropertyProvider: visualProvider,
+        ...(visualProvider ? { visualPropertyProvider: visualProvider } : {}),
         tagDependencies: script.dependencies,
         tagWriter: this.tagWriter
       })
@@ -177,7 +183,7 @@ export class ClientVisualEventDispatcher {
           eventKey: request.eventKey,
           visualDefinitionId: request.visualDefinitionId,
           visualObjectId: request.objectId,
-          visualRuntimeInstanceId: instance.runtimeInstanceId,
+          visualRuntimeInstanceId: runtimeInstanceId,
           pointer: request.pointer ? Object.freeze({ ...request.pointer }) : null
         })
       );

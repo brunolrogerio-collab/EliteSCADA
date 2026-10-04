@@ -5,6 +5,7 @@ import {
   projectDynamoRuntimeElements,
   resolveDynamoRuntimeEquipmentPath
 } from '../src/runtime/visual-navigation/dynamoRuntimeBindingProjection';
+import { collectRuntimeDynamoEventOnlyObjectIds } from '../src/runtime/visual-navigation/runtimeDynamoVisualProjection';
 import { resolveDynamoParameterEditorKind } from '../src/engineering/visual-editor/dynamo/dynamoPublicInterfaceModel';
 
 function parameters(...values: DynamoParameterValueEngineering[]) {
@@ -49,6 +50,18 @@ const definitionElements: readonly VisualElementEngineering[] = [
     ]
   }
 ];
+
+test('only persisted Dynamo roots receive event-only Runtime identities, including nested instances', () => {
+  const ids = collectRuntimeDynamoEventOnlyObjectIds([
+    { id: 'plain-group', key: 'group', type: 'core.group', children: [
+      { id: 'pump-dynamo', key: 'pump', type: 'dynamo', dynamoKey: 'equipment.motor.axial' },
+      { id: 'plain-rect', key: 'rect', type: 'core.rectangle' }
+    ] },
+    { id: 'lamp-dynamo', key: 'lamp', type: 'dynamo', dynamoKey: 'indicator.lamp.round' }
+  ]);
+
+  expect([...ids].sort()).toEqual(['lamp-dynamo', 'pump-dynamo']);
+});
 
 test('typed equipmentPath overrides legacy instance field', () => {
   const resolved = resolveDynamoRuntimeEquipmentPath(

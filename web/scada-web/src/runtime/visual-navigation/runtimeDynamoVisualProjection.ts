@@ -51,6 +51,22 @@ export function expandRuntimeDynamoVisuals(
     expandElementFailClosed(element, definitions, `root.${index}`, locale)));
 }
 
+/** IDs of persisted Dynamo roots: Runtime renders them as groups, so scripts need an event-only context. */
+export function collectRuntimeDynamoEventOnlyObjectIds(
+  elements: readonly VisualElementEngineering[] | null | undefined
+): ReadonlySet<string> {
+  const ids = new Set<string>();
+  const visit = (items: readonly VisualElementEngineering[]) => {
+    for (const element of items) {
+      const id = element.id?.trim();
+      if (id && element.dynamoKey?.trim()) ids.add(id);
+      if (element.children?.length) visit(element.children);
+    }
+  };
+  visit(elements ?? []);
+  return ids;
+}
+
 /** Only projected Dynamo internals are sampled by the C07 state overlay. */
 export function collectRuntimeDynamoStateBindingElements(
   elements: readonly VisualElementEngineering[]

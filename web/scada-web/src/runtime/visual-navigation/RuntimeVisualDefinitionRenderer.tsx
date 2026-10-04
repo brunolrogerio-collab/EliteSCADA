@@ -34,6 +34,7 @@ import {
   projectRuntimeVisualElements
 } from './runtimeVisualInstanceComposition';
 import {
+  collectRuntimeDynamoEventOnlyObjectIds,
   collectRuntimeDynamoStateBindingElements,
   expandRuntimeDynamoVisuals,
   resolveRuntimeDynamoStateIndicators,
@@ -102,14 +103,19 @@ export function RuntimeVisualDefinitionRenderer({
     () => createRuntimeVisualInstances(elements, runtimeContextId),
     [elements, runtimeContextId]
   );
+  const dynamoEventOnlyObjectIds = useMemo(
+    () => collectRuntimeDynamoEventOnlyObjectIds(elements),
+    [elements]
+  );
   const dispatcher = useMemo(() => new ClientVisualEventDispatcher({
     visualDefinitionId,
     instances,
+    eventOnlyObjectIds: dynamoEventOnlyObjectIds,
     onVisualStateChanged: () => setRevision(current => current + 1),
     runtimeFactory,
     frameClock,
     tagWriter: historical ? null : undefined
-  }), [visualDefinitionId, instances, runtimeFactory, frameClock, historical]);
+  }), [visualDefinitionId, instances, dynamoEventOnlyObjectIds, runtimeFactory, frameClock, historical]);
   const interactionEventKeys = useMemo(() => {
     const byObject = new Map<string, Set<string>>();
     for (const reference of scriptContext?.visualEventReferences ?? []) {
@@ -181,7 +187,7 @@ export function RuntimeVisualDefinitionRenderer({
       const movingPointer = eventKey === 'pointermove';
       const pointerType = 'pointerType' in event ? event.pointerType : 'mouse';
       const isMousePointer = !('pointerType' in event) || pointerType === 'mouse';
-      if (objectId && configured?.has(eventKey) && instances.has(objectId) &&
+      if (objectId && configured?.has(eventKey) && (instances.has(objectId) || dynamoEventOnlyObjectIds.has(objectId)) &&
           (!enteringOrLeaving || !crossingWithinObject) && (!movingPointer || isMousePointer)) {
         if (movingPointer) {
           const now = globalThis.performance?.now?.() ?? Date.now();

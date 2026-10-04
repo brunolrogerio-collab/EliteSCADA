@@ -238,14 +238,12 @@ public static class BuiltinDynamoCatalogV1
                 x[x.IndexOf(target)] = WithStateMap(target, "{equipmentPath}.State",
                     ["#93B99A", "#16A34A", "#DC2626", "#EAB308", "#76838B"], "state",
                     family == "valve" ? "closed,open,fault,communicationBad,inhibited" : "stopped,running,fault,communicationBad,inhibited");
+            x.AddRange(CreateStateLabels(family));
         }
         var parameters = new List<DynamoParameterDefinitionEngineeringDto>
         {
             new("equipmentPath", DynamoParameterKind.EquipmentPath),
             new("state", DynamoParameterKind.TagReference),
-            new("fault", DynamoParameterKind.TagReference),
-            new("communicationBad", DynamoParameterKind.TagReference),
-            new("inhibited", DynamoParameterKind.TagReference),
             new(family == "valve" ? "closedColor" : "stoppedColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#93B99A")),
             new(family == "valve" ? "openColor" : "runningColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#16A34A")),
             new("faultColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#DC2626")),
@@ -253,14 +251,58 @@ public static class BuiltinDynamoCatalogV1
             new("inhibitedColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#76838B")),
             new("animationEnabled", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(true)),
             new("fixedState", DynamoParameterKind.Number, DefaultValue: JsonSerializer.SerializeToElement(0)),
-            new("activeText", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement(family == "valve" ? "ABERTA" : "LIGADO")),
-            new("inactiveText", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement(family == "valve" ? "FECHADA" : "PARADO")),
+            new(family == "valve" ? "closedText" : "stoppedText", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement(family == "valve" ? "FECHADA" : "PARADO")),
+            new(family == "valve" ? "openText" : "runningText", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement(family == "valve" ? "ABERTA" : "LIGADO")),
             new("faultText", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("FALHA")),
             new("communicationBadText", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("SEM COMUNICAÇÃO")),
             new("inhibitedText", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("BLOQUEADO")),
             new("command", DynamoParameterKind.Command)
         };
+        if (family is "motor" or "valve")
+        {
+            var bodyIndex = x.FindIndex(element => element.Key == "state-body");
+            if (bodyIndex >= 0)
+                x[bodyIndex] = x[bodyIndex] with
+                {
+                    Actions = [new VisualNavigationActionEngineeringDto("click", VisualNavigationActionKind.ExecuteCommand, CommandParameterKey: "command")]
+                };
+            metadata["stateSource"] = "numeric-tag-enum";
+            metadata["statePriority"] = "one-exclusive-state-per-enum-value; invalid-or-missing-sample-uses-base-state";
+        }
         return Definition(key, name, category, 132, 100, x, parameters, metadata);
+    }
+
+    private static IEnumerable<VisualElementEngineeringDto> CreateStateLabels(string family)
+    {
+        var labels = family == "valve"
+            ? new[] { "closedText", "openText", "faultText", "communicationBadText", "inhibitedText" }
+            : new[] { "stoppedText", "runningText", "faultText", "communicationBadText", "inhibitedText" };
+        for (var state = 0; state < labels.Length; state++)
+        {
+            var key = $"state-label-{state}";
+            var text = Text(key, "", 0, 82, 132, 16, 10);
+            var properties = new Dictionary<string, JsonElement>(text.Properties!, StringComparer.Ordinal)
+            {
+                ["text"] = JsonSerializer.SerializeToElement("{" + labels[state] + "}"),
+                ["visible"] = JsonSerializer.SerializeToElement(false)
+            };
+            var metadata = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["dynamoStateLabelIndex"] = state.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["dynamoFixedStateParameter"] = "fixedState",
+                ["dynamoAnimationEnabledParameter"] = "animationEnabled"
+            };
+            yield return text with
+            {
+                Properties = properties,
+                Metadata = metadata,
+                BooleanConditions = [new VisualBooleanConditionEngineeringDto(
+                    "visible", VisualBooleanConditionKind.NumericInterval,
+                    new VisualValueSourceEngineeringDto(VisualValueSourceKind.Tag, VisualExpressionValueType.Number,
+                        Target: "{dynamoParameter:state}"),
+                    Minimum: state, Maximum: state + 1)]
+            };
+        }
     }
 
     private static List<VisualElementEngineeringDto> MotorArtwork(string kind)

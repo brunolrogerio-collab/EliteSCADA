@@ -45,9 +45,18 @@ function projectElement(
   const animationParameterKey = element.metadata?.dynamoAnimationEnabledParameter?.trim();
   const animationParameter = animationParameterKey ? findParameter(parameters, animationParameterKey) : undefined;
   const animationEnabled = animationParameter?.kind !== 'Boolean' || animationParameter.value !== false;
+  if (element.type === 'core.text' && typeof properties.text === 'string') {
+    const textParameterKey = parameterToken(properties.text);
+    const textParameter = textParameterKey ? findParameter(parameters, textParameterKey) : undefined;
+    if (textParameter?.kind === 'String' && typeof textParameter.value === 'string') properties.text = textParameter.value;
+  }
   if (!animationEnabled) {
     const stateParameterKey = element.metadata?.dynamoFixedStateParameter?.trim();
     const stateParameter = stateParameterKey ? findParameter(parameters, stateParameterKey) : undefined;
+    const labelIndex = Number(element.metadata?.dynamoStateLabelIndex);
+    if (Number.isInteger(labelIndex) && stateParameter?.kind === 'Number' && typeof stateParameter.value === 'number') {
+      properties.visible = Math.trunc(stateParameter.value) === labelIndex;
+    }
     const profile = element.metadata?.dynamoStateColorProfile?.split(',').map(value => value.trim()) ?? [];
     const stateIndex = stateParameter?.kind === 'Number' && typeof stateParameter.value === 'number'
       ? Math.trunc(stateParameter.value)
@@ -110,10 +119,10 @@ function projectElement(
           equipmentPath)
       });
     }) : undefined,
-    booleanConditions: element.booleanConditions?.map(condition => Object.freeze({
+    booleanConditions: animationEnabled ? element.booleanConditions?.map(condition => Object.freeze({
       ...condition,
       source: projectValueSource(condition.source, parameters, equipmentPath)
-    })),
+    })) : undefined,
     analogFill: element.analogFill ? Object.freeze({
       ...element.analogFill,
       source: projectValueSource(element.analogFill.source, parameters, equipmentPath)

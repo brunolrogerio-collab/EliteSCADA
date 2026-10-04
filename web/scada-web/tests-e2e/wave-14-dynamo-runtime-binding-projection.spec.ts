@@ -205,3 +205,34 @@ test('animated SVG Dynamo can pin one state and preserve it as a static paint ov
   expect(projected[0]?.propertyMaps).toBeUndefined();
   expect(projected[0]?.properties?.svgPaintOverrides).toMatchObject({ slots: { state: { fill: '#E20D21' } } });
 });
+
+test('Dynamo equipment state labels bind to a stable TAG and pin text when animation is disabled', () => {
+  const label: VisualElementEngineering = {
+    id: 'label-3', key: 'label-3', type: 'core.text',
+    properties: { text: '{communicationBadText}', visible: false },
+    metadata: {
+      dynamoStateLabelIndex: '3',
+      dynamoFixedStateParameter: 'fixedState',
+      dynamoAnimationEnabledParameter: 'animationEnabled'
+    },
+    booleanConditions: [{
+      propertyKey: 'visible', kind: 'NumericInterval',
+      source: { kind: 'Tag', valueType: 'Number', target: '{dynamoParameter:state}' },
+      minimum: 3, maximum: 4
+    }]
+  };
+  const tagReference = { tagId: 'tag-state-id' };
+  const fixed = projectDynamoRuntimeElements([label], parameters(
+    { key: 'communicationBadText', kind: 'String', value: 'SEM COMUNICAÇÃO' },
+    { key: 'animationEnabled', kind: 'Boolean', value: false },
+    { key: 'fixedState', kind: 'Number', value: 3 }
+  ), null);
+
+  expect(fixed[0]?.properties).toMatchObject({ text: 'SEM COMUNICAÇÃO', visible: true });
+  expect(fixed[0]?.booleanConditions).toBeUndefined();
+
+  const animated = projectDynamoRuntimeElements([label], parameters(
+    { key: 'state', kind: 'TagReference', tagReference }
+  ), null);
+  expect(animated[0]?.booleanConditions?.[0]?.source).toMatchObject({ tagReference, target: '{dynamoParameter:state}' });
+});

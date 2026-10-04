@@ -72,7 +72,51 @@ public sealed class BuiltinDynamoLibraryTests
             Assert.Equal(VisualExpressionValueType.Number, stateMap.Source.ValueType);
             Assert.Equal("{equipmentPath}.State", stateMap.Source.Target);
             Assert.Equal("not-displayed", definition.Metadata!["analogProcessValues"]);
+            Assert.Equal(5, definition.Elements!.Count(element => element.Metadata?.ContainsKey("dynamoStateLabelIndex") == true));
+            Assert.Contains(definition.Elements!, element => element.Actions?.Any(action => action.Kind == VisualNavigationActionKind.ExecuteCommand && action.CommandParameterKey == "command") == true);
         }
+    }
+
+    [Fact]
+    public void ReplacementEquipment_ProjectsStateTagToLabelsAndSupportsFixedStateText()
+    {
+        var motor = BuiltinDynamoCatalogV1.Create().Single(definition => definition.Key == "motor.tefc");
+        var tagId = Guid.NewGuid();
+        var instance = new VisualElementEngineeringDto(
+            "motor-1", "dynamo", DynamoKey: motor.Key, Id: Guid.NewGuid(),
+            DynamoParameters:
+            [
+                new("state", DynamoParameterKind.TagReference, TagReference: new(tagId)),
+                new("animationEnabled", DynamoParameterKind.Boolean, System.Text.Json.JsonSerializer.SerializeToElement(false)),
+                new("fixedState", DynamoParameterKind.Number, System.Text.Json.JsonSerializer.SerializeToElement(3)),
+                new("communicationBadText", DynamoParameterKind.String, System.Text.Json.JsonSerializer.SerializeToElement("TAG SEM COMUNICAÇÃO")),
+                new("command", DynamoParameterKind.Command, CommandId: Guid.NewGuid())
+            ]);
+
+        var projected = DynamoRuntimeComposer.Compose(instance, motor);
+        var labels = projected.Elements.Where(element => element.Metadata?.ContainsKey("dynamoStateLabelIndex") == true).ToArray();
+
+        Assert.Equal(5, labels.Length);
+        Assert.Equal("TAG SEM COMUNICAÇÃO", labels[3].Properties!["text"].GetString());
+        Assert.True(labels[3].Properties!["visible"].GetBoolean());
+        Assert.All(labels.Where((_, index) => index != 3), label => Assert.False(label.Properties!["visible"].GetBoolean()));
+        Assert.All(labels, label => Assert.Null(label.BooleanConditions));
+
+        var animatedInstance = instance with
+        {
+            DynamoParameters = [
+                new("state", DynamoParameterKind.TagReference, TagReference: new(tagId)),
+                new("command", DynamoParameterKind.Command, CommandId: Guid.NewGuid())
+            ]
+        };
+        var animated = DynamoRuntimeComposer.Compose(animatedInstance, motor);
+        Assert.All(animated.Elements.Where(element => element.Metadata?.ContainsKey("dynamoStateLabelIndex") == true), label =>
+        {
+            var condition = Assert.Single(label.BooleanConditions!);
+            Assert.Equal("visible", condition.PropertyKey);
+            Assert.Equal(tagId, condition.Source.TagReference!.TagId);
+            Assert.Null(condition.Source.Target);
+        });
     }
 
     [Fact]
@@ -116,7 +160,8 @@ public sealed class BuiltinDynamoLibraryTests
             DynamoParameters:
             [
                 new("animationEnabled", DynamoParameterKind.Boolean, System.Text.Json.JsonSerializer.SerializeToElement(false)),
-                new("fixedState", DynamoParameterKind.Number, System.Text.Json.JsonSerializer.SerializeToElement(2))
+                new("fixedState", DynamoParameterKind.Number, System.Text.Json.JsonSerializer.SerializeToElement(2)),
+                new("command", DynamoParameterKind.Command, CommandId: Guid.NewGuid())
             ]);
 
         var projected = DynamoRuntimeComposer.Compose(instance, motor);

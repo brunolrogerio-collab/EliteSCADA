@@ -107,11 +107,17 @@ public static class DynamoRuntimeComposer
 
         return elements.Select(element => element with
         {
-            Properties = ApplyFixedDynamoState(element, parameters),
+            Properties = ApplyDynamoTextParameter(ApplyFixedDynamoState(element, parameters), element, parameters),
             Bindings = element.Bindings?.Select(binding => binding with
             {
                 Target = normalizedPath is null ? binding.Target : binding.Target.Replace("{equipmentPath}", normalizedPath, StringComparison.Ordinal)
             }).ToArray(),
+            BooleanConditions = IsDynamoAnimationEnabled(element, parameters)
+                ? element.BooleanConditions?.Select(condition => condition with
+                {
+                    Source = ProjectValueSource(condition.Source, normalizedPath, parameters)
+                }).ToArray()
+                : null,
             Actions = element.Actions?.Select(action => ProjectAction(action, parameters)).ToArray(),
             PropertyMaps = IsDynamoAnimationEnabled(element, parameters) ? element.PropertyMaps?.Select(map =>
             {
@@ -155,20 +161,30 @@ public static class DynamoRuntimeComposer
         VisualElementEngineeringDto element,
         IReadOnlyDictionary<string, DynamoParameterValueEngineeringDto> parameters)
     {
-        if (IsDynamoAnimationEnabled(element, parameters) || element.Properties is null)
+        if (element.Properties is null)
             return element.Properties;
+        var animationEnabled = IsDynamoAnimationEnabled(element, parameters);
+        var properties = new Dictionary<string, JsonElement>(element.Properties, StringComparer.Ordinal);
+        if (!animationEnabled && element.Metadata?.TryGetValue("dynamoStateLabelIndex", out var labelIndexText) == true &&
+            int.TryParse(labelIndexText, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var labelIndex) &&
+            parameters.TryGetValue("fixedState", out var fixedState) && fixedState.Kind == DynamoParameterKind.Number &&
+            fixedState.Value is { ValueKind: JsonValueKind.Number } fixedStateValue)
+        {
+            properties["visible"] = JsonSerializer.SerializeToElement(fixedStateValue.GetInt32() == labelIndex);
+        }
+        if (animationEnabled)
+            return properties;
         var profile = element.Metadata?.GetValueOrDefault("dynamoStateColorProfile")?.Split(',') ?? Array.Empty<string>();
         var stateParameterKey = element.Metadata?.GetValueOrDefault("dynamoFixedStateParameter");
         if (string.IsNullOrWhiteSpace(stateParameterKey) || !parameters.TryGetValue(stateParameterKey, out var state) ||
             state.Kind != DynamoParameterKind.Number || state.Value is not { ValueKind: JsonValueKind.Number } stateValue)
-            return element.Properties;
+            return properties;
         var index = stateValue.GetInt32();
-        if (index < 0 || index >= profile.Length) return element.Properties;
+        if (index < 0 || index >= profile.Length) return properties;
         var colorKey = $"{profile[index].Trim()}Color";
         if (!parameters.TryGetValue(colorKey, out var color) || color.Kind != DynamoParameterKind.String ||
             color.Value is not { ValueKind: JsonValueKind.String } colorValue || string.IsNullOrWhiteSpace(colorValue.GetString()))
-            return element.Properties;
-        var properties = new Dictionary<string, JsonElement>(element.Properties, StringComparer.Ordinal);
+            return properties;
         if (element.Type == "core.svgSymbol")
             properties["svgPaintOverrides"] = JsonSerializer.SerializeToElement(new
             {
@@ -176,6 +192,22 @@ public static class DynamoRuntimeComposer
             });
         else
             properties["fillColor"] = JsonSerializer.SerializeToElement(colorValue.GetString());
+        return properties;
+    }
+
+    private static Dictionary<string, JsonElement>? ApplyDynamoTextParameter(
+        Dictionary<string, JsonElement>? properties,
+        VisualElementEngineeringDto element,
+        IReadOnlyDictionary<string, DynamoParameterValueEngineeringDto> parameters)
+    {
+        if (properties is null || element.Type != "core.text" ||
+            !properties.TryGetValue("text", out var text) || text.ValueKind != JsonValueKind.String)
+            return properties;
+        var token = text.GetString();
+        if (!TryParameterToken(token, out var key) || !parameters.TryGetValue(key, out var parameter) ||
+            parameter.Kind != DynamoParameterKind.String || parameter.Value is not { ValueKind: JsonValueKind.String } value)
+            return properties;
+        properties["text"] = value.Clone();
         return properties;
     }
 
@@ -188,6 +220,23 @@ public static class DynamoRuntimeComposer
             !parameters.TryGetValue(parameterKey, out var enabled) ||
             enabled.Kind != DynamoParameterKind.Boolean ||
             enabled.Value is not { ValueKind: JsonValueKind.False };
+    }
+
+    private static VisualValueSourceEngineeringDto ProjectValueSource(
+        VisualValueSourceEngineeringDto source,
+        string? equipmentPath,
+        IReadOnlyDictionary<string, DynamoParameterValueEngineeringDto> parameters)
+    {
+        var target = source.Target;
+        if (target is not null && equipmentPath is not null)
+            target = target.Replace("{equipmentPath}", equipmentPath, StringComparison.Ordinal);
+        if (Scada.Engineering.VisualScripting.VisualDynamicEngineeringValidation.TryDynamoParameterTarget(target, out var parameterKey) &&
+            parameters.TryGetValue(parameterKey, out var parameter) && parameter.Kind == DynamoParameterKind.TagReference &&
+            parameter.TagReference is not null)
+        {
+            return source with { Target = null, TagReference = parameter.TagReference };
+        }
+        return source with { Target = target };
     }
 
     private static VisualNavigationActionEngineeringDto ProjectAction(
@@ -248,6 +297,8 @@ public static class DynamoRuntimeComposer
         elements.Any(element =>
             element.Metadata?.ContainsKey("dynamoStateColorParameter") == true ||
             element.Metadata?.ContainsKey("dynamoStateColorProfile") == true ||
+            element.Metadata?.ContainsKey("dynamoStateLabelIndex") == true ||
+            element.BooleanConditions?.Any(condition => condition.Source?.Target?.StartsWith("{dynamoParameter:", StringComparison.Ordinal) == true) == true ||
             element.Actions?.Any(action => !string.IsNullOrWhiteSpace(action?.CommandParameterKey)) == true ||
             element.Actions?.Any(action => TryParameterToken(action?.TargetKey, out _) ||
                 action?.Parameters?.Values.Any(value => value.ValueKind == JsonValueKind.String && TryParameterToken(value.GetString(), out _)) == true) == true ||

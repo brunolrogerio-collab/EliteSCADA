@@ -50,6 +50,18 @@ function projectElement(
     const textParameter = textParameterKey ? findParameter(parameters, textParameterKey) : undefined;
     if (textParameter?.kind === 'String' && typeof textParameter.value === 'string') properties.text = textParameter.value;
   }
+  if (element.metadata?.dynamoStateLabelIndex !== undefined) {
+    const placementParameter = findParameter(parameters, 'labelPosition');
+    if (placementParameter?.kind === 'String' && typeof placementParameter.value === 'string') {
+      const placement = placementParameter.value.trim().toLowerCase();
+      const [x, y, width, height] = placement === 'above' ? [0, 0, 132, 16]
+        : placement === 'on' ? [0, 42, 132, 16]
+          : placement === 'left' ? [0, 42, 36, 16]
+            : placement === 'right' ? [96, 42, 36, 16]
+              : [0, 82, 132, 16];
+      Object.assign(properties, { x, y, width, height });
+    }
+  }
   if (!animationEnabled) {
     const stateParameterKey = element.metadata?.dynamoFixedStateParameter?.trim();
     const stateParameter = stateParameterKey ? findParameter(parameters, stateParameterKey) : undefined;
@@ -61,6 +73,11 @@ function projectElement(
     const stateIndex = stateParameter?.kind === 'Number' && typeof stateParameter.value === 'number'
       ? Math.trunc(stateParameter.value)
       : -1;
+    const fixedProperty = element.metadata?.dynamoFixedStateProperty?.trim();
+    const fixedValues = element.metadata?.dynamoFixedStatePropertyValues?.split(',').map(value => Number(value.trim())) ?? [];
+    if (fixedProperty && stateIndex >= 0 && stateIndex < fixedValues.length && Number.isFinite(fixedValues[stateIndex])) {
+      properties[fixedProperty] = fixedValues[stateIndex];
+    }
     const colorKey = stateIndex >= 0 && stateIndex < profile.length ? `${profile[stateIndex]}Color` : '';
     const colorParameter = colorKey ? findParameter(parameters, colorKey) : undefined;
     if (colorParameter?.kind === 'String' && typeof colorParameter.value === 'string') {
@@ -108,15 +125,13 @@ function projectElement(
           ? Object.freeze({ ...rule, value: configuredColor })
           : rule;
       });
+      const overriddenStateSource = stateParameter?.kind === 'TagReference' && stateParameter.tagReference
+        ? Object.freeze({ ...propertyMap.source, target: null, tagReference: cloneTagReference(stateParameter.tagReference) })
+        : propertyMap.source;
       return Object.freeze({
         ...propertyMap,
         rules: Object.freeze(rules),
-        source: projectValueSource(
-          stateParameter?.kind === 'TagReference' && stateParameter.tagReference
-            ? Object.freeze({ ...propertyMap.source, tagReference: cloneTagReference(stateParameter.tagReference) })
-            : propertyMap.source,
-          parameters,
-          equipmentPath)
+        source: projectValueSource(overriddenStateSource, parameters, equipmentPath)
       });
     }) : undefined,
     booleanConditions: animationEnabled ? element.booleanConditions?.map(condition => Object.freeze({

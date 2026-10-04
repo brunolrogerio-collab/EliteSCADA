@@ -21,7 +21,13 @@ public static class BuiltinDynamoCatalogV1
     private const string Dark = "#526879";
 
     public static IReadOnlyCollection<DynamoEngineeringDto> Create() =>
-        CreateGeometryDefinitions().Select(ComposeSvgArtwork).ToArray();
+        CreateGeometryDefinitions()
+            // Contact blades need independent visibility/rotation bindings; keep
+            // their canonical child geometry instead of flattening it to one SVG.
+            .Select(definition => definition.Key.StartsWith("electrical.", StringComparison.Ordinal)
+                ? definition
+                : ComposeSvgArtwork(definition))
+            .ToArray();
 
     public static IReadOnlyCollection<(VisualAssetEngineeringDto Asset, VisualAssetPayload Payload)> CreateArtworkAssets()
     {
@@ -244,8 +250,8 @@ public static class BuiltinDynamoCatalogV1
         {
             new("equipmentPath", DynamoParameterKind.EquipmentPath),
             new("state", DynamoParameterKind.TagReference),
-            new(family == "valve" ? "closedColor" : "stoppedColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#93B99A")),
-            new(family == "valve" ? "openColor" : "runningColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#16A34A")),
+            new(family == "valve" ? "closedColor" : family == "electrical" ? "openColor" : "stoppedColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement(family == "electrical" ? "#526879" : "#93B99A")),
+            new(family == "valve" ? "openColor" : family == "electrical" ? "closedColor" : "runningColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#16A34A")),
             new("faultColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#DC2626")),
             new("communicationBadColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#EAB308")),
             new("inhibitedColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#76838B")),
@@ -256,6 +262,7 @@ public static class BuiltinDynamoCatalogV1
             new("faultText", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("FALHA")),
             new("communicationBadText", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("SEM COMUNICAÇÃO")),
             new("inhibitedText", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("BLOQUEADO")),
+            new("labelPosition", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("below")),
             new("command", DynamoParameterKind.Command)
         };
         if (family is "motor" or "valve")
@@ -268,6 +275,36 @@ public static class BuiltinDynamoCatalogV1
                 };
             metadata["stateSource"] = "numeric-tag-enum";
             metadata["statePriority"] = "one-exclusive-state-per-enum-value; invalid-or-missing-sample-uses-base-state";
+        }
+        else
+        {
+            var profile = "open,closed";
+            foreach (var element in x.Where(element => element.Key.EndsWith("-moving", StringComparison.Ordinal)).ToArray())
+            {
+                var geometryIndex = x.IndexOf(element);
+                x[geometryIndex] = WithStateMap(element, "{dynamoParameter:state}", ["#526879", "#16A34A"], "state", profile);
+                var existing = x[geometryIndex];
+                var properties = existing.PropertyMaps?.ToList() ?? [];
+                var rotation = Number(existing.Properties!, "rotation", out var initialRotation) ? initialRotation : 0;
+                properties.Add(new VisualPropertyMapEngineeringDto(
+                    "rotation",
+                    new(VisualValueSourceKind.Tag, VisualExpressionValueType.Number, Target: "{dynamoParameter:state}"),
+                    [
+                        new(JsonSerializer.SerializeToElement(rotation), Minimum: 0, Maximum: 1),
+                        new(JsonSerializer.SerializeToElement(0d), Minimum: 1, Maximum: 2)
+                    ],
+                    JsonSerializer.SerializeToElement(rotation)));
+                var elementMetadata = existing.Metadata is null
+                    ? new Dictionary<string, string>(StringComparer.Ordinal)
+                    : new Dictionary<string, string>(existing.Metadata, StringComparer.Ordinal);
+                elementMetadata["dynamoFixedStateProperty"] = "rotation";
+                elementMetadata["dynamoFixedStatePropertyValues"] = FormattableString.Invariant($"{rotation:0.###},0");
+                x[geometryIndex] = existing with { PropertyMaps = properties, Metadata = elementMetadata };
+            }
+            metadata["stateProfile"] = "0=open;1=closed";
+            metadata["stateSource"] = "numeric-tag-enum";
+            metadata["statePriority"] = "0=open;1=closed;invalid-or-bad-quality-preserves-open-artwork";
+            metadata["animationContract"] = "canonical numeric PropertyMaps for contact color and blade rotation";
         }
         return Definition(key, name, category, 132, 100, x, parameters, metadata);
     }
@@ -375,15 +412,17 @@ public static class BuiltinDynamoCatalogV1
         for (var pole = 0; pole < poles; pole++)
         {
             var offset = triple ? pole * 30d : 0d;
+            var closed = kind.StartsWith("isolator-", StringComparison.Ordinal);
+            var bladeColor = closed ? "#16A34A" : Dark;
             if (vertical)
             {
                 x.Add(Shape($"contact-{pole}-fixed", "core.rectangle", 50 + offset, 5, 8, 28, Steel, Outline, 1));
-                x.Add(Shape($"contact-{pole}-moving", "core.rectangle", 49 + offset, 39, 10, 40, Dark, Outline, 1, rotation: pole % 2 == 0 ? 16 : -16));
+                x.Add(Shape($"contact-{pole}-moving", "core.rectangle", 49 + offset, 39, 10, 40, bladeColor, Outline, 1, rotation: closed ? 0 : pole % 2 == 0 ? 16 : -16));
             }
             else
             {
                 x.Add(Shape($"contact-{pole}-fixed", "core.rectangle", 8, 27 + offset, 37, 8, Steel, Outline, 1));
-                x.Add(Shape($"contact-{pole}-moving", "core.rectangle", 53, 26 + offset, 57, 10, Dark, Outline, 1, rotation: pole % 2 == 0 ? -16 : 16));
+                x.Add(Shape($"contact-{pole}-moving", "core.rectangle", 53, 26 + offset, 57, 10, bladeColor, Outline, 1, rotation: closed ? 0 : pole % 2 == 0 ? -16 : 16));
             }
         }
         x.Add(Text("equipment-label", triple ? "3~" : "1~", 44, 78, 44, 14, 10));

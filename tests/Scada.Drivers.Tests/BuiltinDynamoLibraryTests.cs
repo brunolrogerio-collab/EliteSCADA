@@ -41,9 +41,18 @@ public sealed class BuiltinDynamoLibraryTests
         Assert.Equal(definitions.Count, assets.Count);
         foreach (var definition in definitions)
         {
-            var artwork = Assert.Single(definition.Elements!, element => element.Type == "core.svgSymbol");
-            var assetId = artwork.Properties!["assetRef"].GetProperty("assetId").GetString();
-            var (asset, payload) = Assert.Single(assets, candidate => candidate.Asset.Id!.Value.ToString("D") == assetId);
+            var assetKey = $"builtin.dynamo.v1.{definition.Key.Replace('.', '-')}";
+            var (asset, payload) = Assert.Single(assets, candidate => candidate.Asset.Key == assetKey);
+            if (definition.Metadata!["familyKey"] == "equipment.electrical")
+            {
+                Assert.DoesNotContain(definition.Elements!, element => element.Type == "core.svgSymbol");
+                Assert.Contains(definition.Elements!, element => element.Key.EndsWith("-moving", StringComparison.Ordinal));
+            }
+            else
+            {
+                var artwork = Assert.Single(definition.Elements!, element => element.Type == "core.svgSymbol");
+                Assert.Equal(asset.Id!.Value.ToString("D"), artwork.Properties!["assetRef"].GetProperty("assetId").GetString());
+            }
             Assert.Equal("image/svg+xml", payload.MediaType);
             Assert.Equal(payload.Sha256, asset.Sha256);
             Assert.NotEmpty(payload.Content);
@@ -53,6 +62,48 @@ public sealed class BuiltinDynamoLibraryTests
             registry.PutPayload(payload);
             Assert.DoesNotContain(Scada.Engineering.VisualAssets.VisualAssetEngineeringValidator.Validate(asset, registry), issue => issue.IsError);
         }
+    }
+
+    [Fact]
+    public void ReplacementElectricalContacts_AnimateBladeColorAndRotationFromMappedTag()
+    {
+        var contact = BuiltinDynamoCatalogV1.Create().Single(definition => definition.Key == "electrical.contact-tri-horizontal");
+        Assert.Equal("0=open;1=closed", contact.Metadata!["stateProfile"]);
+        Assert.Contains(contact.Parameters!, parameter => parameter.Key == "state" && parameter.Kind == DynamoParameterKind.TagReference);
+        Assert.Contains(contact.Parameters!, parameter => parameter.Key == "openColor");
+        Assert.Contains(contact.Parameters!, parameter => parameter.Key == "closedColor");
+
+        var tagId = Guid.NewGuid();
+        var instance = new VisualElementEngineeringDto("contacts", "dynamo", DynamoKey: contact.Key, Id: Guid.NewGuid(),
+            DynamoParameters: [new("state", DynamoParameterKind.TagReference, TagReference: new(tagId))]);
+        var projected = DynamoRuntimeComposer.Compose(instance, contact);
+        var blades = projected.Elements.Where(element => element.Key.EndsWith("-moving", StringComparison.Ordinal)).ToArray();
+
+        Assert.Equal(3, blades.Length);
+        Assert.All(blades, blade =>
+        {
+            Assert.Equal(tagId, Assert.Single(blade.PropertyMaps!, map => map.PropertyKey == "fillColor").Source.TagReference!.TagId);
+            var rotation = Assert.Single(blade.PropertyMaps!, map => map.PropertyKey == "rotation");
+            Assert.Equal(2, rotation.Rules.Count);
+            Assert.Equal(VisualExpressionValueType.Number, rotation.Source.ValueType);
+            Assert.Equal(tagId, rotation.Source.TagReference!.TagId);
+            Assert.Null(rotation.Source.Target);
+        });
+
+        var fixedInstance = instance with
+        {
+            DynamoParameters =
+            [
+                new("state", DynamoParameterKind.TagReference, TagReference: new(tagId)),
+                new("animationEnabled", DynamoParameterKind.Boolean, System.Text.Json.JsonSerializer.SerializeToElement(false)),
+                new("fixedState", DynamoParameterKind.Number, System.Text.Json.JsonSerializer.SerializeToElement(1))
+            ]
+        };
+        var fixedProjection = DynamoRuntimeComposer.Compose(fixedInstance, contact);
+        Assert.All(fixedProjection.Elements.Where(element => element.Key.EndsWith("-moving", StringComparison.Ordinal)),
+            blade => Assert.Equal(0, blade.Properties!["rotation"].GetDouble()));
+        Assert.All(fixedProjection.Elements.Where(element => element.Key.EndsWith("-moving", StringComparison.Ordinal)),
+            blade => Assert.Null(blade.PropertyMaps));
     }
 
     [Fact]
@@ -89,6 +140,7 @@ public sealed class BuiltinDynamoLibraryTests
                 new("state", DynamoParameterKind.TagReference, TagReference: new(tagId)),
                 new("animationEnabled", DynamoParameterKind.Boolean, System.Text.Json.JsonSerializer.SerializeToElement(false)),
                 new("fixedState", DynamoParameterKind.Number, System.Text.Json.JsonSerializer.SerializeToElement(3)),
+                new("labelPosition", DynamoParameterKind.String, System.Text.Json.JsonSerializer.SerializeToElement("right")),
                 new("communicationBadText", DynamoParameterKind.String, System.Text.Json.JsonSerializer.SerializeToElement("TAG SEM COMUNICAÇÃO")),
                 new("command", DynamoParameterKind.Command, CommandId: Guid.NewGuid())
             ]);
@@ -99,6 +151,8 @@ public sealed class BuiltinDynamoLibraryTests
         Assert.Equal(5, labels.Length);
         Assert.Equal("TAG SEM COMUNICAÇÃO", labels[3].Properties!["text"].GetString());
         Assert.True(labels[3].Properties!["visible"].GetBoolean());
+        Assert.Equal(96, labels[3].Properties!["x"].GetDouble());
+        Assert.Equal(36, labels[3].Properties!["width"].GetDouble());
         Assert.All(labels.Where((_, index) => index != 3), label => Assert.False(label.Properties!["visible"].GetBoolean()));
         Assert.All(labels, label => Assert.Null(label.BooleanConditions));
 
@@ -116,6 +170,11 @@ public sealed class BuiltinDynamoLibraryTests
             Assert.Equal("visible", condition.PropertyKey);
             Assert.Equal(tagId, condition.Source.TagReference!.TagId);
             Assert.Null(condition.Source.Target);
+        });
+        Assert.All(animated.Elements.SelectMany(element => element.PropertyMaps ?? []), map =>
+        {
+            Assert.Equal(tagId, map.Source.TagReference!.TagId);
+            Assert.Null(map.Source.Target);
         });
     }
 

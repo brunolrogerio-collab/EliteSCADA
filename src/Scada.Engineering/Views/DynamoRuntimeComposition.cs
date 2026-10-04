@@ -138,17 +138,10 @@ public static class DynamoRuntimeComposer
                         ? rule with { Value = JsonSerializer.SerializeToElement(color) }
                         : rule;
                 }).ToArray();
-                return map with
-                {
-                    Source = map.Source with
-                    {
-                        Target = normalizedPath is null ? map.Source.Target : map.Source.Target?.Replace("{equipmentPath}", normalizedPath, StringComparison.Ordinal),
-                        TagReference = stateParameter?.Kind == DynamoParameterKind.TagReference
-                            ? stateParameter.TagReference
-                            : map.Source.TagReference
-                    },
-                    Rules = rules
-                };
+                var source = ProjectValueSource(map.Source, normalizedPath, parameters);
+                if (stateParameter?.Kind == DynamoParameterKind.TagReference && stateParameter.TagReference is not null)
+                    source = source with { Target = null, TagReference = stateParameter.TagReference };
+                return map with { Source = source, Rules = rules };
             }).ToArray() : null,
             Children = SubstituteInstanceContext(
                 element.Children ?? Array.Empty<VisualElementEngineeringDto>(),
@@ -180,6 +173,15 @@ public static class DynamoRuntimeComposer
             state.Kind != DynamoParameterKind.Number || state.Value is not { ValueKind: JsonValueKind.Number } stateValue)
             return properties;
         var index = stateValue.GetInt32();
+        if (element.Metadata?.TryGetValue("dynamoFixedStateProperty", out var fixedProperty) == true &&
+            element.Metadata.TryGetValue("dynamoFixedStatePropertyValues", out var fixedValues) &&
+            index >= 0 && index < fixedValues.Split(',').Length)
+        {
+            var selectedValue = fixedValues.Split(',')[index].Trim();
+            if (double.TryParse(selectedValue, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var parsedValue) && double.IsFinite(parsedValue))
+                properties[fixedProperty] = JsonSerializer.SerializeToElement(parsedValue);
+        }
         if (index < 0 || index >= profile.Length) return properties;
         var colorKey = $"{profile[index].Trim()}Color";
         if (!parameters.TryGetValue(colorKey, out var color) || color.Kind != DynamoParameterKind.String ||
@@ -200,14 +202,34 @@ public static class DynamoRuntimeComposer
         VisualElementEngineeringDto element,
         IReadOnlyDictionary<string, DynamoParameterValueEngineeringDto> parameters)
     {
-        if (properties is null || element.Type != "core.text" ||
-            !properties.TryGetValue("text", out var text) || text.ValueKind != JsonValueKind.String)
+        if (properties is null)
             return properties;
-        var token = text.GetString();
-        if (!TryParameterToken(token, out var key) || !parameters.TryGetValue(key, out var parameter) ||
-            parameter.Kind != DynamoParameterKind.String || parameter.Value is not { ValueKind: JsonValueKind.String } value)
-            return properties;
-        properties["text"] = value.Clone();
+
+        if (element.Type == "core.text" && properties.TryGetValue("text", out var text) && text.ValueKind == JsonValueKind.String)
+        {
+            var token = text.GetString();
+            if (TryParameterToken(token, out var key) && parameters.TryGetValue(key, out var parameter) &&
+                parameter.Kind == DynamoParameterKind.String && parameter.Value is { ValueKind: JsonValueKind.String } value)
+                properties["text"] = value.Clone();
+        }
+
+        if (element.Metadata?.ContainsKey("dynamoStateLabelIndex") == true &&
+            parameters.TryGetValue("labelPosition", out var placement) && placement.Kind == DynamoParameterKind.String &&
+            placement.Value is { ValueKind: JsonValueKind.String } positionValue)
+        {
+            var (x, y, width, height) = positionValue.GetString()?.Trim().ToLowerInvariant() switch
+            {
+                "above" => (0d, 0d, 132d, 16d),
+                "on" => (0d, 42d, 132d, 16d),
+                "left" => (0d, 42d, 36d, 16d),
+                "right" => (96d, 42d, 36d, 16d),
+                _ => (0d, 82d, 132d, 16d)
+            };
+            properties["x"] = JsonSerializer.SerializeToElement(x);
+            properties["y"] = JsonSerializer.SerializeToElement(y);
+            properties["width"] = JsonSerializer.SerializeToElement(width);
+            properties["height"] = JsonSerializer.SerializeToElement(height);
+        }
         return properties;
     }
 

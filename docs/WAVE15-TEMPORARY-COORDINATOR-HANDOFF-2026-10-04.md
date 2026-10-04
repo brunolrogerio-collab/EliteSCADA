@@ -37,7 +37,7 @@ Continuation after the first checkpoint fixed two additional runtime gaps: conta
 
 ### Explicitly incomplete — do not call #501 done
 
-- Lamps now accept typed numeric TAG or numeric-expression sources through a dedicated authoring control and runtime projection; inverted Boolean and Boolean-result script binding remain unimplemented.
+- Lamps now accept numeric TAG/expressions and Boolean TAG/expressions through a typed authoring control; an optional `invertBoolean` maps Boolean input to the same canonical 0/1 paint/state path in both server and browser composers. Boolean-result script binding remains unimplemented.
 - Motor/valve state selection is still a single numeric state TAG. Independent Boolean signals/expressions and configurable per-signal conflict resolution remain incomplete. Quality is surfaced through the runtime state indicator; prove the end-to-end bad-quality rendering and palette behavior in mounted Runtime.
 - Per-state text parameters are declared but not yet rendered; command mappings for motors/valves are not wired to canonical interactions.
 - Button released/pressed artwork is currently driven by a numeric state mapping. Momentary interaction feedback, robust failure feedback, and the script-authoring wizard are not implemented.
@@ -51,12 +51,12 @@ Do not silently shrink the issue criteria. Main should either release a bounded 
 
 - Backend `Scada.Drivers.Tests`: 900/900 passed locally on the branch including #504.
 - Focused `PointRead`/reachability .NET selection: 17/17 passed; one RTU write-authority timeout from a broader concurrent selection passed when isolated and remains classified as likely contention, not fixed.
-- Focused Dynamo catalog/runtime-model Chromium specs on the prior checkpoint: 13/13 passed; independent geometry PR #505 has 24 focused model tests passed locally.
-- `Wave09PopupDynamoNavigationEngineeringTests`: 8/8 passed on the earlier checkpoint. On this continuation, `BuiltinDynamoLibraryTests`: 19/19 passed, including a legacy-TAG-to-typed-source compatibility case.
+- Focused Dynamo catalog/runtime-model Chromium specs on the prior checkpoint: 13/13 passed; latest runtime-binding projection suite: 14/14 passed, including direct/inverted Boolean state-source projection. Independent geometry PR #505 has 24 focused model tests passed locally.
+- `Wave09PopupDynamoNavigationEngineeringTests`: 8/8 passed on the earlier checkpoint. On this continuation, `BuiltinDynamoLibraryTests`: 19/19 passed, including legacy-TAG-to-typed-source compatibility and inverted Boolean lamp-source projection.
 - `wave-14-dynamo-public-interface.spec.ts`: 8/8 passed on Chromium with `--no-deps`; `npm run build` passed (existing large-chunk warning only).
 - One full Playwright invocation initially selected the `chromium-local-auth` dependency and failed because an already-used local test database no longer satisfied first-run setup; a subsequent clean database allowed API/Vite startup, but that setup dependency still failed to locate the expected auth UI. Running the targeted public-interface suite without project dependencies passed all 8 tests. Do not represent this as a mounted editor/runtime E2E pass.
 - The disposable PostgreSQL service on host port 15433 was stopped after validation; the stable Docker database on port 15432 was not touched. The temporary database remains in its disposable volume; no volume was deleted. No full Wave 15 T1 or exact-head PR validation is claimed.
-- Live GitHub reports draft PR #502 OPEN / DRAFT / NOT MERGED at `21099604301dcb4cef0391b2fb21c647e419a595` as of this handoff read. Its first T1 failed at profile classification and skipped product jobs; no exact-head product T1 result exists. Geometry from #505 remains separate.
+- Latest local Dynamo Boolean/inversion commit: `1633595f667c6719b862f0693a5f84e9e2f9003b`, not yet pushed at the time this edit was made. PR #502 remains OPEN / DRAFT / NOT MERGED; its first T1 failed at profile classification and skipped product jobs, and no exact-head product T1 result exists. Geometry from #505 remains separate.
 
 ## Other product lanes still open
 

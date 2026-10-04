@@ -354,7 +354,14 @@ public sealed class EngineeringWorkspace : IDisposable
                 ["process"] = "Discharge"
             }));
 
+        foreach (var (asset, payload) in BuiltinDynamoCatalogV1.CreateArtworkAssets())
+        {
+            VisualAssets.UpsertAsset(asset);
+            VisualAssets.PutPayload(payload);
+        }
         foreach (var dynamo in BuiltinDynamoLibrary.Create())
+            Assets.UpsertDynamo(dynamo);
+        foreach (var dynamo in BuiltinDynamoCatalogV1.Create())
             Assets.UpsertDynamo(dynamo);
 
         Views.UpsertScreen(new ScreenEngineeringDto(

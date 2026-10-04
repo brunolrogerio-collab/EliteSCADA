@@ -1,10 +1,131 @@
 using Scada.Api.Runtime;
+using Scada.Engineering.Contracts;
 using Scada.Engineering.Validation;
+using Scada.Engineering.Views;
 
 namespace Scada.Drivers.Tests;
 
 public sealed class BuiltinDynamoLibraryTests
 {
+    [Fact]
+    public void ReplacementCatalogV1_MeetsInitialFamilyCountsAndUsesStableCanonicalGeometry()
+    {
+        var definitions = BuiltinDynamoCatalogV1.Create();
+
+        Assert.Equal(26, definitions.Count);
+        Assert.Equal(26, definitions.Select(definition => definition.Key).Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(26, definitions.Select(definition => definition.Id).Distinct().Count());
+        Assert.Equal(4, definitions.Count(definition => definition.Metadata!["familyKey"] == "indicator.lamp"));
+        Assert.Equal(4, definitions.Count(definition => definition.Metadata!["familyKey"] == "operator.button"));
+        Assert.Equal(6, definitions.Count(definition => definition.Metadata!["familyKey"] == "equipment.motor"));
+        Assert.Equal(6, definitions.Count(definition => definition.Metadata!["familyKey"] == "equipment.valve"));
+        Assert.Equal(6, definitions.Count(definition => definition.Metadata!["familyKey"] == "equipment.electrical"));
+
+        Assert.All(definitions, definition =>
+        {
+            Assert.Equal("active", definition.Metadata!["catalogStatus"]);
+            Assert.Equal(BuiltinDynamoCatalogV1.Version, definition.Metadata!["libraryVersion"]);
+            Assert.NotEmpty(definition.Elements!);
+            Assert.All(definition.Elements!, element => Assert.NotNull(element.Id));
+            var issues = VisualCompositionEngineeringValidation.ValidateDynamo(definition);
+            Assert.DoesNotContain(issues, issue => issue.IsError);
+        });
+    }
+
+    [Fact]
+    public void ReplacementCatalogV1_PublishesSafeOriginalSvgAssetsAndReferencesThemCanonically()
+    {
+        var definitions = BuiltinDynamoCatalogV1.Create();
+        var assets = BuiltinDynamoCatalogV1.CreateArtworkAssets();
+
+        Assert.Equal(definitions.Count, assets.Count);
+        foreach (var definition in definitions)
+        {
+            var artwork = Assert.Single(definition.Elements!, element => element.Type == "core.svgSymbol");
+            var assetId = artwork.Properties!["assetRef"].GetProperty("assetId").GetString();
+            var (asset, payload) = Assert.Single(assets, candidate => candidate.Asset.Id!.Value.ToString("D") == assetId);
+            Assert.Equal("image/svg+xml", payload.MediaType);
+            Assert.Equal(payload.Sha256, asset.Sha256);
+            Assert.NotEmpty(payload.Content);
+            Assert.DoesNotContain("<script", System.Text.Encoding.UTF8.GetString(payload.Content), StringComparison.OrdinalIgnoreCase);
+            var registry = new Scada.Engineering.VisualAssets.InMemoryVisualAssetEngineeringRegistry();
+            registry.UpsertAsset(asset);
+            registry.PutPayload(payload);
+            Assert.DoesNotContain(Scada.Engineering.VisualAssets.VisualAssetEngineeringValidator.Validate(asset, registry), issue => issue.IsError);
+        }
+    }
+
+    [Fact]
+    public void ReplacementCatalogV1_EquipmentStatesAreNumericTagMapsAndKeepLegacyLibrarySeparate()
+    {
+        var replacement = BuiltinDynamoCatalogV1.Create();
+        var legacy = BuiltinDynamoLibrary.Create();
+
+        Assert.Equal(72, legacy.Count);
+        Assert.All(legacy, definition => Assert.Equal("legacy", definition.Metadata!["catalogStatus"]));
+        foreach (var definition in replacement.Where(definition => definition.Metadata!["familyKey"] is "equipment.motor" or "equipment.valve"))
+        {
+            var stateMap = Assert.Single(definition.Elements!.SelectMany(element => element.PropertyMaps ?? []),
+                map => map.PropertyKey == "svg.slot.state.fill");
+            Assert.Equal(5, stateMap.Rules.Count);
+            Assert.Equal(VisualValueSourceKind.Tag, stateMap.Source.Kind);
+            Assert.Equal(VisualExpressionValueType.Number, stateMap.Source.ValueType);
+            Assert.Equal("{equipmentPath}.State", stateMap.Source.Target);
+            Assert.Equal("not-displayed", definition.Metadata!["analogProcessValues"]);
+        }
+    }
+
+    [Fact]
+    public void ReplacementButtonActions_ProjectTagAndScalarParametersThroughCanonicalRuntimeComposition()
+    {
+        var definitions = BuiltinDynamoCatalogV1.Create();
+        var analogButton = definitions.Single(definition => definition.Key == "operator.button.flush");
+        var targetTagId = Guid.NewGuid();
+        var instance = new Scada.Engineering.Contracts.VisualElementEngineeringDto(
+            "setpoint-button", "dynamo", DynamoKey: analogButton.Key, Id: Guid.NewGuid(),
+            DynamoParameters:
+            [
+                new("targetTag", DynamoParameterKind.TagReference, TagReference: new(targetTagId)),
+                new("analogValue", DynamoParameterKind.Number, System.Text.Json.JsonSerializer.SerializeToElement(24.5))
+            ]);
+
+        var projected = DynamoRuntimeComposer.Compose(instance, analogButton);
+        var action = Assert.Single(projected.Elements.SelectMany(element => element.Actions ?? []));
+
+        Assert.Equal(VisualNavigationActionKind.SetTagValue, action.Kind);
+        Assert.Equal(targetTagId.ToString("D"), action.TargetKey);
+        Assert.Equal(24.5, action.Parameters!["value"].GetDouble());
+
+        var toggleButton = definitions.Single(definition => definition.Key == "operator.button.guarded");
+        var toggleInstance = instance with
+        {
+            DynamoKey = toggleButton.Key,
+            DynamoParameters = [new("targetTag", DynamoParameterKind.TagReference, TagReference: new(targetTagId))]
+        };
+        var toggle = Assert.Single(DynamoRuntimeComposer.Compose(toggleInstance, toggleButton).Elements.SelectMany(element => element.Actions ?? []));
+        Assert.Equal(VisualNavigationActionKind.ToggleTagBoolean, toggle.Kind);
+        Assert.Equal(targetTagId.ToString("D"), toggle.TargetKey);
+    }
+
+    [Fact]
+    public void ReplacementEquipmentCanPinAConfiguredStateWithoutRuntimeAnimation()
+    {
+        var motor = BuiltinDynamoCatalogV1.Create().Single(definition => definition.Key == "motor.tefc");
+        var instance = new Scada.Engineering.Contracts.VisualElementEngineeringDto(
+            "motor-1", "dynamo", DynamoKey: motor.Key, Id: Guid.NewGuid(),
+            DynamoParameters:
+            [
+                new("animationEnabled", DynamoParameterKind.Boolean, System.Text.Json.JsonSerializer.SerializeToElement(false)),
+                new("fixedState", DynamoParameterKind.Number, System.Text.Json.JsonSerializer.SerializeToElement(2))
+            ]);
+
+        var projected = DynamoRuntimeComposer.Compose(instance, motor);
+        var body = projected.Elements.Single(element => element.Key == "artwork");
+
+        Assert.Null(body.PropertyMaps);
+        Assert.Equal("#DC2626", body.Properties!["svgPaintOverrides"].GetProperty("slots").GetProperty("state").GetProperty("fill").GetString());
+    }
+
     [Fact]
     public void Library_ProvidesRepresentativeInsertableDefinitionsAcrossIndustrialFamilies()
     {
@@ -71,7 +192,7 @@ public sealed class BuiltinDynamoLibraryTests
         using var workspace = new EngineeringWorkspace();
 
         var definitions = workspace.Assets.SnapshotDynamos();
-        Assert.Equal(BuiltinDynamoLibrary.Create().Count, definitions.Count);
+        Assert.Equal(BuiltinDynamoLibrary.Create().Count + BuiltinDynamoCatalogV1.Create().Count, definitions.Count);
         Assert.DoesNotContain(definitions, definition =>
             definition.Metadata?.GetValueOrDefault("assetOrigin") == "elipse-e3-import");
         var targets = definitions

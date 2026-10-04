@@ -42,6 +42,30 @@ function projectElement(
   const properties: Record<string, VisualEngineeringPropertyValue> = {
     ...(element.properties ?? {})
   };
+  const animationParameterKey = element.metadata?.dynamoAnimationEnabledParameter?.trim();
+  const animationParameter = animationParameterKey ? findParameter(parameters, animationParameterKey) : undefined;
+  const animationEnabled = animationParameter?.kind !== 'Boolean' || animationParameter.value !== false;
+  if (!animationEnabled) {
+    const stateParameterKey = element.metadata?.dynamoFixedStateParameter?.trim();
+    const stateParameter = stateParameterKey ? findParameter(parameters, stateParameterKey) : undefined;
+    const profile = element.metadata?.dynamoStateColorProfile?.split(',').map(value => value.trim()) ?? [];
+    const stateIndex = stateParameter?.kind === 'Number' && typeof stateParameter.value === 'number'
+      ? Math.trunc(stateParameter.value)
+      : -1;
+    const colorKey = stateIndex >= 0 && stateIndex < profile.length ? `${profile[stateIndex]}Color` : '';
+    const colorParameter = colorKey ? findParameter(parameters, colorKey) : undefined;
+    if (colorParameter?.kind === 'String' && typeof colorParameter.value === 'string') {
+      if (element.type === 'core.svgSymbol') {
+        properties.svgPaintOverrides = Object.freeze({
+          version: 1,
+          palette: Object.freeze({}),
+          slots: Object.freeze({ state: Object.freeze({ fill: colorParameter.value }) })
+        });
+      } else {
+        properties.fillColor = colorParameter.value;
+      }
+    }
+  }
   const bindings: BindingEngineering[] = [];
 
   for (const binding of element.bindings ?? []) {
@@ -61,7 +85,7 @@ function projectElement(
     ...element,
     properties,
     bindings: element.bindings ? [...bindings] : element.bindings,
-    propertyMaps: element.propertyMaps?.map(propertyMap => {
+    propertyMaps: animationEnabled ? element.propertyMaps?.map(propertyMap => {
       const stateParameterKey = element.metadata?.dynamoStateColorParameter?.trim();
       const stateParameter = stateParameterKey ? findParameter(parameters, stateParameterKey) : undefined;
       const colorProfile = element.metadata?.dynamoStateColorProfile?.split(',').map(value => value.trim()) ?? [];
@@ -85,7 +109,7 @@ function projectElement(
           parameters,
           equipmentPath)
       });
-    }),
+    }) : undefined,
     booleanConditions: element.booleanConditions?.map(condition => Object.freeze({
       ...condition,
       source: projectValueSource(condition.source, parameters, equipmentPath)
@@ -94,21 +118,53 @@ function projectElement(
       ...element.analogFill,
       source: projectValueSource(element.analogFill.source, parameters, equipmentPath)
     }) : element.analogFill,
-    actions: element.actions?.map(action => {
-      const parameterKey = action.commandParameterKey?.trim();
-      if (!parameterKey) return action;
-      const parameter = findParameter(parameters, parameterKey);
-      if (!parameter || parameter.kind !== 'Command' || !parameter.commandId?.trim()) {
-        throw new Error(`Dynamo ExecuteCommand action '${action.eventKey}' requires mapped Command parameter '${parameterKey}'.`);
-      }
-      return Object.freeze({
-        ...action,
-        commandId: parameter.commandId,
-        commandParameterKey: null
-      });
-    }) ?? element.actions,
+    actions: element.actions?.map(action => projectAction(action, parameters)) ?? element.actions,
     children: [...children]
   });
+}
+
+function projectAction(
+  action: NonNullable<VisualElementEngineering['actions']>[number],
+  parameters: ReadonlyMap<string, DynamoParameterValueEngineering>
+): NonNullable<VisualElementEngineering['actions']>[number] {
+  let projected = action;
+  const commandParameterKey = action.commandParameterKey?.trim();
+  if (commandParameterKey) {
+    const parameter = findParameter(parameters, commandParameterKey);
+    if (!parameter || parameter.kind !== 'Command' || !parameter.commandId?.trim()) {
+      throw new Error(`Dynamo ExecuteCommand action '${action.eventKey}' requires mapped Command parameter '${commandParameterKey}'.`);
+    }
+    projected = { ...projected, commandId: parameter.commandId, commandParameterKey: null };
+  }
+
+  const targetParameterKey = parameterToken(action.targetKey);
+  if (targetParameterKey && (action.kind === 'SetTagValue' || action.kind === 'ToggleTagBoolean')) {
+    const parameter = findParameter(parameters, targetParameterKey);
+    if (!parameter || parameter.kind !== 'TagReference' || !parameter.tagReference?.tagId.trim()) {
+      throw new Error(`Dynamo visual action '${action.eventKey}' requires mapped TagReference parameter '${targetParameterKey}'.`);
+    }
+    projected = { ...projected, targetKey: parameter.tagReference.tagId };
+  }
+
+  if (action.parameters) {
+    const values = Object.fromEntries(Object.entries(action.parameters).map(([key, value]) => {
+      const parameterKey = parameterToken(value);
+      if (!parameterKey) return [key, value];
+      const parameter = findParameter(parameters, parameterKey);
+      if (!parameter || parameter.value === undefined || parameter.value === null ||
+          parameter.kind === 'TagReference' || parameter.kind === 'Command' || parameter.kind === 'EquipmentPath') {
+        throw new Error(`Dynamo visual action '${action.eventKey}' requires a scalar parameter '${parameterKey}'.`);
+      }
+      return [key, parameter.value];
+    }));
+    projected = { ...projected, parameters: values };
+  }
+  return Object.freeze(projected);
+}
+
+function parameterToken(value: unknown): string | null {
+  if (typeof value !== 'string' || !/^\{[^{}]+\}$/.test(value.trim())) return null;
+  return value.trim().slice(1, -1).trim() || null;
 }
 
 function projectBinding(

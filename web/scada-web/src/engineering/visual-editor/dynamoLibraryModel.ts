@@ -25,6 +25,13 @@ export type DynamoLibraryFilter = Readonly<{
   tag?: string | null;
 }>;
 
+export function selectDefaultDynamoCatalog(
+  definitions: readonly DynamoEngineering[]
+): readonly DynamoEngineering[] {
+  return Object.freeze(definitions.filter(definition =>
+    !(definition.metadata?.builtinLibrary === 'true' && definition.metadata.catalogStatus === 'legacy')));
+}
+
 export function buildDynamoLibraryEntries(
   definitions: readonly DynamoEngineering[],
   locale: string

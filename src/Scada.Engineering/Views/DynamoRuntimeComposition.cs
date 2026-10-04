@@ -107,27 +107,13 @@ public static class DynamoRuntimeComposer
 
         return elements.Select(element => element with
         {
+            Properties = ApplyFixedDynamoState(element, parameters),
             Bindings = element.Bindings?.Select(binding => binding with
             {
                 Target = normalizedPath is null ? binding.Target : binding.Target.Replace("{equipmentPath}", normalizedPath, StringComparison.Ordinal)
             }).ToArray(),
-            Actions = element.Actions?.Select(action =>
-            {
-                if (string.IsNullOrWhiteSpace(action.CommandParameterKey))
-                    return action;
-                if (!parameters.TryGetValue(action.CommandParameterKey, out var commandValue) ||
-                    commandValue.Kind != DynamoParameterKind.Command ||
-                    !commandValue.CommandId.HasValue ||
-                    commandValue.CommandId == Guid.Empty)
-                    throw new InvalidOperationException(
-                        $"Dynamo action '{action.EventKey}' requires mapped Command parameter '{action.CommandParameterKey}'.");
-                return action with
-                {
-                    CommandId = commandValue.CommandId,
-                    CommandParameterKey = null
-                };
-            }).ToArray(),
-            PropertyMaps = element.PropertyMaps?.Select(map =>
+            Actions = element.Actions?.Select(action => ProjectAction(action, parameters)).ToArray(),
+            PropertyMaps = IsDynamoAnimationEnabled(element, parameters) ? element.PropertyMaps?.Select(map =>
             {
                 var stateParameterKey = element.Metadata?.GetValueOrDefault("dynamoStateColorParameter");
                 var stateParameter = stateParameterKey is not null && parameters.TryGetValue(stateParameterKey, out var stateValue)
@@ -157,12 +143,104 @@ public static class DynamoRuntimeComposer
                     },
                     Rules = rules
                 };
-            }).ToArray(),
+            }).ToArray() : null,
             Children = SubstituteInstanceContext(
                 element.Children ?? Array.Empty<VisualElementEngineeringDto>(),
                 normalizedPath,
                 parameters)
         }).ToArray();
+    }
+
+    private static Dictionary<string, JsonElement>? ApplyFixedDynamoState(
+        VisualElementEngineeringDto element,
+        IReadOnlyDictionary<string, DynamoParameterValueEngineeringDto> parameters)
+    {
+        if (IsDynamoAnimationEnabled(element, parameters) || element.Properties is null)
+            return element.Properties;
+        var profile = element.Metadata?.GetValueOrDefault("dynamoStateColorProfile")?.Split(',') ?? Array.Empty<string>();
+        var stateParameterKey = element.Metadata?.GetValueOrDefault("dynamoFixedStateParameter");
+        if (string.IsNullOrWhiteSpace(stateParameterKey) || !parameters.TryGetValue(stateParameterKey, out var state) ||
+            state.Kind != DynamoParameterKind.Number || state.Value is not { ValueKind: JsonValueKind.Number } stateValue)
+            return element.Properties;
+        var index = stateValue.GetInt32();
+        if (index < 0 || index >= profile.Length) return element.Properties;
+        var colorKey = $"{profile[index].Trim()}Color";
+        if (!parameters.TryGetValue(colorKey, out var color) || color.Kind != DynamoParameterKind.String ||
+            color.Value is not { ValueKind: JsonValueKind.String } colorValue || string.IsNullOrWhiteSpace(colorValue.GetString()))
+            return element.Properties;
+        var properties = new Dictionary<string, JsonElement>(element.Properties, StringComparer.Ordinal);
+        if (element.Type == "core.svgSymbol")
+            properties["svgPaintOverrides"] = JsonSerializer.SerializeToElement(new
+            {
+                version = 1, palette = new { }, slots = new { state = new { fill = colorValue.GetString() } }
+            });
+        else
+            properties["fillColor"] = JsonSerializer.SerializeToElement(colorValue.GetString());
+        return properties;
+    }
+
+    private static bool IsDynamoAnimationEnabled(
+        VisualElementEngineeringDto element,
+        IReadOnlyDictionary<string, DynamoParameterValueEngineeringDto> parameters)
+    {
+        var parameterKey = element.Metadata?.GetValueOrDefault("dynamoAnimationEnabledParameter");
+        return string.IsNullOrWhiteSpace(parameterKey) ||
+            !parameters.TryGetValue(parameterKey, out var enabled) ||
+            enabled.Kind != DynamoParameterKind.Boolean ||
+            enabled.Value is not { ValueKind: JsonValueKind.False };
+    }
+
+    private static VisualNavigationActionEngineeringDto ProjectAction(
+        VisualNavigationActionEngineeringDto action,
+        IReadOnlyDictionary<string, DynamoParameterValueEngineeringDto> parameters)
+    {
+        if (!string.IsNullOrWhiteSpace(action.CommandParameterKey))
+        {
+            if (!parameters.TryGetValue(action.CommandParameterKey, out var commandValue) ||
+                commandValue.Kind != DynamoParameterKind.Command ||
+                !commandValue.CommandId.HasValue || commandValue.CommandId == Guid.Empty)
+                throw new InvalidOperationException(
+                    $"Dynamo action '{action.EventKey}' requires mapped Command parameter '{action.CommandParameterKey}'.");
+            action = action with { CommandId = commandValue.CommandId, CommandParameterKey = null };
+        }
+
+        if ((action.Kind is VisualNavigationActionKind.SetTagValue or VisualNavigationActionKind.ToggleTagBoolean) &&
+            TryParameterToken(action.TargetKey, out var targetParameterKey))
+        {
+            if (!parameters.TryGetValue(targetParameterKey, out var targetValue) ||
+                targetValue.Kind != DynamoParameterKind.TagReference ||
+                targetValue.TagReference is null || targetValue.TagReference.TagId == Guid.Empty)
+                throw new InvalidOperationException(
+                    $"Dynamo action '{action.EventKey}' requires a mapped TagReference parameter '{targetParameterKey}'.");
+            action = action with { TargetKey = targetValue.TagReference.TagId.ToString("D") };
+        }
+
+        if (action.Parameters is { Count: > 0 })
+        {
+            var projected = new Dictionary<string, JsonElement>(action.Parameters, StringComparer.Ordinal);
+            foreach (var (key, value) in action.Parameters)
+            {
+                if (value.ValueKind != JsonValueKind.String || !TryParameterToken(value.GetString(), out var parameterKey))
+                    continue;
+                if (!parameters.TryGetValue(parameterKey, out var parameter) || parameter.Value is not { } parameterValue ||
+                    parameter.Kind is DynamoParameterKind.TagReference or DynamoParameterKind.Command or DynamoParameterKind.EquipmentPath)
+                    throw new InvalidOperationException(
+                        $"Dynamo action '{action.EventKey}' requires a scalar parameter '{parameterKey}'.");
+                projected[key] = parameterValue;
+            }
+            action = action with { Parameters = projected };
+        }
+
+        return action;
+    }
+
+    private static bool TryParameterToken(string? value, out string parameterKey)
+    {
+        parameterKey = string.Empty;
+        if (string.IsNullOrWhiteSpace(value) || value.Length < 3 || value[0] != '{' || value[^1] != '}')
+            return false;
+        parameterKey = value[1..^1].Trim();
+        return parameterKey.Length > 0;
     }
 
     private static bool RequiresInstanceProjection(
@@ -171,6 +249,8 @@ public static class DynamoRuntimeComposer
             element.Metadata?.ContainsKey("dynamoStateColorParameter") == true ||
             element.Metadata?.ContainsKey("dynamoStateColorProfile") == true ||
             element.Actions?.Any(action => !string.IsNullOrWhiteSpace(action?.CommandParameterKey)) == true ||
+            element.Actions?.Any(action => TryParameterToken(action?.TargetKey, out _) ||
+                action?.Parameters?.Values.Any(value => value.ValueKind == JsonValueKind.String && TryParameterToken(value.GetString(), out _)) == true) == true ||
             (element.Children is { Count: > 0 } && RequiresInstanceProjection(element.Children)));
 
     public static string RuntimeElementIdentity(Guid instanceId, Guid definitionElementId) =>

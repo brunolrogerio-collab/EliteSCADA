@@ -160,3 +160,48 @@ test('state color mapping follows the selected TAG and per-instance palette over
     ]
   });
 });
+
+test('button Dynamo action tokens resolve to canonical TAG identity and typed scalar values', () => {
+  const button: VisualElementEngineering = {
+    id: 'button', key: 'button', type: 'core.rectangle',
+    actions: [{
+      eventKey: 'click', kind: 'SetTagValue', targetKey: '{targetTag}',
+      parameters: { value: '{analogValue}' }
+    }]
+  };
+  const projected = projectDynamoRuntimeElements([button], parameters(
+    { key: 'targetTag', kind: 'TagReference', tagReference: { tagId: 'stable-tag-id' } },
+    { key: 'analogValue', kind: 'Number', value: 47.25 }
+  ), null);
+
+  expect(projected[0]?.actions?.[0]).toMatchObject({
+    eventKey: 'click', kind: 'SetTagValue', targetKey: 'stable-tag-id', parameters: { value: 47.25 }
+  });
+});
+
+test('animated SVG Dynamo can pin one state and preserve it as a static paint override', () => {
+  const symbol: VisualElementEngineering = {
+    id: 'symbol', key: 'artwork', type: 'core.svgSymbol',
+    properties: { svgPaintOverrides: { version: 1, palette: {}, slots: {} } },
+    metadata: {
+      dynamoStateColorParameter: 'state',
+      dynamoStateColorProfile: 'stopped,running,fault',
+      dynamoAnimationEnabledParameter: 'animationEnabled',
+      dynamoFixedStateParameter: 'fixedState'
+    },
+    propertyMaps: [{
+      propertyKey: 'svg.slot.state.fill',
+      source: { kind: 'Tag', valueType: 'Number', target: '{equipmentPath}.State' },
+      rules: [{ value: '#8FBF98', minimum: 0, maximum: 1 }, { value: '#D98282', minimum: 1, maximum: 2 }, { value: '#D8B95F', minimum: 2, maximum: 3 }],
+      fallback: '#8FBF98'
+    }]
+  };
+  const projected = projectDynamoRuntimeElements([symbol], parameters(
+    { key: 'animationEnabled', kind: 'Boolean', value: false },
+    { key: 'fixedState', kind: 'Number', value: 2 },
+    { key: 'faultColor', kind: 'String', value: '#E20D21' }
+  ), null);
+
+  expect(projected[0]?.propertyMaps).toBeUndefined();
+  expect(projected[0]?.properties?.svgPaintOverrides).toMatchObject({ slots: { state: { fill: '#E20D21' } } });
+});

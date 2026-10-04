@@ -568,41 +568,93 @@ public sealed class ModbusRtuPointReadTester :
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(context);
+        if (!string.Equals(context.DriverType, DriverType, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"Connection test expected Driver '{DriverType}'.", nameof(context));
+
+        HostSerialLineSettings line;
+        byte unitId;
+        int timeoutMilliseconds;
         try
         {
-            var line = ParseLineSettings(context.Settings);
-            await using var lease = await _coordinator.AcquireEngineeringMasterAsync(
-                $"engineering:connection-test:{context.DataSourceKey}:{Guid.NewGuid():N}",
-                line,
-                cancellationToken);
+            line = ParseLineSettings(context.Settings);
+            unitId = checked((byte)ParseInt(context.Settings, "unitId", 1, 0, 255));
+            timeoutMilliseconds = ParseInt(context.Settings, "requestTimeoutMilliseconds", 3000, 50, 60000);
+        }
+        catch (ArgumentException ex)
+        {
+            return new DriverConnectionTestResult(false, null, null, Issues: new[]
+            {
+                new DriverEngineeringIssue("MODBUS_RTU_CONNECTION_CONFIGURATION_INVALID", DriverEngineeringIssueSeverity.Error,
+                    SanitizeText(ex.Message), ex.ParamName)
+            });
+        }
+
+        await using var transport = new ModbusRtuTransport(
+            _coordinator,
+            line,
+            $"engineering:connection-test:{context.DataSourceKey}:{Guid.NewGuid():N}",
+            new[] { unitId },
+            TimeSpan.FromMilliseconds(Math.Min(timeoutMilliseconds, 5000)),
+            engineeringLease: true);
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            var response = await transport.ReadDeviceIdentificationAsync(unitId, cancellationToken).ConfigureAwait(false);
+            stopwatch.Stop();
             return new DriverConnectionTestResult(
                 true,
                 SanitizeText(line.PortName),
                 line.PhysicalPortKey,
                 new Dictionary<string, string>(StringComparer.Ordinal)
                 {
+                    ["transport"] = "Modbus RTU",
+                    ["protocolResponsive"] = "true",
+                    ["deviceIdentificationSupported"] = "true",
+                    ["deviceIdentificationObjectCount"] = response.ObjectCount.ToString(CultureInfo.InvariantCulture),
+                    ["elapsedMilliseconds"] = stopwatch.Elapsed.TotalMilliseconds.ToString("0.0", CultureInfo.InvariantCulture),
                     ["baudRate"] = line.BaudRate.ToString(CultureInfo.InvariantCulture),
                     ["dataBits"] = line.DataBits.ToString(CultureInfo.InvariantCulture),
                     ["parity"] = line.Parity.ToString(),
                     ["stopBits"] = line.StopBits.ToString()
                 });
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (ModbusProtocolException ex)
+        {
+            stopwatch.Stop();
+            return new DriverConnectionTestResult(true, SanitizeText(line.PortName), line.PhysicalPortKey,
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["transport"] = "Modbus RTU",
+                    ["protocolResponsive"] = "true",
+                    ["deviceIdentificationSupported"] = "false",
+                    ["protocolExceptionCode"] = ex.ExceptionCode.ToString(CultureInfo.InvariantCulture),
+                    ["elapsedMilliseconds"] = stopwatch.Elapsed.TotalMilliseconds.ToString("0.0", CultureInfo.InvariantCulture)
+                },
+                new[] { new DriverEngineeringIssue("MODBUS_RTU_DEVICE_IDENTIFICATION_UNSUPPORTED", DriverEngineeringIssueSeverity.Warning,
+                    "The endpoint responded to Modbus, but does not support the read-only device-identification request.", "unitId") });
+        }
+        catch (TimeoutException)
+        {
+            stopwatch.Stop();
+            return ConnectionFailure(line, "MODBUS_RTU_CONNECTION_TIMEOUT", "Modbus RTU protocol request timed out.", "unitId");
+        }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
         {
-            return new DriverConnectionTestResult(
-                false,
-                Get(context.Settings, "serialPort") is { } port ? SanitizeText(port) : null,
-                null,
-                Issues: new[]
-                {
-                    new DriverEngineeringIssue(
-                        "MODBUS_RTU_CONNECTION_TEST_FAILED",
-                        DriverEngineeringIssueSeverity.Error,
-                        SanitizeText(ex.Message),
-                        "serialPort")
-                });
+            stopwatch.Stop();
+            return ConnectionFailure(line, "MODBUS_RTU_CONNECTION_TEST_FAILED", SanitizeText(ex.Message), "serialPort");
         }
     }
+
+    private static DriverConnectionTestResult ConnectionFailure(
+        HostSerialLineSettings line, string code, string message, string fieldKey) =>
+        new(false, SanitizeText(line.PortName), null, Issues: new[]
+        {
+            new DriverEngineeringIssue(code, DriverEngineeringIssueSeverity.Error, message, fieldKey)
+        });
 
     internal static HostSerialLineSettings ParseLineSettings(IReadOnlyDictionary<string, string> settings)
     {

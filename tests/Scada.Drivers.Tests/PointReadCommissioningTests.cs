@@ -298,6 +298,50 @@ public sealed class PointReadCommissioningTests
     }
 
     [Fact]
+    public async Task S7_PointRead_PropagatesCallerCancellationInsteadOfInventingDeviceQuality()
+    {
+        await using var server = new TestS7IsoServer { ResponseDelay = TimeSpan.FromSeconds(1) };
+        server.SetBytes(S7IsoArea.DataBlock, 1, 0, new byte[] { 0x12, 0x34 });
+        var point = new S7IsoTagBinding(
+            S7IsoTagBinding.CurrentSchemaVersion,
+            S7IsoArea.DataBlock,
+            0,
+            S7IsoValueType.Int16,
+            DbNumber: 1);
+        var binding = new CommunicationTagBinding(
+            CommunicationTagBinding.CurrentContractVersion,
+            S7IsoCommunicationBindingProjection.SchemaId,
+            S7IsoCommunicationBindingProjection.SchemaVersion,
+            S7IsoCommunicationBindingProjection.ToCanonicalPortableAddress(point),
+            S7IsoCommunicationBindingProjection.ToCanonicalSettings(point));
+        var request = new DriverPointReadTestRequest(
+            new DriverEngineeringDataSourceContext(
+                "plc.s7.cancel",
+                "S7 cancel",
+                new S7IsoEngineeringAdapter().Descriptor.DriverType,
+                new Dictionary<string, string>
+                {
+                    ["host"] = "127.0.0.1",
+                    ["port"] = server.Port.ToString(),
+                    ["cpuFamily"] = nameof(S7CpuFamily.S71200),
+                    ["connectionMode"] = nameof(S7IsoConnectionMode.RackSlot),
+                    ["connectionRole"] = nameof(S7IsoConnectionRole.OperatorPanel),
+                    ["rack"] = "0",
+                    ["slot"] = "1",
+                    ["requestTimeoutMs"] = "2000"
+                },
+                new Dictionary<string, string>()),
+            binding,
+            TagDataType.Int16,
+            TimeoutMilliseconds: 5000);
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            await new S7IsoPointReadTester().TestPointReadAsync(request, cancellation.Token));
+        Assert.Equal(0, server.WriteCount);
+    }
+
+    [Fact]
     public async Task OpcUa_PointRead_RejectsPhysicalSwapBeforeOpeningProtectedSession()
     {
         var tester = new OpcUaPointReadTester(new ThrowingSecurityMaterialProvider());

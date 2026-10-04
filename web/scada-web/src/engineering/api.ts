@@ -1,11 +1,13 @@
 import type {
   CommunicationDriverDiagnostic,
+  DriverHostHealth,
   EngineeringPackageView,
   EngineeringSnapshot,
   EngineeringWorkspaceDescriptor,
   GatewayRuntimeDiagnostic,
   ImportPreviewView,
   ImportResultView,
+  NetworkReachabilityProbeResponse,
   RuntimeDiagnosticsView,
   VisualAssetEngineering,
   VisualEngineeringAssetReference
@@ -182,6 +184,23 @@ export async function loadGatewayDiagnostics(): Promise<GatewayRuntimeDiagnostic
 export async function loadCommunicationDiagnostics(): Promise<CommunicationDriverDiagnostic[]> {
   const diagnostics = await getJson<RuntimeDiagnosticsView>('/api/diagnostics/runtime');
   return diagnostics.runtime?.communicationDrivers ?? [];
+}
+
+export async function loadDriverHostHealth(): Promise<DriverHostHealth> {
+  return await getJson<DriverHostHealth>('/api/engineering/diagnostics/driver-host');
+}
+
+export async function probeNetworkReachability(host: string, port: number): Promise<NetworkReachabilityProbeResponse> {
+  const response = await fetch(`${API}/api/engineering/diagnostics/network-probe`, {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json; charset=utf-8'
+    },
+    body: JSON.stringify({ host, port, timeoutMilliseconds: 3000 })
+  });
+  if (!response.ok) throw await readError(response);
+  return await response.json() as NetworkReachabilityProbeResponse;
 }
 
 export async function previewEngineeringPackage(

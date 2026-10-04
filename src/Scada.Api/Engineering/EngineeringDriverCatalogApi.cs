@@ -48,6 +48,7 @@ public static class EngineeringDriverCatalogApi
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, S7IsoEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, OpcUaEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<EngineeringDriverToolProviderFactoryRegistry>();
+        builder.Services.AddSingleton<NetworkReachabilityProbe>();
     }
 
     public static void MapEngineeringDriverCatalogEndpoints(this WebApplication app)
@@ -394,7 +395,14 @@ public static class EngineeringDriverCatalogApi
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException)
         {
-            return Results.BadRequest(new { error = "Point-read test request is invalid." });
+            var safeDetail = new string(ex.Message.Where(character => !char.IsControl(character)).Take(512).ToArray());
+            return Results.BadRequest(new
+            {
+                error = "Point-read test request is invalid.",
+                code = "POINT_READ_REQUEST_INVALID",
+                fieldKey = (ex as ArgumentException)?.ParamName,
+                detail = string.IsNullOrWhiteSpace(safeDetail) ? "Review the binding, selector, transform, sample count and timeout." : safeDetail
+            });
         }
 
         using var bounded = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);

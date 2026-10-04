@@ -1,5 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.Drivers.Abstractions;
@@ -34,8 +36,8 @@ public sealed record DriverEngineeringDraftDiscoveryApiRequest(
 
 public sealed record DriverEngineeringPointReadTestApiRequest(
     CommunicationTagBinding Binding,
-    TagDataType DataType,
-    TagValueSelector? AddressSelector = null,
+    [property: JsonConverter(typeof(JsonStringEnumConverter<TagDataType>))] TagDataType DataType,
+    [property: JsonConverter(typeof(TagValueSelectorApiJsonConverter))] TagValueSelector? AddressSelector = null,
     string? EngineeringUnit = null,
     int SampleCount = 1,
     int SampleIntervalMilliseconds = 0,
@@ -44,12 +46,27 @@ public sealed record DriverEngineeringPointReadTestApiRequest(
 public sealed record DriverEngineeringDraftPointReadTestApiRequest(
     DriverEngineeringDraftDataSourceApiRequest DataSource,
     CommunicationTagBinding Binding,
-    TagDataType DataType,
-    TagValueSelector? AddressSelector = null,
+    [property: JsonConverter(typeof(JsonStringEnumConverter<TagDataType>))] TagDataType DataType,
+    [property: JsonConverter(typeof(TagValueSelectorApiJsonConverter))] TagValueSelector? AddressSelector = null,
     string? EngineeringUnit = null,
     int SampleCount = 1,
     int SampleIntervalMilliseconds = 0,
     int TimeoutMilliseconds = 5000);
+
+public sealed class TagValueSelectorApiJsonConverter : JsonConverter<TagValueSelector>
+{
+    private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter<TagValueSelectorKind>() }
+    };
+
+    public override TagValueSelector Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
+        JsonSerializer.Deserialize<TagValueSelector>(ref reader, Options)
+        ?? throw new JsonException("Address selector cannot be null.");
+
+    public override void Write(Utf8JsonWriter writer, TagValueSelector value, JsonSerializerOptions options) =>
+        JsonSerializer.Serialize(writer, value, Options);
+}
 
 /// <summary>
 /// Opens a driver Engineering module for a configured or transient Data Source.

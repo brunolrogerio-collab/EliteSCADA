@@ -141,6 +141,27 @@ public sealed class BuiltinDynamoLibraryTests
     }
 
     [Fact]
+    public void ReplacementSignalLamp_ProjectsLegacyDirectTagStateAsTypedSourceWithoutChangingStoredPayload()
+    {
+        var lamp = BuiltinDynamoCatalogV1.Create().Single(definition => definition.Key == "indicator.lamp.round");
+        var tagId = Guid.NewGuid();
+        var legacyParameter = new DynamoParameterValueEngineeringDto(
+            "state", DynamoParameterKind.TagReference,
+            TagReference: new Scada.Core.Tags.TagValueReference(tagId));
+        var instance = new VisualElementEngineeringDto("lamp-legacy", "dynamo", DynamoKey: lamp.Key,
+            Id: Guid.NewGuid(), DynamoParameters: [legacyParameter]);
+
+        var projected = DynamoRuntimeComposer.Compose(instance, lamp);
+        var stateMap = Assert.Single(projected.Elements.SelectMany(element => element.PropertyMaps ?? []));
+
+        Assert.Equal(DynamoParameterKind.TagReference, instance.DynamoParameters!.Single().Kind);
+        Assert.Equal(VisualValueSourceKind.Tag, stateMap.Source.Kind);
+        Assert.Equal(tagId, stateMap.Source.TagReference!.TagId);
+        Assert.Equal(VisualExpressionValueType.Number, stateMap.Source.ValueType);
+        Assert.Equal(DynamoParameterKind.ValueSource, projected.Parameters["state"].Kind);
+    }
+
+    [Fact]
     public void ReplacementCatalogV1_EquipmentStatesAreNumericTagMapsAndKeepLegacyLibrarySeparate()
     {
         var replacement = BuiltinDynamoCatalogV1.Create();

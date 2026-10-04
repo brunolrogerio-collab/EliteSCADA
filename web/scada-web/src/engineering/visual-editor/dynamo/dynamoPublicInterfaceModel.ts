@@ -52,9 +52,25 @@ export function listDynamoPublicParameterValues(
   const result = new Map<string, DynamoParameterValueEngineering>();
 
   for (const value of instance.dynamoParameters ?? []) {
-    const normalizedValue = normalizeDynamoParameterValue(value);
+    let normalizedValue = normalizeDynamoParameterValue(value);
     const key = normalizeKey(normalizedValue.key);
-    if (!definitions.has(key)) continue;
+    const parameter = definitions.get(key);
+    if (!parameter) continue;
+    // The first catalog revision persisted direct TAG sources as TagReference.
+    // Expose those as typed direct-TAG sources when the current definition has
+    // moved to ValueSource, while leaving the persisted instance untouched.
+    if (parameter.kind === 'ValueSource' && normalizedValue.kind === 'TagReference' && normalizedValue.tagReference) {
+      normalizedValue = normalizeDynamoParameterValue({
+        key: parameter.key,
+        kind: 'ValueSource',
+        version: parameter.version,
+        valueSource: {
+          kind: 'Tag',
+          valueType: parameter.valueSourceType ?? 'Number',
+          tagReference: normalizedValue.tagReference
+        }
+      });
+    }
     result.set(key, cloneValue(normalizedValue));
   }
 

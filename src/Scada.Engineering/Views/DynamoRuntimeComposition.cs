@@ -51,6 +51,25 @@ public static class DynamoRuntimeComposer
         {
             if (supplied.TryGetValue(parameter.Key, out var value))
             {
+                // Earlier catalog revisions stored a direct TAG as TagReference.
+                // A typed ValueSource is the forward-compatible representation,
+                // but accept the old payload and project it as a direct TAG read.
+                // Do not mutate the persisted instance; the editor can migrate it
+                // on the next explicit save.
+                if (parameter.Kind == DynamoParameterKind.ValueSource &&
+                    parameter.ValueSourceType.HasValue &&
+                    value.Kind == DynamoParameterKind.TagReference &&
+                    value.TagReference is not null &&
+                    value.TagReference.TagId != Guid.Empty)
+                {
+                    value = new DynamoParameterValueEngineeringDto(
+                        parameter.Key,
+                        DynamoParameterKind.ValueSource,
+                        ValueSource: new VisualValueSourceEngineeringDto(
+                            VisualValueSourceKind.Tag,
+                            parameter.ValueSourceType.Value,
+                            TagReference: value.TagReference));
+                }
                 if (parameter.Kind == DynamoParameterKind.ValueSource && parameter.ValueSourceType.HasValue &&
                     value.ValueSource?.ValueType != parameter.ValueSourceType.Value)
                     throw new InvalidOperationException(

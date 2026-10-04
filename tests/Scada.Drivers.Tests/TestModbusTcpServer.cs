@@ -21,6 +21,7 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
     public ConcurrentDictionary<ushort, ushort> HoldingRegisters { get; } = new();
     public ConcurrentDictionary<ushort, ushort> InputRegisters { get; } = new();
     public bool RejectWrites { get; set; }
+    public bool RejectReads { get; set; }
 
     public TimeSpan ResponseDelay
     {
@@ -166,6 +167,12 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
     {
         if (pdu.Length == 0) return new byte[] { 0x80, 0x03 };
         var function = pdu[0];
+        if (RejectReads && function is >= 0x01 and <= 0x04)
+        {
+            var address = pdu.Length >= 3 ? BinaryPrimitives.ReadUInt16BigEndian(pdu.AsSpan(1, 2)) : (ushort)0;
+            Record(unitId, function, address, 1);
+            return new byte[] { (byte)(function | 0x80), 0x02 };
+        }
         try
         {
             return function switch

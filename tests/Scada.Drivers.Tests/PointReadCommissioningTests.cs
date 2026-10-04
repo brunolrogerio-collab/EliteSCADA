@@ -102,6 +102,65 @@ public sealed class PointReadCommissioningTests
     }
 
     [Fact]
+    public async Task Modbus_PointRead_MapsDeviceAddressRejectionToNoDataAndBadDeviceQuality()
+    {
+        await using var server = new TestModbusTcpServer { RejectReads = true };
+        server.Start();
+
+        var result = await new ModbusTcpPointReadTester().TestPointReadAsync(
+            ModbusRequest(server.Port, "holding:10", new Dictionary<string, string>
+            {
+                ["modbus.valueType"] = "Int16"
+            }));
+
+        Assert.Equal(DriverPointReadTestStatus.NoData, result.Status);
+        var sample = Assert.Single(result.Samples);
+        Assert.Equal(DriverPointReadTestStatus.NoData, sample.Status);
+        Assert.Equal(TagQuality.BadDevice, sample.Quality);
+        Assert.Contains(sample.Issues!, issue => issue.Code == "MODBUS_DEVICE_REJECTED_POINT");
+        Assert.All(server.Requests, request => Assert.Equal((byte)0x03, request.Function));
+    }
+
+    [Fact]
+    public async Task Modbus_PointRead_MapsTransportTimeoutToBadCommunication()
+    {
+        await using var server = new TestModbusTcpServer { ResponseDelay = TimeSpan.FromMilliseconds(300) };
+        server.Start();
+
+        var request = ModbusRequest(server.Port, "holding:10", new Dictionary<string, string>
+        {
+            ["modbus.valueType"] = "Int16",
+            ["modbus.requestTimeoutMilliseconds"] = "100"
+        }) with { TimeoutMilliseconds = 100 };
+
+        var result = await new ModbusTcpPointReadTester().TestPointReadAsync(request);
+
+        Assert.Equal(DriverPointReadTestStatus.Bad, result.Status);
+        var sample = Assert.Single(result.Samples);
+        Assert.Equal(TagQuality.BadCommunication, sample.Quality);
+        Assert.Contains(sample.Issues!, issue => issue.Code == "MODBUS_POINT_READ_COMMUNICATION_FAILED");
+        Assert.NotEmpty(server.Requests);
+        Assert.All(server.Requests, requestRecord => Assert.Equal((byte)0x03, requestRecord.Function));
+    }
+
+    [Fact]
+    public async Task Modbus_PointRead_PropagatesCallerCancellationWithoutInventingAQualityResult()
+    {
+        await using var server = new TestModbusTcpServer();
+        server.Start();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            await new ModbusTcpPointReadTester().TestPointReadAsync(
+                ModbusRequest(server.Port, "holding:10", new Dictionary<string, string>
+                {
+                    ["modbus.valueType"] = "Int16"
+                }),
+                cancellation.Token));
+    }
+
+    [Fact]
     public async Task S7_PointRead_RejectsExtraSelectorBeforeTransport()
     {
         var adapter = new S7IsoEngineeringAdapter();

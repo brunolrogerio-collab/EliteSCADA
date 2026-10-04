@@ -416,6 +416,33 @@ export type CommunicationDriverDiagnostic = {
   protocolDetails?: Record<string, string> | null;
 };
 
+export type DriverHostHealth = {
+  status: string;
+  service: string;
+  nodeIdentity?: string | null;
+  observedAtUtc: string;
+  freshForSeconds: number;
+  uptime: string;
+  activeRuntimeAvailable: boolean;
+  activeRevision?: number | null;
+};
+
+export type NetworkProbeResult = {
+  status: string;
+  address?: string | null;
+  elapsedMilliseconds?: number | null;
+  detail?: string | null;
+};
+
+export type NetworkReachabilityProbeResponse = {
+  authority: string;
+  observedAtUtc: string;
+  host: string;
+  port: number;
+  tcp: NetworkProbeResult;
+  icmp: NetworkProbeResult;
+};
+
 export type RuntimeDiagnosticsView = {
   runtime?: {
     communicationDrivers?: CommunicationDriverDiagnostic[];

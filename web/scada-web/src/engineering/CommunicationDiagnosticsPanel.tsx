@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { loadCommunicationDiagnostics } from './api';
+import { loadCommunicationDiagnostics, loadDriverHostHealth, probeNetworkReachability } from './api';
 import type { EngineeringLocale } from './i18n';
-import type { CommunicationDriverDiagnostic } from './types';
+import type { CommunicationDriverDiagnostic, DriverHostHealth, NetworkReachabilityProbeResponse } from './types';
 import './communication-diagnostics.css';
 
 type FilterMode = 'all' | 'attention' | 'healthy';
@@ -71,6 +71,16 @@ type Copy = {
   stateReconnecting: string;
   stateFaulted: string;
   stateStopping: string;
+  driverHost: string;
+  hostFreshness: string;
+  networkProbe: string;
+  targetHost: string;
+  targetPort: string;
+  probe: string;
+  probing: string;
+  tcp: string;
+  icmp: string;
+  portReachableOnly: string;
 };
 
 const copy: Record<EngineeringLocale, Copy> = {
@@ -90,7 +100,8 @@ const copy: Record<EngineeringLocale, Copy> = {
     cycles: 'Ciclos', requests: 'Requests', successes: 'Sucessos', reads: 'Leituras', writes: 'Escritas', published: 'Atualizações publicadas', connections: 'Conexões', disconnections: 'Desconexões', consecutiveFailures: 'Falhas consecutivas',
     quality: 'Qualidade das TAGs', qualityGood: 'Good', qualityBadComm: 'BadCommunication', qualityOther: 'Outras', noSample: 'Sem amostra',
     operational: 'Estado operacional', activity: 'Atividade e contadores', protocol: 'Detalhes do protocolo', noProtocol: 'Nenhum detalhe adicional informado pelo driver.', errorMessage: 'Último erro',
-    stateStopped: 'Parado', stateStarting: 'Iniciando', stateHealthy: 'Saudável', stateDegraded: 'Degradado', stateReconnecting: 'Reconectando', stateFaulted: 'Falha', stateStopping: 'Parando'
+    stateStopped: 'Parado', stateStarting: 'Iniciando', stateHealthy: 'Saudável', stateDegraded: 'Degradado', stateReconnecting: 'Reconectando', stateFaulted: 'Falha', stateStopping: 'Parando',
+    driverHost: 'Host API / DriverHost', hostFreshness: 'Observado', networkProbe: 'Alcance da rede (origem: servidor)', targetHost: 'Host ou IP', targetPort: 'Porta única', probe: 'Testar alcance', probing: 'Testando…', tcp: 'TCP', icmp: 'ICMP', portReachableOnly: 'Porta alcançável não significa protocolo saudável.'
   },
   en: {
     title: 'Active communication',
@@ -108,7 +119,8 @@ const copy: Record<EngineeringLocale, Copy> = {
     cycles: 'Cycles', requests: 'Requests', successes: 'Successes', reads: 'Reads', writes: 'Writes', published: 'Published updates', connections: 'Connections', disconnections: 'Disconnections', consecutiveFailures: 'Consecutive failures',
     quality: 'TAG quality', qualityGood: 'Good', qualityBadComm: 'BadCommunication', qualityOther: 'Other', noSample: 'No sample',
     operational: 'Operational state', activity: 'Activity and counters', protocol: 'Protocol details', noProtocol: 'The driver reported no additional protocol details.', errorMessage: 'Last error',
-    stateStopped: 'Stopped', stateStarting: 'Starting', stateHealthy: 'Healthy', stateDegraded: 'Degraded', stateReconnecting: 'Reconnecting', stateFaulted: 'Faulted', stateStopping: 'Stopping'
+    stateStopped: 'Stopped', stateStarting: 'Starting', stateHealthy: 'Healthy', stateDegraded: 'Degraded', stateReconnecting: 'Reconnecting', stateFaulted: 'Faulted', stateStopping: 'Stopping',
+    driverHost: 'API / DriverHost host', hostFreshness: 'Observed', networkProbe: 'Network reachability (server-side)', targetHost: 'Host or IP', targetPort: 'Single port', probe: 'Test reachability', probing: 'Testing…', tcp: 'TCP', icmp: 'ICMP', portReachableOnly: 'A reachable port does not mean the protocol is healthy.'
   },
   es: {
     title: 'Comunicación activa',
@@ -126,7 +138,8 @@ const copy: Record<EngineeringLocale, Copy> = {
     cycles: 'Ciclos', requests: 'Requests', successes: 'Éxitos', reads: 'Lecturas', writes: 'Escrituras', published: 'Actualizaciones publicadas', connections: 'Conexiones', disconnections: 'Desconexiones', consecutiveFailures: 'Fallos consecutivos',
     quality: 'Calidad de TAGs', qualityGood: 'Good', qualityBadComm: 'BadCommunication', qualityOther: 'Otras', noSample: 'Sin muestra',
     operational: 'Estado operacional', activity: 'Actividad y contadores', protocol: 'Detalles del protocolo', noProtocol: 'El driver no informó detalles adicionales del protocolo.', errorMessage: 'Último error',
-    stateStopped: 'Detenido', stateStarting: 'Iniciando', stateHealthy: 'Saludable', stateDegraded: 'Degradado', stateReconnecting: 'Reconectando', stateFaulted: 'Fallo', stateStopping: 'Deteniendo'
+    stateStopped: 'Detenido', stateStarting: 'Iniciando', stateHealthy: 'Saludable', stateDegraded: 'Degradado', stateReconnecting: 'Reconectando', stateFaulted: 'Fallo', stateStopping: 'Deteniendo',
+    driverHost: 'Host API / DriverHost', hostFreshness: 'Observado', networkProbe: 'Alcance de red (desde el servidor)', targetHost: 'Host o IP', targetPort: 'Puerto único', probe: 'Probar alcance', probing: 'Probando…', tcp: 'TCP', icmp: 'ICMP', portReachableOnly: 'Puerto alcanzable no significa protocolo saludable.'
   }
 };
 
@@ -144,6 +157,7 @@ const severityOrder: Record<string, number> = {
 export function CommunicationDiagnosticsPanel({ locale }: { locale: EngineeringLocale }) {
   const text = copy[locale];
   const [items, setItems] = useState<CommunicationDriverDiagnostic[]>([]);
+  const [hostHealth, setHostHealth] = useState<DriverHostHealth | null>(null);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterMode>('all');
@@ -156,13 +170,15 @@ export function CommunicationDiagnosticsPanel({ locale }: { locale: EngineeringL
   const refresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      const next = await loadCommunicationDiagnostics();
-      setItems(next);
+      const [drivers, host] = await Promise.allSettled([loadCommunicationDiagnostics(), loadDriverHostHealth()]);
+      if (drivers.status === 'rejected') throw drivers.reason;
+      setItems(drivers.value);
+      setHostHealth(host.status === 'fulfilled' ? host.value : null);
       setError(null);
       setLastRefreshAt(new Date());
-      setSelectedKey(current => current && next.some(item => item.dataSourceKey === current)
+      setSelectedKey(current => current && drivers.value.some(item => item.dataSourceKey === current)
         ? current
-        : next[0]?.dataSourceKey ?? null);
+        : drivers.value[0]?.dataSourceKey ?? null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -227,6 +243,11 @@ export function CommunicationDiagnosticsPanel({ locale }: { locale: EngineeringL
           <span className={refreshing ? 'eng-comm-live active' : 'eng-comm-live'} aria-hidden="true" />
           <span>{lastRefreshAt ? `${text.refreshed} ${formatMoment(lastRefreshAt.toISOString(), locale)}` : text.loading}</span>
         </div>
+        {hostHealth && <div className="eng-comm-host-health" data-testid="driver-host-health">
+          <StatusBadge state={hostHealth.status} text={text} />
+          <span>{text.driverHost}</span>
+          <small>{text.hostFreshness}: {formatMoment(hostHealth.observedAtUtc, locale)}</small>
+        </div>}
       </header>
 
       <div className="eng-comm-summary">
@@ -341,6 +362,8 @@ function DiagnosticDetail({ item, locale, text }: { item: CommunicationDriverDia
         </div>
       )}
 
+      <NetworkProbeControls key={item.dataSourceKey} item={item} locale={locale} text={text} />
+
       <section className="eng-comm-detail-section">
         <div className="eng-comm-panel-title"><strong>{text.operational}</strong></div>
         <div className="eng-comm-metric-grid">
@@ -407,6 +430,64 @@ function DiagnosticDetail({ item, locale, text }: { item: CommunicationDriverDia
       </section>
     </section>
   );
+}
+
+function NetworkProbeControls({ item, locale, text }: { item: CommunicationDriverDiagnostic; locale: EngineeringLocale; text: Copy }) {
+  const defaults = parseProbeEndpoint(item.endpoint, item.driverType);
+  const [host, setHost] = useState(defaults.host);
+  const [port, setPort] = useState(defaults.port);
+  const [result, setResult] = useState<NetworkReachabilityProbeResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [probing, setProbing] = useState(false);
+
+  useEffect(() => {
+    const next = parseProbeEndpoint(item.endpoint, item.driverType);
+    setHost(next.host);
+    setPort(next.port);
+    setResult(null);
+    setError(null);
+  }, [item.endpoint, item.driverType]);
+
+  const run = async () => {
+    setProbing(true);
+    setError(null);
+    setResult(null);
+    try {
+      setResult(await probeNetworkReachability(host.trim(), Number(port)));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setProbing(false);
+    }
+  };
+
+  return <section className="eng-comm-network-probe" aria-label={text.networkProbe}>
+    <div className="eng-comm-panel-title"><strong>{text.networkProbe}</strong><span>TCP + ICMP · timeout 3 s</span></div>
+    <div className="eng-comm-probe-form">
+      <label><span>{text.targetHost}</span><input value={host} onChange={event => setHost(event.target.value)} autoComplete="off" /></label>
+      <label><span>{text.targetPort}</span><input type="number" min={1} max={65535} value={port} onChange={event => setPort(event.target.value)} /></label>
+      <button type="button" className="eng-comm-refresh" disabled={probing || !host.trim() || !Number.isInteger(Number(port)) || Number(port) < 1 || Number(port) > 65535} onClick={() => void run()}>
+        {probing ? text.probing : text.probe}
+      </button>
+    </div>
+    {error && <div className="eng-comm-probe-result error" role="status">{error}</div>}
+    {result && <div className="eng-comm-probe-result" data-testid="network-probe-result" role="status">
+      <span><strong>{text.tcp}:</strong> {result.tcp.status}{result.tcp.elapsedMilliseconds != null ? ` · ${result.tcp.elapsedMilliseconds.toFixed(1)} ms` : ''}</span>
+      <span><strong>{text.icmp}:</strong> {result.icmp.status}{result.icmp.elapsedMilliseconds != null ? ` · ${result.icmp.elapsedMilliseconds.toFixed(1)} ms` : ''}</span>
+      <small>{text.portReachableOnly} · {formatMoment(result.observedAtUtc, locale)}</small>
+    </div>}
+  </section>;
+}
+
+function parseProbeEndpoint(endpoint: string | null | undefined, driverType: string) {
+  const defaultPorts: Record<string, string> = { 'modbus.tcp': '502', 's7.iso': '102', 'opc.ua': '4840' };
+  if (!endpoint) return { host: '', port: defaultPorts[driverType] ?? '' };
+  try {
+    const url = new URL(endpoint.includes('://') ? endpoint : `tcp://${endpoint}`);
+    return { host: url.hostname.replace(/^\[|\]$/g, ''), port: url.port || defaultPorts[driverType] || '' };
+  } catch {
+    return { host: '', port: defaultPorts[driverType] ?? '' };
+  }
 }
 
 function SummaryCard({ label, value, tone = 'quiet' }: { label: string; value: string | number; tone?: 'quiet' | 'healthy' | 'warning' | 'danger' }) {

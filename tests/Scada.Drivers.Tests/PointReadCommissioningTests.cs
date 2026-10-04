@@ -1,4 +1,5 @@
 using System.Security.Cryptography.X509Certificates;
+using System.Runtime.CompilerServices;
 using Scada.Core.Tags;
 using Scada.Drivers.Abstractions;
 using Scada.Drivers.Modbus;
@@ -101,6 +102,65 @@ public sealed class PointReadCommissioningTests
     }
 
     [Fact]
+    public async Task Modbus_PointRead_MapsDeviceAddressRejectionToNoDataAndBadDeviceQuality()
+    {
+        await using var server = new TestModbusTcpServer { RejectReads = true };
+        server.Start();
+
+        var result = await new ModbusTcpPointReadTester().TestPointReadAsync(
+            ModbusRequest(server.Port, "holding:10", new Dictionary<string, string>
+            {
+                ["modbus.valueType"] = "Int16"
+            }));
+
+        Assert.Equal(DriverPointReadTestStatus.NoData, result.Status);
+        var sample = Assert.Single(result.Samples);
+        Assert.Equal(DriverPointReadTestStatus.NoData, sample.Status);
+        Assert.Equal(TagQuality.BadDevice, sample.Quality);
+        Assert.Contains(sample.Issues!, issue => issue.Code == "MODBUS_DEVICE_REJECTED_POINT");
+        Assert.All(server.Requests, request => Assert.Equal((byte)0x03, request.Function));
+    }
+
+    [Fact]
+    public async Task Modbus_PointRead_MapsTransportTimeoutToBadCommunication()
+    {
+        await using var server = new TestModbusTcpServer { ResponseDelay = TimeSpan.FromMilliseconds(300) };
+        server.Start();
+
+        var request = ModbusRequest(server.Port, "holding:10", new Dictionary<string, string>
+        {
+            ["modbus.valueType"] = "Int16",
+            ["modbus.requestTimeoutMilliseconds"] = "100"
+        }) with { TimeoutMilliseconds = 100 };
+
+        var result = await new ModbusTcpPointReadTester().TestPointReadAsync(request);
+
+        Assert.Equal(DriverPointReadTestStatus.Bad, result.Status);
+        var sample = Assert.Single(result.Samples);
+        Assert.Equal(TagQuality.BadCommunication, sample.Quality);
+        Assert.Contains(sample.Issues!, issue => issue.Code == "MODBUS_POINT_READ_COMMUNICATION_FAILED");
+        Assert.NotEmpty(server.Requests);
+        Assert.All(server.Requests, requestRecord => Assert.Equal((byte)0x03, requestRecord.Function));
+    }
+
+    [Fact]
+    public async Task Modbus_PointRead_PropagatesCallerCancellationWithoutInventingAQualityResult()
+    {
+        await using var server = new TestModbusTcpServer();
+        server.Start();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            await new ModbusTcpPointReadTester().TestPointReadAsync(
+                ModbusRequest(server.Port, "holding:10", new Dictionary<string, string>
+                {
+                    ["modbus.valueType"] = "Int16"
+                }),
+                cancellation.Token));
+    }
+
+    [Fact]
     public async Task S7_PointRead_RejectsExtraSelectorBeforeTransport()
     {
         var adapter = new S7IsoEngineeringAdapter();
@@ -137,6 +197,57 @@ public sealed class PointReadCommissioningTests
     }
 
     [Fact]
+    public async Task S7_PointRead_ReportsCanonicalRawAndDecodedValueFromTheConfiguredPoint()
+    {
+        await using var server = new TestS7IsoServer();
+        server.SetBytes(S7IsoArea.Merker, 0, 0, new byte[] { 0x12, 0x34 });
+
+        var adapter = new S7IsoEngineeringAdapter();
+        var tester = new S7IsoPointReadTester();
+        var point = new S7IsoTagBinding(
+            S7IsoTagBinding.CurrentSchemaVersion,
+            S7IsoArea.Merker,
+            0,
+            S7IsoValueType.Int16);
+        var binding = new CommunicationTagBinding(
+            CommunicationTagBinding.CurrentContractVersion,
+            S7IsoCommunicationBindingProjection.SchemaId,
+            S7IsoCommunicationBindingProjection.SchemaVersion,
+            S7IsoCommunicationBindingProjection.ToCanonicalPortableAddress(point),
+            S7IsoCommunicationBindingProjection.ToCanonicalSettings(point));
+        var request = new DriverPointReadTestRequest(
+            new DriverEngineeringDataSourceContext(
+                "plc.s7.point-read",
+                "S7 Point Read",
+                adapter.Descriptor.DriverType,
+                new Dictionary<string, string>
+                {
+                    ["host"] = "127.0.0.1",
+                    ["port"] = server.Port.ToString(),
+                    ["cpuFamily"] = nameof(S7CpuFamily.S71200),
+                    ["connectionMode"] = nameof(S7IsoConnectionMode.RackSlot),
+                    ["rack"] = "0",
+                    ["slot"] = "1",
+                    ["connectionRole"] = nameof(S7IsoConnectionRole.OperatorPanel),
+                    ["requestTimeoutMs"] = "1000"
+                },
+                new Dictionary<string, string>()),
+            binding,
+            TagDataType.Int16,
+            EngineeringUnit: "raw",
+            TimeoutMilliseconds: 2000);
+
+        var result = await tester.TestPointReadAsync(request);
+
+        Assert.Equal(DriverPointReadTestStatus.Good, result.Status);
+        var sample = Assert.Single(result.Samples);
+        Assert.Equal(TagQuality.Good, sample.Quality);
+        Assert.Equal("1234", sample.Raw!.Hex);
+        Assert.Equal((short)0x1234, Convert.ToInt16(sample.Decoded!.Value));
+        Assert.Equal((short)0x1234, Convert.ToInt16(sample.Engineering!.Value));
+    }
+
+    [Fact]
     public async Task OpcUa_PointRead_RejectsPhysicalSwapBeforeOpeningProtectedSession()
     {
         var tester = new OpcUaPointReadTester(new ThrowingSecurityMaterialProvider());
@@ -163,6 +274,55 @@ public sealed class PointReadCommissioningTests
         Assert.Equal(DriverPointReadTestStatus.Bad, result.Status);
         Assert.Equal(TagQuality.BadConfiguration, Assert.Single(result.Samples).Quality);
         Assert.Contains(Assert.Single(result.Samples).Issues!, issue => issue.Code == "OPCUA_POINT_READ_PHYSICAL_TRANSFORM_UNSUPPORTED");
+    }
+
+    [Fact]
+    public async Task OpcUa_PointRead_UsesCanonicalSessionAndMapsGoodTypedValueWithoutWriting()
+    {
+        var session = new CaptureOpcUaPointReadSession(new OpcUaRuntimeDataValue(
+            Guid.NewGuid(), 22.5d, TagQuality.Good, SourceTimestamp: DateTimeOffset.UtcNow));
+        var identity = new OpcUaNodeIdentity("ns=2;s=Line1.Pressure");
+        var tester = new OpcUaPointReadTester(
+            new ThrowingSecurityMaterialProvider(),
+            options =>
+            {
+                Assert.Equal("opc.tcp://127.0.0.1:4840", options.EndpointUrl);
+                return new CaptureOpcUaPointReadSessionFactory(session);
+            });
+        var descriptor = tester.Descriptor;
+        var binding = new CommunicationTagBinding(
+            CommunicationTagBinding.CurrentContractVersion,
+            descriptor.TagBindingSchemaId ?? descriptor.ConfigurationSchema.SchemaId,
+            descriptor.TagBindingSchemaVersion ?? descriptor.ConfigurationSchema.SchemaVersion,
+            identity.PortableAddress);
+        var request = new DriverPointReadTestRequest(
+            new DriverEngineeringDataSourceContext(
+                "opc.main",
+                "OPC Main",
+                descriptor.DriverType,
+                new Dictionary<string, string>
+                {
+                    ["endpointUrl"] = "opc.tcp://127.0.0.1:4840",
+                    ["securityMode"] = "None",
+                    ["securityPolicyUri"] = "http://opcfoundation.org/UA/SecurityPolicy#None",
+                    ["authenticationMode"] = "Anonymous"
+                },
+                new Dictionary<string, string>()),
+            binding,
+            TagDataType.Double,
+            EngineeringUnit: "bar");
+
+        var result = await tester.TestPointReadAsync(request);
+
+        Assert.Equal(DriverPointReadTestStatus.Good, result.Status);
+        var sample = Assert.Single(result.Samples);
+        Assert.Equal(TagQuality.Good, sample.Quality);
+        Assert.Null(sample.Raw);
+        Assert.Equal(22.5d, Convert.ToDouble(sample.Decoded!.Value));
+        Assert.Equal(22.5d, Convert.ToDouble(sample.Engineering!.Value));
+        Assert.Equal("bar", sample.Engineering.EngineeringUnit);
+        Assert.Equal(identity.NodeId, session.ReadBinding!.Node.NodeId);
+        Assert.Equal(0, session.WriteCount);
     }
 
     private static DriverPointReadTestRequest ModbusRequest(
@@ -203,4 +363,50 @@ public sealed class PointReadCommissioningTests
             string certificateReference,
             CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("Security material must not be resolved for an invalid point-read transform.");
-    }}
+    }
+
+    private sealed class CaptureOpcUaPointReadSessionFactory(CaptureOpcUaPointReadSession session)
+        : IOpcUaRuntimeSessionFactory
+    {
+        public Task<IOpcUaRuntimeSession> ConnectAsync(
+            IReadOnlyCollection<OpcUaRuntimeBinding> bindings,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Assert.Single(bindings);
+            return Task.FromResult<IOpcUaRuntimeSession>(session);
+        }
+    }
+
+    private sealed class CaptureOpcUaPointReadSession(OpcUaRuntimeDataValue value) : IOpcUaRuntimeSession
+    {
+        public OpcUaRuntimeBinding? ReadBinding { get; private set; }
+        public int WriteCount { get; private set; }
+
+        public Task<OpcUaRuntimeDataValue> ReadAsync(
+            OpcUaRuntimeBinding binding,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ReadBinding = binding;
+            return Task.FromResult(value with { TagId = binding.Tag.Id });
+        }
+
+        public Task WriteAsync(OpcUaRuntimeBinding binding, object value, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteCount++;
+            return Task.CompletedTask;
+        }
+
+        public async IAsyncEnumerable<OpcUaRuntimeDataValue> SubscribeAsync(
+            [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await Task.Yield();
+            yield break;
+        }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+}

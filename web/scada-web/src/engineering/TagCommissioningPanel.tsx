@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import type { EngineeringLocale } from './i18n';
-import { testEngineeringDraftPointRead, type DriverPointReadSampleView, type DriverPointReadTestResultView, type DriverPointReadTestStatusView } from './driverEngineeringApi';
+import { testEngineeringDraftPointRead, testEngineeringPointRead, type DriverPointReadSampleView, type DriverPointReadTestResultView, type DriverPointReadTestStatusView } from './driverEngineeringApi';
 import { resolveTagDataSource, type TagSourceAwareEngineering } from './TagSourceSelector.logic';
 import type { DataSourceEngineering } from './types';
 
@@ -24,9 +24,13 @@ export function TagCommissioningPanel({ tag, sources, locale, persisted, onChang
   const run = async (kind: 'single' | 'monitor') => {
     setBusy(kind); setError(null);
     try {
-      setResult(await testEngineeringDraftPointRead(
-        { sourceKey: source.key, sourceName: source.name, driverType: source.driver, settings: source.settings ?? {}, secretReferences: source.secretReferences ?? {} },
-        { binding, dataType: tag.dataType, addressSelector: tag.addressSelector ?? null, engineeringUnit: tag.engineeringUnit ?? null, sampleCount: kind === 'monitor' ? 5 : 1, sampleIntervalMilliseconds: kind === 'monitor' ? 500 : 0, timeoutMilliseconds: kind === 'monitor' ? 7000 : 5000 }));
+      const request = { binding, dataType: tag.dataType, addressSelector: tag.addressSelector ?? null, engineeringUnit: tag.engineeringUnit ?? null, sampleCount: kind === 'monitor' ? 5 : 1, sampleIntervalMilliseconds: kind === 'monitor' ? 500 : 0, timeoutMilliseconds: kind === 'monitor' ? 7000 : 5000 };
+      const result = persisted && source.id
+        ? await testEngineeringPointRead(source.id, request)
+        : await testEngineeringDraftPointRead(
+            { sourceKey: source.key, sourceName: source.name, driverType: source.driver, settings: source.settings ?? {}, secretReferences: source.secretReferences ?? {} },
+            request);
+      setResult(result);
     } catch (reason) { setResult(null); setError(reason instanceof Error ? reason.message : String(reason)); }
     finally { setBusy(null); }
   };

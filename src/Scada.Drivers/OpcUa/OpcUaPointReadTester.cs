@@ -13,12 +13,20 @@ public sealed class OpcUaPointReadTester :
     ICommunicationDriverDescriptorProvider,
     ICommunicationDriverPointReadTester
 {
-    private readonly IOpcUaRuntimeSecurityMaterialProvider _securityMaterialProvider;
+    private readonly Func<OpcUaRuntimeConnectionOptions, IOpcUaRuntimeSessionFactory> _sessionFactoryFactory;
 
     public OpcUaPointReadTester(IOpcUaRuntimeSecurityMaterialProvider securityMaterialProvider)
+        : this(securityMaterialProvider, options => new OpcUaFoundationRuntimeSessionFactory(options, securityMaterialProvider))
     {
-        _securityMaterialProvider = securityMaterialProvider ??
-            throw new ArgumentNullException(nameof(securityMaterialProvider));
+    }
+
+    public OpcUaPointReadTester(
+        IOpcUaRuntimeSecurityMaterialProvider securityMaterialProvider,
+        Func<OpcUaRuntimeConnectionOptions, IOpcUaRuntimeSessionFactory> sessionFactoryFactory)
+    {
+        ArgumentNullException.ThrowIfNull(securityMaterialProvider);
+        _sessionFactoryFactory = sessionFactoryFactory ??
+            throw new ArgumentNullException(nameof(sessionFactoryFactory));
     }
 
     public CommunicationDriverTypeDescriptor Descriptor => OpcUaDriverDescriptorProvider.Definition;
@@ -109,7 +117,7 @@ public sealed class OpcUaPointReadTester :
 
         try
         {
-            var factory = new OpcUaFoundationRuntimeSessionFactory(options, _securityMaterialProvider);
+            var factory = _sessionFactoryFactory(options);
             await using var session = await factory
                 .ConnectAsync(new[] { runtimeBinding }, cancellationToken)
                 .ConfigureAwait(false);

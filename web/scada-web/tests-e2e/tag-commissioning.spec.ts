@@ -2,8 +2,9 @@ import { expect, test } from '@playwright/test';
 
 test.use({ locale: 'pt-BR' });
 
-test('TAG commissioning tests a Modbus draft read without applying or mutating Active state', async ({ page }) => {
+test('TAG commissioning tests a persisted Modbus source through its configured driver path without mutating Active state', async ({ page }) => {
   let pointReadBody: any = null;
+  let pointReadUrl = '';
   let forbiddenMutationCount = 0;
 
   page.on('request', request => {
@@ -50,7 +51,8 @@ test('TAG commissioning tests a Modbus draft read without applying or mutating A
     await route.fulfill({ response, json: snapshot });
   });
 
-  await page.route('**/api/engineering/driver-tools/point-read-test', async route => {
+  await page.route('**/api/engineering/data-sources/00000000-0000-0000-0000-00000000c390/driver-tools/point-read-test', async route => {
+    pointReadUrl = route.request().url();
     pointReadBody = route.request().postDataJSON();
     const monitor = pointReadBody.sampleCount === 5;
     await route.fulfill({
@@ -98,6 +100,8 @@ test('TAG commissioning tests a Modbus draft read without applying or mutating A
   await expect(page.getByTestId('tag-test-read-result')).toContainText('5');
   expect(pointReadBody.binding.valueTransform.byteSwap).toBe(true);
   expect(pointReadBody.sampleCount).toBe(1);
+  expect(pointReadUrl).toContain('/api/engineering/data-sources/00000000-0000-0000-0000-00000000c390/driver-tools/point-read-test');
+  expect(pointReadBody.dataSource).toBeUndefined();
   expect(forbiddenMutationCount).toBe(0);
 
   await page.getByTestId('tag-short-monitor').click();

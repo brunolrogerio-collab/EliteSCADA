@@ -26,9 +26,12 @@ export function resolveDynamoRuntimeState(
   commandIntent: DynamoCommandIntent = null
 ): DynamoRuntimeStateResolution {
   const parameterSamples = collectPublicParameterSamples(elements, liveSamples);
-  const quality = worstQuality([...parameterSamples.values()].map(sampleQuality));
-  const fault = booleanParameter(parameterSamples, 'fault');
+  let quality = worstQuality([...parameterSamples.values()].map(sampleQuality));
+  const profileState = resolveNumericStateProfile(elements, parameterSamples);
+  if (profileState === 'communicationBad') quality = 'bad';
+  const fault = booleanParameter(parameterSamples, 'fault') || profileState === 'fault';
   const alarm = booleanParameter(parameterSamples, 'alarm') || booleanParameter(parameterSamples, 'high');
+  const inhibited = booleanParameter(parameterSamples, 'inhibited') || profileState === 'inhibited';
   const running = optionalBooleanParameter(parameterSamples, 'running');
   const open = optionalBooleanParameter(parameterSamples, 'open');
   const closed = optionalBooleanParameter(parameterSamples, 'closed');
@@ -37,6 +40,8 @@ export function resolveDynamoRuntimeState(
   let settledState: DynamoSettledState = 'unknown';
   if (running !== null) {
     settledState = running ? 'active' : 'inactive';
+  } else if (profileState !== null) {
+    settledState = ['running', 'open', 'active'].includes(profileState) ? 'active' : 'inactive';
   } else if (open !== null || closed !== null) {
     if (open === true && closed === true) {
       feedbackMismatch = true;
@@ -53,6 +58,7 @@ export function resolveDynamoRuntimeState(
     quality,
     fault: fault || feedbackMismatch,
     alarm,
+    inhibited,
     commandIntent,
     settledState
   });
@@ -78,10 +84,47 @@ export function collectPublicParameterSamples(
       const sample = bindingSample(liveSamples, binding);
       if (sample) result.set(normalized, sample);
     }
+    const stateParameter = element.metadata?.dynamoStateColorParameter?.trim();
+    if (stateParameter) {
+      const normalized = normalizeKey(stateParameter);
+      const map = element.propertyMaps?.find(candidate => candidate.propertyKey === 'fillColor');
+      const source = map?.source;
+      if (!result.has(normalized) && source) {
+        const sample = source.tagReference?.tagId
+          ? liveSamples.get(`tag:${normalizeKey(source.tagReference.tagId)}`)
+          : source.target ? liveSamples.get(source.target) : undefined;
+        if (sample) result.set(normalized, sample);
+      }
+    }
     for (const child of element.children ?? []) visit(child);
   };
   for (const element of elements) visit(element);
   return new Map(result);
+}
+
+function resolveNumericStateProfile(
+  elements: readonly VisualElementEngineering[],
+  samples: ReadonlyMap<string, VisualLiveScalarSample>
+): string | null {
+  const visit = (element: VisualElementEngineering): string | null => {
+    const profile = element.metadata?.dynamoStateColorProfile?.split(',').map(value => value.trim()) ?? [];
+    const parameterKey = element.metadata?.dynamoStateColorParameter;
+    const stateSample = parameterKey ? samples.get(normalizeKey(parameterKey)) : undefined;
+    if (profile.length > 0 && stateSample && sampleUsable(stateSample) &&
+        typeof stateSample.value === 'number' && Number.isFinite(stateSample.value)) {
+      return profile[Math.trunc(stateSample.value)] ?? null;
+    }
+    for (const child of element.children ?? []) {
+      const found = visit(child);
+      if (found !== null) return found;
+    }
+    return null;
+  };
+  for (const element of elements) {
+    const found = visit(element);
+    if (found !== null) return found;
+  }
+  return null;
 }
 
 function bindingSample(

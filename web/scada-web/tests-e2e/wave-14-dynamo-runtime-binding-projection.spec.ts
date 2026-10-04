@@ -150,7 +150,7 @@ test('state color mapping follows the selected TAG and per-instance palette over
 
   expect(projected[0]?.propertyMaps?.[0]).toMatchObject({
     source: {
-      target: 'Area.M01.State',
+      target: null,
       tagReference: { tagId: 'tag-state-id' }
     },
     rules: [

@@ -256,6 +256,7 @@ function statePresentation(kind: string, locale: EngineeringLocale): Readonly<{
     case 'fault': return Object.freeze({ label: text.fault, background: '#7F1D1D', foreground: '#FFFFFF' });
     case 'alarm': return Object.freeze({ label: text.alarm, background: '#92400E', foreground: '#FFFFFF' });
     case 'uncertain-quality': return Object.freeze({ label: text.uncertain, background: '#854D0E', foreground: '#FFFFFF' });
+    case 'inhibited': return Object.freeze({ label: text.inhibited, background: '#475569', foreground: '#FFFFFF' });
     case 'command-intent': return Object.freeze({ label: text.command, background: '#1D4ED8', foreground: '#FFFFFF' });
     case 'transitioning': return Object.freeze({ label: text.transition, background: '#6D28D9', foreground: '#FFFFFF' });
     case 'active': return Object.freeze({ label: text.active, background: '#166534', foreground: '#FFFFFF' });

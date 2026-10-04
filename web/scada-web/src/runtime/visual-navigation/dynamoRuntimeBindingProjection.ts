@@ -220,8 +220,10 @@ function projectValueSource(
   parameters: ReadonlyMap<string, DynamoParameterValueEngineering>,
   equipmentPath: string | null
 ): VisualValueSourceEngineering {
-  const target = substituteEquipmentPath(source.target ?? '', equipmentPath);
-  const parameterKey = dynamoParameterFromTarget(target);
+  const target = source.target === null || source.target === undefined
+    ? source.target
+    : substituteEquipmentPath(source.target, equipmentPath);
+  const parameterKey = dynamoParameterFromTarget(target ?? '');
   const parameter = parameterKey ? findParameter(parameters, parameterKey) : undefined;
   const projectedValue = parameter?.kind === 'Boolean' && typeof parameter.value === 'boolean'
     ? parameter.value

@@ -129,6 +129,37 @@ test('numeric Good quality allows normal active state while uncertain and stale 
   ).state.kind).toBe('bad-quality');
 });
 
+test('state PropertyMap sources participate in the public Dynamo state and quality resolution', () => {
+  const element: VisualElementEngineering = {
+    id: 'motor-body',
+    key: 'state-body',
+    type: 'core.rectangle',
+    properties: { x: 0, y: 0, width: 20, height: 20, fillColor: '#93B99A' },
+    metadata: {
+      dynamoStateColorParameter: 'state',
+      dynamoStateColorProfile: 'stopped,running,fault,communicationBad,inhibited'
+    },
+    propertyMaps: [{
+      propertyKey: 'fillColor',
+      source: { kind: 'Tag', valueType: 'Number', tagReference: { tagId: 'tag-state' } },
+      rules: [],
+      fallback: '#93B99A'
+    }]
+  };
+  const stateSample: VisualLiveScalarSample = {
+    reference: 'Plant.M01.State', tagId: 'tag-state', value: 1,
+    dataType: 'Number', quality: 'Good'
+  };
+  const live = samples(stateSample);
+  const running = resolveDynamoRuntimeState([element], live);
+  expect(running.parameterSamples.get('state')?.value).toBe(1);
+  expect(running.state.kind).toBe('active');
+
+  expect(resolveDynamoRuntimeState([element], samples({ ...stateSample, value: 2 })).state.kind).toBe('fault');
+  expect(resolveDynamoRuntimeState([element], samples({ ...stateSample, value: 3 })).state.kind).toBe('bad-quality');
+  expect(resolveDynamoRuntimeState([element], samples({ ...stateSample, value: 4 })).state.kind).toBe('inhibited');
+});
+
 test('only bindings that explicitly declare dynamoParameter affect instance state', () => {
   const privateLamp: VisualElementEngineering = {
     ...lamp('running', 'Plant.P101.Private', 'tag-private'),

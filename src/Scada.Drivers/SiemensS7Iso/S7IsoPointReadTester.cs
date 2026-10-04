@@ -106,7 +106,10 @@ public sealed class S7IsoPointReadTester :
                 engineeringUnit: request.EngineeringUnit,
                 readOnly: true,
                 communicationBinding: request.Binding);
-            point = materializedBinding!.ToPoint(tag);
+            // Point Read is a read-only Engineering probe. A canonical TAG binding may
+            // carry Runtime write intent, but that intent must not leak into this
+            // transient probe TAG (which is deliberately created as read-only).
+            point = (materializedBinding! with { Writable = false }).ToPoint(tag);
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or NotSupportedException)
         {

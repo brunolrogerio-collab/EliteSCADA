@@ -208,7 +208,8 @@ public sealed class PointReadCommissioningTests
             S7IsoTagBinding.CurrentSchemaVersion,
             S7IsoArea.Merker,
             0,
-            S7IsoValueType.Int16);
+            S7IsoValueType.Int16,
+            Writable: true);
         var binding = new CommunicationTagBinding(
             CommunicationTagBinding.CurrentContractVersion,
             S7IsoCommunicationBindingProjection.SchemaId,

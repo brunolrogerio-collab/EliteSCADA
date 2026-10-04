@@ -75,6 +75,16 @@ public sealed class NetworkReachabilityProbe
                 new NetworkProbeResult("DnsFailure", null, null, "The host name could not be resolved."),
                 new NetworkProbeResult("Unavailable", null, null, "ICMP was skipped because DNS resolution failed."));
         }
+        catch (SocketException)
+        {
+            return new NetworkReachabilityProbeResponse(
+                "EliteSCADA.Api.DriverHost",
+                observedAt,
+                host,
+                request.Port,
+                new NetworkProbeResult("Unavailable", null, null, "The server host could not resolve the network target."),
+                new NetworkProbeResult("Unavailable", null, null, "ICMP was skipped because target resolution was unavailable."));
+        }
 
         var tcp = await ProbeTcpAsync(address, request.Port, request.TimeoutMilliseconds, cancellationToken)
             .ConfigureAwait(false);

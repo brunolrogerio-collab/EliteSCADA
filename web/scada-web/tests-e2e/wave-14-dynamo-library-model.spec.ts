@@ -57,15 +57,18 @@ test('library search is accent-insensitive and category filtering stays determin
     .toEqual(['process.tank.vertical.high-performance']);
 });
 
-test('default catalog retires only explicitly legacy built-ins and preserves project dynamos', () => {
+test('default catalog retires legacy and pre-versioned built-ins while preserving active and project dynamos', () => {
   const legacyBuiltin: DynamoEngineering = {
     ...definitions[0], metadata: { builtinLibrary: 'true', catalogStatus: 'legacy' }
   };
+  const preVersionedBuiltin: DynamoEngineering = {
+    ...definitions[1], metadata: { builtinLibrary: 'true' }
+  };
   const activeBuiltin: DynamoEngineering = {
-    ...definitions[1], metadata: { builtinLibrary: 'true', catalogStatus: 'active' }
+    ...definitions[3], metadata: { builtinLibrary: 'true', catalogStatus: 'active' }
   };
   const projectDynamo: DynamoEngineering = { ...definitions[2], metadata: { builtinLibrary: 'false' } };
 
-  expect(selectDefaultDynamoCatalog([legacyBuiltin, activeBuiltin, projectDynamo]).map(item => item.key))
+  expect(selectDefaultDynamoCatalog([legacyBuiltin, preVersionedBuiltin, activeBuiltin, projectDynamo]).map(item => item.key))
     .toEqual([activeBuiltin.key, projectDynamo.key]);
 });

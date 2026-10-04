@@ -29,7 +29,8 @@ export function selectDefaultDynamoCatalog(
   definitions: readonly DynamoEngineering[]
 ): readonly DynamoEngineering[] {
   return Object.freeze(definitions.filter(definition =>
-    !(definition.metadata?.builtinLibrary === 'true' && definition.metadata.catalogStatus === 'legacy')));
+    !(definition.metadata?.builtinLibrary === 'true' &&
+      definition.metadata.catalogStatus !== 'active')));
 }
 
 export function buildDynamoLibraryEntries(

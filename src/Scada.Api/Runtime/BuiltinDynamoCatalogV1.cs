@@ -163,7 +163,8 @@ public static class BuiltinDynamoCatalogV1
         const bool stateful = true;
         var parameters = new List<DynamoParameterDefinitionEngineeringDto>
         {
-            new("state", DynamoParameterKind.ValueSource, ValueSourceType: VisualExpressionValueType.Number),
+            new("state", DynamoParameterKind.ValueSource),
+            new("invertBoolean", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(false)),
             new("offColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#46535C")),
             new("runningColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#16A34A")),
             new("faultColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#EAB308")),
@@ -178,7 +179,14 @@ public static class BuiltinDynamoCatalogV1
         metadata["outlineIndependent"] = "true";
         var mapped = x.LastOrDefault(e => e.Key == "lens") ?? x.LastOrDefault(e => e.Key == "green-lens");
         if (mapped is not null)
-            x[x.IndexOf(mapped)] = WithStateMap(mapped, "{equipmentPath}.State", ["#46535C", "#16A34A", "#EAB308", "#DC2626", "#1687C9"], "state", "off,running,fault,communicationBad,inhibited");
+        {
+            var stateMapped = WithStateMap(mapped, "{equipmentPath}.State", ["#46535C", "#16A34A", "#EAB308", "#DC2626", "#1687C9"], "state", "off,running,fault,communicationBad,inhibited");
+            var stateMetadata = new Dictionary<string, string>(stateMapped.Metadata ?? new Dictionary<string, string>(), StringComparer.Ordinal)
+            {
+                ["dynamoBooleanStateInvertParameter"] = "invertBoolean"
+            };
+            x[x.IndexOf(mapped)] = stateMapped with { Metadata = stateMetadata };
+        }
         return Definition($"indicator.lamp.{shape}", $"Sinalizador {LampName(shape)}", "indicators", w, h, x, parameters, metadata);
     }
 

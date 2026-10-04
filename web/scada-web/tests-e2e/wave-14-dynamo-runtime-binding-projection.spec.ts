@@ -135,6 +135,29 @@ test('Dynamo composition applies typed value-source defaults and rejects a misma
   }, definition)).toThrow(/requires a Number visual value source/);
 });
 
+test('numeric state paint converts boolean TAG and expression sources with optional inversion', () => {
+  const tagId = '33333333-3333-4333-8333-333333333334';
+  const element: VisualElementEngineering = {
+    id: 'lamp-lens', key: 'lens', type: 'core.svgSymbol',
+    properties: { x: 0, y: 0, width: 10, height: 10 },
+    metadata: { dynamoStateColorParameter: 'state', dynamoStateColorProfile: 'off,running', dynamoBooleanStateInvertParameter: 'invertBoolean' },
+    propertyMaps: [{
+      propertyKey: 'fillColor',
+      source: { kind: 'Tag', valueType: 'Number', target: '{dynamoParameter:state}' },
+      rules: [{ value: '#111111', minimum: 0, maximum: 1 }, { value: '#22aa22', minimum: 1, maximum: 2 }]
+    }]
+  };
+  const projected = projectDynamoRuntimeElements([element], parameters(
+    { key: 'state', kind: 'ValueSource', valueSource: { kind: 'Tag', valueType: 'Boolean', tagReference: { tagId } } },
+    { key: 'invertBoolean', kind: 'Boolean', value: true }
+  ), null);
+
+  expect(projected[0]?.propertyMaps?.[0]?.source).toMatchObject({
+    kind: 'Expression', valueType: 'Number',
+    expression: { text: 'number(not source)', resultType: 'Number', dependencies: [{ symbol: 'source', kind: 'Tag', tagReference: { tagId } }] }
+  });
+});
+
 test('typed value-source parameters use the dedicated TAG/expression authoring editor', () => {
   expect(resolveDynamoParameterEditorKind('ValueSource')).toBe('value-source');
 });

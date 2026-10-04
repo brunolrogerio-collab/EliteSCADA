@@ -130,14 +130,22 @@ public sealed class BuiltinDynamoLibraryTests
         Assert.Equal(sourceTagId, Assert.Single(stateMap.Source.Expression.Dependencies!).TagReference.TagId);
         Assert.Empty(VisualCompositionEngineeringValidation.ValidateDynamo(lamp));
 
-        var wrongTypeInstance = instance with
+        var booleanTagId = Guid.NewGuid();
+        var booleanInstance = instance with
         {
             DynamoParameters =
-            [new("state", DynamoParameterKind.ValueSource, ValueSource: new VisualValueSourceEngineeringDto(
-                VisualValueSourceKind.Tag, VisualExpressionValueType.Boolean,
-                TagReference: new Scada.Core.Tags.TagValueReference(Guid.NewGuid())))]
+            [
+                new("state", DynamoParameterKind.ValueSource, ValueSource: new VisualValueSourceEngineeringDto(
+                    VisualValueSourceKind.Tag, VisualExpressionValueType.Boolean,
+                    TagReference: new Scada.Core.Tags.TagValueReference(booleanTagId))),
+                new("invertBoolean", DynamoParameterKind.Boolean, System.Text.Json.JsonSerializer.SerializeToElement(true))
+            ]
         };
-        Assert.Throws<InvalidOperationException>(() => DynamoRuntimeComposer.Compose(wrongTypeInstance, lamp));
+        var booleanProjection = DynamoRuntimeComposer.Compose(booleanInstance, lamp);
+        var booleanStateMap = Assert.Single(booleanProjection.Elements.SelectMany(element => element.PropertyMaps ?? []));
+        Assert.Equal(VisualExpressionValueType.Number, booleanStateMap.Source.ValueType);
+        Assert.Equal("number(not source)", booleanStateMap.Source.Expression!.Text);
+        Assert.Equal(booleanTagId, Assert.Single(booleanStateMap.Source.Expression.Dependencies!).TagReference.TagId);
     }
 
     [Fact]

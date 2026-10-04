@@ -57,7 +57,6 @@ public static class DynamoRuntimeComposer
                 // Do not mutate the persisted instance; the editor can migrate it
                 // on the next explicit save.
                 if (parameter.Kind == DynamoParameterKind.ValueSource &&
-                    parameter.ValueSourceType.HasValue &&
                     value.Kind == DynamoParameterKind.TagReference &&
                     value.TagReference is not null &&
                     value.TagReference.TagId != Guid.Empty)
@@ -67,7 +66,7 @@ public static class DynamoRuntimeComposer
                         DynamoParameterKind.ValueSource,
                         ValueSource: new VisualValueSourceEngineeringDto(
                             VisualValueSourceKind.Tag,
-                            parameter.ValueSourceType.Value,
+                            parameter.ValueSourceType ?? VisualExpressionValueType.Number,
                             TagReference: value.TagReference));
                 }
                 if (parameter.Kind == DynamoParameterKind.ValueSource && parameter.ValueSourceType.HasValue &&
@@ -177,7 +176,22 @@ public static class DynamoRuntimeComposer
                 if (stateParameter?.Kind == DynamoParameterKind.TagReference && stateParameter.TagReference is not null)
                     source = source with { Target = null, TagReference = stateParameter.TagReference };
                 else if (stateParameter?.Kind == DynamoParameterKind.ValueSource && stateParameter.ValueSource is not null && stateParameterKey is not null)
-                    source = ProjectValueSource(source with { Target = $"{{dynamoParameter:{stateParameterKey}}}", TagReference = null }, normalizedPath, parameters);
+                {
+                    var stateSource = ProjectValueSource(source with
+                    {
+                        ValueType = stateParameter.ValueSource.ValueType,
+                        Target = $"{{dynamoParameter:{stateParameterKey}}}",
+                        TagReference = null
+                    }, normalizedPath, parameters);
+                    if (stateSource.ValueType == VisualExpressionValueType.Boolean && source.ValueType == VisualExpressionValueType.Number)
+                    {
+                        var invertParameterKey = element.Metadata?.GetValueOrDefault("dynamoBooleanStateInvertParameter");
+                        var invert = invertParameterKey is not null && parameters.TryGetValue(invertParameterKey, out var invertValue) &&
+                            invertValue.Kind == DynamoParameterKind.Boolean && invertValue.Value is { ValueKind: JsonValueKind.True };
+                        stateSource = ConvertBooleanStateSourceToNumber(stateSource, invert);
+                    }
+                    source = stateSource;
+                }
                 return map with { Source = source, Rules = rules };
             }).ToArray() : null,
             Children = SubstituteInstanceContext(
@@ -317,6 +331,46 @@ public static class DynamoRuntimeComposer
             }
         }
         return source with { Target = target };
+    }
+
+    private static VisualValueSourceEngineeringDto ConvertBooleanStateSourceToNumber(
+        VisualValueSourceEngineeringDto source,
+        bool invert)
+    {
+        if (source.ValueType != VisualExpressionValueType.Boolean)
+            return source;
+
+        var expressionText = source.Kind == VisualValueSourceKind.Expression
+            ? source.Expression?.Text
+            : null;
+        var dependencies = source.Kind == VisualValueSourceKind.Expression
+            ? source.Expression?.Dependencies
+            : source.TagReference is null
+                ? null
+                : new[]
+                {
+                    new VisualExpressionDependencyEngineeringDto(
+                        "source",
+                        source.Kind == VisualValueSourceKind.ClientMemory
+                            ? VisualExpressionDependencyKind.ClientMemory
+                            : VisualExpressionDependencyKind.Tag,
+                        VisualExpressionValueType.Boolean,
+                        source.TagReference,
+                        source.Target)
+                };
+
+        if (source.Kind != VisualValueSourceKind.Expression && source.TagReference is null)
+            throw new InvalidOperationException("Boolean Dynamo state sources require a stable TAG or Client Memory identity.");
+
+        var inner = string.IsNullOrWhiteSpace(expressionText) ? "source" : $"({expressionText})";
+        var normalizedExpression = invert ? $"number(not {inner})" : $"number({inner})";
+        return new VisualValueSourceEngineeringDto(
+            VisualValueSourceKind.Expression,
+            VisualExpressionValueType.Number,
+            Expression: new VisualExpressionEngineeringDto(
+                normalizedExpression,
+                VisualExpressionValueType.Number,
+                dependencies));
     }
 
     private static VisualNavigationActionEngineeringDto ProjectAction(

@@ -128,12 +128,18 @@ function projectElement(
       const overriddenStateSource = stateParameter?.kind === 'TagReference' && stateParameter.tagReference
         ? Object.freeze({ ...propertyMap.source, target: null, tagReference: cloneTagReference(stateParameter.tagReference) })
         : stateParameter?.kind === 'ValueSource' && stateParameter.valueSource
-          ? Object.freeze({ ...propertyMap.source, target: `{dynamoParameter:${stateParameterKey}}`, tagReference: null })
+          ? Object.freeze({ ...propertyMap.source, valueType: stateParameter.valueSource.valueType, target: `{dynamoParameter:${stateParameterKey}}`, tagReference: null })
         : propertyMap.source;
+      const projectedStateSource = projectValueSource(overriddenStateSource, parameters, equipmentPath);
+      const invertParameterKey = element.metadata?.dynamoBooleanStateInvertParameter?.trim();
+      const invertParameter = invertParameterKey ? findParameter(parameters, invertParameterKey) : undefined;
+      const invertBoolean = invertParameter?.kind === 'Boolean' && invertParameter.value === true;
       return Object.freeze({
         ...propertyMap,
         rules: Object.freeze(rules),
-        source: projectValueSource(overriddenStateSource, parameters, equipmentPath)
+        source: projectedStateSource.valueType === 'Boolean' && propertyMap.source.valueType === 'Number'
+          ? booleanSourceToNumber(projectedStateSource, invertBoolean)
+          : projectedStateSource
       });
     }) : undefined,
     booleanConditions: animationEnabled ? element.booleanConditions?.map(condition => Object.freeze({
@@ -260,6 +266,43 @@ function projectValueSource(
     tagReference: parameter?.kind === 'TagReference' && parameter.tagReference
       ? cloneTagReference(parameter.tagReference)
       : source.tagReference ? cloneTagReference(source.tagReference) : source.tagReference
+  });
+}
+
+function booleanSourceToNumber(
+  source: VisualValueSourceEngineering,
+  invert: boolean
+): VisualValueSourceEngineering {
+  if (source.valueType !== 'Boolean') return source;
+  if (source.kind === 'Expression' && source.expression) {
+    const inner = `(${source.expression.text})`;
+    return Object.freeze({
+      kind: 'Expression',
+      valueType: 'Number',
+      expression: Object.freeze({
+        text: invert ? `number(not ${inner})` : `number(${inner})`,
+        resultType: 'Number',
+        dependencies: source.expression.dependencies ? Object.freeze([...source.expression.dependencies]) : source.expression.dependencies
+      })
+    });
+  }
+  if (!source.tagReference?.tagId.trim()) {
+    throw new Error('Boolean Dynamo state sources require a stable TAG or Client Memory identity.');
+  }
+  return Object.freeze({
+    kind: 'Expression',
+    valueType: 'Number',
+    expression: Object.freeze({
+      text: invert ? 'number(not source)' : 'number(source)',
+      resultType: 'Number',
+      dependencies: Object.freeze([{
+        symbol: 'source',
+        kind: source.kind === 'ClientMemory' ? 'ClientMemory' as const : 'Tag' as const,
+        valueType: 'Boolean' as const,
+        tagReference: cloneTagReference(source.tagReference),
+        target: source.target
+      }])
+    })
   });
 }
 

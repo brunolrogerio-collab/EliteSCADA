@@ -4,7 +4,7 @@ GitHub live is authoritative. Revalidate issue, branch, PR and CI state before t
 
 ## Integration snapshot
 
-This branch was started from the live `wave15/corrections-integration` head, verified at `4717ab165e5b627fc41976f8f76e591d4c9cf368` on 2026-10-04. It includes the product integration through PR #498. The branch has not been pushed as a PR at the time of this checkpoint.
+This branch includes the live product integration through PR #504 (driver diagnostics), merged at `407b37adfbfc558d835a47c6d9271f4a72588185` on 2026-10-04. PR #502 is the open draft checkpoint for the Dynamo catalog work; it is not integrated.
 
 Recently integrated foundations relevant here:
 
@@ -33,7 +33,7 @@ The artwork is generated as first-party SVG from native geometry, registered as 
 
 The current initial runtime behavior includes numeric TAG-state paint maps for lamps, motors and valves, configurable color parameters, a fixed-state option, semantic SVG paint slots, and buttons that project to existing authorized command / TAG-write actions. The SVG semantic-slot mechanism also supports dynamic paint on a placed static SVG without wrapping it as a Dynamo; verify the complete mounted screen/runtime path as part of acceptance.
 
-Continuation after the first checkpoint fixed two additional runtime gaps: contact-blade geometry now changes its fill and rotation from the selected state TAG, and the C07 state indicator now resolves the public `state` TAG through the same canonical `PropertyMap` source used by rendering. Numeric profiles now classify running/open, fault, communication-failure and inhibited states; quality/fault/alarm/uncertain/inhibited/command precedence is deterministic. Button artwork has accessible keyboard and pressed feedback. The source-binding checkpoint adds direct typed TAG and expression values for lamp state. This continuation also makes a legacy `TagReference` readable/projectable as the corresponding typed `ValueSource` when a definition is upgraded, without rewriting the persisted instance. Current local changes are not yet pushed; revalidate the exact PR head before treating this document as current.
+Continuation after the first checkpoint fixed two additional runtime gaps: contact-blade geometry now changes its fill and rotation from the selected state TAG, and the C07 state indicator now resolves the public `state` TAG through the same canonical `PropertyMap` source used by rendering. Numeric profiles now classify running/open, fault, communication-failure and inhibited states; quality/fault/alarm/uncertain/inhibited/command precedence is deterministic. Button artwork has accessible keyboard and pressed feedback. The source-binding checkpoint adds direct typed TAG and expression values for lamp state. This continuation also makes a legacy `TagReference` readable/projectable as the corresponding typed `ValueSource` when a definition is upgraded, without rewriting the persisted instance. This compatibility change is pushed to draft PR #502 at `21099604301dcb4cef0391b2fb21c647e419a595`; it does not change issue acceptance status.
 
 ### Explicitly incomplete — do not call #501 done
 
@@ -56,7 +56,7 @@ Do not silently shrink the issue criteria. Main should either release a bounded 
 - `wave-14-dynamo-public-interface.spec.ts`: 8/8 passed on Chromium with `--no-deps`; `npm run build` passed (existing large-chunk warning only).
 - One full Playwright invocation initially selected the `chromium-local-auth` dependency and failed because an already-used local test database no longer satisfied first-run setup; a subsequent clean database allowed API/Vite startup, but that setup dependency still failed to locate the expected auth UI. Running the targeted public-interface suite without project dependencies passed all 8 tests. Do not represent this as a mounted editor/runtime E2E pass.
 - The disposable PostgreSQL service on host port 15433 was stopped after validation; the stable Docker database on port 15432 was not touched. The temporary database remains in its disposable volume; no volume was deleted. No full Wave 15 T1 or exact-head PR validation is claimed.
-- Live GitHub still reports draft PR #502 OPEN / DRAFT / NOT MERGED at `775d01e024d6fc8d5afcfa9ad7aaf285f5ecfac4` as of this handoff read. The current local compatibility fix and this handoff amendment are not yet pushed. Its first T1 failed at profile classification and skipped product jobs; no exact-head product T1 result exists. Geometry from #505 remains separate.
+- Live GitHub reports draft PR #502 OPEN / DRAFT / NOT MERGED at `21099604301dcb4cef0391b2fb21c647e419a595` as of this handoff read. Its first T1 failed at profile classification and skipped product jobs; no exact-head product T1 result exists. Geometry from #505 remains separate.
 
 ## Other product lanes still open
 

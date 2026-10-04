@@ -142,6 +142,9 @@ public sealed class ModbusFamilyTransportTests
         Assert.Equal((ushort)0x1234, Convert.ToUInt16(sample.Decoded!.Value));
         Assert.Equal((short)0x1234, Convert.ToInt16(sample.Engineering!.Value));
         Assert.Equal(line.PortName, result.SanitizedEndpoint);
+        var requestFrame = Assert.Single(connection.Writes);
+        Assert.True(ModbusRtuCrc.IsValid(requestFrame));
+        Assert.Equal((byte)0x03, requestFrame[1]);
     }
 
     [Fact]

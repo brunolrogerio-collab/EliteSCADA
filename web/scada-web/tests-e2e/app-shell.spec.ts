@@ -678,7 +678,7 @@ test('mounted Runtime Report Center generates one snapshot and exposes viewer/ex
       queries: [{
         queryKey: 'main', dataset: 'historian.samples', retrievalMode: 'sampledFixedStep',
         columns: [{ field: 'timestamp', type: 'dateTime', filterable: false, sortable: false, searchable: false }, { field: 'v:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', type: 'number', filterable: false, sortable: false, searchable: false }],
-        rows: Array.from({ length: 30 }, (_, index) => ({ cells: {
+        rows: Array.from({ length: 50 }, (_, index) => ({ cells: {
           timestamp: { kind: 'dateTime', value: new Date(Date.UTC(2026, 9, 3, 10, index * 5)).toISOString() },
           'v:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee': { kind: 'double', value: String(20 + index / 10) }
         } })),
@@ -704,6 +704,8 @@ test('mounted Runtime Report Center generates one snapshot and exposes viewer/ex
   await expect(page.getByRole('button', { name: 'Imprimir' })).toBeVisible();
   await expect(page.getByText(/Página 1 \/ 2/)).toBeVisible();
   await expect(page.getByText(/shift=A/)).toBeVisible();
+  await page.getByRole('button', { name: 'Próxima página' }).click();
+  await expect(page.getByText(/Página 2 \/ 2/)).toBeVisible();
 
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Exportar PDF' }).click();
@@ -740,8 +742,9 @@ test('mounted Report Designer uses canonical Project Reference Browser for multi
   await page.locator('.eng-nav').getByRole('button', { name: /Relatórios/ }).click();
   const designer = page.getByTestId('report-designer-workspace');
   await expect(designer.getByTestId('project-reference-browser')).toBeVisible();
-  await designer.getByTestId('project-reference-browser').getByRole('button', { name: /Pressure/ }).click();
-  await designer.getByTestId('project-reference-browser').getByRole('button', { name: /Temperature/ }).click();
+  const references = designer.getByTestId('project-reference-browser');
+  await references.getByRole('treeitem', { name: /Pressure Area\.Pressure/ }).click();
+  await references.getByRole('treeitem', { name: /Temperature Area\.Temperature/ }).click();
 
   const variables = designer.locator('.report-variable-card');
   await expect(variables).toHaveCount(2);

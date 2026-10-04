@@ -11,6 +11,7 @@ import type {
   VisualPropertyExpressionEngineering,
   VisualPropertyMapEngineering
 } from '../types';
+import type { DynamoParameterDefinitionEngineering } from '../../runtime/visual-navigation/runtimeVisualNavigationModel';
 import {
   BUILTIN_VISUAL_OBJECT_TYPES,
   getBuiltinVisualObjectSchema,
@@ -101,21 +102,29 @@ export function replaceTemplateInPackage(
 export function replaceDynamoInPackage(
   model: EngineeringPackageView,
   original: DynamoEngineering | null,
-  draft: ScreenEngineering
+  draft: ScreenEngineering,
+  parameters: readonly DynamoParameterDefinitionEngineering[] = original?.parameters ?? []
 ): EngineeringPackageView {
-  if (!original) throw new Error('A Dynamo definition must be selected before editing.');
   const candidate = cloneEngineeringValue(model);
   const dynamos = candidate.dynamos ?? [];
   const updated: DynamoEngineering = {
-    ...original,
-    id: original.id ?? draft.id,
-    key: original.key,
+    ...(original ?? {}),
+    id: original?.id ?? draft.id,
+    key: original?.key ?? draft.key,
     name: draft.name,
+    bindings: original?.bindings ?? [],
+    parameters: cloneEngineeringValue([...parameters]),
     elements: cloneEngineeringValue(draft.elements ?? []),
     properties: draft.properties ?? {},
     context: draft.context ?? {},
     metadata: draft.metadata ?? {}
   };
+
+  if (!original) {
+    candidate.dynamos = [...dynamos, updated];
+    return candidate;
+  }
+
   const originalIdentity = original.id ? `id:${original.id}` : `key:${original.key}`;
   candidate.dynamos = dynamos.map(item => (item.id ? `id:${item.id}` : `key:${item.key}`) === originalIdentity ? updated : item);
   return candidate;

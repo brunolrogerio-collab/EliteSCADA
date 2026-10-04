@@ -42,6 +42,9 @@ export function normalizeDynamoParameterKind(
     case 'TagReference':
     case 'tagReference':
       return 'TagReference';
+    case 'Command':
+    case 'command':
+      return 'Command';
     default:
       throw new DynamoParameterWireContractError(
         'VISUAL_RUNTIME_DYNAMO_PARAMETER_KIND_UNSUPPORTED',
@@ -88,6 +91,7 @@ export function normalizeDynamoParameterValue(
     ...parameter,
     kind: normalizeDynamoParameterKind(wire.kind),
     value: parameter.value === null ? undefined : parameter.value,
+    commandId: parameter.commandId === null ? undefined : parameter.commandId,
     tagReference: parameter.tagReference
       ? Object.freeze({
           ...parameter.tagReference,

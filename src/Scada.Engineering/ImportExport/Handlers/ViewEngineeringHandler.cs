@@ -2,6 +2,7 @@ using System.Text.Json;
 using Scada.Core.Tags;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Commands;
 using Scada.Engineering.Validation;
 using Scada.Engineering.Views;
 using Scada.Engineering.VisualAssets;
@@ -15,17 +16,20 @@ internal sealed class ViewEngineeringHandler
     private readonly IEngineeringAssetRegistry _assets;
     private readonly ITagRegistry _tags;
     private readonly IVisualAssetEngineeringRegistry _visualAssets;
+    private readonly ICommandEngineeringRegistry _commands;
 
     public ViewEngineeringHandler(
         IEngineeringViewRegistry views,
         IEngineeringAssetRegistry assets,
         ITagRegistry tags,
-        IVisualAssetEngineeringRegistry? visualAssets = null)
+        IVisualAssetEngineeringRegistry? visualAssets = null,
+        ICommandEngineeringRegistry? commands = null)
     {
         _views = views;
         _assets = assets;
         _tags = tags;
         _visualAssets = visualAssets ?? new InMemoryVisualAssetEngineeringRegistry();
+        _commands = commands ?? new InMemoryCommandEngineeringRegistry();
     }
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
@@ -234,13 +238,31 @@ internal sealed class ViewEngineeringHandler
 
             if (value.Kind == DynamoParameterKind.TagReference && value.TagReference is not null)
                 ValidateCompositionTagReference(value.TagReference, value.Key, kind, entityKey, package, issues);
+            if (value.Kind == DynamoParameterKind.Command && value.CommandId.HasValue)
+            {
+                var commandId = value.CommandId.Value;
+                var exists = commandId != Guid.Empty &&
+                    (_commands.Find(commandId) is not null ||
+                     (package.Commands ?? Array.Empty<CommandEngineeringDto>())
+                        .Any(command => command is not null && command.Id == commandId));
+                if (!exists)
+                    issues.Add(new(
+                        "VISUAL_DYNAMO_COMMAND_PARAMETER_NOT_FOUND",
+                        $"Visual element '{element.Key}' Command parameter '{value.Key}' references missing Command '{commandId:D}'.",
+                        kind,
+                        entityKey,
+                        true));
+            }
         }
 
         foreach (var parameter in definitions.Values.Where(x => x.Required))
         {
-            var hasDefault = parameter.Kind == DynamoParameterKind.TagReference
-                ? parameter.DefaultTagReference is not null
-                : parameter.DefaultValue.HasValue;
+            var hasDefault = parameter.Kind switch
+            {
+                DynamoParameterKind.TagReference => parameter.DefaultTagReference is not null,
+                DynamoParameterKind.Command => false,
+                _ => parameter.DefaultValue.HasValue
+            };
             if (!hasDefault && !supplied.ContainsKey(parameter.Key))
                 issues.Add(new(
                     "VISUAL_DYNAMO_PARAMETER_REQUIRED",

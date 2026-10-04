@@ -1,4 +1,5 @@
 using System.Security.Cryptography.X509Certificates;
+using System.Runtime.CompilerServices;
 using Scada.Core.Tags;
 using Scada.Drivers.Abstractions;
 using Scada.Drivers.Modbus;
@@ -216,6 +217,55 @@ public sealed class PointReadCommissioningTests
         Assert.Contains(Assert.Single(result.Samples).Issues!, issue => issue.Code == "OPCUA_POINT_READ_PHYSICAL_TRANSFORM_UNSUPPORTED");
     }
 
+    [Fact]
+    public async Task OpcUa_PointRead_UsesCanonicalSessionAndMapsGoodTypedValueWithoutWriting()
+    {
+        var session = new CaptureOpcUaPointReadSession(new OpcUaRuntimeDataValue(
+            Guid.NewGuid(), 22.5d, TagQuality.Good, SourceTimestamp: DateTimeOffset.UtcNow));
+        var identity = new OpcUaNodeIdentity("ns=2;s=Line1.Pressure");
+        var tester = new OpcUaPointReadTester(
+            new ThrowingSecurityMaterialProvider(),
+            options =>
+            {
+                Assert.Equal("opc.tcp://127.0.0.1:4840", options.EndpointUrl);
+                return new CaptureOpcUaPointReadSessionFactory(session);
+            });
+        var descriptor = tester.Descriptor;
+        var binding = new CommunicationTagBinding(
+            CommunicationTagBinding.CurrentContractVersion,
+            descriptor.TagBindingSchemaId ?? descriptor.ConfigurationSchema.SchemaId,
+            descriptor.TagBindingSchemaVersion ?? descriptor.ConfigurationSchema.SchemaVersion,
+            identity.PortableAddress);
+        var request = new DriverPointReadTestRequest(
+            new DriverEngineeringDataSourceContext(
+                "opc.main",
+                "OPC Main",
+                descriptor.DriverType,
+                new Dictionary<string, string>
+                {
+                    ["endpointUrl"] = "opc.tcp://127.0.0.1:4840",
+                    ["securityMode"] = "None",
+                    ["securityPolicyUri"] = "http://opcfoundation.org/UA/SecurityPolicy#None",
+                    ["authenticationMode"] = "Anonymous"
+                },
+                new Dictionary<string, string>()),
+            binding,
+            TagDataType.Double,
+            EngineeringUnit: "bar");
+
+        var result = await tester.TestPointReadAsync(request);
+
+        Assert.Equal(DriverPointReadTestStatus.Good, result.Status);
+        var sample = Assert.Single(result.Samples);
+        Assert.Equal(TagQuality.Good, sample.Quality);
+        Assert.Null(sample.Raw);
+        Assert.Equal(22.5d, Convert.ToDouble(sample.Decoded!.Value));
+        Assert.Equal(22.5d, Convert.ToDouble(sample.Engineering!.Value));
+        Assert.Equal("bar", sample.Engineering.EngineeringUnit);
+        Assert.Equal(identity.NodeId, session.ReadBinding!.Node.NodeId);
+        Assert.Equal(0, session.WriteCount);
+    }
+
     private static DriverPointReadTestRequest ModbusRequest(
         int port,
         string address,
@@ -254,4 +304,50 @@ public sealed class PointReadCommissioningTests
             string certificateReference,
             CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("Security material must not be resolved for an invalid point-read transform.");
-    }}
+    }
+
+    private sealed class CaptureOpcUaPointReadSessionFactory(CaptureOpcUaPointReadSession session)
+        : IOpcUaRuntimeSessionFactory
+    {
+        public Task<IOpcUaRuntimeSession> ConnectAsync(
+            IReadOnlyCollection<OpcUaRuntimeBinding> bindings,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Assert.Single(bindings);
+            return Task.FromResult<IOpcUaRuntimeSession>(session);
+        }
+    }
+
+    private sealed class CaptureOpcUaPointReadSession(OpcUaRuntimeDataValue value) : IOpcUaRuntimeSession
+    {
+        public OpcUaRuntimeBinding? ReadBinding { get; private set; }
+        public int WriteCount { get; private set; }
+
+        public Task<OpcUaRuntimeDataValue> ReadAsync(
+            OpcUaRuntimeBinding binding,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ReadBinding = binding;
+            return Task.FromResult(value with { TagId = binding.Tag.Id });
+        }
+
+        public Task WriteAsync(OpcUaRuntimeBinding binding, object value, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteCount++;
+            return Task.CompletedTask;
+        }
+
+        public async IAsyncEnumerable<OpcUaRuntimeDataValue> SubscribeAsync(
+            [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await Task.Yield();
+            yield break;
+        }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+}

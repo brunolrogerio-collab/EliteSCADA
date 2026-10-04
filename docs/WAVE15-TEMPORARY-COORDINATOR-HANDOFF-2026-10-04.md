@@ -55,7 +55,7 @@ Do not silently shrink the issue criteria. Main should either release a bounded 
 - `Wave09PopupDynamoNavigationEngineeringTests`: 8/8 passed locally; `BuiltinDynamoLibraryTests`: 18/18 passed locally.
 - Web production build: passed; existing large-chunk warning only.
 - The standard mounted Playwright E2E bootstrap was attempted but could not start: the local API requires durable PostgreSQL, and this checkout does not start the test database or register its engineering project catalog in this profile. This is infrastructure-not-run, not a product test pass.
-- Draft PR #502 remains OPEN / DRAFT / NOT MERGED; live head at the start of this continuation was `6bb2521566abdd409d70dab126cb9a353705e575`. Its first T1 failed at profile classification and skipped product test jobs; no exact-head product T1 result exists. The branch is being advanced by merging the current integration base and applying only the Dynamo source commit; keep geometry from #505 out of #502.
+- Draft PR #502 remains OPEN / DRAFT / NOT MERGED; its current head is `6327ab5b715b3ba61e98da1c15f353a16f5939ac`, advanced from the prior `6bb2521566abdd409d70dab126cb9a353705e575` by merging current integration base `407b37ad` and applying only the typed Dynamo source commit. Its first T1 failed at profile classification and skipped product jobs; no exact-head product T1 result exists. Geometry from #505 remains separate.
 
 ## Other product lanes still open
 

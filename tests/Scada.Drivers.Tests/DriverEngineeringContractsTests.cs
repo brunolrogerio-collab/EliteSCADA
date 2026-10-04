@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Scada.Api.Engineering;
 using Scada.Core.Tags;
 using Scada.Drivers.Abstractions;
 
@@ -80,5 +82,31 @@ public sealed class DriverEngineeringContractsTests
             (request with { TimeoutMilliseconds = DriverPointReadTestRequest.MaximumTimeoutMilliseconds + 1 }).Validate());
         Assert.Throws<ArgumentException>(() =>
             (request with { AddressSelector = new TagValueSelector(TagValueSelectorKind.Bit, -1) }).Validate());
+    }
+
+    [Fact]
+    public void DraftPointReadApi_AcceptsTagEditorsCanonicalStringDataType()
+    {
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        const string payload = """
+            {
+              "dataSource": { "sourceKey": "modbus", "sourceName": "Modbus", "driverType": "modbus.tcp", "settings": {}, "secretReferences": {} },
+              "binding": { "contractVersion": 1, "schemaId": "elitescada.driver.modbus.tcp.tag", "schemaVersion": 1, "portableAddress": "holding:10", "settings": {} },
+              "dataType": "int16",
+              "addressSelector": { "kind": "bit", "index": 2 },
+              "engineeringUnit": null,
+              "sampleCount": 1,
+              "sampleIntervalMilliseconds": 0,
+              "timeoutMilliseconds": 5000
+            }
+            """;
+
+        var request = JsonSerializer.Deserialize<DriverEngineeringDraftPointReadTestApiRequest>(payload, options);
+
+        Assert.NotNull(request);
+        Assert.Equal(TagDataType.Int16, request.DataType);
+        Assert.Equal(new TagValueSelector(TagValueSelectorKind.Bit, 2), request.AddressSelector);
+        Assert.Equal("holding:10", request.Binding.PortableAddress);
+        Assert.Equal("modbus.tcp", request.DataSource.DriverType);
     }
 }

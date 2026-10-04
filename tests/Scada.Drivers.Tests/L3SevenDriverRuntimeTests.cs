@@ -259,8 +259,11 @@ public sealed class L3SevenDriverRuntimeTests
             TimeoutMilliseconds: 5000);
 
         var s7Result = await new S7IsoPointReadTester().TestPointReadAsync(s7Request);
-        Assert.Equal(DriverPointReadTestStatus.Good, s7Result.Status);
-        Assert.Equal(TagQuality.Good, Assert.Single(s7Result.Samples).Quality);
+        var s7Sample = Assert.Single(s7Result.Samples);
+        Assert.True(s7Result.Status == DriverPointReadTestStatus.Good,
+            $"S7 L3 PointRead returned {s7Result.Status}/{s7Sample.Quality}: " +
+            string.Join("; ", s7Sample.Issues?.Select(issue => $"{issue.Code}: {issue.Message}") ?? Array.Empty<string>()));
+        Assert.Equal(TagQuality.Good, s7Sample.Quality);
 
         var opcUaIdentity = new OpcUaNodeIdentity(
             "ns=2;s=Lab.Temperature",
@@ -292,8 +295,10 @@ public sealed class L3SevenDriverRuntimeTests
 
         var opcUaResult = await new OpcUaPointReadTester(new NoOpcUaSecretsExpectedProvider())
             .TestPointReadAsync(opcUaRequest);
-        Assert.Equal(DriverPointReadTestStatus.Good, opcUaResult.Status);
         var opcUaSample = Assert.Single(opcUaResult.Samples);
+        Assert.True(opcUaResult.Status == DriverPointReadTestStatus.Good,
+            $"OPC UA L3 PointRead returned {opcUaResult.Status}/{opcUaSample.Quality}: " +
+            string.Join("; ", opcUaSample.Issues?.Select(issue => $"{issue.Code}: {issue.Message}") ?? Array.Empty<string>()));
         Assert.Equal(TagQuality.Good, opcUaSample.Quality);
         Assert.Equal(21.5d, Convert.ToDouble(opcUaSample.Engineering!.Value), precision: 3);
     }

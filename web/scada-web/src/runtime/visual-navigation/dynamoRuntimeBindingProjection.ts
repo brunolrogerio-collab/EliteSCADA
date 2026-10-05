@@ -188,7 +188,7 @@ function projectElement(
       ...element.analogFill,
       source: projectValueSource(element.analogFill.source, parameters, equipmentPath)
     }) : element.analogFill,
-    actions: element.actions?.map(action => projectAction(action, parameters)) ?? element.actions,
+    actions: element.actions?.map(action => projectAction(action, parameters, element.metadata)) ?? element.actions,
     children: [...children]
   });
 }
@@ -341,10 +341,27 @@ function composeDiscreteStateSource(
 
 function projectAction(
   action: NonNullable<VisualElementEngineering['actions']>[number],
-  parameters: ReadonlyMap<string, DynamoParameterValueEngineering>
+  parameters: ReadonlyMap<string, DynamoParameterValueEngineering>,
+  metadata: VisualElementEngineering['metadata']
 ): NonNullable<VisualElementEngineering['actions']>[number] {
   let projected = action;
-  const commandParameterKey = action.commandParameterKey?.trim();
+  const actionModeParameterKey = metadata?.dynamoActionModeParameter?.trim();
+  if (actionModeParameterKey) {
+    const mode = findParameter(parameters, actionModeParameterKey);
+    if (!mode || mode.kind !== 'String' || typeof mode.value !== 'string') {
+      throw new Error(`Dynamo visual action requires a configured String parameter '${actionModeParameterKey}'.`);
+    }
+    const actionByMode = {
+      command: { kind: 'ExecuteCommand' as const, commandParameterKey: 'command', targetKey: null, parameters: null },
+      'set-analog': { kind: 'SetTagValue' as const, commandParameterKey: null, targetKey: '{targetTag}', parameters: { value: '{analogValue}' } },
+      'toggle-bool': { kind: 'ToggleTagBoolean' as const, commandParameterKey: null, targetKey: '{targetTag}', parameters: null },
+      'set-bool': { kind: 'SetTagValue' as const, commandParameterKey: null, targetKey: '{targetTag}', parameters: { value: '{booleanValue}' } }
+    } as const;
+    const selected = actionByMode[mode.value.trim().toLowerCase() as keyof typeof actionByMode];
+    if (!selected) throw new Error(`Dynamo action mode '${mode.value}' is not supported.`);
+    projected = { ...projected, ...selected, commandId: null };
+  }
+  const commandParameterKey = projected.commandParameterKey?.trim();
   if (commandParameterKey) {
     const parameter = findParameter(parameters, commandParameterKey);
     if (!parameter || parameter.kind !== 'Command' || !parameter.commandId?.trim()) {
@@ -353,8 +370,8 @@ function projectAction(
     projected = { ...projected, commandId: parameter.commandId, commandParameterKey: null };
   }
 
-  const targetParameterKey = parameterToken(action.targetKey);
-  if (targetParameterKey && (action.kind === 'SetTagValue' || action.kind === 'ToggleTagBoolean')) {
+  const targetParameterKey = parameterToken(projected.targetKey);
+  if (targetParameterKey && (projected.kind === 'SetTagValue' || projected.kind === 'ToggleTagBoolean')) {
     const parameter = findParameter(parameters, targetParameterKey);
     if (!parameter || parameter.kind !== 'TagReference' || !parameter.tagReference?.tagId.trim()) {
       throw new Error(`Dynamo visual action '${action.eventKey}' requires mapped TagReference parameter '${targetParameterKey}'.`);
@@ -362,8 +379,8 @@ function projectAction(
     projected = { ...projected, targetKey: parameter.tagReference.tagId };
   }
 
-  if (action.parameters) {
-    const values = Object.fromEntries(Object.entries(action.parameters).map(([key, value]) => {
+  if (projected.parameters) {
+    const values = Object.fromEntries(Object.entries(projected.parameters).map(([key, value]) => {
       const parameterKey = parameterToken(value);
       if (!parameterKey) return [key, value];
       const parameter = findParameter(parameters, parameterKey);

@@ -556,6 +556,28 @@ test('button Dynamo action tokens resolve to canonical TAG identity and typed sc
   });
 });
 
+test('button Dynamo lets each instance select a canonical command or TAG action', () => {
+  const button: VisualElementEngineering = {
+    id: 'button-action-mode', key: 'button', type: 'core.rectangle',
+    metadata: { dynamoActionModeParameter: 'actionMode' },
+    actions: [{ eventKey: 'click', kind: 'ExecuteCommand', commandParameterKey: 'command' }]
+  };
+  const common = [
+    { key: 'command', kind: 'Command' as const, commandId: 'command-1' },
+    { key: 'targetTag', kind: 'TagReference' as const, tagReference: { tagId: 'tag-1' } },
+    { key: 'analogValue', kind: 'Number' as const, value: 11.5 },
+    { key: 'booleanValue', kind: 'Boolean' as const, value: true }
+  ];
+  const resolve = (mode: string) => projectDynamoRuntimeElements([button], parameters(
+    { key: 'actionMode', kind: 'String', value: mode }, ...common
+  ), null)[0]?.actions?.[0];
+
+  expect(resolve('command')).toMatchObject({ kind: 'ExecuteCommand', commandId: 'command-1' });
+  expect(resolve('set-analog')).toMatchObject({ kind: 'SetTagValue', targetKey: 'tag-1', parameters: { value: 11.5 } });
+  expect(resolve('set-bool')).toMatchObject({ kind: 'SetTagValue', targetKey: 'tag-1', parameters: { value: true } });
+  expect(resolve('toggle-bool')).toMatchObject({ kind: 'ToggleTagBoolean', targetKey: 'tag-1' });
+});
+
 test('button pressed feedback accepts an inverted Boolean expression source', () => {
   const button: VisualElementEngineering = {
     id: 'button-feedback', key: 'artwork', type: 'core.svgSymbol',

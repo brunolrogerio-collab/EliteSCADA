@@ -404,6 +404,20 @@ function ScalarParameterEditor({
     setDraft(String(effective ?? ''));
     setInvalid(false);
   }, [effective, parameter.key]);
+  if (parameter.kind === 'String' && parameter.key.toLowerCase() === 'actionmode') {
+    const actionOptions = [
+      ['command', text.buttonActionCommand],
+      ['set-analog', text.buttonActionAnalog],
+      ['set-bool', text.buttonActionSetBoolean],
+      ['toggle-bool', text.buttonActionToggleBoolean]
+    ] as const;
+    return <select
+      aria-label={text.buttonAction}
+      value={String(effective)}
+      disabled={disabled}
+      onChange={event => onSet({ key: parameter.key, kind: parameter.kind, value: event.currentTarget.value, version: parameter.version })}
+    >{actionOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>;
+  }
 
   const commit = () => {
     if (disabled) return;

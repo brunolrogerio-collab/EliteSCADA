@@ -232,12 +232,14 @@ public static class BuiltinDynamoCatalogV1
         x.Add(Shape("button-face", buttonType, 36, 25, 38, 32, style == "illuminated" ? "#73C9ED" : "#C9D7DF", "#F8FAFC", 1, square ? 3 : 1));
         x.Add(Text("caption", "PB", 38, 33, 34, 14));
         var metadata = Metadata("operator.button", style);
-        metadata["interactionContract"] = "canonical-authorized-visual-action";
+        metadata["interactionContract"] = "instance-configurable-canonical-authorized-visual-action";
         metadata["pressFeedback"] = "tag-state-mapped-released/pressed";
         metadata["stateSourceModes"] = "numeric-or-boolean-tag-or-expression";
         var parameters = new[]
         {
             new DynamoParameterDefinitionEngineeringDto("equipmentPath", DynamoParameterKind.EquipmentPath),
+            new DynamoParameterDefinitionEngineeringDto("actionMode", DynamoParameterKind.String,
+                DefaultValue: JsonSerializer.SerializeToElement(index switch { 0 => "command", 1 => "set-analog", 2 => "toggle-bool", _ => "set-bool" })),
             new DynamoParameterDefinitionEngineeringDto("targetTag", DynamoParameterKind.TagReference),
             new DynamoParameterDefinitionEngineeringDto("command", DynamoParameterKind.Command),
             new DynamoParameterDefinitionEngineeringDto("state", DynamoParameterKind.ValueSource),
@@ -265,6 +267,7 @@ public static class BuiltinDynamoCatalogV1
             ? new Dictionary<string, string>(StringComparer.Ordinal)
             : new Dictionary<string, string>(buttonElement.Metadata, StringComparer.Ordinal);
         buttonMetadata["dynamoInteraction"] = "momentary-button";
+        buttonMetadata["dynamoActionModeParameter"] = "actionMode";
         buttonMetadata["dynamoBooleanStateInvertParameter"] = "invertBoolean";
         x[x.IndexOf(buttonElement)] = buttonElement with { Actions = [clickAction], Metadata = buttonMetadata };
         return Definition($"operator.button.{style}", $"Botão {ButtonName(style)}", "controls", 110, 84, x, parameters, metadata);

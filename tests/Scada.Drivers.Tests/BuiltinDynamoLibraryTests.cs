@@ -521,6 +521,42 @@ public sealed class BuiltinDynamoLibraryTests
         Assert.Equal(targetTagId.ToString("D"), toggle.TargetKey);
     }
 
+    [Theory]
+    [InlineData("command", VisualNavigationActionKind.ExecuteCommand)]
+    [InlineData("set-analog", VisualNavigationActionKind.SetTagValue)]
+    [InlineData("set-bool", VisualNavigationActionKind.SetTagValue)]
+    [InlineData("toggle-bool", VisualNavigationActionKind.ToggleTagBoolean)]
+    public void ReplacementButton_ActionModeCanBeSelectedPerInstance(
+        string mode,
+        VisualNavigationActionKind expectedKind)
+    {
+        var definition = BuiltinDynamoCatalogV1.Create().Single(item => item.Key == "operator.button.raised");
+        var commandId = Guid.NewGuid();
+        var targetTagId = Guid.NewGuid();
+        var instance = new VisualElementEngineeringDto("configured-button", "dynamo", DynamoKey: definition.Key,
+            Id: Guid.NewGuid(), DynamoParameters:
+            [
+                new("actionMode", DynamoParameterKind.String, System.Text.Json.JsonSerializer.SerializeToElement(mode)),
+                new("command", DynamoParameterKind.Command, CommandId: commandId),
+                new("targetTag", DynamoParameterKind.TagReference, TagReference: new(targetTagId)),
+                new("analogValue", DynamoParameterKind.Number, System.Text.Json.JsonSerializer.SerializeToElement(37.5)),
+                new("booleanValue", DynamoParameterKind.Boolean, System.Text.Json.JsonSerializer.SerializeToElement(true))
+            ]);
+
+        var action = Assert.Single(DynamoRuntimeComposer.Compose(instance, definition).Elements
+            .SelectMany(element => element.Actions ?? []));
+
+        Assert.Equal(expectedKind, action.Kind);
+        if (mode == "command")
+            Assert.Equal(commandId, action.CommandId);
+        else
+            Assert.Equal(targetTagId.ToString("D"), action.TargetKey);
+        if (mode == "set-analog")
+            Assert.Equal(37.5, action.Parameters!["value"].GetDouble());
+        if (mode == "set-bool")
+            Assert.True(action.Parameters!["value"].GetBoolean());
+    }
+
     [Fact]
     public void ReplacementButton_PressedFeedbackAcceptsBooleanExpressionAndOptionalInversion()
     {

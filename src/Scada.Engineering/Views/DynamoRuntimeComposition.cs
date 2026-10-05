@@ -152,7 +152,7 @@ public static class DynamoRuntimeComposer
                     Source = ProjectDynamoStateSource(condition.Source, element, normalizedPath, parameters)
                 }).ToArray()
                 : null,
-            Actions = element.Actions?.Select(action => ProjectAction(action, parameters)).ToArray(),
+            Actions = element.Actions?.Select(action => ProjectAction(action, element, parameters)).ToArray(),
             PropertyMaps = IsDynamoAnimationEnabled(element, parameters) ? element.PropertyMaps?.Select(map =>
             {
                 var profile = element.Metadata?.GetValueOrDefault("dynamoStateColorProfile")?.Split(',') ?? Array.Empty<string>();
@@ -632,8 +632,55 @@ public static class DynamoRuntimeComposer
 
     private static VisualNavigationActionEngineeringDto ProjectAction(
         VisualNavigationActionEngineeringDto action,
+        VisualElementEngineeringDto element,
         IReadOnlyDictionary<string, DynamoParameterValueEngineeringDto> parameters)
     {
+        var actionModeParameterKey = element.Metadata?.GetValueOrDefault("dynamoActionModeParameter");
+        if (!string.IsNullOrWhiteSpace(actionModeParameterKey))
+        {
+            if (!parameters.TryGetValue(actionModeParameterKey, out var actionMode) ||
+                actionMode.Kind != DynamoParameterKind.String ||
+                actionMode.Value is not { ValueKind: JsonValueKind.String } actionModeValue)
+                throw new InvalidOperationException($"Dynamo action requires a configured String parameter '{actionModeParameterKey}'.");
+
+            action = actionModeValue.GetString()?.Trim().ToLowerInvariant() switch
+            {
+                "command" => action with
+                {
+                    Kind = VisualNavigationActionKind.ExecuteCommand,
+                    TargetKey = null,
+                    Parameters = null,
+                    CommandId = null,
+                    CommandParameterKey = "command"
+                },
+                "set-analog" => action with
+                {
+                    Kind = VisualNavigationActionKind.SetTagValue,
+                    TargetKey = "{targetTag}",
+                    Parameters = new Dictionary<string, JsonElement> { ["value"] = JsonSerializer.SerializeToElement("{analogValue}") },
+                    CommandId = null,
+                    CommandParameterKey = null
+                },
+                "toggle-bool" => action with
+                {
+                    Kind = VisualNavigationActionKind.ToggleTagBoolean,
+                    TargetKey = "{targetTag}",
+                    Parameters = null,
+                    CommandId = null,
+                    CommandParameterKey = null
+                },
+                "set-bool" => action with
+                {
+                    Kind = VisualNavigationActionKind.SetTagValue,
+                    TargetKey = "{targetTag}",
+                    Parameters = new Dictionary<string, JsonElement> { ["value"] = JsonSerializer.SerializeToElement("{booleanValue}") },
+                    CommandId = null,
+                    CommandParameterKey = null
+                },
+                _ => throw new InvalidOperationException($"Dynamo action mode '{actionModeValue.GetString()}' is not supported.")
+            };
+        }
+
         if (!string.IsNullOrWhiteSpace(action.CommandParameterKey))
         {
             if (!parameters.TryGetValue(action.CommandParameterKey, out var commandValue) ||

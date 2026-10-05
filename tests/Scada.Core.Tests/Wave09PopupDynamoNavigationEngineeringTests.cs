@@ -366,9 +366,69 @@ public sealed class Wave09PopupDynamoNavigationEngineeringTests
         var element = Assert.Single(composition.Elements);
         var map = Assert.Single(element.PropertyMaps!);
 
-        Assert.Equal("Area.M01.State", map.Source.Target);
+        Assert.Null(map.Source.Target);
         Assert.Equal(stateTagId, map.Source.TagReference!.TagId);
         Assert.Equal("#C02D20", map.Rules.ElementAt(1).Value.GetString());
+    }
+
+    [Fact]
+    public void RuntimeComposer_ProjectsTypedExpressionValueSourceParameter()
+    {
+        var runningTagId = Guid.NewGuid();
+        var permitTagId = Guid.NewGuid();
+        var definition = new DynamoEngineeringDto(
+            Guid.NewGuid(),
+            "motor.expression-state",
+            "Expression state motor",
+            Parameters: [new DynamoParameterDefinitionEngineeringDto("running", DynamoParameterKind.ValueSource, Required: true)],
+            Elements:
+            [
+                new VisualElementEngineeringDto(
+                    "running-indicator",
+                    "core.svgSymbol",
+                    BooleanConditions:
+                    [
+                        new VisualBooleanConditionEngineeringDto(
+                            "visible",
+                            VisualBooleanConditionKind.Direct,
+                            new VisualValueSourceEngineeringDto(
+                                VisualValueSourceKind.Tag,
+                                VisualExpressionValueType.Boolean,
+                                Target: "{dynamoParameter:running}"))
+                    ])
+            ]);
+        var expressionSource = new VisualValueSourceEngineeringDto(
+            VisualValueSourceKind.Expression,
+            VisualExpressionValueType.Boolean,
+            Expression: new VisualExpressionEngineeringDto(
+                "running and permitted",
+                VisualExpressionValueType.Boolean,
+                [
+                    new("running", VisualExpressionDependencyKind.Tag, VisualExpressionValueType.Boolean,
+                        new TagValueReference(runningTagId), "{equipmentPath}.Running"),
+                    new("permitted", VisualExpressionDependencyKind.Tag, VisualExpressionValueType.Boolean,
+                        new TagValueReference(permitTagId), "{equipmentPath}.Permitted")
+                ]));
+        var instance = new VisualElementEngineeringDto(
+            "M01",
+            "dynamo",
+            DynamoKey: definition.Key,
+            EquipmentPath: "Area.M01",
+            Id: Guid.NewGuid(),
+            DynamoParameters:
+            [new DynamoParameterValueEngineeringDto("running", DynamoParameterKind.ValueSource,
+                ValueSource: expressionSource)]);
+
+        var composition = DynamoRuntimeComposer.Compose(instance, definition);
+        var condition = Assert.Single(Assert.Single(composition.Elements).BooleanConditions!);
+
+        Assert.Equal(VisualValueSourceKind.Expression, condition.Source.Kind);
+        Assert.Equal("running and permitted", condition.Source.Expression!.Text);
+        Assert.Equal(new[] { runningTagId, permitTagId },
+            condition.Source.Expression.Dependencies!.Select(dependency => dependency.TagReference.TagId));
+        Assert.Equal(new[] { "Area.M01.Running", "Area.M01.Permitted" },
+            condition.Source.Expression.Dependencies!.Select(dependency => dependency.Target));
+        Assert.Empty(Scada.Engineering.Validation.VisualCompositionEngineeringValidation.ValidateDynamo(definition));
     }
 
     [Fact]

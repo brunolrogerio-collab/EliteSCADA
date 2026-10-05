@@ -9,6 +9,91 @@ namespace Scada.Drivers.Tests;
 
 public sealed class ProtectedMaterialAuthorityTests
 {
+    [Theory]
+    [InlineData(null, null, null)]
+    [InlineData("user", null, "token")]
+    [InlineData(null, "password", null)]
+    [InlineData("user", "password", "token")]
+    [InlineData("user\n", "password", null)]
+    public void MediaSourceCredentialRequest_RejectsAmbiguousIncompleteOrUnsafeInput(
+        string? username,
+        string? password,
+        string? bearerToken)
+    {
+        var result = new MediaSourceCredentialRequest(username, password, bearerToken).Validate();
+
+        Assert.False(string.IsNullOrWhiteSpace(result));
+    }
+
+    [Fact]
+    public async Task MediaSourceCredentialLifecycle_PersistsOnlyOpaqueHostReferenceAndSupportsReplaceResolveDelete()
+    {
+        var root = TemporaryDirectory();
+        try
+        {
+            var audit = new InMemoryAuditSink();
+            using var authority = Authority(root, KeyA, audit);
+            var references = new FileMediaSourceCredentialReferenceStore(root);
+            var service = new MediaSourceProtectedCredentialService(authority, references);
+            var scope = new ProtectedMaterialScope(
+                "project:project-a",
+                ProtectedMaterialResourceKinds.MediaSource,
+                Guid.NewGuid().ToString("D"),
+                ProtectedMaterialPurposes.ConnectionCredential);
+
+            Assert.False((await service.GetPublicStateAsync(scope)).Configured);
+            await service.ConfigureAsync(
+                scope,
+                new MediaSourceCredentialRequest("camera-user", SecretA, null),
+                Admin());
+
+            Assert.True((await service.GetPublicStateAsync(scope)).Configured);
+            var mappingPath = Path.Combine(root, "media-source-references", "credentials.json");
+            var mapping = await File.ReadAllTextAsync(mappingPath);
+            Assert.Contains(FileHostProtectedMaterialAuthority.ReferencePrefix, mapping, StringComparison.Ordinal);
+            Assert.DoesNotContain(SecretA, mapping, StringComparison.Ordinal);
+            Assert.DoesNotContain("camera-user", mapping, StringComparison.Ordinal);
+            var persistedFiles = string.Join("\n", Directory.GetFiles(root, "*.json").Select(File.ReadAllText));
+            Assert.DoesNotContain(SecretA, persistedFiles, StringComparison.Ordinal);
+            Assert.DoesNotContain("camera-user", persistedFiles, StringComparison.Ordinal);
+            Assert.Equal(ProtectedMaterialAuthorityHealthStatus.Ready, (await authority.GetHealthAsync()).Status);
+            Assert.False((await service.GetPublicStateAsync(scope with { ScopeOwnerKey = "project:project-b" })).Configured);
+            var otherOwner = await Assert.ThrowsAsync<ProtectedMaterialException>(async () =>
+                await service.ResolveAsync(scope with { ScopeOwnerKey = "project:project-b" }));
+            Assert.Equal(ProtectedMaterialErrorCodes.CredentialRequired, otherOwner.Code);
+
+            await using (var lease = await service.ResolveAsync(scope))
+            {
+                var payload = System.Text.Encoding.UTF8.GetString(lease.Material.Span);
+                Assert.Contains(SecretA, payload, StringComparison.Ordinal);
+                Assert.Contains("camera-user", payload, StringComparison.Ordinal);
+            }
+
+            await service.ConfigureAsync(
+                scope,
+                new MediaSourceCredentialRequest(null, null, "replacement-bearer-token"),
+                Admin());
+            await using (var lease = await service.ResolveAsync(scope))
+            {
+                var payload = System.Text.Encoding.UTF8.GetString(lease.Material.Span);
+                Assert.Contains("replacement-bearer-token", payload, StringComparison.Ordinal);
+                Assert.DoesNotContain(SecretA, payload, StringComparison.Ordinal);
+            }
+
+            await service.DeleteAsync(scope, Admin());
+            Assert.False((await service.GetPublicStateAsync(scope)).Configured);
+            var unavailable = await Assert.ThrowsAsync<ProtectedMaterialException>(async () =>
+                await service.ResolveAsync(scope));
+            Assert.Equal(ProtectedMaterialErrorCodes.CredentialRequired, unavailable.Code);
+            Assert.DoesNotContain(SecretA, JsonSerializer.Serialize(audit.Snapshot()), StringComparison.Ordinal);
+            Assert.DoesNotContain("replacement-bearer-token", JsonSerializer.Serialize(audit.Snapshot()), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task StoreResolveScopeAndPersistence_AreOpaqueAndFailClosed()
     {

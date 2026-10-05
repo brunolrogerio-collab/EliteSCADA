@@ -73,12 +73,17 @@ public static class VisualCompositionEngineeringValidation
                     continue;
                 }
 
+                var valueSourceType = parameter.ValueSourceType ?? parameter.DefaultValueSource?.ValueType;
                 var compatible = source.ValueType switch
                 {
                     VisualExpressionValueType.Boolean =>
-                        parameter.Kind is DynamoParameterKind.Boolean or DynamoParameterKind.TagReference,
+                        parameter.Kind is DynamoParameterKind.Boolean or DynamoParameterKind.TagReference ||
+                        parameter.Kind == DynamoParameterKind.ValueSource &&
+                            (valueSourceType is null || valueSourceType == VisualExpressionValueType.Boolean),
                     VisualExpressionValueType.Number =>
-                        parameter.Kind is DynamoParameterKind.Number or DynamoParameterKind.TagReference,
+                        parameter.Kind is DynamoParameterKind.Number or DynamoParameterKind.TagReference ||
+                        parameter.Kind == DynamoParameterKind.ValueSource &&
+                            (valueSourceType is null || valueSourceType == VisualExpressionValueType.Number),
                     _ => false
                 };
                 if (!compatible)
@@ -159,7 +164,7 @@ public static class VisualCompositionEngineeringValidation
                 !string.IsNullOrWhiteSpace(parameterKey) &&
                 !(parameters ?? Array.Empty<DynamoParameterDefinitionEngineeringDto>()).Any(parameter =>
                     parameter is not null &&
-                    parameter.Kind == DynamoParameterKind.TagReference &&
+                    parameter.Kind is DynamoParameterKind.TagReference or DynamoParameterKind.ValueSource &&
                     parameter.Key.Equals(parameterKey, StringComparison.OrdinalIgnoreCase)))
             {
                 issues.Add(Error(
@@ -221,11 +226,21 @@ public static class VisualCompositionEngineeringValidation
                 definition.DefaultValue,
                 definition.DefaultTagReference,
                 commandId: null,
+                valueSource: definition.DefaultValueSource,
                 allowMissing: true,
                 kind,
                 entityKey,
                 issues,
                 "definition");
+
+            if (definition.ValueSourceType.HasValue && definition.Kind != DynamoParameterKind.ValueSource)
+                issues.Add(Error("DYNAMO_PARAMETER_VALUE_SOURCE_TYPE_UNEXPECTED", $"Dynamo parameter '{definition.Key}' declares a value-source result type but is not ValueSource.", kind, entityKey));
+            if (definition.Kind == DynamoParameterKind.ValueSource && definition.ValueSourceType.HasValue &&
+                !Enum.IsDefined(definition.ValueSourceType.Value))
+                issues.Add(Error("DYNAMO_PARAMETER_VALUE_SOURCE_TYPE_INVALID", $"Dynamo parameter '{definition.Key}' declares an unsupported value-source result type.", kind, entityKey));
+            if (definition.Kind == DynamoParameterKind.ValueSource && definition.ValueSourceType.HasValue && definition.DefaultValueSource is not null &&
+                definition.DefaultValueSource.ValueType != definition.ValueSourceType.Value)
+                issues.Add(Error("DYNAMO_PARAMETER_VALUE_SOURCE_TYPE_MISMATCH", $"Dynamo parameter '{definition.Key}' default source does not match its declared result type.", kind, entityKey));
         }
     }
 
@@ -269,6 +284,7 @@ public static class VisualCompositionEngineeringValidation
                 value.Value,
                 value.TagReference,
                 value.CommandId,
+                value.ValueSource,
                 allowMissing: false,
                 kind,
                 entityKey,
@@ -283,6 +299,7 @@ public static class VisualCompositionEngineeringValidation
         JsonElement? value,
         Scada.Core.Tags.TagValueReference? tagReference,
         Guid? commandId,
+        VisualValueSourceEngineeringDto? valueSource,
         bool allowMissing,
         ImportEntityKind kind,
         string entityKey,
@@ -291,8 +308,8 @@ public static class VisualCompositionEngineeringValidation
     {
         if (parameterKind == DynamoParameterKind.Command)
         {
-            if (value.HasValue || tagReference is not null)
-                issues.Add(Error("DYNAMO_PARAMETER_SHAPE_INVALID", $"Dynamo parameter {role} '{key}' of kind Command cannot carry a scalar value or TAG reference.", kind, entityKey));
+            if (value.HasValue || tagReference is not null || valueSource is not null)
+                issues.Add(Error("DYNAMO_PARAMETER_SHAPE_INVALID", $"Dynamo parameter {role} '{key}' of kind Command cannot carry a scalar, TAG reference, or value source.", kind, entityKey));
             if (!commandId.HasValue || commandId == Guid.Empty)
             {
                 if (!allowMissing)
@@ -304,6 +321,23 @@ public static class VisualCompositionEngineeringValidation
 
         if (commandId.HasValue)
             issues.Add(Error("DYNAMO_PARAMETER_SHAPE_INVALID", $"Dynamo parameter {role} '{key}' of kind {parameterKind} cannot carry a Command identity.", kind, entityKey));
+
+        if (parameterKind == DynamoParameterKind.ValueSource)
+        {
+            if (value.HasValue || tagReference is not null)
+                issues.Add(Error("DYNAMO_PARAMETER_SHAPE_INVALID", $"Dynamo parameter {role} '{key}' of kind ValueSource cannot carry a scalar value or direct TAG payload.", kind, entityKey));
+            if (valueSource is null)
+            {
+                if (!allowMissing)
+                    issues.Add(Error("DYNAMO_PARAMETER_VALUE_SOURCE_REQUIRED", $"Dynamo parameter {role} '{key}' requires a typed visual value source.", kind, entityKey));
+                return;
+            }
+            Scada.Engineering.VisualScripting.VisualDynamicEngineeringValidation.ValidateSource(valueSource, kind, entityKey, issues);
+            return;
+        }
+
+        if (valueSource is not null)
+            issues.Add(Error("DYNAMO_PARAMETER_SHAPE_INVALID", $"Dynamo parameter {role} '{key}' of kind {parameterKind} cannot carry a typed value source.", kind, entityKey));
 
         if (parameterKind == DynamoParameterKind.TagReference)
         {

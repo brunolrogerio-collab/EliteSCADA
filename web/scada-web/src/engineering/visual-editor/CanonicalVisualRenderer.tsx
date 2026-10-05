@@ -1,4 +1,5 @@
 import React, { type CSSProperties } from 'react';
+import { MediaPlayer } from './MediaPlayer';
 import { visualAssetContentUrl } from '../api';
 import type { EngineeringLocale } from '../i18n';
 import type {
@@ -234,9 +235,18 @@ function CanonicalElement({
         data-object-id={element.id ?? undefined}
         data-runtime-object-id={runtimeObjectId}
         data-enabled={enabled}
+        data-dynamo-interaction={element.metadata?.dynamoInteraction}
+        role={element.metadata?.dynamoInteraction === 'momentary-button' ? 'button' : undefined}
+        tabIndex={element.metadata?.dynamoInteraction === 'momentary-button' && enabled ? 0 : undefined}
         title={elementTitle}
         data-dynamic-state={diagnosticState}
         onClick={onClick}
+        onKeyDown={element.metadata?.dynamoInteraction === 'momentary-button' ? event => {
+          if ((event.key === 'Enter' || event.key === ' ') && onClick) {
+            event.preventDefault();
+            onClick(event as unknown as React.MouseEvent);
+          }
+        } : undefined}
       >
         {assetId ? <SvgSymbolVisualElement
           element={element}
@@ -261,6 +271,42 @@ function CanonicalElement({
         {assetId ? <img
           src={visualAssetUrl(assetId)} alt={element.key} draggable={false}
           style={{ width: '100%', height: '100%', objectFit: imageFit(values[VISUAL_PROPERTY_KEYS.imageFit]), objectPosition: `${percent(values[VISUAL_PROPERTY_KEYS.imagePositionX])}% ${percent(values[VISUAL_PROPERTY_KEYS.imagePositionY])}%`, transform: `scale(${numberValue(values[VISUAL_PROPERTY_KEYS.imageZoom], 1)})`, transformOrigin: `${percent(values[VISUAL_PROPERTY_KEYS.imagePositionX])}% ${percent(values[VISUAL_PROPERTY_KEYS.imagePositionY])}%` }}
+        /> : showTechnicalFallbackText ? <span className="visual-editor-image-placeholder">{element.key}</span> : null}
+      </div>;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer) {
+      const assetId = assetReferenceId(values[VISUAL_PROPERTY_KEYS.assetRef]);
+      return <div className="visual-editor-object visual-editor-video-player" style={style}
+        data-object-id={element.id ?? undefined} data-runtime-object-id={runtimeObjectId}
+        data-enabled={enabled} title={elementTitle} data-dynamic-state={diagnosticState}>
+        <MediaPlayer
+          assetUrl={assetId ? visualAssetUrl(assetId) : undefined}
+          sourceId={String(values[VISUAL_PROPERTY_KEYS.mediaSourceId] ?? '') || undefined}
+          runtime={operatorTimeRangeControls}
+          autoPlay={values[VISUAL_PROPERTY_KEYS.mediaAutoplay] === true}
+          muted={values[VISUAL_PROPERTY_KEYS.mediaMuted] !== false}
+          loop={values[VISUAL_PROPERTY_KEYS.mediaLoop] === true}
+          controls={values[VISUAL_PROPERTY_KEYS.mediaControls] !== false}
+          fit={imageFit(values[VISUAL_PROPERTY_KEYS.imageFit])}
+        />
+      </div>;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.pdfViewer) {
+      const assetId = assetReferenceId(values[VISUAL_PROPERTY_KEYS.assetRef]);
+      const page = Math.max(1, Math.trunc(numberValue(values[VISUAL_PROPERTY_KEYS.pdfInitialPage], 1)));
+      const zoom = Math.max(25, Math.min(400, numberValue(values[VISUAL_PROPERTY_KEYS.pdfZoom], 100)));
+      const toolbar = values[VISUAL_PROPERTY_KEYS.pdfToolbarVisible] !== false ? 1 : 0;
+      return <div className="visual-editor-object visual-editor-pdf-viewer" style={style}
+        data-object-id={element.id ?? undefined} data-runtime-object-id={runtimeObjectId}
+        data-enabled={enabled} title={elementTitle} data-dynamic-state={diagnosticState}>
+        {assetId ? <iframe
+          title={element.key || 'PDF document'}
+          src={`${visualAssetUrl(assetId)}#page=${page}&zoom=${zoom}&toolbar=${toolbar}`}
+          sandbox="allow-scripts"
+          referrerPolicy="no-referrer"
+          style={{ width: '100%', height: '100%', border: 0 }}
         /> : showTechnicalFallbackText ? <span className="visual-editor-image-placeholder">{element.key}</span> : null}
       </div>;
     }

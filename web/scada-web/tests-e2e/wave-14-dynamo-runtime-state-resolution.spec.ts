@@ -5,6 +5,7 @@ import {
   resolveDynamoRuntimeState,
   sampleQuality
 } from '../src/engineering/visual-editor/dynamo/dynamoRuntimeStateModel';
+import { resolveRuntimeDynamoStateIndicators } from '../src/runtime/visual-navigation/runtimeDynamoVisualProjection';
 
 function lamp(parameter: string, target: string, tagId: string): VisualElementEngineering {
   return {
@@ -127,6 +128,81 @@ test('numeric Good quality allows normal active state while uncertain and stale 
     elements,
     samples(sample('tag-running', true, 6))
   ).state.kind).toBe('bad-quality');
+});
+
+test('state PropertyMap sources participate in the public Dynamo state and quality resolution', () => {
+  const element: VisualElementEngineering = {
+    id: 'motor-body',
+    key: 'state-body',
+    type: 'core.rectangle',
+    properties: { x: 0, y: 0, width: 20, height: 20, fillColor: '#93B99A' },
+    metadata: {
+      dynamoStateColorParameter: 'state',
+      dynamoStateColorProfile: 'stopped,running,fault,communicationBad,inhibited'
+    },
+    propertyMaps: [{
+      propertyKey: 'fillColor',
+      source: { kind: 'Tag', valueType: 'Number', tagReference: { tagId: 'tag-state' } },
+      rules: [],
+      fallback: '#93B99A'
+    }]
+  };
+  const stateSample: VisualLiveScalarSample = {
+    reference: 'Plant.M01.State', tagId: 'tag-state', value: 1,
+    dataType: 'Number', quality: 'Good'
+  };
+  const live = samples(stateSample);
+  const running = resolveDynamoRuntimeState([element], live);
+  expect(running.parameterSamples.get('state')?.value).toBe(1);
+  expect(running.state.kind).toBe('active');
+
+  expect(resolveDynamoRuntimeState([element], samples({ ...stateSample, value: 2 })).state.kind).toBe('fault');
+  expect(resolveDynamoRuntimeState([element], samples({ ...stateSample, value: 3 })).state.kind).toBe('bad-quality');
+  expect(resolveDynamoRuntimeState([element], samples({ ...stateSample, value: 4 })).state.kind).toBe('inhibited');
+});
+
+test('Runtime Dynamo overlay reports bad communication quality even when the last value was running', () => {
+  const root: VisualElementEngineering = {
+    id: 'motor-instance',
+    key: 'motor-instance',
+    type: 'core.group',
+    metadata: {
+      'runtime.dynamo.expanded': 'true',
+      'runtime.dynamo.instanceId': 'motor-instance',
+      'runtime.dynamo.key': 'motor.tefc'
+    },
+    children: [{
+      id: 'motor-body',
+      key: 'state-body',
+      type: 'core.rectangle',
+      properties: { x: 0, y: 0, width: 20, height: 20, fillColor: '#93B99A' },
+      metadata: {
+        dynamoStateColorParameter: 'state',
+        dynamoStateColorProfile: 'stopped,running,fault,communicationBad,inhibited'
+      },
+      propertyMaps: [{
+        propertyKey: 'fillColor',
+        source: { kind: 'Tag', valueType: 'Number', tagReference: { tagId: 'tag-state' } },
+        rules: [],
+        fallback: '#93B99A'
+      }]
+    }]
+  };
+  const live = samples({
+    reference: 'Plant.M01.State', tagId: 'tag-state', value: 1,
+    dataType: 'Number', quality: 'BadCommunication'
+  });
+
+  const [indicator] = resolveRuntimeDynamoStateIndicators([root], live);
+
+  expect(indicator).toMatchObject({
+    objectId: 'motor-instance',
+    dynamoKey: 'motor.tefc',
+    state: 'bad-quality',
+    priority: 600,
+    quality: 'bad',
+    background: '#334155'
+  });
 });
 
 test('only bindings that explicitly declare dynamoParameter affect instance state', () => {

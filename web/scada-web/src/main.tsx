@@ -58,7 +58,7 @@ function ApplicationSurface() {
 
   let allowed = access.runtime;
   let Surface: React.ComponentType = RuntimeApplicationMount;
-  if (path.startsWith('/admin/database')) {
+  if (path.startsWith('/admin/database') || path.startsWith('/engineering/database-topology')) {
     allowed = databaseAdmin;
     Surface = DatabaseTopologyApp;
   } else if (path.startsWith('/help')) {

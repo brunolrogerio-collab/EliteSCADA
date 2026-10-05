@@ -6,7 +6,8 @@ import { CanonicalVisualPreview } from './CanonicalVisualPreview';
 import {
   buildDynamoLibraryEntries,
   filterDynamoLibraryEntries,
-  listDynamoLibraryCategoryPaths
+  listDynamoLibraryCategoryPaths,
+  selectDefaultDynamoCatalog
 } from './dynamoLibraryModel';
 import {
   libraryCatalogCategoryPathLabel
@@ -23,7 +24,10 @@ export function DynamoLibraryPalette({
   locale: 'pt-BR' | 'en' | 'es';
 }) {
   const text = c07VisualEditorText(locale).library;
-  const entries = useMemo(() => buildDynamoLibraryEntries(definitions, locale), [definitions, locale]);
+  const entries = useMemo(() => buildDynamoLibraryEntries(
+    selectDefaultDynamoCatalog(definitions),
+    locale
+  ), [definitions, locale]);
   const categoryPaths = useMemo(() => listDynamoLibraryCategoryPaths(entries), [entries]);
   const [selectedKey, setSelectedKey] = useState(entries[0]?.definition.key ?? '');
   const [equipmentPath, setEquipmentPath] = useState('');

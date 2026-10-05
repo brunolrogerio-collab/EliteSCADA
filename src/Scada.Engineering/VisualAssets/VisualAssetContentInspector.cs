@@ -17,9 +17,15 @@ public sealed record VisualAssetContentInspection(
 public static class VisualAssetContentInspector
 {
     public const string SvgMediaType = "image/svg+xml";
+    public const string PdfMediaType = "application/pdf";
+    public const string Mp4MediaType = "video/mp4";
+    public const string WebmMediaType = "video/webm";
 
     public static VisualAssetContentInspection InspectAndCanonicalize(ReadOnlySpan<byte> content)
     {
+        if (MediaPayloadInspector.TryInspect(content) is { } media)
+            return media;
+
         try
         {
             var raster = RasterImageInspector.Inspect(content);
@@ -43,6 +49,40 @@ public static class VisualAssetContentInspector
             }
         }
     }
+}
+
+/// <summary>Signature checks for bounded, inert project media payloads; never executes content.</summary>
+internal static class MediaPayloadInspector
+{
+    public static VisualAssetContentInspection? TryInspect(ReadOnlySpan<byte> content)
+    {
+        if (LooksLikePdf(content))
+            return new(VisualAssetContentInspector.PdfMediaType, null, null, content.ToArray());
+        if (LooksLikeMp4(content))
+            return new(VisualAssetContentInspector.Mp4MediaType, null, null, content.ToArray());
+        if (LooksLikeWebm(content))
+            return new(VisualAssetContentInspector.WebmMediaType, null, null, content.ToArray());
+        return null;
+    }
+
+    private static bool LooksLikePdf(ReadOnlySpan<byte> content)
+    {
+        // Require a PDF header at byte zero and a terminal marker near EOF. This rejects
+        // renamed arbitrary files while leaving incremental xref layouts to the viewer.
+        if (content.Length < 16 || !content[..5].SequenceEqual("%PDF-"u8)) return false;
+        var tail = content[(content.Length - Math.Min(content.Length, 1024))..];
+        return tail.IndexOf("%%EOF"u8) >= 0;
+    }
+
+    private static bool LooksLikeMp4(ReadOnlySpan<byte> content)
+    {
+        if (content.Length < 12 || !content.Slice(4, 4).SequenceEqual("ftyp"u8)) return false;
+        var boxLength = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(content[..4]);
+        return boxLength >= 12 && boxLength <= content.Length;
+    }
+
+    private static bool LooksLikeWebm(ReadOnlySpan<byte> content) =>
+        content.Length >= 4 && content[..4].SequenceEqual(new byte[] { 0x1A, 0x45, 0xDF, 0xA3 });
 }
 
 public static partial class StaticSvgInspector

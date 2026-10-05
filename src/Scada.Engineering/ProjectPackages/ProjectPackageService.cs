@@ -363,13 +363,14 @@ public sealed class ProjectPackageService : IProjectPackageService
             var hashFromPath = ParseAssetPath(entry.Path);
             if (!entry.Sha256.Equals(hashFromPath, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException($"Project asset entry '{entry.Path}' path hash does not match its manifest SHA-256.");
-            if (entry.Length <= 0 || entry.Length > VisualAssetEngineeringValidator.MaximumPayloadBytes)
+            var maximumAssetBytes = VisualAssetEngineeringValidator.MaximumBytesFor(entry.MediaType);
+            if (entry.Length <= 0 || entry.Length > maximumAssetBytes)
                 throw new InvalidDataException($"Project asset entry '{entry.Path}' length is outside the supported range.");
 
             var bytes = ReadAndVerifyManifestEntry(
                 archive,
                 entry,
-                checked((int)VisualAssetEngineeringValidator.MaximumPayloadBytes));
+                checked((int)maximumAssetBytes));
             var payload = new VisualAssetPayload(hashFromPath, entry.MediaType, bytes);
             payloads.Add(hashFromPath, payload);
         }
@@ -526,9 +527,12 @@ public sealed class ProjectPackageService : IProjectPackageService
             var hash = ParseAssetPath(assetEntry.Path);
             if (!assetEntry.Sha256.Equals(hash, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException($"Project asset entry '{assetEntry.Path}' path does not match its SHA-256.");
-            if (assetEntry.Length <= 0 || assetEntry.Length > VisualAssetEngineeringValidator.MaximumPayloadBytes)
+            var maximumAssetBytes = VisualAssetEngineeringValidator.MaximumBytesFor(assetEntry.MediaType);
+            if (assetEntry.Length <= 0 || assetEntry.Length > maximumAssetBytes)
                 throw new InvalidDataException($"Project asset entry '{assetEntry.Path}' length is invalid.");
-            if (assetEntry.MediaType is not ("image/png" or "image/jpeg" or "image/bmp" or VisualAssetContentInspector.SvgMediaType))
+            if (assetEntry.MediaType is not ("image/png" or "image/jpeg" or "image/bmp" or
+                VisualAssetContentInspector.SvgMediaType or VisualAssetContentInspector.PdfMediaType or
+                VisualAssetContentInspector.Mp4MediaType or VisualAssetContentInspector.WebmMediaType))
                 throw new InvalidDataException($"Project asset entry '{assetEntry.Path}' media type is unsupported.");
         }
     }

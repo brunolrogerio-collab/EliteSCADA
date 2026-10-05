@@ -16,6 +16,8 @@ import { EngineeringTagMonitorWorkspace } from './diagnostics/EngineeringTagMoni
 import { EngineeringLifecycleWorkspace } from './EngineeringLifecycleWorkspace';
 import { EngineeringProjectManagementWorkspace } from './EngineeringProjectManagementWorkspace';
 import { InstallationSwitchingWorkspace } from './InstallationSwitchingWorkspace';
+import { MediaSourceEngineeringWorkspace } from './MediaSourceEngineeringWorkspace';
+import { MobileRuntimeEngineeringWorkspace } from './MobileRuntimeEngineeringWorkspace';
 import { OperationalEventEditor, operationalEventCount } from './OperationalEventEditor';
 import { ReportDesignerWorkspace } from './reports/ReportDesignerWorkspace';
 import { reportCollection } from './reports/reportDesignerModel';
@@ -31,6 +33,8 @@ import { VisualAssetManagementWorkspace } from './VisualAssetManagementWorkspace
 import { EquipmentFaceplateWorkspace } from './EquipmentFaceplateWorkspace';
 import type { DynamoEngineering, EngineeringPackageView, EngineeringSnapshot, EquipmentEngineering, TemplateEngineering } from './types';
 import { CanonicalVisualPreview } from './visual-editor/CanonicalVisualPreview';
+import { selectDefaultDynamoCatalog } from './visual-editor/dynamoLibraryModel';
+import { hasRuntimeCapability, useEffectiveCapabilities } from '../auth/effectiveCapabilities';
 import './engineering.css';
 import './object-catalog.css';
 
@@ -38,9 +42,11 @@ type SectionId =
   | 'overview'
   | 'installation'
   | 'branding'
+  | 'mobile'
   | 'scripts'
   | 'libraries'
   | 'dataSources'
+  | 'mediaSources'
   | 'gateway'
   | 'tags'
   | 'alarms'
@@ -55,12 +61,13 @@ type SectionId =
   | 'reports'
   | 'security'
   | 'highAvailability'
+  | 'databaseTopology'
   | 'monitor'
   | 'tagMonitor'
   | 'diagnostics'
   | 'information';
 
-type NavItem = { id: SectionId; label?: TranslationKey; literalLabel?: Record<EngineeringLocale, string> };
+type NavItem = { id: SectionId; label?: TranslationKey; literalLabel?: Record<EngineeringLocale, string>; href?: string };
 type NavGroup = { label: TranslationKey; items: NavItem[] };
 
 const tagMonitorPath = '/engineering/diagnostics/tag-monitor';
@@ -70,12 +77,14 @@ const navigation: NavGroup[] = [
   { label: 'nav.project', items: [
     { id: 'overview', label: 'nav.overview' },
     { id: 'installation', literalLabel: { 'pt-BR': 'Instalação', en: 'Installation', es: 'Instalación' } },
-    { id: 'branding', literalLabel: { 'pt-BR': 'Branding', en: 'Branding', es: 'Branding' } },
+    { id: 'branding', literalLabel: { 'pt-BR': 'Cabeçalho', en: 'Header', es: 'Encabezado' } },
+    { id: 'mobile', literalLabel: { 'pt-BR': 'Mobile', en: 'Mobile', es: 'Móvil' } },
     { id: 'scripts' },
     { id: 'libraries', literalLabel: { 'pt-BR': 'Bibliotecas', en: 'Libraries', es: 'Bibliotecas' } }
   ] },
   { label: 'nav.communication', items: [
     { id: 'dataSources', label: 'nav.dataSources' },
+    { id: 'mediaSources', literalLabel: { 'pt-BR': 'Fontes de mídia', en: 'Media sources', es: 'Fuentes multimedia' } },
     { id: 'tags', label: 'nav.tags' },
     { id: 'gateway', literalLabel: { 'pt-BR': 'TAG Gateway', en: 'TAG Gateway', es: 'TAG Gateway' } },
     { id: 'alarms', label: 'nav.alarms' },
@@ -89,7 +98,8 @@ const navigation: NavGroup[] = [
   ] },
   { label: 'nav.security', items: [
     { id: 'security', label: 'nav.security' },
-    { id: 'highAvailability', literalLabel: { 'pt-BR': 'Alta disponibilidade', en: 'High Availability', es: 'Alta disponibilidad' } }
+    { id: 'highAvailability', literalLabel: { 'pt-BR': 'Alta disponibilidade', en: 'High Availability', es: 'Alta disponibilidad' } },
+    { id: 'databaseTopology', literalLabel: { 'pt-BR': 'Banco de dados', en: 'Database', es: 'Base de datos' }, href: '/engineering/database-topology' }
   ] },
   { label: 'nav.diagnostics', items: [
     { id: 'monitor', literalLabel: { 'pt-BR': 'Monitoramento', en: 'Development Monitor', es: 'Monitor de Desarrollo' } },
@@ -108,6 +118,8 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
   const [navigationCollapsed, setNavigationCollapsed] = useState(false);
   const [productIdentity, setProductIdentity] = useState<ProductIdentityView | null>(null);
   const t = useMemo(() => translator(locale), [locale]);
+  const { capabilities } = useEffectiveCapabilities();
+  const canAdministerDatabase = hasRuntimeCapability(capabilities, 'SystemAdmin');
   const projectIdentity = snapshot?.workspace.projectName ?? snapshot?.workspace.projectKey
     ?? (loading ? t('workspace.loading') : t('workspace.unavailable'));
 
@@ -210,8 +222,17 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
                 <span className="eng-nav-label">{t(group.label)}</span>
                 {group.items
                   .filter(item => item.id !== 'tagMonitor' || snapshot !== null)
+                  .filter(item => item.id !== 'databaseTopology' || canAdministerDatabase)
                   .map(item => (
-                    <button
+                    item.href ? <a
+                      key={item.id}
+                      href={item.href}
+                      className={window.location.pathname.startsWith(item.href) ? 'active' : ''}
+                      aria-current={window.location.pathname.startsWith(item.href) ? 'page' : undefined}
+                    >
+                      <NavIcon section={item.id}/>
+                      <span>{item.literalLabel ? item.literalLabel[locale] : item.label ? t(item.label) : scriptNavLabel(locale)}</span>
+                    </a> : <button
                       key={item.id}
                       type="button"
                       className={section === item.id ? 'active' : ''}
@@ -260,6 +281,8 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, onR
   if (section === 'overview') return <><Overview snapshot={snapshot} t={t}/><EngineeringLifecycleWorkspace locale={locale}/><EngineeringProjectManagementWorkspace locale={locale}/></>;
   if (section === 'installation') return <InstallationSwitchingWorkspace locale={locale} onWorkspaceChanged={onReload}/>;
   if (section === 'branding') return <BrandingEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
+  if (section === 'mobile') return <MobileRuntimeEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
+  if (section === 'mediaSources') return <MediaSourceEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
   if (section === 'visualAssets') return <VisualAssetManagementWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
   if (section === 'scripts') return <ScriptEngineeringWorkspace locale={locale}/>;
   if (section === 'libraries') return <ReusableLibraryWorkspace locale={locale} snapshot={snapshot} onReload={onReload}/>;
@@ -414,19 +437,20 @@ function ObjectCollectionPage<T extends TemplateEngineering | EquipmentEngineeri
 
 function DynamoCatalogSection({ items, snapshot, locale, onApplied, onSnapshotRefreshed }: { items: DynamoEngineering[]; snapshot: EngineeringSnapshot; locale: EngineeringLocale; onApplied: () => Promise<void>; onSnapshotRefreshed: () => Promise<void> }) {
   const copy = objectCatalogCopy(locale);
+  const catalogItems = selectDefaultDynamoCatalog(items);
   const [query, setQuery] = useState('');
   const [editingKey, setEditingKey] = useState<string | null>(null);
-  const editing = editingKey ? items.find(item => item.key === editingKey) : null;
-  const visible = items.filter(item => !query.trim() || `${item.name} ${item.key} ${item.templateKey ?? ''}`.toLocaleLowerCase(locale).includes(query.trim().toLocaleLowerCase(locale)));
+  const editing = editingKey ? catalogItems.find(item => item.key === editingKey) : null;
+  const visible = catalogItems.filter(item => !query.trim() || `${item.name} ${item.key} ${item.templateKey ?? ''}`.toLocaleLowerCase(locale).includes(query.trim().toLocaleLowerCase(locale)));
   if (editing) return <div className="dynamo-catalog__editor">
     <VisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onApplied} onAssetImported={onSnapshotRefreshed} definitionKind="dynamo" initialDefinitionKey={editingKey} onRequestClose={() => setEditingKey(null)}/>
   </div>;
   return <section className="eng-section" data-testid="dynamo-catalog">
-    <header className="eng-section-header"><div><span className="eng-eyebrow">{copy.dynamos}</span><h1>{copy.dynamos}</h1><p>{copy.dynamoHint}</p></div><div className="eng-section-meta"><strong>{items.length} {copy.items}</strong></div></header>
+    <header className="eng-section-header"><div><span className="eng-eyebrow">{copy.dynamos}</span><h1>{copy.dynamos}</h1><p>{copy.dynamoHint}</p></div><div className="eng-section-meta"><strong>{catalogItems.length} {copy.items}</strong></div></header>
     <div className="eng-panel dynamo-catalog__panel">
       <label className="dynamo-catalog__search"><span>{copy.search}</span><input type="search" value={query} onChange={event => setQuery(event.currentTarget.value)}/></label>
-      {visible.length === 0 ? <div className="eng-empty"><strong>{items.length ? copy.noMatches : copy.noDynamos}</strong><span>{copy.dynamoAuthoringUnavailable}</span></div> : <div className="dynamo-catalog__grid">
-        {visible.map(item => <article className="dynamo-catalog__card" key={item.id ?? item.key}>
+      {visible.length === 0 ? <div className="eng-empty"><strong>{catalogItems.length ? copy.noMatches : copy.noDynamos}</strong><span>{copy.dynamoAuthoringUnavailable}</span></div> : <div className="dynamo-catalog__grid">
+        {visible.map(item => <article className="dynamo-catalog__card" key={item.id ?? item.key} data-testid="dynamo-catalog-card" data-dynamo-key={item.key} data-catalog-status={item.metadata?.catalogStatus ?? 'project'}>
           <CanonicalVisualPreview elements={item.elements ?? []} locale={locale} width={dynamoCanvasDimension(item, 'defaultWidth', 160)} height={dynamoCanvasDimension(item, 'defaultHeight', 110)} emptyLabel={copy.noPreview} variant="catalog"/>
           <div><strong>{item.name}</strong><small>{item.elements?.length ?? 0} {copy.objects} · {(item.parameters ?? []).length} {copy.parameters}</small><button type="button" className="secondary" onClick={() => setEditingKey(item.key)}>{copy.editDynamo}</button></div>
         </article>)}
@@ -464,13 +488,14 @@ function BindingInspection({ bindings, t }: { bindings: Array<{ key: string; kin
 function sectionCount(model: EngineeringPackageView, section: SectionId): number | string {
   switch (section) {
     case 'dataSources': return model.dataSources?.length ?? 0;
+    case 'mediaSources': return model.mediaSources?.length ?? 0;
     case 'gateway': return model.gateways?.length ?? 0;
     case 'tags': return model.tags.length;
     case 'alarms': return model.alarms.length;
     case 'operationalEvents': return operationalEventCount(model);
     case 'templates': return model.templates?.length ?? 0;
     case 'equipment': return model.equipment?.length ?? 0;
-    case 'dynamos': return model.dynamos?.length ?? 0;
+    case 'dynamos': return selectDefaultDynamoCatalog(model.dynamos ?? []).length;
     case 'visualAssets': return model.visualAssets?.length ?? 0;
     case 'screens': return model.screens?.length ?? 0;
     case 'popups': return model.popups?.length ?? 0;
@@ -478,8 +503,10 @@ function sectionCount(model: EngineeringPackageView, section: SectionId): number
     case 'reports': return reportCollection(model).length;
     case 'security': return model.securityRoles?.length ?? 0;
     case 'highAvailability':
+    case 'databaseTopology':
     case 'installation':
     case 'branding':
+    case 'mobile':
     case 'scripts':
     case 'libraries':
     case 'overview':
@@ -545,7 +572,7 @@ function formatDate(value: string, locale: EngineeringLocale) {
 }
 function scriptNavLabel(_locale: EngineeringLocale) { return 'Scripts'; }
 function NavIcon({ section }: { section: SectionId }) {
-  const symbols: Record<SectionId, string> = { overview: '⌂', installation: '⇆', branding: '◐', scripts: '</>', libraries: '▱', dataSources: '⇄', gateway: '⇢', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', visualAssets: '▧', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', highAvailability: '⇄', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯', information: 'ⓘ' };
+  const symbols: Record<SectionId, string> = { overview: '⌂', installation: '⇆', branding: '◐', mobile: '▱', scripts: '</>', libraries: '▱', dataSources: '⇄', mediaSources: '▣', gateway: '⇢', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', visualAssets: '▧', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', highAvailability: '⇄', databaseTopology: '▤', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯', information: 'ⓘ' };
   return <i aria-hidden="true">{symbols[section]}</i>;
 }
 

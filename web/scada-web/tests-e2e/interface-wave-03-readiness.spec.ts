@@ -12,21 +12,18 @@ const localeExpectations = [
   {
     locale: 'pt-BR' as const,
     subtitle: 'Plataforma industrial',
-    currentArea: 'Área atual',
     overview: 'Visão geral',
     audit: 'Auditoria'
   },
   {
     locale: 'en' as const,
     subtitle: 'Industrial platform',
-    currentArea: 'Current area',
     overview: 'Overview',
     audit: 'Audit'
   },
   {
     locale: 'es' as const,
     subtitle: 'Plataforma industrial',
-    currentArea: 'Área actual',
     overview: 'Vista general',
     audit: 'Auditoría'
   }
@@ -227,7 +224,7 @@ for (const expected of localeExpectations) {
 
     const runtimeNavigation = page.getByRole('navigation', { name: 'EliteSCADA' });
     await expect(page.getByText(expected.subtitle, { exact: true })).toBeVisible();
-    await expect(page.locator('.app-context')).toContainText(expected.currentArea);
+    await expect(page.locator('.app-context')).toHaveCount(0);
     await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
     await expect(page.locator('.runtime-operator-toolbar').getByRole('button', { name: expected.overview, exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('.user-session-menu')).toBeVisible();
@@ -238,6 +235,10 @@ for (const expected of localeExpectations) {
     await expect(page).toHaveURL(/\/engineering$/);
     await expect(page.locator('.eng-shell')).toBeVisible();
     await expect(page.locator('#engineering-locale')).toHaveValue(expected.locale);
+    const databaseTopology = page.locator('.eng-nav')
+      .getByRole('link', { name: /Banco de dados|Database|Base de datos/ });
+    await expect(databaseTopology).toHaveAttribute('href', '/engineering/database-topology');
+    await expect(page.getByRole('navigation', { name: 'EliteSCADA' }).getByRole('link', { name: /Topologia de Banco|Database Topology|Topología de Base/ })).toHaveCount(0);
 
     const engineeringNavigation = page.getByRole('navigation', { name: 'EliteSCADA' });
     const auditLink = engineeringNavigation.getByRole('link', { name: new RegExp(expected.audit) });

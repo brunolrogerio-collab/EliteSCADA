@@ -18,6 +18,7 @@ public static class ProjectPackageEndpoints
         endpoints.MapReusableLibraryEndpoints();
         endpoints.MapReusableLibraryIncorporationEndpoints();
         endpoints.MapVisualAssetEndpoints();
+        endpoints.MapMediaSourceEngineeringEndpoints();
         endpoints.MapSystemRecoveryApplicationEndpoints();
 
         endpoints.MapGet("/api/project-package/export", (
@@ -60,7 +61,8 @@ public static class ProjectPackageEndpoints
                         popups = inspection.Engineering.Popups?.Count ?? 0,
                         securityRoles = inspection.Engineering.SecurityRoles?.Count ?? 0,
                         commands = inspection.Engineering.Commands?.Count ?? 0,
-                        visualAssets = inspection.Engineering.VisualAssets?.Count ?? 0
+                        visualAssets = inspection.Engineering.VisualAssets?.Count ?? 0,
+                        mediaSources = inspection.Engineering.MediaSources?.Count ?? 0
                     }
                 });
             }

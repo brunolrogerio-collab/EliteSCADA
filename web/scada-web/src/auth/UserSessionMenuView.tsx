@@ -15,6 +15,7 @@ export type UserSessionMenuViewProps = {
   onSwitchUser: () => Promise<void>;
   onLogout: () => Promise<void>;
   runtimeSessionControls?: ReactNode;
+  runtimeFullscreenExit?: { label: string; onActivate: () => void };
 };
 
 type SessionAction = 'switch' | 'logout' | null;
@@ -25,7 +26,8 @@ export function UserSessionMenuView({
   canSwitchUser,
   onSwitchUser,
   onLogout,
-  runtimeSessionControls
+  runtimeSessionControls,
+  runtimeFullscreenExit
 }: UserSessionMenuViewProps) {
   const detailsRef = useRef<HTMLDetailsElement | null>(null);
   const summaryRef = useRef<HTMLElement | null>(null);
@@ -133,6 +135,12 @@ export function UserSessionMenuView({
         )}
 
         <div className="user-session-menu__actions">
+          {runtimeFullscreenExit ? <button
+            type="button"
+            className="user-session-menu__action"
+            onClick={runtimeFullscreenExit.onActivate}
+            data-testid="session-exit-fullscreen"
+          >{runtimeFullscreenExit.label}</button> : null}
           {canSwitchUser && (
             <button
               type="button"

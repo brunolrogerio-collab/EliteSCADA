@@ -7,6 +7,7 @@ import type {
   GatewayRuntimeDiagnostic,
   ImportPreviewView,
   ImportResultView,
+  MediaSourceEngineering,
   NetworkReachabilityProbeResponse,
   RuntimeDiagnosticsView,
   VisualAssetEngineering,
@@ -105,7 +106,8 @@ export async function loadEngineeringSnapshot(): Promise<EngineeringSnapshot> {
       popups: engineeringPackage.popups ?? [],
       securityRoles: engineeringPackage.securityRoles ?? [],
       gateways: engineeringPackage.gateways ?? [],
-      visualAssets: engineeringPackage.visualAssets ?? []
+      visualAssets: engineeringPackage.visualAssets ?? [],
+      mediaSources: engineeringPackage.mediaSources ?? []
     }
   };
 }
@@ -169,6 +171,73 @@ export async function deleteVisualAsset(assetId: string, expectedChangeVersion: 
       accept: 'application/json',
       'x-elitescada-workspace-version': String(expectedChangeVersion)
     }
+  });
+  if (!response.ok) throw await readError(response);
+}
+
+export type MediaSourceCredentialState = { configured: boolean; code?: string };
+export async function loadMediaSources(): Promise<MediaSourceEngineering[]> {
+  return await getJson<MediaSourceEngineering[]>('/api/engineering/media-sources');
+}
+export type MediaSourceCredentialInput = { username?: string | null; password?: string | null; bearerToken?: string | null };
+
+export async function createMediaSource(source: MediaSourceEngineering, expectedChangeVersion: number): Promise<MediaSourceEngineering> {
+  const response = await fetch(`${API}/api/engineering/media-sources`, {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json; charset=utf-8',
+      'x-elitescada-workspace-version': String(expectedChangeVersion)
+    },
+    body: JSON.stringify(source)
+  });
+  if (!response.ok) throw await readError(response);
+  return await response.json() as MediaSourceEngineering;
+}
+
+export async function updateMediaSource(source: MediaSourceEngineering, expectedChangeVersion: number): Promise<void> {
+  if (!source.id) throw new Error('A saved media source ID is required.');
+  const response = await fetch(`${API}/api/engineering/media-sources/${encodeURIComponent(source.id)}`, {
+    method: 'PUT',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json; charset=utf-8',
+      'x-elitescada-workspace-version': String(expectedChangeVersion)
+    },
+    body: JSON.stringify(source)
+  });
+  if (!response.ok) throw await readError(response);
+}
+
+export async function deleteMediaSource(id: string, expectedChangeVersion: number): Promise<void> {
+  const response = await fetch(`${API}/api/engineering/media-sources/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: {
+      accept: 'application/json',
+      'x-elitescada-workspace-version': String(expectedChangeVersion)
+    }
+  });
+  if (!response.ok) throw await readError(response);
+}
+
+export async function loadMediaSourceCredentialState(id: string): Promise<MediaSourceCredentialState> {
+  return await getJson<MediaSourceCredentialState>(`/api/engineering/media-sources/${encodeURIComponent(id)}/credential-state`);
+}
+
+export async function configureMediaSourceCredential(id: string, credential: MediaSourceCredentialInput): Promise<MediaSourceCredentialState> {
+  const response = await fetch(`${API}/api/engineering/media-sources/${encodeURIComponent(id)}/credential`, {
+    method: 'PUT',
+    headers: { accept: 'application/json', 'content-type': 'application/json; charset=utf-8' },
+    body: JSON.stringify(credential)
+  });
+  if (!response.ok) throw await readError(response);
+  return await response.json() as MediaSourceCredentialState;
+}
+
+export async function deleteMediaSourceCredential(id: string): Promise<void> {
+  const response = await fetch(`${API}/api/engineering/media-sources/${encodeURIComponent(id)}/credential`, {
+    method: 'DELETE',
+    headers: { accept: 'application/json' }
   });
   if (!response.ok) throw await readError(response);
 }

@@ -6,6 +6,8 @@ import {
   type KeyboardEvent
 } from 'react';
 import type { VisualAssetEngineering, VisualEngineeringPropertyValue } from '../../types';
+import type { MediaSourceEngineering } from '../../types';
+import { loadMediaSources } from '../../api';
 import { VISUAL_PROPERTY_KEYS, type VisualPropertyDefinition } from '../../../visual-runtime';
 import { normalizeCanonicalStrokeStyle, svgStrokeDasharray } from '../visualStrokePresentation';
 import type { PropertyInspectorCopy } from './PropertyInspector';
@@ -17,6 +19,7 @@ import {
 
 export type PropertyEditorControlProps = Readonly<{
   definition: VisualPropertyDefinition;
+  objectType?: string;
   row: PropertyInspectorRow;
   text: PropertyInspectorCopy;
   visualAssets: readonly VisualAssetEngineering[];
@@ -31,6 +34,7 @@ const FONT_FAMILY_OPTIONS = Object.freeze(['system', 'Arimo Variable', 'Lato', '
 
 export function PropertyEditorControl({
   definition,
+  objectType,
   row,
   text,
   visualAssets,
@@ -40,6 +44,7 @@ export function PropertyEditorControl({
   commit,
   setError
 }: PropertyEditorControlProps) {
+  if (definition.key === VISUAL_PROPERTY_KEYS.mediaSourceId) return <MediaSourceControl row={row} commit={commit} setError={setError}/>;
   if (definition.type === 'number' && [VISUAL_PROPERTY_KEYS.imagePositionX, VISUAL_PROPERTY_KEYS.imagePositionY, VISUAL_PROPERTY_KEYS.imageZoom].includes(definition.key as never)) {
     return <ImageAdjustmentControl definition={definition} row={row} text={text} commit={commit} />;
   }
@@ -67,6 +72,7 @@ export function PropertyEditorControl({
   if (definition.type === 'assetRef' || definition.presentationHint === 'project-asset') {
     return <AssetReferenceControl
       definition={definition}
+      objectType={objectType}
       row={row}
       text={text}
       visualAssets={visualAssets}
@@ -82,6 +88,21 @@ export function PropertyEditorControl({
   }
 
   return <TextualControl definition={definition} row={row} text={text} commit={commit} setError={setError} />;
+}
+
+function MediaSourceControl({ row, commit, setError }: Pick<PropertyEditorControlProps, 'row' | 'commit' | 'setError'>) {
+  const [sources, setSources] = useState<MediaSourceEngineering[]>([]);
+  useEffect(() => {
+    let disposed = false;
+    void loadMediaSources().then(items => { if (!disposed) setSources(items); }).catch(error => { if (!disposed) setError(error instanceof Error ? error.message : String(error)); });
+    return () => { disposed = true; };
+  }, [setError]);
+  const current = String(row.value ?? '');
+  return <select aria-label="Media Source" value={current} onChange={event => commit(event.target.value)}>
+    <option value="">Project asset</option>
+    {current && !sources.some(source => source.id === current) && <option value={current}>{current}</option>}
+    {sources.filter(source => source.id && source.enabled).map(source => <option key={source.id!} value={source.id!}>{source.name} · {source.protocol}</option>)}
+  </select>;
 }
 
 type BasicEditorProps = Pick<PropertyEditorControlProps, 'definition' | 'row' | 'text' | 'commit'>;
@@ -227,6 +248,7 @@ function ImageAdjustmentControl({ definition, row, commit }: BasicEditorProps) {
 
 function AssetReferenceControl({
   definition,
+  objectType,
   row,
   text,
   visualAssets,
@@ -234,12 +256,19 @@ function AssetReferenceControl({
   onImportImage,
   imageImportDisabled = false,
   imageImportBusy = false
-}: Pick<PropertyEditorControlProps, 'definition' | 'row' | 'text' | 'visualAssets' | 'commit' | 'onImportImage' | 'imageImportDisabled' | 'imageImportBusy'>) {
+}: Pick<PropertyEditorControlProps, 'definition' | 'objectType' | 'row' | 'text' | 'visualAssets' | 'commit' | 'onImportImage' | 'imageImportDisabled' | 'imageImportBusy'>) {
   const fileInput = useRef<HTMLInputElement>(null);
   const current = row.state === 'mixed'
     ? '__mixed__'
     : formatPropertyInspectorValue(row.value ?? row.defaultValue);
-  const assets = visualAssets.filter(asset => typeof asset.id === 'string' && asset.id.length > 0);
+  const acceptedTypes = objectType === 'core.videoPlayer'
+    ? ['video/mp4', 'video/webm']
+    : objectType === 'core.pdfViewer'
+      ? ['application/pdf']
+      : objectType === 'core.svgSymbol'
+        ? ['image/svg+xml']
+        : ['image/png', 'image/jpeg', 'image/bmp', 'image/svg+xml'];
+  const assets = visualAssets.filter(asset => typeof asset.id === 'string' && asset.id.length > 0 && acceptedTypes.includes(asset.mediaType));
   const selectedValue = current.startsWith('asset:') ? current.slice('asset:'.length) : current;
 
   return (
@@ -268,7 +297,7 @@ function AssetReferenceControl({
         <input
           ref={fileInput}
           type="file"
-          accept="image/png,image/jpeg,image/bmp,image/svg+xml,.png,.jpg,.jpeg,.bmp,.svg"
+          accept={acceptedTypes.join(',')}
           hidden
           onChange={event => {
             const file = event.currentTarget.files?.[0];

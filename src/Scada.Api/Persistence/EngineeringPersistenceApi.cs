@@ -620,7 +620,12 @@ public static class EngineeringPersistenceApi
         workspace.Clear();
         gateways.Clear();
         reports.Clear();
-        foreach (var dynamo in BuiltinDynamoLibrary.Create())
+        foreach (var (asset, payload) in BuiltinDynamoCatalogV1.CreateArtworkAssets())
+        {
+            workspace.VisualAssets.UpsertAsset(asset);
+            workspace.VisualAssets.PutPayload(payload);
+        }
+        foreach (var dynamo in BuiltinDynamoCatalogV1.Create())
             workspace.Assets.UpsertDynamo(dynamo);
         workspace.SecurityPolicies.UpsertRole(BuiltInSecurityRoleDefaults.CreateInitialDeveloperRole());
 

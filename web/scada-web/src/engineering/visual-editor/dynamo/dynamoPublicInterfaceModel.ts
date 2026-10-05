@@ -19,6 +19,7 @@ export type DynamoParameterEditorKind =
   | 'text'
   | 'equipment-path'
   | 'tag-reference'
+  | 'value-source'
   | 'command';
 
 export class DynamoPublicInterfaceError extends Error {
@@ -51,9 +52,25 @@ export function listDynamoPublicParameterValues(
   const result = new Map<string, DynamoParameterValueEngineering>();
 
   for (const value of instance.dynamoParameters ?? []) {
-    const normalizedValue = normalizeDynamoParameterValue(value);
+    let normalizedValue = normalizeDynamoParameterValue(value);
     const key = normalizeKey(normalizedValue.key);
-    if (!definitions.has(key)) continue;
+    const parameter = definitions.get(key);
+    if (!parameter) continue;
+    // The first catalog revision persisted direct TAG sources as TagReference.
+    // Expose those as typed direct-TAG sources when the current definition has
+    // moved to ValueSource, while leaving the persisted instance untouched.
+    if (parameter.kind === 'ValueSource' && normalizedValue.kind === 'TagReference' && normalizedValue.tagReference) {
+      normalizedValue = normalizeDynamoParameterValue({
+        key: parameter.key,
+        kind: 'ValueSource',
+        version: parameter.version,
+        valueSource: {
+          kind: 'Tag',
+          valueType: parameter.valueSourceType ?? 'Number',
+          tagReference: normalizedValue.tagReference
+        }
+      });
+    }
     result.set(key, cloneValue(normalizedValue));
   }
 
@@ -83,8 +100,17 @@ export function resolveDynamoParameterEditorKind(
     case 'String': return 'text';
     case 'EquipmentPath': return 'equipment-path';
     case 'TagReference': return 'tag-reference';
+    case 'ValueSource': return 'value-source';
     case 'Command': return 'command';
   }
+}
+
+/** Resolves only scalar TAG types supported by a Dynamo Boolean/Number source. */
+export function resolveDynamoValueSourceType(dataType: string | null | undefined): 'Boolean' | 'Number' | null {
+  const normalized = dataType?.trim().toLocaleLowerCase('en-US') ?? '';
+  if (normalized === 'bool' || normalized === 'boolean') return 'Boolean';
+  if (/^(u?int\d*|float|single|double|decimal|number|enum)$/.test(normalized)) return 'Number';
+  return null;
 }
 
 export function setDynamoPublicParameterValue(
@@ -203,7 +229,7 @@ function indexDefinitions(
 
 function validateParameterValue(value: DynamoParameterValueEngineering): void {
   if (value.kind === 'Command') {
-    if (value.value !== undefined || value.tagReference || !value.commandId?.trim()) {
+    if (value.value !== undefined || value.tagReference || value.valueSource || !value.commandId?.trim()) {
       throw new DynamoPublicInterfaceError(
         'DYNAMO_PUBLIC_PARAMETER_VALUE_INVALID',
         `Command parameter '${value.key}' requires a stable Command identity and cannot carry scalar/TAG data.`
@@ -213,7 +239,7 @@ function validateParameterValue(value: DynamoParameterValueEngineering): void {
   }
 
   if (value.kind === 'TagReference') {
-    if (value.value !== undefined || !value.tagReference?.tagId?.trim()) {
+    if (value.value !== undefined || value.valueSource || !value.tagReference?.tagId?.trim()) {
       throw new DynamoPublicInterfaceError(
         'DYNAMO_PUBLIC_PARAMETER_VALUE_INVALID',
         `TagReference parameter '${value.key}' requires a stable TAG identity and cannot carry a scalar value.`
@@ -222,7 +248,17 @@ function validateParameterValue(value: DynamoParameterValueEngineering): void {
     return;
   }
 
-  if (value.tagReference || value.commandId) {
+  if (value.kind === 'ValueSource') {
+    if (value.value !== undefined || value.tagReference || value.commandId || !value.valueSource) {
+      throw new DynamoPublicInterfaceError(
+        'DYNAMO_PUBLIC_PARAMETER_VALUE_INVALID',
+        `ValueSource parameter '${value.key}' requires a typed source and cannot carry scalar/TAG/Command payloads.`
+      );
+    }
+    return;
+  }
+
+  if (value.tagReference || value.commandId || value.valueSource) {
     throw new DynamoPublicInterfaceError(
       'DYNAMO_PUBLIC_PARAMETER_VALUE_INVALID',
       `Scalar Dynamo parameter '${value.key}' cannot carry a TAG reference.`
@@ -257,7 +293,10 @@ function cloneValue(value: DynamoParameterValueEngineering): DynamoParameterValu
             ? Object.freeze({ ...value.tagReference.selector })
             : value.tagReference.selector
         })
-      : value.tagReference
+      : value.tagReference,
+    valueSource: value.valueSource
+      ? normalizeDynamoParameterValue({ key: value.key, kind: 'ValueSource', valueSource: value.valueSource }).valueSource
+      : value.valueSource
   });
 }
 

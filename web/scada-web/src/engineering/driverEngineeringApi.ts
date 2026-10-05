@@ -87,6 +87,18 @@ export type DriverPointReadTestRequestView = Readonly<{
   timeoutMilliseconds?: number;
 }>;
 
+export class DriverEngineeringHttpError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code?: string,
+    readonly fieldKey?: string
+  ) {
+    super(message);
+    this.name = 'DriverEngineeringHttpError';
+  }
+}
+
 export type DriverDiscoveryCandidateView = Readonly<{
   candidateId: string;
   stableIdentity: string;
@@ -217,21 +229,30 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(readProblemDetail(text) || `${response.status} ${response.statusText}`);
+    const problem = readProblem(text);
+    throw new DriverEngineeringHttpError(
+      problem.detail || `${response.status} ${response.statusText}`,
+      response.status,
+      problem.code,
+      problem.fieldKey
+    );
   }
 
   return await response.json() as T;
 }
 
-function readProblemDetail(body: string): string {
-  if (!body.trim()) return '';
+function readProblem(body: string): { detail?: string; code?: string; fieldKey?: string } {
+  if (!body.trim()) return {};
   try {
-    const parsed = JSON.parse(body) as { detail?: unknown; error?: unknown; title?: unknown };
-    if (typeof parsed.detail === 'string' && parsed.detail.trim()) return parsed.detail;
-    if (typeof parsed.error === 'string' && parsed.error.trim()) return parsed.error;
-    if (typeof parsed.title === 'string' && parsed.title.trim()) return parsed.title;
+    const parsed = JSON.parse(body) as { detail?: unknown; error?: unknown; title?: unknown; code?: unknown; fieldKey?: unknown };
+    const detail = [parsed.detail, parsed.error, parsed.title].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+    return {
+      ...(detail ? { detail } : {}),
+      ...(typeof parsed.code === 'string' && parsed.code.trim() ? { code: parsed.code.trim() } : {}),
+      ...(typeof parsed.fieldKey === 'string' && parsed.fieldKey.trim() ? { fieldKey: parsed.fieldKey.trim() } : {})
+    };
   } catch {
-    // Keep server text when it is not JSON.
+    // Preserve a plain server diagnostic when the response is not JSON.
   }
-  return body;
+  return { detail: body };
 }

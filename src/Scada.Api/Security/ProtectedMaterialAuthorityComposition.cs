@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Scada.Api.Security;
 
 namespace Scada.Api.Security;
 
@@ -13,6 +14,9 @@ public static class ProtectedMaterialAuthorityComposition
         var options = ProtectedMaterialAuthorityOptions.FromConfiguration(
             builder.Configuration);
         builder.Services.TryAddSingleton(options);
+        builder.Services.TryAddSingleton<IMediaSourceCredentialReferenceStore>(_ =>
+            new FileMediaSourceCredentialReferenceStore(options.StorePath));
+        builder.Services.TryAddSingleton<MediaSourceProtectedCredentialService>();
         builder.Services.TryAddSingleton<IProtectedMaterialAuthority>(services =>
         {
             var key = options.LoadProtectionKey();

@@ -30,6 +30,7 @@ using Scada.Engineering.DataSources;
 using Scada.Engineering.DataQueries;
 using Scada.Engineering.Gateways;
 using Scada.Engineering.Historian;
+using Scada.Engineering.Media;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.ProjectPackages;
 using Scada.Engineering.Scripts;
@@ -73,6 +74,7 @@ builder.Services.AddSingleton<IDataSourceEngineeringRegistry>(sp => sp.GetRequir
 builder.Services.AddSingleton<IHistorianCaptureProfileEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().HistorianCaptureProfiles);
 builder.Services.AddSingleton<IDataQueryEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().DataQueries);
 builder.Services.AddSingleton<IAlarmViewEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().AlarmViews);
+builder.Services.AddSingleton<IMediaSourceEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().MediaSources);
 builder.Services.AddSingleton<IEngineeringAssetRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Assets);
 builder.Services.AddSingleton<IEngineeringViewRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Views);
 var authorityConnectionString = databaseConnections.PrimaryConnectionString;
@@ -928,6 +930,9 @@ static async Task<IResult> ApplyEngineeringImportAsync(
 
         var result = exchange.Apply(package, importMode);
         var hasErrors = result.Issues.Any(x => x.IsError);
+        if (!hasErrors)
+            EngineeringWorkingBootstrapService.UpgradeBuiltinDynamos(workspace);
+
         await audit.RecordAsync(
             context,
             authorization.Principal,

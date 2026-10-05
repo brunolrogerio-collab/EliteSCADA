@@ -10,6 +10,7 @@ using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.DataQueries;
 using Scada.Engineering.Historian;
+using Scada.Engineering.Media;
 using Scada.Engineering.Scripts;
 using Scada.Engineering.Security;
 using Scada.Engineering.Views;
@@ -90,6 +91,7 @@ public sealed class EngineeringWorkspace : IDisposable
         Scripts = new InMemoryScriptEngineeringRegistry(MarkDirty);
         VisualAssets = new InMemoryVisualAssetEngineeringRegistry(MarkDirty);
         Branding = new InMemoryApplicationBrandingEngineeringRegistry(MarkDirty);
+        MediaSources = new InMemoryMediaSourceEngineeringRegistry(MarkDirty);
         if (seedDemo) SeedDemo();
     }
 
@@ -107,6 +109,7 @@ public sealed class EngineeringWorkspace : IDisposable
     public InMemoryScriptEngineeringRegistry Scripts { get; }
     public InMemoryVisualAssetEngineeringRegistry VisualAssets { get; }
     public InMemoryApplicationBrandingEngineeringRegistry Branding { get; }
+    public InMemoryMediaSourceEngineeringRegistry MediaSources { get; }
 
     public EngineeringWorkspaceDescriptor Describe()
     {
@@ -245,6 +248,7 @@ public sealed class EngineeringWorkspace : IDisposable
         Scripts.Clear();
         VisualAssets.Clear();
         Branding.Clear();
+        MediaSources.Clear();
     }
 
     public void ResetToNeutral()
@@ -354,7 +358,12 @@ public sealed class EngineeringWorkspace : IDisposable
                 ["process"] = "Discharge"
             }));
 
-        foreach (var dynamo in BuiltinDynamoLibrary.Create())
+        foreach (var (asset, payload) in BuiltinDynamoCatalogV1.CreateArtworkAssets())
+        {
+            VisualAssets.UpsertAsset(asset);
+            VisualAssets.PutPayload(payload);
+        }
+        foreach (var dynamo in BuiltinDynamoCatalogV1.Create())
             Assets.UpsertDynamo(dynamo);
 
         Views.UpsertScreen(new ScreenEngineeringDto(
@@ -376,16 +385,6 @@ public sealed class EngineeringWorkspace : IDisposable
                         ["label"] = JsonSerializer.SerializeToElement("Reservatório TK01"),
                         ["x"] = JsonSerializer.SerializeToElement(100d),
                         ["y"] = JsonSerializer.SerializeToElement(100d)
-                    }),
-                new VisualElementEngineeringDto(
-                    Key: "pump01",
-                    Type: "dynamo",
-                    DynamoKey: "dynamo.pump.standard",
-                    EquipmentPath: "Demo.P01",
-                    Properties: new Dictionary<string, JsonElement>
-                    {
-                        ["x"] = JsonSerializer.SerializeToElement(430d),
-                        ["y"] = JsonSerializer.SerializeToElement(160d)
                     }),
                 new VisualElementEngineeringDto(
                     Key: "pressure",

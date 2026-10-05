@@ -92,6 +92,8 @@ export function VisualEditorAuthoringToolbar({
     [BUILTIN_VISUAL_OBJECT_TYPES.polygon, '⬠', 'polygon', 'Polygon'],
     [BUILTIN_VISUAL_OBJECT_TYPES.text, 'T', 'text', 'Text'],
     [BUILTIN_VISUAL_OBJECT_TYPES.image, '▧', 'image', 'Image'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer, '▶', 'videoPlayer', 'Video'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.pdfViewer, 'PDF', 'pdfViewer', 'PDF viewer'],
     [BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay, '#', 'valueDisplay', 'Value display'],
     [BUILTIN_VISUAL_OBJECT_TYPES.trend, '⌁', 'trend', 'Trend'],
     [BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser, '!', 'alarmBrowser', 'Alarm browser'],

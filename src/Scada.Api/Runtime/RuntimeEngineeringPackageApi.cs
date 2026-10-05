@@ -14,6 +14,7 @@ public static class RuntimeEngineeringPackageApi
         endpoints.MapDistributedRuntimeFoundationEndpoints();
         endpoints.MapContextualHelpEndpoints();
         endpoints.MapHistoricalPlaybackRuntimeEndpoints();
+        endpoints.MapRuntimeMediaSourceEndpoints();
 
         endpoints.MapGet("/api/auth/effective-capabilities", async (
             HttpContext context,

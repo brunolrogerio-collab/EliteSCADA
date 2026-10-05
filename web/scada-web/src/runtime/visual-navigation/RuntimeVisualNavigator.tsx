@@ -9,6 +9,7 @@ import type {
 import { resolveVisualDefinitionSurfaceStyle } from '../../engineering/visual-editor/visualDefinitionSurfaceModel';
 import type { ClientVisualEventDispatchRecord } from '../../python-runtime/clientVisualEventDispatcher';
 import { RuntimeLogicalViewport } from './RuntimeLogicalViewport';
+import { useMobileRuntime } from '../useMobileRuntime';
 import { resolveRuntimeLogicalSize } from './runtimeLogicalCanvas';
 import { executeRuntimeCommand, RuntimeCommandExecutionError } from './runtimeCommandApi';
 import { writeRuntimeTagValue } from '../runtimeTagWriteApi';
@@ -33,6 +34,8 @@ import { RuntimeHistoricalPlaybackReadOnlyError } from '../historical-playback/r
 export type RuntimeVisualNavigatorProps = Readonly<{
   engineeringPackage: Pick<EngineeringPackageView, 'screens' | 'popups' | 'dynamos' | 'equipment' | 'templates'>;
   initialScreenKey: string;
+  mobileOrientation?: 'landscape' | 'portrait';
+  mobileScreens?: Readonly<Record<string, string>>;
   locale?: EngineeringLocale;
   emptyLabel?: string;
   popupIdFactory?: () => string;
@@ -63,6 +66,8 @@ const POPUP_FALLBACK_TITLE: Readonly<Record<EngineeringLocale, string>> = Object
 export function RuntimeVisualNavigator({
   engineeringPackage,
   initialScreenKey,
+  mobileOrientation = 'landscape',
+  mobileScreens,
   locale = 'pt-BR',
   emptyLabel = 'Sem objetos visuais.',
   popupIdFactory,
@@ -72,6 +77,7 @@ export function RuntimeVisualNavigator({
   onVisualContextChange
 }: RuntimeVisualNavigatorProps) {
   const playback = useOptionalHistoricalPlayback();
+  const mobile = useMobileRuntime();
   const catalog = useMemo(() => createRuntimeVisualCatalog(engineeringPackage), [engineeringPackage]);
   const initialResolution = useMemo(
     () => resolveInitialNavigation(catalog, initialScreenKey),
@@ -91,13 +97,13 @@ export function RuntimeVisualNavigator({
     try {
       const popupKeys = state.popups.map(mount => resolveMountedPopup(catalog, mount).key);
       onVisualContextChange(Object.freeze({
-        screenKey: state.activeScreenKey,
+        screenKey: mobile ? mobileScreens?.[state.activeScreenKey] ?? state.activeScreenKey : state.activeScreenKey,
         popupKeys: Object.freeze(popupKeys)
       }));
     } catch {
       // The normal Runtime diagnostic path reports invalid composition.
     }
-  }, [catalog, state, onVisualContextChange]);
+  }, [catalog, state, mobile, mobileScreens, onVisualContextChange]);
 
   if (!state) {
     return <RuntimeDiagnostic diagnostic={diagnostic ?? new RuntimeVisualCompositionError(
@@ -109,6 +115,8 @@ export function RuntimeVisualNavigator({
   let activeScreen;
   try {
     activeScreen = resolveActiveScreen(catalog, state);
+    const variant = mobile ? mobileScreens?.[activeScreen.key] : undefined;
+    if (variant) activeScreen = resolveActiveScreen(catalog, { ...state, activeScreenKey: variant });
   } catch (reason) {
     return <RuntimeDiagnostic diagnostic={asRuntimeDiagnostic(reason)} />;
   }
@@ -188,7 +196,7 @@ export function RuntimeVisualNavigator({
     data-runtime-temporal-mode={playback?.mode === 'historicalPlayback' ? 'historical-playback' : 'live'}
     data-runtime-historical-at={playback?.atUtc ?? undefined}
   >
-    <RuntimeLogicalViewport designSize={designSize}>
+    <RuntimeLogicalViewport designSize={designSize} mobileOrientation={mobileOrientation}>
       <div className="runtime-logical-composition">
         <section
           className="runtime-visual-screen"

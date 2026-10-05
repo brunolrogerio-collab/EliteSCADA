@@ -6,6 +6,7 @@ import {
   previewEngineeringPackage
 } from '../api';
 import type { EngineeringLocale } from '../i18n';
+import { importStaticArtwork, type StaticArtwork } from '../staticArtworkApi';
 import {
   buildProjectReferenceCatalog,
   type ClientMemoryDefinitionView
@@ -410,6 +411,23 @@ function PopupVisualEditorWorkspaceBody({
     }
   };
 
+  const importArtwork = async (entry: StaticArtwork) => {
+    setImportingAsset(true);
+    setError(null);
+    try {
+      const currentWorkspace = await loadEngineeringWorkspace();
+      if (currentWorkspace.changeVersion !== snapshot.workspace.changeVersion) throw new Error(text.workspaceChanged);
+      const imported = await importStaticArtwork(entry.id, currentWorkspace.changeVersion);
+      preserveDraftAfterAssetImportRef.current = true;
+      await (onAssetImported ?? onApplied)();
+      return imported.asset;
+    } catch (reason) {
+      preserveDraftAfterAssetImportRef.current = false;
+      setError(reason instanceof Error ? reason.message : String(reason));
+      return null;
+    } finally { setImportingAsset(false); }
+  };
+
   const issues = preview?.items.flatMap(item => item.issues ?? []) ?? [];
 
   const layoutClassName = [
@@ -472,7 +490,8 @@ function PopupVisualEditorWorkspaceBody({
               assetImport={{
                 busy: importingAsset,
                 disabled: applying || previewing,
-                onFile: importAsset
+                onFile: importAsset,
+                onArtwork: importArtwork
               }}
             />
           </aside>

@@ -628,6 +628,7 @@ jobs:
           tests-e2e/interface-wave-03-readiness.spec.ts
           tests-e2e/runtime.spec.ts
           tests-e2e/media-active-revision.spec.ts
+          tests-e2e/static-artwork-library-insertion.spec.ts
 
       - name: Run full browser E2E tests
         if: github.event_name != 'push' || github.ref != 'refs/heads/wave15/corrections-integration'

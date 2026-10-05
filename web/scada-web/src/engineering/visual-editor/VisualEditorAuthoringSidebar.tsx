@@ -7,6 +7,8 @@ import { DynamoLibraryPalette } from './DynamoLibraryPalette';
 import { EquipmentFaceplatePalette } from './EquipmentFaceplatePalette';
 import { VisualEditorOutliner } from './canvas/VisualEditorOutliner';
 import { BUILTIN_VISUAL_OBJECT_TYPES, VISUAL_PROPERTY_KEYS } from '../../visual-runtime';
+import { StaticArtworkPalette } from './StaticArtworkPalette';
+import type { StaticArtwork } from '../staticArtworkApi';
 
 export type VisualEditorAuthoringTab = 'structure' | 'library' | 'assets';
 
@@ -15,6 +17,7 @@ export type VisualEditorAssetImport = Readonly<{
   disabled: boolean;
   disabledHint?: string;
   onFile: (file: File) => Promise<string | null | void> | string | null | void;
+  onArtwork?: (entry: StaticArtwork) => Promise<VisualAssetEngineering | null>;
 }>;
 
 export function VisualEditorAuthoringSidebar({
@@ -78,6 +81,8 @@ export function VisualEditorAuthoringSidebar({
       </section>
 
       <section id="visual-editor-side-section-library" role="tabpanel" aria-labelledby="visual-editor-side-tab-library" hidden={activeTab !== 'library'} className={`visual-editor-side-section${activeTab === 'library' ? ' is-active' : ''}`} data-side-section="library">
+        {assetImport?.onArtwork ? <StaticArtworkPalette locale={locale} enabled={activeTab === 'library'}
+          disabled={assetImport.disabled || assetImport.busy} onImport={assetImport.onArtwork} onMutationIntent={onMutationIntent}/> : null}
         <DynamoLibraryPalette
           definitions={definitions}
           locale={locale}

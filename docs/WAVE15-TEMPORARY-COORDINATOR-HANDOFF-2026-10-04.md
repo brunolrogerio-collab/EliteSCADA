@@ -19,7 +19,9 @@ The replacement catalog contains 4 lamps, 4 buttons, 6 motors, 6 valves and 6 el
 
 Implemented public parameters include configurable stage colors/enables, fixed states, numeric/Boolean TAG and expression sources, inversion, typed Client Memory sources and dependencies, motor/valve discrete-state precedence, per-pole contact sources, state text and label placement, independent bezel/outline styling and depth effects. Buttons map to canonical command, analog write, Boolean set and toggle actions. Existing Client Visual scripts can execute through Events and publish state through Client Memory.
 
-Remaining in #501: direct script/output selection and inline authoring wizard, richer command pending/failure/confirmed-feedback treatment, and mounted visual acceptance of all 26 variants across authoring/package/Runtime. Do not describe these missing pieces as complete.
+The parameter inspector now includes lazy-loaded Client Visual script/output selection and an inline wizard: generated handlers read the stable TAG's value only with Good quality and write an explicitly typed Client Memory output. Python syntax and canonical package Preview/CAS precede Apply. Existing scripts are not silently rewritten. Binding the output and saving/publishing the visual definition remain explicit operations.
+
+Runtime Dynamo commands expose pending, accepted, failed and read-back-confirmed states. Duplicate in-flight actions are blocked. HTTP acceptance alone is never labelled as process confirmation; confirmation requires a fresh Good-quality matching TAG sample. Remaining in #501: mounted visual acceptance of all 26 variants across authoring/package/Runtime.
 
 The categorized static-library foundation is integrated, but the requested collection of more than 1200 external static assets is NOT imported. #484 remains the expansion/curation task. Verify licenses per asset before redistribution. User references:
 
@@ -71,7 +73,7 @@ Restart policies and normal startup initialize the services automatically. Start
 
 This consolidation passed API build, production Web build, and 23 focused Core tests covering media/branding/header round-trip and invalid-reference rejection. The existing large-bundle warning is not a build failure. These results are not a final broad CI or full mounted product acceptance.
 
-1. Finish #501's script wizard/command feedback and mounted visual review.
+1. Complete #501's mounted visual review of the 26 variants and the new script/feedback controls.
 2. Finish #495/#496 gateway/player/document scope.
 3. Curate the requested static SVG collection under #484 and retain redistribution evidence.
 4. Check the integrated editor/Runtime flows for regressions rather than retesting unchanged driver foundations.

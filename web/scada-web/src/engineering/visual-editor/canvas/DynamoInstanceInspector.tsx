@@ -29,6 +29,7 @@ import {
   type DynamoSettledState
 } from '../dynamo/dynamoStateModel';
 import './DynamoInstanceInspector.css';
+import { DynamoScriptWizard } from '../dynamo/DynamoScriptWizard';
 
 export function DynamoInstanceInspector({
   screen,
@@ -134,6 +135,7 @@ function DynamoInspectorBody({
           parameter={parameter}
           value={value}
           instance={instance}
+          screenId={screen.id}
           tags={valueSourceTagOptions}
           clientMemorySources={valueSourceMemoryOptions}
           commands={commands}
@@ -181,6 +183,7 @@ function ParameterEditor({
   parameter,
   value,
   instance,
+  screenId,
   tags,
   clientMemorySources,
   commands,
@@ -191,6 +194,7 @@ function ParameterEditor({
   parameter: DynamoParameterDefinitionEngineering;
   value: DynamoParameterValueEngineering | undefined;
   instance: VisualElementEngineering;
+  screenId?: string | null;
   tags: readonly TagEngineering[];
   clientMemorySources: readonly VisualEditorBindingSourceCatalogItem[];
   commands: readonly CommandEngineering[];
@@ -255,6 +259,7 @@ function ParameterEditor({
       onSet={onSet}
       onRemove={onRemove}
     />}
+    {editor === 'value-source' && instance.id && <DynamoScriptWizard screenId={screenId} objectId={instance.id} parameter={parameter} sources={clientMemorySources} disabled={disabled} onSet={onSet}/>}
     <footer>
       {requiredMissing ? <span>{text.requiredMissing}</span> : <span>{hasStoredValue ? text.instanceValue : text.defaultUnset}</span>}
       {removeAllowed && editor !== 'tag-reference' ? <button type="button" onClick={onRemove}>{text.reset}</button> : null}

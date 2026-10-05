@@ -7,6 +7,7 @@ export type DynamoAuthoringCatalog = Readonly<{
   tags: readonly TagEngineering[];
   commands: readonly CommandEngineering[];
   visualAssets: readonly VisualAssetEngineering[];
+  onApplied?: () => Promise<void>;
 }>;
 
 const EMPTY_CATALOG: DynamoAuthoringCatalog = Object.freeze({
@@ -23,14 +24,16 @@ export function DynamoAuthoringCatalogProvider({
   tags,
   commands,
   visualAssets,
+  onApplied,
   children
 }: DynamoAuthoringCatalog & Readonly<{ children: React.ReactNode }>) {
   const value = React.useMemo<DynamoAuthoringCatalog>(() => Object.freeze({
     definitions: Object.freeze(definitions.map(normalizeDynamoDefinitionParameterContract)),
     tags: Object.freeze([...tags]),
     commands: Object.freeze([...commands]),
-    visualAssets: Object.freeze([...visualAssets])
-  }), [definitions, tags, commands, visualAssets]);
+    visualAssets: Object.freeze([...visualAssets]),
+    onApplied
+  }), [definitions, tags, commands, visualAssets, onApplied]);
   return <DynamoAuthoringCatalogContext.Provider value={value}>{children}</DynamoAuthoringCatalogContext.Provider>;
 }
 

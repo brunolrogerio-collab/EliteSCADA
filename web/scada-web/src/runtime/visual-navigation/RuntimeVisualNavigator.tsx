@@ -10,6 +10,7 @@ import { resolveVisualDefinitionSurfaceStyle } from '../../engineering/visual-ed
 import type { ClientVisualEventDispatchRecord } from '../../python-runtime/clientVisualEventDispatcher';
 import { RuntimeLogicalViewport } from './RuntimeLogicalViewport';
 import { useMobileRuntime } from '../useMobileRuntime';
+import { RuntimeActionFeedbackContext, actionFeedbackLabel, type RuntimeActionFeedback } from './RuntimeActionFeedback';
 import { resolveRuntimeLogicalSize } from './runtimeLogicalCanvas';
 import { executeRuntimeCommand, RuntimeCommandExecutionError } from './runtimeCommandApi';
 import { writeRuntimeTagValue } from '../runtimeTagWriteApi';
@@ -78,6 +79,8 @@ export function RuntimeVisualNavigator({
 }: RuntimeVisualNavigatorProps) {
   const playback = useOptionalHistoricalPlayback();
   const mobile = useMobileRuntime();
+  const [actionFeedback, setActionFeedback] = useState<ReadonlyMap<string, RuntimeActionFeedback>>(new Map());
+  const actionInFlight = React.useRef(new Set<string>());
   const catalog = useMemo(() => createRuntimeVisualCatalog(engineeringPackage), [engineeringPackage]);
   const initialResolution = useMemo(
     () => resolveInitialNavigation(catalog, initialScreenKey),
@@ -90,6 +93,7 @@ export function RuntimeVisualNavigator({
     const next = resolveInitialNavigation(catalog, initialScreenKey);
     setState(next.state);
     setDiagnostic(next.diagnostic);
+    setActionFeedback(new Map());
   }, [catalog, initialScreenKey]);
 
   useEffect(() => {
@@ -124,10 +128,32 @@ export function RuntimeVisualNavigator({
   const designSize = resolveRuntimeLogicalSize();
 
   const dispatch = async (event: CanonicalVisualEvent, popupRuntimeInstanceId?: string) => {
+    const objectId = event.element.id ?? event.element.key;
+    let operational = false;
+    let acquired = false;
+    const requestId = crypto.randomUUID();
+    const started = Date.now();
+    const feedback = (status: RuntimeActionFeedback['state']) => setActionFeedback(previous => {
+      if (status !== 'pending' && previous.get(objectId)?.requestId !== requestId) return previous;
+      return new Map(previous).set(objectId, { state: status, label: actionFeedbackLabel(status, locale), requestId });
+    });
+    const confirmWrite = async (tagId: string, value: unknown) => {
+      feedback('accepted');
+      try {
+        const sample = (await loadReadableRuntimeTags()).find(tag => tag.id.toLowerCase() === tagId.toLowerCase())?.current;
+        if (sample && (sample.quality === 0 || String(sample.quality).toLowerCase() === 'good') &&
+            sample.value === value && Date.parse(sample.timestamp) >= started) feedback('confirmed');
+      } catch { /* Transport acceptance is not process confirmation; retain the truthful accepted state. */ }
+    };
     try {
       const rawAction = resolveVisualNavigationAction(event.element, event.eventKey);
       if (!rawAction) return;
       const action = normalizeVisualActionWireKind(rawAction);
+      operational = ['ExecuteCommand', 'SetTagValue', 'ToggleTagBoolean'].includes(action.kind);
+      if (operational) {
+        if (actionInFlight.current.has(objectId)) return;
+        actionInFlight.current.add(objectId); acquired = true; feedback('pending');
+      }
       if (action.kind === 'ExecuteCommand') {
         const commandId = action.commandId?.trim();
         if (!commandId) {
@@ -137,6 +163,7 @@ export function RuntimeVisualNavigator({
           );
         }
         await executeRuntimeCommand(commandId);
+        feedback('accepted');
         setDiagnostic(null);
         return;
       }
@@ -150,6 +177,7 @@ export function RuntimeVisualNavigator({
           );
         }
         await writeRuntimeTagValue(tagId, value);
+        await confirmWrite(tagId, value);
         setDiagnostic(null);
         return;
       }
@@ -169,6 +197,7 @@ export function RuntimeVisualNavigator({
           );
         }
         await writeRuntimeTagValue(tag.id, !tag.current.value);
+        await confirmWrite(tag.id, !tag.current.value);
         setDiagnostic(null);
         return;
       }
@@ -185,11 +214,14 @@ export function RuntimeVisualNavigator({
       setState(next);
       setDiagnostic(null);
     } catch (reason) {
+      if (operational) feedback('failed');
       setDiagnostic(asRuntimeDiagnostic(reason));
+    } finally {
+      if (acquired) actionInFlight.current.delete(objectId);
     }
   };
 
-  return <div
+  return <RuntimeActionFeedbackContext.Provider value={actionFeedback}><div
     className="runtime-visual-navigator"
     data-testid="runtime-visual-navigator"
     data-active-screen-key={state.activeScreenKey}
@@ -287,7 +319,7 @@ export function RuntimeVisualNavigator({
     </RuntimeLogicalViewport>
 
     {diagnostic ? <RuntimeDiagnostic diagnostic={diagnostic} /> : null}
-  </div>;
+  </div></RuntimeActionFeedbackContext.Provider>;
 }
 
 function normalizeVisualActionWireKind(action: VisualNavigationActionEngineering): OperationalVisualAction {

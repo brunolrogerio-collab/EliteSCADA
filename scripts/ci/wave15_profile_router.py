@@ -108,7 +108,7 @@ E2E_PROFILE_DEFAULTS = {
     "SCRIPT_ENGINEERING": ("tests-e2e/script-engineering-workspace-contract.spec.ts",),
     "SCRIPT_RUNTIME": ("tests-e2e/python-runtime-host.spec.ts",),
     "RUNTIME_RENDERER": ("tests-e2e/runtime.spec.ts", "tests-e2e/wave-14-c25-runtime-session.spec.ts"),
-    "AUTHORITY_UX": ("tests-e2e/security.spec.ts",),
+    "AUTHORITY_UX": ("tests-e2e/security.spec.ts", "tests-e2e/database-topology-mounted.spec.ts"),
     "LICENSING_UX": ("tests-e2e/effective-capabilities-contract.spec.ts",),
     "ELITEGO_RUNTIME": ("tests-e2e/runtime.spec.ts",),
     "DATABASE_TOPOLOGY": ("tests-e2e/database-topology-mounted.spec.ts",),

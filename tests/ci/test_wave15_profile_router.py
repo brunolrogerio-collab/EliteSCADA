@@ -204,7 +204,10 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         self.assertIn("DATABASE_TOPOLOGY", result["effective_profiles"])
 
     def test_ha_distributed_owns_mounted_admin_browser_evidence(self):
-        result = self.classify([], "VALIDATION_PROFILE: HA_DISTRIBUTED")
+        result = self.classify(
+            ["web/scada-web/src/engineering/ha/HaAdminWorkspace.tsx"],
+            "VALIDATION_PROFILE: HA_DISTRIBUTED",
+        )
         self.assertTrue(result["run_dotnet"])
         self.assertTrue(result["run_e2e"])
         self.assertIn("tests-e2e/ha-admin-workspace.spec.ts", result["e2e_specs"])

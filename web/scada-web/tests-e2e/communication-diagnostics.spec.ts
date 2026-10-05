@@ -6,13 +6,13 @@ const runtimeInstanceA = '11111111111111111111111111111111';
 const runtimeInstanceB = '22222222222222222222222222222222';
 
 test('Engineering diagnostics prioritizes communication health, filters sources and exposes technical drill-down', async ({ page }) => {
-  await page.route('**/api/engineering/diagnostics/driver-host', async route => {
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+  let hostPayload = {
       status: 'Healthy', service: 'EliteSCADA API / DriverHost', nodeIdentity: 'node-a',
-      observedAtUtc: '2026-08-27T11:00:05Z', freshForSeconds: 30, uptime: '01:00:00',
+      observedAtUtc: new Date().toISOString(), freshForSeconds: 300, uptime: '01:00:00',
       activeRuntimeAvailable: true, activeRevision: 13
-    }) });
-  });
+  };
+  await page.route('**/api/engineering/diagnostics/driver-host', async route =>
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(hostPayload) }));
 
   await page.route('**/api/diagnostics/runtime', async route => {
     await route.fulfill({
@@ -45,6 +45,10 @@ test('Engineering diagnostics prioritizes communication health, filters sources 
   await expect(page.getByRole('heading', { name: 'Comunicação ativa' })).toBeVisible();
   await expect(page.getByTestId('driver-host-health')).toContainText('Host API / DriverHost');
   await expect(page.getByText('Atenção', { exact: true })).toBeVisible();
+  const ladder = page.getByTestId('driver-diagnostic-ladder');
+  await expect(ladder.getByRole('link', { name: 'Connection Test' })).toHaveAttribute('href', '/engineering/dataSources');
+  await expect(ladder.getByRole('link', { name: 'Test Read' })).toHaveAttribute('href', '/engineering/tags');
+  await expect(ladder.getByRole('link', { name: 'TAG ativo' })).toHaveAttribute('href', '/engineering/diagnostics/tag-monitor');
 
   const sourceCards = page.locator('.eng-comm-source');
   await expect(sourceCards).toHaveCount(2);
@@ -81,6 +85,12 @@ test('Engineering diagnostics prioritizes communication health, filters sources 
   await page.getByLabel('Idioma').selectOption('en');
   await expect(page.getByRole('heading', { name: 'Active communication' })).toBeVisible();
   await expect(page.locator('.eng-comm-source').locator('.eng-comm-status')).toHaveText(/Healthy/);
+
+  hostPayload = { ...hostPayload, observedAtUtc: '2020-01-01T00:00:00Z', freshForSeconds: 30 };
+  await page.getByRole('button', { name: 'Refresh now' }).click();
+  await expect(page.getByTestId('driver-host-health').locator('.eng-comm-status')).toHaveText('Stale');
+  await expect(page.locator('.eng-comm-source').locator('.eng-comm-status')).toHaveText('Unavailable');
+  await expect(page.getByTestId('driver-host-health')).toContainText('driver state is unverified');
 });
 
 function diagnostic(

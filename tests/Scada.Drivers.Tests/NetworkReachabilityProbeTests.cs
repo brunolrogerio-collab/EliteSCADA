@@ -60,4 +60,54 @@ public sealed class NetworkReachabilityProbeTests
         Assert.Null(result.Tcp.ElapsedMilliseconds);
         Assert.DoesNotContain("no-such-host", result.Tcp.Detail, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Theory]
+    [InlineData(SocketError.ConnectionRefused, "Refused")]
+    [InlineData(SocketError.NetworkUnreachable, "Unreachable")]
+    [InlineData(SocketError.HostUnreachable, "Unreachable")]
+    [InlineData(SocketError.AccessDenied, "Unavailable")]
+    public async Task ProbeAsync_ClassifiesTcpSocketFailuresWithoutExposingSocketDetails(
+        SocketError socketError,
+        string expectedStatus)
+    {
+        var probe = new NetworkReachabilityProbe((_, _, _) =>
+            Task.FromException(new SocketException((int)socketError)));
+
+        var result = await probe.ProbeAsync(new NetworkReachabilityProbeRequest(
+            "127.0.0.1",
+            502,
+            TimeoutMilliseconds: 500));
+
+        Assert.Equal(expectedStatus, result.Tcp.Status);
+        Assert.Equal("127.0.0.1", result.Tcp.Address);
+        Assert.DoesNotContain(socketError.ToString(), result.Tcp.Detail ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ProbeAsync_ReportsBoundedTcpTimeout()
+    {
+        var probe = new NetworkReachabilityProbe((_, _, cancellationToken) =>
+            Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken));
+
+        var result = await probe.ProbeAsync(new NetworkReachabilityProbeRequest(
+            "127.0.0.1",
+            502,
+            TimeoutMilliseconds: 100));
+
+        Assert.Equal("Timeout", result.Tcp.Status);
+        Assert.InRange(result.Tcp.ElapsedMilliseconds!.Value, 80, 1000);
+    }
+
+    [Fact]
+    public async Task ProbeAsync_PreservesCallerCancellationInsteadOfReportingProbeTimeout()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var probe = new NetworkReachabilityProbe((_, _, cancellationToken) =>
+            Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken));
+
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => probe.ProbeAsync(
+            new NetworkReachabilityProbeRequest("127.0.0.1", 502, TimeoutMilliseconds: 500),
+            cancellation.Token));
+    }
 }

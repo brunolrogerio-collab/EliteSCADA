@@ -105,6 +105,14 @@ export function resolveDynamoParameterEditorKind(
   }
 }
 
+/** Resolves only scalar TAG types supported by a Dynamo Boolean/Number source. */
+export function resolveDynamoValueSourceType(dataType: string | null | undefined): 'Boolean' | 'Number' | null {
+  const normalized = dataType?.trim().toLocaleLowerCase('en-US') ?? '';
+  if (normalized === 'bool' || normalized === 'boolean') return 'Boolean';
+  if (/^(u?int\d*|float|single|double|decimal|number|enum)$/.test(normalized)) return 'Number';
+  return null;
+}
+
 export function setDynamoPublicParameterValue(
   instance: VisualElementEngineering,
   definition: DynamoEngineering,

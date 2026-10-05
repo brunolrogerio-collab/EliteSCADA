@@ -7,7 +7,7 @@ import {
   resolveDynamoRuntimeEquipmentPath
 } from '../src/runtime/visual-navigation/dynamoRuntimeBindingProjection';
 import { collectRuntimeDynamoEventOnlyObjectIds } from '../src/runtime/visual-navigation/runtimeDynamoVisualProjection';
-import { resolveDynamoParameterEditorKind } from '../src/engineering/visual-editor/dynamo/dynamoPublicInterfaceModel';
+import { resolveDynamoParameterEditorKind, resolveDynamoValueSourceType, setDynamoPublicParameterValue } from '../src/engineering/visual-editor/dynamo/dynamoPublicInterfaceModel';
 
 function parameters(...values: DynamoParameterValueEngineering[]) {
   return new Map(values.map(value => [value.key, value]));
@@ -113,6 +113,45 @@ test('typed Dynamo value-source parameters project TAG expressions into canonica
   expect(source?.expression?.text).toBe('running and permitted');
   expect(source?.expression?.dependencies?.map(dependency => dependency.tagReference.tagId))
     .toEqual([firstTagId, secondTagId]);
+});
+
+test('typed Dynamo expressions preserve Client Memory dependency identity', () => {
+  const memoryTagId = '33333333-3333-4333-8333-333333333333';
+  const element: VisualElementEngineering = {
+    key: 'fault-indicator',
+    type: 'core.rectangle',
+    booleanConditions: [{
+      propertyKey: 'visible',
+      kind: 'Direct',
+      source: { kind: 'Tag', valueType: 'Boolean', target: '{dynamoParameter:faultSignal}' }
+    }]
+  };
+  const projected = projectDynamoRuntimeElements([element], parameters({
+    key: 'faultSignal',
+    kind: 'ValueSource',
+    valueSource: {
+      kind: 'Expression',
+      valueType: 'Boolean',
+      expression: {
+        text: 'source',
+        resultType: 'Boolean',
+        dependencies: [{
+          symbol: 'source',
+          kind: 'ClientMemory',
+          valueType: 'Boolean',
+          tagReference: { tagId: memoryTagId },
+          target: 'Signals.Fault'
+        }]
+      }
+    }
+  }), null);
+  const dependency = projected[0].booleanConditions?.[0].source?.expression?.dependencies?.[0];
+
+  expect(dependency).toMatchObject({
+    kind: 'ClientMemory',
+    target: 'Signals.Fault',
+    tagReference: { tagId: memoryTagId }
+  });
 });
 
 test('electrical contact inversion swaps the binary open/closed state without changing its TAG identity', () => {
@@ -378,6 +417,50 @@ test('disabled motor and valve states also suppress their animated text labels',
 
 test('typed value-source parameters use the dedicated TAG/expression authoring editor', () => {
   expect(resolveDynamoParameterEditorKind('ValueSource')).toBe('value-source');
+});
+
+test('Dynamo Boolean/Number sources reject non-scalar TAG data types', () => {
+  expect(resolveDynamoValueSourceType('Boolean')).toBe('Boolean');
+  expect(resolveDynamoValueSourceType('UInt16')).toBe('Number');
+  expect(resolveDynamoValueSourceType('Double')).toBe('Number');
+  expect(resolveDynamoValueSourceType('DateTime')).toBeNull();
+  expect(resolveDynamoValueSourceType('String')).toBeNull();
+});
+
+test('Dynamo script-output value source stores Client Memory identity and keeps it in Runtime composition', () => {
+  const definition: DynamoEngineering = {
+    id: '55000000-0000-4000-8000-000000000001',
+    key: 'indicator.lamp.round',
+    name: 'Sinalizador redondo',
+    parameters: [{ key: 'faultSignal', kind: 'ValueSource', valueSourceType: 'Boolean' }],
+    elements: []
+  };
+  const instance: VisualElementEngineering = {
+    id: '55000000-0000-4000-8000-000000000002',
+    key: 'lamp-1',
+    type: 'core.group',
+    dynamoKey: definition.key,
+    dynamoDefinitionId: definition.id
+  };
+  const withOutput = setDynamoPublicParameterValue(instance, definition, {
+    key: 'faultSignal',
+    kind: 'ValueSource',
+    valueSource: {
+      kind: 'ClientMemory',
+      valueType: 'Boolean',
+      target: 'Signals.Fault',
+      tagReference: { tagId: '55000000-0000-4000-8000-000000000003' }
+    }
+  });
+
+  expect(withOutput.dynamoParameters?.[0]?.valueSource).toMatchObject({
+    kind: 'ClientMemory', target: 'Signals.Fault', valueType: 'Boolean',
+    tagReference: { tagId: '55000000-0000-4000-8000-000000000003' }
+  });
+  expect(composeDynamoRuntime(withOutput, definition).parameters.get('faultSignal')?.valueSource).toMatchObject({
+    kind: 'ClientMemory', target: 'Signals.Fault',
+    tagReference: { tagId: '55000000-0000-4000-8000-000000000003' }
+  });
 });
 
 test('public TagReference overrides the opted-in internal binding and preserves selector', () => {

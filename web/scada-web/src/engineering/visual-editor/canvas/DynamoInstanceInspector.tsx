@@ -15,10 +15,12 @@ import { useC07VisualEditorText } from '../c07VisualEditorI18n';
 import { useDynamoAuthoringCatalog } from '../DynamoAuthoringCatalogContext';
 import { isVisualElementEffectivelyAuthoringLocked } from '../visualEditorAuthoringModel';
 import type { VisualEditorKeyboardCommand } from '../visualEditorKeyboardModel';
+import type { VisualEditorBindingSourceCatalogItem } from '../visualEditorContracts';
 import {
   listDynamoPublicParameters,
   listDynamoPublicParameterValues,
-  resolveDynamoParameterEditorKind
+  resolveDynamoParameterEditorKind,
+  resolveDynamoValueSourceType
 } from '../dynamo/dynamoPublicInterfaceModel';
 import {
   resolveDynamoVisualState,
@@ -31,10 +33,12 @@ import './DynamoInstanceInspector.css';
 export function DynamoInstanceInspector({
   screen,
   selectedObjectIds,
+  clientMemorySources,
   onCommand
 }: {
   screen: ScreenEngineering;
   selectedObjectIds: readonly string[];
+  clientMemorySources: readonly VisualEditorBindingSourceCatalogItem[];
   onCommand?: (command: VisualEditorKeyboardCommand) => void;
 }) {
   const text = useC07VisualEditorText().dynamo;
@@ -56,6 +60,7 @@ export function DynamoInstanceInspector({
     instance={instance}
     definition={definition}
     tags={catalog.tags}
+    clientMemorySources={clientMemorySources}
     commands={catalog.commands}
     onCommand={onCommand}
   />;
@@ -66,6 +71,7 @@ function DynamoInspectorBody({
   instance,
   definition,
   tags,
+  clientMemorySources,
   commands,
   onCommand
 }: {
@@ -73,6 +79,7 @@ function DynamoInspectorBody({
   instance: VisualElementEngineering & { id: string };
   definition: DynamoEngineering;
   tags: readonly TagEngineering[];
+  clientMemorySources: readonly VisualEditorBindingSourceCatalogItem[];
   commands: readonly CommandEngineering[];
   onCommand?: (command: VisualEditorKeyboardCommand) => void;
 }) {
@@ -87,6 +94,14 @@ function DynamoInspectorBody({
     () => tags.filter(tag => Boolean(tag.id?.trim())).sort((a, b) =>
       (a.path || a.name).localeCompare(b.path || b.name)),
     [tags]
+  );
+  const valueSourceTagOptions = useMemo(
+    () => tagOptions.filter(tag => resolveDynamoValueSourceType(tag.dataType) !== null),
+    [tagOptions]
+  );
+  const valueSourceMemoryOptions = useMemo(
+    () => clientMemorySources.filter(source => resolveDynamoValueSourceType(source.dataType) !== null && source.tagReference?.tagId),
+    [clientMemorySources]
   );
 
   const setValue = (value: DynamoParameterValueEngineering) => onCommand?.({
@@ -119,7 +134,8 @@ function DynamoInspectorBody({
           parameter={parameter}
           value={value}
           instance={instance}
-          tags={tagOptions}
+          tags={valueSourceTagOptions}
+          clientMemorySources={valueSourceMemoryOptions}
           commands={commands}
           disabled={locked || !onCommand}
           onSet={setValue}
@@ -166,6 +182,7 @@ function ParameterEditor({
   value,
   instance,
   tags,
+  clientMemorySources,
   commands,
   disabled,
   onSet,
@@ -175,6 +192,7 @@ function ParameterEditor({
   value: DynamoParameterValueEngineering | undefined;
   instance: VisualElementEngineering;
   tags: readonly TagEngineering[];
+  clientMemorySources: readonly VisualEditorBindingSourceCatalogItem[];
   commands: readonly CommandEngineering[];
   disabled: boolean;
   onSet: (value: DynamoParameterValueEngineering) => void;
@@ -219,6 +237,7 @@ function ParameterEditor({
       parameter={parameter}
       value={value}
       tags={tags}
+      clientMemorySources={clientMemorySources}
       disabled={disabled}
       onSet={onSet}
       onRemove={onRemove}
@@ -247,6 +266,7 @@ function ValueSourceParameterEditor({
   parameter,
   value,
   tags,
+  clientMemorySources,
   disabled,
   onSet,
   onRemove
@@ -254,33 +274,43 @@ function ValueSourceParameterEditor({
   parameter: DynamoParameterDefinitionEngineering;
   value: DynamoParameterValueEngineering | undefined;
   tags: readonly TagEngineering[];
+  clientMemorySources: readonly VisualEditorBindingSourceCatalogItem[];
   disabled: boolean;
   onSet: (value: DynamoParameterValueEngineering) => void;
   onRemove: () => void;
 }) {
   const text = useC07VisualEditorText().dynamo;
   const source = value?.valueSource ?? parameter.defaultValueSource ?? undefined;
-  const [mode, setMode] = useState<'Tag' | 'Expression'>(source?.kind === 'Expression' ? 'Expression' : 'Tag');
+  const [mode, setMode] = useState<'Tag' | 'ClientMemory' | 'Expression'>(source?.kind === 'Expression' ? 'Expression' : source?.kind === 'ClientMemory' ? 'ClientMemory' : 'Tag');
   const [tagId, setTagId] = useState(source?.kind === 'Expression'
     ? source.expression?.dependencies?.[0]?.tagReference.tagId ?? ''
     : source?.tagReference?.tagId ?? '');
   const [expressionText, setExpressionText] = useState(source?.expression?.text ?? 'source');
   const [resultType, setResultType] = useState<'Boolean' | 'Number'>(parameter.valueSourceType ?? source?.valueType ?? 'Boolean');
+  const [expressionDependencyKind, setExpressionDependencyKind] = useState<'Tag' | 'ClientMemory'>(
+    source?.expression?.dependencies?.[0]?.kind === 'ClientMemory' ? 'ClientMemory' : 'Tag'
+  );
   const selectedTag = tags.find(tag => tag.id === tagId);
+  const selectedMemorySource = clientMemorySources.find(item => item.tagReference?.tagId === tagId);
+  const dependencyUsesClientMemory = mode === 'ClientMemory' || (mode === 'Expression' && expressionDependencyKind === 'ClientMemory');
+  const selectedDataType = dependencyUsesClientMemory ? selectedMemorySource?.dataType : selectedTag?.dataType;
+  const selectedValueType = resolveDynamoValueSourceType(selectedDataType);
 
   useEffect(() => {
     const next = value?.valueSource ?? parameter.defaultValueSource ?? undefined;
-    setMode(next?.kind === 'Expression' ? 'Expression' : 'Tag');
+    setMode(next?.kind === 'Expression' ? 'Expression' : next?.kind === 'ClientMemory' ? 'ClientMemory' : 'Tag');
     setTagId(next?.kind === 'Expression'
       ? next.expression?.dependencies?.[0]?.tagReference.tagId ?? ''
       : next?.tagReference?.tagId ?? '');
     setExpressionText(next?.expression?.text ?? 'source');
     setResultType(parameter.valueSourceType ?? next?.valueType ?? 'Boolean');
+    setExpressionDependencyKind(next?.kind === 'Expression' && next.expression?.dependencies?.[0]?.kind === 'ClientMemory' ? 'ClientMemory' : 'Tag');
   }, [parameter.key, parameter.defaultValueSource, value?.valueSource]);
 
   const save = () => {
-    if (disabled || !selectedTag?.id) return;
-    const valueType = parameter.valueSourceType ?? (mode === 'Expression' ? resultType : tagValueType(selectedTag.dataType));
+    const selectedReference = dependencyUsesClientMemory ? selectedMemorySource?.tagReference : selectedTag?.id ? { tagId: selectedTag.id } : undefined;
+    if (disabled || !selectedReference?.tagId || !selectedValueType) return;
+    const valueType = parameter.valueSourceType ?? (mode === 'Expression' ? resultType : selectedValueType!);
     let valueSource: VisualValueSourceEngineering;
     if (mode === 'Expression') {
       valueSource = {
@@ -291,19 +321,19 @@ function ValueSourceParameterEditor({
           resultType: valueType,
           dependencies: [{
             symbol: 'source',
-            kind: 'Tag',
-            valueType: tagValueType(selectedTag.dataType),
-            tagReference: { tagId: selectedTag.id },
-            target: selectedTag.path
+            kind: expressionDependencyKind,
+            valueType: selectedValueType!,
+            tagReference: selectedReference,
+            target: dependencyUsesClientMemory ? selectedMemorySource?.target : selectedTag?.path
           }]
         }
       };
     } else {
       valueSource = {
-        kind: 'Tag',
+        kind: mode === 'ClientMemory' ? 'ClientMemory' : 'Tag',
         valueType,
-        target: selectedTag.path,
-        tagReference: { tagId: selectedTag.id }
+        target: mode === 'ClientMemory' ? selectedMemorySource?.target : selectedTag?.path,
+        tagReference: selectedReference
       };
     }
     onSet({ key: parameter.key, kind: 'ValueSource', valueSource, version: parameter.version });
@@ -312,15 +342,31 @@ function ValueSourceParameterEditor({
   return <div className="visual-editor-dynamo-parameter__scalar">
     <label>
       <span>{text.valueSource}</span>
-      <select value={mode} disabled={disabled} onChange={event => setMode(event.currentTarget.value as 'Tag' | 'Expression')}>
+      <select value={mode} disabled={disabled} onChange={event => {
+        const nextMode = event.currentTarget.value as 'Tag' | 'ClientMemory' | 'Expression';
+        setMode(nextMode);
+        if (nextMode === 'Expression') setExpressionDependencyKind(mode === 'ClientMemory' ? 'ClientMemory' : 'Tag');
+      }}>
         <option value="Tag">TAG</option>
+        <option value="ClientMemory">{text.clientMemoryOutput}</option>
         <option value="Expression">{text.expression}</option>
       </select>
     </label>
-    <select value={tagId} disabled={disabled} onChange={event => setTagId(event.currentTarget.value)}>
+    {mode === 'Expression' ? <label>
+      <span>{text.dependencySource}</span>
+      <select value={expressionDependencyKind} disabled={disabled} onChange={event => setExpressionDependencyKind(event.currentTarget.value as 'Tag' | 'ClientMemory')}>
+        <option value="Tag">TAG</option>
+        <option value="ClientMemory">{text.clientMemoryOutput}</option>
+      </select>
+    </label> : null}
+    {dependencyUsesClientMemory ? <select value={tagId} disabled={disabled} onChange={event => setTagId(event.currentTarget.value)}>
+      <option value="">{text.selectTag}</option>
+      {clientMemorySources.map(item => <option key={item.tagReference!.tagId} value={item.tagReference!.tagId}>{item.label} · {item.dataType}</option>)}
+    </select> : <select value={tagId} disabled={disabled} onChange={event => setTagId(event.currentTarget.value)}>
       <option value="">{text.selectTag}</option>
       {tags.map(tag => <option key={tag.id!} value={tag.id!}>{tag.name} · {tag.path} · {tag.dataType}</option>)}
-    </select>
+    </select>}
+    {dependencyUsesClientMemory ? <small>{text.clientMemoryOutputHint}</small> : null}
     {mode === 'Expression' ? <>
       {parameter.valueSourceType ? <small>{text.sourceResult}: {parameter.valueSourceType}</small> : <label>
           <span>{text.sourceResult}</span>
@@ -332,13 +378,9 @@ function ValueSourceParameterEditor({
       <input value={expressionText} disabled={disabled} onChange={event => setExpressionText(event.currentTarget.value)} aria-label={text.expression} />
       <small>{text.expressionHint}</small>
     </> : null}
-    <button type="button" className="secondary" disabled={disabled || !selectedTag || (mode === 'Tag' && parameter.valueSourceType != null && parameter.valueSourceType !== tagValueType(selectedTag.dataType))} onClick={save}>{text.valueSource}</button>
+    <button type="button" className="secondary" disabled={disabled || (dependencyUsesClientMemory ? !selectedMemorySource : !selectedTag) || !selectedValueType || (mode !== 'Expression' && parameter.valueSourceType != null && parameter.valueSourceType !== selectedValueType)} onClick={save}>{text.valueSource}</button>
     {value?.valueSource && parameter.required !== true ? <button type="button" className="secondary" disabled={disabled} onClick={onRemove}>{text.reset}</button> : null}
   </div>;
-}
-
-function tagValueType(dataType: string): 'Boolean' | 'Number' {
-  return /bool/i.test(dataType) ? 'Boolean' : 'Number';
 }
 
 function CommandParameterEditor({

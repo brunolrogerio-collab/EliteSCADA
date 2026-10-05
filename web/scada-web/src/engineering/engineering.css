@@ -167,7 +167,8 @@
   padding: 0 10px 4px;
 }
 
-.eng-nav button {
+.eng-nav button,
+.eng-nav a {
   width: 100%;
   border: 0;
   background: transparent;
@@ -181,26 +182,32 @@
   padding: 5px 10px;
   text-align: left;
   cursor: pointer;
+  color: inherit;
+  text-decoration: none;
 }
 
-.eng-nav button:hover {
+.eng-nav button:hover,
+.eng-nav a:hover {
   background: var(--eng-hover);
   color: var(--eng-text);
 }
 
-.eng-nav button.active {
+.eng-nav button.active,
+.eng-nav a.active {
   background: var(--eng-accent-soft);
   color: var(--eng-text);
   box-shadow: inset 2px 0 0 var(--eng-accent);
 }
 
-.eng-nav button i {
+.eng-nav button i,
+.eng-nav a i {
   font-style: normal;
   color: var(--eng-muted);
   text-align: center;
 }
 
-.eng-nav button span {
+.eng-nav button span,
+.eng-nav a span {
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -752,13 +759,15 @@
     gap: 4px;
   }
 
-  .eng-nav button {
+  .eng-nav button,
+  .eng-nav a {
     width: auto;
     grid-template-columns: 16px auto;
     white-space: nowrap;
   }
 
-  .eng-nav button small {
+  .eng-nav button small,
+  .eng-nav a small {
     display: none;
   }
 

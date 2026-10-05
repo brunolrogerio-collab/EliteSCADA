@@ -22,10 +22,6 @@
 .app-navigation a.active { border-left-color: var(--app-border); border-right-color: var(--app-border); border-bottom-color: var(--app-accent); background: var(--app-selected); color: var(--app-text-primary); }
 .app-navigation a.active small { color: var(--app-text-secondary); }
 .app-shell-actions { justify-self: end; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 8px; }
-.engineering-tools-navigation { min-height: 38px; display: flex; align-items: center; gap: 6px; padding: 4px 18px; border-bottom: 1px solid var(--app-divider); background: var(--app-panel); }
-.engineering-tools-navigation a { padding: 6px 10px; border: 1px solid transparent; border-radius: 6px; color: var(--app-text-secondary); font-size: 12px; font-weight: 650; text-decoration: none; }
-.engineering-tools-navigation a:hover, .engineering-tools-navigation a:focus-visible { color: var(--app-text-primary); border-color: var(--app-border); outline: none; }
-.engineering-tools-navigation a.active { color: var(--app-text-primary); border-color: var(--app-accent); background: var(--app-selected); }
 .runtime-view-navigation { min-height: 46px; height: auto; display: flex; align-items: center; gap: 4px; padding: 7px 16px; border-bottom: 1px solid var(--app-divider); background: var(--app-panel); }
 .runtime-view-navigation a { padding: 6px 11px; border: 1px solid transparent; border-radius: 6px; color: var(--app-text-secondary); font-size: 12px; font-weight: 650; text-decoration: none; }
 .runtime-view-navigation a:hover, .runtime-view-navigation a:focus-visible { color: var(--app-text-primary); border-color: var(--app-border); outline: none; }
@@ -122,5 +118,4 @@
   .app-theme-control select { max-width: 92px; }
   .app-navigation a { padding-inline: 9px; }
   .runtime-view-navigation { overflow-x: auto; }
-  .engineering-tools-navigation { overflow-x: auto; padding-inline: 8px; }
 }

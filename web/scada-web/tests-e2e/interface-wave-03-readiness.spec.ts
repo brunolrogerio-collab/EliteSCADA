@@ -235,8 +235,8 @@ for (const expected of localeExpectations) {
     await expect(page).toHaveURL(/\/engineering$/);
     await expect(page.locator('.eng-shell')).toBeVisible();
     await expect(page.locator('#engineering-locale')).toHaveValue(expected.locale);
-    const databaseTopology = page.getByRole('navigation', { name: /Engineering|Engenharia/ })
-      .getByRole('link', { name: /Topologia de Banco de Dados|Database Topology|Topología de Base de Datos/ });
+    const databaseTopology = page.locator('.eng-nav')
+      .getByRole('link', { name: /Banco de dados|Database|Base de datos/ });
     await expect(databaseTopology).toHaveAttribute('href', '/engineering/database-topology');
     await expect(page.getByRole('navigation', { name: 'EliteSCADA' }).getByRole('link', { name: /Topologia de Banco|Database Topology|Topología de Base/ })).toHaveCount(0);
 

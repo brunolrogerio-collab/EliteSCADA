@@ -594,8 +594,7 @@ test('fullscreen Runtime uses compact branded shell while preserving History, Al
   const contextCenter = contextBox!.x + contextBox!.width / 2;
   expect(Math.abs(contextCenter - headerCenter)).toBeLessThanOrEqual(2);
 
-  const exitFullscreen = fullscreenHeader.getByRole('button', { name: 'Sair da tela cheia' });
-  await expect(exitFullscreen).toHaveAttribute('title', 'Sair da tela cheia');
+  await expect(fullscreenHeader.getByRole('button', { name: 'Sair da tela cheia' })).toHaveCount(0);
 
   const runtimeSession = runtime.getByTestId('session-menu-toggle');
   await expect(runtimeSession).toBeVisible();
@@ -609,13 +608,14 @@ test('fullscreen Runtime uses compact branded shell while preserving History, Al
   await expect(runtime.getByTestId('session-logout')).toBeVisible();
   await expect(runtime.getByTestId('runtime-session-class')).toBeVisible();
   await expect(runtime.getByTestId('session-close-interface')).toBeVisible();
+  const exitFullscreen = runtime.getByTestId('session-exit-fullscreen');
+  await expect(exitFullscreen).toHaveText('Sair da tela cheia');
 
   await testInfo.attach('runtime-shell-phase-b-fullscreen', {
     body: await runtime.screenshot(),
     contentType: 'image/png'
   });
 
-  await runtimeSession.click();
   await exitFullscreen.click();
   await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
 });

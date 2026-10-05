@@ -14,9 +14,10 @@ const localeKey = 'elitescada.engineering.locale';
 export type UserSessionMenuProps = {
   locale?: SessionLocale;
   includeRuntimeSessionControls?: boolean;
+  runtimeFullscreenExit?: { label: string; onActivate: () => void };
 };
 
-export function UserSessionMenu({ locale, includeRuntimeSessionControls = false }: UserSessionMenuProps) {
+export function UserSessionMenu({ locale, includeRuntimeSessionControls = false, runtimeFullscreenExit }: UserSessionMenuProps) {
   const { profile, logout, switchUser, canSwitchUser } = useAuth();
 
   const resolvedLocale = useMemo(
@@ -33,6 +34,7 @@ export function UserSessionMenu({ locale, includeRuntimeSessionControls = false 
       onSwitchUser={switchUser}
       onLogout={logout}
       runtimeSessionControls={includeRuntimeSessionControls ? <RuntimeSessionClassPanel locale={resolvedLocale} /> : undefined}
+      runtimeFullscreenExit={runtimeFullscreenExit}
     />
   );
 }

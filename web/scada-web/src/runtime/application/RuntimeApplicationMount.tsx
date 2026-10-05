@@ -287,14 +287,18 @@ function EngineeringRuntimeApplicationContent({
             controls="runtime-playback-overlay"
             onClick={togglePlayback}
           /> : null}
-          {(showFullscreenControl || isFullscreen) ? <RuntimeOperatorTool
-            label={isFullscreen ? text.exitFullscreen : text.fullscreen}
-            icon={isFullscreen ? 'exitFullscreen' : 'fullscreen'}
-            active={isFullscreen}
+            {showFullscreenControl && !isFullscreen ? <RuntimeOperatorTool
+              label={text.fullscreen}
+              icon="fullscreen"
+              active={false}
             onClick={() => void toggleFullscreen()}
           /> : null}
         </div>
-        {isFullscreen ? <UserSessionMenu locale={locale} includeRuntimeSessionControls /> : null}
+          {isFullscreen ? <UserSessionMenu
+            locale={locale}
+            includeRuntimeSessionControls
+            runtimeFullscreenExit={{ label: text.exitFullscreen, onActivate: () => void toggleFullscreen() }}
+          /> : null}
       </div>
     </header>
 

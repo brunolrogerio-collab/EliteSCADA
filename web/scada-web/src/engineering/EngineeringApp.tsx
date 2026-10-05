@@ -32,6 +32,7 @@ import { EquipmentFaceplateWorkspace } from './EquipmentFaceplateWorkspace';
 import type { DynamoEngineering, EngineeringPackageView, EngineeringSnapshot, EquipmentEngineering, TemplateEngineering } from './types';
 import { CanonicalVisualPreview } from './visual-editor/CanonicalVisualPreview';
 import { selectDefaultDynamoCatalog } from './visual-editor/dynamoLibraryModel';
+import { hasRuntimeCapability, useEffectiveCapabilities } from '../auth/effectiveCapabilities';
 import './engineering.css';
 import './object-catalog.css';
 
@@ -56,12 +57,13 @@ type SectionId =
   | 'reports'
   | 'security'
   | 'highAvailability'
+  | 'databaseTopology'
   | 'monitor'
   | 'tagMonitor'
   | 'diagnostics'
   | 'information';
 
-type NavItem = { id: SectionId; label?: TranslationKey; literalLabel?: Record<EngineeringLocale, string> };
+type NavItem = { id: SectionId; label?: TranslationKey; literalLabel?: Record<EngineeringLocale, string>; href?: string };
 type NavGroup = { label: TranslationKey; items: NavItem[] };
 
 const tagMonitorPath = '/engineering/diagnostics/tag-monitor';
@@ -90,7 +92,8 @@ const navigation: NavGroup[] = [
   ] },
   { label: 'nav.security', items: [
     { id: 'security', label: 'nav.security' },
-    { id: 'highAvailability', literalLabel: { 'pt-BR': 'Alta disponibilidade', en: 'High Availability', es: 'Alta disponibilidad' } }
+    { id: 'highAvailability', literalLabel: { 'pt-BR': 'Alta disponibilidade', en: 'High Availability', es: 'Alta disponibilidad' } },
+    { id: 'databaseTopology', literalLabel: { 'pt-BR': 'Banco de dados', en: 'Database', es: 'Base de datos' }, href: '/engineering/database-topology' }
   ] },
   { label: 'nav.diagnostics', items: [
     { id: 'monitor', literalLabel: { 'pt-BR': 'Monitoramento', en: 'Development Monitor', es: 'Monitor de Desarrollo' } },
@@ -109,6 +112,8 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
   const [navigationCollapsed, setNavigationCollapsed] = useState(false);
   const [productIdentity, setProductIdentity] = useState<ProductIdentityView | null>(null);
   const t = useMemo(() => translator(locale), [locale]);
+  const { capabilities } = useEffectiveCapabilities();
+  const canAdministerDatabase = hasRuntimeCapability(capabilities, 'SystemAdmin');
   const projectIdentity = snapshot?.workspace.projectName ?? snapshot?.workspace.projectKey
     ?? (loading ? t('workspace.loading') : t('workspace.unavailable'));
 
@@ -211,8 +216,17 @@ export function EngineeringApp({ engineeringLockControl }: { engineeringLockCont
                 <span className="eng-nav-label">{t(group.label)}</span>
                 {group.items
                   .filter(item => item.id !== 'tagMonitor' || snapshot !== null)
+                  .filter(item => item.id !== 'databaseTopology' || canAdministerDatabase)
                   .map(item => (
-                    <button
+                    item.href ? <a
+                      key={item.id}
+                      href={item.href}
+                      className={window.location.pathname.startsWith(item.href) ? 'active' : ''}
+                      aria-current={window.location.pathname.startsWith(item.href) ? 'page' : undefined}
+                    >
+                      <NavIcon section={item.id}/>
+                      <span>{item.literalLabel ? item.literalLabel[locale] : item.label ? t(item.label) : scriptNavLabel(locale)}</span>
+                    </a> : <button
                       key={item.id}
                       type="button"
                       className={section === item.id ? 'active' : ''}
@@ -480,6 +494,7 @@ function sectionCount(model: EngineeringPackageView, section: SectionId): number
     case 'reports': return reportCollection(model).length;
     case 'security': return model.securityRoles?.length ?? 0;
     case 'highAvailability':
+    case 'databaseTopology':
     case 'installation':
     case 'branding':
     case 'scripts':
@@ -547,7 +562,7 @@ function formatDate(value: string, locale: EngineeringLocale) {
 }
 function scriptNavLabel(_locale: EngineeringLocale) { return 'Scripts'; }
 function NavIcon({ section }: { section: SectionId }) {
-  const symbols: Record<SectionId, string> = { overview: '⌂', installation: '⇆', branding: '◐', scripts: '</>', libraries: '▱', dataSources: '⇄', gateway: '⇢', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', visualAssets: '▧', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', highAvailability: '⇄', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯', information: 'ⓘ' };
+  const symbols: Record<SectionId, string> = { overview: '⌂', installation: '⇆', branding: '◐', scripts: '</>', libraries: '▱', dataSources: '⇄', gateway: '⇢', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', visualAssets: '▧', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', highAvailability: '⇄', databaseTopology: '▤', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯', information: 'ⓘ' };
   return <i aria-hidden="true">{symbols[section]}</i>;
 }
 

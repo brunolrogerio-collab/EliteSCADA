@@ -9,7 +9,6 @@ import {
 } from './auth/effectiveCapabilities';
 import { contextualHelpTopic } from './help/contextualHelpTopic';
 import { ApplicationBrand, useActiveApplicationBranding } from './branding/ApplicationBranding';
-import { databaseTopologyText } from './database-topology/i18n';
 import './app-navigation.css';
 
 type ShellLink = Readonly<{
@@ -33,7 +32,6 @@ export function AppNavigation() {
   const path = window.location.pathname;
   const access = resolveAppSurfaceAccess(capabilities);
   const databaseAdmin = hasRuntimeCapability(capabilities, 'SystemAdmin');
-  const databaseText = databaseTopologyText(locale);
 
   if ((path.startsWith('/runtime/history') || path.startsWith('/runtime/reports')) && access.runtime && access.history) {
     return (
@@ -134,15 +132,6 @@ export function AppNavigation() {
           <UserSessionMenu locale={locale} includeRuntimeSessionControls={path === '/' || path.startsWith('/runtime/history') || path.startsWith('/runtime/reports')} />
         </div>
       </header>
-      {databaseAdmin && (path.startsWith('/engineering') || path.startsWith('/admin/database')) ? (
-        <nav className="engineering-tools-navigation" aria-label={text.engineering}>
-          <a
-            href="/engineering/database-topology"
-            className={path.startsWith('/engineering/database-topology') || path.startsWith('/admin/database') ? 'active' : undefined}
-            aria-current={path.startsWith('/engineering/database-topology') || path.startsWith('/admin/database') ? 'page' : undefined}
-          >{databaseText.title}</a>
-        </nav>
-      ) : null}
       {(path.startsWith('/runtime/history') || path.startsWith('/runtime/reports')) && access.runtime && access.history && (
         <nav className="runtime-view-navigation" aria-label="Runtime views">
           <a href="/" className={activeRuntimeHref === '/' ? 'active' : undefined} aria-current={activeRuntimeHref === '/' ? 'page' : undefined}>{text.runtimeOverview}</a>

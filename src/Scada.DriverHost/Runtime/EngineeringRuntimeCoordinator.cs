@@ -698,8 +698,8 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         {
             runtimeIssues.Add(new(
                 "RUNTIME_NO_ACTIVE_SOURCES",
-                "Published engineering produced no supported active runtime sources.",
-                IsError: true));
+                "Published engineering has no acquisition sources; visual-only Runtime remains available.",
+                IsError: false));
         }
 
         return new RuntimeState(
@@ -832,7 +832,10 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
             .ToArray();
 
         if (expectedTagIds.Length == 0 && readinessSources.Length == 0)
-            return allowEmpty || state.ClientMemoryPlans.SelectMany(x => x.Tags).Any();
+            // A Screen/PDF/media-only project has no acquisition readiness to
+            // await. Driver compilation/creation errors were already rejected;
+            // an existing driver is still required to satisfy its own readiness.
+            return allowEmpty || activeDrivers.Length == 0 || state.ClientMemoryPlans.SelectMany(x => x.Tags).Any();
 
         bool IsReady()
         {

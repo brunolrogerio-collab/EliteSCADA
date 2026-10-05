@@ -60,12 +60,30 @@ export function lifecycleErrorText(error: unknown, locale: EngineeringLocale): s
   if (isApiError(error)) {
     if (error.status === 401) return messages.unauthorized;
     if (error.status === 403) return messages.forbidden;
-    if (error.status === 409) return `${messages.conflict} ${error.message}`.trim();
-    if (error.status === 422) return `${messages.validation} ${error.message}`.trim();
+    if (error.status === 409) return `${messages.conflict} ${lifecycleFailureDetail(error.message)}`.trim();
+    if (error.status === 422) return `${messages.validation} ${lifecycleFailureDetail(error.message)}`.trim();
     if (error.status === 503) return messages.unavailable;
     return error.message || messages.generic;
   }
   return error instanceof Error ? error.message : messages.generic;
+}
+
+function lifecycleFailureDetail(message: string): string {
+  try {
+    const body: unknown = JSON.parse(message);
+    if (!body || typeof body !== 'object') return '';
+    const result = body as Record<string, unknown>;
+    const runtime = result.runtime && typeof result.runtime === 'object'
+      ? result.runtime as Record<string, unknown> : result;
+    const issues = [runtime.compilationIssues, runtime.runtimeIssues, result.issues]
+      .flatMap(value => Array.isArray(value) ? value : [])
+      .filter(issue => issue && typeof issue === 'object' && issue.isError !== false && typeof issue.message === 'string');
+    if (issues.length) return issues.slice(0, 3).map(issue =>
+      `${typeof issue.code === 'string' ? `${issue.code}: ` : ''}${issue.message}`.slice(0, 400)).join(' ');
+    return typeof result.message === 'string' ? result.message.slice(0, 400) : '';
+  } catch {
+    return message.slice(0, 400);
+  }
 }
 
 export function checkoutConfirmationText(locale: EngineeringLocale, revision: number): { title: string; description: string; confirm: string } {

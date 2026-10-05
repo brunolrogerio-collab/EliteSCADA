@@ -82,6 +82,19 @@ function state(overrides: Partial<EngineeringLifecycleState> = {}): EngineeringL
 }
 
 test.describe('Engineering Lifecycle Workspace contract', () => {
+  test('activation failure shows issues without dumping revision and lifecycle JSON', () => {
+    const error = Object.assign(new Error(JSON.stringify({
+      revision: { revision: 19, savedBy: 'internal-operator-id' },
+      runtime: { runtimeIssues: [{ code: 'RUNTIME_CANDIDATE_NOT_READY', message: 'Driver did not become ready.', isError: true }] },
+      lifecycle: { publishedRevision: 19 }
+    })), { status: 422 });
+    const text = lifecycleErrorText(error, 'pt-BR');
+    expect(text).toContain('RUNTIME_CANDIDATE_NOT_READY: Driver did not become ready.');
+    expect(text).not.toContain('savedBy');
+    expect(text).not.toContain('internal-operator-id');
+    expect(text).not.toContain('publishedRevision');
+  });
+
   test('mutation request bodies never claim trusted operator identity', () => {
     expect(engineeringLifecycleRequestBody('save', 'Demo Project')).toEqual({ projectName: 'Demo Project' });
     expect(engineeringLifecycleRequestBody('publish')).toEqual({});

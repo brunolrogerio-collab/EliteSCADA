@@ -161,9 +161,9 @@ test('historical browser visible chrome and scalar presentation are covered in p
   expect(pt.title).toBe('Histórico');
   expect(en.title).toBe('History');
   expect(es.title).toBe('Histórico');
-  expect(pt.datasetOperationalEvents).toBe('Eventos operacionais');
-  expect(en.datasetOperationalEvents).toBe('Operational events');
-  expect(es.datasetOperationalEvents).toBe('Eventos operacionales');
+  expect(pt.datasetOperationalEvents).toBe('Eventos');
+  expect(en.datasetOperationalEvents).toBe('Events');
+  expect(es.datasetOperationalEvents).toBe('Eventos');
 
   expect(formatHistoricalQueryValue({ kind: 'boolean', value: 'true' }, 'pt-BR')).toBe('Verdadeiro');
   expect(formatHistoricalQueryValue({ kind: 'boolean', value: 'false' }, 'en')).toBe('False');

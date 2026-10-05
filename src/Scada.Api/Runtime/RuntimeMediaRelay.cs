@@ -89,7 +89,11 @@ public sealed class RuntimeMediaRelay
                 using var result = await gateway.SendAsync(mutation, cancellation);
                 if (!result.IsSuccessStatusCode) throw new IOException("Media gateway provisioning failed.");
             }
-            return new Uri(configuration["MediaSources:GatewayPlaybackUrl"]!.TrimEnd('/') + "/" + path + "/index.m3u8");
+            // MediaMTX 1.21 checks browser cookie support by redirecting its first
+            // manifest. This server relay deliberately has no shared cookie jar:
+            // request the documented cookieless session-query path directly. Its
+            // session URLs are then encrypted into our revision-bound tickets.
+            return new Uri(configuration["MediaSources:GatewayPlaybackUrl"]!.TrimEnd('/') + "/" + path + "/index.m3u8?cookieCheck=1");
         } finally { provisioning.Release(); }
     }
 

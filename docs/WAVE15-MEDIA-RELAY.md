@@ -49,8 +49,16 @@ on unmount/source change. Thirty seconds of stable playback resets the retry bud
 ## Evidence and dependency notices
 
 Local Release API and production web builds pass. Twenty focused relay tests cover denied
-destinations, opaque revision/source tickets, playlist rewriting and origin escapes. This
-does not claim live camera or mounted browser-stream acceptance; that evidence is separate.
+destinations, opaque revision/source tickets, playlist rewriting and origin escapes.
+The isolated synthetic H.264 laboratory also passes actual RTSP gateway provisioning,
+idempotent provisioning, multivariant/media playlist traversal, opaque resource tickets,
+fMP4 initialization and nonempty media segments. Mounted Chromium tests pass actual HLS.js
+decoding, advancing video time and pause, plus credential failure without endless reconnect.
+The browser fixture mocks the Active-source HTTP authority boundary; the relay laboratory
+uses real containers. This is not a physical-camera or full persisted-source acceptance claim.
+The laboratory found and fixed MediaMTX's initial cookie-check redirect: the server relay
+explicitly uses its cookieless session-query mode, without enabling upstream redirects or
+sharing a browser/camera cookie jar.
 The dependency audit reports existing Monaco/DOMPurify advisories, not an HLS.js advisory;
 no unrelated major editor upgrade was folded into this media change.
 
@@ -61,3 +69,14 @@ MediaMTX and HLS.js are MIT licensed. Primary references:
 - https://github.com/bluenviron/mediamtx/blob/v1.21.1/LICENSE
 - https://github.com/video-dev/hls.js
 - https://github.com/video-dev/hls.js/blob/v1.7.3/LICENSE
+
+## Repeat the isolated synthetic check
+
+`docker-compose.media-lab.yml` starts a synthetic H.264 camera and a separate gateway on
+its own network. Only gateway control/HLS ports 19997/19888 bind to host loopback. No stable
+database, project, credential volume or production camera is involved. Set
+`ELITESCADA_MEDIA_LAB_CAMERA` to the lab camera container's RTSP address and run the focused
+`RuntimeMediaGatewayLabTests`; without this explicit setting it is skipped, not falsely
+counted as hardware acceptance. Set `ELITESCADA_MEDIA_LAB_HLS` to the provisioned lab
+playlist to run the mounted live player case in `playwright.presentation.config.ts`.
+Stop the lab services after use; the stable media gateway is a distinct service/network.

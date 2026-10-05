@@ -8,8 +8,8 @@ using Scada.Engineering.VisualAssets;
 namespace Scada.Api.Runtime;
 
 /// <summary>
-/// First replacement-generation catalog. Kept separate from the original 72
-/// definitions so existing project references retain their identity/artwork.
+/// First replacement-generation catalog. The discarded 72-definition factory
+/// has been purged; project-authored definitions remain project-owned.
 /// New artwork is canonical editable vector geometry, not a second renderer.
 /// </summary>
 public static class BuiltinDynamoCatalogV1

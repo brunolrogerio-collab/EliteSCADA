@@ -2,7 +2,11 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using Scada.Api.Persistence;
 using Scada.Api.Security;
+using Scada.Api.Runtime;
+using Scada.Engineering.Contracts;
 using Scada.Engineering.VisualAssets;
+using Scada.Security.Audit;
+using Scada.Security.Authorization;
 
 namespace Scada.Api.VisualAssets;
 
@@ -50,6 +54,25 @@ public sealed class StaticArtworkCatalog
         using var buffer = new MemoryStream(); stream.CopyTo(buffer);
         return StaticSvgInspector.InspectAndSanitize(buffer.ToArray()).CanonicalContent;
     }) : null;
+
+    public (VisualAssetEngineeringDto Asset, VisualAssetPayload Payload)? ProjectCopy(string id)
+    {
+        if (!resources.TryGetValue(id, out var resource)) return null;
+        var inspection = StaticSvgInspector.InspectAndSanitize(Content(id)!);
+        var payload = VisualAssetPayload.Create("image/svg+xml", inspection.CanonicalContent);
+        var metadata = inspection.CanonicalMetadata?.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal)
+            ?? new Dictionary<string, string>(StringComparer.Ordinal);
+        metadata["factoryArtworkId"] = resource.Entry.Id;
+        metadata["categoryPath"] = resource.Entry.Category;
+        metadata["tags"] = string.Join(';', resource.Entry.Tags);
+        metadata["styleFamily"] = resource.Entry.Style;
+        metadata["artworkReviewStatus"] = resource.Entry.Status;
+        // The copied asset belongs to the project; copying does not approve the source artwork.
+        return (new VisualAssetEngineeringDto(
+            Id: Guid.NewGuid(), Key: $"factory.{id}", Name: resource.Entry.Name,
+            OriginalFileName: $"{id}.svg", MediaType: payload.MediaType, ByteLength: payload.ByteLength,
+            Sha256: payload.Sha256, Metadata: metadata), payload);
+    }
 }
 
 public static class StaticArtworkEndpoints
@@ -67,6 +90,43 @@ public static class StaticArtworkEndpoints
             context.Response.Headers.CacheControl = "private, max-age=3600";
             return Results.File(content, "image/svg+xml");
         }).RequireWorkspaceEngineeringRead();
+        endpoints.MapPost("/api/engineering/static-artwork/{id}/import", async (
+            string id, StaticArtworkCatalog catalog, HttpContext context, EngineeringWorkspace workspace,
+            IVisualAssetEngineeringRegistry assets, ApiAuthorizationService security, ApiAuditService audit,
+            CancellationToken cancellationToken) => {
+            var authorization = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
+            var failure = authorization.FailureResult();
+            if (failure is not null) {
+                await audit.RecordAuthorizationDeniedAsync(context, authorization, AuditActions.EngineeringAssetImport, "static-artwork", id);
+                return failure;
+            }
+            if (!VisualAssetEndpoints.TryReadExpectedChangeVersion(context.Request, out var expectedVersion))
+                return Results.BadRequest(new { error = "A valid Engineering Workspace version header is required." });
+            var copy = catalog.ProjectCopy(id);
+            if (copy is null) return Results.NotFound();
+            try {
+                await using var mutation = await workspace.AcquireMutationAsync(expectedVersion, cancellationToken);
+                var existing = assets.FindAssetByKey(copy.Value.Asset.Key);
+                if (existing is not null && !existing.Sha256.Equals(copy.Value.Payload.Sha256, StringComparison.OrdinalIgnoreCase))
+                    return Results.Conflict(new { error = "A different project asset already uses this factory key." });
+                var asset = existing ?? copy.Value.Asset;
+                if (existing is null) {
+                    assets.PutPayload(copy.Value.Payload);
+                    assets.UpsertAsset(asset);
+                } else if (copy.Value.Asset.Metadata!.Any(pair => !existing.Metadata?.ContainsKey(pair.Key) ?? true)) {
+                    // Upgrade copies made by the old gallery, which omitted catalog provenance/category.
+                    var metadata = new Dictionary<string, string>(existing.Metadata ?? [], StringComparer.Ordinal);
+                    foreach (var pair in copy.Value.Asset.Metadata!) metadata.TryAdd(pair.Key, pair.Value);
+                    asset = existing with { Metadata = metadata };
+                    assets.UpsertAsset(asset);
+                }
+                await audit.RecordAsync(context, authorization.Principal, AuditActions.EngineeringAssetImport, AuditOutcome.Succeeded,
+                    "visual-asset", asset.Id!.Value.ToString(), new Dictionary<string, string> { ["factoryArtworkId"] = id, ["key"] = asset.Key });
+                return Results.Ok(new { asset, assetRef = new { assetId = $"asset:{asset.Id:D}" }, workspaceVersion = workspace.CaptureChangeVersion() });
+            } catch (EngineeringWorkspaceVersionConflictException conflict) {
+                return Results.Conflict(new { error = "Engineering Workspace changed. Reload before inserting the SVG.", conflict.ExpectedChangeVersion, conflict.CurrentChangeVersion });
+            }
+        });
         return endpoints;
     }
 }

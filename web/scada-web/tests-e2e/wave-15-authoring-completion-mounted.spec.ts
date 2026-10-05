@@ -72,11 +72,9 @@ test('factory SVG library filters categories and copies sanitized artwork throug
     ] } });
   });
   await page.route('**/api/engineering/static-artwork/*/content', route => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="#82929a"/></svg>' }));
-  await page.route('**/api/engineering/visual-assets/import?**', async route => {
+  await page.route('**/api/engineering/static-artwork/motor-001/import', async route => {
     expect(route.request().method()).toBe('POST');
     expect(route.request().headers()['x-elitescada-workspace-version']).toBe('7');
-    expect(new URL(route.request().url()).searchParams.get('key')).toBe('factory.motor-001');
-    expect(route.request().postData()).toContain('<svg');
     imported = true;
     await route.fulfill({ json: { asset: { key: 'factory.motor-001' }, issues: [] } });
   });

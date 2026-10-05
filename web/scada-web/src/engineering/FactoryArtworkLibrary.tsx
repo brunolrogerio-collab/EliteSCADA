@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { importVisualAsset } from './api';
+import { importStaticArtwork } from './staticArtworkApi';
 import type { EngineeringLocale } from './i18n';
 import type { EngineeringSnapshot } from './types';
 
@@ -38,9 +38,7 @@ export function FactoryArtworkLibrary({ snapshot, locale, onApplied }: {
   const copy = async (item: Artwork) => {
     setBusy(item.id); setError(''); setNotice('');
     try {
-      const response = await fetch(contentUrl(item), { credentials: 'include' });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      await importVisualAsset(await response.blob(), snapshot.workspace.changeVersion, { key: `factory.${item.id}`, name: item.name, fileName: `${item.id}.svg` });
+      await importStaticArtwork(item.id, snapshot.workspace.changeVersion);
       await onApplied();
       setNotice(text('SVG copiado para o projeto. Pode ser inserido nas telas e animado pelas propriedades.', 'SVG copied into the project. Insert it on screens and animate its properties.', 'SVG copiado al proyecto. Insértelo en pantallas y anime sus propiedades.'));
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }

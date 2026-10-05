@@ -341,7 +341,7 @@ public static class VisualAssetEndpoints
         return output.ToArray();
     }
 
-    private static bool TryReadExpectedChangeVersion(HttpRequest request, out long expectedChangeVersion)
+    internal static bool TryReadExpectedChangeVersion(HttpRequest request, out long expectedChangeVersion)
     {
         expectedChangeVersion = 0;
         if (!request.Headers.TryGetValue("x-elitescada-workspace-version", out var expectedHeader) ||

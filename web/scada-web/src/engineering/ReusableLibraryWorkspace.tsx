@@ -4,6 +4,7 @@ import type { EngineeringSnapshot } from './types';
 import { CanonicalVisualPreview } from './visual-editor/CanonicalVisualPreview';
 import { LibraryCatalogBrowser } from './LibraryCatalogBrowser';
 import { buildLibraryCatalogEntries, type LibraryCatalogEntry } from './libraryCatalogModel';
+import { importStaticArtwork, useStaticArtwork } from './staticArtworkApi';
 import {
   associateReusableLibrary,
   disassociateReusableLibrary,
@@ -42,6 +43,7 @@ export function ReusableLibraryWorkspace({
   onReload: () => Promise<void>;
 }) {
   const copy = useMemo(() => libraryCopy(locale), [locale]);
+  const artwork = useStaticArtwork();
   const [libraries, setLibraries] = useState<ReusableLibraryDescriptor[]>([]);
   const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(null);
   const [resources, setResources] = useState<ReusableLibraryResource[]>([]);
@@ -67,8 +69,8 @@ export function ReusableLibraryWorkspace({
     [libraries, resourcesByLibrary]
   );
   const catalogEntries = useMemo(
-    () => buildLibraryCatalogEntries(snapshot, associatedCatalogSources),
-    [snapshot, associatedCatalogSources]
+    () => buildLibraryCatalogEntries(snapshot, associatedCatalogSources, artwork.entries),
+    [snapshot, associatedCatalogSources, artwork.entries]
   );
   const provenance = useMemo(
     () => exportCandidates.filter(candidate => candidate.metadata?.[`${ORIGIN_PREFIX}libraryId`]),
@@ -229,6 +231,7 @@ export function ReusableLibraryWorkspace({
 
       {error && <p className="reusable-library-workspace__error" role="alert">{error}</p>}
       {notice && <p className="reusable-library-workspace__notice" role="status">{notice}</p>}
+      {artwork.error && <p role="alert">{artwork.error}</p>}
 
       <section className="eng-panel reusable-library-workspace__boundary" data-testid="reusable-library-boundary">
         <strong>{copy.boundaryTitle}</strong>
@@ -241,6 +244,14 @@ export function ReusableLibraryWorkspace({
         associatedPreview={selectedPreview}
         previewBusy={previewBusy}
         actionBusy={busy}
+        onUseStaticArtwork={entry => {
+          if (!entry.staticArtwork) return;
+          void perform(`artwork:${entry.staticArtwork.id}`, async () => {
+            await importStaticArtwork(entry.staticArtwork!.id, snapshot.workspace.changeVersion);
+            await onReload();
+            setNotice(locale === 'en' ? 'SVG copied. Insert it from Library in the visual editor.' : locale === 'es' ? 'SVG copiado. Insértelo desde Biblioteca en el editor.' : 'SVG copiado. Insira pela aba Biblioteca ou Assets no editor de telas.');
+          });
+        }}
         onPreviewAssociated={(entry: LibraryCatalogEntry) => {
           if (!entry.library || !entry.associatedResource) return;
           void previewResource(entry.associatedResource, entry.library.libraryId);

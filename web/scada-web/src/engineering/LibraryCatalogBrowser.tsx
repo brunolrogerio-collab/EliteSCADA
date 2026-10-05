@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { EngineeringLocale } from './i18n';
 import { visualAssetContentUrl } from './api';
+import { staticArtworkContentUrl } from './staticArtworkApi';
 import {
   filterLibraryCatalogEntries,
   libraryCatalogOriginCounts,
@@ -31,7 +32,8 @@ export function LibraryCatalogBrowser({
   previewBusy,
   actionBusy,
   onPreviewAssociated,
-  onUseAssociated
+  onUseAssociated,
+  onUseStaticArtwork
 }: {
   locale: EngineeringLocale;
   entries: readonly LibraryCatalogEntry[];
@@ -40,6 +42,7 @@ export function LibraryCatalogBrowser({
   actionBusy: string | null;
   onPreviewAssociated: (entry: LibraryCatalogEntry) => void;
   onUseAssociated: (entry: LibraryCatalogEntry) => void;
+  onUseStaticArtwork?: (entry: LibraryCatalogEntry) => void;
 }) {
   const copy = useMemo(() => catalogCopy(locale), [locale]);
   const categories = useMemo(() => listLibraryCatalogCategories(), []);
@@ -157,6 +160,7 @@ export function LibraryCatalogBrowser({
               role="treeitem"
               aria-level={libraryCatalogCategoryDepth(category.id) + 1}
               aria-selected={active}
+              data-category-id={category.id}
               className={active ? 'active' : ''}
               style={{ paddingInlineStart: `${.55 + libraryCatalogCategoryDepth(category.id) * .8}rem` }}
               onClick={() => { setCategoryPath(category.id); resetLimit(); }}
@@ -185,7 +189,9 @@ export function LibraryCatalogBrowser({
             data-origin={entry.origin}
             data-kind={entry.kind}
             data-category={entry.categoryPath}
+            data-artwork-id={entry.staticArtwork?.id}
           >
+            {entry.staticArtwork ? <img className="library-catalog-browser__thumbnail" loading="lazy" src={staticArtworkContentUrl(entry.staticArtwork.id)} alt="" /> : null}
             <span className="library-catalog-browser__entry-topline">
               <span className={`library-catalog-browser__source source-${entry.origin}`}>{originLabel(entry.origin, copy)}</span>
               <span>{kindLabel(entry.kind, locale)}</span>
@@ -213,6 +219,7 @@ export function LibraryCatalogBrowser({
         copy={copy}
         onPreviewAssociated={onPreviewAssociated}
         onUseAssociated={onUseAssociated}
+        onUseStaticArtwork={onUseStaticArtwork}
       />
     </div>
   </section>;
@@ -226,7 +233,8 @@ function LibraryCatalogInspection({
   actionBusy,
   copy,
   onPreviewAssociated,
-  onUseAssociated
+  onUseAssociated,
+  onUseStaticArtwork
 }: {
   locale: EngineeringLocale;
   entry: LibraryCatalogEntry | null;
@@ -236,6 +244,7 @@ function LibraryCatalogInspection({
   copy: ReturnType<typeof catalogCopy>;
   onPreviewAssociated: (entry: LibraryCatalogEntry) => void;
   onUseAssociated: (entry: LibraryCatalogEntry) => void;
+  onUseStaticArtwork?: (entry: LibraryCatalogEntry) => void;
 }) {
   if (!entry) return <aside className="library-catalog-browser__inspection"><p>{copy.selectResource}</p></aside>;
 
@@ -287,6 +296,7 @@ function LibraryCatalogInspection({
       /> : null}
 
       {projectAsset ? <img src={visualAssetContentUrl(projectAsset.id!)} alt={entry.name} /> : null}
+      {entry.staticArtwork ? <img src={staticArtworkContentUrl(entry.staticArtwork.id)} alt={entry.name} /> : null}
 
       {directAssociatedAsset ? <img
         src={reusableLibraryAssetContentUrl(entry.library!.libraryId, entry.resourceId!)}
@@ -310,7 +320,7 @@ function LibraryCatalogInspection({
         testId="library-catalog-associated-preview"
       /> : null}
 
-      {!entry.dynamo && !projectAsset && !directAssociatedAsset && !associatedVisual
+      {!entry.dynamo && !entry.staticArtwork && !projectAsset && !directAssociatedAsset && !associatedVisual
         ? <p>{copy.metadataInspection}</p>
         : null}
     </div>
@@ -327,6 +337,10 @@ function LibraryCatalogInspection({
     </div> : null}
 
     {entry.origin === 'builtin' ? <small>{copy.builtinHint}</small> : null}
+    {entry.staticArtwork && onUseStaticArtwork ? <button type="button" data-testid="library-catalog-copy-svg"
+      disabled={Boolean(actionBusy)} onClick={() => onUseStaticArtwork(entry)}>
+      {locale === 'en' ? 'Copy SVG to project' : locale === 'es' ? 'Copiar SVG al proyecto' : 'Copiar SVG para o projeto'}
+    </button> : null}
     {entry.origin === 'project' ? <small>{copy.projectHint}</small> : null}
   </aside>;
 }

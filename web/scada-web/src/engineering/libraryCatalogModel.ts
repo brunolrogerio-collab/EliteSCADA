@@ -7,6 +7,7 @@ import type {
   ReusableLibraryDescriptor,
   ReusableLibraryResource
 } from './reusableLibraryApi';
+import type { StaticArtwork } from './staticArtworkApi';
 import {
   libraryCatalogCategoryMatches,
   libraryCatalogCategorySearchText,
@@ -35,6 +36,7 @@ export type LibraryCatalogEntry = Readonly<{
   associatedResource?: ReusableLibraryResource | null;
   dynamo?: DynamoEngineering | null;
   visualAsset?: VisualAssetEngineering | null;
+  staticArtwork?: StaticArtwork | null;
 }>;
 
 export type AssociatedLibraryCatalogSource = Readonly<{
@@ -55,10 +57,20 @@ const ORIGIN_PREFIX = 'elitescada.reusable.origin.';
 
 export function buildLibraryCatalogEntries(
   snapshot: EngineeringSnapshot,
-  associatedLibraries: readonly AssociatedLibraryCatalogSource[] = []
+  associatedLibraries: readonly AssociatedLibraryCatalogSource[] = [],
+  staticArtwork: readonly StaticArtwork[] = []
 ): readonly LibraryCatalogEntry[] {
   const entries: LibraryCatalogEntry[] = [];
   const model = snapshot.package as Record<string, unknown>;
+
+  for (const artwork of staticArtwork) {
+    entries.push(createEntry({
+      id: `builtin:static-artwork:${artwork.id}`, origin: 'builtin', kind: 'visual-asset',
+      name: artwork.name, sourceKey: artwork.key, categoryPath: resolveCatalogCategoryPath(artwork.category),
+      tags: artwork.tags, searchKeywords: [artwork.style], description: null, version: null,
+      readOnly: true, projectOwned: false, resourceId: artwork.id, staticArtwork: artwork
+    }));
+  }
 
   for (const definition of snapshot.package.dynamos ?? []) {
     const metadata = stringMap(definition.metadata);

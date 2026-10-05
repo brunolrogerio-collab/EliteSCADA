@@ -56,6 +56,19 @@ test('catalog consumes Asset Factory taxonomy labels and preserves hierarchical 
   expect(libraryCatalogCategoryMatches('electrical/protection', 'industrial')).toBe(false);
 });
 
+test('factory SVGs are first-class built-in assets in the unified categories without mutating the project', () => {
+  const model = snapshot();
+  const entries = buildLibraryCatalogEntries(model, [], [{
+    id: 'static-motor', key: 'artwork.motor', name: 'Layered motor', category: 'industrial/rotating/motors',
+    style: 'detailed', status: 'draft', tags: ['motor']
+  }]);
+  expect(entries).toHaveLength(1);
+  expect(entries[0]).toMatchObject({ origin: 'builtin', kind: 'visual-asset', categoryPath: 'industrial/rotating/motors', projectOwned: false, readOnly: true });
+  expect(filterLibraryCatalogEntries(entries, { categoryPath: 'industrial/rotating', kind: 'visual-asset' })).toHaveLength(1);
+  expect(entries[0].staticArtwork?.id).toBe('static-motor');
+  expect(model.package.visualAssets).toEqual([]);
+});
+
 test('legacy Dynamo categories map deterministically and unknown values fall back safely', () => {
   expect(resolveDynamoCategoryPath('pump')).toBe('industrial/process/pumps');
   expect(resolveDynamoCategoryPath('motor')).toBe('industrial/rotating/motors');

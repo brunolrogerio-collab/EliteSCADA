@@ -43,6 +43,12 @@ public sealed class NetworkReachabilityProbe
 {
     public const int MaximumTimeoutMilliseconds = 5000;
     internal static readonly DateTimeOffset ProcessStartedAtUtc = DateTimeOffset.UtcNow;
+    private readonly Func<IPAddress, int, CancellationToken, Task> _connectTcp;
+
+    public NetworkReachabilityProbe() : this(ConnectTcpAsync) { }
+
+    internal NetworkReachabilityProbe(Func<IPAddress, int, CancellationToken, Task> connectTcp) =>
+        _connectTcp = connectTcp ?? throw new ArgumentNullException(nameof(connectTcp));
 
     public async Task<NetworkReachabilityProbeResponse> ProbeAsync(
         NetworkReachabilityProbeRequest request,
@@ -86,7 +92,7 @@ public sealed class NetworkReachabilityProbe
                 new NetworkProbeResult("Unavailable", null, null, "ICMP was skipped because target resolution was unavailable."));
         }
 
-        var tcp = await ProbeTcpAsync(address, request.Port, request.TimeoutMilliseconds, cancellationToken)
+        var tcp = await ProbeTcpAsync(address, request.Port, request.TimeoutMilliseconds, cancellationToken, _connectTcp)
             .ConfigureAwait(false);
         var icmp = await ProbeIcmpAsync(address, request.TimeoutMilliseconds, cancellationToken)
             .ConfigureAwait(false);
@@ -122,15 +128,15 @@ public sealed class NetworkReachabilityProbe
         IPAddress address,
         int port,
         int timeoutMilliseconds,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<IPAddress, int, CancellationToken, Task> connectTcp)
     {
         var stopwatch = Stopwatch.StartNew();
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(timeoutMilliseconds);
-        using var client = new TcpClient(address.AddressFamily);
         try
         {
-            await client.ConnectAsync(address, port, timeout.Token).ConfigureAwait(false);
+            await connectTcp(address, port, timeout.Token).ConfigureAwait(false);
             return new NetworkProbeResult("Connected", address.ToString(), stopwatch.Elapsed.TotalMilliseconds,
                 "PORT_REACHABLE; protocol health was not tested.");
         }
@@ -151,6 +157,12 @@ public sealed class NetworkReachabilityProbe
             return new NetworkProbeResult("Unavailable", address.ToString(), stopwatch.Elapsed.TotalMilliseconds,
                 "The server host could not complete the TCP probe.");
         }
+    }
+
+    private static async Task ConnectTcpAsync(IPAddress address, int port, CancellationToken cancellationToken)
+    {
+        using var client = new TcpClient(address.AddressFamily);
+        await client.ConnectAsync(address, port, cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task<NetworkProbeResult> ProbeIcmpAsync(

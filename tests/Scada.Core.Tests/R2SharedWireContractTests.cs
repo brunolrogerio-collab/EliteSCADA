@@ -12,7 +12,7 @@ namespace Scada.Core.Tests;
 public sealed class R2SharedWireContractTests
 {
     [Fact]
-    public void SchemaV20_RoundTripsFrozenC0WireContracts()
+    public void SchemaV21_RoundTripsFrozenC0WireContracts()
     {
         var profileId = Guid.Parse("11111111-1111-1111-1111-111111111111");
         var queryId = Guid.Parse("22222222-2222-2222-2222-222222222222");
@@ -87,7 +87,7 @@ public sealed class R2SharedWireContractTests
         var service = new EngineeringExchangeService(new InMemoryTagRegistry(), alarms);
         var parsed = service.ParseJson(json);
 
-        Assert.Equal(20, EngineeringExchangeService.CurrentSchemaVersion);
+        Assert.Equal(21, EngineeringExchangeService.CurrentSchemaVersion);
         Assert.Equal(profileId, Assert.Single(parsed.Tags).HistorianCaptureProfileId);
         Assert.Equal(
             HistorianCaptureStrategy.OnChangeDeadbandMaxInterval,
@@ -155,7 +155,7 @@ public sealed class R2SharedWireContractTests
         var parsed = service.ParseJson(json);
         var parsedQuery = Assert.Single(parsed.DataQueries!);
 
-        Assert.Equal(20, parsed.SchemaVersion);
+        Assert.Equal(21, parsed.SchemaVersion);
         Assert.Equal(R2SharedEngineeringContractVersions.DataQuery, parsedQuery.Version);
         Assert.Equal(targetUtc, parsedQuery.HistorianRetrieval!.TargetUtc);
         Assert.Equal(

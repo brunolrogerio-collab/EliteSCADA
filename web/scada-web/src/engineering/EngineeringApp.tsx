@@ -16,6 +16,8 @@ import { EngineeringTagMonitorWorkspace } from './diagnostics/EngineeringTagMoni
 import { EngineeringLifecycleWorkspace } from './EngineeringLifecycleWorkspace';
 import { EngineeringProjectManagementWorkspace } from './EngineeringProjectManagementWorkspace';
 import { InstallationSwitchingWorkspace } from './InstallationSwitchingWorkspace';
+import { MediaSourceEngineeringWorkspace } from './MediaSourceEngineeringWorkspace';
+import { MobileRuntimeEngineeringWorkspace } from './MobileRuntimeEngineeringWorkspace';
 import { OperationalEventEditor, operationalEventCount } from './OperationalEventEditor';
 import { ReportDesignerWorkspace } from './reports/ReportDesignerWorkspace';
 import { reportCollection } from './reports/reportDesignerModel';
@@ -40,9 +42,11 @@ type SectionId =
   | 'overview'
   | 'installation'
   | 'branding'
+  | 'mobile'
   | 'scripts'
   | 'libraries'
   | 'dataSources'
+  | 'mediaSources'
   | 'gateway'
   | 'tags'
   | 'alarms'
@@ -74,11 +78,13 @@ const navigation: NavGroup[] = [
     { id: 'overview', label: 'nav.overview' },
     { id: 'installation', literalLabel: { 'pt-BR': 'Instalação', en: 'Installation', es: 'Instalación' } },
     { id: 'branding', literalLabel: { 'pt-BR': 'Branding', en: 'Branding', es: 'Branding' } },
+    { id: 'mobile', literalLabel: { 'pt-BR': 'Mobile', en: 'Mobile', es: 'Móvil' } },
     { id: 'scripts' },
     { id: 'libraries', literalLabel: { 'pt-BR': 'Bibliotecas', en: 'Libraries', es: 'Bibliotecas' } }
   ] },
   { label: 'nav.communication', items: [
     { id: 'dataSources', label: 'nav.dataSources' },
+    { id: 'mediaSources', literalLabel: { 'pt-BR': 'Fontes de mídia', en: 'Media sources', es: 'Fuentes multimedia' } },
     { id: 'tags', label: 'nav.tags' },
     { id: 'gateway', literalLabel: { 'pt-BR': 'TAG Gateway', en: 'TAG Gateway', es: 'TAG Gateway' } },
     { id: 'alarms', label: 'nav.alarms' },
@@ -275,6 +281,8 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, onR
   if (section === 'overview') return <><Overview snapshot={snapshot} t={t}/><EngineeringLifecycleWorkspace locale={locale}/><EngineeringProjectManagementWorkspace locale={locale}/></>;
   if (section === 'installation') return <InstallationSwitchingWorkspace locale={locale} onWorkspaceChanged={onReload}/>;
   if (section === 'branding') return <BrandingEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
+  if (section === 'mobile') return <MobileRuntimeEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
+  if (section === 'mediaSources') return <MediaSourceEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
   if (section === 'visualAssets') return <VisualAssetManagementWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
   if (section === 'scripts') return <ScriptEngineeringWorkspace locale={locale}/>;
   if (section === 'libraries') return <ReusableLibraryWorkspace locale={locale} snapshot={snapshot} onReload={onReload}/>;
@@ -480,6 +488,7 @@ function BindingInspection({ bindings, t }: { bindings: Array<{ key: string; kin
 function sectionCount(model: EngineeringPackageView, section: SectionId): number | string {
   switch (section) {
     case 'dataSources': return model.dataSources?.length ?? 0;
+    case 'mediaSources': return model.mediaSources?.length ?? 0;
     case 'gateway': return model.gateways?.length ?? 0;
     case 'tags': return model.tags.length;
     case 'alarms': return model.alarms.length;
@@ -497,6 +506,7 @@ function sectionCount(model: EngineeringPackageView, section: SectionId): number
     case 'databaseTopology':
     case 'installation':
     case 'branding':
+    case 'mobile':
     case 'scripts':
     case 'libraries':
     case 'overview':
@@ -562,7 +572,7 @@ function formatDate(value: string, locale: EngineeringLocale) {
 }
 function scriptNavLabel(_locale: EngineeringLocale) { return 'Scripts'; }
 function NavIcon({ section }: { section: SectionId }) {
-  const symbols: Record<SectionId, string> = { overview: '⌂', installation: '⇆', branding: '◐', scripts: '</>', libraries: '▱', dataSources: '⇄', gateway: '⇢', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', visualAssets: '▧', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', highAvailability: '⇄', databaseTopology: '▤', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯', information: 'ⓘ' };
+  const symbols: Record<SectionId, string> = { overview: '⌂', installation: '⇆', branding: '◐', mobile: '▱', scripts: '</>', libraries: '▱', dataSources: '⇄', mediaSources: '▣', gateway: '⇢', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', visualAssets: '▧', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', highAvailability: '⇄', databaseTopology: '▤', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯', information: 'ⓘ' };
   return <i aria-hidden="true">{symbols[section]}</i>;
 }
 

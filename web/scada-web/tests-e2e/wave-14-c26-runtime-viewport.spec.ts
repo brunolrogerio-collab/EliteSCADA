@@ -193,3 +193,26 @@ test('C26 Runtime keeps the same full logical Screen contract in fullscreen', as
   expect(layout.bottomTop).toBeGreaterThanOrEqual(layout.viewportTop);
   expect(layout.bottomBottom).toBeLessThanOrEqual(layout.viewportBottom + 1);
 });
+
+test('mobile Runtime defaults to landscape while preserving the logical canvas in a portrait-held device', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    const nativeMatchMedia = window.matchMedia.bind(window);
+    window.matchMedia = query => query === '(pointer: coarse)'
+      ? ({ matches: true, media: query, onchange: null, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return false; } } as MediaQueryList)
+      : nativeMatchMedia(query);
+  });
+  await installRuntimeContract(page);
+  await page.goto('/');
+
+  const viewport = page.getByTestId('runtime-logical-viewport');
+  await expect(viewport).toHaveAttribute('data-mobile-orientation', 'landscape');
+  await expect(viewport).toHaveAttribute('data-mobile-rotated', 'true');
+  const bounds = await page.getByTestId('runtime-logical-stage').boundingBox();
+  const viewportBounds = await viewport.boundingBox();
+  expect(bounds).not.toBeNull();
+  expect(viewportBounds).not.toBeNull();
+  expect(bounds!.width).toBeLessThanOrEqual(viewportBounds!.width + 1);
+  expect(bounds!.height).toBeLessThanOrEqual(viewportBounds!.height + 1);
+  await expect(page.getByText('Conteúdo próximo ao rodapé lógico')).toBeVisible();
+});

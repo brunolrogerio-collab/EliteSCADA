@@ -7,6 +7,8 @@ namespace Scada.Engineering.VisualAssets;
 public static partial class VisualAssetEngineeringValidator
 {
     public const long MaximumPayloadBytes = 16L * 1024L * 1024L;
+    public const long MaximumVideoPayloadBytes = 64L * 1024L * 1024L;
+    public const long MaximumPdfPayloadBytes = 32L * 1024L * 1024L;
     public const int MaximumPixelDimension = 16_384;
 
     private static readonly HashSet<string> SupportedMediaTypes = new(StringComparer.OrdinalIgnoreCase)
@@ -14,7 +16,10 @@ public static partial class VisualAssetEngineeringValidator
         "image/png",
         "image/jpeg",
         "image/bmp",
-        VisualAssetContentInspector.SvgMediaType
+        VisualAssetContentInspector.SvgMediaType,
+        VisualAssetContentInspector.PdfMediaType,
+        VisualAssetContentInspector.Mp4MediaType,
+        VisualAssetContentInspector.WebmMediaType
     };
 
     public static IReadOnlyCollection<ImportIssue> Validate(
@@ -43,8 +48,9 @@ public static partial class VisualAssetEngineeringValidator
             issues.Add(Error("VISUAL_ASSET_FILENAME_CONTROL", "Visual asset original filename contains unsupported control characters.", key));
         if (!SupportedMediaTypes.Contains(asset.MediaType))
             issues.Add(Error("VISUAL_ASSET_MEDIA_TYPE_UNSUPPORTED", $"Visual asset media type '{asset.MediaType}' is not supported.", key));
-        if (asset.ByteLength <= 0 || asset.ByteLength > MaximumPayloadBytes)
-            issues.Add(Error("VISUAL_ASSET_SIZE_INVALID", $"Visual asset payload size must be between 1 and {MaximumPayloadBytes} bytes.", key));
+        var maximumBytes = MaximumBytesFor(asset.MediaType);
+        if (asset.ByteLength <= 0 || asset.ByteLength > maximumBytes)
+            issues.Add(Error("VISUAL_ASSET_SIZE_INVALID", $"Visual asset payload size must be between 1 and {maximumBytes} bytes for this media type.", key));
         if (string.IsNullOrWhiteSpace(asset.Sha256) || !Sha256Regex().IsMatch(asset.Sha256))
             issues.Add(Error("VISUAL_ASSET_HASH_INVALID", "Visual asset SHA-256 must be exactly 64 hexadecimal characters.", key));
 
@@ -118,7 +124,7 @@ public static partial class VisualAssetEngineeringValidator
         {
             issues.Add(Error(
                 "VISUAL_ASSET_PAYLOAD_INVALID",
-                $"Visual asset payload is not a structurally valid supported image: {ex.Message}",
+                $"Visual asset payload is not a structurally valid supported image or media file: {ex.Message}",
                 key));
         }
 
@@ -153,6 +159,13 @@ public static partial class VisualAssetEngineeringValidator
 
     private static ImportIssue Error(string code, string message, string key) =>
         new(code, message, ImportEntityKind.VisualAsset, key, true);
+
+    public static long MaximumBytesFor(string? mediaType) => mediaType?.ToLowerInvariant() switch
+    {
+        VisualAssetContentInspector.PdfMediaType => MaximumPdfPayloadBytes,
+        VisualAssetContentInspector.Mp4MediaType or VisualAssetContentInspector.WebmMediaType => MaximumVideoPayloadBytes,
+        _ => MaximumPayloadBytes
+    };
 
     [GeneratedRegex("^[A-Fa-f0-9]{64}$", RegexOptions.CultureInvariant)]
     private static partial Regex Sha256Regex();

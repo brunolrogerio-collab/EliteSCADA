@@ -10,6 +10,7 @@ using Scada.Engineering.DataSources;
 using Scada.Engineering.Events;
 using Scada.Engineering.Gateways;
 using Scada.Engineering.ImportExport.Handlers;
+using Scada.Engineering.Media;
 using Scada.Engineering.Reports;
 using Scada.Engineering.Scripts;
 using Scada.Engineering.Security;
@@ -23,7 +24,7 @@ namespace Scada.Engineering.ImportExport;
 public sealed class EngineeringExchangeService : IEngineeringExchangeService
 {
     public const string CurrentSchema = "scada.engineering";
-    public const int CurrentSchemaVersion = 20;
+    public const int CurrentSchemaVersion = 21;
 
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
@@ -39,6 +40,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     private readonly IOperationalEventEngineeringRegistry _operationalEvents;
     private readonly IEngineeringLockRegistry _engineeringLock;
     private readonly IApplicationBrandingEngineeringRegistry _branding;
+    private readonly IMediaSourceEngineeringRegistry _mediaSources;
     private RuntimePresentationEngineeringDto _runtimePresentation = new();
     private readonly JsonSerializerOptions _json;
     private readonly EngineeringCsvExchange _csv;
@@ -55,6 +57,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     private readonly ScriptEngineeringHandler _scriptHandler;
     private readonly ReportEngineeringHandler _reportHandler;
     private readonly OperationalEventEngineeringHandler _operationalEventHandler;
+    private readonly MediaSourceEngineeringHandler _mediaSourceHandler;
 
     public EngineeringExchangeService(ITagRegistry tags, IAlarmEngine alarms)
         : this(
@@ -169,7 +172,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         IDataSourceConfigurationValidator? dataSourceConfigurationValidator = null,
         IOperationalEventEngineeringRegistry? operationalEvents = null,
         IEngineeringLockRegistry? engineeringLock = null,
-        IApplicationBrandingEngineeringRegistry? branding = null)
+        IApplicationBrandingEngineeringRegistry? branding = null,
+        IMediaSourceEngineeringRegistry? mediaSources = null)
     {
         _tags = tags;
         _alarms = alarms;
@@ -187,6 +191,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             ?? new InMemoryOperationalEventEngineeringRegistry();
         _engineeringLock = engineeringLock ?? new InMemoryEngineeringLockRegistry();
         _branding = branding ?? new InMemoryApplicationBrandingEngineeringRegistry();
+        _mediaSources = mediaSources ?? new InMemoryMediaSourceEngineeringRegistry();
         _json = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -217,6 +222,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _scriptHandler = new ScriptEngineeringHandler(_scripts, tags, dataSources, assets, views);
         _reportHandler = new ReportEngineeringHandler(_reports, _visualAssets);
         _operationalEventHandler = new OperationalEventEngineeringHandler(_operationalEvents);
+        _mediaSourceHandler = new MediaSourceEngineeringHandler(_mediaSources);
     }
 
     public EngineeringPackage ExportPackage()
@@ -263,7 +269,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             DataQueries: Array.Empty<DataQueryEngineeringDto>(),
             AlarmViews: Array.Empty<AlarmViewEngineeringDto>(),
             Branding: _branding.Snapshot(),
-            RuntimePresentation: _runtimePresentation);
+            RuntimePresentation: _runtimePresentation,
+            MediaSources: _mediaSources.Snapshot());
     }
 
     public string ExportJson(bool indented = true)
@@ -308,6 +315,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             HistorianCaptureProfiles = package.HistorianCaptureProfiles ?? Array.Empty<HistorianCaptureProfileEngineeringDto>(),
             DataQueries = package.DataQueries ?? Array.Empty<DataQueryEngineeringDto>(),
             AlarmViews = package.AlarmViews ?? Array.Empty<AlarmViewEngineeringDto>(),
+            MediaSources = package.MediaSources ?? Array.Empty<MediaSourceEngineeringDto>(),
             Commands = package.Commands ?? Array.Empty<CommandEngineeringDto>(),
             Gateways = package.Gateways ?? Array.Empty<GatewayRouteEngineeringDto>(),
             Scripts = package.Scripts ?? Array.Empty<ScriptEngineeringDefinition>(),
@@ -403,10 +411,22 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _scriptHandler.Preview(package, mode, items);
         _operationalEventHandler.Preview(package, mode, items);
         _reportHandler.Preview(package, mode, items);
+        _mediaSourceHandler.Preview(package, mode, items);
         _securityScopeHandler.Preview(package, mode, items);
         _securityPolicyHandler.Preview(package, mode, items);
         PreviewOperationalHmiReferences(package, items);
         var requestedRuntimePresentation = package.RuntimePresentation ?? new RuntimePresentationEngineeringDto();
+        if (requestedRuntimePresentation.MobileOrientation is not ("landscape" or "portrait"))
+            items.Add(new ImportPreviewItem(
+                ImportEntityKind.RuntimePresentation,
+                "runtime-presentation",
+                ImportOperation.Error,
+                [new ImportIssue(
+                    "RUNTIME_MOBILE_ORIENTATION_INVALID",
+                    "Mobile orientation must be 'landscape' or 'portrait'.",
+                    ImportEntityKind.RuntimePresentation,
+                    "runtime-presentation",
+                    true)]));
         items.Add(new ImportPreviewItem(
             ImportEntityKind.RuntimePresentation,
             "runtime-presentation",
@@ -465,6 +485,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _scriptHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _operationalEventHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _reportHandler.Apply(package, mode, ref created, ref updated, ref skipped);
+        _mediaSourceHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _securityScopeHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _securityPolicyHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _engineeringLock.Replace(package.EngineeringLock);

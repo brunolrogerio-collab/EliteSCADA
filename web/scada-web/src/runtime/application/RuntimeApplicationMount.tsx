@@ -306,6 +306,7 @@ function EngineeringRuntimeApplicationContent({
       <RuntimeVisualNavigator
         engineeringPackage={engineeringPackage}
         initialScreenKey={startup.screenKey}
+        mobileOrientation={engineeringPackage.runtimePresentation?.mobileOrientation ?? 'landscape'}
         locale={locale}
         scriptContext={scriptContext}
         emptyLabel={text.emptyVisual}

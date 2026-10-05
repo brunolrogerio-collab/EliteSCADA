@@ -33,6 +33,7 @@ import { RuntimeHistoricalPlaybackReadOnlyError } from '../historical-playback/r
 export type RuntimeVisualNavigatorProps = Readonly<{
   engineeringPackage: Pick<EngineeringPackageView, 'screens' | 'popups' | 'dynamos' | 'equipment' | 'templates'>;
   initialScreenKey: string;
+  mobileOrientation?: 'landscape' | 'portrait';
   locale?: EngineeringLocale;
   emptyLabel?: string;
   popupIdFactory?: () => string;
@@ -63,6 +64,7 @@ const POPUP_FALLBACK_TITLE: Readonly<Record<EngineeringLocale, string>> = Object
 export function RuntimeVisualNavigator({
   engineeringPackage,
   initialScreenKey,
+  mobileOrientation = 'landscape',
   locale = 'pt-BR',
   emptyLabel = 'Sem objetos visuais.',
   popupIdFactory,
@@ -188,7 +190,7 @@ export function RuntimeVisualNavigator({
     data-runtime-temporal-mode={playback?.mode === 'historicalPlayback' ? 'historical-playback' : 'live'}
     data-runtime-historical-at={playback?.atUtc ?? undefined}
   >
-    <RuntimeLogicalViewport designSize={designSize}>
+    <RuntimeLogicalViewport designSize={designSize} mobileOrientation={mobileOrientation}>
       <div className="runtime-logical-composition">
         <section
           className="runtime-visual-screen"

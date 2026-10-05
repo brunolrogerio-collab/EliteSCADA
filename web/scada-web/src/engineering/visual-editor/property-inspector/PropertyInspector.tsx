@@ -84,8 +84,8 @@ const DEFAULT_COPY: PropertyInspectorCopy = {
   trueLabel: 'True',
   falseLabel: 'False',
   noAsset: 'No asset',
-  assetBrowserHint: 'Browse your computer and upload a PNG, JPG, BMP or SVG to this project.',
-  chooseImage: 'Browse computer and upload…',
+  assetBrowserHint: 'Import a PNG, JPG, BMP, SVG, PDF, MP4 or WebM project asset.',
+  chooseImage: 'Import project asset…',
   importingAsset: 'Importing…',
   transparent: 'Transparent',
   alpha: 'Alpha',
@@ -348,6 +348,7 @@ function PropertyField({ model, row, text, locale, visualAssets, objectType, onM
       ) : (
         <PropertyEditorControl
           definition={definition}
+          objectType={objectType}
           row={row}
           text={rowText}
           visualAssets={visualAssets}
@@ -539,8 +540,8 @@ function propertyInspectorChromeText(locale: EngineeringLocale) {
     stableId: 'Id estável',
     renameHint: 'Alterar este campo atualiza apenas o identificador usado no desenvolvimento; a identidade estável é preservada.',
     keyRequired: 'O identificador de desenvolvimento é obrigatório.',
-    assetBrowserHint: 'Procure no computador e envie um PNG, JPG, BMP ou SVG para este projeto.',
-    chooseImage: 'Procurar no computador e enviar…',
+    assetBrowserHint: 'Importe um asset PNG, JPG, BMP, SVG, PDF, MP4 ou WebM para este projeto.',
+    chooseImage: 'Importar asset do projeto…',
     importingAsset: 'Importando…',
     fontFamilyPlaceholder: 'Escolha uma família de fontes',
     fontFamilyOptions: {
@@ -560,8 +561,8 @@ function propertyInspectorChromeText(locale: EngineeringLocale) {
     stableId: 'Id estable',
     renameHint: 'Cambiarlo actualiza solo el identificador visible para desarrollo; la identidad estable se conserva.',
     keyRequired: 'El identificador de desarrollo es obligatorio.',
-    assetBrowserHint: 'Busque en el equipo y cargue un PNG, JPG, BMP o SVG a este proyecto.',
-    chooseImage: 'Buscar en el equipo y cargar…',
+    assetBrowserHint: 'Importe un recurso PNG, JPG, BMP, SVG, PDF, MP4 o WebM al proyecto.',
+    chooseImage: 'Importar recurso del proyecto…',
     importingAsset: 'Importando…',
     fontFamilyPlaceholder: 'Elige una familia tipográfica',
     fontFamilyOptions: {
@@ -581,7 +582,7 @@ function propertyInspectorChromeText(locale: EngineeringLocale) {
     stableId: 'Stable Id',
     renameHint: 'Changing this updates only the development-facing identifier; stable identity is preserved.',
     keyRequired: 'A development identifier is required.',
-    chooseImage: 'Choose image…',
+    chooseImage: 'Import project asset…',
     importingAsset: 'Importing…',
     fontFamilyPlaceholder: 'Choose a font family',
     fontFamilyOptions: {

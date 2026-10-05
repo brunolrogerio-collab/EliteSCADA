@@ -1,4 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
+import { randomBytes, randomUUID } from 'node:crypto';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   createE2eJwt,
   E2E_AUTH_AUDIENCE,
@@ -7,8 +10,12 @@ import {
 } from './tests-e2e/jwt';
 
 const developerToken = createE2eJwt('e2e-developer', ['developer'], 'E2E Developer');
+const e2eProtectedMaterialStore = join(tmpdir(), `elitescada-e2e-protected-${randomUUID()}`);
+const e2eProtectedMaterialKey = randomBytes(32).toString('base64');
+process.env.ELITESCADA_E2E_PROTECTED_MATERIAL_STORE = e2eProtectedMaterialStore;
 
 export default defineConfig({
+  globalTeardown: './tests-e2e/cleanup-protected-material.ts',
   testDir: './tests-e2e',
   workers: 1,
   timeout: 30_000,
@@ -55,6 +62,8 @@ export default defineConfig({
         Authentication__Jwt__SigningKey: E2E_AUTH_SIGNING_KEY,
         Authentication__Local__Enabled: 'true',
         Authentication__Local__SecureCookie: 'false',
+        ELITESCADA_PROTECTED_MATERIAL_KEY: e2eProtectedMaterialKey,
+        ProtectedMaterial__Store__Path: e2eProtectedMaterialStore,
         EngineeringRuntime__ProjectKey: 'e2e-wave03',
       }
     },

@@ -17,6 +17,7 @@ import {
 
 export type PropertyEditorControlProps = Readonly<{
   definition: VisualPropertyDefinition;
+  objectType?: string;
   row: PropertyInspectorRow;
   text: PropertyInspectorCopy;
   visualAssets: readonly VisualAssetEngineering[];
@@ -31,6 +32,7 @@ const FONT_FAMILY_OPTIONS = Object.freeze(['system', 'Arimo Variable', 'Lato', '
 
 export function PropertyEditorControl({
   definition,
+  objectType,
   row,
   text,
   visualAssets,
@@ -67,6 +69,7 @@ export function PropertyEditorControl({
   if (definition.type === 'assetRef' || definition.presentationHint === 'project-asset') {
     return <AssetReferenceControl
       definition={definition}
+      objectType={objectType}
       row={row}
       text={text}
       visualAssets={visualAssets}
@@ -227,6 +230,7 @@ function ImageAdjustmentControl({ definition, row, commit }: BasicEditorProps) {
 
 function AssetReferenceControl({
   definition,
+  objectType,
   row,
   text,
   visualAssets,
@@ -234,12 +238,19 @@ function AssetReferenceControl({
   onImportImage,
   imageImportDisabled = false,
   imageImportBusy = false
-}: Pick<PropertyEditorControlProps, 'definition' | 'row' | 'text' | 'visualAssets' | 'commit' | 'onImportImage' | 'imageImportDisabled' | 'imageImportBusy'>) {
+}: Pick<PropertyEditorControlProps, 'definition' | 'objectType' | 'row' | 'text' | 'visualAssets' | 'commit' | 'onImportImage' | 'imageImportDisabled' | 'imageImportBusy'>) {
   const fileInput = useRef<HTMLInputElement>(null);
   const current = row.state === 'mixed'
     ? '__mixed__'
     : formatPropertyInspectorValue(row.value ?? row.defaultValue);
-  const assets = visualAssets.filter(asset => typeof asset.id === 'string' && asset.id.length > 0);
+  const acceptedTypes = objectType === 'core.videoPlayer'
+    ? ['video/mp4', 'video/webm']
+    : objectType === 'core.pdfViewer'
+      ? ['application/pdf']
+      : objectType === 'core.svgSymbol'
+        ? ['image/svg+xml']
+        : ['image/png', 'image/jpeg', 'image/bmp', 'image/svg+xml'];
+  const assets = visualAssets.filter(asset => typeof asset.id === 'string' && asset.id.length > 0 && acceptedTypes.includes(asset.mediaType));
   const selectedValue = current.startsWith('asset:') ? current.slice('asset:'.length) : current;
 
   return (
@@ -268,7 +279,7 @@ function AssetReferenceControl({
         <input
           ref={fileInput}
           type="file"
-          accept="image/png,image/jpeg,image/bmp,image/svg+xml,.png,.jpg,.jpeg,.bmp,.svg"
+          accept={acceptedTypes.join(',')}
           hidden
           onChange={event => {
             const file = event.currentTarget.files?.[0];

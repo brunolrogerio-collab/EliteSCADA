@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Scada.Core.Alarms;
 using Scada.Core.Commands;
 using Scada.Core.Tags;
@@ -37,7 +38,8 @@ public enum ImportEntityKind
     DataQuery,
     AlarmView,
     Branding,
-    RuntimePresentation
+    RuntimePresentation,
+    MediaSource
 }
 
 public enum SecurityScopeNodeKind
@@ -179,6 +181,36 @@ public sealed record DataSourceEngineeringDto(
     Dictionary<string, string>? SecretReferences = null,
     Dictionary<string, string>? Metadata = null);
 
+[JsonConverter(typeof(MediaSourceProtocolJsonConverter))]
+public enum MediaSourceProtocol
+{
+    Http,
+    Hls,
+    Mjpeg,
+    Rtsp
+}
+
+public sealed class MediaSourceProtocolJsonConverter : JsonStringEnumConverter<MediaSourceProtocol>
+{
+    public MediaSourceProtocolJsonConverter()
+        : base(JsonNamingPolicy.CamelCase, allowIntegerValues: false)
+    {
+    }
+}
+
+/// <summary>
+/// Portable, non-secret configuration for a server-owned media source. Credentials are
+/// provisioned separately through the protected-material authority and are never embedded
+/// in this DTO or its endpoint URI.
+/// </summary>
+public sealed record MediaSourceEngineeringDto(
+    Guid? Id,
+    string Key,
+    string Name,
+    MediaSourceProtocol Protocol,
+    string Endpoint,
+    bool Enabled = true);
+
 /// <summary>
 /// Generic Engineering binding. In a visual-element binding, <see cref="Key"/>
 /// is the destination visual-property/slot key. <see cref="Target"/> remains the
@@ -319,6 +351,7 @@ public sealed record ApplicationBrandingEngineeringDto(
 /// </summary>
 public sealed record RuntimePresentationEngineeringDto(
     bool HistoricalPlaybackEnabled = false,
+    string MobileOrientation = "landscape",
     int Version = 1);
 
 public sealed record VisualAssetEngineeringDto(
@@ -466,7 +499,8 @@ public sealed record EngineeringPackage(
     IReadOnlyCollection<DataQueryEngineeringDto>? DataQueries = null,
     IReadOnlyCollection<AlarmViewEngineeringDto>? AlarmViews = null,
     ApplicationBrandingEngineeringDto? Branding = null,
-    RuntimePresentationEngineeringDto? RuntimePresentation = null);
+    RuntimePresentationEngineeringDto? RuntimePresentation = null,
+    IReadOnlyCollection<MediaSourceEngineeringDto>? MediaSources = null);
 
 public sealed record ImportIssue(
     string Code,

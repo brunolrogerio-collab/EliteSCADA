@@ -4,7 +4,7 @@ import type { ApplicationBrandingEngineering, ApplicationBrandingMode, Engineeri
 import type { EngineeringLocale } from './i18n';
 
 const DEFAULT: ApplicationBrandingEngineering = { mode: 'default' };
-const DEFAULT_RUNTIME: RuntimePresentationEngineering = { historicalPlaybackEnabled: false, version: 1 };
+const DEFAULT_RUNTIME: RuntimePresentationEngineering = { historicalPlaybackEnabled: false, mobileOrientation: 'landscape', version: 1 };
 
 export function BrandingEngineeringWorkspace({ snapshot, onApplied, locale = 'pt-BR' }: { snapshot: EngineeringSnapshot; onApplied: () => Promise<void>; locale?: EngineeringLocale }) {
   const [draft, setDraft] = useState<ApplicationBrandingEngineering>(snapshot.package.branding ?? DEFAULT);
@@ -102,7 +102,7 @@ export function BrandingEngineeringWorkspace({ snapshot, onApplied, locale = 'pt
           <small>PNG, JPG, BMP or SVG. The selected file is uploaded to project assets.</small>
         </div>}
         <RuntimePlaybackProjectSetting locale={locale} value={runtimeDraft.historicalPlaybackEnabled}
-          onChange={value => { setRuntimeDraft({ historicalPlaybackEnabled: value, version: 1 }); setPreview(null); setPreviewSignature(''); setMessage(null); }} />
+          onChange={value => { setRuntimeDraft(current => ({ ...current, historicalPlaybackEnabled: value, version: 1 })); setPreview(null); setPreviewSignature(''); setMessage(null); }} />
         <div className="branding-editor__actions"><button type="button" onClick={() => void validate()} disabled={busy}>Preview validation</button>
           <button type="button" onClick={() => void apply()} disabled={busy || !preview?.canApply || previewSignature !== signature}>Apply to Working</button></div>
         {message && <p role="status" className="branding-editor__message">{message}</p>}
@@ -119,7 +119,6 @@ export function BrandingEngineeringWorkspace({ snapshot, onApplied, locale = 'pt
     </div>
   </div>;
 }
-
 function RuntimePlaybackProjectSetting({ locale, value, onChange }: { locale: EngineeringLocale; value: boolean; onChange: (value:boolean)=>void }) {
   const copy = locale === 'en'
     ? { title:'Runtime', label:'Make Historical Playback available in Runtime', help:'Hidden by default. When enabled, authorized operators get a compact Playback tool in Runtime.' }

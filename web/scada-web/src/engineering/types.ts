@@ -316,6 +316,17 @@ export type DataSourceEngineering = {
   metadata?: Record<string, string> | null;
 };
 
+export type MediaSourceProtocolEngineering = 'http' | 'hls' | 'mjpeg' | 'rtsp';
+
+export type MediaSourceEngineering = {
+  id?: string | null;
+  key: string;
+  name: string;
+  protocol: MediaSourceProtocolEngineering;
+  endpoint: string;
+  enabled?: boolean;
+};
+
 export type GatewayEngineering = {
   id?: string;
   key: string;
@@ -568,6 +579,7 @@ export type ApplicationBrandingEngineering = Readonly<{
 
 export type RuntimePresentationEngineering = Readonly<{
   historicalPlaybackEnabled: boolean;
+  mobileOrientation?: 'landscape' | 'portrait';
   version: number;
 }>;
 
@@ -717,6 +729,7 @@ export type EngineeringPackageView = {
   tags: TagEngineering[];
   alarms: AlarmEngineering[];
   dataSources?: DataSourceEngineering[];
+  mediaSources?: MediaSourceEngineering[];
   templates?: TemplateEngineering[];
   equipment?: EquipmentEngineering[];
   dynamos?: DynamoEngineering[];

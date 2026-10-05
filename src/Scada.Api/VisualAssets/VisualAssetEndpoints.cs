@@ -38,6 +38,12 @@ public static class VisualAssetEndpoints
 
             context.Response.Headers.ETag = $"\"{metadata.Sha256.ToLowerInvariant()}\"";
             context.Response.Headers.CacheControl = "private, no-cache";
+            context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+            if (metadata.MediaType.Equals(VisualAssetContentInspector.PdfMediaType, StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.Headers["Content-Security-Policy"] = "sandbox; default-src 'none'; base-uri 'none'; form-action 'none'";
+                context.Response.Headers["Content-Disposition"] = "inline";
+            }
             return Results.File(payload.Content, metadata.MediaType);
         }).RequireWorkspaceEngineeringRead();
 
@@ -314,7 +320,7 @@ public static class VisualAssetEndpoints
         HttpRequest request,
         CancellationToken cancellationToken)
     {
-        if (request.ContentLength is > VisualAssetEngineeringValidator.MaximumPayloadBytes)
+        if (request.ContentLength is > VisualAssetEngineeringValidator.MaximumVideoPayloadBytes)
             throw new InvalidDataException("Visual asset payload exceeds the supported size limit.");
 
         using var output = new MemoryStream();
@@ -324,7 +330,7 @@ public static class VisualAssetEndpoints
         while ((read = await request.Body.ReadAsync(buffer, cancellationToken)) > 0)
         {
             total += read;
-            if (total > VisualAssetEngineeringValidator.MaximumPayloadBytes)
+            if (total > VisualAssetEngineeringValidator.MaximumVideoPayloadBytes)
                 throw new InvalidDataException("Visual asset payload exceeds the supported size limit.");
             await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
         }

@@ -172,6 +172,37 @@ public sealed class VisualAssetWave08Tests
         Assert.Equal(payload.Content, targetAssets.FindPayload(payload.Sha256)!.Content);
     }
 
+    [Theory]
+    [InlineData("manual.pdf", "%PDF-1.7\n1 0 obj\n<<>>\nendobj\n%%EOF\n", "application/pdf")]
+    [InlineData("clip.mp4", "000000106674797069736F6D00000000", "video/mp4")]
+    [InlineData("clip.webm", "1A45DFA393428284", "video/webm")]
+    public void ProjectPackageV2_RoundTripsBoundedPdfAndVideoResources(
+        string fileName,
+        string content,
+        string expectedMediaType)
+    {
+        var bytes = expectedMediaType == "application/pdf"
+            ? Encoding.ASCII.GetBytes(content)
+            : Convert.FromHexString(content);
+        var payload = VisualAssetPayload.Create(expectedMediaType, bytes);
+        var sourceAssets = new InMemoryVisualAssetEngineeringRegistry();
+        sourceAssets.PutPayload(payload);
+        sourceAssets.UpsertAsset(CreateAsset(Guid.NewGuid(), "media." + expectedMediaType.Split('/')[1],
+            fileName, fileName, payload));
+        using var sourceAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var sourceExchange = CreateExchange(sourceAlarms, sourceAssets);
+        var package = new ProjectPackageService(sourceExchange, sourceAssets).Export("media-project", "Media project");
+
+        var targetAssets = new InMemoryVisualAssetEngineeringRegistry();
+        using var targetAlarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var targetPackages = new ProjectPackageService(CreateExchange(targetAlarms, targetAssets), targetAssets);
+        var applied = targetPackages.Apply(package, ImportMode.CreateAndUpdate);
+
+        Assert.DoesNotContain(applied.Issues, issue => issue.IsError);
+        Assert.Equal(bytes, targetAssets.FindPayload(payload.Sha256)!.Content);
+        Assert.Equal(expectedMediaType, Assert.Single(targetAssets.SnapshotAssets()).MediaType);
+    }
+
     [Fact]
     public void ProjectPackageV2_RoundTripsSanitizedSvgBackgroundAsset()
     {

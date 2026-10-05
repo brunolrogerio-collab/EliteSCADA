@@ -1,6 +1,6 @@
 # Wave 15 consolidation handoff
 
-Updated 2026-10-05. The product is consolidated in `wave15/corrections-integration`, including #508–#512 after product consolidation #502. This replaces the conflicting development checkpoints in this file. It is not a claim that every requested feature or final integrated CI is complete.
+Updated 2026-10-05. The product is consolidated in `wave15/corrections-integration`, including #508–#515 after product consolidation #502. This replaces the conflicting development checkpoints in this file. It is not a claim that every requested feature or final integrated CI is complete.
 
 The mobile presentation also intercepts privileged Engineering/administration bookmarks: authorized Runtime users see the same Runtime canvas, without mounting desktop authoring or the second global header. Five mounted browser contracts pass for desktop, fullscreen, portrait-held mobile and both privileged mobile bookmarks. The media route explicitly resolves optional persistence from services and reports offline/503 on hosts without persistence, rather than failing endpoint construction.
 
@@ -25,7 +25,7 @@ The parameter inspector now includes lazy-loaded Client Visual script/output sel
 
 Runtime Dynamo commands expose pending, accepted, failed and read-back-confirmed states. Duplicate in-flight actions are blocked. HTTP acceptance alone is never labelled as process confirmation; confirmation requires a fresh Good-quality matching TAG sample.
 
-Mounted authoring review now uses definitions and artwork emitted from the actual C# catalog, not hand-maintained drawing fixtures. All 26 variants mount across five fixed states; lamp paint is explicitly asserted and screenshots captured. This found and fixed rectangular SVG backing plates, missing public-state projection in Design, and fixed-state paint replacing the independently configured outline. Design previews do not resolve executable command targets; Runtime retains its existing fail-closed command requirement. Fifteen focused projection contracts and three mounted authoring contracts pass. The latter also cover factory category/filter/copy through CAS and the script wizard's syntax/Preview/Apply/typed-output binding. Their HTTP boundaries are mocked, not claimed as a full persisted project or Python-engine execution test.
+Mounted authoring review now uses definitions and artwork emitted from the actual C# catalog, not hand-maintained drawing fixtures. All 26 variants mount across five fixed states; lamp paint is explicitly asserted and screenshots captured. This found and fixed rectangular SVG backing plates, missing public-state projection in Design, and fixed-state paint replacing the independently configured outline. Design previews do not resolve executable command targets. Catalog 1.0.1 explicitly marks its command targets optional: absent targets omit the action rather than the whole drawing; configured invalid targets and mandatory commands still fail closed. All 26 definitions compose without commands in C# and expand successfully through the real frontend Runtime projection. Twenty-four catalog tests, fifteen projection contracts and four mounted authoring contracts pass. The latter also cover factory category/filter/copy through CAS, the script wizard's syntax/Preview/Apply/typed-output binding and combined Video/PDF composition. Their HTTP boundaries are mocked, not claimed as a full persisted project or Python-engine execution test.
 
 The repository factory now exposes 2,208 original SVG review candidates through Engineering > Visual assets, grouped by category/style, searchable and paginated. Each selected item is sanitized by the canonical SVG inspector and copied through the normal CAS asset-import path into the project; it then supports normal static insertion and semantic paint animation. Source batches remain `draft`: this does not falsify human approval or mass-publish rejected/unreviewed built-ins. All 2,208 previews pass canonical SVG sanitization locally.
 
@@ -46,7 +46,7 @@ The media relay now rewrites HLS playlists/keys/segments to authenticated same-o
 
 RTSP uses an isolated, digest-pinned MediaMTX 1.21.1 sidecar, provisioned only from Active source identities. Camera credentials remain server-side and dynamic configuration is in memory, not the portable package or process arguments. HLS.js 1.7.3 is lazy-loaded for desktop browser playback; native HLS remains available. Reconnect uses bounded exponential backoff and stops on authentication/unsupported formats. RTSP is remuxed, not transcoded: the camera codec must be supported by the browser; RTSPS currently requires a certificate-valid literal address.
 
-The synthetic laboratory passes real RTSP-to-HLS provisioning and playlist/initialization/segment reads through revision-bound tickets. Chromium decodes the stream, advances playback time and pauses; credential failure stops automatic retry. Its HTTP Active-source boundary is mocked separately, not misrepresented as full persisted-source acceptance. This found and fixed the gateway's initial cookie-check 302. Remaining media acceptance: persisted source authority and combined Video/PDF authoring. #495/#496 remain open for those checks and the final integrated gate.
+The synthetic laboratory passes real RTSP-to-HLS provisioning and playlist/initialization/segment reads through revision-bound tickets. Chromium decodes the stream, advances playback time and pauses; credential failure stops automatic retry. Its HTTP Active-source boundary is mocked separately, not misrepresented as full persisted-source acceptance. This found and fixed the gateway's initial cookie-check 302. Combined canonical Video/PDF composition verifies PDF page/zoom/toolbar changes, local-video controls/muting, and no network camera requests in Design. It does not assert PDF pixel decoding from a persisted asset. Remaining media acceptance: persisted source/document authority. #495/#496 remain open for that check and the final integrated gate.
 
 ## Runtime header and mobile
 
@@ -66,7 +66,7 @@ Reporting and historian-based playback are integrated capabilities. Local/networ
 
 ## Isolated Docker preview
 
-The `elitescada-stable` stack was rebuilt from integrated `d4373ac3` (through #513) on 2026-10-05:
+The `elitescada-stable` API was rebuilt through #514 and web through integrated `e9444c83` (#515) on 2026-10-05. Catalog 1.0.1's API/web rebuild follows this checkpoint:
 
 - Web: http://localhost:18080/
 - API: http://localhost:15080/

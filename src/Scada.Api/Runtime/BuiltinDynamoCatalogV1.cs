@@ -14,7 +14,7 @@ namespace Scada.Api.Runtime;
 /// </summary>
 public static class BuiltinDynamoCatalogV1
 {
-    public const string Version = "1.0.0";
+    public const string Version = "1.0.1";
     private const string Outline = "#263746";
     private const string Steel = "#A9BAC5";
     private const string Light = "#E7EEF2";
@@ -268,6 +268,7 @@ public static class BuiltinDynamoCatalogV1
             : new Dictionary<string, string>(buttonElement.Metadata, StringComparer.Ordinal);
         buttonMetadata["dynamoInteraction"] = "momentary-button";
         buttonMetadata["dynamoActionModeParameter"] = "actionMode";
+        buttonMetadata["dynamoOptionalActionTarget"] = "true";
         buttonMetadata["dynamoBooleanStateInvertParameter"] = "invertBoolean";
         x[x.IndexOf(buttonElement)] = buttonElement with { Actions = [clickAction], Metadata = buttonMetadata };
         return Definition($"operator.button.{style}", $"Botão {ButtonName(style)}", "controls", 110, 84, x, parameters, metadata);
@@ -355,6 +356,7 @@ public static class BuiltinDynamoCatalogV1
             if (bodyIndex >= 0)
                 x[bodyIndex] = x[bodyIndex] with
                 {
+                    Metadata = new Dictionary<string, string>(x[bodyIndex].Metadata ?? new Dictionary<string, string>()) { ["dynamoOptionalActionTarget"] = "true" },
                     Actions = [new VisualNavigationActionEngineeringDto("click", VisualNavigationActionKind.ExecuteCommand, CommandParameterKey: "command")]
                 };
             metadata["stateSource"] = "numeric-value-source-enum";

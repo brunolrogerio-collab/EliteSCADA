@@ -51,6 +51,22 @@ export function expandRuntimeDynamoVisuals(
     expandElementFailClosed(element, definitions, `root.${index}`, locale)));
 }
 
+/** IDs of persisted Dynamo roots: Runtime renders them as groups, so scripts need an event-only context. */
+export function collectRuntimeDynamoEventOnlyObjectIds(
+  elements: readonly VisualElementEngineering[] | null | undefined
+): ReadonlySet<string> {
+  const ids = new Set<string>();
+  const visit = (items: readonly VisualElementEngineering[]) => {
+    for (const element of items) {
+      const id = element.id?.trim();
+      if (id && element.dynamoKey?.trim()) ids.add(id);
+      if (element.children?.length) visit(element.children);
+    }
+  };
+  visit(elements ?? []);
+  return ids;
+}
+
 /** Only projected Dynamo internals are sampled by the C07 state overlay. */
 export function collectRuntimeDynamoStateBindingElements(
   elements: readonly VisualElementEngineering[]
@@ -256,6 +272,7 @@ function statePresentation(kind: string, locale: EngineeringLocale): Readonly<{
     case 'fault': return Object.freeze({ label: text.fault, background: '#7F1D1D', foreground: '#FFFFFF' });
     case 'alarm': return Object.freeze({ label: text.alarm, background: '#92400E', foreground: '#FFFFFF' });
     case 'uncertain-quality': return Object.freeze({ label: text.uncertain, background: '#854D0E', foreground: '#FFFFFF' });
+    case 'inhibited': return Object.freeze({ label: text.inhibited, background: '#475569', foreground: '#FFFFFF' });
     case 'command-intent': return Object.freeze({ label: text.command, background: '#1D4ED8', foreground: '#FFFFFF' });
     case 'transitioning': return Object.freeze({ label: text.transition, background: '#6D28D9', foreground: '#FFFFFF' });
     case 'active': return Object.freeze({ label: text.active, background: '#166534', foreground: '#FFFFFF' });

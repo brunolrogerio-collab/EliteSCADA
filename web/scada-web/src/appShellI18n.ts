@@ -5,7 +5,6 @@ export type AppShellLocale = EngineeringLocale;
 
 const ptBR = {
   subtitle: 'Plataforma industrial',
-  currentArea: 'Área atual',
   runtime: 'Runtime',
   runtimeDescription: 'Operação',
   runtimeOverview: 'Visão geral',
@@ -35,7 +34,6 @@ export type AppShellTextKey = keyof typeof ptBR;
 
 const en: Record<AppShellTextKey, string> = {
   subtitle: 'Industrial platform',
-  currentArea: 'Current area',
   runtime: 'Runtime',
   runtimeDescription: 'Operations',
   runtimeOverview: 'Overview',
@@ -63,7 +61,6 @@ const en: Record<AppShellTextKey, string> = {
 
 const es: Record<AppShellTextKey, string> = {
   subtitle: 'Plataforma industrial',
-  currentArea: 'Área actual',
   runtime: 'Runtime',
   runtimeDescription: 'Operación',
   runtimeOverview: 'Vista general',

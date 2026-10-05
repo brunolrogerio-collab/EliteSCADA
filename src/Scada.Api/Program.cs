@@ -928,6 +928,9 @@ static async Task<IResult> ApplyEngineeringImportAsync(
 
         var result = exchange.Apply(package, importMode);
         var hasErrors = result.Issues.Any(x => x.IsError);
+        if (!hasErrors)
+            EngineeringWorkingBootstrapService.UpgradeBuiltinDynamos(workspace);
+
         await audit.RecordAsync(
             context,
             authorization.Principal,

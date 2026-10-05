@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import type { EngineeringLocale } from './i18n';
-import { testEngineeringDraftPointRead, testEngineeringPointRead, type DriverPointReadSampleView, type DriverPointReadTestResultView, type DriverPointReadTestStatusView } from './driverEngineeringApi';
+import { DriverEngineeringHttpError, testEngineeringDraftPointRead, testEngineeringPointRead, type DriverPointReadSampleView, type DriverPointReadTestResultView, type DriverPointReadTestStatusView } from './driverEngineeringApi';
 import { resolveTagDataSource, type TagSourceAwareEngineering } from './TagSourceSelector.logic';
 import type { DataSourceEngineering } from './types';
 
@@ -8,6 +8,7 @@ type Props = Readonly<{ tag: TagSourceAwareEngineering; sources: readonly DataSo
 
 export function TagCommissioningPanel({ tag, sources, locale, persisted, onChange }: Props) {
   const copy = useMemo(() => commissioningCopy(locale), [locale]);
+  const help = useMemo(() => commissioningHelp(locale, persisted), [locale, persisted]);
   const source = resolveTagDataSource(tag, sources).source;
   const binding = tag.communicationBinding;
   const [busy, setBusy] = useState<'single' | 'monitor' | null>(null);
@@ -31,12 +32,12 @@ export function TagCommissioningPanel({ tag, sources, locale, persisted, onChang
             { sourceKey: source.key, sourceName: source.name, driverType: source.driver, settings: source.settings ?? {}, secretReferences: source.secretReferences ?? {} },
             request);
       setResult(result);
-    } catch (reason) { setResult(null); setError(reason instanceof Error ? reason.message : String(reason)); }
+    } catch (reason) { setResult(null); setError(formatPointReadError(reason, locale)); }
     finally { setBusy(null); }
   };
 
   return <section className="eng-dictionary-editor eng-editor-field-wide" data-testid="tag-commissioning">
-    <header><strong>{copy.title}</strong><span>{copy.help}</span></header>
+    <header><strong>{copy.title}</strong><span>{help}</span></header>
     <div className="eng-editor-form-grid">
       <label className="eng-editor-field"><span>{copy.byteSwap}</span><input type="checkbox" checked={Boolean(transform.byteSwap)} onChange={e => setTransform('byteSwap', e.currentTarget.checked)} data-testid="tag-commissioning-byte-swap" /></label>
       <label className="eng-editor-field"><span>{copy.wordSwap}</span><input type="checkbox" checked={Boolean(transform.wordSwap)} onChange={e => setTransform('wordSwap', e.currentTarget.checked)} data-testid="tag-commissioning-word-swap" /></label>
@@ -94,4 +95,26 @@ function commissioningCopy(locale: EngineeringLocale) {
   if (locale === 'en') return { title:'TAG commissioning', help:'Transient Engineering read only. It does not Apply, activate, write the process or store Historian samples.', configureFirst:'Choose a Data Source and configure a canonical address/binding before testing.', byteSwap:'Byte Swap', wordSwap:'Word Swap', testRead:'Test read', testing:'Testing…', shortMonitor:'Monitor for a few seconds', monitoring:'Monitoring…', developmentMonitor:'Open Development Monitor', endpoint:'Sanitized endpoint', address:'Portable address', quality:'Quality', observed:'Observed', sourceTimestamp:'Source timestamp', latency:'Latency', raw:'Raw evidence', decoded:'Decoded raw value', engineering:'Engineering value', transform:'Effective transform', summary:'Sample summary', issues:'Issues', good:'GOOD', bad:'BAD', noData:'NO_DATA', uncertain:'INTERMITTENT_OR_UNCERTAIN', states:{ good:{icon:'✓',label:'GOOD — Valid read'}, bad:{icon:'!',label:'BAD — Communication/protocol error'}, noData:{icon:'—',label:'NO_DATA — No readable value'}, uncertain:{icon:'~',label:'INTERMITTENT_OR_UNCERTAIN — Partial/unstable read'} } } as const;
   if (locale === 'es') return { title:'Comisionamiento del TAG', help:'Lectura transitoria de Engineering. No aplica, activa, escribe en el proceso ni almacena muestras en Historian.', configureFirst:'Seleccione una Data Source y configure una dirección/binding canónica antes de probar.', byteSwap:'Byte Swap', wordSwap:'Word Swap', testRead:'Probar lectura', testing:'Probando…', shortMonitor:'Monitorear por algunos segundos', monitoring:'Monitoreando…', developmentMonitor:'Abrir Monitor de Desarrollo', endpoint:'Endpoint sanitizado', address:'Dirección portable', quality:'Calidad', observed:'Observado', sourceTimestamp:'Timestamp de origen', latency:'Latencia', raw:'Evidencia raw', decoded:'Valor raw decodificado', engineering:'Valor de Engineering', transform:'Transformación efectiva', summary:'Resumen de muestras', issues:'Problemas', good:'GOOD', bad:'BAD', noData:'NO_DATA', uncertain:'INTERMITTENT_OR_UNCERTAIN', states:{ good:{icon:'✓',label:'GOOD — Lectura válida'}, bad:{icon:'!',label:'BAD — Error de comunicación/protocolo'}, noData:{icon:'—',label:'NO_DATA — Sin valor legible'}, uncertain:{icon:'~',label:'INTERMITTENT_OR_UNCERTAIN — Lectura parcial/inestable'} } } as const;
   return { title:'Comissionamento do TAG', help:'Leitura transitória de Engenharia. Não aplica, ativa, escreve no processo nem grava amostras no Historian.', configureFirst:'Selecione uma Data Source e configure um endereço/binding canônico antes de testar.', byteSwap:'Byte Swap', wordSwap:'Word Swap', testRead:'Testar leitura', testing:'Testando…', shortMonitor:'Monitorar por alguns segundos', monitoring:'Monitorando…', developmentMonitor:'Abrir Monitoramento de Desenvolvimento', endpoint:'Endpoint sanitizado', address:'Endereço portátil', quality:'Qualidade', observed:'Observado', sourceTimestamp:'Timestamp de origem', latency:'Latência', raw:'Evidência raw', decoded:'Valor raw decodificado', engineering:'Valor de Engineering', transform:'Transformação efetiva', summary:'Resumo de amostras', issues:'Issues', good:'GOOD', bad:'BAD', noData:'NO_DATA', uncertain:'INTERMITTENT_OR_UNCERTAIN', states:{ good:{icon:'✓',label:'GOOD — Leitura válida'}, bad:{icon:'!',label:'BAD — Erro de comunicação/protocolo'}, noData:{icon:'—',label:'NO_DATA — Sem valor legível'}, uncertain:{icon:'~',label:'INTERMITTENT_OR_UNCERTAIN — Leitura parcial/instável'} } } as const;
+}
+
+function commissioningHelp(locale: EngineeringLocale, persisted: boolean): string {
+  if (locale === 'en') return persisted
+    ? 'Reads the saved Engineering Data Source configuration. It is not the Active Runtime observation and never writes the process or stores Historian samples.'
+    : 'Reads the current unsaved Engineering draft. It does not Apply, activate, write the process or store Historian samples.';
+  if (locale === 'es') return persisted
+    ? 'Lee la configuración guardada de Engineering. No es la observación del Runtime activo y no escribe en el proceso ni guarda muestras en Historian.'
+    : 'Lee el borrador actual sin guardar de Engineering. No aplica, activa, escribe en el proceso ni almacena muestras en Historian.';
+  return persisted
+    ? 'Lê a configuração salva da Data Source em Engenharia. Não é a observação do Runtime Ativo e não escreve no processo nem grava amostras no Historian.'
+    : 'Lê o rascunho atual de Engenharia, ainda não salvo. Não aplica, ativa, escreve no processo nem grava amostras no Historian.';
+}
+
+function formatPointReadError(reason: unknown, locale: EngineeringLocale): string {
+  if (!(reason instanceof DriverEngineeringHttpError))
+    return reason instanceof Error ? reason.message : String(reason);
+
+  const prefix = locale === 'en' ? 'HTTP' : 'HTTP';
+  const field = reason.fieldKey ? ` · ${locale === 'en' ? 'field' : locale === 'es' ? 'campo' : 'campo'}: ${reason.fieldKey}` : '';
+  const code = reason.code ? ` · ${reason.code}` : '';
+  return `${prefix} ${reason.status}${code}${field} — ${reason.message}`;
 }

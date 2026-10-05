@@ -648,6 +648,7 @@ function parameterDataType(kind: DynamoParameterKindEngineering): string | null 
     case 'String': return 'String';
     case 'EquipmentPath': return 'String';
     case 'TagReference': return null;
+    case 'ValueSource': return null;
     case 'Command': return null;
   }
 }

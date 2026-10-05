@@ -234,9 +234,18 @@ function CanonicalElement({
         data-object-id={element.id ?? undefined}
         data-runtime-object-id={runtimeObjectId}
         data-enabled={enabled}
+        data-dynamo-interaction={element.metadata?.dynamoInteraction}
+        role={element.metadata?.dynamoInteraction === 'momentary-button' ? 'button' : undefined}
+        tabIndex={element.metadata?.dynamoInteraction === 'momentary-button' && enabled ? 0 : undefined}
         title={elementTitle}
         data-dynamic-state={diagnosticState}
         onClick={onClick}
+        onKeyDown={element.metadata?.dynamoInteraction === 'momentary-button' ? event => {
+          if ((event.key === 'Enter' || event.key === ' ') && onClick) {
+            event.preventDefault();
+            onClick(event as unknown as React.MouseEvent);
+          }
+        } : undefined}
       >
         {assetId ? <SvgSymbolVisualElement
           element={element}

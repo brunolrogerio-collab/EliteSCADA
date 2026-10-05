@@ -974,6 +974,8 @@ public static class BuiltinDynamoLibrary
             Metadata: new Dictionary<string, string>
             {
                 ["builtinLibrary"] = "true",
+                ["catalogStatus"] = "legacy",
+                ["catalogGeneration"] = "0",
                 ["assetOrigin"] = "original-elitescada-vector",
                 ["equipmentPathBinding"] = "{equipmentPath}",
                 ["publicInterfaceVersion"] = "1",

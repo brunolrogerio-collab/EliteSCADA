@@ -74,7 +74,6 @@ export function AppNavigation() {
   if (access.engineering) links.push({ href: '/engineering', label: text.engineering, description: text.engineeringDescription });
   if (access.audit) links.push({ href: '/audit', label: text.audit, description: text.auditDescription });
   if (access.licensing) links.push({ href: '/licensing', label: text.licensing });
-  if (databaseAdmin) links.push({ href: '/admin/database', label: databaseText.title, description: databaseText.subtitle });
   if (access.runtime || access.engineering || access.audit || access.licensing || databaseAdmin) {
     links.push({
       href: `/help?topic=${contextualHelpTopic(path)}`,
@@ -84,8 +83,8 @@ export function AppNavigation() {
 
   const activeHref = path.startsWith('/help')
     ? '/help'
-    : path.startsWith('/admin/database')
-      ? '/admin/database'
+    : path.startsWith('/admin/database') || path.startsWith('/engineering/database-topology')
+      ? '/engineering'
       : path.startsWith('/licensing')
       ? '/licensing'
       : path.startsWith('/audit')
@@ -94,9 +93,6 @@ export function AppNavigation() {
           ? '/engineering'
           : '/';
   const activeRuntimeHref = path.startsWith('/runtime/reports') ? '/runtime/reports' : path.startsWith('/runtime/history') ? '/runtime/history' : '/';
-  const active = activeHref === '/help'
-    ? { href: '/help', label: helpText[locale].label }
-    : links.find(link => link.href === activeHref) ?? links[0];
   const privilegedShell = access.engineering || access.audit || access.licensing || databaseAdmin;
   const runtimeOnly = access.runtime && !privilegedShell;
 
@@ -124,7 +120,6 @@ export function AppNavigation() {
           })}
         </nav>
         <div className="app-shell-actions">
-          {!runtimeOnly && active ? <div className="app-context"><span>{text.currentArea}</span><strong>{active.label}</strong></div> : null}
           <label className="app-theme-control">
             <span className="sr-only">{text.theme}</span>
             <select
@@ -139,6 +134,15 @@ export function AppNavigation() {
           <UserSessionMenu locale={locale} includeRuntimeSessionControls={path === '/' || path.startsWith('/runtime/history') || path.startsWith('/runtime/reports')} />
         </div>
       </header>
+      {databaseAdmin && (path.startsWith('/engineering') || path.startsWith('/admin/database')) ? (
+        <nav className="engineering-tools-navigation" aria-label={text.engineering}>
+          <a
+            href="/engineering/database-topology"
+            className={path.startsWith('/engineering/database-topology') || path.startsWith('/admin/database') ? 'active' : undefined}
+            aria-current={path.startsWith('/engineering/database-topology') || path.startsWith('/admin/database') ? 'page' : undefined}
+          >{databaseText.title}</a>
+        </nav>
+      ) : null}
       {(path.startsWith('/runtime/history') || path.startsWith('/runtime/reports')) && access.runtime && access.history && (
         <nav className="runtime-view-navigation" aria-label="Runtime views">
           <a href="/" className={activeRuntimeHref === '/' ? 'active' : undefined} aria-current={activeRuntimeHref === '/' ? 'page' : undefined}>{text.runtimeOverview}</a>

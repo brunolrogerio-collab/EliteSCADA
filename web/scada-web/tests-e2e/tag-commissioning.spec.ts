@@ -5,6 +5,7 @@ test.use({ locale: 'pt-BR' });
 test('TAG commissioning tests a persisted Modbus source through its configured driver path without mutating Active state', async ({ page }) => {
   let pointReadBody: any = null;
   let pointReadUrl = '';
+  let pointReadRequestCount = 0;
   let forbiddenMutationCount = 0;
 
   page.on('request', request => {
@@ -54,6 +55,15 @@ test('TAG commissioning tests a persisted Modbus source through its configured d
   await page.route('**/api/engineering/data-sources/00000000-0000-0000-0000-00000000c390/driver-tools/point-read-test', async route => {
     pointReadUrl = route.request().url();
     pointReadBody = route.request().postDataJSON();
+    pointReadRequestCount += 1;
+    if (pointReadRequestCount === 3) {
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Point-read test request is invalid.', code: 'POINT_READ_REQUEST_INVALID', fieldKey: 'Binding', detail: 'Binding schema is not supported.' })
+      });
+      return;
+    }
     const monitor = pointReadBody.sampleCount === 5;
     await route.fulfill({
       status: 200,
@@ -109,5 +119,10 @@ test('TAG commissioning tests a persisted Modbus source through its configured d
   expect(pointReadBody.sampleCount).toBe(5);
   expect(pointReadBody.sampleIntervalMilliseconds).toBe(500);
   await expect(page.getByTestId('tag-development-monitor-handoff')).toHaveAttribute('href', '/engineering/monitor');
+
+  await page.getByRole('button', { name: 'Testar leitura' }).click();
+  await expect(page.getByTestId('tag-test-read-error')).toContainText('HTTP 400');
+  await expect(page.getByTestId('tag-test-read-error')).toContainText('POINT_READ_REQUEST_INVALID');
+  await expect(page.getByTestId('tag-test-read-error')).toContainText('campo: Binding');
   expect(forbiddenMutationCount).toBe(0);
 });

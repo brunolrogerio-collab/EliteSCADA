@@ -264,6 +264,37 @@ test('Wave 10 click association dispatches through Python bridge into tween and 
   dispatcher.dispose();
 });
 
+test('Dynamo root click association dispatches in event-only context without visual-property authority', async () => {
+  let runtimeVisualInstanceId: string | undefined;
+  let visualPropertyWriteAvailable = true;
+  const dispatcher = new ClientVisualEventDispatcher({
+    visualDefinitionId,
+    instances: new Map(),
+    eventOnlyObjectIds: new Set([objectId]),
+    runtimeFactory: options => {
+      runtimeVisualInstanceId = options.identity.visualRuntimeInstanceId;
+      visualPropertyWriteAvailable = typeof options.capabilityProvider.writeVisualProperty === 'function';
+      return {
+        dispatchEvent: async () => ({ status: 'completed', durationMs: 1 }),
+        dispose: async () => undefined
+      };
+    }
+  });
+
+  const records = await dispatcher.dispatchObjectInteraction({
+    visualDefinitionId,
+    objectId,
+    eventKey: 'click',
+    context: createContext()
+  });
+
+  expect(records).toHaveLength(1);
+  expect(records[0].result.status).toBe('completed');
+  expect(runtimeVisualInstanceId).toContain(objectId);
+  expect(visualPropertyWriteAvailable).toBe(false);
+  dispatcher.dispose();
+});
+
 test('Wave 10 dispatches distinct pointer interaction keys to their exact event association', async () => {
   const instance = createInstance();
   const clock = new ManualFrameClock();

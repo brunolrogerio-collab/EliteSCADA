@@ -31,6 +31,7 @@ import { VisualAssetManagementWorkspace } from './VisualAssetManagementWorkspace
 import { EquipmentFaceplateWorkspace } from './EquipmentFaceplateWorkspace';
 import type { DynamoEngineering, EngineeringPackageView, EngineeringSnapshot, EquipmentEngineering, TemplateEngineering } from './types';
 import { CanonicalVisualPreview } from './visual-editor/CanonicalVisualPreview';
+import { selectDefaultDynamoCatalog } from './visual-editor/dynamoLibraryModel';
 import './engineering.css';
 import './object-catalog.css';
 
@@ -414,19 +415,20 @@ function ObjectCollectionPage<T extends TemplateEngineering | EquipmentEngineeri
 
 function DynamoCatalogSection({ items, snapshot, locale, onApplied, onSnapshotRefreshed }: { items: DynamoEngineering[]; snapshot: EngineeringSnapshot; locale: EngineeringLocale; onApplied: () => Promise<void>; onSnapshotRefreshed: () => Promise<void> }) {
   const copy = objectCatalogCopy(locale);
+  const catalogItems = selectDefaultDynamoCatalog(items);
   const [query, setQuery] = useState('');
   const [editingKey, setEditingKey] = useState<string | null>(null);
-  const editing = editingKey ? items.find(item => item.key === editingKey) : null;
-  const visible = items.filter(item => !query.trim() || `${item.name} ${item.key} ${item.templateKey ?? ''}`.toLocaleLowerCase(locale).includes(query.trim().toLocaleLowerCase(locale)));
+  const editing = editingKey ? catalogItems.find(item => item.key === editingKey) : null;
+  const visible = catalogItems.filter(item => !query.trim() || `${item.name} ${item.key} ${item.templateKey ?? ''}`.toLocaleLowerCase(locale).includes(query.trim().toLocaleLowerCase(locale)));
   if (editing) return <div className="dynamo-catalog__editor">
     <VisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onApplied} onAssetImported={onSnapshotRefreshed} definitionKind="dynamo" initialDefinitionKey={editingKey} onRequestClose={() => setEditingKey(null)}/>
   </div>;
   return <section className="eng-section" data-testid="dynamo-catalog">
-    <header className="eng-section-header"><div><span className="eng-eyebrow">{copy.dynamos}</span><h1>{copy.dynamos}</h1><p>{copy.dynamoHint}</p></div><div className="eng-section-meta"><strong>{items.length} {copy.items}</strong></div></header>
+    <header className="eng-section-header"><div><span className="eng-eyebrow">{copy.dynamos}</span><h1>{copy.dynamos}</h1><p>{copy.dynamoHint}</p></div><div className="eng-section-meta"><strong>{catalogItems.length} {copy.items}</strong></div></header>
     <div className="eng-panel dynamo-catalog__panel">
       <label className="dynamo-catalog__search"><span>{copy.search}</span><input type="search" value={query} onChange={event => setQuery(event.currentTarget.value)}/></label>
-      {visible.length === 0 ? <div className="eng-empty"><strong>{items.length ? copy.noMatches : copy.noDynamos}</strong><span>{copy.dynamoAuthoringUnavailable}</span></div> : <div className="dynamo-catalog__grid">
-        {visible.map(item => <article className="dynamo-catalog__card" key={item.id ?? item.key}>
+      {visible.length === 0 ? <div className="eng-empty"><strong>{catalogItems.length ? copy.noMatches : copy.noDynamos}</strong><span>{copy.dynamoAuthoringUnavailable}</span></div> : <div className="dynamo-catalog__grid">
+        {visible.map(item => <article className="dynamo-catalog__card" key={item.id ?? item.key} data-testid="dynamo-catalog-card" data-dynamo-key={item.key} data-catalog-status={item.metadata?.catalogStatus ?? 'project'}>
           <CanonicalVisualPreview elements={item.elements ?? []} locale={locale} width={dynamoCanvasDimension(item, 'defaultWidth', 160)} height={dynamoCanvasDimension(item, 'defaultHeight', 110)} emptyLabel={copy.noPreview} variant="catalog"/>
           <div><strong>{item.name}</strong><small>{item.elements?.length ?? 0} {copy.objects} · {(item.parameters ?? []).length} {copy.parameters}</small><button type="button" className="secondary" onClick={() => setEditingKey(item.key)}>{copy.editDynamo}</button></div>
         </article>)}
@@ -470,7 +472,7 @@ function sectionCount(model: EngineeringPackageView, section: SectionId): number
     case 'operationalEvents': return operationalEventCount(model);
     case 'templates': return model.templates?.length ?? 0;
     case 'equipment': return model.equipment?.length ?? 0;
-    case 'dynamos': return model.dynamos?.length ?? 0;
+    case 'dynamos': return selectDefaultDynamoCatalog(model.dynamos ?? []).length;
     case 'visualAssets': return model.visualAssets?.length ?? 0;
     case 'screens': return model.screens?.length ?? 0;
     case 'popups': return model.popups?.length ?? 0;

@@ -106,6 +106,7 @@ export function VisualEditorSelectionInspector({
         <DynamoInstanceInspector
           screen={screen}
           selectedObjectIds={selectedObjectIds}
+          clientMemorySources={sourceCatalog.filter(source => source.kind === 'ClientMemory' && source.tagReference?.tagId)}
           onCommand={onCommand}
         />
       </section>

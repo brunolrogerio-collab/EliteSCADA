@@ -354,7 +354,12 @@ public sealed class EngineeringWorkspace : IDisposable
                 ["process"] = "Discharge"
             }));
 
-        foreach (var dynamo in BuiltinDynamoLibrary.Create())
+        foreach (var (asset, payload) in BuiltinDynamoCatalogV1.CreateArtworkAssets())
+        {
+            VisualAssets.UpsertAsset(asset);
+            VisualAssets.PutPayload(payload);
+        }
+        foreach (var dynamo in BuiltinDynamoCatalogV1.Create())
             Assets.UpsertDynamo(dynamo);
 
         Views.UpsertScreen(new ScreenEngineeringDto(
@@ -376,16 +381,6 @@ public sealed class EngineeringWorkspace : IDisposable
                         ["label"] = JsonSerializer.SerializeToElement("Reservatório TK01"),
                         ["x"] = JsonSerializer.SerializeToElement(100d),
                         ["y"] = JsonSerializer.SerializeToElement(100d)
-                    }),
-                new VisualElementEngineeringDto(
-                    Key: "pump01",
-                    Type: "dynamo",
-                    DynamoKey: "dynamo.pump.standard",
-                    EquipmentPath: "Demo.P01",
-                    Properties: new Dictionary<string, JsonElement>
-                    {
-                        ["x"] = JsonSerializer.SerializeToElement(430d),
-                        ["y"] = JsonSerializer.SerializeToElement(160d)
                     }),
                 new VisualElementEngineeringDto(
                     Key: "pressure",

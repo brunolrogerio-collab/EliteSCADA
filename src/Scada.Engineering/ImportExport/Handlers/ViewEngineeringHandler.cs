@@ -1,8 +1,10 @@
 using System.Text.Json;
+using Scada.Core.Sources;
 using Scada.Core.Tags;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Commands;
+using Scada.Engineering.DataSources;
 using Scada.Engineering.Validation;
 using Scada.Engineering.Views;
 using Scada.Engineering.VisualAssets;
@@ -15,6 +17,7 @@ internal sealed class ViewEngineeringHandler
     private readonly IEngineeringViewRegistry _views;
     private readonly IEngineeringAssetRegistry _assets;
     private readonly ITagRegistry _tags;
+    private readonly IDataSourceEngineeringRegistry _dataSources;
     private readonly IVisualAssetEngineeringRegistry _visualAssets;
     private readonly ICommandEngineeringRegistry _commands;
 
@@ -22,12 +25,14 @@ internal sealed class ViewEngineeringHandler
         IEngineeringViewRegistry views,
         IEngineeringAssetRegistry assets,
         ITagRegistry tags,
+        IDataSourceEngineeringRegistry dataSources,
         IVisualAssetEngineeringRegistry? visualAssets = null,
         ICommandEngineeringRegistry? commands = null)
     {
         _views = views;
         _assets = assets;
         _tags = tags;
+        _dataSources = dataSources;
         _visualAssets = visualAssets ?? new InMemoryVisualAssetEngineeringRegistry();
         _commands = commands ?? new InMemoryCommandEngineeringRegistry();
     }
@@ -238,6 +243,20 @@ internal sealed class ViewEngineeringHandler
 
             if (value.Kind == DynamoParameterKind.TagReference && value.TagReference is not null)
                 ValidateCompositionTagReference(value.TagReference, value.Key, kind, entityKey, package, issues);
+            if (value.Kind == DynamoParameterKind.ValueSource && value.ValueSource is not null)
+            {
+                if (parameter.ValueSourceType.HasValue && value.ValueSource.ValueType != parameter.ValueSourceType.Value)
+                {
+                    issues.Add(new(
+                        "VISUAL_DYNAMO_VALUE_SOURCE_TYPE_MISMATCH",
+                        $"Visual element '{element.Key}' parameter '{value.Key}' expects {parameter.ValueSourceType.Value} but its source declares {value.ValueSource.ValueType}.",
+                        kind,
+                        entityKey,
+                        true));
+                }
+
+                ValidateValueSourceReferences(value.ValueSource, kind, entityKey, package, issues);
+            }
             if (value.Kind == DynamoParameterKind.Command && value.CommandId.HasValue)
             {
                 var commandId = value.CommandId.Value;
@@ -393,7 +412,17 @@ internal sealed class ViewEngineeringHandler
             case VisualValueSourceKind.Tag:
             case VisualValueSourceKind.ClientMemory:
                 if (source.TagReference is not null)
+                {
+                    ValidateDynamicSourceKind(
+                        source.TagReference,
+                        source.Kind == VisualValueSourceKind.ClientMemory,
+                        source.Target,
+                        kind,
+                        entityKey,
+                        package,
+                        issues);
                     ValidateDynamicTagReference(source.TagReference, source.ValueType, source.Target, kind, entityKey, package, issues);
+                }
                 break;
             case VisualValueSourceKind.Expression:
                 if (source.Expression is not null)
@@ -413,6 +442,14 @@ internal sealed class ViewEngineeringHandler
         {
             if (dependency?.TagReference is null)
                 continue;
+            ValidateDynamicSourceKind(
+                dependency.TagReference,
+                dependency.Kind == VisualExpressionDependencyKind.ClientMemory,
+                dependency.Target ?? dependency.Symbol,
+                kind,
+                entityKey,
+                package,
+                issues);
             ValidateDynamicTagReference(
                 dependency.TagReference,
                 dependency.ValueType,
@@ -422,6 +459,52 @@ internal sealed class ViewEngineeringHandler
                 package,
                 issues);
         }
+    }
+
+    private void ValidateDynamicSourceKind(
+        TagValueReference reference,
+        bool expectsClientMemory,
+        string? displayTarget,
+        ImportEntityKind kind,
+        string entityKey,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        if (!TryResolveTagSourceDriver(reference.TagId, package, out var driver)) return;
+        var isClientMemory = string.Equals(
+            driver,
+            BuiltInSourceProviderDescriptors.ClientMemory.TypeKey,
+            StringComparison.OrdinalIgnoreCase);
+        if (isClientMemory == expectsClientMemory) return;
+
+        var label = string.IsNullOrWhiteSpace(displayTarget) ? reference.TagId.ToString("D") : displayTarget;
+        issues.Add(new(
+            "VISUAL_DYNAMIC_REFERENCE_KIND_MISMATCH",
+            $"Visual dynamic source '{label}' uses {(expectsClientMemory ? "Client Memory" : "TAG")} identity, but the referenced TAG is configured for {(isClientMemory ? "Client Memory" : "a server source")}.",
+            kind,
+            entityKey,
+            true));
+    }
+
+    private bool TryResolveTagSourceDriver(Guid tagId, EngineeringPackage package, out string? driver)
+    {
+        var sourceKey = package.Tags.FirstOrDefault(tag => tag is not null && tag.Id == tagId)?.Source;
+        var dataSourceId = package.Tags.FirstOrDefault(tag => tag is not null && tag.Id == tagId)?.DataSourceId;
+        if (string.IsNullOrWhiteSpace(sourceKey) && _tags.TryGet(tagId, out var existing) && existing is not null)
+        {
+            sourceKey = existing.Source;
+            dataSourceId = existing.DataSourceId;
+        }
+
+        var dataSource = dataSourceId.HasValue
+            ? (package.DataSources ?? Array.Empty<DataSourceEngineeringDto>()).FirstOrDefault(candidate => candidate is not null && candidate.Id == dataSourceId)
+              ?? _dataSources.Find(dataSourceId.Value)
+            : null;
+        dataSource ??= string.IsNullOrWhiteSpace(sourceKey) ? null :
+            (package.DataSources ?? Array.Empty<DataSourceEngineeringDto>()).FirstOrDefault(candidate => candidate is not null &&
+                candidate.Key.Equals(sourceKey, StringComparison.OrdinalIgnoreCase)) ?? _dataSources.FindByKey(sourceKey);
+        driver = dataSource?.Driver;
+        return !string.IsNullOrWhiteSpace(driver);
     }
 
     private void ValidateDynamicTagReference(

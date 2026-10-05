@@ -23,7 +23,9 @@ Implemented public parameters include configurable stage colors/enables, fixed s
 
 The parameter inspector now includes lazy-loaded Client Visual script/output selection and an inline wizard: generated handlers read the stable TAG's value only with Good quality and write an explicitly typed Client Memory output. Python syntax and canonical package Preview/CAS precede Apply. Existing scripts are not silently rewritten. Binding the output and saving/publishing the visual definition remain explicit operations.
 
-Runtime Dynamo commands expose pending, accepted, failed and read-back-confirmed states. Duplicate in-flight actions are blocked. HTTP acceptance alone is never labelled as process confirmation; confirmation requires a fresh Good-quality matching TAG sample. Remaining in #501: mounted visual acceptance of all 26 variants across authoring/package/Runtime.
+Runtime Dynamo commands expose pending, accepted, failed and read-back-confirmed states. Duplicate in-flight actions are blocked. HTTP acceptance alone is never labelled as process confirmation; confirmation requires a fresh Good-quality matching TAG sample.
+
+Mounted authoring review now uses definitions and artwork emitted from the actual C# catalog, not hand-maintained drawing fixtures. All 26 variants mount across five fixed states; lamp paint is explicitly asserted and screenshots captured. This found and fixed rectangular SVG backing plates, missing public-state projection in Design, and fixed-state paint replacing the independently configured outline. Design previews do not resolve executable command targets; Runtime retains its existing fail-closed command requirement. Fifteen focused projection contracts and three mounted authoring contracts pass. The latter also cover factory category/filter/copy through CAS and the script wizard's syntax/Preview/Apply/typed-output binding. Their HTTP boundaries are mocked, not claimed as a full persisted project or Python-engine execution test.
 
 The repository factory now exposes 2,208 original SVG review candidates through Engineering > Visual assets, grouped by category/style, searchable and paginated. Each selected item is sanitized by the canonical SVG inspector and copied through the normal CAS asset-import path into the project; it then supports normal static insertion and semantic paint animation. Source batches remain `draft`: this does not falsify human approval or mass-publish rejected/unreviewed built-ins. All 2,208 previews pass canonical SVG sanitization locally.
 
@@ -52,7 +54,7 @@ The synthetic laboratory passes real RTSP-to-HLS provisioning and playlist/initi
 
 Mobile Runtime uses coarse-pointer detection, simplified Runtime chrome, logical landscape rotation or configured portrait, proportional zoom, and per-screen mobile variants sharing the same Runtime/TAGs. Header and mobile configuration use Preview/Apply and require Save/Publish/Activate before the Active Runtime changes. Bézier point editing and thin-line selection from #505 remain integrated.
 
-Remaining acceptance: mounted desktop/mobile/fullscreen/role flows and visual review. Hardware orientation locking cannot be promised in every browser; current implementation rotates the logical canvas. Native Android/iOS wrapper was not selected or implemented.
+Five mounted desktop/mobile/fullscreen contracts pass, including privileged mobile visits to Engineering and database bookmarks rendering Runtime only. Hardware orientation locking cannot be promised in every browser; current implementation rotates the logical canvas. Native Android/iOS wrapper was not selected or implemented.
 
 ## Drivers and historical playback evidence
 
@@ -81,9 +83,9 @@ Restart policies and normal startup initialize the services automatically. Start
 
 This consolidation passed API build, production Web build, and 23 focused Core tests covering media/branding/header round-trip and invalid-reference rejection. The existing large-bundle warning is not a build failure. These results are not a final broad CI or full mounted product acceptance.
 
-1. Complete #501's mounted visual review of the 26 variants and the new script/feedback controls.
+1. Complete #501's persisted package/Runtime command and script acceptance; the 26-variant authoring gallery and wizard checks above are already accepted and should not be repeated without a regression.
 2. Complete #495/#496 mounted synthetic-stream and document/player acceptance.
-3. Verify factory-library copy/insertion in the interface; external #484 curation retains per-source redistribution evidence.
+3. Factory-library copy is verified at its mounted HTTP boundary; external #484 curation retains per-source redistribution evidence and is not replaced by undocumented third-party bundling.
 4. Check the integrated editor/Runtime flows for regressions rather than retesting unchanged driver foundations.
 5. Integrate the remaining product changes, then run one final post-merge CI and close acceptance issues based on its result.
 6. Only then hand development to the residential-driver coordinator.

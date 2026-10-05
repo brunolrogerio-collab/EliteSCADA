@@ -30,15 +30,17 @@ export function resolveDynamoRuntimeEquipmentPath(
 export function projectDynamoRuntimeElements(
   elements: readonly VisualElementEngineering[],
   parameters: ReadonlyMap<string, DynamoParameterValueEngineering>,
-  equipmentPath: string | null
+  equipmentPath: string | null,
+  projectActions = true
 ): readonly VisualElementEngineering[] {
-  return Object.freeze(elements.map(element => projectElement(element, parameters, equipmentPath)));
+  return Object.freeze(elements.map(element => projectElement(element, parameters, equipmentPath, projectActions)));
 }
 
 function projectElement(
   element: VisualElementEngineering,
   parameters: ReadonlyMap<string, DynamoParameterValueEngineering>,
-  equipmentPath: string | null
+  equipmentPath: string | null,
+  projectActions: boolean
 ): VisualElementEngineering {
   const properties: Record<string, VisualEngineeringPropertyValue> = {
     ...(element.properties ?? {})
@@ -125,10 +127,12 @@ function projectElement(
     const colorParameter = colorKey ? findParameter(parameters, colorKey) : undefined;
     if (colorParameter?.kind === 'String' && typeof colorParameter.value === 'string') {
       if (element.type === 'core.svgSymbol') {
+        const overrides = recordValue(properties.svgPaintOverrides);
+        const slots = recordValue(overrides?.slots);
         properties.svgPaintOverrides = Object.freeze({
           version: 1,
-          palette: Object.freeze({}),
-          slots: Object.freeze({ state: Object.freeze({ fill: colorParameter.value }) })
+          palette: Object.freeze(recordValue(overrides?.palette) ?? {}),
+          slots: Object.freeze({ ...(slots ?? {}), state: Object.freeze({ ...recordValue(slots?.state), fill: colorParameter.value }) })
         });
       } else {
         properties.fillColor = colorParameter.value;
@@ -148,7 +152,7 @@ function projectElement(
     bindings.push(projectBinding(binding, parameters, equipmentPath));
   }
 
-  const children = projectDynamoRuntimeElements(element.children ?? [], parameters, equipmentPath);
+  const children = projectDynamoRuntimeElements(element.children ?? [], parameters, equipmentPath, projectActions);
 
   return Object.freeze({
     ...element,
@@ -188,7 +192,9 @@ function projectElement(
       ...element.analogFill,
       source: projectValueSource(element.analogFill.source, parameters, equipmentPath)
     }) : element.analogFill,
-    actions: element.actions?.map(action => projectAction(action, parameters, element.metadata)) ?? element.actions,
+    // Design mode paints parameters without resolving executable command targets.
+    // Runtime callers retain the default fail-closed action projection.
+    actions: projectActions ? element.actions?.map(action => projectAction(action, parameters, element.metadata)) ?? element.actions : element.actions,
     children: [...children]
   });
 }

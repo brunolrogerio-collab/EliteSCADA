@@ -1,0 +1,24 @@
+# Control and playback have no published host ports. Only the API joins this network.
+# Dynamic path configuration is in-memory; this file is mounted read-only.
+logLevel: error
+logDestinations: []
+api: true
+apiAddress: :9997
+authInternalUsers:
+  - user: any
+    permissions:
+      - action: api
+      - action: read
+rtsp: false
+rtmp: false
+srt: false
+webrtc: false
+moq: false
+playback: false
+hls: true
+hlsAddress: :8888
+hlsVariant: fmp4
+hlsSegmentCount: 5
+hlsSegmentMaxSize: 32M
+hlsMuxerCloseAfter: 15s
+paths: {}

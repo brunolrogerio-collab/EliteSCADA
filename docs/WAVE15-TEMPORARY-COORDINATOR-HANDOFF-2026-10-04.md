@@ -36,7 +36,9 @@ Static SVGs can use semantic dynamic paint slots without becoming Dynamos. Gener
 
 The Runtime consumer resolves only an enabled source from the persisted Active project. HTTP/MJPEG playback is server-mediated, does not accept browser-supplied URLs, does not follow upstream redirects, limits concurrent connections and request/stream lifetimes, and never exposes source credentials or URLs. Engineering does not continuously connect cameras.
 
-Remaining: RTSP/HLS conversion gateway, richer reconnect/playback/PDF controls and mounted acceptance. RTSP/HLS currently return explicit unsupported diagnostics, not fake success. #495/#496 remain OPEN.
+The media relay now rewrites HLS playlists/keys/segments to authenticated same-origin routes with opaque AES-GCM tickets bound to Active project/revision/source. Requests reject cross-origin playlist resources, redirects, loopback/link-local/metadata destinations and DNS rebinding. Private industrial LAN destinations require explicit host policy (enabled in the isolated stable deployment). Playlists/segments are bounded to 1/32 MiB; stream/concurrency deadlines remain bounded.
+
+RTSP uses an isolated, digest-pinned MediaMTX 1.21.1 sidecar, provisioned only from Active source identities. Camera credentials remain server-side and dynamic configuration is in memory, not the portable package or process arguments. HLS.js 1.7.3 is lazy-loaded for desktop browser playback; native HLS remains available. Reconnect uses bounded exponential backoff and stops on authentication/unsupported formats. RTSP is remuxed, not transcoded: the camera codec must be supported by the browser; RTSPS currently requires a certificate-valid literal address. Remaining: mounted end-to-end synthetic-stream acceptance and combined Video/PDF authoring checks. #495/#496 remain OPEN until that evidence exists.
 
 ## Runtime header and mobile
 

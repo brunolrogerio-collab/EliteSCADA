@@ -40,6 +40,10 @@ services:
       HistoricalQuery__CursorKeyBase64: ${ELITESCADA_HISTORICAL_CURSOR_KEY_BASE64:?Set ELITESCADA_HISTORICAL_CURSOR_KEY_BASE64 in .env}
       ProtectedMaterial__Store__Path: /app/data/protected-material
       ProtectedMaterial__Store__ProtectionKeyFile: /app/host-keys/protected.key
+      MediaSources__AllowPrivateNetwork: "true"
+      MediaSources__GatewayControlUrl: http://media-gateway:9997
+      MediaSources__GatewayPlaybackUrl: http://media-gateway:8888
+    networks: [default, media_relay]
     volumes:
       - elitescada_stable_protected_material:/app/data/protected-material
       - elitescada_stable_host_keys:/app/host-keys
@@ -60,6 +64,17 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  media-gateway:
+    image: bluenviron/mediamtx:1.21.1@sha256:dc22a8b09668e7f5b493cfa848c395349ad16fd47fef1cc7b7eb5b87a1186232
+    volumes:
+      - ./docker/stable/mediamtx.yml:/mediamtx.yml:ro
+    networks: [media_relay]
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+
   web:
     build:
       context: .
@@ -76,6 +91,9 @@ services:
       retries: 12
       start_period: 10s
     restart: unless-stopped
+
+networks:
+  media_relay:
 
 volumes:
   elitescada_stable_database:

@@ -421,9 +421,32 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             .Select(screen => screen.Key)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var header = requestedRuntimePresentation.Header;
+        static bool IsValidHeaderColor(string? color) => color is null ||
+            System.Text.RegularExpressions.Regex.IsMatch(color, "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$");
+        static bool IsValidHeaderTextStyle(RuntimeHeaderTextStyleEngineeringDto? style)
+        {
+            if (style is null) return true;
+            if (style.FontFamily is not (null or "system-ui" or "Arial, sans-serif" or "Verdana, sans-serif" or "Georgia, serif" or "monospace")) return false;
+            if (style.FontSize is < 8 or > 48) return false;
+            if (!IsValidHeaderColor(style.Color)) return false;
+            if (style.FontWeight is not { } weight) return true;
+            if (weight.ValueKind == System.Text.Json.JsonValueKind.String)
+                return weight.GetString() is "normal" or "bold" or "400" or "500" or "600" or "700";
+            return weight.ValueKind == System.Text.Json.JsonValueKind.Number &&
+                weight.TryGetInt32(out var numericWeight) && numericWeight is 400 or 500 or 600 or 700;
+        }
+        static bool IsValidHeaderDateTime(RuntimeHeaderDateTimeEngineeringDto? dateTime) => dateTime is null ||
+            (dateTime.Mode is "off" or "time" or "date" or "dateTime" &&
+             dateTime.Position is "left" or "right" &&
+             dateTime.Order is >= 0 and <= 20 &&
+             dateTime.DateFormat is "dd/MM/yyyy" or "MM/dd/yyyy" or "yyyy-MM-dd" &&
+             dateTime.TimeFormat is "24h" or "12h");
         var invalidHeader = header is not null &&
-            (header.Height is < 32 or > 160 || header.TitlePosition is not ("left" or "center" or "right") ||
-             (header.BackgroundColor is not null && !System.Text.RegularExpressions.Regex.IsMatch(header.BackgroundColor, "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$")) ||
+            (header.Height is < 32 or > 168 || header.TitlePosition is not ("left" or "center" or "right") ||
+             header.ControlsPosition is not ("left" or "right") || header.ControlsOrder is < 0 or > 20 ||
+             !IsValidHeaderColor(header.BackgroundColor) ||
+             !IsValidHeaderTextStyle(header.TitleStyle) || !IsValidHeaderTextStyle(header.ScreenNameStyle) ||
+             !IsValidHeaderDateTime(header.DateTime) ||
              (header.Links?.Count ?? 0) > 16 ||
              (header.Links?.Any(link => link is null || string.IsNullOrWhiteSpace(link.Label) || link.Label.Length > 128 ||
                  string.IsNullOrWhiteSpace(link.ScreenKey) ||

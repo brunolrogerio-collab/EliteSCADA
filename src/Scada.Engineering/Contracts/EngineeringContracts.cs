@@ -361,11 +361,30 @@ public sealed record RuntimeHeaderEngineeringDto(
     int Height = 56,
     string? BackgroundColor = null,
     string TitlePosition = "left",
+    string ControlsPosition = "right",
+    int ControlsOrder = 2,
+    bool ShowScreenName = false,
+    RuntimeHeaderTextStyleEngineeringDto? TitleStyle = null,
+    RuntimeHeaderTextStyleEngineeringDto? ScreenNameStyle = null,
+    RuntimeHeaderDateTimeEngineeringDto? DateTime = null,
     bool OverviewVisible = true,
     bool HistoryVisible = true,
     bool AlarmsVisible = true,
     bool PlaybackVisible = true,
     IReadOnlyList<RuntimeHeaderLinkEngineeringDto>? Links = null);
+
+public sealed record RuntimeHeaderTextStyleEngineeringDto(
+    string? FontFamily = null,
+    int? FontSize = null,
+    System.Text.Json.JsonElement? FontWeight = null,
+    string? Color = null);
+
+public sealed record RuntimeHeaderDateTimeEngineeringDto(
+    string Mode = "off",
+    string Position = "right",
+    int Order = 1,
+    string DateFormat = "dd/MM/yyyy",
+    string TimeFormat = "24h");
 
 public sealed record RuntimeHeaderLinkEngineeringDto(string Label, string ScreenKey, Guid? VisualAssetId = null);
 

@@ -367,3 +367,66 @@
 }
 .runtime-operator-bar[style] .runtime-operator-toolbar,
 .runtime-operator-bar[style] .runtime-operator-actions { background: transparent; }
+
+/* Runtime header layout is data-driven: tools and date/time can occupy either side,
+   while the project title stays in the center column and user controls stay right. */
+.runtime-operator-bar,
+.runtime-operator-bar--fullscreen {
+  display: grid !important;
+  grid-template-columns: minmax(0,1fr) minmax(0,2fr) minmax(0,1fr);
+  align-items: stretch;
+  gap: 8px;
+}
+.runtime-operator-side { min-width:0; display:flex; align-items:center; gap:6px; }
+.runtime-operator-side--left { grid-column:1; justify-content:flex-start; }
+.runtime-operator-side--right { grid-column:3; justify-content:flex-end; }
+.runtime-operator-toolbar-slot { min-width:0; display:flex; align-items:center; }
+.runtime-operator-context {
+  grid-column:2; grid-row:1; min-width:0; display:flex; flex-direction:column; justify-content:center; align-items:stretch; gap:2px;
+  text-align:var(--runtime-header-title-align,left);
+}
+.runtime-operator-context__titles { min-width:0; display:grid; gap:1px; text-align:inherit; }
+.runtime-operator-context__titles strong,.runtime-operator-context__titles span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.runtime-operator-context__titles strong { color:var(--runtime-header-foreground,var(--app-text-primary)); line-height:1.2; }
+.runtime-operator-context__screen { color:color-mix(in srgb,var(--runtime-header-foreground,var(--app-text-primary)) 76%,transparent); line-height:1.2; }
+.runtime-operator-context__revision { color:color-mix(in srgb,var(--runtime-header-foreground,var(--app-text-primary)) 68%,transparent); font-size:10px; }
+.runtime-operator-context > .runtime-playback-badge,.runtime-operator-context > .runtime-playback-live-shortcut { justify-self:center; }
+.runtime-operator-brand { flex:0 1 auto; }
+.runtime-operator-actions { justify-self:auto; }
+.runtime-operator-user-slot { order:1000; flex:0 0 auto; margin-left:2px; }
+.runtime-header-datetime {
+  order:1; display:grid; justify-items:center; align-content:center; gap:2px; min-width:max-content; padding:3px 7px;
+  border:1px solid color-mix(in srgb,var(--runtime-header-background,var(--app-surface)) 76%,var(--app-border));
+  border-radius:6px; background:color-mix(in srgb,var(--runtime-header-background,var(--app-surface)) 86%,var(--app-panel));
+  color:var(--runtime-header-foreground,var(--app-text-primary)); font-size:11px; font-variant-numeric:tabular-nums; line-height:1.2;
+}
+.runtime-header-datetime span { white-space:nowrap; }
+.runtime-operator-toolbar {
+  border-color:color-mix(in srgb,var(--runtime-header-background,var(--app-surface)) 68%,var(--app-border));
+  background:color-mix(in srgb,var(--runtime-header-background,var(--app-surface)) 84%,var(--app-panel));
+}
+.runtime-operator-tool {
+  background:color-mix(in srgb,var(--runtime-header-background,var(--app-surface)) 88%,var(--app-panel));
+  color:var(--runtime-header-foreground,var(--app-text-primary));
+}
+.runtime-operator-tool:hover { background:color-mix(in srgb,var(--runtime-header-background,var(--app-surface)) 72%,var(--app-hover)); }
+.runtime-operator-tool.active,.runtime-operator-tool[aria-pressed="true"] {
+  background:color-mix(in srgb,var(--runtime-header-background,var(--app-surface)) 62%,var(--app-selected));
+}
+.runtime-operator-toolbar .runtime-operator-tool > img { width:22px!important; height:22px!important; object-fit:contain; }
+.runtime-operator-bar--fullscreen .runtime-operator-context { max-width:none; }
+@media (max-width:760px) {
+  .runtime-operator-bar,.runtime-operator-bar--fullscreen {
+    grid-template-columns:minmax(0,1fr) auto;
+    grid-template-rows:minmax(38px,auto) minmax(24px,auto);
+    gap:2px 6px;
+    padding:4px 6px;
+  }
+  .runtime-operator-side--left { grid-column:1; grid-row:1; }
+  .runtime-operator-side--right { grid-column:2; grid-row:1; }
+  .runtime-operator-context,.runtime-operator-bar--fullscreen .runtime-operator-context {
+    grid-column:1/-1; grid-row:2; max-width:none; min-height:22px; padding:0 4px; text-align:center;
+  }
+  .runtime-operator-bar--fullscreen .runtime-operator-context span { display:initial; }
+  .runtime-operator-brand .app-brand-copy,.runtime-operator-brand .app-brand-diagnostic { display:none; }
+}

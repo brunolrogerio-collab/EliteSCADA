@@ -585,11 +585,32 @@ export type RuntimePresentationEngineering = Readonly<{
   version: number;
 }>;
 
+export type RuntimeHeaderTextStyleEngineering = Readonly<{
+  fontFamily?: string | null;
+  fontSize?: number;
+  fontWeight?: 'normal' | 'bold' | 400 | 500 | 600 | 700;
+  color?: string | null;
+}>;
+
+export type RuntimeHeaderDateTimeEngineering = Readonly<{
+  mode?: 'off' | 'time' | 'date' | 'dateTime';
+  position?: 'left' | 'right';
+  order?: number;
+  dateFormat?: 'dd/MM/yyyy' | 'MM/dd/yyyy' | 'yyyy-MM-dd';
+  timeFormat?: '24h' | '12h';
+}>;
+
 export type RuntimeHeaderEngineering = Readonly<{
   enabled?: boolean;
   height?: number;
   backgroundColor?: string | null;
   titlePosition?: 'left' | 'center' | 'right';
+  controlsPosition?: 'left' | 'right';
+  controlsOrder?: number;
+  showScreenName?: boolean;
+  titleStyle?: RuntimeHeaderTextStyleEngineering | null;
+  screenNameStyle?: RuntimeHeaderTextStyleEngineering | null;
+  dateTime?: RuntimeHeaderDateTimeEngineering | null;
   overviewVisible?: boolean;
   historyVisible?: boolean;
   alarmsVisible?: boolean;
@@ -756,6 +777,7 @@ export type EngineeringPackageView = {
   historianCaptureProfiles?: HistorianCaptureProfileEngineering[];
   dataQueries?: DataQueryEngineering[];
   alarmViews?: AlarmViewEngineering[];
+  reports?: readonly import('./reports/reportContracts').ReportEngineeringDto[] | null;
   branding?: ApplicationBrandingEngineering | null;
   runtimePresentation?: RuntimePresentationEngineering | null;
   startupScreenId?: string | null;

@@ -81,45 +81,49 @@ export function BrandingEngineeringWorkspace({ snapshot, onApplied, locale = 'pt
   }
 
   return <div className="eng-section branding-editor" data-testid="branding-editor">
-    <header className="eng-section-header"><div><span className="eng-eyebrow">Application</span><h1>{locale === 'pt-BR' ? 'Cabeçalho' : locale === 'es' ? 'Encabezado' : 'Header'}</h1>
-      <p>Configure canonical application branding. This preview is Working-only; the global shell consumes only the Active revision.</p></div></header>
+    <header className="eng-section-header"><div><span className="eng-eyebrow">{locale === 'pt-BR' ? 'Aplicativo' : locale === 'es' ? 'Aplicación' : 'Application'}</span><h1>{locale === 'pt-BR' ? 'Identidade do aplicativo e Runtime' : locale === 'es' ? 'Identidad de la aplicación y Runtime' : 'Application identity and Runtime'}</h1>
+      <p>{locale === 'pt-BR' ? 'A marca identifica o aplicativo; as opções do Runtime controlam separadamente a barra de operação. As alterações só chegam à interface global depois de Salvar, Publicar e Ativar.' : locale === 'es' ? 'La marca identifica la aplicación; las opciones de Runtime controlan por separado la barra operativa. Los cambios globales requieren Guardar, Publicar y Activar.' : 'Branding identifies the application; Runtime settings separately control the operator bar. Global changes require Save, Publish and Activate.'}</p></div></header>
     <div className="branding-editor__grid">
-      <section className="eng-panel branding-editor__form" aria-label="Branding configuration">
-        <label><span>Mode</span><select value={draft.mode} onChange={e => update({ mode: e.target.value as ApplicationBrandingMode, visualAssetId: e.target.value === 'image' ? draft.visualAssetId : null })}>
-          <option value="default">DEFAULT — EliteSCADA</option><option value="text">TEXT</option><option value="image">IMAGE — VisualAsset</option><option value="none">NONE</option>
+      <section className="eng-panel branding-editor__form" aria-label={locale === 'pt-BR' ? 'Identidade da marca do aplicativo' : locale === 'es' ? 'Identidad de marca de la aplicación' : 'Application brand identity'}>
+        <h2>{locale === 'pt-BR' ? 'Marca do aplicativo' : locale === 'es' ? 'Marca de la aplicación' : 'Application brand'}</h2>
+        <p>{locale === 'pt-BR' ? 'Controla o símbolo, nome e subtítulo da plataforma; não configura os controles do Runtime.' : locale === 'es' ? 'Controla el símbolo, nombre y subtítulo de la plataforma; no configura los controles de Runtime.' : 'Controls the platform symbol, name and subtitle; it does not configure Runtime controls.'}</p>
+        <label><span>{locale === 'pt-BR' ? 'Apresentação da marca' : locale === 'es' ? 'Presentación de la marca' : 'Brand presentation'}</span><select value={draft.mode} onChange={e => update({ mode: e.target.value as ApplicationBrandingMode, visualAssetId: e.target.value === 'image' ? draft.visualAssetId : null })}>
+          <option value="default">{locale === 'pt-BR' ? 'Padrão EliteSCADA' : 'Default — EliteSCADA'}</option><option value="text">{locale === 'pt-BR' ? 'Texto' : locale === 'es' ? 'Texto' : 'Text'}</option><option value="image">{locale === 'pt-BR' ? 'Imagem do projeto' : locale === 'es' ? 'Imagen del proyecto' : 'Project image'}</option><option value="none">{locale === 'pt-BR' ? 'Oculta' : locale === 'es' ? 'Oculta' : 'Hidden'}</option>
         </select></label>
         {(draft.mode === 'text' || draft.mode === 'image') && <><label><span>{draft.mode === 'text' ? 'Application text' : 'Accessible / optional image label'}</span>
           <input value={draft.text ?? ''} maxLength={128} onChange={e => update({ text: e.target.value })}/></label>
-          <label><span>Subtitle (optional)</span><input value={draft.subtitle ?? ''} maxLength={256} onChange={e => update({ subtitle: e.target.value })}/></label></>}
+          <label><span>{locale === 'pt-BR' ? 'Subtítulo (opcional)' : locale === 'es' ? 'Subtítulo (opcional)' : 'Subtitle (optional)'}</span><input value={draft.subtitle ?? ''} maxLength={256} onChange={e => update({ subtitle: e.target.value })}/></label></>}
         {draft.mode === 'image' && <div className="branding-editor__asset-picker">
-          <label><span>Project image</span><select value={draft.visualAssetId ?? ''} onChange={e => update({ visualAssetId: e.target.value || null })}>
-            <option value="">Select image…</option>{assets.map(a => a.id ? <option key={a.id} value={a.id}>{a.name} · {a.mediaType}</option> : null)}
+          <label><span>{locale === 'pt-BR' ? 'Imagem do projeto' : locale === 'es' ? 'Imagen del proyecto' : 'Project image'}</span><select value={draft.visualAssetId ?? ''} onChange={e => update({ visualAssetId: e.target.value || null })}>
+            <option value="">{locale === 'pt-BR' ? 'Selecionar imagem…' : locale === 'es' ? 'Seleccionar imagen…' : 'Select image…'}</option>{assets.map(a => a.id ? <option key={a.id} value={a.id}>{a.name} · {a.mediaType}</option> : null)}
           </select></label>
           <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/bmp,image/svg+xml,.png,.jpg,.jpeg,.bmp,.svg" hidden onChange={event => {
             const file = event.currentTarget.files?.[0];
             if (file) void uploadBrandImage(file);
           }}/>
-          <button type="button" className="branding-editor__browse" onClick={() => fileInput.current?.click()} disabled={busy}>Browse computer and upload image…</button>
-          <small>PNG, JPG, BMP or SVG. The selected file is uploaded to project assets.</small>
+          <button type="button" className="branding-editor__browse" onClick={() => fileInput.current?.click()} disabled={busy}>{locale === 'pt-BR' ? 'Procurar e enviar imagem…' : locale === 'es' ? 'Buscar y cargar imagen…' : 'Browse and upload image…'}</button>
+          <small>{locale === 'pt-BR' ? 'PNG, JPG, BMP ou SVG. A imagem é enviada para os assets do projeto.' : 'PNG, JPG, BMP or SVG. The selected file is uploaded to project assets.'}</small>
         </div>}
-        <RuntimePlaybackProjectSetting locale={locale} value={runtimeDraft.historicalPlaybackEnabled}
-          onChange={value => { setRuntimeDraft(current => ({ ...current, historicalPlaybackEnabled: value, version: 1 })); setPreview(null); setPreviewSignature(''); setMessage(null); }} />
-        <RuntimeHeaderSettings locale={locale} snapshot={snapshot} value={runtimeDraft.header ?? {}} onChange={header => {
-          setRuntimeDraft(current => ({ ...current, header })); setPreview(null); setPreviewSignature(''); setMessage(null);
-        }}/>
-        <div className="branding-editor__actions"><button type="button" onClick={() => void validate()} disabled={busy}>Preview validation</button>
-          <button type="button" onClick={() => void apply()} disabled={busy || !preview?.canApply || previewSignature !== signature}>Apply to Working</button></div>
-        {message && <p role="status" className="branding-editor__message">{message}</p>}
-        {preview && preview.errorCount > 0 && <ul className="branding-editor__issues">{preview.items.flatMap(i => i.issues).filter(i => i.isError).map(i => <li key={i.code + i.entityKey}><strong>{i.code}</strong> {i.message}</li>)}</ul>}
       </section>
-      <section className="eng-panel branding-preview" aria-label="Working branding preview" data-testid="branding-working-preview">
-        <h2>Working preview</h2>
+      <section className="eng-panel branding-preview" aria-label={locale === 'pt-BR' ? 'Prévia da marca em edição' : locale === 'es' ? 'Vista previa de marca en edición' : 'Working brand preview'} data-testid="branding-working-preview">
+        <h2>{locale === 'pt-BR' ? 'Prévia da marca' : locale === 'es' ? 'Vista previa de marca' : 'Brand preview'}</h2>
         {draft.mode === 'none' && <p data-testid="branding-preview-none">No brand element or reserved brand space will be mounted after this revision becomes Active.</p>}
         {draft.mode === 'default' && <div className="branding-preview__brand"><b aria-hidden="true">E</b><span><strong>EliteSCADA</strong><small>Industrial SCADA Platform</small></span></div>}
         {draft.mode === 'text' && <div className="branding-preview__brand branding-preview__brand--text"><span><strong>{draft.text || 'Text required'}</strong>{draft.subtitle && <small>{draft.subtitle}</small>}</span></div>}
         {draft.mode === 'image' && (selectedAsset?.id ? <div className="branding-preview__brand"><img src={visualAssetContentUrl(selectedAsset.id)} alt={draft.text?.trim() || selectedAsset.name}/><span>{draft.text && <strong>{draft.text}</strong>}{draft.subtitle && <small>{draft.subtitle}</small>}</span></div> : <p role="status">Select a canonical VisualAsset. Local paths and browser-local blobs are not branding authority.</p>)}
         <p className="branding-preview__lifecycle">Working → Preview/Apply → Save/Reopen → Publish → Activate → Active shell</p>
       </section>
+      <section className="runtime-header-settings__section">
+        <RuntimeHeaderSettings locale={locale} snapshot={snapshot} value={runtimeDraft.header ?? {}} onChange={header => {
+          setRuntimeDraft(current => ({ ...current, header })); setPreview(null); setPreviewSignature(''); setMessage(null);
+        }}/>
+        <RuntimePlaybackProjectSetting locale={locale} value={runtimeDraft.historicalPlaybackEnabled}
+          onChange={value => { setRuntimeDraft(current => ({ ...current, historicalPlaybackEnabled: value, version: 1 })); setPreview(null); setPreviewSignature(''); setMessage(null); }} />
+      </section>
+      <div className="branding-editor__actions"><button type="button" onClick={() => void validate()} disabled={busy}>{locale === 'pt-BR' ? 'Validar prévia' : locale === 'es' ? 'Validar vista previa' : 'Validate preview'}</button>
+        <button type="button" onClick={() => void apply()} disabled={busy || !preview?.canApply || previewSignature !== signature}>{locale === 'pt-BR' ? 'Aplicar ao Working' : locale === 'es' ? 'Aplicar a Working' : 'Apply to Working'}</button></div>
+      {message && <p role="status" className="branding-editor__message">{message}</p>}
+      {preview && preview.errorCount > 0 && <ul className="branding-editor__issues">{preview.items.flatMap(i => i.issues).filter(i => i.isError).map(i => <li key={i.code + i.entityKey}><strong>{i.code}</strong> {i.message}</li>)}</ul>}
     </div>
   </div>;
 }

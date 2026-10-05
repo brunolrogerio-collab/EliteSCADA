@@ -276,9 +276,21 @@ public sealed class MediaSourceEngineeringValidationTests
     public void RuntimeHeader_RoundTripsAndRejectsBrokenMobileReferences()
     {
         var exchange = CreateExchange(new InMemoryMediaSourceEngineeringRegistry());
+        using var projectFontWeight = System.Text.Json.JsonDocument.Parse("700");
+        using var screenFontWeight = System.Text.Json.JsonDocument.Parse("500");
         var package = exchange.ParseJson(exchange.ExportJson(indented: false)) with {
             RuntimePresentation = new RuntimePresentationEngineeringDto(Header: new RuntimeHeaderEngineeringDto(
-                Enabled: false, Height: 48, BackgroundColor: "#223344", TitlePosition: "center", AlarmsVisible: false))
+                Enabled: false,
+                Height: 168,
+                BackgroundColor: "#223344",
+                TitlePosition: "center",
+                ControlsPosition: "left",
+                ControlsOrder: 3,
+                ShowScreenName: true,
+                TitleStyle: new RuntimeHeaderTextStyleEngineeringDto("system-ui", 24, projectFontWeight.RootElement.Clone(), "#ffffff"),
+                ScreenNameStyle: new RuntimeHeaderTextStyleEngineeringDto("Arial, sans-serif", 14, screenFontWeight.RootElement.Clone()),
+                DateTime: new RuntimeHeaderDateTimeEngineeringDto("dateTime", "right", 4, "yyyy-MM-dd", "12h"),
+                AlarmsVisible: false))
         };
         Assert.True(exchange.Preview(package, ImportMode.CreateAndUpdate).CanApply);
         var result = exchange.Apply(package, ImportMode.CreateAndUpdate);
@@ -289,6 +301,14 @@ public sealed class MediaSourceEngineeringValidationTests
             MobileScreens = new Dictionary<string, string> { ["missing"] = "also-missing" }
         }};
         Assert.Contains(exchange.Preview(invalid, ImportMode.CreateAndUpdate).Items.SelectMany(item => item.Issues),
+            issue => issue.Code == "RUNTIME_PRESENTATION_REFERENCE_INVALID" && issue.IsError);
+        var invalidHeader = package with { RuntimePresentation = package.RuntimePresentation! with {
+            Header = package.RuntimePresentation.Header! with {
+                ControlsPosition = "middle",
+                DateTime = new RuntimeHeaderDateTimeEngineeringDto("dateTime", "right", 21, "dd/MM/yyyy", "24h")
+            }
+        }};
+        Assert.Contains(exchange.Preview(invalidHeader, ImportMode.CreateAndUpdate).Items.SelectMany(item => item.Issues),
             issue => issue.Code == "RUNTIME_PRESENTATION_REFERENCE_INVALID" && issue.IsError);
     }
 }

@@ -4,7 +4,7 @@ import {
   getBuiltinVisualObjectSchema
 } from '../src/visual-runtime/builtinVisualObjectSchemas';
 import { VISUAL_PROPERTY_KEYS } from '../src/visual-runtime/visualPropertyRegistry';
-import { insertBezierAnchor, readEditableBezierPath, removeBezierAnchor } from '../src/engineering/visual-editor/bezierGeometry';
+import { createClosedBezierGeometry, insertBezierAnchor, readEditableBezierPath, removeBezierAnchor } from '../src/engineering/visual-editor/bezierGeometry';
 import {
   createObjectAddIntent,
   listVisualObjectPaletteItems
@@ -130,6 +130,30 @@ test('Bezier anchor insertion splits a cubic segment without changing its curve 
   expect(insertBezierAnchor('M 0 0 C 10 10 20 20 30 30 Z')).toBe('M 0 0 C 5 5 10 10 15 15 C 20 20 25 25 30 30 Z');
   expect(insertBezierAnchor('M 0 0 c 10 10 20 20 30 30')).toBeNull();
   expect(readEditableBezierPath('M 0 0 C 10 10 20 20 30 30')?.anchorIndexes).toEqual([0, 3]);
+});
+
+test('Bezier click geometry closes smoothly and exposes only its distinct anchors for editing', () => {
+  const geometry = createClosedBezierGeometry([
+    { x: 40, y: 50 }, { x: 180, y: 40 }, { x: 210, y: 170 }, { x: 70, y: 210 }
+  ]);
+  expect(geometry).not.toBeNull();
+  const path = geometry!.path;
+  expect(path.endsWith('Z')).toBe(true);
+  const model = readEditableBezierPath(path);
+  expect(model?.anchorIndexes).toHaveLength(4);
+  expect(model?.anchorIndexes.map(index => model.points[index])).toEqual([
+    expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+    expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+    expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+    expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) })
+  ]);
+
+  const withInsertedAnchor = insertBezierAnchor(path, 1);
+  expect(readEditableBezierPath(withInsertedAnchor!)?.anchorIndexes).toHaveLength(5);
+  expect(readEditableBezierPath(removeBezierAnchor(withInsertedAnchor!, 2)!)?.anchorIndexes).toHaveLength(4);
+  const threeAnchorCurve = removeBezierAnchor(path, 1);
+  expect(readEditableBezierPath(threeAnchorCurve!)?.anchorIndexes).toHaveLength(3);
+  expect(removeBezierAnchor(threeAnchorCurve!, 1)).toBeNull();
 });
 
 test('palette fails closed for private/unknown object types and invalid placement data', () => {

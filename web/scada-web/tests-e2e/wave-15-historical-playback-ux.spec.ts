@@ -20,13 +20,13 @@ const button = (id:string,key:string,text:string,x:number,y:number,action:Record
   actions:[{eventKey:'click',version:1,...action}]
 });
 
-function projection(enabled:boolean){
+function projection(enabled:boolean, header?:Record<string,unknown>){
  return {
   mode:'engineering',projectKey:'w15-playback',projectName:'W15 Playback',revision:445,
   activatedAtUtc:'2026-10-02T14:20:00Z',
   package:{
    schema:'scada.engineering',schemaVersion:20,exportedAt:'2026-10-02T14:20:00Z',
-   startupScreenId:SCREEN_HOME_ID,runtimePresentation:{historicalPlaybackEnabled:enabled,version:1},
+   startupScreenId:SCREEN_HOME_ID,runtimePresentation:{historicalPlaybackEnabled:enabled,version:1,...(header?{header}:{})},
    tags:[
     {id:ANALOG_ID,name:'Analog',path:'Plant.Analog',dataType:'Double',readOnly:false},
     {id:DIGITAL_ID,name:'Digital',path:'Plant.Digital',dataType:'Boolean',readOnly:false},
@@ -85,6 +85,43 @@ async function installShell(page:Page, enabled:boolean){
    await r.fulfill({json:{screenKey:body.screenKey,popupKeys:body.popupKeys??[],tags}});
  });
 }
+
+test('Runtime header keeps tools, project/screen titles and clock in configured positions',async({page})=>{
+ const runtimeHeader={
+  enabled:true,height:112,backgroundColor:'#335577',titlePosition:'right',controlsPosition:'left',controlsOrder:0,
+  showScreenName:true,titleStyle:{fontFamily:'monospace',fontSize:23,fontWeight:700,color:'#ffffff'},
+  screenNameStyle:{fontSize:14,color:'#ddeeff'},
+  dateTime:{mode:'dateTime',position:'right',order:1,dateFormat:'yyyy-MM-dd',timeFormat:'24h'},
+  overviewVisible:true,historyVisible:true,alarmsVisible:true,playbackVisible:false
+ };
+ await page.routeWebSocket('**/ws/tags',()=>{});
+ await page.route('**/api/auth/config',r=>r.fulfill({json:{authenticationEnabled:true,localLoginEnabled:true,initialAdministratorRequired:false,initialAdministratorSetupAvailable:false,passwordPolicy:{minimumLength:8,maximumLength:1024}}}));
+ await page.route('**/api/auth/me',r=>r.fulfill({json:{subjectId:'w15-user',username:'w15',displayName:'W15',roles:['developer'],identityProvider:'local'}}));
+ await page.route('**/api/auth/local-session',r=>r.fulfill({json:{authenticated:true,username:'w15'}}));
+ await page.route('**/api/auth/effective-capabilities',r=>r.fulfill({json:{authorityPolicy:{schema:'elitescada.authority-policy',schemaVersion:1},authenticationEnabled:true,runtime:['View','TrendUse','SystemAdmin'],workspace:['EngineeringView','EngineeringModify','SystemAdmin']}}));
+ await page.route('**/api/engineering/persistence/status',r=>r.fulfill({json:{enabled:true,hasProjects:true}}));
+ await page.route('**/api/runtime/application',r=>r.fulfill({json:projection(false,runtimeHeader)}));
+ await page.route('**/api/tags',r=>r.fulfill({json:[]}));
+ await page.setViewportSize({width:1365,height:900});
+ await page.goto('/');
+ const runtime=page.getByTestId('runtime-engineering-application');
+ const bar=runtime.locator('.runtime-operator-bar');
+ await expect(bar).toBeVisible();
+ await expect(bar.locator('.runtime-operator-context__titles strong')).toHaveText('W15 Playback');
+ await expect(bar.locator('.runtime-operator-context__screen')).toHaveText('Home');
+ await expect(bar.locator('.runtime-operator-context')).toHaveCSS('text-align','right');
+ await expect(bar.locator('.runtime-operator-context__titles strong')).toHaveCSS('font-family',/monospace/);
+ await expect(bar.locator('.runtime-operator-context__titles strong')).toHaveCSS('font-size','23px');
+ await expect(bar.locator('.runtime-operator-context__screen')).toHaveCSS('font-size','14px');
+ await expect(bar.locator('.runtime-operator-side--left .runtime-operator-toolbar-slot')).toBeVisible();
+ await expect(bar.getByTestId('runtime-header-datetime').locator('span')).toHaveCount(2);
+ await expect(bar.getByTestId('runtime-header-datetime').locator('span').nth(1)).toHaveText(/\d{4}-\d{2}-\d{2}/);
+ await expect(bar).toHaveCSS('min-height','112px');
+ await expect(bar).toHaveCSS('background-color','rgb(51, 85, 119)');
+ const firstToolColor=await bar.locator('.runtime-operator-tool').first().evaluate(element=>getComputedStyle(element).backgroundColor);
+ expect(firstToolColor).not.toBe('rgba(0, 0, 0, 0)');
+ await expect(bar.locator('.runtime-operator-tool').first()).toHaveCSS('color','rgb(255, 255, 255)');
+});
 
 async function historical(route:Route){
  const body=route.request().postDataJSON() as any;

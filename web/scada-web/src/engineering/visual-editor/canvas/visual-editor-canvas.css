@@ -85,6 +85,7 @@
 }
 
 .visual-editor-canvas.is-polygon-tool .visual-editor-canvas__surface { cursor: crosshair; }
+.visual-editor-canvas.is-bezier-tool .visual-editor-canvas__surface { cursor: crosshair; }
 
 .visual-editor-canvas__surface.has-grid {
   background-image:
@@ -167,12 +168,16 @@
 .visual-editor-canvas__polygon-draft { position:absolute; inset:0; overflow:visible; pointer-events:none; z-index:9999; }
 .visual-editor-canvas__polygon-draft polyline { fill:none; stroke:currentColor; stroke-width:2; stroke-dasharray:7 5; vector-effect:non-scaling-stroke; }
 .visual-editor-canvas__polygon-draft circle { fill:var(--surface-color,#fff); stroke:currentColor; stroke-width:2; vector-effect:non-scaling-stroke; }
+.visual-editor-canvas__bezier-draft { position:absolute; inset:0; overflow:visible; pointer-events:none; z-index:9999; }
+.visual-editor-canvas__bezier-draft path { fill:rgba(124,58,237,.08); stroke:#7c3aed; stroke-width:2; stroke-dasharray:7 5; vector-effect:non-scaling-stroke; }
+.visual-editor-canvas__bezier-draft circle { fill:var(--surface-color,#fff); stroke:#6d28d9; stroke-width:2; vector-effect:non-scaling-stroke; }
 .visual-editor-canvas__polygon-vertex { position:absolute; z-index:5; width:11px; height:11px; min-width:0!important; min-height:0!important; padding:0; border:2px solid currentColor; border-radius:50%; background:var(--surface-color,#fff); transform:translate(-50%,-50%); pointer-events:auto; cursor:crosshair; }
 .visual-editor-canvas__polygon-vertex.is-selected { box-shadow:0 0 0 3px rgba(59,130,246,.24); }
 .visual-editor-canvas__bezier-point { position:absolute; z-index:5; width:11px; height:11px; min-width:0!important; min-height:0!important; padding:0; border:2px solid #7c3aed; border-radius:50%; background:var(--surface-color,#fff); transform:translate(-50%,-50%); pointer-events:auto; cursor:crosshair; }
 .visual-editor-canvas__bezier-point.is-anchor { width:13px; height:13px; border-color:#6d28d9; background:#ede9fe; }
 .visual-editor-canvas__bezier-point.is-handle { width:9px; height:9px; border-style:dashed; border-color:#8b5cf6; }
 .visual-editor-canvas__bezier-point.is-selected { box-shadow:0 0 0 3px rgba(124,58,237,.24); }
+.visual-editor-canvas__bezier-point.is-dragging { box-shadow:0 0 0 4px rgba(124,58,237,.32); }
 
 .visual-editor-canvas__adorners { position: absolute; inset: 0; pointer-events: none; }
 

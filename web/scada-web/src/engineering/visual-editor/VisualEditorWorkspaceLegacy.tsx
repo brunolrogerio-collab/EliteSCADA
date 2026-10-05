@@ -25,6 +25,8 @@ import { VisualEditorCanvas } from './canvas';
 import { VisualEditorAuthoringSidebar, type VisualEditorAuthoringTab } from './VisualEditorAuthoringSidebar';
 import { VisualEditorSelectionInspector, type VisualEditorInspectorTab } from './VisualEditorSelectionInspector';
 import { createCanonicalPolygon, updateCanonicalPolygonPoints } from './polygonCanonicalMutations';
+import { createCanonicalBezier } from './bezierCanonicalMutations';
+import { reportCollection } from '../reports/reportDesignerModel';
 import { VisualEditorRegionToggle } from './VisualEditorRegionToggle';
 import {
   NEW_SCREEN_IDENTITY,
@@ -133,6 +135,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
   const [applying, setApplying] = useState(false);
   const [importingAsset, setImportingAsset] = useState(false);
   const [polygonToolActive, setPolygonToolActive] = useState(false);
+  const [bezierToolActive, setBezierToolActive] = useState(false);
   const [screensCollapsed, setScreensCollapsed] = useState(false);
   const [paletteCollapsed, setPaletteCollapsed] = useState(false);
   const [propertiesCollapsed, setPropertiesCollapsed] = useState(false);
@@ -184,6 +187,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
       if (sameSelection) return;
     }
     setPolygonToolActive(false);
+    setBezierToolActive(false);
     if (selectedIdentity === NEW_SCREEN_IDENTITY) {
       replaceSession(createVisualEditorSession(createDraft(screens, locale, definitionKind)));
       setDynamoParameters(Object.freeze([]));
@@ -289,6 +293,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
     setSelectedIdentity(identity);
     setViewport(DEFAULT_VIEWPORT);
     setPolygonToolActive(false);
+    setBezierToolActive(false);
     invalidateValidation();
   };
 
@@ -305,6 +310,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
     }
     setViewport(DEFAULT_VIEWPORT);
     setPolygonToolActive(false);
+    setBezierToolActive(false);
     invalidateValidation();
   };
 
@@ -329,6 +335,17 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
         replaceSession(commitVisualEditorSessionDraft(current, created.screen, {
           selectedObjectIds: [created.objectId]
         }));
+        setPolygonToolActive(false);
+        setBezierToolActive(false);
+        invalidateValidation();
+        return;
+      }
+      if (intent.kind === 'bezier.create') {
+        const created = createCanonicalBezier(currentDraft, intent.points);
+        replaceSession(commitVisualEditorSessionDraft(current, created.screen, {
+          selectedObjectIds: [created.objectId]
+        }));
+        setBezierToolActive(false);
         setPolygonToolActive(false);
         invalidateValidation();
         return;
@@ -369,11 +386,20 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
   const handlePaletteIntent = (intent: VisualEditorMutationIntent) => {
     if (intent.kind === 'object.add' && intent.objectType === BUILTIN_VISUAL_OBJECT_TYPES.polygon) {
       setPolygonToolActive(true);
+      setBezierToolActive(false);
+      replaceSession(withVisualEditorSessionSelection(sessionRef.current, Object.freeze([])));
+      setError(null);
+      return;
+    }
+    if (intent.kind === 'object.add' && intent.objectType === BUILTIN_VISUAL_OBJECT_TYPES.bezier) {
+      setBezierToolActive(true);
+      setPolygonToolActive(false);
       replaceSession(withVisualEditorSessionSelection(sessionRef.current, Object.freeze([])));
       setError(null);
       return;
     }
     setPolygonToolActive(false);
+    setBezierToolActive(false);
     handleMutationIntent(intent);
   };
 
@@ -428,6 +454,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
       setSelectedIdentity(`key:${appliedKey}`);
       replaceSession(createVisualEditorSession(draft));
       setPolygonToolActive(false);
+      setBezierToolActive(false);
       setPreview(null);
       setCandidate(null);
     } catch (reason) {
@@ -578,6 +605,8 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
               emptyLabel={text.emptyCanvas}
               polygonToolActive={polygonToolActive}
               onPolygonToolCancel={() => setPolygonToolActive(false)}
+              bezierToolActive={bezierToolActive}
+              onBezierToolCancel={() => setBezierToolActive(false)}
             />
           </section>
 
@@ -591,6 +620,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
               selectedObjectIds={selectedObjectIds}
               sourceCatalog={bindingSourceCatalog}
               visualAssets={visualAssets}
+              reports={reportCollection(snapshot.package)}
               locale={locale}
               activeTab={inspectorTab}
               onActiveTabChange={setInspectorTab}

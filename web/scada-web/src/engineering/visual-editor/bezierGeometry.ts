@@ -6,6 +6,14 @@ export type BezierPathModel = Readonly<{
   anchorIndexes: readonly number[];
 }>;
 
+export type ClosedBezierGeometry = Readonly<{
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  path: string;
+}>;
+
 const TOKEN = /[A-Za-z]|[-+]?(?:\d*\.\d+|\d+\.?\d*)(?:[eE][-+]?\d+)?/g;
 
 /** Reads the absolute SVG path subset used by editable bezier objects. */
@@ -34,6 +42,7 @@ export function readEditableBezierPath(path: string): BezierPathModel | null {
     cursor += pairCount * 2;
     if (command === 'M') command = 'L';
   }
+  if (points.length > 2 && samePoint(points[0], points.at(-1)!)) anchorIndexes.pop();
   return points.length ? Object.freeze({
     tokens: Object.freeze(tokens),
     points: Object.freeze(points),
@@ -69,33 +78,45 @@ export function writeBezierPathPoint(model: BezierPathModel, pointIndex: number,
  * subdivision preserves the original curve exactly (up to path serialization),
  * so adding an editable point does not visibly reshape the object.
  */
-export function insertBezierAnchor(path: string): string | null {
+export function insertBezierAnchor(path: string, anchorOrdinal?: number): string | null {
   const commands = parsePath(path);
   if (!commands) return null;
-  const lastDrawable = commands.map((command, index) =>
-    command.kind === 'L' || command.kind === 'Q' || command.kind === 'C' ? index : -1
-  ).filter(index => index >= 0).at(-1) ?? -1;
-  if (lastDrawable < 0) return null;
-  let anchor: VisualEditorPoint | null = null;
-  for (let index = 0; index < lastDrawable; index++) {
-    const command = commands[index];
-    if (command.kind === 'M') anchor = command.points[0] ?? null;
-    else if (command.kind !== 'Z') anchor = command.points.at(-1) ?? anchor;
+  const model = readEditableBezierPath(path);
+  if (!model) return null;
+  const drawableIndexes = commands.map((command, index) => isDrawable(command) ? index : -1).filter(index => index >= 0);
+  if (drawableIndexes.length === 0) return null;
+  const requested = anchorOrdinal ?? model.anchorIndexes.length - 1;
+  if (requested < 0 || requested >= model.anchorIndexes.length) return null;
+  const anchorPointIndex = model.anchorIndexes[requested];
+  const lastAnchorOrdinal = model.anchorIndexes.length - 1;
+  const drawableOrdinal = requested === lastAnchorOrdinal
+    ? drawableIndexes.length - 1
+    : Math.min(requested, drawableIndexes.length - 1);
+  const targetIndex = drawableIndexes[drawableOrdinal];
+  let anchor: VisualEditorPoint | null = requested === 0 ? commands[0].points[0] ?? null : null;
+  if (requested > 0) {
+    let pointIndex = 0;
+    for (const command of commands) {
+      if (command.kind === 'M') { pointIndex += 1; continue; }
+      if (!isDrawable(command)) continue;
+      pointIndex += command.points.length;
+      if (pointIndex - 1 === anchorPointIndex) { anchor = command.points.at(-1) ?? null; break; }
+    }
   }
   if (!anchor) return null;
 
-  const segment = commands[lastDrawable];
+  const segment = commands[targetIndex];
   const points = segment.points;
   if (segment.kind === 'L') {
     const end = points[0];
     const midpoint = lerp(anchor, end, 0.5);
-    commands.splice(lastDrawable, 1, { kind: 'L', points: [midpoint] }, { kind: 'L', points: [end] });
+    commands.splice(targetIndex, 1, { kind: 'L', points: [midpoint] }, { kind: 'L', points: [end] });
   } else if (segment.kind === 'Q') {
     const [control, end] = points;
     const firstControl = lerp(anchor, control, 0.5);
     const secondControl = lerp(control, end, 0.5);
     const midpoint = lerp(firstControl, secondControl, 0.5);
-    commands.splice(lastDrawable, 1,
+    commands.splice(targetIndex, 1,
       { kind: 'Q', points: [firstControl, midpoint] },
       { kind: 'Q', points: [secondControl, end] });
   } else if (segment.kind === 'C') {
@@ -106,7 +127,7 @@ export function insertBezierAnchor(path: string): string | null {
     const leftControl2 = lerp(first, middle, 0.5);
     const rightControl1 = lerp(middle, last, 0.5);
     const midpoint = lerp(leftControl2, rightControl1, 0.5);
-    commands.splice(lastDrawable, 1,
+    commands.splice(targetIndex, 1,
       { kind: 'C', points: [first, leftControl2, midpoint] },
       { kind: 'C', points: [rightControl1, last, end] });
   } else {
@@ -116,18 +137,88 @@ export function insertBezierAnchor(path: string): string | null {
 }
 
 /** Removes the final anchor/segment while retaining the path's initial point. */
-export function removeBezierAnchor(path: string): string | null {
+export function removeBezierAnchor(path: string, anchorOrdinal?: number): string | null {
   const commands = parsePath(path);
   if (!commands) return null;
-  const drawableIndices = commands
-    .map((command, index) => command.kind === 'L' || command.kind === 'Q' || command.kind === 'C' ? index : -1)
-    .filter(index => index >= 0);
-  if (drawableIndices.length <= 1) return null;
-  commands.splice(drawableIndices.at(-1)!, 1);
+  const model = readEditableBezierPath(path);
+  if (!model || model.anchorIndexes.length <= (isClosedPath(commands) ? 3 : 2)) return null;
+  const ordinal = anchorOrdinal ?? model.anchorIndexes.length - 1;
+  if (ordinal < 0 || ordinal >= model.anchorIndexes.length) return null;
+  const drawableIndices = commands.map((command, index) => isDrawable(command) ? index : -1).filter(index => index >= 0);
+  const targetIndex = ordinal === 0 ? drawableIndices[0] : drawableIndices[Math.min(ordinal - 1, drawableIndices.length - 1)];
+  if (targetIndex === undefined) return null;
+  if (ordinal === 0) {
+    const nextStart = commands[targetIndex].points.at(-1);
+    if (!nextStart || commands[0].kind !== 'M') return null;
+    commands[0] = { kind: 'M', points: [nextStart] };
+    commands.splice(targetIndex, 1);
+    const finalSegmentIndex = commands.map((command, index) => isDrawable(command) ? index : -1).filter(index => index >= 0).at(-1);
+    if (finalSegmentIndex !== undefined) {
+      const finalSegment = commands[finalSegmentIndex];
+      if (isDrawable(finalSegment)) {
+        const points = [...finalSegment.points];
+        points[points.length - 1] = nextStart;
+        commands[finalSegmentIndex] = { kind: finalSegment.kind, points };
+      }
+    }
+  } else commands.splice(targetIndex, 1);
   return serializePath(commands);
 }
 
-type ParsedCommand = Readonly<{ kind: 'M' | 'L' | 'Q' | 'C'; points: readonly VisualEditorPoint[] }>
+/** Builds a smooth, closed SVG cubic path from clicked canvas anchors. */
+export function createClosedBezierGeometry(points: readonly VisualEditorPoint[]): ClosedBezierGeometry | null {
+  if (points.length < 3 || new Set(points.map(point => `${point.x}\u0000${point.y}`)).size < 3) return null;
+  const anchors = points.map(point => ({ x: point.x, y: point.y }));
+  const segments = anchors.map((start, index) => {
+    const end = anchors[(index + 1) % anchors.length];
+    const previous = anchors[(index + anchors.length - 1) % anchors.length];
+    const after = anchors[(index + 2) % anchors.length];
+    return {
+      start,
+      first: { x: start.x + (end.x - previous.x) / 6, y: start.y + (end.y - previous.y) / 6 },
+      second: { x: end.x - (after.x - start.x) / 6, y: end.y - (after.y - start.y) / 6 },
+      end
+    };
+  });
+  const all = segments.flatMap(segment => [segment.start, segment.first, segment.second, segment.end]);
+  const minX = Math.min(...all.map(point => point.x));
+  const minY = Math.min(...all.map(point => point.y));
+  const maxX = Math.max(...all.map(point => point.x));
+  const maxY = Math.max(...all.map(point => point.y));
+  const width = Math.max(maxX - minX, 1);
+  const height = Math.max(maxY - minY, 1);
+  const normalize = (point: VisualEditorPoint) => ({ x: (point.x - minX) * 100 / width, y: (point.y - minY) * 100 / height });
+  const first = normalize(anchors[0]);
+  const path = [`M ${compact(first.x)} ${compact(first.y)}`];
+  for (const segment of segments) {
+    const firstControl = normalize(segment.first);
+    const secondControl = normalize(segment.second);
+    const end = normalize(segment.end);
+    path.push(`C ${compact(firstControl.x)} ${compact(firstControl.y)} ${compact(secondControl.x)} ${compact(secondControl.y)} ${compact(end.x)} ${compact(end.y)}`);
+  }
+  path.push('Z');
+  return Object.freeze({ x: minX, y: minY, width, height, path: path.join(' ') });
+}
+
+function samePoint(left: VisualEditorPoint, right: VisualEditorPoint): boolean {
+  return Math.abs(left.x - right.x) <= 1e-6 && Math.abs(left.y - right.y) <= 1e-6;
+}
+
+function isDrawable(command: ParsedCommand): command is Extract<ParsedCommand, { kind: 'L' | 'Q' | 'C' }> {
+  return command.kind === 'L' || command.kind === 'Q' || command.kind === 'C';
+}
+
+function isClosedPath(commands: readonly ParsedCommand[]): boolean {
+  if (commands.some(command => command.kind === 'Z')) return true;
+  const first = commands.find(command => command.kind === 'M')?.points[0];
+  const last = [...commands].reverse().find(isDrawable)?.points.at(-1);
+  return Boolean(first && last && samePoint(first, last));
+}
+
+type ParsedCommand = Readonly<{ kind: 'M'; points: readonly VisualEditorPoint[] }>
+  | Readonly<{ kind: 'L'; points: readonly VisualEditorPoint[] }>
+  | Readonly<{ kind: 'Q'; points: readonly VisualEditorPoint[] }>
+  | Readonly<{ kind: 'C'; points: readonly VisualEditorPoint[] }>
   | Readonly<{ kind: 'Z'; points: readonly [] }>;
 
 function parsePath(path: string): ParsedCommand[] | null {

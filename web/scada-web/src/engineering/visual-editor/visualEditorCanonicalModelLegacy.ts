@@ -192,7 +192,8 @@ export function applyVisualEditorMutationIntent(
       return changeVisualObjectZOrder(screen, intent.objectIds, intent.operation);
     case 'polygon.create':
     case 'polygon.points.set':
-      throw new Error(`Polygon structural intent '${intent.kind}' must be handled by the canonical polygon mutation seam.`);
+    case 'bezier.create':
+      throw new Error(`Canvas geometry intent '${intent.kind}' must be handled by its canonical geometry mutation seam.`);
     case 'property.set':
       return setVisualProperty(screen, intent.objectIds, intent.propertyKey, intent.value);
     case 'property.remove':

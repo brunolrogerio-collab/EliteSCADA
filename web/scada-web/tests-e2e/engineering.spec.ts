@@ -65,11 +65,13 @@ test('Engineering navigation exposes current domains and structured preview edit
     alarms?: Array<{ name: string }>;
     templates?: Array<{ key: string }>;
     equipment?: Array<{ path?: string; key?: string }>;
-    dynamos?: Array<{ key: string; name: string }>;
+    dynamos?: Array<{ key: string; name: string; metadata?: Record<string, string> }>;
     screens?: Array<{ key: string }>;
     popups?: Array<{ key: string }>;
     securityRoles?: Array<{ key: string }>;
   };
+  const visibleDynamos = (engineering.dynamos ?? []).filter(dynamo =>
+    !(dynamo.metadata?.builtinLibrary === 'true' && dynamo.metadata.catalogStatus !== 'active'));
 
   await page.goto('/engineering');
 
@@ -78,7 +80,7 @@ test('Engineering navigation exposes current domains and structured preview edit
     { button: /Alarmes/, heading: 'Editor estruturado de Alarmes', expected: engineering.alarms?.[0]?.name ?? null },
     { button: /Templates/, heading: 'Templates', expected: engineering.templates?.[0]?.key ?? null },
     { button: /Equipamentos/, heading: 'Instâncias de Equipamentos', expected: engineering.equipment?.[0]?.path ?? engineering.equipment?.[0]?.key ?? null },
-    { button: /Dínamos/, heading: 'Dínamos', expected: engineering.dynamos?.[0]?.name ?? null },
+    { button: /Dínamos/, heading: 'Dínamos', expected: visibleDynamos[0]?.name ?? null },
     { button: /Telas/, heading: 'Telas', expected: engineering.screens?.[0]?.key ?? null },
     { button: /Popups/, heading: 'Popups', expected: engineering.popups?.[0]?.key ?? null },
     { button: /Segurança/, heading: 'Papéis e capacidades', expected: engineering.securityRoles?.[0]?.key ?? null }
@@ -91,6 +93,12 @@ test('Engineering navigation exposes current domains and structured preview edit
       await expect(page.getByText(section.expected, { exact: true }).first()).toBeVisible();
     }
   }
+
+  await page.getByRole('button', { name: /Dínamos/ }).click();
+  const dynamoCards = page.getByTestId('dynamo-catalog-card');
+  await expect(dynamoCards).toHaveCount(visibleDynamos.length);
+  const catalogStatuses = await dynamoCards.evaluateAll(cards => cards.map(card => card.getAttribute('data-catalog-status')));
+  expect(catalogStatuses).not.toContain('legacy');
 });
 
 test('TAG editor validates drafts without mutating Engineering Workspace', async ({ page, request }) => {

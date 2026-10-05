@@ -30,7 +30,8 @@ public interface IEngineeringWorkingBootstrapService
 public sealed class EngineeringWorkingBootstrapService(
     IEngineeringProjectCatalog catalog,
     IEngineeringWorkspaceCheckoutService checkout,
-    EngineeringWorkspace workspace) : IEngineeringWorkingBootstrapService
+    EngineeringWorkspace workspace,
+    IEngineeringProjectPersistenceService? persistence = null) : IEngineeringWorkingBootstrapService
 {
     public async Task<EngineeringWorkingBootstrapResult> BootstrapAsync(
         string? configuredWorkingProjectKey,
@@ -103,8 +104,39 @@ public sealed class EngineeringWorkingBootstrapService(
                 $"Persisted Engineering Working project '{selected.ProjectKey}' revision {revision} could not be checked out. {diagnostic}");
         }
 
+        var requiresDynamoMigration = workspace.Assets.SnapshotDynamos().Any(dynamo =>
+            dynamo.Metadata is not null &&
+            ((dynamo.Metadata.TryGetValue("builtinLibrary", out var builtin) &&
+              string.Equals(builtin, "true", StringComparison.OrdinalIgnoreCase) &&
+              dynamo.Metadata.GetValueOrDefault("catalogStatus") != "active") ||
+             dynamo.Metadata.TryGetValue("importedDynamoLibrary", out var imported) &&
+              string.Equals(imported, "true", StringComparison.OrdinalIgnoreCase) ||
+             dynamo.Metadata.TryGetValue("assetOrigin", out var origin) &&
+              string.Equals(origin, "elipse-e3-import", StringComparison.OrdinalIgnoreCase)));
+
         UpgradeBuiltinDynamos(workspace);
         RemoveImportedE3Dynamos();
+
+        // Persist a one-time migration of retired platform libraries so the old
+        // definitions do not return on the next restart. Only migrate the latest
+        // revision; explicitly pinned historical checkouts remain read-only.
+        if (requiresDynamoMigration && persistence is not null && revision == selected.LatestRevision)
+        {
+            var saveVersion = workspace.CaptureChangeVersion();
+            var migrated = await persistence.SaveCurrentDerivedAsync(
+                selected.ProjectKey,
+                outcome.Snapshot.ProjectName,
+                outcome.Snapshot.Revision,
+                "system:builtin-dynamo-migration",
+                cancellationToken);
+            workspace.AcceptSave(
+                migrated.ProjectKey,
+                migrated.ProjectName,
+                migrated.Revision,
+                migrated.SavedAtUtc,
+                saveVersion);
+            outcome = outcome with { Snapshot = migrated };
+        }
 
         return new EngineeringWorkingBootstrapResult(
             source,
@@ -129,36 +161,24 @@ public sealed class EngineeringWorkingBootstrapService(
                 string.Equals(isBuiltin, "true", StringComparison.OrdinalIgnoreCase))
             .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
 
-        // Do not seed the platform library into projects that never opted into it.
-        if (existingBuiltins.Count == 0) return;
+        // Retire only platform-owned entries from the old generation; project-authored
+        // definitions and the replacement V1 catalog remain untouched.
+        var hadBuiltInCatalog = existingBuiltins.Count > 0;
+        foreach (var legacy in existingBuiltins.Values.Where(definition =>
+                     definition.Metadata?.GetValueOrDefault("catalogStatus") != "active"))
+            workspace.Assets.RemoveDynamo(legacy.Key);
 
-        foreach (var latest in BuiltinDynamoLibrary.Create())
-        {
-            if (existingDynamos.TryGetValue(latest.Key, out var sameKeyDynamo) &&
-                !existingBuiltins.ContainsKey(latest.Key))
-                continue;
+        // Preserve projects that never opted into the platform catalog.
+        if (!hadBuiltInCatalog) return;
 
-            if (existingBuiltins.TryGetValue(latest.Key, out var current))
-            {
-                var currentVersionText = current.Properties is not null &&
-                    current.Properties.TryGetValue("libraryVersion", out var versionText)
-                    ? versionText
-                    : null;
-                if (Version.TryParse(currentVersionText, out var currentVersion) &&
-                    Version.TryParse(BuiltinDynamoLibrary.Version, out var latestVersion) &&
-                    currentVersion >= latestVersion)
-                    continue;
-
-                workspace.Assets.UpsertDynamo(latest with { Id = current.Id });
-                continue;
-            }
-
-            // A project that already uses the built-in library receives newly added
-            // definitions too, while user-created dynamos remain untouched.
-            workspace.Assets.UpsertDynamo(latest);
-        }
-
-        UpgradeBuiltinDynamoCatalogV1(workspace, existingDynamos, existingBuiltins);
+        var remainingDynamos = workspace.Assets.SnapshotDynamos()
+            .ToDictionary(dynamo => dynamo.Key, StringComparer.OrdinalIgnoreCase);
+        var remainingBuiltins = remainingDynamos
+            .Where(pair => pair.Value.Metadata is not null &&
+                pair.Value.Metadata.TryGetValue("builtinLibrary", out var isBuiltin) &&
+                string.Equals(isBuiltin, "true", StringComparison.OrdinalIgnoreCase))
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+        UpgradeBuiltinDynamoCatalogV1(workspace, remainingDynamos, remainingBuiltins);
     }
 
     private static void UpgradeBuiltinDynamoCatalogV1(

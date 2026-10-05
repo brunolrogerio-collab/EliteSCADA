@@ -33,39 +33,31 @@ public sealed class EngineeringWorkingBootstrapServiceTests
     }
 
     [Fact]
-    public async Task ExistingBuiltinLibraryIsUpgradedWithoutReplacingStableDynamoIds()
+    public async Task ExistingLegacyBuiltinLibraryIsPurgedAndReplacedWithoutDeletingProjectDynamos()
     {
         using var workspace = new EngineeringWorkspace(seedDemo: false);
         var original = BuiltinDynamoLibrary.Create().First();
         var originalId = Guid.NewGuid();
-        var oldProperties = new Dictionary<string, string>(original.Properties!, StringComparer.Ordinal)
-        {
-            ["libraryVersion"] = "1.3.0"
-        };
-        workspace.Assets.UpsertDynamo(original with { Id = originalId, Properties = oldProperties });
+        workspace.Assets.UpsertDynamo(original with { Id = originalId });
         var importedOriginal = ImportedE3DynamoLibrary.Create().Single(dynamo => dynamo.Key == "e3.process.motor-1");
         var importedOriginalId = Guid.NewGuid();
-        var oldImportedProperties = new Dictionary<string, string>(importedOriginal.Properties!, StringComparer.Ordinal)
-        {
-            ["libraryVersion"] = "1.0.0"
-        };
         workspace.Assets.UpsertDynamo(importedOriginal with
         {
             Id = importedOriginalId,
-            Elements = importedOriginal.Elements!.Where(element => element.Type != "core.arc").ToArray(),
-            Properties = oldImportedProperties
+            Elements = importedOriginal.Elements!.Where(element => element.Type != "core.arc").ToArray()
         });
-        var customCollisionSource = BuiltinDynamoLibrary.Create().Skip(1).First();
-        var customMetadata = new Dictionary<string, string>(customCollisionSource.Metadata!, StringComparer.Ordinal)
+        var customMetadata = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["builtinLibrary"] = "false"
         };
-        var customCollision = customCollisionSource with
+        var customDynamo = BuiltinDynamoCatalogV1.Create().First() with
         {
+            Id = Guid.NewGuid(),
+            Key = "user.custom.dynamo",
             Metadata = customMetadata,
             Name = "Custom definition with a platform key"
         };
-        workspace.Assets.UpsertDynamo(customCollision);
+        workspace.Assets.UpsertDynamo(customDynamo);
         var checkout = new RecordingCheckout(workspace);
 
         var result = await new EngineeringWorkingBootstrapService(
@@ -74,14 +66,15 @@ public sealed class EngineeringWorkingBootstrapServiceTests
                 workspace)
             .BootstrapAsync(null, null, "project-with-library");
 
-        var upgraded = Assert.Single(workspace.Assets.SnapshotDynamos(), dynamo => dynamo.Key == original.Key);
-        Assert.Equal(originalId, upgraded.Id);
-        Assert.Equal(BuiltinDynamoLibrary.Version, upgraded.Properties!["libraryVersion"]);
+        Assert.Null(workspace.Assets.FindDynamoByKey(original.Key));
+        Assert.DoesNotContain(workspace.Assets.SnapshotDynamos(), dynamo => dynamo.Id == originalId);
         Assert.Null(workspace.Assets.FindDynamoByKey(importedOriginal.Key));
         Assert.DoesNotContain(workspace.Assets.SnapshotDynamos(), dynamo =>
             dynamo.Metadata?.GetValueOrDefault("assetOrigin") == "elipse-e3-import");
-        Assert.Equal("Custom definition with a platform key", workspace.Assets.FindDynamoByKey(customCollision.Key)!.Name);
-        Assert.Equal(98, workspace.Assets.SnapshotDynamos().Count);
+        Assert.Equal("Custom definition with a platform key", workspace.Assets.FindDynamoByKey(customDynamo.Key)!.Name);
+        Assert.Equal(27, workspace.Assets.SnapshotDynamos().Count);
+        Assert.DoesNotContain(workspace.Assets.SnapshotDynamos(), dynamo =>
+            dynamo.Metadata?.GetValueOrDefault("catalogStatus") == "legacy");
         var replacementCatalog = BuiltinDynamoCatalogV1.Create();
         Assert.All(replacementCatalog, definition =>
             Assert.Contains(workspace.Assets.SnapshotDynamos(), item => item.Key == definition.Key));
@@ -94,7 +87,7 @@ public sealed class EngineeringWorkingBootstrapServiceTests
             Assert.True(workspace.VisualAssets.HasPayload(persistedAsset.Sha256));
         });
         Assert.True(result.Workspace.IsDirty);
-        Assert.Equal(98, result.Workspace.DynamoCount);
+        Assert.Equal(27, result.Workspace.DynamoCount);
         Assert.Equal(4, result.Workspace.BaseRevision);
     }
 
@@ -123,6 +116,8 @@ public sealed class EngineeringWorkingBootstrapServiceTests
             Assert.NotNull(asset);
             Assert.True(workspace.VisualAssets.HasPayload(asset!.Sha256));
         });
+        Assert.DoesNotContain(workspace.Assets.SnapshotDynamos(), definition =>
+            definition.Metadata?.GetValueOrDefault("catalogStatus") == "legacy");
     }
 
     [Fact]

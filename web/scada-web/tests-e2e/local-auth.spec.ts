@@ -90,9 +90,7 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(initialRuntimeProjection.body.revision).toBeNull();
     expect(initialRuntimeProjection.body.package).toBeNull();
 
-    // A genuinely fresh installation has no hidden Demo/preconfigured Engineering
-    // content. This assertion runs before first-project creation so test fixtures cannot
-    // be confused with normal product bootstrap.
+    // A genuinely fresh installation is still empty before first-project creation.
     const freshEngineering = await page.evaluate(async () => {
       const response = await fetch('/api/engineering/export/json');
       return { status: response.status, body: await response.json() };
@@ -108,6 +106,7 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(freshEngineering.body.commands).toHaveLength(0);
     expect(freshEngineering.body.gateways).toHaveLength(0);
     expect(freshEngineering.body.scripts).toHaveLength(0);
+    expect(freshEngineering.body.dynamos).toHaveLength(0);
     expect(freshEngineering.body.visualAssets).toHaveLength(0);
     expect(freshEngineering.body.reports).toHaveLength(0);
 
@@ -142,8 +141,8 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(workspace.body.screenCount).toBe(0);
     expect(workspace.body.popupCount).toBe(0);
     expect(workspace.body.commandCount).toBe(0);
-    expect(workspace.body.visualAssetCount).toBe(0);
-    expect(workspace.body.dynamoCount).toBeGreaterThan(0);
+    expect(workspace.body.visualAssetCount).toBe(26);
+    expect(workspace.body.dynamoCount).toBe(26);
     expect(workspace.body.securityRoleCount).toBe(1);
 
     const securityRoles = await page.evaluate(async () => {
@@ -170,9 +169,11 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(canonicalProject.gateways).toHaveLength(0);
     expect(canonicalProject.scripts).toHaveLength(0);
     expect(canonicalProject.scriptVisualEventReferences).toHaveLength(0);
-    expect(canonicalProject.visualAssets).toHaveLength(0);
+    expect(canonicalProject.visualAssets).toHaveLength(26);
     expect(canonicalProject.reports).toHaveLength(0);
-    expect(canonicalProject.dynamos.length).toBeGreaterThan(0);
+    expect(canonicalProject.dynamos).toHaveLength(26);
+    expect(canonicalProject.dynamos.every((dynamo: { metadata?: Record<string, string> }) =>
+      dynamo.metadata?.catalogGeneration === '1' && dynamo.metadata.catalogStatus === 'active')).toBeTruthy();
     expect(canonicalProject.securityRoles).toHaveLength(0);
     expect(canonicalProject.authorityPolicyReference).toBeTruthy();
     expect(canonicalProject.authorityPolicyReference.roleIds).toEqual([
@@ -342,7 +343,6 @@ test('secure first-run creates the initial local Administrator, first project an
         route: '/demo',
         elements: [
           { key: 'tank01', type: 'tank', bindings: [{ key: 'level', kind: 'tag', target: 'Demo.Tank01.Level', direction: 'read' }], properties: { label: 'Reservatório TK01', x: 100, y: 100 } },
-          { key: 'pump01', type: 'dynamo', dynamoKey: 'dynamo.pump.standard', equipmentPath: 'Demo.P01', properties: { x: 430, y: 160 } },
           { key: 'pressure', type: 'value', bindings: [{ key: 'value', kind: 'tag', target: 'Demo.Discharge.Pressure', direction: 'read' }], properties: { label: 'Pressão' } },
           { key: 'flow', type: 'value', bindings: [{ key: 'value', kind: 'tag', target: 'Demo.Discharge.Flow', direction: 'read' }], properties: { label: 'Vazão' } }
         ],

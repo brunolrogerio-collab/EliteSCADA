@@ -11,11 +11,11 @@ namespace Scada.Drivers.Tests;
 public sealed class EngineeringFirstProjectBootstrapTests
 {
     [Fact]
-    public void BuiltInLibrary_HasNoExternalEquipmentTemplateDependencies()
+    public void ReplacementCatalog_HasNoExternalEquipmentTemplateDependencies()
     {
-        var definitions = BuiltinDynamoLibrary.Create();
+        var definitions = BuiltinDynamoCatalogV1.Create();
 
-        Assert.Equal(72, definitions.Count);
+        Assert.Equal(26, definitions.Count);
         Assert.All(definitions, definition => Assert.Null(definition.TemplateKey));
     }
 
@@ -54,7 +54,7 @@ public sealed class EngineeringFirstProjectBootstrapTests
         var savedPackage = exchange.ParseJson(snapshot.EngineeringJson);
         Assert.Empty(savedPackage.Templates ?? Array.Empty<EquipmentTemplateEngineeringDto>());
         var savedDynamos = savedPackage.Dynamos ?? Array.Empty<DynamoEngineeringDto>();
-        Assert.Equal(72, savedDynamos.Count);
+        Assert.Equal(26, savedDynamos.Count);
         Assert.DoesNotContain(savedDynamos, definition => definition.Metadata?.GetValueOrDefault("importedDynamoLibrary") == "true");
         Assert.All(savedDynamos, definition => Assert.Null(definition.TemplateKey));
 
@@ -76,6 +76,7 @@ public sealed class EngineeringFirstProjectBootstrapTests
     private sealed class InMemoryProjectStore : IEngineeringProjectStore
     {
         private EngineeringProjectSnapshot? _snapshot;
+        private IReadOnlyCollection<EngineeringRevisionAssetPayload> _assets = Array.Empty<EngineeringRevisionAssetPayload>();
         private EngineeringProjectPublication? _publication;
         private EngineeringProjectActivation? _activation;
 
@@ -103,6 +104,28 @@ public sealed class EngineeringFirstProjectBootstrapTests
                 savedBy);
             return Task.FromResult(_snapshot);
         }
+
+        public Task<EngineeringProjectSnapshot> SaveDerivedWithAssetsAsync(
+            string projectKey,
+            string projectName,
+            string engineeringSchema,
+            int engineeringSchemaVersion,
+            string engineeringJson,
+            long? basedOnRevision,
+            IReadOnlyCollection<EngineeringRevisionAssetPayload> assets,
+            string? savedBy = null,
+            CancellationToken cancellationToken = default)
+        {
+            _assets = assets.Select(asset => asset.Copy()).ToArray();
+            return SaveAsync(projectKey, projectName, engineeringSchema, engineeringSchemaVersion, engineeringJson, savedBy, cancellationToken);
+        }
+
+        public Task<IReadOnlyCollection<EngineeringRevisionAssetPayload>> LoadRevisionAssetsAsync(
+            string projectKey,
+            long revision,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyCollection<EngineeringRevisionAssetPayload>>(
+                Matches(projectKey) && _snapshot!.Revision == revision ? _assets : Array.Empty<EngineeringRevisionAssetPayload>());
 
         public Task<EngineeringProjectSnapshot?> LoadLatestAsync(
             string projectKey,

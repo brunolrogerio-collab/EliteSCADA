@@ -724,17 +724,12 @@ public sealed class BuiltinDynamoLibraryTests
         using var workspace = new EngineeringWorkspace();
 
         var definitions = workspace.Assets.SnapshotDynamos();
-        Assert.Equal(BuiltinDynamoLibrary.Create().Count + BuiltinDynamoCatalogV1.Create().Count, definitions.Count);
+        Assert.Equal(BuiltinDynamoCatalogV1.Create().Count, definitions.Count);
+        Assert.DoesNotContain(definitions, definition => definition.Metadata?.GetValueOrDefault("catalogStatus") == "legacy");
         Assert.DoesNotContain(definitions, definition =>
             definition.Metadata?.GetValueOrDefault("assetOrigin") == "elipse-e3-import");
-        var targets = definitions
-            .SelectMany(definition => definition.Elements ?? [])
-            .SelectMany(element => element.Bindings ?? [])
-            .Select(binding => binding.Target)
-            .ToArray();
-
-        Assert.NotEmpty(targets);
-        Assert.All(targets, target => Assert.StartsWith("{equipmentPath}.", target));
+        Assert.Contains(definitions, definition => definition.Parameters?.Any(parameter =>
+            parameter.Kind == DynamoParameterKind.ValueSource) == true);
     }
 
     [Fact]

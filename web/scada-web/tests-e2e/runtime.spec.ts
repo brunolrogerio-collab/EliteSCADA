@@ -84,20 +84,15 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(engineering.equipment[0].path).toBe('Demo.P01');
   expect(engineering.equipment[0].templateKey).toBe('pump.standard');
   expect(engineering.equipment[0].bindings.some(binding => binding.target === 'Demo.P01.Frequency')).toBeTruthy();
-  expect(engineering.dynamos).toHaveLength(72);
-  expect(engineering.dynamos.every(dynamo => dynamo.metadata?.assetOrigin === 'original-elitescada-vector')).toBeTruthy();
-  expect(new Set(engineering.dynamos.map(dynamo => dynamo.key)).size).toBe(72);
-  const standardPumpDynamo = engineering.dynamos.find(dynamo => dynamo.key === 'dynamo.pump.standard');
-  expect(standardPumpDynamo).toBeTruthy();
-  expect(standardPumpDynamo!.templateKey).toBeNull();
+  expect(engineering.dynamos).toHaveLength(26);
+  expect(engineering.dynamos.every(dynamo => dynamo.metadata?.catalogGeneration === '1' && dynamo.metadata.catalogStatus === 'active')).toBeTruthy();
+  expect(new Set(engineering.dynamos.map(dynamo => dynamo.key)).size).toBe(26);
+  expect(engineering.dynamos.some(dynamo => dynamo.key === 'motor.tefc')).toBeTruthy();
 
   expect(engineering.screens).toHaveLength(1);
   expect(engineering.screens[0].key).toBe('demo.overview');
   expect(engineering.screens[0].route).toBe('/demo');
-  const pumpElement = engineering.screens[0].elements.find(element => element.key === 'pump01');
-  expect(pumpElement).toBeTruthy();
-  expect(pumpElement!.dynamoKey).toBe('dynamo.pump.standard');
-  expect(pumpElement!.equipmentPath).toBe('Demo.P01');
+  expect(engineering.screens[0].elements.some(element => element.dynamoKey?.startsWith('dynamo.pump.'))).toBeFalsy();
   const pressureElement = engineering.screens[0].elements.find(element => element.key === 'pressure');
   expect(pressureElement?.bindings?.some(binding => binding.target === 'Demo.Discharge.Pressure')).toBeTruthy();
 

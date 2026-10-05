@@ -43,19 +43,28 @@ test('browser insertion labels follow the shared Screen and Popup visual-editor 
     arc: 'Arco',
     bezier: 'Curva Bézier',
     alarmBrowser: 'Browser de Alarmes',
-    eventBrowser: 'Browser de Eventos'
+    eventBrowser: 'Browser de Eventos',
+    videoPlayer: 'Vídeo',
+    pdfViewer: 'Visualizador PDF',
+    reportLauncher: 'Abrir relatório'
   });
   expect(c07VisualEditorText('en').palette).toEqual({
     arc: 'Arc',
     bezier: 'Bezier curve',
     alarmBrowser: 'Alarm Browser',
-    eventBrowser: 'Event Browser'
+    eventBrowser: 'Event Browser',
+    videoPlayer: 'Video',
+    pdfViewer: 'PDF viewer',
+    reportLauncher: 'Report launcher'
   });
   expect(c07VisualEditorText('es').palette).toEqual({
     arc: 'Arco',
     bezier: 'Curva Bézier',
     alarmBrowser: 'Browser de Alarmas',
-    eventBrowser: 'Browser de Eventos'
+    eventBrowser: 'Browser de Eventos',
+    videoPlayer: 'Vídeo',
+    pdfViewer: 'Visor PDF',
+    reportLauncher: 'Abrir informe'
   });
 });
 
@@ -149,12 +158,12 @@ test('historical browser visible chrome and scalar presentation are covered in p
   const en = historicalBrowserCopy('en');
   const es = historicalBrowserCopy('es');
 
-  expect(pt.title).toBe('Browser de dados históricos');
-  expect(en.title).toBe('Historical Data Browser');
-  expect(es.title).toBe('Browser de datos históricos');
-  expect(pt.datasetOperationalEvents).toBe('Eventos operacionais');
-  expect(en.datasetOperationalEvents).toBe('Operational events');
-  expect(es.datasetOperationalEvents).toBe('Eventos operacionales');
+  expect(pt.title).toBe('Histórico');
+  expect(en.title).toBe('History');
+  expect(es.title).toBe('Histórico');
+  expect(pt.datasetOperationalEvents).toBe('Eventos');
+  expect(en.datasetOperationalEvents).toBe('Events');
+  expect(es.datasetOperationalEvents).toBe('Eventos');
 
   expect(formatHistoricalQueryValue({ kind: 'boolean', value: 'true' }, 'pt-BR')).toBe('Verdadeiro');
   expect(formatHistoricalQueryValue({ kind: 'boolean', value: 'false' }, 'en')).toBe('False');

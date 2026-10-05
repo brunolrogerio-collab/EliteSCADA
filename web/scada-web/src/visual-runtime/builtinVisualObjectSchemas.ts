@@ -17,6 +17,7 @@ export const BUILTIN_VISUAL_OBJECT_TYPES = {
   svgSymbol: 'core.svgSymbol',
   videoPlayer: 'core.videoPlayer',
   pdfViewer: 'core.pdfViewer',
+  reportLauncher: 'core.reportLauncher',
   valueDisplay: 'core.valueDisplay',
   trend: 'core.trend',
   alarmBrowser: 'core.alarmBrowser',
@@ -181,6 +182,14 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     VISUAL_PROPERTY_KEYS.pdfInitialPage,
     VISUAL_PROPERTY_KEYS.pdfZoom,
     VISUAL_PROPERTY_KEYS.pdfToolbarVisible
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher, schema(BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.reportKey,
+    VISUAL_PROPERTY_KEYS.backgroundColor,
+    ...STROKE,
+    VISUAL_PROPERTY_KEYS.cornerRadius,
+    ...TEXT
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol, schema(BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol, [
     ...BASE,

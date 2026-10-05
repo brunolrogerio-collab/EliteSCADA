@@ -23,6 +23,9 @@ test('palette is derived from the complete registered built-in set', () => {
     BUILTIN_VISUAL_OBJECT_TYPES.polygon,
     BUILTIN_VISUAL_OBJECT_TYPES.text,
     BUILTIN_VISUAL_OBJECT_TYPES.image,
+    BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer,
+    BUILTIN_VISUAL_OBJECT_TYPES.pdfViewer,
+    BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher,
     BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol,
     BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay,
     BUILTIN_VISUAL_OBJECT_TYPES.trend,
@@ -52,9 +55,27 @@ test('Image and SVG symbol palette entries consume the registered assetRef contr
   expect(svgSymbol?.supportsAssetReference).toBe(true);
   expect(svgSymbol?.propertyKeys).toContain(VISUAL_PROPERTY_KEYS.assetRef);
 
-  for (const item of items.filter(item => item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.image && item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol)) {
+  for (const item of items.filter(item => item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.image && item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol && item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer && item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.pdfViewer)) {
     expect(item.supportsAssetReference).toBe(false);
   }
+});
+
+test('Report launcher inserts a configured-size object with an editable label and report reference property', () => {
+  const item = listVisualObjectPaletteItems().find(candidate => candidate.objectType === BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher);
+  expect(item).toMatchObject({ labelKey: 'reportLauncher', category: 'content' });
+  expect(item?.propertyKeys).toContain(VISUAL_PROPERTY_KEYS.reportKey);
+  expect(item?.propertyKeys).toContain(VISUAL_PROPERTY_KEYS.text);
+  expect(createObjectAddIntent(BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher)).toMatchObject({
+    objectType: BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher,
+    initialProperties: { width: 190, height: 44 }
+  });
+});
+
+test('Report launcher Runtime link encodes its stable report identity and rejects empty/control values', async () => {
+  const { runtimeReportHref } = await import('../src/visual-runtime/reportLauncherModel');
+  expect(runtimeReportHref('daily totals / area A')).toBe('/runtime/reports?report=daily%20totals%20%2F%20area%20A');
+  expect(runtimeReportHref('   ')).toBeNull();
+  expect(runtimeReportHref('report\nother')).toBeNull();
 });
 
 test('Trend palette entry is first-class content backed by the registered scalar schema', () => {

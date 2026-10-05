@@ -615,6 +615,12 @@ internal sealed class ViewEngineeringHandler
         EngineeringPackage package,
         List<ImportIssue> issues)
     {
+        if (element.Type.Equals(BuiltinVisualObjectSchemas.ReportLauncherType, StringComparison.Ordinal))
+        {
+            ValidateReportLauncherReference(element, kind, entityKey, package, issues);
+            return;
+        }
+
         if (element.Type is BuiltinVisualObjectSchemas.VideoPlayerType or BuiltinVisualObjectSchemas.PdfViewerType)
         {
             issues.AddRange(VisualAssetReferenceEngineeringValidation.Validate(element, kind, entityKey, package, _visualAssets));
@@ -674,6 +680,41 @@ internal sealed class ViewEngineeringHandler
             issues.Add(new ImportIssue(
                 "VISUAL_SVG_ASSET_MEDIA_INVALID",
                 $"SVG symbol '{element.Key}' must reference an image/svg+xml Visual Asset.",
+                kind,
+                entityKey,
+                true));
+        }
+    }
+
+    private static void ValidateReportLauncherReference(
+        VisualElementEngineeringDto element,
+        ImportEntityKind kind,
+        string entityKey,
+        EngineeringPackage package,
+        ICollection<ImportIssue> issues)
+    {
+        var reportKey = element.Properties is not null &&
+            element.Properties.TryGetValue(VisualPropertyKeys.ReportKey, out var value) &&
+            value.ValueKind == JsonValueKind.String
+                ? value.GetString()?.Trim()
+                : null;
+        if (string.IsNullOrWhiteSpace(reportKey) || reportKey.Any(char.IsControl))
+        {
+            issues.Add(new ImportIssue(
+                "VISUAL_REPORT_REFERENCE_REQUIRED",
+                $"Report launcher '{element.Key}' requires a stable Report key.",
+                kind,
+                entityKey,
+                true));
+            return;
+        }
+
+        if (!(package.Reports ?? Array.Empty<Scada.Engineering.Reports.ReportEngineeringDto>())
+            .Any(report => report is not null && string.Equals(report.Key, reportKey, StringComparison.OrdinalIgnoreCase)))
+        {
+            issues.Add(new ImportIssue(
+                "VISUAL_REPORT_REFERENCE_NOT_FOUND",
+                $"Report launcher '{element.Key}' references Report '{reportKey}', which is not in the prospective Engineering package.",
                 kind,
                 entityKey,
                 true));

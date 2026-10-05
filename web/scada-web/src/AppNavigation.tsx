@@ -34,7 +34,8 @@ export function AppNavigation() {
   const path = window.location.pathname;
   const access = resolveAppSurfaceAccess(capabilities);
   const databaseAdmin = hasRuntimeCapability(capabilities, 'SystemAdmin');
-  if (mobile && access.runtime) return null;
+  const mobileRuntimeUtility = path.startsWith('/runtime/history') || path.startsWith('/runtime/reports');
+  if (mobile && access.runtime && !mobileRuntimeUtility) return null;
 
   if ((path.startsWith('/runtime/history') || path.startsWith('/runtime/reports')) && access.runtime && access.history) {
     return (

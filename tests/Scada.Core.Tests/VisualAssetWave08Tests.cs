@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
+using Scada.Core.HistoricalQueries;
 using Scada.Core.Tags;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Commands;
@@ -12,6 +13,7 @@ using Scada.Engineering.DataSources;
 using Scada.Engineering.Gateways;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.ProjectPackages;
+using Scada.Engineering.Reports;
 using Scada.Engineering.Scripts;
 using Scada.Engineering.Security;
 using Scada.Engineering.Views;
@@ -134,6 +136,53 @@ public sealed class VisualAssetWave08Tests
         Assert.True(valid.CanApply);
         Assert.DoesNotContain(valid.Items.SelectMany(x => x.Issues), x => x.Code.StartsWith("VISUAL_ASSET_REFERENCE_", StringComparison.Ordinal));
         Assert.Contains(missing.Items.SelectMany(x => x.Issues), x => x.Code == "VISUAL_ASSET_REFERENCE_NOT_FOUND");
+    }
+
+    [Fact]
+    public void ReportLauncher_RequiresAReportInTheProspectivePackage()
+    {
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var exchange = CreateExchange(alarms, new InMemoryVisualAssetEngineeringRegistry());
+        var report = new ReportEngineeringDto(
+            Guid.NewGuid(),
+            "daily-summary",
+            "Daily summary",
+            Queries:
+            [
+                new ReportQueryEngineeringDto(
+                    "main",
+                    new HistoricalQueryRequest(
+                        HistoricalDatasets.HistorianSamples,
+                        HistoricalTimeRange.Relative(3600)))
+            ],
+            Sections:
+            [
+                new ReportSectionEngineeringDto(null, "detail", ReportSectionKind.Detail, 10, QueryKey: "main")
+            ]);
+        var element = new VisualElementEngineeringDto(
+            "daily-report",
+            "core.reportLauncher",
+            Properties: new Dictionary<string, JsonElement>
+            {
+                ["reportKey"] = JsonSerializer.SerializeToElement("daily-summary")
+            },
+            Id: Guid.NewGuid());
+        var screen = new ScreenEngineeringDto(Guid.NewGuid(), "overview", "Overview", Elements: [element]);
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>(),
+            Screens: [screen],
+            Reports: [report]);
+
+        var valid = exchange.Preview(package, ImportMode.CreateAndUpdate, EngineeringImportContext.Empty);
+        var missing = exchange.Preview(package with { Reports = Array.Empty<ReportEngineeringDto>() }, ImportMode.CreateAndUpdate, EngineeringImportContext.Empty);
+
+        Assert.True(valid.CanApply, string.Join(" | ", valid.Items.SelectMany(x => x.Issues).Select(x => $"{x.Code}: {x.Message}")));
+        Assert.DoesNotContain(valid.Items.SelectMany(x => x.Issues), issue => issue.Code.StartsWith("VISUAL_REPORT_", StringComparison.Ordinal));
+        Assert.Contains(missing.Items.SelectMany(x => x.Issues), issue => issue.Code == "VISUAL_REPORT_REFERENCE_NOT_FOUND" && issue.IsError);
     }
 
     [Fact]

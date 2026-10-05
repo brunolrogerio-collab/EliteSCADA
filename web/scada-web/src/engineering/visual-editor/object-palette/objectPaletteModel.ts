@@ -36,6 +36,7 @@ const PALETTE_ORDER: readonly BuiltinVisualObjectType[] = Object.freeze([
   BUILTIN_VISUAL_OBJECT_TYPES.image,
   BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer,
   BUILTIN_VISUAL_OBJECT_TYPES.pdfViewer,
+  BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher,
   BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol,
   BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay,
   BUILTIN_VISUAL_OBJECT_TYPES.trend,
@@ -61,6 +62,7 @@ const PALETTE_METADATA: Readonly<Record<BuiltinVisualObjectType, Readonly<{
   [BUILTIN_VISUAL_OBJECT_TYPES.image]: { labelKey: 'image', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer]: { labelKey: 'videoPlayer', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.pdfViewer]: { labelKey: 'pdfViewer', category: 'content' },
+  [BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher]: { labelKey: 'reportLauncher', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol]: { labelKey: 'svgSymbol', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay]: { labelKey: 'valueDisplay', category: 'content' },
   [BUILTIN_VISUAL_OBJECT_TYPES.trend]: { labelKey: 'trend', category: 'content' },
@@ -104,6 +106,11 @@ export function createObjectAddIntent(
     ? Object.freeze({
         [VISUAL_PROPERTY_KEYS.width]: 720,
         [VISUAL_PROPERTY_KEYS.height]: 320
+      })
+    : objectType === BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher
+    ? Object.freeze({
+        [VISUAL_PROPERTY_KEYS.width]: 190,
+        [VISUAL_PROPERTY_KEYS.height]: 44
       })
     : undefined;
 

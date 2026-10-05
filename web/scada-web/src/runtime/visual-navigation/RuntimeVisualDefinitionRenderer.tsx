@@ -8,6 +8,7 @@ import React, {
   type PointerEvent
 } from 'react';
 import { createPortal } from 'react-dom';
+import { useRuntimeActionFeedback } from './RuntimeActionFeedback';
 import type { ScriptEngineeringContext } from '../../engineering/scripts/scriptEngineeringTypes';
 import { c07VisualEditorText } from '../../engineering/visual-editor/c07VisualEditorI18n';
 import {
@@ -259,7 +260,17 @@ function RuntimeDynamoStateLayer({
   hosts: ReadonlyMap<string, HTMLElement>;
   feedbackMismatchLabel: string;
 }) {
+  const actionFeedback = useRuntimeActionFeedback();
   return <>
+    {[...actionFeedback].map(([objectId, feedback]) => {
+      let host = hosts.get(objectId);
+      if (!host) for (const candidate of hosts.values()) {
+        if ([...candidate.querySelectorAll<HTMLElement>('[data-object-id]')].some(child => child.dataset.objectId === objectId)) { host = candidate; break; }
+      }
+      if (!host) return null;
+      return createPortal(<span key={objectId} role="status" data-dynamo-command-state={feedback.state}
+        style={{ position: 'absolute', bottom: 2, left: 2, zIndex: 1000, pointerEvents: 'none', borderRadius: 3, padding: '2px 4px', fontSize: 10, color: '#fff', background: feedback.state === 'failed' ? '#9a2525' : feedback.state === 'confirmed' ? '#235539' : '#354c67' }}>{feedback.label}</span>, host);
+    })}
     {indicators.map(indicator => {
       const host = hosts.get(indicator.objectId);
       if (!host) return null;

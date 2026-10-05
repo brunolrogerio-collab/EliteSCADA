@@ -81,6 +81,7 @@ public sealed class BuiltinDynamoLibraryTests
             parameter.ValueSourceType == VisualExpressionValueType.Number);
         Assert.Contains(contact.Parameters!, parameter => parameter.Key == "openColor");
         Assert.Contains(contact.Parameters!, parameter => parameter.Key == "closedColor");
+        Assert.Contains(contact.Parameters!, parameter => parameter.Key == "invertState" && parameter.Kind == DynamoParameterKind.Boolean);
 
         var tagId = Guid.NewGuid();
         var instance = new VisualElementEngineeringDto("contacts", "dynamo", DynamoKey: contact.Key, Id: Guid.NewGuid(),
@@ -99,6 +100,22 @@ public sealed class BuiltinDynamoLibraryTests
             Assert.Null(rotation.Source.Target);
         });
 
+        var inverted = DynamoRuntimeComposer.Compose(instance with
+        {
+            DynamoParameters =
+            [
+                new("state", DynamoParameterKind.TagReference, TagReference: new(tagId)),
+                new("invertState", DynamoParameterKind.Boolean, System.Text.Json.JsonSerializer.SerializeToElement(true))
+            ]
+        }, contact);
+        Assert.All(inverted.Elements.Where(element => element.Key.EndsWith("-moving", StringComparison.Ordinal)), blade =>
+        {
+            var stateMap = Assert.Single(blade.PropertyMaps!, map => map.PropertyKey == "fillColor");
+            Assert.Equal(VisualValueSourceKind.Expression, stateMap.Source.Kind);
+            Assert.Equal("1 - source", stateMap.Source.Expression!.Text);
+            Assert.Equal(tagId, Assert.Single(stateMap.Source.Expression.Dependencies!).TagReference.TagId);
+        });
+
         var fixedInstance = instance with
         {
             DynamoParameters =
@@ -113,6 +130,49 @@ public sealed class BuiltinDynamoLibraryTests
             blade => Assert.Equal(0, blade.Properties!["rotation"].GetDouble()));
         Assert.All(fixedProjection.Elements.Where(element => element.Key.EndsWith("-moving", StringComparison.Ordinal)),
             blade => Assert.Null(blade.PropertyMaps));
+    }
+
+    [Fact]
+    public void ReplacementThreePoleContact_CanBindEachBladeToAnIndependentBooleanSignal()
+    {
+        var contact = BuiltinDynamoCatalogV1.Create().Single(definition => definition.Key == "electrical.contact-tri-horizontal");
+        Assert.Contains(contact.Parameters!, parameter => parameter.Key == "useIndependentPoleSignals" && parameter.Kind == DynamoParameterKind.Boolean);
+        Assert.Contains(contact.Parameters!, parameter => parameter.Key == "pole1ClosedSignal" &&
+            parameter.Kind == DynamoParameterKind.ValueSource && parameter.ValueSourceType == VisualExpressionValueType.Boolean);
+
+        var signalIds = Enumerable.Range(0, 3).Select(_ => Guid.NewGuid()).ToArray();
+        var parameters = new List<DynamoParameterValueEngineeringDto>
+        {
+            new("state", DynamoParameterKind.ValueSource, ValueSource: new VisualValueSourceEngineeringDto(
+                VisualValueSourceKind.Tag, VisualExpressionValueType.Number, TagReference: new(Guid.NewGuid()))),
+            new("useIndependentPoleSignals", DynamoParameterKind.Boolean, System.Text.Json.JsonSerializer.SerializeToElement(true)),
+            new("invertState", DynamoParameterKind.Boolean, System.Text.Json.JsonSerializer.SerializeToElement(true))
+        };
+        for (var pole = 0; pole < signalIds.Length; pole++)
+            parameters.Add(new DynamoParameterValueEngineeringDto(
+                $"pole{pole + 1}ClosedSignal",
+                DynamoParameterKind.ValueSource,
+                ValueSource: new VisualValueSourceEngineeringDto(
+                    VisualValueSourceKind.Tag,
+                    VisualExpressionValueType.Boolean,
+                    TagReference: new(signalIds[pole]))));
+
+        var composed = DynamoRuntimeComposer.Compose(new VisualElementEngineeringDto(
+            "contacts", "dynamo", DynamoKey: contact.Key, Id: Guid.NewGuid(), DynamoParameters: parameters), contact);
+        var blades = composed.Elements.Where(element => element.Key.EndsWith("-moving", StringComparison.Ordinal)).ToArray();
+
+        Assert.Equal(3, blades.Length);
+        for (var pole = 0; pole < blades.Length; pole++)
+        {
+            var colorSource = Assert.Single(blades[pole].PropertyMaps!, map => map.PropertyKey == "fillColor").Source;
+            var rotationSource = Assert.Single(blades[pole].PropertyMaps!, map => map.PropertyKey == "rotation").Source;
+            Assert.Equal(VisualValueSourceKind.Expression, colorSource.Kind);
+            Assert.Equal("number(not source)", colorSource.Expression!.Text);
+            Assert.Equal(signalIds[pole], Assert.Single(colorSource.Expression.Dependencies!).TagReference.TagId);
+            Assert.Equal(colorSource.Kind, rotationSource.Kind);
+            Assert.Equal(colorSource.Expression.Text, rotationSource.Expression!.Text);
+            Assert.Equal(signalIds[pole], Assert.Single(rotationSource.Expression.Dependencies!).TagReference.TagId);
+        }
     }
 
     [Fact]
@@ -176,6 +236,41 @@ public sealed class BuiltinDynamoLibraryTests
         Assert.Equal(tagId, stateMap.Source.TagReference!.TagId);
         Assert.Equal(VisualExpressionValueType.Number, stateMap.Source.ValueType);
         Assert.Equal(DynamoParameterKind.ValueSource, projected.Parameters["state"].Kind);
+    }
+
+    [Fact]
+    public void ReplacementSignalLamp_CanDisableAnyAnimatedStateAndUsesOffColorForThatStage()
+    {
+        var lamp = BuiltinDynamoCatalogV1.Create().Single(definition => definition.Key == "indicator.lamp.round");
+        var tagId = Guid.NewGuid();
+        var instance = new VisualElementEngineeringDto("lamp-subset", "dynamo", DynamoKey: lamp.Key,
+            Id: Guid.NewGuid(), DynamoParameters:
+            [
+                new("state", DynamoParameterKind.TagReference, TagReference: new(tagId)),
+                new("offColor", DynamoParameterKind.String, System.Text.Json.JsonSerializer.SerializeToElement("#333333")),
+                new("enableFault", DynamoParameterKind.Boolean, System.Text.Json.JsonSerializer.SerializeToElement(false))
+            ]);
+
+        var animated = DynamoRuntimeComposer.Compose(instance, lamp);
+        var animatedMap = Assert.Single(animated.Elements.SelectMany(element => element.PropertyMaps ?? []));
+
+        Assert.Equal("#333333", animatedMap.Rules.ElementAt(2).Value.GetString());
+        Assert.Equal("#16A34A", animatedMap.Rules.ElementAt(1).Value.GetString());
+        Assert.Contains(lamp.Parameters!, parameter => parameter.Key == "enableCommunicationBad" &&
+            parameter.Kind == DynamoParameterKind.Boolean && parameter.DefaultValue?.GetBoolean() == true);
+
+        var fixedInstance = instance with
+        {
+            DynamoParameters =
+            [
+                new("animationEnabled", DynamoParameterKind.Boolean, System.Text.Json.JsonSerializer.SerializeToElement(false)),
+                new("fixedState", DynamoParameterKind.Number, System.Text.Json.JsonSerializer.SerializeToElement(2)),
+                new("offColor", DynamoParameterKind.String, System.Text.Json.JsonSerializer.SerializeToElement("#333333")),
+                new("enableFault", DynamoParameterKind.Boolean, System.Text.Json.JsonSerializer.SerializeToElement(false))
+            ]
+        };
+        var fixedArtwork = DynamoRuntimeComposer.Compose(fixedInstance, lamp).Elements.Single(element => element.Type == "core.svgSymbol");
+        Assert.Equal("#333333", fixedArtwork.Properties!["svgPaintOverrides"].GetProperty("slots").GetProperty("state").GetProperty("fill").GetString());
     }
 
     [Fact]
@@ -298,6 +393,68 @@ public sealed class BuiltinDynamoLibraryTests
         });
     }
 
+    [Theory]
+    [InlineData("motor.tefc", "runningSignal")]
+    [InlineData("valve.gate", "openSignal")]
+    public void ReplacementEquipment_ComposesIndependentBooleanSignalsWithDeterministicPriority(
+        string definitionKey,
+        string activeSignalKey)
+    {
+        var definition = BuiltinDynamoCatalogV1.Create().Single(item => item.Key == definitionKey);
+        var signalIds = Enumerable.Range(0, 16).Select(_ => Guid.NewGuid()).ToArray();
+        var profile = new[] { activeSignalKey, "faultSignal", "communicationBadSignal", "inhibitedSignal" };
+        var parameters = new List<DynamoParameterValueEngineeringDto>
+        {
+            new("useDiscreteSignals", DynamoParameterKind.Boolean,
+                System.Text.Json.JsonSerializer.SerializeToElement(true)),
+            new("command", DynamoParameterKind.Command, CommandId: Guid.NewGuid())
+        };
+        for (var index = 0; index < profile.Length; index++)
+        {
+            var source = index == 1
+                ? new VisualValueSourceEngineeringDto(
+                    VisualValueSourceKind.Expression,
+                    VisualExpressionValueType.Boolean,
+                    Expression: new VisualExpressionEngineeringDto(
+                        "trip or overload",
+                        VisualExpressionValueType.Boolean,
+                        [
+                            new("trip", VisualExpressionDependencyKind.Tag, VisualExpressionValueType.Boolean, new(signalIds[index])),
+                            new("overload", VisualExpressionDependencyKind.ClientMemory, VisualExpressionValueType.Boolean, new(signalIds[index + 10]))
+                        ]))
+                : new VisualValueSourceEngineeringDto(
+                    VisualValueSourceKind.Tag,
+                    VisualExpressionValueType.Boolean,
+                    TagReference: new(signalIds[index]));
+            parameters.Add(new(profile[index], DynamoParameterKind.ValueSource, ValueSource: source));
+        }
+
+        var instance = new VisualElementEngineeringDto("multi-state-equipment", "dynamo", DynamoKey: definition.Key,
+            Id: Guid.NewGuid(), DynamoParameters: parameters);
+        var projected = DynamoRuntimeComposer.Compose(instance, definition);
+        var stateMap = Assert.Single(projected.Elements.SelectMany(element => element.PropertyMaps ?? []),
+            map => map.PropertyKey == "svg.slot.state.fill");
+
+        Assert.Equal(VisualExpressionValueType.Number, stateMap.Source.ValueType);
+        Assert.Equal(VisualValueSourceKind.Expression, stateMap.Source.Kind);
+        var stateExpression = stateMap.Source.Expression!;
+        Assert.Contains("number(dynamo_faultSignal_dep0 or dynamo_faultSignal_dep1) * 2", stateExpression.Text);
+        Assert.Contains("number((dynamo_communicationBadSignal and not (dynamo_faultSignal_dep0 or dynamo_faultSignal_dep1))) * 3", stateExpression.Text);
+        Assert.Contains("number((dynamo_inhibitedSignal and not (dynamo_faultSignal_dep0 or dynamo_faultSignal_dep1 or dynamo_communicationBadSignal))) * 4", stateExpression.Text);
+        Assert.Equal(5, stateExpression.Dependencies!.Count);
+        Assert.Contains(stateExpression.Dependencies, dependency => dependency.Kind == VisualExpressionDependencyKind.ClientMemory);
+
+        var labelConditions = projected.Elements
+            .Where(element => element.Metadata?.ContainsKey("dynamoStateLabelIndex") == true)
+            .SelectMany(element => element.BooleanConditions ?? []).ToArray();
+        Assert.Equal(5, labelConditions.Length);
+        Assert.All(labelConditions, condition =>
+        {
+            Assert.Equal(VisualExpressionValueType.Number, condition.Source.ValueType);
+            Assert.Equal(stateExpression.Text, condition.Source.Expression!.Text);
+        });
+    }
+
     [Fact]
     public void ReplacementLamps_ExposeStableBezelColorAndOptionalThreeDimensionalDepth()
     {
@@ -413,6 +570,56 @@ public sealed class BuiltinDynamoLibraryTests
 
         Assert.Null(body.PropertyMaps);
         Assert.Equal("#DC2626", body.Properties!["svgPaintOverrides"].GetProperty("slots").GetProperty("state").GetProperty("fill").GetString());
+    }
+
+    [Theory]
+    [InlineData("motor.tefc", "enableFault", 2)]
+    [InlineData("valve.gate", "enableOpen", 1)]
+    public void ReplacementEquipment_CanDisableAnimatedAndFixedStateStages(
+        string definitionKey,
+        string disabledStageParameter,
+        int disabledStageIndex)
+    {
+        var definition = BuiltinDynamoCatalogV1.Create().Single(item => item.Key == definitionKey);
+        var tagId = Guid.NewGuid();
+        var instance = new VisualElementEngineeringDto("equipment-subset", "dynamo", DynamoKey: definition.Key,
+            Id: Guid.NewGuid(), DynamoParameters:
+            [
+                new("state", DynamoParameterKind.TagReference, TagReference: new(tagId)),
+                new("offColor", DynamoParameterKind.String, System.Text.Json.JsonSerializer.SerializeToElement("#333333")),
+                new(disabledStageParameter, DynamoParameterKind.Boolean, System.Text.Json.JsonSerializer.SerializeToElement(false)),
+                new("command", DynamoParameterKind.Command, CommandId: Guid.NewGuid())
+            ]);
+
+        var animated = DynamoRuntimeComposer.Compose(instance, definition);
+        var animatedMap = Assert.Single(animated.Elements.SelectMany(element => element.PropertyMaps ?? []),
+            map => map.PropertyKey == "svg.slot.state.fill");
+        Assert.Equal("#333333", animatedMap.Rules.ElementAt(disabledStageIndex).Value.GetString());
+        Assert.Equal(tagId, animatedMap.Source.TagReference!.TagId);
+        var disabledAnimatedLabel = Assert.Single(animated.Elements,
+            element => element.Metadata?.GetValueOrDefault("dynamoStateLabelIndex") == disabledStageIndex.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Null(disabledAnimatedLabel.BooleanConditions);
+        Assert.False(disabledAnimatedLabel.Properties!["visible"].GetBoolean());
+
+        var fixedInstance = instance with
+        {
+            DynamoParameters =
+            [
+                new("animationEnabled", DynamoParameterKind.Boolean, System.Text.Json.JsonSerializer.SerializeToElement(false)),
+                new("fixedState", DynamoParameterKind.Number, System.Text.Json.JsonSerializer.SerializeToElement(disabledStageIndex)),
+                new("offColor", DynamoParameterKind.String, System.Text.Json.JsonSerializer.SerializeToElement("#333333")),
+                new(disabledStageParameter, DynamoParameterKind.Boolean, System.Text.Json.JsonSerializer.SerializeToElement(false)),
+                new("command", DynamoParameterKind.Command, CommandId: Guid.NewGuid())
+            ]
+        };
+        var fixedArtwork = DynamoRuntimeComposer.Compose(fixedInstance, definition)
+            .Elements.Single(element => element.Key == "artwork");
+        Assert.Equal("#333333", fixedArtwork.Properties!["svgPaintOverrides"].GetProperty("slots")
+            .GetProperty("state").GetProperty("fill").GetString());
+        var disabledFixedLabel = Assert.Single(DynamoRuntimeComposer.Compose(fixedInstance, definition).Elements,
+            element => element.Metadata?.GetValueOrDefault("dynamoStateLabelIndex") == disabledStageIndex.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Null(disabledFixedLabel.BooleanConditions);
+        Assert.False(disabledFixedLabel.Properties!["visible"].GetBoolean());
     }
 
     [Fact]

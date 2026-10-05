@@ -178,6 +178,10 @@ public static class BuiltinDynamoCatalogV1
             new("faultColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#EAB308")),
             new("communicationBadColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#DC2626")),
             new("inhibitedColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement("#1687C9")),
+            new("enableRunning", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(true)),
+            new("enableFault", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(true)),
+            new("enableCommunicationBad", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(true)),
+            new("enableInhibited", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(true)),
             new("bezelColor", DynamoParameterKind.String, DefaultValue: JsonSerializer.SerializeToElement(Outline)),
             new("bezel3d", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(false)),
             new("animationEnabled", DynamoParameterKind.Boolean, DefaultValue: JsonSerializer.SerializeToElement(true)),
@@ -195,7 +199,8 @@ public static class BuiltinDynamoCatalogV1
             var stateMapped = WithStateMap(mapped, "{equipmentPath}.State", ["#46535C", "#16A34A", "#EAB308", "#DC2626", "#1687C9"], "state", "off,running,fault,communicationBad,inhibited");
             var stateMetadata = new Dictionary<string, string>(stateMapped.Metadata ?? new Dictionary<string, string>(), StringComparer.Ordinal)
             {
-                ["dynamoBooleanStateInvertParameter"] = "invertBoolean"
+                ["dynamoBooleanStateInvertParameter"] = "invertBoolean",
+                ["dynamoStateEnableParameterProfile"] = "always,enableRunning,enableFault,enableCommunicationBad,enableInhibited"
             };
             x[x.IndexOf(mapped)] = stateMapped with { Metadata = stateMetadata };
         }
@@ -277,9 +282,23 @@ public static class BuiltinDynamoCatalogV1
         {
             var target = x.FirstOrDefault(e => e.Key == "state-body");
             if (target is not null)
-                x[x.IndexOf(target)] = WithStateMap(target, "{equipmentPath}.State",
+            {
+                var stateMapped = WithStateMap(target, "{equipmentPath}.State",
                     ["#93B99A", "#16A34A", "#DC2626", "#EAB308", "#76838B"], "state",
                     family == "valve" ? "closed,open,fault,communicationBad,inhibited" : "stopped,running,fault,communicationBad,inhibited");
+                var stateMetadata = new Dictionary<string, string>(stateMapped.Metadata ?? new Dictionary<string, string>(), StringComparer.Ordinal)
+                {
+                    ["dynamoStateColorParameter"] = "state",
+                    ["dynamoDiscreteStateModeParameter"] = "useDiscreteSignals",
+                    ["dynamoDiscreteStateSignalProfile"] = family == "valve"
+                        ? "openSignal,faultSignal,communicationBadSignal,inhibitedSignal"
+                        : "runningSignal,faultSignal,communicationBadSignal,inhibitedSignal",
+                    ["dynamoStateEnableParameterProfile"] = family == "valve"
+                        ? "always,enableOpen,enableFault,enableCommunicationBad,enableInhibited"
+                        : "always,enableRunning,enableFault,enableCommunicationBad,enableInhibited"
+                };
+                x[x.IndexOf(target)] = stateMapped with { Metadata = stateMetadata };
+            }
             x.AddRange(CreateStateLabels(family));
         }
         var parameters = new List<DynamoParameterDefinitionEngineeringDto>
@@ -303,6 +322,32 @@ public static class BuiltinDynamoCatalogV1
         };
         if (family is "motor" or "valve")
         {
+            parameters.Add(new DynamoParameterDefinitionEngineeringDto(
+                "offColor",
+                DynamoParameterKind.String,
+                DefaultValue: JsonSerializer.SerializeToElement("#93B99A")));
+            var activeState = family == "valve" ? "Open" : "Running";
+            parameters.Add(new DynamoParameterDefinitionEngineeringDto(
+                "useDiscreteSignals",
+                DynamoParameterKind.Boolean,
+                DefaultValue: JsonSerializer.SerializeToElement(false)));
+            foreach (var signalKey in new[]
+                     {
+                         family == "valve" ? "openSignal" : "runningSignal",
+                         "faultSignal",
+                         "communicationBadSignal",
+                         "inhibitedSignal"
+                     })
+                parameters.Add(new DynamoParameterDefinitionEngineeringDto(
+                    signalKey,
+                    DynamoParameterKind.ValueSource,
+                    ValueSourceType: VisualExpressionValueType.Boolean));
+            foreach (var stateName in new[] { activeState, "Fault", "CommunicationBad", "Inhibited" })
+                parameters.Add(new DynamoParameterDefinitionEngineeringDto(
+                    $"enable{stateName}",
+                    DynamoParameterKind.Boolean,
+                    DefaultValue: JsonSerializer.SerializeToElement(true)));
+
             var bodyIndex = x.FindIndex(element => element.Key == "state-body");
             if (bodyIndex >= 0)
                 x[bodyIndex] = x[bodyIndex] with
@@ -311,6 +356,9 @@ public static class BuiltinDynamoCatalogV1
                 };
             metadata["stateSource"] = "numeric-value-source-enum";
             metadata["statePriority"] = "one-exclusive-state-per-enum-value; invalid-or-missing-sample-uses-base-state";
+            metadata["dynamoStateEnableParameterProfile"] = family == "valve"
+                ? "always,enableOpen,enableFault,enableCommunicationBad,enableInhibited"
+                : "always,enableRunning,enableFault,enableCommunicationBad,enableInhibited";
         }
         else
         {
@@ -335,12 +383,29 @@ public static class BuiltinDynamoCatalogV1
                     : new Dictionary<string, string>(existing.Metadata, StringComparer.Ordinal);
                 elementMetadata["dynamoFixedStateProperty"] = "rotation";
                 elementMetadata["dynamoFixedStatePropertyValues"] = FormattableString.Invariant($"{rotation:0.###},0");
+                elementMetadata["dynamoNumericStateInvertParameter"] = "invertState";
+                elementMetadata["dynamoContactDiscreteStateModeParameter"] = "useIndependentPoleSignals";
+                elementMetadata["dynamoContactPoleSignalParameter"] = $"pole{ContactPoleIndex(element.Key) + 1}ClosedSignal";
                 x[geometryIndex] = existing with { PropertyMaps = properties, Metadata = elementMetadata };
             }
             metadata["stateProfile"] = "0=open;1=closed";
             metadata["stateSource"] = "numeric-value-source-enum";
-            metadata["statePriority"] = "0=open;1=closed;invalid-or-bad-quality-preserves-open-artwork";
+            metadata["statePriority"] = "0=open;1=closed;invertState-swaps-binary-input;invalid-or-bad-quality-preserves-open-artwork";
             metadata["animationContract"] = "canonical numeric PropertyMaps for contact color and blade rotation";
+            parameters.Add(new DynamoParameterDefinitionEngineeringDto(
+                "invertState",
+                DynamoParameterKind.Boolean,
+                DefaultValue: JsonSerializer.SerializeToElement(false)));
+            var poleCount = x.Count(element => element.Key.EndsWith("-moving", StringComparison.Ordinal));
+            parameters.Add(new DynamoParameterDefinitionEngineeringDto(
+                "useIndependentPoleSignals",
+                DynamoParameterKind.Boolean,
+                DefaultValue: JsonSerializer.SerializeToElement(false)));
+            for (var pole = 1; pole <= poleCount; pole++)
+                parameters.Add(new DynamoParameterDefinitionEngineeringDto(
+                    $"pole{pole}ClosedSignal",
+                    DynamoParameterKind.ValueSource,
+                    ValueSourceType: VisualExpressionValueType.Boolean));
         }
         return Definition(key, name, category, 132, 100, x, parameters, metadata);
     }
@@ -363,7 +428,15 @@ public static class BuiltinDynamoCatalogV1
             {
                 ["dynamoStateLabelIndex"] = state.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["dynamoFixedStateParameter"] = "fixedState",
-                ["dynamoAnimationEnabledParameter"] = "animationEnabled"
+                ["dynamoAnimationEnabledParameter"] = "animationEnabled",
+                ["dynamoStateColorParameter"] = "state",
+                ["dynamoDiscreteStateModeParameter"] = "useDiscreteSignals",
+                ["dynamoStateEnableParameterProfile"] = family == "valve"
+                    ? "always,enableOpen,enableFault,enableCommunicationBad,enableInhibited"
+                    : "always,enableRunning,enableFault,enableCommunicationBad,enableInhibited",
+                ["dynamoDiscreteStateSignalProfile"] = family == "valve"
+                    ? "openSignal,faultSignal,communicationBadSignal,inhibitedSignal"
+                    : "runningSignal,faultSignal,communicationBadSignal,inhibitedSignal"
             };
             yield return text with
             {
@@ -549,4 +622,11 @@ public static class BuiltinDynamoCatalogV1
     private static string MotorName(string value) => value switch { "tefc" => "fechado", "vfd-package" => "com inversor", "foot-mounted" => "com pés", "large-frame" => "carcaça grande", _ => value };
     private static string ValveName(string value) => value switch { "ball" => "esfera", "gate" => "gaveta", "globe" => "globo", "butterfly" => "borboleta", "diaphragm" => "diafragma", _ => "de controle" };
     private static string ContactName(string value) => value.Replace("contact-", "").Replace("isolator-", "seccionadora ").Replace("mono", "monofilar").Replace("tri", "trifilar").Replace("horizontal", "horizontal").Replace("vertical", "vertical");
+
+    private static int ContactPoleIndex(string key)
+    {
+        var parts = key.Split('-', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2 && int.TryParse(parts[1], System.Globalization.NumberStyles.None,
+            System.Globalization.CultureInfo.InvariantCulture, out var index) ? index : 0;
+    }
 }

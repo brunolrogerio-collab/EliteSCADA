@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { DynamoEngineering, VisualElementEngineering } from '../src/engineering/types';
+import { compileVisualExpression, evaluateVisualExpression } from '../src/expressions/visualExpressionCore';
 import { composeDynamoRuntime, type DynamoParameterValueEngineering } from '../src/runtime/visual-navigation/runtimeVisualNavigationModel';
 import {
   projectDynamoRuntimeElements,
@@ -114,6 +115,82 @@ test('typed Dynamo value-source parameters project TAG expressions into canonica
     .toEqual([firstTagId, secondTagId]);
 });
 
+test('electrical contact inversion swaps the binary open/closed state without changing its TAG identity', () => {
+  const tagId = '44444444-4444-4444-8444-444444444444';
+  const element: VisualElementEngineering = {
+    key: 'contact-blade',
+    type: 'core.rectangle',
+    metadata: {
+      dynamoStateColorParameter: 'state',
+      dynamoNumericStateInvertParameter: 'invertState'
+    },
+    propertyMaps: [{
+      propertyKey: 'fillColor',
+      source: { kind: 'Tag', valueType: 'Number', target: '{dynamoParameter:state}' },
+      rules: [{ value: '#526879', minimum: 0, maximum: 1 }, { value: '#16A34A', minimum: 1, maximum: 2 }]
+    }]
+  };
+  const projected = projectDynamoRuntimeElements([element], parameters(
+    { key: 'state', kind: 'TagReference', tagReference: { tagId } },
+    { key: 'invertState', kind: 'Boolean', value: true }
+  ), null);
+  const source = projected[0].propertyMaps?.[0].source;
+
+  expect(source?.kind).toBe('Expression');
+  expect(source?.expression?.text).toBe('1 - source');
+  expect(source?.expression?.dependencies?.[0].tagReference.tagId).toBe(tagId);
+});
+
+test('three-pole electrical contacts bind independent Boolean closure signals in runtime projection', () => {
+  const tagIds = [
+    '11111111-1111-4111-8111-111111111111',
+    '22222222-2222-4222-8222-222222222222',
+    '33333333-3333-4333-8333-333333333333'
+  ];
+  const elements: VisualElementEngineering[] = tagIds.map((tagId, index) => ({
+    key: `contact-${index}-moving`,
+    type: 'core.rectangle',
+    metadata: {
+      dynamoStateColorParameter: 'state',
+      dynamoNumericStateInvertParameter: 'invertState',
+      dynamoContactDiscreteStateModeParameter: 'useIndependentPoleSignals',
+      dynamoContactPoleSignalParameter: `pole${index + 1}ClosedSignal`
+    },
+    propertyMaps: [
+      {
+        propertyKey: 'fillColor',
+        source: { kind: 'Tag', valueType: 'Number', target: '{dynamoParameter:state}' },
+        rules: [{ value: '#526879', minimum: 0, maximum: 1 }, { value: '#16A34A', minimum: 1, maximum: 2 }]
+      },
+      {
+        propertyKey: 'rotation',
+        source: { kind: 'Tag', valueType: 'Number', target: '{dynamoParameter:state}' },
+        rules: [{ value: 16, minimum: 0, maximum: 1 }, { value: 0, minimum: 1, maximum: 2 }]
+      }
+    ]
+  }));
+  const projected = projectDynamoRuntimeElements(elements, parameters(
+    { key: 'state', kind: 'ValueSource', valueSource: { kind: 'Tag', valueType: 'Number', tagReference: { tagId: tagIds[0] } } },
+    { key: 'useIndependentPoleSignals', kind: 'Boolean', value: true },
+    { key: 'invertState', kind: 'Boolean', value: true },
+    ...tagIds.map((tagId, index) => ({
+      key: `pole${index + 1}ClosedSignal`, kind: 'ValueSource' as const,
+      valueSource: { kind: 'Tag' as const, valueType: 'Boolean' as const, tagReference: { tagId } }
+    }))
+  ), null);
+
+  expect(projected).toHaveLength(3);
+  for (const [index, element] of projected.entries()) {
+    const colorSource = element.propertyMaps?.find(map => map.propertyKey === 'fillColor')?.source;
+    const rotationSource = element.propertyMaps?.find(map => map.propertyKey === 'rotation')?.source;
+    expect(colorSource).toMatchObject({
+      kind: 'Expression', valueType: 'Number',
+      expression: { text: 'number(not source)', dependencies: [{ tagReference: { tagId: tagIds[index] } }] }
+    });
+    expect(rotationSource).toEqual(colorSource);
+  }
+});
+
 test('Dynamo composition applies typed value-source defaults and rejects a mismatched result type', () => {
   const source = {
     kind: 'Expression' as const,
@@ -169,6 +246,134 @@ test('numeric state paint converts boolean TAG and expression sources with optio
     kind: 'Expression', valueType: 'Number',
     expression: { text: 'number(not source)', resultType: 'Number', dependencies: [{ symbol: 'source', kind: 'Tag', tagReference: { tagId } }] }
   });
+});
+
+test('motor and valve runtime paint composes discrete state signals with fault-first priority', () => {
+  const element: VisualElementEngineering = {
+    key: 'equipment-state', type: 'core.svgSymbol',
+    metadata: {
+      dynamoStateColorParameter: 'state',
+      dynamoDiscreteStateModeParameter: 'useDiscreteSignals',
+      dynamoDiscreteStateSignalProfile: 'runningSignal,faultSignal,communicationBadSignal,inhibitedSignal'
+    },
+    propertyMaps: [{
+      propertyKey: 'svg.slot.state.fill',
+      source: { kind: 'Tag', valueType: 'Number', target: '{dynamoParameter:state}' },
+      rules: []
+    }],
+    booleanConditions: [{
+      propertyKey: 'visible', kind: 'NumericInterval',
+      source: { kind: 'Tag', valueType: 'Number', target: '{dynamoParameter:state}' },
+      minimum: 2, maximum: 3
+    }]
+  };
+  const source = (tagId: string) => ({
+    kind: 'Tag' as const,
+    valueType: 'Boolean' as const,
+    tagReference: { tagId }
+  });
+  const projected = projectDynamoRuntimeElements([element], parameters(
+    { key: 'useDiscreteSignals', kind: 'Boolean', value: true },
+    { key: 'runningSignal', kind: 'ValueSource', valueSource: source('11111111-1111-4111-8111-111111111111') },
+    { key: 'faultSignal', kind: 'ValueSource', valueSource: {
+      kind: 'Expression', valueType: 'Boolean', expression: {
+        text: 'trip or overload', resultType: 'Boolean', dependencies: [
+          { symbol: 'trip', kind: 'Tag', valueType: 'Boolean', tagReference: { tagId: '22222222-2222-4222-8222-222222222222' } },
+          { symbol: 'overload', kind: 'ClientMemory', valueType: 'Boolean', tagReference: { tagId: '33333333-3333-4333-8333-333333333333' } }
+        ]
+      }
+    } },
+    { key: 'communicationBadSignal', kind: 'ValueSource', valueSource: source('44444444-4444-4444-8444-444444444444') },
+    { key: 'inhibitedSignal', kind: 'ValueSource', valueSource: source('55555555-5555-4555-8555-555555555555') }
+  ), null);
+
+  const projectedMap = projected[0]?.propertyMaps?.[0];
+  const expression = projectedMap?.source.expression;
+  expect(projectedMap?.source.valueType).toBe('Number');
+  expect(expression?.text).toContain('number(dynamo_faultSignal_dep0 or dynamo_faultSignal_dep1) * 2');
+  expect(expression?.text).toContain('number((dynamo_communicationBadSignal and not (dynamo_faultSignal_dep0 or dynamo_faultSignal_dep1))) * 3');
+  expect(expression?.text).toContain('number((dynamo_inhibitedSignal and not (dynamo_faultSignal_dep0 or dynamo_faultSignal_dep1 or dynamo_communicationBadSignal))) * 4');
+  expect(expression?.dependencies).toHaveLength(5);
+  expect(expression?.dependencies?.some(dependency => dependency.kind === 'ClientMemory')).toBe(true);
+  expect(projected[0]?.booleanConditions?.[0]?.source.expression?.text).toBe(expression?.text);
+
+  const compiled = compileVisualExpression(expression!.text, 'number', expression!.dependencies!.map(dependency => ({
+    symbol: dependency.symbol,
+    kind: dependency.kind === 'ClientMemory' ? 'clientMemory' as const : 'tag' as const,
+    valueType: 'boolean' as const,
+    tagReference: dependency.tagReference
+  })));
+  expect(compiled.ok).toBe(true);
+  if (!compiled.ok) return;
+  const evaluate = (signals: Readonly<Record<string, boolean>>) => evaluateVisualExpression(
+    compiled.expression,
+    dependency => ({ value: signals[dependency.symbol], dataType: 'Boolean', quality: 'Good' })
+  );
+  expect(evaluate({
+    dynamo_runningSignal: true,
+    dynamo_faultSignal_dep0: true,
+    dynamo_faultSignal_dep1: false,
+    dynamo_communicationBadSignal: true,
+    dynamo_inhibitedSignal: true
+  })).toMatchObject({ ok: true, value: 2 });
+  expect(evaluate({
+    dynamo_runningSignal: true,
+    dynamo_faultSignal_dep0: false,
+    dynamo_faultSignal_dep1: false,
+    dynamo_communicationBadSignal: true,
+    dynamo_inhibitedSignal: true
+  })).toMatchObject({ ok: true, value: 3 });
+});
+
+test('state enable parameters collapse omitted lamp stages to the configured off color', () => {
+  const element: VisualElementEngineering = {
+    key: 'signal-lamp', type: 'core.svgSymbol',
+    metadata: {
+      dynamoStateColorProfile: 'off,running,fault',
+      dynamoStateEnableParameterProfile: 'always,enableRunning,enableFault'
+    },
+    propertyMaps: [{
+      propertyKey: 'svg.slot.state.fill',
+      source: { kind: 'Tag', valueType: 'Number', target: '{dynamoParameter:state}' },
+      rules: [
+        { value: '#111111', minimum: 0, maximum: 1 },
+        { value: '#22aa22', minimum: 1, maximum: 2 },
+        { value: '#ff0000', minimum: 2, maximum: 3 }
+      ]
+    }]
+  };
+  const projected = projectDynamoRuntimeElements([element], parameters(
+    { key: 'offColor', kind: 'String', value: '#333333' },
+    { key: 'runningColor', kind: 'String', value: '#00aa00' },
+    { key: 'faultColor', kind: 'String', value: '#ff9900' },
+    { key: 'enableRunning', kind: 'Boolean', value: true },
+    { key: 'enableFault', kind: 'Boolean', value: false }
+  ), null);
+
+  expect(projected[0]?.propertyMaps?.[0]?.rules.map(rule => rule.value))
+    .toEqual(['#333333', '#00aa00', '#333333']);
+});
+
+test('disabled motor and valve states also suppress their animated text labels', () => {
+  const label: VisualElementEngineering = {
+    key: 'state-label-fault', type: 'core.text',
+    properties: { visible: false },
+    metadata: {
+      dynamoStateLabelIndex: '2',
+      dynamoStateEnableParameterProfile: 'always,enableRunning,enableFault'
+    },
+    booleanConditions: [{
+      propertyKey: 'visible', kind: 'NumericInterval',
+      source: { kind: 'Tag', valueType: 'Number', target: '{dynamoParameter:state}' },
+      minimum: 2, maximum: 3
+    }]
+  };
+  const projected = projectDynamoRuntimeElements([label], parameters(
+    { key: 'enableFault', kind: 'Boolean', value: false }
+  ), null);
+
+  expect(projected[0]?.properties?.visible).toBe(false);
+  expect(projected[0]?.booleanConditions).toBeUndefined();
 });
 
 test('typed value-source parameters use the dedicated TAG/expression authoring editor', () => {

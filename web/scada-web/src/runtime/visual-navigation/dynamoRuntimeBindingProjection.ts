@@ -2,6 +2,7 @@ import type {
   BindingEngineering,
   TagValueReferenceEngineering,
   VisualElementEngineering,
+  VisualExpressionEngineering,
   VisualEngineeringPropertyValue,
   VisualValueSourceEngineering
 } from '../../engineering/types';
@@ -62,6 +63,14 @@ function projectElement(
       Object.assign(properties, { x, y, width, height });
     }
   }
+  const stateLabelIndex = Number(element.metadata?.dynamoStateLabelIndex);
+  const hasStateLabel = Number.isInteger(stateLabelIndex);
+  const stateLabelEnabled = !hasStateLabel || isDynamoStateEnabled(
+    element.metadata?.dynamoStateEnableParameterProfile?.split(',').map(value => value.trim()) ?? [],
+    stateLabelIndex,
+    parameters
+  );
+  if (hasStateLabel && !stateLabelEnabled) properties.visible = false;
   const outlineColorKey = element.metadata?.dynamoOutlineColorParameter?.trim();
   const outlineColor = outlineColorKey ? findParameter(parameters, outlineColorKey) : undefined;
   if (outlineColor?.kind === 'String' && typeof outlineColor.value === 'string' && outlineColor.value.trim()) {
@@ -96,9 +105,8 @@ function projectElement(
   if (!animationEnabled) {
     const stateParameterKey = element.metadata?.dynamoFixedStateParameter?.trim();
     const stateParameter = stateParameterKey ? findParameter(parameters, stateParameterKey) : undefined;
-    const labelIndex = Number(element.metadata?.dynamoStateLabelIndex);
-    if (Number.isInteger(labelIndex) && stateParameter?.kind === 'Number' && typeof stateParameter.value === 'number') {
-      properties.visible = Math.trunc(stateParameter.value) === labelIndex;
+    if (hasStateLabel && stateLabelEnabled && stateParameter?.kind === 'Number' && typeof stateParameter.value === 'number') {
+      properties.visible = Math.trunc(stateParameter.value) === stateLabelIndex;
     }
     const profile = element.metadata?.dynamoStateColorProfile?.split(',').map(value => value.trim()) ?? [];
     const stateIndex = stateParameter?.kind === 'Number' && typeof stateParameter.value === 'number'
@@ -109,7 +117,11 @@ function projectElement(
     if (fixedProperty && stateIndex >= 0 && stateIndex < fixedValues.length && Number.isFinite(fixedValues[stateIndex])) {
       properties[fixedProperty] = fixedValues[stateIndex];
     }
-    const colorKey = stateIndex >= 0 && stateIndex < profile.length ? `${profile[stateIndex]}Color` : '';
+    const enableProfile = element.metadata?.dynamoStateEnableParameterProfile?.split(',').map(value => value.trim()) ?? [];
+    const enabled = isDynamoStateEnabled(enableProfile, stateIndex, parameters);
+    const colorKey = stateIndex >= 0 && stateIndex < profile.length
+      ? enabled ? `${profile[stateIndex]}Color` : 'offColor'
+      : '';
     const colorParameter = colorKey ? findParameter(parameters, colorKey) : undefined;
     if (colorParameter?.kind === 'String' && typeof colorParameter.value === 'string') {
       if (element.type === 'core.svgSymbol') {
@@ -143,10 +155,15 @@ function projectElement(
     properties,
     bindings: element.bindings ? [...bindings] : element.bindings,
     propertyMaps: animationEnabled ? element.propertyMaps?.map(propertyMap => {
-      const stateParameterKey = element.metadata?.dynamoStateColorParameter?.trim();
-      const stateParameter = stateParameterKey ? findParameter(parameters, stateParameterKey) : undefined;
       const colorProfile = element.metadata?.dynamoStateColorProfile?.split(',').map(value => value.trim()) ?? [];
+      const enableProfile = element.metadata?.dynamoStateEnableParameterProfile?.split(',').map(value => value.trim()) ?? [];
       const rules = propertyMap.rules.map((rule, index) => {
+        if (!isDynamoStateEnabled(enableProfile, index, parameters)) {
+          const offColor = findParameter(parameters, 'offColor');
+          if (offColor?.kind === 'String' && typeof offColor.value === 'string' && /^#[0-9a-f]{6}$/i.test(offColor.value)) {
+            return Object.freeze({ ...rule, value: offColor.value });
+          }
+        }
         const profileKey = colorProfile[index];
         const colorParameter = profileKey ? findParameter(parameters, `${profileKey}Color`) : undefined;
         const configuredColor = colorParameter?.kind === 'String' && typeof colorParameter.value === 'string'
@@ -156,26 +173,16 @@ function projectElement(
           ? Object.freeze({ ...rule, value: configuredColor })
           : rule;
       });
-      const overriddenStateSource = stateParameter?.kind === 'TagReference' && stateParameter.tagReference
-        ? Object.freeze({ ...propertyMap.source, target: null, tagReference: cloneTagReference(stateParameter.tagReference) })
-        : stateParameter?.kind === 'ValueSource' && stateParameter.valueSource
-          ? Object.freeze({ ...propertyMap.source, valueType: stateParameter.valueSource.valueType, target: `{dynamoParameter:${stateParameterKey}}`, tagReference: null })
-        : propertyMap.source;
-      const projectedStateSource = projectValueSource(overriddenStateSource, parameters, equipmentPath);
-      const invertParameterKey = element.metadata?.dynamoBooleanStateInvertParameter?.trim();
-      const invertParameter = invertParameterKey ? findParameter(parameters, invertParameterKey) : undefined;
-      const invertBoolean = invertParameter?.kind === 'Boolean' && invertParameter.value === true;
+      const projectedStateSource = projectDynamoStateSource(propertyMap.source, element, parameters, equipmentPath);
       return Object.freeze({
         ...propertyMap,
         rules: Object.freeze(rules),
-        source: projectedStateSource.valueType === 'Boolean' && propertyMap.source.valueType === 'Number'
-          ? booleanSourceToNumber(projectedStateSource, invertBoolean)
-          : projectedStateSource
+        source: projectedStateSource
       });
     }) : undefined,
-    booleanConditions: animationEnabled ? element.booleanConditions?.map(condition => Object.freeze({
+    booleanConditions: animationEnabled && stateLabelEnabled ? element.booleanConditions?.map(condition => Object.freeze({
       ...condition,
-      source: projectValueSource(condition.source, parameters, equipmentPath)
+      source: projectDynamoStateSource(condition.source, element, parameters, equipmentPath)
     })) : undefined,
     analogFill: element.analogFill ? Object.freeze({
       ...element.analogFill,
@@ -183,6 +190,152 @@ function projectElement(
     }) : element.analogFill,
     actions: element.actions?.map(action => projectAction(action, parameters)) ?? element.actions,
     children: [...children]
+  });
+}
+
+function projectDynamoStateSource(
+  source: VisualValueSourceEngineering,
+  element: VisualElementEngineering,
+  parameters: ReadonlyMap<string, DynamoParameterValueEngineering>,
+  equipmentPath: string | null
+): VisualValueSourceEngineering {
+  const stateParameterKey = element.metadata?.dynamoStateColorParameter?.trim();
+  const stateParameter = stateParameterKey ? findParameter(parameters, stateParameterKey) : undefined;
+  const overriddenStateSource = stateParameter?.kind === 'TagReference' && stateParameter.tagReference
+    ? Object.freeze({ ...source, target: null, tagReference: cloneTagReference(stateParameter.tagReference) })
+    : stateParameter?.kind === 'ValueSource' && stateParameter.valueSource
+      ? Object.freeze({ ...source, valueType: stateParameter.valueSource.valueType, target: `{dynamoParameter:${stateParameterKey}}`, tagReference: null })
+      : source;
+  let projected = projectValueSource(overriddenStateSource, parameters, equipmentPath);
+  const contactModeKey = element.metadata?.dynamoContactDiscreteStateModeParameter?.trim();
+  const contactMode = contactModeKey ? findParameter(parameters, contactModeKey) : undefined;
+  const contactSignalKey = element.metadata?.dynamoContactPoleSignalParameter?.trim();
+  const contactSignal = contactSignalKey ? findParameter(parameters, contactSignalKey) : undefined;
+  if (contactMode?.kind === 'Boolean' && contactMode.value === true &&
+      contactSignal?.kind === 'ValueSource' && contactSignal.valueSource) {
+    if (contactSignal.valueSource.valueType !== 'Boolean') {
+      throw new Error(`Dynamo contact signal '${contactSignalKey}' must produce a Boolean visual value source.`);
+    }
+    const signal = projectValueSource(contactSignal.valueSource, parameters, equipmentPath);
+    const invertKey = element.metadata?.dynamoNumericStateInvertParameter?.trim();
+    const invert = invertKey ? findParameter(parameters, invertKey) : undefined;
+    return booleanSourceToNumber(signal, invert?.kind === 'Boolean' && invert.value === true);
+  }
+
+  const invertParameterKey = element.metadata?.dynamoBooleanStateInvertParameter?.trim();
+  const invertParameter = invertParameterKey ? findParameter(parameters, invertParameterKey) : undefined;
+  if (projected.valueType === 'Boolean' && source.valueType === 'Number') {
+    projected = booleanSourceToNumber(projected, invertParameter?.kind === 'Boolean' && invertParameter.value === true);
+  }
+  const numericInvertParameterKey = element.metadata?.dynamoNumericStateInvertParameter?.trim();
+  const numericInvertParameter = numericInvertParameterKey ? findParameter(parameters, numericInvertParameterKey) : undefined;
+  if (projected.valueType === 'Number' && numericInvertParameter?.kind === 'Boolean' && numericInvertParameter.value === true) {
+    projected = invertNumericStateSource(projected);
+  }
+
+  const modeKey = element.metadata?.dynamoDiscreteStateModeParameter?.trim();
+  const mode = modeKey ? findParameter(parameters, modeKey) : undefined;
+  if (mode?.kind === 'Boolean' && mode.value === true) {
+    return composeDiscreteStateSource(element, parameters, equipmentPath);
+  }
+  return projected;
+}
+
+function invertNumericStateSource(source: VisualValueSourceEngineering): VisualValueSourceEngineering {
+  if (source.valueType !== 'Number') return source;
+
+  const expressionText = source.kind === 'Expression' ? source.expression?.text : undefined;
+  const dependencies = source.kind === 'Expression'
+    ? source.expression?.dependencies
+    : source.tagReference?.tagId.trim()
+      ? [{
+          symbol: 'source',
+          kind: source.kind === 'ClientMemory' ? 'ClientMemory' as const : 'Tag' as const,
+          valueType: 'Number' as const,
+          tagReference: cloneTagReference(source.tagReference),
+          target: source.target
+        }]
+      : undefined;
+  if (source.kind !== 'Expression' && !dependencies) return source;
+
+  return Object.freeze({
+    kind: 'Expression',
+    valueType: 'Number',
+    expression: Object.freeze({
+      text: `1 - ${expressionText ? `(${expressionText})` : 'source'}`,
+      resultType: 'Number',
+      dependencies: dependencies ? Object.freeze([...dependencies]) : dependencies
+    })
+  });
+}
+
+function composeDiscreteStateSource(
+  element: VisualElementEngineering,
+  parameters: ReadonlyMap<string, DynamoParameterValueEngineering>,
+  equipmentPath: string | null
+): VisualValueSourceEngineering {
+  const profile = element.metadata?.dynamoDiscreteStateSignalProfile?.split(',').map(key => key.trim()) ?? [];
+  const dependencies: NonNullable<VisualExpressionEngineering['dependencies']>[number][] = [];
+  const configured: { state: number; symbol: string }[] = [];
+
+  for (let index = 0; index < profile.length; index++) {
+    const key = profile[index];
+    const parameter = key ? findParameter(parameters, key) : undefined;
+    if (parameter?.kind !== 'ValueSource' || !parameter.valueSource) continue;
+    if (parameter.valueSource.valueType !== 'Boolean') {
+      throw new Error(`Dynamo state signal '${key}' must produce a Boolean visual value source.`);
+    }
+
+    const signal = projectValueSource(parameter.valueSource, parameters, equipmentPath);
+    const baseSymbol = `dynamo_${key}`;
+    let expression: string;
+    if (signal.kind === 'Expression') {
+      if (!signal.expression) throw new Error(`Dynamo state signal '${key}' has no Boolean expression.`);
+      expression = signal.expression.text;
+      for (const [dependencyIndex, dependency] of (signal.expression.dependencies ?? []).entries()) {
+        const symbol = `${baseSymbol}_dep${dependencyIndex}`;
+        const escaped = dependency.symbol.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        expression = expression.replace(
+          new RegExp(`(^|[^A-Za-z0-9_])${escaped}(?=$|[^A-Za-z0-9_])`, 'g'),
+          `$1${symbol}`
+        );
+        dependencies.push(Object.freeze({ ...dependency, symbol }));
+      }
+    } else {
+      if (!signal.tagReference?.tagId.trim()) {
+        throw new Error(`Dynamo state signal '${key}' requires a stable TAG or Client Memory identity.`);
+      }
+      expression = baseSymbol;
+      dependencies.push(Object.freeze({
+        symbol: baseSymbol,
+        kind: signal.kind === 'ClientMemory' ? 'ClientMemory' : 'Tag',
+        valueType: 'Boolean',
+        tagReference: cloneTagReference(signal.tagReference),
+        target: signal.target
+      }));
+    }
+
+    configured.push({ state: index === 0 ? 1 : index + 1, symbol: expression });
+  }
+
+  const priority = (state: number) => state === 2 ? 0 : state === 3 ? 1 : state === 4 ? 2 : state === 1 ? 3 : 4;
+  const higherPrioritySignals: string[] = [];
+  const terms = [...configured].sort((left, right) => priority(left.state) - priority(right.state)).map(item => {
+    const condition = higherPrioritySignals.length === 0
+      ? item.symbol
+      : `(${item.symbol} and not (${higherPrioritySignals.join(' or ')}))`;
+    higherPrioritySignals.push(item.symbol);
+    return `number(${condition}) * ${item.state}`;
+  });
+
+  return Object.freeze({
+    kind: 'Expression',
+    valueType: 'Number',
+    expression: Object.freeze({
+      text: terms.length === 0 ? '0' : terms.join(' + '),
+      resultType: 'Number',
+      dependencies: Object.freeze(dependencies)
+    })
   });
 }
 
@@ -373,6 +526,17 @@ function cloneTagReference(reference: TagValueReferenceEngineering): TagValueRef
     tagId: reference.tagId,
     selector: reference.selector ? Object.freeze({ ...reference.selector }) : reference.selector
   });
+}
+
+function isDynamoStateEnabled(
+  enableProfile: readonly string[],
+  stateIndex: number,
+  parameters: ReadonlyMap<string, DynamoParameterValueEngineering>
+): boolean {
+  const parameterKey = enableProfile[stateIndex]?.trim();
+  if (!parameterKey || parameterKey.toLowerCase() === 'always') return true;
+  const enabled = findParameter(parameters, parameterKey);
+  return enabled?.kind !== 'Boolean' || enabled.value !== false;
 }
 
 function normalizeKey(value: string): string {

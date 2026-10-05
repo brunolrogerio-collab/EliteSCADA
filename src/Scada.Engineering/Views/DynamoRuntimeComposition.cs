@@ -146,52 +146,31 @@ public static class DynamoRuntimeComposer
             {
                 Target = normalizedPath is null ? binding.Target : binding.Target.Replace("{equipmentPath}", normalizedPath, StringComparison.Ordinal)
             }).ToArray(),
-            BooleanConditions = IsDynamoAnimationEnabled(element, parameters)
+            BooleanConditions = IsDynamoAnimationEnabled(element, parameters) && IsDynamoStateLabelEnabled(element, parameters)
                 ? element.BooleanConditions?.Select(condition => condition with
                 {
-                    Source = ProjectValueSource(condition.Source, normalizedPath, parameters)
+                    Source = ProjectDynamoStateSource(condition.Source, element, normalizedPath, parameters)
                 }).ToArray()
                 : null,
             Actions = element.Actions?.Select(action => ProjectAction(action, parameters)).ToArray(),
             PropertyMaps = IsDynamoAnimationEnabled(element, parameters) ? element.PropertyMaps?.Select(map =>
             {
-                var stateParameterKey = element.Metadata?.GetValueOrDefault("dynamoStateColorParameter");
-                var stateParameter = stateParameterKey is not null && parameters.TryGetValue(stateParameterKey, out var stateValue)
-                    ? stateValue
-                    : null;
                 var profile = element.Metadata?.GetValueOrDefault("dynamoStateColorProfile")?.Split(',') ?? Array.Empty<string>();
+                var enableProfile = element.Metadata?.GetValueOrDefault("dynamoStateEnableParameterProfile")?.Split(',') ?? Array.Empty<string>();
                 var rules = map.Rules.Select((rule, index) =>
                 {
+                    if (!IsDynamoStateEnabled(enableProfile, index, parameters) &&
+                        TryGetDynamoColorParameter(parameters, "offColor", out var offColor))
+                        return rule with { Value = JsonSerializer.SerializeToElement(offColor) };
+
                     var colorParameterKey = index < profile.Length ? $"{profile[index].Trim()}Color" : string.Empty;
-                    if (!parameters.TryGetValue(colorParameterKey, out var colorValue) ||
-                        colorValue.Kind != DynamoParameterKind.String || !colorValue.Value.HasValue ||
-                        colorValue.Value.Value.ValueKind != JsonValueKind.String)
+                    if (!TryGetDynamoColorParameter(parameters, colorParameterKey, out var color))
                         return rule;
-                    var color = colorValue.Value.Value.GetString();
-                    return color is not null && System.Text.RegularExpressions.Regex.IsMatch(color, "^#[0-9a-fA-F]{6}$")
+                    return System.Text.RegularExpressions.Regex.IsMatch(color, "^#[0-9a-fA-F]{6}$")
                         ? rule with { Value = JsonSerializer.SerializeToElement(color) }
                         : rule;
                 }).ToArray();
-                var source = ProjectValueSource(map.Source, normalizedPath, parameters);
-                if (stateParameter?.Kind == DynamoParameterKind.TagReference && stateParameter.TagReference is not null)
-                    source = source with { Target = null, TagReference = stateParameter.TagReference };
-                else if (stateParameter?.Kind == DynamoParameterKind.ValueSource && stateParameter.ValueSource is not null && stateParameterKey is not null)
-                {
-                    var stateSource = ProjectValueSource(source with
-                    {
-                        ValueType = stateParameter.ValueSource.ValueType,
-                        Target = $"{{dynamoParameter:{stateParameterKey}}}",
-                        TagReference = null
-                    }, normalizedPath, parameters);
-                    if (stateSource.ValueType == VisualExpressionValueType.Boolean && source.ValueType == VisualExpressionValueType.Number)
-                    {
-                        var invertParameterKey = element.Metadata?.GetValueOrDefault("dynamoBooleanStateInvertParameter");
-                        var invert = invertParameterKey is not null && parameters.TryGetValue(invertParameterKey, out var invertValue) &&
-                            invertValue.Kind == DynamoParameterKind.Boolean && invertValue.Value is { ValueKind: JsonValueKind.True };
-                        stateSource = ConvertBooleanStateSourceToNumber(stateSource, invert);
-                    }
-                    source = stateSource;
-                }
+                var source = ProjectDynamoStateSource(map.Source, element, normalizedPath, parameters);
                 return map with { Source = source, Rules = rules };
             }).ToArray() : null,
             Children = SubstituteInstanceContext(
@@ -209,10 +188,14 @@ public static class DynamoRuntimeComposer
             return element.Properties;
         var animationEnabled = IsDynamoAnimationEnabled(element, parameters);
         var properties = new Dictionary<string, JsonElement>(element.Properties, StringComparer.Ordinal);
-        if (!animationEnabled && element.Metadata?.TryGetValue("dynamoStateLabelIndex", out var labelIndexText) == true &&
-            int.TryParse(labelIndexText, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var labelIndex) &&
+        var labelIndex = 0;
+        var hasStateLabelIndex = element.Metadata?.TryGetValue("dynamoStateLabelIndex", out var labelIndexText) == true &&
+            int.TryParse(labelIndexText, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out labelIndex);
+        if (hasStateLabelIndex && !IsDynamoStateLabelEnabled(element, parameters))
+            properties["visible"] = JsonSerializer.SerializeToElement(false);
+        if (!animationEnabled && hasStateLabelIndex &&
             parameters.TryGetValue("fixedState", out var fixedState) && fixedState.Kind == DynamoParameterKind.Number &&
-            fixedState.Value is { ValueKind: JsonValueKind.Number } fixedStateValue)
+            fixedState.Value is { ValueKind: JsonValueKind.Number } fixedStateValue && IsDynamoStateLabelEnabled(element, parameters))
         {
             properties["visible"] = JsonSerializer.SerializeToElement(fixedStateValue.GetInt32() == labelIndex);
         }
@@ -234,7 +217,8 @@ public static class DynamoRuntimeComposer
                 properties[fixedProperty] = JsonSerializer.SerializeToElement(parsedValue);
         }
         if (index < 0 || index >= profile.Length) return properties;
-        var colorKey = $"{profile[index].Trim()}Color";
+        var enableProfile = element.Metadata?.GetValueOrDefault("dynamoStateEnableParameterProfile")?.Split(',') ?? Array.Empty<string>();
+        var colorKey = IsDynamoStateEnabled(enableProfile, index, parameters) ? $"{profile[index].Trim()}Color" : "offColor";
         if (!parameters.TryGetValue(colorKey, out var color) || color.Kind != DynamoParameterKind.String ||
             color.Value is not { ValueKind: JsonValueKind.String } colorValue || string.IsNullOrWhiteSpace(colorValue.GetString()))
             return properties;
@@ -338,6 +322,234 @@ public static class DynamoRuntimeComposer
             !parameters.TryGetValue(parameterKey, out var enabled) ||
             enabled.Kind != DynamoParameterKind.Boolean ||
             enabled.Value is not { ValueKind: JsonValueKind.False };
+    }
+
+    private static bool IsDynamoStateEnabled(
+        IReadOnlyList<string> enableProfile,
+        int stateIndex,
+        IReadOnlyDictionary<string, DynamoParameterValueEngineeringDto> parameters)
+    {
+        if (stateIndex < 0 || stateIndex >= enableProfile.Count ||
+            string.IsNullOrWhiteSpace(enableProfile[stateIndex]) ||
+            enableProfile[stateIndex].Trim().Equals("always", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var parameterKey = enableProfile[stateIndex].Trim();
+        return !parameters.TryGetValue(parameterKey, out var enabled) ||
+            enabled.Kind != DynamoParameterKind.Boolean ||
+            enabled.Value is not { ValueKind: JsonValueKind.False };
+    }
+
+    private static bool IsDynamoStateLabelEnabled(
+        VisualElementEngineeringDto element,
+        IReadOnlyDictionary<string, DynamoParameterValueEngineeringDto> parameters)
+    {
+        if (element.Metadata?.TryGetValue("dynamoStateLabelIndex", out var labelIndexText) != true ||
+            !int.TryParse(labelIndexText, System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out var labelIndex))
+            return true;
+
+        var profile = element.Metadata.GetValueOrDefault("dynamoStateEnableParameterProfile")?.Split(',') ?? Array.Empty<string>();
+        return IsDynamoStateEnabled(profile, labelIndex, parameters);
+    }
+
+    private static bool TryGetDynamoColorParameter(
+        IReadOnlyDictionary<string, DynamoParameterValueEngineeringDto> parameters,
+        string key,
+        out string color)
+    {
+        color = string.Empty;
+        if (!parameters.TryGetValue(key, out var value) || value.Kind != DynamoParameterKind.String ||
+            value.Value is not { ValueKind: JsonValueKind.String } stringValue)
+            return false;
+        color = stringValue.GetString() ?? string.Empty;
+        return !string.IsNullOrWhiteSpace(color);
+    }
+
+    private static VisualValueSourceEngineeringDto ProjectDynamoStateSource(
+        VisualValueSourceEngineeringDto source,
+        VisualElementEngineeringDto element,
+        string? equipmentPath,
+        IReadOnlyDictionary<string, DynamoParameterValueEngineeringDto> parameters)
+    {
+        var projected = ProjectValueSource(source, equipmentPath, parameters);
+        var stateParameterKey = element.Metadata?.GetValueOrDefault("dynamoStateColorParameter");
+        if (!string.IsNullOrWhiteSpace(stateParameterKey) && parameters.TryGetValue(stateParameterKey, out var stateParameter))
+        {
+            if (stateParameter.Kind == DynamoParameterKind.TagReference && stateParameter.TagReference is not null)
+                projected = projected with { Target = null, TagReference = stateParameter.TagReference };
+            else if (stateParameter.Kind == DynamoParameterKind.ValueSource && stateParameter.ValueSource is not null)
+                projected = ProjectValueSource(projected with
+                {
+                    ValueType = stateParameter.ValueSource.ValueType,
+                    Target = $"{{dynamoParameter:{stateParameterKey}}}",
+                    TagReference = null
+                }, equipmentPath, parameters);
+        }
+
+        var contactModeKey = element.Metadata?.GetValueOrDefault("dynamoContactDiscreteStateModeParameter");
+        var contactSignalKey = element.Metadata?.GetValueOrDefault("dynamoContactPoleSignalParameter");
+        if (!string.IsNullOrWhiteSpace(contactModeKey) && !string.IsNullOrWhiteSpace(contactSignalKey) &&
+            parameters.TryGetValue(contactModeKey, out var contactMode) &&
+            contactMode.Kind == DynamoParameterKind.Boolean && contactMode.Value is { ValueKind: JsonValueKind.True } &&
+            parameters.TryGetValue(contactSignalKey, out var contactSignal) &&
+            contactSignal.Kind == DynamoParameterKind.ValueSource && contactSignal.ValueSource is not null)
+        {
+            if (contactSignal.ValueSource.ValueType != VisualExpressionValueType.Boolean)
+                throw new InvalidOperationException($"Dynamo contact signal '{contactSignalKey}' must produce a Boolean visual value source.");
+
+            var signal = ProjectValueSource(contactSignal.ValueSource, equipmentPath, parameters);
+            var invertKey = element.Metadata?.GetValueOrDefault("dynamoNumericStateInvertParameter");
+            var contactInvert = invertKey is not null && parameters.TryGetValue(invertKey, out var contactInvertValue) &&
+                contactInvertValue.Kind == DynamoParameterKind.Boolean && contactInvertValue.Value is { ValueKind: JsonValueKind.True };
+            return ConvertBooleanStateSourceToNumber(signal, contactInvert);
+        }
+
+        var invertParameterKey = element.Metadata?.GetValueOrDefault("dynamoBooleanStateInvertParameter");
+        var invert = invertParameterKey is not null && parameters.TryGetValue(invertParameterKey, out var invertValue) &&
+            invertValue.Kind == DynamoParameterKind.Boolean && invertValue.Value is { ValueKind: JsonValueKind.True };
+        if (projected.ValueType == VisualExpressionValueType.Boolean && source.ValueType == VisualExpressionValueType.Number)
+            projected = ConvertBooleanStateSourceToNumber(projected, invert);
+
+        var numericInvertParameterKey = element.Metadata?.GetValueOrDefault("dynamoNumericStateInvertParameter");
+        var invertNumericState = numericInvertParameterKey is not null &&
+            parameters.TryGetValue(numericInvertParameterKey, out var numericInvertValue) &&
+            numericInvertValue.Kind == DynamoParameterKind.Boolean &&
+            numericInvertValue.Value is { ValueKind: JsonValueKind.True };
+        if (invertNumericState && projected.ValueType == VisualExpressionValueType.Number)
+            projected = InvertNumericStateSource(projected);
+
+        var modeParameterKey = element.Metadata?.GetValueOrDefault("dynamoDiscreteStateModeParameter");
+        if (modeParameterKey is not null && parameters.TryGetValue(modeParameterKey, out var mode) &&
+            mode.Kind == DynamoParameterKind.Boolean && mode.Value is { ValueKind: JsonValueKind.True })
+            return ComposeDiscreteStateSource(element, equipmentPath, parameters);
+
+        return projected;
+    }
+
+    private static VisualValueSourceEngineeringDto InvertNumericStateSource(
+        VisualValueSourceEngineeringDto source)
+    {
+        if (source.ValueType != VisualExpressionValueType.Number)
+            return source;
+
+        var expressionText = source.Kind == VisualValueSourceKind.Expression
+            ? source.Expression?.Text
+            : null;
+        var dependencies = source.Kind == VisualValueSourceKind.Expression
+            ? source.Expression?.Dependencies
+            : source.TagReference is null
+                ? null
+                : new[]
+                {
+                    new VisualExpressionDependencyEngineeringDto(
+                        "source",
+                        source.Kind == VisualValueSourceKind.ClientMemory
+                            ? VisualExpressionDependencyKind.ClientMemory
+                            : VisualExpressionDependencyKind.Tag,
+                        VisualExpressionValueType.Number,
+                        source.TagReference,
+                        source.Target)
+                };
+
+        if (source.Kind != VisualValueSourceKind.Expression && source.TagReference is null)
+            return source;
+
+        var inner = string.IsNullOrWhiteSpace(expressionText) ? "source" : $"({expressionText})";
+        return new VisualValueSourceEngineeringDto(
+            VisualValueSourceKind.Expression,
+            VisualExpressionValueType.Number,
+            Expression: new VisualExpressionEngineeringDto(
+                $"1 - {inner}",
+                VisualExpressionValueType.Number,
+                dependencies));
+    }
+
+    private static VisualValueSourceEngineeringDto ComposeDiscreteStateSource(
+        VisualElementEngineeringDto element,
+        string? equipmentPath,
+        IReadOnlyDictionary<string, DynamoParameterValueEngineeringDto> parameters)
+    {
+        var profile = element.Metadata?.GetValueOrDefault("dynamoDiscreteStateSignalProfile")?.Split(',') ?? [];
+        var dependencies = new List<VisualExpressionDependencyEngineeringDto>();
+        var configured = new List<(int State, string Symbol)>();
+
+        for (var index = 0; index < profile.Length; index++)
+        {
+            var key = profile[index].Trim();
+            if (key.Length == 0 || !parameters.TryGetValue(key, out var parameter) ||
+                parameter.Kind != DynamoParameterKind.ValueSource || parameter.ValueSource is null)
+                continue;
+            if (parameter.ValueSource.ValueType != VisualExpressionValueType.Boolean)
+                throw new InvalidOperationException($"Dynamo state signal '{key}' must produce a Boolean visual value source.");
+
+            var signalSource = ProjectValueSource(parameter.ValueSource, equipmentPath, parameters);
+            var baseSymbol = $"dynamo_{key}";
+            string expression;
+            if (signalSource.Kind == VisualValueSourceKind.Expression)
+            {
+                var sourceExpression = signalSource.Expression ?? throw new InvalidOperationException(
+                    $"Dynamo state signal '{key}' has no Boolean expression.");
+                expression = sourceExpression.Text;
+                var sourceDependencies = sourceExpression.Dependencies ?? Array.Empty<VisualExpressionDependencyEngineeringDto>();
+                for (var dependencyIndex = 0; dependencyIndex < sourceDependencies.Count; dependencyIndex++)
+                {
+                    var dependency = sourceDependencies.ElementAt(dependencyIndex);
+                    var symbol = $"{baseSymbol}_dep{dependencyIndex}";
+                    expression = System.Text.RegularExpressions.Regex.Replace(
+                        expression,
+                        $"(?<![A-Za-z0-9_]){System.Text.RegularExpressions.Regex.Escape(dependency.Symbol)}(?![A-Za-z0-9_])",
+                        symbol,
+                        System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+                    dependencies.Add(dependency with { Symbol = symbol });
+                }
+            }
+            else
+            {
+                if (signalSource.TagReference is null || signalSource.TagReference.TagId == Guid.Empty)
+                    throw new InvalidOperationException($"Dynamo state signal '{key}' requires a stable TAG or Client Memory identity.");
+                expression = baseSymbol;
+                dependencies.Add(new VisualExpressionDependencyEngineeringDto(
+                    baseSymbol,
+                    signalSource.Kind == VisualValueSourceKind.ClientMemory
+                        ? VisualExpressionDependencyKind.ClientMemory
+                        : VisualExpressionDependencyKind.Tag,
+                    VisualExpressionValueType.Boolean,
+                    signalSource.TagReference,
+                    signalSource.Target));
+            }
+
+            configured.Add((index == 0 ? 1 : index + 1, expression));
+        }
+
+        var higherPrioritySignals = new List<string>();
+        var terms = new List<string>();
+        // Profile order is active, fault, communication failure, inhibited; process
+        // in explicit priority order so simultaneous signals resolve deterministically.
+        foreach (var item in configured.OrderBy(item => item.State switch
+                 {
+                     2 => 0, // fault
+                     3 => 1, // communication failure
+                     4 => 2, // inhibited
+                     1 => 3, // running/open
+                     _ => 4
+                 }))
+        {
+            var condition = higherPrioritySignals.Count == 0
+                ? item.Symbol
+                : $"({item.Symbol} and not ({string.Join(" or ", higherPrioritySignals)}))";
+            terms.Add($"number({condition}) * {item.State}");
+            higherPrioritySignals.Add(item.Symbol);
+        }
+
+        var expressionText = terms.Count == 0 ? "0" : string.Join(" + ", terms);
+        return new VisualValueSourceEngineeringDto(
+            VisualValueSourceKind.Expression,
+            VisualExpressionValueType.Number,
+            Expression: new VisualExpressionEngineeringDto(
+                expressionText,
+                VisualExpressionValueType.Number,
+                dependencies));
     }
 
     private static VisualValueSourceEngineeringDto ProjectValueSource(

@@ -38,6 +38,11 @@ services:
       Historian__Provider: timescaledb
       HistoricalQuery__Enabled: "true"
       HistoricalQuery__CursorKeyBase64: ${ELITESCADA_HISTORICAL_CURSOR_KEY_BASE64:?Set ELITESCADA_HISTORICAL_CURSOR_KEY_BASE64 in .env}
+      ProtectedMaterial__Store__Path: /app/data/protected-material
+      ProtectedMaterial__Store__ProtectionKeyFile: /app/host-keys/protected.key
+    volumes:
+      - elitescada_stable_protected_material:/app/data/protected-material
+      - elitescada_stable_host_keys:/app/host-keys
     ports:
       - "127.0.0.1:${ELITESCADA_API_PORT:-15080}:5080"
     depends_on:
@@ -75,3 +80,7 @@ services:
 volumes:
   elitescada_stable_database:
     name: elitescada-stable-database
+  elitescada_stable_protected_material:
+    name: elitescada-stable-protected-material
+  elitescada_stable_host_keys:
+    name: elitescada-stable-host-keys

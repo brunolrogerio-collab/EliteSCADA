@@ -114,6 +114,39 @@ public sealed class ModbusRtuTransport : IModbusMasterTransport
         return ModbusPduCodec.DecodeRegisterReadResponse(response, function, quantity);
     }
 
+    /// <summary>
+    /// Sends a bounded, read-only Modbus Encapsulated Interface device-identification request.
+    /// This verifies protocol responsiveness without depending on an application TAG address.
+    /// </summary>
+    public async Task<ModbusDeviceIdentificationResponse> ReadDeviceIdentificationAsync(
+        byte unitId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await SendRequestAsync(unitId, new byte[] { 0x2B, 0x0E, 0x01, 0x00 }, cancellationToken)
+            .ConfigureAwait(false);
+        if (response.Length < 7 || response[0] != 0x2B || response[1] != 0x0E || response[2] != 0x01)
+            throw new IOException("Modbus RTU device-identification response header is invalid.");
+        if (response[4] is not (0 or 0xFF))
+            throw new IOException("Modbus RTU device-identification continuation flag is invalid.");
+
+        var objectCount = response[6];
+        var offset = 7;
+        for (var index = 0; index < objectCount; index++)
+        {
+            if (offset + 2 > response.Length)
+                throw new IOException("Modbus RTU device-identification object header is truncated.");
+            var valueLength = response[offset + 1];
+            offset += 2;
+            if (offset + valueLength > response.Length)
+                throw new IOException("Modbus RTU device-identification object value is truncated.");
+            offset += valueLength;
+        }
+        if (offset != response.Length)
+            throw new IOException("Modbus RTU device-identification response has trailing data.");
+
+        return new ModbusDeviceIdentificationResponse(objectCount);
+    }
+
     public async Task WriteSingleCoilAsync(byte unitId, ushort address, bool value, CancellationToken cancellationToken = default)
     {
         var request = ModbusPduCodec.BuildWriteSingleCoilRequest(address, value);
@@ -216,6 +249,41 @@ public sealed class ModbusRtuTransport : IModbusMasterTransport
         var header = new byte[3];
         await ReadExactlyAsync(connection, header, cancellationToken);
         var function = header[1];
+        if (function == 0x2B)
+        {
+            if (header[2] != 0x0E)
+                throw new IOException("Modbus RTU device-identification response MEI type is invalid.");
+
+            var identificationFrame = new List<byte>(32);
+            identificationFrame.AddRange(header);
+            var identificationHeader = new byte[5];
+            await ReadExactlyAsync(connection, identificationHeader, cancellationToken);
+            identificationFrame.AddRange(identificationHeader);
+            var objectCount = identificationHeader[4];
+            for (var index = 0; index < objectCount; index++)
+            {
+                if (identificationFrame.Count + 4 > 256)
+                    throw new IOException("Modbus RTU device-identification response exceeds the maximum frame length.");
+                var objectHeader = new byte[2];
+                await ReadExactlyAsync(connection, objectHeader, cancellationToken);
+                identificationFrame.AddRange(objectHeader);
+                var valueLength = objectHeader[1];
+                if (identificationFrame.Count + valueLength + 2 > 256)
+                    throw new IOException("Modbus RTU device-identification response exceeds the maximum frame length.");
+                if (valueLength > 0)
+                {
+                    var value = new byte[valueLength];
+                    await ReadExactlyAsync(connection, value, cancellationToken);
+                    identificationFrame.AddRange(value);
+                }
+            }
+
+            var crc = new byte[2];
+            await ReadExactlyAsync(connection, crc, cancellationToken);
+            identificationFrame.AddRange(crc);
+            return identificationFrame.ToArray();
+        }
+
         int remaining;
         if ((function & 0x80) != 0)
             remaining = 2;

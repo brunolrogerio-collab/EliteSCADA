@@ -13,6 +13,7 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
     private readonly object _clientGate = new();
     private readonly Dictionary<(byte Area, ushort Db), byte[]> _memory = new();
     private readonly Task _loop;
+    private int _writeCount;
     private TcpClient? _activeClient;
 
     public TestS7IsoServer(ushort negotiatedPduSize = 480)
@@ -28,9 +29,11 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
 
     public int Port { get; }
     public ushort NegotiatedPduSize { get; }
+    public int WriteCount => Volatile.Read(ref _writeCount);
     public byte ReadReturnCode { get; set; } = S7IsoProtocol.ReturnCodeSuccess;
     public byte WriteReturnCode { get; set; } = S7IsoProtocol.ReturnCodeSuccess;
     public int? DropBeforeDataRequestNumber { get; set; }
+    public TimeSpan ResponseDelay { get; set; }
 
     public void SetBytes(S7IsoArea area, ushort dbNumber, int byteOffset, ReadOnlySpan<byte> data)
     {
@@ -132,6 +135,8 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
             switch (request[17])
             {
                 case 0x04:
+                    if (ResponseDelay > TimeSpan.Zero)
+                        await Task.Delay(ResponseDelay, cancellationToken);
                     await WritePacketAsync(stream, HandleRead(reference, request), cancellationToken);
                     break;
                 case 0x05:
@@ -185,6 +190,7 @@ internal sealed class TestS7IsoServer : IAsyncDisposable
 
     private byte[] HandleWrite(ushort reference, byte[] request)
     {
+        Interlocked.Increment(ref _writeCount);
         if (WriteReturnCode != S7IsoProtocol.ReturnCodeSuccess)
             return AckData(reference, new byte[] { 0x05, 0x01 }, new[] { WriteReturnCode });
 

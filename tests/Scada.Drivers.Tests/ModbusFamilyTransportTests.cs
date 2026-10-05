@@ -47,6 +47,84 @@ public sealed class ModbusFamilyTransportTests
     }
 
     [Fact]
+    public async Task RtuConnectionTest_ConfirmsModbusProtocolWithReadOnlyDeviceIdentification()
+    {
+        var line = new HostSerialLineSettings("COM11");
+        var connection = new ScriptedSerialConnection(line) { Responder = NormalMasterResponse };
+        await using var coordinator = new HostSerialBusCoordinator(new ScriptedSerialProvider(connection));
+        var tester = new ModbusRtuPointReadTester(coordinator);
+
+        var result = await tester.TestConnectionAsync(new DriverEngineeringDataSourceContext(
+            "rtu-check",
+            "RTU check",
+            ModbusRtuDriverDescriptorProvider.DriverTypeId,
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["serialPort"] = line.PortName,
+                ["unitId"] = "7",
+                ["requestTimeoutMilliseconds"] = "500"
+            },
+            new Dictionary<string, string>(StringComparer.Ordinal)));
+
+        Assert.True(result.Succeeded, string.Join("; ", result.Issues?.Select(issue => $"{issue.Code}: {issue.Message}") ?? Array.Empty<string>()));
+        Assert.Equal("true", result.ObservedProperties!["protocolResponsive"]);
+        Assert.Equal("true", result.ObservedProperties["deviceIdentificationSupported"]);
+        var request = Assert.Single(connection.Writes);
+        Assert.True(ModbusRtuCrc.IsValid(request));
+        Assert.Equal((byte)7, request[0]);
+        Assert.Equal((byte)0x2B, request[1]);
+    }
+
+    [Fact]
+    public async Task RtuConnectionTest_TreatsUnsupportedIdentificationAsProtocolResponsive()
+    {
+        var line = new HostSerialLineSettings("COM12");
+        var connection = new ScriptedSerialConnection(line)
+        {
+            Responder = request => ModbusRtuCrc.Frame(request[0], new byte[] { 0xAB, 0x01 })
+        };
+        await using var coordinator = new HostSerialBusCoordinator(new ScriptedSerialProvider(connection));
+        var tester = new ModbusRtuPointReadTester(coordinator);
+
+        var result = await tester.TestConnectionAsync(new DriverEngineeringDataSourceContext(
+            "rtu-check",
+            "RTU check",
+            ModbusRtuDriverDescriptorProvider.DriverTypeId,
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["serialPort"] = line.PortName },
+            new Dictionary<string, string>(StringComparer.Ordinal)));
+
+        Assert.True(result.Succeeded);
+        Assert.Equal("true", result.ObservedProperties!["protocolResponsive"]);
+        Assert.Equal("false", result.ObservedProperties["deviceIdentificationSupported"]);
+        Assert.Equal("MODBUS_RTU_DEVICE_IDENTIFICATION_UNSUPPORTED", Assert.Single(result.Issues!).Code);
+        Assert.Equal((byte)0x2B, Assert.Single(connection.Writes)[1]);
+    }
+
+    [Fact]
+    public async Task RtuConnectionTest_ReportsProtocolTimeoutWhenSerialPeerDoesNotRespond()
+    {
+        var line = new HostSerialLineSettings("COM13");
+        var connection = new ScriptedSerialConnection(line);
+        await using var coordinator = new HostSerialBusCoordinator(new ScriptedSerialProvider(connection));
+        var tester = new ModbusRtuPointReadTester(coordinator);
+
+        var result = await tester.TestConnectionAsync(new DriverEngineeringDataSourceContext(
+            "rtu-check",
+            "RTU check",
+            ModbusRtuDriverDescriptorProvider.DriverTypeId,
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["serialPort"] = line.PortName,
+                ["requestTimeoutMilliseconds"] = "100"
+            },
+            new Dictionary<string, string>(StringComparer.Ordinal)));
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("MODBUS_RTU_CONNECTION_TIMEOUT", Assert.Single(result.Issues!).Code);
+        Assert.Equal((byte)0x2B, Assert.Single(connection.Writes)[1]);
+    }
+
+    [Fact]
     public async Task RtuMaster_ReportsExceptionCrcTimeoutAndRecoversWithoutNewPhysicalOpen()
     {
         var connection = new ScriptedSerialConnection(new HostSerialLineSettings("/dev/ttyUSB7"));
@@ -142,6 +220,9 @@ public sealed class ModbusFamilyTransportTests
         Assert.Equal((ushort)0x1234, Convert.ToUInt16(sample.Decoded!.Value));
         Assert.Equal((short)0x1234, Convert.ToInt16(sample.Engineering!.Value));
         Assert.Equal(line.PortName, result.SanitizedEndpoint);
+        var requestFrame = Assert.Single(connection.Writes);
+        Assert.True(ModbusRtuCrc.IsValid(requestFrame));
+        Assert.Equal((byte)0x03, requestFrame[1]);
     }
 
     [Fact]
@@ -453,6 +534,7 @@ public sealed class ModbusFamilyTransportTests
         var pdu = request.AsSpan(1, request.Length - 3);
         return pdu[0] switch
         {
+            0x2B => ModbusRtuCrc.Frame(unit, new byte[] { 0x2B, 0x0E, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x03, (byte)'R', (byte)'T', (byte)'U' }),
             ModbusPduCodec.ReadCoils => ModbusRtuCrc.Frame(unit, new byte[] { 0x01, 0x01, 0x01 }),
             ModbusPduCodec.ReadDiscreteInputs => ModbusRtuCrc.Frame(unit, new byte[] { 0x02, 0x01, 0x00 }),
             ModbusPduCodec.ReadHoldingRegisters => ModbusRtuCrc.Frame(unit, new byte[] { 0x03, 0x02, 0x12, 0x34 }),

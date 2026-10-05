@@ -106,7 +106,10 @@ public sealed class S7IsoPointReadTester :
                 engineeringUnit: request.EngineeringUnit,
                 readOnly: true,
                 communicationBinding: request.Binding);
-            point = materializedBinding!.ToPoint(tag);
+            // Point Read is a read-only Engineering probe. A canonical TAG binding may
+            // carry Runtime write intent, but that intent must not leak into this
+            // transient probe TAG (which is deliberately created as read-only).
+            point = (materializedBinding! with { Writable = false }).ToPoint(tag);
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or NotSupportedException)
         {
@@ -116,7 +119,23 @@ public sealed class S7IsoPointReadTester :
                 SanitizeError(ex));
         }
 
-        var validOptions = options!;
+        var configuredOptions = options!;
+        var pointReadTimeout = TimeSpan.FromMilliseconds(request.TimeoutMilliseconds);
+        var validOptions = new S7IsoConnectionOptions(
+            configuredOptions.Host,
+            configuredOptions.CpuFamily,
+            configuredOptions.ConnectionMode,
+            configuredOptions.Rack,
+            configuredOptions.Slot,
+            configuredOptions.ConnectionRole,
+            configuredOptions.SourceTsap,
+            configuredOptions.DestinationTsap,
+            configuredOptions.Port,
+            configuredOptions.ConnectTimeout <= pointReadTimeout ? configuredOptions.ConnectTimeout : pointReadTimeout,
+            configuredOptions.RequestTimeout <= pointReadTimeout ? configuredOptions.RequestTimeout : pointReadTimeout,
+            configuredOptions.ReconnectDelay,
+            configuredOptions.RequestedPduSize,
+            configuredOptions.WriteEnabled);
         await using var transport = new S7IsoTransport(validOptions);
         var samples = new List<DriverPointReadSample>(request.SampleCount);
 

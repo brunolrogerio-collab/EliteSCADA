@@ -18,6 +18,8 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Runtime/ImportedE3DynamoLibraryData.json" />
+    <EmbeddedResource Include="../../assets/sources/**/*.svg;../../assets/sources/**/*.batch.json"
+                      LogicalName="EliteSCADA.StaticArtwork.%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
     <None Update="Runtime/ServerScriptRunner.py"

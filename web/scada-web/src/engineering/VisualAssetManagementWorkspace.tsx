@@ -3,6 +3,7 @@ import { deleteVisualAsset, importVisualAsset, renameVisualAsset, visualAssetCon
 import type { EngineeringLocale } from './i18n';
 import type { EngineeringSnapshot, VisualAssetEngineering } from './types';
 import './visual-asset-management.css';
+import { FactoryArtworkLibrary } from './FactoryArtworkLibrary';
 
 export function VisualAssetManagementWorkspace({
   snapshot,
@@ -84,6 +85,7 @@ export function VisualAssetManagementWorkspace({
 
     {error && <p className="visual-asset-management__message visual-asset-management__message--error" role="alert">{error}</p>}
     {notice && <p className="visual-asset-management__message" role="status">{notice}</p>}
+    <FactoryArtworkLibrary snapshot={snapshot} locale={locale} onApplied={onApplied}/>
 
     <section className="eng-panel visual-asset-management__panel">
       <div className="visual-asset-management__toolbar">

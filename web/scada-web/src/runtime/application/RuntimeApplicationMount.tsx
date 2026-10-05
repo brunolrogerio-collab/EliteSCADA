@@ -235,6 +235,7 @@ function EngineeringRuntimeApplicationContent({
   return <main
     ref={fullscreenRoot}
     className="runtime-operator-application"
+    style={{ gridTemplateRows: headerVisible ? undefined : 'minmax(0, 1fr)' }}
     data-testid="runtime-engineering-application"
     data-runtime-project-key={projection.projectKey ?? undefined}
     data-runtime-revision={projection.revision ?? undefined}
@@ -242,7 +243,7 @@ function EngineeringRuntimeApplicationContent({
     data-runtime-temporal-mode={playback.mode === 'historicalPlayback' ? 'historical-playback' : 'live'}
     data-runtime-historical-at={playback.atUtc ?? undefined}
   >
-    {headerVisible ? <header className={`runtime-operator-bar${compact ? ' runtime-operator-bar--fullscreen' : ''}`} style={{ minHeight: header?.height ?? 56, background: header?.backgroundColor ?? undefined }}>
+    {headerVisible ? <header className={`runtime-operator-bar${compact ? ' runtime-operator-bar--fullscreen' : ''}`} style={{ display: 'flex', minHeight: header?.height ?? 56, background: header?.backgroundColor ?? undefined }}>
       {compact ? <div className="runtime-operator-brand">
         <ApplicationBrand
           branding={branding}
@@ -250,7 +251,7 @@ function EngineeringRuntimeApplicationContent({
           href="/"
         />
       </div> : null}
-      <div className="runtime-operator-context" style={{ textAlign: header?.titlePosition ?? 'left', order: header?.titlePosition === 'right' ? 3 : undefined, flex: header?.titlePosition === 'center' ? 1 : undefined }} title={projection.projectName || projection.projectKey || text.runtime}>
+      <div className="runtime-operator-context" style={{ textAlign: header?.titlePosition ?? 'left', justifyContent: header?.titlePosition === 'center' ? 'center' : header?.titlePosition === 'right' ? 'flex-end' : 'flex-start', order: header?.titlePosition === 'right' ? 3 : undefined, flex: 1 }} title={projection.projectName || projection.projectKey || text.runtime}>
         <strong>{projection.projectName || projection.projectKey}</strong>
         {!compact ? <span>rev {projection.revision}</span> : null}
         {playback.mode === 'historicalPlayback' && playback.atUtc ? <>

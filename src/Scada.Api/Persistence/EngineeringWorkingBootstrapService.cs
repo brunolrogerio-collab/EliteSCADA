@@ -153,6 +153,76 @@ public sealed class EngineeringWorkingBootstrapService(
             // definitions too, while user-created dynamos remain untouched.
             workspace.Assets.UpsertDynamo(latest);
         }
+
+        UpgradeBuiltinDynamoCatalogV1(existingDynamos, existingBuiltins);
+    }
+
+    private void UpgradeBuiltinDynamoCatalogV1(
+        IReadOnlyDictionary<string, Scada.Engineering.Contracts.DynamoEngineeringDto> existingDynamos,
+        IReadOnlyDictionary<string, Scada.Engineering.Contracts.DynamoEngineeringDto> existingBuiltins)
+    {
+        var artwork = BuiltinDynamoCatalogV1.CreateArtworkAssets();
+        var definitions = BuiltinDynamoCatalogV1.Create();
+        var blockedDefinitions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // A persisted workspace has replaced the in-memory demo registries. Restore
+        // first-party artwork before adding definitions which reference those assets.
+        foreach (var (asset, payload) in artwork)
+        {
+            var byKey = workspace.VisualAssets.FindAssetByKey(asset.Key);
+            var byId = workspace.VisualAssets.FindAsset(asset.Id!.Value);
+            if ((byKey is not null && byKey.Id != asset.Id) ||
+                (byId is not null && !byId.Key.Equals(asset.Key, StringComparison.OrdinalIgnoreCase)))
+            {
+                var definition = definitions.FirstOrDefault(item =>
+                    $"builtin.dynamo.v1.{item.Key.Replace('.', '-')}".Equals(asset.Key, StringComparison.OrdinalIgnoreCase));
+                if (definition is not null) blockedDefinitions.Add(definition.Key);
+                continue;
+            }
+
+            if (byKey is null)
+            {
+                workspace.VisualAssets.UpsertAsset(asset);
+                workspace.VisualAssets.PutPayload(payload);
+            }
+            else if (!workspace.VisualAssets.HasPayload(byKey.Sha256) &&
+                     byKey.Metadata?.GetValueOrDefault("assetOrigin") == "original-elitescada-vector-factory")
+            {
+                workspace.VisualAssets.UpsertAsset(asset);
+                workspace.VisualAssets.PutPayload(payload);
+            }
+            else if (!workspace.VisualAssets.HasPayload(byKey.Sha256))
+            {
+                var definition = definitions.FirstOrDefault(item =>
+                    $"builtin.dynamo.v1.{item.Key.Replace('.', '-')}".Equals(asset.Key, StringComparison.OrdinalIgnoreCase));
+                if (definition is not null) blockedDefinitions.Add(definition.Key);
+            }
+        }
+
+        foreach (var latest in definitions)
+        {
+            if (blockedDefinitions.Contains(latest.Key)) continue;
+            if (existingDynamos.TryGetValue(latest.Key, out var sameKeyDynamo) &&
+                !existingBuiltins.ContainsKey(latest.Key))
+                continue;
+
+            if (existingBuiltins.TryGetValue(latest.Key, out var current))
+            {
+                var currentVersionText = current.Properties is not null &&
+                    current.Properties.TryGetValue("libraryVersion", out var versionText)
+                    ? versionText
+                    : null;
+                if (Version.TryParse(currentVersionText, out var currentVersion) &&
+                    Version.TryParse(BuiltinDynamoCatalogV1.Version, out var latestVersion) &&
+                    currentVersion >= latestVersion)
+                    continue;
+
+                workspace.Assets.UpsertDynamo(latest with { Id = current.Id });
+                continue;
+            }
+
+            workspace.Assets.UpsertDynamo(latest);
+        }
     }
 
     private void RemoveImportedE3Dynamos()

@@ -81,9 +81,20 @@ public sealed class EngineeringWorkingBootstrapServiceTests
         Assert.DoesNotContain(workspace.Assets.SnapshotDynamos(), dynamo =>
             dynamo.Metadata?.GetValueOrDefault("assetOrigin") == "elipse-e3-import");
         Assert.Equal("Custom definition with a platform key", workspace.Assets.FindDynamoByKey(customCollision.Key)!.Name);
-        Assert.Equal(72, workspace.Assets.SnapshotDynamos().Count);
+        Assert.Equal(98, workspace.Assets.SnapshotDynamos().Count);
+        var replacementCatalog = BuiltinDynamoCatalogV1.Create();
+        Assert.All(replacementCatalog, definition =>
+            Assert.Contains(workspace.Assets.SnapshotDynamos(), item => item.Key == definition.Key));
+        var artwork = BuiltinDynamoCatalogV1.CreateArtworkAssets();
+        Assert.All(artwork, item =>
+        {
+            var persistedAsset = workspace.VisualAssets.FindAsset(item.Asset.Id!.Value);
+            Assert.NotNull(persistedAsset);
+            Assert.Equal(item.Asset.Key, persistedAsset.Key);
+            Assert.True(workspace.VisualAssets.HasPayload(persistedAsset.Sha256));
+        });
         Assert.True(result.Workspace.IsDirty);
-        Assert.Equal(72, result.Workspace.DynamoCount);
+        Assert.Equal(98, result.Workspace.DynamoCount);
         Assert.Equal(4, result.Workspace.BaseRevision);
     }
 

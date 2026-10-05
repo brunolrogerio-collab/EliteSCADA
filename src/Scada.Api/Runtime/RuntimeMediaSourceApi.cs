@@ -71,6 +71,7 @@ public static class RuntimeMediaSourceApi
                 context.Response.StatusCode = (int)response.StatusCode;
                 context.Response.ContentType = type.ToString();
                 context.Response.Headers.CacheControl = "no-store";
+                context.Response.Headers["X-Accel-Buffering"] = "no";
                 context.Response.Headers["X-Content-Type-Options"] = "nosniff";
                 if (response.Content.Headers.ContentRange is { } contentRange) context.Response.Headers.ContentRange = contentRange.ToString();
                 if (response.Content.Headers.ContentLength is { } length) context.Response.ContentLength = length;

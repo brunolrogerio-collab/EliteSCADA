@@ -11,6 +11,29 @@ namespace Scada.Drivers.Tests;
 public sealed class EngineeringRuntimeCoordinatorTests
 {
     [Fact]
+    public async Task ActivateAsync_VisualOnlyProjectCommitsWithoutAcquisitionSources()
+    {
+        var screenId = Guid.NewGuid();
+        var package = new EngineeringPackage(EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion, DateTimeOffset.UtcNow, [], [], [],
+            Screens: [new(screenId, "static-home", "Static Home")], StartupScreenId: screenId);
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            new InMemoryScadaEventBus(), new EngineeringDriverCompiler(), TimeSpan.FromSeconds(1));
+        var committed = false;
+        var result = await runtime.ActivateAsync("visual-only", 19, package, (_, _) =>
+        {
+            committed = true;
+            return Task.CompletedTask;
+        });
+        Assert.True(result.Activated);
+        Assert.True(committed);
+        Assert.Equal(19, runtime.Describe().Revision);
+        Assert.Empty(runtime.Describe().Drivers);
+        Assert.DoesNotContain(result.RuntimeIssues, issue => issue.IsError);
+        Assert.Contains(result.RuntimeIssues, issue => issue.Code == "RUNTIME_NO_ACTIVE_SOURCES" && !issue.IsError);
+    }
+
+    [Fact]
     public async Task ActivateAsync_CommitsReadyModbusRuntimeAndRoutesWritesAndAlarms()
     {
         await using var server = new TestModbusTcpServer();

@@ -24,6 +24,7 @@ import { backendReferenceFromName } from './backendReferenceFromName';
 import { resolveDriverCatalogResource } from './driverCatalogI18n';
 import type { EngineeringLocale } from './i18n';
 import { OpcUaDataSourceDiscoveryAssistant } from './OpcUaDataSourceDiscoveryAssistant';
+import { DataSourceConnectionTest } from './DataSourceConnectionTest';
 import { EngineeringEntityActions } from './EngineeringEntityActions';
 import { WorkflowFormDisclosure, WorkflowFormSection } from './StructuredFormPrimitives';
 import type { DataSourceEngineering, EngineeringPackageView } from './types';
@@ -327,6 +328,14 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
                 </div>
               </WorkflowFormDisclosure>
             )}
+
+            {currentType?.capabilities.supportsConnectionTest && <DataSourceConnectionTest
+              draft={draft}
+              persistedId={selected?.id}
+              unchanged={!changed}
+              enabled={!busy && !unsupported && clientIssues.length === 0 && Boolean(draft.key.trim())}
+              locale={locale}
+            />}
 
             {currentType && <OpcUaDataSourceDiscoveryAssistant
               draft={draft}

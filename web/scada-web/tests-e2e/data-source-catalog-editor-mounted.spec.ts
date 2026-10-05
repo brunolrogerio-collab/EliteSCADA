@@ -11,6 +11,12 @@ import type { TagSourceAwareEngineering } from '../src/engineering/TagSourceSele
 test.use({ locale: 'pt-BR' });
 
 test('mounted Data Source editor rebuilds driver-specific fields instead of reusing incompatible settings', async ({ page }) => {
+  let connectionRequest: Record<string, unknown> | null = null;
+  await page.route('**/api/engineering/driver-tools/connection-test', async route => {
+    connectionRequest = await route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({ json: { succeeded: true, sanitizedEndpoint: '10.0.0.50:502', issues: [] } });
+  });
+
   await page.goto('/engineering');
   await page.getByRole('button', { name: /Fontes de dados/ }).click();
 
@@ -21,8 +27,18 @@ test('mounted Data Source editor rebuilds driver-specific fields instead of reus
   const typePicker = page.getByTestId('data-source-type');
   await expect(typePicker).toHaveValue('');
   await typePicker.selectOption('modbus.tcp');
+  await editor.getByRole('textbox', { name: 'Nome da fonte de dados' }).fill('Diagnostico Modbus');
   await expect(page.getByTestId('data-source-setting-host')).toBeVisible();
   await page.getByTestId('data-source-setting-host').fill('10.0.0.50');
+  const connectionTest = editor.getByTestId('data-source-connection-test');
+  await expect(connectionTest).toContainText('Testa este rascunho sem aplicar as alterações.');
+  await connectionTest.getByRole('button', { name: 'Testar conexão' }).click();
+  await expect(editor.getByTestId('data-source-connection-result')).toContainText('10.0.0.50:502');
+  expect(connectionRequest).toMatchObject({
+    driverType: 'modbus.tcp',
+    sourceName: 'Diagnostico Modbus',
+    settings: { host: '10.0.0.50' }
+  });
 
   await typePicker.selectOption('builtin.simulation');
   await expect(page.getByTestId('data-source-setting-host')).toHaveCount(0);

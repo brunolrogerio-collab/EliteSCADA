@@ -22,6 +22,7 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
     public ConcurrentDictionary<ushort, ushort> InputRegisters { get; } = new();
     public bool RejectWrites { get; set; }
     public bool RejectReads { get; set; }
+    public bool RejectDeviceIdentification { get; set; }
 
     public TimeSpan ResponseDelay
     {
@@ -181,6 +182,7 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
                 0x02 => ReadBits(unitId, function, pdu, DiscreteInputs),
                 0x03 => ReadRegisters(unitId, function, pdu, HoldingRegisters),
                 0x04 => ReadRegisters(unitId, function, pdu, InputRegisters),
+                0x2B => ReadDeviceIdentification(unitId, pdu),
                 0x05 => RejectWrites ? RejectWrite(unitId, function, pdu) : WriteSingleCoil(unitId, pdu),
                 0x06 => RejectWrites ? RejectWrite(unitId, function, pdu) : WriteSingleRegister(unitId, pdu),
                 0x10 => RejectWrites ? RejectWrite(unitId, function, pdu) : WriteMultipleRegisters(unitId, pdu),
@@ -191,6 +193,14 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
         {
             return new byte[] { (byte)(function | 0x80), 0x03 };
         }
+    }
+
+    private byte[] ReadDeviceIdentification(byte unitId, byte[] pdu)
+    {
+        EnsureLength(pdu, 4);
+        Record(unitId, pdu[0], 0, 1);
+        if (RejectDeviceIdentification) return new byte[] { 0xAB, 0x01 };
+        return new byte[] { 0x2B, 0x0E, 0x01, 0x01, 0x00, 0x00, 0x00 };
     }
 
     private byte[] RejectWrite(byte unitId, byte function, byte[] pdu)

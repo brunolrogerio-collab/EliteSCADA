@@ -4,6 +4,7 @@ import {
   getBuiltinVisualObjectSchema
 } from '../src/visual-runtime/builtinVisualObjectSchemas';
 import { VISUAL_PROPERTY_KEYS } from '../src/visual-runtime/visualPropertyRegistry';
+import { insertBezierAnchor, readEditableBezierPath, removeBezierAnchor } from '../src/engineering/visual-editor/bezierGeometry';
 import {
   createObjectAddIntent,
   listVisualObjectPaletteItems
@@ -22,6 +23,7 @@ test('palette is derived from the complete registered built-in set', () => {
     BUILTIN_VISUAL_OBJECT_TYPES.polygon,
     BUILTIN_VISUAL_OBJECT_TYPES.text,
     BUILTIN_VISUAL_OBJECT_TYPES.image,
+    BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol,
     BUILTIN_VISUAL_OBJECT_TYPES.valueDisplay,
     BUILTIN_VISUAL_OBJECT_TYPES.trend,
     BUILTIN_VISUAL_OBJECT_TYPES.alarmBrowser,
@@ -40,14 +42,17 @@ test('palette is derived from the complete registered built-in set', () => {
   }
 });
 
-test('Image palette entry consumes the registered assetRef contract without inventing asset persistence', () => {
+test('Image and SVG symbol palette entries consume the registered assetRef contract', () => {
   const items = listVisualObjectPaletteItems();
   const image = items.find(item => item.objectType === BUILTIN_VISUAL_OBJECT_TYPES.image);
+  const svgSymbol = items.find(item => item.objectType === BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol);
   expect(image).toBeDefined();
   expect(image?.supportsAssetReference).toBe(true);
   expect(image?.propertyKeys).toContain(VISUAL_PROPERTY_KEYS.assetRef);
+  expect(svgSymbol?.supportsAssetReference).toBe(true);
+  expect(svgSymbol?.propertyKeys).toContain(VISUAL_PROPERTY_KEYS.assetRef);
 
-  for (const item of items.filter(item => item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.image)) {
+  for (const item of items.filter(item => item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.image && item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol)) {
     expect(item.supportsAssetReference).toBe(false);
   }
 });
@@ -90,6 +95,20 @@ test('Bezier is an editable first-class canvas shape with a path property', () =
       bezierPath: 'M 0 50 C 20 0 80 0 100 50 C 80 100 20 100 0 50 Z'
     }
   });
+});
+
+test('Bezier anchor insertion splits a cubic segment without changing its curve and removal is bounded', () => {
+  const original = 'M 0 0 C 10 10 20 20 30 30';
+  const split = insertBezierAnchor(original);
+  expect(split).toBe('M 0 0 C 5 5 10 10 15 15 C 20 20 25 25 30 30');
+  expect(removeBezierAnchor(split!)).toBe('M 0 0 C 5 5 10 10 15 15');
+  expect(removeBezierAnchor(original)).toBeNull();
+  expect(insertBezierAnchor('M 0 0 L 10 0')).toBe('M 0 0 L 5 0 L 10 0');
+  expect(removeBezierAnchor('M 0 0 L 5 0 L 10 0')).toBe('M 0 0 L 5 0');
+  expect(insertBezierAnchor('M 0 0 Q 10 20 20 0')).toBe('M 0 0 Q 5 10 10 10 Q 15 10 20 0');
+  expect(insertBezierAnchor('M 0 0 C 10 10 20 20 30 30 Z')).toBe('M 0 0 C 5 5 10 10 15 15 C 20 20 25 25 30 30 Z');
+  expect(insertBezierAnchor('M 0 0 c 10 10 20 20 30 30')).toBeNull();
+  expect(readEditableBezierPath('M 0 0 C 10 10 20 20 30 30')?.anchorIndexes).toEqual([0, 3]);
 });
 
 test('palette fails closed for private/unknown object types and invalid placement data', () => {

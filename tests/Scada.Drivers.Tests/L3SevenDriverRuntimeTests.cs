@@ -258,6 +258,13 @@ public sealed class L3SevenDriverRuntimeTests
             TagDataType.Int16,
             TimeoutMilliseconds: 5000);
 
+        var s7ConnectionResult = await new S7IsoEngineeringAdapter().TestConnectionAsync(s7Request.Context);
+        Assert.True(s7ConnectionResult.Succeeded,
+            $"S7 L3 ConnectionTest failed: " +
+            string.Join("; ", s7ConnectionResult.Issues?.Select(issue => $"{issue.Code}: {issue.Message}") ?? Array.Empty<string>()));
+        Assert.Equal("true", s7ConnectionResult.ObservedProperties!["sessionEstablished"]);
+        Assert.Equal("false", s7ConnectionResult.ObservedProperties["pointAccessProven"]);
+
         var s7Result = await new S7IsoPointReadTester().TestPointReadAsync(s7Request);
         var s7Sample = Assert.Single(s7Result.Samples);
         Assert.True(s7Result.Status == DriverPointReadTestStatus.Good,
@@ -292,6 +299,13 @@ public sealed class L3SevenDriverRuntimeTests
             opcUaBinding,
             TagDataType.Double,
             TimeoutMilliseconds: 5000);
+
+        var opcUaConnectionResult = await new OpcUaEngineeringConnectionTester(new NoOpcUaSecretsExpectedProvider())
+            .TestConnectionAsync(opcUaRequest.Context);
+        Assert.True(opcUaConnectionResult.Succeeded,
+            $"OPC UA L3 ConnectionTest failed: " +
+            string.Join("; ", opcUaConnectionResult.Issues?.Select(issue => $"{issue.Code}: {issue.Message}") ?? Array.Empty<string>()));
+        Assert.Equal(TagQuality.Good.ToString(), opcUaConnectionResult.ObservedProperties!["probeQuality"]);
 
         var opcUaResult = await new OpcUaPointReadTester(new NoOpcUaSecretsExpectedProvider())
             .TestPointReadAsync(opcUaRequest);

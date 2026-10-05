@@ -170,6 +170,8 @@
 .visual-editor-canvas__polygon-vertex { position:absolute; z-index:5; width:11px; height:11px; min-width:0!important; min-height:0!important; padding:0; border:2px solid currentColor; border-radius:50%; background:var(--surface-color,#fff); transform:translate(-50%,-50%); pointer-events:auto; cursor:crosshair; }
 .visual-editor-canvas__polygon-vertex.is-selected { box-shadow:0 0 0 3px rgba(59,130,246,.24); }
 .visual-editor-canvas__bezier-point { position:absolute; z-index:5; width:11px; height:11px; min-width:0!important; min-height:0!important; padding:0; border:2px solid #7c3aed; border-radius:50%; background:var(--surface-color,#fff); transform:translate(-50%,-50%); pointer-events:auto; cursor:crosshair; }
+.visual-editor-canvas__bezier-point.is-anchor { width:13px; height:13px; border-color:#6d28d9; background:#ede9fe; }
+.visual-editor-canvas__bezier-point.is-handle { width:9px; height:9px; border-style:dashed; border-color:#8b5cf6; }
 .visual-editor-canvas__bezier-point.is-selected { box-shadow:0 0 0 3px rgba(124,58,237,.24); }
 
 .visual-editor-canvas__adorners { position: absolute; inset: 0; pointer-events: none; }
@@ -301,4 +303,35 @@
 .visual-editor-context-menu__group:last-child{border-bottom:0}
 .visual-editor-context-menu button{width:100%;min-height:28px;padding:4px 7px;border:0;border-radius:4px;background:transparent;color:inherit;text-align:left;cursor:pointer;font:inherit}
 .visual-editor-context-menu button:hover:not(:disabled),.visual-editor-context-menu button:focus-visible{background:var(--eng-panel-soft,#17212c);outline:none}
+
+/* Thin lines need a forgiving authoring hit area, separate from stored geometry. */
+.visual-editor-canvas__object[data-canvas-object-type='core.line'] {
+  border-color: transparent !important;
+  background: transparent;
+  outline: none;
+}
+.visual-editor-canvas__object[data-canvas-object-type='core.line']::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  z-index: 1;
+  background: transparent;
+  pointer-events: auto;
+}
+.visual-editor-canvas__object[data-canvas-object-type='core.line'].is-hovered::after,
+.visual-editor-canvas__object[data-canvas-object-type='core.line'].is-selected::after,
+.visual-editor-canvas__object[data-canvas-object-type='core.line'].has-identity-issue::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  z-index: 0;
+  border: 1px dashed rgba(71, 85, 105, 0.82);
+  pointer-events: none;
+}
+.visual-editor-canvas__object[data-canvas-object-type='core.line'].is-selected::after {
+  border: 2px solid currentColor;
+}
+.visual-editor-canvas__object[data-canvas-object-type='core.line'] > .visual-editor-canvas__adorners {
+  inset: -7px;
+}
 .visual-editor-context-menu button:disabled{opacity:.4;cursor:default}

@@ -168,6 +168,7 @@ public sealed class ModbusEngineeringDriverToolProviderFactory : IEngineeringDri
         var tester = new ModbusTcpPointReadTester();
         var registration = new CommunicationDriverModuleRegistration(
             tester,
+            ConnectionTester: new ModbusTcpConnectionTester(),
             PointReadTester: tester);
         registration.Validate();
         return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));

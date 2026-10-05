@@ -195,9 +195,11 @@ test('SCADA runtime operates end-to-end in Chromium', async ({ page, request }) 
   expect(projectInspect.manifest.projectKey).toBe(fixtureProjectKey);
   expect(projectInspect.manifest.projectName).toBe('E2E Explicit Fixture');
   expect(projectInspect.manifest.engineeringSchemaVersion).toBe(engineering.schemaVersion);
-  expect(projectInspect.manifest.files).toHaveLength(1);
-  expect(projectInspect.manifest.files[0].path).toBe('engineering.json');
-  expect(projectInspect.manifest.files[0].sha256).toHaveLength(64);
+  const packageFiles = projectInspect.manifest.files;
+  expect(packageFiles.some(file => file.path === 'engineering.json')).toBeTruthy();
+  const packagedArtwork = packageFiles.filter(file => file.path.startsWith('assets/'));
+  expect(packagedArtwork.length).toBeGreaterThan(0);
+  expect(packageFiles.every(file => file.sha256.length === 64)).toBeTruthy();
   expect(projectInspect.engineering.tags).toBe(7);
   expect(projectInspect.engineering.dataSources).toBe(1);
   expect(projectInspect.engineering.screens).toBe(1);

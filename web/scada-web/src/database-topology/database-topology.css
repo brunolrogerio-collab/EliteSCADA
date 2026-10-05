@@ -31,6 +31,12 @@
   margin: 0;
 }
 
+.db-topology-header h1 {
+  font-size: clamp(1.25rem, 2vw, 1.65rem);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
 .db-topology-header p,
 .db-topology-section-heading p,
 .db-topology-header span,

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useMobileRuntime } from './runtime/useMobileRuntime';
 import { appShellText, useAppShellLocale } from './appShellI18n';
 import { useAppTheme } from './appTheme';
 import { UserSessionMenu } from './auth/UserSessionMenu';
@@ -24,6 +25,7 @@ const helpText = {
 } as const;
 
 export function AppNavigation() {
+  const mobile = useMobileRuntime();
   const locale = useAppShellLocale();
   const text = appShellText(locale);
   const { theme, selectTheme } = useAppTheme();
@@ -32,6 +34,7 @@ export function AppNavigation() {
   const path = window.location.pathname;
   const access = resolveAppSurfaceAccess(capabilities);
   const databaseAdmin = hasRuntimeCapability(capabilities, 'SystemAdmin');
+  if (mobile && path === '/' && access.runtime) return null;
 
   if ((path.startsWith('/runtime/history') || path.startsWith('/runtime/reports')) && access.runtime && access.history) {
     return (

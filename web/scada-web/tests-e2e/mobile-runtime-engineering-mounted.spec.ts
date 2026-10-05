@@ -16,7 +16,8 @@ test('mobile orientation is configured from its dedicated Engineering section wi
   const orientation = workspace.getByTestId('mobile-runtime-orientation');
   await expect(workspace).toBeVisible();
   await expect(orientation).toHaveValue(initialOrientation);
-  await expect(workspace).toContainText('Versões mobile por tela e cabeçalho mobile personalizado ainda não são configurados aqui.');
+  await expect(workspace).toContainText('Versões de telas para mobile');
+  await expect(workspace).toContainText('As versões mobile compartilham o mesmo Runtime e TAGs.');
 
   await orientation.selectOption(initialOrientation === 'landscape' ? 'portrait' : 'landscape');
   const apply = workspace.getByRole('button', { name: 'Aplicar ao Working' });

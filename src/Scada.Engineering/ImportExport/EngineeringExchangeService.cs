@@ -416,6 +416,19 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _securityPolicyHandler.Preview(package, mode, items);
         PreviewOperationalHmiReferences(package, items);
         var requestedRuntimePresentation = package.RuntimePresentation ?? new RuntimePresentationEngineeringDto();
+        var runtimeScreenKeys = (package.Screens ?? Array.Empty<ScreenEngineeringDto>()).Select(x => x.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var header = requestedRuntimePresentation.Header;
+        var invalidHeader = header is not null &&
+            (header.Height is < 32 or > 160 || header.TitlePosition is not ("left" or "center" or "right") ||
+             (header.BackgroundColor is not null && !System.Text.RegularExpressions.Regex.IsMatch(header.BackgroundColor, "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$")) ||
+             (header.Links?.Count ?? 0) > 16 ||
+             (header.Links?.Any(link => string.IsNullOrWhiteSpace(link.Label) || link.Label.Length > 128 ||
+                 !runtimeScreenKeys.Contains(link.ScreenKey) ||
+                 (link.VisualAssetId.HasValue && !(package.VisualAssets ?? Array.Empty<VisualAssetEngineeringDto>()).Any(asset => asset.Id == link.VisualAssetId && asset.MediaType.StartsWith("image/", StringComparison.Ordinal)))) ?? false));
+        var invalidMobile = requestedRuntimePresentation.MobileScreens?.Any(pair => !runtimeScreenKeys.Contains(pair.Key) || !runtimeScreenKeys.Contains(pair.Value)) ?? false;
+        if (invalidHeader || invalidMobile)
+            items.Add(new ImportPreviewItem(ImportEntityKind.RuntimePresentation, "runtime-presentation", ImportOperation.Error,
+                [new ImportIssue("RUNTIME_PRESENTATION_REFERENCE_INVALID", "Header settings or mobile screen references are invalid.", ImportEntityKind.RuntimePresentation, "runtime-presentation", true)]));
         if (requestedRuntimePresentation.MobileOrientation is not ("landscape" or "portrait"))
             items.Add(new ImportPreviewItem(
                 ImportEntityKind.RuntimePresentation,

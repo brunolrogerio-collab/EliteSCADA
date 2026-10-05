@@ -245,4 +245,24 @@ public sealed class MediaSourceEngineeringValidationTests
 
     private static MediaSourceEngineeringDto Source(MediaSourceProtocol protocol, string endpoint) =>
         new(Guid.NewGuid(), "CAMERA-01", "Camera 01", protocol, endpoint);
+
+    [Fact]
+    public void RuntimeHeader_RoundTripsAndRejectsBrokenMobileReferences()
+    {
+        var exchange = CreateExchange(new InMemoryMediaSourceEngineeringRegistry());
+        var package = exchange.ParseJson(exchange.ExportJson(indented: false)) with {
+            RuntimePresentation = new RuntimePresentationEngineeringDto(Header: new RuntimeHeaderEngineeringDto(
+                Enabled: false, Height: 48, BackgroundColor: "#223344", TitlePosition: "center", AlarmsVisible: false))
+        };
+        Assert.True(exchange.Preview(package, ImportMode.CreateAndUpdate).CanApply);
+        var result = exchange.Apply(package, ImportMode.CreateAndUpdate);
+        Assert.DoesNotContain(result.Issues, issue => issue.IsError);
+        var reopened = exchange.ParseJson(exchange.ExportJson(indented: false));
+        Assert.Equal(package.RuntimePresentation, reopened.RuntimePresentation);
+        var invalid = package with { RuntimePresentation = package.RuntimePresentation! with {
+            MobileScreens = new Dictionary<string, string> { ["missing"] = "also-missing" }
+        }};
+        Assert.Contains(exchange.Preview(invalid, ImportMode.CreateAndUpdate).Items.SelectMany(item => item.Issues),
+            issue => issue.Code == "RUNTIME_PRESENTATION_REFERENCE_INVALID" && issue.IsError);
+    }
 }

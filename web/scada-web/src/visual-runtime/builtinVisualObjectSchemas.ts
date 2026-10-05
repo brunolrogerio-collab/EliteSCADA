@@ -172,7 +172,8 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     VISUAL_PROPERTY_KEYS.mediaAutoplay,
     VISUAL_PROPERTY_KEYS.mediaMuted,
     VISUAL_PROPERTY_KEYS.mediaLoop,
-    VISUAL_PROPERTY_KEYS.mediaControls
+    VISUAL_PROPERTY_KEYS.mediaControls,
+    VISUAL_PROPERTY_KEYS.mediaSourceId
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.pdfViewer, schema(BUILTIN_VISUAL_OBJECT_TYPES.pdfViewer, [
     ...BASE,

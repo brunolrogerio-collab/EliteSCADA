@@ -1,4 +1,5 @@
 import React, { type CSSProperties } from 'react';
+import { MediaPlayer } from './MediaPlayer';
 import { visualAssetContentUrl } from '../api';
 import type { EngineeringLocale } from '../i18n';
 import type {
@@ -279,16 +280,16 @@ function CanonicalElement({
       return <div className="visual-editor-object visual-editor-video-player" style={style}
         data-object-id={element.id ?? undefined} data-runtime-object-id={runtimeObjectId}
         data-enabled={enabled} title={elementTitle} data-dynamic-state={diagnosticState}>
-        {assetId ? <video
-          src={visualAssetUrl(assetId)}
+        <MediaPlayer
+          assetUrl={assetId ? visualAssetUrl(assetId) : undefined}
+          sourceId={String(values[VISUAL_PROPERTY_KEYS.mediaSourceId] ?? '') || undefined}
+          runtime={operatorTimeRangeControls}
           autoPlay={values[VISUAL_PROPERTY_KEYS.mediaAutoplay] === true}
           muted={values[VISUAL_PROPERTY_KEYS.mediaMuted] !== false}
           loop={values[VISUAL_PROPERTY_KEYS.mediaLoop] === true}
           controls={values[VISUAL_PROPERTY_KEYS.mediaControls] !== false}
-          playsInline
-          preload="metadata"
-          style={{ width: '100%', height: '100%', objectFit: imageFit(values[VISUAL_PROPERTY_KEYS.imageFit]) }}
-        /> : showTechnicalFallbackText ? <span className="visual-editor-image-placeholder">{element.key}</span> : null}
+          fit={imageFit(values[VISUAL_PROPERTY_KEYS.imageFit])}
+        />
       </div>;
     }
 

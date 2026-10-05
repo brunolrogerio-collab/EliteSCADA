@@ -580,7 +580,21 @@ export type ApplicationBrandingEngineering = Readonly<{
 export type RuntimePresentationEngineering = Readonly<{
   historicalPlaybackEnabled: boolean;
   mobileOrientation?: 'landscape' | 'portrait';
+  mobileScreens?: Readonly<Record<string, string>> | null;
+  header?: RuntimeHeaderEngineering | null;
   version: number;
+}>;
+
+export type RuntimeHeaderEngineering = Readonly<{
+  enabled?: boolean;
+  height?: number;
+  backgroundColor?: string | null;
+  titlePosition?: 'left' | 'center' | 'right';
+  overviewVisible?: boolean;
+  historyVisible?: boolean;
+  alarmsVisible?: boolean;
+  playbackVisible?: boolean;
+  links?: readonly { label: string; screenKey: string; visualAssetId?: string | null }[] | null;
 }>;
 
 export type VisualAssetEngineering = {

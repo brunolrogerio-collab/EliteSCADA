@@ -77,7 +77,7 @@ const navigation: NavGroup[] = [
   { label: 'nav.project', items: [
     { id: 'overview', label: 'nav.overview' },
     { id: 'installation', literalLabel: { 'pt-BR': 'Instalação', en: 'Installation', es: 'Instalación' } },
-    { id: 'branding', literalLabel: { 'pt-BR': 'Branding', en: 'Branding', es: 'Branding' } },
+    { id: 'branding', literalLabel: { 'pt-BR': 'Cabeçalho', en: 'Header', es: 'Encabezado' } },
     { id: 'mobile', literalLabel: { 'pt-BR': 'Mobile', en: 'Mobile', es: 'Móvil' } },
     { id: 'scripts' },
     { id: 'libraries', literalLabel: { 'pt-BR': 'Bibliotecas', en: 'Libraries', es: 'Bibliotecas' } }

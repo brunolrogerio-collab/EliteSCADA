@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useMobileRuntime } from '../useMobileRuntime';
 import { appShellText, useAppShellLocale } from '../../appShellI18n';
 import { UserSessionMenu } from '../../auth/UserSessionMenu';
 import { hasRuntimeCapability, useEffectiveCapabilities } from '../../auth/effectiveCapabilities';
@@ -135,11 +136,16 @@ function EngineeringRuntimeApplicationContent({
   const { capabilities } = useEffectiveCapabilities();
   const historyText = historicalBrowserCopy(locale);
   const fullscreenRoot = useRef<HTMLElement>(null);
+  const mobile = useMobileRuntime();
+  const [requestedScreen, setRequestedScreen] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(Boolean(document.fullscreenElement));
   const [alarmsOpen, setAlarmsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [playbackOpen, setPlaybackOpen] = useState(false);
   const engineeringPackage = projection.package!;
+  const header = engineeringPackage.runtimePresentation?.header;
+  const compact = isFullscreen || mobile;
+  const headerVisible = header?.enabled !== false;
   const playbackConfigured = engineeringPackage.runtimePresentation?.historicalPlaybackEnabled === true;
   const playbackAvailable = playbackConfigured &&
     hasRuntimeCapability(capabilities, 'View') &&
@@ -236,17 +242,17 @@ function EngineeringRuntimeApplicationContent({
     data-runtime-temporal-mode={playback.mode === 'historicalPlayback' ? 'historical-playback' : 'live'}
     data-runtime-historical-at={playback.atUtc ?? undefined}
   >
-    <header className={`runtime-operator-bar${isFullscreen ? ' runtime-operator-bar--fullscreen' : ''}`}>
-      {isFullscreen ? <div className="runtime-operator-brand">
+    {headerVisible ? <header className={`runtime-operator-bar${compact ? ' runtime-operator-bar--fullscreen' : ''}`} style={{ minHeight: header?.height ?? 56, background: header?.backgroundColor ?? undefined }}>
+      {compact ? <div className="runtime-operator-brand">
         <ApplicationBrand
           branding={branding}
           defaultSubtitle={text.subtitle}
           href="/"
         />
       </div> : null}
-      <div className="runtime-operator-context" title={projection.projectName || projection.projectKey || text.runtime}>
+      <div className="runtime-operator-context" style={{ textAlign: header?.titlePosition ?? 'left', order: header?.titlePosition === 'right' ? 3 : undefined, flex: header?.titlePosition === 'center' ? 1 : undefined }} title={projection.projectName || projection.projectKey || text.runtime}>
         <strong>{projection.projectName || projection.projectKey}</strong>
-        {!isFullscreen ? <span>rev {projection.revision}</span> : null}
+        {!compact ? <span>rev {projection.revision}</span> : null}
         {playback.mode === 'historicalPlayback' && playback.atUtc ? <>
           <span className="runtime-playback-badge">
             {playbackText.playback} · {new Intl.DateTimeFormat(locale,{hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date(playback.atUtc))} · {playbackText.readOnly}
@@ -256,13 +262,13 @@ function EngineeringRuntimeApplicationContent({
       </div>
       <div className="runtime-operator-actions">
         <div className="runtime-operator-toolbar" role="toolbar" aria-label={text.runtime}>
-          <RuntimeOperatorTool
+          {header?.overviewVisible !== false && <RuntimeOperatorTool
             label={text.runtimeOverview}
             icon="overview"
             active={!historyOpen && !alarmsOpen}
             onClick={showOverview}
-          />
-          {showHistoryNavigation ? <RuntimeOperatorTool
+          />}
+          {showHistoryNavigation && header?.historyVisible !== false ? <RuntimeOperatorTool
             label={text.runtimeHistory}
             icon="history"
             active={historyOpen}
@@ -270,7 +276,7 @@ function EngineeringRuntimeApplicationContent({
             controls="runtime-history-overlay"
             onClick={toggleHistory}
           /> : null}
-          <RuntimeOperatorTool
+          {header?.alarmsVisible !== false && <RuntimeOperatorTool
             label={text.alarms}
             icon="alarms"
             active={alarmsOpen}
@@ -278,8 +284,8 @@ function EngineeringRuntimeApplicationContent({
             controls="runtime-alarm-overlay"
             disabled={playback.mode === 'historicalPlayback'}
             onClick={toggleAlarms}
-          />
-          {playbackAvailable ? <RuntimeOperatorTool
+          />}
+          {playbackAvailable && header?.playbackVisible !== false ? <RuntimeOperatorTool
             label={playbackText.title}
             icon="playback"
             active={playback.mode === 'historicalPlayback'}
@@ -287,25 +293,31 @@ function EngineeringRuntimeApplicationContent({
             controls="runtime-playback-overlay"
             onClick={togglePlayback}
           /> : null}
-            {showFullscreenControl && !isFullscreen ? <RuntimeOperatorTool
+            {showFullscreenControl && !compact ? <RuntimeOperatorTool
               label={text.fullscreen}
               icon="fullscreen"
               active={false}
             onClick={() => void toggleFullscreen()}
           /> : null}
+          {(header?.links ?? []).map((link, index) => <button key={index} type="button" title={link.label} aria-label={link.label} onClick={() => { setRequestedScreen(link.screenKey); showOverview(); }}>
+            {link.visualAssetId ? <img src={runtimeVisualAssetContentUrl(link.visualAssetId)} alt="" style={{ width: 28, height: 28, objectFit: 'contain' }}/> : link.label}
+          </button>)}
         </div>
-          {isFullscreen ? <UserSessionMenu
+          {compact ? <UserSessionMenu
             locale={locale}
             includeRuntimeSessionControls
-            runtimeFullscreenExit={{ label: text.exitFullscreen, onActivate: () => void toggleFullscreen() }}
+            runtimeFullscreenExit={isFullscreen ? { label: text.exitFullscreen, onActivate: () => void toggleFullscreen() } : undefined}
           /> : null}
       </div>
-    </header>
+    </header> : <div className="runtime-hidden-header-session" aria-label={text.runtime}>
+      <UserSessionMenu locale={locale} includeRuntimeSessionControls runtimeFullscreenExit={isFullscreen ? { label: text.exitFullscreen, onActivate: () => void toggleFullscreen() } : undefined}/>
+    </div>}
 
     <section className="runtime-engineering-canvas" data-testid="runtime-engineering-canvas">
       <RuntimeVisualNavigator
         engineeringPackage={engineeringPackage}
-        initialScreenKey={startup.screenKey}
+        initialScreenKey={requestedScreen ?? startup.screenKey}
+        mobileScreens={engineeringPackage.runtimePresentation?.mobileScreens ?? undefined}
         mobileOrientation={engineeringPackage.runtimePresentation?.mobileOrientation ?? 'landscape'}
         locale={locale}
         scriptContext={scriptContext}

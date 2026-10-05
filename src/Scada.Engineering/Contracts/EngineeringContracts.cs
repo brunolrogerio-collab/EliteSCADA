@@ -352,7 +352,22 @@ public sealed record ApplicationBrandingEngineeringDto(
 public sealed record RuntimePresentationEngineeringDto(
     bool HistoricalPlaybackEnabled = false,
     string MobileOrientation = "landscape",
-    int Version = 1);
+    int Version = 1,
+    RuntimeHeaderEngineeringDto? Header = null,
+    IReadOnlyDictionary<string, string>? MobileScreens = null);
+
+public sealed record RuntimeHeaderEngineeringDto(
+    bool Enabled = true,
+    int Height = 56,
+    string? BackgroundColor = null,
+    string TitlePosition = "left",
+    bool OverviewVisible = true,
+    bool HistoryVisible = true,
+    bool AlarmsVisible = true,
+    bool PlaybackVisible = true,
+    IReadOnlyList<RuntimeHeaderLinkEngineeringDto>? Links = null);
+
+public sealed record RuntimeHeaderLinkEngineeringDto(string Label, string ScreenKey, Guid? VisualAssetId = null);
 
 public sealed record VisualAssetEngineeringDto(
     Guid? Id,

@@ -69,6 +69,7 @@ export const VISUAL_PROPERTY_KEYS = {
   verticalAlignment: 'verticalAlignment',
   assetRef: 'assetRef',
   mediaAutoplay: 'mediaAutoplay',
+  mediaSourceId: 'mediaSourceId',
   mediaMuted: 'mediaMuted',
   mediaLoop: 'mediaLoop',
   mediaControls: 'mediaControls',
@@ -415,6 +416,7 @@ const COMMON_VISUAL_PROPERTY_DEFINITIONS: readonly VisualPropertyDefinition[] = 
     presentationHint: 'project-asset'
   } satisfies AssetRefVisualPropertyDefinition,
   booleanProperty(VISUAL_PROPERTY_KEYS.mediaAutoplay, false, 'media'),
+  stringProperty(VISUAL_PROPERTY_KEYS.mediaSourceId, '', 'media'),
   booleanProperty(VISUAL_PROPERTY_KEYS.mediaMuted, true, 'media'),
   booleanProperty(VISUAL_PROPERTY_KEYS.mediaLoop, false, 'media'),
   booleanProperty(VISUAL_PROPERTY_KEYS.mediaControls, true, 'media'),

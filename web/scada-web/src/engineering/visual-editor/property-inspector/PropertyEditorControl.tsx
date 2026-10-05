@@ -6,6 +6,8 @@ import {
   type KeyboardEvent
 } from 'react';
 import type { VisualAssetEngineering, VisualEngineeringPropertyValue } from '../../types';
+import type { MediaSourceEngineering } from '../../types';
+import { loadMediaSources } from '../../api';
 import { VISUAL_PROPERTY_KEYS, type VisualPropertyDefinition } from '../../../visual-runtime';
 import { normalizeCanonicalStrokeStyle, svgStrokeDasharray } from '../visualStrokePresentation';
 import type { PropertyInspectorCopy } from './PropertyInspector';
@@ -42,6 +44,7 @@ export function PropertyEditorControl({
   commit,
   setError
 }: PropertyEditorControlProps) {
+  if (definition.key === VISUAL_PROPERTY_KEYS.mediaSourceId) return <MediaSourceControl row={row} commit={commit} setError={setError}/>;
   if (definition.type === 'number' && [VISUAL_PROPERTY_KEYS.imagePositionX, VISUAL_PROPERTY_KEYS.imagePositionY, VISUAL_PROPERTY_KEYS.imageZoom].includes(definition.key as never)) {
     return <ImageAdjustmentControl definition={definition} row={row} text={text} commit={commit} />;
   }
@@ -85,6 +88,21 @@ export function PropertyEditorControl({
   }
 
   return <TextualControl definition={definition} row={row} text={text} commit={commit} setError={setError} />;
+}
+
+function MediaSourceControl({ row, commit, setError }: Pick<PropertyEditorControlProps, 'row' | 'commit' | 'setError'>) {
+  const [sources, setSources] = useState<MediaSourceEngineering[]>([]);
+  useEffect(() => {
+    let disposed = false;
+    void loadMediaSources().then(items => { if (!disposed) setSources(items); }).catch(error => { if (!disposed) setError(error instanceof Error ? error.message : String(error)); });
+    return () => { disposed = true; };
+  }, [setError]);
+  const current = String(row.value ?? '');
+  return <select aria-label="Media Source" value={current} onChange={event => commit(event.target.value)}>
+    <option value="">Project asset</option>
+    {current && !sources.some(source => source.id === current) && <option value={current}>{current}</option>}
+    {sources.filter(source => source.id && source.enabled).map(source => <option key={source.id!} value={source.id!}>{source.name} · {source.protocol}</option>)}
+  </select>;
 }
 
 type BasicEditorProps = Pick<PropertyEditorControlProps, 'definition' | 'row' | 'text' | 'commit'>;

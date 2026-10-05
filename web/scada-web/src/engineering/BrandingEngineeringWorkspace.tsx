@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { applyEngineeringPackage, importVisualAsset, previewEngineeringPackage, visualAssetContentUrl } from './api';
 import type { ApplicationBrandingEngineering, ApplicationBrandingMode, EngineeringSnapshot, ImportPreviewView, RuntimePresentationEngineering } from './types';
 import type { EngineeringLocale } from './i18n';
+import { RuntimeHeaderSettings } from './RuntimeHeaderSettings';
 
 const DEFAULT: ApplicationBrandingEngineering = { mode: 'default' };
 const DEFAULT_RUNTIME: RuntimePresentationEngineering = { historicalPlaybackEnabled: false, mobileOrientation: 'landscape', version: 1 };
@@ -80,7 +81,7 @@ export function BrandingEngineeringWorkspace({ snapshot, onApplied, locale = 'pt
   }
 
   return <div className="eng-section branding-editor" data-testid="branding-editor">
-    <header className="eng-section-header"><div><span className="eng-eyebrow">Application</span><h1>Branding</h1>
+    <header className="eng-section-header"><div><span className="eng-eyebrow">Application</span><h1>{locale === 'pt-BR' ? 'Cabeçalho' : locale === 'es' ? 'Encabezado' : 'Header'}</h1>
       <p>Configure canonical application branding. This preview is Working-only; the global shell consumes only the Active revision.</p></div></header>
     <div className="branding-editor__grid">
       <section className="eng-panel branding-editor__form" aria-label="Branding configuration">
@@ -103,6 +104,9 @@ export function BrandingEngineeringWorkspace({ snapshot, onApplied, locale = 'pt
         </div>}
         <RuntimePlaybackProjectSetting locale={locale} value={runtimeDraft.historicalPlaybackEnabled}
           onChange={value => { setRuntimeDraft(current => ({ ...current, historicalPlaybackEnabled: value, version: 1 })); setPreview(null); setPreviewSignature(''); setMessage(null); }} />
+        <RuntimeHeaderSettings locale={locale} snapshot={snapshot} value={runtimeDraft.header ?? {}} onChange={header => {
+          setRuntimeDraft(current => ({ ...current, header })); setPreview(null); setPreviewSignature(''); setMessage(null);
+        }}/>
         <div className="branding-editor__actions"><button type="button" onClick={() => void validate()} disabled={busy}>Preview validation</button>
           <button type="button" onClick={() => void apply()} disabled={busy || !preview?.canApply || previewSignature !== signature}>Apply to Working</button></div>
         {message && <p role="status" className="branding-editor__message">{message}</p>}

@@ -176,6 +176,9 @@ export async function deleteVisualAsset(assetId: string, expectedChangeVersion: 
 }
 
 export type MediaSourceCredentialState = { configured: boolean; code?: string };
+export async function loadMediaSources(): Promise<MediaSourceEngineering[]> {
+  return await getJson<MediaSourceEngineering[]>('/api/engineering/media-sources');
+}
 export type MediaSourceCredentialInput = { username?: string | null; password?: string | null; bearerToken?: string | null };
 
 export async function createMediaSource(source: MediaSourceEngineering, expectedChangeVersion: number): Promise<MediaSourceEngineering> {

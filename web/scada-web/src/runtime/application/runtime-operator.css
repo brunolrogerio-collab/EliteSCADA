@@ -349,3 +349,21 @@
   background: transparent; color: var(--app-text-primary); font: inherit; font-size: 10px; cursor: pointer;
 }
 .runtime-playback-live-shortcut:hover { background: var(--app-selected); }
+.runtime-hidden-header-session {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 8px;
+  z-index: 100;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.runtime-hidden-header-session:hover,
+.runtime-hidden-header-session:focus-within { opacity: 1; }
+@media (pointer: coarse) {
+  .runtime-hidden-header-session { opacity: 1; }
+  .runtime-operator-application { height: 100dvh; min-height: 0; }
+  .runtime-operator-bar { flex-wrap: wrap; }
+}
+.runtime-operator-bar[style] .runtime-operator-toolbar,
+.runtime-operator-bar[style] .runtime-operator-actions { background: transparent; }

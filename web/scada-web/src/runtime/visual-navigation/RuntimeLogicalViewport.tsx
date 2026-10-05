@@ -15,6 +15,7 @@ export function RuntimeLogicalViewport({
 }>) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0, coarsePointer: false });
+  const [zoom, setZoom] = useState(1);
 
   useLayoutEffect(() => {
     const element = viewportRef.current;
@@ -46,7 +47,13 @@ export function RuntimeLogicalViewport({
     data-runtime-scale={transform.scale}
     data-mobile-orientation={mobileOrientation}
     data-mobile-rotated={rotateToLandscape || undefined}
+    style={{ overflow: zoom > 1 ? 'auto' : undefined }}
   >
+    {viewport.coarsePointer && <div style={{ position: 'sticky', top: 0, left: 0, zIndex: 10, display: 'flex', gap: 4 }} role="toolbar" aria-label="Zoom">
+      <button type="button" aria-label="Zoom −" onClick={() => setZoom(value => Math.max(1, value - .25))}>−</button>
+      <button type="button" aria-label="Zoom reset" onClick={() => setZoom(1)}>{Math.round(zoom * 100)}%</button>
+      <button type="button" aria-label="Zoom +" onClick={() => setZoom(value => Math.min(4, value + .25))}>+</button>
+    </div>}
     <div
       className="runtime-logical-stage"
       data-testid="runtime-logical-stage"
@@ -56,8 +63,8 @@ export function RuntimeLogicalViewport({
         left: transform.offsetX,
         top: transform.offsetY,
         transform: rotateToLandscape
-          ? `translate(-50%, -50%) rotate(90deg) scale(${transform.scale})`
-          : `scale(${transform.scale})`,
+          ? `translate(-50%, -50%) rotate(90deg) scale(${transform.scale * zoom})`
+          : `scale(${transform.scale * zoom})`,
         transformOrigin: rotateToLandscape ? 'center' : '0 0'
       }}
     >

@@ -1,6 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { DatabaseTopologyApp } from '../src/database-topology';
+import '../src/app-theme.css';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Database Topology harness root not found.');

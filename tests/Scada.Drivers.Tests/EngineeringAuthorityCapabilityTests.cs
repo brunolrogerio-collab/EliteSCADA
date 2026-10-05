@@ -42,17 +42,16 @@ public sealed class EngineeringAuthorityCapabilityTests
     }
 
     [Fact]
-    public void BuiltInDeveloperRoleDoesNotReceiveHighAvailabilityAuthorityByEnumeration()
+    public void BuiltInDeveloperRoleCanObserveAndTransferHighAvailabilityButCannotAdministerIt()
     {
         using var workspace = new EngineeringWorkspace();
         var developer = workspace.SecurityPolicies.FindRoleByKey("developer");
 
         Assert.NotNull(developer);
         Assert.Contains(developer!.Grants!, grant => grant.Capability == SecurityCapability.EngineeringView);
-        Assert.DoesNotContain(developer.Grants!, grant =>
-            grant.Capability is SecurityCapability.HighAvailabilityObserve or
-                SecurityCapability.HighAvailabilityTransfer or
-                SecurityCapability.HighAvailabilityAdmin);
+        Assert.Contains(developer.Grants!, grant => grant.Capability == SecurityCapability.HighAvailabilityObserve);
+        Assert.Contains(developer.Grants!, grant => grant.Capability == SecurityCapability.HighAvailabilityTransfer);
+        Assert.DoesNotContain(developer.Grants!, grant => grant.Capability == SecurityCapability.HighAvailabilityAdmin);
     }
 
     [Fact]

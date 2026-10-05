@@ -363,21 +363,58 @@ async function evidence(page: Page, testInfo: TestInfo, name: string) {
   await testInfo.attach(name, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
 }
 
-test('Standalone is the explicit default and Demo keeps HA visible but gated', async ({ page }, testInfo) => {
+test('Demo keeps the HA topology and settings visible in read-only mode', async ({ page }, testInfo) => {
   const state = standaloneState(false);
   await mockHa(page, state);
   await open(page);
 
   await expect(page.getByTestId('ha-running-mode')).toContainText('Standalone');
-  await expect(page.getByTestId('ha-topology-choice')).toContainText('Modo Demo opera em Standalone');
-  await expect(page.getByRole('button', { name: /^High Availability/ })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /^High Availability/ })).toBeEnabled();
+  await expect(page.getByTestId('ha-topology-choice')).toContainText('Licença HA necessária');
+  await page.getByTestId('ha-advanced-settings').locator('summary').first().click();
+  await page.getByTestId('ha-safety-tuning').locator('summary').click();
+  await expect(page.getByLabel('Lease (s)')).toBeVisible();
+  await expect(page.getByLabel('Lease (s)')).toBeDisabled();
+  await page.getByTestId('ha-peer-transport-override').locator('summary').click();
+  await expect(page.getByTestId('ha-peer-endpoint-mode')).toBeVisible();
   await expect(page.getByLabel('Este servidor · Endereço principal')).toBeDisabled();
   await expect(page.getByLabel('Servidor parceiro · Endereço principal')).toBeDisabled();
-  await expect(page.getByText('Cluster ID', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('Node ID', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('Visualização dos campos HA')).toBeVisible();
+  await expect(page.getByText('Visualização dos campos HA').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Salvar preparação HA' })).toBeDisabled();
   await expect(page.getByRole('button', { name: /^Switchover/ })).toHaveCount(0);
   await evidence(page, testInfo, 'ha-standalone-demo-default');
+});
+
+test('an existing HA cluster remains observable but cannot be edited or operated without entitlement', async ({ page }) => {
+  const state = healthyState();
+  state.licenseState = 'Invalid';
+  state.haEntitled = false;
+  await mockHa(page, state);
+  await open(page);
+
+  await expect(page.getByTestId('ha-running-mode')).toContainText('High Availability');
+  await expect(page.getByLabel('Este servidor · Endereço principal')).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Salvar configuração desejada' })).toBeDisabled();
+  await expect(page.getByTestId('ha-license-actions-required')).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Switchover/ })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /^Failback/ })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /^Recovery/ })).toBeDisabled();
+});
+
+test('403 HA authorization is explained with the exact required capabilities', async ({ page }) => {
+  await mockHa(page, healthyState());
+  await page.route('**/api/runtime/ha/topology', route => route.fulfill({
+    status: 403,
+    contentType: 'application/json',
+    body: JSON.stringify({ error: 'Forbidden' })
+  }));
+
+  await page.goto(harness);
+  const denied = page.getByTestId('ha-admin-permission-required');
+  await expect(denied).toBeVisible();
+  await expect(denied).toContainText('HighAvailabilityObserve');
+  await expect(denied).toContainText('HighAvailabilityTransfer');
+  await expect(page.getByRole('link', { name: 'Abrir Segurança na Engenharia' })).toHaveAttribute('href', '/engineering/security');
 });
 
 test('licensed Standalone can prepare HA but still reports Standalone running until cold start', async ({ page }, testInfo) => {

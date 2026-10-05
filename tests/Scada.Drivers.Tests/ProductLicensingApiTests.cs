@@ -17,6 +17,30 @@ namespace Scada.Drivers.Tests;
 public sealed class ProductLicensingApiTests
 {
     [Fact]
+    public void HaRuntimeLicensePolicy_RequiresValidLicenseAndExplicitHaEntitlement()
+    {
+        var issuedAt = DateTimeOffset.Parse("2026-09-24T12:00:00Z");
+        var license = new EliteScadaLicensePayload(
+            EliteScadaLicenseCodec.LicenseV2SchemaVersion,
+            "ha-license",
+            new string('a', 64),
+            LicenseTier.Tags1000,
+            issuedAt,
+            null,
+            "test-key");
+
+        Assert.True(RuntimeHaLicensePolicy.IsEntitled(LicenseVerificationResult.Valid(
+            license,
+            new MachineLicenseV2Entitlements(7, 3, HaRuntime: true))));
+        Assert.False(RuntimeHaLicensePolicy.IsEntitled(LicenseVerificationResult.Valid(
+            license,
+            new MachineLicenseV2Entitlements(7, 3, HaRuntime: false))));
+        Assert.False(RuntimeHaLicensePolicy.IsEntitled(LicenseVerificationResult.Valid(license)));
+        Assert.False(RuntimeHaLicensePolicy.IsEntitled(LicenseVerificationResult.Demo()));
+        Assert.False(RuntimeHaLicensePolicy.IsEntitled(LicenseVerificationResult.Invalid("expired")));
+    }
+
+    [Fact]
     public void LicenseMutation_RequiresEngineeringModify_NotEngineeringView()
     {
         using var workspace = new EngineeringWorkspace();

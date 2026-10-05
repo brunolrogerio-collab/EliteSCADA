@@ -26,7 +26,9 @@ internal static class VisualAssetReferenceEngineeringValidation
         var issues = new List<ImportIssue>();
         if (package.SchemaVersion < 13 ||
             (!element.Type.Equals(BuiltinVisualObjectSchemas.ImageType, StringComparison.Ordinal) &&
-             !element.Type.Equals(BuiltinVisualObjectSchemas.SvgSymbolType, StringComparison.Ordinal)) ||
+             !element.Type.Equals(BuiltinVisualObjectSchemas.SvgSymbolType, StringComparison.Ordinal) &&
+             !element.Type.Equals(BuiltinVisualObjectSchemas.PdfViewerType, StringComparison.Ordinal) &&
+             !element.Type.Equals(BuiltinVisualObjectSchemas.VideoPlayerType, StringComparison.Ordinal)) ||
             element.Properties is null ||
             !element.Properties.TryGetValue(VisualPropertyKeys.AssetRef, out var serialized) ||
             serialized.ValueKind == JsonValueKind.Null)
@@ -56,6 +58,15 @@ internal static class VisualAssetReferenceEngineeringValidation
                 true));
             return issues;
         }
+
+        var mediaValid = element.Type switch
+        {
+            BuiltinVisualObjectSchemas.PdfViewerType => asset.MediaType.Equals(VisualAssetContentInspector.PdfMediaType, StringComparison.OrdinalIgnoreCase),
+            BuiltinVisualObjectSchemas.VideoPlayerType => asset.MediaType is VisualAssetContentInspector.Mp4MediaType or VisualAssetContentInspector.WebmMediaType,
+            _ => true
+        };
+        if (!mediaValid)
+            issues.Add(new("VISUAL_MEDIA_ASSET_TYPE_INVALID", $"Visual element '{element.Key}' references an incompatible media asset.", kind, entityKey, true));
 
         if (!element.Type.Equals(BuiltinVisualObjectSchemas.SvgSymbolType, StringComparison.Ordinal))
             return issues;

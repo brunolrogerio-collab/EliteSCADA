@@ -228,7 +228,7 @@ public sealed class ProjectPackageTests
     }
 
     [Fact]
-    public async Task AuthorityBoundPackageV3_RequiresExactAuthorityReferenceForPreviewAndApply()
+    public async Task AuthorityBoundPackageV3_UsesCurrentGrantsButRequiresStableAuthorityIdentities()
     {
         var role = new SecurityRoleEngineeringDto(
             Guid.Parse("93000000-0000-0000-0000-000000000001"),
@@ -259,6 +259,11 @@ public sealed class ProjectPackageTests
 
         var changed = await authority.TryReplaceAsync(0, [role], []);
         Assert.True(changed.Applied);
+        Assert.True(service.Preview(package, ImportMode.CreateAndUpdate).CanApply);
+
+        var replaced = await authority.TryReplaceAsync(changed.Snapshot.Version,
+            [role with { Id = Guid.Parse("93000000-0000-0000-0000-000000000002") }], []);
+        Assert.True(replaced.Applied);
 
         var preview = service.Preview(package, ImportMode.CreateAndUpdate);
         var apply = service.Apply(package, ImportMode.CreateAndUpdate);

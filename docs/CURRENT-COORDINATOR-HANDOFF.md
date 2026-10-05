@@ -1,3 +1,13 @@
+# CURRENT CONSOLIDATION — 2026-10-05
+
+The current product target is `wave15/corrections-integration`. The owner explicitly authorized this temporary coordinator to integrate the non-visual product work and produce its post-merge CI. Old PARKED/NO_MERGE lane checkpoints below are historical, not current instructions.
+
+Read [the current consolidation handoff](WAVE15-TEMPORARY-COORDINATOR-HANDOFF-2026-10-04.md) first. Dynamo artwork and fulfillment of the categorized 2,000+ SVG asset library are **not accepted** and are deferred by the owner's latest direction. Do not count generated previews or technically valid catalogs as visual acceptance.
+
+The independent PR #362 targets the preview-workbench lane, not this product. Residential/home automation driver development is the successor coordinator's scope. Current changes close Developer HA defaults/license gating, database Engineering navigation/themes, security-policy refresh and the latest post-merge regressions. Final CI is recorded in the current handoff, not inferred from older green runs.
+
+---
+
 # FINAL REVALIDATION CORRECTION — 2026-10-03 — ACTIVE BRANCHES MOVED DURING HANDOFF
 
 > This correction supersedes the active-lane status inside the 2026-10-03 rotation text below.

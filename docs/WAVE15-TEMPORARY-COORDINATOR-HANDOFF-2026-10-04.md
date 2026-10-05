@@ -1,6 +1,8 @@
 # Wave 15 consolidation handoff
 
-Updated 2026-10-05. The product is consolidated in `wave15/corrections-integration`, including #508–#515 after product consolidation #502. This replaces the conflicting development checkpoints in this file. It is not a claim that every requested feature or final integrated CI is complete.
+Updated 2026-10-05. The product is consolidated in `wave15/corrections-integration`, including #508–#517 after product consolidation #502. This replaces conflicting earlier development checkpoints. The final HA/database/security and CI-repair package follows #517; its final merge/gate evidence is appended below.
+
+**Owner's current scope:** finish and integrate the non-Dynamo product. Dynamo visual quality was rejected, and the requested categorized/linked 2,000+ static SVG library was not accepted as delivered. Both remain open, to be reconsidered with the owner; do not redesign or claim completion during this consolidation. Existing 26 definitions and the conversion/composition infrastructure are preserved; the obsolete 72 remain purged.
 
 The mobile presentation also intercepts privileged Engineering/administration bookmarks: authorized Runtime users see the same Runtime canvas, without mounting desktop authoring or the second global header. Five mounted browser contracts pass for desktop, fullscreen, portrait-held mobile and both privileged mobile bookmarks. The media route explicitly resolves optional persistence from services and reports offline/503 on hosts without persistence, rather than failing endpoint construction.
 
@@ -10,12 +12,17 @@ The owner authorized integration and prioritized development over repeated testi
 
 - #502 now includes #453/#454 HA/database core, #455/#456 HA/database UI, #439 Help, and the 26 replacement Dynamo catalog. Those PRs are merged.
 - Database administration is an Engineering entry beside High Availability, not a large global header title. The obsolete Area Atual header element is absent.
+- Database administration now also retains Engineering navigation when opened directly and uses the common light/dark theme tokens. It is not an isolated administration page without project context.
+- Developer receives HA Observe and Transfer capabilities by product default (fresh Authority/bootstrap/first project), not merely a Docker role edit. HA Admin is separate. An unlicensed user can inspect the full topology/configuration; save, apply and operations require a valid HA entitlement on both UI and API.
+- Authority grant changes refresh Runtime authorization immediately. Saved packages bind to stable role/scope identities rather than freezing mutable grant versions; changed identities still fail closed. The role editor sends canonical string capability IDs rather than numeric enum values.
 - Reporting V3 (#498), editable SVG (#490), categorized SVG library foundation (#491), SVG Dynamo composition (#493), protected material authority (#499), and driver diagnostics (#504/#506/#507) remain in the common base.
 - Historical Playback from #478/#480 reconstructs Screens/Popups/Dynamos from historian TAG samples with a time cursor and read-only guards. It is NOT video/media playback. The obsolete overlapping draft #452 is closed as superseded, not merged over the newer implementation.
 - Previously unpublished media/mobile work was preserved as source commit `21860859` and integrated as `1c3ef121`. Unrelated driver/lab changes in the source worktree were deliberately left untouched.
 - Header/mobile/network-media additions are in `671e3b5d`. Docker host credential persistence is in #508, commit `6229f4a4`.
 
 ## Dínamos and SVG assets
+
+**Not accepted visually; deferred by owner.** The implementation details below document existing infrastructure only. Technical tests and the 2,208 factory review candidates are not evidence that the owner received the requested professional artwork or fully populated categorized static-asset library. #501 and #484/#482 remain open. The next visual plan needs well-drawn SVG bases, layered detail and independently bound animation/property slots, not recolored monochrome substitutes.
 
 The replacement catalog contains 4 lamps, 4 buttons, 6 motors, 6 valves and 6 electrical contact/disconnector variants. Original first-party factory SVG geometry backs stable Visual Assets and canonical `core.svgSymbol` composition. The obsolete 72 built-ins are purged from the current source factory and their exclusive tests, not merely hidden in the UI. Migration retains a minimal marker test and removes platform-owned old entries without deleting project-authored definitions. The E3 conversion structure is retained. Thirty-seven replacement catalog/bootstrap tests pass.
 
@@ -40,13 +47,15 @@ Static SVGs can use semantic dynamic paint slots without becoming Dynamos. Gener
 
 #495/#496 now have integrated source DTO/registry/CRUD/package support, separate protected Basic/Bearer credential provisioning, and bounded project PDF/MP4/WebM resource handling. Video and PDF objects use the shared canonical renderer and normal toolbar/property authoring. Video can select a configured Media Source by identity.
 
+The persisted acceptance found a real missing link: only the frontend registered `core.videoPlayer`/`core.pdfViewer`, so canonical API Preview rejected a screen authored with them. This consolidation registers both types and all eight media properties in the backend, validates asset MIME/identity and prospective Media Source GUIDs, and adds the same inert PDF response headers to Runtime as Engineering. Three real Active/registry parity browser checks and 482 Core tests pass after the fix.
+
 The Runtime consumer resolves only an enabled source from the persisted Active project. HTTP/MJPEG playback is server-mediated, does not accept browser-supplied URLs, does not follow upstream redirects, limits concurrent connections and request/stream lifetimes, and never exposes source credentials or URLs. Engineering does not continuously connect cameras.
 
 The media relay now rewrites HLS playlists/keys/segments to authenticated same-origin routes with opaque AES-GCM tickets bound to Active project/revision/source. Requests reject cross-origin playlist resources, redirects, loopback/link-local/metadata destinations and DNS rebinding. Private industrial LAN destinations require explicit host policy (enabled in the isolated stable deployment). Playlists/segments are bounded to 1/32 MiB; stream/concurrency deadlines remain bounded.
 
 RTSP uses an isolated, digest-pinned MediaMTX 1.21.1 sidecar, provisioned only from Active source identities. Camera credentials remain server-side and dynamic configuration is in memory, not the portable package or process arguments. HLS.js 1.7.3 is lazy-loaded for desktop browser playback; native HLS remains available. Reconnect uses bounded exponential backoff and stops on authentication/unsupported formats. RTSP is remuxed, not transcoded: the camera codec must be supported by the browser; RTSPS currently requires a certificate-valid literal address.
 
-The synthetic laboratory passes real RTSP-to-HLS provisioning and playlist/initialization/segment reads through revision-bound tickets. Chromium decodes the stream, advances playback time and pauses; credential failure stops automatic retry. Its HTTP Active-source boundary is mocked separately, not misrepresented as full persisted-source acceptance. This found and fixed the gateway's initial cookie-check 302. Combined canonical Video/PDF composition verifies PDF page/zoom/toolbar changes, local-video controls/muting, and no network camera requests in Design. It does not assert PDF pixel decoding from a persisted asset. Remaining media acceptance: persisted source/document authority. #495/#496 remain open for that check and the final integrated gate.
+The synthetic laboratory passes real RTSP-to-HLS provisioning and playlist/initialization/segment reads through revision-bound tickets. Chromium decodes the stream, advances playback time and pauses; credential failure stops automatic retry. That streaming fixture's HTTP Active-source boundary is mocked separately. The new `media-active-revision.spec.ts` exercises real PostgreSQL, public Preview/Apply/Save/Publish/Activate, persisted camera identity and exact PDF payload/ETag, draft-vs-Active isolation and canonical Runtime Video/PDF mounting without mocked HTTP. Each activation requires a new revision-bound Runtime lease. This closes a different boundary from the already accepted stream decoder test; it is not a repeat of the synthetic driver/media laboratory. Native PDF pixel decoding is not asserted by the endpoint/iframe contract.
 
 ## Runtime header and mobile
 
@@ -66,7 +75,7 @@ Reporting and historian-based playback are integrated capabilities. Local/networ
 
 ## Isolated Docker preview
 
-The `elitescada-stable` API was rebuilt through #514 and web through integrated `e9444c83` (#515) on 2026-10-05. Catalog 1.0.1's API/web rebuild follows this checkpoint:
+The `elitescada-stable` API/web are rebuilt from the final merged source for this consolidation, not a selected subset of branches. Rebuild completion and exact source are recorded below:
 
 - Web: http://localhost:18080/
 - API: http://localhost:15080/
@@ -81,13 +90,12 @@ Restart policies and normal startup initialize the services automatically. Start
 
 ## Current verification and remaining sequence
 
-This consolidation passed API build, production Web build, and 23 focused Core tests covering media/branding/header round-trip and invalid-reference rejection. The existing large-bundle warning is not a build failure. These results are not a final broad CI or full mounted product acceptance.
+The consolidation package passed production Web build, 482 Core tests, 969 Drivers tests (one opt-in already accepted media-lab test skipped), three visual-schema contracts, 19 mounted HA/database checks and three Active-media/property-parity browser checks. Test counts are scoped results, not invented full-suite claims. Latest CI #517 failures were a null screen in malformed Preview and a stale schema list missing `core.svgSymbol`; both are corrected. The fresh Runtime smoke now expects Developer HA Observe/Transfer but not HA Admin.
 
-1. Complete #501's persisted package/Runtime command and script acceptance; the 26-variant authoring gallery and wizard checks above are already accepted and should not be repeated without a regression.
-2. Complete #495/#496 mounted synthetic-stream and document/player acceptance.
-3. Factory-library copy is verified at its mounted HTTP boundary; external #484 curation retains per-source redistribution evidence and is not replaced by undocumented third-party bundling.
-4. Check the integrated editor/Runtime flows for regressions rather than retesting unchanged driver foundations.
-5. Integrate the remaining product changes, then run one final post-merge CI and close acceptance issues based on its result.
-6. Only then hand development to the residential-driver coordinator.
+1. Merge the final non-Dynamo product package and obtain its exact post-merge CI; preserve any failure as a concrete blocker until fixed.
+2. Rebuild the isolated API/web from that merged source, preserving PostgreSQL and protected-material/key volumes.
+3. Close implemented media/driver/header/mobile/foundation tracking based on the final gate and preserved acceptance. Native Android/iOS packaging remains an undecided future option, not a browser Runtime defect.
+4. Leave #501 and SVG-library/curation acceptance open: owner rejects current visual deliverable and explicitly defers redesign.
+5. Hand the single integrated checkpoint to the residential-driver coordinator; do not send them to reconstruct historical branches or repeat accepted L3 tests.
 
 At this checkpoint the only open PR found by GitHub live was #362, the independent preview-workbench lane targeting `preview/w15-first-project-env-harness`. It was deliberately not merged into the product. Revalidate GitHub before the next integration; do not treat stale screenshots or earlier checkpoint hashes as current authority.

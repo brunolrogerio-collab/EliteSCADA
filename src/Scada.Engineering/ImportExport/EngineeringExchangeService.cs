@@ -215,7 +215,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _alarmHandler = new AlarmEngineeringHandler(alarms, _tagHandler);
         _assetHandler = new AssetEngineeringHandler(assets, tags, _visualAssets);
         _visualAssetHandler = new VisualAssetEngineeringHandler(_visualAssets);
-        _viewHandler = new ViewEngineeringHandler(views, assets, tags, dataSources, _visualAssets, commands);
+        _viewHandler = new ViewEngineeringHandler(views, assets, tags, dataSources, _visualAssets, commands, _mediaSources);
         _securityPolicyHandler = new SecurityPolicyEngineeringHandler(securityPolicies, _securityScopeHandler);
         _commandHandler = new CommandEngineeringHandler(commands, tags, dataSources);
         _gatewayHandler = new GatewayEngineeringHandler(gateways, tags, dataSources);
@@ -363,7 +363,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         }
         if (_securityPolicies is IAuthorityPolicyEngineeringRegistryView authorityView)
         {
-            var reference = AuthorityPolicyReferenceValidator.ValidateExact(
+            var reference = AuthorityPolicyReferenceValidator.ValidateCurrentIdentitySet(
                 package.AuthorityPolicyReference,
                 authorityView.AuthoritySnapshot());
             if (!reference.IsValid)
@@ -416,15 +416,19 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _securityPolicyHandler.Preview(package, mode, items);
         PreviewOperationalHmiReferences(package, items);
         var requestedRuntimePresentation = package.RuntimePresentation ?? new RuntimePresentationEngineeringDto();
-        var runtimeScreenKeys = (package.Screens ?? Array.Empty<ScreenEngineeringDto>()).Select(x => x.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var runtimeScreenKeys = (package.Screens ?? Array.Empty<ScreenEngineeringDto>())
+            .Where(screen => screen is not null && !string.IsNullOrWhiteSpace(screen.Key))
+            .Select(screen => screen.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var header = requestedRuntimePresentation.Header;
         var invalidHeader = header is not null &&
             (header.Height is < 32 or > 160 || header.TitlePosition is not ("left" or "center" or "right") ||
              (header.BackgroundColor is not null && !System.Text.RegularExpressions.Regex.IsMatch(header.BackgroundColor, "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$")) ||
              (header.Links?.Count ?? 0) > 16 ||
-             (header.Links?.Any(link => string.IsNullOrWhiteSpace(link.Label) || link.Label.Length > 128 ||
+             (header.Links?.Any(link => link is null || string.IsNullOrWhiteSpace(link.Label) || link.Label.Length > 128 ||
+                 string.IsNullOrWhiteSpace(link.ScreenKey) ||
                  !runtimeScreenKeys.Contains(link.ScreenKey) ||
-                 (link.VisualAssetId.HasValue && !(package.VisualAssets ?? Array.Empty<VisualAssetEngineeringDto>()).Any(asset => asset.Id == link.VisualAssetId && asset.MediaType.StartsWith("image/", StringComparison.Ordinal)))) ?? false));
+                 (link.VisualAssetId.HasValue && !(package.VisualAssets ?? Array.Empty<VisualAssetEngineeringDto>()).Any(asset => asset is not null && asset.Id == link.VisualAssetId && asset.MediaType?.StartsWith("image/", StringComparison.Ordinal) == true))) ?? false));
         var invalidMobile = requestedRuntimePresentation.MobileScreens?.Any(pair => !runtimeScreenKeys.Contains(pair.Key) || !runtimeScreenKeys.Contains(pair.Value)) ?? false;
         if (invalidHeader || invalidMobile)
             items.Add(new ImportPreviewItem(ImportEntityKind.RuntimePresentation, "runtime-presentation", ImportOperation.Error,

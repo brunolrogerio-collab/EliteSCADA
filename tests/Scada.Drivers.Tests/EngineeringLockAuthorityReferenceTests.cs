@@ -10,6 +10,46 @@ namespace Scada.Drivers.Tests;
 public sealed class EngineeringLockAuthorityReferenceTests
 {
     [Fact]
+    public async Task Preview_AllowsUpdatedAuthorityGrantsWhenStableIdentitySetIsUnchanged()
+    {
+        using var workspace = new EngineeringWorkspace(seedDemo: false);
+        var authority = new InMemoryAuthorityPolicyStore();
+        var role = new SecurityRoleEngineeringDto(
+            Guid.Parse("47000000-0000-0000-0000-000000000031"),
+            "developer",
+            "Developer",
+            Grants: [new CapabilityGrantEngineeringDto(SecurityCapability.EngineeringModify)]);
+        var initialWrite = await authority.TryReplaceAsync(0, [role], Array.Empty<SecurityScopeEngineeringDto>());
+        Assert.True(initialWrite.Applied);
+
+        var exchange = new EngineeringExchangeService(
+            workspace.Tags,
+            workspace.Alarms,
+            workspace.DataSources,
+            workspace.Assets,
+            workspace.Views,
+            new AuthorityPolicyRegistryView(authority));
+        var package = exchange.ExportPackage();
+
+        var updatedWrite = await authority.TryReplaceAsync(
+            initialWrite.Snapshot.Version,
+            [role with
+            {
+                Grants =
+                [
+                    new CapabilityGrantEngineeringDto(SecurityCapability.EngineeringModify),
+                    new CapabilityGrantEngineeringDto(SecurityCapability.HighAvailabilityObserve),
+                    new CapabilityGrantEngineeringDto(SecurityCapability.HighAvailabilityTransfer)
+                ]
+            }],
+            Array.Empty<SecurityScopeEngineeringDto>());
+        Assert.True(updatedWrite.Applied);
+        Assert.NotEqual(package.AuthorityPolicyReference!.PolicyVersion, updatedWrite.Snapshot.Version);
+
+        Assert.True(exchange.Preview(package, ImportMode.UpdateExisting).CanApply);
+    }
+
+    [Fact]
     public async Task Replace_PreservesExactAuthorityReferenceWithoutMutatingAuthorityPolicy()
     {
         using var workspace = new EngineeringWorkspace(seedDemo: false);

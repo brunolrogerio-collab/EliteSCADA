@@ -70,6 +70,7 @@ public static class RuntimeHighAvailabilityApi
             ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
             ApiAuditService audit,
+            IProductLicenseService licensing,
             RuntimeHighAvailabilityService highAvailability,
             RuntimeHaHostConfigurationAuthority configuration,
             CancellationToken cancellationToken) =>
@@ -90,6 +91,9 @@ public static class RuntimeHighAvailabilityApi
                     highAvailability.LocalNodeId ?? "standalone");
                 return failure;
             }
+
+            var licenseFailure = HaRuntimeLicenseFailure(licensing);
+            if (licenseFailure is not null) return licenseFailure;
 
             var result = await configuration.UpdateAsync(request, cancellationToken);
             var details = new Dictionary<string, string>
@@ -150,6 +154,9 @@ public static class RuntimeHighAvailabilityApi
                     highAvailability.ClusterId ?? "standalone");
                 return failure;
             }
+
+            var licenseFailure = HaRuntimeLicenseFailure(licensing);
+            if (licenseFailure is not null) return licenseFailure;
 
             highAvailability.RefreshLocalReadiness(
                 runtime.Describe(),
@@ -225,6 +232,9 @@ public static class RuntimeHighAvailabilityApi
                     highAvailability.ClusterId ?? "standalone");
                 return failure;
             }
+
+            var licenseFailure = HaRuntimeLicenseFailure(licensing);
+            if (licenseFailure is not null) return licenseFailure;
 
             highAvailability.RefreshLocalReadiness(
                 runtime.Describe(),
@@ -365,6 +375,7 @@ public static class RuntimeHighAvailabilityApi
             ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
             ApiAuditService audit,
+            IProductLicenseService licensing,
             RuntimeHighAvailabilityService highAvailability,
             RuntimeHaProtectionCoordinator protection,
             CancellationToken cancellationToken) =>
@@ -385,6 +396,9 @@ public static class RuntimeHighAvailabilityApi
                     highAvailability.ClusterId ?? "standalone");
                 return failure;
             }
+
+            var licenseFailure = HaRuntimeLicenseFailure(licensing);
+            if (licenseFailure is not null) return licenseFailure;
 
             var operation = await protection.RequestControlledSwitchAsync(
                 request.TargetNodeId,
@@ -407,6 +421,7 @@ public static class RuntimeHighAvailabilityApi
             ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
             ApiAuditService audit,
+            IProductLicenseService licensing,
             RuntimeHighAvailabilityService highAvailability,
             RuntimeHaProtectionCoordinator protection,
             CancellationToken cancellationToken) =>
@@ -427,6 +442,9 @@ public static class RuntimeHighAvailabilityApi
                     highAvailability.ClusterId ?? "standalone");
                 return failure;
             }
+
+            var licenseFailure = HaRuntimeLicenseFailure(licensing);
+            if (licenseFailure is not null) return licenseFailure;
 
             var target = string.IsNullOrWhiteSpace(request.TargetNodeId)
                 ? highAvailability.Authority.Definition.InitialActiveNodeId
@@ -455,6 +473,7 @@ public static class RuntimeHighAvailabilityApi
             ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
             ApiAuditService audit,
+            IProductLicenseService licensing,
             RuntimeHighAvailabilityService highAvailability,
             RuntimeHaProtectionCoordinator protection,
             CancellationToken cancellationToken) =>
@@ -475,6 +494,9 @@ public static class RuntimeHighAvailabilityApi
                     highAvailability.ClusterId ?? "standalone");
                 return failure;
             }
+
+            var licenseFailure = HaRuntimeLicenseFailure(licensing);
+            if (licenseFailure is not null) return licenseFailure;
 
             var operation = await protection.RequestRecoveryAsync(
                 request.TargetNodeId,
@@ -520,6 +542,17 @@ public static class RuntimeHighAvailabilityApi
             details);
     }
 
+    private static IResult? HaRuntimeLicenseFailure(IProductLicenseService licensing)
+    {
+        return RuntimeHaLicensePolicy.IsEntitled(licensing.CurrentVerification)
+            ? null
+            : Results.Json(new
+            {
+                code = "ha-runtime-license-required",
+                error = "A valid product license with the HA Runtime entitlement is required to save, apply, or operate High Availability."
+            }, statusCode: StatusCodes.Status403Forbidden);
+    }
+
     private static object ProjectTransfer(RuntimeHaPeerTransferResult operation) =>
         new
         {
@@ -554,4 +587,11 @@ public static class RuntimeHighAvailabilityApi
 
         return details;
     }
+}
+
+internal static class RuntimeHaLicensePolicy
+{
+    public static bool IsEntitled(LicenseVerificationResult verification) =>
+        verification.State == LicenseState.Valid &&
+        verification.SessionEntitlements?.HaRuntime == true;
 }

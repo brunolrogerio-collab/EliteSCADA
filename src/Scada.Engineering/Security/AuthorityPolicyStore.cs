@@ -162,7 +162,7 @@ internal static class AuthorityPolicyReferenceValidator
         return AuthorityPolicyReferenceValidation.Valid;
     }
 
-    public static AuthorityPolicyReferenceValidation ValidateExact(
+    public static AuthorityPolicyReferenceValidation ValidateCurrentIdentitySet(
         AuthorityPolicyReferenceEngineeringDto? reference,
         AuthorityPolicySnapshot authority)
     {
@@ -179,13 +179,16 @@ internal static class AuthorityPolicyReferenceValidator
         var referenceRoleIds = reference!.RoleIds.ToHashSet();
         var referenceScopeIds = reference.ScopeIds.ToHashSet();
 
-        if (reference.PolicyVersion != authority.Version ||
-            !referenceRoleIds.SetEquals(expectedRoleIds) ||
+        // PolicyVersion records the canonical Authority revision when this Engineering
+        // package was saved. Grants are mutable in the separately-owned Authority, so a
+        // later role edit must not make an otherwise valid project impossible to reopen.
+        // Stable role/scope identity changes still fail closed.
+        if (!referenceRoleIds.SetEquals(expectedRoleIds) ||
             !referenceScopeIds.SetEquals(expectedScopeIds))
         {
             return Invalid(
                 "SECURITY_AUTHORITY_POLICY_REFERENCE_MISMATCH",
-                "Engineering package Authority reference does not match the currently configured canonical Security Authority policy.");
+                "Engineering package Authority identities do not match the currently configured canonical Security Authority policy.");
         }
 
         return AuthorityPolicyReferenceValidation.Valid;

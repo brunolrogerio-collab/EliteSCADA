@@ -222,6 +222,12 @@ public static class RuntimeEngineeringPackageApi
 
             context.Response.Headers.ETag = $"\"{actualSha256}\"";
             context.Response.Headers.CacheControl = "private, no-cache";
+            context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+            if (payload.MediaType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.Headers["Content-Security-Policy"] = "sandbox; default-src 'none'; base-uri 'none'; form-action 'none'";
+                context.Response.Headers["Content-Disposition"] = "inline";
+            }
             return Results.File(payload.Content, payload.MediaType);
         });
 

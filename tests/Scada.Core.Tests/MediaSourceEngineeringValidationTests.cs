@@ -12,10 +12,36 @@ using Scada.Engineering.Security;
 using Scada.Engineering.Views;
 using Scada.Engineering.VisualAssets;
 
+using System.Text.Json;
+
 namespace Scada.Core.Tests;
 
 public sealed class MediaSourceEngineeringValidationTests
 {
+    [Theory]
+    [InlineData("stable", true)]
+    [InlineData("missing", false)]
+    [InlineData("https://camera.example.test/live", false)]
+    public void VideoPlayer_PreviewUsesStableProspectiveMediaSourceIdentity(string reference, bool accepted)
+    {
+        var source = Source(MediaSourceProtocol.Hls, "https://media.example.local/live.m3u8");
+        var id = reference == "stable" ? source.Id!.Value.ToString() : reference == "missing" ? Guid.NewGuid().ToString() : reference;
+        var service = CreateExchange(new InMemoryMediaSourceEngineeringRegistry());
+        var package = service.ExportPackage() with
+        {
+            MediaSources = [source],
+            Screens = [new ScreenEngineeringDto(Guid.NewGuid(), "media", "Media", Elements:
+            [new VisualElementEngineeringDto("camera", "core.videoPlayer", Properties: new Dictionary<string, JsonElement>
+            {
+                ["mediaSourceId"] = JsonSerializer.SerializeToElement(id),
+                ["mediaMuted"] = JsonSerializer.SerializeToElement(true)
+            })])]
+        };
+        var preview = service.Preview(package, ImportMode.CreateAndUpdate);
+        Assert.Equal(accepted, preview.CanApply);
+        if (!accepted) Assert.Contains(preview.Items.SelectMany(item => item.Issues), issue => issue.Code.StartsWith("VISUAL_MEDIA_SOURCE_", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void MediaPayloadInspector_AcceptsPdfAndBrowserVideoContainersBySignature()
     {

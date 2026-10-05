@@ -99,6 +99,28 @@ public sealed class AuthorityBackupServiceTests
     }
 
     [Fact]
+    public async Task FreshAuthorityBootstrap_SeedsDeveloperWithHighAvailabilityAccess()
+    {
+        var authority = new InMemoryAuthorityPolicyStore();
+        var identities = new InMemoryLocalIdentityStore();
+        await identities.InitializeAsync();
+        var bootstrap = new AuthorityPolicyBootstrapService(
+            authority,
+            identities,
+            catalog: null,
+            projects: null,
+            new AuthorityPolicyBootstrapOptions(null));
+
+        await bootstrap.EnsureInitializedAsync();
+
+        var developer = Assert.Single(authority.Snapshot().Roles);
+        Assert.Equal("developer", developer.Key);
+        Assert.Contains(developer.Grants!, grant => grant.Capability == SecurityCapability.HighAvailabilityObserve);
+        Assert.Contains(developer.Grants!, grant => grant.Capability == SecurityCapability.HighAvailabilityTransfer);
+        Assert.DoesNotContain(developer.Grants!, grant => grant.Capability == SecurityCapability.HighAvailabilityAdmin);
+    }
+
+    [Fact]
     public async Task BootstrapMigration_UsesConfiguredLegacyProjectExactlyOnce()
     {
         var now = new DateTimeOffset(2026, 9, 12, 13, 0, 0, TimeSpan.Zero);

@@ -17,7 +17,7 @@ The owner authorized integration and prioritized development over repeated testi
 
 ## Dínamos and SVG assets
 
-The replacement catalog contains 4 lamps, 4 buttons, 6 motors, 6 valves and 6 electrical contact/disconnector variants. Original first-party factory SVG geometry backs stable Visual Assets and canonical `core.svgSymbol` composition. The obsolete 72 built-ins are retired from the current library/bootstrap; the E3 conversion structure is retained.
+The replacement catalog contains 4 lamps, 4 buttons, 6 motors, 6 valves and 6 electrical contact/disconnector variants. Original first-party factory SVG geometry backs stable Visual Assets and canonical `core.svgSymbol` composition. The obsolete 72 built-ins are purged from the current source factory and their exclusive tests, not merely hidden in the UI. Migration retains a minimal marker test and removes platform-owned old entries without deleting project-authored definitions. The E3 conversion structure is retained. Thirty-seven replacement catalog/bootstrap tests pass.
 
 Implemented public parameters include configurable stage colors/enables, fixed states, numeric/Boolean TAG and expression sources, inversion, typed Client Memory sources and dependencies, motor/valve discrete-state precedence, per-pole contact sources, state text and label placement, independent bezel/outline styling and depth effects. Buttons map to canonical command, analog write, Boolean set and toggle actions. Existing Client Visual scripts can execute through Events and publish state through Client Memory.
 
@@ -42,7 +42,9 @@ The Runtime consumer resolves only an enabled source from the persisted Active p
 
 The media relay now rewrites HLS playlists/keys/segments to authenticated same-origin routes with opaque AES-GCM tickets bound to Active project/revision/source. Requests reject cross-origin playlist resources, redirects, loopback/link-local/metadata destinations and DNS rebinding. Private industrial LAN destinations require explicit host policy (enabled in the isolated stable deployment). Playlists/segments are bounded to 1/32 MiB; stream/concurrency deadlines remain bounded.
 
-RTSP uses an isolated, digest-pinned MediaMTX 1.21.1 sidecar, provisioned only from Active source identities. Camera credentials remain server-side and dynamic configuration is in memory, not the portable package or process arguments. HLS.js 1.7.3 is lazy-loaded for desktop browser playback; native HLS remains available. Reconnect uses bounded exponential backoff and stops on authentication/unsupported formats. RTSP is remuxed, not transcoded: the camera codec must be supported by the browser; RTSPS currently requires a certificate-valid literal address. Remaining: mounted end-to-end synthetic-stream acceptance and combined Video/PDF authoring checks. #495/#496 remain OPEN until that evidence exists.
+RTSP uses an isolated, digest-pinned MediaMTX 1.21.1 sidecar, provisioned only from Active source identities. Camera credentials remain server-side and dynamic configuration is in memory, not the portable package or process arguments. HLS.js 1.7.3 is lazy-loaded for desktop browser playback; native HLS remains available. Reconnect uses bounded exponential backoff and stops on authentication/unsupported formats. RTSP is remuxed, not transcoded: the camera codec must be supported by the browser; RTSPS currently requires a certificate-valid literal address.
+
+The synthetic laboratory passes real RTSP-to-HLS provisioning and playlist/initialization/segment reads through revision-bound tickets. Chromium decodes the stream, advances playback time and pauses; credential failure stops automatic retry. Its HTTP Active-source boundary is mocked separately, not misrepresented as full persisted-source acceptance. This found and fixed the gateway's initial cookie-check 302. Remaining media acceptance: persisted source authority and combined Video/PDF authoring. #495/#496 remain open for those checks and the final integrated gate.
 
 ## Runtime header and mobile
 
@@ -62,7 +64,7 @@ Reporting and historian-based playback are integrated capabilities. Local/networ
 
 ## Isolated Docker preview
 
-The `elitescada-stable` stack was rebuilt from the integrated `272f1742` tree on 2026-10-05:
+The `elitescada-stable` stack was rebuilt from integrated `d4373ac3` (through #513) on 2026-10-05:
 
 - Web: http://localhost:18080/
 - API: http://localhost:15080/

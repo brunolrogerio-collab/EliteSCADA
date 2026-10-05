@@ -36,7 +36,7 @@ public sealed class EngineeringWorkingBootstrapServiceTests
     public async Task ExistingLegacyBuiltinLibraryIsPurgedAndReplacedWithoutDeletingProjectDynamos()
     {
         using var workspace = new EngineeringWorkspace(seedDemo: false);
-        var original = BuiltinDynamoLibrary.Create().First();
+        var original = LegacyPlatformMarker();
         var originalId = Guid.NewGuid();
         workspace.Assets.UpsertDynamo(original with { Id = originalId });
         var importedOriginal = ImportedE3DynamoLibrary.Create().Single(dynamo => dynamo.Key == "e3.process.motor-1");
@@ -95,8 +95,7 @@ public sealed class EngineeringWorkingBootstrapServiceTests
     public void ImportedLegacyWorkspaceCanUpgradeBuiltinDynamoCatalogWithoutRestartingApi()
     {
         using var workspace = new EngineeringWorkspace(seedDemo: false);
-        foreach (var legacyDefinition in BuiltinDynamoLibrary.Create())
-            workspace.Assets.UpsertDynamo(legacyDefinition);
+        workspace.Assets.UpsertDynamo(LegacyPlatformMarker());
 
         // Import/apply happens after startup bootstrap in real deployments. The API
         // must run this migration immediately after the successful package apply.
@@ -310,6 +309,12 @@ public sealed class EngineeringWorkingBootstrapServiceTests
 
     private static EngineeringProjectCatalogEntry Entry(string key, long revision, DateTimeOffset savedAt) =>
         new(key, key, revision, savedAt);
+
+    // Minimal migration marker. The discarded 72 drawings are intentionally not
+    // retained in production or test factories merely to exercise retirement.
+    private static DynamoEngineeringDto LegacyPlatformMarker() => new(
+        Key: "retired.platform.test-marker", Name: "Retired catalog marker", Id: Guid.NewGuid(),
+        Metadata: new Dictionary<string, string> { ["builtinLibrary"] = "true", ["catalogStatus"] = "legacy" });
 
     private sealed class Catalog(params EngineeringProjectCatalogEntry[] entries) : IEngineeringProjectCatalog
     {

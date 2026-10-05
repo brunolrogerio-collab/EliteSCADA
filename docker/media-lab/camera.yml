@@ -1,0 +1,15 @@
+# Synthetic offline H.264 fixture, not an industrial camera or production config.
+logLevel: error
+logDestinations: []
+rtsp: true
+rtspTransports: [tcp]
+rtmp: false
+hls: false
+webrtc: false
+srt: false
+moq: false
+paths:
+  synthetic:
+    alwaysAvailable: true
+    alwaysAvailableTracks:
+      - codec: H264

@@ -1,6 +1,8 @@
 # Wave 15 consolidation handoff
 
-Updated 2026-10-05. The product is consolidated in `wave15/corrections-integration` at `272f1742` (merged #508), following the product consolidation #502 at `9cae3a82`. This replaces the conflicting development checkpoints in this file. It is not a claim that every requested feature or final integrated CI is complete.
+Updated 2026-10-05. The product is consolidated in `wave15/corrections-integration`, including #508–#512 after product consolidation #502. This replaces the conflicting development checkpoints in this file. It is not a claim that every requested feature or final integrated CI is complete.
+
+The mobile presentation also intercepts privileged Engineering/administration bookmarks: authorized Runtime users see the same Runtime canvas, without mounting desktop authoring or the second global header. Five mounted browser contracts pass for desktop, fullscreen, portrait-held mobile and both privileged mobile bookmarks. The media route explicitly resolves optional persistence from services and reports offline/503 on hosts without persistence, rather than failing endpoint construction.
 
 The owner authorized integration and prioritized development over repeated testing. Do not repeat the already accepted driver/L3 work without a new regression. Run the final integrated post-merge CI only after the remaining product scope is integrated.
 

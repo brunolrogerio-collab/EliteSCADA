@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Security.Cryptography;
+using Microsoft.AspNetCore.Mvc;
 using Scada.Api.Security;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Persistence;
@@ -21,12 +22,13 @@ public static class RuntimeMediaSourceApi
     {
         endpoints.MapGet("/api/runtime/media-sources/{id:guid}/{operation}", async (
             Guid id, string operation, HttpContext context, ScadaRuntimeFacade runtime,
-            ApiAuthorizationService security, IEngineeringProjectPersistenceService persistence,
+            ApiAuthorizationService security, [FromServices] IEngineeringProjectPersistenceService? persistence,
             MediaSourceProtectedCredentialService credentials, RuntimeMediaRelay relay, CancellationToken cancellationToken) =>
         {
             if (operation is not ("info" or "content" or "resource" or "probe")) return Results.NotFound();
             var authorization = await security.CheckRuntimeAsync(context, runtime, SecurityCapability.View, cancellationToken: cancellationToken);
             if (security.AuthenticationEnabled && authorization.FailureResult() is { } denied) return denied;
+            if (persistence is null) return Results.Json(new { state = "offline" }, statusCode: 503);
             var before = runtime.Describe();
             if (string.IsNullOrWhiteSpace(before.ProjectKey) || !before.Revision.HasValue) return Results.Conflict(new { state = "offline" });
             var active = await persistence.LoadActiveAsync(before.ProjectKey, cancellationToken);

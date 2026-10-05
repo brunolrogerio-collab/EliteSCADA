@@ -359,6 +359,14 @@ public static class VisualPropertyKeys
     public const string ImagePositionX = "imagePositionX";
     public const string ImagePositionY = "imagePositionY";
     public const string ImageZoom = "imageZoom";
+    public const string MediaAutoplay = "mediaAutoplay";
+    public const string MediaSourceId = "mediaSourceId";
+    public const string MediaMuted = "mediaMuted";
+    public const string MediaLoop = "mediaLoop";
+    public const string MediaControls = "mediaControls";
+    public const string PdfInitialPage = "pdfInitialPage";
+    public const string PdfZoom = "pdfZoom";
+    public const string PdfToolbarVisible = "pdfToolbarVisible";
     public const string Value = "value";
     public const string Minimum = "minimum";
     public const string Maximum = "maximum";
@@ -482,6 +490,18 @@ public static class CommonVisualPropertyDefinitions
         Number(VisualPropertyKeys.ImagePositionX, 0, minimum: 0, maximum: 1, animatable: true),
         Number(VisualPropertyKeys.ImagePositionY, 0, minimum: 0, maximum: 1, animatable: true),
         Number(VisualPropertyKeys.ImageZoom, 1, minimum: 1, maximum: 8, animatable: true)
+    ];
+
+    public static IReadOnlyList<VisualPropertyDefinition> Media { get; } =
+    [
+        Boolean(VisualPropertyKeys.MediaAutoplay, false),
+        String(VisualPropertyKeys.MediaSourceId, string.Empty),
+        Boolean(VisualPropertyKeys.MediaMuted, true),
+        Boolean(VisualPropertyKeys.MediaLoop, false),
+        Boolean(VisualPropertyKeys.MediaControls, true),
+        Integer(VisualPropertyKeys.PdfInitialPage, 1, minimum: 1),
+        Number(VisualPropertyKeys.PdfZoom, 100, minimum: 25, maximum: 400, unit: "%"),
+        Boolean(VisualPropertyKeys.PdfToolbarVisible, true)
     ];
 
     public static IReadOnlyList<VisualPropertyDefinition> Slider { get; } =

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAppShellLocale } from '../appShellI18n';
+import { translator, type EngineeringLocale, type TranslationKey } from '../engineering/i18n';
 import {
   DatabaseTopologyApiError,
   commitDatabaseCutover,
@@ -26,9 +27,69 @@ import {
   type RemoteProfileDraft
 } from './types';
 import './database-topology.css';
+import '../engineering/engineering.css';
 
 type Confirmation = 'cutover' | 'rollback' | 'return-local' | null;
 type Notice = Readonly<{ tone: 'info' | 'success' | 'warning' | 'danger'; text: string }>;
+type EngineeringNavItem = {
+  id: string;
+  icon: string;
+  label?: TranslationKey;
+  literalLabel?: Record<EngineeringLocale, string>;
+};
+type EngineeringNavGroup = { label: TranslationKey; items: EngineeringNavItem[] };
+
+const engineeringNavigation: EngineeringNavGroup[] = [
+  { label: 'nav.project', items: [
+    { id: 'overview', icon: '⌂', label: 'nav.overview' },
+    { id: 'installation', icon: '⇆', literalLabel: { 'pt-BR': 'Instalação', en: 'Installation', es: 'Instalación' } },
+    { id: 'branding', icon: '◐', literalLabel: { 'pt-BR': 'Cabeçalho', en: 'Header', es: 'Encabezado' } },
+    { id: 'mobile', icon: '▱', literalLabel: { 'pt-BR': 'Mobile', en: 'Mobile', es: 'Móvil' } },
+    { id: 'scripts', icon: '</>' },
+    { id: 'libraries', icon: '▱', literalLabel: { 'pt-BR': 'Bibliotecas', en: 'Libraries', es: 'Bibliotecas' } }
+  ] },
+  { label: 'nav.communication', items: [
+    { id: 'dataSources', icon: '⇄', label: 'nav.dataSources' },
+    { id: 'mediaSources', icon: '▣', literalLabel: { 'pt-BR': 'Fontes de mídia', en: 'Media sources', es: 'Fuentes multimedia' } },
+    { id: 'tags', icon: '#', label: 'nav.tags' },
+    { id: 'gateway', icon: '⇢', literalLabel: { 'pt-BR': 'TAG Gateway', en: 'TAG Gateway', es: 'TAG Gateway' } },
+    { id: 'alarms', icon: '!', label: 'nav.alarms' },
+    { id: 'operationalEvents', icon: '✦', literalLabel: { 'pt-BR': 'Eventos Operacionais', en: 'Operational Events', es: 'Eventos Operacionales' } }
+  ] },
+  { label: 'nav.assets', items: [
+    { id: 'templates', icon: '◇', label: 'nav.templates' },
+    { id: 'equipment', icon: '□', label: 'nav.equipment' },
+    { id: 'dynamos', icon: '◈', label: 'nav.dynamos' },
+    { id: 'visualAssets', icon: '▧', literalLabel: { 'pt-BR': 'Assets visuais', en: 'Visual assets', es: 'Assets visuales' } }
+  ] },
+  { label: 'nav.visualization', items: [
+    { id: 'screens', icon: '▣', label: 'nav.screens' },
+    { id: 'popups', icon: '▤', label: 'nav.popups' }
+  ] },
+  { label: 'nav.historian', items: [
+    { id: 'historian', icon: '⌁', label: 'nav.historian' },
+    { id: 'reports', icon: '▧', literalLabel: { 'pt-BR': 'Relatórios', en: 'Reports', es: 'Informes' } }
+  ] },
+  { label: 'nav.security', items: [
+    { id: 'security', icon: '◆', label: 'nav.security' },
+    { id: 'highAvailability', icon: '⇄', literalLabel: { 'pt-BR': 'Alta disponibilidade', en: 'High Availability', es: 'Alta disponibilidad' } },
+    { id: 'databaseTopology', icon: '▤', literalLabel: { 'pt-BR': 'Banco de dados', en: 'Database', es: 'Base de datos' } }
+  ] },
+  { label: 'nav.diagnostics', items: [
+    { id: 'monitor', icon: '◉', literalLabel: { 'pt-BR': 'Monitoramento', en: 'Development Monitor', es: 'Monitor de Desarrollo' } },
+    { id: 'tagMonitor', icon: '◫', literalLabel: { 'pt-BR': 'TAG Monitor', en: 'TAG Monitor', es: 'TAG Monitor' } },
+    { id: 'diagnostics', icon: '⋯', label: 'nav.diagnostics' },
+    { id: 'information', icon: 'ⓘ', literalLabel: { 'pt-BR': 'Informações', en: 'Information', es: 'Información' } }
+  ] }
+];
+
+function engineeringNavigationPath(section: string) {
+  if (section === 'overview') return '/engineering';
+  if (section === 'libraries') return '/engineering/libraries';
+  if (section === 'tagMonitor') return '/engineering/diagnostics/tag-monitor';
+  if (section === 'databaseTopology') return '/engineering/database-topology';
+  return `/engineering/${section}`;
+}
 
 function endpointLabel(profile?: DatabaseProfileStatus | null) {
   const endpoint = profile?.primary;
@@ -215,6 +276,7 @@ function HealthTechnicalDetails({ title, health }: { title: string; health?: Dat
 export function DatabaseTopologyApp() {
   const locale = useAppShellLocale();
   const t = databaseTopologyText(locale);
+  const engineeringText = translator(locale);
   const [status, setStatus] = useState<DatabaseTopologyStatus | null>(null);
   const [draft, setDraft] = useState<RemoteProfileDraft>(() => emptyRemoteProfileDraft());
   const [testHealth, setTestHealth] = useState<DatabaseConnectionHealth | null>(null);
@@ -459,7 +521,23 @@ export function DatabaseTopologyApp() {
     setConfirmation(null);
   });
 
-  return <main className="db-topology-shell" data-testid="database-topology-app">
+  return <div className="eng-body db-topology-engineering-body" data-testid="database-topology-engineering-shell">
+    <aside className="eng-sidebar" aria-label={engineeringText('app.engineering')}>
+      <nav className="eng-nav" aria-label={engineeringText('app.engineering')} data-testid="database-topology-navigation">
+        {engineeringNavigation.map(group => <div className="eng-nav-group" key={group.label}>
+          <span className="eng-nav-label">{engineeringText(group.label)}</span>
+          {group.items.map(item => {
+            const href = engineeringNavigationPath(item.id);
+            const active = item.id === 'databaseTopology';
+            return <a key={item.id} href={href} className={active ? 'active' : undefined} aria-current={active ? 'page' : undefined}>
+              <i aria-hidden="true">{item.icon}</i>
+              <span>{item.literalLabel ? item.literalLabel[locale] : item.label ? engineeringText(item.label) : 'Scripts'}</span>
+            </a>;
+          })}
+        </div>)}
+      </nav>
+    </aside>
+    <main className="db-topology-shell" data-testid="database-topology-app">
     <header className="db-topology-header">
       <div><span>EliteSCADA · System / Storage</span><h1>{t.title}</h1><p>{t.subtitle}</p></div>
       <div className="db-topology-auto-state">
@@ -644,5 +722,6 @@ export function DatabaseTopologyApp() {
         </div>
       </section>
     </div> : null}
-  </main>;
+    </main>
+  </div>;
 }

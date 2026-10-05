@@ -15,6 +15,10 @@ type Props = { locale?: HaLocale };
 
 type Draft = HaHostConfigurationView & { peerSharedSecret: string };
 
+function hasHaRuntimeLicense(license: HaWorkspaceSnapshot['licensing']['license']) {
+  return license.state === 'Valid' && license.haRuntime === true;
+}
+
 const HA_STATE_NAMES = [
   'Standalone', 'Synchronizing', 'Standby', 'Ready Standby', 'Promoting',
   'Active', 'Demoting', 'Isolated', 'Maintenance', 'Faulted'
@@ -210,6 +214,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
+  const [permissionDenied, setPermissionDenied] = useState(false);
   const [confirm, setConfirm] = useState<{ kind: HaActionKind; target?: string | null } | null>(null);
   const [activeOperation, setActiveOperation] = useState<HaProtectionOperation | null>(null);
   const [showSecretEditor, setShowSecretEditor] = useState(false);
@@ -220,6 +225,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
   const load = useCallback(async (preserveDraft = false) => {
     setLoading(true);
     setFailure(null);
+    setPermissionDenied(false);
     try {
       const next = await haAdminApi.workspace();
       setSnapshot(next);
@@ -232,7 +238,11 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
         setDraft(nextDraft);
         setShowSecretEditor(false);
         setOverridePeerEndpoint(Boolean(next.configuration.desired.peerTransport.peerEndpoint));
-        setDeploymentChoice(prepared ? 'ha' : 'standalone');
+        // Keep the complete HA workspace discoverable on unlicensed/demo installs.
+        // It is a read-only plan until an HA Runtime entitlement is present.
+        setDeploymentChoice(prepared || (!next.topology.enabled && !hasHaRuntimeLicense(next.licensing.license))
+          ? 'ha'
+          : 'standalone');
         setPreferredServer(
           nextDraft.nodes[1] &&
           next.configuration.desired.initialActiveNodeId?.toLowerCase() === nextDraft.nodes[1].nodeId.toLowerCase()
@@ -241,6 +251,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
         );
       }
     } catch (error) {
+      setPermissionDenied(error instanceof HaAdminHttpError && error.status === 403);
       setFailure(error instanceof Error ? error.message : t.loadError);
     } finally {
       setLoading(false);
@@ -251,6 +262,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
 
   const desiredChanged = useMemo(() => {
     if (!snapshot || !draft) return false;
+    if (!hasHaRuntimeLicense(snapshot.licensing.license)) return false;
     if (!snapshot.topology.enabled && deploymentChoice === 'standalone') return false;
     const resolved = deploymentChoice === 'ha'
       ? resolveInternalConfiguration(draft, snapshot.configuration.desired, preferredServer)
@@ -284,7 +296,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
   }
 
   async function saveConfiguration() {
-    if (!snapshot || !draft || validation.length) return;
+    if (!snapshot || !draft || validation.length || !hasHaRuntimeLicense(snapshot.licensing.license)) return;
     setSaving(true);
     setFailure(null);
     setNotice(null);
@@ -347,7 +359,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
   }
 
   async function runConfirmedAction() {
-    if (!confirm) return;
+    if (!confirm || !snapshot || !hasHaRuntimeLicense(snapshot.licensing.license)) return;
     const action = confirm;
     setConfirm(null);
     setFailure(null);
@@ -362,12 +374,26 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
   }
 
   if (loading && !snapshot) return <div className="ha-admin ha-admin--loading">{t.title}…</div>;
-  if (!snapshot || !draft) return <div className="ha-admin ha-admin--error" role="alert">{failure || t.loadError}</div>;
+  if (!snapshot || !draft) return <main className="ha-admin ha-admin--error" role="alert">
+    <section className="ha-permission-card" data-testid={permissionDenied ? 'ha-admin-permission-required' : 'ha-admin-load-error'}>
+      <span className="ha-admin__eyebrow">{t.title}</span>
+      <h1>{permissionDenied ? t.permissionDeniedTitle : t.loadError}</h1>
+      <p>{permissionDenied ? t.permissionDenied : failure || t.loadError}</p>
+      {permissionDenied ? <ul>
+        <li>{t.permissionObserve}</li>
+        <li>{t.permissionTransfer}</li>
+      </ul> : null}
+      <div className="ha-permission-card__actions">
+        {permissionDenied ? <a href="/engineering/security">{t.managePermissions}</a> : null}
+        <button type="button" onClick={() => void load()}>{t.retry}</button>
+      </div>
+    </section>
+  </main>;
 
   const { topology, authority, administration, configuration, peer, licensing } = snapshot;
   const protection = administration.protection;
-  const haLicensed = licensing.license.state === 'Valid' && licensing.license.haRuntime === true;
-  const configurationEditable = topology.enabled || (deploymentChoice === 'ha' && haLicensed);
+  const haLicensed = hasHaRuntimeLicense(licensing.license);
+  const configurationEditable = haLicensed && (topology.enabled || deploymentChoice === 'ha');
   const nodes = topology.nodes;
   const local = nodes.find(node => node.nodeId.toLowerCase() === topology.localNodeId.toLowerCase());
   const peerNode = nodes.find(node => node.nodeId.toLowerCase() !== topology.localNodeId.toLowerCase());
@@ -479,7 +505,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
           <button
             type="button"
             className={topology.enabled || deploymentChoice === 'ha' ? 'ha-topology-option ha-topology-option--selected' : 'ha-topology-option'}
-            disabled={topology.enabled || !haLicensed}
+            disabled={topology.enabled}
             onClick={() => {
               setDeploymentChoice('ha');
               setPreferredServer('local');
@@ -492,16 +518,9 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
           >
             <strong>{t.haMode}</strong>
             <span>{t.haDescription}</span>
-            <small>{topology.enabled ? t.running : haLicensed ? t.selectHa : t.haNotLicensed}</small>
+            <small>{topology.enabled ? t.running : haLicensed ? t.selectHa : t.previewOnly}</small>
           </button>
         </div>
-
-        {!haLicensed && !topology.enabled && (
-          <div className="ha-mode-note ha-mode-note--locked">
-            <strong>{licensing.license.state === 'Demo' ? t.demoStandaloneHint : t.haNotLicensedHint}</strong>
-            <span>{t.previewOnlyHint}</span>
-          </div>
-        )}
 
         {!topology.enabled && deploymentChoice === 'ha' && (
           <div className="ha-mode-note ha-mode-note--planning" data-testid="ha-preparing-mode">
@@ -588,19 +607,26 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
           </div>
 
           <div className="ha-action-cards">
-            <button type="button" className="ha-action-card" onClick={() => setConfirm({ kind: 'switchover', target: suggestedTarget })}>
+            <button type="button" className="ha-action-card" disabled={!haLicensed} onClick={() => setConfirm({ kind: 'switchover', target: suggestedTarget })}>
               <strong>{t.switchover}</strong>
               <span>{t.switchoverHint}</span>
             </button>
-            <button type="button" className="ha-action-card" onClick={() => setConfirm({ kind: 'failback', target: draft.initialActiveNodeId })}>
+            <button type="button" className="ha-action-card" disabled={!haLicensed} onClick={() => setConfirm({ kind: 'failback', target: draft.initialActiveNodeId })}>
               <strong>{t.failback}</strong>
               <span>{t.failbackHint}</span>
             </button>
-            <button type="button" className="ha-action-card" onClick={() => setConfirm({ kind: 'recovery', target: topology.localNodeId })}>
+            <button type="button" className="ha-action-card" disabled={!haLicensed} onClick={() => setConfirm({ kind: 'recovery', target: topology.localNodeId })}>
               <strong>{t.recovery}</strong>
               <span>{t.recoveryHint}</span>
             </button>
           </div>
+
+          {!haLicensed && (
+            <div className="ha-mode-note ha-mode-note--locked" data-testid="ha-license-actions-required">
+              <strong>{t.haNotLicensed}</strong>
+              <span>{t.previewOnlyHint}</span>
+            </div>
+          )}
 
           {latestOperation && (
             <div className={'ha-latest-operation ha-latest-operation--' + latestOperation.state}>
@@ -992,6 +1018,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
             className="ha-button ha-button--primary"
             disabled={
               !desiredChanged ||
+              !haLicensed ||
               saving ||
               validation.length > 0 ||
               (!topology.enabled && deploymentChoice === 'ha' && !haReadyForDeployment)
@@ -1057,7 +1084,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
             </dl>
             <div className="ha-modal__actions">
               <button type="button" className="ha-button" onClick={() => setConfirm(null)}>{t.cancel}</button>
-              <button type="button" className="ha-button ha-button--danger" data-testid="ha-confirm-action" onClick={() => void runConfirmedAction()}>{t.confirm}</button>
+              <button type="button" className="ha-button ha-button--danger" data-testid="ha-confirm-action" disabled={!haLicensed} onClick={() => void runConfirmedAction()}>{t.confirm}</button>
             </div>
           </div>
         </div>

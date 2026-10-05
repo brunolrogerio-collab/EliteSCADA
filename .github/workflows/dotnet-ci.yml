@@ -131,11 +131,10 @@ jobs:
           assert capabilities == {
               'view', 'tagRead', 'commandExecute', 'processValueWrite',
               'alarmAcknowledge', 'alarmShelve', 'trendUse', 'trendSave',
-              'engineeringView', 'engineeringModify', 'userRoleAdmin', 'systemAdmin'
+              'engineeringView', 'engineeringModify', 'userRoleAdmin', 'systemAdmin',
+              'highAvailabilityObserve', 'highAvailabilityTransfer'
           }, developer
-          assert capabilities.isdisjoint({
-              'highAvailabilityObserve', 'highAvailabilityTransfer', 'highAvailabilityAdmin'
-          }), developer
+          assert 'highAvailabilityAdmin' not in capabilities, developer
           PY
 
           curl -fsS http://127.0.0.1:5080/api/engineering/commands > /tmp/commands.json
@@ -628,6 +627,7 @@ jobs:
           tests-e2e/wave-03-integrated-composition.spec.ts
           tests-e2e/interface-wave-03-readiness.spec.ts
           tests-e2e/runtime.spec.ts
+          tests-e2e/media-active-revision.spec.ts
 
       - name: Run full browser E2E tests
         if: github.event_name != 'push' || github.ref != 'refs/heads/wave15/corrections-integration'

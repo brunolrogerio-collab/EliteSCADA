@@ -9,6 +9,7 @@ using Scada.Engineering.Validation;
 using Scada.Engineering.Views;
 using Scada.Engineering.VisualAssets;
 using Scada.Engineering.VisualScripting;
+using Scada.Engineering.Media;
 
 namespace Scada.Engineering.ImportExport.Handlers;
 
@@ -20,6 +21,7 @@ internal sealed class ViewEngineeringHandler
     private readonly IDataSourceEngineeringRegistry _dataSources;
     private readonly IVisualAssetEngineeringRegistry _visualAssets;
     private readonly ICommandEngineeringRegistry _commands;
+    private readonly IMediaSourceEngineeringRegistry _mediaSources;
 
     public ViewEngineeringHandler(
         IEngineeringViewRegistry views,
@@ -27,7 +29,8 @@ internal sealed class ViewEngineeringHandler
         ITagRegistry tags,
         IDataSourceEngineeringRegistry dataSources,
         IVisualAssetEngineeringRegistry? visualAssets = null,
-        ICommandEngineeringRegistry? commands = null)
+        ICommandEngineeringRegistry? commands = null,
+        IMediaSourceEngineeringRegistry? mediaSources = null)
     {
         _views = views;
         _assets = assets;
@@ -35,6 +38,7 @@ internal sealed class ViewEngineeringHandler
         _dataSources = dataSources;
         _visualAssets = visualAssets ?? new InMemoryVisualAssetEngineeringRegistry();
         _commands = commands ?? new InMemoryCommandEngineeringRegistry();
+        _mediaSources = mediaSources ?? new InMemoryMediaSourceEngineeringRegistry();
     }
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
@@ -188,6 +192,7 @@ internal sealed class ViewEngineeringHandler
             issues.AddRange(VisualCompositionEngineeringValidation.ValidateElement(element, kind, entityKey));
 
             ValidateVisualAssetReference(element, kind, entityKey, package, issues);
+            ValidateMediaSourceReference(element, kind, entityKey, package, issues);
             ValidateDynamicReferences(element, kind, entityKey, package, issues);
 
             EngineeringHandlerSupport.ValidateConcreteTagBindings(
@@ -610,6 +615,11 @@ internal sealed class ViewEngineeringHandler
         EngineeringPackage package,
         List<ImportIssue> issues)
     {
+        if (element.Type is BuiltinVisualObjectSchemas.VideoPlayerType or BuiltinVisualObjectSchemas.PdfViewerType)
+        {
+            issues.AddRange(VisualAssetReferenceEngineeringValidation.Validate(element, kind, entityKey, package, _visualAssets));
+            return;
+        }
         if (package.SchemaVersion < 13 ||
             (!element.Type.Equals("core.image", StringComparison.Ordinal) &&
              !element.Type.Equals("core.svgSymbol", StringComparison.Ordinal)) ||
@@ -668,6 +678,23 @@ internal sealed class ViewEngineeringHandler
                 entityKey,
                 true));
         }
+    }
+
+    private void ValidateMediaSourceReference(VisualElementEngineeringDto element, ImportEntityKind kind,
+        string entityKey, EngineeringPackage package, List<ImportIssue> issues)
+    {
+        if (element.Type != BuiltinVisualObjectSchemas.VideoPlayerType || element.Properties is null ||
+            !element.Properties.TryGetValue(VisualPropertyKeys.MediaSourceId, out var value) ||
+            value.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(value.GetString()))
+            return;
+        var text = value.GetString();
+        if (!Guid.TryParse(text, out var id) || id == Guid.Empty)
+        {
+            issues.Add(new("VISUAL_MEDIA_SOURCE_ID_INVALID", $"Video '{element.Key}' must reference a stable Media Source GUID, not a URL.", kind, entityKey, true));
+            return;
+        }
+        if (!(package.MediaSources ?? Array.Empty<MediaSourceEngineeringDto>()).Any(source => source is not null && source.Id == id) && _mediaSources.Find(id) is null)
+            issues.Add(new("VISUAL_MEDIA_SOURCE_NOT_FOUND", $"Video '{element.Key}' references a Media Source absent from the prospective project.", kind, entityKey, true));
     }
 
     private VisualAssetEngineeringDto? FindVisualAsset(Guid id, EngineeringPackage package) =>

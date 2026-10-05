@@ -80,6 +80,7 @@ public sealed class ApiAuthorizationService
     private readonly bool _authenticationEnabled;
     private string? _cachedProjectKey;
     private long? _cachedRevision;
+    private long? _cachedAuthorityVersion;
     private RuntimeSecurityPolicyContext? _cachedActivePolicies;
 
     public bool AuthenticationEnabled => _authenticationEnabled;
@@ -486,10 +487,16 @@ public sealed class ApiAuthorizationService
 
         if (string.IsNullOrWhiteSpace(descriptor.ProjectKey)) return null;
 
+        // Authority policy can change independently of an activated Engineering revision.
+        // Include its canonical version in the cache key so runtime authorization reflects
+        // role edits immediately instead of retaining capabilities from the old policy.
+        var cachedAuthority = authorityPolicies.Snapshot();
+
         lock (_activeCacheGate)
         {
             if (_cachedActivePolicies is not null &&
                 _cachedRevision == descriptor.Revision &&
+                _cachedAuthorityVersion == cachedAuthority.Version &&
                 string.Equals(_cachedProjectKey, descriptor.ProjectKey, StringComparison.OrdinalIgnoreCase))
             {
                 return _cachedActivePolicies;
@@ -522,6 +529,7 @@ public sealed class ApiAuthorizationService
         {
             _cachedProjectKey = descriptor.ProjectKey;
             _cachedRevision = descriptor.Revision;
+            _cachedAuthorityVersion = activeAuthority.Version;
             _cachedActivePolicies = compiled;
         }
 

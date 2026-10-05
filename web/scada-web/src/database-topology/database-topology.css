@@ -1,7 +1,34 @@
+.db-topology-engineering-body {
+  height: calc(100dvh - 76px);
+  min-height: 520px;
+  --eng-bg: var(--app-bg, #0b0f14);
+  --eng-panel: var(--app-surface, #111820);
+  --eng-panel-soft: var(--app-surface-elevated, #17212b);
+  --eng-border: var(--app-border, #2a3947);
+  --eng-border-soft: var(--app-divider, #26333e);
+  --eng-text: var(--app-text-primary, #edf3f7);
+  --eng-muted: var(--app-text-secondary, #9eacb8);
+  --eng-accent: var(--app-accent, #64b5e3);
+  --eng-hover: var(--app-hover, #17232d);
+  --eng-selected: var(--app-selected, #183247);
+}
+
+.db-topology-engineering-body .eng-sidebar {
+  background: var(--app-surface, #111820);
+}
+
 .db-topology-shell {
   max-width: 1220px;
+  width: 100%;
+  min-width: 0;
+  max-height: 100%;
+  overflow-y: auto;
   margin: 0 auto;
   padding: 28px;
+  --app-text: var(--app-text-primary, #edf3f7);
+  --app-text-muted: var(--app-text-secondary, #9eacb8);
+  --app-panel-raised: var(--app-surface-elevated, #17212b);
+  --app-input: var(--app-input-bg, #0d141a);
   color: var(--app-text, #e8edf2);
 }
 
@@ -572,7 +599,18 @@
 }
 
 @media (max-width: 720px) {
+  .db-topology-engineering-body {
+    height: auto;
+    min-height: 0;
+  }
+
+  .db-topology-engineering-body .eng-sidebar {
+    position: relative;
+  }
+
   .db-topology-shell {
+    max-height: none;
+    overflow: visible;
     padding: 16px;
   }
 

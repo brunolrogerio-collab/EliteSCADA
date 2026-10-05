@@ -17,6 +17,8 @@ public static class BuiltinVisualObjectSchemas
     public const string TextType = "core.text";
     public const string ImageType = "core.image";
     public const string SvgSymbolType = "core.svgSymbol";
+    public const string VideoPlayerType = "core.videoPlayer";
+    public const string PdfViewerType = "core.pdfViewer";
     public const string ValueDisplayType = "core.valueDisplay";
     public const string TrendType = "core.trend";
     public const string AlarmBrowserType = "core.alarmBrowser";
@@ -71,6 +73,7 @@ public static class BuiltinVisualObjectSchemas
             .Concat(CommonVisualPropertyDefinitions.Effects)
             .Concat(CommonVisualPropertyDefinitions.Text)
             .Concat(CommonVisualPropertyDefinitions.Image)
+            .Concat(CommonVisualPropertyDefinitions.Media)
             .Concat(CommonVisualPropertyDefinitions.Slider)
             .Concat(CommonVisualPropertyDefinitions.NumericInput)
             .Concat(CommonVisualPropertyDefinitions.Arc)
@@ -204,6 +207,22 @@ public static class BuiltinVisualObjectSchemas
             VisualPropertyKeys.ImageZoom
         ]));
 
+    public static VisualObjectPropertySchema VideoPlayer { get; } = Create(
+        VideoPlayerType,
+        Base.Concat([
+            VisualPropertyKeys.AssetRef, VisualPropertyKeys.ImageFit,
+            VisualPropertyKeys.MediaAutoplay, VisualPropertyKeys.MediaMuted,
+            VisualPropertyKeys.MediaLoop, VisualPropertyKeys.MediaControls,
+            VisualPropertyKeys.MediaSourceId
+        ]));
+
+    public static VisualObjectPropertySchema PdfViewer { get; } = Create(
+        PdfViewerType,
+        Base.Concat([
+            VisualPropertyKeys.AssetRef, VisualPropertyKeys.PdfInitialPage,
+            VisualPropertyKeys.PdfZoom, VisualPropertyKeys.PdfToolbarVisible
+        ]));
+
     public static VisualObjectPropertySchema SvgSymbol { get; } = Create(
         SvgSymbolType,
         Base.Concat(
@@ -323,6 +342,8 @@ public static class BuiltinVisualObjectSchemas
         Polygon,
         Text,
         Image,
+        VideoPlayer,
+        PdfViewer,
         SvgSymbol,
         ValueDisplay,
         Trend,

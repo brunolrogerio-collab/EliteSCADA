@@ -15,6 +15,16 @@
 .ha-admin * { box-sizing: border-box; }
 
 .ha-admin {
+  --ha-bg: var(--app-bg, #0b1016);
+  --ha-panel: var(--app-surface, #121922);
+  --ha-panel-2: var(--app-surface-elevated, #17212c);
+  --ha-border: var(--app-border, #293746);
+  --ha-text: var(--app-text-primary, #e8edf3);
+  --ha-muted: var(--app-text-secondary, #91a0af);
+  --ha-accent: var(--app-accent, #58a6d6);
+  --ha-warn: var(--app-warning, #d6a958);
+  --ha-danger: var(--app-error, #d46a6a);
+  --ha-ok: var(--app-success, #67b887);
   min-height: 100%;
   padding: 24px;
   color: var(--ha-text);
@@ -26,8 +36,39 @@
 .ha-admin--error {
   display: grid;
   place-items: center;
-  min-height: 100vh;
+  min-height: min(100vh, 720px);
 }
+
+.ha-permission-card {
+  width: min(700px, 100%);
+  padding: 24px;
+  border: 1px solid var(--ha-border);
+  border-radius: 12px;
+  background: var(--ha-panel);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--ha-text) 12%, transparent);
+}
+
+.ha-permission-card h1 { margin: 8px 0; font-size: 24px; }
+.ha-permission-card p { margin: 8px 0 16px; }
+.ha-permission-card ul { margin: 0 0 18px; padding-left: 22px; color: var(--ha-muted); }
+.ha-permission-card li + li { margin-top: 6px; }
+.ha-permission-card__actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.ha-permission-card__actions a,
+.ha-permission-card__actions button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 12px;
+  border: 1px solid var(--ha-border);
+  border-radius: 7px;
+  background: var(--ha-panel-2);
+  color: var(--ha-text);
+  text-decoration: none;
+  cursor: pointer;
+}
+.ha-permission-card__actions a:hover,
+.ha-permission-card__actions button:hover { border-color: var(--ha-accent); }
 
 .ha-admin__header,
 .ha-banner,
@@ -345,6 +386,8 @@
 }
 
 .ha-action-card:hover { border-color: var(--ha-accent); }
+.ha-action-card:disabled { opacity: .58; cursor: not-allowed; }
+.ha-action-card:disabled:hover { border-color: var(--ha-border); }
 .ha-action-card strong { font-size: 13px; }
 .ha-action-card span { color: var(--ha-muted); font-size: 11px; line-height: 1.4; }
 

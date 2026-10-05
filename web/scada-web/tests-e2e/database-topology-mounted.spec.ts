@@ -120,6 +120,22 @@ async function fillRemoteProfile(page: Page) {
   await page.getByLabel('Primary Password / secret').fill(secret);
 }
 
+test('DB-B is presented within Engineering navigation and follows the active light/dark theme', async ({ page }) => {
+  await page.route('**/api/admin/database-topology/**', route => fulfillJson(route, topologyStatus()));
+  await page.goto(`${harnessPath}?locale=pt-BR`);
+
+  const navigation = page.getByTestId('database-topology-navigation');
+  await expect(navigation).toBeVisible();
+  await expect(navigation.getByRole('link', { name: 'Alta disponibilidade' })).toHaveAttribute('href', '/engineering/highAvailability');
+  await expect(navigation.getByRole('link', { name: 'Banco de dados' })).toHaveAttribute('aria-current', 'page');
+
+  const content = page.getByTestId('database-topology-app');
+  await page.evaluate(() => { document.documentElement.dataset.appTheme = 'light'; });
+  await expect(content).toHaveCSS('color', 'rgb(21, 33, 43)');
+  await page.evaluate(() => { document.documentElement.dataset.appTheme = 'dark'; });
+  await expect(content).toHaveCSS('color', 'rgb(237, 243, 247)');
+});
+
 test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, restart and rollback', async ({ page }, testInfo) => {
   let currentStatus: any = topologyStatus();
   let statusGetCount = 0;

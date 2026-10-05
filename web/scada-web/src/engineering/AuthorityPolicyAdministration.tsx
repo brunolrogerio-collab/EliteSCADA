@@ -690,14 +690,11 @@ function GrantEditor({
       <label>
         {s.capability}
         <select
-          value={descriptor?.value ?? String(grant.capability)}
-          onChange={event => {
-            const numeric = Number(event.target.value);
-            onChange({ ...grant, capability: Number.isInteger(numeric) ? numeric : event.target.value });
-          }}
+          value={descriptor?.id ?? String(grant.capability)}
+          onChange={event => onChange({ ...grant, capability: event.target.value })}
         >
           {SECURITY_CAPABILITIES.map(capability => (
-            <option key={capability.value} value={capability.value}>
+            <option key={capability.value} value={capability.id}>
               {s.capabilityGroups[capability.group]} · {capability.id}
             </option>
           ))}

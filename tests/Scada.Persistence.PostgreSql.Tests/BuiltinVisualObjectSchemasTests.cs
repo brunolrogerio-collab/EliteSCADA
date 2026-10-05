@@ -18,6 +18,9 @@ public sealed class BuiltinVisualObjectSchemasTests
             "core.polygon",
             "core.text",
             "core.image",
+            "core.videoPlayer",
+            "core.pdfViewer",
+            "core.svgSymbol",
             "core.valueDisplay",
             "core.trend",
             "core.alarmBrowser",
@@ -42,6 +45,8 @@ public sealed class BuiltinVisualObjectSchemasTests
         Assert.True(BuiltinVisualObjectSchemas.Image.Declares(VisualPropertyKeys.ImagePositionX));
         Assert.True(BuiltinVisualObjectSchemas.Image.Declares(VisualPropertyKeys.ImageZoom));
         Assert.False(BuiltinVisualObjectSchemas.Image.Declares(VisualPropertyKeys.Text));
+        Assert.True(BuiltinVisualObjectSchemas.VideoPlayer.Declares(VisualPropertyKeys.MediaSourceId));
+        Assert.True(BuiltinVisualObjectSchemas.PdfViewer.Declares(VisualPropertyKeys.PdfZoom));
 
         Assert.True(BuiltinVisualObjectSchemas.Text.Declares(VisualPropertyKeys.FontFamily));
         Assert.True(BuiltinVisualObjectSchemas.Text.Declares(VisualPropertyKeys.HorizontalAlignment));

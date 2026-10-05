@@ -158,9 +158,9 @@ test('historical browser visible chrome and scalar presentation are covered in p
   const en = historicalBrowserCopy('en');
   const es = historicalBrowserCopy('es');
 
-  expect(pt.title).toBe('Browser de dados históricos');
-  expect(en.title).toBe('Historical Data Browser');
-  expect(es.title).toBe('Browser de datos históricos');
+  expect(pt.title).toBe('Histórico');
+  expect(en.title).toBe('History');
+  expect(es.title).toBe('Histórico');
   expect(pt.datasetOperationalEvents).toBe('Eventos operacionais');
   expect(en.datasetOperationalEvents).toBe('Operational events');
   expect(es.datasetOperationalEvents).toBe('Eventos operacionales');

@@ -216,3 +216,23 @@ test('mobile Runtime defaults to landscape while preserving the logical canvas i
   expect(bounds!.height).toBeLessThanOrEqual(viewportBounds!.height + 1);
   await expect(page.getByText('Conteúdo próximo ao rodapé lógico')).toBeVisible();
 });
+
+for (const path of ['/engineering/mobile', '/admin/database']) {
+  test(`mobile privileged bookmark ${path} mounts Runtime, not desktop authoring`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(() => {
+      const nativeMatchMedia = window.matchMedia.bind(window);
+      window.matchMedia = query => query === '(pointer: coarse)'
+        ? ({ matches: true, media: query, onchange: null, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return false; } } as MediaQueryList)
+        : nativeMatchMedia(query);
+    });
+    await installRuntimeContract(page);
+    await page.goto(path);
+    await expect(page.getByTestId('runtime-engineering-application')).toBeVisible();
+    await expect(page.getByText('Conteúdo próximo ao rodapé lógico')).toBeVisible();
+    await expect(page.locator('.app-bar')).toHaveCount(0);
+    await expect(page.getByRole('navigation', { name: 'EliteSCADA', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Tela cheia', exact: true })).toHaveCount(0);
+    await expect(page.getByTestId('runtime-logical-viewport')).toHaveAttribute('data-mobile-rotated', 'true');
+  });
+}

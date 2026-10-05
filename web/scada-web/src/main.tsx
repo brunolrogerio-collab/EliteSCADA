@@ -18,6 +18,7 @@ import { RuntimeApplicationMount } from './runtime/application/RuntimeApplicatio
 import { RuntimeSessionClassProvider } from './runtime/application/RuntimeSessionClassPanel';
 import { HistoricalDataBrowserRuntime } from './runtime/historical-browser/HistoricalDataBrowserRuntime';
 import { RuntimeReportCenter } from './runtime/reports/RuntimeReportCenter';
+import { useMobileRuntime } from './runtime/useMobileRuntime';
 import './styles.css';
 import './visual-runtime/visual-editor-fonts.css';
 import './app-theme.css';
@@ -41,6 +42,7 @@ function RuntimeReportsApp() {
 }
 
 function ApplicationSurface() {
+  const mobile = useMobileRuntime();
   const locale = useAppShellLocale();
   const text = appShellText(locale);
   const { capabilities, loading, error } = useEffectiveCapabilities();
@@ -55,6 +57,9 @@ function ApplicationSurface() {
   const databaseAdmin = hasRuntimeCapability(capabilities, 'SystemAdmin');
   const anySurface = access.runtime || access.engineering || access.audit || access.licensing || databaseAdmin;
   const privilegedShell = access.engineering || access.audit || access.licensing || databaseAdmin;
+  // Mobile is a Runtime presentation, not an authorization bypass. Privileged
+  // accounts on mobile do not mount desktop authoring or administration screens.
+  if (mobile && access.runtime) return <RuntimeApplicationMount showHistoryNavigation={access.history} showFullscreenControl={false}/>;
 
   let allowed = access.runtime;
   let Surface: React.ComponentType = RuntimeApplicationMount;

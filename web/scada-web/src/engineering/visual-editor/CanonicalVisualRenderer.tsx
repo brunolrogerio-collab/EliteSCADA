@@ -39,6 +39,7 @@ import { NumericInputVisualElement } from './NumericInputVisualElement';
 import './CanonicalVisualInteraction.css';
 import { TrendVisualElement } from './TrendVisualElement';
 import { SvgSymbolVisualElement } from './SvgSymbolVisualElement';
+import { projectDynamoRuntimeElements, resolveDynamoRuntimeEquipmentPath } from '../../runtime/visual-navigation/dynamoRuntimeBindingProjection';
 import {
   cssStrokeStyle,
   effectiveStrokeWidth,
@@ -231,7 +232,9 @@ function CanonicalElement({
       const assetId = assetReferenceId(values[VISUAL_PROPERTY_KEYS.assetRef]);
       return <div
         className="visual-editor-object visual-editor-svg-symbol"
-        style={style}
+        // Fill/stroke on an SVG symbol paint its vector paths, not a rectangular
+        // HTML backing plate. Preserve transparent space around the artwork.
+        style={{ ...style, background: 'transparent', borderWidth: 0 }}
         data-object-id={element.id ?? undefined}
         data-runtime-object-id={runtimeObjectId}
         data-enabled={enabled}
@@ -616,6 +619,10 @@ function CanonicalDynamoElement({
   try {
     const definition = resolveDynamoDefinition(dynamoDefinitions, element.dynamoKey, element.dynamoDefinitionId);
     const composition = composeDynamoRuntime(element, definition);
+    // Authoring previews share Runtime's public-parameter projection. Otherwise
+    // fixed states, configured colors and labels appear unchanged until publish.
+    const projectedChildren = projectDynamoRuntimeElements(composition.elements, composition.parameters,
+      resolveDynamoRuntimeEquipmentPath(element.equipmentPath ?? null, composition.parameters), false);
     const schema = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.group);
     const baseValues: Readonly<Record<string, VisualPropertyValue>> = {
       ...schema.createDefaultValues(),
@@ -648,7 +655,7 @@ function CanonicalDynamoElement({
       title={title}
       onClick={onClick}
     >
-      {composition.elements.map((child, index) => <CanonicalElement
+      {projectedChildren.map((child, index) => <CanonicalElement
         key={child.id ?? `${child.key}-${index}`}
         element={child}
         locale={locale}

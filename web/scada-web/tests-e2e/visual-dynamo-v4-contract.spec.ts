@@ -49,6 +49,23 @@ const svgElement: VisualElementEngineering = {
   ]
 };
 
+test('fixed SVG state keeps its independently configured bezel and outline', () => {
+  const element = {
+    ...svgElement,
+    metadata: { dynamoAnimationEnabledParameter: 'animationEnabled', dynamoFixedStateParameter: 'fixedState', dynamoStateColorProfile: 'off,on', dynamoOutlineColorParameter: 'outlineColor' }
+  };
+  const parameters = new Map<string, DynamoParameterValueEngineering>([
+    ['animationEnabled', { key: 'animationEnabled', kind: 'Boolean', value: false }],
+    ['fixedState', { key: 'fixedState', kind: 'Number', value: 1 }],
+    ['onColor', { key: 'onColor', kind: 'String', value: '#16a34a' }],
+    ['outlineColor', { key: 'outlineColor', kind: 'String', value: '#abcdef' }]
+  ]);
+  const [projected] = projectDynamoRuntimeElements([element], parameters, null, false);
+  expect(projected.properties?.svgPaintOverrides).toMatchObject({ slots: {
+    state: { fill: '#16a34a', stroke: '#abcdef' }, bezel: { stroke: '#abcdef' }
+  } });
+});
+
 test('SVG-backed Dynamo runtime projects scalar public parameters without a parallel renderer', () => {
   const parameters = new Map<string, DynamoParameterValueEngineering>([
     ['runningColor', { key: 'runningColor', kind: 'String', value: '#00AA00', version: 1 }],
@@ -271,6 +288,10 @@ test('R3 portable Command parameter resolves definition action to canonical proj
 
   expect(() => projectDynamoRuntimeElements([element], new Map(), null))
     .toThrow(/requires mapped Command parameter 'startCommand'/);
+  // An unconfigured command must not suppress Design's visual preview, while
+  // Runtime above remains fail-closed until its target is mapped.
+  expect(projectDynamoRuntimeElements([element], new Map(), null, false)[0].actions)
+    .toEqual(element.actions);
 });
 
 test('new Dynamo authoring persists the existing public parameter contract and SVG composition', () => {

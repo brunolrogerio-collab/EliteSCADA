@@ -82,12 +82,12 @@ test('W15 R2 editor mounts shared side surfaces, canonical Dynamo preview and co
   const dynamoLibrary = page.getByTestId('visual-dynamo-library');
   await expect(dynamoLibrary).toBeVisible();
   await expect(dynamoLibrary.getByTestId('dynamo-library-canonical-thumbnail').first()).toBeVisible();
-  const blower = dynamoLibrary.locator('[data-dynamo-key="process.blower.centrifugal"]');
-  await expect(blower).toBeVisible();
-  await blower.click();
+  const motor = dynamoLibrary.locator('[data-dynamo-key="motor.tefc"]');
+  await expect(motor).toBeVisible();
+  await motor.click();
   const canonicalDynamoPreview = dynamoLibrary.getByTestId('dynamo-library-canonical-preview');
   await expect(canonicalDynamoPreview).toBeVisible();
-  await expect(canonicalDynamoPreview.locator('[data-object-id]')).toHaveCount(29);
+  await expect(canonicalDynamoPreview.locator('[data-object-id]')).toHaveCount(7);
   await expect(canonicalDynamoPreview.locator('.visual-editor-object-error')).toHaveCount(0);
   await testInfo.attach('w15-visual-quality-dynamo-library-preview', {
     body: await dynamoLibrary.screenshot(),

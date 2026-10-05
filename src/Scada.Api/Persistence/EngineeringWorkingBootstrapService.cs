@@ -103,7 +103,7 @@ public sealed class EngineeringWorkingBootstrapService(
                 $"Persisted Engineering Working project '{selected.ProjectKey}' revision {revision} could not be checked out. {diagnostic}");
         }
 
-        UpgradeBuiltinDynamos();
+        UpgradeBuiltinDynamos(workspace);
         RemoveImportedE3Dynamos();
 
         return new EngineeringWorkingBootstrapResult(
@@ -114,7 +114,11 @@ public sealed class EngineeringWorkingBootstrapService(
             workspace.Describe());
     }
 
-    private void UpgradeBuiltinDynamos()
+    /// <summary>
+    /// Applies first-party builtin dynamo library upgrades to an already-loaded
+    /// workspace. Also used after importing legacy packages while the API is running.
+    /// </summary>
+    public static void UpgradeBuiltinDynamos(EngineeringWorkspace workspace)
     {
         var existingDynamos = workspace.Assets.SnapshotDynamos()
             .ToDictionary(dynamo => dynamo.Key, StringComparer.OrdinalIgnoreCase);
@@ -154,10 +158,11 @@ public sealed class EngineeringWorkingBootstrapService(
             workspace.Assets.UpsertDynamo(latest);
         }
 
-        UpgradeBuiltinDynamoCatalogV1(existingDynamos, existingBuiltins);
+        UpgradeBuiltinDynamoCatalogV1(workspace, existingDynamos, existingBuiltins);
     }
 
-    private void UpgradeBuiltinDynamoCatalogV1(
+    private static void UpgradeBuiltinDynamoCatalogV1(
+        EngineeringWorkspace workspace,
         IReadOnlyDictionary<string, Scada.Engineering.Contracts.DynamoEngineeringDto> existingDynamos,
         IReadOnlyDictionary<string, Scada.Engineering.Contracts.DynamoEngineeringDto> existingBuiltins)
     {

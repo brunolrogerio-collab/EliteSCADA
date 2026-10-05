@@ -99,6 +99,33 @@ public sealed class EngineeringWorkingBootstrapServiceTests
     }
 
     [Fact]
+    public void ImportedLegacyWorkspaceCanUpgradeBuiltinDynamoCatalogWithoutRestartingApi()
+    {
+        using var workspace = new EngineeringWorkspace(seedDemo: false);
+        foreach (var legacyDefinition in BuiltinDynamoLibrary.Create())
+            workspace.Assets.UpsertDynamo(legacyDefinition);
+
+        // Import/apply happens after startup bootstrap in real deployments. The API
+        // must run this migration immediately after the successful package apply.
+        EngineeringWorkingBootstrapService.UpgradeBuiltinDynamos(workspace);
+
+        var upgradedDefinitions = BuiltinDynamoCatalogV1.Create();
+        Assert.All(upgradedDefinitions, definition =>
+        {
+            var saved = workspace.Assets.FindDynamoByKey(definition.Key);
+            Assert.NotNull(saved);
+            Assert.Equal(BuiltinDynamoCatalogV1.Version, saved!.Properties!["libraryVersion"]);
+        });
+
+        Assert.All(BuiltinDynamoCatalogV1.CreateArtworkAssets(), item =>
+        {
+            var asset = workspace.VisualAssets.FindAssetByKey(item.Asset.Key);
+            Assert.NotNull(asset);
+            Assert.True(workspace.VisualAssets.HasPayload(asset!.Sha256));
+        });
+    }
+
+    [Fact]
     public async Task ExplicitAlternateWorkingProjectAndRevisionOverrideRuntimeProject()
     {
         using var workspace = new EngineeringWorkspace(seedDemo: false);

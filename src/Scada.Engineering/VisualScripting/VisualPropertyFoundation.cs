@@ -367,6 +367,7 @@ public static class VisualPropertyKeys
     public const string PdfInitialPage = "pdfInitialPage";
     public const string PdfZoom = "pdfZoom";
     public const string PdfToolbarVisible = "pdfToolbarVisible";
+    public const string ReportKey = "reportKey";
     public const string Value = "value";
     public const string Minimum = "minimum";
     public const string Maximum = "maximum";
@@ -502,6 +503,11 @@ public static class CommonVisualPropertyDefinitions
         Integer(VisualPropertyKeys.PdfInitialPage, 1, minimum: 1),
         Number(VisualPropertyKeys.PdfZoom, 100, minimum: 25, maximum: 400, unit: "%"),
         Boolean(VisualPropertyKeys.PdfToolbarVisible, true)
+    ];
+
+    public static IReadOnlyList<VisualPropertyDefinition> ReportLauncher { get; } =
+    [
+        String(VisualPropertyKeys.ReportKey, string.Empty)
     ];
 
     public static IReadOnlyList<VisualPropertyDefinition> Slider { get; } =

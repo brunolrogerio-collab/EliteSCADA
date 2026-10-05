@@ -43,19 +43,28 @@ test('browser insertion labels follow the shared Screen and Popup visual-editor 
     arc: 'Arco',
     bezier: 'Curva Bézier',
     alarmBrowser: 'Browser de Alarmes',
-    eventBrowser: 'Browser de Eventos'
+    eventBrowser: 'Browser de Eventos',
+    videoPlayer: 'Vídeo',
+    pdfViewer: 'Visualizador PDF',
+    reportLauncher: 'Abrir relatório'
   });
   expect(c07VisualEditorText('en').palette).toEqual({
     arc: 'Arc',
     bezier: 'Bezier curve',
     alarmBrowser: 'Alarm Browser',
-    eventBrowser: 'Event Browser'
+    eventBrowser: 'Event Browser',
+    videoPlayer: 'Video',
+    pdfViewer: 'PDF viewer',
+    reportLauncher: 'Report launcher'
   });
   expect(c07VisualEditorText('es').palette).toEqual({
     arc: 'Arco',
     bezier: 'Curva Bézier',
     alarmBrowser: 'Browser de Alarmas',
-    eventBrowser: 'Browser de Eventos'
+    eventBrowser: 'Browser de Eventos',
+    videoPlayer: 'Vídeo',
+    pdfViewer: 'Visor PDF',
+    reportLauncher: 'Abrir informe'
   });
 });
 

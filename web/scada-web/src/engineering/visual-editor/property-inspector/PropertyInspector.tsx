@@ -448,6 +448,8 @@ export function humanizeVisualPropertyKey(propertyKey: string): string {
 
 function visualPropertyLabel(propertyKey: string, text: PropertyInspectorCopy, objectType?: string, locale: EngineeringLocale = 'pt-BR'): string {
   switch (propertyKey) {
+    case VISUAL_PROPERTY_KEYS.reportKey:
+      return locale === 'en' ? 'Report reference' : locale === 'es' ? 'Referencia del informe' : 'Referência do relatório';
     case VISUAL_PROPERTY_KEYS.arcStyle:
       return locale === 'en' ? 'Arc style' : locale === 'es' ? 'Estilo del arco' : 'Estilo do arco';
     case VISUAL_PROPERTY_KEYS.arcStartAngle:

@@ -218,9 +218,9 @@ jobs:
           assert workspace['isDirty'] is False
           assert workspace['lastSavedAtUtc'] is not None
           assert workspace['securityRoleCount'] == 1
-          # First-project setup seeds the current 72-item native library.
-          # Keep the smoke contract aligned with EngineeringFirstProjectBootstrapTests.
-          assert workspace['dynamoCount'] == 72
+          # The retired legacy 72-dynamo set is gone; first-project setup seeds
+          # the 26-item replacement catalog. Static SVG assets remain separate.
+          assert workspace['dynamoCount'] == 26
           assert workspace['commandCount'] == 0
           PY
 

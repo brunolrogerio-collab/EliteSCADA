@@ -16,6 +16,7 @@ import {
   getBuiltinVisualObjectSchema,
   supportsAnalogFill,
   VISUAL_PROPERTY_KEYS,
+  runtimeReportHref,
   type VisualObjectPropertySchema,
   type VisualPropertyValue
 } from '../../visual-runtime';
@@ -311,6 +312,27 @@ function CanonicalElement({
           referrerPolicy="no-referrer"
           style={{ width: '100%', height: '100%', border: 0 }}
         /> : showTechnicalFallbackText ? <span className="visual-editor-image-placeholder">{element.key}</span> : null}
+      </div>;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher) {
+      const reportKey = stringValue(values[VISUAL_PROPERTY_KEYS.reportKey], '').trim();
+      const label = stringValue(values[VISUAL_PROPERTY_KEYS.text], '').trim() ||
+        (locale === 'en' ? 'Open report' : locale === 'es' ? 'Abrir informe' : 'Abrir relatório');
+      const reportHref = runtimeReportHref(reportKey);
+      const contentStyle: CSSProperties = {
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: '100%', height: '100%', padding: '0 8px', boxSizing: 'border-box',
+        color: 'inherit', textAlign: 'center', textDecoration: 'none'
+      };
+      return <div className="visual-editor-object visual-editor-report-launcher"
+        style={{ ...style, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
+        data-object-id={element.id ?? undefined} data-runtime-object-id={runtimeObjectId}
+        data-report-key={reportKey || undefined} data-enabled={enabled} title={elementTitle}
+        data-dynamic-state={diagnosticState}>
+        {operatorTimeRangeControls && enabled && reportHref
+          ? <a style={{ ...contentStyle, cursor: 'pointer' }} href={reportHref} aria-label={label}>{label}</a>
+          : <span style={contentStyle} aria-disabled={operatorTimeRangeControls ? !enabled || !reportHref : undefined}>{label}</span>}
       </div>;
     }
 

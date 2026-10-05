@@ -17,7 +17,7 @@ const ptBR = {
     fit: { cover: 'Cobrir', contain: 'Conter', stretch: 'Esticar', center: 'Centralizar', tile: 'Repetir' }
   },
   palette: {
-    arc: 'Arco', bezier: 'Curva Bézier', alarmBrowser: 'Browser de Alarmes', eventBrowser: 'Browser de Eventos', videoPlayer: 'Vídeo', pdfViewer: 'Visualizador PDF'
+    arc: 'Arco', bezier: 'Curva Bézier', alarmBrowser: 'Browser de Alarmes', eventBrowser: 'Browser de Eventos', videoPlayer: 'Vídeo', pdfViewer: 'Visualizador PDF', reportLauncher: 'Abrir relatório'
   },
   dynamo: {
     name: 'Dínamo', definitionNotFound: 'Definição não encontrada no snapshot canônico de Engineering.', locked: 'Bloqueado', publicSuffix: 'públicos', instance: 'Instância', noPublicParameters: 'Nenhum parâmetro público.',
@@ -50,7 +50,7 @@ const en: C07VisualEditorText = {
     fit: { cover: 'Cover', contain: 'Contain', stretch: 'Stretch', center: 'Center', tile: 'Tile' }
   },
   palette: {
-    arc: 'Arc', bezier: 'Bezier curve', alarmBrowser: 'Alarm Browser', eventBrowser: 'Event Browser', videoPlayer: 'Video', pdfViewer: 'PDF viewer'
+    arc: 'Arc', bezier: 'Bezier curve', alarmBrowser: 'Alarm Browser', eventBrowser: 'Event Browser', videoPlayer: 'Video', pdfViewer: 'PDF viewer', reportLauncher: 'Report launcher'
   },
   dynamo: {
     name: 'Dynamo', definitionNotFound: 'Definition not found in the canonical Engineering snapshot.', locked: 'Locked', publicSuffix: 'public', instance: 'Instance', noPublicParameters: 'No public parameters.',
@@ -80,7 +80,7 @@ const es: C07VisualEditorText = {
     fit: { cover: 'Cubrir', contain: 'Contener', stretch: 'Estirar', center: 'Centrar', tile: 'Repetir' }
   },
   palette: {
-    arc: 'Arco', bezier: 'Curva Bézier', alarmBrowser: 'Browser de Alarmas', eventBrowser: 'Browser de Eventos', videoPlayer: 'Vídeo', pdfViewer: 'Visor PDF'
+    arc: 'Arco', bezier: 'Curva Bézier', alarmBrowser: 'Browser de Alarmas', eventBrowser: 'Browser de Eventos', videoPlayer: 'Vídeo', pdfViewer: 'Visor PDF', reportLauncher: 'Abrir informe'
   },
   dynamo: {
     name: 'Dínamo', definitionNotFound: 'Definición no encontrada en el snapshot canónico de Engineering.', locked: 'Bloqueado', publicSuffix: 'públicos', instance: 'Instancia', noPublicParameters: 'Sin parámetros públicos.',

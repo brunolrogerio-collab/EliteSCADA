@@ -20,6 +20,7 @@ public sealed class BuiltinVisualObjectSchemasTests
             "core.image",
             "core.videoPlayer",
             "core.pdfViewer",
+            "core.reportLauncher",
             "core.svgSymbol",
             "core.valueDisplay",
             "core.trend",
@@ -47,6 +48,10 @@ public sealed class BuiltinVisualObjectSchemasTests
         Assert.False(BuiltinVisualObjectSchemas.Image.Declares(VisualPropertyKeys.Text));
         Assert.True(BuiltinVisualObjectSchemas.VideoPlayer.Declares(VisualPropertyKeys.MediaSourceId));
         Assert.True(BuiltinVisualObjectSchemas.PdfViewer.Declares(VisualPropertyKeys.PdfZoom));
+        Assert.False(BuiltinVisualObjectSchemas.VideoPlayer.Declares(VisualPropertyKeys.ReportKey));
+        Assert.False(BuiltinVisualObjectSchemas.PdfViewer.Declares(VisualPropertyKeys.ReportKey));
+        Assert.True(BuiltinVisualObjectSchemas.ReportLauncher.Declares(VisualPropertyKeys.ReportKey));
+        Assert.True(BuiltinVisualObjectSchemas.ReportLauncher.Declares(VisualPropertyKeys.Text));
 
         Assert.True(BuiltinVisualObjectSchemas.Text.Declares(VisualPropertyKeys.FontFamily));
         Assert.True(BuiltinVisualObjectSchemas.Text.Declares(VisualPropertyKeys.HorizontalAlignment));

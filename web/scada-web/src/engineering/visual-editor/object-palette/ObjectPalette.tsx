@@ -31,6 +31,7 @@ const DEFAULT_LABELS: Readonly<Record<string, string>> = Object.freeze({
   image: 'Image',
   videoPlayer: 'Video',
   pdfViewer: 'PDF viewer',
+  reportLauncher: 'Report launcher',
   valueDisplay: 'Value display',
   trend: 'Trend',
   alarmBrowser: 'Alarm Browser',
@@ -110,6 +111,7 @@ function paletteGlyph(item: VisualObjectPaletteItem): string {
     case 'image': return '▧';
     case 'videoPlayer': return '▶';
     case 'pdfViewer': return 'PDF';
+    case 'reportLauncher': return '▤';
     case 'valueDisplay': return '#';
     case 'trend': return '⌁';
     case 'alarmBrowser': return '⚠';

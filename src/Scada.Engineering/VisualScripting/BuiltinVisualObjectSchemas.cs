@@ -19,6 +19,7 @@ public static class BuiltinVisualObjectSchemas
     public const string SvgSymbolType = "core.svgSymbol";
     public const string VideoPlayerType = "core.videoPlayer";
     public const string PdfViewerType = "core.pdfViewer";
+    public const string ReportLauncherType = "core.reportLauncher";
     public const string ValueDisplayType = "core.valueDisplay";
     public const string TrendType = "core.trend";
     public const string AlarmBrowserType = "core.alarmBrowser";
@@ -74,6 +75,7 @@ public static class BuiltinVisualObjectSchemas
             .Concat(CommonVisualPropertyDefinitions.Text)
             .Concat(CommonVisualPropertyDefinitions.Image)
             .Concat(CommonVisualPropertyDefinitions.Media)
+            .Concat(CommonVisualPropertyDefinitions.ReportLauncher)
             .Concat(CommonVisualPropertyDefinitions.Slider)
             .Concat(CommonVisualPropertyDefinitions.NumericInput)
             .Concat(CommonVisualPropertyDefinitions.Arc)
@@ -223,6 +225,15 @@ public static class BuiltinVisualObjectSchemas
             VisualPropertyKeys.PdfZoom, VisualPropertyKeys.PdfToolbarVisible
         ]));
 
+    public static VisualObjectPropertySchema ReportLauncher { get; } = Create(
+        ReportLauncherType,
+        Base
+            .Concat([VisualPropertyKeys.BackgroundColor])
+            .Concat(CommonVisualPropertyDefinitions.ReportLauncher.Select(property => property.Key))
+            .Concat(Stroke)
+            .Concat([VisualPropertyKeys.CornerRadius])
+            .Concat(TextProperties));
+
     public static VisualObjectPropertySchema SvgSymbol { get; } = Create(
         SvgSymbolType,
         Base.Concat(
@@ -344,6 +355,7 @@ public static class BuiltinVisualObjectSchemas
         Image,
         VideoPlayer,
         PdfViewer,
+        ReportLauncher,
         SvgSymbol,
         ValueDisplay,
         Trend,

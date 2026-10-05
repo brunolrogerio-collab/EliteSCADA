@@ -635,6 +635,52 @@ test('pt-BR/en/es stay equivalent and 1366/1440/1920 desktop widths do not overf
 });
 
 
+test('mobile Runtime can open the Report Center from a stable report link', async ({ page }) => {
+  await page.addInitScript(() => {
+    const nativeMatchMedia = window.matchMedia.bind(window);
+    window.matchMedia = query => query === '(pointer: coarse)'
+      ? {
+          matches: true,
+          media: query,
+          onchange: null,
+          addListener: () => undefined,
+          removeListener: () => undefined,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+          dispatchEvent: () => false
+        }
+      : nativeMatchMedia(query);
+  });
+  await page.addInitScript(() => localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
+  await page.route('**/api/**', route => route.fulfill({ status: 404, contentType: 'application/json', body: '{}' }));
+  await page.route('**/api/auth/config', route => route.fulfill({ json: {
+    authenticationEnabled: false, localLoginEnabled: false,
+    initialAdministratorRequired: false, initialAdministratorSetupAvailable: false
+  } }));
+  await page.route('**/api/auth/effective-capabilities', route => route.fulfill({ json: {
+    authorityPolicy: { schema: 'elitescada.authority-policy', schemaVersion: 1 },
+    authenticationEnabled: false,
+    runtime: ['View', 'TrendUse'],
+    workspace: []
+  } }));
+  await page.route('**/api/runtime/application', route => route.fulfill({ json: brandingActiveProjection({ mode: 'text', text: 'EliteSCADA' }) }));
+  await page.route('**/api/runtime/reports', route => route.fulfill({ json: [
+    { id: '11111111-2222-3333-4444-555555555555', key: 'process.summary', name: 'Process Summary', category: 'Process' }
+  ] }));
+  await page.route('**/api/runtime/reports/process.summary', route => route.fulfill({ json: {
+    id: '11111111-2222-3333-4444-555555555555',
+    key: 'process.summary',
+    name: 'Process Summary',
+    queries: [],
+    sections: [],
+    parameters: [],
+    timeRange: { defaultKind: 'relative', defaultRelativeDurationSeconds: 3600, allowRelative: true, allowAbsolute: true }
+  } }));
+
+  await page.goto('/runtime/reports?report=process.summary');
+  await expect(page.getByRole('heading', { name: 'Process Summary' })).toBeVisible();
+});
+
 test('mounted Runtime Report Center generates one snapshot and exposes viewer/export controls', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('elitescada.engineering.locale', 'pt-BR'));
   await page.route('**/api/**', route => route.fulfill({ status: 404, contentType: 'application/json', body: '{}' }));

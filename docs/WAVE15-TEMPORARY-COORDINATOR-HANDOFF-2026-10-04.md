@@ -23,7 +23,9 @@ The parameter inspector now includes lazy-loaded Client Visual script/output sel
 
 Runtime Dynamo commands expose pending, accepted, failed and read-back-confirmed states. Duplicate in-flight actions are blocked. HTTP acceptance alone is never labelled as process confirmation; confirmation requires a fresh Good-quality matching TAG sample. Remaining in #501: mounted visual acceptance of all 26 variants across authoring/package/Runtime.
 
-The categorized static-library foundation is integrated, but the requested collection of more than 1200 external static assets is NOT imported. #484 remains the expansion/curation task. Verify licenses per asset before redistribution. User references:
+The repository factory now exposes 2,208 original SVG review candidates through Engineering > Visual assets, grouped by category/style, searchable and paginated. Each selected item is sanitized by the canonical SVG inspector and copied through the normal CAS asset-import path into the project; it then supports normal static insertion and semantic paint animation. Source batches remain `draft`: this does not falsify human approval or mass-publish rejected/unreviewed built-ins. All 2,208 previews pass canonical SVG sanitization locally.
+
+External Opto 22/Wikimedia artwork is not bundled without verified redistribution rights. #484 remains the external expansion/curation task. The original factory collection is available now, rather than merely residing in repository files. User references:
 
 - [Opto 22 SVG library and editors](https://www.opto22.com/support/resources-tools/image-library-svg-editors): candidate categorized static artwork, not animation/property authority.
 - [Wikimedia P and ID symbols](https://commons.wikimedia.org/wiki/Category:P%26ID_symbols): process symbols with per-file licenses/attribution requirements.
@@ -76,8 +78,8 @@ Restart policies and normal startup initialize the services automatically. Start
 This consolidation passed API build, production Web build, and 23 focused Core tests covering media/branding/header round-trip and invalid-reference rejection. The existing large-bundle warning is not a build failure. These results are not a final broad CI or full mounted product acceptance.
 
 1. Complete #501's mounted visual review of the 26 variants and the new script/feedback controls.
-2. Finish #495/#496 gateway/player/document scope.
-3. Curate the requested static SVG collection under #484 and retain redistribution evidence.
+2. Complete #495/#496 mounted synthetic-stream and document/player acceptance.
+3. Verify factory-library copy/insertion in the interface; external #484 curation retains per-source redistribution evidence.
 4. Check the integrated editor/Runtime flows for regressions rather than retesting unchanged driver foundations.
 5. Integrate the remaining product changes, then run one final post-merge CI and close acceptance issues based on its result.
 6. Only then hand development to the residential-driver coordinator.

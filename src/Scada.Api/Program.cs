@@ -76,6 +76,7 @@ builder.Services.AddSingleton<IDataQueryEngineeringRegistry>(sp => sp.GetRequire
 builder.Services.AddSingleton<IAlarmViewEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().AlarmViews);
 builder.Services.AddSingleton<IMediaSourceEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().MediaSources);
 builder.Services.AddSingleton<RuntimeMediaRelay>();
+builder.Services.AddSingleton<Scada.Api.VisualAssets.StaticArtworkCatalog>();
 builder.Services.AddSingleton<IEngineeringAssetRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Assets);
 builder.Services.AddSingleton<IEngineeringViewRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Views);
 var authorityConnectionString = databaseConnections.PrimaryConnectionString;
@@ -199,6 +200,7 @@ app.MapTimingPolicyV1Endpoints();
 app.MapProjectPackageEndpoints();
 app.MapEngineeringPersistenceEndpoints();
 app.MapEngineeringMutationEndpoints();
+Scada.Api.VisualAssets.StaticArtworkEndpoints.MapStaticArtworkEndpoints(app);
 app.MapAuditEndpoints();
 app.MapAlarmShelvingEndpoints();
 app.MapCommandEndpoints();

@@ -2,7 +2,18 @@
 
 Issue: #495 (`C-MEDIA-SOURCE-CORE-01`)
 
-## Current foundation
+## Current integration (2026-10-05)
+
+The active status is recorded in `WAVE15-TEMPORARY-COORDINATOR-HANDOFF-2026-10-04.md`.
+Media Source CRUD, protected Basic/Bearer provisioning, local Video/PDF assets and the shared
+renderer are integrated. The Runtime relay consumes only enabled persisted Active identities.
+HTTP/MJPEG are bounded server streams; HLS resources use origin-checked encrypted tickets;
+RTSP uses the private digest-pinned MediaMTX sidecar. Camera credentials/URLs are never sent
+to the browser. See `WAVE15-MEDIA-RELAY.md` for deployment, policies and codec limitations.
+
+## Historical foundation notes (before consolidation)
+
+The following retained notes describe earlier checkpoints, not the current product status.
 
 Engineering schema v21 adds the optional `mediaSources` collection. Schema v20 and older
 packages normalize a missing collection to empty. A media source currently has stable

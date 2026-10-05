@@ -75,6 +75,7 @@ builder.Services.AddSingleton<IHistorianCaptureProfileEngineeringRegistry>(sp =>
 builder.Services.AddSingleton<IDataQueryEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().DataQueries);
 builder.Services.AddSingleton<IAlarmViewEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().AlarmViews);
 builder.Services.AddSingleton<IMediaSourceEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().MediaSources);
+builder.Services.AddSingleton<RuntimeMediaRelay>();
 builder.Services.AddSingleton<IEngineeringAssetRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Assets);
 builder.Services.AddSingleton<IEngineeringViewRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Views);
 var authorityConnectionString = databaseConnections.PrimaryConnectionString;

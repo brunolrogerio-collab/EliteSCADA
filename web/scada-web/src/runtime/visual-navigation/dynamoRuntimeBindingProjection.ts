@@ -194,7 +194,10 @@ function projectElement(
     }) : element.analogFill,
     // Design mode paints parameters without resolving executable command targets.
     // Runtime callers retain the default fail-closed action projection.
-    actions: projectActions ? element.actions?.map(action => projectAction(action, parameters, element.metadata)) ?? element.actions : element.actions,
+    actions: projectActions ? element.actions?.flatMap(action => {
+      const projected = projectAction(action, parameters, element.metadata);
+      return projected ? [projected] : [];
+    }) ?? element.actions : element.actions,
     children: [...children]
   });
 }
@@ -349,8 +352,9 @@ function projectAction(
   action: NonNullable<VisualElementEngineering['actions']>[number],
   parameters: ReadonlyMap<string, DynamoParameterValueEngineering>,
   metadata: VisualElementEngineering['metadata']
-): NonNullable<VisualElementEngineering['actions']>[number] {
+): NonNullable<VisualElementEngineering['actions']>[number] | null {
   let projected = action;
+  const optionalTarget = metadata?.dynamoOptionalActionTarget === 'true';
   const actionModeParameterKey = metadata?.dynamoActionModeParameter?.trim();
   if (actionModeParameterKey) {
     const mode = findParameter(parameters, actionModeParameterKey);
@@ -370,6 +374,7 @@ function projectAction(
   const commandParameterKey = projected.commandParameterKey?.trim();
   if (commandParameterKey) {
     const parameter = findParameter(parameters, commandParameterKey);
+    if (!parameter && optionalTarget) return null;
     if (!parameter || parameter.kind !== 'Command' || !parameter.commandId?.trim()) {
       throw new Error(`Dynamo ExecuteCommand action '${action.eventKey}' requires mapped Command parameter '${commandParameterKey}'.`);
     }
@@ -379,6 +384,7 @@ function projectAction(
   const targetParameterKey = parameterToken(projected.targetKey);
   if (targetParameterKey && (projected.kind === 'SetTagValue' || projected.kind === 'ToggleTagBoolean')) {
     const parameter = findParameter(parameters, targetParameterKey);
+    if (!parameter && optionalTarget) return null;
     if (!parameter || parameter.kind !== 'TagReference' || !parameter.tagReference?.tagId.trim()) {
       throw new Error(`Dynamo visual action '${action.eventKey}' requires mapped TagReference parameter '${targetParameterKey}'.`);
     }

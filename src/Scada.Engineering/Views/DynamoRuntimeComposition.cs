@@ -152,7 +152,7 @@ public static class DynamoRuntimeComposer
                     Source = ProjectDynamoStateSource(condition.Source, element, normalizedPath, parameters)
                 }).ToArray()
                 : null,
-            Actions = element.Actions?.Select(action => ProjectAction(action, element, parameters)).ToArray(),
+            Actions = element.Actions?.Select(action => ProjectAction(action, element, parameters)).OfType<VisualNavigationActionEngineeringDto>().ToArray(),
             PropertyMaps = IsDynamoAnimationEnabled(element, parameters) ? element.PropertyMaps?.Select(map =>
             {
                 var profile = element.Metadata?.GetValueOrDefault("dynamoStateColorProfile")?.Split(',') ?? Array.Empty<string>();
@@ -630,11 +630,12 @@ public static class DynamoRuntimeComposer
                 dependencies));
     }
 
-    private static VisualNavigationActionEngineeringDto ProjectAction(
+    private static VisualNavigationActionEngineeringDto? ProjectAction(
         VisualNavigationActionEngineeringDto action,
         VisualElementEngineeringDto element,
         IReadOnlyDictionary<string, DynamoParameterValueEngineeringDto> parameters)
     {
+        var optionalTarget = element.Metadata?.GetValueOrDefault("dynamoOptionalActionTarget") == "true";
         var actionModeParameterKey = element.Metadata?.GetValueOrDefault("dynamoActionModeParameter");
         if (!string.IsNullOrWhiteSpace(actionModeParameterKey))
         {
@@ -683,6 +684,7 @@ public static class DynamoRuntimeComposer
 
         if (!string.IsNullOrWhiteSpace(action.CommandParameterKey))
         {
+            if (optionalTarget && !parameters.ContainsKey(action.CommandParameterKey)) return null;
             if (!parameters.TryGetValue(action.CommandParameterKey, out var commandValue) ||
                 commandValue.Kind != DynamoParameterKind.Command ||
                 !commandValue.CommandId.HasValue || commandValue.CommandId == Guid.Empty)
@@ -694,6 +696,7 @@ public static class DynamoRuntimeComposer
         if ((action.Kind is VisualNavigationActionKind.SetTagValue or VisualNavigationActionKind.ToggleTagBoolean) &&
             TryParameterToken(action.TargetKey, out var targetParameterKey))
         {
+            if (optionalTarget && !parameters.ContainsKey(targetParameterKey)) return null;
             if (!parameters.TryGetValue(targetParameterKey, out var targetValue) ||
                 targetValue.Kind != DynamoParameterKind.TagReference ||
                 targetValue.TagReference is null || targetValue.TagReference.TagId == Guid.Empty)

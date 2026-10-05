@@ -8,6 +8,22 @@ namespace Scada.Drivers.Tests;
 public sealed class BuiltinDynamoLibraryTests
 {
     [Fact]
+    public void AllReplacementDefinitionsComposeWithoutOptionalCommandTargets()
+    {
+        foreach (var definition in BuiltinDynamoCatalogV1.Create())
+        {
+            var instance = new VisualElementEngineeringDto("static-preview", "dynamo",
+                DynamoKey: definition.Key, Id: Guid.NewGuid(), DynamoParameters: [
+                    new("animationEnabled", DynamoParameterKind.Boolean, System.Text.Json.JsonSerializer.SerializeToElement(false)),
+                    new("fixedState", DynamoParameterKind.Number, System.Text.Json.JsonSerializer.SerializeToElement(1))
+                ]);
+            var composition = DynamoRuntimeComposer.Compose(instance, definition);
+            Assert.NotEmpty(composition.Elements);
+            Assert.Empty(composition.Elements.SelectMany(element => element.Actions ?? []));
+        }
+    }
+
+    [Fact]
     public void ReplacementCatalogV1_MeetsInitialFamilyCountsAndUsesStableCanonicalGeometry()
     {
         var definitions = BuiltinDynamoCatalogV1.Create();

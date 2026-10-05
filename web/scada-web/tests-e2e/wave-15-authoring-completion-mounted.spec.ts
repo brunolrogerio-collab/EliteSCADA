@@ -2,6 +2,32 @@ import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 test.use({ locale: 'pt-BR' });
 
+test('canonical Video and PDF coexist and Design does not connect a network camera', async ({ page }) => {
+  let cameraRequests = 0;
+  await page.route('**/api/runtime/media-sources/**', route => {
+    cameraRequests++;
+    return route.fulfill({ status: 415, json: { protocol: 'rtsp', state: 'unsupported' } });
+  });
+  await page.route('**/review/media/**', route => route.fulfill({ status: 404 }));
+  await page.goto('/tests-e2e/harness/authoring-preview.html?media');
+  const pdf = page.locator('.visual-editor-pdf-viewer iframe');
+  await expect(pdf).toHaveAttribute('src', /\/review\/media\/.*#page=2&zoom=125&toolbar=0$/);
+  await expect(pdf).toHaveAttribute('sandbox', 'allow-scripts');
+  await expect(page.locator('.visual-editor-video-player')).toHaveCount(2);
+  const video = page.locator('.visual-editor-video-player video');
+  await expect(video).toHaveAttribute('controls', '');
+  expect(await video.evaluate(node => (node as HTMLVideoElement).muted)).toBe(true);
+  await expect(page.getByText('Media Source ·')).toBeVisible();
+  expect(cameraRequests).toBe(0);
+  await page.getByLabel('PDF page', { exact: true }).fill('3');
+  await page.getByLabel('PDF zoom', { exact: true }).fill('175');
+  await page.getByLabel('PDF toolbar', { exact: true }).check();
+  await expect(pdf).toHaveAttribute('src', /#page=3&zoom=175&toolbar=1$/);
+  await page.getByLabel('Runtime preview', { exact: true }).check();
+  await expect.poll(() => cameraRequests).toBeGreaterThan(0);
+  await expect(page.locator('[data-media-state="offline"]')).toBeVisible();
+});
+
 test('all 26 real catalog definitions mount their canonical artwork across five fixed stages', async ({ page }, testInfo) => {
   test.skip(!process.env.ELITESCADA_DYNAMO_REVIEW_FIXTURE, 'Generate the canonical review artifact with tools/DynamoReviewFixture.');
   const fixture = JSON.parse(readFileSync(process.env.ELITESCADA_DYNAMO_REVIEW_FIXTURE!, 'utf8'));
@@ -29,6 +55,9 @@ test('all 26 real catalog definitions mount their canonical artwork across five 
     await expect(renderer.locator('[data-dynamo-key="indicator.lamp.round"] [data-elitescada-slot="state"]').first()).toHaveAttribute('fill', new RegExp(`^${expectedColor}$`, 'i'));
     await page.screenshot({ path: testInfo.outputPath(`catalog-stage-${stage}.png`), fullPage: true });
   }
+  await page.getByLabel('Runtime projection', { exact: true }).check();
+  await expect(page.getByTestId('expanded-count')).toHaveText('26');
+  await expect(renderer.locator('.visual-editor-svg-symbol svg')).toHaveCount(20);
   expect(errors).toEqual([]);
 });
 

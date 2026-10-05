@@ -292,6 +292,9 @@ test('R3 portable Command parameter resolves definition action to canonical proj
   // Runtime above remains fail-closed until its target is mapped.
   expect(projectDynamoRuntimeElements([element], new Map(), null, false)[0].actions)
     .toEqual(element.actions);
+  const optional = { ...element, metadata: { dynamoOptionalActionTarget: 'true' } };
+  expect(projectDynamoRuntimeElements([optional], new Map(), null)[0].actions).toEqual([]);
+  expect(projectDynamoRuntimeElements([optional], parameters, null)[0].actions?.[0].commandId).toBe(commandId);
 });
 
 test('new Dynamo authoring persists the existing public parameter contract and SVG composition', () => {

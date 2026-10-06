@@ -10,7 +10,8 @@ import { productTerm, type EngineeringLocale } from './i18n';
 import { TagAddressEditor } from './TagAddressEditor';
 import { TagCommissioningPanel } from './TagCommissioningPanel';
 import { TagSourceSelector } from './TagSourceSelector';
-import { TagDuplicationPanel, tagDuplicationText, type TagDuplicationPanelHandle } from './TagDuplicationPanel';
+import { TagDuplicationPanel, type TagDuplicationPanelHandle } from './TagDuplicationPanel';
+import { EngineeringResourceOrganizer } from './EngineeringResourceOrganizer';
 import { EngineeringEntityActions } from './EngineeringEntityActions';
 import { WorkflowFormDisclosure, WorkflowFormSection } from './StructuredFormPrimitives';
 import { assignTagDataSource, type TagSourceAwareEngineering } from './TagSourceSelector.logic';
@@ -44,6 +45,7 @@ const NEW_ALARM_IDENTITY = 'draft:new-alarm';
 type EditorProps = {
   model: EngineeringPackageView;
   locale: EngineeringLocale;
+  projectKey?: string;
 };
 
 type MutationState = {
@@ -57,17 +59,15 @@ type MutationState = {
   invalidate: () => void;
 };
 
-export function TagEditor({ model, locale }: EditorProps) {
+export function TagEditor({ model, locale, projectKey = 'workspace' }: EditorProps) {
   const text = useMemo(() => editorTranslator(locale), [locale]);
   const mutation = useSecuredMutation(model, locale);
-  const duplicationCopy = useMemo(() => tagDuplicationText(locale), [locale]);
   const simulationCopy = useMemo(() => simulationText(locale), [locale]);
   const tags = model.tags;
   const [query, setQuery] = useState('');
   const duplicationRef = useRef<TagDuplicationPanelHandle>(null);
   const [duplicationSelectionMode, setDuplicationSelectionMode] = useState(false);
   const [duplicationSelection, setDuplicationSelection] = useState<Set<string>>(() => new Set());
-  const [tagContextMenu, setTagContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [selectedIdentity, setSelectedIdentity] = useState<string | null>(() => tags[0] ? tagIdentity(tags[0]) : null);
   const isNew = selectedIdentity === NEW_TAG_IDENTITY;
   const selected = !isNew && selectedIdentity
@@ -104,17 +104,6 @@ export function TagEditor({ model, locale }: EditorProps) {
     const available = new Set(tags.map(tagIdentity));
     setDuplicationSelection(current => new Set([...current].filter(identity => available.has(identity))));
   }, [tags]);
-
-  useEffect(() => {
-    if (!tagContextMenu) return undefined;
-    const close = () => setTagContextMenu(null);
-    window.addEventListener('click', close);
-    window.addEventListener('blur', close);
-    return () => {
-      window.removeEventListener('click', close);
-      window.removeEventListener('blur', close);
-    };
-  }, [tagContextMenu]);
 
   const changed = draft
     ? isNew
@@ -155,16 +144,6 @@ export function TagEditor({ model, locale }: EditorProps) {
     });
   };
 
-  const runTagShortcut = (event: React.KeyboardEvent<HTMLButtonElement>) => {
-    if (!(event.ctrlKey || event.metaKey)) return;
-    const key = event.key.toLowerCase();
-    if (!['c', 'v', 'd'].includes(key)) return;
-    event.preventDefault();
-    if (key === 'c') duplicationRef.current?.copySelected();
-    if (key === 'v') duplicationRef.current?.paste();
-    if (key === 'd') duplicationRef.current?.duplicateSelected();
-  };
-
   const selectedDuplicationTags = duplicationSelectionMode
     ? tags.filter(tag => duplicationSelection.has(tagIdentity(tag))) as TagSourceAwareEngineering[]
     : selected
@@ -202,36 +181,19 @@ export function TagEditor({ model, locale }: EditorProps) {
           actionActive={isNew}
           onAction={() => chooseIdentity(NEW_TAG_IDENTITY)}
         >
-          {filtered.map(tag => {
-            const identity = tagIdentity(tag);
-            const multiSelected = duplicationSelection.has(identity);
-            const classes = [
-              identity === selectedIdentity ? 'selected' : '',
-              duplicationSelectionMode ? 'multi-select' : '',
-              multiSelected ? 'multi-selected' : ''
-            ].filter(Boolean).join(' ');
-            return (
-              <button
-                type="button"
-                className={classes}
-                aria-label={`${tag.name} (${tag.path})`}
-                aria-current={!duplicationSelectionMode && identity === selectedIdentity ? 'true' : undefined}
-                aria-pressed={duplicationSelectionMode ? multiSelected : undefined}
-                key={identity}
-                onClick={() => duplicationSelectionMode ? toggleDuplicationSelection(identity) : chooseIdentity(identity)}
-                onKeyDown={runTagShortcut}
-                onContextMenu={event => {
-                  if (duplicationSelectionMode) return;
-                  event.preventDefault();
-                  chooseIdentity(identity);
-                  setTagContextMenu({ x: event.clientX, y: event.clientY });
-                }}
-              >
-                {duplicationSelectionMode && <i className="tag-multi-check" aria-hidden="true">{multiSelected ? '✓' : ''}</i>}
-                <strong>{tag.name}</strong><span>{tag.dataType} · {tag.source ?? '—'}</span>
-              </button>
-            );
-          })}
+          <EngineeringResourceOrganizer
+            projectKey={projectKey}
+            kind="tags"
+            locale={locale}
+            label="TAGs"
+            resources={filtered.map(tag => ({ identity: tagIdentity(tag), name: tag.name, details: `${tag.dataType} · ${tag.source ?? '—'}`, value: tag }))}
+            selectedIdentity={duplicationSelectionMode ? null : selectedIdentity}
+            selectedIdentities={duplicationSelectionMode ? duplicationSelection : undefined}
+            onSelect={identity => duplicationSelectionMode ? toggleDuplicationSelection(identity) : chooseIdentity(identity)}
+            onPaste={tag => duplicationRef.current?.pasteCopied([tag as TagSourceAwareEngineering])}
+            onCopySelection={() => duplicationRef.current?.copySelected()}
+            emptyLabel={text('editor.noResults')}
+          />
         </EntityPicker>
 
         <section className="eng-editor-form-panel">
@@ -320,19 +282,6 @@ export function TagEditor({ model, locale }: EditorProps) {
           )}
         </section>
       </div>
-      {tagContextMenu && (
-        <div
-          className="tag-context-menu"
-          style={{ left: tagContextMenu.x, top: tagContextMenu.y }}
-          role="menu"
-          aria-label={duplicationCopy.toolbarLabel}
-          onClick={event => event.stopPropagation()}
-        >
-          <button type="button" role="menuitem" onClick={() => { duplicationRef.current?.copySelected(); setTagContextMenu(null); }}>{duplicationCopy.copy} <kbd>Ctrl/Cmd+C</kbd></button>
-          <button type="button" role="menuitem" onClick={() => { duplicationRef.current?.paste(); setTagContextMenu(null); }}>{duplicationCopy.paste} <kbd>Ctrl/Cmd+V</kbd></button>
-          <button type="button" role="menuitem" onClick={() => { duplicationRef.current?.duplicateSelected(); setTagContextMenu(null); }}>{duplicationCopy.duplicate} <kbd>Ctrl/Cmd+D</kbd></button>
-        </div>
-      )}
     </EditorShell>
   );
 }

@@ -304,9 +304,9 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, onR
   if (section === 'information') return <EngineeringInformation snapshot={snapshot} productIdentity={productIdentity} t={t} locale={locale}/>;
 
   switch (section) {
-    case 'dataSources': return <DataSourceEditor model={model} locale={locale}/>;
+    case 'dataSources': return <DataSourceEditor model={model} locale={locale} projectKey={snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace'}/>;
     case 'gateway': return <GatewayEngineeringPanel model={model} locale={locale}/>;
-    case 'tags': return <TagEditor model={model} locale={locale}/>;
+    case 'tags': return <TagEditor model={model} locale={locale} projectKey={snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace'}/>;
     case 'alarms': return <AlarmEditor model={model} locale={locale}/>;
     case 'operationalEvents': return <OperationalEventEditor model={model} locale={locale} onApplied={onReload}/>;
     case 'templates': return <VisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload} onAssetImported={onSnapshotRefreshed} definitionKind="template"/>;

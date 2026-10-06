@@ -33,6 +33,7 @@ import type { EngineeringPackageView, ImportPreviewView } from './types';
 export type TagDuplicationPanelHandle = {
   copySelected: () => void;
   paste: () => void;
+  pasteCopied: (sources: readonly TagSourceAwareEngineering[]) => void;
   duplicateSelected: () => void;
 };
 
@@ -155,9 +156,22 @@ export const TagDuplicationPanel = forwardRef<TagDuplicationPanelHandle, Props>(
     }
   };
 
+  const pasteCopied = (sources: readonly TagSourceAwareEngineering[]) => {
+    setError(null);
+    if (sources.length === 0) return;
+    try {
+      setGenerated(createDuplicateTagDrafts(sources, model.tags, newStableTagId));
+      setGenerationKind('paste');
+      setSequenceOpen(false);
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  };
+
   useImperativeHandle(ref, () => ({
     copySelected,
     paste,
+    pasteCopied,
     duplicateSelected
   }));
 

@@ -29,6 +29,7 @@ import { createCanonicalPolygon, updateCanonicalPolygonPoints } from './polygonC
 import { createCanonicalBezier } from './bezierCanonicalMutations';
 import { reportCollection } from '../reports/reportDesignerModel';
 import { VisualEditorRegionToggle } from './VisualEditorRegionToggle';
+import { EngineeringResourceOrganizer, engineeringCopyName, uniqueEngineeringKey } from '../EngineeringResourceOrganizer';
 import {
   NEW_SCREEN_IDENTITY,
   applyVisualEditorMutationIntent,
@@ -147,6 +148,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const selectedIdentityRef = useRef(selectedIdentity);
   const preserveDraftAfterAssetImportRef = useRef(false);
+  const pendingScreenPasteRef = useRef<ScreenEngineering | null>(null);
   const [clientMemoryDefinitions, setClientMemoryDefinitions] = useState<readonly ClientMemoryDefinitionView[]>(Object.freeze([]));
 
   const replaceSession = (next: VisualEditorSessionState) => {
@@ -190,7 +192,9 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
     setPolygonToolActive(false);
     setBezierToolActive(false);
     if (selectedIdentity === NEW_SCREEN_IDENTITY) {
-      replaceSession(createVisualEditorSession(createDraft(screens, locale, definitionKind)));
+      const pasted = pendingScreenPasteRef.current;
+      pendingScreenPasteRef.current = null;
+      replaceSession(createVisualEditorSession(pasted ?? createDraft(screens, locale, definitionKind)));
       setDynamoParameters(Object.freeze([]));
       setViewport(DEFAULT_VIEWPORT);
       invalidateValidation();
@@ -296,6 +300,28 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
     setPolygonToolActive(false);
     setBezierToolActive(false);
     invalidateValidation();
+  };
+
+  const pasteScreen = (source: ScreenEngineering) => {
+    if (changed && !window.confirm(text.discardConfirm)) return;
+    const key = uniqueEngineeringKey(source.key, screens.map(item => item.key));
+    const route = uniqueScreenRoute(key, screens.map(item => item.route));
+    const pasted: ScreenEngineering = {
+      ...cloneEngineeringValue(source),
+      id: undefined,
+      key,
+      name: engineeringCopyName(source.name || source.key, locale),
+      route
+    };
+    pendingScreenPasteRef.current = pasted;
+    if (selectedIdentity === NEW_SCREEN_IDENTITY) {
+      pendingScreenPasteRef.current = null;
+      replaceSession(createVisualEditorSession(pasted));
+      setViewport(DEFAULT_VIEWPORT);
+      invalidateValidation();
+    } else {
+      setSelectedIdentity(NEW_SCREEN_IDENTITY);
+    }
   };
 
   const updateDraft = (update: (current: ScreenEngineering) => ScreenEngineering) => {
@@ -529,14 +555,27 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
             <VisualEditorRegionToggle region="screens" collapsed={screensCollapsed} locale={locale} onToggle={() => setScreensCollapsed(value => !value)} />
           </div>
         </header>
-        <div className="visual-editor-screen-list">
+        {definitionKind === 'screen' ? <EngineeringResourceOrganizer
+          projectKey={snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace'}
+          kind="screens"
+          locale={locale}
+          label={text.screens}
+          resources={screens.map(screen => ({ identity: `key:${screen.key}`, name: screen.name || screen.key, details: `${screen.key} · ${screen.route || text.noRoute} · ${countVisualElements(screen.elements)} ${text.objects}`, value: screen }))}
+          selectedIdentity={selected ? `key:${selected.key}` : null}
+          onSelect={identity => {
+            const screen = screens.find(item => `key:${item.key}` === identity);
+            if (screen) chooseScreen(screenIdentity(screen));
+          }}
+          onPaste={pasteScreen}
+          emptyLabel={locale === 'en' ? 'No screens' : locale === 'es' ? 'No hay pantallas' : 'Nenhuma tela'}
+        /> : <div className="visual-editor-screen-list">
           {screens.map(screen => {
             const identity = screenIdentity(screen);
             return <button type="button" className={matchesScreenIdentity(screen, selectedIdentity) ? 'selected' : ''} key={identity} onClick={() => chooseScreen(identity)}>
               <strong>{screen.name || screen.key}</strong><code>{screen.key}</code><span>{screen.route || text.noRoute} · {countVisualElements(screen.elements)} {text.objects}</span>
             </button>;
           })}
-        </div>
+        </div>}
       </aside>
 
       <section className="visual-editor-main">
@@ -690,6 +729,14 @@ function createDraft(existing: readonly ScreenEngineering[], locale: Engineering
   return { ...draft, key: draft.key.replace(/^screen-/, prefix), name: draft.name.replace(/^(Screen|Pantalla|Tela) /, namePrefix), route: null };
 }
 function emptyToNull(value: string): string | null { return value.trim().length === 0 ? null : value; }
+
+function uniqueScreenRoute(key: string, routes: readonly (string | null | undefined)[]) {
+  const used = new Set(routes.map(route => (route ?? '').trim().toLocaleLowerCase('en-US')));
+  let candidate = `/${key}`;
+  let index = 2;
+  while (used.has(candidate.toLocaleLowerCase('en-US'))) candidate = `/${key}-${index++}`;
+  return candidate;
+}
 
 function parameterDataType(kind: DynamoParameterKindEngineering): string | null {
   switch (kind) {

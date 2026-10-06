@@ -210,11 +210,15 @@ public sealed class EngineeringWorkingBootstrapService(
                 workspace.VisualAssets.UpsertAsset(asset);
                 workspace.VisualAssets.PutPayload(payload);
             }
-            else if (!workspace.VisualAssets.HasPayload(byKey.Sha256) &&
-                     byKey.Metadata?.GetValueOrDefault("assetOrigin") == "original-elitescada-vector-factory")
+            else if (byKey.Metadata?.GetValueOrDefault("assetOrigin") == "original-elitescada-vector-factory" &&
+                     (!byKey.Sha256.Equals(asset.Sha256, StringComparison.OrdinalIgnoreCase) ||
+                      !workspace.VisualAssets.HasPayload(asset.Sha256) ||
+                      asset.Metadata?.Any(pair => byKey.Metadata?.GetValueOrDefault(pair.Key) != pair.Value) == true))
             {
+                // A Dynamo visual refresh keeps the stable asset key/ID while replacing
+                // only platform-owned artwork bytes. Never rewrite project/user artwork.
                 workspace.VisualAssets.UpsertAsset(asset);
-                workspace.VisualAssets.PutPayload(payload);
+                if (!workspace.VisualAssets.HasPayload(asset.Sha256)) workspace.VisualAssets.PutPayload(payload);
             }
             else if (!workspace.VisualAssets.HasPayload(byKey.Sha256))
             {

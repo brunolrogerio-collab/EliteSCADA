@@ -29,13 +29,14 @@ public sealed class BuiltinDynamoLibraryTests
     {
         var definitions = BuiltinDynamoCatalogV1.Create();
 
-        Assert.Equal(26, definitions.Count);
-        Assert.Equal(26, definitions.Select(definition => definition.Key).Distinct(StringComparer.Ordinal).Count());
-        Assert.Equal(26, definitions.Select(definition => definition.Id).Distinct().Count());
+        Assert.Equal(27, definitions.Count);
+        Assert.Equal(27, definitions.Select(definition => definition.Key).Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(27, definitions.Select(definition => definition.Id).Distinct().Count());
         Assert.Equal(4, definitions.Count(definition => definition.Metadata!["familyKey"] == "indicator.lamp"));
         Assert.Equal(4, definitions.Count(definition => definition.Metadata!["familyKey"] == "operator.button"));
         Assert.Equal(6, definitions.Count(definition => definition.Metadata!["familyKey"] == "equipment.motor"));
         Assert.Equal(6, definitions.Count(definition => definition.Metadata!["familyKey"] == "equipment.valve"));
+        Assert.Single(definitions, definition => definition.Key == "pump.submersible");
         Assert.Equal(6, definitions.Count(definition => definition.Metadata!["familyKey"] == "equipment.electrical"));
 
         Assert.All(definitions, definition =>
@@ -77,6 +78,13 @@ public sealed class BuiltinDynamoLibraryTests
                     Assert.Contains("data-elitescada-slot=\"bezel\"", svg, StringComparison.Ordinal);
                     Assert.Contains("data-elitescada-slot=\"state\"", svg, StringComparison.Ordinal);
                 }
+                if (definition.Metadata["familyKey"] is "equipment.motor" or "equipment.valve" or "equipment.pump")
+                {
+                    var svg = System.Text.Encoding.UTF8.GetString(payload.Content);
+                    Assert.Contains("data-elitescada-slot=\"state\"", svg, StringComparison.Ordinal);
+                    Assert.Contains("<g", svg, StringComparison.Ordinal);
+                    Assert.Contains("viewBox=\"0 0 132 100\"", svg, StringComparison.Ordinal);
+                }
             }
             Assert.Equal("image/svg+xml", payload.MediaType);
             Assert.Equal(payload.Sha256, asset.Sha256);
@@ -87,6 +95,36 @@ public sealed class BuiltinDynamoLibraryTests
             registry.PutPayload(payload);
             Assert.DoesNotContain(Scada.Engineering.VisualAssets.VisualAssetEngineeringValidator.Validate(asset, registry), issue => issue.IsError);
         }
+    }
+
+    [Fact]
+    public void EquipmentArtwork_UsesSuppliedIndustrialDrawingsWithDynamicStateSurfaces()
+    {
+        var definitions = BuiltinDynamoCatalogV1.Create().ToDictionary(item => item.Key, StringComparer.Ordinal);
+        var artwork = BuiltinDynamoCatalogV1.CreateArtworkAssets().ToDictionary(item => item.Asset.Key, StringComparer.Ordinal);
+        string Svg(string dynamoKey) => System.Text.Encoding.UTF8.GetString(
+            artwork[$"builtin.dynamo.v1.{dynamoKey.Replace('.', '-') }"].Payload.Content);
+
+        var horizontalMotor = Svg("motor.tefc");
+        Assert.Contains("M 40 40", horizontalMotor, StringComparison.Ordinal);
+        Assert.Contains("data-elitescada-slot=\"state\"", horizontalMotor, StringComparison.Ordinal);
+        Assert.Contains("#71818B", horizontalMotor, StringComparison.Ordinal);
+
+        var vfdMotor = Svg("motor.vfd-package");
+        Assert.Contains("width=\"27\"", vfdMotor, StringComparison.Ordinal);
+        Assert.Contains("height=\"11\"", vfdMotor, StringComparison.Ordinal);
+
+        var gateValve = Svg("valve.gate");
+        Assert.Contains("cx=\"150\"", gateValve, StringComparison.Ordinal);
+        var ballValve = Svg("valve.ball");
+        Assert.True(ballValve.Split("data-elitescada-slot=\"state\"", StringSplitOptions.None).Length >= 3);
+        Assert.Equal("1.1.0", definitions["valve.gate"].Properties!["libraryVersion"]);
+
+        var pump = Svg("pump.submersible");
+        Assert.Contains("M 140 70", pump, StringComparison.Ordinal);
+        Assert.Contains("M 305 300", pump, StringComparison.Ordinal);
+        Assert.Contains("data-elitescada-slot=\"state\"", pump, StringComparison.Ordinal);
+        Assert.Equal("equipment.pump", definitions["pump.submersible"].Metadata!["familyKey"]);
     }
 
     [Fact]
@@ -310,9 +348,9 @@ public sealed class BuiltinDynamoLibraryTests
     public void ReplacementCatalogV1_EquipmentStatesAreNumericTagMapsWithoutLegacyCatalog()
     {
         var replacement = BuiltinDynamoCatalogV1.Create();
-        Assert.Equal(26, replacement.Count);
+        Assert.Equal(27, replacement.Count);
         Assert.All(replacement, definition => Assert.Equal("active", definition.Metadata!["catalogStatus"]));
-        foreach (var definition in replacement.Where(definition => definition.Metadata!["familyKey"] is "equipment.motor" or "equipment.valve"))
+        foreach (var definition in replacement.Where(definition => definition.Metadata!["familyKey"] is "equipment.motor" or "equipment.valve" or "equipment.pump"))
         {
             var stateMap = Assert.Single(definition.Elements!.SelectMany(element => element.PropertyMaps ?? []),
                 map => map.PropertyKey == "svg.slot.state.fill");

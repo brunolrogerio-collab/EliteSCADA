@@ -2,6 +2,7 @@ using Scada.Api.Persistence;
 using Scada.Api.Runtime;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Persistence;
+using Scada.Engineering.VisualAssets;
 
 namespace Scada.Drivers.Tests;
 
@@ -72,7 +73,7 @@ public sealed class EngineeringWorkingBootstrapServiceTests
         Assert.DoesNotContain(workspace.Assets.SnapshotDynamos(), dynamo =>
             dynamo.Metadata?.GetValueOrDefault("assetOrigin") == "elipse-e3-import");
         Assert.Equal("Custom definition with a platform key", workspace.Assets.FindDynamoByKey(customDynamo.Key)!.Name);
-        Assert.Equal(27, workspace.Assets.SnapshotDynamos().Count);
+        Assert.Equal(28, workspace.Assets.SnapshotDynamos().Count);
         Assert.DoesNotContain(workspace.Assets.SnapshotDynamos(), dynamo =>
             dynamo.Metadata?.GetValueOrDefault("catalogStatus") == "legacy");
         var replacementCatalog = BuiltinDynamoCatalogV1.Create();
@@ -87,7 +88,7 @@ public sealed class EngineeringWorkingBootstrapServiceTests
             Assert.True(workspace.VisualAssets.HasPayload(persistedAsset.Sha256));
         });
         Assert.True(result.Workspace.IsDirty);
-        Assert.Equal(27, result.Workspace.DynamoCount);
+        Assert.Equal(28, result.Workspace.DynamoCount);
         Assert.Equal(4, result.Workspace.BaseRevision);
     }
 
@@ -117,6 +118,43 @@ public sealed class EngineeringWorkingBootstrapServiceTests
         });
         Assert.DoesNotContain(workspace.Assets.SnapshotDynamos(), definition =>
             definition.Metadata?.GetValueOrDefault("catalogStatus") == "legacy");
+    }
+
+    [Fact]
+    public void ExistingCatalogUpgradeReplacesOnlyBuiltinArtworkAndAddsSubmersiblePumpDynamo()
+    {
+        using var workspace = new EngineeringWorkspace(seedDemo: false);
+        var previousCatalog = BuiltinDynamoCatalogV1.Create()
+            .Where(definition => definition.Key != "pump.submersible");
+        foreach (var definition in previousCatalog)
+        {
+            var previousProperties = new Dictionary<string, string>(definition.Properties!, StringComparer.Ordinal)
+            {
+                ["libraryVersion"] = "1.0.1"
+            };
+            workspace.Assets.UpsertDynamo(definition with { Properties = previousProperties });
+        }
+
+        var latestArtwork = BuiltinDynamoCatalogV1.CreateArtworkAssets();
+        var motorArtwork = latestArtwork.Single(item => item.Asset.Key == "builtin.dynamo.v1.motor-tefc");
+        var previousPayload = VisualAssetPayload.Create("image/svg+xml",
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1 1\"><rect width=\"1\" height=\"1\" fill=\"#000000\"/></svg>"u8.ToArray());
+        workspace.VisualAssets.UpsertAsset(motorArtwork.Asset with
+        {
+            ByteLength = previousPayload.ByteLength,
+            Sha256 = previousPayload.Sha256
+        });
+        workspace.VisualAssets.PutPayload(previousPayload);
+        workspace.Assets.UpsertDynamo(LegacyPlatformMarker());
+
+        EngineeringWorkingBootstrapService.UpgradeBuiltinDynamos(workspace);
+
+        Assert.Equal(BuiltinDynamoCatalogV1.Version,
+            workspace.Assets.FindDynamoByKey("motor.tefc")!.Properties!["libraryVersion"]);
+        Assert.NotNull(workspace.Assets.FindDynamoByKey("pump.submersible"));
+        Assert.Equal(motorArtwork.Asset.Sha256,
+            workspace.VisualAssets.FindAssetByKey(motorArtwork.Asset.Key)!.Sha256);
+        Assert.True(workspace.VisualAssets.HasPayload(motorArtwork.Asset.Sha256));
     }
 
     [Fact]

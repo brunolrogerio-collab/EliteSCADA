@@ -93,10 +93,10 @@ public sealed class HomeAssistantMappingTests
         Assert.Contains(candidate.Equipment.Capabilities!, x => x.Kind == "Light");
         Assert.Contains(candidate.Equipment.Capabilities!, x => x.Kind == "Dimmer");
         Assert.Contains(candidate.Equipment.Capabilities!, x => x.Kind == "ColorLight");
-        var brightness = Assert.Single(candidate.Tags!.Where(x => x.CandidateId.EndsWith(".brightness", StringComparison.Ordinal)));
+        var brightness = Assert.Single(candidate.Tags!, x => x.CandidateId.EndsWith(".brightness", StringComparison.Ordinal));
         Assert.Equal("%", brightness.EngineeringUnit);
         Assert.False(brightness.ReadOnly);
-        var color = Assert.Single(candidate.Tags!.Where(x => x.CandidateId.EndsWith(".rgb_color", StringComparison.Ordinal)));
+        var color = Assert.Single(candidate.Tags!, x => x.CandidateId.EndsWith(".rgb_color", StringComparison.Ordinal));
         Assert.Equal(TagDataType.String, color.DataType);
         Assert.Equal("rgb-0-255-triplet", color.Metadata!["valueEncoding"]);
     }
@@ -119,7 +119,7 @@ public sealed class HomeAssistantMappingTests
         Assert.Contains(candidate.Equipment.Capabilities!, x => x.Kind == "Temperature");
         Assert.Contains(candidate.Equipment.Capabilities!, x => x.Kind == "Energy");
         Assert.DoesNotContain(candidate.Equipment.Capabilities!, x => x.CapabilityId.Contains("vendor_metric", StringComparison.Ordinal));
-        var generic = Assert.Single(candidate.Tags!.Where(x => x.Metadata!["haEntityId"] == "sensor.vendor_metric"));
+        var generic = Assert.Single(candidate.Tags!, x => x.Metadata!["haEntityId"] == "sensor.vendor_metric");
         Assert.True(generic.ReadOnly);
         Assert.Equal(TagDataType.String, generic.DataType);
     }
@@ -160,7 +160,7 @@ public sealed class HomeAssistantMappingTests
         var candidate = Assert.Single(mapped.Candidates);
 
         Assert.Contains(candidate.Equipment.Capabilities!, x => x.Kind == "Cover");
-        var position = Assert.Single(candidate.Tags!.Where(x => x.CandidateId.EndsWith(".current_position", StringComparison.Ordinal)));
+        var position = Assert.Single(candidate.Tags!, x => x.CandidateId.EndsWith(".current_position", StringComparison.Ordinal));
         Assert.False(position.ReadOnly);
         Assert.Equal("set_cover_position", position.Metadata!["writeService"]);
         Assert.Contains(candidate.Commands!, x => x.Metadata!["service"] == "open_cover");

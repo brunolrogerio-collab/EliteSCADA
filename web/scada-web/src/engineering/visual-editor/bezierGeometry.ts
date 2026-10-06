@@ -87,20 +87,22 @@ export function insertBezierAnchor(path: string, anchorOrdinal?: number): string
   if (drawableIndexes.length === 0) return null;
   const requested = anchorOrdinal ?? model.anchorIndexes.length - 1;
   if (requested < 0 || requested >= model.anchorIndexes.length) return null;
-  const anchorPointIndex = model.anchorIndexes[requested];
   const lastAnchorOrdinal = model.anchorIndexes.length - 1;
   const drawableOrdinal = requested === lastAnchorOrdinal
     ? drawableIndexes.length - 1
     : Math.min(requested, drawableIndexes.length - 1);
   const targetIndex = drawableIndexes[drawableOrdinal];
-  let anchor: VisualEditorPoint | null = requested === 0 ? commands[0].points[0] ?? null : null;
-  if (requested > 0) {
-    let pointIndex = 0;
-    for (const command of commands) {
-      if (command.kind === 'M') { pointIndex += 1; continue; }
-      if (!isDrawable(command)) continue;
-      pointIndex += command.points.length;
-      if (pointIndex - 1 === anchorPointIndex) { anchor = command.points.at(-1) ?? null; break; }
+  let anchor: VisualEditorPoint | null = null;
+  let subpathStart: VisualEditorPoint | null = null;
+  for (let index = 0; index < targetIndex; index++) {
+    const command = commands[index];
+    if (command.kind === 'M') {
+      anchor = command.points[0] ?? null;
+      subpathStart = anchor;
+    } else if (isDrawable(command)) {
+      anchor = command.points.at(-1) ?? anchor;
+    } else if (command.kind === 'Z') {
+      anchor = subpathStart;
     }
   }
   if (!anchor) return null;

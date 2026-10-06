@@ -418,6 +418,7 @@
 .runtime-operator-tool:hover { background:color-mix(in srgb,var(--runtime-header-background,var(--app-surface)) 72%,var(--app-hover)); }
 .runtime-operator-tool.active,.runtime-operator-tool[aria-pressed="true"] {
   background:color-mix(in srgb,var(--runtime-header-background,var(--app-surface)) 62%,var(--app-selected));
+  color:var(--runtime-header-foreground,var(--app-text-primary));
 }
 .runtime-operator-toolbar .runtime-operator-tool > img { width:22px!important; height:22px!important; object-fit:contain; }
 .runtime-operator-bar--fullscreen .runtime-operator-context { max-width:none; }

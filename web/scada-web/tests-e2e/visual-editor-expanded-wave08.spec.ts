@@ -177,9 +177,17 @@ test('Wave 15 authors a selectable report and closed Bezier with editable anchor
 
     await palette.locator('[data-insert-object-type="core.bezier"]').click();
     await surface.click({ position: { x: 100, y: 180 } });
+    const bezierDraft = page.getByTestId('bezier-draft-preview');
+    await expect(bezierDraft).toBeVisible();
+    await expect(bezierDraft.locator('circle')).toHaveCount(1);
     await surface.click({ position: { x: 230, y: 150 } });
+    await expect(bezierDraft.locator('circle')).toHaveCount(2);
+    await expect(bezierDraft.locator('polyline')).toHaveAttribute('points', /,/);
     await surface.click({ position: { x: 200, y: 250 } });
+    await expect(bezierDraft.locator('circle')).toHaveCount(3);
+    await expect(bezierDraft.locator('path')).toBeVisible();
     await surface.click({ position: { x: 130, y: 280 } });
+    await expect(bezierDraft.locator('circle')).toHaveCount(4);
     await page.getByTestId('bezier-finish').click();
 
     const curve = page.locator('[data-canvas-object-type="core.bezier"]').last();

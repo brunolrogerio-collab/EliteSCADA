@@ -623,10 +623,10 @@ export function VisualEditorCanvas({
           <polyline points={polygonPointsAttribute(draftPreviewPoints)} />
           {polygonDraftPoints.map((point, index) => <circle key={index} cx={point.x} cy={point.y} r={4} />)}
         </svg> : null}
-        {bezierToolActive && draftPreviewPoints.length > 0 ? <svg className="visual-editor-canvas__bezier-draft" width={CANVAS_CONTENT_WIDTH} height={CANVAS_CONTENT_HEIGHT} aria-hidden="true">
+        {bezierToolActive && bezierPreviewPoints.length > 0 ? <svg className="visual-editor-canvas__bezier-draft" data-testid="bezier-draft-preview" width={CANVAS_CONTENT_WIDTH} height={CANVAS_CONTENT_HEIGHT} aria-hidden="true">
           {bezierDraft
             ? <g transform={`translate(${bezierDraft.x} ${bezierDraft.y}) scale(${bezierDraft.width / 100} ${bezierDraft.height / 100})`}><path d={bezierDraft.path}/></g>
-            : <polyline points={polygonPointsAttribute(draftPreviewPoints)} />}
+            : <polyline points={polygonPointsAttribute(bezierPreviewPoints)} />}
           {bezierDraftPoints.map((point, index) => <circle key={index} cx={point.x} cy={point.y} r={4}/>)}</svg> : null}
       </div>
     </div>

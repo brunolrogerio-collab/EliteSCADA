@@ -18,6 +18,7 @@ import type {
   ScreenEngineering
 } from '../types';
 import { initializeClientMemory } from '../../runtime/clientMemory';
+import { listUserVisualAssets } from '../visualAssetCatalogModel';
 import { resolveRuntimeLogicalSize } from '../../runtime/visual-navigation/runtimeLogicalCanvas';
 import {
   resolvePopupLogicalBounds,
@@ -118,6 +119,7 @@ function PopupVisualEditorWorkspaceBody({
 }) {
   const text = useMemo(() => popupEditorText(locale), [locale]);
   const popups = snapshot.package.popups ?? [];
+  const visualAssets = listUserVisualAssets(snapshot.package.visualAssets);
   const [selectedIdentity, setSelectedIdentity] = useState<string>(() =>
     popups[0] ? popupIdentity(popups[0]) : NEW_POPUP_IDENTITY);
   const isNew = selectedIdentity === NEW_POPUP_IDENTITY;
@@ -505,7 +507,7 @@ function PopupVisualEditorWorkspaceBody({
               definitions={snapshot.package.dynamos ?? []}
               equipment={snapshot.package.equipment ?? []}
               templates={snapshot.package.templates ?? []}
-              visualAssets={snapshot.package.visualAssets ?? []}
+              visualAssets={visualAssets}
               locale={locale}
               activeTab={authoringTab}
               onActiveTabChange={setAuthoringTab}
@@ -560,7 +562,7 @@ function PopupVisualEditorWorkspaceBody({
               selectedElements={selectedElements}
               selectedObjectIds={selectedObjectIds}
               sourceCatalog={bindingSourceCatalog}
-              visualAssets={snapshot.package.visualAssets ?? []}
+              visualAssets={visualAssets}
               reports={reportCollection(snapshot.package)}
               locale={locale}
               activeTab={inspectorTab}

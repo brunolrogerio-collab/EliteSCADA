@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { applyEngineeringPackage, importVisualAsset, previewEngineeringPackage, visualAssetContentUrl } from './api';
 import type { ApplicationBrandingEngineering, ApplicationBrandingMode, EngineeringSnapshot, ImportPreviewView, RuntimePresentationEngineering } from './types';
 import type { EngineeringLocale } from './i18n';
+import { listUserVisualAssets } from './visualAssetCatalogModel';
 import { RuntimeHeaderSettings } from './RuntimeHeaderSettings';
 
 const DEFAULT: ApplicationBrandingEngineering = { mode: 'default' };
@@ -25,7 +26,7 @@ export function BrandingEngineeringWorkspace({ snapshot, onApplied, locale = 'pt
   }, [snapshot.workspace.changeVersion, snapshot.package.branding, snapshot.package.runtimePresentation]);
 
   const signature = useMemo(() => JSON.stringify({ draft, runtimeDraft }), [draft, runtimeDraft]);
-  const assets = snapshot.package.visualAssets ?? [];
+  const assets = listUserVisualAssets(snapshot.package.visualAssets);
   const selectedAsset = draft.visualAssetId ? assets.find(a => a.id?.toLowerCase() === draft.visualAssetId?.toLowerCase()) : undefined;
 
   const update = (patch: Partial<ApplicationBrandingEngineering>) => {

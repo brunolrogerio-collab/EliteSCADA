@@ -4,6 +4,7 @@ import type { EngineeringLocale } from './i18n';
 import type { EngineeringSnapshot, VisualAssetEngineering } from './types';
 import './visual-asset-management.css';
 import { FactoryArtworkLibrary } from './FactoryArtworkLibrary';
+import { listUserVisualAssets } from './visualAssetCatalogModel';
 
 export function VisualAssetManagementWorkspace({
   snapshot,
@@ -22,7 +23,7 @@ export function VisualAssetManagementWorkspace({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const assets = snapshot.package.visualAssets ?? [];
+  const assets = listUserVisualAssets(snapshot.package.visualAssets);
 
   async function run(action: () => Promise<void>) {
     setBusy(true);

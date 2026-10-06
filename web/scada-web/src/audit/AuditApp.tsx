@@ -451,7 +451,7 @@ export function AuditApp() {
         </div>
       </section>
 
-      <section className="audit-panel" aria-labelledby="audit-events-title" aria-live="polite">
+      <section className="audit-panel audit-events-panel" aria-labelledby="audit-events-title" aria-live="polite">
         <div className="audit-section-heading">
           <div><h2 id="audit-events-title">{t.events}</h2></div>
           <span>{events.length} {t.eventsOnPage} · {t.page} {pageIndex + 1}</span>

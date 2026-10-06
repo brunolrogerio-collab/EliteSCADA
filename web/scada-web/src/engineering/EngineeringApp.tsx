@@ -34,6 +34,7 @@ import { EquipmentFaceplateWorkspace } from './EquipmentFaceplateWorkspace';
 import type { DynamoEngineering, EngineeringPackageView, EngineeringSnapshot, EquipmentEngineering, TemplateEngineering } from './types';
 import { CanonicalVisualPreview } from './visual-editor/CanonicalVisualPreview';
 import { selectDefaultDynamoCatalog } from './visual-editor/dynamoLibraryModel';
+import { listUserVisualAssets } from './visualAssetCatalogModel';
 import { hasRuntimeCapability, useEffectiveCapabilities } from '../auth/effectiveCapabilities';
 import './engineering.css';
 import './object-catalog.css';
@@ -503,7 +504,7 @@ function sectionCount(model: EngineeringPackageView, section: SectionId): number
     case 'templates': return model.templates?.length ?? 0;
     case 'equipment': return model.equipment?.length ?? 0;
     case 'dynamos': return selectDefaultDynamoCatalog(model.dynamos ?? []).length;
-    case 'visualAssets': return model.visualAssets?.length ?? 0;
+    case 'visualAssets': return listUserVisualAssets(model.visualAssets).length;
     case 'screens': return model.screens?.length ?? 0;
     case 'popups': return model.popups?.length ?? 0;
     case 'historian': return model.tags.filter(tag => tag.historian?.enabled).length;

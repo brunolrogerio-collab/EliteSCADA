@@ -3,6 +3,7 @@ using Scada.Core.Alarms;
 using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.Api.Security;
+using Scada.Api.VisualAssets;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Branding;
 using Scada.Engineering.Commands;
@@ -133,7 +134,7 @@ public sealed class EngineeringWorkspace : IDisposable
                 Views.SnapshotPopups().Count,
                 SecurityPolicies.SnapshotRoles().Count,
                 Commands.Snapshot().Count,
-                VisualAssets.SnapshotAssets().Count,
+                VisualAssetClassification.CountUserAssets(VisualAssets.SnapshotAssets()),
                 DataQueries.Snapshot().Count,
                 AlarmViews.Snapshot().Count);
         }

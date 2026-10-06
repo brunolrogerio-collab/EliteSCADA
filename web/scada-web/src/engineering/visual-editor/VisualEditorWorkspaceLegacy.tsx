@@ -20,6 +20,7 @@ import type {
   TemplateEngineering
 } from '../types';
 import { initializeClientMemory } from '../../runtime/clientMemory';
+import { listUserVisualAssets } from '../visualAssetCatalogModel';
 import { BUILTIN_VISUAL_OBJECT_TYPES } from '../../visual-runtime';
 import { VisualEditorCanvas } from './canvas';
 import { VisualEditorAuthoringSidebar, type VisualEditorAuthoringTab } from './VisualEditorAuthoringSidebar';
@@ -254,7 +255,7 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
     }));
     return Object.freeze([...parameterSources, ...projectSources]);
   }, [projectReferences, definitionKind, dynamoParameters]);
-  const visualAssets = snapshot.package.visualAssets ?? [];
+  const visualAssets = listUserVisualAssets(snapshot.package.visualAssets);
 
   const resizeDock = (region: 'palette' | 'properties', event: React.PointerEvent<HTMLButtonElement>) => {
     if (event.type === 'pointerdown') {

@@ -8,7 +8,9 @@ import type {
 import { BUILTIN_VISUAL_OBJECT_TYPES, VISUAL_PROPERTY_KEYS } from '../../../visual-runtime';
 import type { EngineeringLocale } from '../../i18n';
 import type { DynamoEngineering, EquipmentEngineering, TemplateEngineering } from '../../types';
+import { visualAssetContentUrl } from '../../api';
 import { CanonicalVisualRenderer } from '../CanonicalVisualRenderer';
+import { resolveVisualDefinitionSurfaceStyle } from '../visualDefinitionSurfaceModel';
 import { updateCanonicalPolygonPoints } from '../polygonCanonicalMutations';
 import { applyVisualEditorMutationIntent } from '../visualEditorCanonicalModel';
 import { isVisualElementEffectivelyAuthoringLocked } from '../visualEditorAuthoringModel';
@@ -463,17 +465,12 @@ export function VisualEditorCanvas({
     transform: `translate(${effectiveViewport.panX}px, ${effectiveViewport.panY}px) scale(${effectiveViewport.zoom})`,
     transformOrigin: '0 0', width: `${CANVAS_CONTENT_WIDTH}px`, height: `${CANVAS_CONTENT_HEIGHT}px`
   } satisfies CSSProperties;
-  const surfaceStyle = {
-    '--visual-editor-grid-size': `${DEFAULT_CANVAS_GRID_SIZE * effectiveViewport.zoom}px`,
-    '--visual-editor-grid-pan-x': `${effectiveViewport.panX}px`,
-    '--visual-editor-grid-pan-y': `${effectiveViewport.panY}px`,
-    '--visual-editor-background-grid-width': String((logicalBoundary?.width ?? CANVAS_CONTENT_WIDTH) / DEFAULT_CANVAS_GRID_SIZE),
-    '--visual-editor-background-grid-height': String((logicalBoundary?.height ?? CANVAS_CONTENT_HEIGHT) / DEFAULT_CANVAS_GRID_SIZE)
-  } as CSSProperties;
   const canonicalLayerStyle = {
     width: logicalBoundary?.width ?? CANVAS_CONTENT_WIDTH,
-    height: logicalBoundary?.height ?? CANVAS_CONTENT_HEIGHT
-  } satisfies CSSProperties;
+    height: logicalBoundary?.height ?? CANVAS_CONTENT_HEIGHT,
+    '--visual-editor-grid-size': `${DEFAULT_CANVAS_GRID_SIZE}px`,
+    ...resolveVisualDefinitionSurfaceStyle(screen.properties, visualAssetContentUrl)
+  } as CSSProperties;
 
   const renderProjection = (projection: CanvasElementProjection, ancestorMovesWithSelection: boolean): React.ReactNode => {
     const objectId = projection.objectId;
@@ -590,10 +587,10 @@ export function VisualEditorCanvas({
       <button type="button" title={canvasText.bringToFront} disabled={siblingMutationUnavailable} onClick={() => emitMutationForSelection({ kind: 'object.zOrder', objectIds: selection, operation: 'bringToFront' })} aria-label={canvasText.bringToFront}>⇥</button>
     </div>
 
-    <div ref={surfaceRef} className={`visual-editor-canvas__surface${gridEnabled ? ' has-grid' : ''}`} style={surfaceStyle} tabIndex={0} role="application" aria-label={`Visual editor canvas for ${screen.name}`} onPointerDown={handleSurfacePointerDown} onPointerMove={handlePointerMove} onPointerUp={finishInteraction} onPointerCancel={() => setInteraction(null)} onDoubleClick={() => { if (polygonToolActive && polygonDraftPoints.length >= 3) finishPolygon(); else if (bezierToolActive && bezierDraftPoints.length >= 3) finishBezier(); }} onWheel={handleWheel} onKeyDown={handleKeyDown}>
+    <div ref={surfaceRef} className="visual-editor-canvas__surface" tabIndex={0} role="application" aria-label={`Visual editor canvas for ${screen.name}`} onPointerDown={handleSurfacePointerDown} onPointerMove={handlePointerMove} onPointerUp={finishInteraction} onPointerCancel={() => setInteraction(null)} onDoubleClick={() => { if (polygonToolActive && polygonDraftPoints.length >= 3) finishPolygon(); else if (bezierToolActive && bezierDraftPoints.length >= 3) finishBezier(); }} onWheel={handleWheel} onKeyDown={handleKeyDown}>
       <div className="visual-editor-canvas__viewport" style={viewportStyle}>
         <div
-          className={`visual-editor-canvas__canonical-layer${logicalBoundary ? ' is-bounded' : ''}`}
+          className={`visual-editor-canvas__canonical-layer${logicalBoundary ? ' is-bounded' : ''}${gridEnabled ? ' has-grid' : ''}`}
           style={canonicalLayerStyle}
           aria-hidden="true"
           inert

@@ -404,7 +404,7 @@
   order:1; display:grid; justify-items:center; align-content:center; gap:2px; min-width:max-content; padding:3px 7px;
   border:1px solid color-mix(in srgb,var(--runtime-header-background,var(--app-surface)) 76%,var(--app-border));
   border-radius:6px; background:color-mix(in srgb,var(--runtime-header-background,var(--app-surface)) 86%,var(--app-panel));
-  color:var(--runtime-header-foreground,var(--app-text-primary)); font-size:11px; font-variant-numeric:tabular-nums; line-height:1.2;
+  color:var(--runtime-header-foreground,var(--app-text-primary)); font-size:13px; font-variant-numeric:tabular-nums; line-height:1.2;
 }
 .runtime-header-datetime span { white-space:nowrap; }
 .runtime-operator-toolbar {

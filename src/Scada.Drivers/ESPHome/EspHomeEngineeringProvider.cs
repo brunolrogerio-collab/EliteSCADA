@@ -56,7 +56,9 @@ public sealed class EspHomeEngineeringProvider :
                     ["manufacturer"] = inventory.Device.Manufacturer,
                     ["apiVersion"] = inventory.NegotiatedVersion.ToString(),
                     ["entityCount"] = inventory.Entities.Count.ToString(CultureInfo.InvariantCulture),
-                    ["encryptionMode"] = settings.EncryptionMode.ToString().ToLowerInvariant()
+                    ["encryptionMode"] = settings.EncryptionMode.ToString().ToLowerInvariant(),
+                    ["deepSleepPolicy"] = settings.DeepSleepPolicy.ToString().ToLowerInvariant(),
+                    ["deviceReportsDeepSleep"] = inventory.Device.HasDeepSleep.ToString(CultureInfo.InvariantCulture).ToLowerInvariant()
                 });
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -164,12 +166,25 @@ public sealed class EspHomeEngineeringProvider :
             "plaintext" => EspHomeNativeEncryptionMode.Plaintext,
             var unsupported => throw new ArgumentException($"ESPHome encryptionMode '{unsupported}' is unsupported.")
         };
+        var deepSleepPolicy = Get(values, "deepSleepPolicy")?.ToLowerInvariant() switch
+        {
+            null or "" or "normal" => EspHomeDeepSleepPolicy.Normal,
+            "expected" => EspHomeDeepSleepPolicy.Expected,
+            var unsupported => throw new ArgumentException($"ESPHome deepSleepPolicy '{unsupported}' is unsupported.")
+        };
+        var reconnectMinimum = GetOptionalInt(values, "reconnectMinimumMilliseconds");
+        var reconnectMaximum = GetOptionalInt(values, "reconnectMaximumMilliseconds");
+        var keepAlive = GetOptionalInt(values, "keepAliveMilliseconds");
         var settings = new EspHomeConnectionSettings(
             host,
             port,
             mode,
             TimeSpan.FromMilliseconds(GetInt(values, "requestTimeoutMilliseconds", 5000)),
-            TimeSpan.FromMilliseconds(GetInt(values, "writeReconcileTimeoutMilliseconds", 3000)));
+            TimeSpan.FromMilliseconds(GetInt(values, "writeReconcileTimeoutMilliseconds", 3000)),
+            reconnectMinimum.HasValue ? TimeSpan.FromMilliseconds(reconnectMinimum.Value) : null,
+            reconnectMaximum.HasValue ? TimeSpan.FromMilliseconds(reconnectMaximum.Value) : null,
+            keepAlive.HasValue ? TimeSpan.FromMilliseconds(keepAlive.Value) : null,
+            deepSleepPolicy);
         settings.Validate();
         return settings;
     }
@@ -196,6 +211,15 @@ public sealed class EspHomeEngineeringProvider :
 
     private static int GetInt(IReadOnlyDictionary<string, string> values, string key, int fallback) =>
         int.TryParse(Get(values, key), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : fallback;
+
+    private static int? GetOptionalInt(IReadOnlyDictionary<string, string> values, string key)
+    {
+        var raw = Get(values, key);
+        if (raw is null) return null;
+        if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
+            throw new ArgumentException($"ESPHome setting '{key}' must be an integer.");
+        return parsed;
+    }
 
     private static string? Get(IReadOnlyDictionary<string, string> values, string key) =>
         values.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value) ? value.Trim() : null;

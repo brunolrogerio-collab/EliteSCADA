@@ -141,8 +141,8 @@ public static class HomeAssistantProtocol
         if (!root.TryGetProperty("success", out var successElement) ||
             successElement.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
             throw new FormatException("Home Assistant result is missing success.");
-        var result = root.TryGetProperty("result", out var r) ? r.Clone() : null;
-        var error = root.TryGetProperty("error", out var e) ? e.Clone() : null;
+        JsonElement? result = root.TryGetProperty("result", out var r) ? r.Clone() : null;
+        JsonElement? error = root.TryGetProperty("error", out var e) ? e.Clone() : null;
         return new HomeAssistantCommandResult(id, successElement.GetBoolean(), result, error);
     }
 

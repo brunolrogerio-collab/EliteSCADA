@@ -16,6 +16,10 @@ message HelloResponse {
   string server_info = 3;
   string name = 4;
 }
+message DisconnectRequest { int32 reason = 1; }
+message DisconnectResponse {}
+message PingRequest {}
+message PingResponse {}
 message DeviceInfoRequest {}
 message AreaInfo {
   uint32 area_id = 1;

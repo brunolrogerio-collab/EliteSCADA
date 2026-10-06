@@ -338,6 +338,27 @@ public sealed class EspHomeDriver :
                 ["connected"] = _client.Connected.ToString(CultureInfo.InvariantCulture).ToLowerInvariant(),
                 ["entityCount"] = inventory?.Entities.Count.ToString(CultureInfo.InvariantCulture) ?? "0",
                 ["unsupportedEntityCount"] = inventory?.UnsupportedEntityMessageCount.ToString(CultureInfo.InvariantCulture) ?? "0",
+                ["deviceCapabilitiesSupportedByApi"] = (inventory is not null &&
+                    EspHomeNativeHandshake.SupportsDeviceCapabilities(inventory.NegotiatedVersion))
+                    .ToString(CultureInfo.InvariantCulture).ToLowerInvariant(),
+                ["deviceCapabilitiesReceived"] = (inventory?.DeviceCapabilities is not null)
+                    .ToString(CultureInfo.InvariantCulture).ToLowerInvariant(),
+                ["bluetoothProxyPresent"] = (inventory?.DeviceCapabilities?.BluetoothProxyPresent ?? false)
+                    .ToString(CultureInfo.InvariantCulture).ToLowerInvariant(),
+                ["bluetoothProxyFeatureFlags"] = inventory?.DeviceCapabilities?.BluetoothProxyFeatureFlags
+                    .ToString(CultureInfo.InvariantCulture) ?? "0",
+                ["bluetoothProxyMacAddress"] = inventory?.DeviceCapabilities?.BluetoothProxyMacAddress ?? string.Empty,
+                ["voiceAssistantPresent"] = (inventory?.DeviceCapabilities?.VoiceAssistantPresent ?? false)
+                    .ToString(CultureInfo.InvariantCulture).ToLowerInvariant(),
+                ["voiceAssistantFeatureFlags"] = inventory?.DeviceCapabilities?.VoiceAssistantFeatureFlags
+                    .ToString(CultureInfo.InvariantCulture) ?? "0",
+                ["zWaveProxyPresent"] = (inventory?.DeviceCapabilities?.ZWaveProxyPresent ?? false)
+                    .ToString(CultureInfo.InvariantCulture).ToLowerInvariant(),
+                ["zWaveProxyFeatureFlags"] = inventory?.DeviceCapabilities?.ZWaveProxyFeatureFlags
+                    .ToString(CultureInfo.InvariantCulture) ?? "0",
+                ["zWaveHomeId"] = inventory?.DeviceCapabilities?.ZWaveHomeId?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
+                ["serialProxyCount"] = inventory?.DeviceCapabilities?.SerialProxies.Count
+                    .ToString(CultureInfo.InvariantCulture) ?? "0",
                 ["missingConfiguredEntityCount"] = missingCount.ToString(CultureInfo.InvariantCulture),
                 ["lastStateMessage"] = lastState?.ToString("O") ?? string.Empty,
                 ["lastSuccessfulCommand"] = lastCommand?.ToString("O") ?? string.Empty,

@@ -337,7 +337,7 @@ public sealed class HostResourceLeaseCoordinator
         }
     }
 
-    private sealed record LeaseState(
+    internal sealed record LeaseState(
         HostResourceId ResourceId,
         string PhysicalIdentityKey,
         string OwnerId);

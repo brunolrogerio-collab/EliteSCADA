@@ -9,5 +9,5 @@ export function isDynamoArtworkAsset(asset: Pick<VisualAssetEngineering, 'metada
 }
 
 export function listUserVisualAssets<T extends VisualAssetEngineering>(assets: readonly T[] | null | undefined): T[] {
-  return (assets ?? []).filter(asset => !isDynamoArtworkAsset(asset));
+  return (assets ?? []).filter(asset => !isDynamoArtworkAsset(asset) && !asset.metadata?.factoryArtworkId?.trim());
 }

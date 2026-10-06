@@ -39,8 +39,10 @@ DALI then becomes an Equipment/Capability semantic projection over canonical TAG
 
 Preferred hardware family:
 
-- INMBSDAL0640200 — one DALI channel;
-- INMBSDAL1280200 — two DALI channels, Modbus TCP only on the two-channel model.
+- IN703DAL0640000 — current 700 Series, one DALI channel, selectable Modbus TCP/RTU or BACnet application through Intesis MAPS;
+- IN704DAL1280000 — current 700 Series, two DALI channels, selectable Modbus TCP or BACnet/IP application through Intesis MAPS.
+
+Final revalidation note (2026-10-06): HMS now marks the previously selected IN703DAL0640000 and IN704DAL1280000 pages as Legacy product. Their designated 700 Series successors are IN703DAL0640000 and IN704DAL1280000.
 
 Why this is first:
 
@@ -52,7 +54,7 @@ Why this is first:
 
 Gate:
 
-The current public manual identifies Device Type 8 / colour-control gear but does not establish a complete RGB/Tc/XY write contract comparable with the richer KNX/BACnet/API candidates. Rich DT8 must therefore be treated as `NEEDS_HARDWARE_OR_VENDOR_CONFIRMATION` for the Intesis path.
+Final revalidation against the current 700 Series manuals removes the earlier DT8 uncertainty. The IN703/IN704 Modbus register maps explicitly expose Type 8 colour control including colour temperature and RGB/RGBW fields, with group/broadcast read/write registers. The current 700 Series also documents DALI Part 252 energy data and Part 253 diagnostics/maintenance data. Hardware interoperability still requires L4 proof, but the public Modbus contract is now implementation-grade.
 
 ### FALLBACK_PATH
 
@@ -121,7 +123,7 @@ Legend:
 
 | Candidate | EliteSCADA side | DALI-2 | DT6 | DT8 | Groups/scenes | Input devices / sensors | Fault diagnostics | Emergency | Commissioning | Bus monitoring | First-path disposition |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Intesis INMBSDAL0640200 / 1280200 | Modbus TCP; RTU also on 1-line | YES | YES | PARTIAL: type 8 identified; rich colour write surface not proven in reviewed map | YES | YES: 301/302/303/304 | YES: lamp/ballast/device comm | YES: DT1 state/tests/results | ADMIN via Intesis MAPS | diagnostics/viewers, not selected as Runtime bus-monitor API | **PREFERRED_FIRST_PATH** |
+| Intesis IN703DAL0640000 / 1280200 | Modbus TCP; RTU also on 1-line | YES | YES | PARTIAL: type 8 identified; rich colour write surface not proven in reviewed map | YES | YES: 301/302/303/304 | YES: lamp/ballast/device comm | YES: DT1 state/tests/results | ADMIN via Intesis MAPS | diagnostics/viewers, not selected as Runtime bus-monitor API | **PREFERRED_FIRST_PATH** |
 | LOYTEC LDALI-ME201-U / ME202-U / ME204-U | BACnet/IP; BACnet/SC; also Modbus TCP | YES | YES | YES: tunable white/full colour | YES | YES: sensors/buttons/general input | YES | YES | ADMIN via L-INX/web/LCD | YES: built-in DALI analyzer | **FALLBACK_PATH** |
 | Theben DALI-Gateway P64 KNX | KNX TP behind KNX/IP interface/router | YES | YES | YES: DT8 individual/group | YES | YES: motion/presence/light, push-buttons, generic inputs | YES/status; further mapping requires KNX object audit | YES: DT1 | ADMIN via device/web/DCA/ETS | tooling/web, not Runtime raw monitor | **PREFERRED_KNX_DALI_LAB** |
 | Schneider SpaceLogic KNX DALI Gateway Pro MTN6725-0101 | KNX TP behind KNX/IP | YES, DALI Alliance product 3717 | YES | YES: Tc/xy/RGBWAF | YES | YES: DALI-2 motion/light and input support | YES including lamp feedback | YES | ADMIN via DCA/web/ETS | diagnostics supported | strong KNX alternate |
@@ -133,43 +135,43 @@ Legend:
 
 ### Products
 
-Current manual r1.5 (05/2024):
+Current 700 Series products revalidated on 2026-10-06:
 
-- `INMBSDAL0640200`: one DALI line;
-- `INMBSDAL1280200`: two DALI lines.
+- `IN703DAL0640000`: one DALI line; the same hardware can be configured in Intesis MAPS for Modbus TCP/RTU or BACnet/IP/MS-TP applications;
+- `IN704DAL1280000`: two DALI lines; the same hardware can be configured in Intesis MAPS for Modbus TCP or BACnet/IP applications.
 
-Capacity documented for the top model:
+HMS marks the earlier `IN703DAL0640000` and `IN704DAL1280000` as Legacy product and points to these 700 Series replacements.
+
+Current capacity:
 
 - up to 64 ECG/control-gear addresses per DALI line;
-- up to 64 input-device addresses per line, subject to bus power and signal capacity;
+- up to 64 DALI-2 input devices per line, subject to bus-current and instance limits;
 - up to 10,000 enabled signals per gateway;
-- five simultaneous Modbus TCP sockets.
-
-Two-line model is Modbus TCP only.
-
-One-line model supports Modbus TCP and Modbus RTU.
+- integrated DALI bus supply;
+- current product applications support Modbus and BACnet without changing the physical 700 Series platform.
 
 ### DALI coverage
 
-Official current manual documents DALI-2 compatibility and:
+Current 700 Series official material documents DALI-2 compatibility and:
 
 - Part 101;
 - DT0 / Part 201;
 - DT1 / Part 202 self-contained emergency lighting;
 - DT6 / Part 207 LED modules;
+- DT8 / Part 209 colour control;
+- Part 252 energy data;
+- Part 253 diagnostics/maintenance data;
 - DALI-2 input-device profiles:
   - Part 301 push-buttons;
   - Part 302 absolute input devices;
   - Part 303 occupancy;
   - Part 304 light sensors.
 
-The Modbus register map also reports DALI device type 8 as Colour Control.
+The current IN703/IN704 Modbus maps explicitly expose Type 8 colour-temperature and RGB/RGBW read/write registers for individual/group/broadcast control.
 
-However, the reviewed 2024 map did not expose clearly documented RGB/Tc/xy write registers. Therefore:
+Disposition:
 
-`INTESIS_DT8_RICH_CONTROL = NEEDS_HARDWARE_OR_VENDOR_CONFIRMATION`
-
-Do not advertise full DT8 colour support through EliteSCADA until it is proven.
+`INTESIS_DT8_RICH_CONTROL = PUBLIC_CONTRACT_CONFIRMED / L4_INTEROP_REQUIRED`
 
 ### Runtime-exposed useful signals
 
@@ -496,9 +498,9 @@ Best for:
 - diagnostics;
 - emergency lighting.
 
-Main risk:
+Main residual risk:
 
-- rich DT8 write coverage requires proof.
+- DT8 write semantics are now documented in the 700 Series Modbus map, but exact gear/gateway interoperability still requires L4 proof on the purchased firmware/hardware.
 
 ### Rank 2 — BACnet/DALI / LOYTEC
 
@@ -758,7 +760,7 @@ Do not rank gateways on reseller price snippets.
 Checkpoint 3 will finalize the full lab matrix, but gateway acquisition should currently prioritize:
 
 P1:
-- Intesis INMBSDAL0640200 — preferred first Modbus/DALI proof;
+- Intesis IN703DAL0640000 — preferred first Modbus/DALI proof;
 - Theben DALI-Gateway P64 KNX — preferred combined KNX/DALI proof.
 
 P2:
@@ -819,8 +821,8 @@ All facts were revalidated on 2026-10-06.
 
 | Organization | Source | Current evidence used | URL |
 | --- | --- | --- | --- |
-| HMS Networks / Intesis | Intesis Modbus Server – DALI User Manual r1.5 | Modbus TCP/RTU gateway, DALI-2, device/input coverage, register map, emergency, commissioning | https://www.hms-networks.com/docs/default-source/products/intesis/manuals-and-guides---manuals/user-manual-inmbsdalxxx0000.pdf |
-| HMS Networks / Intesis | INMBSDAL product datasheet/search entry | gateway product codes and Modbus/DALI topology | https://www.hms-networks.com/ |
+| HMS Networks / Intesis | 700 Series DALI Gateway IN703/IN704 current product pages + User Manuals v1.0.11 | Current replacement hardware, Modbus/BACnet late configuration, DALI-2, Part 209 colour, Part 252 energy, Part 253 diagnostics, current register/object maps and commissioning | https://www.hms-networks.com/p/in703dal0640000-mbs-dal-dali-2-to-modbus-tcp-rtu-server-application-with-1-dali-channel |
+| HMS Networks / Intesis | Legacy-to-700-Series replacement/support guidance | INMBSDAL0640200 -> IN703DAL0640000; INMBSDAL1280200 -> IN704DAL1280000 | https://support.hms-networks.com/hc/en-us/articles/14923465292050-What-is-the-difference-between-my-DALI-gateway-and-the-new-700-Series |
 | DALI Alliance | Product database / certification overview | certification meaning and version-specific validity | https://www.dali-alliance.org/dali2/ |
 | DALI Alliance | Product database brand listing | Intesis, LOYTEC, Lunatone, ABB, Schneider, Theben are represented DALI Alliance member brands | https://api.dali-alliance.org/products/brands |
 | LOYTEC | L-DALI BACnet/DALI Controllers | current product family, DALI-2, BACnet/SC/IP, DT8, emergency, interfaces | https://www.loytec.com/products/dali/l-dali-wired/l-dali-bacnet |
@@ -854,7 +856,7 @@ All facts were revalidated on 2026-10-06.
 
 ## 22. Uncertainties
 
-- Intesis rich DT8 control over Modbus remains unproven from the reviewed public register map.
+- Intesis 700 Series rich DT8 control is now documented in the current public Modbus register maps; remaining uncertainty is real-hardware interoperability and the exact purchased firmware/hardware certification identity.
 - Exact purchased firmware/hardware must be matched against DALI Alliance certification records.
 - Regional availability and acquisition price for most candidates remain distributor-specific.
 - Existing EliteSCADA BACnet/IP support does not imply BACnet/SC support.

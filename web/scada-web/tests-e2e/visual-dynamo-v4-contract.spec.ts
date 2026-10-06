@@ -6,6 +6,7 @@ import {
   resolveVisualDynamicState,
   visualTagSampleKey
 } from '../src/engineering/visual-editor/visualDynamicRuntime';
+import { expandRuntimeDynamoVisuals } from '../src/runtime/visual-navigation/runtimeDynamoVisualProjection';
 import { projectDynamoRuntimeElements } from '../src/runtime/visual-navigation/dynamoRuntimeBindingProjection';
 import type {
   DynamoParameterDefinitionEngineering,
@@ -91,6 +92,35 @@ test('SVG-backed Dynamo runtime projects scalar public parameters without a para
     kind: 'Tag',
     tagReference: { tagId: '73000000-0000-0000-0000-000000000001' }
   });
+});
+
+test('Runtime expands a persisted Dynamo instance into its canonical SVG artwork', () => {
+  const instance: VisualElementEngineering = {
+    id: '71000000-0000-0000-0000-000000000002',
+    key: 'pump-instance',
+    type: 'core.group',
+    dynamoKey: 'pump.test',
+    dynamoDefinitionId: '73000000-0000-0000-0000-000000000001',
+    properties: { x: 20, y: 30, width: 120, height: 90 }
+  };
+  const expanded = expandRuntimeDynamoVisuals([instance], [{
+    id: '73000000-0000-0000-0000-000000000001',
+    key: 'pump.test',
+    name: 'Pump test',
+    parameters: [],
+    elements: [svgElement]
+  }]);
+  const runtimeInstance = expanded[0]!;
+
+  expect(runtimeInstance.type).toBe('core.group');
+  expect(runtimeInstance.dynamoKey).toBeNull();
+  expect(runtimeInstance.children).toHaveLength(1);
+  expect(runtimeInstance.children?.[0]).toMatchObject({
+    type: 'core.svgSymbol',
+    properties: { assetRef: { assetId: 'asset:72000000-0000-0000-0000-000000000001' } }
+  });
+  expect(runtimeInstance.metadata?.['runtime.dynamo.expanded']).toBe('true');
+  expect(runtimeInstance.type).not.toBe('core.valueDisplay');
 });
 
 test('SVG scalar paint properties are offered through the canonical dynamic-property editor', () => {

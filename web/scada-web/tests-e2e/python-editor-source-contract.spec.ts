@@ -119,3 +119,10 @@ test('R2 continuous syntax validation is debounced, compile-only and scope-appro
   expect(runner).toContain('ast.parse(source, mode="exec")');
   expect(runner).toContain('payload.get("validateOnly") is True');
 });
+
+test('production nginx serves self-hosted Pyodide ES modules with a browser-valid MIME type', async () => {
+  const nginx = await source('../../../docker/stable/nginx.conf');
+
+  expect(nginx).toMatch(/location ~\* \\.mjs\$/);
+  expect(nginx).toContain('default_type application/javascript;');
+});

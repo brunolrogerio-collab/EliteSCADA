@@ -73,7 +73,7 @@ public sealed class EngineeringWorkingBootstrapServiceTests
         Assert.DoesNotContain(workspace.Assets.SnapshotDynamos(), dynamo =>
             dynamo.Metadata?.GetValueOrDefault("assetOrigin") == "elipse-e3-import");
         Assert.Equal("Custom definition with a platform key", workspace.Assets.FindDynamoByKey(customDynamo.Key)!.Name);
-        Assert.Equal(28, workspace.Assets.SnapshotDynamos().Count);
+        Assert.Equal(24, workspace.Assets.SnapshotDynamos().Count);
         Assert.DoesNotContain(workspace.Assets.SnapshotDynamos(), dynamo =>
             dynamo.Metadata?.GetValueOrDefault("catalogStatus") == "legacy");
         var replacementCatalog = BuiltinDynamoCatalogV1.Create();
@@ -88,7 +88,7 @@ public sealed class EngineeringWorkingBootstrapServiceTests
             Assert.True(workspace.VisualAssets.HasPayload(persistedAsset.Sha256));
         });
         Assert.True(result.Workspace.IsDirty);
-        Assert.Equal(28, result.Workspace.DynamoCount);
+        Assert.Equal(24, result.Workspace.DynamoCount);
         Assert.Equal(4, result.Workspace.BaseRevision);
     }
 
@@ -155,6 +155,60 @@ public sealed class EngineeringWorkingBootstrapServiceTests
         Assert.Equal(motorArtwork.Asset.Sha256,
             workspace.VisualAssets.FindAssetByKey(motorArtwork.Asset.Key)!.Sha256);
         Assert.True(workspace.VisualAssets.HasPayload(motorArtwork.Asset.Sha256));
+    }
+
+    [Fact]
+    public void RemovedBuiltinDynamosAndTheirArtworkArePurgedWithoutRemovingUserContent()
+    {
+        using var workspace = new EngineeringWorkspace(seedDemo: false);
+        var sourceDefinition = BuiltinDynamoCatalogV1.Create().First();
+        var sourceArtwork = BuiltinDynamoCatalogV1.CreateArtworkAssets().First();
+        var removedKeys = new[]
+        {
+            "indicator.lamp.stacked", "motor.foot-mounted",
+            "operator.button.guarded", "valve.diaphragm"
+        };
+        foreach (var key in removedKeys)
+        {
+            var metadata = new Dictionary<string, string>(sourceDefinition.Metadata!, StringComparer.Ordinal)
+            {
+                ["builtinLibrary"] = "true",
+                ["catalogStatus"] = "active"
+            };
+            workspace.Assets.UpsertDynamo(sourceDefinition with
+            {
+                Id = Guid.NewGuid(),
+                Key = key,
+                Metadata = metadata
+            });
+
+            var artworkKey = $"builtin.dynamo.v1.{key.Replace('.', '-')}";
+            var artworkMetadata = new Dictionary<string, string>(sourceArtwork.Asset.Metadata!, StringComparer.Ordinal);
+            workspace.VisualAssets.UpsertAsset(sourceArtwork.Asset with
+            {
+                Id = Guid.NewGuid(),
+                Key = artworkKey,
+                Metadata = artworkMetadata
+            });
+            workspace.VisualAssets.PutPayload(sourceArtwork.Payload);
+        }
+
+        var userAsset = sourceArtwork.Asset with
+        {
+            Id = Guid.NewGuid(),
+            Key = "user.kept-artwork",
+            Metadata = new Dictionary<string, string> { ["assetOrigin"] = "user-import" }
+        };
+        workspace.VisualAssets.UpsertAsset(userAsset);
+
+        EngineeringWorkingBootstrapService.UpgradeBuiltinDynamos(workspace);
+
+        Assert.All(removedKeys, key => Assert.Null(workspace.Assets.FindDynamoByKey(key)));
+        Assert.All(removedKeys, key => Assert.Null(workspace.VisualAssets.FindAssetByKey(
+            $"builtin.dynamo.v1.{key.Replace('.', '-') }")));
+        Assert.NotNull(workspace.VisualAssets.FindAsset(userAsset.Id!.Value));
+        Assert.Contains(workspace.Assets.SnapshotDynamos(), item => item.Key == "pump.submersible");
+        Assert.Equal(23, workspace.Assets.SnapshotDynamos().Count);
     }
 
     [Fact]

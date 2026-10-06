@@ -15,7 +15,7 @@ public sealed class EngineeringFirstProjectBootstrapTests
     {
         var definitions = BuiltinDynamoCatalogV1.Create();
 
-        Assert.Equal(27, definitions.Count);
+        Assert.Equal(23, definitions.Count);
         Assert.All(definitions, definition => Assert.Null(definition.TemplateKey));
     }
 
@@ -54,7 +54,7 @@ public sealed class EngineeringFirstProjectBootstrapTests
         var savedPackage = exchange.ParseJson(snapshot.EngineeringJson);
         Assert.Empty(savedPackage.Templates ?? Array.Empty<EquipmentTemplateEngineeringDto>());
         var savedDynamos = savedPackage.Dynamos ?? Array.Empty<DynamoEngineeringDto>();
-        Assert.Equal(27, savedDynamos.Count);
+        Assert.Equal(23, savedDynamos.Count);
         Assert.Contains(savedDynamos, definition => definition.Key == "pump.submersible");
         Assert.DoesNotContain(savedDynamos, definition => definition.Metadata?.GetValueOrDefault("importedDynamoLibrary") == "true");
         Assert.All(savedDynamos, definition => Assert.Null(definition.TemplateKey));

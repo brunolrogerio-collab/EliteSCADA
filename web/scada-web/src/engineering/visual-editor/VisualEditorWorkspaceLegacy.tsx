@@ -388,7 +388,19 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
 
       const normalizedIntent = normalizeVisualEditorMutationIntent(intent);
       const nextDraft = applyVisualEditorMutationIntent(currentDraft, normalizedIntent);
-      replaceSession(commitVisualEditorSessionDraft(current, nextDraft));
+      if (normalizedIntent.kind === 'dynamo.add') {
+        const previousIds = new Set((currentDraft.elements ?? []).map(element => element.id).filter((id): id is string => Boolean(id)));
+        const added = (nextDraft.elements ?? []).find(element =>
+          Boolean(element.dynamoKey?.trim()) && Boolean(element.id) && !previousIds.has(element.id!)
+        );
+        replaceSession(commitVisualEditorSessionDraft(current, nextDraft, {
+          selectedObjectIds: added?.id ? [added.id] : []
+        }));
+        setPropertiesCollapsed(false);
+        setInspectorTab('properties');
+      } else {
+        replaceSession(commitVisualEditorSessionDraft(current, nextDraft));
+      }
       invalidateValidation();
     } catch (reason) {
       setPreview(null);

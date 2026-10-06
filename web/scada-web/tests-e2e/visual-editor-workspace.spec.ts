@@ -87,7 +87,7 @@ test('W15 R2 editor mounts shared side surfaces, canonical Dynamo preview and co
   await motor.click();
   const canonicalDynamoPreview = dynamoLibrary.getByTestId('dynamo-library-canonical-preview');
   await expect(canonicalDynamoPreview).toBeVisible();
-  await expect(canonicalDynamoPreview.locator('[data-object-id]')).toHaveCount(7);
+  await expect(canonicalDynamoPreview.locator('[data-object-id]')).toHaveCount(6);
   await expect(canonicalDynamoPreview.locator('.visual-editor-object-error')).toHaveCount(0);
   await testInfo.attach('w15-visual-quality-dynamo-library-preview', {
     body: await dynamoLibrary.screenshot(),
@@ -128,6 +128,16 @@ test('W15 R2 editor mounts shared side surfaces, canonical Dynamo preview and co
   await expect(contextMenu.getByRole('menuitem', { name: 'Renomear', exact: true })).toBeVisible();
   await expect(contextMenu.getByRole('menuitem', { name: 'Duplicar', exact: true })).toBeVisible();
   await expect(contextMenu.getByRole('menuitem', { name: 'Propriedades', exact: true })).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await authoringSidebar.getByTestId('visual-editor-side-tab-library').click();
+  await dynamoLibrary.locator('[data-dynamo-key="motor.tefc"]').click();
+  await dynamoLibrary.locator('.visual-dynamo-library__add').click();
+  const instanceInspector = selectionInspector.getByTestId('dynamo-instance-inspector');
+  await expect(instanceInspector).toBeVisible();
+  await expect(instanceInspector.locator('.visual-editor-dynamo-parameter').first()).toBeVisible();
+  await expect(instanceInspector.getByText('motor.tefc', { exact: true })).toBeVisible();
+  await expect(page.locator('.visual-editor-canvas-enhanced__canvas .visual-editor-svg-symbol').last()).toBeVisible();
 });
 
 test('Wave 08 composes Canvas, palette, properties, project-source binding, image asset and canonical save/reopen', async ({ page, request }) => {

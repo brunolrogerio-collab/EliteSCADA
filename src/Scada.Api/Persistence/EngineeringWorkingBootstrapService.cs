@@ -33,6 +33,14 @@ public sealed class EngineeringWorkingBootstrapService(
     EngineeringWorkspace workspace,
     IEngineeringProjectPersistenceService? persistence = null) : IEngineeringWorkingBootstrapService
 {
+    private static readonly string[] RemovedBuiltinDynamoKeys =
+    [
+        "indicator.lamp.stacked",
+        "motor.foot-mounted",
+        "operator.button.guarded",
+        "valve.diaphragm"
+    ];
+
     public async Task<EngineeringWorkingBootstrapResult> BootstrapAsync(
         string? configuredWorkingProjectKey,
         long? configuredWorkingRevision,
@@ -170,6 +178,17 @@ public sealed class EngineeringWorkingBootstrapService(
 
         // Preserve projects that never opted into the platform catalog.
         if (!hadBuiltInCatalog) return;
+
+        // Retire only these platform-owned definitions and their private artwork;
+        // user dynamos and unrelated visual assets remain untouched.
+        foreach (var key in RemovedBuiltinDynamoKeys)
+        {
+            if (!existingBuiltins.ContainsKey(key)) continue;
+            workspace.Assets.RemoveDynamo(key);
+            var artwork = workspace.VisualAssets.FindAssetByKey($"builtin.dynamo.v1.{key.Replace('.', '-')}");
+            if (artwork?.Metadata?.GetValueOrDefault("assetOrigin") == "original-elitescada-vector-factory")
+                workspace.VisualAssets.RemoveAsset(artwork.Id!.Value);
+        }
 
         var remainingDynamos = workspace.Assets.SnapshotDynamos()
             .ToDictionary(dynamo => dynamo.Key, StringComparer.OrdinalIgnoreCase);

@@ -30,13 +30,13 @@
   padding-inline: 8px;
 }
 .runtime-operator-brand { min-width: 0; justify-self: start; overflow: hidden; }
-.runtime-operator-brand .app-brand { min-width: 0; max-width: 100%; gap: 6px; padding: 2px 4px; }
-.runtime-operator-brand .app-brand-mark { width: 26px; height: 26px; border-radius: 6px; font-size: 12px; }
-.runtime-operator-brand .app-brand-image { max-width: 132px; max-height: 26px; }
+.runtime-operator-brand .app-brand { min-width: 0; max-width: 100%; gap: calc(6px * var(--runtime-header-brand-scale, 1)); padding: calc(2px * var(--runtime-header-brand-scale, 1)) calc(4px * var(--runtime-header-brand-scale, 1)); }
+.runtime-operator-brand .app-brand-mark { width: calc(26px * var(--runtime-header-brand-scale, 1)); height: calc(26px * var(--runtime-header-brand-scale, 1)); border-radius: calc(6px * var(--runtime-header-brand-scale, 1)); font-size: calc(12px * var(--runtime-header-brand-scale, 1)); }
+.runtime-operator-brand .app-brand-image { width: auto; height: calc(26px * var(--runtime-header-brand-scale, 1)); max-width: calc(132px * var(--runtime-header-brand-scale, 1)); max-height: calc(26px * var(--runtime-header-brand-scale, 1)); object-fit: contain; }
 .runtime-operator-brand .app-brand-copy { display: grid; }
-.runtime-operator-brand .app-brand-copy strong { font-size: 12px; }
-.runtime-operator-brand .app-brand-copy small { font-size: 9px; }
-.runtime-operator-brand .app-brand-diagnostic { max-width: 160px; font-size: 9px; }
+.runtime-operator-brand .app-brand-copy strong { font-size: calc(12px * var(--runtime-header-brand-scale, 1)); }
+.runtime-operator-brand .app-brand-copy small { font-size: calc(9px * var(--runtime-header-brand-scale, 1)); }
+.runtime-operator-brand .app-brand-diagnostic { max-width: calc(160px * var(--runtime-header-brand-scale, 1)); font-size: calc(9px * var(--runtime-header-brand-scale, 1)); }
 .runtime-operator-context { min-width: 0; display: flex; align-items: baseline; gap: 7px; }
 .runtime-operator-context strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .runtime-operator-context span { color: var(--app-text-secondary); font-size: 10px; }
@@ -281,6 +281,11 @@
     max-width: 34px;
     max-height: 26px;
   }
+  .runtime-operator-bar--brand-expanded .runtime-operator-brand .app-brand-copy { display: grid; }
+  .runtime-operator-bar--brand-expanded .runtime-operator-brand .app-brand-image {
+    max-width: calc(132px * var(--runtime-header-brand-scale, 1));
+    max-height: calc(26px * var(--runtime-header-brand-scale, 1));
+  }
   .runtime-operator-bar--fullscreen .runtime-operator-context {
     max-width: 30vw;
   }
@@ -394,6 +399,7 @@
 .runtime-operator-brand { flex:0 1 auto; }
 .runtime-operator-actions { justify-self:auto; }
 .runtime-operator-user-slot { order:1000; flex:0 0 auto; margin-left:2px; }
+.runtime-operator-bar--fullscreen .runtime-operator-user-slot .user-session-menu__trigger { padding-block:2px; }
 .runtime-header-datetime {
   order:1; display:grid; justify-items:center; align-content:center; gap:2px; min-width:max-content; padding:3px 7px;
   border:1px solid color-mix(in srgb,var(--runtime-header-background,var(--app-surface)) 76%,var(--app-border));

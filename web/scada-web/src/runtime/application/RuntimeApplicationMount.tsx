@@ -164,6 +164,7 @@ function EngineeringRuntimeApplicationContent({
   const headerStyle = {
     minHeight: headerHeight,
     background: header?.backgroundColor ?? undefined,
+    '--runtime-header-brand-scale': String(headerHeight / 56),
     '--runtime-header-background': header?.backgroundColor ?? 'var(--app-surface)',
     '--runtime-header-foreground': header?.backgroundColor ? runtimeHeaderContrastColor(header.backgroundColor) : 'var(--app-text-primary)'
   } as React.CSSProperties;
@@ -293,7 +294,7 @@ function EngineeringRuntimeApplicationContent({
     data-runtime-temporal-mode={playback.mode === 'historicalPlayback' ? 'historical-playback' : 'live'}
     data-runtime-historical-at={playback.atUtc ?? undefined}
   >
-    {headerVisible ? <header className={`runtime-operator-bar${compact ? ' runtime-operator-bar--fullscreen' : ''}`} style={headerStyle}>
+    {headerVisible ? <header className={`runtime-operator-bar${compact ? ' runtime-operator-bar--fullscreen' : ''}${headerHeight > 56 ? ' runtime-operator-bar--brand-expanded' : ''}`} style={headerStyle}>
       <div className="runtime-operator-side runtime-operator-side--left">
         {compact ? <div className="runtime-operator-brand">
           <ApplicationBrand branding={branding} defaultSubtitle={text.subtitle} href="/"/>

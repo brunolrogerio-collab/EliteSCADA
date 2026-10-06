@@ -12,6 +12,7 @@ public static class HomeAssistantContract
     public const int SchemaVersion = 1;
     public const string AccessTokenPurpose = "homeassistant.access-token";
     public const int MaximumFrameBytes = 1_048_576;
+    public const int StateEventQueueCapacity = 256;
 }
 
 public sealed record HomeAssistantConnectionSettings(
@@ -252,6 +253,13 @@ public sealed class HomeAssistantRequestCorrelator
             return false;
         source.TrySetCanceled(cancellationToken);
         return true;
+    }
+
+    public void FailAll(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+        foreach (var id in _pending.Keys)
+            TryFail(id, exception);
     }
 
     public int PendingCount => _pending.Count;

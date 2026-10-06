@@ -66,7 +66,7 @@ public sealed class ShellyRpcAuthenticationTests
         var authenticatedNc = new List<string>();
         var handler = new ScriptedHttpHandler((call, request) =>
         {
-            if (call is 1 or 3)
+            if (call == 1)
                 return Unauthorized("""Digest realm="shellyplus1-aabbcc", nonce="shared-nonce", algorithm=SHA-256, stale=false""");
 
             var rpc = Parse(request);
@@ -80,6 +80,7 @@ public sealed class ShellyRpcAuthenticationTests
         _ = await client.CallHttpAsync("Shelly.GetStatus", null, password.Bytes, legacyAuthentication: false);
 
         Assert.Equal(["00000001", "00000002"], authenticatedNc);
+        Assert.Equal(3, handler.CallCount);
     }
 
     [Fact]

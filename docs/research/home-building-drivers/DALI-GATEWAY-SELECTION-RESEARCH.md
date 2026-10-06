@@ -42,7 +42,7 @@ Preferred hardware family:
 - IN703DAL0640000 — current 700 Series, one DALI channel, selectable Modbus TCP/RTU or BACnet application through Intesis MAPS;
 - IN704DAL1280000 — current 700 Series, two DALI channels, selectable Modbus TCP or BACnet/IP application through Intesis MAPS.
 
-Final revalidation note (2026-10-06): HMS now marks the previously selected IN703DAL0640000 and IN704DAL1280000 pages as Legacy product. Their designated 700 Series successors are IN703DAL0640000 and IN704DAL1280000.
+Final revalidation note (2026-10-06): HMS now marks the previously selected INMBSDAL0640200 and INMBSDAL1280200 pages as Legacy product. Their designated 700 Series successors are IN703DAL0640000 and IN704DAL1280000.
 
 Why this is first:
 
@@ -123,7 +123,7 @@ Legend:
 
 | Candidate | EliteSCADA side | DALI-2 | DT6 | DT8 | Groups/scenes | Input devices / sensors | Fault diagnostics | Emergency | Commissioning | Bus monitoring | First-path disposition |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Intesis IN703DAL0640000 / 1280200 | Modbus TCP; RTU also on 1-line | YES | YES | PARTIAL: type 8 identified; rich colour write surface not proven in reviewed map | YES | YES: 301/302/303/304 | YES: lamp/ballast/device comm | YES: DT1 state/tests/results | ADMIN via Intesis MAPS | diagnostics/viewers, not selected as Runtime bus-monitor API | **PREFERRED_FIRST_PATH** |
+| Intesis IN703DAL0640000 / IN704DAL1280000 | Modbus TCP; RTU also on 1-line | YES | YES | YES: current 700 Series Modbus map exposes Tc/RGB/RGBW Type 8 read/write | YES | YES: 301/302/303/304 | YES: lamp/ballast/device comm + Part 253 | YES: DT1 state/tests/results | ADMIN via Intesis MAPS | diagnostics/viewers, not selected as Runtime bus-monitor API | **PREFERRED_FIRST_PATH** |
 | LOYTEC LDALI-ME201-U / ME202-U / ME204-U | BACnet/IP; BACnet/SC; also Modbus TCP | YES | YES | YES: tunable white/full colour | YES | YES: sensors/buttons/general input | YES | YES | ADMIN via L-INX/web/LCD | YES: built-in DALI analyzer | **FALLBACK_PATH** |
 | Theben DALI-Gateway P64 KNX | KNX TP behind KNX/IP interface/router | YES | YES | YES: DT8 individual/group | YES | YES: motion/presence/light, push-buttons, generic inputs | YES/status; further mapping requires KNX object audit | YES: DT1 | ADMIN via device/web/DCA/ETS | tooling/web, not Runtime raw monitor | **PREFERRED_KNX_DALI_LAB** |
 | Schneider SpaceLogic KNX DALI Gateway Pro MTN6725-0101 | KNX TP behind KNX/IP | YES, DALI Alliance product 3717 | YES | YES: Tc/xy/RGBWAF | YES | YES: DALI-2 motion/light and input support | YES including lamp feedback | YES | ADMIN via DCA/web/ETS | diagnostics supported | strong KNX alternate |
@@ -140,7 +140,7 @@ Current 700 Series products revalidated on 2026-10-06:
 - `IN703DAL0640000`: one DALI line; the same hardware can be configured in Intesis MAPS for Modbus TCP/RTU or BACnet/IP/MS-TP applications;
 - `IN704DAL1280000`: two DALI lines; the same hardware can be configured in Intesis MAPS for Modbus TCP or BACnet/IP applications.
 
-HMS marks the earlier `IN703DAL0640000` and `IN704DAL1280000` as Legacy product and points to these 700 Series replacements.
+HMS marks the earlier `INMBSDAL0640200` and `INMBSDAL1280200` as Legacy product and points to these 700 Series replacements.
 
 Current capacity:
 

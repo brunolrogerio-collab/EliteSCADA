@@ -14,6 +14,8 @@ Scope: **RESEARCH_ONLY / DOCS_ONLY / NO_PRODUCT_CODE / NO_MERGE_BY_RESEARCHER**
 
 **Z-WAVE JS = GO_WITH_GATES**
 
+**Final fast-moving revalidation — 2026-10-06:** Z-Wave JS Server advanced after the original Checkpoint 2 snapshot from 3.10.1/schema 50 to stable **3.11.0/schema 51**. Z-Wave JS core remains **15.31.0**. This version correction does not change the readiness decision or gates.
+
 The Z-Wave JS ecosystem is mature enough for a bounded future EliteSCADA implementation lane.
 
 Recommended architecture:
@@ -96,26 +98,23 @@ Certification/trademark is a separate question and is deferred for the common le
 
 ## 1.2 Z-Wave JS Server
 
-Current observed stable release:
+Current observed stable release after final revalidation:
 
 - package: **@zwave-js/server**
-- version: **3.10.1**
-- release date: **2026-08-07**
+- version: **3.11.0**
+- release date: **2026-09-29**
 - repository: https://github.com/zwave-js/zwave-js-server
 - license: **Apache-2.0**
 - Node.js engine: **>= 20**
-- peer dependency: **zwave-js ^15.25.0**
+- peer dependency: **zwave-js ^15.31.0**
 
-Current core 15.31.0 is within the declared peer range of Server 3.10.1.
+Current core 15.31.0 exactly matches the declared peer baseline of Server 3.11.0.
 
 ### WebSocket schema
 
-Z-Wave JS Server 3.10.0:
+Z-Wave JS Server 3.10.0 introduced the granular interview-progress event and API schema **50**.
 
-- forwarded granular interview-progress events;
-- bumped the API schema to **50**.
-
-3.10.1 kept that 3.10.x line and introduced event-loop forwarding improvements.
+Z-Wave JS Server 3.11.0 is now the current stable release and adds endpoint-group state, raising the current maximum API schema to **51**.
 
 The server handshake includes:
 
@@ -477,11 +476,11 @@ Persist/diagnose:
 - controller firmware/SDK;
 - configuration database version where relevant.
 
-Research baseline:
+Final research baseline:
 
-- Server 3.10.1;
+- Server 3.11.0;
 - Z-Wave JS 15.31.0;
-- schema 50;
+- schema 51;
 - Node >=20.
 
 Revalidate before code release.
@@ -1896,8 +1895,8 @@ All time-sensitive sources accessed/revalidated **2026-10-06**.
 - https://github.com/zwave-js/zwave-js-server
 - https://github.com/zwave-js/zwave-js-server/releases
 - https://github.com/zwave-js/zwave-js-server/blob/master/README.md
-- https://github.com/zwave-js/zwave-js-server/blob/3.10.1/package.json
-- https://github.com/zwave-js/zwave-js-server/blob/3.10.1/LICENSE
+- https://github.com/zwave-js/zwave-js-server/blob/3.11.0/package.json
+- https://github.com/zwave-js/zwave-js-server/blob/3.11.0/LICENSE
 
 ## Upstream issues/fixes
 

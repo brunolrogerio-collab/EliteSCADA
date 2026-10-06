@@ -307,7 +307,8 @@ public sealed class ShellyEngineeringDriverToolProviderFactory : IEngineeringDri
         if (!string.Equals(dataSource.Driver, DriverType, StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException($"Shelly Engineering tooling cannot open Data Source driver '{dataSource.Driver}'.", nameof(dataSource));
 
-        dataSource.SecretReferences?.TryGetValue("password", out var passwordReference);
+        string? passwordReference = null;
+        dataSource.SecretReferences?.TryGetValue("password", out passwordReference);
         var provider = new ShellyEngineeringProvider(
             projectKey ?? "engineering-draft",
             dataSource.Key,

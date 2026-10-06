@@ -7,6 +7,7 @@ using Scada.DriverHost.Engineering;
 using Scada.Drivers.Abstractions;
 using Scada.Drivers.Modbus;
 using Scada.Drivers.ESPHome;
+using Scada.Drivers.HomeAssistant;
 using Scada.Drivers.OpcUa;
 using Scada.Drivers.SiemensS7Iso;
 using Scada.Drivers.Shelly;
@@ -314,6 +315,41 @@ public sealed class EspHomeEngineeringDriverToolProviderFactory : IEngineeringDr
             projectKey ?? "engineering-draft",
             dataSource.Key,
             encryptionKeyReference,
+            _protectedMaterialResolver);
+        var registration = new CommunicationDriverModuleRegistration(
+            provider,
+            ConnectionTester: provider,
+            DiscoverySource: provider);
+        registration.Validate();
+        return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));
+    }
+}
+
+public sealed class HomeAssistantEngineeringDriverToolProviderFactory : IEngineeringDriverToolProviderFactory
+{
+    private readonly ICommunicationDriverProtectedMaterialResolver _protectedMaterialResolver;
+
+    public HomeAssistantEngineeringDriverToolProviderFactory(
+        ICommunicationDriverProtectedMaterialResolver protectedMaterialResolver)
+    {
+        _protectedMaterialResolver = protectedMaterialResolver
+            ?? throw new ArgumentNullException(nameof(protectedMaterialResolver));
+    }
+
+    public string DriverType => HomeAssistantContract.DriverType;
+
+    public ValueTask<EngineeringDriverToolProviderLease> CreateAsync(
+        string? projectKey,
+        DataSourceEngineeringDto dataSource,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(dataSource);
+        if (!string.Equals(dataSource.Driver, DriverType, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"Home Assistant Engineering tooling cannot open Data Source driver '{dataSource.Driver}'.", nameof(dataSource));
+
+        var provider = new HomeAssistantEngineeringProvider(
+            projectKey ?? "engineering-draft",
             _protectedMaterialResolver);
         var registration = new CommunicationDriverModuleRegistration(
             provider,

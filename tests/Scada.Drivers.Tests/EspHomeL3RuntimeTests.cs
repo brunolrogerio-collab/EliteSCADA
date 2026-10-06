@@ -219,6 +219,12 @@ public sealed class EspHomeL3RuntimeTests
             return ValueTask.CompletedTask;
         }
 
+        public ValueTask SendPingAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.CompletedTask;
+        }
+
         public ValueTask DisconnectAsync(CancellationToken cancellationToken = default)
         {
             Connected = false;

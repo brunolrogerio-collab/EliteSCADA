@@ -96,7 +96,8 @@ public sealed class ShellyCommunicationRuntimePlanner : ICommunicationDriverRunt
         if (points.Count == 0)
             issues.Add(new EngineeringDriverIssue("SHELLY_NO_TAGS", $"Shelly data source '{dataSource.Key}' has no mapped TAGs.", dataSource.Key, IsError: false));
 
-        dataSource.SecretReferences?.TryGetValue("password", out var passwordReference);
+        string? passwordReference = null;
+        dataSource.SecretReferences?.TryGetValue("password", out passwordReference);
         return new CommunicationDriverRuntimePlanningResult(
             new ShellyCommunicationRuntimePlan(dataSource.Key, dataSource.Name, connection, passwordReference, points),
             issues);

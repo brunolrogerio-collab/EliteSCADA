@@ -119,7 +119,7 @@ P1:
 
 P0:
 
-`Intesis INMBSDAL0640200`
+`Intesis IN703DAL0640000`
 
 Purpose:
 
@@ -130,13 +130,15 @@ Purpose:
 
 P1:
 
-`Intesis INMBSDAL1280200`
+`Intesis IN704DAL1280000`
 
 Purpose:
 
 - two DALI channels;
 - Modbus TCP;
 - scale/multi-line validation.
+
+Final revalidation delta (2026-10-06): HMS marks the older INMBSDAL0640200 and INMBSDAL1280200 as legacy and designates IN703DAL0640000 and IN704DAL1280000 as their 700 Series successors. The 700 Series can be late-configured through Intesis MAPS for Modbus or BACnet applications and adds explicit Part 209 colour, Part 252 energy and Part 253 diagnostics support.
 
 Do not buy the two-line gateway as the only unit if the budget can support two different gateway families; cross-vendor coverage is more valuable than capacity for the first lab.
 
@@ -615,7 +617,7 @@ Do not make routing a release claim until this passes.
 
 Hardware:
 
-- Intesis INMBSDAL0640200;
+- Intesis IN703DAL0640000;
 - DT6 driver/load;
 - sensor;
 - optional emergency.
@@ -779,14 +781,15 @@ Routing may remain `EXPERIMENTAL/DEFERRED` if L4-B is not complete.
 
 ### Rich DT8 claim
 
-Requires one path with explicit proven DT8 contract.
+The protocol contract is now explicit on the current Intesis 700 Series: IN703/IN704 Modbus maps expose colour-temperature and RGB/RGBW Type 8 read/write registers at individual/group/broadcast levels.
 
-Recommended proof path:
+Recommended L4 proof order:
 
-- LOYTEC/BACnet; or
-- Theben P64/KNX after KNX exists.
+- Intesis 700 Series / Modbus — prove the preferred first path directly;
+- LOYTEC/BACnet — independent rich-building fallback;
+- Theben P64/KNX — strategic KNX/DALI path after KNX exists.
 
-Do not claim Intesis rich DT8 until proven.
+Claim DT8 support only after real gateway + certified DT8 gear interoperability succeeds on the recorded firmware/hardware.
 
 ## 20. Purchase priority
 
@@ -798,7 +801,7 @@ Do not claim Intesis rich DT8 until proven.
 4. MDT AKD-0401.02.
 5. Theben RAMSES 718 P KNX, 7189210.
 6. MDT EZ-0320.01.
-7. Intesis INMBSDAL0640200.
+7. Intesis IN703DAL0640000.
 8. Tridonic LCA 50W 350-1050mA one4all lp PRE / 28000656 or another current certified Part 207 DT6 equivalent.
 9. compatible protected LED load/module.
 10. managed Ethernet switch with VLAN/IGMP controls.
@@ -830,6 +833,9 @@ Official/current sources revalidated 2026-10-06:
 - MDT EZ-0320.01 technical manual: https://www.mdt.de/fileadmin/user_upload/user_upload/download/MDT_TM_EZ_01_Energy_Meter_V10.pdf
 - Theben RAMSES 718 P KNX: https://www.theben.de/en/ramses-718-p-knx-7189210
 - Theben P64: https://www.theben.de/en/dali-gateway-p64-knx-4940303
+- Intesis IN703DAL0640000 current Modbus/DALI application: https://www.hms-networks.com/p/in703dal0640000-mbs-dal-dali-2-to-modbus-tcp-rtu-server-application-with-1-dali-channel
+- Intesis IN704DAL1280000 current Modbus/DALI application: https://www.hms-networks.com/p/in704dal1280000-mbs-dal-dali-2-to-modbus-tcp-server-application-with-2-dali-channels
+- HMS 700 Series replacement delta: https://support.hms-networks.com/hc/en-us/articles/14923465292050-What-is-the-difference-between-my-DALI-gateway-and-the-new-700-Series
 - LOYTEC L-DALI: https://www.loytec.com/products/dali/l-dali-wired/l-dali-bacnet
 - DALI Alliance Product Database: https://api.dali-alliance.org/products
 - Tridonic LCA DT6 product ID 149: https://api.dali-alliance.org/products/149/lca-50w-350-1050ma-one4all-lp-pre
@@ -849,7 +855,7 @@ Routing target:
 `WEINZIERL_752_SECURE`
 
 Primary DALI gateway:
-`INTESIS_INMBSDAL0640200`
+`INTESIS_IN703DAL0640000`
 
 Strategic KNX/DALI:
 `THEBEN_P64`

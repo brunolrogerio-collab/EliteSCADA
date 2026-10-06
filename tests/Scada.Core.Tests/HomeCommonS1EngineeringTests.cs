@@ -64,7 +64,7 @@ public sealed class HomeCommonS1EngineeringTests
                             ])
                     ])
             ],
-            Commands: [new CommandEngineeringDto(commandId, "relay.set", "Set relay", Scada.Core.Commands.CommandKind.WriteTag, "true", TargetTagId: tagId)],
+            Commands: [new CommandEngineeringDto(commandId, "relay.set", "Set relay", Scada.Core.Commands.CommandKind.WriteTagValue, "true", TargetTagId: tagId)],
             Locations: [new LocationEngineeringDto(locationId, "Kitchen", Kind: "AreaRoom")]);
 
         var preview = service.Preview(package, ImportMode.CreateAndUpdate);

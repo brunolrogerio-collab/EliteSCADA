@@ -150,31 +150,22 @@ public sealed class ShellyDigestSession
         var nc = challenge.ReusableNonce ? checked(++_nonceCount) : 1u;
         var ncText = nc.ToString("x8", CultureInfo.InvariantCulture);
         var cnonce = RandomNumberGenerator.GetInt32(1, int.MaxValue);
-        var password = Encoding.UTF8.GetString(_password);
-        try
-        {
-            var ha1 = Hash($"{_username}:{challenge.Realm}:{password}");
-            var ha2 = transport == ShellyAuthTransport.Http
-                ? Hash("POST:/rpc")
-                : Hash("dummy_method:dummy_uri");
-            var response = Hash($"{ha1}:{challenge.NonceText}:{ncText}:{cnonce}:auth:{ha2}");
+        var ha1 = HashA1(_username, challenge.Realm, _password);
+        var ha2 = transport == ShellyAuthTransport.Http
+            ? Hash("POST:/rpc")
+            : Hash("dummy_method:dummy_uri");
+        var response = Hash($"{ha1}:{challenge.NonceText}:{ncText}:{cnonce}:auth:{ha2}");
 
-            var auth = new Dictionary<string, object?>
-            {
-                ["realm"] = challenge.Realm,
-                ["username"] = _username,
-                ["nonce"] = challenge.LegacyNumericNonce is { } legacy ? legacy : challenge.NonceText,
-                ["cnonce"] = cnonce,
-                ["nc"] = ncText,
-                ["response"] = response,
-                ["algorithm"] = "SHA-256"
-            };
-            return auth;
-        }
-        finally
+        return new Dictionary<string, object?>
         {
-            password = string.Empty;
-        }
+            ["realm"] = challenge.Realm,
+            ["username"] = _username,
+            ["nonce"] = challenge.LegacyNumericNonce is { } legacy ? legacy : challenge.NonceText,
+            ["cnonce"] = cnonce,
+            ["nc"] = ncText,
+            ["response"] = response,
+            ["algorithm"] = "SHA-256"
+        };
     }
 
     public void Clear()
@@ -182,6 +173,17 @@ public sealed class ShellyDigestSession
         CryptographicOperations.ZeroMemory(_password);
         _challenge = null;
         _nonceCount = 0;
+    }
+
+    private static string HashA1(string username, string realm, ReadOnlySpan<byte> password)
+    {
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        hash.AppendData(Encoding.UTF8.GetBytes(username));
+        hash.AppendData(":"u8);
+        hash.AppendData(Encoding.UTF8.GetBytes(realm));
+        hash.AppendData(":"u8);
+        hash.AppendData(password);
+        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
     }
 
     private static string Hash(string value) =>

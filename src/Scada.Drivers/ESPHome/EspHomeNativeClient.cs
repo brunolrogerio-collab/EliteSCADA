@@ -105,7 +105,7 @@ public sealed class EspHomeNativeClient : IEspHomeNativeClient
             await SendMessageAsync(EspHomeEntityMessageId.ListEntitiesRequest, new ListEntitiesRequest(), cancellationToken).ConfigureAwait(false);
             while (true)
             {
-                var frame = await ReadMessageWithTimeoutAsync(cancellationToken).ConfigureAwait(false);
+                var frame = await ReadProtocolFrameWithTimeoutAsync(cancellationToken).ConfigureAwait(false);
                 if (frame.MessageType == EspHomeEntityMessageId.ListEntitiesDone)
                     break;
 
@@ -136,11 +136,14 @@ public sealed class EspHomeNativeClient : IEspHomeNativeClient
             if (_pendingStates.Count > 0)
                 return _pendingStates.Dequeue();
 
-            var frame = await ReadMessageAsync(cancellationToken).ConfigureAwait(false);
+            var frame = await ReadProtocolFrameAsync(cancellationToken).ConfigureAwait(false);
             foreach (var update in ParseState(frame))
                 _pendingStates.Enqueue(update);
         }
     }
+
+    public ValueTask SendPingAsync(CancellationToken cancellationToken = default) =>
+        SendMessageAsync(EspHomeNativeMessageId.PingRequest, new PingRequest(), cancellationToken);
 
     public async ValueTask SendCommandAsync(EspHomeCommand command, CancellationToken cancellationToken = default)
     {
@@ -290,16 +293,56 @@ public sealed class EspHomeNativeClient : IEspHomeNativeClient
     {
         while (true)
         {
-            var frame = await ReadMessageWithTimeoutAsync(cancellationToken).ConfigureAwait(false);
+            var frame = await ReadProtocolFrameWithTimeoutAsync(cancellationToken).ConfigureAwait(false);
             if (frame.MessageType == expectedType)
                 return frame;
         }
     }
 
-    private async ValueTask<EspHomePlaintextFrame> ReadMessageWithTimeoutAsync(CancellationToken cancellationToken)
+    private async ValueTask<EspHomePlaintextFrame> ReadProtocolFrameWithTimeoutAsync(CancellationToken cancellationToken)
     {
         using var cts = CreateOperationToken(cancellationToken);
-        return await ReadMessageAsync(cts.Token).ConfigureAwait(false);
+        return await ReadProtocolFrameAsync(cts.Token).ConfigureAwait(false);
+    }
+
+    private async ValueTask<EspHomePlaintextFrame> ReadProtocolFrameAsync(CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            var frame = await ReadMessageAsync(cancellationToken).ConfigureAwait(false);
+            switch (frame.MessageType)
+            {
+                case EspHomeNativeMessageId.PingRequest:
+                    await SendMessageAsync(
+                        EspHomeNativeMessageId.PingResponse,
+                        new PingResponse(),
+                        cancellationToken).ConfigureAwait(false);
+                    continue;
+                case EspHomeNativeMessageId.PingResponse:
+                    continue;
+                case EspHomeNativeMessageId.DisconnectRequest:
+                {
+                    var request = DisconnectRequest.Parser.ParseFrom(frame.Payload.Span);
+                    try
+                    {
+                        await SendMessageAsync(
+                            EspHomeNativeMessageId.DisconnectResponse,
+                            new DisconnectResponse(),
+                            cancellationToken).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        // The peer may close immediately after requesting disconnect.
+                        // Preserve the authoritative disconnect reason below.
+                    }
+                    throw new EspHomeRemoteDisconnectException(request.Reason);
+                }
+                case EspHomeNativeMessageId.DisconnectResponse:
+                    throw new EspHomeRemoteDisconnectException(0);
+                default:
+                    return frame;
+            }
+        }
     }
 
     private async ValueTask<EspHomePlaintextFrame> ReadMessageAsync(CancellationToken cancellationToken)

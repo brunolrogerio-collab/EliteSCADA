@@ -15,6 +15,7 @@ public interface IHomeAssistantClient : IAsyncDisposable
     string? HomeAssistantVersion { get; }
     ValueTask ConnectAndAuthenticateAsync(ReadOnlyMemory<byte> accessToken, CancellationToken cancellationToken = default);
     ValueTask<IReadOnlyList<HomeAssistantState>> GetStatesAsync(CancellationToken cancellationToken = default);
+    ValueTask<IReadOnlyList<HomeAssistantRegistryDisplayEntry>> GetEntityRegistryForDisplayAsync(CancellationToken cancellationToken = default);
     ValueTask<int> SubscribeStateChangedAsync(CancellationToken cancellationToken = default);
     ValueTask<HomeAssistantStateChangedEvent> ReceiveStateChangedAsync(CancellationToken cancellationToken = default);
 }
@@ -72,6 +73,19 @@ public sealed class HomeAssistantWebSocketClient : IHomeAssistantClient
             throw new IOException("Home Assistant get_states failed.");
         return HomeAssistantProtocol.ParseStates(result.Result
             ?? throw new FormatException("Home Assistant get_states returned no result."));
+    }
+
+    public async ValueTask<IReadOnlyList<HomeAssistantRegistryDisplayEntry>> GetEntityRegistryForDisplayAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var result = await SendCommandAsync(
+            "config/entity_registry/list_for_display",
+            null,
+            cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+            throw new IOException("Home Assistant entity registry display inventory failed.");
+        return HomeAssistantRegistryDisplayParser.Parse(result.Result
+            ?? throw new FormatException("Home Assistant entity registry display inventory returned no result."));
     }
 
     public async ValueTask<int> SubscribeStateChangedAsync(CancellationToken cancellationToken = default)

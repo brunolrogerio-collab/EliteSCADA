@@ -4,7 +4,7 @@ import { defineConfig, devices } from '@playwright/test';
 // the live user's database, hardware, credentials or a second API instance.
 export default defineConfig({
   testDir: './tests-e2e',
-  testMatch: /(wave-14-c26-runtime-viewport|wave-15-media-player-mounted|wave-15-authoring-completion-mounted)\.spec\.ts/,
+  testMatch: /(wave-14-c26-runtime-viewport|wave-15-media-player-mounted|wave-15-authoring-completion-mounted|wave-15-resource-organizer-mounted)\.spec\.ts/,
   workers: 1,
   retries: 0,
   timeout: 30_000,

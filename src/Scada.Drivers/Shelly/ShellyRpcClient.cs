@@ -42,7 +42,7 @@ public sealed class ShellyRpcClient : IShellyRpcClient
     private readonly string _source;
     private readonly SemaphoreSlim _httpGate = new(1, 1);
     private ClientWebSocket? _webSocket;
-    private string? _httpReusableNonce;
+    private ShellyDigestChallenge? _httpReusableChallenge;
     private uint _httpNonceCount;
     private long _nextId;
     private bool _disposed;
@@ -76,6 +76,47 @@ public sealed class ShellyRpcClient : IShellyRpcClient
         try
         {
             var id = Interlocked.Increment(ref _nextId);
+
+            // Firmware 2.0+ explicitly permits nonce reuse. Once a challenge has
+            // authenticated successfully, send the next request with that public
+            // challenge metadata and an incremented nc, avoiding a new pending
+            // nonce/401 round-trip. The password itself is never cached here.
+            if (!legacyAuthentication && !password.IsEmpty && _httpReusableChallenge is { } reusable)
+            {
+                var proactiveDigest = new ShellyDigestSession(_settings.Username, password);
+                try
+                {
+                    proactiveDigest.AcceptChallenge(reusable, _httpNonceCount);
+                    var proactiveAuth = proactiveDigest.BuildAuth(ShellyAuthTransport.Http);
+                    RememberNonceCount(reusable, proactiveDigest.NonceCount);
+                    var proactive = await SendHttpAsync(
+                        id,
+                        method,
+                        parameters,
+                        proactiveAuth,
+                        cancellationToken).ConfigureAwait(false);
+
+                    if (proactive.StatusCode != HttpStatusCode.Unauthorized)
+                        return ParseSuccessfulHttp(proactive, id);
+
+                    var refreshed = ParseHttpChallenge(proactive, legacyAuthentication);
+                    proactiveDigest.AcceptChallenge(refreshed, SeedNonceCount(refreshed));
+                    var refreshedAuth = proactiveDigest.BuildAuth(ShellyAuthTransport.Http);
+                    RememberNonceCount(refreshed, proactiveDigest.NonceCount);
+                    var retry = await SendHttpAsync(
+                        id,
+                        method,
+                        parameters,
+                        refreshedAuth,
+                        cancellationToken).ConfigureAwait(false);
+                    return ParseSuccessfulHttp(retry, id);
+                }
+                finally
+                {
+                    proactiveDigest.Clear();
+                }
+            }
+
             var first = await SendHttpAsync(id, method, parameters, auth: null, cancellationToken).ConfigureAwait(false);
             if (first.StatusCode != HttpStatusCode.Unauthorized)
                 return ParseSuccessfulHttp(first, id);
@@ -96,8 +137,6 @@ public sealed class ShellyRpcClient : IShellyRpcClient
                 var retry = await SendHttpAsync(id, method, parameters, auth, cancellationToken).ConfigureAwait(false);
                 if (retry.StatusCode == HttpStatusCode.Unauthorized)
                 {
-                    // A stale/replacement challenge starts a new nonce sequence; an
-                    // unchanged reusable challenge continues the monotonic counter.
                     var refreshed = ParseHttpChallenge(retry, legacyAuthentication);
                     digest.AcceptChallenge(refreshed, SeedNonceCount(refreshed));
                     var refreshedAuth = digest.BuildAuth(ShellyAuthTransport.Http);
@@ -388,14 +427,17 @@ public sealed class ShellyRpcClient : IShellyRpcClient
 
     private uint SeedNonceCount(ShellyDigestChallenge challenge) =>
         challenge.ReusableNonce &&
-        string.Equals(_httpReusableNonce, challenge.NonceText, StringComparison.Ordinal)
+        _httpReusableChallenge is { } cached &&
+        string.Equals(cached.Realm, challenge.Realm, StringComparison.Ordinal) &&
+        string.Equals(cached.NonceText, challenge.NonceText, StringComparison.Ordinal)
             ? _httpNonceCount
             : 0;
 
     private void RememberNonceCount(ShellyDigestChallenge challenge, uint nonceCount)
     {
-        if (!challenge.ReusableNonce) return;
-        _httpReusableNonce = challenge.NonceText;
+        if (!challenge.ReusableNonce)
+            return;
+        _httpReusableChallenge = challenge;
         _httpNonceCount = nonceCount;
     }
 

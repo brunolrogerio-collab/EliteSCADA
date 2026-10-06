@@ -38,6 +38,11 @@ public sealed class EspHomeControlProtocolTests
                 StringField(12, "Espressif"),
                 StringField(13, "Control Fixture")), timeout.Token);
 
+            var capabilitiesRequest = await ReadFrameAsync(stream, timeout.Token);
+            Assert.Equal((ushort)149, capabilitiesRequest.Type);
+            Assert.Empty(capabilitiesRequest.Payload);
+            await WriteFrameAsync(stream, 150, [], timeout.Token);
+
             Assert.Equal((ushort)11, (await ReadFrameAsync(stream, timeout.Token)).Type);
             await WriteFrameAsync(stream, 17, Proto(
                 StringField(1, "relay"),

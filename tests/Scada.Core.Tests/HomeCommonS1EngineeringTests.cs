@@ -43,7 +43,7 @@ public sealed class HomeCommonS1EngineeringTests
             EngineeringExchangeService.CurrentSchema,
             EngineeringExchangeService.CurrentSchemaVersion,
             DateTimeOffset.UtcNow,
-            [new TagEngineeringDto(tagId, "State", "Home.Relay.State", TagDataType.Boolean, DataSourceId: dataSourceId)],
+            [new TagEngineeringDto(tagId, "State", "Home.Relay.State", TagDataType.Boolean, ReadOnly: false, DataSourceId: dataSourceId)],
             [],
             DataSources: [new DataSourceEngineeringDto(dataSourceId, "relay-1", "Relay 1", "test.driver")],
             Equipment:

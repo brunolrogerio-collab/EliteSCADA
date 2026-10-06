@@ -132,7 +132,7 @@ public static class HomeAssistantProtocol
 
     public static HomeAssistantCommandResult ParseResult(ReadOnlySpan<byte> utf8)
     {
-        using var document = JsonDocument.Parse(utf8);
+        using var document = JsonDocument.Parse(utf8.ToArray());
         var root = document.RootElement;
         if (!string.Equals(RequireString(root, "type"), "result", StringComparison.Ordinal))
             throw new FormatException("Home Assistant command response is not a result message.");
@@ -159,7 +159,7 @@ public static class HomeAssistantProtocol
     public static bool TryParseStateChangedEvent(ReadOnlySpan<byte> utf8, out HomeAssistantStateChangedEvent? stateChanged)
     {
         stateChanged = null;
-        using var document = JsonDocument.Parse(utf8);
+        using var document = JsonDocument.Parse(utf8.ToArray());
         var root = document.RootElement;
         if (!string.Equals(GetString(root, "type"), "event", StringComparison.Ordinal))
             return false;

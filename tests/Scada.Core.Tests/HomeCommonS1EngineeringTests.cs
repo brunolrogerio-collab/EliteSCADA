@@ -252,7 +252,15 @@ public sealed class HomeCommonS1EngineeringTests
     {
         var tagId = Guid.NewGuid();
         var tags = new InMemoryTagRegistry();
-        tags.Register(TagDefinition.Create(tagId, "Future", "Home.Future.Value", TagDataType.Double));
+        tags.Register(new TagDefinition(
+            tagId,
+            "Future",
+            "Home.Future.Value",
+            TagDataType.Double,
+            null,
+            null,
+            null,
+            false));
         using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
         var service = new EngineeringExchangeService(tags, alarms);
 

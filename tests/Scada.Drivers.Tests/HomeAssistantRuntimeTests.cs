@@ -13,6 +13,18 @@ namespace Scada.Drivers.Tests;
 public sealed class HomeAssistantRuntimeTests
 {
     [Fact]
+    public void GlobalComposition_RegistersHomeAssistantThroughCanonicalRuntimeRegistry()
+    {
+        var registry = CommunicationDriverRuntimeComposition.BuildForCurrentSchema();
+
+        Assert.True(registry.TryGet(HomeAssistantContract.DriverType, out var registration));
+        Assert.NotNull(registration);
+        Assert.Equal(HomeAssistantContract.DriverType, registration!.Descriptor.DriverType);
+        Assert.IsType<HomeAssistantCommunicationRuntimePlanner>(registration.Planner);
+        Assert.Equal(HomeAssistantContract.DriverType, registration.Factory.DriverType);
+    }
+
+    [Fact]
     public async Task Write_DoesNotPublishRequestedValue_WithoutAuthoritativeReadback()
     {
         var bus = new InMemoryScadaEventBus();

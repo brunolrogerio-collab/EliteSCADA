@@ -42,7 +42,8 @@ public sealed class ShellyRpcClient : IShellyRpcClient
     private readonly string _source;
     private readonly SemaphoreSlim _httpGate = new(1, 1);
     private ClientWebSocket? _webSocket;
-    private ShellyDigestSession? _webSocketAuth;
+    private string? _httpReusableNonce;
+    private uint _httpNonceCount;
     private long _nextId;
     private bool _disposed;
 
@@ -89,19 +90,23 @@ public sealed class ShellyRpcClient : IShellyRpcClient
             var digest = new ShellyDigestSession(_settings.Username, password);
             try
             {
-                digest.AcceptChallenge(challenge);
+                digest.AcceptChallenge(challenge, SeedNonceCount(challenge));
                 var auth = digest.BuildAuth(ShellyAuthTransport.Http);
+                RememberNonceCount(challenge, digest.NonceCount);
                 var retry = await SendHttpAsync(id, method, parameters, auth, cancellationToken).ConfigureAwait(false);
                 if (retry.StatusCode == HttpStatusCode.Unauthorized)
                 {
-                    // Stale/current challenges are retried once with the replacement nonce.
+                    // A stale/replacement challenge starts a new nonce sequence; an
+                    // unchanged reusable challenge continues the monotonic counter.
                     var refreshed = ParseHttpChallenge(retry, legacyAuthentication);
-                    digest.AcceptChallenge(refreshed);
+                    digest.AcceptChallenge(refreshed, SeedNonceCount(refreshed));
+                    var refreshedAuth = digest.BuildAuth(ShellyAuthTransport.Http);
+                    RememberNonceCount(refreshed, digest.NonceCount);
                     retry = await SendHttpAsync(
                         id,
                         method,
                         parameters,
-                        digest.BuildAuth(ShellyAuthTransport.Http),
+                        refreshedAuth,
                         cancellationToken).ConfigureAwait(false);
                 }
                 return ParseSuccessfulHttp(retry, id);
@@ -142,17 +147,24 @@ public sealed class ShellyRpcClient : IShellyRpcClient
                 throw new ShellyRpcException("Shelly WebSocket authentication is enabled but no protected password is configured.", 401);
 
             var challenge = ParseWebSocketChallenge(envelope.Error.Message, legacyAuthentication);
-            _webSocketAuth = new ShellyDigestSession(_settings.Username, password);
-            _webSocketAuth.AcceptChallenge(challenge);
-            await SendWebSocketRequestAsync(
-                socket,
-                id,
-                "Shelly.GetStatus",
-                null,
-                _webSocketAuth.BuildAuth(ShellyAuthTransport.WebSocket),
-                cancellationToken).ConfigureAwait(false);
-            response = await ReceiveFrameAsync(socket, cancellationToken).ConfigureAwait(false);
-            envelope = ShellyRpcJson.ParseResponse(response);
+            var webSocketAuth = new ShellyDigestSession(_settings.Username, password);
+            try
+            {
+                webSocketAuth.AcceptChallenge(challenge);
+                await SendWebSocketRequestAsync(
+                    socket,
+                    id,
+                    "Shelly.GetStatus",
+                    null,
+                    webSocketAuth.BuildAuth(ShellyAuthTransport.WebSocket),
+                    cancellationToken).ConfigureAwait(false);
+                response = await ReceiveFrameAsync(socket, cancellationToken).ConfigureAwait(false);
+                envelope = ShellyRpcJson.ParseResponse(response);
+            }
+            finally
+            {
+                webSocketAuth.Clear();
+            }
         }
 
         if (envelope.Error is not null)
@@ -185,8 +197,6 @@ public sealed class ShellyRpcClient : IShellyRpcClient
     public async ValueTask DisconnectNotificationsAsync(CancellationToken cancellationToken = default)
     {
         var socket = Interlocked.Exchange(ref _webSocket, null);
-        _webSocketAuth?.Clear();
-        _webSocketAuth = null;
         if (socket is null) return;
 
         try
@@ -374,6 +384,19 @@ public sealed class ShellyRpcClient : IShellyRpcClient
             if (result.EndOfMessage)
                 return buffer.ToArray();
         }
+    }
+
+    private uint SeedNonceCount(ShellyDigestChallenge challenge) =>
+        challenge.ReusableNonce &&
+        string.Equals(_httpReusableNonce, challenge.NonceText, StringComparison.Ordinal)
+            ? _httpNonceCount
+            : 0;
+
+    private void RememberNonceCount(ShellyDigestChallenge challenge, uint nonceCount)
+    {
+        if (!challenge.ReusableNonce) return;
+        _httpReusableNonce = challenge.NonceText;
+        _httpNonceCount = nonceCount;
     }
 
     private static string Sanitize(string message)

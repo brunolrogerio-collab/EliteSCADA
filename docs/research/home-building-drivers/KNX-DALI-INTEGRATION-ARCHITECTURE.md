@@ -26,7 +26,7 @@ There are three approved architectural forms for a future implementation:
 
 ```
 EliteSCADA modbus.tcp
-  -> Intesis INMBSDAL0640200 / INMBSDAL1280200
+  -> Intesis IN703DAL0640000 / IN704DAL1280000
   -> DALI-2 bus
 ```
 
@@ -47,6 +47,8 @@ EliteSCADA future KNX/IP Data Source
   -> Theben DALI-Gateway P64 KNX
   -> DALI-2 bus
 ```
+
+Final revalidation delta (2026-10-06): HMS marks the earlier INMBSDAL0640200/INMBSDAL1280200 as legacy and points to the IN703DAL0640000/IN704DAL1280000 700 Series. The current 700 Series manuals also explicitly expose Modbus Type 8 colour-temperature/RGB/RGBW read/write registers, plus Part 252 energy and Part 253 diagnostics. The preferred architectural path is unchanged, but the exact recommended hardware is now the 700 Series.
 
 No form requires a fake `dali.runtime` authority.
 
@@ -688,6 +690,8 @@ Official/public:
 - Weinzierl — KNX IP Interface 732 secure: https://weinzierl.de/en/products/knx-ip-interface-732-secure/
 - Weinzierl — KNX IP Router 752 secure: https://weinzierl.de/en/products/knx-ip-router-752-secure/
 - Theben — DALI-Gateway P64 KNX 4940303: https://www.theben.de/en/dali-gateway-p64-knx-4940303
+- HMS Networks / Intesis — IN703DAL0640000 current Modbus/DALI application: https://www.hms-networks.com/p/in703dal0640000-mbs-dal-dali-2-to-modbus-tcp-rtu-server-application-with-1-dali-channel
+- HMS Networks / Intesis — IN704DAL1280000 current Modbus/DALI application: https://www.hms-networks.com/p/in704dal1280000-mbs-dal-dali-2-to-modbus-tcp-server-application-with-2-dali-channels
 - LOYTEC — L-DALI BACnet Controllers: https://www.loytec.com/products/dali/l-dali-wired/l-dali-bacnet
 
 EliteSCADA live release base:

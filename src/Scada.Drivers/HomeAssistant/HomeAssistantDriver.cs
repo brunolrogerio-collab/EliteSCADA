@@ -52,6 +52,7 @@ public sealed class HomeAssistantDriver :
     private readonly IReadOnlyDictionary<Guid, HomeAssistantPoint> _pointsById;
     private readonly Func<HomeAssistantConnectionSettings, IHomeAssistantClient> _clientFactory;
     private readonly HomeAssistantCredentialResolver _credentials;
+    private readonly Func<bool> _effectAuthority;
     private readonly SemaphoreSlim _sessionGate = new(1, 1);
     private readonly object _gate = new();
 
@@ -91,7 +92,8 @@ public sealed class HomeAssistantDriver :
         ITagRegistry registry,
         IReadOnlyCollection<HomeAssistantPoint> points,
         Func<HomeAssistantConnectionSettings, IHomeAssistantClient> clientFactory,
-        HomeAssistantCredentialResolver credentials)
+        HomeAssistantCredentialResolver credentials,
+        Func<bool>? effectAuthority = null)
     {
         DriverId = driverId;
         Name = name;
@@ -102,6 +104,7 @@ public sealed class HomeAssistantDriver :
         _pointsById = points.ToDictionary(x => x.Tag.Id);
         _clientFactory = clientFactory;
         _credentials = credentials;
+        _effectAuthority = effectAuthority ?? static () => true;
         Tags = points.Select(x => x.Tag).ToArray();
         Status = new DriverStatus(driverId, name, DriverState.Stopped, DateTimeOffset.UtcNow);
     }
@@ -198,6 +201,8 @@ public sealed class HomeAssistantDriver :
             throw new KeyNotFoundException($"Home Assistant TAG '{tagId}' is not owned by this driver.");
         if (!point.CanWrite)
             throw new InvalidOperationException($"Home Assistant TAG '{point.Tag.Path}' is read-only.");
+        if (!_effectAuthority())
+            throw new InvalidOperationException("Home Assistant external write authority is not owned by this runtime instance.");
 
         var invocation = BuildWrite(point, value);
         await _sessionGate.WaitAsync(cancellationToken).ConfigureAwait(false);

@@ -382,11 +382,11 @@ Every sidecar release must pin:
 - WebSocket schema: 13;
 - upstream stable Matter support: 1.6.0.
 
-## Z-Wave current research baseline
+## Z-Wave final research baseline
 
-- Z-Wave JS Server: 3.10.1;
+- Z-Wave JS Server: 3.11.0;
 - Z-Wave JS: 15.31.0;
-- WebSocket schema line: 50;
+- WebSocket schema line: 51;
 - Node: >=20.
 
 These are research baselines, not permanent product pins.

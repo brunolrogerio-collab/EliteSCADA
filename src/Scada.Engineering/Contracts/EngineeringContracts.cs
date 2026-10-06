@@ -22,7 +22,6 @@ public enum ImportEntityKind
     Alarm,
     OperationalEvent,
     DataSource,
-    Location,
     Template,
     Equipment,
     Dynamo,
@@ -40,7 +39,8 @@ public enum ImportEntityKind
     AlarmView,
     Branding,
     RuntimePresentation,
-    MediaSource
+    MediaSource,
+    Location
 }
 
 public enum SecurityScopeNodeKind

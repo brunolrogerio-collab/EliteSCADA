@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <Protobuf Include="ESPHome/Protocol/esphome_base.proto" GrpcServices="None" />
+    <Protobuf Include="ESPHome/Protocol/esphome_entities.proto" GrpcServices="None" />
   </ItemGroup>
 
   <ItemGroup>

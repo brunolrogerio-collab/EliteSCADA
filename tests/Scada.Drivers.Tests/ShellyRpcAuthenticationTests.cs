@@ -32,7 +32,7 @@ public sealed class ShellyRpcAuthenticationTests
 
         Assert.True(result.GetProperty("switch0").GetBoolean());
         Assert.Equal(2, handler.CallCount);
-        Assert.DoesNotContain("super-secret", handler.Payloads.Single(x => x.Contains(""auth"", StringComparison.Ordinal)));
+        Assert.DoesNotContain("super-secret", handler.Payloads.Single(x => x.Contains("\"auth\"", StringComparison.Ordinal)));
     }
 
     [Fact]

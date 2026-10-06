@@ -267,15 +267,11 @@ export function ReportDesignerWorkspace({ snapshot, locale, onApplied }: ReportD
 
   return <div className="eng-section report-designer-workspace" data-testid="report-designer-workspace">
     <header className="report-designer-header">
-      <div>
-        <span>{text.eyebrow}</span>
-        <h1>{text.title}</h1>
-        <p>{text.description}</p>
-      </div>
-      <div className="report-designer-authority">
-        <strong>{text.authorityTitle}</strong>
-        <span>{text.authorityHint}</span>
-      </div>
+      <h1>{text.title}</h1>
+      <details className="report-designer-help">
+        <summary>{locale === 'pt-BR' ? 'Ajuda' : locale === 'es' ? 'Ayuda' : 'Help'}</summary>
+        <div><p>{text.description}</p><p>{text.authorityHint}</p></div>
+      </details>
     </header>
 
     <div className="report-designer-shell">

@@ -440,9 +440,8 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
     <section className="ha-admin" data-testid="ha-admin-workspace">
       <header className="ha-admin__header">
         <div>
-          <span className="ha-admin__eyebrow">Engineering · HA</span>
           <h1>{t.title}</h1>
-          <p>{t.subtitle}</p>
+          <details className="app-page-help"><summary>{locale === 'pt-BR' ? 'Ajuda' : locale === 'es' ? 'Ayuda' : 'Help'}</summary><p>{t.subtitle}</p></details>
         </div>
         <button type="button" className="ha-button ha-button--quiet" onClick={() => void load(false)}>{t.refresh}</button>
       </header>

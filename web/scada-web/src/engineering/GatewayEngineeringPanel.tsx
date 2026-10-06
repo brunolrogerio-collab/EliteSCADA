@@ -152,22 +152,18 @@ export function GatewayEngineeringPanel({ model, locale }: Props) {
     <div className="eng-section" data-testid="gateway-engineering-panel">
       <header className="eng-section-header">
         <div>
-          <span className="eng-eyebrow">TAG Gateway</span>
           <h1>{text.title}</h1>
           <p>{text.description}</p>
         </div>
         <div className="eng-section-meta">
           <strong>{routes.length} {text.routes}</strong>
-          <span>Engineering Schema v{model.schemaVersion}</span>
         </div>
       </header>
 
       <section className="eng-panel gateway-route-inventory" data-testid="gateway-route-inventory">
         <div className="eng-mutation-header">
           <div>
-            <span>{text.inventoryEyebrow}</span>
             <h2>{text.inventoryTitle}</h2>
-            <p>{text.inventoryHint}</p>
           </div>
           <button type="button" className="primary gateway-new-route" data-testid="gateway-new-route" onClick={() => chooseRoute('new')} disabled={previewing || applying}>
             {text.newRoute}
@@ -178,7 +174,7 @@ export function GatewayEngineeringPanel({ model, locale }: Props) {
             <span>{text.searchRoutes}</span>
             <input value={routeQuery} onChange={event => setRouteQuery(event.target.value)} placeholder={text.searchRoutesPlaceholder} data-testid="gateway-route-search" />
           </label>
-          <strong data-testid="gateway-route-count">{routes.length} {text.routes}</strong>
+          <span data-testid="gateway-route-count" className="gateway-route-filter-count">{filteredRoutes.length} / {routes.length}</span>
         </div>
         {filteredRoutes.length === 0 ? <div className="eng-empty"><strong>{routes.length === 0 ? text.noRoutes : text.noRouteMatches}</strong><span>{text.noRoutesHint}</span></div> :
           <div className="gateway-route-list" role="list">
@@ -205,9 +201,7 @@ export function GatewayEngineeringPanel({ model, locale }: Props) {
       <section className="eng-mutation-panel">
         <header className="eng-mutation-header">
           <div>
-            <span>{text.editorEyebrow}</span>
             <h2>{text.editorTitle}</h2>
-            <p>{text.editorHint}</p>
           </div>
           <div className="eng-mutation-warning">{text.warning}</div>
         </header>

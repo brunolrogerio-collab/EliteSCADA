@@ -54,6 +54,16 @@
 html, body, #root { min-height: 100%; }
 body { background: var(--app-bg); color: var(--app-text-primary); }
 
+/* Compact page headings keep explanations available without consuming workspace height. */
+.app-page-help { display: inline-block; position: relative; margin-left: 12px; vertical-align: baseline; font-size: 11px; font-weight: 400; }
+.app-page-help summary { color: var(--app-accent); cursor: pointer; white-space: nowrap; }
+.app-page-help summary:focus-visible { outline: 2px solid var(--app-focus); outline-offset: 2px; }
+.app-page-help > p { position: absolute; z-index: 30; top: 100%; left: 0; width: min(430px, calc(100vw - 48px)); margin: 6px 0 0; padding: 10px 12px; border: 1px solid var(--app-border); border-radius: 7px; background: var(--app-surface); color: var(--app-text-secondary); box-shadow: 0 10px 28px color-mix(in srgb, var(--app-text-primary) 15%, transparent); line-height: 1.4; }
+.development-monitor .development-monitor__header { align-items: center; gap: 12px; }
+.development-monitor__header > div:first-child { display: flex; align-items: baseline; min-width: 0; }
+.development-monitor .development-monitor__header h1 { margin: 0; font-size: 18px; }
+.development-monitor .development-monitor__readonly { padding: 5px 9px; max-width: none; font-size: 11px; }
+
 .app-bar {
   border-color: var(--app-divider);
   background: var(--app-surface);

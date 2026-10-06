@@ -58,6 +58,7 @@ test('primary shell keeps authorized application navigation coherent without Eng
   await page.goto('/engineering');
   navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
   await expect(navigation.getByRole('link', { name: 'Engenharia' })).toHaveAttribute('aria-current', 'page');
+  await page.locator('.eng-overview-advanced > summary').click();
   await expect(page.getByText(/Gerenciamento do projeto|Project Management/, { exact: true })).toBeVisible();
   await expectCssToken(page.locator('.eng-shell'), 'background-color', '--app-bg');
   await expectCssToken(page.locator('.eng-project-management__card').first(), 'background-color', '--app-surface');
@@ -539,6 +540,7 @@ async function openLifecycleUx(page: Page, state: LifecycleUxState) {
   await mockLifecycleUxApp(page, state);
   await page.goto('/engineering');
   await expect(page.locator('.eng-lifecycle-workspace')).toBeVisible();
+  await page.locator('.eng-lifecycle-workspace__history > summary').click();
 }
 
 test('mounted lifecycle is one four-step surface and Save/Publish/Activate are one click', async ({ page }) => {

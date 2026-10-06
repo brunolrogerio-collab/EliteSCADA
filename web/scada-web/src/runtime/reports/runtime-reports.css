@@ -13,4 +13,6 @@
 .report-variable-card header{display:flex;justify-content:space-between;gap:.5rem;flex-wrap:wrap}
 .report-variable-actions{display:flex;gap:.35rem}
 .report-variable-boolean-labels{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+.report-center__heading h1{margin:0;font-size:18px}
+.report-center__heading{margin-bottom:10px}
 @media print{.report-viewer__table{display:none}.report-generated-page{box-shadow:none;page-break-after:always}}

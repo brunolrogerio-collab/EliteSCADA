@@ -168,20 +168,23 @@ export function EngineeringLifecycleWorkspace({ locale }: { locale: EngineeringL
           </div>
 
           {state.revisions.length > 0 ? (
-            <div className="eng-lifecycle-workspace__revision-list" aria-label={copy.revisions}>
-              {state.revisions.map(revision => (
-                <RevisionRow
-                  key={revision.revision}
-                  revision={revision}
-                  state={state}
-                  locale={locale}
-                  copy={copy}
-                  busy={busy}
-                  onCheckout={() => requestCheckout(revision.revision)}
-                  onPublish={() => void perform('publish', revision.revision)}
-                />
-              ))}
-            </div>
+            <details className="eng-lifecycle-workspace__history">
+              <summary>{copy.revisions} ({state.revisions.length})</summary>
+              <div className="eng-lifecycle-workspace__revision-list" aria-label={copy.revisions}>
+                {state.revisions.map(revision => (
+                  <RevisionRow
+                    key={revision.revision}
+                    revision={revision}
+                    state={state}
+                    locale={locale}
+                    copy={copy}
+                    busy={busy}
+                    onCheckout={() => requestCheckout(revision.revision)}
+                    onPublish={() => void perform('publish', revision.revision)}
+                  />
+                ))}
+              </div>
+            </details>
           ) : null}
         </LifecycleStep>
 

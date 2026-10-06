@@ -1,19 +1,20 @@
 .licensing-page {
   display: grid;
-  gap: 18px;
+  gap: 12px;
 }
 
 .licensing-heading {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 20px;
 }
 
 .licensing-heading h1 {
   margin: 0;
-  font-size: 1.65rem;
+  font-size: 18px;
 }
+.licensing-heading > div:first-child { display: flex; align-items: baseline; min-width: 0; }
 
 .licensing-heading p {
   margin: 5px 0 0;

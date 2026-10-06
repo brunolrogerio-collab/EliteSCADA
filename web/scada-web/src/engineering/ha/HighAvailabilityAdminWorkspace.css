@@ -26,7 +26,7 @@
   --ha-danger: var(--app-error, #d46a6a);
   --ha-ok: var(--app-success, #67b887);
   min-height: 100%;
-  padding: 24px;
+  padding: 16px 24px;
   color: var(--ha-text);
   background: var(--ha-bg);
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
@@ -82,10 +82,11 @@
 .ha-admin__header {
   display: flex;
   justify-content: space-between;
-  gap: 20px;
-  align-items: flex-start;
-  margin-bottom: 18px;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
 }
+.ha-admin__header > div:first-child { display: flex; align-items: baseline; min-width: 0; }
 
 .ha-admin__eyebrow {
   color: var(--ha-accent);
@@ -95,7 +96,7 @@
   font-weight: 700;
 }
 
-.ha-admin h1 { margin: 5px 0; font-size: 28px; }
+.ha-admin h1 { margin: 0; font-size: 18px; }
 .ha-admin h2 { margin: 0; font-size: 18px; }
 .ha-admin h3 { margin: 0; font-size: 13px; color: var(--ha-text); }
 .ha-admin p { margin: 0; color: var(--ha-muted); line-height: 1.45; }

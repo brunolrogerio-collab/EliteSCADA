@@ -278,7 +278,14 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, onR
   onSnapshotRefreshed: () => Promise<void>;
 }) {
   const model = snapshot.package;
-  if (section === 'overview') return <><Overview snapshot={snapshot} t={t}/><EngineeringLifecycleWorkspace locale={locale}/><EngineeringProjectManagementWorkspace locale={locale}/></>;
+  if (section === 'overview') return <>
+    <Overview snapshot={snapshot} t={t}/>
+    <EngineeringLifecycleWorkspace locale={locale}/>
+    <details className="eng-overview-advanced">
+      <summary>{locale === 'pt-BR' ? 'Ferramentas avançadas do projeto' : locale === 'es' ? 'Herramientas avanzadas del proyecto' : 'Advanced project tools'}</summary>
+      <EngineeringProjectManagementWorkspace locale={locale}/>
+    </details>
+  </>;
   if (section === 'installation') return <InstallationSwitchingWorkspace locale={locale} onWorkspaceChanged={onReload}/>;
   if (section === 'branding') return <BrandingEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
   if (section === 'mobile') return <MobileRuntimeEngineeringWorkspace snapshot={snapshot} onApplied={onReload} locale={locale}/>;
@@ -472,7 +479,7 @@ function objectCatalogCopy(locale: EngineeringLocale) {
 }
 
 function SectionHeader({ title, description, count, t }: { title: string; description?: string; count?: number; t: ReturnType<typeof translator> }) {
-  return <header className="eng-section-header"><div><span className="eng-eyebrow">{t('section.readOnly')}</span><h1>{title}</h1>{description && <p>{description}</p>}</div><div className="eng-section-meta">{count !== undefined && <strong>{count} {t('section.count')}</strong>}<span>{t('app.readOnly')}</span></div></header>;
+  return <header className="eng-section-header"><div><h1>{title}</h1>{description && <p>{description}</p>}</div>{count !== undefined && <div className="eng-section-meta"><strong>{count} {t('section.count')}</strong></div>}</header>;
 }
 
 function Diagnostic({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {

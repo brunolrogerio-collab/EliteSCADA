@@ -91,7 +91,7 @@ export function HistoricalDataBrowser({
       <header className="historical-browser__header">
         <div>
           <h2>{text.title}</h2>
-          <p>{text.description}</p>
+          <details className="app-page-help"><summary>{locale === 'pt-BR' ? 'Ajuda' : locale === 'es' ? 'Ayuda' : 'Help'}</summary><p>{text.description}</p></details>
         </div>
       </header>
 

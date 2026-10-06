@@ -24,7 +24,7 @@
   max-height: 100%;
   overflow-y: auto;
   margin: 0 auto;
-  padding: 28px;
+  padding: 16px 24px;
   --app-text: var(--app-text-primary, #edf3f7);
   --app-text-muted: var(--app-text-secondary, #9eacb8);
   --app-panel-raised: var(--app-surface-elevated, #17212b);
@@ -49,8 +49,9 @@
 }
 
 .db-topology-header {
-  margin-bottom: 18px;
+  margin-bottom: 10px;
 }
+.db-topology-header > div:first-child { display: flex; align-items: baseline; min-width: 0; }
 
 .db-topology-header h1,
 .db-topology-panel h2,
@@ -59,7 +60,7 @@
 }
 
 .db-topology-header h1 {
-  font-size: clamp(1.25rem, 2vw, 1.65rem);
+  font-size: 18px;
   line-height: 1.2;
   overflow-wrap: anywhere;
 }

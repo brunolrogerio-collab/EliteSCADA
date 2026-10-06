@@ -214,9 +214,7 @@ export function RuntimeOperationsOverview({
     <section className="runtime-ops" aria-label={text.title} aria-busy={refreshing}>
       <header className="runtime-ops-header">
         <div>
-          <span className="runtime-ops-eyebrow">Runtime / Active state</span>
           <h2>{text.title}</h2>
-          <p>{text.description}</p>
         </div>
         <div className="runtime-ops-refresh">
           <span aria-live="polite">

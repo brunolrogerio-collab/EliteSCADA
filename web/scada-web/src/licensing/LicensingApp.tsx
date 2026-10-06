@@ -186,7 +186,7 @@ export function LicensingApp() {
   return (
     <main className="shell licensing-page">
       <header className="licensing-heading">
-        <div><h1>{t.title}</h1><p>{t.subtitle}</p></div>
+        <div><h1>{t.title}</h1><details className="app-page-help"><summary>{locale === 'pt-BR' ? 'Ajuda' : locale === 'es' ? 'Ayuda' : 'Help'}</summary><p>{t.subtitle}</p></details></div>
         <button type="button" onClick={() => void load().catch(() => setError(t.loadError))} disabled={busy}>{t.refresh}</button>
       </header>
 

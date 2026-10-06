@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Buffers;
 using System.Text.Json;
 using Scada.Drivers.Abstractions;
 
@@ -88,12 +89,15 @@ public static class HomeAssistantProtocol
         if (accessToken.IsEmpty)
             throw new ArgumentException("Home Assistant access token is required.", nameof(accessToken));
 
-        using var token = JsonDocument.Parse(JsonSerializer.SerializeToUtf8Bytes(System.Text.Encoding.UTF8.GetString(accessToken)));
-        return JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, object?>
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer))
         {
-            ["type"] = "auth",
-            ["access_token"] = token.RootElement.GetString()
-        });
+            writer.WriteStartObject();
+            writer.WriteString("type", "auth");
+            writer.WriteString("access_token", accessToken);
+            writer.WriteEndObject();
+        }
+        return buffer.WrittenSpan.ToArray();
     }
 
     public static byte[] BuildCommand(int id, string type, IReadOnlyDictionary<string, object?>? arguments = null)
@@ -114,7 +118,7 @@ public static class HomeAssistantProtocol
 
     public static HomeAssistantHandshakeMessage ParseHandshake(ReadOnlySpan<byte> utf8)
     {
-        using var document = JsonDocument.Parse(utf8);
+        using var document = JsonDocument.Parse(utf8.ToArray());
         var root = document.RootElement;
         var type = RequireString(root, "type");
         return type switch

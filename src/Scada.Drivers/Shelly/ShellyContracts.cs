@@ -243,7 +243,10 @@ public static class ShellyStateMapper
     {
         if (status.ValueKind != JsonValueKind.Object) return;
         foreach (var property in status.EnumerateObject())
+        {
+            if (property.NameEquals("ts")) continue;
             state[property.Name] = MergeElement(state.TryGetValue(property.Name, out var old) ? old : default, property.Value);
+        }
     }
 
     public static bool TryReadPoint(IReadOnlyDictionary<string, JsonElement> state, ShellyPoint point, out object? value)
@@ -251,8 +254,13 @@ public static class ShellyStateMapper
         value = null;
         if (!state.TryGetValue(point.ComponentKey, out var component) || component.ValueKind != JsonValueKind.Object)
             return false;
-        if (!component.TryGetProperty(point.Field, out var field))
-            return false;
+        var field = component;
+        foreach (var segment in point.Field.Split('.', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (field.ValueKind != JsonValueKind.Object || !field.TryGetProperty(segment, out var nested))
+                return false;
+            field = nested;
+        }
 
         value = field.ValueKind switch
         {

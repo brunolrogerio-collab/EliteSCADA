@@ -207,7 +207,7 @@ public sealed class ManagedSidecarCheckpoint3Tests
         await secondBinding.StartAsync();
 
         Assert.True(secondProcess.StartObserved);
-        using var deniedWhileRunning = Assert.Throws<InvalidOperationException>(() =>
+        Assert.Throws<InvalidOperationException>(() =>
             leases.Acquire(resource.ResourceId, "third-owner", () => true));
     }
 

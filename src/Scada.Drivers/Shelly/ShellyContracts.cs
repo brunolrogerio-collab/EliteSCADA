@@ -205,7 +205,7 @@ public static class ShellyRpcJson
 
     public static ShellyRpcEnvelope ParseResponse(ReadOnlySpan<byte> utf8)
     {
-        using var document = JsonDocument.Parse(utf8);
+        using var document = JsonDocument.Parse(utf8.ToArray());
         var root = document.RootElement;
         if (!root.TryGetProperty("id", out var idElement) || !idElement.TryGetInt64(out var id))
             throw new FormatException("Shelly RPC response is missing a numeric id.");
@@ -223,7 +223,7 @@ public static class ShellyRpcJson
 
     public static bool TryParseNotification(ReadOnlySpan<byte> utf8, out string? method, out JsonElement parameters)
     {
-        using var document = JsonDocument.Parse(utf8);
+        using var document = JsonDocument.Parse(utf8.ToArray());
         var root = document.RootElement;
         method = root.TryGetProperty("method", out var methodElement) ? methodElement.GetString() : null;
         if ((method == "NotifyStatus" || method == "NotifyEvent") &&

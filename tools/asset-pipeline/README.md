@@ -102,11 +102,11 @@ Preserved when safe:
 - paths/basic geometry;
 - groups/defs/transforms;
 - fill/stroke/opacity;
-- linear/radial gradients with internal references;
+- linear/radial gradients and geometric hatch patterns with internal references;
 - clip paths and masks within the accepted static subset;
 - inert `data-elitescada-slot` metadata.
 
-Not yet supported deliberately: text/font nodes, filters, markers, patterns, embedded raster images, CSS/style blocks, animation/SMIL, external resources and arbitrary SVG DOM features. Unsupported constructs fail explicitly instead of being silently executed or injected.
+Not yet supported deliberately: text/font nodes, filters, markers, embedded raster images, CSS/style blocks, animation/SMIL, external resources and arbitrary SVG DOM features. Unsupported constructs fail explicitly instead of being silently executed or injected.
 
 ## Normalization and dedupe
 

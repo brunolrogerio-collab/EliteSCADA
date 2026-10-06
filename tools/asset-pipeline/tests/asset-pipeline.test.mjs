@@ -30,6 +30,23 @@ async function fixtures() {
 
 const SAFE = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g"><stop offset="0" stop-color="#000000"/><stop offset="1" stop-color="#FFFFFF"/></linearGradient></defs><rect x="10" y="10" width="80" height="80" fill="url(#g)" stroke="#333333" stroke-width="2"/></svg>';
 
+test('static hatch patterns preserve geometry and still reject executable or external content', () => {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="h" width="10" height="10" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="0" y2="10" stroke="#000000"/></pattern></defs><rect width="100" height="100" fill="url(#h)"/></svg>';
+  const result = sanitizeAndNormalizeSvg(svg);
+  assert.match(result.normalized, /<pattern[^>]*patternTransform="rotate\(45 0 0\)"/);
+  assert.match(result.normalized, /fill="url\(#a1\)"/);
+  assert.throws(() => sanitizeAndNormalizeSvg(svg.replace('<line ', '<line onclick="alert(1)" ')), /event handler/i);
+  assert.throws(() => sanitizeAndNormalizeSvg(svg.replace('url(#h)', 'url(https://example.com/x.svg#h)')), /external/i);
+  assert.throws(() => sanitizeAndNormalizeSvg(svg.replace('<line ', '<image ')), /unsupported/i);
+});
+
+test('radial gradient focal points are preserved by the safe SVG source pipeline', () => {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><radialGradient id="g" cx="50%" cy="80%" r="70%" fx="50%" fy="90%"><stop offset="0" stop-color="#FF0000"/></radialGradient></defs><circle cx="50" cy="50" r="40" fill="url(#g)"/></svg>';
+  const result = sanitizeAndNormalizeSvg(svg);
+  assert.match(result.normalized, /fx="50%"/);
+  assert.match(result.normalized, /fy="90%"/);
+});
+
 test('1. valid manifest is accepted', async () => {
   const { taxonomy, catalog } = await fixtures();
   assert.deepEqual(validateCatalog(catalog, taxonomy), []);

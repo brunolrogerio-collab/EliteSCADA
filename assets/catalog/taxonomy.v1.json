@@ -3,6 +3,14 @@
   "schemaVersion": 1,
   "categories": [
     {
+      "id": "elite-saneamento",
+      "labels": {
+        "pt-BR": "Elite Saneamento",
+        "en": "Elite Saneamento",
+        "es": "Elite Saneamento"
+      }
+    },
+    {
       "id": "building",
       "labels": {
         "pt-BR": "Automação predial",

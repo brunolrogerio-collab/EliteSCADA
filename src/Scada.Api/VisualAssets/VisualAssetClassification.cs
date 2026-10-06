@@ -16,6 +16,14 @@ public static class VisualAssetClassification
                    origin.Equals(DynamoArtworkOrigin, StringComparison.OrdinalIgnoreCase);
     }
 
+    // Library drawings remain package dependencies after insertion, not user uploads.
+    public static bool IsLibraryArtwork(VisualAssetEngineeringDto? asset) =>
+        asset?.Metadata is { } metadata &&
+        metadata.TryGetValue("factoryArtworkId", out var id) && !string.IsNullOrWhiteSpace(id);
+
+    public static bool IsUserAsset(VisualAssetEngineeringDto? asset) =>
+        asset is not null && !IsDynamoArtwork(asset) && !IsLibraryArtwork(asset);
+
     public static int CountUserAssets(IEnumerable<VisualAssetEngineeringDto>? assets) =>
-        assets?.Count(asset => !IsDynamoArtwork(asset)) ?? 0;
+        assets?.Count(IsUserAsset) ?? 0;
 }

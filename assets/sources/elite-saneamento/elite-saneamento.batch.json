@@ -1,0 +1,329 @@
+{
+  "schema": "elitescada.asset-batch",
+  "schemaVersion": 1,
+  "defaults": {
+    "author": "EliteSCADA",
+    "styleFamily": "elite-saneamento-outline",
+    "license": {
+      "identifier": "Proprietary-EliteSCADA-Original",
+      "reference": "assets/licenses/ELITESCADA-ORIGINAL-ASSET-NOTICE.md",
+      "attributionRequired": false,
+      "commercialRedistributionAllowed": true,
+      "modificationAllowed": true
+    }
+  },
+  "assets": [
+    {
+      "id": "builtin.asset.elite-saneamento.painel-metalico",
+      "key": "elite-saneamento.painel-metalico",
+      "displayName": "Painel metálico",
+      "sourceFile": "assets/sources/elite-saneamento/painel-metalico.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["painel", "metálico", "tela", "panel", "saneamento"],
+      "searchKeywords": ["painel metálico", "Elite Saneamento", "metal panel"],
+      "status": "draft",
+      "provenance": {"classification":"original-elitescada","sourceUrl":null,"author":"EliteSCADA","derivationNote":"SVG from the owner-supplied Compilado_SVGs.docx; category assignment to Elite Saneamento. Invalid namespace corrected; geometry, color and gradient preserved."},
+      "editablePaintSlots": []
+    },
+    {
+      "id": "builtin.asset.elite-saneamento.tanque-limpo",
+      "key": "elite-saneamento.tanque-limpo",
+      "displayName": "Tanque limpo",
+      "sourceFile": "assets/sources/elite-saneamento/tanque-limpo.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["tanque", "limpo", "tratamento", "tank", "saneamento"],
+      "searchKeywords": ["tanque limpo", "Elite Saneamento", "clean tank"],
+      "status": "draft",
+      "provenance": {"classification":"original-elitescada","sourceUrl":null,"author":"EliteSCADA","derivationNote":"SVG from the owner-supplied Compilado_SVGs.docx; category assignment to Elite Saneamento. Invalid namespace corrected; geometry, colors, gradient and hatch preserved."},
+      "editablePaintSlots": []
+    },
+    {
+      "id": "builtin.asset.elite-saneamento.clarificador-marrom",
+      "key": "elite-saneamento.clarificador-marrom",
+      "displayName": "Clarificador marrom",
+      "sourceFile": "assets/sources/elite-saneamento/clarificador-marrom.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["clarificador", "marrom", "tratamento", "clarifier", "saneamento"],
+      "searchKeywords": ["clarificador marrom", "Elite Saneamento", "brown clarifier"],
+      "status": "draft",
+      "provenance": {"classification":"original-elitescada","sourceUrl":null,"author":"EliteSCADA","derivationNote":"SVG from the owner-supplied Compilado_SVGs.docx; category assignment to Elite Saneamento. Invalid namespace corrected; geometry, colors, gradients and hatch preserved."},
+      "editablePaintSlots": []
+    },
+    {
+      "id": "builtin.asset.elite-saneamento.icone-bomba-motor",
+      "key": "elite-saneamento.icone-bomba-motor",
+      "displayName": "Ícone de bomba e motor",
+      "sourceFile": "assets/sources/elite-saneamento/icone-bomba-motor.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["bomba", "motor", "ícone", "pump", "saneamento"],
+      "searchKeywords": ["ícone de bomba e motor", "Elite Saneamento", "pump and motor icon"],
+      "status": "draft",
+      "provenance": {"classification":"original-elitescada","sourceUrl":null,"author":"EliteSCADA","derivationNote":"SVG from the owner-supplied Compilado_SVGs.docx; category assignment to Elite Saneamento. Invalid namespace corrected; geometry and colors preserved."},
+      "editablePaintSlots": []
+    },
+    {
+      "id": "builtin.asset.elite-saneamento.botao-verde-cromado",
+      "key": "elite-saneamento.botao-verde-cromado",
+      "displayName": "Botão verde cromado",
+      "sourceFile": "assets/sources/elite-saneamento/botao-verde-cromado.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["botão", "verde", "cromado", "button", "saneamento"],
+      "searchKeywords": ["botão verde cromado", "Elite Saneamento", "chrome green button"],
+      "status": "draft",
+      "provenance": {"classification":"original-elitescada","sourceUrl":null,"author":"EliteSCADA","derivationNote":"Static SVG from the owner-supplied Compilado_SVGs.docx, included as library artwork. Not an interactive Dynamo."},
+      "editablePaintSlots": []
+    },
+    {
+      "id": "builtin.asset.elite-saneamento.botao-vermelho-cromado",
+      "key": "elite-saneamento.botao-vermelho-cromado",
+      "displayName": "Botão vermelho cromado",
+      "sourceFile": "assets/sources/elite-saneamento/botao-vermelho-cromado.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["botão", "vermelho", "cromado", "button", "saneamento"],
+      "searchKeywords": ["botão vermelho cromado", "Elite Saneamento", "chrome red button"],
+      "status": "draft",
+      "provenance": {"classification":"original-elitescada","sourceUrl":null,"author":"EliteSCADA","derivationNote":"Static SVG from the owner-supplied Compilado_SVGs.docx, included as library artwork. Not an interactive Dynamo."},
+      "editablePaintSlots": []
+    },
+    {
+      "id": "builtin.asset.elite-saneamento.botao-cogumelo-vermelho",
+      "key": "elite-saneamento.botao-cogumelo-vermelho",
+      "displayName": "Botão cogumelo vermelho",
+      "sourceFile": "assets/sources/elite-saneamento/botao-cogumelo-vermelho.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["botão", "cogumelo", "vermelho", "emergência", "button"],
+      "searchKeywords": ["botão cogumelo vermelho", "Elite Saneamento", "red mushroom button"],
+      "status": "draft",
+      "provenance": {"classification":"original-elitescada","sourceUrl":null,"author":"EliteSCADA","derivationNote":"Static SVG from the owner-supplied Compilado_SVGs.docx, included as library artwork. Not an interactive Dynamo."},
+      "editablePaintSlots": []
+    },
+    {
+      "id": "builtin.asset.elite-saneamento.estrutura-cilindrica-detalhada",
+      "key": "elite-saneamento.estrutura-cilindrica-detalhada",
+      "displayName": "Estrutura cilíndrica detalhada",
+      "sourceFile": "assets/sources/elite-saneamento/estrutura-cilindrica-detalhada.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["estrutura", "cilíndrica", "máquina", "cylinder", "saneamento"],
+      "searchKeywords": ["estrutura cilíndrica detalhada", "Elite Saneamento", "detailed cylindrical structure"],
+      "status": "draft",
+      "provenance": {"classification":"original-elitescada","sourceUrl":null,"author":"EliteSCADA","derivationNote":"SVG from the owner-supplied Compilado_SVGs.docx. Embedded CSS class declarations converted to equivalent presentation attributes for the static safe SVG subset; geometry and colors preserved."},
+      "editablePaintSlots": []
+    },
+    {
+      "id": "builtin.asset.elite-saneamento.painel-maquina-controle",
+      "key": "elite-saneamento.painel-maquina-controle",
+      "displayName": "Painel de controle de máquina",
+      "sourceFile": "assets/sources/elite-saneamento/painel-maquina-controle.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["painel", "controle", "máquina", "control", "saneamento"],
+      "searchKeywords": ["painel de controle de máquina", "Elite Saneamento", "machine control panel"],
+      "status": "draft",
+      "provenance": {"classification":"original-elitescada","sourceUrl":null,"author":"EliteSCADA","derivationNote":"SVG from the owner-supplied Compilado_SVGs.docx. Embedded CSS class declarations converted to equivalent presentation attributes for the static safe SVG subset; geometry and colors preserved."},
+      "editablePaintSlots": []
+    },
+    {
+      "id": "builtin.asset.elite-saneamento.estrutura-motor-horizontal",
+      "key": "elite-saneamento.estrutura-motor-horizontal",
+      "displayName": "Estrutura com motor horizontal",
+      "sourceFile": "assets/sources/elite-saneamento/estrutura-motor-horizontal.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["estrutura", "motor", "horizontal", "máquina", "saneamento"],
+      "searchKeywords": ["estrutura com motor horizontal", "Elite Saneamento", "horizontal motor structure"],
+      "status": "draft",
+      "provenance": {"classification":"original-elitescada","sourceUrl":null,"author":"EliteSCADA","derivationNote":"SVG from the owner-supplied Compilado_SVGs.docx. Embedded CSS class declarations converted to equivalent presentation attributes for the static safe SVG subset; geometry and colors preserved."},
+      "editablePaintSlots": []
+    },
+    {
+      "id": "builtin.asset.elite-saneamento.tanque-fluido-marrom",
+      "key": "elite-saneamento.tanque-fluido-marrom",
+      "displayName": "Tanque com fluido marrom",
+      "sourceFile": "assets/sources/elite-saneamento/tanque-fluido-marrom.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["tanque", "fluido", "bolhas", "marrom", "tank", "saneamento"],
+      "searchKeywords": ["tanque com fluido marrom", "Elite Saneamento", "brown fluid tank"],
+      "status": "draft",
+      "provenance": {
+        "classification": "original-elitescada", "sourceUrl": null, "author": "EliteSCADA",
+        "derivationNote": "SVG supplied by the project owner. Descriptive equipment name. Only the invalid SVG namespace was corrected; geometry, colors, gradient, hatch pattern and transparency preserved. Not generated by the asset factory."
+      },
+      "editablePaintSlots": []
+    },
+    {
+      "id": "builtin.asset.elite-saneamento.valvula-vertical",
+      "key": "elite-saneamento.valvula-vertical",
+      "displayName": "Válvula vertical",
+      "sourceFile": "assets/sources/elite-saneamento/valvula-vertical.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["válvula", "vertical", "verde", "valve", "saneamento"],
+      "searchKeywords": ["válvula vertical", "Elite Saneamento", "vertical valve"],
+      "status": "draft",
+      "provenance": {
+        "classification": "original-elitescada", "sourceUrl": null, "author": "EliteSCADA",
+        "derivationNote": "SVG supplied and named by the project owner. Only the invalid SVG namespace was corrected; geometry, colors, gradient and transparency preserved. Not generated by the asset factory."
+      },
+      "editablePaintSlots": []
+    },
+    {
+      "id": "builtin.asset.elite-saneamento.seta-vermelha",
+      "key": "elite-saneamento.seta-vermelha",
+      "displayName": "Seta vermelha",
+      "sourceFile": "assets/sources/elite-saneamento/seta-vermelha.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["seta", "vermelha", "fluxo", "arrow", "red", "saneamento"],
+      "searchKeywords": ["seta vermelha", "Elite Saneamento", "red arrow"],
+      "status": "draft",
+      "provenance": {
+        "classification": "original-elitescada", "sourceUrl": null, "author": "EliteSCADA",
+        "derivationNote": "SVG supplied by the project owner. Only the invalid SVG namespace was corrected; geometry, color and transparency preserved. Not generated by the asset factory."
+      },
+      "editablePaintSlots": []
+    },
+    {
+      "id": "builtin.asset.elite-saneamento.calha-com-acionamento",
+      "key": "elite-saneamento.calha-com-acionamento",
+      "displayName": "Calha com acionamento",
+      "sourceFile": "assets/sources/elite-saneamento/calha-com-acionamento.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["calha", "acionamento", "correia", "trough", "saneamento"],
+      "searchKeywords": ["calha com acionamento", "Elite Saneamento", "driven trough"],
+      "status": "draft",
+      "provenance": {
+        "classification": "original-elitescada", "sourceUrl": null, "author": "EliteSCADA",
+        "derivationNote": "SVG supplied by the project owner. Descriptive equipment name. Only the invalid SVG namespace was corrected; geometry, colors, gradients, hatch pattern and transparency preserved. Not generated by the asset factory."
+      },
+      "editablePaintSlots": []
+    },
+    {
+      "id": "builtin.asset.elite-saneamento.motor-inclinado-amarelo",
+      "key": "elite-saneamento.motor-inclinado-amarelo",
+      "displayName": "Motor inclinado amarelo",
+      "sourceFile": "assets/sources/elite-saneamento/motor-inclinado-amarelo.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["motor", "inclinado", "amarelo", "motor", "saneamento"],
+      "searchKeywords": ["motor inclinado amarelo", "Elite Saneamento", "inclined yellow motor"],
+      "status": "draft",
+      "provenance": {
+        "classification": "original-elitescada", "sourceUrl": null, "author": "EliteSCADA",
+        "derivationNote": "SVG supplied by the project owner. Only the invalid SVG namespace was corrected; geometry, colors, gradient, rotation and transparency preserved. Not generated by the asset factory."
+      },
+      "editablePaintSlots": []
+    },
+    {
+      "id": "builtin.asset.elite-saneamento.motor-horizontal-vermelho",
+      "key": "elite-saneamento.motor-horizontal-vermelho",
+      "displayName": "Motor horizontal vermelho",
+      "sourceFile": "assets/sources/elite-saneamento/motor-horizontal-vermelho.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["motor", "horizontal", "vermelho", "red", "saneamento"],
+      "searchKeywords": ["motor horizontal vermelho", "Elite Saneamento", "horizontal red motor"],
+      "status": "draft",
+      "provenance": {
+        "classification": "original-elitescada", "sourceUrl": null, "author": "EliteSCADA",
+        "derivationNote": "SVG supplied by the project owner. Only the invalid SVG namespace was corrected; geometry, colors, gradients and transparency preserved. Not generated by the asset factory."
+      },
+      "editablePaintSlots": []
+    },
+    {
+      "id": "builtin.asset.elite-saneamento.antena-verde",
+      "key": "elite-saneamento.antena-verde",
+      "displayName": "Antena verde",
+      "sourceFile": "assets/sources/elite-saneamento/antena-verde.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["antena", "verde", "antenna", "green", "saneamento"],
+      "searchKeywords": ["antena verde", "Elite Saneamento", "green antenna"],
+      "status": "draft",
+      "provenance": {
+        "classification": "original-elitescada",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "SVG supplied by the project owner for inclusion in Elite Saneamento. Descriptive display name pending equipment identification. Only the invalid SVG namespace was corrected; geometry, colors, gradient and transparency preserved. Not generated by the asset factory."
+      },
+      "editablePaintSlots": []
+    },
+    {
+      "id": "builtin.asset.elite-saneamento.corpo-esferico-dourado",
+      "key": "elite-saneamento.corpo-esferico-dourado",
+      "displayName": "Corpo esférico dourado",
+      "sourceFile": "assets/sources/elite-saneamento/corpo-esferico-dourado.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["esférico", "dourado", "metálico", "spherical", "gold", "saneamento"],
+      "searchKeywords": ["corpo esférico dourado", "Elite Saneamento", "gold spherical body"],
+      "status": "draft",
+      "provenance": {
+        "classification": "original-elitescada",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "SVG supplied by the project owner for inclusion in Elite Saneamento. Descriptive display name pending equipment identification. Only the invalid SVG namespace was corrected; geometry, colors, gradient and transparency preserved. Not generated by the asset factory."
+      },
+      "editablePaintSlots": []
+    },
+    {
+      "id": "builtin.asset.elite-saneamento.valvula-manual-volante",
+      "key": "elite-saneamento.valvula-manual-volante",
+      "displayName": "Válvula manual com volante",
+      "sourceFile": "assets/sources/elite-saneamento/valvula-manual-volante.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["válvula", "manual", "volante", "valve", "handwheel", "saneamento"],
+      "searchKeywords": ["válvula manual com volante", "Elite Saneamento", "handwheel valve"],
+      "status": "draft",
+      "provenance": {
+        "classification": "original-elitescada",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "SVG supplied by the project owner for inclusion in Elite Saneamento. Only the invalid SVG namespace was corrected; geometry, colors, gradients and transparency preserved. Not generated by the asset factory."
+      },
+      "editablePaintSlots": []
+    },
+    {
+      "id": "builtin.asset.elite-saneamento.entrada-bomba-submersivel",
+      "key": "elite-saneamento.entrada-bomba-submersivel",
+      "displayName": "Entrada de bomba submersível",
+      "sourceFile": "assets/sources/elite-saneamento/entrada-bomba-submersivel.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["entrada", "bomba", "submersível", "pump", "inlet", "saneamento"],
+      "searchKeywords": ["entrada de bomba submersível", "Elite Saneamento", "pump inlet"],
+      "status": "draft",
+      "provenance": {
+        "classification": "original-elitescada",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "SVG supplied and identified as a submersible pump inlet by the project owner. Only the invalid SVG namespace was corrected; geometry, colors and transparency preserved. Not generated by the asset factory."
+      },
+      "editablePaintSlots": []
+    },
+    {
+      "id": "builtin.asset.elite-saneamento.bomba-submersivel",
+      "key": "elite-saneamento.bomba-submersivel",
+      "displayName": "Bomba submersível",
+      "sourceFile": "assets/sources/elite-saneamento/bomba-submersivel.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["bomba", "submersível", "pump", "submersible", "saneamento", "amarela"],
+      "searchKeywords": ["bomba submersível", "Elite Saneamento", "submersible pump"],
+      "status": "draft",
+      "provenance": {
+        "classification": "original-elitescada",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "SVG supplied by the project owner for inclusion in Elite Saneamento. Geometry, colors and transparent background preserved; not generated by the asset factory."
+      },
+      "editablePaintSlots": []
+    },
+    {
+      "id": "builtin.asset.elite-saneamento.motor-vertical",
+      "key": "elite-saneamento.motor-vertical",
+      "displayName": "Motor vertical",
+      "sourceFile": "assets/sources/elite-saneamento/motor-vertical.svg",
+      "categoryPath": "elite-saneamento",
+      "tags": ["motor", "vertical", "elétrico", "electric", "saneamento", "amarelo"],
+      "searchKeywords": ["motor vertical", "Elite Saneamento", "electric motor"],
+      "status": "draft",
+      "provenance": {
+        "classification": "original-elitescada",
+        "sourceUrl": null,
+        "author": "EliteSCADA",
+        "derivationNote": "SVG supplied by the project owner for inclusion in Elite Saneamento. Only the invalid SVG namespace was corrected; geometry, colors and transparency preserved. Not generated by the asset factory."
+      },
+      "editablePaintSlots": []
+    }
+  ]
+}

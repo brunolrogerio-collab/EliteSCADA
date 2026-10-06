@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { EngineeringSnapshot } from '../src/engineering/types';
+import { listUserVisualAssets } from '../src/engineering/visualAssetCatalogModel';
 import {
   buildLibraryCatalogEntries,
   filterLibraryCatalogEntries,
@@ -48,12 +49,31 @@ function snapshot(dynamos: unknown[] = [], visualAssets: unknown[] = [], extras:
 }
 
 test('catalog consumes Asset Factory taxonomy labels and preserves hierarchical matching', () => {
+  expect(libraryCatalogCategoryLabel('elite-saneamento', 'pt-BR')).toBe('Elite Saneamento');
   expect(libraryCatalogCategoryLabel('industrial/process/pumps', 'pt-BR')).toBe('Bombas');
   expect(libraryCatalogCategoryLabel('industrial/process/pumps', 'en')).toBe('Pumps');
   expect(libraryCatalogCategoryLabel('industrial/process/pumps', 'es')).toBe('Bombas');
   expect(libraryCatalogCategoryMatches('industrial/process/pumps', 'industrial')).toBe(true);
   expect(libraryCatalogCategoryMatches('industrial/process/pumps', 'industrial/process')).toBe(true);
   expect(libraryCatalogCategoryMatches('electrical/protection', 'industrial')).toBe(false);
+});
+
+test('inserted library SVG dependencies stay out of user asset lists and do not duplicate library entries', () => {
+  const asset = {
+    id: 'owner-svg', key: 'factory.owner-svg', name: 'Bomba submersível',
+    originalFileName: 'bomba.svg', mediaType: 'image/svg+xml', byteLength: 200,
+    sha256: 'a'.repeat(64), metadata: { factoryArtworkId: 'owner-svg', categoryPath: 'elite-saneamento' }
+  };
+  expect(listUserVisualAssets([asset])).toEqual([]);
+  expect(listUserVisualAssets([{ ...asset, metadata: {} }])).toHaveLength(1);
+  const model = snapshot([], [asset]);
+  const entries = buildLibraryCatalogEntries(model, [], [{
+    id: 'owner-svg', key: 'elite-saneamento.bomba-submersivel', name: asset.name,
+    category: 'elite-saneamento', style: 'elite-saneamento-outline', status: 'draft', tags: ['bomba']
+  }]);
+  expect(entries).toHaveLength(1);
+  expect(entries[0].origin).toBe('builtin');
+  expect(model.package.visualAssets).toHaveLength(1); // dependency preserved for renderer/export
 });
 
 test('factory SVGs are first-class built-in assets in the unified categories without mutating the project', () => {

@@ -6,8 +6,10 @@ test('real categorized factory library copies and inserts SVGs in screen, popup 
   test.setTimeout(120_000);
   const original = await (await request.get('/api/engineering/export/json')).json();
   const catalog = await (await request.get('/api/engineering/static-artwork')).json();
-  expect(catalog.entries).toHaveLength(2208);
-  const motor = catalog.entries.find((entry: any) => entry.category === 'industrial/rotating/motors');
+  expect(catalog.entries.length).toBeGreaterThan(2208);
+  expect(catalog.entries.filter((entry: any) => entry.category === 'elite-saneamento').map((entry: any) => entry.name).sort())
+    .toHaveLength(22);
+  const motor = catalog.entries.find((entry: any) => entry.key === 'elite-saneamento.motor-vertical');
   const valve = catalog.entries.find((entry: any) => entry.category === 'industrial/process/valves');
   expect(motor).toBeTruthy(); expect(valve).toBeTruthy();
   page.on('dialog', dialog => void dialog.accept());
@@ -26,6 +28,8 @@ test('real categorized factory library copies and inserts SVGs in screen, popup 
     let working = await (await request.get('/api/engineering/export/json')).json();
     const copied = working.visualAssets.find((asset: any) => asset.key === `factory.${motor.id}`);
     expect(copied.metadata).toMatchObject({ categoryPath: motor.category, factoryArtworkId: motor.id, artworkReviewStatus: 'draft' });
+    const userAssets = await (await request.get('/api/engineering/visual-assets')).json();
+    expect(userAssets.some((asset: any) => asset.id === copied.id)).toBeFalsy();
     const countAfterCopy = working.visualAssets.length;
 
     for (const section of ['Telas', 'Popups', 'Templates']) {
@@ -40,7 +44,7 @@ test('real categorized factory library copies and inserts SVGs in screen, popup 
       const svgCount = await editor.locator('[data-canvas-object-type="core.svgSymbol"]').count();
       await editor.getByTestId('visual-editor-side-tab-library').click();
       const palette = editor.getByTestId('static-artwork-palette');
-      await expect(palette.locator('header')).toContainText('2208');
+      await expect(palette.locator('header')).toContainText(String(catalog.entries.length));
       await palette.getByLabel('Categoria dos SVGs').selectOption(motor.category);
       await palette.getByLabel('Buscar SVG na biblioteca').fill(motor.name);
       await palette.locator(`[data-artwork-id="${motor.id}"]`).click();

@@ -137,11 +137,13 @@ public sealed class ShellyDigestSession
         _password = password.ToArray();
     }
 
-    public void AcceptChallenge(ShellyDigestChallenge challenge)
+    public void AcceptChallenge(ShellyDigestChallenge challenge, uint initialNonceCount = 0)
     {
         _challenge = challenge;
-        _nonceCount = 0;
+        _nonceCount = challenge.ReusableNonce ? initialNonceCount : 0;
     }
+
+    public uint NonceCount => _nonceCount;
 
     public object BuildAuth(ShellyAuthTransport transport)
     {

@@ -61,6 +61,28 @@ public sealed class ShellyRpcAuthenticationTests
     }
 
     [Fact]
+    public async Task HttpDigest_CurrentFirmware_PreservesNonceCountAcrossRpcCalls()
+    {
+        var authenticatedNc = new List<string>();
+        var handler = new ScriptedHttpHandler((call, request) =>
+        {
+            if (call is 1 or 3)
+                return Unauthorized("""Digest realm="shellyplus1-aabbcc", nonce="shared-nonce", algorithm=SHA-256, stale=false""");
+
+            var rpc = Parse(request);
+            authenticatedNc.Add(rpc.GetProperty("auth").GetProperty("nc").GetString()!);
+            return Ok(rpc.GetProperty("id").GetInt64(), new { ok = true });
+        });
+        using var password = new PasswordScope("shared-secret");
+        await using var client = Client(handler);
+
+        _ = await client.CallHttpAsync("Shelly.GetStatus", null, password.Bytes, legacyAuthentication: false);
+        _ = await client.CallHttpAsync("Shelly.GetStatus", null, password.Bytes, legacyAuthentication: false);
+
+        Assert.Equal(["00000001", "00000002"], authenticatedNc);
+    }
+
+    [Fact]
     public async Task HttpDigest_StaleChallenge_ReplacesNonceAndRestartsNonceCount()
     {
         var handler = new ScriptedHttpHandler((call, request) =>

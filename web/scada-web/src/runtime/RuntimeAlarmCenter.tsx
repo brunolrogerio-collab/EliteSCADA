@@ -98,8 +98,8 @@ const copy: Record<RuntimeAlarmCenterLocale, Copy> = {
   'pt-BR': {
     title: 'Central de alarmes',
     description: 'Alarmes ativos do Runtime. Sons são opcionais e, quando escolhidos, repetem até o reconhecimento.',
-    refresh: 'Atualizar', loading: 'Carregando alarmes ativos...', updated: 'Atualizado', activeVisible: 'Alarmes ativos visíveis',
-    awaitingAck: 'Aguardando ACK', acknowledged: 'Reconhecidos', criticalHigh: 'Críticos/altos sem ACK', empty: 'Nenhum alarme ativo visível.',
+    refresh: 'Atualizar', loading: 'Carregando alarmes...', updated: 'Atualizado', activeVisible: 'Alarmes visíveis',
+    awaitingAck: 'Aguardando ACK', acknowledged: 'Reconhecidos', criticalHigh: 'Críticos/altos sem ACK', empty: 'Nenhum alarme visível.',
     selectAlarm: 'Selecione um alarme', details: 'Detalhes', priority: 'Prioridade', state: 'Estado', type: 'Tipo', area: 'Área', activated: 'Ativado em',
     lastTransition: 'Última transição', lastValue: 'Último valor', acknowledgedAt: 'Reconhecido em', acknowledgedBy: 'Reconhecido por', tagId: 'TAG ID', definitionId: 'Alarm ID',
     acknowledge: 'Reconhecer alarme', acknowledging: 'Reconhecendo...', ackSuccess: 'Reconhecimento confirmado pelo servidor e estado atualizado.',
@@ -113,8 +113,8 @@ const copy: Record<RuntimeAlarmCenterLocale, Copy> = {
   en: {
     title: 'Alarm center',
     description: 'Active Runtime alarms. Sounds are optional and repeat until acknowledgement when configured.',
-    refresh: 'Refresh', loading: 'Loading active alarms...', updated: 'Updated', activeVisible: 'Visible active alarms',
-    awaitingAck: 'Awaiting ACK', acknowledged: 'Acknowledged', criticalHigh: 'Critical/high without ACK', empty: 'No visible active alarm.',
+    refresh: 'Refresh', loading: 'Loading alarms...', updated: 'Updated', activeVisible: 'Visible alarms',
+    awaitingAck: 'Awaiting ACK', acknowledged: 'Acknowledged', criticalHigh: 'Critical/high without ACK', empty: 'No visible alarms.',
     selectAlarm: 'Select an alarm', details: 'Details', priority: 'Priority', state: 'State', type: 'Type', area: 'Area', activated: 'Activated at',
     lastTransition: 'Last transition', lastValue: 'Last value', acknowledgedAt: 'Acknowledged at', acknowledgedBy: 'Acknowledged by', tagId: 'TAG ID', definitionId: 'Alarm ID',
     acknowledge: 'Acknowledge alarm', acknowledging: 'Acknowledging...', ackSuccess: 'Acknowledgement confirmed by the server and state refreshed.',
@@ -128,8 +128,8 @@ const copy: Record<RuntimeAlarmCenterLocale, Copy> = {
   es: {
     title: 'Centro de alarmas',
     description: 'Alarmas activas del Runtime. Los sonidos son opcionales y se repiten hasta el reconocimiento cuando están configurados.',
-    refresh: 'Actualizar', loading: 'Cargando alarmas activas...', updated: 'Actualizado', activeVisible: 'Alarmas activas visibles',
-    awaitingAck: 'Esperando ACK', acknowledged: 'Reconocidas', criticalHigh: 'Críticas/altas sin ACK', empty: 'No hay alarmas activas visibles.',
+    refresh: 'Actualizar', loading: 'Cargando alarmas...', updated: 'Actualizado', activeVisible: 'Alarmas visibles',
+    awaitingAck: 'Esperando ACK', acknowledged: 'Reconocidas', criticalHigh: 'Críticas/altas sin ACK', empty: 'No hay alarmas visibles.',
     selectAlarm: 'Seleccione una alarma', details: 'Detalles', priority: 'Prioridad', state: 'Estado', type: 'Tipo', area: 'Área', activated: 'Activada en',
     lastTransition: 'Última transición', lastValue: 'Último valor', acknowledgedAt: 'Reconocida en', acknowledgedBy: 'Reconocida por', tagId: 'TAG ID', definitionId: 'Alarm ID',
     acknowledge: 'Reconocer alarma', acknowledging: 'Reconociendo...', ackSuccess: 'Reconocimiento confirmado por el servidor y estado actualizado.',

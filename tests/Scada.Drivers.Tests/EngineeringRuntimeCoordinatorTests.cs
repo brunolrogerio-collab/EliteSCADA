@@ -73,8 +73,12 @@ public sealed class EngineeringRuntimeCoordinatorTests
 
         await WaitForAsync(() => Volatile.Read(ref forwardedTagEvents) > 0, TimeSpan.FromSeconds(2));
         await WaitForAsync(
-            () => !runtime.Alarms(activeOnly: true).Any(x => x.DefinitionId == alarmId),
+            () => runtime.Alarms().Any(x =>
+                x.DefinitionId == alarmId && x.State == AlarmState.Returned),
             TimeSpan.FromSeconds(2));
+        Assert.Contains(runtime.Alarms(activeOnly: true), x => x.DefinitionId == alarmId);
+        Assert.True(await runtime.AcknowledgeAlarmAsync(alarmId, "operator"));
+        Assert.DoesNotContain(runtime.Alarms(activeOnly: true), x => x.DefinitionId == alarmId);
 
         Assert.Contains(runtime.Describe().Drivers, x => x.DriverId == "modbus.tcp:plc-a");
         Assert.Contains(runtime.AlarmDefinitions(), x => x.Id == alarmId);

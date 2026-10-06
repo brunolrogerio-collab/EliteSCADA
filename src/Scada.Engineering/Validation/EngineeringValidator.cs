@@ -151,6 +151,21 @@ public static class EngineeringValidator
         return issues;
     }
 
+    public static IReadOnlyCollection<ImportIssue> ValidateLocation(LocationEngineeringDto location)
+    {
+        var issues = new List<ImportIssue>();
+        var key = location.Id?.ToString("D") ?? location.Name;
+        if (location.Id == Guid.Empty)
+            issues.Add(Error("LOCATION_ID_EMPTY", "Location stable identity cannot be empty.", ImportEntityKind.Location, key));
+        if (string.IsNullOrWhiteSpace(location.Name))
+            issues.Add(Error("LOCATION_NAME_REQUIRED", "Location name is required.", ImportEntityKind.Location, key));
+        if (location.ParentLocationId == Guid.Empty)
+            issues.Add(Error("LOCATION_PARENT_ID_EMPTY", "Location parent identity cannot be empty.", ImportEntityKind.Location, key));
+        if (location.Id.HasValue && location.ParentLocationId == location.Id)
+            issues.Add(Error("LOCATION_PARENT_SELF", "Location cannot be its own parent.", ImportEntityKind.Location, key));
+        return issues;
+    }
+
     public static IReadOnlyCollection<ImportIssue> ValidateEquipment(EquipmentEngineeringDto equipment)
     {
         var issues = new List<ImportIssue>();
@@ -168,6 +183,45 @@ public static class EngineeringValidator
         if (equipment.TemplateKey?.Any(char.IsWhiteSpace) == true)
             issues.Add(Error("EQUIPMENT_TEMPLATE_KEY_WHITESPACE", "Equipment template key cannot contain whitespace.", ImportEntityKind.Equipment, key));
         issues.AddRange(ValidateBindings(equipment.Bindings, ImportEntityKind.Equipment, key, allowTagPlaceholders: false));
+        if (equipment.LocationId == Guid.Empty)
+            issues.Add(Error("EQUIPMENT_LOCATION_ID_EMPTY", "Equipment Location identity cannot be empty.", ImportEntityKind.Equipment, key));
+
+        var sourceRoles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var source in equipment.SourceBindings ?? Array.Empty<EquipmentSourceBindingEngineeringDto>())
+        {
+            if (source.DataSourceId == Guid.Empty)
+                issues.Add(Error("EQUIPMENT_SOURCE_DATASOURCE_ID_EMPTY", "Equipment source binding requires a stable Data Source identity.", ImportEntityKind.Equipment, key));
+            if (string.IsNullOrWhiteSpace(source.StableDeviceIdentity))
+                issues.Add(Error("EQUIPMENT_SOURCE_DEVICE_IDENTITY_REQUIRED", "Equipment source binding requires an opaque stable device identity.", ImportEntityKind.Equipment, key));
+            if (!string.IsNullOrWhiteSpace(source.Role) && !sourceRoles.Add(source.Role))
+                issues.Add(Error("EQUIPMENT_SOURCE_ROLE_DUPLICATE", $"Equipment source role '{source.Role}' appears more than once.", ImportEntityKind.Equipment, key));
+        }
+
+        var capabilityIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var capability in equipment.Capabilities ?? Array.Empty<EquipmentCapabilityEngineeringDto>())
+        {
+            if (string.IsNullOrWhiteSpace(capability.Id))
+                issues.Add(Error("EQUIPMENT_CAPABILITY_ID_REQUIRED", "Equipment Capability requires a stable identity within the Equipment.", ImportEntityKind.Equipment, key));
+            else if (!capabilityIds.Add(capability.Id))
+                issues.Add(Error("EQUIPMENT_CAPABILITY_ID_DUPLICATE", $"Capability identity '{capability.Id}' appears more than once.", ImportEntityKind.Equipment, key));
+            if (string.IsNullOrWhiteSpace(capability.Kind))
+                issues.Add(Error("EQUIPMENT_CAPABILITY_KIND_REQUIRED", $"Capability '{capability.Id}' requires a semantic kind.", ImportEntityKind.Equipment, key));
+            if (capability.Version < 1)
+                issues.Add(Error("EQUIPMENT_CAPABILITY_VERSION_INVALID", $"Capability '{capability.Id}' version must be >= 1.", ImportEntityKind.Equipment, key));
+
+            var roles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var binding in capability.Bindings ?? Array.Empty<CapabilityRoleBindingEngineeringDto>())
+            {
+                if (string.IsNullOrWhiteSpace(binding.Role))
+                    issues.Add(Error("EQUIPMENT_CAPABILITY_ROLE_REQUIRED", $"Capability '{capability.Id}' contains a binding without a role.", ImportEntityKind.Equipment, key));
+                else if (!roles.Add(binding.Role))
+                    issues.Add(Error("EQUIPMENT_CAPABILITY_ROLE_DUPLICATE", $"Capability '{capability.Id}' role '{binding.Role}' appears more than once.", ImportEntityKind.Equipment, key));
+                if (!binding.TagId.HasValue && !binding.CommandId.HasValue)
+                    issues.Add(Error("EQUIPMENT_CAPABILITY_TARGET_REQUIRED", $"Capability '{capability.Id}' role '{binding.Role}' must reference a canonical TAG and/or Command identity.", ImportEntityKind.Equipment, key));
+                if (binding.TagId == Guid.Empty || binding.CommandId == Guid.Empty)
+                    issues.Add(Error("EQUIPMENT_CAPABILITY_TARGET_EMPTY", $"Capability '{capability.Id}' role '{binding.Role}' cannot use an empty target identity.", ImportEntityKind.Equipment, key));
+            }
+        }
         return issues;
     }
 

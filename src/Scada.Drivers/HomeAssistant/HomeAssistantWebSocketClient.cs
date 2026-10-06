@@ -58,8 +58,7 @@ public sealed class HomeAssistantWebSocketClient : IHomeAssistantClient
         var auth = HomeAssistantProtocol.ParseHandshake(await ReceiveFrameAsync(timeout.Token).ConfigureAwait(false));
         HomeAssistantVersion = auth.Version ?? HomeAssistantVersion;
         if (auth.Kind == HomeAssistantHandshakeKind.AuthInvalid)
-            throw new HomeAssistantAuthenticationException(
-                HomeAssistantProtocol.SanitizeFailure(auth.Message));
+            throw new HomeAssistantAuthenticationException("Home Assistant authentication failed.");
         if (auth.Kind != HomeAssistantHandshakeKind.AuthOk)
             throw new HomeAssistantAuthenticationException("Home Assistant authentication did not complete.");
         Authenticated = true;

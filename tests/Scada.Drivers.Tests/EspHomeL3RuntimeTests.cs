@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using Scada.Core.Commands;
 using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;

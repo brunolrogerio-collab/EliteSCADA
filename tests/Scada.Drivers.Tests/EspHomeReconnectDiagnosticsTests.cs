@@ -71,7 +71,9 @@ public sealed class EspHomeReconnectDiagnosticsTests
             Assert.Equal(TagQuality.Unavailable, CurrentQuality(cache, tag.Id));
             Assert.Equal("true", offline.ProtocolDetails!["expectedOffline"]);
             Assert.Equal("expected", offline.ProtocolDetails["deepSleepPolicy"]);
-            Assert.Equal("true", offline.ProtocolDetails["deviceReportsDeepSleep"]);
+            // The explicit policy is authoritative while the sleeping device has
+            // not yet provided DeviceInfo; capability evidence becomes known on wake.
+            Assert.Equal("false", offline.ProtocolDetails["deviceReportsDeepSleep"]);
             Assert.Equal(1, offline.Counters.UpdatesPublished);
 
             await Task.Delay(260);
@@ -91,7 +93,9 @@ public sealed class EspHomeReconnectDiagnosticsTests
                     && CurrentQuality(cache, tag.Id) == TagQuality.Good;
             }, TimeSpan.FromSeconds(3));
 
-            Assert.Equal("false", driver.GetCommunicationDiagnostics().ProtocolDetails!["expectedOffline"]);
+            var recovered = driver.GetCommunicationDiagnostics();
+            Assert.Equal("false", recovered.ProtocolDetails!["expectedOffline"]);
+            Assert.Equal("true", recovered.ProtocolDetails["deviceReportsDeepSleep"]);
         }
     }
 

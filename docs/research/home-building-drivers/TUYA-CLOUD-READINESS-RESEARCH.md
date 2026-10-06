@@ -17,7 +17,7 @@ It intentionally does not research or decide Intelbras. It uses official Tuya do
 
 **TUYA = GO_WITH_GATES**
 
-Reason: Tuya exposes a current, documented Cloud Development platform with current Cloud Service APIs, IoT Core, project/device authorization, signed HTTPS requests, device inventory/status/command APIs, and a Message Service based on a Pulsar-style queue. Brazil is explicitly supported in current data-center mapping. However, production depends on a paid IoT Core subscription, account/project and regional binding must be modeled explicitly, generic per-operation rate limits and message delivery semantics still need qualification, and legal/commercial terms for EliteSCADA redistribution/integration require review.
+Reason: Tuya exposes a current, documented Cloud Development platform with current Cloud Service APIs, IoT Core, project/device authorization, signed HTTPS requests, device inventory/status/command APIs, and a Message Service based on a Pulsar-style queue. Brazil is explicitly supported in current data-center mapping. However, production depends on a paid IoT Core subscription, account/project and regional binding must be modeled explicitly, stricter endpoint-specific limits/error semantics and Message Service delivery semantics still need qualification, and legal/commercial terms for EliteSCADA redistribution/integration require review.
 
 This is not a recommendation to start product code yet.
 
@@ -472,26 +472,35 @@ Two different limits must be separated.
 
 Monthly API-call and message allowances are public and plan-dependent. See section 4.
 
-### 15.2 Per-endpoint QPS/rate limits
+### 15.2 Generic rate protection and endpoint-specific limits
 
-A single generic current QPS limit for all intended IoT Core operations was not established from the public official pages reviewed here. Tuya documentation/support acknowledges request-per-second limits and individual APIs can publish their own limits.
+Current official Tuya support, updated 2026-08-19, publishes generic cloud-to-cloud traffic protection:
+
+- application traffic: **500,000 API invocations per day**;
+- API/interface traffic: **500 requests per second**;
+- an API invocation counts once it reaches Tuya, regardless of success or failure.
+
+These generic traffic-protection limits are separate from the monthly IoT Core API/message resource-pack allowances in section 4.
+
+This does **not** prove that every intended endpoint can safely consume the full generic ceiling. Individual APIs, plans, or services may apply stricter controls, and the exact current 429/vendor-error/backoff contract for the selected endpoints must still be qualified.
 
 Therefore:
 
-**RATE_LIMIT_NOT_PUBLIC / MUST_QUALIFY**
+**GENERIC_RATE_LIMIT_PUBLIC / ENDPOINT_SPECIFIC_LIMITS_MUST_QUALIFY**
 
 Before DEV, qualify at minimum:
 - token/auth endpoints;
 - inventory/device list;
 - device status reads;
 - device commands;
+- any stricter plan/endpoint-specific controls;
 - message subscription/consumer constraints.
 
-Runtime must still implement Retry-After/error-code aware backoff and must never tight-loop against quota/rate-limit errors.
+Runtime must implement vendor-error/Retry-After-aware backoff where applicable and must never tight-loop against quota/rate-limit errors.
 
 Official references:
 - https://developer.tuya.com/en/docs/iot/membership-service?id=K9m8k45jwvg9j
-- https://support.tuya.com/en/help/_detail/K9cjfvaoqyz2v
+- https://support.tuya.com/en/help/_detail/K8sdy1i4g9u0q
 
 ## 16. Failure and quality model
 
@@ -732,9 +741,9 @@ Requires:
    - define explicit Data Source region/authorization UX.
 
 3. **Runtime/event qualification gate**
-   - qualify exact per-endpoint QPS limits/error codes;
+   - qualify whether intended endpoints impose stricter limits than the published generic 500,000/day and 500/second protections, plus exact rate-limit error/backoff semantics;
    - qualify Message Service delivery/redelivery/order/retention semantics;
-   - select and review an in-process .NET Pulsar/message consumer dependency, or intentionally ship polling-first.
+   - review the official C# Pulsar path and its dependency/license/packaging posture, or intentionally ship polling-first.
 
 ## 24. Source register
 
@@ -758,6 +767,9 @@ All sources below are official Tuya properties and were accessed on 2026-10-06.
 | https://developer.tuya.com/en/docs/cloud/device-control?id=K95zu01ksols7 | current page, accessed 2026-10-06 | functions/specifications/commands/latest status |
 | https://developer.tuya.com/en/docs/iot/manage-messages?id=Ka49p7loog3ze | updated 2026-04-10 | Message Service, queue, subscriptions, test/production |
 | https://developer.tuya.com/en/docs/iot/Pulsar-SDK-get-message-go?id=Katu40rexevky | current page, accessed 2026-10-06 | Pulsar consumer/message shape |
+| https://developer.tuya.com/en/docs/iot/Pulsar-SDK-get-message-c?id=Kawpkk5vic1es | updated 2025-08-28 | official C#/.NET Message Service consumer path |
+| https://github.com/tuya/tuya-pulsar-sdk-dotnet | current repository, accessed 2026-10-06 | current sample targets net9.0 and references DotPulsar 3.4.0 + Newtonsoft.Json 13.0.1; no dependency adopted by this research |
+| https://support.tuya.com/en/help/_detail/K8sdy1i4g9u0q | updated 2026-08-19 | generic cloud-to-cloud protection: 500,000 calls/day and 500 calls/second |
 | https://hotel.console.tuya.com/policies/service | terms last updated 2021-11-04 | general platform/service terms and service-specific terms |
 
 ## 25. Decision

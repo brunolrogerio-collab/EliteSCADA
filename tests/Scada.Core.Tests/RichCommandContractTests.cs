@@ -163,6 +163,12 @@ public sealed class RichCommandContractTests
 
         Assert.Throws<ArgumentException>(() => RichCommandContract.NormalizeBinding(
             binding with { Version = 2 }));
+
+        Assert.Throws<ArgumentException>(() => RichCommandContract.NormalizeBinding(
+            binding with { EquipmentId = Guid.Empty, CapabilityId = null }));
+
+        Assert.Throws<ArgumentException>(() => RichCommandContract.NormalizeBinding(
+            binding with { EquipmentId = Guid.Empty, CapabilityId = "cover-main" }));
     }
 
     [Fact]

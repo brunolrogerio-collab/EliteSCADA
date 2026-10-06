@@ -49,6 +49,14 @@ public sealed class DriverInteractionContractTests
     }
 
     [Fact]
+    public void SharedScalar_RejectsUndefinedKindDuringSchemaNormalization()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            InteractionScalarContract.NormalizeSchema(
+                new InteractionScalarSchema((InteractionScalarKind)999)));
+    }
+
+    [Fact]
     public void Definition_NormalizesStableIdentitySchemaAndEquipmentScopedCapability()
     {
         var definitionId = Guid.NewGuid();
@@ -125,6 +133,43 @@ public sealed class DriverInteractionContractTests
     }
 
     [Fact]
+    public void Occurrence_RejectsDefaultOccurredAtAndUndefinedTimestampOrigin()
+    {
+        var definition = new TransientEventDefinition(
+            Guid.NewGuid(),
+            "device.event",
+            Array.Empty<TransientEventFieldDefinition>());
+        var source = new TransientEventSource(Guid.NewGuid(), "device-03");
+        var observed = DateTimeOffset.UtcNow;
+
+        Assert.Throws<ArgumentException>(() =>
+            TransientEventContract.ValidateOccurrence(
+                definition,
+                new TransientEventOccurrence(
+                    Guid.NewGuid(),
+                    definition.DefinitionId,
+                    definition.SemanticKey,
+                    source,
+                    Array.Empty<TransientEventFieldValue>(),
+                    observed,
+                    new TransientEventTimestamp(default, TransientEventTimestampOrigin.DeviceClock))));
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            TransientEventContract.ValidateOccurrence(
+                definition,
+                new TransientEventOccurrence(
+                    Guid.NewGuid(),
+                    definition.DefinitionId,
+                    definition.SemanticKey,
+                    source,
+                    Array.Empty<TransientEventFieldValue>(),
+                    observed,
+                    new TransientEventTimestamp(
+                        DateTimeOffset.UtcNow,
+                        (TransientEventTimestampOrigin)999))));
+    }
+
+    [Fact]
     public void Occurrence_RejectsMissingUnexpectedWrongKindDuplicateIdentityAndInvalidEvidence()
     {
         var definitionId = Guid.NewGuid();
@@ -174,13 +219,42 @@ public sealed class DriverInteractionContractTests
     }
 
     [Fact]
-    public void Source_RequiresStableDataSourceAndEquipmentForCapability()
+    public void SourceAndDefinition_RejectEmptyOptionalEquipmentIdentity()
     {
         Assert.Throws<ArgumentException>(() =>
             TransientEventContract.NormalizeSource(new TransientEventSource(Guid.Empty, "device")));
 
         Assert.Throws<ArgumentException>(() =>
             TransientEventContract.NormalizeSource(
+                new TransientEventSource(Guid.NewGuid(), "device", EquipmentId: Guid.Empty)));
+
+        Assert.Throws<ArgumentException>(() =>
+            TransientEventContract.NormalizeSource(
+                new TransientEventSource(
+                    Guid.NewGuid(),
+                    "device",
+                    EquipmentId: Guid.Empty,
+                    CapabilityId: "button-main")));
+
+        Assert.Throws<ArgumentException>(() =>
+            TransientEventContract.NormalizeSource(
                 new TransientEventSource(Guid.NewGuid(), "device", CapabilityId: "button-main")));
+
+        Assert.Throws<ArgumentException>(() =>
+            TransientEventContract.NormalizeDefinition(
+                new TransientEventDefinition(
+                    Guid.NewGuid(),
+                    "device.event",
+                    Array.Empty<TransientEventFieldDefinition>(),
+                    EquipmentId: Guid.Empty)));
+
+        Assert.Throws<ArgumentException>(() =>
+            TransientEventContract.NormalizeDefinition(
+                new TransientEventDefinition(
+                    Guid.NewGuid(),
+                    "device.event",
+                    Array.Empty<TransientEventFieldDefinition>(),
+                    EquipmentId: Guid.Empty,
+                    CapabilityId: "button-main")));
     }
 }

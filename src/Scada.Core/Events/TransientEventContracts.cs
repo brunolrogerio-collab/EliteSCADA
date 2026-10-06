@@ -70,6 +70,8 @@ public static class TransientEventContract
         ArgumentNullException.ThrowIfNull(definition);
         if (definition.DefinitionId == Guid.Empty)
             throw new ArgumentException("Transient Event DefinitionId is required.", nameof(definition));
+        if (definition.EquipmentId == Guid.Empty)
+            throw new ArgumentException("Transient Event EquipmentId cannot be empty when supplied.", nameof(definition));
 
         var semanticKey = SemanticKey(definition.SemanticKey, nameof(definition));
         var capabilityId = Optional(definition.CapabilityId, MaximumCapabilityIdLength, "CapabilityId");
@@ -177,9 +179,7 @@ public static class TransientEventContract
             Source = source,
             Payload = payload,
             ObservedAt = occurrence.ObservedAt.ToUniversalTime(),
-            OccurredAt = occurrence.OccurredAt is null
-                ? null
-                : occurrence.OccurredAt with { Value = occurrence.OccurredAt.Value.ToUniversalTime() },
+            OccurredAt = NormalizeOccurredAt(occurrence.OccurredAt),
             Causality = occurrence.Causality is null
                 ? null
                 : InteractionCausalityContract.Validate(occurrence.Causality)
@@ -191,6 +191,8 @@ public static class TransientEventContract
         ArgumentNullException.ThrowIfNull(source);
         if (source.DataSourceId == Guid.Empty)
             throw new ArgumentException("Transient Event source DataSourceId is required.", nameof(source));
+        if (source.EquipmentId == Guid.Empty)
+            throw new ArgumentException("Transient Event source EquipmentId cannot be empty when supplied.", nameof(source));
 
         var stableDeviceIdentity = Required(
             source.StableDeviceIdentity,
@@ -205,6 +207,18 @@ public static class TransientEventContract
             StableDeviceIdentity = stableDeviceIdentity,
             CapabilityId = capabilityId
         };
+    }
+
+    private static TransientEventTimestamp? NormalizeOccurredAt(TransientEventTimestamp? timestamp)
+    {
+        if (timestamp is null)
+            return null;
+        if (timestamp.Value == default)
+            throw new ArgumentException("Transient Event OccurredAt timestamp cannot be default.", nameof(timestamp));
+        if (!Enum.IsDefined(typeof(TransientEventTimestampOrigin), timestamp.Origin))
+            throw new ArgumentOutOfRangeException(nameof(timestamp), timestamp.Origin, "Unsupported Transient Event timestamp origin.");
+
+        return timestamp with { Value = timestamp.Value.ToUniversalTime() };
     }
 
     public static void ValidateEvidence(TransientEventEvidence? evidence)

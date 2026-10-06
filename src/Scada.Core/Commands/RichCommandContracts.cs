@@ -320,6 +320,8 @@ public static class RichCommandContract
             throw new ArgumentException("Driver Command Binding CommandId is required.", nameof(binding));
         if (binding.DataSourceId == Guid.Empty)
             throw new ArgumentException("Driver Command Binding DataSourceId is required.", nameof(binding));
+        if (binding.EquipmentId == Guid.Empty)
+            throw new ArgumentException("Driver Command Binding EquipmentId cannot be empty when supplied.", nameof(binding));
         if (binding.Version != DriverBindingVersion)
             throw new ArgumentException(
                 $"Driver Command Binding version '{binding.Version}' is unsupported; expected {DriverBindingVersion}.",

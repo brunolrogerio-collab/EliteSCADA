@@ -58,6 +58,8 @@ public static class InteractionScalarContract
     public static InteractionScalarSchema NormalizeSchema(InteractionScalarSchema schema)
     {
         ArgumentNullException.ThrowIfNull(schema);
+        if (!Enum.IsDefined(typeof(InteractionScalarKind), schema.Kind))
+            throw new ArgumentOutOfRangeException(nameof(schema), schema.Kind, "Unsupported scalar kind.");
 
         var unit = Optional(schema.Unit, MaximumUnitLength, "unit");
         var maximumLength = schema.MaximumLength;

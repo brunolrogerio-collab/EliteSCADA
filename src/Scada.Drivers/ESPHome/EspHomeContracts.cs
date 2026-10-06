@@ -30,6 +30,12 @@ public enum EspHomeEntityKind
     Unsupported
 }
 
+public enum EspHomeDeepSleepPolicy
+{
+    Normal,
+    Expected
+}
+
 public enum EspHomeWriteKind
 {
     None,
@@ -48,10 +54,19 @@ public sealed record EspHomeConnectionSettings(
     int Port = 6053,
     EspHomeNativeEncryptionMode EncryptionMode = EspHomeNativeEncryptionMode.Noise,
     TimeSpan? RequestTimeout = null,
-    TimeSpan? WriteReconcileTimeout = null)
+    TimeSpan? WriteReconcileTimeout = null,
+    TimeSpan? ReconnectMinimumDelay = null,
+    TimeSpan? ReconnectMaximumDelay = null,
+    TimeSpan? KeepAliveInterval = null,
+    EspHomeDeepSleepPolicy DeepSleepPolicy = EspHomeDeepSleepPolicy.Normal)
 {
     public TimeSpan EffectiveRequestTimeout => RequestTimeout ?? TimeSpan.FromSeconds(5);
     public TimeSpan EffectiveWriteReconcileTimeout => WriteReconcileTimeout ?? TimeSpan.FromSeconds(3);
+    public TimeSpan EffectiveReconnectMinimumDelay => ReconnectMinimumDelay ??
+        (DeepSleepPolicy == EspHomeDeepSleepPolicy.Expected ? TimeSpan.FromSeconds(10) : TimeSpan.FromMilliseconds(500));
+    public TimeSpan EffectiveReconnectMaximumDelay => ReconnectMaximumDelay ??
+        (DeepSleepPolicy == EspHomeDeepSleepPolicy.Expected ? TimeSpan.FromMinutes(1) : TimeSpan.FromSeconds(30));
+    public TimeSpan EffectiveKeepAliveInterval => KeepAliveInterval ?? TimeSpan.FromSeconds(30);
 
     public void Validate()
     {
@@ -63,6 +78,14 @@ public sealed record EspHomeConnectionSettings(
             throw new ArgumentOutOfRangeException(nameof(RequestTimeout));
         if (EffectiveWriteReconcileTimeout <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(WriteReconcileTimeout));
+        if (EffectiveReconnectMinimumDelay <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(ReconnectMinimumDelay));
+        if (EffectiveReconnectMaximumDelay < EffectiveReconnectMinimumDelay)
+            throw new ArgumentOutOfRangeException(nameof(ReconnectMaximumDelay),
+                "ESPHome reconnect maximum delay must be greater than or equal to minimum delay.");
+        if (EffectiveKeepAliveInterval < TimeSpan.FromSeconds(1))
+            throw new ArgumentOutOfRangeException(nameof(KeepAliveInterval),
+                "ESPHome keepalive interval must be at least one second.");
     }
 
     public string SanitizedEndpoint => $"tcp://{Host}:{Port}";
@@ -153,7 +176,22 @@ public interface IEspHomeNativeClient : IAsyncDisposable
     ValueTask SubscribeStatesAsync(CancellationToken cancellationToken = default);
     ValueTask<EspHomeStateUpdate> ReceiveStateAsync(CancellationToken cancellationToken = default);
     ValueTask SendCommandAsync(EspHomeCommand command, CancellationToken cancellationToken = default);
+    ValueTask SendPingAsync(CancellationToken cancellationToken = default);
     ValueTask DisconnectAsync(CancellationToken cancellationToken = default);
+}
+
+public sealed class EspHomeRemoteDisconnectException : IOException
+{
+    public EspHomeRemoteDisconnectException(int reason)
+        : base($"ESPHome peer requested disconnect (reason={reason}).") => Reason = reason;
+
+    public int Reason { get; }
+}
+
+public sealed class EspHomeDeviceIdentityChangedException : InvalidOperationException
+{
+    public EspHomeDeviceIdentityChangedException(string expected, string observed)
+        : base($"ESPHome stable device identity changed from '{expected}' to '{observed}'.") { }
 }
 
 public sealed class EspHomeDriverDescriptorProvider : ICommunicationDriverDescriptorProvider
@@ -162,7 +200,7 @@ public sealed class EspHomeDriverDescriptorProvider : ICommunicationDriverDescri
         EspHomeNativeContract.DriverType,
         "ESPHome Native API",
         DriverContractVersion: 1,
-        RuntimeCapabilities: DriverCapabilities.Read | DriverCapabilities.Write | DriverCapabilities.Subscribe,
+        RuntimeCapabilities: DriverCapabilities.Read | DriverCapabilities.Write | DriverCapabilities.Subscribe | DriverCapabilities.Diagnostics,
         EngineeringCapabilities: DriverEngineeringCapabilities.ConnectionTest | DriverEngineeringCapabilities.Discover,
         AcquisitionModes: [DriverAcquisitionMode.Subscription],
         ConfigurationSchema: new DriverConfigurationSchemaDescriptor(
@@ -180,7 +218,19 @@ public sealed class EspHomeDriverDescriptorProvider : ICommunicationDriverDescri
                 new("requestTimeoutMilliseconds", DriverConfigurationValueKind.Integer,
                     DefaultValue: "5000", Minimum: 100, Maximum: 300000, Advanced: true),
                 new("writeReconcileTimeoutMilliseconds", DriverConfigurationValueKind.Integer,
-                    DefaultValue: "3000", Minimum: 100, Maximum: 300000, Advanced: true)
+                    DefaultValue: "3000", Minimum: 100, Maximum: 300000, Advanced: true),
+                new("reconnectMinimumMilliseconds", DriverConfigurationValueKind.Integer,
+                    Minimum: 100, Maximum: 300000, Advanced: true,
+                    Description: "Default: 500 ms, or 10000 ms when deep-sleep policy is expected."),
+                new("reconnectMaximumMilliseconds", DriverConfigurationValueKind.Integer,
+                    Minimum: 100, Maximum: 3600000, Advanced: true,
+                    Description: "Default: 30000 ms, or 60000 ms when deep-sleep policy is expected."),
+                new("keepAliveMilliseconds", DriverConfigurationValueKind.Integer,
+                    DefaultValue: "30000", Minimum: 1000, Maximum: 300000, Advanced: true),
+                new("deepSleepPolicy", DriverConfigurationValueKind.Enum,
+                    DefaultValue: "normal",
+                    AllowedValues: ["normal", "expected"],
+                    Description: "Use expected only for intentionally sleeping nodes. Offline state remains unavailable; it is never reported healthy.")
             ],
             TagBindingFields:
             [

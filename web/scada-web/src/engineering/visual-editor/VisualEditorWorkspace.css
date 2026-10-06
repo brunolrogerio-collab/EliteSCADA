@@ -122,6 +122,9 @@
 
 .visual-editor-side-section,.visual-editor-inspector-section{display:grid;gap:8px;padding:6px 0;border-top:1px solid transparent}
 .visual-editor-side-section.is-active,.visual-editor-inspector-section.is-active{border-top-color:var(--eng-accent,#58a6d6)}
+.visual-editor-inspector-section[data-inspector-section="properties"]{display:flex;flex-direction:column;align-items:stretch}
+.visual-editor-inspector-section[data-inspector-section="properties"]>.visual-editor-dynamo-inspector{flex:0 0 auto;max-height:min(48vh,420px)}
+.visual-editor-inspector-section[data-inspector-section="properties"]>.visual-editor-dynamo-inspector>.visual-editor-dynamo-inspector__body{max-height:min(42vh,350px)}
 .visual-editor-side-section[data-side-section="structure"]{min-height:90px}
 
 /* Compact, theme-safe editor chrome and truly docked/resizable side panels. */

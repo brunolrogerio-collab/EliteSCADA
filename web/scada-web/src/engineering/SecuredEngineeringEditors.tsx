@@ -11,7 +11,7 @@ import { TagAddressEditor } from './TagAddressEditor';
 import { TagCommissioningPanel } from './TagCommissioningPanel';
 import { TagSourceSelector } from './TagSourceSelector';
 import { TagDuplicationPanel, type TagDuplicationPanelHandle } from './TagDuplicationPanel';
-import { EngineeringResourceOrganizer } from './EngineeringResourceOrganizer';
+import { EngineeringResourceOrganizer, engineeringCopyName } from './EngineeringResourceOrganizer';
 import { EngineeringEntityActions } from './EngineeringEntityActions';
 import { WorkflowFormDisclosure, WorkflowFormSection } from './StructuredFormPrimitives';
 import { ALARM_SOUND_PROFILES, alarmSoundProfileLabel, isAlarmSoundProfile, playAlarmSoundProfile } from '../runtime/alarmSounds';
@@ -406,13 +406,14 @@ export function DataSourceEditor({ model, locale }: EditorProps) {
   );
 }
 
-export function AlarmEditor({ model, locale }: EditorProps) {
+export function AlarmEditor({ model, locale, projectKey = 'workspace' }: EditorProps) {
   const text = useMemo(() => editorTranslator(locale), [locale]);
   const mutation = useSecuredMutation(model, locale);
   const alarms = model.alarms;
   const [query, setQuery] = useState('');
   const [selectedIdentity, setSelectedIdentity] = useState<string | null>(() => alarms[0] ? alarmIdentity(alarms[0]) : null);
   const [soundPreviewError, setSoundPreviewError] = useState<string | null>(null);
+  const pendingAlarmPaste = useRef<AlarmEngineering | null>(null);
   const soundText = alarmSoundEditorText(locale);
   const isNew = selectedIdentity === NEW_ALARM_IDENTITY;
   const selected = !isNew && selectedIdentity ? alarms.find(alarm => alarmIdentity(alarm) === selectedIdentity) ?? null : null;
@@ -420,7 +421,8 @@ export function AlarmEditor({ model, locale }: EditorProps) {
 
   useEffect(() => {
     if (selectedIdentity === NEW_ALARM_IDENTITY) {
-      setDraft(newAlarmDraft());
+      setDraft(pendingAlarmPaste.current ?? newAlarmDraft());
+      pendingAlarmPaste.current = null;
       mutation.invalidate();
       return;
     }
@@ -491,14 +493,27 @@ export function AlarmEditor({ model, locale }: EditorProps) {
           actionActive={isNew}
           onAction={() => chooseIdentity(NEW_ALARM_IDENTITY)}
         >
-          {filtered.map(alarm => {
-            const identity = alarmIdentity(alarm);
-            return (
-              <button type="button" className={identity === selectedIdentity ? 'selected' : ''} aria-current={identity === selectedIdentity ? 'true' : undefined} key={identity} onClick={() => chooseIdentity(identity)}>
-                <strong>{alarm.name}</strong><code>{alarm.tagPath ?? alarm.tagId ?? '—'}</code><span>{alarm.type} · {alarm.priority}</span>
-              </button>
-            );
-          })}
+          <EngineeringResourceOrganizer
+            projectKey={projectKey}
+            kind="alarms"
+            locale={locale}
+            label={locale === 'en' ? 'Alarms' : locale === 'es' ? 'Alarmas' : 'Alarmes'}
+            resources={filtered.map(alarm => ({ identity: alarmIdentity(alarm), name: alarm.name, details: `${alarm.tagPath ?? alarm.tagId ?? '—'} · ${alarm.type} · ${alarm.priority}`, value: alarm }))}
+            selectedIdentity={selectedIdentity}
+            onSelect={chooseIdentity}
+            onPaste={source => {
+              if (changed && !window.confirm(text('editor.discardConfirm'))) return;
+              const copy = clone(source);
+              delete copy.id;
+              copy.name = engineeringCopyName(source.name || 'Alarm', locale);
+              if (selectedIdentity === NEW_ALARM_IDENTITY) setDraft(copy);
+              else {
+                pendingAlarmPaste.current = copy;
+                setSelectedIdentity(NEW_ALARM_IDENTITY);
+              }
+            }}
+            emptyLabel={text('editor.noResults')}
+          />
         </EntityPicker>
 
         <section className="eng-editor-form-panel">

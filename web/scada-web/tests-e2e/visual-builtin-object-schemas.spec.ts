@@ -17,6 +17,7 @@ const expectedTypes = [
   'core.polygon',
   'core.text',
   'core.image',
+  'core.model3d',
   'core.videoPlayer',
   'core.pdfViewer',
   'core.reportLauncher',
@@ -36,6 +37,10 @@ test('built-in visual object types are stable and unique', () => {
 });
 
 test('built-in schemas expose only relevant shared visual properties', () => {
+  const model3d = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.model3d);
+  expect(model3d.declares(VISUAL_PROPERTY_KEYS.assetRef)).toBeTruthy();
+  expect(model3d.declares(VISUAL_PROPERTY_KEYS.visible)).toBeTruthy();
+
   const rectangle = getBuiltinVisualObjectSchema(BUILTIN_VISUAL_OBJECT_TYPES.rectangle);
   expect(rectangle.declares(VISUAL_PROPERTY_KEYS.fillStyle)).toBeTruthy();
   expect(rectangle.declares(VISUAL_PROPERTY_KEYS.fillColor)).toBeTruthy();

@@ -555,12 +555,12 @@ export function VisualEditorWorkspace({ snapshot, locale, onApplied, onAssetImpo
             <VisualEditorRegionToggle region="screens" collapsed={screensCollapsed} locale={locale} onToggle={() => setScreensCollapsed(value => !value)} />
           </div>
         </header>
-        {definitionKind === 'screen' ? <EngineeringResourceOrganizer
+        {definitionKind === 'screen' || definitionKind === 'template' ? <EngineeringResourceOrganizer
           projectKey={snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace'}
-          kind="screens"
+          kind={definitionKind === 'template' ? 'templates' : 'screens'}
           locale={locale}
-          label={text.screens}
-          resources={screens.map(screen => ({ identity: `key:${screen.key}`, name: screen.name || screen.key, details: `${screen.key} · ${screen.route || text.noRoute} · ${countVisualElements(screen.elements)} ${text.objects}`, value: screen }))}
+          label={definitionKind === 'template' ? (locale === 'en' ? 'Templates' : locale === 'es' ? 'Plantillas' : 'Templates') : text.screens}
+          resources={screens.map(screen => ({ identity: `key:${screen.key}`, name: screen.name || screen.key, details: `${screen.key} · ${definitionKind === 'screen' ? `${screen.route || text.noRoute} · ` : ''}${countVisualElements(screen.elements)} ${text.objects}`, value: screen }))}
           selectedIdentity={selected ? `key:${selected.key}` : null}
           onSelect={identity => {
             const screen = screens.find(item => `key:${item.key}` === identity);

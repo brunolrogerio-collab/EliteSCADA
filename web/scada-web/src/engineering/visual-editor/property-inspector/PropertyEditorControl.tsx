@@ -265,9 +265,11 @@ function AssetReferenceControl({
     ? ['video/mp4', 'video/webm']
     : objectType === 'core.pdfViewer'
       ? ['application/pdf']
-      : objectType === 'core.svgSymbol'
-        ? ['image/svg+xml']
-        : ['image/png', 'image/jpeg', 'image/bmp', 'image/svg+xml'];
+      : objectType === 'core.model3d'
+        ? ['model/gltf-binary', 'model/gltf+json']
+        : objectType === 'core.svgSymbol'
+          ? ['image/svg+xml']
+          : ['image/png', 'image/jpeg', 'image/bmp', 'image/svg+xml'];
   const assets = visualAssets.filter(asset => typeof asset.id === 'string' && asset.id.length > 0 && acceptedTypes.includes(asset.mediaType));
   const selectedValue = current.startsWith('asset:') ? current.slice('asset:'.length) : current;
 

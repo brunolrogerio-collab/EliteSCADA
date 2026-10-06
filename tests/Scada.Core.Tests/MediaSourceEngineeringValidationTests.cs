@@ -59,12 +59,34 @@ public sealed class MediaSourceEngineeringValidationTests
     }
 
     [Fact]
+    public void ModelPayloadInspector_AcceptsSelfContainedGltfAndRejectsExternalResources()
+    {
+        var safe = System.Text.Encoding.UTF8.GetBytes("{\"asset\":{\"version\":\"2.0\"},\"buffers\":[{\"uri\":\"data:application/octet-stream;base64,AA==\"}]} ");
+        var unsafeExternal = System.Text.Encoding.UTF8.GetBytes("{\"asset\":{\"version\":\"2.0\"},\"buffers\":[{\"uri\":\"https://example.test/model.bin\"}]}");
+        Assert.Equal(VisualAssetContentInspector.GltfMediaType, VisualAssetContentInspector.InspectAndCanonicalize(safe).MediaType);
+        Assert.Throws<InvalidDataException>(() => VisualAssetContentInspector.InspectAndCanonicalize(unsafeExternal));
+
+        var json = System.Text.Encoding.UTF8.GetBytes("{\"asset\":{\"version\":\"2.0\"}}");
+        var chunkLength = (json.Length + 3) & ~3;
+        var glb = new byte[20 + chunkLength];
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(glb.AsSpan(0, 4), 0x46546C67);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(glb.AsSpan(4, 4), 2);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(glb.AsSpan(8, 4), (uint)glb.Length);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(glb.AsSpan(12, 4), (uint)chunkLength);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(glb.AsSpan(16, 4), 0x4E4F534A);
+        json.CopyTo(glb.AsSpan(20));
+        glb.AsSpan(20 + json.Length).Fill(0x20);
+        Assert.Equal(VisualAssetContentInspector.GlbMediaType, VisualAssetContentInspector.InspectAndCanonicalize(glb).MediaType);
+    }
+
+    [Fact]
     public void VisualAssetMediaLimits_KeepImagesSmallAndAllowBoundedDocumentAndVideoPayloads()
     {
         Assert.Equal(16L * 1024 * 1024, VisualAssetEngineeringValidator.MaximumBytesFor("image/png"));
         Assert.Equal(32L * 1024 * 1024, VisualAssetEngineeringValidator.MaximumBytesFor(VisualAssetContentInspector.PdfMediaType));
         Assert.Equal(64L * 1024 * 1024, VisualAssetEngineeringValidator.MaximumBytesFor(VisualAssetContentInspector.Mp4MediaType));
         Assert.Equal(64L * 1024 * 1024, VisualAssetEngineeringValidator.MaximumBytesFor(VisualAssetContentInspector.WebmMediaType));
+        Assert.Equal(32L * 1024 * 1024, VisualAssetEngineeringValidator.MaximumBytesFor(VisualAssetContentInspector.GlbMediaType));
     }
 
     [Theory]

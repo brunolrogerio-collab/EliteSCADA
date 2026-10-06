@@ -26,6 +26,7 @@ internal static class VisualAssetReferenceEngineeringValidation
         var issues = new List<ImportIssue>();
         if (package.SchemaVersion < 13 ||
             (!element.Type.Equals(BuiltinVisualObjectSchemas.ImageType, StringComparison.Ordinal) &&
+             !element.Type.Equals(BuiltinVisualObjectSchemas.Model3dType, StringComparison.Ordinal) &&
              !element.Type.Equals(BuiltinVisualObjectSchemas.SvgSymbolType, StringComparison.Ordinal) &&
              !element.Type.Equals(BuiltinVisualObjectSchemas.PdfViewerType, StringComparison.Ordinal) &&
              !element.Type.Equals(BuiltinVisualObjectSchemas.VideoPlayerType, StringComparison.Ordinal)) ||
@@ -61,6 +62,7 @@ internal static class VisualAssetReferenceEngineeringValidation
 
         var mediaValid = element.Type switch
         {
+            BuiltinVisualObjectSchemas.Model3dType => asset.MediaType is VisualAssetContentInspector.GlbMediaType or VisualAssetContentInspector.GltfMediaType,
             BuiltinVisualObjectSchemas.PdfViewerType => asset.MediaType.Equals(VisualAssetContentInspector.PdfMediaType, StringComparison.OrdinalIgnoreCase),
             BuiltinVisualObjectSchemas.VideoPlayerType => asset.MediaType is VisualAssetContentInspector.Mp4MediaType or VisualAssetContentInspector.WebmMediaType,
             _ => true

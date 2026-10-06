@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   applyEngineeringPackage,
   loadEngineeringWorkspace,
@@ -7,6 +7,7 @@ import {
 import type { EngineeringLocale } from './i18n';
 import type { EngineeringPackageView, ImportPreviewView } from './types';
 import { WorkflowFormDisclosure, WorkflowFormSection } from './StructuredFormPrimitives';
+import { EngineeringResourceOrganizer, engineeringCopyName, uniqueEngineeringKey } from './EngineeringResourceOrganizer';
 import './structured-editors.css';
 
 export type OperationalEventEngineering = {
@@ -32,6 +33,7 @@ type PackageWithOperationalEvents = EngineeringPackageView & {
 type Props = {
   model: EngineeringPackageView;
   locale: EngineeringLocale;
+  projectKey?: string;
   onApplied?: () => Promise<void> | void;
 };
 
@@ -41,10 +43,11 @@ export function operationalEventCount(model: EngineeringPackageView): number {
   return operationalEvents(model).length;
 }
 
-export function OperationalEventEditor({ model, locale, onApplied }: Props) {
+export function OperationalEventEditor({ model, locale, projectKey = 'workspace', onApplied }: Props) {
   const copy = useMemo(() => operationalEventCopy(locale), [locale]);
   const events = operationalEvents(model);
   const [query, setQuery] = useState('');
+  const pendingPaste = useRef<OperationalEventEngineering | null>(null);
   const [selectedIdentity, setSelectedIdentity] = useState<string | null>(() =>
     events[0] ? operationalEventIdentity(events[0]) : null);
   const isNew = selectedIdentity === NEW_IDENTITY;
@@ -65,6 +68,10 @@ export function OperationalEventEditor({ model, locale, onApplied }: Props) {
     // that draft here: doing so reintroduces the C17-class transition window where
     // new-mode identity and the previous persisted entity draft briefly disagree.
     if (selectedIdentity === NEW_IDENTITY) {
+      if (pendingPaste.current) {
+        setDraft(pendingPaste.current);
+        pendingPaste.current = null;
+      }
       invalidatePreview();
       return;
     }
@@ -228,28 +235,25 @@ export function OperationalEventEditor({ model, locale, onApplied }: Props) {
             <span>{copy.search}</span>
             <input value={query} onChange={event => setQuery(event.target.value)} placeholder={copy.searchPlaceholder} />
           </label>
-          <div className="eng-entity-grid" aria-label={copy.listLabel}>
-            {filtered.map(item => {
-              const identity = operationalEventIdentity(item);
-              return (
-                <button
-                  type="button"
-                  key={identity}
-                  className={identity === selectedIdentity ? 'active' : ''}
-                  aria-current={identity === selectedIdentity ? 'true' : undefined}
-                  onClick={() => choose(identity)}
-                  disabled={busy}
-                >
-                  <strong>{item.name}</strong>
-                  <span>{item.key}</span>
-                  <small>{item.type} · {item.category}</small>
-                </button>
-              );
-            })}
-            {filtered.length === 0 && (
-              <span className="eng-empty">{events.length === 0 && query.trim().length === 0 ? copy.emptyState : copy.noMatches}</span>
-            )}
-          </div>
+          <EngineeringResourceOrganizer
+            projectKey={projectKey} kind="operationalEvents" locale={locale} label={copy.listLabel}
+            resources={filtered.map(item => ({ identity: operationalEventIdentity(item), name: item.name, details: `${item.key} · ${item.type} · ${item.category}`, value: item }))}
+            selectedIdentity={selectedIdentity} onSelect={choose}
+            onPaste={source => {
+              if (changed && !window.confirm(copy.discardConfirm)) return;
+              const next = clone(source);
+              next.id = createStableId();
+              next.key = uniqueEngineeringKey(source.key, events.map(item => item.key));
+              next.name = engineeringCopyName(source.name || source.key, locale);
+              if (isNew) setDraft(next);
+              else {
+                pendingPaste.current = next;
+                setSelectedIdentity(NEW_IDENTITY);
+              }
+              invalidatePreview();
+            }}
+            emptyLabel={events.length === 0 && query.trim().length === 0 ? copy.emptyState : copy.noMatches}
+          />
         </aside>
 
         <section className="eng-editor-form-panel">

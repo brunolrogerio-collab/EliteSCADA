@@ -20,11 +20,15 @@ public static class VisualAssetContentInspector
     public const string PdfMediaType = "application/pdf";
     public const string Mp4MediaType = "video/mp4";
     public const string WebmMediaType = "video/webm";
+    public const string GlbMediaType = "model/gltf-binary";
+    public const string GltfMediaType = "model/gltf+json";
 
     public static VisualAssetContentInspection InspectAndCanonicalize(ReadOnlySpan<byte> content)
     {
         if (MediaPayloadInspector.TryInspect(content) is { } media)
             return media;
+        if (ModelPayloadInspector.TryInspect(content) is { } model)
+            return model;
 
         try
         {
@@ -47,6 +51,80 @@ public static class VisualAssetContentInspector
                     $"Visual asset is neither a structurally valid supported raster image nor an accepted static SVG. Raster: {rasterFailure.Message} SVG: {svgFailure.Message}",
                     svgFailure);
             }
+        }
+    }
+}
+
+/// <summary>Accepts only self-contained glTF 2.0 assets; external file/network references are rejected.</summary>
+internal static class ModelPayloadInspector
+{
+    private const uint GlbMagic = 0x46546C67;
+    private const uint JsonChunk = 0x4E4F534A;
+    private const uint BinaryChunk = 0x004E4942;
+
+    public static VisualAssetContentInspection? TryInspect(ReadOnlySpan<byte> content)
+    {
+        if (content.Length >= 4 && System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(content) == GlbMagic)
+        {
+            if (content.Length < 20) throw new InvalidDataException("GLB header is truncated.");
+            var version = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(content[4..]);
+            var declaredLength = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(content[8..]);
+            var jsonLength = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(content[12..]);
+            var jsonType = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(content[16..]);
+            if (version != 2 || declaredLength != content.Length || jsonType != JsonChunk || jsonLength == 0 || jsonLength % 4 != 0 || jsonLength > content.Length - 20)
+                throw new InvalidDataException("GLB must have a valid glTF 2.0 header and JSON chunk.");
+            ValidateJson(content.Slice(20, checked((int)jsonLength)));
+            var next = 20 + checked((int)jsonLength);
+            if (next < content.Length)
+            {
+                if (content.Length - next < 8) throw new InvalidDataException("GLB binary chunk header is truncated.");
+                var binaryLength = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(content[next..]);
+                var binaryType = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(content[(next + 4)..]);
+                if (binaryType != BinaryChunk || binaryLength % 4 != 0 || binaryLength != content.Length - next - 8)
+                    throw new InvalidDataException("GLB binary chunk is invalid or contains unsupported trailing chunks.");
+            }
+            return new(VisualAssetContentInspector.GlbMediaType, null, null, content.ToArray());
+        }
+
+        var start = 0;
+        while (start < content.Length && content[start] is (byte)' ' or (byte)'\t' or (byte)'\r' or (byte)'\n') start++;
+        if (start >= content.Length || content[start] != (byte)'{') return null;
+        ValidateJson(content[start..]);
+        return new(VisualAssetContentInspector.GltfMediaType, null, null, content.ToArray());
+    }
+
+    private static void ValidateJson(ReadOnlySpan<byte> json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json.ToArray());
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("asset", out var asset) || asset.ValueKind != JsonValueKind.Object ||
+                !asset.TryGetProperty("version", out var version) || version.ValueKind != JsonValueKind.String || version.GetString() != "2.0")
+                throw new InvalidDataException("Only glTF 2.0 is supported.");
+            foreach (var collectionName in new[] { "buffers", "images" })
+            {
+                if (!root.TryGetProperty(collectionName, out var collection) || collection.ValueKind != JsonValueKind.Array) continue;
+                foreach (var item in collection.EnumerateArray())
+                {
+                    if (item.ValueKind != JsonValueKind.Object) continue;
+                    if (!item.TryGetProperty("uri", out var uri))
+                    {
+                        if (collectionName == "images" && item.TryGetProperty("bufferView", out _) &&
+                            (!item.TryGetProperty("mimeType", out var embeddedMime) || embeddedMime.ValueKind != JsonValueKind.String ||
+                             embeddedMime.GetString() is not ("image/png" or "image/jpeg" or "image/webp")))
+                            throw new InvalidDataException("Embedded glTF images must be PNG, JPEG or WebP.");
+                        continue;
+                    }
+                    if (uri.ValueKind != JsonValueKind.String || !System.Text.RegularExpressions.Regex.IsMatch(uri.GetString()!,
+                        "^data:(application/octet-stream|application/gltf-buffer|image/(png|jpeg|webp));base64,", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant))
+                        throw new InvalidDataException("glTF files must embed supported buffers and raster images as base64 data URIs; external resources are not accepted.");
+                }
+            }
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException("glTF JSON is invalid.", ex);
         }
     }
 }

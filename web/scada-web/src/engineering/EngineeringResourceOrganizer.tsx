@@ -20,7 +20,7 @@ export function EngineeringResourceOrganizer<T>({
   projectKey, kind, locale, label, resources, selectedIdentity, selectedIdentities, onSelect, onPaste, onCopySelection, emptyLabel
 }: {
   projectKey: string;
-  kind: 'screens' | 'popups' | 'tags' | 'dataSources' | 'mediaSources';
+  kind: 'screens' | 'templates' | 'popups' | 'tags' | 'dataSources' | 'mediaSources' | 'alarms' | 'operationalEvents' | 'gatewayRoutes';
   locale: EngineeringLocale;
   label: string;
   resources: readonly EngineeringOrganizedResource<T>[];

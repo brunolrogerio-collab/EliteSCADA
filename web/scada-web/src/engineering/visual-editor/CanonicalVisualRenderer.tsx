@@ -40,6 +40,7 @@ import { NumericInputVisualElement } from './NumericInputVisualElement';
 import './CanonicalVisualInteraction.css';
 import { TrendVisualElement } from './TrendVisualElement';
 import { SvgSymbolVisualElement } from './SvgSymbolVisualElement';
+import { Model3dVisualElement } from './Model3dVisualElement';
 import { projectDynamoRuntimeElements, resolveDynamoRuntimeEquipmentPath } from '../../runtime/visual-navigation/dynamoRuntimeBindingProjection';
 import {
   cssStrokeStyle,
@@ -276,6 +277,16 @@ function CanonicalElement({
           src={visualAssetUrl(assetId)} alt={element.key} draggable={false}
           style={{ width: '100%', height: '100%', objectFit: imageFit(values[VISUAL_PROPERTY_KEYS.imageFit]), objectPosition: `${percent(values[VISUAL_PROPERTY_KEYS.imagePositionX])}% ${percent(values[VISUAL_PROPERTY_KEYS.imagePositionY])}%`, transform: `scale(${numberValue(values[VISUAL_PROPERTY_KEYS.imageZoom], 1)})`, transformOrigin: `${percent(values[VISUAL_PROPERTY_KEYS.imagePositionX])}% ${percent(values[VISUAL_PROPERTY_KEYS.imagePositionY])}%` }}
         /> : showTechnicalFallbackText ? <span className="visual-editor-image-placeholder">{element.key}</span> : null}
+      </div>;
+    }
+
+    if (element.type === BUILTIN_VISUAL_OBJECT_TYPES.model3d) {
+      const assetId = assetReferenceId(values[VISUAL_PROPERTY_KEYS.assetRef]);
+      return <div className="visual-editor-object" style={style}
+        data-object-id={element.id ?? undefined} data-runtime-object-id={runtimeObjectId}
+        data-enabled={enabled} title={elementTitle} data-dynamic-state={diagnosticState}>
+        {assetId ? <Model3dVisualElement src={visualAssetUrl(assetId)} label={element.key || '3D model'} />
+          : showTechnicalFallbackText ? <span className="visual-editor-image-placeholder">{element.key}</span> : null}
       </div>;
     }
 

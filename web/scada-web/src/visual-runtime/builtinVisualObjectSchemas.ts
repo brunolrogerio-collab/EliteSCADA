@@ -14,6 +14,7 @@ export const BUILTIN_VISUAL_OBJECT_TYPES = {
   polygon: 'core.polygon',
   text: 'core.text',
   image: 'core.image',
+  model3d: 'core.model3d',
   svgSymbol: 'core.svgSymbol',
   videoPlayer: 'core.videoPlayer',
   pdfViewer: 'core.pdfViewer',
@@ -165,6 +166,10 @@ const schemas = new Map<BuiltinVisualObjectType, VisualObjectPropertySchema>([
     VISUAL_PROPERTY_KEYS.imagePositionX,
     VISUAL_PROPERTY_KEYS.imagePositionY,
     VISUAL_PROPERTY_KEYS.imageZoom
+  ])],
+  [BUILTIN_VISUAL_OBJECT_TYPES.model3d, schema(BUILTIN_VISUAL_OBJECT_TYPES.model3d, [
+    ...BASE,
+    VISUAL_PROPERTY_KEYS.assetRef
   ])],
   [BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer, schema(BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer, [
     ...BASE,

@@ -305,10 +305,10 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, onR
 
   switch (section) {
     case 'dataSources': return <DataSourceEditor model={model} locale={locale} projectKey={snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace'}/>;
-    case 'gateway': return <GatewayEngineeringPanel model={model} locale={locale}/>;
+    case 'gateway': return <GatewayEngineeringPanel model={model} locale={locale} projectKey={snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace'}/>;
     case 'tags': return <TagEditor model={model} locale={locale} projectKey={snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace'}/>;
-    case 'alarms': return <AlarmEditor model={model} locale={locale}/>;
-    case 'operationalEvents': return <OperationalEventEditor model={model} locale={locale} onApplied={onReload}/>;
+    case 'alarms': return <AlarmEditor model={model} locale={locale} projectKey={snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace'}/>;
+    case 'operationalEvents': return <OperationalEventEditor model={model} locale={locale} projectKey={snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace'} onApplied={onReload}/>;
     case 'templates': return <VisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload} onAssetImported={onSnapshotRefreshed} definitionKind="template"/>;
     case 'equipment': return <EquipmentFaceplateWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
     case 'dynamos': return <DynamoCatalogSection items={model.dynamos ?? []} snapshot={snapshot} locale={locale} onApplied={onReload} onSnapshotRefreshed={onSnapshotRefreshed}/>;

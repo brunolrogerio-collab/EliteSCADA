@@ -137,6 +137,16 @@ test('W15 R2 editor mounts shared side surfaces, canonical Dynamo preview and co
   await expect(instanceInspector).toBeVisible();
   await expect(instanceInspector.locator('.visual-editor-dynamo-parameter').first()).toBeVisible();
   await expect(instanceInspector.getByText('motor.tefc', { exact: true })).toBeVisible();
+  const inspectorLayout = await instanceInspector.evaluate(element => {
+    const root = element.getBoundingClientRect();
+    const summary = element.querySelector('summary')!.getBoundingClientRect();
+    const body = element.querySelector('.visual-editor-dynamo-inspector__body')!.getBoundingClientRect();
+    const properties = element.parentElement!.querySelector('[data-testid="visual-property-inspector"]')!.getBoundingClientRect();
+    return { rootHeight: root.height, summaryHeight: summary.height, bodyHeight: body.height, rootBottom: root.bottom, propertiesTop: properties.top };
+  });
+  expect(inspectorLayout.rootHeight).toBeGreaterThan(inspectorLayout.summaryHeight + 100);
+  expect(inspectorLayout.bodyHeight).toBeLessThan(400);
+  expect(inspectorLayout.rootBottom).toBeLessThanOrEqual(inspectorLayout.propertiesTop);
   await expect(page.locator('.visual-editor-canvas-enhanced__canvas .visual-editor-svg-symbol').last()).toBeVisible();
 });
 

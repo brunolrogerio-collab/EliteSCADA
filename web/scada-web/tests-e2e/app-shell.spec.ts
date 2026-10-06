@@ -390,7 +390,7 @@ test('compact shell header separates navigation from actions and removes Help/Li
   await page.setViewportSize({ width: 1280, height: 844 });
   await page.locator('.eng-nav').getByRole('button', { name: /Fontes de dados/ }).click();
   await expect(page.locator('.eng-editor-shell')).toBeVisible();
-  const dataSourceList = page.locator('.eng-entity-picker');
+  const dataSourceList = page.getByTestId('data-source-list');
   const dataSourceListBox = await dataSourceList.boundingBox();
   expect(dataSourceListBox).not.toBeNull();
   expect(dataSourceListBox!.width).toBeLessThanOrEqual(260);

@@ -568,7 +568,8 @@ test('fullscreen Runtime uses compact branded shell while preserving History, Al
   await expect(alarms).toHaveAttribute('aria-pressed', 'true');
 
   await overview.click();
-  await expect(runtime.locator('.runtime-operator-overlay')).toHaveCount(0);
+  await expect(runtime.locator('#runtime-alarm-overlay')).toBeHidden();
+  await expect(runtime.getByTestId('runtime-history-overlay')).toHaveCount(0);
   await expect(overview).toHaveAttribute('aria-pressed', 'true');
 
   const toolbarBox = await toolbar.boundingBox();

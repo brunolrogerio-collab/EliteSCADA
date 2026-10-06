@@ -137,7 +137,10 @@ public static class HomeAssistantProtocol
         var root = document.RootElement;
         if (!string.Equals(RequireString(root, "type"), "result", StringComparison.Ordinal))
             throw new FormatException("Home Assistant command response is not a result message.");
-        if (!root.TryGetProperty("id", out var idElement) || !idElement.TryGetInt32(out var id) || id <= 0)
+        if (!root.TryGetProperty("id", out var idElement) ||
+            idElement.ValueKind != JsonValueKind.Number ||
+            !idElement.TryGetInt32(out var id) ||
+            id <= 0)
             throw new FormatException("Home Assistant result is missing a positive integer request id.");
         if (!root.TryGetProperty("success", out var successElement) ||
             successElement.ValueKind is not (JsonValueKind.True or JsonValueKind.False))

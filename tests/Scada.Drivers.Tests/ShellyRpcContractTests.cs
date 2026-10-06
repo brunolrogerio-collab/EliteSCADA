@@ -98,9 +98,9 @@ public sealed class ShellyRpcContractTests
         var candidate = ShellyComponentMapper.BuildMaterialization(info, componentsDoc.RootElement, statusDoc.RootElement);
 
         Assert.Equal("shellyplus1-abc", candidate.Equipment.StableDeviceIdentity);
-        Assert.Contains(candidate.Tags, x => x.PortableAddress == "switch:0.output" && !x.ReadOnly);
-        Assert.Contains(candidate.Tags, x => x.PortableAddress == "switch:0.aenergy.total" && x.ReadOnly);
-        Assert.Contains(candidate.Commands, x => x.CandidateId == "switch:0.command.on");
+        Assert.Contains(candidate.Tags!, x => x.PortableAddress == "switch:0.output" && !x.ReadOnly);
+        Assert.Contains(candidate.Tags!, x => x.PortableAddress == "switch:0.aenergy.total" && x.ReadOnly);
+        Assert.Contains(candidate.Commands!, x => x.CandidateId == "switch:0.command.on");
         Assert.Contains(candidate.Equipment.Capabilities!, x => x.Kind == "OnOff");
         Assert.Contains("mystery:0", candidate.Equipment.Metadata!["unmappedComponents"]);
     }

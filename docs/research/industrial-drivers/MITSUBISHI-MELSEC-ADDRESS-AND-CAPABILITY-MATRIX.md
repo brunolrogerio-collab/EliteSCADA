@@ -461,3 +461,251 @@ Accessed 2026-10-06:
   https://dl.mitsubishielectric.com/dl/fa/document/manual/plc/sh080809eng/sh080809engx.pdf
 
 **DOCS_ONLY / NO PRODUCT CODE CHANGED / NO DEPENDENCY CHANGED / NO CI CHANGED / NO MERGE PERFORMED**
+
+---
+
+# Checkpoint 2 — transaction and execution capability addendum
+
+## 22. Command capability matrix
+
+All limits below are bounded to the Q/L-compatible common forms selected for the v1 research profile. Exact family/module limits can be lower.
+
+| Command | Code | Shape | Common documented bound | Proposed v1 role |
+| --- | --- | --- | --- | --- |
+| Batch Read | 0401 | consecutive devices | binary bit 1..7168; word 1..960 | **REQUIRED** primary scan |
+| Batch Write | 1401 | consecutive devices | binary bit 1..7168; word 1..960 | **REQUIRED** one canonical write's physical span |
+| Read Random | 0403 | nonconsecutive word/dword | word + dword points <=192 | **OPTIMIZATION** sparse reads |
+| Write Random | 1402 | nonconsecutive writes | bit <=188; common encoded payload formula <=1920 | **NOT background WriteAsync coalescing** |
+| Read Block | 0406 | multiple word/bit blocks | <=120 blocks; total points <=960 | **OPTIMIZATION** multiple contiguous runs |
+| Write Block | 1406 | multiple blocks | <=120 blocks; blockCount*4 + total points <=960 | **NOT background WriteAsync coalescing** |
+| Read Type Name | 0101 | controller/module identity | one bounded identity response | **ConnectionTest / diagnostics** |
+| Self Test | 0619 | direct Ethernet module loopback | 1..960 bytes in documented form | optional Engineering evidence |
+
+Protocol maximums are ceilings, not universal preferred batch sizes.
+
+## 23. Scan planner invariants
+
+| Invariant | Required |
+| --- | --- |
+| One request per TAG by default | **NO** |
+| Group by Data Source | **YES** |
+| Group by route tuple | **YES** |
+| Structured parsed address before planning | **YES** |
+| Keep typed point wholly inside one segment | **YES** |
+| Validate family/profile range | **YES** |
+| Use 0401 for contiguous areas | **YES** |
+| Use 0403/0406 only when valid/cost-effective | **YES** |
+| Read across unknown invalid gaps | **NO** |
+| Merge unrelated Runtime.WriteAsync calls | **NO** |
+| Validate exact response length before demux | **YES** |
+| Treat Read Block as atomic snapshot | **NO** |
+
+## 24. Planner segmentation model
+
+Effective request bound is:
+
+~~~text
+min(
+  protocolHardMaximum,
+  familyProfileMaximum,
+  frameSizeMaximum,
+  operationalSoftCap
+)
+~~~
+
+The planner must not split:
+
+- Int32;
+- UInt32;
+- Float32;
+- any future multiword typed value
+
+across request boundaries.
+
+A small-gap optimization is future/profile-driven. Correctness default is **zero unvalidated gap**.
+
+## 25. Connection/session matrix
+
+| Property | V1 decision |
+| --- | --- |
+| Transport | TCP |
+| Connection ownership | Data Source |
+| Connection lifetime | persistent while active |
+| Connections per normal Data Source | one |
+| Outstanding requests per 3E connection | **one** |
+| Correlation serial | unavailable in 3E |
+| Request gate | required |
+| Parallel pipeline | no |
+| 4E bounded pipelining | later/profile-specific |
+| Socket reconnect | bounded backoff |
+| Half-open truth | next fresh protocol exchange |
+| PLC restart | reconnect + fresh acquisition |
+| Replay writes after reconnect | **never** |
+
+## 26. Timeout matrix
+
+| Timeout/budget | Owner | Meaning |
+| --- | --- | --- |
+| SLMP monitoring timer | protocol request | PLC/module command-monitoring budget |
+| client request timeout | driver session | maximum EliteSCADA wait for full operation |
+| scan cancellation | runtime | lifecycle/scan cancellation |
+| reconnect backoff | driver runtime | bounded recovery scheduling |
+
+The client timeout must allow the selected monitoring timer plus network/processing margin.
+
+## 27. Process-truth matrix
+
+| Evidence | What it proves | What it does not prove |
+| --- | --- | --- |
+| Socket write completed | bytes handed toward transport | PLC processed request |
+| Valid SLMP response | remote protocol response received | end code success |
+| End code 0 | command processing reported normal | memory still has value later |
+| Readback matches | addressed device memory observed expected | PLC logic preserved it indefinitely |
+| HMI/feedback TAG changes | canonical observed feedback changed | mechanical process definitely achieved objective |
+| physical sensor/process feedback | actual field evidence, depending system design | unrelated effects |
+
+Do not collapse these levels.
+
+## 28. Write retry matrix
+
+| Failure point | Automatic retry? | Required behavior |
+| --- | --- | --- |
+| Local validation fails | NO | reject before I/O |
+| Connect fails before request dispatch | bounded retry MAY be safe | reconnect within overall budget |
+| Read request times out | bounded retry YES | reset/reconnect |
+| Write may have been dispatched, response lost | **NO** | ambiguous -> reset -> readback if possible |
+| Explicit nonzero end code | NO blind retry | preserve end code / fail |
+| Reconnect after PLC restart | NO write replay | resume fresh reads only |
+| HA authority loss | NO | fence effects immediately |
+
+## 29. Engineering capability matrix
+
+| Capability | V1 | Notes |
+| --- | --- | --- |
+| ConnectionTest | YES | TCP + bounded protocol identity/probe |
+| PointReadTest | YES | exact address/type/route |
+| Discover | NO | no generic device discovery required/proven |
+| Browse | NO | manual address assistant is not browse |
+| FileImport | NO | no project importer |
+| Reconcile | NO | no discovered semantic namespace |
+| Model identification | YES where 0101 supported | evidence, not automatic compatibility admission |
+| Self Test | OPTIONAL | direct Ethernet module only where profile permits |
+
+## 30. PointRead evidence matrix
+
+| Surface | Mitsubishi evidence |
+| --- | --- |
+| Raw | bytes/words/bits + command/end-code metadata |
+| Decoded | native physical type after Mitsubishi ordering and explicit transform |
+| Engineering | canonical TAG value representation |
+| Quality | Good / BadCommunication / BadConfiguration / BadDevice as supported |
+| Latency | full request/response RTT |
+| Mutation | none |
+
+PointRead must use the runtime codec/parser but remains transient Engineering evidence.
+
+## 31. Diagnostic protocolDetails matrix
+
+Recommended safe keys:
+
+| Key | Example |
+| --- | --- |
+| transport | tcp |
+| frame | 3e |
+| encoding | binary |
+| familyProfile | fx5 / qnu / lcpu / iq-r-profile |
+| networkNo | 00 |
+| stationNo | FF |
+| moduleIoNo | 03FF |
+| multidropStationNo | 00 |
+| monitoringTimer | bounded formatted value |
+| modelName | observed sanitized model |
+| modelCode | observed code |
+| lastCommand | 0401 |
+| lastSubcommand | 0000 |
+| lastEndCode | 0000 |
+| lastBatchKind | batchRead |
+| lastBatchPoints | count |
+| lastBatchBlocks | count |
+| lastRttMilliseconds | duration |
+| lastFailureKind | timeout/endCode/malformed/etc |
+| ambiguousWriteCount | count |
+| lastWriteConfirmation | protocolAck/confirmedByReadback/ambiguous |
+
+Common reconnect/request/read/write counters stay in the shared diagnostic counters.
+
+## 32. Security matrix
+
+| Feature | V1 conclusion |
+| --- | --- |
+| Native TLS in selected 3E/TCP profile | **not present in reviewed v1 protocol profile** |
+| Generic authenticated secure session | **not present in reviewed v1 profile** |
+| Remote Password | profile-specific / later |
+| Remote Password equivalent to TLS | **NO** |
+| Trusted OT LAN/VLAN | recommended |
+| Firewall ACL | recommended |
+| VPN for remote access | recommended |
+| Direct public-Internet exposure | **prohibited product posture** |
+| Resolved password in diagnostics/logs | **never** |
+| Windows/Linux/container | compatible with ordinary outbound TCP networking |
+
+## 33. Implementation architecture matrix
+
+| Option | Status | Reason |
+| --- | --- | --- |
+| Built-in .NET codec/session | **RECOMMENDED** | bounded scope, exact async/timeout/write semantics, no dependency |
+| McpX | reference/fallback only | capable and MIT, but no need to outsource v1 core; version signals require revalidation |
+| e_MCProtocol | not v1 dependency | narrow/UDP-oriented package, not selected TCP profile |
+| McProtocol | not selected | stale package activity and license/maintenance revalidation required |
+| MitsubishiRx | not selected | broad dependency surface / package status requires revalidation |
+| Managed sidecar | **NOT_JUSTIFIED** | no native/vendor process requirement |
+| Reject implementation | **NO** | technical path remains viable |
+
+**V1_DEPENDENCY = NONE**
+
+## 34. EliteSCADA convergence matrix
+
+| Concern | Existing authority to reuse |
+| --- | --- |
+| Runtime lifecycle/read/write | ICommunicationDriver |
+| Runtime plan/factory | CommunicationDriverRuntimePlanning contracts |
+| HA effects | CommunicationDriverRuntimeServices.EffectAuthority |
+| Address envelope | CommunicationTagBinding |
+| Byte/word transform | TagPhysicalValueTransform |
+| ConnectionTest | Driver Engineering capability |
+| PointRead | shared DriverPointRead contract |
+| Diagnostics | CommunicationDriverDiagnosticSnapshot / #500 |
+| Working lifecycle | Preview/Apply/Save/Publish/Activate |
+| Cache/process values | canonical CurrentTagCache/TAG path |
+
+**RESEARCH_CONTRACT_DELTA_REQUIRED = NO**
+
+## 35. Checkpoint 2 decision
+
+**MITSUBISHI_MELSEC = GO_WITH_GATES**
+
+Resolved in Checkpoint 2:
+
+- bounded command surface;
+- batching/planner shape;
+- one-outstanding 3E session;
+- reconnect posture;
+- safe write ambiguity/no-replay model;
+- Engineering capability truth;
+- PointRead shape;
+- diagnostics extension;
+- security posture;
+- built-in .NET architecture;
+- no dependency adoption.
+
+Remaining for Checkpoint 3:
+
+- L0-L4 matrix;
+- independent peer selection;
+- hardware shortlist;
+- exact test CPUs/modules/firmware;
+- legal/trademark review;
+- final v1 recommendation.
+
+**DOCS_ONLY / NO PRODUCT CODE CHANGED / NO DEPENDENCY CHANGED / NO CI CHANGED / NO MERGE PERFORMED**
+

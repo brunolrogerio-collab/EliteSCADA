@@ -804,3 +804,1102 @@ Those belong to later checkpoints and require a new **SIGA**.
 **HA = High Availability**
 
 **HAB = Home Assistant Bridge**
+
+---
+
+# Checkpoint 2 — transaction engine, planner, session, process truth, Engineering and architecture
+
+## 23. Checkpoint 2 status
+
+Research branch at Checkpoint 2 start:
+
+- branch: **research/industrial-mitsubishi-melsec**
+- research HEAD: **8757ea3ec9c34e646e1266f13565bdfa3a4a2c2b**
+- integration: **wave15/corrections-integration@d2569990bc53dfce61ca8043471719e958809d6c**
+- start state: **ahead 1 / behind 0**
+- merge-base: **d2569990bc53dfce61ca8043471719e958809d6c**
+
+This checkpoint remains:
+
+**RESEARCH_ONLY / DOCS_ONLY / NO_PRODUCT_CODE / NO_MERGE_BY_RESEARCHER**
+
+Checkpoint 1 remains the protocol/family/address authority. Checkpoint 2 does not widen v1 beyond:
+
+- TCP;
+- binary 3E;
+- Q/L-compatible common device-access profile;
+- selected modern family profiles;
+- X/Y/M/L/B/D/W core device areas;
+- R only when a family profile proves it.
+
+Preliminary decision remains:
+
+**MITSUBISHI_MELSEC = GO_WITH_GATES**
+
+## 24. Checkpoint 2 official protocol evidence
+
+Primary authority remains:
+
+- **SLMP Reference Manual SH(NA)-080956ENG-N**
+- revision date: **October 2025**
+- accessed: **2026-10-06**
+- https://dl.mitsubishielectric.com/dl/fa/document/manual/plc/sh080956eng/sh080956engn.pdf
+
+The following command numbers and limits are from that manual's Q/L-compatible common device-access forms unless stated otherwise.
+
+### 24.1 Batch Read — command 0401
+
+Batch Read reads consecutive devices.
+
+For the common binary profile:
+
+- bit-device access: **1..7168 points**;
+- word-device access: **1..960 points**.
+
+The 960-word / 7168-bit values are hard protocol limits for the documented request form. They are **not** evidence that maximum-size requests are universally optimal for every CPU/module/scan.
+
+### 24.2 Batch Write — command 1401
+
+Batch Write writes consecutive devices.
+
+For the common binary profile:
+
+- bit-device access: **1..7168 points**;
+- word-device access: **1..960 points**.
+
+A normal response carries protocol completion/end-code evidence; it does not echo the written process value.
+
+### 24.3 Read Random — command 0403
+
+Read Random reads nonconsecutive word/double-word devices.
+
+For the Q/L-compatible common subcommand:
+
+**1 <= word-point-count + double-word-point-count <= 192**
+
+For the newer iQ-oriented subcommand the documented bound is lower. The v1 compatibility profile therefore uses the common Q/L-compatible limit, and a family profile may reduce it further.
+
+### 24.4 Write Random — command 1402
+
+The common Q/L-compatible form supports nonconsecutive writes with bounded encoded-size formulas.
+
+Relevant common limits include:
+
+- bit points: **<= 188**;
+- word/double-word payload sizing:
+  **1 <= wordPoints * 12 + doubleWordPoints * 14 <= 1920**.
+
+The newer iQ-oriented form uses smaller corresponding bounds.
+
+This command is valid protocol capability, but it is **not** the default execution shape for independent EliteSCADA Runtime.WriteAsync calls because combining unrelated effects changes timing, error and retry semantics.
+
+### 24.5 Read Block — command 0406
+
+Read Block can read multiple nonconsecutive blocks.
+
+For the common Q/L-compatible form:
+
+- total block count: **<= 120**;
+- total word points plus bit-block points: **<= 960**.
+
+A bit block is handled in 16-bit units according to the command definition.
+
+The manual also documents restrictions on device forms and warns that data consistency across access can depend on CPU/service processing. Therefore Read Block must not be presented as an atomic multi-block snapshot unless exact hardware evidence proves such semantics.
+
+### 24.6 Write Block — command 1406
+
+For the common Q/L-compatible form:
+
+- total block count: **<= 120**;
+- encoded workload condition:
+  **blockCount * 4 + totalWordPoints + totalBitPoints <= 960**.
+
+As with Write Random, protocol capability does not justify automatically joining independent application writes.
+
+### 24.7 CPU processing effect
+
+The manual states that external-device processing is performed as part of CPU processing and that large accesses can extend scan time. It recommends splitting accesses when large communication processing affects control.
+
+Therefore:
+
+**PROTOCOL_MAXIMUM != RECOMMENDED_OPERATIONAL_BATCH_SIZE**
+
+A future implementation must separate:
+
+- protocol hard maximum;
+- family/profile maximum;
+- configured/derived operational soft cap;
+- observed runtime latency/scan effect.
+
+No arbitrary global "always 960 words" planner is justified.
+
+## 25. V1 command surface
+
+### Required runtime commands
+
+**V1_REQUIRED_READ = 0401 Batch Read**
+
+**V1_REQUIRED_WRITE = 1401 Batch Write**
+
+Rationale:
+
+- 0401 naturally implements contiguous polling;
+- 1401 naturally implements one TAG's contiguous physical span;
+- both are enough for correct bounded first production behavior;
+- they are the simplest commands to validate independently at L0-L4.
+
+### Read optimizations
+
+**V1_READ_OPTIMIZATION = 0403 Read Random + 0406 Read Block**
+
+They are recommended for implementation because they can materially reduce request count for sparse layouts, but correctness must not depend on selecting them.
+
+A safe first implementation may fall back to segmented 0401 reads whenever the optimizer cannot prove a better valid plan.
+
+### Write optimizations
+
+**1402 Write Random = CODEC/EXPLICIT_OPERATION_CAPABILITY, NOT BACKGROUND COALESCING**
+
+**1406 Write Block = CODEC/EXPLICIT_OPERATION_CAPABILITY, NOT BACKGROUND COALESCING**
+
+Do not take two unrelated calls such as:
+
+- Runtime.WriteAsync(TAG_A, valueA)
+- Runtime.WriteAsync(TAG_B, valueB)
+
+and silently transform them into one protocol write merely because the protocol can do so.
+
+That would couple two canonical effects to one response and create ambiguous partial/intention timing that does not exist in the canonical Runtime API.
+
+## 26. Bounded scan planner
+
+The future driver must not implement:
+
+**1 TAG = 1 TCP request**
+
+except when one isolated TAG cannot validly share any request.
+
+### 26.1 Planner grouping keys
+
+Compile polling work in this order:
+
+1. **Data Source**
+2. **route tuple**
+   - networkNo
+   - stationNo / legacy PC No.
+   - moduleIoNo
+   - multidropStationNo
+3. **frame/subcommand profile**
+4. **operation direction**
+5. **storage class**
+   - bit
+   - word/multiword
+6. **device mnemonic / compatible command group**
+7. **numeric address**
+
+Never combine different Data Sources or different route tuples in one request.
+
+### 26.2 Structured points
+
+Each compiled point must carry at least:
+
+- parsed DeviceKind;
+- numeric device address;
+- storage class;
+- physical type;
+- physical span;
+- canonical TAG identity;
+- read/write permission;
+- selected family/profile;
+- route ownership from the Data Source.
+
+The planner must never reparse a free-form address while constructing a frame.
+
+### 26.3 Primary contiguous planning
+
+For a group of same-area contiguous devices:
+
+1. sort by numeric start address;
+2. compute each point's physical span;
+3. form a contiguous range;
+4. never split a typed point at a request boundary;
+5. segment before the minimum of:
+   - protocol hard maximum;
+   - family/profile maximum;
+   - frame response/request bound;
+   - configured/derived operational soft cap.
+
+Examples:
+
+- Int32 and Float32 occupy two consecutive words;
+- a boundary may move earlier to avoid splitting a two-word value;
+- overlapping TAG physical spans must be rejected or explicitly resolved during Engineering validation, not silently double-decoded.
+
+### 26.4 Gap handling
+
+Correctness baseline:
+
+**maxGap = 0**
+
+A future optimizer may coalesce a small gap only when every intermediate device address is known to be valid/readable for the selected family/profile.
+
+Do **not** inherit Modbus's existing max-gap value as a Mitsubishi default merely because the product has that optimization elsewhere.
+
+Reading through:
+
+- unsupported devices;
+- system/protected ranges;
+- unconfigured file-register regions;
+- profile holes
+
+must not be an optimization side effect.
+
+### 26.5 Sparse points
+
+Deterministic optimization order:
+
+1. contiguous 0401 when possible;
+2. evaluate 0403 for isolated word/dword points;
+3. evaluate 0406 for multiple meaningful contiguous runs;
+4. otherwise use multiple bounded 0401 requests.
+
+The optimizer should use an explicit cost model based on:
+
+- request bytes;
+- response bytes;
+- request count;
+- number of blocks/points;
+- family command support;
+- operational soft caps.
+
+Do not choose Random/Block solely because it has the highest theoretical point count.
+
+### 26.6 Response demultiplexing
+
+For every request, the plan must retain an immutable offset map from protocol response units to canonical TAGs.
+
+Before decoding:
+
+- validate subheader/frame kind;
+- validate response length;
+- validate end code;
+- validate expected byte/word count;
+- reject truncation and trailing/structurally inconsistent data.
+
+Only then decode each TAG's physical span and update its canonical value/quality.
+
+A malformed batch must not shift offsets and publish plausible values to the wrong TAGs.
+
+## 27. Session and connection model
+
+### 27.1 Persistent TCP session
+
+Recommended v1:
+
+**one persistent TCP session per active Mitsubishi Data Source**
+
+The session is owned by the Driver/Data Source runtime, not by a TAG.
+
+Do not:
+
+- create one socket per TAG;
+- create a new TCP connection for every normal scan;
+- share one mutable socket across unrelated Data Sources.
+
+### 27.2 One outstanding request
+
+The selected v1 is **3E**.
+
+The SLMP manual states that the serial number used to correlate multiple pending requests is a 4E feature and cannot be set in 3E.
+
+Therefore:
+
+**V1_MAX_OUTSTANDING_PER_SESSION = 1**
+
+Implementation shape:
+
+- one async request gate / actor queue per TCP session;
+- write complete request;
+- read complete response;
+- validate response;
+- release gate;
+- next operation.
+
+Throughput comes from bounded batching, not from unsafe pipelining.
+
+### 27.3 4E future profile
+
+4E can carry external-device-managed serial numbers and the response returns the serial number. The manual also documents module-specific limits on processable outstanding requests.
+
+Therefore a future 4E profile may support a bounded request map, but only after:
+
+- exact CPU/module concurrency limit is known;
+- serial allocation/wrap behavior is tested;
+- out-of-order response handling is tested;
+- timeout and late-response behavior is tested at L0/L1/L2/L4.
+
+**4E_PARALLEL_PIPELINE = NOT_V1**
+
+## 28. Monitoring timer and client timeout
+
+SLMP includes a request monitoring-timer field.
+
+The reference manual expresses it in **250 ms units** and documents bounded recommended values for own-station and routed access.
+
+The future driver must keep three concepts distinct:
+
+1. **PLC monitoring timer** — carried in the SLMP request;
+2. **client request timeout** — EliteSCADA socket/request deadline;
+3. **scan/lifecycle cancellation** — cancellation because Runtime/Data Source/revision is stopping.
+
+The client timeout should be greater than the effective PLC monitoring budget plus bounded network/processing margin.
+
+Do not set an unlimited PLC monitoring timer merely to hide latency.
+
+A timeout diagnostic should record which budget expired.
+
+## 29. Reconnect and half-open behavior
+
+### Transport failure
+
+On:
+
+- connect failure;
+- socket read/write failure;
+- timeout;
+- truncated frame;
+- impossible response length;
+- framing/subheader mismatch;
+- connection reset;
+
+the session must be discarded rather than attempting to continue on an uncertain stream boundary.
+
+### Reconnect
+
+Reuse the product's existing reconnect/backoff conventions:
+
+- bounded exponential/staged delay;
+- maximum delay;
+- small jitter when useful to avoid restart storms;
+- cancellation on Data Source/Active revision disposal;
+- no accumulating retry tasks.
+
+Do not create a Mitsubishi-global reconnect authority.
+
+### Half-open TCP
+
+A socket "Connected" property is not protocol health.
+
+Truth is established by successful fresh protocol exchange. A half-open connection is detected when a real operation fails or times out, after which the connection is reset.
+
+### PLC restart
+
+After PLC/module restart:
+
+1. stale connection is discarded;
+2. reconnect with bounded backoff;
+3. re-establish identity/readiness evidence;
+4. resume fresh reads;
+5. rebuild CurrentTagCache truth from reads;
+6. **do not replay queued/ambiguous writes**.
+
+## 30. Write process truth
+
+The following truths are distinct:
+
+1. TCP bytes were handed to the socket;
+2. a syntactically valid SLMP response arrived;
+3. the SLMP end code reported normal completion;
+4. the target device memory contains the expected value;
+5. PLC logic subsequently preserved/used that value;
+6. the physical process changed.
+
+Only the first three can be established directly by the write exchange.
+
+A normal SLMP write response with end code 0 means the protocol/module reports successful command processing.
+
+It does **not** prove physical process truth.
+
+### 30.1 Successful write
+
+Recommended default v1 result:
+
+**PROTOCOL_ACKNOWLEDGED**
+
+The canonical WriteAsync completes only after:
+
+- full response received;
+- response structural validation succeeds;
+- end code == 0.
+
+Do not return success after TCP send alone.
+
+### 30.2 Readback policy
+
+Recommended driver-owned policy:
+
+- **ProtocolAck** — default for ordinary device-memory writes;
+- **Readback** — optional/required per future Engineering policy for points where stronger memory truth is needed and the device area is readable.
+
+Readback confirms:
+
+**DEVICE_MEMORY_OBSERVED_AS_EXPECTED**
+
+It still does not prove a downstream physical actuator/process changed.
+
+### 30.3 Ambiguous timeout after possible dispatch
+
+A write timeout is fundamentally different from a safe pre-send validation failure.
+
+If the request may have reached the PLC but the response was lost:
+
+**WRITE_OUTCOME = AMBIGUOUS / UNKNOWN**
+
+Required behavior:
+
+1. do not blindly resend;
+2. reset the uncertain connection;
+3. reconnect;
+4. if the target is readable, perform bounded readback;
+5. if readback equals the expected raw/device value, classify diagnostics as **CONFIRMED_BY_READBACK**;
+6. if readback differs or cannot be obtained, report the operation as failed/ambiguous;
+7. never silently replay the write after reconnect.
+
+This intentionally differs from safe idempotent read retry.
+
+### 30.4 Retry policy
+
+Reads:
+
+- bounded retry after connection failure is allowed;
+- retry still obeys lifecycle cancellation and overall budgets.
+
+Writes:
+
+- validation failure before network dispatch: no protocol effect occurred;
+- connect failure before request bytes can be dispatched: a bounded retry may be safe;
+- after request dispatch starts: **NO BLIND RETRY**.
+
+This aligns with the existing EliteSCADA principle demonstrated by the Modbus TCP transport: reads may retry a connection failure while writes are not automatically retried.
+
+### 30.5 No replay queue
+
+The driver must never retain process writes for automatic replay after:
+
+- reconnect;
+- PLC restart;
+- Active revision change;
+- HA authority transfer;
+- Driver restart.
+
+A caller may deliberately issue a new write later through the canonical Runtime authority, but the communication layer must not manufacture that new effect.
+
+## 31. Error model
+
+The protocol parser must preserve at least these categories:
+
+### Configuration
+
+Examples:
+
+- invalid address;
+- invalid physical data type for device area;
+- out-of-profile range;
+- unsupported family/frame/device combination.
+
+Quality/result direction:
+
+**BadConfiguration**
+
+### Protocol/device end code
+
+A nonzero end code is explicit remote protocol evidence.
+
+Preserve:
+
+- hexadecimal end code;
+- sanitized Mitsubishi description where mapped;
+- command/subcommand;
+- route;
+- responding station error information when present.
+
+Map to **BadDevice** or a more specific existing canonical quality where justified.
+
+Do not flatten all nonzero end codes to "socket failed."
+
+### Communication
+
+Examples:
+
+- DNS/connect refusal;
+- socket reset;
+- timeout;
+- truncated frame;
+- lost session.
+
+Quality:
+
+**BadCommunication**
+
+### Malformed/unexpected response
+
+Malformed frames are transport/protocol failures, not valid point values.
+
+Reset the session if stream alignment cannot be trusted.
+
+### Ambiguous write
+
+Ambiguous write is an operation result/diagnostic condition, not a fake Good value.
+
+Do not publish the requested value as process truth merely because the application attempted a write.
+
+## 32. Engineering capabilities
+
+Recommended v1 descriptor truth:
+
+| Capability | V1 | Reason |
+| --- | --- | --- |
+| ConnectionTest | YES | Can prove TCP + protocol-level exchange |
+| PointReadTest | YES | Address/device read is a primary protocol function |
+| Discover | NO | No general controller/network discovery is required or proven for v1 |
+| Browse | NO | MC/SLMP device access does not provide a generic configured TAG/symbol namespace browser |
+| FileImport | NO | No project-file importer is justified for v1 |
+| Reconcile | NO | No durable discovered namespace exists to reconcile |
+| Acquisition | Polling | Selected v1 runtime model |
+
+A **manual address/device assistant is not Browse**. It is local Engineering UX driven by the documented device/profile matrix.
+
+## 33. Connection Test
+
+ConnectionTest should remain distinct from PointRead.
+
+Recommended sequence:
+
+1. validate Data Source settings locally;
+2. TCP connect;
+3. send one bounded protocol request;
+4. prefer **Read Type Name (0101)** to obtain model name/model code when supported;
+5. verify end code and response shape;
+6. return sanitized endpoint and observed identity/properties;
+7. dispose the transient Engineering session.
+
+The SLMP reference also defines **Self Test (0619)** as a loopback/data-communication test for the directly connected Ethernet-equipped module.
+
+Self Test may be used as additional Engineering evidence where the selected module supports it, but it is not a substitute for:
+
+- routed destination validation;
+- PointRead;
+- Active runtime acquisition.
+
+## 34. PointRead design
+
+Reuse the current shared **DriverPointReadTestRequest / DriverPointReadTestResult** contract.
+
+PointRead must use the same:
+
+- address parser;
+- family/profile range validator;
+- route encoder;
+- 3E codec;
+- native physical ordering;
+- typed value decoder
+
+as the future runtime.
+
+It must not register a TAG or mutate Working/Active.
+
+### Raw evidence
+
+For word reads:
+
+- contiguous raw hex;
+- ordered 16-bit word elements;
+- response/end-code metadata.
+
+For bit reads:
+
+- raw binary response representation;
+- ordered bit values;
+- relevant command/subcommand/device metadata.
+
+### Decoded value
+
+Decoded means:
+
+- native Mitsubishi storage decoded;
+- explicit shared byte/word transform applied where configured;
+- physical data type interpreted.
+
+### Engineering value
+
+Engineering means the canonical value after any normal host-owned Engineering transformation that is part of the TAG binding contract.
+
+### Quality
+
+Suggested mapping:
+
+- structurally valid response + end code 0 + successful decode -> **Good**;
+- socket/timeout -> **BadCommunication**;
+- invalid point binding/range/type -> **BadConfiguration**;
+- explicit PLC/device end code -> **BadDevice** when appropriate.
+
+### Latency
+
+Capture complete request/response round-trip latency.
+
+Do not report TCP connect success as PointRead success.
+
+## 35. Discovery and model identification
+
+### CPU/model identification
+
+**SUPPORTED AS BOUNDED CONNECTION EVIDENCE**
+
+Read Type Name (0101) provides model name/model code for supported targets.
+
+This can populate diagnostics and ConnectionTest observed properties.
+
+It must not be used to claim an unsupported model profile automatically.
+
+### Address browse
+
+**NOT A PROTOCOL V1 CAPABILITY**
+
+The protocol allows reads of known device addresses; that is not the same as enumerating a controller's configured semantic TAG namespace.
+
+Engineering should provide:
+
+- device mnemonic picker;
+- family-aware range hints;
+- physical data type picker;
+- address validator;
+- PointRead button.
+
+### Symbol/label browse
+
+**NOT ADVERTISED IN V1**
+
+SLMP has label-related commands on applicable CPUs, but that does not justify presenting a universal symbolic browse surface across the v1 family set.
+
+A later family-specific symbolic feature requires its own research/profile contract.
+
+## 36. Diagnostics
+
+Reuse **#500 common communication diagnostics**.
+
+Recommended sanitized Mitsubishi protocolDetails:
+
+- transport = tcp
+- frame = 3e
+- encoding = binary
+- familyProfile
+- networkNo
+- stationNo
+- moduleIoNo
+- multidropStationNo
+- monitoringTimer
+- modelName when known
+- modelCode when known
+- lastCommand
+- lastSubcommand
+- lastEndCode
+- lastBatchKind
+- lastBatchPoints
+- lastBatchBlocks
+- lastRttMilliseconds
+- lastFailureKind
+- ambiguousWriteCount
+- lastWriteConfirmation = protocolAck | confirmedByReadback | ambiguous
+
+Use common counters for:
+
+- connections;
+- disconnections;
+- reconnects;
+- requests;
+- timeouts;
+- reads;
+- writes;
+- failed/successful operations.
+
+Do not duplicate those counters inside protocolDetails unless a protocol-specific distinction is necessary.
+
+Never expose:
+
+- remote password;
+- resolved protected material;
+- credentials;
+- process values merely for diagnostics;
+- raw internal socket handles.
+
+## 37. Security and deployment
+
+### 37.1 Native v1 protocol security reality
+
+The reviewed SLMP 3E device-access protocol does not establish a TLS-protected authenticated session for the selected v1 transport profile.
+
+Do not describe 3E/TCP as encrypted.
+
+Do not imply that possession of an open TCP connection authenticates an EliteSCADA server.
+
+### 37.2 Remote password
+
+The SLMP reference documents Remote Password lock/unlock commands for applicable devices.
+
+Important limitations include:
+
+- password length/format differs between Q/L-era and newer iQ profiles;
+- even in binary communication, password data is represented as ASCII-code bytes;
+- the feature is module/profile-specific and is not equivalent to TLS.
+
+Remote Password is therefore:
+
+**LATER / PROFILE_SPECIFIC**
+
+If ever supported, it must use Data Source **protected material** and must never appear in PortableAddress, logs or diagnostics.
+
+### 37.3 Deployment posture
+
+Recommended production posture:
+
+- trusted industrial OT LAN/VLAN;
+- firewall ACL restricting PLC SLMP access to authorized hosts;
+- PLC/module IP filtering where available;
+- VPN or equivalent protected network path for remote access;
+- do not expose a PLC's SLMP service directly to the public Internet.
+
+Mitsubishi product/security guidance for FX5 Ethernet also recommends network protections such as firewall/VPN/access restrictions when connecting to untrusted networks.
+
+### 37.4 Windows/Linux/container
+
+The selected TCP 3E architecture requires ordinary outbound TCP sockets and no platform-specific native serial library.
+
+Therefore the core driver architecture is naturally compatible with:
+
+- Windows;
+- Linux;
+- containerized server deployments,
+
+subject to normal routing/firewall/network namespace access to the OT network.
+
+No privileged host resource is required for the Ethernet v1.
+
+## 38. Implementation architecture comparison
+
+### A. Built-in .NET codec/session
+
+**RECOMMENDED**
+
+Scope needed by v1 is deliberately bounded:
+
+- binary 3E frame encode/decode;
+- route fields;
+- device parser/codes;
+- commands 0401/1401 plus 0403/0406 optimization;
+- explicit end-code handling;
+- one-outstanding-request TCP session;
+- bounded reconnect/backoff;
+- typed value codec;
+- PointRead/ConnectionTest;
+- common diagnostics.
+
+Advantages:
+
+- exact control of timeout and ambiguous-write semantics;
+- no library-specific public model leakage;
+- deterministic L0 frame vectors;
+- direct CancellationToken support;
+- no extra redistribution/license/supply-chain dependency;
+- straightforward Windows/Linux/container behavior;
+- direct integration with existing EliteSCADA Runtime/Engineering boundaries.
+
+### B. Third-party .NET library
+
+**NOT SELECTED FOR V1**
+
+Candidate survey is useful as implementation/reference evidence, not as protocol authority.
+
+#### McpX
+
+Observed public project/package evidence:
+
+- MIT license;
+- cross-platform .NET positioning;
+- 3E/4E, binary/ASCII and TCP/UDP scope;
+- batch/random operations;
+- asynchronous API.
+
+NuGet indexing observed version **0.9.1**, updated 2026-09-26, while the project site advertises a newer v0.11 line. This version-signal mismatch must be revalidated at any future dependency gate.
+
+Disposition:
+
+**REFERENCE / FALLBACK CANDIDATE, NOT ADOPTED**
+
+#### e_MCProtocol
+
+Observed package:
+
+- version **2.0.0**;
+- MIT;
+- updated 2026-06-20;
+- narrow MC 3E binary implementation;
+- UDP-focused package scope.
+
+Disposition:
+
+**NOT A V1 TCP DEPENDENCY**
+
+It may be useful as an independent implementation reference where its transport/profile matches a later test.
+
+#### McProtocol
+
+Observed package:
+
+- version **1.2.5**;
+- .NET Standard 2.0;
+- MC 1E/3E/4E scope;
+- last package update observed in 2018.
+
+Disposition:
+
+**NOT SELECTED — maintenance/license details require fresh review and activity is too stale for preferred adoption**
+
+#### MitsubishiRx
+
+Observed package/public descriptions show broad Mitsubishi protocol scope, but the dependency/package line is larger and public package signals indicate replacement/deprecation direction.
+
+Disposition:
+
+**NOT SELECTED — too broad for bounded v1 and dependency status requires fresh review**
+
+### C. Managed sidecar
+
+**NOT_JUSTIFIED**
+
+The protocol is simple TCP request/response and requires no vendor-only native runtime.
+
+A sidecar would add:
+
+- process lifecycle;
+- IPC;
+- packaging;
+- health;
+- version compatibility;
+- additional failure modes
+
+without providing a needed isolation boundary for this v1.
+
+### D. Reject/not implement
+
+**NOT_JUSTIFIED**
+
+The protocol and integration path are sufficiently documented to continue toward implementation after research gates.
+
+## 39. Dependency decision
+
+**V1_DEPENDENCY = NONE**
+
+Recommendation:
+
+**built-in managed .NET codec/session**
+
+Third-party libraries may be used later as independent-shape comparison peers or fallback references, subject to license/release revalidation. No package is adopted by this research.
+
+Dependency research sources accessed 2026-10-06:
+
+- https://github.com/YudaiKitamura/McpX
+- https://www.nuget.org/packages/McpX
+- https://www.nuget.org/packages/e_MCProtocol
+- https://www.nuget.org/packages/McProtocol
+- https://www.nuget.org/packages/MitsubishiRx
+
+These sources are dependency-evaluation sources only. Mitsubishi official manuals remain protocol authority.
+
+## 40. Current EliteSCADA contract convergence
+
+Checkpoint 2 confirms the existing platform seams remain sufficient.
+
+### Runtime
+
+Use existing:
+
+**ICommunicationDriver**
+
+No Mitsubishi runtime API.
+
+### Runtime planning
+
+Use existing library-independent:
+
+- ICommunicationDriverRuntimePlanner;
+- ICommunicationDriverRuntimePlan;
+- ICommunicationDriverRuntimeFactory;
+- CommunicationDriverRuntimeServices.
+
+The existing runtime services already carry external-effect authority.
+
+### Engineering
+
+Use the existing descriptor and optional Engineering capabilities:
+
+- ConnectionTest;
+- PointReadTest.
+
+Do not falsely advertise Browse/Discover/FileImport/Reconcile.
+
+### Diagnostics
+
+Use:
+
+**ICommunicationDiagnosticsSource / CommunicationDriverDiagnosticSnapshot**
+
+### HA
+
+**HA = High Availability**
+
+The future runtime must honor existing effect authority.
+
+A node without effective industrial authority must not perform writes or other external effects.
+
+### Save / Publish / Activate
+
+No alternative lifecycle.
+
+### Contract delta
+
+**RESEARCH_CONTRACT_DELTA_REQUIRED = NO**
+
+A shared "AmbiguousWrite" return type could be a future product enhancement, but it is not required to implement a safe v1: WriteAsync can throw a sanitized protocol/ambiguous-outcome exception, record diagnostic evidence, optionally perform bounded readback and must not replay the write.
+
+No product/schema change is authorized by this research.
+
+## 41. Checkpoint 2 implementation contract proposal
+
+For the future DEV lane, the minimum architecture should be:
+
+~~~text
+Engineering Data Source
+  -> validated family/route/session options
+Engineering TAG CommunicationBinding
+  -> parsed Mitsubishi address + physical type
+Runtime planner
+  -> per-Data-Source Mitsubishi runtime plan
+Driver
+  -> scan planner
+  -> persistent TCP 3E session
+  -> one outstanding request
+  -> 0401 primary reads
+  -> 0403/0406 read optimization
+  -> 1401 per-effect contiguous writes
+  -> typed decode/encode
+  -> CurrentTagCache
+  -> common diagnostics
+
+Runtime.WriteAsync(TAG)
+  -> owning driver
+  -> no blind replay
+  -> protocol ACK
+  -> optional readback
+~~~
+
+No protocol object crosses into Core/Engineering public contracts.
+
+## 42. Checkpoint 2 decisions
+
+### Batch planner
+
+**GO**
+
+- mandatory contiguous batching;
+- hard protocol limits are ceilings, not operational targets;
+- profile/soft-cap segmentation;
+- no typed-point splitting.
+
+### Random/block reads
+
+**GO_AS_OPTIMIZATION**
+
+### Random/block write coalescing
+
+**NO for independent Runtime.WriteAsync effects**
+
+### TCP session
+
+**PERSISTENT / ONE PER DATASOURCE / ONE OUTSTANDING REQUEST**
+
+### Parallel pipeline
+
+**NO for 3E v1**
+
+### Read retry
+
+**BOUNDED YES**
+
+### Write retry
+
+**NO after possible dispatch**
+
+### Ambiguous timeout
+
+**UNKNOWN -> RESET -> READBACK IF POSSIBLE -> NEVER BLIND REPLAY**
+
+### PointRead
+
+**YES / shared contract**
+
+### ConnectionTest
+
+**YES / Read Type Name preferred bounded identity probe**
+
+### Browse/discovery
+
+**NO generic protocol browse/discovery in v1**
+
+### Security
+
+**PLAINTEXT PROTOCOL PROFILE / TRUSTED OT NETWORK + FIREWALL/VPN**
+
+### Dependency
+
+**BUILT-IN .NET / NO NEW PACKAGE**
+
+### Preliminary product decision
+
+**MITSUBISHI_MELSEC = GO_WITH_GATES**
+
+Remaining gates are now primarily:
+
+- L0-L4 proof;
+- exact hardware/model/firmware profile;
+- independent peer strategy;
+- legal/trademark final review;
+- final fresh-source revalidation.
+
+## 43. Checkpoint 2 boundary
+
+This checkpoint intentionally does not complete:
+
+- L0 test-vector list;
+- L1 fake peer implementation contract;
+- L2 independent peer selection;
+- L3 full EliteSCADA acceptance matrix;
+- L4 hardware shortlist/purchase recommendation;
+- trademark/legal final review;
+- final production identity approval.
+
+Those belong to Checkpoint 3 after a new **SIGA**.
+
+**DOCS_ONLY**
+
+**NO PRODUCT CODE CHANGED**
+
+**NO DEPENDENCY CHANGED**
+
+**NO CI CHANGED**
+
+**NO MERGE PERFORMED**
+
+**HA = High Availability**
+
+**HAB = Home Assistant Bridge**
+

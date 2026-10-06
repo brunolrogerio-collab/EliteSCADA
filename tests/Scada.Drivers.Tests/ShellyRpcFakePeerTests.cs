@@ -37,6 +37,7 @@ public sealed class ShellyRpcFakePeerTests
             "Pump Shelly",
             new ShellyConnectionSettings("127.0.0.1"),
             cache,
+            new InMemoryTagRegistry(),
             points,
             peer,
             _ => ValueTask.FromResult(new ShellyResolvedCredential(ReadOnlyMemory<byte>.Empty)));
@@ -99,6 +100,7 @@ public sealed class ShellyRpcFakePeerTests
             "Pump Shelly",
             new ShellyConnectionSettings("127.0.0.1"),
             cache,
+            new InMemoryTagRegistry(),
             [new ShellyPoint(tag, "switch:0", "output", "Switch.Set", "on")],
             peer,
             _ => ValueTask.FromResult(new ShellyResolvedCredential(ReadOnlyMemory<byte>.Empty)));

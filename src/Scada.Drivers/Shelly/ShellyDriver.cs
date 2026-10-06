@@ -29,6 +29,7 @@ public sealed class ShellyDriver :
 {
     private readonly ShellyConnectionSettings _settings;
     private readonly ICurrentTagCache _cache;
+    private readonly ITagRegistry _registry;
     private readonly IReadOnlyCollection<ShellyPoint> _points;
     private readonly IReadOnlyDictionary<Guid, ShellyPoint> _pointsById;
     private readonly IShellyRpcClient _client;
@@ -69,6 +70,7 @@ public sealed class ShellyDriver :
         string name,
         ShellyConnectionSettings settings,
         ICurrentTagCache cache,
+        ITagRegistry registry,
         IReadOnlyCollection<ShellyPoint> points,
         IShellyRpcClient client,
         ShellyCredentialResolver credentials)
@@ -77,6 +79,7 @@ public sealed class ShellyDriver :
         Name = name;
         _settings = settings;
         _cache = cache;
+        _registry = registry;
         _points = points;
         _pointsById = points.ToDictionary(x => x.Tag.Id);
         _client = client;
@@ -97,6 +100,7 @@ public sealed class ShellyDriver :
         ThrowIfDisposed();
         if (_runTask is not null) return;
         _settings.Validate();
+        foreach (var point in _points) _registry.Upsert(point.Tag);
 
         Transition(CommunicationDriverOperationalState.Starting);
         Status = new DriverStatus(DriverId, Name, DriverState.Starting, DateTimeOffset.UtcNow);

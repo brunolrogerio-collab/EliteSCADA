@@ -201,6 +201,7 @@ public sealed class ShellyCommunicationRuntimeFactory : ICommunicationDriverRunt
             shelly.Name,
             shelly.Connection,
             services.Cache,
+            services.Registry,
             shelly.Points,
             client,
             Resolve);

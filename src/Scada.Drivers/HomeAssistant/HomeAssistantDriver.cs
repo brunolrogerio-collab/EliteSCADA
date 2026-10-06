@@ -104,7 +104,7 @@ public sealed class HomeAssistantDriver :
         _pointsById = points.ToDictionary(x => x.Tag.Id);
         _clientFactory = clientFactory;
         _credentials = credentials;
-        _effectAuthority = effectAuthority ?? static () => true;
+        _effectAuthority = effectAuthority ?? (() => true);
         Tags = points.Select(x => x.Tag).ToArray();
         Status = new DriverStatus(driverId, name, DriverState.Stopped, DateTimeOffset.UtcNow);
     }

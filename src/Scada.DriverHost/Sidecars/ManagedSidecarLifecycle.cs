@@ -603,7 +603,7 @@ public sealed class ManagedSidecarSupervisor : IAsyncDisposable
             lock (_sync)
             {
                 _lastReadyAt = _timeProvider.GetUtcNow();
-                _lastSanitizedError = Sanitize(ready.SanitizedMessage);
+                _lastSanitizedError = null;
             }
 
             return process;

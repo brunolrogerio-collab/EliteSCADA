@@ -81,6 +81,13 @@ public sealed class ShellyEngineeringProvider :
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        yield return await DiscoverOneAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask<DriverDiscoveryCandidate> DiscoverOneAsync(
+        DriverDiscoveryRequest request,
+        CancellationToken cancellationToken)
+    {
         var settingsMap = request.Context?.Settings
             ?? request.Parameters
             ?? new Dictionary<string, string>();
@@ -92,7 +99,7 @@ public sealed class ShellyEngineeringProvider :
         }
         catch (Exception ex)
         {
-            yield return new DriverDiscoveryCandidate(
+            return new DriverDiscoveryCandidate(
                 "shelly-invalid-config",
                 "unresolved",
                 "Shelly endpoint",
@@ -103,13 +110,11 @@ public sealed class ShellyEngineeringProvider :
                         DriverEngineeringIssueSeverity.Error,
                         Sanitize(ex.Message))
                 ]);
-            yield break;
         }
 
-        IShellyRpcClient? client = null;
+        await using var client = _clientFactory(settings, CreateSource());
         try
         {
-            client = _clientFactory(settings, CreateSource());
             var infoJson = await client.CallHttpAsync(
                 "Shelly.GetDeviceInfo", null, ReadOnlyMemory<byte>.Empty, false, cancellationToken).ConfigureAwait(false);
             var info = ShellyStateMapper.ParseDeviceInfo(infoJson);
@@ -120,7 +125,7 @@ public sealed class ShellyEngineeringProvider :
             var components = await GetAllComponentsAsync(client, credential.Password, legacy, cancellationToken).ConfigureAwait(false);
             var materialization = ShellyComponentMapper.BuildMaterialization(info, components, status);
 
-            yield return new DriverDiscoveryCandidate(
+            return new DriverDiscoveryCandidate(
                 $"shelly-{info.StableDeviceIdentity}",
                 info.StableDeviceIdentity,
                 info.Name ?? info.StableDeviceIdentity,
@@ -143,7 +148,7 @@ public sealed class ShellyEngineeringProvider :
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            yield return new DriverDiscoveryCandidate(
+            return new DriverDiscoveryCandidate(
                 "shelly-probe-failed",
                 "unresolved",
                 "Shelly endpoint",
@@ -155,11 +160,6 @@ public sealed class ShellyEngineeringProvider :
                         DriverEngineeringIssueSeverity.Error,
                         Sanitize(ex.Message))
                 ]);
-        }
-        finally
-        {
-            if (client is not null)
-                await client.DisposeAsync().ConfigureAwait(false);
         }
     }
 

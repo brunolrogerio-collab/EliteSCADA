@@ -22,7 +22,8 @@ public sealed record RichCommandInvocation(
     Guid InvocationId,
     Guid CommandId,
     IReadOnlyList<RichCommandParameterValue> Parameters,
-    DateTimeOffset RequestedAt);
+    DateTimeOffset RequestedAt,
+    InteractionCausalityContext? Causality = null);
 
 public enum RichCommandOutcome
 {
@@ -263,7 +264,10 @@ public static class RichCommandContract
             Parameters = supplied.Values
                 .OrderBy(value => value.Key, StringComparer.Ordinal)
                 .ToArray(),
-            RequestedAt = invocation.RequestedAt.ToUniversalTime()
+            RequestedAt = invocation.RequestedAt.ToUniversalTime(),
+            Causality = invocation.Causality is null
+                ? null
+                : InteractionCausalityContract.Validate(invocation.Causality)
         };
     }
 

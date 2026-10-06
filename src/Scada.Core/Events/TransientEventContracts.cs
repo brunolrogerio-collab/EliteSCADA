@@ -53,7 +53,8 @@ public sealed record TransientEventOccurrence(
     IReadOnlyList<TransientEventFieldValue> Payload,
     DateTimeOffset ObservedAt,
     TransientEventTimestamp? OccurredAt = null,
-    TransientEventEvidence? Evidence = null);
+    TransientEventEvidence? Evidence = null,
+    InteractionCausalityContext? Causality = null);
 
 public static class TransientEventContract
 {
@@ -178,7 +179,10 @@ public static class TransientEventContract
             ObservedAt = occurrence.ObservedAt.ToUniversalTime(),
             OccurredAt = occurrence.OccurredAt is null
                 ? null
-                : occurrence.OccurredAt with { Value = occurrence.OccurredAt.Value.ToUniversalTime() }
+                : occurrence.OccurredAt with { Value = occurrence.OccurredAt.Value.ToUniversalTime() },
+            Causality = occurrence.Causality is null
+                ? null
+                : InteractionCausalityContract.Validate(occurrence.Causality)
         };
     }
 

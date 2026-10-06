@@ -109,4 +109,49 @@ public sealed class DriverEngineeringContractsTests
         Assert.Equal("holding:10", request.Binding.PortableAddress);
         Assert.Equal("modbus.tcp", request.DataSource.DriverType);
     }
+    [Fact]
+    public void DiscoveryCandidate_CanCarryReadOnlyCompositeMaterializationProposal()
+    {
+        var proposal = new DriverMaterializationCandidate(
+            new DriverMaterializationEquipmentCandidate(
+                "equipment-1",
+                "Home.Relay",
+                "Relay",
+                "opaque-device-01",
+                SourceRole: "primary",
+                LocationPlaceholder: "Kitchen",
+                Capabilities:
+                [
+                    new DriverMaterializationCapabilityCandidate(
+                        "switch",
+                        "OnOff",
+                        [new DriverMaterializationRoleBinding("state", TagCandidateId: "tag-state")])
+                ],
+                Metadata: new Dictionary<string, string>
+                {
+                    ["manufacturer"] = "Example",
+                    ["model"] = "Relay"
+                }),
+            Tags:
+            [
+                new DriverMaterializationTagCandidate(
+                    "tag-state",
+                    "State",
+                    "Home.Relay.State",
+                    TagDataType.Boolean,
+                    PortableAddress: "channel:0",
+                    ReadOnly: false)
+            ]);
+
+        var candidate = new DriverDiscoveryCandidate(
+            "candidate-1",
+            "opaque-device-01",
+            "Relay",
+            Materialization: proposal);
+
+        Assert.Equal("opaque-device-01", candidate.Materialization!.Equipment.StableDeviceIdentity);
+        Assert.Equal("OnOff", Assert.Single(candidate.Materialization.Equipment.Capabilities!).Kind);
+        Assert.Equal("tag-state", Assert.Single(candidate.Materialization.Tags!).CandidateId);
+    }
+
 }

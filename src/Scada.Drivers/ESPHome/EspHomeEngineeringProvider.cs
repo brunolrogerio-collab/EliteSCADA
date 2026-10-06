@@ -154,7 +154,7 @@ public sealed class EspHomeEngineeringProvider :
         }
     }
 
-    internal static EspHomeConnectionSettings ParseConnection(IReadOnlyDictionary<string, string> values)
+    public static EspHomeConnectionSettings ParseConnection(IReadOnlyDictionary<string, string> values)
     {
         var host = Get(values, "host") ?? throw new ArgumentException("ESPHome host is required.");
         var port = GetInt(values, "port", 6053);

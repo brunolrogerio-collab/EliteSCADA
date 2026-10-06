@@ -6,6 +6,7 @@ using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.Drivers.Abstractions;
 using Scada.Drivers.Modbus;
+using Scada.Drivers.ESPHome;
 using Scada.Drivers.OpcUa;
 using Scada.Drivers.SiemensS7Iso;
 using Scada.Drivers.Shelly;
@@ -279,6 +280,45 @@ public sealed class S7IsoEngineeringDriverToolProviderFactory : IEngineeringDriv
             ConnectionTester: engineering,
             FileImporter: engineering,
             PointReadTester: pointRead);
+        registration.Validate();
+        return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));
+    }
+}
+
+public sealed class EspHomeEngineeringDriverToolProviderFactory : IEngineeringDriverToolProviderFactory
+{
+    private readonly ICommunicationDriverProtectedMaterialResolver _protectedMaterialResolver;
+
+    public EspHomeEngineeringDriverToolProviderFactory(
+        ICommunicationDriverProtectedMaterialResolver protectedMaterialResolver)
+    {
+        _protectedMaterialResolver = protectedMaterialResolver
+            ?? throw new ArgumentNullException(nameof(protectedMaterialResolver));
+    }
+
+    public string DriverType => EspHomeNativeContract.DriverType;
+
+    public ValueTask<EngineeringDriverToolProviderLease> CreateAsync(
+        string? projectKey,
+        DataSourceEngineeringDto dataSource,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(dataSource);
+        if (!string.Equals(dataSource.Driver, DriverType, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"ESPHome Engineering tooling cannot open Data Source driver '{dataSource.Driver}'.", nameof(dataSource));
+
+        string? encryptionKeyReference = null;
+        dataSource.SecretReferences?.TryGetValue("encryptionKey", out encryptionKeyReference);
+        var provider = new EspHomeEngineeringProvider(
+            projectKey ?? "engineering-draft",
+            dataSource.Key,
+            encryptionKeyReference,
+            _protectedMaterialResolver);
+        var registration = new CommunicationDriverModuleRegistration(
+            provider,
+            ConnectionTester: provider,
+            DiscoverySource: provider);
         registration.Validate();
         return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));
     }

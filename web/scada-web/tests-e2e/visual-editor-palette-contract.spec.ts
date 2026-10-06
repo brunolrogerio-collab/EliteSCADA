@@ -23,6 +23,7 @@ test('palette is derived from the complete registered built-in set', () => {
     BUILTIN_VISUAL_OBJECT_TYPES.polygon,
     BUILTIN_VISUAL_OBJECT_TYPES.text,
     BUILTIN_VISUAL_OBJECT_TYPES.image,
+    BUILTIN_VISUAL_OBJECT_TYPES.model3d,
     BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer,
     BUILTIN_VISUAL_OBJECT_TYPES.pdfViewer,
     BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher,

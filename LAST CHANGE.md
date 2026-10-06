@@ -19,6 +19,7 @@
 ## Owner-directed next coordinator: Home/Building automation
 
 - The next coordinator should start the Home/Building automation-driver program from #472, using #475 as research input. This is an explicit Product Owner priority; the older “WAIT_CURRENT_LANES / planning only” wording in #472 is superseded.
+- Owner decision trail: [#472 program reprioritization](https://github.com/brunolrogerio-collab/EliteSCADA/issues/472#issuecomment-6020829024), [#483 foundation gate](https://github.com/brunolrogerio-collab/EliteSCADA/issues/483#issuecomment-6020829446), [#475 research review](https://github.com/brunolrogerio-collab/EliteSCADA/issues/475#issuecomment-6020829995).
 - Kickoff immediately with a live audit of #469 (reuse its Host Serial foundation), #483 (still OPEN: canonical TAG/DataSource identity, Equipment/Template independence and integration-catalog convergence), and #475 (still OPEN: review each dossier's GO/WAIT/REJECT and legal/hardware/test constraints).
 - Close or narrowly revise the #483 prerequisites against current integration before starting protocol-specific implementation; then launch the first driver slice chosen from verified #475 evidence. Do not duplicate existing BACnet/IP support, invent a second TAG/runtime model, or claim unverified device compatibility.
 - Wave 15 is not declared complete by this handoff: #306/#300/#379/#424/#425 remain tracked. Their remaining productization work must be kept visible while the owner-directed Home/Building stream begins.

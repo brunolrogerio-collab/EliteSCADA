@@ -64,56 +64,77 @@ public sealed record ShellyRpcError(int Code, string Message);
 
 public sealed record ShellyRpcEnvelope(long Id, JsonElement? Result, ShellyRpcError? Error);
 
+public enum ShellyAuthTransport
+{
+    Http,
+    WebSocket
+}
+
 public sealed record ShellyDigestChallenge(
     string Realm,
-    long Nonce,
+    string NonceText,
+    long? LegacyNumericNonce,
     string Algorithm,
-    int? Stale,
+    bool Stale,
     bool ReusableNonce)
 {
-    public static ShellyDigestChallenge Parse(JsonElement errorData)
+    public static ShellyDigestChallenge Parse(JsonElement data)
     {
-        if (errorData.ValueKind != JsonValueKind.Object)
+        if (data.ValueKind != JsonValueKind.Object)
             throw new FormatException("Shelly auth challenge data must be an object.");
 
-        var realm = GetString(errorData, "realm") ?? throw new FormatException("Shelly auth challenge is missing realm.");
-        var algorithm = GetString(errorData, "algorithm") ?? "SHA-256";
+        var realm = GetString(data, "realm")
+            ?? throw new FormatException("Shelly auth challenge is missing realm.");
+        var algorithm = GetString(data, "algorithm") ?? "SHA-256";
         if (!algorithm.Equals("SHA-256", StringComparison.OrdinalIgnoreCase))
             throw new NotSupportedException($"Shelly digest algorithm '{algorithm}' is not supported.");
-        if (!TryGetInt64(errorData, "nonce", out var nonce))
-            throw new FormatException("Shelly auth challenge is missing nonce.");
-        int? stale = TryGetInt64(errorData, "stale", out var staleValue) ? checked((int)staleValue) : null;
 
-        // Firmware 2.0+ reusable nonce challenges are distinguishable by stale being present
-        // and require a monotonically increasing hexadecimal nc. Legacy firmware uses a
-        // one-shot numeric nonce and tolerates nc=1.
-        return new ShellyDigestChallenge(realm, nonce, algorithm, stale, stale.HasValue);
+        if (!data.TryGetProperty("nonce", out var nonce))
+            throw new FormatException("Shelly auth challenge is missing nonce.");
+
+        string nonceText;
+        long? legacyNumericNonce = null;
+        bool reusable;
+        if (nonce.ValueKind == JsonValueKind.String)
+        {
+            nonceText = nonce.GetString()
+                ?? throw new FormatException("Shelly auth challenge nonce is empty.");
+            reusable = true;
+        }
+        else if (nonce.ValueKind == JsonValueKind.Number && nonce.TryGetInt64(out var numeric))
+        {
+            nonceText = numeric.ToString(CultureInfo.InvariantCulture);
+            legacyNumericNonce = numeric;
+            reusable = false;
+        }
+        else
+        {
+            throw new FormatException("Shelly auth challenge nonce must be a string or integer.");
+        }
+
+        var stale = data.TryGetProperty("stale", out var staleElement) &&
+                    staleElement.ValueKind is JsonValueKind.True;
+
+        return new ShellyDigestChallenge(realm, nonceText, legacyNumericNonce, algorithm, stale, reusable);
     }
 
     private static string? GetString(JsonElement obj, string name) =>
-        obj.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
-
-    private static bool TryGetInt64(JsonElement obj, string name, out long value)
-    {
-        value = 0;
-        if (!obj.TryGetProperty(name, out var element)) return false;
-        if (element.ValueKind == JsonValueKind.Number) return element.TryGetInt64(out value);
-        return element.ValueKind == JsonValueKind.String &&
-               long.TryParse(element.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
-    }
+        obj.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
 }
 
 public sealed class ShellyDigestSession
 {
     private readonly string _username;
-    private readonly ReadOnlyMemory<byte> _password;
+    private readonly byte[] _password;
     private ShellyDigestChallenge? _challenge;
     private uint _nonceCount;
 
     public ShellyDigestSession(string username, ReadOnlyMemory<byte> password)
     {
         _username = username;
-        _password = password;
+        _password = password.ToArray();
     }
 
     public void AcceptChallenge(ShellyDigestChallenge challenge)
@@ -122,26 +143,45 @@ public sealed class ShellyDigestSession
         _nonceCount = 0;
     }
 
-    public object BuildAuth(long rpcId)
+    public object BuildAuth(ShellyAuthTransport transport)
     {
-        var challenge = _challenge ?? throw new InvalidOperationException("No Shelly digest challenge is active.");
-        var nc = checked(++_nonceCount);
-        var cnonce = Convert.ToHexString(RandomNumberGenerator.GetBytes(8)).ToLowerInvariant();
-        var password = Encoding.UTF8.GetString(_password.Span);
-        var ha1 = Hash($"{_username}:{challenge.Realm}:{password}");
-        var ha2 = Hash($"dummy_method:dummy_uri");
-        var response = Hash($"{ha1}:{challenge.Nonce}:{nc}:{cnonce}:auth:{ha2}");
-
-        return new
+        var challenge = _challenge
+            ?? throw new InvalidOperationException("No Shelly digest challenge is active.");
+        var nc = challenge.ReusableNonce ? checked(++_nonceCount) : 1u;
+        var ncText = nc.ToString("x8", CultureInfo.InvariantCulture);
+        var cnonce = RandomNumberGenerator.GetInt32(1, int.MaxValue);
+        var password = Encoding.UTF8.GetString(_password);
+        try
         {
-            realm = challenge.Realm,
-            username = _username,
-            nonce = challenge.Nonce,
-            cnonce,
-            response,
-            algorithm = "SHA-256",
-            nc = challenge.ReusableNonce ? nc.ToString("x8", CultureInfo.InvariantCulture) : "1"
-        };
+            var ha1 = Hash($"{_username}:{challenge.Realm}:{password}");
+            var ha2 = transport == ShellyAuthTransport.Http
+                ? Hash("POST:/rpc")
+                : Hash("dummy_method:dummy_uri");
+            var response = Hash($"{ha1}:{challenge.NonceText}:{ncText}:{cnonce}:auth:{ha2}");
+
+            var auth = new Dictionary<string, object?>
+            {
+                ["realm"] = challenge.Realm,
+                ["username"] = _username,
+                ["nonce"] = challenge.LegacyNumericNonce is { } legacy ? legacy : challenge.NonceText,
+                ["cnonce"] = cnonce,
+                ["nc"] = ncText,
+                ["response"] = response,
+                ["algorithm"] = "SHA-256"
+            };
+            return auth;
+        }
+        finally
+        {
+            password = string.Empty;
+        }
+    }
+
+    public void Clear()
+    {
+        CryptographicOperations.ZeroMemory(_password);
+        _challenge = null;
+        _nonceCount = 0;
     }
 
     private static string Hash(string value) =>

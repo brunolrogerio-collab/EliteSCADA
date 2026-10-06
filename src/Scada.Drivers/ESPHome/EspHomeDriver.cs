@@ -106,7 +106,7 @@ public sealed class EspHomeDriver :
                 ex is not OperationCanceledException &&
                 ex is not EspHomeDeviceIdentityChangedException)
             {
-                RecordFailure(ex, Stopwatch.GetElapsedTime(Stopwatch.GetTimestamp()));
+                RecordFailure(ex, null);
                 await SafeDisconnectAsync().ConfigureAwait(false);
                 lock (_gate) _expectedOffline = true;
                 Transition(CommunicationDriverOperationalState.Reconnecting);

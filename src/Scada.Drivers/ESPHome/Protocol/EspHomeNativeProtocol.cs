@@ -9,6 +9,10 @@ public static class EspHomeNativeMessageId
     public const ushort HelloResponse = 2;
     public const ushort AuthenticationRequestReserved = 3;
     public const ushort AuthenticationResponseReserved = 4;
+    public const ushort DisconnectRequest = 5;
+    public const ushort DisconnectResponse = 6;
+    public const ushort PingRequest = 7;
+    public const ushort PingResponse = 8;
     public const ushort DeviceInfoRequest = 9;
     public const ushort DeviceInfoResponse = 10;
     public const ushort DeviceCapabilitiesRequest = 149;

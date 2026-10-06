@@ -126,6 +126,7 @@ public sealed class BuiltinDynamoLibraryTests
         Assert.Contains("M 140 70", pump, StringComparison.Ordinal);
         Assert.Contains("M 305 300", pump, StringComparison.Ordinal);
         Assert.Contains("data-elitescada-slot=\"state\"", pump, StringComparison.Ordinal);
+        Assert.DoesNotContain("cx=\"116\"", pump, StringComparison.Ordinal);
         Assert.Equal("equipment.pump", definitions["pump.submersible"].Metadata!["familyKey"]);
     }
 
@@ -203,6 +204,47 @@ public sealed class BuiltinDynamoLibraryTests
             blade => Assert.Equal(0, blade.Properties!["rotation"].GetDouble()));
         Assert.All(fixedProjection.Elements.Where(element => element.Key.EndsWith("-moving", StringComparison.Ordinal)),
             blade => Assert.Null(blade.PropertyMaps));
+    }
+
+    [Fact]
+    public void ReplacementElectricalContacts_UseEvenPoleSpacingAndConsistentOpenBladeAlignment()
+    {
+        var definitions = BuiltinDynamoCatalogV1.Create().ToDictionary(item => item.Key, StringComparer.Ordinal);
+        foreach (var key in new[] { "electrical.contact-tri-horizontal", "electrical.contact-tri-vertical" })
+        {
+            var definition = definitions[key];
+            var fixedPoles = Enumerable.Range(0, 3).Select(pole =>
+                definition.Elements!.Single(element => element.Key == $"contact-{pole}-fixed")).ToArray();
+            var movingPoles = Enumerable.Range(0, 3).Select(pole =>
+                definition.Elements!.Single(element => element.Key == $"contact-{pole}-moving")).ToArray();
+
+            var vertical = key.EndsWith("vertical", StringComparison.Ordinal);
+            var axis = vertical ? "x" : "y";
+            var firstPosition = fixedPoles[0].Properties![axis].GetDouble();
+            for (var pole = 1; pole < 3; pole++)
+                Assert.Equal(vertical ? 31 : 24,
+                    fixedPoles[pole].Properties![axis].GetDouble() - fixedPoles[pole - 1].Properties![axis].GetDouble());
+
+            Assert.All(movingPoles, blade => Assert.Equal(14, blade.Properties!["rotation"].GetDouble()));
+            if (vertical)
+            {
+                Assert.All(Enumerable.Range(0, 3), pole =>
+                    Assert.Equal(fixedPoles[pole].Properties!["x"].GetDouble() - 1,
+                        movingPoles[pole].Properties!["x"].GetDouble()));
+                Assert.Equal(firstPosition, fixedPoles[0].Properties!["x"].GetDouble());
+            }
+            else
+            {
+                Assert.All(Enumerable.Range(0, 3), pole =>
+                    Assert.Equal(fixedPoles[pole].Properties!["y"].GetDouble() - 1,
+                        movingPoles[pole].Properties!["y"].GetDouble()));
+            }
+
+            var label = definition.Elements!.Single(element => element.Key == "equipment-label");
+            Assert.Equal(83, label.Properties!["y"].GetDouble());
+            Assert.True(movingPoles.Max(blade => blade.Properties!["y"].GetDouble() +
+                blade.Properties["height"].GetDouble()) < label.Properties["y"].GetDouble());
+        }
     }
 
     [Fact]

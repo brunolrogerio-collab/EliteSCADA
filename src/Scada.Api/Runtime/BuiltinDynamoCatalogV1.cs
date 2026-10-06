@@ -302,13 +302,6 @@ public static class BuiltinDynamoCatalogV1
                     new XAttribute("stroke", Outline), new XAttribute("stroke-width", "1.5")),
                 new XElement(svg + "path", new XAttribute("d", "M 66 15 L 70 12"),
                     new XAttribute("fill", "none"), new XAttribute("stroke", "#B42318"), new XAttribute("stroke-width", "1.5")));
-        // A small external state light makes the pump's current state visible
-        // without recoloring its lifting eye or the outline hardware.
-        if (family == "equipment.pump")
-            root.Add(new XElement(svg + "circle", new XAttribute("cx", "116"), new XAttribute("cy", "11"),
-                new XAttribute("r", "4"), new XAttribute("fill", "#93B99A"),
-                new XAttribute("stroke", Outline), new XAttribute("stroke-width", "1.5"),
-                new XAttribute("data-elitescada-slot", "state")));
     }
 
     private static string? stateElementKey(DynamoEngineeringDto definition) =>
@@ -706,21 +699,23 @@ public static class BuiltinDynamoCatalogV1
         var poles = triple ? 3 : 1;
         for (var pole = 0; pole < poles; pole++)
         {
-            var offset = triple ? pole * 30d : 0d;
             var closed = kind.StartsWith("isolator-", StringComparison.Ordinal);
             var bladeColor = closed ? "#16A34A" : Dark;
             if (vertical)
             {
-                x.Add(Shape($"contact-{pole}-fixed", "core.rectangle", 50 + offset, 5, 8, 28, Steel, Outline, 1));
-                x.Add(Shape($"contact-{pole}-moving", "core.rectangle", 49 + offset, 39, 10, 40, bladeColor, Outline, 1, rotation: closed ? 0 : pole % 2 == 0 ? 16 : -16));
+                var offset = triple ? pole * 31d : 0d;
+                x.Add(Shape($"contact-{pole}-fixed", "core.rectangle", 52 + offset, 6, 8, 28, Steel, Outline, 1));
+                x.Add(Shape($"contact-{pole}-moving", "core.rectangle", 51 + offset, 40, 10, 32, bladeColor, Outline, 1, rotation: closed ? 0 : 14));
             }
             else
             {
-                x.Add(Shape($"contact-{pole}-fixed", "core.rectangle", 8, 27 + offset, 37, 8, Steel, Outline, 1));
-                x.Add(Shape($"contact-{pole}-moving", "core.rectangle", 53, 26 + offset, 57, 10, bladeColor, Outline, 1, rotation: closed ? 0 : pole % 2 == 0 ? -16 : 16));
+                var row = triple ? 10 + pole * 24d : 38d;
+                x.Add(Shape($"contact-{pole}-fixed", "core.rectangle", 10, row, 38, 8, Steel, Outline, 1));
+                x.Add(Shape($"contact-{pole}-moving", "core.rectangle", 54, row - 1, 58, 10, bladeColor, Outline, 1, rotation: closed ? 0 : 14));
             }
         }
-        x.Add(Text("equipment-label", triple ? "3~" : "1~", 44, 78, 44, 14, 10));
+        var labelX = vertical ? triple ? 64 : 35 : 39;
+        x.Add(Text("equipment-label", triple ? "3~" : "1~", labelX, 83, 44, 14, 10));
         return x;
     }
 

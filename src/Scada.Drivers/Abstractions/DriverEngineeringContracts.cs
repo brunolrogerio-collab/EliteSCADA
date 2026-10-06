@@ -360,7 +360,10 @@ public sealed record DriverMaterializationEquipmentCandidate(
 /// Read-only composite proposal produced by protocol discovery. Candidate-local
 /// identifiers are resolved to canonical Engineering identities only during the
 /// normal preview/apply path. The proposal carries no secrets and never mutates
-/// Working or Active state by itself.
+/// Working or Active state by itself. Transient button/action events are
+/// deliberately not materialized by this S1 contract: they must not be modeled
+/// as persistent TAG state, and a future event-capability contract requires
+/// separate authorization.
 /// </summary>
 public sealed record DriverMaterializationCandidate(
     DriverMaterializationEquipmentCandidate Equipment,

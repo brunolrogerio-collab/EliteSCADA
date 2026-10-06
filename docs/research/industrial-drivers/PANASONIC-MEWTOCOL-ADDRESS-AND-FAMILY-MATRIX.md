@@ -1,7 +1,7 @@
 # Panasonic MEWTOCOL — Address and Family Matrix
 
 **Issue:** #553  
-**Checkpoint:** 1  
+**Checkpoint:** 1 complete; 2 addendum  
 **Research date:** 2026-10-06  
 **Scope:** family / transport / address / data-type evidence only  
 **Status:** `DOCS_ONLY / NO_PRODUCT_CODE`
@@ -302,6 +302,183 @@ V1 profile:
 - FP-X: legacy/later.
 
 `PANASONIC_MEWTOCOL = GO_WITH_GATES`
+
+`DOCS_ONLY`  
+`NO PRODUCT CODE CHANGED`  
+`NO DEPENDENCY CHANGED`  
+`NO CI CHANGED`  
+`NO MERGE PERFORMED`
+
+
+# Checkpoint 2 Addendum — Planner and FP7 MC Interoperability Matrix
+
+**Checkpoint date:** 2026-10-06  
+**Scope:** planner/command capabilities + FP7 MC subset only
+
+## 14. MEWTOCOL-COM command/planner matrix
+
+| Need | Command | Shape | Documented bound / note | V1 |
+|---|---|---|---|---|
+| one contact read | `RCS` | single contact | one target | YES |
+| sparse contact read | `RCP` | explicitly listed contacts | 1..8 contacts | YES when useful |
+| contiguous contact read | `RCC` | range | profile/frame bounded | YES |
+| one contact write | `WCS` | single contact | one target | YES |
+| sparse contact write | `WCP` | explicitly listed contacts | 1..8 contacts | only explicit multi-point operation |
+| contiguous contact write | `WCC` | range | profile/frame bounded | bounded explicit operation |
+| contiguous word read | `RD` | start/end word | profile/frame bounded | YES |
+| contiguous word write | `WD` | start/end + data | profile/frame bounded | YES |
+| PLC model/status | `RT` | status query | model/version/mode/status evidence | Engineering probe |
+| timer/counter value commands | `RS/WS/RK/WK` | family-specific values | not uniform across v1 families | LATER |
+| monitor registration | `MC/MD/MG` | stateful registration/monitor | extra PLC-side state | LATER |
+
+Planner invariant:
+
+`NO_1_TAG_1_REQUEST_DEFAULT`
+
+Read grouping keys:
+
+`DataSource -> transport/session/bus -> station -> dialect -> family/profile -> device area -> contiguous range -> compatible layout`
+
+Do not group across any key boundary.
+
+## 15. Frame/batch capability matrix
+
+| Capability | Classic standard frame | Classic expanded frame | Product rule |
+|---|---:|---:|---|
+| maximum frame characters | 118 | 2048 | profile capability |
+| sparse contacts RCP/WCP | 8 | 8 | command limit |
+| contiguous read words | small short-frame subset | up to ~509 on officially documented current profiles | profile capability |
+| contiguous write words | small short-frame subset | up to ~507 on officially documented current profiles | profile capability |
+
+The exact short-frame word quantities must be frozen from deterministic L0 vectors rather than copied from an arithmetic estimate.
+
+The future profile should expose explicit bounded values rather than infer limits from family name alone.
+
+## 16. Session/scheduler matrix
+
+| Transport | Physical/session authority | Outstanding transactions | Reuse | Failure recovery |
+|---|---|---:|---|---|
+| TCP | Panasonic Data Source TCP session | 1 per connection | persistent while healthy | close/reconnect on EOF/framing/BCC/ambiguous timeout |
+| Host Serial | existing #469 `HostSerialBusCoordinator` | 1 per physical bus | shared master bus with compatible line settings | serialized recovery/reopen; no blind write retry |
+
+Station belongs to the Data Source/session configuration.
+
+## 17. FP7 MC Protocol — exact interoperability disposition
+
+FP7 MC is not part of the native MEWTOCOL address grammar above.
+
+Official FP7 documentation describes a Mitsubishi QnA-compatible subset:
+
+- 3E frame;
+- binary encoding;
+- TCP/IP or UDP/IP;
+- bulk read `0401`;
+- bulk write `1401`;
+- bit subcommand `0001`;
+- word subcommand `0000`;
+- up to 7168 bits or 960 words per documented bulk operation.
+
+### 17.1 Restricted routing/header fields
+
+The FP7 slave subset fixes/constrains MC routing fields approximately as follows:
+
+| Field | FP7 documented value/restriction |
+|---|---|
+| network number | `00h` |
+| PC number | `FFh` |
+| destination unit I/O | `03FFh` |
+| destination unit number | `00h` |
+| CPU monitor timer | not supported in this FP7 subset |
+| starting device number | 3-byte / 6-hex-digit QnA-compatible representation |
+
+These restrictions make FP7 a useful interoperability target but not a universal MELSEC simulator.
+
+### 17.2 Device mapping matrix
+
+| MC device code/name | FP7 target | Access/use observation |
+|---|---|---|
+| `X` / code `9C` | FP7 X external input area | documented bit/word mapping |
+| `Y` / `9D` | FP7 Y external output area | documented bit/word mapping |
+| `B` / `A0` | FP7 L link relay | mapped interoperability area |
+| `M` / `90` | FP7 R lower internal-relay range | mapped interoperability area |
+| `L` / `92` | FP7 R higher/latch range | mapped interoperability area |
+| `D` / `A8` | FP7 DT data-register range | word mapping |
+| file register `R` / `AF` | FP7 extended DT range | word mapping |
+| `ZR` / `B0` | FP7 extended DT range | word mapping |
+| `W` / `B4` | FP7 LD link-data range | word mapping |
+| `TN` / `C2` | FP7 TE timer elapsed/current | 16-bit interoperability subset |
+| `TS` / `C1` | FP7 T timer contacts | status/contact mapping |
+| `CN` / `C5` | FP7 CE counter elapsed/current | 16-bit interoperability subset |
+| `CS` / `C4` | FP7 C counter contacts | status/contact mapping |
+| `SM` / `91` | FP7 SR special relay | restricted semantics |
+| `SD` / `A9` | FP7 SD special data | restricted semantics |
+
+Important:
+
+- only documented/global mappings are interoperability authority;
+- do not infer Panasonic local-device support from MC;
+- FP7 timer/counter current values are 32-bit in native Panasonic memory, while the documented MC compatibility path exposes only a limited 16-bit representation for those mapped values;
+- therefore MC cannot replace MEWTOCOL for full native FP7 semantics.
+
+## 18. FP7 MC architecture decision
+
+Primary user-facing disposition:
+
+`FP7_MC = OPTIONAL_ALTERNATIVE`
+
+Validation/lab disposition:
+
+`FP7_MC = FUTURE_MITSUBISHI_INTEROPERABILITY_PEER`
+
+Implementation ownership if ever supported:
+
+`COMMON_MC_PROVIDER`
+
+Never:
+
+`PANASONIC_MEWTOCOL_INTERNAL_MC_CODEC`
+
+This means:
+
+1. Panasonic native driver remains MEWTOCOL-based.
+2. FP7 may later be connected through a common MC driver if the common provider explicitly supports the Panasonic 3E subset.
+3. FP7 hardware is a useful independent L4 peer for the future Mitsubishi driver.
+4. Passing against FP7 proves only its documented 3E binary bulk subset.
+
+`FP7_MC_SUBSET != UNIVERSAL_MELSEC_SUPPORT`
+
+## 19. Driver-type naming gate
+
+The current Driver SDK has one `ConnectionModel` per driver type. Therefore the matrix now recommends:
+
+| Driver type | Connection model | Shared family |
+|---|---|---|
+| `panasonic.mewtocol.tcp` | DirectNetwork | Panasonic MEWTOCOL |
+| `panasonic.mewtocol.serial` | HostSerial | Panasonic MEWTOCOL |
+
+Both share:
+
+- `mewtocol-com` dialect;
+- address parser;
+- codec;
+- family capability tables;
+- TAG binding grammar;
+- value codec;
+- planner semantics.
+
+This is a recommendation for Main to freeze before DEV.
+
+If Main requires one literal `panasonic.mewtocol` type for both transports:
+
+`RESEARCH_CONTRACT_DELTA_REQUIRED`
+
+because the current generic descriptor/UI needs explicit alternative connection profiles and conditional configuration fields.
+
+## 20. Checkpoint 2 state
+
+`PANASONIC_MEWTOCOL = GO_WITH_GATES`
+
+`MAIN_DECISION_REQUIRED` for exact transport-specific driver IDs vs shared SDK extension.
 
 `DOCS_ONLY`  
 `NO PRODUCT CODE CHANGED`  

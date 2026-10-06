@@ -183,7 +183,21 @@ public sealed class EspHomeReconnectDiagnosticsTests
     [Fact]
     public async Task Diagnostics_UseCommonAuthority_AndExposeOnlySanitizedProtocolDetails()
     {
-        var client = new ScriptedClient([Inventory("AA:BB:CC:DD:EE:FF", hasDeepSleep: true)]);
+        var capabilities = new EspHomeDeviceCapabilities(
+            BluetoothProxyPresent: true,
+            BluetoothProxyFeatureFlags: 5,
+            BluetoothProxyMacAddress: "AC:BC:32:89:0E:AA",
+            VoiceAssistantPresent: true,
+            VoiceAssistantFeatureFlags: 3,
+            ZWaveProxyPresent: true,
+            ZWaveProxyFeatureFlags: 9,
+            ZWaveHomeId: 0x12345678,
+            SerialProxies:
+            [
+                new EspHomeSerialProxyCapability("bus-a", "Rs485", 7)
+            ]);
+        var client = new ScriptedClient(
+            [Inventory("AA:BB:CC:DD:EE:FF", hasDeepSleep: true, deviceCapabilities: capabilities)]);
         var settings = Settings(EspHomeDeepSleepPolicy.Normal);
         var (driver, cache, tag) = CreateDriver(settings, client);
 
@@ -204,6 +218,17 @@ public sealed class EspHomeReconnectDiagnosticsTests
             Assert.Equal("plaintext", diagnostics.ProtocolDetails["encryptionMode"]);
             Assert.Equal("plaintext-insecure-explicit", diagnostics.ProtocolDetails["transportSecurity"]);
             Assert.Equal("true", diagnostics.ProtocolDetails["deviceReportsDeepSleep"]);
+            Assert.Equal("true", diagnostics.ProtocolDetails["deviceCapabilitiesSupportedByApi"]);
+            Assert.Equal("true", diagnostics.ProtocolDetails["deviceCapabilitiesReceived"]);
+            Assert.Equal("true", diagnostics.ProtocolDetails["bluetoothProxyPresent"]);
+            Assert.Equal("5", diagnostics.ProtocolDetails["bluetoothProxyFeatureFlags"]);
+            Assert.Equal("AC:BC:32:89:0E:AA", diagnostics.ProtocolDetails["bluetoothProxyMacAddress"]);
+            Assert.Equal("true", diagnostics.ProtocolDetails["voiceAssistantPresent"]);
+            Assert.Equal("3", diagnostics.ProtocolDetails["voiceAssistantFeatureFlags"]);
+            Assert.Equal("true", diagnostics.ProtocolDetails["zWaveProxyPresent"]);
+            Assert.Equal("9", diagnostics.ProtocolDetails["zWaveProxyFeatureFlags"]);
+            Assert.Equal("305419896", diagnostics.ProtocolDetails["zWaveHomeId"]);
+            Assert.Equal("1", diagnostics.ProtocolDetails["serialProxyCount"]);
             Assert.DoesNotContain(
                 diagnostics.ProtocolDetails.Keys,
                 key => key.Contains("password", StringComparison.OrdinalIgnoreCase)
@@ -254,7 +279,8 @@ public sealed class EspHomeReconnectDiagnosticsTests
     private static EspHomeNativeInventory Inventory(
         string mac,
         bool hasDeepSleep = false,
-        bool includeRelay = true)
+        bool includeRelay = true,
+        EspHomeDeviceCapabilities? deviceCapabilities = null)
     {
         IReadOnlyCollection<EspHomeEntityDescriptor> entities = includeRelay
             ? [new EspHomeEntityDescriptor(EspHomeEntityKind.Switch, 0x01020304, 0, "relay", "Relay", 0)]
@@ -274,7 +300,8 @@ public sealed class EspHomeReconnectDiagnosticsTests
                 "fixture",
                 "1",
                 hasDeepSleep),
-            entities);
+            entities,
+            DeviceCapabilities: deviceCapabilities);
     }
 
     private static TagQuality? CurrentQuality(CurrentTagCache cache, Guid tagId) =>

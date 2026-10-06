@@ -900,8 +900,8 @@ Do not include in same driver:
    - end-user authorization;
    - staged support for both.
 2. Commercial/legal/LGPD review.
-3. Exact intended production plan and current API/QPS qualification.
-4. Message Service dependency/reliability decision.
+3. Exact intended production plan plus qualification of any endpoint-specific limits/error behavior beyond Tuya's published generic 500,000-calls/day and 500-calls/second protections.
+4. Message Service dependency/reliability decision; the official C# path exists, but package/license/operational review remains required.
 5. Brazil legacy-region UX/test case.
 
 ### Intelbras GDI
@@ -1054,12 +1054,17 @@ Revalidated 2026-10-06:
 - current pricing still states Trial is development/debug only and commercial use is prohibited;
 - IoT Core renewal remains required after validity expiry;
 - current Message Service documents production/test messaging rules, subscriptions, Pulsar SDK integration, and queue monitoring;
+- current official support publishes generic cloud-to-cloud protection of 500,000 calls/day and 500 calls/second; endpoint-specific restrictions/error semantics still require qualification;
+- an official C#/.NET Pulsar consumer path exists; its current Tuya GitHub sample targets net9.0 and references DotPulsar 3.4.0 plus Newtonsoft.Json 13.0.1, but this research adopts no dependency;
 - current data-center mapping still lists Brazil and the migration from Western America to Eastern America.
 
 Primary official sources:
 - https://developer.tuya.com/en/docs/cloud
 - https://developer.tuya.com/en/docs/iot/membership-service?id=K9m8k45jwvg9j
 - https://developer.tuya.com/en/docs/iot/manage-messages?id=Ka49p7loog3ze
+- https://support.tuya.com/en/help/_detail/K8sdy1i4g9u0q
+- https://developer.tuya.com/en/docs/iot/Pulsar-SDK-get-message-c?id=Kawpkk5vic1es
+- https://github.com/tuya/tuya-pulsar-sdk-dotnet
 - https://developer.tuya.com/en/docs/iot/oem-app-data-center-distributed?id=Kafi0ku9l07qb
 
 ### Intelbras

@@ -64,7 +64,7 @@ Disposition:
 | Matter(.js) Server | 1.4.0 | source/container identified Apache-2.0; npm metadata discrepancy noted | managed Matter sidecar |
 | matter.js | 0.17.9 | Apache-2.0 | underlying Matter stack |
 | connectedhomeip | v1.6.1.0 | Apache-2.0 | reference / L2 oracle |
-| Z-Wave JS Server | 3.10.1 | Apache-2.0 | managed Z-Wave sidecar |
+| Z-Wave JS Server | 3.11.0 | Apache-2.0 | managed Z-Wave sidecar |
 | Z-Wave JS | 15.31.0 | MIT | underlying Z-Wave stack |
 
 ## Common obligations

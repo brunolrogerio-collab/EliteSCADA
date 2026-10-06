@@ -14,7 +14,7 @@ namespace Scada.Api.Runtime;
 /// </summary>
 public static class BuiltinDynamoCatalogV1
 {
-    public const string Version = "1.1.0";
+    public const string Version = "1.2.0";
     private const string Outline = "#263746";
     private const string Steel = "#A9BAC5";
     private const string Light = "#E7EEF2";
@@ -43,7 +43,7 @@ public static class BuiltinDynamoCatalogV1
                 Metadata: new Dictionary<string, string>(inspection.CanonicalMetadata ?? new Dictionary<string, string>(), StringComparer.Ordinal)
                 {
                     ["assetRole"] = "dynamoArtwork",
-                    ["catalogGeneration"] = "2", ["assetOrigin"] = "original-elitescada-vector-factory",
+                    ["catalogGeneration"] = "3", ["assetOrigin"] = "original-elitescada-vector-factory",
                     ["reviewStatus"] = "first-party-product-artwork"
                 });
             return (asset, payload);
@@ -52,12 +52,12 @@ public static class BuiltinDynamoCatalogV1
 
     private static IReadOnlyCollection<DynamoEngineeringDto> CreateGeometryDefinitions()
     {
-        var result = new List<DynamoEngineeringDto>(27);
-        result.AddRange(new[] { "round", "square", "rectangular", "stacked" }.Select((shape, i) => Lamp(shape, i)));
-        result.AddRange(new[] { "raised", "flush", "guarded", "illuminated" }.Select((shape, i) => Button(shape, i)));
-        result.AddRange(new[] { "tefc", "finned", "vertical", "foot-mounted", "large-frame", "vfd-package" }
+        var result = new List<DynamoEngineeringDto>(23);
+        result.AddRange(new[] { "round", "square", "rectangular" }.Select((shape, i) => Lamp(shape, i)));
+        result.AddRange(new[] { "raised", "flush", "illuminated" }.Select((shape, i) => Button(shape, i)));
+        result.AddRange(new[] { "tefc", "finned", "vertical", "large-frame", "vfd-package" }
             .Select((shape, i) => Equipment("motor", shape, $"Motor {MotorName(shape)}", i)));
-        result.AddRange(new[] { "gate", "globe", "ball", "butterfly", "diaphragm", "control" }
+        result.AddRange(new[] { "gate", "globe", "ball", "butterfly", "control" }
             .Select((shape, i) => Equipment("valve", shape, $"Válvula {ValveName(shape)}", i)));
         result.Add(Equipment("pump", "submersible", "Bomba submersível", 0));
         result.AddRange(new[] { "contact-mono-horizontal", "contact-mono-vertical", "contact-tri-horizontal",
@@ -265,13 +265,10 @@ public static class BuiltinDynamoCatalogV1
     {
         var family = definition.Metadata?.GetValueOrDefault("familyKey");
         var variant = definition.Metadata?.GetValueOrDefault("visualVariant");
-        if (family == "equipment.motor" && variant is "foot-mounted" or "large-frame")
+        if (family == "equipment.motor" && variant == "large-frame")
         {
-            root.Add(
-                new XElement(svg + "path", new XAttribute("d", variant == "large-frame"
-                        ? "M 17 69 L 115 69 L 121 76 L 11 76 Z"
-                        : "M 35 69 L 54 69 L 51 76 L 32 76 Z M 79 69 L 98 69 L 101 76 L 82 76 Z"),
-                    new XAttribute("fill", "#526879"), new XAttribute("stroke", Outline), new XAttribute("stroke-width", "1.5")));
+            root.Add(new XElement(svg + "path", new XAttribute("d", "M 17 69 L 115 69 L 121 76 L 11 76 Z"),
+                new XAttribute("fill", "#526879"), new XAttribute("stroke", Outline), new XAttribute("stroke-width", "1.5")));
         }
         if (variant == "vfd-package")
         {
@@ -298,9 +295,6 @@ public static class BuiltinDynamoCatalogV1
                     new XAttribute("width", "22"), new XAttribute("height", "4"), new XAttribute("rx", "2"),
                     new XAttribute("fill", Steel), new XAttribute("stroke", Outline), new XAttribute("stroke-width", "1")));
         }
-        if (family == "equipment.valve" && variant == "diaphragm")
-            root.Add(new XElement(svg + "path", new XAttribute("d", "M 44 68 Q 66 82 88 68 Z"),
-                new XAttribute("fill", Steel), new XAttribute("stroke", Outline), new XAttribute("stroke-width", "1.5")));
         if (family == "equipment.valve" && variant == "control")
             root.Add(
                 new XElement(svg + "circle", new XAttribute("cx", "66"), new XAttribute("cy", "15"),
@@ -325,14 +319,12 @@ public static class BuiltinDynamoCatalogV1
         ("motor", "tefc") => "motor-horizontal-vermelho.svg",
         ("motor", "finned") => "motor-inclinado-amarelo.svg",
         ("motor", "vertical") => "motor-vertical.svg",
-        ("motor", "foot-mounted") => "motor-inclinado-amarelo.svg",
         ("motor", "large-frame") => "motor-horizontal-vermelho.svg",
         ("motor", "vfd-package") => "motor-horizontal-vermelho.svg",
         ("valve", "gate") => "valvula-manual-volante.svg",
         ("valve", "globe") => "valvula-vertical.svg",
         ("valve", "ball") => "corpo-esferico-dourado.svg",
         ("valve", "butterfly") => "valvula-vertical.svg",
-        ("valve", "diaphragm") => "valvula-manual-volante.svg",
         ("valve", "control") => "valvula-vertical.svg",
         ("pump", "submersible") => "bomba-submersivel.svg",
         _ => throw new InvalidDataException($"No reference artwork is assigned for {family}.{variant}.")
@@ -357,14 +349,6 @@ public static class BuiltinDynamoCatalogV1
         var sh = shape == "rectangular" ? 34d : 54d;
         x.Add(Shape("bezel", square ? "core.rectangle" : "core.ellipse", sx, sy, sw, sh, "#D6E0E6", Outline, square ? 5 : 1));
         x.Add(Shape("lens", square ? "core.rectangle" : "core.ellipse", sx + 7, sy + 7, sw - 14, sh - 14, "#16A34A", Outline, square ? 3 : 1));
-        if (shape == "stacked")
-        {
-            x.Clear();
-            x.Add(Shape("mount", "core.rectangle", 42, 59, 26, 10, Dark, Outline, 1));
-            x.Add(Shape("red-lens", "core.ellipse", 34, 10, 42, 24, "#DC2626", Outline, 2));
-            x.Add(Shape("amber-lens", "core.ellipse", 34, 30, 42, 24, "#EAB308", Outline, 2));
-            x.Add(Shape("green-lens", "core.ellipse", 34, 50, 42, 24, "#16A34A", Outline, 2));
-        }
         const bool stateful = true;
         var parameters = new List<DynamoParameterDefinitionEngineeringDto>
         {
@@ -416,14 +400,8 @@ public static class BuiltinDynamoCatalogV1
     private static DynamoEngineeringDto Button(string style, int index)
     {
         var x = new List<VisualElementEngineeringDto>();
-        var guarded = style == "guarded";
         var square = style is "flush" or "illuminated";
         x.Add(Shape("panel", "core.rectangle", 10, 9, 90, 66, "#D6E0E6", Outline, 3, 8));
-        if (guarded)
-        {
-            x.Add(Poly("guard-left", [(14, 52), (28, 20), (36, 58)], Steel));
-            x.Add(Poly("guard-right", [(96, 52), (82, 20), (74, 58)], Steel));
-        }
         var buttonType = square ? "core.rectangle" : "core.ellipse";
         x.Add(Shape("button", buttonType, 30, 20, 50, 44, style == "illuminated" ? "#1687C9" : "#7B8E9B", Outline, 3, square ? 5 : 1, raised: style is "raised" or "illuminated"));
         x.Add(Shape("button-face", buttonType, 36, 25, 38, 32, style == "illuminated" ? "#73C9ED" : "#C9D7DF", "#F8FAFC", 1, square ? 3 : 1));
@@ -707,9 +685,6 @@ public static class BuiltinDynamoCatalogV1
             case "butterfly":
                 x.Add(Shape("disc", "core.rectangle", 61, 36, 8, 28, Light, Outline, 2, rotation: -18));
                 x.Add(Shape("stem", "core.rectangle", 63, 13, 5, 23, Dark, Outline, 1)); break;
-            case "diaphragm":
-                x.Add(Poly("diaphragm", [(38, 37), (66, 48), (94, 37), (94, 63), (66, 52), (38, 63)], Light));
-                x.Add(Shape("actuator", "core.rectangle", 53, 14, 26, 19, Steel, Outline, 2, 4)); break;
             default:
                 x.Add(Poly("body-left", [(38, 35), (66, 50), (38, 65)], Light));
                 x.Add(Poly("body-right", [(94, 35), (66, 50), (94, 65)], Light));
@@ -773,14 +748,14 @@ public static class BuiltinDynamoCatalogV1
         {
             ["category"] = category, ["defaultWidth"] = width.ToString(), ["defaultHeight"] = height.ToString(),
             ["libraryVersion"] = Version, ["visualStyle"] = "svg-composed", ["visualFinish"] = "reference-artwork-v2",
-            ["catalogGeneration"] = "2", ["catalogStatus"] = "active"
+            ["catalogGeneration"] = "3", ["catalogStatus"] = "active"
         }, Context: new Dictionary<string, string> { ["usage"] = "process-screen", ["view"] = "front-orthographic" },
             Metadata: metadata, Parameters: parameters, Elements: elements);
     }
 
     private static Dictionary<string, string> Metadata(string family, string variant) => new(StringComparer.Ordinal)
     {
-        ["builtinLibrary"] = "true", ["assetOrigin"] = "original-elitescada-vector", ["catalogGeneration"] = "2",
+        ["builtinLibrary"] = "true", ["assetOrigin"] = "original-elitescada-vector", ["catalogGeneration"] = "3",
         ["catalogStatus"] = "active", ["libraryVersion"] = Version, ["familyKey"] = family,
         ["visualVariant"] = variant, ["visualReferencePolicy"] = "editable-original-vector; no third-party art embedded"
     };
@@ -828,10 +803,10 @@ public static class BuiltinDynamoCatalogV1
         }, Id: StableElementId(key));
 
     private static Guid StableElementId(string key) => new(MD5.HashData(Encoding.UTF8.GetBytes("elitescada-element:" + key)));
-    private static string LampName(string value) => value switch { "round" => "redondo", "square" => "quadrado", "rectangular" => "retangular", _ => "torre" };
-    private static string ButtonName(string value) => value switch { "raised" => "elevado", "flush" => "faceado", "guarded" => "protegido", _ => "iluminado" };
-    private static string MotorName(string value) => value switch { "tefc" => "fechado", "vfd-package" => "com inversor", "foot-mounted" => "com pés", "large-frame" => "carcaça grande", _ => value };
-    private static string ValveName(string value) => value switch { "ball" => "esfera", "gate" => "gaveta", "globe" => "globo", "butterfly" => "borboleta", "diaphragm" => "diafragma", _ => "de controle" };
+    private static string LampName(string value) => value switch { "round" => "redondo", "square" => "quadrado", "rectangular" => "retangular", _ => value };
+    private static string ButtonName(string value) => value switch { "raised" => "elevado", "flush" => "faceado", _ => "iluminado" };
+    private static string MotorName(string value) => value switch { "tefc" => "fechado", "vfd-package" => "com inversor", "large-frame" => "carcaça grande", _ => value };
+    private static string ValveName(string value) => value switch { "ball" => "esfera", "gate" => "gaveta", "globe" => "globo", "butterfly" => "borboleta", _ => "de controle" };
     private static string ContactName(string value) => value.Replace("contact-", "").Replace("isolator-", "seccionadora ").Replace("mono", "monofilar").Replace("tri", "trifilar").Replace("horizontal", "horizontal").Replace("vertical", "vertical");
 
     private static int ContactPoleIndex(string key)

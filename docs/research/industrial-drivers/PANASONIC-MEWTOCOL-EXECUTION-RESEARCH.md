@@ -4,7 +4,7 @@
 **Parent:** #551 — INDUSTRIAL-PLC-ROADMAP  
 **Contract:** `C-INDUSTRIAL-PANASONIC-MEWTOCOL-RESEARCH-01`  
 **Order:** `INDUSTRIAL-PANASONIC-MEWTOCOL-EXECUTION-RESEARCH-01`  
-**Checkpoint:** 1 complete; 2 — planner + transport + process truth + PointRead + FP7 MC  
+**Checkpoint:** 1-2 complete; 3 — L0-L4 + hardware + legal + final v1 recommendation  
 **Research date / source access:** 2026-10-06  
 **Branch:** `research/industrial-panasonic-mewtocol`  
 **Release base:** `wave15/corrections-integration@d2569990bc53dfce61ca8043471719e958809d6c`
@@ -1230,6 +1230,591 @@ Do **not** execute L0-L4, hardware procurement shortlist finalization, legal con
 
 `DOCS_ONLY`  
 `NO PRODUCT CODE CHANGED`  
+`NO DEPENDENCY CHANGED`  
+`NO CI CHANGED`  
+`NO MERGE PERFORMED`
+
+
+# Checkpoint 3 — L0-L4, Hardware, Legal and Final V1 Recommendation
+
+**Checkpoint date / source access:** 2026-10-06  
+**Checkpoint start HEAD:** `5b28b55a71940e13a37f49ae3dc0325817eef276`  
+**State:** `RESEARCH_ONLY / DOCS_ONLY / NO_PRODUCT_CODE / NO_MERGE`
+
+Checkpoint 3 adds:
+
+- `PANASONIC-MEWTOCOL-LAB-VALIDATION-MATRIX.md`
+- `PANASONIC-MEWTOCOL-LEGAL-AND-DEPENDENCY-MATRIX.md`
+
+## 34. Current product/hardware revalidation
+
+Current Panasonic Industry catalog evidence accessed on 2026-10-06 confirms:
+
+### FP0R
+
+Current FP0R product page still lists F32 serial models including:
+
+- `AFP0RF32CT` — RS-232C;
+- `AFP0RF32MT` — RS-485;
+- corresponding PNP variants.
+
+Recommended L4 serial fixture:
+
+`AFP0RF32MT`
+
+Reason:
+
+- current compact family;
+- native RS-485;
+- exercises #469 Host Serial;
+- suitable for station/multidrop behavior.
+
+### FP-XH
+
+Current FP-XH catalog lists:
+
+`AFPXHC14RD`
+
+Official AFPX-COM5 communication material confirms:
+
+- Ethernet interface on COM1;
+- RS-232C on COM2;
+- Computer Link support over Ethernet;
+- TCP server mode;
+- configurable port;
+- documented multi-connection server behavior.
+
+Recommended L4 classic COM TCP fixture:
+
+`AFPXHC14RD + AFPX-COM5`
+
+### FP7
+
+Current FP7 product/manual material lists current Ethernet CPUs including:
+
+- `AFP7CPS3RE`
+- `AFP7CPS4RE`
+
+Recommended L4 higher-tier fixture:
+
+`AFP7CPS3RE`
+
+Reason:
+
+- current R-series;
+- integrated Ethernet;
+- native MEWTOCOL;
+- useful separate FP7 MC 3E interoperability target.
+
+### FP0H — optional additional evidence
+
+Current FP0H material shows:
+
+`AFP0HC32ET`
+
+with:
+
+- two Ethernet ports;
+- RS-232C;
+- MEWTOCOL-COM;
+- MEWTOCOL-DAT;
+- Modbus TCP;
+- MC Protocol.
+
+It is an excellent optional compact integrated-Ethernet lab device and future family candidate.
+
+It is **not** added to the first v1 compatibility claim by this checkpoint.
+
+### Availability meaning
+
+The above models are currently present in Panasonic product/manual catalogs.
+
+This is:
+
+`CURRENT_CATALOG_EVIDENCE`
+
+not proof of local distributor stock, price or lead time.
+
+Procurement must revalidate regional orderability before purchase.
+
+## 35. Exact L0-L4 strategy
+
+The full matrix is in:
+
+`docs/research/industrial-drivers/PANASONIC-MEWTOCOL-LAB-VALIDATION-MATRIX.md`
+
+### L0
+
+Required deterministic coverage:
+
+- classic COM standard/expanded frame;
+- XOR BCC;
+- RCS/RCP/RCC/RD/RT;
+- WCS/WD and bounded explicit WCP/WCC;
+- strict address parser;
+- exact family/profile validation;
+- Boolean/UInt16/Int16;
+- error mapping;
+- batching/split boundaries;
+- process-truth state machine;
+- unsupported types fail closed.
+
+No hardware claim from L0.
+
+### L1
+
+Independent fake TCP peer + fake #469 Host Serial provider.
+
+Required:
+
+- partial/malformed frames;
+- BCC failure;
+- wrong station;
+- protocol `!` errors;
+- delays/timeouts;
+- connection close/reconnect;
+- no TCP pipelining;
+- serial bus serialization;
+- station scheduling;
+- conflicting serial settings;
+- cancellation/restart;
+- ambiguous write timeout with no blind retry.
+
+### L2
+
+Vendor-side independent reference:
+
+- Control FPWIN Pro7;
+- FP Data7 where compatible.
+
+Current Panasonic pages list FPWIN Pro7 7.7.4.1 and FP Data7 V1.12.0.
+
+FPWIN simulation exists for FP0R/other 16-bit PLC types, but research did not prove a separately reachable external MEWTOCOL server endpoint.
+
+Therefore:
+
+`FPWIN_SIMULATION != ACCEPTED_L2_WIRE_PEER_UNLESS_EXTERNAL_ENDPOINT_IS_PROVEN`
+
+Community MewtocolNet is optional corroboration only after exact-license approval; it is not required for acceptance.
+
+### L3
+
+Canonical EliteSCADA integration:
+
+- Driver/Data Source;
+- TAG binding;
+- polling;
+- Runtime.WriteAsync;
+- PointRead;
+- #500 diagnostics;
+- Save/Revision/Publish/Activate;
+- package/restart;
+- #469 Host Serial;
+- HA external-effect ownership.
+
+No second Runtime/TAG/diagnostics authority.
+
+### L4
+
+Minimum strong matrix:
+
+1. `AFP0RF32MT` — Host Serial / RS-485 / MEWTOCOL-COM.
+2. `AFPXHC14RD + AFPX-COM5` — TCP / MEWTOCOL-COM.
+3. `AFP7CPS3RE` — TCP / MEWTOCOL-COM plus separate MC 3E cross-test.
+
+Optional fourth:
+`AFP0HC32ET`.
+
+Every L4 record must capture actual firmware and communication configuration.
+
+Do not pre-invent a firmware claim.
+
+## 36. L4 publication gate
+
+A published compatibility claim requires at least:
+
+- one compact serial family;
+- one TCP family;
+- one modern FP7 profile;
+- real read/write/PointRead/restart evidence;
+- exact model/firmware/date;
+- exact address/types tested.
+
+Preferred first release claim after successful validation:
+
+`Panasonic MEWTOCOL-COM compatible with the validated FP0R, FP-XH and FP7 models/transports listed in the EliteSCADA compatibility matrix.`
+
+Do not claim all Panasonic PLCs.
+
+## 37. Data-type final v1 decision
+
+Checkpoint 3 did not find sufficient authoritative cross-family evidence to promote adjacent-word interpretation for:
+
+- UInt32;
+- Int32;
+- Float32.
+
+Therefore the final first-scope type set is:
+
+`Boolean`  
+`UInt16`  
+`Int16`
+
+and:
+
+`UInt32 / Int32 / Float32 = LATER_GATE`
+
+`Float64 / BCD / String / ByteArray = NOT_V1`
+
+This is intentionally conservative.
+
+A future type expansion must prove:
+
+1. official Panasonic representation;
+2. L0 vectors;
+3. vendor-tool evidence;
+4. L4 on at least two selected families/profiles.
+
+## 38. Address/memory final v1 decision
+
+First grammar remains:
+
+Contacts:
+- X
+- Y
+- R
+- L
+- T
+- C
+
+Words:
+- WX
+- WY
+- WR
+- WL
+- DT
+- LD
+
+Access policy:
+
+- X/WX: read-only;
+- Y/WY: read/write where profile permits;
+- R/WR: read/write;
+- L/WL/LD: only where selected family/profile proves the area and intended semantics;
+- DT: read/write;
+- T/C: read-only in v1.
+
+Deferred:
+
+- SV/EV;
+- TS/TE/CS/CE;
+- FL;
+- special/system devices;
+- generic word-bit selector syntax.
+
+The driver must validate numeric range against explicit family/profile capabilities before I/O.
+
+## 39. MEWTOCOL7 final v1 decision
+
+`MEWTOCOL7-COM = NOT_V1`
+
+Reason:
+
+- distinct frame/header;
+- CRC-16-CCITT;
+- distinct extended addressing/command behavior;
+- no requirement to deliver first useful Panasonic native driver.
+
+Future promotion requires its own:
+
+- L0 codec/address vectors;
+- L1 fake peer;
+- FP7 L4;
+- explicit product benefit.
+
+It may remain under the Panasonic MEWTOCOL family later.
+
+## 40. FP7 MC final relationship
+
+`FP7_MC = OUTSIDE_PANASONIC_NATIVE_SCOPE`
+
+If EliteSCADA later exposes MC communication to FP7:
+
+- reuse common Mitsubishi/MC provider;
+- enable only documented Panasonic-compatible subset;
+- no Panasonic-local MC codec fork;
+- no claim that FP7 represents universal MELSEC behavior.
+
+FP7 remains useful L4 interoperability hardware for the Mitsubishi program.
+
+## 41. Legal / trademark conclusion
+
+Full matrix:
+
+`docs/research/industrial-drivers/PANASONIC-MEWTOCOL-LEGAL-AND-DEPENDENCY-MATRIX.md`
+
+Research findings:
+
+- Panasonic website/manual content is copyright-protected;
+- Panasonic logos/product media should not be redistributed without permission;
+- Panasonic name/product/protocol terms are protected marks/names;
+- public product naming must not imply endorsement/certification;
+- vendor tools are separate lab software and must not be redistributed.
+
+Required release gate:
+
+`LEGAL_REVIEW_REQUIRED_FOR_PUBLIC_PRODUCT_NAMING`
+
+Recommended engineering posture:
+
+- original EliteSCADA code;
+- original docs;
+- cite/link official Panasonic manuals;
+- no bundled Panasonic PDFs;
+- no Panasonic logo;
+- factual compatibility wording only;
+- explicit no-affiliation/no-endorsement wording if counsel approves.
+
+This does not block implementation of the protocol research result.
+
+## 42. Dependency final decision
+
+`DEPENDENCY = BUILT_IN_DOTNET`
+
+No production MEWTOCOL library.
+
+Current community-library finding:
+
+- OpenLogics/MewtocolNet current repository: GPL-3.0;
+- NuGet `Mewtocol.NET 0.8.1`: metadata says MIT;
+- current repo README says FP7 unsupported;
+- NuGet package dates to 2023.
+
+The source/package license discrepancy and coverage gap reinforce the built-in choice.
+
+Do not add it to the product.
+
+## 43. Final v1 product recommendation
+
+### Decision
+
+`PANASONIC_MEWTOCOL = GO_WITH_GATES`
+
+### Semantic product family
+
+`Panasonic MEWTOCOL`
+
+### Recommended concrete driver types
+
+Preferred current-SDK fit:
+
+`panasonic.mewtocol.tcp`
+
+`panasonic.mewtocol.serial`
+
+Shared core:
+
+- MEWTOCOL-COM frame/error codec;
+- address AST/parser;
+- value codec;
+- family/profile capabilities;
+- bounded planner;
+- TAG-binding schema;
+- process-truth semantics.
+
+### Dialect
+
+`MEWTOCOL-COM`
+
+### Transports
+
+- TCP client;
+- Host Serial through #469.
+
+### First family claims after L4
+
+- FP0R;
+- FP-XH;
+- current FP7 R-series bounded classic-COM subset.
+
+FP0H is a future/optional additional candidate, not required for v1 claim.
+
+### Engineering types
+
+- Boolean;
+- UInt16;
+- Int16.
+
+### Planner
+
+`BOUNDED_CONTIGUOUS_GROUPING`
+
+No one-request-per-TAG default.
+
+### TCP
+
+`PERSISTENT / ONE_OUTSTANDING / NO_PIPELINE`
+
+### Serial
+
+`SHARED_HOST_BUS / SERIALIZED_REQUESTS / STATION_ROUTING`
+
+### Write truth
+
+`ACK_IS_PROTOCOL_SUCCESS_NOT_PHYSICAL_SUCCESS`
+
+Post-dispatch timeout:
+
+`UNKNOWN / NO_BLIND_RETRY`
+
+### Engineering
+
+- typed manual address;
+- address assistant;
+- station/profile validation;
+- Connection Test;
+- optional RT model/status probe;
+- canonical PointRead;
+- no fabricated symbolic browse.
+
+### Diagnostics
+
+#500 common diagnostics only.
+
+### Security
+
+Legacy plaintext OT protocol; segmented LAN/local serial; VPN/private network for remote.
+
+### Implementation
+
+EliteSCADA-owned .NET implementation.
+
+No sidecar.
+No vendor Runtime.
+No new protocol dependency.
+
+## 44. Future DEV prerequisites
+
+A future implementation branch must not be released until Main freezes:
+
+### P0 — exact driver IDs
+
+Recommended:
+
+- `panasonic.mewtocol.tcp`
+- `panasonic.mewtocol.serial`
+
+If Main instead requires one literal `panasonic.mewtocol` type across both transports:
+
+`RESEARCH_CONTRACT_DELTA_REQUIRED`
+
+for alternative connection profiles / conditional schemas.
+
+### P1 — frozen first family capability table
+
+At minimum:
+
+- FP0R;
+- FP-XH;
+- FP7 classic-COM subset.
+
+Numeric bounds must be encoded as explicit profile data, not guessed from one family.
+
+### P2 — v1 type freeze
+
+`Boolean / UInt16 / Int16 only`
+
+unless Main deliberately authorizes a later type research gate.
+
+### P3 — validation plan accepted
+
+Use the L0-L4 matrix as binding acceptance direction.
+
+Hardware is not required before starting L0-L3 implementation, but L4 is required before broad compatibility claims.
+
+### P4 — legal naming review before public marketing/release
+
+Engineering can proceed with internal IDs while public display/trademark wording is reviewed.
+
+## 45. Recommended future DEV implementation slices
+
+### S0 — common MEWTOCOL-COM core
+
+- address AST/parser;
+- family/profile capability table;
+- BCC/frame codec;
+- command/error codec;
+- 16-bit value codec;
+- planner;
+- deterministic L0.
+
+### S1 — TCP
+
+- `panasonic.mewtocol.tcp`;
+- persistent one-outstanding session;
+- fake TCP peer L1;
+- read/write/RT;
+- diagnostics;
+- PointRead.
+
+### S2 — Host Serial
+
+- `panasonic.mewtocol.serial`;
+- #469 Host Serial;
+- shared bus/station scheduling;
+- fake serial L1;
+- PointRead/diagnostics.
+
+### S3 — Engineering + Runtime convergence
+
+- descriptor/catalog;
+- typed address assistant;
+- canonical TAG registration;
+- Runtime.WriteAsync;
+- #500 ladder;
+- lifecycle/package/restart/HA.
+
+### S4 — L4
+
+- AFP0RF32MT;
+- AFPXHC14RD + AFPX-COM5;
+- AFP7CPS3RE;
+- optional AFP0HC32ET;
+- exact compatibility matrix.
+
+Do not implement MEWTOCOL7, DAT or Panasonic-specific MC in these slices.
+
+## 46. Checkpoint 3 decision summary
+
+`PANASONIC_MEWTOCOL = GO_WITH_GATES`
+
+Gates remaining before DEV release/marketing:
+
+1. Main freezes transport driver IDs or explicitly authorizes SDK delta.
+2. Future DEV passes L0-L3.
+3. Real L4 passes before published compatibility claim.
+4. Legal reviews public Panasonic/MEWTOCOL naming.
+5. Multiword types remain out until separate evidence gate.
+
+No blocker requires abandoning the native driver.
+
+## 47. Checkpoint 3 stop
+
+Publish `RESEARCH PANASONIC-MEWTOCOL — CHECKPOINT 3` to #553 and STOP.
+
+A separate final continuation must perform:
+
+- fresh GitHub revalidation;
+- exact HEAD/base/merge-base/ahead-behind;
+- required-doc inventory;
+- final handoff to Main.
+
+Do not perform that final handoff in the same checkpoint turn.
+
+`RESEARCH_ONLY`  
+`DOCS_ONLY`  
+`NO PRODUCT CODE CHANGED`  
+`NO HOST SERIAL DUPLICATED`  
 `NO DEPENDENCY CHANGED`  
 `NO CI CHANGED`  
 `NO MERGE PERFORMED`

@@ -165,7 +165,7 @@ public sealed class HomeAssistantCommunicationRuntimePlanner : ICommunicationDri
             issues);
     }
 
-    internal static bool TryParsePortableAddress(
+    public static bool TryParsePortableAddress(
         string address,
         out string entityId,
         out string field)

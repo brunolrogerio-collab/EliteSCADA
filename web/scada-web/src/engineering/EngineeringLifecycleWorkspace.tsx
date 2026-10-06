@@ -32,6 +32,7 @@ export function EngineeringLifecycleWorkspace({ locale }: { locale: EngineeringL
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pendingCheckout, setPendingCheckout] = useState<PendingCheckout | null>(null);
+  const [revisionHistoryOpen, setRevisionHistoryOpen] = useState(false);
 
   const busy = busyAction !== null;
 
@@ -59,6 +60,7 @@ export function EngineeringLifecycleWorkspace({ locale }: { locale: EngineeringL
         const projectName = state.workspace.projectName?.trim();
         if (!projectName) throw new Error(copy.projectNameRequired);
         const saved = await saveEngineeringRevision(state.projectKey, projectName);
+        setRevisionHistoryOpen(false);
         setNotice(copy.saved.replace('{revision}', String(saved.revision)));
       } else if (action === 'checkout' && revision) {
         await checkoutEngineeringRevision(state.projectKey, revision);
@@ -167,11 +169,29 @@ export function EngineeringLifecycleWorkspace({ locale }: { locale: EngineeringL
             {latestRevision ? <strong>{formatTimestamp(latestRevision.savedAtUtc, locale, copy.never)}</strong> : null}
           </div>
 
-          {state.revisions.length > 0 ? (
-            <details className="eng-lifecycle-workspace__history">
-              <summary>{copy.revisions} ({state.revisions.length})</summary>
-              <div className="eng-lifecycle-workspace__revision-list" aria-label={copy.revisions}>
-                {state.revisions.map(revision => (
+          {latestRevision ? (
+            <div className="eng-lifecycle-workspace__latest-revision">
+              <RevisionRow
+                revision={latestRevision}
+                state={state}
+                locale={locale}
+                copy={copy}
+                busy={busy}
+                onCheckout={() => requestCheckout(latestRevision.revision)}
+                onPublish={() => void perform('publish', latestRevision.revision)}
+              />
+            </div>
+          ) : null}
+
+          {state.revisions.length > 1 ? (
+            <details
+              className="eng-lifecycle-workspace__history"
+              open={revisionHistoryOpen}
+              onToggle={event => setRevisionHistoryOpen(event.currentTarget.open)}
+            >
+              <summary>{copy.previousRevisions} ({state.revisions.length - 1})</summary>
+              <div className="eng-lifecycle-workspace__revision-list" aria-label={copy.previousRevisions}>
+                {state.revisions.slice(1).map(revision => (
                   <RevisionRow
                     key={revision.revision}
                     revision={revision}
@@ -374,6 +394,7 @@ function lifecycleCopy(locale: EngineeringLocale) {
     savedRevision: 'Saved revision',
     latestRevision: 'Latest saved revision',
     revisions: 'Saved revisions',
+    previousRevisions: 'Earlier revisions',
     noRevisions: 'No saved revisions yet',
     workingBase: 'Working base',
     useInWorking: 'Use in Working',
@@ -420,6 +441,7 @@ function lifecycleCopy(locale: EngineeringLocale) {
     savedRevision: 'Revisión guardada',
     latestRevision: 'Última revisión guardada',
     revisions: 'Revisiones guardadas',
+    previousRevisions: 'Revisiones anteriores',
     noRevisions: 'Aún no hay revisiones guardadas',
     workingBase: 'Base de Working',
     useInWorking: 'Usar en Working',
@@ -466,6 +488,7 @@ function lifecycleCopy(locale: EngineeringLocale) {
     savedRevision: 'Revisão salva',
     latestRevision: 'Última revisão salva',
     revisions: 'Revisões salvas',
+    previousRevisions: 'Revisões anteriores',
     noRevisions: 'Ainda não há revisões salvas',
     workingBase: 'Base do Working',
     useInWorking: 'Usar no Working',

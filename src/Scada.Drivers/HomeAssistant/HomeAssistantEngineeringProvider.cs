@@ -103,12 +103,26 @@ public sealed class HomeAssistantEngineeringProvider :
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        var candidates = await DiscoverCoreAsync(request, cancellationToken).ConfigureAwait(false);
+        foreach (var candidate in candidates)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return candidate;
+        }
+    }
+
+    private async ValueTask<IReadOnlyList<DriverDiscoveryCandidate>> DiscoverCoreAsync(
+        DriverDiscoveryRequest request,
+        CancellationToken cancellationToken)
+    {
         if (request.Context is null)
         {
-            yield return Failure(
-                "HA_DISCOVERY_CONTEXT_REQUIRED",
-                "Home Assistant discovery requires an Engineering Data Source context.");
-            yield break;
+            return
+            [
+                Failure(
+                    "HA_DISCOVERY_CONTEXT_REQUIRED",
+                    "Home Assistant discovery requires an Engineering Data Source context.")
+            ];
         }
 
         HomeAssistantConnectionSettings settings;
@@ -118,8 +132,7 @@ public sealed class HomeAssistantEngineeringProvider :
         }
         catch (Exception ex)
         {
-            yield return Failure("HA_DISCOVERY_CONFIGURATION", SafeFailure(ex));
-            yield break;
+            return [Failure("HA_DISCOVERY_CONFIGURATION", SafeFailure(ex))];
         }
 
         var selectedIds = ParseSelectedEntityIds(request.Parameters);
@@ -137,23 +150,24 @@ public sealed class HomeAssistantEngineeringProvider :
 
             if (materialized.Candidates.Count == 0)
             {
-                yield return new DriverDiscoveryCandidate(
-                    "ha-selection-empty",
-                    "unresolved",
-                    "Home Assistant selected entities",
-                    SanitizeEndpoint(settings),
-                    Metadata: new Dictionary<string, string>(StringComparer.Ordinal)
-                    {
-                        ["haVersion"] = client.HomeAssistantVersion ?? string.Empty,
-                        ["selectedEntityCount"] = selectedIds.Count.ToString(CultureInfo.InvariantCulture)
-                    },
-                    Issues: materialized.Issues);
-                yield break;
+                return
+                [
+                    new DriverDiscoveryCandidate(
+                        "ha-selection-empty",
+                        "unresolved",
+                        "Home Assistant selected entities",
+                        SanitizeEndpoint(settings),
+                        Metadata: new Dictionary<string, string>(StringComparer.Ordinal)
+                        {
+                            ["haVersion"] = client.HomeAssistantVersion ?? string.Empty,
+                            ["selectedEntityCount"] = selectedIds.Count.ToString(CultureInfo.InvariantCulture)
+                        },
+                        Issues: materialized.Issues)
+                ];
             }
 
-            foreach (var candidate in materialized.Candidates)
-            {
-                yield return new DriverDiscoveryCandidate(
+            return materialized.Candidates
+                .Select(candidate => new DriverDiscoveryCandidate(
                     candidate.Equipment.CandidateId,
                     candidate.Equipment.StableDeviceIdentity,
                     candidate.Equipment.Name,
@@ -166,15 +180,18 @@ public sealed class HomeAssistantEngineeringProvider :
                         ["entityIdentity"] = "entity_id_mutable"
                     },
                     Issues: materialized.Issues,
-                    Materialization: candidate);
-            }
+                    Materialization: candidate))
+                .ToArray();
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            yield return Failure(
-                "HA_DISCOVERY_FAILED",
-                SafeFailure(ex),
-                SanitizeEndpoint(settings));
+            return
+            [
+                Failure(
+                    "HA_DISCOVERY_FAILED",
+                    SafeFailure(ex),
+                    SanitizeEndpoint(settings))
+            ];
         }
     }
 

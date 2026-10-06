@@ -10,6 +10,7 @@ import {
 } from './api';
 import type { EngineeringLocale } from './i18n';
 import type { EngineeringSnapshot, MediaSourceEngineering, MediaSourceProtocolEngineering } from './types';
+import { EngineeringResourceOrganizer, engineeringCopyName, uniqueEngineeringKey } from './EngineeringResourceOrganizer';
 import './structured-editors.css';
 import './media-source-engineering.css';
 
@@ -32,6 +33,7 @@ export function MediaSourceEngineeringWorkspace({ snapshot, onApplied, locale = 
   const [bearerToken, setBearerToken] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
 
   const sourceIdentity = useMemo(() => sources.map(source => source.id).filter((id): id is string => Boolean(id)).join('|'), [sources]);
   useEffect(() => {
@@ -60,6 +62,18 @@ export function MediaSourceEngineeringWorkspace({ snapshot, onApplied, locale = 
 
   const updateDraft = (patch: Partial<MediaSourceEngineering>) => {
     setDraft(current => ({ ...current, ...patch }));
+    setMessage(null);
+  };
+
+  const pasteSource = (source: MediaSourceEngineering) => {
+    const hasUnsavedDraft = JSON.stringify(draft) !== JSON.stringify(selected ?? emptySource());
+    if (hasUnsavedDraft && !window.confirm(copy(locale).discardDraftConfirm)) return;
+    const key = uniqueEngineeringKey(source.key, sources.map(item => item.key));
+    // Credentials live in the host vault, outside the project source model. A
+    // copied source intentionally starts without credentials.
+    setDraft({ ...source, id: undefined, key, name: engineeringCopyName(source.name || source.key, locale) });
+    setSelectedId(null);
+    setIsNew(true);
     setMessage(null);
   };
 
@@ -121,18 +135,35 @@ export function MediaSourceEngineeringWorkspace({ snapshot, onApplied, locale = 
   };
 
   const text = copy(locale);
+  const projectKey = snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace';
   return <section className="eng-section media-source-workspace" data-testid="media-source-workspace">
     <header className="eng-section-header"><div><span className="eng-eyebrow">{text.eyebrow}</span><h1>{text.title}</h1><p>{text.description}</p></div>
-      <button type="button" onClick={() => choose(null)} disabled={busy}>{text.newSource}</button>
     </header>
     <div className="eng-editor-layout">
-      <aside className="eng-entity-picker" aria-label={text.sources}>
-        {sources.map(source => <button type="button" key={source.id ?? source.key}
-          className={source.id === selectedId ? 'selected' : ''} aria-current={source.id === selectedId ? 'true' : undefined}
-          onClick={() => choose(source.id ?? null)}>
-          <strong>{source.name}</strong><span>{source.protocol.toUpperCase()} · {source.enabled === false ? text.disabled : text.enabled}</span>
-        </button>)}
-        {sources.length === 0 && <div className="eng-editor-empty">{text.empty}</div>}
+      <aside className="eng-editor-picker" aria-label={text.sources}>
+        <header>
+          <div className="eng-editor-picker-title">
+            <strong>{text.sources}</strong>
+            <button type="button" className={isNew ? 'active' : ''} onClick={() => choose(null)} disabled={busy}>+ {text.newSource}</button>
+          </div>
+          <input type="search" aria-label={text.searchSources} placeholder={text.searchSources} value={query} onChange={event => setQuery(event.currentTarget.value)} />
+        </header>
+        <EngineeringResourceOrganizer
+          projectKey={projectKey}
+          kind="mediaSources"
+          locale={locale}
+          label={text.sources}
+          resources={sources
+            .filter(source => `${source.name} ${source.key} ${source.protocol} ${source.endpoint}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
+            .map(source => ({ identity: `key:${source.key}`, name: source.name || source.key, details: `${source.key} · ${source.protocol.toUpperCase()} · ${source.enabled === false ? text.disabled : text.enabled}`, value: source }))}
+          selectedIdentity={selected ? `key:${selected.key}` : null}
+          onSelect={identity => {
+            const source = sources.find(item => `key:${item.key}` === identity);
+            if (source) choose(source.id ?? null);
+          }}
+          onPaste={pasteSource}
+          emptyLabel={text.empty}
+        />
       </aside>
       <form className="eng-editor-form-panel" onSubmit={event => void save(event)}>
         <fieldset disabled={busy}>
@@ -174,17 +205,17 @@ export function MediaSourceEngineeringWorkspace({ snapshot, onApplied, locale = 
 function copy(locale: EngineeringLocale) {
   if (locale === 'en') return {
     eyebrow: 'Project media', title: 'Media sources', description: 'Configure HTTP, HLS, MJPEG and RTSP sources. Credentials are encrypted separately and never exported with the project.',
-    newSource: 'New source', sources: 'Media sources', empty: 'No media sources yet.', identity: 'Source identity', name: 'Display name', key: 'Stable key', protocol: 'Protocol', endpoint: 'Endpoint', endpointHelp: 'Use an absolute URL without username, password, query parameters or fragments. RTSP is configured here but still needs the server relay before browser playback.',
+    newSource: 'New source', sources: 'Media sources', searchSources: 'Search media sources', empty: 'No media sources yet.', discardDraftConfirm: 'Discard the current new media source draft?', identity: 'Source identity', name: 'Display name', key: 'Stable key', protocol: 'Protocol', endpoint: 'Endpoint', endpointHelp: 'Use an absolute URL without username, password, query parameters or fragments. RTSP is configured here but still needs the server relay before browser playback.',
     enabled: 'Enabled', disabled: 'Disabled', create: 'Create source', save: 'Save changes', delete: 'Delete source', credentials: 'Protected credentials', credentialConfigured: 'A credential is stored in the protected host vault. Its value cannot be read back.', credentialMissing: 'No credential is configured for this host.', credentialMode: 'Authentication type', username: 'Username', password: 'Password', bearerToken: 'Bearer token', credentialHelp: 'Credentials are write-only, encrypted at rest, and excluded from project export. Provision them again on another host after importing the project.', saveCredential: 'Save protected credential', deleteCredential: 'Remove credential', confirmDelete: 'Delete this source and its protected credential?', confirmCredentialDelete: 'Remove the protected credential?', saved: 'Media source saved to Working. Save/publish the project separately to make it active.', deleted: 'Media source deleted from Working.', credentialSaved: 'Protected credential saved.', credentialDeleted: 'Protected credential removed.'
   };
   if (locale === 'es') return {
     eyebrow: 'Medios del proyecto', title: 'Fuentes multimedia', description: 'Configure fuentes HTTP, HLS, MJPEG y RTSP. Las credenciales se cifran por separado y nunca se exportan con el proyecto.',
-    newSource: 'Nueva fuente', sources: 'Fuentes multimedia', empty: 'Todavía no hay fuentes multimedia.', identity: 'Identidad de fuente', name: 'Nombre visible', key: 'Clave estable', protocol: 'Protocolo', endpoint: 'Dirección', endpointHelp: 'Use una URL absoluta sin usuario, contraseña, parámetros ni fragmentos. RTSP se configura aquí, pero requiere el relay del servidor para reproducirse en el navegador.',
+    newSource: 'Nueva fuente', sources: 'Fuentes multimedia', searchSources: 'Buscar fuentes multimedia', empty: 'Todavía no hay fuentes multimedia.', discardDraftConfirm: '¿Descartar el borrador actual de fuente multimedia?', identity: 'Identidad de fuente', name: 'Nombre visible', key: 'Clave estable', protocol: 'Protocolo', endpoint: 'Dirección', endpointHelp: 'Use una URL absoluta sin usuario, contraseña, parámetros ni fragmentos. RTSP se configura aquí, pero requiere el relay del servidor para reproducirse en el navegador.',
     enabled: 'Habilitada', disabled: 'Deshabilitada', create: 'Crear fuente', save: 'Guardar cambios', delete: 'Eliminar fuente', credentials: 'Credenciales protegidas', credentialConfigured: 'Hay una credencial guardada en la bóveda protegida del host. No se puede volver a leer.', credentialMissing: 'No hay credencial configurada en este host.', credentialMode: 'Tipo de autenticación', username: 'Usuario', password: 'Contraseña', bearerToken: 'Token Bearer', credentialHelp: 'Las credenciales son de solo escritura, cifradas y excluidas de la exportación. Debe configurarlas de nuevo al importar en otro host.', saveCredential: 'Guardar credencial protegida', deleteCredential: 'Eliminar credencial', confirmDelete: '¿Eliminar esta fuente y su credencial protegida?', confirmCredentialDelete: '¿Eliminar la credencial protegida?', saved: 'Fuente guardada en Working. Guarde/publique el proyecto por separado para activarla.', deleted: 'Fuente eliminada de Working.', credentialSaved: 'Credencial protegida guardada.', credentialDeleted: 'Credencial protegida eliminada.'
   };
   return {
     eyebrow: 'Mídia do projeto', title: 'Fontes de mídia', description: 'Configure fontes HTTP, HLS, MJPEG e RTSP. As credenciais são criptografadas à parte e nunca são exportadas com o projeto.',
-    newSource: 'Nova fonte', sources: 'Fontes de mídia', empty: 'Ainda não há fontes de mídia.', identity: 'Identidade da fonte', name: 'Nome de exibição', key: 'Chave estável', protocol: 'Protocolo', endpoint: 'Endereço', endpointHelp: 'Use uma URL absoluta sem usuário, senha, parâmetros ou fragmentos. RTSP pode ser configurado, mas ainda depende do relay do servidor para tocar no navegador.',
+    newSource: 'Nova fonte', sources: 'Fontes de mídia', searchSources: 'Pesquisar fontes de mídia', empty: 'Ainda não há fontes de mídia.', discardDraftConfirm: 'Descartar o rascunho atual da nova fonte de mídia?', identity: 'Identidade da fonte', name: 'Nome de exibição', key: 'Chave estável', protocol: 'Protocolo', endpoint: 'Endereço', endpointHelp: 'Use uma URL absoluta sem usuário, senha, parâmetros ou fragmentos. RTSP pode ser configurado, mas ainda depende do relay do servidor para tocar no navegador.',
     enabled: 'Habilitada', disabled: 'Desabilitada', create: 'Criar fonte', save: 'Salvar alterações', delete: 'Excluir fonte', credentials: 'Credenciais protegidas', credentialConfigured: 'Há uma credencial salva no cofre protegido do host. O valor não pode ser lido de volta.', credentialMissing: 'Nenhuma credencial configurada neste host.', credentialMode: 'Tipo de autenticação', username: 'Usuário', password: 'Senha', bearerToken: 'Token Bearer', credentialHelp: 'As credenciais são somente de escrita, criptografadas e excluídas da exportação. Configure-as novamente ao importar o projeto em outro host.', saveCredential: 'Salvar credencial protegida', deleteCredential: 'Remover credencial', confirmDelete: 'Excluir esta fonte e sua credencial protegida?', confirmCredentialDelete: 'Remover a credencial protegida?', saved: 'Fonte salva em Working. Salve/publique o projeto separadamente para ativá-la.', deleted: 'Fonte excluída de Working.', credentialSaved: 'Credencial protegida salva.', credentialDeleted: 'Credencial protegida removida.'
   };
 }

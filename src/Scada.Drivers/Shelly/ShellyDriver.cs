@@ -470,7 +470,7 @@ public sealed class ShellyDriver :
         _ => value
     };
 
-    internal static bool IsLegacyFirmware(string? version)
+    public static bool IsLegacyFirmware(string? version)
     {
         if (string.IsNullOrWhiteSpace(version)) return false;
         var first = version.Split('-', '+')[0];

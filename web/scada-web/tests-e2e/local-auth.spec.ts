@@ -141,7 +141,9 @@ test('secure first-run creates the initial local Administrator, first project an
     expect(workspace.body.screenCount).toBe(0);
     expect(workspace.body.popupCount).toBe(0);
     expect(workspace.body.commandCount).toBe(0);
-    expect(workspace.body.visualAssetCount).toBe(26);
+    // Dynamo artwork is stored in the project package for internal rendering,
+    // but is intentionally excluded from the user-facing visual asset inventory.
+    expect(workspace.body.visualAssetCount).toBe(0);
     expect(workspace.body.dynamoCount).toBe(26);
     expect(workspace.body.securityRoleCount).toBe(1);
 

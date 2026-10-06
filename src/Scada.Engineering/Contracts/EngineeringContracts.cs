@@ -22,6 +22,7 @@ public enum ImportEntityKind
     Alarm,
     OperationalEvent,
     DataSource,
+    Location,
     Template,
     Equipment,
     Dynamo,
@@ -237,6 +238,47 @@ public sealed record EquipmentTemplateEngineeringDto(
     Dictionary<string, string>? Metadata = null,
     IReadOnlyCollection<VisualElementEngineeringDto>? Elements = null);
 
+public sealed record LocationEngineeringDto(
+    Guid? Id,
+    string Name,
+    Guid? ParentLocationId = null,
+    string? Kind = null,
+    Dictionary<string, string>? Metadata = null);
+
+public sealed record EquipmentSourceBindingEngineeringDto(
+    Guid DataSourceId,
+    string StableDeviceIdentity,
+    string? Role = null,
+    Dictionary<string, string>? Metadata = null);
+
+public sealed record CapabilityRoleBindingEngineeringDto(
+    string Role,
+    Guid? TagId = null,
+    Guid? CommandId = null);
+
+public sealed record EquipmentCapabilityEngineeringDto(
+    string Id,
+    string Kind,
+    IReadOnlyCollection<CapabilityRoleBindingEngineeringDto>? Bindings = null,
+    Dictionary<string, string>? Metadata = null,
+    int Version = 1);
+
+public static class EquipmentCapabilityKinds
+{
+    public const string OnOff = "OnOff";
+    public const string Light = "Light";
+    public const string Dimmer = "Dimmer";
+    public const string ColorLight = "ColorLight";
+    public const string Cover = "Cover";
+    public const string Temperature = "Temperature";
+    public const string Humidity = "Humidity";
+    public const string Power = "Power";
+    public const string Energy = "Energy";
+    public const string Voltage = "Voltage";
+    public const string Current = "Current";
+    public const string BinaryInput = "BinaryInput";
+}
+
 public sealed record EquipmentEngineeringDto(
     Guid? Id,
     string Path,
@@ -246,7 +288,10 @@ public sealed record EquipmentEngineeringDto(
     Dictionary<string, string>? Properties = null,
     Dictionary<string, string>? Context = null,
     Dictionary<string, string>? Metadata = null,
-    Guid? TemplateId = null);
+    Guid? TemplateId = null,
+    Guid? LocationId = null,
+    IReadOnlyCollection<EquipmentSourceBindingEngineeringDto>? SourceBindings = null,
+    IReadOnlyCollection<EquipmentCapabilityEngineeringDto>? Capabilities = null);
 
 public sealed record DynamoEngineeringDto(
     Guid? Id,
@@ -535,7 +580,8 @@ public sealed record EngineeringPackage(
     IReadOnlyCollection<AlarmViewEngineeringDto>? AlarmViews = null,
     ApplicationBrandingEngineeringDto? Branding = null,
     RuntimePresentationEngineeringDto? RuntimePresentation = null,
-    IReadOnlyCollection<MediaSourceEngineeringDto>? MediaSources = null);
+    IReadOnlyCollection<MediaSourceEngineeringDto>? MediaSources = null,
+    IReadOnlyCollection<LocationEngineeringDto>? Locations = null);
 
 public sealed record ImportIssue(
     string Code,

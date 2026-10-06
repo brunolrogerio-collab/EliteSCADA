@@ -37,7 +37,7 @@ public sealed class EspHomeNoiseSecurityTests
         responder.ReadMessage(clientHandshakeBody[1..], Span<byte>.Empty);
 
         var responderMessage = new byte[Protocol.MaxMessageLength];
-        var (_, _, responderTransport) = responder.WriteMessage(ReadOnlySpan<byte>.Empty, responderMessage);
+        var (responderWritten, _, responderTransport) = responder.WriteMessage(ReadOnlySpan<byte>.Empty, responderMessage);
         Assert.NotNull(responderTransport);
         using var serverTransport = responderTransport!;
 
@@ -49,14 +49,10 @@ public sealed class EspHomeNoiseSecurityTests
         Assert.Equal("fixture", hello.NodeName);
         Assert.Equal("AA:BB:CC:DD:EE:FF", hello.MacAddress);
 
-        var serverHandshakeBody = new byte[1 + responderMessage.Length];
+        var serverHandshakeBody = new byte[1 + responderWritten];
         serverHandshakeBody[0] = 0;
-        var handshakeLength = responderMessage.AsSpan().IndexOfAnyExcept((byte)0);
-        // NNpsk0 responder output length is fixed by the library result; derive it by redoing the write below is not safe.
-        // The actual message occupies 48 bytes for NNpsk0/25519/ChaChaPoly/SHA256 with an empty payload.
-        const int responderHandshakeLength = 48;
-        responderMessage.AsSpan(0, responderHandshakeLength).CopyTo(serverHandshakeBody.AsSpan(1));
-        client.CompleteHandshake(EspHomeNoiseSession.BuildOuterFrame(serverHandshakeBody.AsSpan(0, 1 + responderHandshakeLength)));
+        responderMessage.AsSpan(0, responderWritten).CopyTo(serverHandshakeBody.AsSpan(1));
+        client.CompleteHandshake(EspHomeNoiseSession.BuildOuterFrame(serverHandshakeBody));
         Assert.True(client.IsReady);
 
         var payload = new byte[] { 1, 2, 3, 4 };

@@ -47,6 +47,7 @@ public static class EngineeringDriverCatalogApi
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, ModbusRtuServerEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, S7IsoEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, OpcUaEngineeringDriverToolProviderFactory>();
+        builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, ShellyEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<EngineeringDriverToolProviderFactoryRegistry>();
         builder.Services.AddSingleton<NetworkReachabilityProbe>();
     }

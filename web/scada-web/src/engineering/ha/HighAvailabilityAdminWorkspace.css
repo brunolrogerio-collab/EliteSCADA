@@ -311,7 +311,7 @@
 .ha-readiness {
   border: 1px solid var(--ha-border);
   border-radius: 8px;
-  background: #0d141c;
+  background: var(--ha-panel-2);
   padding: 11px;
   display: grid;
   gap: 9px;
@@ -363,7 +363,7 @@
 }
 
 .ha-config-fieldset:disabled {
-  opacity: .72;
+  opacity: 1;
 }
 
 .ha-action-cards {
@@ -445,7 +445,7 @@
   padding: 9px 10px;
   border: 1px solid var(--ha-border);
   border-radius: 7px;
-  background: #0d141c;
+  background: var(--ha-panel-2);
 }
 
 .ha-toggle-field .ha-field-hint {
@@ -460,9 +460,19 @@
   min-height: 37px;
   border: 1px solid var(--ha-border);
   border-radius: 7px;
-  background: #0d141c;
+  background: var(--ha-panel-2);
   color: var(--ha-text);
   padding: 8px 10px;
+}
+
+.ha-admin input:disabled:not([type=checkbox]),
+.ha-admin select:disabled,
+.ha-admin textarea:disabled {
+  border-color: var(--ha-border);
+  background: var(--ha-panel-2);
+  color: var(--ha-muted);
+  opacity: 1;
+  cursor: not-allowed;
 }
 
 .ha-admin input:focus,
@@ -483,7 +493,7 @@
   padding: 9px 10px;
   border: 1px solid var(--ha-border);
   border-radius: 7px;
-  background: #0d141c;
+  background: var(--ha-panel-2);
   display: grid;
   gap: 4px;
   align-content: start;
@@ -529,7 +539,7 @@
   padding: 11px;
   border: 1px solid var(--ha-border);
   border-radius: 7px;
-  background: #0d141c;
+  background: var(--ha-panel-2);
   color: var(--ha-muted);
   font-size: 11px;
   display: grid;

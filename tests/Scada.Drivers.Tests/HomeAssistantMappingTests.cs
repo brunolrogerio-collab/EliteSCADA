@@ -353,6 +353,14 @@ public sealed class HomeAssistantMappingTests
         public ValueTask<int> SubscribeStateChangedAsync(CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(1);
 
+        public ValueTask CallServiceAsync(
+            string domain,
+            string service,
+            string entityId,
+            IReadOnlyDictionary<string, object?>? serviceData = null,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.CompletedTask;
+
         public ValueTask<HomeAssistantStateChangedEvent> ReceiveStateChangedAsync(
             CancellationToken cancellationToken = default) =>
             ValueTask.FromException<HomeAssistantStateChangedEvent>(new NotSupportedException());

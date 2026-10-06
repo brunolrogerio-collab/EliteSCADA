@@ -1,5 +1,6 @@
-.engineering-resource-organizer { position: relative; display: grid; align-content: start; gap: 5px; min-height: 100%; padding: 5px; color: var(--eng-text, #243447); }
+.engineering-resource-organizer { position: relative; display: grid; align-content: start; gap: 5px; min-height: 120px; box-sizing: border-box; padding: 5px; color: var(--eng-text, #243447); }
 .engineering-resource-organizer:focus-visible { outline: 2px solid var(--eng-focus, #1682c4); outline-offset: -2px; }
+.engineering-resource-organizer.visual-editor-screen-list { display: grid; align-content: start; padding: 5px; }
 .engineering-resource-organizer__folder { min-width: 0; border: 1px solid var(--eng-border, #cbd3dc); border-radius: 7px; background: var(--eng-panel, #fff); }
 .engineering-resource-organizer__folder > header { display: flex; min-width: 0; }
 .engineering-resource-organizer__folder-toggle { display: flex; width: 100%; min-height: 31px; align-items: center; gap: 7px; padding: 5px 8px; border: 0; border-radius: 6px; background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer; }
@@ -20,11 +21,22 @@
 .engineering-resource-organizer__menu { position: fixed; z-index: 10020; display: grid; min-width: 156px; gap: 2px; padding: 4px; border: 1px solid var(--eng-border, #cbd3dc); border-radius: 7px; background: var(--eng-panel, #fff); box-shadow: 0 6px 22px #10203038; }
 .engineering-resource-organizer__menu button { padding: 7px 9px; border: 0; border-radius: 4px; background: transparent; color: var(--eng-text, #243447); text-align: left; font: inherit; font-size: 11px; cursor: pointer; }
 .engineering-resource-organizer__menu button:hover,.engineering-resource-organizer__menu button:focus-visible { outline: 0; background: var(--eng-selected, #d9edf9); }
-.eng-editor-picker-list > .engineering-resource-organizer { min-height: 0; padding: 0; }
+.eng-editor-picker-list:has(> .engineering-resource-organizer) { flex: 1; min-height: 120px; display: flex; flex-direction: column; }
+.eng-editor-picker-list > .engineering-resource-organizer { flex: 1; padding: 0; }
 .eng-editor-picker > .engineering-resource-organizer { min-height: 0; flex: 1; overflow: auto; }
+.eng-resource-sidebar { display: flex; min-height: 0; flex-direction: column; }
+.eng-resource-sidebar > .engineering-resource-organizer { flex: 1; overflow: auto; }
+.gateway-route-inventory > .engineering-resource-organizer { flex: 1; min-height: 160px; }
 .visual-editor-screens { display: flex; min-height: 0; flex-direction: column; }
 .visual-editor-screens > .engineering-resource-organizer { min-height: 0; flex: 1; overflow: auto; }
 .visual-editor-workspace--screens-collapsed .visual-editor-screens > .engineering-resource-organizer { display: none; }
 .eng-shell[data-theme="dark"] .engineering-resource-organizer__folder { background: var(--eng-panel, #141c25); }
+.engineering-resource-organizer__dialog { width: min(340px, calc(100vw - 40px)); box-sizing: border-box; padding: 16px; border: 1px solid var(--eng-border, #cbd3dc); border-radius: 9px; background: var(--eng-panel, #fff); color: var(--eng-text, #243447); }
+.engineering-resource-organizer__dialog::backdrop { background: #10203066; }
+.engineering-resource-organizer__dialog form, .engineering-resource-organizer__dialog label { display: grid; gap: 12px; }
+.engineering-resource-organizer__dialog label, .engineering-resource-organizer__dialog p { font-size: 13px; }
+.engineering-resource-organizer__dialog input { min-width: 0; width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid var(--eng-border, #cbd3dc); border-radius: 5px; background: var(--eng-input-bg, #fff); color: inherit; font: inherit; }
+.engineering-resource-organizer__dialog footer { display: flex; justify-content: flex-end; gap: 8px; }
+.engineering-resource-organizer__dialog button { padding: 7px 12px; border: 1px solid var(--eng-border, #cbd3dc); border-radius: 5px; background: var(--eng-panel-soft, #f4f7fa); color: inherit; font: inherit; cursor: pointer; }
 @media (prefers-reduced-motion: no-preference) { .engineering-resource-organizer__folder-toggle,.engineering-resource-organizer__resource,.engineering-resource-organizer__menu button { transition: background-color .12s ease; } }
 @media (max-width: 820px) { .visual-editor-screens > .engineering-resource-organizer { flex: initial; max-height: 190px; } }

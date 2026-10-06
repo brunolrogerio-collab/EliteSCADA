@@ -67,6 +67,8 @@ export function TagEditor({ model, locale, projectKey = 'workspace' }: EditorPro
   const tags = model.tags;
   const [query, setQuery] = useState('');
   const duplicationRef = useRef<TagDuplicationPanelHandle>(null);
+  const [tagClipboardCount, setTagClipboardCount] = useState(0);
+  useEffect(() => setTagClipboardCount(0), [projectKey]);
   const [duplicationSelectionMode, setDuplicationSelectionMode] = useState(false);
   const [duplicationSelection, setDuplicationSelection] = useState<Set<string>>(() => new Set());
   const [selectedIdentity, setSelectedIdentity] = useState<string | null>(() => tags[0] ? tagIdentity(tags[0]) : null);
@@ -187,12 +189,19 @@ export function TagEditor({ model, locale, projectKey = 'workspace' }: EditorPro
             kind="tags"
             locale={locale}
             label="TAGs"
-            resources={filtered.map(tag => ({ identity: tagIdentity(tag), name: tag.name, details: `${tag.dataType} · ${tag.source ?? '—'}`, value: tag }))}
+            resources={filtered.map(tag => ({ identity: tagIdentity(tag), name: tag.name, accessibilityLabel: `${tag.name} (${tag.path})`, details: `${tag.dataType} · ${tag.source ?? '—'}`, value: tag }))}
             selectedIdentity={duplicationSelectionMode ? null : selectedIdentity}
             selectedIdentities={duplicationSelectionMode ? duplicationSelection : undefined}
             onSelect={identity => duplicationSelectionMode ? toggleDuplicationSelection(identity) : chooseIdentity(identity)}
             onPaste={tag => duplicationRef.current?.pasteCopied([tag as TagSourceAwareEngineering])}
             onCopySelection={() => duplicationRef.current?.copySelected()}
+            clipboardActions={{
+              canPaste: tagClipboardCount > 0,
+              copyResource: tag => duplicationRef.current?.copyResources([tag as TagSourceAwareEngineering]),
+              copySelection: () => duplicationRef.current?.copySelected(),
+              paste: () => duplicationRef.current?.paste(),
+              duplicateSelection: () => duplicationRef.current?.duplicateSelected()
+            }}
             emptyLabel={text('editor.noResults')}
           />
         </EntityPicker>
@@ -202,6 +211,7 @@ export function TagEditor({ model, locale, projectKey = 'workspace' }: EditorPro
             <>
               <EditorStatus original={selected} draft={draft} changed={changed} isNew={isNew} locale={locale} />
               <TagDuplicationPanel
+                key={projectKey}
                 ref={duplicationRef}
                 model={model}
                 locale={locale}
@@ -209,6 +219,7 @@ export function TagEditor({ model, locale, projectKey = 'workspace' }: EditorPro
                 selectedTags={selectedDuplicationTags}
                 selectionMode={duplicationSelectionMode}
                 onToggleSelectionMode={toggleDuplicationSelectionMode}
+                onClipboardChange={setTagClipboardCount}
               />
               <WorkflowFormSection title={workflowText(locale).identity} description={workflowText(locale).tagIdentityHint}>
               <div className="eng-editor-form-grid">

@@ -225,7 +225,7 @@ export function OperationalEventEditor({ model, locale, projectKey = 'workspace'
       </header>
 
       <div className="eng-editor-layout">
-        <aside className="eng-panel eng-table-panel">
+        <aside className="eng-panel eng-table-panel eng-resource-sidebar">
           <div className="eng-editor-actions">
             <button type="button" onClick={() => choose(NEW_IDENTITY)} disabled={busy} data-testid="operational-event-new">
               {copy.newEvent}

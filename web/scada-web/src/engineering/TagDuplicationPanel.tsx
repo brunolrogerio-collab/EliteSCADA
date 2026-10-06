@@ -32,6 +32,7 @@ import type { EngineeringPackageView, ImportPreviewView } from './types';
 
 export type TagDuplicationPanelHandle = {
   copySelected: () => void;
+  copyResources: (sources: readonly TagSourceAwareEngineering[]) => void;
   paste: () => void;
   pasteCopied: (sources: readonly TagSourceAwareEngineering[]) => void;
   duplicateSelected: () => void;
@@ -44,6 +45,7 @@ type Props = {
   selectedTags: readonly TagSourceAwareEngineering[];
   selectionMode: boolean;
   onToggleSelectionMode: () => void;
+  onClipboardChange?: (count: number) => void;
 };
 
 type GenerationKind = 'duplicate' | 'paste' | 'sequential';
@@ -63,7 +65,8 @@ export const TagDuplicationPanel = forwardRef<TagDuplicationPanelHandle, Props>(
   primaryTag,
   selectedTags,
   selectionMode,
-  onToggleSelectionMode
+  onToggleSelectionMode,
+  onClipboardChange
 }, ref) {
   const text = useMemo(() => tagDuplicationText(locale), [locale]);
   const [clipboard, setClipboard] = useState<TagDuplicationDraft[]>([]);
@@ -114,17 +117,19 @@ export const TagDuplicationPanel = forwardRef<TagDuplicationPanelHandle, Props>(
     invalidatePreview();
   }, [model]);
 
-  const copySelected = () => {
+  const copyResources = (sources: readonly TagSourceAwareEngineering[]) => {
     setError(null);
-    if (effectiveSelection.length === 0) {
+    if (sources.length === 0) {
       setError(text.selectRequired);
       return;
     }
 
     // Clipboard is intentionally session-local configuration, not a portable wire.
-    setClipboard(effectiveSelection.map((tag, index) =>
+    setClipboard(sources.map((tag, index) =>
       copyTagConfiguration(tag, `clipboard-${index + 1}`)));
+    onClipboardChange?.(sources.length);
   };
+  const copySelected = () => copyResources(effectiveSelection);
 
   const duplicateSelected = () => {
     setError(null);
@@ -170,6 +175,7 @@ export const TagDuplicationPanel = forwardRef<TagDuplicationPanelHandle, Props>(
 
   useImperativeHandle(ref, () => ({
     copySelected,
+    copyResources,
     paste,
     pasteCopied,
     duplicateSelected

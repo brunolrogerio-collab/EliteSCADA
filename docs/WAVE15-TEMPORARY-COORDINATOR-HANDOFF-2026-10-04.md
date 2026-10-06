@@ -1,5 +1,13 @@
 # Wave 15 consolidation handoff
 
+## Product Owner acceptance / final integration delta — 2026-10-06
+
+This delta supersedes earlier remaining-sequence wording below. PR #529 merged at `25df20bf562acf6c3d78eb2e953f7010729b7c49`; its T1 passed, and exact-SHA post-merge CI #37494810971 completed successfully (Web, Backend build/test/runtime smoke and Chromium integration smoke). Full-browser E2E was skipped by workflow conditions. Product Owner explicitly accepted and closed #484, #501 and #308: the first-party SVG factory/catalog is sufficient without third-party artwork curation, the current Dynamo set is usable, and additional visual-layer polish is future work outside the Wave 15 gate. #482/#496/#500/#503/#445 are also closed. Remaining productization is tracked by #306/#300/#379/#424/#425. The sole open PR #362 is a separate Preview-workbench lane.
+
+Exact current mutable state is in root `LAST CHANGE.md`; GitHub remains authoritative.
+
+The next coordinator's owner-directed assignment is to initiate Home/Building automation drivers using #472/#475. #472's old `WAIT_CURRENT_LANES / NO_IMPLEMENTATION_BRANCH` state is superseded. Revalidate/reuse #469 and close/revise the still-open #483 canonical contract/catalog prerequisites on the current base before protocol-specific code; review #475 GO/WAIT/REJECT and choose a bounded first driver slice. Keep #306/#300/#379/#424/#425 visible as separate Wave 15 closeout work.
+
 Updated 2026-10-05. The product is consolidated in `wave15/corrections-integration`, including #508–#517 after product consolidation #502. This replaces conflicting earlier development checkpoints. The final HA/database/security and CI-repair package follows #517; its final merge/gate evidence is appended below.
 
 **Owner's current scope:** finish and integrate the non-Dynamo product. Dynamo visual quality was rejected and its redesign is deferred. The categorized/linked static SVG library was NOT deferred: the owner specifically reported missing library-category and editor insertion access. This is corrected by the follow-up below, without claiming artwork approval or redesigning the Dynamos. Existing 26 definitions and the conversion/composition infrastructure are preserved; the obsolete 72 remain purged.

@@ -1,3 +1,31 @@
+# PRODUCT-OWNER ACCEPTANCE / CURRENT INTEGRATION — 2026-10-06
+
+> Supersedes older Wave 15 current-state and remaining-issue wording below. GitHub is authoritative.
+
+## Accepted scope
+
+- Product integration: `wave15/corrections-integration@25df20bf562acf6c3d78eb2e953f7010729b7c49` (merge PR #529).
+- PR #529 T1 validation run `37492274954`: SUCCESS on its exact PR head; Dynamo inspector properties and Runtime parameter-kind corrections are integrated.
+- Product Owner accepted and closed issues #484, #501 and #308 on 2026-10-06. The EliteSCADA-owned SVG factory/catalog is accepted without third-party SVG curation as a Wave 15 gate; the current Dynamo set is usable and accepted; further visual-layer polish is future work, not a Productization blocker.
+- Also closed: #482 (visual library), #496 (visual utility objects/media), #500 (driver diagnostics convergence), #503 (responsive editor/Runtime) and #445 (historical playback).
+
+## Remaining Wave 15 gate
+
+- Post-merge CI run `37494810971` on exact SHA `25df20bf562acf6c3d78eb2e953f7010729b7c49`: SUCCESS (Web build, Backend build/test/runtime smoke, Chromium Wave 15 merge integration smoke). The separate full-browser E2E step was skipped by workflow conditions; do not claim that suite ran.
+- Productization and final Preview remain active under #306 and #300; localization/help/manual remain open under #379/#424/#425.
+- PR #362 remains open on the independent Preview workbench branch and is not part of the product integration PR set.
+- Current product issues #484/#501/#308 are CLOSED by Product Owner acceptance; do not reopen or count future visual polish as a Wave 15 blocker.
+
+## Owner-directed next coordinator: Home/Building automation
+
+- The next coordinator should start the Home/Building automation-driver program from #472, using #475 as research input. This is an explicit Product Owner priority; the older “WAIT_CURRENT_LANES / planning only” wording in #472 is superseded.
+- Owner decision trail: [#472 program reprioritization](https://github.com/brunolrogerio-collab/EliteSCADA/issues/472#issuecomment-6020829024), [#483 foundation gate](https://github.com/brunolrogerio-collab/EliteSCADA/issues/483#issuecomment-6020829446), [#475 research review](https://github.com/brunolrogerio-collab/EliteSCADA/issues/475#issuecomment-6020829995).
+- Kickoff immediately with a live audit of #469 (reuse its Host Serial foundation), #483 (still OPEN: canonical TAG/DataSource identity, Equipment/Template independence and integration-catalog convergence), and #475 (still OPEN: review each dossier's GO/WAIT/REJECT and legal/hardware/test constraints).
+- Close or narrowly revise the #483 prerequisites against current integration before starting protocol-specific implementation; then launch the first driver slice chosen from verified #475 evidence. Do not duplicate existing BACnet/IP support, invent a second TAG/runtime model, or claim unverified device compatibility.
+- Wave 15 is not declared complete by this handoff: #306/#300/#379/#424/#425 remain tracked. Their remaining productization work must be kept visible while the owner-directed Home/Building stream begins.
+
+---
+
 # FINAL REVALIDATION CORRECTION — 2026-10-03
 
 > Supersedes the active-lane status in earlier 2026-10-03 handoff text below.

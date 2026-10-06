@@ -24,7 +24,19 @@ Protocol-driver fan-out remains blocked.
 
 # EliteSCADA Roadmap — Wave 15
 
-**Status date:** 2026-09-24 (BRT)  
+## Product Owner acceptance update — 2026-10-06
+
+This update supersedes the older current-gate and closure wording below. The product integration is `wave15/corrections-integration@25df20bf562acf6c3d78eb2e953f7010729b7c49` (PR #529 merged). Issues #484 (SVG curation), #501 (Dynamo catalog) and #308 (visual-quality gate) were closed by explicit Product Owner acceptance: the first-party SVG factory/catalog is sufficient without third-party SVGs; the current Dynamo catalog is usable; further visual polish is future work, not a Wave 15 gate. #482, #496, #500, #503 and #445 are also closed.
+
+The post-merge CI run [#37494810971](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/37494810971) completed SUCCESS on that exact SHA: Web build, Backend build/test/runtime smoke, and Chromium Wave 15 merge integration smoke passed. The separate full-browser E2E step was skipped by workflow conditions. Remaining productization/closure work includes #306, final Preview #300, localization #379, contextual help #424 and manual #425. PR #362 remains a separate open Preview-workbench PR and does not block product integration.
+
+For the precise mutable snapshot, see root [`LAST CHANGE.md`](../LAST%20CHANGE.md). Historical lane details below are retained as execution history, not current status.
+
+### Next coordinator directive — Home/Building automation
+
+The Product Owner wants the incoming coordinator to begin the Home/Building automation-driver program, not to reopen accepted Dynamo/artwork work. Start from #472 and review the research dossiers in #475. The old #472 state `WAIT_CURRENT_LANES / NO_IMPLEMENTATION_BRANCH` is superseded by this owner reprioritization. First revalidate and reuse #469 Host Serial; audit and close/revise the still-open #483 canonical Engineering/catalog prerequisites on the current integration; then choose the first protocol implementation from verified #475 GO/WAIT/REJECT evidence, with license, hardware and test strategy recorded. Do not duplicate existing BACnet/IP, and keep device compatibility claims at the level actually tested. Wave 15 productization issues #306/#300/#379/#424/#425 remain tracked in parallel; this transition is not a Wave 15 completion claim.
+
+**Status date:** 2026-10-06 (BRT)
 **Active direction:** **WAVE 15 FOUNDATION-FIRST COMPLETE PRODUCT DELIVERY**  
 **Integration:** `wave15/corrections-integration`  
 **Global issue:** #297  

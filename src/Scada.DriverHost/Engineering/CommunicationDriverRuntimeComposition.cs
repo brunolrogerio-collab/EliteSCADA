@@ -10,6 +10,7 @@ using Scada.Drivers.Serial;
 using Scada.Drivers.OpcUa;
 using Scada.Drivers.SiemensS7Iso;
 using Scada.Drivers.Simulation;
+using Scada.Drivers.Shelly;
 
 namespace Scada.DriverHost.Engineering;
 
@@ -89,6 +90,12 @@ public static class CommunicationDriverRuntimeComposition
             new BacnetCommunicationRuntimePlanner(),
             new BacnetCommunicationRuntimeFactory(bacnetSessionFactory),
             BacnetDriverDescriptor.Instance));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new ShellyCommunicationRuntimePlanner(),
+            new HostProtectedMaterialRuntimeFactory(
+                new ShellyCommunicationRuntimeFactory(),
+                protectedMaterialResolver),
+            new ShellyDriverDescriptorProvider().Descriptor));
         return registry;
     }
 

@@ -70,9 +70,30 @@ public sealed class EspHomeNoiseSecurityTests
         serverPlain.AsSpan(4).Fill(9);
         var serverCipher = new byte[serverPlain.Length + 16];
         var serverWritten = serverTransport.WriteMessage(serverPlain, serverCipher);
-        var packet = client.DecryptFrame(EspHomeNoiseSession.BuildOuterFrame(serverCipher.AsSpan(0, serverWritten)));
+        var serverFrame = EspHomeNoiseSession.BuildOuterFrame(serverCipher.AsSpan(0, serverWritten));
+        var packet = client.DecryptFrame(serverFrame);
         Assert.Equal((ushort)2, packet.MessageType);
         Assert.Equal(new byte[] { 9, 9, 9 }, packet.Payload.ToArray());
+
+        // Reusing authenticated ciphertext at the next transport nonce must fail.
+        Assert.Throws<CryptographicException>(() => client.DecryptFrame(serverFrame));
+    }
+
+    [Fact]
+    public void BadPsk_CannotAuthenticateHandshake()
+    {
+        using var key = new EspHomeResolvedNoiseKey((byte[])Key.Clone());
+        using var client = new EspHomeNoiseSession(key);
+        var clientFrames = client.CreateClientHandshakeFrames();
+        var secondLength = BinaryPrimitives.ReadUInt16BigEndian(clientFrames.AsSpan(4, 2));
+        var clientHandshakeBody = clientFrames.AsSpan(6, secondLength);
+
+        var wrongKey = (byte[])Key.Clone();
+        wrongKey[0] ^= 0x5A;
+        var protocol = Protocol.Parse(EspHomeNoiseContract.ProtocolName.AsSpan());
+        using var responder = protocol.Create(false, EspHomeNoiseContract.Prologue, psks: new[] { wrongKey });
+
+        Assert.Throws<CryptographicException>(() => responder.ReadMessage(clientHandshakeBody[1..], Span<byte>.Empty));
     }
 
     [Fact]

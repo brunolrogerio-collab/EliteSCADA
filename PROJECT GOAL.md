@@ -4,7 +4,7 @@
 >
 > This file preserves stable product goals and locked architecture across ChatGPT conversations, developers and tooling. It defines intent, not merely current implementation state.
 
-**Last reviewed:** 2026-09-01
+**Last reviewed:** 2026-10-06
 
 ## Mandatory continuity protocol
 
@@ -23,7 +23,7 @@
 
 ### Current release-sequencing gate
 
-The seven communication Drivers completed the integrated L3 interoperability gate under issue #180, the pre-Wave-11 owner-usability gate #191 was accepted and integrated, and Wave 11 established the Active persisted canonical Engineering revision as HMI Runtime application truth with an owner-testable `.escadapkg` handoff. **Wave 12 hardening is complete and accepted under issue #201. Wave 14 product-owner validation/corrections are the active product priority under issue #211; Wave 13 signed Windows x64 + Authenticode/trusted-timestamp release work remains a separate paused stage until the corrected Wave 14 product baseline is accepted.** Exact current issue/branch/SHA/run state remains in `LAST CHANGE.md`.
+The seven communication Drivers completed the integrated L3 interoperability gate under issue #180, the pre-Wave-11 owner-usability gate #191 was accepted and integrated, and Wave 11 established the Active persisted canonical Engineering revision as HMI Runtime application truth with an owner-testable `.escadapkg` handoff. **Wave 12 hardening is complete and accepted under issue #201. Wave 15 complete-product delivery remains active under #297; the Product Owner accepted the current SVG factory/catalog and usable Dynamo set, with further visual polish deferred beyond this gate. Productization and final Preview remain under #306/#300, alongside localization/help/manual closure under #379/#424/#425. The owner has directed the next coordinator to initiate Home/Building automation-driver development from #472/#475, first reconciling the still-open #483 foundation against current integration. Starting that stream does not declare Wave 15 complete. Wave 13 signed Windows x64 + Authenticode/trusted-timestamp release work remains a separate paused stage until the Wave 15 product baseline is accepted.** Exact current issue/branch/SHA/run state remains in `LAST CHANGE.md`.
 
 ## Product mission
 

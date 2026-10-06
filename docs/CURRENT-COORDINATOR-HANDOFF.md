@@ -1,3 +1,13 @@
+# CURRENT CONSOLIDATION — 2026-10-06
+
+The current product integration is `wave15/corrections-integration@25df20bf562acf6c3d78eb2e953f7010729b7c49` after PR #529. Product Owner accepted and closed #484, #501 and #308: the first-party SVG factory/catalog and current usable Dynamo set meet Wave 15 scope; visual-layer refinements are future work. #482/#496/#500/#503/#445 are also closed. Remaining Wave 15 closure is productization/Preview (#306/#300), localization (#379), Help (#424), and Manual (#425). Post-merge CI #37494810971 completed successfully for Web, Backend/test/runtime smoke and Chromium integration smoke; full-browser E2E was skipped by workflow conditions. The only open PR is unrelated Preview infrastructure #362.
+
+Read [the current consolidation handoff](WAVE15-TEMPORARY-COORDINATOR-HANDOFF-2026-10-04.md) for product details and root [`LAST CHANGE.md`](../LAST%20CHANGE.md) for exact SHA/CI evidence. The older coordinator snapshots below are historical.
+
+## Next coordinator assignment — Home/Building drivers
+
+The Product Owner has explicitly directed the incoming coordinator to begin Home/Building automation-driver development. Start with #472 and the research record #475; the old `WAIT_CURRENT_LANES / NO_IMPLEMENTATION_BRANCH` planning-only status in #472 is superseded. Before protocol-specific coding, revalidate/reuse #469 Host Serial and resolve #483's still-open canonical TAG/DataSource, Equipment/Template and catalog-convergence prerequisites against the current SHA. Review #475 dossier decisions (GO/WAIT/REJECT, licenses, hardware and test levels), select the first feasible driver slice, then launch a bounded implementation with exact acceptance evidence. Reuse existing BACnet/IP; do not create a parallel Runtime/TAG model. Track #306/#300/#379/#424/#425 separately; this assignment does not declare Wave 15 closed.
+
 # CURRENT CONSOLIDATION — 2026-10-05
 
 The current product target is `wave15/corrections-integration`. The owner explicitly authorized this temporary coordinator to integrate the non-visual product work and produce its post-merge CI. Old PARKED/NO_MERGE lane checkpoints below are historical, not current instructions.

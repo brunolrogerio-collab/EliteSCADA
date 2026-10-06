@@ -1,3 +1,13 @@
+# NEXT COORDINATOR START — HOME/BUILDING AUTOMATION DRIVERS — 2026-10-06
+
+Product Owner direction: the incoming coordinator should begin the Home/Building automation-driver program. Use #472 as the program roadmap and #475 as protocol research input. This explicitly supersedes the old #472 `WAIT_CURRENT_LANES / NO_IMPLEMENTATION_BRANCH` status; do not treat planning-only as the current assignment.
+
+First actions on the live integration: (1) revalidate/reuse the Host Serial foundation in #469; (2) audit and close or narrowly revise #483, which remains OPEN for canonical TAG/DataSource identity, Equipment independent of Templates, and driver-catalog convergence; (3) inspect #475's per-protocol GO/WAIT/REJECT, license, hardware and test recommendations; (4) start one bounded first driver implementation selected from that evidence. Existing BACnet/IP is already supported and must not be duplicated. Do not claim compatibility beyond the tested hardware/firmware matrix, and keep the canonical TAG/Equipment/Command/Runtime architecture.
+
+The current product base is `wave15/corrections-integration@25df20bf562acf6c3d78eb2e953f7010729b7c49`; PR #529 T1 and post-merge CI #37494810971 passed (full-browser E2E was skipped by workflow conditions). Product Owner accepted/closed #484/#501/#308; #482/#496/#500/#503/#445 are also closed. Wave 15 itself remains open for #306/#300/#379/#424/#425. The new Home/Building stream may begin while these closeout items remain visible; do not mark Wave 15 complete prematurely.
+
+See root `LAST CHANGE.md` for the concise live snapshot and this document's historical sections below only where they do not conflict with this directive.
+
 # FINAL REVALIDATION CORRECTION — 2026-10-03 — ACTIVE BRANCHES MOVED DURING HANDOFF
 
 > This correction supersedes the active-lane status inside the 2026-10-03 rotation text below.

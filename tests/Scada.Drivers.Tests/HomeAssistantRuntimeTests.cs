@@ -46,6 +46,35 @@ public sealed class HomeAssistantRuntimeTests
     }
 
     [Fact]
+    public async Task Write_RejectsWhenRuntimeDoesNotOwnExternalEffects()
+    {
+        var bus = new InMemoryScadaEventBus();
+        var cache = new CurrentTagCache(bus);
+        var registry = new InMemoryTagRegistry();
+        var tag = SwitchTag("HA.Fenced.State");
+        var peer = new RuntimePeer(State("switch.pump", "off"));
+
+        await using var driver = new HomeAssistantDriver(
+            "ha-main",
+            "Home Assistant",
+            FastSettings(),
+            cache,
+            registry,
+            [new HomeAssistantPoint(tag, "switch.pump", "state", HomeAssistantWriteMode.SwitchState)],
+            _ => peer,
+            _ => ValueTask.FromResult(new HomeAssistantResolvedCredential("token"u8.ToArray())),
+            effectAuthority: () => false);
+
+        await driver.StartAsync();
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await driver.WriteAsync(tag.Id, true));
+
+        Assert.Contains("authority", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Null(peer.LastService);
+    }
+
+    [Fact]
     public async Task Reconnect_PerformsFullResync_AndReturnsQualityToGood()
     {
         var bus = new InMemoryScadaEventBus();

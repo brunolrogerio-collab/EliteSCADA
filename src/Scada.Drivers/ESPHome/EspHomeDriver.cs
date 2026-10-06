@@ -125,6 +125,7 @@ public sealed class EspHomeDriver :
         catch (Exception ex)
         {
             RecordFailure(ex, null);
+            await SafeDisconnectAsync().ConfigureAwait(false);
             Transition(CommunicationDriverOperationalState.Faulted);
             Status = new DriverStatus(
                 DriverId,
@@ -388,6 +389,7 @@ public sealed class EspHomeDriver :
                     if (reconnectError is TimeoutException)
                         Interlocked.Increment(ref _timeouts);
                     RecordFailure(reconnectError, null);
+                    await SafeDisconnectAsync().ConfigureAwait(false);
                     Transition(CommunicationDriverOperationalState.Reconnecting);
                     Status = new DriverStatus(
                         DriverId,

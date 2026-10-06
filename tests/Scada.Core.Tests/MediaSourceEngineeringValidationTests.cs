@@ -296,7 +296,9 @@ public sealed class MediaSourceEngineeringValidationTests
         var result = exchange.Apply(package, ImportMode.CreateAndUpdate);
         Assert.DoesNotContain(result.Issues, issue => issue.IsError);
         var reopened = exchange.ParseJson(exchange.ExportJson(indented: false));
-        Assert.Equal(package.RuntimePresentation, reopened.RuntimePresentation);
+        Assert.True(JsonElement.DeepEquals(
+            JsonSerializer.SerializeToElement(package.RuntimePresentation),
+            JsonSerializer.SerializeToElement(reopened.RuntimePresentation)));
         var invalid = package with { RuntimePresentation = package.RuntimePresentation! with {
             MobileScreens = new Dictionary<string, string> { ["missing"] = "also-missing" }
         }};

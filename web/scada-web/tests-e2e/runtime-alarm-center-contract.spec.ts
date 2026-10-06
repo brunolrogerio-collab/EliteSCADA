@@ -8,6 +8,7 @@ import {
   sortRuntimeAlarmsForAttention
 } from '../src/runtime/alarmCenterModel';
 import type { RuntimeAlarmCenterItem } from '../src/runtime/alarmCenterTypes';
+import { selectUnacknowledgedAlarmSounds } from '../src/runtime/alarmSounds';
 
 function alarm(overrides: Partial<RuntimeAlarmCenterItem> = {}): RuntimeAlarmCenterItem {
   return {
@@ -40,6 +41,23 @@ test('normalizes the backend numeric alarm enum values without inventing fronten
   expect(normalizeRuntimeAlarmPriority(3)).toBe('high');
   expect(normalizeRuntimeAlarmPriority(4)).toBe('critical');
   expect(normalizeRuntimeAlarmPriority(99)).toBe('unknown');
+});
+
+test('queues configured sounds only for active, unacknowledged alarms and leaves the default silent', () => {
+  const alarms = [
+    alarm({ definitionId: 'audible', state: 1, priority: 4 }),
+    alarm({ definitionId: 'acknowledged', state: 2, priority: 4 }),
+    alarm({ definitionId: 'silent', state: 1, priority: 3 })
+  ];
+  const definitions = [
+    { id: 'audible', name: 'Audible', tagId: 'tag-a', type: 'digital', priority: 'critical', soundProfile: 'double' },
+    { id: 'acknowledged', name: 'Acknowledged', tagId: 'tag-b', type: 'digital', priority: 'critical', soundProfile: 'triple' },
+    { id: 'silent', name: 'Silent default', tagId: 'tag-c', type: 'digital', priority: 'high' }
+  ];
+
+  expect(selectUnacknowledgedAlarmSounds(alarms, definitions)).toEqual([
+    { definitionId: 'audible', profile: 'double', priority: 4 }
+  ]);
 });
 
 test('sorts alarms for operator attention by priority, acknowledgement state and age', () => {

@@ -14,6 +14,7 @@ import { TagDuplicationPanel, type TagDuplicationPanelHandle } from './TagDuplic
 import { EngineeringResourceOrganizer } from './EngineeringResourceOrganizer';
 import { EngineeringEntityActions } from './EngineeringEntityActions';
 import { WorkflowFormDisclosure, WorkflowFormSection } from './StructuredFormPrimitives';
+import { ALARM_SOUND_PROFILES, alarmSoundProfileLabel, isAlarmSoundProfile, playAlarmSoundProfile } from '../runtime/alarmSounds';
 import { assignTagDataSource, type TagSourceAwareEngineering } from './TagSourceSelector.logic';
 import {
   SIMULATION_DRIVER_TYPE,
@@ -411,6 +412,8 @@ export function AlarmEditor({ model, locale }: EditorProps) {
   const alarms = model.alarms;
   const [query, setQuery] = useState('');
   const [selectedIdentity, setSelectedIdentity] = useState<string | null>(() => alarms[0] ? alarmIdentity(alarms[0]) : null);
+  const [soundPreviewError, setSoundPreviewError] = useState<string | null>(null);
+  const soundText = alarmSoundEditorText(locale);
   const isNew = selectedIdentity === NEW_ALARM_IDENTITY;
   const selected = !isNew && selectedIdentity ? alarms.find(alarm => alarmIdentity(alarm) === selectedIdentity) ?? null : null;
   const [draft, setDraft] = useState<AlarmEngineering | null>(() => selected ? clone(selected) : null);
@@ -521,7 +524,17 @@ export function AlarmEditor({ model, locale }: EditorProps) {
                   <BooleanField label={text('editor.field.enabled')} checked={draft.enabled !== false} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, enabled: value }))} />
                   <BooleanField label={text('editor.field.requiresAcknowledgement')} checked={draft.requiresAcknowledgement !== false} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, requiresAcknowledgement: value }))} />
                   <BooleanField label={text('editor.field.shelvingAllowed')} checked={draft.shelvingAllowed !== false} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, shelvingAllowed: value }))} />
+                  <label className="eng-editor-field"><span>{soundText.label}</span><select data-testid="alarm-sound-profile" value={isAlarmSoundProfile(draft.soundProfile) ? draft.soundProfile : 'none'} onChange={event => updateAlarm(setDraft, alarm => ({ ...alarm, soundProfile: event.currentTarget.value === 'none' ? null : event.currentTarget.value }))}>
+                    <option value="none">{soundText.none}</option>
+                    {ALARM_SOUND_PROFILES.map(profile => <option key={profile} value={profile}>{alarmSoundProfileLabel(profile, locale)}</option>)}
+                  </select></label>
+                  <div className="eng-editor-actions alarm-sound-preview-actions"><button type="button" className="secondary" data-testid="alarm-sound-preview" disabled={!isAlarmSoundProfile(draft.soundProfile)} onClick={() => {
+                    if (!isAlarmSoundProfile(draft.soundProfile)) return;
+                    setSoundPreviewError(null);
+                    void playAlarmSoundProfile(draft.soundProfile).catch(() => setSoundPreviewError(soundText.previewUnavailable));
+                  }}>{soundText.preview}</button></div>
                 </div>
+                {soundPreviewError && <p role="status">{soundPreviewError}</p>}
               </WorkflowFormDisclosure>
               <MutationActions changed={changed} mutation={mutation} onReset={reset} onPreview={() => void preview()} locale={locale} />
               <PreviewPanel mutation={mutation} locale={locale} />
@@ -800,8 +813,14 @@ function newAlarmDraft(): AlarmEngineering {
   return {
     name: '', tagPath: '', type: 'high', priority: 'medium', setpoint: null,
     digitalActiveValue: true, activationDelayMilliseconds: null,
-    requiresAcknowledgement: true, shelvingAllowed: true, enabled: true
+    requiresAcknowledgement: true, shelvingAllowed: true, enabled: true, soundProfile: null
   };
+}
+
+function alarmSoundEditorText(locale: EngineeringLocale) {
+  if (locale === 'en') return { label: 'Alarm sound', none: 'No sound (default)', preview: 'Preview sound', previewUnavailable: 'Preview could not start. Check the browser audio permission.' };
+  if (locale === 'es') return { label: 'Sonido de alarma', none: 'Sin sonido (predeterminado)', preview: 'Probar sonido', previewUnavailable: 'No se pudo reproducir. Revise el permiso de audio del navegador.' };
+  return { label: 'Som do alarme', none: 'Sem som (padrão)', preview: 'Ouvir amostra', previewUnavailable: 'Não foi possível reproduzir. Verifique a permissão de áudio do navegador.' };
 }
 
 function updateTag(setter: React.Dispatch<React.SetStateAction<TagEngineering | null>>, update: (current: TagEngineering) => TagEngineering) {

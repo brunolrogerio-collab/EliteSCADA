@@ -7,6 +7,18 @@ public enum AlarmType { Digital, High, HighHigh, Low, LowLow, Communication, Sys
 public enum AlarmState { Normal, Active, Acknowledged, Returned, Disabled, Shelved }
 public enum AlarmPriority { Low = 1, Medium = 2, High = 3, Critical = 4 }
 
+public static class AlarmSoundProfiles
+{
+    public const string Short = "short";
+    public const string Double = "double";
+    public const string Triple = "triple";
+    public const string Rising = "rising";
+    public const string Alternating = "alternating";
+
+    public static bool IsValid(string? profile) => string.IsNullOrWhiteSpace(profile) ||
+        profile is "none" or Short or Double or Triple or Rising or Alternating;
+}
+
 public sealed record AlarmDefinition(
     Guid Id,
     string Name,
@@ -22,14 +34,15 @@ public sealed record AlarmDefinition(
     TimeSpan? ActivationDelay = null,
     bool RequiresAcknowledgement = true,
     bool ShelvingAllowed = true,
-    IReadOnlyDictionary<string, string>? Metadata = null)
+    IReadOnlyDictionary<string, string>? Metadata = null,
+    string? SoundProfile = null)
 {
     public static AlarmDefinition Create(string name, Guid tagId, AlarmType type, AlarmPriority priority,
         double? setpoint = null, bool digitalActiveValue = true, string? area = null, string? message = null,
         string? alarmClass = null, TimeSpan? activationDelay = null, bool requiresAcknowledgement = true,
-        bool shelvingAllowed = true, IReadOnlyDictionary<string, string>? metadata = null) =>
+        bool shelvingAllowed = true, IReadOnlyDictionary<string, string>? metadata = null, string? soundProfile = null) =>
         new(Guid.NewGuid(), name, tagId, type, priority, setpoint, digitalActiveValue, area, message, true,
-            alarmClass, activationDelay, requiresAcknowledgement, shelvingAllowed, metadata);
+            alarmClass, activationDelay, requiresAcknowledgement, shelvingAllowed, metadata, soundProfile);
 }
 
 public sealed record AlarmInstance(

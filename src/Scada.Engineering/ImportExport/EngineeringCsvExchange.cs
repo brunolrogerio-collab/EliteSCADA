@@ -53,7 +53,7 @@ internal sealed class EngineeringCsvExchange
             {
                 "Id", "Name", "TagId", "TagPath", "Type", "Priority", "Setpoint", "DigitalActiveValue",
                 "Class", "Area", "Message", "ActivationDelayMilliseconds", "RequiresAcknowledgement",
-                "ShelvingAllowed", "Enabled", "MetadataJson"
+                "ShelvingAllowed", "Enabled", "SoundProfile", "MetadataJson"
             }
         };
 
@@ -64,7 +64,7 @@ internal sealed class EngineeringCsvExchange
                 alarm.Id?.ToString(), alarm.Name, alarm.TagId?.ToString(), alarm.TagPath, alarm.Type.ToString(), alarm.Priority.ToString(),
                 CsvCodec.Number(alarm.Setpoint), alarm.DigitalActiveValue.ToString(), alarm.AlarmClass, alarm.Area, alarm.Message,
                 alarm.ActivationDelayMilliseconds?.ToString(CultureInfo.InvariantCulture), alarm.RequiresAcknowledgement.ToString(),
-                alarm.ShelvingAllowed.ToString(), alarm.Enabled.ToString(), JsonMap(alarm.Metadata)
+                alarm.ShelvingAllowed.ToString(), alarm.Enabled.ToString(), alarm.SoundProfile, JsonMap(alarm.Metadata)
             });
         }
 
@@ -119,7 +119,8 @@ internal sealed class EngineeringCsvExchange
             Bool(Get(row, header, "RequiresAcknowledgement"), true),
             Bool(Get(row, header, "ShelvingAllowed"), true),
             Bool(Get(row, header, "Enabled"), true),
-            ParseMap(Get(row, header, "MetadataJson")))).ToArray();
+            ParseMap(Get(row, header, "MetadataJson")),
+            Null(Get(row, header, "SoundProfile")))).ToArray();
     }
 
     public IReadOnlyCollection<DataSourceEngineeringDto> ParseDataSources(string csv)

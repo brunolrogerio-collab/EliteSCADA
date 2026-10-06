@@ -86,6 +86,8 @@ public static class EngineeringValidator
             issues.Add(Error("ALARM_SETPOINT_REQUIRED", "Analog alarm requires a setpoint.", ImportEntityKind.Alarm, key));
         if (alarm.ActivationDelayMilliseconds < 0)
             issues.Add(Error("ALARM_DELAY_INVALID", "Alarm activation delay cannot be negative.", ImportEntityKind.Alarm, key));
+        if (!AlarmSoundProfiles.IsValid(alarm.SoundProfile))
+            issues.Add(Error("ALARM_SOUND_PROFILE_INVALID", "Alarm sound profile is not supported.", ImportEntityKind.Alarm, key));
         return issues;
     }
 

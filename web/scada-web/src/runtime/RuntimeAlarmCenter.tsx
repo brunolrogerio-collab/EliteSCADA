@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { acknowledgeRuntimeAlarm, loadActiveRuntimeAlarms } from './alarmCenterApi';
+import { acknowledgeRuntimeAlarm, loadActiveRuntimeAlarms, loadRuntimeAlarmDefinitions } from './alarmCenterApi';
 import {
   buildRuntimeAlarmCenterSummary,
   canAcknowledgeRuntimeAlarm,
@@ -13,8 +13,10 @@ import type {
   RuntimeAlarmAcknowledgeResult,
   RuntimeAlarmCenterEndpoint,
   RuntimeAlarmCenterItem,
+  RuntimeAlarmDefinition,
   RuntimeAlarmCenterLocale
 } from './alarmCenterTypes';
+import { playAlarmSoundProfile, resumeAlarmAudio, selectUnacknowledgedAlarmSounds, supportsAlarmAudio } from './alarmSounds';
 import './runtime-alarm-center.css';
 
 export type RuntimeAlarmCenterLoader = (
@@ -26,11 +28,17 @@ export type RuntimeAlarmAcknowledger = (
   signal?: AbortSignal
 ) => Promise<RuntimeAlarmAcknowledgeResult>;
 
+export type RuntimeAlarmDefinitionLoader = (
+  signal?: AbortSignal
+) => Promise<RuntimeAlarmCenterEndpoint<RuntimeAlarmDefinition[]>>;
+
 export type RuntimeAlarmCenterProps = {
   locale?: RuntimeAlarmCenterLocale;
   refreshIntervalMs?: number;
   loader?: RuntimeAlarmCenterLoader;
   acknowledger?: RuntimeAlarmAcknowledger;
+  definitionsLoader?: RuntimeAlarmDefinitionLoader;
+  visible?: boolean;
 };
 
 type Copy = {
@@ -79,12 +87,17 @@ type Copy = {
   stateReturned: string;
   stateDisabled: string;
   stateShelved: string;
+  enableSounds: string;
+  muteSounds: string;
+  soundsEnabled: string;
+  soundsDisabled: string;
+  soundUnavailable: string;
 };
 
 const copy: Record<RuntimeAlarmCenterLocale, Copy> = {
   'pt-BR': {
     title: 'Central de alarmes',
-    description: 'Alarmes ativos do Runtime, ordenados para atenção operacional. O reconhecimento é confirmado pelo servidor e a lista é relida após o ACK.',
+    description: 'Alarmes ativos do Runtime. Sons são opcionais e, quando escolhidos, repetem até o reconhecimento.',
     refresh: 'Atualizar', loading: 'Carregando alarmes ativos...', updated: 'Atualizado', activeVisible: 'Alarmes ativos visíveis',
     awaitingAck: 'Aguardando ACK', acknowledged: 'Reconhecidos', criticalHigh: 'Críticos/altos sem ACK', empty: 'Nenhum alarme ativo visível.',
     selectAlarm: 'Selecione um alarme', details: 'Detalhes', priority: 'Prioridade', state: 'Estado', type: 'Tipo', area: 'Área', activated: 'Ativado em',
@@ -94,11 +107,12 @@ const copy: Record<RuntimeAlarmCenterLocale, Copy> = {
     unauthenticated: 'Sessão não autenticada ou expirada.', forbidden: 'Sua sessão não possui autorização para esta operação.', notFound: 'O alarme não existe mais no Runtime ativo.',
     unavailable: 'O serviço de alarmes está indisponível no momento.', retry: 'Tentar novamente', unknown: 'Desconhecido', noArea: 'Sem área',
     priorityLow: 'Baixa', priorityMedium: 'Média', priorityHigh: 'Alta', priorityCritical: 'Crítica',
-    stateNormal: 'Normal', stateActive: 'Ativo', stateAcknowledged: 'Reconhecido', stateReturned: 'Retornado', stateDisabled: 'Desabilitado', stateShelved: 'Suprimido'
+    stateNormal: 'Normal', stateActive: 'Ativo', stateAcknowledged: 'Reconhecido', stateReturned: 'Retornado', stateDisabled: 'Desabilitado', stateShelved: 'Suprimido',
+    enableSounds: 'Ativar sons de alarmes', muteSounds: 'Silenciar sons', soundsEnabled: 'Sons de alarme ativados nesta sessão.', soundsDisabled: 'Sons de alarme silenciados.', soundUnavailable: 'O navegador não conseguiu ativar o áudio.'
   },
   en: {
     title: 'Alarm center',
-    description: 'Active Runtime alarms sorted for operational attention. Acknowledgement is confirmed by the server and the list is reloaded after ACK.',
+    description: 'Active Runtime alarms. Sounds are optional and repeat until acknowledgement when configured.',
     refresh: 'Refresh', loading: 'Loading active alarms...', updated: 'Updated', activeVisible: 'Visible active alarms',
     awaitingAck: 'Awaiting ACK', acknowledged: 'Acknowledged', criticalHigh: 'Critical/high without ACK', empty: 'No visible active alarm.',
     selectAlarm: 'Select an alarm', details: 'Details', priority: 'Priority', state: 'State', type: 'Type', area: 'Area', activated: 'Activated at',
@@ -108,11 +122,12 @@ const copy: Record<RuntimeAlarmCenterLocale, Copy> = {
     unauthenticated: 'Session is unauthenticated or expired.', forbidden: 'Your session is not authorized for this operation.', notFound: 'The alarm no longer exists in the active Runtime.',
     unavailable: 'The alarm service is currently unavailable.', retry: 'Retry', unknown: 'Unknown', noArea: 'No area',
     priorityLow: 'Low', priorityMedium: 'Medium', priorityHigh: 'High', priorityCritical: 'Critical',
-    stateNormal: 'Normal', stateActive: 'Active', stateAcknowledged: 'Acknowledged', stateReturned: 'Returned', stateDisabled: 'Disabled', stateShelved: 'Shelved'
+    stateNormal: 'Normal', stateActive: 'Active', stateAcknowledged: 'Acknowledged', stateReturned: 'Returned', stateDisabled: 'Disabled', stateShelved: 'Shelved',
+    enableSounds: 'Enable alarm sounds', muteSounds: 'Mute sounds', soundsEnabled: 'Alarm sounds enabled for this session.', soundsDisabled: 'Alarm sounds are muted.', soundUnavailable: 'The browser could not enable audio.'
   },
   es: {
     title: 'Centro de alarmas',
-    description: 'Alarmas activas del Runtime ordenadas para atención operativa. El reconocimiento lo confirma el servidor y la lista se vuelve a consultar después del ACK.',
+    description: 'Alarmas activas del Runtime. Los sonidos son opcionales y se repiten hasta el reconocimiento cuando están configurados.',
     refresh: 'Actualizar', loading: 'Cargando alarmas activas...', updated: 'Actualizado', activeVisible: 'Alarmas activas visibles',
     awaitingAck: 'Esperando ACK', acknowledged: 'Reconocidas', criticalHigh: 'Críticas/altas sin ACK', empty: 'No hay alarmas activas visibles.',
     selectAlarm: 'Seleccione una alarma', details: 'Detalles', priority: 'Prioridad', state: 'Estado', type: 'Tipo', area: 'Área', activated: 'Activada en',
@@ -122,7 +137,8 @@ const copy: Record<RuntimeAlarmCenterLocale, Copy> = {
     unauthenticated: 'Sesión no autenticada o expirada.', forbidden: 'Su sesión no tiene autorización para esta operación.', notFound: 'La alarma ya no existe en el Runtime activo.',
     unavailable: 'El servicio de alarmas no está disponible en este momento.', retry: 'Reintentar', unknown: 'Desconocido', noArea: 'Sin área',
     priorityLow: 'Baja', priorityMedium: 'Media', priorityHigh: 'Alta', priorityCritical: 'Crítica',
-    stateNormal: 'Normal', stateActive: 'Activa', stateAcknowledged: 'Reconocida', stateReturned: 'Retornada', stateDisabled: 'Deshabilitada', stateShelved: 'Suprimida'
+    stateNormal: 'Normal', stateActive: 'Activa', stateAcknowledged: 'Reconocida', stateReturned: 'Retornada', stateDisabled: 'Deshabilitada', stateShelved: 'Suprimida',
+    enableSounds: 'Activar sonidos de alarmas', muteSounds: 'Silenciar sonidos', soundsEnabled: 'Sonidos de alarma activados en esta sesión.', soundsDisabled: 'Sonidos de alarma silenciados.', soundUnavailable: 'El navegador no pudo activar el audio.'
   }
 };
 
@@ -132,7 +148,9 @@ export function RuntimeAlarmCenter({
   locale = 'pt-BR',
   refreshIntervalMs = 4000,
   loader = loadActiveRuntimeAlarms,
-  acknowledger = acknowledgeRuntimeAlarm
+  acknowledger = acknowledgeRuntimeAlarm,
+  definitionsLoader = loadRuntimeAlarmDefinitions,
+  visible = true
 }: RuntimeAlarmCenterProps) {
   const text = copy[locale];
   const [endpoint, setEndpoint] = useState<RuntimeAlarmCenterEndpoint<RuntimeAlarmCenterItem[]> | null>(null);
@@ -141,8 +159,12 @@ export function RuntimeAlarmCenter({
   const [refreshing, setRefreshing] = useState(false);
   const [acknowledgingId, setAcknowledgingId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<AckFeedback | null>(null);
+  const [definitionEndpoint, setDefinitionEndpoint] = useState<RuntimeAlarmCenterEndpoint<RuntimeAlarmDefinition[]> | null>(null);
+  const [alarmSoundsEnabled, setAlarmSoundsEnabled] = useState(false);
   const loadController = useRef<AbortController | null>(null);
+  const definitionsController = useRef<AbortController | null>(null);
   const ackController = useRef<AbortController | null>(null);
+  const soundQueueRef = useRef<ReturnType<typeof selectUnacknowledgedAlarmSounds>>([]);
 
   const refresh = useCallback(async () => {
     loadController.current?.abort();
@@ -172,18 +194,37 @@ export function RuntimeAlarmCenter({
     }
   }, [loader]);
 
+  const refreshDefinitions = useCallback(async () => {
+    definitionsController.current?.abort();
+    const controller = new AbortController();
+    definitionsController.current = controller;
+    try {
+      const next = await definitionsLoader(controller.signal);
+      if (!controller.signal.aborted) setDefinitionEndpoint(next);
+    } catch (error) {
+      if (!controller.signal.aborted) setDefinitionEndpoint({ available: false, error: error instanceof Error ? error.message : String(error) });
+    } finally {
+      if (definitionsController.current === controller) definitionsController.current = null;
+    }
+  }, [definitionsLoader]);
+
   useEffect(() => {
+    if (!visible && !alarmSoundsEnabled) return;
     void refresh();
+    void refreshDefinitions();
     const timer = refreshIntervalMs > 0
       ? window.setInterval(() => void refresh(), refreshIntervalMs)
       : undefined;
+    const definitionsTimer = window.setInterval(() => void refreshDefinitions(), Math.max(30000, refreshIntervalMs * 8));
 
     return () => {
       if (timer !== undefined) window.clearInterval(timer);
+      window.clearInterval(definitionsTimer);
       loadController.current?.abort();
+      definitionsController.current?.abort();
       ackController.current?.abort();
     };
-  }, [refresh, refreshIntervalMs]);
+  }, [refresh, refreshDefinitions, refreshIntervalMs, visible, alarmSoundsEnabled]);
 
   const alarms = useMemo(
     () => sortRuntimeAlarmsForAttention(endpoint?.available ? endpoint.value : []),
@@ -191,6 +232,29 @@ export function RuntimeAlarmCenter({
   );
   const summary = useMemo(() => buildRuntimeAlarmCenterSummary(alarms), [alarms]);
   const selected = alarms.find(alarm => alarm.definitionId === selectedId) ?? alarms[0] ?? null;
+  const definitions = definitionEndpoint?.available ? definitionEndpoint.value : [];
+  const soundQueue = useMemo(() => selectUnacknowledgedAlarmSounds(alarms, definitions), [alarms, definitions]);
+  const soundQueueSignature = soundQueue.map(item => `${item.definitionId}:${item.profile}`).join('|');
+  soundQueueRef.current = soundQueue;
+
+  useEffect(() => {
+    if (!alarmSoundsEnabled || soundQueue.length === 0) return undefined;
+    let cursor = 0;
+    let timer = 0;
+    const soundNextAlarm = () => {
+      const queue = soundQueueRef.current;
+      if (queue.length === 0) return;
+      const item = queue[cursor % queue.length];
+      cursor++;
+      void playAlarmSoundProfile(item.profile).catch(() => {
+        setAlarmSoundsEnabled(false);
+        setFeedback({ tone: 'warning', message: text.soundUnavailable });
+      });
+      timer = window.setTimeout(soundNextAlarm, 3500);
+    };
+    soundNextAlarm();
+    return () => window.clearTimeout(timer);
+  }, [alarmSoundsEnabled, soundQueueSignature, text.soundUnavailable, soundQueue.length]);
 
   useEffect(() => {
     if (!alarms.length) {
@@ -201,6 +265,27 @@ export function RuntimeAlarmCenter({
       setSelectedId(alarms[0].definitionId);
     }
   }, [alarms, selectedId]);
+
+  useEffect(() => () => {
+    loadController.current?.abort();
+    definitionsController.current?.abort();
+    ackController.current?.abort();
+  }, []);
+
+  const toggleAlarmSounds = async () => {
+    if (alarmSoundsEnabled) {
+      setAlarmSoundsEnabled(false);
+      setFeedback({ tone: 'success', message: text.soundsDisabled });
+      return;
+    }
+    try {
+      await resumeAlarmAudio();
+      setAlarmSoundsEnabled(true);
+      setFeedback({ tone: 'success', message: text.soundsEnabled });
+    } catch {
+      setFeedback({ tone: 'warning', message: text.soundUnavailable });
+    }
+  };
 
   const acknowledgeSelected = async () => {
     if (!selected || acknowledgingId) return;
@@ -258,6 +343,7 @@ export function RuntimeAlarmCenter({
           <h2>{text.title}</h2>
         </div>
         <div className="runtime-alarm-refresh">
+          <button type="button" aria-pressed={alarmSoundsEnabled} disabled={!supportsAlarmAudio()} onClick={() => void toggleAlarmSounds()}>{alarmSoundsEnabled ? text.muteSounds : text.enableSounds}</button>
           <span aria-live="polite">{text.updated} {formatMoment(new Date().toISOString(), locale)}</span>
           <button type="button" disabled={refreshing} onClick={() => void refresh()}>{text.refresh}</button>
         </div>

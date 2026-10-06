@@ -70,7 +70,8 @@ internal static class EngineeringDtoMapper
             alarm.RequiresAcknowledgement,
             alarm.ShelvingAllowed,
             alarm.Enabled,
-            alarm.Metadata?.ToDictionary(x => x.Key, x => x.Value));
+            alarm.Metadata?.ToDictionary(x => x.Key, x => x.Value),
+            alarm.SoundProfile);
 
     private static string? Meta(IReadOnlyDictionary<string, string>? metadata, string key) =>
         metadata is not null && metadata.TryGetValue(key, out var value) ? value : null;

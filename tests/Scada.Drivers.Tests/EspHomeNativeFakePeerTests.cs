@@ -46,6 +46,13 @@ public sealed class EspHomeNativeFakePeerTests
                 Manufacturer = "Espressif"
             }, timeout.Token);
 
+            Assert.Equal(EspHomeNativeMessageId.DeviceCapabilitiesRequest, (await ReadFrameAsync(stream, timeout.Token)).Type);
+            await WriteFrameAsync(
+                stream,
+                EspHomeNativeMessageId.DeviceCapabilitiesResponse,
+                new DeviceCapabilitiesResponse(),
+                timeout.Token);
+
             Assert.Equal(EspHomeEntityMessageId.ListEntitiesRequest, (await ReadFrameAsync(stream, timeout.Token)).Type);
             await WriteFrameAsync(stream, EspHomeEntityMessageId.SwitchInfo, new ListEntitiesSwitchResponse
             {

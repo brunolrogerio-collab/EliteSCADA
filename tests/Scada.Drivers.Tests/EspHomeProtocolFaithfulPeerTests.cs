@@ -48,6 +48,11 @@ public sealed class EspHomeProtocolFaithfulPeerTests
                 StringField(12, "Espressif"),
                 StringField(13, "Raw Fixture")), timeout.Token);
 
+            var capabilitiesRequest = await ReadFrameAsync(stream, timeout.Token);
+            Assert.Equal((ushort)149, capabilitiesRequest.Type);
+            Assert.Empty(capabilitiesRequest.Payload);
+            await WriteFrameAsync(stream, 150, [], timeout.Token);
+
             var listRequest = await ReadFrameAsync(stream, timeout.Token);
             Assert.Equal((ushort)11, listRequest.Type);
             Assert.Empty(listRequest.Payload);

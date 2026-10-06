@@ -316,6 +316,60 @@ public sealed record DriverDiscoveryRequest(
 /// Source candidate, but the result never mutates canonical Engineering by
 /// itself and never carries resolved secrets.
 /// </summary>
+public sealed record DriverMaterializationRoleBinding(
+    string Role,
+    string? TagCandidateId = null,
+    string? CommandCandidateId = null);
+
+public sealed record DriverMaterializationCapabilityCandidate(
+    string CapabilityId,
+    string Kind,
+    IReadOnlyCollection<DriverMaterializationRoleBinding>? Bindings = null,
+    IReadOnlyDictionary<string, string>? Metadata = null,
+    int Version = 1);
+
+public sealed record DriverMaterializationTagCandidate(
+    string CandidateId,
+    string Name,
+    string Path,
+    TagDataType DataType,
+    string? PortableAddress = null,
+    bool ReadOnly = true,
+    string? EngineeringUnit = null,
+    IReadOnlyDictionary<string, string>? Metadata = null);
+
+public sealed record DriverMaterializationCommandCandidate(
+    string CandidateId,
+    string Key,
+    string Name,
+    string Value,
+    string? TargetTagCandidateId = null,
+    IReadOnlyDictionary<string, string>? Metadata = null);
+
+public sealed record DriverMaterializationEquipmentCandidate(
+    string CandidateId,
+    string Path,
+    string Name,
+    string StableDeviceIdentity,
+    string? SourceRole = null,
+    string? LocationPlaceholder = null,
+    IReadOnlyCollection<DriverMaterializationCapabilityCandidate>? Capabilities = null,
+    IReadOnlyDictionary<string, string>? Metadata = null);
+
+/// <summary>
+/// Read-only composite proposal produced by protocol discovery. Candidate-local
+/// identifiers are resolved to canonical Engineering identities only during the
+/// normal preview/apply path. The proposal carries no secrets and never mutates
+/// Working or Active state by itself. Transient button/action events are
+/// deliberately not materialized by this S1 contract: they must not be modeled
+/// as persistent TAG state, and a future event-capability contract requires
+/// separate authorization.
+/// </summary>
+public sealed record DriverMaterializationCandidate(
+    DriverMaterializationEquipmentCandidate Equipment,
+    IReadOnlyCollection<DriverMaterializationTagCandidate>? Tags = null,
+    IReadOnlyCollection<DriverMaterializationCommandCandidate>? Commands = null);
+
 public sealed record DriverDiscoveryCandidate(
     string CandidateId,
     string StableIdentity,
@@ -323,7 +377,8 @@ public sealed record DriverDiscoveryCandidate(
     string? SanitizedEndpoint = null,
     IReadOnlyDictionary<string, string>? SuggestedSettings = null,
     IReadOnlyDictionary<string, string>? Metadata = null,
-    IReadOnlyCollection<DriverEngineeringIssue>? Issues = null);
+    IReadOnlyCollection<DriverEngineeringIssue>? Issues = null,
+    DriverMaterializationCandidate? Materialization = null);
 
 public sealed record DriverBrowseRequest(
     DriverEngineeringDataSourceContext Context,

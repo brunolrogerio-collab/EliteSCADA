@@ -1,6 +1,8 @@
 using Scada.Core.Tags;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Commands;
+using Scada.Engineering.DataSources;
 using Scada.Engineering.Validation;
 using Scada.Engineering.VisualScripting;
 using Scada.Engineering.VisualAssets;
@@ -12,19 +14,26 @@ internal sealed class AssetEngineeringHandler
     private readonly IEngineeringAssetRegistry _assets;
     private readonly ITagRegistry _tags;
     private readonly IVisualAssetEngineeringRegistry _visualAssets;
+    private readonly IDataSourceEngineeringRegistry _dataSources;
+    private readonly ICommandEngineeringRegistry _commands;
 
     public AssetEngineeringHandler(
         IEngineeringAssetRegistry assets,
         ITagRegistry tags,
-        IVisualAssetEngineeringRegistry visualAssets)
+        IVisualAssetEngineeringRegistry visualAssets,
+        IDataSourceEngineeringRegistry dataSources,
+        ICommandEngineeringRegistry commands)
     {
         _assets = assets;
         _tags = tags;
         _visualAssets = visualAssets;
+        _dataSources = dataSources;
+        _commands = commands;
     }
 
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
     {
+        PreviewLocations(package, mode, items);
         PreviewTemplates(package, mode, items);
         PreviewEquipment(package, mode, items);
         PreviewDynamos(package, mode, items);
@@ -32,6 +41,15 @@ internal sealed class AssetEngineeringHandler
 
     public void Apply(EngineeringPackage package, ImportMode mode, ref int created, ref int updated, ref int skipped)
     {
+        foreach (var dto in package.Locations ?? Array.Empty<LocationEngineeringDto>())
+        {
+            var existing = dto.Id.HasValue ? _assets.FindLocation(dto.Id.Value) : null;
+            var operation = EngineeringHandlerSupport.Decide(existing is not null, mode);
+            if (operation == ImportOperation.Skip) { skipped++; continue; }
+            _assets.UpsertLocation(dto with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
+            if (existing is null) created++; else updated++;
+        }
+
         foreach (var dto in package.Templates ?? Array.Empty<EquipmentTemplateEngineeringDto>())
         {
             var existing = ResolveExistingTemplate(dto);
@@ -60,6 +78,41 @@ internal sealed class AssetEngineeringHandler
             _assets.UpsertDynamo(normalized with { Id = existing?.Id ?? dto.Id ?? Guid.NewGuid() });
             if (existing is null) created++; else updated++;
         }
+    }
+
+    private void PreviewLocations(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
+    {
+        var locations = package.Locations ?? Array.Empty<LocationEngineeringDto>();
+        var ids = locations.Where(x => x.Id.HasValue).Select(x => x.Id!.Value).ToHashSet();
+        foreach (var dto in locations)
+        {
+            var issues = EngineeringValidator.ValidateLocation(dto).ToList();
+            var key = dto.Id?.ToString("D") ?? dto.Name;
+            if (dto.Id.HasValue && locations.Count(x => x.Id == dto.Id) > 1)
+                issues.Add(new("LOCATION_DUPLICATE_ID_IN_FILE", $"Location identity '{dto.Id:D}' appears more than once.", ImportEntityKind.Location, key, true));
+            if (dto.ParentLocationId.HasValue &&
+                _assets.FindLocation(dto.ParentLocationId.Value) is null &&
+                !ids.Contains(dto.ParentLocationId.Value))
+                issues.Add(new("LOCATION_PARENT_NOT_FOUND", $"Parent Location '{dto.ParentLocationId:D}' was not found.", ImportEntityKind.Location, key, true));
+            if (CreatesLocationCycle(dto, locations))
+                issues.Add(new("LOCATION_PARENT_CYCLE", "Location parent relationship would create a cycle.", ImportEntityKind.Location, key, true));
+            EngineeringHandlerSupport.AddPreview(items, ImportEntityKind.Location, key, dto.Id.HasValue && _assets.FindLocation(dto.Id.Value) is not null, mode, issues);
+        }
+    }
+
+    private bool CreatesLocationCycle(LocationEngineeringDto candidate, IReadOnlyCollection<LocationEngineeringDto> incoming)
+    {
+        if (!candidate.Id.HasValue || !candidate.ParentLocationId.HasValue) return false;
+        var seen = new HashSet<Guid> { candidate.Id.Value };
+        var current = candidate.ParentLocationId;
+        while (current.HasValue)
+        {
+            if (!seen.Add(current.Value)) return true;
+            var next = incoming.FirstOrDefault(x => x.Id == current)?.ParentLocationId
+                ?? _assets.FindLocation(current.Value)?.ParentLocationId;
+            current = next;
+        }
+        return false;
     }
 
     private void PreviewTemplates(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
@@ -114,6 +167,7 @@ internal sealed class AssetEngineeringHandler
 
             EngineeringHandlerSupport.ValidateConcreteTagBindings(
                 _tags, dto.Bindings, ImportEntityKind.Equipment, dto.Path, package, issues);
+            ValidateEquipmentHomeReferences(dto, package, issues);
 
             EngineeringHandlerSupport.AddPreview(
                 items, ImportEntityKind.Equipment, dto.Path, ResolveExistingEquipment(dto) is not null, mode, issues);
@@ -386,6 +440,37 @@ internal sealed class AssetEngineeringHandler
                 kind,
                 entityKey,
                 true));
+        }
+    }
+
+    private void ValidateEquipmentHomeReferences(
+        EquipmentEngineeringDto dto,
+        EngineeringPackage package,
+        List<ImportIssue> issues)
+    {
+        if (dto.LocationId.HasValue &&
+            _assets.FindLocation(dto.LocationId.Value) is null &&
+            !(package.Locations ?? Array.Empty<LocationEngineeringDto>()).Any(x => x.Id == dto.LocationId))
+            issues.Add(new("EQUIPMENT_LOCATION_NOT_FOUND", $"Location '{dto.LocationId:D}' was not found.", ImportEntityKind.Equipment, dto.Path, true));
+
+        foreach (var source in dto.SourceBindings ?? Array.Empty<EquipmentSourceBindingEngineeringDto>())
+        {
+            var prospective = (package.DataSources ?? Array.Empty<DataSourceEngineeringDto>()).Any(x => x.Id == source.DataSourceId);
+            if (_dataSources.Find(source.DataSourceId) is null && !prospective)
+                issues.Add(new("EQUIPMENT_SOURCE_DATASOURCE_NOT_FOUND", $"Data Source '{source.DataSourceId:D}' was not found.", ImportEntityKind.Equipment, dto.Path, true));
+        }
+
+        foreach (var capability in dto.Capabilities ?? Array.Empty<EquipmentCapabilityEngineeringDto>())
+        foreach (var binding in capability.Bindings ?? Array.Empty<CapabilityRoleBindingEngineeringDto>())
+        {
+            if (binding.TagId.HasValue &&
+                !_tags.TryGet(binding.TagId.Value, out _) &&
+                !package.Tags.Any(x => x.Id == binding.TagId))
+                issues.Add(new("EQUIPMENT_CAPABILITY_TAG_NOT_FOUND", $"Capability '{capability.Id}' role '{binding.Role}' references missing TAG '{binding.TagId:D}'.", ImportEntityKind.Equipment, dto.Path, true));
+            if (binding.CommandId.HasValue &&
+                _commands.Find(binding.CommandId.Value) is null &&
+                !(package.Commands ?? Array.Empty<CommandEngineeringDto>()).Any(x => x.Id == binding.CommandId))
+                issues.Add(new("EQUIPMENT_CAPABILITY_COMMAND_NOT_FOUND", $"Capability '{capability.Id}' role '{binding.Role}' references missing Command '{binding.CommandId:D}'.", ImportEntityKind.Equipment, dto.Path, true));
         }
     }
 

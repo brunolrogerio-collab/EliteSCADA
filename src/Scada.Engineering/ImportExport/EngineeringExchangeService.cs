@@ -24,7 +24,7 @@ namespace Scada.Engineering.ImportExport;
 public sealed class EngineeringExchangeService : IEngineeringExchangeService
 {
     public const string CurrentSchema = "scada.engineering";
-    public const int CurrentSchemaVersion = 21;
+    public const int CurrentSchemaVersion = 22;
 
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
@@ -213,7 +213,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             views,
             commands);
         _alarmHandler = new AlarmEngineeringHandler(alarms, _tagHandler);
-        _assetHandler = new AssetEngineeringHandler(assets, tags, _visualAssets);
+        _assetHandler = new AssetEngineeringHandler(assets, tags, _visualAssets, dataSources, commands);
         _visualAssetHandler = new VisualAssetEngineeringHandler(_visualAssets);
         _viewHandler = new ViewEngineeringHandler(views, assets, tags, dataSources, _visualAssets, commands, _mediaSources);
         _securityPolicyHandler = new SecurityPolicyEngineeringHandler(securityPolicies, _securityScopeHandler);
@@ -270,7 +270,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             AlarmViews: Array.Empty<AlarmViewEngineeringDto>(),
             Branding: _branding.Snapshot(),
             RuntimePresentation: _runtimePresentation,
-            MediaSources: _mediaSources.Snapshot());
+            MediaSources: _mediaSources.Snapshot(),
+            Locations: _assets.SnapshotLocations());
     }
 
     public string ExportJson(bool indented = true)
@@ -302,6 +303,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         var normalized = package with
         {
             DataSources = package.DataSources ?? Array.Empty<DataSourceEngineeringDto>(),
+            Locations = package.Locations ?? Array.Empty<LocationEngineeringDto>(),
             Templates = package.Templates ?? Array.Empty<EquipmentTemplateEngineeringDto>(),
             Equipment = package.Equipment ?? Array.Empty<EquipmentEngineeringDto>(),
             Dynamos = package.Dynamos ?? Array.Empty<DynamoEngineeringDto>(),

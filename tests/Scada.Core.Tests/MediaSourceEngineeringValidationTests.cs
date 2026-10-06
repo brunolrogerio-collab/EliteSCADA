@@ -184,7 +184,7 @@ public sealed class MediaSourceEngineeringValidationTests
         var parsed = service.ParseJson(json);
 
         Assert.Empty(parsed.MediaSources!);
-        Assert.Equal(21, service.ExportPackage().SchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, service.ExportPackage().SchemaVersion);
     }
 
     [Fact]

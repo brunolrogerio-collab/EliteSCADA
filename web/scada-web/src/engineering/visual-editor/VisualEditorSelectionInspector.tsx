@@ -82,6 +82,12 @@ export function VisualEditorSelectionInspector({
     <div className="visual-editor-inspector-panel" data-inspector-tab={activeTab}>
       <section id="visual-editor-inspector-section-properties" role="tabpanel" aria-labelledby="visual-editor-inspector-tab-properties" hidden={activeTab !== 'properties'} className={`visual-editor-inspector-section${activeTab === 'properties' ? ' is-active' : ''}`} data-inspector-section="properties">
         <p className="visual-editor-inspector-hint">{text.propertiesHint}</p>
+        <DynamoInstanceInspector
+          screen={screen}
+          selectedObjectIds={selectedObjectIds}
+          clientMemorySources={sourceCatalog.filter(source => source.kind === 'ClientMemory' && source.tagReference?.tagId)}
+          onCommand={onCommand}
+        />
         {selectedElements.length === 0 ? <VisualDefinitionSurfaceInspector
           screen={screen}
           onCommand={onCommand}
@@ -107,12 +113,6 @@ export function VisualEditorSelectionInspector({
           preferredPropertyKey={valueBindingProperty(selectedElement.type)}
           copy={valueBindingEditorCopy(locale, selectedElement.type)}
         /> : null}
-        <DynamoInstanceInspector
-          screen={screen}
-          selectedObjectIds={selectedObjectIds}
-          clientMemorySources={sourceCatalog.filter(source => source.kind === 'ClientMemory' && source.tagReference?.tagId)}
-          onCommand={onCommand}
-        />
       </section>
 
       <section id="visual-editor-inspector-section-dynamics" role="tabpanel" aria-labelledby="visual-editor-inspector-tab-dynamics" hidden={activeTab !== 'dynamics'} className={`visual-editor-inspector-section${activeTab === 'dynamics' ? ' is-active' : ''}`} data-inspector-section="dynamics">

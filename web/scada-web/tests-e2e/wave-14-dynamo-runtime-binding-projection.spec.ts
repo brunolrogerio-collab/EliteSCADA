@@ -78,6 +78,30 @@ test('legacy equipmentPath remains the fallback for existing instances', () => {
   expect(resolveDynamoRuntimeEquipmentPath(null, new Map())).toBeNull();
 });
 
+test('Dynamo composition accepts API camelCase EquipmentPath parameters at every entry point', () => {
+  const definition = {
+    id: '55000000-0000-0000-0000-000000000001',
+    key: 'pump.test',
+    name: 'Pump test',
+    parameters: [{ key: 'equipmentPath', kind: 'equipmentPath', required: false }],
+    elements: definitionElements
+  } as unknown as DynamoEngineering;
+  const instance = {
+    id: '56000000-0000-0000-0000-000000000001',
+    key: 'pump-1',
+    type: 'dynamo',
+    dynamoKey: 'pump.test',
+    dynamoDefinitionId: definition.id,
+    dynamoParameters: [{ key: 'equipmentPath', kind: 'equipmentPath', value: 'Plant.P01' }]
+  } as unknown as VisualElementEngineering;
+
+  const composed = composeDynamoRuntime(instance, definition);
+
+  expect(composed.parameters.get('equipmentPath')).toMatchObject({
+    key: 'equipmentPath', kind: 'EquipmentPath', value: 'Plant.P01'
+  });
+});
+
 test('typed Dynamo value-source parameters project TAG expressions into canonical behavior', () => {
   const firstTagId = '11111111-1111-4111-8111-111111111111';
   const secondTagId = '22222222-2222-4222-8222-222222222222';

@@ -7,6 +7,10 @@ import type {
   VisualElementEngineering,
   VisualValueSourceEngineering
 } from '../../engineering/types';
+import {
+  normalizeDynamoDefinitionParameterContract,
+  normalizeDynamoInstanceParameterContract
+} from './dynamoParameterWireContract';
 
 export const VISUAL_COMPOSITION_RUNTIME_VERSION = 1 as const;
 
@@ -287,8 +291,12 @@ export function composeDynamoRuntime(
   instanceInput: VisualElementEngineering,
   definitionInput: DynamoEngineering
 ): DynamoRuntimeCompositionView {
-  const instance = asCanonicalVisualElement(instanceInput);
-  const definition = asCanonicalDynamo(definitionInput);
+  // `composeDynamoRuntime` is also used directly by authoring previews and
+  // tests, not only by the Runtime projection. Normalize here as the final
+  // wire-contract boundary so camelCase enum values from the API cannot reach
+  // the strict canonical validators below.
+  const instance = normalizeDynamoInstanceParameterContract(asCanonicalVisualElement(instanceInput));
+  const definition = normalizeDynamoDefinitionParameterContract(asCanonicalDynamo(definitionInput));
   const stableDefinitionId = instance.dynamoDefinitionId?.trim();
   const definitionId = definition.id?.trim();
   if (stableDefinitionId) {

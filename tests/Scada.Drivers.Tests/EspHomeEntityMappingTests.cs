@@ -143,6 +143,7 @@ public sealed class EspHomeEntityMappingTests
             ValueTask.FromException<EspHomeStateUpdate>(new NotSupportedException());
         public ValueTask SendCommandAsync(EspHomeCommand command, CancellationToken cancellationToken = default) =>
             ValueTask.FromException(new NotSupportedException());
+        public ValueTask SendPingAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
         public ValueTask DisconnectAsync(CancellationToken cancellationToken = default)
         {
             Connected = false;

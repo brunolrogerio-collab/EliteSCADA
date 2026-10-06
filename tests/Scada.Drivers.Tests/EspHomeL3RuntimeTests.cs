@@ -38,6 +38,11 @@ public sealed class EspHomeL3RuntimeTests
             TimeSpan.FromSeconds(2));
 
         Assert.Contains(runtime.Tags(), x => x.Id == tagId && x.DataSourceId == dataSourceId);
+        var communication = Assert.Single(runtime.Describe().CommunicationDrivers);
+        Assert.Equal(EspHomeNativeContract.DriverType, communication.DriverType);
+        Assert.Equal("esphome.node", communication.DataSourceKey);
+        Assert.Equal(CommunicationDriverOperationalState.Healthy, communication.State);
+        Assert.Equal(1, communication.TagQuality.Good);
 
         await runtime.WriteAsync(tagId, true);
         Assert.Equal(1, peer.CommandCount);

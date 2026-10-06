@@ -80,7 +80,10 @@ public sealed class ShellyRpcClient : IShellyRpcClient
                 return ParseSuccessfulHttp(first, id);
 
             if (password.IsEmpty)
+            {
+                first.Dispose();
                 throw new ShellyRpcException("Shelly authentication is enabled but no protected password is configured.", 401);
+            }
 
             var challenge = ParseHttpChallenge(first, legacyAuthentication);
             var digest = new ShellyDigestSession(_settings.Username, password);
@@ -287,9 +290,29 @@ public sealed class ShellyRpcClient : IShellyRpcClient
             var value = token[(separator + 1)..].Trim().Trim('"');
             if (key.Equals("stale", StringComparison.OrdinalIgnoreCase))
                 values[key] = bool.TryParse(value, out var stale) && stale;
-            else if (key.Equals("nonce", StringComparison.OrdinalIgnoreCase) && legacyAuthentication &&
-                     long.TryParse(value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var nonce))
-                values[key] = nonce;
+            else if (key.Equals("nonce", StringComparison.OrdinalIgnoreCase) && legacyAuthentication)
+            {
+                if (long.TryParse(
+                        value,
+                        System.Globalization.NumberStyles.Integer,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out var decimalNonce))
+                {
+                    values[key] = decimalNonce;
+                }
+                else if (long.TryParse(
+                             value,
+                             System.Globalization.NumberStyles.HexNumber,
+                             System.Globalization.CultureInfo.InvariantCulture,
+                             out var hexadecimalNonce))
+                {
+                    values[key] = hexadecimalNonce;
+                }
+                else
+                {
+                    throw new ShellyRpcException("Shelly legacy HTTP authentication nonce was malformed.", 401);
+                }
+            }
             else
                 values[key] = value;
         }

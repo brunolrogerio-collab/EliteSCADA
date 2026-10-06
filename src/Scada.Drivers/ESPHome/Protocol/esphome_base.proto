@@ -61,8 +61,19 @@ message ZWaveProxyCapabilities {
   uint32 feature_flags = 1;
   uint32 home_id = 2;
 }
+enum SerialProxyPortType {
+  SERIAL_PROXY_PORT_TYPE_TTL = 0;
+  SERIAL_PROXY_PORT_TYPE_RS232 = 1;
+  SERIAL_PROXY_PORT_TYPE_RS485 = 2;
+}
+message SerialProxyInfo {
+  string name = 1;
+  SerialProxyPortType port_type = 2;
+  uint32 configured_line_states = 3;
+}
 message DeviceCapabilitiesResponse {
   BluetoothProxyCapabilities bluetooth_proxy = 1;
   VoiceAssistantCapabilities voice_assistant = 2;
   ZWaveProxyCapabilities zwave_proxy = 3;
+  repeated SerialProxyInfo serial_proxies = 4;
 }

@@ -374,6 +374,7 @@ public sealed class HomeAssistantCommunicationRuntimeFactory : ICommunicationDri
             services.Registry,
             ha.Points,
             _clientFactory ?? (settings => new HomeAssistantWebSocketClient(settings)),
-            Resolve);
+            Resolve,
+            effectAuthority: () => services.CanOwnExternalEffects);
     }
 }

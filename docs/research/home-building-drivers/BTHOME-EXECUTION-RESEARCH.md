@@ -781,3 +781,443 @@ NO CI CHANGED
 HA = HIGH AVAILABILITY
 HAB = HOME ASSISTANT BRIDGE
 NO MERGE PERFORMED
+
+
+# FINAL CONTINUATION — REVALIDATION AND HANDOFF
+
+Final research revalidation date: 2026-10-06
+
+## Final time-sensitive revalidation
+
+The following current facts were revalidated immediately before final handoff:
+
+- BTHome official format still identifies version 2 as the latest published BTHome version.
+- Service UUID remains 0xFCD2.
+- Published Device Information bit 1 remains reserved for future use.
+- Published BTHome encryption remains AES-CCM with a 16-byte pre-shared key, 4-byte counter and 4-byte MIC.
+- Published encryption guidance still requires receiver-side counter checking for replay protection and warns against treating plaintext spoofed traffic as equivalent to encrypted traffic.
+- BTHome UUID/name license statement remains unchanged: perpetual and irrevocable permission to use UUID 0xFCD2 and Custom Service Name BTHome in software/products to implement the BTHome protocol.
+- Bluetooth-Devices/bthome-ble latest release remains v3.24.0, published 2026-07-21, MIT.
+- BlueZ latest GitHub release remains 5.87, published 2026-07-07.
+- Tmds.DBus.Protocol current NuGet version remains 0.95.1, last updated 2026-09-04, MIT.
+- Windows BluetoothLEAdvertisementWatcher remains available from Windows 10.
+- BluetoothLEAdvertisementReceivedEventArgs.BluetoothAddressType remains documented as introduced in Windows 10 version 2004 / SDK build 19041.
+- TP-Link UB500 V3 remains documented for Windows 10/11 and Bluetooth 5.4.
+- Raspberry Pi 5 remains documented with Bluetooth 5.0 / BLE and production through at least January 2036.
+- Selected Shelly P0 lab models remain listed by the official store at final revalidation:
+  - Shelly BLU H&T ZB;
+  - Shelly BLU Door/Window ZB;
+  - Shelly BLU Motion ZB;
+  - Shelly BLU Button Tough 1 ZB.
+
+No time-sensitive revalidation invalidated a prior checkpoint conclusion.
+
+## Final protocol architecture
+
+BTHome v2 direct support is a receive/observation integration:
+
+BLE advertisement
+-> BluetoothAdapter Host Resource
+-> managed local Bluetooth sidecar
+-> OS-native scanner backend
+-> bounded normalized advertisement
+-> BTHome v2 decoder/security
+-> commissioned Equipment
+-> explicit Capability
+-> canonical TAG state OR canonical transient Event
+-> existing EliteSCADA Runtime consumers
+
+It is not:
+
+- a generic Bluetooth command transport;
+- a second Runtime;
+- a second Event Bus;
+- a second diagnostics system;
+- a second secret store;
+- an automatic neighborhood-device importer.
+
+## Final encryption and bindkey position
+
+- AES-CCM v2 semantics remain normative.
+- Correct MIC/authentication is mandatory for encrypted devices.
+- Counter/replay enforcement is mandatory.
+- A commissioned encrypted identity must not silently accept plaintext downgrade.
+- Bindkeys are Protected Material and must reuse #497.
+- Real keys must not be stored in Engineering JSON, .escadapkg, logs, diagnostics, URLs or public test fixtures.
+- Vendor provisioning remains vendor-specific.
+- Shelly proves one documented local authenticated retrieval model, but no universal BTHome provisioning flow exists.
+
+## Final StableDeviceIdentity strategy
+
+There is no universal stable per-device identifier in the published BTHome v2 payload.
+
+Therefore:
+
+StableDeviceIdentity =
+EliteSCADA-assigned immutable logical identity
++
+explicit accepted identity evidence
+
+Potential evidence, when proven:
+- OS/controller-resolved Bluetooth identity;
+- documented vendor stable identity/serial;
+- qualified public/static address behavior;
+- authenticated bindkey association;
+- explicit commissioning context.
+
+Forbidden default:
+
+StableDeviceIdentity = current BLE address
+
+without device/address-mode evidence.
+
+For rotating NRPA, or unresolved RPA with no vendor stable identity:
+
+PERSISTENT_DEVICE_BINDING = NOT_PROVEN
+
+This remains:
+
+MAIN_DECISION_REQUIRED — BTHOME-STABLE-DEVICE-IDENTITY
+
+before general product support is claimed.
+
+## Final state versus event taxonomy
+
+STATE:
+- measurements;
+- persistent/current binary conditions;
+- latest-value semantics.
+
+TRANSIENT_EVENT:
+- BTHome 0x3A button;
+- BTHome 0x3B command/event-like broadcast;
+- BTHome 0x3C dimmer rotation/event.
+
+DIAGNOSTIC:
+- RSSI;
+- last seen;
+- packet id;
+- decrypt/replay/duplicate failures;
+- adapter/backend details;
+- firmware/device metadata unless explicitly modeled elsewhere.
+
+CONFIGURATION/METADATA:
+- selected import;
+- key references;
+- commissioning metadata;
+- settings revision/device metadata.
+
+No transient event may be represented as a fake persistent TAG solely to fit the existing state model.
+
+## Final Capability mapping position
+
+Map only explicit BTHome semantics.
+
+Examples:
+- Temperature -> Temperature Capability -> TAG.
+- Humidity -> Humidity Capability -> TAG.
+- Illuminance -> Illuminance Capability -> TAG.
+- Battery -> Battery Capability/state.
+- Door/Window/Opening -> Contact Capability only where semantics are explicit.
+- Motion -> Motion Capability.
+- Occupancy -> Occupancy Capability.
+- Smoke -> Smoke Capability.
+- Voltage/Current/Power/Energy -> corresponding explicit capabilities.
+- Moisture/wet-dry -> moisture/wet semantics; do not force-fit to Leak without evidence.
+- RSSI -> diagnostics.
+- Button/dimmer/command event families -> transient Event.
+
+## Final BluetoothAdapter Host Resource recommendation
+
+BluetoothAdapter SHOULD be first-class Host Resource.
+
+Required separation:
+
+ResourceId != Locator != PhysicalIdentity
+
+Required ownership semantics:
+
+SHARED_OBSERVATION
++
+SINGLE_AUTHORITATIVE_ELITESCADA_OWNER
++
+EXCLUSIVE_MUTATION_WHEN_REQUIRED
+
+The OS may share physical scanning.
+
+EliteSCADA must still enforce one authoritative owner for canonical Runtime effects.
+
+Recorded dependency:
+
+RESEARCH_CONTRACT_DELTA_REQUIRED — BLUETOOTH-ADAPTER-01
+
+Minimum delta:
+- explicit shared-observation semantics;
+- existing exclusive semantics preserved for disruptive/controller operations;
+- scan-affinity capability;
+- external/OS versus EliteSCADA contention diagnostics.
+
+## Final OS architecture
+
+Linux:
+
+LINUX_BACKEND = BLUEZ_DBUS
+
+- supported host Bluetooth authority;
+- per-adapter object paths;
+- shared discovery sessions;
+- multiple adapters;
+- raw HCI not default.
+
+Windows:
+
+WINDOWS_BACKEND = WINRT_BLUETOOTHLEADVERTISEMENTWATCHER
+
+- advertisement watcher;
+- passive scan default for BTHome;
+- address type evidence requires Windows 10 version 2004 / build 19041 or later;
+- adapter inventory exists;
+- deterministic per-adapter receive affinity remains NOT_PROVEN through the public watcher contract.
+
+Container:
+
+HOST_SIDE_MANAGED_BLUETOOTH_SIDECAR_PREFERRED
+
+- main EliteSCADA container does not receive --privileged by default;
+- no raw HCI in the main container by default;
+- no broad host system-D-Bus mount into the main container by default;
+- narrow local IPC between main host/runtime and sidecar.
+
+## Final preferred implementation architecture
+
+PREFERRED_V1_ARCHITECTURE =
+C — MANAGED LOCAL BLUETOOTH SIDECAR
+
+Internals:
+- Linux -> BlueZ D-Bus;
+- Windows -> WinRT BluetoothLEAdvertisementWatcher;
+- common bounded normalized advertisement contract;
+- common managed BTHome decoder/security path;
+- existing #543 sidecar lifecycle;
+- existing #497 Protected Material;
+- existing #500 diagnostics;
+- existing Runtime external-effect authority.
+
+No Python product runtime dependency is selected.
+
+bthome-ble is reference/L2 evidence only.
+
+Tmds.DBus.Protocol 0.95.1 remains a candidate Linux D-Bus dependency subject to future Main dependency approval.
+
+## Final diagnostics position
+
+Reuse #500.
+
+Required diagnostic domains:
+- adapter availability/identity;
+- backend;
+- scan state/mode;
+- authority/lease;
+- sidecar lifecycle;
+- advertisements/sec;
+- bounded queue/high-water/saturation;
+- last seen/RSSI;
+- decrypt/missing key;
+- replay;
+- duplicate;
+- malformed/truncated/unknown object;
+- identity/address collision;
+- transient-event accept/drop/gap.
+
+No second diagnostics framework.
+
+## Final scale targets
+
+No universal BLE/BTHome product limit is claimed.
+
+Future product qualification targets are documented in BTHOME-LAB-VALIDATION-MATRIX.md, including:
+- 250 commissioned devices/adapter;
+- 500 across two adapters;
+- 100 adv/s sustained;
+- 500 adv/s burst;
+- parser-only 1,000 adv/s stress;
+- bounded queue/byte budget;
+- 24 h soak;
+- restart storms;
+- multi-adapter dedup.
+
+These are test/qualification goals, not protocol guarantees.
+
+## Final L0-L4 strategy
+
+L0:
+- deterministic parser/object/security/identity/event taxonomy vectors.
+
+L1:
+- deterministic fake normalized advertisement source with burst/flood/loss/recovery.
+
+L2:
+- independent commercial advertiser plus independent reference parser/capture.
+
+L3:
+- canonical Equipment/Capability/TAG/Event/Runtime integration only.
+
+L4:
+- real Linux/Windows adapters and current BTHome devices with recorded hardware/firmware/OS/date evidence.
+
+## Final hardware lab
+
+P0:
+- Raspberry Pi 5;
+- TP-Link UB500 V3;
+- 2x Shelly BLU H&T ZB;
+- Shelly BLU Door/Window ZB;
+- Shelly BLU Motion ZB;
+- Shelly BLU Button Tough 1 ZB.
+
+P1 optional:
+- Ecowitt WS90 Powered by Shelly when available.
+
+Every qualification claim must record exact hardware revision, firmware, BTHome version, encryption state, observed objects/events, OS, adapter, driver/backend and test date.
+
+## Final legal/license position
+
+Protocol implementation:
+GO_WITH_NORMAL_LEGAL_GATES
+
+Confirmed:
+- BTHome UUID/name use is explicitly licensed for BTHome implementation.
+- bthome-ble current release is MIT.
+- Tmds.DBus.Protocol candidate is MIT.
+- preferred Linux path uses BlueZ over IPC/D-Bus rather than copying/linking BlueZ code.
+- Windows path calls OS APIs.
+
+Before GA:
+- BTHome logo/endorsement wording requires review;
+- Bluetooth SIG trademark/qualification position requires review;
+- BlueZ redistribution requires review only if EliteSCADA later bundles it;
+- vendor-specific undocumented provisioning requires review.
+
+## Contract deltas
+
+1. RESEARCH_CONTRACT_DELTA_REQUIRED — DRIVER-TRANSIENT-EVENT-01
+   - BTHome 0x3A/0x3B/0x3C require event semantics.
+   - #546 research has independently confirmed a bounded common transient-event direction.
+
+2. RESEARCH_CONTRACT_DELTA_REQUIRED — BLUETOOTH-ADAPTER-01
+   - Host Resource foundation needs shared observation semantics distinct from exclusive mutation.
+
+3. MAIN_DECISION_REQUIRED — BTHOME-STABLE-DEVICE-IDENTITY
+   - commissioning/identity evidence policy must be approved before general direct-BTHome support.
+
+4. BTHOME_SPEC_IMPLEMENTATION_DELTA_UNRESOLVED
+   - published Device Information bit 1 remains reserved while current reference-parser behavior contains de-facto handling that must not silently become normative.
+
+## Interaction with #543
+
+#543 is the common foundation owner.
+
+This research requires future Bluetooth DEV to reuse:
+- Host Resource ResourceId/identity/locator foundation;
+- managed local sidecar lifecycle;
+- protected-configuration boundary;
+- existing external-effect authority seam;
+- diagnostics projection.
+
+This research does not require a separate Bluetooth lifecycle framework.
+
+The Bluetooth-specific delta is limited conceptually to:
+- shared observation versus exclusive mutation lease semantics;
+- scan-affinity capability/diagnostics.
+
+Do not weaken ZWaveController/ZigbeeCoordinator exclusive semantics to accommodate Bluetooth.
+
+## Final blockers
+
+RESEARCH blockers:
+- none.
+
+PRODUCT DEV prerequisites remain.
+
+No research fact currently requires BTHome rejection.
+
+## FUTURE DEV PREREQUISITES
+
+Before opening a BTHome product DEV lane, Main should require exactly:
+
+1. Accept BTHOME-STABLE-DEVICE-IDENTITY policy:
+   - selected import;
+   - explicit identity evidence;
+   - unresolved rotating-address behavior.
+
+2. Accept/land BLUETOOTH-ADAPTER-01:
+   - BluetoothAdapter Host Resource;
+   - shared observation;
+   - exclusive mutation;
+   - scan-affinity capability.
+
+3. Accept/land transient-event common contract sufficient for:
+   - button;
+   - dimmer;
+   - command/event-like BTHome occurrences;
+   - bounded event ingress/backpressure.
+
+4. Have #543 common Host Resource / managed sidecar lifecycle available to consume.
+
+5. Reuse #497 Protected Material for bindkeys.
+
+6. Reuse #500 diagnostics.
+
+7. Approve dependency/packaging choice:
+   - Linux BlueZ D-Bus client dependency if needed;
+   - Windows WinRT targeting;
+   - no Python runtime dependency by default.
+
+8. Approve Windows limitation:
+   - per-adapter advertisement receive affinity is not currently proven through public watcher API;
+   - either accept system-managed receive for v1 or produce new supported evidence.
+
+9. Acquire/execute the P0 L4 hardware matrix before broad compatibility claim.
+
+10. Revalidate BTHome specification, bthome-ble, BlueZ, candidate D-Bus library, Windows API floor and selected hardware immediately before implementation freeze.
+
+11. Close required GA legal items before shipping:
+   - BTHome branding if logos/endorsement wording are used;
+   - Bluetooth SIG branding/qualification;
+   - redistribution review if BlueZ is bundled;
+   - vendor-specific provisioning review where needed.
+
+12. Keep scope receiver-oriented:
+   - no generic Bluetooth write/control contract inferred from BTHome advertisements.
+
+## FINAL DECISION
+
+BTHOME = GO_WITH_GATES
+
+Reason:
+
+The protocol is sufficiently small, documented and testable for a native EliteSCADA receiver; its state model maps cleanly into canonical TAG/Capability semantics; transient actions have a clear dependency on the common Event direction; encrypted operation can converge on Protected Material; and Windows/Linux/container execution has a credible bounded architecture.
+
+The gates are real and must not be bypassed:
+- stable identity;
+- shared Bluetooth Host Resource semantics;
+- transient events;
+- protected keys/replay;
+- Windows adapter-affinity limitation;
+- L4 qualification;
+- GA legal/branding.
+
+## Final declarations
+
+RESEARCH_COMPLETE
+DOCS_ONLY
+NO PRODUCT CODE CHANGED
+NO HOST RESOURCE CODE CHANGED
+NO BLUETOOTH IMPLEMENTATION
+NO DEPENDENCY CHANGED
+NO CI CHANGED
+NO TEST CODE CHANGED
+NO THIRD_PARTY_CODE_COPIED
+HA = HIGH AVAILABILITY
+HAB = HOME ASSISTANT BRIDGE
+NO MERGE PERFORMED

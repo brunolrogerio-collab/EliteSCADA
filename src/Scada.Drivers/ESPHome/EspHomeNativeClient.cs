@@ -100,6 +100,20 @@ public sealed class EspHomeNativeClient : IEspHomeNativeClient
                 (await ReadExpectedAsync(EspHomeNativeMessageId.DeviceInfoResponse, cancellationToken).ConfigureAwait(false)).Payload.Span);
             var device = EspHomeDeviceInfoMapper.Map(deviceInfo);
 
+            EspHomeDeviceCapabilities? deviceCapabilities = null;
+            if (EspHomeNativeHandshake.SupportsDeviceCapabilities(version))
+            {
+                await SendMessageAsync(
+                    EspHomeNativeMessageId.DeviceCapabilitiesRequest,
+                    new DeviceCapabilitiesRequest(),
+                    cancellationToken).ConfigureAwait(false);
+                var capabilitiesResponse = DeviceCapabilitiesResponse.Parser.ParseFrom(
+                    (await ReadExpectedAsync(
+                        EspHomeNativeMessageId.DeviceCapabilitiesResponse,
+                        cancellationToken).ConfigureAwait(false)).Payload.Span);
+                deviceCapabilities = MapDeviceCapabilities(capabilitiesResponse);
+            }
+
             var entities = new List<EspHomeEntityDescriptor>();
             var unsupported = 0;
             await SendMessageAsync(EspHomeEntityMessageId.ListEntitiesRequest, new ListEntitiesRequest(), cancellationToken).ConfigureAwait(false);
@@ -115,7 +129,12 @@ public sealed class EspHomeNativeClient : IEspHomeNativeClient
                     unsupported++;
             }
 
-            _inventory = new EspHomeNativeInventory(version, device, entities, unsupported);
+            _inventory = new EspHomeNativeInventory(
+                version,
+                device,
+                entities,
+                unsupported,
+                deviceCapabilities);
             return _inventory;
         }
         catch
@@ -389,6 +408,31 @@ public sealed class EspHomeNativeClient : IEspHomeNativeClient
         header.CopyTo(frame, 0);
         await ReadExactlyAsync(_stream!, frame.AsMemory(3, length), cancellationToken).ConfigureAwait(false);
         return frame;
+    }
+
+    private static EspHomeDeviceCapabilities MapDeviceCapabilities(DeviceCapabilitiesResponse response)
+    {
+        ArgumentNullException.ThrowIfNull(response);
+        var bluetooth = response.BluetoothProxy;
+        var voice = response.VoiceAssistant;
+        var zwave = response.ZwaveProxy;
+        var serialProxies = response.SerialProxies
+            .Select(proxy => new EspHomeSerialProxyCapability(
+                proxy.Name,
+                proxy.PortType.ToString(),
+                proxy.ConfiguredLineStates))
+            .ToArray();
+
+        return new EspHomeDeviceCapabilities(
+            BluetoothProxyPresent: bluetooth is not null,
+            BluetoothProxyFeatureFlags: bluetooth?.FeatureFlags ?? 0,
+            BluetoothProxyMacAddress: bluetooth?.MacAddress,
+            VoiceAssistantPresent: voice is not null,
+            VoiceAssistantFeatureFlags: voice?.FeatureFlags ?? 0,
+            ZWaveProxyPresent: zwave is not null,
+            ZWaveProxyFeatureFlags: zwave?.FeatureFlags ?? 0,
+            ZWaveHomeId: zwave is null ? null : zwave.HomeId,
+            SerialProxies: serialProxies);
     }
 
     private static bool TryParseEntity(EspHomePlaintextFrame frame, out EspHomeEntityDescriptor? entity)

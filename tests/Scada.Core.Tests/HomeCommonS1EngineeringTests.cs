@@ -7,6 +7,7 @@ using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.Gateways;
 using Scada.Engineering.ImportExport;
+using Scada.Engineering.ProjectPackages;
 using Scada.Engineering.Security;
 using Scada.Engineering.Views;
 
@@ -196,4 +197,146 @@ public sealed class HomeCommonS1EngineeringTests
         Assert.Null(equipment.SourceBindings);
         Assert.Null(equipment.Capabilities);
     }
+
+    [Fact]
+    public void NestedLocationAndEquipmentWithoutLocation_AreValid()
+    {
+        var siteId = Guid.NewGuid();
+        var roomId = Guid.NewGuid();
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var service = new EngineeringExchangeService(
+            new InMemoryTagRegistry(),
+            alarms,
+            new InMemoryDataSourceEngineeringRegistry(),
+            new InMemoryEngineeringAssetRegistry());
+
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            [],
+            [],
+            Equipment: [new EquipmentEngineeringDto(Guid.NewGuid(), "Home.Unassigned", "Unassigned")],
+            Locations:
+            [
+                new LocationEngineeringDto(siteId, "Site", Kind: "Site"),
+                new LocationEngineeringDto(roomId, "Room", ParentLocationId: siteId, Kind: "AreaRoom")
+            ]);
+
+        var preview = service.Preview(package, ImportMode.CreateAndUpdate);
+
+        Assert.True(preview.CanApply);
+    }
+
+    [Fact]
+    public void DataSourceRename_PreservesEquipmentBindingByStableIdentity()
+    {
+        var dataSourceId = Guid.NewGuid();
+        var registry = new InMemoryDataSourceEngineeringRegistry();
+        registry.Upsert(new DataSourceEngineeringDto(dataSourceId, "old-key", "Old", "test.driver"));
+        var equipment = new EquipmentEngineeringDto(
+            Guid.NewGuid(),
+            "Home.Device",
+            "Device",
+            SourceBindings: [new EquipmentSourceBindingEngineeringDto(dataSourceId, "physical-01")]);
+
+        registry.Upsert(new DataSourceEngineeringDto(dataSourceId, "new-key", "Renamed", "test.driver"));
+
+        Assert.Equal(dataSourceId, Assert.Single(equipment.SourceBindings!).DataSourceId);
+        Assert.Null(registry.FindByKey("old-key"));
+        Assert.Equal(dataSourceId, registry.FindByKey("new-key")!.Id);
+    }
+
+    [Fact]
+    public void UnknownCapabilityKindAndMetadata_RemainExtensible()
+    {
+        var tagId = Guid.NewGuid();
+        var tags = new InMemoryTagRegistry();
+        tags.Register(TagDefinition.Create(tagId, "Future", "Home.Future.Value", TagDataType.Double));
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var service = new EngineeringExchangeService(tags, alarms);
+
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            [new TagEngineeringDto(tagId, "Future", "Home.Future.Value", TagDataType.Double)],
+            [],
+            Equipment:
+            [
+                new EquipmentEngineeringDto(
+                    Guid.NewGuid(),
+                    "Home.Future",
+                    "Future device",
+                    Capabilities:
+                    [
+                        new EquipmentCapabilityEngineeringDto(
+                            "future",
+                            "FutureCapability",
+                            [new CapabilityRoleBindingEngineeringDto("value", TagId: tagId)],
+                            new Dictionary<string, string> { ["extension"] = "preserved" })
+                    ])
+            ]);
+
+        var preview = service.Preview(package, ImportMode.CreateAndUpdate);
+
+        Assert.True(preview.CanApply);
+        Assert.Equal("preserved", package.Equipment!.Single().Capabilities!.Single().Metadata!["extension"]);
+    }
+
+    [Fact]
+    public void Preview_DoesNotMutateWorkingRegistries()
+    {
+        var locationId = Guid.NewGuid();
+        var assets = new InMemoryEngineeringAssetRegistry();
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var service = new EngineeringExchangeService(
+            new InMemoryTagRegistry(),
+            alarms,
+            new InMemoryDataSourceEngineeringRegistry(),
+            assets);
+
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            [],
+            [],
+            Equipment: [new EquipmentEngineeringDto(Guid.NewGuid(), "Home.Device", "Device", LocationId: locationId)],
+            Locations: [new LocationEngineeringDto(locationId, "Room")]);
+
+        var preview = service.Preview(package, ImportMode.CreateAndUpdate);
+
+        Assert.True(preview.CanApply);
+        Assert.Empty(assets.SnapshotLocations());
+        Assert.Empty(assets.SnapshotEquipment());
+    }
+
+    [Fact]
+    public void ProjectPackage_RoundTripsHomeCommonReferences()
+    {
+        var dataSourceId = Guid.NewGuid();
+        var locationId = Guid.NewGuid();
+        var assets = new InMemoryEngineeringAssetRegistry();
+        assets.UpsertLocation(new LocationEngineeringDto(locationId, "Room", Kind: "AreaRoom"));
+        assets.UpsertEquipment(new EquipmentEngineeringDto(
+            Guid.NewGuid(),
+            "Home.Device",
+            "Device",
+            LocationId: locationId,
+            SourceBindings: [new EquipmentSourceBindingEngineeringDto(dataSourceId, "opaque-device")]));
+        var dataSources = new InMemoryDataSourceEngineeringRegistry();
+        dataSources.Upsert(new DataSourceEngineeringDto(dataSourceId, "device", "Device", "test.driver"));
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var exchange = new EngineeringExchangeService(new InMemoryTagRegistry(), alarms, dataSources, assets);
+        var packages = new ProjectPackageService(exchange);
+
+        var inspection = packages.Inspect(packages.Export("home-common", "Home Common"));
+
+        Assert.Equal(locationId, Assert.Single(inspection.Engineering.Locations!).Id);
+        var equipment = Assert.Single(inspection.Engineering.Equipment!);
+        Assert.Equal(locationId, equipment.LocationId);
+        Assert.Equal(dataSourceId, Assert.Single(equipment.SourceBindings!).DataSourceId);
+    }
+
 }

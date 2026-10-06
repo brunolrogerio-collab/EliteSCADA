@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Scada.Core.Tags;
 using Scada.Drivers.HomeAssistant;
+using Scada.Drivers.Abstractions;
 
 namespace Scada.Drivers.Tests;
 
@@ -229,6 +230,57 @@ public sealed class HomeAssistantMappingTests
     }
 
     [Fact]
+    public async Task EngineeringDiscovery_ResolvesProtectedToken_AndProjectsOnlySelectedEntities()
+    {
+        var states = new[]
+        {
+            State("switch.selected", "off", new { }),
+            State("switch.unselected", "on", new { })
+        };
+        var registry = new[]
+        {
+            Registry("switch.selected", "demo", deviceId: "device-selected"),
+            Registry("switch.unselected", "demo", deviceId: "device-unselected")
+        };
+        var fake = new FakeHomeAssistantClient(states, registry);
+        var resolver = new CaptureResolver("llat-test-token");
+        var provider = new HomeAssistantEngineeringProvider("project-a", resolver, _ => fake);
+        var context = new DriverEngineeringDataSourceContext(
+            "ha-main",
+            "Home Assistant",
+            HomeAssistantContract.DriverType,
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["host"] = "ha.local",
+                ["port"] = "8123"
+            },
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [HomeAssistantEngineeringProvider.AccessTokenReferenceKey] = "vault://ha/token"
+            });
+        var request = new DriverDiscoveryRequest(
+            context,
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [HomeAssistantEngineeringProvider.SelectedEntityIdsParameter] = "switch.selected"
+            });
+        var results = new List<DriverDiscoveryCandidate>();
+
+        await foreach (var item in provider.DiscoverAsync(request))
+            results.Add(item);
+
+        var result = Assert.Single(results);
+        Assert.NotNull(result.Materialization);
+        Assert.Contains(result.Materialization!.Tags!, x => x.Metadata!["haEntityId"] == "switch.selected");
+        Assert.DoesNotContain(result.Materialization.Tags!, x => x.Metadata!["haEntityId"] == "switch.unselected");
+        Assert.Equal(HomeAssistantContract.AccessTokenPurpose, resolver.Request!.Purpose);
+        Assert.Equal("ha-main", resolver.Request.DataSourceKey);
+        Assert.Equal("vault://ha/token", resolver.Request.Reference);
+        Assert.True(fake.Authenticated);
+        Assert.True(fake.TokenLength > 0);
+    }
+
+    [Fact]
     public void HelpersLockFanAndClimateRemainBoundedOutOfScope()
     {
         var states = new[]
@@ -270,4 +322,74 @@ public sealed class HomeAssistantMappingTests
         string? areaId = null,
         string? category = null) =>
         new(entityId, platform, areaId, deviceId, entityId, category, Hidden: false);
+
+    private sealed class FakeHomeAssistantClient(
+        IReadOnlyList<HomeAssistantState> states,
+        IReadOnlyList<HomeAssistantRegistryDisplayEntry> registry) : IHomeAssistantClient
+    {
+        public bool Connected => true;
+        public bool Authenticated { get; private set; }
+        public string? HomeAssistantVersion => "2026.10.test";
+        public int TokenLength { get; private set; }
+
+        public ValueTask ConnectAndAuthenticateAsync(
+            ReadOnlyMemory<byte> accessToken,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            TokenLength = accessToken.Length;
+            Authenticated = true;
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask<IReadOnlyList<HomeAssistantState>> GetStatesAsync(
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(states);
+
+        public ValueTask<IReadOnlyList<HomeAssistantRegistryDisplayEntry>> GetEntityRegistryForDisplayAsync(
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(registry);
+
+        public ValueTask<int> SubscribeStateChangedAsync(CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(1);
+
+        public ValueTask<HomeAssistantStateChangedEvent> ReceiveStateChangedAsync(
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromException<HomeAssistantStateChangedEvent>(new NotSupportedException());
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    private sealed class CaptureResolver(string token) : ICommunicationDriverProtectedMaterialResolver
+    {
+        private readonly byte[] _token = System.Text.Encoding.UTF8.GetBytes(token);
+        public CommunicationDriverProtectedMaterialRequest? Request { get; private set; }
+
+        public ValueTask<ICommunicationDriverProtectedMaterialLease> ResolveAsync(
+            CommunicationDriverProtectedMaterialRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Request = request;
+            return ValueTask.FromResult<ICommunicationDriverProtectedMaterialLease>(
+                new TestLease(_token.ToArray()));
+        }
+    }
+
+    private sealed class TestLease(byte[] material) : ICommunicationDriverProtectedMaterialLease
+    {
+        private byte[]? _material = material;
+        public ReadOnlyMemory<byte> Material => _material ?? ReadOnlyMemory<byte>.Empty;
+        public string? ContentType => "text/plain";
+
+        public ValueTask DisposeAsync()
+        {
+            if (_material is { } bytes)
+            {
+                System.Security.Cryptography.CryptographicOperations.ZeroMemory(bytes);
+                _material = null;
+            }
+            return ValueTask.CompletedTask;
+        }
+    }
 }

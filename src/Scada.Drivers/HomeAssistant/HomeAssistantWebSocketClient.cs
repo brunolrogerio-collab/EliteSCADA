@@ -1,5 +1,6 @@
 using System.Net.WebSockets;
 using System.Text.Json;
+using System.Threading.Channels;
 
 namespace Scada.Drivers.HomeAssistant;
 
@@ -17,6 +18,12 @@ public interface IHomeAssistantClient : IAsyncDisposable
     ValueTask<IReadOnlyList<HomeAssistantState>> GetStatesAsync(CancellationToken cancellationToken = default);
     ValueTask<IReadOnlyList<HomeAssistantRegistryDisplayEntry>> GetEntityRegistryForDisplayAsync(CancellationToken cancellationToken = default);
     ValueTask<int> SubscribeStateChangedAsync(CancellationToken cancellationToken = default);
+    ValueTask CallServiceAsync(
+        string domain,
+        string service,
+        string entityId,
+        IReadOnlyDictionary<string, object?>? serviceData = null,
+        CancellationToken cancellationToken = default);
     ValueTask<HomeAssistantStateChangedEvent> ReceiveStateChangedAsync(CancellationToken cancellationToken = default);
 }
 
@@ -26,7 +33,16 @@ public sealed class HomeAssistantWebSocketClient : IHomeAssistantClient
     private readonly ClientWebSocket _socket = new();
     private readonly HomeAssistantRequestCorrelator _correlator = new();
     private readonly SemaphoreSlim _sendGate = new(1, 1);
-    private readonly SemaphoreSlim _receiveGate = new(1, 1);
+    private readonly Channel<HomeAssistantStateChangedEvent> _stateEvents =
+        Channel.CreateBounded<HomeAssistantStateChangedEvent>(
+            new BoundedChannelOptions(HomeAssistantContract.StateEventQueueCapacity)
+            {
+                SingleReader = false,
+                SingleWriter = true,
+                FullMode = BoundedChannelFullMode.Wait
+            });
+    private CancellationTokenSource? _receivePumpCts;
+    private Task? _receivePumpTask;
     private bool _disposed;
 
     public HomeAssistantWebSocketClient(HomeAssistantConnectionSettings settings)
@@ -62,7 +78,10 @@ public sealed class HomeAssistantWebSocketClient : IHomeAssistantClient
             throw new HomeAssistantAuthenticationException("Home Assistant authentication failed.");
         if (auth.Kind != HomeAssistantHandshakeKind.AuthOk)
             throw new HomeAssistantAuthenticationException("Home Assistant authentication did not complete.");
+
         Authenticated = true;
+        _receivePumpCts = new CancellationTokenSource();
+        _receivePumpTask = ReceivePumpAsync(_receivePumpCts.Token);
     }
 
     public async ValueTask<IReadOnlyList<HomeAssistantState>> GetStatesAsync(
@@ -99,27 +118,39 @@ public sealed class HomeAssistantWebSocketClient : IHomeAssistantClient
         return result.Id;
     }
 
+    public async ValueTask CallServiceAsync(
+        string domain,
+        string service,
+        string entityId,
+        IReadOnlyDictionary<string, object?>? serviceData = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(domain)) throw new ArgumentException("Home Assistant service domain is required.", nameof(domain));
+        if (string.IsNullOrWhiteSpace(service)) throw new ArgumentException("Home Assistant service name is required.", nameof(service));
+        if (string.IsNullOrWhiteSpace(entityId)) throw new ArgumentException("Home Assistant target entity id is required.", nameof(entityId));
+
+        var arguments = new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["domain"] = domain,
+            ["service"] = service,
+            ["target"] = new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["entity_id"] = entityId
+            }
+        };
+        if (serviceData is not null && serviceData.Count > 0)
+            arguments["service_data"] = serviceData;
+
+        var result = await SendCommandAsync("call_service", arguments, cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+            throw new IOException("Home Assistant service action failed.");
+    }
+
     public async ValueTask<HomeAssistantStateChangedEvent> ReceiveStateChangedAsync(
         CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        while (true)
-        {
-            var frame = await ReceiveFrameAsync(cancellationToken).ConfigureAwait(false);
-            if (HomeAssistantProtocol.TryParseStateChangedEvent(frame, out var changed) && changed is not null)
-                return changed;
-
-            HomeAssistantCommandResult result;
-            try
-            {
-                result = HomeAssistantProtocol.ParseResult(frame);
-            }
-            catch (FormatException)
-            {
-                continue;
-            }
-            _correlator.TryComplete(result);
-        }
+        return await _stateEvents.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async ValueTask<HomeAssistantCommandResult> SendCommandAsync(
@@ -132,39 +163,75 @@ public sealed class HomeAssistantWebSocketClient : IHomeAssistantClient
             throw new InvalidOperationException("Home Assistant client is not authenticated.");
 
         var pending = _correlator.Create();
-        await SendAsync(HomeAssistantProtocol.BuildCommand(pending.Id, type, arguments), cancellationToken)
-            .ConfigureAwait(false);
+        try
+        {
+            await SendAsync(HomeAssistantProtocol.BuildCommand(pending.Id, type, arguments), cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _correlator.TryFail(pending.Id, ex);
+            throw;
+        }
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(_settings.EffectiveRequestTimeout);
         try
         {
-            while (!pending.Completion.IsCompleted)
-            {
-                var frame = await ReceiveFrameAsync(timeout.Token).ConfigureAwait(false);
-                HomeAssistantCommandResult result;
-                try
-                {
-                    result = HomeAssistantProtocol.ParseResult(frame);
-                }
-                catch (FormatException)
-                {
-                    continue;
-                }
-                _correlator.TryComplete(result);
-            }
             return await pending.Completion.WaitAsync(timeout.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            _correlator.TryFail(pending.Id, new TimeoutException(
-                $"Home Assistant request timed out after {_settings.EffectiveRequestTimeout}."));
-            throw new TimeoutException($"Home Assistant request timed out after {_settings.EffectiveRequestTimeout}.");
+            var failure = new TimeoutException(
+                $"Home Assistant request timed out after {_settings.EffectiveRequestTimeout}.");
+            _correlator.TryFail(pending.Id, failure);
+            throw failure;
         }
         catch
         {
             _correlator.TryCancel(pending.Id, cancellationToken);
             throw;
+        }
+    }
+
+    private async Task ReceivePumpAsync(CancellationToken cancellationToken)
+    {
+        Exception? terminal = null;
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                var frame = await ReceiveFrameAsync(cancellationToken).ConfigureAwait(false);
+
+                if (HomeAssistantProtocol.TryParseStateChangedEvent(frame, out var changed) && changed is not null)
+                {
+                    await _stateEvents.Writer.WriteAsync(changed, cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                try
+                {
+                    var result = HomeAssistantProtocol.ParseResult(frame);
+                    _correlator.TryComplete(result);
+                }
+                catch (FormatException)
+                {
+                    // Other valid Home Assistant event/result-independent message.
+                    // This bridge only consumes state_changed and command results.
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            terminal = ex;
+            _correlator.FailAll(ex);
+        }
+        finally
+        {
+            _stateEvents.Writer.TryComplete(terminal);
         }
     }
 
@@ -183,28 +250,20 @@ public sealed class HomeAssistantWebSocketClient : IHomeAssistantClient
 
     private async ValueTask<byte[]> ReceiveFrameAsync(CancellationToken cancellationToken)
     {
-        await _receiveGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var stream = new MemoryStream();
+        var buffer = new byte[8192];
+        while (true)
         {
-            using var stream = new MemoryStream();
-            var buffer = new byte[8192];
-            while (true)
-            {
-                var result = await _socket.ReceiveAsync(buffer, cancellationToken).ConfigureAwait(false);
-                if (result.MessageType == WebSocketMessageType.Close)
-                    throw new IOException("Home Assistant WebSocket closed.");
-                if (result.MessageType != WebSocketMessageType.Text)
-                    throw new IOException("Home Assistant returned a non-text WebSocket message.");
-                stream.Write(buffer, 0, result.Count);
-                if (stream.Length > HomeAssistantContract.MaximumFrameBytes)
-                    throw new IOException("Home Assistant WebSocket message exceeded the maximum allowed size.");
-                if (result.EndOfMessage)
-                    return stream.ToArray();
-            }
-        }
-        finally
-        {
-            _receiveGate.Release();
+            var result = await _socket.ReceiveAsync(buffer, cancellationToken).ConfigureAwait(false);
+            if (result.MessageType == WebSocketMessageType.Close)
+                throw new IOException("Home Assistant WebSocket closed.");
+            if (result.MessageType != WebSocketMessageType.Text)
+                throw new IOException("Home Assistant returned a non-text WebSocket message.");
+            stream.Write(buffer, 0, result.Count);
+            if (stream.Length > HomeAssistantContract.MaximumFrameBytes)
+                throw new IOException("Home Assistant WebSocket message exceeded the maximum allowed size.");
+            if (result.EndOfMessage)
+                return stream.ToArray();
         }
     }
 
@@ -213,6 +272,12 @@ public sealed class HomeAssistantWebSocketClient : IHomeAssistantClient
         if (_disposed) return;
         _disposed = true;
         Authenticated = false;
+
+        var pumpCts = _receivePumpCts;
+        _receivePumpCts = null;
+        if (pumpCts is not null)
+            pumpCts.Cancel();
+
         try
         {
             if (_socket.State is WebSocketState.Open or WebSocketState.CloseReceived)
@@ -221,9 +286,19 @@ public sealed class HomeAssistantWebSocketClient : IHomeAssistantClient
         catch (WebSocketException)
         {
         }
+
+        if (_receivePumpTask is not null)
+        {
+            try { await _receivePumpTask.ConfigureAwait(false); }
+            catch (OperationCanceledException) { }
+            _receivePumpTask = null;
+        }
+
+        pumpCts?.Dispose();
+        _correlator.FailAll(new ObjectDisposedException(nameof(HomeAssistantWebSocketClient)));
+        _stateEvents.Writer.TryComplete();
         _socket.Dispose();
         _sendGate.Dispose();
-        _receiveGate.Dispose();
     }
 
     private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_disposed, this);

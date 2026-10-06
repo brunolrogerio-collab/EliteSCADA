@@ -26,7 +26,7 @@
   --ha-danger: var(--app-error, #d46a6a);
   --ha-ok: var(--app-success, #67b887);
   min-height: 100%;
-  padding: 24px;
+  padding: 16px 24px;
   color: var(--ha-text);
   background: var(--ha-bg);
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
@@ -82,10 +82,11 @@
 .ha-admin__header {
   display: flex;
   justify-content: space-between;
-  gap: 20px;
-  align-items: flex-start;
-  margin-bottom: 18px;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
 }
+.ha-admin__header > div:first-child { display: flex; align-items: baseline; min-width: 0; }
 
 .ha-admin__eyebrow {
   color: var(--ha-accent);
@@ -95,7 +96,7 @@
   font-weight: 700;
 }
 
-.ha-admin h1 { margin: 5px 0; font-size: 28px; }
+.ha-admin h1 { margin: 0; font-size: 18px; }
 .ha-admin h2 { margin: 0; font-size: 18px; }
 .ha-admin h3 { margin: 0; font-size: 13px; color: var(--ha-text); }
 .ha-admin p { margin: 0; color: var(--ha-muted); line-height: 1.45; }
@@ -310,7 +311,7 @@
 .ha-readiness {
   border: 1px solid var(--ha-border);
   border-radius: 8px;
-  background: #0d141c;
+  background: var(--ha-panel-2);
   padding: 11px;
   display: grid;
   gap: 9px;
@@ -362,7 +363,7 @@
 }
 
 .ha-config-fieldset:disabled {
-  opacity: .72;
+  opacity: 1;
 }
 
 .ha-action-cards {
@@ -444,7 +445,7 @@
   padding: 9px 10px;
   border: 1px solid var(--ha-border);
   border-radius: 7px;
-  background: #0d141c;
+  background: var(--ha-panel-2);
 }
 
 .ha-toggle-field .ha-field-hint {
@@ -459,9 +460,19 @@
   min-height: 37px;
   border: 1px solid var(--ha-border);
   border-radius: 7px;
-  background: #0d141c;
+  background: var(--ha-panel-2);
   color: var(--ha-text);
   padding: 8px 10px;
+}
+
+.ha-admin input:disabled:not([type=checkbox]),
+.ha-admin select:disabled,
+.ha-admin textarea:disabled {
+  border-color: var(--ha-border);
+  background: var(--ha-panel-2);
+  color: var(--ha-muted);
+  opacity: 1;
+  cursor: not-allowed;
 }
 
 .ha-admin input:focus,
@@ -482,7 +493,7 @@
   padding: 9px 10px;
   border: 1px solid var(--ha-border);
   border-radius: 7px;
-  background: #0d141c;
+  background: var(--ha-panel-2);
   display: grid;
   gap: 4px;
   align-content: start;
@@ -528,7 +539,7 @@
   padding: 11px;
   border: 1px solid var(--ha-border);
   border-radius: 7px;
-  background: #0d141c;
+  background: var(--ha-panel-2);
   color: var(--ha-muted);
   font-size: 11px;
   display: grid;

@@ -255,9 +255,7 @@ export function RuntimeAlarmCenter({
     <section className="runtime-alarm-center" aria-label={text.title} aria-busy={refreshing}>
       <header className="runtime-alarm-header">
         <div>
-          <span className="runtime-alarm-eyebrow">Runtime / Alarms</span>
           <h2>{text.title}</h2>
-          <p>{text.description}</p>
         </div>
         <div className="runtime-alarm-refresh">
           <span aria-live="polite">{text.updated} {formatMoment(new Date().toISOString(), locale)}</span>

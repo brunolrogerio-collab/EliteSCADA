@@ -58,6 +58,7 @@ test('primary shell keeps authorized application navigation coherent without Eng
   await page.goto('/engineering');
   navigation = page.getByRole('navigation', { name: 'EliteSCADA' });
   await expect(navigation.getByRole('link', { name: 'Engenharia' })).toHaveAttribute('aria-current', 'page');
+  await page.locator('.eng-overview-advanced > summary').click();
   await expect(page.getByText(/Gerenciamento do projeto|Project Management/, { exact: true })).toBeVisible();
   await expectCssToken(page.locator('.eng-shell'), 'background-color', '--app-bg');
   await expectCssToken(page.locator('.eng-project-management__card').first(), 'background-color', '--app-surface');
@@ -125,6 +126,7 @@ test('shell uses shared locale, updates live from Engineering selector, and pres
   await expect(page.getByText('Industrial platform', { exact: true })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-app-theme', 'dark');
   await expect(page.getByRole('combobox', { name: 'Theme' })).toHaveValue('dark');
+  await page.locator('.eng-overview-advanced > summary').click();
   await expect(page.getByText('Project Management', { exact: true })).toBeVisible();
   await expect(page.getByTestId('engineering-context-row')).toBeVisible();
   await expect(page.getByTestId('engineering-workspace-state')).toBeVisible();
@@ -294,7 +296,7 @@ test('Active branding mounts in shell while Working preview stays isolated, them
 
   const editor = page.getByTestId('branding-editor');
   await expect(editor).toBeVisible();
-  await editor.getByRole('combobox', { name: /Mode/i }).selectOption('text');
+  await editor.getByRole('combobox', { name: /Brand presentation|Presentación de la marca|Apresentação da marca/i }).selectOption('text');
   await editor.getByLabel('Application text').fill('WORKING BRAND');
   await expect(page.getByTestId('branding-working-preview')).toContainText('WORKING BRAND');
   await expect(brand).toContainText('ACTIVE BRAND');
@@ -539,6 +541,7 @@ async function openLifecycleUx(page: Page, state: LifecycleUxState) {
   await mockLifecycleUxApp(page, state);
   await page.goto('/engineering');
   await expect(page.locator('.eng-lifecycle-workspace')).toBeVisible();
+  await page.locator('.eng-lifecycle-workspace__history > summary').click();
 }
 
 test('mounted lifecycle is one four-step surface and Save/Publish/Activate are one click', async ({ page }) => {

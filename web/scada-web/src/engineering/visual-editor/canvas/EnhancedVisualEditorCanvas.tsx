@@ -108,7 +108,7 @@ export function VisualEditorCanvas(props: EnhancedVisualEditorCanvasProps) {
   }, [contextMenu]);
 
   const beginCapture = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (props.polygonToolActive || event.button !== 0 || event.altKey) return;
+    if (props.polygonToolActive || props.bezierToolActive || event.button !== 0 || event.altKey) return;
     const target = event.target instanceof HTMLElement ? event.target : null;
     if (!target) return;
 

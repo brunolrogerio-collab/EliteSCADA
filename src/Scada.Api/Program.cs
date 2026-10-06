@@ -931,8 +931,14 @@ static async Task<IResult> ApplyEngineeringImportAsync(
             return Results.BadRequest(preview);
         }
 
+        var changeVersionBeforeApply = workspace.CaptureChangeVersion();
+        var runtimePresentationChanged = preview.Items.Any(item =>
+            item.EntityKind == ImportEntityKind.RuntimePresentation &&
+            (item.Operation == ImportOperation.Create || item.Operation == ImportOperation.Update));
         var result = exchange.Apply(package, importMode);
         var hasErrors = result.Issues.Any(x => x.IsError);
+        if (!hasErrors && runtimePresentationChanged && workspace.CaptureChangeVersion() == changeVersionBeforeApply)
+            workspace.MarkDirty();
         if (!hasErrors)
             EngineeringWorkingBootstrapService.UpgradeBuiltinDynamos(workspace);
 

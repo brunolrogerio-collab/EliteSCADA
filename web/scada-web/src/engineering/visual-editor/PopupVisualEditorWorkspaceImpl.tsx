@@ -40,6 +40,8 @@ import {
 } from './popupVisualAuthoringModel';
 import { popupEditorText } from './popupVisualEditorText';
 import { createCanonicalPolygon, updateCanonicalPolygonPoints } from './polygonCanonicalMutations';
+import { createCanonicalBezier } from './bezierCanonicalMutations';
+import { reportCollection } from '../reports/reportDesignerModel';
 import { VisualEditorRegionToggle } from './VisualEditorRegionToggle';
 import {
   applyVisualEditorMutationIntent,
@@ -134,6 +136,7 @@ function PopupVisualEditorWorkspaceBody({
   const selectedObjectIds = session.selectedObjectIds;
   const [viewport, setViewport] = useState<VisualEditorViewport>(DEFAULT_VIEWPORT);
   const [polygonToolActive, setPolygonToolActive] = useState(false);
+  const [bezierToolActive, setBezierToolActive] = useState(false);
   const [screensCollapsed, setScreensCollapsed] = useState(false);
   const [paletteCollapsed, setPaletteCollapsed] = useState(false);
   const [propertiesCollapsed, setPropertiesCollapsed] = useState(false);
@@ -188,6 +191,7 @@ function PopupVisualEditorWorkspaceBody({
       if (sameSelection) return;
     }
     setPolygonToolActive(false);
+    setBezierToolActive(false);
     const current = selectedIdentity === NEW_POPUP_IDENTITY
       ? createPopupDraft(popups, locale)
       : popups.find(item => popupIdentity(item) === selectedIdentity) ?? null;
@@ -279,6 +283,17 @@ function PopupVisualEditorWorkspaceBody({
           selectedObjectIds: [created.objectId]
         }));
         setPolygonToolActive(false);
+        setBezierToolActive(false);
+        invalidateValidation();
+        return;
+      }
+      if (intent.kind === 'bezier.create') {
+        const created = createCanonicalBezier(currentDraft, intent.points);
+        replaceSession(commitVisualEditorSessionDraft(current, created.screen, {
+          selectedObjectIds: [created.objectId]
+        }));
+        setBezierToolActive(false);
+        setPolygonToolActive(false);
         invalidateValidation();
         return;
       }
@@ -319,11 +334,20 @@ function PopupVisualEditorWorkspaceBody({
   const handlePaletteIntent = (intent: VisualEditorMutationIntent) => {
     if (intent.kind === 'object.add' && intent.objectType === BUILTIN_VISUAL_OBJECT_TYPES.polygon) {
       setPolygonToolActive(true);
+      setBezierToolActive(false);
+      replaceSession(withVisualEditorSessionSelection(sessionRef.current, Object.freeze([])));
+      setError(null);
+      return;
+    }
+    if (intent.kind === 'object.add' && intent.objectType === BUILTIN_VISUAL_OBJECT_TYPES.bezier) {
+      setBezierToolActive(true);
+      setPolygonToolActive(false);
       replaceSession(withVisualEditorSessionSelection(sessionRef.current, Object.freeze([])));
       setError(null);
       return;
     }
     setPolygonToolActive(false);
+    setBezierToolActive(false);
     handleMutationIntent(intent);
   };
 
@@ -333,6 +357,7 @@ function PopupVisualEditorWorkspaceBody({
     setFrame(popupFrame(source));
     setViewport(DEFAULT_VIEWPORT);
     setPolygonToolActive(false);
+    setBezierToolActive(false);
     invalidateValidation();
   };
 
@@ -523,6 +548,8 @@ function PopupVisualEditorWorkspaceBody({
               }}
               polygonToolActive={polygonToolActive}
               onPolygonToolCancel={() => setPolygonToolActive(false)}
+              bezierToolActive={bezierToolActive}
+              onBezierToolCancel={() => setBezierToolActive(false)}
             />
           </section>
 
@@ -534,6 +561,7 @@ function PopupVisualEditorWorkspaceBody({
               selectedObjectIds={selectedObjectIds}
               sourceCatalog={bindingSourceCatalog}
               visualAssets={snapshot.package.visualAssets ?? []}
+              reports={reportCollection(snapshot.package)}
               locale={locale}
               activeTab={inspectorTab}
               onActiveTabChange={setInspectorTab}

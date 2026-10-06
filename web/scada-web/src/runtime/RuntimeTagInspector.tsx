@@ -320,9 +320,7 @@ export function RuntimeTagInspector({
     <section className="runtime-tag-inspector" aria-label={text.title} aria-busy={refreshing}>
       <header className="runtime-tag-header">
         <div>
-          <span className="runtime-tag-eyebrow">Runtime / TAGs</span>
           <h2>{text.title}</h2>
-          <p>{text.description}</p>
         </div>
         <div className="runtime-tag-header-actions">
           <span className={`runtime-tag-live state-${realtimeState}`} aria-live="polite">

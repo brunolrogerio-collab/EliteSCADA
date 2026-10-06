@@ -24,8 +24,10 @@
 
 .installation-switching__header h2,
 .installation-switching__confirmation h3 {
-  margin: 4px 0 6px;
+  margin: 0;
 }
+
+.installation-switching__header h2 { font-size: 18px; }
 
 .installation-switching__header p,
 .installation-switching__entry p,

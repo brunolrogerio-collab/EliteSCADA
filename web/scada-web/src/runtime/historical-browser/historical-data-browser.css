@@ -22,6 +22,8 @@
 .historical-browser__detail h3 {
   margin: 0;
 }
+.historical-browser__header > div:first-child { display: flex; align-items: baseline; min-width: 0; }
+.historical-browser__header h2 { font-size: 18px; }
 
 .historical-browser__header p,
 .historical-browser__readonly-note {

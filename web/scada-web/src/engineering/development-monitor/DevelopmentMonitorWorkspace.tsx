@@ -190,8 +190,8 @@ export function DevelopmentMonitorWorkspace({
 
   return <div className="eng-section development-monitor" data-testid="engineering-development-monitor">
     <header className="development-monitor__header">
-      <div><span>{copy.eyebrow}</span><h1>{copy.title}</h1><p>{copy.description}</p></div>
-      <div className="development-monitor__readonly"><strong>{copy.readOnly}</strong><span>{copy.readOnlyHint}</span></div>
+      <div><h1>{copy.title}</h1><details className="app-page-help"><summary>{locale === 'pt-BR' ? 'Ajuda' : locale === 'es' ? 'Ayuda' : 'Help'}</summary><p>{copy.description}</p></details></div>
+      <div className="development-monitor__readonly" title={copy.readOnlyHint}><strong>{copy.readOnly}</strong></div>
     </header>
 
     <div className="development-monitor__add">

@@ -219,7 +219,7 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
   return (
     <section className="eng-editor-shell" data-testid="schema-data-source-editor">
       <header className="eng-editor-heading">
-        <div><h2>{copy.title}</h2><details className="eng-editor-help"><summary>{locale === 'en' ? 'Help' : locale === 'es' ? 'Ayuda' : 'Ajuda'}</summary><p>{copy.description}</p></details></div>
+        <div className="eng-editor-heading-title"><h2>{copy.title}</h2><details className="eng-editor-help"><summary>{locale === 'en' ? 'Help' : locale === 'es' ? 'Ayuda' : 'Ajuda'}</summary><p>{copy.description}</p></details></div>
         <button type="button" onClick={() => choose(NEW_DATA_SOURCE_IDENTITY)}>{copy.newSource}</button>
       </header>
 

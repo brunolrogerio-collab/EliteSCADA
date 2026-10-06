@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useMobileRuntime } from '../useMobileRuntime';
 import { appShellText, useAppShellLocale } from '../../appShellI18n';
 import { UserSessionMenu } from '../../auth/UserSessionMenu';
+import type { RuntimeHeaderDateTimeEngineering } from '../../engineering/types';
 import { hasRuntimeCapability, useEffectiveCapabilities } from '../../auth/effectiveCapabilities';
 import { ApplicationBrand, resolveApplicationBranding } from '../../branding/ApplicationBranding';
 import type { ScriptEngineeringContext } from '../../engineering/scripts/scriptEngineeringTypes';
@@ -154,6 +155,31 @@ function EngineeringRuntimeApplicationContent({
     () => resolveRuntimeStartupScreen(engineeringPackage),
     [engineeringPackage]
   );
+  const activeScreenKey = requestedScreen ?? startup.screenKey;
+  const activeScreen = (engineeringPackage.screens ?? []).find(screen =>
+    screen.key.toLocaleLowerCase() === activeScreenKey?.toLocaleLowerCase()
+  );
+  const projectTitle = projection.projectName || projection.projectKey || text.runtime;
+  const headerHeight = Math.max(56, Math.min(168, header?.height ?? 56));
+  const headerStyle = {
+    minHeight: headerHeight,
+    background: header?.backgroundColor ?? undefined,
+    '--runtime-header-brand-scale': String(headerHeight / 56),
+    '--runtime-header-background': header?.backgroundColor ?? 'var(--app-surface)',
+    '--runtime-header-foreground': header?.backgroundColor ? runtimeHeaderContrastColor(header.backgroundColor) : 'var(--app-text-primary)'
+  } as React.CSSProperties;
+  const projectTitleStyle: React.CSSProperties = {
+    fontFamily: header?.titleStyle?.fontFamily ?? undefined,
+    fontSize: header?.titleStyle?.fontSize ?? undefined,
+    fontWeight: header?.titleStyle?.fontWeight ?? 700,
+    color: header?.titleStyle?.color ?? undefined
+  };
+  const screenTitleStyle: React.CSSProperties = {
+    fontFamily: header?.screenNameStyle?.fontFamily ?? header?.titleStyle?.fontFamily ?? undefined,
+    fontSize: header?.screenNameStyle?.fontSize ?? 12,
+    fontWeight: header?.screenNameStyle?.fontWeight ?? 500,
+    color: header?.screenNameStyle?.color ?? undefined
+  };
   const branding = useMemo(
     () => resolveApplicationBranding(
       engineeringPackage.branding,
@@ -223,6 +249,31 @@ function EngineeringRuntimeApplicationContent({
     });
   };
 
+  const runtimeToolbar = <div className="runtime-operator-toolbar" role="toolbar" aria-label={text.runtime}>
+    {header?.overviewVisible !== false && <RuntimeOperatorTool
+      label={text.runtimeOverview} icon="overview" active={!historyOpen && !alarmsOpen} onClick={showOverview}
+    />}
+    {showHistoryNavigation && header?.historyVisible !== false ? <RuntimeOperatorTool
+      label={text.runtimeHistory} icon="history" active={historyOpen} expanded={historyOpen}
+      controls="runtime-history-overlay" onClick={toggleHistory}
+    /> : null}
+    {header?.alarmsVisible !== false && <RuntimeOperatorTool
+      label={text.alarms} icon="alarms" active={alarmsOpen} expanded={alarmsOpen}
+      controls="runtime-alarm-overlay" disabled={playback.mode === 'historicalPlayback'} onClick={toggleAlarms}
+    />}
+    {playbackAvailable && header?.playbackVisible !== false ? <RuntimeOperatorTool
+      label={playbackText.title} icon="playback" active={playback.mode === 'historicalPlayback'}
+      expanded={playbackOpen} controls="runtime-playback-overlay" onClick={togglePlayback}
+    /> : null}
+    {showFullscreenControl && !compact ? <RuntimeOperatorTool
+      label={text.fullscreen} icon="fullscreen" active={false} onClick={() => void toggleFullscreen()}
+    /> : null}
+    {(header?.links ?? []).map((link, index) => <button key={index} type="button" className="runtime-operator-tool"
+      title={link.label} aria-label={link.label} onClick={() => { setRequestedScreen(link.screenKey); showOverview(); }}>
+      {link.visualAssetId ? <img src={runtimeVisualAssetContentUrl(link.visualAssetId)} alt="" style={{ width: 28, height: 28, objectFit: 'contain' }}/> : link.label}
+    </button>)}
+  </div>;
+
   if (!startup.screenKey) {
     return <main className="shell" data-testid="runtime-engineering-application">
       <section className="runtime-visual-diagnostic" role="alert" data-diagnostic-code={startup.diagnosticCode ?? undefined}>
@@ -243,17 +294,21 @@ function EngineeringRuntimeApplicationContent({
     data-runtime-temporal-mode={playback.mode === 'historicalPlayback' ? 'historical-playback' : 'live'}
     data-runtime-historical-at={playback.atUtc ?? undefined}
   >
-    {headerVisible ? <header className={`runtime-operator-bar${compact ? ' runtime-operator-bar--fullscreen' : ''}`} style={{ display: 'flex', minHeight: header?.height ?? 56, background: header?.backgroundColor ?? undefined }}>
-      {compact ? <div className="runtime-operator-brand">
-        <ApplicationBrand
-          branding={branding}
-          defaultSubtitle={text.subtitle}
-          href="/"
-        />
-      </div> : null}
-      <div className="runtime-operator-context" style={{ textAlign: header?.titlePosition ?? 'left', justifyContent: header?.titlePosition === 'center' ? 'center' : header?.titlePosition === 'right' ? 'flex-end' : 'flex-start', order: header?.titlePosition === 'right' ? 3 : undefined, flex: 1 }} title={projection.projectName || projection.projectKey || text.runtime}>
-        <strong>{projection.projectName || projection.projectKey}</strong>
-        {!compact ? <span>rev {projection.revision}</span> : null}
+    {headerVisible ? <header className={`runtime-operator-bar${compact ? ' runtime-operator-bar--fullscreen' : ''}${headerHeight > 56 ? ' runtime-operator-bar--brand-expanded' : ''}`} style={headerStyle}>
+      <div className="runtime-operator-side runtime-operator-side--left">
+        {compact ? <div className="runtime-operator-brand">
+          <ApplicationBrand branding={branding} defaultSubtitle={text.subtitle} href="/"/>
+        </div> : null}
+        {header?.dateTime?.mode && header.dateTime.mode !== 'off' && (header.dateTime.position ?? 'right') === 'left'
+          ? <RuntimeHeaderDateTime locale={locale} settings={header.dateTime} style={{ order: header.dateTime.order ?? 1 }}/> : null}
+        {header?.controlsPosition === 'left' ? <div className="runtime-operator-toolbar-slot" style={{ order: header.controlsOrder ?? 2 }}>{runtimeToolbar}</div> : null}
+      </div>
+      <div className="runtime-operator-context" style={{ textAlign: header?.titlePosition ?? 'left' }} title={projectTitle}>
+        <div className="runtime-operator-context__titles">
+          <strong style={projectTitleStyle}>{projectTitle}</strong>
+          {header?.showScreenName && activeScreen ? <span className="runtime-operator-context__screen" style={screenTitleStyle}>{activeScreen.name || activeScreen.key}</span> : null}
+          {!compact ? <span className="runtime-operator-context__revision">rev {projection.revision}</span> : null}
+        </div>
         {playback.mode === 'historicalPlayback' && playback.atUtc ? <>
           <span className="runtime-playback-badge">
             {playbackText.playback} · {new Intl.DateTimeFormat(locale,{hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date(playback.atUtc))} · {playbackText.readOnly}
@@ -261,54 +316,14 @@ function EngineeringRuntimeApplicationContent({
           <button type="button" className="runtime-playback-live-shortcut" onClick={playback.exitPlayback}>{playbackText.backLive}</button>
         </> : null}
       </div>
-      <div className="runtime-operator-actions">
-        <div className="runtime-operator-toolbar" role="toolbar" aria-label={text.runtime}>
-          {header?.overviewVisible !== false && <RuntimeOperatorTool
-            label={text.runtimeOverview}
-            icon="overview"
-            active={!historyOpen && !alarmsOpen}
-            onClick={showOverview}
-          />}
-          {showHistoryNavigation && header?.historyVisible !== false ? <RuntimeOperatorTool
-            label={text.runtimeHistory}
-            icon="history"
-            active={historyOpen}
-            expanded={historyOpen}
-            controls="runtime-history-overlay"
-            onClick={toggleHistory}
-          /> : null}
-          {header?.alarmsVisible !== false && <RuntimeOperatorTool
-            label={text.alarms}
-            icon="alarms"
-            active={alarmsOpen}
-            expanded={alarmsOpen}
-            controls="runtime-alarm-overlay"
-            disabled={playback.mode === 'historicalPlayback'}
-            onClick={toggleAlarms}
-          />}
-          {playbackAvailable && header?.playbackVisible !== false ? <RuntimeOperatorTool
-            label={playbackText.title}
-            icon="playback"
-            active={playback.mode === 'historicalPlayback'}
-            expanded={playbackOpen}
-            controls="runtime-playback-overlay"
-            onClick={togglePlayback}
-          /> : null}
-            {showFullscreenControl && !compact ? <RuntimeOperatorTool
-              label={text.fullscreen}
-              icon="fullscreen"
-              active={false}
-            onClick={() => void toggleFullscreen()}
-          /> : null}
-          {(header?.links ?? []).map((link, index) => <button key={index} type="button" title={link.label} aria-label={link.label} onClick={() => { setRequestedScreen(link.screenKey); showOverview(); }}>
-            {link.visualAssetId ? <img src={runtimeVisualAssetContentUrl(link.visualAssetId)} alt="" style={{ width: 28, height: 28, objectFit: 'contain' }}/> : link.label}
-          </button>)}
-        </div>
-          {compact ? <UserSessionMenu
-            locale={locale}
-            includeRuntimeSessionControls
-            runtimeFullscreenExit={isFullscreen ? { label: text.exitFullscreen, onActivate: () => void toggleFullscreen() } : undefined}
-          /> : null}
+      <div className="runtime-operator-side runtime-operator-side--right">
+        {header?.controlsPosition !== 'left' ? <div className="runtime-operator-toolbar-slot" style={{ order: header?.controlsOrder ?? 2 }}>{runtimeToolbar}</div> : null}
+        {header?.dateTime?.mode && header.dateTime.mode !== 'off' && (header.dateTime.position ?? 'right') === 'right'
+          ? <RuntimeHeaderDateTime locale={locale} settings={header.dateTime} style={{ order: header.dateTime.order ?? 1 }}/> : null}
+        {compact ? <div className="runtime-operator-user-slot" data-testid="runtime-user-summary">
+          <UserSessionMenu locale={locale} includeRuntimeSessionControls
+            runtimeFullscreenExit={isFullscreen ? { label: text.exitFullscreen, onActivate: () => void toggleFullscreen() } : undefined}/>
+        </div> : null}
       </div>
     </header> : <div className="runtime-hidden-header-session" aria-label={text.runtime}>
       <UserSessionMenu locale={locale} includeRuntimeSessionControls runtimeFullscreenExit={isFullscreen ? { label: text.exitFullscreen, onActivate: () => void toggleFullscreen() } : undefined}/>
@@ -387,6 +402,44 @@ function RuntimeOperatorTool({
     <RuntimeOperatorIcon name={icon} />
     <span className="sr-only">{label}</span>
   </button>;
+}
+
+function RuntimeHeaderDateTime({ locale, settings, style }: {
+  locale: 'pt-BR' | 'en' | 'es'; settings: RuntimeHeaderDateTimeEngineering; style?: React.CSSProperties;
+}) {
+  const mode = settings.mode ?? 'off';
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    if (mode === 'date') return;
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, [mode]);
+  if (mode === 'off') return null;
+  const time = new Intl.DateTimeFormat(locale, {
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: settings.timeFormat === '12h'
+  }).format(now);
+  const date = formatRuntimeHeaderDate(now, settings.dateFormat ?? 'dd/MM/yyyy');
+  return <time className="runtime-header-datetime" dateTime={now.toISOString()} style={style} data-testid="runtime-header-datetime">
+    {mode !== 'date' ? <span>{time}</span> : null}
+    {mode !== 'time' ? <span>{date}</span> : null}
+  </time>;
+}
+
+function formatRuntimeHeaderDate(date: Date, format: NonNullable<RuntimeHeaderDateTimeEngineering['dateFormat']>): string {
+  const parts = new Intl.DateTimeFormat('en-CA', { day: '2-digit', month: '2-digit', year: 'numeric' }).formatToParts(date);
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  if (format === 'MM/dd/yyyy') return `${values.month}/${values.day}/${values.year}`;
+  if (format === 'yyyy-MM-dd') return `${values.year}-${values.month}-${values.day}`;
+  return `${values.day}/${values.month}/${values.year}`;
+}
+
+function runtimeHeaderContrastColor(color: string): string {
+  const match = /^#([0-9a-f]{6})/i.exec(color);
+  if (!match) return 'var(--app-text-primary)';
+  const channels = [0, 2, 4].map(offset => Number.parseInt(match[1].slice(offset, offset + 2), 16) / 255)
+    .map(channel => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4);
+  const luminance = channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+  return luminance > 0.42 ? '#17212b' : '#ffffff';
 }
 
 function RuntimeOperatorIcon({ name }: { name: RuntimeOperatorIconName }) {

@@ -131,7 +131,8 @@ async function installSessionContract(
 async function installEngineeringRuntimeProjection(
   page: Page,
   branding?: unknown,
-  visualAssets: unknown[] = []
+  visualAssets: unknown[] = [],
+  runtimePresentation?: unknown
 ) {
   await page.route('**/api/runtime/application', route => route.fulfill({
     json: {
@@ -155,7 +156,8 @@ async function installEngineeringRuntimeProjection(
         scripts: [],
         scriptVisualEventReferences: [],
         visualAssets,
-        branding
+        branding,
+        runtimePresentation
       }
     }
   }));
@@ -618,6 +620,29 @@ test('fullscreen Runtime uses compact branded shell while preserving History, Al
 
   await exitFullscreen.click();
   await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+});
+
+test('fullscreen Runtime scales text branding with the configured header height', async ({ page }) => {
+  await installSessionContract(page, administrator);
+  await installEngineeringRuntimeProjection(page, {
+    mode: 'text',
+    text: 'RUNTIME BRAND',
+    subtitle: 'Operations'
+  }, [], { header: { height: 112 } });
+
+  await page.goto('/');
+  const runtime = page.getByTestId('runtime-engineering-application');
+  await expect(runtime).toBeVisible();
+  await runtime.getByRole('toolbar', { name: 'Runtime' }).getByRole('button', { name: 'Tela cheia' }).click();
+
+  const fullscreenHeader = runtime.locator('.runtime-operator-bar--fullscreen');
+  await expect(fullscreenHeader).toHaveAttribute('style', /min-height:\s*112px/);
+  await expect(fullscreenHeader).toHaveClass(/runtime-operator-bar--brand-expanded/);
+  await expect(fullscreenHeader).toHaveCSS('--runtime-header-brand-scale', '2');
+  const brand = fullscreenHeader.locator('.runtime-operator-brand .app-brand');
+  await expect(brand).toHaveAttribute('data-branding-mode', 'text');
+  await expect(brand.locator('.app-brand-copy strong')).toHaveCSS('font-size', '24px');
+  await expect(brand.locator('.app-brand-copy small')).toHaveCSS('font-size', '18px');
 });
 
 test('successful sign-out removes the current client authority only after server invalidation succeeds', async ({ page }) => {

@@ -598,6 +598,22 @@
   color: var(--eng-text);
 }
 .eng-editor-heading > div { min-width: 0; }
+.eng-editor-heading > .eng-editor-heading-title { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.eng-editor-heading-title .eng-editor-help[open] p {
+  position: absolute;
+  z-index: 25;
+  top: 100%;
+  left: 0;
+  width: min(430px, calc(100vw - 48px));
+  margin: 6px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--eng-border);
+  border-radius: 7px;
+  background: var(--eng-panel);
+  color: var(--eng-muted);
+  box-shadow: var(--eng-shadow);
+  white-space: normal;
+}
 .eng-editor-heading > div > span { color: var(--eng-accent); font-size: 9px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
 .eng-editor-heading h2 { margin: 0; font-size: 18px; }
 .eng-editor-heading p { margin: 5px 0; color: var(--eng-muted); font-size: 11px; line-height: 1.35; }

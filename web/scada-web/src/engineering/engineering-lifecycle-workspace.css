@@ -197,6 +197,10 @@
   overflow: auto;
   padding-right: 2px;
 }
+.eng-lifecycle-workspace__history { margin-top: 8px; }
+.eng-lifecycle-workspace__history > summary { color: var(--eng-accent); font-size: 11px; cursor: pointer; }
+.eng-lifecycle-workspace__history > summary:focus-visible { outline: 2px solid var(--eng-focus); outline-offset: 2px; }
+.eng-lifecycle-workspace__history[open] > .eng-lifecycle-workspace__revision-list { margin-top: 8px; }
 
 .eng-lifecycle-workspace__revision-row {
   display: grid;

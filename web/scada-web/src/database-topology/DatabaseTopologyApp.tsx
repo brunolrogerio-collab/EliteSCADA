@@ -539,7 +539,7 @@ export function DatabaseTopologyApp() {
     </aside>
     <main className="db-topology-shell" data-testid="database-topology-app">
     <header className="db-topology-header">
-      <div><span>EliteSCADA · System / Storage</span><h1>{t.title}</h1><p>{t.subtitle}</p></div>
+      <div><h1>{t.title}</h1><details className="app-page-help"><summary>{locale === 'pt-BR' ? 'Ajuda' : locale === 'es' ? 'Ayuda' : 'Help'}</summary><p>{t.subtitle}</p></details></div>
       <div className="db-topology-auto-state">
         <strong>{t.automaticRefresh}</strong>
         {status?.lastHealthCheckUtc ? <small>{new Date(status.lastHealthCheckUtc).toLocaleString(locale)}</small> : null}

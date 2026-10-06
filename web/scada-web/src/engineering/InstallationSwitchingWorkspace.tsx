@@ -321,9 +321,8 @@ export function InstallationSwitchingWorkspace({
     <section className="installation-switching" aria-label={t.title} data-testid="installation-switching">
       <header className="installation-switching__header">
         <div>
-          <span className="installation-switching__eyebrow">{t.eyebrow}</span>
           <h2>{t.title}</h2>
-          <p>{t.description}</p>
+          <details className="app-page-help"><summary>{locale === 'pt-BR' ? 'Ajuda' : locale === 'es' ? 'Ayuda' : 'Help'}</summary><p>{t.description}</p></details>
         </div>
         <button type="button" onClick={() => void loadReview()} disabled={Boolean(busy) || loading}>
           {loading ? t.refreshing : t.refresh}

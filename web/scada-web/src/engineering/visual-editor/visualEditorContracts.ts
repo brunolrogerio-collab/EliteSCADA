@@ -123,6 +123,10 @@ export type VisualEditorMutationIntent =
       points: readonly VisualEditorPoint[];
     }>
   | Readonly<{
+      kind: 'bezier.create';
+      points: readonly VisualEditorPoint[];
+    }>
+  | Readonly<{
       kind: 'polygon.points.set';
       objectId: string;
       points: readonly VisualEditorPoint[];
@@ -227,6 +231,8 @@ export type VisualEditorCanvasContractProps = Readonly<{
   onMutationIntent: (intent: VisualEditorMutationIntent) => void;
   polygonToolActive?: boolean;
   onPolygonToolCancel?: () => void;
+  bezierToolActive?: boolean;
+  onBezierToolCancel?: () => void;
   logicalBoundary?: VisualEditorLogicalBoundary;
 }>;
 

@@ -75,6 +75,7 @@ export function applyProtectedVisualEditorMutationIntent(
       return applyVisualEditorZOrderOperation(screen, intent.objectIds, mapZOrderOperation(intent.operation));
     }
     case 'polygon.create':
+    case 'bezier.create':
       return applyLegacyVisualEditorMutationIntent(screen, intent, options);
   }
 }

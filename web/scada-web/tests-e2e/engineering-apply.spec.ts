@@ -123,6 +123,61 @@ test('backend rejects an Engineering candidate when the Workspace version is sta
   }
 });
 
+test('Runtime header-only edits mark the Workspace dirty and survive package re-open', async ({ request }) => {
+  const originalResponse = await request.get('/api/engineering/export/json');
+  expect(originalResponse.ok()).toBeTruthy();
+  const originalPackage = await originalResponse.json() as Record<string, unknown>;
+  const workspaceBeforeResponse = await request.get('/api/engineering/workspace');
+  expect(workspaceBeforeResponse.ok()).toBeTruthy();
+  const workspaceBefore = await workspaceBeforeResponse.json() as { changeVersion: number; isDirty: boolean };
+
+  const currentPresentation = originalPackage.runtimePresentation as {
+    historicalPlaybackEnabled?: boolean;
+    mobileOrientation?: string;
+    version?: number;
+    header?: Record<string, unknown> | null;
+  } | null | undefined;
+  const currentHeader = currentPresentation?.header ?? {};
+  const nextHeight = currentHeader.height === 112 ? 128 : 112;
+  const changedPackage = {
+    ...structuredClone(originalPackage),
+    runtimePresentation: {
+      ...currentPresentation,
+      version: currentPresentation?.version ?? 1,
+      mobileOrientation: currentPresentation?.mobileOrientation ?? 'landscape',
+      historicalPlaybackEnabled: currentPresentation?.historicalPlaybackEnabled ?? false,
+      header: { ...currentHeader, height: nextHeight }
+    }
+  };
+
+  try {
+    const applied = await request.post('/api/engineering/import/json/apply', {
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      data: changedPackage
+    });
+    expect(applied.ok()).toBeTruthy();
+
+    const workspaceAfterResponse = await request.get('/api/engineering/workspace');
+    expect(workspaceAfterResponse.ok()).toBeTruthy();
+    const workspaceAfter = await workspaceAfterResponse.json() as { changeVersion: number; isDirty: boolean };
+    expect(workspaceAfter.changeVersion).toBeGreaterThan(workspaceBefore.changeVersion);
+    expect(workspaceAfter.isDirty).toBeTruthy();
+
+    const reopenedResponse = await request.get('/api/engineering/export/json');
+    expect(reopenedResponse.ok()).toBeTruthy();
+    const reopened = await reopenedResponse.json() as {
+      runtimePresentation?: { header?: { height?: number } | null } | null;
+    };
+    expect(reopened.runtimePresentation?.header?.height).toBe(nextHeight);
+  } finally {
+    const restored = await request.post('/api/engineering/import/json/apply', {
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      data: originalPackage
+    });
+    expect(restored.ok()).toBeTruthy();
+  }
+});
+
 test('dependency-aware TAG Delete fails closed and reports blockers', async ({ request }) => {
   const exportResponse = await request.get('/api/engineering/export/json');
   expect(exportResponse.ok()).toBeTruthy();

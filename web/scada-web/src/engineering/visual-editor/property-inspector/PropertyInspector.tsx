@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { EngineeringLocale } from '../../i18n';
 import type { VisualEditorPropertyInspectorContractProps } from '../visualEditorContracts';
 import type { VisualAssetEngineering, VisualElementEngineering, VisualEngineeringPropertyValue } from '../../types';
+import type { ReportEngineeringDto } from '../../reports/reportContracts';
 import { BUILTIN_VISUAL_OBJECT_TYPES, VISUAL_PROPERTY_KEYS } from '../../../visual-runtime';
 import { BrowserConfigurationEditor } from '../BrowserConfigurationEditor';
 import { SvgPaintOverrideEditor } from '../SvgPaintOverrideEditor';
@@ -62,6 +63,7 @@ export type PropertyInspectorCopy = Readonly<{
 
 export type PropertyInspectorProps = VisualEditorPropertyInspectorContractProps & Readonly<{
   visualAssets?: readonly VisualAssetEngineering[];
+  reports?: readonly ReportEngineeringDto[];
   copy?: Partial<PropertyInspectorCopy>;
   showEvents?: boolean;
   onImportImage?: (file: File) => Promise<string | null | void> | string | null | void;
@@ -125,6 +127,7 @@ export function PropertyInspector({
   selectedElements,
   onMutationIntent,
   visualAssets = [],
+  reports = [],
   copy,
   showEvents = true,
   onImportImage,
@@ -241,6 +244,7 @@ export function PropertyInspector({
                 text={text}
                 locale={locale}
                 visualAssets={visualAssets}
+                reports={reports}
                 onMutationIntent={onMutationIntent}
                 onImportImage={onImportImage}
                 imageImportDisabled={imageImportDisabled}
@@ -278,13 +282,14 @@ type PropertyFieldProps = Readonly<{
   text: PropertyInspectorCopy;
   locale: EngineeringLocale;
   visualAssets: readonly VisualAssetEngineering[];
+  reports: readonly ReportEngineeringDto[];
   onMutationIntent: VisualEditorPropertyInspectorContractProps['onMutationIntent'];
   onImportImage?: PropertyInspectorProps['onImportImage'];
   imageImportDisabled: boolean;
   imageImportBusy: boolean;
 }>;
 
-function PropertyField({ model, row, text, locale, visualAssets, objectType, onMutationIntent, onImportImage, imageImportDisabled, imageImportBusy }: PropertyFieldProps) {
+function PropertyField({ model, row, text, locale, visualAssets, reports, objectType, onMutationIntent, onImportImage, imageImportDisabled, imageImportBusy }: PropertyFieldProps) {
   const [error, setError] = useState<string | null>(null);
   const definition = row.definition;
   const localizedTrendLabel = trendPropertyLabel(locale, definition.key);
@@ -315,6 +320,8 @@ function PropertyField({ model, row, text, locale, visualAssets, objectType, onM
 
   const trendModeControl = definition.key === VISUAL_PROPERTY_KEYS.trendMode && definition.type === 'enum';
   const trendModeValue = row.state === 'mixed' ? '__mixed__' : String(row.value);
+  const reportReferenceControl = objectType === BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher && definition.key === VISUAL_PROPERTY_KEYS.reportKey;
+  const reportReferenceValue = row.state === 'mixed' ? '__mixed__' : String(row.value ?? '');
 
   return (
     <div
@@ -333,7 +340,20 @@ function PropertyField({ model, row, text, locale, visualAssets, objectType, onM
         <span className={`property-inspector__state property-inspector__state--${row.state}`}>{stateLabel(row, rowText)}</span>
       </div>
 
-      {trendModeControl ? (
+      {reportReferenceControl ? <>
+        <select
+          id={`visual-property-${definition.key}`}
+          value={reportReferenceValue}
+          disabled={!definition.engineeringEditable}
+          onChange={event => commit(event.currentTarget.value)}
+          data-testid="report-launcher-report-select"
+        >
+          {row.state === 'mixed' ? <option value="__mixed__" disabled>{rowText.mixed}</option> : null}
+          <option value="">{locale === 'en' ? 'No report selected' : locale === 'es' ? 'Ningún informe seleccionado' : 'Nenhum relatório selecionado'}</option>
+          {reports.map(report => <option key={report.id || report.key} value={report.key}>{report.name} · {report.key}</option>)}
+        </select>
+        {reports.length === 0 ? <p className="property-inspector__field-hint">{locale === 'en' ? 'Save a report in Engineering → Reports first.' : locale === 'es' ? 'Guarde primero un informe en Ingeniería → Informes.' : 'Salve um relatório em Engenharia → Relatórios primeiro.'}</p> : null}
+      </> : trendModeControl ? (
         <select
           id={`visual-property-${definition.key}`}
           value={trendModeValue}

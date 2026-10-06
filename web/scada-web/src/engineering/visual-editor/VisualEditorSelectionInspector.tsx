@@ -1,6 +1,7 @@
 import React from 'react';
 import type { EngineeringLocale } from '../i18n';
 import type { ScreenEngineering, VisualAssetEngineering, VisualElementEngineering } from '../types';
+import type { ReportEngineeringDto } from '../reports/reportContracts';
 import { BUILTIN_VISUAL_OBJECT_TYPES, VISUAL_PROPERTY_KEYS } from '../../visual-runtime';
 import { BindingEditor } from './binding-editor';
 import { DynamoInstanceInspector } from './canvas/DynamoInstanceInspector';
@@ -19,6 +20,7 @@ export function VisualEditorSelectionInspector({
   selectedObjectIds,
   sourceCatalog,
   visualAssets,
+  reports = [],
   locale,
   activeTab,
   onActiveTabChange,
@@ -34,6 +36,7 @@ export function VisualEditorSelectionInspector({
   selectedObjectIds: readonly string[];
   sourceCatalog: readonly VisualEditorBindingSourceCatalogItem[];
   visualAssets: readonly VisualAssetEngineering[];
+  reports?: readonly ReportEngineeringDto[];
   locale: EngineeringLocale;
   activeTab: VisualEditorInspectorTab;
   onActiveTabChange: (tab: VisualEditorInspectorTab) => void;
@@ -89,6 +92,7 @@ export function VisualEditorSelectionInspector({
         <PropertyInspector
           selectedElements={selectedElements}
           visualAssets={visualAssets}
+          reports={reports}
           onMutationIntent={onMutationIntent}
           showEvents={false}
           onImportImage={onImportImage}

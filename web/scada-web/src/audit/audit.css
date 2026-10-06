@@ -17,8 +17,10 @@
 
 .audit-header {
   max-width: 1500px;
-  margin: 0 auto 20px;
+  margin: 0 auto 10px;
 }
+.audit-header > div:first-child { display: flex; align-items: baseline; min-width: 0; }
+.audit-header h1 { font-size: 18px; }
 
 .audit-kicker,
 .audit-detail-kicker {

@@ -4,7 +4,7 @@
 **Parent:** #551 — INDUSTRIAL-PLC-ROADMAP  
 **Contract:** `C-INDUSTRIAL-PANASONIC-MEWTOCOL-RESEARCH-01`  
 **Order:** `INDUSTRIAL-PANASONIC-MEWTOCOL-EXECUTION-RESEARCH-01`  
-**Checkpoint:** 1 — protocol + families + address + data types  
+**Checkpoint:** 1 complete; 2 — planner + transport + process truth + PointRead + FP7 MC  
 **Research date / source access:** 2026-10-06  
 **Branch:** `research/industrial-panasonic-mewtocol`  
 **Release base:** `wave15/corrections-integration@d2569990bc53dfce61ca8043471719e958809d6c`
@@ -397,6 +397,836 @@ MEWTOCOL7-COM and MEWTOCOL-DAT are not first-driver blockers and are not v1.
 Checkpoint 1 is complete after this document and the address/family matrix are committed and the #553 checkpoint comment is published.
 
 Do **not** start planner/session/process-truth/PointRead/FP7-MC implementation research until a new Main/Product Owner `SIGA`.
+
+`DOCS_ONLY`  
+`NO PRODUCT CODE CHANGED`  
+`NO DEPENDENCY CHANGED`  
+`NO CI CHANGED`  
+`NO MERGE PERFORMED`
+
+
+# Checkpoint 2 — Planner, Transport, Process Truth, PointRead, Security, Architecture and FP7 MC
+
+**Checkpoint date / source access:** 2026-10-06  
+**Checkpoint start HEAD:** `532d0fa999e64d30965d8a91673197bfe39dd996`  
+**Checkpoint start ancestry:** `ahead 2 / behind 0` against release base `d2569990bc53dfce61ca8043471719e958809d6c`
+
+This section is still:
+
+`RESEARCH_ONLY / DOCS_ONLY / NO_PRODUCT_CODE / NO_MERGE`
+
+## 16. Checkpoint 2 live product-contract audit
+
+The current EliteSCADA Driver SDK is transport-aware, but its public descriptor exposes a **single optional `DriverConnectionModel` per driver type**:
+
+- `DirectNetwork`
+- `HostSerial`
+- `HostRadio`
+- `LocalBridge`
+- `Cloud`
+
+The descriptor also exposes a single configuration schema, plus `SupportsSharedTransportInfrastructure`.
+
+The integrated Modbus family already demonstrates the product pattern:
+
+- `modbus.tcp` -> `DirectNetwork`
+- `modbus.rtu` -> `HostSerial`
+- shared Modbus address/value concepts underneath
+- `modbus.rtu` reuses `HostSerialBusCoordinator` and `DriverConfigurationValueKind.SerialPort`
+
+The generic Engineering web contract mirrors one `connectionModel` value and one unconditional Data Source field set.
+
+### Checkpoint 2 product-identity refinement
+
+The Checkpoint 1 semantic product family remains correct:
+
+`Panasonic MEWTOCOL`
+
+However, **one literal driver type ID carrying both TCP and Host Serial cannot be represented truthfully by the current generic descriptor without either conditional transport profiles or misleading metadata**.
+
+Therefore the recommended no-shared-contract-change shape is:
+
+- `panasonic.mewtocol.tcp`
+- `panasonic.mewtocol.serial`
+
+with:
+
+- one shared MEWTOCOL-COM codec;
+- one shared address parser/model;
+- one shared TAG-binding schema;
+- common family/profile capabilities;
+- transport-specific Data Source schemas;
+- common Runtime/TAG/PointRead/diagnostics semantics.
+
+This is the same conceptual product family, not two independent Panasonic products.
+
+MEWTOCOL7-COM remains a later dialect/profile gate. It does **not** become a third first-class product merely because its frame is different.
+
+### Required Main decision
+
+`MAIN_DECISION_REQUIRED`
+
+Main must freeze one of:
+
+A. **Recommended:** transport-specific driver type IDs above, no shared Driver SDK change.
+
+B. Keep one exact type ID `panasonic.mewtocol` across both transports, but authorize a shared descriptor/UI extension for explicit alternative connection profiles + conditional field schemas.
+
+If B is selected:
+
+`RESEARCH_CONTRACT_DELTA_REQUIRED`
+
+This research lane does not implement either contract change.
+
+## 17. MEWTOCOL-COM read/write command surface
+
+Official Panasonic MEWTOCOL-COM documentation exposes a richer command set than the first driver needs.
+
+Relevant command families include:
+
+- `RCS` — single contact read;
+- `RCP` — multiple individually specified contact read, 1..8 contacts;
+- `RCC` — contiguous contact-range read;
+- `WCS` — single contact write;
+- `WCP` — multiple individually specified contact write, 1..8 contacts;
+- `WCC` — contiguous contact-range write;
+- `RD` — contiguous data-area read;
+- `WD` — contiguous data-area write;
+- `RS/WS` — set-value area operations where supported;
+- `RK/WK` — elapsed/current value area operations where supported;
+- `MC/MD/MG` — monitor registration/change/monitor family;
+- `RT` — PLC status/model/version/program-capacity/status information;
+- other maintenance/control commands that are outside the first Runtime polling product.
+
+### 17.1 V1 command subset
+
+Recommended v1:
+
+**Reads**
+- `RCS`
+- `RCP` where sparse contact reads actually reduce traffic;
+- `RCC` for contiguous contact regions;
+- `RD` for contiguous word/data regions;
+- `RT` as optional Engineering identity/status probe.
+
+**Writes**
+- `WCS`
+- `WCP` only for an explicit multi-point operation, not to opportunistically merge unrelated Runtime writes;
+- `WCC` only where a deliberate contiguous contact write operation exists;
+- `WD` for one logical word/multiword value or deliberately bounded block operation.
+
+Deferred:
+- `RS/WS`
+- `RK/WK`
+- monitor registration `MC/MD/MG`
+- remote-control/program-maintenance commands.
+
+### 17.2 Why monitor registration is not the v1 scan planner
+
+The monitor command family creates PLC-side registered state and has its own registration/error lifecycle.
+
+Normal EliteSCADA polling can be implemented with stateless bounded reads and the existing scan planner authority. Introducing monitor registration in v1 would create extra PLC-side state without a demonstrated product benefit.
+
+Disposition:
+
+`MEWTOCOL_MONITOR_COMMANDS = LATER / NOT_REQUIRED_FOR_V1`
+
+## 18. Bounded read limits
+
+Panasonic documentation provides two classic MEWTOCOL-COM frame classes:
+
+- `%` standard frame, up to 118 characters;
+- `<` expanded frame, up to 2048 characters.
+
+Official Panasonic communication material for current FP-family controllers also documents large register transfers around:
+
+- up to **509 words received/read**;
+- up to **507 words transmitted/written**;
+
+for the expanded computer-link path where the family/profile supports that frame.
+
+The exact usable limit remains command/family/profile-dependent.
+
+### 18.1 Planner capability values
+
+Do not hard-code one global Panasonic batch constant.
+
+The future profile table should carry bounded capabilities such as:
+
+`maxFrameChars`
+`maxReadWords`
+`maxWriteWords`
+`maxSparseContacts`
+`supportsExpandedFrame`
+
+For classic RCP/WCP:
+
+`maxSparseContacts = 8`
+
+For a profile proven to support expanded COM frames, a practical upper capability may be:
+
+- read words: 509;
+- write words: 507.
+
+For short-frame-only operation, smaller limits must be derived and covered by L0 vectors before production constants are frozen.
+
+## 19. Bounded Panasonic scan planner
+
+The future driver must **not** perform `1 TAG = 1 request` by default.
+
+### 19.1 Grouping keys
+
+Build immutable scan groups by:
+
+1. Data Source/runtime instance;
+2. transport/session or physical Host Serial bus;
+3. station;
+4. dialect;
+5. family/profile;
+6. device area + compatible command family;
+7. contiguous address range;
+8. compatible native storage/layout;
+9. read/write access policy.
+
+Never batch across:
+
+- stations;
+- TCP endpoints;
+- physical serial buses;
+- dialects;
+- incompatible device areas;
+- family/profile range boundaries;
+- address holes that would cross an invalid range.
+
+### 19.2 Contact planner
+
+Use:
+
+- `RCS` for one contact;
+- `RCP` for a small sparse set up to the documented 8-contact limit;
+- `RCC` for a contiguous contact interval where the selected profile permits it.
+
+The planner should prefer one contiguous read over many single-contact requests when it remains inside a valid device range.
+
+### 19.3 Word planner
+
+For `DT/LD` and word views such as `WX/WY/WR/WL`:
+
+- sort by device area and starting word;
+- form bounded contiguous intervals;
+- split at profile maximum request/response size;
+- split at address-space boundaries;
+- decode each TAG from its position within the returned interval.
+
+A conservative initial `maxGapWords = 0` is recommended. Reading unrequested gap words is side-effect free, but a nonzero merge gap can cross unimplemented/reserved/end-of-range regions and complicate compatibility claims. A future advanced bounded gap setting can be added only if performance evidence justifies it.
+
+### 19.4 Write planner
+
+Runtime writes remain command-oriented, not scan-batched.
+
+Do not merge unrelated `Runtime.WriteAsync(TAG)` calls simply because their addresses are adjacent.
+
+One logical multiword TAG write may use a single `WD` operation.
+
+Any future explicit multi-point command may use WCP/WCC/WD as appropriate, but must preserve command ordering and process-truth semantics.
+
+## 20. Ethernet/TCP session model
+
+Official FP7 and FP-XH communication configuration supports TCP server/client connection modes, configurable ports and connection/idle settings. This supports persistent TCP usage.
+
+Classic MEWTOCOL-COM frames do **not** carry a transaction identifier comparable to Modbus TCP MBAP.
+
+### 20.1 Recommended client session model
+
+For EliteSCADA TCP client mode:
+
+- establish a TCP connection;
+- reuse it across polling cycles while healthy;
+- allow exactly **one outstanding MEWTOCOL-COM request per connection**;
+- match the next valid response to the only outstanding request;
+- do not pipeline requests;
+- parse until the complete CR-terminated frame and validate BCC;
+- close/reconnect after framing loss, EOF, unrecoverable socket error or ambiguous request timeout;
+- tolerate PLC-configured idle close by reconnecting cleanly on the next required request.
+
+The one-outstanding-request rule is an engineering conclusion from the official framing/request-response model and lack of transaction identity. It is not presented as a Panasonic quotation.
+
+### 20.2 Timeout/reconnect
+
+Reuse EliteSCADA's existing bounded timeout/reconnect/backoff conventions.
+
+Recommended product defaults may align with current communication-driver patterns:
+
+- scan interval around 1000 ms;
+- request timeout around 3000 ms;
+- configurable bounded timeout;
+- exponential reconnect backoff with a maximum and small jitter;
+- cancellation tied to Data Source/Active Revision disposal.
+
+Panasonic manuals contain their own controller-side timeout defaults for some profiles; those are not a reason to hard-code a single host timeout.
+
+No Panasonic-specific global retry framework is justified.
+
+### 20.3 Concurrency
+
+Do not invent socket-level parallelism.
+
+If a PLC/profile permits multiple independent TCP connections, separate Data Sources/sessions can use their own connections subject to PLC resource limits. One connection still has one outstanding COM transaction.
+
+Current FP7 connection capacity differs across CPU generation/configuration. Capacity is model/firmware/profile metadata, not a universal product constant.
+
+## 21. Host Serial scheduler
+
+Serial v1 must reuse:
+
+`HostSerialBusCoordinator`
+
+The integrated host transport already:
+
+- owns physical server-visible COM/tty devices;
+- validates line settings;
+- arbitrates shared-master ownership;
+- serializes transactions through the bus lease;
+- prevents browser-owned serial authority.
+
+### 21.1 Panasonic serial scheduling
+
+For MEWTOCOL-COM serial:
+
+- physical bus key = host serial device;
+- line settings must be compatible across sharers;
+- station identifies the target PLC;
+- one outstanding transaction on the bus;
+- write complete request frame;
+- flush when required by host transport;
+- read the complete CR-terminated response;
+- validate station/command/response marker/BCC;
+- release transaction serialization before the next owner request.
+
+Do not open the same physical port independently for every Panasonic Data Source.
+
+### 21.2 Turnaround / wait
+
+Panasonic communication configuration exposes send-wait/turnaround parameters on applicable serial profiles.
+
+The host should not invent a fixed delay when the target does not require one.
+
+If a device/profile needs it, expose a bounded advanced turnaround/wait parameter and include it in the serial profile capability.
+
+### 21.3 Timeout and ambiguous bus state
+
+After serial timeout or malformed/truncated response:
+
+- mark the transaction failed/ambiguous;
+- reset parser state;
+- discard stale input only at a controlled recovery boundary;
+- if necessary, reopen/reacquire the bus session;
+- do not immediately send a second write as a blind retry.
+
+## 22. Protocol errors and quality mapping
+
+Official MEWTOCOL-COM responses distinguish normal `$` replies from `!` error replies and expose protocol error codes.
+
+Important documented classes include:
+
+- BCC/check error;
+- command/frame format error;
+- unsupported command;
+- multi-frame procedure error;
+- link/configuration error;
+- response/transmission timeout/buffer conditions;
+- busy state;
+- parameter/address/range/data-format error;
+- monitor registration state error;
+- PLC mode restriction;
+- memory/protection restriction.
+
+The future driver must preserve the original Panasonic code in sanitized `ProtocolDetails` while mapping it into canonical EliteSCADA quality/operation status.
+
+Do not collapse every `!` reply into "timeout" or "offline".
+
+Examples of intended mapping categories:
+
+- malformed/BCC response -> communication/protocol error;
+- invalid configured address/range -> configuration/device-address error;
+- PLC busy/transient execution rejection -> degraded/bad-device with exact protocol code;
+- timeout/no response -> bad communication / reconnect path;
+- protection/mode denial -> operation rejected, not connectivity failure.
+
+## 23. WRITE process truth
+
+Write truth must be layered.
+
+### 23.1 Truth levels
+
+1. **Local socket/serial write completed**
+   - proves bytes were handed to the local transport;
+   - does not prove the PLC received them.
+
+2. **Valid Panasonic normal response (`$...`)**
+   - proves the protocol request was processed sufficiently for the PLC to issue a normal command response;
+   - is the first acceptable protocol-level success point.
+
+3. **PLC memory readback matches**
+   - proves a subsequent read observes the requested memory value;
+   - stronger than protocol ACK, but still not physical-process proof.
+
+4. **Physical feedback TAG changes**
+   - proves the field/process feedback changed when a distinct feedback signal actually represents that truth.
+
+Never present level 2 or 3 as automatic proof that a motor, valve, contactor or other physical process changed.
+
+### 23.2 Ambiguous timeout after dispatch
+
+If bytes may have reached the PLC and the response is lost:
+
+`WRITE_RESULT = UNKNOWN`
+
+Do not blindly resend a write after an ambiguous timeout.
+
+A retry is only trivially safe when failure is proven **before dispatch**. Post-dispatch retry requires an operation-specific idempotency/process-risk decision.
+
+Even an absolute memory write can have operational consequences through PLC logic. "Writing the same value again" is therefore not universally harmless.
+
+### 23.3 Readback
+
+For an operator/process write where confirmation matters:
+
+- issue the write once;
+- receive normal protocol response;
+- perform bounded readback of the addressed PLC memory when configured/appropriate;
+- expose readback mismatch as uncertainty/failure evidence;
+- rely on a distinct physical feedback TAG for actual process confirmation.
+
+Readback must not become an infinite retry loop.
+
+### 23.4 EliteSCADA write path
+
+Ordinary writes must stay:
+
+`Runtime.WriteAsync(TAG) -> owning Panasonic runtime provider -> protocol write`
+
+No raw MEWTOCOL command API should be exposed to browser scripts or ordinary Runtime clients.
+
+## 24. PointRead and Engineering
+
+### 24.1 Required v1 Engineering model
+
+MEWTOCOL-COM does not provide an OPC-UA-style symbolic address-space browse contract.
+
+Therefore truthful first Engineering can be:
+
+- family/profile selection;
+- transport-specific Data Source form;
+- typed address assistant;
+- exact station validation;
+- optional Connection Test;
+- optional `RT` identity/status probe;
+- canonical `PointReadTest`;
+- normal Preview/Apply/Save/Publish/Activate lifecycle.
+
+Do not invent symbolic browse.
+
+### 24.2 PointReadTest
+
+Reuse the existing canonical `DriverPointReadTestRequest/Result`.
+
+A Panasonic provider should return where applicable:
+
+- sanitized endpoint or serial port;
+- portable canonical address;
+- raw frame or raw word/contact representation;
+- decoded native value;
+- Engineering value;
+- quality;
+- source/observed timestamp where meaningful;
+- latency;
+- effective value transform;
+- exact Panasonic protocol error/status code.
+
+PointRead remains:
+
+`OPTIONAL / NON-BLOCKING / NEVER A LIFECYCLE GATE`
+
+A PLC may be offline while Engineering configuration is still valid and saveable.
+
+### 24.3 PLC identity/status probe
+
+The official `RT` command can return PLC model/status information including model code/version/program-capacity/operation state fields.
+
+The future tooling may expose that as observed identity/status.
+
+Do not convert a protocol model code into a precise commercial SKU unless an official mapping for that CPU generation is implemented and validated.
+
+## 25. Common diagnostics
+
+Reuse:
+
+`CommunicationDriverDiagnosticSnapshot`
+
+No `PanasonicDiagnostics` authority.
+
+Suggested sanitized `ProtocolDetails` keys:
+
+- `transport` = `tcp` or `serial`;
+- `dialect` = `mewtocol-com`;
+- `station`;
+- `familyProfile`;
+- `endpoint` or `serialPort`;
+- `observedModelCode`;
+- `observedVersion`;
+- `lastProtocolCommand`;
+- `lastProtocolErrorCode`;
+- `lastProtocolErrorName`;
+- `lastBatchWords`;
+- `lastBatchContacts`;
+- `lastRttMilliseconds`;
+- `bccErrorCount`;
+- `frameMode` = standard/expanded when useful.
+
+Use common counters for:
+
+- requests;
+- success/failure;
+- consecutive failures;
+- timeouts;
+- connections/disconnections;
+- reconnects;
+- reads/writes;
+- published TAG updates.
+
+Do not duplicate counters in a private Panasonic health model.
+
+## 26. Security and deployment
+
+### 26.1 Native protocol reality
+
+The documented MEWTOCOL-COM frames are plaintext ASCII over serial/TCP and contain no session-level encryption or TLS negotiation.
+
+The protocol also does not provide a modern cryptographic peer-authentication handshake.
+
+PLC protection/mode restrictions can reject certain operations, but they are **not transport confidentiality/integrity/authentication**.
+
+Therefore:
+
+`MEWTOCOL_COM_SECURITY = PLAINTEXT_LEGACY_OT_PROTOCOL`
+
+### 26.2 Deployment posture
+
+Recommended v1 guidance:
+
+- trusted/segmented OT LAN for TCP;
+- local controlled serial bus for RS-232/RS-485;
+- firewall allow only required EliteSCADA-to-PLC endpoints;
+- do not expose MEWTOCOL-COM directly to the public Internet;
+- for remote/WAN access, use an authenticated VPN/leased/private network boundary;
+- follow Panasonic network-security guidance for access limitation and firewalling.
+
+Containers inherit the existing #469 rule: only serial devices mapped into the server/container are visible.
+
+## 27. Implementation architecture choice
+
+### A. Built-in .NET codec/session
+
+**RECOMMENDED.**
+
+Reasons:
+
+- bounded ASCII request/response framing;
+- simple XOR BCC;
+- exact typed address parser required anyway;
+- direct reuse of EliteSCADA TCP conventions and #469 Host Serial;
+- no need for a vendor runtime/sidecar;
+- one-outstanding-request session model is small and testable;
+- avoids binding canonical contracts to a community library's device model;
+- leaves a clean future seam for a separate MEWTOCOL7 codec/profile.
+
+### B. Third-party library
+
+Not recommended as production dependency for v1.
+
+One current community implementation reviewed is `OpenLogics/MewtocolNet` / `Mewtocol.NET`.
+
+Research findings:
+
+- TCP and serial support exist;
+- project activity resumed/current repository activity is visible in 2026;
+- README still describes incomplete/tested-device limitations and explicitly lacks FP7 support;
+- public GitHub repository currently reports GPL-3.0 licensing;
+- NuGet 0.8.1 metadata reports MIT and is older.
+
+That license/metadata mismatch alone requires legal review before reuse, and the FP7 gap conflicts with the selected first-family scope.
+
+Disposition:
+
+`NO_PRODUCTION_DEPENDENCY`
+
+It may be considered later as an **independent-shaped L2 comparison peer** only if legal/tool-use terms permit and only where its supported PLC profile is relevant.
+
+No dependency is added by this research.
+
+### C. Sidecar
+
+**REJECT for v1.**
+
+No protocol/vendor-runtime constraint justifies adding:
+
+- another process;
+- lifecycle supervision;
+- deployment packaging;
+- IPC;
+- extra failure modes.
+
+### D. Modbus-only / no native driver
+
+**REJECT as product strategy.**
+
+Selected Panasonic FP families have native MEWTOCOL installed-base value and native address/status semantics. Modbus remains a valid optional alternate integration where a target PLC/profile is configured for it, but it does not eliminate the native-driver case.
+
+## 28. FP7 MC Protocol interoperability — mandatory analysis
+
+FP7 MC Protocol support is real, but it is a **bounded Mitsubishi-compatible interoperability subset**, not Panasonic's native-driver identity.
+
+Official Panasonic FP7 Ethernet documentation describes:
+
+- MC Protocol QnA compatibility;
+- **3E frame**;
+- **binary only** for the documented FP7 profile;
+- TCP/IP and UDP/IP;
+- bulk read/write only.
+
+### 28.1 Supported command subset
+
+Official command subset:
+
+**Bulk read**
+- command `0401`
+- subcommand `0001` for bit units
+- subcommand `0000` for word units
+
+**Bulk write**
+- command `1401`
+- subcommand `0001` for bit units
+- subcommand `0000` for word units
+
+This is not a universal Mitsubishi command set.
+
+### 28.2 FP7 3E-header restrictions
+
+The Panasonic slave profile constrains routing/header fields, including values equivalent to:
+
+- network number = `00h`;
+- PC number = `FFh`;
+- destination unit I/O = `03FFh`;
+- destination unit number = `00h`;
+- CPU monitor timer field not supported by the FP7 subset.
+
+Starting device addresses use the QnA-compatible 3-byte/6-hex-digit representation.
+
+### 28.3 Bulk limits
+
+Official FP7 MC slave documentation gives bounded bulk limits up to approximately:
+
+- **7168 bits** per bulk operation;
+- **960 words** per bulk operation.
+
+These limits are specific FP7 interoperability evidence, not universal MELSEC limits.
+
+### 28.4 Device mapping
+
+The FP7 MC slave maps Mitsubishi-style device codes into Panasonic global memory.
+
+Documented examples include:
+
+| MC device | FP7 mapping / semantic target | Notes |
+|---|---|---|
+| `X` | FP7 X input area | bit/word mapping in documented range |
+| `Y` | FP7 Y output area | bit/word mapping |
+| `B` | FP7 L link relay | mapped interoperability area |
+| `M` | FP7 R internal relay lower range | mapped interoperability area |
+| `L` | FP7 R higher/latch range | mapped interoperability area |
+| `D` | FP7 DT data register range | word |
+| file-register `R` | FP7 DT extended range | word |
+| `ZR` | FP7 DT extended range | word |
+| `W` | FP7 LD link data | word |
+| `TN` | FP7 TE timer elapsed/current | word subset |
+| `TS` | FP7 T timer contact | contact/status semantics |
+| `CN` | FP7 CE counter elapsed/current | word subset |
+| `CS` | FP7 C counter contact | contact/status semantics |
+| `SM` | FP7 SR special relay | restricted write semantics |
+| `SD` | FP7 SD special data register | restricted write semantics |
+
+Important restrictions:
+
+- MC slave exposes global devices; local-device semantics are not universal;
+- FP7 timer/counter current values are 32-bit internally, while the documented MC interoperability path handles only a 16-bit subset for those mapped values;
+- values outside that subset cannot be treated as full-fidelity Panasonic timer/counter access.
+
+### 28.5 Architectural decision
+
+For the question "FP7 MC Protocol should be what?":
+
+Primary answer:
+
+**B — optional alternative only.**
+
+Secondary validation role:
+
+**C — useful interoperability hardware for the future Mitsubishi MC driver.**
+
+It must **not** be:
+
+A. part of the native Panasonic MEWTOCOL driver.
+
+If EliteSCADA later supports FP7 through MC Protocol, the implementation should consume the **common Mitsubishi/MC provider/codec** when its semantics truly match the Panasonic 3E subset.
+
+Do not copy or fork an MC codec under `Panasonic.Mewtocol`.
+
+### 28.6 Cross-test value
+
+FP7 is valuable future L4 hardware for proving that a common MC 3E client can interoperate with a non-Mitsubishi QnA-compatible device.
+
+But:
+
+`FP7_MC_SUBSET != UNIVERSAL_MITSUBISHI_MELSEC_IMPLEMENTATION`
+
+Passing against FP7 proves only the documented 3E binary bulk read/write subset and mapped devices.
+
+## 29. Source additions for Checkpoint 2
+
+Official authority reviewed/revalidated:
+
+- Panasonic MEWTOCOL Communication User's Manual, command/error tables;
+- FP-XH User's Manual (Communication), current communication/session settings;
+- FP7 CPU Unit User's Manual — LAN Port Communication, TCP connection modes, COM/COM7/DAT/MC choices and security chapter;
+- FP7 CPU Unit User's Manual — Ethernet Expansion Function, MC Protocol chapter / QnA-compatible 3E subset;
+- Panasonic communication-parameter documentation for MEWTOCOL station/serial settings.
+
+Additional non-authoritative dependency research:
+
+- `OpenLogics/MewtocolNet` GitHub repository;
+- NuGet `Mewtocol.NET` package metadata.
+
+Official Panasonic manual URLs already recorded above plus:
+
+- https://mediap.industry.panasonic.eu/assets/download-files/import/mn_fp7_ethernet_expansion_user_pidsx_en.pdf
+
+Community/dependency metadata:
+
+- https://github.com/OpenLogics/MewtocolNet
+- https://www.nuget.org/packages/Mewtocol.NET/0.8.1
+
+## 30. Checkpoint 2 decisions
+
+### Planner
+
+`BOUNDED_CONTIGUOUS_GROUPING`
+
+Group by Data Source/session/bus + station + dialect + family/profile + device area + layout. Split at official frame/address limits. No one-request-per-TAG default.
+
+### Ethernet
+
+`PERSISTENT_TCP / ONE_OUTSTANDING_REQUEST / NO_PIPELINE`
+
+Reconnect on socket/framing/BCC/ambiguous-timeout recovery boundary.
+
+### Serial
+
+`HOST_SERIAL_REUSE / SHARED_BUS / SERIALIZED_TRANSACTIONS`
+
+No new host serial authority.
+
+### Process truth
+
+`ACK != PHYSICAL_PROCESS_TRUTH`
+
+Ambiguous post-dispatch write timeout = `UNKNOWN`; no blind write retry.
+
+### PointRead
+
+`REUSE_CANONICAL_POINTREAD / OPTIONAL_NON_BLOCKING`
+
+Manual address + typed assistant + optional RT probe are sufficient; no fabricated symbolic browse.
+
+### Diagnostics
+
+`REUSE_#500_COMMON_DIAGNOSTICS`
+
+Panasonic details go only into bounded sanitized protocol details.
+
+### Security
+
+`PLAINTEXT_LEGACY_OT_PROTOCOL / SEGMENTED_LAN_OR_LOCAL_SERIAL / VPN_FOR_REMOTE`
+
+### Dependency choice
+
+`BUILT_IN_DOTNET_CODEC_SESSION`
+
+No new dependency.
+
+### FP7 MC
+
+`OPTIONAL_COMMON_MC_PROVIDER_ONLY / NOT_PANASONIC_NATIVE_SCOPE`
+
+Useful future Mitsubishi interoperability hardware, but only for the documented subset.
+
+### Driver-type shape
+
+Recommended:
+
+- `panasonic.mewtocol.tcp`
+- `panasonic.mewtocol.serial`
+
+Shared MEWTOCOL-COM core + shared TAG binding.
+
+`MAIN_DECISION_REQUIRED` before DEV branch release.
+
+## 31. Checkpoint 2 contract deltas / uncertainties
+
+### Contract delta
+
+No contract was changed.
+
+Potential delta only if Main rejects transport-specific driver type IDs:
+
+`RESEARCH_CONTRACT_DELTA_REQUIRED`
+
+Affected contract:
+current Driver SDK connection-model/configuration-schema metadata.
+
+Options:
+1. two transport-specific Panasonic driver type IDs — recommended;
+2. extend shared SDK for alternative connection profiles — more churn.
+
+### Still-open technical gates
+
+1. authoritative Panasonic adjacent-word order for 32-bit/REAL remains unresolved;
+2. exact classic COM-reachable FP7 extended-memory subset remains to be frozen;
+3. exact L0/L1 independent test vectors and L2 tool strategy belong to Checkpoint 3;
+4. final hardware SKUs/firmware and legal/trademark/dependency disposition belong to Checkpoint 3.
+
+## 32. Preliminary decision after Checkpoint 2
+
+`PANASONIC_MEWTOCOL = GO_WITH_GATES`
+
+The implementation path is now sufficiently bounded:
+
+- native classic MEWTOCOL-COM;
+- TCP and Host Serial transport variants;
+- common typed address/codec/planner;
+- bounded contiguous polling;
+- canonical Runtime writes;
+- conservative ambiguous-write semantics;
+- canonical PointRead/diagnostics;
+- no sidecar;
+- no community production dependency;
+- FP7 MC kept outside the Panasonic native product.
+
+## 33. Checkpoint 2 stop
+
+Publish `RESEARCH PANASONIC-MEWTOCOL — CHECKPOINT 2` to #553 and stop.
+
+Do **not** execute L0-L4, hardware procurement shortlist finalization, legal conclusions, or final v1 handoff until a new `SIGA`.
 
 `DOCS_ONLY`  
 `NO PRODUCT CODE CHANGED`  

@@ -1,6 +1,7 @@
 import React from 'react';
 import type { EngineeringSnapshot, RuntimeHeaderEngineering, RuntimeHeaderTextStyleEngineering } from './types';
 import type { EngineeringLocale } from './i18n';
+import { listUserVisualAssets } from './visualAssetCatalogModel';
 
 export function RuntimeHeaderSettings({ value, onChange, snapshot, locale }: {
   value: RuntimeHeaderEngineering; onChange: (value: RuntimeHeaderEngineering) => void;
@@ -88,7 +89,7 @@ export function RuntimeHeaderSettings({ value, onChange, snapshot, locale }: {
             {(snapshot.package.screens ?? []).map(screen => <option key={screen.key} value={screen.key}>{screen.name || screen.key}</option>)}
           </select></label>
           <label>{t.buttonImage}<select value={link.visualAssetId ?? ''} onChange={event => update({ links: links.map((item, i) => i === index ? { ...item, visualAssetId: event.currentTarget.value || null } : item) })}>
-            <option value="">{t.textOnly}</option>{(snapshot.package.visualAssets ?? []).filter(asset => asset.id && asset.mediaType.startsWith('image/')).map(asset => <option key={asset.id!} value={asset.id!}>{asset.name}</option>)}
+            <option value="">{t.textOnly}</option>{listUserVisualAssets(snapshot.package.visualAssets).filter(asset => asset.id && asset.mediaType.startsWith('image/')).map(asset => <option key={asset.id!} value={asset.id!}>{asset.name}</option>)}
           </select></label>
           <button type="button" onClick={() => update({ links: links.filter((_, i) => i !== index) })}>{t.remove}</button>
         </div>)}

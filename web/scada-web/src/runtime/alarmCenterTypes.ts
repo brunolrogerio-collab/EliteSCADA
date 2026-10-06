@@ -36,6 +36,7 @@ export type RuntimeAlarmDefinition = {
   message?: string | null;
   enabled?: boolean;
   shelvingAllowed?: boolean;
+  soundProfile?: string | null;
 };
 
 export type RuntimeAlarmCenterEndpoint<T> =

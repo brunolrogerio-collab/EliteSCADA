@@ -1,4 +1,5 @@
 using Scada.Api.Runtime;
+using Scada.Api.VisualAssets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.Validation;
 using Scada.Engineering.Views;
@@ -86,6 +87,22 @@ public sealed class BuiltinDynamoLibraryTests
             registry.PutPayload(payload);
             Assert.DoesNotContain(Scada.Engineering.VisualAssets.VisualAssetEngineeringValidator.Validate(asset, registry), issue => issue.IsError);
         }
+    }
+
+    [Fact]
+    public void DynamoArtwork_IsClassifiedAsDynamoAndExcludedFromVisualAssetInventoryCount()
+    {
+        var artwork = BuiltinDynamoCatalogV1.CreateArtworkAssets().Select(entry => entry.Asset).ToArray();
+
+        Assert.NotEmpty(artwork);
+        Assert.All(artwork, asset => Assert.Equal(VisualAssetClassification.DynamoArtworkRole, asset.Metadata!["assetRole"]));
+        Assert.Equal(0, VisualAssetClassification.CountUserAssets(artwork));
+        Assert.Equal(1, VisualAssetClassification.CountUserAssets([
+            artwork[0],
+            artwork[0] with { Metadata = new Dictionary<string, string> { ["assetOrigin"] = "user-import" } }
+        ]));
+        Assert.True(VisualAssetClassification.IsDynamoArtwork(
+            artwork[0] with { Metadata = new Dictionary<string, string> { ["assetOrigin"] = "original-elitescada-vector-factory" } }));
     }
 
     [Fact]

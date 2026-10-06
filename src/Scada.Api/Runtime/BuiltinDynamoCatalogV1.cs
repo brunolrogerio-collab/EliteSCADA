@@ -42,6 +42,7 @@ public static class BuiltinDynamoCatalogV1
                 payload.ByteLength, payload.Sha256, Description: "Original EliteSCADA Dynamo vector artwork generated from editable geometry.",
                 Metadata: new Dictionary<string, string>(inspection.CanonicalMetadata ?? new Dictionary<string, string>(), StringComparer.Ordinal)
                 {
+                    ["assetRole"] = "dynamoArtwork",
                     ["catalogGeneration"] = "1", ["assetOrigin"] = "original-elitescada-vector-factory",
                     ["reviewStatus"] = "first-party-product-artwork"
                 });

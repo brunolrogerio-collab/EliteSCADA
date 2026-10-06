@@ -621,7 +621,7 @@ internal sealed class ViewEngineeringHandler
             return;
         }
 
-        if (element.Type is BuiltinVisualObjectSchemas.VideoPlayerType or BuiltinVisualObjectSchemas.PdfViewerType)
+        if (element.Type is BuiltinVisualObjectSchemas.VideoPlayerType or BuiltinVisualObjectSchemas.PdfViewerType or BuiltinVisualObjectSchemas.Model3dType)
         {
             issues.AddRange(VisualAssetReferenceEngineeringValidation.Validate(element, kind, entityKey, package, _visualAssets));
             return;

@@ -92,6 +92,7 @@ export function VisualEditorAuthoringToolbar({
     [BUILTIN_VISUAL_OBJECT_TYPES.polygon, '⬠', 'polygon', 'Polygon'],
     [BUILTIN_VISUAL_OBJECT_TYPES.text, 'T', 'text', 'Text'],
     [BUILTIN_VISUAL_OBJECT_TYPES.image, '▧', 'image', 'Image'],
+    [BUILTIN_VISUAL_OBJECT_TYPES.model3d, '◈', 'model3d', '3D model'],
     [BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer, '▶', 'videoPlayer', 'Video'],
     [BUILTIN_VISUAL_OBJECT_TYPES.pdfViewer, 'PDF', 'pdfViewer', 'PDF viewer'],
     [BUILTIN_VISUAL_OBJECT_TYPES.reportLauncher, '▤', 'reportLauncher', 'Report launcher'],

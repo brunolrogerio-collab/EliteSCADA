@@ -19,7 +19,9 @@ public static partial class VisualAssetEngineeringValidator
         VisualAssetContentInspector.SvgMediaType,
         VisualAssetContentInspector.PdfMediaType,
         VisualAssetContentInspector.Mp4MediaType,
-        VisualAssetContentInspector.WebmMediaType
+        VisualAssetContentInspector.WebmMediaType,
+        VisualAssetContentInspector.GlbMediaType,
+        VisualAssetContentInspector.GltfMediaType
     };
 
     public static IReadOnlyCollection<ImportIssue> Validate(
@@ -164,8 +166,11 @@ public static partial class VisualAssetEngineeringValidator
     {
         VisualAssetContentInspector.PdfMediaType => MaximumPdfPayloadBytes,
         VisualAssetContentInspector.Mp4MediaType or VisualAssetContentInspector.WebmMediaType => MaximumVideoPayloadBytes,
+        VisualAssetContentInspector.GlbMediaType or VisualAssetContentInspector.GltfMediaType => MaximumModelPayloadBytes,
         _ => MaximumPayloadBytes
     };
+
+    public const long MaximumModelPayloadBytes = 32L * 1024L * 1024L;
 
     [GeneratedRegex("^[A-Fa-f0-9]{64}$", RegexOptions.CultureInvariant)]
     private static partial Regex Sha256Regex();

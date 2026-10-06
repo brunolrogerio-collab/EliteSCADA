@@ -302,6 +302,7 @@ export type AlarmEngineering = {
   requiresAcknowledgement?: boolean;
   shelvingAllowed?: boolean;
   enabled?: boolean;
+  soundProfile?: string | null;
   metadata?: Record<string, string> | null;
 };
 

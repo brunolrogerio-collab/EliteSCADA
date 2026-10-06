@@ -5,14 +5,14 @@ import { MemoryTagSettingsPanel } from './MemoryTagSettingsPanel';
 import type { EngineeringLocale } from './i18n';
 import type { EngineeringPackageView } from './types';
 
-export function DataSourceEditor({ model, locale }: { model: EngineeringPackageView; locale: EngineeringLocale }) {
-  return <DataSourceCatalogEditor model={model} locale={locale} />;
+export function DataSourceEditor({ model, locale, projectKey }: { model: EngineeringPackageView; locale: EngineeringLocale; projectKey: string }) {
+  return <DataSourceCatalogEditor model={model} locale={locale} projectKey={projectKey} />;
 }
 
-export function TagEditor({ model, locale }: { model: EngineeringPackageView; locale: EngineeringLocale }) {
+export function TagEditor({ model, locale, projectKey }: { model: EngineeringPackageView; locale: EngineeringLocale; projectKey: string }) {
   return (
     <>
-      <SecuredTagEditor model={model} locale={locale} />
+      <SecuredTagEditor model={model} locale={locale} projectKey={projectKey} />
       {hasMemoryTags(model) && <MemoryTagSettingsPanel model={model} locale={locale} />}
     </>
   );

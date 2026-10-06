@@ -75,7 +75,8 @@ internal sealed class AlarmEngineeringHandler
                     : null,
                 dto.RequiresAcknowledgement,
                 dto.ShelvingAllowed,
-                dto.Metadata);
+                dto.Metadata,
+                dto.SoundProfile);
 
             _alarms.Register(definition);
             if (existing is null) created++; else updated++;

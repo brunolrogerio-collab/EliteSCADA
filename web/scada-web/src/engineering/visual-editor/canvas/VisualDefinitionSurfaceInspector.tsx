@@ -4,6 +4,7 @@ import { visualAssetContentUrl } from '../../api';
 import type { ScreenEngineering } from '../../types';
 import { useC07VisualEditorText } from '../c07VisualEditorI18n';
 import { useDynamoAuthoringCatalog } from '../DynamoAuthoringCatalogContext';
+import { listUserVisualAssets } from '../../visualAssetCatalogModel';
 import type { VisualEditorKeyboardCommand } from '../visualEditorKeyboardModel';
 import {
   readVisualDefinitionSurfaceConfig,
@@ -56,7 +57,8 @@ export function VisualDefinitionSurfaceInspector({
   };
 
   const previewStyle = resolveVisualDefinitionSurfaceStyle(screen.properties, visualAssetContentUrl);
-  const selectedAsset = catalog.visualAssets.find(asset => asset.id === config.backgroundImageAssetId) ?? null;
+  const userVisualAssets = listUserVisualAssets(catalog.visualAssets);
+  const selectedAsset = userVisualAssets.find(asset => asset.id === config.backgroundImageAssetId) ?? null;
 
   return <>
     <details ref={hostRef} className="visual-editor-surface-inspector" data-testid="visual-definition-surface-inspector">
@@ -120,7 +122,7 @@ export function VisualDefinitionSurfaceInspector({
             onChange={event => setSurface({ backgroundMode: 'image', backgroundImageAssetId: event.currentTarget.value || null })}
           >
             <option value="">{text.noBackgroundImage}</option>
-            {catalog.visualAssets
+            {userVisualAssets
               .filter(asset => Boolean(asset.id?.trim()))
               .map(asset => <option key={asset.id!} value={asset.id!}>
                 {asset.name} · {asset.pixelWidth ?? '?'}×{asset.pixelHeight ?? '?'}

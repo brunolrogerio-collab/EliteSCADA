@@ -101,7 +101,7 @@ export function VisualEditorAuthoringSidebar({
             <span>{assetImport.busy ? text.importing : text.importAsset}</span>
             <input
               type="file"
-              accept="image/png,image/jpeg,image/bmp,image/svg+xml,.png,.jpg,.jpeg,.bmp,.svg"
+              accept="image/png,image/jpeg,image/bmp,image/svg+xml,.png,.jpg,.jpeg,.bmp,.svg,.glb,.gltf,model/gltf-binary,model/gltf+json"
               disabled={assetImport.disabled || assetImport.busy}
               onChange={event => {
                 const file = event.currentTarget.files?.[0];

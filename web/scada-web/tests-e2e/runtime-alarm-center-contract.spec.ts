@@ -8,6 +8,7 @@ import {
   sortRuntimeAlarmsForAttention
 } from '../src/runtime/alarmCenterModel';
 import type { RuntimeAlarmCenterItem } from '../src/runtime/alarmCenterTypes';
+import { selectUnacknowledgedAlarmSounds } from '../src/runtime/alarmSounds';
 
 function alarm(overrides: Partial<RuntimeAlarmCenterItem> = {}): RuntimeAlarmCenterItem {
   return {
@@ -40,6 +41,28 @@ test('normalizes the backend numeric alarm enum values without inventing fronten
   expect(normalizeRuntimeAlarmPriority(3)).toBe('high');
   expect(normalizeRuntimeAlarmPriority(4)).toBe('critical');
   expect(normalizeRuntimeAlarmPriority(99)).toBe('unknown');
+});
+
+test('queues configured sounds until acknowledgement, including alarms returned to normal, and leaves the default silent', () => {
+  const alarms = [
+    alarm({ definitionId: 'audible', state: 1, priority: 4 }),
+    alarm({ definitionId: 'acknowledged', state: 2, priority: 4 }),
+    alarm({ definitionId: 'returned-unacknowledged', state: 3, priority: 4 }),
+    alarm({ definitionId: 'returned-acknowledged', state: 3, priority: 4, acknowledgedAt: '2026-08-27T16:05:00Z' }),
+    alarm({ definitionId: 'silent', state: 1, priority: 3 })
+  ];
+  const definitions = [
+    { id: 'audible', name: 'Audible', tagId: 'tag-a', type: 'digital', priority: 'critical', soundProfile: 'double' },
+    { id: 'acknowledged', name: 'Acknowledged', tagId: 'tag-b', type: 'digital', priority: 'critical', soundProfile: 'triple' },
+    { id: 'returned-unacknowledged', name: 'Returned, not acknowledged', tagId: 'tag-d', type: 'digital', priority: 'critical', soundProfile: 'rising' },
+    { id: 'returned-acknowledged', name: 'Returned and acknowledged', tagId: 'tag-e', type: 'digital', priority: 'critical', soundProfile: 'alternating' },
+    { id: 'silent', name: 'Silent default', tagId: 'tag-c', type: 'digital', priority: 'high' }
+  ];
+
+  expect(selectUnacknowledgedAlarmSounds(alarms, definitions)).toEqual([
+    { definitionId: 'audible', profile: 'double', priority: 4 },
+    { definitionId: 'returned-unacknowledged', profile: 'rising', priority: 4 }
+  ]);
 });
 
 test('sorts alarms for operator attention by priority, acknowledgement state and age', () => {
@@ -87,9 +110,11 @@ test('sorts alarms for operator attention by priority, acknowledgement state and
   ]);
 });
 
-test('only an actually Active alarm is offered for acknowledgement', () => {
+test('active and returned-unacknowledged alarms remain acknowledgeable', () => {
   expect(canAcknowledgeRuntimeAlarm(alarm({ state: 1 }))).toBeTruthy();
   expect(canAcknowledgeRuntimeAlarm(alarm({ state: 'Active' }))).toBeTruthy();
+  expect(canAcknowledgeRuntimeAlarm(alarm({ state: 3 }))).toBeTruthy();
+  expect(canAcknowledgeRuntimeAlarm(alarm({ state: 3, acknowledgedAt: '2026-08-27T16:05:00Z' }))).toBeFalsy();
   expect(canAcknowledgeRuntimeAlarm(alarm({ state: 2 }))).toBeFalsy();
   expect(canAcknowledgeRuntimeAlarm(alarm({ state: 'Acknowledged' }))).toBeFalsy();
   expect(canAcknowledgeRuntimeAlarm(alarm({ state: 5 }))).toBeFalsy();
@@ -100,12 +125,13 @@ test('builds operational counts from authoritative active alarm items', () => {
     alarm({ priority: 4, state: 1 }),
     alarm({ priority: 3, state: 'Active' }),
     alarm({ priority: 2, state: 1 }),
+    alarm({ priority: 4, state: 3 }),
     alarm({ priority: 4, state: 2 })
   ]);
 
   expect(summary).toEqual({
-    total: 4,
-    awaitingAcknowledgement: 3,
+    total: 5,
+    awaitingAcknowledgement: 4,
     acknowledged: 1,
     criticalAwaitingAcknowledgement: 1,
     highAwaitingAcknowledgement: 1

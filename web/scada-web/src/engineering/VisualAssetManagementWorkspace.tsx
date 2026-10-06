@@ -4,6 +4,7 @@ import type { EngineeringLocale } from './i18n';
 import type { EngineeringSnapshot, VisualAssetEngineering } from './types';
 import './visual-asset-management.css';
 import { FactoryArtworkLibrary } from './FactoryArtworkLibrary';
+import { listUserVisualAssets } from './visualAssetCatalogModel';
 
 export function VisualAssetManagementWorkspace({
   snapshot,
@@ -22,7 +23,7 @@ export function VisualAssetManagementWorkspace({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const assets = snapshot.package.visualAssets ?? [];
+  const assets = listUserVisualAssets(snapshot.package.visualAssets);
 
   async function run(action: () => Promise<void>) {
     setBusy(true);
@@ -92,7 +93,7 @@ export function VisualAssetManagementWorkspace({
         <div><h2>{copy.projectAssets}</h2><p>{copy.projectAssetsHint}</p></div>
         <label className="visual-asset-management__upload">
           <span>{busy ? copy.uploading : copy.upload}</span>
-          <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/bmp,image/svg+xml,.png,.jpg,.jpeg,.bmp,.svg" disabled={busy}
+          <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/bmp,image/svg+xml,.png,.jpg,.jpeg,.bmp,.svg,.glb,.gltf,model/gltf-binary,model/gltf+json" disabled={busy}
             onChange={event => { const file = event.currentTarget.files?.[0]; if (file) void upload(file); }}/>
         </label>
       </div>
@@ -127,7 +128,7 @@ function AssetCard({ asset, copy, editing, name, busy, confirmingDelete, onNameC
 }) {
   return <article className="visual-asset-management__card" data-testid="visual-asset-card">
     <div className="visual-asset-management__preview">
-      {asset.id ? <img src={visualAssetContentUrl(asset.id)} alt="" loading="lazy"/> : <span>{copy.noPreview}</span>}
+      {asset.id && asset.mediaType.startsWith('image/') ? <img src={visualAssetContentUrl(asset.id)} alt="" loading="lazy"/> : asset.mediaType.startsWith('model/') ? <span aria-label="3D model">◈ 3D</span> : <span>{copy.noPreview}</span>}
     </div>
     <div className="visual-asset-management__details">
       {editing ? <label><span>{copy.displayName}</span><input autoFocus maxLength={128} value={name} onChange={event => onNameChange(event.currentTarget.value)}/></label>

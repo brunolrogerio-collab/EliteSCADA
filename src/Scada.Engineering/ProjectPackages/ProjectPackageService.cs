@@ -532,7 +532,8 @@ public sealed class ProjectPackageService : IProjectPackageService
                 throw new InvalidDataException($"Project asset entry '{assetEntry.Path}' length is invalid.");
             if (assetEntry.MediaType is not ("image/png" or "image/jpeg" or "image/bmp" or
                 VisualAssetContentInspector.SvgMediaType or VisualAssetContentInspector.PdfMediaType or
-                VisualAssetContentInspector.Mp4MediaType or VisualAssetContentInspector.WebmMediaType))
+                VisualAssetContentInspector.Mp4MediaType or VisualAssetContentInspector.WebmMediaType or
+                VisualAssetContentInspector.GlbMediaType or VisualAssetContentInspector.GltfMediaType))
                 throw new InvalidDataException($"Project asset entry '{assetEntry.Path}' media type is unsupported.");
         }
     }

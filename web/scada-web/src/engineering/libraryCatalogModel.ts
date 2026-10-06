@@ -8,6 +8,7 @@ import type {
   ReusableLibraryResource
 } from './reusableLibraryApi';
 import type { StaticArtwork } from './staticArtworkApi';
+import { listUserVisualAssets } from './visualAssetCatalogModel';
 import {
   libraryCatalogCategoryMatches,
   libraryCatalogCategorySearchText,
@@ -95,7 +96,7 @@ export function buildLibraryCatalogEntries(
     }));
   }
 
-  for (const asset of snapshot.package.visualAssets ?? []) {
+  for (const asset of listUserVisualAssets(snapshot.package.visualAssets)) {
     const metadata = stringMap(asset.metadata);
     const origin = metadata?.builtinLibrary === 'true' ? 'builtin' : 'project';
     const kind = asset.mediaType === 'image/svg+xml' ? 'visual-asset' : 'raster-image';

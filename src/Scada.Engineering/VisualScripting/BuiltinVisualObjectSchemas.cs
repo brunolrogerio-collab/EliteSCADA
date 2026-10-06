@@ -16,6 +16,7 @@ public static class BuiltinVisualObjectSchemas
     public const string PolygonType = "core.polygon";
     public const string TextType = "core.text";
     public const string ImageType = "core.image";
+    public const string Model3dType = "core.model3d";
     public const string SvgSymbolType = "core.svgSymbol";
     public const string VideoPlayerType = "core.videoPlayer";
     public const string PdfViewerType = "core.pdfViewer";
@@ -209,6 +210,10 @@ public static class BuiltinVisualObjectSchemas
             VisualPropertyKeys.ImageZoom
         ]));
 
+    public static VisualObjectPropertySchema Model3d { get; } = Create(
+        Model3dType,
+        Base.Concat([VisualPropertyKeys.AssetRef]));
+
     public static VisualObjectPropertySchema VideoPlayer { get; } = Create(
         VideoPlayerType,
         Base.Concat([
@@ -353,6 +358,7 @@ public static class BuiltinVisualObjectSchemas
         Polygon,
         Text,
         Image,
+        Model3d,
         VideoPlayer,
         PdfViewer,
         ReportLauncher,

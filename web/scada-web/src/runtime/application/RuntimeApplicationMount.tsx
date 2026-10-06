@@ -355,15 +355,15 @@ function EngineeringRuntimeApplicationContent({
 
     {playbackOpen && playbackAvailable ? <HistoricalPlaybackOverlay locale={locale} onClose={() => setPlaybackOpen(false)} /> : null}
 
-    {alarmsOpen ? <aside id="runtime-alarm-overlay" className="runtime-operator-overlay" aria-label={text.alarms}>
+    <aside id="runtime-alarm-overlay" className="runtime-operator-overlay" aria-label={text.alarms} hidden={!alarmsOpen}>
       <div className="runtime-operator-overlay-header">
         <strong>{text.alarms}</strong>
         <button type="button" className="runtime-operator-button" onClick={() => setAlarmsOpen(false)}>{text.closeAlarms}</button>
       </div>
       <div className="runtime-operator-overlay-content">
-        <RuntimeAlarmCenter locale={locale} />
+        <RuntimeAlarmCenter locale={locale} visible={alarmsOpen} />
       </div>
-    </aside> : null}
+    </aside>
   </main>;
 }
 

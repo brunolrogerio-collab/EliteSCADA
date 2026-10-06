@@ -577,3 +577,78 @@
     flex-direction: column;
   }
 }
+
+/* Desktop admin pages fit below the shared 54px application bar. The event
+   list/details and diagnostics keep their own scroll areas instead of moving
+   the entire page. Narrow layouts retain normal document scrolling. */
+@media (min-width: 901px) {
+  .audit-shell {
+    box-sizing: border-box;
+    height: calc(100dvh - 54px);
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    gap: 8px;
+    overflow: hidden;
+    padding: 10px 16px;
+  }
+
+  .audit-header,
+  .audit-panel {
+    width: min(100%, 1500px);
+    max-width: 1500px;
+    margin: 0 auto;
+  }
+
+  .audit-filter-panel { overflow: auto; }
+
+  .audit-header { min-height: 28px; }
+  .audit-header h1 { margin-block: 0; }
+
+  .audit-panel {
+    box-sizing: border-box;
+    min-height: 0;
+    padding: 10px 12px;
+  }
+
+  .audit-section-heading { margin-bottom: 8px; }
+  .audit-filter-primary-grid,
+  .audit-filter-advanced-grid { gap: 8px; }
+  .audit-filter-field { gap: 3px; }
+  .audit-filter-field input,
+  .audit-filter-field select,
+  .audit-primary,
+  .audit-secondary { padding-block: 6px; }
+  .audit-advanced-filters { margin-top: 8px; padding-top: 7px; }
+  .audit-active-filters { gap: 7px; margin-top: 8px; padding-top: 7px; }
+
+  .audit-events-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .audit-events-panel > .audit-section-heading { flex: 0 0 auto; }
+  .audit-workspace-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    gap: 10px;
+  }
+  .audit-event-list { min-height: 0; max-height: none; }
+  .audit-event-detail { min-height: 0; overflow: auto; padding: 12px; }
+  .audit-events-panel > .audit-state { flex: 1 1 auto; min-height: 0; display: grid; place-items: center; padding: 10px; }
+  .audit-pagination { flex: 0 0 auto; margin-top: 8px; }
+
+  .audit-diagnostics-panel {
+    max-height: min(24vh, 220px);
+    padding: 0;
+    overflow: hidden;
+  }
+  .audit-diagnostics-disclosure { max-height: 100%; display: flex; flex-direction: column; }
+  .audit-diagnostics-disclosure > summary { flex: 0 0 auto; padding: 9px 12px; }
+  .audit-diagnostics-content { min-height: 0; overflow: auto; padding: 0 12px 10px; }
+}
+
+@media (max-width: 900px) {
+  .audit-shell { min-height: calc(100dvh - 54px); }
+}

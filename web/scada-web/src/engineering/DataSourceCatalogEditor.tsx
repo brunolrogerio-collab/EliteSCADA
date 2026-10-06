@@ -27,6 +27,7 @@ import { OpcUaDataSourceDiscoveryAssistant } from './OpcUaDataSourceDiscoveryAss
 import { DataSourceConnectionTest } from './DataSourceConnectionTest';
 import { EngineeringEntityActions } from './EngineeringEntityActions';
 import { WorkflowFormDisclosure, WorkflowFormSection } from './StructuredFormPrimitives';
+import { EngineeringResourceOrganizer, engineeringCopyName, uniqueEngineeringKey } from './EngineeringResourceOrganizer';
 import type { DataSourceEngineering, EngineeringPackageView } from './types';
 import './structured-editors.css';
 
@@ -34,7 +35,7 @@ const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 type CatalogResponse = { dataSourceTypes: DataSourceTypeDefinition[] };
 type SerialPortCatalogResponse = { authority: string; ports: Array<{ deviceName: string }> };
 type CatalogStatus = 'loading' | 'ready' | 'error';
-type Props = { model: EngineeringPackageView; locale: EngineeringLocale };
+type Props = { model: EngineeringPackageView; locale: EngineeringLocale; projectKey: string };
 
 type EditorText = ReturnType<typeof text>;
 
@@ -46,7 +47,7 @@ export async function loadDataSourceTypeCatalog(): Promise<DataSourceTypeDefinit
   return ((await response.json()) as CatalogResponse).dataSourceTypes ?? [];
 }
 
-export function DataSourceCatalogEditor({ model, locale }: Props) {
+export function DataSourceCatalogEditor({ model, locale, projectKey }: Props) {
   const copy = useMemo(() => text(locale), [locale]);
   const sources = useMemo(() => model.dataSources ?? [], [model.dataSources]);
   const [catalog, setCatalog] = useState<DataSourceTypeDefinition[]>([]);
@@ -60,6 +61,7 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
   const [validatedChangeVersion, setValidatedChangeVersion] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
 
   const isNew = selectedIdentity === NEW_DATA_SOURCE_IDENTITY;
   const selected = !isNew && selectedIdentity
@@ -134,6 +136,15 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
     if (changed && !window.confirm(copy.discard)) return;
     setDraft(draftForDataSourceSelection(next, sources));
     setSelectedIdentity(next);
+    invalidateValidation();
+    setError(null);
+  };
+
+  const pasteDataSource = (source: DataSourceEngineering) => {
+    if (changed && !window.confirm(copy.discard)) return;
+    const key = uniqueEngineeringKey(source.key, sources.map(item => item.key));
+    setDraft({ ...cloneDataSourceValue(source), id: undefined, key, name: engineeringCopyName(source.name || source.key, locale) });
+    setSelectedIdentity(NEW_DATA_SOURCE_IDENTITY);
     invalidateValidation();
     setError(null);
   };
@@ -220,7 +231,6 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
     <section className="eng-editor-shell" data-testid="schema-data-source-editor">
       <header className="eng-editor-heading">
         <div className="eng-editor-heading-title"><h2>{copy.title}</h2><details className="eng-editor-help"><summary>{locale === 'en' ? 'Help' : locale === 'es' ? 'Ayuda' : 'Ajuda'}</summary><p>{copy.description}</p></details></div>
-        <button type="button" onClick={() => choose(NEW_DATA_SOURCE_IDENTITY)}>{copy.newSource}</button>
       </header>
 
       {catalogStatus === 'loading' && (
@@ -249,12 +259,30 @@ export function DataSourceCatalogEditor({ model, locale }: Props) {
         </div>
       )}
       <div className="eng-editor-layout">
-        <aside className="eng-entity-picker">
-          {sources.map(source => (
-            <button type="button" key={dataSourceIdentity(source)} className={dataSourceIdentity(source) === selectedIdentity ? 'selected' : ''} aria-label={`${source.name || source.key} (${source.key})`} aria-current={dataSourceIdentity(source) === selectedIdentity ? 'true' : undefined} onClick={() => choose(dataSourceIdentity(source))}>
-              <strong>{source.name || source.key}</strong><span>{source.driver}</span>
-            </button>
-          ))}
+        <aside className="eng-editor-picker" data-testid="data-source-list">
+          <header>
+            <div className="eng-editor-picker-title">
+              <strong>{copy.sourceList}</strong>
+              <button type="button" className={isNew ? 'active' : ''} onClick={() => choose(NEW_DATA_SOURCE_IDENTITY)}>+ {copy.newSource}</button>
+            </div>
+            <input type="search" aria-label={copy.searchSources} placeholder={copy.searchSources} value={query} onChange={event => setQuery(event.target.value)} />
+          </header>
+          <EngineeringResourceOrganizer
+            projectKey={projectKey}
+            kind="dataSources"
+            locale={locale}
+            label={copy.sourceList}
+            resources={sources
+              .filter(source => `${source.name} ${source.key} ${source.driver}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
+              .map(source => ({ identity: `key:${source.key}`, name: source.name || source.key, details: `${source.key} · ${source.driver}`, value: source }))}
+            selectedIdentity={selected ? `key:${selected.key}` : null}
+            onSelect={identity => {
+              const source = sources.find(item => `key:${item.key}` === identity);
+              if (source) choose(dataSourceIdentity(source));
+            }}
+            onPaste={pasteDataSource}
+            emptyLabel={copy.noSources}
+          />
         </aside>
 
         <section className="eng-editor-form-panel">
@@ -625,7 +653,7 @@ function clientIssueMessage(issue: DataSourceDraftIssue, copy: EditorText): stri
 function text(locale: EngineeringLocale) {
   if (locale === 'en') return {
     title: 'Data Source editor', description: 'Choose the source first, then configure only the protocol fields needed for this connection.',
-    newSource: 'New Data Source', catalogLoading: 'Loading Data Source types…', catalogError: 'Could not load source type catalog', catalogEmpty: 'No Data Source types are available in this installation.', catalogReload: 'Reload catalog', noSelection: 'Select or create a Data Source.',
+    newSource: 'New Data Source', sourceList: 'DATA SOURCES', searchSources: 'Search Data Sources', noSources: 'No Data Sources', catalogLoading: 'Loading Data Source types…', catalogError: 'Could not load source type catalog', catalogEmpty: 'No Data Source types are available in this installation.', catalogReload: 'Reload catalog', noSelection: 'Select or create a Data Source.',
     name: 'Data Source name', nameHint: 'For new sources, the internal identifier is generated from this name; existing identifiers are preserved.', key: 'Identifier', keyHint: 'Stable internal reference; it is not the displayed name.', type: 'Data Source type', enabled: 'Enabled', yes: 'Yes', no: 'No', chooseType: 'Choose a type',
     unsupported: 'Unavailable type', unsupportedHint: 'This persisted type is not available in this installation. Select a supported type explicitly; it will not be remapped silently.',
     identitySection: 'Source identity', identityHint: 'Enter one source name. New sources get an internal identifier from it; existing identifiers are kept unchanged.', settings: 'Connection settings', settingsHint: 'Common settings for the selected source type.', advancedSettings: 'Advanced protocol settings', advancedSettingsHint: 'Rare or tuning-specific fields are available only when needed.', noSettings: 'This source type has no configuration fields.',
@@ -639,7 +667,7 @@ function text(locale: EngineeringLocale) {
   };
   if (locale === 'es') return {
     title: 'Editor de Fuente de datos', description: 'Seleccione primero la fuente y configure solo los campos de protocolo necesarios para esta conexión.',
-    newSource: 'Nueva Fuente de datos', catalogLoading: 'Cargando tipos de Fuente de datos…', catalogError: 'No se pudo cargar el catálogo de tipos', catalogEmpty: 'No hay tipos de Fuente de datos disponibles en esta instalación.', catalogReload: 'Recargar catálogo', noSelection: 'Seleccione o cree una Fuente de datos.',
+    newSource: 'Nueva Fuente de datos', sourceList: 'FUENTES DE DATOS', searchSources: 'Buscar Fuentes de datos', noSources: 'No hay Fuentes de datos', catalogLoading: 'Cargando tipos de Fuente de datos…', catalogError: 'No se pudo cargar el catálogo de tipos', catalogEmpty: 'No hay tipos de Fuente de datos disponibles en esta instalación.', catalogReload: 'Recargar catálogo', noSelection: 'Seleccione o cree una Fuente de datos.',
     name: 'Nombre de la Fuente de datos', nameHint: 'En fuentes nuevas, el identificador interno se genera a partir de este nombre; se conservan los identificadores existentes.', key: 'Identificador', keyHint: 'Referencia interna estable; no es el nombre mostrado.', type: 'Tipo de Fuente de datos', enabled: 'Habilitado', yes: 'Sí', no: 'No', chooseType: 'Seleccione un tipo',
     unsupported: 'Tipo no disponible', unsupportedHint: 'El tipo persistido no está disponible en esta instalación. Seleccione otro explícitamente; no será reinterpretado.',
     identitySection: 'Identidad de la fuente', identityHint: 'Ingrese un solo nombre. Las fuentes nuevas reciben un identificador interno generado a partir de él; los identificadores existentes se conservan.', settings: 'Configuración de conexión', settingsHint: 'Opciones comunes del tipo de fuente seleccionado.', advancedSettings: 'Opciones avanzadas del protocolo', advancedSettingsHint: 'Los campos raros o de ajuste aparecen solo cuando son necesarios.', noSettings: 'Este tipo no tiene campos de configuración.',
@@ -653,7 +681,7 @@ function text(locale: EngineeringLocale) {
   };
   return {
     title: 'Editor de Fonte de dados', description: 'Escolha primeiro a fonte e configure somente os campos de protocolo necessários para esta conexão.',
-    newSource: 'Nova Fonte de dados', catalogLoading: 'Carregando tipos de Fonte de dados…', catalogError: 'Não foi possível carregar o catálogo de tipos', catalogEmpty: 'Nenhum tipo de Fonte de dados está disponível nesta instalação.', catalogReload: 'Recarregar catálogo', noSelection: 'Selecione ou crie uma Fonte de dados.',
+    newSource: 'Nova Fonte de dados', sourceList: 'FONTES DE DADOS', searchSources: 'Pesquisar Fontes de dados', noSources: 'Nenhuma Fonte de dados', catalogLoading: 'Carregando tipos de Fonte de dados…', catalogError: 'Não foi possível carregar o catálogo de tipos', catalogEmpty: 'Nenhum tipo de Fonte de dados está disponível nesta instalação.', catalogReload: 'Recarregar catálogo', noSelection: 'Selecione ou crie uma Fonte de dados.',
     name: 'Nome da fonte de dados', nameHint: 'Em fontes novas, o identificador interno é gerado a partir deste nome; identificadores existentes são preservados.', key: 'Identificador', keyHint: 'Referência estável usada internamente; não é o nome exibido.', type: 'Tipo de Fonte de dados', enabled: 'Habilitado', yes: 'Sim', no: 'Não', chooseType: 'Escolha um tipo',
     unsupported: 'Tipo indisponível', unsupportedHint: 'O tipo persistido não está disponível nesta instalação. Selecione outro explicitamente; ele não será reinterpretado silenciosamente.',
     identitySection: 'Identidade da fonte', identityHint: 'Informe um único nome. Em fontes novas, o identificador interno é gerado a partir dele; identificadores existentes são preservados.', settings: 'Configuração da conexão', settingsHint: 'Campos comuns do tipo de fonte selecionado.', advancedSettings: 'Configurações avançadas do protocolo', advancedSettingsHint: 'Campos raros ou de ajuste aparecem somente quando necessários.', noSettings: 'Este tipo não possui campos de configuração.',

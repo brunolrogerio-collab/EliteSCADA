@@ -908,7 +908,8 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                     : null,
                 dto.RequiresAcknowledgement,
                 dto.ShelvingAllowed,
-                dto.Metadata));
+                dto.Metadata,
+                dto.SoundProfile));
         }
     }
 

@@ -13,6 +13,7 @@ import type {
   ImportPreviewView,
   TagEngineering
 } from './types';
+import { EngineeringResourceOrganizer, uniqueEngineeringKey } from './EngineeringResourceOrganizer';
 import './engineering-mutations.css';
 
 const CLIENT_MEMORY_DRIVER = 'builtin.memory.client';
@@ -21,6 +22,7 @@ const SIMULATION_DRIVER = 'builtin.simulation';
 type Props = {
   model: EngineeringPackageView;
   locale: EngineeringLocale;
+  projectKey?: string;
 };
 
 type Draft = {
@@ -40,7 +42,7 @@ type Draft = {
   enabled: boolean;
 };
 
-export function GatewayEngineeringPanel({ model, locale }: Props) {
+export function GatewayEngineeringPanel({ model, locale, projectKey = 'workspace' }: Props) {
   const text = labels(locale);
   const eligibleTags = useMemo(() => collectEligibleTags(model), [model]);
   const writableTags = useMemo(() => eligibleTags.filter(tag => !tag.readOnly && !isSimulationTag(model, tag)), [eligibleTags, model]);
@@ -176,26 +178,22 @@ export function GatewayEngineeringPanel({ model, locale }: Props) {
           </label>
           <span data-testid="gateway-route-count" className="gateway-route-filter-count">{filteredRoutes.length} / {routes.length}</span>
         </div>
-        {filteredRoutes.length === 0 ? <div className="eng-empty"><strong>{routes.length === 0 ? text.noRoutes : text.noRouteMatches}</strong><span>{text.noRoutesHint}</span></div> :
-          <div className="gateway-route-list" role="list">
-            {filteredRoutes.map(route => {
-              const identity = routeIdentity(route);
-              return <button
-                key={identity}
-                type="button"
-                role="listitem"
-                className={selected === identity ? 'gateway-route-row active' : 'gateway-route-row'}
-                onClick={() => chooseRoute(identity)}
-                disabled={previewing || applying}
-                data-testid="gateway-route-row"
-              >
-                <span className="gateway-route-main"><strong>{route.name || route.key}</strong></span>
-                <code>{route.sourceTagPath || '—'} → {route.destinationTagPath || '—'}</code>
-                <span>{normalizeEnum(route.transferMode) === 'periodic' ? 'Periodic' : 'OnChange'}</span>
-                <span className={route.enabled === false ? 'gateway-route-state disabled' : 'gateway-route-state'}>{route.enabled === false ? text.disabled : text.enabledState}</span>
-              </button>;
-            })}
-          </div>}
+        <EngineeringResourceOrganizer
+          projectKey={projectKey} kind="gatewayRoutes" locale={locale} label={text.inventoryTitle}
+          resources={filteredRoutes.map(route => ({ identity: routeIdentity(route), name: route.name || route.key, details: `${route.sourceTagPath || '—'} → ${route.destinationTagPath || '—'} · ${normalizeEnum(route.transferMode) === 'periodic' ? 'Periodic' : 'OnChange'}`, value: route }))}
+          selectedIdentity={selected} onSelect={chooseRoute}
+          onPaste={source => {
+            const key = uniqueEngineeringKey(source.key, routes.map(route => route.key));
+            const copy = routeDraft(source, eligibleTags, writableTags);
+            copy.id = crypto.randomUUID();
+            copy.key = key;
+            copy.name = key;
+            setDraft(copy);
+            setSelected('new');
+            invalidate();
+          }}
+          emptyLabel={routes.length === 0 ? text.noRoutes : text.noRouteMatches}
+        />
       </section>
 
       <section className="eng-mutation-panel">

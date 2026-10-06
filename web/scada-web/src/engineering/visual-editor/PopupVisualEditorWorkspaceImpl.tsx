@@ -15,9 +15,11 @@ import type {
   EngineeringPackageView,
   EngineeringSnapshot,
   ImportPreviewView,
+  PopupEngineering,
   ScreenEngineering
 } from '../types';
 import { initializeClientMemory } from '../../runtime/clientMemory';
+import { listUserVisualAssets } from '../visualAssetCatalogModel';
 import { resolveRuntimeLogicalSize } from '../../runtime/visual-navigation/runtimeLogicalCanvas';
 import {
   resolvePopupLogicalBounds,
@@ -43,6 +45,7 @@ import { createCanonicalPolygon, updateCanonicalPolygonPoints } from './polygonC
 import { createCanonicalBezier } from './bezierCanonicalMutations';
 import { reportCollection } from '../reports/reportDesignerModel';
 import { VisualEditorRegionToggle } from './VisualEditorRegionToggle';
+import { EngineeringResourceOrganizer, engineeringCopyName, uniqueEngineeringKey } from '../EngineeringResourceOrganizer';
 import {
   applyVisualEditorMutationIntent,
   cloneEngineeringValue,
@@ -118,6 +121,7 @@ function PopupVisualEditorWorkspaceBody({
 }) {
   const text = useMemo(() => popupEditorText(locale), [locale]);
   const popups = snapshot.package.popups ?? [];
+  const visualAssets = listUserVisualAssets(snapshot.package.visualAssets);
   const [selectedIdentity, setSelectedIdentity] = useState<string>(() =>
     popups[0] ? popupIdentity(popups[0]) : NEW_POPUP_IDENTITY);
   const isNew = selectedIdentity === NEW_POPUP_IDENTITY;
@@ -145,6 +149,7 @@ function PopupVisualEditorWorkspaceBody({
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const selectedIdentityRef = useRef(selectedIdentity);
   const preserveDraftAfterAssetImportRef = useRef(false);
+  const pendingPopupPasteRef = useRef<PopupEngineering | null>(null);
   const [preview, setPreview] = useState<ImportPreviewView | null>(null);
   const [candidate, setCandidate] = useState<ValidatedPopupCandidate | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -193,8 +198,9 @@ function PopupVisualEditorWorkspaceBody({
     setPolygonToolActive(false);
     setBezierToolActive(false);
     const current = selectedIdentity === NEW_POPUP_IDENTITY
-      ? createPopupDraft(popups, locale)
+      ? (pendingPopupPasteRef.current ?? createPopupDraft(popups, locale))
       : popups.find(item => popupIdentity(item) === selectedIdentity) ?? null;
+    pendingPopupPasteRef.current = null;
     if (!current) {
       if (popups[0]) setSelectedIdentity(popupIdentity(popups[0]));
       else setSelectedIdentity(NEW_POPUP_IDENTITY);
@@ -248,6 +254,27 @@ function PopupVisualEditorWorkspaceBody({
     if (identity === selectedIdentity) return;
     if (changed && !window.confirm(text.discardConfirm)) return;
     setSelectedIdentity(identity);
+  };
+
+  const pastePopup = (source: PopupEngineering) => {
+    if (changed && !window.confirm(text.discardConfirm)) return;
+    const key = uniqueEngineeringKey(source.key, popups.map(item => item.key));
+    const pasted: PopupEngineering = {
+      ...cloneEngineeringValue(source),
+      id: undefined,
+      key,
+      name: engineeringCopyName(source.name || source.key, locale)
+    };
+    pendingPopupPasteRef.current = pasted;
+    if (selectedIdentity === NEW_POPUP_IDENTITY) {
+      pendingPopupPasteRef.current = null;
+      replaceSession(createVisualEditorSession(popupToVisualScreen(pasted)));
+      setFrame(popupFrame(pasted));
+      setViewport(DEFAULT_VIEWPORT);
+      invalidateValidation();
+    } else {
+      setSelectedIdentity(NEW_POPUP_IDENTITY);
+    }
   };
 
   const updateDraftScreen = (update: (current: ScreenEngineering) => ScreenEngineering) => {
@@ -476,16 +503,20 @@ function PopupVisualEditorWorkspaceBody({
             <VisualEditorRegionToggle region="screens" collapsed={screensCollapsed} locale={locale} onToggle={() => setScreensCollapsed(value => !value)} />
           </div>
         </header>
-        <div className="visual-editor-screen-list">
-          {popups.map(popup => {
-            const identity = popupIdentity(popup);
-            return <button type="button" className={identity === selectedIdentity ? 'selected' : ''} key={identity} onClick={() => choosePopup(identity)}>
-              <strong>{popup.name || popup.key}</strong>
-              <code>{popup.key}</code>
-              <span>{popup.templateKey?.trim() ? `${text.template}: ${popup.templateKey}` : text.standalone} · {countVisualElements(popup.elements)} {text.objects}</span>
-            </button>;
-          })}
-        </div>
+        <EngineeringResourceOrganizer
+          projectKey={snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace'}
+          kind="popups"
+          locale={locale}
+          label={text.popups}
+          resources={popups.map(popup => ({ identity: `key:${popup.key}`, name: popup.name || popup.key, details: `${popup.key} · ${popup.templateKey?.trim() ? `${text.template}: ${popup.templateKey}` : text.standalone} · ${countVisualElements(popup.elements)} ${text.objects}`, value: popup }))}
+          selectedIdentity={selected ? `key:${selected.key}` : null}
+          onSelect={identity => {
+            const popup = popups.find(item => `key:${item.key}` === identity);
+            if (popup) choosePopup(popupIdentity(popup));
+          }}
+          onPaste={pastePopup}
+          emptyLabel={locale === 'en' ? 'No popups' : locale === 'es' ? 'No hay popups' : 'Nenhum popup'}
+        />
       </aside>
 
       <section className="visual-editor-main">
@@ -505,7 +536,7 @@ function PopupVisualEditorWorkspaceBody({
               definitions={snapshot.package.dynamos ?? []}
               equipment={snapshot.package.equipment ?? []}
               templates={snapshot.package.templates ?? []}
-              visualAssets={snapshot.package.visualAssets ?? []}
+              visualAssets={visualAssets}
               locale={locale}
               activeTab={authoringTab}
               onActiveTabChange={setAuthoringTab}
@@ -560,7 +591,7 @@ function PopupVisualEditorWorkspaceBody({
               selectedElements={selectedElements}
               selectedObjectIds={selectedObjectIds}
               sourceCatalog={bindingSourceCatalog}
-              visualAssets={snapshot.package.visualAssets ?? []}
+              visualAssets={visualAssets}
               reports={reportCollection(snapshot.package)}
               locale={locale}
               activeTab={inspectorTab}

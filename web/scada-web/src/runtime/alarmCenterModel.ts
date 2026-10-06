@@ -58,7 +58,8 @@ export function runtimeAlarmPriorityRank(alarm: RuntimeAlarmCenterItem): number 
 }
 
 export function canAcknowledgeRuntimeAlarm(alarm: RuntimeAlarmCenterItem): boolean {
-  return normalizeRuntimeAlarmState(alarm.state) === 'active';
+  const state = normalizeRuntimeAlarmState(alarm.state);
+  return state === 'active' || state === 'returned' && !alarm.acknowledgedAt;
 }
 
 export function runtimeAlarmTone(alarm: RuntimeAlarmCenterItem): RuntimeAlarmTone {
@@ -96,7 +97,7 @@ export function buildRuntimeAlarmCenterSummary(items: RuntimeAlarmCenterItem[]):
 
   for (const alarm of items) {
     const state = normalizeRuntimeAlarmState(alarm.state);
-    if (state === 'active') {
+    if (state === 'active' || state === 'returned' && !alarm.acknowledgedAt) {
       awaitingAcknowledgement += 1;
       const priority = normalizeRuntimeAlarmPriority(alarm.priority);
       if (priority === 'critical') criticalAwaitingAcknowledgement += 1;

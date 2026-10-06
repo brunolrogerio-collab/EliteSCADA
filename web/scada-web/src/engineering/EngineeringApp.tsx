@@ -34,6 +34,7 @@ import { EquipmentFaceplateWorkspace } from './EquipmentFaceplateWorkspace';
 import type { DynamoEngineering, EngineeringPackageView, EngineeringSnapshot, EquipmentEngineering, TemplateEngineering } from './types';
 import { CanonicalVisualPreview } from './visual-editor/CanonicalVisualPreview';
 import { selectDefaultDynamoCatalog } from './visual-editor/dynamoLibraryModel';
+import { listUserVisualAssets } from './visualAssetCatalogModel';
 import { hasRuntimeCapability, useEffectiveCapabilities } from '../auth/effectiveCapabilities';
 import './engineering.css';
 import './object-catalog.css';
@@ -303,11 +304,11 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, onR
   if (section === 'information') return <EngineeringInformation snapshot={snapshot} productIdentity={productIdentity} t={t} locale={locale}/>;
 
   switch (section) {
-    case 'dataSources': return <DataSourceEditor model={model} locale={locale}/>;
-    case 'gateway': return <GatewayEngineeringPanel model={model} locale={locale}/>;
-    case 'tags': return <TagEditor model={model} locale={locale}/>;
-    case 'alarms': return <AlarmEditor model={model} locale={locale}/>;
-    case 'operationalEvents': return <OperationalEventEditor model={model} locale={locale} onApplied={onReload}/>;
+    case 'dataSources': return <DataSourceEditor model={model} locale={locale} projectKey={snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace'}/>;
+    case 'gateway': return <GatewayEngineeringPanel model={model} locale={locale} projectKey={snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace'}/>;
+    case 'tags': return <TagEditor model={model} locale={locale} projectKey={snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace'}/>;
+    case 'alarms': return <AlarmEditor model={model} locale={locale} projectKey={snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace'}/>;
+    case 'operationalEvents': return <OperationalEventEditor model={model} locale={locale} projectKey={snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace'} onApplied={onReload}/>;
     case 'templates': return <VisualEditorWorkspace snapshot={snapshot} locale={locale} onApplied={onReload} onAssetImported={onSnapshotRefreshed} definitionKind="template"/>;
     case 'equipment': return <EquipmentFaceplateWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
     case 'dynamos': return <DynamoCatalogSection items={model.dynamos ?? []} snapshot={snapshot} locale={locale} onApplied={onReload} onSnapshotRefreshed={onSnapshotRefreshed}/>;
@@ -503,7 +504,7 @@ function sectionCount(model: EngineeringPackageView, section: SectionId): number
     case 'templates': return model.templates?.length ?? 0;
     case 'equipment': return model.equipment?.length ?? 0;
     case 'dynamos': return selectDefaultDynamoCatalog(model.dynamos ?? []).length;
-    case 'visualAssets': return model.visualAssets?.length ?? 0;
+    case 'visualAssets': return listUserVisualAssets(model.visualAssets).length;
     case 'screens': return model.screens?.length ?? 0;
     case 'popups': return model.popups?.length ?? 0;
     case 'historian': return model.tags.filter(tag => tag.historian?.enabled).length;

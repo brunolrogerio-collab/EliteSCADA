@@ -15,7 +15,7 @@ public static class VisualAssetEndpoints
     public static IEndpointRouteBuilder MapVisualAssetEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapGet("/api/engineering/visual-assets", (IVisualAssetEngineeringRegistry assets) =>
-            Results.Ok(assets.SnapshotAssets()))
+            Results.Ok(assets.SnapshotAssets().Where(asset => !VisualAssetClassification.IsDynamoArtwork(asset)).ToArray()))
             .RequireWorkspaceEngineeringRead();
 
         endpoints.MapGet("/api/engineering/visual-assets/{id:guid}/content", (

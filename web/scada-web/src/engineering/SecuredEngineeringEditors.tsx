@@ -10,9 +10,11 @@ import { productTerm, type EngineeringLocale } from './i18n';
 import { TagAddressEditor } from './TagAddressEditor';
 import { TagCommissioningPanel } from './TagCommissioningPanel';
 import { TagSourceSelector } from './TagSourceSelector';
-import { TagDuplicationPanel, tagDuplicationText, type TagDuplicationPanelHandle } from './TagDuplicationPanel';
+import { TagDuplicationPanel, type TagDuplicationPanelHandle } from './TagDuplicationPanel';
+import { EngineeringResourceOrganizer, engineeringCopyName } from './EngineeringResourceOrganizer';
 import { EngineeringEntityActions } from './EngineeringEntityActions';
 import { WorkflowFormDisclosure, WorkflowFormSection } from './StructuredFormPrimitives';
+import { ALARM_SOUND_PROFILES, alarmSoundProfileLabel, isAlarmSoundProfile, playAlarmSoundProfile } from '../runtime/alarmSounds';
 import { assignTagDataSource, type TagSourceAwareEngineering } from './TagSourceSelector.logic';
 import {
   SIMULATION_DRIVER_TYPE,
@@ -44,6 +46,7 @@ const NEW_ALARM_IDENTITY = 'draft:new-alarm';
 type EditorProps = {
   model: EngineeringPackageView;
   locale: EngineeringLocale;
+  projectKey?: string;
 };
 
 type MutationState = {
@@ -57,17 +60,15 @@ type MutationState = {
   invalidate: () => void;
 };
 
-export function TagEditor({ model, locale }: EditorProps) {
+export function TagEditor({ model, locale, projectKey = 'workspace' }: EditorProps) {
   const text = useMemo(() => editorTranslator(locale), [locale]);
   const mutation = useSecuredMutation(model, locale);
-  const duplicationCopy = useMemo(() => tagDuplicationText(locale), [locale]);
   const simulationCopy = useMemo(() => simulationText(locale), [locale]);
   const tags = model.tags;
   const [query, setQuery] = useState('');
   const duplicationRef = useRef<TagDuplicationPanelHandle>(null);
   const [duplicationSelectionMode, setDuplicationSelectionMode] = useState(false);
   const [duplicationSelection, setDuplicationSelection] = useState<Set<string>>(() => new Set());
-  const [tagContextMenu, setTagContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [selectedIdentity, setSelectedIdentity] = useState<string | null>(() => tags[0] ? tagIdentity(tags[0]) : null);
   const isNew = selectedIdentity === NEW_TAG_IDENTITY;
   const selected = !isNew && selectedIdentity
@@ -104,17 +105,6 @@ export function TagEditor({ model, locale }: EditorProps) {
     const available = new Set(tags.map(tagIdentity));
     setDuplicationSelection(current => new Set([...current].filter(identity => available.has(identity))));
   }, [tags]);
-
-  useEffect(() => {
-    if (!tagContextMenu) return undefined;
-    const close = () => setTagContextMenu(null);
-    window.addEventListener('click', close);
-    window.addEventListener('blur', close);
-    return () => {
-      window.removeEventListener('click', close);
-      window.removeEventListener('blur', close);
-    };
-  }, [tagContextMenu]);
 
   const changed = draft
     ? isNew
@@ -155,16 +145,6 @@ export function TagEditor({ model, locale }: EditorProps) {
     });
   };
 
-  const runTagShortcut = (event: React.KeyboardEvent<HTMLButtonElement>) => {
-    if (!(event.ctrlKey || event.metaKey)) return;
-    const key = event.key.toLowerCase();
-    if (!['c', 'v', 'd'].includes(key)) return;
-    event.preventDefault();
-    if (key === 'c') duplicationRef.current?.copySelected();
-    if (key === 'v') duplicationRef.current?.paste();
-    if (key === 'd') duplicationRef.current?.duplicateSelected();
-  };
-
   const selectedDuplicationTags = duplicationSelectionMode
     ? tags.filter(tag => duplicationSelection.has(tagIdentity(tag))) as TagSourceAwareEngineering[]
     : selected
@@ -202,36 +182,19 @@ export function TagEditor({ model, locale }: EditorProps) {
           actionActive={isNew}
           onAction={() => chooseIdentity(NEW_TAG_IDENTITY)}
         >
-          {filtered.map(tag => {
-            const identity = tagIdentity(tag);
-            const multiSelected = duplicationSelection.has(identity);
-            const classes = [
-              identity === selectedIdentity ? 'selected' : '',
-              duplicationSelectionMode ? 'multi-select' : '',
-              multiSelected ? 'multi-selected' : ''
-            ].filter(Boolean).join(' ');
-            return (
-              <button
-                type="button"
-                className={classes}
-                aria-label={`${tag.name} (${tag.path})`}
-                aria-current={!duplicationSelectionMode && identity === selectedIdentity ? 'true' : undefined}
-                aria-pressed={duplicationSelectionMode ? multiSelected : undefined}
-                key={identity}
-                onClick={() => duplicationSelectionMode ? toggleDuplicationSelection(identity) : chooseIdentity(identity)}
-                onKeyDown={runTagShortcut}
-                onContextMenu={event => {
-                  if (duplicationSelectionMode) return;
-                  event.preventDefault();
-                  chooseIdentity(identity);
-                  setTagContextMenu({ x: event.clientX, y: event.clientY });
-                }}
-              >
-                {duplicationSelectionMode && <i className="tag-multi-check" aria-hidden="true">{multiSelected ? '✓' : ''}</i>}
-                <strong>{tag.name}</strong><span>{tag.dataType} · {tag.source ?? '—'}</span>
-              </button>
-            );
-          })}
+          <EngineeringResourceOrganizer
+            projectKey={projectKey}
+            kind="tags"
+            locale={locale}
+            label="TAGs"
+            resources={filtered.map(tag => ({ identity: tagIdentity(tag), name: tag.name, details: `${tag.dataType} · ${tag.source ?? '—'}`, value: tag }))}
+            selectedIdentity={duplicationSelectionMode ? null : selectedIdentity}
+            selectedIdentities={duplicationSelectionMode ? duplicationSelection : undefined}
+            onSelect={identity => duplicationSelectionMode ? toggleDuplicationSelection(identity) : chooseIdentity(identity)}
+            onPaste={tag => duplicationRef.current?.pasteCopied([tag as TagSourceAwareEngineering])}
+            onCopySelection={() => duplicationRef.current?.copySelected()}
+            emptyLabel={text('editor.noResults')}
+          />
         </EntityPicker>
 
         <section className="eng-editor-form-panel">
@@ -320,19 +283,6 @@ export function TagEditor({ model, locale }: EditorProps) {
           )}
         </section>
       </div>
-      {tagContextMenu && (
-        <div
-          className="tag-context-menu"
-          style={{ left: tagContextMenu.x, top: tagContextMenu.y }}
-          role="menu"
-          aria-label={duplicationCopy.toolbarLabel}
-          onClick={event => event.stopPropagation()}
-        >
-          <button type="button" role="menuitem" onClick={() => { duplicationRef.current?.copySelected(); setTagContextMenu(null); }}>{duplicationCopy.copy} <kbd>Ctrl/Cmd+C</kbd></button>
-          <button type="button" role="menuitem" onClick={() => { duplicationRef.current?.paste(); setTagContextMenu(null); }}>{duplicationCopy.paste} <kbd>Ctrl/Cmd+V</kbd></button>
-          <button type="button" role="menuitem" onClick={() => { duplicationRef.current?.duplicateSelected(); setTagContextMenu(null); }}>{duplicationCopy.duplicate} <kbd>Ctrl/Cmd+D</kbd></button>
-        </div>
-      )}
     </EditorShell>
   );
 }
@@ -456,19 +406,23 @@ export function DataSourceEditor({ model, locale }: EditorProps) {
   );
 }
 
-export function AlarmEditor({ model, locale }: EditorProps) {
+export function AlarmEditor({ model, locale, projectKey = 'workspace' }: EditorProps) {
   const text = useMemo(() => editorTranslator(locale), [locale]);
   const mutation = useSecuredMutation(model, locale);
   const alarms = model.alarms;
   const [query, setQuery] = useState('');
   const [selectedIdentity, setSelectedIdentity] = useState<string | null>(() => alarms[0] ? alarmIdentity(alarms[0]) : null);
+  const [soundPreviewError, setSoundPreviewError] = useState<string | null>(null);
+  const pendingAlarmPaste = useRef<AlarmEngineering | null>(null);
+  const soundText = alarmSoundEditorText(locale);
   const isNew = selectedIdentity === NEW_ALARM_IDENTITY;
   const selected = !isNew && selectedIdentity ? alarms.find(alarm => alarmIdentity(alarm) === selectedIdentity) ?? null : null;
   const [draft, setDraft] = useState<AlarmEngineering | null>(() => selected ? clone(selected) : null);
 
   useEffect(() => {
     if (selectedIdentity === NEW_ALARM_IDENTITY) {
-      setDraft(newAlarmDraft());
+      setDraft(pendingAlarmPaste.current ?? newAlarmDraft());
+      pendingAlarmPaste.current = null;
       mutation.invalidate();
       return;
     }
@@ -539,14 +493,27 @@ export function AlarmEditor({ model, locale }: EditorProps) {
           actionActive={isNew}
           onAction={() => chooseIdentity(NEW_ALARM_IDENTITY)}
         >
-          {filtered.map(alarm => {
-            const identity = alarmIdentity(alarm);
-            return (
-              <button type="button" className={identity === selectedIdentity ? 'selected' : ''} aria-current={identity === selectedIdentity ? 'true' : undefined} key={identity} onClick={() => chooseIdentity(identity)}>
-                <strong>{alarm.name}</strong><code>{alarm.tagPath ?? alarm.tagId ?? '—'}</code><span>{alarm.type} · {alarm.priority}</span>
-              </button>
-            );
-          })}
+          <EngineeringResourceOrganizer
+            projectKey={projectKey}
+            kind="alarms"
+            locale={locale}
+            label={locale === 'en' ? 'Alarms' : locale === 'es' ? 'Alarmas' : 'Alarmes'}
+            resources={filtered.map(alarm => ({ identity: alarmIdentity(alarm), name: alarm.name, details: `${alarm.tagPath ?? alarm.tagId ?? '—'} · ${alarm.type} · ${alarm.priority}`, value: alarm }))}
+            selectedIdentity={selectedIdentity}
+            onSelect={chooseIdentity}
+            onPaste={source => {
+              if (changed && !window.confirm(text('editor.discardConfirm'))) return;
+              const copy = clone(source);
+              delete copy.id;
+              copy.name = engineeringCopyName(source.name || 'Alarm', locale);
+              if (selectedIdentity === NEW_ALARM_IDENTITY) setDraft(copy);
+              else {
+                pendingAlarmPaste.current = copy;
+                setSelectedIdentity(NEW_ALARM_IDENTITY);
+              }
+            }}
+            emptyLabel={text('editor.noResults')}
+          />
         </EntityPicker>
 
         <section className="eng-editor-form-panel">
@@ -572,7 +539,17 @@ export function AlarmEditor({ model, locale }: EditorProps) {
                   <BooleanField label={text('editor.field.enabled')} checked={draft.enabled !== false} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, enabled: value }))} />
                   <BooleanField label={text('editor.field.requiresAcknowledgement')} checked={draft.requiresAcknowledgement !== false} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, requiresAcknowledgement: value }))} />
                   <BooleanField label={text('editor.field.shelvingAllowed')} checked={draft.shelvingAllowed !== false} onChange={value => updateAlarm(setDraft, alarm => ({ ...alarm, shelvingAllowed: value }))} />
+                  <label className="eng-editor-field"><span>{soundText.label}</span><select data-testid="alarm-sound-profile" value={isAlarmSoundProfile(draft.soundProfile) ? draft.soundProfile : 'none'} onChange={event => updateAlarm(setDraft, alarm => ({ ...alarm, soundProfile: event.currentTarget.value === 'none' ? null : event.currentTarget.value }))}>
+                    <option value="none">{soundText.none}</option>
+                    {ALARM_SOUND_PROFILES.map(profile => <option key={profile} value={profile}>{alarmSoundProfileLabel(profile, locale)}</option>)}
+                  </select></label>
+                  <div className="eng-editor-actions alarm-sound-preview-actions"><button type="button" className="secondary" data-testid="alarm-sound-preview" disabled={!isAlarmSoundProfile(draft.soundProfile)} onClick={() => {
+                    if (!isAlarmSoundProfile(draft.soundProfile)) return;
+                    setSoundPreviewError(null);
+                    void playAlarmSoundProfile(draft.soundProfile).catch(() => setSoundPreviewError(soundText.previewUnavailable));
+                  }}>{soundText.preview}</button></div>
                 </div>
+                {soundPreviewError && <p role="status">{soundPreviewError}</p>}
               </WorkflowFormDisclosure>
               <MutationActions changed={changed} mutation={mutation} onReset={reset} onPreview={() => void preview()} locale={locale} />
               <PreviewPanel mutation={mutation} locale={locale} />
@@ -851,8 +828,14 @@ function newAlarmDraft(): AlarmEngineering {
   return {
     name: '', tagPath: '', type: 'high', priority: 'medium', setpoint: null,
     digitalActiveValue: true, activationDelayMilliseconds: null,
-    requiresAcknowledgement: true, shelvingAllowed: true, enabled: true
+    requiresAcknowledgement: true, shelvingAllowed: true, enabled: true, soundProfile: null
   };
+}
+
+function alarmSoundEditorText(locale: EngineeringLocale) {
+  if (locale === 'en') return { label: 'Alarm sound', none: 'No sound (default)', preview: 'Preview sound', previewUnavailable: 'Preview could not start. Check the browser audio permission.' };
+  if (locale === 'es') return { label: 'Sonido de alarma', none: 'Sin sonido (predeterminado)', preview: 'Probar sonido', previewUnavailable: 'No se pudo reproducir. Revise el permiso de audio del navegador.' };
+  return { label: 'Som do alarme', none: 'Sem som (padrão)', preview: 'Ouvir amostra', previewUnavailable: 'Não foi possível reproduzir. Verifique a permissão de áudio do navegador.' };
 }
 
 function updateTag(setter: React.Dispatch<React.SetStateAction<TagEngineering | null>>, update: (current: TagEngineering) => TagEngineering) {

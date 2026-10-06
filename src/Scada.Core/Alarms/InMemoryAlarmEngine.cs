@@ -58,17 +58,20 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
     public IReadOnlyCollection<AlarmInstance> Snapshot(bool activeOnly = false)
     {
         var values = _instances.Values.AsEnumerable();
-        if (activeOnly) values = values.Where(x => x.State is AlarmState.Active or AlarmState.Acknowledged);
+        if (activeOnly) values = values.Where(x =>
+            x.State is AlarmState.Active or AlarmState.Acknowledged ||
+            (x.State == AlarmState.Returned && x.AcknowledgedAt is null));
         return values.OrderByDescending(x => x.Priority).ThenByDescending(x => x.LastTransition).ToArray();
     }
 
     public async ValueTask<bool> AcknowledgeAsync(Guid definitionId, string user, CancellationToken cancellationToken = default)
     {
-        if (!_instances.TryGetValue(definitionId, out var current) || current.State != AlarmState.Active) return false;
+        if (!_instances.TryGetValue(definitionId, out var current) ||
+            (current.State != AlarmState.Active && !(current.State == AlarmState.Returned && current.AcknowledgedAt is null))) return false;
         var now = DateTimeOffset.UtcNow;
         var next = current with
         {
-            State = AlarmState.Acknowledged,
+            State = current.State == AlarmState.Active ? AlarmState.Acknowledged : AlarmState.Returned,
             AcknowledgedAt = now,
             AcknowledgedBy = user,
             LastTransition = now
@@ -138,12 +141,20 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
             if (current.State == AlarmState.Shelved)
             {
                 var underlying = _shelvedUnderlyingStates.GetOrAdd(definition.Id, AlarmState.Normal);
-                _shelvedUnderlyingStates[definition.Id] = NextState(underlying, active);
-                _instances[definition.Id] = current with { LastValue = evt.Current.Value };
+                var nextUnderlying = NextState(underlying, active, current.AcknowledgedAt is not null);
+                _shelvedUnderlyingStates[definition.Id] = nextUnderlying;
+                var beginsUnderlyingActivation = active && underlying is (AlarmState.Normal or AlarmState.Returned);
+                _instances[definition.Id] = current with
+                {
+                    LastValue = evt.Current.Value,
+                    ActivatedAt = beginsUnderlyingActivation ? DateTimeOffset.UtcNow : current.ActivatedAt,
+                    AcknowledgedAt = beginsUnderlyingActivation ? null : current.AcknowledgedAt,
+                    AcknowledgedBy = beginsUnderlyingActivation ? null : current.AcknowledgedBy
+                };
                 continue;
             }
 
-            var nextState = NextState(current.State, active);
+            var nextState = NextState(current.State, active, current.AcknowledgedAt is not null);
             if (nextState == current.State)
             {
                 _instances[definition.Id] = current with { LastValue = evt.Current.Value };
@@ -151,22 +162,27 @@ public sealed class InMemoryAlarmEngine : IAlarmEngine
             }
 
             var now = DateTimeOffset.UtcNow;
+            var beginsNewActivation = active && current.State is (AlarmState.Normal or AlarmState.Returned);
             var next = current with
             {
                 State = nextState,
                 LastTransition = now,
                 LastValue = evt.Current.Value,
-                ActivatedAt = active && current.ActivatedAt is null ? now : current.ActivatedAt
+                ActivatedAt = beginsNewActivation ? now : active && current.ActivatedAt is null ? now : current.ActivatedAt,
+                AcknowledgedAt = beginsNewActivation ? null : current.AcknowledgedAt,
+                AcknowledgedBy = beginsNewActivation ? null : current.AcknowledgedBy
             };
             _instances[definition.Id] = next;
             await _eventBus.PublishAsync(new AlarmStateChanged(current, next, now));
         }
     }
 
-    private static AlarmState NextState(AlarmState current, bool active) =>
+    private static AlarmState NextState(AlarmState current, bool active, bool acknowledged) =>
         active
             ? current == AlarmState.Acknowledged ? AlarmState.Acknowledged : AlarmState.Active
-            : current is AlarmState.Active or AlarmState.Acknowledged ? AlarmState.Returned : AlarmState.Normal;
+            : current is AlarmState.Active or AlarmState.Acknowledged || (current == AlarmState.Returned && !acknowledged)
+                ? AlarmState.Returned
+                : AlarmState.Normal;
 
     private static bool IsActive(AlarmDefinition definition, TagValue value)
     {

@@ -18,6 +18,7 @@ public sealed class BuiltinVisualObjectSchemasTests
             "core.polygon",
             "core.text",
             "core.image",
+            "core.model3d",
             "core.videoPlayer",
             "core.pdfViewer",
             "core.reportLauncher",
@@ -42,6 +43,8 @@ public sealed class BuiltinVisualObjectSchemasTests
         Assert.True(BuiltinVisualObjectSchemas.SupportsAnalogFill(BuiltinVisualObjectSchemas.BezierType));
 
         Assert.True(BuiltinVisualObjectSchemas.Image.Declares(VisualPropertyKeys.AssetRef));
+        Assert.True(BuiltinVisualObjectSchemas.Model3d.Declares(VisualPropertyKeys.AssetRef));
+        Assert.True(BuiltinVisualObjectSchemas.Model3d.Declares(VisualPropertyKeys.Visible));
         Assert.True(BuiltinVisualObjectSchemas.Image.Declares(VisualPropertyKeys.ImageFit));
         Assert.True(BuiltinVisualObjectSchemas.Image.Declares(VisualPropertyKeys.ImagePositionX));
         Assert.True(BuiltinVisualObjectSchemas.Image.Declares(VisualPropertyKeys.ImageZoom));

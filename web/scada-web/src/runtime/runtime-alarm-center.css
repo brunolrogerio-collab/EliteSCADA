@@ -29,6 +29,7 @@
   cursor: pointer;
 }
 .runtime-alarm-refresh button:disabled { opacity: .55; cursor: wait; }
+.runtime-alarm-refresh button[aria-pressed="true"] { border-color: var(--app-accent); background: var(--app-selected); }
 
 .runtime-alarm-summary {
   display: grid;
@@ -125,7 +126,7 @@
 @media (max-width: 640px) {
   .runtime-alarm-center { margin: 12px; }
   .runtime-alarm-header { flex-direction: column; }
-  .runtime-alarm-refresh { width: 100%; justify-content: space-between; }
+  .runtime-alarm-refresh { width: 100%; justify-content: space-between; gap: 6px; white-space: normal; flex-wrap: wrap; }
   .runtime-alarm-summary { grid-template-columns: 1fr; }
   .runtime-alarm-row { grid-template-columns: 4px minmax(0, 1fr); }
   .runtime-alarm-row-meta { grid-column: 2; grid-template-columns: repeat(3, auto); gap: 8px; justify-content: start; justify-items: start; }

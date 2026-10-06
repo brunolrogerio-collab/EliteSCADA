@@ -3,11 +3,22 @@ using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
+using Scada.Engineering.Validation;
 
 namespace Scada.Core.Tests;
 
 public sealed class EngineeringSchemaV5Tests
 {
+    [Fact]
+    public void AlarmSoundProfile_AllowsKnownBuiltInsAndRejectsUnknownValues()
+    {
+        var valid = new AlarmEngineeringDto(null, "High pressure", null, "Plant.Pressure", AlarmType.High, AlarmPriority.High, Setpoint: 9.5);
+        var invalid = valid with { SoundProfile = "unknown-tone" };
+
+        Assert.DoesNotContain(EngineeringValidator.ValidateAlarm(valid), issue => issue.Code == "ALARM_SOUND_PROFILE_INVALID");
+        Assert.Contains(EngineeringValidator.ValidateAlarm(invalid), issue => issue.Code == "ALARM_SOUND_PROFILE_INVALID");
+    }
+
     [Fact]
     public void SchemaV5_JsonRoundTripsTagAccessPolicyAndHistorianMaximumPeriod()
     {
@@ -178,7 +189,8 @@ public sealed class EngineeringSchemaV5Tests
             {
                 ["cause"] = "discharge restriction",
                 ["instruction"] = "inspect downstream valve"
-            }));
+            },
+            soundProfile: AlarmSoundProfiles.Double));
         var service = new EngineeringExchangeService(tags, alarms);
 
         var parsed = service.ParseAlarmsCsv(service.ExportAlarmsCsv());
@@ -186,5 +198,6 @@ public sealed class EngineeringSchemaV5Tests
 
         Assert.Equal("discharge restriction", alarm.Metadata!["cause"]);
         Assert.Equal("inspect downstream valve", alarm.Metadata["instruction"]);
+        Assert.Equal(AlarmSoundProfiles.Double, alarm.SoundProfile);
     }
 }

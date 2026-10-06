@@ -87,16 +87,19 @@
 .visual-editor-canvas.is-polygon-tool .visual-editor-canvas__surface { cursor: crosshair; }
 .visual-editor-canvas.is-bezier-tool .visual-editor-canvas__surface { cursor: crosshair; }
 
-.visual-editor-canvas__surface.has-grid {
+.visual-editor-canvas__canonical-layer.has-grid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
   background-image:
     linear-gradient(to right, rgba(100, 116, 139, 0.14) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(100, 116, 139, 0.14) 1px, transparent 1px);
   background-size:
     var(--visual-editor-grid-size) var(--visual-editor-grid-size),
     var(--visual-editor-grid-size) var(--visual-editor-grid-size);
-  background-position:
-    var(--visual-editor-grid-pan-x) var(--visual-editor-grid-pan-y),
-    var(--visual-editor-grid-pan-x) var(--visual-editor-grid-pan-y);
+  background-position: 0 0;
 }
 
 .visual-editor-canvas__surface:focus-visible { box-shadow: inset 0 0 0 2px currentColor; }
@@ -224,7 +227,7 @@
   overflow: visible;
   pointer-events: none;
   z-index: 0;
-  background: var(--surface-color, #fff);
+  background-color: var(--app-bg, #fff);
 }
 
 .visual-editor-canvas__canonical-layer.is-bounded {
@@ -242,6 +245,7 @@
   background: transparent;
   box-shadow: none;
   pointer-events: none;
+  z-index: 1;
 }
 
 .visual-editor-canvas__canonical-layer .visual-editor-renderer-empty {

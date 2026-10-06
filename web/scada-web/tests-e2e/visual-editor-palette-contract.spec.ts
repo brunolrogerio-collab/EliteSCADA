@@ -55,7 +55,7 @@ test('Image and SVG symbol palette entries consume the registered assetRef contr
   expect(svgSymbol?.supportsAssetReference).toBe(true);
   expect(svgSymbol?.propertyKeys).toContain(VISUAL_PROPERTY_KEYS.assetRef);
 
-  for (const item of items.filter(item => item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.image && item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol && item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer && item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.pdfViewer)) {
+  for (const item of items.filter(item => item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.image && item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.model3d && item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.svgSymbol && item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.videoPlayer && item.objectType !== BUILTIN_VISUAL_OBJECT_TYPES.pdfViewer)) {
     expect(item.supportsAssetReference).toBe(false);
   }
 });

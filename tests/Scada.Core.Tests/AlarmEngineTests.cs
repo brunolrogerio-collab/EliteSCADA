@@ -25,6 +25,34 @@ public sealed class AlarmEngineTests
     }
 
     [Fact]
+    public async Task Unacknowledged_alarm_remains_visible_and_acknowledgeable_after_returning_to_normal()
+    {
+        IScadaEventBus bus = new InMemoryScadaEventBus();
+        var cache = new CurrentTagCache(bus);
+        using var alarms = new InMemoryAlarmEngine(bus);
+        var tag = TagDefinition.Create("Pressure", "Demo.Pressure", TagDataType.Double);
+        var definition = alarms.Register(AlarmDefinition.Create("High Pressure", tag.Id, AlarmType.High, AlarmPriority.High, 10));
+
+        await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 11.2));
+        await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 8.0));
+        await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 7.5));
+
+        var returnedUnacknowledged = Assert.Single(alarms.Snapshot(activeOnly: true));
+        Assert.Equal(AlarmState.Returned, returnedUnacknowledged.State);
+        Assert.Null(returnedUnacknowledged.AcknowledgedAt);
+        Assert.True(await alarms.AcknowledgeAsync(definition.Id, "operator"));
+        Assert.Empty(alarms.Snapshot(activeOnly: true));
+        Assert.Equal("operator", Assert.Single(alarms.Snapshot()).AcknowledgedBy);
+
+        await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 7.0));
+        await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 12.0));
+        await cache.UpdateAsync(tag, TagValue.Good(tag.Id, 8.0));
+        var nextActivationReturned = Assert.Single(alarms.Snapshot(activeOnly: true));
+        Assert.Equal(AlarmState.Returned, nextActivationReturned.State);
+        Assert.Null(nextActivationReturned.AcknowledgedAt);
+    }
+
+    [Fact]
     public async Task Shelved_alarm_stays_suppressed_and_unshelve_restores_latest_underlying_state()
     {
         IScadaEventBus bus = new InMemoryScadaEventBus();

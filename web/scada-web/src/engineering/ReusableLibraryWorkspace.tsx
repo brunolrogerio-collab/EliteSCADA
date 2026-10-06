@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { EngineeringLocale } from './i18n';
-import type { EngineeringSnapshot } from './types';
+import type { EngineeringSnapshot, VisualAssetEngineering } from './types';
 import { CanonicalVisualPreview } from './visual-editor/CanonicalVisualPreview';
+import { listUserVisualAssets } from './visualAssetCatalogModel';
 import { LibraryCatalogBrowser } from './LibraryCatalogBrowser';
 import { buildLibraryCatalogEntries, type LibraryCatalogEntry } from './libraryCatalogModel';
 import { importStaticArtwork, useStaticArtwork } from './staticArtworkApi';
@@ -469,7 +470,8 @@ function collectExportCandidates(snapshot: EngineeringSnapshot): ExportCandidate
   add('screen', model.screens, 'key');
   add('popup', model.popups, 'key');
   add('script', model.scripts, 'path');
-  add('visual-asset', model.visualAssets, 'key');
+  const visualAssets = Array.isArray(model.visualAssets) ? model.visualAssets as VisualAssetEngineering[] : [];
+  add('visual-asset', listUserVisualAssets(visualAssets), 'key');
   return result.sort((left, right) => left.kind.localeCompare(right.kind) || left.name.localeCompare(right.name));
 }
 

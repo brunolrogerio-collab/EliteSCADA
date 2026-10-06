@@ -142,11 +142,28 @@ public sealed record EspHomeEntityDescriptor(
     public bool IsProcessEntity => EntityCategory == 0;
 }
 
+public sealed record EspHomeSerialProxyCapability(
+    string Name,
+    string PortType,
+    uint ConfiguredLineStates);
+
+public sealed record EspHomeDeviceCapabilities(
+    bool BluetoothProxyPresent,
+    uint BluetoothProxyFeatureFlags,
+    string? BluetoothProxyMacAddress,
+    bool VoiceAssistantPresent,
+    uint VoiceAssistantFeatureFlags,
+    bool ZWaveProxyPresent,
+    uint ZWaveProxyFeatureFlags,
+    uint? ZWaveHomeId,
+    IReadOnlyCollection<EspHomeSerialProxyCapability> SerialProxies);
+
 public sealed record EspHomeNativeInventory(
     EspHomeApiVersion NegotiatedVersion,
     EspHomeDeviceIdentity Device,
     IReadOnlyCollection<EspHomeEntityDescriptor> Entities,
-    int UnsupportedEntityMessageCount = 0);
+    int UnsupportedEntityMessageCount = 0,
+    EspHomeDeviceCapabilities? DeviceCapabilities = null);
 
 public sealed record EspHomeStateUpdate(
     EspHomeEntityAddress Address,

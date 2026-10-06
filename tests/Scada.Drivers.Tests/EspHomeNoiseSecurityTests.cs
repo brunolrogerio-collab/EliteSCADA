@@ -86,14 +86,14 @@ public sealed class EspHomeNoiseSecurityTests
         using var client = new EspHomeNoiseSession(key);
         var clientFrames = client.CreateClientHandshakeFrames();
         var secondLength = BinaryPrimitives.ReadUInt16BigEndian(clientFrames.AsSpan(4, 2));
-        var clientHandshakeBody = clientFrames.AsSpan(6, secondLength);
+        var clientHandshakeBody = clientFrames.AsSpan(6, secondLength).ToArray();
 
         var wrongKey = (byte[])Key.Clone();
         wrongKey[0] ^= 0x5A;
         var protocol = Protocol.Parse(EspHomeNoiseContract.ProtocolName.AsSpan());
         using var responder = protocol.Create(false, EspHomeNoiseContract.Prologue, psks: new[] { wrongKey });
 
-        Assert.Throws<CryptographicException>(() => responder.ReadMessage(clientHandshakeBody[1..], Span<byte>.Empty));
+        Assert.Throws<CryptographicException>(() => responder.ReadMessage(clientHandshakeBody.AsSpan(1), Span<byte>.Empty));
     }
 
     [Fact]

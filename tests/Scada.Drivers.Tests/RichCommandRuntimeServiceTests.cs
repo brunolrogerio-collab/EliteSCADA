@@ -402,6 +402,169 @@ public sealed class RichCommandRuntimeServiceTests
     }
 
     [Fact]
+    public async Task ActiveStandbyAuthorityFixture_FencesStandbyAndAllowsActiveDispatch()
+    {
+        var authority = new ActiveStandbyAuthorityFixture(initiallyActive: false);
+        var executor = new RecordingExecutor(RichCommandOutcome.Completed);
+        var fixture = CreateFixture(
+            executor: executor,
+            authoritative: authority.CanOwnExternalEffects);
+        using var runtime = fixture.Runtime;
+
+        var standbyResult = await runtime.InvokeAsync(fixture.Invocation());
+
+        Assert.Equal(RichCommandOutcome.Rejected, standbyResult.Outcome);
+        Assert.Equal("runtime.non_authoritative", standbyResult.Code);
+        Assert.Equal(0, executor.DispatchCount);
+
+        authority.PromoteToActive();
+        var activeResult = await runtime.InvokeAsync(fixture.Invocation());
+
+        Assert.Equal(RichCommandOutcome.Completed, activeResult.Outcome);
+        Assert.Equal(1, executor.DispatchCount);
+
+        authority.DemoteToStandby();
+        var demotedResult = await runtime.InvokeAsync(fixture.Invocation());
+
+        Assert.Equal(RichCommandOutcome.Rejected, demotedResult.Outcome);
+        Assert.Equal("runtime.non_authoritative", demotedResult.Code);
+        Assert.Equal(1, executor.DispatchCount);
+    }
+
+    [Fact]
+    public async Task AdmissionBackpressure_BoundsWaitingWorkAndPhysicalConcurrency()
+    {
+        var executor = new NonCooperativeBlockingExecutor();
+        var secondDataSourceId = Guid.Parse("55600000-0000-0000-0000-000000000099");
+        var fixture = CreateFixture(
+            executor: executor,
+            additionalDefinition: CreateDefinition(Command2Id),
+            additionalBinding: CreateBinding(
+                Command2Id,
+                secondDataSourceId,
+                "independent-device"),
+            additionalExecutorDataSourceId: secondDataSourceId,
+            policy: new RichCommandRuntimePolicy(2, 1, TimeSpan.FromSeconds(5)));
+        using var runtime = fixture.Runtime;
+
+        var first = runtime.InvokeAsync(fixture.Invocation()).AsTask();
+        await executor.FirstDispatchStarted.WaitAsync(TimeSpan.FromSeconds(2));
+
+        var admittedWaitingForPhysicalSlot = runtime.InvokeAsync(
+            fixture.Invocation(commandId: Command2Id)).AsTask();
+
+        await Task.Delay(50);
+        Assert.False(admittedWaitingForPhysicalSlot.IsCompleted);
+        Assert.Equal(1, executor.DispatchCount);
+        Assert.Equal(1, executor.ActiveCount);
+        Assert.Equal(1, executor.PeakConcurrency);
+
+        var saturated = await runtime.InvokeAsync(fixture.Invocation());
+
+        Assert.Equal(RichCommandOutcome.Rejected, saturated.Outcome);
+        Assert.Equal("runtime.saturated", saturated.Code);
+        Assert.Equal(1, executor.DispatchCount);
+
+        executor.Release();
+        await Task.WhenAll(first, admittedWaitingForPhysicalSlot);
+
+        Assert.Equal(2, executor.DispatchCount);
+        Assert.Equal(1, executor.PeakConcurrency);
+        Assert.Equal(0, executor.ActiveCount);
+    }
+
+    [Fact]
+    public async Task FailoverDuringAmbiguousInflight_DoesNotReplayAndStandbyCannotDispatch()
+    {
+        var authority = new ActiveStandbyAuthorityFixture(initiallyActive: true);
+        var executor = new NonCooperativeBlockingExecutor();
+        var fixture = CreateFixture(
+            executor: executor,
+            authoritative: authority.CanOwnExternalEffects,
+            policy: new RichCommandRuntimePolicy(3, 1, TimeSpan.FromMilliseconds(100)));
+        using var runtime = fixture.Runtime;
+
+        var inflight = runtime.InvokeAsync(fixture.Invocation()).AsTask();
+        await executor.FirstDispatchStarted.WaitAsync(TimeSpan.FromSeconds(2));
+
+        authority.DemoteToStandby();
+
+        var ambiguous = await inflight.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(RichCommandOutcome.Unknown, ambiguous.Outcome);
+        Assert.Equal("execution.timeout_ambiguous", ambiguous.Code);
+        Assert.Equal(1, executor.DispatchCount);
+        Assert.Equal(1, executor.ActiveCount);
+
+        var standbyAttempt = await runtime.InvokeAsync(fixture.Invocation());
+        Assert.Equal(RichCommandOutcome.Rejected, standbyAttempt.Outcome);
+        Assert.Equal("runtime.non_authoritative", standbyAttempt.Code);
+        Assert.Equal(1, executor.DispatchCount);
+
+        authority.PromoteToActive();
+        executor.Release();
+
+        var explicitPostFailover = await runtime.InvokeAsync(
+            fixture.Invocation()).AsTask().WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal(RichCommandOutcome.Completed, explicitPostFailover.Outcome);
+        Assert.Equal(2, executor.DispatchCount);
+        Assert.Equal(1, executor.PeakConcurrency);
+    }
+
+    [Fact]
+    public async Task RestartAfterAmbiguousInflight_DoesNotReplayWithoutExplicitInvocation()
+    {
+        var authority = new ActiveStandbyAuthorityFixture(initiallyActive: true);
+        var executor = new NonCooperativeBlockingExecutor();
+        var original = CreateFixture(
+            executor: executor,
+            authoritative: authority.CanOwnExternalEffects,
+            policy: new RichCommandRuntimePolicy(2, 1, TimeSpan.FromMilliseconds(100)));
+
+        var first = original.Runtime.InvokeAsync(original.Invocation()).AsTask();
+        await executor.FirstDispatchStarted.WaitAsync(TimeSpan.FromSeconds(2));
+
+        var ambiguous = await first.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(RichCommandOutcome.Unknown, ambiguous.Outcome);
+        Assert.Equal("execution.timeout_ambiguous", ambiguous.Code);
+        Assert.Equal(1, executor.DispatchCount);
+
+        original.Runtime.Dispose();
+
+        var restarted = CreateFixture(
+            executor: executor,
+            authoritative: authority.CanOwnExternalEffects,
+            policy: new RichCommandRuntimePolicy(2, 1, TimeSpan.FromSeconds(5)));
+        using var restartedRuntime = restarted.Runtime;
+
+        await Task.Delay(100);
+        Assert.Equal(1, executor.DispatchCount);
+
+        executor.Release();
+        await Task.Delay(50);
+        Assert.Equal(1, executor.DispatchCount);
+
+        var explicitInvocation = await restartedRuntime.InvokeAsync(
+            restarted.Invocation()).AsTask().WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal(RichCommandOutcome.Completed, explicitInvocation.Outcome);
+        Assert.Equal(2, executor.DispatchCount);
+    }
+
+    [Fact]
+    public async Task StoppedRuntime_CannotAdmitNewPhysicalDispatch()
+    {
+        var executor = new RecordingExecutor(RichCommandOutcome.Completed);
+        var fixture = CreateFixture(executor: executor);
+        fixture.Runtime.Dispose();
+
+        await Assert.ThrowsAsync<ObjectDisposedException>(
+            () => fixture.Runtime.InvokeAsync(fixture.Invocation()).AsTask());
+
+        Assert.Equal(0, executor.DispatchCount);
+    }
+
+    [Fact]
     public async Task RuntimeCore_HasNoTagStateDependencyAndSynthesizesNoTag()
     {
         var fixture = CreateFixture();
@@ -877,6 +1040,17 @@ public sealed class RichCommandRuntimeServiceTests
                 RichCommandOutcome.Completed,
                 DateTimeOffset.UtcNow);
         }
+    }
+
+    private sealed class ActiveStandbyAuthorityFixture(bool initiallyActive)
+    {
+        private int _active = initiallyActive ? 1 : 0;
+
+        public bool CanOwnExternalEffects() => Volatile.Read(ref _active) == 1;
+
+        public void PromoteToActive() => Volatile.Write(ref _active, 1);
+
+        public void DemoteToStandby() => Volatile.Write(ref _active, 0);
     }
 
     private sealed class MismatchedBindingResolver : IRichCommandBindingResolver

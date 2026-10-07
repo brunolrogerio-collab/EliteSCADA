@@ -151,6 +151,64 @@ public sealed class TransientEventRuntimeDispatcherTests
     }
 
     [Fact]
+    public async Task RuntimeAuthorityFixture_ForwardingLifecycle_MapsCandidateActiveAndPreviousRuntime()
+    {
+        await using var fixture = new RuntimeAuthorityFixture(
+            authoritative: true,
+            forwardingEnabled: false);
+
+        Assert.False(fixture.Gate.ForwardingEnabled);
+
+        await fixture.Source.EmitAsync(1);
+        Assert.Equal(1, fixture.LocalPublications.Count);
+        Assert.Empty(fixture.CanonicalPublications);
+
+        fixture.Gate.EnableForwarding();
+        Assert.True(fixture.Gate.ForwardingEnabled);
+
+        await fixture.Source.EmitAsync(2);
+        Assert.Equal(2, fixture.LocalPublications.Count);
+        Assert.Equal(
+            fixture.LocalPublications[1],
+            Assert.Single(fixture.CanonicalPublications));
+
+        fixture.Gate.DisableForwarding();
+        Assert.False(fixture.Gate.ForwardingEnabled);
+
+        await fixture.Source.EmitAsync(3);
+        Assert.Equal(3, fixture.LocalPublications.Count);
+        Assert.Single(fixture.CanonicalPublications);
+    }
+
+    [Fact]
+    public async Task RuntimeAuthorityFixture_StandbyAuthority_BlocksCanonicalAndLocalPublication()
+    {
+        await using var fixture = new RuntimeAuthorityFixture(
+            authoritative: false,
+            forwardingEnabled: true);
+
+        Assert.True(fixture.Gate.ForwardingEnabled);
+
+        await fixture.Source.EmitAsync(1);
+        Assert.Empty(fixture.LocalPublications);
+        Assert.Empty(fixture.CanonicalPublications);
+
+        fixture.SetAuthoritative(true);
+        await fixture.Source.EmitAsync(2);
+
+        Assert.Equal(1, fixture.LocalPublications.Count);
+        Assert.Equal(
+            fixture.LocalPublications[0],
+            Assert.Single(fixture.CanonicalPublications));
+
+        fixture.SetAuthoritative(false);
+        await fixture.Source.EmitAsync(3);
+
+        Assert.Single(fixture.LocalPublications);
+        Assert.Single(fixture.CanonicalPublications);
+    }
+
+    [Fact]
     public async Task StopCancellation_ReturnsPromptlyAndCompletesEveryAdmittedItemExplicitly()
     {
         var definition = CreateDefinition();
@@ -253,6 +311,73 @@ public sealed class TransientEventRuntimeDispatcherTests
             observedAt ?? DateTimeOffset.UtcNow,
             occurredAt,
             new TransientEventEvidence(Sequence: sequence));
+
+    private sealed class FakeTransientEventSource
+    {
+        private readonly ITransientEventRuntimeIngress _ingress;
+        private readonly TransientEventDefinition _definition;
+
+        public FakeTransientEventSource(
+            ITransientEventRuntimeIngress ingress,
+            TransientEventDefinition definition)
+        {
+            _ingress = ingress;
+            _definition = definition;
+        }
+
+        public Task EmitAsync(long sequence) =>
+            _ingress.DispatchAsync(
+                CreateOccurrence(_definition, sequence)).AsTask();
+    }
+
+    private sealed class RuntimeAuthorityFixture : IAsyncDisposable
+    {
+        private readonly InMemoryScadaEventBus _canonicalBus = new();
+        private readonly IDisposable _localSubscription;
+        private readonly IDisposable _canonicalSubscription;
+        private int _authoritative;
+
+        public RuntimeAuthorityFixture(bool authoritative, bool forwardingEnabled)
+        {
+            _authoritative = authoritative ? 1 : 0;
+
+            var definition = CreateDefinition();
+            var resolver = new InMemoryTransientEventDefinitionResolver(new[] { definition });
+            Gate = new RuntimeEventGate(
+                _canonicalBus,
+                forwardingEnabled,
+                effectAuthority: () => Volatile.Read(ref _authoritative) == 1);
+            Dispatcher = new TransientEventRuntimeDispatcher(resolver, Gate, capacity: 4);
+            Source = new FakeTransientEventSource(Dispatcher, definition);
+
+            _localSubscription = Gate.Subscribe<TransientEventRuntimePublication>(publication =>
+            {
+                LocalPublications.Add(publication.Occurrence.EventId);
+                return ValueTask.CompletedTask;
+            });
+            _canonicalSubscription = _canonicalBus.Subscribe<TransientEventRuntimePublication>(publication =>
+            {
+                CanonicalPublications.Add(publication.Occurrence.EventId);
+                return ValueTask.CompletedTask;
+            });
+        }
+
+        public RuntimeEventGate Gate { get; }
+        public TransientEventRuntimeDispatcher Dispatcher { get; }
+        public FakeTransientEventSource Source { get; }
+        public List<Guid> LocalPublications { get; } = new();
+        public List<Guid> CanonicalPublications { get; } = new();
+
+        public void SetAuthoritative(bool authoritative) =>
+            Volatile.Write(ref _authoritative, authoritative ? 1 : 0);
+
+        public async ValueTask DisposeAsync()
+        {
+            _localSubscription.Dispose();
+            _canonicalSubscription.Dispose();
+            await Dispatcher.DisposeAsync();
+        }
+    }
 
     private sealed class RecordingEventBus : IScadaEventBus
     {

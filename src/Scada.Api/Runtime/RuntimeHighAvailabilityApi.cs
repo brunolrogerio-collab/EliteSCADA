@@ -34,11 +34,9 @@ public static class RuntimeHighAvailabilityApi
             RuntimeHighAvailabilityService highAvailability,
             CancellationToken cancellationToken) =>
         {
-            var authorization = await security.CheckRuntimeAsync(
+            var authorization = security.CheckWorkspace(
                 context,
-                runtime,
-                SecurityCapability.HighAvailabilityObserve,
-                cancellationToken: cancellationToken);
+                SecurityCapability.HighAvailabilityObserve);
             var failure = authorization.FailureResult();
             if (failure is not null) return failure;
 
@@ -55,11 +53,9 @@ public static class RuntimeHighAvailabilityApi
             RuntimeHaHostConfigurationAuthority configuration,
             CancellationToken cancellationToken) =>
         {
-            var authorization = await security.CheckRuntimeAsync(
+            var authorization = security.CheckWorkspace(
                 context,
-                runtime,
-                SecurityCapability.HighAvailabilityObserve,
-                cancellationToken: cancellationToken);
+                SecurityCapability.HighAvailabilityObserve);
             var failure = authorization.FailureResult();
             return failure ?? Results.Ok(configuration.Snapshot());
         });
@@ -277,19 +273,15 @@ public static class RuntimeHighAvailabilityApi
                 : Results.Conflict(ProjectTransfer(operation));
         });
 
-        endpoints.MapGet("/api/runtime/ha/authority", async (
+        endpoints.MapGet("/api/runtime/ha/authority", (
             HttpContext context,
-            ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
             RuntimeHighAvailabilityService highAvailability,
-            RuntimeHaProtectionCoordinator protection,
-            CancellationToken cancellationToken) =>
+            RuntimeHaProtectionCoordinator protection) =>
         {
-            var authorization = await security.CheckRuntimeAsync(
+            var authorization = security.CheckWorkspace(
                 context,
-                runtime,
-                SecurityCapability.View,
-                cancellationToken: cancellationToken);
+                SecurityCapability.View);
             var failure = authorization.FailureResult();
             if (failure is not null) return failure;
 
@@ -330,11 +322,9 @@ public static class RuntimeHighAvailabilityApi
             RuntimeHaHostConfigurationAuthority configuration,
             CancellationToken cancellationToken) =>
         {
-            var authorization = await security.CheckRuntimeAsync(
+            var authorization = security.CheckWorkspace(
                 context,
-                runtime,
-                SecurityCapability.HighAvailabilityObserve,
-                cancellationToken: cancellationToken);
+                SecurityCapability.HighAvailabilityObserve);
             var failure = authorization.FailureResult();
             if (failure is not null) return failure;
 
@@ -357,11 +347,9 @@ public static class RuntimeHighAvailabilityApi
             RuntimeHaProtectionCoordinator protection,
             CancellationToken cancellationToken) =>
         {
-            var authorization = await security.CheckRuntimeAsync(
+            var authorization = security.CheckWorkspace(
                 context,
-                runtime,
-                SecurityCapability.HighAvailabilityObserve,
-                cancellationToken: cancellationToken);
+                SecurityCapability.HighAvailabilityObserve);
             var failure = authorization.FailureResult();
             if (failure is not null) return failure;
 

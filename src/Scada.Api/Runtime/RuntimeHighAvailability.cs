@@ -1185,6 +1185,37 @@ public sealed partial class RuntimeHighAvailabilityService
         }
     }
 
+    public bool HasReadyPassiveRuntimeProjection(ScadaRuntimeDescriptor runtime)
+    {
+        ArgumentNullException.ThrowIfNull(runtime);
+        if (!Enabled || string.IsNullOrWhiteSpace(runtime.ProjectKey) || !runtime.Revision.HasValue)
+            return false;
+
+        var topology = _authority.Snapshot();
+        if (topology.AmbiguousAuthority ||
+            topology.PendingTransfer is not null ||
+            topology.EffectiveActiveNodeId is null ||
+            topology.EffectiveActiveNodeId.Equals(topology.LocalNodeId, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var local = topology.Nodes.SingleOrDefault(node =>
+            node.NodeId.Equals(topology.LocalNodeId, StringComparison.OrdinalIgnoreCase));
+        return local is
+            {
+                State: RuntimeHaState.ReadyStandby,
+                Ready: true,
+                Healthy: true,
+                SynchronizationComplete: true,
+                HaLicenseEntitled: true,
+                Fresh: true
+            } &&
+            local.Runtime.Mode.Equals(runtime.Mode, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(local.Runtime.ProjectKey, runtime.ProjectKey, StringComparison.OrdinalIgnoreCase) &&
+            local.Runtime.Revision == runtime.Revision;
+    }
+
     public void RefreshLocalReadiness(
         ScadaRuntimeDescriptor runtime,
         LicenseVerificationResult verification)

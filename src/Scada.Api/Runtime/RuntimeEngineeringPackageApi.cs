@@ -80,6 +80,7 @@ public static class RuntimeEngineeringPackageApi
             HttpContext context,
             ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
+            RuntimeHighAvailabilityService highAvailability,
             CancellationToken cancellationToken) =>
         {
             var authorizationFailure = await AuthorizeRuntimeViewAsync(
@@ -110,6 +111,15 @@ public static class RuntimeEngineeringPackageApi
             if (persistence is null) return PersistenceUnavailable();
 
             var snapshot = await persistence.LoadActiveAsync(before.ProjectKey!, cancellationToken);
+            if ((snapshot is null || snapshot.Revision != before.Revision) &&
+                highAvailability.HasReadyPassiveRuntimeProjection(before))
+            {
+                // Standby runtimes are projections of the peer's Active revision, not
+                // locally activated runtimes. The matching published copy is the local
+                // durable evidence used to serve the read-only HMI package.
+                snapshot = await persistence.LoadPublishedAsync(before.ProjectKey!, cancellationToken);
+            }
+
             if (snapshot is null)
             {
                 return Results.Conflict(new

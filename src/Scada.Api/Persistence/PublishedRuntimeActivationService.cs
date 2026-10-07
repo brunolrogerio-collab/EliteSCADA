@@ -24,6 +24,13 @@ public interface IPublishedRuntimeActivationService
         string projectKey,
         string? activatedBy = null,
         CancellationToken cancellationToken = default);
+
+    Task<PublishedRuntimeActivationOutcome> ActivateRevisionAsync(
+        string projectKey,
+        long revision,
+        string? activatedBy = null,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("This activation service does not support exact-revision activation.");
 }
 
 public sealed class PublishedRuntimeActivationService(
@@ -47,6 +54,32 @@ public sealed class PublishedRuntimeActivationService(
         if (snapshot is null)
             return new PublishedRuntimeActivationOutcome(null, null, null, null);
 
+        return await ActivateSnapshotAsync(snapshot, activatedBy, cancellationToken);
+    }
+
+    public async Task<PublishedRuntimeActivationOutcome> ActivateRevisionAsync(
+        string projectKey,
+        long revision,
+        string? activatedBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(projectKey))
+            throw new ArgumentException("Project key is required.", nameof(projectKey));
+        if (revision <= 0)
+            throw new ArgumentOutOfRangeException(nameof(revision));
+
+        var snapshot = await persistence.LoadRevisionAsync(projectKey, revision, cancellationToken);
+        if (snapshot is null)
+            return new PublishedRuntimeActivationOutcome(null, null, null, null);
+
+        return await ActivateSnapshotAsync(snapshot, activatedBy, cancellationToken);
+    }
+
+    private async Task<PublishedRuntimeActivationOutcome> ActivateSnapshotAsync(
+        EngineeringProjectSnapshot snapshot,
+        string? activatedBy,
+        CancellationToken cancellationToken)
+    {
         var package = ParseAndValidate(snapshot);
         EngineeringProjectActivation? recordedActivation = null;
 

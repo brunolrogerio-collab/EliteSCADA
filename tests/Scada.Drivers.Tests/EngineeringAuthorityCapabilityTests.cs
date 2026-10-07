@@ -42,7 +42,7 @@ public sealed class EngineeringAuthorityCapabilityTests
     }
 
     [Fact]
-    public void BuiltInDeveloperRoleCanObserveAndTransferHighAvailabilityButCannotAdministerIt()
+    public void BuiltInDeveloperRoleHasFullHighAvailabilityAccess()
     {
         using var workspace = new EngineeringWorkspace();
         var developer = workspace.SecurityPolicies.FindRoleByKey("developer");
@@ -51,7 +51,27 @@ public sealed class EngineeringAuthorityCapabilityTests
         Assert.Contains(developer!.Grants!, grant => grant.Capability == SecurityCapability.EngineeringView);
         Assert.Contains(developer.Grants!, grant => grant.Capability == SecurityCapability.HighAvailabilityObserve);
         Assert.Contains(developer.Grants!, grant => grant.Capability == SecurityCapability.HighAvailabilityTransfer);
-        Assert.DoesNotContain(developer.Grants!, grant => grant.Capability == SecurityCapability.HighAvailabilityAdmin);
+        Assert.Contains(developer.Grants!, grant => grant.Capability == SecurityCapability.HighAvailabilityAdmin);
+
+        var exchange = new EngineeringExchangeService(
+            workspace.Tags,
+            workspace.Alarms,
+            workspace.DataSources,
+            workspace.Assets,
+            workspace.Views,
+            workspace.SecurityPolicies,
+            workspace.Commands);
+        var security = new ApiAuthorizationService(
+            new NullServiceProvider(),
+            workspace,
+            exchange,
+            new ConfigurationManager { ["Authentication:Enabled"] = "true" });
+        var context = AuthenticatedContext("developer");
+
+        Assert.True(security.CheckWorkspace(context, SecurityCapability.HighAvailabilityObserve).Allowed);
+        Assert.True(security.CheckWorkspace(context, SecurityCapability.HighAvailabilityAdmin).Allowed);
+        Assert.True(security.CheckWorkspace(context, SecurityCapability.UserRoleAdmin).Allowed);
+        Assert.True(security.CheckWorkspace(context, SecurityCapability.EngineeringModify).Allowed);
     }
 
     [Fact]

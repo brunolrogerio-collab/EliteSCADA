@@ -91,6 +91,10 @@ public interface IRuntimeTagValueSnapshotRestorer
     Task<int> RestoreAuthoritativeValuesAsync(
         IReadOnlyCollection<TagValue> values,
         CancellationToken cancellationToken = default);
+
+    Task<int> ApplyPassiveAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinator, IRuntimeTagValueSnapshotRestorer
@@ -245,6 +249,44 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         }
     }
 
+    public async Task<int> ApplyPassiveAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+        await _activationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var state = Volatile.Read(ref _active);
+            if (!state.PassiveProjection || state.EventGate.ForwardingEnabled)
+                throw new InvalidOperationException(
+                    "Peer TAG values can only be applied to a fenced passive Runtime projection.");
+
+            var restored = 0;
+            foreach (var incoming in values)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!state.Registry.TryGet(incoming.TagId, out var tag) || tag is null)
+                {
+                    throw new InvalidOperationException(
+                        $"HA value snapshot contains TAG '{incoming.TagId}' that is not present in the passive runtime.");
+                }
+
+                await state.Cache.UpdateAsync(
+                    tag,
+                    NormalizeSnapshotValue(tag, incoming),
+                    cancellationToken);
+                restored++;
+            }
+
+            return restored;
+        }
+        finally
+        {
+            _activationGate.Release();
+        }
+    }
+
     private static TagValue NormalizeSnapshotValue(TagDefinition tag, TagValue value)
     {
         if (value.Value is not JsonElement json) return value;
@@ -340,6 +382,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                 }
 
                 candidate.ActivatedAtUtc = authoritativeActivatedAtUtc?.ToUniversalTime();
+                candidate.PassiveProjection = true;
 
                 var previous = Volatile.Read(ref _active);
                 previous.EventGate.DisableForwarding();
@@ -591,7 +634,6 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 
                 await StartRuntimeSourcesAsync(
                     candidate,
-                    cancellationToken,
                     handover.CandidateDrivers);
 
                 var preHandoverReady = await WaitUntilReadyAsync(
@@ -617,7 +659,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                         cancellationToken);
                 }
 
-                await StartDriversAsync(handover.CandidateDrivers, cancellationToken);
+                await StartDriversAsync(handover.CandidateDrivers);
 
                 var ready = await WaitUntilReadyAsync(candidate, cancellationToken);
                 if (!ready)
@@ -814,11 +856,10 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 
     private static async Task StartRuntimeSourcesAsync(
         RuntimeState state,
-        CancellationToken cancellationToken,
         IReadOnlyCollection<ICommunicationDriver>? excludedDrivers = null)
     {
         foreach (var source in state.ServerMemorySources)
-            await source.ActivateAsync(cancellationToken);
+            await source.ActivateAsync(CancellationToken.None);
 
         var excluded = excludedDrivers is null
             ? null
@@ -826,16 +867,18 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         foreach (var driver in state.Drivers)
         {
             if (excluded?.Contains(driver) == true) continue;
-            await driver.StartAsync(cancellationToken);
+            // A driver is owned by the committed Runtime, not by the HTTP request
+            // (or other caller) that activated it. Passing the activation token here
+            // can silently stop its polling loop as soon as that request completes.
+            await driver.StartAsync(CancellationToken.None);
         }
     }
 
     private static async Task StartDriversAsync(
-        IReadOnlyCollection<ICommunicationDriver> drivers,
-        CancellationToken cancellationToken)
+        IReadOnlyCollection<ICommunicationDriver> drivers)
     {
         foreach (var driver in drivers)
-            await driver.StartAsync(cancellationToken);
+            await driver.StartAsync(CancellationToken.None);
     }
 
     private static async Task<IReadOnlyCollection<ICommunicationDriver>> StopDriversForHandoverAsync(
@@ -1159,6 +1202,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         public long? Revision { get; }
         public EngineeringPackage? Application { get; }
         public DateTimeOffset? ActivatedAtUtc { get; set; }
+        public bool PassiveProjection { get; set; }
         public RuntimeEventGate EventGate { get; }
         public InMemoryTagRegistry Registry { get; }
         public CurrentTagCache Cache { get; }

@@ -1,4 +1,22 @@
 services:
+  database-b:
+    image: timescale/timescaledb:2.29.2-pg18
+    environment:
+      POSTGRES_DB: elitescada
+      POSTGRES_USER: elitescada
+      POSTGRES_PASSWORD: ${HA_TEST_DB_PASSWORD:?Set HA_TEST_DB_PASSWORD}
+    ports:
+      - "127.0.0.1:15434:5432"
+    volumes:
+      - ha_capacity_database_b:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
   api-a:
     build:
       context: 'C:/Users/Bruno Rogerio/Documents/Codex/EliteSCADA-ha-restart-epoch-recovery-20261006'
@@ -7,8 +25,13 @@ services:
       DatabaseTopology__Secrets__MasterKeyBase64: ${HA_TEST_DATABASE_SECRET_KEY_BASE64:?Set HA_TEST_DATABASE_SECRET_KEY_BASE64}
 
   api-b:
+    depends_on:
+      database-b:
+        condition: service_healthy
     environment:
       DatabaseTopology__Secrets__MasterKeyBase64: ${HA_TEST_DATABASE_SECRET_KEY_BASE64:?Set HA_TEST_DATABASE_SECRET_KEY_BASE64}
+      ConnectionStrings__EliteScada: "Host=database-b;Port=5432;Database=elitescada;Username=elitescada;Password=${HA_TEST_DB_PASSWORD:?Set HA_TEST_DB_PASSWORD};Pooling=true"
+      ConnectionStrings__Historian: "Host=database-b;Port=5432;Database=elitescada;Username=elitescada;Password=${HA_TEST_DB_PASSWORD:?Set HA_TEST_DB_PASSWORD};Pooling=true"
     volumes:
       - ha_capacity_api_b_data:/app/data
 
@@ -44,6 +67,8 @@ services:
       start_period: 10s
 
 volumes:
+  ha_capacity_database_b:
+    name: elitescada-ha-capacity-node-b-database-20261007
   ha_capacity_reference_store:
     name: elitescada-ha-capacity-reference-recovery-r6-20261007
   ha_capacity_api_b_data:

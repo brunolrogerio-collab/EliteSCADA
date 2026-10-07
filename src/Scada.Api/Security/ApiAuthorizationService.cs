@@ -92,9 +92,14 @@ public sealed class ApiAuthorizationService
     public ApiAuthorizationCheck CheckWorkspace(
         HttpContext context,
         SecurityCapability capability,
+        AuthorizationResource? resource = null) =>
+        CheckWorkspace(GetPrincipal(context), capability, resource);
+
+    public ApiAuthorizationCheck CheckWorkspace(
+        SecurityPrincipal principal,
+        SecurityCapability capability,
         AuthorizationResource? resource = null)
     {
-        var principal = GetPrincipal(context);
         if (!principal.IsAuthenticated || string.IsNullOrWhiteSpace(principal.SubjectId))
             return new ApiAuthorizationCheck(principal, null);
 
@@ -359,6 +364,13 @@ public sealed class ApiAuthorizationService
             cancellationToken: cancellationToken);
         if (!view.Allowed) return (view, null);
 
+        if (requestedClass == RuntimeConnectionClass.ViewOnly)
+        {
+            return (
+                view,
+                RuntimeSessionAdmissionPolicy.Resolve(requestedClass, Array.Empty<AuthorizationDecision>()));
+        }
+
         var decisions = new List<AuthorizationDecision>();
 
         // Command and TAG grants may be hierarchy-scoped. Evaluate concrete Runtime resources so
@@ -374,15 +386,35 @@ public sealed class ApiAuthorizationService
             if (commandCheck.Decision is not null) decisions.Add(commandCheck.Decision);
         }
 
-        foreach (var tag in runtime.Tags().Where(tag => !tag.ReadOnly))
+        var writableTags = runtime.Tags().Where(tag => !tag.ReadOnly).ToArray();
+        if (writableTags.Length > 0)
         {
-            var writeCheck = await CheckRuntimeTagAsync(
+            var globalWriteCheck = await CheckRuntimeAsync(
                 principal,
                 runtime,
-                tag,
-                TagAccessOperation.Write,
-                cancellationToken);
-            if (writeCheck.Decision is not null) decisions.Add(writeCheck.Decision);
+                SecurityCapability.ProcessValueWrite,
+                cancellationToken: cancellationToken);
+            if (globalWriteCheck.Decision is not null) decisions.Add(globalWriteCheck.Decision);
+
+            // A global capability grant covers all writable TAGs without explicit TAG-level
+            // restrictions. Avoid reloading/evaluating the same Runtime policy thousands of
+            // times for large projects; retain per-TAG evaluation for scoped grants and explicit
+            // WriteRoles restrictions.
+            var hasUnrestrictedTag = writableTags.Any(tag => tag.AccessPolicy?.WriteRoles is null);
+            if (!globalWriteCheck.Allowed || !hasUnrestrictedTag)
+            {
+                foreach (var tag in writableTags)
+                {
+                    var writeCheck = await CheckRuntimeTagAsync(
+                        principal,
+                        runtime,
+                        tag,
+                        TagAccessOperation.Write,
+                        cancellationToken);
+                    if (writeCheck.Decision is not null) decisions.Add(writeCheck.Decision);
+                    if (writeCheck.Allowed) break;
+                }
+            }
         }
 
         foreach (var capability in new[]
@@ -507,6 +539,19 @@ public sealed class ApiAuthorizationService
         if (persistence is null) return null;
 
         var snapshot = await persistence.LoadActiveAsync(descriptor.ProjectKey, cancellationToken);
+        if (snapshot is null || snapshot.Revision != descriptor.Revision)
+        {
+            var highAvailability = services.GetService<RuntimeHighAvailabilityService>();
+            if (highAvailability?.HasReadyPassiveRuntimeProjection(descriptor) != true)
+                return null;
+
+            // A Standby materializes the authoritative Active Runtime as a read-only
+            // projection; it must not acquire a local Active revision. Resolve the
+            // matching published copy only after HA proves the passive identity is
+            // current, synchronized, licensed, and still fenced from Active authority.
+            snapshot = await persistence.LoadPublishedAsync(descriptor.ProjectKey, cancellationToken);
+        }
+
         if (snapshot is null || snapshot.Revision != descriptor.Revision) return null;
 
         var activeAuthority = authorityPolicies.Snapshot();

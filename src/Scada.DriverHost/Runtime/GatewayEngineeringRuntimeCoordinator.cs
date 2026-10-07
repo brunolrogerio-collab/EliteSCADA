@@ -55,6 +55,11 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
         CancellationToken cancellationToken = default) =>
         _inner.RestoreAuthoritativeValuesAsync(values, cancellationToken);
 
+    public Task<int> ApplyPassiveAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default) =>
+        _inner.ApplyPassiveAuthoritativeValuesAsync(values, cancellationToken);
+
     public EngineeringPackage? CaptureApplication() => _inner.CaptureApplication();
 
     public async Task<RuntimeActivationResult> MaterializePassiveAsync(

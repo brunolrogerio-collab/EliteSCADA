@@ -188,6 +188,61 @@ public sealed class EngineeringRuntimeInternalMemoryTests
     }
 
     [Fact]
+    public async Task ApplyPassiveAuthoritativeValuesAsync_HydratesOnlyPassiveCacheWithoutRetainingOrForwarding()
+    {
+        var tagId = Guid.NewGuid();
+        var retention = new InMemoryServerMemoryRetentionStore();
+        var bus = new InMemoryScadaEventBus();
+        var observedTagEvents = 0;
+        using var subscription = bus.Subscribe<TagValueChanged>(_ =>
+        {
+            Interlocked.Increment(ref observedTagEvents);
+            return ValueTask.CompletedTask;
+        });
+        await using var standby = new EngineeringRuntimeCoordinator(
+            bus,
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromSeconds(1),
+            retention);
+
+        Assert.True((await standby.MaterializePassiveAsync(
+            "memory-project",
+            7,
+            ServerPackage(tagId, Guid.NewGuid(), "Plant.PassiveCounter", 5),
+            DateTimeOffset.UtcNow.AddMinutes(-1))).Activated);
+
+        var timestamp = DateTimeOffset.UtcNow;
+        var applied = await standby.ApplyPassiveAuthoritativeValuesAsync(new[]
+        {
+            new TagValue(
+                tagId,
+                JsonSerializer.SerializeToElement(42),
+                timestamp,
+                TagQuality.Good,
+                "node-a")
+        });
+
+        Assert.Equal(1, applied);
+        Assert.True(standby.TryGetCurrent(tagId, out var current));
+        Assert.Equal(42, current!.Value);
+        Assert.Equal(timestamp, current.Timestamp);
+        Assert.Equal("node-a", current.Source);
+        Assert.Equal(0, Volatile.Read(ref observedTagEvents));
+
+        await using var active = new EngineeringRuntimeCoordinator(
+            new InMemoryScadaEventBus(),
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromSeconds(1),
+            retention);
+        Assert.True((await active.ActivateAsync(
+            "memory-project",
+            8,
+            ServerPackage(tagId, Guid.NewGuid(), "Plant.PassiveCounter", 5))).Activated);
+        Assert.True(active.TryGetCurrent(tagId, out var activeInitial));
+        Assert.Equal(5, activeInitial!.Value);
+    }
+
+    [Fact]
     public async Task ActivateAsync_ClientMemoryOnlyDoesNotCreateServerGlobalTagState()
     {
         var tagId = Guid.NewGuid();

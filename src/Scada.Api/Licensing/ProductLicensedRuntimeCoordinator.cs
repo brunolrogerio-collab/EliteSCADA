@@ -143,6 +143,13 @@ public sealed class ProductLicensedRuntimeCoordinator :
             ? restorer.RestoreAuthoritativeValuesAsync(values, cancellationToken)
             : throw new InvalidOperationException("The active runtime does not support HA value snapshot restoration.");
 
+    public Task<int> ApplyPassiveAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default) =>
+        Current is IRuntimeTagValueSnapshotRestorer restorer
+            ? restorer.ApplyPassiveAuthoritativeValuesAsync(values, cancellationToken)
+            : throw new InvalidOperationException("The active runtime does not support passive HA value projection.");
+
     public EngineeringPackage? CaptureApplication() =>
         Current is GatewayEngineeringRuntimeCoordinator gateway
             ? gateway.CaptureApplication()

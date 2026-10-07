@@ -42,6 +42,15 @@ public interface IEngineeringProjectPersistenceService
         string projectKey,
         CancellationToken cancellationToken = default);
 
+    async Task<EngineeringProjectSnapshot?> LoadRevisionAsync(
+        string projectKey,
+        long revision,
+        CancellationToken cancellationToken = default)
+    {
+        var published = await LoadPublishedAsync(projectKey, cancellationToken);
+        return published?.Revision == revision ? published : null;
+    }
+
     Task<EngineeringProjectSnapshot?> LoadActiveAsync(
         string projectKey,
         CancellationToken cancellationToken = default);
@@ -171,6 +180,12 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
             ? null
             : await _store.LoadRevisionAsync(projectKey, publication.PublishedRevision, cancellationToken);
     }
+
+    public Task<EngineeringProjectSnapshot?> LoadRevisionAsync(
+        string projectKey,
+        long revision,
+        CancellationToken cancellationToken = default) =>
+        _store.LoadRevisionAsync(projectKey, revision, cancellationToken);
 
     public async Task<EngineeringProjectSnapshot?> LoadActiveAsync(
         string projectKey,

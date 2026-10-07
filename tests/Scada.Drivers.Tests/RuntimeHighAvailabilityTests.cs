@@ -270,6 +270,39 @@ public sealed class RuntimeHighAvailabilityTests
     }
 
     [Fact]
+    public void ReadyStandbyRuntimeProjection_IsReadableOnlyForFreshSynchronizedPeerIdentity()
+    {
+        var clock = new MutableClock(DateTimeOffset.Parse("2026-10-02T12:00:00Z"));
+        var service = new RuntimeHighAvailabilityService(
+            CreateTopology("node-b"),
+            () => clock.UtcNow,
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"));
+        var runtime = new ScadaRuntimeDescriptor(
+            "engineering",
+            "project-a",
+            7,
+            clock.UtcNow,
+            Array.Empty<Scada.Drivers.Abstractions.DriverStatus>(),
+            Array.Empty<Scada.Drivers.Abstractions.CommunicationDriverDiagnosticSnapshot>(),
+            0,
+            0);
+
+        service.Authority.UpdateNodeReadiness(
+            "node-a",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+        service.Authority.UpdateNodeReadiness(
+            "node-b",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+
+        Assert.True(service.HasReadyPassiveRuntimeProjection(runtime));
+        Assert.False(service.HasReadyPassiveRuntimeProjection(runtime with { Revision = 8 }));
+        Assert.False(service.HasReadyPassiveRuntimeProjection(runtime with { ProjectKey = "other-project" }));
+
+        clock.Advance(TimeSpan.FromSeconds(16));
+        Assert.False(service.HasReadyPassiveRuntimeProjection(runtime));
+    }
+
+    [Fact]
     public void RuntimeActivationRefresh_PublishesTheMaterializedIdentityBeforeHaStateRestore()
     {
         var now = DateTimeOffset.Parse("2026-10-02T12:00:00Z");

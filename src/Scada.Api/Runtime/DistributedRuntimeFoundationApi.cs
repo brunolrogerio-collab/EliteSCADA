@@ -64,7 +64,11 @@ public static class DistributedRuntimeFoundationApi
             if (decision is null) return Results.Forbid();
 
             if (highAvailability.Enabled && !highAvailability.CanOwnIndustrialEffects())
-                return HaAuthorityRequired(highAvailability);
+            {
+                if (!highAvailability.HasReadyPassiveRuntimeProjection(runtime.Describe()))
+                    return HaAuthorityRequired(highAvailability);
+                decision = RuntimeSessionAdmissionPolicy.DownscopeForHighAvailabilityStandby(decision);
+            }
 
             for (var attempt = 0; attempt < MaximumAuthorityAdmissionAttempts; attempt++)
             {
@@ -159,7 +163,21 @@ public static class DistributedRuntimeFoundationApi
             if (authorityFailure is not null) return authorityFailure;
 
             if (highAvailability.Enabled && !highAvailability.CanOwnIndustrialEffects())
-                return HaAuthorityRequired(highAvailability);
+            {
+                var existingLease = await security.ValidateRuntimeSessionAsync(
+                    principal,
+                    runtime,
+                    sessionId,
+                    request.ClientInstanceId,
+                    cancellationToken);
+                if (!existingLease.IsValid || existingLease.Lease is null)
+                    return LeaseFailure(existingLease);
+                if (existingLease.Lease.ConnectionClass != RuntimeConnectionClass.ViewOnly ||
+                    !highAvailability.HasReadyPassiveRuntimeProjection(runtime.Describe()))
+                {
+                    return HaAuthorityRequired(highAvailability);
+                }
+            }
 
             var validation = await security.RuntimeSessions.HeartbeatAsync(
                 sessionId,

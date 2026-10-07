@@ -111,7 +111,7 @@ public static class AuthorityPolicyAdministrationApi
 
     private static async Task<(ApiAuthorizationCheck? Check, IResult? Failure)> AuthorizeReadAsync(HttpContext context, ScadaRuntimeFacade runtime, ApiAuthorizationService security, ApiAuditService audit, string action, CancellationToken ct)
     {
-        var admin = await security.CheckRuntimeAsync(context, runtime, SecurityCapability.UserRoleAdmin, cancellationToken: ct);
+        var admin = security.CheckWorkspace(context, SecurityCapability.UserRoleAdmin);
         if (admin.Allowed) return (admin, null);
         var failure = admin.FailureResult() ?? Results.StatusCode(StatusCodes.Status403Forbidden);
         await audit.RecordAuthorizationDeniedAsync(context, admin, action, "authority-policy", "read", new Dictionary<string, string> { ["requiredCapabilities"] = "UserRoleAdmin" });
@@ -120,11 +120,11 @@ public static class AuthorityPolicyAdministrationApi
 
     private static async Task<(ApiAuthorizationCheck? Check, IResult? Failure)> AuthorizeMutationAsync(HttpContext context, ScadaRuntimeFacade runtime, ApiAuthorizationService security, ApiAuditService audit, string action, CancellationToken ct)
     {
-        var roleAdmin = await security.CheckRuntimeAsync(context, runtime, SecurityCapability.UserRoleAdmin, cancellationToken: ct);
+        var roleAdmin = security.CheckWorkspace(context, SecurityCapability.UserRoleAdmin);
         var adminSatisfied = roleAdmin.Allowed;
         if (!adminSatisfied && roleAdmin.IsAuthenticated)
-            adminSatisfied = (await security.CheckRuntimeAsync(context, runtime, SecurityCapability.SystemAdmin, cancellationToken: ct)).Allowed;
-        var engineering = await security.CheckRuntimeAsync(context, runtime, SecurityCapability.EngineeringModify, cancellationToken: ct);
+            adminSatisfied = security.CheckWorkspace(context, SecurityCapability.SystemAdmin).Allowed;
+        var engineering = security.CheckWorkspace(context, SecurityCapability.EngineeringModify);
         if (adminSatisfied && engineering.Allowed) return (roleAdmin, null);
         var failure = roleAdmin.FailureResult() ?? engineering.FailureResult() ?? Results.StatusCode(StatusCodes.Status403Forbidden);
         await audit.RecordAuthorizationDeniedAsync(context, roleAdmin, action, "authority-policy", "mutation", new Dictionary<string, string> { ["requiredCapabilities"] = "UserRoleAdmin|SystemAdmin AND EngineeringModify" });

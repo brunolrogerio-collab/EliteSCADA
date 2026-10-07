@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Scada.Api.Persistence;
 using Scada.Core.Tags;
 using Scada.Security.Authorization;
 
@@ -489,6 +490,7 @@ public sealed class RuntimeHaProtectionCoordinator
     private readonly RuntimeHaPeerTransportState _peerTransport;
     private readonly RuntimeHaPeerMirrorStore _mirror;
     private readonly HighAvailabilityRuntimeCoordinator _runtime;
+    private readonly IPublishedRuntimeActivationService? _runtimeActivation;
     private readonly IRuntimeSessionLeaseStore _sessions;
     private readonly RuntimeHaHostConfigurationAuthority? _hostConfiguration;
     private readonly Func<DateTimeOffset> _utcNow;
@@ -511,7 +513,8 @@ public sealed class RuntimeHaProtectionCoordinator
         IRuntimeSessionLeaseStore sessions,
         RuntimeHaHostConfigurationAuthority? hostConfiguration = null,
         IRuntimeHaProtectionOperationHistoryStore? operationHistoryStore = null,
-        ILogger<RuntimeHaProtectionCoordinator>? logger = null)
+        ILogger<RuntimeHaProtectionCoordinator>? logger = null,
+        IPublishedRuntimeActivationService? runtimeActivation = null)
         : this(
             options,
             highAvailability,
@@ -523,7 +526,8 @@ public sealed class RuntimeHaProtectionCoordinator
             () => DateTimeOffset.UtcNow,
             hostConfiguration,
             operationHistoryStore,
-            logger)
+            logger,
+            runtimeActivation)
     {
     }
 
@@ -538,7 +542,8 @@ public sealed class RuntimeHaProtectionCoordinator
         Func<DateTimeOffset> utcNow,
         RuntimeHaHostConfigurationAuthority? hostConfiguration = null,
         IRuntimeHaProtectionOperationHistoryStore? operationHistoryStore = null,
-        ILogger<RuntimeHaProtectionCoordinator>? logger = null)
+        ILogger<RuntimeHaProtectionCoordinator>? logger = null,
+        IPublishedRuntimeActivationService? runtimeActivation = null)
     {
         _options = options;
         _highAvailability = highAvailability;
@@ -546,6 +551,7 @@ public sealed class RuntimeHaProtectionCoordinator
         _peerTransport = peerTransport;
         _mirror = mirror;
         _runtime = runtime;
+        _runtimeActivation = runtimeActivation;
         _sessions = sessions;
         _hostConfiguration = hostConfiguration;
         _utcNow = utcNow;
@@ -835,8 +841,13 @@ public sealed class RuntimeHaProtectionCoordinator
                             {
                                 throw;
                             }
-                            catch
+                            catch (Exception exception)
                             {
+                                _logger?.LogError(
+                                    exception,
+                                    "HA session rebind failed after active runtime promotion for node {NodeId} at epoch {Epoch}.",
+                                    localNodeId,
+                                    reference.Epoch);
                                 return "takeover-session-rebind-failed";
                             }
 
@@ -1309,8 +1320,13 @@ public sealed class RuntimeHaProtectionCoordinator
                 {
                     throw;
                 }
-                catch
+                catch (Exception exception)
                 {
+                    _logger?.LogError(
+                        exception,
+                        "HA session rebind failed after referenced authority promotion for node {NodeId} at epoch {Epoch}.",
+                        _highAvailability.LocalNodeId,
+                        authority.Epoch);
                     return "takeover-session-rebind-failed";
                 }
 
@@ -1344,16 +1360,34 @@ public sealed class RuntimeHaProtectionCoordinator
             return "takeover-state-unavailable";
         }
 
+        if (_runtimeActivation is not null)
+        {
+            var outcome = await _runtimeActivation.ActivateRevisionAsync(
+                state.Runtime.ProjectKey,
+                state.Runtime.Revision.Value,
+                $"ha-takeover:{_highAvailability.LocalNodeId ?? "unknown-node"}",
+                cancellationToken);
+            if (!outcome.Found)
+                return "takeover-persisted-revision-unavailable";
+            if (!outcome.Activated)
+            {
+                return outcome.Runtime?.RuntimeIssues.FirstOrDefault(issue => issue.IsError)?.Code
+                    ?? "takeover-runtime-activation-failed";
+            }
+
+            return null;
+        }
+
+        // Standalone/in-memory hosts can run without engineering persistence. HA
+        // deployments with persistence use the durable activation service above.
         var activation = await _runtime.ActivateAsync(
             state.Runtime.ProjectKey,
             state.Runtime.Revision.Value,
             state.Application,
             cancellationToken);
         if (!activation.Activated)
-        {
             return activation.RuntimeIssues.FirstOrDefault(issue => issue.IsError)?.Code
                 ?? "takeover-runtime-activation-failed";
-        }
 
         return null;
     }

@@ -50,6 +50,53 @@ public sealed class HighAvailabilityRuntimeCoordinator(
         return inner.RestoreAuthoritativeValuesAsync(values, cancellationToken);
     }
 
+    public Task<int> ApplyPassiveAuthoritativeValuesAsync(
+        string sourceNodeId,
+        string projectKey,
+        long revision,
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceNodeId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectKey);
+        ArgumentNullException.ThrowIfNull(values);
+
+        var topology = highAvailability.Snapshot();
+        if (!highAvailability.Enabled ||
+            topology.AmbiguousAuthority ||
+            topology.PendingTransfer is not null ||
+            highAvailability.CanOwnIndustrialEffects() ||
+            highAvailability.LocalNodeId is null ||
+            sourceNodeId.Equals(highAvailability.LocalNodeId, StringComparison.OrdinalIgnoreCase) ||
+            topology.EffectiveActiveNodeId is null ||
+            !topology.EffectiveActiveNodeId.Equals(sourceNodeId.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Peer TAG values are accepted only from the effective HA Active while this node is fenced as passive.");
+        }
+
+        var verification = licensing.CurrentVerification;
+        if (verification.State != LicenseState.Valid ||
+            verification.SessionEntitlements?.HaRuntime != true)
+        {
+            throw new InvalidOperationException("Peer TAG values require a valid HA Runtime entitlement on the passive node.");
+        }
+
+        var runtime = inner.Describe();
+        if (runtime.Revision != revision ||
+            !string.Equals(runtime.ProjectKey, projectKey.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Peer TAG values do not match the materialized passive Runtime identity.");
+        }
+
+        return inner.ApplyPassiveAuthoritativeValuesAsync(values, cancellationToken);
+    }
+
+    Task<int> IRuntimeTagValueSnapshotRestorer.ApplyPassiveAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken) =>
+        throw new InvalidOperationException(
+            "Passive HA value projection requires the authenticated effective-active peer identity.");
+
     public EngineeringPackage? CaptureApplication() => inner.CaptureApplication();
 
     public async Task<RuntimeActivationResult> MaterializePassiveAsync(

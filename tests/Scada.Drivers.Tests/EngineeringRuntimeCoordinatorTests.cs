@@ -85,6 +85,40 @@ public sealed class EngineeringRuntimeCoordinatorTests
     }
 
     [Fact]
+    public async Task ActivateAsync_DriverPollingOutlivesActivationRequestCancellation()
+    {
+        await using var server = new TestModbusTcpServer();
+        server.HoldingRegisters[10] = 123;
+        server.Start();
+
+        var tagId = Guid.NewGuid();
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            new InMemoryScadaEventBus(),
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromSeconds(2));
+        using var activationCancellation = new CancellationTokenSource();
+
+        var result = await runtime.ActivateAsync(
+            "plant-a",
+            1,
+            CreatePackage(server.Port, tagId, Guid.NewGuid(), "holding:10"),
+            activationCancellation.Token);
+
+        Assert.True(result.Activated);
+        activationCancellation.Cancel();
+        server.HoldingRegisters[10] = 234;
+
+        await WaitForAsync(
+            () => runtime.TryGetCurrent(tagId, out var current) &&
+                  current?.Quality == TagQuality.Good &&
+                  Convert.ToDouble(current.Value) == 234d,
+            TimeSpan.FromSeconds(3));
+
+        var diagnostics = Assert.Single(runtime.Describe().CommunicationDrivers);
+        Assert.True(diagnostics.Counters.Cycles >= 2);
+    }
+
+    [Fact]
     public async Task ActivateAsync_FailedCandidateKeepsPreviousRuntimeAndDoesNotLeakCandidateEvents()
     {
         await using var healthyServer = new TestModbusTcpServer();

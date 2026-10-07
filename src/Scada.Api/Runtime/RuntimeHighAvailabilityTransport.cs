@@ -1063,9 +1063,53 @@ public sealed class RuntimeHaPeerReplicationCoordinator
                     var reason = materialized.RuntimeIssues
                         .FirstOrDefault(issue => issue.IsError)?.Code
                         ?? "passive-runtime-materialization-failed";
+                    _logger.LogWarning(
+                        "HA node {NodeId} could not materialize passive Runtime from peer {SourceNodeId} for project {ProjectKey} revision {Revision}: {ReasonCode}; compilationErrors={CompilationErrorCodes}; runtimeErrors={RuntimeErrorCodes}.",
+                        _highAvailability.LocalNodeId,
+                        envelope.SourceNodeId,
+                        authoritativeState.Runtime.ProjectKey,
+                        authoritativeState.Runtime.Revision,
+                        reason,
+                        string.Join(" | ", materialized.CompilationIssues.Where(issue => issue.IsError).Select(issue => $"{issue.Code}: {issue.Message}")),
+                        string.Join(" | ", materialized.RuntimeIssues.Where(issue => issue.IsError).Select(issue => $"{issue.Code}: {issue.Message}")));
                     _transportState.RecordFailure(reason);
                     RefreshLocalReadiness();
                     return Conflict(reason, envelope.ReplicationSequence);
+                }
+
+                try
+                {
+                    var projectedValues = authoritativeState.Tags
+                        .Select(value => new TagValue(
+                            value.TagId,
+                            value.Value,
+                            value.Timestamp,
+                            value.Quality,
+                            value.Source)
+                        {
+                            SourceTimestamp = value.SourceTimestamp,
+                            ServerTimestamp = value.ServerTimestamp
+                        })
+                        .ToArray();
+                    await _runtimeCoordinator.ApplyPassiveAuthoritativeValuesAsync(
+                        envelope.SourceNodeId,
+                        authoritativeState.Runtime.ProjectKey,
+                        authoritativeState.Runtime.Revision.Value,
+                        projectedValues,
+                        cancellationToken);
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "HA node {NodeId} rejected authoritative TAG projection from peer {SourceNodeId} for project {ProjectKey} revision {Revision}.",
+                        _highAvailability.LocalNodeId,
+                        envelope.SourceNodeId,
+                        authoritativeState.Runtime.ProjectKey,
+                        authoritativeState.Runtime.Revision);
+                    _transportState.RecordFailure("peer-tag-projection-rejected");
+                    RefreshLocalReadiness();
+                    return Conflict("peer-tag-projection-rejected", envelope.ReplicationSequence);
                 }
 
                 var sessionFailure = await ApplySessionStateAsync(
@@ -1659,18 +1703,14 @@ public static class RuntimeHighAvailabilityPeerTransportComposition
                 CancellationToken cancellationToken) =>
                 await coordinator.ReceiveAsync(request, cancellationToken));
 
-        endpoints.MapGet("/api/runtime/ha/peer/status", async (
+        endpoints.MapGet("/api/runtime/ha/peer/status", (
             HttpContext context,
-            ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
-            RuntimeHaPeerReplicationCoordinator coordinator,
-            CancellationToken cancellationToken) =>
+            RuntimeHaPeerReplicationCoordinator coordinator) =>
         {
-            var authorization = await security.CheckRuntimeAsync(
+            var authorization = security.CheckWorkspace(
                 context,
-                runtime,
-                Scada.Security.Authorization.SecurityCapability.HighAvailabilityObserve,
-                cancellationToken: cancellationToken);
+                Scada.Security.Authorization.SecurityCapability.HighAvailabilityObserve);
             var failure = authorization.FailureResult();
             return failure ?? Results.Ok(coordinator.Diagnostics());
         });

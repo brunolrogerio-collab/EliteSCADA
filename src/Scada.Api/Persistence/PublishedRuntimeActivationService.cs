@@ -44,6 +44,12 @@ public interface IPublishedRuntimeActivationService
         string? activatedBy = null,
         CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("This activation service does not support local Active revision recovery.");
+
+    Task<bool> HasPersistedRevisionForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(false);
 }
 
 public sealed class PublishedRuntimeActivationService(
@@ -119,6 +125,17 @@ public sealed class PublishedRuntimeActivationService(
             return new PublishedRuntimeActivationOutcome(null, null, null, null);
 
         return await ActivateSnapshotAsync(snapshot, activatedBy, cancellationToken, haTakeover: true);
+    }
+
+    public async Task<bool> HasPersistedRevisionForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(projectKey) || revision <= 0)
+            return false;
+
+        return await persistence.LoadRevisionAsync(projectKey, revision, cancellationToken) is not null;
     }
 
     private async Task<PublishedRuntimeActivationOutcome> ActivateSnapshotAsync(

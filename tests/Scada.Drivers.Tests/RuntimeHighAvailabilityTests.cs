@@ -503,6 +503,92 @@ public sealed class RuntimeHighAvailabilityTests
     }
 
     [Fact]
+    public void ExplicitRecovery_CanRebuildWitnessOnlyFromFreshSynchronizedMatchingRuntime()
+    {
+        var now = DateTimeOffset.Parse("2026-10-07T18:00:00Z");
+        var runtime = new RuntimeHaRuntimeIdentity("engineering", "project-a", 7);
+        var readiness = new RuntimeHaNodeReadinessEvidence(
+            Healthy: true,
+            SynchronizationComplete: true,
+            HaLicenseEntitled: true,
+            Runtime: runtime,
+            ObservedAtUtc: now);
+        var mirror = Mirror(runtime, now);
+
+        var witness = RuntimeHaProtectionCoordinator.CreateRecoveryWitnessFromCurrentReadiness(
+            "node-b",
+            readiness,
+            mirror,
+            now,
+            TimeSpan.FromSeconds(30));
+
+        Assert.NotNull(witness);
+        Assert.Equal("node-b", witness.NodeId);
+        Assert.Equal(runtime, witness.Readiness.Runtime);
+    }
+
+    [Fact]
+    public void ExplicitRecovery_DoesNotRebuildWitnessWhenMirroredRevisionDiffers()
+    {
+        var now = DateTimeOffset.Parse("2026-10-07T18:00:00Z");
+        var readiness = Evidence(now, haEntitled: true, revision: 6, synchronized: true);
+        var mirror = Mirror(
+            new RuntimeHaRuntimeIdentity("engineering", "project-a", 7),
+            now);
+
+        var witness = RuntimeHaProtectionCoordinator.CreateRecoveryWitnessFromCurrentReadiness(
+            "node-b",
+            readiness,
+            mirror,
+            now,
+            TimeSpan.FromSeconds(30));
+
+        Assert.Null(witness);
+    }
+
+    [Fact]
+    public void ExplicitRecovery_DoesNotRebuildWitnessFromStaleOrUnsynchronizedEvidence()
+    {
+        var now = DateTimeOffset.Parse("2026-10-07T18:00:00Z");
+        var runtime = new RuntimeHaRuntimeIdentity("engineering", "project-a", 7);
+        var staleReadiness = Evidence(now.AddMinutes(-1), haEntitled: true, revision: 7, synchronized: true);
+        var unsynchronizedReadiness = Evidence(now, haEntitled: true, revision: 7, synchronized: false);
+        var mirror = Mirror(runtime, now);
+
+        Assert.Null(RuntimeHaProtectionCoordinator.CreateRecoveryWitnessFromCurrentReadiness(
+            "node-b", staleReadiness, mirror, now, TimeSpan.FromSeconds(30)));
+        Assert.Null(RuntimeHaProtectionCoordinator.CreateRecoveryWitnessFromCurrentReadiness(
+            "node-b", unsynchronizedReadiness, mirror, now, TimeSpan.FromSeconds(30)));
+        Assert.Null(RuntimeHaProtectionCoordinator.CreateRecoveryWitnessFromCurrentReadiness(
+            "node-b", Evidence(now, haEntitled: false, revision: 7, synchronized: true),
+            mirror, now, TimeSpan.FromSeconds(30)));
+    }
+
+    [Fact]
+    public void InitialAuthorityBootstrap_OnlyCommitsFreshEpochOneConfiguredActiveNode()
+    {
+        var now = DateTimeOffset.Parse("2026-10-07T18:00:00Z");
+        var coordinator = CreateCoordinator("node-a", out _);
+        var current = coordinator.Snapshot();
+        var topology = coordinator.Definition;
+        var reference = RestartReference("node-a", 1, now) with
+        {
+            ReasonCode = "reference-initialized"
+        };
+
+        Assert.True(RuntimeHaProtectionCoordinator.IsInitialAuthorityBootstrapReference(
+            reference, topology, current, "node-a"));
+        Assert.False(RuntimeHaProtectionCoordinator.IsInitialAuthorityBootstrapReference(
+            reference with { ActiveNodeId = "node-b" }, topology, current, "node-b"));
+        Assert.False(RuntimeHaProtectionCoordinator.IsInitialAuthorityBootstrapReference(
+            reference with { Epoch = 2 }, topology, current, "node-a"));
+        Assert.False(RuntimeHaProtectionCoordinator.IsInitialAuthorityBootstrapReference(
+            reference with { ReasonCode = "reference-renewed" }, topology, current, "node-a"));
+        Assert.False(RuntimeHaProtectionCoordinator.IsInitialAuthorityBootstrapReference(
+            reference with { PreviousAuthorityFenced = false }, topology, current, "node-a"));
+    }
+
+    [Fact]
     public void ReferencedAuthority_RestartedSameActiveNodeReconcilesHigherPersistedEpochWithoutPromotionWitness()
     {
         // A new coordinator models process restart: its in-memory epoch starts at 1,
@@ -813,6 +899,26 @@ public sealed class RuntimeHighAvailabilityTests
             HaLicenseEntitled: haEntitled,
             Runtime: new RuntimeHaRuntimeIdentity("engineering", "project-a", revision),
             ObservedAtUtc: observedAtUtc);
+
+    private static RuntimeHaPeerMirrorSnapshot Mirror(
+        RuntimeHaRuntimeIdentity runtime,
+        DateTimeOffset receivedAtUtc) =>
+        new(
+            HasState: true,
+            LiveSynchronized: true,
+            SourceNodeId: "node-a",
+            SourceTransportInstanceId: Guid.NewGuid(),
+            ReplicationSequence: 1,
+            AuthoritativeState: new RuntimeHaAuthoritativeStateSnapshot(
+                runtime,
+                ProjectTagCount: 0,
+                new RuntimeHaPeerLicenseEvidence(true, true, 5000, 10, 10),
+                Array.Empty<RuntimeHaMirroredTagValue>(),
+                Array.Empty<RuntimeSessionLeaseContinuityEnvelope>(),
+                Array.Empty<RuntimeSessionLeaseContinuityTombstoneEnvelope>(),
+                receivedAtUtc),
+            ReceivedAtUtc: receivedAtUtc,
+            ReasonCode: null);
 
     private static RuntimeHaReferenceAuthority RestartReference(
         string nodeId,

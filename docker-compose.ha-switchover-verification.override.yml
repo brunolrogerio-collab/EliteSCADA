@@ -8,4 +8,4 @@ services:
 
 volumes:
   ha_switchover_verification_reference:
-    name: elitescada-ha-switchover-verification-reference-r5-20261007
+    name: elitescada-ha-switchover-verification-reference-r9-20261007

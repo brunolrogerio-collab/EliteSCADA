@@ -761,6 +761,14 @@ public sealed class RuntimeHaProtectionCoordinator
                 return;
             }
 
+            var initialAuthorityBootstrap = IsInitialAuthorityBootstrapReference(
+                reference,
+                _highAvailability.Authority.Definition,
+                _highAvailability.Snapshot(),
+                localNodeId);
+            if (initialAuthorityBootstrap)
+                SetReference(reference, true, "initial-authority-bootstrap");
+
             var shouldRenew = reference.LeaseUntilUtc - now <= _options.LeaseDuration / 2;
             if (shouldRenew)
             {
@@ -809,7 +817,8 @@ public sealed class RuntimeHaProtectionCoordinator
             }
             if (!_runtime.ProductRuntimeActive &&
                 localDatabase?.DatabaseAvailable == true &&
-                localDatabase.DatabaseAvailabilityConsecutiveSuccesses < 2)
+                localDatabase.DatabaseAvailabilityConsecutiveSuccesses < 2 &&
+                !initialAuthorityBootstrap)
             {
                 SetReference(reference, false, "database-recovery-health-confirming");
                 return;
@@ -878,7 +887,7 @@ public sealed class RuntimeHaProtectionCoordinator
                             var activationFailure = await ActivateAuthoritativeRuntimeAsync(
                                 authoritativeState,
                                 takeoverToken,
-                                preferLocalActiveRevision: sameNodeRestartReconciled);
+                                preferLocalActiveRevision: sameNodeRestartReconciled || initialAuthorityBootstrap);
                             if (activationFailure is not null)
                                 return activationFailure;
 
@@ -1283,9 +1292,16 @@ public sealed class RuntimeHaProtectionCoordinator
         if (reference.ActiveNodeId is not null || !reference.PreviousAuthorityFenced)
             return Complete(operation, "rejected", "reference-break-required", reference.Epoch);
 
-        var witness = GetFreshWitness(_utcNow());
+        var now = _utcNow();
+        var witness = GetFreshWitness(now) ?? CreateRecoveryWitnessFromCurrentReadiness(
+            localNodeId,
+            now);
         if (witness is null)
             return Complete(operation, "rejected", "ready-standby-witness-required", reference.Epoch);
+
+        var takeoverFailure = await ValidateTakeoverStateAsync(witness, now, cancellationToken);
+        if (takeoverFailure is not null)
+            return Complete(operation, "rejected", takeoverFailure, reference.Epoch);
 
         var assigned = await _reference.AssignAfterFenceAsync(
             localNodeId,
@@ -1310,6 +1326,16 @@ public sealed class RuntimeHaProtectionCoordinator
         CancellationToken cancellationToken)
     {
         var operation = AddOperation("automatic-failover", _highAvailability.LocalNodeId!, _utcNow());
+        var takeoverFailure = await ValidateTakeoverStateAsync(
+            witness,
+            _utcNow(),
+            cancellationToken);
+        if (takeoverFailure is not null)
+        {
+            Complete(operation, "rejected", takeoverFailure, expiredReference.Epoch);
+            return;
+        }
+
         var claimed = await _reference.ClaimExpiredAsync(
             _highAvailability.LocalNodeId!,
             expiredReference.Epoch,
@@ -1811,6 +1837,93 @@ public sealed class RuntimeHaProtectionCoordinator
             _operations[completed.OperationId] = completed;
         PersistOperationHistory();
         return completed;
+    }
+
+    private RuntimeHaStandbyPromotionWitness? CreateRecoveryWitnessFromCurrentReadiness(
+        string localNodeId,
+        DateTimeOffset now)
+    {
+        var readiness = _highAvailability.Authority.GetNodeReadiness(localNodeId);
+        var mirror = _mirror.Snapshot();
+        return CreateRecoveryWitnessFromCurrentReadiness(
+            localNodeId,
+            readiness,
+            mirror,
+            now,
+            _options.ReadyWitnessMaximumAge);
+    }
+
+    internal static bool IsInitialAuthorityBootstrapReference(
+        RuntimeHaReferenceAuthority reference,
+        RuntimeHaTopologyDefinition topology,
+        RuntimeHaTopologySnapshot current,
+        string localNodeId) =>
+        reference.ReasonCode == "reference-initialized" &&
+        reference.Epoch == 1 &&
+        reference.PreviousAuthorityFenced &&
+        reference.ActiveNodeId?.Equals(localNodeId, StringComparison.OrdinalIgnoreCase) == true &&
+        topology.InitialActiveNodeId?.Equals(localNodeId, StringComparison.OrdinalIgnoreCase) == true &&
+        current.EffectiveActiveNodeId?.Equals(localNodeId, StringComparison.OrdinalIgnoreCase) == true &&
+        current.AuthorityEpoch == 1 &&
+        !current.AmbiguousAuthority &&
+        current.PendingTransfer is null;
+
+    internal static RuntimeHaStandbyPromotionWitness? CreateRecoveryWitnessFromCurrentReadiness(
+        string localNodeId,
+        RuntimeHaNodeReadinessEvidence? readiness,
+        RuntimeHaPeerMirrorSnapshot mirror,
+        DateTimeOffset now,
+        TimeSpan maximumAge)
+    {
+        if (readiness is null ||
+            !readiness.Healthy ||
+            !readiness.SynchronizationComplete ||
+            !readiness.HaLicenseEntitled ||
+            !readiness.Runtime.Revision.HasValue ||
+            now - readiness.ObservedAtUtc > maximumAge ||
+            !mirror.LiveSynchronized ||
+            mirror.AuthoritativeState is not { } state ||
+            mirror.ReceivedAtUtc is not { } receivedAtUtc ||
+            now - receivedAtUtc > maximumAge ||
+            !readiness.Runtime.CompatibleWith(state.Runtime))
+        {
+            return null;
+        }
+
+        return new RuntimeHaStandbyPromotionWitness(localNodeId, readiness, now);
+    }
+
+    private async Task<string?> ValidateTakeoverStateAsync(
+        RuntimeHaStandbyPromotionWitness witness,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var mirror = _mirror.Snapshot();
+        if (!mirror.LiveSynchronized ||
+            mirror.AuthoritativeState is not { } state ||
+            mirror.ReceivedAtUtc is not { } receivedAtUtc ||
+            now - receivedAtUtc > _options.ReadyWitnessMaximumAge)
+        {
+            return "peer-state-not-live";
+        }
+
+        if (!witness.Readiness.Runtime.CompatibleWith(state.Runtime))
+            return "ready-standby-witness-runtime-mismatch";
+        if (state.Application is null || state.Application.Tags.Count != state.ProjectTagCount)
+            return "takeover-state-unavailable";
+
+        if (_runtimeActivation is not null &&
+            state.Runtime.ProjectKey is { Length: > 0 } projectKey &&
+            state.Runtime.Revision is { } revision &&
+            !await _runtimeActivation.HasPersistedRevisionForHaTakeoverAsync(
+                projectKey,
+                revision,
+                cancellationToken))
+        {
+            return "takeover-persisted-revision-unavailable";
+        }
+
+        return null;
     }
 
     private void PersistOperationHistory()

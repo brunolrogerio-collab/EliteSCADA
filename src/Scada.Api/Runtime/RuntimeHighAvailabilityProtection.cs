@@ -674,71 +674,108 @@ public sealed class RuntimeHaProtectionCoordinator
                 var mirror = _mirror.Snapshot();
                 var state = mirror.AuthoritativeState;
                 var operation = AddOperation("authority-runtime-promotion", localNodeId, now);
-                if (!mirror.HasState ||
-                    state?.Application is null ||
-                    state.Runtime.Revision != descriptor.Revision ||
-                    !string.Equals(
-                        state.Runtime.ProjectKey,
-                        descriptor.ProjectKey,
-                        StringComparison.OrdinalIgnoreCase))
+                try
                 {
-                    await FailClosedAfterClaimAsync(
-                        reference,
-                        operation,
-                        "takeover-state-unavailable",
-                        cancellationToken);
-                    return;
-                }
-
-                var takeover = await RunTakeoverWithLeaseRenewalAsync(
-                    reference,
-                    async takeoverToken =>
+                    if (!mirror.HasState ||
+                        state?.Application is null ||
+                        state.Runtime.Revision != descriptor.Revision ||
+                        !string.Equals(
+                            state.Runtime.ProjectKey,
+                            descriptor.ProjectKey,
+                            StringComparison.OrdinalIgnoreCase))
                     {
-                        var activationFailure = await ActivateAuthoritativeRuntimeAsync(
-                            state,
-                            takeoverToken);
-                        if (activationFailure is not null)
-                            return activationFailure;
+                        await FailClosedAfterClaimAsync(
+                            reference,
+                            operation,
+                            "takeover-state-unavailable",
+                            cancellationToken);
+                        return;
+                    }
 
-                        // The target has fenced authority and its active runtime is
-                        // ready. Commit the local runtime fence before restoring values.
-                        SetReference(reference, true, "authority-runtime-promotion-in-progress");
-                        var restoreFailure = await RestoreAuthoritativeValuesAsync(
-                            state,
-                            takeoverToken);
-                        if (restoreFailure is not null)
-                            return restoreFailure;
-
-                        try
-                        {
-                            await RebindSessionsForTakeoverAsync(takeoverToken);
-                        }
-                        catch (OperationCanceledException) when (takeoverToken.IsCancellationRequested)
-                        {
-                            throw;
-                        }
-                        catch
-                        {
-                            return "takeover-session-rebind-failed";
-                        }
-
-                        return null;
-                    },
-                    cancellationToken);
-                reference = takeover.Authority;
-                if (takeover.FailureReason is not null)
-                {
-                    await FailClosedAfterClaimAsync(
+                    var takeover = await RunTakeoverWithLeaseRenewalAsync(
                         reference,
-                        operation,
-                        takeover.FailureReason,
-                        CancellationToken.None);
+                        async takeoverToken =>
+                        {
+                            var activationFailure = await ActivateAuthoritativeRuntimeAsync(
+                                state,
+                                takeoverToken);
+                            if (activationFailure is not null)
+                                return activationFailure;
+
+                            // The target has fenced authority and its active runtime is
+                            // ready. Commit the local runtime fence before restoring values.
+                            SetReference(reference, true, "authority-runtime-promotion-in-progress");
+                            var restoreFailure = await RestoreAuthoritativeValuesAsync(
+                                state,
+                                takeoverToken);
+                            if (restoreFailure is not null)
+                                return restoreFailure;
+
+                            try
+                            {
+                                await RebindSessionsForTakeoverAsync(takeoverToken);
+                            }
+                            catch (OperationCanceledException) when (takeoverToken.IsCancellationRequested)
+                            {
+                                throw;
+                            }
+                            catch
+                            {
+                                return "takeover-session-rebind-failed";
+                            }
+
+                            return null;
+                        },
+                        cancellationToken);
+                    reference = takeover.Authority;
+                    if (takeover.FailureReason is not null)
+                    {
+                        await FailClosedAfterClaimAsync(
+                            reference,
+                            operation,
+                            takeover.FailureReason,
+                            CancellationToken.None);
+                        return;
+                    }
+
+                    SetReference(reference, true, "authority-runtime-promotion-completed");
+                    Complete(operation, "completed", "authority-runtime-promotion-completed", reference.Epoch);
                     return;
                 }
-
-                SetReference(reference, true, "authority-runtime-promotion-completed");
-                Complete(operation, "completed", "authority-runtime-promotion-completed", reference.Epoch);
-                return;
+                catch (OperationCanceledException)
+                {
+                    try
+                    {
+                        await FailClosedAfterClaimAsync(
+                            reference,
+                            operation,
+                            "authority-runtime-promotion-cancelled",
+                            CancellationToken.None);
+                    }
+                    catch
+                    {
+                        Complete(operation, "failed", "authority-runtime-promotion-cancelled", reference.Epoch);
+                    }
+                    throw;
+                }
+                catch (Exception)
+                {
+                    // The hosted reconciler logs the exception. Fence any partially restored
+                    // authority and make the operation terminal so the UI cannot show a ghost promotion.
+                    try
+                    {
+                        await FailClosedAfterClaimAsync(
+                            reference,
+                            operation,
+                            "authority-runtime-promotion-reconciliation-failed",
+                            CancellationToken.None);
+                    }
+                    catch
+                    {
+                        Complete(operation, "failed", "authority-runtime-promotion-reconciliation-failed", reference.Epoch);
+                    }
+                    throw;
+                }
             }
 
             var committed = descriptor.Revision.HasValue &&

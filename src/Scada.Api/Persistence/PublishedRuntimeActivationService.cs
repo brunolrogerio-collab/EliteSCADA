@@ -31,6 +31,19 @@ public interface IPublishedRuntimeActivationService
         string? activatedBy = null,
         CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("This activation service does not support exact-revision activation.");
+
+    Task<PublishedRuntimeActivationOutcome> ActivateRevisionForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        string? activatedBy = null,
+        CancellationToken cancellationToken = default) =>
+        ActivateRevisionAsync(projectKey, revision, activatedBy, cancellationToken);
+
+    Task<PublishedRuntimeActivationOutcome> ActivateCurrentActiveRevisionForHaTakeoverAsync(
+        string projectKey,
+        string? activatedBy = null,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("This activation service does not support local Active revision recovery.");
 }
 
 public sealed class PublishedRuntimeActivationService(
@@ -54,7 +67,7 @@ public sealed class PublishedRuntimeActivationService(
         if (snapshot is null)
             return new PublishedRuntimeActivationOutcome(null, null, null, null);
 
-        return await ActivateSnapshotAsync(snapshot, activatedBy, cancellationToken);
+        return await ActivateSnapshotAsync(snapshot, activatedBy, cancellationToken, haTakeover: false);
     }
 
     public async Task<PublishedRuntimeActivationOutcome> ActivateRevisionAsync(
@@ -72,13 +85,47 @@ public sealed class PublishedRuntimeActivationService(
         if (snapshot is null)
             return new PublishedRuntimeActivationOutcome(null, null, null, null);
 
-        return await ActivateSnapshotAsync(snapshot, activatedBy, cancellationToken);
+        return await ActivateSnapshotAsync(snapshot, activatedBy, cancellationToken, haTakeover: false);
+    }
+
+    public async Task<PublishedRuntimeActivationOutcome> ActivateRevisionForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        string? activatedBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(projectKey))
+            throw new ArgumentException("Project key is required.", nameof(projectKey));
+        if (revision <= 0)
+            throw new ArgumentOutOfRangeException(nameof(revision));
+
+        var snapshot = await persistence.LoadRevisionAsync(projectKey, revision, cancellationToken);
+        if (snapshot is null)
+            return new PublishedRuntimeActivationOutcome(null, null, null, null);
+
+        return await ActivateSnapshotAsync(snapshot, activatedBy, cancellationToken, haTakeover: true);
+    }
+
+    public async Task<PublishedRuntimeActivationOutcome> ActivateCurrentActiveRevisionForHaTakeoverAsync(
+        string projectKey,
+        string? activatedBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(projectKey))
+            throw new ArgumentException("Project key is required.", nameof(projectKey));
+
+        var snapshot = await persistence.LoadActiveAsync(projectKey, cancellationToken);
+        if (snapshot is null)
+            return new PublishedRuntimeActivationOutcome(null, null, null, null);
+
+        return await ActivateSnapshotAsync(snapshot, activatedBy, cancellationToken, haTakeover: true);
     }
 
     private async Task<PublishedRuntimeActivationOutcome> ActivateSnapshotAsync(
         EngineeringProjectSnapshot snapshot,
         string? activatedBy,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool haTakeover)
     {
         var package = ParseAndValidate(snapshot);
         EngineeringProjectActivation? recordedActivation = null;
@@ -117,22 +164,36 @@ public sealed class PublishedRuntimeActivationService(
                         ? null
                         : () => highAvailability.CanOwnIndustrialEffects());
 
-            runtimeResult = await scripts.ActivateRuntimeAsync(
-                snapshot.ProjectKey,
-                snapshot.Revision,
-                package,
-                CommitAsync,
-                cancellationToken);
+            runtimeResult = haTakeover
+                ? await scripts.ActivateRuntimeForHaTakeoverAsync(
+                    snapshot.ProjectKey,
+                    snapshot.Revision,
+                    package,
+                    CommitAsync,
+                    cancellationToken)
+                : await scripts.ActivateRuntimeAsync(
+                    snapshot.ProjectKey,
+                    snapshot.Revision,
+                    package,
+                    CommitAsync,
+                    cancellationToken);
         }
         else
         {
             EnsureNoServerScriptsWithoutHost(package);
-            runtimeResult = await runtime.ActivateAsync(
-                snapshot.ProjectKey,
-                snapshot.Revision,
-                package,
-                CommitAsync,
-                cancellationToken);
+            runtimeResult = haTakeover
+                ? await runtime.ActivateForHaTakeoverAsync(
+                    snapshot.ProjectKey,
+                    snapshot.Revision,
+                    package,
+                    CommitAsync,
+                    cancellationToken)
+                : await runtime.ActivateAsync(
+                    snapshot.ProjectKey,
+                    snapshot.Revision,
+                    package,
+                    CommitAsync,
+                    cancellationToken);
         }
 
         // The Active revision is the Runtime application authority. Only after a

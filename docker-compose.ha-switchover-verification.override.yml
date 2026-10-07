@@ -1,0 +1,11 @@
+services:
+  api-a:
+    volumes:
+      - ha_switchover_verification_reference:/ha-reference
+  api-b:
+    volumes:
+      - ha_switchover_verification_reference:/ha-reference
+
+volumes:
+  ha_switchover_verification_reference:
+    name: elitescada-ha-switchover-verification-reference-r5-20261007

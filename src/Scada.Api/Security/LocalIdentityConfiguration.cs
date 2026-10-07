@@ -5,6 +5,7 @@ using Scada.Engineering.Security;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Scada.Persistence.PostgreSql;
 using Scada.Security.Authentication;
+using System.Text;
 
 namespace Scada.Api.Security;
 
@@ -105,6 +106,30 @@ public static class LocalIdentityConfiguration
 {
     public const string DefaultCookieName = "elitescada_access";
 
+    internal static string ResolveCookieName(IConfiguration configuration)
+    {
+        var configuredName = configuration["Authentication:Local:CookieName"]?.Trim();
+        if (!string.IsNullOrWhiteSpace(configuredName)) return configuredName;
+
+        // Browsers scope cookies by host and path, not port. Two HA nodes exposed
+        // as localhost on different ports therefore need distinct cookie names.
+        // Keep standalone installs backward-compatible, but isolate each HA node.
+        var nodeId = configuration["HighAvailability:NodeId"]?.Trim();
+        if (string.IsNullOrWhiteSpace(nodeId)) return DefaultCookieName;
+
+        var suffix = new string(nodeId
+            .ToLowerInvariant()
+            .Select(character => char.IsAsciiLetterOrDigit(character) || character is '-' or '_'
+                ? character
+                : '-')
+            .ToArray())
+            .Trim('-');
+        if (string.IsNullOrWhiteSpace(suffix))
+            suffix = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(nodeId)))[..12].ToLowerInvariant();
+
+        return $"{DefaultCookieName}_{suffix}";
+    }
+
     public static bool AddLocalIdentity(this WebApplicationBuilder builder, bool authenticationEnabled, DatabaseRuntimeConnectionSet? database = null)
     {
         builder.Services.AddSingleton<InitialInstallationGate>();
@@ -125,8 +150,7 @@ public static class LocalIdentityConfiguration
         if (!authenticationEnabled)
             throw new InvalidOperationException("Authentication:Local:Enabled requires Authentication:Enabled=true.");
 
-        var cookieName = local["CookieName"]?.Trim();
-        if (string.IsNullOrWhiteSpace(cookieName)) cookieName = DefaultCookieName;
+        var cookieName = ResolveCookieName(builder.Configuration);
         if (cookieName.Any(char.IsWhiteSpace) || cookieName.Contains(';'))
             throw new InvalidOperationException("Authentication:Local:CookieName contains invalid characters.");
 

@@ -539,7 +539,8 @@ public sealed class ApiAuthorizationService
         if (persistence is null) return null;
 
         var snapshot = await persistence.LoadActiveAsync(descriptor.ProjectKey, cancellationToken);
-        if (snapshot is null || snapshot.Revision != descriptor.Revision)
+        var passiveProjection = false;
+        if (!MatchesRuntime(snapshot, descriptor))
         {
             var highAvailability = services.GetService<RuntimeHighAvailabilityService>();
             if (highAvailability?.HasReadyPassiveRuntimeProjection(descriptor) != true)
@@ -547,12 +548,21 @@ public sealed class ApiAuthorizationService
 
             // A Standby materializes the authoritative Active Runtime as a read-only
             // projection; it must not acquire a local Active revision. Resolve the
-            // matching published copy only after HA proves the passive identity is
-            // current, synchronized, licensed, and still fenced from Active authority.
+            // matching published copy when available. Nodes may keep separate project
+            // databases, so a ReadyStandby node may instead use its authenticated
+            // in-memory peer projection while HA confirms the exact runtime identity,
+            // synchronization, license, and passive fencing.
             snapshot = await persistence.LoadPublishedAsync(descriptor.ProjectKey, cancellationToken);
+            if (!MatchesRuntime(snapshot, descriptor))
+            {
+                var coordinator = services.GetService<IRuntimeApplicationProjectionProvider>();
+                if (coordinator?.CaptureApplication() is null)
+                    return null;
+                passiveProjection = true;
+            }
         }
 
-        if (snapshot is null || snapshot.Revision != descriptor.Revision) return null;
+        if (!passiveProjection && !MatchesRuntime(snapshot, descriptor)) return null;
 
         var activeAuthority = authorityPolicies.Snapshot();
         if (AuthorityScopeEngineeringMigration.HasUnmigratedLegacyScopes(activeAuthority.Roles) ||
@@ -580,6 +590,14 @@ public sealed class ApiAuthorizationService
 
         return compiled;
     }
+
+    private static bool MatchesRuntime(
+        EngineeringProjectSnapshot? snapshot,
+        ScadaRuntimeDescriptor runtime) =>
+        snapshot is not null &&
+        snapshot.Revision == runtime.Revision &&
+        !string.IsNullOrWhiteSpace(runtime.ProjectKey) &&
+        snapshot.ProjectKey.Equals(runtime.ProjectKey, StringComparison.OrdinalIgnoreCase);
 
     private static bool SameRuntime(ScadaRuntimeDescriptor left, ScadaRuntimeDescriptor right) =>
         left.Revision == right.Revision &&

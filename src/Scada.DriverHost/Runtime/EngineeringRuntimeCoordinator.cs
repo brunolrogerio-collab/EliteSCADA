@@ -80,6 +80,13 @@ public interface IEngineeringRuntimeCoordinator : IAsyncDisposable
         EngineeringPackage package,
         Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
         CancellationToken cancellationToken = default);
+    Task<RuntimeActivationResult> ActivateForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
+        CancellationToken cancellationToken = default) =>
+        ActivateAsync(projectKey, revision, package, commitAsync, cancellationToken);
 }
 
 /// <summary>
@@ -525,7 +532,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         long revision,
         EngineeringPackage package,
         CancellationToken cancellationToken = default) =>
-        ActivateCoreAsync(projectKey, revision, package, null, cancellationToken);
+        ActivateCoreAsync(projectKey, revision, package, null, allowDegradedSources: false, cancellationToken);
 
     public Task<RuntimeActivationResult> ActivateAsync(
         string projectKey,
@@ -535,7 +542,18 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(commitAsync);
-        return ActivateCoreAsync(projectKey, revision, package, commitAsync, cancellationToken);
+        return ActivateCoreAsync(projectKey, revision, package, commitAsync, allowDegradedSources: false, cancellationToken);
+    }
+
+    public Task<RuntimeActivationResult> ActivateForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(commitAsync);
+        return ActivateCoreAsync(projectKey, revision, package, commitAsync, allowDegradedSources: true, cancellationToken);
     }
 
     private async Task<RuntimeActivationResult> ActivateCoreAsync(
@@ -543,6 +561,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         long revision,
         EngineeringPackage package,
         Func<RuntimeActivationCommitContext, CancellationToken, Task>? commitAsync,
+        bool allowDegradedSources,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(projectKey))
@@ -643,13 +662,21 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                     allowEmpty: true);
                 if (!preHandoverReady)
                 {
+                    if (!allowDegradedSources || HasFatalStartupFailure(candidate, handover.CandidateDrivers))
+                    {
+                        runtimeIssues.Add(new(
+                            "RUNTIME_CANDIDATE_NOT_READY",
+                            $"Candidate Runtime did not reach pre-handover readiness within {_activationTimeout}.",
+                            IsError: true));
+                        await DisposeCandidateAndRollbackAsync();
+                        return new RuntimeActivationResult(
+                            projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
+                    }
+
                     runtimeIssues.Add(new(
-                        "RUNTIME_CANDIDATE_NOT_READY",
-                        $"Candidate Runtime did not reach pre-handover readiness within {_activationTimeout}.",
-                        IsError: true));
-                    await DisposeCandidateAndRollbackAsync();
-                    return new RuntimeActivationResult(
-                        projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
+                        "RUNTIME_ACTIVATED_DEGRADED",
+                        "HA takeover is continuing with communication sources degraded; TAGs retain their current quality until acquisition recovers.",
+                        IsError: false));
                 }
 
                 if (handover.PreviousDrivers.Count > 0)
@@ -664,13 +691,24 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                 var ready = await WaitUntilReadyAsync(candidate, cancellationToken);
                 if (!ready)
                 {
-                    runtimeIssues.Add(new(
-                        "RUNTIME_CANDIDATE_NOT_READY",
-                        $"Candidate runtime did not reach protocol readiness and required Good TAG quality within {_activationTimeout}.",
-                        IsError: true));
-                    await DisposeCandidateAndRollbackAsync();
-                    return new RuntimeActivationResult(
-                        projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
+                    if (!allowDegradedSources || HasFatalStartupFailure(candidate))
+                    {
+                        runtimeIssues.Add(new(
+                            "RUNTIME_CANDIDATE_NOT_READY",
+                            $"Candidate runtime did not reach protocol readiness and required Good TAG quality within {_activationTimeout}.",
+                            IsError: true));
+                        await DisposeCandidateAndRollbackAsync();
+                        return new RuntimeActivationResult(
+                            projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
+                    }
+
+                    if (!runtimeIssues.Any(issue => issue.Code == "RUNTIME_ACTIVATED_DEGRADED"))
+                    {
+                        runtimeIssues.Add(new(
+                            "RUNTIME_ACTIVATED_DEGRADED",
+                            "HA takeover is continuing with communication sources degraded; TAGs retain their current quality until acquisition recovers.",
+                            IsError: false));
+                    }
                 }
 
                 RegisterAlarms(effectivePackage, candidate, runtimeIssues);
@@ -990,6 +1028,19 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         }
 
         return IsReady();
+    }
+
+    private static bool HasFatalStartupFailure(
+        RuntimeState state,
+        IReadOnlyCollection<ICommunicationDriver>? drivers = null)
+    {
+        var candidates = drivers ?? state.Drivers;
+        if (candidates.Any(driver => driver.Status.State == DriverState.Faulted))
+            return true;
+
+        return candidates
+            .OfType<ICommunicationDriverReadinessSource>()
+            .Any(source => source.GetCommunicationReadiness().State == CommunicationDriverReadinessState.Faulted);
     }
 
     private sealed record RuntimeResourceHandover(

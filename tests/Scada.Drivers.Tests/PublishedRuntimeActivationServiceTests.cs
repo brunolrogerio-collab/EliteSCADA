@@ -139,6 +139,40 @@ public sealed class PublishedRuntimeActivationServiceTests
         Assert.Equal(456d, Convert.ToDouble(value!.Value));
     }
 
+    [Fact]
+    public async Task ActivateCurrentActiveRevisionForHaTakeoverAsync_UsesThisNodesPersistedActiveRevision()
+    {
+        await using var server = new TestModbusTcpServer();
+        server.HoldingRegisters[10] = 654;
+        server.Start();
+
+        var tagId = Guid.NewGuid();
+        var snapshot = CreateSnapshot(CreatePackage(server.Port, tagId));
+        var store = new FakeEngineeringProjectStore(snapshot, allowActivation: true);
+        var persistence = CreatePersistence(store, out var exchange);
+        var bus = new InMemoryScadaEventBus();
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            bus,
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromSeconds(2));
+        var activation = new PublishedRuntimeActivationService(persistence, exchange, runtime);
+
+        var initiallyActive = await activation.ActivateAsync("plant-a", "initial-run");
+        Assert.True(initiallyActive.Activated);
+
+        var recovered = await activation.ActivateCurrentActiveRevisionForHaTakeoverAsync(
+            "plant-a",
+            "ha-takeover:node-a");
+
+        Assert.True(recovered.Activated);
+        Assert.Equal(snapshot.Revision, recovered.Snapshot!.Revision);
+        Assert.Equal(snapshot.Revision, recovered.Activation!.ActiveRevision);
+        Assert.Equal("ha-takeover:node-a", recovered.Activation.ActivatedBy);
+        Assert.Equal(snapshot.Revision, runtime.Describe().Revision);
+        Assert.True(runtime.TryGetCurrent(tagId, out var value));
+        Assert.Equal(654d, Convert.ToDouble(value!.Value));
+    }
+
     private static EngineeringProjectPersistenceService CreatePersistence(
         IEngineeringProjectStore store,
         out EngineeringExchangeService exchange)

@@ -45,7 +45,8 @@ public sealed class PersistedRuntimeRecoveryService(
     IScadaEventBus? eventBus = null,
     IConfiguration? configuration = null,
     GatewayEngineeringRuntimeCoordinator? operationalEvents = null,
-    RuntimeHighAvailabilityService? highAvailability = null) : IPersistedRuntimeRecoveryService
+    RuntimeHighAvailabilityService? highAvailability = null,
+    RuntimeHaProtectionCoordinator? highAvailabilityProtection = null) : IPersistedRuntimeRecoveryService
 {
     public const string RecoveryDeniedIssueCode = "PERSISTED_RUNTIME_RECOVERY_DENIED";
     public const string TransitionPendingDiagnostic =
@@ -123,6 +124,9 @@ public sealed class PersistedRuntimeRecoveryService(
         }
 
         var package = ParseAndValidate(snapshot);
+        var recoverAsHaActive = highAvailability?.Enabled == true &&
+            (highAvailability.CanOwnIndustrialEffects() ||
+             highAvailabilityProtection?.CanActivateLocalHaTakeover() == true);
 
         RuntimeActivationResult result;
         if (eventBus is not null && configuration is not null)
@@ -140,20 +144,34 @@ public sealed class PersistedRuntimeRecoveryService(
                         ? null
                         : () => highAvailability.CanOwnIndustrialEffects());
 
-            result = await scripts.ActivateRuntimeAsync(
-                snapshot.ProjectKey,
-                snapshot.Revision,
-                package,
-                cancellationToken);
+            result = recoverAsHaActive
+                ? await scripts.ActivateRuntimeForHaTakeoverAsync(
+                    snapshot.ProjectKey,
+                    snapshot.Revision,
+                    package,
+                    static (_, _) => Task.CompletedTask,
+                    cancellationToken)
+                : await scripts.ActivateRuntimeAsync(
+                    snapshot.ProjectKey,
+                    snapshot.Revision,
+                    package,
+                    cancellationToken);
         }
         else
         {
             EnsureNoServerScriptsWithoutHost(package);
-            result = await runtime.ActivateAsync(
-                snapshot.ProjectKey,
-                snapshot.Revision,
-                package,
-                cancellationToken);
+            result = recoverAsHaActive
+                ? await runtime.ActivateForHaTakeoverAsync(
+                    snapshot.ProjectKey,
+                    snapshot.Revision,
+                    package,
+                    static (_, _) => Task.CompletedTask,
+                    cancellationToken)
+                : await runtime.ActivateAsync(
+                    snapshot.ProjectKey,
+                    snapshot.Revision,
+                    package,
+                    cancellationToken);
         }
 
         // Restart/recovery must restore the protection state carried by the durable

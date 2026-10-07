@@ -167,6 +167,42 @@ public sealed class EngineeringRuntimeCoordinatorTests
     }
 
     [Fact]
+    public async Task ActivateForHaTakeoverAsync_CommitsDegradedModbusRuntimeWhenDeviceIsUnavailable()
+    {
+        await using var unavailableServer = new TestModbusTcpServer();
+        unavailableServer.Start();
+        var unavailablePort = unavailableServer.Port;
+        await unavailableServer.StopAsync();
+
+        var tagId = Guid.NewGuid();
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            new InMemoryScadaEventBus(),
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromMilliseconds(300));
+
+        var result = await runtime.ActivateForHaTakeoverAsync(
+            "plant-a",
+            1,
+            CreatePackage(unavailablePort, tagId, Guid.NewGuid(), "holding:10"),
+            static (_, _) => Task.CompletedTask);
+
+        Assert.True(result.Activated);
+        Assert.Contains(result.RuntimeIssues, issue =>
+            issue.Code == "RUNTIME_ACTIVATED_DEGRADED" && !issue.IsError);
+        Assert.DoesNotContain(result.RuntimeIssues, issue => issue.IsError);
+        Assert.Equal(1, runtime.Describe().Revision);
+        Assert.Contains(runtime.Describe().Drivers, driver => driver.State == Scada.Drivers.Abstractions.DriverState.Running);
+        await WaitForAsync(
+            () => runtime.TryGetCurrent(tagId, out var current) &&
+                  current?.Quality == TagQuality.BadCommunication,
+            TimeSpan.FromSeconds(2));
+
+        await WaitForAsync(
+            () => Assert.Single(runtime.Describe().CommunicationDrivers).Counters.Cycles >= 2,
+            TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
     public async Task ActivateAsync_CommitFailureKeepsPreviousRuntimeAndCandidateEventsGated()
     {
         await using var activeServer = new TestModbusTcpServer();

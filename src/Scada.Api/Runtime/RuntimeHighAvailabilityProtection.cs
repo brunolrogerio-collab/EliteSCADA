@@ -111,6 +111,12 @@ public interface IRuntimeHaReferenceAuthorityStore
         long expectedEpoch,
         CancellationToken cancellationToken = default);
 
+    Task<RuntimeHaReferenceMutationResult> ClaimExpiredForSameNodeRestartAsync(
+        string nodeId,
+        long expectedEpoch,
+        CancellationToken cancellationToken = default) =>
+        ClaimExpiredAsync(nodeId, expectedEpoch, cancellationToken);
+
     Task<RuntimeHaReferenceMutationResult> FenceAsync(
         string nodeId,
         Guid leaseId,
@@ -227,6 +233,19 @@ public sealed class FileRuntimeHaReferenceAuthorityStore : IRuntimeHaReferenceAu
         string nodeId,
         long expectedEpoch,
         CancellationToken cancellationToken = default) =>
+        ClaimExpiredWithReasonAsync(nodeId, expectedEpoch, "automatic-failover-claimed", cancellationToken);
+
+    public Task<RuntimeHaReferenceMutationResult> ClaimExpiredForSameNodeRestartAsync(
+        string nodeId,
+        long expectedEpoch,
+        CancellationToken cancellationToken = default) =>
+        ClaimExpiredWithReasonAsync(nodeId, expectedEpoch, "same-node-restart-epoch-reconciled", cancellationToken);
+
+    private Task<RuntimeHaReferenceMutationResult> ClaimExpiredWithReasonAsync(
+        string nodeId,
+        long expectedEpoch,
+        string reasonCode,
+        CancellationToken cancellationToken) =>
         MutateAsync(
             current =>
             {
@@ -249,8 +268,8 @@ public sealed class FileRuntimeHaReferenceAuthorityStore : IRuntimeHaReferenceAu
                     nodeId,
                     now + _options.LeaseDuration,
                     previousAuthorityFenced: true,
-                    reasonCode: "automatic-failover-claimed");
-                return new(true, "automatic-failover-claimed", next);
+                    reasonCode);
+                return new(true, reasonCode, next);
             },
             cancellationToken);
 
@@ -625,6 +644,36 @@ public sealed class RuntimeHaProtectionCoordinator
             topology);
     }
 
+    public bool CanActivateLocalHaTakeover()
+    {
+        if (!_options.Enabled ||
+            _hostConfiguration?.AllowsIndustrialEffects == false ||
+            _runtime.ProductRuntimeActive)
+        {
+            return false;
+        }
+
+        var topology = _highAvailability.Snapshot();
+        var localNodeId = _highAvailability.LocalNodeId;
+        if (localNodeId is null ||
+            topology.AmbiguousAuthority ||
+            topology.PendingTransfer is not null ||
+            topology.AuthorityEpoch < 1 ||
+            !string.Equals(topology.EffectiveActiveNodeId, localNodeId, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        RuntimeHaReferenceAuthority? reference;
+        lock (_gate)
+            reference = _lastReference;
+
+        return reference is not null &&
+            reference.IsLiveAt(_utcNow()) &&
+            reference.Epoch == topology.AuthorityEpoch &&
+            string.Equals(reference.ActiveNodeId, localNodeId, StringComparison.OrdinalIgnoreCase);
+    }
+
     public IReadOnlyCollection<RuntimeHaProtectionOperation> Operations()
     {
         lock (_gate)
@@ -684,6 +733,9 @@ public sealed class RuntimeHaProtectionCoordinator
         var now = _utcNow();
         var localNodeId = _highAvailability.LocalNodeId!;
         var current = _highAvailability.Snapshot();
+        var sameNodeRestartReconciled =
+            reference.ReasonCode == "same-node-restart-epoch-reconciled" &&
+            reference.ActiveNodeId?.Equals(localNodeId, StringComparison.OrdinalIgnoreCase) == true;
 
         if (reference.IsLiveAt(now) &&
             reference.ActiveNodeId!.Equals(localNodeId, StringComparison.OrdinalIgnoreCase))
@@ -814,19 +866,26 @@ public sealed class RuntimeHaProtectionCoordinator
                     }
 
                     var authoritativeState = state!;
+                    // Publish the claimed lease before the potentially long runtime
+                    // activation starts. The takeover renewer updates this in-memory
+                    // reference while activation/restoration are in flight; without
+                    // this seed, its updates have no matching lease to refresh.
+                    SetReference(reference, false, "authority-runtime-promotion-starting");
                     var takeover = await RunTakeoverWithLeaseRenewalAsync(
                         reference,
                         async takeoverToken =>
                         {
                             var activationFailure = await ActivateAuthoritativeRuntimeAsync(
                                 authoritativeState,
-                                takeoverToken);
+                                takeoverToken,
+                                preferLocalActiveRevision: sameNodeRestartReconciled);
                             if (activationFailure is not null)
                                 return activationFailure;
 
                             // The target has fenced authority and its active runtime is
                             // ready. Commit the local runtime fence before restoring values.
-                            SetReference(reference, true, "authority-runtime-promotion-in-progress");
+                            if (!MarkTakeoverCommitted(reference, "authority-runtime-promotion-in-progress"))
+                                return "takeover-reference-changed-before-state-restore";
                             var restoreFailure = await RestoreAuthoritativeValuesAsync(
                                 authoritativeState,
                                 takeoverToken);
@@ -949,7 +1008,7 @@ public sealed class RuntimeHaProtectionCoordinator
         if (canReconcileSameNodeRestart)
         {
             var operation = AddOperation("same-node-restart-epoch-reconciliation", localNodeId, now);
-            var claimed = await _reference.ClaimExpiredAsync(
+            var claimed = await _reference.ClaimExpiredForSameNodeRestartAsync(
                 localNodeId,
                 reference.Epoch,
                 cancellationToken);
@@ -1305,7 +1364,8 @@ public sealed class RuntimeHaProtectionCoordinator
                 if (activationFailure is not null)
                     return activationFailure;
 
-                SetReference(authority, true, "takeover-state-restoration-in-progress");
+                if (!MarkTakeoverCommitted(authority, "takeover-state-restoration-in-progress"))
+                    return "takeover-reference-changed-before-state-restore";
                 var restoreFailure = await RestoreAuthoritativeValuesAsync(
                     state,
                     takeoverToken);
@@ -1351,7 +1411,8 @@ public sealed class RuntimeHaProtectionCoordinator
 
     private async Task<string?> ActivateAuthoritativeRuntimeAsync(
         RuntimeHaAuthoritativeStateSnapshot state,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool preferLocalActiveRevision = false)
     {
         if (state.Application is null ||
             !state.Runtime.Revision.HasValue ||
@@ -1362,15 +1423,30 @@ public sealed class RuntimeHaProtectionCoordinator
 
         if (_runtimeActivation is not null)
         {
-            var outcome = await _runtimeActivation.ActivateRevisionAsync(
-                state.Runtime.ProjectKey,
-                state.Runtime.Revision.Value,
-                $"ha-takeover:{_highAvailability.LocalNodeId ?? "unknown-node"}",
-                cancellationToken);
+            var activatedBy = $"ha-takeover:{_highAvailability.LocalNodeId ?? "unknown-node"}";
+            var outcome = preferLocalActiveRevision
+                ? await _runtimeActivation.ActivateCurrentActiveRevisionForHaTakeoverAsync(
+                    state.Runtime.ProjectKey,
+                    activatedBy,
+                    cancellationToken)
+                : await _runtimeActivation.ActivateRevisionForHaTakeoverAsync(
+                    state.Runtime.ProjectKey,
+                    state.Runtime.Revision.Value,
+                    activatedBy,
+                    cancellationToken);
             if (!outcome.Found)
                 return "takeover-persisted-revision-unavailable";
             if (!outcome.Activated)
             {
+                var issue = outcome.Runtime?.RuntimeIssues.FirstOrDefault(item => item.IsError);
+                _logger?.LogWarning(
+                    "HA runtime activation failed on node {NodeId} for project {ProjectKey}, requestedRevision={RequestedRevision}, localActiveRevision={LocalActiveRevision}, issueCode={IssueCode}, issue={IssueMessage}.",
+                    _highAvailability.LocalNodeId,
+                    state.Runtime.ProjectKey,
+                    state.Runtime.Revision,
+                    outcome.Snapshot?.Revision,
+                    issue?.Code,
+                    issue?.Message);
                 return outcome.Runtime?.RuntimeIssues.FirstOrDefault(issue => issue.IsError)?.Code
                     ?? "takeover-runtime-activation-failed";
             }
@@ -1380,10 +1456,11 @@ public sealed class RuntimeHaProtectionCoordinator
 
         // Standalone/in-memory hosts can run without engineering persistence. HA
         // deployments with persistence use the durable activation service above.
-        var activation = await _runtime.ActivateAsync(
+        var activation = await _runtime.ActivateForHaTakeoverAsync(
             state.Runtime.ProjectKey,
             state.Runtime.Revision.Value,
             state.Application,
+            static (_, _) => Task.CompletedTask,
             cancellationToken);
         if (!activation.Activated)
             return activation.RuntimeIssues.FirstOrDefault(issue => issue.IsError)?.Code
@@ -1586,7 +1663,12 @@ public sealed class RuntimeHaProtectionCoordinator
     private bool CanOwnIndustrialEffects(RuntimeHaTopologySnapshot topology)
     {
         if (_hostConfiguration?.AllowsIndustrialEffects == false)
+        {
+            _logger?.LogWarning(
+                "HA industrial effects remain fenced on node {NodeId}: host configuration requires restart.",
+                _highAvailability.LocalNodeId);
             return false;
+        }
         if (!_options.Enabled)
             return true;
 
@@ -1600,18 +1682,45 @@ public sealed class RuntimeHaProtectionCoordinator
 
         var localNodeId = _highAvailability.LocalNodeId;
         var now = _utcNow();
-        return committed &&
+        var leaseLive = reference is not null &&
+            reference.LeaseUntilUtc - _options.ClockSkewSafetyMargin > now;
+        var nodeMatches = localNodeId is not null &&
+            reference?.ActiveNodeId is { } activeNodeId &&
+            activeNodeId.Equals(localNodeId, StringComparison.OrdinalIgnoreCase);
+        var epochMatches = reference is not null && reference.Epoch == topology.AuthorityEpoch;
+        var topologyMatches = localNodeId is not null &&
+            topology.EffectiveActiveNodeId is { } effectiveActiveNodeId &&
+            effectiveActiveNodeId.Equals(localNodeId, StringComparison.OrdinalIgnoreCase);
+        var permitted = committed &&
             localNodeId is not null &&
             reference is not null &&
-            reference.ActiveNodeId is not null &&
-            reference.LeaseUntilUtc - _options.ClockSkewSafetyMargin > now &&
-            reference.ActiveNodeId is not null &&
-            reference.ActiveNodeId.Equals(localNodeId, StringComparison.OrdinalIgnoreCase) &&
-            reference.Epoch == topology.AuthorityEpoch &&
-            topology.EffectiveActiveNodeId is not null &&
-            topology.EffectiveActiveNodeId.Equals(localNodeId, StringComparison.OrdinalIgnoreCase) &&
+            leaseLive &&
+            nodeMatches &&
+            epochMatches &&
+            topologyMatches &&
             !topology.AmbiguousAuthority &&
             topology.PendingTransfer is null;
+        if (!permitted)
+        {
+            _logger?.LogWarning(
+                "HA industrial effects remain fenced on node {NodeId}: takeoverCommitted={TakeoverCommitted}, " +
+                "referencePresent={ReferencePresent}, leaseLive={LeaseLive}, referenceOwnsLocal={ReferenceOwnsLocal}, " +
+                "referenceEpochMatches={ReferenceEpochMatches}, topologyOwnsLocal={TopologyOwnsLocal}, " +
+                "ambiguous={AmbiguousAuthority}, transferPending={TransferPending}, " +
+                "leaseUntilUtc={LeaseUntilUtc}, nowUtc={NowUtc}.",
+                localNodeId,
+                committed,
+                reference is not null,
+                leaseLive,
+                nodeMatches,
+                epochMatches,
+                topologyMatches,
+                topology.AmbiguousAuthority,
+                topology.PendingTransfer is not null,
+                reference?.LeaseUntilUtc,
+                now);
+        }
+        return permitted;
     }
 
     private void CaptureReadyWitness()
@@ -1721,6 +1830,33 @@ public sealed class RuntimeHaProtectionCoordinator
         {
             // HA fencing and runtime transitions must not depend on diagnostics storage.
             _logger?.LogWarning(ex, "HA operation history could not be persisted.");
+        }
+    }
+
+    private bool MarkTakeoverCommitted(
+        RuntimeHaReferenceAuthority authority,
+        string reasonCode)
+    {
+        lock (_gate)
+        {
+            var current = _lastReference;
+            var sameLease = current is not null &&
+                current.Epoch == authority.Epoch &&
+                current.LeaseId == authority.LeaseId;
+            if (!sameLease)
+            {
+                _localTakeoverCommitted = false;
+                _reasonCode = "takeover-reference-changed-before-state-restore";
+                return false;
+            }
+
+            // Lease renewal runs concurrently with runtime activation. Keep the latest
+            // reference published by that renewer; the authority argument is the
+            // pre-activation snapshot and may already be expired by the time restore
+            // reaches the external industrial fence.
+            _localTakeoverCommitted = true;
+            _reasonCode = reasonCode;
+            return true;
         }
     }
 }

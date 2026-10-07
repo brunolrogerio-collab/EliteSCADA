@@ -141,6 +141,23 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
             cancellationToken);
     }
 
+    public Task<RuntimeActivationResult> ActivateRuntimeForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(package);
+        ArgumentNullException.ThrowIfNull(commitAsync);
+        return ActivateRuntimeCoreAsync(
+            projectKey,
+            revision,
+            package.Scripts,
+            ct => _runtime.ActivateForHaTakeoverAsync(projectKey, revision, package, commitAsync, ct),
+            cancellationToken);
+    }
+
     /// <summary>
     /// Attaches Server Scripts to an already Active revision. Persisted production activation
     /// uses ActivateRuntimeAsync so the Runtime swap and script generation share the revision gate.

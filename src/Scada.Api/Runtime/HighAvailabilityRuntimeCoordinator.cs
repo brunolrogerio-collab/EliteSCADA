@@ -10,6 +10,11 @@ using Scada.Engineering.Contracts;
 
 namespace Scada.Api.Runtime;
 
+public interface IRuntimeApplicationProjectionProvider
+{
+    EngineeringPackage? CaptureApplication();
+}
+
 /// <summary>
 /// Final host-side Runtime decorator. HA policy remains owned by RuntimeHighAvailabilityService;
 /// this coordinator only consumes the effective-Active decision before industrial effects.
@@ -22,6 +27,7 @@ public sealed class HighAvailabilityRuntimeCoordinator(
     IConfiguration? configuration = null) :
     IEngineeringRuntimeCoordinator,
     IRuntimeTagValueSnapshotRestorer,
+    IRuntimeApplicationProjectionProvider,
     IGatewayRuntimeDiagnosticsProvider
 {
     public const string AuthorityDeniedIssueCode = "HA_EFFECTIVE_ACTIVE_REQUIRED";
@@ -230,6 +236,7 @@ public sealed class HighAvailabilityRuntimeCoordinator(
             revision,
             package,
             commitAsync: null,
+            allowDegradedSources: false,
             cancellationToken);
 
     public Task<RuntimeActivationResult> ActivateAsync(
@@ -240,7 +247,18 @@ public sealed class HighAvailabilityRuntimeCoordinator(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(commitAsync);
-        return ActivateCoreAsync(projectKey, revision, package, commitAsync, cancellationToken);
+        return ActivateCoreAsync(projectKey, revision, package, commitAsync, allowDegradedSources: false, cancellationToken);
+    }
+
+    public Task<RuntimeActivationResult> ActivateForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(commitAsync);
+        return ActivateCoreAsync(projectKey, revision, package, commitAsync, allowDegradedSources: true, cancellationToken);
     }
 
     private async Task<RuntimeActivationResult> ActivateCoreAsync(
@@ -248,6 +266,7 @@ public sealed class HighAvailabilityRuntimeCoordinator(
         long revision,
         EngineeringPackage package,
         Func<RuntimeActivationCommitContext, CancellationToken, Task>? commitAsync,
+        bool allowDegradedSources,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(package);
@@ -274,7 +293,9 @@ public sealed class HighAvailabilityRuntimeCoordinator(
 
         var activation = commitAsync is null
             ? await inner.ActivateAsync(projectKey, revision, package, cancellationToken)
-            : await inner.ActivateAsync(projectKey, revision, package, commitAsync, cancellationToken);
+            : allowDegradedSources
+                ? await inner.ActivateForHaTakeoverAsync(projectKey, revision, package, commitAsync, cancellationToken)
+                : await inner.ActivateAsync(projectKey, revision, package, commitAsync, cancellationToken);
         if (activation.Activated)
         {
             // A restart may reconcile authority before the product runtime is materialized.

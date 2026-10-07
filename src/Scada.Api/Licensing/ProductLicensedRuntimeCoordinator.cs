@@ -480,7 +480,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
         long revision,
         EngineeringPackage package,
         CancellationToken cancellationToken = default) =>
-        ActivateCoreAsync(projectKey, revision, package, null, cancellationToken);
+        ActivateCoreAsync(projectKey, revision, package, null, allowDegradedSources: false, cancellationToken);
 
     public Task<RuntimeActivationResult> ActivateAsync(
         string projectKey,
@@ -490,7 +490,18 @@ public sealed class ProductLicensedRuntimeCoordinator :
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(commitAsync);
-        return ActivateCoreAsync(projectKey, revision, package, commitAsync, cancellationToken);
+        return ActivateCoreAsync(projectKey, revision, package, commitAsync, allowDegradedSources: false, cancellationToken);
+    }
+
+    public Task<RuntimeActivationResult> ActivateForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(commitAsync);
+        return ActivateCoreAsync(projectKey, revision, package, commitAsync, allowDegradedSources: true, cancellationToken);
     }
 
     private async Task<RuntimeActivationResult> ActivateCoreAsync(
@@ -498,6 +509,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
         long revision,
         EngineeringPackage package,
         Func<RuntimeActivationCommitContext, CancellationToken, Task>? commitAsync,
+        bool allowDegradedSources,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(projectKey))
@@ -606,10 +618,7 @@ public sealed class ProductLicensedRuntimeCoordinator :
             }
             else
             {
-                result = await inner.ActivateAsync(
-                    projectKey,
-                    revision,
-                    package,
+                Func<RuntimeActivationCommitContext, CancellationToken, Task> wrappedCommit =
                     requiresExplicitDemoAnchor
                         ? async (context, ct) =>
                         {
@@ -623,8 +632,20 @@ public sealed class ProductLicensedRuntimeCoordinator :
                             // recovery rejects an older Active bound to another session.
                             await commitAsync(context, ct);
                         }
-                        : commitAsync,
-                    cancellationToken);
+                        : commitAsync;
+                result = allowDegradedSources
+                    ? await inner.ActivateForHaTakeoverAsync(
+                        projectKey,
+                        revision,
+                        package,
+                        wrappedCommit,
+                        cancellationToken)
+                    : await inner.ActivateAsync(
+                        projectKey,
+                        revision,
+                        package,
+                        wrappedCommit,
+                        cancellationToken);
             }
 
             if (!result.Activated)

@@ -20,6 +20,13 @@ services:
   # becomes standby, so HA actions must be exercised against api-b itself.
   web-b:
     image: elitescada-ha-capacity-test-web:local
+    # The shared `api` network alias resolves to node A on the default
+    # network. Rewrite the nginx upstream so this operator UI always exercises
+    # node B instead of depending on Docker link/alias resolution order.
+    command:
+      - /bin/sh
+      - -c
+      - sed -i 's|http://api:5080|http://api-b:5080|g' /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'
     links:
       - api-b:api
     ports:
@@ -33,3 +40,7 @@ services:
       timeout: 5s
       retries: 12
       start_period: 10s
+
+volumes:
+  ha_capacity_reference_store:
+    name: elitescada-ha-capacity-reference-recovery-r2-20261007

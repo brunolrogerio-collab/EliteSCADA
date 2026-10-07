@@ -140,6 +140,104 @@ public sealed class RuntimeHighAvailabilityTests
     }
 
     [Fact]
+    public void DatabaseOutage_DoesNotFenceLastActiveAndOnlyDatabaseHealthyStandbyIsReady()
+    {
+        var coordinator = CreateReadyPair(out var clock);
+        coordinator.UpdateNodeReadiness(
+            "node-a",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true) with
+            {
+                DatabaseAvailable = false
+            });
+        coordinator.UpdateNodeReadiness(
+            "node-b",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true) with
+            {
+                DatabaseAvailable = true
+            });
+
+        var oneDatabaseAvailable = coordinator.Snapshot();
+        Assert.Equal(RuntimeHaState.Active, Node(oneDatabaseAvailable, "node-a").State);
+        Assert.False(Node(oneDatabaseAvailable, "node-a").DatabaseAvailable);
+        Assert.True(Node(oneDatabaseAvailable, "node-b").DatabaseAvailable);
+        Assert.Equal(RuntimeHaState.ReadyStandby, Node(oneDatabaseAvailable, "node-b").State);
+        Assert.True(coordinator.TryAcquireIndustrialAuthority("node-a").Allowed);
+
+        coordinator.UpdateNodeReadiness(
+            "node-b",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true) with
+            {
+                DatabaseAvailable = false
+            });
+
+        var bothDatabasesUnavailable = coordinator.Snapshot();
+        Assert.Equal(RuntimeHaState.Active, Node(bothDatabasesUnavailable, "node-a").State);
+        Assert.Equal(RuntimeHaState.Synchronizing, Node(bothDatabasesUnavailable, "node-b").State);
+        Assert.True(coordinator.TryAcquireIndustrialAuthority("node-a").Allowed);
+    }
+
+    [Fact]
+    public void DatabaseFailover_RequiresPeerHealthObservedAfterLocalOutage()
+    {
+        var outageObservedAt = DateTimeOffset.Parse("2026-10-07T12:00:00Z");
+        var safetyMargin = TimeSpan.FromSeconds(1);
+
+        Assert.False(RuntimeHaProtectionCoordinator.HasDatabaseHealthProofAfterOutage(
+            sourceDatabaseAvailable: false,
+            sourceDatabaseObservedAtUtc: outageObservedAt,
+            targetDatabaseAvailable: true,
+            targetDatabaseObservedAtUtc: outageObservedAt.AddMilliseconds(900),
+            targetDatabaseConsecutiveSuccesses: 2,
+            targetDatabaseConsecutiveFailures: 0,
+            clockSkewSafetyMargin: safetyMargin));
+
+        Assert.False(RuntimeHaProtectionCoordinator.HasDatabaseHealthProofAfterOutage(
+            sourceDatabaseAvailable: false,
+            sourceDatabaseObservedAtUtc: outageObservedAt,
+            targetDatabaseAvailable: true,
+            targetDatabaseObservedAtUtc: outageObservedAt.AddSeconds(2),
+            targetDatabaseConsecutiveSuccesses: 1,
+            targetDatabaseConsecutiveFailures: 0,
+            clockSkewSafetyMargin: safetyMargin));
+
+        Assert.True(RuntimeHaProtectionCoordinator.HasDatabaseHealthProofAfterOutage(
+            sourceDatabaseAvailable: false,
+            sourceDatabaseObservedAtUtc: outageObservedAt,
+            targetDatabaseAvailable: true,
+            targetDatabaseObservedAtUtc: outageObservedAt.AddSeconds(2),
+            targetDatabaseConsecutiveSuccesses: 2,
+            targetDatabaseConsecutiveFailures: 0,
+            clockSkewSafetyMargin: safetyMargin));
+
+        Assert.False(RuntimeHaProtectionCoordinator.HasDatabaseHealthProofAfterOutage(
+            sourceDatabaseAvailable: false,
+            sourceDatabaseObservedAtUtc: outageObservedAt,
+            targetDatabaseAvailable: true,
+            targetDatabaseObservedAtUtc: outageObservedAt.AddSeconds(2),
+            targetDatabaseConsecutiveSuccesses: 2,
+            targetDatabaseConsecutiveFailures: 1,
+            clockSkewSafetyMargin: safetyMargin));
+
+        Assert.False(RuntimeHaProtectionCoordinator.HasDatabaseHealthProofAfterOutage(
+            sourceDatabaseAvailable: false,
+            sourceDatabaseObservedAtUtc: outageObservedAt,
+            targetDatabaseAvailable: null,
+            targetDatabaseObservedAtUtc: outageObservedAt.AddSeconds(2),
+            targetDatabaseConsecutiveSuccesses: 2,
+            targetDatabaseConsecutiveFailures: 0,
+            clockSkewSafetyMargin: safetyMargin));
+
+        Assert.False(RuntimeHaProtectionCoordinator.HasDatabaseHealthProofAfterOutage(
+            sourceDatabaseAvailable: false,
+            sourceDatabaseObservedAtUtc: outageObservedAt,
+            targetDatabaseAvailable: true,
+            targetDatabaseObservedAtUtc: null,
+            targetDatabaseConsecutiveSuccesses: 2,
+            targetDatabaseConsecutiveFailures: 0,
+            clockSkewSafetyMargin: safetyMargin));
+    }
+
+    [Fact]
     public void D2IndustrialFence_FailsClosedUntilExternalReferenceConfirmsLocalAuthority()
     {
         var clock = new MutableClock(DateTimeOffset.Parse("2026-10-02T12:00:00Z"));

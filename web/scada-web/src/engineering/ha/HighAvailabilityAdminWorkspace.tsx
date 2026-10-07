@@ -202,6 +202,12 @@ function statusLabel(status: string, t: ReturnType<typeof haCopy>) {
   return status;
 }
 
+function databaseHealthName(available: boolean | null | undefined, t: ReturnType<typeof haCopy>) {
+  if (available === true) return t.databaseAvailable;
+  if (available === false) return t.databaseUnavailable;
+  return t.databaseUnknown;
+}
+
 function runningHint(label: string, value: React.ReactNode) {
   return <small className="ha-field-hint"><span>{label}</span> {value || '—'}</small>;
 }
@@ -598,11 +604,13 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
           <div className="ha-node-summary">
             <strong>{t.currentServer}</strong>
             <small>{local ? stateName(local.state) : t.standaloneMode}</small>
+            {topology.enabled && <small>{databaseHealthName(local?.databaseAvailable, t)}</small>}
           </div>
           {topology.enabled && (
             <div className="ha-node-summary">
               <strong>{t.partnerServer}</strong>
               <small>{peerNode ? stateName(peerNode.state) : '—'} · {peer.connectionState} · {relativeTime(latestContact(snapshot))}</small>
+              <small>{databaseHealthName(peerNode?.databaseAvailable, t)}</small>
             </div>
           )}
         </article>

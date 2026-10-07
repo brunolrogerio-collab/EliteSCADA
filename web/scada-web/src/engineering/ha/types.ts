@@ -23,6 +23,9 @@ export type HaNodeSnapshot = {
   fresh: boolean;
   readinessReason?: string | null;
   endpoints: HaEndpoint[];
+  databaseAvailable?: boolean | null;
+  databaseAvailabilityConsecutiveSuccesses?: number;
+  databaseAvailabilityConsecutiveFailures?: number;
 };
 
 export type HaTransferOperation = {

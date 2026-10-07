@@ -159,7 +159,11 @@ public sealed record RuntimeHaNodeReadinessEvidence(
     bool HaLicenseEntitled,
     RuntimeHaRuntimeIdentity Runtime,
     DateTimeOffset ObservedAtUtc,
-    string? Diagnostic = null);
+    string? Diagnostic = null,
+    bool? DatabaseAvailable = null,
+    DateTimeOffset? DatabaseAvailabilityObservedAtUtc = null,
+    int DatabaseAvailabilityConsecutiveSuccesses = 0,
+    int DatabaseAvailabilityConsecutiveFailures = 0);
 
 public sealed record RuntimeHaNodeSnapshot(
     string NodeId,
@@ -173,7 +177,11 @@ public sealed record RuntimeHaNodeSnapshot(
     DateTimeOffset? LastObservedAtUtc,
     bool Fresh,
     string? ReadinessReason,
-    IReadOnlyCollection<RuntimeHaEndpoint> Endpoints);
+    IReadOnlyCollection<RuntimeHaEndpoint> Endpoints,
+    bool? DatabaseAvailable = null,
+    DateTimeOffset? DatabaseAvailabilityObservedAtUtc = null,
+    int DatabaseAvailabilityConsecutiveSuccesses = 0,
+    int DatabaseAvailabilityConsecutiveFailures = 0);
 
 public sealed record RuntimeHaTransferOperation(
     Guid TransferId,
@@ -755,7 +763,11 @@ public sealed partial class RuntimeHaAuthorityCoordinator
             evidence?.ObservedAtUtc,
             fresh,
             reason,
-            node.Definition.Endpoints);
+            node.Definition.Endpoints,
+            evidence?.DatabaseAvailable,
+            evidence?.DatabaseAvailabilityObservedAtUtc,
+            evidence?.DatabaseAvailabilityConsecutiveSuccesses ?? 0,
+            evidence?.DatabaseAvailabilityConsecutiveFailures ?? 0);
     }
 
     private string? ReadyReason(NodeState node, bool ready, bool fresh)
@@ -849,6 +861,7 @@ public sealed partial class RuntimeHaAuthorityCoordinator
         IsFresh(candidate) &&
         IsFresh(active) &&
         candidate.Healthy &&
+        candidate.DatabaseAvailable != false &&
         candidate.SynchronizationComplete &&
         candidate.HaLicenseEntitled &&
         active.Healthy &&
@@ -1189,7 +1202,14 @@ public sealed partial class RuntimeHighAvailabilityService
                 HaLicenseEntitled: haEntitled,
                 Runtime: RuntimeHaRuntimeIdentity.From(runtime),
                 ObservedAtUtc: _utcNow(),
-                Diagnostic: haEntitled ? null : "local-license-not-ha-entitled"));
+                Diagnostic: haEntitled ? null : "local-license-not-ha-entitled",
+                DatabaseAvailable: previous?.DatabaseAvailable,
+                DatabaseAvailabilityObservedAtUtc:
+                    previous?.DatabaseAvailabilityObservedAtUtc,
+                DatabaseAvailabilityConsecutiveSuccesses:
+                    previous?.DatabaseAvailabilityConsecutiveSuccesses ?? 0,
+                DatabaseAvailabilityConsecutiveFailures:
+                    previous?.DatabaseAvailabilityConsecutiveFailures ?? 0));
     }
 
     public void ReportLocalSynchronization(bool synchronizationComplete)
@@ -1205,6 +1225,31 @@ public sealed partial class RuntimeHighAvailabilityService
             previous with
             {
                 SynchronizationComplete = synchronizationComplete,
+                ObservedAtUtc = _utcNow()
+            });
+    }
+
+    public void UpdateLocalDatabaseAvailability(
+        bool? available,
+        DateTimeOffset? observedAtUtc = null,
+        int consecutiveSuccessfulProbes = 0,
+        int consecutiveFailedProbes = 0)
+    {
+        if (!Enabled) return;
+        var nodeId = _authority.Definition.LocalNodeId;
+        var previous = _authority.GetNodeReadiness(nodeId);
+        if (previous is null) return;
+
+        _authority.UpdateNodeReadiness(
+            nodeId,
+            previous with
+            {
+                DatabaseAvailable = available,
+                DatabaseAvailabilityObservedAtUtc = observedAtUtc ?? _utcNow(),
+                DatabaseAvailabilityConsecutiveSuccesses = available == true
+                    ? Math.Max(0, consecutiveSuccessfulProbes)
+                    : 0,
+                DatabaseAvailabilityConsecutiveFailures = Math.Max(0, consecutiveFailedProbes),
                 ObservedAtUtc = _utcNow()
             });
     }

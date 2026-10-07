@@ -498,6 +498,7 @@ public sealed class RuntimeHaProtectionCoordinator
     private RuntimeHaStandbyPromotionWitness? _lastReadyWitness;
     private bool _localTakeoverCommitted;
     private string? _reasonCode;
+    private DateTimeOffset? _lastDatabaseFailoverAttemptUtc;
     private readonly Dictionary<Guid, RuntimeHaProtectionOperation> _operations = new();
 
     public RuntimeHaProtectionCoordinator(
@@ -585,6 +586,12 @@ public sealed class RuntimeHaProtectionCoordinator
 
         var configurationPending = _hostConfiguration?.PendingRestart == true;
         var permitted = CanOwnIndustrialEffects(topology);
+        var localNodeOwnsLiveReference =
+            reference?.ActiveNodeId is { } activeNodeId &&
+            activeNodeId.Equals(
+                _highAvailability.LocalNodeId,
+                StringComparison.OrdinalIgnoreCase) &&
+            reference.IsLiveAt(_utcNow());
         var status = configurationPending
             ? "blocked"
             : !_options.Enabled
@@ -595,7 +602,7 @@ public sealed class RuntimeHaProtectionCoordinator
                         ? "blocked"
                         : permitted
                             ? "active"
-                            : reference.IsLiveAt(_utcNow())
+                            : reference.IsLiveAt(_utcNow()) && !localNodeOwnsLiveReference
                                 ? "standby"
                                 : "degraded";
 
@@ -720,6 +727,34 @@ public sealed class RuntimeHaProtectionCoordinator
                 }
 
                 reference = renewed.Authority;
+            }
+
+            if (reference.IsLiveAt(now) &&
+                reference.ActiveNodeId!.Equals(localNodeId, StringComparison.OrdinalIgnoreCase) &&
+                await TryTransferForDatabaseOutageAsync(now, cancellationToken))
+            {
+                return;
+            }
+
+            var localDatabase = current.Nodes.SingleOrDefault(node =>
+                node.NodeId.Equals(localNodeId, StringComparison.OrdinalIgnoreCase));
+            if (!_runtime.ProductRuntimeActive &&
+                (localDatabase?.DatabaseAvailable == false ||
+                 localDatabase?.DatabaseAvailabilityConsecutiveFailures > 0))
+            {
+                // The reference authority is still valid and renewed above. A database
+                // outage may make a fresh runtime activation impossible, but that must
+                // not fence the last live Active node or turn the outage into a cluster
+                // stop. Keep the authority and expose the degraded state until recovery.
+                SetReference(reference, false, "database-unavailable-runtime-continues-degraded");
+                return;
+            }
+            if (!_runtime.ProductRuntimeActive &&
+                localDatabase?.DatabaseAvailable == true &&
+                localDatabase.DatabaseAvailabilityConsecutiveSuccesses < 2)
+            {
+                SetReference(reference, false, "database-recovery-health-confirming");
+                return;
             }
 
             var descriptor = _runtime.Describe();
@@ -855,11 +890,27 @@ public sealed class RuntimeHaProtectionCoordinator
             activeNodeId: null,
             referencedEpoch: reference.Epoch,
             previousAuthorityFenced: true);
-        await FenceLocalSessionsIfNeededAsync("ha-reference-expired", cancellationToken);
+        var expiredReferenceLocalNode = _highAvailability.Snapshot().Nodes.SingleOrDefault(node =>
+            node.NodeId.Equals(localNodeId, StringComparison.OrdinalIgnoreCase));
+        if (expiredReferenceLocalNode?.DatabaseAvailable != false &&
+            expiredReferenceLocalNode?.DatabaseAvailabilityConsecutiveFailures is not > 0)
+        {
+            await FenceLocalSessionsIfNeededAsync("ha-reference-expired", cancellationToken);
+        }
         SetReference(reference, false, "reference-lease-expired");
 
         if (!_options.AutomaticFailoverEnabled)
             return;
+
+        var localNode = _highAvailability.Snapshot().Nodes.SingleOrDefault(node =>
+            node.NodeId.Equals(_highAvailability.LocalNodeId, StringComparison.OrdinalIgnoreCase));
+        if (localNode?.DatabaseAvailable != true ||
+            localNode.DatabaseAvailabilityConsecutiveSuccesses < 2 ||
+            localNode.DatabaseAvailabilityConsecutiveFailures > 0)
+        {
+            SetReasonCode("database-unavailable-automatic-failover-blocked");
+            return;
+        }
 
         var transport = _peerTransport.Snapshot();
         if (transport.ConnectionState is "connected")
@@ -896,6 +947,26 @@ public sealed class RuntimeHaProtectionCoordinator
             return Complete(operation, "rejected", "target-node-unknown", reference.Epoch);
         if (!target.Ready || target.State != RuntimeHaState.ReadyStandby || !target.Fresh)
             return Complete(operation, "rejected", "target-not-ready-standby", reference.Epoch);
+        var local = _highAvailability.Snapshot().Nodes.SingleOrDefault(node =>
+            node.NodeId.Equals(localNodeId, StringComparison.OrdinalIgnoreCase));
+        var databaseOutageTransfer =
+            string.Equals(kind, "database-failover", StringComparison.Ordinal) &&
+            local is not null &&
+            HasDatabaseHealthProofAfterOutage(
+                local.DatabaseAvailable,
+                local.DatabaseAvailabilityObservedAtUtc,
+                target.DatabaseAvailable,
+                target.DatabaseAvailabilityObservedAtUtc,
+                target.DatabaseAvailabilityConsecutiveSuccesses,
+                target.DatabaseAvailabilityConsecutiveFailures,
+                _options.ClockSkewSafetyMargin);
+        if (string.Equals(kind, "database-failover", StringComparison.Ordinal) &&
+            !databaseOutageTransfer)
+            return Complete(
+                operation,
+                "rejected",
+                "target-database-not-confirmed-after-source-outage",
+                reference.Epoch);
 
         var fenced = await _reference.FenceAsync(
             localNodeId,
@@ -910,10 +981,23 @@ public sealed class RuntimeHaProtectionCoordinator
             activeNodeId: null,
             referencedEpoch: fenced.Authority.Epoch,
             previousAuthorityFenced: true);
-        await FenceLocalSessionsIfNeededAsync(
-            "ha-" + kind + "-break",
-            cancellationToken,
-            force: true);
+        if (databaseOutageTransfer)
+        {
+            // The external reference fence is already committed. The failed local
+            // database cannot persist session-lease transitions; do not let that
+            // secondary store prevent authority from moving to the healthy node.
+            // Local industrial effects are fenced by the reference authority above.
+            _logger?.LogWarning(
+                "Skipping durable local session transition during database failover from {SourceNodeId}; reference fencing remains authoritative.",
+                localNodeId);
+        }
+        else
+        {
+            await FenceLocalSessionsIfNeededAsync(
+                "ha-" + kind + "-break",
+                cancellationToken,
+                force: true);
+        }
         SetReference(fenced.Authority, false, "controlled-break");
 
         var assigned = await _reference.AssignAfterFenceAsync(
@@ -930,6 +1014,90 @@ public sealed class RuntimeHaProtectionCoordinator
             previousAuthorityFenced: true);
         SetReference(assigned.Authority, false, "controlled-grant");
         return Complete(operation, "completed", assigned.ReasonCode, assigned.Authority.Epoch);
+    }
+
+    private async Task<bool> TryTransferForDatabaseOutageAsync(
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var topology = _highAvailability.Snapshot();
+        var local = topology.Nodes.SingleOrDefault(node =>
+            node.NodeId.Equals(_highAvailability.LocalNodeId, StringComparison.OrdinalIgnoreCase));
+        if (local?.DatabaseAvailable != false)
+            return false;
+
+        var target = topology.Nodes
+            .Where(node => !node.NodeId.Equals(_highAvailability.LocalNodeId, StringComparison.OrdinalIgnoreCase))
+            .Where(node => node.Ready && node.State == RuntimeHaState.ReadyStandby && node.Fresh)
+            .Where(node => local is not null && HasDatabaseHealthProofAfterOutage(
+                local.DatabaseAvailable,
+                local.DatabaseAvailabilityObservedAtUtc,
+                node.DatabaseAvailable,
+                node.DatabaseAvailabilityObservedAtUtc,
+                node.DatabaseAvailabilityConsecutiveSuccesses,
+                node.DatabaseAvailabilityConsecutiveFailures,
+                _options.ClockSkewSafetyMargin))
+            .OrderBy(node => node.NodeId, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+
+        if (target is null)
+        {
+            // Both stores are unavailable (or the peer has not confirmed health). Keep the
+            // current Active authority; DB loss alone is not a reason to stop runtime.
+            SetReasonCode("database-unavailable-runtime-continues-degraded");
+            return false;
+        }
+
+        if (!_options.AutomaticFailoverEnabled)
+        {
+            SetReasonCode("database-unavailable-peer-healthy-manual-switch-available");
+            return false;
+        }
+
+        lock (_gate)
+        {
+            if (_lastDatabaseFailoverAttemptUtc is { } lastAttempt &&
+                now - lastAttempt < TimeSpan.FromSeconds(15))
+                return false;
+            _lastDatabaseFailoverAttemptUtc = now;
+        }
+
+        var operation = await RequestControlledSwitchAsync(
+            target.NodeId,
+            "database-failover",
+            cancellationToken);
+        return !string.Equals(operation.State, "rejected", StringComparison.Ordinal);
+    }
+
+    internal static bool HasDatabaseHealthProofAfterOutage(
+        bool? sourceDatabaseAvailable,
+        DateTimeOffset? sourceDatabaseObservedAtUtc,
+        bool? targetDatabaseAvailable,
+        DateTimeOffset? targetDatabaseObservedAtUtc,
+        int targetDatabaseConsecutiveSuccesses,
+        int targetDatabaseConsecutiveFailures,
+        TimeSpan clockSkewSafetyMargin)
+    {
+        if (sourceDatabaseAvailable != false ||
+            targetDatabaseAvailable != true ||
+            targetDatabaseConsecutiveFailures > 0 ||
+            sourceDatabaseObservedAtUtc is not { } outageObservedAtUtc ||
+            targetDatabaseObservedAtUtc is not { } targetHealthObservedAtUtc ||
+            targetDatabaseConsecutiveSuccesses < 2)
+        {
+            return false;
+        }
+
+        // Do not hand authority to a peer whose last healthy database probe
+        // predates this node's outage detection. In a simultaneous outage that
+        // peer's old "healthy" heartbeat must not be mistaken for recovery.
+        return targetHealthObservedAtUtc > outageObservedAtUtc + clockSkewSafetyMargin;
+    }
+
+    private void SetReasonCode(string reasonCode)
+    {
+        lock (_gate)
+            _reasonCode = reasonCode;
     }
 
     public async Task<RuntimeHaProtectionOperation> RequestRecoveryAsync(

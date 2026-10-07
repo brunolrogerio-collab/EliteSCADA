@@ -2,6 +2,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Scada.Api.Persistence;
 using Scada.Api.Security;
 using Scada.Core.Product.Licensing;
 using Scada.Core.Tags;
@@ -1212,7 +1213,18 @@ public sealed class RuntimeHaPeerReplicationCoordinator
                     localLicense.HaRuntimeEntitled,
                 Runtime: runtimeIdentity,
                 ObservedAtUtc: now,
-                Diagnostic: reasonCode));
+                Diagnostic: reasonCode,
+                DatabaseAvailable: _highAvailability.Authority.GetNodeReadiness(
+                    _highAvailability.LocalNodeId)?.DatabaseAvailable,
+                DatabaseAvailabilityObservedAtUtc:
+                    _highAvailability.Authority.GetNodeReadiness(
+                        _highAvailability.LocalNodeId)?.DatabaseAvailabilityObservedAtUtc,
+                DatabaseAvailabilityConsecutiveSuccesses:
+                    _highAvailability.Authority.GetNodeReadiness(
+                        _highAvailability.LocalNodeId)?.DatabaseAvailabilityConsecutiveSuccesses ?? 0,
+                DatabaseAvailabilityConsecutiveFailures:
+                    _highAvailability.Authority.GetNodeReadiness(
+                        _highAvailability.LocalNodeId)?.DatabaseAvailabilityConsecutiveFailures ?? 0));
     }
 
     private (bool Synchronized, string? ReasonCode) EvaluateStandbyReadiness(
@@ -1632,6 +1644,7 @@ public static class RuntimeHighAvailabilityPeerTransportComposition
         services.AddSingleton<RuntimeHaPeerTransportState>();
         services.AddSingleton<RuntimeHaPeerReplicationCoordinator>();
         services.AddHostedService<RuntimeHaPeerTransportHostedService>();
+        services.AddHostedService<RuntimeHaDatabaseAvailabilityHostedService>();
         return services;
     }
 
@@ -1663,5 +1676,104 @@ public static class RuntimeHighAvailabilityPeerTransportComposition
         });
 
         return endpoints;
+    }
+}
+
+/// <summary>
+/// Samples durable database health independently from the short HA lease/fencing loop.
+/// A database outage must never block lease reconciliation or fail the runtime closed.
+/// </summary>
+public sealed class RuntimeHaDatabaseAvailabilityHostedService(
+    RuntimeHighAvailabilityService highAvailability,
+    DatabaseTopologyAdministrationService database,
+    TimeProvider timeProvider,
+    ILogger<RuntimeHaDatabaseAvailabilityHostedService> logger) : BackgroundService
+{
+    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(5);
+    private const int FailuresBeforeUnavailable = 2;
+    private int _consecutiveFailures;
+    private int _consecutiveSuccesses;
+    private bool? _lastPublishedAvailability;
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        if (!highAvailability.Enabled)
+            return;
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                var status = await database.GetStatusAsync(
+                    refreshHealth: true,
+                    cancellationToken: stoppingToken);
+                if (status.PrimaryHealth is { Reachable: true })
+                {
+                    _consecutiveFailures = 0;
+                    _consecutiveSuccesses = Math.Min(2, _consecutiveSuccesses + 1);
+                    PublishAvailability(true, _consecutiveSuccesses, 0);
+                }
+                else if (status.PrimaryHealth is { Reachable: false })
+                {
+                    _consecutiveFailures++;
+                    _consecutiveSuccesses = 0;
+                    if (_consecutiveFailures >= FailuresBeforeUnavailable)
+                        PublishAvailability(false, 0, _consecutiveFailures);
+                    else
+                        PublishAvailability(_lastPublishedAvailability, 0, _consecutiveFailures);
+                }
+                else
+                {
+                    _consecutiveSuccesses = 0;
+                    _consecutiveFailures = 0;
+                    PublishAvailability(null, 0, 0);
+                }
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _consecutiveFailures++;
+                _consecutiveSuccesses = 0;
+                logger.LogWarning(ex, "HA database availability probe failed.");
+                if (_consecutiveFailures >= FailuresBeforeUnavailable)
+                    PublishAvailability(false, 0, _consecutiveFailures);
+                else
+                    PublishAvailability(_lastPublishedAvailability, 0, _consecutiveFailures);
+            }
+
+            await Task.Delay(PollInterval, timeProvider, stoppingToken);
+        }
+    }
+
+    private void PublishAvailability(
+        bool? available,
+        int consecutiveSuccesses = 0,
+        int consecutiveFailures = 0)
+    {
+        if (_lastPublishedAvailability == available)
+        {
+            // Readiness may not exist on the first probe after startup. Keep
+            // applying the observed value on every poll so a successful first
+            // probe is not lost before the local HA node is registered.
+            highAvailability.UpdateLocalDatabaseAvailability(
+                available,
+                timeProvider.GetUtcNow(),
+                consecutiveSuccesses,
+                consecutiveFailures);
+            return;
+        }
+
+        _lastPublishedAvailability = available;
+        highAvailability.UpdateLocalDatabaseAvailability(
+            available,
+            timeProvider.GetUtcNow(),
+            consecutiveSuccesses,
+            consecutiveFailures);
+        logger.LogInformation(
+            "HA local durable database availability changed to {DatabaseAvailable}.",
+            available?.ToString() ?? "unknown");
     }
 }

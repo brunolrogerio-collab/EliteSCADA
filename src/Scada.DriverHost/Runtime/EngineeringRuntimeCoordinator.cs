@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
 using Scada.Core.Commands;
@@ -81,7 +82,18 @@ public interface IEngineeringRuntimeCoordinator : IAsyncDisposable
         CancellationToken cancellationToken = default);
 }
 
-public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinator
+/// <summary>
+/// Restores a peer-authoritative value snapshot into an already activated runtime
+/// without issuing writes to communication drivers.
+/// </summary>
+public interface IRuntimeTagValueSnapshotRestorer
+{
+    Task<int> RestoreAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinator, IRuntimeTagValueSnapshotRestorer
 {
     private readonly IScadaEventBus _externalEventBus;
     private readonly IEngineeringDriverCompiler _compiler;
@@ -180,6 +192,78 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 
     public bool IsServerMemoryTag(Guid tagId) =>
         Volatile.Read(ref _active).ServerMemoryByTagId.ContainsKey(tagId);
+
+    public async Task<int> RestoreAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+        await _activationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var state = Volatile.Read(ref _active);
+            var restored = 0;
+            foreach (var incoming in values)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!state.Registry.TryGet(incoming.TagId, out var tag) || tag is null)
+                {
+                    throw new InvalidOperationException(
+                        $"HA value snapshot contains TAG '{incoming.TagId}' that is not present in the active runtime.");
+                }
+
+                var value = NormalizeSnapshotValue(tag, incoming);
+                if (state.ServerMemoryByTagId.TryGetValue(tag.Id, out var memorySource))
+                {
+                    // Persist the promoted value as well as publishing it into the
+                    // cache, so a later process restart does not resurrect the
+                    // standby's pre-promotion initial value.
+                    await memorySource.WriteAsync(tag.Id, value.Value, cancellationToken);
+                    restored++;
+                    continue;
+                }
+
+                // A communication driver may already have acquired a newer Good
+                // sample while the takeover activation was starting. Never replace
+                // that fresh local sample with an older peer snapshot.
+                if (state.Cache.TryGet(tag.Id, out var current) &&
+                    current is { Quality: TagQuality.Good } &&
+                    current.Timestamp > value.Timestamp)
+                {
+                    continue;
+                }
+
+                await state.Cache.UpdateAsync(tag, value, cancellationToken);
+                restored++;
+            }
+
+            return restored;
+        }
+        finally
+        {
+            _activationGate.Release();
+        }
+    }
+
+    private static TagValue NormalizeSnapshotValue(TagDefinition tag, TagValue value)
+    {
+        if (value.Value is not JsonElement json) return value;
+
+        object? normalized = tag.DataType switch
+        {
+            TagDataType.Boolean => json.GetBoolean(),
+            TagDataType.Int16 => json.GetInt16(),
+            TagDataType.Int32 or TagDataType.Enum => json.GetInt32(),
+            TagDataType.Int64 => json.GetInt64(),
+            TagDataType.Float => json.GetSingle(),
+            TagDataType.Double => json.GetDouble(),
+            TagDataType.String => json.GetString(),
+            TagDataType.DateTime => json.GetDateTimeOffset(),
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(tag.DataType), tag.DataType, "Unsupported TAG data type in HA snapshot.")
+        };
+        return value with { Value = normalized };
+    }
 
     /// <summary>
     /// Returns the exact Engineering Application from which the currently materialized

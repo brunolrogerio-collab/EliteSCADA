@@ -166,6 +166,14 @@ public static class EngineeringPersistenceApi
                 "Engineering runtime recovery is unavailable although a runtime project is configured.");
         }
 
+        // Restore the externally fenced HA authority before persisted Runtime recovery.
+        // After a restart, the local in-memory topology starts at its initial epoch/active
+        // node; reconciling the durable reference first lets the prior active resume while
+        // a standby remains fenced and available for peer materialization.
+        var highAvailabilityProtection = app.Services.GetService<RuntimeHaProtectionCoordinator>();
+        if (highAvailabilityProtection is not null)
+            await highAvailabilityProtection.RefreshAsync(cancellationToken);
+
         var result = await recovery.RecoverAsync(projectKey, cancellationToken);
         if (result.PersistedActiveRevision.HasValue &&
             !result.Recovered &&

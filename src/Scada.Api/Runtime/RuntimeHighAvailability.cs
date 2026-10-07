@@ -323,7 +323,8 @@ public sealed partial class RuntimeHaAuthorityCoordinator
         long referencedEpoch,
         bool previousAuthorityFenced,
         RuntimeHaStandbyPromotionWitness? standbyWitness = null,
-        bool allowAmbiguityRecovery = false)
+        bool allowAmbiguityRecovery = false,
+        RuntimeHaReferenceAuthority? restartReferenceEvidence = null)
     {
         lock (_gate)
         {
@@ -359,6 +360,31 @@ public sealed partial class RuntimeHaAuthorityCoordinator
                 return new(false, "reference-previous-authority-not-fenced", SnapshotLocked());
 
             var target = ResolveNodeLocked(activeNodeId);
+            var sameNodeRestartResume =
+                restartReferenceEvidence is not null &&
+                _authorityEpoch == 1 &&
+                referencedEpoch > _authorityEpoch &&
+                previousAuthorityFenced &&
+                target.Definition.NodeId.Equals(
+                    _topology.LocalNodeId,
+                    StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(
+                    restartReferenceEvidence.Schema,
+                    RuntimeHaReferenceAuthority.SchemaName,
+                    StringComparison.Ordinal) &&
+                restartReferenceEvidence.SchemaVersion == RuntimeHaReferenceAuthority.CurrentSchemaVersion &&
+                string.Equals(
+                    restartReferenceEvidence.ClusterId,
+                    _topology.ClusterId,
+                    StringComparison.OrdinalIgnoreCase) &&
+                restartReferenceEvidence.TopologyVersion == _topology.TopologyVersion &&
+                restartReferenceEvidence.Epoch == referencedEpoch &&
+                restartReferenceEvidence.PreviousAuthorityFenced &&
+                restartReferenceEvidence.IsLiveAt(_utcNow()) &&
+                string.Equals(
+                    restartReferenceEvidence.ActiveNodeId,
+                    target.Definition.NodeId,
+                    StringComparison.OrdinalIgnoreCase);
             var localPromotion =
                 target.Definition.NodeId.Equals(
                     _topology.LocalNodeId,
@@ -369,7 +395,7 @@ public sealed partial class RuntimeHaAuthorityCoordinator
                      StringComparison.OrdinalIgnoreCase) ||
                  referencedEpoch != _authorityEpoch);
 
-            if (localPromotion)
+            if (localPromotion && !sameNodeRestartResume)
             {
                 if (standbyWitness is null ||
                     !standbyWitness.NodeId.Equals(
@@ -403,7 +429,11 @@ public sealed partial class RuntimeHaAuthorityCoordinator
             {
                 if (ReferenceEquals(node, target))
                 {
-                    node.State = RuntimeHaState.Active;
+                    node.State = IsActiveReady(node.Evidence)
+                        ? RuntimeHaState.Active
+                        : node.Evidence is { Healthy: false }
+                            ? RuntimeHaState.Faulted
+                            : RuntimeHaState.Synchronizing;
                     continue;
                 }
 

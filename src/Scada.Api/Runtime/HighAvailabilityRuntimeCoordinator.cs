@@ -21,9 +21,13 @@ public sealed class HighAvailabilityRuntimeCoordinator(
     IScadaEventBus? eventBus = null,
     IConfiguration? configuration = null) :
     IEngineeringRuntimeCoordinator,
+    IRuntimeTagValueSnapshotRestorer,
     IGatewayRuntimeDiagnosticsProvider
 {
     public const string AuthorityDeniedIssueCode = "HA_EFFECTIVE_ACTIVE_REQUIRED";
+
+    public bool ProductRuntimeActive =>
+        inner.GetProductRuntimeStatus().State == ProductRuntimeLifecycleState.Running;
 
     public RuntimeDescriptor Describe() => inner.Describe();
     public IReadOnlyCollection<TagDefinition> Tags() => inner.Tags();
@@ -37,6 +41,14 @@ public sealed class HighAvailabilityRuntimeCoordinator(
     public bool TryGetCurrent(Guid tagId, out TagValue? value) => inner.TryGetCurrent(tagId, out value);
     public bool TryGetCommand(Guid commandId, out CommandDefinition? command) => inner.TryGetCommand(commandId, out command);
     public bool IsServerMemoryTag(Guid tagId) => inner.IsServerMemoryTag(tagId);
+
+    public Task<int> RestoreAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default)
+    {
+        RequireIndustrialAuthority();
+        return inner.RestoreAuthoritativeValuesAsync(values, cancellationToken);
+    }
 
     public EngineeringPackage? CaptureApplication() => inner.CaptureApplication();
 

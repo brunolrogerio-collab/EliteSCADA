@@ -83,6 +83,17 @@ public sealed class ScadaRuntimeFacade(
             ? Array.Empty<TagValue>()
             : engineeringRuntime.CurrentValues();
 
+    public Task<int> RestoreAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default)
+    {
+        if (IsInstallationNeutral || !IsEngineeringActive)
+            throw new InvalidOperationException("HA values cannot be restored without an active Engineering runtime.");
+        if (engineeringRuntime is not IRuntimeTagValueSnapshotRestorer restorer)
+            throw new InvalidOperationException("The active runtime does not support HA value snapshot restoration.");
+        return restorer.RestoreAuthoritativeValuesAsync(values, cancellationToken);
+    }
+
     public IReadOnlyCollection<AlarmDefinition> AlarmDefinitions() =>
         IsInstallationNeutral || !IsEngineeringActive
             ? Array.Empty<AlarmDefinition>()

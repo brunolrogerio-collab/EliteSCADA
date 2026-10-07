@@ -1,0 +1,35 @@
+services:
+  api-a:
+    build:
+      context: 'C:/Users/Bruno Rogerio/Documents/Codex/EliteSCADA-ha-restart-epoch-recovery-20261006'
+      dockerfile: docker/stable/Dockerfile.api
+    environment:
+      DatabaseTopology__Secrets__MasterKeyBase64: ${HA_TEST_DATABASE_SECRET_KEY_BASE64:?Set HA_TEST_DATABASE_SECRET_KEY_BASE64}
+
+  api-b:
+    environment:
+      DatabaseTopology__Secrets__MasterKeyBase64: ${HA_TEST_DATABASE_SECRET_KEY_BASE64:?Set HA_TEST_DATABASE_SECRET_KEY_BASE64}
+
+  web:
+    build:
+      context: 'C:/Users/Bruno Rogerio/Documents/Codex/EliteSCADA-ha-restart-epoch-recovery-20261006'
+      dockerfile: docker/stable/Dockerfile.web
+
+  # Keep a second UI entrypoint for the active API node during operator-flow
+  # tests. The normal test UI is pinned to api-a; after a switchover that node
+  # becomes standby, so HA actions must be exercised against api-b itself.
+  web-b:
+    image: elitescada-ha-capacity-test-web:local
+    links:
+      - api-b:api
+    ports:
+      - "127.0.0.1:18111:80"
+    depends_on:
+      api-b:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s

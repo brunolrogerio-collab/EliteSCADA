@@ -511,7 +511,7 @@ test('mounted HA admin surfaces ambiguous authority without inventing an Active 
   await open(page);
 
   await expect(page.getByText('Autoridade ambígua', { exact: true })).toBeVisible();
-  await expect(page.getByText('Active efetivo').locator('..')).toContainText('—');
+  await expect(page.locator('.ha-summary-grid .ha-summary-card').filter({ hasText: 'Active efetivo' }).first()).toContainText('—');
   await expect(page.getByRole('button', { name: /force active/i })).toHaveCount(0);
 });
 
@@ -603,6 +603,29 @@ test('controlled switchover requires confirmation and shows completed operation 
   await expect(page.getByTestId('ha-operation-list')).toContainText('switchover-completed');
   await expect(page.getByTestId('ha-operation-list')).toContainText('completed');
   await evidence(page, testInfo, 'ha-switchover-completed');
+});
+
+test('standby node cannot request a switchover to the already-active peer', async ({ page }) => {
+  const state = healthyState();
+  state.topology = topology({
+    localNodeId: 'node-b',
+    effectiveActiveNodeId: 'node-a',
+    nodes: [
+      { ...state.topology.nodes[0], nodeId: 'node-a', role: 'Peer', state: 'Active', ready: true },
+      { ...state.topology.nodes[1], nodeId: 'node-b', role: 'Local', state: 'ReadyStandby', ready: true }
+    ]
+  });
+  state.config.running.localNodeId = 'node-b';
+  state.config.desired.localNodeId = 'node-b';
+  state.peer.localNodeId = 'node-b';
+  state.peer.peerNodeId = 'node-a';
+  await mockHa(page, state);
+  await open(page);
+
+  const switchover = page.getByTestId('ha-switchover-action');
+  await expect(switchover).toBeDisabled();
+  await expect(switchover).toContainText('Disponível somente no nó que está como Active efetivo.');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
 test('backend rejection remains visible as fail-closed operation result', async ({ page }, testInfo) => {

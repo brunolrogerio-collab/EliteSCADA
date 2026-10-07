@@ -4,6 +4,7 @@ import { translator, type EngineeringLocale, type TranslationKey } from '../engi
 import {
   DatabaseTopologyApiError,
   commitDatabaseCutover,
+  connectExistingDatabase,
   loadDatabaseTopologyStatus,
   prepareDatabaseMigration,
   rollbackDatabaseTopology,
@@ -29,7 +30,7 @@ import {
 import './database-topology.css';
 import '../engineering/engineering.css';
 
-type Confirmation = 'cutover' | 'rollback' | 'return-local' | null;
+type Confirmation = 'cutover' | 'connect-existing' | 'rollback' | 'return-local' | null;
 type Notice = Readonly<{ tone: 'info' | 'success' | 'warning' | 'danger'; text: string }>;
 type EngineeringNavItem = {
   id: string;
@@ -139,6 +140,9 @@ function apiErrorText(error: unknown, t: ReturnType<typeof databaseTopologyText>
   if (!(error instanceof DatabaseTopologyApiError)) return t.errorUnavailable;
   if (error.kind === 'unauthenticated') return t.errorUnauthenticated;
   if (error.kind === 'forbidden') return t.errorForbidden;
+  if (error.kind === 'conflict' && error.diagnostic?.startsWith('Existing database cannot be connected safely')) {
+    return t.existingDatabaseMismatch;
+  }
   if (error.kind === 'invalid-request') return error.diagnostic || t.errorInvalid;
   if (error.kind === 'conflict') return error.diagnostic || t.errorConflict;
   if (error.kind === 'server') return error.diagnostic || t.errorServer;
@@ -468,6 +472,28 @@ export function DatabaseTopologyApp() {
     setNotice({ tone: 'success', text: t.credentialsConfigured });
   });
 
+  const onConnectExisting = () => run('connect-existing', async () => {
+    if (!profileRequest || !remoteCoreReady) {
+      setNotice({ tone: 'warning', text: t.fieldRequired });
+      return;
+    }
+    const request = profileRequest;
+    setDraft(current => ({
+      ...current,
+      primary: { ...current.primary, password: '' },
+      historian: { ...current.historian, password: '' }
+    }));
+    const result = await connectExistingDatabase(request);
+    setStatus(result.status);
+    setPending(null);
+    if (result.succeeded) resetTransientEditor();
+    setNotice({
+      tone: result.succeeded ? 'success' : 'danger',
+      text: result.succeeded ? t.restartToFinish : (result.diagnostic ?? t.existingDatabaseMismatch)
+    });
+    setConfirmation(null);
+  });
+
   const onStartMigration = () => run('migrate', async () => {
     if (!operationId) return;
     const copied = await startDatabaseMigration(operationId);
@@ -646,7 +672,9 @@ export function DatabaseTopologyApp() {
         <div className="db-topology-actions db-topology-actions--guided">
           <button type="button" data-step="1" disabled={Boolean(busy) || configurationLocked || !remoteCoreReady || !profileRequest} onClick={onValidateTarget}>{busy === 'validate' ? t.working : t.validateTarget}</button>
           <button type="button" data-step="2" className="db-topology-primary-action" disabled={Boolean(busy) || configurationLocked || compatibility?.compatible !== true} onClick={onPrepare}>{busy === 'prepare' ? t.working : t.prepare}</button>
+          <button type="button" className="db-topology-secondary" disabled={Boolean(busy) || configurationLocked || compatibility?.compatible !== true || !remoteCoreReady} onClick={() => setConfirmation('connect-existing')}>{busy === 'connect-existing' ? t.working : t.connectExisting}</button>
         </div>
+        {compatibility?.compatible ? <p className="db-topology-muted-note">{t.connectExistingConfirmBody}</p> : null}
 
         {validationHealth ? <div className="db-topology-result-summary" data-testid="database-validation-result">
           <ResultPill ok={compatibility ? compatibility.compatible : healthOk(validationHealth)}>
@@ -702,22 +730,22 @@ export function DatabaseTopologyApp() {
     {confirmation ? <div className="db-topology-dialog-backdrop" role="presentation">
       <section role="dialog" aria-modal="true" aria-labelledby="database-confirm-title" className="db-topology-dialog">
         <h2 id="database-confirm-title">
-          {confirmation === 'cutover' ? t.cutoverConfirmTitle : confirmation === 'return-local' ? t.returnToLocalConfirmTitle : t.rollbackConfirmTitle}
+          {confirmation === 'cutover' ? t.cutoverConfirmTitle : confirmation === 'connect-existing' ? t.connectExistingConfirmTitle : confirmation === 'return-local' ? t.returnToLocalConfirmTitle : t.rollbackConfirmTitle}
         </h2>
         <p>
-          {confirmation === 'cutover' ? t.cutoverConfirmBody : confirmation === 'return-local' ? t.returnToLocalConfirmBody : t.rollbackConfirmBody}
+          {confirmation === 'cutover' ? t.cutoverConfirmBody : confirmation === 'connect-existing' ? t.connectExistingConfirmBody : confirmation === 'return-local' ? t.returnToLocalConfirmBody : t.rollbackConfirmBody}
         </p>
         <dl>
           <div><dt>{t.source}</dt><dd>{endpointLabel(status?.activeTopology)}</dd></div>
-          <div><dt>{t.target}</dt><dd>{confirmation === 'cutover' ? (pending?.candidate.primary ? `${pending.candidate.primary.host}:${pending.candidate.primary.port}/${pending.candidate.primary.database}` : t.remote) : confirmation === 'return-local' ? t.localManaged : endpointLabel(status?.previousTopology)}</dd></div>
-          <div><dt>{t.preserved}</dt><dd>{confirmation === 'return-local' ? t.returnToLocalPreserveRemote : t.preserveLocal}</dd></div>
+          <div><dt>{t.target}</dt><dd>{confirmation === 'cutover' || confirmation === 'connect-existing' ? `${draft.primary.host}:${draft.primary.port}/${draft.primary.database}` : confirmation === 'return-local' ? t.localManaged : endpointLabel(status?.previousTopology)}</dd></div>
+          <div><dt>{t.preserved}</dt><dd>{confirmation === 'return-local' ? t.returnToLocalPreserveRemote : confirmation === 'connect-existing' ? t.connectExistingConfirmBody : t.preserveLocal}</dd></div>
         </dl>
         <div className="db-topology-actions">
           <button type="button" className="db-topology-secondary" onClick={() => setConfirmation(null)}>{t.cancel}</button>
           <button
             type="button"
             className="db-topology-danger-action"
-            onClick={confirmation === 'cutover' ? onCommit : confirmation === 'return-local' ? onReturnLocal : onRollback}
+            onClick={confirmation === 'cutover' ? onCommit : confirmation === 'connect-existing' ? onConnectExisting : confirmation === 'return-local' ? onReturnLocal : onRollback}
           >{busy ? t.working : t.confirm}</button>
         </div>
       </section>

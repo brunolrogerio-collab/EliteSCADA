@@ -73,6 +73,7 @@ public interface IInstallationRuntimeFence
 /// </summary>
 public sealed class ProductLicensedRuntimeCoordinator :
     IEngineeringRuntimeCoordinator,
+    IRuntimeTagValueSnapshotRestorer,
     IGatewayRuntimeDiagnosticsProvider,
     IProductRuntimeStatusProvider,
     IProductRuntimeAuthorityReevaluator,
@@ -135,6 +136,13 @@ public sealed class ProductLicensedRuntimeCoordinator :
     public bool TryGetCommand(Guid commandId, out CommandDefinition? command) => Current.TryGetCommand(commandId, out command);
     public bool IsServerMemoryTag(Guid tagId) => Current.IsServerMemoryTag(tagId);
 
+    public Task<int> RestoreAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default) =>
+        Current is IRuntimeTagValueSnapshotRestorer restorer
+            ? restorer.RestoreAuthoritativeValuesAsync(values, cancellationToken)
+            : throw new InvalidOperationException("The active runtime does not support HA value snapshot restoration.");
+
     public EngineeringPackage? CaptureApplication() =>
         Current is GatewayEngineeringRuntimeCoordinator gateway
             ? gateway.CaptureApplication()
@@ -185,12 +193,33 @@ public sealed class ProductLicensedRuntimeCoordinator :
 
             // Passive Standby does not start Demo timers, release installation fences,
             // or become a Product Run. It only reuses the canonical Runtime projection.
-            return await gateway.MaterializePassiveAsync(
+            var materialized = await gateway.MaterializePassiveAsync(
                 projectKey,
                 revision,
                 package,
                 authoritativeActivatedAtUtc,
                 cancellationToken);
+            if (materialized.Activated)
+            {
+                // Passive materialization replaces the active acquisition runtime
+                // with a projection-only runtime. Reflect that lifecycle transition
+                // so a later HA promotion cannot mistake the projection for an
+                // already-running Active Runtime.
+                CancelDemoExpiryLocked();
+                ++_activationGeneration;
+                lock (_statusGate)
+                {
+                    _lifecycleState = ProductRuntimeLifecycleState.Idle;
+                    _activeDecision = null;
+                    _demoStartedTimestamp = null;
+                    _demoStartedAtUtc = null;
+                    _demoDuration = null;
+                    _demoElapsedBeforeCurrentProcess = TimeSpan.Zero;
+                    _lastDiagnostic = "Runtime materialized as passive HA standby.";
+                }
+            }
+
+            return materialized;
         }
         finally
         {

@@ -87,6 +87,54 @@ public sealed class EngineeringRuntimeInternalMemoryTests
     }
 
     [Fact]
+    public async Task RestoreAuthoritativeValuesAsync_RestoresAndRetainsPromotedServerMemoryValue()
+    {
+        var tagId = Guid.NewGuid();
+        var retention = new InMemoryServerMemoryRetentionStore();
+        var bus = new InMemoryScadaEventBus();
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            bus,
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromSeconds(1),
+            retention);
+
+        var activation = await runtime.ActivateAsync(
+            "memory-project",
+            1,
+            ServerPackage(tagId, Guid.NewGuid(), "Plant.Counter", 5));
+        Assert.True(activation.Activated);
+        Assert.True(runtime.TryGetCurrent(tagId, out var initial));
+        Assert.Equal(5, initial!.Value);
+
+        var timestamp = DateTimeOffset.UtcNow.AddSeconds(-5);
+        var restored = await runtime.RestoreAuthoritativeValuesAsync(new[]
+        {
+            new TagValue(
+                tagId,
+                JsonSerializer.SerializeToElement(33),
+                timestamp,
+                TagQuality.Good,
+                "node-a")
+        });
+
+        Assert.Equal(1, restored);
+        Assert.True(runtime.TryGetCurrent(tagId, out var current));
+        Assert.Equal(33, current!.Value);
+
+        await using var restarted = new EngineeringRuntimeCoordinator(
+            new InMemoryScadaEventBus(),
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromSeconds(1),
+            retention);
+        Assert.True((await restarted.ActivateAsync(
+            "memory-project",
+            2,
+            ServerPackage(tagId, Guid.NewGuid(), "Plant.Counter", 1))).Activated);
+        Assert.True(restarted.TryGetCurrent(tagId, out var afterRestart));
+        Assert.Equal(33, afterRestart!.Value);
+    }
+
+    [Fact]
     public async Task MaterializePassiveAsync_ProjectsExactRuntimeWithoutStartingServerMemoryOrAlarmEffects()
     {
         var tagId = Guid.NewGuid();

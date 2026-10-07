@@ -66,6 +66,33 @@ public static class DatabaseTopologyApi
             }
         });
 
+        group.MapPost("/connect-existing", async (
+            DatabaseRemoteProfileRequest request,
+            HttpContext context,
+            ScadaRuntimeFacade runtime,
+            ApiAuthorizationService security,
+            DatabaseTopologyAdministrationService service,
+            CancellationToken cancellationToken) =>
+        {
+            var failure = await AuthorizeAsync(context, runtime, security, cancellationToken);
+            if (failure is not null) return failure;
+            try
+            {
+                return Results.Ok(await service.ConnectExistingAsync(request, cancellationToken));
+            }
+            catch (ArgumentException)
+            {
+                return Results.BadRequest(new { error = "Database profile configuration is invalid." });
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.Conflict(new
+                {
+                    error = "Existing database cannot be connected safely. It must match the active project and revision on this installation."
+                });
+            }
+        });
+
         group.MapPost("/prepare", async (
             DatabaseRemoteProfileRequest request,
             HttpContext context,

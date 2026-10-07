@@ -794,7 +794,10 @@ public sealed class RuntimeHaPeerReplicationCoordinator
     private readonly IRuntimeSessionLeaseStore _sessionLeaseStore;
     private readonly IProductLicenseService _licensing;
     private readonly TimeProvider _timeProvider;
+    private readonly ILogger<RuntimeHaPeerReplicationCoordinator> _logger;
     private long _replicationSequence;
+    private string? _lastReadinessDiagnostic;
+    private string? _lastPeerObservationDiagnostic;
 
     public RuntimeHaPeerReplicationCoordinator(
         RuntimeHaPeerTransportOptions options,
@@ -806,7 +809,8 @@ public sealed class RuntimeHaPeerReplicationCoordinator
         HighAvailabilityRuntimeCoordinator runtimeCoordinator,
         IRuntimeSessionLeaseStore sessionLeaseStore,
         IProductLicenseService licensing,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        ILogger<RuntimeHaPeerReplicationCoordinator> logger)
     {
         _options = options;
         _authenticator = authenticator;
@@ -818,6 +822,7 @@ public sealed class RuntimeHaPeerReplicationCoordinator
         _sessionLeaseStore = sessionLeaseStore;
         _licensing = licensing;
         _timeProvider = timeProvider;
+        _logger = logger;
     }
 
     public RuntimeHaPeerTransportDiagnostics Diagnostics()
@@ -1002,9 +1007,12 @@ public sealed class RuntimeHaPeerReplicationCoordinator
         if (!observation.Accepted)
         {
             _transportState.RecordFailure(observation.ReasonCode);
+            LogPeerObservation(envelope, observation);
             RefreshLocalReadiness();
             return Conflict(observation.ReasonCode, envelope.ReplicationSequence);
         }
+
+        LogPeerObservation(envelope, observation);
 
         if (envelope.AuthoritativeState is not null)
         {
@@ -1099,6 +1107,55 @@ public sealed class RuntimeHaPeerReplicationCoordinator
         RefreshLocalReadiness();
     }
 
+    private void LogPeerObservation(
+        RuntimeHaPeerReplicationEnvelope envelope,
+        RuntimeHaPeerApplyResult result)
+    {
+        var peer = result.Snapshot.Nodes.FirstOrDefault(node =>
+            node.NodeId.Equals(
+                envelope.SourceNodeId,
+                StringComparison.OrdinalIgnoreCase));
+        var readiness = envelope.Observation.Readiness;
+        var diagnostic = string.Join(
+            '|',
+            result.Accepted,
+            result.ReasonCode,
+            readiness.Healthy,
+            readiness.SynchronizationComplete,
+            readiness.HaLicenseEntitled,
+            readiness.Runtime.Mode,
+            readiness.Runtime.Revision,
+            peer?.State,
+            peer?.ReadinessReason,
+            result.Snapshot.EffectiveActiveNodeId,
+            result.Snapshot.AmbiguousAuthority);
+        var previous = Interlocked.Exchange(
+            ref _lastPeerObservationDiagnostic,
+            diagnostic);
+        if (string.Equals(previous, diagnostic, StringComparison.Ordinal))
+            return;
+
+        _logger.LogWarning(
+            "HA node {LocalNodeId} peer observation from {PeerNodeId}: accepted={Accepted}, " +
+            "reason={ReasonCode}, peerSync={PeerSynchronizationComplete}, peerHealthy={PeerHealthy}, " +
+            "peerHaLicensed={PeerHaLicensed}, runtimeMode={RuntimeMode}, revision={RuntimeRevision}, " +
+            "projectedState={ProjectedState}, readinessReason={ReadinessReason}, " +
+            "effectiveActive={EffectiveActiveNodeId}, ambiguous={AmbiguousAuthority}.",
+            _highAvailability.LocalNodeId,
+            envelope.SourceNodeId,
+            result.Accepted,
+            result.ReasonCode,
+            readiness.SynchronizationComplete,
+            readiness.Healthy,
+            readiness.HaLicenseEntitled,
+            readiness.Runtime.Mode,
+            readiness.Runtime.Revision,
+            peer?.State,
+            peer?.ReadinessReason,
+            result.Snapshot.EffectiveActiveNodeId,
+            result.Snapshot.AmbiguousAuthority);
+    }
+
     public void RefreshLocalReadiness()
     {
         if (!_highAvailability.Enabled ||
@@ -1127,6 +1184,18 @@ public sealed class RuntimeHaPeerReplicationCoordinator
             mirror,
             localLicense,
             now);
+        var diagnostic = synchronized ? "ready" : reasonCode ?? "synchronization-incomplete";
+        var previousDiagnostic = Interlocked.Exchange(
+            ref _lastReadinessDiagnostic,
+            diagnostic);
+        if (!string.Equals(previousDiagnostic, diagnostic, StringComparison.Ordinal))
+        {
+            _logger.LogWarning(
+                "HA node {NodeId} standby readiness changed: {ReasonCode}.",
+                _highAvailability.LocalNodeId,
+                diagnostic);
+        }
+
         var localDescriptor = _runtime.Describe();
         var runtimeIdentity =
             localDescriptor.Revision.HasValue &&

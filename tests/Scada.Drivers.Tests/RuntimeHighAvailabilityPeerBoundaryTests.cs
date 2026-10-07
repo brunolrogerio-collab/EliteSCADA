@@ -157,6 +157,69 @@ public sealed class RuntimeHighAvailabilityPeerBoundaryTests
     }
 
     [Fact]
+    public void SameActiveNodeRestartWithPersistedReferenceEpoch_ResynchronizesExistingStandby()
+    {
+        var clock = new MutableClock(DateTimeOffset.Parse("2026-10-06T12:00:00Z"));
+        var topologyA = Topology("node-a");
+        var topologyB = Topology("node-b");
+        var oldNodeA = new RuntimeHighAvailabilityService(
+            topologyA,
+            () => clock.UtcNow,
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            externalIndustrialFenceRequired: true);
+        var nodeB = new RuntimeHighAvailabilityService(
+            topologyB,
+            () => clock.UtcNow,
+            Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+            externalIndustrialFenceRequired: true);
+        var reference = RestartReference("node-a", epoch: 5, clock.UtcNow);
+
+        AttachReferenceFence(oldNodeA, reference, clock);
+        AttachReferenceFence(nodeB, reference, clock);
+        oldNodeA.ObserveLocalReadiness(Evidence(clock.UtcNow));
+        nodeB.ObserveLocalReadiness(Evidence(clock.UtcNow));
+
+        var initialObservation = oldNodeA.CreatePeerObservation();
+        Assert.True(nodeB.ApplyPeerObservation(initialObservation).Accepted);
+        Assert.Equal(RuntimeHaState.ReadyStandby, Node(nodeB.Snapshot(), "node-b").State);
+
+        var restartedNodeA = new RuntimeHighAvailabilityService(
+            topologyA,
+            () => clock.UtcNow,
+            Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc"),
+            externalIndustrialFenceRequired: true);
+        AttachReferenceFence(restartedNodeA, reference, clock);
+        restartedNodeA.ObserveLocalReadiness(Evidence(clock.UtcNow));
+
+        var resumed = restartedNodeA.Authority.ApplyReferencedAuthority(
+            "node-a",
+            reference.Epoch,
+            reference.PreviousAuthorityFenced,
+            restartReferenceEvidence: reference);
+        Assert.True(resumed.Accepted, resumed.ReasonCode);
+        Assert.Equal(5, resumed.Snapshot.AuthorityEpoch);
+        Assert.True(restartedNodeA.CanOwnIndustrialEffects());
+
+        var peerResync = nodeB.Authority.ApplyReferencedAuthority(
+            "node-a",
+            reference.Epoch,
+            reference.PreviousAuthorityFenced);
+        Assert.True(peerResync.Accepted, peerResync.ReasonCode);
+
+        var restartedObservation = restartedNodeA.CreatePeerObservation();
+        Assert.NotEqual(
+            initialObservation.SourceAuthorityInstanceId,
+            restartedObservation.SourceAuthorityInstanceId);
+        var synchronized = nodeB.ApplyPeerObservation(restartedObservation);
+
+        Assert.True(synchronized.Accepted, synchronized.ReasonCode);
+        Assert.Equal(5, synchronized.Snapshot.AuthorityEpoch);
+        Assert.Equal("node-a", synchronized.Snapshot.EffectiveActiveNodeId);
+        Assert.Equal(RuntimeHaState.ReadyStandby, Node(synchronized.Snapshot, "node-b").State);
+        Assert.False(nodeB.CanOwnIndustrialEffects());
+    }
+
+    [Fact]
     public void PeerLoss_DoesNotPromoteIndependentStandby()
     {
         var pair = CreateReadyPair();
@@ -388,6 +451,35 @@ public sealed class RuntimeHighAvailabilityPeerBoundaryTests
                 "project-a",
                 7),
             ObservedAtUtc: observedAtUtc);
+
+    private static RuntimeHaReferenceAuthority RestartReference(
+        string activeNodeId,
+        long epoch,
+        DateTimeOffset now) =>
+        new(
+            RuntimeHaReferenceAuthority.SchemaName,
+            RuntimeHaReferenceAuthority.CurrentSchemaVersion,
+            "cluster-a",
+            3,
+            epoch,
+            activeNodeId,
+            Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"),
+            now.AddMinutes(1),
+            now,
+            PreviousAuthorityFenced: true,
+            "restart-resume-test");
+
+    private static void AttachReferenceFence(
+        RuntimeHighAvailabilityService service,
+        RuntimeHaReferenceAuthority reference,
+        MutableClock clock) =>
+        service.AttachExternalIndustrialFence(snapshot =>
+            reference.IsLiveAt(clock.UtcNow) &&
+            string.Equals(snapshot.ClusterId, reference.ClusterId, StringComparison.OrdinalIgnoreCase) &&
+            snapshot.TopologyVersion == reference.TopologyVersion &&
+            snapshot.AuthorityEpoch == reference.Epoch &&
+            string.Equals(snapshot.EffectiveActiveNodeId, reference.ActiveNodeId, StringComparison.OrdinalIgnoreCase) &&
+            !snapshot.AmbiguousAuthority);
 
     private static RuntimeHaNodeSnapshot Node(
         RuntimeHaTopologySnapshot snapshot,

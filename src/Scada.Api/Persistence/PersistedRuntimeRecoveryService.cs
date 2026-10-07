@@ -25,7 +25,8 @@ public sealed record PersistedRuntimeRecoveryResult(
         Runtime?.RuntimeIssues.Any(issue =>
             issue.IsError &&
             (issue.Code == PersistedRuntimeRecoveryService.RecoveryDeniedIssueCode ||
-             issue.Code == ProductLicensedRuntimeCoordinator.EntitlementDeniedIssueCode)) == true;
+             issue.Code == ProductLicensedRuntimeCoordinator.EntitlementDeniedIssueCode ||
+             issue.Code == HighAvailabilityRuntimeCoordinator.AuthorityDeniedIssueCode)) == true;
 }
 
 public interface IPersistedRuntimeRecoveryService

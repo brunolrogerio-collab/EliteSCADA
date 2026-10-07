@@ -64,10 +64,11 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
-    const diagnostic = payload && typeof payload === 'object' && 'error' in payload
-      ? String((payload as { error?: unknown }).error ?? '')
+    const errorPayload = payload && typeof payload === 'object'
+      ? payload as { error?: unknown; diagnostic?: unknown }
       : undefined;
-    throw classify(response, diagnostic);
+    const detail = errorPayload?.error ?? errorPayload?.diagnostic;
+    throw classify(response, detail == null ? undefined : String(detail));
   }
 
   return payload as T;
@@ -105,6 +106,10 @@ export function validateDatabaseCompatibility(profile: DatabaseRemoteProfileRequ
 
 export function prepareDatabaseMigration(profile: DatabaseRemoteProfileRequest) {
   return post<DatabasePendingMigration>('/api/admin/database-topology/prepare', profile);
+}
+
+export function connectExistingDatabase(profile: DatabaseRemoteProfileRequest) {
+  return post<DatabaseCutoverResult>('/api/admin/database-topology/connect-existing', profile);
 }
 
 export function startDatabaseMigration(operationId: string) {

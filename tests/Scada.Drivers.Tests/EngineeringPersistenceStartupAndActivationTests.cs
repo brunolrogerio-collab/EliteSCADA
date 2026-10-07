@@ -405,6 +405,37 @@ public sealed class EngineeringPersistenceStartupAndActivationTests
     }
 
     [Fact]
+    public async Task Startup_StandbyHaAuthorityDenial_KeepsHostAvailableForPeerMaterialization()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["EngineeringRuntime:ProjectKey"] = "plant-a"
+        });
+        builder.Services.AddSingleton<IPersistedRuntimeRecoveryService>(
+            new FixedRecovery(new PersistedRuntimeRecoveryResult(
+                "plant-a",
+                7,
+                true,
+                new RuntimeActivationResult(
+                    "plant-a",
+                    7,
+                    false,
+                    Array.Empty<EngineeringDriverIssue>(),
+                    [new RuntimeActivationIssue(
+                        HighAvailabilityRuntimeCoordinator.AuthorityDeniedIssueCode,
+                        "Runtime activation is fenced because this node is HA standby.",
+                        IsError: true)]))));
+
+        await using var app = builder.Build();
+        var result = await app.RecoverConfiguredEngineeringRuntimeAsync();
+
+        Assert.NotNull(result);
+        Assert.True(result!.IsExpectedAuthorityDenial);
+        Assert.False(result.Recovered);
+    }
+
+    [Fact]
     public async Task Startup_TechnicalRuntimeRecoveryFailure_RemainsFatal()
     {
         var builder = WebApplication.CreateBuilder();

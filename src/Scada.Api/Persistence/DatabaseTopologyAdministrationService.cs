@@ -156,6 +156,104 @@ public sealed class DatabaseTopologyAdministrationService
         }
     }
 
+    public async Task<DatabaseCutoverResult> ConnectExistingAsync(
+        DatabaseRemoteProfileRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        await _mutation.WaitAsync(cancellationToken);
+        try
+        {
+            var document = await _store.GetAsync(cancellationToken);
+            if (document.Pending is not null)
+                throw new InvalidOperationException("A database migration is already pending.");
+
+            var compatibility = await ValidateCompatibilityAsync(request, cancellationToken);
+            if (!compatibility.Compatible)
+                throw new InvalidOperationException("Existing database is not compatible.");
+
+            var storedReferences = new List<string>();
+            var persisted = false;
+            Guid? maintenanceOperation = null;
+            try
+            {
+                var candidate = new DatabaseTopologyProfile(
+                    DatabaseTopologyMode.Remote,
+                    await PersistEndpointAsync(request.Primary, storedReferences, cancellationToken),
+                    request.HistorianOverride is null
+                        ? DatabaseHistorianTopology.Primary
+                        : new DatabaseHistorianTopology(
+                            false,
+                            await PersistEndpointAsync(request.HistorianOverride, storedReferences, cancellationToken)));
+                candidate.Validate();
+
+                var source = await _resolver.ResolveAsync(document.Active, requireDurable: true, cancellationToken);
+                var target = await _resolver.ResolveAsync(candidate, requireDurable: true, cancellationToken);
+                EnsureDurable(source);
+                EnsureDurable(target);
+
+                var identity = await _operations.ValidateExistingTargetAsync(
+                    source.PrimaryConnectionString!,
+                    target.PrimaryConnectionString!,
+                    cancellationToken);
+                if (!identity.MatchesActiveProject)
+                    throw new InvalidOperationException("Existing database does not match this installation's active project and revision.");
+
+                var readiness = await _operations.ValidateCompatibilityAsync(
+                    target.PrimaryConnectionString!,
+                    target.HistorianConnectionString ?? target.PrimaryConnectionString!,
+                    candidate.Historian.UsePrimary,
+                    cancellationToken);
+                if (!readiness.Compatible)
+                    throw new InvalidOperationException("Existing database failed readiness validation.");
+
+                var operationId = Guid.NewGuid();
+                maintenanceOperation = operationId;
+                await _maintenance.EnterAsync(
+                    operationId,
+                    TimeSpan.FromSeconds(_options.MaintenanceLeaseSeconds),
+                    cancellationToken);
+
+                var now = DateTimeOffset.UtcNow;
+                await _store.SaveAsync(document with
+                {
+                    Active = candidate,
+                    PreviousActive = document.Active,
+                    Pending = null,
+                    LastOperation = new(operationId, DatabaseMigrationPhase.Completed, now),
+                    UpdatedAtUtc = now
+                }, cancellationToken);
+                persisted = true;
+                _lastPrimaryHealth = readiness.Primary;
+                _lastHistorianHealth = readiness.Historian;
+                _rebinder.RequestRestart();
+
+                return new(
+                    true,
+                    false,
+                    true,
+                    await GetStatusAsync(false, cancellationToken));
+            }
+            catch
+            {
+                if (maintenanceOperation.HasValue && !persisted)
+                    _maintenance.Exit(maintenanceOperation.Value);
+                if (!persisted)
+                {
+                    foreach (var reference in storedReferences)
+                    {
+                        try { await _secrets.DeleteAsync(reference, CancellationToken.None); }
+                        catch { }
+                    }
+                }
+                throw;
+            }
+        }
+        finally
+        {
+            _mutation.Release();
+        }
+    }
+
     public async Task<DatabasePendingMigration> StartMigrationAsync(
         Guid operationId,
         CancellationToken cancellationToken = default)
@@ -245,6 +343,11 @@ public sealed class DatabaseTopologyAdministrationService
 
             try
             {
+                await _operations.SynchronizeAuditEventsAsync(
+                    source.PrimaryConnectionString!,
+                    target.PrimaryConnectionString!,
+                    cancellationToken);
+
                 var verification = await _operations.VerifyAsync(
                     pending.Plan!,
                     source.PrimaryConnectionString!,
@@ -306,8 +409,14 @@ public sealed class DatabaseTopologyAdministrationService
 
             try
             {
+                var source = await _resolver.ResolveAsync(document.Active, true, cancellationToken);
                 var target = await _resolver.ResolveAsync(switched.Active, true, cancellationToken);
+                EnsureDurable(source);
                 EnsureDurable(target);
+                await _operations.SynchronizeAuditEventsAsync(
+                    source.PrimaryConnectionString!,
+                    target.PrimaryConnectionString!,
+                    cancellationToken);
                 var readiness = await _operations.ValidateCompatibilityAsync(
                     target.PrimaryConnectionString!,
                     target.HistorianConnectionString ?? target.PrimaryConnectionString!,
@@ -386,8 +495,14 @@ public sealed class DatabaseTopologyAdministrationService
 
             try
             {
+                var source = await _resolver.ResolveAsync(current, true, cancellationToken);
                 var target = await _resolver.ResolveAsync(previous, true, cancellationToken);
+                EnsureDurable(source);
                 EnsureDurable(target);
+                await _operations.SynchronizeAuditEventsAsync(
+                    source.PrimaryConnectionString!,
+                    target.PrimaryConnectionString!,
+                    cancellationToken);
                 var readiness = await _operations.ValidateCompatibilityAsync(
                     target.PrimaryConnectionString!,
                     target.HistorianConnectionString ?? target.PrimaryConnectionString!,

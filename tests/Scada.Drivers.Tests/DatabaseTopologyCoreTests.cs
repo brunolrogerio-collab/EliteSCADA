@@ -145,6 +145,28 @@ public sealed class DatabaseTopologyCoreTests
     }
 
     [Fact]
+    public async Task MaintenanceGate_AllowsScopedAuditAdmissionButKeepsOtherWritersQuiesced()
+    {
+        var gate = new DatabaseMaintenanceGate();
+        var operationId = Guid.NewGuid();
+        await gate.EnterAsync(operationId, TimeSpan.FromMinutes(1));
+
+        using (gate.AllowMaintenanceControlAuditAdmission())
+        {
+            await using var audit = await gate.AcquireAsync("audit");
+            Assert.Equal(1, gate.ActiveWriterCount);
+            await Assert.ThrowsAsync<DurableWriteQuiescedException>(
+                async () => await gate.AcquireAsync("engineering"));
+        }
+
+        await Assert.ThrowsAsync<DurableWriteQuiescedException>(
+            async () => await gate.AcquireAsync("audit"));
+        Assert.Equal(0, gate.ActiveWriterCount);
+        Assert.True(gate.IsActive);
+        gate.Exit(operationId);
+    }
+
+    [Fact]
     public async Task PendingCriticalPhase_RecoversMaintenanceFailClosedAfterRestart()
     {
         using var temp = new TemporaryDirectory();
@@ -288,11 +310,13 @@ public sealed class DatabaseTopologyCoreTests
 
         var verification = await fixture.Service.VerifyAsync(pending.OperationId);
         Assert.True(verification.Succeeded);
+        Assert.Equal(1, fixture.Operations.AuditSynchronizationCalls);
 
         var cutover = await fixture.Service.CommitCutoverAsync(pending.OperationId);
         Assert.True(cutover.Succeeded);
         Assert.True(cutover.RestartRequired);
         Assert.True(fixture.Rebinder.RestartRequested);
+        Assert.Equal(2, fixture.Operations.AuditSynchronizationCalls);
         Assert.True(fixture.Maintenance.IsActive);
         await Assert.ThrowsAsync<DurableWriteQuiescedException>(
             async () => await fixture.Maintenance.AcquireAsync("post-cutover-writer"));
@@ -306,6 +330,45 @@ public sealed class DatabaseTopologyCoreTests
         var topologyJson = await File.ReadAllTextAsync(fixture.Temp.TopologyPath);
         var secretJson = await File.ReadAllTextAsync(fixture.Temp.SecretPath);
         Assert.DoesNotContain("remote-plaintext-secret", topologyJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("remote-plaintext-secret", secretJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ConnectExisting_MatchingProjectAndRevision_SwitchesWithoutCopying()
+    {
+        using var fixture = CreateServiceFixture();
+
+        var result = await fixture.Service.ConnectExistingAsync(RemoteRequest());
+
+        Assert.True(result.Succeeded);
+        Assert.True(result.RestartRequired);
+        Assert.True(fixture.Rebinder.RestartRequested);
+        Assert.True(fixture.Maintenance.IsActive);
+        var document = await fixture.Store.GetAsync();
+        Assert.Equal(DatabaseTopologyMode.Remote, document.Active.Mode);
+        Assert.Equal(DatabaseTopologyMode.LocalManaged, document.PreviousActive?.Mode);
+        Assert.Null(document.Pending);
+        Assert.Equal(DatabaseMigrationPhase.Completed, document.LastOperation?.Phase);
+        Assert.Equal(0, fixture.Operations.CopyCalls);
+        Assert.Equal(0, fixture.Operations.AuditSynchronizationCalls);
+    }
+
+    [Fact]
+    public async Task ConnectExisting_ProjectMismatch_FailsClosedWithoutPersistingRemoteProfile()
+    {
+        using var fixture = CreateServiceFixture(operations => operations.ExistingTargetMatchesActiveProject = false);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => fixture.Service.ConnectExistingAsync(RemoteRequest()));
+
+        var document = await fixture.Store.GetAsync();
+        Assert.Equal(DatabaseTopologyMode.LocalManaged, document.Active.Mode);
+        Assert.Null(document.PreviousActive);
+        Assert.Null(document.Pending);
+        Assert.False(fixture.Rebinder.RestartRequested);
+        Assert.False(fixture.Maintenance.IsActive);
+        Assert.Equal(0, fixture.Operations.CopyCalls);
+        var secretJson = await File.ReadAllTextAsync(fixture.Temp.SecretPath);
         Assert.DoesNotContain("remote-plaintext-secret", secretJson, StringComparison.Ordinal);
     }
 
@@ -373,6 +436,7 @@ public sealed class DatabaseTopologyCoreTests
         await fixture.Service.StartMigrationAsync(pending.OperationId);
         await fixture.Service.VerifyAsync(pending.OperationId);
         await fixture.Service.CommitCutoverAsync(pending.OperationId);
+        Assert.Equal(2, fixture.Operations.AuditSynchronizationCalls);
 
         // A real cutover exits only by process restart. Reset the in-memory gate/rebinder here
         // to model the newly started process before exercising Remote -> Local rollback.
@@ -383,6 +447,7 @@ public sealed class DatabaseTopologyCoreTests
 
         Assert.True(rollback.RolledBack);
         Assert.True(rollback.RestartRequired);
+        Assert.Equal(3, fixture.Operations.AuditSynchronizationCalls);
         Assert.True(fixture.Rebinder.RestartRequested);
         Assert.True(fixture.Maintenance.IsActive);
         await Assert.ThrowsAsync<DurableWriteQuiescedException>(
@@ -626,7 +691,10 @@ public sealed class DatabaseTopologyCoreTests
         public bool ThrowOnCopy { get; set; }
         public bool VerificationSucceeds { get; set; } = true;
         public bool FailReadiness { get; set; }
+        public bool ExistingTargetMatchesActiveProject { get; set; } = true;
         public string? TestFailureCode { get; set; }
+        public int AuditSynchronizationCalls { get; private set; }
+        public int CopyCalls { get; private set; }
         private int _compatibilityCalls;
 
         public Task<DatabaseConnectionHealth> TestAsync(
@@ -698,9 +766,40 @@ public sealed class DatabaseTopologyCoreTests
             string historianTargetConnectionString,
             CancellationToken cancellationToken = default)
         {
+            CopyCalls++;
             if (ThrowOnCopy)
                 throw new InvalidOperationException("fixture copy failure");
             return Task.CompletedTask;
+        }
+
+        public Task SynchronizeAuditEventsAsync(
+            string sourceConnectionString,
+            string targetConnectionString,
+            CancellationToken cancellationToken = default)
+        {
+            _ = sourceConnectionString;
+            _ = targetConnectionString;
+            _ = cancellationToken;
+            AuditSynchronizationCalls++;
+            return Task.CompletedTask;
+        }
+
+        public Task<DatabaseExistingTargetValidation> ValidateExistingTargetAsync(
+            string sourceConnectionString,
+            string targetConnectionString,
+            CancellationToken cancellationToken = default)
+        {
+            _ = sourceConnectionString;
+            _ = targetConnectionString;
+            _ = cancellationToken;
+            return Task.FromResult(ExistingTargetMatchesActiveProject
+                ? new DatabaseExistingTargetValidation(true, "project-a", 7)
+                : new DatabaseExistingTargetValidation(
+                    false,
+                    "other-project",
+                    8,
+                    "active-project-mismatch",
+                    "Sanitized project mismatch."));
         }
 
         public Task<DatabaseMigrationVerification> VerifyAsync(

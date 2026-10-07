@@ -288,6 +288,94 @@ public sealed class RuntimeHighAvailabilityTests
     }
 
     [Fact]
+    public void ReferencedAuthority_RestartedSameActiveNodeReconcilesHigherPersistedEpochWithoutPromotionWitness()
+    {
+        // A new coordinator models process restart: its in-memory epoch starts at 1,
+        // while the shared reference store retains the active node and a later epoch.
+        var coordinator = CreateCoordinator("node-a", out var clock);
+        coordinator.UpdateNodeReadiness(
+            "node-a",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+
+        var resumed = coordinator.ApplyReferencedAuthority(
+            activeNodeId: "node-a",
+            referencedEpoch: 5,
+            previousAuthorityFenced: true,
+            restartReferenceEvidence: RestartReference("node-a", 5, clock.UtcNow));
+
+        Assert.True(resumed.Accepted, resumed.ReasonCode);
+        Assert.Equal(5, resumed.Snapshot.AuthorityEpoch);
+        Assert.Equal("node-a", resumed.Snapshot.EffectiveActiveNodeId);
+        Assert.Equal(RuntimeHaState.Synchronizing, Node(resumed.Snapshot, "node-b").State);
+        Assert.True(coordinator.TryAcquireIndustrialAuthority("node-a").Allowed);
+    }
+
+    [Fact]
+    public void ReferencedAuthority_RestartResumeDoesNotGrantIndustrialEffectsBeforeLocalRuntimeIsReady()
+    {
+        var coordinator = CreateCoordinator("node-a", out var clock);
+        coordinator.UpdateNodeReadiness(
+            "node-a",
+            new RuntimeHaNodeReadinessEvidence(
+                Healthy: true,
+                SynchronizationComplete: false,
+                HaLicenseEntitled: true,
+                Runtime: new RuntimeHaRuntimeIdentity("engineering", "project-a", null),
+                ObservedAtUtc: clock.UtcNow));
+
+        var resumed = coordinator.ApplyReferencedAuthority(
+            activeNodeId: "node-a",
+            referencedEpoch: 5,
+            previousAuthorityFenced: true,
+            restartReferenceEvidence: RestartReference("node-a", 5, clock.UtcNow));
+
+        Assert.True(resumed.Accepted, resumed.ReasonCode);
+        Assert.Equal(5, resumed.Snapshot.AuthorityEpoch);
+        Assert.Equal(RuntimeHaState.Synchronizing, Node(resumed.Snapshot, "node-a").State);
+        Assert.False(coordinator.TryAcquireIndustrialAuthority("node-a").Allowed);
+    }
+
+    [Theory]
+    [InlineData("cluster")]
+    [InlineData("topology")]
+    [InlineData("active-node")]
+    [InlineData("unfenced")]
+    [InlineData("expired")]
+    [InlineData("schema")]
+    [InlineData("schema-version")]
+    [InlineData("reference-epoch")]
+    [InlineData("empty-lease")]
+    public void ReferencedAuthority_RestartResumeEvidenceMustMatchLiveFencedLocalReference(string mismatch)
+    {
+        var coordinator = CreateCoordinator("node-a", out var clock);
+        var validReference = RestartReference("node-a", 5, clock.UtcNow);
+        var invalidReference = mismatch switch
+        {
+            "cluster" => validReference with { ClusterId = "other-cluster" },
+            "topology" => validReference with { TopologyVersion = 4 },
+            "active-node" => validReference with { ActiveNodeId = "node-b" },
+            "unfenced" => validReference with { PreviousAuthorityFenced = false },
+            "expired" => validReference with { LeaseUntilUtc = clock.UtcNow.AddSeconds(-1) },
+            "schema" => validReference with { Schema = "other-reference" },
+            "schema-version" => validReference with { SchemaVersion = validReference.SchemaVersion + 1 },
+            "reference-epoch" => validReference with { Epoch = validReference.Epoch - 1 },
+            "empty-lease" => validReference with { LeaseId = Guid.Empty },
+            _ => throw new ArgumentOutOfRangeException(nameof(mismatch), mismatch, null)
+        };
+
+        var result = coordinator.ApplyReferencedAuthority(
+            activeNodeId: "node-a",
+            referencedEpoch: 5,
+            previousAuthorityFenced: true,
+            restartReferenceEvidence: invalidReference);
+
+        Assert.False(result.Accepted);
+        Assert.Equal("reference-promotion-ready-standby-witness-required", result.ReasonCode);
+        Assert.Equal(1, result.Snapshot.AuthorityEpoch);
+        Assert.Equal("node-a", result.Snapshot.EffectiveActiveNodeId);
+    }
+
+    [Fact]
     public void ReferencedAuthority_RejectsStaleEpochAndCannotRecoverAmbiguityWithoutNewerExplicitReference()
     {
         var coordinator = CreateReadyPair(out _);
@@ -481,6 +569,23 @@ public sealed class RuntimeHighAvailabilityTests
             HaLicenseEntitled: haEntitled,
             Runtime: new RuntimeHaRuntimeIdentity("engineering", "project-a", revision),
             ObservedAtUtc: observedAtUtc);
+
+    private static RuntimeHaReferenceAuthority RestartReference(
+        string nodeId,
+        long epoch,
+        DateTimeOffset now) =>
+        new(
+            RuntimeHaReferenceAuthority.SchemaName,
+            RuntimeHaReferenceAuthority.CurrentSchemaVersion,
+            "cluster-a",
+            TopologyVersion: 3,
+            Epoch: epoch,
+            ActiveNodeId: nodeId,
+            LeaseId: Guid.NewGuid(),
+            LeaseUntilUtc: now.AddMinutes(1),
+            UpdatedAtUtc: now,
+            PreviousAuthorityFenced: true,
+            ReasonCode: "reference-renewed");
 
     private static RuntimeHaNodeSnapshot Node(
         RuntimeHaTopologySnapshot snapshot,

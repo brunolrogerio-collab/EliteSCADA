@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Scada.Core.Tags;
 using Scada.Security.Authorization;
 
 namespace Scada.Api.Runtime;
@@ -644,7 +645,8 @@ public sealed class RuntimeHaProtectionCoordinator
                 localNodeId,
                 reference.Epoch,
                 reference.PreviousAuthorityFenced,
-                witness);
+                witness,
+                restartReferenceEvidence: reference);
             if (!applied.Accepted &&
                 applied.ReasonCode != "reference-promotion-ready-standby-witness-required")
             {
@@ -665,6 +667,80 @@ public sealed class RuntimeHaProtectionCoordinator
             }
 
             var descriptor = _runtime.Describe();
+            if (descriptor.Revision.HasValue &&
+                !string.IsNullOrWhiteSpace(descriptor.ProjectKey) &&
+                !_runtime.ProductRuntimeActive)
+            {
+                var mirror = _mirror.Snapshot();
+                var state = mirror.AuthoritativeState;
+                var operation = AddOperation("authority-runtime-promotion", localNodeId, now);
+                if (!mirror.HasState ||
+                    state?.Application is null ||
+                    state.Runtime.Revision != descriptor.Revision ||
+                    !string.Equals(
+                        state.Runtime.ProjectKey,
+                        descriptor.ProjectKey,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    await FailClosedAfterClaimAsync(
+                        reference,
+                        operation,
+                        "takeover-state-unavailable",
+                        cancellationToken);
+                    return;
+                }
+
+                var takeover = await RunTakeoverWithLeaseRenewalAsync(
+                    reference,
+                    async takeoverToken =>
+                    {
+                        var activationFailure = await ActivateAuthoritativeRuntimeAsync(
+                            state,
+                            takeoverToken);
+                        if (activationFailure is not null)
+                            return activationFailure;
+
+                        // The target has fenced authority and its active runtime is
+                        // ready. Commit the local runtime fence before restoring values.
+                        SetReference(reference, true, "authority-runtime-promotion-in-progress");
+                        var restoreFailure = await RestoreAuthoritativeValuesAsync(
+                            state,
+                            takeoverToken);
+                        if (restoreFailure is not null)
+                            return restoreFailure;
+
+                        try
+                        {
+                            await RebindSessionsForTakeoverAsync(takeoverToken);
+                        }
+                        catch (OperationCanceledException) when (takeoverToken.IsCancellationRequested)
+                        {
+                            throw;
+                        }
+                        catch
+                        {
+                            return "takeover-session-rebind-failed";
+                        }
+
+                        return null;
+                    },
+                    cancellationToken);
+                reference = takeover.Authority;
+                if (takeover.FailureReason is not null)
+                {
+                    await FailClosedAfterClaimAsync(
+                        reference,
+                        operation,
+                        takeover.FailureReason,
+                        CancellationToken.None);
+                    return;
+                }
+
+                SetReference(reference, true, "authority-runtime-promotion-completed");
+                Complete(operation, "completed", "authority-runtime-promotion-completed", reference.Epoch);
+                return;
+            }
+
             var committed = descriptor.Revision.HasValue &&
                 !string.IsNullOrWhiteSpace(descriptor.ProjectKey);
             SetReference(reference, committed, committed ? "reference-local-active" : "local-runtime-unavailable");
@@ -865,19 +941,30 @@ public sealed class RuntimeHaProtectionCoordinator
             return;
         }
 
-        var activation = await _runtime.ActivateAsync(
-            state.Runtime.ProjectKey,
-            state.Runtime.Revision.Value,
-            state.Application,
+        var activationFailure = await ActivateAuthoritativeRuntimeAsync(
+            state,
             cancellationToken);
-        if (!activation.Activated)
+        if (activationFailure is not null)
         {
             await FailClosedAfterClaimAsync(
                 authority,
                 operation,
-                activation.RuntimeIssues.FirstOrDefault(issue => issue.IsError)?.Code
-                    ?? "takeover-runtime-activation-failed",
+                activationFailure,
                 cancellationToken);
+            return;
+        }
+
+        SetReference(authority, true, "takeover-state-restoration-in-progress");
+        var restoreFailure = await RestoreAuthoritativeValuesAsync(
+            state,
+            cancellationToken);
+        if (restoreFailure is not null)
+        {
+            await FailClosedAfterClaimAsync(
+                authority,
+                operation,
+                restoreFailure,
+                CancellationToken.None);
             return;
         }
 
@@ -897,6 +984,127 @@ public sealed class RuntimeHaProtectionCoordinator
 
         SetReference(authority, true, successReasonCode);
         Complete(operation, "completed", successReasonCode, authority.Epoch);
+    }
+
+    private async Task<string?> ActivateAuthoritativeRuntimeAsync(
+        RuntimeHaAuthoritativeStateSnapshot state,
+        CancellationToken cancellationToken)
+    {
+        if (state.Application is null ||
+            !state.Runtime.Revision.HasValue ||
+            string.IsNullOrWhiteSpace(state.Runtime.ProjectKey))
+        {
+            return "takeover-state-unavailable";
+        }
+
+        var activation = await _runtime.ActivateAsync(
+            state.Runtime.ProjectKey,
+            state.Runtime.Revision.Value,
+            state.Application,
+            cancellationToken);
+        if (!activation.Activated)
+        {
+            return activation.RuntimeIssues.FirstOrDefault(issue => issue.IsError)?.Code
+                ?? "takeover-runtime-activation-failed";
+        }
+
+        return null;
+    }
+
+    private async Task<(RuntimeHaReferenceAuthority Authority, string? FailureReason)> RunTakeoverWithLeaseRenewalAsync(
+        RuntimeHaReferenceAuthority authority,
+        Func<CancellationToken, Task<string?>> takeover,
+        CancellationToken cancellationToken)
+    {
+        using var takeoverCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var latestAuthority = authority;
+        string? renewalFailure = null;
+        var renewalInterval = TimeSpan.FromMilliseconds(Math.Max(
+            100,
+            Math.Min(_options.PollInterval.TotalMilliseconds, _options.LeaseDuration.TotalMilliseconds / 4)));
+
+        async Task RenewUntilCanceledAsync()
+        {
+            try
+            {
+                while (!takeoverCancellation.IsCancellationRequested)
+                {
+                    await Task.Delay(renewalInterval, takeoverCancellation.Token);
+                    var renewed = await _reference.RenewAsync(
+                        _highAvailability.LocalNodeId!,
+                        latestAuthority.LeaseId,
+                        latestAuthority.Epoch,
+                        takeoverCancellation.Token);
+                    if (!renewed.Accepted || renewed.Authority is null)
+                    {
+                        renewalFailure = "takeover-lease-renewal-failed";
+                        takeoverCancellation.Cancel();
+                        return;
+                    }
+
+                    latestAuthority = renewed.Authority;
+                    lock (_gate)
+                    {
+                        if (_lastReference?.LeaseId == latestAuthority.LeaseId &&
+                            _lastReference.Epoch == latestAuthority.Epoch)
+                            _lastReference = latestAuthority;
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (takeoverCancellation.IsCancellationRequested)
+            {
+            }
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                renewalFailure = "takeover-lease-renewal-failed";
+                takeoverCancellation.Cancel();
+            }
+        }
+
+        var renewalTask = RenewUntilCanceledAsync();
+        string? takeoverFailure;
+        try
+        {
+            takeoverFailure = await takeover(takeoverCancellation.Token);
+        }
+        catch (OperationCanceledException) when (renewalFailure is not null)
+        {
+            takeoverFailure = renewalFailure;
+        }
+        finally
+        {
+            takeoverCancellation.Cancel();
+            await renewalTask;
+        }
+
+        return (latestAuthority, renewalFailure ?? takeoverFailure);
+    }
+
+    private async Task<string?> RestoreAuthoritativeValuesAsync(
+        RuntimeHaAuthoritativeStateSnapshot state,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _runtime.RestoreAuthoritativeValuesAsync(
+                state.Tags.Select(value => new TagValue(
+                    value.TagId,
+                    value.Value,
+                    value.Timestamp,
+                    value.Quality,
+                    value.Source)
+                {
+                    SourceTimestamp = value.SourceTimestamp,
+                    ServerTimestamp = value.ServerTimestamp
+                }).ToArray(),
+                cancellationToken);
+        }
+        catch
+        {
+            return "takeover-tag-state-restore-failed";
+        }
+
+        return null;
     }
 
     private async Task FailClosedAfterClaimAsync(

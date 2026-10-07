@@ -407,6 +407,8 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
     : administration.operations;
   const latestOperation = operations[0] ?? null;
   const suggestedTarget = peerNode?.nodeId ?? '';
+  const localIsEffectiveActive = Boolean(topology.effectiveActiveNodeId) &&
+    topology.effectiveActiveNodeId!.toLowerCase() === topology.localNodeId.toLowerCase();
   const peerAvailable = peer.connectionState === 'connected' && Boolean(peerNode?.fresh);
   const currentServerDraft = draft.nodes[0];
   const partnerServerDraft = draft.nodes[1];
@@ -606,9 +608,9 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
           </div>
 
           <div className="ha-action-cards">
-            <button type="button" className="ha-action-card" disabled={!haLicensed} onClick={() => setConfirm({ kind: 'switchover', target: suggestedTarget })}>
+            <button type="button" className="ha-action-card" data-testid="ha-switchover-action" disabled={!haLicensed || !localIsEffectiveActive} onClick={() => setConfirm({ kind: 'switchover', target: suggestedTarget })}>
               <strong>{t.switchover}</strong>
-              <span>{t.switchoverHint}</span>
+              <span>{localIsEffectiveActive ? t.switchoverHint : t.switchoverActiveOnly}</span>
             </button>
             <button type="button" className="ha-action-card" disabled={!haLicensed} onClick={() => setConfirm({ kind: 'failback', target: draft.initialActiveNodeId })}>
               <strong>{t.failback}</strong>

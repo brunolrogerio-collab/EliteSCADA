@@ -3,6 +3,8 @@ using Scada.Drivers.Abstractions;
 using Scada.Drivers.AllenBradley;
 using Scada.Drivers.Bacnet;
 using Scada.Drivers.Dnp3;
+using Scada.Drivers.ESPHome;
+using Scada.Drivers.HomeAssistant;
 using Scada.Drivers.Iec60870;
 using Scada.Drivers.Mqtt;
 using Scada.Drivers.Modbus;
@@ -10,6 +12,7 @@ using Scada.Drivers.Serial;
 using Scada.Drivers.OpcUa;
 using Scada.Drivers.SiemensS7Iso;
 using Scada.Drivers.Simulation;
+using Scada.Drivers.Shelly;
 
 namespace Scada.DriverHost.Engineering;
 
@@ -89,6 +92,24 @@ public static class CommunicationDriverRuntimeComposition
             new BacnetCommunicationRuntimePlanner(),
             new BacnetCommunicationRuntimeFactory(bacnetSessionFactory),
             BacnetDriverDescriptor.Instance));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new EspHomeCommunicationRuntimePlanner(),
+            new HostProtectedMaterialRuntimeFactory(
+                new EspHomeCommunicationRuntimeFactory(),
+                protectedMaterialResolver),
+            new EspHomeDriverDescriptorProvider().Descriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new HomeAssistantCommunicationRuntimePlanner(),
+            new HostProtectedMaterialRuntimeFactory(
+                new HomeAssistantCommunicationRuntimeFactory(),
+                protectedMaterialResolver),
+            new HomeAssistantDriverDescriptorProvider().Descriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new ShellyCommunicationRuntimePlanner(),
+            new HostProtectedMaterialRuntimeFactory(
+                new ShellyCommunicationRuntimeFactory(),
+                protectedMaterialResolver),
+            new ShellyDriverDescriptorProvider().Descriptor));
         return registry;
     }
 

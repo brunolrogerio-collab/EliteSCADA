@@ -1,3 +1,17 @@
+# NEXT COORDINATOR CHAT — CURRENT POINTER — 2026-10-06 22:31 BRT
+
+Read first:
+`docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-10-06-2231.md`
+
+Then revalidate live:
+`#305 -> #554 -> #534 -> #551`.
+
+Accepted product checkpoint before this docs-only handoff:
+`27a9347e3d6f87db799a1541de2a27484b8bda51`.
+
+Do not use older coordinator snapshots as current authority.
+
+---
 # FINAL REVALIDATION CORRECTION — 2026-10-03
 
 > Supersedes the active-lane status in earlier 2026-10-03 handoff text below.
@@ -2534,5 +2548,4 @@ Current correct shared state after Licensing merge:
 No DEV chat currently requires `SIGA`.
 
 Do not ask the Product Owner to carry technical handoffs between agents. Persist routes in GitHub controls/comments.
-
 

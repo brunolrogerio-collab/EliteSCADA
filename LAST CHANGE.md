@@ -1,3 +1,23 @@
+# LATEST COORDINATION CHANGE — 2026-10-06 22:31 BRT
+
+Outgoing Main handoff recorded in:
+`docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-10-06-2231.md`.
+
+Accepted product checkpoint remains:
+`27a9347e3d6f87db799a1541de2a27484b8bda51`
+from PR #550 / #549 S0 with T1 #929 (`513 passed / 0 failed / 0 skipped`).
+
+Current execution:
+- #554 S1 transient-event Runtime released, branch untouched at product checkpoint;
+- #534 HA remains CODEX_LOCAL, backup branch `f4e4adf...`, not integration-ready;
+- #552 Mitsubishi research accepted/closed;
+- #553 Panasonic research accepted/closed;
+- no industrial product branch active;
+- only unrelated open PR at outgoing revalidation: #362.
+
+GitHub live is the authority; revalidate before acting.
+
+---
 # PRODUCT-OWNER ACCEPTANCE / CURRENT INTEGRATION — 2026-10-06
 
 > Supersedes older Wave 15 current-state and remaining-issue wording below. GitHub is authoritative.

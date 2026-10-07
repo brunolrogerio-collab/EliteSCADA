@@ -5,9 +5,18 @@
 
   <ItemGroup>
     <PackageReference Include="BACnet" Version="4.0.0" />
+    <PackageReference Include="Google.Protobuf" Version="3.36.2" />
+    <PackageReference Include="Grpc.Tools" Version="2.84.0" PrivateAssets="All" />
+    <PackageReference Include="libsodium" Version="1.0.22" />
     <PackageReference Include="MQTTnet" Version="5.2.0.1603" />
+    <PackageReference Include="Noise.NET" Version="1.0.0" />
     <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client" Version="1.5.378.156" />
     <PackageReference Include="System.IO.Ports" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="ESPHome/Protocol/esphome_base.proto" GrpcServices="None" />
+    <Protobuf Include="ESPHome/Protocol/esphome_entities.proto" GrpcServices="None" />
   </ItemGroup>
 
   <ItemGroup>

@@ -686,6 +686,35 @@ export type TemplateEngineering = {
   metadata?: Record<string, string> | null;
 };
 
+export type LocationEngineering = {
+  id?: string | null;
+  name: string;
+  parentLocationId?: string | null;
+  kind?: string | null;
+  metadata?: Record<string, string> | null;
+};
+
+export type EquipmentSourceBindingEngineering = {
+  dataSourceId: string;
+  stableDeviceIdentity: string;
+  role?: string | null;
+  metadata?: Record<string, string> | null;
+};
+
+export type CapabilityRoleBindingEngineering = {
+  role: string;
+  tagId?: string | null;
+  commandId?: string | null;
+};
+
+export type EquipmentCapabilityEngineering = {
+  id: string;
+  kind: string;
+  bindings?: CapabilityRoleBindingEngineering[] | null;
+  metadata?: Record<string, string> | null;
+  version?: number;
+};
+
 export type EquipmentEngineering = {
   id?: string;
   path: string;
@@ -693,6 +722,9 @@ export type EquipmentEngineering = {
   templateKey?: string | null;
   templateId?: string | null;
   bindings?: BindingEngineering[];
+  locationId?: string | null;
+  sourceBindings?: EquipmentSourceBindingEngineering[] | null;
+  capabilities?: EquipmentCapabilityEngineering[] | null;
 };
 
 export type DynamoEngineering = {
@@ -768,6 +800,7 @@ export type EngineeringPackageView = {
   mediaSources?: MediaSourceEngineering[];
   templates?: TemplateEngineering[];
   equipment?: EquipmentEngineering[];
+  locations?: LocationEngineering[];
   dynamos?: DynamoEngineering[];
   screens?: ScreenEngineering[];
   popups?: PopupEngineering[];

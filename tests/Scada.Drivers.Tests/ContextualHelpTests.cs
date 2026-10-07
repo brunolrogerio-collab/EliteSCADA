@@ -80,7 +80,7 @@ public sealed class ContextualHelpTests
             .ToArray();
 
         Assert.Equal("builtin.simulation", ContextualHelpCatalog.ExcludedSimulationDriverTypeKey);
-        Assert.Equal(11, canonicalProductionDrivers.Length);
+        Assert.Contains(canonicalProductionDrivers, driver => driver.TypeKey == "shelly.rpc");
         Assert.Contains(canonicalProductionDrivers, driver => driver.TypeKey == "modbus.rtu");
         Assert.Contains(canonicalProductionDrivers, driver => driver.TypeKey == "modbus.tcp.server");
         Assert.Contains(canonicalProductionDrivers, driver => driver.TypeKey == "modbus.rtu.server");

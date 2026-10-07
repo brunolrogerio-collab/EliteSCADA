@@ -1,7 +1,12 @@
+using Scada.Api.Runtime;
+using Scada.Api.Security;
 using Scada.Core.Commands;
 using Scada.Core.Interactions;
 using Scada.Core.Tags;
 using Scada.DriverHost.Runtime;
+using Scada.Drivers.Abstractions;
+using Scada.Security.Audit;
+using Scada.Security.Authorization;
 
 namespace Scada.Drivers.Tests;
 
@@ -562,6 +567,101 @@ public sealed class RichCommandRuntimeServiceTests
             () => fixture.Runtime.InvokeAsync(fixture.Invocation()).AsTask());
 
         Assert.Equal(0, executor.DispatchCount);
+    }
+
+    [Fact]
+    public void LegacyCommandSecurityAuditAndEndpointSurface_RemainCanonical()
+    {
+        Assert.Equal(2, (int)SecurityCapability.CommandExecute);
+        Assert.Equal("command.execute", AuditActions.CommandExecute);
+
+        var endpointMapper = Assert.Single(
+            typeof(CommandEndpointExtensions).GetMethods(
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.Static),
+            method => method.Name == nameof(CommandEndpointExtensions.MapCommandEndpoints));
+
+        Assert.Equal(typeof(Microsoft.AspNetCore.Builder.WebApplication), endpointMapper.ReturnType);
+        var endpointParameters = endpointMapper.GetParameters();
+        Assert.Single(endpointParameters);
+        Assert.Equal(typeof(Microsoft.AspNetCore.Builder.WebApplication), endpointParameters[0].ParameterType);
+
+        Assert.DoesNotContain(
+            typeof(ScadaRuntimeFacade).GetMethods(
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.Instance),
+            method => method.Name.Contains("RichCommand", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RuntimeCore_DoesNotOwnSecondAuditOrDiagnosticsAuthority()
+    {
+        var constructor = Assert.Single(typeof(RichCommandRuntimeService).GetConstructors());
+
+        Assert.DoesNotContain(
+            constructor.GetParameters(),
+            parameter =>
+                string.Equals(
+                    parameter.ParameterType.Namespace,
+                    typeof(AuditEvent).Namespace,
+                    StringComparison.Ordinal) ||
+                typeof(CommunicationDriverDiagnosticSnapshot).IsAssignableFrom(parameter.ParameterType));
+
+        Assert.DoesNotContain(
+            typeof(RichCommandRuntimeService).GetFields(
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Public),
+            field =>
+                string.Equals(
+                    field.FieldType.Namespace,
+                    typeof(AuditEvent).Namespace,
+                    StringComparison.Ordinal) ||
+                typeof(CommunicationDriverDiagnosticSnapshot).IsAssignableFrom(field.FieldType));
+
+        Assert.DoesNotContain(
+            typeof(RichCommandRuntimeService).Assembly.GetTypes(),
+            type =>
+                string.Equals(type.Name, "RichCommandAuditStore", StringComparison.Ordinal) ||
+                string.Equals(type.Name, "RichCommandDiagnosticsService", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task TrustedFakeCaller_L1_ResolvesAuthoritativeBindingAndReturnsCanonicalResult()
+    {
+        var definition = CreateDefinition(CommandId);
+        var binding = CreateBinding(CommandId, DataSourceId, "cover-device-01");
+        var executor = new RecordingExecutor(RichCommandOutcome.Completed);
+        using var runtime = new RichCommandRuntimeService(
+            new InMemoryRichCommandDefinitionResolver([definition]),
+            new InMemoryRichCommandBindingResolver([binding]),
+            new InMemoryRichCommandDriverExecutorResolver(
+            [
+                new KeyValuePair<Guid, IRichCommandDriverExecutor>(DataSourceId, executor)
+            ]),
+            () => true,
+            new RichCommandRuntimePolicy(2, 1, TimeSpan.FromSeconds(5)));
+
+        var invocation = new RichCommandInvocation(
+            Guid.NewGuid(),
+            CommandId,
+            [
+                new RichCommandParameterValue(
+                    "position",
+                    InteractionScalarValue.Percentage(75m))
+            ],
+            DateTimeOffset.UtcNow);
+
+        var result = await runtime.InvokeAsync(invocation);
+
+        Assert.Equal(invocation.InvocationId, result.InvocationId);
+        Assert.Equal(invocation.CommandId, result.CommandId);
+        Assert.Equal(RichCommandOutcome.Completed, result.Outcome);
+        Assert.Equal(1, executor.DispatchCount);
+        Assert.Equal(DataSourceId, executor.LastBinding!.DataSourceId);
+        Assert.Equal("cover-device-01", executor.LastBinding.StableDeviceIdentity);
+        Assert.Equal("cover.move", executor.LastBinding.SemanticOperationKey);
+        Assert.Equal(invocation.InvocationId, executor.LastInvocation!.InvocationId);
     }
 
     [Fact]

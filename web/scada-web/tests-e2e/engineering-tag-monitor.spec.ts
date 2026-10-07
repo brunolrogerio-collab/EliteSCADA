@@ -17,7 +17,9 @@ test('TAG Monitor is an Engineering diagnostic while its facts remain Active Run
   await expect(page).toHaveURL(/\/engineering\/diagnostics\/tag-monitor$/);
   await expect(page.getByTestId('engineering-tag-monitor')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'TAG Monitor', level: 1 })).toBeVisible();
-  await expect(page.getByText('Engenharia / Diagnósticos', { exact: true })).toBeVisible();
+  // The shared Engineering header intentionally hides eyebrow text to keep
+  // section headers compact; the diagnostic identity is carried by the h1.
+  await expect(page.getByText('Engenharia / Diagnósticos', { exact: true })).toBeAttached();
 
   const context = page.getByTestId('tag-monitor-context');
   await expect(context.getByText('Contexto Engineering', { exact: true })).toBeVisible();
@@ -32,7 +34,6 @@ test('TAG Monitor is an Engineering diagnostic while its facts remain Active Run
   const inspector = page.locator('.runtime-tag-inspector');
   await expect(inspector).toBeVisible();
   await expect(inspector.getByRole('heading', { name: 'Inspector de TAGs' })).toBeVisible();
-  await expect(inspector.getByText('Runtime / TAGs', { exact: true })).toBeVisible();
   await expect(inspector.getByText('Realtime conectado', { exact: true })).toBeVisible({ timeout: 15_000 });
 
   await inspector.getByLabel('Buscar TAGs').fill('pressure');

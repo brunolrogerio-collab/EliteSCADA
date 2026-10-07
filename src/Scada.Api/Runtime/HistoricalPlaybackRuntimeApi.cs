@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Mvc;
 using Scada.Api.Persistence;
 using Scada.Api.Security;
 using Scada.Engineering.Persistence;
@@ -37,7 +38,7 @@ public static class HistoricalPlaybackRuntimeApi
             HttpContext context,
             ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
-            IEngineeringProjectPersistenceService persistence,
+            [FromServices] IEngineeringProjectPersistenceService? persistence,
             CancellationToken cancellationToken) =>
         {
             if (string.IsNullOrWhiteSpace(request.ScreenKey))
@@ -55,6 +56,11 @@ public static class HistoricalPlaybackRuntimeApi
                 var historyFailure = history.FailureResult();
                 if (historyFailure is not null) return historyFailure;
             }
+
+            if (persistence is null)
+                return Results.Json(
+                    new { error = "Historical Playback requires configured project persistence." },
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
 
             var before = runtime.Describe();
             if (!before.Mode.Equals("engineering", StringComparison.OrdinalIgnoreCase) ||

@@ -264,6 +264,60 @@ public sealed class RichCommandRuntimeServiceTests
     }
 
     [Fact]
+    public async Task NonCooperativeExecutor_TimeoutReturnsUnknownButRetainsPhysicalOwnership()
+    {
+        var executor = new NonCooperativeBlockingExecutor();
+        var independent = new RecordingExecutor(RichCommandOutcome.Completed);
+        var independentDataSourceId = Guid.Parse("55600000-0000-0000-0000-000000000099");
+        var fixture = CreateFixture(
+            executor: executor,
+            additionalDefinition: CreateDefinition(Command2Id),
+            additionalBinding: CreateBinding(
+                Command2Id,
+                independentDataSourceId,
+                "independent-device"),
+            additionalExecutorDataSourceId: independentDataSourceId,
+            additionalExecutor: independent,
+            policy: new RichCommandRuntimePolicy(4, 2, TimeSpan.FromMilliseconds(100)));
+        using var runtime = fixture.Runtime;
+
+        var first = runtime.InvokeAsync(fixture.Invocation()).AsTask();
+        await executor.FirstDispatchStarted.WaitAsync(TimeSpan.FromSeconds(2));
+
+        var firstResult = await first.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal(RichCommandOutcome.Unknown, firstResult.Outcome);
+        Assert.Equal("execution.timeout_ambiguous", firstResult.Code);
+        Assert.Equal(1, executor.DispatchCount);
+        Assert.Equal(1, executor.ActiveCount);
+        Assert.Equal(1, executor.PeakConcurrency);
+
+        // Caller timeout must not release the same-target physical ownership while
+        // the non-cooperative executor is still running.
+        var sameTarget = runtime.InvokeAsync(fixture.Invocation()).AsTask();
+        await Task.Delay(150);
+        Assert.False(sameTarget.IsCompleted);
+        Assert.Equal(1, executor.DispatchCount);
+        Assert.Equal(1, executor.PeakConcurrency);
+
+        // Independent targets remain allowed to use another bounded physical slot.
+        var independentResult = await runtime.InvokeAsync(
+            fixture.Invocation(commandId: Command2Id)).AsTask().WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(RichCommandOutcome.Completed, independentResult.Outcome);
+        Assert.Equal(1, independent.DispatchCount);
+
+        // Once the first physical operation actually terminates, the queued same-target
+        // invocation may proceed. The first caller result remains Unknown and no retry occurred.
+        executor.Release();
+        var sameTargetResult = await sameTarget.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal(RichCommandOutcome.Completed, sameTargetResult.Outcome);
+        Assert.Equal(2, executor.DispatchCount);
+        Assert.Equal(1, executor.PeakConcurrency);
+        Assert.Equal(0, executor.ActiveCount);
+    }
+
+    [Fact]
     public async Task ExceptionAfterPhysicalDispatch_IsUnknownAndNeverRetried()
     {
         var executor = new ThrowingExecutor();
@@ -396,7 +450,8 @@ public sealed class RichCommandRuntimeServiceTests
         IRichCommandBindingResolver? bindingResolverOverride = null,
         RichCommandDefinition? additionalDefinition = null,
         DriverCommandBinding? additionalBinding = null,
-        Guid? additionalExecutorDataSourceId = null)
+        Guid? additionalExecutorDataSourceId = null,
+        IRichCommandDriverExecutor? additionalExecutor = null)
     {
         var definition = CreateDefinition(CommandId);
         var definitions = additionalDefinition is null
@@ -416,7 +471,9 @@ public sealed class RichCommandRuntimeServiceTests
         if (includeExecutor)
             executors.Add(new(DataSourceId, selectedExecutor));
         if (includeExecutor && additionalExecutorDataSourceId.HasValue)
-            executors.Add(new(additionalExecutorDataSourceId.Value, selectedExecutor));
+            executors.Add(new(
+                additionalExecutorDataSourceId.Value,
+                additionalExecutor ?? selectedExecutor));
 
         var runtime = new RichCommandRuntimeService(
             new InMemoryRichCommandDefinitionResolver(definitions),
@@ -678,6 +735,66 @@ public sealed class RichCommandRuntimeServiceTests
             _started.TrySetResult(true);
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             throw new InvalidOperationException("unreachable");
+        }
+    }
+
+    private sealed class NonCooperativeBlockingExecutor : IRichCommandDriverExecutor
+    {
+        private readonly TaskCompletionSource<bool> _firstStarted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<bool> _release =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _dispatchCount;
+        private int _activeCount;
+        private int _peakConcurrency;
+
+        public Task FirstDispatchStarted => _firstStarted.Task;
+        public int DispatchCount => Volatile.Read(ref _dispatchCount);
+        public int ActiveCount => Volatile.Read(ref _activeCount);
+        public int PeakConcurrency => Volatile.Read(ref _peakConcurrency);
+
+        public void Release() => _release.TrySetResult(true);
+
+        public async ValueTask<RichCommandResult> ExecuteAsync(
+            RichCommandInvocation invocation,
+            DriverCommandBinding binding,
+            RichCommandExecutionContext context,
+            CancellationToken cancellationToken = default)
+        {
+            var dispatch = Interlocked.Increment(ref _dispatchCount);
+            var active = Interlocked.Increment(ref _activeCount);
+            UpdatePeak(active);
+            if (dispatch == 1)
+                _firstStarted.TrySetResult(true);
+
+            try
+            {
+                // Deliberately ignore cancellation to prove the Runtime timeout is caller-bounded
+                // without pretending the physical command stopped.
+                await _release.Task.ConfigureAwait(false);
+                return new RichCommandResult(
+                    invocation.InvocationId,
+                    invocation.CommandId,
+                    RichCommandOutcome.Completed,
+                    DateTimeOffset.UtcNow);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _activeCount);
+            }
+        }
+
+        private void UpdatePeak(int candidate)
+        {
+            while (true)
+            {
+                var current = Volatile.Read(ref _peakConcurrency);
+                if (candidate <= current ||
+                    Interlocked.CompareExchange(ref _peakConcurrency, candidate, current) == current)
+                {
+                    return;
+                }
+            }
         }
     }
 

@@ -48,8 +48,8 @@ public sealed record RichCommandExecutionContext(
 
 /// <summary>
 /// Bounded host policy for Rich Command execution. The defaults are the S2 canonical policy:
-/// 64 admitted invocations, at most 8 physical executions, and a 30 second cooperative
-/// executor timeout. Tests may supply a smaller policy without changing product defaults.
+/// 64 admitted invocations, at most 8 physical executions, and a 30 second caller-facing
+/// execution timeout. Tests may supply a smaller policy without changing product defaults.
 /// </summary>
 public sealed record RichCommandRuntimePolicy(
     int AdmissionCapacity,
@@ -256,6 +256,9 @@ public sealed class RichCommandRuntimeService : IRichCommandRuntime, IDisposable
 
         var admittedAt = DateTimeOffset.UtcNow;
         var ticket = EnqueueTarget(validatedBinding);
+        var physicalSlotOwned = false;
+        var lifecycleTransferred = false;
+        CancellationTokenSource? execution = null;
         try
         {
             // Do not bypass an earlier same-target invocation. Caller cancellation is observed
@@ -268,40 +271,44 @@ public sealed class RichCommandRuntimeService : IRichCommandRuntime, IDisposable
             if (!CanOwnExternalEffects())
                 return Result(validatedInvocation, RichCommandOutcome.Rejected, "runtime.non_authoritative");
 
-            var physicalSlotOwned = false;
             try
+            {
+                await _physicalConcurrency.WaitAsync(cancellationToken).ConfigureAwait(false);
+                physicalSlotOwned = true;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return Result(validatedInvocation, RichCommandOutcome.Rejected, "runtime.cancelled_before_dispatch");
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+                return Result(validatedInvocation, RichCommandOutcome.Rejected, "runtime.cancelled_before_dispatch");
+
+            if (!CanOwnExternalEffects())
+                return Result(validatedInvocation, RichCommandOutcome.Rejected, "runtime.non_authoritative");
+
+            var dispatchedAt = DateTimeOffset.UtcNow;
+            execution = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            execution.CancelAfter(_policy.ExecutionTimeout);
+            var context = new RichCommandExecutionContext(admittedAt, dispatchedAt, _policy.ExecutionTimeout);
+
+            // Crossing this boundary is the single physical dispatch attempt. The returned Task
+            // is raced against the host-owned timeout/cancellation signal so the caller-facing
+            // Runtime boundary remains bounded even if an executor ignores cancellation.
+            var physicalExecution = ExecuteOnceAsync(
+                executor,
+                validatedInvocation,
+                validatedBinding,
+                context,
+                execution.Token);
+            var executionCancelled = Task.Delay(Timeout.InfiniteTimeSpan, execution.Token);
+            await Task.WhenAny(physicalExecution, executionCancelled).ConfigureAwait(false);
+
+            if (physicalExecution.IsCompleted)
             {
                 try
                 {
-                    await _physicalConcurrency.WaitAsync(cancellationToken).ConfigureAwait(false);
-                    physicalSlotOwned = true;
-                }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                {
-                    return Result(validatedInvocation, RichCommandOutcome.Rejected, "runtime.cancelled_before_dispatch");
-                }
-
-                if (cancellationToken.IsCancellationRequested)
-                    return Result(validatedInvocation, RichCommandOutcome.Rejected, "runtime.cancelled_before_dispatch");
-
-                if (!CanOwnExternalEffects())
-                    return Result(validatedInvocation, RichCommandOutcome.Rejected, "runtime.non_authoritative");
-
-                var dispatchedAt = DateTimeOffset.UtcNow;
-                using var execution = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                execution.CancelAfter(_policy.ExecutionTimeout);
-                var context = new RichCommandExecutionContext(admittedAt, dispatchedAt, _policy.ExecutionTimeout);
-
-                try
-                {
-                    // Crossing this boundary is the single physical dispatch attempt. There is
-                    // deliberately no retry here for cancellation, timeout, exception or Unknown.
-                    var result = await executor.ExecuteAsync(
-                        validatedInvocation,
-                        validatedBinding,
-                        context,
-                        execution.Token).ConfigureAwait(false);
-
+                    var result = await physicalExecution.ConfigureAwait(false);
                     try
                     {
                         return RichCommandContract.ValidateResult(validatedInvocation, result);
@@ -327,16 +334,87 @@ public sealed class RichCommandRuntimeService : IRichCommandRuntime, IDisposable
                     return Result(validatedInvocation, RichCommandOutcome.Unknown, "execution.exception_ambiguous");
                 }
             }
-            finally
-            {
-                if (physicalSlotOwned)
-                    _physicalConcurrency.Release();
-            }
+
+            // The caller-facing timeout/cancellation boundary has expired but the physical executor
+            // is still running. Return Unknown now, while transferring ownership of admission,
+            // physical concurrency and same-target ordering to a bounded background observer.
+            // This prevents a second same-target physical effect from overlapping the still-running
+            // first command and does not claim that cancellation stopped the physical operation.
+            lifecycleTransferred = true;
+            _ = ObservePhysicalCompletionAsync(physicalExecution, ticket, execution);
+            execution = null;
+            physicalSlotOwned = false;
+
+            return Result(
+                validatedInvocation,
+                RichCommandOutcome.Unknown,
+                cancellationToken.IsCancellationRequested
+                    ? "execution.cancelled_ambiguous"
+                    : "execution.timeout_ambiguous");
         }
         finally
         {
+            if (!lifecycleTransferred)
+            {
+                execution?.Dispose();
+                if (physicalSlotOwned)
+                    TryRelease(_physicalConcurrency);
+                CompleteTarget(ticket);
+                TryRelease(_admission);
+            }
+        }
+    }
+
+    private static async Task<RichCommandResult> ExecuteOnceAsync(
+        IRichCommandDriverExecutor executor,
+        RichCommandInvocation invocation,
+        DriverCommandBinding binding,
+        RichCommandExecutionContext context,
+        CancellationToken cancellationToken)
+    {
+        return await executor.ExecuteAsync(
+            invocation,
+            binding,
+            context,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task ObservePhysicalCompletionAsync(
+        Task<RichCommandResult> physicalExecution,
+        TargetTicket ticket,
+        CancellationTokenSource execution)
+    {
+        try
+        {
+            // The caller has already received Unknown. The eventual executor result is observed
+            // only to release bounded Runtime ownership safely; it cannot rewrite caller history
+            // and it is never replayed.
+            await physicalExecution.ConfigureAwait(false);
+        }
+        catch
+        {
+            // Ambiguity was already reported to the caller. Observe and suppress the eventual
+            // executor terminal exception so no detached Task fault escapes the Runtime.
+        }
+        finally
+        {
+            execution.Dispose();
+            TryRelease(_physicalConcurrency);
             CompleteTarget(ticket);
-            _admission.Release();
+            TryRelease(_admission);
+        }
+    }
+
+    private static void TryRelease(SemaphoreSlim semaphore)
+    {
+        try
+        {
+            semaphore.Release();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Disposal lifecycle is audited separately in Checkpoint 2. A detached timed-out
+            // execution may complete after disposal; its terminal cleanup must remain harmless.
         }
     }
 

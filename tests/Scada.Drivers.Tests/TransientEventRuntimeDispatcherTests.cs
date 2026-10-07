@@ -160,7 +160,7 @@ public sealed class TransientEventRuntimeDispatcherTests
         Assert.False(fixture.Gate.ForwardingEnabled);
 
         await fixture.Source.EmitAsync(1);
-        Assert.Equal(1, fixture.LocalPublications.Count);
+        Assert.Single(fixture.LocalPublications);
         Assert.Empty(fixture.CanonicalPublications);
 
         fixture.Gate.EnableForwarding();
@@ -196,7 +196,7 @@ public sealed class TransientEventRuntimeDispatcherTests
         fixture.SetAuthoritative(true);
         await fixture.Source.EmitAsync(2);
 
-        Assert.Equal(1, fixture.LocalPublications.Count);
+        Assert.Single(fixture.LocalPublications);
         Assert.Equal(
             fixture.LocalPublications[0],
             Assert.Single(fixture.CanonicalPublications));

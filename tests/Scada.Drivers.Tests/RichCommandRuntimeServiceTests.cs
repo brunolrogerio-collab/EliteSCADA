@@ -425,8 +425,9 @@ public sealed class RichCommandRuntimeServiceTests
         Assert.Equal(CommandKind.WriteTagValue, legacy.Kind);
         Assert.False(typeof(CommandDefinition).IsAssignableFrom(typeof(RichCommandDefinition)));
         Assert.False(typeof(RichCommandDefinition).IsAssignableFrom(typeof(CommandDefinition)));
-        Assert.Single(typeof(IEngineeringRuntimeCoordinator).GetMethods()
-            .Where(method => method.Name == nameof(IEngineeringRuntimeCoordinator.ExecuteCommandAsync)));
+        Assert.Single(
+            typeof(IEngineeringRuntimeCoordinator).GetMethods(),
+            method => method.Name == nameof(IEngineeringRuntimeCoordinator.ExecuteCommandAsync));
         var parameters = typeof(IEngineeringRuntimeCoordinator)
             .GetMethod(nameof(IEngineeringRuntimeCoordinator.ExecuteCommandAsync))!
             .GetParameters();

@@ -151,6 +151,61 @@ public sealed class TransientEventRuntimeDispatcherTests
     }
 
     [Fact]
+    public async Task ExactEventIdReplay_IsNotDeduplicatedWithinDispatcher()
+    {
+        var definition = CreateDefinition();
+        var resolver = new InMemoryTransientEventDefinitionResolver(new[] { definition });
+        var bus = new RecordingEventBus();
+        await using var dispatcher = new TransientEventRuntimeDispatcher(resolver, bus, capacity: 4);
+        var eventId = Guid.Parse("55400000-0000-0000-0000-000000000099");
+        var replay = CreateOccurrence(definition, 9) with { EventId = eventId };
+
+        await dispatcher.DispatchAsync(replay);
+        await dispatcher.DispatchAsync(replay);
+
+        Assert.Equal(
+            new[] { eventId, eventId },
+            bus.Published
+                .Cast<TransientEventRuntimePublication>()
+                .Select(publication => publication.Occurrence.EventId));
+    }
+
+    [Fact]
+    public async Task L1_FakeProducer_RestartPreservesExplicitNoDedupPolicy()
+    {
+        var definition = CreateDefinition();
+        var resolver = new InMemoryTransientEventDefinitionResolver(new[] { definition });
+        var canonicalBus = new InMemoryScadaEventBus();
+        var canonicalPublications = new List<Guid>();
+        using var subscription = canonicalBus.Subscribe<TransientEventRuntimePublication>(publication =>
+        {
+            canonicalPublications.Add(publication.Occurrence.EventId);
+            return ValueTask.CompletedTask;
+        });
+
+        var eventId = Guid.Parse("55400000-0000-0000-0000-000000000100");
+        var replay = CreateOccurrence(definition, 10) with { EventId = eventId };
+
+        async Task EmitFromFreshRuntimeAsync()
+        {
+            var gate = new RuntimeEventGate(
+                canonicalBus,
+                forwardingEnabled: true,
+                effectAuthority: () => true);
+            await using var dispatcher =
+                new TransientEventRuntimeDispatcher(resolver, gate, capacity: 4);
+            var source = new FakeTransientEventSource(dispatcher, definition);
+
+            await source.EmitAsync(replay);
+        }
+
+        await EmitFromFreshRuntimeAsync();
+        await EmitFromFreshRuntimeAsync();
+
+        Assert.Equal(new[] { eventId, eventId }, canonicalPublications);
+    }
+
+    [Fact]
     public async Task RuntimeAuthorityFixture_ForwardingLifecycle_MapsCandidateActiveAndPreviousRuntime()
     {
         await using var fixture = new RuntimeAuthorityFixture(
@@ -328,6 +383,9 @@ public sealed class TransientEventRuntimeDispatcherTests
         public Task EmitAsync(long sequence) =>
             _ingress.DispatchAsync(
                 CreateOccurrence(_definition, sequence)).AsTask();
+
+        public Task EmitAsync(TransientEventOccurrence occurrence) =>
+            _ingress.DispatchAsync(occurrence).AsTask();
     }
 
     private sealed class RuntimeAuthorityFixture : IAsyncDisposable

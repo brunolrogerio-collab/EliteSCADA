@@ -9,6 +9,8 @@ services:
   api-b:
     environment:
       DatabaseTopology__Secrets__MasterKeyBase64: ${HA_TEST_DATABASE_SECRET_KEY_BASE64:?Set HA_TEST_DATABASE_SECRET_KEY_BASE64}
+    volumes:
+      - ha_capacity_api_b_data:/app/data
 
   web:
     build:
@@ -44,3 +46,5 @@ services:
 volumes:
   ha_capacity_reference_store:
     name: elitescada-ha-capacity-reference-recovery-r2-20261007
+  ha_capacity_api_b_data:
+    name: elitescada-ha-capacity-node-b-data-recovery-20261007

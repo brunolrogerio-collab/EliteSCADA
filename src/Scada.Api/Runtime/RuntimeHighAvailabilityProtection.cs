@@ -739,6 +739,17 @@ public sealed class RuntimeHaProtectionCoordinator
             var localDatabase = current.Nodes.SingleOrDefault(node =>
                 node.NodeId.Equals(localNodeId, StringComparison.OrdinalIgnoreCase));
             if (!_runtime.ProductRuntimeActive &&
+                (localDatabase?.DatabaseAvailable == false ||
+                 localDatabase?.DatabaseAvailabilityConsecutiveFailures > 0))
+            {
+                // The reference authority is still valid and renewed above. A database
+                // outage may make a fresh runtime activation impossible, but that must
+                // not fence the last live Active node or turn the outage into a cluster
+                // stop. Keep the authority and expose the degraded state until recovery.
+                SetReference(reference, false, "database-unavailable-runtime-continues-degraded");
+                return;
+            }
+            if (!_runtime.ProductRuntimeActive &&
                 localDatabase?.DatabaseAvailable == true &&
                 localDatabase.DatabaseAvailabilityConsecutiveSuccesses < 2)
             {
@@ -754,16 +765,39 @@ public sealed class RuntimeHaProtectionCoordinator
                 var operation = AddOperation("authority-runtime-promotion", localNodeId, now);
                 try
                 {
-                    if (!mirror.HasState ||
-                        state?.Application is null ||
-                        !state.Runtime.Revision.HasValue ||
-                        string.IsNullOrWhiteSpace(state.Runtime.ProjectKey) ||
-                        ((descriptor.Revision.HasValue || !string.IsNullOrWhiteSpace(descriptor.ProjectKey)) &&
-                         (state.Runtime.Revision != descriptor.Revision ||
-                          !string.Equals(
-                              state.Runtime.ProjectKey,
-                              descriptor.ProjectKey,
-                              StringComparison.OrdinalIgnoreCase))))
+                    var hasLocalRuntimeIdentity = descriptor.Revision.HasValue ||
+                        !string.IsNullOrWhiteSpace(descriptor.ProjectKey);
+                    var hasReplicatedRuntime = mirror.HasState &&
+                        state?.Application is not null &&
+                        state.Runtime.Revision.HasValue &&
+                        !string.IsNullOrWhiteSpace(state.Runtime.ProjectKey);
+                    if (!hasReplicatedRuntime)
+                    {
+                        if (hasLocalRuntimeIdentity)
+                        {
+                            await FailClosedAfterClaimAsync(
+                                reference,
+                                operation,
+                                "takeover-state-unavailable",
+                                cancellationToken);
+                        }
+                        else
+                        {
+                            // A newly started HA node can own the initial lease before
+                            // either a local runtime or a replicated application exists.
+                            // Keep its lease but do not claim runtime readiness or fence
+                            // the cluster merely because there is not yet state to load.
+                            SetReference(reference, false, "local-runtime-unavailable");
+                            Complete(operation, "deferred", "takeover-state-unavailable", reference.Epoch);
+                        }
+                        return;
+                    }
+                    if (hasLocalRuntimeIdentity &&
+                        (state!.Runtime.Revision != descriptor.Revision ||
+                         !string.Equals(
+                             state.Runtime.ProjectKey,
+                             descriptor.ProjectKey,
+                             StringComparison.OrdinalIgnoreCase)))
                     {
                         await FailClosedAfterClaimAsync(
                             reference,
@@ -773,12 +807,13 @@ public sealed class RuntimeHaProtectionCoordinator
                         return;
                     }
 
+                    var authoritativeState = state!;
                     var takeover = await RunTakeoverWithLeaseRenewalAsync(
                         reference,
                         async takeoverToken =>
                         {
                             var activationFailure = await ActivateAuthoritativeRuntimeAsync(
-                                state,
+                                authoritativeState,
                                 takeoverToken);
                             if (activationFailure is not null)
                                 return activationFailure;
@@ -787,7 +822,7 @@ public sealed class RuntimeHaProtectionCoordinator
                             // ready. Commit the local runtime fence before restoring values.
                             SetReference(reference, true, "authority-runtime-promotion-in-progress");
                             var restoreFailure = await RestoreAuthoritativeValuesAsync(
-                                state,
+                                authoritativeState,
                                 takeoverToken);
                             if (restoreFailure is not null)
                                 return restoreFailure;

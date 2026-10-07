@@ -158,7 +158,7 @@ public sealed class TransientEventRuntimeDispatcherTests
         var bus = new RecordingEventBus();
         await using var dispatcher = new TransientEventRuntimeDispatcher(resolver, bus, capacity: 4);
         var eventId = Guid.Parse("55400000-0000-0000-0000-000000000099");
-        var replay = CreateOccurrence(definition, 9) with { EventId = eventId };
+        var replay = CreateOccurrence(definition, 4) with { EventId = eventId };
 
         await dispatcher.DispatchAsync(replay);
         await dispatcher.DispatchAsync(replay);
@@ -184,7 +184,7 @@ public sealed class TransientEventRuntimeDispatcherTests
         });
 
         var eventId = Guid.Parse("55400000-0000-0000-0000-000000000100");
-        var replay = CreateOccurrence(definition, 10) with { EventId = eventId };
+        var replay = CreateOccurrence(definition, 3) with { EventId = eventId };
 
         async Task EmitFromFreshRuntimeAsync()
         {

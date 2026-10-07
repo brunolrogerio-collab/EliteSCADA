@@ -49,6 +49,40 @@ public sealed class InternalMemorySourceProviderTests
     }
 
     [Fact]
+    public async Task Server_memory_keeps_runtime_values_in_process_when_retention_database_is_unavailable()
+    {
+        var tag = CreateTag(TagDataType.Int32);
+        var secondTag = CreateTag(TagDataType.Int32, path: "Server.Memory.Second");
+        var retention = new SwitchableUnavailableRetentionStore { Available = false };
+        var provider = new ServerMemorySourceProvider("memory.server.main", retention);
+
+        await provider.ActivateAsync([
+            new MemoryTagDefinition(tag, new TypedTagValue(TagDataType.Int32, 3)),
+            new MemoryTagDefinition(secondTag, new TypedTagValue(TagDataType.Int32, 4))
+        ]);
+        await provider.WriteAsync(tag.Id, 42);
+        await provider.WriteAsync(secondTag.Id, 44);
+
+        var valueDuringOutage = Assert.IsType<TagValue>(await provider.ReadAsync(tag.Id));
+        Assert.Equal(42, Assert.IsType<int>(valueDuringOutage.Value));
+        Assert.Empty(retention.Snapshot());
+
+        retention.Available = true;
+        await Task.Delay(TimeSpan.FromMilliseconds(2100));
+        await provider.WriteAsync(tag.Id, 43);
+
+        var restarted = new ServerMemorySourceProvider("memory.server.main", retention);
+        await restarted.ActivateAsync([
+            new MemoryTagDefinition(tag, new TypedTagValue(TagDataType.Int32, 3)),
+            new MemoryTagDefinition(secondTag, new TypedTagValue(TagDataType.Int32, 4))
+        ]);
+        var persistedAfterRecovery = Assert.IsType<TagValue>(await restarted.ReadAsync(tag.Id));
+        var flushedAfterRecovery = Assert.IsType<TagValue>(await restarted.ReadAsync(secondTag.Id));
+        Assert.Equal(43, Assert.IsType<int>(persistedAfterRecovery.Value));
+        Assert.Equal(44, Assert.IsType<int>(flushedAfterRecovery.Value));
+    }
+
+    [Fact]
     public async Task Server_memory_retention_follows_stable_tag_id_across_path_rename()
     {
         var tagId = Guid.NewGuid();
@@ -195,4 +229,28 @@ public sealed class InternalMemorySourceProviderTests
             EngineeringUnit: null,
             Description: null,
             ReadOnly: readOnly);
+
+    private sealed class SwitchableUnavailableRetentionStore : IServerMemoryRetentionStore
+    {
+        private readonly InMemoryServerMemoryRetentionStore _inner = new();
+
+        public bool Available { get; set; } = true;
+
+        public IReadOnlyCollection<RetainedMemoryValue> Snapshot() => _inner.Snapshot();
+
+        public ValueTask<RetainedMemoryValue?> ReadAsync(Guid tagId, CancellationToken cancellationToken = default) =>
+            Available
+                ? _inner.ReadAsync(tagId, cancellationToken)
+                : ValueTask.FromException<RetainedMemoryValue?>(new IOException("Retention database is unavailable."));
+
+        public ValueTask WriteAsync(RetainedMemoryValue value, CancellationToken cancellationToken = default) =>
+            Available
+                ? _inner.WriteAsync(value, cancellationToken)
+                : ValueTask.FromException(new IOException("Retention database is unavailable."));
+
+        public ValueTask DeleteAsync(Guid tagId, CancellationToken cancellationToken = default) =>
+            Available
+                ? _inner.DeleteAsync(tagId, cancellationToken)
+                : ValueTask.FromException(new IOException("Retention database is unavailable."));
+    }
 }

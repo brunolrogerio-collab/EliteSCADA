@@ -739,17 +739,6 @@ public sealed class RuntimeHaProtectionCoordinator
             var localDatabase = current.Nodes.SingleOrDefault(node =>
                 node.NodeId.Equals(localNodeId, StringComparison.OrdinalIgnoreCase));
             if (!_runtime.ProductRuntimeActive &&
-                (localDatabase?.DatabaseAvailable == false ||
-                 localDatabase?.DatabaseAvailabilityConsecutiveFailures > 0))
-            {
-                // The reference authority is still valid and renewed above. A database
-                // outage may make a fresh runtime activation impossible, but that must
-                // not fence the last live Active node or turn the outage into a cluster
-                // stop. Keep the authority and expose the degraded state until recovery.
-                SetReference(reference, false, "database-unavailable-runtime-continues-degraded");
-                return;
-            }
-            if (!_runtime.ProductRuntimeActive &&
                 localDatabase?.DatabaseAvailable == true &&
                 localDatabase.DatabaseAvailabilityConsecutiveSuccesses < 2)
             {
@@ -758,9 +747,7 @@ public sealed class RuntimeHaProtectionCoordinator
             }
 
             var descriptor = _runtime.Describe();
-            if (descriptor.Revision.HasValue &&
-                !string.IsNullOrWhiteSpace(descriptor.ProjectKey) &&
-                !_runtime.ProductRuntimeActive)
+            if (!_runtime.ProductRuntimeActive)
             {
                 var mirror = _mirror.Snapshot();
                 var state = mirror.AuthoritativeState;
@@ -769,11 +756,14 @@ public sealed class RuntimeHaProtectionCoordinator
                 {
                     if (!mirror.HasState ||
                         state?.Application is null ||
-                        state.Runtime.Revision != descriptor.Revision ||
-                        !string.Equals(
-                            state.Runtime.ProjectKey,
-                            descriptor.ProjectKey,
-                            StringComparison.OrdinalIgnoreCase))
+                        !state.Runtime.Revision.HasValue ||
+                        string.IsNullOrWhiteSpace(state.Runtime.ProjectKey) ||
+                        ((descriptor.Revision.HasValue || !string.IsNullOrWhiteSpace(descriptor.ProjectKey)) &&
+                         (state.Runtime.Revision != descriptor.Revision ||
+                          !string.Equals(
+                              state.Runtime.ProjectKey,
+                              descriptor.ProjectKey,
+                              StringComparison.OrdinalIgnoreCase))))
                     {
                         await FailClosedAfterClaimAsync(
                             reference,
@@ -871,7 +861,16 @@ public sealed class RuntimeHaProtectionCoordinator
 
             var committed = descriptor.Revision.HasValue &&
                 !string.IsNullOrWhiteSpace(descriptor.ProjectKey);
-            SetReference(reference, committed, committed ? "reference-local-active" : "local-runtime-unavailable");
+            var databaseUnavailable = localDatabase?.DatabaseAvailable == false ||
+                localDatabase?.DatabaseAvailabilityConsecutiveFailures > 0;
+            SetReference(
+                reference,
+                committed,
+                committed
+                    ? databaseUnavailable
+                        ? "database-unavailable-runtime-continues-degraded"
+                        : "reference-local-active"
+                    : "local-runtime-unavailable");
             return;
         }
 

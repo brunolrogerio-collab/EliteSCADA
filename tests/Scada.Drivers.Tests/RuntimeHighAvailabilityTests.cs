@@ -9,6 +9,51 @@ namespace Scada.Drivers.Tests;
 public sealed class RuntimeHighAvailabilityTests
 {
     [Fact]
+    public void HaOperationHistory_PersistsAcrossRestartAndTerminalizesOrphanedRunningOperation()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "elitescada-ha-operation-history-" + Guid.NewGuid().ToString("N"));
+        var path = Path.Combine(directory, "operations.json");
+        var started = DateTimeOffset.Parse("2026-10-06T12:00:00Z");
+        var restartedAt = started.AddSeconds(30);
+        var id = Guid.NewGuid();
+
+        try
+        {
+            var operation = new RuntimeHaProtectionOperation(
+                id,
+                "authority-runtime-promotion",
+                "running",
+                "node-a",
+                "node-a",
+                9,
+                started,
+                null,
+                "started");
+            new FileRuntimeHaProtectionOperationHistoryStore(path, () => started)
+                .Save(new[] { operation });
+
+            var recovered = Assert.Single(
+                new FileRuntimeHaProtectionOperationHistoryStore(path, () => restartedAt).Load());
+
+            Assert.Equal(id, recovered.OperationId);
+            Assert.Equal("interrupted", recovered.State);
+            Assert.Equal(restartedAt, recovered.CompletedAtUtc);
+            Assert.Equal("operation-status-no-longer-available", recovered.ReasonCode);
+
+            var nextRead = Assert.Single(
+                new FileRuntimeHaProtectionOperationHistoryStore(path, () => restartedAt.AddMinutes(1)).Load());
+            Assert.Equal("interrupted", nextRead.State);
+            Assert.Equal(restartedAt, nextRead.CompletedAtUtc);
+        }
+        finally
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Topology_ExposesStableDistinctNodesAndLocalRemoteEndpoints()
     {
         var coordinator = CreateCoordinator(out _);

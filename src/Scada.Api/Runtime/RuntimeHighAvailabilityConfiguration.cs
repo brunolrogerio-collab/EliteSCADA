@@ -244,7 +244,10 @@ public sealed class RuntimeHaHostConfigurationAuthority
             TimeSpan.FromSeconds(protection.LeaseSeconds),
             TimeSpan.FromMilliseconds(protection.PollMilliseconds),
             TimeSpan.FromSeconds(protection.ReadyWitnessMaximumAgeSeconds),
-            TimeSpan.FromSeconds(protection.ClockSkewSafetyMarginSeconds));
+            TimeSpan.FromSeconds(protection.ClockSkewSafetyMarginSeconds),
+            RuntimeHaProtectionOptions.ResolveOperationHistoryPath(
+                _bootstrapConfiguration,
+                _running.LocalNodeId));
     }
 
     public RuntimeHaPeerTransportOptions CreatePeerTransportOptions(

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Scada.Core.Tags;
 using Scada.Security.Authorization;
 
@@ -11,7 +12,8 @@ public sealed record RuntimeHaProtectionOptions(
     TimeSpan LeaseDuration,
     TimeSpan PollInterval,
     TimeSpan ReadyWitnessMaximumAge,
-    TimeSpan ClockSkewSafetyMargin)
+    TimeSpan ClockSkewSafetyMargin,
+    string? OperationHistoryPath = null)
 {
     public static RuntimeHaProtectionOptions FromConfiguration(IConfiguration configuration)
     {
@@ -34,6 +36,10 @@ public sealed record RuntimeHaProtectionOptions(
                 "HighAvailability:Protection:ReferencePath is required when D2 protection is enabled.");
         }
 
+        var localNodeId = configuration["HighAvailability:NodeId"];
+        if (string.IsNullOrWhiteSpace(localNodeId))
+            localNodeId = RuntimeHaTopologyDefinition.FromConfiguration(configuration).LocalNodeId;
+
         return new RuntimeHaProtectionOptions(
             enabled,
             automatic,
@@ -41,7 +47,20 @@ public sealed record RuntimeHaProtectionOptions(
             TimeSpan.FromSeconds(leaseSeconds),
             TimeSpan.FromMilliseconds(pollMilliseconds),
             TimeSpan.FromSeconds(witnessSeconds),
-            TimeSpan.FromSeconds(skewSeconds));
+            TimeSpan.FromSeconds(skewSeconds),
+            ResolveOperationHistoryPath(configuration, localNodeId));
+    }
+
+    public static string ResolveOperationHistoryPath(IConfiguration configuration, string localNodeId)
+    {
+        var configured = configuration["HighAvailability:Protection:OperationHistoryPath"];
+        if (!string.IsNullOrWhiteSpace(configured))
+            return Path.GetFullPath(configured.Trim());
+
+        var nodeHash = Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(localNodeId)))
+            .ToLowerInvariant()[..20];
+        return Path.Combine(AppContext.BaseDirectory, "data", "ha", $"{nodeHash}.operations.json");
     }
 }
 
@@ -473,6 +492,8 @@ public sealed class RuntimeHaProtectionCoordinator
     private readonly IRuntimeSessionLeaseStore _sessions;
     private readonly RuntimeHaHostConfigurationAuthority? _hostConfiguration;
     private readonly Func<DateTimeOffset> _utcNow;
+    private readonly IRuntimeHaProtectionOperationHistoryStore? _operationHistoryStore;
+    private readonly ILogger<RuntimeHaProtectionCoordinator>? _logger;
     private RuntimeHaReferenceAuthority? _lastReference;
     private RuntimeHaStandbyPromotionWitness? _lastReadyWitness;
     private bool _localTakeoverCommitted;
@@ -487,7 +508,9 @@ public sealed class RuntimeHaProtectionCoordinator
         RuntimeHaPeerMirrorStore mirror,
         HighAvailabilityRuntimeCoordinator runtime,
         IRuntimeSessionLeaseStore sessions,
-        RuntimeHaHostConfigurationAuthority? hostConfiguration = null)
+        RuntimeHaHostConfigurationAuthority? hostConfiguration = null,
+        IRuntimeHaProtectionOperationHistoryStore? operationHistoryStore = null,
+        ILogger<RuntimeHaProtectionCoordinator>? logger = null)
         : this(
             options,
             highAvailability,
@@ -497,7 +520,9 @@ public sealed class RuntimeHaProtectionCoordinator
             runtime,
             sessions,
             () => DateTimeOffset.UtcNow,
-            hostConfiguration)
+            hostConfiguration,
+            operationHistoryStore,
+            logger)
     {
     }
 
@@ -510,7 +535,9 @@ public sealed class RuntimeHaProtectionCoordinator
         HighAvailabilityRuntimeCoordinator runtime,
         IRuntimeSessionLeaseStore sessions,
         Func<DateTimeOffset> utcNow,
-        RuntimeHaHostConfigurationAuthority? hostConfiguration = null)
+        RuntimeHaHostConfigurationAuthority? hostConfiguration = null,
+        IRuntimeHaProtectionOperationHistoryStore? operationHistoryStore = null,
+        ILogger<RuntimeHaProtectionCoordinator>? logger = null)
     {
         _options = options;
         _highAvailability = highAvailability;
@@ -521,6 +548,21 @@ public sealed class RuntimeHaProtectionCoordinator
         _sessions = sessions;
         _hostConfiguration = hostConfiguration;
         _utcNow = utcNow;
+        _operationHistoryStore = operationHistoryStore;
+        _logger = logger;
+
+        if (_operationHistoryStore is not null)
+        {
+            try
+            {
+                foreach (var operation in _operationHistoryStore.Load())
+                    _operations[operation.OperationId] = operation;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+            {
+                _logger?.LogWarning(ex, "HA operation history could not be loaded; continuing with an empty local history.");
+            }
+        }
 
         _highAvailability.AttachExternalIndustrialFence(CanOwnIndustrialEffects);
     }
@@ -1331,6 +1373,7 @@ public sealed class RuntimeHaProtectionCoordinator
                 _operations.Remove(stale);
             }
         }
+        PersistOperationHistory();
         return operation;
     }
 
@@ -1349,7 +1392,28 @@ public sealed class RuntimeHaProtectionCoordinator
         };
         lock (_gate)
             _operations[completed.OperationId] = completed;
+        PersistOperationHistory();
         return completed;
+    }
+
+    private void PersistOperationHistory()
+    {
+        if (_operationHistoryStore is null) return;
+        try
+        {
+            RuntimeHaProtectionOperation[] snapshot;
+            lock (_gate)
+                snapshot = _operations.Values
+                    .OrderByDescending(item => item.StartedAtUtc)
+                    .Take(32)
+                    .ToArray();
+            _operationHistoryStore.Save(snapshot);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            // HA fencing and runtime transitions must not depend on diagnostics storage.
+            _logger?.LogWarning(ex, "HA operation history could not be persisted.");
+        }
     }
 }
 
@@ -1391,6 +1455,9 @@ public static class RuntimeHaProtectionComposition
         services.AddSingleton(sp =>
             sp.GetRequiredService<RuntimeHaHostConfigurationAuthority>()
                 .CreateProtectionOptions());
+        services.AddSingleton<IRuntimeHaProtectionOperationHistoryStore>(sp =>
+            new FileRuntimeHaProtectionOperationHistoryStore(
+                sp.GetRequiredService<RuntimeHaProtectionOptions>().OperationHistoryPath!));
         services.AddSingleton<IRuntimeHaReferenceAuthorityStore, FileRuntimeHaReferenceAuthorityStore>();
         services.AddSingleton<RuntimeHaProtectionCoordinator>();
         services.AddHostedService<RuntimeHaProtectionHostedService>();

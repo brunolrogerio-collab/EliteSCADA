@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Scada.Core.Product.Licensing;
+using Scada.DriverHost.Runtime;
 
 namespace Scada.Api.Runtime;
 
@@ -143,6 +144,12 @@ public sealed record RuntimeHaRuntimeIdentity(
     {
         ArgumentNullException.ThrowIfNull(runtime);
         return new RuntimeHaRuntimeIdentity(runtime.Mode, runtime.ProjectKey, runtime.Revision);
+    }
+
+    public static RuntimeHaRuntimeIdentity From(RuntimeDescriptor runtime)
+    {
+        ArgumentNullException.ThrowIfNull(runtime);
+        return new RuntimeHaRuntimeIdentity("engineering", runtime.ProjectKey, runtime.Revision);
     }
 
     public bool CompatibleWith(RuntimeHaRuntimeIdentity other) =>
@@ -332,7 +339,8 @@ public sealed partial class RuntimeHaAuthorityCoordinator
         bool previousAuthorityFenced,
         RuntimeHaStandbyPromotionWitness? standbyWitness = null,
         bool allowAmbiguityRecovery = false,
-        RuntimeHaReferenceAuthority? restartReferenceEvidence = null)
+        RuntimeHaReferenceAuthority? restartReferenceEvidence = null,
+        bool allowSameNodeRestartEpochReconciliation = false)
     {
         lock (_gate)
         {
@@ -370,7 +378,7 @@ public sealed partial class RuntimeHaAuthorityCoordinator
             var target = ResolveNodeLocked(activeNodeId);
             var sameNodeRestartResume =
                 restartReferenceEvidence is not null &&
-                _authorityEpoch == 1 &&
+                (_authorityEpoch == 1 || allowSameNodeRestartEpochReconciliation) &&
                 referencedEpoch > _authorityEpoch &&
                 previousAuthorityFenced &&
                 target.Definition.NodeId.Equals(
@@ -1183,6 +1191,24 @@ public sealed partial class RuntimeHighAvailabilityService
     {
         ArgumentNullException.ThrowIfNull(runtime);
         ArgumentNullException.ThrowIfNull(verification);
+        RefreshLocalReadiness(RuntimeHaRuntimeIdentity.From(runtime), verification);
+    }
+
+    public void RefreshLocalReadiness(
+        RuntimeDescriptor runtime,
+        LicenseVerificationResult verification)
+    {
+        ArgumentNullException.ThrowIfNull(runtime);
+        ArgumentNullException.ThrowIfNull(verification);
+        RefreshLocalReadiness(RuntimeHaRuntimeIdentity.From(runtime), verification);
+    }
+
+    private void RefreshLocalReadiness(
+        RuntimeHaRuntimeIdentity runtime,
+        LicenseVerificationResult verification)
+    {
+        ArgumentNullException.ThrowIfNull(runtime);
+        ArgumentNullException.ThrowIfNull(verification);
         if (!Enabled) return;
 
         var nodeId = _authority.Definition.LocalNodeId;
@@ -1200,7 +1226,7 @@ public sealed partial class RuntimeHighAvailabilityService
                 Healthy: true,
                 SynchronizationComplete: previous?.SynchronizationComplete ?? isEffectiveActive,
                 HaLicenseEntitled: haEntitled,
-                Runtime: RuntimeHaRuntimeIdentity.From(runtime),
+                Runtime: runtime,
                 ObservedAtUtc: _utcNow(),
                 Diagnostic: haEntitled ? null : "local-license-not-ha-entitled",
                 DatabaseAvailable: previous?.DatabaseAvailable,

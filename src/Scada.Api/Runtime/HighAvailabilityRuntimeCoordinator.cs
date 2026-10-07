@@ -46,7 +46,7 @@ public sealed class HighAvailabilityRuntimeCoordinator(
         IReadOnlyCollection<TagValue> values,
         CancellationToken cancellationToken = default)
     {
-        RequireIndustrialAuthority();
+        RequireIndustrialAuthority("restore-authoritative-values");
         return inner.RestoreAuthoritativeValuesAsync(values, cancellationToken);
     }
 
@@ -225,9 +225,20 @@ public sealed class HighAvailabilityRuntimeCoordinator(
                 });
         }
 
-        return commitAsync is null
+        var activation = commitAsync is null
             ? await inner.ActivateAsync(projectKey, revision, package, cancellationToken)
             : await inner.ActivateAsync(projectKey, revision, package, commitAsync, cancellationToken);
+        if (activation.Activated)
+        {
+            // A restart may reconcile authority before the product runtime is materialized.
+            // Publish the now-active runtime identity immediately so restoration of the
+            // mirrored tag snapshot does not wait for the periodic peer-readiness poll.
+            highAvailability.RefreshLocalReadiness(
+                inner.Describe(),
+                licensing.CurrentVerification);
+        }
+
+        return activation;
     }
 
     public ValueTask DisposeAsync() => inner.DisposeAsync();
@@ -249,12 +260,29 @@ public sealed class HighAvailabilityRuntimeCoordinator(
                     IsError: true)
             });
 
-    private void RequireIndustrialAuthority()
+    private void RequireIndustrialAuthority() => RequireIndustrialAuthority("industrial-effect");
+
+    private void RequireIndustrialAuthority(string effect)
     {
         if (!highAvailability.CanOwnIndustrialEffects())
         {
+            var topology = highAvailability.Snapshot();
+            var localNodeId = highAvailability.LocalNodeId;
+            var localNode = localNodeId is null
+                ? null
+                : topology.Nodes.SingleOrDefault(node =>
+                    node.NodeId.Equals(localNodeId, StringComparison.OrdinalIgnoreCase));
+            var authorityDecision = localNodeId is null
+                ? RuntimeHaIndustrialAuthorityDecision.Denied("local-node-id-unavailable")
+                : highAvailability.Authority.TryAcquireIndustrialAuthority(localNodeId);
             throw new InvalidOperationException(
-                "Industrial Runtime effects are fenced because this node is not the effective HA Active authority.");
+                $"Industrial Runtime effect '{effect}' is fenced because this node is not the effective HA Active authority " +
+                $"(decision={authorityDecision.ReasonCode}, effectiveActive={topology.EffectiveActiveNodeId ?? "none"}, " +
+                $"epoch={topology.AuthorityEpoch}, ambiguous={topology.AmbiguousAuthority}, " +
+                $"transferPending={topology.PendingTransfer is not null}, localState={localNode?.State.ToString() ?? "unknown"}, " +
+                $"localReady={localNode?.Ready.ToString() ?? "unknown"}, localHealthy={localNode?.Healthy.ToString() ?? "unknown"}, " +
+                $"localHaLicensed={localNode?.HaLicenseEntitled.ToString() ?? "unknown"}, " +
+                $"runtimeRevision={localNode?.Runtime.Revision?.ToString() ?? "unknown"}).");
         }
     }
 }

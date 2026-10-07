@@ -920,6 +920,66 @@ public sealed class RuntimeHaProtectionCoordinator
             return;
         }
 
+        var localDatabaseBeforeExpiry = current.Nodes.SingleOrDefault(node =>
+            node.NodeId.Equals(localNodeId, StringComparison.OrdinalIgnoreCase));
+        var canReconcileSameNodeRestart =
+            _options.AutomaticFailoverEnabled &&
+            reference.ActiveNodeId is not null &&
+            reference.ActiveNodeId.Equals(localNodeId, StringComparison.OrdinalIgnoreCase) &&
+            reference.PreviousAuthorityFenced &&
+            reference.LeaseId != Guid.Empty &&
+            string.Equals(reference.Schema, RuntimeHaReferenceAuthority.SchemaName, StringComparison.Ordinal) &&
+            reference.SchemaVersion == RuntimeHaReferenceAuthority.CurrentSchemaVersion &&
+            string.Equals(reference.ClusterId, current.ClusterId, StringComparison.OrdinalIgnoreCase) &&
+            reference.TopologyVersion == current.TopologyVersion &&
+            localDatabaseBeforeExpiry?.DatabaseAvailable == true &&
+            localDatabaseBeforeExpiry.DatabaseAvailabilityConsecutiveSuccesses >= 2 &&
+            localDatabaseBeforeExpiry.DatabaseAvailabilityConsecutiveFailures == 0;
+        if (canReconcileSameNodeRestart)
+        {
+            var operation = AddOperation("same-node-restart-epoch-reconciliation", localNodeId, now);
+            var claimed = await _reference.ClaimExpiredAsync(
+                localNodeId,
+                reference.Epoch,
+                cancellationToken);
+            if (!claimed.Accepted || claimed.Authority is null)
+            {
+                var latest = claimed.Authority ?? reference;
+                Complete(operation, "rejected", claimed.ReasonCode, latest.Epoch);
+                SetReference(latest, false, claimed.ReasonCode);
+                return;
+            }
+
+            // Claiming the already-recorded local Active NodeId is not a peer
+            // promotion. The atomic epoch bump fences any stale process/session
+            // from the same node, while preventing a different NodeId from
+            // inheriting authority. The live claimed document is the restart
+            // evidence required by ApplyReferencedAuthority.
+            var resumed = _highAvailability.Authority.ApplyReferencedAuthority(
+                localNodeId,
+                claimed.Authority.Epoch,
+                claimed.Authority.PreviousAuthorityFenced,
+                restartReferenceEvidence: claimed.Authority,
+                allowSameNodeRestartEpochReconciliation: true);
+            if (!resumed.Accepted)
+            {
+                await FailClosedAfterClaimAsync(
+                    claimed.Authority,
+                    operation,
+                    resumed.ReasonCode,
+                    cancellationToken);
+                return;
+            }
+
+            SetReference(claimed.Authority, false, "same-node-restart-epoch-reconciled");
+            Complete(
+                operation,
+                "completed",
+                "same-node-restart-epoch-reconciled",
+                claimed.Authority.Epoch);
+            return;
+        }
+
         _highAvailability.Authority.ApplyReferencedAuthority(
             activeNodeId: null,
             referencedEpoch: reference.Epoch,
@@ -1386,8 +1446,14 @@ public sealed class RuntimeHaProtectionCoordinator
                 }).ToArray(),
                 cancellationToken);
         }
-        catch
+        catch (Exception exception)
         {
+            _logger?.LogError(
+                exception,
+                "HA authoritative tag restore failed for project {ProjectKey} revision {Revision} with {ValueCount} values.",
+                state.Runtime.ProjectKey,
+                state.Runtime.Revision,
+                state.Tags.Count);
             return "takeover-tag-state-restore-failed";
         }
 

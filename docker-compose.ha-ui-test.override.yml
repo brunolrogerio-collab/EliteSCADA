@@ -45,6 +45,6 @@ services:
 
 volumes:
   ha_capacity_reference_store:
-    name: elitescada-ha-capacity-reference-recovery-r2-20261007
+    name: elitescada-ha-capacity-reference-recovery-r6-20261007
   ha_capacity_api_b_data:
     name: elitescada-ha-capacity-node-b-data-recovery-20261007

@@ -1,6 +1,7 @@
 using Scada.Api.Runtime;
 using Scada.Core.Abstractions;
 using Scada.Core.Events;
+using Scada.Core.Product.Licensing;
 using Scada.DriverHost.Runtime;
 using Scada.Security.Authorization;
 
@@ -269,6 +270,44 @@ public sealed class RuntimeHighAvailabilityTests
     }
 
     [Fact]
+    public void RuntimeActivationRefresh_PublishesTheMaterializedIdentityBeforeHaStateRestore()
+    {
+        var now = DateTimeOffset.Parse("2026-10-02T12:00:00Z");
+        var service = new RuntimeHighAvailabilityService(
+            CreateTopology("node-a"),
+            () => now,
+            Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            externalIndustrialFenceRequired: true);
+        service.Authority.UpdateNodeReadiness(
+            "node-a",
+            new RuntimeHaNodeReadinessEvidence(
+                Healthy: true,
+                SynchronizationComplete: true,
+                HaLicenseEntitled: true,
+                Runtime: new RuntimeHaRuntimeIdentity("engineering", null, null),
+                ObservedAtUtc: now));
+
+        service.RefreshLocalReadiness(
+            new RuntimeDescriptor(
+                "ha-capacity-5000",
+                1,
+                now,
+                Array.Empty<Scada.Drivers.Abstractions.DriverStatus>(),
+                Array.Empty<Scada.Drivers.Abstractions.CommunicationDriverDiagnosticSnapshot>(),
+                5000,
+                0),
+            new LicenseVerificationResult(
+                LicenseState.Valid,
+                SessionEntitlements: new MachineLicenseV2Entitlements(0, 10, HaRuntime: true)));
+
+        var local = Node(service.Snapshot(), "node-a");
+        Assert.Equal(RuntimeHaState.Active, local.State);
+        Assert.True(local.Ready);
+        Assert.Equal(1, local.Runtime.Revision);
+        Assert.True(service.Authority.TryAcquireIndustrialAuthority("node-a").Allowed);
+    }
+
+    [Fact]
     public void PeerLoss_DoesNotPromoteStandby()
     {
         var coordinator = CreateReadyPair(out _);
@@ -450,6 +489,35 @@ public sealed class RuntimeHighAvailabilityTests
         Assert.Equal(5, resumed.Snapshot.AuthorityEpoch);
         Assert.Equal("node-a", resumed.Snapshot.EffectiveActiveNodeId);
         Assert.Equal(RuntimeHaState.Synchronizing, Node(resumed.Snapshot, "node-b").State);
+        Assert.True(coordinator.TryAcquireIndustrialAuthority("node-a").Allowed);
+    }
+
+    [Fact]
+    public void ReferencedAuthority_AtomicallyClaimedSameNodeCanReconcileAfterLocalEpochWasFenced()
+    {
+        var coordinator = CreateCoordinator("node-a", out var clock);
+        coordinator.UpdateNodeReadiness(
+            "node-a",
+            Evidence(clock.UtcNow, haEntitled: true, revision: 7, synchronized: true));
+
+        var fenced = coordinator.ApplyReferencedAuthority(
+            activeNodeId: null,
+            referencedEpoch: 3,
+            previousAuthorityFenced: true);
+        Assert.True(fenced.Accepted);
+        Assert.Null(fenced.Snapshot.EffectiveActiveNodeId);
+        Assert.Equal(3, fenced.Snapshot.AuthorityEpoch);
+
+        var resumed = coordinator.ApplyReferencedAuthority(
+            activeNodeId: "node-a",
+            referencedEpoch: 4,
+            previousAuthorityFenced: true,
+            restartReferenceEvidence: RestartReference("node-a", 4, clock.UtcNow),
+            allowSameNodeRestartEpochReconciliation: true);
+
+        Assert.True(resumed.Accepted, resumed.ReasonCode);
+        Assert.Equal(4, resumed.Snapshot.AuthorityEpoch);
+        Assert.Equal("node-a", resumed.Snapshot.EffectiveActiveNodeId);
         Assert.True(coordinator.TryAcquireIndustrialAuthority("node-a").Allowed);
     }
 

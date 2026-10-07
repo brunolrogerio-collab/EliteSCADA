@@ -704,8 +704,22 @@ public sealed class RuntimeHaProtectionCoordinator
                     reference.LeaseId,
                     reference.Epoch,
                     cancellationToken);
-                if (renewed.Authority is not null)
-                    reference = renewed.Authority;
+                if (!renewed.Accepted || renewed.Authority is null)
+                {
+                    var rejectedAuthority = renewed.Authority ?? reference;
+                    _highAvailability.Authority.ApplyReferencedAuthority(
+                        activeNodeId: null,
+                        referencedEpoch: rejectedAuthority.Epoch,
+                        previousAuthorityFenced: true);
+                    await FenceLocalSessionsIfNeededAsync(
+                        "ha-reference-renewal-failed",
+                        cancellationToken,
+                        force: true);
+                    SetReference(rejectedAuthority, false, renewed.ReasonCode);
+                    return;
+                }
+
+                reference = renewed.Authority;
             }
 
             var descriptor = _runtime.Describe();
@@ -990,73 +1004,65 @@ public sealed class RuntimeHaProtectionCoordinator
         CancellationToken cancellationToken)
     {
         SetReference(authority, false, authority.ReasonCode);
-        var applied = _highAvailability.Authority.ApplyReferencedAuthority(
-            _highAvailability.LocalNodeId!,
-            authority.Epoch,
-            previousAuthorityFenced: true,
-            witness);
-        if (!applied.Accepted)
-        {
-            await FailClosedAfterClaimAsync(
-                authority,
-                operation,
-                applied.ReasonCode,
-                cancellationToken);
-            return;
-        }
+        var takeover = await RunTakeoverWithLeaseRenewalAsync(
+            authority,
+            async takeoverToken =>
+            {
+                var applied = _highAvailability.Authority.ApplyReferencedAuthority(
+                    _highAvailability.LocalNodeId!,
+                    authority.Epoch,
+                    previousAuthorityFenced: true,
+                    witness);
+                if (!applied.Accepted)
+                    return applied.ReasonCode;
 
-        var mirror = _mirror.Snapshot();
-        var state = mirror.AuthoritativeState;
-        if (!mirror.HasState ||
-            state?.Application is null ||
-            !state.Runtime.Revision.HasValue ||
-            string.IsNullOrWhiteSpace(state.Runtime.ProjectKey))
-        {
-            await FailClosedAfterClaimAsync(
-                authority,
-                operation,
-                "takeover-state-unavailable",
-                cancellationToken);
-            return;
-        }
+                var mirror = _mirror.Snapshot();
+                var state = mirror.AuthoritativeState;
+                if (!mirror.HasState ||
+                    state?.Application is null ||
+                    !state.Runtime.Revision.HasValue ||
+                    string.IsNullOrWhiteSpace(state.Runtime.ProjectKey))
+                {
+                    return "takeover-state-unavailable";
+                }
 
-        var activationFailure = await ActivateAuthoritativeRuntimeAsync(
-            state,
+                var activationFailure = await ActivateAuthoritativeRuntimeAsync(
+                    state,
+                    takeoverToken);
+                if (activationFailure is not null)
+                    return activationFailure;
+
+                SetReference(authority, true, "takeover-state-restoration-in-progress");
+                var restoreFailure = await RestoreAuthoritativeValuesAsync(
+                    state,
+                    takeoverToken);
+                if (restoreFailure is not null)
+                    return restoreFailure;
+
+                try
+                {
+                    await RebindSessionsForTakeoverAsync(takeoverToken);
+                }
+                catch (OperationCanceledException) when (takeoverToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch
+                {
+                    return "takeover-session-rebind-failed";
+                }
+
+                return null;
+            },
             cancellationToken);
-        if (activationFailure is not null)
-        {
-            await FailClosedAfterClaimAsync(
-                authority,
-                operation,
-                activationFailure,
-                cancellationToken);
-            return;
-        }
 
-        SetReference(authority, true, "takeover-state-restoration-in-progress");
-        var restoreFailure = await RestoreAuthoritativeValuesAsync(
-            state,
-            cancellationToken);
-        if (restoreFailure is not null)
+        authority = takeover.Authority;
+        if (takeover.FailureReason is not null)
         {
             await FailClosedAfterClaimAsync(
                 authority,
                 operation,
-                restoreFailure,
-                CancellationToken.None);
-            return;
-        }
-
-        try
-        {
-            await RebindSessionsForTakeoverAsync(cancellationToken);
-        }
-        catch
-        {
-            await FailClosedAfterClaimAsync(
-                authority,
-                operation,
-                "takeover-session-rebind-failed",
+                takeover.FailureReason,
                 CancellationToken.None);
             return;
         }

@@ -18,7 +18,20 @@ public sealed class RichCommandRuntimeServiceTests
 
         Assert.Equal(RichCommandOutcome.Completed, result.Outcome);
         Assert.Equal(1, fixture.Executor.DispatchCount);
-        Assert.Equal(fixture.Binding, fixture.Executor.LastBinding);
+
+        var expectedBinding = RichCommandContract.NormalizeBinding(fixture.Binding);
+        var actualBinding = Assert.IsType<DriverCommandBinding>(fixture.Executor.LastBinding);
+        Assert.Equal(expectedBinding.CommandId, actualBinding.CommandId);
+        Assert.Equal(expectedBinding.DataSourceId, actualBinding.DataSourceId);
+        Assert.Equal(expectedBinding.StableDeviceIdentity, actualBinding.StableDeviceIdentity);
+        Assert.Equal(expectedBinding.SemanticOperationKey, actualBinding.SemanticOperationKey);
+        Assert.Equal(expectedBinding.EquipmentId, actualBinding.EquipmentId);
+        Assert.Equal(expectedBinding.CapabilityId, actualBinding.CapabilityId);
+        Assert.Equal(expectedBinding.Version, actualBinding.Version);
+        Assert.Equal(
+            expectedBinding.Settings?.ToArray() ?? Array.Empty<DriverCommandBindingSetting>(),
+            actualBinding.Settings?.ToArray() ?? Array.Empty<DriverCommandBindingSetting>());
+
         Assert.Equal(invocation.CommandId, fixture.Executor.LastInvocation!.CommandId);
     }
 

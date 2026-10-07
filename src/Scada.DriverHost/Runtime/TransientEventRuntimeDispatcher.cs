@@ -89,7 +89,9 @@ public sealed class TransientEventRuntimeDispatcher : ITransientEventRuntimeIngr
     private readonly IScadaEventBus _eventBus;
     private readonly Channel<DispatchWorkItem> _queue;
     private readonly CancellationTokenSource _abort = new();
+    private readonly object _dispatchGate = new();
     private readonly Task _worker;
+    private DispatchWorkItem? _inFlight;
     private int _state;
 
     public TransientEventRuntimeDispatcher(
@@ -157,11 +159,12 @@ public sealed class TransientEventRuntimeDispatcher : ITransientEventRuntimeIngr
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Cancellation changes a graceful drain into an explicit abort of work
-            // not yet published. The currently executing publication is allowed to
-            // finish so the EventBus cannot be left half-forwarded by this layer.
+            // Stop cancellation must remain observable even when a downstream
+            // EventBus handler is blocked and does not cooperatively observe the
+            // cancellation token. Every admitted item receives an explicit outcome
+            // and no automatic retry is attempted.
             _abort.Cancel();
-            await _worker.ConfigureAwait(false);
+            AbortOutstanding(cancellationToken);
             throw;
         }
     }
@@ -179,10 +182,22 @@ public sealed class TransientEventRuntimeDispatcher : ITransientEventRuntimeIngr
         {
             await foreach (var item in _queue.Reader.ReadAllAsync(_abort.Token))
             {
+                lock (_dispatchGate)
+                {
+                    if (_abort.IsCancellationRequested)
+                    {
+                        item.Completion.TrySetException(new OperationCanceledException(
+                            "Transient Event dispatcher stopped before this admitted occurrence could be published."));
+                        continue;
+                    }
+
+                    _inFlight = item;
+                }
+
                 try
                 {
                     var publication = new TransientEventRuntimePublication(item.Occurrence);
-                    await _eventBus.PublishAsync(publication, CancellationToken.None).ConfigureAwait(false);
+                    await _eventBus.PublishAsync(publication, _abort.Token).ConfigureAwait(false);
                     item.Completion.TrySetResult(true);
                 }
                 catch (Exception ex)
@@ -191,6 +206,14 @@ public sealed class TransientEventRuntimeDispatcher : ITransientEventRuntimeIngr
                     // There is deliberately no automatic retry because a handler
                     // may already have observed the physical event.
                     item.Completion.TrySetException(ex);
+                }
+                finally
+                {
+                    lock (_dispatchGate)
+                    {
+                        if (ReferenceEquals(_inFlight, item))
+                            _inFlight = null;
+                    }
                 }
             }
         }
@@ -207,6 +230,23 @@ public sealed class TransientEventRuntimeDispatcher : ITransientEventRuntimeIngr
             }
 
             Volatile.Write(ref _state, 2);
+        }
+    }
+
+    private void AbortOutstanding(CancellationToken cancellationToken)
+    {
+        lock (_dispatchGate)
+        {
+            _inFlight?.Completion.TrySetException(new OperationCanceledException(
+                "Transient Event stop was cancelled while publication was in flight; downstream delivery outcome is unknown and will not be retried.",
+                cancellationToken));
+
+            while (_queue.Reader.TryRead(out var pending))
+            {
+                pending.Completion.TrySetException(new OperationCanceledException(
+                    "Transient Event dispatcher stop was cancelled before this admitted occurrence was published.",
+                    cancellationToken));
+            }
         }
     }
 

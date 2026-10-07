@@ -151,6 +151,47 @@ public sealed class TransientEventRuntimeDispatcherTests
     }
 
     [Fact]
+    public async Task StopCancellation_ReturnsPromptlyAndCompletesEveryAdmittedItemExplicitly()
+    {
+        var definition = CreateDefinition();
+        var resolver = new InMemoryTransientEventDefinitionResolver(new[] { definition });
+        var bus = new BlockingRecordingEventBus();
+        var dispatcher = new TransientEventRuntimeDispatcher(resolver, bus, capacity: 1);
+        var firstOccurrence = CreateOccurrence(definition, 1);
+        var queuedOccurrence = CreateOccurrence(definition, 2);
+
+        var first = dispatcher.DispatchAsync(firstOccurrence).AsTask();
+        await bus.FirstPublicationStarted.WaitAsync(TimeSpan.FromSeconds(2));
+        var queued = dispatcher.DispatchAsync(queuedOccurrence).AsTask();
+
+        using var stopCancellation = new CancellationTokenSource();
+        var stop = dispatcher.StopAsync(stopCancellation.Token).AsTask();
+        stopCancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            stop.WaitAsync(TimeSpan.FromSeconds(2)));
+        var firstError = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            first.WaitAsync(TimeSpan.FromSeconds(2)));
+        var queuedError = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            queued.WaitAsync(TimeSpan.FromSeconds(2)));
+
+        Assert.Contains("delivery outcome is unknown", firstError.Message);
+        Assert.Contains("before this admitted occurrence was published", queuedError.Message);
+        Assert.Empty(bus.Published);
+        Assert.Equal(1, bus.Attempts);
+
+        bus.ReleaseFirstPublication();
+        await bus.FirstPublicationFinished.WaitAsync(TimeSpan.FromSeconds(2));
+        await dispatcher.DisposeAsync();
+
+        var published = Assert.Single(bus.Published);
+        Assert.Equal(
+            firstOccurrence.EventId,
+            Assert.IsType<TransientEventRuntimePublication>(published).Occurrence.EventId);
+        Assert.Equal(1, bus.Attempts);
+    }
+
+    [Fact]
     public async Task Stop_RejectsNewIngressWithoutSilentAcceptance()
     {
         var definition = CreateDefinition();
@@ -250,9 +291,13 @@ public sealed class TransientEventRuntimeDispatcherTests
             new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource<bool> _releaseFirstPublication =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<bool> _firstPublicationFinished =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
         private int _attempts;
 
         public Task FirstPublicationStarted => _firstPublicationStarted.Task;
+        public Task FirstPublicationFinished => _firstPublicationFinished.Task;
+        public int Attempts => Volatile.Read(ref _attempts);
 
         public IReadOnlyList<IScadaEvent> Published
         {
@@ -282,6 +327,8 @@ public sealed class TransientEventRuntimeDispatcherTests
 
             lock (_gate)
                 _published.Add(scadaEvent);
+
+            _firstPublicationFinished.TrySetResult(true);
         }
     }
 

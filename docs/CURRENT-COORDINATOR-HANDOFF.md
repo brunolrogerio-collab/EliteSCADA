@@ -1,3 +1,21 @@
+# LATEST MAIN COORDINATOR HANDOFF — 2026-10-06 22:31 BRT
+
+Canonical current handoff:
+`docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-10-06-2231.md`
+
+Accepted product checkpoint:
+`wave15/corrections-integration@27a9347e3d6f87db799a1541de2a27484b8bda51`
+
+Current next product lane:
+`#554 DRIVER-INTERACTION-S1` on `work/driver-interaction-s1-transient-runtime`, released but untouched at the accepted product checkpoint.
+
+#534 remains isolated `CODEX_LOCAL` and must not be merged/rebased blindly.
+
+Industrial research #552/#553 is accepted/closed; implementation order remains `MITSUBISHI_FIRST -> PANASONIC_SECOND`, with no product branch active.
+
+GitHub live remains the only authority.
+
+---
 # CURRENT CONSOLIDATION — 2026-10-06
 
 The current product integration is `wave15/corrections-integration@25df20bf562acf6c3d78eb2e953f7010729b7c49` after PR #529. Product Owner accepted and closed #484, #501 and #308: the first-party SVG factory/catalog and current usable Dynamo set meet Wave 15 scope; visual-layer refinements are future work. #482/#496/#500/#503/#445 are also closed. Remaining Wave 15 closure is productization/Preview (#306/#300), localization (#379), Help (#424), and Manual (#425). Post-merge CI #37494810971 completed successfully for Web, Backend/test/runtime smoke and Chromium integration smoke; full-browser E2E was skipped by workflow conditions. The only open PR is unrelated Preview infrastructure #362.

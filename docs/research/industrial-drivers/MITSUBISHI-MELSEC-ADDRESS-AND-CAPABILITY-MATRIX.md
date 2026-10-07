@@ -709,3 +709,228 @@ Remaining for Checkpoint 3:
 
 **DOCS_ONLY / NO PRODUCT CODE CHANGED / NO DEPENDENCY CHANGED / NO CI CHANGED / NO MERGE PERFORMED**
 
+---
+
+# Checkpoint 3 — final family and hardware-support matrix
+
+## 36. Initial public support matrix
+
+Checkpoint 3 narrows the first public compatibility claim to the two current families that maximize value and can be validated on practical current hardware.
+
+| Family | Exact first L4 target | First public v1 claim | Reason |
+| --- | --- | --- | --- |
+| MELSEC iQ-F | FX5U-32MT/DS | **YES after L4** | Current/on-sale compact CPU, built-in Ethernet, physical I/O on CPU |
+| MELSEC iQ-R | R04ENCPU + R35B + R63P + RX40C7 + RY40NT5P | **YES after L4** | Current/on-sale larger family, built-in/network CPU path, physical I/O modules |
+| MELSEC-Q | Q03UDVCPU-class profile, exact rig later | **LATER / L4 REQUIRED** | Installed base remains useful, but Q lifecycle is transitioning and is not needed for first two-family proof |
+| MELSEC-L | exact LCPU/LJ71E71-100 later | **LATER / INSTALLED BASE** | Mitsubishi announced 2027 production discontinuation |
+| legacy FX3 | FX3 + legacy Ethernet module/adapter | **LATER / SEPARATE 1E** | Not selected 3E profile; Ethernet modules already discontinued |
+
+No row is a compatibility claim until its own L4 evidence exists.
+
+## 37. Mandatory hardware matrix
+
+### Bench A — iQ-F
+
+| Item | Model | Purpose |
+| --- | --- | --- |
+| PLC | FX5U-32MT/DS | primary compact 3E/TCP target |
+| power | external regulated 24 V DC supply | CPU + bench I/O |
+| inputs | CPU built-in X | physical read validation |
+| outputs | CPU built-in Y transistor sink | physical write validation |
+| network | CPU built-in Ethernet | direct v1 transport |
+| engineering | licensed GX Works3 | configuration/firmware/project |
+
+### Bench B — iQ-R
+
+| Item | Model | Purpose |
+| --- | --- | --- |
+| CPU/network CPU | R04ENCPU | primary current larger-family target |
+| base | R35B | 5-slot base |
+| power | R63P | 24 V DC input, 5 V DC 6.5 A output |
+| input | RX40C7 | 16 x 24 V DC physical X |
+| output | RY40NT5P | 16 x transistor sink physical Y |
+| network | R04ENCPU Ethernet path | direct v1 transport |
+| engineering | licensed GX Works3 | configuration/firmware/project |
+
+R63P is preferred so both primary benches can be built around controlled 24 V DC power.
+
+## 38. Optional hardware matrix
+
+| Goal | Recommended direction | Release implication |
+| --- | --- | --- |
+| Q installed-base support | current Q03UDVCPU-based rig; exact base/power/I/O at purchase time | new L4 gate |
+| Q Ethernet module path | QJ71E71-100 separate profile | new L4 gate; module lifecycle must be revalidated |
+| L installed-base support | exact LCPU + built-in Ethernet or LJ71E71-100 | later, not first purchase |
+| FX3 legacy | exact FX3 + legacy Ethernet hardware | separate 1E contract, not v1 |
+
+## 39. Hardware lifecycle gate
+
+At each DEV/L4 run, revalidate product lifecycle.
+
+Current 2026-10-06 evidence:
+
+- FX5U-32MT/DS: on sale;
+- R04ENCPU/R35B/R63P/RX40C7/RY40NT5P: on sale;
+- Q family: transition toward end-of-order/discontinuation by profile;
+- QJ71E71-100: current page marks end-of-order 2029/09;
+- MELSEC-L: order acceptance through 2027/09/30, production discontinuation 2027/10/29;
+- FX3 Ethernet modules: already discontinued.
+
+Do not copy these dates forever into marketing. Revalidate before every compatibility/publication update.
+
+## 40. L4 device-area acceptance
+
+| Area | FX5U-32MT/DS | R04ENCPU rig | v1 public status |
+| --- | --- | --- | --- |
+| X | physical CPU input | RX40C7 physical input | required |
+| Y | physical CPU output | RY40NT5P physical output | required |
+| M | internal device | internal device | required |
+| L | profile/device range validated | profile/device range validated | required only when exact profile proves range |
+| B | link/internal documented device profile | profile validated | required if enabled in profile |
+| D | internal word | internal word | required |
+| W | link register profile | profile validated | required if enabled in profile |
+| R | configured/profile-gated | configured/profile-gated | optional; no generic claim until separately proven |
+
+A protocol mnemonic being documented does not override exact CPU/device-range validation.
+
+## 41. L4 physical-data-type matrix
+
+Every mandatory hardware family must demonstrate:
+
+| Physical type | Required values |
+| --- | --- |
+| Bit | false / true |
+| Int16 | -32768, -1, 0, 1, 32767 |
+| UInt16 -> Int32 | 0, 32767, 32768, 65535 |
+| Int32 | representative negative/zero/positive values and boundary vectors |
+| UInt32 -> Int64 | representative values including > 2147483647 |
+| Float32 | 0, 1, -1 and representative finite non-integers |
+
+Acceptance includes raw words/bits and decoded canonical value.
+
+## 42. L4 read/write matrix
+
+| Scenario | FX5U | iQ-R | Required |
+| --- | ---: | ---: | --- |
+| physical X read | YES | YES | PASS |
+| physical Y write | YES | YES | PASS |
+| Y readback/independent observation | YES | YES | PASS |
+| M read/write | YES | YES | PASS when profile supports |
+| D numeric read/write | YES | YES | PASS |
+| multiword Int32/UInt32 | YES | YES | PASS |
+| Float32 | YES | YES | PASS |
+| B/W | profile | profile | PASS before advertising |
+| R | profile-gated | profile-gated | only before advertising R |
+| reconnect after cable loss | YES | YES | PASS |
+| PLC restart recovery | YES | YES | PASS |
+| no write replay | YES | YES | PASS |
+
+## 43. L0-L4 status semantics
+
+| Level | PASS means |
+| --- | --- |
+| L0 | deterministic parser/codec/planner/error/safety vectors green |
+| L1 | independent-shaped fake peer proves real TCP framing/fault behavior and no replay |
+| L2 | future codec communicates with an independent software/vendor simulator over direct raw protocol; otherwise explicit SKIP_WITH_REASON |
+| L3 | complete canonical EliteSCADA lifecycle/read/write/PointRead/diagnostics/HA path green |
+| L4 | exact physical model/firmware/hardware profile proven and evidence retained |
+
+Do not promote one level as another.
+
+## 44. L2 candidate matrix
+
+| Candidate | Independence | Direct raw 3E proven by this research? | Status |
+| --- | --- | --- | --- |
+| GX Simulator3 | vendor simulator, independent of production codec | **NO — must be proven in DEV lab** | primary candidate |
+| MX Component | proprietary Mitsubishi client/oracle | client/tool, not server proof by itself | optional cross-oracle |
+| McpX | independent MIT client | client, not peer server | optional cross-oracle |
+| production fake using production codec | not independent | irrelevant | prohibited as sole L2 |
+| L1 independent-shaped fake | independently authored but project-owned | yes for L1 only | L1, not L2 |
+
+GX Simulator3 counts as L2 only after packet-level/direct-socket evidence confirms the future built-in codec is actually speaking the selected raw 3E profile directly.
+
+## 45. Public compatibility evidence record
+
+Every supported hardware row must retain:
+
+~~~text
+driverType
+EliteSCADA SHA
+testLevel
+testDate
+family
+cpuModel
+cpuSerial
+cpuFirmware
+ethernetModuleOrBuiltIn
+moduleRevision
+engineeringSoftwareVersion
+transport
+frame
+encoding
+host/port
+route
+deviceAreas
+physicalDataTypes
+readCases
+writeCases
+faultCases
+result
+knownLimitations
+~~~
+
+A marketing/support table should be generated from accepted evidence, not from a handwritten generic family claim.
+
+## 46. Legal/status matrix
+
+| Item | Research result |
+| --- | --- |
+| protocol manual as engineering reference | YES |
+| redistribute Mitsubishi manual PDFs/pages | **NOT ASSUMED PERMITTED** |
+| copy diagrams/tables into product docs | **NOT ASSUMED PERMITTED** |
+| use Mitsubishi logo | **NOT AUTHORIZED BY THIS RESEARCH** |
+| technical ID mitsubishi.melsec.mc | recommended |
+| display Mitsubishi MELSEC MC/SLMP | **LEGAL_REVIEW_REQUIRED** |
+| claim official/certified/endorsed | **NO unless separately obtained** |
+| proprietary GX/MX software redistribution | **NO** |
+| McpX/e_MCProtocol product dependency | **NO** |
+| open-source lab oracle | allowed only under exact license/version review |
+
+## 47. Final product matrix
+
+| Dimension | Final research recommendation |
+| --- | --- |
+| decision | **GO_WITH_GATES** |
+| DriverType | **mitsubishi.melsec.mc** |
+| display | Mitsubishi MELSEC MC/SLMP — legal gate |
+| transport | TCP |
+| frame | 3E |
+| encoding | Binary |
+| first family 1 | iQ-F / FX5U |
+| first family 2 | iQ-R / R04ENCPU |
+| Q | later after L4 |
+| L | later installed-base profile |
+| FX3 | later separate 1E |
+| core devices | X/Y/M/L/B/D/W subject exact profile |
+| R | profile-gated |
+| core data types | Bit/Int16/UInt16/Int32/UInt32/Float32 |
+| read planner | 0401 primary; 0403/0406 optimization |
+| write | 1401 per canonical contiguous effect |
+| session | persistent TCP; one outstanding 3E request |
+| retry | bounded reads; no blind post-dispatch write retry |
+| PointRead | yes |
+| ConnectionTest | yes |
+| Browse/Discover | no generic claim |
+| diagnostics | #500 common contract |
+| dependency | none |
+| L4 | two mandatory families |
+| legal | required before external name/docs |
+
+## 48. Checkpoint 3 conclusion
+
+**MITSUBISHI_MELSEC = GO_WITH_GATES**
+
+The remaining gates are execution evidence, procurement and legal/publication review, not unresolved protocol architecture.
+
+**DOCS_ONLY / NO PRODUCT CODE CHANGED / NO DEPENDENCY CHANGED / NO CI CHANGED / NO MERGE PERFORMED**
+

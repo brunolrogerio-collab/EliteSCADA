@@ -1903,3 +1903,1121 @@ Those belong to Checkpoint 3 after a new **SIGA**.
 
 **HAB = Home Assistant Bridge**
 
+---
+
+# Checkpoint 3 — L0-L4, hardware, legal and final v1 recommendation
+
+## 44. Checkpoint 3 status
+
+Research branch at Checkpoint 3 start:
+
+- branch: **research/industrial-mitsubishi-melsec**
+- research HEAD: **aca8274c94bc55be82e532fbc298f956a8535178**
+- integration: **wave15/corrections-integration@d2569990bc53dfce61ca8043471719e958809d6c**
+- start state: **ahead 2 / behind 0**
+- merge-base: **d2569990bc53dfce61ca8043471719e958809d6c**
+
+This checkpoint remains:
+
+**RESEARCH_ONLY / DOCS_ONLY / NO_PRODUCT_CODE / NO_MERGE_BY_RESEARCHER**
+
+Checkpoint 3 closes the requested research questions. It does **not** authorize product implementation.
+
+## 45. Fresh product-family revalidation
+
+Access date: **2026-10-06**.
+
+Checkpoint 1 intentionally kept a wider modern-family candidate set. Current product lifecycle evidence makes the first commercial validation set narrower.
+
+### 45.1 MELSEC iQ-F — selected first compact family
+
+Recommended mandatory L4 CPU:
+
+**FX5U-32MT/DS**
+
+Current Mitsubishi product evidence:
+
+- sales status: **On sale**;
+- 24 V DC power;
+- 16 x 24 V DC inputs;
+- 16 transistor sink outputs;
+- built-in Ethernet: 1 channel;
+- built-in RS-485: 1 channel.
+
+Official product page:
+
+https://www.mitsubishielectric.com/fa/products/faspec/point.page?category=ex&formNm=FX5-_M-D-_FX5U-32MT%2FDS_19&id=spec&kisyu=%2Fplcf&lang=2
+
+Why selected:
+
+- current compact family;
+- built-in Ethernet;
+- bench-friendly 24 V DC supply;
+- physical X and Y available without expansion modules;
+- representative entry/compact industrial PLC;
+- GX Works3 family.
+
+### 45.2 MELSEC iQ-R — selected first larger/current family
+
+Recommended mandatory L4 CPU:
+
+**R04ENCPU**
+
+Current Mitsubishi product evidence:
+
+- sales status: **On sale**;
+- 4096 I/O-point class;
+- external USB/Ethernet;
+- CC-Link IE embedded.
+
+Official product page:
+
+https://www.mitsubishielectric.com/fa/products/faspec/point.page?formNm=RnENCPU_R04ENCPU_3323&kisyu=%2Fplcr&lang=2
+
+Current Ethernet application manual listed for the CPU:
+
+- **MELSEC iQ-R Ethernet User's Manual (Application)**
+- **SH(NA)-081257ENG-AF**
+- **April 2026**
+
+Official manual list:
+
+https://www.mitsubishielectric.com/fa/products/faspec/download.page?formNm=RnENCPU_R04ENCPU_3323&kisyu=%2Fplcr&lang=2&popup=1
+
+Recommended bench components:
+
+- **R04ENCPU** — CPU/network CPU;
+- **R35B** — 5-slot base, on sale;
+- **R63P** — 24 V DC input / 5 V DC 6.5 A output power supply, on sale;
+- **RX40C7** — 16-point 24 V DC input module, on sale;
+- **RY40NT5P** — 16-point 12/24 V DC transistor sink output module, on sale.
+
+Official pages:
+
+- R35B  
+  https://www.mitsubishielectric.com/fa/products/faspec/point.page?formNm=R35B&kisyu=%2Fplcr&popup=1
+- R63P  
+  https://www.mitsubishielectric.com/fa/id_en/products/faspec/point.page?formNm=RnP_R63P_3430&kisyu=%2Fplcr&lang=2
+- RX40C7  
+  https://www.mitsubishielectric.com/fa/products/faspec/point.page?formNm=RX40C7&kisyu=%2Fplcr&popup=1
+- RY40NT5P  
+  https://www.mitsubishielectric.com/fa/products/faspec/point.page?category=ex&formNm=R_IO_RY40NT5P_3432&id=spec&kisyu=%2Fplcr&lang=2
+
+The R63P is deliberately preferred over an AC-input bench supply module so the PLC test bench can remain on a controlled 24 V DC distribution.
+
+### 45.3 MELSEC-Q — later compatibility profile, not first public claim
+
+Q remains commercially relevant as installed base, but it is not selected as one of the two mandatory first-release L4 families.
+
+Current lifecycle evidence shows the Q series is in transition:
+
+- several older Q CPUs are being discontinued;
+- **Q03UDCPU** reaches production discontinuation in October 2026;
+- Mitsubishi identifies **Q03UDVCPU** and iQ-R **R04CPU** as replacement paths;
+- **QJ71E71-100** remains listed, but current Mitsubishi standards/product pages mark it for end of order in **September 2029**.
+
+Official references:
+
+https://www.mitsubishielectric.com/fa/id_en/products/faspec/point.page?formNm=QnUDCPU_Q03UDCPU_3831&kisyu=%2Fplcq
+
+https://www.mitsubishielectric.com/fa/products/standard/SearchServlet.page?kisyu=%2Fplcnet&radio=Ethernet&search=B&word=Ethernet
+
+If Main later authorizes Q launch support, preferred L4 direction is:
+
+- current **Q03UDVCPU** profile;
+- built-in-Ethernet or explicit **QJ71E71-100** module profile tested separately;
+- exact base/power/I/O set recorded at purchase time.
+
+Do not purchase an already-discontinuing Q03UDCPU/Q03UDECPU merely to create a first-release compatibility claim.
+
+### 45.4 MELSEC-L — legacy-installed-base profile, not first hardware purchase
+
+Mitsubishi Technical Bulletin **FA-A-0466-A** announces production discontinuation of the MELSEC-L series.
+
+Schedule:
+
+- transition to make-to-order: September 30, 2026;
+- order acceptance through September 30, 2027;
+- production discontinuation: October 29, 2027.
+
+L-series CPUs, I/O and **LJ71E71-100** are included.
+
+Official references:
+
+https://www.mitsubishielectric.com/fa/document/technews/plc/fa-a-0466/faa0466a.pdf
+
+https://www.mitsubishielectric.com/fa/products/dbdbsearch/SearchServlet.page?bunrui1=Network&category=discon&kisyu=%2Fplcl
+
+Conclusion:
+
+**MELSEC-L = LATER_INSTALLED_BASE_PROFILE**
+
+It remains useful for future compatibility validation, but buying it before the current iQ-F/iQ-R coverage is not the best first lab investment.
+
+### 45.5 Legacy FX3
+
+Checkpoint 1 already established that FX3 Ethernet uses the legacy A-compatible 1E profile rather than the selected common 3E v1.
+
+Current product lifecycle evidence also shows legacy FX3 Ethernet modules have already been discontinued in 2025, while the FX3U CPU family itself is transitioning toward discontinuation.
+
+Conclusion remains:
+
+**FX3 / 1E = LATER_LEGACY_PROFILE**
+
+## 46. Final first-family scope
+
+Checkpoint 3 **narrows the initial public v1 compatibility claim** from the wider research candidate list.
+
+### First public v1 families after successful L4
+
+1. **MELSEC iQ-F / FX5U**
+   - mandatory baseline hardware: **FX5U-32MT/DS**
+2. **MELSEC iQ-R / R04ENCPU**
+   - mandatory baseline hardware: **R04ENCPU + R35B + R63P + RX40C7 + RY40NT5P**
+
+### Later profiles
+
+- MELSEC-Q / QnU/Q module profiles — after dedicated L4;
+- MELSEC-L — installed-base compatibility after dedicated L4;
+- FX3 — separate 1E research/implementation profile.
+
+This is a support-claim boundary, not a statement that the common codec cannot communicate with any other documented MELSEC profile.
+
+**NO FAMILY IS MARKETED AS SUPPORTED UNTIL ITS EXACT MODEL/MODULE/FIRMWARE PASSES L4.**
+
+## 47. L0 validation contract
+
+L0 is deterministic unit/model validation with no external peer.
+
+Required L0 suites:
+
+### Frame codec
+
+Golden encode/decode vectors for:
+
+- 3E binary request/response headers;
+- network No.;
+- station/PC No.;
+- module I/O No.;
+- multidrop station No.;
+- monitoring timer;
+- command;
+- subcommand;
+- request data length;
+- normal end code;
+- representative nonzero end codes.
+
+Commands at minimum:
+
+- 0401 Batch Read;
+- 1401 Batch Write;
+- 0403 Read Random;
+- 0406 Read Block;
+- 0101 Read Type Name.
+
+Codec tests must use independently authored expected byte vectors derived from the official manual, not "encode then decode our own output" as the only oracle.
+
+### Address parser
+
+Positive and negative coverage for:
+
+- X/Y/B/W hexadecimal addresses;
+- M/L/D decimal addresses;
+- R only with enabled profile;
+- case normalization;
+- leading zero canonicalization;
+- zero address;
+- maximum accepted profile address;
+- one-past-maximum;
+- malformed signs;
+- whitespace;
+- 0x prefixes;
+- invalid digits;
+- host/route contamination;
+- unsupported device mnemonics.
+
+### Device code map
+
+Exact v1 codes:
+
+- X;
+- Y;
+- M;
+- L;
+- B;
+- D;
+- W;
+- R profile-gated.
+
+Unknown/unsupported codes must fail closed.
+
+### Data conversion
+
+Required vectors:
+
+- bit false/true;
+- Int16 including -32768, -1, 0, 32767;
+- UInt16 including 0, 32767, 32768, 65535 -> canonical Int32;
+- Int32 representative negative/positive boundaries;
+- UInt32 values both below and above Int32.MaxValue -> canonical Int64;
+- Float32 known IEEE-754 bit patterns;
+- native low-byte/high-byte word order;
+- native low-word/high-word multiword order;
+- explicit ByteSwap;
+- explicit WordSwap;
+- combined supported transform behavior.
+
+No NaN/infinity product policy should be assumed without an explicit future TAG-value contract decision; codec-level representation can be tested separately.
+
+### Response validation
+
+Reject:
+
+- truncated header;
+- truncated body;
+- impossible length;
+- response shorter than expected typed span;
+- unexpected extra data where the command forbids it;
+- malformed subheader;
+- wrong route when the response form makes that detectable;
+- unknown/unexpected command response shape;
+- explicit nonzero end code as success.
+
+### Planner
+
+Required:
+
+- grouping by Data Source;
+- route isolation;
+- storage/device grouping;
+- contiguous batching;
+- sparse Random/Block candidate evaluation;
+- deterministic fallback to Batch Read;
+- protocol hard limits;
+- family/profile limits;
+- operational soft cap;
+- no typed-point split at a segment boundary;
+- no read through an unvalidated unsupported gap;
+- deterministic response offset map;
+- no response-offset shift after malformed input.
+
+### Write safety
+
+Model tests must distinguish:
+
+- local validation failure;
+- connect failure before dispatch;
+- successful protocol response;
+- explicit end-code failure;
+- timeout before any bytes;
+- timeout after possible dispatch;
+- readback confirmation;
+- readback mismatch;
+- no automatic replay.
+
+## 48. L1 deterministic independent-shaped peer
+
+L1 must use a fake PLC/server implementation that is **not built from the production codec/session classes**.
+
+It may share only low-level test constants where unavoidable; it must independently parse/construct frames so a codec bug cannot trivially exist on both sides.
+
+Minimum fake-peer command support:
+
+- 0401;
+- 1401;
+- 0403;
+- 0406;
+- 0101.
+
+Minimum device store:
+
+- X/Y/M/L/B bit-style state;
+- D/W word state;
+- R optional/profile fixture;
+- deterministic contiguous memory.
+
+Fault controls:
+
+- response delay;
+- response chunking across many TCP packets;
+- request received then connection close;
+- write applied then response dropped;
+- response sent then close;
+- malformed subheader;
+- malformed length;
+- truncated response;
+- nonzero end code;
+- wrong/unsupported command;
+- server restart;
+- connection reset;
+- half-open-like no-response behavior;
+- late response after client timeout;
+- configurable profile range rejection.
+
+Required L1 scenarios:
+
+1. clean persistent session;
+2. multiple scan cycles reuse one connection;
+3. concurrent caller requests serialize to one 3E request in flight;
+4. batch segmentation;
+5. sparse-plan fallback;
+6. reconnect after read failure;
+7. successful write;
+8. rejected write;
+9. ambiguous write where memory changed but response is lost;
+10. readback confirms ambiguous write;
+11. ambiguous write mismatch remains failed/unknown;
+12. reconnect does not replay a completed/ambiguous write;
+13. PLC restart followed by fresh acquisition;
+14. stop/revision cancellation terminates session deterministically.
+
+The fixture records every received write sequence so no-replay assertions are objective.
+
+## 49. L2 independent software/tool validation
+
+### Candidate: GX Simulator3
+
+GX Works3 is Mitsubishi's current engineering software for iQ-R/iQ-F and includes integrated hardware simulation.
+
+Official GX Works3 page:
+
+https://www.mitsubishielectric.com/fa/products/cnt/plceng/smerit/gx_works3/index.html
+
+Official debug/simulation page:
+
+https://www.mitsubishielectric.com/fa/products/cnt/plceng/smerit/gx_works3/debug.html
+
+Current MX Component Version 5 documentation also defines a GX Simulator3 communication route and documents the simulator port derivation:
+
+**port = 5500 + systemNo * 10 + PLCNo**
+
+For system 1 / PLC 1, that yields **5511**.
+
+Current MX Component product:
+
+- **SW5DND-ACT-E**
+- MX Component Version 5;
+- supports GX Simulator3;
+- supports RCPU, FX5CPU, QCPU, LCPU and other listed families;
+- proprietary Mitsubishi software.
+
+Official references:
+
+https://www.mitsubishielectric.com/fa/products/faspec/detail.page?formNm=SW5DND-ACT_SW5DND-ACT-E_6364&kisyu=%2Fplcq&lang=2
+
+https://www.mitsubishielectric.com/fa/download/search.page?kisyu=%2Fplceng&mode=manual&q=MX+Component
+
+### Important L2 gate
+
+Official MX Component evidence proves a supported simulator communication route; it does **not by itself prove** that every third-party raw SLMP 3E implementation can use the simulator endpoint exactly like physical Ethernet.
+
+Third-party current documentation gives supporting but non-authoritative evidence:
+
+- Visual Components/Demo3D documents an **SLMP** connection to GX Simulator3 using ports such as 5511;
+- McpX public documentation advertises GX Simulator3 integration, while its NuGet/GitHub version signals are not fully synchronized as of the access date.
+
+Therefore:
+
+**L2_GX_SIMULATOR3 = CANDIDATE / MUST_PROVE_DIRECT_RAW_3E**
+
+Before counting L2 as PASS:
+
+1. install a properly licensed current GX Works3/GX Simulator3 environment;
+2. start an iQ-F or iQ-R simulated CPU;
+3. independently preflight the endpoint with a separate implementation/tool whose exact version/license is recorded;
+4. connect the future EliteSCADA built-in codec directly to the simulator endpoint;
+5. prove read/write and at least one failure/restart case over the real socket;
+6. packet-capture enough sanitized wire evidence to show actual 3E framing;
+7. do not route EliteSCADA through MX Component or another adapter.
+
+If direct raw 3E cannot be proven:
+
+**L2 = SKIP_WITH_REASON / NOT_GREEN**
+
+The absence of a credible L2 server must never be hidden by testing the production codec against itself.
+
+### Independent cross-oracle candidates
+
+McpX remains useful as an optional external client oracle:
+
+- current NuGet version observed on 2026-10-06: **0.9.1**;
+- MIT license;
+- active package history;
+- TCP/UDP and 3E/4E scope advertised.
+
+NuGet:
+
+https://www.nuget.org/packages/McpX/0.9.1
+
+Project:
+
+https://github.com/YudaiKitamura/McpX
+
+However, the McpX project website, GitHub cache and NuGet publication are not fully synchronized around the newer GX Simulator3 feature. Pin an exact package version or commit before using it as evidence.
+
+McpX is **not** a product dependency.
+
+## 50. L3 EliteSCADA integration acceptance
+
+Future L3 runs against the actual EliteSCADA Driver/Data Source runtime and canonical public boundaries.
+
+Required L3:
+
+### Engineering lifecycle
+
+- create/edit Mitsubishi Data Source;
+- create representative TAG bindings;
+- invalid Preview fails without mutation;
+- valid Preview;
+- Apply to Working;
+- Save Revision;
+- Publish;
+- Activate;
+- restart and recover Active revision;
+- switching Active revision stops the old Mitsubishi runtime before the new one owns the Data Source.
+
+### ConnectionTest
+
+- valid endpoint;
+- invalid endpoint;
+- wrong route;
+- 0101 model/type evidence when supported;
+- sanitized failure;
+- no persistent TAG mutation.
+
+### PointRead
+
+For representative bit/word/multiword types:
+
+- raw evidence;
+- decoded physical value;
+- Engineering value;
+- quality;
+- RTT;
+- exact PortableAddress;
+- no Working/Active mutation.
+
+### Runtime read path
+
+- multiple TAGs use batched requests;
+- X/Y/M/L/B/D/W representative reads;
+- physical type conversion;
+- per-point quality;
+- malformed/bad-address point does not corrupt other healthy point identities;
+- reconnect returns only fresh values.
+
+### Runtime write path
+
+- canonical Runtime.WriteAsync(TAG);
+- writable policy enforced;
+- successful protocol ACK;
+- optional readback;
+- explicit end-code failure;
+- timeout after possible dispatch;
+- no blind retry;
+- no replay after reconnect;
+- no requested-value publication as fake process truth.
+
+### Diagnostics
+
+Verify common #500 fields plus bounded protocolDetails:
+
+- endpoint;
+- state;
+- route;
+- family profile;
+- model identity when observed;
+- last command/subcommand/end code;
+- batch size;
+- RTT;
+- reconnects/timeouts;
+- ambiguous write counters;
+- TAG quality summary.
+
+### Multiple Data Sources
+
+At least two Mitsubishi Data Sources:
+
+- isolated sessions;
+- isolated route/settings;
+- failure of one does not fault the other;
+- writes route to owning Driver.
+
+Also run Mitsubishi simultaneously with at least one already-supported non-Mitsubishi Driver when practical.
+
+### HA
+
+**HA = High Availability**
+
+Required:
+
+- Active authority performs process effects;
+- non-authoritative node does not write;
+- authority loss fences new effects;
+- authority transfer does not replay queued/ambiguous Mitsubishi writes;
+- new Active authority reacquires fresh read truth.
+
+### Security boundary
+
+- browser/script receives no raw socket;
+- detailed diagnostics require existing protected authorization;
+- no resolved password/protected material in API/logs;
+- no alternate Mitsubishi write API bypassing Runtime.WriteAsync.
+
+## 51. L4 mandatory hardware acceptance
+
+### Release gate
+
+Before the first public compatibility claim:
+
+**L4_MANDATORY_FAMILIES = 2**
+
+Mandatory:
+
+1. **FX5U-32MT/DS**
+2. **R04ENCPU bench**
+
+Record for every run:
+
+- manufacturer;
+- exact model;
+- serial number;
+- hardware/module revision where available;
+- firmware version;
+- engineering-software version;
+- Ethernet port/profile;
+- configured IP/port;
+- 3E/binary/TCP settings;
+- network/station/module/multidrop route;
+- CPU operating mode;
+- profile/range settings;
+- test date;
+- EliteSCADA commit SHA.
+
+### FX5U physical bench
+
+Hardware:
+
+- FX5U-32MT/DS;
+- regulated 24 V DC supply;
+- safe input switches/test contacts;
+- safe LED/resistive test loads for selected outputs;
+- isolated Ethernet switch/cabling.
+
+Evidence:
+
+- physical X input change -> EliteSCADA TAG;
+- controlled Y output write + independent observation/readback;
+- M/L/B internal bits where enabled;
+- D/W words;
+- R only if a documented/explicit file-register profile is configured.
+
+### iQ-R physical bench
+
+Hardware:
+
+- R04ENCPU;
+- R35B;
+- R63P;
+- RX40C7;
+- RY40NT5P;
+- regulated 24 V DC source sized for PLC and I/O;
+- safe input switches/test contacts;
+- safe output loads;
+- isolated Ethernet switch/cabling.
+
+Evidence:
+
+- RX40C7 X input -> EliteSCADA TAG;
+- RY40NT5P Y output write + independent observation/readback;
+- M/L/B/D/W representative internal devices;
+- R only after explicit profile/range configuration.
+
+### Data-type values on both families
+
+At minimum:
+
+- Boolean false/true;
+- Int16 negative/zero/positive and boundaries;
+- UInt16 including values above Int16.MaxValue;
+- Int32 negative/positive;
+- UInt32 above Int32.MaxValue;
+- Float32 known finite values and exact expected raw words.
+
+Verify:
+
+- value;
+- raw word/bit representation;
+- canonical TAG type;
+- quality;
+- no silent overflow.
+
+### Planner/batch evidence on hardware
+
+Prove:
+
+- contiguous grouping;
+- segmentation at configured soft cap;
+- sparse optimizer or deterministic Batch Read fallback;
+- no typed value split;
+- observed scan/RTT diagnostics.
+
+Do **not** require stress-driving the PLC at protocol absolute maximum merely to say the driver works.
+
+If exact hard-limit tests are performed, do so only on an isolated bench while monitoring PLC scan impact.
+
+### Fault/reconnect evidence on hardware
+
+Required:
+
+- Ethernet cable/network interruption;
+- PLC restart;
+- wrong configured endpoint;
+- delayed/blocked response using a controlled network fault method where practical;
+- reconnect;
+- fresh read recovery;
+- no write replay.
+
+For ambiguous-write proof, use a controlled fault-injection method capable of dropping the write response after likely dispatch while independently observing target memory. If exact timing cannot be made deterministic on physical hardware, retain deterministic L1 proof plus best-effort L4 evidence and document the limitation.
+
+## 52. Hardware procurement recommendation
+
+### Mandatory purchase set A — compact
+
+- **1 x FX5U-32MT/DS**
+- 24 V DC DIN-rail supply
+- protected/disconnectable 24 V distribution
+- Ethernet patching
+- safe switches/loads/terminal accessories
+
+### Mandatory purchase set B — current larger family
+
+- **1 x R04ENCPU**
+- **1 x R35B**
+- **1 x R63P**
+- **1 x RX40C7**
+- **1 x RY40NT5P**
+- suitable terminal blocks/connectors
+- 24 V DC supply/distribution
+- safe switches/loads
+- Ethernet patching
+
+### Common lab
+
+- isolated managed/unmanaged Ethernet switch;
+- Windows engineering workstation/VM for licensed Mitsubishi software;
+- Linux host and/or container runner for EliteSCADA cross-platform validation;
+- packet capture capability;
+- programmable network fault proxy/bridge where appropriate;
+- ESD-safe and electrically protected bench.
+
+### Optional expansion C — Q installed-base coverage
+
+Only after Main decides Q support is a release objective:
+
+- current **Q03UDVCPU**-based rig;
+- exact base/power/I/O selected from current stock;
+- built-in Ethernet and/or **QJ71E71-100** qualified as distinct profiles.
+
+Do not block first Mitsubishi v1 on this optional bench.
+
+### Not recommended as initial purchase
+
+- MELSEC-L, due announced 2027 production discontinuation;
+- FX3 Ethernet, because it is a separate legacy 1E profile;
+- discontinued Q CPU models.
+
+## 53. Engineering software/tool prerequisites
+
+### GX Works3
+
+GX Works3 remains Mitsubishi's current programming/maintenance environment for iQ-R and iQ-F and includes integrated simulation.
+
+Official page:
+
+https://www.mitsubishielectric.com/fa/products/cnt/plceng/smerit/gx_works3/index.html
+
+Use a **properly licensed current seat** obtained through the applicable Mitsubishi sales channel.
+
+Current iQ Works Version 2 site-license package observed:
+
+- **SW2DND-IQWK-EC**
+- includes GX Works3 and other MELSOFT tools;
+- sales status: On sale.
+
+Official product page:
+
+https://www.mitsubishielectric.com/fa/products/faspec/point.page?formNm=SW2DND-IQWK_SW2DND-IQWK-EC_6944&kisyu=%2Fplcl
+
+Regional SKU availability and license form must be confirmed at purchase time.
+
+### MX Component
+
+Optional lab oracle only:
+
+- **SW5DND-ACT-E**
+- MX Component Version 5;
+- current manual revision J observed July 2026.
+
+Do not redistribute MX Component with EliteSCADA.
+
+The product architecture does not depend on it.
+
+## 54. Legal/trademark/document-use review
+
+### Source terms
+
+Mitsubishi Electric global and Brazil web terms state that site materials are protected by copyright/trademark and other IP rights and restrict copying, redistribution, republication, modification and derivative use except where expressly permitted.
+
+The terms also explicitly identify **MITSUBISHI** as a registered trademark and do not grant a trademark license merely through site use.
+
+Official terms:
+
+https://www.mitsubishielectric.com/en/terms/
+
+https://br.mitsubishielectric.com/pt/terms/
+
+### Research/product consequences
+
+This dossier therefore uses the manuals as technical reference and paraphrases protocol facts.
+
+Future product/docs must not assume permission to:
+
+- bundle Mitsubishi PDF manuals;
+- reproduce manual pages/tables/diagrams;
+- redistribute Mitsubishi CAD/software;
+- use Mitsubishi logos;
+- imply endorsement, certification or affiliation.
+
+A protocol implementation should be based on independently authored code and independently expressed documentation.
+
+### Naming
+
+Technical/stable Driver ID research recommendation:
+
+**mitsubishi.melsec.mc**
+
+This identifier is the proposed stable technical identity for the future DEV contract.
+
+Proposed user-facing display name:
+
+**Mitsubishi MELSEC MC/SLMP**
+
+Because public product naming uses third-party marks:
+
+**LEGAL_REVIEW_REQUIRED = YES**
+
+Legal review must approve public-facing naming, notices and compatibility wording before commercial release.
+
+No conclusion in this research grants trademark or documentation rights.
+
+### Compatibility wording
+
+Preferred truthful form:
+
+"Compatible with tested Mitsubishi Electric MELSEC profiles listed by exact model, firmware and validation level."
+
+Avoid:
+
+- "official Mitsubishi driver";
+- "certified by Mitsubishi" without an actual certification;
+- "all MELSEC";
+- vendor logo usage without authorization.
+
+The exact disclaimer language is a legal/product decision, not a research-lane decision.
+
+## 55. Third-party lab-tool licensing
+
+### McpX
+
+Observed:
+
+- NuGet **0.9.1** on 2026-10-06;
+- MIT license;
+- active package history.
+
+If used as a lab oracle:
+
+- pin exact version/commit;
+- retain license notice as required;
+- record hash/version in evidence;
+- do not make release correctness depend on it.
+
+It is not a runtime dependency.
+
+### e_MCProtocol
+
+Observed:
+
+- version **2.0.0**;
+- updated **2026-06-20**;
+- MIT;
+- advertised 3E/binary/UDP profile.
+
+It does not match the selected TCP v1 transport and is not selected as product dependency.
+
+### Proprietary tools
+
+GX Works3 / GX Simulator3 and MX Component must be used only under valid Mitsubishi licenses.
+
+Do not package or redistribute them.
+
+## 56. Final technical product identity
+
+Checkpoint 3 recommendation:
+
+**DRIVER_TYPE = mitsubishi.melsec.mc**
+
+**DISPLAY_NAME_PROPOSED = Mitsubishi MELSEC MC/SLMP**
+
+**DISPLAY_NAME_STATUS = LEGAL_REVIEW_REQUIRED**
+
+The DriverType is deliberately not named after a specific CPU family because one bounded MC/SLMP implementation can host multiple explicitly versioned family profiles without pretending the families are identical.
+
+## 57. Final exact v1 definition
+
+### Protocol
+
+**SLMP 3E / MC Protocol QnA-compatible 3E**
+
+### Transport
+
+**TCP**
+
+### Encoding
+
+**Binary**
+
+### Concurrency
+
+**one outstanding request per Data Source TCP session**
+
+### Initial public families after L4
+
+- **iQ-F FX5U profile**
+- **iQ-R R04ENCPU profile**
+
+### Device areas
+
+Core:
+
+- X
+- Y
+- M
+- L
+- B
+- D
+- W
+
+Profile-gated:
+
+- R
+
+### Physical data types
+
+- Bit
+- Int16
+- UInt16 -> canonical Int32
+- Int32
+- UInt32 -> canonical Int64
+- Float32
+
+### Planner
+
+- 0401 contiguous Batch Read primary;
+- 0403/0406 optional sparse/block read optimization;
+- 1401 contiguous write for a canonical effect's physical span;
+- no background merging of unrelated Runtime.WriteAsync calls;
+- bounded family/protocol/soft-cap segmentation.
+
+### Session
+
+- persistent TCP per Data Source;
+- one 3E request in flight;
+- bounded reconnect;
+- no write replay.
+
+### Engineering
+
+- ConnectionTest;
+- PointRead;
+- family-aware manual address assistant;
+- no generic Browse/Discover claim.
+
+### Diagnostics
+
+Reuse #500.
+
+### Dependency
+
+**NONE**
+
+Built-in managed .NET codec/session.
+
+### Security
+
+No TLS/authenticated session claim for selected 3E/TCP v1.
+
+Trusted OT network + firewall/VPN posture.
+
+## 58. Final L0-L4 release gate
+
+A future DEV implementation may be merged only after the owning Main lane explicitly evaluates evidence.
+
+Minimum:
+
+- **L0 = PASS**
+- **L1 = PASS**
+- **L2 = PASS or documented SKIP_WITH_REASON accepted by Main**
+- **L3 = PASS**
+- **L4 FX5U-32MT/DS = PASS**
+- **L4 R04ENCPU rig = PASS**
+- **LEGAL_REVIEW_REQUIRED gate for public name/docs = CLEARED before external release**
+
+L2 cannot replace L4.
+
+L4 cannot compensate for missing L0/L1 deterministic safety coverage.
+
+## 59. Final research decision
+
+**MITSUBISHI_MELSEC = GO_WITH_GATES**
+
+Not plain GO because the following evidence does not exist yet in this research lane:
+
+1. production code L0/L1/L3;
+2. actual L4 runs on the two mandatory hardware families;
+3. direct raw-3E qualification of GX Simulator3 or another independent L2 peer;
+4. public naming/trademark/legal clearance;
+5. explicit Main release of a future DEV branch.
+
+None of these gaps requires a shared platform architecture change.
+
+**RESEARCH_CONTRACT_DELTA_REQUIRED = NO**
+
+## 60. Future DEV contract recommendation
+
+Main should release a dedicated DEV issue/branch only after accepting this dossier.
+
+Recommended future DEV contract:
+
+**C-INDUSTRIAL-MITSUBISHI-MELSEC-DRIVER-01**
+
+Proposed work order identity:
+
+**INDUSTRIAL-MITSUBISHI-MELSEC-DRIVER-V1-01**
+
+The future DEV branch must be cut from the then-current authorized integration/main SHA, not assumed from this research branch.
+
+### Required implementation slices
+
+1. Driver descriptor and driver-owned public configuration schema.
+2. Strict device/address parser and family profile table.
+3. Binary 3E codec.
+4. Typed physical value codec.
+5. bounded read planner and response demultiplexer.
+6. persistent one-outstanding TCP session.
+7. runtime polling Driver + canonical CurrentTagCache publication.
+8. Runtime.WriteAsync path with no replay/ambiguous-write handling.
+9. ConnectionTest.
+10. PointRead.
+11. #500 common diagnostics.
+12. L0/L1 tests.
+13. L2 candidate validation.
+14. L3 canonical lifecycle/HA coverage.
+15. L4 hardware evidence package.
+16. external naming/docs only after legal gate.
+
+### Forbidden architecture in future DEV
+
+- Mitsubishi-specific Runtime authority;
+- second TAG/cache model;
+- protocol-specific historian/alarm engine;
+- browser/script raw socket access;
+- one request per TAG by default;
+- unsafe 3E request pipelining;
+- blind write retry/replay;
+- generic unsupported-family compatibility claims;
+- third-party runtime dependency without a new dependency review.
+
+## 61. Research source updates for Checkpoint 3
+
+Public sources accessed 2026-10-06:
+
+### Mitsubishi hardware/software
+
+- FX5U-32MT/DS current product  
+  https://www.mitsubishielectric.com/fa/products/faspec/point.page?category=ex&formNm=FX5-_M-D-_FX5U-32MT%2FDS_19&id=spec&kisyu=%2Fplcf&lang=2
+- R04ENCPU current product  
+  https://www.mitsubishielectric.com/fa/products/faspec/point.page?formNm=RnENCPU_R04ENCPU_3323&kisyu=%2Fplcr&lang=2
+- R04ENCPU manuals  
+  https://www.mitsubishielectric.com/fa/products/faspec/download.page?formNm=RnENCPU_R04ENCPU_3323&kisyu=%2Fplcr&lang=2&popup=1
+- R35B  
+  https://www.mitsubishielectric.com/fa/products/faspec/point.page?formNm=R35B&kisyu=%2Fplcr&popup=1
+- R63P  
+  https://www.mitsubishielectric.com/fa/id_en/products/faspec/point.page?formNm=RnP_R63P_3430&kisyu=%2Fplcr&lang=2
+- RX40C7  
+  https://www.mitsubishielectric.com/fa/products/faspec/point.page?formNm=RX40C7&kisyu=%2Fplcr&popup=1
+- RY40NT5P  
+  https://www.mitsubishielectric.com/fa/products/faspec/point.page?category=ex&formNm=R_IO_RY40NT5P_3432&id=spec&kisyu=%2Fplcr&lang=2
+- MELSEC-Q product search / lifecycle  
+  https://www.mitsubishielectric.com/fa/products/faspec/search.page?kisyu=%2Fplcq
+- Ethernet module lifecycle / QJ71E71-100  
+  https://www.mitsubishielectric.com/fa/products/standard/SearchServlet.page?kisyu=%2Fplcnet&radio=Ethernet&search=B&word=Ethernet
+- MELSEC-L discontinuation bulletin FA-A-0466-A  
+  https://www.mitsubishielectric.com/fa/document/technews/plc/fa-a-0466/faa0466a.pdf
+- MELSEC-L lifecycle database  
+  https://www.mitsubishielectric.com/fa/products/dbdbsearch/SearchServlet.page?category=discon&kisyu=%2Fplcl
+- GX Works3  
+  https://www.mitsubishielectric.com/fa/products/cnt/plceng/smerit/gx_works3/index.html
+- GX Works3 simulator page  
+  https://www.mitsubishielectric.com/fa/products/cnt/plceng/smerit/gx_works3/debug.html
+- MX Component SW5DND-ACT-E  
+  https://www.mitsubishielectric.com/fa/products/faspec/detail.page?formNm=SW5DND-ACT_SW5DND-ACT-E_6364&kisyu=%2Fplcq&lang=2
+
+### Legal terms
+
+- Mitsubishi Electric global Terms of Use  
+  https://www.mitsubishielectric.com/en/terms/
+- Mitsubishi Electric Brasil Terms of Use  
+  https://br.mitsubishielectric.com/pt/terms/
+
+### Independent/tooling evidence
+
+- McpX project  
+  https://github.com/YudaiKitamura/McpX
+- McpX NuGet 0.9.1  
+  https://www.nuget.org/packages/McpX/0.9.1
+- e_MCProtocol NuGet 2.0.0  
+  https://www.nuget.org/packages/e_MCProtocol/
+- third-party GX Simulator3 SLMP connection evidence  
+  https://store.sim3d.com/demo3d_2025/configuring_a_mitsubishi_connection_using_slmp
+
+The last source is supporting interoperability evidence only; it is not Mitsubishi protocol authority.
+
+## 62. Checkpoint 3 boundary
+
+Checkpoint 3 completes the requested research dossier.
+
+A separate **Final** pacing step remains in #552:
+
+- revalidate time-sensitive facts;
+- exact HEAD/tree/ahead-behind;
+- concise Main handoff;
+- stop.
+
+No product implementation is authorized by this checkpoint.
+
+**DOCS_ONLY**
+
+**NO PRODUCT CODE CHANGED**
+
+**NO DEPENDENCY CHANGED**
+
+**NO CI CHANGED**
+
+**NO MERGE PERFORMED**
+
+**HA = High Availability**
+
+**HAB = Home Assistant Bridge**
+

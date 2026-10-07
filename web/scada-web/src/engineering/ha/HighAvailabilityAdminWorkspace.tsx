@@ -347,14 +347,30 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
   async function pollOperation(operation: HaProtectionOperation) {
     setActiveOperation(operation);
     if (operation.state !== 'running') return;
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      await new Promise(resolve => setTimeout(resolve, 750));
-      const next = await haAdminApi.operation(operation.operationId);
-      setActiveOperation(next);
-      if (next.state !== 'running') {
-        await load(false);
-        return;
+    try {
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        await new Promise(resolve => setTimeout(resolve, 750));
+        const next = await haAdminApi.operation(operation.operationId);
+        setActiveOperation(next);
+        if (next.state !== 'running') {
+          await load(false);
+          return;
+        }
       }
+    } catch (error) {
+      if (!(error instanceof HaAdminHttpError) || error.status !== 404) throw error;
+
+      // Operation records are process-local. If the API restarts while this tab is
+      // polling, stop presenting the last response as "running" and explain that its
+      // outcome is no longer available; do not infer success or failure of the HA action.
+      const unavailable: HaProtectionOperation = {
+        ...operation,
+        state: 'interrupted',
+        completedAtUtc: new Date().toISOString(),
+        reasonCode: 'operation-status-no-longer-available'
+      };
+      await load(false);
+      setActiveOperation(unavailable);
     }
   }
 
@@ -1059,7 +1075,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
           <div className="ha-operation-list" data-testid="ha-operation-list">
             {operations.length === 0 ? <p>{t.noOperations}</p> : operations.map(operation => (
               <article className={'ha-operation ha-operation--' + operation.state} key={operation.operationId}>
-                <div><strong>{operation.kind}</strong><span>{operation.state}</span></div>
+                <div><strong>{operation.kind}</strong><span>{operation.state === 'interrupted' ? t.operationInterrupted : operation.state}</span></div>
                 <dl>
                   <div><dt>{t.source}</dt><dd>{friendlyNode(operation.sourceNodeId)}</dd></div>
                   <div><dt>{t.target}</dt><dd>{friendlyNode(operation.targetNodeId)}</dd></div>

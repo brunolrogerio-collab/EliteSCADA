@@ -125,7 +125,7 @@ type MockState = {
   blocked: boolean;
   licenseState: 'Demo' | 'Valid' | 'Invalid';
   haEntitled: boolean | null;
-  operationMode?: 'completed' | 'rejected';
+  operationMode?: 'completed' | 'rejected' | 'missing-after-restart';
   lastConfigBody?: any;
   operations: any[];
 };
@@ -249,7 +249,7 @@ function administration(state: MockState) {
   };
 }
 
-function operation(kind: string, state: 'completed' | 'rejected', target: string) {
+function operation(kind: string, state: 'completed' | 'rejected' | 'running', target: string) {
   return {
     operationId: randomUUID(),
     kind,
@@ -258,8 +258,8 @@ function operation(kind: string, state: 'completed' | 'rejected', target: string
     targetNodeId: target,
     epoch: state === 'completed' ? 20 : 19,
     startedAtUtc: '2026-10-02T19:40:00Z',
-    completedAtUtc: '2026-10-02T19:40:01Z',
-    reasonCode: state === 'completed' ? kind + '-completed' : 'target-not-ready-standby'
+    completedAtUtc: state === 'running' ? null : '2026-10-02T19:40:01Z',
+    reasonCode: state === 'completed' ? kind + '-completed' : state === 'running' ? 'started' : 'target-not-ready-standby'
   };
 }
 
@@ -326,9 +326,10 @@ async function mockHa(page: Page, state: MockState) {
     if (path.startsWith('/api/runtime/ha/actions/') && request.method() === 'POST') {
       const kind = path.split('/').at(-1)!;
       const body = request.postDataJSON() as { targetNodeId?: string | null };
-      const result = operation(kind, state.operationMode ?? 'completed', body.targetNodeId || 'node-a');
-      state.operations.unshift(result);
-      await route.fulfill({ status: result.state === 'completed' ? 202 : 409, json: result });
+      const disappeared = state.operationMode === 'missing-after-restart';
+      const result = operation(kind, disappeared ? 'running' : state.operationMode ?? 'completed', body.targetNodeId || 'node-a');
+      if (!disappeared) state.operations.unshift(result);
+      await route.fulfill({ status: result.state === 'completed' || result.state === 'running' ? 202 : 409, json: result });
       return;
     }
 
@@ -640,6 +641,21 @@ test('backend rejection remains visible as fail-closed operation result', async 
   await expect(page.getByTestId('ha-operation-list')).toContainText('rejected');
   await expect(page.getByTestId('ha-operation-list')).toContainText('target-not-ready-standby');
   await evidence(page, testInfo, 'ha-operation-rejected');
+});
+
+test('a lost operation record after API restart is not left falsely running', async ({ page }) => {
+  const state = healthyState();
+  state.operationMode = 'missing-after-restart';
+  await mockHa(page, state);
+  await open(page);
+
+  await page.getByRole('button', { name: /^Switchover/ }).click();
+  await page.getByTestId('ha-confirm-action').click();
+
+  const operationList = page.getByTestId('ha-operation-list');
+  await expect(operationList).toContainText('Interrompida · resultado não disponível após reinício da API');
+  await expect(operationList).toContainText('operation-status-no-longer-available');
+  await expect(operationList).not.toContainText('running');
 });
 
 test('failback and recovery are explicit confirmed backend operations', async ({ page }) => {

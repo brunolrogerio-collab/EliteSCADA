@@ -127,7 +127,7 @@ Mission-specific evidence normally belongs first in the owning issue/PR. The Mai
 
 A new Main Coordinator must read this protocol before supervising Work/DEV chats and must propagate these requirements into every new mission prompt:
 
-- every chat ends each user-visible interaction with `Hora: HH:MM`;
+- every chat ends each user-visible interaction with `DD/MM/YYYY — Hora: HH:MM BRT`;
 - every material project step is persisted to the appropriate repository surface;
 - no chat may rely on conversation history as the sole durable record of project state.
 
@@ -145,4 +145,4 @@ At the end of each Main response, enumerate the active DEV chats and tell the Pr
 
 Every new DEV assignment must carry the reusable operating block in `docs/PARALLEL-WORK.md` §3.2, with the exact lane issue, branch, base SHA, allowed/forbidden scope, required validation profile and report destination filled in. A Bootstrap must say that local tests are T0 only, GitHub live is the authority, a normal exact-head T1 on the published SHA is required, failures must be classified before correction, and no merge occurs without separate explicit Product Owner authorization.
 
-If ordinary HTTPS push or the `gh` CLI is unavailable, do not ask the Product Owner to create credentials or share a token. Use the authorized GitHub connector/API to publish Git blobs/tree/commit/ref when available, verify the published tree, or report `BLOCKED_GIT_AUTH` to Main. Never claim repository publication or T1 based only on a local checkout.
+If ordinary HTTPS push or the `gh` CLI is unavailable, do not ask the Product Owner to create credentials or share a token. Use the authorized GitHub connector/API to publish Git blobs/tree/commit/ref when available, verify the published tree, or report `BLOCKED_GIT_AUTH` to Main. Never claim repository publication or T1 based only on a local checkout. Physical L4 scheduled after Wave 16 and partner disclosure must be recorded as `DEFERRED / NOT RUN` until then; do not substitute simulation or claim compatibility. Continue the other authorized available gates.

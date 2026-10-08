@@ -57,31 +57,41 @@ At the end of every Main response, list each active DEV conversation and give th
 
 ### 3.2 Reusable DEV Bootstrap block
 
-Copy this block into every lane-specific DEV Bootstrap, then fill in the exact issue, branch, base SHA, scope, reserved files, validation profile and report destination:
+Before sending a lane Bootstrap, Main fills in the exact receiving DEV chat, owning issue/PR and report destination, branch, current HEAD/tree, required base/merge-base, allowed and forbidden scope, reserved files, validation profile, acceptance tests, known gates, and the next already-authorized action. State explicitly which action requires a Main decision and whether the user should send `SIGA`, `WAIT`, or take `NO ACTION` in that exact DEV chat.
+
+Copy this block into each lane-specific DEV Bootstrap and replace every bracketed field:
 
 ```text
 ELITESCADA DEV OPERATING PROTOCOL
 
 Repository: brunolrogerio-collab/EliteSCADA.
 GitHub live is the sole authority for branch, commit, PR, issue and CI state.
-Your one active assignment is [ISSUE / LANE]. Branch: [BRANCH]. Required base: [BASE SHA]. Allowed scope: [SCOPE]. Forbidden scope / reserved files: [DETAILS]. Report checkpoints to [OWNING ISSUE / PR] and follow Main's current coordination record.
+Receiving DEV chat: [EXACT CHAT NAME].
+One active assignment: [ISSUE / LANE]. Owning report destination: [ISSUE / PR / HANDOFF].
+Branch: [BRANCH]. Current GitHub HEAD/tree: [SHA / TREE]. Required base and merge-base: [BASE SHA].
+Allowed scope: [SCOPE]. Forbidden scope / reserved files: [DETAILS].
+Validation profile: [PROFILE]. Required focused checks: [TESTS].
+Current gates and evidence: [PASS / PENDING / DEFERRED / BLOCKED, WITH LINKS].
+Next already-authorized action: [ONE CONCRETE STEP].
+Stop and wait for Main only for: [ARCHITECTURAL / SHARED CONTRACT / SECURITY AUTHORITY / SCOPE / MERGE GATES].
 
 On SIGA received in THIS DEV conversation:
-1. Re-read the required current repository docs, including LAST CHANGE.md, docs/ROADMAP.md, docs/PARALLEL-WORK.md, docs/CHAT-COLLABORATION-PROTOCOL.md and docs/CI-USAGE-POLICY.md, plus this lane's MustReadSpecific files.
-2. Revalidate the live issue, branch head and tree, base/compare, PR state, latest comments, and Actions runs on the exact current SHA. GitHub live wins over this prompt, local memory, old comments and stale handoffs.
-3. Identify the next action already authorized by this lane and continue without asking the Product Owner to repeat it. Stop only at an actual scope/architecture/authority/merge gate listed by Main.
+1. Read the required current repository docs, including LAST CHANGE.md, docs/ROADMAP.md, docs/PARALLEL-WORK.md, docs/CHAT-COLLABORATION-PROTOCOL.md and docs/CI-USAGE-POLICY.md, plus this lane's MustReadSpecific files.
+2. Revalidate the live issue, branch HEAD/tree, base/merge-base/compare, PR state, latest comments and Actions runs on the exact current SHA. GitHub live overrides this prompt, local memory, old comments and stale handoffs.
+3. Continue the next action already authorized by this lane without asking the Product Owner to repeat it. SIGA resumes existing scope; it does not authorize a new scope, shared-contract change, PR-ready transition or merge.
 
 Validation and publication:
-- Local tests are T0 evidence only. Tests validate product: classify every failure as PRODUCT, TEST_STALE, ENVIRONMENT, WORKFLOW/CI, SHARED_HOTSPOT or UNKNOWN before choosing a fix. Do not change correct product to satisfy a stale test, and do not weaken/delete a valid test to get green.
-- Run the minimum focused checks needed, then publish the exact candidate to GitHub and open/update the lane PR with Main's required VALIDATION_PROFILE. Obtain the normal exact-head T1 on the published GitHub SHA before claiming validation. Record SHA, tree, profile, run/job links, counts and failures in the owning PR/issue.
-- Keep CI economical: do not start broad/full CI for each small change; follow docs/CI-USAGE-POLICY.md, observe any already-running broad run, and do not duplicate it.
-- If HTTPS git push fails or `gh` is missing, do not ask the Product Owner to configure credentials or send a token. Use the authorized connected GitHub Git Database/API path when available: read the live ref; create blobs/tree/commit with the current branch head as parent; update the ref with expected-head/CAS and force=false; then verify the published commit and tree match the intended local source tree. Record both local provenance SHA and the new GitHub commit SHA.
-- If the authorized GitHub connection cannot publish, stop publication with `BLOCKED_GIT_AUTH`; report the exact blocker and a copy-ready checkpoint to Main. Do not request or expose credentials and do not try an alternate unapproved publication route.
+- Local checks are T0 evidence. The lane PR must obtain the normal GitHub Actions T1 on the exact published SHA using the stated profile. Record SHA/tree, run and job links, counts, skips and failures in the owning PR/issue.
+- Tests validate product. Classify each RED as PRODUCT, TEST_STALE, ENVIRONMENT, WORKFLOW/CI, SHARED_HOTSPOT or UNKNOWN before selecting a fix. Do not alter correct product to satisfy a stale test or weaken a valid assertion to get green.
+- Run the minimum focused checks needed, then publish the exact candidate and open/update the lane PR to trigger or attach exact-head T1. Observe an already-running broad workflow; do not start a duplicate. Full CI is reserved for its normal gate, material risk, or post-integration flow.
+- If HTTPS push fails or `gh` is unavailable, do not ask the Product Owner to configure credentials or send a token. Use the authorized connected GitHub Git Database/API path when available: read the live ref; create blobs/tree/commit with the current branch HEAD as parent; advance the ref with expected-head/CAS and `force=false`; then re-read GitHub and verify the commit/tree. Preserve the source tree and record local provenance SHA separately from the GitHub commit SHA.
+- If this chat has no approved write path, report `BLOCKED_GIT_AUTH` to Main with the exact error, source SHA/tree, changed paths and local T0 evidence. Do not claim publication or T1. Continue lane work that does not depend on publication if safe; otherwise wait for Main's operational unblock. Never ask the Product Owner to resolve routine credential setup.
+- Physical L4 scheduled after Wave 16 and partner disclosure is `DEFERRED / NOT RUN` now. Continue only the lane's available authorized gates. Do not substitute a simulator for physical L4 or claim compatibility before its evidence is recorded.
 
 Boundaries and response format:
 - Never merge your PR. A green T1 is not merge authorization. Merge requires separate explicit Product Owner authorization through Main.
-- Do not expand scope, consume another lane, change shared contracts, schema, dependencies, security authority or High Availability internals unless the lane explicitly permits it or Main authorizes the gate.
-- At the end of every response, state: lane status; exact GitHub SHA / tree / PR / T1 state; next action; and who must act. If this DEV needs a wake after your response, say 'send SIGA in this DEV chat'. If waiting on Main, say exactly what decision is needed. Include the required local date/time stamp.
+- Do not expand scope, consume another lane, or change shared contracts, schema, dependencies, Security Authority or High Availability internals unless the lane explicitly permits it or Main authorizes the gate.
+- End every response with lane status; exact GitHub SHA/tree/PR/T1 state; the exact next action; who acts next; and whether the user should send `SIGA` in THIS DEV chat, wait for Main, or take no action. Include the current local timestamp as `DD/MM/YYYY — Hora: HH:MM BRT`.
 ```
 
 ### 3.3 Publication and validation state labels

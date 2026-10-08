@@ -14,20 +14,24 @@ Correction now recorded in `docs/CHAT-COLLABORATION-PROTOCOL.md` and `docs/PARAL
 
 ## Current live state
 
-- Integration: `wave15/corrections-integration@114f7c942c202a216afb1cec1950211b1f4232d5` (live compare confirms no later integration commit).
-- S4 issue #565; branch `work/driver-interaction-s4-server-script@c11088a7343a6e4157e81c098ad482991bb46f5`, tree `c9f0f8ddeeee6e1691e352fefb0473384ca8a143`; PR #568 is OPEN / DRAFT / NOT MERGED, 4 ahead / 0 behind.
-- Current exact-head T1 run #37788525934 (run 958), profile `SCRIPT_ENGINEERING`, completed FAILURE on `c11088a7343a6e4157e81c098ad482991bb46f5`: Focused .NET 1,220 passed / 2 failed / 1 skipped. Classifier and Common T1 sanity passed; Web/Chromium/HA jobs were router-skipped. The previous run #37787089773 had 3 failures; the test-only data-source fixture was corrected in `c11088a`.
-- `ServerScript_DraftEventGraphDoesNotReplaceActiveSubscriptions_AndActivationReplacesGeneration` remains failed at line 350: expected 0, actual 3. The unused `test.driver` source is now disabled, and `ActiveServerScript_ReceivesCanonicalTransientEventPayloadFromActiveReference` passes. `docs/INTERNAL-MEMORY-TAGS.md` requires Server Memory values to survive Runtime revision changes for the same stable TAG ID. Classification: `TEST_STALE`; update the test to verify the retained value is unchanged by a stale dispatch. Do not reset or change product state.
-- `PersistedRuntimeRecoveryServiceTests.Recovery_DemoWithExpiredAuthorityAnchor_RemainsStoppedAsExpectedAuthorityDenial` still fails. S4 passes a non-null commit callback to ordinary recovery; the existing `ProductLicensedRuntimeCoordinator` contract treats it as an explicit persisted Run and may create a fresh Demo anchor after expiry. Classification: `PRODUCT` regression in the S4 recovery path. Main direction in #565 comments #6061503210 and #6061626324: use the no-callback overload for ordinary recovery, then commit the prepared interaction graph only after `result.Activated` is true, retaining the previous graph on denial/failure. No shared authority change.
-- Coordinator documentation PR #569 is OPEN / DRAFT / NOT MERGED and remains docs-only; its current exact-head Actions status is visible on the live PR.
-- No new broad CI was started and no merge is authorized. Physical L4 driver testing is unavailable until after Wave 16 and partner disclosure.
+- Integration: `wave15/corrections-integration@114f7c942c202a216afb1cec1950211b1f4232d5`; live compare is identical to this checkpoint.
+- S4 / issue #565: branch `work/driver-interaction-s4-server-script@4801d8111268d16db0d6fd374692f904538780ac`, tree `57813b93c1c06e6574612b917ebcc4056a22d332`, based on the integration SHA above; 5 ahead / 0 behind. PR #568 is OPEN / DRAFT / NOT MERGED.
+- Exact-head `SCRIPT_ENGINEERING` T1 [run 37789907955](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/37789907955) passed: Drivers 1,222 passed / 1 skipped / 0 failed; Security 42 passed / 0 failed. Classifier, Common T1 sanity and T1 gate passed. Web, Chromium and HA two-process jobs were router-skipped; no broad CI ran.
+- S4 correction history: original T1 #37787089773 had two stale fixture failures and one ordinary-recovery regression. After disabling the unregistered test-only `test.driver`, T1 #37788525934 exposed a stale Server Memory reset assertion plus the recovery regression. The current candidate retains stable TAG values across revisions and uses no-callback ordinary recovery, committing the prepared interaction graph only after activation succeeds; the HA takeover callback remains. No shared Security Authority change.
+- Main's bounded audit is recorded in #565 comment #6061839876 and PR #568. The T1 is green, but required end-to-end evidence is missing for (1) an undeclared Rich Command and (2) a declared command without an exact `CommandExecute` grant being rejected before `IRichCommandRuntime` dispatch. S4 Dev should add those focused tests, keep product code unchanged unless a test reveals a defect, publish the exact tree, and obtain a fresh exact-head T1. Keep #568 draft; no merge or PR-ready transition is authorized.
+- Mitsubishi PR #567 is OPEN / NOT MERGED at `fdc1385b699a907fc1744c91ab5916bf7bdcf74f`; exact-head `DRIVER_PROTOCOL` T1 #37782117990 passed. L0-L3 are reported PASS; L2 `SKIP_WITH_REASON` is accepted for this checkpoint. L4 is DEFERRED / NOT RUN until after Wave 16 and partner disclosure; no compatibility claim.
+- Panasonic research issue #553 is CLOSED. No Panasonic implementation chat or assignment is active.
+- Physical L4 is not available now. Preserve it as a future gate after Wave 16 and partner disclosure. Do not substitute simulation for physical evidence or state compatibility.
+- Coordinator documentation PR #569 is docs-only, OPEN / DRAFT / NOT MERGED. This update will receive its own narrow exact-head `DOCS_I18N_HELP` T1. No broad CI or merge is authorized.
 
 ## Immediate coordination action
 
-Resume S4 by sending `SIGA` in the S4 DEV chat. Correct the stale Server Memory test expectation under `docs/INTERNAL-MEMORY-TAGS.md`, and restore no-callback ordinary recovery followed by graph commit only after successful activation. These bounded corrections are authorized in #565 comments #6061503210 and #6061626324. Keep shared licensing authority unchanged; publish the exact tree and obtain a fresh `SCRIPT_ENGINEERING` T1. No Product Owner credential action is pending. Keep PR #568 open and unmerged.
+- S4 DEV chat: send `SIGA` in that exact chat so the Dev can add the two requested focused rejection tests and continue the already-authorized lane. This does not authorize merge.
+- Mitsubishi DEV chat: `WAIT`; the published candidate has passing T1 and L0-L3 evidence, while physical L4 is scheduled after Wave 16 and partner disclosure.
+- Panasonic DEV chat: `NO ACTION`; #553 is closed research and there is no implementation assignment.
+- Main must state the exact action for each active DEV chat in every response. GitHub comments and Actions do not wake separate chats.
 
-At the end of every Main response, list each active DEV chat and say exactly: `SIGA` in that chat, `WAIT`, or `NO ACTION`. A `SIGA` resumes existing scope; it is not merge authorization.
-
+No Product Owner credential action is pending. No merge is authorized for #567, #568 or #569.
 ---
 
 ## Historical snapshot — 2026-10-06 22:31 BRT (superseded)

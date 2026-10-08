@@ -2,14 +2,17 @@
 
 Read first: `docs/CURRENT-COORDINATOR-HANDOFF.md`, root `LAST CHANGE.md`, `docs/CHAT-COLLABORATION-PROTOCOL.md`, and `docs/PARALLEL-WORK.md` §3. Then revalidate GitHub live; do not use the older 2026-10-06 lane list below as current state.
 
-Current integration: `wave15/corrections-integration@114f7c942c202a216afb1cec1950211b1f4232d5`.
+Current integration: `wave15/corrections-integration@114f7c942c202a216afb1cec1950211b1f4232d5` (live compare identical).
 
-Current S4 lane: issue #565, branch `work/driver-interaction-s4-server-script@c11088a7343a6e4157e81c098ad482991bb46f5`, PR #568 OPEN / DRAFT / NOT MERGED. Exact-head `SCRIPT_ENGINEERING` run #37788525934 failed in focused .NET: 1,220 passed, 1 skipped, 2 failed. One remaining assertion is `TEST_STALE`: it expects stable Server Memory to reset across a revision, contrary to `docs/INTERNAL-MEMORY-TAGS.md`. The expired-Demo recovery callback remains `PRODUCT`. Main's bounded correction is recorded in #565 comment #6061626324. The DEV should apply that direction and publish a corrected candidate for a fresh exact-head T1. No merge is authorized.
+Current S4 lane: #565, branch `work/driver-interaction-s4-server-script@4801d8111268d16db0d6fd374692f904538780ac`, tree `57813b93c1c06e6574612b917ebcc4056a22d332`; PR #568 OPEN / DRAFT / NOT MERGED. Exact-head `SCRIPT_ENGINEERING` T1 #37789907955 passed. Main's bounded audit requests two end-to-end rejection tests: undeclared Rich Command and declared command without exact `CommandExecute` grant must not reach `IRichCommandRuntime`. The request is in #565 comment #6061839876. Next action: user sends `SIGA` in the S4 DEV chat; Dev adds focused tests, publishes the exact tree and runs a fresh exact-head T1. No broad CI, PR-ready transition or merge.
 
-Wake rule: only `SIGA` in a specific DEV conversation wakes that DEV. At the end of every Main response, tell the user which active DEV chat should receive `SIGA`, which should `WAIT`, and which has `NO ACTION`. A Main-chat signal does not wake S4.
+Mitsubishi PR #567 remains OPEN / NOT MERGED at `fdc1385b699a907fc1744c91ab5916bf7bdcf74f`, with exact-head `DRIVER_PROTOCOL` T1 #37782117990 PASS. L0-L3 PASS; L2 `SKIP_WITH_REASON` accepted for this checkpoint. L4 is DEFERRED / NOT RUN until after Wave 16 and partner disclosure, with no compatibility claim. Mitsubishi DEV action: `WAIT`.
 
-Physical L4 driver validation is deferred until after Wave 16 and partner disclosure. Do not ask the Product Owner to set up Git credentials or send a token; use the authorized GitHub connection or report `BLOCKED_GIT_AUTH`.
+Panasonic research #553 is CLOSED and has no active implementation assignment. Panasonic DEV action: `NO ACTION`.
 
+Wake rule: only `SIGA` in a specific DEV conversation wakes that chat. GitHub comments, branch updates, PRs and Actions do not wake it. Every Main response must name the exact chat and user action; every DEV response must say its exact next step and whether that same chat needs `SIGA`, should `WAIT`, or is done.
+
+Physical L4 is deferred until after Wave 16 and partner disclosure. Do not request it now, treat simulation as a substitute, or claim compatibility. No Product Owner credential action is pending; use the authorized GitHub publication route or report `BLOCKED_GIT_AUTH`.
 ---
 
 ## Historical pointers below — superseded by this current pointer

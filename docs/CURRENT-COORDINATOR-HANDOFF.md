@@ -6,19 +6,20 @@ GitHub live is the only authority. On every wake, revalidate the exact branch, S
 
 ## Current integration and lanes
 
-- Integration: `wave15/corrections-integration@114f7c942c202a216afb1cec1950211b1f4232d5`.
-- S4 / issue #565: branch `work/driver-interaction-s4-server-script@c11088a7343a6e4157e81c098ad482991bb46f5`, tree `c9f0f8ddeeee6e1691e352fefb0473384ca8a143`, PR #568 OPEN / DRAFT / NOT MERGED; 4 ahead / 0 behind.
-- Exact-head `SCRIPT_ENGINEERING` T1 run #37788525934 FAILED: 1,220 passed, 1 skipped, 2 failed. `ServerScript_DraftEventGraph...` expects a stable Server Memory TAG to reset across revision activation, contrary to `docs/INTERNAL-MEMORY-TAGS.md`; classify `TEST_STALE`. The expired-Demo recovery test is `PRODUCT`: ordinary recovery passes the callback reserved for explicit persisted Run. Main's bounded correction is in #565 comments #6061503210 and #6061626324.
-- Next lane action: S4 DEV applies Main's #6061626324 direction: change the stale test expectation to preserve the retained TAG value; restore no-callback ordinary recovery and commit the prepared graph only after successful activation; then publish and obtain a fresh exact-head T1. No shared licensing authority change.
-- Mitsubishi PR #567 has a passing exact-head T1 but remains unmerged; no merge is authorized. Panasonic #553 remains research-only/closed.
-- Physical L4 testing is deferred until after Wave 16 and partner disclosure; do not request or imply L4 now.
+- Integration: `wave15/corrections-integration@114f7c942c202a216afb1cec1950211b1f4232d5`; live compare is identical to this checkpoint.
+- S4 / #565: `work/driver-interaction-s4-server-script@4801d8111268d16db0d6fd374692f904538780ac`, tree `57813b93c1c06e6574612b917ebcc4056a22d332); PR #568 OPEN / DRAFT / NOT MERGED, 5 ahead / 0 behind. Exact-head `SCRIPT_ENGINEERING` T1 #37789907955 passed (Drivers 1,222 passed / 1 skipped; Security 42 passed / 0 failed). Router-skipped jobs: Web, Chromium and HA two-process; no broad CI.
+- Main's review found a validation gap, not a reported product defect: add tests proving an undeclared Rich Command and a declared command without the exact `CommandExecute` grant are denied before the runtime is invoked. The request is in #565 comment #6061839876. Keep implementation unchanged unless a test exposes a defect; then classify and fix within S4 or escalate a shared-contract issue to Main. Run focused checks and a fresh exact-head T1 only.
+- S4 recovery correction uses the no-callback ordinary activation path and commits the prepared interaction graph only after successful activation. The HA takeover callback is retained. Stable Server Memory values persist across revisions for a stable TAG ID. No shared Security Authority change.
+- Mitsubishi PR #567 is OPEN / NOT MERGED at `fdc1385b699a907fc1744c91ab5916bf7bdcf74f`; exact-head `DRIVER_PROTOCOL` T1 #37782117990 passed. L0-L3 PASS is reported; L2 `SKIP_WITH_REASON` is accepted for this checkpoint. L4 is DEFERRED / NOT RUN until after Wave 16 and partner disclosure; no compatibility claim.
+- Panasonic research #553 is CLOSED; no active implementation assignment.
+- Physical L4 cannot be run before the planned post-Wave-16 partner disclosure. Do not request L4 now, substitute simulation, or state compatibility.
+- PR #569 contains this coordination-document update and remains docs-only / OPEN / DRAFT / NOT MERGED pending narrow exact-head `DOCS_I18N_HELP` T1.
 
 ## Main coordination correction
 
-Main previously treated a signal in the Main chat as if it woke the separate S4 DEV chat, asked the Product Owner to arrange HTTPS credentials, and followed stale coordinator pointers. Those steps were corrected: `SIGA` must be sent in the receiving DEV chat; no credential/token action is pending from the Product Owner; use the connected GitHub API publication path where available; exact-head Actions T1 is required after GitHub publication. GitHub comments are records, not chat wake signals.
+Main previously sent or expected `SIGA` in the Main chat to wake a separate DEV chat, asked the Product Owner to configure Git credentials after HTTPS push failed, and relied on stale handoff state. The corrected procedure is: `SIGA` wakes only its receiving chat; use the connected GitHub Git Database/API publication path when available; never ask the Product Owner for credentials or a token; local tests are T0 and exact-head GitHub Actions T1 is required; revalidate live GitHub before acting.
 
-At the end of every Main response, tell the Product Owner exactly what to do in each active DEV chat (`SIGA`, `WAIT` or `NO ACTION`). Do not merge without separate explicit authorization.
-
+At the end of every Main response, enumerate each active DEV chat and say exactly `SIGA`, `WAIT` or `NO ACTION` for that chat.
 ---
 
 ## Historical coordinator snapshots (retained; superseded by the live pointer above)

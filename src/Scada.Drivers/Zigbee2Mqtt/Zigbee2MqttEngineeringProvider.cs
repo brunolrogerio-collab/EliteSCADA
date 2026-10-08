@@ -598,23 +598,6 @@ public sealed class Zigbee2MqttEngineeringProvider :
         return false;
     }
 
-    private static bool TryGet(IReadOnlyDictionary<string, string> values, string key, out string value)
-    {
-        if (values.TryGetValue(key, out var direct))
-        {
-            value = direct;
-            return true;
-        }
-        var match = values.FirstOrDefault(entry => entry.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
-        if (match.Key is not null)
-        {
-            value = match.Value;
-            return true;
-        }
-        value = string.Empty;
-        return false;
-    }
-
     private static double? ParseOptionalDouble(IReadOnlyDictionary<string, string> values, string key)
     {
         if (!TryGet(values, key, out var raw)) return null;

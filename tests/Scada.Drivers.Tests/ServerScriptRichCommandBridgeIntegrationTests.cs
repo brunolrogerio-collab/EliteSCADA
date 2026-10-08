@@ -33,7 +33,13 @@ public sealed class ServerScriptRichCommandBridgeIntegrationTests
         var triggerId = Guid.NewGuid();
         var commandDataSourceId = Guid.NewGuid();
         var scopeId = Guid.NewGuid();
-        var package = Package(scriptId, commandId, stateId, triggerId, commandDataSourceId);
+        var package = Package(
+            scriptId,
+            commandId,
+            stateId,
+            triggerId,
+            commandDataSourceId,
+            declaredCommandId: commandId);
         var interactions = new ActiveDriverInteractionRuntimeCatalog();
         var prepared = interactions.Prepare(package);
         var eventBus = new InMemoryScadaEventBus();

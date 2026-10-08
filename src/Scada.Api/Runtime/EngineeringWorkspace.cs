@@ -11,6 +11,7 @@ using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.DataQueries;
 using Scada.Engineering.Historian;
+using Scada.Engineering.Interactions;
 using Scada.Engineering.Media;
 using Scada.Engineering.Scripts;
 using Scada.Engineering.Security;
@@ -89,6 +90,7 @@ public sealed class EngineeringWorkspace : IDisposable
         Views = new InMemoryEngineeringViewRegistry(MarkDirty);
         SecurityPolicies = new InMemorySecurityPolicyEngineeringRegistry(MarkDirty);
         Commands = new InMemoryCommandEngineeringRegistry(MarkDirty);
+        Interactions = new InMemoryDriverInteractionEngineeringRegistry(MarkDirty);
         Scripts = new InMemoryScriptEngineeringRegistry(MarkDirty);
         VisualAssets = new InMemoryVisualAssetEngineeringRegistry(MarkDirty);
         Branding = new InMemoryApplicationBrandingEngineeringRegistry(MarkDirty);
@@ -107,6 +109,7 @@ public sealed class EngineeringWorkspace : IDisposable
     public InMemoryEngineeringViewRegistry Views { get; }
     public InMemorySecurityPolicyEngineeringRegistry SecurityPolicies { get; }
     public InMemoryCommandEngineeringRegistry Commands { get; }
+    public InMemoryDriverInteractionEngineeringRegistry Interactions { get; }
     public InMemoryScriptEngineeringRegistry Scripts { get; }
     public InMemoryVisualAssetEngineeringRegistry VisualAssets { get; }
     public InMemoryApplicationBrandingEngineeringRegistry Branding { get; }
@@ -246,6 +249,7 @@ public sealed class EngineeringWorkspace : IDisposable
         Views.Clear();
         SecurityPolicies.Clear();
         Commands.Clear();
+        Interactions.Clear();
         Scripts.Clear();
         VisualAssets.Clear();
         Branding.Clear();

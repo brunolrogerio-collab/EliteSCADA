@@ -8,6 +8,7 @@ using Scada.Drivers.HomeAssistant;
 using Scada.Drivers.Iec60870;
 using Scada.Drivers.Mqtt;
 using Scada.Drivers.Modbus;
+using Scada.Drivers.Mitsubishi;
 using Scada.Drivers.Serial;
 using Scada.Drivers.OpcUa;
 using Scada.Drivers.SiemensS7Iso;
@@ -88,6 +89,10 @@ public static class CommunicationDriverRuntimeComposition
             new S7IsoCommunicationRuntimePlanner(),
             new S7IsoCommunicationRuntimeFactory(),
             new S7IsoEngineeringAdapter().Descriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new MitsubishiMelsecCommunicationRuntimePlanner(),
+            new MitsubishiMelsecCommunicationRuntimeFactory(),
+            MitsubishiMelsecDriverDescriptorProvider.SharedDescriptor));
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new BacnetCommunicationRuntimePlanner(),
             new BacnetCommunicationRuntimeFactory(bacnetSessionFactory),

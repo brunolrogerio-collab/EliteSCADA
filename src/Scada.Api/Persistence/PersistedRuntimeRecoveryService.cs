@@ -146,50 +146,84 @@ public sealed class PersistedRuntimeRecoveryService(
             (highAvailability.CanOwnIndustrialEffects() ||
              highAvailabilityProtection?.CanActivateLocalHaTakeover() == true);
 
-        RuntimeActivationResult result;
-        if (eventBus is not null && configuration is not null)
+        var previousInteractions = driverInteractions?.CapturePrepared();
+        var interactionsCommitted = false;
+        Task CommitInteractionsAsync(RuntimeActivationCommitContext _, CancellationToken ct)
         {
-            var scripts = ServerScriptRuntimeManager.GetShared(
-                runtime,
-                eventBus,
-                configuration);
+            ct.ThrowIfCancellationRequested();
+            if (driverInteractions is not null && preparedInteractions is not null)
+            {
+                driverInteractions.Commit(preparedInteractions);
+                interactionsCommitted = true;
+            }
 
-            if (operationalEvents is not null)
-                ServerScriptOperationalEventBridge.Bind(
-                    scripts,
-                    operationalEvents,
-                    highAvailability is null
-                        ? null
-                        : () => highAvailability.CanOwnIndustrialEffects());
-
-            result = recoverAsHaActive
-                ? await scripts.ActivateRuntimeForHaTakeoverAsync(
-                    snapshot.ProjectKey,
-                    snapshot.Revision,
-                    package,
-                    static (_, _) => Task.CompletedTask,
-                    cancellationToken)
-                : await scripts.ActivateRuntimeAsync(
-                    snapshot.ProjectKey,
-                    snapshot.Revision,
-                    package,
-                    cancellationToken);
+            return Task.CompletedTask;
         }
-        else
+
+        RuntimeActivationResult result;
+        try
         {
-            EnsureNoServerScriptsWithoutHost(package);
-            result = recoverAsHaActive
-                ? await runtime.ActivateForHaTakeoverAsync(
-                    snapshot.ProjectKey,
-                    snapshot.Revision,
-                    package,
-                    static (_, _) => Task.CompletedTask,
-                    cancellationToken)
-                : await runtime.ActivateAsync(
-                    snapshot.ProjectKey,
-                    snapshot.Revision,
-                    package,
-                    cancellationToken);
+            if (eventBus is not null && configuration is not null)
+            {
+                var scripts = ServerScriptRuntimeManager.GetShared(
+                    runtime,
+                    eventBus,
+                    configuration,
+                    driverInteractions);
+
+                if (operationalEvents is not null)
+                    ServerScriptOperationalEventBridge.Bind(
+                        scripts,
+                        operationalEvents,
+                        highAvailability is null
+                            ? null
+                            : () => highAvailability.CanOwnIndustrialEffects());
+
+                result = recoverAsHaActive
+                    ? await scripts.ActivateRuntimeForHaTakeoverAsync(
+                        snapshot.ProjectKey,
+                        snapshot.Revision,
+                        package,
+                        CommitInteractionsAsync,
+                        cancellationToken)
+                    : await scripts.ActivateRuntimeAsync(
+                        snapshot.ProjectKey,
+                        snapshot.Revision,
+                        package,
+                        CommitInteractionsAsync,
+                        cancellationToken);
+            }
+            else
+            {
+                EnsureNoServerScriptsWithoutHost(package);
+                result = recoverAsHaActive
+                    ? await runtime.ActivateForHaTakeoverAsync(
+                        snapshot.ProjectKey,
+                        snapshot.Revision,
+                        package,
+                        CommitInteractionsAsync,
+                        cancellationToken)
+                    : await runtime.ActivateAsync(
+                        snapshot.ProjectKey,
+                        snapshot.Revision,
+                        package,
+                        CommitInteractionsAsync,
+                        cancellationToken);
+            }
+        }
+        catch
+        {
+            if (interactionsCommitted && driverInteractions is not null && previousInteractions is not null)
+                driverInteractions.Commit(previousInteractions);
+            throw;
+        }
+
+        if (!result.Activated &&
+            interactionsCommitted &&
+            driverInteractions is not null &&
+            previousInteractions is not null)
+        {
+            driverInteractions.Commit(previousInteractions);
         }
 
         // Restart/recovery must restore the protection state carried by the durable
@@ -197,8 +231,6 @@ public sealed class PersistedRuntimeRecoveryService(
         // in-memory protection state.
         if (result.Activated)
         {
-            if (driverInteractions is not null && preparedInteractions is not null)
-                driverInteractions.Commit(preparedInteractions);
             EngineeringLockAccess.Replace(exchange, package.EngineeringLock);
         }
 

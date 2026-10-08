@@ -47,6 +47,8 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
     private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
     private readonly SemaphoreSlim _revisionGate = new(1, 1);
     private readonly EventHandler _processExitHandler;
+    private readonly object _interactionBindingSync = new();
+    private ActiveDriverInteractionRuntimeCatalog? _driverInteractions;
     private ActiveGeneration? _active;
     private bool _disposed;
 
@@ -72,7 +74,14 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
     public static ServerScriptRuntimeManager GetShared(
         IEngineeringRuntimeCoordinator runtime,
         IScadaEventBus eventBus,
-        IConfiguration configuration)
+        IConfiguration configuration) =>
+        GetShared(runtime, eventBus, configuration, driverInteractions: null);
+
+    public static ServerScriptRuntimeManager GetShared(
+        IEngineeringRuntimeCoordinator runtime,
+        IScadaEventBus eventBus,
+        IConfiguration configuration,
+        ActiveDriverInteractionRuntimeCatalog? driverInteractions)
     {
         var host = SharedHosts.GetValue(
             runtime,
@@ -81,8 +90,33 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
         if (!ReferenceEquals(host._eventBus, eventBus))
             throw new InvalidOperationException("Server Script runtime host is already bound to another event bus.");
 
+        host.BindActiveDriverInteractions(driverInteractions);
+
         return host;
     }
+
+    private void BindActiveDriverInteractions(ActiveDriverInteractionRuntimeCatalog? driverInteractions)
+    {
+        if (driverInteractions is null)
+            return;
+
+        lock (_interactionBindingSync)
+        {
+            if (_driverInteractions is not null && !ReferenceEquals(_driverInteractions, driverInteractions))
+            {
+                throw new InvalidOperationException(
+                    "Server Script runtime host is already bound to another Active Driver Interaction catalog.");
+            }
+
+            Volatile.Write(ref _driverInteractions, driverInteractions);
+        }
+    }
+
+    private ActiveTransientEventGraph CaptureActiveTransientEvents() =>
+        Volatile.Read(ref _driverInteractions)?.CaptureActiveTransientEvents() ??
+        new ActiveTransientEventGraph(
+            Array.Empty<TransientEventDefinition>(),
+            Array.Empty<CapabilityEventReference>());
 
     public ServerScriptRuntimeSnapshot Snapshot()
     {
@@ -117,6 +151,7 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
             revision,
             package.Scripts,
             ct => _runtime.ActivateAsync(projectKey, revision, package, ct),
+            package,
             cancellationToken);
     }
 
@@ -138,6 +173,7 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
             revision,
             package.Scripts,
             ct => _runtime.ActivateAsync(projectKey, revision, package, commitAsync, ct),
+            package,
             cancellationToken);
     }
 
@@ -155,6 +191,7 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
             revision,
             package.Scripts,
             ct => _runtime.ActivateForHaTakeoverAsync(projectKey, revision, package, commitAsync, ct),
+            package,
             cancellationToken);
     }
 
@@ -170,6 +207,7 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
     {
         ValidateIdentity(projectKey, revision);
         var definitions = BuildDefinitions(scripts);
+        ValidateServerTransientEventReferences(definitions, package: null);
 
         await _lifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -240,13 +278,15 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
         }
     }
 
-    public async Task DispatchRuntimeEventAsync(
+    public Task DispatchRuntimeEventAsync(
         string? targetReference = null,
         CancellationToken cancellationToken = default)
     {
-        var active = Volatile.Read(ref _active);
-        if (active is null || !active.MatchesCurrentRuntime()) return;
-        await active.DispatchRuntimeEventAsync(targetReference, cancellationToken).ConfigureAwait(false);
+        if (cancellationToken.IsCancellationRequested)
+            return Task.FromCanceled(cancellationToken);
+
+        return Task.FromException(new ScriptExecutionDiagnosticException(
+            "Server Runtime Script events require a canonical Active Transient Event occurrence."));
     }
 
     internal async Task<IReadOnlyDictionary<Guid, ServerScriptTagSnapshot>> ReadDependenciesAsync(
@@ -378,11 +418,13 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
         long revision,
         IReadOnlyCollection<ScriptEngineeringDefinition>? scripts,
         Func<CancellationToken, Task<RuntimeActivationResult>> activateRuntime,
+        EngineeringPackage package,
         CancellationToken cancellationToken)
     {
         ValidateIdentity(projectKey, revision);
         ArgumentNullException.ThrowIfNull(activateRuntime);
         var definitions = BuildDefinitions(scripts);
+        ValidateServerTransientEventReferences(definitions, package);
 
         await _lifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -452,6 +494,65 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
         }
 
         return definitions;
+    }
+
+    private void ValidateServerTransientEventReferences(
+        IReadOnlyCollection<PythonScriptDefinition> definitions,
+        EngineeringPackage? package)
+    {
+        var entries = definitions
+            .SelectMany(definition => definition.EntryPoints)
+            .Where(entry => entry.EventKind == PythonScriptEventKind.ServerRuntimeEvent)
+            .ToArray();
+        if (entries.Length == 0)
+            return;
+
+        if (entries.Any(entry => !Guid.TryParse(entry.TargetReference, out _)))
+        {
+            throw new ScriptExecutionDiagnosticException(
+                "Server Runtime Script event triggers must reference an Active Transient Event definition.");
+        }
+
+        var targets = entries
+            .Select(entry => Guid.Parse(entry.TargetReference!))
+            .Distinct()
+            .ToArray();
+
+        if (Volatile.Read(ref _driverInteractions) is null)
+        {
+            throw new ScriptExecutionDiagnosticException(
+                "Active Driver Interaction authority is unavailable for Server Script event subscriptions.");
+        }
+
+        IReadOnlyCollection<TransientEventDefinition> eventDefinitions;
+        IReadOnlyCollection<CapabilityEventReference> eventReferences;
+        if (package is not null)
+        {
+            var graph = DriverInteractionEngineeringValidator.NormalizeActiveGraph(package);
+            eventDefinitions = graph.EventDefinitions;
+            eventReferences = graph.EventReferences;
+        }
+        else
+        {
+            var graph = CaptureActiveTransientEvents();
+            eventDefinitions = graph.Definitions;
+            eventReferences = graph.References;
+        }
+
+        var definitionsById = eventDefinitions.ToDictionary(definition => definition.DefinitionId);
+        foreach (var target in targets)
+        {
+            if (!definitionsById.TryGetValue(target, out var definition) ||
+                !eventReferences.Any(reference =>
+                    reference.EventDefinitionId == target &&
+                    reference.EquipmentId == definition.EquipmentId &&
+                    StringComparer.Ordinal.Equals(reference.CapabilityId, definition.CapabilityId) &&
+                    StringComparer.Ordinal.Equals(reference.SemanticEventKey, definition.SemanticKey)))
+            {
+                throw new ScriptExecutionDiagnosticException(
+                    $"Server Script event reference '{target:D}' is not present in the Active Driver Interaction graph.");
+            }
+        }
     }
 
     private void EnsureRuntimeIdentity(string projectKey, long revision)
@@ -555,6 +656,9 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
         private readonly CancellationTokenSource _cancellation = new();
         private readonly ConcurrentBag<Task> _backgroundTasks = new();
         private IDisposable? _tagSubscription;
+        private IDisposable? _transientEventSubscription;
+        private readonly IReadOnlyDictionary<Guid, TransientEventDefinition> _eventDefinitions;
+        private readonly IReadOnlyCollection<CapabilityEventReference> _eventReferences;
         private int _started;
 
         public ActiveGeneration(
@@ -567,6 +671,9 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
             ProjectKey = projectKey;
             Revision = revision;
             ActivatedAtUtc = DateTimeOffset.UtcNow;
+            var activeEvents = owner.CaptureActiveTransientEvents();
+            _eventDefinitions = activeEvents.Definitions.ToDictionary(definition => definition.DefinitionId);
+            _eventReferences = activeEvents.References;
 
             var executor = new IsolatedPythonScriptHandlerExecutor(
                 owner,
@@ -614,6 +721,7 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
             }
 
             _tagSubscription = _owner._eventBus.Subscribe<TagValueChanged>(OnTagChangedAsync);
+            _transientEventSubscription = _owner._eventBus.Subscribe<TransientEventRuntimePublication>(OnTransientEventAsync);
             Volatile.Write(ref _started, 1);
 
             foreach (var instance in Instances)
@@ -624,21 +732,6 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
                 Track(Task.Run(
                     () => TimerLoopAsync(instance, entry, interval, _cancellation.Token),
                     _cancellation.Token));
-            }
-        }
-
-        public async Task DispatchRuntimeEventAsync(
-            string? targetReference,
-            CancellationToken cancellationToken)
-        {
-            foreach (var instance in Instances)
-            foreach (var entry in instance.Definition.EntryPoints.Where(x =>
-                         x.EventKind == PythonScriptEventKind.ServerRuntimeEvent &&
-                         (string.IsNullOrWhiteSpace(x.TargetReference) ||
-                          string.Equals(x.TargetReference, targetReference, StringComparison.Ordinal))))
-            {
-                await TriggerAndDrainAsync(instance, entry, targetReference, cancellationToken)
-                    .ConfigureAwait(false);
             }
         }
 
@@ -660,6 +753,110 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
             }
 
             return ValueTask.CompletedTask;
+        }
+
+        private ValueTask OnTransientEventAsync(TransientEventRuntimePublication publication)
+        {
+            if (Volatile.Read(ref _started) == 0 || !MatchesCurrentRuntime())
+                return ValueTask.CompletedTask;
+
+            var occurrence = publication.Occurrence;
+            if (!_eventDefinitions.TryGetValue(occurrence.DefinitionId, out var definition))
+                return ValueTask.CompletedTask;
+
+            TransientEventOccurrence canonical;
+            try
+            {
+                canonical = TransientEventContract.ValidateOccurrence(definition, occurrence);
+            }
+            catch (ArgumentException)
+            {
+                return ValueTask.CompletedTask;
+            }
+
+            if (!_eventReferences.Any(reference =>
+                    reference.EventDefinitionId == canonical.DefinitionId &&
+                    reference.EquipmentId == canonical.Source.EquipmentId &&
+                    StringComparer.Ordinal.Equals(reference.CapabilityId, canonical.Source.CapabilityId) &&
+                    StringComparer.Ordinal.Equals(reference.SemanticEventKey, canonical.SemanticKey)))
+            {
+                return ValueTask.CompletedTask;
+            }
+
+            foreach (var instance in Instances)
+            foreach (var entry in instance.Definition.EntryPoints.Where(entry =>
+                         entry.EventKind == PythonScriptEventKind.ServerRuntimeEvent &&
+                         Guid.TryParse(entry.TargetReference, out var targetId) &&
+                         targetId == canonical.DefinitionId))
+            {
+                try
+                {
+                    instance.Coordinator.Enqueue(new ScriptEventIdentity(
+                        entry.EventKind,
+                        entry.HandlerName,
+                        entry.TargetReference,
+                        coalescingKey: $"{entry.EventKind}:{entry.HandlerName}:{canonical.EventId:D}",
+                        canonicalEventOccurrence: canonical));
+                    ScheduleTransientEventDrain(instance);
+                }
+                catch (ObjectDisposedException)
+                {
+                    // A concurrent Active generation replacement already retired this queue.
+                }
+                catch (InvalidOperationException)
+                {
+                    // A stale or malformed subscription must not fail canonical event publication.
+                }
+            }
+
+            return ValueTask.CompletedTask;
+        }
+
+        private void ScheduleTransientEventDrain(ScriptInstance instance)
+        {
+            if (!instance.TryBeginTransientEventDrain())
+                return;
+
+            Track(Task.Run(
+                () => DrainTransientEventsAsync(instance, _cancellation.Token),
+                _cancellation.Token));
+        }
+
+        private async Task DrainTransientEventsAsync(
+            ScriptInstance instance,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested && MatchesCurrentRuntime())
+                {
+                    var result = await instance.Coordinator.ProcessNextAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    if (result.Status == ScriptRuntimeDispatchStatus.Executed)
+                        continue;
+                    if (result.Status == ScriptRuntimeDispatchStatus.Throttled)
+                    {
+                        await Task.Delay(_owner._policy.FailureRecoveryCooldown, cancellationToken)
+                            .ConfigureAwait(false);
+                        continue;
+                    }
+
+                    break;
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+            }
+            finally
+            {
+                instance.EndTransientEventDrain();
+                if (!cancellationToken.IsCancellationRequested &&
+                    MatchesCurrentRuntime() &&
+                    instance.Coordinator.QueuedEventCount > 0)
+                {
+                    ScheduleTransientEventDrain(instance);
+                }
+            }
         }
 
         private async Task TimerLoopAsync(
@@ -730,6 +927,7 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
         public async Task DisposeAsync(bool runDisposeHandlers)
         {
             _tagSubscription?.Dispose();
+            _transientEventSubscription?.Dispose();
             Volatile.Write(ref _started, 0);
 
             if (runDisposeHandlers && MatchesCurrentRuntime())
@@ -779,6 +977,14 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
         PythonScriptDefinition Definition,
         ScriptRuntimeExecutionCoordinator Coordinator)
     {
+        private int _transientEventDrainScheduled;
+
+        internal bool TryBeginTransientEventDrain() =>
+            Interlocked.CompareExchange(ref _transientEventDrainScheduled, 1, 0) == 0;
+
+        internal void EndTransientEventDrain() =>
+            Interlocked.Exchange(ref _transientEventDrainScheduled, 0);
+
         public int SubscriptionCount => Definition.EntryPoints.Count(entry =>
             entry.EventKind is
                 PythonScriptEventKind.Timer or

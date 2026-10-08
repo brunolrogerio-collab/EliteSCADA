@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
+using Scada.Core.Events;
+using Scada.Core.Interactions;
 using Scada.Core.Sources;
 using Scada.Core.Tags;
 using Scada.Engineering.VisualScripting;
@@ -60,7 +62,8 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
                 scriptEvent.Identity.EventKind.ToString(),
                 scriptEvent.Identity.TargetReference,
                 scriptEvent.Sequence,
-                scriptEvent.EnqueuedAt),
+                scriptEvent.EnqueuedAt,
+                ToPythonCanonicalEvent(scriptEvent.Identity.CanonicalEventOccurrence)),
             values,
             serverMemoryTags);
 
@@ -269,6 +272,67 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
         _ => throw new InvalidOperationException($"Unsupported TAG data type '{dataType}'.")
     };
 
+    private static IReadOnlyDictionary<string, object?>? ToPythonCanonicalEvent(
+        TransientEventOccurrence? occurrence)
+    {
+        if (occurrence is null)
+            return null;
+
+        return new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["eventId"] = occurrence.EventId.ToString("D"),
+            ["definitionId"] = occurrence.DefinitionId.ToString("D"),
+            ["semanticKey"] = occurrence.SemanticKey,
+            ["source"] = new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["dataSourceId"] = occurrence.Source.DataSourceId.ToString("D"),
+                ["stableDeviceIdentity"] = occurrence.Source.StableDeviceIdentity,
+                ["equipmentId"] = occurrence.Source.EquipmentId?.ToString("D"),
+                ["capabilityId"] = occurrence.Source.CapabilityId
+            },
+            ["payload"] = occurrence.Payload.ToDictionary(
+                field => field.Key,
+                field => ConvertInteractionScalar(field.Value),
+                StringComparer.Ordinal),
+            ["observedAt"] = occurrence.ObservedAt,
+            ["occurredAt"] = occurrence.OccurredAt is null
+                ? null
+                : new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["value"] = occurrence.OccurredAt.Value,
+                    ["origin"] = occurrence.OccurredAt.Origin.ToString()
+                },
+            ["evidence"] = occurrence.Evidence is null
+                ? null
+                : new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["sequence"] = occurrence.Evidence.Sequence,
+                    ["counter"] = occurrence.Evidence.Counter
+                },
+            ["causality"] = occurrence.Causality is null
+                ? null
+                : new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["correlationId"] = occurrence.Causality.CorrelationId.ToString("D"),
+                    ["causationId"] = occurrence.Causality.CausationId?.ToString("D"),
+                    ["origin"] = occurrence.Causality.Origin.ToString(),
+                    ["hopCount"] = occurrence.Causality.HopCount,
+                    ["maximumHops"] = occurrence.Causality.MaximumHops
+                }
+        };
+    }
+
+    private static object ConvertInteractionScalar(InteractionScalarValue value) => value.Kind switch
+    {
+        InteractionScalarKind.Boolean => value.SerializedValue == "true",
+        InteractionScalarKind.Integer => long.Parse(value.SerializedValue, System.Globalization.CultureInfo.InvariantCulture),
+        InteractionScalarKind.Number or InteractionScalarKind.Percentage => decimal.Parse(
+            value.SerializedValue,
+            System.Globalization.CultureInfo.InvariantCulture),
+        InteractionScalarKind.String or InteractionScalarKind.Enum or InteractionScalarKind.Duration => value.SerializedValue,
+        _ => throw new InvalidOperationException($"Unsupported Transient Event scalar kind '{value.Kind}'.")
+    };
+
     private static void TryKill(Process process)
     {
         try
@@ -307,7 +371,8 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
         string Kind,
         string? TargetReference,
         long Sequence,
-        DateTimeOffset EnqueuedAt);
+        DateTimeOffset EnqueuedAt,
+        IReadOnlyDictionary<string, object?>? CanonicalEvent = null);
 
     private sealed record PythonWriteRequest(
         string TagId,

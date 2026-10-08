@@ -211,7 +211,8 @@ public sealed class PublishedRuntimeActivationService(
             var scripts = ServerScriptRuntimeManager.GetShared(
                 runtime,
                 eventBus,
-                configuration);
+                configuration,
+                driverInteractions);
 
             if (operationalEvents is not null)
                 ServerScriptOperationalEventBridge.Bind(

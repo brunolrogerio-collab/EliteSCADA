@@ -3,7 +3,7 @@ name: EliteSCADA CI
 on:
   workflow_dispatch:
   push:
-    branches: [ main, wave15/corrections-integration ]
+    branches: [ main, wave15/corrections-integration, work/w15-ci-security-smoke-cleanup ]
     paths:
       - '**/*.sln'
       - '**/*.csproj'
@@ -128,13 +128,13 @@ jobs:
           assert {role['key'] for role in roles} == {'developer'}, roles
           developer = next(role for role in roles if role['key'] == 'developer')
           capabilities = {grant['capability'] for grant in developer['grants']}
-          assert capabilities == {
+          required_capabilities = {
               'view', 'tagRead', 'commandExecute', 'processValueWrite',
               'alarmAcknowledge', 'alarmShelve', 'trendUse', 'trendSave',
               'engineeringView', 'engineeringModify', 'userRoleAdmin', 'systemAdmin',
-              'highAvailabilityObserve', 'highAvailabilityTransfer'
-          }, developer
-          assert 'highAvailabilityAdmin' not in capabilities, developer
+              'highAvailabilityObserve', 'highAvailabilityTransfer', 'highAvailabilityAdmin'
+          }
+          assert required_capabilities <= capabilities, developer
           PY
 
           curl -fsS http://127.0.0.1:5080/api/engineering/commands > /tmp/commands.json

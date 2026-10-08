@@ -23,7 +23,8 @@ public sealed class EspHomeL3RuntimeTests
         var package = BuildPackage(dataSourceId, tagId, commandId, writeTimeoutMilliseconds: 1000);
 
         await using var runtime = CreateRuntime(peer);
-        var activation = await runtime.ActivateAsync("project-esphome-l3", 1, package);
+        using var activationRequest = new CancellationTokenSource();
+        var activation = await runtime.ActivateAsync("project-esphome-l3", 1, package, activationRequest.Token);
 
         Assert.True(
             activation.Activated,
@@ -44,6 +45,9 @@ public sealed class EspHomeL3RuntimeTests
         Assert.Equal(CommunicationDriverOperationalState.Healthy, communication.State);
         Assert.Equal(1, communication.TagQuality.Good);
 
+        // Cancelling the short-lived activation request must not stop the committed Runtime.
+        activationRequest.Cancel();
+        Assert.Equal(DriverState.Running, Assert.Single(runtime.Describe().Drivers).State);
         await runtime.WriteAsync(tagId, true);
         Assert.Equal(1, peer.CommandCount);
         Assert.True(runtime.TryGetCurrent(tagId, out var afterWrite));
@@ -55,6 +59,45 @@ public sealed class EspHomeL3RuntimeTests
         Assert.True(runtime.TryGetCurrent(tagId, out var afterCommand));
         Assert.False(Assert.IsType<bool>(afterCommand!.Value));
         Assert.Equal(TagQuality.Good, afterCommand.Quality);
+    }
+
+    [Fact]
+    public async Task MaterializedEspHome_DoesNotConnectOrWriteUntilNormalLifecycleStart()
+    {
+        var peer = new RuntimePeer(autoAcknowledge: true);
+        await using var driver = new EspHomeDriver(
+            "esphome.standby",
+            "ESPHome Standby",
+            new EspHomeConnectionSettings(
+                "127.0.0.1",
+                6053,
+                EspHomeNativeEncryptionMode.Plaintext,
+                TimeSpan.FromSeconds(2),
+                TimeSpan.FromSeconds(1)),
+            new CurrentTagCache(new InMemoryScadaEventBus()),
+            new InMemoryTagRegistry(),
+            Array.Empty<EspHomePoint>(),
+            peer);
+
+        Assert.Equal(DriverState.Stopped, driver.Status.State);
+        Assert.False(peer.Connected);
+        Assert.Equal(0, peer.ConnectCount);
+        Assert.Equal(0, peer.SubscribeCount);
+        Assert.Equal(0, peer.DisconnectCount);
+        Assert.Equal(0, peer.CommandCount);
+
+        await driver.StartAsync(CancellationToken.None);
+        Assert.Equal(DriverState.Running, driver.Status.State);
+        Assert.True(peer.Connected);
+        Assert.Equal(1, peer.ConnectCount);
+        Assert.Equal(1, peer.SubscribeCount);
+        Assert.Equal(0, peer.CommandCount);
+
+        await driver.StopAsync(CancellationToken.None);
+        Assert.Equal(DriverState.Stopped, driver.Status.State);
+        Assert.False(peer.Connected);
+        Assert.True(peer.DisconnectCount >= 1);
+        Assert.Equal(0, peer.CommandCount);
     }
 
     [Fact]
@@ -180,12 +223,16 @@ public sealed class EspHomeL3RuntimeTests
             new(EspHomeEntityKind.Switch, 0, 0x01020304, "state");
 
         public int CommandCount { get; private set; }
+        public int ConnectCount { get; private set; }
+        public int SubscribeCount { get; private set; }
+        public int DisconnectCount { get; private set; }
         public bool Connected { get; private set; }
 
         public ValueTask<EspHomeNativeInventory> ConnectAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             Connected = true;
+            ConnectCount++;
             return ValueTask.FromResult(new EspHomeNativeInventory(
                 new EspHomeApiVersion(1, 15),
                 new EspHomeDeviceIdentity(
@@ -206,6 +253,7 @@ public sealed class EspHomeL3RuntimeTests
         public ValueTask SubscribeStatesAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            SubscribeCount++;
             _states.Writer.TryWrite(new EspHomeStateUpdate(_address, false));
             return ValueTask.CompletedTask;
         }
@@ -233,6 +281,7 @@ public sealed class EspHomeL3RuntimeTests
         public ValueTask DisconnectAsync(CancellationToken cancellationToken = default)
         {
             Connected = false;
+            DisconnectCount++;
             return ValueTask.CompletedTask;
         }
 

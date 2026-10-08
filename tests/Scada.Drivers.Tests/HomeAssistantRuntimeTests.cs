@@ -25,6 +25,43 @@ public sealed class HomeAssistantRuntimeTests
     }
 
     [Fact]
+    public async Task MaterializedBridge_RemainsPhysicallyInertUntilNormalStart()
+    {
+        var tag = SwitchTag("HAB.Standby.State");
+        var peer = new RuntimePeer(State("switch.pump", "off"));
+        await using var driver = new HomeAssistantDriver(
+            "hab-standby",
+            "Home Assistant Bridge",
+            FastSettings(),
+            new CurrentTagCache(new InMemoryScadaEventBus()),
+            new InMemoryTagRegistry(),
+            [new HomeAssistantPoint(tag, "switch.pump", "state", HomeAssistantWriteMode.SwitchState)],
+            _ => peer,
+            _ => ValueTask.FromResult(new HomeAssistantResolvedCredential("token"u8.ToArray())),
+            effectAuthority: () => false);
+
+        Assert.Equal(DriverState.Stopped, driver.Status.State);
+        Assert.False(peer.Connected);
+        Assert.Equal(0, peer.ConnectCount);
+        Assert.Equal(0, peer.GetStatesCalls);
+        Assert.Equal(0, peer.SubscribeCalls);
+        Assert.Null(peer.LastService);
+
+        await driver.StartAsync(CancellationToken.None);
+        Assert.Equal(DriverState.Running, driver.Status.State);
+        Assert.True(peer.Connected);
+        Assert.Equal(1, peer.ConnectCount);
+        Assert.True(peer.GetStatesCalls >= 1);
+        Assert.True(peer.SubscribeCalls >= 1);
+        Assert.Null(peer.LastService);
+
+        await driver.StopAsync(CancellationToken.None);
+        Assert.Equal(DriverState.Stopped, driver.Status.State);
+        Assert.False(peer.Connected);
+        Assert.Null(peer.LastService);
+    }
+
+    [Fact]
     public async Task Write_DoesNotPublishRequestedValue_WithoutAuthoritativeReadback()
     {
         var bus = new InMemoryScadaEventBus();
@@ -196,7 +233,8 @@ public sealed class HomeAssistantRuntimeTests
             communicationComponents: components,
             protectedMaterialResolver: resolver);
 
-        var activation = await runtime.ActivateAsync("project-ha-l3", 1, package);
+        using var activationRequest = new CancellationTokenSource();
+        var activation = await runtime.ActivateAsync("project-ha-l3", 1, package, activationRequest.Token);
 
         Assert.True(
             activation.Activated,
@@ -205,6 +243,9 @@ public sealed class HomeAssistantRuntimeTests
         Assert.True(runtime.TryGetCurrent(tagId, out var initial));
         Assert.False(Assert.IsType<bool>(initial!.Value));
 
+        // Cancelling the short-lived activation request must not stop the committed Runtime.
+        activationRequest.Cancel();
+        Assert.Equal(DriverState.Running, Assert.Single(runtime.Describe().Drivers).State);
         await runtime.WriteAsync(tagId, true);
 
         Assert.Equal(("switch", "turn_on", "switch.pump"), peer.LastService);
@@ -322,6 +363,7 @@ public sealed class HomeAssistantRuntimeTests
         }
 
         public bool Connected { get; private set; }
+        public int ConnectCount { get; private set; }
         public bool Authenticated { get; private set; }
         public string? HomeAssistantVersion => "2026.10.test";
         public int SubscribeCalls { get; private set; }
@@ -335,6 +377,7 @@ public sealed class HomeAssistantRuntimeTests
             cancellationToken.ThrowIfCancellationRequested();
             if (accessToken.IsEmpty) throw new InvalidOperationException("Token required.");
             Connected = true;
+            ConnectCount++;
             Authenticated = true;
             return ValueTask.CompletedTask;
         }

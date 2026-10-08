@@ -1,20 +1,18 @@
 # NEXT COORDINATOR CHAT — CURRENT POINTER — 2026-10-08
 
-Read first: `docs/CURRENT-COORDINATOR-HANDOFF.md`, root `LAST CHANGE.md`, `docs/CHAT-COLLABORATION-PROTOCOL.md`, and `docs/PARALLEL-WORK.md` §3. Then revalidate GitHub live; do not use the older 2026-10-06 lane list below as current state.
+Read first: `docs/CURRENT-COORDINATOR-HANDOFF.md`, root `LAST CHANGE.md`, `docs/CHAT-COLLABORATION-PROTOCOL.md`, and `docs/PARALLEL-WORK.md` §3. Then revalidate GitHub live.
 
-Current integration: `wave15/corrections-integration@114f7c942c202a216afb1cec1950211b1f4232d5` (live compare identical).
+Current integration is `wave15/corrections-integration@cfd4ea9a718c3aede93a53606b3e5fd178fae2e1`, 11 ahead / 0 behind prior checkpoint `114f7c942c202a216afb1cec1950211b1f4232d5`.
 
-Current S4 lane: #565, branch `work/driver-interaction-s4-server-script@cb00e285d5f86393a915f0862d9e7068fc57a54c`, tree `e7fddcbabe266a16d18a0924648b67f60ac26ab2`; PR #568 OPEN / DRAFT / NOT MERGED, 7 ahead / 0 behind. Exact-head `SCRIPT_ENGINEERING` T1 #964 passed (Drivers 1,224 passed / 1 skipped; Security 42 passed / 0 failed). Main re-audit confirms both requested denial tests; the #963 failure was a positive-test fixture omission fixed without product changes. Main audit is complete; S4 DEV action is `WAIT` pending Main/Product Owner disposition. See #565 comment #6063461970.
+- S4 #565 / PR #568: CLOSED / MERGED at `d38d5825e546aa340a3bd3ab6b7a6e7a7b1d816b`; exact-head `SCRIPT_ENGINEERING` T1 #964 passed; Main re-audit #6063461970 passed. S4 DEV action: WAIT.
+- Mitsubishi #566 / PR #567: CLOSED / MERGED at `cfd4ea9a718c3aede93a53606b3e5fd178fae2e1`; exact-head `DRIVER_PROTOCOL` T1 #955 passed; L0-L3 PASS, L2 `SKIP_WITH_REASON` accepted. Mitsubishi DEV action: WAIT.
+- For all protocol drivers, physical L4 is deferred until after Wave 16 and partner disclosure, when a human tests after installing a stable release. L4 does not block code merge after applicable tests/T1 and Main audit; do not make compatibility claims before L4.
+- Panasonic #553 is CLOSED research-only; action NO ACTION.
+- Docs-only PR #569 remains OPEN / DRAFT. Revalidate its latest head and T1; it has no merge authorization.
 
-Mitsubishi PR #567 is OPEN / NOT MERGED with exact-head T1 PASS and L0-L3 evidence; L2 `SKIP_WITH_REASON` is accepted for this checkpoint. L4 is DEFERRED / NOT RUN until after Wave 16 and partner disclosure. Mitsubishi DEV action: `WAIT`.
+SIGA wakes only the chat that receives it. At the end of each Main response, identify the exact action for every active DEV chat. Wave 15 is not declared closed; #306/#300/#379/#424/#425 remain visible. No new lane is authorized by this handoff.
 
-Panasonic research #553 is CLOSED; no active implementation assignment. Panasonic DEV action: `NO ACTION`.
-
-Wake rule: `SIGA` in a specific DEV conversation wakes only that chat. GitHub comments, branch updates, PRs and Actions do not wake it. Every Main response must name the exact chat and user action; every DEV response states its exact next step and whether that same chat needs `SIGA`, should `WAIT`, or is done.
-
-Physical L4 remains deferred until after Wave 16 and partner disclosure. Do not request it now, substitute simulation, or claim compatibility. No Product Owner credential action is pending. No merge is authorized for #567, #568 or #569.
 ---
-
 ## Historical pointers below — superseded by this current pointer
 ## Historical pointer — 2026-10-06 22:31 BRT (superseded)
 

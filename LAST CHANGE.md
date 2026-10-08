@@ -1,39 +1,35 @@
 # LATEST COORDINATION CHANGE — 2026-10-08 (BRT)
 
-> This entry supersedes the 2026-10-06 operational snapshots below. Historical entries remain for context; revalidate GitHub live before acting.
+> This entry supersedes the earlier 2026-10-08 status snapshot below. Historical entries remain for context; revalidate GitHub live before acting.
 
-## Main coordination difficulty and correction
+## Coordination corrections and operating rules
 
-Three coordination errors stalled DEV progress:
+Three coordination errors stalled DEV work: Main expected a SIGA in Main to wake a separate DEV chat; asked the Product Owner to configure Git credentials after an HTTPS push failed; and treated L4 deferral as a pre-merge gate. The correction is:
 
-- Main sent or expected `SIGA` in the Main conversation to wake the S4 DEV conversation. A signal only wakes the conversation that receives it; GitHub comments, PRs and Actions do not wake another ChatGPT chat.
-- Main asked the Product Owner to enable HTTPS credentials / provide a Git token after the local `git push` and missing `gh` CLI blocked publication. The owner should not be asked to configure credentials or share a secret in chat. Use the authorized GitHub connector/API for Git objects and refs; if it cannot write, report `BLOCKED_GIT_AUTH` to Main.
-- Main treated local focused tests and a GitHub checkpoint comment as sufficient validation, and followed coordinator docs that still described 2026-10-06 state. Local tests are T0 evidence; the lane PR must produce exact-head GitHub T1. Re-read live branches, PRs, Actions and current coordination docs on every wake.
-
-Correction now recorded in `docs/CHAT-COLLABORATION-PROTOCOL.md` and `docs/PARALLEL-WORK.md`: chat wake is local, GitHub is durable state, each Main response identifies the exact DEV chat that needs `SIGA` / `WAIT` / `NO ACTION`, and DEV Bootstraps must include live-state revalidation, exact-tree publication, exact-head T1, failure classification, and no-credential/no-merge rules.
+- SIGA wakes only the receiving chat. GitHub comments, branches, PRs and Actions preserve state but do not wake another chat. Every Main response identifies each active DEV chat and says SIGA, WAIT or NO ACTION for that exact chat.
+- Do not ask the Product Owner for credentials or tokens. Use the authorized GitHub connector/API Git Database route where available; verify the published tree and ref. If no approved route is available, report BLOCKED_GIT_AUTH to Main and continue safe work.
+- Local tests are T0. GitHub live is the authority; require normal exact-head T1 on the published SHA and Main audit before integration. Classify failures before fixing them; do not change correct product to satisfy stale tests.
+- Physical L4 is a human validation after Wave 16, after installing a stable EliteSCADA release on a computer. It does not block code integration/merge after implementation, applicable intermediate checks, exact-head T1 and Main audit pass, when the Product Owner's merge authorization applies. Do not claim compatibility before physical L4 evidence.
 
 ## Current live state
 
-- Integration: `wave15/corrections-integration@114f7c942c202a216afb1cec1950211b1f4232d5`; live compare remains identical.
-- S4 / issue #565: branch `work/driver-interaction-s4-server-script@cb00e285d5f86393a915f0862d9e7068fc57a54c`, tree `e7fddcbabe266a16d18a0924648b67f60ac26ab2`, parent `d75f98bf53ef48203c167532e0974f4206d7e21a); required base/merge-base `114f7c942c202a216afb1cec1950211b1f4232d5`, compare 7 ahead / 0 behind. PR #568 is OPEN / DRAFT / NOT MERGED.
-- Exact-head `SCRIPT_ENGINEERING` T1 [run 37800137677 / #964](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/37800137677) passed on the current S4 head: Drivers 1,224 passed / 1 skipped / 0 failed; Security 42 passed / 0 failed. Classifier, Common sanity, focused .NET and T1 gate passed; Web, Chromium and HA two-process were router-skipped. No broad CI.
-- Main re-audit [#6063461970](https://github.com/brunolrogerio-collab/EliteSCADA/issues/565#issuecomment-6063461970) confirms the two requested rejection tests: undeclared command and wrong exact command scope both stop before dispatch; denial is audited and state is unchanged. The only #963 failure was a missing declared dependency in the positive-path test fixture; the current commit fixes that fixture only. No product change in the last correction.
-- S4 re-audit is complete. Keep #568 draft; there is no merge authorization or PR-ready transition. Physical L4 remains DEFERRED / NOT RUN until after Wave 16 and partner disclosure; no compatibility claim.
-- Mitsubishi PR #567 is OPEN / NOT MERGED at `fdc1385b699a907fc1744c91ab5916bf7bdcf74f`; exact-head `DRIVER_PROTOCOL` T1 #37782117990 passed. L0-L3 are reported PASS; L2 `SKIP_WITH_REASON` is accepted for this checkpoint. L4 is DEFERRED / NOT RUN until after Wave 16 and partner disclosure; no compatibility claim.
-- Panasonic research issue #553 is CLOSED; no implementation assignment is active.
-- Coordinator docs PR #569 is docs-only and OPEN / DRAFT / NOT MERGED. Revalidate its latest exact-head `DOCS_I18N_HELP` T1 on the PR before any disposition.
-- No broad CI was started. Physical L4 is unavailable now and stays deferred until after Wave 16 and partner disclosure.
+- Integration: `wave15/corrections-integration@cfd4ea9a718c3aede93a53606b3e5fd178fae2e1`; 11 commits ahead / 0 behind the prior checkpoint `114f7c942c202a216afb1cec1950211b1f4232d5`.
+- S4 / #565: PR #568 CLOSED / MERGED at `d38d5825e546aa340a3bd3ab6b7a6e7a7b1d816b`. Exact-head `SCRIPT_ENGINEERING` T1 [37800137677 / #964](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/37800137677) passed: Drivers 1,224 passed / 1 skipped / 0 failed; Security 42 / 0 failed. Main re-audit #6063461970 confirmed denial-before-dispatch and audit evidence. Issue #565 is closed. S4 DEV action: WAIT; no more S4 work is requested.
+- Mitsubishi / #566: PR #567 CLOSED / MERGED at current integration head `cfd4ea9a718c3aede93a53606b3e5fd178fae2e1`. Exact-head `DRIVER_PROTOCOL` T1 [37782117990 / #955](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/37782117990) passed on `fdc1385b699a907fc1744c91ab5916bf7bdcf74f`: Drivers 1,239 passed / 1 skipped / 0 failed. L0-L3 PASS; L2 `SKIP_WITH_REASON` accepted for this checkpoint. L4 is DEFERRED / NOT RUN until after Wave 16 and partner disclosure, when a human tests with a stable EliteSCADA installation. It is not a merge gate; no physical compatibility claim yet. Mitsubishi DEV action: WAIT.
+- Panasonic research #553 is CLOSED; no implementation chat is active. Action: NO ACTION.
+- Coordinator Bootstrap PR #569 is docs-only, OPEN / DRAFT / NOT MERGED. Revalidate its latest head and exact-head `DOCS_I18N_HELP` T1 before disposition. No merge authorization for #569 is recorded.
+- Wave 15 is not declared closed: #306 Productization, #300 final Preview, #379 i18n, #424 Help and #425 Manual remain visible. No broad CI was started for these coordination updates.
 
-## Immediate coordination action
+## Immediate chat actions
 
-- S4 DEV chat: `WAIT`; Main re-audit of the requested tests is complete. The PR stays draft pending Main/Product Owner disposition.
-- Mitsubishi DEV chat: `WAIT`; its current published candidate has T1 and L0-L3 evidence; L4 is scheduled after Wave 16 and partner disclosure.
-- Panasonic DEV chat: `NO ACTION`; #553 is closed research and there is no implementation assignment.
-- Main: continue from live GitHub. `SIGA` in Main does not wake another DEV chat and does not authorize a merge. Keep PRs unmerged until explicit authorization.
+- `DEV-DRIVER-INTERACTION-S4`: WAIT; merged, no further code or tests requested.
+- `DEV-INDUSTRIAL-MITSUBISHI-MELSEC-V1`: WAIT; merged, no further code or CI now. L4 is a human task after Wave 16.
+- Panasonic: NO ACTION; #553 is research-only and closed.
+- Main: do not start another driver lane until the Product Owner sets the next priority. SIGA alone does not authorize a new lane or merge.
 
-No Product Owner credential action is pending. No merge is authorized for #567, #568 or #569.
+No Product Owner credential action is pending.
+
 ---
-
 ## Historical snapshot — 2026-10-06 22:31 BRT (superseded)
 
 Outgoing Main handoff recorded in:

@@ -86,13 +86,17 @@ Validation and publication:
 - Run the minimum focused checks needed, then publish the exact candidate and open/update the lane PR to trigger or attach exact-head T1. Observe an already-running broad workflow; do not start a duplicate. Full CI is reserved for its normal gate, material risk, or post-integration flow.
 - If HTTPS push fails or `gh` is unavailable, do not ask the Product Owner to configure credentials or send a token. Use the authorized connected GitHub Git Database/API path when available: read the live ref; create blobs/tree/commit with the current branch HEAD as parent; advance the ref with expected-head/CAS and `force=false`; then re-read GitHub and verify the commit/tree. Preserve the source tree and record local provenance SHA separately from the GitHub commit SHA.
 - If this chat has no approved write path, report `BLOCKED_GIT_AUTH` to Main with the exact error, source SHA/tree, changed paths and local T0 evidence. Do not claim publication or T1. Continue lane work that does not depend on publication if safe; otherwise wait for Main's operational unblock. Never ask the Product Owner to resolve routine credential setup.
-- Physical L4 scheduled after Wave 16 and partner disclosure is `DEFERRED / NOT RUN` now. Continue only the lane's available authorized gates. Do not substitute a simulator for physical L4 or claim compatibility before its evidence is recorded.
+- Human physical L4 for all drivers is scheduled only after Wave 16 and partner disclosure, after a stable EliteSCADA release is installed on a computer; record `DEFERRED / NOT RUN` until then. L4 is not a code merge gate when implementation, applicable intermediate tests, exact-head T1 and Main audit pass and the Product Owner's merge authorization applies. Do not substitute a simulator or claim hardware compatibility before L4 evidence.
 
 Boundaries and response format:
-- Never merge your PR. A green T1 is not merge authorization. Merge requires separate explicit Product Owner authorization through Main.
+- Never merge your PR. A green T1 is not merge authorization. Merge requires explicit Product Owner authorization through Main. When that authorization is already conditional on named gates, Main checks them live and merges once satisfied without asking the owner to repeat the authorization.
 - Do not expand scope, consume another lane, or change shared contracts, schema, dependencies, Security Authority or High Availability internals unless the lane explicitly permits it or Main authorizes the gate.
 - End every response with lane status; exact GitHub SHA/tree/PR/T1 state; the exact next action; who acts next; and whether the user should send `SIGA` in THIS DEV chat, wait for Main, or take no action. Include the current local timestamp as `DD/MM/YYYY — Hora: HH:MM BRT`.
 ```
+
+### 3.2.1 L4 and merge disposition
+
+Every DEV Bootstrap must state that L4 is a human physical validation after Wave 16 and partner disclosure, following installation of a stable EliteSCADA release on a computer. It remains `DEFERRED / NOT RUN` until then and does not block integration/merge after the software gates and Main audit pass. No hardware compatibility claim is allowed before L4 evidence. SIGA resumes an authorized lane but never supplies merge authorization; Main acts on a prior explicit conditional authorization once its named gates pass.
 
 ### 3.3 Publication and validation state labels
 

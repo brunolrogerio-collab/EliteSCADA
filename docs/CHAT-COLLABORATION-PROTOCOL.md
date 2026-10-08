@@ -143,6 +143,13 @@ At the end of each Main response, enumerate the active DEV chats and tell the Pr
 
 ## 10. Required DEV Bootstrap and GitHub evidence
 
-Every new DEV assignment must carry the reusable operating block in `docs/PARALLEL-WORK.md` §3.2, with the exact lane issue, branch, base SHA, allowed/forbidden scope, required validation profile and report destination filled in. A Bootstrap must say that local tests are T0 only, GitHub live is the authority, a normal exact-head T1 on the published SHA is required, failures must be classified before correction, and no merge occurs without separate explicit Product Owner authorization.
+Every new DEV assignment must carry the reusable operating block in `docs/PARALLEL-WORK.md` §3.2, with the exact lane issue, branch, base SHA, allowed/forbidden scope, required validation profile and report destination filled in. A Bootstrap must say that local tests are T0 only, GitHub live is the authority, a normal exact-head T1 on the published SHA is required, failures must be classified before correction, and no merge occurs without separate explicit Product Owner authorization. If the owner has already given conditional authorization tied to named tests and audit gates, Main revalidates those gates live and merges once they pass; do not ask the owner to repeat it.
 
 If ordinary HTTPS push or the `gh` CLI is unavailable, do not ask the Product Owner to create credentials or share a token. Use the authorized GitHub connector/API to publish Git blobs/tree/commit/ref when available, verify the published tree, or report `BLOCKED_GIT_AUTH` to Main. Never claim repository publication or T1 based only on a local checkout. Physical L4 scheduled after Wave 16 and partner disclosure must be recorded as `DEFERRED / NOT RUN` until then; do not substitute simulation or claim compatibility. Continue the other authorized available gates.
+
+
+## 11. Human L4 and code merge readiness
+
+Physical L4 is a human validation that happens only after Wave 16 and partner disclosure, after a stable EliteSCADA release has been installed on a computer. Until that time, record L4 as `DEFERRED / NOT RUN`; do not substitute a simulator. L4 is not a pre-merge blocker for completed driver code. A driver may be integrated when its implementation is complete, applicable intermediate/focused tests and exact-head T1 pass, Main's audit passes, and the Product Owner's applicable merge authorization is present. The coordinator revalidates those facts in live GitHub and executes an already-authorized conditional merge without asking the owner to repeat it. Do not claim hardware compatibility until a human records L4 evidence.
+
+S4 Server Script functionality is not a physical protocol compatibility claim; its code/test/audit gates stand on their own. The physical L4 rule applies to driver hardware validation.

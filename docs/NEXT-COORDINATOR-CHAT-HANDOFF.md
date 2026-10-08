@@ -4,15 +4,15 @@ Read first: `docs/CURRENT-COORDINATOR-HANDOFF.md`, root `LAST CHANGE.md`, `docs/
 
 Current integration: `wave15/corrections-integration@114f7c942c202a216afb1cec1950211b1f4232d5` (live compare identical).
 
-Current S4 lane: #565, branch `work/driver-interaction-s4-server-script@4801d8111268d16db0d6fd374692f904538780ac`, tree `57813b93c1c06e6574612b917ebcc4056a22d332`; PR #568 OPEN / DRAFT / NOT MERGED. Exact-head `SCRIPT_ENGINEERING` T1 #37789907955 passed. Main's bounded audit requests two end-to-end rejection tests: undeclared Rich Command and declared command without exact `CommandExecute` grant must not reach `IRichCommandRuntime`. The request is in #565 comment #6061839876. Next action: user sends `SIGA` in the S4 DEV chat; Dev adds focused tests, publishes the exact tree and runs a fresh exact-head T1. No broad CI, PR-ready transition or merge.
+Current S4 lane: #565, branch `work/driver-interaction-s4-server-script@cb00e285d5f86393a915f0862d9e7068fc57a54c`, tree `e7fddcbabe266a16d18a0924648b67f60ac26ab2`; PR #568 OPEN / DRAFT / NOT MERGED, 7 ahead / 0 behind. Exact-head `SCRIPT_ENGINEERING` T1 #964 passed (Drivers 1,224 passed / 1 skipped; Security 42 passed / 0 failed). Main re-audit confirms both requested denial tests; the #963 failure was a positive-test fixture omission fixed without product changes. Main audit is complete; S4 DEV action is `WAIT` pending Main/Product Owner disposition. See #565 comment #6063461970.
 
-Mitsubishi PR #567 remains OPEN / NOT MERGED at `fdc1385b699a907fc1744c91ab5916bf7bdcf74f`, with exact-head `DRIVER_PROTOCOL` T1 #37782117990 PASS. L0-L3 PASS; L2 `SKIP_WITH_REASON` accepted for this checkpoint. L4 is DEFERRED / NOT RUN until after Wave 16 and partner disclosure, with no compatibility claim. Mitsubishi DEV action: `WAIT`.
+Mitsubishi PR #567 is OPEN / NOT MERGED with exact-head T1 PASS and L0-L3 evidence; L2 `SKIP_WITH_REASON` is accepted for this checkpoint. L4 is DEFERRED / NOT RUN until after Wave 16 and partner disclosure. Mitsubishi DEV action: `WAIT`.
 
-Panasonic research #553 is CLOSED and has no active implementation assignment. Panasonic DEV action: `NO ACTION`.
+Panasonic research #553 is CLOSED; no active implementation assignment. Panasonic DEV action: `NO ACTION`.
 
-Wake rule: only `SIGA` in a specific DEV conversation wakes that chat. GitHub comments, branch updates, PRs and Actions do not wake it. Every Main response must name the exact chat and user action; every DEV response must say its exact next step and whether that same chat needs `SIGA`, should `WAIT`, or is done.
+Wake rule: `SIGA` in a specific DEV conversation wakes only that chat. GitHub comments, branch updates, PRs and Actions do not wake it. Every Main response must name the exact chat and user action; every DEV response states its exact next step and whether that same chat needs `SIGA`, should `WAIT`, or is done.
 
-Physical L4 is deferred until after Wave 16 and partner disclosure. Do not request it now, treat simulation as a substitute, or claim compatibility. No Product Owner credential action is pending; use the authorized GitHub publication route or report `BLOCKED_GIT_AUTH`.
+Physical L4 remains deferred until after Wave 16 and partner disclosure. Do not request it now, substitute simulation, or claim compatibility. No Product Owner credential action is pending. No merge is authorized for #567, #568 or #569.
 ---
 
 ## Historical pointers below — superseded by this current pointer

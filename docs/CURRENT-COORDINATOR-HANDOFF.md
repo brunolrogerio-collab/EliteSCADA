@@ -6,14 +6,15 @@ GitHub live is the only authority. On every wake, revalidate the exact branch, S
 
 ## Current integration and lanes
 
-- Integration: `wave15/corrections-integration@114f7c942c202a216afb1cec1950211b1f4232d5`; live compare is identical to this checkpoint.
-- S4 / #565: `work/driver-interaction-s4-server-script@4801d8111268d16db0d6fd374692f904538780ac`, tree `57813b93c1c06e6574612b917ebcc4056a22d332); PR #568 OPEN / DRAFT / NOT MERGED, 5 ahead / 0 behind. Exact-head `SCRIPT_ENGINEERING` T1 #37789907955 passed (Drivers 1,222 passed / 1 skipped; Security 42 passed / 0 failed). Router-skipped jobs: Web, Chromium and HA two-process; no broad CI.
-- Main's review found a validation gap, not a reported product defect: add tests proving an undeclared Rich Command and a declared command without the exact `CommandExecute` grant are denied before the runtime is invoked. The request is in #565 comment #6061839876. Keep implementation unchanged unless a test exposes a defect; then classify and fix within S4 or escalate a shared-contract issue to Main. Run focused checks and a fresh exact-head T1 only.
-- S4 recovery correction uses the no-callback ordinary activation path and commits the prepared interaction graph only after successful activation. The HA takeover callback is retained. Stable Server Memory values persist across revisions for a stable TAG ID. No shared Security Authority change.
-- Mitsubishi PR #567 is OPEN / NOT MERGED at `fdc1385b699a907fc1744c91ab5916bf7bdcf74f`; exact-head `DRIVER_PROTOCOL` T1 #37782117990 passed. L0-L3 PASS is reported; L2 `SKIP_WITH_REASON` is accepted for this checkpoint. L4 is DEFERRED / NOT RUN until after Wave 16 and partner disclosure; no compatibility claim.
-- Panasonic research #553 is CLOSED; no active implementation assignment.
-- Physical L4 cannot be run before the planned post-Wave-16 partner disclosure. Do not request L4 now, substitute simulation, or state compatibility.
-- PR #569 contains this coordination-document update and remains docs-only / OPEN / DRAFT / NOT MERGED pending narrow exact-head `DOCS_I18N_HELP` T1.
+- Integration: `wave15/corrections-integration@114f7c942c202a216afb1cec1950211b1f4232d5`; live compare remains identical.
+- S4 / #565: branch `work/driver-interaction-s4-server-script@cb00e285d5f86393a915f0862d9e7068fc57a54c`, tree `e7fddcbabe266a16d18a0924648b67f60ac26ab2`; PR #568 OPEN / DRAFT / NOT MERGED, 7 ahead / 0 behind. Exact-head T1 #964 passed: Drivers 1,224 passed / 1 skipped; Security 42 passed / 0 failed. The profile router skipped Web, Chromium and HA two-process; no broad CI.
+- Main's re-audit is complete. Tests prove undeclared Rich Command and wrong command-scope grant both block dispatch; the denied invocation is audited and neither denial changes Server Memory. T1 #963 exposed only a missing command declaration in the positive-path test fixture; the current head fixes that test fixture. Details are in #565 comment #6063461970.
+- S4 recovery correction uses no-callback ordinary activation and commits the prepared interaction graph after successful activation. The HA takeover callback is retained; stable Server Memory persists for a stable TAG ID across revisions. No shared Security Authority change.
+- S4 DEV action: `WAIT` for Main/Product Owner disposition. Keep PR #568 draft; no merge authorization or PR-ready transition is inferred.
+- Mitsubishi PR #567: exact-head T1 #37782117990 passed; L0-L3 PASS is reported; L2 `SKIP_WITH_REASON` accepted for this checkpoint. L4 DEFERRED / NOT RUN until after Wave 16 and partner disclosure; no compatibility claim. Mitsubishi DEV action: `WAIT`.
+- Panasonic research #553 is CLOSED; there is no active implementation assignment. Panasonic DEV action: `NO ACTION`.
+- Physical L4 is not available now. Do not request it before the planned post-Wave-16 partner disclosure or treat simulation as physical evidence.
+- Docs PR #569 is OPEN / DRAFT / NOT MERGED; revalidate its latest exact-head `DOCS_I18N_HELP` T1 in Actions before disposition.
 
 ## Main coordination correction
 

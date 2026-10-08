@@ -14,22 +14,22 @@ Correction now recorded in `docs/CHAT-COLLABORATION-PROTOCOL.md` and `docs/PARAL
 
 ## Current live state
 
-- Integration: `wave15/corrections-integration@114f7c942c202a216afb1cec1950211b1f4232d5`; live compare is identical to this checkpoint.
-- S4 / issue #565: branch `work/driver-interaction-s4-server-script@4801d8111268d16db0d6fd374692f904538780ac`, tree `57813b93c1c06e6574612b917ebcc4056a22d332`, based on the integration SHA above; 5 ahead / 0 behind. PR #568 is OPEN / DRAFT / NOT MERGED.
-- Exact-head `SCRIPT_ENGINEERING` T1 [run 37789907955](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/37789907955) passed: Drivers 1,222 passed / 1 skipped / 0 failed; Security 42 passed / 0 failed. Classifier, Common T1 sanity and T1 gate passed. Web, Chromium and HA two-process jobs were router-skipped; no broad CI ran.
-- S4 correction history: original T1 #37787089773 had two stale fixture failures and one ordinary-recovery regression. After disabling the unregistered test-only `test.driver`, T1 #37788525934 exposed a stale Server Memory reset assertion plus the recovery regression. The current candidate retains stable TAG values across revisions and uses no-callback ordinary recovery, committing the prepared interaction graph only after activation succeeds; the HA takeover callback remains. No shared Security Authority change.
-- Main's bounded audit is recorded in #565 comment #6061839876 and PR #568. The T1 is green, but required end-to-end evidence is missing for (1) an undeclared Rich Command and (2) a declared command without an exact `CommandExecute` grant being rejected before `IRichCommandRuntime` dispatch. S4 Dev should add those focused tests, keep product code unchanged unless a test reveals a defect, publish the exact tree, and obtain a fresh exact-head T1. Keep #568 draft; no merge or PR-ready transition is authorized.
+- Integration: `wave15/corrections-integration@114f7c942c202a216afb1cec1950211b1f4232d5`; live compare remains identical.
+- S4 / issue #565: branch `work/driver-interaction-s4-server-script@cb00e285d5f86393a915f0862d9e7068fc57a54c`, tree `e7fddcbabe266a16d18a0924648b67f60ac26ab2`, parent `d75f98bf53ef48203c167532e0974f4206d7e21a); required base/merge-base `114f7c942c202a216afb1cec1950211b1f4232d5`, compare 7 ahead / 0 behind. PR #568 is OPEN / DRAFT / NOT MERGED.
+- Exact-head `SCRIPT_ENGINEERING` T1 [run 37800137677 / #964](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/37800137677) passed on the current S4 head: Drivers 1,224 passed / 1 skipped / 0 failed; Security 42 passed / 0 failed. Classifier, Common sanity, focused .NET and T1 gate passed; Web, Chromium and HA two-process were router-skipped. No broad CI.
+- Main re-audit [#6063461970](https://github.com/brunolrogerio-collab/EliteSCADA/issues/565#issuecomment-6063461970) confirms the two requested rejection tests: undeclared command and wrong exact command scope both stop before dispatch; denial is audited and state is unchanged. The only #963 failure was a missing declared dependency in the positive-path test fixture; the current commit fixes that fixture only. No product change in the last correction.
+- S4 re-audit is complete. Keep #568 draft; there is no merge authorization or PR-ready transition. Physical L4 remains DEFERRED / NOT RUN until after Wave 16 and partner disclosure; no compatibility claim.
 - Mitsubishi PR #567 is OPEN / NOT MERGED at `fdc1385b699a907fc1744c91ab5916bf7bdcf74f`; exact-head `DRIVER_PROTOCOL` T1 #37782117990 passed. L0-L3 are reported PASS; L2 `SKIP_WITH_REASON` is accepted for this checkpoint. L4 is DEFERRED / NOT RUN until after Wave 16 and partner disclosure; no compatibility claim.
-- Panasonic research issue #553 is CLOSED. No Panasonic implementation chat or assignment is active.
-- Physical L4 is not available now. Preserve it as a future gate after Wave 16 and partner disclosure. Do not substitute simulation for physical evidence or state compatibility.
-- Coordinator documentation PR #569 is docs-only, OPEN / DRAFT / NOT MERGED. This update will receive its own narrow exact-head `DOCS_I18N_HELP` T1. No broad CI or merge is authorized.
+- Panasonic research issue #553 is CLOSED; no implementation assignment is active.
+- Coordinator docs PR #569 is docs-only and OPEN / DRAFT / NOT MERGED. Revalidate its latest exact-head `DOCS_I18N_HELP` T1 on the PR before any disposition.
+- No broad CI was started. Physical L4 is unavailable now and stays deferred until after Wave 16 and partner disclosure.
 
 ## Immediate coordination action
 
-- S4 DEV chat: send `SIGA` in that exact chat so the Dev can add the two requested focused rejection tests and continue the already-authorized lane. This does not authorize merge.
-- Mitsubishi DEV chat: `WAIT`; the published candidate has passing T1 and L0-L3 evidence, while physical L4 is scheduled after Wave 16 and partner disclosure.
+- S4 DEV chat: `WAIT`; Main re-audit of the requested tests is complete. The PR stays draft pending Main/Product Owner disposition.
+- Mitsubishi DEV chat: `WAIT`; its current published candidate has T1 and L0-L3 evidence; L4 is scheduled after Wave 16 and partner disclosure.
 - Panasonic DEV chat: `NO ACTION`; #553 is closed research and there is no implementation assignment.
-- Main must state the exact action for each active DEV chat in every response. GitHub comments and Actions do not wake separate chats.
+- Main: continue from live GitHub. `SIGA` in Main does not wake another DEV chat and does not authorize a merge. Keep PRs unmerged until explicit authorization.
 
 No Product Owner credential action is pending. No merge is authorized for #567, #568 or #569.
 ---

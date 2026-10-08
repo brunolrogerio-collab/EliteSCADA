@@ -16,7 +16,7 @@ Integration checkpoint: `wave15/corrections-integration@cfd4ea9a718c3aede93a5360
 - PR target: `wave15/corrections-integration`.
 - Validation profile: DRIVER_PROTOCOL plus inferred risk floor.
 - Checkpoints/handoff: #573; code/tests/exact-head T1: lane PR; shared/Main decisions: #305.
-- Scope: separately user-operated Z2M over existing MQTT transport; sanitized bridge/device inventory; selected canonical Equipment/TAG/Capability discovery; bounded stateful Boolean/Float64 mapping; availability/reconnect/report/readback truth; PointRead/#500/#560.
+- Scope: separately user-operated Z2M over existing MQTT transport; sanitized bridge/device inventory; selected canonical Equipment/TAG/Capability discovery; bounded stateful Boolean/Double TAG mapping; availability/reconnect/report/readback truth; PointRead/#500/#560.
 - No native radio, managed/bundled Z2M, commissioning/group/scene mutation, transient-event TAG, Rich/S6 expansion, new dependency/schema/security authority.
 - Publication to this repo/branch and PR/comment reporting are explicitly authorized. IMPLEMENT -> focused TEST -> COMMIT/PUBLISH -> CHECKPOINT -> CONTINUE. No additional per-checkpoint owner authorization.
 - Two bounded additive registration hooks are delegated in #573: CommunicationDriverRuntimeComposition and EngineeringDriverCatalogApi. Put the tooling factory in a new isolated file. Main owns ordered reconciliation with Panasonic; no unmerged-lane consumption or unrelated shared-file edits.

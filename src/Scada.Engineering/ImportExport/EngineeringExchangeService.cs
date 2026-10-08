@@ -216,7 +216,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             tags,
             assets,
             views,
-            commands);
+            commands,
+            _driverInteractions);
         _alarmHandler = new AlarmEngineeringHandler(alarms, _tagHandler);
         _assetHandler = new AssetEngineeringHandler(assets, tags, _visualAssets, dataSources, commands);
         _visualAssetHandler = new VisualAssetEngineeringHandler(_visualAssets);

@@ -65,7 +65,8 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
                 scriptEvent.EnqueuedAt,
                 ToPythonCanonicalEvent(scriptEvent.Identity.CanonicalEventOccurrence)),
             values,
-            serverMemoryTags);
+            serverMemoryTags,
+            ResolveRichCommandIds(script));
 
         using var process = new Process
         {
@@ -93,15 +94,104 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
             throw new ScriptExecutionDiagnosticException($"Python runtime is unavailable ({ex.GetType().Name}).");
         }
 
-        await process.StandardInput.WriteAsync(
-            JsonSerializer.Serialize(request, JsonOptions).AsMemory(),
-            lease.CancellationToken);
-        process.StandardInput.Close();
-
-        var stdoutTask = process.StandardOutput.ReadToEndAsync(lease.CancellationToken);
         var stderrTask = process.StandardError.ReadToEndAsync(lease.CancellationToken);
+        PythonExecutionResponse? response = null;
         try
         {
+            await process.StandardInput.WriteLineAsync(
+                JsonSerializer.Serialize(request, JsonOptions).AsMemory(),
+                lease.CancellationToken).ConfigureAwait(false);
+            await process.StandardInput.FlushAsync(lease.CancellationToken).ConfigureAwait(false);
+
+            while (true)
+            {
+                var line = await process.StandardOutput.ReadLineAsync(lease.CancellationToken)
+                    .ConfigureAwait(false);
+                if (line is null)
+                    break;
+
+                PythonRunnerMessage message;
+                try
+                {
+                    message = JsonSerializer.Deserialize<PythonRunnerMessage>(line, JsonOptions)
+                        ?? throw new InvalidDataException();
+                }
+                catch
+                {
+                    throw new ScriptExecutionDiagnosticException("Python handler returned an invalid protocol message.");
+                }
+
+                if (string.Equals(message.Type, "richCommandRequest", StringComparison.Ordinal))
+                {
+                    if (!message.RequestId.HasValue ||
+                        !Guid.TryParse(message.CommandId, out var commandId) ||
+                        commandId == Guid.Empty)
+                    {
+                        throw new ScriptExecutionDiagnosticException("Python handler returned an invalid Rich Command request.");
+                    }
+
+                    PythonRichCommandResponse commandResponse;
+                    try
+                    {
+                        var result = await host.InvokeRichCommandAsync(
+                                projectKey,
+                                revision,
+                                script,
+                                commandId,
+                                message.Parameters,
+                                lease.CancellationToken)
+                            .ConfigureAwait(false);
+                        commandResponse = new PythonRichCommandResponse(
+                            "richCommandResponse",
+                            message.RequestId.Value,
+                            new PythonRichCommandResult(
+                                result.InvocationId,
+                                result.CommandId,
+                                result.Outcome.ToString(),
+                                result.ObservedAt,
+                                result.Code,
+                                result.Message));
+                    }
+                    catch (ScriptExecutionDiagnosticException ex)
+                    {
+                        commandResponse = new PythonRichCommandResponse(
+                            "richCommandResponse",
+                            message.RequestId.Value,
+                            Result: null,
+                            Error: ex.Message);
+                    }
+                    catch (OperationCanceledException) when (lease.CancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        commandResponse = new PythonRichCommandResponse(
+                            "richCommandResponse",
+                            message.RequestId.Value,
+                            Result: null,
+                            Error: $"Rich Command invocation failed ({ex.GetType().Name}).");
+                    }
+
+                    await process.StandardInput.WriteLineAsync(
+                        JsonSerializer.Serialize(commandResponse, JsonOptions).AsMemory(),
+                        lease.CancellationToken).ConfigureAwait(false);
+                    await process.StandardInput.FlushAsync(lease.CancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                if (string.Equals(message.Type, "complete", StringComparison.Ordinal))
+                {
+                    if (message.Response is not { } payload || payload.ValueKind != JsonValueKind.Object)
+                        throw new ScriptExecutionDiagnosticException("Python handler returned an invalid result payload.");
+                    response = payload.Deserialize<PythonExecutionResponse>(JsonOptions)
+                        ?? throw new ScriptExecutionDiagnosticException("Python handler returned an invalid result payload.");
+                    break;
+                }
+
+                throw new ScriptExecutionDiagnosticException("Python handler returned an unknown protocol message.");
+            }
+
             await process.WaitForExitAsync(lease.CancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
@@ -109,22 +199,18 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
             TryKill(process);
             throw;
         }
+        catch
+        {
+            TryKill(process);
+            throw;
+        }
 
-        var stdout = await stdoutTask.ConfigureAwait(false);
         var stderr = await stderrTask.ConfigureAwait(false);
         if (process.ExitCode != 0)
             throw new ScriptExecutionDiagnosticException(Sanitize(stderr));
-
-        PythonExecutionResponse response;
-        try
-        {
-            response = JsonSerializer.Deserialize<PythonExecutionResponse>(stdout, JsonOptions)
-                ?? throw new InvalidDataException();
-        }
-        catch
-        {
-            throw new ScriptExecutionDiagnosticException("Python handler returned an invalid result payload.");
-        }
+        process.StandardInput.Close();
+        if (response is null)
+            throw new ScriptExecutionDiagnosticException("Python handler did not complete its protocol.");
 
         if (!response.Succeeded)
             throw new ScriptExecutionDiagnosticException(response.Error ?? "Python handler failed.");
@@ -258,6 +344,24 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
         return new AllowedTagDependencies(kinds, referencesByTagId, tagIdsByReference);
     }
 
+    private static IReadOnlyCollection<string> ResolveRichCommandIds(PythonScriptDefinition script)
+    {
+        var result = new HashSet<Guid>();
+        foreach (var dependency in script.Dependencies)
+        {
+            if (!dependency.Kind.Equals("RichCommand", StringComparison.OrdinalIgnoreCase) &&
+                !dependency.Kind.Equals("rich-command", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (!Guid.TryParse(dependency.StableReference, out var commandId) || commandId == Guid.Empty)
+                throw new ScriptExecutionDiagnosticException(
+                    "Server Script has an invalid stable Rich Command dependency.");
+            result.Add(commandId);
+        }
+
+        return result.OrderBy(id => id).Select(id => id.ToString("D")).ToArray();
+    }
+
     private static object? ConvertValue(JsonElement value, TagDataType dataType) => dataType switch
     {
         TagDataType.Boolean => value.GetBoolean(),
@@ -360,7 +464,29 @@ public sealed class IsolatedPythonScriptHandlerExecutor(
         string Handler,
         PythonEventPayload Event,
         IReadOnlyDictionary<string, object?> Values,
-        IReadOnlyCollection<string> ServerMemoryTagIds);
+        IReadOnlyCollection<string> ServerMemoryTagIds,
+        IReadOnlyCollection<string> RichCommandIds);
+
+    private sealed record PythonRunnerMessage(
+        string Type,
+        Guid? RequestId = null,
+        string? CommandId = null,
+        JsonElement? Parameters = null,
+        JsonElement? Response = null);
+
+    private sealed record PythonRichCommandResponse(
+        string Type,
+        Guid RequestId,
+        PythonRichCommandResult? Result,
+        string? Error = null);
+
+    private sealed record PythonRichCommandResult(
+        Guid InvocationId,
+        Guid CommandId,
+        string Outcome,
+        DateTimeOffset ObservedAt,
+        string? Code,
+        string? Message);
 
     private sealed record AllowedTagDependencies(
         IReadOnlyDictionary<Guid, string> Kinds,

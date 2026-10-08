@@ -1,10 +1,13 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using Scada.Core.Abstractions;
+using Scada.Core.Commands;
 using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.DriverHost.Runtime;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Interactions;
 using Scada.Engineering.Scripts;
 using Scada.Engineering.VisualScripting;
 
@@ -38,10 +41,13 @@ internal sealed record ServerScriptTagSnapshot(
 public sealed class ServerScriptRuntimeManager : IAsyncDisposable
 {
     private static readonly ConditionalWeakTable<IEngineeringRuntimeCoordinator, ServerScriptRuntimeManager> SharedHosts = new();
+    private static readonly TimeSpan RichCommandHandlerTimeout =
+        RichCommandRuntimePolicy.DefaultExecutionTimeout + TimeSpan.FromSeconds(5);
 
     private readonly IEngineeringRuntimeCoordinator _runtime;
     private readonly IScadaEventBus _eventBus;
     private readonly ScriptExecutionPolicy _policy;
+    private readonly bool _handlerTimeoutConfigured;
     private readonly string _pythonExecutable;
     private readonly string _runnerPath;
     private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
@@ -61,6 +67,7 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
         _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
         ArgumentNullException.ThrowIfNull(configuration);
 
+        _handlerTimeoutConfigured = configuration.GetValue<int?>("ServerScripts:HandlerTimeoutMs").HasValue;
         _policy = BuildPolicy(configuration);
         _pythonExecutable = configuration["ServerScripts:PythonExecutable"] ?? string.Empty;
         if (string.IsNullOrWhiteSpace(_pythonExecutable))
@@ -392,6 +399,47 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
         }
     }
 
+    internal ValueTask<RichCommandResult> InvokeRichCommandAsync(
+        string projectKey,
+        long revision,
+        PythonScriptDefinition script,
+        Guid commandId,
+        JsonElement? parameters,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(script);
+        return ExecuteAgainstActiveRevisionAsync(
+            projectKey,
+            revision,
+            async ct =>
+            {
+                var active = Volatile.Read(ref _active);
+                var instance = active?.Instances.SingleOrDefault(candidate =>
+                    candidate.Definition.Id == script.Id);
+                if (active is null ||
+                    !string.Equals(active.ProjectKey, projectKey, StringComparison.Ordinal) ||
+                    active.Revision != revision ||
+                    !active.MatchesCurrentRuntime() ||
+                    instance is null ||
+                    !ReferenceEquals(instance.Definition, script))
+                {
+                    throw new ScriptExecutionDiagnosticException(
+                        "Rich Command invocation belongs to an obsolete or inactive Server Script generation.");
+                }
+
+                return await ServerScriptRichCommandBridge.InvokeAsync(
+                        this,
+                        projectKey,
+                        revision,
+                        script,
+                        commandId,
+                        parameters,
+                        ct)
+                    .ConfigureAwait(false);
+            },
+            cancellationToken);
+    }
+
     public async ValueTask DisposeAsync()
     {
         await _lifecycleGate.WaitAsync().ConfigureAwait(false);
@@ -604,6 +652,28 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
             failureRecoveryCooldown: recoveryCooldown);
     }
 
+    private ScriptExecutionPolicy PolicyFor(PythonScriptDefinition definition)
+    {
+        if (_handlerTimeoutConfigured || !HasRichCommandDependency(definition))
+            return _policy;
+
+        // The Rich Command runtime owns its own 30 second execution budget. Give only
+        // scripts that declare Rich Commands enough time to receive that result.
+        return new ScriptExecutionPolicy(
+            RichCommandHandlerTimeout,
+            _policy.MaxQueuedEvents,
+            _policy.MinimumTimerInterval,
+            _policy.MaxConsecutiveFailuresBeforeThrottle,
+            _policy.QueueOverflowStrategy,
+            _policy.FaultIsolationScope,
+            _policy.FailureRecoveryCooldown);
+    }
+
+    private static bool HasRichCommandDependency(PythonScriptDefinition definition) =>
+        definition.Dependencies.Any(dependency =>
+            dependency.Kind.Equals("RichCommand", StringComparison.OrdinalIgnoreCase) ||
+            dependency.Kind.Equals("rich-command", StringComparison.OrdinalIgnoreCase));
+
     private static PythonScriptDefinition ToPythonDefinition(ScriptEngineeringDefinition script) => new(
         script.Id,
         script.Path,
@@ -687,7 +757,7 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
                 new ScriptRuntimeExecutionCoordinator(
                     definition,
                     $"{projectKey}@{revision}:{definition.Id:D}",
-                    owner._policy,
+                    owner.PolicyFor(definition),
                     executor))).ToArray();
         }
 
@@ -932,8 +1002,11 @@ public sealed class ServerScriptRuntimeManager : IAsyncDisposable
 
             if (runDisposeHandlers && MatchesCurrentRuntime())
             {
-                using var disposeBudget =
-                    new CancellationTokenSource(_owner._policy.HandlerTimeout);
+                var disposeTimeout = Instances
+                    .Select(instance => _owner.PolicyFor(instance.Definition).HandlerTimeout)
+                    .DefaultIfEmpty(_owner._policy.HandlerTimeout)
+                    .Max();
+                using var disposeBudget = new CancellationTokenSource(disposeTimeout);
                 foreach (var instance in Instances)
                 foreach (var entry in instance.Definition.EntryPoints.Where(
                              x => x.EventKind == PythonScriptEventKind.Dispose))

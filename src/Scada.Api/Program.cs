@@ -16,6 +16,7 @@ using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Api.Timing;
 using Scada.Core.Abstractions;
+using Scada.Core.Commands;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
 using Scada.Core.InternalMemory;
@@ -113,6 +114,15 @@ builder.Services.AddSingleton<IRichCommandDefinitionResolver>(sp =>
     sp.GetRequiredService<ActiveDriverInteractionRuntimeCatalog>());
 builder.Services.AddSingleton<IRichCommandBindingResolver>(sp =>
     sp.GetRequiredService<ActiveDriverInteractionRuntimeCatalog>());
+builder.Services.AddSingleton<IRichCommandDriverExecutorResolver>(_ =>
+    new InMemoryRichCommandDriverExecutorResolver(
+        Array.Empty<KeyValuePair<Guid, IRichCommandDriverExecutor>>()));
+builder.Services.AddSingleton<IRichCommandRuntime>(sp =>
+    new RichCommandRuntimeService(
+        sp.GetRequiredService<IRichCommandDefinitionResolver>(),
+        sp.GetRequiredService<IRichCommandBindingResolver>(),
+        sp.GetRequiredService<IRichCommandDriverExecutorResolver>(),
+        () => sp.GetRequiredService<RuntimeHighAvailabilityService>().CanOwnIndustrialEffects()));
 
 builder.Services.AddSingleton<IEngineeringDriverCompiler, EngineeringDriverCompiler>();
 builder.Services.AddSingleton<GatewayEngineeringRuntimeCoordinator>(sp =>

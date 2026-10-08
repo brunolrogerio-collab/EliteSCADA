@@ -75,6 +75,79 @@ public sealed class EngineeringAuthorityCapabilityTests
     }
 
     [Fact]
+    public void ServerScriptRichCommandAuthorizationRequiresTheExactCommandScope()
+    {
+        const string projectKey = "project-alpha";
+        var scriptId = Guid.Parse("81000000-0000-0000-0000-000000000021");
+        var commandId = Guid.Parse("81000000-0000-0000-0000-000000000022");
+        var otherCommandId = Guid.Parse("81000000-0000-0000-0000-000000000023");
+        var commandScopeId = Guid.Parse("81000000-0000-0000-0000-000000000024");
+        var roleKey = ServerScriptCommandIdentity.RoleKey(projectKey, scriptId);
+        var scope = new SecurityScopeEngineeringDto(
+            commandScopeId,
+            "rich-command-alpha",
+            "Rich Command Alpha",
+            SecurityScopeNodeKind.Command,
+            ResourceId: commandId);
+        var role = new SecurityRoleEngineeringDto(
+            Guid.NewGuid(),
+            roleKey,
+            "Server Script Alpha",
+            Grants:
+            [new CapabilityGrantEngineeringDto(
+                SecurityCapability.CommandExecute,
+                new AuthorizationScopeEngineeringDto(ScopeNodeId: commandScopeId))]);
+        var policies = new InMemoryAuthorityPolicyStore([role], [scope]);
+        var security = new ApiAuthorizationService(
+            new NullServiceProvider(),
+            policies,
+            new ConfigurationManager { ["Authentication:Enabled"] = "true" });
+
+        var allowed = security.CheckServerScriptCommand(projectKey, 1, scriptId, commandId);
+        var notGranted = security.CheckServerScriptCommand(projectKey, 1, scriptId, otherCommandId);
+
+        Assert.True(allowed.Allowed);
+        Assert.Equal(roleKey, Assert.Single(allowed.Principal.Roles));
+        Assert.False(notGranted.Allowed);
+    }
+
+    [Fact]
+    public void ServerScriptRichCommandAuthorizationRejectsGlobalAndDescendantGrants()
+    {
+        const string projectKey = "project-alpha";
+        var scriptId = Guid.Parse("81000000-0000-0000-0000-000000000031");
+        var commandId = Guid.Parse("81000000-0000-0000-0000-000000000032");
+        var commandScopeId = Guid.Parse("81000000-0000-0000-0000-000000000033");
+        var scope = new SecurityScopeEngineeringDto(
+            commandScopeId,
+            "rich-command-alpha",
+            "Rich Command Alpha",
+            SecurityScopeNodeKind.Command,
+            ResourceId: commandId);
+        var configuration = new ConfigurationManager { ["Authentication:Enabled"] = "true" };
+
+        foreach (var grantScope in new AuthorizationScopeEngineeringDto?[]
+                 {
+                     null,
+                     new AuthorizationScopeEngineeringDto(ScopeNodeId: commandScopeId, IncludeDescendants: true)
+                 })
+        {
+            var role = new SecurityRoleEngineeringDto(
+                Guid.NewGuid(),
+                ServerScriptCommandIdentity.RoleKey(projectKey, scriptId),
+                "Server Script Alpha",
+                Grants:
+                [new CapabilityGrantEngineeringDto(SecurityCapability.CommandExecute, grantScope)]);
+            var security = new ApiAuthorizationService(
+                new NullServiceProvider(),
+                new InMemoryAuthorityPolicyStore([role], [scope]),
+                configuration);
+
+            Assert.False(security.CheckServerScriptCommand(projectKey, 1, scriptId, commandId).Allowed);
+        }
+    }
+
+    [Fact]
     public void ScreenScopeFiltersProductionScreenListingByStableIdentityAfterRename()
     {
         using var workspace = new EngineeringWorkspace(seedDemo: false);

@@ -48,7 +48,10 @@ public sealed class PersistedRuntimeRecoveryService(
     GatewayEngineeringRuntimeCoordinator? operationalEvents = null,
     RuntimeHighAvailabilityService? highAvailability = null,
     RuntimeHaProtectionCoordinator? highAvailabilityProtection = null,
-    ActiveDriverInteractionRuntimeCatalog? driverInteractions = null) : IPersistedRuntimeRecoveryService
+    ActiveDriverInteractionRuntimeCatalog? driverInteractions = null,
+    IRichCommandRuntime? richCommands = null,
+    ApiAuthorizationService? authorization = null,
+    ApiAuditService? audit = null) : IPersistedRuntimeRecoveryService
 {
     public const string RecoveryDeniedIssueCode = "PERSISTED_RUNTIME_RECOVERY_DENIED";
     public const string TransitionPendingDiagnostic =
@@ -178,6 +181,14 @@ public sealed class PersistedRuntimeRecoveryService(
                         highAvailability is null
                             ? null
                             : () => highAvailability.CanOwnIndustrialEffects());
+
+                if (driverInteractions is not null && richCommands is not null && authorization is not null && audit is not null)
+                    ServerScriptRichCommandBridge.Bind(
+                        scripts,
+                        driverInteractions,
+                        richCommands,
+                        authorization,
+                        audit);
 
                 result = recoverAsHaActive
                     ? await scripts.ActivateRuntimeForHaTakeoverAsync(

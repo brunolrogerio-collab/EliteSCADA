@@ -121,6 +121,68 @@ public sealed class ApiAuthorizationService
             policies.Evaluate(principal, capability, scopes!.Enrich(resource ?? new AuthorizationResource())));
     }
 
+    /// <summary>
+    /// Authorizes one active Server Script identity for one Rich Command. Only an
+    /// explicit CommandExecute grant on that command's exact Authority node is accepted.
+    /// </summary>
+    public ApiAuthorizationCheck CheckServerScriptCommand(
+        string projectKey,
+        long revision,
+        Guid scriptId,
+        Guid commandId)
+    {
+        var principal = ServerScriptCommandIdentity.CreatePrincipal(projectKey, revision, scriptId);
+        if (commandId == Guid.Empty)
+        {
+            return Denied("Rich Command identity is invalid.");
+        }
+
+        var authority = authorityPolicies.Snapshot();
+        if (!SecurityScopeGraph.TryCreate(authority.Scopes, out var scopes, out _))
+            return Denied("Security Authority scope hierarchy is invalid.");
+
+        var roleKey = ServerScriptCommandIdentity.RoleKey(projectKey, scriptId);
+        var role = authority.Roles.SingleOrDefault(candidate =>
+            string.Equals(candidate.Key, roleKey, StringComparison.OrdinalIgnoreCase));
+        var commandScope = authority.Scopes.SingleOrDefault(scope =>
+            scope.Kind == SecurityScopeNodeKind.Command && scope.ResourceId == commandId);
+        if (role is null || commandScope is null)
+            return Denied("Server Script has no explicit grant for this Rich Command.");
+
+        var exactGrants = (role.Grants ?? Array.Empty<CapabilityGrantEngineeringDto>())
+            .Where(grant => grant.Capability == SecurityCapability.CommandExecute &&
+                IsExactCommandScope(grant.Scope, commandScope.Id))
+            .ToArray();
+        if (exactGrants.Length == 0)
+            return Denied("Server Script has no explicit grant for this Rich Command.");
+
+        // Evaluate through the existing Authority compiler/evaluator, narrowed to
+        // the already-verified exact grant so inherited or global grants cannot widen it.
+        var restrictedRole = role with { Grants = exactGrants };
+        var evaluator = new InMemoryCapabilityAuthorizationService(
+            [SecurityPolicyCompiler.Compile(restrictedRole)]);
+        var resource = scopes!.Enrich(new AuthorizationResource(
+            ResourceKind: AuthorizationResourceKind.Command,
+            ResourceId: commandId));
+        return new ApiAuthorizationCheck(
+            principal,
+            evaluator.Evaluate(principal, SecurityCapability.CommandExecute, resource));
+
+        ApiAuthorizationCheck Denied(string reason) => new(
+            principal,
+            AuthorizationDecision.Denied(SecurityCapability.CommandExecute, reason));
+    }
+
+    private static bool IsExactCommandScope(AuthorizationScopeEngineeringDto? scope, Guid commandScopeId) =>
+        scope is not null &&
+        scope.ScopeNodeId == commandScopeId &&
+        !scope.IncludeDescendants &&
+        scope.Area is null &&
+        scope.EquipmentPath is null &&
+        scope.ScreenKey is null &&
+        scope.TagPath is null &&
+        scope.CommandKey is null;
+
     public async Task<ApiAuthorizationCheck> CheckRuntimeAsync(
         HttpContext context,
         ScadaRuntimeFacade runtime,

@@ -219,6 +219,7 @@ public static class ScriptEngineeringAdapters
             ScriptEngineeringDependencyKind.ClientMemoryTag => "client-memory-tag",
             ScriptEngineeringDependencyKind.ServerMemoryTag => "server-memory-tag",
             ScriptEngineeringDependencyKind.Resource => "resource",
+            ScriptEngineeringDependencyKind.RichCommand => "rich-command",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported Script Engineering dependency kind.")
         };
 }

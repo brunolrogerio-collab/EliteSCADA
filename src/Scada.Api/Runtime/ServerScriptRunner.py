@@ -1,5 +1,6 @@
 import ast
 import json
+import math
 import sys
 import uuid
 
@@ -8,6 +9,10 @@ MAX_EVENT_CONTEXT_ENTRIES = 128
 MAX_EVENT_CONTEXT_KEY_LENGTH = 160
 MAX_EVENT_CONTEXT_VALUE_LENGTH = 4000
 MAX_EVENT_MESSAGE_LENGTH = 4000
+MAX_RICH_COMMANDS_PER_HANDLER = 16
+MAX_RICH_COMMAND_PARAMETER_COUNT = 32
+MAX_RICH_COMMAND_PARAMETER_KEY_LENGTH = 128
+MAX_RICH_COMMAND_STRING_LENGTH = 4096
 
 
 class ScriptError(Exception):
@@ -20,13 +25,17 @@ class ReturnSignal(Exception):
 
 
 class SafeInterpreter:
-    def __init__(self, source, values, event, server_memory_tag_ids):
+    def __init__(self, source, values, event, server_memory_tag_ids, rich_command_ids):
         self.tree = ast.parse(source, mode="exec")
         self._validate_module()
         self.values = {str(key): value for key, value in values.items()}
         self.server_memory_tag_ids = {
             str(key) for key in (server_memory_tag_ids or [])
         }
+        self.rich_command_ids = {
+            str(key).lower() for key in (rich_command_ids or [])
+        }
+        self.rich_command_calls = 0
         self.event = event or {}
         self.writes = []
         self.operational_events = []
@@ -288,6 +297,9 @@ class SafeInterpreter:
             )
             return None
 
+        if name == "invoke_rich_command":
+            return self._invoke_rich_command(args)
+
         builtins = {
             "min": min,
             "max": max,
@@ -303,6 +315,79 @@ class SafeInterpreter:
         if function is None:
             raise ScriptError("Function call is not part of the Server Script API surface.")
         return function(*args)
+
+    def _invoke_rich_command(self, args):
+        self.tick()
+        if len(args) < 1 or len(args) > 2:
+            raise ScriptError(
+                "Rich Command invocation requires a declared command ID and optional parameter dictionary."
+            )
+        command_id = args[0]
+        if not isinstance(command_id, str):
+            raise ScriptError("Rich Command ID must be a stable GUID string.")
+        try:
+            parsed_id = uuid.UUID(command_id)
+        except (AttributeError, ValueError):
+            raise ScriptError("Rich Command ID must be a stable GUID string.")
+        canonical_id = str(parsed_id)
+        if canonical_id not in self.rich_command_ids:
+            raise ScriptError("Rich Command is not an explicitly declared dependency.")
+        if self.rich_command_calls >= MAX_RICH_COMMANDS_PER_HANDLER:
+            raise ScriptError("Server Script exceeded the Rich Command calls-per-handler limit.")
+
+        parameters = args[1] if len(args) == 2 else {}
+        if not isinstance(parameters, dict):
+            raise ScriptError("Rich Command parameters must be a dictionary.")
+        if len(parameters) > MAX_RICH_COMMAND_PARAMETER_COUNT:
+            raise ScriptError("Rich Command parameter count exceeds the supported limit.")
+
+        normalized_parameters = {}
+        for key, value in parameters.items():
+            if not isinstance(key, str) or not key or len(key) > MAX_RICH_COMMAND_PARAMETER_KEY_LENGTH:
+                raise ScriptError("Rich Command parameter keys must be bounded strings.")
+            if not isinstance(value, (bool, int, float, str)):
+                raise ScriptError("Rich Command parameters must be scalar values.")
+            if isinstance(value, int) and not isinstance(value, bool) and not -(2**63) <= value < 2**63:
+                raise ScriptError("Rich Command integer parameter is outside the Int64 range.")
+            if isinstance(value, float) and not math.isfinite(value):
+                raise ScriptError("Rich Command numeric parameters must be finite.")
+            if isinstance(value, str) and len(value) > MAX_RICH_COMMAND_STRING_LENGTH:
+                raise ScriptError("Rich Command string parameter exceeds 4096 characters.")
+            normalized_parameters[key] = value
+
+        request_id = str(uuid.uuid4())
+        self.rich_command_calls += 1
+        sys.stdout.write(
+            json.dumps(
+                {
+                    "type": "richCommandRequest",
+                    "requestId": request_id,
+                    "commandId": canonical_id,
+                    "parameters": normalized_parameters,
+                },
+                separators=(",", ":"),
+                allow_nan=False,
+            )
+            + "\n"
+        )
+        sys.stdout.flush()
+
+        line = sys.stdin.readline()
+        if not line:
+            raise ScriptError("Rich Command host did not return an invocation result.")
+        response = json.loads(line)
+        if (
+            not isinstance(response, dict)
+            or response.get("type") != "richCommandResponse"
+            or response.get("requestId") != request_id
+        ):
+            raise ScriptError("Rich Command host returned an invalid invocation response.")
+        if response.get("error"):
+            raise ScriptError(str(response["error"])[:240])
+        result = response.get("result")
+        if not isinstance(result, dict):
+            raise ScriptError("Rich Command host returned an invalid result.")
+        return result
 
     def _require_tag_argument(self, args, operation):
         if len(args) != 1:
@@ -412,7 +497,7 @@ def validate_syntax(source):
 
 def main():
     try:
-        payload = json.load(sys.stdin)
+        payload = json.loads(sys.stdin.readline())
         if payload.get("validateOnly") is True:
             print(json.dumps(validate_syntax(payload.get("source", "")), separators=(",", ":")))
             return
@@ -422,6 +507,7 @@ def main():
             payload.get("values") or {},
             payload.get("event") or {},
             payload.get("serverMemoryTagIds") or [],
+            payload.get("richCommandIds") or [],
         )
         interpreter.run(payload.get("handler", ""))
         result = {
@@ -446,7 +532,7 @@ def main():
             "writes": [],
             "operationalEvents": [],
         }
-    print(json.dumps(result, separators=(",", ":")))
+    print(json.dumps({"type": "complete", "response": result}, separators=(",", ":")))
 
 
 if __name__ == "__main__":

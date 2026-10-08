@@ -1,5 +1,6 @@
 using Scada.Core.Sources;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Interactions;
 
 namespace Scada.Engineering.Scripts;
 
@@ -280,7 +281,9 @@ public sealed class ScriptEngineeringReferenceResolver
         return scope switch
         {
             ScriptEngineeringScope.ClientVisual =>
-                kind != ScriptEngineeringDependencyKind.ServerMemoryTag,
+                kind is not (
+                    ScriptEngineeringDependencyKind.ServerMemoryTag or
+                    ScriptEngineeringDependencyKind.RichCommand),
 
             ScriptEngineeringScope.Server =>
                 kind is not (
@@ -299,9 +302,14 @@ public sealed class ScriptEngineeringReferenceResolver
         ArgumentNullException.ThrowIfNull(package);
 
         var visualObjectReferences = EnumerateVisualObjectReferences(package);
-        var references = additionalReferences is null
-            ? visualObjectReferences
-            : visualObjectReferences.Concat(additionalReferences);
+        var richCommandReferences = (package.RichCommandDefinitions ?? Array.Empty<RichCommandDefinitionEngineeringDto>())
+            .Where(command => command is not null && command.CommandId != Guid.Empty)
+            .Select(command => new ScriptEngineeringReference(
+                ScriptEngineeringDependencyKind.RichCommand,
+                ScriptEngineeringReferenceKeys.RichCommand(command.CommandId)));
+        var references = visualObjectReferences.Concat(richCommandReferences);
+        if (additionalReferences is not null)
+            references = references.Concat(additionalReferences);
 
         return Create(
             package.Tags,
@@ -425,6 +433,7 @@ public sealed class ScriptEngineeringReferenceResolver
             ScriptEngineeringDependencyKind.ClientMemoryTag or
             ScriptEngineeringDependencyKind.ServerMemoryTag => ScriptEngineeringReferenceKeys.Tag(id),
             ScriptEngineeringDependencyKind.Resource => ScriptEngineeringReferenceKeys.Resource(id),
+            ScriptEngineeringDependencyKind.RichCommand => ScriptEngineeringReferenceKeys.RichCommand(id),
             _ => string.Empty
         };
 

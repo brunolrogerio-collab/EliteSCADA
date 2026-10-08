@@ -11,6 +11,7 @@ using Scada.Engineering.DataSources;
 using Scada.Engineering.DataQueries;
 using Scada.Engineering.Gateways;
 using Scada.Engineering.Historian;
+using Scada.Engineering.Interactions;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.ProjectPackages;
 using Scada.Engineering.Scripts;
@@ -223,6 +224,66 @@ public sealed class EngineeringFragmentServiceTests
             helperId.ToString("D"),
             target.Scripts.Find(rootId)!.Dependencies.Single().StableReference);
         Assert.NotNull(target.Scripts.Find(helperId));
+    }
+
+    [Fact]
+    public void SelectedServerScript_TransfersRichCommandBindingAndDataSourceClosure()
+    {
+        using var source = CreateHarness();
+        var scriptId = Guid.NewGuid();
+        var commandId = Guid.NewGuid();
+        var dataSourceId = Guid.NewGuid();
+        source.DataSources.Upsert(new DataSourceEngineeringDto(
+            dataSourceId,
+            "hvac",
+            "HVAC",
+            "mock"));
+        source.DriverInteractions.UpsertRichCommandDefinition(new RichCommandDefinitionEngineeringDto(
+            commandId,
+            "climate.set-mode",
+            Array.Empty<Scada.Core.Commands.RichCommandParameterDefinition>()));
+        source.DriverInteractions.UpsertDriverCommandBinding(new DriverCommandBindingEngineeringDto(
+            commandId,
+            dataSourceId,
+            "hvac-controller",
+            "climate.set-mode"));
+        source.Scripts.Upsert(new ScriptEngineeringDefinition(
+            scriptId,
+            "scripts/fragment/command",
+            "Command Script",
+            ScriptEngineeringScope.Server,
+            "def run():\n    return None",
+            dependencies:
+            [new ScriptEngineeringDependency(
+                ScriptEngineeringDependencyKind.RichCommand,
+                ScriptEngineeringReferenceKeys.RichCommand(commandId))]));
+
+        var bytes = source.Fragments.Export(new EngineeringFragmentExportRequest(
+            [new EngineeringFragmentEntityReference(
+                ImportEntityKind.Script,
+                "scripts/fragment/command",
+                scriptId)]));
+        var manifest = source.Fragments.Inspect(bytes).Envelope.Manifest;
+
+        Assert.Contains(manifest.Dependencies!, item =>
+            item.EntityKind == ImportEntityKind.RichCommandDefinition && item.EntityId == commandId);
+        Assert.Contains(manifest.Dependencies!, item =>
+            item.EntityKind == ImportEntityKind.DriverCommandBinding && item.EntityId == commandId);
+        Assert.Contains(manifest.Dependencies!, item =>
+            item.EntityKind == ImportEntityKind.DataSource && item.EntityId == dataSourceId);
+
+        using var target = CreateHarness();
+        var plan = target.Fragments.Preview(bytes);
+        Assert.True(plan.CanApply, DescribePlanFailure(plan));
+        var result = target.Fragments.Apply(plan);
+
+        Assert.DoesNotContain(result.Issues, issue => issue.IsError);
+        Assert.NotNull(target.DriverInteractions.FindRichCommandDefinition(commandId));
+        Assert.NotNull(target.DriverInteractions.FindDriverCommandBinding(commandId));
+        Assert.NotNull(target.DataSources.Find(dataSourceId));
+        Assert.Equal(
+            ScriptEngineeringReferenceKeys.RichCommand(commandId),
+            target.Scripts.Find(scriptId)!.Dependencies.Single().StableReference);
     }
 
     [Fact]
@@ -681,6 +742,7 @@ public sealed class EngineeringFragmentServiceTests
         var gateways = new InMemoryGatewayEngineeringRegistry();
         var scripts = new InMemoryScriptEngineeringRegistry();
         var visualAssets = new InMemoryVisualAssetEngineeringRegistry();
+        var driverInteractions = new InMemoryDriverInteractionEngineeringRegistry();
 
         IEngineeringExchangeService exchange = new EngineeringExchangeService(
             tags,
@@ -692,7 +754,8 @@ public sealed class EngineeringFragmentServiceTests
             commands,
             gateways,
             scripts,
-            visualAssets);
+            visualAssets,
+            driverInteractions: driverInteractions);
         exchange = new HistorianCaptureProfileEngineeringExchangeDecorator(exchange, historianCaptureProfiles);
         exchange = new DataQueryEngineeringExchangeDecorator(exchange, dataQueries, alarmViews);
 
@@ -706,6 +769,7 @@ public sealed class EngineeringFragmentServiceTests
             assets,
             views,
             scripts,
+            driverInteractions,
             visualAssets,
             exchange,
             fragments);
@@ -737,6 +801,7 @@ public sealed class EngineeringFragmentServiceTests
         InMemoryEngineeringAssetRegistry assets,
         InMemoryEngineeringViewRegistry views,
         InMemoryScriptEngineeringRegistry scripts,
+        InMemoryDriverInteractionEngineeringRegistry driverInteractions,
         InMemoryVisualAssetEngineeringRegistry visualAssets,
         IEngineeringExchangeService exchange,
         EngineeringFragmentService fragments) : IDisposable
@@ -748,6 +813,7 @@ public sealed class EngineeringFragmentServiceTests
         public InMemoryEngineeringAssetRegistry Assets { get; } = assets;
         public InMemoryEngineeringViewRegistry Views { get; } = views;
         public InMemoryScriptEngineeringRegistry Scripts { get; } = scripts;
+        public InMemoryDriverInteractionEngineeringRegistry DriverInteractions { get; } = driverInteractions;
         public InMemoryVisualAssetEngineeringRegistry VisualAssets { get; } = visualAssets;
         public IEngineeringExchangeService Exchange { get; } = exchange;
         public EngineeringFragmentService Fragments { get; } = fragments;

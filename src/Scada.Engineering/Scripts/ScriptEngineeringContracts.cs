@@ -41,7 +41,8 @@ public enum ScriptEngineeringDependencyKind
     Tag,
     ClientMemoryTag,
     ServerMemoryTag,
-    Resource
+    Resource,
+    RichCommand
 }
 
 public sealed record ScriptEngineeringEntryPoint(
@@ -172,4 +173,6 @@ public static class ScriptEngineeringReferenceKeys
     public static string Tag(Guid tagId) => tagId.ToString("D");
 
     public static string Resource(Guid resourceId) => resourceId.ToString("D");
+
+    public static string RichCommand(Guid commandId) => commandId.ToString("D");
 }

@@ -1,4 +1,5 @@
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Interactions;
 using Scada.Engineering.Libraries;
 using Scada.Engineering.Reports;
 using Scada.Engineering.Scripts;
@@ -95,6 +96,12 @@ internal static class EngineeringFragmentPackageBuilder
                 .ToArray(),
             AlarmViews: (source.AlarmViews ?? Array.Empty<AlarmViewEngineeringDto>())
                 .Where(item => Included(ImportEntityKind.AlarmView, item.Id))
+                .ToArray(),
+            RichCommandDefinitions: (source.RichCommandDefinitions ?? Array.Empty<RichCommandDefinitionEngineeringDto>())
+                .Where(item => Included(ImportEntityKind.RichCommandDefinition, item.CommandId))
+                .ToArray(),
+            DriverCommandBindings: (source.DriverCommandBindings ?? Array.Empty<DriverCommandBindingEngineeringDto>())
+                .Where(item => Included(ImportEntityKind.DriverCommandBinding, item.CommandId))
                 .ToArray());
     }
 

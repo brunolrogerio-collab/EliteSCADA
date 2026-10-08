@@ -9,6 +9,7 @@ using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Interactions;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.Scripts;
 using Scada.Engineering.VisualScripting;

@@ -131,8 +131,7 @@ public sealed class MitsubishiMelsecDriver :
             await cts.CancelAsync().ConfigureAwait(false);
             if (_loop is not null)
             {
-                try { await _loop.WaitAsync(cancellationToken).ConfigureAwait(false); }
-                catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
+                await _loop.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
         }
         await _session.DisconnectAsync().ConfigureAwait(false);

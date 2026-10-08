@@ -301,6 +301,87 @@ public sealed class MitsubishiMelsecProtocolTests
     }
 
     [Fact]
+    public async Task StopAsync_CallerCancellationDuringPollPropagatesAndRestartWaitsForQuiescence()
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var endpoint = (IPEndPoint)listener.LocalEndpoint;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+        var receivedRequests = 0;
+        var peer = Task.Run(async () =>
+        {
+            using (var firstClient = await listener.AcceptTcpClientAsync(timeout.Token))
+            {
+                var stream = firstClient.GetStream();
+                var request = await ReadRawFrameAsync(stream, timeout.Token);
+                Assert.Equal((ushort)0x0401, BinaryPrimitives.ReadUInt16LittleEndian(request.AsSpan(11, 2)));
+                Interlocked.Increment(ref receivedRequests);
+                await stream.WriteAsync(BuildRawResponse(request, new byte[] { 0x2A, 0x00 }), timeout.Token);
+
+                var closeProbe = new byte[1];
+                Assert.Equal(0, await stream.ReadAsync(closeProbe, timeout.Token));
+            }
+
+            using var secondClient = await listener.AcceptTcpClientAsync(timeout.Token);
+            var secondStream = secondClient.GetStream();
+            var secondRequest = await ReadRawFrameAsync(secondStream, timeout.Token);
+            Assert.Equal((ushort)0x0401, BinaryPrimitives.ReadUInt16LittleEndian(secondRequest.AsSpan(11, 2)));
+            Interlocked.Increment(ref receivedRequests);
+            await secondStream.WriteAsync(BuildRawResponse(secondRequest, new byte[] { 0x2B, 0x00 }), timeout.Token);
+
+            var secondCloseProbe = new byte[1];
+            Assert.Equal(0, await secondStream.ReadAsync(secondCloseProbe, timeout.Token));
+        }, timeout.Token);
+
+        var tag = TagDefinition.Create("Value", "PLC.Value", TagDataType.Int32);
+        Assert.True(MitsubishiMelsecAddress.TryParse("D100", MitsubishiMelsecFamilyProfile.Fx5U32MtDs, null, out var address, out var error), error);
+        var point = new MitsubishiMelsecPoint(tag, address!, MitsubishiMelsecPhysicalType.UInt16, false, new TagPhysicalValueTransform());
+        var cache = new BlockingFirstUpdateTagCache();
+        await using var driver = new MitsubishiMelsecDriver(
+            "PLC_MELSEC_STOP_RESTART",
+            "MELSEC stop/restart",
+            CreateOptions(endpoint.Port, TimeSpan.FromSeconds(10)),
+            cache,
+            new InMemoryTagRegistry(),
+            new[] { point });
+
+        try
+        {
+            await driver.StartAsync();
+            await cache.FirstUpdateStarted.Task.WaitAsync(timeout.Token);
+            Assert.Equal(1, Volatile.Read(ref receivedRequests));
+
+            using var callerCancellation = new CancellationTokenSource();
+            var stop = driver.StopAsync(callerCancellation.Token);
+            Assert.False(stop.IsCompleted);
+            callerCancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await stop);
+
+            Assert.Equal(DriverState.Stopping, driver.Status.State);
+            await driver.StartAsync();
+            Assert.Equal(DriverState.Stopping, driver.Status.State);
+            Assert.Equal(1, Volatile.Read(ref receivedRequests));
+
+            cache.ReleaseFirstUpdate.TrySetResult(true);
+            await driver.StopAsync();
+            Assert.Equal(DriverState.Stopped, driver.Status.State);
+
+            await driver.StartAsync();
+            await cache.SecondUpdateCompleted.Task.WaitAsync(timeout.Token);
+            Assert.Equal(2, Volatile.Read(ref receivedRequests));
+            await driver.StopAsync();
+            await peer;
+        }
+        finally
+        {
+            cache.ReleaseFirstUpdate.TrySetResult(true);
+            if (!peer.IsCompleted) timeout.Cancel();
+            try { await peer; }
+            catch (OperationCanceledException) { }
+        }
+    }
+
+    [Fact]
     public async Task RuntimeUsesReadRandomForSparseWordPointsAndDemultiplexesValues()
     {
         using var listener = new TcpListener(IPAddress.Loopback, 0);
@@ -490,6 +571,39 @@ public sealed class MitsubishiMelsecProtocolTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             await Task.Delay(10, cancellationToken);
+        }
+    }
+
+    private sealed class BlockingFirstUpdateTagCache : ICurrentTagCache
+    {
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, TagValue> _values = new();
+        private int _updateCount;
+
+        public TaskCompletionSource<bool> FirstUpdateStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<bool> ReleaseFirstUpdate { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<bool> SecondUpdateCompleted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public bool TryGet(Guid tagId, out TagValue? value)
+        {
+            var found = _values.TryGetValue(tagId, out var current);
+            value = current;
+            return found;
+        }
+
+        public IReadOnlyCollection<TagValue> Snapshot() => _values.Values.ToArray();
+
+        public async ValueTask<TagValue?> UpdateAsync(TagDefinition tag, TagValue value, CancellationToken cancellationToken = default)
+        {
+            _values.TryGetValue(tag.Id, out var previous);
+            var update = Interlocked.Increment(ref _updateCount);
+            if (update == 1)
+            {
+                FirstUpdateStarted.TrySetResult(true);
+                await ReleaseFirstUpdate.Task.ConfigureAwait(false);
+            }
+            _values[tag.Id] = value;
+            if (update == 2) SecondUpdateCompleted.TrySetResult(true);
+            return previous;
         }
     }
 }

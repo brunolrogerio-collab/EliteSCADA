@@ -6,13 +6,6 @@ using Scada.Engineering.Contracts;
 
 namespace Scada.DriverHost.Engineering;
 
-public sealed record PanasonicMewtocolPollBatch(
-    PanasonicMewtocolArea Area,
-    bool IsContact,
-    int StartAddress,
-    int Count,
-    IReadOnlyCollection<PanasonicMewtocolPoint> Points);
-
 public sealed record PanasonicMewtocolCommunicationRuntimePlan(
     string DataSourceKey,
     string Name,

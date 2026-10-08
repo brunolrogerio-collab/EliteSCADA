@@ -296,6 +296,14 @@ public sealed record PanasonicMewtocolPoint(
     bool Writable,
     TagPhysicalValueTransform Transform);
 
+/// <summary>A bounded poll request planned for one Panasonic memory area.</summary>
+public sealed record PanasonicMewtocolPollBatch(
+    PanasonicMewtocolArea Area,
+    bool IsContact,
+    int StartAddress,
+    int Count,
+    IReadOnlyCollection<PanasonicMewtocolPoint> Points);
+
 public sealed class PanasonicMewtocolProtocolException : IOException
 {
     public PanasonicMewtocolProtocolException(

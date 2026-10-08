@@ -132,7 +132,7 @@ public sealed class PanasonicMewtocolProtocolTests
         Assert.True(compilation.CanActivate, string.Join("; ", compilation.Issues.Select(issue => issue.Message)));
         var plan = Assert.IsType<PanasonicMewtocolCommunicationRuntimePlan>(Assert.Single(compilation.CommunicationPlans));
         Assert.Equal(2, plan.Points.Count);
-        Assert.Equal(1, plan.PollBatches.Count);
+        Assert.Single(plan.PollBatches);
         Assert.Equal(2, Assert.Single(plan.PollBatches).Count);
         Assert.Equal(PanasonicMewtocolDriverDescriptorProvider.BindingSchemaId, plan.Points.First().Tag.CommunicationBinding!.SchemaId);
     }

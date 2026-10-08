@@ -4,6 +4,7 @@ using Scada.Engineering.Commands;
 using Scada.Engineering.Security;
 using Scada.Engineering.Views;
 using Scada.Core.Tags;
+using Scada.Engineering.Interactions;
 
 namespace Scada.Engineering.ImportExport.Handlers;
 
@@ -12,7 +13,8 @@ internal sealed class SecurityScopeEngineeringHandler(
     ITagRegistry tags,
     IEngineeringAssetRegistry assets,
     IEngineeringViewRegistry views,
-    ICommandEngineeringRegistry commands)
+    ICommandEngineeringRegistry commands,
+    IDriverInteractionEngineeringRegistry? driverInteractions = null)
 {
     public void Preview(EngineeringPackage package, ImportMode mode, List<ImportPreviewItem> items)
     {
@@ -98,6 +100,11 @@ internal sealed class SecurityScopeEngineeringHandler(
             .Concat((package.Commands ?? Array.Empty<CommandEngineeringDto>())
                 .Where(item => item is not null && item.Id.HasValue)
                 .Select(item => item!.Id!.Value))
+            .Concat(driverInteractions?.SnapshotRichCommandDefinitions().Select(item => item.CommandId)
+                ?? Array.Empty<Guid>())
+            .Concat((package.RichCommandDefinitions ?? Array.Empty<RichCommandDefinitionEngineeringDto>())
+                .Where(item => item is not null && item.CommandId != Guid.Empty)
+                .Select(item => item!.CommandId))
             .ToHashSet();
 
         foreach (var scope in scopes)

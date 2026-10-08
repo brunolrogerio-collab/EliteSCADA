@@ -61,7 +61,10 @@ public sealed class PublishedRuntimeActivationService(
     IConfiguration? configuration = null,
     GatewayEngineeringRuntimeCoordinator? operationalEvents = null,
     RuntimeHighAvailabilityService? highAvailability = null,
-    ActiveDriverInteractionRuntimeCatalog? driverInteractions = null) : IPublishedRuntimeActivationService
+    ActiveDriverInteractionRuntimeCatalog? driverInteractions = null,
+    IRichCommandRuntime? richCommands = null,
+    ApiAuthorizationService? authorization = null,
+    ApiAuditService? audit = null) : IPublishedRuntimeActivationService
 {
     public async Task<PublishedRuntimeActivationOutcome> ActivateAsync(
         string projectKey,
@@ -211,7 +214,8 @@ public sealed class PublishedRuntimeActivationService(
             var scripts = ServerScriptRuntimeManager.GetShared(
                 runtime,
                 eventBus,
-                configuration);
+                configuration,
+                driverInteractions);
 
             if (operationalEvents is not null)
                 ServerScriptOperationalEventBridge.Bind(
@@ -220,6 +224,14 @@ public sealed class PublishedRuntimeActivationService(
                     highAvailability is null
                         ? null
                         : () => highAvailability.CanOwnIndustrialEffects());
+
+            if (driverInteractions is not null && richCommands is not null && authorization is not null && audit is not null)
+                ServerScriptRichCommandBridge.Bind(
+                    scripts,
+                    driverInteractions,
+                    richCommands,
+                    authorization,
+                    audit);
 
             runtimeResult = haTakeover
                 ? await scripts.ActivateRuntimeForHaTakeoverAsync(

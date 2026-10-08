@@ -35,6 +35,10 @@ public sealed record DriverInteractionRuntimeDescriptor(
     int RichCommandDefinitionCount,
     int DriverCommandBindingCount);
 
+public sealed record ActiveTransientEventGraph(
+    IReadOnlyCollection<TransientEventDefinition> Definitions,
+    IReadOnlyCollection<CapabilityEventReference> References);
+
 /// <summary>
 /// Active-only authority for S1/S2 interaction resolvers. Working, Saved and
 /// Published Engineering revisions can be prepared for validation, but resolvers
@@ -89,6 +93,14 @@ public sealed class ActiveDriverInteractionRuntimeCatalog :
 
     public IReadOnlyCollection<CapabilityEventReference> CapabilityEventReferences() =>
         Volatile.Read(ref _active).EventReferences.ToArray();
+
+    public ActiveTransientEventGraph CaptureActiveTransientEvents()
+    {
+        var active = Volatile.Read(ref _active);
+        return new ActiveTransientEventGraph(
+            Array.AsReadOnly(active.EventDefinitions.Values.ToArray()),
+            Array.AsReadOnly(active.EventReferences.ToArray()));
+    }
 
     public bool TryResolve(Guid definitionId, out TransientEventDefinition? definition) =>
         Volatile.Read(ref _active).EventDefinitions.TryGetValue(definitionId, out definition);

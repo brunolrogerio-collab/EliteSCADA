@@ -2,6 +2,7 @@ using Scada.Core.Tags;
 using Scada.Engineering.Assets;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
+using Scada.Engineering.Interactions;
 using Scada.Engineering.Scripts;
 using Scada.Engineering.Validation;
 using Scada.Engineering.Views;
@@ -216,12 +217,17 @@ internal sealed class ScriptEngineeringHandler
             .GroupBy(reference => (reference.Kind, reference.StableReference))
             .Select(group => group.Last())
             .ToArray();
+        var richCommandReferences = (package.RichCommandDefinitions ?? Array.Empty<RichCommandDefinitionEngineeringDto>())
+            .Where(command => command is not null && command.CommandId != Guid.Empty)
+            .Select(command => new ScriptEngineeringReference(
+                ScriptEngineeringDependencyKind.RichCommand,
+                ScriptEngineeringReferenceKeys.RichCommand(command.CommandId)));
 
         return ScriptEngineeringReferenceResolver.Create(
             tags,
             dataSources,
             visualDefinitions,
-            visualObjectReferences);
+            visualObjectReferences.Concat(richCommandReferences));
     }
 
     private IEnumerable<TagEngineeringDto> CurrentTags() =>

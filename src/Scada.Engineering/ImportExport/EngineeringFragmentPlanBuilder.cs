@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Interactions;
 using Scada.Engineering.Libraries;
 using Scada.Engineering.Reports;
 using Scada.Engineering.Scripts;
@@ -301,7 +302,11 @@ internal static class EngineeringFragmentPlanBuilder
             DataQueries = (package.DataQueries ?? Array.Empty<DataQueryEngineeringDto>())
                 .Where(item => Included(ImportEntityKind.DataQuery, item.Id)).ToArray(),
             AlarmViews = (package.AlarmViews ?? Array.Empty<AlarmViewEngineeringDto>())
-                .Where(item => Included(ImportEntityKind.AlarmView, item.Id)).ToArray()
+                .Where(item => Included(ImportEntityKind.AlarmView, item.Id)).ToArray(),
+            RichCommandDefinitions = (package.RichCommandDefinitions ?? Array.Empty<RichCommandDefinitionEngineeringDto>())
+                .Where(item => Included(ImportEntityKind.RichCommandDefinition, item.CommandId)).ToArray(),
+            DriverCommandBindings = (package.DriverCommandBindings ?? Array.Empty<DriverCommandBindingEngineeringDto>())
+                .Where(item => Included(ImportEntityKind.DriverCommandBinding, item.CommandId)).ToArray()
         };
     }
 
@@ -328,6 +333,8 @@ internal static class EngineeringFragmentPlanBuilder
             ImportEntityKind.HistorianCaptureProfile => (package.HistorianCaptureProfiles ?? Array.Empty<HistorianCaptureProfileEngineeringDto>()).Single(item => item.Id == id),
             ImportEntityKind.DataQuery => (package.DataQueries ?? Array.Empty<DataQueryEngineeringDto>()).Single(item => item.Id == id),
             ImportEntityKind.AlarmView => (package.AlarmViews ?? Array.Empty<AlarmViewEngineeringDto>()).Single(item => item.Id == id),
+            ImportEntityKind.RichCommandDefinition => (package.RichCommandDefinitions ?? Array.Empty<RichCommandDefinitionEngineeringDto>()).Single(item => item.CommandId == id),
+            ImportEntityKind.DriverCommandBinding => (package.DriverCommandBindings ?? Array.Empty<DriverCommandBindingEngineeringDto>()).Single(item => item.CommandId == id),
             _ => throw new InvalidDataException($"Unsupported Fragment entity kind '{kind}'.")
         };
 

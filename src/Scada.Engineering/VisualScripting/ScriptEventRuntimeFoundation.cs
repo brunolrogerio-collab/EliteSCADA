@@ -1,3 +1,5 @@
+using Scada.Core.Events;
+
 namespace Scada.Engineering.VisualScripting;
 
 public sealed class ScriptEventIdentity
@@ -7,6 +9,16 @@ public sealed class ScriptEventIdentity
         string handlerName,
         string? targetReference = null,
         string? coalescingKey = null)
+        : this(eventKind, handlerName, targetReference, coalescingKey, canonicalEventOccurrence: null)
+    {
+    }
+
+    public ScriptEventIdentity(
+        PythonScriptEventKind eventKind,
+        string handlerName,
+        string? targetReference,
+        string? coalescingKey,
+        TransientEventOccurrence? canonicalEventOccurrence)
     {
         if (string.IsNullOrWhiteSpace(handlerName))
             throw new ArgumentException("Script event handler name is required.", nameof(handlerName));
@@ -14,6 +26,7 @@ public sealed class ScriptEventIdentity
         EventKind = eventKind;
         HandlerName = handlerName;
         TargetReference = string.IsNullOrWhiteSpace(targetReference) ? null : targetReference;
+        CanonicalEventOccurrence = canonicalEventOccurrence;
         CoalescingKey = string.IsNullOrWhiteSpace(coalescingKey)
             ? BuildDefaultCoalescingKey(eventKind, handlerName, TargetReference)
             : coalescingKey;
@@ -24,6 +37,8 @@ public sealed class ScriptEventIdentity
     public string HandlerName { get; }
 
     public string? TargetReference { get; }
+
+    public TransientEventOccurrence? CanonicalEventOccurrence { get; }
 
     public string CoalescingKey { get; }
 

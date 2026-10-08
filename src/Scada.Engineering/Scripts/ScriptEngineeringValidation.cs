@@ -411,15 +411,7 @@ public sealed class ScriptEngineeringValidator
         string entityKey,
         ICollection<ScriptEngineeringValidationIssue> issues)
     {
-        var invalid = script.Scope switch
-        {
-            ScriptEngineeringScope.ClientVisual => dependency.Kind == ScriptEngineeringDependencyKind.ServerMemoryTag,
-            ScriptEngineeringScope.Server => dependency.Kind is
-                ScriptEngineeringDependencyKind.ClientMemoryTag or
-                ScriptEngineeringDependencyKind.VisualDefinition or
-                ScriptEngineeringDependencyKind.VisualObject,
-            _ => false
-        };
+        var invalid = !ScriptEngineeringReferenceResolver.IsAllowedForScope(script.Scope, dependency.Kind);
 
         if (!invalid)
             return;

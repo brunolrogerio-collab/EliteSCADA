@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Interactions;
 using Scada.Engineering.Reports;
 using Scada.Engineering.Scripts;
 
@@ -181,6 +182,9 @@ internal static class EngineeringFragmentRemapper
                     case ScriptEngineeringDependencyKind.Resource:
                         stable = MapStableGuid(stable, ImportEntityKind.VisualAsset, Map);
                         break;
+                    case ScriptEngineeringDependencyKind.RichCommand:
+                        stable = MapStableGuid(stable, ImportEntityKind.RichCommandDefinition, Map);
+                        break;
                 }
 
                 return dependency with { StableReference = stable, TagBinding = binding };
@@ -340,6 +344,17 @@ internal static class EngineeringFragmentRemapper
                 .ToArray(),
             AlarmViews = (package.AlarmViews ?? Array.Empty<AlarmViewEngineeringDto>())
                 .Select(view => view with { Id = MapNullable(ImportEntityKind.AlarmView, view.Id) })
+                .ToArray(),
+            RichCommandDefinitions = (package.RichCommandDefinitions ?? Array.Empty<RichCommandDefinitionEngineeringDto>())
+                .Select(command => command with { CommandId = Map(ImportEntityKind.RichCommandDefinition, command.CommandId) })
+                .ToArray(),
+            DriverCommandBindings = (package.DriverCommandBindings ?? Array.Empty<DriverCommandBindingEngineeringDto>())
+                .Select(binding => binding with
+                {
+                    CommandId = Map(ImportEntityKind.RichCommandDefinition, binding.CommandId),
+                    DataSourceId = Map(ImportEntityKind.DataSource, binding.DataSourceId),
+                    EquipmentId = MapNullable(ImportEntityKind.Equipment, binding.EquipmentId)
+                })
                 .ToArray()
         };
     }

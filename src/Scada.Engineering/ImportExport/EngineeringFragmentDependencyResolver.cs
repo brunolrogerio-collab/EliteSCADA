@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Scada.Core.Tags;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Interactions;
 using Scada.Engineering.Reports;
 using Scada.Engineering.Scripts;
 
@@ -202,6 +203,20 @@ internal sealed class EngineeringFragmentDependencyResolver
                     AddByKey(ImportEntityKind.Tag, item.TargetTagPath, reference.EntityKey);
                 break;
             }
+            case ImportEntityKind.RichCommandDefinition:
+            {
+                var item = Find<RichCommandDefinitionEngineeringDto>(reference);
+                AddById(ImportEntityKind.DriverCommandBinding, item.CommandId, reference.EntityKey);
+                break;
+            }
+            case ImportEntityKind.DriverCommandBinding:
+            {
+                var item = Find<DriverCommandBindingEngineeringDto>(reference);
+                AddById(ImportEntityKind.RichCommandDefinition, item.CommandId, reference.EntityKey);
+                AddById(ImportEntityKind.DataSource, item.DataSourceId, reference.EntityKey);
+                AddById(ImportEntityKind.Equipment, item.EquipmentId, reference.EntityKey);
+                break;
+            }
             case ImportEntityKind.Gateway:
             {
                 var item = Find<GatewayRouteEngineeringDto>(reference);
@@ -261,6 +276,12 @@ internal sealed class EngineeringFragmentDependencyResolver
                         case ScriptEngineeringDependencyKind.Resource:
                             AddById(
                                 ImportEntityKind.VisualAsset,
+                                ParseGuid(dependency.StableReference, reference.EntityKey),
+                                reference.EntityKey);
+                            break;
+                        case ScriptEngineeringDependencyKind.RichCommand:
+                            AddById(
+                                ImportEntityKind.RichCommandDefinition,
                                 ParseGuid(dependency.StableReference, reference.EntityKey),
                                 reference.EntityKey);
                             break;
@@ -465,6 +486,8 @@ internal sealed class EngineeringFragmentDependencyResolver
             ImportEntityKind.Screen => (_package.Screens ?? Array.Empty<ScreenEngineeringDto>()).SingleOrDefault(item => item.Id == id),
             ImportEntityKind.Popup => (_package.Popups ?? Array.Empty<PopupEngineeringDto>()).SingleOrDefault(item => item.Id == id),
             ImportEntityKind.Command => (_package.Commands ?? Array.Empty<CommandEngineeringDto>()).SingleOrDefault(item => item.Id == id),
+            ImportEntityKind.RichCommandDefinition => (_package.RichCommandDefinitions ?? Array.Empty<RichCommandDefinitionEngineeringDto>()).SingleOrDefault(item => item.CommandId == id),
+            ImportEntityKind.DriverCommandBinding => (_package.DriverCommandBindings ?? Array.Empty<DriverCommandBindingEngineeringDto>()).SingleOrDefault(item => item.CommandId == id),
             ImportEntityKind.Gateway => (_package.Gateways ?? Array.Empty<GatewayRouteEngineeringDto>()).SingleOrDefault(item => item.Id == id),
             ImportEntityKind.Script => (_package.Scripts ?? Array.Empty<ScriptEngineeringDefinition>()).SingleOrDefault(item => item.Id == id),
             ImportEntityKind.VisualAsset => (_package.VisualAssets ?? Array.Empty<VisualAssetEngineeringDto>()).SingleOrDefault(item => item.Id == id),
@@ -548,6 +571,12 @@ internal sealed class EngineeringFragmentDependencyResolver
         foreach (var item in package.Commands ?? Array.Empty<CommandEngineeringDto>())
             if (item.Id is { } id && id != Guid.Empty)
                 yield return new(ImportEntityKind.Command, item.Key, id);
+        foreach (var item in package.RichCommandDefinitions ?? Array.Empty<RichCommandDefinitionEngineeringDto>())
+            if (item.CommandId != Guid.Empty)
+                yield return new(ImportEntityKind.RichCommandDefinition, item.SemanticKey, item.CommandId);
+        foreach (var item in package.DriverCommandBindings ?? Array.Empty<DriverCommandBindingEngineeringDto>())
+            if (item.CommandId != Guid.Empty)
+                yield return new(ImportEntityKind.DriverCommandBinding, item.CommandId.ToString("D"), item.CommandId);
         foreach (var item in package.Gateways ?? Array.Empty<GatewayRouteEngineeringDto>())
             if (item.Id is { } id && id != Guid.Empty)
                 yield return new(ImportEntityKind.Gateway, item.Key, id);

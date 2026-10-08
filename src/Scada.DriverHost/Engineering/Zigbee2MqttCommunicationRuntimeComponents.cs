@@ -101,8 +101,11 @@ public sealed class Zigbee2MqttCommunicationRuntimePlanner : ICommunicationDrive
         if (issues.Any(issue => issue.IsError))
             return new CommunicationDriverRuntimePlanningResult(null, issues);
         if (points.Count == 0)
-            issues.Add(new EngineeringDriverIssue("Z2M_NO_TAGS", DriverEngineeringIssueSeverity.Warning,
-                $"Data Source '{dataSource.Key}' has no selected scalar TAG bindings; bridge health remains available.", dataSource.Key));
+            issues.Add(new EngineeringDriverIssue(
+                "Z2M_NO_TAGS",
+                $"Data Source '{dataSource.Key}' has no selected scalar TAG bindings; bridge health remains available.",
+                dataSource.Key,
+                IsError: false));
 
         return new CommunicationDriverRuntimePlanningResult(
             new Zigbee2MqttCommunicationRuntimePlan(
@@ -144,8 +147,8 @@ public sealed class Zigbee2MqttCommunicationRuntimePlanner : ICommunicationDrive
     private static CommunicationDriverRuntimePlanningResult Failure(string code, string message, string dataSourceKey) =>
         new(null, [Error(code, message, dataSourceKey)]);
 
-    private static EngineeringDriverIssue Error(string code, string message, string field, string? path = null) =>
-        new(code, DriverEngineeringIssueSeverity.Error, path is null ? message : $"{message} ({path})", field);
+    private static EngineeringDriverIssue Error(string code, string message, string dataSourceKey, string? tagPath = null) =>
+        new(code, message, dataSourceKey, tagPath, IsError: true);
 
     private static string SafeFailure(Exception exception) => exception switch
     {

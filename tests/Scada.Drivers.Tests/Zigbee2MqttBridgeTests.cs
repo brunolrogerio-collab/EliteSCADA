@@ -89,7 +89,8 @@ public sealed class Zigbee2MqttBridgeTests
         Assert.Equal(21.5d, Assert.IsType<double>(numericValue));
         Assert.False(Zigbee2MqttExposeMapper.TryDecodeValue(numericPoint, wrongStep.RootElement, out _, out _));
         Assert.False(Zigbee2MqttExposeMapper.TryDecodeValue(numericPoint, outOfRange.RootElement, out _, out _));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Zigbee2MqttExposeMapper.EncodeSetValue(Point(numeric, TagDataType.Double, readOnly: false), 21.25d));
+        var writableNumeric = numeric with { Access = numeric.Access | 2 };
+        Assert.Throws<ArgumentOutOfRangeException>(() => Zigbee2MqttExposeMapper.EncodeSetValue(Point(writableNumeric, TagDataType.Double, readOnly: false), 21.25d));
     }
 
     [Fact]

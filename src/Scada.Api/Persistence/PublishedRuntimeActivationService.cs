@@ -4,6 +4,7 @@ using Scada.Core.Abstractions;
 using Scada.DriverHost.Runtime;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
+using Scada.Engineering.Interactions;
 using Scada.Engineering.Persistence;
 
 namespace Scada.Api.Persistence;
@@ -59,7 +60,8 @@ public sealed class PublishedRuntimeActivationService(
     IScadaEventBus? eventBus = null,
     IConfiguration? configuration = null,
     GatewayEngineeringRuntimeCoordinator? operationalEvents = null,
-    RuntimeHighAvailabilityService? highAvailability = null) : IPublishedRuntimeActivationService
+    RuntimeHighAvailabilityService? highAvailability = null,
+    ActiveDriverInteractionRuntimeCatalog? driverInteractions = null) : IPublishedRuntimeActivationService
 {
     public async Task<PublishedRuntimeActivationOutcome> ActivateAsync(
         string projectKey,
@@ -145,6 +147,28 @@ public sealed class PublishedRuntimeActivationService(
         bool haTakeover)
     {
         var package = ParseAndValidate(snapshot);
+        PreparedDriverInteractionRuntimeGraph? preparedInteractions = null;
+        try
+        {
+            if (driverInteractions is not null)
+                preparedInteractions = driverInteractions.Prepare(package);
+            else
+                _ = DriverInteractionEngineeringValidator.NormalizeActiveGraph(package);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
+        {
+            var invalidGraphLifecycle = await persistence.GetLifecycleAsync(
+                snapshot.ProjectKey,
+                CancellationToken.None);
+            return new PublishedRuntimeActivationOutcome(
+                snapshot,
+                InvalidInteractionGraph(snapshot, ex.Message),
+                null,
+                invalidGraphLifecycle);
+        }
+
+        var previousInteractions = driverInteractions?.CapturePrepared();
+        var interactionsCommitted = false;
         EngineeringProjectActivation? recordedActivation = null;
 
         async Task CommitAsync(
@@ -171,10 +195,18 @@ public sealed class PublishedRuntimeActivationService(
                         ? "Persisted revision changed before HA takeover could be committed."
                         : "Published revision changed before activation could be committed.");
             }
+
+            if (driverInteractions is not null && preparedInteractions is not null)
+            {
+                driverInteractions.Commit(preparedInteractions);
+                interactionsCommitted = true;
+            }
         }
 
         RuntimeActivationResult runtimeResult;
-        if (eventBus is not null && configuration is not null)
+        try
+        {
+            if (eventBus is not null && configuration is not null)
         {
             var scripts = ServerScriptRuntimeManager.GetShared(
                 runtime,
@@ -220,6 +252,21 @@ public sealed class PublishedRuntimeActivationService(
                     CommitAsync,
                     cancellationToken);
         }
+        catch
+        {
+            if (interactionsCommitted && driverInteractions is not null && previousInteractions is not null)
+                driverInteractions.Commit(previousInteractions);
+            throw;
+        }
+
+        if (!runtimeResult.Activated &&
+            interactionsCommitted &&
+            driverInteractions is not null &&
+            previousInteractions is not null)
+        {
+            driverInteractions.Commit(previousInteractions);
+            interactionsCommitted = false;
+        }
 
         // The Active revision is the Runtime application authority. Only after a
         // successful committed activation may its Engineering Lock state replace the
@@ -237,6 +284,21 @@ public sealed class PublishedRuntimeActivationService(
             recordedActivation,
             lifecycle);
     }
+
+    private static RuntimeActivationResult InvalidInteractionGraph(
+        EngineeringProjectSnapshot snapshot,
+        string message) =>
+        new(
+            snapshot.ProjectKey,
+            snapshot.Revision,
+            Activated: false,
+            Array.Empty<Scada.DriverHost.Engineering.EngineeringDriverIssue>(),
+            [
+                new RuntimeActivationIssue(
+                    "DRIVER_INTERACTION_ACTIVE_GRAPH_INVALID",
+                    message,
+                    IsError: true)
+            ]);
 
     private EngineeringPackage ParseAndValidate(EngineeringProjectSnapshot snapshot)
     {

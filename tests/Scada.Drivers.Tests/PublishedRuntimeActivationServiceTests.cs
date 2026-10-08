@@ -64,6 +64,20 @@ public sealed class PublishedRuntimeActivationServiceTests
         Assert.True(((IRichCommandDefinitionResolver)interactions).TryResolve(commandId, out _));
         Assert.True(((IRichCommandBindingResolver)interactions).TryResolve(commandId, out _));
 
+        var restoredPublishedPackage = exchange.ParseJson(snapshot.EngineeringJson);
+        Assert.Equal(
+            VisualNavigationActionKind.ExecuteRichCommand,
+            Assert.Single(Assert.Single(Assert.Single(restoredPublishedPackage.Screens!).Elements!).Actions!).Kind);
+        Assert.Equal(
+            VisualNavigationActionVersions.RichCommand,
+            Assert.Single(Assert.Single(Assert.Single(restoredPublishedPackage.Screens!).Elements!).Actions!).Version);
+        Assert.Equal(
+            VisualNavigationActionKind.ExecuteRichCommand,
+            Assert.Single(Assert.Single(Assert.Single(restoredPublishedPackage.Popups!).Elements!).Actions!).Kind);
+        Assert.Equal(
+            VisualNavigationActionVersions.RichCommand,
+            Assert.Single(Assert.Single(Assert.Single(restoredPublishedPackage.Popups!).Elements!).Actions!).Version);
+
         var currentLock = EngineeringLockContract.Normalize(exchange.ExportPackage().EngineeringLock);
         Assert.True(currentLock.Locked);
         Assert.NotNull(currentLock.Verifier);
@@ -346,6 +360,48 @@ public sealed class PublishedRuntimeActivationServiceTests
                     "cover.move",
                     EquipmentId: equipmentId,
                     CapabilityId: "cover.main")
+            ],
+            Screens =
+            [
+                new ScreenEngineeringDto(
+                    Guid.NewGuid(),
+                    "screen.home",
+                    "Home",
+                    Elements:
+                    [
+                        new VisualElementEngineeringDto(
+                            "execute-cover",
+                            "button",
+                            Actions:
+                            [
+                                new VisualNavigationActionEngineeringDto(
+                                    "click",
+                                    VisualNavigationActionKind.ExecuteRichCommand,
+                                    Version: VisualNavigationActionVersions.RichCommand,
+                                    CommandId: commandId)
+                            ])
+                    ])
+            ],
+            Popups =
+            [
+                new PopupEngineeringDto(
+                    Guid.NewGuid(),
+                    "popup.cover",
+                    "Cover",
+                    Elements:
+                    [
+                        new VisualElementEngineeringDto(
+                            "execute-cover",
+                            "button",
+                            Actions:
+                            [
+                                new VisualNavigationActionEngineeringDto(
+                                    "click",
+                                    VisualNavigationActionKind.ExecuteRichCommand,
+                                    Version: VisualNavigationActionVersions.RichCommand,
+                                    CommandId: commandId)
+                            ])
+                    ])
             ]
         };
     }

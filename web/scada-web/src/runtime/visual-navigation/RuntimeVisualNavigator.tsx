@@ -12,7 +12,14 @@ import { RuntimeLogicalViewport } from './RuntimeLogicalViewport';
 import { useMobileRuntime } from '../useMobileRuntime';
 import { RuntimeActionFeedbackContext, actionFeedbackLabel, type RuntimeActionFeedback } from './RuntimeActionFeedback';
 import { resolveRuntimeLogicalSize } from './runtimeLogicalCanvas';
-import { executeRuntimeCommand, RuntimeCommandExecutionError } from './runtimeCommandApi';
+import {
+  executeRuntimeCommand,
+  executeRuntimeRichCommand,
+  loadRuntimeRichCommandDefinition,
+  RuntimeCommandExecutionError,
+  type RuntimeRichCommandDefinition,
+  type RuntimeRichCommandOutcome
+} from './runtimeCommandApi';
 import { writeRuntimeTagValue } from '../runtimeTagWriteApi';
 import { loadReadableRuntimeTags } from '../liveTagTransport';
 import { resolvePopupLogicalBounds, resolvePopupLogicalPosition } from './runtimePopupPosition';
@@ -53,10 +60,13 @@ type NavigationResolution = Readonly<{
 
 type OperationalVisualAction = Readonly<
   Omit<VisualNavigationActionEngineering, 'kind'> & {
-    kind: 'NavigateScreen' | 'OpenPopup' | 'ClosePopup' | 'ExecuteCommand' | 'SetTagValue' | 'ToggleTagBoolean';
+    kind: 'NavigateScreen' | 'OpenPopup' | 'ClosePopup' | 'ExecuteCommand' | 'ExecuteRichCommand' | 'SetTagValue' | 'ToggleTagBoolean';
     commandId?: string | null;
+    version?: number;
   }
 >;
+
+type RichCommandPrompt = Readonly<{ objectId: string; requestId: string; definition: RuntimeRichCommandDefinition }>;
 
 const POPUP_FALLBACK_TITLE: Readonly<Record<EngineeringLocale, string>> = Object.freeze({
   'pt-BR': 'Janela',
@@ -80,6 +90,9 @@ export function RuntimeVisualNavigator({
   const playback = useOptionalHistoricalPlayback();
   const mobile = useMobileRuntime();
   const [actionFeedback, setActionFeedback] = useState<ReadonlyMap<string, RuntimeActionFeedback>>(new Map());
+  const [richCommandPrompt, setRichCommandPrompt] = useState<RichCommandPrompt | null>(null);
+  const [richCommandValues, setRichCommandValues] = useState<Readonly<Record<string, string>>>({});
+  const richCommandSubmitting = React.useRef(false);
   const actionInFlight = React.useRef(new Set<string>());
   const catalog = useMemo(() => createRuntimeVisualCatalog(engineeringPackage), [engineeringPackage]);
   const initialResolution = useMemo(
@@ -131,6 +144,7 @@ export function RuntimeVisualNavigator({
     const objectId = event.element.id ?? event.element.key;
     let operational = false;
     let acquired = false;
+    let retainInFlight = false;
     const requestId = crypto.randomUUID();
     const started = Date.now();
     const feedback = (status: RuntimeActionFeedback['state']) => setActionFeedback(previous => {
@@ -149,7 +163,7 @@ export function RuntimeVisualNavigator({
       const rawAction = resolveVisualNavigationAction(event.element, event.eventKey);
       if (!rawAction) return;
       const action = normalizeVisualActionWireKind(rawAction);
-      operational = ['ExecuteCommand', 'SetTagValue', 'ToggleTagBoolean'].includes(action.kind);
+      operational = ['ExecuteCommand', 'ExecuteRichCommand', 'SetTagValue', 'ToggleTagBoolean'].includes(action.kind);
       if (operational) {
         if (actionInFlight.current.has(objectId)) return;
         actionInFlight.current.add(objectId); acquired = true; feedback('pending');
@@ -164,6 +178,36 @@ export function RuntimeVisualNavigator({
         }
         await executeRuntimeCommand(commandId);
         feedback('accepted');
+        setDiagnostic(null);
+        return;
+      }
+      if (action.kind === 'ExecuteRichCommand') {
+        const commandId = action.commandId?.trim();
+        if (!commandId) {
+          throw new RuntimeVisualCompositionError(
+            'VISUAL_RUNTIME_RICH_COMMAND_REFERENCE_REQUIRED',
+            `ExecuteRichCommand action '${action.eventKey}' does not contain a canonical Rich Command identity.`
+          );
+        }
+
+        const definition = await loadRuntimeRichCommandDefinition(commandId);
+        if (definition.parameters.length === 0) {
+          const result = await executeRuntimeRichCommand(commandId, {});
+          feedback(result.outcome);
+          if (isRichCommandErrorOutcome(result.outcome)) {
+            setDiagnostic(new RuntimeVisualCompositionError(
+              'VISUAL_RUNTIME_RICH_COMMAND_' + result.outcome.toUpperCase(),
+              result.message || result.code || 'Rich Command invocation did not complete.'
+            ));
+          } else {
+            setDiagnostic(null);
+          }
+          return;
+        }
+
+        setRichCommandValues({});
+        setRichCommandPrompt({ objectId, requestId, definition });
+        retainInFlight = true;
         setDiagnostic(null);
         return;
       }
@@ -217,9 +261,77 @@ export function RuntimeVisualNavigator({
       if (operational) feedback('failed');
       setDiagnostic(asRuntimeDiagnostic(reason));
     } finally {
-      if (acquired) actionInFlight.current.delete(objectId);
+      if (acquired && !retainInFlight) actionInFlight.current.delete(objectId);
     }
   };
+
+  const updateFeedback = (objectId: string, requestId: string, status: RuntimeActionFeedback['state']) => {
+    setActionFeedback(previous => {
+      if (previous.get(objectId)?.requestId !== requestId) return previous;
+      return new Map(previous).set(objectId, { state: status, label: actionFeedbackLabel(status, locale), requestId });
+    });
+  };
+
+  const cancelRichCommandPrompt = () => {
+    if (!richCommandPrompt) return;
+    actionInFlight.current.delete(richCommandPrompt.objectId);
+    setActionFeedback(previous => {
+      if (previous.get(richCommandPrompt.objectId)?.requestId !== richCommandPrompt.requestId) return previous;
+      const next = new Map(previous);
+      next.delete(richCommandPrompt.objectId);
+      return next;
+    });
+    setRichCommandPrompt(null);
+    setRichCommandValues({});
+  };
+
+  const submitRichCommandPrompt = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const prompt = richCommandPrompt;
+    if (!prompt || richCommandSubmitting.current) return;
+    richCommandSubmitting.current = true;
+    updateFeedback(prompt.objectId, prompt.requestId, 'pending');
+
+    const parameters: Record<string, unknown> = {};
+    for (const parameter of prompt.definition.parameters) {
+      const rawValue = richCommandValues[parameter.key] ?? '';
+      if (rawValue === '') continue;
+      parameters[parameter.key] = parameter.schema.kind === 'Boolean'
+        ? rawValue === 'true'
+        : rawValue;
+    }
+
+    try {
+      const result = await executeRuntimeRichCommand(prompt.definition.commandId, parameters);
+      updateFeedback(prompt.objectId, prompt.requestId, result.outcome);
+      if (isRichCommandErrorOutcome(result.outcome)) {
+        setDiagnostic(new RuntimeVisualCompositionError(
+          'VISUAL_RUNTIME_RICH_COMMAND_' + result.outcome.toUpperCase(),
+          result.message || result.code || 'Rich Command invocation did not complete.'
+        ));
+      } else {
+        setDiagnostic(null);
+      }
+    } catch (reason) {
+      // The invocation may have reached Runtime; report ambiguity and never retry.
+      updateFeedback(prompt.objectId, prompt.requestId, 'Unknown');
+      setDiagnostic(new RuntimeVisualCompositionError(
+        'VISUAL_RUNTIME_RICH_COMMAND_UNKNOWN',
+        reason instanceof Error ? reason.message : 'The Rich Command outcome is unknown.'
+      ));
+    } finally {
+      actionInFlight.current.delete(prompt.objectId);
+      richCommandSubmitting.current = false;
+      setRichCommandPrompt(null);
+      setRichCommandValues({});
+    }
+  };
+
+  const richCommandCopy = locale === 'pt-BR'
+    ? { title: 'Executar comando', required: 'obrigatório', value: 'Escolha um valor', cancel: 'Cancelar', submit: 'Executar', close: 'Fechar' }
+    : locale === 'es'
+      ? { title: 'Ejecutar comando', required: 'obligatorio', value: 'Elige un valor', cancel: 'Cancelar', submit: 'Ejecutar', close: 'Cerrar' }
+      : { title: 'Execute command', required: 'required', value: 'Choose a value', cancel: 'Cancel', submit: 'Execute', close: 'Close' };
 
   return <RuntimeActionFeedbackContext.Provider value={actionFeedback}><div
     className="runtime-visual-navigator"
@@ -319,6 +431,75 @@ export function RuntimeVisualNavigator({
     </RuntimeLogicalViewport>
 
     {diagnostic ? <RuntimeDiagnostic diagnostic={diagnostic} /> : null}
+    {richCommandPrompt ? <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="runtime-rich-command-title"
+      data-testid="runtime-rich-command-parameters"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 10000,
+        display: 'grid',
+        placeItems: 'center',
+        padding: 16,
+        background: 'rgba(0, 0, 0, 0.48)'
+      }}
+    >
+      <form
+        onSubmit={event => { void submitRichCommandPrompt(event); }}
+        style={{
+          display: 'grid',
+          gap: 12,
+          width: 'min(440px, 100%)',
+          maxHeight: '80vh',
+          overflowY: 'auto',
+          padding: 20,
+          borderRadius: 8,
+          background: 'var(--surface, #fff)',
+          color: 'var(--text-primary, #222)',
+          boxShadow: '0 12px 40px rgba(0,0,0,.3)'
+        }}
+      >
+        <h2 id="runtime-rich-command-title">{richCommandPrompt.definition.semanticKey || richCommandCopy.title}</h2>
+        {richCommandPrompt.definition.description ? <p>{richCommandPrompt.definition.description}</p> : null}
+        {richCommandPrompt.definition.parameters.map(parameter => {
+          const kind = parameter.schema.kind;
+          const value = richCommandValues[parameter.key] ?? '';
+          const label = parameter.description?.trim() || parameter.key;
+          return <label key={parameter.key} style={{ display: 'grid', gap: 4 }}>
+            <span>{label}{parameter.required ? ' (' + richCommandCopy.required + ')' : ''}</span>
+            {kind === 'Boolean' ? <select
+              value={value}
+              required={parameter.required}
+              onChange={event => setRichCommandValues(previous => ({ ...previous, [parameter.key]: event.target.value }))}
+            >
+              <option value="">{richCommandCopy.value}</option>
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select> : kind === 'Enum' ? <select
+              value={value}
+              required={parameter.required}
+              onChange={event => setRichCommandValues(previous => ({ ...previous, [parameter.key]: event.target.value }))}
+            >
+              <option value="">{richCommandCopy.value}</option>
+              {(parameter.schema.enumValues ?? []).map(option => <option key={option} value={option}>{option}</option>)}
+            </select> : <input
+              type="text"
+              inputMode={kind === 'Integer' || kind === 'Number' || kind === 'Percentage' ? 'decimal' : undefined}
+              value={value}
+              required={parameter.required}
+              maxLength={parameter.schema.maximumLength ?? undefined}
+              onChange={event => setRichCommandValues(previous => ({ ...previous, [parameter.key]: event.target.value }))}
+            />}
+          </label>;
+        })}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button type="button" onClick={cancelRichCommandPrompt} disabled={richCommandSubmitting.current}>{richCommandCopy.cancel}</button>
+          <button type="submit" disabled={richCommandSubmitting.current}>{richCommandCopy.submit}</button>
+        </div>
+      </form>
+    </div> : null}
   </div></RuntimeActionFeedbackContext.Provider>;
 }
 
@@ -334,6 +515,8 @@ function normalizeVisualActionWireKind(action: VisualNavigationActionEngineering
     case 'closePopup': kind = 'ClosePopup'; break;
     case 'ExecuteCommand':
     case 'executeCommand': kind = 'ExecuteCommand'; break;
+    case 'ExecuteRichCommand':
+    case 'executeRichCommand': kind = 'ExecuteRichCommand'; break;
     case 'SetTagValue':
     case 'setTagValue': kind = 'SetTagValue'; break;
     case 'ToggleTagBoolean':
@@ -344,7 +527,17 @@ function normalizeVisualActionWireKind(action: VisualNavigationActionEngineering
         `Visual action '${action.eventKey}' has unsupported wire kind '${wireKind}'.`
       );
   }
+  if (kind === 'ExecuteRichCommand' && action.version !== 2) {
+    throw new RuntimeVisualCompositionError(
+      'VISUAL_RUNTIME_RICH_COMMAND_ACTION_VERSION_UNSUPPORTED',
+      `ExecuteRichCommand action '${action.eventKey}' must use action Version 2.`
+    );
+  }
   return Object.freeze({ ...(action as unknown as OperationalVisualAction), kind });
+}
+
+function isRichCommandErrorOutcome(outcome: RuntimeRichCommandOutcome): boolean {
+  return outcome === 'Rejected' || outcome === 'Failed' || outcome === 'TimedOut' || outcome === 'Unknown';
 }
 
 function isRuntimeWriteValue(value: unknown): value is string | number | boolean {

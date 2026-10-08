@@ -12,6 +12,11 @@ public static class VisualCompositionEngineeringVersions
     public const int Current = 1;
 }
 
+public static class VisualNavigationActionVersions
+{
+    public const int RichCommand = 2;
+}
+
 public enum DynamoParameterKind
 {
     Boolean,
@@ -49,14 +54,14 @@ public enum VisualNavigationActionKind
     ClosePopup,
     ExecuteCommand,
     SetTagValue,
-    ToggleTagBoolean
+    ToggleTagBoolean,
+    ExecuteRichCommand
 }
 
 /// <summary>
-/// Canonical visual action intent. TargetKey is Engineering identity by key for
-/// navigation targets; CommandId is the stable Command entity identity for
-/// ExecuteCommand. Parameters are JSON-native authoring values passed to the
-/// target context and are not runtime-calculated state.
+/// Canonical visual action intent. CommandId selects either the legacy Command
+/// action or the separately versioned Active Rich Command action. Rich command
+/// parameter values are collected at invocation time and never stored here.
 /// </summary>
 public sealed record VisualNavigationActionEngineeringDto(
     string EventKey,

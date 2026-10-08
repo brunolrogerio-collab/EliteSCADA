@@ -790,6 +790,17 @@ export type CommandEngineering = {
   metadata?: Record<string, string> | null;
 };
 
+export type RichCommandDefinitionEngineering = Readonly<{
+  commandId: string;
+  semanticKey: string;
+  description?: string | null;
+  parameters?: readonly Readonly<{
+    key: string;
+    required?: boolean;
+    description?: string | null;
+  }>[] | null;
+}>;
+
 export type EngineeringPackageView = {
   schema: string;
   schemaVersion: number;
@@ -806,6 +817,7 @@ export type EngineeringPackageView = {
   popups?: PopupEngineering[];
   securityRoles?: SecurityRoleEngineering[];
   commands?: CommandEngineering[];
+  richCommandDefinitions?: readonly RichCommandDefinitionEngineering[] | null;
   gateways?: GatewayEngineering[];
   visualAssets?: VisualAssetEngineering[];
   historianCaptureProfiles?: HistorianCaptureProfileEngineering[];

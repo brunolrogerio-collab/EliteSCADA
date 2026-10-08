@@ -49,6 +49,7 @@ export type VisualNavigationActionKindEngineering =
   | 'OpenPopup'
   | 'ClosePopup'
   | 'ExecuteCommand'
+  | 'ExecuteRichCommand'
   | 'SetTagValue'
   | 'ToggleTagBoolean';
 

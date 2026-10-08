@@ -1,5 +1,97 @@
 # CHAT WORK ASSIGNMENTS — EliteSCADA
 
+## Current Wave 15 execution board — 2026-10-08 (BRT)
+
+> GitHub live is the sole authority. Revalidate refs, issue/PR state and exact-head Actions before acting.
+> This board supersedes the historical Wave 10 assignments retained below.
+> Current Main queue and dependency decisions: [#305 comment 6064847156](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6064847156).
+
+Wave: W15 / selected Home-Building + industrial expansion.
+Main issue: #305.
+Integration target: `wave15/corrections-integration`.
+Current product checkpoint: `cfd4ea9a718c3aede93a53606b3e5fd178fae2e1`.
+Worker limit: up to three independent product slices; do not fill unused slots speculatively.
+
+### ACTIVE — Panasonic
+
+- DEV-ID/chat: DEV-INDUSTRIAL-PANASONIC-MEWTOCOL-V1.
+- CurrentTask/report destination: #570. Accepted research: #553; industrial parent: #551.
+- Branch: `work/industrial-panasonic-mewtocol-driver-v1`.
+- BaseSHA and current published HEAD at this snapshot: `cfd4ea9a718c3aede93a53606b3e5fd178fae2e1`; 0 ahead / 0 behind; no lane PR/T1 yet.
+- StartCondition: satisfied by the Product Owner's exact lane release; Mitsubishi PR #567 is merged.
+- Objective/AllowedScope: bounded native MEWTOCOL-COM TCP + Host Serial, own codec/session, canonical TAG read/write, Engineering/PointRead/#500 diagnostics and #560 lifecycle.
+- DependsOn: integrated Driver SDK/#469/#500/#560; not S5/S6.
+- ParallelSafeWith: S5 isolated HMI caller files. Shared SDK/catalog/DI/HA/security/schema/workflow changes are reserved to Main.
+- ValidationMatrix: focused L0/L1/L2 disposition/L3, DRIVER_PROTOCOL normal exact-head T1, Main audit.
+- CompletionCriteria: published coherent source tree, applicable intermediate evidence, exact-head T1 and accepted audit. Physical L4 is deferred.
+- AfterCompletion: handoff #570; wait for explicit Product Owner merge disposition. DEV does not merge.
+- NextQueuedTask: none released to this chat. A queue entry is not permission.
+- Owner wake action: SIGA in the Panasonic DEV chat when its turn ends.
+
+### ACTIVE — S5 HMI Rich Command
+
+- DEV-ID/chat: DEV-DRIVER-INTERACTION-S5-HMI.
+- CurrentTask/report destination: #571; architecture input #546.
+- Branch: `work/driver-interaction-s5-hmi-rich-command`.
+- BaseSHA and current published HEAD at this snapshot: `cfd4ea9a718c3aede93a53606b3e5fd178fae2e1`; 0 ahead / 0 behind; no lane PR/T1 yet.
+- DependsOn: integrated S0/S2/S3; S4 predecessor is merged.
+- StartCondition: satisfied; Main resolved BLOCKED-CONTRACT in [#571 comment 6064796076](https://github.com/brunolrogerio-collab/EliteSCADA/issues/571#issuecomment-6064796076).
+- Objective/AllowedScope: bounded HMI Screen/Popup caller, Active definition-driven typed form, existing human CommandExecute/Audit, truthful outcomes.
+- Main-owned exception: distinct ExecuteRichCommand + CommandId + explicit action Version 2. Legacy visual/Dynamo/actions remain Version 1; scada.engineering stays v23. The exact shared-file exception and compatibility/roundtrip/restart tests are in #571.
+- ForbiddenScope: legacy command reinterpretation/fallback, parameter presets, browser driver methods, second authority, S0-S3/schema migration, HA internals, unrelated shared files and S7 expansion.
+- ParallelSafeWith: Panasonic protocol implementation. S5 action-contract files are reserved to this explicit exception; unrelated central composition stays Main-owned.
+- ValidationMatrix: focused Core action-contract/roundtrip + API authority + actual HMI tests; FOUNDATION_LIFECYCLE, RUNTIME_RENDERER, UI_EDITOR, AUTHORITY_CORE plus inferred router floor; exact-head T1; Main audit.
+- CompletionCriteria: published Screen/Popup caller and rejection-before-dispatch evidence, normal T1 and accepted audit.
+- AfterCompletion: handoff #571; wait for explicit Product Owner merge disposition. DEV does not merge.
+- Owner wake action: SIGA now in the S5 DEV chat to consume the resolved blocker.
+
+### Completed / parked chats
+
+- S4 #565 / PR #568: CLOSED / MERGED; chat WAIT.
+- Mitsubishi #566 / PR #567: code MERGED; issue open only for deferred L4; chat WAIT.
+- Shelly, ESPHome and HAB: built; reuse accepted #560 lifecycle evidence.
+- Third product worker: UNASSIGNED.
+- Docs PR #569: OPEN / DRAFT / NO_MERGE_AUTHORIZATION. This board is published on that docs branch until integration is authorized; live #305/#570/#571 remain operational authority.
+
+### QUEUED — next releases, not ACTIVE
+
+Priority order: KNX/IP -> external Zigbee2MQTT -> Native Zigbee -> DALI gateway -> Z-Wave JS -> Matter.
+Priority is not a technical serial dependency. Each future release must supply its own DEV/chat, issue, branch, exact BaseSHA, scope/locks, validation profiles and StartCondition.
+
+| Queue | Required release preparation | Parallel opportunity |
+| --- | --- | --- |
+| Q1 KNX/IP (#539) | No-fee redistribution scope; pinned Falcon feasibility on net10/Windows/Linux/container; Secure/DPT/Protected Material/L2 boundary. | Independent of Panasonic and S5 for ordinary TAGs; can overlap external Z2M. |
+| Q2 external Z2M (#541) | User-managed MQTT boundary; protected credentials; IEEE identity; selected import; retained/stale/write/report semantics. | No managed sidecar/controller prerequisite; ordinary state can overlap S5. Events use integrated S1/S3/S4. |
+| Q3 Native Zigbee (#541) | Reuse integrated #543; pinned Node/herdsman/converters + transitive license inventory; owned ZigbeeCoordinator lease; protected key/backup adapter. | After accepted Z2M-first rollout priority; can overlap Z-Wave in isolated adapters/resources. |
+| Q4 DALI gateway (#539) | Verified gateway map/profile; existing Modbus TCP first, BACnet fallback; semantic Equipment/Capability projection. | Profile/content work can overlap Q1/Q2. KNX/DALI variant alone depends on KNX. No native DALI driver. |
+| Q5 Z-Wave JS (#542) | Reuse #543; pinned server/core/schema; ZWaveController lease; local control plane; S0/S2 keys; sleeping write truth; NVM/recovery and LR risk disposition. | Independent of KNX/DALI/Native; parallel only without shared supervisor/resource/lockfile edits. |
+| Q6 Matter (#542) | Linux/Wi-Fi first; pinned sidecar; current security/platform review; protected fabric persistence/restore. Thread later via external Border Router. | Independent of Zigbee/Z-Wave; later priority because more stack/release gates. |
+
+S6 full protocol adoption is queued after accepted S5 for complete Script/HMI proof; assign one owner per real protocol adapter. Event-only automation already has S0/S1/S3/S4. S7 portability expansion is conditional, not speculative.
+
+Suggested next batch: KNX feasibility/driver + external Z2M; DALI profile/content may use a third slot after exact release. Subsequent batch: Native Zigbee + Z-Wave, then gated Matter. Do not launch a fourth product worker.
+
+### Productization queue
+
+#379/#425 Phase 1 and Help PR #439 are already integrated. Do not restart them.
+Stable-surface inventory/glossary/Help/manual deltas can proceed with separate file ownership; avoid S5's changing editor files.
+Final accepted feature set -> #379 locale sweep -> synchronized #424/#425 final deltas -> #306 EEE Simulation + real-Modbus/provenance/PREVIEW-READY -> #300 fresh exact-SHA Preview -> Wave 15 acceptance -> Wave 16 #408.
+
+### Deferred future / gates
+
+- No paid vendor entitlement direct drivers now: Tuya Cloud direct and Intelbras GDI/Mibo direct are outside W15.
+- Direct BTHome/Bluetooth remains future until qualification/fee applicability is settled.
+- Certification/logo/restricted-mark claims remain future. External Z2M is retained; GPL is not a paid-license blocker. Managed/bundled Z2M is a separate packaging/compliance choice.
+- All physical L4 is human validation after Wave 16 + partner disclosure + stable installation on a computer. It does not block code integration after intermediate tests/T1/Main audit and explicit merge authorization. No hardware claim before physical evidence.
+- Every new ICommunicationDriver passes #560. HA = High Availability/redundancy; HAB = Home Assistant Bridge.
+- SIGA wakes only its receiving chat and does not authorize merge. Checkpoints are savepoints; continue inside an ACTIVE lane. New coding starts only after an exact ACTIVE release.
+
+---
+
+## Historical assignment board — 2026-08-30 (superseded for current work)
+
+# CHAT WORK ASSIGNMENTS — EliteSCADA
+
 Date: 2026-08-30 (BRT)  
 Stage: **DRIVER CONVERGENCE — ACTIVE / COMMON LAB MERGED / WAVE 11 DEFERRED**  
 Integration owner: **Coordinator**  

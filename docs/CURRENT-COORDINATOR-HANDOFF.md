@@ -1,22 +1,57 @@
 # CURRENT MAIN COORDINATOR HANDOFF — 2026-10-08
 
-> GitHub live is the only authority. Revalidate the branch, SHA, PR, issue comments and Actions on every wake. Earlier sections are historical.
+> GitHub live is the only authority. Revalidate branch, SHA, issue/PR comments and exact-head Actions on every wake.
+> Current execution plan: [#305 comment 6064847156](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6064847156). Board: [CHAT-WORK-ASSIGNMENTS.md](CHAT-WORK-ASSIGNMENTS.md). Historical sections below are not current assignments.
 
-## Current integration and completed lanes
+## Current integration / completed lanes
 
-- Integration: `wave15/corrections-integration@cfd4ea9a718c3aede93a53606b3e5fd178fae2e1`; 11 ahead / 0 behind the previous checkpoint `114f7c942c202a216afb1cec1950211b1f4232d5`.
-- S4 / #565: PR #568 merged at `d38d5825e546aa340a3bd3ab6b7a6e7a7b1d816b`. Exact-head `SCRIPT_ENGINEERING` T1 #964 passed; Main audit #6063461970 passed. Issue #565 closed. DEV chat action: WAIT.
-- Mitsubishi / #566: PR #567 merged at `cfd4ea9a718c3aede93a53606b3e5fd178fae2e1`. Exact-head `DRIVER_PROTOCOL` T1 #955 passed (1,239 passed / 1 skipped / 0 failed). L0-L3 PASS; L2 `SKIP_WITH_REASON` accepted for this checkpoint. DEV chat action: WAIT.
-- L4 is human physical validation for drivers after Wave 16 and partner disclosure, after a stable EliteSCADA release is installed on a computer. It is not a pre-merge gate when code, available tests/T1 and Main audit pass. Do not claim compatibility until physical L4 evidence is recorded.
-- Panasonic research #553 is CLOSED; no active implementation assignment. Action: NO ACTION.
-- Docs PR #569 is OPEN / DRAFT; revalidate its live head and latest `DOCS_I18N_HELP` T1. No merge authorization for #569 is recorded.
-- Wave 15 is not declared closed: #306, #300, #379, #424 and #425 remain visible.
+- Integration: `wave15/corrections-integration@cfd4ea9a718c3aede93a53606b3e5fd178fae2e1`.
+- S4 #565 / PR #568 CLOSED / MERGED at `d38d5825e546aa340a3bd3ab6b7a6e7a7b1d816b`; exact-head SCRIPT_ENGINEERING T1 #964 and Main re-audit accepted. Chat WAIT.
+- Mitsubishi #566 / PR #567 MERGED at current integration SHA; exact-head DRIVER_PROTOCOL T1 #955 accepted, L2 SKIP_WITH_REASON accepted for checkpoint. #566 stays open for deferred L4; chat WAIT.
+- #543 / PR #548 managed sidecar + typed Host Resource is merged. S0-S3 and S4 Event/Command foundations are integrated; do not reimplement old research deltas.
+- Docs PR #569 is OPEN / DRAFT / NO_MERGE_AUTHORIZATION; revalidate its latest head/T1 before disposition.
+- Wave 15 is not closed: #306/#300/#379/#424/#425 remain active closure trackers.
 
-## Main coordination procedure
+## Current ACTIVE parallel lanes
 
-`SIGA` wakes only the chat that receives it. GitHub is durable state but does not wake separate chats. Never ask the Product Owner to configure credentials or share a token; use the authorized GitHub Git Database/API path where available. Local tests are T0; GitHub T1 on the exact published SHA and Main audit are the pre-integration evidence. Classify failures before correction.
+| Chat / issue | Branch / assigned base | Next authorized action |
+| --- | --- | --- |
+| DEV-INDUSTRIAL-PANASONIC-MEWTOCOL-V1 / #570 | `work/industrial-panasonic-mewtocol-driver-v1` from `cfd4ea9a718c3aede93a53606b3e5fd178fae2e1` | MEWTOCOL-COM TCP + Host Serial; focused intermediate evidence -> publish -> DRIVER_PROTOCOL exact-head T1 -> Main audit. |
+| DEV-DRIVER-INTERACTION-S5-HMI / #571 | `work/driver-interaction-s5-hmi-rich-command` from the same base | Read the resolved contract, implement the HMI caller, focused Core/API/browser tests -> publish -> normal exact-head T1 -> Main audit. |
 
-At the end of every Main response, name each active DEV chat and its exact action: `SIGA`, `WAIT` or `NO ACTION`. Do not start another driver lane until the Product Owner sets its priority.
+Both branches are still at their base, with no product commit/PR/T1 at this snapshot. Revalidate before claiming progress.
+
+Main resolved S5's valid BLOCKED-CONTRACT in [#571 comment 6064796076](https://github.com/brunolrogerio-collab/EliteSCADA/issues/571#issuecomment-6064796076): a distinct ExecuteRichCommand kind, non-empty CommandId and explicit **action Version 2**. Legacy visual/Dynamo/actions stay Version 1; Engineering stays v23. No fallback, presets, new authority or S0-S3 change. The updated issue specifies the exact shared-file exception and compatibility/roundtrip/restart proof. No further owner decision is pending for that bounded unblock.
+
+Panasonic is independent of S5/S6 for normal TAG read/write. At most three parallel product workers; third slot unassigned. Main owns shared contract/composition hooks and serializes changes to SDK/catalog/DI/schema/security/HA/lockfiles.
+
+## Next QUEUED work
+
+KNX/IP -> external Zigbee2MQTT -> Native Zigbee -> DALI gateway -> Z-Wave JS -> Matter is preferred priority, not a serial technical prerequisite chain.
+KNX needs stack/platform/redistribution proof; Z2M uses an external user-managed MQTT boundary; Native/Z-Wave reuse #543 and add isolated owned-resource adapters/keys/restore; DALI is a gateway profile over existing drivers; Matter is the later Linux/Wi-Fi gated candidate.
+S6 full Script/HMI-to-protocol acceptance follows S5; event-only S4 automation and ordinary TAG drivers have independent prerequisites. S7 only for demonstrated portability need.
+
+No future coding issue/branch/BaseSHA is released by queue placement. Use the live plan/board for start conditions. No consumption of another unmerged lane.
+
+Phase 1 #379/#425 and Help PR #439 are integrated. Stable doc/glossary deltas can overlap protocols with separate ownership. Final accepted features -> #379/#424/#425 -> #306 late EEE Simulation + real-Modbus/PREVIEW-READY -> #300 fresh Preview -> Wave 15 acceptance -> Wave 16 #408. Never merge historical closed/unmerged PR #362 wholesale.
+
+Paid direct Tuya/Intelbras, unresolved direct BTHome/Bluetooth qualification, native DALI and certified/logo claims remain future scope. External Z2M is retained; GPL is not a paid-license blocker.
+
+## Evidence / operating procedure
+
+All driver L4 is human physical validation **after Wave 16, partner disclosure and a stable EliteSCADA installation on a computer**. It is not a code merge gate. Available intermediate tests, exact published-head T1, Main audit and explicit Product Owner merge authorization remain required. No hardware compatibility claim before physical evidence.
+Every new ICommunicationDriver passes #560. HA = High Availability/redundancy; HAB = Home Assistant Bridge; STATE != EVENT != COMMAND.
+
+SIGA wakes only the receiving chat, never another chat. GitHub preserves state but does not wake separate chats. Checkpoint = savepoint; continue within the ACTIVE lane. Do not ask the owner for Git credentials/tokens; use the authorized GitHub publication path, exact-tree checks, expected-head CAS and force=false. Local T0 is not GitHub T1. Classify RED and fix its actual owner. No redundant broad CI.
+
+## Exact owner chat actions
+
+- Panasonic: SIGA when the DEV chat is idle; report #570.
+- S5: **SIGA now** to consume Main's resolved blocker; report #571.
+- S4 and Mitsubishi: WAIT.
+- Future Home/Building/docs chats: no new chat/start until exact ACTIVE release.
+- Main: continue live audit/coordination. No merge authorized by this planning update.
+
 ---
 
 ## Historical coordinator snapshots (retained; superseded by the live pointer above)

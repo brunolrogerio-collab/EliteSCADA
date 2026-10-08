@@ -1,3 +1,24 @@
+# LATEST LANE ORGANIZATION — 2026-10-08 (BRT)
+
+> This snapshot supersedes the active-lane status in the earlier 2026-10-08 entry below. Revalidate GitHub live before acting.
+
+- Product integration remains `wave15/corrections-integration@cfd4ea9a718c3aede93a53606b3e5fd178fae2e1`.
+- Current Main queue/dependency/parallel plan: [#305 comment 6064847156](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6064847156).
+- Panasonic **#570 ACTIVE / IMPLEMENTATION_ONLY / NO_MERGE**; branch `work/industrial-panasonic-mewtocol-driver-v1`, assigned base/current head at snapshot is the integration SHA above. Native MEWTOCOL-COM TCP + Host Serial; DRIVER_PROTOCOL; report #570.
+- S5 **#571 ACTIVE / MAIN_SCOPED_CONTRACT_EXCEPTION / NO_MERGE**; branch `work/driver-interaction-s5-hmi-rich-command`, same assigned base/current head at snapshot. Main resolved the valid discriminator blocker in [comment 6064796076](https://github.com/brunolrogerio-collab/EliteSCADA/issues/571#issuecomment-6064796076). ExecuteRichCommand + CommandId + explicit action Version 2; legacy visual/Dynamo/actions remain Version 1; Engineering stays v23. Declared profiles include FOUNDATION_LIFECYCLE, RUNTIME_RENDERER, UI_EDITOR and AUTHORITY_CORE plus inferred risk floor; report #571.
+- Neither new lane has a product commit, PR or exact-head T1 yet at this snapshot. Panasonic's missing local dotnet is an execution constraint, not permission to skip published GitHub validation or ask for owner tokens.
+- S4 #565/PR #568 and Mitsubishi PR #567 remain merged; chats WAIT. Physical L4 for every driver remains deferred until after Wave 16, partner disclosure and stable installation; no code-merge gate or hardware claim.
+- Managed sidecar/typed Host Resource #543/PR #548 and Event/Command foundations S0-S3/S4 are already merged; do not recreate them from research-era blockers.
+- Next driver queue: KNX/IP -> external Zigbee2MQTT -> Native Zigbee -> DALI gateway -> Z-Wave JS -> Matter. Priority is not a technical dependency chain; see the execution board for exact prerequisites/parallelism. All future entries remain QUEUED, not released.
+- Stable docs/glossary/Help/manual preparation can overlap protocols; no Phase-1 restart. Final #379/#424/#425 -> #306 EEE packages/PREVIEW-READY -> #300 fresh Preview -> Wave 15 acceptance -> Wave 16.
+- Deferred from W15: paid direct Tuya/Intelbras, unresolved direct BTHome/Bluetooth qualification, native standalone DALI, certification/logo claims; external user-managed Z2M is retained.
+- Worker limit: three independent product slices; current third slot unassigned.
+- Docs PR #569 stays OPEN / DRAFT / NO_MERGE_AUTHORIZATION. Its docs are reviewable but not integrated. No product or broad CI change is made by this queue update.
+
+Owner chat actions: Panasonic SIGA when idle; **S5 SIGA now** to consume the resolved contract; Mitsubishi/S4 WAIT; no new future DEV chat until exact release.
+
+---
+
 # LATEST COORDINATION CHANGE — 2026-10-08 (BRT)
 
 > This entry supersedes the earlier 2026-10-08 status snapshot below. Historical entries remain for context; revalidate GitHub live before acting.

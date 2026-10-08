@@ -87,7 +87,7 @@ public sealed class R2SharedWireContractTests
         var service = new EngineeringExchangeService(new InMemoryTagRegistry(), alarms);
         var parsed = service.ParseJson(json);
 
-        Assert.Equal(22, EngineeringExchangeService.CurrentSchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, parsed.SchemaVersion);
         Assert.Equal(profileId, Assert.Single(parsed.Tags).HistorianCaptureProfileId);
         Assert.Equal(
             HistorianCaptureStrategy.OnChangeDeadbandMaxInterval,

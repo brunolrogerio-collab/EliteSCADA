@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Threading.Channels;
 using Scada.Core.Events;
 using Scada.Core.Tags;
+using Scada.Drivers.Abstractions;
 using Scada.Drivers.Shelly;
 
 namespace Scada.Drivers.Tests;
@@ -82,6 +83,47 @@ public sealed class ShellyRpcFakePeerTests
         Assert.True(DateTimeOffset.TryParse(diagnostics.ProtocolDetails["lastFullReconciliation"], out _));
 
         await driver.StopAsync();
+    }
+
+    [Fact]
+    public async Task MaterializedShelly_HasNoPhysicalEffectsUntilRuntimeStartsAndStopsIt()
+    {
+        var tag = TagDefinition.Create(
+            "Output",
+            "Home.Pump.Output",
+            TagDataType.Boolean,
+            source: "shelly.pump",
+            readOnly: false);
+        var peer = new FakeShellyRpcClient();
+        await using var driver = new ShellyDriver(
+            "shelly.pump",
+            "Pump Shelly",
+            new ShellyConnectionSettings("127.0.0.1"),
+            new CurrentTagCache(new InMemoryScadaEventBus()),
+            new InMemoryTagRegistry(),
+            [new ShellyPoint(tag, "switch:0", "output", "Switch.Set", "on")],
+            peer,
+            _ => ValueTask.FromResult(new ShellyResolvedCredential(ReadOnlyMemory<byte>.Empty)));
+
+        // Materialization alone (as on a standby node) must be physically inert.
+        Assert.Equal(DriverState.Stopped, driver.Status.State);
+        Assert.Empty(peer.Calls);
+        Assert.Equal(0, peer.GetStatusCalls);
+        Assert.Equal(0, peer.ConnectCount);
+        Assert.False(peer.WebSocketConnected);
+
+        // Only the ordinary Runtime lifecycle may acquire physical ownership.
+        await driver.StartAsync(CancellationToken.None);
+        Assert.Equal(DriverState.Running, driver.Status.State);
+        Assert.Equal(1, peer.ConnectCount);
+        Assert.Contains("Shelly.GetDeviceInfo", peer.Calls);
+        Assert.True(peer.GetStatusCalls >= 1);
+        Assert.True(peer.WebSocketConnected);
+
+        await driver.StopAsync(CancellationToken.None);
+        Assert.Equal(DriverState.Stopped, driver.Status.State);
+        Assert.False(peer.WebSocketConnected);
+        Assert.DoesNotContain("Switch.Set", peer.Calls);
     }
 
     [Fact]

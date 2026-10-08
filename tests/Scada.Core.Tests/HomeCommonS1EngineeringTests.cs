@@ -16,7 +16,7 @@ namespace Scada.Core.Tests;
 public sealed class HomeCommonS1EngineeringTests
 {
     [Fact]
-    public void SchemaV22_RoundTripsLocationPhysicalBindingAndCapabilities()
+    public void CurrentSchema_RoundTripsLocationPhysicalBindingAndCapabilities()
     {
         var dataSourceId = Guid.NewGuid();
         var tagId = Guid.NewGuid();
@@ -75,7 +75,7 @@ public sealed class HomeCommonS1EngineeringTests
         Assert.DoesNotContain(result.Issues, issue => issue.IsError);
 
         var exported = service.ParseJson(service.ExportJson());
-        Assert.Equal(22, exported.SchemaVersion);
+        Assert.Equal(EngineeringExchangeService.CurrentSchemaVersion, exported.SchemaVersion);
         Assert.Equal(locationId, Assert.Single(exported.Locations!).Id);
         var equipment = Assert.Single(exported.Equipment!);
         Assert.Equal(locationId, equipment.LocationId);

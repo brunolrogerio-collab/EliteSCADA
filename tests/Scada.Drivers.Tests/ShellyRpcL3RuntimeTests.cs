@@ -69,7 +69,8 @@ public sealed class ShellyRpcL3RuntimeTests
             TimeSpan.FromSeconds(3),
             communicationComponents: components);
 
-        var activation = await runtime.ActivateAsync("project-shelly-l3", 1, package);
+        using var activationRequest = new CancellationTokenSource();
+        var activation = await runtime.ActivateAsync("project-shelly-l3", 1, package, activationRequest.Token);
 
         Assert.True(
             activation.Activated,
@@ -79,6 +80,9 @@ public sealed class ShellyRpcL3RuntimeTests
         Assert.False(Assert.IsType<bool>(initial!.Value));
         Assert.Contains(runtime.Tags(), x => x.Id == tagId && x.DataSourceId == dataSourceId);
 
+        // Cancelling the short-lived activation request must not stop the committed Runtime.
+        activationRequest.Cancel();
+        Assert.Equal(DriverState.Running, Assert.Single(runtime.Describe().Drivers).State);
         await runtime.WriteAsync(tagId, true);
 
         Assert.Equal(1, peer.SwitchSetCalls);

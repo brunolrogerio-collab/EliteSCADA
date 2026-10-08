@@ -331,6 +331,8 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
 
         await using var dispatcher = new TransientEventRuntimeDispatcher(interactions, eventBus);
         var draftPrepared = interactions.Prepare(secondPackage);
+        await Assert.ThrowsAsync<KeyNotFoundException>(async () =>
+            await dispatcher.DispatchAsync(TransientOccurrence(secondDefinitionId, 1)));
         await dispatcher.DispatchAsync(TransientOccurrence(firstDefinitionId, 3));
         await WaitUntilAsync(
             () => runtime.TryGetCurrent(stateId, out var state) && Convert.ToInt32(state!.Value) == 3,
@@ -345,6 +347,7 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
         await Task.Delay(150);
         Assert.True(runtime.TryGetCurrent(stateId, out var gatedState));
         Assert.Equal(0, Convert.ToInt32(gatedState!.Value));
+        Assert.Equal(1, manager.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
 
         var secondPrepared = interactions.Prepare(secondPackage);
         Assert.True((await manager.ActivateRuntimeAsync(
@@ -366,6 +369,7 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
         await WaitUntilAsync(
             () => runtime.TryGetCurrent(stateId, out var state) && Convert.ToInt32(state!.Value) == 7,
             TimeSpan.FromSeconds(5));
+        Assert.Equal(1, manager.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
         await Task.Delay(150);
         Assert.True(runtime.TryGetCurrent(stateId, out var finalState));
         Assert.Equal(7, Convert.ToInt32(finalState!.Value));
@@ -659,7 +663,8 @@ def pulse(event):
 def on_event(event):
     canonical = event["canonicalEvent"]
     if canonical["semanticKey"] == "{semanticKey}" and canonical["source"]["stableDeviceIdentity"] == "device-1":
-        write_server_memory("{stateReference}", canonical["payload"]["value"])
+        current = read_server_memory("{stateReference}")
+        write_server_memory("{stateReference}", current + canonical["payload"]["value"])
 """,
             entryPoints:
             [

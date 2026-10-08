@@ -125,22 +125,15 @@ public sealed class PersistedRuntimeRecoveryServiceTests
             CreatePackage(1, Guid.NewGuid(), "Plant.Invalid.Value", "holding:10"),
             "invalid",
             out var invalidEventId,
-            out var invalidCommandId) with
+            out var invalidCommandId);
+        invalidPackage = invalidPackage with
         {
             DriverCommandBindings =
             [
-                WithInteractions(
-                    CreatePackage(1, Guid.NewGuid(), "Plant.Throwaway.Value", "holding:10"),
-                    "throwaway",
-                    out _,
-                    out _)
-                    .DriverCommandBindings!
-                    .Single() with
-                    {
-                        CommandId = invalidCommandId,
-                        DataSourceId = Guid.NewGuid(),
-                        SemanticOperationKey = "cover.move.invalid"
-                    }
+                invalidPackage.DriverCommandBindings!.Single() with
+                {
+                    DataSourceId = Guid.NewGuid()
+                }
             ]
         };
 

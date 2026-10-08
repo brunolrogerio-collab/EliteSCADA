@@ -201,7 +201,6 @@ public sealed class PersistedRuntimeRecoveryService(
                         snapshot.ProjectKey,
                         snapshot.Revision,
                         package,
-                        CommitInteractionsAsync,
                         cancellationToken);
             }
             else
@@ -218,7 +217,6 @@ public sealed class PersistedRuntimeRecoveryService(
                         snapshot.ProjectKey,
                         snapshot.Revision,
                         package,
-                        CommitInteractionsAsync,
                         cancellationToken);
             }
         }
@@ -227,6 +225,19 @@ public sealed class PersistedRuntimeRecoveryService(
             if (interactionsCommitted && driverInteractions is not null && previousInteractions is not null)
                 driverInteractions.Commit(previousInteractions);
             throw;
+        }
+
+        // Ordinary recovery must use the no-callback Runtime path so a persisted
+        // recovery cannot renew an expired Demo session. Publish its Active graph
+        // only after Runtime activation succeeds. HA takeover keeps its existing
+        // transactional callback path above.
+        if (result.Activated &&
+            !recoverAsHaActive &&
+            driverInteractions is not null &&
+            preparedInteractions is not null)
+        {
+            driverInteractions.Commit(preparedInteractions);
+            interactionsCommitted = true;
         }
 
         if (!result.Activated &&

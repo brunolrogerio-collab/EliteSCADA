@@ -409,7 +409,8 @@ public sealed class PersistedRuntimeRecoveryServiceTests
         var now = new DateTimeOffset(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
         var expiredAnchor = now - LicensingPolicy.DemoMaxContinuousRun - TimeSpan.FromMinutes(1);
         var time = new RecordingTimeProvider(now);
-        var package = CreateSimplePackage(0);
+        var package = CreateInteractionPackage("expired-demo", out var expiredEventId, out var expiredCommandId);
+        var previousPackage = CreateInteractionPackage("previous", out var previousEventId, out var previousCommandId);
         var snapshot = CreateSnapshot(1, package);
         var store = new RecoveryStore(snapshot, snapshot, expiredAnchor);
 
@@ -421,6 +422,8 @@ public sealed class PersistedRuntimeRecoveryServiceTests
         var licensing = new TestProductLicenseService(LicenseVerificationResult.Demo());
         await using var authorityStore = new InMemoryRuntimeSessionLeaseStore();
         await SeedDemoAuthorityAsync(authorityStore, expiredAnchor);
+        var interactions = new ActiveDriverInteractionRuntimeCatalog();
+        interactions.Commit(interactions.Prepare(previousPackage));
         await using var runtime = new ProductLicensedRuntimeCoordinator(
             new EngineeringRuntimeCoordinator(runtimeBus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)),
             () => new EngineeringRuntimeCoordinator(runtimeBus, new EngineeringDriverCompiler(), TimeSpan.FromSeconds(2)),
@@ -432,7 +435,8 @@ public sealed class PersistedRuntimeRecoveryServiceTests
             exchange,
             runtime,
             licensing,
-            authorityStore);
+            authorityStore,
+            driverInteractions: interactions);
 
         var result = await recovery.RecoverAsync("plant-a");
 
@@ -442,6 +446,12 @@ public sealed class PersistedRuntimeRecoveryServiceTests
         Assert.Null(runtime.Describe().Revision);
         Assert.Equal(ProductRuntimeLifecycleState.DemoExpired, runtime.GetProductRuntimeStatus().State);
         Assert.Equal(expiredAnchor, runtime.GetProductRuntimeStatus().DemoStartedAtUtc);
+        Assert.True(((ITransientEventDefinitionResolver)interactions).TryResolve(previousEventId, out _));
+        Assert.True(((IRichCommandDefinitionResolver)interactions).TryResolve(previousCommandId, out _));
+        Assert.True(((IRichCommandBindingResolver)interactions).TryResolve(previousCommandId, out _));
+        Assert.False(((ITransientEventDefinitionResolver)interactions).TryResolve(expiredEventId, out _));
+        Assert.False(((IRichCommandDefinitionResolver)interactions).TryResolve(expiredCommandId, out _));
+        Assert.False(((IRichCommandBindingResolver)interactions).TryResolve(expiredCommandId, out _));
     }
 
     [Fact]
@@ -495,6 +505,27 @@ public sealed class PersistedRuntimeRecoveryServiceTests
                 .ToArray(),
             Array.Empty<AlarmEngineeringDto>(),
             Array.Empty<DataSourceEngineeringDto>());
+
+    private static EngineeringPackage CreateInteractionPackage(
+        string key,
+        out Guid eventId,
+        out Guid commandId) =>
+        WithInteractions(
+            CreateSimplePackage(0) with
+            {
+                DataSources =
+                [
+                    new DataSourceEngineeringDto(
+                        null,
+                        $"source.{key}",
+                        $"Source {key}",
+                        "test.driver",
+                        Enabled: false)
+                ]
+            },
+            key,
+            out eventId,
+            out commandId);
 
     private static LicenseVerificationResult ValidVerification() =>
         LicenseVerificationResult.Valid(

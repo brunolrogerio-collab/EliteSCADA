@@ -347,7 +347,8 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
         await dispatcher.DispatchAsync(TransientOccurrence(firstDefinitionId, 4));
         await Task.Delay(150);
         Assert.True(runtime.TryGetCurrent(stateId, out var gatedState));
-        Assert.Equal(0, Convert.ToInt32(gatedState!.Value));
+        // Server Memory retains its last value across Active Runtime revisions.
+        Assert.Equal(3, Convert.ToInt32(gatedState!.Value));
         Assert.Equal(1, manager.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
 
         var secondPrepared = interactions.Prepare(secondPackage);
@@ -361,19 +362,19 @@ public sealed class ServerScriptRuntimeAutomationIntegrationTests
                 return Task.CompletedTask;
             })).Activated);
 
-        Assert.True(runtime.TryGetCurrent(stateId, out var resetState));
-        Assert.Equal(0, Convert.ToInt32(resetState!.Value));
+        Assert.True(runtime.TryGetCurrent(stateId, out var retainedState));
+        Assert.Equal(3, Convert.ToInt32(retainedState!.Value));
         await Assert.ThrowsAsync<KeyNotFoundException>(async () =>
             await dispatcher.DispatchAsync(TransientOccurrence(firstDefinitionId, 5)));
 
         await dispatcher.DispatchAsync(TransientOccurrence(secondDefinitionId, 7));
         await WaitUntilAsync(
-            () => runtime.TryGetCurrent(stateId, out var state) && Convert.ToInt32(state!.Value) == 7,
+            () => runtime.TryGetCurrent(stateId, out var state) && Convert.ToInt32(state!.Value) == 10,
             TimeSpan.FromSeconds(5));
         Assert.Equal(1, manager.Snapshot().Scripts.Single().Diagnostics.ExecutionCount);
         await Task.Delay(150);
         Assert.True(runtime.TryGetCurrent(stateId, out var finalState));
-        Assert.Equal(7, Convert.ToInt32(finalState!.Value));
+        Assert.Equal(10, Convert.ToInt32(finalState!.Value));
 
         await manager.DisposeAsync();
     }

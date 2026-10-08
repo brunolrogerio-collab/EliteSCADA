@@ -5,13 +5,16 @@ using Scada.Api.Persistence;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
 using Scada.Core.Alarms;
+using Scada.Core.Commands;
 using Scada.Core.Events;
+using Scada.Core.Interactions;
 using Scada.Core.Product.Licensing;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
+using Scada.Engineering.Interactions;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.Security;
 using Scada.Security.Authorization;
@@ -39,10 +42,21 @@ public sealed class PersistedRuntimeRecoveryServiceTests
         {
             EngineeringLock = activeLock
         };
+        activePackage = WithInteractions(
+            activePackage,
+            "active",
+            out var activeEventId,
+            out var activeCommandId);
+
         var publishedPackage = CreatePackage(publishedServer.Port, publishedTagId, "Plant.Published.Value", "holding:20") with
         {
             EngineeringLock = publishedLock
         };
+        publishedPackage = WithInteractions(
+            publishedPackage,
+            "published",
+            out var publishedEventId,
+            out var publishedCommandId);
         var activeSnapshot = CreateSnapshot(1, activePackage);
         var publishedSnapshot = CreateSnapshot(2, publishedPackage);
         var store = new RecoveryStore(activeSnapshot, publishedSnapshot);
@@ -61,12 +75,14 @@ public sealed class PersistedRuntimeRecoveryServiceTests
             TimeSpan.FromSeconds(2));
         var licensing = new TestProductLicenseService(ValidVerification());
         await using var authorityStore = new InMemoryRuntimeSessionLeaseStore();
+        var interactions = new ActiveDriverInteractionRuntimeCatalog();
         var recovery = new PersistedRuntimeRecoveryService(
             persistence,
             exchange,
             runtime,
             licensing,
-            authorityStore);
+            authorityStore,
+            driverInteractions: interactions);
 
         var result = await recovery.RecoverAsync("plant-a");
 
@@ -79,6 +95,12 @@ public sealed class PersistedRuntimeRecoveryServiceTests
         Assert.False(runtime.TryGetTag(publishedTagId, out _));
         Assert.True(runtime.TryGetCurrent(activeTagId, out var current));
         Assert.Equal(111d, Convert.ToDouble(current!.Value));
+        Assert.True(((ITransientEventDefinitionResolver)interactions).TryResolve(activeEventId, out _));
+        Assert.True(((IRichCommandDefinitionResolver)interactions).TryResolve(activeCommandId, out _));
+        Assert.True(((IRichCommandBindingResolver)interactions).TryResolve(activeCommandId, out _));
+        Assert.False(((ITransientEventDefinitionResolver)interactions).TryResolve(publishedEventId, out _));
+        Assert.False(((IRichCommandDefinitionResolver)interactions).TryResolve(publishedCommandId, out _));
+        Assert.False(((IRichCommandBindingResolver)interactions).TryResolve(publishedCommandId, out _));
 
         var currentLock = EngineeringLockContract.Normalize(exchange.ExportPackage().EngineeringLock);
         Assert.True(currentLock.Locked);
@@ -89,6 +111,70 @@ public sealed class PersistedRuntimeRecoveryServiceTests
         var loadedPublished = await persistence.LoadPublishedAsync("plant-a");
         Assert.Equal(1, loadedActive!.Revision);
         Assert.Equal(2, loadedPublished!.Revision);
+    }
+
+    [Fact]
+    public async Task Recovery_InvalidInteractionGraphFailsClosedWithoutReplacingPriorResolverGraph()
+    {
+        var previousPackage = WithInteractions(
+            CreatePackage(1, Guid.NewGuid(), "Plant.Previous.Value", "holding:10"),
+            "previous",
+            out var previousEventId,
+            out var previousCommandId);
+        var invalidPackage = WithInteractions(
+            CreatePackage(1, Guid.NewGuid(), "Plant.Invalid.Value", "holding:10"),
+            "invalid",
+            out var invalidEventId,
+            out var invalidCommandId);
+        invalidPackage = invalidPackage with
+        {
+            DriverCommandBindings =
+            [
+                invalidPackage.DriverCommandBindings!.Single() with
+                {
+                    DataSourceId = Guid.NewGuid()
+                }
+            ]
+        };
+
+        var snapshot = CreateSnapshot(1, invalidPackage);
+        var store = new RecoveryStore(snapshot, snapshot);
+        var exchangeBus = new InMemoryScadaEventBus();
+        using var exchangeAlarms = new InMemoryAlarmEngine(exchangeBus);
+        var exchange = new EngineeringExchangeService(new InMemoryTagRegistry(), exchangeAlarms);
+        var persistence = new EngineeringProjectPersistenceService(exchange, store);
+        var runtimeBus = new InMemoryScadaEventBus();
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            runtimeBus,
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromMilliseconds(100));
+        var licensing = new TestProductLicenseService(ValidVerification());
+        await using var authorityStore = new InMemoryRuntimeSessionLeaseStore();
+        var interactions = new ActiveDriverInteractionRuntimeCatalog();
+        interactions.Commit(interactions.Prepare(previousPackage));
+
+        var recovery = new PersistedRuntimeRecoveryService(
+            persistence,
+            exchange,
+            runtime,
+            licensing,
+            authorityStore,
+            driverInteractions: interactions);
+
+        var result = await recovery.RecoverAsync("plant-a");
+
+        Assert.True(result.Found);
+        Assert.False(result.Recovered);
+        Assert.Null(runtime.Describe().Revision);
+        Assert.Contains(
+            result.Runtime!.RuntimeIssues,
+            issue => issue.Code == "DRIVER_INTERACTION_ACTIVE_GRAPH_INVALID" && issue.IsError);
+        Assert.True(((ITransientEventDefinitionResolver)interactions).TryResolve(previousEventId, out _));
+        Assert.True(((IRichCommandDefinitionResolver)interactions).TryResolve(previousCommandId, out _));
+        Assert.True(((IRichCommandBindingResolver)interactions).TryResolve(previousCommandId, out _));
+        Assert.False(((ITransientEventDefinitionResolver)interactions).TryResolve(invalidEventId, out _));
+        Assert.False(((IRichCommandDefinitionResolver)interactions).TryResolve(invalidCommandId, out _));
+        Assert.False(((IRichCommandBindingResolver)interactions).TryResolve(invalidCommandId, out _));
     }
 
     [Fact]
@@ -471,6 +557,79 @@ public sealed class PersistedRuntimeRecoveryServiceTests
             new[] { tag },
             Array.Empty<AlarmEngineeringDto>(),
             new[] { dataSource });
+    }
+
+    private static EngineeringPackage WithInteractions(
+        EngineeringPackage package,
+        string key,
+        out Guid eventId,
+        out Guid commandId)
+    {
+        var dataSourceId = Guid.NewGuid();
+        var equipmentId = Guid.NewGuid();
+        eventId = Guid.NewGuid();
+        commandId = Guid.NewGuid();
+
+        var source = package.DataSources!.Single() with { Id = dataSourceId };
+        return package with
+        {
+            DataSources = [source],
+            Equipment =
+            [
+                new EquipmentEngineeringDto(
+                    equipmentId,
+                    $"Plant.Cover.{key}",
+                    $"Cover {key}",
+                    Capabilities:
+                    [
+                        new EquipmentCapabilityEngineeringDto(
+                            "cover.main",
+                            EquipmentCapabilityKinds.Cover)
+                    ])
+            ],
+            TransientEventDefinitions =
+            [
+                new TransientEventDefinitionEngineeringDto(
+                    eventId,
+                    $"cover.stopped.{key}",
+                    [
+                        new TransientEventFieldDefinition(
+                            "position",
+                            new InteractionScalarSchema(
+                                InteractionScalarKind.Percentage,
+                                Minimum: 0,
+                                Maximum: 100))
+                    ],
+                    equipmentId,
+                    "cover.main")
+            ],
+            CapabilityEventReferences =
+            [
+                new CapabilityEventReferenceEngineeringDto(
+                    equipmentId,
+                    "cover.main",
+                    "stopped",
+                    eventId,
+                    $"cover.stopped.{key}")
+            ],
+            RichCommandDefinitions =
+            [
+                new RichCommandDefinitionEngineeringDto(
+                    commandId,
+                    $"cover.move.{key}",
+                    Array.Empty<RichCommandParameterDefinition>())
+            ],
+            DriverCommandBindings =
+            [
+                new DriverCommandBindingEngineeringDto(
+                    commandId,
+                    dataSourceId,
+                    $"cover-{key}",
+                    $"cover.move.{key}",
+                    EquipmentId: equipmentId,
+                    CapabilityId: "cover.main")
+            ]
+        };
     }
 
     private static EngineeringProjectSnapshot CreateSnapshot(long revision, EngineeringPackage package)

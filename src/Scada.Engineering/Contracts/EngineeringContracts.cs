@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Scada.Core.Alarms;
 using Scada.Core.Commands;
 using Scada.Core.Tags;
+using Scada.Engineering.Interactions;
 using Scada.Engineering.Reports;
 using Scada.Engineering.Scripts;
 using Scada.Security.Authorization;
@@ -40,7 +41,11 @@ public enum ImportEntityKind
     Branding,
     RuntimePresentation,
     MediaSource,
-    Location
+    Location,
+    TransientEventDefinition,
+    CapabilityEventReference,
+    RichCommandDefinition,
+    DriverCommandBinding
 }
 
 public enum SecurityScopeNodeKind
@@ -581,7 +586,11 @@ public sealed record EngineeringPackage(
     ApplicationBrandingEngineeringDto? Branding = null,
     RuntimePresentationEngineeringDto? RuntimePresentation = null,
     IReadOnlyCollection<MediaSourceEngineeringDto>? MediaSources = null,
-    IReadOnlyCollection<LocationEngineeringDto>? Locations = null);
+    IReadOnlyCollection<LocationEngineeringDto>? Locations = null,
+    IReadOnlyCollection<TransientEventDefinitionEngineeringDto>? TransientEventDefinitions = null,
+    IReadOnlyCollection<CapabilityEventReferenceEngineeringDto>? CapabilityEventReferences = null,
+    IReadOnlyCollection<RichCommandDefinitionEngineeringDto>? RichCommandDefinitions = null,
+    IReadOnlyCollection<DriverCommandBindingEngineeringDto>? DriverCommandBindings = null);
 
 public sealed record ImportIssue(
     string Code,

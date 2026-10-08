@@ -30,6 +30,7 @@ using Scada.Engineering.DataSources;
 using Scada.Engineering.DataQueries;
 using Scada.Engineering.Gateways;
 using Scada.Engineering.Historian;
+using Scada.Engineering.Interactions;
 using Scada.Engineering.Media;
 using Scada.Engineering.ImportExport;
 using Scada.Engineering.ProjectPackages;
@@ -100,9 +101,18 @@ builder.Services.AddSingleton<AuthorityDetachService>();
 builder.Services.AddSingleton<AuthorityAttachService>();
 builder.Services.AddSingleton<AuthoritySwitchService>();
 builder.Services.AddSingleton<ICommandEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Commands);
+builder.Services.AddSingleton<IDriverInteractionEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Interactions);
 builder.Services.AddSingleton<IScriptEngineeringRegistry>(sp => sp.GetRequiredService<EngineeringWorkspace>().Scripts);
 builder.Services.AddSingleton<IGatewayEngineeringRegistry>(sp =>
     new InMemoryGatewayEngineeringRegistry(sp.GetRequiredService<EngineeringWorkspace>().MarkDirty));
+
+builder.Services.AddSingleton<ActiveDriverInteractionRuntimeCatalog>();
+builder.Services.AddSingleton<ITransientEventDefinitionResolver>(sp =>
+    sp.GetRequiredService<ActiveDriverInteractionRuntimeCatalog>());
+builder.Services.AddSingleton<IRichCommandDefinitionResolver>(sp =>
+    sp.GetRequiredService<ActiveDriverInteractionRuntimeCatalog>());
+builder.Services.AddSingleton<IRichCommandBindingResolver>(sp =>
+    sp.GetRequiredService<ActiveDriverInteractionRuntimeCatalog>());
 
 builder.Services.AddSingleton<IEngineeringDriverCompiler, EngineeringDriverCompiler>();
 builder.Services.AddSingleton<GatewayEngineeringRuntimeCoordinator>(sp =>

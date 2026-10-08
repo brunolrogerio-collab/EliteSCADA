@@ -10,6 +10,7 @@ using Scada.Engineering.DataSources;
 using Scada.Engineering.Events;
 using Scada.Engineering.Gateways;
 using Scada.Engineering.ImportExport.Handlers;
+using Scada.Engineering.Interactions;
 using Scada.Engineering.Media;
 using Scada.Engineering.Reports;
 using Scada.Engineering.Scripts;
@@ -24,7 +25,7 @@ namespace Scada.Engineering.ImportExport;
 public sealed class EngineeringExchangeService : IEngineeringExchangeService
 {
     public const string CurrentSchema = "scada.engineering";
-    public const int CurrentSchemaVersion = 22;
+    public const int CurrentSchemaVersion = 23;
 
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
@@ -41,6 +42,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     private readonly IEngineeringLockRegistry _engineeringLock;
     private readonly IApplicationBrandingEngineeringRegistry _branding;
     private readonly IMediaSourceEngineeringRegistry _mediaSources;
+    private readonly IDriverInteractionEngineeringRegistry _driverInteractions;
     private RuntimePresentationEngineeringDto _runtimePresentation = new();
     private readonly JsonSerializerOptions _json;
     private readonly EngineeringCsvExchange _csv;
@@ -58,6 +60,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     private readonly ReportEngineeringHandler _reportHandler;
     private readonly OperationalEventEngineeringHandler _operationalEventHandler;
     private readonly MediaSourceEngineeringHandler _mediaSourceHandler;
+    private readonly DriverInteractionEngineeringHandler _driverInteractionHandler;
 
     public EngineeringExchangeService(ITagRegistry tags, IAlarmEngine alarms)
         : this(
@@ -173,7 +176,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         IOperationalEventEngineeringRegistry? operationalEvents = null,
         IEngineeringLockRegistry? engineeringLock = null,
         IApplicationBrandingEngineeringRegistry? branding = null,
-        IMediaSourceEngineeringRegistry? mediaSources = null)
+        IMediaSourceEngineeringRegistry? mediaSources = null,
+        IDriverInteractionEngineeringRegistry? driverInteractions = null)
     {
         _tags = tags;
         _alarms = alarms;
@@ -192,6 +196,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _engineeringLock = engineeringLock ?? new InMemoryEngineeringLockRegistry();
         _branding = branding ?? new InMemoryApplicationBrandingEngineeringRegistry();
         _mediaSources = mediaSources ?? new InMemoryMediaSourceEngineeringRegistry();
+        _driverInteractions = driverInteractions ?? new InMemoryDriverInteractionEngineeringRegistry();
         _json = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -223,6 +228,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _reportHandler = new ReportEngineeringHandler(_reports, _visualAssets);
         _operationalEventHandler = new OperationalEventEngineeringHandler(_operationalEvents);
         _mediaSourceHandler = new MediaSourceEngineeringHandler(_mediaSources);
+        _driverInteractionHandler = new DriverInteractionEngineeringHandler(_driverInteractions, dataSources, assets);
     }
 
     public EngineeringPackage ExportPackage()
@@ -271,7 +277,11 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             Branding: _branding.Snapshot(),
             RuntimePresentation: _runtimePresentation,
             MediaSources: _mediaSources.Snapshot(),
-            Locations: _assets.SnapshotLocations());
+            Locations: _assets.SnapshotLocations(),
+            TransientEventDefinitions: _driverInteractions.SnapshotTransientEventDefinitions(),
+            CapabilityEventReferences: _driverInteractions.SnapshotCapabilityEventReferences(),
+            RichCommandDefinitions: _driverInteractions.SnapshotRichCommandDefinitions(),
+            DriverCommandBindings: _driverInteractions.SnapshotDriverCommandBindings());
     }
 
     public string ExportJson(bool indented = true)
@@ -326,7 +336,11 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             Reports = package.Reports ?? Array.Empty<ReportEngineeringDto>(),
             OperationalEvents = package.OperationalEvents ?? Array.Empty<OperationalEventEngineeringDto>(),
             EngineeringLock = EngineeringLockContract.Normalize(package.EngineeringLock),
-            RuntimePresentation = package.RuntimePresentation ?? new RuntimePresentationEngineeringDto()
+            RuntimePresentation = package.RuntimePresentation ?? new RuntimePresentationEngineeringDto(),
+            TransientEventDefinitions = package.TransientEventDefinitions ?? Array.Empty<TransientEventDefinitionEngineeringDto>(),
+            CapabilityEventReferences = package.CapabilityEventReferences ?? Array.Empty<CapabilityEventReferenceEngineeringDto>(),
+            RichCommandDefinitions = package.RichCommandDefinitions ?? Array.Empty<RichCommandDefinitionEngineeringDto>(),
+            DriverCommandBindings = package.DriverCommandBindings ?? Array.Empty<DriverCommandBindingEngineeringDto>()
         };
         return AuthorityScopeEngineeringMigration.Normalize(normalized);
     }
@@ -414,6 +428,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _operationalEventHandler.Preview(package, mode, items);
         _reportHandler.Preview(package, mode, items);
         _mediaSourceHandler.Preview(package, mode, items);
+        _driverInteractionHandler.Preview(package, mode, items);
         _securityScopeHandler.Preview(package, mode, items);
         _securityPolicyHandler.Preview(package, mode, items);
         PreviewOperationalHmiReferences(package, items);
@@ -528,6 +543,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _operationalEventHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _reportHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _mediaSourceHandler.Apply(package, mode, ref created, ref updated, ref skipped);
+        _driverInteractionHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _securityScopeHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _securityPolicyHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _engineeringLock.Replace(package.EngineeringLock);

@@ -9,6 +9,7 @@ using Scada.Drivers.Abstractions;
 using Scada.Drivers.Modbus;
 using Scada.Drivers.Mitsubishi;
 using Scada.Drivers.Serial;
+using Scada.Drivers.Zigbee2Mqtt;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.Validation;
@@ -52,6 +53,7 @@ public static class EngineeringDriverCatalogApi
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, EspHomeEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, HomeAssistantEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, ShellyEngineeringDriverToolProviderFactory>();
+        builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, Zigbee2MqttEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<EngineeringDriverToolProviderFactoryRegistry>();
         builder.Services.AddSingleton<NetworkReachabilityProbe>();
     }

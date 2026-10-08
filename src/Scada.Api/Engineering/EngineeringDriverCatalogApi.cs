@@ -7,6 +7,7 @@ using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
 using Scada.Drivers.Abstractions;
 using Scada.Drivers.Modbus;
+using Scada.Drivers.Mitsubishi;
 using Scada.Drivers.Serial;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
@@ -46,6 +47,7 @@ public static class EngineeringDriverCatalogApi
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, ModbusTcpServerEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, ModbusRtuServerEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, S7IsoEngineeringDriverToolProviderFactory>();
+        builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, MitsubishiMelsecEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, OpcUaEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, EspHomeEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, HomeAssistantEngineeringDriverToolProviderFactory>();

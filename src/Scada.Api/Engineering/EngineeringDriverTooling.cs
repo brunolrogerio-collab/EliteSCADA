@@ -286,6 +286,31 @@ public sealed class S7IsoEngineeringDriverToolProviderFactory : IEngineeringDriv
     }
 }
 
+public sealed class MitsubishiMelsecEngineeringDriverToolProviderFactory : IEngineeringDriverToolProviderFactory
+{
+    public string DriverType => Scada.Drivers.Mitsubishi.MitsubishiMelsecDriverDescriptorProvider.DriverTypeId;
+
+    public ValueTask<EngineeringDriverToolProviderLease> CreateAsync(
+        string? projectKey,
+        DataSourceEngineeringDto dataSource,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(dataSource);
+        if (!string.Equals(dataSource.Driver, DriverType, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"MELSEC Engineering tooling cannot open Data Source driver '{dataSource.Driver}'.", nameof(dataSource));
+
+        var connection = new Scada.Drivers.Mitsubishi.MitsubishiMelsecEngineeringAdapter();
+        var pointRead = new Scada.Drivers.Mitsubishi.MitsubishiMelsecPointReadTester();
+        var registration = new CommunicationDriverModuleRegistration(
+            connection,
+            ConnectionTester: connection,
+            PointReadTester: pointRead);
+        registration.Validate();
+        return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));
+    }
+}
+
 public sealed class EspHomeEngineeringDriverToolProviderFactory : IEngineeringDriverToolProviderFactory
 {
     private readonly ICommunicationDriverProtectedMaterialResolver _protectedMaterialResolver;

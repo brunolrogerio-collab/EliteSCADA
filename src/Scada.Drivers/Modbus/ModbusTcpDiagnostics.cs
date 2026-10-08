@@ -11,6 +11,7 @@ public sealed record ModbusTcpTransportDiagnosticSnapshot(
     long RequestAttempts,
     long SuccessfulRequestAttempts,
     long FailedRequestAttempts,
+    long WriteEchoMismatchCount,
     long TimeoutCount,
     TimeSpan? LastRequestDuration,
     TimeSpan? AverageRequestDuration,

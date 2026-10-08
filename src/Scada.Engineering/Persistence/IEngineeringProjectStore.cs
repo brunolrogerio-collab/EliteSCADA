@@ -161,6 +161,17 @@ public interface IEngineeringProjectStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Commits an HA takeover against an exact immutable revision, even when a newer
+    /// revision has since been published. The default preserves existing store behavior.
+    /// </summary>
+    Task<EngineeringProjectActivation?> RecordActivationForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        string? activatedBy = null,
+        CancellationToken cancellationToken = default) =>
+        RecordActivationAsync(projectKey, revision, activatedBy, cancellationToken);
+
+    /// <summary>
     /// Removes one Application project's Working revision history plus Published/Active
     /// bindings. Historian/database authorities are deliberately outside this contract.
     /// Stores that do not support installation detach fail closed by default.

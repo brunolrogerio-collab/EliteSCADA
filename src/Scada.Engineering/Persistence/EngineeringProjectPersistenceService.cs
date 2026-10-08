@@ -74,6 +74,13 @@ public interface IEngineeringProjectPersistenceService
         string? activatedBy = null,
         CancellationToken cancellationToken = default);
 
+    Task<EngineeringProjectActivation?> RecordActivationForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        string? activatedBy = null,
+        CancellationToken cancellationToken = default) =>
+        RecordActivationAsync(projectKey, revision, activatedBy, cancellationToken);
+
     Task DeleteProjectAsync(
         string projectKey,
         CancellationToken cancellationToken = default) =>
@@ -251,6 +258,20 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
     {
         await EnsureActivatableBindingAsync(projectKey, cancellationToken);
         return await _store.RecordActivationAsync(projectKey, revision, activatedBy, cancellationToken);
+    }
+
+    public async Task<EngineeringProjectActivation?> RecordActivationForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        string? activatedBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureActivatableBindingAsync(projectKey, cancellationToken);
+        return await _store.RecordActivationForHaTakeoverAsync(
+            projectKey,
+            revision,
+            activatedBy,
+            cancellationToken);
     }
 
     public Task DeleteProjectAsync(

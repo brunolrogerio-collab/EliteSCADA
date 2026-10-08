@@ -615,6 +615,75 @@ public sealed class PostgreSqlEngineeringProjectStore : IEngineeringProjectStore
         return activation;
     }
 
+    public async Task<EngineeringProjectActivation?> RecordActivationForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        string? activatedBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        await using var durableWrite = await _writeAdmission.AcquireOptionalAsync("engineering", cancellationToken);
+        ValidateProjectKey(projectKey);
+        if (revision < 1)
+            throw new ArgumentOutOfRangeException(nameof(revision));
+
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        DateTimeOffset? demoStartedAtUtc = null;
+        await using (var exists = new NpgsqlCommand(
+            "SELECT to_regclass('elitescada.runtime_session_authority_state') IS NOT NULL;",
+            connection,
+            transaction))
+        {
+            if ((bool)(await exists.ExecuteScalarAsync(cancellationToken) ?? false))
+            {
+                await using var anchor = new NpgsqlCommand(
+                    "SELECT demo_started_at_utc FROM elitescada.runtime_session_authority_state WHERE singleton_id = 1 FOR SHARE;",
+                    connection,
+                    transaction);
+                var value = await anchor.ExecuteScalarAsync(cancellationToken);
+                if (value is DateTime time)
+                    demoStartedAtUtc = new DateTimeOffset(time.Kind == DateTimeKind.Utc ? time : time.ToUniversalTime());
+            }
+        }
+
+        // HA recovery activates the exact immutable revision proven by the fenced
+        // peer mirror. It must not silently switch to a newer Published pointer.
+        const string sql = """
+            INSERT INTO elitescada.project_activations (
+                project_key,
+                active_revision,
+                activated_at_utc,
+                activated_by,
+                demo_started_at_utc)
+            SELECT
+                project_key,
+                revision,
+                clock_timestamp(),
+                @activated_by,
+                @demo_started_at_utc
+            FROM elitescada.engineering_revisions
+            WHERE project_key = @project_key AND revision = @revision
+            ON CONFLICT (project_key) DO UPDATE SET
+                active_revision = EXCLUDED.active_revision,
+                activated_at_utc = EXCLUDED.activated_at_utc,
+                activated_by = EXCLUDED.activated_by,
+                demo_started_at_utc = EXCLUDED.demo_started_at_utc
+            RETURNING project_key, active_revision, activated_at_utc, activated_by, demo_started_at_utc;
+            """;
+
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("project_key", projectKey.Trim());
+        command.Parameters.AddWithValue("revision", revision);
+        command.Parameters.AddWithValue("activated_by", NpgsqlDbType.Varchar, (object?)NormalizeOptional(activatedBy) ?? DBNull.Value);
+        command.Parameters.AddWithValue("demo_started_at_utc", NpgsqlDbType.TimestampTz, (object?)demoStartedAtUtc ?? DBNull.Value);
+        EngineeringProjectActivation? activation;
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+            activation = await reader.ReadAsync(cancellationToken) ? ReadActivation(reader) : null;
+        await transaction.CommitAsync(cancellationToken);
+        return activation;
+    }
+
     public ValueTask DisposeAsync() => _dataSource.DisposeAsync();
 
     private static async Task EnsureBlobAsync(

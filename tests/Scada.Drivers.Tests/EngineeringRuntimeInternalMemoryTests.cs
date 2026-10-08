@@ -5,6 +5,7 @@ using Scada.Core.InternalMemory;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
+using Scada.Drivers.Abstractions;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
 
@@ -188,6 +189,81 @@ public sealed class EngineeringRuntimeInternalMemoryTests
     }
 
     [Fact]
+    public async Task MaterializePassiveAsync_KeepsAnyCommunicationDriverStoppedAndProjectsPeerValues()
+    {
+        const string driverType = "test.passive-probe";
+        const string sourceKey = "probe.source";
+        var tagId = Guid.NewGuid();
+        var driverState = new PassiveProbeDriverState();
+        var components = new CommunicationDriverRuntimeComponentRegistry();
+        var descriptor = new CommunicationDriverTypeDescriptor(
+            driverType,
+            "Passive Probe",
+            DriverContractVersion: 1,
+            RuntimeCapabilities: DriverCapabilities.Read,
+            EngineeringCapabilities: DriverEngineeringCapabilities.None,
+            AcquisitionModes: [DriverAcquisitionMode.Polling],
+            ConfigurationSchema: new DriverConfigurationSchemaDescriptor(
+                "elitescada.driver.test.passive-probe",
+                1,
+                [],
+                []));
+        components.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new PassiveProbeRuntimePlanner(driverType),
+            new PassiveProbeRuntimeFactory(driverType, driverState),
+            descriptor));
+
+        var package = new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            [new TagEngineeringDto(
+                tagId,
+                "Counter",
+                "Plant.Probe.Counter",
+                TagDataType.Int32,
+                Source: sourceKey,
+                ReadOnly: true)],
+            Array.Empty<AlarmEngineeringDto>(),
+            [new DataSourceEngineeringDto(null, sourceKey, "Probe", driverType)]);
+
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            new InMemoryScadaEventBus(),
+            new EngineeringDriverCompiler(components),
+            TimeSpan.FromSeconds(1),
+            communicationComponents: components);
+
+        var result = await runtime.MaterializePassiveAsync(
+            "passive-probe-project",
+            7,
+            package,
+            DateTimeOffset.UtcNow);
+
+        Assert.True(result.Activated, string.Join(" | ", result.RuntimeIssues.Select(issue => issue.Message)));
+        Assert.Equal(0, Volatile.Read(ref driverState.StartCalls));
+        Assert.Equal(DriverState.Stopped, Assert.Single(runtime.Describe().Drivers).State);
+        Assert.True(runtime.TryGetTag(tagId, out var projectedTag));
+        Assert.Equal("Plant.Probe.Counter", projectedTag!.Path);
+
+        var applied = await runtime.ApplyPassiveAuthoritativeValuesAsync(
+        [
+            new TagValue(tagId, 42, DateTimeOffset.UtcNow, TagQuality.Good, "node-a")
+        ]);
+
+        Assert.Equal(1, applied);
+        Assert.Equal(0, Volatile.Read(ref driverState.StartCalls));
+        Assert.True(runtime.TryGetCurrent(tagId, out var projectedValue));
+        Assert.Equal(42, projectedValue!.Value);
+        Assert.Equal("node-a", projectedValue.Source);
+
+        var promoted = await runtime.ActivateAsync("passive-probe-project", 8, package);
+
+        Assert.True(promoted.Activated, string.Join(" | ", promoted.RuntimeIssues.Select(issue => issue.Message)));
+        Assert.Equal(1, Volatile.Read(ref driverState.StartCalls));
+        Assert.Equal(DriverState.Running, Assert.Single(runtime.Describe().Drivers).State);
+    }
+
+    [Fact]
     public async Task ApplyPassiveAuthoritativeValuesAsync_HydratesOnlyPassiveCacheWithoutRetainingOrForwarding()
     {
         var tagId = Guid.NewGuid();
@@ -328,4 +404,106 @@ public sealed class EngineeringRuntimeInternalMemoryTests
 
     private static MemoryInitialValueDto Initial(TagDataType type, object value) =>
         new(type, JsonSerializer.SerializeToElement(value, value.GetType()));
+
+    private sealed class PassiveProbeRuntimePlan(
+        string dataSourceKey,
+        string name,
+        IReadOnlyCollection<TagDefinition> tags,
+        string driverType) : ICommunicationDriverRuntimePlan
+    {
+        public string DataSourceKey { get; } = dataSourceKey;
+        public string Name { get; } = name;
+        public IReadOnlyCollection<TagDefinition> Tags { get; } = tags;
+        public string DriverType { get; } = driverType;
+    }
+
+    private sealed class PassiveProbeRuntimePlanner(string driverType) : ICommunicationDriverRuntimePlanner
+    {
+        public string DriverType { get; } = driverType;
+
+        public CommunicationDriverRuntimePlanningResult Plan(
+            EngineeringPackage package,
+            DataSourceEngineeringDto dataSource)
+        {
+            var tags = package.Tags
+                .Where(tag => string.Equals(tag.Source, dataSource.Key, StringComparison.OrdinalIgnoreCase))
+                .Select(tag => new TagDefinition(
+                    tag.Id ?? Guid.NewGuid(),
+                    tag.Name,
+                    tag.Path,
+                    tag.DataType,
+                    tag.Source,
+                    tag.EngineeringUnit,
+                    tag.Description,
+                    tag.ReadOnly,
+                    tag.Metadata))
+                .ToArray();
+
+            return new CommunicationDriverRuntimePlanningResult(
+                new PassiveProbeRuntimePlan(dataSource.Key, dataSource.Name, tags, DriverType),
+                Array.Empty<EngineeringDriverIssue>());
+        }
+    }
+
+    private sealed class PassiveProbeRuntimeFactory(
+        string driverType,
+        PassiveProbeDriverState state) : ICommunicationDriverRuntimeFactory
+    {
+        public string DriverType { get; } = driverType;
+
+        public ICommunicationDriver Create(
+            ICommunicationDriverRuntimePlan plan,
+            CommunicationDriverRuntimeServices services) =>
+            new PassiveProbeDriver(plan.DataSourceKey, plan.Name, plan.Tags, services.Cache, state);
+    }
+
+    private sealed class PassiveProbeDriverState
+    {
+        public int StartCalls;
+    }
+
+    private sealed class PassiveProbeDriver(
+        string dataSourceKey,
+        string name,
+        IReadOnlyCollection<TagDefinition> tags,
+        ICurrentTagCache cache,
+        PassiveProbeDriverState state) : ICommunicationDriver
+    {
+        private DriverState _state = DriverState.Stopped;
+
+        public string DriverId => $"test.passive-probe:{dataSourceKey}";
+        public string Name { get; } = name;
+        public DriverCapabilities Capabilities => DriverCapabilities.Read;
+        public DriverStatus Status => new(DriverId, Name, _state, DateTimeOffset.UtcNow);
+        public IReadOnlyCollection<TagDefinition> Tags { get; } = tags;
+
+        public async Task StartAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Interlocked.Increment(ref state.StartCalls);
+            _state = DriverState.Running;
+            foreach (var tag in Tags)
+            {
+                await cache.UpdateAsync(
+                    tag,
+                    new TagValue(tag.Id, 99, DateTimeOffset.UtcNow, TagQuality.Good, DriverId),
+                    cancellationToken);
+            }
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            _state = DriverState.Stopped;
+            return Task.CompletedTask;
+        }
+
+        public ValueTask<TagValue?> ReadAsync(Guid tagId, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<TagValue?>(null);
+
+        public ValueTask WriteAsync(Guid tagId, object? value, CancellationToken cancellationToken = default) =>
+            ValueTask.CompletedTask;
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
 }

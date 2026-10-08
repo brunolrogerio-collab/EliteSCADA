@@ -151,17 +151,25 @@ public sealed class PublishedRuntimeActivationService(
             RuntimeActivationCommitContext _,
             CancellationToken ct)
         {
-            recordedActivation = await persistence.RecordActivationAsync(
-                snapshot.ProjectKey,
-                snapshot.Revision,
-                activatedBy,
-                ct);
+            recordedActivation = haTakeover
+                ? await persistence.RecordActivationForHaTakeoverAsync(
+                    snapshot.ProjectKey,
+                    snapshot.Revision,
+                    activatedBy,
+                    ct)
+                : await persistence.RecordActivationAsync(
+                    snapshot.ProjectKey,
+                    snapshot.Revision,
+                    activatedBy,
+                    ct);
 
             if (recordedActivation is null ||
                 recordedActivation.ActiveRevision != snapshot.Revision)
             {
                 throw new InvalidOperationException(
-                    "Published revision changed before activation could be committed.");
+                    haTakeover
+                        ? "Persisted revision changed before HA takeover could be committed."
+                        : "Published revision changed before activation could be committed.");
             }
         }
 

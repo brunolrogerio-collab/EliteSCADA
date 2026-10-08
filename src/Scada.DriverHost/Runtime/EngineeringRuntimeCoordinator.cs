@@ -928,18 +928,34 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         {
             foreach (var driver in drivers)
             {
-                await driver.StopAsync(cancellationToken);
+                // Stop can fail after the driver has already cancelled its polling
+                // loop or released part of its transport. Include the in-flight
+                // driver in rollback before invoking protocol-specific cleanup.
                 stopped.Add(driver);
+                await driver.StopAsync(cancellationToken);
             }
             return stopped;
         }
-        catch
+        catch (Exception stopException)
         {
+            List<Exception>? rollbackErrors = null;
             foreach (var driver in stopped.AsEnumerable().Reverse())
             {
                 try { await driver.StartAsync(CancellationToken.None); }
-                catch { }
+                catch (Exception ex)
+                {
+                    rollbackErrors ??= new List<Exception>();
+                    rollbackErrors.Add(new InvalidOperationException(
+                        $"Previous Runtime resource owner '{driver.DriverId}' could not be restarted after handover failed.",
+                        ex));
+                }
             }
+
+            if (rollbackErrors is { Count: > 0 })
+                throw new AggregateException(
+                    "Previous Runtime handover failed and one or more resource owners could not be restored.",
+                    new[] { stopException }.Concat(rollbackErrors));
+
             throw;
         }
     }
@@ -1287,15 +1303,24 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
             List<Exception>? errors = null;
             foreach (var driver in Drivers.Reverse())
             {
-                try
-                {
-                    await driver.StopAsync();
-                    await driver.DisposeAsync();
-                }
+                try { await driver.StopAsync(); }
                 catch (Exception ex)
                 {
                     errors ??= new List<Exception>();
-                    errors.Add(ex);
+                    errors.Add(new InvalidOperationException(
+                        $"Communication driver '{driver.DriverId}' reported an error while stopping.",
+                        ex));
+                }
+
+                // Disposal must still run when StopAsync fails: a protocol driver
+                // can have released only some resources before reporting an error.
+                try { await driver.DisposeAsync(); }
+                catch (Exception ex)
+                {
+                    errors ??= new List<Exception>();
+                    errors.Add(new InvalidOperationException(
+                        $"Communication driver '{driver.DriverId}' reported an error while disposing.",
+                        ex));
                 }
             }
 

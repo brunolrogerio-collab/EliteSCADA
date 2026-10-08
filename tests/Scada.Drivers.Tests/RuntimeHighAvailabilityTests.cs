@@ -3,6 +3,7 @@ using Scada.Core.Abstractions;
 using Scada.Core.Events;
 using Scada.Core.Product.Licensing;
 using Scada.DriverHost.Runtime;
+using Scada.Engineering.Contracts;
 using Scada.Security.Authorization;
 
 namespace Scada.Drivers.Tests;
@@ -562,6 +563,165 @@ public sealed class RuntimeHighAvailabilityTests
         Assert.Null(RuntimeHaProtectionCoordinator.CreateRecoveryWitnessFromCurrentReadiness(
             "node-b", Evidence(now, haEntitled: false, revision: 7, synchronized: true),
             mirror, now, TimeSpan.FromSeconds(30)));
+    }
+
+    [Fact]
+    public void ExplicitOwnerlessResync_UsesOnlyCompleteDurablePeerStateAndFreshLocalHealth()
+    {
+        var now = DateTimeOffset.Parse("2026-10-07T18:00:00Z");
+        var reference = new RuntimeHaReferenceAuthority(
+            RuntimeHaReferenceAuthority.SchemaName,
+            RuntimeHaReferenceAuthority.CurrentSchemaVersion,
+            "cluster-a",
+            TopologyVersion: 3,
+            Epoch: 4,
+            ActiveNodeId: null,
+            LeaseId: Guid.Empty,
+            LeaseUntilUtc: now,
+            UpdatedAtUtc: now,
+            PreviousAuthorityFenced: true,
+            ReasonCode: "RUNTIME_ACTIVATION_COMMIT_FAILED");
+        var runtime = new RuntimeHaRuntimeIdentity("engineering", "project-a", 7);
+        var application = new EngineeringPackage(
+            "scada.engineering",
+            15,
+            now,
+            Array.Empty<TagEngineeringDto>(),
+            Array.Empty<AlarmEngineeringDto>());
+        var state = new RuntimeHaAuthoritativeStateSnapshot(
+            runtime,
+            ProjectTagCount: 0,
+            new RuntimeHaPeerLicenseEvidence(true, true, 5000, 10, 10),
+            Array.Empty<RuntimeHaMirroredTagValue>(),
+            Array.Empty<RuntimeSessionLeaseContinuityEnvelope>(),
+            Array.Empty<RuntimeSessionLeaseContinuityTombstoneEnvelope>(),
+            now,
+            application);
+        var mirror = new RuntimeHaPeerMirrorSnapshot(
+            HasState: true,
+            LiveSynchronized: false,
+            SourceNodeId: "node-a",
+            SourceTransportInstanceId: Guid.NewGuid(),
+            ReplicationSequence: 3,
+            AuthoritativeState: state,
+            ReceivedAtUtc: now.AddHours(-1),
+            ReasonCode: "durable-state-loaded-awaiting-live-resync");
+        var localReadiness = new RuntimeHaNodeReadinessEvidence(
+            Healthy: true,
+            SynchronizationComplete: false,
+            HaLicenseEntitled: true,
+            Runtime: new RuntimeHaRuntimeIdentity("engineering", "project-a", null),
+            ObservedAtUtc: now,
+            DatabaseAvailable: true,
+            DatabaseAvailabilityObservedAtUtc: now,
+            DatabaseAvailabilityConsecutiveSuccesses: 2);
+
+        var result = RuntimeHaProtectionCoordinator.ValidateOwnerlessResyncState(
+            reference,
+            CreateTopology("node-b"),
+            mirror,
+            localReadiness,
+            now,
+            TimeSpan.FromSeconds(30));
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void ExplicitOwnerlessResync_RejectsUnhealthyOrMisidentifiedState()
+    {
+        var now = DateTimeOffset.Parse("2026-10-07T18:00:00Z");
+        var reference = new RuntimeHaReferenceAuthority(
+            RuntimeHaReferenceAuthority.SchemaName,
+            RuntimeHaReferenceAuthority.CurrentSchemaVersion,
+            "cluster-a",
+            TopologyVersion: 3,
+            Epoch: 4,
+            ActiveNodeId: null,
+            LeaseId: Guid.Empty,
+            LeaseUntilUtc: now,
+            UpdatedAtUtc: now,
+            PreviousAuthorityFenced: true,
+            ReasonCode: "recovery-test");
+        var healthyReadiness = Evidence(now, haEntitled: true, revision: 7, synchronized: false) with
+        {
+            DatabaseAvailable = true,
+            DatabaseAvailabilityObservedAtUtc = now,
+            DatabaseAvailabilityConsecutiveSuccesses = 2
+        };
+        var mirror = Mirror(
+            new RuntimeHaRuntimeIdentity("engineering", "project-a", 7),
+            now) with
+        {
+            LiveSynchronized = false,
+            ReasonCode = "durable-state-loaded-awaiting-live-resync"
+        };
+
+        Assert.Equal(
+            "local-health-license-and-database-confirmation-required",
+            RuntimeHaProtectionCoordinator.ValidateOwnerlessResyncState(
+                reference,
+                CreateTopology("node-b"),
+                mirror,
+                healthyReadiness with { DatabaseAvailable = false },
+                now,
+                TimeSpan.FromSeconds(30)));
+        Assert.Equal(
+            "durable-peer-mirror-unavailable",
+            RuntimeHaProtectionCoordinator.ValidateOwnerlessResyncState(
+                reference,
+                CreateTopology("node-b"),
+                mirror with { SourceNodeId = "node-b" },
+                healthyReadiness,
+                now,
+                TimeSpan.FromSeconds(30)));
+        Assert.Equal(
+            "reference-break-required",
+            RuntimeHaProtectionCoordinator.ValidateOwnerlessResyncState(
+                reference with { ActiveNodeId = "node-a" },
+                CreateTopology("node-b"),
+                mirror,
+                healthyReadiness,
+                now,
+                TimeSpan.FromSeconds(30)));
+    }
+
+    [Fact]
+    public void ReferencedAuthority_OwnerlessResyncGrantsOnlySynchronizingLocalAuthority()
+    {
+        var coordinator = CreateCoordinator("node-b", out var clock);
+        var now = clock.UtcNow;
+        coordinator.UpdateNodeReadiness(
+            "node-b",
+            Evidence(now, haEntitled: true, revision: 7, synchronized: true) with
+            {
+                DatabaseAvailable = true,
+                DatabaseAvailabilityObservedAtUtc = now,
+                DatabaseAvailabilityConsecutiveSuccesses = 2
+            });
+        var ownerless = new RuntimeHaReferenceAuthority(
+            RuntimeHaReferenceAuthority.SchemaName,
+            RuntimeHaReferenceAuthority.CurrentSchemaVersion,
+            "cluster-a",
+            TopologyVersion: 3,
+            Epoch: 4,
+            ActiveNodeId: null,
+            LeaseId: Guid.Empty,
+            LeaseUntilUtc: now,
+            UpdatedAtUtc: now,
+            PreviousAuthorityFenced: true,
+            ReasonCode: "explicit-resync-test");
+
+        var applied = coordinator.ApplyReferencedAuthority(
+            "node-b",
+            ownerless.Epoch,
+            previousAuthorityFenced: true,
+            ownerlessRecoveryEvidence: ownerless);
+
+        Assert.True(applied.Accepted);
+        Assert.Equal("node-b", applied.Snapshot.EffectiveActiveNodeId);
+        Assert.Equal(RuntimeHaState.Synchronizing, Node(applied.Snapshot, "node-b").State);
+        Assert.False(coordinator.TryAcquireIndustrialAuthority("node-b").Allowed);
     }
 
     [Fact]

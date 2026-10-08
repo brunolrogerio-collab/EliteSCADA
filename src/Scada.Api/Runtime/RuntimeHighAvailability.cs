@@ -340,7 +340,8 @@ public sealed partial class RuntimeHaAuthorityCoordinator
         RuntimeHaStandbyPromotionWitness? standbyWitness = null,
         bool allowAmbiguityRecovery = false,
         RuntimeHaReferenceAuthority? restartReferenceEvidence = null,
-        bool allowSameNodeRestartEpochReconciliation = false)
+        bool allowSameNodeRestartEpochReconciliation = false,
+        RuntimeHaReferenceAuthority? ownerlessRecoveryEvidence = null)
     {
         lock (_gate)
         {
@@ -350,8 +351,14 @@ public sealed partial class RuntimeHaAuthorityCoordinator
                 return new(false, "reference-epoch-stale", SnapshotLocked());
             if (_pendingTransfer is not null)
                 return new(false, "transfer-in-progress", SnapshotLocked());
+            var ownerlessRecovery = IsValidOwnerlessRecoveryEvidence(
+                activeNodeId,
+                referencedEpoch,
+                ownerlessRecoveryEvidence,
+                _utcNow());
             if (_ambiguousAuthority &&
-                !(allowAmbiguityRecovery && referencedEpoch > _authorityEpoch))
+                !(allowAmbiguityRecovery && referencedEpoch > _authorityEpoch) &&
+                !ownerlessRecovery)
             {
                 return new(false, "ambiguous-authority", SnapshotLocked());
             }
@@ -411,7 +418,7 @@ public sealed partial class RuntimeHaAuthorityCoordinator
                      StringComparison.OrdinalIgnoreCase) ||
                  referencedEpoch != _authorityEpoch);
 
-            if (localPromotion && !sameNodeRestartResume)
+            if (localPromotion && !sameNodeRestartResume && !ownerlessRecovery)
             {
                 if (standbyWitness is null ||
                     !standbyWitness.NodeId.Equals(
@@ -436,10 +443,23 @@ public sealed partial class RuntimeHaAuthorityCoordinator
                 }
             }
 
+            if (ownerlessRecovery && target.Evidence is { } recoveryReadiness)
+            {
+                // Keep industrial effects and standby readiness fenced until the exact
+                // mirrored revision has gone through the normal HA activation pipeline.
+                target.Evidence = recoveryReadiness with
+                {
+                    SynchronizationComplete = false,
+                    Runtime = recoveryReadiness.Runtime with { Revision = null },
+                    Diagnostic = "explicit-ownerless-resync-activation-pending"
+                };
+            }
+
             _authorityEpoch = referencedEpoch;
             _effectiveActiveNodeId = target.Definition.NodeId;
             _pendingTransfer = null;
-            _ambiguousAuthority = false;
+            if (ownerlessRecovery || allowAmbiguityRecovery)
+                _ambiguousAuthority = false;
 
             foreach (var node in _nodes.Values)
             {
@@ -481,6 +501,40 @@ public sealed partial class RuntimeHaAuthorityCoordinator
             ReconcileReadinessLocked();
             _stateVersion = checked(_stateVersion + 1);
         }
+    }
+
+    private bool IsValidOwnerlessRecoveryEvidence(
+        string? activeNodeId,
+        long referencedEpoch,
+        RuntimeHaReferenceAuthority? evidence,
+        DateTimeOffset now)
+    {
+        if (evidence is null ||
+            string.IsNullOrWhiteSpace(activeNodeId) ||
+            !activeNodeId.Equals(_topology.LocalNodeId, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(evidence.Schema, RuntimeHaReferenceAuthority.SchemaName, StringComparison.Ordinal) ||
+            evidence.SchemaVersion != RuntimeHaReferenceAuthority.CurrentSchemaVersion ||
+            !string.Equals(evidence.ClusterId, _topology.ClusterId, StringComparison.OrdinalIgnoreCase) ||
+            evidence.TopologyVersion != _topology.TopologyVersion ||
+            evidence.Epoch != referencedEpoch ||
+            evidence.ActiveNodeId is not null ||
+            !evidence.PreviousAuthorityFenced ||
+            evidence.IsLiveAt(now))
+        {
+            return false;
+        }
+
+        var local = ResolveNodeLocked(_topology.LocalNodeId);
+        var readiness = local.Evidence;
+        return readiness is not null &&
+            now - readiness.ObservedAtUtc <= _topology.FreshnessWindow &&
+            readiness.Healthy &&
+            readiness.HaLicenseEntitled &&
+            readiness.DatabaseAvailable == true &&
+            readiness.DatabaseAvailabilityObservedAtUtc is { } databaseObservedAtUtc &&
+            now - databaseObservedAtUtc <= _topology.FreshnessWindow &&
+            readiness.DatabaseAvailabilityConsecutiveSuccesses >= 2 &&
+            readiness.DatabaseAvailabilityConsecutiveFailures == 0;
     }
 
     public RuntimeHaIndustrialAuthorityDecision TryAcquireIndustrialAuthority(string nodeId)

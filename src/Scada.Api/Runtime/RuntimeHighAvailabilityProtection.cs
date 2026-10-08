@@ -1296,27 +1296,73 @@ public sealed class RuntimeHaProtectionCoordinator
         var witness = GetFreshWitness(now) ?? CreateRecoveryWitnessFromCurrentReadiness(
             localNodeId,
             now);
-        if (witness is null)
-            return Complete(operation, "rejected", "ready-standby-witness-required", reference.Epoch);
+        var takeoverFailure = witness is null
+            ? "ready-standby-witness-required"
+            : await ValidateTakeoverStateAsync(witness, now, cancellationToken);
 
-        var takeoverFailure = await ValidateTakeoverStateAsync(witness, now, cancellationToken);
-        if (takeoverFailure is not null)
-            return Complete(operation, "rejected", takeoverFailure, reference.Epoch);
+        // Normal recovery remains witness-based. If that path is impossible because
+        // both processes lost live readiness, allow a deliberate ownerless resync from
+        // this node's durable mirror only after independently validating the fenced
+        // reference, local license/database health, peer identity, and exact revision.
+        if (witness is not null && takeoverFailure is null)
+        {
+            var normalAssigned = await _reference.AssignAfterFenceAsync(
+                localNodeId,
+                reference.Epoch,
+                "explicit-recovery-grant",
+                cancellationToken);
+            if (!normalAssigned.Accepted || normalAssigned.Authority is null)
+                return Complete(operation, "rejected", normalAssigned.ReasonCode, normalAssigned.Authority?.Epoch);
+
+            await CompleteLocalTakeoverAsync(
+                normalAssigned.Authority,
+                witness,
+                operation,
+                "explicit-recovery-completed",
+                cancellationToken);
+            return GetOperation(operation.OperationId)!;
+        }
+
+        var mirror = _mirror.Snapshot();
+        var durableState = mirror.AuthoritativeState;
+        var localReadiness = _highAvailability.Authority.GetNodeReadiness(localNodeId);
+        var ownerlessResyncFailure = ValidateOwnerlessResyncState(
+            reference,
+            _highAvailability.Authority.Definition,
+            mirror,
+            localReadiness,
+            now,
+            _options.ReadyWitnessMaximumAge);
+        if (ownerlessResyncFailure is not null)
+            return Complete(operation, "rejected", ownerlessResyncFailure, reference.Epoch);
+
+        if (_runtimeActivation is null ||
+            durableState?.Runtime.ProjectKey is not { Length: > 0 } projectKey ||
+            durableState.Runtime.Revision is not { } revision ||
+            !await _runtimeActivation.HasPersistedRevisionForHaTakeoverAsync(
+                projectKey,
+                revision,
+                cancellationToken))
+        {
+            return Complete(operation, "rejected", "takeover-persisted-revision-unavailable", reference.Epoch);
+        }
 
         var assigned = await _reference.AssignAfterFenceAsync(
             localNodeId,
             reference.Epoch,
-            "explicit-recovery-grant",
+            "explicit-ownerless-resync-grant",
             cancellationToken);
         if (!assigned.Accepted || assigned.Authority is null)
             return Complete(operation, "rejected", assigned.ReasonCode, assigned.Authority?.Epoch);
 
         await CompleteLocalTakeoverAsync(
             assigned.Authority,
-            witness,
-            operation,
-            "explicit-recovery-completed",
-            cancellationToken);
+            witness: null,
+            operation with { Kind = "explicit-ownerless-resync" },
+            "explicit-ownerless-resync-completed",
+            cancellationToken,
+            ownerlessRecoveryEvidence: reference,
+            recoveryState: durableState);
         return GetOperation(operation.OperationId)!;
     }
 
@@ -1356,10 +1402,12 @@ public sealed class RuntimeHaProtectionCoordinator
 
     private async Task CompleteLocalTakeoverAsync(
         RuntimeHaReferenceAuthority authority,
-        RuntimeHaStandbyPromotionWitness witness,
+        RuntimeHaStandbyPromotionWitness? witness,
         RuntimeHaProtectionOperation operation,
         string successReasonCode,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        RuntimeHaReferenceAuthority? ownerlessRecoveryEvidence = null,
+        RuntimeHaAuthoritativeStateSnapshot? recoveryState = null)
     {
         SetReference(authority, false, authority.ReasonCode);
         var takeover = await RunTakeoverWithLeaseRenewalAsync(
@@ -1370,13 +1418,15 @@ public sealed class RuntimeHaProtectionCoordinator
                     _highAvailability.LocalNodeId!,
                     authority.Epoch,
                     previousAuthorityFenced: true,
-                    witness);
+                    witness,
+                    allowAmbiguityRecovery: ownerlessRecoveryEvidence is not null,
+                    ownerlessRecoveryEvidence: ownerlessRecoveryEvidence);
                 if (!applied.Accepted)
                     return applied.ReasonCode;
 
                 var mirror = _mirror.Snapshot();
-                var state = mirror.AuthoritativeState;
-                if (!mirror.HasState ||
+                var state = recoveryState ?? mirror.AuthoritativeState;
+                if ((recoveryState is null && !mirror.HasState) ||
                     state?.Application is null ||
                     !state.Runtime.Revision.HasValue ||
                     string.IsNullOrWhiteSpace(state.Runtime.ProjectKey))
@@ -1433,6 +1483,67 @@ public sealed class RuntimeHaProtectionCoordinator
 
         SetReference(authority, true, successReasonCode);
         Complete(operation, "completed", successReasonCode, authority.Epoch);
+    }
+
+    internal static string? ValidateOwnerlessResyncState(
+        RuntimeHaReferenceAuthority reference,
+        RuntimeHaTopologyDefinition topology,
+        RuntimeHaPeerMirrorSnapshot mirror,
+        RuntimeHaNodeReadinessEvidence? localReadiness,
+        DateTimeOffset now,
+        TimeSpan maximumAge)
+    {
+        if (topology.FreshnessWindow < maximumAge)
+            maximumAge = topology.FreshnessWindow;
+
+        if (!string.Equals(reference.Schema, RuntimeHaReferenceAuthority.SchemaName, StringComparison.Ordinal) ||
+            reference.SchemaVersion != RuntimeHaReferenceAuthority.CurrentSchemaVersion ||
+            !string.Equals(reference.ClusterId, topology.ClusterId, StringComparison.OrdinalIgnoreCase) ||
+            reference.TopologyVersion != topology.TopologyVersion)
+        {
+            return "reference-topology-mismatch";
+        }
+        if (reference.ActiveNodeId is not null || !reference.PreviousAuthorityFenced || reference.IsLiveAt(now))
+            return "reference-break-required";
+
+        if (localReadiness is null ||
+            !localReadiness.Healthy ||
+            !localReadiness.HaLicenseEntitled ||
+            localReadiness.ObservedAtUtc > now ||
+            now - localReadiness.ObservedAtUtc > maximumAge ||
+            localReadiness.DatabaseAvailable != true ||
+            localReadiness.DatabaseAvailabilityObservedAtUtc is not { } databaseObservedAtUtc ||
+            databaseObservedAtUtc > now ||
+            now - databaseObservedAtUtc > maximumAge ||
+            localReadiness.DatabaseAvailabilityConsecutiveSuccesses < 2 ||
+            localReadiness.DatabaseAvailabilityConsecutiveFailures != 0)
+        {
+            return "local-health-license-and-database-confirmation-required";
+        }
+
+        var peerId = topology.Nodes.SingleOrDefault(node =>
+            !node.NodeId.Equals(topology.LocalNodeId, StringComparison.OrdinalIgnoreCase))?.NodeId;
+        if (!mirror.HasState ||
+            mirror.AuthoritativeState is not { } state ||
+            string.IsNullOrWhiteSpace(mirror.SourceNodeId) ||
+            peerId is null ||
+            !mirror.SourceNodeId.Equals(peerId, StringComparison.OrdinalIgnoreCase))
+        {
+            return "durable-peer-mirror-unavailable";
+        }
+        if (state.Application is null ||
+            state.ProjectTagCount < 0 ||
+            state.Application.Tags.Count != state.ProjectTagCount ||
+            state.Tags.Count != state.ProjectTagCount ||
+            string.IsNullOrWhiteSpace(state.Runtime.ProjectKey) ||
+            !state.Runtime.Revision.HasValue)
+        {
+            return "durable-peer-mirror-incomplete";
+        }
+        if (!state.License.LicenseValid || !state.License.HaRuntimeEntitled)
+            return "durable-peer-mirror-license-invalid";
+
+        return null;
     }
 
     private async Task<string?> ActivateAuthoritativeRuntimeAsync(

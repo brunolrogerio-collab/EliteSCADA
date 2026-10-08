@@ -128,6 +128,93 @@ public sealed class GatewayRuntimeIntegrationTests
     }
 
     [Fact]
+    public async Task GatewayConfirmsModbusWriteWhenFc06EchoIsStaleButReadBackMatches()
+    {
+        await using var server = new TestModbusTcpServer();
+        server.HoldingRegisters[11] = 2;
+        server.ReturnStaleSingleRegisterWriteEcho = true;
+        server.Start();
+
+        var sourceId = Guid.NewGuid();
+        var destinationId = Guid.NewGuid();
+        var bus = new InMemoryScadaEventBus();
+        await using var runtime = CreateRuntime(bus);
+        var package = Package(
+            tags: new[]
+            {
+                MemoryTag(sourceId, "Server.Source", "memory.server", 0),
+                ModbusTag(destinationId, "PLC.Destination", "plc.main", "holding:11", readOnly: false)
+            },
+            dataSources: new[]
+            {
+                ServerMemorySource("memory.server"),
+                ModbusSource("plc.main", server.Port)
+            },
+            gateways: new[]
+            {
+                Route("memory-to-modbus-stale-echo", sourceId, "Server.Source", destinationId, "PLC.Destination")
+            });
+
+        var activation = await runtime.ActivateAsync("gateway-modbus-stale-echo", 1, package);
+        Assert.True(activation.Activated, Describe(activation));
+
+        await runtime.WriteAsync(sourceId, (short)303);
+        await WaitForAsync(() => server.HoldingRegisters[11] == 303, TimeSpan.FromSeconds(3));
+        await WaitForAsync(
+            () => Assert.Single(runtime.GatewayDiagnostics()).TransferCount == 1,
+            TimeSpan.FromSeconds(3));
+
+        var diagnostic = Assert.Single(runtime.GatewayDiagnostics());
+        Assert.Equal(GatewayRouteRuntimeState.Running, diagnostic.State);
+        Assert.Equal(0, diagnostic.WriteFailureCount);
+        Assert.Contains(server.Requests, request => request.Function == 0x03 && request.Address == 11);
+    }
+
+    [Fact]
+    public async Task GatewayDoesNotConfirmModbusWriteWhenStaleEchoReadBackDoesNotMatch()
+    {
+        await using var server = new TestModbusTcpServer();
+        server.HoldingRegisters[11] = 2;
+        server.ReturnStaleSingleRegisterWriteEcho = true;
+        server.IgnoreSingleRegisterWrites = true;
+        server.Start();
+
+        var sourceId = Guid.NewGuid();
+        var destinationId = Guid.NewGuid();
+        var bus = new InMemoryScadaEventBus();
+        await using var runtime = CreateRuntime(bus);
+        var package = Package(
+            tags: new[]
+            {
+                MemoryTag(sourceId, "Server.Source", "memory.server", 0),
+                ModbusTag(destinationId, "PLC.Destination", "plc.main", "holding:11", readOnly: false)
+            },
+            dataSources: new[]
+            {
+                ServerMemorySource("memory.server"),
+                ModbusSource("plc.main", server.Port)
+            },
+            gateways: new[]
+            {
+                Route("memory-to-modbus-unconfirmed-echo", sourceId, "Server.Source", destinationId, "PLC.Destination")
+            });
+
+        var activation = await runtime.ActivateAsync("gateway-modbus-unconfirmed-echo", 1, package);
+        Assert.True(activation.Activated, Describe(activation));
+
+        await runtime.WriteAsync(sourceId, (short)303);
+        await WaitForAsync(
+            () => Assert.Single(runtime.GatewayDiagnostics()).WriteFailureCount == 1,
+            TimeSpan.FromSeconds(3));
+
+        var diagnostic = Assert.Single(runtime.GatewayDiagnostics());
+        Assert.Equal(GatewayRouteRuntimeState.Degraded, diagnostic.State);
+        Assert.Equal(0, diagnostic.TransferCount);
+        Assert.Contains("read back 0x0002, expected 0x012F", diagnostic.LastError, StringComparison.Ordinal);
+        Assert.Equal((ushort)2, server.HoldingRegisters[11]);
+    }
+
+    [Fact]
     public async Task OnChange_FansOut_AppliesDeadband_AndCoalescesRateLimitedUpdates()
     {
         var sourceId = Guid.NewGuid();

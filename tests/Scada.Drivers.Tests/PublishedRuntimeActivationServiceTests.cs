@@ -168,6 +168,7 @@ public sealed class PublishedRuntimeActivationServiceTests
         Assert.Equal(snapshot.Revision, recovered.Snapshot!.Revision);
         Assert.Equal(snapshot.Revision, recovered.Activation!.ActiveRevision);
         Assert.Equal("ha-takeover:node-a", recovered.Activation.ActivatedBy);
+        Assert.Equal(1, store.HaTakeoverActivationCalls);
         Assert.Equal(snapshot.Revision, runtime.Describe().Revision);
         Assert.True(runtime.TryGetCurrent(tagId, out var value));
         Assert.Equal(654d, Convert.ToDouble(value!.Value));
@@ -240,6 +241,7 @@ public sealed class PublishedRuntimeActivationServiceTests
         bool allowActivation) : IEngineeringProjectStore
     {
         private EngineeringProjectActivation? _activation;
+        public int HaTakeoverActivationCalls { get; private set; }
         private readonly EngineeringProjectPublication _publication = new(
             snapshot.ProjectKey,
             snapshot.Revision,
@@ -303,6 +305,24 @@ public sealed class PublishedRuntimeActivationServiceTests
             CancellationToken cancellationToken = default)
         {
             if (!allowActivation || projectKey != snapshot.ProjectKey || revision != _publication.PublishedRevision)
+                return Task.FromResult<EngineeringProjectActivation?>(null);
+
+            _activation = new EngineeringProjectActivation(
+                projectKey,
+                revision,
+                DateTimeOffset.UtcNow,
+                activatedBy);
+            return Task.FromResult<EngineeringProjectActivation?>(_activation);
+        }
+
+        public Task<EngineeringProjectActivation?> RecordActivationForHaTakeoverAsync(
+            string projectKey,
+            long revision,
+            string? activatedBy = null,
+            CancellationToken cancellationToken = default)
+        {
+            HaTakeoverActivationCalls++;
+            if (!allowActivation || projectKey != snapshot.ProjectKey || revision != snapshot.Revision)
                 return Task.FromResult<EngineeringProjectActivation?>(null);
 
             _activation = new EngineeringProjectActivation(

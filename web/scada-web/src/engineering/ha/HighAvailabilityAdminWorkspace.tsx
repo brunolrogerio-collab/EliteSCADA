@@ -431,6 +431,12 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
   const suggestedTarget = peerNode?.nodeId ?? '';
   const localIsEffectiveActive = Boolean(topology.effectiveActiveNodeId) &&
     topology.effectiveActiveNodeId!.toLowerCase() === topology.localNodeId.toLowerCase();
+  const canForceResync = topology.enabled &&
+    authority.blocked &&
+    !topology.effectiveActiveNodeId &&
+    protection.reference?.activeNodeId == null &&
+    protection.reference?.previousAuthorityFenced === true &&
+    peer.mirror.hasState;
   const peerAvailable = peer.connectionState === 'connected' && Boolean(peerNode?.fresh);
   const currentServerDraft = draft.nodes[0];
   const partnerServerDraft = draft.nodes[1];
@@ -640,9 +646,9 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
               <strong>{t.failback}</strong>
               <span>{t.failbackHint}</span>
             </button>
-            <button type="button" className="ha-action-card" disabled={!haLicensed} onClick={() => setConfirm({ kind: 'recovery', target: topology.localNodeId })}>
-              <strong>{t.recovery}</strong>
-              <span>{t.recoveryHint}</span>
+            <button type="button" className="ha-action-card" data-testid={canForceResync ? 'ha-force-resync-action' : 'ha-recovery-action'} disabled={!haLicensed} onClick={() => setConfirm({ kind: 'recovery', target: topology.localNodeId })}>
+              <strong>{canForceResync ? t.forceResync : t.recovery}</strong>
+              <span>{canForceResync ? t.forceResyncHint : t.recoveryHint}</span>
             </button>
           </div>
 
@@ -1100,7 +1106,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
         <div className="ha-modal-backdrop" role="presentation">
           <div className="ha-modal" role="dialog" aria-modal="true" aria-labelledby="ha-confirm-title">
             <h2 id="ha-confirm-title">{t.confirmTitle}</h2>
-            <p>{t.confirmHint}</p>
+            <p>{confirm.kind === 'recovery' && canForceResync ? t.forceResyncConfirmHint : t.confirmHint}</p>
             <dl>
               <div><dt>{t.requested}</dt><dd>{confirm.kind}</dd></div>
               <div><dt>{t.source}</dt><dd>{friendlyNode(topology.effectiveActiveNodeId || topology.localNodeId)}</dd></div>

@@ -1,3 +1,39 @@
+# CURRENT W15 RELEASE — EXTERNAL ZIGBEE2MQTT V1 — 2026-10-08 (BRT)
+
+> This release supersedes the older two-worker / Q2-QUEUED snapshot below.
+> GitHub live is the authority. Current exact scope and authorization: [#573](https://github.com/brunolrogerio-collab/EliteSCADA/issues/573). Main release: [#305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6065413847).
+
+Integration checkpoint: `wave15/corrections-integration@cfd4ea9a718c3aede93a53606b3e5fd178fae2e1`.
+
+**Current product worker slots: 3 / 3**
+- Panasonic #570: ACTIVE; PR #572 OPEN. At this snapshot HEAD is `40a7711685ee0e9abeb6154e66211575a6e7fba4`; latest exact-head T1 #37816222003 FAILED. Earlier missing batch-type and xUnit analyzer issues were corrected; do not repeat those old fixes blindly. DEV continues triage/correction/publication/T1 within its lane. Revalidate live HEAD/run before acting.
+- S5 #571: ACTIVE / UNBLOCKED after Main's narrow ExecuteRichCommand/action-Version-2 decision.
+- **Zigbee2MQTT #573: ACTIVE / UNBLOCKED / EXTERNAL_MQTT_STATE_V1 / NO_MERGE.** Product DriverType `zigbee2mqtt.bridge`; DEV-ID DEV-HOME-ZIGBEE2MQTT-BRIDGE-V1.
+
+## Exact Z2M assignment
+
+- Branch: `work/home-zigbee2mqtt-bridge-v1`, created by DEV from the exact integration SHA above after live revalidation.
+- PR target: `wave15/corrections-integration`.
+- Validation profile: DRIVER_PROTOCOL plus inferred risk floor.
+- Checkpoints/handoff: #573; code/tests/exact-head T1: lane PR; shared/Main decisions: #305.
+- Scope: separately user-operated Z2M over existing MQTT transport; sanitized bridge/device inventory; selected canonical Equipment/TAG/Capability discovery; bounded stateful Boolean/Float64 mapping; availability/reconnect/report/readback truth; PointRead/#500/#560.
+- No native radio, managed/bundled Z2M, commissioning/group/scene mutation, transient-event TAG, Rich/S6 expansion, new dependency/schema/security authority.
+- Publication to this repo/branch and PR/comment reporting are explicitly authorized. IMPLEMENT -> focused TEST -> COMMIT/PUBLISH -> CHECKPOINT -> CONTINUE. No additional per-checkpoint owner authorization.
+- Two bounded additive registration hooks are delegated in #573: CommunicationDriverRuntimeComposition and EngineeringDriverCatalogApi. Put the tooling factory in a new isolated file. Main owns ordered reconciliation with Panasonic; no unmerged-lane consumption or unrelated shared-file edits.
+- Missing local SDK is local NOT_RUN/ENVIRONMENT; actual exact-head GitHub T1 is still required. No owner credential/token request, broad CI or unchanged-head reassurance rerun.
+
+The third slot is now occupied. KNX/Native Zigbee/DALI gateway/Z-Wave/Matter remain queued; no fourth product lane. Stable docs/research preparation is not a speculative new product release.
+
+All physical L4 remains human validation after Wave 16, partner disclosure and stable installation. It is not a code merge gate. Applicable intermediate evidence, exact-head T1, Main audit and explicit Product Owner merge authorization remain required.
+
+Owner chat actions: **paste the supplied bootstrap in a new Z2M DEV chat to start #573**; Panasonic SIGA for live CI correction; S5 SIGA to consume/continue its resolved contract; Mitsubishi/S4 WAIT. SIGA wakes only the receiving chat.
+
+Docs PR #569 stays OPEN / DRAFT / NO_MERGE_AUTHORIZATION. Live #305/#573 carry the operational release while docs integration is pending.
+
+---
+
+## Previous coordination snapshot (superseded where the release above advances it)
+
 # CURRENT WAVE 15 LANE SEQUENCE — 2026-10-08 (BRT)
 
 > This section supersedes all older current-status/driver-order sections below where they differ.

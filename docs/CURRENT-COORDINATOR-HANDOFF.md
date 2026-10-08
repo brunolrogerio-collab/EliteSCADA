@@ -8,8 +8,8 @@ GitHub live is the only authority. On every wake, revalidate the exact branch, S
 
 - Integration: `wave15/corrections-integration@114f7c942c202a216afb1cec1950211b1f4232d5`.
 - S4 / issue #565: branch `work/driver-interaction-s4-server-script@fbcbd89090750a02c17eddfd29c18531a2461153`, tree `21d46b5e6a34d5098437eda71b69b8701e21906f`, PR #568 OPEN / DRAFT / NOT MERGED.
-- Exact-head `SCRIPT_ENGINEERING` T1 run #37787089773 FAILED: 1,219 passed, 1 skipped, 3 failed. Two Server Script integration assertions failed; one separate persisted Runtime recovery assertion failed. Exact tests and pending classifications are in root `LAST CHANGE.md` and the PR/issue record.
-- Next lane action: S4 DEV diagnoses all three failures, classifies source before changing tests or product, fixes only within S4 authority, republishes the exact tree and obtains a fresh exact-head T1. Main reviews the cross-lane Runtime recovery failure.
+- Exact-head `SCRIPT_ENGINEERING` T1 run #37787089773 FAILED: 1,219 passed, 1 skipped, 3 failed. The two Server Script failures are `TEST_STALE` fixture defects (unused enabled `test.driver` source); the expired-Demo recovery failure is a `PRODUCT` regression because ordinary recovery now passes a callback reserved for explicit persisted Run. Main's bounded correction is in #565 comment #6061503210.
+- Next lane action: S4 DEV applies Main's #6061503210 direction: disable/remove the unused test source; restore no-callback ordinary recovery and commit the prepared graph only after successful activation; then publish and obtain a fresh exact-head T1. No shared licensing authority change.
 - Mitsubishi PR #567 has a passing exact-head T1 but remains unmerged; no merge is authorized. Panasonic #553 remains research-only/closed.
 - Physical L4 testing is deferred until after Wave 16 and partner disclosure; do not request or imply L4 now.
 

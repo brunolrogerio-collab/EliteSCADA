@@ -117,7 +117,7 @@ public sealed class AuthorityBackupServiceTests
         Assert.Equal("developer", developer.Key);
         Assert.Contains(developer.Grants!, grant => grant.Capability == SecurityCapability.HighAvailabilityObserve);
         Assert.Contains(developer.Grants!, grant => grant.Capability == SecurityCapability.HighAvailabilityTransfer);
-        Assert.DoesNotContain(developer.Grants!, grant => grant.Capability == SecurityCapability.HighAvailabilityAdmin);
+        Assert.Contains(developer.Grants!, grant => grant.Capability == SecurityCapability.HighAvailabilityAdmin);
     }
 
     [Fact]

@@ -88,7 +88,8 @@
 .runtime-tag-list { border-right: 1px solid var(--app-border, #2a333d); padding: 8px; overflow: auto; max-height: 720px; }
 .runtime-tag-row {
   width: 100%;
-  min-height: 72px;
+  height: 72px;
+  box-sizing: border-box;
   display: grid;
   grid-template-columns: 4px minmax(0, 1fr) minmax(130px, auto);
   gap: 10px;
@@ -174,7 +175,7 @@
   .runtime-tag-header-actions { width: 100%; justify-content: space-between; }
   .runtime-tag-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .runtime-tag-controls { grid-template-columns: 1fr; }
-  .runtime-tag-row { grid-template-columns: 4px minmax(0, 1fr); }
+  .runtime-tag-row { height: 93px; grid-template-columns: 4px minmax(0, 1fr); }
   .runtime-tag-row-value { grid-column: 2; justify-items: start; }
   .runtime-tag-facts { grid-template-columns: 1fr; }
 }

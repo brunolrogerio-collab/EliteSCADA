@@ -41,6 +41,7 @@ export class HaAdminHttpError extends Error {
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
+    cache: 'no-store',
     headers: {
       accept: 'application/json',
       ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
@@ -73,6 +74,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 async function requestOperation(path: string, body: unknown): Promise<HaProtectionOperation> {
   const response = await fetch(path, {
     method: 'POST',
+    cache: 'no-store',
     headers: { accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });

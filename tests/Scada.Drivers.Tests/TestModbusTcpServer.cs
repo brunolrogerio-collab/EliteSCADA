@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
+using Scada.Drivers.Modbus;
 
 namespace Scada.Drivers.Tests;
 
@@ -21,6 +22,8 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
     public ConcurrentDictionary<ushort, ushort> HoldingRegisters { get; } = new();
     public ConcurrentDictionary<ushort, ushort> InputRegisters { get; } = new();
     public bool RejectWrites { get; set; }
+    public bool ReturnStaleSingleRegisterWriteEcho { get; set; }
+    public bool IgnoreSingleRegisterWrites { get; set; }
     public bool RejectReads { get; set; }
     public bool RejectDeviceIdentification { get; set; }
 
@@ -264,9 +267,12 @@ internal sealed class TestModbusTcpServer : IAsyncDisposable
         EnsureLength(pdu, 5);
         var address = BinaryPrimitives.ReadUInt16BigEndian(pdu.AsSpan(1, 2));
         var value = BinaryPrimitives.ReadUInt16BigEndian(pdu.AsSpan(3, 2));
-        HoldingRegisters[address] = value;
+        var previousValue = HoldingRegisters.GetValueOrDefault(address);
+        if (!IgnoreSingleRegisterWrites) HoldingRegisters[address] = value;
         Record(unitId, 0x06, address, 1);
-        return pdu.ToArray();
+        return ReturnStaleSingleRegisterWriteEcho
+            ? ModbusPduCodec.BuildWriteSingleRegisterRequest(0, previousValue)
+            : pdu.ToArray();
     }
 
     private byte[] WriteMultipleRegisters(byte unitId, byte[] pdu)

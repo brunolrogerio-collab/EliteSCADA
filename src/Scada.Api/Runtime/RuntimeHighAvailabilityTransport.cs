@@ -2,6 +2,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Scada.Api.Persistence;
 using Scada.Api.Security;
 using Scada.Core.Product.Licensing;
 using Scada.Core.Tags;
@@ -794,7 +795,10 @@ public sealed class RuntimeHaPeerReplicationCoordinator
     private readonly IRuntimeSessionLeaseStore _sessionLeaseStore;
     private readonly IProductLicenseService _licensing;
     private readonly TimeProvider _timeProvider;
+    private readonly ILogger<RuntimeHaPeerReplicationCoordinator> _logger;
     private long _replicationSequence;
+    private string? _lastReadinessDiagnostic;
+    private string? _lastPeerObservationDiagnostic;
 
     public RuntimeHaPeerReplicationCoordinator(
         RuntimeHaPeerTransportOptions options,
@@ -806,7 +810,8 @@ public sealed class RuntimeHaPeerReplicationCoordinator
         HighAvailabilityRuntimeCoordinator runtimeCoordinator,
         IRuntimeSessionLeaseStore sessionLeaseStore,
         IProductLicenseService licensing,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        ILogger<RuntimeHaPeerReplicationCoordinator> logger)
     {
         _options = options;
         _authenticator = authenticator;
@@ -818,6 +823,7 @@ public sealed class RuntimeHaPeerReplicationCoordinator
         _sessionLeaseStore = sessionLeaseStore;
         _licensing = licensing;
         _timeProvider = timeProvider;
+        _logger = logger;
     }
 
     public RuntimeHaPeerTransportDiagnostics Diagnostics()
@@ -1002,9 +1008,12 @@ public sealed class RuntimeHaPeerReplicationCoordinator
         if (!observation.Accepted)
         {
             _transportState.RecordFailure(observation.ReasonCode);
+            LogPeerObservation(envelope, observation);
             RefreshLocalReadiness();
             return Conflict(observation.ReasonCode, envelope.ReplicationSequence);
         }
+
+        LogPeerObservation(envelope, observation);
 
         if (envelope.AuthoritativeState is not null)
         {
@@ -1054,9 +1063,53 @@ public sealed class RuntimeHaPeerReplicationCoordinator
                     var reason = materialized.RuntimeIssues
                         .FirstOrDefault(issue => issue.IsError)?.Code
                         ?? "passive-runtime-materialization-failed";
+                    _logger.LogWarning(
+                        "HA node {NodeId} could not materialize passive Runtime from peer {SourceNodeId} for project {ProjectKey} revision {Revision}: {ReasonCode}; compilationErrors={CompilationErrorCodes}; runtimeErrors={RuntimeErrorCodes}.",
+                        _highAvailability.LocalNodeId,
+                        envelope.SourceNodeId,
+                        authoritativeState.Runtime.ProjectKey,
+                        authoritativeState.Runtime.Revision,
+                        reason,
+                        string.Join(" | ", materialized.CompilationIssues.Where(issue => issue.IsError).Select(issue => $"{issue.Code}: {issue.Message}")),
+                        string.Join(" | ", materialized.RuntimeIssues.Where(issue => issue.IsError).Select(issue => $"{issue.Code}: {issue.Message}")));
                     _transportState.RecordFailure(reason);
                     RefreshLocalReadiness();
                     return Conflict(reason, envelope.ReplicationSequence);
+                }
+
+                try
+                {
+                    var projectedValues = authoritativeState.Tags
+                        .Select(value => new TagValue(
+                            value.TagId,
+                            value.Value,
+                            value.Timestamp,
+                            value.Quality,
+                            value.Source)
+                        {
+                            SourceTimestamp = value.SourceTimestamp,
+                            ServerTimestamp = value.ServerTimestamp
+                        })
+                        .ToArray();
+                    await _runtimeCoordinator.ApplyPassiveAuthoritativeValuesAsync(
+                        envelope.SourceNodeId,
+                        authoritativeState.Runtime.ProjectKey,
+                        authoritativeState.Runtime.Revision.Value,
+                        projectedValues,
+                        cancellationToken);
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "HA node {NodeId} rejected authoritative TAG projection from peer {SourceNodeId} for project {ProjectKey} revision {Revision}.",
+                        _highAvailability.LocalNodeId,
+                        envelope.SourceNodeId,
+                        authoritativeState.Runtime.ProjectKey,
+                        authoritativeState.Runtime.Revision);
+                    _transportState.RecordFailure("peer-tag-projection-rejected");
+                    RefreshLocalReadiness();
+                    return Conflict("peer-tag-projection-rejected", envelope.ReplicationSequence);
                 }
 
                 var sessionFailure = await ApplySessionStateAsync(
@@ -1099,6 +1152,55 @@ public sealed class RuntimeHaPeerReplicationCoordinator
         RefreshLocalReadiness();
     }
 
+    private void LogPeerObservation(
+        RuntimeHaPeerReplicationEnvelope envelope,
+        RuntimeHaPeerApplyResult result)
+    {
+        var peer = result.Snapshot.Nodes.FirstOrDefault(node =>
+            node.NodeId.Equals(
+                envelope.SourceNodeId,
+                StringComparison.OrdinalIgnoreCase));
+        var readiness = envelope.Observation.Readiness;
+        var diagnostic = string.Join(
+            '|',
+            result.Accepted,
+            result.ReasonCode,
+            readiness.Healthy,
+            readiness.SynchronizationComplete,
+            readiness.HaLicenseEntitled,
+            readiness.Runtime.Mode,
+            readiness.Runtime.Revision,
+            peer?.State,
+            peer?.ReadinessReason,
+            result.Snapshot.EffectiveActiveNodeId,
+            result.Snapshot.AmbiguousAuthority);
+        var previous = Interlocked.Exchange(
+            ref _lastPeerObservationDiagnostic,
+            diagnostic);
+        if (string.Equals(previous, diagnostic, StringComparison.Ordinal))
+            return;
+
+        _logger.LogWarning(
+            "HA node {LocalNodeId} peer observation from {PeerNodeId}: accepted={Accepted}, " +
+            "reason={ReasonCode}, peerSync={PeerSynchronizationComplete}, peerHealthy={PeerHealthy}, " +
+            "peerHaLicensed={PeerHaLicensed}, runtimeMode={RuntimeMode}, revision={RuntimeRevision}, " +
+            "projectedState={ProjectedState}, readinessReason={ReadinessReason}, " +
+            "effectiveActive={EffectiveActiveNodeId}, ambiguous={AmbiguousAuthority}.",
+            _highAvailability.LocalNodeId,
+            envelope.SourceNodeId,
+            result.Accepted,
+            result.ReasonCode,
+            readiness.SynchronizationComplete,
+            readiness.Healthy,
+            readiness.HaLicenseEntitled,
+            readiness.Runtime.Mode,
+            readiness.Runtime.Revision,
+            peer?.State,
+            peer?.ReadinessReason,
+            result.Snapshot.EffectiveActiveNodeId,
+            result.Snapshot.AmbiguousAuthority);
+    }
+
     public void RefreshLocalReadiness()
     {
         if (!_highAvailability.Enabled ||
@@ -1127,6 +1229,18 @@ public sealed class RuntimeHaPeerReplicationCoordinator
             mirror,
             localLicense,
             now);
+        var diagnostic = synchronized ? "ready" : reasonCode ?? "synchronization-incomplete";
+        var previousDiagnostic = Interlocked.Exchange(
+            ref _lastReadinessDiagnostic,
+            diagnostic);
+        if (!string.Equals(previousDiagnostic, diagnostic, StringComparison.Ordinal))
+        {
+            _logger.LogWarning(
+                "HA node {NodeId} standby readiness changed: {ReasonCode}.",
+                _highAvailability.LocalNodeId,
+                diagnostic);
+        }
+
         var localDescriptor = _runtime.Describe();
         var runtimeIdentity =
             localDescriptor.Revision.HasValue &&
@@ -1143,7 +1257,18 @@ public sealed class RuntimeHaPeerReplicationCoordinator
                     localLicense.HaRuntimeEntitled,
                 Runtime: runtimeIdentity,
                 ObservedAtUtc: now,
-                Diagnostic: reasonCode));
+                Diagnostic: reasonCode,
+                DatabaseAvailable: _highAvailability.Authority.GetNodeReadiness(
+                    _highAvailability.LocalNodeId)?.DatabaseAvailable,
+                DatabaseAvailabilityObservedAtUtc:
+                    _highAvailability.Authority.GetNodeReadiness(
+                        _highAvailability.LocalNodeId)?.DatabaseAvailabilityObservedAtUtc,
+                DatabaseAvailabilityConsecutiveSuccesses:
+                    _highAvailability.Authority.GetNodeReadiness(
+                        _highAvailability.LocalNodeId)?.DatabaseAvailabilityConsecutiveSuccesses ?? 0,
+                DatabaseAvailabilityConsecutiveFailures:
+                    _highAvailability.Authority.GetNodeReadiness(
+                        _highAvailability.LocalNodeId)?.DatabaseAvailabilityConsecutiveFailures ?? 0));
     }
 
     private (bool Synchronized, string? ReasonCode) EvaluateStandbyReadiness(
@@ -1563,6 +1688,7 @@ public static class RuntimeHighAvailabilityPeerTransportComposition
         services.AddSingleton<RuntimeHaPeerTransportState>();
         services.AddSingleton<RuntimeHaPeerReplicationCoordinator>();
         services.AddHostedService<RuntimeHaPeerTransportHostedService>();
+        services.AddHostedService<RuntimeHaDatabaseAvailabilityHostedService>();
         return services;
     }
 
@@ -1577,22 +1703,117 @@ public static class RuntimeHighAvailabilityPeerTransportComposition
                 CancellationToken cancellationToken) =>
                 await coordinator.ReceiveAsync(request, cancellationToken));
 
-        endpoints.MapGet("/api/runtime/ha/peer/status", async (
+        endpoints.MapGet("/api/runtime/ha/peer/status", (
             HttpContext context,
-            ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
-            RuntimeHaPeerReplicationCoordinator coordinator,
-            CancellationToken cancellationToken) =>
+            RuntimeHaPeerReplicationCoordinator coordinator) =>
         {
-            var authorization = await security.CheckRuntimeAsync(
+            var authorization = security.CheckWorkspace(
                 context,
-                runtime,
-                Scada.Security.Authorization.SecurityCapability.HighAvailabilityObserve,
-                cancellationToken: cancellationToken);
+                Scada.Security.Authorization.SecurityCapability.HighAvailabilityObserve);
             var failure = authorization.FailureResult();
             return failure ?? Results.Ok(coordinator.Diagnostics());
         });
 
         return endpoints;
+    }
+}
+
+/// <summary>
+/// Samples durable database health independently from the short HA lease/fencing loop.
+/// A database outage must never block lease reconciliation or fail the runtime closed.
+/// </summary>
+public sealed class RuntimeHaDatabaseAvailabilityHostedService(
+    RuntimeHighAvailabilityService highAvailability,
+    DatabaseTopologyAdministrationService database,
+    TimeProvider timeProvider,
+    ILogger<RuntimeHaDatabaseAvailabilityHostedService> logger) : BackgroundService
+{
+    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(5);
+    private const int FailuresBeforeUnavailable = 2;
+    private int _consecutiveFailures;
+    private int _consecutiveSuccesses;
+    private bool? _lastPublishedAvailability;
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        if (!highAvailability.Enabled)
+            return;
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                var status = await database.GetStatusAsync(
+                    refreshHealth: true,
+                    cancellationToken: stoppingToken);
+                if (status.PrimaryHealth is { Reachable: true })
+                {
+                    _consecutiveFailures = 0;
+                    _consecutiveSuccesses = Math.Min(2, _consecutiveSuccesses + 1);
+                    PublishAvailability(true, _consecutiveSuccesses, 0);
+                }
+                else if (status.PrimaryHealth is { Reachable: false })
+                {
+                    _consecutiveFailures++;
+                    _consecutiveSuccesses = 0;
+                    if (_consecutiveFailures >= FailuresBeforeUnavailable)
+                        PublishAvailability(false, 0, _consecutiveFailures);
+                    else
+                        PublishAvailability(_lastPublishedAvailability, 0, _consecutiveFailures);
+                }
+                else
+                {
+                    _consecutiveSuccesses = 0;
+                    _consecutiveFailures = 0;
+                    PublishAvailability(null, 0, 0);
+                }
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _consecutiveFailures++;
+                _consecutiveSuccesses = 0;
+                logger.LogWarning(ex, "HA database availability probe failed.");
+                if (_consecutiveFailures >= FailuresBeforeUnavailable)
+                    PublishAvailability(false, 0, _consecutiveFailures);
+                else
+                    PublishAvailability(_lastPublishedAvailability, 0, _consecutiveFailures);
+            }
+
+            await Task.Delay(PollInterval, timeProvider, stoppingToken);
+        }
+    }
+
+    private void PublishAvailability(
+        bool? available,
+        int consecutiveSuccesses = 0,
+        int consecutiveFailures = 0)
+    {
+        if (_lastPublishedAvailability == available)
+        {
+            // Readiness may not exist on the first probe after startup. Keep
+            // applying the observed value on every poll so a successful first
+            // probe is not lost before the local HA node is registered.
+            highAvailability.UpdateLocalDatabaseAvailability(
+                available,
+                timeProvider.GetUtcNow(),
+                consecutiveSuccesses,
+                consecutiveFailures);
+            return;
+        }
+
+        _lastPublishedAvailability = available;
+        highAvailability.UpdateLocalDatabaseAvailability(
+            available,
+            timeProvider.GetUtcNow(),
+            consecutiveSuccesses,
+            consecutiveFailures);
+        logger.LogInformation(
+            "HA local durable database availability changed to {DatabaseAvailable}.",
+            available?.ToString() ?? "unknown");
     }
 }

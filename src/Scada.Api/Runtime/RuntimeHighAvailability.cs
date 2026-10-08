@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Scada.Core.Product.Licensing;
+using Scada.DriverHost.Runtime;
 
 namespace Scada.Api.Runtime;
 
@@ -145,6 +146,12 @@ public sealed record RuntimeHaRuntimeIdentity(
         return new RuntimeHaRuntimeIdentity(runtime.Mode, runtime.ProjectKey, runtime.Revision);
     }
 
+    public static RuntimeHaRuntimeIdentity From(RuntimeDescriptor runtime)
+    {
+        ArgumentNullException.ThrowIfNull(runtime);
+        return new RuntimeHaRuntimeIdentity("engineering", runtime.ProjectKey, runtime.Revision);
+    }
+
     public bool CompatibleWith(RuntimeHaRuntimeIdentity other) =>
         Revision.HasValue &&
         other.Revision.HasValue &&
@@ -159,7 +166,11 @@ public sealed record RuntimeHaNodeReadinessEvidence(
     bool HaLicenseEntitled,
     RuntimeHaRuntimeIdentity Runtime,
     DateTimeOffset ObservedAtUtc,
-    string? Diagnostic = null);
+    string? Diagnostic = null,
+    bool? DatabaseAvailable = null,
+    DateTimeOffset? DatabaseAvailabilityObservedAtUtc = null,
+    int DatabaseAvailabilityConsecutiveSuccesses = 0,
+    int DatabaseAvailabilityConsecutiveFailures = 0);
 
 public sealed record RuntimeHaNodeSnapshot(
     string NodeId,
@@ -173,7 +184,11 @@ public sealed record RuntimeHaNodeSnapshot(
     DateTimeOffset? LastObservedAtUtc,
     bool Fresh,
     string? ReadinessReason,
-    IReadOnlyCollection<RuntimeHaEndpoint> Endpoints);
+    IReadOnlyCollection<RuntimeHaEndpoint> Endpoints,
+    bool? DatabaseAvailable = null,
+    DateTimeOffset? DatabaseAvailabilityObservedAtUtc = null,
+    int DatabaseAvailabilityConsecutiveSuccesses = 0,
+    int DatabaseAvailabilityConsecutiveFailures = 0);
 
 public sealed record RuntimeHaTransferOperation(
     Guid TransferId,
@@ -323,7 +338,10 @@ public sealed partial class RuntimeHaAuthorityCoordinator
         long referencedEpoch,
         bool previousAuthorityFenced,
         RuntimeHaStandbyPromotionWitness? standbyWitness = null,
-        bool allowAmbiguityRecovery = false)
+        bool allowAmbiguityRecovery = false,
+        RuntimeHaReferenceAuthority? restartReferenceEvidence = null,
+        bool allowSameNodeRestartEpochReconciliation = false,
+        RuntimeHaReferenceAuthority? ownerlessRecoveryEvidence = null)
     {
         lock (_gate)
         {
@@ -333,8 +351,14 @@ public sealed partial class RuntimeHaAuthorityCoordinator
                 return new(false, "reference-epoch-stale", SnapshotLocked());
             if (_pendingTransfer is not null)
                 return new(false, "transfer-in-progress", SnapshotLocked());
+            var ownerlessRecovery = IsValidOwnerlessRecoveryEvidence(
+                activeNodeId,
+                referencedEpoch,
+                ownerlessRecoveryEvidence,
+                _utcNow());
             if (_ambiguousAuthority &&
-                !(allowAmbiguityRecovery && referencedEpoch > _authorityEpoch))
+                !(allowAmbiguityRecovery && referencedEpoch > _authorityEpoch) &&
+                !ownerlessRecovery)
             {
                 return new(false, "ambiguous-authority", SnapshotLocked());
             }
@@ -359,6 +383,31 @@ public sealed partial class RuntimeHaAuthorityCoordinator
                 return new(false, "reference-previous-authority-not-fenced", SnapshotLocked());
 
             var target = ResolveNodeLocked(activeNodeId);
+            var sameNodeRestartResume =
+                restartReferenceEvidence is not null &&
+                (_authorityEpoch == 1 || allowSameNodeRestartEpochReconciliation) &&
+                referencedEpoch > _authorityEpoch &&
+                previousAuthorityFenced &&
+                target.Definition.NodeId.Equals(
+                    _topology.LocalNodeId,
+                    StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(
+                    restartReferenceEvidence.Schema,
+                    RuntimeHaReferenceAuthority.SchemaName,
+                    StringComparison.Ordinal) &&
+                restartReferenceEvidence.SchemaVersion == RuntimeHaReferenceAuthority.CurrentSchemaVersion &&
+                string.Equals(
+                    restartReferenceEvidence.ClusterId,
+                    _topology.ClusterId,
+                    StringComparison.OrdinalIgnoreCase) &&
+                restartReferenceEvidence.TopologyVersion == _topology.TopologyVersion &&
+                restartReferenceEvidence.Epoch == referencedEpoch &&
+                restartReferenceEvidence.PreviousAuthorityFenced &&
+                restartReferenceEvidence.IsLiveAt(_utcNow()) &&
+                string.Equals(
+                    restartReferenceEvidence.ActiveNodeId,
+                    target.Definition.NodeId,
+                    StringComparison.OrdinalIgnoreCase);
             var localPromotion =
                 target.Definition.NodeId.Equals(
                     _topology.LocalNodeId,
@@ -369,7 +418,7 @@ public sealed partial class RuntimeHaAuthorityCoordinator
                      StringComparison.OrdinalIgnoreCase) ||
                  referencedEpoch != _authorityEpoch);
 
-            if (localPromotion)
+            if (localPromotion && !sameNodeRestartResume && !ownerlessRecovery)
             {
                 if (standbyWitness is null ||
                     !standbyWitness.NodeId.Equals(
@@ -394,16 +443,33 @@ public sealed partial class RuntimeHaAuthorityCoordinator
                 }
             }
 
+            if (ownerlessRecovery && target.Evidence is { } recoveryReadiness)
+            {
+                // Keep industrial effects and standby readiness fenced until the exact
+                // mirrored revision has gone through the normal HA activation pipeline.
+                target.Evidence = recoveryReadiness with
+                {
+                    SynchronizationComplete = false,
+                    Runtime = recoveryReadiness.Runtime with { Revision = null },
+                    Diagnostic = "explicit-ownerless-resync-activation-pending"
+                };
+            }
+
             _authorityEpoch = referencedEpoch;
             _effectiveActiveNodeId = target.Definition.NodeId;
             _pendingTransfer = null;
-            _ambiguousAuthority = false;
+            if (ownerlessRecovery || allowAmbiguityRecovery)
+                _ambiguousAuthority = false;
 
             foreach (var node in _nodes.Values)
             {
                 if (ReferenceEquals(node, target))
                 {
-                    node.State = RuntimeHaState.Active;
+                    node.State = IsActiveReady(node.Evidence)
+                        ? RuntimeHaState.Active
+                        : node.Evidence is { Healthy: false }
+                            ? RuntimeHaState.Faulted
+                            : RuntimeHaState.Synchronizing;
                     continue;
                 }
 
@@ -435,6 +501,40 @@ public sealed partial class RuntimeHaAuthorityCoordinator
             ReconcileReadinessLocked();
             _stateVersion = checked(_stateVersion + 1);
         }
+    }
+
+    private bool IsValidOwnerlessRecoveryEvidence(
+        string? activeNodeId,
+        long referencedEpoch,
+        RuntimeHaReferenceAuthority? evidence,
+        DateTimeOffset now)
+    {
+        if (evidence is null ||
+            string.IsNullOrWhiteSpace(activeNodeId) ||
+            !activeNodeId.Equals(_topology.LocalNodeId, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(evidence.Schema, RuntimeHaReferenceAuthority.SchemaName, StringComparison.Ordinal) ||
+            evidence.SchemaVersion != RuntimeHaReferenceAuthority.CurrentSchemaVersion ||
+            !string.Equals(evidence.ClusterId, _topology.ClusterId, StringComparison.OrdinalIgnoreCase) ||
+            evidence.TopologyVersion != _topology.TopologyVersion ||
+            evidence.Epoch != referencedEpoch ||
+            evidence.ActiveNodeId is not null ||
+            !evidence.PreviousAuthorityFenced ||
+            evidence.IsLiveAt(now))
+        {
+            return false;
+        }
+
+        var local = ResolveNodeLocked(_topology.LocalNodeId);
+        var readiness = local.Evidence;
+        return readiness is not null &&
+            now - readiness.ObservedAtUtc <= _topology.FreshnessWindow &&
+            readiness.Healthy &&
+            readiness.HaLicenseEntitled &&
+            readiness.DatabaseAvailable == true &&
+            readiness.DatabaseAvailabilityObservedAtUtc is { } databaseObservedAtUtc &&
+            now - databaseObservedAtUtc <= _topology.FreshnessWindow &&
+            readiness.DatabaseAvailabilityConsecutiveSuccesses >= 2 &&
+            readiness.DatabaseAvailabilityConsecutiveFailures == 0;
     }
 
     public RuntimeHaIndustrialAuthorityDecision TryAcquireIndustrialAuthority(string nodeId)
@@ -725,7 +825,11 @@ public sealed partial class RuntimeHaAuthorityCoordinator
             evidence?.ObservedAtUtc,
             fresh,
             reason,
-            node.Definition.Endpoints);
+            node.Definition.Endpoints,
+            evidence?.DatabaseAvailable,
+            evidence?.DatabaseAvailabilityObservedAtUtc,
+            evidence?.DatabaseAvailabilityConsecutiveSuccesses ?? 0,
+            evidence?.DatabaseAvailabilityConsecutiveFailures ?? 0);
     }
 
     private string? ReadyReason(NodeState node, bool ready, bool fresh)
@@ -819,6 +923,7 @@ public sealed partial class RuntimeHaAuthorityCoordinator
         IsFresh(candidate) &&
         IsFresh(active) &&
         candidate.Healthy &&
+        candidate.DatabaseAvailable != false &&
         candidate.SynchronizationComplete &&
         candidate.HaLicenseEntitled &&
         active.Healthy &&
@@ -1134,8 +1239,57 @@ public sealed partial class RuntimeHighAvailabilityService
         }
     }
 
+    public bool HasReadyPassiveRuntimeProjection(ScadaRuntimeDescriptor runtime)
+    {
+        ArgumentNullException.ThrowIfNull(runtime);
+        if (!Enabled || string.IsNullOrWhiteSpace(runtime.ProjectKey) || !runtime.Revision.HasValue)
+            return false;
+
+        var topology = _authority.Snapshot();
+        if (topology.AmbiguousAuthority ||
+            topology.PendingTransfer is not null ||
+            topology.EffectiveActiveNodeId is null ||
+            topology.EffectiveActiveNodeId.Equals(topology.LocalNodeId, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var local = topology.Nodes.SingleOrDefault(node =>
+            node.NodeId.Equals(topology.LocalNodeId, StringComparison.OrdinalIgnoreCase));
+        return local is
+            {
+                State: RuntimeHaState.ReadyStandby,
+                Ready: true,
+                Healthy: true,
+                SynchronizationComplete: true,
+                HaLicenseEntitled: true,
+                Fresh: true
+            } &&
+            local.Runtime.Mode.Equals(runtime.Mode, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(local.Runtime.ProjectKey, runtime.ProjectKey, StringComparison.OrdinalIgnoreCase) &&
+            local.Runtime.Revision == runtime.Revision;
+    }
+
     public void RefreshLocalReadiness(
         ScadaRuntimeDescriptor runtime,
+        LicenseVerificationResult verification)
+    {
+        ArgumentNullException.ThrowIfNull(runtime);
+        ArgumentNullException.ThrowIfNull(verification);
+        RefreshLocalReadiness(RuntimeHaRuntimeIdentity.From(runtime), verification);
+    }
+
+    public void RefreshLocalReadiness(
+        RuntimeDescriptor runtime,
+        LicenseVerificationResult verification)
+    {
+        ArgumentNullException.ThrowIfNull(runtime);
+        ArgumentNullException.ThrowIfNull(verification);
+        RefreshLocalReadiness(RuntimeHaRuntimeIdentity.From(runtime), verification);
+    }
+
+    private void RefreshLocalReadiness(
+        RuntimeHaRuntimeIdentity runtime,
         LicenseVerificationResult verification)
     {
         ArgumentNullException.ThrowIfNull(runtime);
@@ -1157,9 +1311,16 @@ public sealed partial class RuntimeHighAvailabilityService
                 Healthy: true,
                 SynchronizationComplete: previous?.SynchronizationComplete ?? isEffectiveActive,
                 HaLicenseEntitled: haEntitled,
-                Runtime: RuntimeHaRuntimeIdentity.From(runtime),
+                Runtime: runtime,
                 ObservedAtUtc: _utcNow(),
-                Diagnostic: haEntitled ? null : "local-license-not-ha-entitled"));
+                Diagnostic: haEntitled ? null : "local-license-not-ha-entitled",
+                DatabaseAvailable: previous?.DatabaseAvailable,
+                DatabaseAvailabilityObservedAtUtc:
+                    previous?.DatabaseAvailabilityObservedAtUtc,
+                DatabaseAvailabilityConsecutiveSuccesses:
+                    previous?.DatabaseAvailabilityConsecutiveSuccesses ?? 0,
+                DatabaseAvailabilityConsecutiveFailures:
+                    previous?.DatabaseAvailabilityConsecutiveFailures ?? 0));
     }
 
     public void ReportLocalSynchronization(bool synchronizationComplete)
@@ -1175,6 +1336,31 @@ public sealed partial class RuntimeHighAvailabilityService
             previous with
             {
                 SynchronizationComplete = synchronizationComplete,
+                ObservedAtUtc = _utcNow()
+            });
+    }
+
+    public void UpdateLocalDatabaseAvailability(
+        bool? available,
+        DateTimeOffset? observedAtUtc = null,
+        int consecutiveSuccessfulProbes = 0,
+        int consecutiveFailedProbes = 0)
+    {
+        if (!Enabled) return;
+        var nodeId = _authority.Definition.LocalNodeId;
+        var previous = _authority.GetNodeReadiness(nodeId);
+        if (previous is null) return;
+
+        _authority.UpdateNodeReadiness(
+            nodeId,
+            previous with
+            {
+                DatabaseAvailable = available,
+                DatabaseAvailabilityObservedAtUtc = observedAtUtc ?? _utcNow(),
+                DatabaseAvailabilityConsecutiveSuccesses = available == true
+                    ? Math.Max(0, consecutiveSuccessfulProbes)
+                    : 0,
+                DatabaseAvailabilityConsecutiveFailures = Math.Max(0, consecutiveFailedProbes),
                 ObservedAtUtc = _utcNow()
             });
     }

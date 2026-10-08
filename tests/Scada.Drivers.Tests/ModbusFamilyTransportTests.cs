@@ -47,6 +47,29 @@ public sealed class ModbusFamilyTransportTests
     }
 
     [Fact]
+    public async Task TcpMaster_VerifiesStaleFc06EchoByReadingBackTheWrittenRegister()
+    {
+        await using var server = new TestModbusTcpServer();
+        server.HoldingRegisters[11] = 2;
+        server.ReturnStaleSingleRegisterWriteEcho = true;
+        server.Start();
+        await using var transport = new ModbusTcpTransport(
+            "127.0.0.1",
+            server.Port,
+            TimeSpan.FromSeconds(1));
+
+        await transport.WriteSingleRegisterAsync(1, 11, 303);
+
+        Assert.Equal((ushort)303, Assert.Single(await transport.ReadRegistersAsync(
+            1,
+            ModbusDataArea.HoldingRegister,
+            11,
+            1)));
+        Assert.Equal(1, transport.GetDiagnostics().WriteEchoMismatchCount);
+        Assert.Contains(server.Requests, request => request.Function == 0x03 && request.Address == 11);
+    }
+
+    [Fact]
     public async Task RtuConnectionTest_ConfirmsModbusProtocolWithReadOnlyDeviceIdentification()
     {
         var line = new HostSerialLineSettings("COM11");

@@ -1,3 +1,6 @@
+using System.Data.Common;
+using System.IO;
+using System.Net.Sockets;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.Security;
 using Scada.Security.Audit;
@@ -42,8 +45,32 @@ public static class LocalIdentityApi
                 });
             }
 
-            var bootstrap = context.RequestServices.GetRequiredService<LocalIdentityBootstrapService>();
-            var status = await ResolveBootstrapStatusAsync(context, runtime, bootstrap, ct);
+            InitialAdministratorBootstrapStatus status;
+            if (context.User.Identity?.IsAuthenticated == true)
+            {
+                // A valid signed session is sufficient to establish that anonymous
+                // bootstrap is not needed. Do not make an already authenticated
+                // Runtime session depend on a live database just to render auth UI.
+                status = new InitialAdministratorBootstrapStatus(false, false, null);
+            }
+            else
+            {
+                var bootstrap = context.RequestServices.GetRequiredService<LocalIdentityBootstrapService>();
+                try
+                {
+                    status = await ResolveBootstrapStatusAsync(context, runtime, bootstrap, ct);
+                }
+                catch (Exception exception) when (IsTransientDatabaseFailure(exception))
+                {
+                    // Anonymous bootstrap must fail closed while storage is down,
+                    // but its status endpoint should remain readable so the client
+                    // can still discover and preserve an existing signed session.
+                    status = new InitialAdministratorBootstrapStatus(
+                        true,
+                        false,
+                        "database-unavailable");
+                }
+            }
             return Results.Ok(new
             {
                 authenticationEnabled = runtime.AuthenticationEnabled,
@@ -328,4 +355,19 @@ public static class LocalIdentityApi
         bool Required,
         bool Available,
         string? BlockedReason);
+
+    private static bool IsTransientDatabaseFailure(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is DbException { IsTransient: true } or TimeoutException or IOException or SocketException)
+                return true;
+
+            var sqlState = current.GetType().GetProperty("SqlState")?.GetValue(current) as string;
+            if (sqlState is "57P01" || sqlState?.StartsWith("08", StringComparison.Ordinal) == true)
+                return true;
+        }
+
+        return false;
+    }
 }

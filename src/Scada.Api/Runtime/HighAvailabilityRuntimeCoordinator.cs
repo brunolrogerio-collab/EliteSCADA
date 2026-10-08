@@ -10,6 +10,11 @@ using Scada.Engineering.Contracts;
 
 namespace Scada.Api.Runtime;
 
+public interface IRuntimeApplicationProjectionProvider
+{
+    EngineeringPackage? CaptureApplication();
+}
+
 /// <summary>
 /// Final host-side Runtime decorator. HA policy remains owned by RuntimeHighAvailabilityService;
 /// this coordinator only consumes the effective-Active decision before industrial effects.
@@ -21,9 +26,14 @@ public sealed class HighAvailabilityRuntimeCoordinator(
     IScadaEventBus? eventBus = null,
     IConfiguration? configuration = null) :
     IEngineeringRuntimeCoordinator,
+    IRuntimeTagValueSnapshotRestorer,
+    IRuntimeApplicationProjectionProvider,
     IGatewayRuntimeDiagnosticsProvider
 {
     public const string AuthorityDeniedIssueCode = "HA_EFFECTIVE_ACTIVE_REQUIRED";
+
+    public bool ProductRuntimeActive =>
+        inner.GetProductRuntimeStatus().State == ProductRuntimeLifecycleState.Running;
 
     public RuntimeDescriptor Describe() => inner.Describe();
     public IReadOnlyCollection<TagDefinition> Tags() => inner.Tags();
@@ -37,6 +47,61 @@ public sealed class HighAvailabilityRuntimeCoordinator(
     public bool TryGetCurrent(Guid tagId, out TagValue? value) => inner.TryGetCurrent(tagId, out value);
     public bool TryGetCommand(Guid commandId, out CommandDefinition? command) => inner.TryGetCommand(commandId, out command);
     public bool IsServerMemoryTag(Guid tagId) => inner.IsServerMemoryTag(tagId);
+
+    public Task<int> RestoreAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default)
+    {
+        RequireIndustrialAuthority("restore-authoritative-values");
+        return inner.RestoreAuthoritativeValuesAsync(values, cancellationToken);
+    }
+
+    public Task<int> ApplyPassiveAuthoritativeValuesAsync(
+        string sourceNodeId,
+        string projectKey,
+        long revision,
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceNodeId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectKey);
+        ArgumentNullException.ThrowIfNull(values);
+
+        var topology = highAvailability.Snapshot();
+        if (!highAvailability.Enabled ||
+            topology.AmbiguousAuthority ||
+            topology.PendingTransfer is not null ||
+            highAvailability.CanOwnIndustrialEffects() ||
+            highAvailability.LocalNodeId is null ||
+            sourceNodeId.Equals(highAvailability.LocalNodeId, StringComparison.OrdinalIgnoreCase) ||
+            topology.EffectiveActiveNodeId is null ||
+            !topology.EffectiveActiveNodeId.Equals(sourceNodeId.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Peer TAG values are accepted only from the effective HA Active while this node is fenced as passive.");
+        }
+
+        var verification = licensing.CurrentVerification;
+        if (verification.State != LicenseState.Valid ||
+            verification.SessionEntitlements?.HaRuntime != true)
+        {
+            throw new InvalidOperationException("Peer TAG values require a valid HA Runtime entitlement on the passive node.");
+        }
+
+        var runtime = inner.Describe();
+        if (runtime.Revision != revision ||
+            !string.Equals(runtime.ProjectKey, projectKey.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Peer TAG values do not match the materialized passive Runtime identity.");
+        }
+
+        return inner.ApplyPassiveAuthoritativeValuesAsync(values, cancellationToken);
+    }
+
+    Task<int> IRuntimeTagValueSnapshotRestorer.ApplyPassiveAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken) =>
+        throw new InvalidOperationException(
+            "Passive HA value projection requires the authenticated effective-active peer identity.");
 
     public EngineeringPackage? CaptureApplication() => inner.CaptureApplication();
 
@@ -171,6 +236,7 @@ public sealed class HighAvailabilityRuntimeCoordinator(
             revision,
             package,
             commitAsync: null,
+            allowDegradedSources: false,
             cancellationToken);
 
     public Task<RuntimeActivationResult> ActivateAsync(
@@ -181,7 +247,18 @@ public sealed class HighAvailabilityRuntimeCoordinator(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(commitAsync);
-        return ActivateCoreAsync(projectKey, revision, package, commitAsync, cancellationToken);
+        return ActivateCoreAsync(projectKey, revision, package, commitAsync, allowDegradedSources: false, cancellationToken);
+    }
+
+    public Task<RuntimeActivationResult> ActivateForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(commitAsync);
+        return ActivateCoreAsync(projectKey, revision, package, commitAsync, allowDegradedSources: true, cancellationToken);
     }
 
     private async Task<RuntimeActivationResult> ActivateCoreAsync(
@@ -189,6 +266,7 @@ public sealed class HighAvailabilityRuntimeCoordinator(
         long revision,
         EngineeringPackage package,
         Func<RuntimeActivationCommitContext, CancellationToken, Task>? commitAsync,
+        bool allowDegradedSources,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(package);
@@ -213,9 +291,22 @@ public sealed class HighAvailabilityRuntimeCoordinator(
                 });
         }
 
-        return commitAsync is null
+        var activation = commitAsync is null
             ? await inner.ActivateAsync(projectKey, revision, package, cancellationToken)
-            : await inner.ActivateAsync(projectKey, revision, package, commitAsync, cancellationToken);
+            : allowDegradedSources
+                ? await inner.ActivateForHaTakeoverAsync(projectKey, revision, package, commitAsync, cancellationToken)
+                : await inner.ActivateAsync(projectKey, revision, package, commitAsync, cancellationToken);
+        if (activation.Activated)
+        {
+            // A restart may reconcile authority before the product runtime is materialized.
+            // Publish the now-active runtime identity immediately so restoration of the
+            // mirrored tag snapshot does not wait for the periodic peer-readiness poll.
+            highAvailability.RefreshLocalReadiness(
+                inner.Describe(),
+                licensing.CurrentVerification);
+        }
+
+        return activation;
     }
 
     public ValueTask DisposeAsync() => inner.DisposeAsync();
@@ -237,12 +328,29 @@ public sealed class HighAvailabilityRuntimeCoordinator(
                     IsError: true)
             });
 
-    private void RequireIndustrialAuthority()
+    private void RequireIndustrialAuthority() => RequireIndustrialAuthority("industrial-effect");
+
+    private void RequireIndustrialAuthority(string effect)
     {
         if (!highAvailability.CanOwnIndustrialEffects())
         {
+            var topology = highAvailability.Snapshot();
+            var localNodeId = highAvailability.LocalNodeId;
+            var localNode = localNodeId is null
+                ? null
+                : topology.Nodes.SingleOrDefault(node =>
+                    node.NodeId.Equals(localNodeId, StringComparison.OrdinalIgnoreCase));
+            var authorityDecision = localNodeId is null
+                ? RuntimeHaIndustrialAuthorityDecision.Denied("local-node-id-unavailable")
+                : highAvailability.Authority.TryAcquireIndustrialAuthority(localNodeId);
             throw new InvalidOperationException(
-                "Industrial Runtime effects are fenced because this node is not the effective HA Active authority.");
+                $"Industrial Runtime effect '{effect}' is fenced because this node is not the effective HA Active authority " +
+                $"(decision={authorityDecision.ReasonCode}, effectiveActive={topology.EffectiveActiveNodeId ?? "none"}, " +
+                $"epoch={topology.AuthorityEpoch}, ambiguous={topology.AmbiguousAuthority}, " +
+                $"transferPending={topology.PendingTransfer is not null}, localState={localNode?.State.ToString() ?? "unknown"}, " +
+                $"localReady={localNode?.Ready.ToString() ?? "unknown"}, localHealthy={localNode?.Healthy.ToString() ?? "unknown"}, " +
+                $"localHaLicensed={localNode?.HaLicenseEntitled.ToString() ?? "unknown"}, " +
+                $"runtimeRevision={localNode?.Runtime.Revision?.ToString() ?? "unknown"}).");
         }
     }
 }

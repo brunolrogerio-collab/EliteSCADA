@@ -136,6 +136,13 @@ public sealed record DatabaseMigrationVerification(
     string? FailureCode = null,
     string? Diagnostic = null);
 
+public sealed record DatabaseExistingTargetValidation(
+    bool MatchesActiveProject,
+    string? ProjectKey,
+    long? ActiveRevision,
+    string? FailureCode = null,
+    string? Diagnostic = null);
+
 public sealed record DatabasePendingMigration(
     Guid OperationId,
     DatabaseTopologyProfile Candidate,

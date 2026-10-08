@@ -18,9 +18,9 @@ RUN apt-get update \
 WORKDIR /app
 COPY --from=build --chown=app:app /app/publish .
 COPY --chown=app:app docker/stable/start-api.py /app/start-api.py
-RUN mkdir -p /app/data/protected-material /app/host-keys \
-    && chown -R app:app /app/data /app/host-keys \
-    && chmod 700 /app/data/protected-material /app/host-keys
+RUN mkdir -p /app/data/protected-material /app/host-keys /ha-reference \
+    && chown -R app:app /app/data /app/host-keys /ha-reference \
+    && chmod 700 /app/data/protected-material /app/host-keys /ha-reference
 ENV ASPNETCORE_HTTP_PORTS=5080 \
     DOTNET_NOLOGO=1 \
     DOTNET_CLI_TELEMETRY_OPTOUT=1

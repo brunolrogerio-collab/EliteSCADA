@@ -291,6 +291,11 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     setCheckingProject(true);
     try {
       setProjectSetupRequired(await needsFirstProject());
+    } catch {
+      // A cryptographically valid signed session remains authenticated during a
+      // database outage. The project-status lookup is advisory for first-run UI;
+      // it must not hide an already authenticated Runtime behind the login gate.
+      setProjectSetupRequired(false);
     } finally {
       setCheckingProject(false);
     }

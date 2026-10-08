@@ -202,6 +202,12 @@ function statusLabel(status: string, t: ReturnType<typeof haCopy>) {
   return status;
 }
 
+function databaseHealthName(available: boolean | null | undefined, t: ReturnType<typeof haCopy>) {
+  if (available === true) return t.databaseAvailable;
+  if (available === false) return t.databaseUnavailable;
+  return t.databaseUnknown;
+}
+
 function runningHint(label: string, value: React.ReactNode) {
   return <small className="ha-field-hint"><span>{label}</span> {value || '—'}</small>;
 }
@@ -347,14 +353,30 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
   async function pollOperation(operation: HaProtectionOperation) {
     setActiveOperation(operation);
     if (operation.state !== 'running') return;
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      await new Promise(resolve => setTimeout(resolve, 750));
-      const next = await haAdminApi.operation(operation.operationId);
-      setActiveOperation(next);
-      if (next.state !== 'running') {
-        await load(false);
-        return;
+    try {
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        await new Promise(resolve => setTimeout(resolve, 750));
+        const next = await haAdminApi.operation(operation.operationId);
+        setActiveOperation(next);
+        if (next.state !== 'running') {
+          await load(false);
+          return;
+        }
       }
+    } catch (error) {
+      if (!(error instanceof HaAdminHttpError) || error.status !== 404) throw error;
+
+      // Operation records are process-local. If the API restarts while this tab is
+      // polling, stop presenting the last response as "running" and explain that its
+      // outcome is no longer available; do not infer success or failure of the HA action.
+      const unavailable: HaProtectionOperation = {
+        ...operation,
+        state: 'interrupted',
+        completedAtUtc: new Date().toISOString(),
+        reasonCode: 'operation-status-no-longer-available'
+      };
+      await load(false);
+      setActiveOperation(unavailable);
     }
   }
 
@@ -407,6 +429,14 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
     : administration.operations;
   const latestOperation = operations[0] ?? null;
   const suggestedTarget = peerNode?.nodeId ?? '';
+  const localIsEffectiveActive = Boolean(topology.effectiveActiveNodeId) &&
+    topology.effectiveActiveNodeId!.toLowerCase() === topology.localNodeId.toLowerCase();
+  const canForceResync = topology.enabled &&
+    authority.blocked &&
+    !topology.effectiveActiveNodeId &&
+    protection.reference?.activeNodeId == null &&
+    protection.reference?.previousAuthorityFenced === true &&
+    peer.mirror.hasState;
   const peerAvailable = peer.connectionState === 'connected' && Boolean(peerNode?.fresh);
   const currentServerDraft = draft.nodes[0];
   const partnerServerDraft = draft.nodes[1];
@@ -580,11 +610,13 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
           <div className="ha-node-summary">
             <strong>{t.currentServer}</strong>
             <small>{local ? stateName(local.state) : t.standaloneMode}</small>
+            {topology.enabled && <small>{databaseHealthName(local?.databaseAvailable, t)}</small>}
           </div>
           {topology.enabled && (
             <div className="ha-node-summary">
               <strong>{t.partnerServer}</strong>
               <small>{peerNode ? stateName(peerNode.state) : '—'} · {peer.connectionState} · {relativeTime(latestContact(snapshot))}</small>
+              <small>{databaseHealthName(peerNode?.databaseAvailable, t)}</small>
             </div>
           )}
         </article>
@@ -606,17 +638,17 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
           </div>
 
           <div className="ha-action-cards">
-            <button type="button" className="ha-action-card" disabled={!haLicensed} onClick={() => setConfirm({ kind: 'switchover', target: suggestedTarget })}>
+            <button type="button" className="ha-action-card" data-testid="ha-switchover-action" disabled={!haLicensed || !localIsEffectiveActive} onClick={() => setConfirm({ kind: 'switchover', target: suggestedTarget })}>
               <strong>{t.switchover}</strong>
-              <span>{t.switchoverHint}</span>
+              <span>{localIsEffectiveActive ? t.switchoverHint : t.switchoverActiveOnly}</span>
             </button>
             <button type="button" className="ha-action-card" disabled={!haLicensed} onClick={() => setConfirm({ kind: 'failback', target: draft.initialActiveNodeId })}>
               <strong>{t.failback}</strong>
               <span>{t.failbackHint}</span>
             </button>
-            <button type="button" className="ha-action-card" disabled={!haLicensed} onClick={() => setConfirm({ kind: 'recovery', target: topology.localNodeId })}>
-              <strong>{t.recovery}</strong>
-              <span>{t.recoveryHint}</span>
+            <button type="button" className="ha-action-card" data-testid={canForceResync ? 'ha-force-resync-action' : 'ha-recovery-action'} disabled={!haLicensed} onClick={() => setConfirm({ kind: 'recovery', target: topology.localNodeId })}>
+              <strong>{canForceResync ? t.forceResync : t.recovery}</strong>
+              <span>{canForceResync ? t.forceResyncHint : t.recoveryHint}</span>
             </button>
           </div>
 
@@ -1057,7 +1089,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
           <div className="ha-operation-list" data-testid="ha-operation-list">
             {operations.length === 0 ? <p>{t.noOperations}</p> : operations.map(operation => (
               <article className={'ha-operation ha-operation--' + operation.state} key={operation.operationId}>
-                <div><strong>{operation.kind}</strong><span>{operation.state}</span></div>
+                <div><strong>{operation.kind}</strong><span>{operation.state === 'interrupted' ? t.operationInterrupted : operation.state}</span></div>
                 <dl>
                   <div><dt>{t.source}</dt><dd>{friendlyNode(operation.sourceNodeId)}</dd></div>
                   <div><dt>{t.target}</dt><dd>{friendlyNode(operation.targetNodeId)}</dd></div>
@@ -1074,7 +1106,7 @@ export function HighAvailabilityAdminWorkspace({ locale = 'pt-BR' }: Props) {
         <div className="ha-modal-backdrop" role="presentation">
           <div className="ha-modal" role="dialog" aria-modal="true" aria-labelledby="ha-confirm-title">
             <h2 id="ha-confirm-title">{t.confirmTitle}</h2>
-            <p>{t.confirmHint}</p>
+            <p>{confirm.kind === 'recovery' && canForceResync ? t.forceResyncConfirmHint : t.confirmHint}</p>
             <dl>
               <div><dt>{t.requested}</dt><dd>{confirm.kind}</dd></div>
               <div><dt>{t.source}</dt><dd>{friendlyNode(topology.effectiveActiveNodeId || topology.localNodeId)}</dd></div>

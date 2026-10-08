@@ -129,6 +129,8 @@ builder.AddProductLicensedRuntimeCoordinator();
 builder.Services.AddSingleton<HighAvailabilityRuntimeCoordinator>();
 builder.Services.AddSingleton<IEngineeringRuntimeCoordinator>(sp =>
     sp.GetRequiredService<HighAvailabilityRuntimeCoordinator>());
+builder.Services.AddSingleton<IRuntimeApplicationProjectionProvider>(sp =>
+    sp.GetRequiredService<HighAvailabilityRuntimeCoordinator>());
 builder.Services.AddSingleton<IGatewayRuntimeDiagnosticsProvider>(sp =>
     sp.GetRequiredService<HighAvailabilityRuntimeCoordinator>());
 

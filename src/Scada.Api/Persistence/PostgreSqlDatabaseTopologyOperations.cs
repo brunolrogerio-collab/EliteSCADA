@@ -26,6 +26,14 @@ public interface IDatabaseTopologyOperations
         string historianSourceConnectionString,
         string historianTargetConnectionString,
         CancellationToken cancellationToken = default);
+    Task SynchronizeAuditEventsAsync(
+        string sourceConnectionString,
+        string targetConnectionString,
+        CancellationToken cancellationToken = default);
+    Task<DatabaseExistingTargetValidation> ValidateExistingTargetAsync(
+        string sourceConnectionString,
+        string targetConnectionString,
+        CancellationToken cancellationToken = default);
     Task<DatabaseMigrationVerification> VerifyAsync(
         DatabaseMigrationPlan plan,
         string sourceConnectionString,
@@ -227,6 +235,96 @@ public sealed class PostgreSqlDatabaseTopologyOperations(DatabaseTopologyOptions
         var historianTarget = plan.HistorianUsesPrimary ? targetConnectionString : historianTargetConnectionString;
         await CopyTableSetAsync(historianSourceConnectionString, historianTarget, HistorianTables, HistorianSeedStateTables, cancellationToken);
         await ResetEngineeringRevisionSequenceAsync(targetConnectionString, cancellationToken);
+    }
+
+    public Task SynchronizeAuditEventsAsync(
+        string sourceConnectionString,
+        string targetConnectionString,
+        CancellationToken cancellationToken = default) =>
+        AppendMissingAuditEventsAsync(sourceConnectionString, targetConnectionString, cancellationToken);
+
+    public async Task<DatabaseExistingTargetValidation> ValidateExistingTargetAsync(
+        string sourceConnectionString,
+        string targetConnectionString,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureDifferentDatabase(sourceConnectionString, targetConnectionString, "existing target");
+
+        var source = await ReadActiveRevisionAsync(sourceConnectionString, cancellationToken);
+        var target = await ReadActiveRevisionAsync(targetConnectionString, cancellationToken);
+        var matches = !string.IsNullOrWhiteSpace(source.ProjectKey) &&
+            source.Revision.HasValue &&
+            string.Equals(source.ProjectKey, target.ProjectKey, StringComparison.Ordinal) &&
+            source.Revision == target.Revision;
+
+        return matches
+            ? new(true, target.ProjectKey, target.Revision)
+            : new(
+                false,
+                target.ProjectKey,
+                target.Revision,
+                "active-project-mismatch",
+                "The existing database must contain the same active project and revision as this installation.");
+    }
+
+    private static async Task AppendMissingAuditEventsAsync(
+        string sourceConnectionString,
+        string targetConnectionString,
+        CancellationToken cancellationToken)
+    {
+        await using var sourceDataSource = NpgsqlDataSource.Create(sourceConnectionString);
+        await using var targetDataSource = NpgsqlDataSource.Create(targetConnectionString);
+        await using var source = await sourceDataSource.OpenConnectionAsync(cancellationToken);
+        await using var target = await targetDataSource.OpenConnectionAsync(cancellationToken);
+
+        const string sourceTable = "elitescada.audit_events";
+        await using var metadata = new NpgsqlCommand("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = 'elitescada'
+              AND table_name = 'audit_events'
+              AND is_generated = 'NEVER'
+            ORDER BY ordinal_position;
+            """, source);
+        var columns = new List<string>();
+        await using (var reader = await metadata.ExecuteReaderAsync(cancellationToken))
+        {
+            while (await reader.ReadAsync(cancellationToken))
+                columns.Add(reader.GetString(0));
+        }
+        if (columns.Count == 0) return;
+
+        var quotedColumns = string.Join(", ", columns.Select(QuoteIdentifier));
+        await using var transaction = await target.BeginTransactionAsync(cancellationToken);
+        await using (var createStage = new NpgsqlCommand(
+            "CREATE TEMP TABLE audit_events_stage (LIKE elitescada.audit_events INCLUDING DEFAULTS) ON COMMIT DROP;",
+            target,
+            transaction))
+        {
+            await createStage.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await using (var exporter = await source.BeginRawBinaryCopyAsync(
+            $"COPY {QuoteQualified(sourceTable)} ({quotedColumns}) TO STDOUT (FORMAT BINARY)",
+            cancellationToken))
+        await using (var importer = await target.BeginRawBinaryCopyAsync(
+            $"COPY pg_temp.audit_events_stage ({quotedColumns}) FROM STDIN (FORMAT BINARY)",
+            cancellationToken))
+        {
+            await exporter.CopyToAsync(importer, 81920, cancellationToken);
+        }
+
+        await using (var appendMissing = new NpgsqlCommand($"""
+            INSERT INTO {QuoteQualified(sourceTable)} ({quotedColumns})
+            SELECT {quotedColumns}
+            FROM pg_temp.audit_events_stage
+            ON CONFLICT (id) DO NOTHING;
+            """, target, transaction))
+        {
+            await appendMissing.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task<DatabaseMigrationVerification> VerifyAsync(

@@ -1,0 +1,75 @@
+services:
+  database-b:
+    image: timescale/timescaledb:2.29.2-pg18
+    environment:
+      POSTGRES_DB: elitescada
+      POSTGRES_USER: elitescada
+      POSTGRES_PASSWORD: ${HA_TEST_DB_PASSWORD:?Set HA_TEST_DB_PASSWORD}
+    ports:
+      - "127.0.0.1:15434:5432"
+    volumes:
+      - ha_capacity_database_b:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  api-a:
+    build:
+      context: 'C:/Users/Bruno Rogerio/Documents/Codex/EliteSCADA-ha-restart-epoch-recovery-20261006'
+      dockerfile: docker/stable/Dockerfile.api
+    environment:
+      DatabaseTopology__Secrets__MasterKeyBase64: ${HA_TEST_DATABASE_SECRET_KEY_BASE64:?Set HA_TEST_DATABASE_SECRET_KEY_BASE64}
+
+  api-b:
+    depends_on:
+      database-b:
+        condition: service_healthy
+    environment:
+      DatabaseTopology__Secrets__MasterKeyBase64: ${HA_TEST_DATABASE_SECRET_KEY_BASE64:?Set HA_TEST_DATABASE_SECRET_KEY_BASE64}
+      ConnectionStrings__EliteScada: "Host=database-b;Port=5432;Database=elitescada;Username=elitescada;Password=${HA_TEST_DB_PASSWORD:?Set HA_TEST_DB_PASSWORD};Pooling=true"
+      ConnectionStrings__Historian: "Host=database-b;Port=5432;Database=elitescada;Username=elitescada;Password=${HA_TEST_DB_PASSWORD:?Set HA_TEST_DB_PASSWORD};Pooling=true"
+    volumes:
+      - ha_capacity_api_b_data:/app/data
+
+  web:
+    build:
+      context: 'C:/Users/Bruno Rogerio/Documents/Codex/EliteSCADA-ha-restart-epoch-recovery-20261006'
+      dockerfile: docker/stable/Dockerfile.web
+
+  # Keep a second UI entrypoint for the active API node during operator-flow
+  # tests. The normal test UI is pinned to api-a; after a switchover that node
+  # becomes standby, so HA actions must be exercised against api-b itself.
+  web-b:
+    image: elitescada-ha-capacity-test-web:local
+    # The shared `api` network alias resolves to node A on the default
+    # network. Rewrite the nginx upstream so this operator UI always exercises
+    # node B instead of depending on Docker link/alias resolution order.
+    command:
+      - /bin/sh
+      - -c
+      - sed -i 's|server api:5080 resolve;|server api-b:5080 resolve;|g' /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'
+    links:
+      - api-b:api
+    ports:
+      - "127.0.0.1:18111:80"
+    depends_on:
+      api-b:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  ha_capacity_database_b:
+    name: elitescada-ha-capacity-node-b-database-20261007
+  ha_capacity_reference_store:
+    name: elitescada-ha-capacity-reference-recovery-r6-20261007
+  ha_capacity_api_b_data:
+    name: elitescada-ha-capacity-node-b-data-recovery-20261007

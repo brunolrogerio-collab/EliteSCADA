@@ -403,6 +403,113 @@ test('DB-B mounted workflow covers Local, Remote authoring, migration, cutover, 
   await attachScreenshot(page, testInfo, '14-rollback-result-local-preserved');
 });
 
+test('DB-B connects to a matching existing HA database without copying or merging data', async ({ page }, testInfo) => {
+  let connectRequestCount = 0;
+  let copyRequestCount = 0;
+  let currentStatus: any = topologyStatus();
+
+  await page.route('**/api/admin/database-topology/**', async route => {
+    const url = new URL(route.request().url());
+    const path = url.pathname;
+    const method = route.request().method();
+
+    if (method === 'GET') {
+      await fulfillJson(route, currentStatus);
+      return;
+    }
+    if (path.endsWith('/test')) {
+      await fulfillJson(route, health());
+      return;
+    }
+    if (path.endsWith('/compatibility')) {
+      await fulfillJson(route, { compatible: true, primary: health(), historian: null, failureCode: null, diagnostic: null });
+      return;
+    }
+    if (path.endsWith('/connect-existing')) {
+      connectRequestCount++;
+      const request = route.request().postDataJSON();
+      expect(request.primary.password).toBe(secret);
+      currentStatus = topologyStatus({
+        activeTopology: profile('Remote'),
+        previousTopology: profile('LocalManaged'),
+        restartRequired: true,
+        lastOperation: {
+          operationId,
+          phase: 'Completed',
+          completedAtUtc: '2026-10-02T18:30:00Z',
+          failureCode: null,
+          diagnostic: null
+        }
+      });
+      await fulfillJson(route, {
+        succeeded: true,
+        rolledBack: false,
+        restartRequired: true,
+        status: currentStatus,
+        failureCode: null,
+        diagnostic: null
+      });
+      return;
+    }
+    if (path.endsWith('/copy')) copyRequestCount++;
+    await fulfillJson(route, { error: `Unexpected route: ${method} ${path}` }, 500);
+  });
+
+  await page.goto(`${harnessPath}?locale=en`);
+  await fillRemoteProfile(page);
+  await page.getByRole('button', { name: 'Validate target' }).click();
+  await expect(page.getByTestId('database-validation-result')).toContainText('Compatible');
+  await page.getByRole('button', { name: 'Connect to existing database (no copy)' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('will not copy or merge data');
+  await expect(dialog).toContainText('same project and active revision');
+  await attachScreenshot(page, testInfo, '15-connect-existing-confirmation-no-copy');
+  await dialog.getByRole('button', { name: 'Confirm' }).click();
+
+  await expect(page.getByText('Restart required', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Remote', { exact: true }).first()).toBeVisible();
+  await expect(page.getByLabel('Primary Password / secret')).toHaveCount(0);
+  expect(connectRequestCount).toBe(1);
+  expect(copyRequestCount).toBe(0);
+  const browserStorage = await page.evaluate(() => `${JSON.stringify(window.localStorage)} ${JSON.stringify(window.sessionStorage)}`);
+  expect(browserStorage).not.toContain(secret);
+});
+
+test('DB-B refuses to connect to an existing database with a different project/revision', async ({ page }) => {
+  await page.route('**/api/admin/database-topology/**', async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (route.request().method() === 'GET') {
+      await fulfillJson(route, topologyStatus());
+      return;
+    }
+    if (path.endsWith('/test')) {
+      await fulfillJson(route, health());
+      return;
+    }
+    if (path.endsWith('/compatibility')) {
+      await fulfillJson(route, { compatible: true, primary: health(), historian: null, failureCode: null, diagnostic: null });
+      return;
+    }
+    if (path.endsWith('/connect-existing')) {
+      await fulfillJson(route, {
+        error: 'Existing database cannot be connected safely. It must match the active project and revision on this installation.'
+      }, 409);
+      return;
+    }
+    await fulfillJson(route, { error: 'Unexpected route.' }, 500);
+  });
+
+  await page.goto(`${harnessPath}?locale=en`);
+  await fillRemoteProfile(page);
+  await page.getByRole('button', { name: 'Validate target' }).click();
+  await page.getByRole('button', { name: 'Connect to existing database (no copy)' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Confirm' }).click();
+
+  await expect(page.getByRole('status')).toContainText('project or active revision does not match');
+  await expect(page.getByText('Local Managed · default', { exact: true })).toBeVisible();
+  await expect(page.getByText('Restart required', { exact: true })).toHaveCount(0);
+});
+
 test('DB-B exposes sanitized auth/TLS failures and incompatible PostgreSQL without fabricating readiness', async ({ page }, testInfo) => {
   let connectionCase: 'auth' | 'tls' | 'ok' = 'auth';
   let compatibilityMode: 'ok' | 'version' = 'version';

@@ -177,6 +177,14 @@ public sealed class PostgreSqlEngineeringProjectStoreTests
         Assert.Equal(first.Revision, stillActiveFirst!.ActiveRevision);
         Assert.Null(await store.RecordActivationAsync(projectKey, first.Revision, "operator-stale"));
 
+        var takeoverFirst = await store.RecordActivationForHaTakeoverAsync(
+            projectKey,
+            first.Revision,
+            "ha-takeover");
+        Assert.NotNull(takeoverFirst);
+        Assert.Equal(first.Revision, takeoverFirst!.ActiveRevision);
+        Assert.Equal("ha-takeover", takeoverFirst.ActivatedBy);
+
         var activatedSecond = await store.RecordActivationAsync(projectKey, second.Revision, "operator-b");
         var storedSecond = await store.GetActivationAsync(projectKey);
 

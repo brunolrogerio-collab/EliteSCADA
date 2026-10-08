@@ -43,9 +43,7 @@ public sealed class WorkspaceEngineeringReadFilter(
     }
 }
 
-public sealed class RuntimeEngineeringReadFilter(
-    ApiAuthorizationService security,
-    ScadaRuntimeFacade runtime) : IEndpointFilter
+public sealed class RuntimeEngineeringReadFilter(ApiAuthorizationService security) : IEndpointFilter
 {
     public async ValueTask<object?> InvokeAsync(
         EndpointFilterInvocationContext invocationContext,
@@ -54,11 +52,12 @@ public sealed class RuntimeEngineeringReadFilter(
         if (!security.AuthenticationEnabled)
             return await next(invocationContext);
 
-        var authorization = await security.CheckRuntimeAsync(
+        // Read-only engineering/diagnostic pages must remain available on a
+        // standby node. Their authority is the shared workspace policy, not a
+        // locally materialized active runtime snapshot.
+        var authorization = security.CheckWorkspace(
             invocationContext.HttpContext,
-            runtime,
-            SecurityCapability.EngineeringView,
-            cancellationToken: invocationContext.HttpContext.RequestAborted);
+            SecurityCapability.EngineeringView);
         var failure = authorization.FailureResult();
         return failure ?? await next(invocationContext);
     }

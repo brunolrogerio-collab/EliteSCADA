@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
 using Scada.Core.Commands;
@@ -79,9 +80,31 @@ public interface IEngineeringRuntimeCoordinator : IAsyncDisposable
         EngineeringPackage package,
         Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
         CancellationToken cancellationToken = default);
+    Task<RuntimeActivationResult> ActivateForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
+        CancellationToken cancellationToken = default) =>
+        ActivateAsync(projectKey, revision, package, commitAsync, cancellationToken);
 }
 
-public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinator
+/// <summary>
+/// Restores a peer-authoritative value snapshot into an already activated runtime
+/// without issuing writes to communication drivers.
+/// </summary>
+public interface IRuntimeTagValueSnapshotRestorer
+{
+    Task<int> RestoreAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default);
+
+    Task<int> ApplyPassiveAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinator, IRuntimeTagValueSnapshotRestorer
 {
     private readonly IScadaEventBus _externalEventBus;
     private readonly IEngineeringDriverCompiler _compiler;
@@ -181,6 +204,116 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
     public bool IsServerMemoryTag(Guid tagId) =>
         Volatile.Read(ref _active).ServerMemoryByTagId.ContainsKey(tagId);
 
+    public async Task<int> RestoreAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+        await _activationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var state = Volatile.Read(ref _active);
+            var restored = 0;
+            foreach (var incoming in values)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!state.Registry.TryGet(incoming.TagId, out var tag) || tag is null)
+                {
+                    throw new InvalidOperationException(
+                        $"HA value snapshot contains TAG '{incoming.TagId}' that is not present in the active runtime.");
+                }
+
+                var value = NormalizeSnapshotValue(tag, incoming);
+                if (state.ServerMemoryByTagId.TryGetValue(tag.Id, out var memorySource))
+                {
+                    // Persist the promoted value as well as publishing it into the
+                    // cache, so a later process restart does not resurrect the
+                    // standby's pre-promotion initial value.
+                    await memorySource.WriteAsync(tag.Id, value.Value, cancellationToken);
+                    restored++;
+                    continue;
+                }
+
+                // A communication driver may already have acquired a newer Good
+                // sample while the takeover activation was starting. Never replace
+                // that fresh local sample with an older peer snapshot.
+                if (state.Cache.TryGet(tag.Id, out var current) &&
+                    current is { Quality: TagQuality.Good } &&
+                    current.Timestamp > value.Timestamp)
+                {
+                    continue;
+                }
+
+                await state.Cache.UpdateAsync(tag, value, cancellationToken);
+                restored++;
+            }
+
+            return restored;
+        }
+        finally
+        {
+            _activationGate.Release();
+        }
+    }
+
+    public async Task<int> ApplyPassiveAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+        await _activationGate.WaitAsync(cancellationToken);
+        try
+        {
+            var state = Volatile.Read(ref _active);
+            if (!state.PassiveProjection || state.EventGate.ForwardingEnabled)
+                throw new InvalidOperationException(
+                    "Peer TAG values can only be applied to a fenced passive Runtime projection.");
+
+            var restored = 0;
+            foreach (var incoming in values)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!state.Registry.TryGet(incoming.TagId, out var tag) || tag is null)
+                {
+                    throw new InvalidOperationException(
+                        $"HA value snapshot contains TAG '{incoming.TagId}' that is not present in the passive runtime.");
+                }
+
+                await state.Cache.UpdateAsync(
+                    tag,
+                    NormalizeSnapshotValue(tag, incoming),
+                    cancellationToken);
+                restored++;
+            }
+
+            return restored;
+        }
+        finally
+        {
+            _activationGate.Release();
+        }
+    }
+
+    private static TagValue NormalizeSnapshotValue(TagDefinition tag, TagValue value)
+    {
+        if (value.Value is not JsonElement json) return value;
+
+        object? normalized = tag.DataType switch
+        {
+            TagDataType.Boolean => json.GetBoolean(),
+            TagDataType.Int16 => json.GetInt16(),
+            TagDataType.Int32 or TagDataType.Enum => json.GetInt32(),
+            TagDataType.Int64 => json.GetInt64(),
+            TagDataType.Float => json.GetSingle(),
+            TagDataType.Double => json.GetDouble(),
+            TagDataType.String => json.GetString(),
+            TagDataType.DateTime => json.GetDateTimeOffset(),
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(tag.DataType), tag.DataType, "Unsupported TAG data type in HA snapshot.")
+        };
+        return value with { Value = normalized };
+    }
+
     /// <summary>
     /// Returns the exact Engineering Application from which the currently materialized
     /// Runtime was built. This is a projection boundary only; callers cannot mutate
@@ -256,6 +389,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                 }
 
                 candidate.ActivatedAtUtc = authoritativeActivatedAtUtc?.ToUniversalTime();
+                candidate.PassiveProjection = true;
 
                 var previous = Volatile.Read(ref _active);
                 previous.EventGate.DisableForwarding();
@@ -398,7 +532,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         long revision,
         EngineeringPackage package,
         CancellationToken cancellationToken = default) =>
-        ActivateCoreAsync(projectKey, revision, package, null, cancellationToken);
+        ActivateCoreAsync(projectKey, revision, package, null, allowDegradedSources: false, cancellationToken);
 
     public Task<RuntimeActivationResult> ActivateAsync(
         string projectKey,
@@ -408,7 +542,18 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(commitAsync);
-        return ActivateCoreAsync(projectKey, revision, package, commitAsync, cancellationToken);
+        return ActivateCoreAsync(projectKey, revision, package, commitAsync, allowDegradedSources: false, cancellationToken);
+    }
+
+    public Task<RuntimeActivationResult> ActivateForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(commitAsync);
+        return ActivateCoreAsync(projectKey, revision, package, commitAsync, allowDegradedSources: true, cancellationToken);
     }
 
     private async Task<RuntimeActivationResult> ActivateCoreAsync(
@@ -416,6 +561,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         long revision,
         EngineeringPackage package,
         Func<RuntimeActivationCommitContext, CancellationToken, Task>? commitAsync,
+        bool allowDegradedSources,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(projectKey))
@@ -507,7 +653,6 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 
                 await StartRuntimeSourcesAsync(
                     candidate,
-                    cancellationToken,
                     handover.CandidateDrivers);
 
                 var preHandoverReady = await WaitUntilReadyAsync(
@@ -517,13 +662,21 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                     allowEmpty: true);
                 if (!preHandoverReady)
                 {
+                    if (!allowDegradedSources || HasFatalStartupFailure(candidate, handover.CandidateDrivers))
+                    {
+                        runtimeIssues.Add(new(
+                            "RUNTIME_CANDIDATE_NOT_READY",
+                            $"Candidate Runtime did not reach pre-handover readiness within {_activationTimeout}.",
+                            IsError: true));
+                        await DisposeCandidateAndRollbackAsync();
+                        return new RuntimeActivationResult(
+                            projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
+                    }
+
                     runtimeIssues.Add(new(
-                        "RUNTIME_CANDIDATE_NOT_READY",
-                        $"Candidate Runtime did not reach pre-handover readiness within {_activationTimeout}.",
-                        IsError: true));
-                    await DisposeCandidateAndRollbackAsync();
-                    return new RuntimeActivationResult(
-                        projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
+                        "RUNTIME_ACTIVATED_DEGRADED",
+                        "HA takeover is continuing with communication sources degraded; TAGs retain their current quality until acquisition recovers.",
+                        IsError: false));
                 }
 
                 if (handover.PreviousDrivers.Count > 0)
@@ -533,18 +686,29 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
                         cancellationToken);
                 }
 
-                await StartDriversAsync(handover.CandidateDrivers, cancellationToken);
+                await StartDriversAsync(handover.CandidateDrivers);
 
                 var ready = await WaitUntilReadyAsync(candidate, cancellationToken);
                 if (!ready)
                 {
-                    runtimeIssues.Add(new(
-                        "RUNTIME_CANDIDATE_NOT_READY",
-                        $"Candidate runtime did not reach protocol readiness and required Good TAG quality within {_activationTimeout}.",
-                        IsError: true));
-                    await DisposeCandidateAndRollbackAsync();
-                    return new RuntimeActivationResult(
-                        projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
+                    if (!allowDegradedSources || HasFatalStartupFailure(candidate))
+                    {
+                        runtimeIssues.Add(new(
+                            "RUNTIME_CANDIDATE_NOT_READY",
+                            $"Candidate runtime did not reach protocol readiness and required Good TAG quality within {_activationTimeout}.",
+                            IsError: true));
+                        await DisposeCandidateAndRollbackAsync();
+                        return new RuntimeActivationResult(
+                            projectKey.Trim(), revision, false, compilationIssues, runtimeIssues);
+                    }
+
+                    if (!runtimeIssues.Any(issue => issue.Code == "RUNTIME_ACTIVATED_DEGRADED"))
+                    {
+                        runtimeIssues.Add(new(
+                            "RUNTIME_ACTIVATED_DEGRADED",
+                            "HA takeover is continuing with communication sources degraded; TAGs retain their current quality until acquisition recovers.",
+                            IsError: false));
+                    }
                 }
 
                 RegisterAlarms(effectivePackage, candidate, runtimeIssues);
@@ -730,11 +894,10 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 
     private static async Task StartRuntimeSourcesAsync(
         RuntimeState state,
-        CancellationToken cancellationToken,
         IReadOnlyCollection<ICommunicationDriver>? excludedDrivers = null)
     {
         foreach (var source in state.ServerMemorySources)
-            await source.ActivateAsync(cancellationToken);
+            await source.ActivateAsync(CancellationToken.None);
 
         var excluded = excludedDrivers is null
             ? null
@@ -742,16 +905,18 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         foreach (var driver in state.Drivers)
         {
             if (excluded?.Contains(driver) == true) continue;
-            await driver.StartAsync(cancellationToken);
+            // A driver is owned by the committed Runtime, not by the HTTP request
+            // (or other caller) that activated it. Passing the activation token here
+            // can silently stop its polling loop as soon as that request completes.
+            await driver.StartAsync(CancellationToken.None);
         }
     }
 
     private static async Task StartDriversAsync(
-        IReadOnlyCollection<ICommunicationDriver> drivers,
-        CancellationToken cancellationToken)
+        IReadOnlyCollection<ICommunicationDriver> drivers)
     {
         foreach (var driver in drivers)
-            await driver.StartAsync(cancellationToken);
+            await driver.StartAsync(CancellationToken.None);
     }
 
     private static async Task<IReadOnlyCollection<ICommunicationDriver>> StopDriversForHandoverAsync(
@@ -763,18 +928,34 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         {
             foreach (var driver in drivers)
             {
-                await driver.StopAsync(cancellationToken);
+                // Stop can fail after the driver has already cancelled its polling
+                // loop or released part of its transport. Include the in-flight
+                // driver in rollback before invoking protocol-specific cleanup.
                 stopped.Add(driver);
+                await driver.StopAsync(cancellationToken);
             }
             return stopped;
         }
-        catch
+        catch (Exception stopException)
         {
+            List<Exception>? rollbackErrors = null;
             foreach (var driver in stopped.AsEnumerable().Reverse())
             {
                 try { await driver.StartAsync(CancellationToken.None); }
-                catch { }
+                catch (Exception ex)
+                {
+                    rollbackErrors ??= new List<Exception>();
+                    rollbackErrors.Add(new InvalidOperationException(
+                        $"Previous Runtime resource owner '{driver.DriverId}' could not be restarted after handover failed.",
+                        ex));
+                }
             }
+
+            if (rollbackErrors is { Count: > 0 })
+                throw new AggregateException(
+                    "Previous Runtime handover failed and one or more resource owners could not be restored.",
+                    new[] { stopException }.Concat(rollbackErrors));
+
             throw;
         }
     }
@@ -863,6 +1044,19 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         }
 
         return IsReady();
+    }
+
+    private static bool HasFatalStartupFailure(
+        RuntimeState state,
+        IReadOnlyCollection<ICommunicationDriver>? drivers = null)
+    {
+        var candidates = drivers ?? state.Drivers;
+        if (candidates.Any(driver => driver.Status.State == DriverState.Faulted))
+            return true;
+
+        return candidates
+            .OfType<ICommunicationDriverReadinessSource>()
+            .Any(source => source.GetCommunicationReadiness().State == CommunicationDriverReadinessState.Faulted);
     }
 
     private sealed record RuntimeResourceHandover(
@@ -1075,6 +1269,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         public long? Revision { get; }
         public EngineeringPackage? Application { get; }
         public DateTimeOffset? ActivatedAtUtc { get; set; }
+        public bool PassiveProjection { get; set; }
         public RuntimeEventGate EventGate { get; }
         public InMemoryTagRegistry Registry { get; }
         public CurrentTagCache Cache { get; }
@@ -1108,15 +1303,24 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
             List<Exception>? errors = null;
             foreach (var driver in Drivers.Reverse())
             {
-                try
-                {
-                    await driver.StopAsync();
-                    await driver.DisposeAsync();
-                }
+                try { await driver.StopAsync(); }
                 catch (Exception ex)
                 {
                     errors ??= new List<Exception>();
-                    errors.Add(ex);
+                    errors.Add(new InvalidOperationException(
+                        $"Communication driver '{driver.DriverId}' reported an error while stopping.",
+                        ex));
+                }
+
+                // Disposal must still run when StopAsync fails: a protocol driver
+                // can have released only some resources before reporting an error.
+                try { await driver.DisposeAsync(); }
+                catch (Exception ex)
+                {
+                    errors ??= new List<Exception>();
+                    errors.Add(new InvalidOperationException(
+                        $"Communication driver '{driver.DriverId}' reported an error while disposing.",
+                        ex));
                 }
             }
 

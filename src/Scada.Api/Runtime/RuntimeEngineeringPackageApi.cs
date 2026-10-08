@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Scada.Api.Persistence;
 using Scada.Api.Security;
+using Scada.Engineering.Contracts;
 using Scada.Engineering.Persistence;
 using Scada.Security.Authorization;
 
@@ -80,6 +81,8 @@ public static class RuntimeEngineeringPackageApi
             HttpContext context,
             ScadaRuntimeFacade runtime,
             ApiAuthorizationService security,
+            RuntimeHighAvailabilityService highAvailability,
+            HighAvailabilityRuntimeCoordinator runtimeCoordinator,
             CancellationToken cancellationToken) =>
         {
             var authorizationFailure = await AuthorizeRuntimeViewAsync(
@@ -110,6 +113,70 @@ public static class RuntimeEngineeringPackageApi
             if (persistence is null) return PersistenceUnavailable();
 
             var snapshot = await persistence.LoadActiveAsync(before.ProjectKey!, cancellationToken);
+            if ((snapshot is null || snapshot.Revision != before.Revision) &&
+                highAvailability.HasReadyPassiveRuntimeProjection(before))
+            {
+                // Prefer a matching local published copy when one exists. A standby
+                // may have a separate database, however, so the authenticated peer's
+                // in-memory application projection is also a valid read-only HMI source
+                // while HA confirms that this exact runtime is ReadyStandby.
+                snapshot = await persistence.LoadPublishedAsync(before.ProjectKey!, cancellationToken);
+            }
+
+            if ((snapshot is null ||
+                 !snapshot.ProjectKey.Equals(before.ProjectKey, StringComparison.OrdinalIgnoreCase) ||
+                 snapshot.Revision != before.Revision) &&
+                highAvailability.HasReadyPassiveRuntimeProjection(before))
+            {
+                var passiveApplication = runtimeCoordinator.CaptureApplication();
+                if (passiveApplication is null)
+                {
+                    return Results.Conflict(new
+                    {
+                        error = "Ready Standby Runtime has no authenticated peer application projection."
+                    });
+                }
+
+                var afterPassiveLoad = runtime.Describe();
+                if (!SameRuntime(before, afterPassiveLoad) ||
+                    !highAvailability.HasReadyPassiveRuntimeProjection(afterPassiveLoad))
+                {
+                    return RuntimeChanged();
+                }
+
+                try
+                {
+                    var root = JsonSerializer.SerializeToElement(
+                        passiveApplication,
+                        RuntimeHaPeerReplicationCoordinator.WireJson);
+                    var projection = ProjectHmiPackage(root);
+                    var localProjectName = snapshot is not null &&
+                        snapshot.ProjectKey.Equals(before.ProjectKey, StringComparison.OrdinalIgnoreCase)
+                            ? snapshot.ProjectName
+                            : before.ProjectKey;
+                    var afterPassiveProjection = runtime.Describe();
+                    if (!SameRuntime(before, afterPassiveProjection) ||
+                        !highAvailability.HasReadyPassiveRuntimeProjection(afterPassiveProjection))
+                    {
+                        return RuntimeChanged();
+                    }
+
+                    return Results.Ok(new
+                    {
+                        mode = "engineering",
+                        projectKey = before.ProjectKey,
+                        projectName = localProjectName,
+                        revision = before.Revision,
+                        activatedAtUtc = before.ActivatedAtUtc,
+                        package = projection
+                    });
+                }
+                catch (JsonException ex)
+                {
+                    return InvalidActivePackage(ex.Message);
+                }
+            }
+
             if (snapshot is null)
             {
                 return Results.Conflict(new

@@ -53,7 +53,7 @@ public static class LocalUserAdministrationApi
             ILocalIdentityStore store,
             CancellationToken ct) =>
         {
-            var authorization = await AuthorizeAsync(context, runtime, security, audit, ListAction, "users", ct);
+            var authorization = await AuthorizeAsync(context, security, audit, ListAction, "users");
             if (authorization.Failure is not null) return authorization.Failure;
 
             var users = await store.ListAsync(ct);
@@ -79,7 +79,7 @@ public static class LocalUserAdministrationApi
             ApiAuditService audit,
             CancellationToken ct) =>
         {
-            var authorization = await AuthorizeAsync(context, runtime, security, audit, RolesAction, "roles", ct);
+            var authorization = await AuthorizeAsync(context, security, audit, RolesAction, "roles");
             if (authorization.Failure is not null) return authorization.Failure;
 
             var roles = authorityPolicies.Snapshot().Roles
@@ -110,7 +110,7 @@ public static class LocalUserAdministrationApi
             ILocalIdentityStore store,
             CancellationToken ct) =>
         {
-            var authorization = await AuthorizeAsync(context, runtime, security, audit, CreateAction, "new", ct);
+            var authorization = await AuthorizeAsync(context, security, audit, CreateAction, "new");
             if (authorization.Failure is not null) return authorization.Failure;
 
             try
@@ -183,7 +183,7 @@ public static class LocalUserAdministrationApi
             TagRealtimeHub realtime,
             CancellationToken ct) =>
         {
-            var authorization = await AuthorizeAsync(context, runtime, security, audit, UpdateAction, id.ToString(), ct);
+            var authorization = await AuthorizeAsync(context, security, audit, UpdateAction, id.ToString());
             if (authorization.Failure is not null) return authorization.Failure;
 
             var displayName = request.DisplayName?.Trim() ?? string.Empty;
@@ -210,7 +210,7 @@ public static class LocalUserAdministrationApi
 
                 var users = await store.ListAsync(ct);
                 var projected = users.Select(user => user.Id == id ? updated : user).ToArray();
-                if (!await HasEnabledLocalAdministratorAsync(projected, security, runtime, ct))
+                if (!HasEnabledLocalAdministrator(projected, security))
                 {
                     return Results.BadRequest(new
                     {
@@ -250,7 +250,7 @@ public static class LocalUserAdministrationApi
             TagRealtimeHub realtime,
             CancellationToken ct) =>
         {
-            var authorization = await AuthorizeAsync(context, runtime, security, audit, ResetPasswordAction, id.ToString(), ct);
+            var authorization = await AuthorizeAsync(context, security, audit, ResetPasswordAction, id.ToString());
             if (authorization.Failure is not null) return authorization.Failure;
 
             try
@@ -297,27 +297,23 @@ public static class LocalUserAdministrationApi
 
     private static async Task<(ApiAuthorizationCheck? Check, IResult? Failure)> AuthorizeAsync(
         HttpContext context,
-        ScadaRuntimeFacade runtime,
         ApiAuthorizationService security,
         ApiAuditService audit,
         string action,
-        string targetId,
-        CancellationToken ct)
+        string targetId)
     {
-        var roleAdmin = await security.CheckRuntimeAsync(
+        // User/role administration is node-local application security, not a
+        // process-value operation. It must remain available on a standby node.
+        var roleAdmin = security.CheckWorkspace(
             context,
-            runtime,
-            SecurityCapability.UserRoleAdmin,
-            cancellationToken: ct);
+            SecurityCapability.UserRoleAdmin);
         if (roleAdmin.Allowed) return (roleAdmin, null);
 
         if (roleAdmin.IsAuthenticated)
         {
-            var systemAdmin = await security.CheckRuntimeAsync(
+            var systemAdmin = security.CheckWorkspace(
                 context,
-                runtime,
-                SecurityCapability.SystemAdmin,
-                cancellationToken: ct);
+                SecurityCapability.SystemAdmin);
             if (systemAdmin.Allowed) return (systemAdmin, null);
         }
 
@@ -356,11 +352,9 @@ public static class LocalUserAdministrationApi
             unknownRoles = unknown
         });
 
-    private static async Task<bool> HasEnabledLocalAdministratorAsync(
+    private static bool HasEnabledLocalAdministrator(
         IEnumerable<LocalUserAccount> users,
-        ApiAuthorizationService security,
-        ScadaRuntimeFacade runtime,
-        CancellationToken ct)
+        ApiAuthorizationService security)
     {
         foreach (var user in users.Where(user => user.IsEnabled))
         {
@@ -370,18 +364,14 @@ public static class LocalUserAdministrationApi
                 LocalIdentityNormalization.NormalizeRoles(user.Roles),
                 true);
 
-            var roleAdmin = await security.CheckRuntimeAsync(
+            var roleAdmin = security.CheckWorkspace(
                 candidate,
-                runtime,
-                SecurityCapability.UserRoleAdmin,
-                cancellationToken: ct);
+                SecurityCapability.UserRoleAdmin);
             if (roleAdmin.Allowed) return true;
 
-            var systemAdmin = await security.CheckRuntimeAsync(
+            var systemAdmin = security.CheckWorkspace(
                 candidate,
-                runtime,
-                SecurityCapability.SystemAdmin,
-                cancellationToken: ct);
+                SecurityCapability.SystemAdmin);
             if (systemAdmin.Allowed) return true;
         }
 

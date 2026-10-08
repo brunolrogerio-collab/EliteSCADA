@@ -16,8 +16,7 @@ public static class JwtAuthenticationConfiguration
         var issuer = jwt["Issuer"]?.Trim();
         var audience = jwt["Audience"]?.Trim();
         var signingKey = jwt["SigningKey"];
-        var cookieName = section.GetSection("Local")["CookieName"]?.Trim();
-        if (string.IsNullOrWhiteSpace(cookieName)) cookieName = LocalIdentityConfiguration.DefaultCookieName;
+        var cookieName = LocalIdentityConfiguration.ResolveCookieName(builder.Configuration);
 
         if (string.IsNullOrWhiteSpace(issuer))
             throw new InvalidOperationException("Authentication:Jwt:Issuer is required when authentication is enabled.");

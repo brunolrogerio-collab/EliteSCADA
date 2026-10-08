@@ -19,7 +19,7 @@ public interface IGatewayRuntimeDiagnosticsProvider
 /// protocol-neutral Operational Event definition snapshot so Events change only
 /// when the underlying Active Revision successfully changes.
 /// </summary>
-public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinator, IGatewayRuntimeDiagnosticsProvider, IOperationalEventRuntime
+public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinator, IRuntimeTagValueSnapshotRestorer, IGatewayRuntimeDiagnosticsProvider, IOperationalEventRuntime
 {
     private readonly EngineeringRuntimeCoordinator _inner;
     private readonly IScadaEventBus _eventBus;
@@ -49,6 +49,16 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
     public bool TryGetCurrent(Guid tagId, out TagValue? value) => _inner.TryGetCurrent(tagId, out value);
     public bool TryGetCommand(Guid commandId, out CommandDefinition? command) => _inner.TryGetCommand(commandId, out command);
     public bool IsServerMemoryTag(Guid tagId) => _inner.IsServerMemoryTag(tagId);
+
+    public Task<int> RestoreAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default) =>
+        _inner.RestoreAuthoritativeValuesAsync(values, cancellationToken);
+
+    public Task<int> ApplyPassiveAuthoritativeValuesAsync(
+        IReadOnlyCollection<TagValue> values,
+        CancellationToken cancellationToken = default) =>
+        _inner.ApplyPassiveAuthoritativeValuesAsync(values, cancellationToken);
 
     public EngineeringPackage? CaptureApplication() => _inner.CaptureApplication();
 
@@ -138,7 +148,7 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
         long revision,
         EngineeringPackage package,
         CancellationToken cancellationToken = default) =>
-        ActivateCoreAsync(projectKey, revision, package, null, cancellationToken);
+        ActivateCoreAsync(projectKey, revision, package, null, allowDegradedSources: false, cancellationToken);
 
     public Task<RuntimeActivationResult> ActivateAsync(
         string projectKey,
@@ -148,7 +158,18 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(commitAsync);
-        return ActivateCoreAsync(projectKey, revision, package, commitAsync, cancellationToken);
+        return ActivateCoreAsync(projectKey, revision, package, commitAsync, allowDegradedSources: false, cancellationToken);
+    }
+
+    public Task<RuntimeActivationResult> ActivateForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        EngineeringPackage package,
+        Func<RuntimeActivationCommitContext, CancellationToken, Task> commitAsync,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(commitAsync);
+        return ActivateCoreAsync(projectKey, revision, package, commitAsync, allowDegradedSources: true, cancellationToken);
     }
 
     private async Task<RuntimeActivationResult> ActivateCoreAsync(
@@ -156,6 +177,7 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
         long revision,
         EngineeringPackage package,
         Func<RuntimeActivationCommitContext, CancellationToken, Task>? commitAsync,
+        bool allowDegradedSources,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(projectKey))
@@ -188,26 +210,35 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
             var previousGatewayStopped = false;
             try
             {
-                var result = await _inner.ActivateAsync(
-                    projectKey,
-                    revision,
-                    package,
-                    async (context, ct) =>
+                async Task CommitAsync(RuntimeActivationCommitContext context, CancellationToken ct)
+                {
+                    // Stop automated writes before the external commit callback can
+                    // persist/promote the candidate Active Revision. If that callback
+                    // later fails, the wrapper restarts the previous Gateway while the
+                    // proven inner coordinator keeps the previous runtime active.
+                    if (previousGateway is not null)
                     {
-                        // Stop automated writes before the external commit callback can
-                        // persist/promote the candidate Active Revision. If that callback
-                        // later fails, the wrapper restarts the previous Gateway while the
-                        // proven inner coordinator keeps the previous runtime active.
-                        if (previousGateway is not null)
-                        {
-                            await previousGateway.StopAsync();
-                            previousGatewayStopped = true;
-                        }
+                        await previousGateway.StopAsync();
+                        previousGatewayStopped = true;
+                    }
 
-                        if (commitAsync is not null)
-                            await commitAsync(context, ct);
-                    },
-                    cancellationToken);
+                    if (commitAsync is not null)
+                        await commitAsync(context, ct);
+                }
+
+                var result = allowDegradedSources
+                    ? await _inner.ActivateForHaTakeoverAsync(
+                        projectKey,
+                        revision,
+                        package,
+                        CommitAsync,
+                        cancellationToken)
+                    : await _inner.ActivateAsync(
+                        projectKey,
+                        revision,
+                        package,
+                        CommitAsync,
+                        cancellationToken);
 
                 if (!result.Activated)
                 {

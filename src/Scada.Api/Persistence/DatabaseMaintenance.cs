@@ -5,6 +5,7 @@ namespace Scada.Api.Persistence;
 public sealed class DatabaseMaintenanceGate : IDurableWriteAdmission
 {
     private readonly object _gate = new();
+    private readonly AsyncLocal<int> _maintenanceControlAuditDepth = new();
     private Guid? _operationId;
     private DateTimeOffset? _expiresAtUtc;
     private int _activeWriters;
@@ -99,12 +100,21 @@ public sealed class DatabaseMaintenanceGate : IDurableWriteAdmission
 
         lock (_gate)
         {
-            if (IsActiveUnsafe())
+            var maintenanceControlAudit =
+                _maintenanceControlAuditDepth.Value > 0 &&
+                writer.Trim().Equals("audit", StringComparison.OrdinalIgnoreCase);
+            if (IsActiveUnsafe() && !maintenanceControlAudit)
                 throw new DurableWriteQuiescedException(writer.Trim(), _operationId!.Value);
 
             checked { _activeWriters++; }
             return ValueTask.FromResult<IAsyncDisposable>(new DurableWriterLease(this));
         }
+    }
+
+    public IDisposable AllowMaintenanceControlAuditAdmission()
+    {
+        _maintenanceControlAuditDepth.Value++;
+        return new MaintenanceControlAuditScope(this);
     }
 
     public void Exit(Guid operationId)
@@ -135,6 +145,20 @@ public sealed class DatabaseMaintenanceGate : IDurableWriteAdmission
         }
 
         drained?.TrySetResult(true);
+    }
+
+    private sealed class MaintenanceControlAuditScope(DatabaseMaintenanceGate owner) : IDisposable
+    {
+        private DatabaseMaintenanceGate? _owner = owner;
+
+        public void Dispose()
+        {
+            var current = Interlocked.Exchange(ref _owner, null);
+            if (current is null) return;
+            current._maintenanceControlAuditDepth.Value = Math.Max(
+                0,
+                current._maintenanceControlAuditDepth.Value - 1);
+        }
     }
 
     // The lease deadline is progress/status metadata, not an automatic unquiesce trigger.

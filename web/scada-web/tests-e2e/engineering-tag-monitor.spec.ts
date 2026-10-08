@@ -17,7 +17,9 @@ test('TAG Monitor is an Engineering diagnostic while its facts remain Active Run
   await expect(page).toHaveURL(/\/engineering\/diagnostics\/tag-monitor$/);
   await expect(page.getByTestId('engineering-tag-monitor')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'TAG Monitor', level: 1 })).toBeVisible();
-  await expect(page.getByText('Engenharia / Diagnósticos', { exact: true })).toBeVisible();
+  // The shared Engineering header intentionally hides eyebrow text to keep
+  // section headers compact; the diagnostic identity is carried by the h1.
+  await expect(page.getByText('Engenharia / Diagnósticos', { exact: true })).toBeAttached();
 
   const context = page.getByTestId('tag-monitor-context');
   await expect(context.getByText('Contexto Engineering', { exact: true })).toBeVisible();
@@ -32,7 +34,6 @@ test('TAG Monitor is an Engineering diagnostic while its facts remain Active Run
   const inspector = page.locator('.runtime-tag-inspector');
   await expect(inspector).toBeVisible();
   await expect(inspector.getByRole('heading', { name: 'Inspector de TAGs' })).toBeVisible();
-  await expect(inspector.getByText('Runtime / TAGs', { exact: true })).toBeVisible();
   await expect(inspector.getByText('Realtime conectado', { exact: true })).toBeVisible({ timeout: 15_000 });
 
   await inspector.getByLabel('Buscar TAGs').fill('pressure');
@@ -54,6 +55,45 @@ test('TAG Monitor is an Engineering diagnostic while its facts remain Active Run
   await expect(inspector.getByRole('heading', { name: 'Histórico recente' })).toBeVisible();
 
   await expect(inspector.getByRole('button', { name: /gravar|escrever|write/i })).toHaveCount(0);
+});
+
+test('TAG Monitor windows large Runtime lists instead of mounting every TAG', async ({ page }) => {
+  const now = new Date().toISOString();
+  const tags = Array.from({ length: 5_000 }, (_, index) => {
+    const suffix = String(index + 1).padStart(5, '0');
+    const id = `capacity-tag-${suffix}`;
+    return {
+      id,
+      name: `Tag${suffix}`,
+      path: `Capacity.Tag${suffix}`,
+      dataType: 'number',
+      engineeringUnit: 'units',
+      description: '',
+      readOnly: true,
+      current: { tagId: id, value: index + 1, timestamp: now, quality: 'good', source: 'capacity-fixture' }
+    };
+  });
+
+  await page.route('**/api/tags', route => route.fulfill({ json: tags }));
+  await page.route('**/api/tags/by-path/**', async route => {
+    const path = decodeURIComponent(new URL(route.request().url()).pathname.split('/').pop() ?? '');
+    const tag = tags.find(item => item.path === path) ?? tags[0];
+    await route.fulfill({ json: { tag } });
+  });
+  await page.route('**/api/history/**', route => route.fulfill({ json: [] }));
+
+  await page.goto('/engineering/diagnostics/tag-monitor');
+  const inspector = page.locator('.runtime-tag-inspector');
+  await expect(inspector.locator('.runtime-tag-summary-item').first().getByText('5000', { exact: true })).toBeVisible();
+  const tagList = inspector.locator('.runtime-tag-list');
+  expect(await tagList.getByRole('option').count()).toBeLessThan(40);
+  await tagList.evaluate(element => { element.scrollTop = element.scrollHeight; });
+  await expect(tagList.getByRole('option').filter({ hasText: 'Capacity.Tag05000' })).toBeVisible();
+  expect(await tagList.getByRole('option').count()).toBeLessThan(40);
+
+  await inspector.getByLabel('Buscar TAGs').fill('Tag05000');
+  await expect(tagList.getByRole('option')).toHaveCount(1);
+  await expect(tagList.getByRole('option')).toContainText('Capacity.Tag05000');
 });
 
 test('operator-only cannot obtain Engineering TAG Monitor through its direct URL', async ({ browser }) => {

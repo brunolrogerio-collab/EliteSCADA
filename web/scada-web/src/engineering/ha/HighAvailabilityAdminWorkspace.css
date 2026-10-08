@@ -874,7 +874,8 @@
 }
 
 .ha-operation--rejected,
-.ha-operation--failed {
+.ha-operation--failed,
+.ha-operation--interrupted {
   border-color: color-mix(in srgb, var(--ha-danger) 50%, var(--ha-border));
 }
 

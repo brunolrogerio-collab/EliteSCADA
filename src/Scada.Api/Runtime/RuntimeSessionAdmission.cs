@@ -11,6 +11,7 @@ public enum RuntimeSessionAdmissionReasonCode
     ExplicitViewOnly,
     AuthorityReadOnly,
     InteractiveEligible,
+    HighAvailabilityStandbyReadOnly,
     ExistingLeaseRetained
 }
 
@@ -65,6 +66,17 @@ public static class RuntimeSessionAdmissionPolicy
                 requestedClass,
                 RuntimeConnectionClass.ViewOnly,
                 RuntimeSessionAdmissionReasonCode.AuthorityReadOnly);
+    }
+
+    public static RuntimeSessionAdmissionDecision DownscopeForHighAvailabilityStandby(
+        RuntimeSessionAdmissionDecision decision)
+    {
+        ArgumentNullException.ThrowIfNull(decision);
+        return decision with
+        {
+            GrantedClass = RuntimeConnectionClass.ViewOnly,
+            ReasonCode = RuntimeSessionAdmissionReasonCode.HighAvailabilityStandbyReadOnly
+        };
     }
 
     public static RuntimeSessionAdmissionDecision RetainExistingLease(

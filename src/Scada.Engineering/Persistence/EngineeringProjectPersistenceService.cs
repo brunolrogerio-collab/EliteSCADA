@@ -42,6 +42,15 @@ public interface IEngineeringProjectPersistenceService
         string projectKey,
         CancellationToken cancellationToken = default);
 
+    async Task<EngineeringProjectSnapshot?> LoadRevisionAsync(
+        string projectKey,
+        long revision,
+        CancellationToken cancellationToken = default)
+    {
+        var published = await LoadPublishedAsync(projectKey, cancellationToken);
+        return published?.Revision == revision ? published : null;
+    }
+
     Task<EngineeringProjectSnapshot?> LoadActiveAsync(
         string projectKey,
         CancellationToken cancellationToken = default);
@@ -64,6 +73,13 @@ public interface IEngineeringProjectPersistenceService
         long revision,
         string? activatedBy = null,
         CancellationToken cancellationToken = default);
+
+    Task<EngineeringProjectActivation?> RecordActivationForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        string? activatedBy = null,
+        CancellationToken cancellationToken = default) =>
+        RecordActivationAsync(projectKey, revision, activatedBy, cancellationToken);
 
     Task DeleteProjectAsync(
         string projectKey,
@@ -172,6 +188,12 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
             : await _store.LoadRevisionAsync(projectKey, publication.PublishedRevision, cancellationToken);
     }
 
+    public Task<EngineeringProjectSnapshot?> LoadRevisionAsync(
+        string projectKey,
+        long revision,
+        CancellationToken cancellationToken = default) =>
+        _store.LoadRevisionAsync(projectKey, revision, cancellationToken);
+
     public async Task<EngineeringProjectSnapshot?> LoadActiveAsync(
         string projectKey,
         CancellationToken cancellationToken = default)
@@ -236,6 +258,20 @@ public sealed class EngineeringProjectPersistenceService : IEngineeringProjectPe
     {
         await EnsureActivatableBindingAsync(projectKey, cancellationToken);
         return await _store.RecordActivationAsync(projectKey, revision, activatedBy, cancellationToken);
+    }
+
+    public async Task<EngineeringProjectActivation?> RecordActivationForHaTakeoverAsync(
+        string projectKey,
+        long revision,
+        string? activatedBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureActivatableBindingAsync(projectKey, cancellationToken);
+        return await _store.RecordActivationForHaTakeoverAsync(
+            projectKey,
+            revision,
+            activatedBy,
+            cancellationToken);
     }
 
     public Task DeleteProjectAsync(

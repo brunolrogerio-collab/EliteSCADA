@@ -20,6 +20,7 @@ public sealed class ModbusTcpTransport : IModbusMasterTransport
     private long _requestAttempts;
     private long _successfulRequestAttempts;
     private long _failedRequestAttempts;
+    private long _writeEchoMismatchCount;
     private long _timeoutCount;
     private long _lastRequestDurationTicks;
     private long _totalRequestDurationTicks;
@@ -46,7 +47,8 @@ public sealed class ModbusTcpTransport : IModbusMasterTransport
         ["transport"] = "tcp",
         ["host"] = _host,
         ["port"] = _port.ToString(System.Globalization.CultureInfo.InvariantCulture),
-        ["requestTimeoutMs"] = _requestTimeout.TotalMilliseconds.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)
+        ["requestTimeoutMs"] = _requestTimeout.TotalMilliseconds.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture),
+        ["writeEchoMismatchCount"] = Interlocked.Read(ref _writeEchoMismatchCount).ToString(System.Globalization.CultureInfo.InvariantCulture)
     };
 
     public ModbusMasterTransportDiagnosticSnapshot GetMasterDiagnostics()
@@ -91,6 +93,7 @@ public sealed class ModbusTcpTransport : IModbusMasterTransport
                 _requestAttempts,
                 _successfulRequestAttempts,
                 _failedRequestAttempts,
+                Interlocked.Read(ref _writeEchoMismatchCount),
                 _timeoutCount,
                 _requestAttempts == 0 ? null : TimeSpan.FromTicks(_lastRequestDurationTicks),
                 average,
@@ -193,7 +196,43 @@ public sealed class ModbusTcpTransport : IModbusMasterTransport
     {
         var pdu = ModbusPduCodec.BuildWriteSingleRegisterRequest(address, value);
         var response = await SendRequestAsync(unitId, pdu, retryOnConnectionFailure: false, cancellationToken);
-        ModbusPduCodec.ValidateWriteEchoResponse(response, pdu, ModbusPduCodec.WriteSingleRegister);
+        try
+        {
+            ModbusPduCodec.ValidateWriteEchoResponse(response, pdu, ModbusPduCodec.WriteSingleRegister);
+        }
+        catch (IOException echoError) when (response.Length > 0 && response[0] == ModbusPduCodec.WriteSingleRegister)
+        {
+            Interlocked.Increment(ref _writeEchoMismatchCount);
+            // Some devices apply FC06 but return a stale or otherwise incorrect echo.
+            // Do not report success from the write alone: confirm the target register
+            // with an independent FC03 read before accepting the operation.
+            ushort[] readBack;
+            try
+            {
+                readBack = await ReadRegistersAsync(
+                    unitId,
+                    ModbusDataArea.HoldingRegister,
+                    address,
+                    1,
+                    cancellationToken);
+            }
+            catch (Exception verificationError) when (verificationError is IOException or SocketException or TimeoutException)
+            {
+                throw new IOException(
+                    $"Modbus FC06 echo mismatch (request={Convert.ToHexString(pdu)}, response={Convert.ToHexString(response)}); " +
+                    $"read-back verification failed: {verificationError.Message}",
+                    new AggregateException(echoError, verificationError));
+            }
+
+            if (readBack.Length == 1 && readBack[0] == value)
+                return;
+
+            var actual = readBack.Length == 1 ? $"0x{readBack[0]:X4}" : "invalid response";
+            throw new IOException(
+                $"Modbus FC06 echo mismatch (request={Convert.ToHexString(pdu)}, response={Convert.ToHexString(response)}); " +
+                $"register {address} read back {actual}, expected 0x{value:X4}.",
+                echoError);
+        }
     }
 
     public async Task WriteMultipleRegistersAsync(

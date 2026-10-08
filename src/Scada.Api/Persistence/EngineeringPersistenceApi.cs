@@ -166,7 +166,36 @@ public static class EngineeringPersistenceApi
                 "Engineering runtime recovery is unavailable although a runtime project is configured.");
         }
 
+        // Restore the externally fenced HA authority before persisted Runtime recovery.
+        // After a restart, the local in-memory topology starts at its initial epoch/active
+        // node; reconciling the durable reference first lets the prior active resume while
+        // a standby remains fenced and available for peer materialization.
+        var highAvailabilityProtection = app.Services.GetService<RuntimeHaProtectionCoordinator>();
+        if (highAvailabilityProtection is not null)
+            await highAvailabilityProtection.RefreshAsync(cancellationToken);
+
         var result = await recovery.RecoverAsync(projectKey, cancellationToken);
+        if (result.IsExpectedAuthorityDenial && highAvailabilityProtection is not null)
+        {
+            // The first recovery attempt can precede the local database-health
+            // confirmation after a process restart. Retry only while the live,
+            // externally fenced HA reference still names this unambiguous local node
+            // as Active; a Standby or a changed authority never recovers locally.
+            for (var attempt = 0; attempt < 40 && !result.Recovered; attempt++)
+            {
+                if (!result.IsExpectedAuthorityDenial ||
+                    !CanRetryLocalActiveRuntimeRecovery(highAvailabilityProtection))
+                    break;
+
+                await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
+                await highAvailabilityProtection.RefreshAsync(cancellationToken);
+                if (!CanRetryLocalActiveRuntimeRecovery(highAvailabilityProtection))
+                    break;
+
+                result = await recovery.RecoverAsync(projectKey, cancellationToken);
+            }
+        }
+
         if (result.PersistedActiveRevision.HasValue &&
             !result.Recovered &&
             !result.IsExpectedAuthorityDenial)
@@ -185,7 +214,44 @@ public static class EngineeringPersistenceApi
                 $"Persisted active revision {result.PersistedActiveRevision} for project '{projectKey}' could not be recovered. {issues}");
         }
 
+        if (!result.Recovered)
+        {
+            var recoveryIssues = result.Runtime is null
+                ? "none"
+                : string.Join("; ", result.Runtime.RuntimeIssues
+                    .Where(issue => issue.IsError)
+                    .Select(issue => $"{issue.Code}: {issue.Message}"));
+            app.Logger.LogWarning(
+                "Persisted Runtime startup recovery did not activate project {ProjectKey}; found={Found}, activeRevision={ActiveRevision}, expectedDenial={ExpectedDenial}, issues={Issues}.",
+                projectKey,
+                result.Found,
+                result.PersistedActiveRevision,
+                result.IsExpectedAuthorityDenial,
+                recoveryIssues);
+        }
+
         return result;
+    }
+
+    private static bool CanRetryLocalActiveRuntimeRecovery(
+        RuntimeHaProtectionCoordinator protection)
+    {
+        var state = protection.Diagnostics();
+        var topology = state.Topology;
+        var reference = state.Reference;
+        var localNodeId = topology.LocalNodeId;
+        return state.Enabled &&
+            localNodeId is not null &&
+            reference is not null &&
+            reference.IsLiveAt(DateTimeOffset.UtcNow) &&
+            reference.PreviousAuthorityFenced &&
+            reference.ActiveNodeId?.Equals(localNodeId, StringComparison.OrdinalIgnoreCase) == true &&
+            reference.ClusterId.Equals(topology.ClusterId, StringComparison.OrdinalIgnoreCase) &&
+            reference.TopologyVersion == topology.TopologyVersion &&
+            reference.Epoch == topology.AuthorityEpoch &&
+            topology.EffectiveActiveNodeId?.Equals(localNodeId, StringComparison.OrdinalIgnoreCase) == true &&
+            !topology.AmbiguousAuthority &&
+            topology.PendingTransfer is null;
     }
 
     public static void MapEngineeringPersistenceEndpoints(this WebApplication app)

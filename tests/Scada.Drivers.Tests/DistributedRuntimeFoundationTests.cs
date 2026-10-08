@@ -100,6 +100,20 @@ public sealed class DistributedRuntimeFoundationTests
     }
 
     [Fact]
+    public void Admission_HaStandby_DownscopesInteractiveToViewOnly()
+    {
+        var interactive = RuntimeSessionAdmissionPolicy.Resolve(
+            RuntimeConnectionClass.Interactive,
+            new[] { Allowed(SecurityCapability.ProcessValueWrite) });
+
+        var standby = RuntimeSessionAdmissionPolicy.DownscopeForHighAvailabilityStandby(interactive);
+
+        Assert.Equal(RuntimeConnectionClass.Interactive, standby.RequestedClass);
+        Assert.Equal(RuntimeConnectionClass.ViewOnly, standby.GrantedClass);
+        Assert.Equal(RuntimeSessionAdmissionReasonCode.HighAvailabilityStandbyReadOnly, standby.ReasonCode);
+    }
+
+    [Fact]
     public void Admission_Interactive_ReadOnlyAuthority_IsDownscopedWithoutRoleNamePolicy()
     {
         var decision = RuntimeSessionAdmissionPolicy.Resolve(

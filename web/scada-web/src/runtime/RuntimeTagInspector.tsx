@@ -209,6 +209,10 @@ export function RuntimeTagInspector({
   const [lastSuccessAt, setLastSuccessAt] = useState<string | null>(null);
   const listAbort = useRef<AbortController | null>(null);
   const selectionAbort = useRef<AbortController | null>(null);
+  const tagListRef = useRef<HTMLDivElement | null>(null);
+  const [tagListScrollTop, setTagListScrollTop] = useState(0);
+  const [tagRowHeight, setTagRowHeight] = useState(75);
+  const [tagListViewportHeight, setTagListViewportHeight] = useState(720);
 
   const refreshTags = useCallback(async () => {
     listAbort.current?.abort();
@@ -248,6 +252,24 @@ export function RuntimeTagInspector({
     event => setTags(current => applyRuntimeTagRealtimeEvent(current, event)),
     setRealtimeState
   ), [realtimeConnector]);
+
+  useEffect(() => {
+    if (tagListRef.current) tagListRef.current.scrollTop = 0;
+    setTagListScrollTop(0);
+  }, [query, qualityFilter, accessFilter]);
+
+  useEffect(() => {
+    const list = tagListRef.current;
+    if (!list) return;
+    const updateMeasurements = () => {
+      setTagListViewportHeight(list.clientHeight || 720);
+      setTagRowHeight(window.matchMedia('(max-width: 720px)').matches ? 96 : 75);
+    };
+    updateMeasurements();
+    const observer = new ResizeObserver(updateMeasurements);
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, []);
 
   const selectedTag = useMemo(() => tags.find(tag => tag.id === selectedId) ?? null, [selectedId, tags]);
 
@@ -295,6 +317,15 @@ export function RuntimeTagInspector({
   }, [loadSelection]);
 
   const filtered = useMemo(() => filterRuntimeTags(tags, { query, quality: qualityFilter, access: accessFilter }), [accessFilter, qualityFilter, query, tags]);
+  const tagListOverscan = 8;
+  const visibleTagStart = Math.max(0, Math.floor(tagListScrollTop / tagRowHeight) - tagListOverscan);
+  const visibleTagEnd = Math.min(
+    filtered.length,
+    Math.ceil((tagListScrollTop + tagListViewportHeight) / tagRowHeight) + tagListOverscan
+  );
+  const visibleTags = filtered.slice(visibleTagStart, visibleTagEnd);
+  const tagListTopSpace = visibleTagStart * tagRowHeight;
+  const tagListBottomSpace = Math.max(0, (filtered.length - visibleTagEnd) * tagRowHeight);
   const summary = useMemo(() => buildRuntimeTagInspectorSummary(tags), [tags]);
   const orderedHistory = useMemo(
     () => [...history].sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp)),
@@ -360,16 +391,25 @@ export function RuntimeTagInspector({
       {listIssue && <div className="runtime-tag-inline-warning">{issueText(listIssue, text)}</div>}
 
       <div className="runtime-tag-workspace">
-        <div className="runtime-tag-list" role="listbox" aria-label={text.title}>
+        <div
+          className="runtime-tag-list"
+          role="listbox"
+          aria-label={text.title}
+          ref={tagListRef}
+          onScroll={event => setTagListScrollTop(event.currentTarget.scrollTop)}
+        >
           {tags.length === 0 && <div className="runtime-tag-empty">{text.empty}</div>}
           {tags.length > 0 && filtered.length === 0 && <div className="runtime-tag-empty">{text.noMatches}</div>}
-          {filtered.map(tag => {
+          {filtered.length > 0 && tagListTopSpace > 0 && <div aria-hidden="true" style={{ height: tagListTopSpace }} />}
+          {visibleTags.map((tag, index) => {
             const bucket = runtimeTagQualityBucket(tag);
             return (
               <button
                 type="button"
                 role="option"
                 aria-selected={tag.id === selectedId}
+                aria-setsize={filtered.length}
+                aria-posinset={visibleTagStart + index + 1}
                 className={`runtime-tag-row quality-${bucket}${tag.id === selectedId ? ' selected' : ''}`}
                 key={tag.id}
                 onClick={() => setSelectedId(tag.id)}
@@ -387,6 +427,7 @@ export function RuntimeTagInspector({
               </button>
             );
           })}
+          {tagListBottomSpace > 0 && <div aria-hidden="true" style={{ height: tagListBottomSpace }} />}
         </div>
 
         <div className="runtime-tag-detail">

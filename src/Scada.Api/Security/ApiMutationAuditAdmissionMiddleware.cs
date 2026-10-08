@@ -1,3 +1,6 @@
+using Scada.Api.Persistence;
+using Scada.Api.Runtime;
+
 namespace Scada.Api.Security;
 
 public sealed class ApiMutationAuditAdmissionMiddleware(RequestDelegate next)
@@ -5,7 +8,8 @@ public sealed class ApiMutationAuditAdmissionMiddleware(RequestDelegate next)
     public async Task InvokeAsync(
         HttpContext context,
         ApiAuditService audit,
-        ApiAuthorizationService security)
+        ApiAuthorizationService security,
+        DatabaseMaintenanceGate? maintenanceGate = null)
     {
         if (!RequiresDurableAdmission(context.Request))
         {
@@ -15,6 +19,13 @@ public sealed class ApiMutationAuditAdmissionMiddleware(RequestDelegate next)
 
         try
         {
+            var isDatabaseControlRequest =
+                context.Request.Path.StartsWithSegments("/api/admin/database-topology");
+            var allowMaintenanceAudit = maintenanceGate?.IsActive == true && isDatabaseControlRequest;
+            using var maintenanceAuditAdmission =
+                allowMaintenanceAudit
+                    ? maintenanceGate!.AllowMaintenanceControlAuditAdmission()
+                    : null;
             await audit.RecordMutationAdmissionAsync(
                 context,
                 security.GetPrincipal(context),
@@ -40,6 +51,18 @@ public sealed class ApiMutationAuditAdmissionMiddleware(RequestDelegate next)
     public static bool RequiresDurableAdmission(HttpRequest request)
     {
         if (!request.Path.StartsWithSegments("/api")) return false;
+
+        // The authenticated peer transport is a high-frequency state exchange, not a user
+        // command. Auditing every heartbeat-sized replication POST creates unbounded audit
+        // writes and prevents database maintenance from reaching a stable snapshot.
+        if (HttpMethods.IsPost(request.Method) &&
+            string.Equals(
+                request.Path.Value,
+                RuntimeHaPeerTransportOptions.ReplicationPath,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
 
         return HttpMethods.IsPost(request.Method) ||
                HttpMethods.IsPut(request.Method) ||

@@ -1,4 +1,35 @@
-# LATEST COORDINATION CHANGE — 2026-10-06 22:31 BRT
+# LATEST COORDINATION CHANGE — 2026-10-08 (BRT)
+
+> This entry supersedes the 2026-10-06 operational snapshots below. Historical entries remain for context; revalidate GitHub live before acting.
+
+## Main coordination difficulty and correction
+
+Three coordination errors stalled DEV progress:
+
+- Main sent or expected `SIGA` in the Main conversation to wake the S4 DEV conversation. A signal only wakes the conversation that receives it; GitHub comments, PRs and Actions do not wake another ChatGPT chat.
+- Main asked the Product Owner to enable HTTPS credentials / provide a Git token after the local `git push` and missing `gh` CLI blocked publication. The owner should not be asked to configure credentials or share a secret in chat. Use the authorized GitHub connector/API for Git objects and refs; if it cannot write, report `BLOCKED_GIT_AUTH` to Main.
+- Main treated local focused tests and a GitHub checkpoint comment as sufficient validation, and followed coordinator docs that still described 2026-10-06 state. Local tests are T0 evidence; the lane PR must produce exact-head GitHub T1. Re-read live branches, PRs, Actions and current coordination docs on every wake.
+
+Correction now recorded in `docs/CHAT-COLLABORATION-PROTOCOL.md` and `docs/PARALLEL-WORK.md`: chat wake is local, GitHub is durable state, each Main response identifies the exact DEV chat that needs `SIGA` / `WAIT` / `NO ACTION`, and DEV Bootstraps must include live-state revalidation, exact-tree publication, exact-head T1, failure classification, and no-credential/no-merge rules.
+
+## Current live state
+
+- Integration: `wave15/corrections-integration@114f7c942c202a216afb1cec1950211b1f4232d5` (live compare confirms no later integration commit).
+- S4 issue #565; branch `work/driver-interaction-s4-server-script@fbcbd89090750a02c17eddfd29c18531a2461153`, tree `21d46b5e6a34d5098437eda71b69b8701e21906f`; PR #568 is OPEN / DRAFT / NOT MERGED.
+- Exact-head T1 run #37787089773 (run 956), profile `SCRIPT_ENGINEERING`, completed FAILURE. Classifier and Common T1 sanity passed; Focused .NET failed with 1,219 passed, 1 skipped, 3 failed; browser/Web/HA jobs were router-skipped.
+- Two S4 Server Script integration assertions failed: `ServerScript_DraftEventGraphDoesNotReplaceActiveSubscriptions_AndActivationReplacesGeneration` (line 323) and `ActiveServerScript_ReceivesCanonicalTransientEventPayloadFromActiveReference` (line 275), both `Assert.True` expected true / actual false. Classification remains `UNKNOWN` pending lane diagnosis; do not assume TEST_STALE.
+- A separate shared Runtime recovery assertion failed: `PersistedRuntimeRecoveryServiceTests.Recovery_DemoWithExpiredAuthorityAnchor_RemainsStoppedAsExpectedAuthorityDenial` (line 440), `Assert.False` expected false / actual true. Track as `SHARED_HOTSPOT / UNKNOWN` pending isolation and Main audit.
+- No new broad CI was started and no merge is authorized. The Product Owner has clarified that physical L4 driver testing is unavailable until after Wave 16 and partner disclosure.
+
+## Immediate coordination action
+
+Resume the S4 DEV only by sending `SIGA` in the S4 DEV chat. Ask that lane to diagnose all three exact-head failures, classify the source before editing tests or product, make only authorized S4 changes, publish the exact tree to GitHub, and obtain a fresh `SCRIPT_ENGINEERING` T1 on the new published SHA. No Product Owner credential action is pending. Keep PR #568 open and unmerged.
+
+At the end of every Main response, list each active DEV chat and say exactly: `SIGA` in that chat, `WAIT`, or `NO ACTION`. A `SIGA` resumes existing scope; it is not merge authorization.
+
+---
+
+## Historical snapshot — 2026-10-06 22:31 BRT (superseded)
 
 Outgoing Main handoff recorded in:
 `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-10-06-2231.md`.

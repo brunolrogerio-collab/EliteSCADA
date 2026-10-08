@@ -10,7 +10,7 @@ GitHub live remains the authority for current implementation state. This protoco
 
 Every user-visible response/interation related to EliteSCADA must end with the current local time in `America/Sao_Paulo`, using exactly:
 
-`Hora: HH:MM`
+`DD/MM/YYYY — Hora: HH:MM BRT`
 
 This applies to:
 
@@ -132,3 +132,17 @@ A new Main Coordinator must read this protocol before supervising Work/DEV chats
 - no chat may rely on conversation history as the sole durable record of project state.
 
 These requirements are global EliteSCADA collaboration rules, not coordinator-specific preferences.
+
+## 9. Chat-local wake and per-chat next action
+
+A `SIGA` / `continue` wakes only the chat that received that message. It never wakes a different Main or DEV chat. GitHub comments, issues, branches, PRs and Actions runs are durable records but are not wake signals for separate conversations.
+
+At the end of each Main response, enumerate the active DEV chats and tell the Product Owner the action for each exact chat: send `SIGA` there, `WAIT`, or `NO ACTION`. At the end of each DEV response, state whether that same DEV chat needs `SIGA`, is waiting for Main, or is done. Do not ask the Product Owner to relay routine technical messages between Main and DEV; persist the checkpoint in the owning GitHub issue or PR.
+
+`SIGA` resumes only the existing authorized lane after the live GitHub state has been re-read. It does not authorize merge, a new lane, an architecture change, scope expansion, or a reserved/shared-contract change.
+
+## 10. Required DEV Bootstrap and GitHub evidence
+
+Every new DEV assignment must carry the reusable operating block in `docs/PARALLEL-WORK.md` §3.2, with the exact lane issue, branch, base SHA, allowed/forbidden scope, required validation profile and report destination filled in. A Bootstrap must say that local tests are T0 only, GitHub live is the authority, a normal exact-head T1 on the published SHA is required, failures must be classified before correction, and no merge occurs without separate explicit Product Owner authorization.
+
+If ordinary HTTPS push or the `gh` CLI is unavailable, do not ask the Product Owner to create credentials or share a token. Use the authorized GitHub connector/API to publish Git blobs/tree/commit/ref when available, verify the published tree, or report `BLOCKED_GIT_AUTH` to Main. Never claim repository publication or T1 based only on a local checkout.

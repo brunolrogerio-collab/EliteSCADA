@@ -47,6 +47,54 @@ When the user sends only `siga` or `continue`, the chat:
 
 Workers with delivered work and `WAIT_FOR_COORDINATOR` do not create new branches or start queued work. A `NextQueuedTask` is not authorization until promoted according to the board and `docs/DEVELOPMENT-WAVES.md`.
 
+### 3.1 Chat wake is local
+
+A `SIGA` / `continue` wakes only the chat that receives it. A `SIGA` sent to Main does not wake any DEV chat. GitHub comments, issue updates, branch pushes, PR creation and completed Actions runs are durable coordination records; they do not wake a separate ChatGPT conversation.
+
+At the end of every Main response, list each active DEV conversation and give the exact user action for that chat: `SIGA` in that DEV chat, `WAIT`, or `NO ACTION`. Do not say only 'continue' without naming the receiving chat. A DEV must end each response with its lane state, exact next step, and whether the user should send `SIGA` in that same DEV chat or wait for Main.
+
+`SIGA` resumes the existing authorized assignment after a live-state re-read. It is not merge authorization, an architecture decision, permission to expand scope, or permission to start a queued lane.
+
+### 3.2 Reusable DEV Bootstrap block
+
+Copy this block into every lane-specific DEV Bootstrap, then fill in the exact issue, branch, base SHA, scope, reserved files, validation profile and report destination:
+
+```text
+ELITESCADA DEV OPERATING PROTOCOL
+
+Repository: brunolrogerio-collab/EliteSCADA.
+GitHub live is the sole authority for branch, commit, PR, issue and CI state.
+Your one active assignment is [ISSUE / LANE]. Branch: [BRANCH]. Required base: [BASE SHA]. Allowed scope: [SCOPE]. Forbidden scope / reserved files: [DETAILS]. Report checkpoints to [OWNING ISSUE / PR] and follow Main's current coordination record.
+
+On SIGA received in THIS DEV conversation:
+1. Re-read the required current repository docs, including LAST CHANGE.md, docs/ROADMAP.md, docs/PARALLEL-WORK.md, docs/CHAT-COLLABORATION-PROTOCOL.md and docs/CI-USAGE-POLICY.md, plus this lane's MustReadSpecific files.
+2. Revalidate the live issue, branch head and tree, base/compare, PR state, latest comments, and Actions runs on the exact current SHA. GitHub live wins over this prompt, local memory, old comments and stale handoffs.
+3. Identify the next action already authorized by this lane and continue without asking the Product Owner to repeat it. Stop only at an actual scope/architecture/authority/merge gate listed by Main.
+
+Validation and publication:
+- Local tests are T0 evidence only. Tests validate product: classify every failure as PRODUCT, TEST_STALE, ENVIRONMENT, WORKFLOW/CI, SHARED_HOTSPOT or UNKNOWN before choosing a fix. Do not change correct product to satisfy a stale test, and do not weaken/delete a valid test to get green.
+- Run the minimum focused checks needed, then publish the exact candidate to GitHub and open/update the lane PR with Main's required VALIDATION_PROFILE. Obtain the normal exact-head T1 on the published GitHub SHA before claiming validation. Record SHA, tree, profile, run/job links, counts and failures in the owning PR/issue.
+- Keep CI economical: do not start broad/full CI for each small change; follow docs/CI-USAGE-POLICY.md, observe any already-running broad run, and do not duplicate it.
+- If HTTPS git push fails or `gh` is missing, do not ask the Product Owner to configure credentials or send a token. Use the authorized connected GitHub Git Database/API path when available: read the live ref; create blobs/tree/commit with the current branch head as parent; update the ref with expected-head/CAS and force=false; then verify the published commit and tree match the intended local source tree. Record both local provenance SHA and the new GitHub commit SHA.
+- If the authorized GitHub connection cannot publish, stop publication with `BLOCKED_GIT_AUTH`; report the exact blocker and a copy-ready checkpoint to Main. Do not request or expose credentials and do not try an alternate unapproved publication route.
+
+Boundaries and response format:
+- Never merge your PR. A green T1 is not merge authorization. Merge requires separate explicit Product Owner authorization through Main.
+- Do not expand scope, consume another lane, change shared contracts, schema, dependencies, security authority or High Availability internals unless the lane explicitly permits it or Main authorizes the gate.
+- At the end of every response, state: lane status; exact GitHub SHA / tree / PR / T1 state; next action; and who must act. If this DEV needs a wake after your response, say 'send SIGA in this DEV chat'. If waiting on Main, say exactly what decision is needed. Include the required local date/time stamp.
+```
+
+### 3.3 Publication and validation state labels
+
+Use explicit states so a local result cannot be mistaken for GitHub validation:
+
+- `LOCAL_T0_ONLY` — focused local checks passed; candidate not yet published or no exact-head T1.
+- `PUBLISHED_T1_PENDING` — exact candidate is on GitHub and the lane PR / T1 is pending.
+- `T1_FAILED_DIAGNOSIS_REQUIRED` — record failed job, test names, exact SHA and preliminary failure class; do not claim completion.
+- `T1_PASS_MAIN_AUDIT_PENDING` — exact-head profile gate passed; Main audit remains.
+- `WAIT_FOR_COORDINATOR` — a real Main decision or reserved-scope gate is required.
+- `BLOCKED_GIT_AUTH` — authorized connection cannot publish; report to Main without asking the Product Owner for a token.
+
 ## 4. Development Waves
 
 Parallel product development is organized into explicit waves with:

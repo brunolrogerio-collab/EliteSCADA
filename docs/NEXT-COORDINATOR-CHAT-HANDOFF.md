@@ -1,4 +1,19 @@
-# NEXT COORDINATOR CHAT — CURRENT POINTER — 2026-10-06 22:31 BRT
+# NEXT COORDINATOR CHAT — CURRENT POINTER — 2026-10-08
+
+Read first: `docs/CURRENT-COORDINATOR-HANDOFF.md`, root `LAST CHANGE.md`, `docs/CHAT-COLLABORATION-PROTOCOL.md`, and `docs/PARALLEL-WORK.md` §3. Then revalidate GitHub live; do not use the older 2026-10-06 lane list below as current state.
+
+Current integration: `wave15/corrections-integration@114f7c942c202a216afb1cec1950211b1f4232d5`.
+
+Current S4 lane: issue #565, branch `work/driver-interaction-s4-server-script@fbcbd89090750a02c17eddfd29c18531a2461153`, PR #568 OPEN / DRAFT / NOT MERGED. Exact-head `SCRIPT_ENGINEERING` run #37787089773 failed in focused .NET: 1,219 passed, 1 skipped, 3 failed. The DEV must diagnose the exact tests and publish a corrected candidate for a fresh exact-head T1. No merge is authorized.
+
+Wake rule: only `SIGA` in a specific DEV conversation wakes that DEV. At the end of every Main response, tell the user which active DEV chat should receive `SIGA`, which should `WAIT`, and which has `NO ACTION`. A Main-chat signal does not wake S4.
+
+Physical L4 driver validation is deferred until after Wave 16 and partner disclosure. Do not ask the Product Owner to set up Git credentials or send a token; use the authorized GitHub connection or report `BLOCKED_GIT_AUTH`.
+
+---
+
+## Historical pointers below — superseded by this current pointer
+## Historical pointer — 2026-10-06 22:31 BRT (superseded)
 
 Read first:
 `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-10-06-2231.md`

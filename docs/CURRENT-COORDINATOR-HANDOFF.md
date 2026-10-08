@@ -1,4 +1,28 @@
-# LATEST MAIN COORDINATOR HANDOFF — 2026-10-06 22:31 BRT
+# CURRENT MAIN COORDINATOR HANDOFF — 2026-10-08
+
+> This live pointer supersedes the 2026-10-06 coordinator status below. Old sections are historical unless revalidated against GitHub.
+
+GitHub live is the only authority. On every wake, revalidate the exact branch, SHA, PR, issue comments and Actions state. Permanent chat wake and Bootstrap rules are in `docs/CHAT-COLLABORATION-PROTOCOL.md` and `docs/PARALLEL-WORK.md` §3.
+
+## Current integration and lanes
+
+- Integration: `wave15/corrections-integration@114f7c942c202a216afb1cec1950211b1f4232d5`.
+- S4 / issue #565: branch `work/driver-interaction-s4-server-script@fbcbd89090750a02c17eddfd29c18531a2461153`, tree `21d46b5e6a34d5098437eda71b69b8701e21906f`, PR #568 OPEN / DRAFT / NOT MERGED.
+- Exact-head `SCRIPT_ENGINEERING` T1 run #37787089773 FAILED: 1,219 passed, 1 skipped, 3 failed. Two Server Script integration assertions failed; one separate persisted Runtime recovery assertion failed. Exact tests and pending classifications are in root `LAST CHANGE.md` and the PR/issue record.
+- Next lane action: S4 DEV diagnoses all three failures, classifies source before changing tests or product, fixes only within S4 authority, republishes the exact tree and obtains a fresh exact-head T1. Main reviews the cross-lane Runtime recovery failure.
+- Mitsubishi PR #567 has a passing exact-head T1 but remains unmerged; no merge is authorized. Panasonic #553 remains research-only/closed.
+- Physical L4 testing is deferred until after Wave 16 and partner disclosure; do not request or imply L4 now.
+
+## Main coordination correction
+
+Main previously treated a signal in the Main chat as if it woke the separate S4 DEV chat, asked the Product Owner to arrange HTTPS credentials, and followed stale coordinator pointers. Those steps were corrected: `SIGA` must be sent in the receiving DEV chat; no credential/token action is pending from the Product Owner; use the connected GitHub API publication path where available; exact-head Actions T1 is required after GitHub publication. GitHub comments are records, not chat wake signals.
+
+At the end of every Main response, tell the Product Owner exactly what to do in each active DEV chat (`SIGA`, `WAIT` or `NO ACTION`). Do not merge without separate explicit authorization.
+
+---
+
+## Historical coordinator snapshots (retained; superseded by the live pointer above)
+## Historical pointer — 2026-10-06 22:31 BRT (superseded)
 
 Canonical current handoff:
 `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-10-06-2231.md`

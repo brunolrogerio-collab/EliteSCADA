@@ -4,7 +4,7 @@ Read first: `docs/CURRENT-COORDINATOR-HANDOFF.md`, root `LAST CHANGE.md`, `docs/
 
 Current integration: `wave15/corrections-integration@114f7c942c202a216afb1cec1950211b1f4232d5`.
 
-Current S4 lane: issue #565, branch `work/driver-interaction-s4-server-script@fbcbd89090750a02c17eddfd29c18531a2461153`, PR #568 OPEN / DRAFT / NOT MERGED. Exact-head `SCRIPT_ENGINEERING` run #37787089773 failed in focused .NET: 1,219 passed, 1 skipped, 3 failed. The two fixture failures are `TEST_STALE`; the expired-Demo recovery regression is `PRODUCT` in S4's ordinary recovery callback path. Main's bounded correction is recorded in #565 comment #6061503210. The DEV should apply that direction and publish a corrected candidate for a fresh exact-head T1. No merge is authorized.
+Current S4 lane: issue #565, branch `work/driver-interaction-s4-server-script@c11088a7343a6e4157e81c098ad482991bb46f5`, PR #568 OPEN / DRAFT / NOT MERGED. Exact-head `SCRIPT_ENGINEERING` run #37788525934 failed in focused .NET: 1,220 passed, 1 skipped, 2 failed. One remaining assertion is `TEST_STALE`: it expects stable Server Memory to reset across a revision, contrary to `docs/INTERNAL-MEMORY-TAGS.md`. The expired-Demo recovery callback remains `PRODUCT`. Main's bounded correction is recorded in #565 comment #6061626324. The DEV should apply that direction and publish a corrected candidate for a fresh exact-head T1. No merge is authorized.
 
 Wake rule: only `SIGA` in a specific DEV conversation wakes that DEV. At the end of every Main response, tell the user which active DEV chat should receive `SIGA`, which should `WAIT`, and which has `NO ACTION`. A Main-chat signal does not wake S4.
 

@@ -99,7 +99,7 @@ public sealed class HmiRichCommandInvocationServiceTests
     public async Task InvokeAsync_RejectsUnknownActiveBindingWithoutRuntimeDispatch()
     {
         await using var fixture = CreateFixture(includeBinding: false);
-        using var percentage = JsonDocument.Parse(""37.5"");
+        using var percentage = JsonDocument.Parse("\"37.5\"");
 
         var result = await fixture.Service.InvokeAsync(
             fixture.Context,
@@ -127,7 +127,7 @@ public sealed class HmiRichCommandInvocationServiceTests
     public async Task InvokeAsync_PreservesEveryCanonicalRuntimeOutcome(RichCommandOutcome outcome)
     {
         await using var fixture = CreateFixture(runtimeOutcome: outcome);
-        using var percentage = JsonDocument.Parse(""37.5"");
+        using var percentage = JsonDocument.Parse("\"37.5\"");
 
         var result = await fixture.Service.InvokeAsync(
             fixture.Context,

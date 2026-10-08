@@ -387,7 +387,7 @@ public sealed class Zigbee2MqttBridgeTests
         Assert.True(cache.TryGet(tag.Id, out var uncertain));
         Assert.Equal(TagQuality.Uncertain, uncertain!.Quality);
         Assert.Equal("1", driver.GetCommunicationDiagnostics().ProtocolDetails!["ambiguousWrites"]);
-        Assert.DoesNotContain("password", driver.GetCommunicationDiagnostics().SanitizedEndpoint ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("password", driver.GetCommunicationDiagnostics().Endpoint ?? string.Empty, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

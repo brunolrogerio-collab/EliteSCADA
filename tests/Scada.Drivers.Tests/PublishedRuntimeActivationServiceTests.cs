@@ -3,12 +3,15 @@ using System.Text.Json.Serialization;
 using Scada.Api.Persistence;
 using Scada.Api.Runtime;
 using Scada.Core.Alarms;
+using Scada.Core.Commands;
 using Scada.Core.Events;
+using Scada.Core.Interactions;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
+using Scada.Engineering.Interactions;
 using Scada.Engineering.Persistence;
 using Scada.Engineering.Security;
 
@@ -26,6 +29,7 @@ public sealed class PublishedRuntimeActivationServiceTests
         var runtimeTagId = Guid.NewGuid();
         var locked = new EngineeringLockSecretService().Configure("published-lock-secret", locked: true);
         var package = CreatePackage(server.Port, runtimeTagId) with { EngineeringLock = locked };
+        package = WithInteractions(package, out var eventId, out var commandId);
         var snapshot = CreateSnapshot(package);
         var store = new FakeEngineeringProjectStore(snapshot, allowActivation: true);
         var persistence = CreatePersistence(store, out var exchange);
@@ -38,10 +42,12 @@ public sealed class PublishedRuntimeActivationServiceTests
             new EngineeringDriverCompiler(),
             TimeSpan.FromSeconds(2));
         var facade = new ScadaRuntimeFacade(runtime);
+        var interactions = new ActiveDriverInteractionRuntimeCatalog();
         var activation = new PublishedRuntimeActivationService(
             persistence,
             exchange,
-            runtime);
+            runtime,
+            driverInteractions: interactions);
 
         var outcome = await activation.ActivateAsync("plant-a", "integration-test");
 
@@ -54,6 +60,9 @@ public sealed class PublishedRuntimeActivationServiceTests
         Assert.Equal("Plant.Runtime.Value", runtimeTag!.Path);
         Assert.True(facade.TryGetCurrent(runtimeTagId, out var current));
         Assert.Equal(321d, Convert.ToDouble(current!.Value));
+        Assert.True(((ITransientEventDefinitionResolver)interactions).TryResolve(eventId, out _));
+        Assert.True(((IRichCommandDefinitionResolver)interactions).TryResolve(commandId, out _));
+        Assert.True(((IRichCommandBindingResolver)interactions).TryResolve(commandId, out _));
 
         var currentLock = EngineeringLockContract.Normalize(exchange.ExportPackage().EngineeringLock);
         Assert.True(currentLock.Locked);
@@ -70,6 +79,7 @@ public sealed class PublishedRuntimeActivationServiceTests
 
         var incomingLock = new EngineeringLockSecretService().Configure("rejected-lock-secret", locked: true);
         var package = CreatePackage(server.Port, Guid.NewGuid()) with { EngineeringLock = incomingLock };
+        package = WithInteractions(package, out var eventId, out var commandId);
         var snapshot = CreateSnapshot(package);
         var store = new FakeEngineeringProjectStore(snapshot, allowActivation: false);
         var persistence = CreatePersistence(store, out var exchange);
@@ -81,10 +91,12 @@ public sealed class PublishedRuntimeActivationServiceTests
             new EngineeringDriverCompiler(),
             TimeSpan.FromSeconds(2));
         var facade = new ScadaRuntimeFacade(runtime);
+        var interactions = new ActiveDriverInteractionRuntimeCatalog();
         var activation = new PublishedRuntimeActivationService(
             persistence,
             exchange,
-            runtime);
+            runtime,
+            driverInteractions: interactions);
 
         var outcome = await activation.ActivateAsync("plant-a", "integration-test");
 
@@ -96,11 +108,60 @@ public sealed class PublishedRuntimeActivationServiceTests
         Assert.Null(runtime.Describe().Revision);
         Assert.False(facade.IsEngineeringActive);
         Assert.Equal("neutral", facade.Describe().Mode);
+        Assert.False(((ITransientEventDefinitionResolver)interactions).TryResolve(eventId, out _));
+        Assert.False(((IRichCommandDefinitionResolver)interactions).TryResolve(commandId, out _));
+        Assert.False(((IRichCommandBindingResolver)interactions).TryResolve(commandId, out _));
 
         var currentAfter = EngineeringLockContract.Normalize(exchange.ExportPackage().EngineeringLock);
         Assert.Equal(currentBefore, currentAfter);
         Assert.False(currentAfter.Locked);
         Assert.Null(currentAfter.Verifier);
+    }
+
+    [Fact]
+    public async Task ActivateAsync_InvalidInteractionGraphFailsClosedBeforeRuntimeOrResolverSwap()
+    {
+        var package = CreatePackage(1, Guid.NewGuid());
+        package = WithInteractions(package, out var eventId, out var commandId);
+        package = package with
+        {
+            DriverCommandBindings =
+            [
+                package.DriverCommandBindings!.Single() with
+                {
+                    DataSourceId = Guid.NewGuid()
+                }
+            ]
+        };
+
+        var snapshot = CreateSnapshot(package);
+        var store = new FakeEngineeringProjectStore(snapshot, allowActivation: true);
+        var persistence = CreatePersistence(store, out var exchange);
+        var interactions = new ActiveDriverInteractionRuntimeCatalog();
+
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            new InMemoryScadaEventBus(),
+            new EngineeringDriverCompiler(),
+            TimeSpan.FromMilliseconds(100));
+
+        var activation = new PublishedRuntimeActivationService(
+            persistence,
+            exchange,
+            runtime,
+            driverInteractions: interactions);
+
+        var outcome = await activation.ActivateAsync("plant-a", "integration-test");
+
+        Assert.False(outcome.Activated);
+        Assert.Null(outcome.Activation);
+        Assert.NotNull(outcome.Runtime);
+        Assert.Contains(
+            outcome.Runtime!.RuntimeIssues,
+            issue => issue.Code == "DRIVER_INTERACTION_ACTIVE_GRAPH_INVALID" && issue.IsError);
+        Assert.Null(runtime.Describe().Revision);
+        Assert.False(((ITransientEventDefinitionResolver)interactions).TryResolve(eventId, out _));
+        Assert.False(((IRichCommandDefinitionResolver)interactions).TryResolve(commandId, out _));
+        Assert.False(((IRichCommandBindingResolver)interactions).TryResolve(commandId, out _));
     }
 
     [Fact]
@@ -215,6 +276,78 @@ public sealed class PublishedRuntimeActivationServiceTests
             new[] { tag },
             Array.Empty<AlarmEngineeringDto>(),
             new[] { dataSource });
+    }
+
+    private static EngineeringPackage WithInteractions(
+        EngineeringPackage package,
+        out Guid eventId,
+        out Guid commandId)
+    {
+        var dataSourceId = Guid.NewGuid();
+        var equipmentId = Guid.NewGuid();
+        eventId = Guid.NewGuid();
+        commandId = Guid.NewGuid();
+
+        var source = package.DataSources!.Single() with { Id = dataSourceId };
+        return package with
+        {
+            DataSources = [source],
+            Equipment =
+            [
+                new EquipmentEngineeringDto(
+                    equipmentId,
+                    "Plant.Cover01",
+                    "Cover 01",
+                    Capabilities:
+                    [
+                        new EquipmentCapabilityEngineeringDto(
+                            "cover.main",
+                            EquipmentCapabilityKinds.Cover)
+                    ])
+            ],
+            TransientEventDefinitions =
+            [
+                new TransientEventDefinitionEngineeringDto(
+                    eventId,
+                    "cover.stopped",
+                    [
+                        new TransientEventFieldDefinition(
+                            "position",
+                            new InteractionScalarSchema(
+                                InteractionScalarKind.Percentage,
+                                Minimum: 0,
+                                Maximum: 100))
+                    ],
+                    equipmentId,
+                    "cover.main")
+            ],
+            CapabilityEventReferences =
+            [
+                new CapabilityEventReferenceEngineeringDto(
+                    equipmentId,
+                    "cover.main",
+                    "stopped",
+                    eventId,
+                    "cover.stopped")
+            ],
+            RichCommandDefinitions =
+            [
+                new RichCommandDefinitionEngineeringDto(
+                    commandId,
+                    "cover.move",
+                    Array.Empty<RichCommandParameterDefinition>())
+            ],
+            DriverCommandBindings =
+            [
+                new DriverCommandBindingEngineeringDto(
+                    commandId,
+                    dataSourceId,
+                    "cover-01",
+                    "cover.move",
+                    EquipmentId: equipmentId,
+                    CapabilityId: "cover.main")
+            ]
+        };
     }
 
     private static EngineeringProjectSnapshot CreateSnapshot(EngineeringPackage package)

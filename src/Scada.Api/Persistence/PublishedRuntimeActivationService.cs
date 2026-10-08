@@ -252,6 +252,7 @@ public sealed class PublishedRuntimeActivationService(
                     CommitAsync,
                     cancellationToken);
         }
+        }
         catch
         {
             if (interactionsCommitted && driverInteractions is not null && previousInteractions is not null)

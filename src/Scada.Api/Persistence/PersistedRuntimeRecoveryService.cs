@@ -7,6 +7,7 @@ using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
+using Scada.Engineering.Interactions;
 using Scada.Engineering.Persistence;
 using Scada.Security.Authorization;
 
@@ -46,7 +47,8 @@ public sealed class PersistedRuntimeRecoveryService(
     IConfiguration? configuration = null,
     GatewayEngineeringRuntimeCoordinator? operationalEvents = null,
     RuntimeHighAvailabilityService? highAvailability = null,
-    RuntimeHaProtectionCoordinator? highAvailabilityProtection = null) : IPersistedRuntimeRecoveryService
+    RuntimeHaProtectionCoordinator? highAvailabilityProtection = null,
+    ActiveDriverInteractionRuntimeCatalog? driverInteractions = null) : IPersistedRuntimeRecoveryService
 {
     public const string RecoveryDeniedIssueCode = "PERSISTED_RUNTIME_RECOVERY_DENIED";
     public const string TransitionPendingDiagnostic =
@@ -124,6 +126,22 @@ public sealed class PersistedRuntimeRecoveryService(
         }
 
         var package = ParseAndValidate(snapshot);
+        PreparedDriverInteractionRuntimeGraph? preparedInteractions = null;
+        try
+        {
+            if (driverInteractions is not null)
+                preparedInteractions = driverInteractions.Prepare(package);
+            else
+                _ = DriverInteractionEngineeringValidator.NormalizeActiveGraph(package);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
+        {
+            return InvalidInteractionGraph(
+                snapshot,
+                activation.ActiveRevision,
+                ex.Message);
+        }
+
         var recoverAsHaActive = highAvailability?.Enabled == true &&
             (highAvailability.CanOwnIndustrialEffects() ||
              highAvailabilityProtection?.CanActivateLocalHaTakeover() == true);
@@ -178,7 +196,11 @@ public sealed class PersistedRuntimeRecoveryService(
         // Active revision. A failed runtime recovery must not overwrite the current
         // in-memory protection state.
         if (result.Activated)
+        {
+            if (driverInteractions is not null && preparedInteractions is not null)
+                driverInteractions.Commit(preparedInteractions);
             EngineeringLockAccess.Replace(exchange, package.EngineeringLock);
+        }
 
         return new PersistedRuntimeRecoveryResult(
             snapshot.ProjectKey,
@@ -186,6 +208,26 @@ public sealed class PersistedRuntimeRecoveryService(
             true,
             result);
     }
+
+    private static PersistedRuntimeRecoveryResult InvalidInteractionGraph(
+        EngineeringProjectSnapshot snapshot,
+        long persistedActiveRevision,
+        string message) =>
+        new(
+            snapshot.ProjectKey,
+            persistedActiveRevision,
+            Found: true,
+            Runtime: new RuntimeActivationResult(
+                snapshot.ProjectKey,
+                snapshot.Revision,
+                Activated: false,
+                Array.Empty<EngineeringDriverIssue>(),
+                [
+                    new RuntimeActivationIssue(
+                        "DRIVER_INTERACTION_ACTIVE_GRAPH_INVALID",
+                        message,
+                        IsError: true)
+                ]));
 
     private static PersistedRuntimeRecoveryResult RecoveryDenied(
         EngineeringProjectSnapshot snapshot,

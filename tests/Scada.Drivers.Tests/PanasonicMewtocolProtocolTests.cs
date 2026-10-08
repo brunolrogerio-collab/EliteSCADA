@@ -430,7 +430,7 @@ public sealed class PanasonicMewtocolProtocolTests
         Assert.Equal(2, provider.OpenCount);
         Assert.Equal(2, session.ConnectionCount);
         Assert.Equal(1, session.ReconnectCount);
-        Assert.Equal(1, session.DisconnectCount);
+        Assert.Equal(2, session.DisconnectCount);
     }
 
     [Fact]

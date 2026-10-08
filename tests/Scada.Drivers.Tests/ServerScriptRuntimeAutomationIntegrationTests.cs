@@ -688,7 +688,7 @@ def on_event(event):
             [ServerMemoryTag(stateId, "EventState", "Simulation.EventState", 0, historian: false)],
             Array.Empty<AlarmEngineeringDto>(),
             DataSources: ServerMemoryDataSource()
-                .Append(new DataSourceEngineeringDto(dataSourceId, "test.events", "Test Events", "test.driver"))
+                .Append(new DataSourceEngineeringDto(dataSourceId, "test.events", "Test Events", "test.driver", Enabled: false))
                 .ToArray(),
             Equipment:
             [

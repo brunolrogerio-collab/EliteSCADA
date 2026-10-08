@@ -110,12 +110,12 @@ public static class Zigbee2MqttExposeMapper
 
         var tags = new List<DriverMaterializationTagCandidate>();
         var capabilities = new List<DriverMaterializationCapabilityCandidate>();
+        var sourceIdentity = dataSourceId.ToString("N", CultureInfo.InvariantCulture);
         foreach (var expose in device.Exposes)
         {
             var writable = expose.Settable && expose.Readable && !string.IsNullOrWhiteSpace(expose.CapabilityKind);
             var address = Zigbee2MqttIdentity.PortableAddress(device.IeeeAddress, expose.Endpoint, expose.Property);
             var stableChild = Zigbee2MqttIdentity.StablePointIdentity(dataSourceId, device.IeeeAddress, expose.Endpoint, expose.Property);
-            var sourceIdentity = dataSourceId.ToString("N", CultureInfo.InvariantCulture);
             var candidateId = $"z2m-tag-{sourceIdentity}-{SafeSegment(device.IeeeAddress)}-{SafeSegment(expose.Endpoint ?? "root")}-{SafeSegment(expose.Property)}";
             var path = $"Zigbee2Mqtt/{sourceIdentity}/{device.IeeeAddress}/{SafeSegment(expose.Endpoint ?? "root")}/{SafeSegment(expose.Property)}";
             var metadata = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -330,8 +330,11 @@ public static class Zigbee2MqttExposeMapper
                 issues.Add(Warning("Z2M_EXPOSE_UNSUPPORTED", $"Binary expose '{property}' is outside the curated v1 state capability set."));
                 return;
             }
-            if (!TryRawScalar(element, "value_on", out var valueOn) || !TryRawScalar(element, "value_off", out var valueOff) ||
-                JsonEqualText(valueOn, valueOff))
+            string? valueOn = null;
+            string? valueOff = null;
+            var hasValueOn = TryRawScalar(element, "value_on", out valueOn);
+            var hasValueOff = TryRawScalar(element, "value_off", out valueOff);
+            if (!hasValueOn || !hasValueOff || JsonEqualText(valueOn, valueOff))
             {
                 issues.Add(Warning("Z2M_BINARY_MAPPING_INVALID", $"Binary expose '{property}' requires distinct explicit scalar value_on and value_off metadata."));
                 return;
@@ -377,6 +380,17 @@ public static class Zigbee2MqttExposeMapper
                 JsonValueKind.Null => true,
                 _ => false
             };
+        }
+        catch (JsonException) { return false; }
+    }
+
+    private static bool JsonEqualText(string? leftJson, string? rightJson)
+    {
+        if (leftJson is null || rightJson is null) return false;
+        try
+        {
+            using var leftDocument = JsonDocument.Parse(leftJson);
+            return JsonEquals(leftDocument.RootElement, rightJson);
         }
         catch (JsonException) { return false; }
     }

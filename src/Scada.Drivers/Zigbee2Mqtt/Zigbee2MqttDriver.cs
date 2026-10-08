@@ -202,7 +202,7 @@ public sealed class Zigbee2MqttDriver :
             throw new MqttTransportException("Zigbee2MQTT bridge is not connected and ready.");
 
         var payload = Zigbee2MqttExposeMapper.EncodeSetValue(point, value);
-        var pending = new PendingOperation(DateTimeOffset.UtcNow, NormalizeWriteValue(point, value), IsWrite: true);
+        var pending = new PendingOperation(DateTimeOffset.UtcNow, NormalizeWriteValue(point, value), isWrite: true);
         lock (_stateGate)
         {
             if (_pending.ContainsKey(tagId)) throw new InvalidOperationException($"A Zigbee2MQTT operation is already pending for TAG '{point.Tag.Path}'.");

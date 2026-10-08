@@ -53,12 +53,12 @@ public sealed class Zigbee2MqttEngineeringProvider :
             await transport.ConnectAsync(settings.Mqtt, credentials, cancellationToken).ConfigureAwait(false);
             var inventory = await ReadInventoryAsync(transport, settings, cancellationToken).ConfigureAwait(false);
             return new DriverConnectionTestResult(
-                inventory.BridgeState == "online",
+                inventory.Inventory.BridgeState == "online",
                 SanitizedEndpoint(settings),
                 "zigbee2mqtt.bridge",
                 new Dictionary<string, string>(StringComparer.Ordinal)
                 {
-                    ["bridgeState"] = inventory.BridgeState ?? "unknown",
+                    ["bridgeState"] = inventory.Inventory.BridgeState ?? "unknown",
                     ["deviceCount"] = inventory.Inventory.Devices.Count.ToString(CultureInfo.InvariantCulture),
                     ["supportedDeviceCount"] = inventory.Inventory.Devices.Count(device => device.Supported).ToString(CultureInfo.InvariantCulture),
                     ["zigbee2mqttVersion"] = inventory.Inventory.Version ?? string.Empty,
@@ -83,7 +83,8 @@ public sealed class Zigbee2MqttEngineeringProvider :
             yield break;
         }
 
-        Zigbee2MqttConnectionSettings settings;
+        Zigbee2MqttConnectionSettings? settings = null;
+        string? configurationFailure = null;
         try
         {
             EnsureContext(request.Context);
@@ -91,11 +92,16 @@ public sealed class Zigbee2MqttEngineeringProvider :
         }
         catch (Exception ex)
         {
-            yield return FailureCandidate("Z2M_DISCOVERY_CONFIGURATION", SafeFailure(ex));
+            configurationFailure = SafeFailure(ex);
+        }
+        if (settings is null)
+        {
+            yield return FailureCandidate("Z2M_DISCOVERY_CONFIGURATION", configurationFailure ?? "Zigbee2MQTT discovery configuration is invalid.");
             yield break;
         }
 
-        InventoryProbe probe;
+        InventoryProbe? probe = null;
+        string? discoveryFailure = null;
         try
         {
             await using var transport = CreateTransport();
@@ -106,15 +112,24 @@ public sealed class Zigbee2MqttEngineeringProvider :
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
-            yield return FailureCandidate("Z2M_DISCOVERY_FAILED", SafeFailure(ex), SanitizedEndpoint(settings));
+            discoveryFailure = SafeFailure(ex);
+        }
+        if (probe is null)
+        {
+            yield return FailureCandidate("Z2M_DISCOVERY_FAILED", discoveryFailure ?? "Zigbee2MQTT discovery failed.", SanitizedEndpoint(settings));
             yield break;
         }
 
-        HashSet<string> selected;
+        HashSet<string>? selected = null;
+        string? selectionFailure = null;
         try { selected = ParseSelection(request.Parameters); }
         catch (Exception ex)
         {
-            yield return FailureCandidate("Z2M_SELECTION_INVALID", SafeFailure(ex), SanitizedEndpoint(settings));
+            selectionFailure = SafeFailure(ex);
+        }
+        if (selected is null)
+        {
+            yield return FailureCandidate("Z2M_SELECTION_INVALID", selectionFailure ?? "Zigbee2MQTT selection is invalid.", SanitizedEndpoint(settings));
             yield break;
         }
         var maximum = request.MaximumResults is > 0

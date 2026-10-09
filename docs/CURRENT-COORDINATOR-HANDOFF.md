@@ -1,37 +1,33 @@
-# CURRENT MAIN CHECKPOINT — FOUNDATION + S5 MERGED / INTEGRATED CI GREEN — 2026-10-09 (BRT)
+# CURRENT MAIN CHECKPOINT — Z2M L3 AUDIT PASS / PANASONIC ACTIVE — 2026-10-09 (BRT)
 
-> GitHub live is the only authority. This checkpoint supersedes earlier active-state snapshots. [Main ledger #305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6081548876).
+> GitHub live is the only authority. This checkpoint supersedes earlier active-state snapshots. [Main ledger #305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305).
 
 ## Integration result
 
 Integration branch `wave15/corrections-integration` is at **`6f90db93829983ffad2eb24c777eb2b7d320cdd3`**.
 
-- Foundation PR #576 merged first at `cb2e20bfcf71889236408765f481a1f4c45c6868`; source head `912b866b0df27173726a5d52a1bd308d3c18d6e0`; exact FOUNDATION_LIFECYCLE T1 run `37833944486` PASS; Main audit PASS.
-- S5 PR #574 merged second at `6f90db93829983ffad2eb24c777eb2b7d320cdd3`; source head `f5164614966ccddeda20ab36af31d0a7742388f6`; exact T1 #991 / `37924139537` PASS; Main A1/A2/A3 re-audit PASS. S5 issue #571 is CLOSED/INTEGRATED.
-- Automatic post-merge [EliteSCADA CI #1707 / 37934164605](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/37934164605) completed **SUCCESS** on exact final integration head: Web build, Backend build/test/runtime smoke, and Chromium integration gate all PASS. Main inspected the final jobs.
+- Foundation PR #576 merged first at `cb2e20bfcf71889236408765f481a1f4c45c6868`; S5 PR #574 merged second at `6f90db93829983ffad2eb24c777eb2b7d320cdd3`. Both were explicitly authorized and are closed/merged.
+- Automatic post-merge CI #1707 / [run 37934164605](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/37934164605) passed Web, Backend build/test/runtime smoke and Chromium on the exact integration head.
 
-## Active protocol lanes — SIGA in each owner chat
+## Current protocol lanes
 
-Main released the foundation-only merge commit **`cb2e20bfcf71889236408765f481a1f4c45c6868`** to both existing protocol lane branches. It contains #576 on the original WaveBase and is an ancestor of current integration. Merging that commit into a lane branch does not pull the separate S5 commit. Use an ordinary merge; preserve history and do not reset/rebase/force-update. Original WaveBase and PR targets remain recorded.
-
-- **Panasonic #570/#572:** current lane head `6ef9008066c41f94e1eeb95a727776472c918571`; its old T1 `37819834781` remains RED on the candidate without the foundation. [Main release and next steps](https://github.com/brunolrogerio-collab/EliteSCADA/issues/570#issuecomment-6081480408). On SIGA, merge cb2e into the existing branch, use `CanAcquireInputs` for input acquisition and `CanOwnExternalEffects` for writes, prove canonical activation, both transports and #560 cases, refresh validation docs for installed SDK 10.0.400, then publish and run exact-head DRIVER_PROTOCOL T1. L2 `SKIP_WITH_REASON` accepted; L4 deferred.
-- **Zigbee2MQTT #573/#575:** current head `3756d37ffba64cf5821c77d23c2e473dfd2c7254`; exact T1 #988 / `37880724175` PASS (1,266 / 1 skip / 0 failures); A1/A2 accepted and shared fixture RED resolved. [Main release and L3 instructions](https://github.com/brunolrogerio-collab/EliteSCADA/issues/573#issuecomment-6081482191). On SIGA, merge cb2e into the existing branch, prove canonical persisted activation/readback and #560 with input acquisition on `CanAcquireInputs` and writes on `CanOwnExternalEffects`, then publish and run exact-head DRIVER_PROTOCOL T1. L2 `SKIP_WITH_REASON` accepted; L4 deferred.
-- Shared/reserved-path conflicts go to Main for disposition. Do not modify common Runtime/HA or claim compatibility.
+- **Zigbee2MQTT #573 / PR #575:** HEAD `175b1f2ce5ed6876424e70ff53cd5a6b6e14a84d`, tree `494c1f60f501569066ddd4a0729fb538472aa5fa`. Exact normal DRIVER_PROTOCOL T1 #994 / [37943437466](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/37943437466) passed: 1,282 passed / 1 skipped / 0 failed; classifier/Common/gate PASS, Web/Chromium/HA two-process profile-skipped. [Main audit PASS](https://github.com/brunolrogerio-collab/EliteSCADA/pull/575#issuecomment-6083110187); PR is OPEN / READY / mergeable / unmerged. A1/A2 and canonical L3 are accepted. L2 remains bounded `SKIP_WITH_REASON`; no Z2M interoperability claim. **No merge authorization for #575 has been issued.**
+- **Panasonic #570 / PR #572:** unchanged HEAD `6ef9008066c41f94e1eeb95a727776472c918571`; the prior T1 #976 / `37819834781` is RED on the pre-foundation candidate. [Main release](https://github.com/brunolrogerio-collab/EliteSCADA/issues/570#issuecomment-6081480408) directs the lane to merge foundation commit `cb2e20bfcf71889236408765f481a1f4c45c6868` ordinarily into its current branch, complete `CanAcquireInputs` / `CanOwnExternalEffects` separation and canonical #560 proof, publish, then run exact-head DRIVER_PROTOCOL T1. No newer DEV checkpoint is visible.
 
 ## Chat actions
 
-| Chat | Action |
+| DEV chat | Action |
 | --- | --- |
-| Panasonic | **SIGA now** — foundation released; resume canonical L3 |
-| Zigbee2MQTT | **SIGA now** — foundation released; finish canonical L3 |
-| S5 | **WAIT** — PR merged and issue #571 closed |
-| Mitsubishi / S4 | **WAIT** — already integrated |
+| Panasonic | **SIGA in the Panasonic DEV chat** — lane branch is unchanged; continue the already released L3 work. |
+| Zigbee2MQTT | **WAIT** — code complete and Main audit passed; no further DEV work. PR #575 awaits its own explicit Product Owner merge authorization. |
+| S5 | **WAIT** — PR #574 is integrated; issue #571 is closed. |
+| Mitsubishi / S4 | **WAIT** — already integrated; no active assignment. |
 
-No new product lane was promoted. Two product lanes are active; no fourth worker. Physical driver L4 remains human validation after Wave 16, partner disclosure and stable installation. Wave 15 remains open; final #379/#424/#425 -> #306 -> #300 remains ahead.
+Physical driver L4 is `DEFERRED / NOT RUN` for every driver until after Wave 16 and partner disclosure, once a stable EliteSCADA release has been installed on a computer for human validation. It is not a pre-merge gate; no physical compatibility claim is made.
 
-Docs PR #569 remains OPEN / DRAFT / unmerged. The prior exact-head docs T1 #992 applies only to the prior documentation HEAD; the new coherent documentation candidate requires its own T1. Live #305 and owning-lane comments remain operational authority.
+Wave 15 remains open. No new driver lane is released; #306 Productization, #300 final Preview, #379 i18n, #424 Help and #425 Manual remain visible. Docs PR #569 remains docs-only and unmerged; current live issue/PR comments are operational authority.
 
-Snapshot: 09/10/2026 — Hora: 10:10 BRT
+Snapshot: 09/10/2026 — Hora: 11:38 BRT
 ---
 
 # PRIOR MAIN AUDIT SNAPSHOT — STAGED-INPUT DEPENDENCY — 2026-10-08 (BRT)

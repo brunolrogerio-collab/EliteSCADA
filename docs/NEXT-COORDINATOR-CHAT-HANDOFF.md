@@ -1,18 +1,15 @@
 # NEXT COORDINATOR CHAT — CURRENT POINTER — 2026-10-09
 
-Read first: `docs/CURRENT-COORDINATOR-HANDOFF.md`, root `LAST CHANGE.md`, `docs/CHAT-COLLABORATION-PROTOCOL.md`, and `docs/PARALLEL-WORK.md` §3. Then revalidate GitHub live. [Current Main ledger](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6081548876).
+Read first: `docs/CURRENT-COORDINATOR-HANDOFF.md`, root `LAST CHANGE.md`, `docs/CHAT-COLLABORATION-PROTOCOL.md`, and `docs/PARALLEL-WORK.md` §3; then revalidate GitHub live. [Main ledger #305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305).
 
-Integration is `wave15/corrections-integration@6f90db93829983ffad2eb24c777eb2b7d320cdd3`. Foundation #576 merged first (`cb2e20bfcf71889236408765f481a1f4c45c6868)); S5 #574 merged second. Automatic post-merge CI #1707 / `37934164605` passed Web, Backend build/test/runtime smoke, and Chromium on the exact final integration head. S5 issue #571 is CLOSED/INTEGRATED.
+Integration: `wave15/corrections-integration@6f90db93829983ffad2eb24c777eb2b7d320cdd3`; foundation #576 and S5 #574 are integrated, and post-merge CI #1707 / `37934164605` passed Web, Backend build/test/runtime smoke and Chromium on that exact head.
 
-- **Panasonic #570 / PR #572:** active, old lane head `6ef9008066c41f94e1eeb95a727776472c918571`. [Main released foundation commit cb2e](https://github.com/brunolrogerio-collab/EliteSCADA/issues/570#issuecomment-6081480408). SIGA in Panasonic chat; ordinary merge into existing branch without reset/rebase/force; reads via CanAcquireInputs, writes via CanOwnExternalEffects; finish canonical activation/#560, publish and run exact-head T1.
-- **Zigbee2MQTT #573 / PR #575:** active, head `3756d37ffba64cf5821c77d23c2e473dfd2c7254`, T1 #988 PASS (1,266 / 1 skip / 0 fail), A1/A2 accepted. [Main released foundation commit cb2e](https://github.com/brunolrogerio-collab/EliteSCADA/issues/573#issuecomment-6081482191). SIGA in Z2M chat; ordinary merge into existing branch without reset/rebase/force; finish canonical L3/#560, publish and run exact-head T1.
-- **S4 / Mitsubishi:** integrated; chat WAIT.
-- **S5:** integrated; chat WAIT.
-- Driver L4 remains human-only after Wave 16 / partner disclosure / stable installation.
-- Docs PR #569 is OPEN/DRAFT/unmerged; no merge authorization is inferred. Wave 15 remains open; #306/#300/#379/#424/#425 remain visible.
+- **Zigbee2MQTT #573 / PR #575:** `175b1f2ce5ed6876424e70ff53cd5a6b6e14a84d`; exact T1 #994 / `37943437466` PASS (1,282 / 1 skip / 0 fail); Main audit PASS. PR OPEN / READY / unmerged and awaits a separate explicit PO merge authorization. Z2M DEV chat: **WAIT**.
+- **Panasonic #570 / PR #572:** still at `6ef9008066c41f94e1eeb95a727776472c918571`; released foundation commit `cb2e20bfcf71889236408765f481a1f4c45c6868`. Panasonic DEV chat: **SIGA**; continue existing lane and exact-head T1 process.
+- **S5 #574 / issue #571:** integrated/closed; chat WAIT.
+- **Mitsubishi / S4:** integrated; chat WAIT.
 
-SIGA wakes only its receiving chat. Explicit Product Owner authorization was recorded and consumed for #576/#574; no merge of those PRs is pending.
-
+SIGA wakes only the receiving chat. It does not authorize merge. Only #576 and #574 were authorized and those authorizations are consumed. L4 for every driver is human-only after Wave 16 / partner disclosure / stable installation; it does not block software integration. No new product lane has been released; Wave 15 remains open.
 ---
 ## Historical pointers below — superseded by this current pointer
 ## Historical pointer — 2026-10-06 22:31 BRT (superseded)

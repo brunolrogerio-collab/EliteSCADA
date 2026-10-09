@@ -812,7 +812,13 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
             cache,
             registry,
             _protectedMaterialResolver,
-            () => eventGate.ForwardingEnabled && _industrialEffectAuthority());
+            () => eventGate.ForwardingEnabled && _industrialEffectAuthority())
+        {
+            // Active candidates may acquire read-only input samples into their
+            // private cache before the commit. Event forwarding and every
+            // process write remain fenced by CanOwnExternalEffects above.
+            InputAcquisitionAuthority = _industrialEffectAuthority
+        };
 
         foreach (var plan in compilation.CommunicationPlans)
         {

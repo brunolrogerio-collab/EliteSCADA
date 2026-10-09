@@ -500,6 +500,140 @@ public sealed class Zigbee2MqttBridgeTests
     }
 
     [Fact]
+    public async Task Driver_PointReadWithPreDispatchLastSeenReplayRemainsUncertain()
+    {
+        var dataSourceId = Guid.NewGuid();
+        var tag = Tag("Zigbee2Mqtt/Lamp/State", TagDataType.Boolean, readOnly: true);
+        var point = new Zigbee2MqttPoint(tag, Ieee, null, "state", Zigbee2MqttValueKind.Boolean, 7, null, null, null, null, "\"ON\"", "\"OFF\"", "OnOff");
+        var transport = new FakeMqttTransport("lamp-main", confirmWrites: false);
+        var cache = new CurrentTagCache(new InMemoryScadaEventBus());
+        await using var driver = new Zigbee2MqttDriver(
+            "z2m-read-replay",
+            "Zigbee2MQTT",
+            dataSourceId,
+            Settings(dataSourceId),
+            cache,
+            new InMemoryTagRegistry(),
+            [point],
+            () => transport,
+            _ => ValueTask.FromResult(MqttResolvedCredentials.None));
+
+        await driver.StartAsync();
+        await EventuallyAsync(() => driver.GetCommunicationReadiness().State == CommunicationDriverReadinessState.Ready);
+        await EventuallyAsync(() => cache.TryGet(tag.Id, out var sample) && sample?.Quality == TagQuality.Stale);
+
+        // S < T < D: the source observation follows this MQTT session, but it
+        // predates the PointRead dispatch and is replayed afterward.
+        var sourceObservedAt = DateTimeOffset.UtcNow;
+        await Task.Delay(25);
+        var read = driver.ReadAsync(tag.Id).AsTask();
+        await EventuallyAsync(() => transport.GetPublishCount == 1);
+        transport.EmitState(StateJson("OFF", sourceObservedAt), retained: false);
+
+        var replayed = await read.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(TagQuality.Uncertain, replayed!.Quality);
+        Assert.Equal(1, transport.GetPublishCount);
+        Assert.True(cache.TryGet(tag.Id, out var afterReplay));
+        Assert.Equal(TagQuality.Uncertain, afterReplay!.Quality);
+
+        transport.EmitState(StateJson("OFF", DateTimeOffset.UtcNow), retained: false);
+        await EventuallyAsync(() => cache.TryGet(tag.Id, out var fresh) && fresh?.Quality == TagQuality.Good);
+    }
+
+    [Fact]
+    public async Task Driver_WriteNeedsPostDispatchSourceEvidence_NotMatchingCachedOrRetainedReplay()
+    {
+        var dataSourceId = Guid.NewGuid();
+        var tag = Tag("Zigbee2Mqtt/Lamp/State", TagDataType.Boolean, readOnly: false);
+        var point = new Zigbee2MqttPoint(tag, Ieee, null, "state", Zigbee2MqttValueKind.Boolean, 7, null, null, null, null, "\"ON\"", "\"OFF\"", "OnOff");
+        var transport = new FakeMqttTransport("lamp-main", confirmWrites: false);
+        var cache = new CurrentTagCache(new InMemoryScadaEventBus());
+        await using var driver = new Zigbee2MqttDriver(
+            "z2m-write-replay",
+            "Zigbee2MQTT",
+            dataSourceId,
+            Settings(dataSourceId, writeConfirmationMilliseconds: 1200),
+            cache,
+            new InMemoryTagRegistry(),
+            [point],
+            () => transport,
+            _ => ValueTask.FromResult(MqttResolvedCredentials.None));
+
+        await driver.StartAsync();
+        await EventuallyAsync(() => driver.GetCommunicationReadiness().State == CommunicationDriverReadinessState.Ready);
+        await EventuallyAsync(() => cache.TryGet(tag.Id, out var sample) && sample?.Quality == TagQuality.Stale);
+
+        var sourceObservedAt = DateTimeOffset.UtcNow;
+        await Task.Delay(25);
+        var write = driver.WriteAsync(tag.Id, true).AsTask();
+        await EventuallyAsync(() => transport.SetPublishCount == 1);
+        transport.EmitState(StateJson("ON", sourceObservedAt), retained: false);
+        await EventuallyAsync(() => cache.TryGet(tag.Id, out var replayed) && replayed?.Quality == TagQuality.Uncertain);
+
+        Assert.False(write.IsCompleted);
+        Assert.Equal(1, transport.SetPublishCount);
+
+        transport.EmitState(StateJson("ON", DateTimeOffset.UtcNow.AddSeconds(1)), retained: true);
+        await EventuallyAsync(() => cache.TryGet(tag.Id, out var retained) && retained?.Quality == TagQuality.Stale);
+        Assert.False(write.IsCompleted);
+        Assert.Equal(1, transport.SetPublishCount);
+
+        transport.EmitState(StateJson("ON", DateTimeOffset.UtcNow), retained: false);
+        await write.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(1, transport.SetPublishCount);
+        Assert.True(cache.TryGet(tag.Id, out var confirmed));
+        Assert.Equal(TagQuality.Good, confirmed!.Quality);
+        Assert.True(Assert.IsType<bool>(confirmed.Value));
+    }
+
+    [Fact]
+    public async Task Driver_ReadinessTracksBridgeAndInventoryAndRejectsSameSessionRestartReplay()
+    {
+        var dataSourceId = Guid.NewGuid();
+        var tag = Tag("Zigbee2Mqtt/Lamp/State", TagDataType.Boolean, readOnly: true);
+        var point = new Zigbee2MqttPoint(tag, Ieee, null, "state", Zigbee2MqttValueKind.Boolean, 7, null, null, null, null, "\"ON\"", "\"OFF\"", "OnOff");
+        var transport = new FakeMqttTransport("lamp-main", confirmWrites: false);
+        var cache = new CurrentTagCache(new InMemoryScadaEventBus());
+        await using var driver = new Zigbee2MqttDriver(
+            "z2m-bridge-readiness",
+            "Zigbee2MQTT",
+            dataSourceId,
+            Settings(dataSourceId),
+            cache,
+            new InMemoryTagRegistry(),
+            [point],
+            () => transport,
+            _ => ValueTask.FromResult(MqttResolvedCredentials.None));
+
+        await driver.StartAsync();
+        await EventuallyAsync(() => driver.GetCommunicationReadiness().State == CommunicationDriverReadinessState.Ready);
+        await EventuallyAsync(() => cache.TryGet(tag.Id, out var sample) && sample?.Quality == TagQuality.Stale);
+
+        transport.EmitAvailability("offline", retained: false);
+        await EventuallyAsync(() => cache.TryGet(tag.Id, out var offlineDevice) && offlineDevice?.Quality == TagQuality.BadCommunication);
+        Assert.Equal(CommunicationDriverReadinessState.Ready, driver.GetCommunicationReadiness().State);
+
+        var replayObservedAt = DateTimeOffset.UtcNow;
+        transport.EmitBridgeState("offline", retained: false);
+        await EventuallyAsync(() => driver.GetCommunicationReadiness().State != CommunicationDriverReadinessState.Ready);
+
+        transport.EmitBridgeState("online", retained: false);
+        await EventuallyAsync(() => driver.GetCommunicationReadiness().State != CommunicationDriverReadinessState.Ready);
+        transport.EmitBridgeDevices("{malformed", retained: false);
+        await EventuallyAsync(() => cache.TryGet(tag.Id, out var invalidInventory) && invalidInventory?.Quality == TagQuality.BadConfiguration);
+        Assert.NotEqual(CommunicationDriverReadinessState.Ready, driver.GetCommunicationReadiness().State);
+
+        transport.EmitBridgeDevices($"[{DeviceJson("lamp-main")}]", retained: false);
+        await EventuallyAsync(() => driver.GetCommunicationReadiness().State == CommunicationDriverReadinessState.Ready);
+        Assert.Equal(1, transport.ConnectCount);
+
+        transport.EmitState(StateJson("OFF", replayObservedAt), retained: false);
+        await EventuallyAsync(() => cache.TryGet(tag.Id, out var replayed) && replayed?.Quality == TagQuality.Uncertain);
+        transport.EmitState(StateJson("OFF", DateTimeOffset.UtcNow), retained: false);
+        await EventuallyAsync(() => cache.TryGet(tag.Id, out var fresh) && fresh?.Quality == TagQuality.Good);
+    }
+
+    [Fact]
     public async Task Driver_MalformedDeviceStateMarksBadDeviceAndCompletesPointRead()
     {
         var dataSourceId = Guid.NewGuid();
@@ -576,6 +710,13 @@ public sealed class Zigbee2MqttBridgeTests
           ]
         }
         """;
+
+    private static string StateJson(string state, DateTimeOffset lastSeen) =>
+        JsonSerializer.Serialize(new Dictionary<string, object?>
+        {
+            ["state"] = state,
+            ["last_seen"] = lastSeen.ToString("O", CultureInfo.InvariantCulture)
+        });
 
     private static Zigbee2MqttConnectionSettings Settings(
         Guid dataSourceId,
@@ -664,6 +805,10 @@ public sealed class Zigbee2MqttBridgeTests
         public void EmitState(string payload, bool retained) => Enqueue($"zigbee2mqtt/{friendlyName}", payload, retained);
 
         public void EmitAvailability(string payload, bool retained) => Enqueue($"zigbee2mqtt/{friendlyName}/availability", payload, retained);
+
+        public void EmitBridgeState(string payload, bool retained) => Enqueue("zigbee2mqtt/bridge/state", payload, retained);
+
+        public void EmitBridgeDevices(string payload, bool retained) => Enqueue("zigbee2mqtt/bridge/devices", payload, retained);
 
         public ValueTask ConnectAsync(MqttConnectionSettings settings, MqttResolvedCredentials credentials, CancellationToken cancellationToken = default)
         {

@@ -49,6 +49,7 @@ public sealed class Zigbee2MqttDriver :
     private bool _disposed;
     private volatile bool _isReady;
     private DateTimeOffset _sessionStartedAt;
+    private DateTimeOffset _freshnessFloorUtc;
     private int _consecutiveConnectFailures;
     private DateTimeOffset _stateChangedAt;
     private DateTimeOffset? _lastSuccessfulCommunicationAt;
@@ -283,10 +284,17 @@ public sealed class Zigbee2MqttDriver :
     {
         lock (_stateGate)
         {
+            var readinessState = _readinessState;
+            if (readinessState == CommunicationDriverReadinessState.Ready &&
+                (!_isReady || _transport is not { IsConnected: true } || _bridgeState != "online" || _inventory is null))
+            {
+                readinessState = CommunicationDriverReadinessState.Starting;
+            }
+
             return new CommunicationDriverReadinessSnapshot(
                 DriverId,
                 Zigbee2MqttContract.DriverType,
-                _readinessState,
+                readinessState,
                 DateTimeOffset.UtcNow,
                 _lastError,
                 new Dictionary<string, string>(StringComparer.Ordinal)
@@ -459,7 +467,8 @@ public sealed class Zigbee2MqttDriver :
         _hasConnectedOnce = true;
         _consecutiveConnectFailures = 0;
         _sessionStartedAt = DateTimeOffset.UtcNow;
-        _inventory = null;
+        lock (_stateGate) _freshnessFloorUtc = _sessionStartedAt;
+        InvalidateInventory();
         _bridgeState = null;
         _isReady = false;
         SetCommunicationState(CommunicationDriverOperationalState.Starting);
@@ -547,17 +556,23 @@ public sealed class Zigbee2MqttDriver :
         if (message.Topic == _settings.BridgeStateTopic)
         {
             _bridgeState = NormalizeState(message.Payload);
+            if (_bridgeState is "online" or "offline") AdvanceFreshnessFloor(message.ReceivedAtUtc);
+            InvalidateInventory();
+            _isReady = false;
+            SetReadiness(CommunicationDriverReadinessState.Starting);
+            SetCommunicationState(CommunicationDriverOperationalState.Degraded);
             if (_bridgeState == "offline")
             {
-                _isReady = false;
-                SetCommunicationState(CommunicationDriverOperationalState.Degraded);
                 await MarkAllAsync(TagQuality.BadCommunication, cancellationToken).ConfigureAwait(false);
             }
             else if (_bridgeState == "online")
             {
-                _isReady = false;
-                SetCommunicationState(CommunicationDriverOperationalState.Degraded);
+                await MarkAllAsync(TagQuality.Stale, cancellationToken).ConfigureAwait(false);
                 await _transport!.SubscribeAsync([new MqttSubscription(_settings.BridgeDevicesTopic, MqttQosLevel.AtLeastOnce)], cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await MarkAllAsync(TagQuality.BadCommunication, cancellationToken).ConfigureAwait(false);
             }
             return;
         }
@@ -570,17 +585,30 @@ public sealed class Zigbee2MqttDriver :
                 if (inventory.BridgeState == "online")
                 {
                     await ApplyInventoryAsync(inventory, _transport!, cancellationToken).ConfigureAwait(false);
+                    _bridgeState = inventory.BridgeState;
+                    AdvanceFreshnessFloor(message.ReceivedAtUtc);
                     _isReady = true;
+                    _lastError = null;
                     _lastSuccessfulCommunicationAt = DateTimeOffset.UtcNow;
                     SetCommunicationState(CommunicationDriverOperationalState.Healthy);
                     SetReadiness(CommunicationDriverReadinessState.Ready);
+                }
+                else
+                {
+                    _isReady = false;
+                    InvalidateInventory();
+                    SetCommunicationState(CommunicationDriverOperationalState.Degraded);
+                    SetReadiness(CommunicationDriverReadinessState.Starting);
+                    await MarkAllAsync(TagQuality.BadCommunication, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
             {
                 _lastError = SafeFailure(ex);
                 _isReady = false;
+                InvalidateInventory();
                 SetCommunicationState(CommunicationDriverOperationalState.Degraded);
+                SetReadiness(CommunicationDriverReadinessState.Starting);
                 await MarkAllAsync(TagQuality.BadConfiguration, cancellationToken).ConfigureAwait(false);
             }
             return;
@@ -646,16 +674,17 @@ public sealed class Zigbee2MqttDriver :
                     continue;
                 }
 
-                _cache.TryGet(point.Tag.Id, out var previous);
                 PendingOperation? pending;
                 DateTimeOffset? pendingDispatchedAt;
+                DateTimeOffset freshnessFloorUtc;
                 lock (_stateGate)
                 {
                     _pending.TryGetValue(point.Tag.Id, out pending);
                     pendingDispatchedAt = pending?.DispatchedAtUtc;
+                    freshnessFloorUtc = _freshnessFloorUtc;
                 }
 
-                var quality = ResolveObservationQuality(message, value, previous, pending, pendingDispatchedAt, document.RootElement);
+                var quality = ResolveObservationQuality(message, pendingDispatchedAt, freshnessFloorUtc, document.RootElement);
                 var update = await PublishQualityAsync(point, value, quality, cancellationToken).ConfigureAwait(false);
                 if (quality == TagQuality.Good)
                 {
@@ -680,22 +709,46 @@ public sealed class Zigbee2MqttDriver :
 
     private TagQuality ResolveObservationQuality(
         MqttTransportMessage message,
-        object? value,
-        TagValue? previous,
-        PendingOperation? pending,
         DateTimeOffset? pendingDispatchedAt,
+        DateTimeOffset freshnessFloorUtc,
         JsonElement state)
     {
         if (message.Retained) return TagQuality.Stale;
         if (_bridgeState == "offline") return TagQuality.BadCommunication;
-        if (pending is { IsWrite: false } && pendingDispatchedAt.HasValue && message.ReceivedAtUtc >= pendingDispatchedAt.Value)
-            return TagQuality.Good;
-        if (TryGetSourceLastSeen(state, out var sourceTime) && sourceTime > _sessionStartedAt) return TagQuality.Good;
-        if (previous is { Quality: TagQuality.Good } && previous.Timestamp >= _sessionStartedAt &&
-            !ValuesEqual(previous.Value, value)) return TagQuality.Good;
-        // Availability and non-retained delivery identify neither a fresh
-        // device observation nor a post-restart value. Preserve uncertainty.
-        return TagQuality.Uncertain;
+        if (pendingDispatchedAt is { } dispatchedAt)
+        {
+            // A report received after dispatch is not enough when its own
+            // source timestamp proves it was observed before the operation.
+            if (message.ReceivedAtUtc < dispatchedAt) return TagQuality.Uncertain;
+            if (dispatchedAt > freshnessFloorUtc) freshnessFloorUtc = dispatchedAt;
+        }
+
+        // Receive time and retain=false only describe MQTT delivery. A Good
+        // value needs source-side evidence newer than this broker/bridge epoch
+        // and, for an in-flight operation, newer than that operation's dispatch.
+        return TryGetSourceLastSeen(state, out var sourceTime) && sourceTime > freshnessFloorUtc
+            ? TagQuality.Good
+            : TagQuality.Uncertain;
+    }
+
+    private void AdvanceFreshnessFloor(DateTimeOffset timestamp)
+    {
+        lock (_stateGate)
+        {
+            if (timestamp > _freshnessFloorUtc) _freshnessFloorUtc = timestamp;
+        }
+    }
+
+    private void InvalidateInventory()
+    {
+        lock (_stateGate)
+        {
+            _inventory = null;
+            _friendlyNameByIeee = new Dictionary<string, string>(StringComparer.Ordinal);
+            _ieeeByStateTopic = new Dictionary<string, string>(StringComparer.Ordinal);
+            _ieeeByAvailabilityTopic = new Dictionary<string, string>(StringComparer.Ordinal);
+            _activeTagIds = new HashSet<Guid>();
+        }
     }
 
     private void CompletePendingReadWithFailure(Zigbee2MqttPoint point, MqttTransportMessage message, TagValue? failedValue = null)

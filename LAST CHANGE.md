@@ -1,4 +1,49 @@
-# CURRENT W15 RELEASE — EXTERNAL ZIGBEE2MQTT V1 — 2026-10-08 (BRT)
+# CURRENT MAIN AUDIT / STAGED-INPUT DEPENDENCY — 2026-10-08 (BRT)
+
+> This snapshot supersedes mutable release/checkpoint claims below. GitHub live remains the sole authority; revalidate before action. [Current Main ledger #305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6072038410).
+
+Integration: `wave15/corrections-integration@cfd4ea9a718c3aede93a53606b3e5fd178fae2e1`.
+Three product assignments remain reserved; no fourth worker or queued driver is released.
+
+| Work / report destination | Exact published HEAD | Live gate / Main disposition | Owner chat action |
+| --- | --- | --- | --- |
+| Foundation PR #576; Main #305 | `912b866b0df27173726a5d52a1bd308d3c18d6e0` | T1 37833944486 PASS; MAIN_AUDIT_PASS; unmerged, PO merge authorization pending | No new DEV chat |
+| Panasonic #570 / PR #572 | `6ef9008066c41f94e1eeb95a727776472c918571` | T1 37819834781 RED, one candidate-readiness failure; foundation dependency | WAIT; SIGA after Main releases the integrated dependency |
+| S5 #571 / PR #574 | `cbc3a8e5303db6fde30e31ba0a9104d418abe85c` | T1 37819447640 PASS; audit REQUEST_CHANGES | SIGA in S5 |
+| Zigbee2MQTT #573 / PR #575 | `14fd0d4f03cb7245a8f0b78b73cf149e66571ce1` | T1 37828674889 PASS; audit REQUEST_CHANGES; L3 depends on foundation | SIGA in Z2M for independent corrections |
+| Mitsubishi PR #567 / S4 PR #568 | already integrated | no new assignment | WAIT |
+
+## Main-owned FND-STAGED-INPUT-01
+
+[PR #576 Main audit](https://github.com/brunolrogerio-collab/EliteSCADA/pull/576#issuecomment-6071980262) accepts the separately isolated foundation at HEAD above / tree `e494cba4350798f33ecf0b0fb1fb5a6f8d28b7d4`; 1 ahead / 0 behind the assigned base. Exact-head T1: Core 530 passed; Drivers 1,250 passed / 1 skip / 0 failed.
+
+The accepted shared PRODUCT/SHARED_HOTSPOT diagnosis is a readiness cycle: candidate acquisition was gated until after commit, but readiness is required before commit. The bounded correction permits canonical host-started acquisition into the private Active-eligible candidate cache while process writes and external event forwarding remain fenced. HA Standby stays Stopped with zero connection/poll/subscription/write. Existing resource handover, rollback, cleanup and Runtime/request-token lifetime remain canonical.
+
+Ownership is limited to the two shared services/coordinator files and coordinator regressions in #576. Protocol workers cannot modify shared Runtime/HA. Direct callers without a separate acquisition delegate retain the old effect-fence fallback.
+
+**Integration order:** explicit PO authorization -> Main integrates #576 -> Main releases exact integrated dependency/base -> narrow Panasonic/Z2M acquisition-vs-write consumer changes and canonical activation/#560 proof -> exact-head normal T1 -> final Main audit -> explicitly authorized product integration.
+
+No silent consumption of the unmerged foundation. The unpublished combined local 33-test overlay is T0 only; it does not replace published-head #572/#575 evidence. SIGA is not merge authorization.
+
+## Current worker correction requests
+
+- [Panasonic Main disposition](https://github.com/brunolrogerio-collab/EliteSCADA/issues/570#issuecomment-6072006526): current T1 is 1,271 passed / 1 skip / 1 failed; keep the real activation defect visible. L0/L1 focused evidence exists. After dependency release prove canonical persistence/activation, both transports, restart and #560. Refresh the stale validation doc: the DEV has installed SDK 10.0.400 and recorded 23-pass/1-fail T0.
+- [S5 audit](https://github.com/brunolrogerio-collab/EliteSCADA/pull/574#issuecomment-6071989348): invalid successful execute responses must be Unknown; add real Screen/Popup browser interaction evidence; prevent asynchronous typed-prompt ownership from stranding another action. Keep Version 2 Rich action / legacy Version 1 / Engineering v23. S5 is independent of #576. The Program.cs exception is only its two DI registrations and one endpoint mapping.
+- [Z2M audit](https://github.com/brunolrogerio-collab/EliteSCADA/pull/575#issuecomment-6071998103): cached observations predating an operation cannot confirm a newer read/write; readiness must reflect bridge offline/invalid inventory. Correct these owned items now while L3 awaits the foundation. Preserve external user-operated Z2M, canonical Boolean/Double TAGs, protected credentials, stable IEEE identity and the two additive registration exceptions.
+
+Main accepted each named driver's bounded L2 SKIP_WITH_REASON for this code PR only. It is not PASS or software/physical interoperability. Physical L4 remains human-only after Wave 16, partner disclosure and stable installation, and is not a code merge blocker.
+
+Tests validate product. Batch coherent corrections -> minimum focused evidence -> normal exact-head T1. No unchanged-head rerun or redundant broad/full CI. Checkpoint is a savepoint. Issues/PRs carry decisions; separate chats require their own SIGA.
+
+The #573 issue-body replacement was rejected by auto-review as a stale-overwrite risk. The body was preserved; the accepted [append-only owning-issue decision](https://github.com/brunolrogerio-collab/EliteSCADA/issues/573#issuecomment-6072015230) and PR audit carry the disposition.
+
+KNX/Native Zigbee/DALI gateway/Z-Wave/Matter remain queued. Wave 15 is not closed; final #379/#424/#425 -> #306 -> #300 remains ahead. #362 remains closed without merge. Documentation PR #569 stays docs-only and unmerged; until authorized integration, live issues/comments override older integrated docs.
+
+Snapshot: 08/10/2026 — Hora: 21:55 BRT
+
+---
+
+# PRIOR RELEASE SNAPSHOT — EXTERNAL ZIGBEE2MQTT V1 — 2026-10-08 (BRT)
 
 > This release supersedes the older two-worker / Q2-QUEUED snapshot below.
 > GitHub live is the authority. Current exact scope and authorization: [#573](https://github.com/brunolrogerio-collab/EliteSCADA/issues/573). Main release: [#305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6065413847).

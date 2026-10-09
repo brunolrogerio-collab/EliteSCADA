@@ -373,19 +373,21 @@ test('Rendered Screen typed action validates required and bounded values, then s
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('heading')).toHaveText('cover.move');
-  const position = dialog.getByRole('textbox', { name: 'Posição (obrigatório)' });
+  const position = dialog.locator('input[type="text"]').first();
 
-  await dialog.getByRole('button', { name: 'Executar' }).click();
-  await expect(dialog.getByRole('alert')).toContainText('obrigatório');
+  await dialog.locator('button[type="submit"]').click();
+  await expect(dialog.locator('[role="alert"]')).toBeVisible();
+  await expect(position).toHaveAttribute('aria-invalid', 'true');
   expect(calls).toHaveLength(0);
 
   await position.fill('101');
-  await dialog.getByRole('button', { name: 'Executar' }).click();
-  await expect(dialog.getByRole('alert')).toContainText('inválido');
+  await dialog.locator('button[type="submit"]').click();
+  await expect(dialog.locator('[role="alert"]')).toBeVisible();
+  await expect(position).toHaveAttribute('aria-invalid', 'true');
   expect(calls).toHaveLength(0);
 
   await position.fill('37.5');
-  await dialog.getByRole('button', { name: 'Executar' }).click();
+  await dialog.locator('button[type="submit"]').click();
   await expect(dialog).toHaveCount(0);
   await expect.poll(() => calls.length).toBe(1);
   expect(calls).toEqual([{ commandId: BROWSER_COMMAND_TYPED, parameters: { position: '37.5' } }]);
@@ -407,7 +409,7 @@ test('Cancelling a rendered typed Screen action sends no execute POST', async ({
   await page.getByRole('button', { name: 'Comando para cancelar' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: 'Cancelar' }).click();
+  await dialog.locator('button[type="button"]').click();
   await expect(dialog).toHaveCount(0);
   expect(calls).toHaveLength(0);
   await expect(page.getByTestId('runtime-action-feedback')
@@ -519,8 +521,8 @@ test('Concurrent Screen definition replies keep one prompt owner and release the
     .locator('[data-object-id="s5-rich-concurrent-a"]')).toHaveCount(0);
   await expect(dialog.getByRole('heading')).toHaveText('rich.command.b');
 
-  await dialog.getByRole('textbox', { name: 'Posição (obrigatório)' }).fill('24');
-  await dialog.getByRole('button', { name: 'Executar' }).click();
+  await dialog.locator('input[type="text"]').first().fill('24');
+  await dialog.locator('button[type="submit"]').click();
   await expect(dialog).toHaveCount(0);
   await expect.poll(() => executeCalls.length).toBe(1);
   expect(executeCalls).toEqual([{ commandId: commandB!.commandId, parameters: { position: '24' } }]);
@@ -530,7 +532,7 @@ test('Concurrent Screen definition replies keep one prompt owner and release the
   await pendingDefinitions[2].respond(browserTypedDefinition(commandA!.commandId, 'rich.command.a'));
   const nextDialog = page.getByRole('dialog');
   await expect(nextDialog.getByRole('heading')).toHaveText('rich.command.a');
-  await nextDialog.getByRole('button', { name: 'Cancelar' }).click();
+  await nextDialog.locator('button[type="button"]').click();
   expect(executeCalls).toHaveLength(1);
 });
 

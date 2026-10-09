@@ -214,6 +214,7 @@ public sealed class Zigbee2MqttCommunicationRuntimeFactory : ICommunicationDrive
             z2mPlan.Points,
             _transportFactory,
             resolver,
-            () => services.CanOwnExternalEffects);
+            () => services.CanOwnExternalEffects,
+            () => services.CanAcquireInputs);
     }
 }

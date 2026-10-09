@@ -30,6 +30,7 @@ public sealed class Zigbee2MqttDriver :
     private readonly Func<IMqttClientTransport> _transportFactory;
     private readonly Zigbee2MqttCredentialResolver _credentialResolver;
     private readonly Func<bool> _effectAuthority;
+    private readonly Func<bool> _inputAcquisitionAuthority;
     private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
     private readonly SemaphoreSlim _operationGate = new(1, 1);
     private readonly object _stateGate = new();
@@ -86,7 +87,8 @@ public sealed class Zigbee2MqttDriver :
         IEnumerable<Zigbee2MqttPoint> points,
         Func<IMqttClientTransport> transportFactory,
         Zigbee2MqttCredentialResolver credentialResolver,
-        Func<bool>? effectAuthority = null)
+        Func<bool>? effectAuthority = null,
+        Func<bool>? inputAcquisitionAuthority = null)
     {
         if (string.IsNullOrWhiteSpace(driverId)) throw new ArgumentException("Driver ID is required.", nameof(driverId));
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Driver name is required.", nameof(name));
@@ -111,6 +113,7 @@ public sealed class Zigbee2MqttDriver :
         _transportFactory = transportFactory ?? throw new ArgumentNullException(nameof(transportFactory));
         _credentialResolver = credentialResolver ?? throw new ArgumentNullException(nameof(credentialResolver));
         _effectAuthority = effectAuthority ?? (() => true);
+        _inputAcquisitionAuthority = inputAcquisitionAuthority ?? _effectAuthority;
         _stateChangedAt = DateTimeOffset.UtcNow;
         Status = new DriverStatus(DriverId, Name, DriverState.Stopped, _stateChangedAt);
     }
@@ -133,7 +136,7 @@ public sealed class Zigbee2MqttDriver :
             foreach (var point in _points) _registry.Upsert(point.Tag);
             if (_runCts is { IsCancellationRequested: false }) return;
 
-            if (!_effectAuthority())
+            if (!_inputAcquisitionAuthority())
             {
                 SetCommunicationState(CommunicationDriverOperationalState.Stopped);
                 SetReadiness(CommunicationDriverReadinessState.Stopped);
@@ -173,7 +176,7 @@ public sealed class Zigbee2MqttDriver :
         if (!_pointsByTag.TryGetValue(tagId, out var point))
             throw new KeyNotFoundException($"Zigbee2MQTT TAG '{tagId}' was not found in driver '{DriverId}'.");
         Interlocked.Increment(ref _reads);
-        if (!point.Gettable || !_effectAuthority() || !IsPointActive(tagId) || _transport is not { IsConnected: true } || !_isReady)
+        if (!point.Gettable || !_inputAcquisitionAuthority() || !IsPointActive(tagId) || _transport is not { IsConnected: true } || !_isReady)
         {
             _cache.TryGet(tagId, out var cached);
             return cached;
@@ -412,7 +415,7 @@ public sealed class Zigbee2MqttDriver :
             {
                 if (!transport.IsConnected)
                 {
-                    if (!_effectAuthority())
+                    if (!_inputAcquisitionAuthority())
                     {
                         _isReady = false;
                         SetCommunicationState(CommunicationDriverOperationalState.Stopped);
@@ -459,7 +462,7 @@ public sealed class Zigbee2MqttDriver :
 
     private async Task ConnectAndSynchronizeAsync(IMqttClientTransport transport, CancellationToken cancellationToken)
     {
-        if (!_effectAuthority()) throw new InvalidOperationException("Zigbee2MQTT external effects are not authorized for this Runtime node.");
+        if (!_inputAcquisitionAuthority()) throw new InvalidOperationException("Zigbee2MQTT input acquisition is not authorized for this Runtime node.");
         using var credentials = await _credentialResolver(cancellationToken).ConfigureAwait(false);
         await transport.ConnectAsync(_settings.Mqtt, credentials, cancellationToken).ConfigureAwait(false);
         Interlocked.Increment(ref _connections);
@@ -784,7 +787,7 @@ public sealed class Zigbee2MqttDriver :
             await _operationGate.WaitAsync(timeout.Token).ConfigureAwait(false);
             try
             {
-                if (!_effectAuthority() || !IsPointActive(point.Tag.Id))
+                if (!_inputAcquisitionAuthority() || !IsPointActive(point.Tag.Id))
                     throw new InvalidOperationException("Zigbee2MQTT read authority or current inventory validation was revoked before dispatch.");
                 Interlocked.Increment(ref _requests);
                 lock (_stateGate) pending.DispatchedAtUtc = DateTimeOffset.UtcNow;

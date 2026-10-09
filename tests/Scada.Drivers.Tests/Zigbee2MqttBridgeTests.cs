@@ -5,10 +5,12 @@ using System.Threading.Channels;
 using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
+using Scada.DriverHost.Runtime;
 using Scada.Drivers.Abstractions;
 using Scada.Drivers.Mqtt;
 using Scada.Drivers.Zigbee2Mqtt;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.ImportExport;
 
 namespace Scada.Drivers.Tests;
 
@@ -220,6 +222,170 @@ public sealed class Zigbee2MqttBridgeTests
     }
 
     [Fact]
+    public async Task RuntimeActivation_StandbyIsInertAndCandidateReadsBeforeCommitWhileWritesStayFenced()
+    {
+        var dataSourceId = Guid.NewGuid();
+        var tagId = Guid.NewGuid();
+        var package = RuntimePackage(dataSourceId, tagId);
+        var transport = new FakeMqttTransport("lamp-main", confirmWrites: true, respondToReads: true);
+        var factory = new CapturingZigbeeRuntimeFactory(() => transport);
+        var components = new CommunicationDriverRuntimeComponentRegistry();
+        components.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new Zigbee2MqttCommunicationRuntimePlanner(),
+            factory,
+            new Zigbee2MqttDriverDescriptorProvider().Descriptor));
+
+        var activeAuthority = false;
+        var eventBus = new InMemoryScadaEventBus();
+        var forwardedTagEvents = 0;
+        using var tagSubscription = eventBus.Subscribe<TagValueChanged>(_ =>
+        {
+            Interlocked.Increment(ref forwardedTagEvents);
+            return ValueTask.CompletedTask;
+        });
+
+        var runtime = new EngineeringRuntimeCoordinator(
+            eventBus,
+            new EngineeringDriverCompiler(components),
+            TimeSpan.FromSeconds(2),
+            communicationComponents: components,
+            protectedMaterialResolver: new NoProtectedMaterialResolver(),
+            industrialEffectAuthority: () => activeAuthority);
+        try
+        {
+            var standby = await runtime.ActivateAsync("project-z2m", 1, package);
+            Assert.False(standby.Activated);
+            Assert.Contains(standby.RuntimeIssues, issue => issue.Code == "RUNTIME_CANDIDATE_NOT_READY");
+            Assert.Equal(0, transport.ConnectCount);
+            Assert.Empty(transport.Subscriptions);
+            Assert.Equal(0, transport.SetPublishCount);
+
+            activeAuthority = true;
+            using var activationRequest = new CancellationTokenSource();
+            var activation = runtime.ActivateAsync(
+                "project-z2m",
+                2,
+                package,
+                async (_, cancellationToken) =>
+                {
+                    var candidate = Assert.IsType<Zigbee2MqttDriver>(factory.Created);
+                    var services = Assert.IsType<CommunicationDriverRuntimeServices>(factory.Services);
+                    Assert.True(services.CanAcquireInputs);
+                    Assert.False(services.CanOwnExternalEffects);
+                    Assert.True(transport.IsConnected);
+                    Assert.Contains(
+                        transport.Subscriptions.SelectMany(value => value),
+                        item => item.Topic == "zigbee2mqtt/lamp-main");
+
+                    var read = await candidate.ReadAsync(tagId, cancellationToken);
+                    Assert.Equal(TagQuality.Good, read!.Quality);
+                    Assert.False(Assert.IsType<bool>(read.Value));
+                    Assert.Equal(1, transport.GetPublishCount);
+                    await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                        await candidate.WriteAsync(tagId, true, cancellationToken));
+                    Assert.Equal(0, transport.SetPublishCount);
+                    Assert.Equal(0, Volatile.Read(ref forwardedTagEvents));
+                },
+                activationRequest.Token);
+
+            await EventuallyAsync(() => transport.Subscriptions
+                .SelectMany(value => value)
+                .Any(item => item.Topic == "zigbee2mqtt/lamp-main"));
+            transport.EmitState(
+                JsonSerializer.Serialize(new Dictionary<string, object?>
+                {
+                    ["state"] = "OFF",
+                    ["last_seen"] = DateTimeOffset.UtcNow.AddMilliseconds(100).ToString("O", CultureInfo.InvariantCulture)
+                }),
+                retained: false);
+
+            var activated = await activation.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(activated.Activated, string.Join(" | ", activated.RuntimeIssues.Select(issue => issue.Message)));
+            Assert.True(factory.Services!.CanOwnExternalEffects);
+            activationRequest.Cancel();
+            Assert.True(transport.IsConnected);
+
+            await runtime.WriteAsync(tagId, true);
+            await EventuallyAsync(() => runtime.TryGetCurrent(tagId, out var current) &&
+                                         current?.Quality == TagQuality.Good &&
+                                         current.Value is true);
+            Assert.Equal(1, transport.SetPublishCount);
+            Assert.True(Volatile.Read(ref forwardedTagEvents) > 0);
+
+            var diagnostics = Assert.Single(runtime.Describe().CommunicationDrivers);
+            Assert.Equal("home.z2m", diagnostics.DataSourceKey);
+            Assert.Equal(CommunicationDriverOperationalState.Healthy, diagnostics.State);
+            Assert.True(diagnostics.Counters.ReadOperations >= 1);
+            Assert.Equal(1, diagnostics.Counters.WriteOperations);
+        }
+        finally
+        {
+            await runtime.DisposeAsync();
+        }
+
+        Assert.False(transport.IsConnected);
+        Assert.Equal(1, transport.DisposeCount);
+    }
+
+    [Fact]
+    public async Task RuntimePassiveMaterialization_ProjectsPeerTagWithoutStartingZigbeeTransport()
+    {
+        var dataSourceId = Guid.NewGuid();
+        var tagId = Guid.NewGuid();
+        var package = RuntimePackage(dataSourceId, tagId);
+        var transport = new FakeMqttTransport("lamp-main", confirmWrites: true);
+        var factory = new CapturingZigbeeRuntimeFactory(() => transport);
+        var components = new CommunicationDriverRuntimeComponentRegistry();
+        components.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new Zigbee2MqttCommunicationRuntimePlanner(),
+            factory,
+            new Zigbee2MqttDriverDescriptorProvider().Descriptor));
+        var eventBus = new InMemoryScadaEventBus();
+        var forwardedTagEvents = 0;
+        using var tagSubscription = eventBus.Subscribe<TagValueChanged>(_ =>
+        {
+            Interlocked.Increment(ref forwardedTagEvents);
+            return ValueTask.CompletedTask;
+        });
+        var runtime = new EngineeringRuntimeCoordinator(
+            eventBus,
+            new EngineeringDriverCompiler(components),
+            TimeSpan.FromSeconds(1),
+            communicationComponents: components,
+            protectedMaterialResolver: new NoProtectedMaterialResolver(),
+            industrialEffectAuthority: static () => false);
+        try
+        {
+            var passive = await runtime.MaterializePassiveAsync(
+                "project-z2m",
+                1,
+                package,
+                DateTimeOffset.UtcNow);
+
+            Assert.True(passive.Activated, string.Join(" | ", passive.RuntimeIssues.Select(issue => issue.Message)));
+            Assert.Equal(DriverState.Stopped, Assert.IsType<Zigbee2MqttDriver>(factory.Created).Status.State);
+            Assert.Equal(0, transport.ConnectCount);
+            Assert.Empty(transport.Subscriptions);
+
+            var peerValue = new TagValue(tagId, true, DateTimeOffset.UtcNow, TagQuality.Good, "active-peer");
+            Assert.Equal(1, await runtime.ApplyPassiveAuthoritativeValuesAsync([peerValue]));
+            Assert.True(runtime.TryGetCurrent(tagId, out var projected));
+            Assert.Equal(TagQuality.Good, projected!.Quality);
+            Assert.True(Assert.IsType<bool>(projected.Value));
+            Assert.Equal("active-peer", projected.Source);
+            Assert.Equal(0, Volatile.Read(ref forwardedTagEvents));
+            Assert.Equal(0, transport.SetPublishCount);
+        }
+        finally
+        {
+            await runtime.DisposeAsync();
+        }
+
+        Assert.Equal(0, transport.ConnectCount);
+        Assert.Empty(transport.Subscriptions);
+    }
+
+    [Fact]
     public void Inventory_RejectsDuplicatePhysicalIdentityAndMalformedPayloads()
     {
         var settings = Settings(Guid.NewGuid());
@@ -295,11 +461,12 @@ public sealed class Zigbee2MqttBridgeTests
         var dataSourceId = Guid.NewGuid();
         var tag = Tag("Zigbee2Mqtt/Lamp/State", TagDataType.Boolean, readOnly: false);
         var point = new Zigbee2MqttPoint(tag, Ieee, null, "state", Zigbee2MqttValueKind.Boolean, 7, null, null, null, null, "\"ON\"", "\"OFF\"", "OnOff");
-        var first = new FakeMqttTransport("lamp-main", confirmWrites: true);
+        var first = new FakeMqttTransport("lamp-main", confirmWrites: true, respondToReads: true);
         var second = new FakeMqttTransport("lamp-main", confirmWrites: true);
         var transports = new Queue<FakeMqttTransport>([first, second]);
         var factoryCalls = 0;
         var ownsEffects = false;
+        var acquiresInputs = false;
         var cache = new CurrentTagCache(new InMemoryScadaEventBus());
         await using var driver = new Zigbee2MqttDriver(
             "z2m-main",
@@ -311,7 +478,8 @@ public sealed class Zigbee2MqttBridgeTests
             [point],
             () => { factoryCalls++; return transports.Dequeue(); },
             _ => ValueTask.FromResult(MqttResolvedCredentials.None),
-            () => ownsEffects);
+            () => ownsEffects,
+            () => acquiresInputs);
 
         await driver.StartAsync();
         Assert.Equal(0, factoryCalls);
@@ -320,7 +488,7 @@ public sealed class Zigbee2MqttBridgeTests
         Assert.Equal(0, first.SetPublishCount);
         Assert.Empty(first.Subscriptions);
 
-        ownsEffects = true;
+        acquiresInputs = true;
         using var activationRequest = new CancellationTokenSource();
         await driver.StartAsync(activationRequest.Token);
         await EventuallyAsync(() => driver.GetCommunicationReadiness().State == CommunicationDriverReadinessState.Ready);
@@ -332,6 +500,13 @@ public sealed class Zigbee2MqttBridgeTests
         Assert.True(cache.TryGet(tag.Id, out var initial));
         Assert.Equal(TagQuality.Stale, initial!.Quality);
 
+        var candidateRead = await driver.ReadAsync(tag.Id);
+        Assert.Equal(TagQuality.Good, candidateRead!.Quality);
+        Assert.Equal(1, first.GetPublishCount);
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await driver.WriteAsync(tag.Id, true));
+        Assert.Equal(0, first.SetPublishCount);
+
+        ownsEffects = true;
         await driver.WriteAsync(tag.Id, true);
         Assert.Equal(1, first.SetPublishCount);
         Assert.True(cache.TryGet(tag.Id, out var confirmed));
@@ -718,6 +893,44 @@ public sealed class Zigbee2MqttBridgeTests
             ["last_seen"] = lastSeen.ToString("O", CultureInfo.InvariantCulture)
         });
 
+    private static EngineeringPackage RuntimePackage(Guid dataSourceId, Guid tagId)
+    {
+        var dataSource = new DataSourceEngineeringDto(
+            dataSourceId,
+            "home.z2m",
+            "External Zigbee2MQTT",
+            Zigbee2MqttContract.DriverType,
+            Settings: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["host"] = "mqtt.example.test",
+                ["baseTopic"] = "zigbee2mqtt",
+                ["reconnectMinimumMilliseconds"] = "100",
+                ["reconnectMaximumMilliseconds"] = "200"
+            });
+        var device = Assert.Single(ParseInventory(Settings(dataSourceId), "lamp-main").Devices);
+        var materialization = Zigbee2MqttExposeMapper.BuildMaterialization(dataSourceId, dataSource.Key, device);
+        var candidate = Assert.Single(materialization.Tags!, item => item.PortableAddress ==
+            Zigbee2MqttIdentity.PortableAddress(Ieee, null, "state"));
+        var tag = new TagEngineeringDto(
+            tagId,
+            candidate.Name,
+            candidate.Path,
+            candidate.DataType,
+            Source: dataSource.Key,
+            Address: candidate.PortableAddress,
+            ReadOnly: candidate.ReadOnly,
+            Metadata: candidate.Metadata?.ToDictionary(entry => entry.Key, entry => entry.Value),
+            CommunicationBinding: Binding(candidate),
+            DataSourceId: dataSourceId);
+        return new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            [tag],
+            Array.Empty<AlarmEngineeringDto>(),
+            [dataSource]);
+    }
+
     private static Zigbee2MqttConnectionSettings Settings(
         Guid dataSourceId,
         int writeConfirmationMilliseconds = 1000,
@@ -917,6 +1130,24 @@ public sealed class Zigbee2MqttBridgeTests
             CommunicationDriverProtectedMaterialRequest request,
             CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("This test does not configure protected MQTT credentials.");
+    }
+
+    private sealed class CapturingZigbeeRuntimeFactory(Func<IMqttClientTransport> transportFactory) : ICommunicationDriverRuntimeFactory
+    {
+        private readonly Zigbee2MqttCommunicationRuntimeFactory _inner = new(transportFactory);
+
+        public string DriverType => _inner.DriverType;
+        public Zigbee2MqttDriver? Created { get; private set; }
+        public CommunicationDriverRuntimeServices? Services { get; private set; }
+
+        public ICommunicationDriver Create(
+            ICommunicationDriverRuntimePlan plan,
+            CommunicationDriverRuntimeServices services)
+        {
+            Services = services;
+            Created = (Zigbee2MqttDriver)_inner.Create(plan, services);
+            return Created;
+        }
     }
 
     private sealed class StaticProtectedMaterialResolver(string password) : ICommunicationDriverProtectedMaterialResolver

@@ -1,4 +1,47 @@
-# CURRENT MAIN AUDIT / STAGED-INPUT DEPENDENCY — 2026-10-08 (BRT)
+# CURRENT MAIN CHECKPOINT — Z2M CI FIX / S5 AUDIT STILL OPEN — 2026-10-09 (BRT)
+
+> This checkpoint supersedes older mutable snapshots below. GitHub live is the authority. [Main ledger #305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6073889061).
+
+Integration remains `wave15/corrections-integration@cfd4ea9a718c3aede93a53606b3e5fd178fae2e1`. Three product assignments remain reserved; no fourth worker or queued-driver release.
+
+## Zigbee2MQTT #573 / PR #575
+
+Current HEAD `3756d37ffba64cf5821c77d23c2e473dfd2c7254`; tree `53f8c41f821ac7bd8d46c63f3d35910cc846af76`; parent `64c5cf205a13fe037182272ba978ca22567657e2`. [Exact-head normal T1 #988](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/37880724175) PASS: Drivers **1,266 passed / 1 skip / 0 failed**, classifier/common/gate PASS; Web/Chromium/HA profile-skipped.
+
+Main accepted the A1/A2 source/focused corrections. Current inventory/bridge readiness is honest, and an observation predating an operation cannot confirm it. This is not canonical L3 acceptance.
+
+The old T1 #987 RED was an existing shared fixture: forced exit after 50 ms could happen before readiness observation, missing the intended post-Ready restart scenario. Root TEST_STALE / ENVIRONMENT scheduling trigger; SHARED_HOTSPOT identifies ownership, not proof of a product bug. Correct production early-exit rejection remains unchanged.
+
+Main's [explicit narrow exception](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6073792467) changed only `SystemProcess_ForcedCrashRestartsThroughSupervisor` in `ManagedSidecarCheckpoint3Tests.cs`. An explicit unique fixture signal follows observed Ready. Real process, exit 23, restart/Ready and final Stop assertions remain; process disposal precedes directory cleanup. Main shell proof 5/5 plus restarted STOP/code 0 passed; Main local .NET is NOT_RUN/no SDK; current Actions is the C# evidence. Exact blob/tree/parent and force=false CAS were verified.
+
+[Current Main Z2M disposition](https://github.com/brunolrogerio-collab/EliteSCADA/issues/573#issuecomment-6073890045): **T1_PASS / A1_A2_ACCEPTED / L3_BLOCKED_DEPENDENCY / WAIT_FOR_COORDINATOR / NO_MERGE**. L2 bounded skip remains accepted; L4 stays after Wave 16. Z2M chat WAIT for foundation release.
+
+## S5 #571 / PR #574
+
+HEAD remains `cbc3a8e5303db6fde30e31ba0a9104d418abe85c`. The new DEV handoff repeated the old green T1 without the required A1/A2/A3 corrections. It does not close Main's outstanding audit.
+
+[Main's concrete correction order](https://github.com/brunolrogerio-collab/EliteSCADA/issues/571#issuecomment-6073819122): read the exact PR audit, fix post-dispatch response ambiguity, add real Screen/Popup browser proof and safe asynchronous prompt ownership; minimum focused checks -> coherent publication -> normal exact-head T1 -> item-by-item handoff. No new approval/second audit is needed to begin those already-authorized corrections. S5 remains independent of #576. S5 chat SIGA.
+
+## Foundation / owner actions
+
+#576 remains at `912b866b0df27173726a5d52a1bd308d3c18d6e0`, T1 and Main audit PASS, OPEN/unmerged. Explicit PO merge authorization is still pending; SIGA does not supply it. After authorized integration Main releases the exact dependency/base for Panasonic and Z2M acquisition-vs-write consumers and canonical activation/#560 evidence.
+
+| Chat | Action |
+| --- | --- |
+| S5 | SIGA in S5: perform outstanding audit corrections |
+| Zigbee2MQTT | WAIT: shared CI RED resolved; L3 awaits foundation |
+| Panasonic | WAIT: canonical readiness awaits foundation |
+| Mitsubishi / S4 | WAIT: already integrated |
+
+All driver physical L4 remains human-only after Wave 16/partner disclosure/stable installation, not the software integration blocker. No broad/full or unchanged-head rerun was launched. Foundation/product/docs candidates remain unmerged; Wave 15 remains open.
+
+Every DEV Bootstrap must explicitly require outstanding Main review-request inspection. A later DEV handoff does not supersede Main audit; required source/coverage corrections stay open until implemented, evidenced and accepted. See the collaboration protocol's outstanding-review section.
+
+Snapshot: 09/10/2026 — Hora: 00:51 BRT
+
+---
+
+# PRIOR MAIN AUDIT SNAPSHOT — STAGED-INPUT DEPENDENCY — 2026-10-08 (BRT)
 
 > This snapshot supersedes mutable release/checkpoint claims below. GitHub live remains the sole authority; revalidate before action. [Current Main ledger #305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6072038410).
 

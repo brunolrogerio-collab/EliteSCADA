@@ -153,3 +153,15 @@ If ordinary HTTPS push or the `gh` CLI is unavailable, do not ask the Product Ow
 Physical L4 is a human validation that happens only after Wave 16 and partner disclosure, after a stable EliteSCADA release has been installed on a computer. Until that time, record L4 as `DEFERRED / NOT RUN`; do not substitute a simulator. L4 is not a pre-merge blocker for completed driver code. A driver may be integrated when its implementation is complete, applicable intermediate/focused tests and exact-head T1 pass, Main's audit passes, and the Product Owner's applicable merge authorization is present. The coordinator revalidates those facts in live GitHub and executes an already-authorized conditional merge without asking the owner to repeat it. Do not claim hardware compatibility until a human records L4 evidence.
 
 S4 Server Script functionality is not a physical protocol compatibility claim; its code/test/audit gates stand on their own. The physical L4 rule applies to driver hardware validation.
+
+## 12. Outstanding Main audit requests
+
+On every SIGA, a DEV must inspect the current owning issue, PR discussion/review and latest Main disposition in #305, including the exact audit permalink when supplied. Initial release/bootstrap status and a green T1 do not close later Main correction requests.
+
+If Main has requested source or coverage changes, the next authorized action is to implement those named corrections, run the minimum owning focused checks, publish a coherent new candidate, obtain normal exact-head T1 and report each request with evidence. Do not wait for a second Main audit or repeated Product Owner permission to begin already-authorized corrections.
+
+A later DEV completion handoff cannot supersede an outstanding Main review. Repeating the old green HEAD while required source/coverage changes remain is not completion. A request closes only when the required correction/evidence exists and Main accepts its disposition. Report a real tool/contract blocker precisely instead of restating completion.
+
+Every new DEV Bootstrap must include this check and name the outstanding request IDs, required next step and owning report destination. Main's summary must still give the owner an exact chat-local SIGA or WAIT action.
+
+Shared RED ownership must also be distinguished from root cause: SHARED_HOTSPOT identifies a boundary; inspect logs/source before labeling the product defective. A timing-sensitive fixture that crashes before the phase it intends to test is corrected at the harness with explicit phase synchronization, preserving valid product rejection and assertions. Any exception to worker shared-file scope must be explicit, bounded and recorded by Main.

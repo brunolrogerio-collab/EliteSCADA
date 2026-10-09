@@ -67,6 +67,7 @@ type OperationalVisualAction = Readonly<
 >;
 
 type RichCommandPrompt = Readonly<{ objectId: string; requestId: string; definition: RuntimeRichCommandDefinition }>;
+type RichCommandFieldError = 'required' | 'invalid';
 
 const POPUP_FALLBACK_TITLE: Readonly<Record<EngineeringLocale, string>> = Object.freeze({
   'pt-BR': 'Janela',
@@ -92,6 +93,9 @@ export function RuntimeVisualNavigator({
   const [actionFeedback, setActionFeedback] = useState<ReadonlyMap<string, RuntimeActionFeedback>>(new Map());
   const [richCommandPrompt, setRichCommandPrompt] = useState<RichCommandPrompt | null>(null);
   const [richCommandValues, setRichCommandValues] = useState<Readonly<Record<string, string>>>({});
+  const [richCommandValidationErrors, setRichCommandValidationErrors] =
+    useState<Readonly<Record<string, RichCommandFieldError>>>({});
+  const richCommandPromptOwner = React.useRef<Readonly<{ objectId: string; requestId: string }> | null>(null);
   const richCommandSubmitting = React.useRef(false);
   const actionInFlight = React.useRef(new Set<string>());
   const catalog = useMemo(() => createRuntimeVisualCatalog(engineeringPackage), [engineeringPackage]);
@@ -205,7 +209,19 @@ export function RuntimeVisualNavigator({
           return;
         }
 
+        if (richCommandPromptOwner.current) {
+          setActionFeedback(previous => {
+            if (previous.get(objectId)?.requestId !== requestId) return previous;
+            const next = new Map(previous);
+            next.delete(objectId);
+            return next;
+          });
+          return;
+        }
+
+        richCommandPromptOwner.current = { objectId, requestId };
         setRichCommandValues({});
+        setRichCommandValidationErrors({});
         setRichCommandPrompt({ objectId, requestId, definition });
         retainInFlight = true;
         setDiagnostic(null);
@@ -274,6 +290,9 @@ export function RuntimeVisualNavigator({
 
   const cancelRichCommandPrompt = () => {
     if (!richCommandPrompt) return;
+    if (richCommandPromptOwner.current?.requestId === richCommandPrompt.requestId) {
+      richCommandPromptOwner.current = null;
+    }
     actionInFlight.current.delete(richCommandPrompt.objectId);
     setActionFeedback(previous => {
       if (previous.get(richCommandPrompt.objectId)?.requestId !== richCommandPrompt.requestId) return previous;
@@ -283,12 +302,16 @@ export function RuntimeVisualNavigator({
     });
     setRichCommandPrompt(null);
     setRichCommandValues({});
+    setRichCommandValidationErrors({});
   };
 
   const submitRichCommandPrompt = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const prompt = richCommandPrompt;
     if (!prompt || richCommandSubmitting.current) return;
+    const validationErrors = validateRichCommandPrompt(prompt.definition, richCommandValues);
+    setRichCommandValidationErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) return;
     richCommandSubmitting.current = true;
     updateFeedback(prompt.objectId, prompt.requestId, 'pending');
 
@@ -322,16 +345,30 @@ export function RuntimeVisualNavigator({
     } finally {
       actionInFlight.current.delete(prompt.objectId);
       richCommandSubmitting.current = false;
+      if (richCommandPromptOwner.current?.requestId === prompt.requestId) {
+        richCommandPromptOwner.current = null;
+      }
       setRichCommandPrompt(null);
       setRichCommandValues({});
+      setRichCommandValidationErrors({});
     }
   };
 
   const richCommandCopy = locale === 'pt-BR'
-    ? { title: 'Executar comando', required: 'obrigatório', value: 'Escolha um valor', cancel: 'Cancelar', submit: 'Executar', close: 'Fechar' }
+    ? { title: 'Executar comando', required: 'obrigatório', value: 'Escolha um valor', cancel: 'Cancelar', submit: 'Executar', close: 'Fechar', validationRequired: 'Este campo é obrigatório.', validationInvalid: 'Valor inválido.' }
     : locale === 'es'
-      ? { title: 'Ejecutar comando', required: 'obligatorio', value: 'Elige un valor', cancel: 'Cancelar', submit: 'Ejecutar', close: 'Cerrar' }
-      : { title: 'Execute command', required: 'required', value: 'Choose a value', cancel: 'Cancel', submit: 'Execute', close: 'Close' };
+      ? { title: 'Ejecutar comando', required: 'obligatorio', value: 'Elige un valor', cancel: 'Cancelar', submit: 'Ejecutar', close: 'Cerrar', validationRequired: 'Este campo es obligatorio.', validationInvalid: 'Valor no válido.' }
+      : { title: 'Execute command', required: 'required', value: 'Choose a value', cancel: 'Cancel', submit: 'Execute', close: 'Close', validationRequired: 'This field is required.', validationInvalid: 'Invalid value.' };
+
+  const updateRichCommandValue = (key: string, value: string) => {
+    setRichCommandValues(previous => ({ ...previous, [key]: value }));
+    setRichCommandValidationErrors(previous => {
+      if (!previous[key]) return previous;
+      const next = { ...previous };
+      delete next[key];
+      return next;
+    });
+  };
 
   return <RuntimeActionFeedbackContext.Provider value={actionFeedback}><div
     className="runtime-visual-navigator"
@@ -430,6 +467,18 @@ export function RuntimeVisualNavigator({
       </div>
     </RuntimeLogicalViewport>
 
+    {actionFeedback.size > 0 ? <div
+      role="status"
+      aria-live="polite"
+      data-testid="runtime-action-feedback"
+      style={{ position: 'absolute', left: 8, bottom: 8, zIndex: 10001 }}
+    >
+      {Array.from(actionFeedback.entries()).map(([objectId, feedback]) => <div
+        key={objectId}
+        data-object-id={objectId}
+        data-state={feedback.state}
+      >{feedback.label}</div>)}
+    </div> : null}
     {diagnostic ? <RuntimeDiagnostic diagnostic={diagnostic} /> : null}
     {richCommandPrompt ? <div
       role="dialog"
@@ -447,6 +496,7 @@ export function RuntimeVisualNavigator({
       }}
     >
       <form
+        noValidate
         onSubmit={event => { void submitRichCommandPrompt(event); }}
         style={{
           display: 'grid',
@@ -467,12 +517,15 @@ export function RuntimeVisualNavigator({
           const kind = parameter.schema.kind;
           const value = richCommandValues[parameter.key] ?? '';
           const label = parameter.description?.trim() || parameter.key;
+          const fieldError = richCommandValidationErrors[parameter.key];
           return <label key={parameter.key} style={{ display: 'grid', gap: 4 }}>
             <span>{label}{parameter.required ? ' (' + richCommandCopy.required + ')' : ''}</span>
             {kind === 'Boolean' ? <select
               value={value}
               required={parameter.required}
-              onChange={event => setRichCommandValues(previous => ({ ...previous, [parameter.key]: event.target.value }))}
+              aria-invalid={Boolean(fieldError)}
+              aria-describedby={fieldError ? 'runtime-rich-command-error-' + parameter.key : undefined}
+              onChange={event => updateRichCommandValue(parameter.key, event.target.value)}
             >
               <option value="">{richCommandCopy.value}</option>
               <option value="true">true</option>
@@ -480,7 +533,9 @@ export function RuntimeVisualNavigator({
             </select> : kind === 'Enum' ? <select
               value={value}
               required={parameter.required}
-              onChange={event => setRichCommandValues(previous => ({ ...previous, [parameter.key]: event.target.value }))}
+              aria-invalid={Boolean(fieldError)}
+              aria-describedby={fieldError ? 'runtime-rich-command-error-' + parameter.key : undefined}
+              onChange={event => updateRichCommandValue(parameter.key, event.target.value)}
             >
               <option value="">{richCommandCopy.value}</option>
               {(parameter.schema.enumValues ?? []).map(option => <option key={option} value={option}>{option}</option>)}
@@ -490,8 +545,14 @@ export function RuntimeVisualNavigator({
               value={value}
               required={parameter.required}
               maxLength={parameter.schema.maximumLength ?? undefined}
-              onChange={event => setRichCommandValues(previous => ({ ...previous, [parameter.key]: event.target.value }))}
+              aria-invalid={Boolean(fieldError)}
+              aria-describedby={fieldError ? 'runtime-rich-command-error-' + parameter.key : undefined}
+              onChange={event => updateRichCommandValue(parameter.key, event.target.value)}
             />}
+            {fieldError ? <span
+              id={'runtime-rich-command-error-' + parameter.key}
+              role="alert"
+            >{fieldError === 'required' ? richCommandCopy.validationRequired : richCommandCopy.validationInvalid}</span> : null}
           </label>;
         })}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
@@ -542,6 +603,46 @@ function isRichCommandErrorOutcome(outcome: RuntimeRichCommandOutcome): boolean 
 
 function isRuntimeWriteValue(value: unknown): value is string | number | boolean {
   return typeof value === 'boolean' || typeof value === 'string' || (typeof value === 'number' && Number.isFinite(value));
+}
+
+function validateRichCommandPrompt(
+  definition: RuntimeRichCommandDefinition,
+  values: Readonly<Record<string, string>>
+): Readonly<Record<string, RichCommandFieldError>> {
+  const errors: Record<string, RichCommandFieldError> = {};
+  for (const parameter of definition.parameters) {
+    const rawValue = values[parameter.key] ?? '';
+    if (rawValue === '') {
+      if (parameter.required) errors[parameter.key] = 'required';
+      continue;
+    }
+
+    const { kind, minimum, maximum, maximumLength, enumValues } = parameter.schema;
+    if (kind === 'Boolean' && rawValue !== 'true' && rawValue !== 'false') {
+      errors[parameter.key] = 'invalid';
+      continue;
+    }
+    if (kind === 'Enum' && !(enumValues ?? []).includes(rawValue)) {
+      errors[parameter.key] = 'invalid';
+      continue;
+    }
+    if (kind === 'String' && maximumLength != null && rawValue.length > maximumLength) {
+      errors[parameter.key] = 'invalid';
+      continue;
+    }
+
+    if (kind === 'Integer' || kind === 'Number' || kind === 'Percentage') {
+      const candidate = rawValue.trim();
+      const numericValue = candidate === '' ? Number.NaN : Number(candidate);
+      if (!Number.isFinite(numericValue) ||
+          (kind === 'Integer' && !Number.isInteger(numericValue)) ||
+          (minimum != null && numericValue < minimum) ||
+          (maximum != null && numericValue > maximum)) {
+        errors[parameter.key] = 'invalid';
+      }
+    }
+  }
+  return errors;
 }
 
 function resolveInitialNavigation(

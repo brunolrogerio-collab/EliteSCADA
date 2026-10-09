@@ -162,6 +162,13 @@ export async function executeRuntimeRichCommand(
   try {
     payload = await response.json();
   } catch {
+    if (response.status >= 400 && response.status < 500) {
+      return richRejected(
+        normalized,
+        'response.rejected',
+        'Rich Command request was rejected (' + response.status + ').'
+      );
+    }
     return richUnknown(normalized, 'response.ambiguous', 'The Rich Command outcome is unknown.');
   }
 
@@ -170,13 +177,18 @@ export async function executeRuntimeRichCommand(
     return payload;
   }
 
-  if (response.status >= 500)
-    return richUnknown(normalized, 'response.ambiguous', 'The Rich Command outcome is unknown.');
+  if (response.status >= 400 && response.status < 500) {
+    return richRejected(
+      normalized,
+      'response.rejected',
+      'Rich Command request was rejected (' + response.status + ').'
+    );
+  }
 
-  return richRejected(
+  return richUnknown(
     normalized,
     'response.invalid',
-    'Rich Command request was rejected (' + response.status + ').'
+    'The Rich Command outcome is unknown because the response did not prove the result.'
   );
 }
 

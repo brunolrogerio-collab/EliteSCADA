@@ -1,43 +1,51 @@
-# CURRENT MAIN CHECKPOINT — Z2M CI FIX / S5 AUDIT STILL OPEN — 2026-10-09 (BRT)
+# CURRENT MAIN CHECKPOINT — S5 RE-AUDIT PASS / FOUNDATION WAITING MERGE — 2026-10-09 (BRT)
 
-> This checkpoint supersedes older mutable snapshots below. GitHub live is the authority. [Main ledger #305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6073889061).
+> This mutable resume point supersedes older snapshots below. GitHub live remains the authority. [Main ledger #305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6080757388).
 
-Integration remains `wave15/corrections-integration@cfd4ea9a718c3aede93a53606b3e5fd178fae2e1`. Three product assignments remain reserved; no fourth worker or queued-driver release.
+Integration remains `wave15/corrections-integration@cfd4ea9a718c3aede93a53606b3e5fd178fae2e1`. Three product assignments remain reserved; queued lanes are not released.
 
-## Zigbee2MQTT #573 / PR #575
+## S5 #571 / PR #574 — code and audit complete
 
-Current HEAD `3756d37ffba64cf5821c77d23c2e473dfd2c7254`; tree `53f8c41f821ac7bd8d46c63f3d35910cc846af76`; parent `64c5cf205a13fe037182272ba978ca22567657e2`. [Exact-head normal T1 #988](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/37880724175) PASS: Drivers **1,266 passed / 1 skip / 0 failed**, classifier/common/gate PASS; Web/Chromium/HA profile-skipped.
+Current HEAD `f5164614966ccddeda20ab36af31d0a7742388f6`, tree `e5ebff41821cfbee58e688855435e87fbea7c144`; required base/merge-base cfd4ea9; 5 ahead / 0 behind. PR OPEN / READY / mergeable / unmerged.
 
-Main accepted the A1/A2 source/focused corrections. Current inventory/bridge readiness is honest, and an observation predating an operation cannot confirm it. This is not canonical L3 acceptance.
+[Main re-audit PASS](https://github.com/brunolrogerio-collab/EliteSCADA/pull/574#issuecomment-6080730975) accepts and closes S5-A1/A2/A3 for this candidate:
+- Invalid successful execute responses, wrong identity, unknown outcome and malformed bodies remain Unknown after possible dispatch; exactly one execute POST, no retry/fallback.
+- Six actual rendered Screen/Popup browser scenarios prove parameterless/typed invocation, required/range validation, zero POST on invalid/cancel, visible completion/Unknown and Popup coexistence with legacy bodyless Command/TAG write.
+- A synchronous prompt owner prevents late definition responses from overwriting a displayed prompt. Losing actions release feedback/locks; the controlled-response browser regression proves the winning prompt remains stable and the losing action can reopen.
 
-The old T1 #987 RED was an existing shared fixture: forced exit after 50 ms could happen before readiness observation, missing the intended post-Ready restart scenario. Root TEST_STALE / ENVIRONMENT scheduling trigger; SHARED_HOTSPOT identifies ownership, not proof of a product bug. Correct production early-exit rejection remains unchanged.
+Normal exact-head [T1 #991 / 37924139537](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/37924139537) PASS: Chromium **42 passed**; Core **535 passed**; Drivers **1,260 passed / 1 skip / 0 failed**; Security **42 passed**; Web/Common/classifier/gate PASS. HA two-process profile-skipped. Main read the actual source and Actions jobs/logs; no unchanged-head rerun is requested.
 
-Main's [explicit narrow exception](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6073792467) changed only `SystemProcess_ForcedCrashRestartsThroughSupervisor` in `ManagedSidecarCheckpoint3Tests.cs`. An explicit unique fixture signal follows observed Ready. Real process, exit 23, restart/Ready and final Stop assertions remain; process disposal precedes directory cleanup. Main shell proof 5/5 plus restarted STOP/code 0 passed; Main local .NET is NOT_RUN/no SDK; current Actions is the C# evidence. Exact blob/tree/parent and force=false CAS were verified.
+The latest two commits alter only navigator/API helper/the routed lane spec. Previously audited Version 2 Rich / legacy Version 1 / Engineering v23, authenticated human CommandExecute, server-owned Active definition/binding and existing Command Audit boundaries remain intact. Mounted UI tests use bounded routed API fixtures; backend authority is covered separately by .NET; real protocol adoption is later S6.
 
-[Current Main Z2M disposition](https://github.com/brunolrogerio-collab/EliteSCADA/issues/573#issuecomment-6073890045): **T1_PASS / A1_A2_ACCEPTED / L3_BLOCKED_DEPENDENCY / WAIT_FOR_COORDINATOR / NO_MERGE**. L2 bounded skip remains accepted; L4 stays after Wave 16. Z2M chat WAIT for foundation release.
+[Owning issue disposition](https://github.com/brunolrogerio-collab/EliteSCADA/issues/571#issuecomment-6080739928): **CODE_COMPLETE / T1_PASS / MAIN_AUDIT_PASS / WAITING_PRODUCT_OWNER_MERGE_AUTHORIZATION / NO_MERGE**. S5 is independent of #576. S5 chat WAIT.
 
-## S5 #571 / PR #574
+## Foundation #576 and remaining driver L3
 
-HEAD remains `cbc3a8e5303db6fde30e31ba0a9104d418abe85c`. The new DEV handoff repeated the old green T1 without the required A1/A2/A3 corrections. It does not close Main's outstanding audit.
+#576 remains at `912b866b0df27173726a5d52a1bd308d3c18d6e0`, tree `e494cba4350798f33ecf0b0fb1fb5a6f8d28b7d4`, OPEN / READY / unmerged. Exact [T1 37833944486](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/37833944486) and [Main audit](https://github.com/brunolrogerio-collab/EliteSCADA/pull/576#issuecomment-6071980262) PASS. Explicit Product Owner merge authorization is still pending.
 
-[Main's concrete correction order](https://github.com/brunolrogerio-collab/EliteSCADA/issues/571#issuecomment-6073819122): read the exact PR audit, fix post-dispatch response ambiguity, add real Screen/Popup browser proof and safe asynchronous prompt ownership; minimum focused checks -> coherent publication -> normal exact-head T1 -> item-by-item handoff. No new approval/second audit is needed to begin those already-authorized corrections. S5 remains independent of #576. S5 chat SIGA.
+After authorized integration Main releases the exact integrated dependency/base to Panasonic and Z2M: narrow CanAcquireInputs consumers, CanOwnExternalEffects writes, canonical activation/#560 proof, coherent publication and exact-head T1. No silent consumption of the unmerged foundation.
+- Panasonic #570/#572 unchanged at `6ef9008066c41f94e1eeb95a727776472c918571`; current T1 remains RED with the sole canonical readiness dependency. Chat WAIT.
+- Z2M #573/#575 unchanged at `3756d37ffba64cf5821c77d23c2e473dfd2c7254`, tree `53f8c41f821ac7bd8d46c63f3d35910cc846af76`; exact [T1 #988 / 37880724175](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/37880724175) PASS: **1,266 / 1 skip / 0 fail**. A1/A2 accepted and Main-owned shared fixture RED resolved; canonical L3 still BLOCKED_DEPENDENCY; PR DRAFT/unmerged; chat WAIT.
+- The shared fixture correction remains the [explicit Main-only test exception](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6073792467). Crash now follows observed Ready; production early-exit rejection and real exit/restart/Stop assertions remain. Root TEST_STALE / ENVIRONMENT scheduling; SHARED_HOTSPOT identifies ownership. Main shell proof was T0; current Actions supplies C# evidence.
 
-## Foundation / owner actions
+Bounded Panasonic/Z2M L2 SKIP_WITH_REASON acceptance is not PASS/interoperability. Every physical driver L4 remains human-only after Wave 16 / partner disclosure / stable installation, and is not the software integration blocker.
 
-#576 remains at `912b866b0df27173726a5d52a1bd308d3c18d6e0`, T1 and Main audit PASS, OPEN/unmerged. Explicit PO merge authorization is still pending; SIGA does not supply it. After authorized integration Main releases the exact dependency/base for Panasonic and Z2M acquisition-vs-write consumers and canonical activation/#560 evidence.
+## Owner chat actions / next decision
 
-| Chat | Action |
+| Chat | Current action |
 | --- | --- |
-| S5 | SIGA in S5: perform outstanding audit corrections |
-| Zigbee2MQTT | WAIT: shared CI RED resolved; L3 awaits foundation |
-| Panasonic | WAIT: canonical readiness awaits foundation |
+| S5 | WAIT: code, exact T1 and Main re-audit passed; merge authorization pending |
+| Panasonic | WAIT: await Main's integrated #576 dependency/base release |
+| Zigbee2MQTT | WAIT: current CI green; canonical L3 awaits #576 |
 | Mitsubishi / S4 | WAIT: already integrated |
 
-All driver physical L4 remains human-only after Wave 16/partner disclosure/stable installation, not the software integration blocker. No broad/full or unchanged-head rerun was launched. Foundation/product/docs candidates remain unmerged; Wave 15 remains open.
+**#576 and #574 are ready for explicit Product Owner merge disposition.** SIGA wakes only the receiving chat and does not authorize merge. Main integrates the foundation first when authorized, then releases the dependent driver work; S5 has no technical dependency on it.
 
-Every DEV Bootstrap must explicitly require outstanding Main review-request inspection. A later DEV handoff does not supersede Main audit; required source/coverage corrections stay open until implemented, evidenced and accepted. See the collaboration protocol's outstanding-review section.
+Docs PR #569 remains OPEN / DRAFT / unmerged. This checkpoint belongs to its candidate branch until documentation integration is authorized; live issues/PR comments carry operational authority. No broad/full or unchanged-head CI, fourth worker, queued product release or merge was launched by this checkpoint. Wave 15 remains open; final #379/#424/#425 -> #306 -> #300 remains ahead.
 
-Snapshot: 09/10/2026 — Hora: 00:51 BRT
+Every DEV Bootstrap still requires inspection of outstanding Main review requests. Those S5 requests are now explicitly accepted; old snapshots saying REQUEST_CHANGES are historical and no longer the next action.
+
+Snapshot: 09/10/2026 — Hora: 09:20 BRT
 
 ---
 

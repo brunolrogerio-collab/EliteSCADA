@@ -258,6 +258,8 @@ public sealed class PanasonicMewtocolCommunicationRuntimeFactory : ICommunicatio
         return new PanasonicMewtocolDriver(
             mewtocolPlan.DataSourceKey, mewtocolPlan.Name, DriverType, mewtocolPlan.Options,
             services.Cache, services.Registry, mewtocolPlan.Points, mewtocolPlan.PollBatches,
-            session, () => services.CanOwnExternalEffects);
+            session,
+            effectAuthority: () => services.CanOwnExternalEffects,
+            inputAcquisitionAuthority: () => services.CanAcquireInputs);
     }
 }

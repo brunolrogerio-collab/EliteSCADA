@@ -34,10 +34,10 @@ X/Y/R/L contact notation uses a decimal prefix and a hexadecimal final nibble. T
 
 | Gate | Evidence in this lane | Disposition |
 | --- | --- | --- |
-| L0 | `PanasonicMewtocolProtocolTests`: address/profile bounds, mixed-radix contacts, standard frame/BCC vector, malformed response payload, transfer limits, UInt16/Int16 bounds/transforms, and contiguous planner batching. | Added; local execution is unavailable in this workspace. |
-| L1 | `PanasonicMewtocolProtocolTests`: independent fake TCP peer and scripted #469 Host Serial transport; timeout, lease reconnect, recovery, and no blind retry assertions. | Added; local execution is unavailable in this workspace. |
-| L2 | No independently maintained Panasonic software peer with a verified MEWTOCOL-COM endpoint is available in this lane. Fake peers establish L1 only; FPWIN is not treated as an external wire peer without endpoint evidence. | `SKIP_WITH_REASON` submitted for Main acceptance. |
-| L3 | `RuntimeCatalogAndEngineeringToolingRegisterBothTransportTypes` covers the TCP/Host Serial descriptors and canonical Engineering tooling registry. `Coordinator_ActivatesCanonicalTagReadsWritesAndPointReadWithSharedDiagnostics` round-trips the Data Source/TAG binding through `SaveCurrentDerivedAsync` and `PublishRevisionAsync`, activates it with `PublishedRuntimeActivationService`, exercises `Runtime.WriteAsync(TAG)`, #500 diagnostics and transient PointRead, then activates revision 2. #560 effect-authority/cleanup behavior is covered by focused lifecycle tests. | Added; local execution is unavailable in this workspace. The test uses an in-memory store fixture and leaves production Save/Publish authority in the existing Engineering workflow. |
+| L0 | `PanasonicMewtocolProtocolTests`: address/profile bounds, mixed-radix contacts, standard frame/BCC vector, malformed response payload, transfer limits, UInt16/Int16 bounds/transforms, and contiguous planner batching. | Local focused T0 passed on .NET SDK 10.0.400; exact-head T1 remains required. |
+| L1 | `PanasonicMewtocolProtocolTests`: independent fake TCP peer and scripted #469 Host Serial transport; timeout, lease reconnect, recovery, and no blind retry assertions. | Local focused T0 passed on .NET SDK 10.0.400; exact-head T1 remains required. |
+| L2 | No independently maintained Panasonic software peer with a verified MEWTOCOL-COM endpoint is available in this lane. Fake peers establish L1 only; FPWIN is not treated as an external wire peer without endpoint evidence. | `SKIP_WITH_REASON` accepted by Main for this code PR. |
+| L3 | `RuntimeCatalogAndEngineeringToolingRegisterBothTransportTypes` covers both TCP/Host Serial descriptors and the canonical Engineering tooling registry; `HostSerialTransportUsesCoordinatorAndDoesNotBlindRetryAfterTimeout` exercises the #469 serial path. `Coordinator_ActivatesCanonicalTagReadsWritesAndPointReadWithSharedDiagnostics` round-trips Data Source/TAG through `SaveCurrentDerivedAsync` and `PublishRevisionAsync`, activates via `PublishedRuntimeActivationService`, exercises `Runtime.WriteAsync(TAG)`, #500 diagnostics and transient PointRead, then publishes and activates revision 2. Coordinator lifecycle coverage includes staged input acquisition with pre-commit write/event fencing, failed-candidate rollback, and polling beyond a short activation request token. Panasonic lifecycle tests cover zero Standby communication, promotion/demotion, and visible cleanup/Dispose failure. | Local focused T0 passed; exact-head T1 on the refreshed branch remains required. The persistence test uses an in-memory store fixture and leaves production Save/Publish authority in the existing Engineering workflow. |
 | L4 | Physical PLC, exact model/firmware, partner disclosure and installed stable EliteSCADA release evidence are not available in this code lane. | Deferred until after Wave 16 as directed by #570. No public model/firmware compatibility claim is made. |
 
 ## Runtime safety behavior
@@ -49,4 +49,10 @@ X/Y/R/L contact notation uses a decimal prefix and a hexadecimal final nibble. T
 
 ## Execution environment
 
-The local workspace did not provide the .NET SDK (`dotnet: command not found`), so no local test result is claimed. The published PR's exact-head `DRIVER_PROTOCOL` T1 is the code validation record; broad CI is outside this lane's request.
+The local workspace has .NET SDK 10.0.400. Focused T0 command:
+
+```text
+dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj --filter 'FullyQualifiedName~PanasonicMewtocolProtocolTests|FullyQualifiedName~EngineeringRuntimeCoordinatorTests' --no-restore -m:1
+```
+
+Result: **33 passed / 0 failed / 0 skipped** (24 Panasonic protocol tests and 9 Runtime coordinator tests). This was a local focused run; the refreshed published branch still requires its exact-head `DRIVER_PROTOCOL` T1. Broad CI is outside this lane's request.

@@ -180,44 +180,59 @@ public sealed class PanasonicMewtocolProtocolTests
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(12));
         var wireCommands = new System.Collections.Concurrent.ConcurrentQueue<string>();
         var currentWord = 100;
+        async Task ServeClientAsync(TcpClient client, CancellationToken cancellationToken)
+        {
+            using (client)
+            {
+                var stream = client.GetStream();
+                while (!cancellationToken.IsCancellationRequested && client.Connected)
+                {
+                    byte[] request;
+                    try { request = await ReadFrameAsync(stream, cancellationToken); }
+                    catch (IOException) { break; }
+                    var command = ExtractCommandText(request);
+                    wireCommands.Enqueue(command[..2]);
+                    if (command.StartsWith("WD", StringComparison.Ordinal))
+                    {
+                        var payload = Convert.FromHexString(command[^4..]);
+                        Interlocked.Exchange(ref currentWord, BinaryPrimitives.ReadUInt16LittleEndian(payload));
+                        await stream.WriteAsync(BuildResponse(1, "$WD"), cancellationToken);
+                    }
+                    else if (command.StartsWith("RD", StringComparison.Ordinal))
+                    {
+                        var value = Interlocked.CompareExchange(ref currentWord, 0, 0);
+                        var payload = new byte[2];
+                        BinaryPrimitives.WriteUInt16LittleEndian(payload, (ushort)value);
+                        await stream.WriteAsync(BuildResponse(1, $"$RD{Convert.ToHexString(payload)}"), cancellationToken);
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException($"Unexpected MEWTOCOL-COM command '{command}'.");
+                    }
+                }
+            }
+        }
         var peer = Task.Run(async () =>
         {
+            var clientTasks = new List<Task>();
             try
             {
                 while (!timeout.IsCancellationRequested)
                 {
-                    using var client = await listener.AcceptTcpClientAsync(timeout.Token);
-                    var stream = client.GetStream();
-                    while (!timeout.IsCancellationRequested && client.Connected)
-                    {
-                        byte[] request;
-                        try { request = await ReadFrameAsync(stream, timeout.Token); }
-                        catch (IOException) { break; }
-                        var command = ExtractCommandText(request);
-                        wireCommands.Enqueue(command[..2]);
-                        if (command.StartsWith("WD", StringComparison.Ordinal))
-                        {
-                            var payload = Convert.FromHexString(command[^4..]);
-                            Interlocked.Exchange(ref currentWord, BinaryPrimitives.ReadUInt16LittleEndian(payload));
-                            await stream.WriteAsync(BuildResponse(1, "$WD"), timeout.Token);
-                        }
-                        else if (command.StartsWith("RD", StringComparison.Ordinal))
-                        {
-                            var value = Interlocked.CompareExchange(ref currentWord, 0, 0);
-                            var payload = new byte[2];
-                            BinaryPrimitives.WriteUInt16LittleEndian(payload, (ushort)value);
-                            await stream.WriteAsync(BuildResponse(1, $"$RD{Convert.ToHexString(payload)}"), timeout.Token);
-                        }
-                        else
-                        {
-                            throw new InvalidOperationException($"Unexpected MEWTOCOL-COM command '{command}'.");
-                        }
-                    }
+                    var client = await listener.AcceptTcpClientAsync(timeout.Token);
+                    clientTasks.Add(ServeClientAsync(client, timeout.Token));
                 }
             }
             catch (OperationCanceledException) when (timeout.IsCancellationRequested) { }
             catch (SocketException) when (timeout.IsCancellationRequested) { }
             catch (ObjectDisposedException) when (timeout.IsCancellationRequested) { }
+            finally
+            {
+                try { await Task.WhenAll(clientTasks); }
+                catch (OperationCanceledException) when (timeout.IsCancellationRequested) { }
+                catch (SocketException) when (timeout.IsCancellationRequested) { }
+                catch (ObjectDisposedException) when (timeout.IsCancellationRequested) { }
+            }
         }, timeout.Token);
 
         var driverType = PanasonicMewtocolDriverDescriptorProvider.TcpDriverTypeId;
@@ -312,8 +327,8 @@ public sealed class PanasonicMewtocolProtocolTests
         finally
         {
             await coordinator.DisposeAsync();
-            listener.Stop();
             timeout.Cancel();
+            listener.Stop();
             try { await peer; }
             catch (Exception ex) when (ex is OperationCanceledException or SocketException or ObjectDisposedException) { }
         }

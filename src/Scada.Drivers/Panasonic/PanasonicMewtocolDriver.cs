@@ -23,6 +23,7 @@ public sealed class PanasonicMewtocolDriver :
     private readonly ITagRegistry _registry;
     private readonly IPanasonicMewtocolSession _session;
     private readonly Func<bool> _effectAuthority;
+    private readonly Func<bool> _inputAcquisitionAuthority;
     private readonly SemaphoreSlim _writeGate = new(1, 1);
     private readonly object _diagnosticGate = new();
     private readonly Queue<bool> _recentFailures = new();
@@ -63,7 +64,8 @@ public sealed class PanasonicMewtocolDriver :
         IEnumerable<PanasonicMewtocolPoint> points,
         IEnumerable<PanasonicMewtocolPollBatch> batches,
         IPanasonicMewtocolSession session,
-        Func<bool>? effectAuthority = null)
+        Func<bool>? effectAuthority = null,
+        Func<bool>? inputAcquisitionAuthority = null)
     {
         if (string.IsNullOrWhiteSpace(dataSourceKey)) throw new ArgumentException("Data Source key is required.", nameof(dataSourceKey));
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Driver name is required.", nameof(name));
@@ -88,6 +90,7 @@ public sealed class PanasonicMewtocolDriver :
             throw new ArgumentException("Each Panasonic TAG ID must be unique within the Data Source.", nameof(points));
         _byTagId = _points.ToDictionary(point => point.Tag.Id);
         _effectAuthority = effectAuthority ?? (() => true);
+        _inputAcquisitionAuthority = inputAcquisitionAuthority ?? _effectAuthority;
         Status = new DriverStatus(DriverId, Name, DriverState.Stopped, DateTimeOffset.UtcNow);
     }
 
@@ -102,7 +105,7 @@ public sealed class PanasonicMewtocolDriver :
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (_loop is { IsCompleted: false }) return Task.CompletedTask;
-        if (!_effectAuthority())
+        if (!_inputAcquisitionAuthority())
         {
             Status = new DriverStatus(DriverId, Name, DriverState.Stopped, DateTimeOffset.UtcNow);
             TransitionState(CommunicationDriverOperationalState.Stopped);
@@ -274,10 +277,10 @@ public sealed class PanasonicMewtocolDriver :
         try
         {
             using var timer = new PeriodicTimer(_options.ScanInterval);
-            while (!cancellationToken.IsCancellationRequested && _effectAuthority())
+            while (!cancellationToken.IsCancellationRequested && _inputAcquisitionAuthority())
             {
                 var failed = await PollOnceAsync(cancellationToken).ConfigureAwait(false);
-                if (!_effectAuthority()) break;
+                if (!_inputAcquisitionAuthority()) break;
                 if (!_session.IsConnected && failed > 0)
                 {
                     var attempt = Interlocked.Increment(ref _consecutiveReconnectFailures);
@@ -288,7 +291,7 @@ public sealed class PanasonicMewtocolDriver :
                 Interlocked.Exchange(ref _consecutiveReconnectFailures, 0);
                 if (!await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false)) break;
             }
-            if (!_effectAuthority())
+            if (!_inputAcquisitionAuthority())
             {
                 await _session.DisconnectAsync().ConfigureAwait(false);
                 Status = new DriverStatus(DriverId, Name, DriverState.Stopped, DateTimeOffset.UtcNow, UpdatesPublished: Interlocked.Read(ref _updatesPublished));
@@ -313,7 +316,7 @@ public sealed class PanasonicMewtocolDriver :
         foreach (var batch in _batches)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (!_effectAuthority()) break;
+            if (!_inputAcquisitionAuthority()) break;
             var operationStarted = Stopwatch.GetTimestamp();
             try
             {
@@ -336,14 +339,14 @@ public sealed class PanasonicMewtocolDriver :
             _cycles++;
             _lastScanTicks = Stopwatch.GetElapsedTime(started).Ticks;
             _initialAcquisitionAttempts++;
-            if (failed == 0 && _effectAuthority())
+            if (failed == 0 && _inputAcquisitionAuthority())
             {
                 _initialAcquisitionCompleted = true;
                 _lastSuccessfulAt = now;
             }
             else if (failed > 0) _lastFailedAt = now;
         }
-        if (!_effectAuthority()) return failed;
+        if (!_inputAcquisitionAuthority()) return failed;
         if (failed == 0)
         {
             TransitionState(CommunicationDriverOperationalState.Healthy);
@@ -359,7 +362,7 @@ public sealed class PanasonicMewtocolDriver :
 
     private async Task PollBatchAsync(PanasonicMewtocolPollBatch batch, CancellationToken cancellationToken)
     {
-        if (!_effectAuthority()) return;
+        if (!_inputAcquisitionAuthority()) return;
         var first = batch.Points.First();
         var request = batch.IsContact
             ? PanasonicMewtocolProtocolCodec.BuildReadContacts(_options.Station, batch.Points.Select(point => point.Address).ToArray(), _options.FrameMode)
@@ -368,7 +371,7 @@ public sealed class PanasonicMewtocolDriver :
         var expectedLength = batch.IsContact ? batch.Count : checked(batch.Count * 4);
         _lastCommand = batch.IsContact ? (batch.Count == 1 ? "RCS" : "RCP") : "RD";
         var response = await _session.ExecuteAsync(request, responseCode, expectedLength, writeCommand: false, cancellationToken).ConfigureAwait(false);
-        if (!_effectAuthority()) return;
+        if (!_inputAcquisitionAuthority()) return;
         foreach (var point in batch.Points)
         {
             object value;

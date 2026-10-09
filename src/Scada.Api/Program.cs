@@ -123,6 +123,8 @@ builder.Services.AddSingleton<IRichCommandRuntime>(sp =>
         sp.GetRequiredService<IRichCommandBindingResolver>(),
         sp.GetRequiredService<IRichCommandDriverExecutorResolver>(),
         () => sp.GetRequiredService<RuntimeHighAvailabilityService>().CanOwnIndustrialEffects()));
+builder.Services.AddSingleton<IRichCommandHmiAuthorization, ApiRichCommandHmiAuthorization>();
+builder.Services.AddSingleton<HmiRichCommandInvocationService>();
 
 builder.Services.AddSingleton<IEngineeringDriverCompiler, EngineeringDriverCompiler>();
 builder.Services.AddSingleton<GatewayEngineeringRuntimeCoordinator>(sp =>
@@ -226,6 +228,7 @@ Scada.Api.VisualAssets.StaticArtworkEndpoints.MapStaticArtworkEndpoints(app);
 app.MapAuditEndpoints();
 app.MapAlarmShelvingEndpoints();
 app.MapCommandEndpoints();
+app.MapHmiRichCommandEndpoints();
 app.MapInternalMemoryEndpoints();
 app.MapProductLicensingEndpoints();
 app.MapProductIdentityEndpoints();

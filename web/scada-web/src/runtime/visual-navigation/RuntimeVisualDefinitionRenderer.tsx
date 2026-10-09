@@ -268,8 +268,12 @@ function RuntimeDynamoStateLayer({
         if ([...candidate.querySelectorAll<HTMLElement>('[data-object-id]')].some(child => child.dataset.objectId === objectId)) { host = candidate; break; }
       }
       if (!host) return null;
+      const failed = feedback.state === 'failed' || feedback.state === 'Rejected' ||
+        feedback.state === 'Failed' || feedback.state === 'TimedOut' || feedback.state === 'Unknown';
+      const succeeded = feedback.state === 'confirmed' || feedback.state === 'Completed';
       return createPortal(<span key={objectId} role="status" data-dynamo-command-state={feedback.state}
-        style={{ position: 'absolute', bottom: 2, left: 2, zIndex: 1000, pointerEvents: 'none', borderRadius: 3, padding: '2px 4px', fontSize: 10, color: '#fff', background: feedback.state === 'failed' ? '#9a2525' : feedback.state === 'confirmed' ? '#235539' : '#354c67' }}>{feedback.label}</span>, host);
+        data-runtime-action-state={feedback.state}
+        style={{ position: 'absolute', bottom: 2, left: 2, zIndex: 1000, pointerEvents: 'none', borderRadius: 3, padding: '2px 4px', fontSize: 10, color: '#fff', background: failed ? '#9a2525' : succeeded ? '#235539' : '#354c67' }}>{feedback.label}</span>, host);
     })}
     {indicators.map(indicator => {
       const host = hosts.get(indicator.objectId);

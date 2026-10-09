@@ -13,6 +13,7 @@ using Scada.Engineering.Interactions;
 using Scada.Engineering.ProjectPackages;
 using Scada.Engineering.Security;
 using Scada.Engineering.Views;
+using Scada.Engineering.Validation;
 
 namespace Scada.Core.Tests;
 
@@ -58,6 +59,8 @@ public sealed class DriverInteractionEngineeringExchangeTests
         Assert.Single(restored.CapabilityEventReferences!);
         Assert.Single(restored.RichCommandDefinitions!);
         Assert.Single(restored.DriverCommandBindings!);
+        Assert.Equal(2, Assert.Single(Assert.Single(Assert.Single(restored.Screens!).Elements!).Actions!).Version);
+        Assert.Equal(2, Assert.Single(Assert.Single(Assert.Single(restored.Popups!).Elements!).Actions!).Version);
     }
 
     [Fact]
@@ -77,6 +80,12 @@ public sealed class DriverInteractionEngineeringExchangeTests
         Assert.Single(inspection.Engineering.CapabilityEventReferences!);
         Assert.Single(inspection.Engineering.RichCommandDefinitions!);
         Assert.Single(inspection.Engineering.DriverCommandBindings!);
+        Assert.Equal(
+            VisualNavigationActionKind.ExecuteRichCommand,
+            Assert.Single(Assert.Single(Assert.Single(inspection.Engineering.Screens!).Elements!).Actions!).Kind);
+        Assert.Equal(
+            VisualNavigationActionKind.ExecuteRichCommand,
+            Assert.Single(Assert.Single(Assert.Single(inspection.Engineering.Popups!).Elements!).Actions!).Kind);
 
         using var target = CreateFixture(seedResources: false);
         var targetService = new ProjectPackageService(target.Exchange);
@@ -89,6 +98,91 @@ public sealed class DriverInteractionEngineeringExchangeTests
         Assert.Single(target.Interactions.SnapshotCapabilityEventReferences());
         Assert.Single(target.Interactions.SnapshotRichCommandDefinitions());
         Assert.Single(target.Interactions.SnapshotDriverCommandBindings());
+        var restored = target.Exchange.ParseJson(target.Exchange.ExportJson(indented: false));
+        Assert.Equal(
+            VisualNavigationActionKind.ExecuteRichCommand,
+            Assert.Single(Assert.Single(Assert.Single(restored.Screens!).Elements!).Actions!).Kind);
+        Assert.Equal(
+            VisualNavigationActionKind.ExecuteRichCommand,
+            Assert.Single(Assert.Single(Assert.Single(restored.Popups!).Elements!).Actions!).Kind);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    public void VisualActionVersions_KeepLegacyAtOneAndRejectRichMismatches(int richVersion)
+    {
+        var richCommandId = Guid.NewGuid();
+        var richAction = new VisualNavigationActionEngineeringDto(
+            "click",
+            VisualNavigationActionKind.ExecuteRichCommand,
+            Version: richVersion,
+            CommandId: richCommandId);
+        var richIssues = VisualCompositionEngineeringValidation.ValidateElement(
+            new VisualElementEngineeringDto(
+                "rich-button",
+                "button",
+                Actions: [richAction]),
+            ImportEntityKind.Screen,
+            "screen.home");
+
+        Assert.Contains(richIssues, issue =>
+            issue.Code == "VISUAL_RICH_COMMAND_ACTION_VERSION_UNSUPPORTED");
+
+        var implicitLegacyAction = new VisualNavigationActionEngineeringDto(
+            "click",
+            VisualNavigationActionKind.ExecuteCommand);
+        Assert.Equal(VisualCompositionEngineeringVersions.Current, implicitLegacyAction.Version);
+
+        var elevatedLegacyAction = implicitLegacyAction with { Version = 2, CommandId = richCommandId };
+        var legacyIssues = VisualCompositionEngineeringValidation.ValidateElement(
+            new VisualElementEngineeringDto(
+                "legacy-button",
+                "button",
+                Actions: [elevatedLegacyAction]),
+            ImportEntityKind.Screen,
+            "screen.home");
+
+        Assert.Contains(legacyIssues, issue =>
+            issue.Code == "VISUAL_COMPOSITION_VERSION_UNSUPPORTED");
+    }
+
+    [Fact]
+    public void Preview_RejectsRichCommandActionWhenDefinitionIsNotProspectiveOrActive()
+    {
+        using var fixture = CreateFixture();
+        var missingCommandId = Guid.NewGuid();
+        var package = EmptyPackage(fixture.EquipmentId, fixture.DataSourceId) with
+        {
+            Screens =
+            [
+                new ScreenEngineeringDto(
+                    Guid.NewGuid(),
+                    "screen.home",
+                    "Home",
+                    Elements:
+                    [
+                        new VisualElementEngineeringDto(
+                            "open-cover",
+                            "button",
+                            Actions:
+                            [
+                                new VisualNavigationActionEngineeringDto(
+                                    "click",
+                                    VisualNavigationActionKind.ExecuteRichCommand,
+                                    Version: VisualNavigationActionVersions.RichCommand,
+                                    CommandId: missingCommandId)
+                            ])
+                    ])
+            ]
+        };
+
+        var preview = fixture.Exchange.Preview(package, ImportMode.CreateAndUpdate);
+
+        Assert.False(preview.CanApply);
+        Assert.Contains(
+            preview.Items.SelectMany(item => item.Issues),
+            issue => issue.Code == "VISUAL_RICH_COMMAND_NOT_FOUND");
     }
 
     [Fact]
@@ -267,7 +361,49 @@ public sealed class DriverInteractionEngineeringExchangeTests
                     "cover.stopped")
             ],
             RichCommandDefinitions = [ValidCommand(commandId)],
-            DriverCommandBindings = [ValidBinding(commandId, dataSourceId, equipmentId)]
+            DriverCommandBindings = [ValidBinding(commandId, dataSourceId, equipmentId)],
+            Screens =
+            [
+                new ScreenEngineeringDto(
+                    Guid.NewGuid(),
+                    "screen.home",
+                    "Home",
+                    Elements:
+                    [
+                        new VisualElementEngineeringDto(
+                            "execute-cover",
+                            "button",
+                            Actions:
+                            [
+                                new VisualNavigationActionEngineeringDto(
+                                    "click",
+                                    VisualNavigationActionKind.ExecuteRichCommand,
+                                    Version: VisualNavigationActionVersions.RichCommand,
+                                    CommandId: commandId)
+                            ])
+                    ])
+            ],
+            Popups =
+            [
+                new PopupEngineeringDto(
+                    Guid.NewGuid(),
+                    "popup.cover",
+                    "Cover",
+                    Elements:
+                    [
+                        new VisualElementEngineeringDto(
+                            "execute-cover",
+                            "button",
+                            Actions:
+                            [
+                                new VisualNavigationActionEngineeringDto(
+                                    "click",
+                                    VisualNavigationActionKind.ExecuteRichCommand,
+                                    Version: VisualNavigationActionVersions.RichCommand,
+                                    CommandId: commandId)
+                            ])
+                    ])
+            ]
         };
     }
 

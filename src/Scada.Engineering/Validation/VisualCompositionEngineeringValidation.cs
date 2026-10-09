@@ -400,8 +400,26 @@ public static class VisualCompositionEngineeringValidation
                 issues.Add(Error("VISUAL_ACTION_NULL", $"Visual element '{elementKey}' contains a null navigation action.", kind, entityKey));
                 continue;
             }
-            if (action.Version != VisualCompositionEngineeringVersions.Current)
-                issues.Add(Error("VISUAL_COMPOSITION_VERSION_UNSUPPORTED", $"Navigation action '{action.EventKey}' uses unsupported version {action.Version}.", kind, entityKey));
+            if (!Enum.IsDefined(typeof(VisualNavigationActionKind), action.Kind))
+            {
+                issues.Add(Error(
+                    "VISUAL_ACTION_KIND_UNSUPPORTED",
+                    $"Visual action '{action.EventKey}' uses unsupported kind '{action.Kind}'.",
+                    kind,
+                    entityKey));
+                continue;
+            }
+            var expectedVersion = action.Kind == VisualNavigationActionKind.ExecuteRichCommand
+                ? VisualNavigationActionVersions.RichCommand
+                : VisualCompositionEngineeringVersions.Current;
+            if (action.Version != expectedVersion)
+                issues.Add(Error(
+                    action.Kind == VisualNavigationActionKind.ExecuteRichCommand
+                        ? "VISUAL_RICH_COMMAND_ACTION_VERSION_UNSUPPORTED"
+                        : "VISUAL_COMPOSITION_VERSION_UNSUPPORTED",
+                    $"Navigation action '{action.EventKey}' uses unsupported version {action.Version}.",
+                    kind,
+                    entityKey));
             if (string.IsNullOrWhiteSpace(action.EventKey))
                 issues.Add(Error("VISUAL_ACTION_EVENT_REQUIRED", $"Visual element '{elementKey}' navigation action requires an event key.", kind, entityKey));
             else if (duplicates.Contains(action.EventKey))
@@ -426,6 +444,39 @@ public static class VisualCompositionEngineeringValidation
                     issues.Add(Error(
                         "VISUAL_ACTION_COMMAND_REFERENCE_INVALID",
                         $"ExecuteCommand action '{action.EventKey}' requires exactly one CommandId or CommandParameterKey.",
+                        kind,
+                        entityKey));
+            }
+            else if (action.Kind == VisualNavigationActionKind.ExecuteRichCommand)
+            {
+                if (!action.CommandId.HasValue || action.CommandId == Guid.Empty)
+                    issues.Add(Error(
+                        "VISUAL_RICH_COMMAND_ID_REQUIRED",
+                        $"ExecuteRichCommand action '{action.EventKey}' requires a stable Rich Command identity.",
+                        kind,
+                        entityKey));
+                if (kind is not (ImportEntityKind.Screen or ImportEntityKind.Popup))
+                    issues.Add(Error(
+                        "VISUAL_RICH_COMMAND_ACTION_KIND_UNSUPPORTED",
+                        "ExecuteRichCommand actions are supported only by Screen and Popup visual definitions.",
+                        kind,
+                        entityKey));
+                if (!string.IsNullOrWhiteSpace(action.TargetKey))
+                    issues.Add(Error(
+                        "VISUAL_RICH_COMMAND_TARGET_NOT_ALLOWED",
+                        $"ExecuteRichCommand action '{action.EventKey}' cannot declare a target key.",
+                        kind,
+                        entityKey));
+                if (action.Parameters is not null)
+                    issues.Add(Error(
+                        "VISUAL_RICH_COMMAND_PARAMETERS_NOT_ALLOWED",
+                        $"ExecuteRichCommand action '{action.EventKey}' cannot persist parameter values.",
+                        kind,
+                        entityKey));
+                if (!string.IsNullOrWhiteSpace(action.CommandParameterKey))
+                    issues.Add(Error(
+                        "VISUAL_RICH_COMMAND_PARAMETER_KEY_NOT_ALLOWED",
+                        $"ExecuteRichCommand action '{action.EventKey}' cannot use Dynamo Command indirection.",
                         kind,
                         entityKey));
             }

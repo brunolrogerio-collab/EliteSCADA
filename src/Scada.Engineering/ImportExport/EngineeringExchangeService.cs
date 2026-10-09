@@ -627,7 +627,64 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             {
                 if (action is null) continue;
 
-                if (action.Kind == VisualNavigationActionKind.ExecuteCommand)
+                if (action.Kind == VisualNavigationActionKind.ExecuteRichCommand)
+                {
+                    if (kind is not (ImportEntityKind.Screen or ImportEntityKind.Popup))
+                        issues.Add(new ImportIssue(
+                            "VISUAL_RICH_COMMAND_ACTION_KIND_UNSUPPORTED",
+                            "ExecuteRichCommand actions are supported only by Screen and Popup visual definitions.",
+                            kind,
+                            entityKey,
+                            true));
+
+                    if (!action.CommandId.HasValue || action.CommandId == Guid.Empty)
+                    {
+                        issues.Add(new ImportIssue(
+                            "VISUAL_RICH_COMMAND_ID_REQUIRED",
+                            $"ExecuteRichCommand action '{action.EventKey}' requires a stable Rich Command identity.",
+                            kind,
+                            entityKey,
+                            true));
+                        continue;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(action.TargetKey))
+                        issues.Add(new ImportIssue(
+                            "VISUAL_RICH_COMMAND_TARGET_NOT_ALLOWED",
+                            $"ExecuteRichCommand action '{action.EventKey}' cannot declare a navigation target key.",
+                            kind,
+                            entityKey,
+                            true));
+
+                    if (action.Parameters is not null)
+                        issues.Add(new ImportIssue(
+                            "VISUAL_RICH_COMMAND_PARAMETERS_NOT_ALLOWED",
+                            $"ExecuteRichCommand action '{action.EventKey}' cannot persist parameter values.",
+                            kind,
+                            entityKey,
+                            true));
+
+                    if (!string.IsNullOrWhiteSpace(action.CommandParameterKey))
+                        issues.Add(new ImportIssue(
+                            "VISUAL_RICH_COMMAND_PARAMETER_KEY_NOT_ALLOWED",
+                            $"ExecuteRichCommand action '{action.EventKey}' cannot use Dynamo Command indirection.",
+                            kind,
+                            entityKey,
+                            true));
+
+                    var commandId = action.CommandId.Value;
+                    var commandExists = _driverInteractions.FindRichCommandDefinition(commandId) is not null ||
+                        (package.RichCommandDefinitions ?? Array.Empty<RichCommandDefinitionEngineeringDto>())
+                            .Any(command => command is not null && command.CommandId == commandId);
+                    if (!commandExists)
+                        issues.Add(new ImportIssue(
+                            "VISUAL_RICH_COMMAND_NOT_FOUND",
+                            $"ExecuteRichCommand action '{action.EventKey}' references Rich Command identity '{commandId:D}', which was not found in the prospective Engineering model.",
+                            kind,
+                            entityKey,
+                            true));
+                }
+                else if (action.Kind == VisualNavigationActionKind.ExecuteCommand)
                 {
                     var portableDynamoCommand = kind == ImportEntityKind.Dynamo &&
                         !string.IsNullOrWhiteSpace(action.CommandParameterKey) &&

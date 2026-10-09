@@ -39,7 +39,18 @@ public sealed record CommunicationDriverRuntimeServices(
     ICommunicationDriverProtectedMaterialResolver? ProtectedMaterialResolver = null,
     Func<bool>? EffectAuthority = null)
 {
+    /// <summary>
+    /// Host-owned permission for a Runtime candidate to acquire process inputs
+    /// into its private cache before activation commits. Drivers must not use
+    /// this permission for writes, commands, or other process effects. When no
+    /// separate authority is supplied, preserve the existing effect-fence
+    /// behavior for callers that construct these services directly.
+    /// </summary>
+    public Func<bool>? InputAcquisitionAuthority { get; init; }
+
     public bool CanOwnExternalEffects => EffectAuthority?.Invoke() ?? true;
+
+    public bool CanAcquireInputs => InputAcquisitionAuthority?.Invoke() ?? CanOwnExternalEffects;
 
     public void Validate()
     {

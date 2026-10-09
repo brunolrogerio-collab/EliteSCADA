@@ -3,6 +3,7 @@ using Scada.Core.Events;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
+using Scada.Drivers.Abstractions;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
 
@@ -10,6 +11,8 @@ namespace Scada.Drivers.Tests;
 
 public sealed class EngineeringRuntimeCoordinatorTests
 {
+    private const string StagedReadinessDriverType = "test.staged-readiness";
+
     [Fact]
     public async Task ActivateAsync_VisualOnlyProjectCommitsWithoutAcquisitionSources()
     {
@@ -31,6 +34,94 @@ public sealed class EngineeringRuntimeCoordinatorTests
         Assert.Empty(runtime.Describe().Drivers);
         Assert.DoesNotContain(result.RuntimeIssues, issue => issue.IsError);
         Assert.Contains(result.RuntimeIssues, issue => issue.Code == "RUNTIME_NO_ACTIVE_SOURCES" && !issue.IsError);
+    }
+
+    [Fact]
+    public async Task ActivateAsync_CandidateCanAcquireInputsWhileWritesAndExternalEventsRemainFencedUntilCommit()
+    {
+        var tag = TagDefinition.Create(
+            "Setpoint",
+            "Plant.Setpoint",
+            TagDataType.Int16,
+            source: "staged-source");
+        var components = CreateStagedReadinessComponents(tag);
+        var factory = Assert.IsType<StagedReadinessRuntimeFactory>(
+            components.GetRequired(StagedReadinessDriverType).Factory);
+        var externalBus = new InMemoryScadaEventBus();
+        var forwardedTagEvents = 0;
+        using var subscription = externalBus.Subscribe<TagValueChanged>(_ =>
+        {
+            Interlocked.Increment(ref forwardedTagEvents);
+            return ValueTask.CompletedTask;
+        });
+
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            externalBus,
+            new EngineeringDriverCompiler(components),
+            TimeSpan.FromSeconds(1),
+            communicationComponents: components);
+
+        bool acquiredAtCommit = false;
+        bool writesAllowedAtCommit = true;
+        int eventsForwardedAtCommit = -1;
+        Exception? fencedWriteFailure = null;
+        var result = await runtime.ActivateAsync(
+            "plant-a",
+            1,
+            CreateStagedReadinessPackage(tag),
+            async (_, cancellationToken) =>
+            {
+                var candidate = Assert.IsType<StagedReadinessDriver>(factory.Created);
+                acquiredAtCommit = candidate.AcquiredInput;
+                writesAllowedAtCommit = candidate.Services.CanOwnExternalEffects;
+                eventsForwardedAtCommit = Volatile.Read(ref forwardedTagEvents);
+                fencedWriteFailure = await Record.ExceptionAsync(async () =>
+                    await candidate.WriteAsync(tag.Id, (short)77, cancellationToken));
+            });
+
+        Assert.True(result.Activated);
+        Assert.True(acquiredAtCommit);
+        Assert.False(writesAllowedAtCommit);
+        Assert.IsType<InvalidOperationException>(fencedWriteFailure);
+        Assert.Equal(0, eventsForwardedAtCommit);
+        Assert.Equal(0, Volatile.Read(ref forwardedTagEvents));
+
+        await runtime.WriteAsync(tag.Id, (short)77);
+
+        Assert.Equal(1, Assert.IsType<StagedReadinessDriver>(factory.Created).Writes);
+        Assert.True(Volatile.Read(ref forwardedTagEvents) > 0);
+    }
+
+    [Fact]
+    public async Task ActivateAsync_StandbyAuthorityDoesNotGrantCandidateInputAcquisition()
+    {
+        var tag = TagDefinition.Create(
+            "Setpoint",
+            "Plant.Setpoint",
+            TagDataType.Int16,
+            source: "staged-source");
+        var components = CreateStagedReadinessComponents(tag);
+        var factory = Assert.IsType<StagedReadinessRuntimeFactory>(
+            components.GetRequired(StagedReadinessDriverType).Factory);
+        await using var runtime = new EngineeringRuntimeCoordinator(
+            new InMemoryScadaEventBus(),
+            new EngineeringDriverCompiler(components),
+            TimeSpan.FromMilliseconds(100),
+            communicationComponents: components,
+            industrialEffectAuthority: static () => false);
+
+        var result = await runtime.ActivateAsync(
+            "plant-a",
+            1,
+            CreateStagedReadinessPackage(tag));
+
+        Assert.False(result.Activated);
+        Assert.Contains(result.RuntimeIssues, issue => issue.Code == "RUNTIME_CANDIDATE_NOT_READY");
+        var candidate = Assert.IsType<StagedReadinessDriver>(factory.Created);
+        Assert.Equal(1, candidate.StartCalls);
+        Assert.False(candidate.AcquiredInput);
+        Assert.False(candidate.Services.CanAcquireInputs);
+        Assert.False(candidate.Services.CanOwnExternalEffects);
     }
 
     [Fact]
@@ -329,6 +420,149 @@ public sealed class EngineeringRuntimeCoordinatorTests
             new[] { tag },
             new[] { alarm },
             new[] { dataSource });
+    }
+
+    private static CommunicationDriverRuntimeComponentRegistry CreateStagedReadinessComponents(TagDefinition tag)
+    {
+        var components = new CommunicationDriverRuntimeComponentRegistry();
+        var schema = new DriverConfigurationSchemaDescriptor(
+            "elitescada.driver.test.staged-readiness",
+            1,
+            [],
+            []);
+        var descriptor = new CommunicationDriverTypeDescriptor(
+            StagedReadinessDriverType,
+            "Staged Readiness Test Driver",
+            DriverContractVersion: 1,
+            RuntimeCapabilities: DriverCapabilities.Read | DriverCapabilities.Write,
+            EngineeringCapabilities: DriverEngineeringCapabilities.None,
+            AcquisitionModes: [DriverAcquisitionMode.Polling],
+            ConfigurationSchema: schema);
+        components.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new StagedReadinessRuntimePlanner(tag),
+            new StagedReadinessRuntimeFactory(tag),
+            descriptor));
+        return components;
+    }
+
+    private static EngineeringPackage CreateStagedReadinessPackage(TagDefinition tag)
+    {
+        var tagDto = new TagEngineeringDto(
+            tag.Id,
+            tag.Name,
+            tag.Path,
+            tag.DataType,
+            Source: "staged-source",
+            Address: "input:0",
+            ReadOnly: false);
+        var source = new DataSourceEngineeringDto(
+            null,
+            "staged-source",
+            "Staged Source",
+            StagedReadinessDriverType,
+            Settings: new Dictionary<string, string>());
+        return new EngineeringPackage(
+            EngineeringExchangeService.CurrentSchema,
+            EngineeringExchangeService.CurrentSchemaVersion,
+            DateTimeOffset.UtcNow,
+            [tagDto],
+            [],
+            [source]);
+    }
+
+    private sealed record StagedReadinessRuntimePlan(
+        string DataSourceKey,
+        string Name,
+        IReadOnlyCollection<TagDefinition> Tags) : ICommunicationDriverRuntimePlan
+    {
+        public string DriverType => StagedReadinessDriverType;
+    }
+
+    private sealed class StagedReadinessRuntimePlanner(TagDefinition tag) : ICommunicationDriverRuntimePlanner
+    {
+        public string DriverType => StagedReadinessDriverType;
+
+        public CommunicationDriverRuntimePlanningResult Plan(
+            EngineeringPackage package,
+            DataSourceEngineeringDto dataSource) =>
+            new(new StagedReadinessRuntimePlan(dataSource.Key, dataSource.Name, [tag]), []);
+    }
+
+    private sealed class StagedReadinessRuntimeFactory(TagDefinition tag) : ICommunicationDriverRuntimeFactory
+    {
+        public string DriverType => StagedReadinessDriverType;
+        public StagedReadinessDriver? Created { get; private set; }
+
+        public ICommunicationDriver Create(
+            ICommunicationDriverRuntimePlan plan,
+            CommunicationDriverRuntimeServices services)
+        {
+            Created = new StagedReadinessDriver(tag, services);
+            return Created;
+        }
+    }
+
+    private sealed class StagedReadinessDriver(
+        TagDefinition tag,
+        CommunicationDriverRuntimeServices services) : ICommunicationDriver
+    {
+        public string DriverId => "test.staged-readiness:staged-source";
+        public string Name => "Staged Readiness Test Driver";
+        public DriverCapabilities Capabilities => DriverCapabilities.Read | DriverCapabilities.Write;
+        public DriverStatus Status { get; private set; } = new(
+            "test.staged-readiness:staged-source",
+            "Staged Readiness Test Driver",
+            DriverState.Stopped,
+            DateTimeOffset.UtcNow);
+        public IReadOnlyCollection<TagDefinition> Tags => [tag];
+        public CommunicationDriverRuntimeServices Services { get; } = services;
+        public bool AcquiredInput { get; private set; }
+        public int StartCalls { get; private set; }
+        public int Writes { get; private set; }
+
+        public Task StartAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            StartCalls++;
+            if (!Services.CanAcquireInputs)
+            {
+                Status = new DriverStatus(DriverId, Name, DriverState.Stopped, DateTimeOffset.UtcNow);
+                return Task.CompletedTask;
+            }
+
+            if (!Services.Registry.TryGet(tag.Id, out _))
+                Services.Registry.Register(tag);
+            AcquiredInput = true;
+            Status = new DriverStatus(DriverId, Name, DriverState.Running, DateTimeOffset.UtcNow);
+            return Services.Cache.UpdateAsync(tag, TagValue.Good(tag.Id, (short)12, DriverId), cancellationToken).AsTask();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken = default)
+        {
+            Status = new DriverStatus(DriverId, Name, DriverState.Stopped, DateTimeOffset.UtcNow);
+            return Task.CompletedTask;
+        }
+
+        public ValueTask<TagValue?> ReadAsync(Guid tagId, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Services.Cache.TryGet(tagId, out var current);
+            return ValueTask.FromResult(current);
+        }
+
+        public async ValueTask WriteAsync(Guid tagId, object? value, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!Services.CanOwnExternalEffects)
+                throw new InvalidOperationException("Runtime candidate cannot write before its commit.");
+            if (tagId != tag.Id)
+                throw new KeyNotFoundException($"Test driver does not own TAG '{tagId}'.");
+
+            Writes++;
+            await Services.Cache.UpdateAsync(tag, TagValue.Good(tag.Id, value, DriverId), cancellationToken);
+        }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     private static async Task WaitForAsync(Func<bool> predicate, TimeSpan timeout)

@@ -1,0 +1,4 @@
+PASS synthetic linux/module/keyring/configuration smoke; no XKNX start/network/physical gateway
+versions=xknx=3.20.0,cryptography=50.0.2,ifaddr=0.2.0,cffi=2.1.1,pycparser=3.11
+keyring in-memory scoped GA and sender fixture accepted; explicit Secure TCP config accepted
+missing gateway preflight rejected before XKNX construction

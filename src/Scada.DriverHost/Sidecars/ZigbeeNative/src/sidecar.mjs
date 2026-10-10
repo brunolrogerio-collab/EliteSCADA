@@ -135,14 +135,17 @@ async function executeRequest(controller, allowedPoints, request) {
   return { type: 'response', id: safeRequest.id, ok: true, accepted: safeRequest.method === 'write', value: state, observedAt: new Date().toISOString() };
 }
 
-async function runSidecar(env = process.env) {
+async function runSidecar(env = process.env, dependencies = {}) {
   requirePinnedPackages();
   const config = parseRuntimeConfiguration(env);
-  installHerdsmanSafetyGuards(Controller, ZnpAdapterManager);
+  const ControllerClass = dependencies.Controller ?? Controller;
+  const ZnpAdapterManagerClass = dependencies.ZnpAdapterManager ?? ZnpAdapterManager;
+  const setHerdsmanLogger = dependencies.setLogger ?? setLogger;
+  installHerdsmanSafetyGuards(ControllerClass, ZnpAdapterManagerClass);
 
   // The stock logger is intentionally not connected to stdout/stderr. Readiness
   // and protocol errors are emitted as short, sanitized codes only.
-  setLogger({
+  setHerdsmanLogger({
     debug() {},
     info() {},
     warning() {},
@@ -155,7 +158,7 @@ async function runSidecar(env = process.env) {
   let stopping = false;
   let requestChain = Promise.resolve();
   try {
-    controller = new Controller(controllerOptions(config));
+    controller = new ControllerClass(controllerOptions(config));
     await controller.start();
     host = await connectHost(config);
     writeJsonLine(process.stdout, {

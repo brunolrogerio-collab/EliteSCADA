@@ -70,16 +70,27 @@ jobs:
           cat /tmp/profile-summary.md >> "$GITHUB_STEP_SUMMARY"
       - id: native_scope
         name: Select Native Zigbee sidecar evidence
+        env:
+          NATIVE_CHANGED_FILES_PATH: /tmp/changed-files.txt
         shell: bash
         run: |
           set -euo pipefail
-          selected=false
-          if [ -f src/Scada.DriverHost/Sidecars/ZigbeeNative/package.json ] && \
-            rg -q '^(\.github/workflows/wave15-pr\.yml|scripts/ci/wave15_profile_router\.py|src/Scada.DriverHost/(Sidecars/(ZigbeeNative/.*|ManagedSidecar.*|SystemManagedSidecar.*)|Engineering/(ZigbeeNative.*|CommunicationDriverRuntime.*))|src/Scada.Drivers/HostResources/.*|tests/Scada.Drivers.Tests/(ZigbeeNative.*|ManagedSidecar.*|HostResource.*))$' /tmp/changed-files.txt; then
-            selected=true
-          fi
-          echo "run_native_zigbee=$selected" >> "$GITHUB_OUTPUT"
-          echo "Native Zigbee sidecar evidence selected: $selected" >> "$GITHUB_STEP_SUMMARY"
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+
+          changed = Path(os.environ["NATIVE_CHANGED_FILES_PATH"]).read_text().splitlines()
+          pattern = re.compile(r"^(\.github/workflows/wave15-pr\.yml|scripts/ci/wave15_profile_router\.py|src/Scada.DriverHost/(Sidecars/(ZigbeeNative/.*|ManagedSidecar.*|SystemManagedSidecar.*)|Engineering/(ZigbeeNative.*|CommunicationDriverRuntime.*))|src/Scada.Drivers/HostResources/.*|tests/Scada.Drivers.Tests/(ZigbeeNative.*|ManagedSidecar.*|HostResource.*))$")
+          artifact = Path("src/Scada.DriverHost/Sidecars/ZigbeeNative")
+          component = Path("src/Scada.DriverHost/Engineering/ZigbeeNativeCommunicationRuntimeComponents.cs")
+          selected = any(pattern.fullmatch(path) for path in changed) and (artifact.exists() or component.exists())
+          if selected and not (artifact / "package.json").is_file():
+              raise RuntimeError("Native Zigbee evidence requires its sidecar package.json")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"run_native_zigbee={str(selected).lower()}\n")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(f"Native Zigbee sidecar evidence selected: {selected}\n")
+          PY
 
   common-sanity:
     name: Common T1 sanity

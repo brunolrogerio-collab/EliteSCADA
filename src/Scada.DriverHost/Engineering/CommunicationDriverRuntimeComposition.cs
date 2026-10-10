@@ -9,6 +9,7 @@ using Scada.Drivers.Iec60870;
 using Scada.Drivers.Mqtt;
 using Scada.Drivers.Modbus;
 using Scada.Drivers.Mitsubishi;
+using Scada.Drivers.Panasonic;
 using Scada.Drivers.Serial;
 using Scada.Drivers.OpcUa;
 using Scada.Drivers.SiemensS7Iso;
@@ -94,6 +95,14 @@ public static class CommunicationDriverRuntimeComposition
             new MitsubishiMelsecCommunicationRuntimePlanner(),
             new MitsubishiMelsecCommunicationRuntimeFactory(),
             MitsubishiMelsecDriverDescriptorProvider.SharedDescriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new PanasonicMewtocolCommunicationRuntimePlanner(PanasonicMewtocolDriverDescriptorProvider.TcpDriverTypeId),
+            new PanasonicMewtocolCommunicationRuntimeFactory(PanasonicMewtocolDriverDescriptorProvider.TcpDriverTypeId, serialCoordinator),
+            PanasonicMewtocolDriverDescriptorProvider.TcpDescriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new PanasonicMewtocolCommunicationRuntimePlanner(PanasonicMewtocolDriverDescriptorProvider.SerialDriverTypeId),
+            new PanasonicMewtocolCommunicationRuntimeFactory(PanasonicMewtocolDriverDescriptorProvider.SerialDriverTypeId, serialCoordinator),
+            PanasonicMewtocolDriverDescriptorProvider.SerialDescriptor));
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new BacnetCommunicationRuntimePlanner(),
             new BacnetCommunicationRuntimeFactory(bacnetSessionFactory),

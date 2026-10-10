@@ -6,6 +6,8 @@ using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.Drivers.Abstractions;
 using Scada.Drivers.Modbus;
+using Scada.Drivers.Panasonic;
+using Scada.Drivers.Serial;
 using Scada.Drivers.ESPHome;
 using Scada.Drivers.HomeAssistant;
 using Scada.Drivers.OpcUa;
@@ -306,6 +308,37 @@ public sealed class MitsubishiMelsecEngineeringDriverToolProviderFactory : IEngi
             connection,
             ConnectionTester: connection,
             PointReadTester: pointRead);
+        registration.Validate();
+        return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));
+    }
+}
+
+public sealed class PanasonicMewtocolEngineeringDriverToolProviderFactory : IEngineeringDriverToolProviderFactory
+{
+    private readonly HostSerialBusCoordinator _serialCoordinator;
+
+    public PanasonicMewtocolEngineeringDriverToolProviderFactory(string driverType, HostSerialBusCoordinator serialCoordinator)
+    {
+        _ = PanasonicMewtocolDriverDescriptorProvider.For(driverType);
+        DriverType = driverType;
+        _serialCoordinator = serialCoordinator ?? throw new ArgumentNullException(nameof(serialCoordinator));
+    }
+
+    public string DriverType { get; }
+
+    public ValueTask<EngineeringDriverToolProviderLease> CreateAsync(
+        string? projectKey,
+        DataSourceEngineeringDto dataSource,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(dataSource);
+        if (!string.Equals(dataSource.Driver, DriverType, StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException($"Panasonic Engineering tooling cannot open Data Source driver '{dataSource.Driver}'.", nameof(dataSource));
+        var connection = new PanasonicMewtocolEngineeringAdapter(DriverType, _serialCoordinator);
+        var pointRead = new PanasonicMewtocolPointReadTester(DriverType, _serialCoordinator);
+        var registration = new CommunicationDriverModuleRegistration(
+            connection, ConnectionTester: connection, PointReadTester: pointRead);
         registration.Validate();
         return ValueTask.FromResult(new EngineeringDriverToolProviderLease(registration));
     }

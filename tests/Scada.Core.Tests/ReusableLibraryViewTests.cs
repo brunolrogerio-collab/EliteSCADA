@@ -153,6 +153,66 @@ public sealed class ReusableLibraryViewTests
         AssertOrigin(restored.Views.FindPopup(popupId)!.Metadata, inspection.Manifest, popupResource);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RichCommandActions_AreExplicitlyRejectedFromReusableViewTransfer(bool popup)
+    {
+        var assets = new InMemoryEngineeringAssetRegistry();
+        var scripts = new InMemoryScriptEngineeringRegistry();
+        var visualAssets = new InMemoryVisualAssetEngineeringRegistry();
+        var views = new InMemoryEngineeringViewRegistry();
+        var resourceId = Guid.NewGuid();
+        var richAction = new VisualNavigationActionEngineeringDto(
+            "click",
+            VisualNavigationActionKind.ExecuteRichCommand,
+            Version: VisualNavigationActionVersions.RichCommand,
+            CommandId: Guid.NewGuid());
+        var elements = new[]
+        {
+            new VisualElementEngineeringDto(
+                "execute-rich-command",
+                "button",
+                Actions: [richAction])
+        };
+
+        if (popup)
+        {
+            views.UpsertPopup(new PopupEngineeringDto(
+                resourceId,
+                "popup.rich-command",
+                "Rich Command Popup",
+                Elements: elements));
+        }
+        else
+        {
+            views.UpsertScreen(new ScreenEngineeringDto(
+                resourceId,
+                "screen.rich-command",
+                "Rich Command Screen",
+                Elements: elements));
+        }
+
+        var packages = new ReusableLibraryPackageService(
+            assets,
+            visualAssets,
+            scripts,
+            views);
+        var request = new ReusableLibraryExportRequest(
+            Guid.NewGuid(),
+            "Rich Command View",
+            "1.0.0",
+            [
+                new(
+                    popup ? ReusableLibraryResourceKinds.Popup : ReusableLibraryResourceKinds.Screen,
+                    resourceId)
+            ]);
+
+        var exception = Assert.Throws<InvalidDataException>(() => packages.Export(request));
+
+        Assert.Contains("action target closure is not reusable-library enabled in v1", exception.Message);
+    }
+
     [Fact]
     public void ScreenIncorporation_RejectsStableIdentityKeyCollision()
     {

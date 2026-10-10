@@ -14,6 +14,20 @@ function appendAudit(name, value) {
   writeFileSync(auditPath, JSON.stringify({ ...current, [name]: [...(current[name] ?? []), value] }));
 }
 
+function failWithCode(code) {
+  const error = new Error(code);
+  error.code = code;
+  throw error;
+}
+
+function describeError(error) {
+  const description = { name: error?.name ?? 'Error', message: error?.message ?? String(error) };
+  if (typeof error?.code === 'string') description.code = error.code;
+  if (error instanceof AggregateError) description.errors = error.errors.map(describeError);
+  if (error?.cause) description.cause = describeError(error.cause);
+  return description;
+}
+
 class FakeCoordinator extends EventEmitter {
   constructor(options) {
     super();
@@ -46,7 +60,13 @@ class FakeCoordinator extends EventEmitter {
     this.device = device;
     this.adapter = {
       removeAllListeners: () => recordAudit({ adapterListenersRemoved: true }),
-      stop: async () => recordAudit({ adapterStopped: true }),
+      stop: async () => {
+        if (process.env.ZIGBEE_TEST_FAIL_ADAPTER_STOP === 'true') {
+          recordAudit({ adapterStopAttempted: true });
+          failWithCode('ADAPTER_STOP_FAILED');
+        }
+        recordAudit({ adapterStopped: true });
+      },
     };
     recordAudit({
       networkKeyLength: options.network.networkKey.length,
@@ -64,6 +84,7 @@ class FakeCoordinator extends EventEmitter {
 
   async start() {
     recordAudit({ started: true });
+    if (process.env.ZIGBEE_TEST_FAIL_START === 'true') failWithCode('COORDINATOR_START_FAILED');
   }
 
   getDeviceByIeeeAddr(ieeeAddr) {
@@ -71,6 +92,10 @@ class FakeCoordinator extends EventEmitter {
   }
 
   databaseSave() {
+    if (process.env.ZIGBEE_TEST_FAIL_DATABASE_SAVE === 'true') {
+      recordAudit({ databaseSaveAttempted: true });
+      failWithCode('DATABASE_SAVE_FAILED');
+    }
     recordAudit({ databaseSaved: true });
   }
 }
@@ -80,8 +105,13 @@ class FakeZnpAdapterManager {
   async addToGroup() {}
 }
 
-await runSidecar(process.env, {
-  Controller: FakeCoordinator,
-  ZnpAdapterManager: FakeZnpAdapterManager,
-  setLogger() {},
-});
+try {
+  await runSidecar(process.env, {
+    Controller: FakeCoordinator,
+    ZnpAdapterManager: FakeZnpAdapterManager,
+    setLogger() {},
+  });
+} catch (error) {
+  recordAudit({ terminalError: describeError(error) });
+  process.exitCode = 1;
+}

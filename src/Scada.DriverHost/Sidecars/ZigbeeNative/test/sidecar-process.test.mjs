@@ -224,3 +224,116 @@ test('sidecar child starts with a fake coordinator, authenticates loopback RPC, 
   assert.equal(stderr.join(''), '');
   assert.equal(stdout.join('\n').includes('00112233445566778899aabbccddeeff'), false);
 });
+
+test('startup failure cleans partial coordinator state and preserves cleanup failures without leaking the key', { timeout: 10_000 }, async (t) => {
+  const stateDirectory = mkdtempSync(join(tmpdir(), 'zigbee-native-start-failure-'));
+  const networkKey = '00112233445566778899aabbccddeeff';
+  const activeChildren = new Set();
+  t.after(async () => {
+    const exits = [];
+    for (const child of activeChildren) {
+      if (child.exitCode === null && child.signalCode === null) {
+        child.kill('SIGKILL');
+        exits.push(once(child, 'exit').catch(() => {}));
+      }
+    }
+    await Promise.all(exits);
+    rmSync(stateDirectory, { recursive: true, force: true });
+  });
+
+  const runFailure = async (name, extraEnvironment = {}) => {
+    const auditPath = join(stateDirectory, `${name}.json`);
+    const child = spawn(process.execPath, [fixturePath], {
+      cwd: packageDirectory,
+      env: {
+        ...process.env,
+        ZIGBEE_NETWORK_KEY: networkKey,
+        ZIGBEE_SERIAL_PATH: '/dev/fake-zigbee-coordinator',
+        ZIGBEE_PAN_ID: '4660',
+        ZIGBEE_EXTENDED_PAN_ID: '00124b0001abcdef',
+        ZIGBEE_CHANNEL: '15',
+        ZIGBEE_BAUD_RATE: '115200',
+        ZIGBEE_RPC_HOST: '127.0.0.1',
+        ZIGBEE_RPC_PORT: '65535',
+        ZIGBEE_RPC_TOKEN: 'ab'.repeat(32),
+        ZIGBEE_DATABASE_PATH: join(stateDirectory, `${name}.db`),
+        ZIGBEE_ALLOWED_POINTS: JSON.stringify([{ ieee: '00124b0001abcdef', endpoint: 1 }]),
+        ZIGBEE_TEST_AUDIT_PATH: auditPath,
+        ZIGBEE_TEST_FAIL_START: 'true',
+        ZIGBEE_TEST_FAIL_DATABASE_SAVE: 'false',
+        ZIGBEE_TEST_FAIL_ADAPTER_STOP: 'false',
+        ...extraEnvironment,
+      },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    activeChildren.add(child);
+    const stdout = [];
+    const stderr = [];
+    child.stdout.on('data', (chunk) => stdout.push(chunk.toString()));
+    child.stderr.on('data', (chunk) => stderr.push(chunk.toString()));
+    const exit = await new Promise((resolve, reject) => {
+      child.once('error', reject);
+      child.once('exit', (code, signal) => resolve({ code, signal }));
+    });
+    activeChildren.delete(child);
+    return {
+      exit,
+      stdout: stdout.join(''),
+      stderr: stderr.join(''),
+      audit: JSON.parse(readFileSync(auditPath, 'utf8')),
+      databasePath: join(stateDirectory, `${name}.db`),
+    };
+  };
+
+  const originalFailure = await runFailure('original-failure');
+  assert.deepEqual(originalFailure.exit, { code: 1, signal: null });
+  assert.equal(originalFailure.stdout, '');
+  assert.deepEqual(JSON.parse(originalFailure.stderr), { type: 'error', code: 'COORDINATOR_START_FAILED' });
+  assert.deepEqual(originalFailure.audit, {
+    networkKeyLength: 16,
+    panId: 4660,
+    extendedPanId: '00124b0001abcdef',
+    channelList: [15],
+    networkKeyDistribute: false,
+    serialAdapter: 'zstack',
+    serialPath: '/dev/fake-zigbee-coordinator',
+    baudRate: 115200,
+    rtscts: false,
+    databasePath: originalFailure.databasePath,
+    started: true,
+    databaseSaved: true,
+    adapterListenersRemoved: true,
+    adapterStopped: true,
+    terminalError: {
+      name: 'Error',
+      message: 'COORDINATOR_START_FAILED',
+      cause: { name: 'Error', message: 'COORDINATOR_START_FAILED', code: 'COORDINATOR_START_FAILED' },
+    },
+  });
+
+  const cleanupFailure = await runFailure('cleanup-failure', {
+    ZIGBEE_TEST_FAIL_DATABASE_SAVE: 'true',
+    ZIGBEE_TEST_FAIL_ADAPTER_STOP: 'true',
+  });
+  assert.deepEqual(cleanupFailure.exit, { code: 1, signal: null });
+  assert.equal(cleanupFailure.stdout, '');
+  assert.deepEqual(JSON.parse(cleanupFailure.stderr), { type: 'error', code: 'SIDECAR_START_CLEANUP_FAILED' });
+  assert.equal(cleanupFailure.audit.started, true);
+  assert.equal(cleanupFailure.audit.databaseSaveAttempted, true);
+  assert.equal(cleanupFailure.audit.adapterListenersRemoved, true);
+  assert.equal(cleanupFailure.audit.adapterStopAttempted, true);
+  assert.equal(Object.hasOwn(cleanupFailure.audit, 'databaseSaved'), false);
+  assert.equal(Object.hasOwn(cleanupFailure.audit, 'adapterStopped'), false);
+  assert.equal(cleanupFailure.audit.terminalError.name, 'AggregateError');
+  assert.equal(cleanupFailure.audit.terminalError.message, 'SIDECAR_START_CLEANUP_FAILED');
+  assert.equal(cleanupFailure.audit.terminalError.cause.message, 'COORDINATOR_START_FAILED');
+  assert.equal(cleanupFailure.audit.terminalError.errors[0].message, 'COORDINATOR_START_FAILED');
+  assert.deepEqual(
+    cleanupFailure.audit.terminalError.errors[1].errors.map((error) => error.message),
+    ['DATABASE_SAVE_FAILED', 'ADAPTER_STOP_FAILED'],
+  );
+
+  for (const result of [originalFailure, cleanupFailure]) {
+    assert.equal(`${result.stdout}${result.stderr}${JSON.stringify(result.audit)}`.includes(networkKey), false);
+  }
+});

@@ -5,7 +5,7 @@ import { Controller, setLogger } from 'zigbee-herdsman';
 import * as converters from 'zigbee-herdsman-converters';
 import { ZnpAdapterManager } from 'zigbee-herdsman/dist/adapter/z-stack/adapter/manager.js';
 import { installHerdsmanSafetyGuards } from './safety-guard.mjs';
-import { createGracefulShutdown } from './sidecar-lifecycle.mjs';
+import { cleanupController, createGracefulShutdown } from './sidecar-lifecycle.mjs';
 import {
   ARTIFACT_ID,
   ARTIFACT_VERSION,
@@ -251,8 +251,8 @@ async function runSidecar(env = process.env, dependencies = {}) {
           ? error.message
           : 'SIDECAR_START_FAILED';
     writeJsonLine(process.stderr, { type: 'error', code });
-    if (failures.length > 1) throw new AggregateError(failures, code);
-    throw new Error(code);
+    if (failures.length > 1) throw new AggregateError(failures, code, { cause: error });
+    throw new Error(code, { cause: error });
   }
 }
 

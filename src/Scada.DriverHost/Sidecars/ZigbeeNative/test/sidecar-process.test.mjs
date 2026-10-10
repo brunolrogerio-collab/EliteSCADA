@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { once } from 'node:events';
+import { EventEmitter, once } from 'node:events';
 import { createInterface } from 'node:readline';
 import { createServer } from 'node:net';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -13,6 +13,26 @@ const fixtureDirectory = dirname(fileURLToPath(import.meta.url));
 const packageDirectory = dirname(fixtureDirectory);
 const fixturePath = join(fixtureDirectory, 'fixtures', 'sidecar-fake-coordinator.mjs');
 
+function waitForRpc(messages, events, predicate) {
+  const existing = messages.find(predicate);
+  if (existing) return Promise.resolve(existing);
+
+  return new Promise((resolve, reject) => {
+    const finish = (error, message) => {
+      clearTimeout(timer);
+      events.removeListener('message', onMessage);
+      if (error) reject(error); else resolve(message);
+    };
+    const onMessage = (message) => {
+      if (predicate(message)) finish(null, message);
+    };
+    const timer = setTimeout(() => finish(new Error('Timed out waiting for sidecar RPC message.')), 5_000);
+    events.on('message', onMessage);
+    const arrivedBeforeListener = messages.find(predicate);
+    if (arrivedBeforeListener) finish(null, arrivedBeforeListener);
+  });
+}
+
 test('sidecar child starts with a fake coordinator, authenticates loopback RPC, and drains on stop', { timeout: 10_000 }, async (t) => {
   const stateDirectory = mkdtempSync(join(tmpdir(), 'zigbee-native-process-'));
   const auditPath = join(stateDirectory, 'coordinator-audit.json');
@@ -21,6 +41,7 @@ test('sidecar child starts with a fake coordinator, authenticates loopback RPC, 
   let rpcSocket;
   let hello;
   const rpcMessages = [];
+  const rpcEvents = new EventEmitter();
   let child;
   let childExited = false;
   t.after(async () => {
@@ -44,6 +65,7 @@ test('sidecar child starts with a fake coordinator, authenticates loopback RPC, 
         return;
       }
       rpcMessages.push(message);
+      rpcEvents.emit('message', message);
     });
   });
   await new Promise((resolve, reject) => {
@@ -114,10 +136,63 @@ test('sidecar child starts with a fake coordinator, authenticates loopback RPC, 
     schemaVersion: 1,
   });
 
+  const sendRequest = async (request) => {
+    const response = waitForRpc(rpcMessages, rpcEvents, (message) =>
+      message.type === 'response' && message.id === request.id);
+    rpcSocket.write(`${JSON.stringify(request)}\n`);
+    return await response;
+  };
+
+  const initialRead = await sendRequest({
+    type: 'request', id: 'read-initial', method: 'read', ieee: '00124b0001abcdef', endpoint: 1,
+  });
+  assert.equal(initialRead.ok, true);
+  assert.equal(initialRead.accepted, false);
+  assert.equal(initialRead.value, false);
+  assert.match(initialRead.observedAt, /^\d{4}-\d{2}-\d{2}T/);
+
+  const deviceReport = waitForRpc(rpcMessages, rpcEvents, (message) =>
+    message.type === 'report' && message.ieee === '00124b0001abcdef' && message.endpoint === 1 && message.value === true);
+  const writeOn = await sendRequest({
+    type: 'request', id: 'write-on', method: 'write', ieee: '00124b0001abcdef', endpoint: 1, value: true,
+  });
+  assert.equal(writeOn.ok, true);
+  assert.equal(writeOn.accepted, true);
+  assert.equal(writeOn.value, true);
+  assert.match(writeOn.observedAt, /^\d{4}-\d{2}-\d{2}T/);
+  const report = await deviceReport;
+  assert.equal(report.type, 'report');
+  assert.equal(report.ieee, '00124b0001abcdef');
+  assert.equal(report.endpoint, 1);
+  assert.equal(report.value, true);
+  assert.equal(report.source, 'device-report');
+  assert.match(report.observedAt, /^\d{4}-\d{2}-\d{2}T/);
+
+  const readAfterWrite = await sendRequest({
+    type: 'request', id: 'read-after-write', method: 'read', ieee: '00124b0001abcdef', endpoint: 1,
+  });
+  assert.equal(readAfterWrite.ok, true);
+  assert.equal(readAfterWrite.accepted, false);
+  assert.equal(readAfterWrite.value, true);
+
+  const unconfiguredPoint = await sendRequest({
+    type: 'request', id: 'unconfigured-point', method: 'read', ieee: '00124b0001abcdef', endpoint: 2,
+  });
+  assert.deepEqual(unconfiguredPoint, {
+    type: 'response',
+    id: 'unconfigured-point',
+    ok: false,
+    accepted: false,
+    errorCode: 'POINT_NOT_CONFIGURED',
+  });
+
   child.stdin.write('stop\n');
   assert.deepEqual(await exit, { code: 0, signal: null });
   assert.equal(rpcSocket?.destroyed, true);
-  assert.deepEqual(rpcMessages, []);
+  assert.deepEqual(rpcMessages.filter((message) => message.type === 'response').map((message) => message.id), [
+    'read-initial', 'write-on', 'read-after-write', 'unconfigured-point',
+  ]);
+  assert.equal(rpcMessages.filter((message) => message.type === 'report').length, 1);
 
   const audit = JSON.parse(readFileSync(auditPath, 'utf8'));
   assert.deepEqual(audit, {
@@ -135,7 +210,17 @@ test('sidecar child starts with a fake coordinator, authenticates loopback RPC, 
     databaseSaved: true,
     adapterListenersRemoved: true,
     adapterStopped: true,
+    commands: [{ cluster: 'genOnOff', command: 'on', payload: {}, options: { sendPolicy: 'immediate' } }],
+    reads: [false, true, true].map((value) => ({
+      cluster: 'genOnOff', attributes: ['onOff'], options: { sendPolicy: 'immediate' }, value,
+    })),
   });
+  assert.deepEqual(audit.commands, [{
+    cluster: 'genOnOff', command: 'on', payload: {}, options: { sendPolicy: 'immediate' },
+  }]);
+  assert.deepEqual(audit.reads.map((read) => read.value), [false, true, true]);
+  assert.equal(audit.reads.every((read) => read.cluster === 'genOnOff' && read.attributes.includes('onOff')),
+    true);
   assert.equal(stderr.join(''), '');
   assert.equal(stdout.join('\n').includes('00112233445566778899aabbccddeeff'), false);
 });

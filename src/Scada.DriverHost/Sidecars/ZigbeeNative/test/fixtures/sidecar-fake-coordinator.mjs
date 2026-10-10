@@ -8,10 +8,42 @@ function recordAudit(update) {
   writeFileSync(auditPath, JSON.stringify({ ...current, ...update }));
 }
 
+function appendAudit(name, value) {
+  const auditPath = process.env.ZIGBEE_TEST_AUDIT_PATH;
+  const current = existsSync(auditPath) ? JSON.parse(readFileSync(auditPath, 'utf8')) : {};
+  writeFileSync(auditPath, JSON.stringify({ ...current, [name]: [...(current[name] ?? []), value] }));
+}
+
 class FakeCoordinator extends EventEmitter {
   constructor(options) {
     super();
     this.database = {};
+    this.onOff = false;
+    const device = {
+      ieeeAddr: '0x00124b0001abcdef',
+      modelID: '01MINIZB',
+      manufacturerName: 'SONOFF',
+      type: 'Router',
+      getEndpoint: (id) => id === 1 ? endpoint : undefined,
+    };
+    const endpoint = {
+      read: async (cluster, attributes, readOptions) => {
+        appendAudit('reads', { cluster, attributes, options: readOptions, value: this.onOff });
+        return { onOff: this.onOff };
+      },
+      command: async (cluster, command, payload, commandOptions) => {
+        appendAudit('commands', { cluster, command, payload, options: commandOptions });
+        this.onOff = command === 'on';
+        this.emit('message', {
+          type: 'attributeReport',
+          cluster,
+          device,
+          endpoint: { ID: 1 },
+          data: { onOff: this.onOff },
+        });
+      },
+    };
+    this.device = device;
     this.adapter = {
       removeAllListeners: () => recordAudit({ adapterListenersRemoved: true }),
       stop: async () => recordAudit({ adapterStopped: true }),
@@ -32,6 +64,10 @@ class FakeCoordinator extends EventEmitter {
 
   async start() {
     recordAudit({ started: true });
+  }
+
+  getDeviceByIeeeAddr(ieeeAddr) {
+    return ieeeAddr.toLowerCase() === this.device.ieeeAddr.toLowerCase() ? this.device : undefined;
   }
 
   databaseSave() {

@@ -15,6 +15,7 @@ using Scada.Drivers.OpcUa;
 using Scada.Drivers.SiemensS7Iso;
 using Scada.Drivers.Simulation;
 using Scada.Drivers.Shelly;
+using Scada.Drivers.Zigbee2Mqtt;
 
 namespace Scada.DriverHost.Engineering;
 
@@ -124,6 +125,12 @@ public static class CommunicationDriverRuntimeComposition
                 new ShellyCommunicationRuntimeFactory(),
                 protectedMaterialResolver),
             new ShellyDriverDescriptorProvider().Descriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new Zigbee2MqttCommunicationRuntimePlanner(),
+            new HostProtectedMaterialRuntimeFactory(
+                new Zigbee2MqttCommunicationRuntimeFactory(mqttTransportFactory),
+                protectedMaterialResolver),
+            new Zigbee2MqttDriverDescriptorProvider().Descriptor));
         return registry;
     }
 

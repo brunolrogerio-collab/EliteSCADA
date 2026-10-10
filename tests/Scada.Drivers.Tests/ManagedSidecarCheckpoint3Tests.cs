@@ -61,6 +61,9 @@ public sealed class ManagedSidecarCheckpoint3Tests
     {
         if (!OperatingSystem.IsLinux()) return;
 
+        var signalDirectory = Path.Combine(Path.GetTempPath(), $"elitescada-sidecar-crash-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(signalDirectory);
+        var crashSignal = Path.Combine(signalDirectory, "crash.signal");
         var starts = 0;
         var definition = Definition(withProtectedSetting: false);
         var factory = new SystemManagedSidecarProcessFactory(
@@ -71,34 +74,53 @@ public sealed class ManagedSidecarCheckpoint3Tests
                 var ready =
                     "printf '%s\\n' '{\"type\":\"ready\",\"artifactId\":\"elite.test-sidecar\",\"artifactVersion\":\"1.0.0\",\"runtimeVersion\":\"runtime-1\",\"schemaVersion\":3,\"message\":\"ready\"}'; ";
                 var script = start == 1
-                    ? ready + "sleep 0.05; exit 23"
+                    ? ready + "while [ ! -f \"$SIDE_CRASH_SIGNAL\" ]; do sleep 0.01; done; exit 23"
                     : ready + "while IFS= read -r line; do [ \"$line\" = \"STOP\" ] && exit 0; done";
 
                 return ValueTask.FromResult(new ManagedSidecarProcessStartSpec(
                     "/bin/sh",
                     new[] { "-c", script },
+                    Environment: new Dictionary<string, string>
+                    {
+                        ["SIDE_CRASH_SIGNAL"] = crashSignal
+                    },
                     GracefulStopInput: "STOP"));
             });
 
-        await using var supervisor = new ManagedSidecarSupervisor(
-            definition,
-            factory,
-            FastPolicy(),
-            new SystemManagedSidecarDelay());
+        try
+        {
+            await using var supervisor = new ManagedSidecarSupervisor(
+                definition,
+                factory,
+                FastPolicy(),
+                new SystemManagedSidecarDelay());
 
-        await supervisor.StartAsync();
+            await supervisor.StartAsync();
 
-        await EventuallyAsync(() =>
-            starts >= 2 &&
-            supervisor.Snapshot.RestartCount >= 1 &&
-            supervisor.Snapshot.State == ManagedSidecarLifecycleState.Ready,
-            attempts: 300);
+            Assert.Equal(ManagedSidecarLifecycleState.Ready, supervisor.Snapshot.State);
+            Assert.Equal(1, Volatile.Read(ref starts));
+            Assert.Equal(0, supervisor.Snapshot.RestartCount);
+            // Force the crash only after the supervisor has observed readiness.
+            // A fixed short delay can exit before stdout is scheduled on a busy runner.
+            await File.WriteAllTextAsync(crashSignal, "crash");
 
-        Assert.Equal(23, supervisor.Snapshot.LastExitCode);
-        Assert.True(supervisor.Snapshot.RestartCount >= 1);
+            await EventuallyAsync(() =>
+                Volatile.Read(ref starts) >= 2 &&
+                supervisor.Snapshot.RestartCount >= 1 &&
+                supervisor.Snapshot.State == ManagedSidecarLifecycleState.Ready,
+                attempts: 300);
 
-        await supervisor.StopAsync();
-        Assert.Equal(ManagedSidecarLifecycleState.Stopped, supervisor.Snapshot.State);
+            Assert.Equal(23, supervisor.Snapshot.LastExitCode);
+            Assert.True(supervisor.Snapshot.RestartCount >= 1);
+
+            await supervisor.StopAsync();
+            Assert.Equal(ManagedSidecarLifecycleState.Stopped, supervisor.Snapshot.State);
+        }
+        finally
+        {
+            // The await-using scope releases child processes before their signal directory.
+            Directory.Delete(signalDirectory, recursive: true);
+        }
     }
 
     [Fact]

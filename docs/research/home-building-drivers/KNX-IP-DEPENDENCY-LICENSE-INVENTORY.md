@@ -1,5 +1,29 @@
 # KNX/IP dependency license inventory
 
+## Selected XKNX 3.20.0 — K0 exact Linux x64 candidate closure
+
+**Role:** Main-selected production-sidecar candidate; candidate selection only, not a product implementation or shipping release. Upstream tag/commit: [3.20.0 / `e68c024e561dbc486c55dc15d401d070250bfba5`](https://github.com/XKNX/xknx/tree/e68c024e561dbc486c55dc15d401d070250bfba5). The tagged `pyproject.toml` and `LICENSE` show MIT, and tagged `SecureConfig` accepts an already-loaded in-memory keyring.
+
+The runtime was re-resolved on the exact CPython 3.12.15 Linux/amd64 candidate image `python:3.12.15-slim-trixie`, image index `sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1`, amd64 manifest `sha256:2b4f19dae3a777dfc3b76730bda1e82e1f66ab2a2686fa93ca78edbfb4f04ffe`, Debian 13.7. The exact package wheel filenames and SHA-256 hashes are in [`KNX-IP-K0/xknx-runtime-cp312-linux-amd64.lock`](KNX-IP-K0/xknx-runtime-cp312-linux-amd64.lock); full license texts are in [`KNX-IP-K0/xknx-runtime-wheel-notices.tar.gz`](KNX-IP-K0/xknx-runtime-wheel-notices.tar.gz).
+
+| Package | Version | Route | License evidence | Native/runtime details |
+| --- | --- | --- | --- | --- |
+| `xknx` | `3.20.0` | direct | MIT; wheel notice captured | Pure Python. |
+| `cryptography` | `50.0.2` | direct | Apache-2.0 OR BSD-3-Clause; both full license texts captured | Linux wheel statically links OpenSSL `4.0.3`; runtime `backend.openssl_version_text()` confirmed version. |
+| `ifaddr` | `0.2.0` | direct | MIT; wheel notice captured | Pure Python. |
+| `cffi` | `2.1.1` | transitive from cryptography | MIT; wheel notice captured | Exact Linux extension inspection showed libc and pthread dynamic links; no dynamic libffi dependency. |
+| `pycparser` | `3.11` | transitive from cffi | BSD-3-Clause; wheel notice captured | Pure Python. |
+
+All five PyPI packages are no-fee permissive licenses; no proprietary or restrictive term was identified in this Python closure. The official image itself has a broader OS/runtime closure: 87 installed Debian package records plus image-bundled Python/pip components. [`python-trixie-base-packages.tsv`](KNX-IP-K0/python-trixie-base-packages.tsv) and [`python-trixie-base-notices.tar.gz`](KNX-IP-K0/python-trixie-base-notices.tar.gz) preserve that inventory and its full notice files for Main's complete distribution acceptance. The image-bundled installer is pip `25.0.1`.
+
+`pip-audit 2.10.1` used a separate exact 29-package audit-tool lock and notice archive; it is not part of the XKNX runtime closure. Audit result: all five locked runtime packages, **zero known PyPI vulnerabilities** on 2026-10-10. This does not cover the OCI base image.
+
+Docker Scout CLI 1.24.0 indexed 127 total packages in the official base image and found vulnerabilities in 14 packages: `0 critical / 1 high / 6 medium / 27 low`. The high is Debian Trixie's `zlib 1:1.3.dfsg+really1.3.1-1` / CVE-2026-85091, marked vulnerable with no fixed version in Debian's tracker at audit time. Scout also reports known vulnerabilities in base pip `25.0.1`. Exact report: [`KNX-IP-K0/docker-scout-python-trixie.txt`](KNX-IP-K0/docker-scout-python-trixie.txt). This is `RED-KNX-07` for the exact base image; the candidate is not security-cleared for distribution.
+
+A hash-locked offline install of all five wheels passed in the pinned image. Synthetic smoke confirmed module imports, an in-memory `Keyring` group key/sender association, and explicit `TUNNELING_TCP_SECURE` configuration with a synthetic gateway. No XKNX start, socket, product adapter, Secure packet/fail-closed test, real credential, or physical device was used. The smoke result and scope are in [`KNX-IP-K0/README.md`](KNX-IP-K0/README.md).
+
+Main also pinned the current contract: use the existing host Protected Material authority/resolver; explicit Secure TCP only, no automatic discovery or downgrade; and the bounded state DPT set `1.001`, `1.002`, `5.001`, `9.001`, `9.004`, `9.007`, `9.024`. KNXUltimate 6.0.8 is a test-only independent peer candidate. These decisions are not implementation evidence.
+
 ## Falcon 6.4.8671 — isolated .NET 10 restore
 
 This is a scratch restore, not an EliteSCADA product dependency. Target: `net10.0`; SDK: `10.0.401`; package: `Knx.Falcon.Sdk 6.4.8671`. The generated `packages.lock.json` SHA-256 is `E1E2712E1E594EB871754DA8ABAD9E386BF36B696023443ACFC3CA0784AF4CC9`. The resolved graph is target-specific; Falcon's nuspec minimums are not an exact cross-target lock.
@@ -34,7 +58,7 @@ dotnet list work/research/falcon-net10-audit/FalconAudit.csproj package --includ
 
 The restore proves NuGet resolution under SDK 10.0.401 only. It is not a compile, runtime, platform/container, or KNX interoperability result. No product source, dependency, or package was changed.
 
-## XKNX 3.20.0 — audit-time Linux/Python resolution
+## Historical XKNX 3.20.0 audit-time Linux/Python resolution (2026-10-09)
 
 The 3.20.0 tag has no runtime lockfile. To inventory licenses without adding packages, pip downloaded wheels only for Python 3.12 and x86_64 manylinux tags; nothing was installed. This is a point-in-time dependency resolution, not a supported product/container image or reproducible XKNX lock. Python `<3.11` conditional dependencies `async_timeout` and `typing_extensions` are not in this Python 3.12 snapshot.
 

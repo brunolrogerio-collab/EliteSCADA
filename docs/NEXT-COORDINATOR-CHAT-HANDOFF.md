@@ -1,4 +1,57 @@
-# NEXT COORDINATOR CHAT — CURRENT POINTER — 2026-10-06 22:31 BRT
+# CURRENT MAIN CHECKPOINT — NATIVE CI / KNX K0 / DALI AUDIT — 2026-10-10
+
+> This is the current resume section. Earlier state snapshots below are retained as history and are superseded where they differ. GitHub live is the only authority; revalidate branch, source HEAD, PR and CI before acting. [Main operational ledger](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6097602135).
+
+Integration: `wave15/corrections-integration@ff567102bef09fba8ab26a6b13db678b0a85b842`.
+Zigbee2MQTT #575 is already merged. Mitsubishi, S4, S5 and Panasonic are also integrated; do not re-open their completed work.
+
+| Lane / report destination | Published candidate and Main disposition | DEV chat action |
+| --- | --- | --- |
+| Native Zigbee #578 / PR #582 | HEAD `553091a8fe8ff9dcce6415ccec6c3208352d6f19`; [T1 #1007 / 38051931835](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38051931835) SUCCESS: Node **8/8 executed**, SBOM/notices/native-binding smoke PASS, current audit 0 vulnerabilities; .NET **1,315 passed / 1 skipped / 0 failed**. NATIVE-A1 and Main integration remain open; NO MERGE. | **SIGA**: fetch Main's updated branch, close missing cleanup-helper binding and add startup-failure regression, publish focused evidence and normal exact new-head T1 including Node. |
+| KNX #577 / PR #580 | Existing docs HEAD `03e6d19c86cbd07a4d8bee6427877895eb0e57e2`; XKNX **3.20.0 / e68c024e561dbc486c55dc15d401d070250bfba5** selected as stack candidate. **K0_LICENSE_RUNTIME_FREEZE_ACTIVE / NO_PRODUCT_IMPLEMENTATION_RELEASE / NO_MERGE**. | **SIGA** for target runtime/full dependency closure, hash lock/full notices/current advisories and synthetic qualification evidence; amend the existing docs and publish DOCS_I18N_HELP T1. |
+| DALI #579 / PR #581 | HEAD `c224c0e55777334254062064bbe600110df53c84`, current base/merge-base `ff567102...`; [T1 #1005 / 38050830238](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38050830238) SUCCESS: **1,308 passed / 1 skipped / 0 failed**. [Main audit](https://github.com/brunolrogerio-collab/EliteSCADA/pull/581#issuecomment-6097549069): **DALI-A1_CLOSED / CODE_COMPLETE / MAIN_AUDIT_PASS / WAIT_PO_MERGE_AUTHORIZATION**. | **WAIT**: no new DEV correction or CI; explicit PR #581 merge authorization pending. |
+| Zigbee2MQTT / Panasonic / Mitsubishi / S4 / S5 | Integrated; no active new assignment. | **WAIT**. |
+
+## Main-owned work and contracts
+
+Main closed executable Native sidecar CI but still owns canonical Runtime/catalog registration, single Host Resource/lease service wiring, protected resolver/host adapter and deployment DI, followed by combined canonical L3/#560 evidence. The missing startup cleanup binding is lane-owned **NATIVE-A1**; no green CI result makes that source defect acceptable. [Native final audit](https://github.com/brunolrogerio-collab/EliteSCADA/pull/582#issuecomment-6097519585), [DEV continuation](https://github.com/brunolrogerio-collab/EliteSCADA/issues/578#issuecomment-6097527576).
+
+KNX final redistribution/platform acceptance, scoped protected adapter and Runtime integration belong to Main. [Exact stack/security/DPT contract and K0 task](https://github.com/brunolrogerio-collab/EliteSCADA/issues/577#issuecomment-6097438437): managed local XKNX sidecar, explicit configured Secure TCP tunnel, fail before startup on missing gateway, no discovery/automatic downgrade; project/DataSource/driver/purpose scoped protected in-memory material under the existing authority. Stateful first DPT slice: 1.001, 1.002, 5.001, 9.001, 9.004, 9.007, 9.024. Independent software L2 and canonical L3 must support later implementation acceptance. No paid stack, second Runtime or second secret authority is released. K0 qualification is active now; production source is a subsequent bounded release after verified closure.
+
+## Coordinator / bootstrap correction
+
+- Inspect **actual required-job execution**, not just a green workflow. Main T1 #1006 / 38051462624 skipped Node because `rg` was missing on the runner; that run is **not Node evidence**. Corrected selector uses runner Python, fails closed on missing changed-path input or Native manifest, and was exercised on positive, irrelevant-path and missing-input cases. Corrected #1007 actually ran Node.
+- Preserve ordinary branch ancestry and unpublished DEV work when consuming a Main update. Do not force/rebase/reset a lane to hide coordination changes.
+- Released publication is already authorized. Use the connected GitHub publication route if local HTTPS lacks credentials; do not ask the Product Owner for a token. A recreated Git Database commit has a new metadata SHA: record local provenance plus verified complete published-tree equality and expected-head CAS / force=false, never claim preservation of an absent original object.
+- Source of review is the **published GitHub HEAD**. Local T0 is useful evidence; minimum focused test -> normal exact-head T1 -> Main audit -> explicitly authorized integration. No unchanged-head reassurance rerun or redundant full CI.
+- Checkpoints go to the owning issue; exact source/CI evidence goes to the PR; requests involving shared contracts or Main-owned work go to #305.
+- Separate chats become inert after a reply. The Product Owner sends **SIGA in each receiving DEV chat** to wake it; comments alone do not. SIGA is neither a new lane nor merge authorization. MAIN must end each reply with every chat's WAIT/SIGA/action.
+
+Physical L4 is **DEFERRED / NOT RUN for every driver until after Wave 16**, partner disclosure and stable installation for human validation. It is never a pre-development/pre-merge blocker. No physical compatibility claim is made.
+
+Wave 15 remains open. No fourth product lane or later queued driver is opened by this checkpoint. Final closure remains #379/#424/#425 -> #306 -> #300; #362 stays closed without merge. Main docs PR #569 is OPEN / DRAFT / unmerged; this documentation checkpoint supplies no merge authorization.
+
+10/10/2026 — Hora: 09:43 BRT
+
+---
+
+## Historical snapshots retained below — current section above wins
+
+# NEXT COORDINATOR CHAT — CURRENT POINTER — 2026-10-09
+
+Read first: `docs/CURRENT-COORDINATOR-HANDOFF.md`, root `LAST CHANGE.md`, `docs/CHAT-COLLABORATION-PROTOCOL.md`, and `docs/PARALLEL-WORK.md` §3; then revalidate GitHub live. [Main ledger #305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305).
+
+Integration: `wave15/corrections-integration@6f90db93829983ffad2eb24c777eb2b7d320cdd3`; foundation #576 and S5 #574 are integrated, and post-merge CI #1707 / `37934164605` passed Web, Backend build/test/runtime smoke and Chromium on that exact head.
+
+- **Zigbee2MQTT #573 / PR #575:** `175b1f2ce5ed6876424e70ff53cd5a6b6e14a84d`; exact T1 #994 / `37943437466` PASS (1,282 / 1 skip / 0 fail); Main audit PASS. PR OPEN / READY / unmerged and awaits a separate explicit PO merge authorization. Z2M DEV chat: **WAIT**.
+- **Panasonic #570 / PR #572:** still at `6ef9008066c41f94e1eeb95a727776472c918571`; released foundation commit `cb2e20bfcf71889236408765f481a1f4c45c6868`. Panasonic DEV chat: **SIGA**; continue existing lane and exact-head T1 process.
+- **S5 #574 / issue #571:** integrated/closed; chat WAIT.
+- **Mitsubishi / S4:** integrated; chat WAIT.
+
+SIGA wakes only the receiving chat. It does not authorize merge. Only #576 and #574 were authorized and those authorizations are consumed. L4 for every driver is human-only after Wave 16 / partner disclosure / stable installation; it does not block software integration. No new product lane has been released; Wave 15 remains open.
+---
+## Historical pointers below — superseded by this current pointer
+## Historical pointer — 2026-10-06 22:31 BRT (superseded)
 
 Read first:
 `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-10-06-2231.md`

@@ -10,7 +10,7 @@ GitHub live remains the authority for current implementation state. This protoco
 
 Every user-visible response/interation related to EliteSCADA must end with the current local time in `America/Sao_Paulo`, using exactly:
 
-`Hora: HH:MM`
+`DD/MM/YYYY — Hora: HH:MM BRT`
 
 This applies to:
 
@@ -127,8 +127,41 @@ Mission-specific evidence normally belongs first in the owning issue/PR. The Mai
 
 A new Main Coordinator must read this protocol before supervising Work/DEV chats and must propagate these requirements into every new mission prompt:
 
-- every chat ends each user-visible interaction with `Hora: HH:MM`;
+- every chat ends each user-visible interaction with `DD/MM/YYYY — Hora: HH:MM BRT`;
 - every material project step is persisted to the appropriate repository surface;
 - no chat may rely on conversation history as the sole durable record of project state.
 
 These requirements are global EliteSCADA collaboration rules, not coordinator-specific preferences.
+
+## 9. Chat-local wake and per-chat next action
+
+A `SIGA` / `continue` wakes only the chat that received that message. It never wakes a different Main or DEV chat. GitHub comments, issues, branches, PRs and Actions runs are durable records but are not wake signals for separate conversations.
+
+At the end of each Main response, enumerate the active DEV chats and tell the Product Owner the action for each exact chat: send `SIGA` there, `WAIT`, or `NO ACTION`. At the end of each DEV response, state whether that same DEV chat needs `SIGA`, is waiting for Main, or is done. Do not ask the Product Owner to relay routine technical messages between Main and DEV; persist the checkpoint in the owning GitHub issue or PR.
+
+`SIGA` resumes only the existing authorized lane after the live GitHub state has been re-read. It does not authorize merge, a new lane, an architecture change, scope expansion, or a reserved/shared-contract change.
+
+## 10. Required DEV Bootstrap and GitHub evidence
+
+Every new DEV assignment must carry the reusable operating block in `docs/PARALLEL-WORK.md` §3.2, with the exact lane issue, branch, base SHA, allowed/forbidden scope, required validation profile and report destination filled in. A Bootstrap must say that local tests are T0 only, GitHub live is the authority, a normal exact-head T1 on the published SHA is required, failures must be classified before correction, and no merge occurs without separate explicit Product Owner authorization. If the owner has already given conditional authorization tied to named tests and audit gates, Main revalidates those gates live and merges once they pass; do not ask the owner to repeat it.
+
+If ordinary HTTPS push or the `gh` CLI is unavailable, do not ask the Product Owner to create credentials or share a token. Use the authorized GitHub connector/API to publish Git blobs/tree/commit/ref when available, verify the published tree, or report `BLOCKED_GIT_AUTH` to Main. Never claim repository publication or T1 based only on a local checkout. Physical L4 scheduled after Wave 16 and partner disclosure must be recorded as `DEFERRED / NOT RUN` until then; do not substitute simulation or claim compatibility. Continue the other authorized available gates.
+
+
+## 11. Human L4 and code merge readiness
+
+Physical L4 is a human validation that happens only after Wave 16 and partner disclosure, after a stable EliteSCADA release has been installed on a computer. Until that time, record L4 as `DEFERRED / NOT RUN`; do not substitute a simulator. L4 is not a pre-merge blocker for completed driver code. A driver may be integrated when its implementation is complete, applicable intermediate/focused tests and exact-head T1 pass, Main's audit passes, and the Product Owner's applicable merge authorization is present. The coordinator revalidates those facts in live GitHub and executes an already-authorized conditional merge without asking the owner to repeat it. Do not claim hardware compatibility until a human records L4 evidence.
+
+S4 Server Script functionality is not a physical protocol compatibility claim; its code/test/audit gates stand on their own. The physical L4 rule applies to driver hardware validation.
+
+## 12. Outstanding Main audit requests
+
+On every SIGA, a DEV must inspect the current owning issue, PR discussion/review and latest Main disposition in #305, including the exact audit permalink when supplied. Initial release/bootstrap status and a green T1 do not close later Main correction requests.
+
+If Main has requested source or coverage changes, the next authorized action is to implement those named corrections, run the minimum owning focused checks, publish a coherent new candidate, obtain normal exact-head T1 and report each request with evidence. Do not wait for a second Main audit or repeated Product Owner permission to begin already-authorized corrections.
+
+A later DEV completion handoff cannot supersede an outstanding Main review. Repeating the old green HEAD while required source/coverage changes remain is not completion. A request closes only when the required correction/evidence exists and Main accepts its disposition. Report a real tool/contract blocker precisely instead of restating completion.
+
+Every new DEV Bootstrap must include this check and name the outstanding request IDs, required next step and owning report destination. Main's summary must still give the owner an exact chat-local SIGA or WAIT action.
+
+Shared RED ownership must also be distinguished from root cause: SHARED_HOTSPOT identifies a boundary; inspect logs/source before labeling the product defective. A timing-sensitive fixture that crashes before the phase it intends to test is corrected at the harness with explicit phase synchronization, preserving valid product rejection and assertions. Any exception to worker shared-file scope must be explicit, bounded and recorded by Main.

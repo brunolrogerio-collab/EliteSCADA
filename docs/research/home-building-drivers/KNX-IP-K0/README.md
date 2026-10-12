@@ -1,6 +1,6 @@
 # KNX K0 runtime freeze evidence
 
-**Evidence date:** 2026-10-10 BRT<br>
+**Evidence date:** 2026-10-12 BRT<br>
 **Owning issue / PR:** [#577](https://github.com/brunolrogerio-collab/EliteSCADA/issues/577) / [#580](https://github.com/brunolrogerio-collab/EliteSCADA/pull/580)<br>
 **Current integration observed:** `wave15/corrections-integration@ff567102bef09fba8ab26a6b13db678b0a85b842`<br>
 **Main decision:** [#577 comment 6097438437](https://github.com/brunolrogerio-collab/EliteSCADA/issues/577#issuecomment-6097438437)<br>
@@ -25,7 +25,7 @@ The selected production-sidecar *candidate* is XKNX 3.20.0 from upstream commit 
 
 The package license texts are in [`xknx-runtime-wheel-notices.tar.gz`](xknx-runtime-wheel-notices.tar.gz). Full Debian package copyright notices, common licenses, the CPython license, pip license, and pip vendor manifest are in [`python-trixie-base-notices.tar.gz`](python-trixie-base-notices.tar.gz). The exact Debian package inventory is [`python-trixie-base-packages.tsv`](python-trixie-base-packages.tsv). The audit tool's notices are in [`pip-audit-tool-notices.tar.gz`](pip-audit-tool-notices.tar.gz). Artifact checksums are in [`SHA256SUMS.txt`](SHA256SUMS.txt).
 
-The exact five PyPI distributions are XKNX 3.20.0 (MIT), cryptography 50.0.2 (Apache-2.0 OR BSD-3-Clause), ifaddr 0.2.0 (MIT), cffi 2.1.1 (MIT), and pycparser 3.11 (BSD-3-Clause). No license fee or proprietary term was identified in this Python wheel closure. The full texts, including both cryptography license options, are preserved in the notice archive. The `cryptography` wheel reports statically linked OpenSSL 4.0.3; the CFFI extension's Linux linkage inspection showed libc and pthread, with no dynamic libffi dependency. Binary wheels were available for this exact CPython/Linux target, so no compiler or Rust toolchain was required for this resolution/install.
+The exact five PyPI distributions are XKNX 3.20.0 (MIT), cryptography 50.0.2 (Apache-2.0 OR BSD-3-Clause), ifaddr 0.2.0 (MIT), cffi 2.1.1 (MIT), and pycparser 3.11 (BSD-3-Clause). No license fee or proprietary term was identified in this Python wheel closure. The full texts, including both cryptography license options, are preserved in the notice archive. The `cryptography` wheel reports statically linked OpenSSL 4.0.3; the CFFI extension's Linux linkage inspection showed libc and pthread, with no dynamic libffi dependency. Binary wheels were available for this exact CPython/Linux target, so no compiler or Rust toolchain was required for this resolution/install. The exact lock was re-audited on 2026-10-12; [`pip-audit-runtime-2026-10-12.json`](pip-audit-runtime-2026-10-12.json) reports no known vulnerabilities in the five PyPI distributions.
 
 The complete OCI image is broader than those five wheels. Docker Scout indexed 127 packages from the image; dpkg recorded the installed Debian package set. The image's complete distribution license/notice acceptance remains with Main. This evidence bundle is not a legal opinion.
 
@@ -50,14 +50,33 @@ PYTHONPATH=/tmp/k0-pip-audit python -m pip_audit \
   --require-hashes --no-deps --progress-spinner off --format json
 ```
 
-The image scan used Docker Scout CLI 1.24.0:
+The image scan used Docker Scout CLI 1.24.0. The exact official Trixie digest was re-confirmed on 2026-10-12 and re-scanned; the refreshed full output is [`docker-scout-python-trixie-2026-10-12.txt`](docker-scout-python-trixie-2026-10-12.txt): 0 critical, 1 high, 6 medium and 27 low findings across 14 packages with findings (127 indexed). Debian still lists Trixie zlib as vulnerable, without a fixed version. The image's pip 25.0.1 installer also has advisories. The older scan remains preserved separately.
 
 ```sh
 docker scout cves --details --format packages \
   local://python:3.12.15-slim-trixie
 ```
 
-The full scanner output is preserved as [`docker-scout-python-trixie.txt`](docker-scout-python-trixie.txt). The run reported zero critical, one high, six medium and 27 low findings across 14 packages with findings (127 packages indexed). Debian's security tracker independently marks the Trixie `zlib` package vulnerable for [CVE-2026-85091](https://security-tracker.debian.org/tracker/CVE-2026-85091), with no fixed version recorded at audit time. Docker Scout also flags the image's pip 25.0.1 installer for known advisories; the full CVE list and fixed versions appear in its report.
+The original full scanner output is preserved as [`docker-scout-python-trixie.txt`](docker-scout-python-trixie.txt). Debian's security tracker independently marks Trixie's zlib vulnerable for [CVE-2026-85091](https://security-tracker.debian.org/tracker/CVE-2026-85091), still without a fixed Trixie version. Docker Scout also flags the image's pip 25.0.1 installer; the CVE list and fixed versions appear in each report.
+
+## Bounded official Alpine runtime screen (2026-10-12)
+
+To check whether the zlib High was specific to the selected Debian image, one bounded official Linux/amd64 alternative was screened: Docker Official `python:3.12.15-alpine3.24`, index digest `sha256:1b668429b3511ab407d8e00648891631b0b1a4d7e15e3ca70f38ab5b91ad4ab4`, amd64 manifest `sha256:2055081c860db8c842b663415b795b026e7e5cc63b59c5193fcc9997713ea5b8`, Alpine `3.24.2`, CPython `3.12.15`.
+
+The unmodified official image scan is [`docker-scout-python-alpine3.24-base.txt`](docker-scout-python-alpine3.24-base.txt): 52 packages, **0 critical, 1 high, 5 medium, 1 low**. The High is zlib `1.3.2-r0`, CVE-2026-85091. In a disposable container based on that exact manifest, `apk update && apk add --no-cache --upgrade zlib` installed `zlib-1.3.2-r1` from the configured official Alpine 3.24 repositories. The committed research-only local image had digest `sha256:25053641cab7b5ce7b0f3812bcd70f87581e5ba112556d5b99459ff2df6e69bd`; its scan is [`docker-scout-python-alpine3.24-zlib-r1.txt`](docker-scout-python-alpine3.24-zlib-r1.txt): 52 packages, **0 critical, 0 high, 5 medium, 1 low**. All remaining findings belong to image-bundled pip 25.0.1. The CVE text and Alpine package's current version are available from [Debian's CVE record](https://security-tracker.debian.org/tracker/CVE-2026-85091) and the [Alpine v3.24 zlib catalog](https://pkgs.alpinelinux.org/package/v3.24/main/x86_64/zlib); the exact installed package was also checked with `apk list -I zlib` in the pinned image.
+
+All five pinned Python distributions resolved as binary wheels for this Alpine/musl platform, with their filenames and SHA-256 hashes in [`alpine-runtime-wheel-resolution.txt`](alpine-runtime-wheel-resolution.txt). This was a download/platform-availability check only; the wheels were not installed or smoke-tested under Alpine. No complete Alpine OS/Python/pip package inventory or license/notice archive was produced, and the locally updated overlay is not a released image. Thus Alpine is a possible future base to take to Main's review, not a cleared replacement for the Trixie candidate.
+
+Reproduction commands (the package update stays in the disposable research container; do not treat the local overlay as a product image):
+
+```sh
+docker scout cves --platform linux/amd64 --details --format packages \
+  local://python:3.12.15-alpine3.24@sha256:2055081c860db8c842b663415b795b026e7e5cc63b59c5193fcc9997713ea5b8
+
+docker run --rm --platform linux/amd64 \
+  python:3.12.15-alpine3.24@sha256:2055081c860db8c842b663415b795b026e7e5cc63b59c5193fcc9997713ea5b8 \
+  sh -lc 'apk update && apk add --no-cache --upgrade zlib && apk list -I zlib'
+```
 
 ## Synthetic runtime/keyring/configuration smoke
 
@@ -72,4 +91,4 @@ A separate synthetic preflight assertion rejected a missing gateway before const
 - Main's frozen boundary remains explicit Secure TCP tunneling, no automatic discovery or secure-to-plain retry, existing host Protected Material authority/resolver, and the first stateful DPT slice `1.001`, `1.002`, `5.001`, `9.001`, `9.004`, `9.007`, `9.024`.
 - L0–L3 are later product implementation acceptance work. L4 remains deferred until after Wave 16, partner disclosure, and stable installation. No physical compatibility claim is made.
 - .NET SDK 10.0.401 was already present from the prior lane; K0 uses a Python sidecar candidate and needed no SDK install or .NET compile.
-- Overall recommendation remains `WAIT / FUTURE_ONLY` pending acceptance of this exact distributable image: the image security RED and Main's complete-stack distribution review remain open. This is specific to acceptance of the exact distributable image; XKNX remains the selected candidate and the Main-defined K0 continuation is complete.
+- Overall recommendation remains `WAIT / FUTURE_ONLY`: the selected Trixie image still carries a High zlib finding, while the Alpine screen leaves pip advisories and has no complete distribution/notice closure. Main must select and accept an exact runtime image and its complete notices. The five-wheel license subgate is `GO`; this is not an implementation release. The selected XKNX candidate, existing Protected Material path, Secure contract and test-only KNXUltimate peer remain as Main specified. No product behavior or physical compatibility was tested.

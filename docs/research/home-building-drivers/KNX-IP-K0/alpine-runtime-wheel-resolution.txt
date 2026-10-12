@@ -1,0 +1,31 @@
+# Alpine binary wheel availability screen — 2026-10-12 BRT
+# Base: python:3.12.15-alpine3.24@sha256:2055081c860db8c842b663415b795b026e7e5cc63b59c5193fcc9997713ea5b8 (linux/amd64)
+# Executed: docker run --rm --platform linux/amd64 <pinned-image> sh -lc 'mkdir -p /tmp/knx-wheels; python -m pip download --disable-pip-version-check --only-binary=:all: --no-deps --dest=/tmp/knx-wheels xknx==3.20.0 cryptography==50.0.2 ifaddr==0.2.0 cffi==2.1.1 pycparser==3.11; sha256sum /tmp/knx-wheels/*.whl'
+# Scope: wheel resolution/download and hashes only; no Alpine install/smoke or distribution notice closure.
+Collecting xknx==3.20.0
+  Downloading xknx-3.20.0-py3-none-any.whl.metadata (3.7 kB)
+Collecting cryptography==50.0.2
+  Downloading cryptography-50.0.2-cp311-abi3-musllinux_1_2_x86_64.whl.metadata (4.4 kB)
+Collecting ifaddr==0.2.0
+  Downloading ifaddr-0.2.0-py3-none-any.whl.metadata (4.9 kB)
+Collecting cffi==2.1.1
+  Downloading cffi-2.1.1-cp312-cp312-musllinux_1_2_x86_64.whl.metadata (2.5 kB)
+Collecting pycparser==3.11
+  Downloading pycparser-3.11-py3-none-any.whl.metadata (8.2 kB)
+Downloading xknx-3.20.0-py3-none-any.whl (294 kB)
+Downloading cryptography-50.0.2-cp311-abi3-musllinux_1_2_x86_64.whl (5.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.0/5.0 MB 12.2 MB/s eta 0:00:00
+Downloading ifaddr-0.2.0-py3-none-any.whl (12 kB)
+Downloading cffi-2.1.1-cp312-cp312-musllinux_1_2_x86_64.whl (223 kB)
+Downloading pycparser-3.11-py3-none-any.whl (51 kB)
+Saved /tmp/knx-wheels/xknx-3.20.0-py3-none-any.whl
+Saved /tmp/knx-wheels/cryptography-50.0.2-cp311-abi3-musllinux_1_2_x86_64.whl
+Saved /tmp/knx-wheels/ifaddr-0.2.0-py3-none-any.whl
+Saved /tmp/knx-wheels/cffi-2.1.1-cp312-cp312-musllinux_1_2_x86_64.whl
+Saved /tmp/knx-wheels/pycparser-3.11-py3-none-any.whl
+Successfully downloaded xknx cryptography ifaddr cffi pycparser
+210019b6c7cf07f081b4c54635c8cf744377001350e29cc0f81c4377b4797735  /tmp/knx-wheels/cffi-2.1.1-cp312-cp312-musllinux_1_2_x86_64.whl
+85d0d9a31b9098e98534226d5686b47264b95e62ce459dc2e62fdfc809f9fe93  /tmp/knx-wheels/cryptography-50.0.2-cp311-abi3-musllinux_1_2_x86_64.whl
+085e0305cfe6f16ab12d72e2024030f5d52674afad6911bb1eee207177b8a748  /tmp/knx-wheels/ifaddr-0.2.0-py3-none-any.whl
+51d5a8ba2be0bbe440b99d2112604c95bbbc3c2748a64260186c541e1729cd80  /tmp/knx-wheels/pycparser-3.11-py3-none-any.whl
+064353a2d295d793a4198994d732fb4e5bba922d5e5a47d0f7e14ac3ac16dacc  /tmp/knx-wheels/xknx-3.20.0-py3-none-any.whl

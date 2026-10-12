@@ -112,6 +112,6 @@ const noticeText = [
 ].join('\n') + '\n';
 const noticeFile = path.join(root, 'THIRD-PARTY-NOTICES.md');
 if (process.argv.includes('--write')) fs.writeFileSync(noticeFile, noticeText);
-else assert(fs.readFileSync(noticeFile, 'utf8') === noticeText, 'THIRD-PARTY-NOTICES.md is out of sync; run npm run verify:dependencies -- --write');
+else assert(fs.readFileSync(noticeFile, 'utf8').replace(/\r\n/g, '\n') === noticeText, 'THIRD-PARTY-NOTICES.md is out of sync; run npm run verify:dependencies -- --write');
 
 console.log(`PASS: ${runtime.length} npm runtime packages; MIT=${counts.get('MIT') || 0}, ISC=${counts.get('ISC') || 0}, dual=${counts.get('(MIT OR GPL-2.0)') || 0}; lock SHA-256 ${lockHash}`);

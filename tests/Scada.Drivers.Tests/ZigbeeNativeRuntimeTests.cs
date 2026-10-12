@@ -9,11 +9,12 @@ using Scada.DriverHost.Sidecars;
 using Scada.Drivers.Abstractions;
 using Scada.Drivers.HostResources;
 using Scada.Drivers.Serial;
+using Scada.Api.Security;
 using Scada.Engineering.Contracts;
 
 namespace Scada.Drivers.Tests;
 
-public sealed class ZigbeeNativeRuntimeTests
+public sealed partial class ZigbeeNativeRuntimeTests
 {
     private const string DataSourceKey = "zigbee.home";
     private const string NetworkIdentity = "zigbee-network:home-01";
@@ -31,7 +32,7 @@ public sealed class ZigbeeNativeRuntimeTests
         Assert.Equal(IeeeAddress, point.IeeeAddress);
         Assert.Equal(1, point.Endpoint);
         Assert.True(point.Writable);
-        Assert.Equal("protected-material-v1:zigbee-network-key", plan.NetworkKeyReference);
+        Assert.Equal(HostMaterialSlotReference.Marker, plan.NetworkKeyReference);
         Assert.Equal(NetworkIdentity, plan.NetworkIdentity);
     }
 
@@ -111,9 +112,14 @@ public sealed class ZigbeeNativeRuntimeTests
         canOwnEffects = true;
         await driver.StartAsync();
         Assert.Equal(1, runtime.StartCount);
+        Assert.True(services.Cache.TryGet(fixture.TagId, out var initialRead));
+        Assert.False(Assert.IsType<bool>(initialRead!.Value));
+        Assert.Equal("zigbee.native.readback", initialRead.Source);
 
         runtime.Publish(new NativeZigbeeObservation("00124b00000000ff", 1, true, "device-report", DateTimeOffset.UtcNow));
-        Assert.False(services.Cache.TryGet(fixture.TagId, out _));
+        Assert.True(services.Cache.TryGet(fixture.TagId, out initialRead));
+        Assert.False(Assert.IsType<bool>(initialRead!.Value));
+        Assert.Equal("zigbee.native.readback", initialRead.Source);
         runtime.Publish(new NativeZigbeeObservation(IeeeAddress, 1, true, "device-report", DateTimeOffset.UtcNow));
         await WaitUntilAsync(() => services.Cache.TryGet(fixture.TagId, out var report) && report?.Source == "zigbee.native.device-report");
         Assert.True(services.Cache.TryGet(fixture.TagId, out var reported));
@@ -214,7 +220,8 @@ public sealed class ZigbeeNativeRuntimeTests
         Assert.True(services.Cache.TryGet(fixture.TagId, out var failedRead));
         Assert.Null(failedRead!.Value);
         Assert.Equal(TagQuality.BadCommunication, failedRead.Quality);
-        Assert.Equal(1, driver.GetCommunicationDiagnostics().Counters.FailedOperations);
+        Assert.Equal(2, driver.GetCommunicationDiagnostics().Counters.FailedOperations);
+        Assert.Equal(2, driver.GetCommunicationDiagnostics().Counters.ReadOperations);
 
         runtime.ReadFailure = null;
         runtime.StopFailure = new IOException("coordinator close failed");
@@ -311,7 +318,7 @@ public sealed class ZigbeeNativeRuntimeTests
             },
             SecretReferences: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                ["networkKey"] = "protected-material-v1:zigbee-network-key"
+                ["networkKey"] = HostMaterialSlotReference.Marker
             });
         var binding = new CommunicationTagBinding(
             CommunicationTagBinding.CurrentContractVersion,
@@ -387,9 +394,11 @@ public sealed class ZigbeeNativeRuntimeTests
         public int StartCount { get; private set; }
         public int StopCount { get; private set; }
         public int WriteCount { get; private set; }
+        public int ReadCount { get; private set; }
         public int DisposeCount { get; private set; }
         public bool IsRunning { get; private set; }
         public bool ReadValue { get; set; }
+        public TimeSpan ReadDelay { get; set; }
         public bool WriteReadback { get; set; }
         public Exception? StartFailure { get; set; }
         public Exception? ReadFailure { get; set; }
@@ -413,11 +422,14 @@ public sealed class ZigbeeNativeRuntimeTests
             return ValueTask.CompletedTask;
         }
 
-        public ValueTask<bool> ReadStateAsync(ZigbeeNativePoint point, CancellationToken cancellationToken = default)
+        public async ValueTask<bool> ReadStateAsync(ZigbeeNativePoint point, CancellationToken cancellationToken = default)
         {
+            ReadCount++;
+            if (ReadDelay > TimeSpan.Zero)
+                await Task.Delay(ReadDelay, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             if (ReadFailure is not null) throw ReadFailure;
-            return ValueTask.FromResult(ReadValue);
+            return ReadValue;
         }
 
         public ValueTask<bool> WriteAndReadBackAsync(

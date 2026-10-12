@@ -26,6 +26,21 @@
           TargetPath="ServerScriptRunner.py"
           CopyToOutputDirectory="PreserveNewest"
           CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/ZigbeeNative/src/**/*.mjs"
+             Link="sidecars/zigbee-native/src/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/ZigbeeNative/package*.json;../Scada.DriverHost/Sidecars/ZigbeeNative/SBOM.cdx.json;../Scada.DriverHost/Sidecars/ZigbeeNative/THIRD-PARTY-NOTICES.md"
+             Link="sidecars/zigbee-native/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/ZigbeeNative/licenses/**"
+             Link="sidecars/zigbee-native/licenses/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/KnxIp/main.py;../Scada.DriverHost/Sidecars/KnxIp/security.py;../Scada.DriverHost/Sidecars/KnxIp/requirements.lock;../Scada.DriverHost/Sidecars/KnxIp/SBOM.cdx.json;../Scada.DriverHost/Sidecars/KnxIp/THIRD-PARTY-NOTICES.md"
+             Link="sidecars/knx-ip/%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/KnxIp/licenses/**"
+             Link="sidecars/knx-ip/licenses/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <Target Name="IncludeEliteScadaDnp3DistributionFiles" AfterTargets="ComputeFilesToPublish"

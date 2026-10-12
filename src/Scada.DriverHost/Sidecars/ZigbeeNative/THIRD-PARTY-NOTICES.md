@@ -31,11 +31,13 @@ This sidecar distributes the 24 production npm packages listed below, pinned by 
 
 ## Node.js runtime
 
-The qualified runtime is the official Node.js `v24.21.0` Linux x64 distribution. Its complete bundled runtime license and third-party notices are included here:
+The qualified runtimes are the official Node.js `v24.21.0` Linux x64 and Windows x64 distributions. Their complete bundled runtime license and third-party notices are included here:
 
-- [Node.js and bundled third-party license texts](licenses/node-v24.21.0-LICENSE.txt)
-- Official distribution: `https://nodejs.org/dist/v24.21.0/`
-- Linux x64 archive SHA-256: `fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6`
+- [official Node.js v24.21.0 Linux x64 license and third-party texts](licenses/node-v24.21.0-LICENSE.txt)
+- [official Node.js v24.21.0 Windows x64 license and third-party texts](licenses/node-v24.21.0-windows-LICENSE.txt)
+- Official distributions: `https://nodejs.org/dist/v24.21.0/`
+- official Node.js v24.21.0 Linux x64 archive SHA-256: `fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6`
+- official Node.js v24.21.0 Windows x64 archive SHA-256: `158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541`
 
 ## Audited distribution counts
 

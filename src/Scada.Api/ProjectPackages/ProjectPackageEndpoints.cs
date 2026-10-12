@@ -19,6 +19,7 @@ public static class ProjectPackageEndpoints
         endpoints.MapReusableLibraryIncorporationEndpoints();
         endpoints.MapVisualAssetEndpoints();
         endpoints.MapMediaSourceEngineeringEndpoints();
+        endpoints.MapIntegrationProtectedMaterialEndpoints();
         endpoints.MapSystemRecoveryApplicationEndpoints();
 
         endpoints.MapGet("/api/project-package/export", (

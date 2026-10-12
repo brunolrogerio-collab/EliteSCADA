@@ -1804,6 +1804,44 @@
           "value": "official Node.js v24.21.0 Linux x64"
         }
       ]
+    },
+    {
+      "type": "application",
+      "name": "Node.js runtime",
+      "version": "24.21.0",
+      "bom-ref": "pkg:generic/node@24.21.0?arch=x64&distro=win",
+      "purl": "pkg:generic/node@24.21.0?arch=x64&distro=win",
+      "scope": "required",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "url": "https://nodejs.org/dist/v24.21.0/",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-256",
+              "content": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541"
+            }
+          ]
+        }
+      ],
+      "properties": [
+        {
+          "name": "org.elitescada:license-notice-file",
+          "value": "licenses/node-v24.21.0-windows-LICENSE.txt"
+        },
+        {
+          "name": "org.elitescada:distribution",
+          "value": "official Node.js v24.21.0 Windows x64"
+        }
+      ]
     }
   ],
   "dependencies": [
@@ -1812,7 +1850,8 @@
       "dependsOn": [
         "elitescada-zigbee-native-sidecar@1.0.0|zigbee-herdsman-converters@23.7.0",
         "elitescada-zigbee-native-sidecar@1.0.0|zigbee-herdsman@3.3.2",
-        "pkg:generic/node@24.21.0?arch=x64&distro=linux"
+        "pkg:generic/node@24.21.0?arch=x64&distro=linux",
+        "pkg:generic/node@24.21.0?arch=x64&distro=win"
       ]
     },
     {

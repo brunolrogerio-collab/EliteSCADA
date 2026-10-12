@@ -9,9 +9,22 @@ const pkg = readJson('package.json');
 const lock = readJson('package-lock.json');
 const sbom = readJson('SBOM.cdx.json');
 const licenseDir = path.join(root, 'licenses');
-const lockBytes = fs.readFileSync(path.join(root, 'package-lock.json'));
-const lockHash = crypto.createHash('sha256').update(lockBytes).digest('hex');
-const expectedNodeHash = 'fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6';
+const lockText = fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8').replace(/\r\n/g, '\n');
+const lockHash = crypto.createHash('sha256').update(lockText, 'utf8').digest('hex');
+const expectedNodeDistributions = [
+  {
+    purl: 'pkg:generic/node@24.21.0?arch=x64&distro=linux',
+    hash: 'fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6',
+    licenseFile: 'node-v24.21.0-LICENSE.txt',
+    label: 'official Node.js v24.21.0 Linux x64',
+  },
+  {
+    purl: 'pkg:generic/node@24.21.0?arch=x64&distro=win',
+    hash: '158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541',
+    licenseFile: 'node-v24.21.0-windows-LICENSE.txt',
+    label: 'official Node.js v24.21.0 Windows x64',
+  },
+];
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -53,12 +66,13 @@ for (const item of runtime) {
   noticeRows.push(`| \`${item.name}\` | \`${item.version}\` | \`${item.license}\` | [${matches[0]}](licenses/${matches[0]})${choice} |`);
 }
 
-const nodeLicense = 'node-v24.21.0-LICENSE.txt';
-assert(licenseFiles.includes(nodeLicense), 'Node runtime license bundle is missing');
-const nodeRuntime = sbom.components.find((component) => component.name === 'Node.js runtime' && component.version === '24.21.0');
-assert(nodeRuntime, 'CycloneDX SBOM is missing the pinned Node runtime');
-assert(nodeRuntime.purl === 'pkg:generic/node@24.21.0?arch=x64&distro=linux', 'SBOM Node runtime purl drifted');
-assert(nodeRuntime.externalReferences?.some((reference) => reference.hashes?.some((hash) => hash.content === expectedNodeHash)), 'SBOM Node distribution hash is missing');
+for (const distribution of expectedNodeDistributions) {
+  assert(licenseFiles.includes(distribution.licenseFile), `Node runtime notice is missing for ${distribution.label}`);
+  const nodeRuntime = sbom.components.find((component) => component.name === 'Node.js runtime' && component.version === '24.21.0' && component.purl === distribution.purl);
+  assert(nodeRuntime, `CycloneDX SBOM is missing ${distribution.label}`);
+  assert(nodeRuntime.externalReferences?.some((reference) => reference.hashes?.some((hash) => hash.content === distribution.hash)), `SBOM distribution hash is missing for ${distribution.label}`);
+  assert(nodeRuntime.properties?.some((property) => property.name === 'org.elitescada:license-notice-file' && property.value === `licenses/${distribution.licenseFile}`), `SBOM notice reference is missing for ${distribution.label}`);
+}
 assert(sbom.metadata.component.properties?.some((property) => property.name === 'org.elitescada:package-lock-sha256' && property.value === lockHash), 'SBOM does not match package-lock.json');
 
 const expectedComponents = new Set(runtime.map((item) => `${item.name}@${item.version}`));
@@ -82,11 +96,11 @@ const noticeText = [
   '',
   '## Node.js runtime',
   '',
-  'The qualified runtime is the official Node.js `v24.21.0` Linux x64 distribution. Its complete bundled runtime license and third-party notices are included here:',
+  'The qualified runtimes are the official Node.js `v24.21.0` Linux x64 and Windows x64 distributions. Their complete bundled runtime license and third-party notices are included here:',
   '',
-  `- [Node.js and bundled third-party license texts](licenses/${nodeLicense})`,
-  '- Official distribution: `https://nodejs.org/dist/v24.21.0/`',
-  `- Linux x64 archive SHA-256: \`${expectedNodeHash}\``,
+  ...expectedNodeDistributions.map((distribution) => `- [${distribution.label} license and third-party texts](licenses/${distribution.licenseFile})`),
+  '- Official distributions: `https://nodejs.org/dist/v24.21.0/`',
+  ...expectedNodeDistributions.map((distribution) => `- ${distribution.label} archive SHA-256: \`${distribution.hash}\``),
   '',
   '## Audited distribution counts',
   '',

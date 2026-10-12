@@ -29,7 +29,8 @@ public sealed record ZigbeeNativeCommunicationRuntimePlan(
     int Channel,
     int BaudRate,
     string NetworkKeyReference,
-    IReadOnlyCollection<ZigbeeNativePoint> Points) : ICommunicationDriverRuntimePlan
+    IReadOnlyCollection<ZigbeeNativePoint> Points,
+    Guid? DataSourceId = null) : ICommunicationDriverRuntimePlan
 {
     public string DriverType => ZigbeeNativeDriverDescriptorProvider.DriverType;
     public IReadOnlyCollection<TagDefinition> Tags => Points.Select(point => point.Tag).ToArray();
@@ -71,6 +72,10 @@ public sealed class ZigbeeNativeCommunicationRuntimePlanner : ICommunicationDriv
         var baudText = ReadOptional(settings, "baudRate") ?? "115200";
         var networkKeyReference = ReadRequired(dataSource.SecretReferences ?? new Dictionary<string, string>(),
             "networkKey", dataSource.Key, issues);
+        if (networkKeyReference is not null &&
+            !string.Equals(networkKeyReference, HostMaterialSlotReference.Marker, StringComparison.Ordinal))
+            issues.Add(Error("ZIGBEE_NATIVE_PROTECTED_MATERIAL_REFERENCE_INVALID",
+                "networkKey must use the portable host-owned protected-material slot marker.", dataSource.Key));
 
         if (!TryParsePanId(panIdText, out var panId))
             issues.Add(Error("ZIGBEE_NATIVE_PAN_ID_INVALID", "panId must be a decimal or 0x-prefixed value from 1 through 65534.", dataSource.Key));
@@ -165,7 +170,8 @@ public sealed class ZigbeeNativeCommunicationRuntimePlanner : ICommunicationDriv
                 channel,
                 baudRate,
                 networkKeyReference!,
-                points),
+                points,
+                dataSource.Id),
             issues);
     }
 
@@ -289,29 +295,37 @@ public sealed class ZigbeeNativeDriverDescriptorProvider : ICommunicationDriverD
         ConnectionModel: DriverConnectionModel.HostRadio,
         ExternalDependencies: [new DriverExternalDependencyDescriptor(
             DriverExternalDependencyKind.OptionalSidecar,
-            "Node.js 24.21.0 on Linux x64",
+            "Node.js 24.21.0 on Windows or Linux x64",
             "Managed sidecar pinned to zigbee-herdsman 3.3.2 and converters dataset 23.7.0.")]);
 }
 
 public sealed record ZigbeeNativeSidecarDeploymentOptions(
     string NodeExecutable,
     string ArtifactDirectory,
-    string StateDirectory);
+    string StateDirectory)
+{
+    public static ZigbeeNativeSidecarDeploymentOptions Default => new(
+        "node", Path.Combine(AppContext.BaseDirectory, "sidecars", "zigbee-native"),
+        Path.Combine(AppContext.BaseDirectory, "data", "sidecars", "zigbee-native"));
+}
 
 public sealed class ZigbeeNativeCommunicationRuntimeFactory : ICommunicationDriverRuntimeFactory
 {
     private readonly HostResourceRegistry _resourceRegistry;
     private readonly HostResourceLeaseCoordinator _resourceLeases;
     private readonly ZigbeeNativeSidecarDeploymentOptions _deployment;
+    private readonly Func<ZigbeeNativeCommunicationRuntimePlan, CommunicationDriverRuntimeServices, INativeZigbeeSidecarSession>? _sessionFactory;
 
     public ZigbeeNativeCommunicationRuntimeFactory(
         HostResourceRegistry resourceRegistry,
         HostResourceLeaseCoordinator resourceLeases,
-        ZigbeeNativeSidecarDeploymentOptions deployment)
+        ZigbeeNativeSidecarDeploymentOptions deployment,
+        Func<ZigbeeNativeCommunicationRuntimePlan, CommunicationDriverRuntimeServices, INativeZigbeeSidecarSession>? sessionFactory = null)
     {
         _resourceRegistry = resourceRegistry ?? throw new ArgumentNullException(nameof(resourceRegistry));
         _resourceLeases = resourceLeases ?? throw new ArgumentNullException(nameof(resourceLeases));
         _deployment = deployment ?? throw new ArgumentNullException(nameof(deployment));
+        _sessionFactory = sessionFactory;
         if (string.IsNullOrWhiteSpace(_deployment.NodeExecutable) ||
             string.IsNullOrWhiteSpace(_deployment.ArtifactDirectory) ||
             string.IsNullOrWhiteSpace(_deployment.StateDirectory))
@@ -333,6 +347,8 @@ public sealed class ZigbeeNativeCommunicationRuntimeFactory : ICommunicationDriv
         var resourceId = new HostResourceId(zigbeePlan.HostResourceId);
         var resource = _resourceRegistry.GetRequired(resourceId);
         ValidateCoordinator(resource, zigbeePlan);
+        if (_sessionFactory is not null)
+            return new ZigbeeNativeCommunicationDriver(zigbeePlan, services, _sessionFactory(zigbeePlan, services));
 
         var instanceHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{services.ProjectKey}\0{zigbeePlan.DataSourceKey}"))).ToLowerInvariant();
         var instanceId = $"zigbee.native.{instanceHash[..24]}";
@@ -340,15 +356,15 @@ public sealed class ZigbeeNativeCommunicationRuntimeFactory : ICommunicationDriv
         var databasePath = Path.Combine(stateDirectory, "herdsman.db");
         var protectedReference = new ManagedSidecarProtectedSettingReference(
             "networkKey",
-            "data-source",
-            zigbeePlan.DataSourceKey,
+            DriverType,
+            (zigbeePlan.DataSourceId ?? throw new InvalidOperationException("Native Zigbee requires stable Data Source identity.")).ToString("D"),
             "zigbee.native.network-key",
             zigbeePlan.NetworkKeyReference);
         var definition = new ManagedSidecarDefinition(
             instanceId,
             new ManagedSidecarArtifactIdentity("elitescada.zigbee.native", "1.0.0", "24.21.0", 1),
             new ManagedSidecarCompatibilityMetadata("elitescada.zigbee.native", ["1.0.0"], "24.21.0", 1, 1),
-            new ManagedSidecarPackagingMetadata([ManagedSidecarPackageTargets.LinuxX64]),
+            new ManagedSidecarPackagingMetadata([ManagedSidecarPackageTargets.WindowsX64, ManagedSidecarPackageTargets.LinuxX64]),
             new ManagedSidecarConfiguration(
                 new Dictionary<string, string>(StringComparer.Ordinal)
                 {
@@ -371,8 +387,8 @@ public sealed class ZigbeeNativeCommunicationRuntimeFactory : ICommunicationDriv
         var processFactory = new SystemManagedSidecarProcessFactory((_, protectedSettings, cancellationToken) =>
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (!OperatingSystem.IsLinux() || !System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.Equals(System.Runtime.InteropServices.Architecture.X64))
-                throw new PlatformNotSupportedException("Native Zigbee v1 sidecar is qualified for Linux x64 only.");
+            if (!(OperatingSystem.IsWindows() || OperatingSystem.IsLinux()) || !System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.Equals(System.Runtime.InteropServices.Architecture.X64))
+                throw new PlatformNotSupportedException("Native Zigbee v1 requires Windows or Linux x64.");
             if (!Directory.Exists(_deployment.ArtifactDirectory))
                 throw new DirectoryNotFoundException("Native Zigbee sidecar artifact directory is missing.");
             if (!protectedSettings.TryGetValue("networkKey", out var protectedNetworkKey))
@@ -516,7 +532,7 @@ public sealed class ZigbeeNativeCommunicationDriver :
             if (Volatile.Read(ref _running) != 0)
                 throw new InvalidOperationException($"Native Zigbee Data Source '{DriverId}' is already active.");
             cancellationToken.ThrowIfCancellationRequested();
-            if (!_services.CanOwnExternalEffects)
+            if (!_services.CanAcquireInputs)
                 throw new InvalidOperationException("Native Zigbee Standby Runtime cannot open a physical coordinator.");
 
             foreach (var point in _plan.Points) _services.Registry.Upsert(point.Tag);
@@ -526,13 +542,32 @@ public sealed class ZigbeeNativeCommunicationDriver :
                 await _runtime.StartAsync(cancellationToken).ConfigureAwait(false);
                 Volatile.Write(ref _running, 1);
                 SetStatus(DriverState.Running, null);
+                // Seed the private candidate cache from real readback; acknowledgments are never values.
+                foreach (var point in _plan.Points)
+                {
+                    try { await ReadAsync(point.Tag.Id, cancellationToken).ConfigureAwait(false); }
+                    catch (Exception ex) when (ex is not OperationCanceledException) { /* Per-point BAD is retained; protocol readiness is independent. */ }
+                }
             }
             catch (Exception exception)
             {
+                var failure = exception;
+                if (Interlocked.Exchange(ref _running, 0) != 0)
+                {
+                    try
+                    {
+                        await _runtime.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception stopException)
+                    {
+                        failure = new AggregateException("Native Zigbee startup failed and cleanup also failed.", exception, stopException);
+                    }
+                }
                 Interlocked.Increment(ref _failures);
-                _lastError = Sanitize(exception.Message);
+                _lastError = Sanitize(failure.Message);
                 SetStatus(DriverState.Faulted, _lastError);
-                throw;
+                if (ReferenceEquals(failure, exception)) throw;
+                throw failure;
             }
         }
         finally
@@ -573,7 +608,7 @@ public sealed class ZigbeeNativeCommunicationDriver :
     {
         if (!_pointsByTagId.TryGetValue(tagId, out var point))
             throw new KeyNotFoundException($"Native Zigbee TAG '{tagId}' is not part of Data Source '{DriverId}'.");
-        if (Volatile.Read(ref _running) == 0 || !_services.CanOwnExternalEffects)
+        if (Volatile.Read(ref _running) == 0 || !_services.CanAcquireInputs)
             return _services.Cache.TryGet(tagId, out var cached) ? cached : null;
 
         Interlocked.Increment(ref _requests);
@@ -647,6 +682,15 @@ public sealed class ZigbeeNativeCommunicationDriver :
             DataSourceName = Name,
             DriverType = ZigbeeNativeDriverDescriptorProvider.DriverType,
             RuntimeInstanceId = _runtimeInstanceId,
+            State = Status.State switch
+            {
+                DriverState.Starting => CommunicationDriverOperationalState.Starting,
+                DriverState.Running => CommunicationDriverOperationalState.Healthy,
+                DriverState.Stopping => CommunicationDriverOperationalState.Stopping,
+                DriverState.Faulted => CommunicationDriverOperationalState.Faulted,
+                _ => CommunicationDriverOperationalState.Stopped
+            },
+            StateChangedAt = _stateChangedAt,
             LastSuccessfulCommunicationAt = _lastCommunicationAt ?? snapshot.LastSuccessfulCommunicationAt,
             LastError = _lastError ?? snapshot.LastError,
             AssociatedTagCount = _plan.Points.Count,
@@ -688,19 +732,26 @@ public sealed class ZigbeeNativeCommunicationDriver :
 
     private void OnObservation(NativeZigbeeObservation observation)
     {
+        if (Volatile.Read(ref _running) == 0 || !_services.CanAcquireInputs) return;
         if (!_pointsByAddress.TryGetValue(observation.AddressKey, out var point)) return;
         _ = PublishObservationAsync(point, observation);
     }
 
     private async Task PublishObservationAsync(ZigbeeNativePoint point, NativeZigbeeObservation observation)
     {
+        await _lifecycleGate.WaitAsync().ConfigureAwait(false);
         try
         {
+            if (Volatile.Read(ref _running) == 0 || !_services.CanAcquireInputs) return;
             await PublishStateAsync(point, observation.Value, $"zigbee.native.{observation.Source}", CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception exception)
         {
             RecordOperationFailure(exception);
+        }
+        finally
+        {
+            _lifecycleGate.Release();
         }
     }
 

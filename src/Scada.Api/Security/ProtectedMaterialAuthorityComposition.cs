@@ -17,6 +17,9 @@ public static class ProtectedMaterialAuthorityComposition
         builder.Services.TryAddSingleton<IMediaSourceCredentialReferenceStore>(_ =>
             new FileMediaSourceCredentialReferenceStore(options.StorePath));
         builder.Services.TryAddSingleton<MediaSourceProtectedCredentialService>();
+        builder.Services.TryAddSingleton<IIntegrationProtectedMaterialReferenceStore>(_ =>
+            new FileIntegrationProtectedMaterialReferenceStore(options.StorePath));
+        builder.Services.TryAddSingleton<IntegrationProtectedMaterialService>();
         builder.Services.TryAddSingleton<IProtectedMaterialAuthority>(services =>
         {
             var key = options.LoadProtectionKey();

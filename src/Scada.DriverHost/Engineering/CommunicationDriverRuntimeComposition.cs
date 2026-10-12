@@ -16,6 +16,7 @@ using Scada.Drivers.SiemensS7Iso;
 using Scada.Drivers.Simulation;
 using Scada.Drivers.Shelly;
 using Scada.Drivers.Zigbee2Mqtt;
+using Scada.Drivers.HostResources;
 
 namespace Scada.DriverHost.Engineering;
 
@@ -36,13 +37,19 @@ public static class CommunicationDriverRuntimeComposition
         Func<OpcUaRuntimeConnectionOptions, IOpcUaRuntimeSecurityMaterialProvider, IOpcUaRuntimeSessionFactory>? opcUaSessionFactoryBuilder = null,
         IDnp3MasterSessionFactory? dnp3SessionFactory = null,
         IBacnetSessionFactory? bacnetSessionFactory = null,
-        HostSerialBusCoordinator? serialBusCoordinator = null)
+        HostSerialBusCoordinator? serialBusCoordinator = null,
+        HostResourceRegistry? hostResources = null,
+        HostResourceLeaseCoordinator? hostResourceLeases = null,
+        ZigbeeNativeSidecarDeploymentOptions? zigbeeDeployment = null,
+        KnxIpSidecarDeploymentOptions? knxIpDeployment = null)
     {
         var protectedMaterialResolver = hostProtectedMaterialResolver
             ?? EnvironmentCommunicationDriverProtectedMaterialResolver.CreateDeterministicScopedEnvironment();
         var serialCoordinator = serialBusCoordinator
             ?? new HostSerialBusCoordinator(new SystemHostSerialPortProvider());
         var registry = new CommunicationDriverRuntimeComponentRegistry();
+        var resources = hostResources ?? new HostResourceRegistry();
+        var resourceLeases = hostResourceLeases ?? new HostResourceLeaseCoordinator(resources);
         registry.Register(new CommunicationDriverRuntimeComponentRegistration(
             new ModbusTcpCommunicationRuntimePlanner(),
             new ModbusTcpCommunicationRuntimeFactory(),
@@ -131,6 +138,20 @@ public static class CommunicationDriverRuntimeComposition
                 new Zigbee2MqttCommunicationRuntimeFactory(mqttTransportFactory),
                 protectedMaterialResolver),
             new Zigbee2MqttDriverDescriptorProvider().Descriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new ZigbeeNativeCommunicationRuntimePlanner(),
+            new HostProtectedMaterialRuntimeFactory(
+                new ZigbeeNativeCommunicationRuntimeFactory(resources, resourceLeases,
+                    zigbeeDeployment ?? ZigbeeNativeSidecarDeploymentOptions.Default),
+                protectedMaterialResolver),
+            new ZigbeeNativeDriverDescriptorProvider().Descriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new KnxIpCommunicationRuntimePlanner(),
+            new HostProtectedMaterialRuntimeFactory(
+                new KnxIpCommunicationRuntimeFactory(resources, resourceLeases,
+                    knxIpDeployment ?? KnxIpSidecarDeploymentOptions.Default),
+                protectedMaterialResolver),
+            new KnxIpDriverDescriptorProvider().Descriptor));
         return registry;
     }
 

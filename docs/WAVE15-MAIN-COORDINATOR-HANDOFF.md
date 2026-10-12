@@ -1,5 +1,21 @@
 # NEXT COORDINATOR START — HOME/BUILDING AUTOMATION DRIVERS — 2026-10-06
 
+# CURRENT COORDINATION DELTA — 2026-10-12 — ZIGBEE / KNX / DALI CLOSEOUT
+
+> This current-state delta supersedes earlier Home/Building sequencing below where they conflict. GitHub live remains authoritative.
+
+Product integration checkpoint: `wave15/corrections-integration@12d4d17a8ae007c27525247e44b1f34c2a5f5b85` (PR #582 merged).
+
+## Integrated software scope and evidence
+
+- Zigbee2MQTT Bridge: PR #575 integrated at `ff567102bef09fba8ab26a6b13db678b0a85b842`; its integration CI #38015062177 passed. This remains a separate bridge integration from Native Zigbee.
+- DALI-2: PR #581 integrated at `7eea131616cb3004d1276e8950a23c96cdbbfe15`; post-merge CI #38275180334 passed. The delivered scope is the documented Intesis 700 DALI-2 profile through the existing `modbus.tcp` driver, not a native DALI stack. Issue #579 is closed.
+- Native Zigbee + KNX/IP Secure: PR #582 merged as `12d4d17a8ae007c27525247e44b1f34c2a5f5b85`. Exact-head T1 #38289456476 passed; specialized L3 Seven-Driver Lab #38289748222 passed; post-merge EliteSCADA CI #38290979603 passed on the merge SHA. The Native Zigbee and KNX sidecar test/evidence matrices include Windows and Linux.
+
+This is software integration/test evidence, not physical L4 qualification or a general device-compatibility claim. Physical L4 remains deferred. Do not describe DALI gateway support as native DALI. Do not claim FND/FC0 advancement from this closeout. No further Home/Building implementation lane is released by this delta; the Product Owner/coordinator should decide whether to open the next bounded protocol lanes after reviewing the remaining roadmap and hardware plan. Wave 15 remains open for its separate productization/Preview/i18n/Help/Manual closeout work.
+
+The previous 2026-10-06 assignment below is retained as history, not as the current status for Zigbee/KNX/DALI.
+
 Product Owner direction: the incoming coordinator should begin the Home/Building automation-driver program. Use #472 as the program roadmap and #475 as protocol research input. This explicitly supersedes the old #472 `WAIT_CURRENT_LANES / NO_IMPLEMENTATION_BRANCH` status; do not treat planning-only as the current assignment.
 
 First actions on the live integration: (1) revalidate/reuse the Host Serial foundation in #469; (2) audit and close or narrowly revise #483, which remains OPEN for canonical TAG/DataSource identity, Equipment independent of Templates, and driver-catalog convergence; (3) inspect #475's per-protocol GO/WAIT/REJECT, license, hardware and test recommendations; (4) start one bounded first driver implementation selected from that evidence. Existing BACnet/IP is already supported and must not be duplicated. Do not claim compatibility beyond the tested hardware/firmware matrix, and keep the canonical TAG/Equipment/Command/Runtime architecture.

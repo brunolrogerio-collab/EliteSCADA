@@ -1,0 +1,26 @@
+{
+  "name": "elitescada-zigbee-native-sidecar",
+  "version": "1.0.0",
+  "description": "EliteSCADA managed Native Zigbee sidecar for the TI zStack coordinator family",
+  "main": "src/sidecar.mjs",
+  "scripts": {
+    "start": "node src/sidecar.mjs",
+    "test": "node --test test/*.test.mjs",
+    "verify:dependencies": "node scripts/verify-dependencies.mjs"
+  },
+  "keywords": [],
+  "author": "EliteSCADA",
+  "type": "commonjs",
+  "dependencies": {
+    "zigbee-herdsman": "3.3.2",
+    "zigbee-herdsman-converters": "23.7.0"
+  },
+  "allowScripts": {
+    "@serialport/bindings-cpp@13.0.1": true
+  },
+  "private": true,
+  "packageManager": "npm@11.19.0",
+  "engines": {
+    "node": "24.21.0"
+  }
+}

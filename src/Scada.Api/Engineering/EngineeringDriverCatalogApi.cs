@@ -11,6 +11,7 @@ using Scada.Drivers.Mitsubishi;
 using Scada.Drivers.Panasonic;
 using Scada.Drivers.Serial;
 using Scada.Drivers.Zigbee2Mqtt;
+using Scada.Drivers.HostResources;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.DataSources;
 using Scada.Engineering.Validation;
@@ -32,13 +33,20 @@ public static class EngineeringDriverCatalogApi
 {
     public static void AddEngineeringDriverCatalog(this WebApplicationBuilder builder)
     {
-        builder.Services.TryAddSingleton<ICommunicationDriverProtectedMaterialResolver>(_ =>
-            EnvironmentCommunicationDriverProtectedMaterialResolver.CreateDeterministicScopedEnvironment());
+        builder.AddManagedProtocolHost();
+        builder.Services.TryAddSingleton<ICommunicationDriverProtectedMaterialResolver>(sp =>
+            new HostAuthorityDriverMaterialResolver(sp.GetRequiredService<IProtectedMaterialAuthority>(),
+                sp.GetRequiredService<IntegrationProtectedMaterialService>(),
+                EnvironmentCommunicationDriverProtectedMaterialResolver.CreateDeterministicScopedEnvironment()));
         builder.Services.TryAddSingleton<IHostSerialPortProvider, SystemHostSerialPortProvider>();
         builder.Services.TryAddSingleton<HostSerialBusCoordinator>();
         builder.Services.AddSingleton(sp => CommunicationDriverRuntimeComposition.BuildForCurrentSchema(
             hostProtectedMaterialResolver: sp.GetRequiredService<ICommunicationDriverProtectedMaterialResolver>(),
-            serialBusCoordinator: sp.GetRequiredService<HostSerialBusCoordinator>()));
+            serialBusCoordinator: sp.GetRequiredService<HostSerialBusCoordinator>(),
+            hostResources: sp.GetRequiredService<HostResourceRegistry>(),
+            hostResourceLeases: sp.GetRequiredService<HostResourceLeaseCoordinator>(),
+            zigbeeDeployment: sp.GetRequiredService<ZigbeeNativeSidecarDeploymentOptions>(),
+            knxIpDeployment: sp.GetRequiredService<KnxIpSidecarDeploymentOptions>()));
         builder.Services.AddSingleton<EngineeringDataSourceTypeCatalog>(sp =>
             EngineeringDataSourceTypeCatalog.BuildForCurrentSchema(
                 sp.GetRequiredService<CommunicationDriverRuntimeComponentRegistry>()));

@@ -59,12 +59,11 @@ public sealed class ManagedSidecarRuntimeBinding :
                 var boundResourceId = _definition.PersistentState?.BoundResourceId;
                 if (boundResourceId is not null)
                 {
-                    resourceLease = _services.AcquireHostResource(
-                        _resourceLeases,
+                    resourceLease = _resourceLeases.Acquire(
                         boundResourceId,
-                        $"sidecar:{_definition.InstanceId}");
+                        $"sidecar:{_definition.InstanceId}", () => _services.CanAcquireInputs);
                 }
-                else if (!_services.CanOwnExternalEffects)
+                else if (!_services.CanAcquireInputs)
                 {
                     throw new InvalidOperationException(
                         $"Managed sidecar '{_definition.InstanceId}' cannot start because this Runtime does not own external effects.");

@@ -34,6 +34,8 @@ jobs:
       dotnet_projects: ${{ steps.router.outputs.dotnet_projects }}
       e2e_specs: ${{ steps.router.outputs.e2e_specs }}
       driver_gate: ${{ steps.router.outputs.driver_gate }}
+      run_native_zigbee: ${{ steps.native_scope.outputs.run_native_zigbee }}
+      run_knx_sidecar: ${{ steps.knx_scope.outputs.run_knx_sidecar }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -67,6 +69,54 @@ jobs:
             --github-output "$GITHUB_OUTPUT" \
             --summary-file /tmp/profile-summary.md
           cat /tmp/profile-summary.md >> "$GITHUB_STEP_SUMMARY"
+      - id: native_scope
+        name: Select Native Zigbee sidecar evidence
+        env:
+          NATIVE_CHANGED_FILES_PATH: /tmp/changed-files.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+
+          changed = Path(os.environ["NATIVE_CHANGED_FILES_PATH"]).read_text().splitlines()
+          pattern = re.compile(r"^(\.github/workflows/wave15-pr\.yml|scripts/ci/wave15_profile_router\.py|src/Scada.DriverHost/(Sidecars/(ZigbeeNative/.*|ManagedSidecar.*|SystemManagedSidecar.*)|Engineering/(ZigbeeNative.*|CommunicationDriverRuntime.*))|src/Scada.Drivers/HostResources/.*|tests/Scada.Drivers.Tests/(ZigbeeNative.*|ManagedSidecar.*|HostResource.*))$")
+          artifact = Path("src/Scada.DriverHost/Sidecars/ZigbeeNative")
+          component = Path("src/Scada.DriverHost/Engineering/ZigbeeNativeCommunicationRuntimeComponents.cs")
+          selected = any(pattern.fullmatch(path) for path in changed) and (artifact.exists() or component.exists())
+          if selected and not (artifact / "package.json").is_file():
+              raise RuntimeError("Native Zigbee evidence requires its sidecar package.json")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"run_native_zigbee={str(selected).lower()}\n")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(f"Native Zigbee sidecar evidence selected: {selected}\n")
+          PY
+      - id: knx_scope
+        name: Select KNX/IP Secure sidecar evidence
+        env:
+          KNX_CHANGED_FILES_PATH: /tmp/changed-files.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+
+          changed = Path(os.environ["KNX_CHANGED_FILES_PATH"]).read_text().splitlines()
+          pattern = re.compile(r"^(\.github/workflows/wave15-pr\.yml|docs/examples/home-building/KNX-IP-SECURE-SETUP\.md|docs/research/home-building-drivers/KNX-IP-IMPLEMENTATION-ADR\.md|src/Scada\.Api/(Engineering/(EngineeringDriverCatalogApi|ManagedProtocolHostConfiguration)\.cs|ProjectPackages/IntegrationProtectedMaterialEndpoints\.cs|Scada\.Api\.csproj|Security/(HostAuthorityDriverMaterialResolver|IntegrationProtectedMaterialReferences)\.cs)|src/Scada\.DriverHost/(Engineering/(CommunicationDriverRuntimeComposition|KnxIpCommunicationRuntimeComponents)\.cs|Sidecars/KnxIp/.*)|tests/Scada\.Drivers\.Tests/(KnxIpRuntimeTests|IntegrationProtectedMaterialServiceTests|HostAuthorityDriverMaterialResolverTests|ManagedProtocolHostConfigurationTests)\.cs)$")
+          directory = Path("src/Scada.DriverHost/Sidecars/KnxIp")
+          selected = any(pattern.fullmatch(path) for path in changed) and (directory / "main.py").is_file()
+          if selected:
+              required = ("main.py", "security.py", "requirements.lock", "SBOM.cdx.json", "THIRD-PARTY-NOTICES.md", "test_security.py")
+              missing = [name for name in required if not (directory / name).is_file()]
+              if missing:
+                  raise RuntimeError("KNX/IP sidecar evidence is missing: " + ", ".join(missing))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"run_knx_sidecar={str(selected).lower()}\n")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(f"KNX/IP Secure sidecar evidence selected: {selected}\n")
+          PY
 
   common-sanity:
     name: Common T1 sanity
@@ -233,9 +283,110 @@ jobs:
       - name: Run real two-process HA evidence
         run: python3 scripts/ci/ha_d1_two_process_evidence.py
 
+  native-zigbee-sidecar:
+    name: Native Zigbee Node and SBOM evidence (${{ matrix.os }})
+    needs: classify
+    if: needs.classify.outputs.run_native_zigbee == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: src/Scada.DriverHost/Sidecars/ZigbeeNative
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.21.0'
+          cache: npm
+          cache-dependency-path: src/Scada.DriverHost/Sidecars/ZigbeeNative/package-lock.json
+      - name: Use the qualified npm version
+        run: npm install --global npm@11.19.0 --no-audit --no-fund
+      - name: Verify exact runtime pins and install the locked sidecar
+        run: |
+          set -euo pipefail
+          test "$(node --version)" = v24.21.0
+          test "$(npm --version)" = 11.19.0
+          npm ci --no-audit --no-fund
+      - name: Verify SBOM and complete dependency notices
+        run: npm run verify:dependencies
+      - name: Load the pinned coordinator modules and native serial binding
+        run: |
+          node --input-type=module -e "await import('zigbee-herdsman'); await import('zigbee-herdsman-converters'); await import('zigbee-herdsman/dist/adapter/z-stack/adapter/manager.js');"
+          node -e "require('@serialport/bindings-cpp').autoDetect()"
+      - name: Run sidecar tests including the independent child-process peer
+        run: npm test
+      - name: Audit the exact production dependency lock
+        run: npm audit --omit=dev
+      - name: Record source and sidecar lock provenance
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+        run: |
+          {
+            echo '## Native Zigbee sidecar evidence'
+            echo "Source head: $PR_HEAD_SHA"
+            echo "Source base: $PR_BASE_SHA"
+            echo "Tested checkout: $(git rev-parse HEAD)"
+            echo "Node: $(node --version); npm: $(npm --version)"
+            sha256sum package-lock.json SBOM.cdx.json THIRD-PARTY-NOTICES.md
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  knx-ip-sidecar:
+    name: KNX/IP Secure Python and SBOM evidence (${{ matrix.os }})
+    needs: classify
+    if: needs.classify.outputs.run_knx_sidecar == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: src/Scada.DriverHost/Sidecars/KnxIp
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.16'
+          architecture: 'x64'
+          cache: pip
+          cache-dependency-path: src/Scada.DriverHost/Sidecars/KnxIp/requirements.lock
+      - name: Install only hash-locked binary dependencies
+        run: |
+          set -euo pipefail
+          python -c "import platform,sys; assert sys.version_info[:3] == (3,13,16), sys.version; assert platform.machine().lower() in ('x86_64','amd64'), platform.machine(); print(sys.version)"
+          python -m pip install --require-hashes --only-binary=:all: -r requirements.lock
+          python -m pip check
+      - name: Compile sidecar and run security contract tests
+        run: |
+          set -euo pipefail
+          python -m compileall -q main.py security.py test_security.py
+          python -m unittest -v test_security.py
+      - name: Verify SBOM structure and production pins
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          bom = json.loads(Path('SBOM.cdx.json').read_text())
+          assert bom['bomFormat'] == 'CycloneDX' and bom['specVersion'] == '1.6'
+          names = {(item['name'], item['version']) for item in bom['components']}
+          assert names == {('xknx','3.20.0'),('cryptography','50.0.2'),('ifaddr','0.2.0'),('cffi','2.1.1'),('pycparser','3.11')}
+          assert len(bom['dependencies']) == 6
+          print('CycloneDX components and complete dependency graph verified.')
+          PY
+          sha256sum requirements.lock SBOM.cdx.json THIRD-PARTY-NOTICES.md
+
   t1-gate:
     name: Wave 15 T1 gate
-    needs: [classify, common-sanity, web-semantic, dotnet-focused, chromium-focused, ha-two-process]
+    needs: [classify, common-sanity, web-semantic, dotnet-focused, chromium-focused, ha-two-process, native-zigbee-sidecar, knx-ip-sidecar]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -246,11 +397,15 @@ jobs:
       DOTNET: ${{ needs.dotnet-focused.result }}
       E2E: ${{ needs.chromium-focused.result }}
       HA_TWO_PROCESS: ${{ needs.ha-two-process.result }}
+      NATIVE_ZIGBEE: ${{ needs.native-zigbee-sidecar.result }}
+      KNX_SIDECAR: ${{ needs.knx-ip-sidecar.result }}
       EXEMPT: ${{ needs.classify.outputs.coordination_exempt }}
       NEED_WEB: ${{ needs.classify.outputs.run_web }}
       NEED_DOTNET: ${{ needs.classify.outputs.run_dotnet }}
       NEED_E2E: ${{ needs.classify.outputs.run_e2e }}
       NEED_HA_TWO_PROCESS: ${{ needs.classify.outputs.run_ha_two_process }}
+      NEED_NATIVE_ZIGBEE: ${{ needs.classify.outputs.run_native_zigbee }}
+      NEED_KNX_SIDECAR: ${{ needs.classify.outputs.run_knx_sidecar }}
       PROFILES: ${{ needs.classify.outputs.effective_profiles }}
       DRIVER_GATE: ${{ needs.classify.outputs.driver_gate }}
     steps:
@@ -264,10 +419,12 @@ jobs:
           if [ "$NEED_DOTNET" = true ]; then test "$DOTNET" = success; fi
           if [ "$NEED_E2E" = true ]; then test "$E2E" = success; fi
           if [ "$NEED_HA_TWO_PROCESS" = true ]; then test "$HA_TWO_PROCESS" = success; fi
+          if [ "$NEED_NATIVE_ZIGBEE" = true ]; then test "$NATIVE_ZIGBEE" = success; fi
+          if [ "$NEED_KNX_SIDECAR" = true ]; then test "$KNX_SIDECAR" = success; fi
           {
             echo '## Wave 15 T1 gate';
             echo "Effective profiles: \`$PROFILES\`";
-            echo "Web: $WEB; .NET: $DOTNET; Chromium: $E2E; HA two-process: $HA_TWO_PROCESS";
+            echo "Web: $WEB; .NET: $DOTNET; Chromium: $E2E; HA two-process: $HA_TWO_PROCESS; Native Zigbee Node/SBOM: $NATIVE_ZIGBEE; KNX/IP Python/SBOM: $KNX_SIDECAR";
             echo "Driver/Seven-Driver/Interop: $DRIVER_GATE (specialized heavy gates are not claimed PASS by T1).";
             echo 'Universal integrated/main gate: REQUIRED NOW only for push checkpoint or main PR; otherwise UNCHANGED/TRUSTED.';
           } >> "$GITHUB_STEP_SUMMARY"

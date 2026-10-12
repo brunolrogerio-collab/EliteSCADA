@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Scada.DriverHost.Engineering;
@@ -12,7 +13,8 @@ public sealed record ManagedSidecarProcessStartSpec(
     string? WorkingDirectory = null,
     IReadOnlyDictionary<string, string>? Environment = null,
     IReadOnlyCollection<string>? SensitiveValues = null,
-    string? GracefulStopInput = null)
+    string? GracefulStopInput = null,
+    byte[]? StartupInput = null)
 {
     public void Validate()
     {
@@ -70,6 +72,14 @@ public sealed record ManagedSidecarProcessStartSpec(
              GracefulStopInput.Any(character => character is '\r' or '\n' or '\0')))
         {
             throw new ArgumentException("Sidecar graceful-stop input is invalid.", nameof(GracefulStopInput));
+        }
+
+        if (StartupInput is not null &&
+            (StartupInput.Length is 0 or > 2 * 1024 * 1024 ||
+             StartupInput[^1] != (byte)'\n' ||
+             StartupInput.AsSpan(0, StartupInput.Length - 1).IndexOfAny((byte)'\r', (byte)'\n', (byte)'\0') >= 0))
+        {
+            throw new ArgumentException("Sidecar startup input is invalid or exceeds the 2 MiB limit.", nameof(StartupInput));
         }
     }
 }
@@ -201,55 +211,82 @@ public sealed class SystemManagedSidecarProcessFactory :
         var spec = await _startSpecFactory(definition, protectedSettings, cancellationToken)
             .ConfigureAwait(false);
         ArgumentNullException.ThrowIfNull(spec);
-        spec.Validate();
-
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = spec.FileName,
-            UseShellExecute = false,
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true
-        };
-
-        if (!string.IsNullOrWhiteSpace(spec.WorkingDirectory))
-            startInfo.WorkingDirectory = spec.WorkingDirectory;
-
-        if (spec.Arguments is not null)
-        {
-            foreach (var argument in spec.Arguments)
-                startInfo.ArgumentList.Add(argument);
-        }
-
-        if (spec.Environment is not null)
-        {
-            foreach (var pair in spec.Environment)
-                startInfo.Environment[pair.Key] = pair.Value;
-        }
-
-        var process = new Process
-        {
-            StartInfo = startInfo,
-            EnableRaisingEvents = true
-        };
-
         try
         {
-            if (!process.Start())
-                throw new InvalidOperationException($"Managed sidecar '{definition.InstanceId}' process did not start.");
-        }
-        catch
-        {
-            process.Dispose();
-            throw;
-        }
+            spec.Validate();
 
-        return new SystemManagedSidecarProcess(
-            definition.InstanceId,
-            process,
-            spec.SensitiveValues,
-            spec.GracefulStopInput);
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = spec.FileName,
+                UseShellExecute = false,
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+
+            if (!string.IsNullOrWhiteSpace(spec.WorkingDirectory))
+                startInfo.WorkingDirectory = spec.WorkingDirectory;
+
+            if (spec.Arguments is not null)
+            {
+                foreach (var argument in spec.Arguments)
+                    startInfo.ArgumentList.Add(argument);
+            }
+
+            if (spec.Environment is not null)
+            {
+                foreach (var pair in spec.Environment)
+                    startInfo.Environment[pair.Key] = pair.Value;
+            }
+
+            var process = new Process
+            {
+                StartInfo = startInfo,
+                EnableRaisingEvents = true
+            };
+
+            try
+            {
+                if (!process.Start())
+                    throw new InvalidOperationException($"Managed sidecar '{definition.InstanceId}' process did not start.");
+            }
+            catch
+            {
+                process.Dispose();
+                throw;
+            }
+
+            try
+            {
+                if (spec.StartupInput is not null)
+                {
+                    await process.StandardInput.BaseStream.WriteAsync(spec.StartupInput.AsMemory(), cancellationToken).ConfigureAwait(false);
+                    await process.StandardInput.BaseStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                }
+
+                return new SystemManagedSidecarProcess(
+                    definition.InstanceId,
+                    process,
+                    spec.SensitiveValues,
+                    spec.GracefulStopInput);
+            }
+            catch
+            {
+                try
+                {
+                    if (!process.HasExited) process.Kill(entireProcessTree: true);
+                }
+                catch { }
+                process.Dispose();
+                throw;
+            }
+        }
+        finally
+        {
+            if (spec.StartupInput is not null)
+                CryptographicOperations.ZeroMemory(spec.StartupInput);
+        }
     }
 
     private sealed class SystemManagedSidecarProcess :

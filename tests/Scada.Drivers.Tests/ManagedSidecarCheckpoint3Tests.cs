@@ -12,6 +12,72 @@ namespace Scada.Drivers.Tests;
 public sealed class ManagedSidecarCheckpoint3Tests
 {
     [Fact]
+    public async Task SystemProcess_SendsLargeBootstrapOverStandardInputBeforeReadinessOnEveryHostOs()
+    {
+        var startupInput = new string('s', 128 * 1024);
+        var startupBytes = Encoding.UTF8.GetBytes(startupInput + "\n");
+        var definition = Definition(withProtectedSetting: false);
+        var factory = new SystemManagedSidecarProcessFactory(
+            (_, _, cancellationToken) =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var ready = "{\"type\":\"ready\",\"artifactId\":\"elite.test-sidecar\",\"artifactVersion\":\"1.0.0\",\"runtimeVersion\":\"runtime-1\",\"schemaVersion\":3,\"message\":\"bootstrap received\"}";
+                var environment = new Dictionary<string, string>
+                {
+                    ["STARTUP_LENGTH"] = startupInput.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                };
+                string executable;
+                IReadOnlyList<string> arguments;
+                if (OperatingSystem.IsWindows())
+                {
+                    executable = "powershell.exe";
+                    var script = "$bootstrap=[Console]::ReadLine(); if ($bootstrap.Length -ne [int]$env:STARTUP_LENGTH) { exit 12 }; " +
+                                 $"Write-Output '{ready}'; Write-Output ('bootstrap=' + $bootstrap); if ([Console]::ReadLine() -ne 'STOP') {{ exit 13 }}";
+                    arguments = ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script];
+                }
+                else
+                {
+                    executable = "/bin/sh";
+                    var script = "IFS= read -r bootstrap; [ ${#bootstrap} -eq \"$STARTUP_LENGTH\" ] || exit 12; " +
+                                 $"printf '%s\\n' '{ready}'; printf 'bootstrap=%s\\n' \"$bootstrap\"; IFS= read -r line; [ \"$line\" = STOP ] || exit 13";
+                    arguments = ["-c", script];
+                }
+                return ValueTask.FromResult(new ManagedSidecarProcessStartSpec(
+                    executable,
+                    arguments,
+                    Environment: environment,
+                    SensitiveValues: [startupInput],
+                    GracefulStopInput: "STOP",
+                    StartupInput: startupBytes));
+            });
+
+        await using var process = await factory.StartAsync(definition);
+        Assert.All(startupBytes, value => Assert.Equal((byte)0, value));
+        var readyReport = await process.WaitForReadyAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal("bootstrap received", readyReport.SanitizedMessage);
+        var output = Assert.IsAssignableFrom<IManagedSidecarProcessOutput>(process);
+        await EventuallyAsync(() => output.SanitizedOutput.Count > 0);
+        Assert.DoesNotContain(startupInput, string.Join("|", output.SanitizedOutput), StringComparison.Ordinal);
+        await process.StopAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(0, await process.WaitForExitAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5)));
+    }
+
+    [Fact]
+    public async Task SystemProcess_ZeroesBootstrapBufferWhenChildCannotStart()
+    {
+        var startupBytes = Encoding.UTF8.GetBytes("{\"bootstrap\":\"sensitive\"}\n");
+        var factory = new SystemManagedSidecarProcessFactory((_, _, _) =>
+            ValueTask.FromResult(new ManagedSidecarProcessStartSpec(
+                Path.Combine(Path.GetTempPath(), $"missing-sidecar-{Guid.NewGuid():N}"),
+                StartupInput: startupBytes)));
+
+        await Assert.ThrowsAnyAsync<System.ComponentModel.Win32Exception>(async () =>
+            await factory.StartAsync(Definition(withProtectedSetting: false)));
+
+        Assert.All(startupBytes, value => Assert.Equal((byte)0, value));
+    }
+
+    [Fact]
     public async Task SystemProcess_RealSpawnNegotiatesIdentitySanitizesOutputAndStopsGracefully()
     {
         if (!OperatingSystem.IsLinux()) return;

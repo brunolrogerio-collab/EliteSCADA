@@ -1,10 +1,10 @@
 # HISTORICAL COORDINATION CHANGE — 2026-10-06 22:31 BRT
 
-# LATEST COORDINATION CHANGE — 2026-10-12 15:33 BRT
+# LATEST COORDINATION CHANGE — 2026-10-12 15:35 BRT
 
 > This current snapshot supersedes the older live-state summaries below. GitHub remains authoritative.
 
-Current integration: `wave15/corrections-integration@1691a3b3013bea3527c97a17a7afb998380e97fe` (documentation-only PR #583 over verified product checkpoint `12d4d17a8ae007c27525247e44b1f34c2a5f5b85`).
+Verified product checkpoint: `wave15/corrections-integration@12d4d17a8ae007c27525247e44b1f34c2a5f5b85` (PR #582). Coordinator handoff/roadmap and root snapshot were refreshed in documentation-only PRs #583-#585. Revalidate the live integration ref before any next implementation lane.
 
 ## HOME/BUILDING protocols requested for closeout
 
@@ -12,7 +12,7 @@ Current integration: `wave15/corrections-integration@1691a3b3013bea3527c97a17a7a
 - DALI-2 — PR #581 integrated at `7eea131616cb3004d1276e8950a23c96cdbbfe15`; post-merge CI #38275180334 passed. Scope is the documented Intesis 700 profile via existing `modbus.tcp`, not native DALI.
 - Native Zigbee + KNX/IP Secure — PR #582 integrated at `12d4d17a8ae007c27525247e44b1f34c2a5f5b85`; exact-head T1 #38289456476 passed, specialized L3 #38289748222 passed, and post-merge CI #38290979603 passed on that exact merge SHA. Full browser E2E was skipped by workflow conditions. Native Zigbee and KNX sidecar evidence includes Windows and Linux.
 
-Coordination documentation is current through PR #583 (`1691a3b3013bea3527c97a17a7afb998380e97fe`); its exact-head `DOCS_I18N_HELP` T1 #38291533907 passed. Issues #577/#578/#579 and superseded qualification PR #580 are closed with lineage recorded in #305/#472.
+Coordinator documentation PRs #583-#585 each passed exact-head `DOCS_I18N_HELP` T1. Issues #577/#578/#579 and superseded qualification PR #580 are closed with lineage recorded in #305/#472.
 
 Physical L4/device compatibility remains deferred. This does not advance FND/FC0 or close Wave 15. Remaining tracked Wave 15 closeout is #306/#300/#379/#424/#425. No additional Home/Building lane is released; the next step is owner/coordinator review of the remaining protocol families and hardware plan.
 

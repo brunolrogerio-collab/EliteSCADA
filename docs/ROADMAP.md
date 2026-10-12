@@ -1,3 +1,15 @@
+# CURRENT HOME/BUILDING DRIVER STATUS — 2026-10-12
+
+> This delta supersedes the Stage 3 planned status below only for Zigbee/KNX/DALI. GitHub live remains authoritative.
+
+Integrated on `wave15/corrections-integration@12d4d17a8ae007c27525247e44b1f34c2a5f5b85`:
+
+- Zigbee2MQTT Bridge — PR #575; merge `ff567102bef09fba8ab26a6b13db678b0a85b842`; integration CI #38015062177 passed.
+- DALI-2 via the documented Intesis 700 gateway profile over existing `modbus.tcp` — PR #581; merge `7eea131616cb3004d1276e8950a23c96cdbbfe15`; post-merge CI #38275180334 passed. This is not native DALI.
+- Native Zigbee + KNX/IP Secure — PR #582; merge `12d4d17a8ae007c27525247e44b1f34c2a5f5b85`; exact-head T1 #38289456476 passed, specialized L3 #38289748222 passed, and post-merge CI #38290979603 passed on the merge SHA. Native Zigbee and KNX test/evidence coverage includes Windows and Linux.
+
+Physical L4/device compatibility qualification remains deferred; these software gates do not claim it. The remaining Stage 3 families below remain planned, not authorized by this delta. Do not open parallel implementation lanes until the Product Owner/coordinator makes that next release decision. This does not close Wave 15 or advance FND/FC0.
+
 # FINAL REVALIDATION CORRECTION — 2026-10-03
 
 > Supersedes the active-lane status in earlier 2026-10-03 handoff text below.

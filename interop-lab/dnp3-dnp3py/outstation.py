@@ -215,7 +215,6 @@ async def main() -> None:
     capture_server = await asyncio.start_server(handle_capture_request, "0.0.0.0", 20001)
     async with capture_server:
         await runner.run()
-    await runner.run()
 
 
 if __name__ == "__main__":

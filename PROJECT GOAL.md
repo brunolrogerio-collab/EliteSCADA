@@ -4,7 +4,7 @@
 >
 > This file preserves stable product goals and locked architecture across ChatGPT conversations, developers and tooling. It defines intent, not merely current implementation state.
 
-**Last reviewed:** 2026-10-06
+**Last reviewed:** 2026-10-13
 
 ## Mandatory continuity protocol
 
@@ -613,6 +613,14 @@ Runtime-HMI multilingual application content is a separate capability.
 ## External protocols and installable driver modules
 
 Modbus TCP remains the current real protocol baseline.
+
+### Experimental Matter Wi-Fi product gate
+
+The current Matter Wi-Fi driver is integrated only as an **experimental version**. In the Data Source type selector, its pt-BR name must be `Matter Wi-Fi (Versão em teste)`; other supported languages use localized equivalent qualifiers. This label communicates maturity and does not change any execution or release gate.
+
+The driver is opt-in only with `Engineering:DeveloperPreviews:MatterWifiV1=true` in `Development` or `Test`, remains absent by default, and is unavailable in `Staging`, `Production` and High Availability installations. After Wave 16, the experimental implementation must be replaced/prepared by a more stable version before any distribution. This integration does not authorize real Matter devices/network traffic, commissioning, interoperability, HA, production use or distribution.
+
+Exact integration/test evidence and mutable handoff state belong in `LAST CHANGE.md` and `docs/research/home-building-drivers/MATTER-WIFI-V1-IMPLEMENTATION-ADR.md`.
 
 After the prerequisite foundation and interface-preview gate:
 

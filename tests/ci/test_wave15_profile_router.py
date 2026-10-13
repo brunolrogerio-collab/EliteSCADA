@@ -238,6 +238,25 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         self.assertIn("router_mode='dispatch'", workflow)
         self.assertIn('--mode "$router_mode"', workflow)
 
+    def test_generic_dotnet_ci_excludes_only_s6_lab_test_and_keeps_l3_gate(self):
+        dotnet_workflow = (ROOT / ".github/workflows/dotnet-ci.yml").read_text(encoding="utf-8")
+        generic_test_step = next(
+            line.strip()
+            for line in dotnet_workflow.splitlines()
+            if line.strip().startswith("run: dotnet test ScadaPlatform.sln")
+        )
+        self.assertIn(
+            '--filter "FullyQualifiedName!~L3DriverInteractionS6Tests"',
+            generic_test_step,
+        )
+
+        l3_workflow = (ROOT / ".github/workflows/l3-seven-driver-lab.yml").read_text(encoding="utf-8")
+        self.assertIn(
+            "name: Run mandatory L3 Z2M action to DNP3 PulseOn interaction route",
+            l3_workflow,
+        )
+        self.assertIn('--filter "Category=L3DriverInteractionS6"', l3_workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

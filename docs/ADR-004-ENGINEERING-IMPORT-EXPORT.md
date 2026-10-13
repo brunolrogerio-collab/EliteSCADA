@@ -6,7 +6,9 @@ Accepted and active.
 ## Decision
 Engineering configuration is serializable, versioned and exchangeable independently of the graphical editor.
 
-The canonical technical format is JSON with schema `scada.engineering` and an explicit schema version. CSV is supported for focused bulk engineering where a tabular representation is appropriate. XLSX remains planned through the same service boundary without replacing the canonical JSON model.
+The canonical technical format is JSON with schema `scada.engineering` and an explicit schema version (currently v23). CSV and XLSX are focused bulk formats for flat Engineering collections. They are projections over the canonical package and must use its existing Preview/Apply, validation, merge-mode, authorization, audit and Workspace-version lifecycle; they must not add a second mutation or persistence authority.
+
+Tabular exchange is one entity collection per file (and one worksheet per XLSX). Current flat scope: TAGs, Alarms, Data Sources, Gateway routes and Engineering Operational Event definitions. Runtime event occurrences/history and audit records are excluded. Screens, popups, templates, Dynamos, scripts, nested dependencies and reusable resources remain in canonical JSON / Engineering Fragments so flattening cannot lose graph structure.
 
 Import is never applied directly. The mandatory flow is:
 
@@ -36,7 +38,11 @@ The canonical package is currently at schema version 4 and includes:
 - Popups with reusable visual definitions, bindings, properties and context.
 - Validation of cross-references between TAGs, Data Sources, Templates, Equipment and Dynamos before apply.
 - REST endpoints for canonical JSON export, preview and apply.
-- CSV import/export for Tags, Alarms and Data Sources.
+- CSV and XLSX import/export for TAGs, Alarms, Data Sources, Gateway routes and Operational Event definitions.
+- Stable IDs plus portable path/key reconciliation; invariant-culture numbers; row-numbered parse diagnostics; bounded input; CSV spreadsheet-formula protection; XLSX formulas rejected.
+- Plaintext credential-like Data Source settings and TAG communication-binding settings fail closed on tabular export; secret references remain portable references only.
+- Tabular imports produce a partial canonical package containing only the selected collection and then run through canonical Preview/Apply for all three merge modes. Existing current TAGs may satisfy a tabular Operational Event reference without being redundantly included in the import.
+- XLSX is implemented with the platform ZIP/XML APIs only; no Office automation or third-party spreadsheet runtime is required.
 - Automated JSON export -> import preview round-trip in Chromium as part of CI.
 
 Backward compatibility is maintained for older package versions. Missing entity collections in older schemas are normalized to empty collections during parsing.
@@ -52,9 +58,8 @@ Before PostgreSQL/TimescaleDB becomes the canonical persistence layer and before
 
 The persistence model must follow the public engineering contract rather than silently becoming the only authoritative representation.
 
-## Next scope using the same infrastructure
+## Remaining scope using the same infrastructure
 
-- XLSX engineering workbooks.
 - Full project package and backup/restore.
 - SQL mappings/connectors.
 - Plugin-owned versioned configuration schemas.

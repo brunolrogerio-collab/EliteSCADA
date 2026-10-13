@@ -10,4 +10,13 @@ for (const locale of ['pt-BR', 'en', 'es'] as const) {
     expect(boundary).toContain(locale === 'pt-BR' ? 'credenciais' : locale === 'es' ? 'credenciales' : 'credentials');
     expect(boundary).toContain(locale === 'pt-BR' ? 'sessões' : locale === 'es' ? 'sesiones' : 'sessions');
   });
+
+  test(`tabular Engineering import/export boundary is explicit in ${locale}`, () => {
+    const copy = projectManagementCopy(locale);
+    expect(copy.tabularTitle).toContain('CSV');
+    expect(copy.tabularEntities).toHaveLength(5);
+    expect(copy.tabularDescription.toLowerCase()).toContain('runtime');
+    expect(copy.tabularDescription.toLowerCase()).toContain('fragment');
+    expect(copy.tabularApplyDescription.length).toBeGreaterThan(50);
+  });
 }

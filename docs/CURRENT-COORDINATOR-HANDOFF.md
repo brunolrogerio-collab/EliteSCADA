@@ -1,4 +1,18 @@
-# LATEST MAIN COORDINATOR HANDOFF — 2026-10-06 22:31 BRT
+# CURRENT COORDINATOR HANDOFF — WAVE 15 ENGINEERING TABULAR IMPORT/EXPORT — 2026-10-13
+
+> Current work checkpoint; supersedes the 2026-10-06 pointer below. GitHub live remains the coordination authority.
+
+Issue **#597** is being implemented locally on the dedicated branch `work/w15-engineering-tabular-import-export`, based exactly on `wave15/corrections-integration@7182eddc10cd6d0958cd5bc51b7a2d61c9331418` (the current base at lane creation). The branch is not merged and this work does not close Wave 15, FND/FC0 or any driver qualification.
+
+Scope: CSV/XLSX single-entity tables for TAGs, Alarms, Data Sources, Gateway routes and Engineering Operational Event definitions. Import stays on the canonical exchange Preview/Apply path with all three merge modes, stable IDs/keys, row-level parse diagnostics, workspace-version protection, and no parallel persistence route. Runtime event history/audit and complex screen/template/Dynamo/script dependency graphs stay out of tabular files. Plaintext secret-like settings fail closed on export; credentials are never exported.
+
+Implementation and targeted local validation are complete; see the newest `LAST CHANGE.md` entry for exact test counts and UI evidence. Output bounds cover CSV/XLSX generation as well as import. The exact base was revalidated after the workstation resumed. One unrelated Server Script test fails reproducibly in the broad Drivers.Tests run and is recorded for Main/T1 review; tabular-specific, Core, build and browser gates passed. The branch is still local/uncommitted; no PR or CI has started.
+
+Next coordinator review: verify the exact branch/base and evidence, then publish a PR against `wave15/corrections-integration` and run its applicable exact-head T1. Review the supported template/limits and API surface. Do not merge without Main authorization.
+
+---
+
+# HISTORICAL MAIN COORDINATOR HANDOFF POINTER — 2026-10-06 22:31 BRT
 
 Canonical current handoff:
 `docs/WAVE15-MAIN-COORDINATOR-HANDOFF-2026-10-06-2231.md`

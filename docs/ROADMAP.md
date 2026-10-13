@@ -1,3 +1,9 @@
+# CURRENT WAVE 15 IMPORT/EXPORT LANE — 2026-10-13
+
+Issue #597 authorizes a bounded Engineering tabular-exchange lane on `work/w15-engineering-tabular-import-export`, based on `wave15/corrections-integration@7182eddc10cd6d0958cd5bc51b7a2d61c9331418`. Intended flat CSV/XLSX entities are TAGs, Alarms, Data Sources, Gateway routes and Engineering Operational Event definitions. The lane uses the canonical Preview/Apply authority and all merge modes; complex Engineering dependency graphs remain JSON/Fragments, with Runtime occurrences and audit excluded. Implementation and local gates are complete, but the branch remains **local/uncommitted and not merged**; exact-head PR/T1 are the next gates. This lane is independent of the Home/Building driver roadmap and does not close Wave 15 or advance FND/FC0. See root `LAST CHANGE.md` and `docs/CURRENT-COORDINATOR-HANDOFF.md` for exact evidence and remaining release gates.
+
+---
+
 # CURRENT HOME/BUILDING DRIVER STATUS — 2026-10-12
 
 > This delta supersedes the Stage 3 planned status below only for Zigbee/KNX/DALI. GitHub live remains authoritative.

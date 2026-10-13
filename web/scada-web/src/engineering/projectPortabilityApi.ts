@@ -10,6 +10,10 @@ import type {
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
 const PACKAGE_MEDIA_TYPE = 'application/vnd.elitescada.project-package';
+const XLSX_MEDIA_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+export type EngineeringTabularEntity = 'tags' | 'alarms' | 'datasources' | 'gateway-routes' | 'operational-events';
+export type EngineeringTabularFormat = 'csv' | 'xlsx';
 
 export class ProjectPortabilityApiError extends Error {
   constructor(
@@ -32,6 +36,63 @@ export async function loadProjectPortabilityWorkspace(): Promise<ProjectPortabil
 
 export async function exportCanonicalEngineeringJson(): Promise<ProjectPortabilityDownload> {
   return await requestDownload('/api/engineering/export/json', 'scada-engineering.json');
+}
+
+export async function exportEngineeringTabular(
+  entity: EngineeringTabularEntity,
+  format: EngineeringTabularFormat
+): Promise<ProjectPortabilityDownload> {
+  const filename = `scada-${entity}.${format}`;
+  return await requestDownload(`/api/engineering/export/tabular/${entity}/${format}`, filename);
+}
+
+export async function previewEngineeringTabular(
+  file: File,
+  entity: EngineeringTabularEntity,
+  format: EngineeringTabularFormat,
+  mode: ProjectPortabilityMergeMode
+): Promise<{ preview: ProjectPortabilityPreview; expectedChangeVersion: number }> {
+  const workspace = await loadProjectPortabilityWorkspace();
+  const preview = await requestJson<ProjectPortabilityPreview>(
+    `/api/engineering/import/tabular/${entity}/${format}/preview?mode=${encodeURIComponent(mode)}`,
+    {
+      method: 'POST',
+      headers: { 'content-type': format === 'csv' ? 'text/csv; charset=utf-8' : XLSX_MEDIA_TYPE },
+      body: file
+    }
+  );
+  return { preview, expectedChangeVersion: workspace.changeVersion };
+}
+
+export async function applyEngineeringTabular(
+  file: File,
+  entity: EngineeringTabularEntity,
+  format: EngineeringTabularFormat,
+  mode: ProjectPortabilityMergeMode,
+  expectedChangeVersion: number
+): Promise<ProjectPortabilityApplyResult> {
+  return await requestJson<ProjectPortabilityApplyResult>(
+    `/api/engineering/import/tabular/${entity}/${format}/apply?mode=${encodeURIComponent(mode)}`,
+    {
+      method: 'POST',
+      headers: {
+        'content-type': format === 'csv' ? 'text/csv; charset=utf-8' : XLSX_MEDIA_TYPE,
+        'x-elitescada-workspace-version': String(expectedChangeVersion)
+      },
+      body: file
+    }
+  );
+}
+
+export async function engineeringTabularFileFingerprint(
+  file: File,
+  entity: EngineeringTabularEntity,
+  format: EngineeringTabularFormat
+): Promise<string> {
+  const bytes = await file.arrayBuffer();
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  const hash = Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, '0')).join('');
+  return `${entity}::${format}::sha256:${hash}`;
 }
 
 export async function previewCanonicalEngineeringJson(

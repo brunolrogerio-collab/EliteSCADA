@@ -70,6 +70,80 @@ test('Preview is bound to exact source fingerprint and merge mode', () => {
   expect(projectPortabilityFileFingerprint(file)).toBe('project.json::30::123');
 });
 
+test('flat Engineering tables export and preview round-trip through CSV and XLSX contracts', async ({ request }) => {
+  const entities = ['tags', 'alarms', 'datasources', 'gateway-routes', 'operational-events'] as const;
+  for (const entity of entities) {
+    for (const format of ['csv', 'xlsx'] as const) {
+      const exportResponse = await request.get(`/api/engineering/export/tabular/${entity}/${format}`);
+      expect(exportResponse.ok(), `${entity}.${format} export`).toBeTruthy();
+      const contentType = exportResponse.headers()['content-type'] ?? '';
+      expect(contentType).toContain(format === 'csv' ? 'text/csv' : 'spreadsheetml.sheet');
+      expect(exportResponse.headers()['content-disposition']).toContain(`scada-${entity}.${format}`);
+      const bytes = await exportResponse.body();
+      expect(bytes.byteLength).toBeGreaterThan(0);
+
+      const previewResponse = await request.post(
+        `/api/engineering/import/tabular/${entity}/${format}/preview?mode=CreateAndUpdate`,
+        {
+          headers: {
+            'content-type': format === 'csv' ? 'text/csv; charset=utf-8' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          },
+          data: bytes
+        }
+      );
+      expect(previewResponse.ok(), `${entity}.${format} preview: ${await previewResponse.text()}`).toBeTruthy();
+      const preview = await previewResponse.json() as { canApply: boolean; errorCount: number };
+      expect(preview.canApply, `${entity}.${format} preview can apply`).toBeTruthy();
+      expect(preview.errorCount, `${entity}.${format} preview errors`).toBe(0);
+    }
+  }
+});
+
+test('tabular import/export can be operated from the Engineering project-management screen', async ({ page, request }) => {
+  await page.goto('/engineering');
+  const advancedTools = page.locator('details.eng-overview-advanced');
+  await advancedTools.locator('summary').click();
+
+  const card = page.getByTestId('project-tabular-portability');
+  await expect(card).toBeVisible();
+
+  const [xlsxDownload] = await Promise.all([
+    page.waitForEvent('download'),
+    card.getByTestId('project-tabular-export-xlsx').click()
+  ]);
+  expect(xlsxDownload.suggestedFilename()).toBe('scada-tags.xlsx');
+
+  const exportResponse = await request.get('/api/engineering/export/tabular/tags/csv');
+  expect(exportResponse.ok()).toBeTruthy();
+  const source = await exportResponse.body();
+  await card.locator('input[type="file"]').setInputFiles({
+    name: 'tags-round-trip.csv',
+    mimeType: 'text/csv',
+    buffer: source
+  });
+
+  const previewResponsePromise = page.waitForResponse(response =>
+    response.url().includes('/api/engineering/import/tabular/tags/csv/preview')
+  );
+  await card.getByTestId('project-tabular-preview').click();
+  const previewResponse = await previewResponsePromise;
+  const previewBody = await previewResponse.json() as {
+    canApply?: boolean;
+    errorCount?: number;
+  };
+  expect(previewBody.canApply).toBeTruthy();
+  expect(previewBody.errorCount).toBe(0);
+  const preview = card.getByTestId('project-portability-preview-result');
+  await expect(preview).toBeVisible();
+  await expect(preview.locator('.eng-project-management__preview-counts div').nth(3).locator('dd')).toHaveText('0');
+
+  await card.getByTestId('project-tabular-apply').click();
+  const confirmation = page.getByRole('dialog');
+  await expect(confirmation).toBeVisible();
+  await confirmation.getByRole('button', { name: /Aplicar tabela validada|Apply validated table|Aplicar tabla validada/i }).click();
+  await expect(page.getByRole('status')).toContainText(/aplicada|applied/i);
+});
+
 test('project package restore requires authorization and rejects stale Workspace versions', async ({ request }) => {
   const workspaceResponse = await request.get('/api/engineering/workspace');
   expect(workspaceResponse.ok()).toBeTruthy();

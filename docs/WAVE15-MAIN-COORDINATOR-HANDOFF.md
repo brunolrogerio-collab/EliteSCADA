@@ -1,4 +1,16 @@
-# NEXT COORDINATOR START — HOME/BUILDING AUTOMATION DRIVERS — 2026-10-06
+# CURRENT WAVE 15 DELTA — TABULAR ENGINEERING EXCHANGE #597 — 2026-10-13
+
+> This lane is separate from the Home/Building driver program and from its Matter experimental work. It does not change #472 sequencing or close Wave 15.
+
+- Dedicated local branch: `work/w15-engineering-tabular-import-export`.
+- Exact base at lane creation: `wave15/corrections-integration@7182eddc10cd6d0958cd5bc51b7a2d61c9331418`.
+- Requested boundary: CSV/XLSX single-entity exchange for TAGs, Alarms, Data Sources, Gateway routes and Engineering Operational Event definitions; complex graphs remain canonical JSON/Fragments; no Runtime event history or audit records.
+- Implementation and local validation are tracked in root `LAST CHANGE.md`. Treat this as **ACTIVE / NOT MERGED** until the exact branch, tests, PR and CI are independently revalidated.
+- Main review should focus on using the canonical exchange Preview/Apply and merge modes, preserving stable references, fail-closed secret handling, row/formula/archive bounds, and not claiming Wave 15 or driver readiness from this lane.
+
+---
+
+# HISTORICAL NEXT COORDINATOR START — HOME/BUILDING AUTOMATION DRIVERS — 2026-10-06
 
 # CURRENT COORDINATION DELTA — 2026-10-12 — ZIGBEE / KNX / DALI CLOSEOUT
 

@@ -1,16 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   applyCanonicalEngineeringJson,
+  applyEngineeringTabular,
   exportCanonicalEngineeringJson,
+  exportEngineeringTabular,
+  engineeringTabularFileFingerprint,
   exportProjectPackage,
   inspectProjectPackage,
   loadProjectPortabilityContext,
   previewCanonicalEngineeringJson,
+  previewEngineeringTabular,
   previewProjectPackage,
   restoreProjectPackage,
   saveProjectDownload,
   triggerBrowserDownload
 } from './projectPortabilityApi';
+import type { EngineeringTabularEntity, EngineeringTabularFormat } from './projectPortabilityApi';
 import {
   canonicalJsonCandidateIdentity,
   canonicalTextFingerprint,
@@ -32,7 +37,7 @@ import type {
 import type { EngineeringLocale } from './i18n';
 import './engineering-project-management.css';
 
-type ConfirmationKind = 'json-apply' | 'package-restore';
+type ConfirmationKind = 'json-apply' | 'package-restore' | 'tabular-apply';
 
 export function EngineeringProjectManagementWorkspace({ locale }: { locale: EngineeringLocale }) {
   const copy = useMemo(() => projectManagementCopy(locale), [locale]);
@@ -54,6 +59,12 @@ export function EngineeringProjectManagementWorkspace({ locale }: { locale: Engi
   const [packageInspection, setPackageInspection] = useState<ProjectPackageInspection | null>(null);
   const [packageMode, setPackageMode] = useState<ProjectPortabilityMergeMode>('CreateAndUpdate');
   const [packagePreview, setPackagePreview] = useState<PortabilityPreviewToken | null>(null);
+  const [tabularEntity, setTabularEntity] = useState<EngineeringTabularEntity>('tags');
+  const [tabularFormat, setTabularFormat] = useState<EngineeringTabularFormat>('csv');
+  const [tabularFile, setTabularFile] = useState<File | null>(null);
+  const [tabularFingerprint, setTabularFingerprint] = useState<string | null>(null);
+  const [tabularMode, setTabularMode] = useState<ProjectPortabilityMergeMode>('CreateAndUpdate');
+  const [tabularPreview, setTabularPreview] = useState<PortabilityPreviewToken | null>(null);
   const [confirmation, setConfirmation] = useState<ConfirmationKind | null>(null);
 
   const refresh = useCallback(async () => {
@@ -78,11 +89,64 @@ export function EngineeringProjectManagementWorkspace({ locale }: { locale: Engi
   const activePackagePreview = previewTokenMatches(packagePreview, packageFingerprint, packageMode)
     ? packagePreview
     : null;
+  const activeTabularPreview = previewTokenMatches(tabularPreview, tabularFingerprint, tabularMode)
+    ? tabularPreview
+    : null;
 
   async function downloadJson() {
     await perform('download-json', async () => {
       triggerBrowserDownload(await exportCanonicalEngineeringJson());
       setNotice(copy.savedJson);
+    });
+  }
+
+  async function downloadTabular(format: EngineeringTabularFormat) {
+    await perform(`download-tabular-${format}`, async () => {
+      triggerBrowserDownload(await exportEngineeringTabular(tabularEntity, format));
+      setNotice(copy.tabularExported);
+    });
+  }
+
+  async function selectTabularFile(file: File | null) {
+    setTabularFile(file);
+    setTabularFingerprint(null);
+    setTabularPreview(null);
+    setNotice(null);
+    setError(null);
+    if (!file) return;
+    await perform('tabular-fingerprint', async () => {
+      setTabularFingerprint(await engineeringTabularFileFingerprint(file, tabularEntity, tabularFormat));
+    });
+  }
+
+  async function previewTabularImport() {
+    if (!tabularFile || !tabularFingerprint) return;
+    await perform('tabular-preview', async () => {
+      const validated = await previewEngineeringTabular(tabularFile, tabularEntity, tabularFormat, tabularMode);
+      setTabularPreview({
+        sourceFingerprint: tabularFingerprint,
+        mode: tabularMode,
+        expectedChangeVersion: validated.expectedChangeVersion,
+        preview: validated.preview
+      });
+      setNotice(copy.previewReady);
+    });
+  }
+
+  async function applyTabularImport() {
+    if (!tabularFile || !activeTabularPreview) return;
+    await perform('tabular-apply', async () => {
+      await applyEngineeringTabular(
+        tabularFile,
+        tabularEntity,
+        tabularFormat,
+        activeTabularPreview.mode,
+        activeTabularPreview.expectedChangeVersion
+      );
+      setTabularPreview(null);
+      setConfirmation(null);
+      await refresh();
+      setNotice(copy.tabularApplied);
     });
   }
 
@@ -340,6 +404,67 @@ export function EngineeringProjectManagementWorkspace({ locale }: { locale: Engi
 
           <PreviewPanel preview={activePackagePreview?.preview ?? null} copy={copy} />
         </article>
+
+        <article className="eng-project-management__card eng-project-management__card--tabular" data-testid="project-tabular-portability">
+          <CardHeader title={copy.tabularTitle} description={copy.tabularDescription}>
+            <div className="eng-project-management__actions">
+              <button type="button" data-testid="project-tabular-export-csv" onClick={() => void downloadTabular('csv')} disabled={Boolean(busy)}>{copy.downloadCsv}</button>
+              <button type="button" data-testid="project-tabular-export-xlsx" onClick={() => void downloadTabular('xlsx')} disabled={Boolean(busy)}>{copy.downloadXlsx}</button>
+            </div>
+          </CardHeader>
+
+          <label className="eng-project-management__mode">
+            <span>{copy.tabularEntity}</span>
+            <select value={tabularEntity} disabled={Boolean(busy)} onChange={event => {
+              setTabularEntity(event.target.value as EngineeringTabularEntity);
+              setTabularFile(null);
+              setTabularFingerprint(null);
+              setTabularPreview(null);
+            }}>
+              <option value="tags">{copy.tabularEntities[0]}</option>
+              <option value="alarms">{copy.tabularEntities[1]}</option>
+              <option value="datasources">{copy.tabularEntities[2]}</option>
+              <option value="gateway-routes">{copy.tabularEntities[3]}</option>
+              <option value="operational-events">{copy.tabularEntities[4]}</option>
+            </select>
+          </label>
+
+          <label className="eng-project-management__mode">
+            <span>{copy.tabularFormat}</span>
+            <select value={tabularFormat} disabled={Boolean(busy)} onChange={event => {
+              const next = event.target.value as EngineeringTabularFormat;
+              setTabularFormat(next);
+              setTabularFile(null);
+              setTabularFingerprint(null);
+              setTabularPreview(null);
+            }}>
+              <option value="csv">{copy.tabularFormats[0]}</option>
+              <option value="xlsx">{copy.tabularFormats[1]}</option>
+            </select>
+          </label>
+
+          <label className="eng-project-management__file-field">
+            <span>{copy.tabularSource}</span>
+            <input
+              type="file"
+              accept={tabularFormat === 'csv' ? '.csv,text/csv' : '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}
+              onChange={event => void selectTabularFile(event.target.files?.[0] ?? null)}
+              disabled={Boolean(busy)}
+            />
+            <small>{tabularFile?.name ?? copy.noFile}</small>
+          </label>
+
+          <MergeModeSelector locale={locale} value={tabularMode} label={copy.mergeMode} disabled={Boolean(busy)} onChange={mode => {
+            setTabularMode(mode);
+            setTabularPreview(null);
+          }} />
+
+          <div className="eng-project-management__actions">
+            <button type="button" data-testid="project-tabular-preview" onClick={() => void previewTabularImport()} disabled={Boolean(busy) || !tabularFile || !tabularFingerprint}>{copy.previewTabular}</button>
+            <button type="button" data-testid="project-tabular-apply" onClick={() => setConfirmation('tabular-apply')} disabled={Boolean(busy) || !activeTabularPreview}>{copy.applyTabular}</button>
+          </div>
+          <PreviewPanel preview={activeTabularPreview?.preview ?? null} copy={copy} />
+        </article>
       </div>
 
       <section className="eng-project-management__boundary" aria-label={copy.secretsTitle}>
@@ -357,18 +482,18 @@ export function EngineeringProjectManagementWorkspace({ locale }: { locale: Engi
         <div className="eng-project-management__confirmation" role="dialog" aria-modal="false" aria-labelledby="project-portability-confirm-title">
           <div>
             <strong id="project-portability-confirm-title">
-              {confirmation === 'json-apply' ? copy.applyConfirmTitle : copy.restoreConfirmTitle}
+              {confirmation === 'json-apply' ? copy.applyConfirmTitle : confirmation === 'tabular-apply' ? copy.tabularApplyTitle : copy.restoreConfirmTitle}
             </strong>
-            <p>{confirmation === 'json-apply' ? copy.applyConfirmDescription : copy.restoreConfirmDescription}</p>
+            <p>{confirmation === 'json-apply' ? copy.applyConfirmDescription : confirmation === 'tabular-apply' ? copy.tabularApplyDescription : copy.restoreConfirmDescription}</p>
           </div>
           <div className="eng-project-management__actions">
             <button type="button" onClick={() => setConfirmation(null)} disabled={Boolean(busy)}>{copy.cancel}</button>
             <button
               type="button"
               className="eng-project-management__critical"
-              onClick={() => void (confirmation === 'json-apply' ? applyJsonImport() : restorePackage())}
+              onClick={() => void (confirmation === 'json-apply' ? applyJsonImport() : confirmation === 'tabular-apply' ? applyTabularImport() : restorePackage())}
               disabled={Boolean(busy)}
-            >{confirmation === 'json-apply' ? copy.applyConfirm : copy.restoreConfirm}</button>
+            >{confirmation === 'json-apply' ? copy.applyConfirm : confirmation === 'tabular-apply' ? copy.applyTabular : copy.restoreConfirm}</button>
           </div>
         </div>
       )}

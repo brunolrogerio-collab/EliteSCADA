@@ -1,3 +1,15 @@
+# LATEST ENGINEERING TABULAR EXCHANGE CHECKPOINT — 2026-10-13 18:26 BRT
+
+> Current execution snapshot. GitHub is authoritative; this lane is still local and unmerged.
+
+- Issue: [#597](https://github.com/brunolrogerio-collab/EliteSCADA/issues/597), branch `work/w15-engineering-tabular-import-export`, exact base `wave15/corrections-integration@7182eddc10cd6d0958cd5bc51b7a2d61c9331418` (revalidated against the live GitHub branch after resuming from machine suspend).
+- Scope remains flat CSV/XLSX exchange for TAGs, Alarms, Data Sources, Gateway routes and Engineering Operational Event definitions. Import delegates to canonical Preview/Apply, preserves merge modes and version protection; complex graphs, Runtime occurrences and audit records remain excluded. Secret-like settings fail closed.
+- Bounded export was added: CSV and XLSX compressed output capped at 16 MiB, XLSX expanded worksheet XML capped at 32 MiB, plus row/column/cell limits and streamed XML writing. Oversized output has regression tests.
+- Validation after resuming: API build passed with 0 warnings/errors; web production build passed (only the existing large-chunk advisory). Full Core suite: 566 passed / 0 failed. Focused driver body-reader suite previously passed 6/6. Fresh disposable-Postgres Playwright run passed 8/8 including secure local first-use; the tabular project-management contract itself is 6/6, and localized source contract is 6/6. Browser evidence includes all 5 entities in CSV and XLSX (10 export/Preview combinations), and mounted UI Export XLSX → upload CSV → Preview → confirm → Apply with HTTP 200 for Preview, Apply and context refresh.
+- The broader prescribed Drivers.Tests run (`FullyQualifiedName!~L3DriverInteractionS6Tests`) currently reports 1,373 passed, 1 skipped and 1 unrelated failure: `ServerScriptRichCommandBridgeIntegrationTests.ActiveServerScript_UndeclaredCommandIsRejectedBeforeDispatch`; that test file and Server Script implementation are untouched in this lane, and the failure reproduced when run alone. This is not counted as a passing gate and should be reviewed by Main/T1; it is distinct from the focused import-body-reader suite (6/6 passed).
+- The first post-suspend browser attempt correctly refused to start without durable PostgreSQL. A new disposable container, bound only to `127.0.0.1:15433`, was created for the clean authenticated run. Remove only `elitescada-w15-tabular-e2e-20261013` after verification; do not touch stable containers. `git diff --check` passed at the resumption checkpoint.
+- State: implementation and targeted local gates complete; broad driver gate has the unrelated failure recorded above. No commit, PR, CI, or merge yet. Next release gate is exact-head branch publication and Wave 15 T1; do not merge without Main authorization. Revalidate the base immediately before push.
+
 # HISTORICAL COORDINATION CHANGE — 2026-10-06 22:31 BRT
 
 # LATEST COORDINATION CHANGE — 2026-10-13

@@ -227,7 +227,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _gatewayHandler = new GatewayEngineeringHandler(gateways, tags, dataSources);
         _scriptHandler = new ScriptEngineeringHandler(_scripts, tags, dataSources, assets, views);
         _reportHandler = new ReportEngineeringHandler(_reports, _visualAssets);
-        _operationalEventHandler = new OperationalEventEngineeringHandler(_operationalEvents);
+        _operationalEventHandler = new OperationalEventEngineeringHandler(_operationalEvents, tags);
         _mediaSourceHandler = new MediaSourceEngineeringHandler(_mediaSources);
         _driverInteractionHandler = new DriverInteractionEngineeringHandler(_driverInteractions, dataSources, assets);
     }

@@ -6,9 +6,9 @@ Issue **#597** is being implemented locally on the dedicated branch `work/w15-en
 
 Scope: CSV/XLSX single-entity tables for TAGs, Alarms, Data Sources, Gateway routes and Engineering Operational Event definitions. Import stays on the canonical exchange Preview/Apply path with all three merge modes, stable IDs/keys, row-level parse diagnostics, workspace-version protection, and no parallel persistence route. Runtime event history/audit and complex screen/template/Dynamo/script dependency graphs stay out of tabular files. Plaintext secret-like settings fail closed on export; credentials are never exported.
 
-Implementation and targeted local validation are complete; see the newest `LAST CHANGE.md` entry for exact test counts and UI evidence. Output bounds cover CSV/XLSX generation as well as import. The exact base was revalidated after the workstation resumed. One unrelated Server Script test fails reproducibly in the broad Drivers.Tests run and is recorded for Main/T1 review; tabular-specific, Core, build and browser gates passed. The branch is still local/uncommitted; no PR or CI has started.
+Implementation and targeted local validation are complete; see the newest `LAST CHANGE.md` entry for exact test counts and UI evidence. Output bounds cover CSV/XLSX generation as well as import. The exact base was revalidated after the workstation resumed. One untouched Server Script test fails reproducibly in the broad Drivers.Tests run and is recorded for Main/T1 review; tabular-specific, Core, build and browser gates passed. Draft PR #598 is open at code head `2713bf737768b2839fcc1b9040ade2392a78d61c`. Its first T1 run failed only classification because the required bare `VALIDATION_PROFILE` declaration was missing; the PR description is corrected, and this documentation sync commit will trigger a fresh exact-head T1.
 
-Next coordinator review: verify the exact branch/base and evidence, then publish a PR against `wave15/corrections-integration` and run its applicable exact-head T1. Review the supported template/limits and API surface. Do not merge without Main authorization.
+Next coordinator review: verify the fresh exact-head T1 and review the supported template/limits, UI and API surface on PR #598. Do not merge without Main authorization.
 
 ---
 

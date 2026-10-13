@@ -45,4 +45,34 @@ public sealed class ManagedProtocolHostConfigurationTests
 
         Assert.Throws<InvalidOperationException>(() => ManagedProtocolHostConfiguration.ReadResources(configuration));
     }
+
+    [Theory]
+    [InlineData("COM7")]
+    [InlineData("/dev/serial/by-id/usb-ZWave_Controller")]
+    public void ZWaveControllerResourceRequiresTrustedSerialAndNetworkIdentityMetadata(string portName)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["CommunicationDrivers:HostResources:zwave-main:Kind"] = "zwave-controller",
+                ["CommunicationDrivers:HostResources:zwave-main:PortName"] = portName,
+                ["CommunicationDrivers:HostResources:zwave-main:PhysicalIdentity"] = "usb:zwave:controller:001",
+                ["CommunicationDrivers:HostResources:zwave-main:Family"] = "Silicon Labs",
+                ["CommunicationDrivers:HostResources:zwave-main:Model"] = "UZB-7",
+                ["CommunicationDrivers:HostResources:zwave-main:Firmware"] = "7.21.0",
+                ["CommunicationDrivers:HostResources:zwave-main:RfRegion"] = "US",
+                ["CommunicationDrivers:HostResources:zwave-main:NvmIdentity"] = "homeid:0x12345678"
+            })
+            .Build();
+
+        var resources = ManagedProtocolHostConfiguration.ReadResources(configuration);
+        var controller = resources.GetRequired(new HostResourceId("zwave-main"));
+
+        Assert.Equal(HostResourceKinds.ZWaveController, controller.ResourceKind);
+        Assert.Equal(HostResourceLocatorKind.SerialPort, controller.Locator.Kind);
+        Assert.Equal(portName, controller.Locator.Value);
+        Assert.Equal("usb:zwave:controller:001", controller.PhysicalIdentity.StableKey);
+        Assert.Equal("US", controller.Metadata![ZWaveControllerHostResource.RfRegionMetadataKey]);
+        Assert.Equal("homeid:0x12345678", controller.Metadata[ZWaveControllerHostResource.NvmIdentityMetadataKey]);
+    }
 }

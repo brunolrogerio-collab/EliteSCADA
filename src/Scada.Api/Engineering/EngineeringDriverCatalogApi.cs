@@ -46,7 +46,8 @@ public static class EngineeringDriverCatalogApi
             hostResources: sp.GetRequiredService<HostResourceRegistry>(),
             hostResourceLeases: sp.GetRequiredService<HostResourceLeaseCoordinator>(),
             zigbeeDeployment: sp.GetRequiredService<ZigbeeNativeSidecarDeploymentOptions>(),
-            knxIpDeployment: sp.GetRequiredService<KnxIpSidecarDeploymentOptions>()));
+            knxIpDeployment: sp.GetRequiredService<KnxIpSidecarDeploymentOptions>(),
+            zwaveJsDeployment: sp.GetRequiredService<ZWaveJsSidecarDeploymentOptions>()));
         builder.Services.AddSingleton<EngineeringDataSourceTypeCatalog>(sp =>
             EngineeringDataSourceTypeCatalog.BuildForCurrentSchema(
                 sp.GetRequiredService<CommunicationDriverRuntimeComponentRegistry>()));

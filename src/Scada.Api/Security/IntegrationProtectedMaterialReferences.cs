@@ -10,12 +10,23 @@ public static class IntegrationProtectedMaterialScopePolicy
     public const string KnxUserPassword = "knx.ip-secure.user-password";
     public const string KnxDeviceAuthentication = "knx.ip-secure.device-authentication";
     public const string KnxDataSecureKeyring = "knx.data-secure.keyring";
+    public const string ZWaveS0Legacy = "zwave.network-key.s0-legacy";
+    public const string ZWaveS2AccessControl = "zwave.network-key.s2-access-control";
+    public const string ZWaveS2Authenticated = "zwave.network-key.s2-authenticated";
+    public const string ZWaveS2Unauthenticated = "zwave.network-key.s2-unauthenticated";
 
     public static string? SecretField(string driverType, string purpose)
     {
         if (string.Equals(driverType, "zigbee.native", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(purpose, ZigbeeNetworkKey, StringComparison.Ordinal))
             return "networkKey";
+        if (string.Equals(driverType, "zwave.js.controller", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.Equals(purpose, ZWaveS0Legacy, StringComparison.Ordinal)) return "s0Legacy";
+            if (string.Equals(purpose, ZWaveS2AccessControl, StringComparison.Ordinal)) return "s2AccessControl";
+            if (string.Equals(purpose, ZWaveS2Authenticated, StringComparison.Ordinal)) return "s2Authenticated";
+            if (string.Equals(purpose, ZWaveS2Unauthenticated, StringComparison.Ordinal)) return "s2Unauthenticated";
+        }
         if (string.Equals(driverType, "knx.ip", StringComparison.OrdinalIgnoreCase))
         {
             if (string.Equals(purpose, KnxUserPassword, StringComparison.Ordinal)) return "userPassword";
@@ -56,6 +67,13 @@ public static class IntegrationProtectedMaterialScopePolicy
                 if (!Uri.IsHexDigit((char)value))
                     throw new ArgumentException("Zigbee network key must be 16 binary bytes or 32 hexadecimal ASCII characters.", nameof(material));
             }
+            return;
+        }
+
+        if (scope.Purpose is ZWaveS0Legacy or ZWaveS2AccessControl or ZWaveS2Authenticated or ZWaveS2Unauthenticated)
+        {
+            if (material.Length != 16)
+                throw new ArgumentException("Z-Wave S0/S2 network keys must contain exactly 16 binary bytes.", nameof(material));
             return;
         }
 

@@ -41,6 +41,18 @@
     <Content Include="../Scada.DriverHost/Sidecars/KnxIp/licenses/**"
              Link="sidecars/knx-ip/licenses/%(RecursiveDir)%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/ZWaveJs/src/**/*.mjs"
+             Link="sidecars/zwave-js/src/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/ZWaveJs/scripts/**/*.mjs"
+             Link="sidecars/zwave-js/scripts/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/ZWaveJs/package*.json;../Scada.DriverHost/Sidecars/ZWaveJs/SBOM.cdx.json;../Scada.DriverHost/Sidecars/ZWaveJs/THIRD-PARTY-NOTICES.md"
+             Link="sidecars/zwave-js/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../Scada.DriverHost/Sidecars/ZWaveJs/licenses/**"
+             Link="sidecars/zwave-js/licenses/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <Target Name="IncludeEliteScadaDnp3DistributionFiles" AfterTargets="ComputeFilesToPublish"

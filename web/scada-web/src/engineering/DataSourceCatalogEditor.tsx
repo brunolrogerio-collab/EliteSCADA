@@ -22,7 +22,7 @@ import {
   type DataSourceTypeDefinition
 } from './DataSourceCatalogEditor.logic';
 import { backendReferenceFromName } from './backendReferenceFromName';
-import { resolveDriverCatalogResource } from './driverCatalogI18n';
+import { resolveDriverCatalogDisplayName, resolveDriverCatalogResource } from './driverCatalogI18n';
 import type { EngineeringLocale } from './i18n';
 import { OpcUaDataSourceDiscoveryAssistant } from './OpcUaDataSourceDiscoveryAssistant';
 import { DataSourceConnectionTest } from './DataSourceConnectionTest';
@@ -322,7 +322,7 @@ export function DataSourceCatalogEditor({ model, locale, projectKey }: Props) {
                   {!draft.driver && <option value="">{copy.chooseType}</option>}
                   {catalog.map(type => (
                     <option key={type.typeKey} value={type.typeKey}>
-                      {resolveDriverCatalogResource(locale, type.displayNameResourceKey, type.displayName)}
+                      {resolveDriverCatalogDisplayName(locale, type.typeKey, type.displayNameResourceKey, type.displayName)}
                     </option>
                   ))}
                 </select>

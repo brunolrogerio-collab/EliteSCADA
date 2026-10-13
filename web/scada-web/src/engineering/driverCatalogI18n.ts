@@ -236,6 +236,19 @@ const resources: Readonly<Record<string, Localized>> = {
     'pt-BR': 'Permitir certificado não confiável na sessão temporária de Engenharia',
     en: 'Allow untrusted certificate for temporary Engineering session',
     es: 'Permitir certificado no confiable en la sesión temporal de Ingeniería'
+  },
+  'driver.matter.wifi.testVersion': {
+    'pt-BR': '(Versão em teste)', en: '(Test version)', es: '(Versión en prueba)'
+  },
+  'driver.matter.wifi.displayName': {
+    'pt-BR': 'Matter Wi-Fi', en: 'Matter Wi-Fi', es: 'Matter Wi-Fi'
+  }
+};
+
+const driverDisplayResources: Readonly<Record<string, { name: string; qualifier: string }>> = {
+  'matter.wifi': {
+    name: 'driver.matter.wifi.displayName',
+    qualifier: 'driver.matter.wifi.testVersion'
   }
 };
 
@@ -250,6 +263,21 @@ export function resolveDriverCatalogResource(
     if (resource) return resource[locale] ?? resource['pt-BR'];
   }
   return fallback ?? '';
+}
+
+export function resolveDriverCatalogDisplayName(
+  locale: EngineeringLocale,
+  typeKey: string,
+  resourceKey: string | null | undefined,
+  fallback: string | null | undefined
+): string {
+  const specialResources = driverDisplayResources[typeKey];
+  const displayName = specialResources
+    ? resolveDriverCatalogResource(locale, specialResources.name, fallback)
+    : resolveDriverCatalogResource(locale, resourceKey, fallback);
+  if (!specialResources) return displayName;
+  const qualifier = resolveDriverCatalogResource(locale, specialResources.qualifier, null);
+  return qualifier ? `${displayName} ${qualifier}` : displayName;
 }
 
 export function hasDriverCatalogResource(resourceKey: string | null | undefined): boolean {

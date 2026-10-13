@@ -180,17 +180,18 @@ test.describe('backend-driven Data Source form logic', () => {
 test('normal Data Source flow has no hardcoded driver catalog and uses Preview/Apply CAS', async () => {
   const editor = await readFile(new URL('../src/engineering/DataSourceCatalogEditor.tsx', import.meta.url), 'utf8');
   const logic = await readFile(new URL('../src/engineering/DataSourceCatalogEditor.logic.ts', import.meta.url), 'utf8');
+  const api = await readFile(new URL('../src/engineering/api.ts', import.meta.url), 'utf8');
   const structured = await readFile(new URL('../src/engineering/StructuredEditors.tsx', import.meta.url), 'utf8');
   const dataSourceSection = structured.slice(
     structured.indexOf('export function DataSourceEditor'),
     structured.indexOf('export function TagEditor'));
 
   expect(structured).toContain("import { DataSourceCatalogEditor } from './DataSourceCatalogEditor'");
-  expect(dataSourceSection).toContain('<DataSourceCatalogEditor model={model} locale={locale} />');
+  expect(dataSourceSection).toContain('<DataSourceCatalogEditor model={model} locale={locale} projectKey={projectKey} />');
   expect(dataSourceSection).not.toContain('<EngineeringEntityBrowser');
   expect(editor).toContain('/api/engineering/data-source-types');
   expect(editor).toContain('data-testid="data-source-type"');
-  expect(editor).toContain('resolveDriverCatalogResource(locale, type.displayNameResourceKey, type.displayName)');
+  expect(editor).toContain('resolveDriverCatalogDisplayName(locale, type.typeKey, type.displayNameResourceKey, type.displayName)');
   expect(editor).toContain('switchDataSourceType(draft, type)');
   expect(logic).toContain('integrationDomains?:');
   expect(logic).toContain('connectionModel?:');
@@ -202,6 +203,16 @@ test('normal Data Source flow has no hardcoded driver catalog and uses Preview/A
   expect(editor).toContain('const after = await loadEngineeringWorkspace()');
   expect(editor).toContain('setValidatedChangeVersion(after.changeVersion)');
   expect(editor).toContain('applyEngineeringPackage(validatedCandidate, validatedChangeVersion)');
+  expect(editor).toContain('data-testid="matter-wifi-protected-key-action"');
+  expect(editor).toContain('window.confirm(copy.matterKeyConfirm)');
+  expect(editor).toContain('copy.matterKeyHint');
+  const matterProvisionApi = api.slice(
+    api.indexOf('export async function ensureMatterWifiFabricStorageKey'),
+    api.indexOf('export async function loadEngineeringSnapshot'));
+  expect(matterProvisionApi).toContain("method: 'PUT'");
+  expect(matterProvisionApi).toContain("'x-elitescada-workspace-version'");
+  expect(matterProvisionApi).not.toContain('body:');
+  expect(matterProvisionApi).toContain("'host-material-slot-v1:configured'");
   expect(editor).not.toContain('DictionaryEditor');
   expect(editor).not.toMatch(/['"](?:modbus\.tcp|opc-ua|mqtt\.raw|dnp3\.master|builtin\.simulation)['"]/);
 });

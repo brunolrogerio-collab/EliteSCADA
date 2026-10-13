@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import {
   hasDriverCatalogResource,
+  resolveDriverCatalogDisplayName,
   resolveDriverCatalogResource
 } from '../src/engineering/driverCatalogI18n';
 
@@ -15,6 +16,16 @@ test('driver catalog resource resolver localizes known field keys and preserves 
 
   expect(resolveDriverCatalogResource('es', 'driver.unknown.field', 'Invariant fallback')).toBe('Invariant fallback');
   expect(hasDriverCatalogResource('driver.unknown.field')).toBe(false);
+});
+
+test('Matter Wi-Fi driver name carries a localized test-version qualifier', () => {
+  expect(resolveDriverCatalogDisplayName('pt-BR', 'matter.wifi', null, 'Matter Wi-Fi (isolated preview)'))
+    .toBe('Matter Wi-Fi (Versão em teste)');
+  expect(resolveDriverCatalogDisplayName('en', 'matter.wifi', null, 'Matter Wi-Fi (isolated preview)'))
+    .toBe('Matter Wi-Fi (Test version)');
+  expect(resolveDriverCatalogDisplayName('es', 'matter.wifi', null, 'Matter Wi-Fi (isolated preview)'))
+    .toBe('Matter Wi-Fi (Versión en prueba)');
+  expect(resolveDriverCatalogDisplayName('pt-BR', 'modbus.tcp', null, 'Modbus TCP')).toBe('Modbus TCP');
 });
 
 test('Modbus and OPC UA descriptors publish resource keys through the canonical driver contract', async () => {

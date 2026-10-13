@@ -47,6 +47,45 @@ test('mounted Data Source editor rebuilds driver-specific fields instead of reus
   await expect(scanInterval).toHaveValue('500');
 });
 
+test('mounted Data Source catalog labels Matter Wi-Fi as a test version in Portuguese', async ({ page }) => {
+  await page.route('**/api/engineering/data-source-types', async route => {
+    const response = await route.fetch();
+    const catalog = await response.json() as { dataSourceTypes: Array<Record<string, unknown>> };
+    if (!catalog.dataSourceTypes.some(type => type.typeKey === 'matter.wifi')) {
+      catalog.dataSourceTypes.push({
+        typeKey: 'matter.wifi',
+        displayName: 'Matter Wi-Fi (isolated preview)',
+        kind: 'communicationDriver',
+        description: 'Isolated preview for presentation contract testing.',
+        capabilities: {
+          supportsConnectionTest: false,
+          supportsDiscovery: false,
+          supportsBrowse: false,
+          supportsFileImport: false,
+          supportsReconcile: false,
+          supportsSharedTransportInfrastructure: false
+        },
+        configurationSchema: null,
+        tagBindingSchemaId: 'elitescada.driver.matter.wifi',
+        tagBindingSchemaVersion: 1,
+        integrationDomains: ['building', 'residential', 'ioT'],
+        connectionModel: 'localBridge',
+        externalDependencies: []
+      });
+    }
+    await route.fulfill({ response, json: catalog });
+  });
+
+  await page.goto('/engineering');
+  await page.getByRole('button', { name: /Fontes de dados/ }).click();
+  const editor = page.getByTestId('schema-data-source-editor');
+  await expect(editor).toBeVisible();
+  await editor.locator('header button').first().click();
+
+  await expect(editor.locator('option[value="matter.wifi"]'))
+    .toHaveText('Matter Wi-Fi (Versão em teste)');
+});
+
 
 test('mounted Data Source editor exposes catalog failure and recovers only after explicit reload', async ({ page }) => {
   let failCatalog = true;

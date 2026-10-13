@@ -1,4 +1,5 @@
 using System.Globalization;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Scada.Api.Runtime;
 using Scada.Api.Security;
@@ -31,13 +32,24 @@ public sealed record ModbusTagAddressBuildRequest(
 
 public static class EngineeringDriverCatalogApi
 {
+    internal const string MatterWifiPreviewConfigurationKey = "Engineering:DeveloperPreviews:MatterWifiV1";
+
     public static void AddEngineeringDriverCatalog(this WebApplicationBuilder builder)
     {
+        var matterWifiPreviewEnabled = IsMatterWifiPreviewEnabled(builder.Environment.EnvironmentName, builder.Configuration);
         builder.AddManagedProtocolHost();
         builder.Services.TryAddSingleton<ICommunicationDriverProtectedMaterialResolver>(sp =>
-            new HostAuthorityDriverMaterialResolver(sp.GetRequiredService<IProtectedMaterialAuthority>(),
+        {
+            var fallback = new HostAuthorityDriverMaterialResolver(sp.GetRequiredService<IProtectedMaterialAuthority>(),
                 sp.GetRequiredService<IntegrationProtectedMaterialService>(),
-                EnvironmentCommunicationDriverProtectedMaterialResolver.CreateDeterministicScopedEnvironment()));
+                EnvironmentCommunicationDriverProtectedMaterialResolver.CreateDeterministicScopedEnvironment());
+            return matterWifiPreviewEnabled
+                ? new MatterWifiProtectedMaterialResolver(
+                    sp.GetRequiredService<MatterWifiProtectedMaterialService>(),
+                    fallback,
+                    () => !sp.GetRequiredService<RuntimeHighAvailabilityService>().Enabled)
+                : fallback;
+        });
         builder.Services.TryAddSingleton<IHostSerialPortProvider, SystemHostSerialPortProvider>();
         builder.Services.TryAddSingleton<HostSerialBusCoordinator>();
         builder.Services.AddSingleton(sp => CommunicationDriverRuntimeComposition.BuildForCurrentSchema(
@@ -47,7 +59,9 @@ public static class EngineeringDriverCatalogApi
             hostResourceLeases: sp.GetRequiredService<HostResourceLeaseCoordinator>(),
             zigbeeDeployment: sp.GetRequiredService<ZigbeeNativeSidecarDeploymentOptions>(),
             knxIpDeployment: sp.GetRequiredService<KnxIpSidecarDeploymentOptions>(),
-            zwaveJsDeployment: sp.GetRequiredService<ZWaveJsSidecarDeploymentOptions>()));
+            zwaveJsDeployment: sp.GetRequiredService<ZWaveJsSidecarDeploymentOptions>(),
+            highAvailabilityEnabled: () => sp.GetRequiredService<RuntimeHighAvailabilityService>().Enabled,
+            matterWifiPreviewEnabled: matterWifiPreviewEnabled));
         builder.Services.AddSingleton<EngineeringDataSourceTypeCatalog>(sp =>
             EngineeringDataSourceTypeCatalog.BuildForCurrentSchema(
                 sp.GetRequiredService<CommunicationDriverRuntimeComponentRegistry>()));
@@ -74,6 +88,14 @@ public static class EngineeringDriverCatalogApi
         builder.Services.AddSingleton<IEngineeringDriverToolProviderFactory, Zigbee2MqttEngineeringDriverToolProviderFactory>();
         builder.Services.AddSingleton<EngineeringDriverToolProviderFactoryRegistry>();
         builder.Services.AddSingleton<NetworkReachabilityProbe>();
+    }
+
+    internal static bool IsMatterWifiPreviewEnabled(string environmentName, IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        var isolatedDevelopmentEnvironment = string.Equals(environmentName, "Development", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(environmentName, "Test", StringComparison.OrdinalIgnoreCase);
+        return isolatedDevelopmentEnvironment && configuration.GetValue<bool>(MatterWifiPreviewConfigurationKey);
     }
 
     public static void MapEngineeringDriverCatalogEndpoints(this WebApplication app)

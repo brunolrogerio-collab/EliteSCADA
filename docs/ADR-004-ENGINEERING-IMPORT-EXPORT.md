@@ -45,6 +45,32 @@ The canonical package is currently at schema version 4 and includes:
 - XLSX is implemented with the platform ZIP/XML APIs only; no Office automation or third-party spreadsheet runtime is required.
 - Automated JSON export -> import preview round-trip in Chromium as part of CI.
 
+### Tabular lexical and default-value contract
+
+CSV and XLSX share the same entity projection and parsing rules. Header names are matched case-insensitively; every header must be one of the columns defined for the selected entity. Unknown columns are rejected with an `InvalidDataException` that names the unsupported header(s), rather than silently ignored. Known columns may appear in any order. Required headers must be present even when a particular row's value is intentionally blank; canonical entity validation still decides whether the resulting row is valid. Duplicate header names are invalid.
+
+Numbers are culture-independent: decimal values use invariant syntax with `.` as the decimal separator and no localized thousands separator; integer values use invariant base-10 integer syntax. Export always emits invariant values. A localized decimal such as `1,25` is not interpreted as `1.25`; it is rejected. Non-finite floating-point values are also rejected.
+
+For fields parsed as nullable text, GUIDs, numbers or integers, an empty or whitespace-only cell means `null`; non-empty text is preserved as supplied and then checked by canonical validation. JSON map/list/binding cells are JSON text; an empty cell means no value. Paired fields must be either both blank or both populated (for example, TAG address-selector kind/index and internal-memory initial-value type/value). Boolean and enum fields reject invalid nonblank values; they are never silently coerced.
+
+Blank boolean/enum cells use only these import defaults (exported files emit the actual value):
+
+| Entity | Field | Blank-cell default |
+| --- | --- | --- |
+| TAG | `ReadOnly` | `true` |
+| TAG | `HistorianEnabled` | `false` |
+| TAG | `HistorianStrategy` | `none` |
+| Alarm | `DigitalActiveValue`, `RequiresAcknowledgement`, `ShelvingAllowed`, `Enabled` | `true` |
+| Data Source | `Enabled` | `true` |
+| Gateway route | `TransferMode` | `OnChange` |
+| Gateway route | `QualityPolicy` | `GoodOnly` |
+| Gateway route | `ConversionPolicy` | `Exact` |
+| Gateway route | `InitialTransferPolicy` | `SynchronizeFirstAcceptableValue` |
+| Gateway route | `Enabled` | `true` |
+| Operational Event | `Enabled` | `true` |
+
+All other non-nullable boolean/enum cells must contain a valid value. This v1 tabular schema has no date or timestamp fields; adding one requires an explicit, versioned timezone/offset and precision contract before implementation, not implicit culture-dependent parsing. XLSX uses the same header, lexical, null and default semantics as CSV; cell formatting does not override the text projection contract.
+
 Backward compatibility is maintained for older package versions. Missing entity collections in older schemas are normalized to empty collections during parsing.
 
 ## Mandatory gate before persistence/real drivers

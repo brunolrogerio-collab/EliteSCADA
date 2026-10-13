@@ -62,8 +62,12 @@ internal static class CsvCodec
         var headers = records[0].Cells.Select(header => header.Trim()).ToArray();
         if (headers.Length == 0 || headers.Length > MaximumColumns || headers.Any(string.IsNullOrWhiteSpace))
             throw new InvalidDataException("CSV header is empty or exceeds the supported column bounds.");
-        if (headers.Distinct(StringComparer.OrdinalIgnoreCase).Count() != headers.Length)
-            throw new InvalidDataException("CSV contains duplicate column keys.");
+        var duplicateHeaders = headers.GroupBy(header => header, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToArray();
+        if (duplicateHeaders.Length > 0)
+            throw new InvalidDataException($"CSV header contains duplicate column(s): {string.Join(", ", duplicateHeaders)}.");
 
         var rows = new List<CsvTableRow>(records.Count - 1);
         foreach (var record in records.Skip(1))

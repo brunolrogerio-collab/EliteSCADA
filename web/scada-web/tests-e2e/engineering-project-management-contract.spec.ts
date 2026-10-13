@@ -146,6 +146,52 @@ test('invalid Gateway CSV preview and Apply leave the Engineering workspace unch
   expect(await gatewaysAfterResponse.text()).toBe(gatewaysBefore);
 });
 
+test('unsupported tabular CSV headers are rejected before Preview or Apply can mutate the workspace', async ({ request }) => {
+  const workspaceResponse = await request.get('/api/engineering/workspace');
+  expect(workspaceResponse.ok()).toBeTruthy();
+  const workspaceBefore = await workspaceResponse.json() as { changeVersion: number };
+  const tagsBeforeResponse = await request.get('/api/engineering/export/tabular/tags/csv');
+  expect(tagsBeforeResponse.ok()).toBeTruthy();
+  const tagsBefore = await tagsBeforeResponse.text();
+
+  const unsupportedCsv = [
+    'Id,Name,Path,DataType,FutureEngineeringField',
+    `${randomUUID()},Unsupported import,Plant.UnsupportedImport,Float,discard-me`
+  ].join('\n');
+  const headers = { 'content-type': 'text/csv; charset=utf-8' };
+  const previewResponse = await request.post(
+    '/api/engineering/import/tabular/tags/csv/preview?mode=CreateAndUpdate',
+    { headers, data: unsupportedCsv }
+  );
+  expect(previewResponse.status()).toBe(400);
+  const previewError = await previewResponse.json() as { error: string };
+  expect(previewError.error).toContain('FutureEngineeringField');
+  expect(previewError.error).toContain('unsupported column');
+
+  const applyResponse = await request.post(
+    '/api/engineering/import/tabular/tags/csv/apply?mode=CreateAndUpdate',
+    {
+      headers: {
+        ...headers,
+        'x-elitescada-workspace-version': String(workspaceBefore.changeVersion)
+      },
+      data: unsupportedCsv
+    }
+  );
+  expect(applyResponse.status()).toBe(400);
+  const applyError = await applyResponse.json() as { error: string };
+  expect(applyError.error).toContain('FutureEngineeringField');
+  expect(applyError.error).toContain('unsupported column');
+
+  const workspaceAfterResponse = await request.get('/api/engineering/workspace');
+  expect(workspaceAfterResponse.ok()).toBeTruthy();
+  const workspaceAfter = await workspaceAfterResponse.json() as { changeVersion: number };
+  expect(workspaceAfter.changeVersion).toBe(workspaceBefore.changeVersion);
+  const tagsAfterResponse = await request.get('/api/engineering/export/tabular/tags/csv');
+  expect(tagsAfterResponse.ok()).toBeTruthy();
+  expect(await tagsAfterResponse.text()).toBe(tagsBefore);
+});
+
 test('tabular import/export can be operated from the Engineering project-management screen', async ({ page, request }) => {
   await page.goto('/engineering');
   const advancedTools = page.locator('details.eng-overview-advanced');

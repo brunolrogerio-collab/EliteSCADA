@@ -1,5 +1,6 @@
-using System.Text.Json;
+using System.Globalization;
 using System.IO.Compression;
+using System.Text.Json;
 using System.Xml.Linq;
 using Scada.Core.Events;
 using Scada.Core.Alarms;
@@ -164,6 +165,116 @@ public sealed class EngineeringTabularExchangeTests
     {
         var error = Assert.Throws<InvalidDataException>(() => CsvCodec.Read(csv));
         Assert.Contains(expectedText, error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData(EngineeringTabularEntity.Tags)]
+    [InlineData(EngineeringTabularEntity.Alarms)]
+    [InlineData(EngineeringTabularEntity.DataSources)]
+    [InlineData(EngineeringTabularEntity.GatewayRoutes)]
+    [InlineData(EngineeringTabularEntity.OperationalEvents)]
+    public void Csv_and_xlsx_reject_unsupported_entity_columns(EngineeringTabularEntity entity)
+    {
+        const string unsupportedHeader = "FutureEngineeringField";
+        var package = Package();
+        var exportedRows = CsvCodec.Read(_exchange.ExportCsv(package, entity));
+        var projectedRows = exportedRows.Select((row, index) =>
+            row.Append(index == 0 ? unsupportedHeader : string.Empty).ToArray()).ToArray();
+
+        var csvError = Assert.Throws<InvalidDataException>(() =>
+            _exchange.ParseCsv(package, entity, CsvCodec.Write(projectedRows
+                .Select(row => (IReadOnlyList<string?>)row))));
+
+        Assert.Contains("unsupported column", csvError.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(unsupportedHeader, csvError.Message, StringComparison.Ordinal);
+
+        var xlsxError = Assert.Throws<InvalidDataException>(() =>
+            _exchange.ParseXlsx(package, entity, XlsxCodec.Write(projectedRows, SheetName(entity))));
+
+        Assert.Contains("unsupported column", xlsxError.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(unsupportedHeader, xlsxError.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(EngineeringTabularEntity.Tags)]
+    [InlineData(EngineeringTabularEntity.Alarms)]
+    [InlineData(EngineeringTabularEntity.DataSources)]
+    [InlineData(EngineeringTabularEntity.GatewayRoutes)]
+    [InlineData(EngineeringTabularEntity.OperationalEvents)]
+    public void Csv_and_xlsx_accept_known_columns_in_any_order(EngineeringTabularEntity entity)
+    {
+        var package = Package();
+        var reversedRows = CsvCodec.Read(_exchange.ExportCsv(package, entity))
+            .Select(row => row.Reverse().ToArray())
+            .ToArray();
+        var csv = CsvCodec.Write(reversedRows.Select(row => (IReadOnlyList<string?>)row));
+
+        AssertEntity(entity, _exchange.ParseCsv(package, entity, csv));
+        AssertEntity(entity, _exchange.ParseXlsx(package, entity, XlsxCodec.Write(reversedRows, SheetName(entity))));
+    }
+
+    [Fact]
+    public void Csv_and_xlsx_reject_duplicate_headers_with_a_clear_diagnostic()
+    {
+        var package = Package();
+        var duplicateRows = new[]
+        {
+            new[] { "Id", "Name", "Path", "DataType", "name" },
+            new[] { string.Empty, "Pump", "Plant.Pump", "Float", "Duplicate" }
+        };
+
+        var csvError = Assert.Throws<InvalidDataException>(() =>
+            _exchange.ParseCsv(package, EngineeringTabularEntity.Tags,
+                CsvCodec.Write(duplicateRows.Select(row => (IReadOnlyList<string?>)row))));
+        Assert.Contains("duplicate column", csvError.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("name", csvError.Message, StringComparison.OrdinalIgnoreCase);
+
+        var xlsxError = Assert.Throws<InvalidDataException>(() =>
+            _exchange.ParseXlsx(package, EngineeringTabularEntity.Tags, XlsxCodec.Write(duplicateRows, "Tags")));
+        Assert.Contains("duplicate column", xlsxError.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("name", xlsxError.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Csv_numbers_and_blank_optional_values_have_locale_independent_null_and_default_semantics()
+    {
+        const string csv = "Id,Path,Name,DataType,Unit,ScaleMinimum,ScaleMaximum,ReadOnly,HistorianEnabled,HistorianStrategy,PeriodMilliseconds,MaximumPeriodMilliseconds\n" +
+                           ",Plant.Locale,Locale,Float, ,1.25,, , , ,1000,\n";
+        var originalCulture = CultureInfo.CurrentCulture;
+
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("pt-BR");
+            var imported = _exchange.ParseCsv(Package(), EngineeringTabularEntity.Tags, csv);
+            var tag = Assert.Single(imported.Tags);
+
+            Assert.Null(tag.EngineeringUnit);
+            Assert.Equal(1.25, tag.ScaleMinimum);
+            Assert.Null(tag.ScaleMaximum);
+            Assert.True(tag.ReadOnly);
+            Assert.False(tag.Historian!.Enabled);
+            Assert.Equal("none", tag.Historian.Strategy);
+            Assert.Equal(1000, tag.Historian.PeriodMilliseconds);
+            Assert.Null(tag.Historian.MaximumPeriodMilliseconds);
+
+            var exported = _exchange.ExportCsv(imported, EngineeringTabularEntity.Tags);
+            Assert.Contains("1.25", exported, StringComparison.Ordinal);
+            Assert.DoesNotContain("1,25", exported, StringComparison.Ordinal);
+            var reparsed = Assert.Single(_exchange.ParseCsv(imported, EngineeringTabularEntity.Tags, exported).Tags);
+            Assert.Equal(tag.ScaleMinimum, reparsed.ScaleMinimum);
+            Assert.Null(reparsed.ScaleMaximum);
+            Assert.True(reparsed.ReadOnly);
+            Assert.False(reparsed.Historian!.Enabled);
+
+            var localizedDecimal = csv.Replace("1.25", "\"1,25\"", StringComparison.Ordinal);
+            var error = Assert.Throws<InvalidDataException>(() =>
+                _exchange.ParseCsv(Package(), EngineeringTabularEntity.Tags, localizedDecimal));
+            Assert.Contains("invariant-culture number", error.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
     }
 
     [Fact]
@@ -471,6 +582,16 @@ public sealed class EngineeringTabularExchangeTests
         EngineeringTabularEntity.DataSources => package.DataSources?.Count ?? 0,
         EngineeringTabularEntity.GatewayRoutes => package.Gateways?.Count ?? 0,
         EngineeringTabularEntity.OperationalEvents => package.OperationalEvents?.Count ?? 0,
+        _ => throw new ArgumentOutOfRangeException(nameof(entity))
+    };
+
+    private static string SheetName(EngineeringTabularEntity entity) => entity switch
+    {
+        EngineeringTabularEntity.Tags => "Tags",
+        EngineeringTabularEntity.Alarms => "Alarms",
+        EngineeringTabularEntity.DataSources => "DataSources",
+        EngineeringTabularEntity.GatewayRoutes => "GatewayRoutes",
+        EngineeringTabularEntity.OperationalEvents => "OperationalEvents",
         _ => throw new ArgumentOutOfRangeException(nameof(entity))
     };
 

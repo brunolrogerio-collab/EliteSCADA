@@ -10,6 +10,29 @@ namespace Scada.Engineering.ImportExport;
 
 internal sealed class EngineeringCsvExchange
 {
+    private static readonly string[] TagColumns =
+    [
+        "Id", "Path", "Name", "DataType", "Unit", "Source", "Address", "AddressSelectorKind", "AddressSelectorIndex", "ReadOnly",
+        "ScaleMinimum", "ScaleMaximum", "HistorianEnabled", "HistorianStrategy", "Deadband", "PeriodMilliseconds",
+        "MaximumPeriodMilliseconds", "Description", "MetadataJson", "ReadRolesJson", "WriteRolesJson", "ConfigureRolesJson",
+        "InitialValueDataType", "InitialValueJson", "CommunicationBindingJson", "DataSourceId", "HistorianCaptureProfileId"
+    ];
+    private static readonly string[] AlarmColumns =
+    [
+        "Id", "Name", "TagId", "TagPath", "Type", "Priority", "Setpoint", "DigitalActiveValue", "Class", "Area", "Message",
+        "ActivationDelayMilliseconds", "RequiresAcknowledgement", "ShelvingAllowed", "Enabled", "SoundProfile", "MetadataJson"
+    ];
+    private static readonly string[] DataSourceColumns =
+        ["Id", "Key", "Name", "Driver", "Enabled", "SettingsJson", "SecretReferencesJson", "MetadataJson"];
+    private static readonly string[] GatewayRouteColumns =
+    [
+        "Id", "Key", "Name", "SourceTagId", "SourceTagPath", "DestinationTagId", "DestinationTagPath", "TransferMode",
+        "QualityPolicy", "ConversionPolicy", "InitialTransferPolicy", "Gain", "Offset", "Deadband", "MinimumIntervalMilliseconds",
+        "PeriodMilliseconds", "Description", "Enabled", "MetadataJson"
+    ];
+    private static readonly string[] OperationalEventColumns =
+        ["Id", "Key", "Name", "Type", "Category", "Source", "Area", "EquipmentPath", "TagId", "TagPath", "Message", "Enabled", "MetadataJson"];
+
     private readonly JsonSerializerOptions _json;
 
     public EngineeringCsvExchange(JsonSerializerOptions json) => _json = json;
@@ -150,7 +173,7 @@ internal sealed class EngineeringCsvExchange
     {
         var table = CsvCodec.ReadTable(csv);
         if (table is null) throw new InvalidDataException("TAG CSV import requires a header row.");
-        var header = Header(table.Headers, "Id", "Name", "Path", "DataType");
+        var header = Header(table.Headers, TagColumns, "Id", "Name", "Path", "DataType");
         return ParseRows(table, row => ParseTag(row.Cells, header));
     }
 
@@ -158,7 +181,7 @@ internal sealed class EngineeringCsvExchange
     {
         var table = CsvCodec.ReadTable(csv);
         if (table is null) throw new InvalidDataException("Alarm CSV import requires a header row.");
-        var header = Header(table.Headers, "Id", "Name", "TagId", "TagPath", "Type", "Priority");
+        var header = Header(table.Headers, AlarmColumns, "Id", "Name", "TagId", "TagPath", "Type", "Priority");
         return ParseRows(table, row => new AlarmEngineeringDto(
             GuidOrNull(Get(row.Cells, header, "Id")),
             Get(row.Cells, header, "Name"),
@@ -183,7 +206,7 @@ internal sealed class EngineeringCsvExchange
     {
         var table = CsvCodec.ReadTable(csv);
         if (table is null) throw new InvalidDataException("Data Source CSV import requires a header row.");
-        var header = Header(table.Headers, "Id", "Key", "Name", "Driver");
+        var header = Header(table.Headers, DataSourceColumns, "Id", "Key", "Name", "Driver");
         return ParseRows(table, row => new DataSourceEngineeringDto(
             GuidOrNull(Get(row.Cells, header, "Id")),
             Get(row.Cells, header, "Key"),
@@ -199,7 +222,7 @@ internal sealed class EngineeringCsvExchange
     {
         var table = CsvCodec.ReadTable(csv);
         if (table is null) throw new InvalidDataException("Gateway route CSV import requires a header row.");
-        var header = Header(table.Headers, "Id", "Key", "Name", "SourceTagId", "SourceTagPath", "DestinationTagId", "DestinationTagPath");
+        var header = Header(table.Headers, GatewayRouteColumns, "Id", "Key", "Name", "SourceTagId", "SourceTagPath", "DestinationTagId", "DestinationTagPath");
         return ParseRows(table, row => new GatewayRouteEngineeringDto(
             GuidOrNull(Get(row.Cells, header, "Id")), Get(row.Cells, header, "Key"), Get(row.Cells, header, "Name"),
             GuidOrNull(Get(row.Cells, header, "SourceTagId")), Null(Get(row.Cells, header, "SourceTagPath")),
@@ -218,7 +241,7 @@ internal sealed class EngineeringCsvExchange
     {
         var table = CsvCodec.ReadTable(csv);
         if (table is null) throw new InvalidDataException("Operational Event CSV import requires a header row.");
-        var header = Header(table.Headers, "Id", "Key", "Name", "Type", "Category", "Source", "TagId", "TagPath");
+        var header = Header(table.Headers, OperationalEventColumns, "Id", "Key", "Name", "Type", "Category", "Source", "TagId", "TagPath");
         return ParseRows(table, row => new OperationalEventEngineeringDto(
             GuidOrNull(Get(row.Cells, header, "Id")), Get(row.Cells, header, "Key"), Get(row.Cells, header, "Name"),
             Get(row.Cells, header, "Type"), Get(row.Cells, header, "Category"), Get(row.Cells, header, "Source"),
@@ -359,13 +382,17 @@ internal sealed class EngineeringCsvExchange
         return new TagValueSelector(kind, index);
     }
 
-    private static Dictionary<string, int> Header(string[] row, params string[] required)
+    private static Dictionary<string, int> Header(string[] row, IReadOnlyCollection<string> supported, params string[] required)
     {
         var header = row.Select((value, index) => (value, index))
             .ToDictionary(x => x.value, x => x.index, StringComparer.OrdinalIgnoreCase);
+        var supportedKeys = new HashSet<string>(supported, StringComparer.OrdinalIgnoreCase);
+        var unsupported = row.Where(name => !supportedKeys.Contains(name)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        if (unsupported.Length > 0)
+            throw new InvalidDataException($"Tabular header contains unsupported column(s): {string.Join(", ", unsupported)}.");
         var missing = required.Where(name => !header.ContainsKey(name)).ToArray();
         if (missing.Length > 0)
-            throw new InvalidDataException($"CSV header is missing required column(s): {string.Join(", ", missing)}.");
+            throw new InvalidDataException($"Tabular header is missing required column(s): {string.Join(", ", missing)}.");
         return header;
     }
 

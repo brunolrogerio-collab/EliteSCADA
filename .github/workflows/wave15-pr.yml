@@ -36,6 +36,7 @@ jobs:
       driver_gate: ${{ steps.router.outputs.driver_gate }}
       run_native_zigbee: ${{ steps.native_scope.outputs.run_native_zigbee }}
       run_knx_sidecar: ${{ steps.knx_scope.outputs.run_knx_sidecar }}
+      run_zwave_sidecar: ${{ steps.zwave_scope.outputs.run_zwave_sidecar }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -116,6 +117,31 @@ jobs:
               output.write(f"run_knx_sidecar={str(selected).lower()}\n")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
               summary.write(f"KNX/IP Secure sidecar evidence selected: {selected}\n")
+
+      - id: zwave_scope
+        name: Select Z-Wave JS sidecar evidence
+        env:
+          ZWAVE_CHANGED_FILES_PATH: /tmp/changed-files.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+
+          changed = Path(os.environ["ZWAVE_CHANGED_FILES_PATH"]).read_text().splitlines()
+          pattern = re.compile(r"^(\.github/workflows/wave15-pr\.yml|docs/examples/home-building/ZWAVE-JS-CONTROLLER-SETUP\.md|src/Scada\.Api/(Engineering/(EngineeringDriverCatalogApi|ManagedProtocolHostConfiguration)\.cs|Scada\.Api\.csproj|Security/IntegrationProtectedMaterialReferences\.cs)|src/Scada\.DriverHost/(Engineering/(CommunicationDriverRuntimeComposition|ZWaveJsCommunicationRuntimeComponents)\.cs|Sidecars/ZWaveJs/.*)|tests/Scada\.Drivers\.Tests/(EngineeringDataSourceTypeCatalogTests|ManagedProtocolHostConfigurationTests|ZWaveJs.*)\.cs)$")
+          directory = Path("src/Scada.DriverHost/Sidecars/ZWaveJs")
+          selected = any(pattern.fullmatch(path) for path in changed) and (directory / "package.json").is_file()
+          if selected:
+              required = ("package.json", "package-lock.json", "SBOM.cdx.json", "THIRD-PARTY-NOTICES.md", "src/sidecar.mjs", "test/sidecar-contract.test.mjs")
+              missing = [name for name in required if not (directory / name).is_file()]
+              if missing:
+                  raise RuntimeError("Z-Wave JS sidecar evidence is incomplete: " + ", ".join(missing))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"run_zwave_sidecar={str(selected).lower()}\n")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(f"Z-Wave JS sidecar evidence selected: {selected}\n")
           PY
 
   common-sanity:
@@ -384,9 +410,72 @@ jobs:
           PY
           sha256sum requirements.lock SBOM.cdx.json THIRD-PARTY-NOTICES.md
 
+  zwave-js-sidecar:
+    name: Z-Wave JS Node and SBOM evidence (${{ matrix.os }})
+    needs: classify
+    if: needs.classify.outputs.run_zwave_sidecar == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: src/Scada.DriverHost/Sidecars/ZWaveJs
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.21.0'
+          cache: npm
+          cache-dependency-path: src/Scada.DriverHost/Sidecars/ZWaveJs/package-lock.json
+      - name: Use the qualified npm version
+        run: npm install --global npm@11.19.0 --no-audit --no-fund
+      - name: Install the exact sidecar lock
+        run: |
+          set -euo pipefail
+          test "$(node --version)" = v24.21.0
+          test "$(npm --version)" = 11.19.0
+          npm ci --no-audit --no-fund
+      - name: Verify lock, SBOM, notices and upstream safety patch
+        run: npm run verify:dependencies
+      - name: Load the pinned server, driver and native serial binding
+        run: |
+          node --input-type=module -e "await import('@zwave-js/server'); await import('zwave-js');"
+          node -e "require('@serialport/bindings-cpp').autoDetect()"
+      - name: Run sidecar protocol and security contract tests
+        run: npm test
+      - name: Audit the exact production dependency graph
+        run: npm audit --omit=dev
+      - name: Record source and sidecar lock provenance
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import { appendFileSync, readFileSync } from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+          const files = ['package-lock.json', 'SBOM.cdx.json', 'THIRD-PARTY-NOTICES.md'];
+          const npmVersion = process.platform === 'win32'
+            ? execFileSync('cmd.exe', ['/d', '/s', '/c', 'npm --version'], { encoding: 'utf8' }).trim()
+            : execFileSync('npm', ['--version'], { encoding: 'utf8' }).trim();
+          const lines = [
+            '## Z-Wave JS sidecar evidence',
+            `Source head: ${process.env.PR_HEAD_SHA}`,
+            `Source base: ${process.env.PR_BASE_SHA}`,
+            `Tested checkout: ${process.env.GITHUB_SHA}`,
+            `Node: ${process.version}; npm: ${npmVersion}`,
+            ...files.map(file => `${file} SHA-256: ${createHash('sha256').update(readFileSync(file)).digest('hex')}`),
+          ];
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`);
+          NODE
+
   t1-gate:
     name: Wave 15 T1 gate
-    needs: [classify, common-sanity, web-semantic, dotnet-focused, chromium-focused, ha-two-process, native-zigbee-sidecar, knx-ip-sidecar]
+    needs: [classify, common-sanity, web-semantic, dotnet-focused, chromium-focused, ha-two-process, native-zigbee-sidecar, knx-ip-sidecar, zwave-js-sidecar]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -399,6 +488,7 @@ jobs:
       HA_TWO_PROCESS: ${{ needs.ha-two-process.result }}
       NATIVE_ZIGBEE: ${{ needs.native-zigbee-sidecar.result }}
       KNX_SIDECAR: ${{ needs.knx-ip-sidecar.result }}
+      ZWAVE_SIDECAR: ${{ needs.zwave-js-sidecar.result }}
       EXEMPT: ${{ needs.classify.outputs.coordination_exempt }}
       NEED_WEB: ${{ needs.classify.outputs.run_web }}
       NEED_DOTNET: ${{ needs.classify.outputs.run_dotnet }}
@@ -406,6 +496,7 @@ jobs:
       NEED_HA_TWO_PROCESS: ${{ needs.classify.outputs.run_ha_two_process }}
       NEED_NATIVE_ZIGBEE: ${{ needs.classify.outputs.run_native_zigbee }}
       NEED_KNX_SIDECAR: ${{ needs.classify.outputs.run_knx_sidecar }}
+      NEED_ZWAVE_SIDECAR: ${{ needs.classify.outputs.run_zwave_sidecar }}
       PROFILES: ${{ needs.classify.outputs.effective_profiles }}
       DRIVER_GATE: ${{ needs.classify.outputs.driver_gate }}
     steps:
@@ -421,10 +512,11 @@ jobs:
           if [ "$NEED_HA_TWO_PROCESS" = true ]; then test "$HA_TWO_PROCESS" = success; fi
           if [ "$NEED_NATIVE_ZIGBEE" = true ]; then test "$NATIVE_ZIGBEE" = success; fi
           if [ "$NEED_KNX_SIDECAR" = true ]; then test "$KNX_SIDECAR" = success; fi
+          if [ "$NEED_ZWAVE_SIDECAR" = true ]; then test "$ZWAVE_SIDECAR" = success; fi
           {
             echo '## Wave 15 T1 gate';
             echo "Effective profiles: \`$PROFILES\`";
-            echo "Web: $WEB; .NET: $DOTNET; Chromium: $E2E; HA two-process: $HA_TWO_PROCESS; Native Zigbee Node/SBOM: $NATIVE_ZIGBEE; KNX/IP Python/SBOM: $KNX_SIDECAR";
+            echo "Web: $WEB; .NET: $DOTNET; Chromium: $E2E; HA two-process: $HA_TWO_PROCESS; Native Zigbee Node/SBOM: $NATIVE_ZIGBEE; KNX/IP Python/SBOM: $KNX_SIDECAR; Z-Wave JS Node/SBOM: $ZWAVE_SIDECAR";
             echo "Driver/Seven-Driver/Interop: $DRIVER_GATE (specialized heavy gates are not claimed PASS by T1).";
             echo 'Universal integrated/main gate: REQUIRED NOW only for push checkpoint or main PR; otherwise UNCHANGED/TRUSTED.';
           } >> "$GITHUB_STEP_SUMMARY"

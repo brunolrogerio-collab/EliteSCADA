@@ -52,6 +52,15 @@ public sealed class EngineeringDataSourceTypeCatalogTests
         var mqtt = Assert.Single(catalog.DataSourceTypes, x => x.TypeKey == Scada.Drivers.Mqtt.MqttDriverDescriptorProvider.DriverType);
         Assert.Contains("industrial", mqtt.IntegrationDomains);
         Assert.Contains("ioT", mqtt.IntegrationDomains);
+
+        var zwave = Assert.Single(catalog.DataSourceTypes, x => x.TypeKey == ZWaveJsDriverDescriptorProvider.DriverType);
+        Assert.Equal("hostSerial", zwave.ConnectionModel);
+        Assert.Contains("building", zwave.IntegrationDomains);
+        Assert.Contains("residential", zwave.IntegrationDomains);
+        Assert.Contains(zwave.ExternalDependencies, dependency => dependency.Kind == "optionalSidecar" &&
+            dependency.Requirement?.Contains("Node.js", StringComparison.Ordinal) == true);
+        Assert.Contains(zwave.ConfigurationSchema!.DataSourceFields, field => field.Key == "hostResourceId" && field.Required);
+        Assert.Equal(ZWaveJsDriverDescriptorProvider.TagBindingSchemaId, zwave.TagBindingSchemaId);
     }
 
     [Fact]

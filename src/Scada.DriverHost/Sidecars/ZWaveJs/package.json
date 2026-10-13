@@ -1,0 +1,22 @@
+{
+  "name": "elitescada-zwave-js-sidecar",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EliteSCADA managed, loopback-only Z-Wave JS bridge",
+  "type": "module",
+  "engines": {
+    "node": "^22.13.0 || >=24"
+  },
+  "scripts": {
+    "postinstall": "node scripts/apply-patches.mjs",
+    "start": "node src/sidecar.mjs",
+    "test": "node --test test/*.test.mjs",
+    "generate:compliance": "node scripts/generate-compliance.mjs",
+    "verify:dependencies": "node scripts/verify-dependencies.mjs"
+  },
+  "dependencies": {
+    "@zwave-js/server": "3.11.0",
+    "zwave-js": "15.31.1",
+    "ws": "8.22.0"
+  }
+}

@@ -41,7 +41,8 @@ public static class CommunicationDriverRuntimeComposition
         HostResourceRegistry? hostResources = null,
         HostResourceLeaseCoordinator? hostResourceLeases = null,
         ZigbeeNativeSidecarDeploymentOptions? zigbeeDeployment = null,
-        KnxIpSidecarDeploymentOptions? knxIpDeployment = null)
+        KnxIpSidecarDeploymentOptions? knxIpDeployment = null,
+        ZWaveJsSidecarDeploymentOptions? zwaveJsDeployment = null)
     {
         var protectedMaterialResolver = hostProtectedMaterialResolver
             ?? EnvironmentCommunicationDriverProtectedMaterialResolver.CreateDeterministicScopedEnvironment();
@@ -152,6 +153,13 @@ public static class CommunicationDriverRuntimeComposition
                     knxIpDeployment ?? KnxIpSidecarDeploymentOptions.Default),
                 protectedMaterialResolver),
             new KnxIpDriverDescriptorProvider().Descriptor));
+        registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+            new ZWaveJsCommunicationRuntimePlanner(),
+            new HostProtectedMaterialRuntimeFactory(
+                new ZWaveJsCommunicationRuntimeFactory(resources, resourceLeases,
+                    zwaveJsDeployment ?? ZWaveJsSidecarDeploymentOptions.Default),
+                protectedMaterialResolver),
+            new ZWaveJsDriverDescriptorProvider().Descriptor));
         return registry;
     }
 

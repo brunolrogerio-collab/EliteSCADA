@@ -1,5 +1,15 @@
 # NEXT COORDINATOR START — HOME/BUILDING AUTOMATION DRIVERS — 2026-10-06
 
+# CURRENT COORDINATION DELTA — 2026-10-13 — MATTER DEV-ONLY PRERELEASE AUTHORIZATION
+
+> This delta supersedes earlier Matter upstream-gate wording below only for isolated development. GitHub issues #589 and #305 remain the live authority.
+
+Main accepted a bounded use of a pinned Matter.js Server prerelease for isolated engineering/lab development. The active shared CODEX route is S6 #590; do not preempt it. Matter #589 is queued immediately after the S6 handoff, on the existing branch `work/home-matter-wifi-v1`, whose recorded checkpoint is `72ee98c9a00c3667018e2b71a5345f144de631ac` based on `4d668d38f708a3643061c1b72587c2539550825e`. Revalidate live integration and branch/worktree state before edits; if the base moved, stop for Main disposition—no rebase/reset/force-push.
+
+The prerelease must be exactly pinned (tag and artifact digest), remain dev/test-only, and never be exposed to a plant/customer/production network or included/enabled in a distributable release. Use an adapter that negotiates Matter server `schema_version` and normalizes upstream wire shapes into existing EliteSCADA contracts; add compatibility tests for the pinned prerelease and later stable replacement. Frozen shared contracts remain unchanged; unsupported schemas fail closed. Matter V1 remains `STANDALONE_ONLY`; no HA Standby controller, fabric copy/replacement, or failover continuity. Initial qualification is Wi-Fi-first/Linux 64-bit only and does not narrow EliteSCADA's multiplatform architecture. Thread/RCP, BLE commissioning, certification claims, and broad device-compatibility claims remain out of scope.
+
+Production remains blocked until a stable upstream release is verified to fix #1092 and #1039, with security/platform review and a new Main decision. The bounded Main authorization and ledger are [#589](https://github.com/brunolrogerio-collab/EliteSCADA/issues/589#issuecomment-6137328508) and [#305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6137329737).
+
 # CURRENT COORDINATION DELTA — 2026-10-12 — ZIGBEE / KNX / DALI CLOSEOUT
 
 > This current-state delta supersedes earlier Home/Building sequencing below where they conflict. GitHub live remains authoritative.

@@ -1,4 +1,4 @@
-# LATEST COORDINATION CHANGE — 2026-10-12 23:52 BRT
+# LATEST COORDINATION CHANGE — 2026-10-13
 
 > This current Main snapshot supersedes the older snapshots below. GitHub live remains authoritative; revalidate refs, issues, branches and exact-head CI before further action.
 
@@ -10,7 +10,7 @@
 
 ## Current authorization and blockers
 
-- Matter #589 delivered only an ADR/offline slice on `work/home-matter-wifi-v1@72ee98c9a00c3667018e2b71a5345f144de631ac`, based on the integration SHA above. It has no PR and is not a production driver. Latest stable OHF Matter Server remains v1.4.0; upstream #1092 and #1039 are still open/planned-next-version. See [#589 Main revalidation](https://github.com/brunolrogerio-collab/EliteSCADA/issues/589#issuecomment-6136923774). No Matter network/commissioning/alpha work is authorized.
+- Matter #589 has an ADR/offline checkpoint at `work/home-matter-wifi-v1@72ee98c9a00c3667018e2b71a5345f144de631ac`, based on the integration SHA above. Main now authorizes the pinned upstream prerelease for isolated engineering/lab development only, queued after the active S6 handoff; no plant/customer/production network, release artifact, or production commissioning. Matter V1 remains `STANDALONE_ONLY`; no shared contract changes or merge authority. A stable upstream plus direct fixes for #1092/#1039 and Main review remain mandatory for production. Full decision: [#589](https://github.com/brunolrogerio-collab/EliteSCADA/issues/589#issuecomment-6137328508); queue ledger: [#305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6137329737).
 - Main released shared interaction S6 to CODEX as issue #590, `DEV-DRIVER-INTERACTION-S6-Z2M-DNP3-PULSE`, branch `work/driver-interaction-s6-z2m-dnp3-pulse`, exact base `4d668d38f708a3643061c1b72587c2539550825e`. Scope: simulated Zigbee2MQTT transient action -> existing Server Script -> canonical Rich Command -> DNP3 CROB PulseOn against a distinct simulated outstation, with bounded `onTime: Duration`; mandatory independent-peer L3, HMI path, authorization/audit, zero Standby effects, and no retries on ambiguous dispatch. Main release and constraints are in [#590](https://github.com/brunolrogerio-collab/EliteSCADA/issues/590) and [#305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6137067638).
 - CODEX's pre-edit S6 checkpoint is recorded in [#590](https://github.com/brunolrogerio-collab/EliteSCADA/issues/590#issuecomment-6137092888): isolated worktree `C:\Users\Bruno Rogerio\Documents\Codex\EliteSCADA-driver-interaction-s6-z2m-dnp3-pulse-20261012`; branch `work/driver-interaction-s6-z2m-dnp3-pulse`; HEAD/base/merge-base `4d668d38f708a3643061c1b72587c2539550825e`; tree `02c01228a21c31cacae8dce8798e1bdc1c65e5ac`; ahead/behind `0/0`; clean. The separate Matter checkout remains clean at `72ee98c9a00c3667018e2b71a5345f144de631ac` / tree `4e0e5a5b3a15cdb381d76b2ce4224400889d08a4`.
 - The S6 source-binding gate was resolved by reusing `EquipmentEngineeringDto.SourceBindings[]`, `CapabilityEventReferenceEngineeringDto` and `ActiveDriverInteractionRuntimeCatalog`; no frozen contract change is needed ([evidence](https://github.com/brunolrogerio-collab/EliteSCADA/issues/590#issuecomment-6137142416)). CODEX is authorized to implement the bounded slice. No S6 implementation commit, PR, T1/L3 result, or integration is yet claimed.
@@ -19,7 +19,7 @@
 
 ## Next sequence
 
-`S6 interaction acceptance -> Engineering Import/Export -> HOME/BUILDING F5/F6 (#472) -> Intelligence (#588)`.
+`active S6 handoff -> Matter Wi-Fi V1 dev-only prerelease lane -> Engineering Import/Export -> HOME/BUILDING F5/F6 (#472) -> Intelligence (#588)`.
 
 Import/Export has no new implementation lane released by this snapshot. F5/F6 are already product-authorized only after Import/Export is completed and verified. No FND/FC0 advancement or Wave 15 closure is inferred; productization/Preview/i18n/Help/Manual closeout remains separately tracked.
 

@@ -12,6 +12,7 @@ export class ZWaveServerClient {
   #pending = new Map();
   #sequence = 0;
   #closed = false;
+  #connectionError;
   #versionResolve;
   #versionReject;
 
@@ -89,6 +90,7 @@ export class ZWaveServerClient {
 
   async #waitForVersion() {
     if (this.version) return this.version;
+    if (this.#connectionError) throw this.#connectionError;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => finish(new Error("ZWAVE_WS_VERSION_TIMEOUT")), this.timeoutMs);
       const finish = error => {
@@ -150,6 +152,7 @@ export class ZWaveServerClient {
   }
 
   #failPending(error) {
+    this.#connectionError ??= error;
     this.#versionReject?.(error);
     for (const pending of this.#pending.values()) {
       clearTimeout(pending.timer);

@@ -7,7 +7,8 @@ import { fileURLToPath } from "node:url";
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const lockPath = join(root, "package-lock.json");
 const lockBytes = await readFile(lockPath);
-const lock = JSON.parse(lockBytes);
+const canonicalLockBytes = Buffer.from(lockBytes.toString("utf8").replace(/\r\n/g, "\n"), "utf8");
+const lock = JSON.parse(canonicalLockBytes);
 const npmCli = process.env.npm_execpath;
 if (!npmCli) throw new Error("NPM_CLI_PATH_REQUIRED: run through npm run generate:compliance");
 
@@ -29,7 +30,7 @@ bom.metadata.component.properties = [
   ...(bom.metadata.component.properties ?? []).filter(property => !property.name.startsWith("elitescada:")),
   { name: "elitescada:runtime", value: "Node.js 22.13+ or 24+ on Windows x64 or Linux x64" },
   { name: "elitescada:dependency-lock", value: "package-lock.json; exact production dependency closure" },
-  { name: "elitescada:package-lock-sha256", value: createHash("sha256").update(lockBytes).digest("hex") },
+  { name: "elitescada:package-lock-sha256", value: createHash("sha256").update(canonicalLockBytes).digest("hex") },
 ];
 await writeFile(join(root, "SBOM.cdx.json"), `${JSON.stringify(bom, null, 2)}\n`, "utf8");
 
@@ -66,7 +67,7 @@ const notices = [
   "",
   "The managed Z-Wave JS sidecar uses the exact production dependency closure pinned by `package-lock.json`. This inventory contains package names, versions, declared SPDX license identifiers, and corresponding upstream license text. Optional native serial bindings are selected by the supported Windows x64 and Linux x64 deployment platforms.",
   "",
-  `Package-lock SHA-256: \`${createHash("sha256").update(lockBytes).digest("hex")}\`. The complete CycloneDX inventory is in [SBOM.cdx.json](SBOM.cdx.json). No controller network key, DSK, NVM backup, commissioned-node data, or project data is part of these artifacts.`,
+  `Package-lock SHA-256: \`${createHash("sha256").update(canonicalLockBytes).digest("hex")}\`. The complete CycloneDX inventory is in [SBOM.cdx.json](SBOM.cdx.json). No controller network key, DSK, NVM backup, commissioned-node data, or project data is part of these artifacts.`,
   "",
   "| Package | Version | Declared license | Text |",
   "|---|---:|---|---|",
@@ -74,4 +75,4 @@ const notices = [
   "",
 ].join("\n");
 await writeFile(join(root, "THIRD-PARTY-NOTICES.md"), notices, "utf8");
-console.log(JSON.stringify({ productionPackages: production.length, licenses: [...new Set(production.map(item => item.license))].sort(), packageLockSha256: createHash("sha256").update(lockBytes).digest("hex") }, null, 2));
+console.log(JSON.stringify({ productionPackages: production.length, licenses: [...new Set(production.map(item => item.license))].sort(), packageLockSha256: createHash("sha256").update(canonicalLockBytes).digest("hex") }, null, 2));

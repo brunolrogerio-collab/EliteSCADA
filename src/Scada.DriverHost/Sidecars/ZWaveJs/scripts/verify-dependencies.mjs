@@ -38,7 +38,8 @@ if (!patched.includes("EliteSCADA v1 is read/write only") || /this\.controller\.
 const [major, minor] = process.versions.node.split(".").map(Number);
 if (!(major === 22 && minor >= 13 || major >= 24)) throw new Error("NODE_RUNTIME_UNSUPPORTED");
 const lockBytes = await readFile(join(root, "package-lock.json"));
-const lockHash = createHash("sha256").update(lockBytes).digest("hex");
+const canonicalLockBytes = Buffer.from(lockBytes.toString("utf8").replace(/\r\n/g, "\n"), "utf8");
+const lockHash = createHash("sha256").update(canonicalLockBytes).digest("hex");
 const bom = JSON.parse(await readFile(join(root, "SBOM.cdx.json"), "utf8"));
 const notices = await readFile(join(root, "THIRD-PARTY-NOTICES.md"), "utf8");
 const productionPackages = Object.entries(lock.packages ?? {})

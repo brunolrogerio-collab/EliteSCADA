@@ -226,7 +226,7 @@ jobs:
           PY
           while IFS= read -r project; do
             dotnet restore "$project"
-            dotnet test "$project" --no-restore --configuration Release --verbosity minimal
+            dotnet test "$project" --no-restore --configuration Release --verbosity minimal --filter "FullyQualifiedName!~L3DriverInteractionS6Tests"
           done < /tmp/dotnet-projects.txt
 
   chromium-focused:

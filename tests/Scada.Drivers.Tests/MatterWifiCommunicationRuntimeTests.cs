@@ -177,6 +177,27 @@ public sealed class MatterWifiCommunicationRuntimeTests
         Assert.Equal(1, session.WriteCount);
     }
 
+    [Fact]
+    public async Task Incompatible_readback_after_write_preserves_value_and_marks_cache_uncertain()
+    {
+        var point = RuntimePoint();
+        var cache = new FakeCache();
+        await cache.UpdateAsync(point.Tag, TagValue.Good(point.Tag.Id, true, "test"));
+        var session = new FakeSession { WriteResult = Json("\"not-a-boolean\"") };
+        var services = new CommunicationDriverRuntimeServices("project", cache, new InMemoryTagRegistry(), EffectAuthority: () => true);
+        await using var driver = new MatterWifiCommunicationDriver(RuntimePlan(point), services, session);
+        await driver.StartAsync();
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => driver.WriteAsync(point.Tag.Id, false).AsTask());
+
+        Assert.True(cache.TryGet(point.Tag.Id, out var current));
+        Assert.Equal(true, current?.Value);
+        Assert.Equal(TagQuality.Uncertain, current?.Quality);
+        Assert.Equal("matter.wifi.write-outcome-unknown", current?.Source);
+        Assert.DoesNotContain(cache.Snapshot(), value => value.Quality == TagQuality.Good && value.Source == "matter.confirmed-write");
+        Assert.Equal(1, session.WriteCount);
+    }
+
     private static EngineeringPackage Package(string address)
     {
         var source = Source();

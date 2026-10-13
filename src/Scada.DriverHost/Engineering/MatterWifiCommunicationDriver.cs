@@ -145,13 +145,13 @@ public sealed class MatterWifiCommunicationDriver : ICommunicationDriver, ICommu
             if (!Equals(requested, observed)) throw new MatterWifiWriteUnconfirmedException(point.Tag.Id, "READBACK_MISMATCH");
             await PublishStateAsync(point, observed, "matter.confirmed-write", cancellationToken).ConfigureAwait(false);
         }
-        catch (MatterWifiWriteUnconfirmedException exception)
+        catch (Exception exception)
         {
+            // Once the remote write/readback path has been entered, any failure leaves the process value uncertain.
             RecordFailure(exception);
             await PublishUncertainAsync(point).ConfigureAwait(false);
             throw;
         }
-        catch (Exception exception) { RecordFailure(exception); throw; }
     }
 
     public CommunicationDriverReadinessSnapshot GetCommunicationReadiness() => new(

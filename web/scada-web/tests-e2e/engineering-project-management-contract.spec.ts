@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { expect, request as playwrightRequest, test } from '@playwright/test';
 import {
   canonicalJsonCandidateIdentity,
@@ -97,6 +98,52 @@ test('flat Engineering tables export and preview round-trip through CSV and XLSX
       expect(preview.errorCount, `${entity}.${format} preview errors`).toBe(0);
     }
   }
+});
+
+test('invalid Gateway CSV preview and Apply leave the Engineering workspace unchanged', async ({ request }) => {
+  const workspaceResponse = await request.get('/api/engineering/workspace');
+  expect(workspaceResponse.ok()).toBeTruthy();
+  const workspaceBefore = await workspaceResponse.json() as { changeVersion: number };
+  const gatewaysBeforeResponse = await request.get('/api/engineering/export/tabular/gateway-routes/csv');
+  expect(gatewaysBeforeResponse.ok()).toBeTruthy();
+  const gatewaysBefore = await gatewaysBeforeResponse.text();
+
+  const invalidRouteCsv = [
+    'Id,Key,Name,SourceTagId,SourceTagPath,DestinationTagId,DestinationTagPath',
+    `${randomUUID()},invalid-api-route,Invalid API route,${randomUUID()},Plant.MissingSource,${randomUUID()},Plant.MissingDestination`
+  ].join('\n');
+  const headers = { 'content-type': 'text/csv; charset=utf-8' };
+  const previewResponse = await request.post(
+    '/api/engineering/import/tabular/gateway-routes/csv/preview?mode=CreateAndUpdate',
+    { headers, data: invalidRouteCsv }
+  );
+  expect(previewResponse.ok()).toBeTruthy();
+  const preview = await previewResponse.json() as { canApply: boolean; errorCount: number };
+  expect(preview.canApply).toBeFalsy();
+  expect(preview.errorCount).toBeGreaterThan(0);
+
+  const applyResponse = await request.post(
+    '/api/engineering/import/tabular/gateway-routes/csv/apply?mode=CreateAndUpdate',
+    {
+      headers: {
+        ...headers,
+        'x-elitescada-workspace-version': String(workspaceBefore.changeVersion)
+      },
+      data: invalidRouteCsv
+    }
+  );
+  expect(applyResponse.status()).toBe(400);
+  const rejectedApply = await applyResponse.json() as { canApply: boolean; errorCount: number };
+  expect(rejectedApply.canApply).toBeFalsy();
+  expect(rejectedApply.errorCount).toBeGreaterThan(0);
+
+  const workspaceAfterResponse = await request.get('/api/engineering/workspace');
+  expect(workspaceAfterResponse.ok()).toBeTruthy();
+  const workspaceAfter = await workspaceAfterResponse.json() as { changeVersion: number };
+  expect(workspaceAfter.changeVersion).toBe(workspaceBefore.changeVersion);
+  const gatewaysAfterResponse = await request.get('/api/engineering/export/tabular/gateway-routes/csv');
+  expect(gatewaysAfterResponse.ok()).toBeTruthy();
+  expect(await gatewaysAfterResponse.text()).toBe(gatewaysBefore);
 });
 
 test('tabular import/export can be operated from the Engineering project-management screen', async ({ page, request }) => {

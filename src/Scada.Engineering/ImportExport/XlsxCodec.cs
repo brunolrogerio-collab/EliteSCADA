@@ -114,10 +114,13 @@ internal static class XlsxCodec
         var data = worksheet.Root?.Element(Main + "sheetData")
             ?? throw new InvalidDataException("XLSX worksheet has no sheet data.");
         var rows = new SortedDictionary<int, string[]>();
+        var seenRows = new HashSet<int>();
         var nextRow = 1;
         foreach (var row in data.Elements(Main + "row"))
         {
             var rowIndex = ParseIndex((string?)row.Attribute("r"), nextRow, MaximumRows, "row");
+            if (!seenRows.Add(rowIndex))
+                throw new InvalidDataException($"XLSX worksheet contains duplicate row index {rowIndex}.");
             nextRow = rowIndex + 1;
             var cells = new string[MaximumColumns];
             var nextColumn = 1;
@@ -127,7 +130,7 @@ internal static class XlsxCodec
                 if (cell.Element(Main + "f") is not null)
                     throw new InvalidDataException($"XLSX row {rowIndex} contains a formula; formulas are not accepted for Engineering import.");
                 var reference = (string?)cell.Attribute("r");
-                var columnIndex = reference is null ? nextColumn : ParseColumn(reference);
+                var columnIndex = reference is null ? nextColumn : ParseCellReference(reference, rowIndex);
                 nextColumn = columnIndex + 1;
                 if (columnIndex > MaximumColumns)
                     throw new InvalidDataException($"XLSX row {rowIndex} exceeds the supported column limit.");
@@ -185,27 +188,39 @@ internal static class XlsxCodec
         return normalized;
     }
 
-    private static int ParseColumn(string reference)
+    private static int ParseCellReference(string reference, int expectedRow)
     {
+        if (string.IsNullOrEmpty(reference))
+            throw new InvalidDataException("XLSX cell reference is invalid.");
+
         var column = 0;
-        var foundLetter = false;
-        foreach (var character in reference)
+        var position = 0;
+        while (position < reference.Length && reference[position] is >= 'a' and <= 'z' or >= 'A' and <= 'Z')
         {
-            if (character is >= 'a' and <= 'z' or >= 'A' and <= 'Z')
-            {
-                foundLetter = true;
-                column = checked(column * 26 + (char.ToUpperInvariant(character) - 'A' + 1));
-                if (column > MaximumColumns) return column;
-            }
-            else break;
+            column = checked(column * 26 + (char.ToUpperInvariant(reference[position]) - 'A' + 1));
+            if (column > MaximumColumns)
+                throw new InvalidDataException("XLSX cell reference exceeds the supported column range.");
+            position++;
         }
-        if (!foundLetter) throw new InvalidDataException("XLSX cell reference is invalid.");
+
+        if (position == 0)
+            throw new InvalidDataException("XLSX cell reference is invalid.");
+
+        var rowStart = position;
+        while (position < reference.Length && reference[position] is >= '0' and <= '9') position++;
+        if (position == rowStart || position != reference.Length ||
+            !int.TryParse(reference.AsSpan(rowStart), NumberStyles.None, CultureInfo.InvariantCulture, out var referencedRow) ||
+            referencedRow <= 0 || referencedRow > MaximumRows)
+            throw new InvalidDataException("XLSX cell reference must contain a complete column and row index.");
+        if (referencedRow != expectedRow)
+            throw new InvalidDataException($"XLSX cell reference row {referencedRow} does not match worksheet row {expectedRow}.");
+
         return column;
     }
 
     private static int ParseIndex(string? value, int fallback, int maximum, string label)
     {
-        if (string.IsNullOrWhiteSpace(value)) return fallback;
+        if (value is null) return fallback;
         if (int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed) && parsed > 0 && parsed <= maximum)
             return parsed;
         throw new InvalidDataException($"XLSX {label} index is outside the supported range.");

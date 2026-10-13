@@ -96,6 +96,66 @@ public sealed class EngineeringTabularExchangeTests
         Assert.Contains("16 MiB", outputError.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void Xlsx_rejects_duplicate_worksheet_row_indices()
+    {
+        var package = Package();
+        var bytes = _exchange.ExportXlsx(package, EngineeringTabularEntity.Tags);
+        var malicious = RewriteXlsx(bytes, "xl/worksheets/sheet1.xml", xml =>
+        {
+            XNamespace main = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+            var rows = xml.Descendants(main + "row").ToArray();
+            Assert.Equal(2, rows.Length);
+            rows[1].SetAttributeValue("r", "1");
+        });
+
+        var error = Assert.Throws<InvalidDataException>(() =>
+            _exchange.ParseXlsx(package, EngineeringTabularEntity.Tags, malicious));
+
+        Assert.Contains("duplicate row index", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("A")]
+    [InlineData("A1trailing")]
+    [InlineData("A0")]
+    [InlineData("A3")]
+    public void Xlsx_rejects_incomplete_or_incompatible_cell_references(string reference)
+    {
+        var package = Package();
+        var bytes = _exchange.ExportXlsx(package, EngineeringTabularEntity.Tags);
+        var malicious = RewriteXlsx(bytes, "xl/worksheets/sheet1.xml", xml =>
+        {
+            XNamespace main = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+            var firstCell = xml.Descendants(main + "row").First().Element(main + "c")!;
+            firstCell.SetAttributeValue("r", reference);
+        });
+
+        var error = Assert.Throws<InvalidDataException>(() =>
+            _exchange.ParseXlsx(package, EngineeringTabularEntity.Tags, malicious));
+
+        Assert.Contains("cell reference", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Xlsx_rejects_duplicate_cell_references_in_one_row()
+    {
+        var package = Package();
+        var bytes = _exchange.ExportXlsx(package, EngineeringTabularEntity.Tags);
+        var malicious = RewriteXlsx(bytes, "xl/worksheets/sheet1.xml", xml =>
+        {
+            XNamespace main = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+            var cells = xml.Descendants(main + "row").First().Elements(main + "c").ToArray();
+            Assert.True(cells.Length > 1);
+            cells[1].SetAttributeValue("r", (string)cells[0].Attribute("r")!);
+        });
+
+        var error = Assert.Throws<InvalidDataException>(() =>
+            _exchange.ParseXlsx(package, EngineeringTabularEntity.Tags, malicious));
+
+        Assert.Contains("duplicate cell references", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Theory]
     [InlineData("Id,Id\n", "duplicate")]
     [InlineData("Id,Name\n1,\"unterminated", "unterminated")]
@@ -264,6 +324,44 @@ public sealed class EngineeringTabularExchangeTests
             _exchange.ParseXlsx(package, EngineeringTabularEntity.Tags, malicious));
 
         Assert.Contains("single-sheet", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Invalid_gateway_route_from_xlsx_preview_blocks_apply_without_mutating_the_workspace()
+    {
+        using var alarms = new InMemoryAlarmEngine(new InMemoryScadaEventBus());
+        var canonicalExchange = new EngineeringExchangeService(new InMemoryTagRegistry(), alarms);
+        var seedResult = canonicalExchange.Apply(SeedPackage(), ImportMode.CreateAndUpdate);
+        Assert.DoesNotContain(seedResult.Issues, issue => issue.IsError);
+        var current = canonicalExchange.ExportPackage();
+        var destination = current.Tags.Single(item => item.Path == "Plant.SecondaryDestination");
+        var invalidRoute = new GatewayRouteEngineeringDto(
+            Guid.NewGuid(),
+            "invalid-sheet-route",
+            "Invalid spreadsheet route",
+            Guid.NewGuid(),
+            "Plant.MissingSource",
+            destination.Id,
+            destination.Path);
+        var edited = current with { Gateways = current.Gateways!.Append(invalidRoute).ToArray() };
+        var sheet = _exchange.ExportXlsx(edited, EngineeringTabularEntity.GatewayRoutes);
+        var imported = _exchange.ParseXlsx(current, EngineeringTabularEntity.GatewayRoutes, sheet);
+
+        var preview = canonicalExchange.Preview(imported, ImportMode.CreateAndUpdate);
+        Assert.False(preview.CanApply);
+        Assert.True(preview.ErrorCount > 0);
+        Assert.Contains(preview.Items.SelectMany(item => item.Issues), issue =>
+            issue.IsError && issue.Code == "GATEWAY_SOURCE_TAG_NOT_FOUND");
+
+        var apply = canonicalExchange.Apply(imported, ImportMode.CreateAndUpdate);
+        Assert.Equal(0, apply.Created);
+        Assert.Equal(0, apply.Updated);
+        Assert.Contains(apply.Issues, issue => issue.IsError);
+
+        var after = canonicalExchange.ExportPackage();
+        Assert.Equal(JsonSerializer.Serialize(current.Tags), JsonSerializer.Serialize(after.Tags));
+        Assert.Equal(JsonSerializer.Serialize(current.DataSources), JsonSerializer.Serialize(after.DataSources));
+        Assert.Equal(JsonSerializer.Serialize(current.Gateways), JsonSerializer.Serialize(after.Gateways));
     }
 
     private static EngineeringPackage Package()

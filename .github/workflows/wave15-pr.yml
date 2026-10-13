@@ -37,6 +37,7 @@ jobs:
       run_native_zigbee: ${{ steps.native_scope.outputs.run_native_zigbee }}
       run_knx_sidecar: ${{ steps.knx_scope.outputs.run_knx_sidecar }}
       run_zwave_sidecar: ${{ steps.zwave_scope.outputs.run_zwave_sidecar }}
+      run_matter_fake_sidecar: ${{ steps.matter_scope.outputs.run_matter_fake_sidecar }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -142,6 +143,31 @@ jobs:
               output.write(f"run_zwave_sidecar={str(selected).lower()}\n")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
               summary.write(f"Z-Wave JS sidecar evidence selected: {selected}\n")
+          PY
+      - id: matter_scope
+        name: Select isolated Matter Wi-Fi preview evidence
+        env:
+          MATTER_CHANGED_FILES_PATH: /tmp/changed-files.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+
+          changed = Path(os.environ["MATTER_CHANGED_FILES_PATH"]).read_text().splitlines()
+          pattern = re.compile(r"^(\.github/workflows/wave15-pr\.yml|docs/research/home-building-drivers/MATTER-WIFI-V1-IMPLEMENTATION-ADR\.md|src/Scada\.Api/(Engineering/EngineeringDriverCatalogApi\.cs|ProjectPackages/(MatterWifiProtectedMaterialEndpoints|ProjectPackageEndpoints)\.cs|Scada\.Api\.csproj|Security/(MatterWifiProtectedMaterial|ProtectedMaterialAuthorityComposition)\.cs)|src/Scada\.DriverHost/(Engineering/(CommunicationDriverRuntimeComposition|MatterWifiCommunicationDriver|MatterWifiCommunicationRuntimeFactory|MatterWifiCommunicationRuntimePlanner)\.cs|Sidecars/MatterWifi/.*)|tests/Scada\.Drivers\.Tests/MatterWifi.*\.cs)$")
+          directory = Path("src/Scada.DriverHost/Sidecars/MatterWifi")
+          selected = any(pattern.fullmatch(path) for path in changed) and (directory / "package.json").is_file()
+          if selected:
+              required = ("package.json", "package-lock.json", "src/bootstrap.mjs", "src/bridge.mjs", "test/bootstrap-preflight.test.mjs", "test/linux-fake-startup-harness.mjs")
+              missing = [name for name in required if not (directory / name).is_file()]
+              if missing:
+                  raise RuntimeError("Matter Wi-Fi fake-only evidence is incomplete: " + ", ".join(missing))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"run_matter_fake_sidecar={str(selected).lower()}\n")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(f"Matter Wi-Fi isolated fake-sidecar evidence selected: {selected}\n")
           PY
 
   common-sanity:
@@ -473,9 +499,44 @@ jobs:
           appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`);
           NODE
 
+  matter-wifi-fake-sidecar:
+    name: Matter Wi-Fi isolated fake-only Node evidence
+    needs: classify
+    if: needs.classify.outputs.run_matter_fake_sidecar == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Run dependency-free sidecar contract tests
+        working-directory: src/Scada.DriverHost/Sidecars/MatterWifi
+        run: npm test
+      - name: Run Linux x64 fake-server startup and RPC harness (no Matter network)
+        working-directory: src/Scada.DriverHost/Sidecars/MatterWifi
+        env:
+          MATTER_FAKE_ONLY: '1'
+          MATTER_TEST_ARTIFACT_PATH: ${{ runner.temp }}/matter-wifi-fake-linux-startup.json
+        run: node test/linux-fake-startup-harness.mjs
+      - name: Record fake-only evidence
+        if: always()
+        run: |
+          {
+            echo '## Matter Wi-Fi isolated preview evidence'
+            echo "Tested checkout: $(git rev-parse HEAD)"
+            echo "Node: $(node --version)"
+            echo 'Candidate package install/start: not performed'
+            echo 'Matter network / commissioning: not used'
+            if [ -f '${{ runner.temp }}/matter-wifi-fake-linux-startup.json' ]; then
+              sha256sum '${{ runner.temp }}/matter-wifi-fake-linux-startup.json'
+              cat '${{ runner.temp }}/matter-wifi-fake-linux-startup.json'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
   t1-gate:
     name: Wave 15 T1 gate
-    needs: [classify, common-sanity, web-semantic, dotnet-focused, chromium-focused, ha-two-process, native-zigbee-sidecar, knx-ip-sidecar, zwave-js-sidecar]
+    needs: [classify, common-sanity, web-semantic, dotnet-focused, chromium-focused, ha-two-process, native-zigbee-sidecar, knx-ip-sidecar, zwave-js-sidecar, matter-wifi-fake-sidecar]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -489,6 +550,7 @@ jobs:
       NATIVE_ZIGBEE: ${{ needs.native-zigbee-sidecar.result }}
       KNX_SIDECAR: ${{ needs.knx-ip-sidecar.result }}
       ZWAVE_SIDECAR: ${{ needs.zwave-js-sidecar.result }}
+      MATTER_SIDECAR: ${{ needs.matter-wifi-fake-sidecar.result }}
       EXEMPT: ${{ needs.classify.outputs.coordination_exempt }}
       NEED_WEB: ${{ needs.classify.outputs.run_web }}
       NEED_DOTNET: ${{ needs.classify.outputs.run_dotnet }}
@@ -497,6 +559,7 @@ jobs:
       NEED_NATIVE_ZIGBEE: ${{ needs.classify.outputs.run_native_zigbee }}
       NEED_KNX_SIDECAR: ${{ needs.classify.outputs.run_knx_sidecar }}
       NEED_ZWAVE_SIDECAR: ${{ needs.classify.outputs.run_zwave_sidecar }}
+      NEED_MATTER_SIDECAR: ${{ needs.classify.outputs.run_matter_fake_sidecar }}
       PROFILES: ${{ needs.classify.outputs.effective_profiles }}
       DRIVER_GATE: ${{ needs.classify.outputs.driver_gate }}
     steps:
@@ -513,10 +576,11 @@ jobs:
           if [ "$NEED_NATIVE_ZIGBEE" = true ]; then test "$NATIVE_ZIGBEE" = success; fi
           if [ "$NEED_KNX_SIDECAR" = true ]; then test "$KNX_SIDECAR" = success; fi
           if [ "$NEED_ZWAVE_SIDECAR" = true ]; then test "$ZWAVE_SIDECAR" = success; fi
+          if [ "$NEED_MATTER_SIDECAR" = true ]; then test "$MATTER_SIDECAR" = success; fi
           {
             echo '## Wave 15 T1 gate';
             echo "Effective profiles: \`$PROFILES\`";
-            echo "Web: $WEB; .NET: $DOTNET; Chromium: $E2E; HA two-process: $HA_TWO_PROCESS; Native Zigbee Node/SBOM: $NATIVE_ZIGBEE; KNX/IP Python/SBOM: $KNX_SIDECAR; Z-Wave JS Node/SBOM: $ZWAVE_SIDECAR";
+            echo "Web: $WEB; .NET: $DOTNET; Chromium: $E2E; HA two-process: $HA_TWO_PROCESS; Native Zigbee Node/SBOM: $NATIVE_ZIGBEE; KNX/IP Python/SBOM: $KNX_SIDECAR; Z-Wave JS Node/SBOM: $ZWAVE_SIDECAR; Matter fake-only: $MATTER_SIDECAR";
             echo "Driver/Seven-Driver/Interop: $DRIVER_GATE (specialized heavy gates are not claimed PASS by T1).";
             echo 'Universal integrated/main gate: REQUIRED NOW only for push checkpoint or main PR; otherwise UNCHANGED/TRUSTED.';
           } >> "$GITHUB_STEP_SUMMARY"

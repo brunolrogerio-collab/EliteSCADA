@@ -1,0 +1,29 @@
+{
+  "name": "elitescada-matter-wifi-sidecar",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Isolated, managed Matter Wi-Fi sidecar for EliteSCADA",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "matter-server": "1.5.0-alpha.0-20261013-75a39cb",
+    "@matter-server/ble-proxy": "1.5.0-alpha.0-20261013-75a39cb",
+    "@matter-server/custom-clusters": "1.5.0-alpha.0-20261013-75a39cb",
+    "@matter-server/dashboard": "1.5.0-alpha.0-20261013-75a39cb",
+    "@matter-server/ws-client": "1.5.0-alpha.0-20261013-75a39cb",
+    "@matter-server/ws-controller": "1.5.0-alpha.0-20261013-75a39cb",
+    "@matter/main": "0.18.0-alpha.0-20261008-6066b7499",
+    "@matter/general": "0.18.0-alpha.0-20261008-6066b7499",
+    "@matter/model": "0.18.0-alpha.0-20261008-6066b7499",
+    "@matter/node": "0.18.0-alpha.0-20261008-6066b7499",
+    "@matter/nodejs": "0.18.0-alpha.0-20261008-6066b7499",
+    "@matter/protocol": "0.18.0-alpha.0-20261008-6066b7499",
+    "@matter/types": "0.18.0-alpha.0-20261008-6066b7499",
+    "ws": "8.22.0"
+  }
+}

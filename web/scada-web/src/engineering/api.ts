@@ -1,5 +1,6 @@
 import type {
   CommunicationDriverDiagnostic,
+  DataSourceEngineering,
   DriverHostHealth,
   EngineeringPackageView,
   EngineeringSnapshot,
@@ -84,6 +85,22 @@ async function readError(response: Response): Promise<Error> {
 
 export async function loadEngineeringWorkspace(): Promise<EngineeringWorkspaceDescriptor> {
   return await getJson<EngineeringWorkspaceDescriptor>('/api/engineering/workspace');
+}
+
+export async function ensureMatterWifiFabricStorageKey(dataSourceId: string): Promise<void> {
+  if (!dataSourceId.trim()) throw new Error('A saved Matter Wi-Fi Data Source is required.');
+  const workspace = await loadEngineeringWorkspace();
+  const response = await fetch(`${API}/api/engineering/data-sources/${encodeURIComponent(dataSourceId)}/matter-wifi/fabric-storage-key`, {
+    method: 'PUT',
+    headers: {
+      accept: 'application/json',
+      'x-elitescada-workspace-version': String(workspace.changeVersion)
+    }
+  });
+  if (!response.ok) throw await readError(response);
+  const result = await response.json() as { configured?: boolean; dataSource?: DataSourceEngineering };
+  if (result.configured !== true || result.dataSource?.secretReferences?.fabricStorageKey !== 'host-material-slot-v1:configured')
+    throw new Error('Matter host key provisioning returned an invalid configuration response.');
 }
 
 export async function loadEngineeringSnapshot(): Promise<EngineeringSnapshot> {

@@ -20,6 +20,7 @@ public static class ProjectPackageEndpoints
         endpoints.MapVisualAssetEndpoints();
         endpoints.MapMediaSourceEngineeringEndpoints();
         endpoints.MapIntegrationProtectedMaterialEndpoints();
+        endpoints.MapMatterWifiProtectedMaterialEndpointsIfPreviewEnabled();
         endpoints.MapSystemRecoveryApplicationEndpoints();
 
         endpoints.MapGet("/api/project-package/export", (

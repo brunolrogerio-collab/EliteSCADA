@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   applyEngineeringPackage,
+  ensureMatterWifiFabricStorageKey,
   loadEngineeringWorkspace,
   previewEngineeringPackage
 } from './api';
@@ -32,6 +33,8 @@ import type { DataSourceEngineering, EngineeringPackageView } from './types';
 import './structured-editors.css';
 
 const API = (import.meta.env?.VITE_SCADA_API ?? '').replace(/\/$/, '');
+const MATTER_WIFI_DRIVER = 'matter.wifi';
+const MATTER_WIFI_KEY_MARKER = 'host-material-slot-v1:configured';
 type CatalogResponse = { dataSourceTypes: DataSourceTypeDefinition[] };
 type SerialPortCatalogResponse = { authority: string; ports: Array<{ deviceName: string }> };
 type CatalogStatus = 'loading' | 'ready' | 'error';
@@ -60,6 +63,7 @@ export function DataSourceCatalogEditor({ model, locale, projectKey }: Props) {
   const [validatedCandidate, setValidatedCandidate] = useState<EngineeringPackageView | null>(null);
   const [validatedChangeVersion, setValidatedChangeVersion] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  const [matterKeyBusy, setMatterKeyBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
 
@@ -219,6 +223,22 @@ export function DataSourceCatalogEditor({ model, locale, projectKey }: Props) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const runMatterKeyProvision = async () => {
+    if (!selected?.id || changed || currentType?.typeKey.toLowerCase() !== MATTER_WIFI_DRIVER) return;
+    const configured = selected.secretReferences?.fabricStorageKey === MATTER_WIFI_KEY_MARKER;
+    if (!configured && !window.confirm(copy.matterKeyConfirm)) return;
+    setMatterKeyBusy(true);
+    setError(null);
+    try {
+      await ensureMatterWifiFabricStorageKey(selected.id);
+      window.location.reload();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setMatterKeyBusy(false);
     }
   };
 
@@ -384,6 +404,24 @@ export function DataSourceCatalogEditor({ model, locale, projectKey }: Props) {
                     <div className="warning" key={key}><code>{key}</code></div>
                   ))}
                 </div>
+              </section>
+            )}
+
+            {selected?.id && currentType?.typeKey.toLowerCase() === MATTER_WIFI_DRIVER && (
+              <section className="eng-preview-panel" data-testid="matter-wifi-protected-key" aria-live="polite">
+                <header>
+                  <strong>{selected.secretReferences?.fabricStorageKey === MATTER_WIFI_KEY_MARKER ? copy.matterKeyConfigured : copy.matterKeyMissing}</strong>
+                </header>
+                <p>{copy.matterKeyHint}</p>
+                <button
+                  type="button"
+                  disabled={changed || busy || matterKeyBusy}
+                  onClick={() => void runMatterKeyProvision()}
+                  data-testid="matter-wifi-protected-key-action"
+                >
+                  {matterKeyBusy ? copy.matterKeyWorking : selected.secretReferences?.fabricStorageKey === MATTER_WIFI_KEY_MARKER ? copy.matterKeyVerify : copy.matterKeyGenerate}
+                </button>
+                {changed && <small>{copy.matterKeySaveFirst}</small>}
               </section>
             )}
 
@@ -663,6 +701,7 @@ function text(locale: EngineeringLocale) {
     clientValidation: 'Fields to correct', expected: 'Expected', required: 'This field is required', integer: 'Enter a whole number', number: 'Enter a valid number', duration: 'Enter a valid duration', enumValue: 'Choose one of the supported values', minimum: 'Value is below the allowed minimum', maximum: 'Value is above the allowed maximum',
     format: 'Format', example: 'Example', advanced: 'advanced',
     serialPortAuthority: 'Ports are enumerated on the EliteSCADA server, not in this browser.', serialPortLoading: 'loading server ports', serialPortUnavailable: 'enumeration unavailable; manual device names are still allowed', serialPortNoneVisible: 'no server ports are visible right now', serialPortExample: 'COM3 or /dev/ttyUSB0',
+    matterKeyConfigured: 'Matter host key is configured', matterKeyMissing: 'Matter host key is not configured', matterKeyHint: 'The fabric-storage key is created only in this server’s protected store; it is never shown or exported. Losing the host key can make the Matter fabric inaccessible. This action does not commission or connect to devices.', matterKeyConfirm: 'Create a protected Matter fabric-storage key on this EliteSCADA host? It will not be shown or exported. Losing the key can make this host’s Matter fabric inaccessible. No device will be contacted.', matterKeyGenerate: 'Create host key', matterKeyVerify: 'Verify host key', matterKeyWorking: 'Checking…', matterKeySaveFirst: 'Apply this Data Source first. Save or publish the Workspace separately when ready.',
     rangeStart: 'Start', rangeEnd: 'End', addRange: 'Add range', removeRange: 'Remove', rangeHint: 'Ranges are 0-based, may not overlap, and are stored in the canonical versioned format.'
   };
   if (locale === 'es') return {
@@ -677,6 +716,7 @@ function text(locale: EngineeringLocale) {
     clientValidation: 'Campos a corregir', expected: 'Esperado', required: 'Este campo es obligatorio', integer: 'Ingrese un número entero', number: 'Ingrese un número válido', duration: 'Ingrese una duración válida', enumValue: 'Seleccione uno de los valores permitidos', minimum: 'El valor está por debajo del mínimo permitido', maximum: 'El valor supera el máximo permitido',
     format: 'Formato', example: 'Ejemplo', advanced: 'avanzado',
     serialPortAuthority: 'Los puertos se enumeran en el servidor EliteSCADA, no en este navegador.', serialPortLoading: 'cargando puertos del servidor', serialPortUnavailable: 'enumeración no disponible; se permite escribir el dispositivo manualmente', serialPortNoneVisible: 'no hay puertos del servidor visibles ahora', serialPortExample: 'COM3 o /dev/ttyUSB0',
+    matterKeyConfigured: 'Clave Matter local configurada', matterKeyMissing: 'Clave Matter local sin configurar', matterKeyHint: 'La clave de almacenamiento del fabric se crea solo en el almacén protegido de este servidor; nunca se muestra ni se exporta. Perder la clave puede impedir el acceso al fabric Matter. Esta acción no empareja ni conecta dispositivos.', matterKeyConfirm: '¿Crear una clave protegida para el fabric Matter en este servidor EliteSCADA? No se mostrará ni exportará. Perderla puede impedir el acceso al fabric Matter de este host. No se contactará ningún dispositivo.', matterKeyGenerate: 'Crear clave local', matterKeyVerify: 'Verificar clave local', matterKeyWorking: 'Comprobando…', matterKeySaveFirst: 'Aplique primero esta Fuente de datos. Guarde o publique el Workspace por separado cuando corresponda.',
     rangeStart: 'Inicio', rangeEnd: 'Fin', addRange: 'Agregar rango', removeRange: 'Quitar', rangeHint: 'Los rangos son base 0, no pueden superponerse y se guardan en el formato canónico versionado.'
   };
   return {
@@ -691,6 +731,7 @@ function text(locale: EngineeringLocale) {
     clientValidation: 'Campos a corrigir', expected: 'Esperado', required: 'Este campo é obrigatório', integer: 'Informe um número inteiro', number: 'Informe um número válido', duration: 'Informe uma duração válida', enumValue: 'Escolha um dos valores permitidos', minimum: 'O valor está abaixo do mínimo permitido', maximum: 'O valor está acima do máximo permitido',
     format: 'Formato', example: 'Exemplo', advanced: 'avançado',
     serialPortAuthority: 'As portas são enumeradas no servidor EliteSCADA, não neste navegador.', serialPortLoading: 'carregando portas do servidor', serialPortUnavailable: 'enumeração indisponível; ainda é possível informar o dispositivo manualmente', serialPortNoneVisible: 'nenhuma porta do servidor está visível agora', serialPortExample: 'COM3 ou /dev/ttyUSB0',
+    matterKeyConfigured: 'Chave local Matter configurada', matterKeyMissing: 'Chave local Matter não configurada', matterKeyHint: 'A chave de armazenamento do fabric é criada somente no cofre protegido deste servidor; nunca é exibida nem exportada. Perdê-la pode tornar o fabric Matter inacessível. Esta ação não faz pareamento nem conecta a dispositivos.', matterKeyConfirm: 'Criar uma chave protegida para o fabric Matter neste host EliteSCADA? Ela não será exibida nem exportada. Perdê-la pode tornar o fabric Matter deste host inacessível. Nenhum dispositivo será contatado.', matterKeyGenerate: 'Criar chave no host', matterKeyVerify: 'Verificar chave do host', matterKeyWorking: 'Verificando…', matterKeySaveFirst: 'Aplique primeiro esta Fonte de dados. Salve ou publique o Workspace separadamente quando estiver pronto.',
     rangeStart: 'Início', rangeEnd: 'Fim', addRange: 'Adicionar range', removeRange: 'Remover', rangeHint: 'Os ranges são base 0, não podem se sobrepor e são salvos no formato canônico versionado.'
   };
 }

@@ -42,7 +42,10 @@ public static class CommunicationDriverRuntimeComposition
         HostResourceLeaseCoordinator? hostResourceLeases = null,
         ZigbeeNativeSidecarDeploymentOptions? zigbeeDeployment = null,
         KnxIpSidecarDeploymentOptions? knxIpDeployment = null,
-        ZWaveJsSidecarDeploymentOptions? zwaveJsDeployment = null)
+        ZWaveJsSidecarDeploymentOptions? zwaveJsDeployment = null,
+        MatterWifiSidecarDeploymentOptions? matterWifiDeployment = null,
+        Func<bool>? highAvailabilityEnabled = null,
+        bool matterWifiPreviewEnabled = false)
     {
         var protectedMaterialResolver = hostProtectedMaterialResolver
             ?? EnvironmentCommunicationDriverProtectedMaterialResolver.CreateDeterministicScopedEnvironment();
@@ -160,6 +163,18 @@ public static class CommunicationDriverRuntimeComposition
                     zwaveJsDeployment ?? ZWaveJsSidecarDeploymentOptions.Default),
                 protectedMaterialResolver),
             new ZWaveJsDriverDescriptorProvider().Descriptor));
+        if (matterWifiPreviewEnabled && highAvailabilityEnabled?.Invoke() != true)
+        {
+            registry.Register(new CommunicationDriverRuntimeComponentRegistration(
+                new MatterWifiCommunicationRuntimePlanner(highAvailabilityEnabled),
+                new HostProtectedMaterialRuntimeFactory(
+                    new MatterWifiCommunicationRuntimeFactory(resources, resourceLeases,
+                        matterWifiDeployment ?? MatterWifiSidecarDeploymentOptions.Default,
+                        isHighAvailabilityEnabled: highAvailabilityEnabled,
+                        matterWifiPreviewEnabled: true),
+                    protectedMaterialResolver),
+                new MatterWifiDriverDescriptorProvider().Descriptor));
+        }
         return registry;
     }
 

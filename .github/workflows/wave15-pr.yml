@@ -459,12 +459,15 @@ jobs:
           import { appendFileSync, readFileSync } from 'node:fs';
           import { execFileSync } from 'node:child_process';
           const files = ['package-lock.json', 'SBOM.cdx.json', 'THIRD-PARTY-NOTICES.md'];
+          const npmVersion = process.platform === 'win32'
+            ? execFileSync('cmd.exe', ['/d', '/s', '/c', 'npm --version'], { encoding: 'utf8' }).trim()
+            : execFileSync('npm', ['--version'], { encoding: 'utf8' }).trim();
           const lines = [
             '## Z-Wave JS sidecar evidence',
             `Source head: ${process.env.PR_HEAD_SHA}`,
             `Source base: ${process.env.PR_BASE_SHA}`,
             `Tested checkout: ${process.env.GITHUB_SHA}`,
-            `Node: ${process.version}; npm: ${execFileSync('npm', ['--version'], { encoding: 'utf8' }).trim()}`,
+            `Node: ${process.version}; npm: ${npmVersion}`,
             ...files.map(file => `${file} SHA-256: ${createHash('sha256').update(readFileSync(file)).digest('hex')}`),
           ];
           appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`);

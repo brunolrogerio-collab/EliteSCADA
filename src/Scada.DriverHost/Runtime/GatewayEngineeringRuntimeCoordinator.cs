@@ -19,7 +19,7 @@ public interface IGatewayRuntimeDiagnosticsProvider
 /// protocol-neutral Operational Event definition snapshot so Events change only
 /// when the underlying Active Revision successfully changes.
 /// </summary>
-public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinator, IRuntimeTagValueSnapshotRestorer, IGatewayRuntimeDiagnosticsProvider, IOperationalEventRuntime
+public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinator, IRuntimeTagValueSnapshotRestorer, IGatewayRuntimeDiagnosticsProvider, IOperationalEventRuntime, IRichCommandDriverExecutorResolver
 {
     private readonly EngineeringRuntimeCoordinator _inner;
     private readonly IScadaEventBus _eventBus;
@@ -49,6 +49,8 @@ public sealed class GatewayEngineeringRuntimeCoordinator : IEngineeringRuntimeCo
     public bool TryGetCurrent(Guid tagId, out TagValue? value) => _inner.TryGetCurrent(tagId, out value);
     public bool TryGetCommand(Guid commandId, out CommandDefinition? command) => _inner.TryGetCommand(commandId, out command);
     public bool IsServerMemoryTag(Guid tagId) => _inner.IsServerMemoryTag(tagId);
+    public bool TryResolve(Guid dataSourceId, out IRichCommandDriverExecutor? executor) =>
+        _inner.TryResolve(dataSourceId, out executor);
 
     public Task<int> RestoreAuthoritativeValuesAsync(
         IReadOnlyCollection<TagValue> values,

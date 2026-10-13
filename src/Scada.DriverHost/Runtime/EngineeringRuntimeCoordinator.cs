@@ -104,13 +104,14 @@ public interface IRuntimeTagValueSnapshotRestorer
         CancellationToken cancellationToken = default);
 }
 
-public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinator, IRuntimeTagValueSnapshotRestorer
+public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinator, IRuntimeTagValueSnapshotRestorer, IRichCommandDriverExecutorResolver
 {
     private readonly IScadaEventBus _externalEventBus;
     private readonly IEngineeringDriverCompiler _compiler;
     private readonly IServerMemoryRetentionStore _serverMemoryRetentionStore;
     private readonly CommunicationDriverRuntimeComponentRegistry _communicationComponents;
     private readonly ICommunicationDriverProtectedMaterialResolver? _protectedMaterialResolver;
+    private readonly ITransientEventRuntimeIngress? _transientEventIngress;
     private readonly TimeSpan _activationTimeout;
     private readonly Func<bool> _industrialEffectAuthority;
     private readonly SemaphoreSlim _activationGate = new(1, 1);
@@ -123,7 +124,8 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         IServerMemoryRetentionStore? serverMemoryRetentionStore = null,
         CommunicationDriverRuntimeComponentRegistry? communicationComponents = null,
         ICommunicationDriverProtectedMaterialResolver? protectedMaterialResolver = null,
-        Func<bool>? industrialEffectAuthority = null)
+        Func<bool>? industrialEffectAuthority = null,
+        ITransientEventRuntimeIngress? transientEventIngress = null)
     {
         _externalEventBus = externalEventBus ?? throw new ArgumentNullException(nameof(externalEventBus));
         _compiler = compiler ?? throw new ArgumentNullException(nameof(compiler));
@@ -131,6 +133,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
         _communicationComponents = communicationComponents
             ?? CommunicationDriverRuntimeComposition.BuildForCurrentSchema();
         _protectedMaterialResolver = protectedMaterialResolver;
+        _transientEventIngress = transientEventIngress;
         _industrialEffectAuthority = industrialEffectAuthority ?? (() => true);
         _activationTimeout = activationTimeout ?? TimeSpan.FromSeconds(10);
         if (_activationTimeout <= TimeSpan.Zero)
@@ -203,6 +206,28 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
 
     public bool IsServerMemoryTag(Guid tagId) =>
         Volatile.Read(ref _active).ServerMemoryByTagId.ContainsKey(tagId);
+
+    public bool TryResolve(Guid dataSourceId, out IRichCommandDriverExecutor? executor)
+    {
+        executor = null;
+        if (dataSourceId == Guid.Empty)
+            return false;
+
+        var state = Volatile.Read(ref _active);
+        if (state.PassiveProjection)
+            return false;
+
+        var candidates = state.Drivers
+            .Where(driver => driver.Tags.Any(tag => tag.DataSourceId == dataSourceId))
+            .OfType<IRichCommandDriverExecutor>()
+            .Take(2)
+            .ToArray();
+        if (candidates.Length != 1)
+            return false;
+
+        executor = candidates[0];
+        return true;
+    }
 
     public async Task<int> RestoreAuthoritativeValuesAsync(
         IReadOnlyCollection<TagValue> values,
@@ -814,6 +839,7 @@ public sealed class EngineeringRuntimeCoordinator : IEngineeringRuntimeCoordinat
             _protectedMaterialResolver,
             () => eventGate.ForwardingEnabled && _industrialEffectAuthority())
         {
+            TransientEventIngress = _transientEventIngress,
             // Active candidates may acquire read-only input samples into their
             // private cache before the commit. Event forwarding and every
             // process write remain fenced by CanOwnExternalEffects above.

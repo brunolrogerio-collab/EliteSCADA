@@ -1,5 +1,8 @@
 using System.Globalization;
+using Scada.Core.Commands;
+using Scada.Core.Interactions;
 using Scada.Core.Tags;
+using Scada.DriverHost.Runtime;
 using Scada.Drivers.Abstractions;
 using Scada.Drivers.Dnp3;
 using Scada.Drivers.Dnp3.OpenDnp3;
@@ -12,7 +15,8 @@ public sealed record Dnp3CommunicationRuntimePlan(
     string Name,
     Dnp3TcpConnectionOptions Connection,
     Dnp3AssociationOptions Association,
-    IReadOnlyCollection<Dnp3Point> Points) : ICommunicationDriverRuntimePlan
+    IReadOnlyCollection<Dnp3Point> Points,
+    Guid? DataSourceId = null) : ICommunicationDriverRuntimePlan
 {
     public string DriverType => Dnp3DriverDescriptorProvider.DriverType;
     public IReadOnlyCollection<TagDefinition> Tags => Points.Select(static point => point.Tag).ToArray();
@@ -78,7 +82,7 @@ public sealed class Dnp3CommunicationRuntimePlanner : ICommunicationDriverRuntim
         var points = package.Tags
             .Where(tag => string.Equals(tag.Source, dataSource.Key, StringComparison.OrdinalIgnoreCase))
             .OrderBy(static tag => tag.Path, StringComparer.OrdinalIgnoreCase)
-            .Select(tag => BuildPoint(package.SchemaVersion, dataSource.Key, tag, issues))
+            .Select(tag => BuildPoint(package.SchemaVersion, dataSource.Key, dataSource.Id, tag, issues))
             .Where(static point => point is not null)
             .Cast<Dnp3Point>()
             .ToArray();
@@ -118,13 +122,15 @@ public sealed class Dnp3CommunicationRuntimePlanner : ICommunicationDriverRuntim
                 dataSource.Name,
                 parsed.Value.Connection,
                 parsed.Value.Association,
-                points),
+                points,
+                dataSource.Id),
             issues);
     }
 
     private static Dnp3Point? BuildPoint(
         int packageSchemaVersion,
         string dataSourceKey,
+        Guid? dataSourceId,
         TagEngineeringDto dto,
         ICollection<EngineeringDriverIssue> issues)
     {
@@ -305,7 +311,7 @@ public sealed class Dnp3CommunicationRuntimePlanner : ICommunicationDriverRuntim
             }
 
             var point = new Dnp3Point(
-                BuildCanonicalTag(dto),
+                BuildCanonicalTag(dto, dataSourceId),
                 pointBinding,
                 binaryCommand,
                 analogCommand);
@@ -451,7 +457,7 @@ public sealed class Dnp3CommunicationRuntimePlanner : ICommunicationDriverRuntim
         return settings;
     }
 
-    private static TagDefinition BuildCanonicalTag(TagEngineeringDto dto)
+    private static TagDefinition BuildCanonicalTag(TagEngineeringDto dto, Guid? dataSourceId)
     {
         var metadata = dto.Metadata is null
             ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -495,7 +501,8 @@ public sealed class Dnp3CommunicationRuntimePlanner : ICommunicationDriverRuntim
             metadata,
             access,
             dto.AddressSelector,
-            dto.CommunicationBinding);
+            dto.CommunicationBinding,
+            dataSourceId);
     }
 
     private static void Set(Dictionary<string, string> metadata, string key, double? value)
@@ -556,26 +563,30 @@ public sealed class Dnp3CommunicationRuntimeFactory : ICommunicationDriverRuntim
             dnp3Plan.Points,
             session,
             dnp3Plan.Association);
-        return new Dnp3CoordinatorRuntimeDriver(driver, session, dnp3Plan.DataSourceKey);
+        return new Dnp3CoordinatorRuntimeDriver(driver, session, dnp3Plan.DataSourceKey, dnp3Plan.DataSourceId);
     }
 
     private sealed class Dnp3CoordinatorRuntimeDriver :
         ICommunicationDriver,
         ICommunicationDiagnosticsSource,
-        ICommunicationDriverReadinessSource
+        ICommunicationDriverReadinessSource,
+        IRichCommandDriverExecutor
     {
         private readonly Dnp3Driver _inner;
         private readonly IDnp3MasterSession _session;
         private readonly string _dataSourceKey;
+        private readonly Guid? _dataSourceId;
 
         public Dnp3CoordinatorRuntimeDriver(
             Dnp3Driver inner,
             IDnp3MasterSession session,
-            string dataSourceKey)
+            string dataSourceKey,
+            Guid? dataSourceId)
         {
             _inner = inner ?? throw new ArgumentNullException(nameof(inner));
             _session = session ?? throw new ArgumentNullException(nameof(session));
             _dataSourceKey = dataSourceKey;
+            _dataSourceId = dataSourceId;
         }
 
         public string DriverId => _inner.DriverId;
@@ -620,6 +631,105 @@ public sealed class Dnp3CommunicationRuntimeFactory : ICommunicationDriverRuntim
                 });
         }
 
+        public async ValueTask<RichCommandResult> ExecuteAsync(
+            RichCommandInvocation invocation,
+            DriverCommandBinding binding,
+            RichCommandExecutionContext context,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(invocation);
+            ArgumentNullException.ThrowIfNull(binding);
+            ArgumentNullException.ThrowIfNull(context);
+
+            var rejected = ValidatePulseOnBinding(invocation, binding, out var targetIndex, out var onTime);
+            if (rejected is not null)
+                return Result(invocation, RichCommandOutcome.Rejected, rejected);
+            if (_dataSourceId is null || _dataSourceId == Guid.Empty ||
+                binding.DataSourceId != _dataSourceId ||
+                !string.Equals(binding.StableDeviceIdentity, Dnp3CommunicationRuntimeIdentity.StableDeviceIdentity(_dataSourceId.Value), StringComparison.Ordinal))
+            {
+                return Result(invocation, RichCommandOutcome.Rejected, "binding.target_mismatch");
+            }
+            if (!_inner.HasWritableBinaryOutputTarget(targetIndex))
+                return Result(invocation, RichCommandOutcome.Rejected, "binding.point_not_configured");
+
+            // Clearly-not-dispatched conditions remain Rejected. A disconnect after
+            // this check is deliberately surfaced as Unknown by RichCommandRuntime;
+            // this one-shot CROB is never automatically retried.
+            if (_inner.Status.State != DriverState.Running || _session.State != Dnp3SessionState.Online)
+                return Result(invocation, RichCommandOutcome.Rejected, "dnp3.association_not_online");
+
+            var result = await _inner.ExecutePulseOnAsync(targetIndex, onTime, cancellationToken).ConfigureAwait(false);
+            return result.Succeeded
+                ? Result(invocation, RichCommandOutcome.Completed, "dnp3.pulse_on.completed")
+                : Result(invocation, RichCommandOutcome.Unknown, "dnp3.pulse_on.outcome_unknown");
+        }
+
+        private static string? ValidatePulseOnBinding(
+            RichCommandInvocation invocation,
+            DriverCommandBinding binding,
+            out ushort targetIndex,
+            out TimeSpan onTime)
+        {
+            targetIndex = default;
+            onTime = default;
+            if (invocation.InvocationId == Guid.Empty || invocation.CommandId == Guid.Empty ||
+                binding.CommandId != invocation.CommandId)
+            {
+                return "invocation.binding_mismatch";
+            }
+            try
+            {
+                binding = RichCommandContract.NormalizeBinding(binding);
+            }
+            catch (ArgumentException)
+            {
+                return "binding.invalid";
+            }
+
+            if (!string.Equals(binding.SemanticOperationKey, "dnp3.crob.pulseOn", StringComparison.Ordinal))
+                return "binding.operation_unsupported";
+
+            var settings = (binding.Settings ?? Array.Empty<DriverCommandBindingSetting>())
+                .ToDictionary(setting => setting.Key, setting => setting.Value, StringComparer.Ordinal);
+            if (settings.Count != 4 ||
+                !settings.TryGetValue("pointKind", out var pointKind) || pointKind != "binaryOutputStatus" ||
+                !settings.TryGetValue("pointIndex", out var indexText) ||
+                !ushort.TryParse(indexText, NumberStyles.None, CultureInfo.InvariantCulture, out targetIndex) ||
+                targetIndex.ToString(CultureInfo.InvariantCulture) != indexText ||
+                !settings.TryGetValue("controlMode", out var mode) || mode != "selectBeforeOperate" ||
+                !settings.TryGetValue("count", out var count) || count != "1")
+            {
+                return "binding.settings_invalid";
+            }
+
+            if (invocation.Parameters is not { Count: 1 } parameters || parameters[0] is null ||
+                !string.Equals(parameters[0].Key, "onTime", StringComparison.Ordinal) ||
+                parameters[0].Value is null ||
+                parameters[0].Value.Kind != InteractionScalarKind.Duration ||
+                !TimeSpan.TryParseExact(parameters[0].Value.SerializedValue, "c", CultureInfo.InvariantCulture, out onTime) ||
+                onTime.ToString("c", CultureInfo.InvariantCulture) != parameters[0].Value.SerializedValue ||
+                onTime < TimeSpan.FromMilliseconds(100) || onTime > TimeSpan.FromSeconds(10))
+            {
+                return "invocation.on_time_invalid";
+            }
+
+            return null;
+        }
+
+        private static RichCommandResult Result(RichCommandInvocation invocation, RichCommandOutcome outcome, string code) =>
+            new(invocation.InvocationId, invocation.CommandId, outcome, DateTimeOffset.UtcNow, code);
+
         public ValueTask DisposeAsync() => _inner.DisposeAsync();
+    }
+}
+
+public static class Dnp3CommunicationRuntimeIdentity
+{
+    public static string StableDeviceIdentity(Guid dataSourceId)
+    {
+        if (dataSourceId == Guid.Empty)
+            throw new ArgumentException("DNP3 DataSourceId is required.", nameof(dataSourceId));
+        return $"dnp3:datasource:{dataSourceId:N}";
     }
 }

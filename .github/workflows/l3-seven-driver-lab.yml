@@ -54,6 +54,7 @@ jobs:
       ELITESCADA_L3_IEC104_PORT: "2404"
       ELITESCADA_L3_DNP3_HOST: 127.0.0.1
       ELITESCADA_L3_DNP3_PORT: "20000"
+      ELITESCADA_L3_DNP3_CAPTURE_PORT: "20001"
       ELITESCADA_DNP3_HOST_PATH: ${{ github.workspace }}/build/dnp3/EliteScada.Dnp3Host
       ELITESCADA_L3_S7_HOST: 127.0.0.1
       ELITESCADA_L3_S7_PORT: "1102"
@@ -122,6 +123,7 @@ jobs:
           timeout 20 bash -c 'until nc -z 127.0.0.1 4841; do sleep 1; done'
           timeout 20 bash -c 'until nc -z 127.0.0.1 2404; do sleep 1; done'
           timeout 20 bash -c 'until nc -z 127.0.0.1 20000; do sleep 1; done'
+          timeout 20 bash -c 'until curl -fsS http://127.0.0.1:20001/commands >/dev/null; do sleep 1; done'
           timeout 20 bash -c 'until nc -z 127.0.0.1 1102; do sleep 1; done'
           timeout 20 bash -c 'until curl -fsS http://127.0.0.1:18080/health; do sleep 1; done'
 
@@ -158,6 +160,7 @@ jobs:
           timeout 30 bash -c 'until nc -z 127.0.0.1 4841; do sleep 1; done'
           timeout 30 bash -c 'until nc -z 127.0.0.1 2404; do sleep 1; done'
           timeout 30 bash -c 'until nc -z 127.0.0.1 20000; do sleep 1; done'
+          timeout 30 bash -c 'until curl -fsS http://127.0.0.1:20001/commands >/dev/null; do sleep 1; done'
           timeout 30 bash -c 'until nc -z 127.0.0.1 1102; do sleep 1; done'
           timeout 30 bash -c 'until curl -fsS http://127.0.0.1:18080/health; do sleep 1; done'
 
@@ -192,6 +195,7 @@ jobs:
           timeout 30 bash -c 'until nc -z 127.0.0.1 4841; do sleep 1; done'
           timeout 30 bash -c 'until nc -z 127.0.0.1 2404; do sleep 1; done'
           timeout 30 bash -c 'until nc -z 127.0.0.1 20000; do sleep 1; done'
+          timeout 30 bash -c 'until curl -fsS http://127.0.0.1:20001/commands >/dev/null; do sleep 1; done'
           timeout 30 bash -c 'until nc -z 127.0.0.1 1102; do sleep 1; done'
           timeout 30 bash -c 'until curl -fsS http://127.0.0.1:18080/health; do sleep 1; done'
 
@@ -261,6 +265,39 @@ jobs:
           --logger "console;verbosity=normal"
           --logger "trx;LogFileName=l3-gateway-fault-recovery.trx"
           --results-directory TestResults/L3GatewayFaultRecovery
+
+      - name: Reset independent MQTT and DNP3 peers for S6 interaction route
+        run: |
+          docker restart elitescada-lab-dnp3-dnp3py elitescada-lab-mosquitto >/dev/null
+          timeout 30 bash -c 'until nc -z 127.0.0.1 1883; do sleep 1; done'
+          timeout 30 bash -c 'until nc -z 127.0.0.1 20000; do sleep 1; done'
+          timeout 30 bash -c 'until curl -fsS http://127.0.0.1:20001/commands >/dev/null; do sleep 1; done'
+
+      - name: Ensure Python command for Active Server Scripts
+        run: |
+          if ! command -v python >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends python-is-python3
+          fi
+          python --version
+
+      - name: Run mandatory L3 Z2M action to DNP3 PulseOn interaction route
+        run: >-
+          dotnet test tests/Scada.Drivers.Tests/Scada.Drivers.Tests.csproj
+          -c Release --no-build
+          --filter "Category=L3DriverInteractionS6"
+          --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=l3-driver-interaction-s6.trx"
+          --results-directory TestResults/L3DriverInteractionS6
+
+      - name: Upload mandatory S6 L3 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: l3-driver-interaction-s6-${{ github.sha }}
+          path: TestResults/L3DriverInteractionS6/**
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Upload L3 Gateway fault recovery evidence
         if: always()

@@ -1,6 +1,7 @@
 using Scada.Core.Tags;
 using Scada.Drivers.Abstractions;
 using Scada.Engineering.Contracts;
+using Scada.DriverHost.Runtime;
 
 namespace Scada.DriverHost.Engineering;
 
@@ -39,6 +40,12 @@ public sealed record CommunicationDriverRuntimeServices(
     ICommunicationDriverProtectedMaterialResolver? ProtectedMaterialResolver = null,
     Func<bool>? EffectAuthority = null)
 {
+    /// <summary>
+    /// Canonical host-owned ingress for validated transient device events. Drivers
+    /// may publish only after the Active/effect-authority fence permits forwarding.
+    /// </summary>
+    public ITransientEventRuntimeIngress? TransientEventIngress { get; init; }
+
     /// <summary>
     /// Host-owned permission for a Runtime candidate to acquire process inputs
     /// into its private cache before activation commits. Drivers must not use

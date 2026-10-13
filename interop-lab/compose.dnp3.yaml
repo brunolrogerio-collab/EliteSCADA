@@ -6,6 +6,7 @@ services:
     container_name: elitescada-lab-dnp3-dnp3py
     ports:
       - "${DNP3_PEER_PORT:-20000}:20000"
+      - "${DNP3_CAPTURE_PORT:-20001}:20001"
     healthcheck:
       test:
         - CMD

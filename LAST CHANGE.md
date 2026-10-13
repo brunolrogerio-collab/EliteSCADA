@@ -1,12 +1,29 @@
 # HISTORICAL COORDINATION CHANGE — 2026-10-06 22:31 BRT
 
-# LATEST COORDINATION CHANGE — 2026-10-12 15:35 BRT
+# LATEST COORDINATION CHANGE — 2026-10-13
 
 > This current snapshot supersedes the older live-state summaries below. GitHub remains authoritative.
 
-Verified product checkpoint: `wave15/corrections-integration@12d4d17a8ae007c27525247e44b1f34c2a5f5b85` (PR #582). Coordinator handoff/roadmap and root snapshot were refreshed in documentation-only PRs #583-#585. Revalidate the live integration ref before any next implementation lane.
+## Current product and documentation checkpoints
 
-## HOME/BUILDING protocols requested for closeout
+- **Product checkpoint:** `wave15/corrections-integration@71bd07508e3340699bbb40c4463a8c5ac788c0d9`, integrated by PR #594. This is the Matter Wi-Fi product-code checkpoint.
+- **Documentation-only checkpoint:** PR #595 was integrated as `380945455f9aac1965062ca5c694c6ce642106ad`. It updates the Matter ADR only and does not change product bytes.
+- **Matter status:** integrated only as experimental. The pt-BR Data Source selector label is `Matter Wi-Fi (Versão em teste)` (localized equivalents in other supported locales). Runtime remains absent by default and opt-in only with `Engineering:DeveloperPreviews:MatterWifiV1=true` in Development/Test; the feature remains unavailable in Staging/Production and hard-blocked in HA. After Wave 16, a more stable replacement/prepared version is required before any distribution.
+- **PR #594 T1:** [run #38459079656](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38459079656) SUCCESS on exact head `c359e5cedbf5cb31c7e89bd37c42ee8c38a51fcd`, including focused Chromium/E2E 22/22.
+- **PR #594 post-merge CI:** [run #38460067106](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38460067106) SUCCESS on merge SHA `71bd07508e3340699bbb40c4463a8c5ac788c0d9`: Backend build/test/smoke, Web build and Chromium integration smoke passed; the full-browser E2E step was skipped.
+- **PR #595 documentation T1:** [run #38461300419](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38461300419) SUCCESS on exact head `ac30f561c7ebc00a049ae26c392b769f21f09bdf`. There was no post-merge run for PR #595 at the time of this snapshot; do not claim one passed.
+- No Matter real-device/network, commissioning, interoperability, HA, production, L2/L3 or distribution validation is claimed. The decision to integrate an experimental version does not grant any of those approvals.
+- This checkpoint does **not** declare FND/FC0 or Wave 15 complete. Remaining Wave 15 closeout remains tracked under #306/#300/#379/#424/#425. Preserve existing issue gates and decisions; revalidate the live integration ref before any next lane.
+
+---
+
+# HISTORICAL COORDINATION CHANGE — 2026-10-12 15:35 BRT
+
+> Superseded by the current checkpoint above. Kept for historical continuity; GitHub remains authoritative.
+
+Verified product checkpoint at that time: `wave15/corrections-integration@12d4d17a8ae007c27525247e44b1f34c2a5f5b85` (PR #582). Coordinator handoff/roadmap and root snapshot were refreshed in documentation-only PRs #583-#585.
+
+## HOME/BUILDING protocols requested for closeout (historical)
 
 - Zigbee2MQTT Bridge — PR #575 integrated at `ff567102bef09fba8ab26a6b13db678b0a85b842`; integration CI #38015062177 passed.
 - DALI-2 — PR #581 integrated at `7eea131616cb3004d1276e8950a23c96cdbbfe15`; post-merge CI #38275180334 passed. Scope is the documented Intesis 700 profile via existing `modbus.tcp`, not native DALI.

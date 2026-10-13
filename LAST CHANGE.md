@@ -1,3 +1,30 @@
+# LATEST COORDINATION CHANGE — 2026-10-12 23:52 BRT
+
+> This current Main snapshot supersedes the older snapshots below. GitHub live remains authoritative; revalidate refs, issues, branches and exact-head CI before further action.
+
+## Live product and driver checkpoint
+
+- `wave15/corrections-integration@4d668d38f708a3643061c1b72587c2539550825e`, the Z-Wave JS PR #587 merge. The post-merge EliteSCADA CI #38331774846 succeeded on that exact SHA; Main recorded Web, backend/build/test/smoke, and Chromium integration smoke PASS. Full browser E2E was skipped by the workflow; physical L2/L4 was not proved.
+- Integrated HOME/BUILDING software remains: external Zigbee2MQTT #575, DALI-2 through the Intesis 700 profile over existing Modbus TCP #581 (not native DALI), Native Zigbee + KNX/IP Secure #582, and Z-Wave JS #587. Physical/device compatibility remains per-model/firmware and deferred to L4.
+- Tuya and Intelbras remain compatibility-by-protocol only (Zigbee via existing paths; Matter only after release); no vendor cloud/API or brand-specific lane is open.
+
+## Current authorization and blockers
+
+- Matter #589 delivered only an ADR/offline slice on `work/home-matter-wifi-v1@72ee98c9a00c3667018e2b71a5345f144de631ac`, based on the integration SHA above. It has no PR and is not a production driver. Latest stable OHF Matter Server remains v1.4.0; upstream #1092 and #1039 are still open/planned-next-version. See [#589 Main revalidation](https://github.com/brunolrogerio-collab/EliteSCADA/issues/589#issuecomment-6136923774). No Matter network/commissioning/alpha work is authorized.
+- Main released shared interaction S6 to CODEX as issue #590, `DEV-DRIVER-INTERACTION-S6-Z2M-DNP3-PULSE`, branch `work/driver-interaction-s6-z2m-dnp3-pulse`, exact base `4d668d38f708a3643061c1b72587c2539550825e`. Scope: simulated Zigbee2MQTT transient action -> existing Server Script -> canonical Rich Command -> DNP3 CROB PulseOn against a distinct simulated outstation, with bounded `onTime: Duration`; mandatory independent-peer L3, HMI path, authorization/audit, zero Standby effects, and no retries on ambiguous dispatch. Main release and constraints are in [#590](https://github.com/brunolrogerio-collab/EliteSCADA/issues/590) and [#305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6137067638).
+- CODEX's pre-edit S6 checkpoint is recorded in [#590](https://github.com/brunolrogerio-collab/EliteSCADA/issues/590#issuecomment-6137092888): isolated worktree `C:\Users\Bruno Rogerio\Documents\Codex\EliteSCADA-driver-interaction-s6-z2m-dnp3-pulse-20261012`; branch `work/driver-interaction-s6-z2m-dnp3-pulse`; HEAD/base/merge-base `4d668d38f708a3643061c1b72587c2539550825e`; tree `02c01228a21c31cacae8dce8798e1bdc1c65e5ac`; ahead/behind `0/0`; clean. The separate Matter checkout remains clean at `72ee98c9a00c3667018e2b71a5345f144de631ac` / tree `4e0e5a5b3a15cdb381d76b2ce4224400889d08a4`.
+- The S6 source-binding gate was resolved by reusing `EquipmentEngineeringDto.SourceBindings[]`, `CapabilityEventReferenceEngineeringDto` and `ActiveDriverInteractionRuntimeCatalog`; no frozen contract change is needed ([evidence](https://github.com/brunolrogerio-collab/EliteSCADA/issues/590#issuecomment-6137142416)). CODEX is authorized to implement the bounded slice. No S6 implementation commit, PR, T1/L3 result, or integration is yet claimed.
+- DNP3's commercial-distribution license restriction in `PROJECT GOAL.md` remains binding. S6 reuses the existing dependency for simulator-only development/testing and does not clear the license or authorize commercial shipment.
+- Existing contracts S0-S5, Engineering schema v23, Runtime/Authority/HA, diagnostics, protected-material and driver SDK remain frozen. Any needed common-contract change must stop as `BLOCKED-CONTRACT / MAIN_DECISION_REQUIRED`.
+
+## Next sequence
+
+`S6 interaction acceptance -> Engineering Import/Export -> HOME/BUILDING F5/F6 (#472) -> Intelligence (#588)`.
+
+Import/Export has no new implementation lane released by this snapshot. F5/F6 are already product-authorized only after Import/Export is completed and verified. No FND/FC0 advancement or Wave 15 closure is inferred; productization/Preview/i18n/Help/Manual closeout remains separately tracked.
+
+---
+
 # HISTORICAL COORDINATION CHANGE — 2026-10-06 22:31 BRT
 
 # LATEST COORDINATION CHANGE — 2026-10-12 15:35 BRT

@@ -77,7 +77,8 @@ public sealed class ProductLicensedRuntimeCoordinator :
     IGatewayRuntimeDiagnosticsProvider,
     IProductRuntimeStatusProvider,
     IProductRuntimeAuthorityReevaluator,
-    IInstallationRuntimeFence
+    IInstallationRuntimeFence,
+    IRichCommandDriverExecutorResolver
 {
     public const string EntitlementDeniedIssueCode = "PRODUCT_RUN_ENTITLEMENT_DENIED";
     public const string DemoExpiredDiagnostic = "Demo Run session expired after its continuous runtime allowance.";
@@ -135,6 +136,15 @@ public sealed class ProductLicensedRuntimeCoordinator :
     public bool TryGetCurrent(Guid tagId, out TagValue? value) => Current.TryGetCurrent(tagId, out value);
     public bool TryGetCommand(Guid commandId, out CommandDefinition? command) => Current.TryGetCommand(commandId, out command);
     public bool IsServerMemoryTag(Guid tagId) => Current.IsServerMemoryTag(tagId);
+
+    public bool TryResolve(Guid dataSourceId, out IRichCommandDriverExecutor? executor)
+    {
+        if (Current is IRichCommandDriverExecutorResolver resolver)
+            return resolver.TryResolve(dataSourceId, out executor);
+
+        executor = null;
+        return false;
+    }
 
     public Task<int> RestoreAuthoritativeValuesAsync(
         IReadOnlyCollection<TagValue> values,
@@ -1080,7 +1090,8 @@ public static class ProductLicensedRuntimeConfiguration
                         communicationComponents: sp.GetRequiredService<CommunicationDriverRuntimeComponentRegistry>(),
                         protectedMaterialResolver: sp.GetService<ICommunicationDriverProtectedMaterialResolver>(),
                         industrialEffectAuthority: () =>
-                            sp.GetRequiredService<RuntimeHighAvailabilityService>().CanOwnIndustrialEffects()),
+                            sp.GetRequiredService<RuntimeHighAvailabilityService>().CanOwnIndustrialEffects(),
+                        transientEventIngress: sp.GetRequiredService<ITransientEventRuntimeIngress>()),
                     eventBus);
 
             return new ProductLicensedRuntimeCoordinator(
@@ -1104,6 +1115,8 @@ public static class ProductLicensedRuntimeConfiguration
         builder.Services.AddSingleton<IProductRuntimeAuthorityReevaluator>(sp =>
             sp.GetRequiredService<ProductLicensedRuntimeCoordinator>());
         builder.Services.AddSingleton<IInstallationRuntimeFence>(sp =>
+            sp.GetRequiredService<ProductLicensedRuntimeCoordinator>());
+        builder.Services.AddSingleton<IRichCommandDriverExecutorResolver>(sp =>
             sp.GetRequiredService<ProductLicensedRuntimeCoordinator>());
     }
 }

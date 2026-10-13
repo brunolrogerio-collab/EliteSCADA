@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
 using Scada.Core.Events;
+using Scada.Core.Interactions;
 using Scada.Core.Tags;
 using Scada.DriverHost.Engineering;
 using Scada.DriverHost.Runtime;
@@ -11,6 +12,7 @@ using Scada.Drivers.Mqtt;
 using Scada.Drivers.Zigbee2Mqtt;
 using Scada.Engineering.Contracts;
 using Scada.Engineering.ImportExport;
+using Scada.Engineering.Interactions;
 
 namespace Scada.Drivers.Tests;
 
@@ -41,6 +43,7 @@ public sealed class Zigbee2MqttBridgeTests
         var renamed = Assert.Single(secondInventory.Devices);
 
         Assert.Equal(2, first.Exposes.Count);
+        Assert.True(first.HasActionExpose);
         Assert.Contains(first.Issues!, issue => issue.Code == "Z2M_TRANSIENT_EVENT_EXCLUDED");
         Assert.Contains(first.Issues!, issue => issue.Code == "Z2M_METADATA_EXPOSE_EXCLUDED");
         Assert.Equal(
@@ -62,6 +65,104 @@ public sealed class Zigbee2MqttBridgeTests
         };
         var multiEndpoint = Zigbee2MqttExposeMapper.BuildMaterialization(dataSourceId, "home.z2m", multiEndpointDevice);
         Assert.Equal(2, multiEndpoint.Equipment.Capabilities!.Select(capability => capability.CapabilityId).Distinct().Count());
+    }
+
+    [Fact]
+    public async Task ActionExpose_DispatchesOnlyLiveQos0EventsAfterActiveAuthority()
+    {
+        var dataSourceId = Guid.NewGuid();
+        var package = RuntimePackage(dataSourceId, Guid.NewGuid());
+        var equipmentId = Guid.NewGuid();
+        var eventDefinitionId = Guid.NewGuid();
+        const string capabilityId = "onoff.main";
+        const string semanticKey = "zigbee.button.action";
+        var definition = new TransientEventDefinitionEngineeringDto(
+            eventDefinitionId,
+            semanticKey,
+            [new TransientEventFieldDefinition(
+                "action",
+                new Scada.Core.Interactions.InteractionScalarSchema(Scada.Core.Interactions.InteractionScalarKind.String),
+                Required: true)],
+            equipmentId,
+            capabilityId);
+        package = package with
+        {
+            Equipment =
+            [
+                new EquipmentEngineeringDto(
+                    equipmentId,
+                    "House.Button01",
+                    "Button 01",
+                    SourceBindings:
+                    [
+                        new EquipmentSourceBindingEngineeringDto(
+                            dataSourceId,
+                            Zigbee2MqttIdentity.StableDeviceIdentity(dataSourceId, Ieee))
+                    ],
+                    Capabilities:
+                    [new EquipmentCapabilityEngineeringDto(capabilityId, EquipmentCapabilityKinds.OnOff)])
+            ],
+            TransientEventDefinitions = [definition],
+            CapabilityEventReferences =
+            [new CapabilityEventReferenceEngineeringDto(equipmentId, capabilityId, "action", eventDefinitionId, semanticKey)]
+        };
+
+        var source = Assert.Single(package.DataSources!);
+        var planned = new Zigbee2MqttCommunicationRuntimePlanner().Plan(package, source);
+        Assert.True(planned.CanActivate, string.Join("; ", planned.Issues.Select(issue => issue.Message)));
+        var plan = Assert.IsType<Zigbee2MqttCommunicationRuntimePlan>(planned.Plan);
+        Assert.Single(plan.ActionEvents!);
+
+        var canonicalDefinition = DriverInteractionEngineeringMapper.ToCore(definition);
+        var eventBus = new InMemoryScadaEventBus();
+        var received = new TaskCompletionSource<TransientEventRuntimePublication>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var subscription = eventBus.Subscribe<TransientEventRuntimePublication>(publication =>
+        {
+            received.TrySetResult(publication);
+            return ValueTask.CompletedTask;
+        });
+        await using var ingress = new TransientEventRuntimeDispatcher(
+            new InMemoryTransientEventDefinitionResolver([canonicalDefinition]),
+            eventBus);
+
+        var activeAuthority = 0;
+        var transport = new FakeMqttTransport("lamp-main", confirmWrites: false);
+        var services = new CommunicationDriverRuntimeServices(
+            "project-z2m-action",
+            new CurrentTagCache(eventBus),
+            new InMemoryTagRegistry(),
+            EffectAuthority: () => Volatile.Read(ref activeAuthority) != 0)
+        {
+            InputAcquisitionAuthority = () => true,
+            TransientEventIngress = ingress
+        };
+        await using var driver = (Zigbee2MqttDriver)new Zigbee2MqttCommunicationRuntimeFactory(() => transport)
+            .Create(plan, services);
+
+        await driver.StartAsync();
+        await EventuallyAsync(() => driver.GetCommunicationReadiness().State == CommunicationDriverReadinessState.Ready);
+        Assert.Contains(transport.Subscriptions.SelectMany(items => items), item =>
+            item.Topic == "zigbee2mqtt/lamp-main" && item.Qos == MqttQosLevel.AtMostOnce);
+
+        transport.EmitState("{\"action\":\"retained\"}", retained: true, qos: MqttQosLevel.AtMostOnce);
+        transport.EmitState("{\"action\":\"duplicate-delivery\"}", retained: false, qos: MqttQosLevel.AtLeastOnce);
+        transport.EmitState("{\"action\":\"standby\"}", retained: false, qos: MqttQosLevel.AtMostOnce);
+        await EventuallyAsync(() => transport.ReceivedActionMessageCount >= 3 &&
+            driver.GetCommunicationDiagnostics().ProtocolDetails!["rejectedActionEvents"] == "3");
+        Assert.False(received.Task.IsCompleted);
+
+        Volatile.Write(ref activeAuthority, 1);
+        transport.EmitState("{\"action\":\"single\"}", retained: false, qos: MqttQosLevel.AtMostOnce);
+        var publication = await received.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        Assert.Equal(eventDefinitionId, publication.Occurrence.DefinitionId);
+        Assert.Equal(semanticKey, publication.Occurrence.SemanticKey);
+        Assert.Equal(dataSourceId, publication.Occurrence.Source.DataSourceId);
+        Assert.Equal(Zigbee2MqttIdentity.StableDeviceIdentity(dataSourceId, Ieee), publication.Occurrence.Source.StableDeviceIdentity);
+        Assert.Equal(equipmentId, publication.Occurrence.Source.EquipmentId);
+        Assert.Equal(capabilityId, publication.Occurrence.Source.CapabilityId);
+        Assert.Equal(InteractionScalarValue.String("single"), Assert.Single(publication.Occurrence.Payload).Value);
+        Assert.Equal(InteractionOrigin.Driver, publication.Occurrence.Causality!.Origin);
+        Assert.Equal(0, transport.SetPublishCount);
     }
 
     [Fact]
@@ -1001,6 +1102,7 @@ public sealed class Zigbee2MqttBridgeTests
     {
         private readonly Channel<MqttTransportMessage> _messages = Channel.CreateUnbounded<MqttTransportMessage>();
         private int _receivedMessages;
+        private int _receivedActionMessageCount;
         private bool _didDisconnectOnce;
 
         public bool IsConnected { get; private set; }
@@ -1008,6 +1110,7 @@ public sealed class Zigbee2MqttBridgeTests
         public int DisposeCount { get; private set; }
         public int SetPublishCount { get; private set; }
         public int GetPublishCount { get; private set; }
+        public int ReceivedActionMessageCount => Volatile.Read(ref _receivedActionMessageCount);
         public bool IsDisposed => DisposeCount > 0;
         public string? CapturedUsername { get; private set; }
         public string? CapturedPassword { get; private set; }
@@ -1015,7 +1118,8 @@ public sealed class Zigbee2MqttBridgeTests
         public string? LastPublishedJson { get; private set; }
         public List<IReadOnlyCollection<MqttSubscription>> Subscriptions { get; } = [];
 
-        public void EmitState(string payload, bool retained) => Enqueue($"zigbee2mqtt/{friendlyName}", payload, retained);
+        public void EmitState(string payload, bool retained, MqttQosLevel qos = MqttQosLevel.AtLeastOnce) =>
+            Enqueue($"zigbee2mqtt/{friendlyName}", payload, retained, qos);
 
         public void EmitAvailability(string payload, bool retained) => Enqueue($"zigbee2mqtt/{friendlyName}/availability", payload, retained);
 
@@ -1062,6 +1166,8 @@ public sealed class Zigbee2MqttBridgeTests
             }
             var message = await _messages.Reader.ReadAsync(cancellationToken);
             _receivedMessages++;
+            if (Encoding.UTF8.GetString(message.Payload.Span).Contains("\"action\"", StringComparison.Ordinal))
+                Interlocked.Increment(ref _receivedActionMessageCount);
             return message;
         }
 
@@ -1115,12 +1221,12 @@ public sealed class Zigbee2MqttBridgeTests
             return ValueTask.CompletedTask;
         }
 
-        private void Enqueue(string topic, string payload, bool retained) =>
+        private void Enqueue(string topic, string payload, bool retained, MqttQosLevel qos = MqttQosLevel.AtLeastOnce) =>
             _messages.Writer.TryWrite(new MqttTransportMessage(
                 topic,
                 Encoding.UTF8.GetBytes(payload),
                 retained,
-                MqttQosLevel.AtLeastOnce,
+                qos,
                 DateTimeOffset.UtcNow));
     }
 

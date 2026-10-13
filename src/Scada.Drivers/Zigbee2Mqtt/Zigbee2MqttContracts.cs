@@ -1,4 +1,5 @@
 using Scada.Core.Tags;
+using Scada.Core.Events;
 using Scada.Drivers.Abstractions;
 using Scada.Drivers.Mqtt;
 
@@ -215,7 +216,8 @@ public sealed record Zigbee2MqttDevice(
     string? Model,
     string? Vendor,
     IReadOnlyCollection<Zigbee2MqttExpose> Exposes,
-    IReadOnlyCollection<DriverEngineeringIssue>? Issues = null);
+    IReadOnlyCollection<DriverEngineeringIssue>? Issues = null,
+    bool HasActionExpose = false);
 
 public sealed record Zigbee2MqttInventory(
     IReadOnlyCollection<Zigbee2MqttDevice> Devices,
@@ -269,6 +271,18 @@ public sealed record Zigbee2MqttPoint(
     }
 }
 
+/// <summary>
+/// Active, server-owned mapping from one Z2M device action field to an existing
+/// Equipment Capability Transient Event definition. Action exposes remain events,
+/// never canonical TAGs.
+/// </summary>
+public sealed record Zigbee2MqttActionEventBinding(
+    string IeeeAddress,
+    Guid EquipmentId,
+    string CapabilityId,
+    string Role,
+    TransientEventDefinition Definition);
+
 public static class Zigbee2MqttIdentity
 {
     public static bool TryNormalizeIeee(string? value, out string normalized)
@@ -286,6 +300,27 @@ public static class Zigbee2MqttIdentity
         if (dataSourceId == Guid.Empty) throw new ArgumentException("DataSourceId is required.", nameof(dataSourceId));
         if (!TryNormalizeIeee(ieeeAddress, out var ieee)) throw new ArgumentException("IEEE address is invalid.", nameof(ieeeAddress));
         return $"zigbee2mqtt:datasource:{dataSourceId:N}:ieee:{ieee}";
+    }
+
+    public static bool TryParseStableDeviceIdentity(
+        Guid dataSourceId,
+        string? stableDeviceIdentity,
+        out string ieeeAddress)
+    {
+        ieeeAddress = string.Empty;
+        if (dataSourceId == Guid.Empty || string.IsNullOrWhiteSpace(stableDeviceIdentity))
+            return false;
+
+        var prefix = $"zigbee2mqtt:datasource:{dataSourceId:N}:ieee:";
+        if (!stableDeviceIdentity.StartsWith(prefix, StringComparison.Ordinal) ||
+            !TryNormalizeIeee(stableDeviceIdentity[prefix.Length..], out var normalized) ||
+            !string.Equals(stableDeviceIdentity, StableDeviceIdentity(dataSourceId, normalized), StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        ieeeAddress = normalized;
+        return true;
     }
 
     public static string StablePointIdentity(Guid dataSourceId, string ieeeAddress, string? endpoint, string property)

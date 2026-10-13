@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using Scada.Core.Events;
+using Scada.Core.Interactions;
 using Scada.Core.Tags;
 using Scada.Drivers.Abstractions;
 using Scada.Drivers.Mqtt;
@@ -31,6 +33,8 @@ public sealed class Zigbee2MqttDriver :
     private readonly Zigbee2MqttCredentialResolver _credentialResolver;
     private readonly Func<bool> _effectAuthority;
     private readonly Func<bool> _inputAcquisitionAuthority;
+    private readonly IReadOnlyDictionary<string, Zigbee2MqttActionEventBinding> _configuredActionEventsByIeee;
+    private readonly Func<TransientEventOccurrence, CancellationToken, ValueTask>? _transientEventIngress;
     private readonly SemaphoreSlim _lifecycleGate = new(1, 1);
     private readonly SemaphoreSlim _operationGate = new(1, 1);
     private readonly object _stateGate = new();
@@ -44,6 +48,7 @@ public sealed class Zigbee2MqttDriver :
     private Dictionary<string, string> _friendlyNameByIeee = new(StringComparer.Ordinal);
     private Dictionary<string, string> _ieeeByStateTopic = new(StringComparer.Ordinal);
     private Dictionary<string, string> _ieeeByAvailabilityTopic = new(StringComparer.Ordinal);
+    private Dictionary<string, Zigbee2MqttActionEventBinding> _activeActionEventsByIeee = new(StringComparer.Ordinal);
     private HashSet<Guid> _activeTagIds = new();
     private volatile string? _bridgeState;
     private bool _hasConnectedOnce;
@@ -72,6 +77,9 @@ public sealed class Zigbee2MqttDriver :
     private long _messages;
     private long _retainedMessages;
     private long _rejectedValues;
+    private long _actionEventsReceived;
+    private long _actionEventsDispatched;
+    private long _rejectedActionEvents;
     private long _ambiguousWrites;
     private long _lastOperationDurationTicks;
     private long _totalOperationDurationTicks;
@@ -88,7 +96,9 @@ public sealed class Zigbee2MqttDriver :
         Func<IMqttClientTransport> transportFactory,
         Zigbee2MqttCredentialResolver credentialResolver,
         Func<bool>? effectAuthority = null,
-        Func<bool>? inputAcquisitionAuthority = null)
+        Func<bool>? inputAcquisitionAuthority = null,
+        IEnumerable<Zigbee2MqttActionEventBinding>? actionEvents = null,
+        Func<TransientEventOccurrence, CancellationToken, ValueTask>? transientEventIngress = null)
     {
         if (string.IsNullOrWhiteSpace(driverId)) throw new ArgumentException("Driver ID is required.", nameof(driverId));
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Driver name is required.", nameof(name));
@@ -114,6 +124,17 @@ public sealed class Zigbee2MqttDriver :
         _credentialResolver = credentialResolver ?? throw new ArgumentNullException(nameof(credentialResolver));
         _effectAuthority = effectAuthority ?? (() => true);
         _inputAcquisitionAuthority = inputAcquisitionAuthority ?? _effectAuthority;
+        var actionBindings = (actionEvents ?? Array.Empty<Zigbee2MqttActionEventBinding>()).ToArray();
+        if (actionBindings.Any(binding => binding is null ||
+                !Zigbee2MqttIdentity.TryNormalizeIeee(binding.IeeeAddress, out var normalized) ||
+                !string.Equals(binding.IeeeAddress, normalized, StringComparison.Ordinal)))
+            throw new ArgumentException("Zigbee2MQTT action-event bindings require canonical IEEE addresses.", nameof(actionEvents));
+        if (actionBindings.GroupBy(binding => binding.IeeeAddress, StringComparer.Ordinal).Any(group => group.Count() > 1))
+            throw new ArgumentException("Zigbee2MQTT action-event bindings cannot ambiguously map one device to multiple event definitions.", nameof(actionEvents));
+        if (actionBindings.Length > 0 && transientEventIngress is null)
+            throw new ArgumentException("Zigbee2MQTT action-event bindings require the canonical Transient Event Runtime ingress.", nameof(transientEventIngress));
+        _configuredActionEventsByIeee = actionBindings.ToDictionary(binding => binding.IeeeAddress, StringComparer.Ordinal);
+        _transientEventIngress = transientEventIngress;
         _stateChangedAt = DateTimeOffset.UtcNow;
         Status = new DriverStatus(DriverId, Name, DriverState.Stopped, _stateChangedAt);
     }
@@ -362,6 +383,9 @@ public sealed class Zigbee2MqttDriver :
                     ["deviceCount"] = (_inventory?.Devices.Count ?? 0).ToString(CultureInfo.InvariantCulture),
                     ["retainedMessages"] = Interlocked.Read(ref _retainedMessages).ToString(CultureInfo.InvariantCulture),
                     ["rejectedValues"] = Interlocked.Read(ref _rejectedValues).ToString(CultureInfo.InvariantCulture),
+                    ["actionEventsReceived"] = Interlocked.Read(ref _actionEventsReceived).ToString(CultureInfo.InvariantCulture),
+                    ["actionEventsDispatched"] = Interlocked.Read(ref _actionEventsDispatched).ToString(CultureInfo.InvariantCulture),
+                    ["rejectedActionEvents"] = Interlocked.Read(ref _rejectedActionEvents).ToString(CultureInfo.InvariantCulture),
                     ["ambiguousWrites"] = Interlocked.Read(ref _ambiguousWrites).ToString(CultureInfo.InvariantCulture),
                     ["messagesReceived"] = Interlocked.Read(ref _messages).ToString(CultureInfo.InvariantCulture)
                 });
@@ -494,6 +518,7 @@ public sealed class Zigbee2MqttDriver :
     {
         var friendly = new Dictionary<string, string>(StringComparer.Ordinal);
         var valid = new HashSet<Guid>();
+        var activeActionEvents = new Dictionary<string, Zigbee2MqttActionEventBinding>(StringComparer.Ordinal);
         var inventoryByIeee = inventory.Devices.ToDictionary(device => device.IeeeAddress, StringComparer.Ordinal);
         foreach (var group in _points.GroupBy(point => point.IeeeAddress, StringComparer.Ordinal))
         {
@@ -519,17 +544,39 @@ public sealed class Zigbee2MqttDriver :
             }
         }
 
+        foreach (var binding in _configuredActionEventsByIeee.Values)
+        {
+            if (inventoryByIeee.TryGetValue(binding.IeeeAddress, out var device) &&
+                device.Supported && device.HasActionExpose)
+            {
+                friendly[binding.IeeeAddress] = device.FriendlyName;
+                activeActionEvents.Add(binding.IeeeAddress, binding);
+            }
+            else
+            {
+                Interlocked.Increment(ref _rejectedActionEvents);
+            }
+        }
+
         var stateTopics = new Dictionary<string, string>(StringComparer.Ordinal);
         var availabilityTopics = new Dictionary<string, string>(StringComparer.Ordinal);
         var subscriptions = new Dictionary<string, MqttSubscription>(StringComparer.Ordinal);
-        foreach (var ieee in valid.Select(tagId => _pointsByTag[tagId].IeeeAddress).Distinct(StringComparer.Ordinal))
+        var subscribedIeees = valid.Select(tagId => _pointsByTag[tagId].IeeeAddress)
+            .Concat(activeActionEvents.Keys)
+            .Distinct(StringComparer.Ordinal);
+        foreach (var ieee in subscribedIeees)
         {
             if (!friendly.TryGetValue(ieee, out var friendlyName)) continue;
             var stateTopic = Zigbee2MqttEngineeringProvider.StateTopic(_settings, friendlyName);
             var availabilityTopic = Zigbee2MqttEngineeringProvider.AvailabilityTopic(_settings, friendlyName);
             MqttPoint.ValidateExactTopic(stateTopic, nameof(stateTopic));
             MqttPoint.ValidateExactTopic(availabilityTopic, nameof(availabilityTopic));
-            subscriptions[stateTopic] = new MqttSubscription(stateTopic, MqttQosLevel.AtLeastOnce);
+            // A Z2M action is embedded in a live state publication. QoS 0 prevents
+            // broker redelivery from causing a second physical command; ordinary
+            // state TAGs on an action-enabled device still use the same message.
+            subscriptions[stateTopic] = new MqttSubscription(
+                stateTopic,
+                activeActionEvents.ContainsKey(ieee) ? MqttQosLevel.AtMostOnce : MqttQosLevel.AtLeastOnce);
             subscriptions[availabilityTopic] = new MqttSubscription(availabilityTopic, MqttQosLevel.AtLeastOnce);
             stateTopics[stateTopic] = ieee;
             availabilityTopics[availabilityTopic] = ieee;
@@ -541,6 +588,7 @@ public sealed class Zigbee2MqttDriver :
             _activeTagIds = valid;
             _ieeeByStateTopic = stateTopics;
             _ieeeByAvailabilityTopic = availabilityTopics;
+            _activeActionEventsByIeee = activeActionEvents;
         }
         if (subscriptions.Count > 0)
         {
@@ -666,6 +714,7 @@ public sealed class Zigbee2MqttDriver :
 
         using (document)
         {
+            await DispatchActionEventAsync(ieee, message, document.RootElement, cancellationToken).ConfigureAwait(false);
             foreach (var point in statePoints)
             {
                 if (!Zigbee2MqttExposeMapper.TryDecodeValue(point, document.RootElement, out var value, out _))
@@ -750,9 +799,96 @@ public sealed class Zigbee2MqttDriver :
             _friendlyNameByIeee = new Dictionary<string, string>(StringComparer.Ordinal);
             _ieeeByStateTopic = new Dictionary<string, string>(StringComparer.Ordinal);
             _ieeeByAvailabilityTopic = new Dictionary<string, string>(StringComparer.Ordinal);
+            _activeActionEventsByIeee = new Dictionary<string, Zigbee2MqttActionEventBinding>(StringComparer.Ordinal);
             _activeTagIds = new HashSet<Guid>();
         }
     }
+
+    private async ValueTask DispatchActionEventAsync(
+        string ieeeAddress,
+        MqttTransportMessage message,
+        JsonElement payload,
+        CancellationToken cancellationToken)
+    {
+        Zigbee2MqttActionEventBinding? binding;
+        lock (_stateGate) _activeActionEventsByIeee.TryGetValue(ieeeAddress, out binding);
+        if (binding is null || payload.ValueKind != JsonValueKind.Object || !payload.TryGetProperty("action", out _))
+            return;
+
+        Interlocked.Increment(ref _actionEventsReceived);
+        if (message.Retained || message.Qos != MqttQosLevel.AtMostOnce ||
+            !_isReady || _bridgeState != "online" ||
+            !HasActionAuthority() || _transientEventIngress is null)
+        {
+            Interlocked.Increment(ref _rejectedActionEvents);
+            return;
+        }
+
+        try
+        {
+            var values = new List<TransientEventFieldValue>();
+            foreach (var field in binding.Definition.Fields)
+            {
+                if (!payload.TryGetProperty(field.Key, out var value))
+                {
+                    if (field.Required)
+                        throw new FormatException($"Required action field '{field.Key}' is missing.");
+                    continue;
+                }
+
+                values.Add(new TransientEventFieldValue(field.Key, ParseActionField(field.Schema, value)));
+            }
+
+            var eventId = Guid.NewGuid();
+            var occurrence = new TransientEventOccurrence(
+                eventId,
+                binding.Definition.DefinitionId,
+                binding.Definition.SemanticKey,
+                new TransientEventSource(
+                    _dataSourceId,
+                    Zigbee2MqttIdentity.StableDeviceIdentity(_dataSourceId, ieeeAddress),
+                    binding.EquipmentId,
+                    binding.CapabilityId),
+                values,
+                message.ReceivedAtUtc,
+                new TransientEventTimestamp(message.ReceivedAtUtc, TransientEventTimestampOrigin.BridgeClock),
+                Causality: new InteractionCausalityContext(eventId, null, InteractionOrigin.Driver));
+            await _transientEventIngress(occurrence, cancellationToken).ConfigureAwait(false);
+            Interlocked.Increment(ref _actionEventsDispatched);
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            Interlocked.Increment(ref _rejectedActionEvents);
+            _lastError = "A Zigbee2MQTT action event did not satisfy its Active transient-event contract.";
+        }
+    }
+
+    private bool HasActionAuthority()
+    {
+        try { return _inputAcquisitionAuthority() && _effectAuthority(); }
+        catch { return false; }
+    }
+
+    private static InteractionScalarValue ParseActionField(InteractionScalarSchema schema, JsonElement value) =>
+        schema.Kind switch
+        {
+            InteractionScalarKind.Boolean when value.ValueKind is JsonValueKind.True or JsonValueKind.False =>
+                InteractionScalarValue.Boolean(value.GetBoolean()),
+            InteractionScalarKind.Integer when value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var integer) =>
+                InteractionScalarValue.Integer(integer),
+            InteractionScalarKind.Number when value.ValueKind == JsonValueKind.Number && value.TryGetDecimal(out var number) =>
+                InteractionScalarValue.Number(number),
+            InteractionScalarKind.Percentage when value.ValueKind == JsonValueKind.Number && value.TryGetDecimal(out var percentage) =>
+                InteractionScalarValue.Percentage(percentage),
+            InteractionScalarKind.String when value.ValueKind == JsonValueKind.String =>
+                InteractionScalarValue.String(value.GetString()!),
+            InteractionScalarKind.Enum when value.ValueKind == JsonValueKind.String =>
+                InteractionScalarValue.Enum(value.GetString()!),
+            InteractionScalarKind.Duration when value.ValueKind == JsonValueKind.String &&
+                TimeSpan.TryParseExact(value.GetString(), "c", CultureInfo.InvariantCulture, out var duration) =>
+                InteractionScalarValue.Duration(duration),
+            _ => throw new FormatException($"Action field is not a valid {schema.Kind} scalar.")
+        };
 
     private void CompletePendingReadWithFailure(Zigbee2MqttPoint point, MqttTransportMessage message, TagValue? failedValue = null)
     {

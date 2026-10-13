@@ -192,6 +192,53 @@ public sealed class Dnp3Driver : ICommunicationDriver, ICommunicationDiagnostics
             throw new Dnp3CommandException(result.Status, SanitizeText(result.Message));
     }
 
+    /// <summary>
+    /// Executes one server-bound CROB PulseOn against a configured Binary Output
+    /// Status point. This is intentionally separate from TAG writes: command
+    /// completion never synthesizes a TAG value and the request is never replayed.
+    /// </summary>
+    public async ValueTask<Dnp3CommandResult> ExecutePulseOnAsync(
+        ushort index,
+        TimeSpan onTime,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (onTime < TimeSpan.FromMilliseconds(100) || onTime > TimeSpan.FromSeconds(10))
+            throw new ArgumentOutOfRangeException(nameof(onTime), "PulseOn duration must be between 100 ms and 10 s.");
+        if (!_pointsByPhysicalIdentity.TryGetValue((Dnp3PointKind.BinaryOutputStatus, index), out var point))
+            throw new ArgumentException($"DNP3 Binary Output Status target index {index} is not configured.", nameof(index));
+        if (!point.Binding.Writable || point.Tag.ReadOnly)
+            throw new ArgumentException($"DNP3 Binary Output Status target index {index} is not configured writable.", nameof(index));
+        if (Status.State != DriverState.Running || _session.State != Dnp3SessionState.Online)
+            throw new InvalidOperationException("DNP3 association is not online; PulseOn was not queued or retained for replay.");
+
+        var profile = new Dnp3BinaryCommandProfile
+        {
+            Mode = Dnp3CommandMode.SelectBeforeOperate,
+            TrueOperation = Dnp3BinaryOperation.PulseOn,
+            FalseOperation = Dnp3BinaryOperation.LatchOff,
+            TripCloseCode = Dnp3TripCloseCode.None,
+            Count = 1,
+            OnTime = onTime,
+            OffTime = TimeSpan.Zero
+        };
+        profile.Validate();
+
+        return await ExecuteBoundedUserRequestAsync(
+            token =>
+            {
+                if (Status.State != DriverState.Running)
+                    throw new InvalidOperationException("DNP3 driver stopped before PulseOn dispatch; command was not replayed.");
+                return _session.ExecuteBinaryAsync(index, Dnp3BinaryOperation.PulseOn, profile, token);
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public bool HasWritableBinaryOutputTarget(ushort index) =>
+        _pointsByPhysicalIdentity.TryGetValue((Dnp3PointKind.BinaryOutputStatus, index), out var point) &&
+        point.Binding.Writable &&
+        !point.Tag.ReadOnly;
+
     public CommunicationDriverDiagnosticSnapshot GetCommunicationDiagnostics()
     {
         var session = _session.GetDiagnostics();

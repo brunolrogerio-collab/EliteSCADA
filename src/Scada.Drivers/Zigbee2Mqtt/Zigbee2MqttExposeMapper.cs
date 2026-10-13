@@ -67,6 +67,7 @@ public static class Zigbee2MqttExposeMapper
 
             var issues = new List<DriverEngineeringIssue>();
             var exposes = new List<Zigbee2MqttExpose>();
+            var hasActionExpose = false;
             var supported = Bool(item, "supported") ?? false;
             if (!supported)
                 issues.Add(Warning("Z2M_DEVICE_UNSUPPORTED", "Zigbee2MQTT does not declare this device supported; its exposes are shown for inventory review but cannot be materialized into Runtime TAGs."));
@@ -76,7 +77,7 @@ public static class Zigbee2MqttExposeMapper
                 if (exposesElement.ValueKind != JsonValueKind.Array)
                     throw new FormatException($"Zigbee2MQTT device '{ieee}' exposes must be an array.");
                 foreach (var expose in exposesElement.EnumerateArray())
-                    VisitExpose(expose, null, null, settings.MaximumExposesPerDevice, ref count, exposes, issues, ieee);
+                    VisitExpose(expose, null, null, settings.MaximumExposesPerDevice, ref count, exposes, issues, ieee, ref hasActionExpose);
             }
             totalExposes += count;
             if (totalExposes > MaximumTotalExposes)
@@ -95,7 +96,8 @@ public static class Zigbee2MqttExposeMapper
                 SafeString(item, "model_id"),
                 SafeNestedString(item, "definition", "vendor"),
                 exposes,
-                issues));
+                issues,
+                hasActionExpose));
         }
 
         var version = ParseVersion(bridgeInfoPayload);
@@ -276,7 +278,8 @@ public static class Zigbee2MqttExposeMapper
         ref int count,
         List<Zigbee2MqttExpose> result,
         List<DriverEngineeringIssue> issues,
-        string ieee)
+        string ieee,
+        ref bool hasActionExpose)
     {
         if (++count > maximumExposes)
             throw new FormatException($"Zigbee2MQTT device '{ieee}' exceeds the configured expose limit of {maximumExposes}.");
@@ -298,6 +301,8 @@ public static class Zigbee2MqttExposeMapper
         if (type is "action" or "button" || string.Equals(property, "action", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(property, "action_group", StringComparison.OrdinalIgnoreCase))
         {
+            if (type is "action" or "button" || string.Equals(property, "action", StringComparison.OrdinalIgnoreCase))
+                hasActionExpose = true;
             issues.Add(Warning("Z2M_TRANSIENT_EVENT_EXCLUDED", "Action and button exposes are transient events and are never materialized as persistent TAGs."));
             return;
         }
@@ -307,7 +312,7 @@ public static class Zigbee2MqttExposeMapper
             if (features.ValueKind != JsonValueKind.Array)
                 throw new FormatException($"Zigbee2MQTT device '{ieee}' expose features must be an array.");
             foreach (var feature in features.EnumerateArray())
-                VisitExpose(feature, endpoint, category, maximumExposes, ref count, result, issues, ieee);
+                VisitExpose(feature, endpoint, category, maximumExposes, ref count, result, issues, ieee, ref hasActionExpose);
         }
 
         if (property is null || type is not ("binary" or "numeric")) return;

@@ -114,9 +114,12 @@ builder.Services.AddSingleton<IRichCommandDefinitionResolver>(sp =>
     sp.GetRequiredService<ActiveDriverInteractionRuntimeCatalog>());
 builder.Services.AddSingleton<IRichCommandBindingResolver>(sp =>
     sp.GetRequiredService<ActiveDriverInteractionRuntimeCatalog>());
-builder.Services.AddSingleton<IRichCommandDriverExecutorResolver>(_ =>
-    new InMemoryRichCommandDriverExecutorResolver(
-        Array.Empty<KeyValuePair<Guid, IRichCommandDriverExecutor>>()));
+builder.Services.AddSingleton<TransientEventRuntimeDispatcher>(sp =>
+    new TransientEventRuntimeDispatcher(
+        sp.GetRequiredService<ITransientEventDefinitionResolver>(),
+        sp.GetRequiredService<IScadaEventBus>()));
+builder.Services.AddSingleton<ITransientEventRuntimeIngress>(sp =>
+    sp.GetRequiredService<TransientEventRuntimeDispatcher>());
 builder.Services.AddSingleton<IRichCommandRuntime>(sp =>
     new RichCommandRuntimeService(
         sp.GetRequiredService<IRichCommandDefinitionResolver>(),
@@ -139,7 +142,8 @@ builder.Services.AddSingleton<GatewayEngineeringRuntimeCoordinator>(sp =>
             communicationComponents: sp.GetRequiredService<CommunicationDriverRuntimeComponentRegistry>(),
             protectedMaterialResolver: sp.GetService<ICommunicationDriverProtectedMaterialResolver>(),
             industrialEffectAuthority: () =>
-                sp.GetRequiredService<RuntimeHighAvailabilityService>().CanOwnIndustrialEffects()),
+                sp.GetRequiredService<RuntimeHighAvailabilityService>().CanOwnIndustrialEffects(),
+            transientEventIngress: sp.GetRequiredService<ITransientEventRuntimeIngress>()),
         sp.GetRequiredService<IScadaEventBus>()));
 builder.Services.AddSingleton<IEngineeringRuntimeCoordinator>(sp =>
     sp.GetRequiredService<GatewayEngineeringRuntimeCoordinator>());

@@ -1,10 +1,13 @@
 using System.Globalization;
+using Scada.Core.Events;
+using Scada.Core.Interactions;
 using Scada.Core.Tags;
 using Scada.DriverHost.Runtime;
 using Scada.Drivers.Abstractions;
 using Scada.Drivers.Mqtt;
 using Scada.Drivers.Zigbee2Mqtt;
 using Scada.Engineering.Contracts;
+using Scada.Engineering.Interactions;
 
 namespace Scada.DriverHost.Engineering;
 
@@ -15,7 +18,8 @@ public sealed record Zigbee2MqttCommunicationRuntimePlan(
     Zigbee2MqttConnectionSettings Connection,
     string? Username,
     string? PasswordSecretReference,
-    IReadOnlyCollection<Zigbee2MqttPoint> Points) : ICommunicationDriverRuntimePlan
+    IReadOnlyCollection<Zigbee2MqttPoint> Points,
+    IReadOnlyCollection<Zigbee2MqttActionEventBinding>? ActionEvents = null) : ICommunicationDriverRuntimePlan
 {
     public string DriverType => Zigbee2MqttContract.DriverType;
     public IReadOnlyCollection<TagDefinition> Tags => Points.Select(point => point.Tag).ToArray();
@@ -58,6 +62,7 @@ public sealed class Zigbee2MqttCommunicationRuntimePlanner : ICommunicationDrive
             (!tag.DataSourceId.HasValue && string.Equals(tag.Source, dataSource.Key, StringComparison.OrdinalIgnoreCase))).ToArray();
         var issues = new List<EngineeringDriverIssue>();
         var points = new List<Zigbee2MqttPoint>();
+        var actionEvents = BuildActionEventBindings(package, dataSource, issues);
         var addresses = new HashSet<string>(StringComparer.Ordinal);
         foreach (var dto in sourceTags)
         {
@@ -115,8 +120,91 @@ public sealed class Zigbee2MqttCommunicationRuntimePlanner : ICommunicationDrive
                 connection,
                 username,
                 passwordReference,
-                points),
+                points,
+                actionEvents),
             issues);
+    }
+
+    private static IReadOnlyCollection<Zigbee2MqttActionEventBinding> BuildActionEventBindings(
+        EngineeringPackage package,
+        DataSourceEngineeringDto dataSource,
+        ICollection<EngineeringDriverIssue> issues)
+    {
+        if (!dataSource.Id.HasValue || dataSource.Id.Value == Guid.Empty)
+            return Array.Empty<Zigbee2MqttActionEventBinding>();
+
+        DriverInteractionCoreGraph graph;
+        try
+        {
+            graph = DriverInteractionEngineeringValidator.NormalizeActiveGraph(package);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
+        {
+            issues.Add(Error(
+                "Z2M_ACTION_EVENT_GRAPH_INVALID",
+                $"Zigbee2MQTT action-event mappings require a valid Active Equipment/Capability/Event graph: {SafeFailure(ex)}.",
+                dataSource.Key));
+            return Array.Empty<Zigbee2MqttActionEventBinding>();
+        }
+
+        var definitions = graph.EventDefinitions.ToDictionary(definition => definition.DefinitionId);
+        var equipmentById = (package.Equipment ?? Array.Empty<EquipmentEngineeringDto>())
+            .Where(equipment => equipment?.Id is { } id && id != Guid.Empty)
+            .ToDictionary(equipment => equipment.Id!.Value);
+        var actionReferences = graph.EventReferences
+            .Where(reference => string.Equals(reference.Role, "action", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        var result = new List<Zigbee2MqttActionEventBinding>();
+
+        foreach (var equipment in equipmentById.Values)
+        foreach (var sourceBinding in equipment.SourceBindings ?? Array.Empty<EquipmentSourceBindingEngineeringDto>())
+        {
+            if (sourceBinding.DataSourceId != dataSource.Id.Value ||
+                !Zigbee2MqttIdentity.TryParseStableDeviceIdentity(
+                    dataSource.Id.Value,
+                    sourceBinding.StableDeviceIdentity,
+                    out var ieeeAddress))
+            {
+                continue;
+            }
+
+            foreach (var reference in actionReferences.Where(reference => reference.EquipmentId == equipment.Id))
+            {
+                if (!definitions.TryGetValue(reference.EventDefinitionId, out var definition))
+                    continue;
+
+                var actionField = definition.Fields.FirstOrDefault(field =>
+                    string.Equals(field.Key, "action", StringComparison.Ordinal));
+                if (actionField is null || !actionField.Required ||
+                    actionField.Schema.Kind is not (InteractionScalarKind.String or InteractionScalarKind.Enum))
+                {
+                    issues.Add(Error(
+                        "Z2M_ACTION_EVENT_FIELD_UNSUPPORTED",
+                        $"Active Transient Event '{definition.SemanticKey}' must define a required string/enum 'action' field for the Z2M action expose.",
+                        dataSource.Key));
+                    continue;
+                }
+
+                result.Add(new Zigbee2MqttActionEventBinding(
+                    ieeeAddress,
+                    reference.EquipmentId,
+                    reference.CapabilityId,
+                    reference.Role,
+                    definition));
+            }
+        }
+
+        foreach (var duplicate in result
+                     .GroupBy(binding => binding.IeeeAddress, StringComparer.Ordinal)
+                     .Where(group => group.Count() > 1))
+        {
+            issues.Add(Error(
+                "Z2M_ACTION_EVENT_SOURCE_AMBIGUOUS",
+                $"Zigbee2MQTT device '{duplicate.Key}' resolves to multiple Active action-event definitions; the source must resolve to exactly one.",
+                dataSource.Key));
+        }
+
+        return result;
     }
 
     private static TagDefinition BuildCanonicalTag(TagEngineeringDto dto, Guid dataSourceId)
@@ -204,6 +292,10 @@ public sealed class Zigbee2MqttCommunicationRuntimeFactory : ICommunicationDrive
             return new MqttResolvedCredentials(z2mPlan.Username, lease.Material);
         };
 
+        var actionEvents = z2mPlan.ActionEvents ?? Array.Empty<Zigbee2MqttActionEventBinding>();
+        if (actionEvents.Count > 0 && services.TransientEventIngress is null)
+            throw new InvalidOperationException("Zigbee2MQTT Active action-event bindings require the canonical Transient Event Runtime ingress.");
+
         return new Zigbee2MqttDriver(
             z2mPlan.DataSourceKey,
             z2mPlan.Name,
@@ -215,6 +307,8 @@ public sealed class Zigbee2MqttCommunicationRuntimeFactory : ICommunicationDrive
             _transportFactory,
             resolver,
             () => services.CanOwnExternalEffects,
-            () => services.CanAcquireInputs);
+            () => services.CanAcquireInputs,
+            actionEvents,
+            services.TransientEventIngress is { } ingress ? ingress.DispatchAsync : null);
     }
 }

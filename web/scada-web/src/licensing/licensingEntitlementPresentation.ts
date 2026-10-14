@@ -3,6 +3,7 @@ export type LicenseEntitlementProjection = {
   interactiveSeats?: number | null;
   viewOnlySeats?: number | null;
   haRuntime?: boolean | null;
+  assetProcessIntelligence?: boolean | null;
 };
 
 export type LicenseEntitlementPresentationCopy = {
@@ -39,4 +40,16 @@ export function displaySignedHaEntitlement(
   if (value === true) return copy.yes;
   if (value === false) return copy.no;
   return license.schemaVersion === 1 ? copy.legacyNotSpecified : copy.none;
+}
+
+export function displaySignedIntelligenceEntitlement(
+  value: boolean | null | undefined,
+  license: LicenseEntitlementProjection,
+  copy: LicenseEntitlementPresentationCopy
+): string {
+  if (value === true) return copy.yes;
+  if (value === false) return copy.no;
+  return license.schemaVersion === 1 || license.schemaVersion === 2
+    ? copy.legacyNotSpecified
+    : copy.none;
 }

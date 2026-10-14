@@ -11,6 +11,7 @@ using Scada.Engineering.Events;
 using Scada.Engineering.Gateways;
 using Scada.Engineering.ImportExport.Handlers;
 using Scada.Engineering.Interactions;
+using Scada.Engineering.Intelligence;
 using Scada.Engineering.Media;
 using Scada.Engineering.Reports;
 using Scada.Engineering.Scripts;
@@ -25,7 +26,7 @@ namespace Scada.Engineering.ImportExport;
 public sealed class EngineeringExchangeService : IEngineeringExchangeService
 {
     public const string CurrentSchema = "scada.engineering";
-    public const int CurrentSchemaVersion = 23;
+    public const int CurrentSchemaVersion = 24;
 
     private readonly ITagRegistry _tags;
     private readonly IAlarmEngine _alarms;
@@ -43,6 +44,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
     private readonly IApplicationBrandingEngineeringRegistry _branding;
     private readonly IMediaSourceEngineeringRegistry _mediaSources;
     private readonly IDriverInteractionEngineeringRegistry _driverInteractions;
+    private readonly IAssetProcessIntelligenceEngineeringRegistry _assetProcessIntelligence;
     private RuntimePresentationEngineeringDto _runtimePresentation = new();
     private readonly JsonSerializerOptions _json;
     private readonly EngineeringCsvExchange _csv;
@@ -177,7 +179,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         IEngineeringLockRegistry? engineeringLock = null,
         IApplicationBrandingEngineeringRegistry? branding = null,
         IMediaSourceEngineeringRegistry? mediaSources = null,
-        IDriverInteractionEngineeringRegistry? driverInteractions = null)
+        IDriverInteractionEngineeringRegistry? driverInteractions = null,
+        IAssetProcessIntelligenceEngineeringRegistry? assetProcessIntelligence = null)
     {
         _tags = tags;
         _alarms = alarms;
@@ -197,6 +200,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _branding = branding ?? new InMemoryApplicationBrandingEngineeringRegistry();
         _mediaSources = mediaSources ?? new InMemoryMediaSourceEngineeringRegistry();
         _driverInteractions = driverInteractions ?? new InMemoryDriverInteractionEngineeringRegistry();
+        _assetProcessIntelligence = assetProcessIntelligence ?? new InMemoryAssetProcessIntelligenceEngineeringRegistry();
         _json = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -282,7 +286,8 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
             TransientEventDefinitions: _driverInteractions.SnapshotTransientEventDefinitions(),
             CapabilityEventReferences: _driverInteractions.SnapshotCapabilityEventReferences(),
             RichCommandDefinitions: _driverInteractions.SnapshotRichCommandDefinitions(),
-            DriverCommandBindings: _driverInteractions.SnapshotDriverCommandBindings());
+            DriverCommandBindings: _driverInteractions.SnapshotDriverCommandBindings(),
+            AssetProcessIntelligence: _assetProcessIntelligence.Snapshot());
     }
 
     public string ExportJson(bool indented = true)
@@ -430,6 +435,7 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _reportHandler.Preview(package, mode, items);
         _mediaSourceHandler.Preview(package, mode, items);
         _driverInteractionHandler.Preview(package, mode, items);
+        PreviewAssetProcessIntelligence(package, items);
         _securityScopeHandler.Preview(package, mode, items);
         _securityPolicyHandler.Preview(package, mode, items);
         PreviewOperationalHmiReferences(package, items);
@@ -545,11 +551,63 @@ public sealed class EngineeringExchangeService : IEngineeringExchangeService
         _reportHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _mediaSourceHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _driverInteractionHandler.Apply(package, mode, ref created, ref updated, ref skipped);
+        if (package.AssetProcessIntelligence is not null)
+        {
+            var intelligence = package.AssetProcessIntelligence;
+            if (context?.PreserveActivatedIntelligenceScopes != true)
+            {
+                intelligence = intelligence with
+                {
+                    Scopes = (intelligence.Scopes ?? Array.Empty<AssetProcessIntelligenceScopeEngineeringDto>())
+                        .Select(scope => scope with { Active = false })
+                        .ToArray()
+                };
+            }
+            var before = _assetProcessIntelligence.Snapshot();
+            if (before == intelligence) skipped++;
+            else
+            {
+                _assetProcessIntelligence.Replace(intelligence);
+                updated++;
+            }
+        }
         _securityScopeHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _securityPolicyHandler.Apply(package, mode, ref created, ref updated, ref skipped);
         _engineeringLock.Replace(package.EngineeringLock);
 
         return new ImportResult(mode, created, updated, skipped, Array.Empty<ImportIssue>());
+    }
+
+    private void PreviewAssetProcessIntelligence(
+        EngineeringPackage package,
+        List<ImportPreviewItem> items)
+    {
+        var incoming = package.AssetProcessIntelligence;
+        if (incoming is null) return;
+
+        var equipment = _assets.SnapshotEquipment()
+            .Concat(package.Equipment ?? Array.Empty<EquipmentEngineeringDto>())
+            .GroupBy(item => item.Id)
+            .Select(group => group.Last())
+            .ToArray();
+        var locations = _assets.SnapshotLocations()
+            .Concat(package.Locations ?? Array.Empty<LocationEngineeringDto>())
+            .GroupBy(item => item.Id)
+            .Select(group => group.Last())
+            .ToArray();
+        var issues = AssetProcessIntelligenceEngineeringValidator.Validate(incoming, equipment, locations)
+            .Select(issue => new ImportIssue(
+                issue.Code,
+                issue.Message,
+                ImportEntityKind.AssetProcessIntelligenceScope,
+                "asset-process-intelligence",
+                true))
+            .ToArray();
+        items.Add(new ImportPreviewItem(
+            ImportEntityKind.AssetProcessIntelligenceScope,
+            "asset-process-intelligence",
+            issues.Length == 0 ? ImportOperation.Update : ImportOperation.Error,
+            issues));
     }
 
     private void PreviewOperationalHmiReferences(

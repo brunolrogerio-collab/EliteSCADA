@@ -45,7 +45,8 @@ public enum ImportEntityKind
     TransientEventDefinition,
     CapabilityEventReference,
     RichCommandDefinition,
-    DriverCommandBinding
+    DriverCommandBinding,
+    AssetProcessIntelligenceScope
 }
 
 public enum SecurityScopeNodeKind
@@ -55,7 +56,8 @@ public enum SecurityScopeNodeKind
     Equipment,
     Tag,
     Screen,
-    Command
+    Command,
+    Location
 }
 
 public enum ImportOperation
@@ -249,6 +251,26 @@ public sealed record LocationEngineeringDto(
     Guid? ParentLocationId = null,
     string? Kind = null,
     Dictionary<string, string>? Metadata = null);
+
+public enum AssetProcessIntelligenceScopeKind
+{
+    Equipment,
+    Location
+}
+
+public sealed record AssetProcessIntelligenceScopeEngineeringDto(
+    AssetProcessIntelligenceScopeKind Kind,
+    Guid ScopeId,
+    bool Active = false);
+
+/// <summary>
+/// Stage 1 scope selection for consultative Asset & Process Intelligence. Active is
+/// persisted with the canonical Engineering revision; execution still requires a
+/// separate process-local activation lease and a currently valid signed entitlement.
+/// </summary>
+public sealed record AssetProcessIntelligenceEngineeringDto(
+    int Version = 1,
+    IReadOnlyCollection<AssetProcessIntelligenceScopeEngineeringDto>? Scopes = null);
 
 public sealed record EquipmentSourceBindingEngineeringDto(
     Guid DataSourceId,
@@ -590,7 +612,8 @@ public sealed record EngineeringPackage(
     IReadOnlyCollection<TransientEventDefinitionEngineeringDto>? TransientEventDefinitions = null,
     IReadOnlyCollection<CapabilityEventReferenceEngineeringDto>? CapabilityEventReferences = null,
     IReadOnlyCollection<RichCommandDefinitionEngineeringDto>? RichCommandDefinitions = null,
-    IReadOnlyCollection<DriverCommandBindingEngineeringDto>? DriverCommandBindings = null);
+    IReadOnlyCollection<DriverCommandBindingEngineeringDto>? DriverCommandBindings = null,
+    AssetProcessIntelligenceEngineeringDto? AssetProcessIntelligence = null);
 
 public sealed record ImportIssue(
     string Code,

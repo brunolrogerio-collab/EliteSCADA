@@ -62,7 +62,7 @@ public sealed class ProductLicensingApiTests
     }
 
     [Fact]
-    public void LicenseStatusProjection_PreservesEslic1LegacyAndEslic2SignedEntitlements()
+    public void LicenseStatusProjection_PreservesEslic1Eslic2AndEslic3SignedEntitlements()
     {
         var issuedAt = DateTimeOffset.Parse("2026-09-24T12:00:00Z");
         var legacyLicense = new EliteScadaLicensePayload(
@@ -78,21 +78,35 @@ public sealed class ProductLicensingApiTests
             SchemaVersion = EliteScadaLicenseCodec.LicenseV2SchemaVersion,
             LicenseId = "v2-license"
         };
+        var v3License = legacyLicense with
+        {
+            SchemaVersion = EliteScadaLicenseCodec.LicenseV3SchemaVersion,
+            LicenseId = "v3-license"
+        };
 
         var legacy = ProductLicensingApi.DescribeLicense(LicenseVerificationResult.Valid(legacyLicense));
         var v2 = ProductLicensingApi.DescribeLicense(LicenseVerificationResult.Valid(
             v2License,
             new MachineLicenseV2Entitlements(ViewOnlySeats: 7, InteractiveSeats: 3, HaRuntime: true)));
+        var v3 = ProductLicensingApi.DescribeLicense(LicenseVerificationResult.Valid(
+            v3License,
+            new MachineLicenseV2Entitlements(ViewOnlySeats: 7, InteractiveSeats: 3, HaRuntime: true),
+            new MachineLicenseV3Entitlements(7, 3, true, true)));
 
         Assert.Equal(EliteScadaLicenseCodec.CurrentSchemaVersion, legacy.SchemaVersion);
         Assert.Null(legacy.ViewOnlySeats);
         Assert.Null(legacy.InteractiveSeats);
         Assert.Null(legacy.HaRuntime);
+        Assert.Null(legacy.AssetProcessIntelligence);
 
         Assert.Equal(EliteScadaLicenseCodec.LicenseV2SchemaVersion, v2.SchemaVersion);
         Assert.Equal(7, v2.ViewOnlySeats);
         Assert.Equal(3, v2.InteractiveSeats);
         Assert.Equal(true, v2.HaRuntime);
+        Assert.Null(v2.AssetProcessIntelligence);
+
+        Assert.Equal(EliteScadaLicenseCodec.LicenseV3SchemaVersion, v3.SchemaVersion);
+        Assert.Equal(true, v3.AssetProcessIntelligence);
     }
 
     [Fact]

@@ -91,6 +91,11 @@ internal sealed class SecurityScopeEngineeringHandler(
                 .Where(item => item is not null && item.Id.HasValue)
                 .Select(item => item!.Id!.Value))
             .ToHashSet();
+        var locationIds = assets.SnapshotLocations().Where(item => item.Id.HasValue).Select(item => item.Id!.Value)
+            .Concat((package.Locations ?? Array.Empty<LocationEngineeringDto>())
+                .Where(item => item is not null && item.Id.HasValue)
+                .Select(item => item!.Id!.Value))
+            .ToHashSet();
         var screenIds = views.SnapshotScreens().Where(item => item.Id.HasValue).Select(item => item.Id!.Value)
             .Concat((package.Screens ?? Array.Empty<ScreenEngineeringDto>())
                 .Where(item => item is not null && item.Id.HasValue)
@@ -114,6 +119,7 @@ internal sealed class SecurityScopeEngineeringHandler(
             {
                 SecurityScopeNodeKind.Tag => tagIds.Contains(scope.ResourceId.Value),
                 SecurityScopeNodeKind.Equipment => equipmentIds.Contains(scope.ResourceId.Value),
+                SecurityScopeNodeKind.Location => locationIds.Contains(scope.ResourceId.Value),
                 SecurityScopeNodeKind.Screen => screenIds.Contains(scope.ResourceId.Value),
                 SecurityScopeNodeKind.Command => commandIds.Contains(scope.ResourceId.Value),
                 _ => true

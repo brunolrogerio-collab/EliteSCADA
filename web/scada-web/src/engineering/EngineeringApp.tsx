@@ -32,6 +32,7 @@ import { VisualEditorWorkspace } from './visual-editor/VisualEditorWorkspace';
 import { VisualAssetManagementWorkspace } from './VisualAssetManagementWorkspace';
 import { EquipmentFaceplateWorkspace } from './EquipmentFaceplateWorkspace';
 import { HomeBuildingWorkspace } from './HomeBuildingWorkspace';
+import { AssetProcessIntelligenceWorkspace } from './AssetProcessIntelligenceWorkspace';
 import type { DynamoEngineering, EngineeringPackageView, EngineeringSnapshot, EquipmentEngineering, TemplateEngineering } from './types';
 import { CanonicalVisualPreview } from './visual-editor/CanonicalVisualPreview';
 import { selectDefaultDynamoCatalog } from './visual-editor/dynamoLibraryModel';
@@ -63,6 +64,7 @@ type SectionId =
   | 'historian'
   | 'reports'
   | 'security'
+  | 'intelligence'
   | 'highAvailability'
   | 'databaseTopology'
   | 'monitor'
@@ -94,7 +96,7 @@ const navigation: NavGroup[] = [
     { id: 'alarms', label: 'nav.alarms' },
     { id: 'operationalEvents', literalLabel: { 'pt-BR': 'Eventos Operacionais', en: 'Operational Events', es: 'Eventos Operacionales' } }
   ] },
-  { label: 'nav.assets', items: [{ id: 'templates', label: 'nav.templates' }, { id: 'equipment', label: 'nav.equipment' }, { id: 'dynamos', label: 'nav.dynamos' }, { id: 'visualAssets', literalLabel: { 'pt-BR': 'Assets visuais', en: 'Visual assets', es: 'Assets visuales' } }] },
+  { label: 'nav.assets', items: [{ id: 'templates', label: 'nav.templates' }, { id: 'equipment', label: 'nav.equipment' }, { id: 'dynamos', label: 'nav.dynamos' }, { id: 'visualAssets', literalLabel: { 'pt-BR': 'Assets visuais', en: 'Visual assets', es: 'Assets visuales' } }, { id: 'intelligence', literalLabel: { 'pt-BR': 'Inteligência de ativos', en: 'Asset intelligence', es: 'Inteligencia de activos' } }] },
   { label: 'nav.visualization', items: [{ id: 'screens', label: 'nav.screens' }, { id: 'popups', label: 'nav.popups' }] },
   { label: 'nav.historian', items: [
     { id: 'historian', label: 'nav.historian' },
@@ -300,6 +302,7 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, onR
   if (section === 'historian') return <HistorianSection model={model} t={t}/>;
   if (section === 'reports') return <ReportDesignerWorkspace snapshot={snapshot} locale={locale} onApplied={onReload}/>;
   if (section === 'security') return <SecuritySection model={model} t={t} locale={locale}/>;
+  if (section === 'intelligence') return <AssetProcessIntelligenceWorkspace locale={locale}/>;
   if (section === 'highAvailability') return <HighAvailabilityAdminWorkspace locale={locale}/>;
   if (section === 'monitor') return <DevelopmentMonitorWorkspace snapshot={snapshot} locale={locale}/>;
   if (section === 'tagMonitor') return <EngineeringTagMonitorWorkspace snapshot={snapshot} locale={locale}/>;
@@ -515,6 +518,7 @@ function sectionCount(model: EngineeringPackageView, section: SectionId): number
     case 'historian': return model.tags.filter(tag => tag.historian?.enabled).length;
     case 'reports': return reportCollection(model).length;
     case 'security': return model.securityRoles?.length ?? 0;
+    case 'intelligence': return '•';
     case 'highAvailability':
     case 'databaseTopology':
     case 'installation':
@@ -585,7 +589,7 @@ function formatDate(value: string, locale: EngineeringLocale) {
 }
 function scriptNavLabel(_locale: EngineeringLocale) { return 'Scripts'; }
 function NavIcon({ section }: { section: SectionId }) {
-  const symbols: Record<SectionId, string> = { overview: '⌂', installation: '⇆', branding: '◐', mobile: '▱', scripts: '</>', libraries: '▱', dataSources: '⇄', homeBuilding: '⌖', mediaSources: '▣', gateway: '⇢', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', visualAssets: '▧', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', highAvailability: '⇄', databaseTopology: '▤', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯', information: 'ⓘ' };
+  const symbols: Record<SectionId, string> = { overview: '⌂', installation: '⇆', branding: '◐', mobile: '▱', scripts: '</>', libraries: '▱', dataSources: '⇄', homeBuilding: '⌖', mediaSources: '▣', gateway: '⇢', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', visualAssets: '▧', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', intelligence: '◎', highAvailability: '⇄', databaseTopology: '▤', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯', information: 'ⓘ' };
   return <i aria-hidden="true">{symbols[section]}</i>;
 }
 

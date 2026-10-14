@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   displayLicenseSchema,
   displaySignedHaEntitlement,
+  displaySignedIntelligenceEntitlement,
   displaySignedSeatTotal
 } from './licensingEntitlementPresentation';
 import './licensing.css';
@@ -18,6 +19,7 @@ type LicenseStatus = {
   viewOnlySeats?: number | null;
   interactiveSeats?: number | null;
   haRuntime?: boolean | null;
+  assetProcessIntelligence?: boolean | null;
   issuedAtUtc?: string | null;
   notAfterUtc?: string | null;
   keyId?: string | null;
@@ -53,7 +55,7 @@ const messages = {
   'pt-BR': {
     title: 'Licenciamento', subtitle: 'Estado da licença, modo Demo e ativação desta máquina.',
     refresh: 'Atualizar', license: 'Licença', runtime: 'Runtime', state: 'Estado', tier: 'Faixa', tags: 'Limite de TAGs',
-    licenseId: 'ID da licença', schema: 'Esquema da licença', interactiveTotal: 'Clientes Runtime Interactive', viewOnlyTotal: 'Clientes Runtime View Only', haRuntime: 'Redundância / HA Runtime',
+    licenseId: 'ID da licença', schema: 'Esquema da licença', interactiveTotal: 'Clientes Runtime Interactive', viewOnlyTotal: 'Clientes Runtime View Only', haRuntime: 'Redundância / HA Runtime', assetProcessIntelligence: 'Asset & Process Intelligence',
     expires: 'Validade', diagnostic: 'Diagnóstico', demoRemaining: 'Demo restante',
     unlimited: 'Ilimitado', none: 'Não informado', legacy: 'legado', legacyNotSpecified: 'Não especificado pela ESLIC1', yes: 'Licenciado', no: 'Não licenciado', machineRequest: 'Solicitação da máquina', requestHelp: 'Copie este código e envie para a autoridade de licenciamento EliteSCADA. Identificadores brutos de hardware não são exibidos.',
     copy: 'Copiar código', copied: 'Código da máquina copiado.', install: 'Instalar licença', licenseCode: 'Código de licença assinado',
@@ -63,7 +65,7 @@ const messages = {
   en: {
     title: 'Licensing', subtitle: 'License state, Demo mode and activation for this machine.',
     refresh: 'Refresh', license: 'License', runtime: 'Runtime', state: 'State', tier: 'Tier', tags: 'TAG limit',
-    licenseId: 'License ID', schema: 'License schema', interactiveTotal: 'Interactive Runtime clients', viewOnlyTotal: 'View Only Runtime clients', haRuntime: 'Runtime redundancy / HA',
+    licenseId: 'License ID', schema: 'License schema', interactiveTotal: 'Interactive Runtime clients', viewOnlyTotal: 'View Only Runtime clients', haRuntime: 'Runtime redundancy / HA', assetProcessIntelligence: 'Asset & Process Intelligence',
     expires: 'Expiry', diagnostic: 'Diagnostic', demoRemaining: 'Demo remaining',
     unlimited: 'Unlimited', none: 'Not provided', legacy: 'legacy', legacyNotSpecified: 'Not specified by ESLIC1', yes: 'Licensed', no: 'Not licensed', machineRequest: 'Machine request', requestHelp: 'Copy this code and send it to the EliteSCADA licensing authority. Raw hardware identifiers are not exposed.',
     copy: 'Copy request', copied: 'Machine request copied.', install: 'Install license', licenseCode: 'Signed license code',
@@ -73,7 +75,7 @@ const messages = {
   es: {
     title: 'Licenciamiento', subtitle: 'Estado de licencia, modo Demo y activación de esta máquina.',
     refresh: 'Actualizar', license: 'Licencia', runtime: 'Runtime', state: 'Estado', tier: 'Nivel', tags: 'Límite de TAGs',
-    licenseId: 'ID de licencia', schema: 'Esquema de licencia', interactiveTotal: 'Clientes Runtime Interactive', viewOnlyTotal: 'Clientes Runtime Solo visualización', haRuntime: 'Redundancia / HA Runtime',
+    licenseId: 'ID de licencia', schema: 'Esquema de licencia', interactiveTotal: 'Clientes Runtime Interactive', viewOnlyTotal: 'Clientes Runtime Solo visualización', haRuntime: 'Redundancia / HA Runtime', assetProcessIntelligence: 'Asset & Process Intelligence',
     expires: 'Validez', diagnostic: 'Diagnóstico', demoRemaining: 'Demo restante',
     unlimited: 'Ilimitado', none: 'No informado', legacy: 'legado', legacyNotSpecified: 'No especificado por ESLIC1', yes: 'Licenciado', no: 'No licenciado', machineRequest: 'Solicitud de la máquina', requestHelp: 'Copie este código y envíelo a la autoridad de licenciamiento EliteSCADA. No se muestran identificadores brutos de hardware.',
     copy: 'Copiar código', copied: 'Código de máquina copiado.', install: 'Instalar licencia', licenseCode: 'Código de licencia firmado',
@@ -206,6 +208,7 @@ export function LicensingApp() {
               <dt>{t.interactiveTotal}</dt><dd data-testid="license-interactive-total">{displaySignedSeatTotal(status.license.interactiveSeats, status.license, t)}</dd>
               <dt>{t.viewOnlyTotal}</dt><dd data-testid="license-view-only-total">{displaySignedSeatTotal(status.license.viewOnlySeats, status.license, t)}</dd>
               <dt>{t.haRuntime}</dt><dd data-testid="license-ha-runtime">{displaySignedHaEntitlement(status.license.haRuntime, status.license, t)}</dd>
+              <dt>{t.assetProcessIntelligence}</dt><dd data-testid="license-asset-process-intelligence">{displaySignedIntelligenceEntitlement(status.license.assetProcessIntelligence, status.license, t)}</dd>
               <dt>{t.licenseId}</dt><dd className="licensing-mono">{status.license.licenseId ?? t.none}</dd>
               <dt>{t.expires}</dt><dd>{displayDate(status.license.notAfterUtc, t.none)}</dd>
               <dt>{t.diagnostic}</dt><dd>{status.license.diagnostic ?? t.none}</dd>
@@ -237,7 +240,7 @@ export function LicensingApp() {
             <h2>{t.install}</h2>
             <form onSubmit={install}>
               <label htmlFor="license-code">{t.licenseCode}</label>
-              <textarea id="license-code" value={licenseCode} onChange={event => setLicenseCode(event.target.value)} placeholder="ESLIC1... / ESLIC2..." />
+              <textarea id="license-code" value={licenseCode} onChange={event => setLicenseCode(event.target.value)} placeholder="ESLIC1... / ESLIC2... / ESLIC3..." />
               <div className="licensing-actions">
                 <button type="submit" disabled={busy || !licenseCode.trim()}>{t.validateInstall}</button>
                 <button type="button" className="licensing-danger" disabled={busy} onClick={() => void remove()}>{t.remove}</button>

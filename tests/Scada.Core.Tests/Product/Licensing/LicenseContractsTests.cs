@@ -80,6 +80,99 @@ public sealed class LicenseContractsTests
         Assert.Equal(LicenseState.Valid, result.State);
         Assert.Equal(LicenseTier.Tags1000, result.License?.Tier);
         Assert.Equal(new MachineLicenseV2Entitlements(7, 3, true), result.SessionEntitlements);
+        Assert.Null(result.V3Entitlements);
+        Assert.False(result.HasAssetProcessIntelligence);
+    }
+
+    [Fact]
+    public void V3SignedLicense_ValidatesExplicitIntelligenceEntitlementWithoutChangingV2()
+    {
+        using var key = RSA.Create(2048);
+        var payload = NewV3License(MachineA, "v3-key", assetProcessIntelligence: true);
+        var code = EliteScadaLicenseCodec.CreateSignedLicenseV3(payload, key);
+
+        var result = EliteScadaLicenseCodec.VerifyLicense(
+            code,
+            MachineA,
+            new Dictionary<string, RSA> { ["v3-key"] = key },
+            payload.IssuedAtUtc.AddMinutes(1));
+
+        Assert.StartsWith("ESLIC3.", code, StringComparison.Ordinal);
+        Assert.Equal(LicenseState.Valid, result.State);
+        Assert.Equal(3, result.License?.SchemaVersion);
+        Assert.Equal(new MachineLicenseV2Entitlements(4, 2, false), result.SessionEntitlements);
+        Assert.Equal(new MachineLicenseV3Entitlements(4, 2, false, true), result.V3Entitlements);
+        Assert.True(result.HasAssetProcessIntelligence);
+    }
+
+    [Fact]
+    public void V1AndV2LicensesNeverInferIntelligenceEntitlement()
+    {
+        using var key = RSA.Create(2048);
+        var v1 = NewLicense(MachineA, LicenseTier.Tags500, "v1-key");
+        var v2 = NewV2License(MachineA, "v2-key", 1, 1, haRuntime: false);
+        var keys = new Dictionary<string, RSA> { ["v1-key"] = key, ["v2-key"] = key };
+
+        var v1Result = EliteScadaLicenseCodec.VerifyLicense(
+            EliteScadaLicenseCodec.CreateSignedLicense(v1, key), MachineA, keys, v1.IssuedAtUtc.AddMinutes(1));
+        var v2Result = EliteScadaLicenseCodec.VerifyLicense(
+            EliteScadaLicenseCodec.CreateSignedLicenseV2(v2, key), MachineA, keys, v2.IssuedAtUtc.AddMinutes(1));
+
+        Assert.False(v1Result.HasAssetProcessIntelligence);
+        Assert.False(v2Result.HasAssetProcessIntelligence);
+    }
+
+    [Theory]
+    [InlineData("schemaVersion")]
+    [InlineData("assetProcessIntelligence")]
+    [InlineData("haRuntime")]
+    public void V3RawSignedLicense_MissingRequiredFieldFailsClosed(string omittedProperty)
+    {
+        using var key = RSA.Create(2048);
+
+        var result = VerifyRawV3(key, RawV3Json(omit: omittedProperty));
+
+        Assert.Equal(LicenseState.Invalid, result.State);
+        Assert.False(result.HasAssetProcessIntelligence);
+    }
+
+    [Theory]
+    [InlineData("assetProcessIntelligence", "\"true\"")]
+    [InlineData("assetProcessIntelligence", "0")]
+    [InlineData("assetProcessIntelligence", "null")]
+    [InlineData("assetProcessIntelligence", "false")]
+    public void V3RawSignedLicense_MalformedOrFalseIntelligenceFailsClosedOrRemainsDenied(
+        string property,
+        string rawValue)
+    {
+        using var key = RSA.Create(2048);
+
+        var result = VerifyRawV3(key, RawV3Json(replacementProperty: property, replacementValue: rawValue));
+
+        if (rawValue == "false")
+        {
+            Assert.Equal(LicenseState.Valid, result.State);
+            Assert.False(result.HasAssetProcessIntelligence);
+        }
+        else
+        {
+            Assert.Equal(LicenseState.Invalid, result.State);
+            Assert.False(result.HasAssetProcessIntelligence);
+        }
+    }
+
+    [Fact]
+    public void V3RawSignedLicense_DuplicateUnknownAndUnsupportedSchemaFailClosed()
+    {
+        using var key = RSA.Create(2048);
+
+        var duplicate = VerifyRawV3(key, RawV3Json(extraProperty: "\"assetProcessIntelligence\":false"));
+        var unknown = VerifyRawV3(key, RawV3Json(extraProperty: "\"unrecognized\":true"));
+        var unsupportedSchema = VerifyRawV3(key, RawV3Json(replacementProperty: "schemaVersion", replacementValue: "2"));
+
+        Assert.Equal(LicenseState.Invalid, duplicate.State);
+        Assert.Equal(LicenseState.Invalid, unknown.State);
+        Assert.Equal(LicenseState.Invalid, unsupportedSchema.State);
     }
 
     [Fact]
@@ -366,6 +459,24 @@ public sealed class LicenseContractsTests
             interactiveSeats,
             haRuntime);
 
+    private static EliteScadaLicenseV3Payload NewV3License(
+        string machine,
+        string keyId,
+        bool assetProcessIntelligence,
+        DateTimeOffset? issuedAt = null) =>
+        new(
+            EliteScadaLicenseCodec.LicenseV3SchemaVersion,
+            Guid.NewGuid().ToString("D"),
+            machine,
+            LicenseTier.Tags1000,
+            issuedAt ?? DateTimeOffset.UtcNow,
+            null,
+            keyId,
+            4,
+            2,
+            false,
+            assetProcessIntelligence);
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = false,
@@ -378,6 +489,20 @@ public sealed class LicenseContractsTests
             MachineA,
             new Dictionary<string, RSA> { ["v2-key"] = key },
             DateTimeOffset.Parse("2026-09-16T12:01:00Z"));
+
+    private static LicenseVerificationResult VerifyRawV3(RSA key, string payloadJson) =>
+        EliteScadaLicenseCodec.VerifyLicense(
+            SignRawV3(key, payloadJson),
+            MachineA,
+            new Dictionary<string, RSA> { ["v3-key"] = key },
+            DateTimeOffset.Parse("2026-09-16T12:01:00Z"));
+
+    private static string SignRawV3(RSA key, string payloadJson)
+    {
+        var payload = System.Text.Encoding.UTF8.GetBytes(payloadJson);
+        var signature = key.SignData(payload, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
+        return $"ESLIC3.{Base64UrlEncode(payload)}.{Base64UrlEncode(signature)}";
+    }
 
     private static string SignRawV2(RSA key, string payloadJson)
     {
@@ -403,6 +528,35 @@ public sealed class LicenseContractsTests
             ("viewOnlySeats", "0"),
             ("interactiveSeats", "0"),
             ("haRuntime", "false")
+        };
+
+        var fields = properties
+            .Where(property => !string.Equals(property.Name, omit, StringComparison.Ordinal))
+            .Select(property => $"\"{property.Name}\":{(string.Equals(property.Name, replacementProperty, StringComparison.Ordinal) ? replacementValue : property.Value)}")
+            .ToList();
+        if (extraProperty is not null)
+            fields.Add(extraProperty);
+        return "{" + string.Join(',', fields) + "}";
+    }
+
+    private static string RawV3Json(
+        string? omit = null,
+        string? replacementProperty = null,
+        string? replacementValue = null,
+        string? extraProperty = null)
+    {
+        var properties = new (string Name, string Value)[]
+        {
+            ("schemaVersion", "3"),
+            ("licenseId", "\"00000000-0000-0000-0000-000000000003\""),
+            ("machineFingerprint", $"\"{MachineA}\""),
+            ("tier", "\"Tags1000\""),
+            ("issuedAtUtc", "\"2026-09-16T12:00:00Z\""),
+            ("keyId", "\"v3-key\""),
+            ("viewOnlySeats", "4"),
+            ("interactiveSeats", "2"),
+            ("haRuntime", "false"),
+            ("assetProcessIntelligence", "true")
         };
 
         var fields = properties

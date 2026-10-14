@@ -46,7 +46,8 @@ export const SECURITY_CAPABILITIES = [
   { value: 11, id: 'EngineeringView', group: 'engineering' },
   { value: 12, id: 'HighAvailabilityObserve', group: 'ha' },
   { value: 13, id: 'HighAvailabilityTransfer', group: 'ha' },
-  { value: 14, id: 'HighAvailabilityAdmin', group: 'ha' }
+  { value: 14, id: 'HighAvailabilityAdmin', group: 'ha' },
+  { value: 15, id: 'AssetProcessIntelligenceManage', group: 'intelligence' }
 ] as const;
 
 export type SecurityCapabilityWire = number | string;

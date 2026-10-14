@@ -17,7 +17,8 @@ export type SecurityCapability =
   | 'SystemAdmin'
   | 'HighAvailabilityObserve'
   | 'HighAvailabilityTransfer'
-  | 'HighAvailabilityAdmin';
+  | 'HighAvailabilityAdmin'
+  | 'AssetProcessIntelligenceManage';
 
 export const AUTHORITY_POLICY_SCHEMA = 'elitescada.authority-policy';
 export const AUTHORITY_POLICY_SCHEMA_VERSION = 1;
@@ -37,7 +38,8 @@ const KNOWN_SECURITY_CAPABILITIES: ReadonlySet<string> = new Set<SecurityCapabil
   'SystemAdmin',
   'HighAvailabilityObserve',
   'HighAvailabilityTransfer',
-  'HighAvailabilityAdmin'
+  'HighAvailabilityAdmin',
+  'AssetProcessIntelligenceManage'
 ]);
 
 export type AuthorityPolicyContract = Readonly<{

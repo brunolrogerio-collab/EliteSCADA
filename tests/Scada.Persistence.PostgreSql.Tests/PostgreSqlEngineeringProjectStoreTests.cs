@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Scada.Persistence.PostgreSql;
 using Scada.Security.Authorization;
 
@@ -44,6 +45,8 @@ public sealed class PostgreSqlEngineeringProjectStoreTests
         if (string.IsNullOrWhiteSpace(connectionString)) return;
 
         await using var store = new PostgreSqlEngineeringProjectStore(connectionString);
+        await using var binding = new PostgreSqlEngineeringInstallationBindingStore(connectionString);
+        await binding.InitializeAsync();
         await store.InitializeAsync();
         await store.InitializeAsync();
 
@@ -95,6 +98,52 @@ public sealed class PostgreSqlEngineeringProjectStoreTests
         Assert.Equal(first.Revision, explicitFirst.Revision);
         Assert.Equal("integration-test", latest.SavedBy);
         Assert.Equal(new[] { second.Revision, first.Revision }, revisions.Select(x => x.Revision).ToArray());
+    }
+
+    [Fact]
+    public async Task Store_PersistsHomeBuildingCanonicalReferencesAcrossRevisionLoad()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ELITESCADA_TEST_POSTGRES");
+        if (string.IsNullOrWhiteSpace(connectionString)) return;
+
+        await using var store = new PostgreSqlEngineeringProjectStore(connectionString);
+        await using var binding = new PostgreSqlEngineeringInstallationBindingStore(connectionString);
+        await binding.InitializeAsync();
+        await store.InitializeAsync();
+
+        var projectKey = $"home-building-{Guid.NewGuid():N}";
+        var dataSourceId = Guid.NewGuid();
+        var tagId = Guid.NewGuid();
+        var equipmentId = Guid.NewGuid();
+        var locationId = Guid.NewGuid();
+        var json = $$"""
+            {
+              "schema": "scada.engineering",
+              "schemaVersion": 23,
+              "exportedAt": "2026-10-13T00:00:00Z",
+              "tags": [{ "id": "{{tagId:D}}", "name": "Occupancy", "path": "Home.Room.Occupancy", "dataType": "boolean", "readOnly": true, "dataSourceId": "{{dataSourceId:D}}", "source": "ha-main", "address": "entity:binary_sensor.room_motion:state" }],
+              "alarms": [],
+              "dataSources": [{ "id": "{{dataSourceId:D}}", "key": "ha-main", "name": "Home Assistant", "driver": "home-assistant", "enabled": true, "settings": {} }],
+              "equipment": [{ "id": "{{equipmentId:D}}", "path": "Home.Room.Motion", "name": "Motion sensor", "locationId": "{{locationId:D}}", "sourceBindings": [{ "dataSourceId": "{{dataSourceId:D}}", "stableDeviceIdentity": "ha-device-42", "role": "primary" }], "capabilities": [{ "id": "occupancy", "kind": "Occupancy", "version": 1, "bindings": [{ "role": "state", "tagId": "{{tagId:D}}" }] }] }],
+              "locations": [{ "id": "{{locationId:D}}", "name": "Apartment", "kind": "Building" }]
+            }
+            """;
+
+        var saved = await store.SaveAsync(projectKey, "Home Building", "scada.engineering", 23, json, "e2e-home-building");
+        var loaded = await store.LoadRevisionAsync(projectKey, saved.Revision);
+
+        Assert.NotNull(loaded);
+        Assert.Equal(23, loaded!.EngineeringSchemaVersion);
+        using var document = JsonDocument.Parse(loaded.EngineeringJson);
+        var root = document.RootElement;
+        var equipment = Assert.Single(root.GetProperty("equipment").EnumerateArray().ToArray());
+        Assert.Equal(equipmentId, equipment.GetProperty("id").GetGuid());
+        Assert.Equal(locationId, equipment.GetProperty("locationId").GetGuid());
+        Assert.Equal(dataSourceId, equipment.GetProperty("sourceBindings")[0].GetProperty("dataSourceId").GetGuid());
+        Assert.Equal("ha-device-42", equipment.GetProperty("sourceBindings")[0].GetProperty("stableDeviceIdentity").GetString());
+        Assert.Equal(tagId, equipment.GetProperty("capabilities")[0].GetProperty("bindings")[0].GetProperty("tagId").GetGuid());
+        Assert.Equal(locationId, root.GetProperty("locations")[0].GetProperty("id").GetGuid());
+        Assert.Equal("Home.Room.Occupancy", root.GetProperty("tags")[0].GetProperty("path").GetString());
     }
 
     [Fact]

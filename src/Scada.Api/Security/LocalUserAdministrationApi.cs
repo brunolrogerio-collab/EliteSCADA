@@ -1,4 +1,5 @@
 using Scada.Api.Realtime;
+using Scada.Api.Licensing;
 using Scada.Api.Runtime;
 using Scada.Engineering.Security;
 using Scada.Security.Audit;
@@ -181,6 +182,7 @@ public static class LocalUserAdministrationApi
             ApiAuditService audit,
             ILocalIdentityStore store,
             TagRealtimeHub realtime,
+            AssetProcessIntelligenceExecutionGate intelligenceGate,
             CancellationToken ct) =>
         {
             var authorization = await AuthorizeAsync(context, security, audit, UpdateAction, id.ToString());
@@ -195,6 +197,7 @@ public static class LocalUserAdministrationApi
                 return UnknownRoles(roles.Unknown);
 
             LocalUserAccount updated;
+            var authorizationChanged = false;
             await using (var mutationLease = await store.AcquireMutationLeaseAsync(ct))
             {
                 var current = await store.FindByIdAsync(id, ct);
@@ -207,6 +210,9 @@ public static class LocalUserAdministrationApi
                     Roles = roles.Normalized,
                     UpdatedAtUtc = NextSecurityVersion(current.UpdatedAtUtc)
                 };
+                authorizationChanged = current.IsEnabled != updated.IsEnabled ||
+                    !current.Roles.ToHashSet(StringComparer.OrdinalIgnoreCase)
+                        .SetEquals(updated.Roles);
 
                 var users = await store.ListAsync(ct);
                 var projected = users.Select(user => user.Id == id ? updated : user).ToArray();
@@ -221,6 +227,9 @@ public static class LocalUserAdministrationApi
                 await store.UpdateAsync(updated, ct);
             }
 
+            // Permits are process-local and intentionally fail closed after an identity
+            // authorization change. Restoring a role never rearms them automatically.
+            if (authorizationChanged) intelligenceGate.InvalidateAll();
             var revokedRealtimeClients = realtime.RevokeSubject(updated.Id.ToString());
             await audit.RecordAsync(
                 context,

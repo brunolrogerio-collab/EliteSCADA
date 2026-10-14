@@ -3,6 +3,7 @@ using Scada.Core.Persistence;
 using System.Security.Cryptography;
 using Scada.Api.Reports;
 using Scada.Api.Runtime;
+using Scada.Api.Licensing;
 using Scada.Core.Abstractions;
 using Scada.Core.Alarms;
 using Scada.Core.Events;
@@ -89,6 +90,7 @@ public static class HistoricalQueryConfiguration
 
         builder.AddHistoricalQueryApiCore();
         builder.AddReportExecutionApiCore();
+        builder.Services.AddScoped<AssetProcessIntelligenceAnalyticsService>();
         builder.Services.AddHostedService<AlarmHistoryPersistenceHostedService>();
         builder.Services.AddHostedService<OperationalEventHistoryPersistenceHostedService>();
         return true;

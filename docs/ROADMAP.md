@@ -42,6 +42,10 @@ Protocol-driver fan-out remains blocked.
 
 # EliteSCADA Roadmap — Wave 15
 
+## Engineering tabular exchange checkpoint — 2026-10-13
+
+Issue #597 is in review on draft PR #598, branch `work/w15-engineering-tabular-import-export`, based on `wave15/corrections-integration@7182eddc10cd6d0958cd5bc51b7a2d61c9331418`. The Main-review follow-up at `20e1583a5e1db609c52f1d2a7f5d2bea5be17dcd` tightens CSV/XLSX header validation across the five supported flat entities and records invariant numeric, blank/null, default, and no-date-v1 semantics in ADR-004. Local focused/full Core tests passed 50/50 and 585/585, API build passed with 0 warnings/errors, Web production build passed with its existing bundle-size advisory, and the targeted Chromium API no-mutation regression passed 1/1. Exact-head T1 [#38487588418](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38487588418) passed on that code head: Core 585/585, Drivers 1,374 passed / 1 skipped, Chromium 16/16, Web/Common/classifier/T1 gate passed; HA and specialized sidecars were skipped by profile. Keep the PR draft/unmerged and do not treat this lane as Wave 15 or FND/FC0 closure; details and caveats are in root [`LAST CHANGE.md`](../LAST%20CHANGE.md) and [`CURRENT-COORDINATOR-HANDOFF.md`](CURRENT-COORDINATOR-HANDOFF.md). The final docs checkpoint receives its own exact-head profile run.
+
 ## Product Owner acceptance update — 2026-10-06
 
 This update supersedes the older current-gate and closure wording below. The product integration is `wave15/corrections-integration@25df20bf562acf6c3d78eb2e953f7010729b7c49` (PR #529 merged). Issues #484 (SVG curation), #501 (Dynamo catalog) and #308 (visual-quality gate) were closed by explicit Product Owner acceptance: the first-party SVG factory/catalog is sufficient without third-party SVGs; the current Dynamo catalog is usable; further visual polish is future work, not a Wave 15 gate. #482, #496, #500, #503 and #445 are also closed.

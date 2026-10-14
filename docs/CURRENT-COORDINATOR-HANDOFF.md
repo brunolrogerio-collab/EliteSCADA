@@ -1,3 +1,15 @@
+# ENGINEERING TABULAR EXCHANGE — MAIN REVIEW FOLLOW-UP — 2026-10-13 21:04 BRT
+
+PR #598 / issue #597 remains `ACTIVE / DRAFT / NO_MERGE`, branch `work/w15-engineering-tabular-import-export`, exact base `wave15/corrections-integration@7182eddc10cd6d0958cd5bc51b7a2d61c9331418`. Code head `20e1583a5e1db609c52f1d2a7f5d2bea5be17dcd` passed exact-head T1 [#38487588418](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38487588418): Core 585/585; Drivers 1,374 passed / 1 skipped / 0 failed; Chromium 16/16; Web, Common, classifier and T1 gate passed. HA and specialized sidecars were skipped by profile.
+
+Main-review follow-up: unsupported headers are rejected for every CSV/XLSX entity with named `InvalidDataException` diagnostics; known headers remain case-insensitive/order-independent. API regression proves Preview and Apply reject an unsupported CSV header without changing workspace version or exported TAGs. Duplicate columns now have named diagnostics. ADR-004 records invariant numeric syntax, blank/null and default semantics, paired fields, shared CSV/XLSX rules, and the absence of date fields in v1.
+
+Evidence on the pushed code head: focused tabular Core 50/50; full Core 585/585; API build 0 warnings/errors; Web production build passed with existing large-chunk advisory; targeted Chromium Preview/Apply API regression 1/1. The first broader local run used `--no-deps`, so its project-restore case lacked the local-auth first-project fixture; the authoritative CI run executed setup and passed all 16 Chromium tests. The disposable local Postgres test container has been removed; stable containers remain healthy.
+
+The final documentation checkpoint is being added after the green code-head T1 and must have its own exact-head profile validation. Keep draft, no merge; this tabular lane remains independent of HOME/BUILDING driver work and does not close Wave 15/FND/FC0.
+
+---
+
 # CURRENT COORDINATOR HANDOFF — WAVE 15 ENGINEERING TABULAR IMPORT/EXPORT — 2026-10-13
 
 > Current work checkpoint; supersedes the 2026-10-06 pointer below. GitHub live remains the coordination authority.

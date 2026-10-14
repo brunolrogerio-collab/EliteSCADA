@@ -1,4 +1,14 @@
-# LATEST ENGINEERING TABULAR EXCHANGE CHECKPOINT — 2026-10-13 18:58 BRT
+# LATEST ENGINEERING TABULAR EXCHANGE CHECKPOINT — 2026-10-13 21:04 BRT
+
+> Main review follow-up is pushed to PR #598. Current branch head: `20e1583a5e1db609c52f1d2a7f5d2bea5be17dcd`; exact base remains `wave15/corrections-integration@7182eddc10cd6d0958cd5bc51b7a2d61c9331418`. GitHub PR #598 stays draft and unmerged.
+
+- CSV/XLSX now reject unsupported headers for each of the five flat entities with an `InvalidDataException` naming the column(s); known headers remain case-insensitive and order-independent. Duplicate-header errors now name the repeated column. API Preview and Apply both reject an unknown column before any workspace version or export changes.
+- ADR-004 now defines the CSV/XLSX lexical contract: invariant numbers, blank/null handling, explicit field defaults, paired-cell rules, and no implicit date semantics in v1. Regression coverage exercises those rules under `pt-BR`, unknown/duplicate headers, and reordered supported headers for CSV and XLSX.
+- Local validation on this code head: focused tabular Core 50/50; full Core 585/585; API build 0 warnings/errors; Web production build passed (existing large-chunk advisory); targeted Chromium API regression 1/1 passed. A broader local attempt with `--no-deps` passed 7 tests and exposed one fixture precondition (a separate restore test expects the first-run project setup); the authoritative full profile then passed its setup and all 16 Chromium tests. Exact-head T1 [#38487588418](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38487588418) **passed** on `20e1583a5e1db609c52f1d2a7f5d2bea5be17dcd`: Core 585/585, Drivers 1,374 passed / 1 skipped / 0 failed, Chromium 16/16, plus Web semantic build, Common sanity, classifier and T1 gate. HA two-process and Matter/Native Zigbee/KNX/Z-Wave sidecars were skipped by this profile. Jobs: [Core/Drivers](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38487588418/job/115604920335), [Chromium](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38487588418/job/115604920213), [Web](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38487588418/job/115604920309), [Common](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38487588418/job/115604920210), [T1 gate](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38487588418/job/115606048493).
+- The one disposable PostgreSQL test container (`elitescada-w15-tabular-e2e-resume-20261013`, bound to `127.0.0.1:15433`) was removed after the browser test. The four stable Docker services remain healthy and untouched.
+- Scope remains flat Engineering collections only. Keep PR #598 draft; no merge, Wave 15 completion, or FND/FC0 claim is authorized by this follow-up. The code head has a green exact-head T1; a final docs-only checkpoint will receive its own profile validation.
+
+# PREVIOUS ENGINEERING TABULAR EXCHANGE CHECKPOINT — 2026-10-13 18:58 BRT
 
 > Current execution snapshot. GitHub is authoritative; PR #598 remains draft and unmerged.
 

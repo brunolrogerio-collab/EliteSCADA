@@ -31,6 +31,7 @@ import { PopupVisualEditorWorkspace } from './visual-editor/PopupVisualEditorWor
 import { VisualEditorWorkspace } from './visual-editor/VisualEditorWorkspace';
 import { VisualAssetManagementWorkspace } from './VisualAssetManagementWorkspace';
 import { EquipmentFaceplateWorkspace } from './EquipmentFaceplateWorkspace';
+import { HomeBuildingWorkspace } from './HomeBuildingWorkspace';
 import type { DynamoEngineering, EngineeringPackageView, EngineeringSnapshot, EquipmentEngineering, TemplateEngineering } from './types';
 import { CanonicalVisualPreview } from './visual-editor/CanonicalVisualPreview';
 import { selectDefaultDynamoCatalog } from './visual-editor/dynamoLibraryModel';
@@ -47,6 +48,7 @@ type SectionId =
   | 'scripts'
   | 'libraries'
   | 'dataSources'
+  | 'homeBuilding'
   | 'mediaSources'
   | 'gateway'
   | 'tags'
@@ -85,6 +87,7 @@ const navigation: NavGroup[] = [
   ] },
   { label: 'nav.communication', items: [
     { id: 'dataSources', label: 'nav.dataSources' },
+    { id: 'homeBuilding', literalLabel: { 'pt-BR': 'Integrações', en: 'Integrations', es: 'Integraciones' } },
     { id: 'mediaSources', literalLabel: { 'pt-BR': 'Fontes de mídia', en: 'Media sources', es: 'Fuentes multimedia' } },
     { id: 'tags', label: 'nav.tags' },
     { id: 'gateway', literalLabel: { 'pt-BR': 'TAG Gateway', en: 'TAG Gateway', es: 'TAG Gateway' } },
@@ -305,6 +308,7 @@ function EngineeringSection({ section, snapshot, productIdentity, t, locale, onR
 
   switch (section) {
     case 'dataSources': return <DataSourceEditor model={model} locale={locale} projectKey={snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace'}/>;
+    case 'homeBuilding': return <HomeBuildingWorkspace snapshot={snapshot} locale={locale} projectKey={snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace'} onApplied={onReload}/>;
     case 'gateway': return <GatewayEngineeringPanel model={model} locale={locale} projectKey={snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace'}/>;
     case 'tags': return <TagEditor model={model} locale={locale} projectKey={snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace'}/>;
     case 'alarms': return <AlarmEditor model={model} locale={locale} projectKey={snapshot.workspace.projectKey ?? snapshot.workspace.projectName ?? 'workspace'}/>;
@@ -496,6 +500,7 @@ function BindingInspection({ bindings, t }: { bindings: Array<{ key: string; kin
 function sectionCount(model: EngineeringPackageView, section: SectionId): number | string {
   switch (section) {
     case 'dataSources': return model.dataSources?.length ?? 0;
+    case 'homeBuilding': return model.equipment?.length ?? 0;
     case 'mediaSources': return model.mediaSources?.length ?? 0;
     case 'gateway': return model.gateways?.length ?? 0;
     case 'tags': return model.tags.length;
@@ -580,7 +585,7 @@ function formatDate(value: string, locale: EngineeringLocale) {
 }
 function scriptNavLabel(_locale: EngineeringLocale) { return 'Scripts'; }
 function NavIcon({ section }: { section: SectionId }) {
-  const symbols: Record<SectionId, string> = { overview: '⌂', installation: '⇆', branding: '◐', mobile: '▱', scripts: '</>', libraries: '▱', dataSources: '⇄', mediaSources: '▣', gateway: '⇢', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', visualAssets: '▧', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', highAvailability: '⇄', databaseTopology: '▤', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯', information: 'ⓘ' };
+  const symbols: Record<SectionId, string> = { overview: '⌂', installation: '⇆', branding: '◐', mobile: '▱', scripts: '</>', libraries: '▱', dataSources: '⇄', homeBuilding: '⌖', mediaSources: '▣', gateway: '⇢', tags: '#', alarms: '!', operationalEvents: '✦', templates: '◇', equipment: '□', dynamos: '◈', visualAssets: '▧', screens: '▣', popups: '▤', historian: '⌁', reports: '▧', security: '◆', highAvailability: '⇄', databaseTopology: '▤', monitor: '◉', tagMonitor: '◫', diagnostics: '⋯', information: 'ⓘ' };
   return <i aria-hidden="true">{symbols[section]}</i>;
 }
 

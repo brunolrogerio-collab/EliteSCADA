@@ -224,6 +224,7 @@ def main() -> int:
         reference = temp / "ha-reference.json"
         proc_a = proc_b = None
         a_paused = False
+        a_stopped = False
         out_a = log_a.open("w", encoding="utf-8")
         out_b = log_b.open("w", encoding="utf-8")
         try:
@@ -382,8 +383,18 @@ def main() -> int:
             assert replay_status == 401, (replay_status, replay_payload)
             assert replay_payload["code"] == "peer-auth-replay", replay_payload
 
-            os.kill(proc_a.pid, signal.SIGSTOP)
-            a_paused = True
+            if hasattr(signal, "SIGSTOP") and hasattr(signal, "SIGCONT"):
+                os.kill(proc_a.pid, signal.SIGSTOP)
+                a_paused = True
+                stop_method = "process-suspend"
+            else:
+                # Windows has no SIGSTOP. Terminate A and restart the same node
+                # after its persisted lease expires; this exercises the production
+                # same-NodeId restart recovery path instead of skipping reconnect.
+                terminate(proc_a)
+                proc_a = None
+                a_stopped = True
+                stop_method = "process-restart"
             stale_topology = wait_topology(
                 B_URL,
                 "node-a",
@@ -415,8 +426,20 @@ def main() -> int:
             )
             assert post_expiry["effectiveActiveNodeId"] != "node-b", post_expiry
 
-            os.kill(proc_a.pid, signal.SIGCONT)
-            a_paused = False
+            if a_paused:
+                os.kill(proc_a.pid, signal.SIGCONT)
+                a_paused = False
+            elif a_stopped:
+                proc_a = subprocess.Popen(
+                    ["dotnet", str(API_DLL)],
+                    cwd=ROOT,
+                    env=node_env("node-a", A_URL, B_URL, state_a, reference),
+                    stdout=out_a,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                )
+                wait_health(A_URL)
+                a_stopped = False
             resynced_topology = wait_topology(
                 B_URL,
                 "node-a",
@@ -445,6 +468,7 @@ def main() -> int:
                 },
                 "replay": {"httpStatus": replay_status, "code": replay_payload["code"]},
                 "disconnect": {
+                    "method": stop_method,
                     "peerFresh": node(stale_topology, "node-a")["fresh"],
                     "standbyPromoted": stale_topology["effectiveActiveNodeId"] == "node-b",
                     "referenceLeaseExpired": expired_reference is not None,
@@ -468,7 +492,7 @@ def main() -> int:
             print(tail(log_b), file=sys.stderr)
             raise
         finally:
-            if a_paused and proc_a is not None and proc_a.poll() is None:
+            if a_paused and proc_a is not None and proc_a.poll() is None and hasattr(signal, "SIGCONT"):
                 os.kill(proc_a.pid, signal.SIGCONT)
             terminate(proc_a)
             terminate(proc_b)

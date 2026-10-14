@@ -53,7 +53,10 @@ PATH_RULES = (
         "web/scada-web/src/engineering/visual-editor/",
         "visual-editor", "screen-editor", "visualeditorworkspace", "popupvisualeditorworkspace",
     )),
-    ("AUTHORITY_UX", ("web/scada-web/src/security/", "effective-capabilities", "user-administration", "security.spec")),
+    ("AUTHORITY_UX", (
+        "web/scada-web/src/security/", "effective-capabilities", "user-administration", "security.spec",
+        "web/scada-web/src/engineering/assetprocessintelligenceworkspace",
+    )),
     ("LICENSING_UX", ("web/scada-web/src/licensing/", "license-generator")),
     ("ELITEGO_RUNTIME", ("elitego",)),
     ("DATABASE_TOPOLOGY", (
@@ -69,6 +72,7 @@ PATH_RULES = (
     ("HA_DISTRIBUTED", (
         "highavailability", "high-availability", "/ha/", "distributedruntimefoundation",
         "tests/scada.drivers.tests/authoritypolicypostgresqlhatests.cs",
+        "web/scada-web/src/engineering/assetprocessintelligenceworkspace",
     )),
     ("EEE_PACKAGE", (".escadapkg", "projectpackage", "eee/", "export")),
     ("DRIVER_PROTOCOL", ("src/scada.drivers/", "driverhost", "gateway", "interop-lab/", "communication/")),
@@ -122,6 +126,9 @@ E2E_PROFILE_DEFAULTS = {
 E2E_PATH_RULES = (
     (("web/scada-web/src/database-topology/",), ("tests-e2e/database-topology-mounted.spec.ts",)),
     (("web/scada-web/src/engineering/ha/",), ("tests-e2e/ha-admin-workspace.spec.ts",)),
+    (("web/scada-web/src/engineering/assetprocessintelligenceworkspace",), (
+        "tests-e2e/wave-15-intelligence-permit-rearm-mounted.spec.ts",
+    )),
     (("web/scada-web/src/runtime/application/",), (
         "tests-e2e/runtime.spec.ts", "tests-e2e/wave-14-c25-runtime-session.spec.ts",
     )),

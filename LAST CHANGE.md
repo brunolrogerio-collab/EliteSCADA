@@ -1,3 +1,14 @@
+# LATEST COORDINATION CHECKPOINT — INTELLIGENCE STAGE 1 COMPLETE / HA-D2 AUDIT — 2026-10-14
+
+> Live product integration: `wave15/corrections-integration@63eec15923975d88e61e68c82e18eab57218e6de`. Revalidate GitHub before any later write or integration.
+
+- PR [#609](https://github.com/brunolrogerio-collab/EliteSCADA/pull/609) merged at `63eec15923975d88e61e68c82e18eab57218e6de`. Stage 1 Authority permit fencing/recovery is integrated for shared and isolated per-node product databases using the existing shared HA reference authority and its documented deployment preconditions.
+- Exact PR-head T1 [#38627660056](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38627660056) passed on `dbe52b7983e40a7c63d94101f3a835a6887565f6`. Exact post-merge CI [#38628473099](https://github.com/brunolrogerio-collab/EliteSCADA/actions/runs/38628473099) passed on the merge SHA: backend build/test/runtime smoke, Web build, and Chromium merge integration smoke passed. The full browser E2E step was skipped and is not claimed.
+- Evidence limits: restart/crash boundaries were simulated by reconstructing stores/coordinators over persisted state, not by killing OS processes at every boundary; isolated-database process evidence used separate DB names on one disposable PostgreSQL server, not separate PostgreSQL servers. The post-merge CI was not a new full-repository-suite run.
+- Issue #608 is closed with its evidence and limits; product parent #588 was updated. Stage 3B and Intelligence Stages 3–6 remain unauthorized. This does not close FND, FC0, or Wave 15.
+- Next Main action: read-only acceptance audit of #423 against this exact integration SHA. HA-D1 #421 is closed via #443, and HA-D2A/D2B plus HA/Remote-DB convergence contain integrated components via #463; the audit maps each remaining #423 criterion to source, tests, and exact CI before any bounded implementation decision. The order is recorded in [#423](https://github.com/brunolrogerio-collab/EliteSCADA/issues/423#issuecomment-6180479049) and [#305](https://github.com/brunolrogerio-collab/EliteSCADA/issues/305#issuecomment-6180482236). No code/merge authorization is currently issued by that audit.
+- The shared/isolated database proof above is scoped to Intelligence Authority-policy fencing; it is not blanket evidence for every HA store or persistence topology.
+
 # LATEST POST-MERGE CHECKPOINT — ASSET & PROCESS INTELLIGENCE STAGE 3A #604 — 2026-10-14
 
 > PR [#605](https://github.com/brunolrogerio-collab/EliteSCADA/pull/605) merged into `wave15/corrections-integration` at `bbbfb84693d512e5cdc4e1a504b60f492ff88b37`. Required pre-merge base: `49764e5dfd23be2f57bfd8ff87081064a776a182`; PR head: `c35921bbbc2cf979b62441dbfefe3121596f5d1d`. GitHub and exact-SHA Actions evidence are authoritative.
@@ -20,7 +31,7 @@
 - Final pre-merge head `e0512c2f218f0ebbaf909a6650231e53123459a1` passed exact-head T1 #38488509219: Core 585/585; Drivers 1,374 passed / 1 skipped / 0 failed; Chromium 16/16; Web semantic build, Common sanity, classifier and T1 gate passed. HA and specialized sidecars were skipped by profile.
 - Exact post-merge EliteSCADA CI #38489137716 passed on merge SHA `3883b86cdf5cbfff74af92519eaa568aece005b4`: Backend build/test/runtime smoke passed (Core 585, Engineering 126, Drivers 1,374, Security 42; no failures); Web build passed; Chromium merge integration smoke 13/13 passed. Full-browser E2E was skipped by workflow conditions.
 - The `--no-deps` local E2E attempt had 7 passes and 1 fixture-dependent failure because it bypassed first-project bootstrap; the complete T1 Chromium profile passed 16/16. The disposable database was removed; stable containers were untouched.
-- Issue #597's implementation and post-merge verification are complete. This integration does not close Wave 15 or FND/FC0 and does not claim HA/sidecar validation. Next in the recorded product sequence is #472 F5/F6, after live issue/base revalidation.
+- Issue #597's implementation and post-merge verification are complete. Its next Home/Building foundation step, #472 F5/F6, was subsequently delivered by PR #600 at merge SHA `f2668881e9866e8152be4c9e061320e48e9b456b`; post-merge CI #38495789417 passed. This integration does not close Wave 15 or FND/FC0 and does not claim HA/sidecar validation. See the latest coordination checkpoint above for the current next action.
 
 # HISTORICAL PRE-MERGE REVIEW CHECKPOINT — ENGINEERING TABULAR EXCHANGE — 2026-10-13 21:09 BRT
 

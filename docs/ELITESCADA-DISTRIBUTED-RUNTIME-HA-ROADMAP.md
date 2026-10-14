@@ -7,6 +7,10 @@
 
 > This roadmap records product direction. It does not authorize merges, bypass current Wave governance, or make every future phase part of C25. GitHub live state and the active checkpoint ledger remain the execution authority.
 
+### Wave 15 authority and supersession note — 2026-10-14
+
+This document's implementation sequence below is the historical Wave 14 / C25 baseline. For current Wave 15 HA execution, GitHub issues [#299](https://github.com/brunolrogerio-collab/EliteSCADA/issues/299) and [#423](https://github.com/brunolrogerio-collab/EliteSCADA/issues/423) supersede any conflicting sequencing or exclusion here: Wave 15 authorizes conservative automatic failover/failback after its readiness, fencing, reference-authority, session-continuity and no-duplicate-effects safeguards. In particular, the C25-era statement that automatic failover is out of scope until manual transfer is proven is historical, not a current Wave 15 restriction. HA-D2 acceptance remains pending its two-process evidence and integration; this note does not claim HA-D2 or Wave 15 complete.
+
 ## 1. Product invariants
 
 The evolution to distributed Runtime and High Availability must preserve these invariants:

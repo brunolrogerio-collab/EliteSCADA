@@ -245,7 +245,11 @@ app.MapRuntimeEngineeringPackageEndpoints();
 if (localIdentityEnabled) app.MapInstallationDetachEndpoints();
 app.MapRuntimeHighAvailabilityEndpoints();
 app.MapRuntimeHighAvailabilityPeerTransportEndpoints();
-if (historicalQueryEnabled) app.MapHistoricalQueryEndpoints();
+if (historicalQueryEnabled)
+{
+    app.MapHistoricalQueryEndpoints();
+    app.MapAssetProcessIntelligenceAnalyticsEndpoints();
+}
 
 // Public health intentionally exposes no plant, driver, project or historian detail.
 app.MapGet("/health", () => Results.Ok(new

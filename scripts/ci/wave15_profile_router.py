@@ -66,7 +66,10 @@ PATH_RULES = (
         "web/scada-web/src/engineering/installationswitchingworkspace",
         "src/scada.api/installation/",
     )),
-    ("HA_DISTRIBUTED", ("highavailability", "high-availability", "/ha/", "distributedruntimefoundation")),
+    ("HA_DISTRIBUTED", (
+        "highavailability", "high-availability", "/ha/", "distributedruntimefoundation",
+        "tests/scada.drivers.tests/authoritypolicypostgresqlhatests.cs",
+    )),
     ("EEE_PACKAGE", (".escadapkg", "projectpackage", "eee/", "export")),
     ("DRIVER_PROTOCOL", ("src/scada.drivers/", "driverhost", "gateway", "interop-lab/", "communication/")),
     ("DOCS_I18N_HELP", ("docs/", "readme", "web/scada-web/src/help/", "contextualhelp")),
@@ -156,6 +159,7 @@ HA_TWO_PROCESS_FRAGMENTS = (
     "src/scada.api/runtime/distributedruntimefoundation",
     "src/scada.security/authorization/runtimesessionleasestore",
     "tests/scada.drivers.tests/runtimehighavailability",
+    "tests/scada.drivers.tests/authoritypolicypostgresqlhatests.cs",
     "scripts/ci/ha_d1_two_process_evidence.py",
 )
 

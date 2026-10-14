@@ -94,6 +94,15 @@ class Wave15ProfileRouterTests(unittest.TestCase):
         self.assertFalse(result["run_e2e"])
         self.assertTrue(result["run_ha_two_process"])
 
+    def test_authority_policy_postgres_ha_evidence_runs_postgres_and_two_process_profiles(self):
+        result = self.classify(
+            ["tests/Scada.Drivers.Tests/AuthorityPolicyPostgreSqlHaTests.cs"],
+            "VALIDATION_PROFILE: HA_DISTRIBUTED",
+        )
+        self.assertIn("HA_DISTRIBUTED", result["effective_profiles"])
+        self.assertIn(router.DRIVERS, result["dotnet_projects"])
+        self.assertTrue(result["run_ha_two_process"])
+
     def test_ha_admin_ui_is_not_full_ui_editor_and_skips_two_process(self):
         result = self.classify(
             ["web/scada-web/src/engineering/ha/HighAvailabilityAdminWorkspace.tsx"],

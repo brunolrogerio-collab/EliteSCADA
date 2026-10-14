@@ -401,6 +401,32 @@ public sealed class AssetProcessIntelligenceAnalyticsTests
     }
 
     [Fact]
+    public async Task AuthorityPermitRevocationCancelsInFlightReadAndDiscardsItsRows()
+    {
+        using var fixture = Fixture.Create();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Historian.RespondAsync = async (request, cancellationToken) =>
+        {
+            started.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return Response(request,
+                [Row(fixture.Tag.Id, FromUtc.AddMinutes(1), "Good", HistoricalQueryValue.FromDouble(5))]);
+        };
+
+        var task = fixture.ExecuteAsync();
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        // AuthorityPolicyHaCoordinator invalidates all active permits before it persists
+        // and replicates a policy mutation; the in-flight analytics request must observe it.
+        fixture.Gate.InvalidateAll();
+        var result = await task.WaitAsync(TimeSpan.FromSeconds(3));
+
+        AssertStatus(StatusCodes.Status409Conflict, result);
+        Assert.Equal(1, fixture.Historian.Calls);
+        Assert.IsNotType<AssetProcessIntelligenceAnalyticsResponse>(
+            Assert.IsAssignableFrom<IValueHttpResult>(result).Value);
+    }
+
+    [Fact]
     public async Task ExactObservationCapIsAcceptedOnlyWhenPaginationHasEnded()
     {
         using var complete = Fixture.Create();
